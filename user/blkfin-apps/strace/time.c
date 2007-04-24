@@ -38,48 +38,94 @@
 #include <linux/rtc.h>
 #endif /* LINUX */
 
-void
-printtv(tcp, addr)
-struct tcb *tcp;
-long addr;
+struct timeval32
 {
-	struct timeval tv;
+	u_int32_t tv_sec, tv_usec;
+};
 
+static void
+tprint_timeval32(struct tcb *tcp, const struct timeval32 *tv)
+{
+	tprintf("{%u, %u}", tv->tv_sec, tv->tv_usec);
+}
+
+static void
+tprint_timeval(struct tcb *tcp, const struct timeval *tv)
+{
+	tprintf("{%lu, %lu}",
+		(unsigned long) tv->tv_sec, (unsigned long) tv->tv_usec);
+}
+
+void
+printtv_bitness(struct tcb *tcp, long addr, enum bitness_t bitness)
+{
 	if (addr == 0)
 		tprintf("NULL");
 	else if (!verbose(tcp))
 		tprintf("%#lx", addr);
-	else if (umove(tcp, addr, &tv) < 0)
-		tprintf("{...}");
 	else
-		tprintf("{%lu, %lu}", (long) tv.tv_sec, (long) tv.tv_usec);
-}
+	{
+		int     rc;
 
-#ifdef ALPHA
-struct timeval32
-{
-    unsigned tv_sec;
-    unsigned tv_usec;
-};
+		if (bitness == BITNESS_32
+#if defined(LINUX) && SUPPORTED_PERSONALITIES > 1
+		    || personality_wordsize[current_personality] == 4
+#endif
+			)
+		{
+			struct timeval32 tv;
+
+			if ((rc = umove(tcp, addr, &tv)) >= 0)
+				tprint_timeval32(tcp, &tv);
+		} else
+		{
+			struct timeval tv;
+
+			if ((rc = umove(tcp, addr, &tv)) >= 0)
+				tprint_timeval(tcp, &tv);
+		}
+
+		if (rc < 0)
+			tprintf("{...}");
+	}
+}
 
 void
-printtv32(tcp, addr)
-struct tcb *tcp;
-long addr;
+sprinttv(struct tcb *tcp, long addr, enum bitness_t bitness, char *buf)
 {
-    struct timeval32  tv;
+	if (addr == 0)
+		strcpy(buf, "NULL");
+	else if (!verbose(tcp))
+		sprintf(buf, "%#lx", addr);
+	else
+	{
+		int     rc;
 
-    if (addr == 0)
-	tprintf("NULL");
-    else if (!verbose(tcp))
-	tprintf("%#lx", addr);
-    else if (umove(tcp, addr, &tv) < 0)
-	tprintf("{...}");
-    else
-	tprintf("{%u, %u}", tv.tv_sec, tv.tv_usec);
-}
+		if (bitness == BITNESS_32
+#if defined(LINUX) && SUPPORTED_PERSONALITIES > 1
+		    || personality_wordsize[current_personality] == 4
 #endif
+			)
+		{
+			struct timeval32 tv;
 
+			if ((rc = umove(tcp, addr, &tv)) >= 0)
+				sprintf(buf, "{%u, %u}",
+					tv.tv_sec, tv.tv_usec);
+		} else
+		{
+			struct timeval tv;
+
+			if ((rc = umove(tcp, addr, &tv)) >= 0)
+				sprintf(buf, "{%lu, %lu}",
+					(unsigned long) tv.tv_sec,
+					(unsigned long) tv.tv_usec);
+		}
+
+		if (rc < 0)
+			strcpy(buf, "{...}");
+	}
+}
 
 int
 sys_time(tcp)
@@ -134,10 +180,10 @@ struct tcb *tcp;
 		    tcp->u_arg[0], tcp->u_arg[1]);
 	    return 0;
 	}
-	printtv32(tcp, tcp->u_arg[0]);
+	printtv_bitness(tcp, tcp->u_arg[0], BITNESS_32);
 #ifndef SVR4
 	tprintf(", ");
-	printtv32(tcp, tcp->u_arg[1]);
+	printtv_bitness(tcp, tcp->u_arg[1], BITNESS_32);
 #endif /* !SVR4 */
     }
     return 0;
@@ -164,10 +210,10 @@ sys_osf_settimeofday(tcp)
 struct tcb *tcp;
 {
     if (entering(tcp)) {
-	printtv32(tcp, tcp->u_arg[0]);
+	printtv_bitness(tcp, tcp->u_arg[0], BITNESS_32);
 #ifndef SVR4
 	tprintf(", ");
-	printtv32(tcp, tcp->u_arg[1]);
+	printtv_bitness(tcp, tcp->u_arg[1], BITNESS_32);
 #endif /* !SVR4 */
     }
     return 0;
@@ -198,51 +244,52 @@ static const struct xlat which[] = {
 };
 
 static void
-printitv(tcp, addr)
-struct tcb *tcp;
-long addr;
+printitv_bitness(struct tcb *tcp, long addr, enum bitness_t bitness)
 {
-	struct itimerval itv;
-
 	if (addr == 0)
 		tprintf("NULL");
 	else if (!verbose(tcp))
 		tprintf("%#lx", addr);
-	else if (umove(tcp, addr, &itv) < 0)
-		tprintf("{...}");
-	else {
-		tprintf("{it_interval={%lu, %lu}, it_value={%lu, %lu}}",
-		(long) itv.it_interval.tv_sec, (long) itv.it_interval.tv_usec,
-		(long) itv.it_value.tv_sec, (long) itv.it_value.tv_usec);
+	else
+	{
+		int     rc;
+
+		if (bitness == BITNESS_32
+#if defined(LINUX) && SUPPORTED_PERSONALITIES > 1
+		    || personality_wordsize[current_personality] == 4
+#endif
+			)
+		{
+			struct
+			{
+				struct timeval32 it_interval, it_value;
+			} itv;
+
+			if ((rc = umove(tcp, addr, &itv)) >= 0)
+				tprintf("{it_interval=");
+				tprint_timeval32(tcp, &itv.it_interval);
+				tprintf(", it_value=");
+				tprint_timeval32(tcp, &itv.it_value);
+				tprintf("}");
+		} else
+		{
+			struct itimerval itv;
+
+			if ((rc = umove(tcp, addr, &itv)) >= 0)
+				tprintf("{it_interval=");
+				tprint_timeval(tcp, &itv.it_interval);
+				tprintf(", it_value=");
+				tprint_timeval(tcp, &itv.it_value);
+				tprintf("}");
+		}
+
+		if (rc < 0)
+			tprintf("{...}");
 	}
 }
 
-
-#ifdef ALPHA
-static void
-printitv32(tcp, addr)
-struct tcb *tcp;
-long addr;
-{
-    struct itimerval32
-    {
-	struct timeval32 it_interval;
-	struct timeval32 it_value;
-    } itv;
-
-    if (addr == 0)
-	tprintf("NULL");
-    else if (!verbose(tcp))
-	tprintf("%#lx", addr);
-    else if (umove(tcp, addr, &itv) < 0)
-	tprintf("{...}");
-    else {
-	tprintf("{it_interval={%u, %u}, it_value={%u, %u}}",
-		itv.it_interval.tv_sec, itv.it_interval.tv_usec,
-		itv.it_value.tv_sec, itv.it_value.tv_usec);
-    }
-}
-#endif
+#define printitv(tcp, addr)	\
+	printitv_bitness((tcp), (addr), BITNESS_CURRENT)
 
 int
 sys_getitimer(tcp)
@@ -273,7 +320,7 @@ struct tcb *tcp;
 	if (syserror(tcp))
 	    tprintf("%#lx", tcp->u_arg[1]);
 	else
-	    printitv32(tcp, tcp->u_arg[1]);
+	    printitv_bitness(tcp, tcp->u_arg[1], BITNESS_32);
     }
     return 0;
 }
@@ -305,13 +352,13 @@ struct tcb *tcp;
     if (entering(tcp)) {
 	printxval(which, tcp->u_arg[0], "ITIMER_???");
 	tprintf(", ");
-	printitv32(tcp, tcp->u_arg[1]);
+	printitv_bitness(tcp, tcp->u_arg[1], BITNESS_32);
 	tprintf(", ");
     } else {
 	if (syserror(tcp))
 	    tprintf("%#lx", tcp->u_arg[2]);
 	else
-	    printitv32(tcp, tcp->u_arg[2]);
+	    printitv_bitness(tcp, tcp->u_arg[2], BITNESS_32);
     }
     return 0;
 }
@@ -319,44 +366,207 @@ struct tcb *tcp;
 
 #ifdef LINUX
 
-int
-sys_adjtimex(tcp)
-struct tcb *tcp;
-{
-	struct timex txc;
+static const struct xlat adjtimex_modes[] = {
+  { 0, "0" },
+#ifdef ADJ_OFFSET
+  { ADJ_OFFSET, "ADJ_OFFSET" },
+#endif
+#ifdef ADJ_FREQUENCY
+  { ADJ_FREQUENCY, "ADJ_FREQUENCY" },
+#endif
+#ifdef ADJ_MAXERROR
+  { ADJ_MAXERROR, "ADJ_MAXERROR" },
+#endif
+#ifdef ADJ_ESTERROR
+  { ADJ_ESTERROR, "ADJ_ESTERROR" },
+#endif
+#ifdef ADJ_STATUS
+  { ADJ_STATUS, "ADJ_STATUS" },
+#endif
+#ifdef ADJ_TIMECONST
+  { ADJ_TIMECONST, "ADJ_TIMECONST" },
+#endif
+#ifdef ADJ_TICK
+  { ADJ_TICK, "ADJ_TICK" },
+#endif
+#ifdef ADJ_OFFSET_SINGLESHOT
+  { ADJ_OFFSET_SINGLESHOT, "ADJ_OFFSET_SINGLESHOT" },
+#endif
+  { 0,             NULL }
+};
 
+static const struct xlat adjtimex_status[] = {
+#ifdef STA_PLL
+  { STA_PLL, "STA_PLL" },
+#endif
+#ifdef STA_PPSFREQ
+  { STA_PPSFREQ, "STA_PPSFREQ" },
+#endif
+#ifdef STA_PPSTIME
+  { STA_PPSTIME, "STA_PPSTIME" },
+#endif
+#ifdef STA_FLL
+  { STA_FLL, "STA_FLL" },
+#endif
+#ifdef STA_INS
+  { STA_INS, "STA_INS" },
+#endif
+#ifdef STA_DEL
+  { STA_DEL, "STA_DEL" },
+#endif
+#ifdef STA_UNSYNC
+  { STA_UNSYNC, "STA_UNSYNC" },
+#endif
+#ifdef STA_FREQHOLD
+  { STA_FREQHOLD, "STA_FREQHOLD" },
+#endif
+#ifdef STA_PPSSIGNAL
+  { STA_PPSSIGNAL, "STA_PPSSIGNAL" },
+#endif
+#ifdef STA_PPSJITTER
+  { STA_PPSJITTER, "STA_PPSJITTER" },
+#endif
+#ifdef STA_PPSWANDER
+  { STA_PPSWANDER, "STA_PPSWANDER" },
+#endif
+#ifdef STA_PPSERROR
+  { STA_PPSERROR, "STA_PPSERROR" },
+#endif
+#ifdef STA_CLOCKERR
+  { STA_CLOCKERR, "STA_CLOCKERR" },
+#endif
+  { 0,             NULL }
+};
+
+static const struct xlat adjtimex_state[] = {
+#ifdef TIME_OK
+  { TIME_OK, "TIME_OK" },
+#endif
+#ifdef TIME_INS
+  { TIME_INS, "TIME_INS" },
+#endif
+#ifdef TIME_DEL
+  { TIME_DEL, "TIME_DEL" },
+#endif
+#ifdef TIME_OOP
+  { TIME_OOP, "TIME_OOP" },
+#endif
+#ifdef TIME_WAIT
+  { TIME_WAIT, "TIME_WAIT" },
+#endif
+#ifdef TIME_ERROR
+  { TIME_ERROR, "TIME_ERROR" },
+#endif
+  { 0,             NULL }
+};
+
+#if SUPPORTED_PERSONALITIES > 1
+static int
+tprint_timex32(struct tcb *tcp, long addr)
+{
+	struct
+	{
+		unsigned int modes;
+		int     offset;
+		int     freq;
+		int     maxerror;
+		int     esterror;
+		int     status;
+		int     constant;
+		int     precision;
+		int     tolerance;
+		struct timeval32 time;
+		int     tick;
+		int     ppsfreq;
+		int     jitter;
+		int     shift;
+		int     stabil;
+		int     jitcnt;
+		int     calcnt;
+		int     errcnt;
+		int     stbcnt;
+	} tx;
+
+	if (umove(tcp, addr, &tx) < 0)
+		return -1;
+
+	tprintf("{modes=");
+	printflags(adjtimex_modes, tx.modes, "ADJ_???");
+	tprintf(", offset=%d, freq=%d, maxerror=%d, ",
+		tx.offset, tx.freq, tx.maxerror);
+	tprintf("esterror=%u, status=", tx.esterror);
+	printflags(adjtimex_status, tx.status, "STA_???");
+	tprintf(", constant=%d, precision=%u, ",
+		tx.constant, tx.precision);
+	tprintf("tolerance=%d, time=", tx.tolerance);
+	tprint_timeval32(tcp, &tx.time);
+	tprintf(", tick=%d, ppsfreq=%d, jitter=%d",
+		tx.tick, tx.ppsfreq, tx.jitter);
+	tprintf(", shift=%d, stabil=%d, jitcnt=%d",
+		tx.shift, tx.stabil, tx.jitcnt);
+	tprintf(", calcnt=%d, errcnt=%d, stbcnt=%d",
+		tx.calcnt, tx.errcnt, tx.stbcnt);
+	tprintf("}");
+	return 0;
+}
+#endif /* SUPPORTED_PERSONALITIES > 1 */
+
+static int
+tprint_timex(struct tcb *tcp, long addr)
+{
+	struct timex tx;
+
+#if SUPPORTED_PERSONALITIES > 1
+	if (personality_wordsize[current_personality] == 4)
+		return tprint_timex32(tcp, addr);
+#endif
+	if (umove(tcp, addr, &tx) < 0)
+		return -1;
+
+#if LINUX_VERSION_CODE < 66332
+	tprintf("{mode=%d, offset=%ld, frequency=%ld, ",
+		tx.mode, tx.offset, tx.frequency);
+	tprintf("maxerror=%ld, esterror=%lu, status=%u, ",
+		tx.maxerror, tx.esterror, tx.status);
+	tprintf("time_constant=%ld, precision=%lu, ",
+		tx.time_constant, tx.precision);
+	tprintf("tolerance=%ld, time=", tx.tolerance);
+	tprint_timeval(tcp, &tx.time);
+#else
+	tprintf("{modes=");
+	printflags(adjtimex_modes, tx.modes, "ADJ_???");
+	tprintf(", offset=%ld, freq=%ld, maxerror=%ld, ",
+		tx.offset, tx.freq, tx.maxerror);
+	tprintf("esterror=%lu, status=", tx.esterror);
+	printflags(adjtimex_status, tx.status, "STA_???");
+	tprintf(", constant=%ld, precision=%lu, ",
+		tx.constant, tx.precision);
+	tprintf("tolerance=%ld, time=", tx.tolerance);
+	tprint_timeval(tcp, &tx.time);
+	tprintf(", tick=%ld, ppsfreq=%ld, jitter=%ld",
+		tx.tick, tx.ppsfreq, tx.jitter);
+	tprintf(", shift=%d, stabil=%ld, jitcnt=%ld",
+		tx.shift, tx.stabil, tx.jitcnt);
+	tprintf(", calcnt=%ld, errcnt=%ld, stbcnt=%ld",
+		tx.calcnt, tx.errcnt, tx.stbcnt);
+#endif
+	tprintf("}");
+	return 0;
+}
+
+int
+sys_adjtimex(struct tcb *tcp)
+{
 	if (exiting(tcp)) {
 		if (tcp->u_arg[0] == 0)
 			tprintf("NULL");
 		else if (syserror(tcp) || !verbose(tcp))
 			tprintf("%#lx", tcp->u_arg[0]);
-		else if (umove(tcp, tcp->u_arg[0], &txc) < 0)
+		else if (tprint_timex(tcp, tcp->u_arg[0]) < 0)
 			tprintf("{...}");
-		else {
-#if LINUX_VERSION_CODE < 66332
-			tprintf("{mode=%d, offset=%ld, frequency=%ld, ",
-				txc.mode, txc.offset, txc.frequency);
-			tprintf("maxerror=%ld, esterror=%lu, status=%u, ",
-				txc.maxerror, txc.esterror, txc.status);
-			tprintf("time_constant=%ld, precision=%lu, ",
-				txc.time_constant, txc.precision);
-			tprintf("tolerance=%ld, time={%lu, %lu}}",
-				txc.tolerance, (long) txc.time.tv_sec,
-				(long) txc.time.tv_usec);
-#else
-			tprintf("{modes=%d, offset=%ld, freq=%ld, ",
-				txc.modes, txc.offset, txc.freq);
-			tprintf("maxerror=%ld, esterror=%lu, status=%u, ",
-				txc.maxerror, txc.esterror, txc.status);
-			tprintf("constant=%ld, precision=%lu, ",
-				txc.constant, txc.precision);
-			tprintf("tolerance=%ld, time={%lu, %lu}}",
-				txc.tolerance, (long) txc.time.tv_sec,
-				(long) txc.time.tv_usec);
-			/* there's a bunch of other stuff, but it's not
-			 * worth the time or the trouble to include */
-#endif
-		}
+		tcp->auxstr = xlookup(adjtimex_state, tcp->u_rval);
+		if (tcp->auxstr)
+			return RVAL_STR;
 	}
 	return 0;
 }
@@ -435,12 +645,62 @@ static const struct xlat sigev_value[] = {
 	{ 0, NULL }
 };
 
+#if SUPPORTED_PERSONALITIES > 1
+static void
+printsigevent32(struct tcb *tcp, long arg)
+{
+	struct
+	{
+		int     sigev_value;
+		int     sigev_signo;
+		int     sigev_notify;
+
+		union
+		{
+			int     tid;
+			struct
+			{
+				int     function, attribute;
+			} thread;
+		} un;
+	} sev;
+
+	if (umove(tcp, arg, &sev) < 0)
+		tprintf("{...}");
+	else
+	{
+		tprintf("{%#x, ", sev.sigev_value);
+		if (sev.sigev_notify == SIGEV_SIGNAL)
+			tprintf("%s, ", signame(sev.sigev_signo));
+		else
+			tprintf("%u, ", sev.sigev_signo);
+		printxval(sigev_value, sev.sigev_notify + 1, "SIGEV_???");
+		tprintf(", ");
+		if (sev.sigev_notify == SIGEV_THREAD_ID)
+			tprintf("{%d}", sev.un.tid);
+		else if (sev.sigev_notify == SIGEV_THREAD)
+			tprintf("{%#x, %#x}",
+				sev.un.thread.function,
+				sev.un.thread.attribute);
+		else
+			tprintf("{...}");
+		tprintf("}");
+	}
+}
+#endif
+
 void
-printsigevent(tcp, arg)
-struct tcb *tcp;
-long arg;
+printsigevent(struct tcb *tcp, long arg)
 {
 	struct sigevent sev;
+
+#if SUPPORTED_PERSONALITIES > 1
+	if (personality_wordsize[current_personality] == 4)
+	{
+		printsigevent32(tcp, arg);
+		return;
+	}
+#endif
 	if (umove (tcp, arg, &sev) < 0)
 		tprintf("{...}");
 	else {
@@ -475,13 +735,12 @@ struct tcb *tcp;
 		printsigevent(tcp, tcp->u_arg[1]);
 		tprintf(", ");
 	} else {
-		if (syserror(tcp))
+		void *p;
+
+		if (syserror(tcp) || umove(tcp, tcp->u_arg[2], &p) < 0)
 			tprintf("%#lx", tcp->u_arg[2]);
-		else {
-			void *p;
-			umove(tcp, tcp->u_arg[2], &p);
+		else
 			tprintf("{%p}", p);
-		}
 	}
 	return 0;
 }

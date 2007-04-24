@@ -231,10 +231,8 @@ int n;
 	tv->tv_usec %= 1000000;
 }
 
-char *
-xlookup(xlat, val)
-const struct xlat *xlat;
-int val;
+const char *
+xlookup(const struct xlat *xlat, int val)
 {
 	for (; xlat->str != NULL; xlat++)
 		if (xlat->val == val)
@@ -246,12 +244,9 @@ int val;
  * Print entry in struct xlat table, if there.
  */
 void
-printxval(xlat, val, dflt)
-const struct xlat *xlat;
-int val;
-const char *dflt;
+printxval(const struct xlat *xlat, int val, const char *dflt)
 {
-	char *str = xlookup(xlat, val);
+	const char *str = xlookup(xlat, val);
 
 	if (str)
 		tprintf("%s", str);
@@ -350,6 +345,27 @@ char *fmt;
 }
 
 void
+printnum_int(tcp, addr, fmt)
+struct tcb *tcp;
+long addr;
+char *fmt;
+{
+	int num;
+
+	if (!addr) {
+		tprintf("NULL");
+		return;
+	}
+	if (umove(tcp, addr, &num) < 0) {
+		tprintf("%#lx", addr);
+		return;
+	}
+	tprintf("[");
+	tprintf(fmt, num);
+	tprintf("]");
+}
+
+void
 printuid(text, uid)
 const char *text;
 unsigned long uid;
@@ -403,6 +419,9 @@ struct tcb *tcp;
 long addr;
 int n;
 {
+	if (n >= sizeof path)
+		n = sizeof path - 1;
+
 	if (addr == 0)
 		tprintf("NULL");
 	else 	if (umovestr(tcp, addr, n, path) < 0)
@@ -532,13 +551,33 @@ struct tcb * tcp;
 int len;
 long addr;
 {
+#if defined(LINUX) && SUPPORTED_PERSONALITIES > 1
+	union {
+		struct { u_int32_t base; u_int32_t len; } *iov32;
+		struct { u_int64_t base; u_int64_t len; } *iov64;
+	} iovu;
+#define iov iovu.iov64
+#define sizeof_iov \
+  (personality_wordsize[current_personality] == 4 \
+   ? sizeof(*iovu.iov32) : sizeof(*iovu.iov64))
+#define iov_iov_base(i) \
+  (personality_wordsize[current_personality] == 4 \
+   ? (u_int64_t) iovu.iov32[i].base : iovu.iov64[i].base)
+#define iov_iov_len(i) \
+  (personality_wordsize[current_personality] == 4 \
+   ? (u_int64_t) iovu.iov32[i].len : iovu.iov64[i].len)
+#else
 	struct iovec *iov;
+#define sizeof_iov sizeof(*iov)
+#define iov_iov_base(i) iov[i].iov_base
+#define iov_iov_len(i) iov[i].iov_len
+#endif
 	int i;
 	unsigned long size;
 
-	size = sizeof(*iov) * (unsigned long) len;
-	if (size / sizeof(*iov) != len
-	    || (iov = (struct iovec *) malloc(size)) == NULL) {
+	size = sizeof_iov * (unsigned long) len;
+	if (size / sizeof_iov != len
+	    || (iov = malloc(size)) == NULL) {
 		fprintf(stderr, "out of memory\n");
 		return;
 	}
@@ -547,13 +586,16 @@ long addr;
                         /* include the buffer number to make it easy to
                          * match up the trace with the source */
                         tprintf(" * %lu bytes in buffer %d\n",
-                                (unsigned long)iov[i].iov_len, i);
-                        dumpstr(tcp, (long) iov[i].iov_base,
-                                iov[i].iov_len);
+                                (unsigned long)iov_iov_len(i), i);
+                        dumpstr(tcp, (long) iov_iov_base(i),
+                                iov_iov_len(i));
                 }
 	}
 	free((char *) iov);
-
+#undef sizeof_iov
+#undef iov_iov_base
+#undef iov_iov_len
+#undef iov
 }
 #endif
 

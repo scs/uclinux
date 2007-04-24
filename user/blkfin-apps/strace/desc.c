@@ -242,13 +242,11 @@ int getlk;
 }
 #endif
 
-static char *
-sprintflags(xlat, flags)
-const struct xlat *xlat;
-int flags;
+static const char *
+sprintflags(const struct xlat *xlat, int flags)
 {
 	static char outstr[1024];
-	char *sep;
+	const char *sep;
 
 	strcpy(outstr, "flags ");
 	sep = "";
@@ -266,12 +264,48 @@ int flags;
 	return outstr;
 }
 
-int
-sys_fcntl(tcp)
-struct tcb *tcp;
+/*
+ * low bits of the open(2) flags define access mode,
+ * other bits are real flags.
+ */
+static const char *
+sprint_open_modes(mode_t flags)
 {
-	extern const struct xlat openmodes[];
+	extern const struct xlat open_access_modes[];
+	extern const struct xlat open_mode_flags[];
+	static char outstr[1024];
+	const char *str = xlookup(open_access_modes, flags & 3);
+	const char *sep = "";
+	const struct xlat *x;
 
+	strcpy(outstr, "flags ");
+	if (str)
+	{
+		strcat(outstr, str);
+		flags &= ~3;
+		if (!flags)
+			return outstr;
+		strcat(outstr, "|");
+	}
+
+	for (x = open_mode_flags; x->str; x++)
+	{
+		if ((flags & x->val) == x->val)
+		{
+			sprintf(outstr + strlen(outstr),
+				"%s%s", sep, x->str);
+			sep = "|";
+			flags &= ~x->val;
+		}
+	}
+	if (flags)
+		sprintf(outstr + strlen(outstr), "%s%#x", sep, flags);
+	return outstr;
+}
+
+int
+sys_fcntl(struct tcb *tcp)
+{
 	if (entering(tcp)) {
 		tprintf("%ld, ", tcp->u_arg[0]);
 		printxval(fcntlcmds, tcp->u_arg[1], "F_???");
@@ -285,7 +319,7 @@ struct tcb *tcp;
 			break;
 		case F_SETFL:
 			tprintf(", ");
-			printflags(openmodes, tcp->u_arg[2] + 1, "O_???");
+			tprint_open_modes(tcp, tcp->u_arg[2]);
 			break;
 		case F_SETLK: case F_SETLKW:
 #ifdef F_FREESP
@@ -325,7 +359,7 @@ struct tcb *tcp;
 			tcp->auxstr = sprintflags(fdflags, tcp->u_rval);
 			return RVAL_HEX|RVAL_STR;
 		case F_GETFL:
-			tcp->auxstr = sprintflags(openmodes, tcp->u_rval + 1);
+			tcp->auxstr = sprint_open_modes(tcp->u_rval);
 			return RVAL_HEX|RVAL_STR;
 		case F_GETLK:
 			tprintf(", ");
@@ -391,30 +425,22 @@ struct tcb *tcp;
 	return 0;
 }
 
+#if defined(ALPHA) || defined(FREEBSD) || defined(SUNOS4)
 int
 sys_getdtablesize(tcp)
 struct tcb *tcp;
 {
 	return 0;
 }
+#endif /* ALPHA || FREEBSD || SUNOS4 */
 
 static int
-decode_select(tcp, args, bitness)
-struct tcb *tcp;
-long *args;
-int bitness;
+decode_select(struct tcb *tcp, long *args, enum bitness_t bitness)
 {
 	int i, j, nfds;
 	unsigned int fdsize = ((((args[0] + 7) / 8) + sizeof(long) - 1)
 			       & -sizeof(long));
 	fd_set *fds;
-	struct timeval tv;
-#ifdef ALPHA
-	struct timeval32 {
-		unsigned tv_sec;
-		unsigned tv_usec;
-	} *tv32;
-#endif
 	static char outstr[1024];
 	char *sep;
 	long arg;
@@ -449,22 +475,8 @@ int bitness;
 			tprintf("]");
 		}
 		free(fds);
-		if (!args[4])
-			tprintf(", NULL");
-		else if (!verbose(tcp))
-			tprintf(", %#lx", args[4]);
-		else if (umove(tcp, args[4], &tv) < 0)
-			tprintf(", {...}");
-		else {
-#ifdef ALPHA
-			if (bitness) {
-				tv32=(struct timeval32*)&tv;
-				tprintf(", {%u, %u}", tv32->tv_sec, tv32->tv_usec);
-			} else
-#endif
-				tprintf(", {%lu, %lu}",
-					(long) tv.tv_sec, (long) tv.tv_usec);
-		}
+		tprintf(", ");
+		printtv_bitness(tcp, args[4], bitness);
 	}
 	else
 	{
@@ -520,22 +532,12 @@ int bitness;
 #ifdef LINUX
 		/* This contains no useful information on SunOS.  */
 		if (args[4]) {
-			char str[64];
+			char str[128];
 
-			if (umove(tcp, args[4], &tv) >= 0) {
-#ifdef ALPHA
-				if (bitness) {
-					tv32=(struct timeval32*)&tv;
-					sprintf(str, "%sleft {%u, %u}", sep,
-						tv32->tv_sec, tv32->tv_usec);
-				} else
-#endif
-					sprintf(str, "%sleft {%lu, %lu}", sep,
-						(long) tv.tv_sec, (long) tv.tv_usec);
-
-				if ((cumlen += strlen(str)) < sizeof(outstr))
-					strcat(outstr, str);
-			}
+			sprintf(str, "%sleft ", sep);
+			sprinttv(tcp, args[4], bitness, str + strlen(str));
+			if ((cumlen += strlen(str)) < sizeof(outstr))
+				strcat(outstr, str);
 		}
 #endif /* LINUX */
 		return RVAL_STR;
@@ -555,7 +557,7 @@ struct tcb *tcp;
 		tprintf("[...]");
 		return 0;
 	}
-	return decode_select(tcp, args, 0);
+	return decode_select(tcp, args, BITNESS_CURRENT);
 }
 
 #ifdef ALPHA
@@ -564,7 +566,7 @@ sys_osf_select(tcp)
 struct tcb *tcp;
 {
 	long *args = tcp->u_arg;
-	return decode_select(tcp, args, 1);
+	return decode_select(tcp, args, BITNESS_32);
 }
 #endif
 
@@ -871,6 +873,30 @@ int
 sys_select(tcp)
 struct tcb *tcp;
 {
-	long *args = tcp->u_arg;
-	return decode_select(tcp, args, 0);
+	return decode_select(tcp, tcp->u_arg, BITNESS_CURRENT);
 }
+
+#ifdef LINUX
+int
+sys_pselect6(struct tcb *tcp)
+{
+	int rc = decode_select(tcp, tcp->u_arg, BITNESS_CURRENT);
+	if (exiting(tcp)) {
+		struct {
+			void *ss;
+			unsigned long len;
+		} data;
+		if (umove(tcp, tcp->u_arg[5], &data) < 0)
+			tprintf(", %#lx", tcp->u_arg[5]);
+		else {
+			tprintf(", {");
+			if (data.len < sizeof(sigset_t))
+				tprintf("%#lx", (long)data.ss);
+			else
+				print_sigset(tcp, (long)data.ss, 0);
+			tprintf(", %lu}", data.len);
+		}
+	}
+	return rc;
+}
+#endif

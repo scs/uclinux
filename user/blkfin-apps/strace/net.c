@@ -671,10 +671,10 @@ static const struct xlat sockipoptions[] = {
 	{ IP_RECVERR,		"IP_RECVERR"		},
 #endif
 #ifdef IP_RECVTTL
-	{ IP_RECVTTL,		"IP_RECRECVTTL"		},
+	{ IP_RECVTTL,		"IP_RECVTTL"		},
 #endif
 #ifdef IP_RECVTOS
-	{ IP_RECVTOS,		"IP_RECRECVTOS"		},
+	{ IP_RECVTOS,		"IP_RECVTOS"		},
 #endif
 #ifdef IP_MTU
 	{ IP_MTU,		"IP_MTU"		},
@@ -768,6 +768,15 @@ static const struct xlat sockipv6options[] = {
 #endif
 #ifdef IPV6_FLOWINFO_SEND
 	{ IPV6_FLOWINFO_SEND,	"IPV6_FLOWINFO_SEND"	},
+#endif
+#ifdef IPV6_ADD_MEMBERSHIP
+	{ IPV6_ADD_MEMBERSHIP,	"IPV6_ADD_MEMBERSHIP"	},
+#endif
+#ifdef IPV6_DROP_MEMBERSHIP
+	{ IPV6_DROP_MEMBERSHIP,	"IPV6_DROP_MEMBERSHIP"	},
+#endif
+#ifdef IPV6_ROUTER_ALERT
+	{ IPV6_ROUTER_ALERT,	"IPV6_ROUTER_ALERT"	},
 #endif
 	{ 0,			NULL			},
 };
@@ -1196,6 +1205,7 @@ struct tcb *tcp;
 	return 0;
 }
 
+#ifdef SVR4
 int
 sys_so_socket(tcp)
 struct tcb *tcp;
@@ -1222,6 +1232,7 @@ struct tcb *tcp;
 	}
 	return 0;
 }
+#endif /* SVR4 */
 
 int
 sys_bind(tcp)
@@ -1710,7 +1721,7 @@ int len;
 	tprintf (", ");
 
 	if (len == sizeof (int)) {
-		printnum(tcp, addr, "%ld");
+		printnum_int (tcp, addr, "%d");
 	}
 	else {
 		printstr (tcp, addr, len);

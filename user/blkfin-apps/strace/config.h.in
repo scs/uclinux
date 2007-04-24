@@ -164,6 +164,9 @@
 /* Define to 1 if you have the `strsignal' function. */
 #undef HAVE_STRSIGNAL
 
+/* Define to 1 if `dqb_curblocks' is member of `struct dqblk'. */
+#undef HAVE_STRUCT_DQBLK_DQB_CURBLOCKS
+
 /* Define to 1 if the system has the type `struct ia64_fpreg'. */
 #undef HAVE_STRUCT_IA64_FPREG
 

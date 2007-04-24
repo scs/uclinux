@@ -118,6 +118,7 @@
 #include "syscall.h"
 
 /* Define these shorthand notations to simplify the syscallent files. */
+#define TD TRACE_DESC
 #define TF TRACE_FILE
 #define TI TRACE_IPC
 #define TN TRACE_NETWORK
@@ -125,17 +126,17 @@
 #define TS TRACE_SIGNAL
 
 static const struct sysent sysent0[] = {
-#ifdef BFIN
-#include "linux/bfin/syscallent.h"
-#endif
+#include "syscallent.h"
 };
 static const int nsyscalls0 = sizeof sysent0 / sizeof sysent0[0];
+int qual_flags0[MAX_QUALS];
 
 #if SUPPORTED_PERSONALITIES >= 2
 static const struct sysent sysent1[] = {
 #include "syscallent1.h"
 };
 static const int nsyscalls1 = sizeof sysent1 / sizeof sysent1[0];
+int qual_flags1[MAX_QUALS];
 #endif /* SUPPORTED_PERSONALITIES >= 2 */
 
 #if SUPPORTED_PERSONALITIES >= 3
@@ -143,12 +144,15 @@ static const struct sysent sysent2[] = {
 #include "syscallent2.h"
 };
 static const int nsyscalls2 = sizeof sysent2 / sizeof sysent2[0];
+int qual_flags2[MAX_QUALS];
 #endif /* SUPPORTED_PERSONALITIES >= 3 */
 
 const struct sysent *sysent;
+int *qual_flags;
 int nsyscalls;
 
 /* Now undef them since short defines cause wicked namespace pollution. */
+#undef TD
 #undef TF
 #undef TI
 #undef TN
@@ -179,9 +183,21 @@ int nerrnos;
 
 int current_personality;
 
+#ifndef PERSONALITY0_WORDSIZE
+# define PERSONALITY0_WORDSIZE sizeof(long)
+#endif
+const int personality_wordsize[SUPPORTED_PERSONALITIES] = {
+	PERSONALITY0_WORDSIZE,
+#if SUPPORTED_PERSONALITIES > 1
+	PERSONALITY1_WORDSIZE,
+#endif
+#if SUPPORTED_PERSONALITIES > 2
+	PERSONALITY2_WORDSIZE,
+#endif
+};;
+
 int
-set_personality(personality)
-int personality;
+set_personality(int personality)
 {
 	switch (personality) {
 	case 0:
@@ -193,6 +209,7 @@ int personality;
 		nioctlents = nioctlents0;
 		signalent = signalent0;
 		nsignals = nsignals0;
+		qual_flags = qual_flags0;
 		break;
 
 #if SUPPORTED_PERSONALITIES >= 2
@@ -205,6 +222,7 @@ int personality;
 		nioctlents = nioctlents1;
 		signalent = signalent1;
 		nsignals = nsignals1;
+		qual_flags = qual_flags1;
 		break;
 #endif /* SUPPORTED_PERSONALITIES >= 2 */
 
@@ -218,6 +236,7 @@ int personality;
 		nioctlents = nioctlents2;
 		signalent = signalent2;
 		nsignals = nsignals2;
+		qual_flags = qual_flags2;
 		break;
 #endif /* SUPPORTED_PERSONALITIES >= 3 */
 
@@ -229,17 +248,6 @@ int personality;
 	return 0;
 }
 
-int qual_flags[MAX_QUALS];
-
-
-struct call_counts {
-	struct timeval time;
-	int calls, errors;
-};
-
-static struct call_counts *counts;
-
-static struct timeval shortest = { 1000000, 0 };
 
 static int qual_syscall(), qual_signal(), qual_fault(), qual_desc();
 
@@ -273,15 +281,36 @@ static const struct qual_options {
 };
 
 static void
-qualify_one(n, opt, not)
+qualify_one(n, opt, not, pers)
 	int n;
 	const struct qual_options *opt;
 	int not;
+	int pers;
 {
-	if (not)
-		qual_flags[n] &= ~opt->bitflag;
-	else
-		qual_flags[n] |= opt->bitflag;
+	if (pers == 0 || pers < 0) {
+		if (not)
+			qual_flags0[n] &= ~opt->bitflag;
+		else
+			qual_flags0[n] |= opt->bitflag;
+	}
+
+#if SUPPORTED_PERSONALITIES >= 2
+	if (pers == 1 || pers < 0) {
+		if (not)
+			qual_flags1[n] &= ~opt->bitflag;
+		else
+			qual_flags1[n] |= opt->bitflag;
+	}
+#endif /* SUPPORTED_PERSONALITIES >= 2 */
+
+#if SUPPORTED_PERSONALITIES >= 3
+	if (pers == 2 || pers < 0) {
+		if (not)
+			qual_flags2[n] &= ~opt->bitflag;
+		else
+			qual_flags2[n] |= opt->bitflag;
+	}
+#endif /* SUPPORTED_PERSONALITIES >= 3 */
 }
 
 static int
@@ -293,11 +322,32 @@ qual_syscall(s, opt, not)
 	int i;
 	int rc = -1;
 
+  	if (isdigit((unsigned char)*s)) {
+ 		int i = atoi(s);
+ 		if (i < 0 || i >= nsyscalls)
+ 			return -1;
+ 		qualify_one(i, opt, not, -1);
+ 		return 0;
+	}
 	for (i = 0; i < nsyscalls; i++) {
-		if (strcmp(s, sysent[i].sys_name) == 0) {
-			qualify_one(i, opt, not);
+		if (strcmp(s, sysent0[i].sys_name) == 0) {
+			qualify_one(i, opt, not, 0);
 			rc = 0;
 		}
+
+#if SUPPORTED_PERSONALITIES >= 2
+		if (strcmp(s, sysent1[i].sys_name) == 0) {
+			qualify_one(i, opt, not, 1);
+			rc = 0;
+		}
+#endif /* SUPPORTED_PERSONALITIES >= 2 */
+
+#if SUPPORTED_PERSONALITIES >= 3
+		if (strcmp(s, sysent2[i].sys_name) == 0) {
+			qualify_one(i, opt, not, 2);
+			rc = 0;
+		}
+#endif /* SUPPORTED_PERSONALITIES >= 3 */
 	}
 	return rc;
 }
@@ -311,11 +361,11 @@ qual_signal(s, opt, not)
 	int i;
 	char buf[32];
 
-  	if (s && *s && isdigit((unsigned char)*s)) {
+  	if (isdigit((unsigned char)*s)) {
  		int signo = atoi(s);
  		if (signo < 0 || signo >= MAX_QUALS)
  			return -1;
- 		qualify_one(signo, opt, not);
+ 		qualify_one(signo, opt, not, -1);
  		return 0;
 	}
 	if (strlen(s) >= sizeof buf)
@@ -328,7 +378,7 @@ qual_signal(s, opt, not)
 		s += 3;
 	for (i = 0; i <= NSIG; i++)
 		if (strcmp(s, signame(i) + 3) == 0) {
-			qualify_one(i, opt, not);
+			qualify_one(i, opt, not, -1);
 			return 0;
 		}
 	return -1;
@@ -349,11 +399,11 @@ qual_desc(s, opt, not)
 	const struct qual_options *opt;
 	int not;
 {
-	if (s && *s && isdigit((unsigned char)*s)) {
+	if (isdigit((unsigned char)*s)) {
 		int desc = atoi(s);
 		if (desc < 0 || desc >= MAX_QUALS)
 			return -1;
-		qualify_one(desc, opt, not);
+		qualify_one(desc, opt, not, -1);
 		return 0;
 	}
 	return -1;
@@ -373,6 +423,8 @@ lookup_class(s)
 		return TRACE_PROCESS;
 	if (strcmp(s, "signal") == 0)
 		return TRACE_SIGNAL;
+	if (strcmp(s, "desc") == 0)
+		return TRACE_DESC;
 	return -1;
 }
 
@@ -405,28 +457,28 @@ char *s;
 	}
 	if (strcmp(s, "all") == 0) {
 		for (i = 0; i < MAX_QUALS; i++) {
-			if (not)
-				qual_flags[i] &= ~opt->bitflag;
-			else
-				qual_flags[i] |= opt->bitflag;
+			qualify_one(i, opt, not, -1);
 		}
 		return;
 	}
 	for (i = 0; i < MAX_QUALS; i++) {
-		if (not)
-			qual_flags[i] |= opt->bitflag;
-		else
-			qual_flags[i] &= ~opt->bitflag;
+		qualify_one(i, opt, !not, -1);
 	}
 	for (p = strtok(s, ","); p; p = strtok(NULL, ",")) {
 		if (opt->bitflag == QUAL_TRACE && (n = lookup_class(p)) > 0) {
 			for (i = 0; i < MAX_QUALS; i++) {
-				if (sysent[i].sys_flags & n) {
-					if (not)
-						qual_flags[i] &= ~opt->bitflag;
-					else
-						qual_flags[i] |= opt->bitflag;
-				}
+				if (sysent0[i].sys_flags & n)
+					qualify_one(i, opt, not, 0);
+
+#if SUPPORTED_PERSONALITIES >= 2
+				if (sysent1[i].sys_flags & n)
+					qualify_one(i, opt, not, 1);
+#endif /* SUPPORTED_PERSONALITIES >= 2 */
+
+#if SUPPORTED_PERSONALITIES >= 3
+				if (sysent2[i].sys_flags & n)
+					qualify_one(i, opt, not, 2);
+#endif /* SUPPORTED_PERSONALITIES >= 3 */
 			}
 			continue;
 		}
@@ -579,8 +631,9 @@ int subcall;
 int nsubcalls;
 enum subcall_style style;
 {
-	long addr, mask, arg;
+	unsigned long addr, mask;
 	int i;
+	int size = personality_wordsize[current_personality];
 
 	switch (style) {
 	case shift_style:
@@ -600,10 +653,21 @@ enum subcall_style style;
 		tcp->scno = subcall + tcp->u_arg[0];
 		addr = tcp->u_arg[1];
 		for (i = 0; i < sysent[tcp->scno].nargs; i++) {
-			if (umove(tcp, addr, &arg) < 0)
-				arg = 0;
-			tcp->u_arg[i] = arg;
-			addr += sizeof(arg);
+			if (size == sizeof(int)) {
+				unsigned int arg;
+				if (umove(tcp, addr, &arg) < 0)
+					arg = 0;
+				tcp->u_arg[i] = arg;
+			}
+			else if (size == sizeof(long)) {
+				unsigned long arg;
+				if (umove(tcp, addr, &arg) < 0)
+					arg = 0;
+				tcp->u_arg[i] = arg;
+			}
+			else
+				abort();
+			addr += size;
 		}
 		tcp->u_nargs = sysent[tcp->scno].nargs;
 		break;
@@ -650,98 +714,64 @@ enum subcall_style style;
 struct tcb *tcp_last = NULL;
 
 static int
-internal_syscall(tcp)
-struct tcb *tcp;
+internal_syscall(struct tcb *tcp)
 {
 	/*
 	 * We must always trace a few critical system calls in order to
 	 * correctly support following forks in the presence of tracing
 	 * qualifiers.
 	 */
-	switch (known_scno(tcp)) {
-#ifdef SYS_fork
-	case SYS_fork:
-#endif
-#ifdef SYS_vfork
-	case SYS_vfork:
-#endif
-#ifdef SYS_fork1
-	case SYS_fork1:
-#endif
-#ifdef SYS_forkall
-	case SYS_forkall:
-#endif
-#ifdef SYS_rfork1
-	case SYS_rfork1:
-#endif
-#ifdef SYS_rforkall
-	case SYS_rforkall:
-#endif
-#ifdef SYS_rfork
-	case SYS_rfork:
-#endif
-		internal_fork(tcp);
-		break;
-#ifdef SYS_clone
-	case SYS_clone:
-		internal_clone(tcp);
-		break;
-#endif
-#ifdef SYS_clone2
-	case SYS_clone2:
-		internal_clone(tcp);
-		break;
-#endif
-#ifdef SYS_execv
-	case SYS_execv:
-#endif
-#ifdef SYS_execve
-	case SYS_execve:
-#endif
-#ifdef SYS_rexecve
-	case SYS_rexecve:
-#endif
-		internal_exec(tcp);
-		break;
+	int	(*func)();
 
-#ifdef SYS_wait
-	case SYS_wait:
+	if (tcp->scno < 0 || tcp->scno >= nsyscalls)
+		return 0;
+
+	func = sysent[tcp->scno].sys_func;
+
+	if (sys_exit == func)
+		return internal_exit(tcp);
+
+	if (   sys_fork == func
+#if defined(FREEBSD) || defined(LINUX) || defined(SUNOS4)
+	    || sys_vfork == func
 #endif
-#ifdef SYS_wait4
-	case SYS_wait4:
+#if UNIXWARE > 2
+	    || sys_rfork == func
 #endif
-#ifdef SYS32_wait4
-	case SYS32_wait4:
-#endif
-#ifdef SYS_waitpid
-	case SYS_waitpid:
-#endif
-#ifdef SYS_waitsys
-	case SYS_waitsys:
-#endif
-		internal_wait(tcp, 2);
-		break;
-#ifdef SYS_waitid
-	case SYS_waitid:
-		internal_wait(tcp, 3);
-		break;
+	   )
+		return internal_fork(tcp);
+
+#if defined(LINUX) && (defined SYS_clone || defined SYS_clone2)
+	if (sys_clone == func)
+		return internal_clone(tcp);
 #endif
 
-#ifdef SYS_exit
-	case SYS_exit:
+	if (   sys_execve == func
+#if defined(SPARC) || defined(SPARC64) || defined(SUNOS4)
+	    || sys_execv == func
 #endif
-#ifdef SYS32_exit
-	case SYS32_exit:
+#if UNIXWARE > 2
+	    || sys_rexecve == func
 #endif
-#ifdef __NR_exit_group
-	case __NR_exit_group:
+	   )
+		return internal_exec(tcp);
+
+	if (   sys_waitpid == func
+	    || sys_wait4 == func
+#if defined(SVR4) || defined(FREEBSD) || defined(SUNOS4)
+	    || sys_wait == func
 #endif
-#ifdef IA64
-	case 252: /* IA-32 __NR_exit_group */
+#ifdef ALPHA
+	    || sys_osf_wait4 == func
 #endif
-		internal_exit(tcp);
-		break;
-	}
+	   )
+		return internal_wait(tcp, 2);
+
+#if defined(LINUX) || defined(SVR4)
+	if (sys_waitid == func)
+		return internal_wait(tcp, 3);
+#endif
+
 	return 0;
 }
 
@@ -759,7 +789,7 @@ struct tcb *tcp;
 #elif defined (ARM)
 	static struct pt_regs regs;
 #elif defined (BFIN)
-	#include <linux/ptrace.h>
+#include <linux/ptrace.h>
 	static struct pt_regs regs;
 #elif defined (ALPHA)
 	static long r0;
@@ -913,6 +943,7 @@ struct tcb *tcp;
 	if (ptrace(PTRACE_GETREGS, pid, NULL, (void *)&regs) == -1)
                 return -1;
 	scno = regs.p0;
+
 #elif defined (I386)
 	if (upeek(pid, 4*ORIG_EAX, &scno) < 0)
 		return -1;
@@ -1041,16 +1072,25 @@ struct tcb *tcp;
 				return 0;
 			}
 
-			if ((scno & 0x0ff00000) != 0x0f900000) {
-				fprintf(stderr, "syscall: unknown syscall trap 0x%08lx\n",
-					scno);
-				return -1;
-			}
+			/* Handle the EABI syscall convention.  We do not
+			   bother converting structures between the two
+			   ABIs, but basic functionality should work even
+			   if strace and the traced program have different
+			   ABIs.  */
+			if (scno == 0xef000000) {
+				scno = regs.ARM_r7;
+			} else {
+				if ((scno & 0x0ff00000) != 0x0f900000) {
+					fprintf(stderr, "syscall: unknown syscall trap 0x%08lx\n",
+						scno);
+					return -1;
+				}
 
-			/*
-			 * Fixup the syscall number
-			 */
-			scno &= 0x000fffff;
+				/*
+				 * Fixup the syscall number
+				 */
+				scno &= 0x000fffff;
+			}
 		}
 
 		if (tcp->flags & TCB_INSYSCALL) {
@@ -1414,7 +1454,6 @@ struct tcb *tcp;
 	/*
 	 * Nothing required
 	 */
-
 #elif defined (BFIN)
 	if (ptrace(PTRACE_GETREGS, pid, NULL, (void *)&regs) == -1)
                 return -1;
@@ -1535,7 +1574,7 @@ struct tcb *tcp;
 		}
 #else /* !ARM */
 #ifdef BFIN
-		 if (regs.r0 && (unsigned) -regs.r0 < nerrnos) {
+		if (regs.r0 && (unsigned) -regs.r0 < nerrnos) {
                         tcp->u_rval = -1;
                         u_error = -regs.r0;
                 }
@@ -1709,8 +1748,6 @@ force_result(tcp, error, rval)
 	if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)PT_GPR2, gpr2) < 0)
 		return -1;
 #else /* !S390 && !S390X */
-
-
 #ifdef I386
 	eax = error ? -error : rval;
 	if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)(EAX * 4), eax) < 0)
@@ -1842,7 +1879,6 @@ force_result(tcp, error, rval)
 		return -1;
 #endif /* SH64 */
 #endif /* SH */
-#endif /* BFIN */
 #endif /* HPPA */
 #endif /* SPARC */
 #endif /* SPARC64 */
@@ -1851,6 +1887,7 @@ force_result(tcp, error, rval)
 #endif /* M68K */
 #endif /* POWERPC */
 #endif /* MIPS */
+#endif /* BFIN */
 #endif /* IA64 */
 #endif /* X86_64 */
 #endif /* I386 */
@@ -2240,8 +2277,7 @@ struct tcb *tcp;
 }
 
 int
-trace_syscall(tcp)
-struct tcb *tcp;
+trace_syscall(struct tcb *tcp)
 {
 	int sys_res;
 	struct timeval tv;
@@ -2282,50 +2318,8 @@ struct tcb *tcp;
 			tprintf(" resumed> ");
 		}
 
-		if (cflag && tcp->scno < nsyscalls && tcp->scno >= 0) {
-			if (counts == NULL) {
-				counts = calloc(sizeof *counts, nsyscalls);
-				if (counts == NULL) {
-					fprintf(stderr, "\
-strace: out of memory for call counts\n");
-					exit(1);
-				}
-			}
-
-			counts[tcp->scno].calls++;
-			if (tcp->u_error)
-				counts[tcp->scno].errors++;
-			tv_sub(&tv, &tv, &tcp->etime);
-#ifdef LINUX
-			if (tv_cmp(&tv, &tcp->dtime) > 0) {
-				static struct timeval one_tick;
-				if (one_tick.tv_usec == 0) {
-					/* Initialize it.  */
-					struct itimerval it;
-					memset(&it, 0, sizeof it);
-					it.it_interval.tv_usec = 1;
-					setitimer(ITIMER_REAL, &it, NULL);
-					getitimer(ITIMER_REAL, &it);
-					one_tick = it.it_interval;
-				}
-
-				if (tv_nz(&tcp->dtime))
-					tv = tcp->dtime;
-				else if (tv_cmp(&tv, &one_tick) > 0) {
-					if (tv_cmp(&shortest, &one_tick) < 0)
-						tv = shortest;
-					else
-						tv = one_tick;
-				}
-			}
-#endif /* LINUX */
-			if (tv_cmp(&tv, &shortest) < 0)
-				shortest = tv;
-			tv_add(&counts[tcp->scno].time,
-				&counts[tcp->scno].time, &tv);
-			tcp->flags &= ~TCB_INSYSCALL;
-			return 0;
-		}
+		if (cflag)
+			return count_syscall(tcp, &tv);
 
 		if (tcp->scno >= nsyscalls || tcp->scno < 0
 		    || (qual_flags[tcp->scno] & QUAL_RAW))
@@ -2548,7 +2542,7 @@ strace: out of memory for call counts\n");
 	tcp->flags &= ~TCB_REPRINT;
 	tcp_last = tcp;
 	if (tcp->scno >= nsyscalls || tcp->scno < 0)
-		tprintf("nsyscalls=%d,syscall_%lu(", nsyscalls,tcp->scno);
+		tprintf("syscall_%lu(", tcp->scno);
 	else
 		tprintf("%s(", sysent[tcp->scno].sys_name);
 	if (tcp->scno >= nsyscalls || tcp->scno < 0 ||
@@ -2626,6 +2620,7 @@ struct tcb *tcp;
 	return val;
 }
 
+#ifdef SUNOS4
 /*
  * Apparently, indirect system calls have already be converted by ptrace(2),
  * so if you see "indir" this program has gone astray.
@@ -2648,127 +2643,4 @@ struct tcb *tcp;
 	}
 	return 0;
 }
-
-static int
-time_cmp(a, b)
-void *a;
-void *b;
-{
-	return -tv_cmp(&counts[*((int *) a)].time, &counts[*((int *) b)].time);
-}
-
-static int
-syscall_cmp(a, b)
-void *a;
-void *b;
-{
-	return strcmp(sysent[*((int *) a)].sys_name,
-		sysent[*((int *) b)].sys_name);
-}
-
-static int
-count_cmp(a, b)
-void *a;
-void *b;
-{
-	int m = counts[*((int *) a)].calls, n = counts[*((int *) b)].calls;
-
-	return (m < n) ? 1 : (m > n) ? -1 : 0;
-}
-
-static int (*sortfun)();
-static struct timeval overhead = { -1, -1 };
-
-void
-set_sortby(sortby)
-char *sortby;
-{
-	if (strcmp(sortby, "time") == 0)
-		sortfun = time_cmp;
-	else if (strcmp(sortby, "calls") == 0)
-		sortfun = count_cmp;
-	else if (strcmp(sortby, "name") == 0)
-		sortfun = syscall_cmp;
-	else if (strcmp(sortby, "nothing") == 0)
-		sortfun = NULL;
-	else {
-		fprintf(stderr, "invalid sortby: `%s'\n", sortby);
-		exit(1);
-	}
-}
-
-void set_overhead(n)
-int n;
-{
-	overhead.tv_sec = n / 1000000;
-	overhead.tv_usec = n % 1000000;
-}
-
-void
-call_summary(outf)
-FILE *outf;
-{
-	int i, j;
-	int call_cum, error_cum;
-	struct timeval tv_cum, dtv;
-	double percent;
-	char *dashes = "-------------------------";
-	char error_str[16];
-
-	int *sorted_count = malloc(nsyscalls * sizeof(int));
-
-	call_cum = error_cum = tv_cum.tv_sec = tv_cum.tv_usec = 0;
-	if (overhead.tv_sec == -1) {
-		tv_mul(&overhead, &shortest, 8);
-		tv_div(&overhead, &overhead, 10);
-	}
-	for (i = 0; i < nsyscalls; i++) {
-		sorted_count[i] = i;
-		if (counts == NULL || counts[i].calls == 0)
-			continue;
-		tv_mul(&dtv, &overhead, counts[i].calls);
-		tv_sub(&counts[i].time, &counts[i].time, &dtv);
-		call_cum += counts[i].calls;
-		error_cum += counts[i].errors;
-		tv_add(&tv_cum, &tv_cum, &counts[i].time);
-	}
-	if (counts && sortfun)
-		qsort((void *) sorted_count, nsyscalls, sizeof(int), sortfun);
-	fprintf(outf, "%6.6s %11.11s %11.11s %9.9s %9.9s %s\n",
-		"% time", "seconds", "usecs/call",
-		"calls", "errors", "syscall");
-	fprintf(outf, "%6.6s %11.11s %11.11s %9.9s %9.9s %-16.16s\n",
-		dashes, dashes, dashes, dashes, dashes, dashes);
-	if (counts) {
-		for (i = 0; i < nsyscalls; i++) {
-			j = sorted_count[i];
-			if (counts[j].calls == 0)
-				continue;
-			tv_div(&dtv, &counts[j].time, counts[j].calls);
-			if (counts[j].errors)
-				sprintf(error_str, "%d", counts[j].errors);
-			else
-				error_str[0] = '\0';
-			percent = (100.0 * tv_float(&counts[j].time)
-				   / tv_float(&tv_cum));
-			fprintf(outf, "%6.2f %4ld.%06ld %11ld %9d %9.9s %s\n",
-				percent, (long) counts[j].time.tv_sec,
-				(long) counts[j].time.tv_usec,
-				(long) 1000000 * dtv.tv_sec + dtv.tv_usec,
-				counts[j].calls,
-				error_str, sysent[j].sys_name);
-		}
-	}
-	free(sorted_count);
-
-	fprintf(outf, "%6.6s %11.11s %11.11s %9.9s %9.9s %-16.16s\n",
-		dashes, dashes, dashes, dashes, dashes, dashes);
-	if (error_cum)
-		sprintf(error_str, "%d", error_cum);
-	else
-		error_str[0] = '\0';
-	fprintf(outf, "%6.6s %4ld.%06ld %11.11s %9d %9.9s %s\n",
-		"100.00", (long) tv_cum.tv_sec, (long) tv_cum.tv_usec, "",
-		call_cum, error_str, "total");
-
-}
+#endif /* SUNOS4 */

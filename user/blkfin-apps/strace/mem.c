@@ -70,6 +70,7 @@ struct tcb *tcp;
 #endif
 }
 
+#if defined(FREEBSD) || defined(SUNOS4)
 int
 sys_sbrk(tcp)
 struct tcb *tcp;
@@ -79,6 +80,7 @@ struct tcb *tcp;
 	}
 	return RVAL_HEX;
 }
+#endif /* FREEBSD || SUNOS4 */
 
 static const struct xlat mmap_prot[] = {
 	{ PROT_NONE,	"PROT_NONE",	},
@@ -245,6 +247,18 @@ struct tcb *tcp;
     for (i=0; i<6; i++)
         u_arg[i] = tcp->u_arg[i];
 #else
+# if defined(X86_64)
+    if (current_personality == 1) {
+	    int i;
+	    for (i = 0; i < 6; ++i) {
+		    unsigned int val;
+		    if (umove(tcp, tcp->u_arg[0] + i * 4, &val) == -1)
+			    return 0;
+		    u_arg[i] = val;
+	    }
+    }
+    else
+# endif
     if (umoven(tcp, tcp->u_arg[0], sizeof u_arg, (char *) u_arg) == -1)
 	    return 0;
 #endif	// defined(IA64)
@@ -527,6 +541,7 @@ struct tcb *tcp;
 	return 0;
 }
 
+#if defined(ALPHA) || defined(FREEBSD) || defined(IA64) || defined(SUNOS4) || defined(SVR4)
 int
 sys_getpagesize(tcp)
 struct tcb *tcp;
@@ -535,6 +550,7 @@ struct tcb *tcp;
 		return RVAL_HEX;
 	return 0;
 }
+#endif /* ALPHA || FREEBSD || IA64 || SUNOS4 || SVR4 */
 
 #if defined(LINUX) && defined(__i386__)
 void

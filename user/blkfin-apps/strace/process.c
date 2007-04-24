@@ -305,6 +305,7 @@ struct tcb *tcp;
 
 #endif /* HAVE_PRCTL */
 
+#if defined(FREEBSD) || defined(SUNOS4) || defined(SVR4)
 int
 sys_gethostid(tcp)
 struct tcb *tcp;
@@ -313,6 +314,7 @@ struct tcb *tcp;
 		return RVAL_HEX;
 	return 0;
 }
+#endif /* FREEBSD || SUNOS4 || SVR4 */
 
 int
 sys_sethostname(tcp)
@@ -325,6 +327,7 @@ struct tcb *tcp;
 	return 0;
 }
 
+#if defined(ALPHA) || defined(FREEBSD) || defined(SUNOS4) || defined(SVR4)
 int
 sys_gethostname(tcp)
 struct tcb *tcp;
@@ -338,6 +341,7 @@ struct tcb *tcp;
 	}
 	return 0;
 }
+#endif /* ALPHA || FREEBSD || SUNOS4 || SVR4 */
 
 int
 sys_setdomainname(tcp)
@@ -412,7 +416,7 @@ fork_tcb(struct tcb *tcp)
 	if (nprocs == tcbtabsize) {
 		if (expand_tcbtab()) {
 			tcp->flags &= ~TCB_FOLLOWFORK;
-			fprintf(stderr, "sys_fork: tcb table full\n");
+			return 1;
 		}
 	}
 
@@ -474,10 +478,8 @@ struct tcb *tcp;
 			return 0;
 		if (syserror(tcp))
 			return 0;
-		if ((tcpchild = alloctcb(tcp->u_rval)) == NULL) {
-			fprintf(stderr, "sys_fork: tcb table full\n");
+		if ((tcpchild = alloctcb(tcp->u_rval)) == NULL)
 			return 0;
-		}
 		if (proc_open(tcpchild, 2) < 0)
 		  	droptcb(tcpchild);
 	}
@@ -607,6 +609,14 @@ struct tcb *tcp;
 	}
 	return 0;
 }
+
+int
+sys_unshare(struct tcb *tcp)
+{
+	if (entering(tcp))
+		printflags(clone_flags, tcp->u_arg[0], "CLONE_???");
+	return 0;
+}
 #endif
 
 int
@@ -693,6 +703,16 @@ int new;
        if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)(REG_SYSCALL),
                                    0x100000 | new) < 0)
                        return -1;
+       return 0;
+#elif defined(ARM)
+       /* Some kernels support this, some (pre-2.6.16 or so) don't.  */
+# ifndef PTRACE_SET_SYSCALL
+#  define PTRACE_SET_SYSCALL 23
+# endif
+
+       if (ptrace (PTRACE_SET_SYSCALL, tcp->pid, 0, new) != 0)
+		return -1;
+
        return 0;
 #elif defined(BFIN)
 	printf("not implemented!\n");
@@ -826,10 +846,9 @@ struct tcb *tcp;
 		}
 		else
 #endif
-		if ((tcpchild = alloctcb(pid)) == NULL) {
+		if (fork_tcb(tcp) || (tcpchild = alloctcb(pid)) == NULL) {
 			if (bpt)
 				clearbpt(tcp);
-			fprintf(stderr, " [tcb table full]\n");
 			kill(pid, SIGKILL); /* XXX */
 			return 0;
 		}
@@ -877,7 +896,6 @@ Process %u resumed (parent %d ready)\n",
 					pid, tcp->pid);
 		}
 		else {
-			newoutf(tcpchild);
 			if (!qflag)
 				fprintf(stderr, "Process %d attached\n", pid);
 		}
@@ -963,8 +981,7 @@ struct tcb *tcp;
 			return 0;
 
 		pid = tcp->u_rval;
-		if ((tcpchild = alloctcb(pid)) == NULL) {
-			fprintf(stderr, " [tcb table full]\n");
+		if (fork_tcb(tcp) || (tcpchild = alloctcb(pid)) == NULL) {
 			kill(pid, SIGKILL); /* XXX */
 			return 0;
 		}
@@ -1033,7 +1050,6 @@ struct tcb *tcp;
 			memcpy(tcpchild->inst, tcp->inst,
 				sizeof tcpchild->inst);
 		}
-		newoutf(tcpchild);
 		tcpchild->parent = tcp;
 		tcp->nchildren++;
 		if (!qflag)
@@ -1462,6 +1478,7 @@ struct tcb *tcp;
 }
 #endif /* LINUX */
 
+#if defined(ALPHA) || defined(SUNOS4) || defined(SVR4)
 int
 sys_setpgrp(tcp)
 struct tcb *tcp;
@@ -1473,6 +1490,7 @@ struct tcb *tcp;
 	}
 	return 0;
 }
+#endif /* ALPHA || SUNOS4 || SVR4 */
 
 int
 sys_getpgrp(tcp)
@@ -1581,11 +1599,7 @@ static const struct xlat procpriv_type [] = {
 
 
 static void
-printpriv(tcp, addr, len, opt)
-struct tcb *tcp;
-long addr;
-int len;
-const struct xlat *opt;
+printpriv(struct tcb *tcp, long addr, int len, const struct xlat *opt)
 {
 	priv_t buf [128];
 	int max = verbose (tcp) ? sizeof buf / sizeof buf [0] : 10;
@@ -1604,7 +1618,7 @@ const struct xlat *opt;
 	tprintf ("[");
 
 	for (i = 0; i < len; ++i) {
-		char *t, *p;
+		const char *t, *p;
 
 		if (i) tprintf (", ");
 
@@ -1702,6 +1716,7 @@ long addr;
 	tprintf(fmt, count, count == 1 ? "" : "s");
 }
 
+#if defined(SPARC) || defined(SPARC64) || defined(SUNOS4)
 int
 sys_execv(tcp)
 struct tcb *tcp;
@@ -1722,6 +1737,7 @@ struct tcb *tcp;
 	}
 	return 0;
 }
+#endif /* SPARC || SPARC64 || SUNOS4 */
 
 int
 sys_execve(tcp)
@@ -1991,7 +2007,8 @@ int flagarg;
 					    (tcp->flags & TCB_CLONE_THREAD)
 					    ? tcp->parent :
 #endif
-					    tcp))
+					    tcp) ||
+				    (child->flags & TCB_EXITING))
 					return 0;
 			}
 			tcp->flags |= TCB_SUSPENDED;

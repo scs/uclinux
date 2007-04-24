@@ -7,13 +7,13 @@ bin_SCRIPTS = strace-graph
 # OS is one of `linux', `sunos4', `svr4', or `freebsd'.
 OS		= @opsys@
 # ARCH is `i386', `m68k', `sparc', etc.
-ARCH		= @arch@
+override ARCH		= @arch@
 
 AM_CFLAGS = $(WARNFLAGS)
 INCLUDES = -I$(OS)/$(ARCH) -I$(srcdir)/$(OS)/$(ARCH) -I$(OS) -I$(srcdir)/$(OS)
 
-strace_SOURCES = strace.c syscall.c util.c desc.c file.c ipc.c \
-		 io.c ioctl.c mem.c net.c process.c bjm.c \
+strace_SOURCES = strace.c syscall.c count.c util.c desc.c file.c ipc.c \
+		 io.c ioctl.c mem.c net.c process.c bjm.c quota.c \
 		 resource.c signal.c sock.c system.c term.c time.c \
 		 proc.c stream.c
 noinst_HEADERS = defs.h
@@ -28,10 +28,12 @@ EXTRA_DIST = $(man_MANS) errnoent.sh signalent.sh syscallent.sh ioctlsort.c \
 	     linux/syscall.h linux/syscallent.h linux/dummy.h \
 	     linux/alpha/errnoent.h linux/alpha/ioctlent.h \
 	     linux/alpha/signalent.h linux/alpha/syscallent.h \
+	     linux/arm/syscallent.h \
 	     linux/hppa/errnoent.h linux/hppa/ioctlent.h \
 	     linux/hppa/signalent.h linux/hppa/syscallent.h \
 	     linux/ia64/syscallent.h linux/ia64/errnoent.h \
 	     linux/ia64/ioctlent.h linux/ia64/signalent.h \
+	     linux/m68k/syscallent.h \
      	     linux/mips/ioctlent.sh linux/mips/errnoent.h \
 	     linux/mips/ioctlent.h linux/mips/signalent.h \
 	     linux/mips/syscallent.h \
@@ -72,12 +74,13 @@ EXTRA_DIST = $(man_MANS) errnoent.sh signalent.sh syscallent.sh ioctlsort.c \
 	     sunos4/ioctlent.h sunos4/ioctlent.sh sunos4/signalent.h \
 	     sunos4/syscall.h sunos4/syscallent.h \
 	     svr4/dummy.h svr4/errnoent.h svr4/ioctlent.h svr4/ioctlent.sh \
-	     svr4/signalent.h svr4/syscall.h svr4/syscallent.h
+	     svr4/signalent.h svr4/syscall.h svr4/syscallent.h \
+	     xlate.el
 
 if MAINTAINER_MODE
 if LINUX
 
-IOCTLDIR = /usr/include
+IOCTLDIR = $(includedir)
 IOCTLASM = asm
 
 if I386
@@ -91,7 +94,7 @@ BUILT_SOURCES = $(ioctlent_h)
 $(srcdir)/$(ioctlent_h): ioctlsort
 	$(<D)/$(<F) > $@
 ioctlsort: $(srcdir)/linux/ioctlsort.c ioctls.h ioctldefs.h
-	$(filter-out -I%,$(LINK.c)) -I. -I$(IOCTLDIR) $(filter -I%,$(LINK.c)) \
+	$(HOSTCC) -I. -I$(IOCTLDIR) $(filter -I%,$(LINK.c)) \
 	  -o $@ $<
 ioctls.h: $(srcdir)/linux/ioctlent.sh
 	$(SHELL) $< $(IOCTLDIR) $(IOCTLASM)

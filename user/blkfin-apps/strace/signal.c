@@ -313,18 +313,16 @@ int len;
 #define copy_sigset(tcp, addr, s) copy_sigset_len(tcp, addr, s, sizeof(sigset_t))
 #endif
 
-static char *
-sprintsigmask(s, mask, rt)
-char *s;
-sigset_t *mask;
-int rt; /* set might include realtime sigs */
+static const char *
+sprintsigmask(const char *str, sigset_t *mask, int rt)
+/* set might include realtime sigs */
 {
 	int i, nsigs;
 	int maxsigs;
-	char *format;
+	char *format, *s;
 	static char outstr[8 * sizeof(sigset_t) * 8];
 
-	strcpy(outstr, s);
+	strcpy(outstr, str);
 	s = outstr + strlen(outstr);
 	nsigs = 0;
 	maxsigs = nsignals;
@@ -393,6 +391,19 @@ printsignal(nr)
 int nr;
 {
 	tprintf(signame(nr));
+}
+
+void
+print_sigset(struct tcb *tcp, long addr, int rt)
+{
+	sigset_t ss;
+
+	if (!addr)
+		tprintf("NULL");
+	else if (copy_sigset(tcp, addr, &ss) < 0)
+		tprintf("%#lx", addr);
+	else
+		printsigmask(&ss, rt);
 }
 
 #ifdef LINUX
@@ -1045,12 +1056,14 @@ struct tcb *tcp;
 	return 0;
 }
 
+#if defined(SUNOS4) || defined(FREEBSD)
 int
 sys_sigblock(tcp)
 struct tcb *tcp;
 {
 	return sys_sigsetmask(tcp);
 }
+#endif /* SUNOS4 || FREEBSD */
 
 #endif /* !SVR4 */
 
@@ -1193,6 +1206,7 @@ struct tcb *tcp;
 	}
 }
 
+#ifdef SVR4
 int
 sys_sighold(tcp)
 struct tcb *tcp;
@@ -1202,6 +1216,7 @@ struct tcb *tcp;
 	}
 	return 0;
 }
+#endif /* SVR4 */
 
 #endif /* HAVE_SIGACTION */
 
@@ -1652,8 +1667,6 @@ struct tcb *tcp;
 		return RVAL_HEX | RVAL_STR;
 	}
 #else /* !ALPHA */
-	sigset_t sigset;
-
 	if (entering(tcp)) {
 #ifdef SVR4
 		if (tcp->u_arg[0] == 0)
@@ -1662,24 +1675,16 @@ struct tcb *tcp;
 #endif /* SVR4 */
 		printxval(sigprocmaskcmds, tcp->u_arg[0], "SIG_???");
 		tprintf(", ");
-		if (!tcp->u_arg[1])
-			tprintf("NULL, ");
-		else if (copy_sigset(tcp, tcp->u_arg[1], &sigset) < 0)
-			tprintf("%#lx, ", tcp->u_arg[1]);
-		else {
-			printsigmask(&sigset, 0);
-			tprintf(", ");
-		}
+		print_sigset(tcp, tcp->u_arg[1], 0);
+		tprintf(", ");
 	}
 	else {
 		if (!tcp->u_arg[2])
 			tprintf("NULL");
 		else if (syserror(tcp))
 			tprintf("%#lx", tcp->u_arg[2]);
-		else if (copy_sigset(tcp, tcp->u_arg[2], &sigset) < 0)
-			tprintf("[?]");
 		else
-			printsigmask(&sigset, 0);
+			print_sigset(tcp, tcp->u_arg[2], 0);
 	}
 #endif /* !ALPHA */
 	return 0;
@@ -1697,12 +1702,14 @@ struct tcb *tcp;
 	return 0;
 }
 
+#if defined(FREEBSD) || defined(SUNOS4)
 int
 sys_killpg(tcp)
 struct tcb *tcp;
 {
 	return sys_kill(tcp);
 }
+#endif /* FREEBSD || SUNOS4 */
 
 #ifdef LINUX
 int
@@ -1734,6 +1741,7 @@ struct tcb *tcp;
 	return 0;
 }
 
+#ifdef SVR4
 int sys_sigwait(tcp)
 struct tcb *tcp;
 {
@@ -1753,6 +1761,7 @@ struct tcb *tcp;
 	}
 	return 0;
 }
+#endif /* SVR4 */
 
 #ifdef LINUX
 
@@ -1949,5 +1958,14 @@ int sys_rt_sigtimedwait(tcp)
 	}
 	return 0;
 };
+
+int
+sys_restart_syscall(tcp)
+struct tcb *tcp;
+{
+	if (entering(tcp))
+		tprintf("<... resuming interrupted call ...>");
+	return 0;
+}
 
 #endif /* LINUX */
