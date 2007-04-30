@@ -334,8 +334,9 @@ if [ "$CONFIG_USER_DISCARD_INETD_ECHO" = "y" ]; then
 fi
 
 bool 'dnsmasq'			CONFIG_USER_DNSMASQ_DNSMASQ
-if [ "$CONFIG_USER_INETD_INETD" = "y" ]; then
-	bool 'dropbear'			CONFIG_USER_DROPBEAR_DROPBEAR
+bool 'dropbear'			CONFIG_USER_DROPBEAR_DROPBEAR
+if [ "$CONFIG_USER_DROPBEAR_DROPBEAR" = "y" ]; then
+	define_bool		CONFIG_LIB_ZLIB y
 fi
 bool 'ethattach'		CONFIG_USER_ETHATTACH_ETHATTACH
 if [ "$CONFIG_USER_ETHATTACH_ETHATTACH" = "y" ]; then
