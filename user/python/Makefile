@@ -24,7 +24,7 @@ build-cross/Makefile:
 		--with-cxx=no
 
 romfs:
-	$(ROMFSINST) $(STAGEDIR)/usr/bin/python* /usr/bin/python
+	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/python* /usr/bin/python
 
 clean:
 	rm -rf build build-cross
