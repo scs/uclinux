@@ -25,14 +25,10 @@ incr case_num
 sleep 5
 send "\r"
 
-expect ">"
-set timeout 8
-set flag 0
-
-send "modprobe twi_keypad\r"
+send "insmod /twi_smbus_test.ko\r"
 while 1 {
    expect {
-      "Using" {
+      "[PASS]" {
          expect ">"
          case_pass $case_num
          break
@@ -45,11 +41,10 @@ while 1 {
      }
 }
 incr case_num
-send "lsmod\r"
+send "twi_test 0x58 0x10\r"
 while 1 {
    expect {
-      "twi_keypad" {
-         puts "insert module success."
+      "[PASS]" {
          case_pass $case_num
          break
       }
@@ -63,70 +58,7 @@ while 1 {
 
 
 incr case_num
-send "twikeypad_test -r\r" 
-while 1 {
-   expect {
-     -re "TWI .* Test Application" {         
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
-}
-
-incr case_num
-puts "\nPlease input any character followed by 'D'."
-while 1 {
-   expect {
-     -re "Entry was" {
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
-}
-
-incr case_num
-puts "\nPlease input another character followed by 'D'."
-while 1 {
-   expect {
-     -re "Entry was" {
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
-}
-
-send "\003"
-while 1 {
-   expect {
-     -re ">" {
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
-}
-
-
-incr case_num
-send "rmmod twi_keypad\r" 
+send "rmmod twi_smbus_test\r"
 while 1 {
    expect {
      -re ">" {         
