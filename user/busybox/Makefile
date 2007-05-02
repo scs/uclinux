@@ -1207,13 +1207,3 @@ FORCE:
 # Declare the contents of the .PHONY variable as phony.  We keep that
 # information in a variable se we can use it in if_changed and friends.
 .PHONY: $(PHONY)
-
-ROOTDIR ?= ../..
-.config: $(ROOTDIR)/config/.config
-	sed -n -e '/CONFIG_USER_BUSYBOX_/s:CONFIG_USER_BUSYBOX_:CONFIG_:p' $< > $@
-	yes "" | $(MAKE) oldconfig
-
-romfs: install
-	mv $(CONFIG_PREFIX)/sbin/* $(CONFIG_PREFIX)/bin/
-	rmdir $(CONFIG_PREFIX)/sbin
-	cp -pPR $(CONFIG_PREFIX)/* $(ROMFSDIR)/
