@@ -25,9 +25,7 @@ all:
 
 romfs:
 	mkdir -p $(ROMFSDIR)
-	for i in $(ROMFS_DIRS); do \
-		mkdir -p $(ROMFSDIR)/$$i; \
-	done
+	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS)
 	chmod 1777 $(ROMFSDIR)/tmp
 	$(ROMFSINST) -s bin /sbin
 	$(ROMFSINST) /etc/rc
@@ -49,7 +47,7 @@ romfs:
 	$(ROMFSINST) /etc/tux-wink.gif
 	$(ROMFSINST) /etc/tuxsit_small.gif
 	$(ROMFSINST) /etc/modprobe.conf
-	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
+	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
 
 BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$4}')
 BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$3}')
@@ -69,40 +67,45 @@ image:
 #
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/vmlinux
 	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/vmlinux
+	set -e ; \
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
 		$(MKFS_JFFS2) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
 	fi
+ifneq ($(CONFIG_YAFFS_FS),)
 	set -e ; \
-	if [ -n "$(CONFIG_YAFFS_FS)" ]; then \
-		if [ -x "$(MKFS_YAFFS)" -a -n "$(CONFIG_YAFFS_YAFFS1)" ]; then \
-			$(MKFS_YAFFS) $(ROMFSDIR) $(ROMFSIMG).yaffs > /dev/null ; \
-		fi ; \
-		if [ -x "$(MKFS_YAFFS2)" -a -n "$(CONFIG_YAFFS_YAFFS2)" ]; then \
-			$(MKFS_YAFFS2) $(ROMFSDIR) $(ROMFSIMG).yaffs2 > /dev/null ; \
-		fi ; \
+	if [ -x "$(MKFS_YAFFS)" -a -n "$(CONFIG_YAFFS_YAFFS1)" ]; then \
+		$(MKFS_YAFFS) $(ROMFSDIR) $(ROMFSIMG).yaffs > /dev/null ; \
 	fi ; \
-	if [ -n "$(CONFIG_CRAMFS)" ]; then \
-		bfin-uclinux-mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
+	if [ -x "$(MKFS_YAFFS2)" -a -n "$(CONFIG_YAFFS_YAFFS2)" ]; then \
+		$(MKFS_YAFFS2) $(ROMFSDIR) $(ROMFSIMG).yaffs2 > /dev/null ; \
+	fi
+endif
+ifneq ($(CONFIG_CRAMFS),)
+	bfin-uclinux-mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
-		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs ; \
-	fi ; \
-	if [ -n "$(CONFIG_EXT2_FS)" ]; then \
-		bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2 ; \
+		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
+endif
+ifneq ($(CONFIG_EXT2_FS),)
+	bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2 ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
-		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2 ; \
-	fi ; \
-	if [ -n "$(CONFIG_ROMFS_FS)" ]; then \
-		if  which genromfs >/dev/null 2>&1; then \
-			$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
-			genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
-			$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).romfs \
+		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
+endif
+ifneq ($(CONFIG_ROMFS_FS),)
+	set -e ; \
+	if which genromfs >/dev/null 2>&1; then \
+		$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
+		genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
+		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).romfs \
 			--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 			--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).romfs ; \
-			rm -rf $(ROMFSDIR)/dev/*; \
-		fi; \
+		rm -rf $(ROMFSDIR)/dev/*; \
 	fi
+endif
+
+ifeq ($(CONFIG_MTD_UCLINUX),y)
+
 #
 # make a compressed image, link the first one to uImage
 #
@@ -120,14 +123,39 @@ image:
 			ln -sf uImage.$$FS $(IMAGEDIR)/uImage ; \
 		fi; \
 	done
+	rm -f $(IMAGEDIR)/vmlinux
+	rm -f $(IMAGEDIR)/vmImage
+
+else
+
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
 #
-# grab the standalone kernel image
+# make an initramfs image
+#  Note: need to override some vars from userland env
+#  Note: we don't compress the cpio initramfs as the u-boot boot images
+#        take care of that for us ... no point in double compressing
 #
-	if [ -z "$(CONFIG_MTD_UCLINUX)" ]; then \
-		cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage ; \
-	else \
-		rm -f $(IMAGEDIR)/vmlinux; \
-		rm -f $(IMAGEDIR)/vmImage; \
-	fi
+	$(ROMFSINST) -s /sbin/init /init
+
+	cd $(ROMFSDIR) && \
+	find . | cpio --quiet -H newc -o > $(IMAGEDIR)/rootfs.initramfs
+	awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) > $(DEVICE_TABLE).cpio
+	$(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio $(DEVICE_TABLE).cpio >> $(IMAGEDIR)/rootfs.initramfs
+	rm -f $(DEVICE_TABLE).cpio
+	cp $(IMAGEDIR)/rootfs.initramfs $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
+
+	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
+	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(ROOTDIR)/$(LINUXDIR)
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/uImage.initramfs
+	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/linux.initramfs
+	ln -sf linux.initramfs $(IMAGEDIR)/linux
+	ln -sf uImage.initramfs $(IMAGEDIR)/uImage
+
+	rm -f $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
+	rm -f $(ROMFSINST)/init
+
+endif
 
 clean:
+
+.PHONY: all clean image romfs
