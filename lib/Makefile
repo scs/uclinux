@@ -121,6 +121,8 @@ dir_$(CONFIG_LIB_LIBIPOD)        += libipod
 dir_$(CONFIG_LIB_LIBIPOD_FORCE)  += libipod
 dir_$(CONFIG_LIB_LIBICONV)       += libiconv
 dir_$(CONFIG_LIB_LIBICONV_FORCE) += libiconv
+dir_$(CONFIG_LIB_LIBMPEG2)       += mpeg2dec
+dir_$(CONFIG_LIB_LIBMPEG2_FORCE) += mpeg2dec
 
 # And build libraries in the prop directory last
 dir_y += $(wildcard $(ROOTDIR)/prop)
