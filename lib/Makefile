@@ -119,6 +119,8 @@ dir_$(CONFIG_LIB_TSLIB)          += tslib-1.0
 dir_$(CONFIG_LIB_TSLIB_FORCE)    += tslib-1.0
 dir_$(CONFIG_LIB_LIBIPOD)        += libipod
 dir_$(CONFIG_LIB_LIBIPOD_FORCE)  += libipod
+dir_$(CONFIG_LIB_LIBICONV)       += libiconv
+dir_$(CONFIG_LIB_LIBICONV_FORCE) += libiconv
 
 # And build libraries in the prop directory last
 dir_y += $(wildcard $(ROOTDIR)/prop)
