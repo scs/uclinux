@@ -87,8 +87,8 @@ ifneq ($(CONFIG_CRAMFS),)
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
 endif
 ifneq ($(CONFIG_EXT2_FS),)
-	bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2 ; \
-		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
+	bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
+	$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
 endif
@@ -135,13 +135,11 @@ else
 #  Note: we don't compress the cpio initramfs as the u-boot boot images
 #        take care of that for us ... no point in double compressing
 #
-	$(ROMFSINST) -s /sbin/init /init
-
 	cd $(ROMFSDIR) && \
 	find . | cpio --quiet -H newc -o > $(IMAGEDIR)/rootfs.initramfs
-	awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) > $(DEVICE_TABLE).cpio
-	$(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio $(DEVICE_TABLE).cpio >> $(IMAGEDIR)/rootfs.initramfs
-	rm -f $(DEVICE_TABLE).cpio
+	( awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) ; \
+	  echo "slink /init /sbin/init 0755 0 0" ; \
+	) | $(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio - >> $(IMAGEDIR)/rootfs.initramfs
 	cp $(IMAGEDIR)/rootfs.initramfs $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
 
 	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
@@ -150,9 +148,6 @@ else
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/linux.initramfs
 	ln -sf linux.initramfs $(IMAGEDIR)/linux
 	ln -sf uImage.initramfs $(IMAGEDIR)/uImage
-
-	rm -f $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
-	rm -f $(ROMFSINST)/init
 
 endif
 
