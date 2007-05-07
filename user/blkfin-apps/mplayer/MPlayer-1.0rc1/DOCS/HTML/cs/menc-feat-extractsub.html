@@ -1,0 +1,31 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>13.9. Extrakce DVD titulk&#367; do VOBsub souboru</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="prev" href="menc-feat-enc-images.html" title="13.8. Enkódování z mno&#382;ství vstupních obrázkových soubor&#367; (JPEG, PNG, TGA, SGI)"><link rel="next" href="aspect.html" title="13.10. Zachování pom&#283;ru stran"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.9. Extrakce DVD titulk&#367; do VOBsub souboru</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="menc-feat-enc-images.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 13. Základní pou&#382;ití <span class="application">MEncoder</span>u</th><td width="20%" align="right"> <a accesskey="n" href="aspect.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-extractsub"></a>13.9. Extrakce DVD titulk&#367; do VOBsub souboru</h2></div></div></div><p>
+<span class="application">MEncoder</span> je schopen vyextrahovat titulky z DVD do
+VOBsub formátovaných soubor&#367;. Ty sestávají ze dvou soubor&#367; zakon&#269;ených
+<tt class="filename">.idx</tt> a <tt class="filename">.sub</tt> a jsou obvykle zabaleny
+v jediném <tt class="filename">.rar</tt> archivu.
+<span class="application">MPlayer</span> je umí p&#345;ehrávat s pomocí voleb
+<tt class="option">-vobsub</tt> a <tt class="option">-vobsubid</tt>.
+</p><p>
+Zadejte základní jméno (&#269;ili bez p&#345;ípony <tt class="filename">.idx</tt> nebo
+<tt class="filename">.sub</tt>) výstupních soubor&#367; pomocí volby
+<tt class="option">-vobsubout</tt> a index pro tyto titulky ve zbývajících souborech
+pomocí <tt class="option">-vobsuboutindex</tt>.
+</p><p>
+Pokud není vstup z DVD, m&#283;li byste pou&#382;ít <tt class="option">-ifo</tt> pro indikaci
+<tt class="filename">.ifo</tt> souboru nutného k vytvo&#345;ení výsledného
+<tt class="filename">.idx</tt> souboru.
+</p><p>
+Pokud vstup není z DVD a nemáte <tt class="filename">.ifo</tt> soubor, budete muset
+pou&#382;ít volbu <tt class="option">-vobsubid</tt> k nastavení, pro které id jazyka se má
+vytvo&#345;it <tt class="filename">.idx</tt> soubor.
+</p><p>
+Ka&#382;dým spu&#353;t&#283;ním se p&#345;idají b&#283;&#382;ící titulky pokud soubory <tt class="filename">.idx</tt>
+a <tt class="filename">.sub</tt> ji&#382; existují. Tak&#382;e byste je m&#283;li v&#353;echny odstranit
+d&#345;íve ne&#382; za&#269;nete.
+</p><div class="example"><a name="id2583798"></a><p class="title"><b>P&#345;íklad 13.4. Kopírování dvojích titulk&#367; z DVD b&#283;hem dvoupr&#367;chodového enkódování</b></p><pre class="screen">
+rm titulky.idx titulky.sub
+mencoder dvd://1 -oac copy -ovc lavc -lavcopts vcodec=mpeg4:vpass=1 -vobsubout titulky
+mencoder dvd://1 -oac copy -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell:vpass=2 -vobsubout titulky -vobsuboutindex 1 -sid 5</pre></div><div class="example"><a name="id2583819"></a><p class="title"><b>P&#345;íklad 13.5. Kopírování francouzských titulk&#367; z MPEG souboru</b></p><pre class="screen">
+rm titulky.idx titulky.sub
+mencoder <em class="replaceable"><code>film.mpg</code></em> -ifo <em class="replaceable"><code>film.ifo</code></em> -vobsubout titulky -vobsuboutindex 0 -vobsuboutid fr -sid 1 -nosound -ovc copy
+</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="menc-feat-enc-images.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="aspect.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">13.8. Enkódování z mno&#382;ství vstupních obrázkových soubor&#367; (JPEG, PNG, TGA, SGI) </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 13.10. Zachování pom&#283;ru stran</td></tr></table></div></body></html>

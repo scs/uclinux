@@ -1,0 +1,76 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>2.6. Fonty a OSD</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="install.html" title="Kapitola 2. Instalace"><link rel="prev" href="gui.html" title="2.5. Cht&#283;li byste GUI?"><link rel="next" href="rtc.html" title="2.7. RTC"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="fonts-osd.html#truetype-fonts" title="2.6.1. TrueType fonty"><link rel="subsection" href="fonts-osd.html#bitmap-fonts" title="2.6.2. bitmapové fonty"><link rel="subsection" href="fonts-osd.html#osdmenu" title="2.6.3. OSD menu"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.6. Fonty a OSD</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="gui.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 2. Instalace</th><td width="20%" align="right"> <a accesskey="n" href="rtc.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="fonts-osd"></a>2.6. Fonty a OSD</h2></div></div></div><p>
+Abyste si mohli u&#382;ívat OSD a titulk&#367;, musíte
+<span class="application">MPlayer</span>u sd&#283;lit, který font má pou&#382;ít.
+M&#367;&#382;e to být jakýkoli TrueType font, nebo speciální bitmapový font.
+TrueType v&#353;ak doporu&#269;ujeme, jeliko&#382; vypadají lépe, mohou být vhodn&#283;
+&#353;kálovány na rozm&#283;r filmu a lépe si poradí s r&#367;znými znakovými sadami.
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="truetype-fonts"></a>2.6.1. TrueType fonty</h3></div></div></div><p>
+Existují dva zp&#367;soby, jak zprovoznit TrueType fonty. První je pou&#382;ít volbu
+<tt class="option">-font</tt> pro volbu TrueType fontu z p&#345;íkazového &#345;ádku.
+Tato volba bude dobrým kandidátem pro umíst&#283;ní do konfigura&#269;ního
+souboru (detaily viz manuál).
+Druhá je vytvo&#345;ení symlinku s názvem <tt class="filename">subfont.ttf</tt>
+na soubor s vámi vybraným fontem. Bu&#271;
+</p><pre class="screen">ln -s <em class="replaceable"><code>/cesta/k/sample_font.ttf</code></em> ~/.mplayer/subfont.ttf</pre><p>
+pro ka&#382;dého u&#382;ivatele zvlá&#353;&#357;, nebo systémový:
+</p><pre class="screen">ln -s <em class="replaceable"><code>/cesta/k/sample_font.ttf</code></em> $PREFIX/share/mplayer/subfont.ttf</pre><p>
+</p><p>
+Pokud byl <span class="application">MPlayer</span> kompilován s podporou
+<code class="systemitem">fontconfig</code>, vý&#353;e uvedené nebude
+fungovat, místo toho <tt class="option">-font</tt> o&#269;ekává
+<code class="systemitem">fontconfig</code> název fontu
+a jako výchozí bere bezpatkový font. Seznam font&#367; známých
+<code class="systemitem">fontconfig</code>u,
+získáte pomocí <span><strong class="command">fc-list</strong></span>. P&#345;íklad:
+
+</p><pre class="screen">mplayer -font <em class="replaceable"><code>'Bitstream Vera Sans'</code></em> <em class="replaceable"><code>anime.mkv</code></em></pre><p>
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="bitmap-fonts"></a>2.6.2. bitmapové fonty</h3></div></div></div><p>
+Pokud se z n&#283;jakého d&#367;vodu rozhodnete nebo pot&#345;ebujete pou&#382;ít bitmapové fonty,
+stáhn&#283;te si sadu z na&#353;ich stránek. M&#367;&#382;ete si vybrat mezi r&#367;znými
+<a href="http://www.mplayerhq.hu/MPlayer/releases/fonts/" target="_top">ISO fonty</a>
+a n&#283;kolika sadami font&#367;
+<a href="http://www.mplayerhq.hu/MPlayer/contrib/fonts/" target="_top">zaslaných u&#382;ivateli</a>
+v r&#367;zných znakových sadách.
+</p><p>
+Rozbalte sta&#382;ený archiv do
+<tt class="filename">~/.mplayer</tt> nebo
+<tt class="filename">$PREFIX/share/mplayer</tt>.
+Pak p&#345;ejmenujte nebo slinkujte jeden z rozbalených adresá&#345;&#367; na
+<tt class="filename">font</tt>, nap&#345;íklad:
+</p><pre class="screen">ln -s <em class="replaceable"><code>~/.mplayer/arial-24</code></em> ~/.mplayer/font</pre><p>
+</p><pre class="screen">ln -s <em class="replaceable"><code>$PREFIX/share/mplayer/arial-24</code></em> $PREFIX/share/mplayer/font</pre><p>
+</p><p>
+Fonty by m&#283;ly mít vhodný <tt class="filename">font.desc</tt> soubor,
+který mapuje unicode pozice ve fontu na aktuální znakovou sadu
+textu titulk&#367;. Dal&#353;ím &#345;e&#353;ením je mít titulky kódované v UTF-8 a pou&#382;ití
+volby <tt class="option">-utf8</tt>, nebo jen pojmenovat soubor s titulky
+<tt class="filename">&lt;video_název&gt;.utf</tt> a umíst&#283;te jej do
+adresá&#345;e s filmem.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="osdmenu"></a>2.6.3. OSD menu</h3></div></div></div><p>
+<span class="application">MPlayer</span> má pln&#283; u&#382;ivatelsky definovatelné rozhraní OSD
+Menu (nabídka na obrazovce).
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+Menu Preferences NENÍ v sou&#269;asnosti IMPLEMENTOVÁNO!
+</p></div><div class="orderedlist"><p class="title"><b>Instalace</b></p><ol type="1"><li>
+  zkompilujte <span class="application">MPlayer</span> s volbou
+  <tt class="option">--enable-menu</tt>
+  p&#345;edanou do <tt class="filename">./configure</tt>
+  </li><li>
+  ujist&#283;te se &#382;e máte nainstalován OSD font
+  </li><li>
+  zkopírujte <tt class="filename">etc/menu.conf</tt> do svého
+  <tt class="filename">.mplayer</tt> adresá&#345;e
+  </li><li>
+  zkopírujte <tt class="filename">etc/menu.conf</tt> do svého
+  <tt class="filename">.mplayer</tt> adresá&#345;e, nebo do systémového
+  <span class="application">MPlayer</span> konfigura&#269;ního adresá&#345;e (výchozí:
+  <tt class="filename">/usr/local/etc/mplayer</tt>)
+  </li><li>
+  zkontrolujte a upravte <tt class="filename">input.conf</tt>, abyste zapnuli klávesy
+  pro pohyb v menu (to je popsáno zde).
+  </li><li><p>
+  spus&#357;te <span class="application">MPlayer</span> podle následujícího p&#345;íkladu:
+  </p><pre class="screen">$ mplayer -menu <em class="replaceable"><code>file.avi</code></em></pre><p>
+  </p></li><li>
+  stiskn&#283;te n&#283;kterou z kláves, kterou jste definovali
+  </li></ol></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="gui.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="rtc.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">2.5. Cht&#283;li byste GUI? </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 2.7. RTC</td></tr></table></div></body></html>

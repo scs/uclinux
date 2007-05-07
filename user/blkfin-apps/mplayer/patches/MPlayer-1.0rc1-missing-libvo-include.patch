@@ -1,0 +1,12 @@
+Fix from upstream svn.
+
+--- MPlayer-1.0rc1/libvo/vo_yuv4mpeg.c
++++ MPlayer-1.0rc1/libvo/vo_yuv4mpeg.c
+@@ -40,6 +40,7 @@
+ 
+ #include "fastmemcpy.h"
+ #include "libswscale/swscale.h"
++#include "libswscale/rgb2rgb.h"
+ #include "libmpcodecs/vf_scale.h"
+ 
+ static vo_info_t info = 

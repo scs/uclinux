@@ -1,0 +1,14 @@
+`install -s` is evil
+
+--- MPlayer-1.0rc1/Makefile
++++ MPlayer-1.0rc1/Makefile
+@@ -19,9 +19,6 @@
+ #CFLAGS += -Wall
+ 
+ # Do not strip the binaries at installation
+-ifeq ($(STRIPBINARIES),yes)
+-INSTALLSTRIP = -s
+-endif
+ 
+ SRCS_COMMON = asxparser.c \
+               codec-cfg.c \

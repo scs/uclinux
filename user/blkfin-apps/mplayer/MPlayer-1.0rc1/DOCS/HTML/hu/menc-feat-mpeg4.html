@@ -1,0 +1,26 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>13.3. Két menetes MPEG-4 ("DivX") kódolás</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="prev" href="menc-feat-selecting-input.html" title="13.2. Bemeneti fájl vagy eszköz kiválasztása"><link rel="next" href="menc-feat-handheld-psp.html" title="13.4. Kódolás Sony PSP videó formátumba"><link rel="preface" href="howtoread.html" title="Hogyan olvasd ezt a dokumentációt"><link rel="chapter" href="intro.html" title="1. fejezet - Bevezetés"><link rel="chapter" href="install.html" title="2. fejezet - Telepítés"><link rel="chapter" href="usage.html" title="3. fejezet - Használat"><link rel="chapter" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="chapter" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="chapter" href="containers.html" title="6. fejezet - Konténerek"><link rel="chapter" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="chapter" href="video.html" title="8. fejezet - Videó kimeneti eszközök"><link rel="chapter" href="audio.html" title="9. fejezet - Audió kimeneti eszközök"><link rel="chapter" href="tv.html" title="10. fejezet - TV"><link rel="chapter" href="radio.html" title="11. fejezet - Rádió"><link rel="chapter" href="ports.html" title="12. fejezet - Portok"><link rel="chapter" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="chapter" href="encoding-guide.html" title="14. fejezet - Kódolás a MEncoderrel"><link rel="appendix" href="bugreports.html" title="A. függelék - Hogyan jelentsd a hibákat"><link rel="appendix" href="bugs.html" title="B. függelék - Ismert hibák"><link rel="appendix" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="appendix" href="history.html" title="D. függelék - Történelem"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.3. Két menetes MPEG-4 ("DivX") kódolás</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="menc-feat-selecting-input.html">El&#337;z&#337;</a> </td><th width="60%" align="center">13. fejezet - A <span class="application">MEncoder</span> használatának alapjai</th><td width="20%" align="right"> <a accesskey="n" href="menc-feat-handheld-psp.html">Következ&#337;</a></td></tr></table><hr></div><div class="sect1" lang="hu"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-mpeg4"></a>13.3. Két menetes MPEG-4 ("DivX") kódolás</h2></div></div></div><p>
+A név abból a tényb&#337;l ered, hogy ez a módszer a fájlt <span class="emphasis"><em>kétszer</em></span>
+kódolja át. Az els&#337; kódolás (szinkronizációs lépés) létrehoz pár ideiglenes,
+néhány megabájtos fájlt (<tt class="filename">*.log</tt>), ezeket ne töröld le
+még (az AVI-t letörölheted vagy egyszer&#369;en létre sem hozod, a videó
+<tt class="filename">/dev/null</tt> -ba irányításával). A második lépésben, a két menetes
+kimenet fájl lesz létrehozva, az ideiglenes fájlok bitrátájának felhasználásával.
+Az eredmény fájlnak sokkal jobb lesz a képmin&#337;sége. Ha most hallasz err&#337;l el&#337;ször,
+nézz meg pár a neten elérhet&#337; leírást.
+</p><div class="example"><a name="copy_audio_track"></a><p class="title"><b>13.1. példa - audió sáv másolása</b></p><p>
+Egy DVD második sávjának két menetes kódolása MPEG-4 ("DivX") AVI-ba az
+audió sáv másolásával.
+</p><pre class="screen">
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:vpass=1 -oac copy -o /dev/null
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell:vpass=2 -oac copy -o <em class="replaceable"><code>kimenet.avi</code></em>
+</pre><p>
+</p></div><div class="example"><a name="encode_audio_track"></a><p class="title"><b>13.2. példa - audió sáv kódolása</b></p><p>
+Egy DVD második sávjának két menetes kódolása MPEG-4 ("DivX") AVI-ba az
+audió sáv MP3-ba alakításával.
+Vigyázz ezzela  módszerrel, mivel bizonyos esetekben audió/videó
+deszinkronizációhoz vezethet.
+</p><pre class="screen">
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:vpass=1 -oac mp3lame -lameopts vbr=3 -o /dev/null
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell:vpass=2 -oac mp3lame -lameopts vbr=3 -o <em class="replaceable"><code>kimenet.avi</code></em>
+</pre><p>
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="menc-feat-selecting-input.html">El&#337;z&#337;</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Fel</a></td><td width="40%" align="right"> <a accesskey="n" href="menc-feat-handheld-psp.html">Következ&#337;</a></td></tr><tr><td width="40%" align="left" valign="top">13.2. Bemeneti fájl vagy eszköz kiválasztása </td><td width="20%" align="center"><a accesskey="h" href="index.html">Tartalom</a></td><td width="40%" align="right" valign="top"> 13.4. Kódolás Sony PSP videó formátumba</td></tr></table></div></body></html>

@@ -1,0 +1,25 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>6.4. Silicon Graphics Irix</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - El reproductor de Películas
+para LINUX"><link rel="up" href="ports.html" title="Capítulo 6. Adaptaciones"><link rel="prev" href="solaris.html" title="6.3. Sun Solaris"><link rel="next" href="qnx.html" title="6.5. QNX"><link rel="preface" href="howtoread.html" title="Como leer esta documentación"><link rel="chapter" href="intro.html" title="Capítulo 1. Introducción"><link rel="chapter" href="features.html" title="Capítulo 2. Características"><link rel="chapter" href="usage.html" title="Capítulo 3. Uso"><link rel="chapter" href="faq.html" title="Capítulo 4. Preguntas de Usuario Frecuentes"><link rel="chapter" href="cd-dvd.html" title="Capítulo 5. Uso de CD/DVD"><link rel="chapter" href="ports.html" title="Capítulo 6. Adaptaciones"><link rel="chapter" href="mencoder.html" title="Capítulo 7. Codificando con MEncoder"><link rel="appendix" href="bugreports.html" title="Apéndice A. Cómo reportar errores"><link rel="appendix" href="bugs.html" title="Apéndice B. Problemas conocidos"><link rel="appendix" href="skin.html" title="Apéndice C. Formato del skin de MPlayer"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">6.4. Silicon Graphics Irix</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="solaris.html">Anterior</a> </td><th width="60%" align="center">Capítulo 6. Adaptaciones</th><td width="20%" align="right"> <a accesskey="n" href="qnx.html">Siguiente</a></td></tr></table><hr></div><div class="sect1" lang="es"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="irix"></a>6.4. Silicon Graphics Irix</h2></div></div></div><p>
+Puede probar a instalar el programa de instalación GNU, y (si no lo tiene
+en su ruta global) apuntar a donde esté con:
+</p><pre class="screen">./configure --with-install=<em class="replaceable"><code>/ruta/y/nombre/del/instalador</code></em></pre><p>
+</p><p>
+O puede usar el instalador por defecto que viene con IRIX 6.5 y en ese
+caso debe editar el <tt class="filename">Makefile</tt> a mano un poquito.
+Cambie las dos siguientes líneas:
+</p><pre class="programlisting">
+  $(INSTALL) -c -m 644 DOCS/mplayer.1 $(MANDIR)/man1/mplayer.1
+
+  $(INSTALL) -c -m 644 etc/codecs.conf $(CONFDIR)/codecs.conf
+</pre><p>
+por:
+</p><pre class="programlisting">
+  $(INSTALL) -m 644 mplayer.1 $(MANDIR)/man1/
+
+  $(INSTALL) -m 644 codecs.conf $(CONFDIR)/
+</pre><p>
+Y entonces haga (desde el directorio de fuentes de
+<span class="application">MPlayer</span>):
+</p><pre class="screen">cp DOCS/mplayer.1 . ; cp etc/codecs.conf .</pre><p>
+y después continúe con la construcción e instalación.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="solaris.html">Anterior</a> </td><td width="20%" align="center"><a accesskey="u" href="ports.html">Subir</a></td><td width="40%" align="right"> <a accesskey="n" href="qnx.html">Siguiente</a></td></tr><tr><td width="40%" align="left" valign="top">6.3. Sun Solaris </td><td width="20%" align="center"><a accesskey="h" href="index.html">Inicio</a></td><td width="40%" align="right" valign="top"> 6.5. QNX</td></tr></table></div></body></html>

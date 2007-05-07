@@ -26,6 +26,7 @@ dir_$(CONFIG_USER_BLACKFIN_ASTERISK)             += asterisk
 dir_$(CONFIG_USER_USBUTILS)                      += usbutils
 dir_$(CONFIG_USER_BLUEZ)                         += bluez-utils
 dir_$(CONFIG_USER_PICOCOM)                       += picocom
+dir_$(CONFIG_USER_MPLAYER)                       += mplayer
 
 all %::
 	for i in $(dir_y) ; do make -C $$i $@ || exit $$? ; done

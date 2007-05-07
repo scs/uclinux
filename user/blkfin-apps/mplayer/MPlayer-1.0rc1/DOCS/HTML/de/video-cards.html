@@ -1,0 +1,111 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>2.2. Grafikkarten</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Movie Player"><link rel="up" href="install.html" title="Kapitel 2. Installation"><link rel="prev" href="softreq.html" title="2.1. Softwareanforderungen"><link rel="next" href="sound-cards.html" title="2.3. Soundkarten"><link rel="preface" href="howtoread.html" title="Wie diese Dokumentation gelesen werden soll"><link rel="chapter" href="intro.html" title="Kapitel 1. Einführung"><link rel="chapter" href="install.html" title="Kapitel 2. Installation"><link rel="chapter" href="usage.html" title="Kapitel 3. Gebrauch"><link rel="chapter" href="cd-dvd.html" title="Kapitel 4. CD/DVD Nutzung"><link rel="chapter" href="faq.html" title="Kapitel 5. Häufig gestellte Fragen"><link rel="chapter" href="containers.html" title="Kapitel 6. Containerformate"><link rel="chapter" href="codecs.html" title="Kapitel 7. Codecs"><link rel="chapter" href="video.html" title="Kapitel 8. Videoausgabegeräte"><link rel="chapter" href="audio.html" title="Kapitel 9. Audioausgabegeräte"><link rel="chapter" href="tv.html" title="Kapitel 10. TV"><link rel="chapter" href="radio.html" title="Kapitel 11. Radio"><link rel="chapter" href="ports.html" title="Kapitel 12. Portierungen"><link rel="chapter" href="mencoder.html" title="Kapitel 13. Allgemeiner Gebrauch von MEncoder"><link rel="chapter" href="encoding-guide.html" title="Kapitel 14. Encodieren mit MEncoder"><link rel="appendix" href="bugreports.html" title="Anhang A. Wie Fehler (Bugs) berichtet werden"><link rel="appendix" href="bugs.html" title="Anhang B. Bekannte Fehler"><link rel="appendix" href="skin.html" title="Anhang C. MPlayers Skinformat"><link rel="appendix" href="history.html" title="Anhang D. Geschichte"><link rel="subsection" href="video-cards.html#yuv-cards" title="2.2.1. YUV-Karten"><link rel="subsection" href="video-cards.html#non-yuv-cards" title="2.2.2. Nicht-YUV-Karten"><link rel="subsection" href="video-cards.html#cirrus-logic-cards" title="2.2.3. Cirrus-Logic-Karten"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.2. Grafikkarten</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="softreq.html">Zurück</a> </td><th width="60%" align="center">Kapitel 2. Installation</th><td width="20%" align="right"> <a accesskey="n" href="sound-cards.html">Weiter</a></td></tr></table><hr></div><div class="sect1" lang="de"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="video-cards"></a>2.2. Grafikkarten</h2></div></div></div><p>
+      Es gibt allgemein zwei Arten Grafikkarten. Die eine (die neueren Karten)
+      unterstützen <span class="bold"><strong>Hardware-Skalierung und YUV-Beschleunigung</strong></span>,
+      die anderen nicht.
+    </p><div class="sect2" lang="de"><div class="titlepage"><div><div><h3 class="title"><a name="yuv-cards"></a>2.2.1. YUV-Karten</h3></div></div></div><p>
+        Diese können das Bild in jeder Größe darstellen und auf jede Größe
+        skalieren (zoomen), die in ihren Speicher passt, und das mit
+        <span class="bold"><strong>geringer CPU-Last</strong></span> (sogar beim Zoom), daher ist
+        die Vollbildwiedergabe nett und sehr schnell.
+
+        </p><div class="itemizedlist"><ul type="disc"><li><p>
+              <span class="bold"><strong>Matrox G200/G400/G450/G550-Karten</strong></span>: Obwohl ein
+              <a href="output-trad.html#vidix" title="8.2.13. VIDIX">Vidix-Treiber</a> zur Verfügung steht, wird empfohlen,
+              statt dessen das mga_vid-Modul zu verwenden, da es wesentlich besser funktioniert.
+              Siehe bitte den Abschnitt <a href="output-trad.html#mga_vid" title="8.2.6. Matrox-Framebuffer (mga_vid)">mga_vid</a> für dessen Installation
+              und den Umgang damit. Es ist wichtig, diese Schritte <span class="emphasis"><em>vor</em></span> der Compilierung
+              von <span class="application">MPlayer</span> durchzuführen, da sonst keine Unterstützung
+              für mga_vid eingebaut wird. Schaue dir auch den Abschnitt
+              <a href="tvout.html#tvout-mga-g400" title="8.5.1. Matrox G400-Karten">Matrox TV-out</a> an.
+              <span class="bold"><strong> Wenn du nicht Linux benutzt</strong></span>, ist deine einzige
+              Möglichkeit der VIDIX-Treiber: Lies den Abschnitt <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>.
+            </p></li><li><p>
+              <span class="bold"><strong>3Dfx Voodoo3/Banshee-Karten</strong></span>: Bitte siehe den Abschnitt
+              <a href="output-trad.html#tdfxfb" title="8.2.7. 3dfx-YUV-Unterstützung (tdfxfb)">tdfxfb</a>, um große Geschwindigkeitsvorteile zu nutzen.
+              Es ist wichtig, diese Schritte <span class="emphasis"><em>vor</em></span> der Compilierung
+              von <span class="application">MPlayer</span> durchzuführen, da sonst keine Unterstützung
+              für 3Dfx eingebaut wird.
+              Wenn du X benutzt, verwende mindestens <span class="bold"><strong>4.2.0</strong></span>, da der
+              3dfx Xv-Treiber in der Version 4.1.0 und davor nicht funktioniert.
+            </p></li><li><p>
+              <span class="bold"><strong>ATI-Karten</strong></span>: Der <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>-Treiber
+              wird für folgende Karten bereitgestellt:
+              <span class="bold"><strong>Radeon, Rage128, Mach64</strong></span> (Rage XL/Mobility, Xpert98).
+              Siehe auch die Dokumentation des TV-out im Abschnitt <a href="tvout.html#tvout-ati" title="8.5.3. ATI-Karten">ATI-Karten</a>,
+              damit du weißt, ob das TV-out deiner Karte unter Linux mit
+              <span class="application">MPlayer</span> unterstützt wird.
+            </p></li><li><p>
+              <span class="bold"><strong>S3-Karten</strong></span>: Die Savage- und Virge/DX-Chips verfügen
+              über Hardwarebeschleunigung. Benutze eine XFree86-Version, die so neu wir möglich ist,
+              ältere Treiber sind buggy. Savage-Chips haben Probleme mit YV12-Darstellung, siehe
+              Abschnitt <a href="output-trad.html#s3" title="8.2.1.2. S3-Karten">S3 Xv</a> für Details. Ältere Trio-Karten haben keine
+              oder nur langsame Hardwareunterstützung.
+            </p></li><li><p>
+              <span class="bold"><strong>nVidia-Karten</strong></span>: Können oder können keine gute Wahl sein
+              für die Videowiedergabe. Wenn du eine GeForce2-Karte hast (oder neuer), ist es nicht
+              wahrscheinlich, dass sie ohne Fehler funktioniert.
+              <span class="bold"><strong>Der in XFree86 eingebaute nVidia-Treiber unterstützt nicht auf
+                allen Karten YUV-Hardwarebeschleunigung.</strong></span> Du musst die Closed-Source-Treiber von
+              <a href="http://nvidia.com" target="_top">nVidia.com</a> herunterladen. Siehe Abschnitt
+              <a href="output-trad.html#nvidia" title="8.2.1.3. nVidia-Karten">nVidia Xv-Treiber</a> für Details. Bitte siehe auch Abschnitt
+              <a href="tvout.html#tvout-nvidia" title="8.5.4. nVidia">nVidia TV-out</a>, wenn du einen Fernseher verwenden möchtest.
+            </p></li><li><p>
+              <span class="bold"><strong>3DLabs GLINT R3 und Permedia3</strong></span>: Ein VIDIX-Treiber wird
+              bereitgestellt (pm3_vid). Bitte siehe Abschnitt <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a> für Details.
+            </p></li><li><p>
+              <span class="bold"><strong>Andere Karten</strong></span>: keine der oben genannten?
+              </p><div class="itemizedlist"><ul type="circle"><li>
+                    Probiere, ob der XFree86-Treiber (und deine Karte) Hardwarebeschleunigung unterstützen.
+                    Siehe Abschnitt <a href="output-trad.html#xv" title="8.2.1. Xv">Xv</a> für Details.
+                  </li><li>
+                    Sollten sie dies nicht tun, werden die Features unter deinem Betriebssystem nicht
+                    unterstützt :( Wenn Hardwarebeschleunigung unter Windows funktioniert, bedeutet
+                    dies nicht, dass sie unter Linux oder anderen Betriebssystemen funktioniert, das
+                    hängt von den Treibern ab. Die meisten Hersteller stellen weder Linuxtreiber her,
+                    noch veröffentlichen sie die Spezifikationen ihrer Chips - daher hast du Pech,
+                    wenn du ihre Karten benutzt.
+                    Siehe <a href="video-cards.html#non-yuv-cards">Non-YUV cards</a>.
+                  </li></ul></div><p>
+            </p></li></ul></div><p>
+      </p></div><div class="sect2" lang="de"><div class="titlepage"><div><div><h3 class="title"><a name="non-yuv-cards"></a>2.2.2. Nicht-YUV-Karten</h3></div></div></div><p>
+        Vollbildwiedergabe kann erreicht werden, indem entweder
+        <span class="bold"><strong>Softwareskalierung</strong></span> aktiviert wird
+        (benutz die Option <tt class="option">-zoom</tt> oder <tt class="option">-vf</tt>, aber ich warne dich,
+        die ist langsam), oder durch den Wechsel zu einem kleineren Videomodus wie zum Beispiel
+        352x288. Hast du keine YUV-Beschleunigung, wird letztere Methode empfohlen.
+        Der Wechsel des Videomodus kann durch die Option <tt class="option">-vm</tt> aktiviert werden
+        und funktioniert mit folgenden Treibern:
+        </p><div class="itemizedlist"><ul type="disc"><li>
+              <span class="bold"><strong>Benutzung von </strong></span> XFree86: Siehe Details in den Abschnitten
+              <a href="output-trad.html#dga" title="8.2.2. DGA">DGA-Treiber</a> und <a href="output-trad.html#x11" title="8.2.12. X11">X11-Treiber</a>.
+              DGA wird empfohlen! Probiere auch DGA via SDL, das funktioniert manchmal besser.
+            </li><li>
+              <span class="bold"><strong>Nicht-Benutzung von</strong></span> XFree86: Probiere die Treiber
+              in folgender Reihenfolge:
+              <a href="output-trad.html#vesa" title="8.2.11. VESA-Ausgabe über das VESA-BIOS">vesa</a>,
+              <a href="output-trad.html#fbdev" title="8.2.5. Framebuffer-Ausgabe (FBdev)">fbdev</a>,
+              <a href="output-trad.html#svgalib" title="8.2.4. SVGAlib">svgalib</a>,
+              <a href="output-trad.html#aalib" title="8.2.9. AAlib - Ausgabe im Textmodus">aalib</a>.
+            </li></ul></div><p>
+      </p></div><div class="sect2" lang="de"><div class="titlepage"><div><div><h3 class="title"><a name="cirrus-logic-cards"></a>2.2.3. Cirrus-Logic-Karten</h3></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+            GD 7548: verfügbar on-board und getestet in der Compaq Armada 41xx Notebook-Serie.
+            </p><div class="itemizedlist"><ul type="circle"><li>
+                  XFree86 3: Funktioniert in 8/16bpp-Modi. Trotzdem, der Treiber ist übel langsam in
+                  800x600@16bpp. <span class="bold"><strong>Empfohlen: 640x480@16bpp</strong></span>
+                </li><li>
+                  XFree86 4: Der Xserver friert kurz nach dem Start ein, wenn Beschleunigung nicht
+                  aktiviert ist, dann jedoch laufen die Dinge noch langsamer als mit XFree86 3.
+                  Kein XVideo.
+                </li><li>
+                  FBdev: Framebuffer kann mit dem <code class="systemitem">clgenfb</code>-Treiber im Kernel
+                  aktiviert werden, auch wenn er bei mir nur mit 8bpp funktioniert hat, daher
+                  unbrauchbar. Die clgenfb-Source musste um die 7548-ID vor der Compilierung
+                  erweitert werden.
+                </li><li>
+                  VESA: Die Karte ist nur VBE 1.2-fähig, daher kann VESA-Ausgabe nicht benutzt
+                  werden. Kann mit UniVBE nicht umgangen werden.
+                </li><li>
+                  SVGAlib: erkennt einen älteren Cirrus-Chip. Langsam, aber nutzbar mit der Option
+                  <tt class="option">-bpp 8</tt>.
+                </li></ul></div><p>
+          </p></li></ul></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="softreq.html">Zurück</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Nach oben</a></td><td width="40%" align="right"> <a accesskey="n" href="sound-cards.html">Weiter</a></td></tr><tr><td width="40%" align="left" valign="top">2.1. Softwareanforderungen </td><td width="20%" align="center"><a accesskey="h" href="index.html">Zum Anfang</a></td><td width="40%" align="right" valign="top"> 2.3. Soundkarten</td></tr></table></div></body></html>

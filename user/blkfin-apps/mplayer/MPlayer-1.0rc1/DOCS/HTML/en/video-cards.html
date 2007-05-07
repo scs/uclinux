@@ -1,0 +1,105 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>2.2. Video cards</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="install.html" title="Chapter 2. Installation"><link rel="prev" href="softreq.html" title="2.1. Software requirements"><link rel="next" href="sound-cards.html" title="2.3. Sound cards"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"><link rel="subsection" href="video-cards.html#yuv-cards" title="2.2.1. YUV cards"><link rel="subsection" href="video-cards.html#non-yuv-cards" title="2.2.2. Non-YUV cards"><link rel="subsection" href="video-cards.html#cirrus-logic-cards" title="2.2.3. Cirrus-Logic cards"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.2. Video cards</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="softreq.html">Prev</a> </td><th width="60%" align="center">Chapter 2. Installation</th><td width="20%" align="right"> <a accesskey="n" href="sound-cards.html">Next</a></td></tr></table><hr></div><div class="sect1" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="video-cards"></a>2.2. Video cards</h2></div></div></div><p>
+There are generally two kind of video cards. One kind (the newer cards) has
+<span class="bold"><strong>hardware scaling and YUV acceleration</strong></span> support,
+the other cards don't.
+</p><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="yuv-cards"></a>2.2.1. YUV cards</h3></div></div></div><p>
+They can display and scale (zoom) the picture to any size that fits in
+their memory, with <span class="bold"><strong>small CPU usage</strong></span> (even when
+zooming), thus fullscreen is nice and very fast.
+
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="bold"><strong>Matrox G200/G400/G450/G550 cards</strong></span>: although a
+  <a href="output-trad.html#vidix" title="8.2.13. VIDIX">Vidix driver</a> is provided, it is recommended to
+  use the mga_vid module instead, for it works much better.
+  Please see the <a href="output-trad.html#mga_vid" title="8.2.6. Matrox framebuffer (mga_vid)">mga_vid</a> section about its
+  installation and usage. It is important to do these steps
+  <span class="emphasis"><em>before</em></span> compiling <span class="application">MPlayer</span>,
+  otherwise no mga_vid support will be built. Also check out the
+  <a href="tvout.html#tvout-mga-g400" title="8.5.1. Matrox G400 cards">Matrox TV-out</a> section.
+  <span class="bold"><strong> If you don't use Linux</strong></span>, your only
+  possibility is the VIDIX driver: read the <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a> section.
+  </p></li><li><p>
+  <span class="bold"><strong>3Dfx Voodoo3/Banshee cards</strong></span>: please see
+  <a href="output-trad.html#tdfxfb" title="8.2.7. 3Dfx YUV support">tdfxfb</a> section in order to gain big speedup.
+  It is important to do these steps <span class="bold"><strong>before</strong></span>
+  compiling <span class="application">MPlayer</span>, otherwise no 3Dfx support will be
+  built.
+  If you use X, use at least <span class="bold"><strong>4.2.0</strong></span>, as 3dfx Xv
+  driver was broken in 4.1.0, and earlier releases.
+  </p></li><li><p>
+  <span class="bold"><strong>ATI cards</strong></span>: <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>
+  driver is provided for the following cards:
+  <span class="bold"><strong>Radeon, Rage128, Mach64</strong></span> (Rage XL/Mobility, Xpert98).
+  Also see the <a href="tvout.html#tvout-ati" title="8.5.3. ATI cards">ATI cards</a> section of the TV-out documentation,
+  to know if you card's TV-out is supported under Linux/<span class="application">MPlayer</span>.
+  </p></li><li><p>
+  <span class="bold"><strong>S3 cards</strong></span>: the Savage and Virge/DX chips have
+  hardware acceleration. Use as new XFree86 version as possible, older drivers are
+  buggy. Savage chips have problems with YV12 display, see <a href="output-trad.html#s3" title="8.2.1.2. S3 cards">S3 Xv</a>
+  section for details. Older, Trio cards have no, or slow hardware support.
+  </p></li><li><p>
+  <span class="bold"><strong>nVidia cards</strong></span>: may or may not be good choice for video playing.
+  If you do not have a GeForce2 (or newer) card, it's not likely to work without bugs.
+  <span class="bold"><strong>the built-in nVidia driver in XFree86 does not support
+  hardware YUV acceleration on all nVidia cards.</strong></span> You have
+  to download nVidia's closed-source drivers from <a href="http://nvidia.com" target="_top">nVidia.com</a>.
+  See the <a href="output-trad.html#nvidia" title="8.2.1.3. nVidia cards">nVidia Xv driver</a> section for details. Please also check
+  the <a href="tvout.html#tvout-nvidia" title="8.5.4. nVidia">nVidia TV-out</a> section if you wish to
+  use a TV.
+  </p></li><li><p>
+  <span class="bold"><strong>3DLabs GLINT R3 and Permedia3</strong></span>: a VIDIX driver
+  is provided (pm3_vid). Please see the <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a> section
+  for details.
+  </p></li><li><p>
+  <span class="bold"><strong>Other cards</strong></span>: none of the above?
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    Try if the XFree86 driver (and your card) supports hardware
+    acceleration. See the <a href="output-trad.html#xv" title="8.2.1. Xv">Xv</a> section for details.
+    </li><li>
+    If it doesn't, then your card's video features aren't supported under
+    your operating system :( If hardware scaling works under Windows, it
+    doesn't mean it will work under Linux or other operating system, it depends on
+    the drivers. Most manufacturers neither make Linux drivers nor release
+    specifications of their chips - so you are unlucky if using their cards.
+    See <a href="video-cards.html#non-yuv-cards">Non-YUV cards</a>.
+    </li></ul></div><p>
+  </p></li></ul></div><p>
+</p></div><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="non-yuv-cards"></a>2.2.2. Non-YUV cards</h3></div></div></div><p>
+Fullscreen playing can be achieved by either enabling <span class="bold"><strong>
+software scaling</strong></span> (use the <tt class="option">-zoom</tt> or <tt class="option">-vf</tt> option,
+but I warn you: this is slow), or switching to a smaller video mode, for example
+352x288. If you don't have YUV acceleration, this latter method is recommended.
+Video mode switching can be enabled by using the <tt class="option">-vm</tt> option and
+it works with the following drivers:
+</p><div class="itemizedlist"><ul type="disc"><li>
+  <span class="bold"><strong>using</strong></span> XFree86: see details in <a href="output-trad.html#dga" title="8.2.2. DGA">DGA driver</a> and
+  <a href="output-trad.html#x11" title="8.2.12. X11">X11 driver</a> sections. DGA is recommended! Also
+  try DGA via SDL, sometimes it's better.
+  </li><li>
+  <span class="bold"><strong>not using</strong></span> XFree86: try the drivers in the
+  following order:
+  <a href="output-trad.html#vesa" title="8.2.11. VESA - output to VESA BIOS">vesa</a>,
+  <a href="output-trad.html#fbdev" title="8.2.5. Framebuffer output (FBdev)">fbdev</a>,
+  <a href="output-trad.html#svgalib" title="8.2.4. SVGAlib">svgalib</a>,
+  <a href="output-trad.html#aalib" title="8.2.9. AAlib - text mode displaying">aalib</a>.
+  </li></ul></div><p>
+</p></div><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="cirrus-logic-cards"></a>2.2.3. Cirrus-Logic cards</h3></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+  GD 7548: present on-board and tested in Compaq Armada 41xx notebook series.
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    XFree86 3: works in 8/16bpp modes. However, the driver is dramatically slow
+    and buggy in 800x600@16bpp. <span class="bold"><strong>Recommended: 640x480@16bpp</strong></span>
+   </li><li>
+    XFree86 4: the Xserver freezes soon after start unless acceleration is
+    disabled, but then the whole thing gets slower than XFree86 3. No XVideo.
+   </li><li>
+    FBdev: framebuffer can be turned on with the <code class="systemitem">clgenfb</code>
+    driver in the kernel, though for me it worked only in 8bpp, thus unusable.
+    The clgenfb source had to be extended with the 7548 ID before compilation.
+   </li><li>
+    VESA: the card is only VBE 1.2 capable, so VESA output can't be used. Can't
+    be workarounded with UniVBE.
+  </li><li>
+    SVGAlib: detects an older Cirrus chip. Usable but slow with
+    <tt class="option">-bpp 8</tt>.
+  </li></ul></div><p>
+</p></li></ul></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="softreq.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="sound-cards.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">2.1. Software requirements </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> 2.3. Sound cards</td></tr></table></div></body></html>

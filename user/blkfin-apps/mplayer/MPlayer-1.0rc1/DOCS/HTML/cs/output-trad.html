@@ -1,0 +1,927 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>8.2. Video výstupy pro tradi&#269;ní video karty</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="prev" href="mtrr.html" title="8.1. Nastavení MTRR"><link rel="next" href="mpeg_decoders.html" title="8.3. MPEG dekodéry"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="output-trad.html#xv" title="8.2.1. Xv"><link rel="subsection" href="output-trad.html#dga" title="8.2.2. DGA"><link rel="subsection" href="output-trad.html#sdl" title="8.2.3. SDL"><link rel="subsection" href="output-trad.html#svgalib" title="8.2.4. SVGAlib"><link rel="subsection" href="output-trad.html#fbdev" title="8.2.5. Výstup na Framebuffer (FBdev)"><link rel="subsection" href="output-trad.html#mga_vid" title="8.2.6. Matrox framebuffer (mga_vid)"><link rel="subsection" href="output-trad.html#tdfxfb" title="8.2.7. Podpora 3Dfx YUV"><link rel="subsection" href="output-trad.html#opengl" title="8.2.8. Rozhraní OpenGL"><link rel="subsection" href="output-trad.html#aalib" title="8.2.9. AAlib - zobrazování v textovém re&#382;imu"><link rel="subsection" href="output-trad.html#caca" title="8.2.10. libcaca - Barevná ASCII Art knihovna"><link rel="subsection" href="output-trad.html#vesa" title="8.2.11. VESA - výstup do VESA BIOSu"><link rel="subsection" href="output-trad.html#x11" title="8.2.12. X11"><link rel="subsection" href="output-trad.html#vidix" title="8.2.13. VIDIX"><link rel="subsection" href="output-trad.html#directfb" title="8.2.14. DirectFB"><link rel="subsection" href="output-trad.html#dfbmga" title="8.2.15. DirectFB/Matrox (dfbmga)"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">8.2. Video výstupy pro tradi&#269;ní video karty</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="mtrr.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 8. Výstupní video za&#345;ízení/rozhraní</th><td width="20%" align="right"> <a accesskey="n" href="mpeg_decoders.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="output-trad"></a>8.2. Video výstupy pro tradi&#269;ní video karty</h2></div></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="xv"></a>8.2.1. Xv</h3></div></div></div><p>
+Pod XFree86 4.0.2, nebo nov&#283;j&#353;ím, m&#367;&#382;ete pou&#382;ít hardwarové YUV rutiny karty
+pomocí roz&#353;í&#345;ení XVideo. P&#345;esn&#283; toto pou&#382;ívá volba
+'<tt class="option">-vo xv</tt>'. Toto rozhraní také podporuje nastavování
+jasu/kontrastu/barevného tónu atd. (pokud nepou&#382;íváte strarý, pomalý DirectShow
+DivX kodek, který to podporuje v&#353;ude), viz man stránka.
+</p><p>
+Abyste to zprovoznili, ujist&#283;te se o následujícím:
+
+</p><div class="orderedlist"><ol type="1"><li><p>
+  Musíte pou&#382;ívat XFree86 4.0.2 nebo nov&#283;j&#353;í (p&#345;edchozí verze nemají XVideo)
+  </p></li><li><p>
+  Va&#353;e karta aktuáln&#283; podporuje hardwarovou akceleraci (moderní karty ano)
+  </p></li><li><p>
+  X nahrává roz&#353;í&#345;ení XVideo. Zpráva ve <tt class="filename">/var/log/XFree86.0.log</tt>
+  vypadá asi takto:
+  </p><pre class="programlisting">(II) Loading extension XVideo</pre><p>
+  </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+   Takto se nahraje pouze roz&#353;í&#345;ení pro XFree86. To je v dobré instalaci nahráno
+   v&#382;dy a neznamená to, &#382;e je na&#269;tena i podpora XVideo pro
+   <span class="bold"><strong>kartu</strong></span>!
+  </p></div><p>
+  </p></li><li><p>
+  Va&#353;e karta má podporu Xv pod Linuxem. Abyste si to ov&#283;&#345;ili, zkuste
+  <span><strong class="command">xvinfo</strong></span>, které je sou&#269;ástí distribuce XFree86. M&#283;l by se
+  vypsat dlouhý text podobný tomuto:
+  </p><pre class="screen">
+X-Video Extension version 2.2
+screen #0
+  Adaptor #0: "Savage Streams Engine"
+    number of ports: 1
+    port base: 43
+    operations supported: PutImage
+    supported visuals:
+      depth 16, visualID 0x22
+      depth 16, visualID 0x23
+    number of attributes: 5
+(...)
+    Number of image formats: 7
+      id: 0x32595559 (YUY2)
+        guid: 59555932-0000-0010-8000-00aa00389b71
+        bits per pixel: 16
+        number of planes: 1
+        type: YUV (packed)
+      id: 0x32315659 (YV12)
+        guid: 59563132-0000-0010-8000-00aa00389b71
+        bits per pixel: 12
+        number of planes: 3
+        type: YUV (planar)
+(...atd...)</pre><p>
+  Musí podporovat pixelové formáty YUY2 packed a YV12 planar, aby byla
+  pou&#382;itelná s <span class="application">MPlayer</span>em.
+  </p></li><li><p>
+  A nakonec si ov&#283;&#345;te, jestli byl <span class="application">MPlayer</span> skompilován
+  s podporou 'xv'. Prove&#271;te <span><strong class="command">mplayer -vo help | grep xv </strong></span>.
+  Pokud byla skompilována podpora 'xv', m&#283;l by se objevi &#345;ádek podpobný tomuto:
+  </p><pre class="screen">
+  xv      X11/Xv</pre><p>
+  </p></li></ol></div><p>
+</p><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="tdfx"></a>8.2.1.1. Karty 3dfx</h4></div></div></div><p>
+Star&#353;í ovlada&#269;e 3dfx byly známy svými problémy s XVideo akcelerací.
+Nepodporovaly ani YUY2 ani YV12, atp. Ov&#283;&#345;te, &#382;e máte XFree86
+verze 4.2.0 nebo vy&#353;&#353;í, které pracuje dob&#345;e s YV12 a YUY2. P&#345;edchozí verze,
+v&#269;etn&#283; 4.1.0, <span class="bold"><strong>padá s YV12</strong></span>.
+Pokud za&#382;ívate podivné situace p&#345;i pou&#382;ívání <tt class="option">-vo xv</tt>, zkuste SDL
+(má rovn&#283;&#382; XVideo) a uvidíte, zda to pom&#367;&#382;e. Prostudujte si sekci
+<a href="output-trad.html#sdl" title="8.2.3. SDL">SDL</a> pro více informací.
+</p><p>
+<span class="bold"><strong>NEBO</strong></span>, zkuste NOVÉ
+<tt class="option">-vo tdfxfb</tt> rozhraní! Viz sekce
+<a href="output-trad.html#tdfxfb" title="8.2.7. Podpora 3Dfx YUV">tdfxfb</a>.
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="s3"></a>8.2.1.2. Karty S3</h4></div></div></div><p>
+S3 Savage3D by m&#283;ly fungovat dob&#345;e, ale pro Savage4 pou&#382;ijte XFree86 verze 4.0.3
+nebo vy&#353;&#353;í (v p&#345;ípad&#283; problém&#367; s obrazem, zkuste 16bpp). Stejn&#283; ajko S3 Virge:
+má sice podporu xv, ale karta samotná je velmi pomalá, tak&#382;e ji rad&#283;ji prodejte.
+</p><p>
+Pro karty S3 Virge nyní existuje nativní framebuffer ovlada&#269; podobný 
+tdfxfb. Nastavte si framebuffer (&#269;ili p&#345;idejte
+"<tt class="option">vga=792 video=vesa:mtrr</tt>" do kernelu) a pou&#382;ijte
+<tt class="option">-vo s3fb</tt> (<tt class="option">-vf yuy2</tt> a <tt class="option">-dr</tt>
+rovn&#283;&#382; pom&#367;&#382;ou).
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+Zatím není jasné, kterým model&#367;m Savage chybí podpora YV12 a konvertují
+ovlada&#269;em (pomalé). Pokud podez&#345;íváte kartu, opat&#345;ete si nov&#283;j&#353;í ovlada&#269;, nebo
+slu&#353;n&#283; po&#382;ádejte v konferenci MPlayer-users o ovlada&#269; s MMX/3DNow!.
+</p></div></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="nvidia"></a>8.2.1.3. Karty nVidia</h4></div></div></div><p>
+nVidia není v&#382;dy pod Linuxem nejlep&#353;í volbou... Open-source ovlada&#269;
+v XFree86 podporuje v&#283;t&#353;inu t&#283;chto karet, ale v n&#283;kterých p&#345;ípadech musíte
+pou&#382;ít binární closed-source ovlada&#269; od nVidie, který je k dispozici na
+<a href="http://www.nvidia.com/object/linux.html" target="_top">serveru nVidia</a>.
+Tento ovlada&#269; budete pot&#345;ebovat v&#382;dy, pokud zárove&#328; chcete 3D akceleraci.
+</p><p>
+Karty Riva128 nemají podporu XVideo v nVidia ovlada&#269;i z XFree86 :(
+St&#283;&#382;ujte si nVidii.
+</p><p>
+A&#269;koli <span class="application">MPlayer</span> obsahuje
+<a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a> ovlada&#269; pro v&#283;t&#353;inu nVidia karet, zatím je
+ve stavu beta verze a má jisté nedostatky. Více informací naleznete v sekci
+<a href="output-trad.html#vidix-nvidia" title="8.2.13.5. Karty nVidia">nVidia VIDIX</a>.
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="ati"></a>8.2.1.4. Karty ATI</h4></div></div></div><p>
+<a href="http://gatos.sf.net" target="_top">Ovlada&#269; GATOS</a>
+(který byste m&#283;li pou&#382;ít, pokud nemáte Rage128 nebo Radeon) má zapnutý VSYNC
+ve výchozím stavu. To znamená, &#382;e rychlost dekódování (!) je synchronizována
+s obnovovacím kmito&#269;tem monitoru. Pokud se vám zdá p&#345;ehrávání pomalé, zkuste
+n&#283;jak vypnout VSYNC, nebo nastavte obnovovací kmito&#269;et na n*(snímková rychlost
+filmu) Hz.
+</p><p>
+Radeon VE - pokud pot&#345;ebujete X, pou&#382;ijte pro tuto kartu XFree86 4.2.0 nebo
+vy&#353;&#353;í. Není zde podpora pro TV out. Samoz&#345;ejm&#283; s
+<span class="application">MPlayer</span>em m&#367;&#382;ete mít s trochou &#353;t&#283;stí
+<span class="bold"><strong>akcelerovaný</strong></span> display s nebo bez
+<span class="bold"><strong>TV výstupu</strong></span> a nepot&#345;ebujete &#382;ádné X knihovny.
+P&#345;e&#269;t&#283;te si sekci <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>.
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="neomagic"></a>8.2.1.5. Karty NeoMagic</h4></div></div></div><p>
+Tyto karty lze nalézt v mnoha laptopech. Musíte pou&#382;ít XFree86 4.3.0 nebo
+vy&#353;&#353;í, nebo pou&#382;ijte
+<a href="http://www.mplayerhq.hu/MPlayer/contrib/NeoMagic-driver/" target="_top">ovlada&#269;e s podporou Xv</a>
+od Stefana Seyfrieda.
+Sta&#269;í vybrat ten, který je vhodný pro va&#353;i verzi XFree86.
+</p><p>
+XFree86 4.3.0 obsahuje podporu Xv, av&#353;ak Bohdan Horst poslal malý
+<a href="http://www.mplayerhq.hu/MPlayer/contrib/NeoMagic-driver/neo_driver.patch" target="_top">patch</a>
+pro zdrojový kód XFree86, který zrychluje operace s framebufferem (&#269;ili XVideo)
+a&#382; &#269;ty&#345;ikrát. Patch byl za&#345;azen do XFree86 CVS a m&#283;l by být v dal&#353;í verzi
+vydané po 4.3.0.
+</p><p>
+Abyste mohli p&#345;ehrávat obsah velikosti DVD, zm&#283;&#328;te sv&#367;j XF86Config takto:
+</p><pre class="programlisting">
+Section "Device"
+    [...]
+    Driver "neomagic"
+    <span class="emphasis"><em>Option "OverlayMem" "829440"</em></span>
+    [...]
+EndSection</pre><p>
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="trident"></a>8.2.1.6. Karty Trident</h4></div></div></div><p>
+Chcete-li pou&#382;ívat Xv s kartou Trident, co&#382; nepracuje s 4.1.0,
+nainstalujte si XFree 4.2.0. 4.2.0 p&#345;idává podporu pro celoobrazovkové Xv
+pro kartu Cyberblade XP.
+</p><p>
+Alternativn&#283;, <span class="application">MPlayer</span> obsahuje
+<a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a> ovlada&#269; pro kartu Cyberblade/i1.
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="kyro"></a>8.2.1.7. Karty Kyro/PowerVR</h4></div></div></div><p>
+Pokud chcete pou&#382;ívat Xv s kartou zalo&#382;enou na &#269;ipu Kyro (nap&#345;íklad Hercules
+Prophet 4000XT), m&#283;li byste si stáhnout ovlada&#269;e z
+<a href="http://www.powervr.com/" target="_top">PowerVR serveru</a>.
+</p></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="dga"></a>8.2.2. DGA</h3></div></div></div><p><b>P&#344;EDMLUVA. </b>
+Tento dokument se n&#283;kolika slovy sna&#382;í vysv&#283;tlit co je to DGA a co
+výstupní videorozhraní DGA pro <span class="application">MPlayer</span>
+ud&#283;lat m&#367;&#382;e (a co ne).
+</p><p><b>CO JE DGA. </b>
+<span class="acronym">DGA</span> je zkratka pro <span class="emphasis"><em>Direct Graphics
+Access</em></span>, co&#382; je program pro obejití X servru a
+p&#345;ímou modifikaci pam&#283;ti framebufferu. Technicky to znamená mapování pam&#283;ti
+framebufferu do pam&#283;&#357;ového prostoru va&#353;eho procesu.
+To kernel umo&#382;&#328;uje pouze pokud máte práva superu&#382;ivatele. Ty dostanete bu&#271;
+nalogováním se jako <code class="systemitem">root</code>, nebo
+nastavením SUID bitu spustitelnému souboru
+<span class="application">MPlayer</span>u (<span class="bold"><strong>nedoporu&#269;ujeme
+</strong></span>).
+</p><p>
+Existují dv&#283; verze DGA: DGA1 je pou&#382;íváno XFree 3.x.x a DGA2 bylo
+p&#345;edstaveno v XFree 4.0.1.
+</p><p>
+DGA1 poskytuje pouze p&#345;ímý p&#345;ístup k framebufferu jak byl popsán vý&#353;e.
+Chcete-li p&#345;epínat rozli&#353;ení videosignálu, musíte se spolehnout na
+roz&#353;í&#345;ení XVidMode.
+</p><p>
+DGA2 zahrnuje vlastnosti roz&#353;í&#345;ení XVidMode a rovn&#283;&#382; umo&#382;&#328;uje p&#345;epínat
+barevnou hloubku zobrazova&#269;e. Tak&#382;e m&#367;&#382;ete jendodu&#353;e provozovat X server
+s hloubkou 32 bit&#367; a p&#345;epnout na barevnou hloubku 15 bit&#367; a naopak.
+</p><p>
+DGA má ov&#353;em i jisté obtí&#382;e. Zdá se, &#382;e je n&#283;jak závislé na grafickém &#269;ipu,
+který pou&#382;íváte a na implementaci video ovlada&#269;e X serveru, který tento &#269;ip
+obsluhuje. Tak&#382;e nefunguje na v&#353;ech systémech...
+</p><p><b>INSTALACE PODPORY DGA PRO MPLAYER. </b>
+Nejprve si ov&#283;&#345;te, &#382;e X nahrávají roz&#353;í&#345;ení DGA, viz v
+<tt class="filename">/var/log/XFree86.0.log</tt>:
+
+</p><pre class="programlisting">(II) Loading extension XFree86-DGA</pre><p>
+
+XFree86 4.0.x nebo vy&#353;&#353;í je <span class="bold"><strong>v&#345;ele doporu&#269;ován</strong></span>!
+Video rozhraní DGA <span class="application">MPlayer</span>u je autodetekováno
+<tt class="filename">./configure</tt>, nebo jej m&#367;&#382;ete vynutit pomocí
+<tt class="option">--enable-dga</tt>.
+</p><p>
+Pokud rozhraní nem&#367;&#382;e p&#345;epnout do men&#353;ího rozli&#353;ení, experimentujte s
+volbami <tt class="option">-vm</tt> (pouze s X 3.3.x), <tt class="option">-fs</tt>,
+<tt class="option">-bpp</tt>, <tt class="option">-zoom</tt>, abyste nalezli videore&#382;im, do
+kterého se video napasuje. Momentáln&#283; není &#382;ádný p&#345;evodník :(
+</p><p>
+Sta&#328;te se <code class="systemitem">root</code>em. DGA vy&#382;aduje
+práva roota, aby mohl p&#345;ímo zapisovat do video pam&#283;ti. Pokud jej chcete
+provozovat jako u&#382;ivatel, pak nainstalujte <span class="application">MPlayer</span>
+jako SUID root:
+
+</p><pre class="screen">
+chown root <em class="replaceable"><code>/usr/local/bin/mplayer</code></em>
+chmod 750 <em class="replaceable"><code>/usr/local/bin/mplayer</code></em>
+chmod +s <em class="replaceable"><code>/usr/local/bin/mplayer</code></em>
+</pre><p>
+
+A nyní to bude pracovat také pod oby&#269;ejným u&#382;ivatelem.
+</p><div class="caution" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Bezpe&#269;nostní riziko</h3><p>
+Toto je <span class="bold"><strong>velké</strong></span> bezpe&#269;nostní riziko!
+<span class="bold"><strong>Nikdy</strong></span> to ned&#283;lejte na serveru nebo po&#269;íta&#269;i
+ke kterému mohou mít p&#345;ístup ostatní lidé, jeliko&#382; ti mohou získat
+superu&#382;ivatelská práva díky SUID root
+<span class="application">MPlayer</span>u.
+</p></div><p>
+Nyní pou&#382;ijte volbu <tt class="option">-vo dga</tt> a je to! (doufám:)
+Také byste m&#283;li vyzkou&#353;et, jestli vám pracuje volba
+<tt class="option">-vo sdl:dga</tt>!
+Je mnohem rychlej&#353;í!
+</p><p><a name="dga-modelines"></a><b>P&#344;EPÍNÁNÍ ROZLI&#352;ENÍ. </b>
+Rozhraní DGA umo&#382;&#328;uje p&#345;epínání rozli&#353;ení výstupního signálu.
+To odstra&#328;uje pot&#345;ebu (pomalého) softwarového &#353;kálování a zárove&#328;
+poskytuje obraz na celou obrazovku. Ideáln&#283; by se m&#283;lo p&#345;epnout na p&#345;esné
+rozli&#353;ení (s výjimkou dodr&#382;ení pom&#283;ru stran) video dat, ale X
+server umo&#382;&#328;uje poze p&#345;epínání do rozli&#353;ení p&#345;eddefinovaných v
+<tt class="filename">/etc/X11/XF86Config</tt>
+(nebo <tt class="filename">/etc/X11/XF86Config-4</tt> pro XFree 4.X.X).
+Ty jsou definovány takzvanými "modelines" a závisí na
+schopnostech va&#353;eho video hardwaru. X server projí&#382;dí tento konfigura&#269;ní
+soubor p&#345;i startu a zaká&#382;e re&#382;imy (modelines) nevhodné pro vá&#353; hardware.
+Povolené videore&#382;imy naleznete v X11 log souboru. Tel lze nalézt zde:
+<tt class="filename">/var/log/XFree86.0.log</tt>.
+</p><p>
+Tyto vstupy jsou známy dobrou funkcí na Riva128 &#269;ipu, s pou&#382;itím modulu
+ovlada&#269;e nv.o X serveru.
+</p><pre class="programlisting">
+Section "Modes"
+  Identifier "Modes[0]"
+  Modeline "800x600"  40     800 840 968 1056  600 601 605 628
+  Modeline "712x600"  35.0   712 740 850 900   400 410 412 425
+  Modeline "640x480"  25.175 640 664 760 800   480 491 493 525
+  Modeline "400x300"  20     400 416 480 528   300 301 303 314 Doublescan
+  Modeline "352x288"  25.10  352 368 416 432   288 296 290 310
+  Modeline "352x240"  15.750 352 368 416 432   240 244 246 262 Doublescan
+  Modeline "320x240"  12.588 320 336 384 400   240 245 246 262 Doublescan
+EndSection
+</pre><p><b>DGA &amp; MPLAYER. </b>
+DGA je v <span class="application">MPlayer</span>u pou&#382;ito na dvou místech: SDL
+rozhraní m&#367;&#382;e být nastaveno pro jeho pou&#382;ití (<tt class="option">-vo sdl:dga</tt>) a
+p&#345;ímé DGA rozhraní (<tt class="option">-vo dga</tt>). Vý&#353;e uvedené je platné
+pro ob&#283; varianty; v následující sekci vysv&#283;tlíme jak pracuje DGA rozhraní
+<span class="application">MPlayer</span>u.
+</p><p><b>VLASTNOSTI. </b>
+DGA rozhraní je pou&#382;ito zadáním volby <tt class="option">-vo dga</tt> na p&#345;íkazovém
+&#345;ádku. Výchozím chováním je p&#345;epnout na rozli&#353;ení co nejbi&#382;&#353;í originálním
+rozm&#283;r&#367;m videa. Zcela zám&#283;rn&#283; se ignorují volby <tt class="option">-vm</tt> a
+<tt class="option">-fs</tt> (umo&#382;&#328;ující p&#345;epínání videore&#382;im&#367; a zobrazení na celou
+obrazovku) - v&#382;dy zkou&#353;í pokrýt tak velkou plochu obrazovky, jak je to jen mo&#382;né
+pomocí p&#345;epnutí videore&#382;imu, co&#382; nás oprostí od vyu&#382;ívání dal&#353;ích CPU cykl&#367;
+pro &#353;kálování obrazu. Pokud se vám nelíbí re&#382;im, který vybere automatika,
+m&#367;&#382;ete ji p&#345;inutit pro výb&#283;r re&#382;imu nejblí&#382;e odpovídajícímu rozli&#353;ení,
+které zadáte pomocí <tt class="option">-x</tt> a <tt class="option">-y</tt>.
+P&#345;i zadání volby <tt class="option">-v</tt>, vypí&#353;e DGA rozhraní, spolu s dal&#353;ími
+v&#283;cmi, seznam v&#353;ech rozli&#353;ení podporovaných va&#353;im aktuálním
+<tt class="filename">XF86Config</tt> souborem.
+Máte-li DGA2, m&#367;&#382;ete jej rovn&#283;&#382; p&#345;inutit pou&#382;ít r&#367;zné barevné hloubky pomocí
+volby <tt class="option">-bpp</tt>. Platné barevné hloubky jsou 15, 16, 24 a 32.
+To jestli jsou tyto barevné hloubky nativn&#283; podporovány, nebo musí být provedena
+(pravd&#283;podobn&#283; pomalá) konverze závisí na va&#353;em hardware.
+</p><p>
+Pokud jste natolik &#353;&#357;astlivci, &#382;e máte dostatek volné mimoobrazové pam&#283;ti,
+aby se zde vm&#283;stnal celý obrázek, pou&#382;ije DGA rozhraní dvojitou vyrovnávací
+pam&#283;&#357;, co&#382; vám zajistí mnohem plynulej&#353;í p&#345;ehrávání film&#367;. Rozhraní vás bude
+informovat jestli je dvojitý buffer zapnutý nebo ne.
+</p><p>
+Dvojitou vyrovnávací pam&#283;tí se rozumí to, &#382;e je dal&#353;í snímek vykreslován do
+pam&#283;ti mimo zobrazovanou plochu, zatímco je zobrazován aktuální snímek.
+Jakmile je dal&#353;í snímek p&#345;ipraven, grafický &#269;ip je informován o pozici v pam&#283;ti,
+kde je nový snímek a jednodu&#353;e p&#345;esune data k zobrazení odtud.
+Mezitím je dal&#353;í buffer v pam&#283;ti zapl&#328;ován novými videodaty.
+</p><p>
+Dvojitá vyrovnávací pam&#283;&#357; m&#367;&#382;e být zapnuta volbou
+<tt class="option">-double</tt> a vypnuta volbou
+<tt class="option">-nodouble</tt>. Sou&#269;asná výchozí hodnota je vypnutí dvojité
+vyrovnávací pam&#283;ti. P&#345;i pou&#382;ití DGA rozhraní bude display na obrazovce (OSD)
+pracovat pouze p&#345;i zapnuté dvojité vyrovnávací pam&#283;ti.
+Zapnutí dvojité vyrovnávací pam&#283;ti v&#353;ak m&#367;&#382;e vyústit velkou ztrátou výkonu
+(na mé K6-II+ 525 to pou&#382;ije dal&#353;ích 20% CPU výkonu!) v závislosti na
+implementaci DGA pro vá&#353; hardware.
+</p><p><b>OTÁZKA RYCHLOSTI. </b>
+Obecn&#283; by p&#345;ístup p&#345;es DGA framebuffer m&#283;l být alespo&#328; tak rychlý jako
+pou&#382;ití rozhraní X11 navíc s celoobrazovkovým re&#382;imem.
+Procentní hodnoty rychlosti vypisované
+<span class="application">MPlayer</span>em byste m&#283;li brát s rezervou, jeliko&#382;
+nap&#345;íklad p&#345;i pou&#382;ití X11 nezahrnují &#269;as spot&#345;ebovaný X serverem pro
+vlastní vykreslování. Zav&#283;ste terminál na sériovou linku po&#269;íta&#269;e a
+spus&#357;te <span><strong class="command">top</strong></span>, abyste vid&#283;li co se opravdu d&#283;je ve va&#353;em
+po&#269;íta&#269;i.
+</p><p>
+Obecn&#283; zrychlení pou&#382;itím DGA oproti 'b&#283;&#382;nému' X11 velmi závisí na va&#353;í
+grafické kert&#283; a jak dob&#345;e je pro ni optimalizován modul X serveru.
+</p><p>
+Pokud máte pomalý stroj, rad&#283;ji pou&#382;ijte 15 nebo 16 bitovou hloubku, jeliko&#382;
+vy&#382;aduje pouze polovi&#269;ní pr&#367;chodnost pam&#283;ti oproti 32 bitovému zobrazení.
+</p><p>
+Pou&#382;ití hloubky 24 bit&#367; je dobré i v p&#345;ípad&#283;, &#382;e va&#353;e karta nativn&#283; podporuje
+pouze barevnou hloubku 32 bit&#367;, jeliko&#382; se p&#345;ená&#353;í o 25% mén&#283; dat oproti
+re&#382;imu 32/32.
+</p><p>
+Vid&#283;l jsem pár AVI soubor&#367; p&#345;ehrávat na Pentiu MMX 266. Procesory AMD K6-2
+pracují p&#345;i 400 MHZ a vý&#353;e.
+</p><p><b>ZNÁMÉ CHYBY. </b>
+Podle n&#283;kterých vývojá&#345;&#367; XFree je DGA zv&#283;rstvo. &#344;íkají, abyste je rad&#283;ji
+nepou&#382;ívali. Jeho implementace není v&#382;dy bezproblémová v ka&#382;dém dostupném
+ovlada&#269;i pro XFree.
+</p><div class="itemizedlist"><ul type="disc"><li>
+  V XFree 4.0.3 je v <tt class="filename">nv.o</tt> chyba vedoucí
+  k podivným barvám.
+  </li><li>
+  Ovlada&#269; pro ATI vy&#382;aduje více ne&#382; jedno zp&#283;tné p&#345;epnutí re&#382;imu po skon&#269;ení
+  pou&#382;ívání DGA.
+  </li><li>
+  N&#283;které ovlada&#269;e sel&#382;ou p&#345;i p&#345;epnutí do normálního rozli&#353;ení (pou&#382;ijte
+  <span class="keycap"><b>Ctrl</b></span>+<span class="keycap"><b>Alt</b></span>+<span class="keycap"><b>Keypad +</b></span> a
+  <span class="keycap"><b>Ctrl</b></span>+<span class="keycap"><b>Alt</b></span>+<span class="keycap"><b>Keypad -</b></span>
+  pro ru&#269;ní p&#345;epnutí).
+  </li><li>
+  N&#283;které ovlada&#269;e zobrazují divné barvy.
+  </li><li>
+  N&#283;které ovlada&#269;e l&#382;ou o mno&#382;ství pam&#283;ti kterou mapují do adresového prostoru
+  procesu, tak&#382;e vo_dga nepou&#382;ije dvojitou vyrovnávací pam&#283;&#357; (SIS?).
+  </li><li>
+  N&#283;které ovlada&#269;e nezvládnou ohlásit dokonce ani jeden platný re&#382;im.
+  V tom p&#345;ípad&#283; rozhraní DGA spadne s hlá&#353;kou o nesmaslném re&#382;imu
+  100000x100000 nebo tak.
+  </li><li>
+  OSD pracuje pouze se zapnutou dvojitou vyrovnávací pam&#283;tí (jinak poblikává).
+  </li></ul></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="sdl"></a>8.2.3. SDL</h3></div></div></div><p>
+<span class="acronym">SDL</span> (Simple Directmedia Layer) je zjednodu&#353;en&#283; unifikované
+video/audio rozhraní. Programy, které ji pou&#382;ívají, znají pouze SDL a ne
+jaký audio nebo video ovlada&#269; SDL aktuáln&#283; pou&#382;ívá. Nap&#345;íklad klon DOOMa
+m&#367;&#382;e b&#283;&#382;et na svgalib, aalib, X, fbdev a dal&#353;ích. Musíte jen nastavit
+(nap&#345;íklad) video ovlada&#269; pomocí prom&#283;nné prost&#345;edí
+<code class="envar">SDL_VIDEODRIVER</code>. Aspo&#328; teoreticky.
+</p><p>
+V <span class="application">MPlayer</span>u pou&#382;íváme její softwarový &#353;kálova&#269;
+ovlada&#269;e X11 pro karty/ovlada&#269;e, které nepodporují XVideo, dokud nevytvo&#345;íme
+vlastní (rychlej&#353;í, hez&#269;í) softwarový &#353;kálova&#269;. Rovn&#283;&#382; jsme pou&#382;ívali její
+výstup na aalib, ale nyní máme vlastní, co&#382; je mnohem pohodln&#283;j&#353;í.
+Její DGA re&#382;im byl a&#382; doposud lep&#353;í ne&#382; ná&#353;. Sledujete? :)
+</p><p>
+Rovn&#283;&#382; pomáhá s n&#283;kterými chybnými ovlada&#269;i/kartami, pokud je video rozt&#345;esené
+(nikoli problém pomalého stroje), nebo se zpo&#382;&#271;uje zvuk.
+</p><p>
+SDL video rozhraní podporuje zobrazování titulk&#367; pod filmem, v (pokud je) &#269;erném
+okraji.
+</p><div class="variablelist"><p class="title"><b>Pro SDL existuje n&#283;kolik voleb p&#345;íkazového &#345;ádku:</b></p><dl><dt><span class="term"><tt class="option">-vo sdl:<em class="replaceable"><code>jméno</code></em></tt></span></dt><dd>
+    nastavuje pou&#382;ití SDL video ovlada&#269;e (nap&#345;. <code class="literal">aalib</code>,
+    <code class="literal">dga</code>, <code class="literal">x11</code>)
+  </dd><dt><span class="term"><tt class="option">-ao sdl:<em class="replaceable"><code>jméno</code></em></tt></span></dt><dd>
+    nastavuje pou&#382;ití SDL audio ovlada&#269;e (nap&#345;. <code class="literal">dsp</code>,
+    <code class="literal">esd</code>, <code class="literal">artsc</code>)
+  </dd><dt><span class="term"><tt class="option">-noxv</tt></span></dt><dd>
+    vypíná hardwarovou akceleraci XVideo
+  </dd><dt><span class="term"><tt class="option">-forcexv</tt></span></dt><dd>
+    zkusí vynutit XVideo akceleraci
+  </dd></dl></div><div class="table"><a name="id2563079"></a><p class="title"><b>Tabulka 8.1. Klávesy pouze pro SDL</b></p><table summary="Klávesy pouze pro SDL" border="1"><colgroup><col><col></colgroup><thead><tr><th>Klávesa</th><th>Akce</th></tr></thead><tbody><tr><td><span class="keycap"><b>c</b></span></td><td>
+    cykluje dostupné celoobrazovkové re&#382;imy
+    </td></tr><tr><td><span class="keycap"><b>n</b></span></td><td>
+    zm&#283;ní re&#382;im zp&#283;t na normální
+    </td></tr></tbody></table></div><div class="itemizedlist"><p class="title"><b>Známé chyby:</b></p><ul type="disc"><li>
+  Klávesy stisknuté p&#345;i pou&#382;ití sdl:aalib konzolového ovlada&#269;e se donekone&#269;na
+  opakují. (pou&#382;ijte <tt class="option">-vo aa</tt>!) Je to chyba v SDL, já to nezm&#283;ním
+  (testováno s SDL 1.2.1).
+  </li><li>
+  NEPOU&#381;ÍVEJTE SDL s GUI! Nefunguje to jak by m&#283;lo.
+  </li></ul></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="svgalib"></a>8.2.4. SVGAlib</h3></div></div></div><p><b>INSTALACE. </b>
+Budete muset nainstalovat svgalib i s development balí&#269;kem, aby
+<span class="application">MPlayer</span> vytvo&#345;il své SVGAlib rozhraní
+(autodetekováno, ale nelze vynutit) a nezapome&#328;te upravit
+<tt class="filename">/etc/vga/libvga.config</tt> tak, aby odpovídal va&#353;í kart&#283; a
+monitoru.
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+Ujist&#283;te se, &#382;e nepou&#382;íváte volbu <tt class="option">-fs</tt>, jeliko&#382; zapíná
+pou&#382;ití softwarového &#353;kálování, co&#382; je pomalé. Pokud jej opravdu pot&#345;ebujete,
+pou&#382;ijte volbu <tt class="option">-sws 4</tt>, co&#382; poskytuje &#353;patnou kvalitu, ale je
+o poznání rychlej&#353;í.
+</p></div><p><b>PODPORA EGA (4BPP). </b>
+SVGAlib obsahuje EGAlib a <span class="application">MPlayer</span> umí zobrazovat
+jakýkoli film v 16 barvách, co&#382; je vhodné v následujících konfiguracích:
+</p><div class="itemizedlist"><ul type="disc"><li>
+  EGA karta s EGA monitorem: 320x200x4bpp, 640x200x4bpp, 640x350x4bpp
+  </li><li>
+  EGA karta s CGA monitorem: 320x200x4bpp, 640x200x4bpp
+  </li></ul></div><p>
+Hodnota bpp (bit&#367; na pixel) musí být nastavena na 4 ru&#269;n&#283;:
+<tt class="option">-bpp 4</tt>
+</p><p>
+Obraz bude nejspí&#353; muset být zmen&#353;ený tak, aby se ve&#353;el v EGA re&#382;imu:
+</p><pre class="screen">-vf scale=640:350</pre><p>
+nebo
+</p><pre class="screen">-vf scale=320:200</pre><p>
+</p><p>
+Kdy&#382; pot&#345;ebujeme rychlou, ale nekvalitní &#353;kálovací rutinu:
+</p><pre class="screen">-sws 4</pre><p>
+</p><p>
+Mo&#382;ná bude muset být vypnuta automatická korekce pom&#283;ru stran:
+</p><pre class="screen">-noaspect</pre><p>
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+Podle mých zku&#353;eností lze dosáhnout nejlep&#353;í kvality obrazu na
+EGA obrazovkách mírným sní&#382;ením jasu:
+<tt class="option">-vf eq=-20:0</tt>. Na svém po&#269;íta&#269;i jsem rovn&#283;&#382; musel sní&#382;it
+vzorkovací kmito&#269;et zvuku, proto&#382;e zvuk p&#345;í 44kHz byl vadný:
+<tt class="option">-srate 22050</tt>.
+</p></div><p>
+Zapnout OSD a titulky m&#367;&#382;ete pouze v kombinaci s <tt class="option">expand</tt>
+filtrem, viz man stránka pro p&#345;esné parametry.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="fbdev"></a>8.2.5. Výstup na Framebuffer (FBdev)</h3></div></div></div><p>
+Podpora pro cíl FBdev je autodetekována b&#283;hem
+<tt class="filename">./configure</tt>. P&#345;e&#269;t&#283;te si dokumentaci framebufferu ve
+zdrojových kódech kernelu (<tt class="filename">Documentation/fb/*</tt>) pro více
+informací.
+</p><p>
+Pokud va&#353;e karta nepodporuje standard VBE 2.0 (star&#353;í ISA/PCI karty, jako
+S3 Trio64), pouze VBE 1.2 (nebo stra&#353;í?): Nu&#382;e, stále máte k dispozici VESAfb,
+ale budete muset nahrát SciTech Display Doctor (p&#367;vodn&#283; UniVBE) p&#345;ed startem
+Linuxu. Pou&#382;ijte bootovací disk DOSu nebo tak. A nezapom&#283;&#328;te si zaregistrovat
+sv&#367;j UniVBE ;))
+</p><p>
+Výstup FBdev p&#345;ijímá n&#283;kolik dodate&#269;ných voleb:
+</p><div class="variablelist"><dl><dt><span class="term"><tt class="option">-fb</tt></span></dt><dd>
+    nastaví za&#345;ízení framebufferu k pou&#382;ití (výchozí: <tt class="filename">/dev/fb0</tt>)
+    </dd><dt><span class="term"><tt class="option">-fbmode</tt></span></dt><dd>
+    název re&#382;imu k pou&#382;ití (podle <tt class="filename">/etc/fb.modes</tt>)
+    </dd><dt><span class="term"><tt class="option">-fbmodeconfig</tt></span></dt><dd>
+    config soubor re&#382;im&#367; (výchozí: <tt class="filename">/etc/fb.modes</tt>)
+    </dd><dt><span class="term"><tt class="option">-monitor-hfreq</tt>, </span><span class="term"><tt class="option">-monitor-vfreq</tt>, </span><span class="term"><tt class="option">-monitor-dotclock</tt>, </span></dt><dd>
+    <span class="bold"><strong>d&#367;le&#382;ité</strong></span> hodnoty, viz
+    <tt class="filename">example.conf</tt>
+    </dd></dl></div><p>
+Pokud se chcete p&#345;epnout do ur&#269;itého re&#382;imu, pak pou&#382;ijte
+</p><pre class="screen">
+mplayer -vm -fbmode <em class="replaceable"><code>name_of_mode</code></em> <em class="replaceable"><code>soubor</code></em>
+</pre><p>
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  <tt class="option">-vm</tt> samotná zvolí nejp&#345;íhodn&#283;j&#353;í re&#382;im z
+  <tt class="filename">/etc/fb.modes</tt>. M&#367;&#382;e být rovn&#283;&#382; pou&#382;ita spolu s volbami
+  <tt class="option">-x</tt> a <tt class="option">-y</tt>. Volba
+  <tt class="option">-flip</tt> je podporována pouze pokud pixelový formát filmu
+  odpovídá pixelovému formátu videore&#382;imu. V&#283;nujte pozornost hodnot&#283; bpp.
+  Ovlada&#269; fbdev zkusí pou&#382;ít aktuální, nebo pokud zadáte volbu
+  <tt class="option">-bpp</tt>, pak tuto.
+  </p></li><li><p>
+  Volba <tt class="option">-zoom</tt> není podporována (pou&#382;ijte <tt class="option">-vf scale</tt>).
+  Nelze pou&#382;ít re&#382;imy 8bpp (nebo ni&#382;&#353;í).
+  </p></li><li><p>
+  Pravd&#283;podobn&#283; budete chtít vypnout kursor:
+  </p><pre class="screen">echo -e '\033[?25l'</pre><p>
+  nebo
+  </p><pre class="screen">setterm -cursor off</pre><p>
+  a spo&#345;i&#269; obrazovky:
+  </p><pre class="screen">setterm -blank 0</pre><p>
+  Pro op&#283;tovné zapnutí kursoru:
+  </p><pre class="screen">echo -e '\033[?25h'</pre><p>
+  nebo
+  </p><pre class="screen">setterm -cursor on</pre><p>
+  </p></li></ul></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+Zm&#283;na videore&#382;imu FBdev <span class="emphasis"><em>nepracuje</em></span> ve VESA
+framebufferu a necht&#283;jte to po nás, jeliko&#382; to není omezení
+<span class="application">MPlayer</span>u.
+</p></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="mga_vid"></a>8.2.6. Matrox framebuffer (mga_vid)</h3></div></div></div><p>
+Tato sekce je o podpo&#345;e Matrox G200/G400/G450/G550 BES (Back-End Scaler)
+jaderného modulu <code class="systemitem">mga_vid</code>.
+Má hardwarovou podporu VSYNC s trojitou vyrovnávací pam&#283;tí.
+Pracuje jak v konzoli, tak pod X.
+</p><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Varování</h3><p>
+Toto je pouze pro Linux! Na ne-Linuxech (testováno na FreeBSD) m&#367;&#382;ete místo n&#283;j
+pou&#382;ít <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>.
+</p></div><div class="procedure"><a name="id2563651"></a><p class="title"><b>Instalace:</b></p><ol type="1"><li><p>
+  Pokud jej chcete pou&#382;ít, nejd&#345;íve musíte sestavit
+  <tt class="filename">mga_vid.o</tt>:
+  </p><pre class="screen">
+cd drivers
+make</pre><p>
+  </p></li><li><p>
+  Pak vytvo&#345;te za&#345;ízení <tt class="filename">/dev/mga_vid</tt>:
+  </p><pre class="screen">mknod /dev/mga_vid c 178 0</pre><p>
+  a nahrajte ovlada&#269; pomocí
+  </p><pre class="screen">insmod mga_vid.o</pre><p>
+  </p></li><li><p>
+  M&#283;li byste ov&#283;&#345;it velikost detekované pam&#283;ti pomocí p&#345;íkazu
+  <span><strong class="command">dmesg</strong></span>. Pokud je &#353;patná, pou&#382;ijte volbu
+  <tt class="option">mga_ram_size</tt>
+  (nejd&#345;ív <span><strong class="command">rmmod mga_vid</strong></span>),
+  nastavte velikost pam&#283;ti karty v MB:
+  </p><pre class="screen">insmod mga_vid.o mga_ram_size=16</pre><p>
+  </p></li><li><p>
+  Aby se nahrával/odstra&#328;oval automaticky podle pot&#345;eby, nejd&#345;íve p&#345;idejte
+  následující &#345;ádek na konec <tt class="filename">/etc/modules.conf</tt>:
+
+  </p><pre class="programlisting">alias char-major-178 mga_vid</pre><p>
+
+  Pak zkopírujte modul <tt class="filename">mga_vid.o</tt> na vhodné místo
+  pod <tt class="filename">/lib/modules/<em class="replaceable"><code>verze jádra
+  </code></em>/<em class="replaceable"><code>n&#283;kde</code></em></tt>.
+  </p><p>
+  Pak spus&#357;te
+  </p><pre class="screen">depmod -a</pre><p>
+  </p></li><li><p>
+  Te&#271; budete muset (p&#345;e)kompilovat <span class="application">MPlayer</span>,
+  <tt class="filename">./configure</tt> zdetekuje
+  <tt class="filename">/dev/mga_vid</tt> a zakompiluje 'mga' rozhraní.
+  V <span class="application">MPlayer</span>u se pou&#382;ívá pomocí <tt class="option">-vo mga</tt>
+  pokud máte matroxfb konzoli, nebo <tt class="option">-vo xmga</tt> pod XFree86
+  3.x.x nebo 4.x.x.
+  </p></li></ol></div><p>
+Ovlada&#269; mga_vid spolupracuje s Xv.
+</p><p>
+Ur&#269;ité informace lze p&#345;e&#269;íst z <tt class="filename">/dev/mga_vid</tt> za&#345;ízení,
+nap&#345;íklad pomocí
+</p><pre class="screen">cat /dev/mga_vid</pre><p>
+a m&#367;&#382;e do n&#283;j být zapsána zm&#283;na jasu:
+</p><pre class="screen">echo "brightness=120" &gt; /dev/mga_vid</pre><p>
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="tdfxfb"></a>8.2.7. Podpora 3Dfx YUV</h3></div></div></div><p>
+Tento ovlada&#269; pou&#382;ívá ovlada&#269; framebufferu tdfx z jádra pro p&#345;ehrávání
+film&#367; s YUV akcelerací. Budete pot&#345;ebovat jádro s podporou tdfxfb a
+rekompilovat s
+</p><pre class="screen">./configure --enable-tdfxfb</pre><p>
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="opengl"></a>8.2.8. Rozhraní OpenGL</h3></div></div></div><p>
+<span class="application">MPlayer</span> podporuje zobrazování film&#367; pomocí OpenGL,
+ale pokud va&#353;e platforma/ovlada&#269; podporuje xv co&#382; by m&#283;l být p&#345;ípad PC s
+Linuxem, pou&#382;ijte rad&#283;ji xv, jeliko&#382; výkon OpenGL je o poznání hor&#353;í.
+Pokud máte X11 implementaci bez podpory xv, je OpenGL slu&#353;ná alternativa.
+</p><p>
+Nane&#353;t&#283;stí ne v&#353;echny ovlada&#269;e tuto vlastnost podporují. Ovlada&#269;e Utah-GLX
+(pro XFree86 3.3.6) ji podporují pro v&#353;echny karty.
+Viz <a href="http://utah-glx.sf.net" target="_top">http://utah-glx.sf.net</a> pro detaily jak je nainstalovat.
+</p><p>
+XFree86(DRI) 4.0.3 nebo pozd&#283;j&#353;í podporují OpenGL s kartami Matrox a Radeon,
+4.2.0 a pozd&#283;j&#353;í podporují Rage128.
+Viz <a href="http://dri.sf.net" target="_top">http://dri.sf.net</a> pro sta&#382;ení a instala&#269;ní instrukce.
+</p><p>
+Rada od jednoho z u&#382;ivatel&#367;: GL video výstup lze pou&#382;ít pro dosa&#382;ení
+vertikáln&#283; synchronizovaného TV výstupu. Budete muset nastavit prom&#283;nnou
+prost&#345;edí (aspo&#328; na nVidii):
+</p><p>
+<span><strong class="command">export $__GL_SYNC_TO_VBLANK=1</strong></span>
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="aalib"></a>8.2.9. AAlib - zobrazování v textovém re&#382;imu</h3></div></div></div><p>
+AAlib je knihovna pro zobrazování grafiky v textovém re&#382;imu pomocí výkonného
+ASCII renderova&#269;e. Existuje <span class="emphasis"><em>spousta</em></span> program&#367;, ktaré ji ji&#382;
+podporují, jako DOOM, Quake, atd. <span class="application">MPlayer</span>
+pro ni obsahuje &#353;ikovné rozhraní. Pokud <tt class="filename">./configure</tt>
+zjistí nainstalovanou aalib, sestaví se aalib libvo rozhraní.
+</p><p>
+M&#367;&#382;ete pou&#382;ít n&#283;které klávesy v AA okn&#283; pro zm&#283;nu renderovacích voleb:
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Klávesa</th><th>Akce</th></tr></thead><tbody><tr><td><span class="keycap"><b>1</b></span></td><td>
+  sní&#382;í kontrast
+  </td></tr><tr><td><span class="keycap"><b>2</b></span></td><td>
+  zvý&#353;í kontrast
+  </td></tr><tr><td><span class="keycap"><b>3</b></span></td><td>
+  sní&#382;í jas
+  </td></tr><tr><td><span class="keycap"><b>4</b></span></td><td>
+  zvý&#353;í jas
+  </td></tr><tr><td><span class="keycap"><b>5</b></span></td><td>
+  vypíná/zapíná rychlé renderování
+  </td></tr><tr><td><span class="keycap"><b>6</b></span></td><td>
+  nastaví rozhodovací re&#382;im (&#382;ádný, error distribution, Floyd Steinberg)
+  </td></tr><tr><td><span class="keycap"><b>7</b></span></td><td>
+  inverze obrazu
+  </td></tr><tr><td><span class="keycap"><b>8</b></span></td><td>
+  p&#345;epíná mezi ovládáním aa a <span class="application">MPlayer</span>u
+  </td></tr></tbody></table></div><div class="variablelist"><p class="title"><b>M&#367;&#382;ete pou&#382;ít následující volby p&#345;íkazového &#345;ádku:</b></p><dl><dt><span class="term"><tt class="option">-aaosdcolor=<em class="replaceable"><code>V</code></em></tt></span></dt><dd><p>
+    zm&#283;na barvy OSD
+    </p></dd><dt><span class="term"><tt class="option">-aasubcolor=<em class="replaceable"><code>V</code></em></tt></span></dt><dd><p>
+    zm&#283;na barvy titulk&#367;
+    </p><p>
+    kde <em class="replaceable"><code>V</code></em> m&#367;&#382;e být:
+    <code class="literal">0</code> (normální),
+    <code class="literal">1</code> (tmavé),
+    <code class="literal">2</code> (tu&#269;né),
+    <code class="literal">3</code> (polotu&#269;ný font),
+    <code class="literal">4</code> (reverz),
+    <code class="literal">5</code> (speciální).
+    </p></dd></dl></div><div class="variablelist"><p class="title"><b>AAlib samotná poskytuje velké mno&#382;ství voleb. Zde je n&#283;kolik
+d&#367;le&#382;itých:</b></p><dl><dt><span class="term"><tt class="option">-aadriver</tt></span></dt><dd>
+    Nastaví doporu&#269;ený aa ovlada&#269; (X11, curses, Linux).
+    </dd><dt><span class="term"><tt class="option">-aaextended</tt></span></dt><dd>
+    Pou&#382;ití v&#353;ech 256 znak&#367;.
+    </dd><dt><span class="term"><tt class="option">-aaeight</tt></span></dt><dd>
+    Pou&#382;ití osmibitového ASCII.
+    </dd><dt><span class="term"><tt class="option">-aahelp</tt></span></dt><dd>
+    Vypí&#353;e v&#353;echny aalib volby.
+    </dd></dl></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+Renderování je velmi náro&#269;né na CPU, zvlá&#353;&#357; p&#345;i pou&#382;ití AA-na-X
+(aalib na X) a nejmén&#283; náro&#269;né je na standardní neframebuferované
+konzoli. Pou&#382;ijte SVGATextMode pro nastavení velkého textového re&#382;imu
+a u&#382;ijte si! (secondary head Hercules cards rock :)) (ale IMHO m&#367;&#382;ete pou&#382;ít
+volbu <tt class="option">-vf 1bpp</tt> pro grafiku na hgafb:)
+</p></div><p>
+Pou&#382;ijte volbu <tt class="option">-framedrop</tt>, pokud vá&#353; po&#269;íta&#269; není dostate&#269;n&#283;
+rychlý pro renderování v&#353;ech snímk&#367;!
+</p><p>
+P&#345;i p&#345;ehrávání na terminálu dosáhnete lep&#353;í rychlosti i kvality pou&#382;itím
+ovlada&#269;e Linux, bez curses (<tt class="option">-aadriver linux</tt>). Ale pak budete
+pot&#345;ebovat práva k zápisu do
+<tt class="filename">/dev/vcsa<em class="replaceable"><code>&lt;terminal&gt;</code></em></tt>!
+Aalib to nedetekuje, ale vo_aa zkou&#353;í najít nejlep&#353;í re&#382;im.
+Pro více ladících mo&#382;ností viz <a href="http://aa-project.sf.net/tune" target="_top">http://aa-project.sf.net/tune</a>.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="caca"></a>8.2.10. <code class="systemitem">libcaca</code> - Barevná ASCII Art knihovna</h3></div></div></div><p>
+Knihovna <a href="http://sam.zoy.org/projects/libcaca/" target="_top"><code class="systemitem">libcaca</code></a>
+je grafická knihovna produkující text místo pixel&#367;, tak&#382;e m&#367;&#382;e fungovat na
+star&#353;ích video kartách a textových terminálech. Není nepodobná známé knihovn&#283;
+<code class="systemitem">AAlib</code>.
+<code class="systemitem">libcaca</code> vy&#382;aduje k &#269;innosti terminál,
+tak&#382;e by m&#283;la fungovat na v&#353;ech Unixových systémech (v&#269;etn&#283; Mac OS X) pomocí bu&#271;
+knihovny <code class="systemitem">slang</code> nebo knihovny
+<code class="systemitem">ncurses</code>, pod DOSem pomocí knihovny
+<code class="systemitem">conio.h</code> a na systémech Windows
+pomocí bu&#271; <code class="systemitem">slang</code> nebo
+<code class="systemitem">ncurses</code> (pomocí emulace Cygwin) nebo
+<code class="systemitem">conio.h</code>. Pokud
+<tt class="filename">./configure</tt>
+detekuje <code class="systemitem">libcaca</code>, bude sestaveno
+rozhraní caca libvo.
+</p><div class="itemizedlist"><p class="title"><b>Odli&#353;nosti od <code class="systemitem">AAlib</code> jsou:</b></p><ul type="disc"><li>
+   16 dostupných barev pro znakový výstup (256 barev pro pár)
+  </li><li>
+   rozhodování podle barev v obrázku
+  </li></ul></div><div class="itemizedlist"><p class="title"><b>Ale <code class="systemitem">libcaca</code> má také následující
+  omezení:</b></p><ul type="disc"><li>
+   nemá podpora pro jas, kontrast a gamu
+  </li></ul></div><p>
+V caca okn&#283; m&#367;&#382;ete pou&#382;ít n&#283;které klávesy pro zm&#283;nu renderovacích volby:
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Klávesa</th><th>Akce</th></tr></thead><tbody><tr><td><span class="keycap"><b>d</b></span></td><td>
+  P&#345;epíná metody rozhodování v <code class="systemitem">libcaca</code>.
+  </td></tr><tr><td><span class="keycap"><b>a</b></span></td><td>
+  P&#345;epíná vyhlazování v <code class="systemitem">libcaca</code>.
+  </td></tr><tr><td><span class="keycap"><b>b</b></span></td><td>
+  P&#345;epíná pozadí v <code class="systemitem">libcaca</code>.
+  </td></tr></tbody></table></div><div class="variablelist"><p class="title"><b><code class="systemitem">libcaca</code> také respektuje n&#283;které
+   prom&#283;nné prost&#345;edí:</b></p><dl><dt><span class="term"><tt class="option">CACA_DRIVER</tt></span></dt><dd>
+    Nastaví doporu&#269;ený caca ovlada&#269;, jako ncurses, slang, x11.
+    </dd><dt><span class="term"><tt class="option">CACA_GEOMETRY (pouze X11)</tt></span></dt><dd>
+    Nastaví po&#269;et &#345;ad a sloupc&#367;. Nap&#345;. 128x50.
+    </dd><dt><span class="term"><tt class="option">CACA_FONT (pouze X11)</tt></span></dt><dd>
+    Nastaví pou&#382;itý font. Nap&#345;. fixed, nexus.
+    </dd></dl></div><p>
+Pou&#382;ijte volbu <tt class="option">-framedrop</tt>, pokud vá&#353; po&#269;íta&#269; není dost rychlý
+pro renderování v&#353;ech snímk&#367;.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="vesa"></a>8.2.11. VESA - výstup do VESA BIOSu</h3></div></div></div><p>
+Tento ovlada&#269; byl navr&#382;en a p&#345;edstaven jako <span class="bold"><strong>obecný
+ovlada&#269;</strong></span> pro jakoukoli video kartu, která má VESA VBE 2.0 kompatibilní
+BIOS. Dal&#353;í výhodou tohoto ovlada&#269;e je, &#382;e zkou&#353;í vynutit zapnutí výstupu na TV.
+<em class="citetitle">VESA BIOS EXTENSION (VBE) Version 3.0 Date: September 16,
+1998</em> (Strana 70) uvádí:
+</p><div class="blockquote"><blockquote class="blockquote"><p><b>Karty Dual-Controller. </b>
+VBE 3.0 podporuje karty s dual-controllerem za p&#345;edpokladu &#382;e, jeliko&#382; jsou
+typicky oba controllery vybaveny stejným OEM a nastavovány jedinou
+BIOS ROM na stejné grafické kart&#283;, je mo&#382;né skrýt p&#345;ed aplikací p&#345;ítomnost
+dvou controller&#367;. To omezuje nezávislé pou&#382;ití jednotlivých controller&#367;,
+ale umo&#382;&#328;uje aplikacím vydaným p&#345;ed VBE 3.0 pracovat normáln&#283;.
+VBE funkce 00h (Návrat informací o controlleru) vrací kombinované informace
+obou conroller&#367;, v&#269;etn&#283; kombinovaného seznamu platných re&#382;im&#367;.
+P&#345;íslu&#353;ný controller je aktivován jakmile aplikace vybere re&#382;im. V&#353;echny
+ostatní VBE funkce pak pracují s aktivním controllerem.
+</p></blockquote></div><p>
+Máte tedy mo&#382;nost s tímto rozhraním dostat funk&#269;ní TV výstup.
+(Soudím &#382;e TV výstup má velmi &#269;asto samostatnou jednotku, nebo aspo&#328; samostatný
+výstup.)
+</p><div class="itemizedlist"><p class="title"><b>VÝHODY</b></p><ul type="disc" compact><li>
+  Máte &#353;anci sledovat video <span class="bold"><strong>dokonce i kdy&#382; Linux nezná
+  </strong></span> vá&#353; video hardware.
+  </li><li>
+  Nepot&#345;ebujete mít ve svém Linuxu nainstalovány &#382;ádné v&#283;ci související s
+  grafikou (jako X11 (alias XFree86), fbdev atd). Toto rozhraní lze provozovat
+  z <span class="bold"><strong>textového re&#382;imu</strong></span>.
+  </li><li>
+  Máte &#353;anci získat <span class="bold"><strong>funk&#269;ní TV-out</strong></span>.
+  (Je to pravda minimáln&#283; s kartami ATI).
+  </li><li>
+  Toto rozhraní volá <code class="function">int 10h</code> handler, tak&#382;e není
+  emulátorem &#8211; volá <span class="bold"><strong>skute&#269;né</strong></span> v&#283;ci
+  <span class="emphasis"><em>skute&#269;ného</em></span> BIOSu v <span class="emphasis"><em>reálném re&#382;imu</em></span>
+  (ve skute&#269;nosti v re&#382;imu vm86).
+  </li><li>
+  M&#367;&#382;ete s ním pou&#382;ít VIDIX, tak&#382;e dostanete akcelerované video
+  <span class="bold"><strong>a</strong></span> TV výstup sou&#269;asn&#283;!
+  (Doporu&#269;eno pro karty ATI.)
+  </li><li>
+  Máte-li VESA VBE 3.0+ a nastavili jste si n&#283;kde
+  <tt class="option">monitor-hfreq, monitor-vfreq, monitor-dotclock</tt>
+  (config soubor nebo p&#345;íkazový &#345;ádek) dostanete nejvy&#353;&#353;í mo&#382;ný obnovovací
+  kmito&#269;et. (Using General Timing Formula). Abyste této funkce dosáhli, musíte
+  nastavit <span class="bold"><strong>v&#353;echna</strong></span> nastavení monitoru.
+  </li></ul></div><div class="itemizedlist"><p class="title"><b>NEVÝHODY</b></p><ul type="disc" compact><li>
+   Pracuje pouze na <span class="bold"><strong>systémech x86</strong></span>.
+  </li><li>
+  M&#367;&#382;e to pou&#382;ít pouze <code class="systemitem">root</code>.
+  </li><li>
+  Zatím je dostupné pouze pro <span class="bold"><strong>Linux</strong></span>.
+  </li></ul></div><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">D&#367;le&#382;ité</h3><p>
+Nepou&#382;ívejte toto rozhraní s <span class="bold"><strong>GCC 2.96</strong></span>!
+Nefunguje!
+</p></div><div class="variablelist"><p class="title"><b>VOLBY P&#344;ÍKAZOVÉHO &#344;ÁDKU DOSTUPNÉ PRO VESA</b></p><dl><dt><span class="term"><tt class="option">-vo vesa:<em class="replaceable"><code>volby</code></em></tt></span></dt><dd>
+    zatím dostupné: <code class="literal">dga</code> pro vynucení dga re&#382;imu a
+    <code class="literal">nodga</code> pro jeho potla&#269;ení. V re&#382;imu dga m&#367;&#382;ete zapnout
+    dvojitou vyrovnávací pam&#283;&#357; pomocí volby <tt class="option">-double</tt>.
+    Poznámka: Tyto volby m&#367;&#382;ete vynechat, abyste zapli
+    <span class="bold"><strong>autodetekci</strong></span> dga re&#382;imu.
+    </dd></dl></div><div class="itemizedlist"><p class="title"><b>ZNÁMÉ PROBLÉMY A KLI&#268;KY</b></p><ul type="disc" compact><li>
+  Pokud máte nainstalován <span class="bold"><strong>NLS</strong></span> font v
+  Linuxové konzoli a pou&#382;ijete VESA rozhraní v textovém re&#382;imu, pak po
+  ukon&#269;ení <span class="application">MPlayer</span>u budete mít nahrán
+  <span class="bold"><strong>ROM font</strong></span> místo národního.
+  M&#367;&#382;ete si op&#283;t nahrát národní font nap&#345;íklad pomocí utility
+  <span><strong class="command">setsysfont</strong></span> z distribuce Mandrake/Mandriva.
+  (<span class="bold"><strong>Tip</strong></span>: Stejná utilita je pou&#382;ita pro
+  lokalizaci fbdev).
+  </li><li>
+  N&#283;které <span class="bold"><strong>Linuxové grafické ovlada&#269;e</strong></span> neobnovují
+  aktivní <span class="bold"><strong>re&#382;im BIOSu</strong></span> v DOSové pam&#283;ti.
+  Tak&#382;e pokud máte tento problém &#8211; v&#382;dy pou&#382;ívejte VESA rozhraní pouze v
+  <span class="bold"><strong>textovém re&#382;imu</strong></span>. Jinak bude p&#345;esto aktivován
+  textový re&#382;im (#03) a budete muset restartovat po&#269;íta&#269;.
+  </li><li>
+  &#268;asto po ukon&#269;ení VESA rozhraní dostanete <span class="bold"><strong>&#269;ernou</strong></span>
+  obrazovku. Chcete-li vrátit obraz do p&#367;vodního stavu &#8211; jednodu&#353;e se
+  p&#345;epn&#283;te do jiné konzole (stiskem <span class="keycap"><b>Alt</b></span>+<span class="keycap"><b>F&lt;x&gt;</b></span>)
+  a pak se p&#345;epn&#283;te zp&#283;t stejným zp&#367;sobem.
+  </li><li>
+  Chcete-li <span class="bold"><strong>funk&#269;ní TV-out</strong></span>, musíte mít
+  p&#345;ipojený TV konektor p&#345;ed startem po&#269;íta&#269;e, jeliko&#382; se video BIOS
+  inicializuje pouze jednou b&#283;hem POST procedury.
+  </li></ul></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="x11"></a>8.2.12. X11</h3></div></div></div><p>
+Pokud mo&#382;no se mu vyhn&#283;te. Posílá obraz do X11 (pou&#382;ívá roz&#353;í&#345;ení sdílená pam&#283;&#357;)
+bez jakékoli hardwarové akcelerace. Podporuje (MMX/3DNow/SSE akcelerované, ale
+p&#345;esto pomalé) softwarové &#353;kálování. Pou&#382;ijte volby <tt class="option">-fs -zoom</tt>.
+V&#283;t&#353;ina karet má hardwarovou podporu &#353;kálování, pou&#382;ijte pro n&#283; volbu
+<tt class="option">-vo xv</tt>, nebo <tt class="option">-vo xmga</tt> pro karty Matrox.
+</p><p>
+Problém je, &#382;e v&#283;t&#353;ina karet nepodporuje hardwarovou akceleraci na sekundárním
+výstupu/TV. V t&#283;chto p&#345;ípadech uvidíte místo filmu zelenou/modrou obrazovku.
+Te&#271; se hodí toto rozhraní, ale pot&#345;ebujete silný procesor pro pou&#382;ití
+softwarového &#353;kálování. Nepou&#382;ívejte SDL softwarový výstup a &#353;kálování, má hor&#353;í
+kvalitu obrazu!
+</p><p>
+Softwarové &#353;kálování je velmi pomalé, zkuste rad&#283;ji m&#283;nit videore&#382;imy.
+Je to jednoduché. Viz <a href="output-trad.html#dga-modelines">modelines v DGA sekci</a>
+a p&#345;idejte je do svého <tt class="filename">XF86Config</tt>.
+
+</p><div class="itemizedlist"><ul type="disc" compact><li>
+  Máte-li XFree86 4.x.x: pou&#382;ijte volbu <tt class="option">-vm</tt>. Ta zm&#283;ní
+  rozli&#353;ení tak, aby do n&#283;j film dob&#345;e ve&#353;el. Kdy&#382; ne:
+  </li><li>
+  S XFree86 3.x.x: musíte cyklovat dostupnými rozli&#353;eními pomocí tla&#269;ítek
+  <span class="keycap"><b>Ctrl</b></span>+<span class="keycap"><b>Alt</b></span>+<span class="keycap"><b>plus</b></span>
+  a
+  <span class="keycap"><b>Ctrl</b></span>+<span class="keycap"><b>Alt</b></span>+<span class="keycap"><b>minus</b></span>.
+  </li></ul></div><p>
+</p><p>
+Pokud nem&#367;&#382;ete najír rozli&#353;ení, která jste vlo&#382;ili, pro&#269;t&#283;te si výstup XFree86.
+N&#283;které ovlada&#269;e nezvládnou nízké bodové kmito&#269;ty pot&#345;ebné pro re&#382;imy s nízkým
+rozli&#353;ením videa.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="vidix"></a>8.2.13. VIDIX</h3></div></div></div><p><b>P&#344;EDMLUVA. </b>
+<span class="acronym">VIDIX</span> je zkratka pro <span class="bold"><strong>VID</strong></span>eo
+<span class="bold"><strong>I</strong></span>nterface for *ni<span class="bold"><strong>X</strong></span>
+(video rozhraní pro *nix).
+VIDIX bylo navr&#382;eno a p&#345;edstaveno jako rozhraní pro rychlé u&#382;ivatelské ovlada&#269;e
+dosahujících video výkonu jako dosahuje mga_vid na kartách Matrox. Je rovn&#283;&#382;
+dob&#345;e p&#345;enositelné.
+</p><p>
+Toto rozhraní bylo navr&#382;eno jako pokus napasovat existující video akcelerující
+rozhraní (známé jako mga_vid, rage128_vid, radeon_vid, pm3_vid) do pevného
+schéma. Poskytuje vysokoúrov&#328;ové rozhraní k &#269;ip&#367;m známým jako BES
+(BackEnd scalers) nebo OV (Video Overlays). Neposkytuje nízkoúrov&#328;ové rozhraní
+k v&#283;cem známým jako grafické servery.
+(Nechci konkurovat X11 týmu v p&#345;epínání grafických re&#382;im&#367;). &#268;ili hlavním cílem
+tohoto rozhraní je maximalizace rychlosti p&#345;ehrávání videa.
+</p><div class="itemizedlist"><p class="title"><b>POU&#381;ITÍ</b></p><ul type="disc" compact><li>
+  M&#367;&#382;ete pou&#382;ít samostatné video rozhraní: <tt class="option">-vo xvidix</tt>.
+  Toto rozhraní bylo vytvo&#345;eno jako front end X11 k technologii VIDIX.
+  Vy&#382;aduje X server a m&#367;&#382;e pracovat pouze pod X serverem. Poznamenejme, &#382;e
+  jeliko&#382; p&#345;ímo komunikuje s hardwarem a obchází X ovlada&#269;, pixmapy ulo&#382;ené
+  v pam&#283;ti grafické karty m&#367;&#382;ou být po&#353;kozeny. M&#367;&#382;ete se tomu vyhnout omezením
+  mno&#382;ství video pam&#283;ti pou&#382;ité X pomocí volby "VideoRam" v XF86Config o 4MB.
+  Pokud máte mén&#283; ne&#382; 8MB video ram, m&#367;&#382;ete místo toho pou&#382;ít volbu
+  "XaaNoPixmapCache" v sekci screen.
+  </li><li>
+  Existuje konzolové VIDIX rozhraní: <tt class="option">-vo cvidix</tt>.
+  To vy&#382;aduje pro v&#283;t&#353;inu karet funk&#269;ní inicializovaný framebuffer (jinak pouze
+  rozhodíte obrazovku) a dosáhnete podobného efektu jako s
+  <tt class="option">-vo mga</tt> nebo <tt class="option">-vo fbdev</tt>. nVidia karty v&#353;ak
+  jsou schopny zobrazit pln&#283; grafické video na reálné textové konzoli. Viz
+  sekci <a href="output-trad.html#vidix-nvidia" title="8.2.13.5. Karty nVidia">nvidia_vid</a> pro více informací.
+  </li><li>
+  M&#367;&#382;ete pou&#382;ít VIDIXové podza&#345;ízení, které bylo zabudováno do n&#283;kolika video
+  ovlada&#269;&#367;, nap&#345;íklad: <tt class="option">-vo vesa:vidix</tt>
+  (<span class="bold"><strong>pouze Linux</strong></span>) a
+  <tt class="option">-vo fbdev:vidix</tt>.
+  </li></ul></div><p>
+Nezále&#382;í na tom, které video výstupní rozhraní je pou&#382;ito s
+<span class="bold"><strong>VIDIX</strong></span>.
+</p><div class="itemizedlist"><p class="title"><b>PO&#381;ADAVKY</b></p><ul type="disc" compact><li>
+  Video karta by m&#283;la být v grafickém re&#382;imu (vyjma karet nVidia s výstupním
+  rozhraním <tt class="option">-vo cvidix</tt>).
+  </li><li>
+  Výstupní video rozhraní <span class="application">MPlayer</span>u by m&#283;lo znát
+  aktivní video re&#382;im a být schopno sd&#283;lit VIDIXovému podza&#345;ízení n&#283;které video
+  charakteristiky serveru.
+  </li></ul></div><p><b>METODY POU&#381;ITÍ. </b>
+Kdy&#382; pou&#382;ijete VIDIX jako <span class="bold"><strong>subdevice</strong></span>
+(<tt class="option">-vo vesa:vidix</tt>), pak je konfigurace video re&#382;imu je provedeno
+výstupním video rozhraním (zkrátka <span class="bold"><strong>vo_server</strong></span>em).
+Tak&#382;e m&#367;&#382;ete zadat na p&#345;íkazovém &#345;ádku <span class="application">MPlayer</span>u
+stejné volby jako pro vo_server. Návdavkem rozeznává volbu
+<tt class="option">-double</tt> jako globální parametr. (Doporu&#269;uji pou&#382;ít tuto volbu
+s VIDIX aspo&#328; pro ATI kartu). Stejn&#283; jako <tt class="option">-vo xvidix</tt>, dosud
+zná následující volby: <tt class="option">-fs -zoom -x -y -double</tt>.
+</p><p>
+Rovn&#283;&#382; m&#367;&#382;ete uvést VIDIXový ovlada&#269; jako t&#345;etí podvolbu na p&#345;íkazovém &#345;ádku:
+
+</p><pre class="screen">mplayer -vo xvidix:mga_vid.so -fs -zoom -double <em class="replaceable"><code>soubor.avi</code></em></pre><p>
+nebo
+</p><pre class="screen">mplayer -vo vesa:vidix:radeon_vid.so -fs -zoom -double -bpp 32 <em class="replaceable"><code>soubor.avi</code></em></pre><p>
+
+Ale je to nebezpe&#269;né a nem&#283;li byste to d&#283;lat. V tomto p&#345;ípad&#283; bude zadaný
+ovlada&#269; vynucen a výsledek je nep&#345;edvídatelný (m&#367;&#382;e vám
+<span class="bold"><strong>zatuhnout</strong></span> po&#269;íta&#269;). M&#283;li byste to pou&#382;ít
+POUZE pokud jste si absolutn&#283; jistí, &#382;e to bude fungovat a
+<span class="application">MPlayer</span> to neud&#283;lá automaticky. &#344;ekn&#283;te o tom prosím
+vývojá&#345;&#367;m. Správný zp&#367;sob je pou&#382;ití VIDIX bez argument&#367;, aby prob&#283;hla
+autodetekce.
+</p><p>
+Jeliko&#382; VIDIX vy&#382;aduje p&#345;ímý p&#345;ístup k hardware, m&#367;&#382;ete jej bu&#271; spustit jako
+root, nebo nastavit SETUID bit binárce <span class="application">MPlayer</span>u
+(<span class="bold"><strong>Varování: Toto je bezpe&#269;nostní risk!</strong></span>).
+Alternativn&#283; m&#367;&#382;ete pou&#382;ít speciální jaderný modul, nap&#345;íklad:
+</p><div class="procedure"><ol type="1"><li><p>
+  Stáhn&#283;te si <a href="http://www.arava.co.il/matan/svgalib/" target="_top">vývojovou verzi</a>
+  svgalib (nap&#345;íklad 1.9.17), <span class="bold"><strong>NEBO</strong></span> si
+  stáhn&#283;te verzi vatvo&#345;enou Alexem speciáln&#283; pro pou&#382;ití s
+  <span class="application">MPlayer</span>em (ke kompilaci nepot&#345;ebuje zdrojový kód
+  svgalib)
+  <a href="http://www.mplayerhq.hu/MPlayer/contrib/svgalib/svgalib_helper-1.9.17-mplayer.tar.bz2" target="_top">odtud</a>.
+  </p></li><li><p>
+  Skompilujte modul v adresá&#345;i <tt class="filename">svgalib_helper</tt>
+  (naleznete ji v <tt class="filename">svgalib-1.9.17/kernel/</tt>,
+  pokud jste si stáhli zdrojový kód ze serveru svgalib) a nahrajte (insmod) jej.
+  </p></li><li><p>
+  Pro vytvo&#345;ení pot&#345;ebných za&#345;ízení v adresá&#345;i
+  <tt class="filename">/dev</tt> prove&#271;te jako root
+  </p><pre class="screen">make device</pre><p> v adresá&#345;i
+  <tt class="filename">svgalib_helper</tt>.
+  </p></li><li><p>
+  P&#345;esu&#328;te adresá&#345; <tt class="filename">svgalib_helper</tt> do
+  <tt class="filename">mplayer/main/libdha/svgalib_helper</tt>.
+  </p></li><li><p>
+  Pokud jste si stáhli zdroj ze stránek svgalib, musíte odkomentovat &#345;ádek
+  CFLAGS obsahující text "svgalib_helper" v souboru
+  <tt class="filename">libdha/Makefile</tt>.
+  </p></li><li><p>
+  P&#345;ekompilujte a nainstalujte libdha.
+  </p></li></ol></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="vidix-ati"></a>8.2.13.1. Karty ATI</h4></div></div></div><p>
+V sou&#269;asnosti je v&#283;t&#353;ina ATI karet podporována nativn&#283; od Mach64 a&#382; po
+nejnov&#283;j&#353;í Radeony.
+</p><p>
+Existují dv&#283; skompilované binárky: <tt class="filename">radeon_vid</tt> pro Radeony a
+<tt class="filename">rage128_vid</tt> pro karty Rage 128. M&#367;&#382;ete n&#283;kterou vynutit,
+ nebo nechat VIDIX rozhraní autodetekovat v&#353;echny dostupné ovlada&#269;e.
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="vidix-mga"></a>8.2.13.2. Karty Matrox</h4></div></div></div><p>
+Matrox G200, G400, G450 a G550 jsou hlá&#353;eny jako funk&#269;ní.
+</p><p>
+Ovlada&#269; podporuje video ekvalizéry a m&#283;l by být tém&#283;&#345; tak rychlý jako
+<a href="output-trad.html#mga_vid" title="8.2.6. Matrox framebuffer (mga_vid)">Matrox framebuffer</a>
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="vidix-trident"></a>8.2.13.3. Karty Trident</h4></div></div></div><p>
+Existuje ovlada&#269; pro &#269;ipset Trident Cyberblade/i1, který lze nalézt na
+motherboardech VIA Epia.
+</p><p>
+Ovlada&#269; byl napsán a je udr&#382;ován
+<a href="http://www.blackfiveservices.co.uk/EPIAVidix.shtml" target="_top">Alastairem M. Robinsonem</a>
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="vidix-3dlabs"></a>8.2.13.4. Karty 3DLabs</h4></div></div></div><p>
+A&#269;koli existuje ovlada&#269; pro &#269;ipy 3DLabs GLINT R3 a Permedia3, nikdo je
+netestoval, tak&#382;e hlá&#353;ení vítáme.
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="vidix-nvidia"></a>8.2.13.5. Karty nVidia</h4></div></div></div><p>
+  Unikátní vlastností ovlada&#269;e nvidia_vid je jeho schopnost zobrazit video na
+  <span class="bold"><strong>jednoduché, &#269;isté, pouze textové konzoli</strong></span>
+  &#8211; bez framebufferu nebo n&#283;jaké X magie. Pro tento ú&#269;el budete muset
+  pou&#382;ít video rozhraní <tt class="option">cvidix</tt>, jak to ukazuje následující
+  p&#345;íklad:
+  </p><pre class="screen">mplayer -vo cvidix <em class="replaceable"><code>p&#345;íklad.avi</code></em></pre><p>
+</p></div><div class="sect3" lang="cs"><div class="titlepage"><div><div><h4 class="title"><a name="vidix-sis"></a>8.2.13.6. Karty SiS</h4></div></div></div><p>
+Toto je velmi experimentální kód, stejn&#283; jako nvidia_vid.
+</p><p>
+Byl testován na SiS 650/651/740 (nejobvyklej&#353;í &#269;ipsety pou&#382;ité v SiS
+verzích "Shuttle XPC" barebones boxes out there)
+</p><p>
+Hlá&#353;ení o&#269;ekávána!
+</p></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="directfb"></a>8.2.14. DirectFB</h3></div></div></div><div class="blockquote"><blockquote class="blockquote"><p>
+"DirectFB je grafická knihovna navr&#382;ená se z&#345;etelem na vestav&#283;né systémy.
+Nabízí maximáln&#283; hardwarov&#283; akcelerovaný výkon p&#345;i minimální spot&#345;eb&#283;
+zdroj&#367; a zatí&#382;ení." &#8211; citováno z <a href="http://www.directfb.org" target="_top">http://www.directfb.org</a>
+</p></blockquote></div><p>Vlastnosti DirectFB v této sekci vynechám.</p><p>
+
+A&#269;koli <span class="application">MPlayer</span> není podporován jako "video
+provider" v DirectFB, toto video rozhraní umo&#382;ní p&#345;ehrávání videa p&#345;es
+DirectFB. Bude to samoz&#345;ejm&#283; akcelerované. Na mém Matroxu G400 byla rychlost
+DirectFB stejná jako XVideo.
+</p><p>
+V&#382;dy se sna&#382;te pou&#382;ívat nejnov&#283;j&#353;í verzi DirectFB. M&#367;&#382;ete nastavovat volby pro
+DirectFB na p&#345;íkazovém &#345;ádku pomocí volby <tt class="option">-dfbopts</tt>. Volbu
+vrstvy lze provést metodou podza&#345;ízení, nap&#345;.: <tt class="option">-vo directfb:2</tt>
+(výchozí je vrstva -1: autodetekce)
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="dfbmga"></a>8.2.15. DirectFB/Matrox (dfbmga)</h3></div></div></div><p>
+P&#345;e&#269;t&#283;te si prosím <a href="output-trad.html#directfb" title="8.2.14. DirectFB">hlavní DirectFB</a> sekci pro
+obecné informaci.
+</p><p>
+Toto video výstupní za&#345;ízení zapne CRTC2 (na sekundárním výstupu) na kartách
+Matrox G400/G450/G550, tak&#382;e zobrazuje video
+<span class="bold"><strong>nezávisle</strong></span> na hlavním výstupu.
+</p><p>
+Ville Syrjala's má
+<a href="http://www.sci.fi/~syrjala/directfb/Matrox_TV-out_README.txt" target="_top">README</a>
+a
+<a href="http://www.sci.fi/~syrjala/directfb/matrox-tv-out-howto" target="_top">HOWTO</a>
+na své domácí stránce, kde vysv&#283;tluje, jak rozb&#283;hnout DirectFB TV výstup na
+kartách Matrox.
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+První DirectFB verze se kterou se nám to povedlo byla
+0.9.17 (je chybová, pot&#345;ebuje <code class="systemitem">surfacemanager</code>
+patch z vý&#353;e uvedeného URL). Portace CRTC2 kódu do
+<a href="output-trad.html#mga_vid" title="8.2.6. Matrox framebuffer (mga_vid)">mga_vid</a> bylo plánováno léta,
+<a href="../../tech/patches.txt" target="_top">patche</a> vítáme.
+</p></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="mtrr.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="video.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="mpeg_decoders.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">8.1. Nastavení MTRR </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 8.3. MPEG dekodéry</td></tr></table></div></body></html>

@@ -1,0 +1,62 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>12.1. Linux</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="ports.html" title="Kapitola 12. Porty"><link rel="prev" href="ports.html" title="Kapitola 12. Porty"><link rel="next" href="bsd.html" title="12.2. *BSD"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="linux.html#debian" title="12.1.1. Vytvo&#345;ení balí&#269;ku pro Debian"><link rel="subsection" href="linux.html#rpm" title="12.1.2. Balení RPM"><link rel="subsection" href="linux.html#arm" title="12.1.3. ARM"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">12.1. Linux</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="ports.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 12. Porty</th><td width="20%" align="right"> <a accesskey="n" href="bsd.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="linux"></a>12.1. Linux</h2></div></div></div><p>
+Hlavní vývojovou platformou je Linux na x86, a&#269;koli
+<span class="application">MPlayer</span> pracuje na mnoha jiných portech Linuxu.
+Binární balí&#269;ky <span class="application">MPlayer</span>u jsou dostupné z n&#283;kolika
+zdroj&#367;. Nicmén&#283; <span class="bold"><strong>není &#382;ádný z t&#283;chto balí&#269;k&#367; podporován</strong></span>.
+Hlaste tedy problémy jejich autor&#367;m, nikoli nám.
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="debian"></a>12.1.1. Vytvo&#345;ení balí&#269;ku pro Debian</h3></div></div></div><p>
+Pro vytvo&#345;ení balí&#269;ku pro Debian spus&#357;te následující p&#345;íkaz v adresá&#345;i se
+zdrojovým kódem <span class="application">MPlayer</span>u:
+
+</p><pre class="screen">fakeroot debian/rules binary</pre><p>
+
+Pokud chcete p&#345;edat n&#283;jaké volby pro configure, m&#367;&#382;ete nastavit prom&#283;nnou
+prost&#345;edí <code class="envar">DEB_BUILD_OPTIONS</code>. Nap&#345;íklad, pokud chcete GUI a
+podporu OSD menu, m&#283;li byste pou&#382;ít:
+
+</p><pre class="screen">DEB_BUILD_OPTIONS="--enable-gui --enable-menu" fakeroot debian/rules binary</pre><p>
+
+Rovn&#283;&#382; m&#367;&#382;ete p&#345;edat n&#283;které prom&#283;nné do Makefile. Nap&#345;íklad, pokud chcete
+kompilovat pomocí gcc 3.4 i v p&#345;ípad&#283;, &#382;e to není výchozí kompilátor:
+
+</p><pre class="screen">CC=gcc-3.4 DEB_BUILD_OPTIONS="--enable-gui" fakeroot debian/rules binary</pre><p>
+
+K vy&#269;ist&#283;ní zdrojového stromu spus&#357;te následující p&#345;íkaz:
+
+</p><pre class="screen">fakeroot debian/rules clean</pre><p>
+
+Jako root m&#367;&#382;ete nainstalovat <tt class="filename">.deb</tt> balí&#269;ek obvyklým
+zp&#367;sobem:
+
+</p><pre class="screen">dpkg -i ../mplayer_<em class="replaceable"><code>version</code></em>.deb</pre><p>
+</p><p>
+Christian Marillat vytvá&#345;el jistou dobu neoficiální Debianí balí&#269;ky
+<span class="application">MPlayer</span>u, <span class="application">MEncoder</span>u a
+na&#353;ich binárních balík&#367; s kodeky, m&#367;&#382;ete si je stáhnout (apt-get) z
+<a href="http://www.debian-multimedia.org/" target="_top">jeho domácí stránky</a>.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="rpm"></a>12.1.2. Balení RPM</h3></div></div></div><p>
+Dominik Mierzejewski vytvo&#345;il a udr&#382;uje oficiální RPM balí&#269;ky
+<span class="application">MPlayer</span>u pro Red Hat a Fedora Core. Ty jsou dostupné
+z jeho
+<a href="http://rpm.greysector.net/mplayer/" target="_top">repozitá&#345;e</a>.
+</p><p>
+RPM balí&#269;ky pro Mandrake/Mandriva jsou dostupné z
+<a href="http://plf.zarb.org/" target="_top">P.L.F.</a>.
+SuSE za&#345;adilo do své distribuce zmrza&#269;enou verzi
+<span class="application">MPlayer</span>u. V posledních verzích ji odstranili. Funk&#269;ní
+RPM naleznete na
+<a href="http://packman.links2linux.de/?action=128" target="_top">links2linux.de</a>.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="arm"></a>12.1.3. ARM</h3></div></div></div><p>
+<span class="application">MPlayer</span> pracuje na Linuxových PDA s ARM CPU nap&#345;.
+Sharp Zaurus, Compaq Ipaq. Nejjednodu&#353;&#353;í zp&#367;sob jak si opat&#345;it
+<span class="application">MPlayer</span> je, stáhnout si jej z n&#283;kterého
+<a href="http://www.openzaurus.org" target="_top">OpenZaurus</a> balí&#269;kového kanálu.
+Pokud si jej chcete skompilovat sami, m&#283;li byste nahlédnout do adresá&#345;e
+<a href="http://openzaurus.bkbits.net:8080/buildroot/src/packages/mplayer?nav=index.html%7Csrc/.%7Csrc/packages" target="_top">mplayer</a>
+a
+<a href="http://openzaurus.bkbits.net:8080/buildroot/src/packages/libavcodec?nav=index.html%7Csrc/.%7Csrc/packages" target="_top">libavcodec</a>
+v buildroot OpenZaurus distribuce. Zde mají v&#382;dy poslední Makefile a patche pou&#382;ívané
+pro sestavení CVS verze <span class="application">MPlayer</span>u s
+<code class="systemitem">libavcodec</code>em.
+Pokud pot&#345;ebujete GUI rozhraní, m&#367;&#382;ete pou&#382;ít xmms-embedded.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="ports.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="ports.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="bsd.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">Kapitola 12. Porty </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 12.2. *BSD</td></tr></table></div></body></html>

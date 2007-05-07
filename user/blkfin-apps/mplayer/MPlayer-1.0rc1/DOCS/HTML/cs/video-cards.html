@@ -1,0 +1,121 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>2.2. Video karty</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="install.html" title="Kapitola 2. Instalace"><link rel="prev" href="softreq.html" title="2.1. Softwarové po&#382;adavky"><link rel="next" href="sound-cards.html" title="2.3. Zvukové karty"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="video-cards.html#yuv-cards" title="2.2.1. YUV karty"><link rel="subsection" href="video-cards.html#non-yuv-cards" title="2.2.2. Ne-YUV karty"><link rel="subsection" href="video-cards.html#cirrus-logic-cards" title="2.2.3. Karty Cirrus-Logic"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.2. Video karty</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="softreq.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 2. Instalace</th><td width="20%" align="right"> <a accesskey="n" href="sound-cards.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="video-cards"></a>2.2. Video karty</h2></div></div></div><p>
+Obecn&#283; máme dva druhy video karet. Jedny (ty nov&#283;j&#353;í) mají podporu pro
+<span class="bold"><strong>hardwarové &#353;kálování a YUV akceleraci</strong></span>,
+druhé ji nemají.
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="yuv-cards"></a>2.2.1. YUV karty</h3></div></div></div><p>
+Mohou zobrazit a &#353;kálovat (zv&#283;t&#353;it/zmen&#353;it) obraz na jakoukoli velikost,
+která se jim vejde do pam&#283;ti, p&#345;i <span class="bold"><strong>nízkém zatí&#382;ení CPU</strong></span>
+(dokonce i p&#345;i zoomu), tak&#382;e je zobrazení na celou obrazovku hezké a velmi rychlé.
+
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="bold"><strong>Karty Matrox G200/G400/G450/G550</strong></span>: a&#269;koli je
+  pro n&#283;
+  <a href="output-trad.html#vidix" title="8.2.13. VIDIX">Vidix ovlada&#269;</a>, doporu&#269;uje se místo n&#283;j rad&#283;ji
+  pou&#382;ít modul mga_vid, jeliko&#382; pracuje mnohem lépe.
+  Podívejte se do &#269;ásti <a href="output-trad.html#mga_vid" title="8.2.6. Matrox framebuffer (mga_vid)">mga_vid</a> na informace o
+  jeho pou&#382;ití
+  a instalaci. Je d&#367;le&#382;ité provést v&#353;echny tyto kroky
+  <span class="emphasis"><em>p&#345;ed</em></span> kompilací <span class="application">MPlayer</span>u,
+  jinak nebude zabudována podpora pro mga_vid. Rovn&#283;&#382; nahlédn&#283;te do &#269;ásti
+  <a href="tvout.html#tvout-mga-g400" title="8.5.1. Karty Matrox G400">Matrox TV-out</a>.
+  <span class="bold"><strong> Pokud nepou&#382;íváte Linux</strong></span>, je va&#353;í jedinou
+  volbou
+  VIDIX ovlada&#269;: p&#345;e&#269;t&#283;te si sekci <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>.
+  </p></li><li><p>
+  <span class="bold"><strong>Karty 3Dfx Voodoo3/Banshee</strong></span>: prostudujte si
+  sekci <a href="output-trad.html#tdfxfb" title="8.2.7. Podpora 3Dfx YUV">tdfxfb</a> pokud chcete velké zrychlení.
+  Je d&#367;le&#382;ité provést v&#353;echny tyto kroky <span class="bold"><strong>p&#345;ed</strong></span>
+  kompilací <span class="application">MPlayer</span>u, jinak  nebude zabudována
+  podpora pro 3Dfx.
+  Pokud pou&#382;íváte X, pou&#382;ijte alespo&#328; <span class="bold"><strong>4.2.0</strong></span>,
+  proto&#382;e 3dfx Xv ovlada&#269; je vadný v 4.1.0 a p&#345;edchozích.
+  </p></li><li><p>
+  <span class="bold"><strong>Karty ATI</strong></span>: <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>
+  ovlada&#269; je k dispozici pro následující karty:
+  <span class="bold"><strong>Radeon, Rage128, Mach64</strong></span>
+ (Rage XL/Mobility, Xpert98).
+  Rovn&#283;&#382; nahlédn&#283;te do sekce <a href="tvout.html#tvout-ati" title="8.5.3. Karty ATI">ATI karet</a>
+  s dokumentací pro TV-out, kde se dozvíte zda je pod
+  Linuxem/<span class="application">MPlayer</span>em podporován
+  TV-out va&#353;í karty.
+  </p></li><li><p>
+  <span class="bold"><strong>Karty S3</strong></span>: Savage a Virge/DX &#269;ipy mají
+  hardwarovou akceleraci. Pou&#382;ijte tak novou verzi XFree86 jak je jen mo&#382;né,
+  star&#353;í ovlada&#269;e
+  jsou plné chyb. &#268;ipy Savage mají problémy se zobrazováním YV12, viz sekci
+  <a href="output-trad.html#s3" title="8.2.1.2. Karty S3">S3 Xv</a> 
+  pro více detail&#367;. Star&#353;í Trio karty nemají &#382;ádnou, nebo jen pomalou
+  hardwarovou podporu.
+  </p></li><li><p>
+  <span class="bold"><strong>Karty nVidia</strong></span>: mohou, ale nemusí být dobrou
+  volbou pro p&#345;ehrávání videa pod Linuxem.
+  Pokud nemáte kartu GeForce2 (nebo nov&#283;j&#353;í), nejspí&#353;e nebude pracovat bezchybn&#283;.
+  <span class="bold"><strong>Vestav&#283;ný nVidia ovlada&#269; v XFree86 nepodporuje
+  hardwarovou YUV akceleraci na v&#353;ech nVidia kartách.</strong></span> Budete muset
+  stáhnout closed-source ovlada&#269;e od nVidie
+  z <a href="http://nvidia.com" target="_top">nVidia.com</a>.
+  Viz sekci <a href="output-trad.html#nvidia" title="8.2.1.3. Karty nVidia">nVidia Xv ovlada&#269;</a> pro více detail&#367;.
+  Rovn&#283;&#382; nav&#353;tivte sekci <a href="tvout.html#tvout-nvidia" title="8.5.4. nVidia">nVidia TV-out</a>
+  pokud chcete pou&#382;ívat TV.
+  </p></li><li><p>
+  <span class="bold"><strong>3DLabs GLINT R3 a Permedia3</strong></span>: k dispozici máte
+  VIDIX ovlada&#269; (pm3_vid). Rovn&#283;&#382; nahlédn&#283;te do &#269;ásti <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>
+  pro více informací.
+  </p></li><li><p>
+  <span class="bold"><strong>Ostatní karty</strong></span>: &#382;ádná z vý&#353;e uvedených?
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    Zkuste zda XFree86 ovlada&#269; (a va&#353;e karta) podporuje hardwarovou
+    akceleraci. Pro více informací viz sekci <a href="output-trad.html#xv" title="8.2.1. Xv">Xv</a>.
+    </li><li>
+    Pokud ne, pak nejsou video vlastnosti va&#353;í karty podporovány va&#353;ím opera&#269;ním
+    systémem:( Jestli&#382;e hardwarové &#353;kálování pracuje ve Windows, je&#353;t&#283; to
+    neznamená, &#382;e bude funk&#269;ní v Linuxu nebo jiném opera&#269;ním systému.
+    To závisí na ovlada&#269;ích. V&#283;t&#353;ina výrobc&#367; nedodává ovlada&#269;e pro Linux ani
+    nezve&#345;ejnila specifikace svých
+    &#269;ip&#367; -- pokud pou&#382;íváte jejich karty pak máte sm&#367;lu.
+    Viz <a href="video-cards.html#non-yuv-cards">Ne-YUV karty</a>.
+    </li></ul></div><p>
+  </p></li></ul></div><p>
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="non-yuv-cards"></a>2.2.2. Ne-YUV karty</h3></div></div></div><p>
+P&#345;ehrávání na celé obrazovce m&#367;&#382;e být dosa&#382;eno bu&#271; zapnutím <span class="bold"><strong>
+softwarového &#353;kálování</strong></span> (pou&#382;itím volby <tt class="option">-zoom</tt> nebo
+<tt class="option">-vf</tt>, ale varuji vás: je to pomalé), anebo p&#345;epnutím do men&#353;ího
+videore&#382;imu, nap&#345;íklad
+352x288. Pokud nemáte YUV akceleraci, doporu&#269;ujeme druhou mo&#382;nost.
+P&#345;epínání videore&#382;imu lze zapnout pou&#382;itím volby <tt class="option">-vm</tt>,
+co&#382; pracuje s t&#283;mito ovlada&#269;i:
+</p><div class="itemizedlist"><ul type="disc"><li>
+  <span class="bold"><strong>pou&#382;íváte</strong></span> XFree86: viz detaily v &#269;ásti
+  <a href="output-trad.html#dga" title="8.2.2. DGA">DGA ovlada&#269;</a> a
+  <a href="output-trad.html#x11" title="8.2.12. X11">X11 ovlada&#269;</a>. Doporu&#269;ujeme DGA! Vyzkou&#353;ejte také DGA
+  p&#345;es SDL, n&#283;kdy je lep&#353;í.
+  </li><li>
+  <span class="bold"><strong>nepou&#382;íváte</strong></span> XFree86: zkou&#353;ejte ovlada&#269;e
+  v následujícím po&#345;adí:
+  <a href="output-trad.html#vesa" title="8.2.11. VESA - výstup do VESA BIOSu">vesa</a>,
+  <a href="output-trad.html#fbdev" title="8.2.5. Výstup na Framebuffer (FBdev)">fbdev</a>,
+  <a href="output-trad.html#svgalib" title="8.2.4. SVGAlib">svgalib</a>,
+  <a href="output-trad.html#aalib" title="8.2.9. AAlib - zobrazování v textovém re&#382;imu">aalib</a>.
+  </li></ul></div><p>
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="cirrus-logic-cards"></a>2.2.3. Karty Cirrus-Logic</h3></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+  GD 7548: byla integrovaná na základní desce a testována v noteboocích &#345;ady
+  Compaq Armada 41xx.
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    XFree86 3: pracuje v re&#382;imech 8/16bpp. Ovlada&#269; je ov&#353;em velmi pomalý a
+    nestabilní p&#345;i
+    800x600@16bpp. <span class="bold"><strong>Doporu&#269;ujeme: 640x480@16bpp</strong></span>
+   </li><li>
+    XFree86 4: Xserver zamrznul brzy po startu pokud nebyla vypnuta akcelerace,
+    ale pak se v&#353;e zpomalilo víc ne&#382; v XFree86 3. Není XVideo.
+   </li><li>
+    FBdev: framebuffer lze zapnout pomocí modulu jádra <code class="systemitem">clgenfb</code>.
+    Pracoval ov&#353;em pouze v 8bpp barevné hloubce, co&#382; je k ni&#269;emu.
+    Zdrojový kód clgenfb musí být roz&#353;í&#345;en o ID 7548 p&#345;ed kompilací.
+   </li><li>
+    VESA: karta podporuje pouze VBE 1.2, tak&#382;e výstup VESA nelze pou&#382;ít.
+    Nelze to obejít pomocí UniVBE.
+  </li><li>
+    SVGAlib: detekuje star&#353;í Cirrus &#269;ip. Pou&#382;itelné, ale pomalé p&#345;i
+    <tt class="option">-bpp 8</tt>.
+  </li></ul></div><p>
+</p></li></ul></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="softreq.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="sound-cards.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">2.1. Softwarové po&#382;adavky </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 2.3. Zvukové karty</td></tr></table></div></body></html>

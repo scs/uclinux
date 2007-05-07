@@ -1,0 +1,32 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>12.6. Exotic Platforms</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="ports.html" title="Chapter 12. Ports"><link rel="prev" href="macos.html" title="12.5. Mac OS"><link rel="next" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"><link rel="subsection" href="exotic_platforms.html#qnx" title="12.6.1. QNX"><link rel="subsection" href="exotic_platforms.html#amiga" title="12.6.2. Amiga/MorphOS (GeekGadgets)"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">12.6. Exotic Platforms</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="macos.html">Prev</a> </td><th width="60%" align="center">Chapter 12. Ports</th><td width="20%" align="right"> <a accesskey="n" href="mencoder.html">Next</a></td></tr></table><hr></div><div class="sect1" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="exotic_platforms"></a>12.6. Exotic Platforms</h2></div></div></div><p>
+<span class="application">MPlayer</span> runs on a number of exotic platforms,
+but most of the platform-specific changes from those systems have not been
+merged back into the main source tree.
+For build instructions you should refer to the system-specific documentation.
+</p><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="qnx"></a>12.6.1. QNX</h3></div></div></div><p>
+You'll need to download and install SDL for QNX. Then run
+<span class="application">MPlayer</span> with <tt class="option">-vo sdl:driver=photon</tt>
+and <tt class="option">-ao sdl:nto</tt> options, it should be fast.
+</p><p>
+The <tt class="option">-vo x11</tt> output will be even slower than on Linux,
+since QNX has only X <span class="emphasis"><em>emulation</em></span> which is very slow.
+</p></div><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="amiga"></a>12.6.2. Amiga/MorphOS (GeekGadgets)</h3></div></div></div><p>
+The people over at <a href="http://www.amigasoft.net" target="_top">www.amigasoft.net</a>
+make current <span class="application">MPlayer</span> and
+<span class="application">MEncoder</span> packages.
+</p><p>
+Nicholas Det at Genesi has done a big and powerful port of <span class="application">MPlayer
+</span> for MorphOS. Sadly it's based on the 0.90 series.
+</p><p>
+Get if from <a href="http://www.morphzone.org/" target="_top">MorphZone</a>:
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+<a href="http://www.morphzone.org/modules/mydownloads/singlefile.php?lid=90" target="_top">
+<span class="application">MPlayer</span> 0.91 binary</a>
+</p></li><li><p>
+<a href="http://www.morphzone.org/modules/mydownloads/singlefile.php?lid=91" target="_top">
+<span class="application">MPlayer</span> 0.91 source</a>
+</p></li><li><p>
+<a href="http://www.morphzone.org/modules/mydownloads/singlefile.php?lid=92" target="_top">
+<span class="application">MEncoder</span> 1.0pre3 binary</a>
+</p></li></ul></div><p>
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="macos.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="ports.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="mencoder.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">12.5. Mac OS </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 13. Basic usage of <span class="application">MEncoder</span></td></tr></table></div></body></html>

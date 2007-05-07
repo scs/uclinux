@@ -1,0 +1,405 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>3.7. Továbbfejlesztett audió</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="usage.html" title="3. fejezet - Használat"><link rel="prev" href="edl.html" title="3.6. Edit Decision Lists (EDL)"><link rel="next" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="preface" href="howtoread.html" title="Hogyan olvasd ezt a dokumentációt"><link rel="chapter" href="intro.html" title="1. fejezet - Bevezetés"><link rel="chapter" href="install.html" title="2. fejezet - Telepítés"><link rel="chapter" href="usage.html" title="3. fejezet - Használat"><link rel="chapter" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="chapter" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="chapter" href="containers.html" title="6. fejezet - Konténerek"><link rel="chapter" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="chapter" href="video.html" title="8. fejezet - Videó kimeneti eszközök"><link rel="chapter" href="audio.html" title="9. fejezet - Audió kimeneti eszközök"><link rel="chapter" href="tv.html" title="10. fejezet - TV"><link rel="chapter" href="radio.html" title="11. fejezet - Rádió"><link rel="chapter" href="ports.html" title="12. fejezet - Portok"><link rel="chapter" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="chapter" href="encoding-guide.html" title="14. fejezet - Kódolás a MEncoderrel"><link rel="appendix" href="bugreports.html" title="A. függelék - Hogyan jelentsd a hibákat"><link rel="appendix" href="bugs.html" title="B. függelék - Ismert hibák"><link rel="appendix" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="appendix" href="history.html" title="D. függelék - Történelem"><link rel="subsection" href="advaudio.html#advaudio-surround" title="3.7.1. Térhatású/többcsatornás lejátszás"><link rel="subsection" href="advaudio.html#advaudio-channels" title="3.7.2. Csatorna többszörözés"><link rel="subsection" href="advaudio.html#advaudio-volume" title="3.7.3. Szoftveres hanger&#337; állítás"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">3.7. Továbbfejlesztett audió</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="edl.html">El&#337;z&#337;</a> </td><th width="60%" align="center">3. fejezet - Használat</th><td width="20%" align="right"> <a accesskey="n" href="cd-dvd.html">Következ&#337;</a></td></tr></table><hr></div><div class="sect1" lang="hu"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="advaudio"></a>3.7. Továbbfejlesztett audió</h2></div></div></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="advaudio-surround"></a>3.7.1. Térhatású/többcsatornás lejátszás</h3></div></div></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-surround-DVD"></a>3.7.1.1. DVD-k</h4></div></div></div><p>
+A legtöbb DVD és sok más fájl térhatású hangot tartalmaz.
+Az <span class="application">MPlayer</span> támogatja a térhatású lejátszást, de
+alapértelmezésként nem engedélyezi, mivel a sztereó berendezések a gyakoribbak.
+A több, mint két csatornás audiót tartalmazó fájlok lejátszásához használd a
+<tt class="option">-channels</tt> kapcsolót.
+Például egy 5.1-es audióval rendelkez&#337; DVD lejátszása:
+
+</p><pre class="screen">mplayer dvd://1 -channels 6</pre><p>
+
+Figyelj rá, hogy az "5.1" név ellenére valójában hat különálló csatorna van.
+Ha van térhatású hangfalszetted, nyugodtan beleírhatod a
+<tt class="option">channels</tt> opciót az <span class="application">MPlayer</span>
+konfigurációs fájljába, a <tt class="filename">~/.mplayer/config</tt>-ba. Például a
+kvadrafónikus lejátszás alapértelmezetté tételéhez írd be ezt a sort:
+
+</p><pre class="programlisting">channels=4</pre><p>
+
+Az <span class="application">MPlayer</span> ekkor az audiót négy csatornán fogja
+lejátszani, ha mind a négy csatorna elérhet&#337;.
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-surround-stereoinfour"></a>3.7.1.2. Sztereó fájlok lejátszása négy hangszórón</h4></div></div></div><p>
+Az <span class="application">MPlayer</span> nem duplázza meg a csatornákat alapból,
+ahogy a legtöbb audió vezérl&#337; sem. Ha ilyet akarsz, kézzel kell megadnod:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>filename</code></em> -af channels=2:2:0:1:0:0</pre><p>
+
+Lásd a <a href="advaudio.html#advaudio-channels-copying" title="3.7.2.3. Csatorna másolás/mozgatás">csatorna másolásról</a>
+szóló rész a magyarázatért.
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-surround-passthrough"></a>3.7.1.3. AC3/DTS áteresztés</h4></div></div></div><p>
+A DVD-k általában AC3 (Dolby Digital) vagy DTS (Digital Theater System) formátumban
+kódolt térhatású hanggal rendelkeznek. Néhány modern audió berendezés képes ezen
+formátumok bels&#337; dekódolására. Az <span class="application">MPlayer</span> beállítható
+úgy, hogy dekódolás nélkül adja át az audió adatot. Ez csak akkor fog m&#369;ködni, ha
+van egy S/PDIF (Sony/Philips Digital Interface) jack dugó a hangkártyádon.
+</p><p>
+Ha az audió berendezésed tudja dekódolni mind az AC3-at, mind a DTS-t, nyugodtan
+engedélyezheted az áteresztést mindkét formátumnál. Különben csak arra a formátumra
+engedélyezd, amelyiket a berendezésed támogatja.
+</p><div class="itemizedlist"><p class="title"><b>Áteresztés engedélyezése a parancssorban:</b></p><ul type="disc"><li><p>
+Csak AC3-hoz használd a <tt class="option">-ac hwac3</tt> kapcsolót.
+</p></li><li><p>
+CSak DTS-hez használd a <tt class="option">-ac hwdts</tt> kapcsolót
+</p></li><li><p>
+AC3 és DTS esetén használd a <tt class="option">-afm hwac3</tt> kapcsolót.
+</p></li></ul></div><div class="itemizedlist"><p class="title"><b>Áteresztés engedélyezése az <span class="application">MPlayer</span>
+konfigurációs fájljában: </b></p><ul type="disc"><li><p>
+Csak AC3-hoz használd az <tt class="option">ac=hwac3,</tt> sort.
+</p></li><li><p>
+Csak DTS-hez használd az <tt class="option">ac=hwdts,</tt> sort.
+</p></li><li><p>
+AC3 és DTS esetén használd az <tt class="option">afm=hwac3</tt> sort.
+</p></li></ul></div><p>
+Figyelj rá, hogy az <tt class="option">ac=hwac3,</tt> és <tt class="option">ac=hwdts,</tt>
+sorok végén van egy vessz&#337; (","). Ez arra utasítja az <span class="application">MPlayer</span>t,
+hogy váltson vissza a normálisan használt codec-re, ha olyan fájlt játszasz le,
+amiben nincs AC3-as vagy DTS audió. Az <tt class="option">afm=hwac3</tt>
+sorba nem kell vessz&#337;; az <span class="application">MPlayer</span> mindenképpen vált
+ha egy audió család van megadva.
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="hwmpa-surround-passthrough"></a>3.7.1.4. MPEG audió áteresztés</h4></div></div></div><p>
+A digitális TV továbbítás (mint pl. a DVB és ATSC) és néhány DVD általában
+MPEG audió stream-ekkel rendelkezik (általában MP2).
+Pár MPEG hardver dekóder, mint például a jól felszerelt DVB kártyák és a
+DXR2 adapterek natívan dekódolják ezt a formátumot.)
+Az <span class="application">MPlayer</span> beállítható úgy, hogy ne foglalkozzon
+az audió adatok dekódolásával.
+</p><p>
+To use this codec:
+</p><pre class="screen"> mplayer -ac hwmpa </pre><p>
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-surround-matrix"></a>3.7.1.5. Mátrix-kódolású audió</h4></div></div></div><p>
+<span class="emphasis"><em>***TENNIVALÓ***</em></span>
+</p><p>
+Ezt a részt még el kell készíteni, de addig nem lehet befejezni, amíg valaki nem
+ad nekünk hozzá példafájlokat teszteléshez. Ha van mátrix-kódolású audió fájlod,
+tudod, hogy hol lehet találni ilyet vagy van bármilyen információd, hálásak lennénk
+ha üzennél nekünk az
+<a href="http://lists.mplayerhq.hu/mailman/listinfo/mplayer-docs" target="_top">MPlayer-DOCS</a>
+levelezési listára. Írj egy "[matrix-encoded audio]"-t a tárgy sorba.
+</p><p>
+Ha nem érkezik fájl vagy további információ, ez a fejezet törölve lesz.
+</p><p>
+Jó link-ek:
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+<a href="http://electronics.howstuffworks.com/surround-sound5.htm" target="_top">http://electronics.howstuffworks.com/surround-sound5.htm</a>
+</p></li><li><p>
+<a href="http://www.extremetech.com/article2/0,1697,1016875,00.asp" target="_top">http://www.extremetech.com/article2/0,1697,1016875,00.asp</a>
+</p></li></ul></div><p>
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-surround-hrtf"></a>3.7.1.6. Térhatás emulálása fülhallgatóval</h4></div></div></div><p>
+Az <span class="application">MPlayer</span> tartalmaz HRTF (Head Related Transfer
+Function) sz&#369;r&#337;t, mely egy
+<a href="http://sound.media.mit.edu/KEMAR.html" target="_top">MIT projekten</a> alapszik,
+melyben méréseket végeztek emberi m&#369;fejre szerelt mikrofonokkal.
+</p><p>
+Bár nem lehet tökéletesen imitálni egy térhatású rendszert,
+az <span class="application">MPlayer</span> HRTF sz&#369;r&#337;je biztosít térben némileg mélyített
+hangot két csatornás fülhallgatón. A hagyományos lekeverés egyszer&#369;en kombinálja az
+összes csatornát kett&#337;be; a csatornák kombinálásán túl a <tt class="option">hrtf</tt>
+finom visszhangot generál, kissé növeli a sztereó elválasztást és megváltoztatja
+néhány frekvencia hangerejét. A HRTF hangzásának min&#337;sége függ a forrás audiótól
+és az emberi érzéklést&#337;l, de mindenképpen megér egy próbát.
+</p><p>
+DVD lejátszása DVD HRTF-fel:
+
+</p><pre class="screen">mplayer dvd://1 -channels 6 -af hrtf</pre><p>
+
+</p><p>
+A <tt class="option">hrtf</tt> csak 5 vagy 6 csatornával m&#369;ködik jól, valamint
+48 kHz-es audió kell hozzá. A DVD audió már 48 kHz-es, de ha van egy fájlod
+ett&#337;l különböz&#337; mintavételezési rátával, akkor a <tt class="option">hrtf</tt>-fel
+történ&#337; lejátszáshoz újra kell mintáznod:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>fájlnév</code></em> -channels 6 -af resample=48000,hrtf</pre><p>
+
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-surround-troubleshooting"></a>3.7.1.7. Hibajavítás</h4></div></div></div><p>
+Ha nem hallasz semmilyen hangot a térhatású csatornáidból, ellen&#337;rizd a mixer
+beállításait egy mixer programmal, mint pl. az <span class="application">alsamixer</span>;
+az audió kimenetek gyakran le vannak némítva és nulla hanger&#337;re vannak állítva alapértelmezésben.
+</p></div></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="advaudio-channels"></a>3.7.2. Csatorna többszörözés</h3></div></div></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-channels-general"></a>3.7.2.1. Általános információk</h4></div></div></div><p>
+Sajnos nincs szabvány a csatornák sorrendjére vonatkozóan. Az alábbi sorrend az
+AC3-é, ami eléggé tipikus; próbáld meg ezt és meglátod, hogy a forrásod megfelel-e
+neki. A csatornák számozása 0-tól indul.
+
+</p><div class="orderedlist"><p class="title"><b>mono</b></p><ol type="1" compact><li value="0">középs&#337;</li></ol></div><p>
+
+</p><div class="orderedlist"><p class="title"><b>sztereó</b></p><ol type="1" compact><li value="0">bal</li><li>jobb</li></ol></div><p>
+
+</p><div class="orderedlist"><p class="title"><b>kvadrafónikus</b></p><ol type="1" compact><li value="0">bal els&#337;</li><li>jobb els&#337;</li><li>bal hátsó</li><li>jobb hátsó</li></ol></div><p>
+
+</p><div class="orderedlist"><p class="title"><b>surround 4.0</b></p><ol type="1" compact><li value="0">bal els&#337;</li><li>jobb els&#337;</li><li>közép hátsó</li><li>közép els&#337;</li></ol></div><p>
+
+</p><div class="orderedlist"><p class="title"><b>surround 5.0</b></p><ol type="1" compact><li value="0">bal els&#337;</li><li>jobb els&#337;</li><li>bal hátsó</li><li>jobb hátsó</li><li>közép els&#337;</li></ol></div><p>
+
+</p><div class="orderedlist"><p class="title"><b>surround 5.1</b></p><ol type="1" compact><li value="0">bal els&#337;</li><li>jobb els&#337;</li><li>bal hátsó</li><li>jobb hátsó</li><li>közép els&#337;</li><li>mélynyomó</li></ol></div><p>
+
+</p><p>
+A <tt class="option">-channels</tt> kapcsolóval az audió dekódert&#337;l lekérdezhet&#337; a
+csatornák száma. Néhány audió codec a specifikált csatornák számát használja
+fel a downmixing szükségességének megállapítására. Figyelj rá, hogy ez nem
+mindig érinti a kimeneti csatornák számát. Például a <tt class="option">-channels 4</tt>
+használata egy sztereó MP3 fájl lejátszásánál továbbra is 2 csatornás kimenetet
+ad, mert az MP3 codec nem tud extra csatornákat készíteni.
+</p><p>
+A <tt class="option">channels</tt> audió sz&#369;r&#337; használható csatornák létrehozására
+vagy eltávolítására, a hangkártya felé kiküldött csatornák számának beállítására
+való. Lásd a következ&#337; fejezeteket a csatorna manipulációval kapcsolatos b&#337;vebb
+információkért.
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-channels-mono"></a>3.7.2.2. Mono lejátszása két hangszóróval</h4></div></div></div><p>
+A mono hangok sokkal jobbak, ha két hangszórón keresztül hallhatóak - különösen
+ha fülhallgatót használsz. Az audió fájlok, amik ténylegesen egy csatornásak,
+automatikusan két hangszórón keresztül kerülnek lejátszásra; sajnos, a legtöbb
+mono hangú fájl tulajdonképpen szereóként van elkódolva, amiben az egyik csatornát
+lenémították. A legkönnyebb és legbolondbiztosabb megoldás arra, hogy mindkét
+hangszórón ugyanaz a kimenet legyen, az <tt class="option">extrastereo</tt> sz&#369;r&#337;:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>fájlnév</code></em> -af extrastereo=0</pre><p>
+
+</p><p>
+Ez átlagolja mindkét csatornát, aminek eredményeként fele olyan hangosak lesznek,
+mint az eredeti. A következ&#337; fejezetekben találsz egyéb példákat is ennek
+megvalósítására a hanger&#337; csökkentése nélkül, de azok komplexek és különböz&#337;
+kapcsolókat igényelnek attól függ&#337;en, hogy melyik csatornát tartod meg. Ha tényleg
+szükséges a hanger&#337; megtartása, könnyebb, ha a <tt class="option">volume</tt> sz&#369;r&#337;vel
+kikísérletezed és megkeresed a helyes hanger&#337;t. Például:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>filename</code></em> -af extrastereo=0,volume=5</pre><p>
+
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-channels-copying"></a>3.7.2.3. Csatorna másolás/mozgatás</h4></div></div></div><p>
+A <tt class="option">channels</tt> sz&#369;r&#337; bármelyik vagy az összes csatornát
+tudja mozgatni. A <tt class="option">channels</tt> sz&#369;r&#337; alopcióinak beállítása
+esetenként bonyolult és némi odafigyelést kíván.
+
+</p><div class="orderedlist"><ol type="1" compact><li><p>
+Döntsd el, hány kimeneti csatornára van szükséged. Ez az els&#337; alopció.
+</p></li><li><p>
+Számold meg, hány csatornamozgatást fogsz véghezvinni. Ez a második alopció.
+Minden csatorna több különböz&#337; helyre mozgatható egy id&#337;ben, de tartsd észben,
+hogy ha egy csatornát mozgatsz (még ha csak egy helyre is), a forrás csatorna
+üres lesz amíg másik csatornát nem mozgatsz a helyére. Csatorna másolásakor
+a forrás ugyan az marad, egyszer&#369;en csak mozgasd a csatornát mind a cél mind
+a forrás helyre. Például:
+</p><pre class="programlisting">
+2-es csatorna --&gt; 3-as csatorna
+2-es csatorna --&gt; 2-es csatorna
+</pre><p>
+</p></li><li><p>
+Írd le a csatorna másolásokat alopció párokként. Figyelj rá, hogy az els&#337; csatorna
+a 0, a második az 1, stb. Ezen alopciók sorrendje nem számít, amíg megfelel&#337;en
+vannak csoportosítva <em class="replaceable"><code>forrás:cél</code></em> párokba.
+</p></li></ol></div><p>
+
+</p><h5><a name="id2539712"></a>Példa: egy csatorna két hangszóróra</h5><p>
+Itt egy példa az egy csatorna több hangszóróra való kiküldésének egy másik módjára.
+Ebben a példában feltételezzük, hogy a bal csatornát kell lejátszani és a jobb
+csatornát eldobjuk. Követve a fenti leírást:
+</p><div class="orderedlist"><ol type="1"><li><p>
+Ahhoz, hogy egy-egy kimeneti csatorna legyen mindkét hangszóróhoz, az els&#337;
+alopciónak "2"-nek kell lennie.
+</p></li><li><p>
+A bal csatornát kell mozgatni a jobb csatornára és saját magára is, hogy ne
+legyen üres. Ez összesen két mozgatás, ami miatt a második alopció is "2".
+</p></li><li><p>
+A bal csatorna mozgatásához (0. csatorna) a jobb csatornára (1. csatorna) az
+alopció pár "0:1", "0:0" mozgatja a bal csatornát saját magára.
+</p></li></ol></div><p>
+Mindezt összerakva kapjuk:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>fájlnév</code></em> -af channels=2:2:0:1:0:0</pre><p>
+</p><p>
+Ezen példa el&#337;nye az <tt class="option">extrastereo</tt>-val szemben, hogy a hanger&#337;
+mindegyik kimeneti csatornán a bemeneti csatornáéval megegyez&#337; lesz. A hátránya,
+hogy az alopciókat "2:2:1:0:1:1"-re kell változtatni, ha a kívánt audió a jobb
+csatornán van. Valamint nehezebb megjegyezni és begépelni.
+</p><h5><a name="id2539790"></a>Példa: bal csatorna két hangszóróra rövidítve</h5><p>
+Van egy sokkal könnyebb mód a <tt class="option">channels</tt> sz&#369;r&#337; használatára,
+hogy a bal csatornát mindkét hangszórón megszólaltassuk:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>fájlnév</code></em> -af channels=1</pre><p>
+
+A második csatorna figyelmen kívül marad és további alopciók nélkül az egyetlen
+megmaradó csatorna egyedül marad. A hangkártya vezérl&#337;k az egy csatornás
+audiót automatikusan lejátszák mindkét hangszórón. Ez csak akkor m&#369;ködik, ha
+a kívánt csatorna a bal.
+</p><h5><a name="id2539825"></a>Példa: az elüls&#337; csatornák duplázása hátra</h5><p>
+Másik gyakori m&#369;velet az elüls&#337; csatornák duplázása és lejátszása hátul, a hátsó
+hangszórókon kvadrafónikus beállítással.
+</p><div class="orderedlist"><ol type="1"><li><p>
+Négy kimeneti csatorna kell. Az els&#337; alopció "4".
+</p></li><li><p>
+A két elüls&#337; csatornát kell mozgatni a megfelel&#337; hátsóra és saját magára. Ez négy
+mozgatás, a második alopció "4".
+</p></li><li><p>
+A bal els&#337;t (0. csatorna) kell mozgatni a bal hátsóra (2. csatorna): "0:2".
+A bal els&#337;t saját magára is kell mozgatni: "0:0". A jobb els&#337;t (1. csatorna)
+a jobb hátsóra (3. csatorna): "1:3", és saját magára kell mozgatni: "1:1".
+</p></li></ol></div><p>
+Az alopciók összeállításával kapjuk:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>fájlnév</code></em> -af channels=4:4:0:2:0:0:1:3:1:1</pre><p>
+
+</p></div><div class="sect3" lang="hu"><div class="titlepage"><div><div><h4 class="title"><a name="advaudio-channels-mixing"></a>3.7.2.4. Csatorna keverés</h4></div></div></div><p>
+A <tt class="option">pan</tt> sz&#369;r&#337; felhasználó által megadott arányban tudja keverni a
+csatornákat. Ezzel meg lehet csinálni mindent, amit a <tt class="option">channels</tt>
+sz&#369;r&#337;vel, és még többet is. Sajnos az alopciók még komplikáltabbak.
+</p><div class="orderedlist"><ol type="1"><li><p>
+Döntsd el, hány csatornával akarsz dolgozni. Ezt a <tt class="option">-channels</tt>
+és/vagy <tt class="option">-af channels</tt> kapcsolókkal kell megadnod. A példák
+megmutatják, mikor melyiket kell használni.
+</p></li><li><p>
+Döntsd el, hány csatornát adsz át a <tt class="option">pan</tt>-nek (a további dekódolt
+csatornák figyelmen kívül maradnak). Ez az els&#337; alopció és szabályozza a kimeneti
+csatornák számát is.
+</p></li><li><p>
+A fennmaradó alopciók megadják, hogy melyik csatornát milyen mértékben kell
+bekeverni mindegyik másik csatornába. Ez az igazán bonyolult dolog. Könnyítésként
+válaszd szét az alopciókat különböz&#337; részekre, egy rész minden egyes kimeneti
+csatornához. Minden egy részen belül található alopció egy bemeneti csatornának
+felel meg. A szám, amit megadsz, a bemeneti csatorna kimeneti csatornába történ&#337;
+bekeverésének százalékos aránya lesz.
+</p><p>
+A <tt class="option">pan</tt> 0 és 512 közötti értékeket fogad el, az eredeti hanger&#337; 0%
+és 51200%-ának megfelel&#337;en. Légy óvatos, ha 1-nél nagyobb értékeket használsz.
+Nem csak nagy hanger&#337;t adhat, de ha túlléped a hangkártyád mintavételezési rátáját,
+kellemetlen pukkanásokat és kattanásokat hallhatsz. Ha akarod, a <tt class="option">pan</tt>-t
+követheti egy <tt class="option">,volume</tt> a vágás engedélyezéséhez, de jobb a
+<tt class="option">pan</tt> értékeit olyan alacsonyan tartani, hogy ne kelljen vágni.
+</p></li></ol></div><p>
+</p><h5><a name="id2539998"></a>Példa: egy csatorna két hangszóróra</h5><p>
+Itt van egy újabb példa a bal csatorna két hangszórón történ&#337; lejátszására. Kövesd
+a fent leírt lépéseket:
+</p><div class="orderedlist"><ol type="1"><li><p>
+A <tt class="option">pan</tt>nek két kimeneti csatornája lesz, így az els&#337; alopció "2".
+</p></li><li><p>
+Mivel két bemeneti csatornánk van, két alopció rész lesz.
+Mivel két kimeneti csatornánk van, két alopció lesz részenként.
+A fájl bal csatornája teljes hanger&#337;vel mehet az új bal és jobb
+csatornára.
+Így az els&#337; alopció rész "1:1".
+A jobb csatornát figyelmen kívül kell hagyni, így a második "0:0".
+A sorvégi 0 értékek elhagyhatóak, de a könnyebb megértésért
+most megtartjuk &#337;ket.
+</p></li></ol></div><p>
+Ezen opciók összeállítása adja:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>fájlnév</code></em> -af pan=2:1:1:0:0</pre><p>
+
+Ha inkább a jobb csatorna kell a bal helyett, a <tt class="option">pan</tt> alopciói
+"2:0:0:1:1" lesznek.
+</p><h5><a name="id2540060"></a>Példa: bal csatorna két hangszóróra rövidítve</h5><p>
+Amint a <tt class="option">channels</tt>-el, itt is lehet rövidíteni, ha a csak a bal
+csatornával dolgozol:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>fájlnév</code></em> -af pan=1:1</pre><p>
+
+Mivel a <tt class="option">pan</tt>-nek csak egy bemeneti csatornája van (a másik csatorna
+figyelmen kívül marad), csak egy része van az alopcióknak, ami megadja, hogy az
+egyetlen csatorna saját maga 100%-át kapja.
+</p><h5><a name="id2540094"></a>Példa: 6 csatornás PCM lekeverése</h5><p>
+Az <span class="application">MPlayer</span> 6 csatornás PCM dekódolója nem tud lekeverni.
+Itt egy módszer a PCM lekeverésre a <tt class="option">pan</tt> használatával:
+</p><div class="orderedlist"><ol type="1"><li><p>
+A kimeneti csatornák száma 2, így az els&#337; alopció "2".
+</p></li><li><p>
+Hat bemeneti csatornával hat alopció rész lesz. Szerencsére mivel csak az els&#337;
+két csatorna kimenetével foglalkozunk, csak két részt kell készítenünk; a
+maradék négy elhagyható. Vigyázz, nem mindig ugyan az a csatornák sorrendje a
+többcsatornás audió fájlokban! Ez a példa egy olyan fájl lekeverését szemlélteti,
+amiben ugyan olyan csatornák vannak, mint az AC3 5.1 esetén:
+</p><pre class="programlisting">
+0 - bal els&#337;
+1 - jobb els&#337;
+2 - bal hátsó
+3 - jobb hátsó
+4 - középs&#337; els&#337;
+5 - mélynyomó
+</pre><p>
+Az alopciók els&#337; csoportja az eredeti hanger&#337; százalékát adja, sorrendben,
+amit mindegyik kimeneti csatorna a bal els&#337; csatornától kap: "1:0".
+A jobb els&#337; csatornának a jobb kimenetre kell mennie: "0:1".
+Ugyan ez a hátsó csatornákra: "1:0" és "0:1".
+A középs&#337; csatorna mindkét kimeneti csatornára átmegy fél hanger&#337;vel:
+"0.5:0.5", a mélynyomó pedig mindkett&#337;re teljes hanger&#337;vel: "1:1".
+</p></li></ol></div><p>
+Mindezt összerakva:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>6-channel.wav</code></em> -af pan=2:1:0:0:1:1:0:0:1:0.5:0.5:1:1</pre><p>
+
+A fenti példa százalékok csak durva példák. Nyugodtan játszadozz velük!
+</p><h5><a name="id2540178"></a>Példa: 5.1-es audió lejátszása nagy hangszórókon, mélynyomó nélkül</h5><p>
+Ha egy pár nagy hangszóród van el&#337;l, nem kell pénzt áldoznod mélynyomóra a teljes
+5.1-es hangzáshoz. Ha a <tt class="option">-channels 5</tt> használatával kéred, hogy a
+liba52 az 5.1-es audiót 5.0-ban dekódolja, a mélynyomó csatornája egyszer&#369;en
+elmarad. Ha a mélynyomó csatornáját saját magad szeretnéd szétosztani,
+kézzel kell lekeverned a <tt class="option">pan</tt>-nal:
+
+</p><div class="orderedlist"><ol type="1"><li><p>
+Mivel a <tt class="option">pan</tt>-nak mind a hat csatornával kell foglalkoznia, add
+meg a <tt class="option">-channels 6</tt> kapcsolót, hogy a liba52 dekódolja &#337;ket.
+</p></li><li><p>
+A <tt class="option">pan</tt> csak öt csatornára küld kimenetet, az els&#337; alopció 5.
+</p></li><li><p>
+Hat bemeneti csatorna van és öt kimeneti csatorna, ez hat részt jelent öt alopcióval.
+  </p><div class="itemizedlist"><ul type="disc" compact><li>
+  A bal els&#337; csatornát csak saját magára kell ismételni:
+  "1:0:0:0:0"
+  </li><li>
+  Ugyan ez a jobb els&#337; csatornára:
+  "0:1:0:0:0"
+  </li><li>
+  Ugyan ez a bal hátsó csatornára:
+  "0:0:1:0:0"
+  </li><li>
+  És a jobb hátsó csatornára:
+  "0:0:0:1:0"
+  </li><li>
+  Közép els&#337; szintén:
+  "0:0:0:0:1"
+  </li><li>
+  És most kell eldöntenünk, hogy mit csináljunk a mélynyomóval, pl.
+  felezve a jobb els&#337;re és a bal els&#337;re:
+  "0.5:0.5:0:0:0"
+  </li></ul></div><p>
+</p></li></ol></div><p>
+Ezen opciók összevonásával születik meg az eredmény:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>dvd://1</code></em> -channels 6 -af pan=5:1:0:0:0:0:0:1:0:0:0:0:0:1:0:0:0:0:0:1:0:0:0:0:0:1:0.5:0.5:0:0:0</pre><p>
+
+</p></div></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="advaudio-volume"></a>3.7.3. Szoftveres hanger&#337; állítás</h3></div></div></div><p>
+Néhány audió sáv túl halk, hogy kényelmesen hallható legyen kiegészítés nélkül.
+Ez akkor jelent problémát, ha az audió berendezésed nem tud er&#337;síteni a jelen.
+A <tt class="option">-softvol</tt> opció utasítja az
+<span class="application">MPlayer</span>t egy bels&#337; kever&#337; használatára. Használhatod
+a hanger&#337; állító gombokat (alapértelmezettként <span class="keycap"><b>9</b></span> és
+<span class="keycap"><b>0</b></span>) a nagyobb hanger&#337; eléréséhez. Figyelj rá, hogy ez nem hagyja
+figyelmen kívül a hangkártyád kever&#337;jét; az <span class="application">MPlayer</span>
+csak er&#337;sít az eredeti jelen miel&#337;tt kiküldené a hangkártyára.
+
+A következ&#337; példa jó kezdésként:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>halk-fájl</code></em> -softvol -softvol-max 300</pre><p>
+
+A <tt class="option">-softvol-max</tt> opció megadja a maximálisan megengedhet&#337; kimeneti
+hanger&#337;t az eredeti hanger&#337; százalékában. Például a <tt class="option">-softvol-max 200</tt>
+az eredeti szint dupláját engedélyezi.
+Nyugodtan megadhatsz egy nagy értéket a
+<tt class="option">-softvol-max</tt> kapcsolóval; a nagyobb hanger&#337; addig nem lesz
+használva, amíg te nem használod a hanger&#337; állító gombokat. Az egyetlen hátránya
+a nagy értéknek az, hogy mivel az <span class="application">MPlayer</span> a maximum
+százalékával állítja be a hanger&#337;t, nem lesz olyan precíz vezérlésed a
+hanger&#337; állító gombok használatakor. Használj kisebb értéket a
+<tt class="option">-softvol-max</tt>-szal és/vagy add meg a <tt class="option">-volstep 1</tt>-et,
+ha nagyobb pontosságot akarsz.
+</p><p>
+A <tt class="option">-softvol</tt> opció a <tt class="option">volume</tt> audió sz&#369;r&#337;
+vezérlésével m&#369;ködik. Ha egy fájlt egy bizonyos hanger&#337;vel akarsz lejátszani az
+elejét&#337;l kezdve, megadhatod a <tt class="option">volume</tt>-val kézzel:
+
+</p><pre class="screen">mplayer <em class="replaceable"><code>halk-fájl</code></em> -af volume=10</pre><p>
+
+Ez 10 decibel-es növeléssel játsszal le a fájlt. Légy óvatos, ha a
+<tt class="option">volume</tt> sz&#369;r&#337;t használod - könnyen károsíthatod a füleidet, ha
+túl nagy értéket használsz. Kezd alacsonyan és fokozatosan menj felfelé, amíg
+meg nem érzed, hogy meddig kell állítani. Valamint ha nagyon nagy értékeket adsz
+meg, a <tt class="option">volume</tt>-nek lehet, hogy le kell csípnie a jelet, hogy
+megakadályozza a hangkártyád elfogadható tartományán kívül es&#337; adatok küldését;
+ez zavart audiót eredményez.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="edl.html">El&#337;z&#337;</a> </td><td width="20%" align="center"><a accesskey="u" href="usage.html">Fel</a></td><td width="40%" align="right"> <a accesskey="n" href="cd-dvd.html">Következ&#337;</a></td></tr><tr><td width="40%" align="left" valign="top">3.6. Edit Decision Lists (EDL) </td><td width="20%" align="center"><a accesskey="h" href="index.html">Tartalom</a></td><td width="40%" align="right" valign="top"> 4. fejezet - CD/DVD használat</td></tr></table></div></body></html>

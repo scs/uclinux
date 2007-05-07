@@ -1,0 +1,27 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>13.3. Kodowanie dwuprzebiegowe MPEG-4 ("DivX")</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="prev" href="menc-feat-selecting-input.html" title="13.2. Wybieranie źródłowego zbioru lub urządzenia"><link rel="next" href="menc-feat-mpeg.html" title="13.4. Kodowanie do formatu MPEG"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.3. Kodowanie dwuprzebiegowe MPEG-4 ("DivX")</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="menc-feat-selecting-input.html">Poprzedni</a> </td><th width="60%" align="center">Rozdział 13. Podstawy używania <span class="application">MEncodera</span></th><td width="20%" align="right"> <a accesskey="n" href="menc-feat-mpeg.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-mpeg4"></a>13.3. Kodowanie dwuprzebiegowe MPEG-4 ("DivX")</h2></div></div></div><p>
+Nazwa związana jest z faktem, iż przy użyciu tej metody plik kodowany jest
+<span class="emphasis"><em>dwa razy</em></span>.
+Pierwsze kodowanie (dubbed pass) tworzy pliki tymczasowe
+(<tt class="filename">*.log</tt>) o rozmiarze kilku megabajtów, nie kasuj ich od
+razu (możesz natomiast skasować plik AVI a jeszcze lepiej nie tworzyć go
+w ogóle poprzez zapisywanie w <tt class="filename">/dev/null</tt>).
+W drugim przebiegu przy pomocy danych o bitrate z plików tymczasowych tworzony
+jest plik wyjściowy drugiego przebiegu. Plik końcowy będzie miał o wiele lepszą
+jakość w porównaniu ze standardowym 1-przebiegowym kodowaniem.
+Jeżeli pierwszy raz o tym słyszysz, powinieneś zajrzeć do któregoś z wielu
+przewodników dostępnych w sieci.
+</p><div class="example"><a name="id2583674"></a><p class="title"><b>Przykład 13.1. kopiowanie ścieżki dźwiękowej</b></p><p>
+Dwuprzebiegowe kodowanie DVD do MPEG-4 ("DivX") AVI z kopiowaniem ścieżki dźwiękowej.
+</p><pre class="screen">
+	mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:vpass=1 -oac copy -o /dev/null
+	mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell:vpass=2 -oac copy -o <em class="replaceable"><code>output.avi</code></em>
+</pre><p>
+</p></div><div class="example"><a name="id2583699"></a><p class="title"><b>Przykład 13.2. kodowanie ścieżki dźwiękowej</b></p><p>
+Dwuprzebiegowe kodowanie DVD do MPEG-4 ("DivX") AVI z kodowaniem ścieżki dźwiękowej do MP3.
+Uważaj stosując tę metodę, ponieważ w niektórych przypadkach może zaowocować
+desynchronizacją audio/video.
+</p><pre class="screen">
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:vpass=1 -oac mp3lame -lameopts vbr=3 -o /dev/null
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell:vpass=2 -oac mp3lame -lameopts vbr=3 -o <em class="replaceable"><code>output.avi</code></em>
+</pre><p>
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="menc-feat-selecting-input.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="menc-feat-mpeg.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">13.2. Wybieranie źródłowego zbioru lub urządzenia </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> 13.4. Kodowanie do formatu MPEG</td></tr></table></div></body></html>

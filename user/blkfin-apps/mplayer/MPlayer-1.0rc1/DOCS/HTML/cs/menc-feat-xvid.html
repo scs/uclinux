@@ -1,0 +1,176 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>14.4. Enkódování pomocí kodeku XviD
+</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="prev" href="menc-feat-enc-libavcodec.html" title="14.3. Enkódování s rodinou kodek&#367; libavcodec
+"><link rel="next" href="menc-feat-x264.html" title="14.5. Enkódování s x264 kodekem"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="menc-feat-xvid.html#menc-feat-xvid-intro" title="14.4.1. Jaké volby by m&#283;ly být pou&#382;ity, abychom dosáhli nejlep&#353;ích výsledk&#367;?"><link rel="subsection" href="menc-feat-xvid.html#menc-feat-xvid-encoding-options" title="14.4.2. Volby pro enkódování s XviD"><link rel="subsection" href="menc-feat-xvid.html#menc-feat-xvid-encoding-profiles" title="14.4.3. Enkódovací profily"><link rel="subsection" href="menc-feat-xvid.html#menc-feat-xvid-example-settings" title="14.4.4. P&#345;íklady nastavení enkódování"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">14.4. Enkódování pomocí kodeku <code class="systemitem">XviD</code>
+</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="menc-feat-enc-libavcodec.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 14. Enkódování s <span class="application">MEncoder</span>em</th><td width="20%" align="right"> <a accesskey="n" href="menc-feat-x264.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-xvid"></a>14.4. Enkódování pomocí kodeku <code class="systemitem">XviD</code>
+</h2></div></div></div><p>
+ <code class="systemitem">XviD</code> je svobodná knihovna pro
+ enkódování MPEG-4 ASP video datových proud&#367;.
+ P&#345;ed za&#269;átkem enkódování budete muset <a href="video-codecs.html#xvid" title="7.1.7. XviD">
+ nastavit <span class="application">MEncoder</span> pro jeho podporu</a>.
+</p><p>
+ Tato p&#345;íru&#269;ka se zam&#283;&#345;uje na poskytování stejného druhu informací
+ jako p&#345;íru&#269;ka enkódování s x264.
+ Tak&#382;e prosím za&#269;n&#283;te p&#345;e&#269;tením
+ <a href="menc-feat-x264.html#menc-feat-x264-encoding-options-intro" title="14.5.1.1. Úvodem">první &#269;ásti</a>
+ této p&#345;íru&#269;ky.
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="menc-feat-xvid-intro"></a>14.4.1. Jaké volby by m&#283;ly být pou&#382;ity, abychom dosáhli nejlep&#353;ích výsledk&#367;?</h3></div></div></div><p>
+ Za&#269;n&#283;te prosím pro&#269;tením sekce
+ <code class="systemitem">XviD</code> v manuálové stránce
+ <span class="application">MPlayer</span>u.
+ Tato &#269;ást má být dopln&#283;ním man stránky.
+</p><p>
+ Výchozí nastavení XviD jsou dobrým kompromisem mezi rychlostí a kvalitou,
+ tak&#382;e je m&#367;&#382;ete bez obav pou&#382;ít, pokud vám nebude n&#283;co v dal&#353;ím textu jasné.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="menc-feat-xvid-encoding-options"></a>14.4.2. Volby pro enkódování s <code class="systemitem">XviD</code></h3></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+ <span class="bold"><strong>vhq</strong></span>
+  Tato volba ovlivní rozhodovací algoritmus makrobloku, kde vy&#353;&#353;í nastavení
+  znamená lep&#353;í rozhodování.
+  Výchozí nastavení mohou být bezpe&#269;n&#283; pou&#382;ita pro ka&#382;dé enkódování,
+  zatímco vy&#353;&#353;í nastavení v&#382;dy pomohou PSNR, ale je znateln&#283; pomalej&#353;í.
+  Poznamenejme, &#382;e lep&#353;í PSNR nemusí nutn&#283; znamenat, &#382;e bude obraz vypadat lépe,
+  ale udává, &#382;e je blí&#382;e originálu.
+  Vypnutí této volby viditeln&#283; zrychlí enkódování; pokud je pro vás
+  rychlost kritická, pak to stojí za to.
+</p></li><li><p>
+ <span class="bold"><strong>bvhq</strong></span>
+  Tato volba provádí to samé co vhq, ale v B-snímcích.
+  Má zanedbatelný vliv na rychlost a trochu vylep&#353;uje kvalitu
+  (kolem +0.1dB PSNR).
+</p></li><li><p>
+ <span class="bold"><strong>max_bframes</strong></span>
+  V&#283;t&#353;í po&#269;et povolených po sob&#283; jdoucích B-snímk&#367; obvykle zvy&#353;uje
+  komprimovatelnost, a&#269;koli to m&#367;&#382;e vést k v&#283;t&#353;ímu po&#269;tu blokových artefakt&#367;.
+  Výchozí nastavení je dobrým kompromisem mezi komprimovatelností a
+  kvalitou, ale m&#367;&#382;ete ji zvý&#353;it nad 3, pokud tou&#382;íte po nízkém datovém toku.
+  M&#367;&#382;ete ji rovn&#283;&#382; sní&#382;it na 1 nebo 0, pokud vám jde o perfektní kvalitu,
+  ale v tom p&#345;ípad&#283; byste se m&#283;li ujistit, &#382;e máte nastaven dostate&#269;n&#283;
+  vysoký datový tok, aby byla jistota, &#382;e komrimátor nebude zvy&#353;ovat kvantizer,
+  aby jej dosáhl.
+</p></li><li><p>
+ <span class="bold"><strong>bf_threshold</strong></span>
+  Tato volba ovládá B-snímkovou citlivost enkodéru, kdy vy&#353;&#353;í hodnota
+  vede k &#269;ast&#283;j&#353;ímu pou&#382;ití B-snímk&#367; (a naopak).
+  Má být pou&#382;ita spolu s <tt class="option">max_bframes</tt>;
+  pokud jste blázen do datového toku, m&#283;li byste  zvý&#353;it jak
+  <tt class="option">max_bframes</tt>, tak <tt class="option">bf_threshold</tt>,
+  nebo naopak m&#367;&#382;ete zvý&#353;it <tt class="option">max_bframes</tt> a sní&#382;it
+  <tt class="option">bf_threshold</tt>, tak&#382;e bude enkodér pou&#382;ívat více
+  B-snímk&#367; pouze na místech, které je <span class="bold"><strong>opravdu</strong></span>
+  pot&#345;ebují.
+  Nízká hodnota <tt class="option">max_bframes</tt> a vysoká
+  <tt class="option">bf_threshold</tt> asi není nejrozumn&#283;j&#353;í volbou, jeliko&#382; p&#345;inutí
+  enkodér umís&#357;ovat B-snímky na místa, které z nich nebudou t&#283;&#382;it,
+  ale sní&#382;í se jejich vizuální kvalita.
+  Pokud v&#353;ak pot&#345;ebujete být kompatibilní s domácími p&#345;ehráva&#269;i, které
+  podporují pouze staré DivX profily (ty podporují pouze 1 po sob&#283; jdoucí
+  B-snímek), je to va&#353;e jediná cesta ke zvý&#353;ení komprimovatelnosti pomocí
+  B-snímk&#367;.
+</p></li><li><p>
+ <span class="bold"><strong>trellis</strong></span>
+  Optimalizuje proces kvantizace pro dosa&#382;ení nejlep&#353;ího kompromisu
+  mezi PSNR a datovým tokem, co&#382; umo&#382;&#328;uje znatelnou úsporu bit&#367;.
+  U&#353;et&#345;ené bity budou vyu&#382;ity v jiných &#269;ástech videa, co&#382; zvý&#353;í
+  celkovou vizuální kvalitu.
+  M&#283;li byste ji v&#382;dy mít zapnutou, jeliko&#382; její kvalitativní p&#345;ínos je zna&#269;ný.
+  Dokonce i kdy&#382; pot&#345;ebujete vy&#353;&#353;í rychlost, nevypínejte ji, dokud jste
+  nevypli <tt class="option">vhq</tt> a nezredukovali ostatní volby
+  náro&#269;né na CPU na minimum.
+</p></li><li><p>
+  <span class="bold"><strong>hq_ac</strong></span>
+  Aktivuje metodu odhadu s men&#353;ími náklady na koeficienty, co&#382; trochu
+  zmen&#353;í výstupní soubor (okolo  0,15 a&#382; 0,19%, co&#382; odpovídá zvý&#353;ení PSNR
+  o mén&#283; ne&#382; 0.01dB) p&#345;i zanedbatelném vlivu na rychlost.
+  Je proto doporu&#269;eno ponechat ji v&#382;dy zapnutou.
+</p></li><li><p>
+ <span class="bold"><strong>cartoon</strong></span>
+  Volba navr&#382;ená pro lep&#353;í enkódování kresleného obsahu. Nemá vliv
+  na rychlost, pouze doladí heuristiku pro výb&#283;r re&#382;imu pro tento
+  druh obsahu.
+</p></li><li><p>
+ <span class="bold"><strong>me_quality</strong></span>
+  Tato volba ovládá p&#345;esnost vyhledávání pohybu.
+  &#268;ím vy&#353;&#353;í <tt class="option">me_quality</tt>, tím bude
+  p&#345;esn&#283;j&#353;í odhad p&#367;vodního pohybu a výsledný snímek
+  p&#345;esn&#283;ji zachytí originální pohyb.
+ </p><p>
+  Výchozí nastavení je nejlep&#353;í ve v&#353;ech p&#345;ípadech;
+  tak&#382;e ji nedoporu&#269;ujeme vypínat, pokud nepot&#345;ebujete za ka&#382;dou cenu
+  zvý&#353;it rychlost, jeliko&#382; v&#353;echny bity u&#353;et&#345;ené dobrým odhadem pohybu
+  mohou být pou&#382;ity jinde a zvý&#353;it tak celkovou kvalitu.
+  Ka&#382;dopádn&#283; necho&#271;te ní&#382; ne&#382; na 5, a kdy&#382;, tak jen jako poslední mo&#382;nost.
+</p></li><li><p>
+ <span class="bold"><strong>chroma_me</strong></span>
+  Zlep&#353;uje odhad pohybu tím, &#382;e bere v potaz i chroma (barevnou)
+  informaci, zatímco samotné <tt class="option">me_quality</tt>
+  pou&#382;ívá pouze &#269;ernobílou (luma).
+  To spomalí enkódování o 5-10%, ale docela vylep&#353;í vizuální kvalitu
+  omezením blokových artefakt&#367; a zmen&#353;í velikost souboru asi o 1.3%.
+  Pokud vám jde hlavn&#283; o rychlost, m&#283;li byste tuto volbu vypnout d&#345;íve,
+  ne&#382; za&#269;nete sni&#382;ovat <tt class="option">me_quality</tt>.
+</p></li><li><p>
+  <span class="bold"><strong>chroma_opt</strong></span>
+    Je ur&#269;ena spí&#353;e ke zvý&#353;ení kvality barev a vy&#269;i&#353;t&#283;ní bílých/&#269;erných
+    okraj&#367;, ne&#382; k vylep&#353;ení koprimovatelnosti.
+    To vám m&#367;&#382;e pomoci omezit "red stairs" efekt.
+</p></li><li><p>
+  <span class="bold"><strong>lumi_mask</strong></span>
+    Zkou&#353;í p&#345;i&#345;adit ni&#382;&#353;í datový tok &#269;ástem obrázku, které lidské oko
+    dob&#345;e nevidí, co&#382; umo&#382;ní enkodéru pou&#382;ít u&#353;et&#345;ené bity na
+    d&#367;le&#382;it&#283;j&#353;ích místech obrázku.
+    Kvalita výsledku zna&#269;n&#283; závisí na osobních preferencích a
+    na typu a nastavení monitoru pou&#382;itého pro prohlí&#382;ení
+    (typicky to nebude vypadat dob&#345;e pokud je jasný, nebo je
+    to TFT monitor).
+</p></li><li><p>
+  <span class="bold"><strong>qpel</strong></span>
+    Zvý&#353;í po&#269;et mo&#382;ných vektor&#367; pohybu zvý&#353;ením
+    p&#345;esnosti vyhledávání pohybu z poloviny pixelu na
+    &#269;tvrtinu pixelu.
+    Ideou je nalezení lep&#353;ích vektor&#367; pohybu, které naoplátku
+    sní&#382;í datový tok (co&#382; zvý&#353;í kvalitu).
+    Vektory pohybu s p&#345;esností na &#269;tvrt pixelu v&#353;ak vy&#382;adují pro sebe
+    pár bit&#367; navíc, ale výsledné vektory ne v&#382;dy dávají (o mnoho) lep&#353;í
+    výsledky.
+    Docela &#269;asto vydá kodek bity na vy&#353;&#353;í p&#345;esnost, ale dosáhne jen malého
+    nebo &#382;ádného zvý&#353;ení kvality.
+    Nane&#353;t&#283;stí není zp&#367;sob jak zjistit mo&#382;ný zisk <tt class="option">qpel</tt>
+    p&#345;edem, tak&#382;e musíte enkódovat s a bez ní, abyste m&#283;li jistotu.
+  </p><p>
+    <tt class="option">qpel</tt> m&#367;&#382;e a&#382; zdvojnásobit &#269;as enkódování a
+    vy&#382;aduje a&#382; o 25% více výpo&#269;etního výkonu pro dekódování.
+    Volba není podporována v&#353;emi stolními p&#345;ehráva&#269;i.
+</p></li><li><p>
+  <span class="bold"><strong>gmc</strong></span>
+    Pokou&#353;í se u&#353;et&#345;it bity v panoramatických scénách pou&#382;itím jediného
+    vektoru pohybu pro celý snímek.
+    To tém&#283;&#345; v&#382;dy zvý&#353;í PSNR, ale znateln&#283; zpomalí enkódování
+    (stejn&#283; jako dekódování).
+    V ka&#382;dém p&#345;ípad&#283; byste ji m&#283;li pou&#382;ívat pouze pokud máte
+    <tt class="option">vhq</tt> nastavené na maximum.
+    GMC v <code class="systemitem">XviD</code> je mnohem
+    sofistikovan&#283;j&#353;í ne&#382; v DivX, ale je podporována jen n&#283;kolika
+    stolními p&#345;ehráva&#269;i.
+</p></li></ul></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="menc-feat-xvid-encoding-profiles"></a>14.4.3. Enkódovací profily</h3></div></div></div><p>
+  XviD podporuje enkódovací profily pomocí volby <tt class="option">profile</tt>,
+  co&#382; je vyu&#382;íváno pro k za&#345;azení omezení nastavení XviD videoproudu tak,
+  aby byl p&#345;ehratelný na v&#353;em, co podporuje vybraný profil.
+  Omezení se vstahují k rozli&#353;ením, datovému toku a r&#367;zným MPEG-4
+  vlastnostem.
+  Následující tabulka ukazuje, co který profil podporuje.
+</p><div class="informaltable"><table border="1"><colgroup><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"><col align="center"></colgroup><tbody><tr><td align="center"> </td><td colspan="4" align="center">Simple</td><td colspan="6" align="center">Advanced Simple</td><td colspan="6" align="center">DivX</td></tr><tr><td align="center">Jméno profilu</td><td align="center">0</td><td align="center">1</td><td align="center">2</td><td align="center">3</td><td align="center">0</td><td align="center">1</td><td align="center">2</td><td align="center">3</td><td align="center">4</td><td align="center">5</td><td align="center">Handheld</td><td align="center">Portable NTSC</td><td align="center">Portable PAL</td><td align="center">Home Theater NTSC</td><td align="center">Home Theater PAL</td><td align="center">HDTV</td></tr><tr><td align="center">&#352;í&#345;ka [pixel&#367;]</td><td align="center">176</td><td align="center">176</td><td align="center">352</td><td align="center">352</td><td align="center">176</td><td align="center">176</td><td align="center">352</td><td align="center">352</td><td align="center">352</td><td align="center">720</td><td align="center">176</td><td align="center">352</td><td align="center">352</td><td align="center">720</td><td align="center">720</td><td align="center">1280</td></tr><tr><td align="center">Vý&#353;ka [pixel&#367;]</td><td align="center">144</td><td align="center">144</td><td align="center">288</td><td align="center">288</td><td align="center">144</td><td align="center">144</td><td align="center">288</td><td align="center">288</td><td align="center">576</td><td align="center">576</td><td align="center">144</td><td align="center">240</td><td align="center">288</td><td align="center">480</td><td align="center">576</td><td align="center">720</td></tr><tr><td align="center">Snímková rychlost [fps]</td><td align="center">15</td><td align="center">15</td><td align="center">15</td><td align="center">15</td><td align="center">30</td><td align="center">30</td><td align="center">15</td><td align="center">30</td><td align="center">30</td><td align="center">30</td><td align="center">15</td><td align="center">30</td><td align="center">25</td><td align="center">30</td><td align="center">25</td><td align="center">30</td></tr><tr><td align="center">Max pr&#367;m&#283;rný datový tok [kbps]</td><td align="center">64</td><td align="center">64</td><td align="center">128</td><td align="center">384</td><td align="center">128</td><td align="center">128</td><td align="center">384</td><td align="center">768</td><td align="center">3000</td><td align="center">8000</td><td align="center">537.6</td><td align="center">4854</td><td align="center">4854</td><td align="center">4854</td><td align="center">4854</td><td align="center">9708.4</td></tr><tr><td align="center">Mezní pr&#367;m&#283;r datového toku b&#283;hem 3 sekund [kbps]</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center">800</td><td align="center">8000</td><td align="center">8000</td><td align="center">8000</td><td align="center">8000</td><td align="center">16000</td></tr><tr><td align="center">Max. B-snímk&#367;</td><td align="center">0</td><td align="center">0</td><td align="center">0</td><td align="center">0</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center">0</td><td align="center">1</td><td align="center">1</td><td align="center">1</td><td align="center">1</td><td align="center">2</td></tr><tr><td align="center">MPEG kvantizace</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td></tr><tr><td align="center">Adaptivní kvantizace</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td></tr><tr><td align="center">Prokládané enkódování</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center">X</td><td align="center">X</td><td align="center">X</td></tr><tr><td align="center">&#268;tvrtpixel</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td></tr><tr><td align="center">Globální kompenzace pohybu</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center">X</td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td><td align="center"> </td></tr></tbody></table></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="menc-feat-xvid-example-settings"></a>14.4.4. P&#345;íklady nastavení enkódování</h3></div></div></div><p>
+  Následující nastavení jsou p&#345;íklady nastavení r&#367;zných kombinací voleb
+  enkodéru, které ovliv&#328;ují pom&#283;r rychlost versus kvalita p&#345;i shodném
+  cílovém datovém toku.
+</p><p>
+  Ve&#353;kerá nastavení byla testována na video vzorku 720x448 @30000/1001
+  snímk&#367; za sekundu, cílový datový tok byl 900kbps a provád&#283;ly se na
+  AMD-64 3400+ p&#345;i 2400 Mhz v re&#382;imu 64 bit&#367;.
+  Ka&#382;dá kombinace nastavení má uvedenu zm&#283;&#345;enou rychlost enkódování
+  (ve snímcích za sekundu) a ztrátu PSNR (v dB) oproti nastavení
+  "velmi vysoká kvalita".
+  Rozum&#283;jte v&#353;ak &#382;e, v závislosti na va&#353;em zdrojovém materiálu, typu
+  po&#269;íta&#269;e a pokrok&#367;m ve vývoji, m&#367;&#382;ete dosp&#283;t k velmi odli&#353;ným výsledk&#367;m.
+</p><p>
+</p><div class="informaltable"><table border="1"><colgroup><col><col><col><col></colgroup><thead><tr><th>Popis</th><th>Volby</th><th>Rychlost [fps]</th><th>Relativní ztráta PSNR [dB]</th></tr></thead><tbody><tr><td>Velmi vysoká kvalita</td><td><tt class="option">chroma_opt:vhq=4:bvhq=1:quant_type=mpeg</tt></td><td>16</td><td>0</td></tr><tr><td>Vysoká kvalita</td><td><tt class="option">vhq=2:bvhq=1:chroma_opt:quant_type=mpeg</tt></td><td>18</td><td>-0.1</td></tr><tr><td>Rychlé enkódování</td><td><tt class="option">turbo:vhq=0</tt></td><td>28</td><td>-0.69</td></tr><tr><td>Enkódování v reálném &#269;ase</td><td><tt class="option">turbo:nochroma_me:notrellis:max_bframes=0:vhq=0</tt></td><td>38</td><td>-1.48</td></tr></tbody></table></div><p>
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="menc-feat-enc-libavcodec.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="encoding-guide.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="menc-feat-x264.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">14.3. Enkódování s rodinou kodek&#367; <code class="systemitem">libavcodec</code>
+ </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 14.5. Enkódování s <code class="systemitem">x264</code> kodekem</td></tr></table></div></body></html>

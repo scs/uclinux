@@ -1,0 +1,70 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>2.1. Szoftver követelmények</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="install.html" title="2. fejezet - Telepítés"><link rel="prev" href="install.html" title="2. fejezet - Telepítés"><link rel="next" href="video-cards.html" title="2.2. Videó kártyák"><link rel="preface" href="howtoread.html" title="Hogyan olvasd ezt a dokumentációt"><link rel="chapter" href="intro.html" title="1. fejezet - Bevezetés"><link rel="chapter" href="install.html" title="2. fejezet - Telepítés"><link rel="chapter" href="usage.html" title="3. fejezet - Használat"><link rel="chapter" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="chapter" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="chapter" href="containers.html" title="6. fejezet - Konténerek"><link rel="chapter" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="chapter" href="video.html" title="8. fejezet - Videó kimeneti eszközök"><link rel="chapter" href="audio.html" title="9. fejezet - Audió kimeneti eszközök"><link rel="chapter" href="tv.html" title="10. fejezet - TV"><link rel="chapter" href="radio.html" title="11. fejezet - Rádió"><link rel="chapter" href="ports.html" title="12. fejezet - Portok"><link rel="chapter" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="chapter" href="encoding-guide.html" title="14. fejezet - Kódolás a MEncoderrel"><link rel="appendix" href="bugreports.html" title="A. függelék - Hogyan jelentsd a hibákat"><link rel="appendix" href="bugs.html" title="B. függelék - Ismert hibák"><link rel="appendix" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="appendix" href="history.html" title="D. függelék - Történelem"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.1. Szoftver követelmények</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="install.html">El&#337;z&#337;</a> </td><th width="60%" align="center">2. fejezet - Telepítés</th><td width="20%" align="right"> <a accesskey="n" href="video-cards.html">Következ&#337;</a></td></tr></table><hr></div><div class="sect1" lang="hu"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="softreq"></a>2.1. Szoftver követelmények</h2></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="bold"><strong>binutils</strong></span> - A javasolt verzió a <span class="bold"><strong>2.11.x</strong></span>.
+  Ez a program felel&#337;s az MMX/ 3DNow!/stb utasítások generálásáért,
+  így nagyon fontos!
+</p></li><li><p>
+  <span class="bold"><strong>gcc</strong></span> - A javasolt verziók a <span class="bold"><strong>2.95</strong></span>
+  és 3.3+. A 2.96 és 3.0.x hibás kódot generálnak, valamint a 3.1-nek és a 3.2-nek is
+  vannak problémái. PowerPC-n használj 4.x+ verziót.
+  </p></li><li><p>
+  <span class="bold"><strong>XFree86</strong></span> - A javasolt verzió <span class="bold"><strong>mindig a
+  legújabb</strong></span> (4.3). Mindenki ezt akarja, mivel a 4.0.2-es XFree86-tól benne van az
+  <a href="output-trad.html#xv" title="8.2.1. Xv">XVideo</a> kiterjesztés (néhol <span class="bold"><strong>Xv</strong></span>-ként
+  hivatkoznak rá), ami szükséges a hardveres YUV gyorsítás engedélyezéséhez (gyors képmegjelenítés)
+  azokon a kártyákon, amik támogatják.
+  Gy&#337;z&#337;dj meg róla, hogy a <span class="bold"><strong>fejleszt&#337;i csomagja</strong></span> is telepítve van,
+  különben nem fog m&#369;ködni.
+  Néhány videó kártyához nem kell XFree86. A listát lásd lejjebb.
+  </p></li><li><p>
+  <span class="bold"><strong>make</strong></span> - A javasolt verzió
+  <span class="bold"><strong>mindig a legújabb</strong></span> (legalább 3.79.x-es). Ez
+  legtöbbször nem olyan fontos.
+  </p></li><li><p>
+  <span class="bold"><strong>FreeType</strong></span> 2.0.9 vagy kés&#337;bbi szükséges,
+  hogy legyen bet&#369;típus az OSD-nek és a feliratoknak.
+  </p></li><li><p>
+  <span class="bold"><strong>SDL</strong></span> - nem feltétlenül szükséges, de segíthet
+  pár esetben (hibás audió, videó kártya, ami késik az xv vezérl&#337;vel).
+  Mindig használd a legújabbat (1.2.x-t&#337;l kezdve).
+  </p></li><li><p>
+  <span class="bold"><strong>libjpeg</strong></span> - választható JPEG dekódoló, az <tt class="option">-mf</tt>
+  kapcsoló használja és néhány QT MOV fájl. Hasznos mind az <span class="application">MPlayer</span>,
+  mind a <span class="application">MEncoder</span> szempontjából, ha jpeg fájlokkal akarsz dolgozni.
+  </p></li><li><p>
+  <span class="bold"><strong>libpng</strong></span> - szükséges és az alapértelmezett (M)PNG dekóder. Kell a
+  GUI-hoz is. Használja az <span class="application">MPlayer</span> és a <span class="application">MEncoder</span>
+  is.
+  </p></li><li><p>
+  <span class="bold"><strong>lame</strong></span> - javasolt, szükséges MP3 audió <span class="application">MEncoder</span>rel
+  történ&#337; kódolásához, az ajánlott verzió <span class="emphasis"><em>mindig a legújabb</em></span> (de legalább 3.90).
+  </p></li><li><p>
+  <span class="bold"><strong>zlib</strong></span> - javasolt, szükséges a tömörített MOV fejlécekhez és a
+  PNG támogatáshoz.
+  </p></li><li><p>
+  <span class="bold"><strong>libogg</strong></span> - választható, szükséges az OGG formátumú fájlok lejátszásához.
+  </p></li><li><p>
+  <span class="bold"><strong>libvorbis</strong></span> - választható, szükséges az OGG Vorbis audiók lejátszásához.
+  </p></li><li><p>
+  <span class="bold"><strong><a href="http://www.live555.com/mplayer/" target="_top">LIVE555 Streaming Media</a></strong></span>
+  - választható, szükséges az RTSP/RTP folyamok lejátszásához.
+  </p></li><li><p>
+  <span class="bold"><strong>directfb</strong></span> - választható, elérhet&#337; itt:
+  <a href="http://www.directfb.org" target="_top">http://www.directfb.org</a>. Legalább 0.9.13-as szükséges.
+  </p></li><li><p>
+  <span class="bold"><strong>cdparanoia</strong></span> - választható, szükséges a CDDA támogatáshoz
+  </p></li><li><p>
+  <span class="bold"><strong>libxmms</strong></span> - választható, XMMS input plugin támogatáshoz kell.
+  Legalább 1.2.7-es szükséges.
+  </p></li><li><p>
+  <span class="bold"><strong>libsmb</strong></span> - választható, Samba támogatáshoz kell.
+  </p></li><li><p>
+  <span class="bold"><strong>ALSA</strong></span> - választható, az ALSA audió kimenet
+  támogatásához. Legalább 0.9.0rc4 szükséges.
+  </p></li><li><p>
+  <span class="bold"><strong>bio2jack</strong></span> - választható, a JACK audió kimenet támogatásához kell,
+  de csak a fordítás alatt. Beszerezheted a <a href="http://bio2jack.sf.net/" target="_top">http://bio2jack.sf.net</a>
+  címr&#337;l. Mivel nincs install opciója, kézzel kell bemásolnod a <tt class="filename">libbio2jack.a</tt> fájlt
+  valahova a függvénykönyvtárakat tartalmazó könyvtáradba (pl. <tt class="filename">/usr/local/lib</tt>) vagy
+  használnod kell a <tt class="option">--with-bio2jack=DIR</tt> kapcsolót, hogy megmondd a
+  <tt class="filename">./configure</tt> scriptnek, hol van a fájl.
+  </p></li></ul></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="install.html">El&#337;z&#337;</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Fel</a></td><td width="40%" align="right"> <a accesskey="n" href="video-cards.html">Következ&#337;</a></td></tr><tr><td width="40%" align="left" valign="top">2. fejezet - Telepítés </td><td width="20%" align="center"><a accesskey="h" href="index.html">Tartalom</a></td><td width="40%" align="right" valign="top"> 2.2. Videó kártyák</td></tr></table></div></body></html>

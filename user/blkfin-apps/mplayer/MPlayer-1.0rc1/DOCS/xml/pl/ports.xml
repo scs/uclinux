@@ -1,0 +1,919 @@
+<?xml version="1.0" encoding="iso-8859-2"?>
+<!-- synced with r18923 -->
+<!-- Opiekun: brak (spadek po Paszczim); chwilowo boski -->
+<chapter id="ports" xreflabel="Ports">
+<title>Porty</title>
+
+<sect1 id="linux">
+<title>Linux</title>
+<para>
+Główną platformą rozwojową jest Linux x86, chociaż
+<application>MPlayer</application> pracuje również na wielu innych portach
+tego systemu. Pakiety binarne są dostępne z kilku źródeł, jednakże
+<emphasis role="bold">żaden z nich nie jest przez nas obsługiwany</emphasis>.
+Zgłaszaj problemy do ich opiekunów, a nie do nas.
+</para>
+
+<sect2 id="debian">
+<title>Pakiety Debiana</title>
+<para>
+Aby zbudować pakiet dla Debiana, wywołaj poniższe polecenie w katalogu ze źródłami
+<application>MPlayera</application>:
+
+<screen>fakeroot debian/rules binary</screen>
+
+Jeśli chcesz przekazać własne opcje do skryptu configure, możesz ustawić zmienną
+środowiskową <envar>DEB_BUILD_OPTIONS</envar>. Na przykład, jeśli chcesz
+obsługi menu i GUI, wyglądało by to tak:
+
+<screen>DEB_BUILD_OPTIONS="--enable-gui --enable-menu" fakeroot debian/rules binary</screen>
+
+Możesz przekazać również niektóre zmienne do Makefile. Na przykład, jeśli chcesz
+kompilować przy pomocy gcc 3.4, nawet jeśli nie jest to domyślny kompilator:
+
+<screen>CC=gcc-3.4 DEB_BUILD_OPTIONS="--enable-gui" fakeroot debian/rules binary</screen>
+
+Aby wyczyściś katalog ze źródłami wykonaj poniższa komendę:
+
+<screen>fakeroot debian/rules clean</screen>
+
+Jako superużytkownik możesz zainstalować pakiet <filename>.deb</filename> tak, jak zwykle:
+
+<screen>dpkg -i ../mplayer_<replaceable>wersja</replaceable>.deb</screen>
+</para>
+
+<para>
+Christian Marillat buduje dla Debiana nieoficjalne paczki
+<application>MPlayera</application>, <application>MEncodera</application>
+i naszych czcionek bitmapowych już od jakiegoś czasu, możesz je pobrać (apt-get)
+z <ulink url="http://www.debian-multimedia.org/">jego strony domowej</ulink>.
+</para>
+</sect2>
+
+<sect2 id="rpm">
+<title>Pakiety RPM</title>
+<para>
+Dominik Mierzejewski tworzy i opiekuje się oficjalnymi pakietami RPM
+<application>MPlayera</application> dla Red Hata i Fedora Core.
+Są one dostępne w jego
+<ulink url="http://rpm.greysector.net/mplayer/">repozytorium</ulink>.
+</para>
+
+<para>
+RPMy dla Mandrake/Mandriva są dostępne na <ulink url="http://plf.zarb.org/">P.L.F.</ulink>.
+SuSE zawierał okrojoną wersję <application>MPlayera</application> w dystrybucji.
+Usunęli ją w swoich najnowszych wydaniach. W pełni funkcjonalne
+pakiety możesz pobrać z
+<ulink url="http://packman.links2linux.de/?action=128">links2linux.de</ulink>.
+</para>
+</sect2>
+
+<sect2 id="arm">
+<title>ARM</title>
+<para>
+<application>MPlayer</application> działa również na PDA z procesorami ARM
+działających pod kontrolą Linuksa, np. Sharp Zaurus, Compaq iPAQ.
+Najprostszym sposobem, żeby uzyskać <application>MPlayera</application>,
+jest pobranie go z odpowiedniego źródła pakietów (stable, testing, unstable)
+z witryny <ulink url="http://www.openzaurus.org">OpenZaurus</ulink>. Jeżeli chcesz
+go skompilować samodzielnie, powinieneś przyjrzeć się katalogom
+<ulink url="http://openzaurus.bkbits.net:8080/buildroot/src/packages/mplayer?nav=index.html|src/.|src/packages">mplayera</ulink>
+i biblioteki
+<ulink url="http://openzaurus.bkbits.net:8080/buildroot/src/packages/libavcodec?nav=index.html|src/.|src/packages">libavcodec</ulink>
+w głównym katalogu źródłowym OpenZaurusa. Zawierają one najświeższe łatki
+i pliki Makefile, służące do samodzielnej kompilacji
+<application>MPlayera</application> z <systemitem class="library">libavcodec</systemitem>.
+Jeżeli potrzebujesz interfejsu GUI, możesz użyć xmms-embedded.
+</para>
+</sect2>
+</sect1>
+
+<sect1 id="bsd">
+<title>*BSD</title>
+<para>
+<application>MPlayer</application> działa na FreeBSD, OpenBSD, NetBSD,
+BSD/OS i Darwinie. Dostępne są wersje portów/pkgsrc/fink/itp., które
+prawdopodobnie są łatwiejsze w instalacji, niż kompilacja ze źródeł.
+</para>
+
+<para>
+Do zbudowania <application>MPlayera</application> będziesz potrzebował
+GNU make (gmake - rdzenne make BSD nie zadziała) i najnowszej wersji binutils.
+</para>
+
+<para>
+Jeżeli <application>MPlayer</application> nie może znaleźć
+<filename>/dev/cdrom</filename> lub <filename>/dev/dvd</filename>,
+stwórz odpowiednie dowiązanie symboliczne:
+<screen>ln -s /dev/<replaceable>twoje_urządzenie_cdrom</replaceable> /dev/cdrom</screen>
+</para>
+
+<para>
+Aby używać bibliotek Win32 z <application>MPlayerem</application>, będziesz
+potrzebował przekompilować jądro z opcją &quot;<envar>USER_LDT</envar>&quot;
+(chyba, że używasz FreeBSD-CURRENT, tam jest domyślnie włączona).
+</para>
+
+<sect2 id="freebsd">
+<title>FreeBSD</title>
+<para>
+Jeżeli Twój procesor ma rozszerzenie SSE, przekompiluj jądro z opcją
+&quot;<envar>CPU_ENABLE_SSE</envar>&quot; (wymagany FreeBSD-STABLE lub łaty na jądro).
+</para>
+</sect2>
+
+<sect2 id="openbsd">
+<title>OpenBSD</title>
+<para>Ze względu na ograniczenia w różnych wersjach gas (GNU assemblera - przyp. tłumacza)
+(dotyczące relokacji i MMX), będziesz musiał przeprowadzić kompilację w dwóch krokach:
+Po pierwsze, upewnij się, że wersja nierdzenna występuje w zmiennej <envar>$PATH</envar>
+i wykonaj <command>gmake -k</command>, a następnie upewnij się, że używana jest wersja rdzenna
+i wykonaj <command>gmake</command>.
+</para>
+<para>
+Powyższa metoda nie jest już potrzebna w OpenBSD 3.4.
+</para>
+</sect2>
+
+<sect2 id="darwin">
+<title>Darwin</title>
+<para>
+Zobacz rozdział <link linkend="macos">Mac OS</link>.
+</para>
+</sect2>
+</sect1>
+
+<sect1 id="unix">
+<title>Komercyjny Unix</title>
+
+<para>
+<application>MPlayer</application> został przeportowany na wiele komercyjnych
+wariantów Uniksa. Jako, że środowiska programistyczne przeważnie różnią się od tych
+znajdowanych w wolnych Uniksach, być może będziesz musiał wprowadzić ręczne
+poprawki, aby program skompilował się poprawnie.
+</para>
+<sect2 id="solaris">
+<title>Solaris</title>
+
+<para>
+<application>MPlayer</application> powinien działać na Solarisie 2.6 lub nowszym.
+Możesz skorzystać ze sterownika dźwięku SUN'a podająć opcję <option>-ao sun</option>.
+</para>
+
+<para>
+Na <emphasis role="bold">UltraSPARCach</emphasis>,
+<application>MPlayer</application> korzysta z rozszerzenia
+<emphasis role="bold">VIS</emphasis> (odpowiednik MMX), obecnie tylko w
+<emphasis><systemitem class="library">libmpeg2</systemitem></emphasis>,
+<emphasis><systemitem class="library">libavo</systemitem></emphasis> i
+<emphasis><systemitem class="library">libavcodec</systemitem></emphasis>,
+ale nie w <systemitem class="library">mp3lib</systemitem>. Możesz oglądać plik VOB na
+procesorze z taktowaniem 400MHz. Będziesz potrzebował do tego biblioteki
+<ulink url="http://www.sun.com/sparc/vis/mediaLib.html">
+<systemitem class="library">mLib</systemitem></ulink>.
+</para>
+
+<para><emphasis role="bold">Caveat:</emphasis></para>
+<itemizedlist>
+	<listitem><para><emphasis role="bold">mediaLib</emphasis> jest
+			<emphasis role="bold">aktualnie wyłączone</emphasis> w domyślnej
+			konfiguracji <application>MPlayera</application>, z powodu błędów.
+			Użytkownicy SPARC-ów, którzy budują MPlayera z obsługą mediaLib
+			informowali o delikatnym, zielonymi miganiu wideo kodowane i dekodowanego
+			przez libavcodec. Możesz włączyć mediaLib, jeżeli chcesz używając:
+			<screen>
+				$ ./configure --enable-mlib
+				</screen>
+			Robisz to na własne ryzyko. Użytkownicy x86 powinni
+			<emphasis role="bold">nigdy</emphasis> nie używać mediaLib,
+			ponieważ w efekcie otrzymają kiepską wydajność MPlayera.
+			</para></listitem>
+	</itemizedlist>
+
+<para>
+Aby zbudować pakiet, będziesz potrzebował GNU <application>make</application>
+(<filename>gmake</filename>, <filename>/opt/sfw/gmake</filename>), rdzenne make
+Solarisa nie zadziała. Typowy błąd jaki otrzymujesz, budując tym drugim zamiast GNU
+make, to:
+<screen>
+   % /usr/ccs/bin/make
+   make: Fatal error in reader: Makefile, line 25: Unexpected end of line seen
+</screen>
+</para>
+
+<para>
+W Solarisie przeznaczonym dla SPARC, potrzebujesz kompilatora GNU C/C++; nie ma
+znaczenia, czy jest on skonfigurowany z, czy bez GNU assemblera.
+</para>
+
+<para>
+Na Solarisie x86, potrzebujesz GNU assemblera i kompilatora GNU C/C++,
+skonfigurowanego do używania GNU assemblera! Kod
+<application>MPlayera</application>, na platformie x86, w znaczący sposób korzysta
+z instrukcji MMX, SSE i 3DNOW!, które nie mogą być skompilowane przy pomocy
+assemblera Sun <filename>/usr/ccs/bin/as</filename>.
+</para>
+
+<para>
+Skrypt <filename>configure</filename> stara się określić, jaki assembler
+wywoływany jest przez komendę &quot;gcc&quot; (jeżeli próba zakończy się fiaskiem,
+użyj opcji <option>--as=<replaceable>/gdziekolwiek/zainstalowałeś/gnu-as</replaceable></option>,
+żeby określić gdzie skrypt <filename>configure</filename> może znaleźć GNU "as" w Twoim
+systemie).
+</para>
+
+<para>Rozwiązania najczęstszych problemów:</para>
+<itemizedlist>
+	<listitem><para>
+			Błąd jaki wyświetli <filename>configure</filename> na Solarisie x86,
+			używającym GCC bez GNU assemblera:
+<screen>
+   % configure
+   ...
+   Checking assembler (/usr/ccs/bin/as) ... , failed
+   Please upgrade(downgrade) binutils to 2.10.1...
+</screen>
+(Rozwiązanie: Zainstaluj i używaj gcc skonfigurowanego z opcją <option>--with-as=gas</option>)
+</para>
+
+<para>
+Typowy błąd, jaki otrzymasz przy próbie budowy kompilatorem GNU C, który nie używa GNU as:
+<screen>
+   % gmake
+   ...
+   gcc -c -Iloader -Ilibvo -O4 -march=i686 -mcpu=i686 -pipe -ffast-math
+        -fomit-frame-pointer  -I/usr/local/include   -o mplayer.o mplayer.c
+   Assembler: mplayer.c
+   "(stdin)", line 3567 : Illegal mnemonic
+   "(stdin)", line 3567 : Syntax error
+   ... more "Illegal mnemonic" and "Syntax error" errors ...
+</screen>
+</para>
+</listitem>
+
+<listitem><para><application>MPlayer</application> może się wysypać
+		podczas dekodowania i kodowania wideo używających win32codecs:
+		<screen>
+			...
+			Trying to force audio codec driver family acm...
+			Opening audio decoder: [acm] Win32/ACM decoders
+			sysi86(SI86DSCR): Invalid argument
+			Couldn't install fs segment, expect segfault
+			
+			
+			MPlayer interrupted by signal 11 in module: init_audio_codec
+			...
+		</screen>
+		Dzieje się tak z powodu zmian w sysi86() w Solaris 10 i wydaniach
+		pre-Solaris Nevada b31. Zostało to naprawione w Solaris Nevada b32;
+		jednak Sun nie przeniósł jeszcze poprawki do Solarisa 10. Projekt
+		MPlayer poinformował o tym problemie Sun i łatka jest aktualnie
+		wprowadzana do Solarisa 10. Więcej informacji o tym błędzie może
+		zostać znaleziona  na stronie:
+		<ulink
+			   url="http://bugs.opensolaris.org/bugdatabase/view_bug.do?bug_id=6308413"/>.
+		</para>
+	</listitem>
+
+<listitem><para>
+		Ze względu na błędy występujące w Solarisie 8, możesz nie być w stanie odtwarzać
+		płyt DVD o pojemności większej niż 4 GB:
+</para>
+
+<itemizedlist>
+<listitem><para>
+Sterownik sd(7D) dla Solarisa 8 x86 ma błąd ujawniający się przy próbie dostępu do
+bloku dyskowego >4GB urządzenia korzystającego z logicznego rozmiaru bloku !=DEV_BSIZE
+(np. nośnik CD-ROM i DVD). Ze względu na przepełnienie 32bitowych liczb całkowitych,
+odczytywany jest adres dysku modulo 4GB
+(<ulink url="http://groups.yahoo.com/group/solarisonintel/message/22516"/>).
+Ten problem nie występuje na Solarisie 8 przeznaczonym dla procesorów SPARC.
+</para></listitem>
+
+<listitem><para>
+Podobny błąd występuje w kodzie systemu plików hsfs(7FS) (znanym jako ISO9660),
+hsfs może nie obsługiwać partycji/dysków większych niż 4GB, wszystkie dane są
+odczytywane z bloku modulo 4GB
+(<ulink url="http://groups.yahoo.com/group/solarisonintel/message/22592"/>).
+Problem może być rozwiązany przy pomocy łatki 109764-04 (sparc) / 109765-04 (x86).
+</para></listitem>
+</itemizedlist>
+</listitem>
+</itemizedlist>
+</sect2>
+
+<sect2 id="irix">
+<title>IRIX</title>
+<para>
+Możesz albo spróbować zainstalować program GNU install i (jeżeli nie
+umieściłeś go w globalnej ścieżce) wskazać go przez:
+<screen>./configure --with-install=
+<replaceable>/ścieżka/i/nazwa/programu/instalacyjnego</replaceable></screen>
+</para>
+
+<para>
+Albo użyć domyślnego programu instalacyjnego dostarczonego z IRIX 6.5, w tym
+wypadku należy ręcznie zmodyfikować plik <filename>Makefile</filename> w
+kilku miejscach. Zmień poniższe dwie linijki:
+<programlisting>
+  $(INSTALL) -c -m 644 DOCS/mplayer.1 $(MANDIR)/man1/mplayer.1
+
+  $(INSTALL) -c -m 644 etc/codecs.conf $(CONFDIR)/codecs.conf
+</programlisting>
+na:
+<programlisting>
+  $(INSTALL) -m 644 mplayer.1 $(MANDIR)/man1/
+
+  $(INSTALL) -m 644 codecs.conf $(CONFDIR)/
+</programlisting>
+A potem wykonaj (w katalogu źródłowym <application>MPlayera</application>):
+<screen>cp DOCS/mplayer.1 . ; cp etc/codecs.conf .</screen>
+i dalej skompiluj i zainstaluj.
+</para>
+</sect2>
+
+<sect2 id="hp-ux">
+<title>HP-UX</title>
+<para>
+Joe Page umieścił na swojej stronie domowej
+<ulink url="http://users.rcn.com/joepage/mplayer_on_hpux11.htm">dokument
+HOWTO</ulink> stworzony przez Martina Gansser'a dotyczący <application>MPlayera</application>
+na HP-UX. Korzystając z zawartych tam intrukcji program powinien się skompilować bez
+najmniejszych problemów. Poniższe informacje są zaczerpnięte z tego opracowania.
+</para>
+
+
+<para>
+Do budowy będziesz potrzebował GCC 3.4.0, GNU make 3.80, i SDL 1.2.7 lub ich
+nowszych wersji. Kompilator HP cc nie wyprodukuje działającego programu,
+a wcześniejsze wersje GCC są pełne błędów.
+Aby moć skorzystać z OpenGL, musisz zainstalować biblioteki Mesa, wtedy
+sterowniki wyjścia video gl i gl2 powinny działać. Ich wydajność może być
+tragiczna, jednak zależne jest to od mocy obliczeniowej procesora. Dobrym
+zamiennikiem, raczej kiepskiego, systemu dźwiękowego HP-UX jest GNU esound.
+</para>
+
+<para>
+Stwórz urządzenie DVD, przeskanuj magistralę SCSI komendą:
+</para>
+
+<screen>
+# ioscan -fn
+
+Class          I            H/W   Path          Driver    S/W State    H/W Type        Description
+...
+ext_bus 1    8/16/5      c720  CLAIMED INTERFACE  Built-in SCSI
+target  3    8/16/5.2    tgt   CLAIMED DEVICE
+disk    4    8/16/5.<emphasis role="bold">2</emphasis>.<emphasis role="bold">0</emphasis>  sdisk CLAIMED DEVICE     <emphasis role="bold">PIONEER DVD-ROM DVD-305</emphasis>
+                         /dev/dsk/c1t2d0 <emphasis role="bold">/dev/rdsk/c1t2d0</emphasis>
+target  4    8/16/5.7    tgt   CLAIMED DEVICE
+ctl     <emphasis role="bold">1</emphasis>    8/16/5.7.0  sctl  CLAIMED DEVICE     Initiator
+                         /dev/rscsi/c1t7d0 /dev/rscsi/c1t7l0 /dev/scsi/c1t7l0
+...
+</screen>
+
+<para>
+Z rezultatów działania komendy możemy odczytać, że na adresie 2 SCSI znajduje
+się Pioneer DVD-ROM. Instancja karty dla ścieżki sprzętowej 8/16 to 1.
+</para>
+
+<para>
+Stwórz dowiązanie surowego urządzenia do urządzenia DVD.
+</para>
+
+<screen>
+# ln -s /dev/rdsk/c<replaceable>&lt;instancja magistrali SCSI&gt;</replaceable>t<replaceable>&lt;ID docelowego SCSI&gt;</replaceable>d<replaceable>&lt;LUN&gt;</replaceable> /dev/<replaceable>&lt;urządzenie&gt;</replaceable>
+</screen>
+
+<para>
+Przykład:
+</para>
+
+<screen>
+# ln -s /dev/rdsk/c1t2d0 /dev/dvd
+</screen>
+
+<para>
+Poniżej znajdują się rozwiązania kilku najczęstszych problemów:
+</para>
+
+<itemizedlist>
+<listitem>
+<para>
+Wysypanie się programu przy uruchamianiu z komunikatem błędu:
+<screen>
+/usr/lib/dld.sl: Unresolved symbol: finite (code) from /usr/local/lib/gcc-lib/hppa2.0n-hp-hpux11.00/3.2/../../../libGL.sl
+</screen>
+</para>
+
+<para>
+Oznacza to, że funkcja <systemitem>.finite().</systemitem> jest niedostępna
+w standardowej bibliotece math HP-UX.
+Zamiast niej dostępna jest <systemitem>.isfinite().</systemitem>.
+Rozwiązanie: Skorzystaj z najnowszego pliku składowego Mesa.
+</para>
+</listitem>
+
+<listitem>
+<para>
+Wysypanie się programu przy odtwarzaniu z komunikatem:
+<screen>
+/usr/lib/dld.sl: Unresolved symbol: sem_init (code) from /usr/local/lib/libSDL-1.2.sl.0
+</screen>
+</para>
+
+<para>
+Rozwiązanie: Skorzystaj z opcji extralibdir skryptu configure
+<option>--with-extralibdir="/usr/lib -lrt"</option>
+</para>
+</listitem>
+
+<listitem>
+<para>
+MPlayer powoduje błąd naruszenia ochrony pamięci (segfault) z komunikatem:
+<screen>
+Pid 10166 received a SIGSEGV for stack growth failure.
+Possible causes: insufficient memory or swap space, or stack size exceeded maxssiz.
+Segmentation fault
+</screen>
+</para>
+
+<para>
+Rozwiazanie:
+Jądro HP-UX ma domyślnie zdefiniowany rozmiar stosu przeznaczonego na każdy
+proces i jest to 8MB(?).(11.0 i nowsze łatki 10.20 pozwalają Ci zwiększyć
+parametr <systemitem>maxssiz</systemitem> do 350MB dla 32-bitowych programów).
+Musisz rozszerzyć <systemitem>maxssiz</systemitem> i przekompilować jądro
+(i uruchomić ponownie komputer). Możesz wykorzystać do tego celu SAM. (Kiedy
+w nim będziesz, sprawdź wartość <systemitem>maxdsiz</systemitem>. Określa ona
+maksymalny rozmiar danych, jaką program może użyć. To czy domyślne 64MB wystarczy
+czy nie, zależy wyłącznie od wymagań Twoich aplikacji.)
+</para>
+</listitem>
+</itemizedlist>
+
+</sect2>
+
+<sect2 id="aix">
+<title>AIX</title>
+<para>
+<application>MPlayer</application> kompiluje się z powodzenie na AIX 5.1,
+5.2 i 5.3, korzystając z GCC 3.3 lub wyższego. Budowanie
+<application>MPlayer</application> na AIX 4.3.3 i niższych nie
+było sprawdzane. Zaleca się, abyś budowal <application>MPlayera</application>
+używając GCC 3.4 lub wyższego lub jeżeli kompilujesz na POWER5 - GCC 4.0.
+</para>
+
+<para>
+Upenij się, że używasz GNU make (<filename>/opt/freeware/bin/gmake</filename>), aby
+kompilować <application>MPlayera</application>, jako że możesz napotkać na problemy
+przy korzystaniu z <filename>/usr/ccs/bin/make</filename>.
+</para>
+<para>
+Wykrywanie CPU jest ciągle dopracowywane.
+Poniższe architektury zostały przetestowane:
+</para>
+
+<itemizedlist>
+<listitem><para>604e</para></listitem>
+<listitem><para>POWER3</para></listitem>
+<listitem><para>POWER4</para></listitem>
+</itemizedlist>
+
+<para>
+Poniższe architektury nie były testowane, ale i tak powinny działać:
+</para>
+<itemizedlist>
+<listitem><para>POWER</para></listitem>
+<listitem><para>POWER2</para></listitem>
+<listitem><para>POWER5</para></listitem>
+</itemizedlist>
+
+<para>
+Dźwięk przez Ultimedia Services nie jest obsługiwany, jako że ta technologia
+została porzucona w AIX 5.1; dlatego też, jedynym wyjściem jest korzystanie
+ze sterowników AIX Open Sound System (OSS) tworzonych przez 4Front Technologies,
+znajdziesz je na
+<ulink url="http://www.opensound.com/aix.html">http://www.opensound.com/aix.html
+</ulink>.
+4Front Technologies udostępnia swoje sterowniki OSS za darmo do niekomercyjnego
+zastosowania; jednakże, nie ma aktualnie sterowników wyjścia audio dla AIX 5.2 lub 5.3.
+Oznacza to, że <emphasis role="bold">AIX 5.2 i 5.3 nie potrafią aktualnie używać
+	wyjścia audio MPlayera.</emphasis>
+</para>
+
+<para>Rozwiązania częstych problemów:</para>
+
+<itemizedlist>
+	<listitem>
+		<para>
+			Jeżeli otrzymujesz od <filename>configure</filename> taki komunikat błędu:
+			<screen>
+				$ ./configure
+				...
+				Checking for iconv program ... no
+				No working iconv program found, use
+				--charset=US-ASCII to continue anyway.
+				Messages in the GTK-2 interface will be broken then.
+				</screen>
+				To dzieje się tak dlatego, że AIX używa nie standardowych
+				zestawów nazw znaków; dlatego też, konwersja wyjścia MPlayera
+				do innego zestawu znaków (kodowania) nie jest aktualnie obsługiwana.
+				Rozwiązaniem jest użycie:
+			<screen>
+				$ ./configure --charset=noconv
+				</screen>
+			</para>
+		</listitem>
+	</itemizedlist>
+
+</sect2>
+</sect1>
+
+<sect1 id="windows">
+<title>Windows</title>
+
+<para>Tak, <application>MPlayer</application> działa na Windowsie pod
+  <ulink url="http://www.cygwin.com/"><application>Cygwinem</application></ulink> i
+  <ulink url="http://www.mingw.org/"><application>MinGW</application></ulink>.
+  Nie ma jeszcze oficjalnego interfejsu GUI, ale wersja dla wiersza poleceń jest już w pełni
+  funkcjonalna. Powinieneś sprawdzić listę
+  <ulink url="http://mplayerhq.hu/mailman/listinfo/mplayer-cygwin/">MPlayer-cygwin</ulink>,
+  aby uzyskać pomoc albo otrzymać najnowsze informacje.
+  Oficjalne paczki z binariami dla Windowsa znajdziesz na
+  <ulink url="http://www.mplayerhq.hu/design7/dload.html">stronie pobierania</ulink>.
+  Pakiety zawierające instalatory i proste nakładki GUI dostępne są z zewnętrznych
+  źródeł, informacje o nich zebraliśmy w sekcji poświęconej Windowsowi na
+  <ulink url="http://www.mplayerhq.hu/design7/projects.html#windows">stronie projektów</ulink>.
+</para>
+
+<para>Jeżeli chcesz uniknąć korzystania z wiersza poleceń, prostym sposobem
+      na jego ominięcie jest umieszczenie skrótu na pulpicie, który będzie
+      zawierał podobny wpis w części odpowiedzialnej za wykonanie
+      komendy:
+      <screen><replaceable>c:\ścieżka\do\</replaceable>mplayer.exe %1</screen>
+      Spowoduje to, że <application>MPlayer</application> będzie odtwarzał
+      film, który zostanie przeciągnięty na jego skrót. Dodaj opcję
+      <option>-fs</option>, aby korzystać z trybu pełnoekranowego.
+</para>
+
+<para>Najlepsze wyniki są osiągane ze sterownikami wyjściowymi video DirectX
+  (<option>-vo directx</option>). Możesz skorzystać również z OpenGL lub SDL, jednak
+  wydajność OpenGL w znacznym stopniu zależy od systemu, a SDL może powodować powstanie
+  zakłóceń w obrazie albo wywołać błąd, i zakończyć działanie programu.
+  Jeżeli występują zakłócenia obrazu, spróbuj
+  wyłączyć sprzętową akcelerację przez opcję <option>-vo directx:noaccel</option>. Ściągnij
+  <ulink url="http://www.mplayerhq.hu/MPlayer/releases/win32/contrib/dx7headers.tgz">pliki
+  nagłówkowe DirectX 7</ulink>, żeby skompilować sterownik do wyjścia video
+  DirectX. Co więcej, musisz mieć zainstalowany DirectX 7 lub nowszy,
+  aby to wyjście zadziałało.</para>
+
+<para><link linkend="vidix">VIDIX</link> działa teraz również pod Windowsem jako
+  <option>-vo winvidix</option>, chociaż jego obsługa jest eksperymentalna i wymaga
+  trochę ręcznego przygotowania. Pobierz
+  <ulink url="http://www.mplayerhq.hu/MPlayer/releases/win32/dhahelperwin/dhahelper.sys">dhahelper.sys</ulink>
+  lub
+  <ulink url="http://www.mplayerhq.hu/MPlayer/releases/win32/dhahelperwin/withmtrr/dhahelper.sys">dhahelper.sys
+  (z obsługą MTRR)</ulink>
+  i skopiuj go do
+  <filename class="directory">libdha/dhahelperwin</filename> w drzewie źródłowym
+  <application>MPlayera</application>. Uruchom konsolę, następnie przejdź do tego katalogu i wykonaj
+
+  <screen>gcc -o dhasetup.exe dhasetup.c</screen>
+
+  i
+
+  <screen>dhasetup.exe install</screen>
+
+  jako Administrator. Będziesz musiał ponownie uruchomić komputer. Teraz, skopiuj wszystkie pliki
+  z rozszerzeniem <systemitem class="library">.so</systemitem> z katalogu
+  <filename class="directory">vidix/drivers</filename> do
+  <filename class="directory">mplayer/vidix</filename>
+  względem położnia pliku <filename>mplayer.exe</filename>.</para>
+
+<para>Żeby osiągnąć najlepsze wyniki <application>MPlayer</application> powinien
+  korzystać z przestrzeni kolorów, którą Twoja karta wspomaga sprzętowo. Niestety
+  wiele sterowników graficznych Windowsa źle informuje o obsługiwanych przez kartę
+  przestrzeniach. Aby sprawdzić które są źle obsługiwane, wykonaj poniższą komendę:
+
+  <screen>mplayer -benchmark -nosound -frames 100 -vf format=<replaceable>przestrzeń</replaceable> <replaceable>film</replaceable></screen>
+
+  gdzie <replaceable>przestrzeń</replaceable> może być jakąkolwiek
+  wartością spośród tych uzyskanych przez opcję <option>-vf format=fmt=help</option>.
+  Jeśli któraś z nich działa szczególnie źle, opcja
+  <option>-vf noformat=<replaceable>przestrzeń</replaceable></option>
+  zapobiegnie jej używaniu. Możesz to na stałe dodać do Twojego pliku konfiguracyjnego.</para>
+
+<para>Dostępne są specjalne zbiory z kodekami przeznaczone dla systemu Windows, znajdziesz je na
+  <ulink url="http://mplayerhq.hu/design7/codecs.html">stronie kodeków</ulink>.
+  Pozwolą Ci one na odtwarzanie formatów, które nie są jeszcze bezpośrednio obsługiwane w
+  <application>MPlayerze</application>. Umieść je, gdzieś w swojej ścieżce (w katalogu podanym w
+  zmiennej PATH - przyp. tłumacza) lub przekaż opcję
+  <option>--with-codecsdir=<replaceable>c:/ścieżka/do/Twoich/kodeków</replaceable></option>
+  (lub, tylko w środowkisku Cygwin,
+  <option>--with-codecsdir=<replaceable>/ścieżka/do/Twoich/kodeków</replaceable></option>)
+  do skryptu <filename>configure</filename>.
+  Mieliśmy doniesienia, że biblioteki Real, muszą być zapisywalne dla użytkownika, który
+  uruchamia <application>MPlayera</application>, ale tylko na niektórych systemach (NT4).
+  Spróbuj nadać im atrybut zapisywalności.</para>
+
+<para>Możesz odtwarzać VCD, odtwarzając pliki <filename>.DAT</filename> lub <filename>.MPG</filename>,
+  które Windows pokazuje na VCD. To działa mniej więcej tak (dopasuj literę dysku do Twojego
+  CD-ROMu):</para>
+
+<screen>mplayer <replaceable>d:/mpegav/avseq01.dat</replaceable></screen>
+
+<para>DVD również działa, podaj literę Twojego DVD-ROMu przez
+  opcję <option>-dvd-device</option>:</para>
+
+<screen>mplayer dvd://<replaceable>&lt;tytuł&gt;</replaceable> -dvd-device <replaceable>d</replaceable>:</screen>
+
+<para>Konsola <application>Cygwin</application>/<application>MinGW</application>
+  jest raczej wolna. Zgłoszono, że przekierowywanie wyjścia albo używanie
+  opcji <option>-quiet</option> poprawia wydajność na
+  niektórych systemach. Bezpośrednie renderowanie (<option>-dr</option>) również
+  może pomóc. Jeżeli odtwarzanie jest nierówne, spróbuj użyć
+  <option>-autosync 100</option>. Jeżeli którakolwiek z tych opcji Ci pomogła,
+  może będziesz chciał umieścić ją w swoim pliku konfiguracyjnym.</para>
+
+<note>
+
+<para>Na Windowsie automatyczne wykrywanie typu procesora
+	wyłącza rozszerzenie SSE z powodu okazjonalnych i ciężkich
+	do wyśledzenia błędów powodujących zakończenie aplikacji. Jeżeli
+	nadal chesz mieć obsługę SSE pod Windowsem, będziesz musiał
+	skompilować program bez wykrywania typu CPU w trakcie działania.
+</para>
+
+<para>Jeżeli masz Pentium 4 i program wysypuje Ci się podczas używania
+	kodeków RealPlayer'a, prawdopodobnie będziesz musiał wyłączyć
+	obsługę hyperthreading'u.
+</para>
+</note>
+
+
+
+<sect2 id="cygwin">
+<title><application>Cygwin</application></title>
+
+<para>Aby skompilować <application>MPlayera</application> wymagana jest wersja
+    <application>Cygwina</application> 1.5.0 lub późniejsza.</para>
+
+<para>Pliki nagłówkowe DirectX muszą być rozpakowane do
+  <filename class="directory">/usr/include/</filename> lub
+  <filename class="directory">/usr/local/include/</filename>.</para>
+
+<para>Instrukcje i pliki potrzebne do kompilacji SDLa dla <application>Cygwin</application>
+  są dostępne na
+  <ulink url="http://www.libsdl.org/extras/win32/cygwin/">stronie libsdl</ulink>.</para>
+
+</sect2>
+
+<sect2 id="mingw">
+<title><application>MinGW</application></title>
+
+<para>Zainstalowanie <application>MinGW</application>, który umożliwiłby
+  kompilację <application>MPlayera</application> było zawiłe,
+  ale teraz składa się tylko z trzech prostych kroków i niedługo powinno
+  działać "prosto z pudełka". Zainstaluj <application>MinGW</application>
+  3.0.0 lub nowszy. Zainstaluj MSYS 1.0.9 lub nowszy i wskaż systemowi poinstalacyjnemu
+  MSYSa, że <application>MinGW</application> jest zainstalowane.</para>
+
+<para>Rozpakuj pliki nagłówkowe DirectX do <filename class="directory">/mingw/include/</filename>.</para>
+
+<para>Do obsługi skompresowanych nagłówków MOV wymagana jest biblioteka
+  <ulink url="http://www.gzip.org/zlib/">zlib</ulink>, która nie jest
+  domyślnie dostępna w <application>MinGW</application>.
+  Skonfiguruj ją z opcją <option>--prefix=/mingw</option> i zainstaluj
+  przed kompilacją <application>MPlayera</application>.</para>
+
+<para>Pełną instrukcję jak zbudować <application>MPlayera</application>
+  i wszystkie potrzebne biblioteki znajdziesz w
+  <ulink url="http://mplayerhq.hu/MPlayer/releases/win32/contrib/MPlayer-MinGW-Howto.txt">MPlayer MinGW HOWTO</ulink>.</para>
+
+</sect2>
+
+</sect1>
+<sect1 id="macos">
+<title>Mac OS</title>
+
+<para>
+"Surowe" źródła <application>MPlayera</application> obsługują
+tylko Mac OS X w wersjach 10.2 i wyższych. Możesz spróbować umożliwić
+obsługę starszych wersji Mac OS oraz przysłać nam łaty!
+<application>MPlayer</application> nie działa na Mac OS w wersjach niższych niż
+10, jednak powinien skompilować się bez problemu na systemie Mac OS X 10.2 i
+wyższym. Zalecanym kompilatorem jest GCC 3.x w wersji Apple.
+Możesz otrzymać podstawowe środowisko do kompilacji, instalując
+<ulink url="http://developer.apple.com/tools/download/">Xcode</ulink> od Apple.
+Jeżeli masz Mac OS X 10.3.9 lub późniejszy i QuickTime 7, możesz
+skorzystać ze sterownika wyjścia video <option>macosx</option>.
+</para>
+
+<para>
+	Niestety, to podstawowe środowisko ni epozwoli ci na skorzystanie ze
+	wszystkich fajnych możliwości <application>MPlayera</application>.
+	Przykładowo, żeby uzyskać wkompilowaną obsługę OSD, będziesz
+	potrzebował bibliotek <systemitem class="library">fontconfig</systemitem>
+	i <systemitem class="library">freetype</systemitem>
+	zainstalowanych na swojej maszynie.
+	W przeciwieństwie do innych Uniksów, takich jak większość odmian
+	Linuksa i BSD, OS X nie ma systemu pakietów dostarczanego razem
+	z systemem.
+	</para>
+
+<para>
+	Można wybierać spośród co najmniej dwóch systemów pakietów:
+	<ulink url="http://fink.sourceforge.net/">Fink</ulink> i
+	<ulink url="http://darwinports.opendarwin.org/">DarwinPorts</ulink>.\
+	Oba dostarczają takie same usługi (np. dużo pakietów do wyboru,
+	rozwiązywanie zależności, możliwość łatwego dodania/aktualizacji/usunięcia
+	pakietów itp.).
+	Fink oferuje zarówno binarne pakiety, jak i możliwość zbudowania wszystkiego
+	ze źródeł. Natomiast DarwinPorts pozwala tylko na budowanie ze źródeł.
+	Autorzy tego przewodnika wybrali DarwinPorts z powodu tej prostej przyczyny,
+	że jego podstawowa wersja była lżejsza.
+	Podane przykłady będą oparte na DarwinPorts.
+	</para>
+
+<para>
+	Przykładowo, żeby skomilować <application>MPlayera</application> z obsługą
+	OSD:
+	<screen>sudo port install pkgconfig</screen>
+	Zainstaluje to <application>pkg-config</application>, który jest systemem
+	do zarządzania flagami kompilacji/dowiązań bibliotek.
+	<application>MPlayerowy</application> skrypt
+	<systemitem>configure</systemitem>używa go do prawidłowego
+	wykrywania bibliotek.
+	Następnie możesz zainstalować <application>fontconfig</application>
+	w podobny sposób:
+	<screen>sudo port install fontconfig</screen>
+	Następnie możesz uruchomić <application>MPlayerowy</application> skrypt
+	<systemitem>configure</systemitem> (zapisz zmienne systemowe
+	<systemitem>PKG_CONFIG_PATH</systemitem>
+	i <systemitem>PATH</systemitem>, żeby
+	<systemitem>configure</systemitem> znalazł biblioteki zainstalowane
+	przez DarwinPorts):
+	<screen>PKG_CONFIG_PATH=/opt/local/lib/pkgconfig/ PATH=$PATH:/opt/local/bin/ ./configure</screen>
+	</para>
+
+<sect2 id="osx_gui">
+<title>MPlayer OS X GUI</title>
+<para>
+Możesz pobrać natywne GUI dla <application>MPlayera</application> razem
+z prekompilowanymi binariami <application>MPlayera</application> dla
+Mac OS X ze strony projektu
+<ulink url="http://mplayerosx.sf.net/">MPlayerOSX</ulink>, ale uwaga:
+projekt nie jest już aktywny.
+</para>
+<para>
+Na szczęście, <application>MPlayerOSX</application> został przejęty
+przez członka załogi <application>MPlayera</application>.
+Wersje testowe są dostępne na stronie z
+<ulink url="http://mplayerhq.hu/dload.html">materiałami do
+pobrania</ulink>, a oficjalne wydanie powinno pojawić się już
+niedługo.
+</para>
+<para>
+Aby zbudować <application>MPlayerOSX</application> bezpośrednio
+ze źródeł, potrzebujesz modułu <systemitem>mplayerosx</systemitem>,
+<systemitem>main</systemitem> i kopii modułu CVS
+<systemitem>main</systemitem> o nazwie
+<systemitem>main_noaltivec</systemitem>.
+<systemitem>mplayerosx</systemitem> to graficzna nakładka,
+<systemitem>main</systemitem> to MPlayer, a
+<systemitem>main_noaltivec</systemitem> to MPlayer zbudowany bez obsługi
+AltiVec.
+
+</para>
+<para>
+Aby pobrać moduł z repozytorium SVN wykonaj polecenia:
+<screen>
+	svn checkout svn://svn.mplayerhq.hu/mplayerosx/trunk/ mplayerosx
+	svn checkout svn://svn.mplayerhq.hu/mplayer/trunk/ main
+</screen>
+</para>
+<para>
+W celu zbudowania <application>MPlayerOSX</application> będziesz musiał
+utowrzyć podobną strukturę katalogów:
+<screen>
+katalog_źródłowy_MPlayera
+   |
+   |--->main           (źródła MPlayera z Subversion)
+   |
+   |--->main_noaltivec (źródła MPlayera z Subversion skonfigurowane z opcją --disable-altivec)
+   |
+   |--->mplayerosx     (źródła MPlayer OS X z Subversion)
+</screen>
+
+Najpierw musisz zbudować main i main_noaltivec.
+</para>
+
+<para>
+Następnie ustaw globalną zmienną:
+
+<screen>export MACOSX_DEPLOYMENT_TARGET=10.3</screen>
+</para>
+
+<para>
+Potem skonfiguruj:
+</para>
+<para>
+Jeżeli konfigurujesz dla maszyny G4 lub lepszej z obsługą AltiVec,
+postępuj jak poniżej:
+<screen>
+./configure --with-termcaplib=ncurses.5 --disable-gl --disable-x11
+</screen>
+
+Jeżeli konfigurujesz dla maszyny z procesorem G3 bez AltiVec,
+postępuj jak ponieżej:
+<screen>
+./configure --with-termcaplib=ncurses.5 --disable-gl --disable-x11
+--disable-altivec
+</screen>
+Być może będziesz musiał wyedytować plik <filename>config.mak</filename>
+i zmienić wartości <systemitem>-mcpu</systemitem>
+<systemitem>-mtune</systemitem> z <systemitem>-74XX</systemitem> na
+<systemitem>-G3</systemitem>.
+</para>
+<para>
+Następnie wykonaj
+<screen>
+make
+</screen>
+przejdź do katalogu mplayerosx i wpisz
+
+<screen>
+make dist
+</screen>
+Zostanie utworzony skompresowany obraz <systemitem>.dmg</systemitem>
+zawierający gotowy do uruchomienia program.
+</para>
+<para>
+Możes również skorzystać z projektu <application>Xcode</application> 2.1;
+stary projekt dla <application>Xcode</application> 1.x już nie działa.
+ 
+</para>
+</sect2>
+</sect1>
+
+<sect1 id="exotic_platforms">
+<title>Egzotyczne Platformy</title>
+
+<para>
+<application>MPlayer</application> dziła na wielu egzotycznych platfromach, ale
+większość zmian dla konkretnych platform nie trafiła do głównego drzewa ze źródłami
+programu.
+Instrukcji co do budowy szukaj w dokumentacji do określonych systemów.
+</para>
+
+<sect2 id="qnx">
+<title>QNX</title>
+<para>
+Będziesz musiał ściągnąć bibliotekę SDL dla QNX i zainstalować ją. Wtedy
+uruchom <application>MPlayera</application> z opcją
+<option>-vo sdl:driver=photon</option>
+i <option>-ao sdl:nto</option>, powinno działać szybko.
+</para>
+		
+<para>
+Wyjście <option>-vo x11</option> będzie nawet wolniejsze niż na Linuksie,
+ponieważ QNX ma tylko <emphasis>emulację</emphasis> X'ów, która jest bardzo
+wolna. 
+</para>
+</sect2>
+
+<sect2 id="amiga">
+<title>Amiga/MorphOS (GeekGadgets)</title>
+<para>
+Ludzie z <ulink url="www.amigasoft.net">www.amigasoft.net</ulink>
+tworzą aktualne paczki z <application>MPlayerem</application> i
+<application>MEncoderem</application>.
+</para>
+
+<para>
+Nicholas Det at Genesi stworzył potężny port <application>MPlayera
+</application> dla MorphOS. Niestety oparty jest on o serię 0.90.
+</para>
+
+<para>
+Pobierz go z <ulink url="http://www.morphzone.org/">MorphZone</ulink>:
+<itemizedlist>
+<listitem><para>
+<ulink url="http://www.morphzone.org/modules/mydownloads/singlefile.php?lid=90">
+pakiet binarny <application>MPlayer</application> 0.91</ulink>
+</para></listitem>
+<listitem><para>
+<ulink url="http://www.morphzone.org/modules/mydownloads/singlefile.php?lid=91">
+źródła <application>MPlayera</application> 0.91</ulink>
+</para></listitem>
+<listitem><para>
+<ulink url="http://www.morphzone.org/modules/mydownloads/singlefile.php?lid=92">
+pakiet binarny <application>MEncodera</application> 1.0pre3</ulink>
+</para></listitem>
+</itemizedlist>
+</para>
+</sect2>
+</sect1>
+
+</chapter>

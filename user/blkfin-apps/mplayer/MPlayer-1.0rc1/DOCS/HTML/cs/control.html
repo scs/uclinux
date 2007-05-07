@@ -1,0 +1,88 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>3.3. Ovládání</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="prev" href="subosd.html" title="3.2. Titulky a OSD"><link rel="next" href="streaming.html" title="3.4. P&#345;ehrávání datových proud&#367; ze sít&#283; nebo rour"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="control.html#ctrl-cfg" title="3.3.1. Konfigurace ovládání"><link rel="subsection" href="control.html#lirc" title="3.3.2. Ovládání z LIRC"><link rel="subsection" href="control.html#slave-mode" title="3.3.3. Závislý re&#382;im"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">3.3. Ovládání</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="subosd.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 3. Pou&#382;ití</th><td width="20%" align="right"> <a accesskey="n" href="streaming.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="control"></a>3.3. Ovládání</h2></div></div></div><p>
+<span class="application">MPlayer</span> má pln&#283; konfigurovatelnou, p&#345;íkazy &#345;ízenou,
+ovládací vrstvu, která vám umo&#382;ní ovládat <span class="application">MPlayer</span>
+pomocí klávesnice, my&#353;i, joysticku nebo dálkového ovláda&#269;e (pou&#382;ívající LIRC).
+Úplný seznam ovládacích prvk&#367; na klávesnici naleznete v man stránce.
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="ctrl-cfg"></a>3.3.1. Konfigurace ovládání</h3></div></div></div><p>
+<span class="application">MPlayer</span> umo&#382;&#328;uje p&#345;i&#345;adit jakoukoli klávesu jakémukoli
+p&#345;íkazu <span class="application">MPlayer</span>u pomocí jednoduchého konfigura&#269;ního
+souboru.
+Syntaxe sestává z názvu klávesy následovaného p&#345;íkazem. Výchozí umíst&#283;ní
+konfigura&#269;ního souboru je
+<tt class="filename">$HOME/.mplayer/input.conf</tt> ale m&#367;&#382;ete jej potla&#269;it pou&#382;itím
+volby <tt class="option">-input <em class="replaceable"><code>konfig</code></em></tt>
+(relativní cesty jsou vzta&#382;eny k <tt class="filename">$HOME/.mplayer</tt>).
+</p><p>
+Úplný seznam podporovaných jmen kláves dostanete p&#345;íkazem
+<span><strong class="command">mplayer -input keylist</strong></span>
+a úplný seznam dostupných p&#345;íkaz&#367; p&#345;íkazem
+<span><strong class="command">mplayer -input cmdlist</strong></span>.
+</p><div class="example"><a name="id2538926"></a><p class="title"><b>P&#345;íklad 3.1. Jednoduchý vstupní ovládací soubor</b></p><pre class="programlisting">
+##
+## Vstupní soubor ovládání MPlayeru
+##
+
+RIGHT seek +10
+LEFT seek -10
+- audio_delay 0.100
++ audio_delay -0.100
+q quit
+&gt; pt_step 1
+&lt; pt_step -1
+ENTER pt_step 1 1</pre></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="lirc"></a>3.3.2. Ovládání z LIRC</h3></div></div></div><p>
+Linux Infrared Remote Control &#8211; pou&#382;ijte jednodu&#353;e vyrobitelný doma ud&#283;laný
+IR-p&#345;ijíma&#269;,
+(tém&#283;&#345;) libovolný dálkový ovláda&#269; a ovládejte jím sv&#367;j Linux!
+Více se o tom dovíte na <a href="http://www.lirc.org" target="_top">domácí stránce LIRC</a>.
+</p><p>
+Pokud máte nainstalován balí&#269;ek LIRC, <tt class="filename">configure</tt> jej zdetekuje.
+Pokud v&#353;e dopadne dob&#345;e, <span class="application">MPlayer</span> p&#345;i startu
+vypí&#353;e "<code class="systemitem">Nastavuji podporu LIRC...</code>".
+Pokud dojde k chyb&#283;, oznámí vám to. Pokud nevypí&#353;e &#382;ádnou zprávu o LIRC,
+pak pro n&#283;j není podpora zakompilována. To je v&#353;e :-)
+</p><p>
+Jméno spustitelného souboru <span class="application">MPlayer</span>u je - p&#345;ekvapení -
+<tt class="filename">mplayer</tt>. M&#367;&#382;ete pou&#382;ít jakýkoli p&#345;íkaz
+<span class="application">MPlayer</span>u a dokonce i více ne&#382; jeden, pokud je odd&#283;líte
+znakem <code class="literal">\n</code>.
+Nezapome&#328;te zapnout opakovací (repeat) p&#345;íznak v <tt class="filename">.lircrc</tt> tam,
+kde to dává smysl (vyhledávání, hlasitost, atd.).
+Zde je vý&#328;atek z demonstra&#269;ního
+<tt class="filename">.lircrc</tt>:
+</p><pre class="programlisting">
+begin
+     button = VOLUME_PLUS
+     prog = mplayer
+     config = volume 1
+     repeat = 1
+end
+
+begin
+    button = VOLUME_MINUS
+    prog = mplayer
+    config = volume -1
+    repeat = 1
+end
+
+begin
+    button = CD_PLAY
+    prog = mplayer
+    config = pause
+end
+
+begin
+    button = CD_STOP
+    prog = mplayer
+    config = seek 0 1\npause
+end</pre><p>
+Pokud se vám nelíbí standardní umíst&#283;ní lirc-config souboru
+(<tt class="filename">~/.lircrc</tt>) pou&#382;ijte volbu <tt class="option">-lircconf
+<em class="replaceable"><code>soubor</code></em></tt> k ur&#269;ení jiného souboru.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="slave-mode"></a>3.3.3. Závislý re&#382;im</h3></div></div></div><p>
+Závislý re&#382;im vám umo&#382;&#328;uje vytvo&#345;it jednoduché ovládací panely (frontendy)
+<span class="application">MPlayer</span>u. Pokud je <span class="application">MPlayer</span>
+spu&#353;t&#283;n s volbou <tt class="option">-slave</tt>, pak bude &#269;íst p&#345;íkazy odd&#283;lené novým
+&#345;ádkem (\n) ze standardního vstupu.
+P&#345;íkazy jsou dokumentovány v souboru
+<a href="../../tech/slave.txt" target="_top">slave.txt</a>.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="subosd.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="usage.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="streaming.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">3.2. Titulky a OSD </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 3.4. P&#345;ehrávání datových proud&#367; ze sít&#283; nebo rour</td></tr></table></div></body></html>

@@ -1,0 +1,11 @@
+--- MPlayer-1.0rc1/configure
++++ MPlayer-1.0rc1/configure
+@@ -96,7 +96,7 @@
+ issystem() {
+   test "`echo $system_name | tr A-Z a-z`" = "`echo $1 | tr A-Z a-z`"
+ }
+-linux()   { issystem "Linux"   ; return "$?" ; }
++linux()   { issystem "Linux" || issystem "uClinux" ; return "$?" ; }
+ sunos()   { issystem "SunOS"   ; return "$?" ; }
+ hpux()    { issystem "HP-UX"   ; return "$?" ; }
+ irix()    { issystem "IRIX"    ; return "$?" ; }

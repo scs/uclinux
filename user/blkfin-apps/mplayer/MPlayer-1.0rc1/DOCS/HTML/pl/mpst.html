@@ -1,0 +1,35 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>3.4. Strumienie zdalne</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="prev" href="streaming.html" title="3.3. Strumieniowanie z sieci i potoków"><link rel="next" href="edl.html" title="3.5. Decyzyjne Listy Edycji (Edit Decision Lists - EDL)"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"><link rel="subsection" href="mpst.html#compile_mpst_server" title="3.4.1. Kompilacja serwera"><link rel="subsection" href="mpst.html#use_mpst" title="3.4.2. Używanie strumieni zdalnych"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">3.4. Strumienie zdalne</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="streaming.html">Poprzedni</a> </td><th width="60%" align="center">Rozdział 3. Sposób użycia</th><td width="20%" align="right"> <a accesskey="n" href="edl.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mpst"></a>3.4. Strumienie zdalne</h2></div></div></div><p>
+Strumienie zdalne pozwalają na dostęp do większości strumieni obsługiwanych
+przez <span class="application">MPlayera</span> ze zdalnego hosta. Głównym celem tej
+funkcji jest umożliwienie bezpośredniego korzystania z napędu CD lub DVD innego
+komputera w sieci (pod warunkiem posiadania odpowiedniej przepustowości).
+Niestety niektóre typy strumieni (aktualnie TV oraz MF) nie są dostępne zdalnie,
+gdyż są zaimplementowane na poziomie demultipleksera. Jest to przykre w
+przypadku MF, gdyż TV i tak by wymagało szalonej przepustowości.
+</p><div class="sect2" lang="pl"><div class="titlepage"><div><div><h3 class="title"><a name="compile_mpst_server"></a>3.4.1. Kompilacja serwera</h3></div></div></div><p>
+Po kompilacji <span class="application">MPlayera</span> wejdź do katalogu
+<tt class="filename">TOOLS/netstream</tt> i wpisz <span class="application">make</span>
+by zbudować program serwera. Możesz wtedy skopiować program
+<span class="application">nestream</span> do odpowiedniego miejsca w Twoim
+systemie (przeważnie <tt class="filename">/usr/local/bin</tt>
+pod Linuksem).
+</p></div><div class="sect2" lang="pl"><div class="titlepage"><div><div><h3 class="title"><a name="use_mpst"></a>3.4.2. Używanie strumieni zdalnych</h3></div></div></div><p>
+Najpierw musisz uruchomić serwer na komputerze, do którego masz zamiar mieć
+dostęp zdalny. Aktualnie serwer jest bardzo podstawowy i nie ma żadnych
+argumentów wiersza poleceń, więc po prostu wpisz <tt class="filename">netstream</tt>.
+Teraz możesz np. odtworzyć drugą ścieżkę VCD na serwerze za pomocą:
+</p><pre class="screen">
+mplayer -cache 5000 <em class="replaceable"><code>mpst://nazwa_serwera/vcd://2</code></em>
+</pre><p>
+Masz również dostęp do plików na tym serwerze:
+</p><pre class="screen">
+mplayer -cache 5000 <em class="replaceable"><code>mpst://nazwa_serwera//usr/local/movies/lol.avi</code></em>
+</pre><p>
+Zauważ, że ścieżki, które nie zaczynają się na "/" będą względne do katalogu,
+w którym uruchomiono serwer. Opcja <tt class="option">-cache</tt> nie jest wymagana,
+lecz bardzo zalecana.
+</p><p>
+Miej na uwadze to, że aktualnie serwer nie ma żadnych zabezpieczeń. Nie narzekaj
+więc na liczne nadużycia, które są przez to możliwe. Zamiast tego wyślij jakąś
+(dobrą) łatkę, by stał się lepszy lub napisz swój własny serwer.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="streaming.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="usage.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="edl.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">3.3. Strumieniowanie z sieci i potoków </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> 3.5. Decyzyjne Listy Edycji (Edit Decision Lists - EDL)</td></tr></table></div></body></html>

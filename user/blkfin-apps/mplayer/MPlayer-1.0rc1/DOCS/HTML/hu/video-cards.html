@@ -1,0 +1,104 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>2.2. Videó kártyák</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="install.html" title="2. fejezet - Telepítés"><link rel="prev" href="softreq.html" title="2.1. Szoftver követelmények"><link rel="next" href="sound-cards.html" title="2.3. Hangkártyák"><link rel="preface" href="howtoread.html" title="Hogyan olvasd ezt a dokumentációt"><link rel="chapter" href="intro.html" title="1. fejezet - Bevezetés"><link rel="chapter" href="install.html" title="2. fejezet - Telepítés"><link rel="chapter" href="usage.html" title="3. fejezet - Használat"><link rel="chapter" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="chapter" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="chapter" href="containers.html" title="6. fejezet - Konténerek"><link rel="chapter" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="chapter" href="video.html" title="8. fejezet - Videó kimeneti eszközök"><link rel="chapter" href="audio.html" title="9. fejezet - Audió kimeneti eszközök"><link rel="chapter" href="tv.html" title="10. fejezet - TV"><link rel="chapter" href="radio.html" title="11. fejezet - Rádió"><link rel="chapter" href="ports.html" title="12. fejezet - Portok"><link rel="chapter" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="chapter" href="encoding-guide.html" title="14. fejezet - Kódolás a MEncoderrel"><link rel="appendix" href="bugreports.html" title="A. függelék - Hogyan jelentsd a hibákat"><link rel="appendix" href="bugs.html" title="B. függelék - Ismert hibák"><link rel="appendix" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="appendix" href="history.html" title="D. függelék - Történelem"><link rel="subsection" href="video-cards.html#yuv-cards" title="2.2.1. YUV kártyák"><link rel="subsection" href="video-cards.html#non-yuv-cards" title="2.2.2. Nem YUV-os kártyák"><link rel="subsection" href="video-cards.html#cirrus-logic-cards" title="2.2.3. Cirrus-Logic kártyák"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.2. Videó kártyák</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="softreq.html">El&#337;z&#337;</a> </td><th width="60%" align="center">2. fejezet - Telepítés</th><td width="20%" align="right"> <a accesskey="n" href="sound-cards.html">Következ&#337;</a></td></tr></table><hr></div><div class="sect1" lang="hu"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="video-cards"></a>2.2. Videó kártyák</h2></div></div></div><p>
+Két nagy típusa van a videó kártyáknak. Az egyik (az újabbak) tudják a
+<span class="bold"><strong>hardveres méretezést és YUV gyorsítást</strong></span>,
+a másik nem.
+</p><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="yuv-cards"></a>2.2.1. YUV kártyák</h3></div></div></div><p>
+A képet bármilyen méretben meg tudják jeleníteni és átméretezni (nagyítani),
+ami belefér a memóriájukba, <span class="bold"><strong>kevés CPU használattal</strong></span>
+(még nagyításnál is), így a teljes képerny&#337;s vetítés szép és nagyon gyors.
+
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="bold"><strong>Matrox G200/G400/G450/G550 kártyák</strong></span>: bár van
+  <a href="output-trad.html#vidix" title="8.2.13. VIDIX">Vidix vezérl&#337;</a> hozzájuk, inkább az mgs_vid
+  modult használd, sokkal jobban m&#369;ködik.
+  Nézd meg az <a href="output-trad.html#mga_vid" title="8.2.6. Matrox framebuffer (mga_vid)">mga_vid</a> részt a telepítéséhez
+  és használatához! Fontos, hogy az ott leírtakat az <span class="application">MPlayer</span>
+  fordítása <span class="emphasis"><em>el&#337;tt</em></span> végezd el, különben nem lesz beépített
+  mga_vid támogatásod. Szintén nézd meg a <a href="tvout.html#tvout-mga-g400" title="8.5.1. Matrox G400 kártyák">Matrox TV-kimenet</a>
+  részt! <span class="bold"><strong> Ha nem használsz Linux-ot</strong></span>, csak a
+  VIDIX vezérl&#337;ben bízhatsz: olvasd el a <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a> részt.
+  </p></li><li><p>
+  <span class="bold"><strong>3Dfx Voodoo3/Banshee kártyák</strong></span>: nézd meg a
+  <a href="output-trad.html#tdfxfb" title="8.2.7. 3Dfx YUV támogatás">tdfxfb</a> részt, ha nagy sebességnövekedést akarsz
+  elérni! Fontos, hogy az ott leírtakat az <span class="application">MPlayer</span>
+  fordítása <span class="bold"><strong>el&#337;tt</strong></span> végezd el, különben nem lesz
+  beépített 3Dfx támogatásod.
+  Ha X-et használsz, legalább <span class="bold"><strong>4.2.0</strong></span>-est
+  használj, mert a 3dfx Xv vezérl&#337; a 4.1.0 és korábbi verziókban hibás volt.
+  </p></li><li><p>
+  <span class="bold"><strong>ATI kártyák</strong></span>: <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a>
+  vezérl&#337; elérhet&#337; a következ&#337; kártyákhoz:
+  <span class="bold"><strong>Radeon, Rage128, Mach64</strong></span> (Rage XL/Mobility, Xpert98).
+  Nézd meg a TV-out dokumentáció <a href="tvout.html#tvout-ati" title="8.5.3. ATI kártyák">ATI kártyákra</a>
+  vonatkozó részét, hogy megtudd a kártyád TV-kimenete támogatott-e a
+  Linux/<span class="application">MPlayer</span> alatt!
+  </p></li><li><p>
+  <span class="bold"><strong>S3 kártyák</strong></span>: a Savage és Virge/DX chip-eknek van
+  hardveres gyorsításuk. Használj olyan friss XFree86-ot, amilyet csak tudsz, a régebbi
+  vezérl&#337;k hibásak. A Savage chip-eknek problémáik vannak a YV12 megjelenítéssel, lásd
+  az <a href="output-trad.html#s3" title="8.2.1.2. S3 kártyák">S3 Xv</a> részt a részletekért. Régebbi, Trio kártyákban nincs
+  vagy lassú a hardveres támogatás.
+  </p></li><li><p>
+  <span class="bold"><strong>nVidia kártyák</strong></span>: talán jó választás a videó lejátszáshoz,
+  talán nem. Ha nincs GeForce2 (vagy újabb) kártyád, valószín&#369;leg nem fog menni hiba nélkül.
+  <span class="bold"><strong>Az XFree86 beépített nVidia vezérl&#337;je nem minden kártyán támogatja a
+  hardveres YUV gyorsítást.</strong></span> Le kell töltened az nVidia zárt forrású vezérl&#337;jét az
+  <a href="http://nvidia.com" target="_top">nVidia.com</a>-ról.
+  Nézd meg az <a href="output-trad.html#nvidia" title="8.2.1.3. nVidia kártyák">nVidia Xv vezérl&#337;</a> fejezetet b&#337;vebb információkért!
+  Szintén nézd meg az <a href="tvout.html#tvout-nvidia" title="8.5.4. nVidia">nVidia TV-kimenet</a> részt ha TV-t is
+  akarsz használni.
+  </p></li><li><p>
+  <span class="bold"><strong>3DLabs GLINT R3 és Permedia3</strong></span>: VIDIX vezérl&#337; van
+  hozzá (pm3_vid). Kérlek olvasd el a <a href="output-trad.html#vidix" title="8.2.13. VIDIX">VIDIX</a> fejezetet
+  b&#337;vebb infókért!
+  </p></li><li><p>
+  <span class="bold"><strong>Egyéb kártyák</strong></span>: nincs a fentiekben?
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    Próbáld ki, hogy az XFree86 vezérl&#337; (és a kártyád) támogatja-e a hardveres
+    gyorsítást! Lásd az <a href="output-trad.html#xv" title="8.2.1. Xv">Xv</a> fejezetet a részletekért!
+    </li><li>
+    Ha nem, akkor a kártyád videós tulajdonságai nem támogatottak az operációs rendszered
+    alatt. :( Ha a hardveres méretezés m&#369;ködik Windows alatt, az nem jelenti azt, hogy
+    Linux vagy más operációs rendszer alatt is fog menni, ez a vezérl&#337;t&#337;l függ.
+    A legtöbb gyártó sem Linuxos vezérl&#337;t nem ad ki, sem a chip-jei specifikációját -
+    így hát peched van, ha az &#337; kártyájukat használod.
+    Lásd <a href="video-cards.html#non-yuv-cards">Nem YUV-os kártyák</a>.
+    </li></ul></div><p>
+  </p></li></ul></div><p>
+</p></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="non-yuv-cards"></a>2.2.2. Nem YUV-os kártyák</h3></div></div></div><p>
+A teljes képerny&#337;s lejátszás vagy a <span class="bold"><strong>szoftveres méretezés</strong></span>
+engedélyezésével (használd a <tt class="option">-zoom</tt> vagy a <tt class="option">-vf</tt> kapcsolót,
+de figyelmeztetlek: lassú lesz), vagy egy kisebb, pl. 352x288-as felbontásra való átváltással
+lehetséges. Ha nincs YUV gyorsításod, az utóbbi módszer javasolt.
+A videó mód váltást a <tt class="option">-vm</tt> kapcsolóval engedélyezheted, mely a következ&#337;
+vezérl&#337;kkel m&#369;ködik:
+</p><div class="itemizedlist"><ul type="disc"><li>
+  <span class="bold"><strong>használsz</strong></span> XFree86-t: részleteket lásd a <a href="output-trad.html#dga" title="8.2.2. DGA">DGA vezérl&#337;r&#337;l</a>
+  és az <a href="output-trad.html#x11" title="8.2.12. X11">X11 vezérl&#337;r&#337;l</a> szóló fejezetekben. A DGA a javasolt! Megpróbálhatod
+  a DGA-t SDL-en keresztül is, van amikor az a jobb.
+  </li><li>
+  <span class="bold"><strong>nem használsz</strong></span> XFree86-t: próbáld ezeket a vezérl&#337;ket ebben a sorrendben
+  <a href="output-trad.html#vesa" title="8.2.11. VESA - kimenet a VESA BIOS-hoz">vesa</a>,
+  <a href="output-trad.html#fbdev" title="8.2.5. Framebuffer kimenet (FBdev)">fbdev</a>,
+  <a href="output-trad.html#svgalib" title="8.2.4. SVGAlib">svgalib</a>,
+  <a href="output-trad.html#aalib" title="8.2.9. AAlib - szöveges módú megjelenítés">aalib</a>.
+  </li></ul></div><p>
+</p></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="cirrus-logic-cards"></a>2.2.3. Cirrus-Logic kártyák</h3></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+  GD 7548: alaplapi vezérl&#337;, Compaq Armada 41xx notebook sorozatban tesztelve.
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    XFree86 3: 8/16bpp módban m&#369;ködik. Bár a vezérl&#337; borzasztóan lassú
+    és hibás 800x600@16bpp-ben. <span class="bold"><strong>Javasolt: 640x480@16bpp</strong></span>
+   </li><li>
+    XFree86 4: az Xserver kifagy rögtön indítás után, ha a gyorsítás nincs kikapcsolva,
+    de akkor meg az egész cucc lassabb lesz, mint az XFree86 3. Nincs XVideo.
+   </li><li>
+    FBdev: a framebuffer-t a <code class="systemitem">clgenfb</code> kernel vezérl&#337;vel tudod
+    bekapcsolni, de nekem csak 8bpp-ben m&#369;ködött, így használhatatlan.
+    A clgenfb forrását ki kell egészíteni a 7548 ID-vel fordítás el&#337;tt.
+   </li><li>
+    VESA: a kártya csak a VBE 1.2-t ismeri, így a VESA kimenet nem használható. UniVBE-vel
+    sem lehet megkerülni.
+  </li><li>
+    SVGAlib: régebbi Cirrus chip-nek ismeri fel. Használható de lassú a <tt class="option">-bpp 8</tt> kapcsolóval.
+  </li></ul></div><p>
+</p></li></ul></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="softreq.html">El&#337;z&#337;</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Fel</a></td><td width="40%" align="right"> <a accesskey="n" href="sound-cards.html">Következ&#337;</a></td></tr><tr><td width="40%" align="left" valign="top">2.1. Szoftver követelmények </td><td width="20%" align="center"><a accesskey="h" href="index.html">Tartalom</a></td><td width="40%" align="right" valign="top"> 2.3. Hangkártyák</td></tr></table></div></body></html>

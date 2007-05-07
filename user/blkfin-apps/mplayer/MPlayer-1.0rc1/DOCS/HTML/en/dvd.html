@@ -1,0 +1,117 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>4.2. DVD playback</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="prev" href="drives.html" title="4.1. CD/DVD drives"><link rel="next" href="vcd.html" title="4.3. VCD playback"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">4.2. DVD playback</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="drives.html">Prev</a> </td><th width="60%" align="center">Chapter 4. CD/DVD usage</th><td width="20%" align="right"> <a accesskey="n" href="vcd.html">Next</a></td></tr></table><hr></div><div class="sect1" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="dvd"></a>4.2. DVD playback</h2></div></div></div><p>
+For the complete list of available options, please read the man page.
+The syntax to play a standard DVD is as follows:
+</p><pre class="screen">mplayer dvd://<em class="replaceable"><code>&lt;track&gt;</code></em> [-dvd-device <em class="replaceable"><code>&lt;device&gt;</code></em>]</pre><p>
+</p><p>
+Example:
+</p><pre class="screen">mplayer dvd://1 -dvd-device /dev/hdc</pre><p>
+</p><p>
+If you have compiled <span class="application">MPlayer</span> with dvdnav support, the
+syntax is the same, except that you need to use dvdnav:// instead of dvd://.
+</p><p>
+The default DVD device is <tt class="filename">/dev/dvd</tt>. If your setup
+differs, make a symlink or specify the correct device on the command
+line with the <tt class="option">-dvd-device</tt> option.
+</p><p>
+<span class="application">MPlayer</span> uses <code class="systemitem">libdvdread</code> and
+<code class="systemitem">libdvdcss</code> for DVD playback and decryption. These two
+libraries are contained in the <tt class="filename">libmpdvdkit2</tt>
+subdirectory of the <span class="application">MPlayer</span> source tree, you do not have
+to install them separately. You can also use system-wide versions of the two
+libraries, but this solution is not recommended, as it can result in bugs,
+library incompatibilities and slower speed.
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>
+In case of DVD decoding problems, try disabling supermount, or any other such
+facilities. Some RPC-2 drives may also require setting the region code.
+</p></div><p><b>DVD structure. </b>
+DVD disks have 2048 bytes per sector with ECC/CRC. They usually have an UDF
+filesystem on a single track, containing various files (small .IFO and .BUK
+files and big (1GB) .VOB files). They are real files and can be copied/played
+from the mounted filesystem of an unencrypted DVD.
+</p><p>
+The .IFO files contain the movie navigation information (chapter/title/angle
+map, language table, etc) and are needed to read and interpret the .VOB content
+(movie). The .BUK files are backups of them. They use
+<span class="bold"><strong>sectors</strong></span> everywhere, so you need to use raw
+addressing of sectors of the disc to implement DVD navigation or decrypt the
+content.
+</p><p>
+DVD support needs raw sector-based access to the device. Unfortunately you must
+(under Linux) be root to get the sector address of a file. That's why we don't
+use the kernel's filesystem driver at all, instead we reimplement it in
+userspace. <code class="systemitem">libdvdread</code> 0.9.x and
+<code class="systemitem">libmpdvdkit</code> do this. The kernel UDF filesystem driver
+is not needed as they already have their own builtin UDF filesystem driver.
+Also the DVD does not have to be mounted as only the raw sector-based access is
+used.
+</p><p>
+Sometimes <tt class="filename">/dev/dvd</tt> cannot be read by users, so the
+<code class="systemitem">libdvdread</code> authors implemented an emulation layer
+which transfers sector addresses to filenames+offsets, to emulate raw
+access on top of a mounted filesystem or even on a hard disk.
+</p><p>
+<code class="systemitem">libdvdread</code> even accepts the mountpoint instead of
+the device name for raw access and checks <tt class="filename">/proc/mounts</tt>
+to get the device name. It was developed for Solaris, where device names
+are dynamically allocated.
+</p><p>
+The default DVD device is <tt class="filename">/dev/dvd</tt>. If your setup differs,
+make a symlink, or specify the correct device on the command line with the
+<tt class="option">-dvd-device</tt> option.
+</p><p><b>DVD decryption. </b>
+DVD decryption is done by <code class="systemitem">libdvdcss</code>. The method
+can be specified through the <code class="envar">DVDCSS_METHOD</code> environment
+variable, which can be set to key, disk or title.
+</p><p>
+If nothing is specified it tries the following methods (default: key,
+title request):
+</p><div class="orderedlist"><ol type="1"><li><p>
+<span class="bold"><strong>bus key</strong></span>: This key is negotiated during
+authentication (a long mix of ioctls and various key exchanges, crypto
+stuff) and is used to encrypt the title and disk keys before sending them
+over the unprotected bus (to prevent eavesdropping). The bus key is needed
+to get and predecrypt the crypted disk key.
+</p></li><li><p>
+<span class="bold"><strong>cached key</strong></span>: <span class="application">MPlayer</span>
+looks for already cracked title keys which are stored in the
+<tt class="filename">~/.dvdcss</tt> directory (fast).
+</p></li><li><p>
+<span class="bold"><strong>key</strong></span>: If no cached key is available,
+<span class="application">MPlayer</span> tries to decrypt the disk key with a set
+of included player keys.
+</p></li><li><p>
+<span class="bold"><strong>disk</strong></span>: If the key method fails
+(e.g. no included player keys), <span class="application">MPlayer</span>
+will crack the disk key using a brute force algorithm. This process
+is CPU intensive and requires 64 MB of memory (16M 32Bit entries hash
+table) to store temporary data. This method should always work (slow).
+</p></li><li><p>
+<span class="bold"><strong>title request</strong></span>: With the disk key
+<span class="application">MPlayer</span> requests the crypted title keys,
+which are inside <span class="emphasis"><em>hidden sectors</em></span> using <code class="systemitem">ioctl()</code>.
+The region protection of RPC-2 drives is performed in this step and may fail on such drives.
+If it succeeds, the title keys will be decrypted with the bus and disk key.
+</p></li><li><p>
+<span class="bold"><strong>title</strong></span>: This method is used if the title
+request failed and does not rely on any key exchange with the DVD drive.
+It uses a crypto attack to guess the title key directly (by finding a
+repeating pattern in the decrypted VOB content and guessing that the
+plain text corresponding to the first encrypted bytes is a continuation
+of that pattern). The method is also known as "known plaintext attack"
+or "DeCSSPlus". In rare cases this may fail because there is not
+enough encrypted data on the disk to perform a statistical attack or because
+the key changes in the middle of a title. This method is the only way to
+decrypt a DVD stored on a hard disk or a DVD with the wrong region on an
+RPC2 drive (slow).
+</p></li></ol></div><p>
+RPC-1 DVD drives only protect region settings through software. RPC-2 drives
+have a hardware protection that allows 5 changes only. It might be
+needed/recommended to upgrade the firmware to RPC-1 if you have a RPC-2 DVD
+drive. You can try finding firmware upgrades for your drive on the internet,
+<a href="http://forum.rpc-1.com/dl_all.php" target="_top">this firmware forum</a>
+may be a good starting point for your search.
+If there is no firmware upgrade available for your device, use the
+<a href="http://linvdr.org/projects/regionset/" target="_top">regionset tool</a>
+to set the region code of your DVD drive (under Linux).
+<span class="bold"><strong>Warning</strong></span>: You can only set the region 5 times.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="drives.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="cd-dvd.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="vcd.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">4.1. CD/DVD drives </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> 4.3. VCD playback</td></tr></table></div></body></html>

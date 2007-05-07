@@ -1,0 +1,63 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>2.5. Możliwości</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="install.html" title="Rozdział 2. Instalacja"><link rel="prev" href="sound-cards.html" title="2.4. Karty dźwiękowe"><link rel="next" href="gui.html" title="2.6. A co z GUI?"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.5. Możliwości</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="sound-cards.html">Poprzedni</a> </td><th width="60%" align="center">Rozdział 2. Instalacja</th><td width="20%" align="right"> <a accesskey="n" href="gui.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="features"></a>2.5. Możliwości</h2></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+  Zdecyduj czy potrzebujesz GUI. Jeśli tak, przeczytaj rozdział <a href="gui.html" title="2.6. A co z GUI?">GUI
+  </a> przed kompilacją.
+  </p></li><li><p>
+  Jeżeli chcesz zainstalować <span class="application">MEncodera</span> (naszego
+  wspaniałego enkodera do wszelkich celów), przeczytaj sekcję <a href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera">
+  <span class="application">MEncoder</span></a>.
+  </p></li><li><p>
+  Jeżeli masz <span class="bold"><strong>tuner TV</strong></span> kompatybilny z V4L i
+  chcesz oglądać/przechwytywać i kodować filmy przy pomocy <span class="application">MPlayera</span>,
+  przeczytaj rozdział <a href="tv-input.html" title="10.1. Wejście TV">wejście TV</a>.
+  </p></li><li><p>
+  Dostępne jest miłe, gotowe do użycia <span class="bold"><strong>Menu OSD</strong></span>.
+  Przeczytaj rozdział <a href="subosd.html" title="2.7. Napisy i OSD">menu OSD</a>.
+  </p></li></ul></div><p>
+Potem skompiluj <span class="application">MPlayera</span>:
+</p><pre class="screen">
+./configure
+make
+make install</pre><p>
+</p><p>
+W tym momencie <span class="application">MPlayer</span> jest już gotowy do użycia.
+Katalog <tt class="filename">$PREFIX/share/mplayer</tt>
+zawiera plik <tt class="filename">codecs.conf</tt>, który informuje program o
+wszystkich, dostępnych kodekach i ich możliwościach. Plik ten potrzebny Ci
+będzie tylko wtedy, jeżeli będziesz chciał zmodyfikować jego ustawienia, jako że
+plik wykonywalny zawiera go już w sobie. Sprawdź czy masz
+<tt class="filename">codecs.conf</tt> ze starych wersji
+<span class="application">MPlayera</span> w swoim katalogu domowym
+(<tt class="filename">~/.mplayer/codecs.conf</tt>) i usuń go.
+</p><p>
+Zauważ, że jeżeli masz <tt class="filename">codecs.conf</tt> w
+<tt class="filename">~/.mplayer/</tt>, wbudowany i systemowy
+<tt class="filename">codecs.conf</tt> będą całkowicie zignorowane.
+Nie rób tak, chyba że chcesz pobawić się z ustawieniami wewnętrznymi
+<span class="application">MPlayera</span>, ponieważ może to spowodować wiele
+problemów. Jeżeli chcesz zmienić kolejność szukania kodeków, skorzystaj
+z opcji <tt class="option">-vc</tt>, <tt class="option">-ac</tt>, <tt class="option">-vfm</tt>
+lub <tt class="option">-afm</tt> w linii poleceń, lub w Twoim pliku konfiguracyjnym
+(sprawdź stronę man).
+</p><p>
+Użytkownicy Debiana mogą sobie zbudować paczkę .deb, jest
+to bardzo proste. Wykonaj
+</p><pre class="screen">fakeroot debian/rules binary</pre><p>
+w głównym katalogu <span class="application">MPlayera</span>. Przeczytaj rozdział
+<a href="linux.html#debian" title="12.1.1. Pakiety Debiana">paczki Debiana</a>, aby uzyskać więcej informacji.
+</p><p>
+<span class="bold"><strong>Zawsze przejrzyj wyniki</strong></span>
+<tt class="filename">./configure</tt> i plik
+<tt class="filename">configure.log</tt>, zawierają one informacje o tym, co będzie zbudowane,
+a co nie. Możesz również obejrzeć pliki
+<tt class="filename">config.h</tt> i <tt class="filename">config.mak</tt>.
+Jeżeli masz zainstalowane jakieś biblioteki, ale nie są one wykrywane przez
+<tt class="filename">./configure</tt>, sprawdź czy masz również odpowiednie
+pliki nagłówkowe (przeważnie pakiety -dev) i ich wersje się zgadzają. Plik
+<tt class="filename">configure.log</tt> zazwyczaj powie Ci, czego brakuje.
+</p><p>
+Chociaż nie jest to konieczne, czcionki powinny być zainstalowane, żebyś mógł
+korzystać z OSD i napisów. Zalecana jest instalacja czcionki TTF i ustawienie
+<span class="application">MPlayera</span> tak, żeby z niej korzystał. Przeczytaj
+rozdział <a href="subosd.html" title="2.7. Napisy i OSD">Napisy i OSD</a> dla uzyskania bardziej
+szczegółowych informacji.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="sound-cards.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="gui.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">2.4. Karty dźwiękowe </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> 2.6. A co z GUI?</td></tr></table></div></body></html>

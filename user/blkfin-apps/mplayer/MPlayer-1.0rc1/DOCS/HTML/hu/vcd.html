@@ -1,0 +1,67 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>4.3. VCD lejátszás</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="prev" href="dvd.html" title="4.2. DVD lejátszás"><link rel="next" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="preface" href="howtoread.html" title="Hogyan olvasd ezt a dokumentációt"><link rel="chapter" href="intro.html" title="1. fejezet - Bevezetés"><link rel="chapter" href="install.html" title="2. fejezet - Telepítés"><link rel="chapter" href="usage.html" title="3. fejezet - Használat"><link rel="chapter" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="chapter" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="chapter" href="containers.html" title="6. fejezet - Konténerek"><link rel="chapter" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="chapter" href="video.html" title="8. fejezet - Videó kimeneti eszközök"><link rel="chapter" href="audio.html" title="9. fejezet - Audió kimeneti eszközök"><link rel="chapter" href="tv.html" title="10. fejezet - TV"><link rel="chapter" href="radio.html" title="11. fejezet - Rádió"><link rel="chapter" href="ports.html" title="12. fejezet - Portok"><link rel="chapter" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="chapter" href="encoding-guide.html" title="14. fejezet - Kódolás a MEncoderrel"><link rel="appendix" href="bugreports.html" title="A. függelék - Hogyan jelentsd a hibákat"><link rel="appendix" href="bugs.html" title="B. függelék - Ismert hibák"><link rel="appendix" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="appendix" href="history.html" title="D. függelék - Történelem"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">4.3. VCD lejátszás</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="dvd.html">El&#337;z&#337;</a> </td><th width="60%" align="center">4. fejezet - CD/DVD használat</th><td width="20%" align="right"> <a accesskey="n" href="faq.html">Következ&#337;</a></td></tr></table><hr></div><div class="sect1" lang="hu"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="vcd"></a>4.3. VCD lejátszás</h2></div></div></div><p>
+A használható kapcsolók teljes listájáért olvasd el a man oldalt. Egy szabványos
+Video CD (VCD) szintaxisa a következ&#337;:
+</p><pre class="screen">mplayer vcd://<em class="replaceable"><code>&lt;sáv&gt;</code></em> [-cdrom-device <em class="replaceable"><code>&lt;eszköz&gt;</code></em>]</pre><p>
+Például:
+</p><pre class="screen">mplayer vcd://<em class="replaceable"><code>2</code></em> -cdrom-device <em class="replaceable"><code>/dev/hdc</code></em></pre><p>
+Az alapértelmezett VCD eszköz a <tt class="filename">/dev/cdrom</tt>. Ha a te beállításaid
+különböz&#337;ek, készíts egy szimbolikus linket vagy add meg a megfelel&#337; eszközt a
+parancssorban a <tt class="option">-cdrom-device</tt> kapcsolóval.
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Megjegyzés</h3><p>
+A Plextor és néhány Toshiba SCSI CD-ROM meghajtónak borzalmas a teljesítménye
+CVD olvasáskor. Ez azért van, mert a CDROMREADRAW <code class="systemitem">ioctl</code>
+nincs teljesen implementálva ezekben a meghajtókban. Ha ismered a SCSI programozást,
+kérlek <a href="../../tech/patches.txt" target="_top">segíts nekünk</a> egy általános
+SCSI támogatás elkészítésében VCD-khez.
+</p></div><p>
+Addig is kinyerheted az adatokat a VCD-r&#337;l a
+<a href="http://ftp.ntut.edu.tw/ftp/OS/Linux/packages/X/viewers/readvcd/" target="_top">readvcd</a>
+segítségével, majd az eredményül kapott fájlt lejátszhatod az <span class="application">MPlayer</span>rel.
+</p><p><b>VCD struktúra. </b>
+Egy Video CD (VCD) CD-ROM XA szektorokból áll, pl. CD-ROM 2-es módban
+1-es és 2-es formátumú sávok:</p><div class="itemizedlist"><ul type="disc"><li><p>
+Az els&#337; sáv 2-es módban, 2-es formátumban van, ami azt jelenti, hogy L2
+hibajavítást használ. A sáv ISO-9660 fájlrendszert tartalmaz 2048
+bájt/szektorral. Ez a fájlrendszer VCD metaadat információkat tartalmaz,
+valamint gyakran a menükben alkalmazott képkockákat. A menük MPEG
+szegmensei is ezen az els&#337; sávon tárolhatóak, de az MPEG-eket fel kell
+osztani 150 szektoros csonkokra. Az ISO-9660 fájlrendszer tartalmazhat
+egyéb fájlokat vagy programokat, amik a VCD m&#369;ködése szempontjából nem
+lényegesek.
+</p></li><li><p>
+A második és a további sávok általában nyers 2324 bájt/szektor formátumú
+MPEG (film) sáv, mely egy MPEG PS adat csomagot tartalmaz szektoronként.
+Ezek 2-es mód 1-es formátumban vannak, így több adatot tárolnak szektoronként
+némi hibajavítás elveszítése árán. Lehet CD-DA sáv is a VCD-n az els&#337;
+sáv után. Némelyik operációs rendszeren van egy kis csalás, amivel ezek
+a nem-ISO-9660 sávok megjelennek a fájlrendszerben. Más operációs
+rendszereken, például GNU/Linux-on ez nem így van (még). Itt az MPEG
+adat <span class="bold"><strong>nem mountolható</strong></span>. Mivel a legtöbb
+film ilyen típusú sávon belül van, el&#337;ször próbáld ki a <tt class="option">vcd://2</tt>
+-t.</p></li><li><p>
+Léteznek olyan VCD lemezek is, melyeken nincs meg az els&#337; sáv (egy sáv és
+egyáltalán nincs fájlrendszer). Ezek szintén lejátszhatóak, de nem lehet
+&#337;ket becsatolni.
+</p></li><li><p>A Video CD szabvány definícióját a Philips "Fehér könyv"-nek
+nevezte el és nem szabadon hozzáférhet&#337;, a Philipst&#337;l kell megvásárolni.
+A Video CD-kr&#337;l sokkal részletesebb információt találhatsz a
+<a href="http://www.vcdimager.org/pub/vcdimager/manuals/0.7/vcdimager.html#SEC4" target="_top">vcdimager dokumentációjában</a>.
+</p></li></ul></div><p><b>A .DAT fájlokról. </b>
+A becsatolt VCD els&#337; sávján látható ~600 MB fájl valójában nem igazi fájl!
+Ez egy úgynevezett ISO átjáró, azért hozták létre, hogy a Windows kezelni
+tudja ezen sávokat (a Windows semmilyen módon sem engedi a közvetlen eszköz
+elérést az alkalmazásoknak). Linux alatt nem tudod átmásolni vagy lejátszani
+az ilyen fájlokat (szemét van bennük). Windows alatt lehetséges, mivel az
+iso9660 vezérl&#337;je a sávok nyers olvasását emulálja ebben a fájlban. A .DAT
+fájlok lejátszásához szükséged lesz egy kernel vezérl&#337;re, ami a PowerDVD
+Linuxos verziójában található. Ez egy módosított iso9660 fájlrendszer vezérl&#337;t
+(<tt class="filename">vcdfs/isofs-2.4.X.o</tt>) tartalmaz, ami képes a nyers sáv
+emulációra ezen ál .DAT fájlon keresztül. Ha az &#337; vezérl&#337;jük segítségével
+csatolod be a lemezt, át tudod másolni és le tudod játszani a .DAT fájlt az
+<span class="application">MPlayer</span>rel. A Linux kernel szabványos iso9660
+vezérl&#337;jével ez nem megy! Használd a <tt class="option">vcd://</tt>-t helyette.
+VCD másolásához alternatíva az új <a href="http://www.elis.rug.ac.be/~ronsse/cdfs/" target="_top">cdfs</a>
+kernel vezérl&#337; (nem része a hivatalos kernelnek) ami a CD meneteket kép fájlok
+formájában mutatja, és a <a href="http://cdrdao.sf.net/" target="_top">cdrdao</a>,
+egy bitr&#337;l-bitre grabbel&#337;/másoló program.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="dvd.html">El&#337;z&#337;</a> </td><td width="20%" align="center"><a accesskey="u" href="cd-dvd.html">Fel</a></td><td width="40%" align="right"> <a accesskey="n" href="faq.html">Következ&#337;</a></td></tr><tr><td width="40%" align="left" valign="top">4.2. DVD lejátszás </td><td width="20%" align="center"><a accesskey="h" href="index.html">Tartalom</a></td><td width="40%" align="right" valign="top"> 5. fejezet - Gyakran ismételt kérdések</td></tr></table></div></body></html>

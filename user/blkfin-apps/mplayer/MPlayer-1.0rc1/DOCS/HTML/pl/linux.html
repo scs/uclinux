@@ -1,0 +1,61 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>12.1. Linux</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="ports.html" title="Rozdział 12. Porty"><link rel="prev" href="ports.html" title="Rozdział 12. Porty"><link rel="next" href="bsd.html" title="12.2. *BSD"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"><link rel="subsection" href="linux.html#debian" title="12.1.1. Pakiety Debiana"><link rel="subsection" href="linux.html#rpm" title="12.1.2. Pakiety RPM"><link rel="subsection" href="linux.html#arm" title="12.1.3. ARM"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">12.1. Linux</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="ports.html">Poprzedni</a> </td><th width="60%" align="center">Rozdział 12. Porty</th><td width="20%" align="right"> <a accesskey="n" href="bsd.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="linux"></a>12.1. Linux</h2></div></div></div><p>
+Główną platformą rozwojową jest Linux x86, chociaż
+<span class="application">MPlayer</span> pracuje również na wielu innych portach
+tego systemu. Pakiety binarne są dostępne z kilku źródeł, jednakże
+<span class="bold"><strong>żaden z nich nie jest przez nas obsługiwany</strong></span>.
+Zgłaszaj problemy do ich opiekunów, a nie do nas.
+</p><div class="sect2" lang="pl"><div class="titlepage"><div><div><h3 class="title"><a name="debian"></a>12.1.1. Pakiety Debiana</h3></div></div></div><p>
+Aby zbudować pakiet dla Debiana, wywołaj poniższe polecenie w katalogu ze źródłami
+<span class="application">MPlayera</span>:
+
+</p><pre class="screen">fakeroot debian/rules binary</pre><p>
+
+Jeśli chcesz przekazać własne opcje do skryptu configure, możesz ustawić zmienną
+środowiskową <code class="envar">DEB_BUILD_OPTIONS</code>. Na przykład, jeśli chcesz
+obsługi menu i GUI, wyglądało by to tak:
+
+</p><pre class="screen">DEB_BUILD_OPTIONS="--enable-gui --enable-menu" fakeroot debian/rules binary</pre><p>
+
+Możesz przekazać również niektóre zmienne do Makefile. Na przykład, jeśli chcesz
+kompilować przy pomocy gcc 3.4, nawet jeśli nie jest to domyślny kompilator:
+
+</p><pre class="screen">CC=gcc-3.4 DEB_BUILD_OPTIONS="--enable-gui" fakeroot debian/rules binary</pre><p>
+
+Aby wyczyściś katalog ze źródłami wykonaj poniższa komendę:
+
+</p><pre class="screen">fakeroot debian/rules clean</pre><p>
+
+Jako superużytkownik możesz zainstalować pakiet <tt class="filename">.deb</tt> tak, jak zwykle:
+
+</p><pre class="screen">dpkg -i ../mplayer_<em class="replaceable"><code>wersja</code></em>.deb</pre><p>
+</p><p>
+Christian Marillat buduje dla Debiana nieoficjalne paczki
+<span class="application">MPlayera</span>, <span class="application">MEncodera</span>
+i naszych czcionek bitmapowych już od jakiegoś czasu, możesz je pobrać (apt-get)
+z <a href="http://www.debian-multimedia.org/" target="_top">jego strony domowej</a>.
+</p></div><div class="sect2" lang="pl"><div class="titlepage"><div><div><h3 class="title"><a name="rpm"></a>12.1.2. Pakiety RPM</h3></div></div></div><p>
+Dominik Mierzejewski tworzy i opiekuje się oficjalnymi pakietami RPM
+<span class="application">MPlayera</span> dla Red Hata i Fedora Core.
+Są one dostępne w jego
+<a href="http://rpm.greysector.net/mplayer/" target="_top">repozytorium</a>.
+</p><p>
+RPMy dla Mandrake/Mandriva są dostępne na <a href="http://plf.zarb.org/" target="_top">P.L.F.</a>.
+SuSE zawierał okrojoną wersję <span class="application">MPlayera</span> w dystrybucji.
+Usunęli ją w swoich najnowszych wydaniach. W pełni funkcjonalne
+pakiety możesz pobrać z
+<a href="http://packman.links2linux.de/?action=128" target="_top">links2linux.de</a>.
+</p></div><div class="sect2" lang="pl"><div class="titlepage"><div><div><h3 class="title"><a name="arm"></a>12.1.3. ARM</h3></div></div></div><p>
+<span class="application">MPlayer</span> działa również na PDA z procesorami ARM
+działających pod kontrolą Linuksa, np. Sharp Zaurus, Compaq iPAQ.
+Najprostszym sposobem, żeby uzyskać <span class="application">MPlayera</span>,
+jest pobranie go z odpowiedniego źródła pakietów (stable, testing, unstable)
+z witryny <a href="http://www.openzaurus.org" target="_top">OpenZaurus</a>. Jeżeli chcesz
+go skompilować samodzielnie, powinieneś przyjrzeć się katalogom
+<a href="http://openzaurus.bkbits.net:8080/buildroot/src/packages/mplayer?nav=index.html%7Csrc/.%7Csrc/packages" target="_top">mplayera</a>
+i biblioteki
+<a href="http://openzaurus.bkbits.net:8080/buildroot/src/packages/libavcodec?nav=index.html%7Csrc/.%7Csrc/packages" target="_top">libavcodec</a>
+w głównym katalogu źródłowym OpenZaurusa. Zawierają one najświeższe łatki
+i pliki Makefile, służące do samodzielnej kompilacji
+<span class="application">MPlayera</span> z <code class="systemitem">libavcodec</code>.
+Jeżeli potrzebujesz interfejsu GUI, możesz użyć xmms-embedded.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="ports.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="ports.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="bsd.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">Rozdział 12. Porty </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> 12.2. *BSD</td></tr></table></div></body></html>

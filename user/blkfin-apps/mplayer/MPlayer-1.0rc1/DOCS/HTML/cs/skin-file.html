@@ -1,0 +1,256 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>C.2. Soubor skin</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="prev" href="skin-overview.html" title="C.1. P&#345;ehled"><link rel="next" href="skin-fonts.html" title="C.3. Fonty"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="skin-file.html#skin-file-main" title="C.2.1. Hlavní okno a ovládací panel"><link rel="subsection" href="skin-file.html#skin-file-subwindow" title="C.2.2. Ovládací panel"><link rel="subsection" href="skin-file.html#skin-file-menu" title="C.2.3. Nabídka"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">C.2. Soubor skin</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="skin-overview.html">P&#345;edcházející</a> </td><th width="60%" align="center">P&#345;íloha C. Formát skin&#367; <span class="application">MPlayer</span>u</th><td width="20%" align="right"> <a accesskey="n" href="skin-fonts.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="skin-file"></a>C.2. Soubor skin</h2></div></div></div><p>
+Jak jsme ji&#382; &#345;ekli, je to konfigura&#269;ní soubor skinu. Soubor je &#345;ádkov&#283;
+orientován; &#345;ádky s komentá&#345;em za&#269;ínají znakem '<code class="literal">;</code>' (p&#345;ed ním
+jsou povoleny jen mezery a tabulátory).
+</p><p>
+Soubor je slo&#382;en ze sekcí. Ka&#382;dá sekce popisuje skin pro aplikaci a má
+následující formu:
+</p><pre class="programlisting">
+section = <em class="replaceable"><code>název cekce</code></em>
+.
+.
+.
+end
+</pre><p>
+</p><p>
+Zatím máme jen jednu aplikaci, tak&#382;e pot&#345;ebujete jen jednu sekci: její název je
+<span class="bold"><strong>movieplayer</strong></span>.
+</p><p>
+Uvnit&#345; sekce je ka&#382;dé okno posáno blokem, který má následující formu:
+</p><pre class="programlisting">
+window = <em class="replaceable"><code>název okna</code></em>
+.
+.
+.
+end
+</pre><p>
+</p><p>
+kde <em class="replaceable"><code>název okna</code></em> m&#367;&#382;e být jeden z t&#283;chto &#345;et&#283;zc&#367;:
+</p><div class="itemizedlist"><ul type="disc"><li><p><span class="bold"><strong>main</strong></span> - pro hlavní okno</p></li><li><p><span class="bold"><strong>sub</strong></span> - pro podokno</p></li><li><p><span class="bold"><strong>menu</strong></span> - pro nabídku</p></li><li><p><span class="bold"><strong>playbar</strong></span> - ovládací panel</p></li></ul></div><p>
+</p><p>
+(Bloky sub a menu jsou volitelné - nemusíte vytvá&#345;et nabídku nebo vyzdobit
+podokno.)
+</p><p>
+Uvnit&#345; window bloku m&#367;&#382;ete definovat ka&#382;dou polo&#382;ku okna &#345;ádkem v tomto tvaru:
+</p><pre class="programlisting">polo&#382;ka = parametr</pre><p>
+Kde <code class="literal">polo&#382;ka</code> je &#345;et&#283;zec ozna&#269;ující typ polo&#382;ky GUI a
+<code class="literal">parametr</code> je &#269;íselná nebo textová hodnota (nebo seznam hodnot
+odd&#283;lených &#269;árkami).
+</p><p>
+Dáte-li to v&#353;echno dohromady, celý soubor vypadá asi takto:
+</p><pre class="programlisting">
+section = movieplayer
+  window = main
+  ; ... polo&#382;ky hlavního okna ...
+  end
+
+  window = sub
+  ; ... polo&#382;ky podokna ...
+  end
+
+  window = menu
+  ; ... polo&#382;ky menu ...
+  end
+
+  window = playbar
+  ; ... polo&#382;ky ovládacího panelu ...
+  end
+end
+</pre><p>
+</p><p>
+Jméno souboru s obrázkem musí být zadáno bez úvodních adresá&#345;&#367; - obrázky jsou
+vyhledávány v adresá&#345;i <tt class="filename">skins</tt>.
+M&#283;li byste (ale nemusíte) zadat p&#345;íponu souboru. Pokud soubor neexistuje,
+zkou&#353;í <span class="application">MPlayer</span> na&#269;íst soubor
+<tt class="filename">&lt;jméno&gt;.&lt;p&#345;íp&gt;</tt>, kdy jsou za
+<tt class="filename">&lt;p&#345;íp&gt;</tt> zkou&#353;eny p&#345;ípony <code class="literal">png</code>
+a <code class="literal">PNG</code> (v tomto po&#345;adí). Pou&#382;itý bude první vyhovující soubor.
+</p><p>
+Nakonec je&#353;t&#283; pár slov k umís&#357;ování. Hlavní okno a podokno mohou být umíst&#283;ny
+v r&#367;zných rozích obrazovky zadáním sou&#345;adnic <code class="literal">X</code> a
+<code class="literal">Y</code>. <code class="literal">0</code> je naho&#345;e nebo vlevo,
+<code class="literal">-1</code> je st&#345;ed a <code class="literal">-2</code> je vpravo nebo dole, jak
+je vid&#283;t na obrázku:
+</p><div class="informalfigure"><pre class="screen">
+(0, 0)----(-1, 0)----(-2, 0)
+  |          |          |
+  |          |          |
+(0,-1)----(-1,-1)----(-2,-1)
+  |          |          |
+  |          |          |
+(0,-2)----(-1,-2)----(-2,-2)
+</pre></div><p>
+Aby bylo v&#353;e jasné, uvádíme p&#345;íklad. &#344;ekn&#283;me, &#382;e máte obrázek jménem
+<tt class="filename">main.png</tt>, který pou&#382;ijete pro hlavní okno:
+</p><pre class="programlisting">base = main, -1, -1</pre><p>
+<span class="application">MPlayer</span> zkusí na&#269;íst soubory <tt class="filename">main</tt>,
+<tt class="filename">main.png</tt>, <tt class="filename">main.PNG</tt>.
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="skin-file-main"></a>C.2.1. Hlavní okno a ovládací panel</h3></div></div></div><p>
+Ní&#382;e uvádíme seznam polo&#382;ek, které mohou být pou&#382;ity v blocích
+'<code class="literal">window = main</code>' ... '<code class="literal">end</code>',
+a '<code class="literal">window = playbar</code>' ... '<code class="literal">end</code>'.
+</p><div class="variablelist"><dl><dt><span class="term"><code class="literal">
+  <a name="skin-main-base"></a>base = obrázek, X, Y
+  </code></span></dt><dd><p>
+  Umo&#382;&#328;uje nastavit obrázek pozadí hlavního okna. Okno bude vykresleno na
+  zadaných sou&#345;adnicích <code class="literal">X,Y</code> na obrazovce a bude mít velikost
+  obrázku.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>Tyto koordináty zatím nefungují pro okno display.</p></div><div class="warning" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Varování</h3><p>Pr&#367;hledné oblasti v obrázku (obarvené #FF00FF) budou &#269;erné
+    na X serverech bez XShape roz&#353;í&#345;ení. &#352;í&#345;ka obrázku musí být celo&#269;íseln&#283;
+    d&#283;litelná 8.</p></div></dd><dt><span class="term"><code class="literal">
+  <a name="skin-button"></a>button = obrázek, X, Y, &#353;í&#345;ka, vý&#353;ka, zpráva
+  </code></span></dt><dd><p>
+  Umístí tla&#269;ítko rozm&#283;ru <code class="literal">&#353;í&#345;ka</code> * <code class="literal">vý&#353;ka</code>
+  na pozici <code class="literal">X,Y</code>. Zadaná <code class="literal">zpráva</code> je
+  generována p&#345;i kliku na tla&#269;ítko. Zadaný <code class="literal">obrázek</code> musí
+  mít t&#345;i &#269;ásti pod sebou (odpovídající mo&#382;ným stav&#367;m tla&#269;ítka) takto:
+</p><div class="informalfigure"><pre class="screen">
++------------+
+| stisknuto  |
++------------+
+|  uvoln&#283;no  |
++------------+
+|  zakázáno  |
++------------+
+</pre></div></dd><dt><span class="term"><code class="literal">
+  <a name="skin-decoration"></a>decoration = enable|disable
+  </code></span></dt><dd><p>
+  Zapne (enable) nebo vypne (disable) dekoraci hlavního okna, produkovanou
+  okenním mana&#382;erem. Výchozí je <span class="bold"><strong>disable</strong></span>.
+    </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>V okn&#283; display to nefunguje, není to pot&#345;eba.</p></div></dd><dt><span class="term"><code class="literal">
+  <a name="skin-hpotmeter"></a>hpotmeter = tla&#269;ítko, t&#353;í&#345;ka, tvý&#353;ka, fáze, po&#269;et_fází, výchozí, X, Y, &#353;í&#345;ka, vý&#353;ka, zpráva
+  </code></span></dt><dd><p>
+
+    </p></dd><dt><span class="term"><code class="literal">
+  <a name="skin-vpotmeter"></a>vpotmeter = tla&#269;ítko, t&#353;í&#345;ka, tvý&#353;ka, fáze, po&#269;et_fází, výchozí, X, Y, &#353;í&#345;ka, vý&#353;ka, zpráva
+  </code></span></dt><dd><p>
+  Umístí vodorovný (hpotmeter) nebo svislý (vpotmeter) potenciometr velikosti
+<code class="literal">&#353;í&#345;ka</code> * <code class="literal">vý&#353;ka</code> na pozici
+<code class="literal">X,Y</code>. Obrázek m&#367;&#382;e být rozd&#283;len do r&#367;zných &#269;ástí pro r&#367;zné
+fáze potenciometru (Nap&#345;íklad m&#367;&#382;ete mít potenciometr pro nastavení hlasitosti,
+jeho&#382; dráha se barví ze zelené na &#269;ervenou, jak se jeho hodnota m&#283;ní od nejmen&#353;í
+do nejv&#283;t&#353;í.). <code class="literal">hpotmeter</code> m&#367;&#382;e mít táhlo, které m&#367;&#382;e být
+vodorovn&#283; ta&#382;eno. Význam parametr&#367;:
+    </p><div class="itemizedlist"><ul type="disc"><li><p><code class="literal">tla&#269;ítko</code> - obrázek, ktrý se pou&#382;ije pro
+    tla&#269;ítko (musí mít t&#345;i &#269;ásti pod sebou, stejn&#283; jako v p&#345;ípad&#283; tohoto
+    <a href="skin-file.html#skin-button">tla&#269;ítka</a>)
+    </p></li><li><p><code class="literal">t&#353;í&#345;ka</code>, <code class="literal">tvý&#353;ka</code> - 
+    velikost tla&#269;ítka
+    </p></li><li><p><code class="literal">fáze</code> - obrázek pou&#382;itý pro r&#367;zné fáze
+   hpotmetru. Pokud &#382;ádný obrázek nechcete, m&#367;&#382;ete pou&#382;ít speciální hodnotu
+   <code class="literal">NULL</code>. Obrázek musí být rozd&#283;len svisle na
+   <code class="literal">po&#269;et_fází</code> &#269;ástí takto:
+    </p><div class="informalfigure"><pre class="screen">
++------------+
+|   fáze #1  |
++------------+
+|   fáze #2  |
++------------+
+     ...
++------------+
+|   fáze #n  |
++------------+
+</pre></div></li><li><p><code class="literal">po&#269;et_fází</code> - po&#269;et fází ulo&#382;ených v
+    obrázku <code class="literal">fáze</code>
+    </p></li><li><p><code class="literal">výchozí</code> - výchozí hodnota pro hpotmeter
+    (v rozsahu <code class="literal">0</code> a&#382; <code class="literal">100</code>)
+    </p></li><li><p><code class="literal">X</code>, <code class="literal">Y</code> - pozice pro hpotmeter
+    </p></li><li><p><code class="literal">&#353;í&#345;ka</code>, <code class="literal">vý&#353;ka</code> - &#353;í&#345;ka a vý&#353;ka
+    <code class="literal">hpotmeter</code>u
+    </p></li><li><p><code class="literal">zpráva</code> - zpráva generovaná p&#345;i zm&#283;n&#283;
+    hodnoty <code class="literal">hpotmeter</code>u
+    </p></li></ul></div></dd><dt><span class="term"><code class="literal">
+  <a name="skin-potmeter"></a>potmeter = fáze, po&#269;et_fází, výchozí, X, Y, &#353;í&#345;ka, vý&#353;ka, zpráva
+  </code></span></dt><dd><p>
+<code class="literal">hpotmeter</code> bez tla&#269;ítka. (soudil bych, &#382;e byl mín&#283;n jako
+oto&#269;ný, ale reaguje pouze na horizontální ta&#382;ení.) Popis parametr&#367; je stejný
+jako v <a href="skin-file.html#skin-hpotmeter">hpotmeter</a>.
+<code class="literal">fáze</code> mohou být <code class="literal">NULL</code>, ale je to vcelku
+k ni&#269;emu, jeliko&#382; nem&#367;&#382;ete vid&#283;t, jak je nastaven <code class="literal">potmeter</code>.
+    </p></dd><dt><span class="term"><code class="literal">
+  <a name="skin-font"></a>font = soubor_fontu, id_fontu
+  </code></span></dt><dd><p>
+Definuje font. <code class="literal">soubor_fontu</code> je jméno souboru popisu fontu
+s p&#345;íponou <tt class="filename">.fnt</tt> (zde p&#345;íponu nezadávejte).
+<code class="literal">id_fontu</code> je pou&#382;it jako ukazatel na font
+(viz <a href="skin-file.html#skin-dlabel">dlabel</a>
+a <a href="skin-file.html#skin-slabel">slabel</a>). Definováno m&#367;&#382;e být více ne&#382; 25 font&#367;.
+    </p></dd><dt><span class="term"><code class="literal">
+  <a name="skin-slabel"></a>slabel = X, Y, id_fontu, "text"
+  </code></span></dt><dd><p>
+Umístí statický popisek na pozici <code class="literal">X,Y</code>. <code class="literal">text</code>
+je zobrazen fontem identifikovaným pomocí <code class="literal">id_fontu</code>. Text je
+surový &#345;et&#283;zec (<code class="literal">$x</code> prom&#283;nné nefungují), který musí být uzav&#345;en
+ve dvojitých uvozovkách (ale znak " nesmí být sou&#269;ástí textu).
+Popisek je zobrazen fontem identifikovaným pomocí <code class="literal">id_fontu</code>.
+    </p></dd><dt><span class="term"><code class="literal">
+  <a name="skin-dlabel"></a>dlabel = X, Y, délka, zarovnání, id_fontu, "text"
+  </code></span></dt><dd><p>
+Umístí dynamický popisek na pozici <code class="literal">X,Y</code>. Popisek je
+dynamický proto, &#382;e je jeho text periodicky obnovován. Maximální délka
+popisku je nastavena na <code class="literal">délka</code> (jeho vý&#353;kou je vý&#353;ka znaku).
+Pokud je zobrazovaný text &#353;ir&#353;í, pak bude rolován,
+jinak bude zarovnán do ur&#269;eného prostoru podle hodnoty parametru
+<code class="literal">zarovnání</code>: <code class="literal">0</code> je zarovnání vpravo,
+<code class="literal">1</code> na st&#345;ed, <code class="literal">2</code> vlevo.
+</p><p>
+Text k zobrazení je zadán parametrem <code class="literal">text</code>: Musí být uzav&#345;en
+do dvojitých uvozovek (ale znak " nesmí být sou&#269;ástí textu).
+Popisek je zobrazen fontem identifikovaným pomocí <code class="literal">id_fontu</code>.
+V textu m&#367;&#382;ete pou&#382;ít tyto prom&#283;nné:
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Prom&#283;nná</th><th>Význam</th></tr></thead><tbody><tr><td>$1</td><td>&#269;as p&#345;ehrávání ve formátu <span class="emphasis"><em>hh:mm:ss</em></span></td></tr><tr><td>$2</td><td>&#269;as p&#345;ehrávání ve formátu <span class="emphasis"><em>mmmm:ss</em></span></td></tr><tr><td>$3</td><td>&#269;as p&#345;ehrávání ve formátu <span class="emphasis"><em>hh</em></span> (hodiny)</td></tr><tr><td>$4</td><td>&#269;as p&#345;ehrávání ve formátu <span class="emphasis"><em>mm</em></span> (minuty)</td></tr><tr><td>$5</td><td>&#269;as p&#345;ehrávání ve formátu <span class="emphasis"><em>ss</em></span> (sekundy)</td></tr><tr><td>$6</td><td>délka filmu ve formátu <span class="emphasis"><em>hh:mm:ss</em></span></td></tr><tr><td>$7</td><td>délka filmu ve formátu <span class="emphasis"><em>mmmm:ss</em></span></td></tr><tr><td>$8</td><td>&#269;as p&#345;ehrávání ve formátu <span class="emphasis"><em>h:mm:ss</em></span></td></tr><tr><td>$v</td><td>hlasitost ve formátu <span class="emphasis"><em>xxx.xx</em></span>%</td></tr><tr><td>$V</td><td>hlasitost ve formátu <span class="emphasis"><em>xxx.xx</em></span></td></tr><tr><td>$b</td><td>stereováha ve formátu <span class="emphasis"><em>xxx.xx</em></span>%</td></tr><tr><td>$B</td><td>stereováha ve formátu <span class="emphasis"><em>xxx.xx</em></span></td></tr><tr><td>$$</td><td>znak $</td></tr><tr><td>$a</td><td>znak podle typu audia (&#382;ádné: <code class="literal">n</code>,
+mono: <code class="literal">m</code>, stereo: <code class="literal">t</code>)</td></tr><tr><td>$t</td><td>&#269;íslo stopy (v playlistu)</td></tr><tr><td>$o</td><td>název souboru</td></tr><tr><td>$f</td><td>název souboru malými písmeny</td></tr><tr><td>$F</td><td>název souboru velkými písmeny</td></tr><tr><td>$T</td><td>znak podle typu datového proudu (soubor: <code class="literal">f</code>,
+Video CD: <code class="literal">v</code>, DVD: <code class="literal">d</code>, URL: <code class="literal">u</code>)</td></tr><tr><td>$p</td><td>znak <span class="keycap"><b>p</b></span> (pokud p&#345;ehráváte soubor a font obsahuje
+znak <span class="keycap"><b>p</b></span>)</td></tr><tr><td>$s</td><td>znak <span class="keycap"><b>s</b></span> character (pokud p&#345;ehráváte soubor a font obsahuje
+znak <span class="keycap"><b>s</b></span>)</td></tr><tr><td>$e</td><td>znak <span class="keycap"><b>e</b></span> (pokud je p&#345;ehrávání pozastaveno a font obsahuje
+znak <span class="keycap"><b>e</b></span>)</td></tr><tr><td>$x</td><td>&#353;í&#345;ka filmu</td></tr><tr><td>$y</td><td>vý&#353;ka filmu</td></tr><tr><td>$C</td><td>název pou&#382;itého kodeku</td></tr></tbody></table></div></dd></dl></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>
+Prom&#283;nné <code class="literal">$a, $T, $p, $s</code> a <code class="literal">$e</code>
+vracejí znaky, které by se m&#283;ly zobrazit jako speciální symboly (nap&#345;íklad
+<span class="keycap"><b>e</b></span> je symbol pro pauzu, který obvykle vypadá asi takto
+||). M&#283;li byste mít font pro normální znaky a jiný font pro
+symboly. Pro více informací viz sekci
+<a href="skin-fonts.html#skin-fonts-symbols" title="C.3.1. Symboly">symboly</a>.
+</p></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="skin-file-subwindow"></a>C.2.2. Ovládací panel</h3></div></div></div><p>
+Následující vstupy mohou být pou&#382;ity v bloku
+'<code class="literal">window = sub</code>' . . . '<code class="literal">end</code>'.
+</p><div class="variablelist"><dl><dt><span class="term"><code class="literal">
+  <a name="skin-sub-base"></a>base = obrázek, X, Y, &#353;í&#345;ka, vý&#353;ka
+  </code></span></dt><dd><p>
+Obrázek, který bude zobrazen v okn&#283;. Okno se zobrazí na pozici zadané
+sou&#345;adnicemi <code class="literal">X,Y</code> na obrazovce (<code class="literal">0,0</code> je
+levý horní roh). M&#367;&#382;ete nastavit <code class="literal">-1</code> pro st&#345;ed a <code class="literal">-2</code>
+pro vpravo (<code class="literal">X</code>) a dole (<code class="literal">Y</code>). Okno bude
+stejn&#283; velké jako obrázek. <code class="literal">&#353;í&#345;ka</code> a <code class="literal">vý&#353;ka</code>
+udávají velikost okna; jsou volitelné (pokud chybí, má okno rozm&#283;ry shodné
+s obrázkem).
+    </p></dd><dt><span class="term"><code class="literal">
+  <a name="skin-background"></a>background = R, G, B
+  </code></span></dt><dd><p>
+Umo&#382;&#328;uje nastavit barvu pozadí. To je u&#382;ite&#269;né, pokud je obrázek men&#353;í ne&#382;
+okno. <code class="literal">R</code>, <code class="literal">G</code> a <code class="literal">B</code>
+ozna&#269;ují &#269;ervenou, zelenou a modrou slo&#382;ku barvy (ka&#382;dá z nich je dekadická
+hodnota 0 a&#382; 255).
+    </p></dd></dl></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="skin-file-menu"></a>C.2.3. Nabídka</h3></div></div></div><p>
+Jak ji&#382; bylo d&#345;íve &#345;e&#269;eno, nabídka je zobrazena pomocí dvou obrázk&#367;. Normální
+polo&#382;ky nabídky jsou brány z obrázku ur&#269;eného polo&#382;kou <code class="literal">base</code>,
+zatímco aktuáln&#283; zvolený vstup je brán z obrázku ur&#269;eného polo&#382;kou
+<code class="literal">selected</code>. Musíte definovat pozici a rozm&#283;r ka&#382;dé polo&#382;ky
+nabídky.
+</p><p>
+Následující vstupy mohou být pou&#382;ity v bloku
+'<code class="literal">window = menu</code>'. . .'<code class="literal">end</code>'.
+</p><div class="variablelist"><dl><dt><span class="term"><code class="literal">
+  <a name="skin-menu-base"></a>base = obrázek
+  </code></span></dt><dd><p>
+Obrázek normálních polo&#382;ek nabídky.
+    </p></dd><dt><span class="term"><code class="literal">
+  <a name="skin-selected"></a>selected = obrázek
+  </code></span></dt><dd><p>
+Obrázek nabídky kde jsou v&#353;echny polo&#382;ky vybrány.
+    </p></dd><dt><span class="term"><code class="literal">
+  <a name="skin-menu"></a>menu = X, Y, &#353;í&#345;ka, vý&#353;ka, zpráva
+  </code></span></dt><dd><p>
+Definuje pozici <code class="literal">X,Y</code> a rozm&#283;r polo&#382;ky nabídky v obrázku.
+<code class="literal">zpráva</code> je zpráva, generovaná jakmile je uvoln&#283;no tla&#269;ítko
+my&#353;i nad polo&#382;kou.
+    </p></dd></dl></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="skin-overview.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="skin.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="skin-fonts.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">C.1. P&#345;ehled </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> C.3. Fonty</td></tr></table></div></body></html>

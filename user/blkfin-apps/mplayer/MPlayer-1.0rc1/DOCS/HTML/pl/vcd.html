@@ -1,0 +1,72 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>4.3. Odtwarzanie VCD</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="prev" href="dvd.html" title="4.2. Odtwarzanie DVD"><link rel="next" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">4.3. Odtwarzanie VCD</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="dvd.html">Poprzedni</a> </td><th width="60%" align="center">Rozdział 4. Używanie CD/DVD</th><td width="20%" align="right"> <a accesskey="n" href="faq.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="vcd"></a>4.3. Odtwarzanie VCD</h2></div></div></div><p>
+Pełna lista dostępnych opcji znajduje się na stronie man. Składnia dla
+standardowego Video CD (VCD) jest następująca:
+</p><pre class="screen">mplayer vcd://<em class="replaceable"><code>&lt;ścieżka&gt;</code></em> [-cdrom-device <em class="replaceable"><code>&lt;urządzenie&gt;</code></em>]</pre><p>
+Przykład:
+</p><pre class="screen">mplayer vcd://2 -cdrom-device /dev/hdc</pre><p>
+Domyślnym urządzeniem VCD jest <tt class="filename">/dev/cdrom</tt>. Jeśli
+Twoje ustawienia są inne, utwórz dowiązanie symboliczne
+lub podaj prawidłowe urządzenie w linii poleceń za pomocą opcji
+<tt class="option">-cdrom-device</tt>
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Notatka</h3><p>
+Przynajmniej napędy CD-ROM SCSI firmy Plextor i niektóre modele Toshiby
+mają beznadziejną wydajność przy odczycie VCD. Jest to spowodowane
+niekompletną implementacją <code class="systemitem">ioctl</code>'a CDROMREADRAW dla
+tych urządzeń. Jeśli masz jakieś pojęcie o programowaniu SCSI,
+<a href="../../tech/patches.txt" target="_top">pomóż nam</a> zaimplementować ogólną
+obsługę SCSI dla VCD.
+</p></div><p>
+W międzyczasie możesz wyciągać dane z VCD za pomocą
+<a href="http://ftp.ntut.edu.tw/ftp/OS/Linux/packages/X/viewers/readvcd/" target="_top">readvcd</a>
+i odtwarzać plik wynikowy za pomocą <span class="application">MPlayera</span>
+</p><p><b>Struktura VCD. </b>
+Video CD (VCD) składa się z sektorów CD-ROM XA, tzn. ścieżek CD-ROM 
+mode 2 form 1 i form 2:</p><div class="itemizedlist"><ul type="disc"><li><p>
+Pierwsza ścieżka jest w formacie mode 2 form 2, który oznacza użycie korekcji 
+błędów L2. Ścieżka ta zawiera system plików ISO-9660 o gęstości 2048 bajtów/sektor.
+Ten system plików z kolei zawiera metainformacje VCD, a także nieruchome klatki, często 
+używane w menu. Segmenty MPEG dla menu mogą także być składowane w tejże pierwszej 
+ścieżce, ale MPEGi muszą być podzielone na kawałki po 150 sektorów. System plików ISO-9660 
+może zawierać inne pliki bądź programy, niekonieczne dla eksploatacji VCD.
+</p></li><li><p>
+Druga i pozostałe ścieżki są zwykle ścieżkami video MPEG typu raw o gęstości 
+2324 bajtów/sektor, zawierającymi jeden pakiet danych MGEG PS na sektor.
+Ścieżki te są w formacje mode 2 form 1, więc przechowują one więcej danych 
+na sektor, w zamian za słabszą korekcję błędów. Możliwe są też ścieżki 
+CD-DA na VCD poza pierwszą ścieżką.
+Niektóre systemy operacyjne używają pewnych trików aby ścieżki nie zawierające 
+systemu plików ISO-9660 były widoczne w systemie plików. W pozostałych systemach, 
+jak na przykład w systemie GNU/Linux, nie ma takiej możliwości (jeszcze). W takim 
+przypadku dane MPEG <span class="bold"><strong>nie mogą być montowane</strong></span>. 
+Jako że większość filmów znajduje się na tego typu ścieżce,
+powinieneś spróbować na początek opcji <tt class="option">vcd://2</tt>.
+</p></li><li><p>
+Istnieją również płyty VCD bez pierwszej ścieżki (pojedyncza ścieżka i
+brak systemu plików w ogóle). Je również da się odtwarzać, ale nie da
+się ich montować.
+</p></li><li><p> Definicja standardu Video CD, nazywana "Białą Księgą"
+Phillipsa, generalnie nie jest dostępna online, musi być zakupiona u Phillipsa. 
+Bardziej szczegółowe informacje na temat Video CD można znaleźć na 
+<a href="http://www.vcdimager.org/pub/vcdimager/manuals/0.7/vcdimager.html#SEC4" target="_top">stronie 
+dokumentacji vcdimagera</a>.
+</p></li></ul></div><p><b>O plikach .DAT. </b>
+Plik o rozmiarze ok. 600 MB widoczny na pierwszej ścieżce zamontowanego VCD
+nie jest prawdziwym plikiem ! Jest on tzw. bramką ISO, utworzoną by
+Windows mógł obsługiwać takie ścieżki (Windows w ogóle nie zezwala aplikacjom
+na dostęp do urządzeń w trybie raw). Pod Linuksem nie możesz kopiować ani
+odtwarzać tych plików (zawierają "śmieci"). Pod Windows jest to możliwe, gdyż
+jego sterownik iso9660 symuluje odczyt ścieżek w trybie raw za pomocą tego
+pliku. By móc odtwarzać pliki .DAT, musisz mieć sterownik do jądra, który
+dostarczany jest z linuksową wersją PowerDVD. Posiada on zmodyfikowany sterownik
+systemu plików iso9660 (<tt class="filename">vcdfs/isofs-2.4.X.o</tt>), który jest w
+stanie symulować odczyt ścieżek w trybie raw za pomocą pliku .DAT. Jeśli
+podmontujesz płytę używając ich sterownika, możesz kopiować, a nawet odtwarzać
+pliki .DAT za pomocą <span class="application">MPlayera</span>. Ale nie będzie to
+działało za pomocą standardowego sterownika iso9660 dostarczonego z jądrem
+Linuksa! Zamiast tego użyj opcji <tt class="option">vcd://</tt>. Alternatywą dla
+kopiowania VCD jest nowy sterownik:
+<a href="http://www.elis.rug.ac.be/~ronsse/cdfs/" target="_top">cdfs</a> (nie jest
+częścią oficjalnego jądra), który wyświetla sesje CD jako pliki obrazów, oraz
+<a href="http://cdrdao.sf.net/" target="_top">cdrdao</a>, program do zgrywania
+płyt CD bit po bicie.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="dvd.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="cd-dvd.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="faq.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">4.2. Odtwarzanie DVD </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> Rozdział 5. FAQ - Często Zadawane Pytania</td></tr></table></div></body></html>

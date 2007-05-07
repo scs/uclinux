@@ -1,0 +1,83 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>8.4. Ostatní vizualiza&#269;ní hardware</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="prev" href="mpeg_decoders.html" title="8.3. MPEG dekodéry"><link rel="next" href="tvout.html" title="8.5. pODPORA TV výstupu"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="other.html#zr" title="8.4.1. Zr"><link rel="subsection" href="other.html#blinkenlights" title="8.4.2. Blinkenlights"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">8.4. Ostatní vizualiza&#269;ní hardware</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="mpeg_decoders.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 8. Výstupní video za&#345;ízení/rozhraní</th><td width="20%" align="right"> <a accesskey="n" href="tvout.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="other"></a>8.4. Ostatní vizualiza&#269;ní hardware</h2></div></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="zr"></a>8.4.1. Zr</h3></div></div></div><p>
+Toto je zobrazovací rozhraní (<tt class="option">-vo zr</tt>) pro mnoho MJPEG
+zachytávacích/p&#345;ehrávacích karet (testováno na DC10+ a Buz a m&#283;lo by pracovat
+i s LML33, tedy DC10). Rozhraní pracuje tak, &#382;e snímek zakóduje do JPEG a pak
+jej po&#353;le do karty. Pro enkódování do JPEG se pou&#382;ívá
+<code class="systemitem">libavcodec</code> a je pro n&#283; nezbytný.
+Ve speciálním <span class="emphasis"><em>cinerama</em></span> re&#382;imu m&#367;&#382;ete sledovat filmy
+v pravém &#353;irokoúhlém formátu, kterého je dosa&#382;eno tak, &#382;e máte dv&#283; promíta&#269;ky
+a dv&#283; MJPEG karty. V závislosti na rozli&#353;ení a nastavení kvality m&#367;&#382;e toto
+rozhraní vy&#382;adovat spoustu výkonu CPU. Nezapome&#328;te zadat
+<tt class="option">-framedrop</tt>, pokud je vá&#353; po&#269;íta&#269; p&#345;íli&#353; pomalý.
+Poznámka: M&#367;j AMD K6-2 350MHz je (s <tt class="option">-framedrop</tt>) vcelku
+adekvátní pro sledování materiálu o rozm&#283;ru VCD a pod&#353;kálovaných film&#367;.
+</p><p>
+Toto rozhraní komunikuje s jaderným modulem dostupným na
+<a href="http://mjpeg.sf.net" target="_top">http://mjpeg.sf.net</a>, tak&#382;e jej nejd&#345;íve musíte zprovoznit.
+P&#345;ítomnost MJPEG karty je autodetekována skriptem
+<tt class="filename">configure</tt>. Pokud detekce sel&#382;e, vynu&#357;te ji pomocí
+</p><pre class="screen">./configure --enable-zr</pre><p>
+</p><p>
+Výstup m&#367;&#382;e být ovliv&#328;ován n&#283;kolika volbami. Ob&#353;írný výklad t&#283;chto voleb
+naleznete v man stránce, krátký p&#345;ehled obr&#382;íte spu&#353;t&#283;ním
+</p><pre class="screen">mplayer -zrhelp</pre><p>
+</p><p>
+V&#283;ci jako &#353;kálování a OSD (display na obrazovce) nejsou tímto rozhraním pokryty,
+ale lze jich dosáhnout pomocí video filtr&#367;. Nap&#345;íklad m&#283;jte video o rozli&#353;ení
+512x272 a chcete jej p&#345;ehrávat na celé obrazovce p&#345;es DC10+, pak máte t&#345;i
+základní mo&#382;nosti, jak to ud&#283;lat. M&#367;&#382;ete &#353;kálovat video na &#353;í&#345;ku 768, 384 nebo
+192. Z d&#367;vodu výkonu a kvality si zvolíte &#353;kálování filmu na 384x204 pomocí
+bilineárního softwarového &#353;kálova&#269;e. P&#345;íkazový &#345;ádek je pak
+</p><pre class="screen">
+mplayer -vo zr -sws 0 -vf scale=384:204 <em class="replaceable"><code>film.avi</code></em>
+</pre><p>
+</p><p>
+O&#345;ezání lze provést <tt class="option">crop</tt> filtrem a samotným rozhraním.
+&#344;ekn&#283;me, &#382;e film je p&#345;íli&#353; &#353;iroký pro promítání na va&#353;í Buz a proto chcete
+pou&#382;ít <tt class="option">-zrcrop</tt> pro z&#367;&#382;ení filmu, pak byste m&#283;li pou&#382;ít
+následující p&#345;íkaz
+</p><pre class="screen">
+mplayer -vo zr -zrcrop 720x320+80+0 <em class="replaceable"><code>benhur.avi</code></em>
+</pre><p>
+</p><p>
+chcete-li pou&#382;ít filtr <tt class="option">crop</tt>, prove&#271;te
+</p><pre class="screen">
+mplayer -vo zr -vf crop=720:320:80:0 <em class="replaceable"><code>benhur.avi</code></em>
+</pre><p>
+</p><p>
+Zvlá&#353;tní p&#345;ípady <tt class="option">-zrcrop</tt> vyvolá re&#382;im
+<span class="emphasis"><em>cinerama</em></span>, tak&#382;e rozprost&#345;ete film na n&#283;kolik televizí nebo
+promíta&#269;ek, &#269;ím&#382; se vytvo&#345;í v&#283;t&#353;í obraz. P&#345;edpokládejme, &#382;e máte dv&#283; promíta&#269;ky.
+Levá je p&#345;ipojena k va&#353;í Buz na <tt class="filename">/dev/video1</tt> a
+pravý je p&#345;ipojen do va&#353;í DC10+ na <tt class="filename">/dev/video0</tt>.
+Film má rozli&#353;ení 704x288. P&#345;edpokládejme rovn&#283;&#382;, &#382;e pravá promíta&#269;ka je
+&#269;ernobílá a levá umí JPEG snímky s kvalitou 10, pak byste m&#283;li pou&#382;ít
+následující p&#345;íkaz
+</p><pre class="screen">
+mplayer -vo zr -zrdev /dev/video0 -zrcrop 352x288+352+0 -zrxdoff 0 -zrbw \
+          -zrcrop 352x288+0+0 -zrdev /dev/video1 -zrquality 10 \
+	  <em class="replaceable"><code>movie.avi</code></em>
+</pre><p>
+</p><p>
+Jak vidíte, volby uvedené p&#345;ed druhým <tt class="option">-zrcrop</tt> jsou p&#345;edány
+pouze do DC10+ a volby za druhým <tt class="option">-zrcrop</tt> do Buz.
+Maximální po&#269;et MJPEG karet zahrnutých do <span class="emphasis"><em>cinerama</em></span>
+re&#382;imu jsou &#269;ty&#345;i, tak&#382;e m&#367;&#382;ete sestavit zobrazovací st&#283;nu 2x2.
+</p><p>
+Nakonec d&#367;le&#382;ité upozorn&#283;ní: Nespou&#353;t&#283;jte ani nezastavujte XawTV na p&#345;ehrávacím
+za&#345;ízení b&#283;hem p&#345;ehrávání, zhavaru je vám po&#269;íta&#269;. M&#367;&#382;ete v&#353;ak
+<span class="bold"><strong>NEJD&#344;ÍV</strong></span> spustit XawTV a
+<span class="bold"><strong>PAK</strong></span> spustit <span class="application">MPlayer</span>,
+po&#269;kat a&#382; <span class="application">MPlayer</span> skon&#269;í a
+<span class="bold"><strong>PAK</strong></span> zastavit XawTV.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="blinkenlights"></a>8.4.2. Blinkenlights</h3></div></div></div><p>
+Toto rozhraní je schopno p&#345;ehrávání pomocí Blinkenlights UDP protokolu. Pokud
+nevíte co je <a href="http://www.blinkenlights.de/" target="_top">Blinkenlights</a>
+nebo jeho nástupce
+<a href="http://www.blinkenlights.de/arcade/" target="_top">Arcade</a>,
+zjist&#283;te si to. A&#269;koli je to dost mo&#382;ná nejmén&#283; pou&#382;ívané video výstupní
+rozhraní, bezpochyby je tím nejlep&#353;ím, co m&#367;&#382;e <span class="application">MPlayer</span>
+nabídnout. Sta&#269;í shlédnout n&#283;která z
+<a href="http://www.blinkenlights.de/video.en.html" target="_top">Blinkenlights dokumenta&#269;ních videí</a>.
+Na Arcade video m&#367;&#382;ete vid&#283;t výstupní rozhraní Blinkenlights v akci v 00:07:50.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="mpeg_decoders.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="video.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="tvout.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">8.3. MPEG dekodéry </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 8.5. pODPORA TV výstupu</td></tr></table></div></body></html>
