@@ -103,6 +103,9 @@ bool 'Build libPCRE'		CONFIG_LIB_LIBPCRE_FORCE
 bool 'Build libZ'		CONFIG_LIB_ZLIB_FORCE
 bool 'Build libATM'		CONFIG_LIB_LIBATM_FORCE
 bool 'Build libpng'		CONFIG_LIB_LIBPNG_FORCE
+if [ "$CONFIG_LIB_LIBPNG_FORCE" = "y" -o "$CONFIG_LIB_LIBPNG" = "y" ]; then
+	define_bool CONFIG_LIB_ZLIB y
+fi
 bool 'Build libjpeg'		CONFIG_LIB_LIBJPEG_FORCE
 bool 'Build libspeex'		CONFIG_LIB_SPEEX_FORCE
 bool 'Build libtool'		CONFIG_LIB_LIBTOOL_FORCE
