@@ -84,6 +84,7 @@ comment 'Force build (Normally built when required)'
 bool 'Build ALSA lib'		CONFIG_LIB_ALSA_LIB_FORCE
 bool 'Build dmalloc'		CONFIG_LIB_DMALLOC_FORCE
 bool 'Build flex'		CONFIG_LIB_FLEX_FORCE
+bool 'Build ffmpeg'		CONFIG_LIB_FFMPEG_FORCE
 bool 'Build libAES'		CONFIG_LIB_LIBAES_FORCE
 bool 'Build libDES'		CONFIG_LIB_LIBDES_FORCE
 bool 'Build libSSL'		CONFIG_LIB_LIBSSL_FORCE

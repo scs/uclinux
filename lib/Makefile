@@ -123,6 +123,8 @@ dir_$(CONFIG_LIB_LIBICONV)       += libiconv
 dir_$(CONFIG_LIB_LIBICONV_FORCE) += libiconv
 dir_$(CONFIG_LIB_LIBMPEG2)       += mpeg2dec
 dir_$(CONFIG_LIB_LIBMPEG2_FORCE) += mpeg2dec
+dir_$(CONFIG_LIB_FFMPEG)         += ffmpeg
+dir_$(CONFIG_LIB_FFMPEG_FORCE)   += ffmpeg
 
 # And build libraries in the prop directory last
 dir_y += $(wildcard $(ROOTDIR)/prop)
@@ -132,7 +134,7 @@ dir_y += $(wildcard $(ROOTDIR)/prop)
 all:
 	for i in $(dir_y) ; do make -C $$i || exit $$? ; done
 	-cd $(STAGEDIR) && sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" ./usr/lib/*.la
-	-cd $(STAGEDIR) && sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr/lib':" ./usr/lib/pkgconfig/*.pc
+	-cd $(STAGEDIR) && sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':" ./usr/lib/pkgconfig/*.pc
 
 ##############################################################################
 
