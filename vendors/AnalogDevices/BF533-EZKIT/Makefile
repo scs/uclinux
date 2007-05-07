@@ -135,11 +135,10 @@ else
 #  Note: we don't compress the cpio initramfs as the u-boot boot images
 #        take care of that for us ... no point in double compressing
 #
-	cd $(ROMFSDIR) && \
-	find . | cpio --quiet -H newc -o > $(IMAGEDIR)/rootfs.initramfs
-	( awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) ; \
+	( /bin/sh $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) ; \
+	  awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) ; \
 	  echo "slink /init /sbin/init 0755 0 0" ; \
-	) | $(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio - >> $(IMAGEDIR)/rootfs.initramfs
+	) | $(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio - > $(IMAGEDIR)/rootfs.initramfs
 	cp $(IMAGEDIR)/rootfs.initramfs $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
 
 	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
