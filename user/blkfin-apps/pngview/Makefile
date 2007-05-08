@@ -2,9 +2,7 @@ EXEC = pngview
 OBJS = pngview.o
 
 CFLAGS   += -Wall
-CPPFLAGS += -I$(ROOTDIR)/lib/libpng -I$(ROOTDIR)/lib/zlib
-LDFLAGS  += -L$(ROOTDIR)/lib/libpng -L$(ROOTDIR)/lib/zlib
-LDLIBS   += -lpng -lz -lm
+LDLIBS   += $(shell $(CONFIGURE_HOST)-pkg-config --libs libpng)
 
 all: $(EXEC)
 
