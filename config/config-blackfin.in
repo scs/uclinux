@@ -110,6 +110,11 @@ if [ "$CONFIG_USER_FFMPEG_APPS" = "y" ]; then
 	define_bool CONFIG_LIB_FFMPEG y
 fi
 bool    'MPlayer and mencode'           CONFIG_USER_MPLAYER
+if [ "$CONFIG_USER_MPLAYER" = "y" ]; then
+	# force libmad as it does fixed point decoding and only other
+	# choice is floating point which is unusable on Blackfin
+	define_bool CONFIG_LIB_LIBMAD y
+fi
 bool    'VLC'                           CONFIG_USER_VLC
 if [ "$CONFIG_USER_VLC" = "y" ]; then
 	define_bool CONFIG_LIB_FFMPEG y
