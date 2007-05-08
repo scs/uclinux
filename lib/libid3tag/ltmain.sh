@@ -1372,7 +1372,7 @@ EOF
       # but this is not reliable with gcc because gcc may use -mfoo to
       # select a different linker, different libraries, etc, while
       # -Wl,-mfoo simply passes -mfoo to the linker.
-      -m*)
+      -m*|-B*)
 	# Unknown arguments in both finalize_command and compile_command need
 	# to be aesthetically quoted because they are evaled later.
 	arg=`$echo "X$arg" | $Xsed -e "$sed_quote_subst"`
