@@ -84,6 +84,17 @@ else
 fi
 AM_CONDITIONAL(HAVE_LD_VERSION_SCRIPT, test "$have_ld_version_script" = "yes")
 
+if test "$have_ld_version_script" = "yes"; then
+    AC_MSG_CHECKING([for symbol prefix])
+    SYMBOL_PREFIX=`echo "PREFIX=__USER_LABEL_PREFIX__" \
+                   | ${CPP-${CC-gcc} -E} - 2>&1 \
+                   | ${EGREP-grep} "^PREFIX=" \
+                   | ${SED-sed} "s:^PREFIX=::"`
+    AC_SUBST(SYMBOL_PREFIX)
+    test "x$SYMBOL_PREFIX" = x && SYMBOL_PREFIX="none needed!"
+    AC_MSG_RESULT($SYMBOL_PREFIX)
+fi
+
 # Substitutions for .in files
 AC_SUBST(PNGLIB_VERSION)
 AC_SUBST(PNGLIB_MAJOR)

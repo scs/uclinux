@@ -879,6 +879,7 @@ LIBPNG_DEFINES
 LIBPNG_NO_MMX
 HAVE_LD_VERSION_SCRIPT_TRUE
 HAVE_LD_VERSION_SCRIPT_FALSE
+SYMBOL_PREFIX
 PNGLIB_VERSION
 PNGLIB_MAJOR
 PNGLIB_MINOR
@@ -20626,6 +20627,19 @@ else
 fi
 
 
+if test "$have_ld_version_script" = "yes"; then
+    { echo "$as_me:$LINENO: checking for symbol prefix" >&5
+echo $ECHO_N "checking for symbol prefix... $ECHO_C" >&6; }
+    SYMBOL_PREFIX=`echo "PREFIX=__USER_LABEL_PREFIX__" \
+                   | ${CPP-${CC-gcc} -E} - 2>&1 \
+                   | ${EGREP-grep} "^PREFIX=" \
+                   | ${SED-sed} "s:^PREFIX=::"`
+
+    test "x$SYMBOL_PREFIX" = x && SYMBOL_PREFIX="[none]"
+    { echo "$as_me:$LINENO: result: $SYMBOL_PREFIX" >&5
+echo "${ECHO_T}$SYMBOL_PREFIX" >&6; }
+fi
+
 # Substitutions for .in files
 
 
@@ -21503,6 +21517,7 @@ LIBPNG_DEFINES!$LIBPNG_DEFINES$ac_delim
 LIBPNG_NO_MMX!$LIBPNG_NO_MMX$ac_delim
 HAVE_LD_VERSION_SCRIPT_TRUE!$HAVE_LD_VERSION_SCRIPT_TRUE$ac_delim
 HAVE_LD_VERSION_SCRIPT_FALSE!$HAVE_LD_VERSION_SCRIPT_FALSE$ac_delim
+SYMBOL_PREFIX!$SYMBOL_PREFIX$ac_delim
 PNGLIB_VERSION!$PNGLIB_VERSION$ac_delim
 PNGLIB_MAJOR!$PNGLIB_MAJOR$ac_delim
 PNGLIB_MINOR!$PNGLIB_MINOR$ac_delim
@@ -21513,7 +21528,7 @@ compatlib!$compatlib$ac_delim
 LTLIBOBJS!$LTLIBOBJS$ac_delim
 _ACEOF
 
-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 21; then
+  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 22; then
     break
   elif $ac_last_try; then
     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5

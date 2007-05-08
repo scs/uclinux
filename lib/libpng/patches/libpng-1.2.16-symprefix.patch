@@ -1,0 +1,104 @@
+Since a version script is used which pokes around in symbol names, we need to
+poke around at the C ABI prefix as well
+
+--- libpng-1.2.16/configure.ac
++++ libpng-1.2.16/configure.ac
+@@ -84,6 +84,17 @@
+ fi
+ AM_CONDITIONAL(HAVE_LD_VERSION_SCRIPT, test "$have_ld_version_script" = "yes")
+ 
++if test "$have_ld_version_script" = "yes"; then
++    AC_MSG_CHECKING([for symbol prefix])
++    SYMBOL_PREFIX=`echo "PREFIX=__USER_LABEL_PREFIX__" \
++                   | ${CPP-${CC-gcc} -E} - 2>&1 \
++                   | ${EGREP-grep} "^PREFIX=" \
++                   | ${SED-sed} "s:^PREFIX=::"`
++    AC_SUBST(SYMBOL_PREFIX)
++    test "x$SYMBOL_PREFIX" = x && SYMBOL_PREFIX="none needed!"
++    AC_MSG_RESULT($SYMBOL_PREFIX)
++fi
++
+ # Substitutions for .in files
+ AC_SUBST(PNGLIB_VERSION)
+ AC_SUBST(PNGLIB_MAJOR)
+--- libpng-1.2.16/configure
++++ libpng-1.2.16/configure
+@@ -879,6 +879,7 @@
+ LIBPNG_NO_MMX
+ HAVE_LD_VERSION_SCRIPT_TRUE
+ HAVE_LD_VERSION_SCRIPT_FALSE
++SYMBOL_PREFIX
+ PNGLIB_VERSION
+ PNGLIB_MAJOR
+ PNGLIB_MINOR
+@@ -20626,6 +20627,19 @@
+ fi
+ 
+ 
++if test "$have_ld_version_script" = "yes"; then
++    { echo "$as_me:$LINENO: checking for symbol prefix" >&5
++echo $ECHO_N "checking for symbol prefix... $ECHO_C" >&6; }
++    SYMBOL_PREFIX=`echo "PREFIX=__USER_LABEL_PREFIX__" \
++                   | ${CPP-${CC-gcc} -E} - 2>&1 \
++                   | ${EGREP-grep} "^PREFIX=" \
++                   | ${SED-sed} "s:^PREFIX=::"`
++
++    test "x$SYMBOL_PREFIX" = x && SYMBOL_PREFIX="[none]"
++    { echo "$as_me:$LINENO: result: $SYMBOL_PREFIX" >&5
++echo "${ECHO_T}$SYMBOL_PREFIX" >&6; }
++fi
++
+ # Substitutions for .in files
+ 
+ 
+@@ -21503,6 +21517,7 @@
+ LIBPNG_NO_MMX!$LIBPNG_NO_MMX$ac_delim
+ HAVE_LD_VERSION_SCRIPT_TRUE!$HAVE_LD_VERSION_SCRIPT_TRUE$ac_delim
+ HAVE_LD_VERSION_SCRIPT_FALSE!$HAVE_LD_VERSION_SCRIPT_FALSE$ac_delim
++SYMBOL_PREFIX!$SYMBOL_PREFIX$ac_delim
+ PNGLIB_VERSION!$PNGLIB_VERSION$ac_delim
+ PNGLIB_MAJOR!$PNGLIB_MAJOR$ac_delim
+ PNGLIB_MINOR!$PNGLIB_MINOR$ac_delim
+@@ -21513,7 +21528,7 @@
+ LTLIBOBJS!$LTLIBOBJS$ac_delim
+ _ACEOF
+ 
+-  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 21; then
++  if test `sed -n "s/.*$ac_delim\$/X/p" conf$$subs.sed | grep -c X` = 22; then
+     break
+   elif $ac_last_try; then
+     { { echo "$as_me:$LINENO: error: could not make $CONFIG_STATUS" >&5
+--- libpng-1.2.16/Makefile.am
++++ libpng-1.2.16/Makefile.am
+@@ -97,8 +97,8 @@
+ libpng.sym: png.h pngconf.h
+ 	rm -f $@ $@.new
+ 	$(CPP) @LIBPNG_DEFINES@ $(CPPFLAGS) -DPNG_BUILDSYMS $(srcdir)/png.h | \
+-		$(SED) -n -e 's|^.*PNG_FUNCTION_EXPORT[ 	]*\([a-zA-Z0-9_]*\).*$$|\1|p' \
+-			-e 's|^.*PNG_DATA_EXPORT[ 	]*\([a-zA-Z0-9_]*\).*$$|\1|p' \
++		$(SED) -n -e 's|^.*PNG_FUNCTION_EXPORT[ 	]*\([a-zA-Z0-9_]*\).*$$|$(SYMBOL_PREFIX)\1|p' \
++			-e 's|^.*PNG_DATA_EXPORT[ 	]*\([a-zA-Z0-9_]*\).*$$|$(SYMBOL_PREFIX)\1|p' \
+ 			>$@.new
+ 	mv $@.new $@
+ 
+--- libpng-1.2.16/Makefile.in
++++ libpng-1.2.16/Makefile.in
+@@ -204,6 +204,7 @@
+ PNGLIB_MAJOR = @PNGLIB_MAJOR@
+ PNGLIB_MINOR = @PNGLIB_MINOR@
+ PNGLIB_RELEASE = @PNGLIB_RELEASE@
++SYMBOL_PREFIX = @SYMBOL_PREFIX@
+ PNGLIB_VERSION = @PNGLIB_VERSION@
+ POW_LIB = @POW_LIB@
+ RANLIB = @RANLIB@
+@@ -1247,8 +1248,8 @@
+ libpng.sym: png.h pngconf.h
+ 	rm -f $@ $@.new
+ 	$(CPP) @LIBPNG_DEFINES@ $(CPPFLAGS) -DPNG_BUILDSYMS $(srcdir)/png.h | \
+-		$(SED) -n -e 's|^.*PNG_FUNCTION_EXPORT[ 	]*\([a-zA-Z0-9_]*\).*$$|\1|p' \
+-			-e 's|^.*PNG_DATA_EXPORT[ 	]*\([a-zA-Z0-9_]*\).*$$|\1|p' \
++		$(SED) -n -e 's|^.*PNG_FUNCTION_EXPORT[ 	]*\([a-zA-Z0-9_]*\).*$$|$(SYMBOL_PREFIX)\1|p' \
++			-e 's|^.*PNG_DATA_EXPORT[ 	]*\([a-zA-Z0-9_]*\).*$$|$(SYMBOL_PREFIX)\1|p' \
+ 			>$@.new
+ 	mv $@.new $@
+ 
