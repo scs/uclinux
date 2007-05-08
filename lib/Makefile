@@ -189,6 +189,6 @@ romfs:
 ##############################################################################
 
 clean:
-	-for i in $(dir_y) $(dir_n) $(dir_); do \
+	-for i in $(DIRS_all); do \
 		[ ! -d $$i ] || make -C $$i clean ; \
 	done
