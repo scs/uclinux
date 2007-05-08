@@ -110,6 +110,13 @@ if [ "$CONFIG_USER_FFMPEG_APPS" = "y" ]; then
 	define_bool CONFIG_LIB_FFMPEG y
 fi
 bool    'MPlayer and mencode'           CONFIG_USER_MPLAYER
+bool    'VLC'                           CONFIG_USER_VLC
+if [ "$CONFIG_USER_VLC" = "y" ]; then
+	define_bool CONFIG_LIB_FFMPEG y
+	define_bool CONFIG_LIB_LIBICONV y
+	define_bool CONFIG_LIB_LIBMPEG2 y
+	define_bool CONFIG_LIB_ZLIB y
+fi
 bool    'Asterisk PBX'         		CONFIG_USER_BLACKFIN_ASTERISK
 if [ "$CONFIG_USER_BLACKFIN_ASTERISK" = "y" ]; then
 	define_bool CONFIG_USER_THREADSTACK	y

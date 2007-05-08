@@ -1,0 +1,4 @@
+SOURCES_qte = \
+	qte.cpp \
+	qte.h \
+	$(NULL)

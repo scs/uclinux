@@ -1,0 +1,13 @@
+SOURCES_vcdx = \
+	access.c \
+	intf.c \
+	intf.h \
+	vcd.c \
+	vcd.h \
+	vcdplayer.h \
+	vcdplayer.c \
+	info.c \
+	info.h \
+	$(NULL)
+
+EXTRA_DIST += demux.c

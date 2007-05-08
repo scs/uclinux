@@ -1,0 +1,678 @@
+<Meuuh> intf: added `--vout' to playlist
+<Meuuh> intf: added `dummy' to playlist
+
+  -- #videolan
+%
+<Stef> bon j'ai trouvé d'où venait les trashs d'images
+<sam> t'es un dieu
+<Stef> bin justement ct de ma faute :)
+<sam> t'es une merde
+
+  -- #videolan
+%
+<colin> p_bit_stream->buffer |=((u32) *(p_bit_stream->byte_stream.p_byte++))
+<colin>     << (24 - p_bit_stream->i_available);
+<colin> psychopathes
+
+  -- #videolan
+%
+<Stef> xav - AZRTYUUUUOP"'(-È
+<Stef> oups je devrais pas nettoyer mon clavier par ici :)
+
+  -- #videolan
+%
+<bbpig> sam : {#][^#{~]@[ ;P
+<sam> bbp ?
+<bbpig> sam : pouette
+<sam> ah
+<bbpig> :)
+<sam> ok, gotta sleep now
+<sam> it was very nice having this interesting discussion with you
+
+  -- #videolan
+%
+<NovaKANE> spudec error: index mismatch (0x0331 != 0x0000)
+<NovaKANE> spudec error: unknown command 0x7d
+<sam> NovaKANE: yeah if you could cut a slice of VOB it would be pretty helpful
+<jlj> hey, don't you plan on making fair use of your DVDs
+<jlj> I'll give my good friend Jack a call
+
+  -- #videolan
+%
+<NovaKANE> vlc is using about 3% cpu with no audio/video
+<sam> 3% ? the interface isn't bloated enough then :)
+
+  -- #videolan
+%
+-+- djk sets topic on #videolan to: "VideoLAN - 100% skin free DVD!"
+%
+<vektor> so, i think it's time for a mass exodus to libdvdcss.
+<taaz> ack!  hold on a minute
+<vektor> what?
+<vektor> did you feel a great disturbance in the force?
+
+  -- #livid
+%
+<stef> héhé, mais j'ai acheté une voiture :)
+<Meuuh> ouaaah oh, quoi ?
+<stef> une petite 206 toute noire
+<reno> ce qu'il dit pas c'est que c'est une s16 ;)
+<Meuuh> ah 16 bits signés ?
+
+  -- #videolan
+%
+<Meuuh> je l'ai pas testé, hein, faut pas déconner non plus
+<Meuuh> c le boulot des users de tester
+
+  -- #videolan
+%
+<Xag> j ai du retard ds le son quand je stream du dvd.
+<Meuuh> sur ton iPAQ ?
+<Xag> nan laptop
+<Xag> et le CPU n est pas a 100%
+<Xag> et j utilise le dsp
+<Meuuh> ah c'est dommage
+<Meuuh> fais un test de grossesse, on sait jamais
+
+  -- #videolan
+%
+<sam> CHRISTIAN
+<sam> MARILLAT
+<sam> IS
+<sam> A
+<sam> COMPLETE
+<sam>  ____ ___ ____ _  ___   _ _____    _    ____    _ 
+<sam> |  _ \_ _/ ___| |/ / | | | ____|  / \  |  _ \  | |
+<sam> | | | | | |   | ' /| |_| |  _|   / _ \ | | | | | |
+<sam> | |_| | | |___| . \|  _  | |___ / ___ \| |_| | |_|
+<sam> |____/___\____|_|\_\_| |_|_____/_/   \_\____/  (_)
+<sam> 
+
+  -- #videolan
+%
+<bozo> you really shouldn't have touched a computer when you were a little boy
+<stef> _it_ came to me
+
+  -- #videolan
+%
+<henrisson> hehe : Open failed !: Success
+
+  -- #videolan
+%
+<lool> vlc rulez
+<liquidacid> it dont work
+<lool> what doesn't work ?
+<liquidacid> vlc rulez
+
+  -- #videolan
+%
+<ebarra> What time is it (for you)?
+<lool> 6:16 am
+<ebarra> Are you a teacher or an student?
+<lool> I'm a student
+<lool> teacher are in bed right now
+<lool> what are you doing in life ?
+<ebarra> I am a teacher of Computer Science...
+
+  -- #videolan
+%
+<fuckall> and you, do you have some movies in svcd format?
+  [...]
+<walken> je lui ai envoye un cones.svcd
+<walken> c'etait un lien vers /dev/zero
+
+  -- #videolan
+%
+-!- Meuuh [www-data@brahma.via.ecp.fr] has joined #videolan
+<hh> Meuuh!
+<Meuuh> Meuuh.
+
+  -- #videolan
+%
+<gibalou> --filter distort:transform:distort rocks :)
+<gibalou> hey, I don't have enough processing power for --filter 
+          distort:transform:distort:transform:distort :(
+
+  -- #videolan
+%
+<alexis> c'est bon, Jérôme m'a envoyé le truc sans virus cette fois
+
+  -- #videolan
+%
+<sam> anyway, why should we care? as soon as we release libvlc, it'll be in
+      the MPlayer CVS :)
+
+  -- #videolan
+%
+<Meuuh> I read a Jean-Claude Vandamme interview yesterday and it works well
+<Meuuh> except for the sound
+<Kev> Do you really want to have the sound for Jean-Claude Van Damme?
+
+  -- #videolan
+%
+<JediMaster> I'm using the gtk+ interface in kde3
+<lit> silly
+<lit> heheh
+<lit> i use the gnome interface in gnome
+<lit> CALL ME CRAZY
+
+  -- #videolan
+%
+<vax> $grabeuh
+<gally> heheheuhrahaaheuwaheuhehrabeugraaaahawhahrahaa !!
+<vax> hey THAT was a nice grabeuh
+
+  -- #videolan
+%
+<gibalou> hi vax, how's work ?
+<vax> beuhh .. another question ? :P
+<gibalou> heuh, how's you girlfriend ? ;-)
+
+  -- #videolan
+%
+<Meuuh> BTW, there is "Jeanne et le garçon formidable" on M6
+<Meuuh> this movie is so great
+<Meuuh> jlj you debug the http plug-in ? :p
+<jlj> well, you're so busy with Virginie Ledoyen, so I had to do it :)
+
+  -- #videolan
+%
+The VCR is to the American film producer and the American public as
+the Boston strangler is to the woman home alone.
+
+  -- Jack Valenti (president of the MPAA) on April 12, 1982
+%
+<Meuuh> then we need to update download.html
+<Meuuh> what do we still have ?
+<sam> the mail, freshmeat, the videolan.org news
+<sam> cvs tag
+<sam> regression tests
+<sam> bwaahahahahahAHAHAHA
+<Meuuh> mouhahaha
+
+  -- #videolan
+%
+<Meuuh> fils de p_aout
+
+  -- #videolan
+%
+<ali> by the way i've never learnt the way to make figlets lool ...
+<lool> /exec -o figlet -f small 'ali is so stupid !'
+<sam> I'm not absolutely positive it was a good idea to teach her
+<sam> it's like handing a rocket launcher to a 6yr old ...
+
+  -- #videolan
+%
+<|sF|Vengance|> do u have any videos of porn u can send me?
+
+  -- #videolan
+%
+-+- Ourumov [www-data@brahma.via.ecp.fr] has joined #videolan
+<Ourumov> hey anybody here know videolan ?
+-*- SignOff: Ourumov (Client Quit)
+
+  -- #videolan
+%
+<zBen_home> mais truc[tres_grand] sur la pile ca me parait idiot :)
+<tooney> zBen_home - ou mais c'est truc[tout_petit] donc ca va
+<zBen_home> ah vi alors ca va
+<zBen_home> parceque meuh donnait un example avec un entier assez costaud
+<tooney> c'est parce qu'il etait pas content
+
+  -- #videolan
+%
+<ArkanumJ> meuuh: How's the 0.5 coming along? 
+<Meuuh> ArkanumJ : about 5 seconds
+<ArkanumJ> meuuh: huh? its going to be released soon?
+<Meuuh> ArkanumJ : no, it works for five seconds, before crashing
+
+  -- #videolan
+%
+<ArkanumJ> BTW, the CVS version runs well on MacOS X, but the sound is a bit
+           broken. 
+<Dnumgis> ArkanumJ: sound is a bit broken everywhere I think
+<Dnumgis> ArkanumJ: except the places where it is completly broken
+
+  -- #videolan
+%
+<Dnumgis> what does vout_CreatePicture do?
+<sam> asks for a picture to the video output thread
+<Dnumgis> so it just returns the next picture to be displayed?
+<sam> not necessarily the next
+<sam> it's your duty to set its display date, afterwards
+<Meuuh> I'd even say, it is your destiny, Luke, to set its display date
+
+  -- #videolan
+%
+<hh> When the first picture of the coded frame is a I-field picture, then the
+     second picture of the frame shall be either an I-field picture or a
+     P-field picture. If the second picture is a P-field picture then certain
+     restrictions apply, see 7.6.3.5.
+<Meuuh> yeah
+<Dnumgis> Meuuh: not sure if you sound more like an mpeg guru or a blues
+          artist
+<Meuuh> like a cow, maybe ?
+<Dnumgis> or something
+
+  -- #videolan
+%
+<deepmind> a52old & wi11y?
+
+  -- #videolan
+%
+<sam> bah oui tu peux faire de la doc sur n'importe quoi hein
+<Meuuh> je fais bien une doc développeur vlc
+<Meuuh> comme si y'avait des développeurs vlc à part sam et moi !
+
+  -- #videolan
+%
+<deepmind> pis comme ca je me tiens au courant de où va vlc :)
+<Meuuh> dans le mur ?
+<Meuuh> y'a sam qui rajoute du charbon, moi je m'agrippe au frein
+
+  -- #videolan
+%
+<tooney> $grut Dnumgis 
+<gally> Dnumgis: tiår ditt og nødhavn klikk ?
+<Dnumgis> gally: og hva skulle det bety?
+<Dnumgis> gally: what was that supposed to mean?
+
+  -- #videolan
+%
+<sam> $grut
+<gally> vekt yrer gøten øke utgjøre kan 
+<Dnumgis> sam: you're insane
+<Dnumgis> someone have too much spare time
+<sam> definitely
+<Dnumgis> maybe they should do something useful instead
+<gally> grunt grunt snort grumpf grumpf gra grunt uiigrumpf uiihiiii snort !!
+
+  -- #videolan
+%
+<Meuuh> mais putain de bordel de chiottes de bite à cul de merde de sa race
+<Dnumgis> I think it may be a good thing that i don't understand that
+          sentence fully
+
+  -- #videolan
+%
+<Dnumgis> I just burned an amb duron trying to compile vlc :(
+<Meuuh> is it my fault ?
+<Dnumgis> no
+<Dnumgis> unless you wrote blocks.c :)
+<Meuuh> actually, I did...
+
+  -- #videolan
+%
+<Meuuh> pleasehelp : are you trying with a dolby trailer ?
+<pleasehelp> no... using windows
+
+  -- #videolan
+%
+<Meuuh> you want to be in a porn movie with me ?
+<ali> are we well paid for doing that ?
+<Meuuh> ali : no but they say you take a lot of pleasure in that job
+<ali> Meuuh: i know
+
+  -- #videolan
+%
+<Dnumgis> I just listened through an entire ogg/vorbis file with vlc with no
+          audible problem whatsoever
+<Dnumgis> but I don't get the time of the stream
+<Dnumgis> gibalou: why don't I get the time?
+<sam> because time does not exist
+<sam> as Kant stated, our mind structures our perceptions so that we know a 
+      priori that time is like a mathematical line, rendering time as a form 
+      of conscious experience
+<gibalou> Dnumgis: a few things are left to be implemented, like seeking, 
+          stream length display, etc...
+<sam> or you can listen to gibalou's dull explanation
+
+  -- #videolan
+%
+<alexis> Meuuh: rahh, p'in, t'as raison
+<alexis> je suis une merde...
+<Meuuh> axiome de videolan : j'ai *toujours* raison
+
+  -- #videolan
+%
+<phun> ooooh
+<phun> that's a pretty good idea
+<Meuuh> yeah, that's mine :)
+
+  -- #videolan
+%
+<Meuuh> at the salsa lesson tonight, a girl told me that she was very happy to  
+        dance with me
+<Meuuh> do you think it means something ?
+<Dnumgis> Probably that she finally found someone that was worse at dancing 
+          than she
+
+  -- #videolan
+%
+<hal_3k> damn
+<hal_3k> why didn't you use LGPL?
+<sam> why don't you use GPL?
+
+  -- #videolan
+%
+<sam> dudes, you'll hate me again: bootstrap will now need an argument :)
+<Dnumgis> sam: hate you already
+<gibalou> sam: don't worry sam, we already hated you ;)
+
+  -- #videolan
+%
+<haroldo> hi I've got some nice xxx videos, and I'd like to exchange with 
+          anyone 
+
+  -- #videolan
+%
+<JMunakra> nah you have zip with password protection
+<jlj> that's not classified as DRM
+<JMunakra> where does DRM start?
+<Meuuh> I don't know, but I know where it ends : at my doorstep
+
+  -- #videolan
+%
+<hal_3k> jlj: what did you do?
+<jlj> I was like watching a few of my DVDs using unauthorized software under
+      the evil GNU/Linux operating system, and then my computer was, like,
+      beep beep beep beep beep beep beep, and then, like, all my computers
+      were confiscated, and I was like, nnnn? ... It's kind of ... a bummer.
+
+  -- #videolan
+%
+<bbp> et de toute façon ca sert a rien de coder sur vlc, ils changent tout a
+      chaque fois entre le moment ou on commence a écrire sa première ligne
+      de code et celui où on écrit la deuxième
+
+  -- #c00lz
+%
+<_broomy-> then ill download the OS
+<jlj> that's illegal
+<_broomy-> yep everything is illegal
+<_broomy-> i bet u do illegal shit aswell
+
+  -- #videolan
+%
+<walken> tiens, j'ai une idee pour les gens qui se plaignent que le site web
+         est pas traduit en grec antique
+<walken> a chacun qui se plaint, tu lui proposes de le faire. s'il demande
+         encore pourquoi videolan ne le fait pas, tu lui files l'email du
+         precedent en disant c'est parce qu'il ne l'a pas fait :)
+
+  -- #videolan
+%
+<sam> KKI: I was merely joking, ignore me :)
+<Meuuh> it is generally a good idea to ignore sam
+
+  -- #videolan
+%
+<sam> p_input->stream.pp_areas ça commence à 0 ou à 1 ?
+<sam> aaaah /* We start from 1 here since the default area 0 is reserved for
+      video_ts.vob */
+<Meuuh> si c pas du code de porc ça mon bon monsieur
+<sam> mais alors l'area 0 elle sert à rien ou quoi ? :)
+<jobi> ben pour le vcd à rien du tout, si je me souviens bien
+<fenrir_> à ben voila ma piste qui disparaissait pour les cda...
+
+  -- #videolan, du code de pro
+%
+<Dnumgis> someone is not releasing a p_vout object correctly
+<tooney> it's not me
+<tooney> i was not there this afternoon
+* Meuuh looks in his pockets
+
+  -- #videolan
+%
+<BeKavlie> seriously though, out of curiosity: why are people working on
+           VideoLAN?  It can't be to keep us BeOS people happy  ;-)
+<jlj> world domination
+<jlj> didn't you get the memo ?
+
+  -- #videolan
+%
+<sam> kali: j'ai raté mon train ...
+<sam> ben je voulais partir en belgique ce matin
+<ka|i> sam : a cause de la greve ou tu te reveilles ?
+<sam> mais ç'aurait été une mauvaise idée ...
+<sam> vu qu'en fait c'est la semaine prochaine le fosdem !
+
+  -- #videolan
+%
+<bbpig> tiens au fait y a des mauvais signal handlers dans le vlc ;P
+<Ipkiss> je crois qu'il n'y a pas de bons ou de mauvais signal handlers
+<bbpig> Ipkiss: ah ?
+<Ipkiss> si je devais résumer le vlc aujourd'hui...
+<tooney> c'est un effort commun de gens qui aiment, qui dansent l'opensource
+<tooney> qui chantent l'opensource
+
+  -- #c00lz
+%
+<Meuuh> do you actually have soundsticks ?
+<xtoph> want to see an image to believe it ?
+<Meuuh> then you can debug the soundsticks support
+
+  -- #videolan
+%
+<Meuuh> gang_bang12.avi
+<Meuuh> sound is ok but I don't really care
+
+  -- #videolan
+%
+<Dnumgis> sounds perfectly normal
+<tooney> ah
+<Dnumgis> very wrong, but normal in vlc
+
+  -- #videolan
+%
+*** Meuuh has changed the topic on channel #videolan to "NO, we do not know
+    how to access Italian pay TVs, so don't ask"
+*** [MaDog] (MaDog@host41-156.pool80180.interbusiness.it) has joined channel
+    #videolan
+<[MaDog]> c'è qualcuno ?????????
+<Meuuh> read the topic
+<[MaDog]> :)
+<[MaDog]> xcuse me
+*** Signoff: [MaDog] (Client Quit)
+
+  -- #videolan
+%
+<Xtophe> is there any centralien alive ?
+<thedj> i hope so. haven't heard a thing about a nuke explosion in Paris
+
+  -- #videolan
+%
+<thedj> i don't trust ffmpeg's make process ;)
+<gibalou> their make mess you mean ?
+
+  -- #videolan
+%
+<alexis> cdemarco: you can try with "-I dummy"
+<cdemarco> You mean I should call my computer names!?
+
+  -- #videolan
+%
+<JediMaster> sh-2.03# reboot
+<JediMaster> Segmentation fault
+<JediMaster> that's not good
+
+  -- #videolan
+%
+<sam> pour votre punition, ça sera un bootstrap chacun :P
+<titer> c'est reparti pour 20 min
+<gibalou> c'est reparti pour 3 x 20 min
+<sam> c'est reparti pour une modif de Makefile.am d'ici 20 min
+
+  -- #videolan
+%
+<Purge> im going to open a vlc fan club
+<Purge> and we'll go on riots and kill all mplayer and wmp users
+
+  -- #videolan
+%
+<maleki> any girls here with a webcam
+
+  -- #videolan
+%
+<sam> 16K     ChangeLog-1999
+<sam> 96K     ChangeLog-2000
+<sam> 168K    ChangeLog-2001
+<sam> 304K    ChangeLog-2002
+<sam> 488K    ChangeLog-2003
+<zorglub> conclusion: les dévs pipotent de plus en plus dans les messages de
+          commit
+
+  -- #videolan
+%
+-!- kixx_ changed the topic of #videolan to: VLC 0.7.0 :
+          http://www.videolan.org/ | Fenrir ta cotiz !
+
+  -- #videolan
+%
+
+< zorglub> vlc file1.mpg :start-time=300 :stop-time=420 --sout 
+                    file/ps:file2.mpg
+< boggle> sgagers: use zorglubs command, it will copy the needed 
+                   timeslice to file2.mpeg
+< sgagers> boggle: zorglubs is an utility of ffmpeg?
+
+  -- #videolan
+%
+<Golf3r_1> hello
+<Golf3r_1> any place where I can get golf videos ?
+<E-bola> lol
+<E-bola> are u serious?
+<Golf3r_1> fuk off
+*** Signoff: Golf3r_1 ("Leaving")
+
+  -- #videolan
+%
+<Meuuh> and what's the news ?
+<nto> Mac OS 10.2 and 10.3 support hopefully
+<nto> Win98 maybe
+<Meuuh> haven't had any chance to test it ?
+<nto> I need to send a new version to a tester
+<E-bola> hire him meuuh :P
+<Meuuh> E-bola : we already did :p
+<E-bola> ahhh
+<E-bola> lol
+
+  -- #videolan
+%
+*** Bond470 (n=3e30a4ee@krishna.via.ecp.fr) has joined channel #videolan
+<Bond470> olas
+<Bond470> ;)
+<Meuuh> dionoea ?
+<Bond470> lisboa
+<Bond470> e tu?
+
+  -- #videolan
+%
+<thedj> lol, fen is a la(i)mer
+<thedj> fen [n=laimar@217.167.236.61]
+
+  -- #videolan
+%
+<E-bola> what is all the fortune.txt stuff?
+<E-bola> some internal french joke?
+<E-bola> lol
+<E-bola> ohh chan quotes
+<E-bola> wtf im in it lol
+
+  -- #videolan
+%
+<zorglub> gibalou: y'a un doc quelque part qui explique un peu plus le format
+          real ou fen a fait le demux directement en lisant des dumps / le
+          demuxer de mplayer ?
+<gibalou> zorglub: la meilleure doc c'est le code de mplayer/xine
+<zorglub> c'est bien ce que je craignais :)
+<zorglub> j'ai pas regardé xine ceci dit
+<zorglub> c'est plus agréable à lire que mplayer
+<sam> mouahaha
+<sam> non rien.
+<zorglub> ah bah si quand même
+<bigben> tu veux dire que les variables ont un nom qui reflète ce qu'elles
+         font ?
+<sam> avoir des noms de variables qu'on peut prononcer nuit fortement à la
+      lisibilité car cela détourne l'attention du vrai code, constitué des
+      mots-clés du langage et des divers opérateurs
+<sam> j'appelle mes variables Illl, lIll, lIlI, IllI, IlII, etc.
+  -- #videolan
+%
+20:47:12 < glspi> can you get rid of the wxwidgets interface and only show the 
+                  video somehow?
+20:47:17 < zorglub> -I dummy
+20:50:10 < glspi> -I didn't work btw, in windows at least
+20:52:28 < glspi> i don't see it in interface/general either! ahhh :(
+20:58:46 < glspi> ok i thought you were calling ME dummy, not saying use -I 
+                  dummy :p
+  -- #videolan
+%
+-!- Bond631 [n=548d9042@krishna.via.ecp.fr] has joined #videolan
+<Bond631> hi
+<Bond631> how to activate hotkeys?
+-!- Bond631 [n=548d9042@krishna.via.ecp.fr] has quit [Client Quit]
+<Trax``> I think Bond631 found the hotkey for quit
+
+  -- #videolan
+%
+< dionoea> http://nightlies.videolan.org
+< arakis> lol....sounds like a porn site!!!
+
+  -- #videolan
+%
+-!- tumu [n=tumu@GYKMDCCCXXIX.dsl.saunalahti.fi] has quit ["~"]
+* Dnumgis notes that tumu must be one of very few with dsl in their sauna
+
+  -- #videolan
+%
+<Dnumgis> thedj: gibalou quits officially, or has he just generally
+          disappeared?
+<sam> he's probably getting married or something even worse :(
+
+  -- #videolan
+%
+<xtophe> kee-un: you need to slap zorglub
+<xtophe> kee-un: oups no i'm telling a lie
+<kee-un> xtophe: too late, I slapped him
+<kee-un> xtophe: I'm sure he deserved it for something else anyway
+
+  -- #videolan
+%
+VLC is the greatest thing since sliced bread!
+
+ -- http://forum.videolan.org/
+%
+* E-bola is bouncing up and down while enjoying: HTTP/1.1 200 OK
+* E-bola is bouncing up and down while enjoying: Content-type: text/html; charset=UTF-8
+* E-bola is bouncing up and down while enjoying: Cache-Control: no-cache
+* E-bola is bouncing up and down while enjoying: Content-Length: 25
+* E-bola is bouncing up and down while enjoying: --
+%
+<Meuuh> sam : could you delete FK_ from the access list ?
+<sam> sure, why?
+<Meuuh> he's now known as feepk
+<sam> ah, ok
+<sam> I thought he was banned for sending a patch to mplayer
+  -- #videolan
+%
+< Dnumgis> Meuuh: munhoney is writing some fec system based on vlc
+< Meuuh> Dnumgis : a fuck system ? I may be interested !
+< Dnumgis> Meuuh: still single? :)
+< Meuuh> Dnumgis : and always will be
+  -- #videolan
+%
+<Dnumgis_> xtophe: look at it this way:
+<Dnumgis_> solve some bounties involving vlc and earn some extra money
+<Dnumgis_> use this money and your natural charm to get a girlfriend
+<Dnumgis_> make sure Meuuh sees it
+<Dnumgis_> Meuuh would become horribly jealous and try to repeat your trick
+           with great vigor and solv all remaining bugs with vlc
+<Dnumgis_> and the (vlc)world becomes a better place
+<j-b> Dnumgis_: do you have a girlfriend ?
+<Dnumgis_> j-b: not at the moment, no
+<j-b> Dnumgis_: so why don't you try this technick ?
+<Dnumgis_> j-b: I don't live close enough to Meuuh 
+<E-bola> thats some good norwegian reasoning
+  -- #videolan
+%

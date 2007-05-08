@@ -1,0 +1,23 @@
+needs to be rewritten to try MAP_SHARED and if that fails with ENODEV, fall
+back to trying MAP_PRIVATE.
+
+--- vlc-0.8.5/modules/access/v4l/v4l.c
++++ vlc-0.8.5/modules/access/v4l/v4l.c
+@@ -1245,7 +1245,7 @@ static int OpenVideoDev( demux_t *p_demu
+ 
+         p_sys->p_video_mmap = mmap( 0,
+                 p_sys->mjpeg_buffers.size * p_sys->mjpeg_buffers.count,
+-                PROT_READ | PROT_WRITE, MAP_SHARED, i_fd, 0 );
++                PROT_READ | PROT_WRITE, MAP_PRIVATE, i_fd, 0 );
+         if( p_sys->p_video_mmap == MAP_FAILED )
+         {
+             msg_Err( p_demux, "mmap failed" );
+@@ -1296,7 +1296,7 @@ static int OpenVideoDev( demux_t *p_demu
+         }
+ 
+         p_sys->p_video_mmap = mmap( 0, p_sys->vid_mbuf.size,
+-                                    PROT_READ|PROT_WRITE, MAP_SHARED,
++                                    PROT_READ|PROT_WRITE, MAP_PRIVATE,
+                                     i_fd, 0 );
+         if( p_sys->p_video_mmap == MAP_FAILED )
+         {

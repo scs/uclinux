@@ -1,0 +1,24 @@
+--- gnutls-1.6.1/configure.in	2006-11-26 11:19:05.000000000 +0100
++++ gnutls/configure.in	2007-01-20 01:52:24.000000000 +0100
+@@ -187,9 +187,6 @@
+ 	fi
+ fi
+ 
+-# Needs to be called outside of 'if' clause.
+-AM_CONDITIONAL(HAVE_LD_OUTPUT_DEF, test "$output_def" = "yes")
+-
+ AC_MSG_RESULT([***
+ *** Detecting C library capabilities...
+ ])
+@@ -583,6 +572,11 @@
+ LIBGNUTLS_EXTRA_CFLAGS="$LIBOPENCDK_CFLAGS -I${includedir}"
+ AC_SUBST(LIBGNUTLS_EXTRA_LIBS)
+ AC_SUBST(LIBGNUTLS_EXTRA_CFLAGS)
++
++
++# Needs to be called outside of 'if' clause.
++AM_CONDITIONAL(HAVE_LD_OUTPUT_DEF, test "$output_def" = "yes" -a "${enable_shared}" != "no")
++
+ export ac_full
+ 
+ CFLAGS="${CFLAGS} ${LIBGCRYPT_CFLAGS}"

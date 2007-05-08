@@ -1,0 +1,1 @@
+SOURCES_v4l = v4l.c videodev_mjpeg.h

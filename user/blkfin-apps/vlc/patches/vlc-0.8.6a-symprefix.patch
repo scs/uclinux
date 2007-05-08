@@ -1,0 +1,18 @@
+the way vlc handles symbol prefixes is just braindead ... need to reawrite
+m4/vlc.m4:[VLC_SYMBOL_PREFIX] so that it respects __USER_LABEL_PREFIX__ from
+gcc like alsa-lib does.
+
+--- vlc-0.8.5/configure
++++ vlc-0.8.5/configure
+@@ -25275,6 +25275,11 @@
+       SYMPREF="_"
+       ;;
+   esac
++  case "${host_cpu}" in
++    bfin)
++      SYMPREF="_"
++      ;;
++  esac
+   { echo "$as_me:$LINENO: result: ${SYMPREF}" >&5
+ echo "${ECHO_T}${SYMPREF}" >&6; }
+ 

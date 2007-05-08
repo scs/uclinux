@@ -1,0 +1,39 @@
+This is the contrib build system for VLC Media Player. It has been
+primarily developed for Mac, it has been adapted for BeOs and win32.
+It would be not too difficult to extend it to other sytem.
+
+To use it, first in the contrib directory, type :
+	./bootstrap
+
+You can specify an argument to cross compile, for example:
+    ./bootstrap i586-pc-beos
+This will look for a i586-pc-beos-gcc cross compiler. Default is to
+build natively.
+
+Customize config.mak if you need to, then you need to choose between
+building from source (can take a long time but is easily customizable)
+and fetching a pre-compiled binary package. Either type 'make src'
+or 'make bin' (also from the contrib directory).
+
+make bin IS NOT WORKING atm USE make src
+
+Once the contribs are built, you can start building VLC.
+See: http://developers.videolan.org/vlc/osx-compile.html 
+or INSTALL.win32 for more details on that.
+
+Happy hacking.
+--Meuuh 2003-11-15
+
+
+The following patches have already been sent to the upstream developers:
+
+ffmpeg-cvs-mactel.patch - split in 5 and sent to ffmpeg-devel@mplayerhq.hu
+ o patch-ffmpeg-0b.diff
+ o patch-ffmpeg-darwin-support.diff
+ o patch-ffmpeg-inline-asm-macros.diff
+ o patch-ffmpeg-nop.diff
+ o patch-ffmpeg-p2align.diff
+flac-mactel.patch - sent to flac-dev@lists.sourceforge.net
+libdvdnav-mactel.patch - sent to dvd-devel@lists.sourceforge.net
+mpeg2dec.patch - committed upstream, will be in the 0.4.1 release
+

@@ -1,0 +1,23 @@
+SOURCES_memcpy = \
+	memcpy.c \
+	$(NULL)
+
+SOURCES_memcpymmx = \
+	memcpy.c \
+	fastmemcpy.h \
+	$(NULL)
+
+SOURCES_memcpymmxext = \
+	memcpy.c \
+	fastmemcpy.h \
+	$(NULL)
+
+SOURCES_memcpy3dn = \
+	memcpy.c \
+	fastmemcpy.h \
+	$(NULL)
+
+SOURCES_memcpyaltivec = \
+	memcpyaltivec.c \
+	$(NULL)
+

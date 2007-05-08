@@ -1,0 +1,26 @@
+SOURCES_ffmpeg = \
+	ffmpeg.c \
+	ffmpeg.h \
+	video.c \
+	audio.c \
+	video_filter.c \
+	chroma.c \
+	encoder.c \
+	postprocess.c \
+	demux.c \
+	mux.c \
+	$(NULL)
+
+SOURCES_ffmpegaltivec = \
+	ffmpeg.c \
+	ffmpeg.h \
+	video.c \
+	audio.c \
+	video_filter.c \
+	chroma.c \
+	encoder.c \
+	postprocess.c \
+	demux.c \
+	mux.c \
+	$(NULL)
+

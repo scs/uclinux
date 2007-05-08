@@ -1,0 +1,1 @@
+SUBDIRS = mediacontrol-python java

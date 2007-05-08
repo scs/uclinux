@@ -1,0 +1,64 @@
+## posted to: [vlc-devel]
+## Sub: Patch for Grayscale support
+## by Michael Benjamin neuroptik at gmail.com
+## Fri, 25 Aug 2006 15:14:18 -0400
+## http://www.via.ecp.fr/via/ml/vlc-devel/2006-08/msg00260.html
+## Status: awaiting comment/commit
+
+--- vlc-0.8.5/modules/codec/rawvideo.c
++++ vlc-0.8.5/modules/codec/rawvideo.c
+@@ -101,6 +101,8 @@ static int OpenDecoder( vlc_object_t *p_
+         case VLC_FOURCC('Y','U','Y','2'):
+         case VLC_FOURCC('U','Y','V','Y'):
+ 
++	case VLC_FOURCC('G','R','E','Y'):
++
+         /* RGB */
+         case VLC_FOURCC('R','V','3','2'):
+         case VLC_FOURCC('R','V','2','4'):
+--- vlc-0.8.5/modules/video_filter/blend.c
++++ vlc-0.8.5/modules/video_filter/blend.c
+@@ -142,7 +142,8 @@ static void Blend( filter_t *p_filter, p
+     if( p_filter->fmt_in.video.i_chroma == VLC_FOURCC('Y','U','V','A') &&
+         ( p_filter->fmt_out.video.i_chroma == VLC_FOURCC('Y','U','Y','2') ||
+           p_filter->fmt_out.video.i_chroma == VLC_FOURCC('U','Y','V','Y') ||
+-          p_filter->fmt_out.video.i_chroma == VLC_FOURCC('Y','V','Y','U') ) )
++          p_filter->fmt_out.video.i_chroma == VLC_FOURCC('Y','V','Y','U') ||
++          p_filter->fmt_out.video.i_chroma == VLC_FOURCC('G','R','E','Y') ) )
+     {
+         BlendYUVPacked( p_filter, p_dst, p_dst_orig, p_src,
+                    i_x_offset, i_y_offset, i_width, i_height, i_alpha );
+--- vlc-0.8.5/src/video_output/vout_pictures.c
++++ vlc-0.8.5/src/video_output/vout_pictures.c
+@@ -590,6 +590,7 @@ void vout_InitFormat( video_frame_format
+         case FOURCC_Y211:
+             p_format->i_bits_per_pixel = 8;
+             break;
++        case FOURCC_GREY:
+         case FOURCC_YUVP:
+             p_format->i_bits_per_pixel = 8;
+             break;
+@@ -831,6 +832,15 @@ int __vout_InitPicture( vlc_object_t *p_
+             p_pic->i_planes = 1;
+             break;
+ 
++        case FOURCC_GREY:
++            p_pic->p->i_lines = i_height;
++            p_pic->p->i_visible_lines = i_height;
++            p_pic->p->i_pitch = i_width;
++            p_pic->p->i_visible_pitch = i_width;
++            p_pic->p->i_pixel_pitch = 1;
++            p_pic->i_planes = 1;
++            break;
++
+         default:
+             msg_Err( p_this, "unknown chroma type 0x%.8x (%4.4s)",
+                              i_chroma, (char*)&i_chroma );
+--- vlc-0.8.5/src/video_output/vout_pictures.h
++++ vlc-0.8.5/src/video_output/vout_pictures.h
+@@ -96,3 +96,5 @@
+ 
+ /* Palettized YUV with palette element Y:U:V:A */
+ #define FOURCC_YUVP         VLC_FOURCC('Y','U','V','P')
++
++#define FOURCC_GREY         VLC_FOURCC('G','R','E','Y')

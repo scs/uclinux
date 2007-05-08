@@ -1,0 +1,14 @@
+This breaks cross-compiling as libdir will be set to /usr/lib and the final
+link of vlc will have -L/usr/lib which obviously doesn't work.
+
+--- vlc-0.8.5/vlc-config.in.in
++++ vlc-0.8.5/vlc-config.in.in
+@@ -231,7 +231,7 @@
+   shift
+ done
+ 
+-libs="-L@libdir@"
++libs=""
+ 
+ #
+ #  If a module was requested, use its name

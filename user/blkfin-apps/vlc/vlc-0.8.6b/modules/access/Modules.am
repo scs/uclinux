@@ -1,0 +1,19 @@
+SOURCES_access_file = file.c
+SOURCES_access_directory = directory.c
+SOURCES_access_dv = dv.c
+SOURCES_access_udp = udp.c
+SOURCES_access_tcp = tcp.c
+SOURCES_access_http = http.c
+SOURCES_access_ftp = ftp.c
+SOURCES_access_smb = smb.c
+SOURCES_access_gnomevfs = gnomevfs.c
+SOURCES_dvdnav = dvdnav.c
+SOURCES_dvdread = dvdread.c
+SOURCES_dc1394 = dc1394.c
+SOURCES_access_fake = fake.c
+SOURCES_cdda = \
+        cdda.c \
+        vcd/cdrom.c \
+        vcd/cdrom.h \
+        vcd/cdrom_internals.h \
+        $(NULL)
