@@ -14,8 +14,7 @@ $(VER)/config.mak:
 		--as=$(CONFIGURE_HOST)-as \
 		--prefix=/usr \
 		--confdir=/etc \
-		--mandir=/usr/share/man \
-		--enable-libmad
+		--mandir=/usr/share/man
 
 clean:
 	-$(MAKE) -C $(VER) distclean
