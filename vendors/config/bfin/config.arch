@@ -70,7 +70,6 @@ CONFIGURE_BUILD := $(shell sh $(ROOTDIR)/tools/config.guess)
 CONFIGURE_OPTS  := \
 	--host=$(CONFIGURE_HOST) \
 	--build=$(CONFIGURE_BUILD) \
-	--target=$(CONFIGURE_HOST) \
 	--prefix=/usr \
 	--sysconfdir=/etc \
 	--datadir=/usr/share \
@@ -194,5 +193,13 @@ ifeq ($(UCLINUX_BUILD_SET),1)
 	CPPFLAGS += -isystem $(STAGEDIR)/usr/include
 	LDFLAGS  += -B$(STAGEDIR)/usr/lib
 endif
+
+############################################################################
+#
+# help out autotools a bit and force some tests that would otherwise
+# fail because they rely on RUN tests rather than COMPILE
+#
+
+export ac_cv_func_malloc_0_nonnull = yes
 
 ############################################################################
