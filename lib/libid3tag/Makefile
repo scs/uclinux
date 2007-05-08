@@ -13,5 +13,6 @@ clean:
 	rm -rf build
 
 romfs:
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libid3tag.so.0 /usr/lib/libid3tag.so.0
 
 .PHONY: all clean romfs
