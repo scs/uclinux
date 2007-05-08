@@ -372,33 +372,65 @@ dir_y                                       += blkfin-test
 dir_y += games
 
 all: config
-	for i in $(sort $(dir_y)) $(dir_p); do \
-		[ ! -d $$i ] || make -C $$i || exit $$? ; \
-	done
+	$(MAKE) -j$(HOST_NCPU) $(sort $(dir_y) $(dir_v) $(dir_p)) || exit $$?
+
+#
+# add directory dependancies here
+#
+.PHONY: $(sort $(dir_y) $(dir_p))
+snort: mysql
+
+$(sort $(dir_y) $(dir_p)):  config
+	[ ! -d "$@" ] || ( touch $@/.sgbuilt_user && $(MAKE) -j1 -C $@ ) || exit $$?
+
+%_only:
+	touch $(@:_only=)/.sgbuilt_user && $(MAKE) -j1 -C $(@:_only=)
+
+%_clean:
+	$(MAKE) -j1 -C $(@:_clean=) clean; rm -f $(@:_clean=)/.sgbuilt_user; true
 
 romfs:
-	[ -e $(ROMFSDIR)/bin ] || mkdir $(ROMFSDIR)/bin
 	for i in $(sort $(dir_y)) $(dir_p) ; do \
-		[ ! -d $$i ] || make -C $$i romfs || exit $$? ; \
+		[ ! -d $$i ] || $(MAKE) -C $$i romfs || exit $$? ; \
 	done
 
 clean:
-	-for i in $(sort $(dir_y) $(dir_n) $(dir_)) $(dir_p) ; do \
-		[ ! -d $$i ] || make -C $$i clean; \
+	-for i in $(dir_v) $(sort $(dir_y) $(dir_n) $(dir_)) $(dir_p) ; do \
+		if [ -f $$i/.sgbuilt_user ]; then \
+			$(MAKE) -C $$i clean ; \
+			rm -f $$i/.sgbuilt_user; \
+		fi; \
 	done
 
 prune:
 	-for i in $(sort $(dir_n) $(dir_)) ; do \
 		found=0; \
 		for j in $(sort $(dir_y)) ; do \
-			if [ $$i == $$j ]; then \
+			if [ $$i = $$j ]; then \
 				found=1; \
 			fi; \
 		done; \
-		if [ $$found == 0 ]; then \
-			rm -r $$i; \
+		if [ $$found = 0 ]; then \
+			[ "$$i" = "freeswan" ] && make prune_freeswan; \
+			[ "$$i" = "openswan" ] && make prune_openswan; \
+			rm -fr $$i; \
 		fi; \
 	done
 
+prune_freeswan:
+	@cd $(ROOTDIR); \
+	mkdir $@; \
+	cp --parents freeswan/klips/net/ipsec/Config.in $@/; \
+	rm -fr freeswan; \
+	cp -R $@/* .; \
+	rm -fr $@
+
+prune_openswan:
+	@cd $(ROOTDIR); \
+	mkdir $@; \
+	cp --parents openswan/linux/net/ipsec/{Config.in*,Kconfig,Makefile*,aes/Makefile*,des/Makefile*} $@/; \
+	rm -fr openswan; \
+	cp -R $@/* .; \
+	rm -fr $@
 
 -include Makefile.blackfin

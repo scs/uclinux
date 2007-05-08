@@ -321,7 +321,8 @@ vendor_%:
 
 .PHONY: linux
 linux linux%_only:
-	@if [ $(LINUXDIR) != linux-2.5.x -a $(LINUXDIR) != linux-2.6.x -a ! -f $(LINUXDIR)/.depend ] ; then \
+	@if expr "$(LINUXDIR)" : 'linux-2\.[0-4].*' > /dev/null && \
+			 [ ! -f $(LINUXDIR)/.depend ] ; then \
 		echo "ERROR: you need to do a 'make dep' first" ; \
 		exit 1 ; \
 	fi
