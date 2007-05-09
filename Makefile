@@ -17,7 +17,7 @@ VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 ifeq (.config,$(wildcard .config))
 include .config
 
-all: ucfront cksum pkg-config subdirs romfs image
+all: ucfront cksum staging subdirs romfs image
 else
 all: config_error
 endif
@@ -30,7 +30,7 @@ endif
 LINUXDIR = $(CONFIG_LINUXDIR)
 LIBCDIR  = $(CONFIG_LIBCDIR)
 ROOTDIR  = $(shell pwd)
-PATH	 := $(PATH):$(ROOTDIR)/tools
+PATH	 := $(ROOTDIR)/tools:$(PATH)
 HOSTCC   = cc
 IMAGEDIR = $(ROOTDIR)/images
 RELDIR   = $(ROOTDIR)/release
@@ -96,6 +96,12 @@ tools/cksum: tools/sg-cksum/*.c
 	$(MAKE) -C tools/sg-cksum
 	ln -sf $(ROOTDIR)/tools/sg-cksum/cksum tools/cksum
 
+.PHONY: staging
+staging: pkg-config compilers
+.PHONY: compilers
+compilers: tools/$(CROSS_COMPILE)gcc tools/$(CROSS_COMPILE)g++ tools/$(CROSS_COMPILE)cpp tools/$(CROSS_COMPILE)ld
+tools/$(CROSS_COMPILE)%:
+	ln -sf staging-compiler $@
 .PHONY: pkg-config
 pkg-config: tools/$(CROSS_COMPILE)pkg-config
 tools/$(CROSS_COMPILE)pkg-config:
@@ -326,6 +332,7 @@ linux linux%_only:
 		echo "ERROR: you need to do a 'make dep' first" ; \
 		exit 1 ; \
 	fi
+	rm -f $(LINUXDIR)/usr/initramfs_data.cpio.gz
 	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(LINUXDIR) $(LINUXTARGET) || exit 1
 	if [ -f $(LINUXDIR)/vmlinux ]; then \
 		ln -f $(LINUXDIR)/vmlinux $(LINUXDIR)/linux ; \
@@ -453,3 +460,6 @@ dist-prep:
 	 done
 
 ############################################################################
+
+# top level is not parallel; we'll handle parallel in subdirs
+.NOTPARALLEL:

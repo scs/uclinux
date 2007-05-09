@@ -188,10 +188,6 @@ ifeq ($(UCLINUX_BUILD_SET),1)
 	EXTRA_CFLAGS := $(CPUFLAGS)
 
 	CXXLIBS = $(LIBSTDCPP) $(CXXSUP)
-
-	CFLAGS   += -isystem $(STAGEDIR)/usr/include
-	CPPFLAGS += -isystem $(STAGEDIR)/usr/include
-	LDFLAGS  += -B$(STAGEDIR)/usr/lib
 endif
 
 ############################################################################
