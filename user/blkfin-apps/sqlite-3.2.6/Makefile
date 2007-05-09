@@ -7,7 +7,7 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	CFLAGS="$(LDFLAGS) $(CFLAGS)" ../configure \
+	../configure \
 		$(CONFIGURE_OPTS) \
 		--disable-tcl
 	# sqlite has a completely retarded build system; while it
