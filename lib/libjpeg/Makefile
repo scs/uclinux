@@ -143,12 +143,18 @@ all:  libjpeg.$(A) libjpeg.so
 	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
 	install -m0755 libjpeg.so $(STAGEDIR)/usr/lib
 	install -m0644 jpeglib.h $(STAGEDIR)/usr/include
+	install -m0644 jconfig.h $(STAGEDIR)/usr/include
+	install -m0644 jmorecfg.h $(STAGEDIR)/usr/include
+	install -m0644 jerror.h $(STAGEDIR)/usr/include
 else
 all:  libjpeg.$(A)
 	install -d $(STAGEDIR)/usr/lib
 	install -d $(STAGEDIR)/usr/include
 	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
 	install -m0644 jpeglib.h $(STAGEDIR)/usr/include
+	install -m0644 jconfig.h $(STAGEDIR)/usr/include
+	install -m0644 jmorecfg.h $(STAGEDIR)/usr/include
+	install -m0644 jerror.h $(STAGEDIR)/usr/include
 endif
 
 # Special compilation rules to support ansi2knr and libtool.
