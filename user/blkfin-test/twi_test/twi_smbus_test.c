@@ -36,11 +36,13 @@ static int ad5280_probe(struct i2c_adapter *adap, int addr, int kind)
 
 	rc = i2c_smbus_write_byte_data(&client, 0x00, vcomm_value);
 	if(rc) {
+		i2c_detach_client(&client);
 		printk("TWI_SMBUS_TEST: i2c_smbus_write_byte_data fail: %d\n", rc);
 		return -1;
 	}
 
 	new_vcomm = i2c_smbus_read_byte_data(&client, 0x00);
+	i2c_detach_client(&client);
 	if(new_vcomm != vcomm_value) {
 		printk("TWI_SMBUS_TEST: i2c_smbus_read_byte_data fails: %d\n", new_vcomm);
 		return -1;
