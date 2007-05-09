@@ -41,3 +41,6 @@ for p in ${PATH} ; do
 	[ ! -x "${p}/${tool}" ] && continue
 	exec "${p}/${tool}" "$@"
 done
+
+echo "${tool}: command not found; perhaps you need to fix your PATH?" 1>&2
+exit 127
