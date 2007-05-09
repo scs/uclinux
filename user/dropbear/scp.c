@@ -140,7 +140,7 @@ do_local_cmd(arglist *a)
 	if (pid == 0) {
 		execvp(a->list[0], a->list);
 		perror(a->list[0]);
-		exit(1);
+		_exit(1);
 	}
 
 	do_cmd_pid = pid;
@@ -229,7 +229,7 @@ do_cmd(char *host, char *remuser, char *cmd, int *fdin, int *fdout, int argc)
 
 		execvp(ssh_program, args.list);
 		perror(ssh_program);
-		exit(1);
+		_exit(1);
 	} else if (do_cmd_pid == -1) {
 		fatal("fork: %s", strerror(errno));
 	}

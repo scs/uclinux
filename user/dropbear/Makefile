@@ -1,6 +1,5 @@
-#PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp"
 all: build/Makefile build-host/Makefile
-	$(MAKE) -C build MULTI=1
+	$(MAKE) -C build MULTI=1 PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp"
 	$(MAKE) -C build-host dropbearkey
 
 build/Makefile:
@@ -40,7 +39,7 @@ romfs:
 	$(ROMFSINST) -s dropbear /bin/dropbearkey
 	$(ROMFSINST) -s dropbear /bin/dbclient
 	$(ROMFSINST) -s dropbear /bin/dropbearconvert
-	#$(ROMFSINST) -s dropbear /bin/dbscp
+	$(ROMFSINST) -s dropbear /bin/scp
 	$(ROMFSINST) -a "ssh     stream tcp nowait root /bin/dropbear -i 2 > /dev/null" /etc/inetd.conf
 
 	mkdir -p $(ROMFSDIR)/etc/dropbear
