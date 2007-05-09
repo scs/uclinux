@@ -1,9 +1,10 @@
 #PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp"
-all: build/Makefile
+all: build/Makefile build-host/Makefile
 	$(MAKE) -C build MULTI=1
+	$(MAKE) -C build-host dropbearkey
 
 build/Makefile:
-	touch *
+	find . -type f -print0 | xargs -0 touch -r configure
 	set -e ; \
 	rm -rf build ; \
 	mkdir build ; \
@@ -12,20 +13,38 @@ build/Makefile:
 
 	# work around broken libtom makefiles
 	set -e ; \
-	list=`cd libtomcrypt ; find . -mindepth 1 -type d` ; \
-	cd build/libtomcrypt ; \
+	list=`find libtom* -mindepth 1 -type d` ; \
+	cd build ; \
+	mkdir -p $$list
+
+build-host/Makefile:
+	find . -type f -print0 | xargs -0 touch -r configure
+	set -e ; \
+	rm -rf build-host ; \
+	mkdir build-host ; \
+	cd build-host ; \
+	unset CC LD CFLAGS LDFLAGS CPPFLAGS ; \
+	../configure
+
+	# work around broken libtom makefiles
+	set -e ; \
+	list=`find libtom* -mindepth 1 -type d` ; \
+	cd build-host ; \
 	mkdir -p $$list
 
 clean:
-	rm -rf build
+	rm -rf build build-host
 
 romfs:
-	$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR build/dropbearmulti /bin/dropbear
-	$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR -s dropbear /bin/dropbearkey
-	$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR -s dropbear /bin/dbclient
-	$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR -s dropbear /bin/dropbearconvert
-	#$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR -s dropbear /bin/dbscp
-	$(ROMFSINST) -e CONFIG_USER_DROPBEAR_DROPBEAR \
-		-a "ssh     stream tcp nowait root /bin/dropbear -i 2 > /dev/null" /etc/inetd.conf
+	$(ROMFSINST) build/dropbearmulti /bin/dropbear
+	$(ROMFSINST) -s dropbear /bin/dropbearkey
+	$(ROMFSINST) -s dropbear /bin/dbclient
+	$(ROMFSINST) -s dropbear /bin/dropbearconvert
+	#$(ROMFSINST) -s dropbear /bin/dbscp
+	$(ROMFSINST) -a "ssh     stream tcp nowait root /bin/dropbear -i 2 > /dev/null" /etc/inetd.conf
+
+	mkdir -p $(ROMFSDIR)/etc/dropbear
+	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key ] || ./build-host/dropbearkey -t dss -f $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key
+	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key ] || ./build-host/dropbearkey -t rsa -f $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key
 
 .PHONY: all clean romfs
