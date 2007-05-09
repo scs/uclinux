@@ -28,7 +28,7 @@ send "\r"
 send "insmod /twi_smbus_test.ko\r"
 while 1 {
    expect {
-      "[PASS]" {
+      "PASS" {
          expect ">"
          case_pass $case_num
          break
@@ -44,7 +44,7 @@ incr case_num
 send "twi_test 0x58 0x10\r"
 while 1 {
    expect {
-      "[PASS]" {
+      "PASS" {
          case_pass $case_num
          break
       }
