@@ -29,7 +29,9 @@ if [ -d "${STAGEDIR}" ] ; then
 				"-c "*|*" -c "*|*" -c") ;;
 				"-E "*|*" -E "*|*" -E") ;;
 				"-MM "*|*" -MM "*|*" -MM") ;;
-				*) set -- "$@" -Wl,-rpath-link,"${STAGEDIR}${p}" ;;
+				*) ${i} \
+				     && set -- "$@" -Wl,-rpath-link,"${STAGEDIR}${p}" \
+				     || set -- "$@" -rpath-link "${STAGEDIR}${p}" ;;
 			esac
 		done
 	fi
