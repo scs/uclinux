@@ -139,12 +139,16 @@ OBJSDLL = $(LIBOBJECTS:.o=.pic.o)
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 all:  libjpeg.$(A) libjpeg.so
 	install -d $(STAGEDIR)/usr/lib
+	install -d $(STAGEDIR)/usr/include
 	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
 	install -m0755 libjpeg.so $(STAGEDIR)/usr/lib
+	install -m0644 jpeglib.h $(STAGEDIR)/usr/include
 else
 all:  libjpeg.$(A)
 	install -d $(STAGEDIR)/usr/lib
-	install libjpeg.$(A) $(STAGEDIR)/usr/lib
+	install -d $(STAGEDIR)/usr/include
+	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
+	install -m0644 jpeglib.h $(STAGEDIR)/usr/include
 endif
 
 # Special compilation rules to support ansi2knr and libtool.
