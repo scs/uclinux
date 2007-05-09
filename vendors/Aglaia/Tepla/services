@@ -1,0 +1,20 @@
+ftp	21/tcp
+ftp	21/udp
+ssh	22/tcp
+ssh	22/udp
+telnet	23/tcp
+telnet	23/udp
+nameserver	42/tcp	name
+nameserver	42/udp	name
+tftp	69/tcp
+tftp	69/udp
+finger	79/tcp
+finger	79/udp
+http	80/tcp	www www-http
+http	80/udp	www www-http
+kerberos	88/tcp	kerberos5 krb5
+kerberos	88/udp	kerberos5 krb5
+hostname	101/tcp	hostnames
+hostname	101/udp	hostnames
+shell   514/tcp cmd
+shell   514/udp cmd
