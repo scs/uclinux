@@ -132,8 +132,6 @@ else
 #
 # make an initramfs image
 #  Note: need to override some vars from userland env
-#  Note: we don't compress the cpio initramfs as the u-boot boot images
-#        take care of that for us ... no point in double compressing
 #
 	( /bin/sh $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) ; \
 	  awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) ; \
@@ -141,12 +139,21 @@ else
 	) | $(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio - > $(IMAGEDIR)/rootfs.initramfs
 	cp $(IMAGEDIR)/rootfs.initramfs $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
 
+# first one set with the rootfs uncompressed (since u-boot images do compression)
 	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
 	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(ROOTDIR)/$(LINUXDIR)
 	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/uImage.initramfs
-	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/linux.initramfs
-	ln -sf linux.initramfs $(IMAGEDIR)/linux
+	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGEDIR)/linux.initramfs
 	ln -sf uImage.initramfs $(IMAGEDIR)/uImage
+
+# then another set with the rootfs compressed (to work with uncompressed kernel)
+	gzip -c -9 $(IMAGEDIR)/rootfs.initramfs > $(IMAGEDIR)/rootfs.initramfs.gz
+	cp $(IMAGEDIR)/rootfs.initramfs.gz $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
+	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
+	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(ROOTDIR)/$(LINUXDIR)
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/uImage.initramfs.gz
+	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGEDIR)/linux.initramfs.gz
+	ln -sf linux.initramfs.gz $(IMAGEDIR)/linux
 
 endif
 
