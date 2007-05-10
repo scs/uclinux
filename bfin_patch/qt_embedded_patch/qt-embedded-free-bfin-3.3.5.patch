@@ -97,12 +97,12 @@ diff -urN qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qmake.shared.conf qt
 +TEMPLATE		= app
 +CONFIG			+= qt link_prl
 +
-+QMAKE_CC		= bfin-uclinux-gcc
++QMAKE_CC		= bfin-linux-uclibc-gcc
 +QMAKE_LEX		= flex
 +QMAKE_LEXFLAGS		=
 +QMAKE_YACC		= yacc
 +QMAKE_YACCFLAGS		= -d
-+QMAKE_CFLAGS		= -mfdpic -pipe -D__linux__ -DQT_NOMMU -DQ_NO_SEMAPHORE -DQT_QWS_NO_SHM -DQT_NO_QWS_MULTIPROCESS
++QMAKE_CFLAGS		= -pipe -D__linux__ -DQT_NOMMU -DQ_NO_SEMAPHORE -DQT_QWS_NO_SHM -DQT_NO_QWS_MULTIPROCESS
 +QMAKE_CFLAGS_WARN_ON	= -Wall -W
 +QMAKE_CFLAGS_WARN_OFF	=
 +QMAKE_CFLAGS_RELEASE	= -O2
@@ -111,7 +111,7 @@ diff -urN qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qmake.shared.conf qt
 +QMAKE_CFLAGS_YACC	= -Wno-unused -Wno-parentheses
 +QMAKE_CFLAGS_THREAD	= -D_REENTRANT
 +
-+QMAKE_CXX		= bfin-uclinux-g++
++QMAKE_CXX		= bfin-linux-uclibc-g++
 +QMAKE_CXXFLAGS		= $$QMAKE_CFLAGS -DQWS -fno-exceptions -fno-rtti
 +QMAKE_CXXFLAGS_WARN_ON	= $$QMAKE_CFLAGS_WARN_ON
 +QMAKE_CXXFLAGS_WARN_OFF	= $$QMAKE_CFLAGS_WARN_OFF
@@ -132,9 +132,9 @@ diff -urN qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qmake.shared.conf qt
 +QMAKE_INCDIR_QTOPIA	= $(QPEDIR)/include
 +QMAKE_LIBDIR_QTOPIA	= $(QPEDIR)/lib
 +
-+QMAKE_LINK		= bfin-uclinux-g++
-+QMAKE_LINK_SHLIB	= bfin-uclinux-g++
-+QMAKE_LFLAGS		= -mfdpic
++QMAKE_LINK		= bfin-linux-uclibc-g++
++QMAKE_LINK_SHLIB	= bfin-linux-uclibc-g++
++QMAKE_LFLAGS		= 
 +QMAKE_LFLAGS_RELEASE	=
 +QMAKE_LFLAGS_DEBUG	=
 +QMAKE_LFLAGS_SHLIB      = -shared
@@ -156,7 +156,7 @@ diff -urN qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qmake.shared.conf qt
 +QMAKE_MOC		= $(QTDIR)/bin/moc
 +QMAKE_UIC		= $(QTDIR)/bin/uic
 +
-+QMAKE_AR		= bfin-uclinux-ar cqs
++QMAKE_AR		= bfin-linux-uclibc-ar cqs
 +QMAKE_RANLIB		=
 +
 +QMAKE_TAR		= tar -cf
