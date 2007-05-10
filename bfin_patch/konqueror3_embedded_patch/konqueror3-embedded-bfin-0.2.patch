@@ -540,8 +540,8 @@
      }
 --- konqueror3-embedded/configure	2005-12-04 10:13:04.000000000 +0800
 +++ konqueror3-embedded.bfin/configure	2006-09-11 17:01:05.000000000 +0800
-@@ -11152,6 +11152,24 @@
-   dynamic_linker='GNU/Linux ld.so'
+@@ -11114,6 +11114,24 @@
+   hardcode_into_libs=yes
    ;;
  
 +uclinux*)
@@ -550,23 +550,23 @@
 +  need_version=no
 +  dynamic_linker=no
 +  sys_lib_dlsearch_path_spec="/lib"
-+  sys_lib_search_path_spec=""
++  sys_lib_search_path_spec="lib"
 +  ;;
 +
-+uclibc*)
++linux-uclibc*)
 +  version_type=linux
 +  need_lib_prefix=no
 +  need_version=no
 +  dynamic_linker=yes
 +  sys_lib_dlsearch_path_spec="/lib"
-+  sys_lib_search_path_spec=""
++  sys_lib_search_path_spec="/lib"
 +  ;;
 +
- netbsd*)
-   version_type=sunos
-   need_lib_prefix=no
-@@ -14818,6 +14827,24 @@
-   dynamic_linker='GNU/Linux ld.so'
+ # No shared lib support for Linux oldld, aout, or coff.
+ linux*oldld* | linux*aout* | linux*coff*)
+   dynamic_linker=no
+@@ -14780,6 +14798,24 @@
+   hardcode_into_libs=yes
    ;;
  
 +uclinux*)
@@ -575,18 +575,18 @@
 +  need_version=no
 +  dynamic_linker=no
 +  sys_lib_dlsearch_path_spec="/lib"
-+  sys_lib_search_path_spec=""
++  sys_lib_search_path_spec="/lib"
 +  ;;
 +
-+uclibc*)
++linux-uclibc*)
 +  version_type=linux
 +  need_lib_prefix=no
 +  need_version=no
 +  dynamic_linker=yes
 +  sys_lib_dlsearch_path_spec="/lib"
-+  sys_lib_search_path_spec=""
++  sys_lib_search_path_spec="/lib"
 +  ;;
 +
- netbsd*)
-   version_type=sunos
-   need_lib_prefix=no
+ # No shared lib support for Linux oldld, aout, or coff.
+ linux*oldld* | linux*aout* | linux*coff*)
+   dynamic_linker=no
