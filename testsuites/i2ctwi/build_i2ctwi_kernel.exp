@@ -68,7 +68,7 @@ while 1 {
       }
       
            -re "TWI test program.*CONFIG_USER_BLACKFIN_TWI.*\\\[.*]" {
-                        send "\r"
+                        send "Y\r"
       }
       
        "\\\(*) \\\[*]" {
