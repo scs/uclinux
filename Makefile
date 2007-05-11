@@ -365,6 +365,7 @@ relink:
 clean: modules_clean
 	for dir in $(LINUXDIR) $(DIRS); do [ ! -d $$dir ] || $(MAKEARCH) -C $$dir clean ; done
 	rm -rf $(ROMFSDIR)/*
+	rm -rf $(STAGEDIR)/*
 	rm -f $(IMAGEDIR)/*
 	rm -f config.tk
 	rm -f $(LINUXDIR)/linux
@@ -376,7 +377,7 @@ real_clean mrproper: clean
 	-$(MAKEARCH) -C config clean
 	#-$(MAKEARCH) -C uClibc distclean
 	#-$(MAKEARCH) -C $(RELDIR) clean
-	rm -rf romfs config.in config.arch config.tk images
+	rm -rf romfs staging config.in config.arch config.tk images
 	rm -f modules/config.tk
 	rm -rf .config .config.old .oldconfig autoconf.h
 	rm -f tools/*-pkg-config
