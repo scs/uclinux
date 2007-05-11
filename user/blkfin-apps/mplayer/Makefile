@@ -1,10 +1,11 @@
-VER = MPlayer-1.0rc1
+VER = MPlayer-svn-23293
 
 all: $(VER)/config.mak
 	$(MAKE) -C $(VER)
 
 $(VER)/config.mak:
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+	set -e ; \
 	cd $(VER) ; \
 	./configure \
 		--enable-cross-compile \
@@ -14,7 +15,8 @@ $(VER)/config.mak:
 		--as=$(CONFIGURE_HOST)-as \
 		--prefix=/usr \
 		--confdir=/etc \
-		--mandir=/usr/share/man
+		--mandir=/usr/share/man \
+		--disable-mp3lib
 
 clean:
 	-$(MAKE) -C $(VER) distclean
