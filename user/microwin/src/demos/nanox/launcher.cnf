@@ -71,7 +71,7 @@ $window_background_mode 0
 # The icon filename can be the letter '-' to specify no icon.
 
 Tetris bin/ntetris.ppm bin/ntetris
-NanoBreaker bin/nbreaker.ppm bin/nbreaker -d demos/nbreaker/gamedata
+#NanoBreaker bin/nbreaker.ppm bin/nbreaker -d demos/nbreaker/gamedata
 Landmine bin/landmine.ppm bin/landmine
 Slider bin/slider.ppm bin/slider bin/slidebmp.bmp
 Terminal bin/nxterm.ppm bin/nxterm
@@ -80,7 +80,7 @@ Clock bin/nxclock.pgm bin/nxclock
 Magnifier bin/logo.ppm bin/nxmag
 Scribble bin/nxscribble.ppm bin/nxscribble
 SoftKeyboard bin/nxkbd.pgm bin/nxkbd
-Roach bin/nxroach.pgm bin/nxroach -roaches 10
+#Roach bin/nxroach.pgm bin/nxroach -roaches 10
 Tux bin/tux.ppm bin/tux
 NXEyes bin/nxeyes.pgm bin/nxeyes
 # Pressure - bin/pressure

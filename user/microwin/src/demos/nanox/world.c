@@ -35,7 +35,7 @@
 #if defined(DOS_DJGPP) || defined(__ECOS)
 #define	MAPFILE	"/world.map"
 #else
-#define	MAPFILE	"demos/nanox/world.map"		/* was /usr/lib*/
+#define	MAPFILE	"/bin/world.map"		/* was /usr/lib*/
 #endif
 
 #define	SELECTBUTTON	GR_BUTTON_L

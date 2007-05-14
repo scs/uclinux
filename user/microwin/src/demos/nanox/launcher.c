@@ -434,6 +434,11 @@ void handle_exposure_event(lstate *state)
 							event->wid);
 }
 
+#ifdef __uClinux__
+#undef fork
+#define fork() vfork()
+#endif
+
 pid_t launch_program(prog_item *prog)
 {
 	pid_t pid;
