@@ -1,6 +1,6 @@
 
 all:
-	LDFLAGS="" $(MAKE) -C $(ROOTDIR)/linux-2.6.x SUBDIRS=$(PWD)/twi_test modules
+	LDFLAGS="" CC="bfin-uclinux-gcc" $(MAKE) -C $(ROOTDIR)/linux-2.6.x SUBDIRS=$(PWD)/twi_test modules
 	$(CC) $(CFLAGS) $(LDFLAGS) -o twi_test twi_test.c $(LDLIBS)
 
 modules:
