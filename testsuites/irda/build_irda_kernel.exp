@@ -77,12 +77,12 @@ while 1 {
              send "y\r"
       }
 
-          -re "IrDA (infrared) subsystem support.*CONFIG_IRDA.*\\\[.*]" {
+          -re "IrDA \\\(infrared\\\) subsystem support.*IRDA.*\\\[.*]" {
              
              send "Y\r"
       }
       
-         -re "IrLAN protocol \\\(IRLAN\\\).*\\\[././.]" {
+         -re "IrLAN protocol.*IRLAN.*\\\[.*]" {
              send "m\r"
       }
       
@@ -107,7 +107,7 @@ while 1 {
       }      
      
        "\\\(*) \\\[*]" {
-            
+           sleep .01 
 	     send "\r"
       }
 
