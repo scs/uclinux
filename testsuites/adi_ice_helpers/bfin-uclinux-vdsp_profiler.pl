@@ -14,8 +14,10 @@
 #
 
 #
-# TODO: Still need to load in module.maps somehow, please let me
-# know if that is a problem for you.
+# TODO: handle addresses in L1 (need to have user space maps listed in
+#       /proc/maps from userspace).
+#       also note that perl seems to barf on "ffa0...." with:
+#       Hexadecimal number > 0xffffffff non-portable at ../bfin-uclinux-vdsp_profiler.pl line 195, <T> line 44.
 #
 
 sub Usage
@@ -23,7 +25,7 @@ sub Usage
 	die "$0: [-v] [-h] call-trace.txt system.map user.map\n  -v = verbose output\n  -h = help (This message)\n  For more info check http://docs.blackfin.uclinux.org/doku.php?id=statistical_profiling\n";
 }
 
-Usage() if $#ARGV < 2 ;
+Usage() if $#ARGV < 2;
 
 use vars qw/ %opt /;
 
@@ -76,12 +78,18 @@ open(M, $smap) || die "$0: can't open System.map file '$smap': $!\n";
 while(<M>) {
 	chomp;
 	@tmp = split;
-	if ($#tmp != 2 || $tmp[0] !~ /^[0-9a-fA-F]+$/) {
+	if ($tmp[0] !~ /^[0-9a-fA-F]+$/) {
 		warn "bad line in system.map: $#tmp $_\n";
 	}
 	$tmp[0] =~ s/^0+//g;
 
-	$symtab{$tmp[0]} = "Kernel:".$tmp[2];
+	if ( !  $symtab{$tmp[0]} ) {
+		if ($tmp[3] ) {
+			$symtab{$tmp[0]} = "Kernel".$tmp[3].":".$tmp[2];
+		} else {
+			$symtab{$tmp[0]} = "Kernel:".$tmp[2];
+		}
+	}
 
 	if ($tmp[2] eq "__start" ) {
 		$mem->{"kernel_start"} = hex $tmp[0];
@@ -90,6 +98,9 @@ while(<M>) {
 	if ($tmp[2] eq "__end" ) {
 		$mem->{"kernel_end"} = hex $tmp[0];
 	}
+
+	printf("%s\n", $symtab{$tmp[0]})  if $debug;
+
 }
 close(M);
 
@@ -102,6 +113,7 @@ while(<M>) {
 	@tmp = split;
 	if ($#tmp != 5 ) {
 		warn "bad line in user.map: $#tmp $_\n";
+		next;
 	}
 	@tmp1 = split (/-/, $tmp[0]);
 	$tmp1[0] =~ s/^0+//g;
@@ -132,12 +144,12 @@ while(<M>) {
 		}
 		close (N);
 	} else {
-		if ( ! ($file eq "[heap].map" ) ) {
+		if ( ! ($file eq "[heap].map" || $file eq ".map" ) ) {
 			warn "Can't find $file\n";
 		}
 	}
-	if ( ! $symtab{sprintf("%x",(hex $tmp1[1]) -1)} ) {
-		$symtab{sprintf("%x",(hex $tmp1[1]) -1)} = "Unknown Mapping";
+	if ( ! $symtab{sprintf("%x",(hex $tmp1[1]) )} ) {
+		$symtab{sprintf("%x",(hex $tmp1[1]) )} = "Unknown_Mapping";
 	}
 	printf("%x    %s:__end\n",$end , $tmp2[$#tmp2]) if $debug;
 
