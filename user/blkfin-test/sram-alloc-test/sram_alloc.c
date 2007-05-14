@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include <bits/bfin_sram.h>
+#include <bfin_sram.h>
 
 int main ()
 {
