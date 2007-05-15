@@ -59,12 +59,12 @@ all: $(LIBS) $(SHAREDLIB)
 else
 all: $(LIBS)
 endif
-	install -d $(STAGEDIR)/usr/lib
+	install -d -m0755 $(STAGEDIR)/usr/lib
 	install -m0644 $(LIBS) $(STAGEDIR)/usr/lib
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	cp -a $(SHAREDLIB)* $(STAGEDIR)/usr/lib
+	cp -pP $(SHAREDLIB)* $(STAGEDIR)/usr/lib
 endif
-	install -d $(STAGEDIR)/usr/include
+	install -d -m0755 $(STAGEDIR)/usr/include
 	install -m0644 zconf.h zlib.h $(STAGEDIR)/usr/include
 
 romfs:
