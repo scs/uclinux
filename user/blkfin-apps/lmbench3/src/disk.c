@@ -285,12 +285,28 @@ disksize(char *disk)
 
 #define	BIGSEEK	(1<<30)
 
+#ifdef	__linux__
+
+#ifndef __NR__llseek
+#define __NR__llseek            140
+#endif
+
+static loff_t llseek (int fd, loff_t offset, int origin)
+{
+	loff_t result;
+	int retval;
+
+	retval = syscall(__NR__llseek, fd, (unsigned long long) (offset >> 32),
+			  ((unsigned long long) offset) & 0xffffffff,
+			&result, origin);
+	return (retval == -1 ? (loff_t) retval : result);
+}
+#endif
+
 int
 seekto(int fd, uint64 off)
 {
 #ifdef	__linux__
-	extern	loff_t llseek(int, loff_t, int);
-
 	if (llseek(fd, (loff_t)off, SEEK_SET) == (loff_t)-1) {
 		return(-1);
 	}
