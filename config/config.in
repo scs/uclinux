@@ -541,6 +541,7 @@ bool 'rdate'			CONFIG_USER_RDATE_RDATE
 bool 'routed'			CONFIG_USER_ROUTED_ROUTED
 bool 'rp-pppoe'			CONFIG_USER_RP_PPPOE_PPPOE
 dep_bool '  rp-pppoe server'	CONFIG_USER_RP_PPPOE_PPPOE_SERVER $CONFIG_USER_RP_PPPOE_PPPOE
+bool 'rsync'			CONFIG_USER_RSYNC_RSYNC
 bool 'rsyslogd'			CONFIG_USER_RSYSLOGD_RSYSLOGD
 bool 'ser'			CONFIG_USER_SER_SER
 if [ "$CONFIG_USER_SER_SER" = "y" ]; then
