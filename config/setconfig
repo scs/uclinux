@@ -225,17 +225,23 @@ if [ "$PASS" != "final" ]; then
 
 	if [ ! -f $LINUXDIR/.config ] || var_isset CONFIG_DEFAULTS_OVERRIDE; then
 		if [ ! -f "vendors/$VENDOR/$PRODUCT/config.$LINUXDIR" ]; then
-			echo; echo; echo; echo
-			echo "*********************** NOTICE ****************************"
-			echo "There is no preset config for $LINUXDIR on platform $VENDOR/$PRODUCT." 
-			echo "If you choose to continue you will have to setup a linux"
-			echo "config from scratch which is a very complex task."
-			echo "You will find it easier if you can copy a config.$LINUXDIR"
-			echo "from another platform that is similar."
-			echo
-			echo "If you know what you are doing press <ENTER> otherwise"
-			echo "Type ^C to abort."
-			read dummy
+			ARCH=$(echo -e "e:\\n\\t@echo \$(ARCH)\\ninclude config.arch" | \
+			       ROOTDIR=$PWD make --no-print-directory -s -f - 2>/dev/null)
+			if [ ! -f "$LINUXDIR/arch/$ARCH/configs/${PRODUCT}_defconfig" ]; then
+				echo; echo; echo; echo
+				echo "*********************** NOTICE ****************************"
+				echo "There is no preset config for $LINUXDIR on platform $VENDOR/$PRODUCT." 
+				echo "If you choose to continue you will have to setup a linux"
+				echo "config from scratch which is a very complex task."
+				echo "You will find it easier if you can copy a config.$LINUXDIR"
+				echo "from another platform that is similar."
+				echo
+				echo "If you know what you are doing press <ENTER> otherwise"
+				echo "Type ^C to abort."
+				read dummy
+			else
+				cp "$LINUXDIR/arch/$ARCH/configs/${PRODUCT}_defconfig" config.$LINUXDIR
+			fi
 		else
 			cp "vendors/$VENDOR/$PRODUCT/config.$LINUXDIR" $LINUXDIR/.config
 		fi
