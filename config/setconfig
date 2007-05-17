@@ -240,7 +240,7 @@ if [ "$PASS" != "final" ]; then
 				echo "Type ^C to abort."
 				read dummy
 			else
-				cp "$LINUXDIR/arch/$ARCH/configs/${PRODUCT}_defconfig" config.$LINUXDIR
+				cp "$LINUXDIR/arch/$ARCH/configs/${PRODUCT}_defconfig" $LINUXDIR/.config
 			fi
 		else
 			cp "vendors/$VENDOR/$PRODUCT/config.$LINUXDIR" $LINUXDIR/.config
