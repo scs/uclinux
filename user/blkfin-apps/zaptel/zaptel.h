@@ -598,7 +598,7 @@ void	*data;
 #define ZT_GETSIGFREEZE _IOR (ZT_CODE, 55, int)
 
 /*
- * Do a channel IOCTL from the /dev/zap/ctl interface
+ * Do a channel IOCTL from the /dev/zap/zapctl interface
  */
 #define ZT_INDIRECT _IOWR (ZT_CODE, 56, struct zt_indirect_data)
 

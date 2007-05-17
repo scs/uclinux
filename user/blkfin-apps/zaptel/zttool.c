@@ -556,9 +556,9 @@ static void cleanup(void)
 int main(int argc, char *argv[])
 {
 
-	ctl = open("/dev/zap/ctl", O_RDWR);
+	ctl = open("/dev/zap/zapctl", O_RDWR);
 	if (ctl < 0) {
-		fprintf(stderr, "Unable to open /dev/zap/ctl: %s\n", strerror(errno));
+		fprintf(stderr, "Unable to open /dev/zap/zapctl: %s\n", strerror(errno));
 		exit(1);
 	}
 	newtInit();

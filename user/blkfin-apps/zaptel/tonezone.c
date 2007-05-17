@@ -31,7 +31,7 @@
 #include <errno.h>
 #include "tonezone.h"
 
-#define DEFAULT_ZT_DEV "/dev/zap/ctl"
+#define DEFAULT_ZT_DEV "/dev/zap/zapctl"
 
 #define MAX_SIZE 16384
 #define CLIP 32635

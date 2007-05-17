@@ -17,9 +17,9 @@ int main(int argc, char *argv[])
 		fprintf(stderr, "Usage: ztdiag <channel>\n");
 		exit(1);
 	}
-	fd = open("/dev/zap/ctl");
+	fd = open("/dev/zap/zapctl");
 	if (fd < 0) {
-		perror("open(/dev/zap/ctl");
+		perror("open(/dev/zap/zapctl");
 		exit(1);
 	}
 	if (ioctl(fd, ZT_CHANDIAG, &chan)) {

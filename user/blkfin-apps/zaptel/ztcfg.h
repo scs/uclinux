@@ -23,5 +23,5 @@
 #define _ZTCFG_H
 
 #define CONFIG_FILENAME ZAPTEL_CONFIG
-#define MASTER_DEVICE   "/dev/zap/ctl"
+#define MASTER_DEVICE   "/dev/zap/zapctl"
 #endif
