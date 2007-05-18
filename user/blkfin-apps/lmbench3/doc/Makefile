@@ -102,5 +102,4 @@ $(USENIX):
 	get -s $(USENIX)
 
 clean:
-	-bk clean 
 	/bin/rm -f *.PS XXX bw.pic memrd_bcopy_comp.pic references.i

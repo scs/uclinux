@@ -43,7 +43,6 @@ clobber clean:
 		(cd $$i && $(MAKE) clean); \
 	done
 	/bin/rm -rf bin/*
-	-bk clean 
 
 get: 
 	for i in doc src results scripts; do \

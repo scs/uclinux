@@ -208,7 +208,6 @@ edit get-e:
 clean:
 	/bin/rm -f ../bin/*/CONFIG ../bin/*/*.[oas]
 	/bin/rm -f *.[oas]
-	-bk clean
 
 romfs:
 	mkdir -p ${ROMFSDIR}/lmbench3
@@ -223,7 +222,6 @@ romfs:
 
 clobber:
 	/bin/rm -rf ../bin* SHAR
-	-bk clean
 
 shar:
 	cd ../.. && shar lmbench/Results/Makefile $(SAMPLES) lmbench/scripts/* lmbench/src/Makefile lmbench/src/*.[ch] > lmbench/SHAR
