@@ -416,6 +416,8 @@ dir_$(CONFIG_USER_ZEBRA_ZEBRA_ZEBRA)        += zebra
 
 dir_y += games
 
+include Makefile.local
+
 all: config
 	$(MAKE) -j$(HOST_NCPU) $(sort $(dir_y) $(dir_v) $(dir_p)) || exit $$?
 
@@ -477,5 +479,3 @@ prune_openswan:
 	rm -fr openswan; \
 	cp -R $@/* .; \
 	rm -fr $@
-
-include Makefile.local
