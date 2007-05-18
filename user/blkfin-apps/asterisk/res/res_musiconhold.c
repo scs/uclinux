@@ -558,9 +558,9 @@ static int moh_register(char *classname, char *mode, char *param, char *miscargs
 		strncpy(moh->dir, param, sizeof(moh->dir) - 1);
 		moh->srcfd = -1;
 #ifdef ZAPATA_MOH
-		/* It's an MP3 Moh -- Open /dev/zap/pseudo for timing...  Is
+		/* It's an MP3 Moh -- Open /dev/zap/zappseudo for timing...  Is
 		   there a better, yet reliable way to do this? */
-		moh->pseudofd = open("/dev/zap/pseudo", O_RDONLY);
+		moh->pseudofd = open("/dev/zap/zappseudo", O_RDONLY);
 		if (moh->pseudofd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel for timing...  Sound may be choppy.\n");
 		} else {

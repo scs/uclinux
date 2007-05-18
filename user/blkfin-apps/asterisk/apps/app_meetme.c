@@ -225,7 +225,7 @@ static struct ast_conference *build_conf(char *confno, char *pin, int make, int 
 				cnf->fd = cnf->chan->fds[0];	/* for use by conf_play() */
 			} else {
 				ast_log(LOG_WARNING, "Unable to open pseudo channel - trying device\n");
-				cnf->fd = open("/dev/zap/pseudo", O_RDWR);
+				cnf->fd = open("/dev/zap/zappseudo", O_RDWR);
 				if (cnf->fd < 0) {
 					ast_log(LOG_WARNING, "Unable to open pseudo device\n");
 					free(cnf);
@@ -619,7 +619,7 @@ static int conf_run(struct ast_channel *chan, struct ast_conference *conf, int c
 zapretry:
 	origfd = chan->fds[0];
 	if (retryzap) {
-		fd = open("/dev/zap/pseudo", O_RDWR);
+		fd = open("/dev/zap/zappseudo", O_RDWR);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Unable to open pseudo channel: %s\n", strerror(errno));
 			goto outrun;

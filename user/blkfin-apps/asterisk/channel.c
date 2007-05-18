@@ -295,7 +295,7 @@ struct ast_channel *ast_channel_alloc(int needqueue)
 				for (x=0;x<AST_MAX_FDS - 1;x++)
 					tmp->fds[x] = -1;
 #ifdef ZAPTEL_OPTIMIZATIONS
-				tmp->timingfd = open("/dev/zap/timer", O_RDWR);
+				tmp->timingfd = open("/dev/zap/zaptimer", O_RDWR);
 				if (tmp->timingfd > -1) {
 					/* Check if timing interface supports new
 					   ping/pong scheme */

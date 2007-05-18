@@ -763,7 +763,7 @@ static int zt_open(char *fn)
 			ast_log(LOG_WARNING, "Invalid channel number '%s'\n", fn);
 			return -1;
 		}
-		fn = "/dev/zap/channel";
+		fn = "/dev/zap/zapchannel";
 	}
 	fd = open(fn, O_RDWR | O_NONBLOCK);
 	if (fd < 0) {
@@ -809,7 +809,7 @@ static int alloc_sub(struct zt_pvt *p, int x)
 	ZT_BUFFERINFO bi;
 	int res;
 	if (p->subs[x].zfd < 0) {
-		p->subs[x].zfd = zt_open("/dev/zap/pseudo");
+		p->subs[x].zfd = zt_open("/dev/zap/zappseudo");
 		if (p->subs[x].zfd > -1) {
 			res = ioctl(p->subs[x].zfd, ZT_GET_BUFINFO, &bi);
 			if (!res) {
@@ -6115,7 +6115,7 @@ static int pri_create_trunkgroup(int trunkgroup, int *channels)
 			break;
 		memset(&si, 0, sizeof(si));
 		memset(&p, 0, sizeof(p));
-		fd = open("/dev/zap/channel", O_RDWR);
+		fd = open("/dev/zap/zapchannel", O_RDWR);
 		if (fd < 0) {
 			ast_log(LOG_WARNING, "Failed to open channel: %s\n", strerror(errno));
 			return -1;
@@ -6727,7 +6727,7 @@ static struct zt_pvt *chandup(struct zt_pvt *src)
 	if (p) {
 		memcpy(p, src, sizeof(struct zt_pvt));
 		ast_mutex_init(&p->lock);
-		p->subs[SUB_REAL].zfd = zt_open("/dev/zap/pseudo");
+		p->subs[SUB_REAL].zfd = zt_open("/dev/zap/zappseudo");
 		/* Allocate a zapata structure */
 		if (p->subs[SUB_REAL].zfd < 0) {
 			ast_log(LOG_ERROR, "Unable to dup channel: %s\n",  strerror(errno));
@@ -8100,7 +8100,7 @@ static int start_pri(struct zt_pri *pri)
 	for (i=0;i<NUM_DCHANS;i++) {
 		if (!pri->dchannels[i])
 			break;
-		pri->fds[i] = open("/dev/zap/channel", O_RDWR, 0600);
+		pri->fds[i] = open("/dev/zap/zapchannel", O_RDWR, 0600);
 		x = pri->dchannels[i];
 		if ((pri->fds[i] < 0) || (ioctl(pri->fds[i],ZT_SPECIFY,&x) == -1)) {
 			ast_log(LOG_ERROR, "Unable to open D-channel %d (%s)\n", x, strerror(errno));

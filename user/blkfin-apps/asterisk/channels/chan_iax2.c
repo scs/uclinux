@@ -7470,10 +7470,10 @@ int load_module(void)
 
 #ifdef IAX_TRUNKING
 #ifdef ZT_TIMERACK
-	timingfd = open("/dev/zap/timer", O_RDWR);
+	timingfd = open("/dev/zap/zaptimer", O_RDWR);
 	if (timingfd < 0)
 #endif
-		timingfd = open("/dev/zap/pseudo", O_RDWR);
+		timingfd = open("/dev/zap/zappseudo", O_RDWR);
 	if (timingfd < 0) 
 		ast_log(LOG_WARNING, "Unable to open IAX timing interface: %s\n", strerror(errno));
 #endif		
