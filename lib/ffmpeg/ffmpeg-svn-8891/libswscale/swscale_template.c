@@ -2229,13 +2229,10 @@ static inline void RENAME(rgb16ToUV)(uint8_t *dstU, uint8_t *dstV, uint8_t *src1
         int d0= ((uint32_t*)src1)[i];
 
         int dl= (d0&0x07E0F81F);
-        int dh= ((d0>>5)&0x07C0F83F);
+        int d= dl + (((d0>>16) + (d0<<16))&0x07E0F81F);
 
-        int dh2= (dh>>11) + (dh<<21);
-        int d= dh2 + dl;
-
-        int r= d&0x7F;
-        int b= (d>>11)&0x7F;
+        int r= d&0x3F;
+        int b= (d>>11)&0x3F;
         int g= d>>21;
         dstU[i]= ((2*RU*r + GU*g + 2*BU*b)>>(RGB2YUV_SHIFT+1-2)) + 128;
         dstV[i]= ((2*RV*r + GV*g + 2*BV*b)>>(RGB2YUV_SHIFT+1-2)) + 128;
@@ -2265,14 +2262,11 @@ static inline void RENAME(rgb15ToUV)(uint8_t *dstU, uint8_t *dstV, uint8_t *src1
         int d0= ((uint32_t*)src1)[i];
 
         int dl= (d0&0x03E07C1F);
-        int dh= ((d0>>5)&0x03E0F81F);
+        int d= dl + (((d0>>16) + (d0<<16))&0x03E07C1F);
 
-        int dh2= (dh>>11) + (dh<<21);
-        int d= dh2 + dl;
-
-        int g= d&0x7F;
-        int r= (d>>10)&0x7F;
-        int b= d>>21;
+        int r= d&0x3F;
+        int b= (d>>10)&0x3F;
+        int g= d>>21;
         dstU[i]= ((RU*r + GU*g + BU*b)>>(RGB2YUV_SHIFT+1-3)) + 128;
         dstV[i]= ((RV*r + GV*g + BV*b)>>(RGB2YUV_SHIFT+1-3)) + 128;
     }

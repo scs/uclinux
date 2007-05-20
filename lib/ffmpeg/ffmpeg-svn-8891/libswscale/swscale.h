@@ -29,10 +29,6 @@
 
 #include "avutil.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define AV_STRINGIFY(s)         AV_TOSTRING(s)
 #define AV_TOSTRING(s) #s
 
@@ -74,6 +70,7 @@ extern "C" {
 #define SWS_CPU_CAPS_MMX2     0x20000000
 #define SWS_CPU_CAPS_3DNOW    0x40000000
 #define SWS_CPU_CAPS_ALTIVEC  0x10000000
+#define SWS_CPU_CAPS_BFIN     0x01000000
 
 #define SWS_MAX_REDUCE_CUTOFF 0.002
 
@@ -140,9 +137,5 @@ struct SwsContext *sws_getCachedContext(struct SwsContext *context,
                                         int srcW, int srcH, int srcFormat,
                                         int dstW, int dstH, int dstFormat, int flags,
                                         SwsFilter *srcFilter, SwsFilter *dstFilter, double *param);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif
