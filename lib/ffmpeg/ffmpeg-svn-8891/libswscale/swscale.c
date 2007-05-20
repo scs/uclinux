@@ -2502,6 +2502,21 @@ int sws_scale(SwsContext *c, uint8_t* src[], int srcStride[], int srcSliceY,
         src2[1]= pal;
     }
 
+#ifdef ARCH_BFIN
+    //
+    // incomplete but this should help with performance until I fish out the rest of
+    // the conditional.  This will break if we actually ask for scaled video. 
+    // i.e c->srcW must eq c->dstW and c->srcH must eq c->dstH
+    //
+    if (c->srcFormat == PIX_FMT_UYVY422
+	&& c->dstFormat == PIX_FMT_YUV420P) {
+      extern int ff_bfin_uyvytoyv12 () __attribute__ ((l1_text));
+      return ff_bfin_uyvytoyv12 (src[0], dst[0], dst[1], dst[2],
+				 dstStride[0], srcSliceH, dstStride[0], dstStride[1], srcStride[0]);
+    }
+#endif
+
+
     // copy strides, so they can safely be modified
     if (c->sliceDir == 1) {
         // slices go from top to bottom
