@@ -1780,6 +1780,23 @@ static inline void RENAME(uyvyToY)(uint8_t *dst, uint8_t *src, long width)
     : : "g" (-width), "r" (src+width*2), "r" (dst+width)
     : "%"REG_a
     );
+#elif defined(ARCH_BFIN)
+
+    asm volatile(
+        "r0=[%1++];\n\t"
+        "r1=[%1++];\n\t"
+
+        "r0=r0>>8(v);\n\t"
+        "r1=r1>>8(v);\n\t"
+        "lsetup (0f,1f) lc0=%2;\n\t"
+            "0:        r2=bytepack(r0,r1) || r0=[%1++];\n\t"
+            "          r0=r0>>8(v)        || r1=[%1++];\n\t"
+            "1:        r1=r1>>8(v)        || [%0++]=r2;\n\t"
+            "r2=bytepack(r0,r1);\n\t"
+            "[%0++]=r2;\n\t"
+        : : "b" (dst), "b" (src), "a" ((width-1)>>2)
+        : "R2","R0","R1");
+
 #else
     int i;
     for (i=0; i<width; i++)
