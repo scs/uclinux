@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# This creates a pkg-config frontend that has the form TARGET-pkg-config
+# as this is the utility that autoconf scripts will automatically search
+# for when cross-compiling for TARGET.  Here we setup the pkg config env
+# paths so that the .pc files that are searched and used come from the
+# staging directory rather than the host system.
+#
+
+export PKG_CONFIG_LIBDIR="${STAGEDIR}/usr/lib/pkgconfig"
+if [ -n "${UCLINUX_PKG_CONFIG_LIBDIR}" ] ; then
+	export PKG_CONFIG_LIBDIR="${UCLINUX_PKG_CONFIG_LIBDIR}:${PKG_CONFIG_LIBDIR}"
+fi
+unset PKG_CONFIG_ALLOW_SYSTEM_CFLAGS PKG_CONFIG_ALLOW_SYSTEM_LIBS
+exec pkg-config "$@"

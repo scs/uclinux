@@ -97,15 +97,16 @@ tools/cksum: tools/sg-cksum/*.c
 	ln -sf $(ROOTDIR)/tools/sg-cksum/cksum tools/cksum
 
 .PHONY: staging
-staging: pkg-config compilers
-.PHONY: compilers
-compilers: tools/$(CROSS_COMPILE)gcc tools/$(CROSS_COMPILE)g++ tools/$(CROSS_COMPILE)cpp tools/$(CROSS_COMPILE)ld
+staging: \
+	tools/$(CROSS_COMPILE)gcc \
+	tools/$(CROSS_COMPILE)g++ \
+	tools/$(CROSS_COMPILE)cpp \
+	tools/$(CROSS_COMPILE)ld \
+	tools/$(CROSS_COMPILE)pkg-config
 tools/$(CROSS_COMPILE)%:
 	ln -sf staging-compiler $@
-.PHONY: pkg-config
-pkg-config: tools/$(CROSS_COMPILE)pkg-config
 tools/$(CROSS_COMPILE)pkg-config:
-	./tools/pkg-config-make $(CROSS_COMPILE) $(STAGEDIR)
+	ln -sf staging-pkg-config $@
 
 ############################################################################
 
