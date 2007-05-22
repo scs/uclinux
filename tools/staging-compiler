@@ -28,6 +28,7 @@ if [ -d "${STAGEDIR}" ] ; then
 			case "$@" in
 				"-c "*|*" -c "*|*" -c") ;;
 				"-E "*|*" -E "*|*" -E") ;;
+				"-S "*|*" -S "*|*" -S") ;;
 				"-MM "*|*" -MM "*|*" -MM") ;;
 				*) ${i} \
 				     && set -- "$@" -Wl,-rpath-link,"${STAGEDIR}${p}" \
