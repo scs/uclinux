@@ -32,6 +32,8 @@
 #define VLC_THREADS_ERROR          2
 #define VLC_THREADS_READY          3
 
+#define VLC_THREAD_STACKSIZE      65536
+
 /*****************************************************************************
  * Global mutex for lazy initialization of the threads system
  *****************************************************************************/
@@ -524,6 +526,8 @@ int __vlc_thread_create( vlc_object_t *p_this, char * psz_file, int i_line,
 {
     int i_ret;
     void *p_data = (void *)p_this;
+    pthread_attr_t th_attr;
+    size_t th_size = 0;
 
     vlc_mutex_lock( &p_this->object_lock );
 
@@ -569,7 +573,12 @@ int __vlc_thread_create( vlc_object_t *p_this, char * psz_file, int i_line,
     i_ret = resume_thread( p_this->thread_id );
 
 #elif defined( PTHREAD_COND_T_IN_PTHREAD_H )
-    i_ret = pthread_create( &p_this->thread_id, NULL, func, p_data );
+
+    pthread_attr_init(&th_attr);
+    pthread_attr_getstacksize(&th_attr, &th_size);
+    th_size = VLC_THREAD_STACKSIZE;
+    pthread_attr_setstacksize(&th_attr, th_size);
+    i_ret = pthread_create( &p_this->thread_id, &th_attr, func, p_data );
 
 #ifndef __APPLE__
     if( config_GetInt( p_this, "rt-priority" ) )
