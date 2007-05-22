@@ -106,7 +106,7 @@ send -s "cat /proc/mtd \r"
 while 1 {
     expect {
 
-	"mtd2" {
+	"mtd1" {
 		set mtd_temp_result $TEST_PASS
                 case_pass $case_num
 	}
@@ -130,7 +130,7 @@ incr case_num
 step "Erase MTD "
 set mtd_temp_result $TEST_FAIL
 set timeout 180
-send -s "flash_eraseall /dev/mtd2\r"
+send -s "flash_eraseall /dev/mtd1\r"
 while 1 {
     expect {
 	
@@ -161,7 +161,7 @@ incr case_num
 step "Reading MTD "	
 set mtd_temp_result $TEST_FAIL
 set timeout 60
-send -s "mount -t yaffs2 /dev/mtdblock2 /mnt\n"
+send -s "mount -t yaffs2 /dev/mtdblock1 /mnt\n"
 while 1 {
     expect {
                                                                                                                                                              

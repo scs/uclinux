@@ -136,16 +136,13 @@ step "Make"
 
 source  make_kernel.exp
 
-step "Config netserver ."
+step "Untar netperf."
 
 cd  $uclinux_path/testsuites/ethernet/
 exec tar zxvf netperf.tgz
 
-exec cp $user/test_scripts/kernel/netserver_x86 netserver_x86
-exec cp $user/checkouts/kernel/uclinux-dist/user/blkfin-test/netperf-bfin/src/netperf netperf_bfin
-
-
 cd $uclinux_path/testsuites/ethernet/
+sleep 3
  set timeout 2
       spawn ex netperf_script
       expect {
@@ -153,14 +150,18 @@ cd $uclinux_path/testsuites/ethernet/
 
          "already exists!" {
             send "e\r"
+            sleep 1
          }
       }
+      sleep 1
       send "/HOSTIP\r"
       expect "HOSTIP=*"
       send "d\r"
       expect ":"
       send "i\r"
-      send "HOSTIP=192.168.1.174\r"
+
+      send "HOSTIP=10.100.4.174\r"
+
       send ".\r"
       expect :
       send "wq\r"
@@ -168,15 +169,15 @@ cd $uclinux_path/testsuites/ethernet/
 
 exec chmod 777 netperf_script
 cd $uclinux_path
-exec cp testsuites/ethernet/netperf_script romfs
-exec cp  testsuites/ethernet/netperf_bfin  romfs/bin
-
+exec cp  testsuites/ethernet/netperf_script  romfs/
+exec cp  romfs/bin/netperf  romfs/bin/netperf_bfin
 
 cd $uclinux_path/testsuites
 
-step "Make again."
+step "Make again"
 
 source  make_kernel.exp
+
 
 cd $uclinux_path/testsuites
 
