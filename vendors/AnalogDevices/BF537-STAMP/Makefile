@@ -133,7 +133,7 @@ else
 # make an initramfs image
 #  Note: need to override some vars from userland env
 #
-	( /bin/sh $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) ; \
+	( /bin/bash $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) ; \
 	  awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) ; \
 	  echo "slink /init /sbin/init 0755 0 0" ; \
 	) | $(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio - > $(IMAGEDIR)/rootfs.initramfs
