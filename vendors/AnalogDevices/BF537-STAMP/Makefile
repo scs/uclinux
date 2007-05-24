@@ -21,9 +21,9 @@ INODES   = 1024
 
 ROMFS_DIRS = bin dev etc etc/dhcpc home lib mnt proc sys usr var root home tmp home/httpd home/httpd/cgi-bin etc/boa etc/config var/run var/lib/misc var/log/boa
 
-all:
+all::
 
-romfs:
+romfs::
 	mkdir -p $(ROMFSDIR)
 	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS)
 	chmod 1777 $(ROMFSDIR)/tmp
@@ -59,7 +59,7 @@ else
 DEVICE_TABLE = device_table.txt
 endif
 
-image:
+image::
 	mkdir -p $(IMAGEDIR)
 	rm -rf $(IMAGEDIR)/*
 #
@@ -157,6 +157,8 @@ else
 
 endif
 
-clean:
+clean::
 
 .PHONY: all clean image romfs
+
+-include Makefile.local
