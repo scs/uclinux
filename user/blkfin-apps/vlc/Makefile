@@ -44,7 +44,8 @@ build/Makefile:
 		--disable-dts \
 		--disable-vorbis \
 		--disable-speex \
-		--disable-oss
+		--disable-oss \
+		--disable-libxml2
 
 clean:
 	rm -rf build DESTDIR
