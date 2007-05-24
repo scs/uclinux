@@ -9,6 +9,7 @@
 
 tool=${0##*/}
 mypath=${0%/${tool}}
+ccache=""
 
 if [ -d "${STAGEDIR}" ] ; then
 	i=false l=false
@@ -30,9 +31,19 @@ if [ -d "${STAGEDIR}" ] ; then
 				"-E "*|*" -E "*|*" -E") ;;
 				"-S "*|*" -S "*|*" -S") ;;
 				"-MM "*|*" -MM "*|*" -MM") ;;
-				*) ${i} \
-				     && set -- "$@" -Wl,-rpath-link,"${STAGEDIR}${p}" \
-				     || set -- "$@" -rpath-link "${STAGEDIR}${p}" ;;
+				*)
+					if ${i} ; then
+						set -- "$@" -Wl,-rpath-link,"${STAGEDIR}${p}"
+						if [ -n "${UCLINUX_USE_CCACHE}" ] ; then
+							if ccache -V > /dev/null 2>&1 ; then
+								export CCACHE_DIR="${ROOTDIR}/ccache"
+								ccache="ccache"
+							fi
+						fi
+					else
+						set -- "$@" -rpath-link "${STAGEDIR}${p}"
+					fi
+					;;
 			esac
 		done
 	fi
@@ -42,7 +53,7 @@ IFS=":"
 for p in ${PATH} ; do
 	[ "${p}" = "${mypath}" ] && continue
 	[ ! -x "${p}/${tool}" ] && continue
-	exec "${p}/${tool}" "$@"
+	exec ${ccache} "${p}/${tool}" "$@"
 done
 
 echo "${tool}: command not found; perhaps you need to fix your PATH?" 1>&2
