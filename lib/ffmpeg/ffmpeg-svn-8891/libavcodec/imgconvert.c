@@ -848,6 +848,23 @@ static void yuyv422_to_yuv420p(AVPicture *dst, const AVPicture *src,
     }
 }
 
+#ifdef ARCH_BFIN
+static bfin_uyvy422_to_yuv420p(AVPicture *dst, const AVPicture *src,
+                              int width, int height)
+{
+  ff_bfin_uyvytoyv12(
+		     src->data[0],
+		     dst->data[0],
+		     dst->data[1],
+		     dst->data[2],
+		     width,
+		     height,
+		     dst->linesize[0],
+		     dst->linesize[1],
+		     src->linesize[0]);
+}
+#endif
+
 static void uyvy422_to_yuv420p(AVPicture *dst, const AVPicture *src,
                               int width, int height)
 {
@@ -2001,7 +2018,11 @@ static const ConvertEntry convert_table[PIX_FMT_NB][PIX_FMT_NB] = {
     },
     [PIX_FMT_UYVY422] = {
         [PIX_FMT_YUV420P] = {
+#ifndef ARCH_BFIN
             .convert = uyvy422_to_yuv420p,
+#else
+            .convert = bfin_uyvy422_to_yuv420p,
+#endif
         },
         [PIX_FMT_YUV422P] = {
             .convert = uyvy422_to_yuv422p,
