@@ -1,18 +1,18 @@
-VER = libpng-1.2.16
+VER = libpng-1.2.18
 
-all: build/Makefile
-	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 
-build/Makefile:
+build-$(VER)/Makefile:
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
-	rm -rf build ; \
-	mkdir build ; \
-	cd build ; \
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
 	../$(VER)/configure $(CONFIGURE_OPTS)
 
 clean:
-	rm -rf build
+	rm -rf build*
 
 romfs:
 	for l in libpng12.so.0 libpng.so.3 ; do \
