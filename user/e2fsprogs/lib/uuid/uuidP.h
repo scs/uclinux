@@ -4,13 +4,40 @@
  * Copyright (C) 1996, 1997 Theodore Ts'o.
  *
  * %Begin-Header%
- * This file may be redistributed under the terms of the GNU 
- * Library General Public License.
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, and the entire permission notice in its entirety,
+ *    including the disclaimer of warranties.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior
+ *    written permission.
+ * 
+ * THIS SOFTWARE IS PROVIDED ``AS IS'' AND ANY EXPRESS OR IMPLIED
+ * WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE, ALL OF
+ * WHICH ARE HEREBY DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT
+ * OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
+ * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+ * LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE
+ * USE OF THIS SOFTWARE, EVEN IF NOT ADVISED OF THE POSSIBILITY OF SUCH
+ * DAMAGE.
  * %End-Header%
  */
 
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#else
+#include <uuid/uuid_types.h>
+#endif
 #include <sys/types.h>
-#include <ext2fs/ext2_types.h>
 
 #include "uuid.h"
 
@@ -21,11 +48,11 @@
 #define TIME_OFFSET_LOW  0x13814000
 
 struct uuid {
-	__u32	time_low;
-	__u16	time_mid;
-	__u16	time_hi_and_version;
-	__u16	clock_seq;
-	__u8	node[6];
+	uint32_t	time_low;
+	uint16_t	time_mid;
+	uint16_t	time_hi_and_version;
+	uint16_t	clock_seq;
+	uint8_t	node[6];
 };
 
 
@@ -34,7 +61,3 @@ struct uuid {
  */
 void uuid_pack(const struct uuid *uu, uuid_t ptr);
 void uuid_unpack(const uuid_t in, struct uuid *uu);
-
-
-
-

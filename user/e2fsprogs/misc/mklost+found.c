@@ -38,24 +38,26 @@ int main (int argc, char ** argv)
 
 #ifdef ENABLE_NLS
 	setlocale(LC_MESSAGES, "");
+	setlocale(LC_CTYPE, "");
 	bindtextdomain(NLS_CAT_NAME, LOCALEDIR);
 	textdomain(NLS_CAT_NAME);
 #endif
 	fprintf (stderr, "mklost+found %s (%s)\n", E2FSPROGS_VERSION,
 		 E2FSPROGS_DATE);
 	if (argc != 1) {
+		(void)argv; /* avoid unused argument warning */
 		fprintf (stderr, _("Usage: mklost+found\n"));
 		exit(1);
 	}
-	if (mkdir (LPF, 0755) == -1) {
+	if (mkdir (LPF, 0700) == -1) {
 		perror ("mkdir");
 		exit(1);
 	}
 	
 	i = 0;
-	memset (name, 'x', 252);
+	memset (name, 'x', 246);
 	do {
-		sprintf (name + 252, "%02d", i);
+		sprintf (name + 246, "%08d", i);
 		strcpy (path, LPF);
 		strcat (path, "/");
 		strcat (path, name);
@@ -71,7 +73,7 @@ int main (int argc, char ** argv)
 		}
 	} while (st.st_size <= (EXT2_NDIR_BLOCKS - 1) * st.st_blksize);
 	for (j = 0; j < i; j++) {
-		sprintf (name + 252, "%02d", j);
+		sprintf (name + 246, "%08d", j);
 		strcpy (path, LPF);
 		strcat (path, "/");
 		strcat (path, name);

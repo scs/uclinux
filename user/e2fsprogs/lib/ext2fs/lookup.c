@@ -26,12 +26,12 @@ struct lookup_struct  {
 };	
 
 #ifdef __TURBOC__
-#pragma argsused
+ #pragma argsused
 #endif
 static int lookup_proc(struct ext2_dir_entry *dirent,
-		       int	offset,
-		       int	blocksize,
-		       char	*buf,
+		       int	offset EXT2FS_ATTR((unused)),
+		       int	blocksize EXT2FS_ATTR((unused)),
+		       char	*buf EXT2FS_ATTR((unused)),
 		       void	*priv_data)
 {
 	struct lookup_struct *ls = (struct lookup_struct *) priv_data;

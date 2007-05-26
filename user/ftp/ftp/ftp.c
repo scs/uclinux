@@ -35,7 +35,7 @@
  * From: @(#)ftp.c	5.38 (Berkeley) 4/22/91
  */
 char ftp_rcsid[] = 
-  "$Id$";
+  "$Id: ftp.c,v 1.5 2003/12/12 00:45:05 steveb Exp $";
 
 #include <sys/param.h>
 #include <sys/stat.h>

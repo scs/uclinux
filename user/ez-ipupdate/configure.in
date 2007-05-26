@@ -7,7 +7,6 @@ AM_INIT_AUTOMAKE(ez-ipupdate,3.0.11b7)
 
 dnl Checks for programs.
 
-AC_ARG_PROGRAM
 AC_PROG_CC
 AC_PROG_CPP
 AC_PROG_INSTALL

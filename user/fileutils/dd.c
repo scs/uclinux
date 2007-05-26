@@ -25,17 +25,20 @@ typedef	struct {
 
 
 static PARAM	params[] = {
-	"if",		PAR_IF,
-	"of",		PAR_OF,
-	"bs",		PAR_BS,
-	"count",	PAR_COUNT,
-	"seek",		PAR_SEEK,
-	"skip",		PAR_SKIP,
-	NULL,		PAR_NONE
+	{ "if",		PAR_IF },
+	{ "of",		PAR_OF },
+	{ "bs",		PAR_BS },
+	{ "count",	PAR_COUNT },
+	{ "seek",		PAR_SEEK },
+	{ "skip",		PAR_SKIP },
+	{ NULL,		PAR_NONE }
 };
 
 
 static	long	getnum();
+
+char	localbuf[8192];
+
 
 int
 main(argc, argv)
@@ -56,8 +59,8 @@ main(argc, argv)
 	long	skipval;
 	long	intotal;
 	long	outtotal;
+	long	todo;
 	char	*buf;
-	char	localbuf[8192];
 
 	infile = NULL;
 	outfile = NULL;
@@ -200,7 +203,21 @@ main(argc, argv)
 		}
 	}
 
-	while ((incc = read(infd, buf, blocksize)) > 0) {
+
+	while (1) {
+		if (count <= 0)
+			break;
+
+		if (count < blocksize)
+			todo = count;
+		else
+			todo = blocksize;
+
+		incc = read(infd, buf, todo);
+		if (incc <= 0)
+			break;
+
+		count -= incc;
 		intotal += incc;
 		cp = buf;
 

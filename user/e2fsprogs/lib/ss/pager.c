@@ -28,10 +28,39 @@ extern int errno;
 #include <sys/types.h>
 #include <sys/file.h>
 #include <signal.h>
+#ifdef HAVE_SYS_PRCTL_H
+#include <sys/prctl.h>
+#else
+#define PR_GET_DUMPABLE 3
+#endif
+#if (!defined(HAVE_PRCTL) && defined(linux))
+#include <sys/syscall.h>
+#endif
 
 static char MORE[] = "more";
 extern char *_ss_pager_name;
-extern char *getenv();
+extern char *getenv PROTOTYPE((const char *));
+
+char *ss_safe_getenv(const char *arg)
+{
+	if ((getuid() != geteuid()) || (getgid() != getegid()))
+		return NULL;
+#if HAVE_PRCTL
+	if (prctl(PR_GET_DUMPABLE, 0, 0, 0, 0) == 0)
+		return NULL;
+#else
+#if (defined(linux) && defined(SYS_prctl))
+	if (syscall(SYS_prctl, PR_GET_DUMPABLE, 0, 0, 0, 0) == 0)
+		return NULL;
+#endif
+#endif
+
+#ifdef HAVE___SECURE_GETENV
+	return __secure_getenv(arg);
+#else
+	return getenv(arg);
+#endif
+}
 
 /*
  * this needs a *lot* of work....
@@ -42,7 +71,7 @@ extern char *getenv();
  */
 
 #ifndef NO_FORK
-int ss_pager_create() 
+int ss_pager_create(void) 
 {
 	int filedes[2];
      
@@ -84,24 +113,16 @@ int ss_pager_create()
 void ss_page_stdin()
 {
 	int i;
+	sigset_t mask;
+	
 	for (i = 3; i < 32; i++)
 		(void) close(i);
 	(void) signal(SIGINT, SIG_DFL);
-	{
-#ifdef POSIX_SIGNALS
-		sigset_t mask;
-		
-		sigprocmask(SIG_BLOCK, 0, &mask);
-		sigdelset(&mask, SIGINT);
-		sigprocmask(SIG_SETMASK, &mask, 0);
-#else
-		int mask = sigblock(0);
-		mask &= ~sigmask(SIGINT);
-		sigsetmask(mask);
-#endif
-	}
+	sigprocmask(SIG_BLOCK, 0, &mask);
+	sigdelset(&mask, SIGINT);
+	sigprocmask(SIG_SETMASK, &mask, 0);
 	if (_ss_pager_name == (char *)NULL) {
-		if ((_ss_pager_name = getenv("PAGER")) == (char *)NULL)
+		if ((_ss_pager_name = ss_safe_getenv("PAGER")) == (char *)NULL)
 			_ss_pager_name = MORE;
 	}
 	(void) execlp(_ss_pager_name, _ss_pager_name, (char *) NULL);

@@ -1,5 +1,6 @@
 /* Borrowed from busybox */
 
+#include <stdio.h>
 #include <signal.h>
 #include <syslog.h>
 #include <stdlib.h>
@@ -8,8 +9,10 @@
 #include <paths.h>
 #include <config/autoconf.h>
 #include <linux/version.h>
-#if defined(CONFIG_PROP_LOGD_LOGD)
-#include <stdio.h>
+#include <linux/autoconf.h>
+#ifdef CONFIG_LEDMAN
+#include <linux/ledman.h>
+#include <sys/ioctl.h>
 #endif
 
 #if (__GNU_LIBRARY__ > 5) || defined(__dietlibc__) 
@@ -22,8 +25,11 @@
 #ifndef RB_AUTOBOOT
 static const int RB_AUTOBOOT = 0x01234567;
 #endif
+#ifndef RB_HALT_SYSTEM
+static const int RB_HALT_SYSTEM = 0xcdef0123;
+#endif
 
-int reboot_now(void)
+static int shutdown_now(int rb_which)
 {
 	/**
 	 * Write the current date/time to the RTC
@@ -74,6 +80,27 @@ int reboot_now(void)
 }
 #endif
 
-	init_reboot(RB_AUTOBOOT);
-	return(-1); /* Shrug */
+#ifdef CONFIG_LEDMAN
+	/* Turn off all LEDs so it is clear that we are shut down */
+	ledman_cmd(LEDMAN_CMD_OFF, LEDMAN_ALL);
+#endif
+#ifdef CONFIG_SNAPDOG
+	/* Turn off user servicing of the watchdog */
+	/*write(open("/dev/watchdog", O_WRONLY), "V", 1);*/
+	write(open("/dev/watchdog", O_WRONLY), "V", 1);
+#endif
+
+	init_reboot(rb_which);
+
+	return -1; /* Shrug */
+}
+
+int reboot_now(void)
+{
+	return shutdown_now(RB_AUTOBOOT);
+}
+
+int halt_now(void)
+{
+	return shutdown_now(RB_HALT_SYSTEM);
 }

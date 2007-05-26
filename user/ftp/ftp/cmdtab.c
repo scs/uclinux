@@ -35,7 +35,7 @@
  * from: @(#)cmdtab.c	5.10 (Berkeley) 6/1/90
  */
 char cmdtab_rcsid[] = 
-  "$Id$";
+  "$Id: cmdtab.c,v 1.1 2000/07/18 01:47:08 gerg Exp $";
 
 #include <string.h>   /* for NULL */
 #include "ftp_var.h"

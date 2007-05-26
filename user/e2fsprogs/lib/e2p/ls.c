@@ -12,6 +12,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <string.h>
 #include <grp.h>
@@ -112,6 +113,30 @@ static void print_features(struct ext2_super_block * s, FILE *f)
 #endif
 }
 
+static void print_mntopts(struct ext2_super_block * s, FILE *f)
+{
+#ifdef EXT2_DYNAMIC_REV
+	int	i, printed=0;
+	__u32	mask = s->s_default_mount_opts, m;
+
+	fprintf(f, "Default mount options:   ");
+	if (mask & EXT3_DEFM_JMODE) {
+		fprintf(f, " %s", e2p_mntopt2string(mask & EXT3_DEFM_JMODE));
+		printed++;
+	}
+	for (i=0,m=1; i < 32; i++, m<<=1) {
+		if (m & EXT3_DEFM_JMODE)
+			continue;
+		if (mask & m) {
+			fprintf(f, " %s", e2p_mntopt2string(m));
+			printed++;
+		}
+	}
+	if (printed == 0)
+		fprintf(f, " (none)");
+	fprintf(f, "\n");
+#endif
+}
 
 
 #ifndef EXT2_INODE_SIZE
@@ -125,8 +150,7 @@ static void print_features(struct ext2_super_block * s, FILE *f)
 void list_super2(struct ext2_super_block * sb, FILE *f)
 {
 	int inode_blocks_per_group;
-	char buf[80];
-	const char *os;
+	char buf[80], *str;
 	time_t	tm;
 
 	inode_blocks_per_group = (((sb->s_inodes_per_group *
@@ -145,11 +169,7 @@ void list_super2(struct ext2_super_block * sb, FILE *f)
 	} else
 		strcpy(buf, "<not available>");
 	fprintf(f, "Last mounted on:          %s\n", buf);
-	if (!e2p_is_null_uuid(sb->s_uuid)) {
-		e2p_uuid_to_str(sb->s_uuid, buf);
-	} else
-		strcpy(buf, "<none>");
-	fprintf(f, "Filesystem UUID:          %s\n", buf);
+	fprintf(f, "Filesystem UUID:          %s\n", e2p_uuid2str(sb->s_uuid));
 	fprintf(f, "Filesystem magic number:  0x%04X\n", sb->s_magic);
 	fprintf(f, "Filesystem revision #:    %d", sb->s_rev_level);
 	if (sb->s_rev_level == EXT2_GOOD_OLD_REV) {
@@ -161,19 +181,16 @@ void list_super2(struct ext2_super_block * sb, FILE *f)
 	} else
 		fprintf(f, " (unknown)\n");
 	print_features(sb, f);
+	print_mntopts(sb, f);
 	fprintf(f, "Filesystem state:        ");
 	print_fs_state (f, sb->s_state);
 	fprintf(f, "\n");
 	fprintf(f, "Errors behavior:          ");
 	print_fs_errors(f, sb->s_errors);
 	fprintf(f, "\n");
-	switch (sb->s_creator_os) {
-	    case EXT2_OS_LINUX: os = "Linux"; break;
-	    case EXT2_OS_HURD:  os = "GNU/Hurd"; break;
-	    case EXT2_OS_MASIX: os = "Masix"; break;
-	    default:		os = "unknown"; break;
-	}
-	fprintf(f, "Filesystem OS type:       %s\n", os);
+	str = e2p_os2string(sb->s_creator_os);
+	fprintf(f, "Filesystem OS type:       %s\n", str);
+	free(str);
 	fprintf(f, "Inode count:              %u\n", sb->s_inodes_count);
 	fprintf(f, "Block count:              %u\n", sb->s_blocks_count);
 	fprintf(f, "Reserved block count:     %u\n", sb->s_r_blocks_count);
@@ -182,12 +199,23 @@ void list_super2(struct ext2_super_block * sb, FILE *f)
 	fprintf(f, "First block:              %u\n", sb->s_first_data_block);
 	fprintf(f, "Block size:               %u\n", EXT2_BLOCK_SIZE(sb));
 	fprintf(f, "Fragment size:            %u\n", EXT2_FRAG_SIZE(sb));
+	if (sb->s_reserved_gdt_blocks)
+		fprintf(f, "Reserved GDT blocks:      %u\n", 
+			sb->s_reserved_gdt_blocks);
 	fprintf(f, "Blocks per group:         %u\n", sb->s_blocks_per_group);
 	fprintf(f, "Fragments per group:      %u\n", sb->s_frags_per_group);
 	fprintf(f, "Inodes per group:         %u\n", sb->s_inodes_per_group);
 	fprintf(f, "Inode blocks per group:   %u\n", inode_blocks_per_group);
+	if (sb->s_first_meta_bg)
+		fprintf(f, "First meta block group:   %u\n",
+			sb->s_first_meta_bg);
+	if (sb->s_mkfs_time) {
+		tm = sb->s_mkfs_time;
+		fprintf(f, "Filesystem created:       %s", ctime(&tm));
+	}
 	tm = sb->s_mtime;
-	fprintf(f, "Last mount time:          %s", ctime(&tm));
+	fprintf(f, "Last mount time:          %s",
+		sb->s_mtime ? ctime(&tm) : "n/a\n");
 	tm = sb->s_wtime;
 	fprintf(f, "Last write time:          %s", ctime(&tm));
 	fprintf(f, "Mount count:              %u\n", sb->s_mnt_count);
@@ -211,15 +239,34 @@ void list_super2(struct ext2_super_block * sb, FILE *f)
 		fprintf(f, "First inode:              %d\n", sb->s_first_ino);
 		fprintf(f, "Inode size:		  %d\n", sb->s_inode_size);
 	}
-	if (sb->s_feature_compat & EXT3_FEATURE_COMPAT_HAS_JOURNAL) {
-		if (e2p_is_null_uuid(sb->s_journal_uuid)) {
-			strcpy(buf, "<none>");
-		} else
-			e2p_uuid_to_str(sb->s_journal_uuid, buf);
-		fprintf(f, "Journal UUID:             %s\n", buf);
-		fprintf(f, "Journal inode:            %u\n", sb->s_journal_inum);
-		fprintf(f, "Journal device:	          0x%04x\n", sb->s_journal_dev);
-		fprintf(f, "First orphan inode:       %u\n", sb->s_last_orphan);
+	if (!e2p_is_null_uuid(sb->s_journal_uuid))
+		fprintf(f, "Journal UUID:             %s\n",
+			e2p_uuid2str(sb->s_journal_uuid));
+	if (sb->s_journal_inum)
+		fprintf(f, "Journal inode:            %u\n",
+			sb->s_journal_inum);
+	if (sb->s_journal_dev)
+		fprintf(f, "Journal device:	          0x%04x\n",
+			sb->s_journal_dev);
+	if (sb->s_last_orphan)
+		fprintf(f, "First orphan inode:       %u\n",
+			sb->s_last_orphan);
+	if ((sb->s_feature_compat & EXT2_FEATURE_COMPAT_DIR_INDEX) ||
+	    sb->s_def_hash_version)
+		fprintf(f, "Default directory hash:   %s\n",
+			e2p_hash2string(sb->s_def_hash_version));
+	if (!e2p_is_null_uuid(sb->s_hash_seed))
+		fprintf(f, "Directory Hash Seed:      %s\n",
+			e2p_uuid2str(sb->s_hash_seed));
+	if (sb->s_jnl_backup_type) {
+		fprintf(f, "Journal backup:           ");
+		switch (sb->s_jnl_backup_type) {
+		case 1:
+			fprintf(f, "inode blocks\n");
+			break;
+		default:
+			fprintf(f, "type %u\n", sb->s_jnl_backup_type);
+		}
 	}
 }
 

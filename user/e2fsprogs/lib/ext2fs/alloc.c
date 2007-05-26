@@ -32,7 +32,8 @@
  *
  * Should have a special policy for directories.
  */
-errcode_t ext2fs_new_inode(ext2_filsys fs, ext2_ino_t dir, int mode,
+errcode_t ext2fs_new_inode(ext2_filsys fs, ext2_ino_t dir, 
+			   int mode EXT2FS_ATTR((unused)),
 			   ext2fs_inode_bitmap map, ext2_ino_t *ret)
 {
 	ext2_ino_t	dir_group = 0;
@@ -107,11 +108,10 @@ errcode_t ext2fs_alloc_block(ext2_filsys fs, blk_t goal,
 {
 	errcode_t	retval;
 	blk_t		block;
-	int		group;
 	char		*buf = 0;
 
 	if (!block_buf) {
-		retval = ext2fs_get_mem(fs->blocksize, (void **) &buf);
+		retval = ext2fs_get_mem(fs->blocksize, &buf);
 		if (retval)
 			return retval;
 		block_buf = buf;
@@ -132,18 +132,13 @@ errcode_t ext2fs_alloc_block(ext2_filsys fs, blk_t goal,
 	if (retval)
 		goto fail;
 	
-	fs->super->s_free_blocks_count--;
-	group = ext2fs_group_of_blk(fs, block);
-	fs->group_desc[group].bg_free_blocks_count--;
-	ext2fs_mark_block_bitmap(fs->block_map, block);
-	ext2fs_mark_super_dirty(fs);
-	ext2fs_mark_bb_dirty(fs);
+	ext2fs_block_alloc_stats(fs, block, +1);
 	*ret = block;
 	return 0;
 
 fail:
 	if (buf)
-		ext2fs_free_mem((void **) &buf);
+		ext2fs_free_mem(&buf);
 	return retval;
 }
 

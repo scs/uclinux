@@ -23,9 +23,9 @@
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if HAVE_STAT_FLAGS
+#include <sys/types.h>
 #include <sys/stat.h>
-#else
+#if HAVE_EXT2_IOCTLS
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #endif
@@ -40,8 +40,8 @@
 
 int fgetflags (const char * name, unsigned long * flags)
 {
-#if HAVE_STAT_FLAGS
 	struct stat buf;
+#if HAVE_STAT_FLAGS && !(APPLE_DARWIN && HAVE_EXT2_IOCTLS)
 
 	if (stat (name, &buf) == -1)
 		return -1;
@@ -63,20 +63,33 @@ int fgetflags (const char * name, unsigned long * flags)
 	return 0;
 #else
 #if HAVE_EXT2_IOCTLS
-	int fd, r, f;
+	int fd, r, f, save_errno = 0;
 
+	if (!stat(name, &buf) &&
+	    !S_ISREG(buf.st_mode) && !S_ISDIR(buf.st_mode)) {
+		goto notsupp;
+	}
+#if !APPLE_DARWIN
 	fd = open (name, OPEN_FLAGS);
 	if (fd == -1)
 		return -1;
 	r = ioctl (fd, EXT2_IOC_GETFLAGS, &f);
+	if (r == -1)
+		save_errno = errno;
 	*flags = f;
-
 	close (fd);
+	if (save_errno)
+		errno = save_errno;
 	return r;
-#else /* ! HAVE_EXT2_IOCTLS */
-	extern int errno;
+#else
+   f = -1;
+   save_errno = syscall(SYS_fsctl, name, EXT2_IOC_GETFLAGS, &f, 0);
+   *flags = f;
+   return (save_errno);
+#endif
+#endif /* HAVE_EXT2_IOCTLS */
+#endif
+notsupp:
 	errno = EOPNOTSUPP;
 	return -1;
-#endif /* ! HAVE_EXT2_IOCTLS */
-#endif
 }

@@ -51,7 +51,7 @@ errcode_t ext2fs_create_journal_superblock(ext2_filsys fs,
 	if (size < 1024)
 		return EXT2_ET_JOURNAL_TOO_SMALL;
 
-	if ((retval = ext2fs_get_mem(fs->blocksize, (void **) &jsb)))
+	if ((retval = ext2fs_get_mem(fs->blocksize, &jsb)))
 		return retval;
 
 	memset (jsb, 0, fs->blocksize);
@@ -94,7 +94,8 @@ static errcode_t write_journal_file(ext2_filsys fs, char *filename,
 {
 	errcode_t	retval;
 	char		*buf = 0;
-	int		i, fd, ret_size;
+	int		fd, ret_size;
+	blk_t		i;
 
 	if ((retval = ext2fs_create_journal_superblock(fs, size, flags, &buf)))
 		return retval;
@@ -112,7 +113,7 @@ static errcode_t write_journal_file(ext2_filsys fs, char *filename,
 		retval = errno;
 		goto errout;
 	}
-	if (ret_size != fs->blocksize)
+	if (ret_size != (int) fs->blocksize)
 		goto errout;
 	memset(buf, 0, fs->blocksize);
 
@@ -122,14 +123,14 @@ static errcode_t write_journal_file(ext2_filsys fs, char *filename,
 			retval = errno;
 			goto errout;
 		}
-		if (ret_size != fs->blocksize)
+		if (ret_size != (int) fs->blocksize)
 			goto errout;
 	}
 	close(fd);
 
 	retval = 0;
 errout:
-	ext2fs_free_mem((void **) &buf);
+	ext2fs_free_mem(&buf);
 	return retval;
 }
 
@@ -143,18 +144,17 @@ struct mkjournal_struct {
 	errcode_t	err;
 };
 
-static int mkjournal_proc(ext2_filsys		fs,
-			   blk_t		*blocknr,
-			   e2_blkcnt_t		blockcnt,
-			   blk_t		ref_block,
-			   int			ref_offset,
-			   void			*priv_data)
+static int mkjournal_proc(ext2_filsys	fs,
+			   blk_t	*blocknr,
+			   e2_blkcnt_t	blockcnt,
+			   blk_t	ref_block EXT2FS_ATTR((unused)),
+			   int		ref_offset EXT2FS_ATTR((unused)),
+			   void		*priv_data)
 {
 	struct mkjournal_struct *es = (struct mkjournal_struct *) priv_data;
 	blk_t	new_blk;
 	static blk_t	last_blk = 0;
 	errcode_t	retval;
-	int		group;
 	
 	if (*blocknr) {
 		last_blk = *blocknr;
@@ -180,12 +180,7 @@ static int mkjournal_proc(ext2_filsys		fs,
 	}
 	*blocknr = new_blk;
 	last_blk = new_blk;
-	ext2fs_mark_block_bitmap(fs->block_map, new_blk);
-	ext2fs_mark_bb_dirty(fs);
-	group = ext2fs_group_of_blk(fs, new_blk);
-	fs->group_desc[group].bg_free_blocks_count--;
-	fs->super->s_free_blocks_count--;
-	ext2fs_mark_super_dirty(fs);
+	ext2fs_block_alloc_stats(fs, new_blk, +1);
 
 	if (es->num_blocks == 0)
 		return (BLOCK_CHANGED | BLOCK_ABORT);
@@ -234,7 +229,7 @@ static errcode_t write_journal_inode(ext2_filsys fs, ext2_ino_t journal_ino,
 
  	inode.i_size += fs->blocksize * size;
 	inode.i_blocks += (fs->blocksize / 512) * es.newblocks;
-	inode.i_mtime = inode.i_ctime = time(0);
+	inode.i_mtime = inode.i_ctime = fs->now ? fs->now : time(0);
 	inode.i_links_count = 1;
 	inode.i_mode = LINUX_S_IFREG | 0600;
 
@@ -242,8 +237,13 @@ static errcode_t write_journal_inode(ext2_filsys fs, ext2_ino_t journal_ino,
 		goto errout;
 	retval = 0;
 
+	memcpy(fs->super->s_jnl_blocks, inode.i_block, EXT2_N_BLOCKS*4);
+	fs->super->s_jnl_blocks[16] = inode.i_size;
+	fs->super->s_jnl_backup_type = EXT3_JNL_BACKUP_BLOCKS;
+	ext2fs_mark_super_dirty(fs);
+
 errout:
-	ext2fs_free_mem((void **) &buf);
+	ext2fs_free_mem(&buf);
 	return retval;
 }
 
@@ -256,8 +256,8 @@ errcode_t ext2fs_add_journal_device(ext2_filsys fs, ext2_filsys journal_dev)
 	errcode_t	retval;
 	char		buf[1024];
 	journal_superblock_t	*jsb;
-	int		i, start;
-	__u32		nr_users;
+	int		start;
+	__u32		i, nr_users;
 
 	/* Make sure the device exists and is a block device */
 	if (stat(journal_dev->device_name, &st) < 0)
@@ -278,7 +278,7 @@ errcode_t ext2fs_add_journal_device(ext2_filsys fs, ext2_filsys journal_dev)
 	    (jsb->s_header.h_blocktype != (unsigned) ntohl(JFS_SUPERBLOCK_V2)))
 		return EXT2_ET_NO_JOURNAL_SB;
 
-	if (ntohl(jsb->s_blocksize) != fs->blocksize)
+	if (ntohl(jsb->s_blocksize) != (unsigned long) fs->blocksize)
 		return EXT2_ET_UNEXPECTED_BLOCK_SIZE;
 
 	/* Check and see if this filesystem has already been added */
@@ -318,7 +318,8 @@ errcode_t ext2fs_add_journal_inode(ext2_filsys fs, blk_t size, int flags)
 	ext2_ino_t		journal_ino;
 	struct stat		st;
 	char			jfile[1024];
-	int			fd, mount_flags, f;
+	int			mount_flags, f;
+	int			fd = -1;
 
 	if ((retval = ext2fs_check_mount_point(fs->device_name, &mount_flags,
 					       jfile, sizeof(jfile)-10)))
@@ -326,6 +327,23 @@ errcode_t ext2fs_add_journal_inode(ext2_filsys fs, blk_t size, int flags)
 
 	if (mount_flags & EXT2_MF_MOUNTED) {
 		strcat(jfile, "/.journal");
+
+		/*
+		 * If .../.journal already exists, make sure any 
+		 * immutable or append-only flags are cleared.
+		 */
+#if defined(HAVE_CHFLAGS) && defined(UF_NODUMP)
+		(void) chflags (jfile, 0);
+#else
+#if HAVE_EXT2_IOCTLS
+		fd = open(jfile, O_RDONLY);
+		if (fd >= 0) {
+			f = 0;
+			ioctl(fd, EXT2_IOC_SETFLAGS, &f);
+			close(fd);
+		}
+#endif
+#endif
 
 		/* Create the journal file */
 		if ((fd = open(jfile, O_CREAT|O_WRONLY, 0600)) < 0)
@@ -342,7 +360,7 @@ errcode_t ext2fs_add_journal_inode(ext2_filsys fs, blk_t size, int flags)
 		retval = fchflags (fd, UF_NODUMP|UF_IMMUTABLE);
 #else
 #if HAVE_EXT2_IOCTLS
-		f = EXT2_NODUMP_FL | EXT2_IMMUTABLE_FL;;
+		f = EXT2_NODUMP_FL | EXT2_IMMUTABLE_FL;
 		retval = ioctl(fd, EXT2_IOC_SETFLAGS, &f);
 #endif
 #endif
@@ -352,6 +370,11 @@ errcode_t ext2fs_add_journal_inode(ext2_filsys fs, blk_t size, int flags)
 		close(fd);
 		journal_ino = st.st_ino;
 	} else {
+		if ((mount_flags & EXT2_MF_BUSY) &&
+		    !(fs->flags & EXT2_FLAG_EXCLUSIVE)) {
+			retval = EBUSY;
+			goto errout;
+		}
 		journal_ino = EXT2_JOURNAL_INO;
 		if ((retval = write_journal_inode(fs, journal_ino,
 						  size, flags)))
@@ -367,7 +390,8 @@ errcode_t ext2fs_add_journal_inode(ext2_filsys fs, blk_t size, int flags)
 	ext2fs_mark_super_dirty(fs);
 	return 0;
 errout:
-	close(fd);
+	if (fd > 0)
+		close(fd);
 	return retval;
 }
 

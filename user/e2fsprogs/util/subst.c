@@ -11,6 +11,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <time.h>
+#include <utime.h>
 
 #ifdef HAVE_GETOPT_H
 #include <getopt.h>
@@ -74,7 +78,7 @@ static struct subst_entry *fetch_subst_entry(char *name)
  * Given the starting and ending position of the replacement name,
  * check to see if it is valid, and pull it out if it is.
  */
-static char *get_subst_symbol(const char *begin, int len, char prefix)
+static char *get_subst_symbol(const char *begin, size_t len, char prefix)
 {
 	static char replace_name[128];
 	char *cp, *start;
@@ -121,7 +125,7 @@ static void substitute_line(char *line)
 	char	*ptr, *name_ptr, *end_ptr;
 	struct subst_entry *ent;
 	char	*replace_name;
-	int	len;
+	size_t	len;
 
 	/*
 	 * Expand all @FOO@ substitutions
@@ -295,7 +299,6 @@ static int compare_file(const char *outfn, const char *newfn)
 	return retval;
 }
 
-	
 
 
 int main(int argc, char **argv)
@@ -305,8 +308,11 @@ int main(int argc, char **argv)
 	FILE	*in, *out;
 	char	*outfn = NULL, *newfn = NULL;
 	int	verbose = 0;
+	int	adjust_timestamp = 0;
+	struct stat stbuf;
+	struct utimbuf ut;
 	
-	while ((c = getopt (argc, argv, "f:v")) != EOF) {
+	while ((c = getopt (argc, argv, "f:tv")) != EOF) {
 		switch (c) {
 		case 'f':
 			in = fopen(optarg, "r");
@@ -316,6 +322,9 @@ int main(int argc, char **argv)
 			}
 			parse_config_file(in);
 			fclose(in);
+			break;
+		case 't':
+			adjust_timestamp++;
 			break;
 		case 'v':
 			verbose++;
@@ -367,6 +376,16 @@ int main(int argc, char **argv)
 		if (compare_file(outfn, newfn)) {
 			if (verbose)
 				printf("No change, keeping %s.\n", outfn);
+			if (adjust_timestamp) {
+				if (stat(outfn, &stbuf) == 0) {
+					if (verbose)
+						printf("Updating modtime for %s\n", outfn);
+					ut.actime = stbuf.st_atime;
+					ut.modtime = time(0);
+					if (utime(outfn, &ut) < 0)
+						perror("utime");
+				}
+			}
 			unlink(newfn);
 		} else {
 			if (verbose)

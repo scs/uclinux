@@ -14,11 +14,33 @@
  */
 
 
-extern int ext2fs_set_bit(int nr,void * addr);
-extern int ext2fs_clear_bit(int nr, void * addr);
-extern int ext2fs_test_bit(int nr, const void * addr);
+extern int ext2fs_set_bit(unsigned int nr,void * addr);
+extern int ext2fs_clear_bit(unsigned int nr, void * addr);
+extern int ext2fs_test_bit(unsigned int nr, const void * addr);
+extern void ext2fs_fast_set_bit(unsigned int nr,void * addr);
+extern void ext2fs_fast_clear_bit(unsigned int nr, void * addr);
 extern __u16 ext2fs_swab16(__u16 val);
 extern __u32 ext2fs_swab32(__u32 val);
+
+#ifdef WORDS_BIGENDIAN
+#define ext2fs_cpu_to_le32(x) ext2fs_swab32((x))
+#define ext2fs_le32_to_cpu(x) ext2fs_swab32((x))
+#define ext2fs_cpu_to_le16(x) ext2fs_swab16((x))
+#define ext2fs_le16_to_cpu(x) ext2fs_swab16((x))
+#define ext2fs_cpu_to_be32(x) ((__u32)(x))
+#define ext2fs_be32_to_cpu(x) ((__u32)(x))
+#define ext2fs_cpu_to_be16(x) ((__u16)(x))
+#define ext2fs_be16_to_cpu(x) ((__u16)(x))
+#else
+#define ext2fs_cpu_to_le32(x) ((__u32)(x))
+#define ext2fs_le32_to_cpu(x) ((__u32)(x))
+#define ext2fs_cpu_to_le16(x) ((__u16)(x))
+#define ext2fs_le16_to_cpu(x) ((__u16)(x))
+#define ext2fs_cpu_to_be32(x) ext2fs_swab32((x))
+#define ext2fs_be32_to_cpu(x) ext2fs_swab32((x))
+#define ext2fs_cpu_to_be16(x) ext2fs_swab16((x))
+#define ext2fs_be16_to_cpu(x) ext2fs_swab16((x))
+#endif
 
 /*
  * EXT2FS bitmap manipulation routines.
@@ -77,6 +99,11 @@ extern int ext2fs_fast_test_block_bitmap_range(ext2fs_block_bitmap bitmap,
 					       blk_t block, int num);
 extern void ext2fs_set_bitmap_padding(ext2fs_generic_bitmap map);
 
+/* These two routines moved to gen_bitmap.c */
+extern int ext2fs_mark_generic_bitmap(ext2fs_generic_bitmap bitmap,
+					 __u32 bitno);
+extern int ext2fs_unmark_generic_bitmap(ext2fs_generic_bitmap bitmap,
+					   blk_t bitno);
 /*
  * The inline routines themselves...
  * 
@@ -86,8 +113,7 @@ extern void ext2fs_set_bitmap_padding(ext2fs_generic_bitmap map);
  */
 #ifdef NO_INLINE_FUNCS
 #if (defined(__GNUC__) && (defined(__i386__) || defined(__i486__) || \
-			   defined(__i586__) || defined(__mc68000__) || \
-			   defined(__sparc__)))
+			   defined(__i586__) || defined(__mc68000__)))
 	/* This prevents bitops.c from trying to include the C */
 	/* function version of these functions */
 #define _EXT2_HAVE_ASM_BITOPS_
@@ -104,6 +130,28 @@ extern void ext2fs_set_bitmap_padding(ext2fs_generic_bitmap map);
 #define _INLINE_ extern inline
 #endif
 #endif
+
+/*
+ * Fast bit set/clear functions that doesn't need to return the
+ * previous bit value.
+ */
+
+_INLINE_ void ext2fs_fast_set_bit(unsigned int nr,void * addr)
+{
+	unsigned char	*ADDR = (unsigned char *) addr;
+
+	ADDR += nr >> 3;
+	*ADDR |= (1 << (nr & 0x07));
+}
+
+_INLINE_ void ext2fs_fast_clear_bit(unsigned int nr, void * addr)
+{
+	unsigned char	*ADDR = (unsigned char *) addr;
+
+	ADDR += nr >> 3;
+	*ADDR &= ~(1 << (nr & 0x07));
+}
+
 
 #if ((defined __GNUC__) && !defined(_EXT2_USE_C_VERSIONS_) && \
      (defined(__i386__) || defined(__i486__) || defined(__i586__)))
@@ -127,33 +175,36 @@ struct __dummy_h { unsigned long a[100]; };
 #define EXT2FS_ADDR (*(struct __dummy_h *) addr)
 #define EXT2FS_CONST_ADDR (*(const struct __dummy_h *) addr)	
 
-_INLINE_ int ext2fs_set_bit(int nr, void * addr)
+_INLINE_ int ext2fs_set_bit(unsigned int nr, void * addr)
 {
 	int oldbit;
 
+	addr = (void *) (((unsigned char *) addr) + (nr >> 3));
 	__asm__ __volatile__("btsl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (EXT2FS_ADDR)
-		:"r" (nr));
+		:"=r" (oldbit),"+m" (EXT2FS_ADDR)
+		:"r" (nr & 7));
 	return oldbit;
 }
 
-_INLINE_ int ext2fs_clear_bit(int nr, void * addr)
+_INLINE_ int ext2fs_clear_bit(unsigned int nr, void * addr)
 {
 	int oldbit;
 
+	addr = (void *) (((unsigned char *) addr) + (nr >> 3));
 	__asm__ __volatile__("btrl %2,%1\n\tsbbl %0,%0"
-		:"=r" (oldbit),"=m" (EXT2FS_ADDR)
-		:"r" (nr));
+		:"=r" (oldbit),"+m" (EXT2FS_ADDR)
+		:"r" (nr & 7));
 	return oldbit;
 }
 
-_INLINE_ int ext2fs_test_bit(int nr, const void * addr)
+_INLINE_ int ext2fs_test_bit(unsigned int nr, const void * addr)
 {
 	int oldbit;
 
+	addr = (void *) (((unsigned char *) addr) + (nr >> 3));
 	__asm__ __volatile__("btl %2,%1\n\tsbbl %0,%0"
 		:"=r" (oldbit)
-		:"m" (EXT2FS_CONST_ADDR),"r" (nr));
+		:"m" (EXT2FS_CONST_ADDR),"r" (nr & 7));
 	return oldbit;
 }
 
@@ -239,11 +290,12 @@ _INLINE_ __u16 ext2fs_swab16(__u16 val)
 
 #endif	/* i386 */
 
-#if defined(__mc68000__) && !defined(__mcf5200)
+#if ((defined __GNUC__) && !defined(_EXT2_USE_C_VERSIONS_) && \
+     (defined(__mc68000__) && !defined(__mcf5200)))
 
 #define _EXT2_HAVE_ASM_BITOPS_
 
-_INLINE_ int ext2fs_set_bit(int nr,void * addr)
+_INLINE_ int ext2fs_set_bit(unsigned int nr,void * addr)
 {
 	char retval;
 
@@ -253,7 +305,7 @@ _INLINE_ int ext2fs_set_bit(int nr,void * addr)
 	return retval;
 }
 
-_INLINE_ int ext2fs_clear_bit(int nr, void * addr)
+_INLINE_ int ext2fs_clear_bit(unsigned int nr, void * addr)
 {
 	char retval;
 
@@ -263,7 +315,7 @@ _INLINE_ int ext2fs_clear_bit(int nr, void * addr)
 	return retval;
 }
 
-_INLINE_ int ext2fs_test_bit(int nr, const void * addr)
+_INLINE_ int ext2fs_test_bit(unsigned int nr, const void * addr)
 {
 	char retval;
 
@@ -275,124 +327,6 @@ _INLINE_ int ext2fs_test_bit(int nr, const void * addr)
 
 #endif /* __mc68000__ */
 
-#ifdef __sparc__
-
-#define _EXT2_HAVE_ASM_BITOPS_
-
-#ifndef EXT2_OLD_BITOPS
-
-/*
- * Do the bitops so that we are compatible with the standard i386
- * convention.
- */
-
-_INLINE_ int ext2fs_set_bit(int nr,void * addr)
-{
-#if 1
-	int		mask;
-	unsigned char	*ADDR = (unsigned char *) addr;
-
-	ADDR += nr >> 3;
-	mask = 1 << (nr & 0x07);
-	__asm__ __volatile__("ldub	[%0], %%g6\n\t"
-			     "or	%%g6, %2, %%g5\n\t"
-			     "stb	%%g5, [%0]\n\t"
-			     "and	%%g6, %2, %0\n"
-	: "=&r" (ADDR)
-	: "0" (ADDR), "r" (mask)
-	: "g5", "g6");
-	return (int) ADDR;
-#else
-	int		mask, retval;
-	unsigned char	*ADDR = (unsigned char *) addr;
-
-	ADDR += nr >> 3;
-	mask = 1 << (nr & 0x07);
-	retval = (mask & *ADDR) != 0;
-	*ADDR |= mask;
-	return retval;
-#endif
-}
-
-_INLINE_ int ext2fs_clear_bit(int nr, void * addr)
-{
-#if 1
-	int		mask;
-	unsigned char	*ADDR = (unsigned char *) addr;
-
-	ADDR += nr >> 3;
-	mask = 1 << (nr & 0x07);
-	__asm__ __volatile__("ldub	[%0], %%g6\n\t"
-			     "andn	%%g6, %2, %%g5\n\t"
-			     "stb	%%g5, [%0]\n\t"
-			     "and	%%g6, %2, %0\n"
-	: "=&r" (ADDR)
-	: "0" (ADDR), "r" (mask)
-	: "g5", "g6");
-	return (int) ADDR;
-	
-#else
-	int		mask, retval;
-	unsigned char	*ADDR = (unsigned char *) addr;
-
-	ADDR += nr >> 3;
-	mask = 1 << (nr & 0x07);
-	retval = (mask & *ADDR) != 0;
-	*ADDR &= ~mask;
-	return retval;
-#endif
-}
-
-_INLINE_ int ext2fs_test_bit(int nr, const void * addr)
-{
-	int			mask;
-	const unsigned char	*ADDR = (const unsigned char *) addr;
-
-	ADDR += nr >> 3;
-	mask = 1 << (nr & 0x07);
-	return ((mask & *ADDR) != 0);
-}
-
-#else
-
-/* Do things the old, unplesant way. */
-
-_INLINE_ int ext2fs_set_bit(int nr, void *addr)
-{
-	int		mask, retval;
-	unsigned long	*ADDR = (unsigned long *) addr;
-
-	ADDR += nr >> 5;
-	mask = 1 << (nr & 31);
-	retval = ((mask & *ADDR) != 0);
-	*ADDR |= mask;
-	return retval;
-}
-
-_INLINE_ int ext2fs_clear_bit(int nr, void *addr)
-{
-	int		mask, retval;
-	unsigned long	*ADDR = (unsigned long *) addr;
-
-	ADDR += nr >> 5;
-	mask = 1 << (nr & 31);
-	retval = ((mask & *ADDR) != 0);
-	*ADDR &= ~mask;
-	return retval;
-}
-
-_INLINE_ int ext2fs_test_bit(int nr, const void *addr)
-{
-	int			mask;
-	const unsigned long	*ADDR = (const unsigned long *) addr;
-
-	ADDR += nr >> 5;
-	mask = 1 << (nr & 31);
-	return ((mask & *ADDR) != 0);
-}
-#endif
-
-#endif /* __sparc__ */
 
 #if !defined(_EXT2_HAVE_ASM_SWAB_) && defined(EXT2FS_ENABLE_SWAPFS)
 
@@ -412,7 +346,7 @@ _INLINE_ __u32 ext2fs_swab32(__u32 val)
 #if !defined(_EXT2_HAVE_ASM_FINDBIT_)
 _INLINE_ int ext2fs_find_first_bit_set(void * addr, unsigned size)
 {
-	char	*cp = (unsigned char *) addr;
+	char	*cp = (char *) addr;
 	int 	res = 0, d0;
 
 	if (!size)
@@ -456,11 +390,6 @@ _INLINE_ int ext2fs_find_next_bit_set (void * addr, int size, int offset)
 }
 #endif	
 
-/* These two routines moved to gen_bitmap.c */
-extern int ext2fs_mark_generic_bitmap(ext2fs_generic_bitmap bitmap,
-					 __u32 bitno);
-extern int ext2fs_unmark_generic_bitmap(ext2fs_generic_bitmap bitmap,
-					   blk_t bitno);
 _INLINE_ int ext2fs_test_generic_bitmap(ext2fs_generic_bitmap bitmap,
 					blk_t bitno);
 
@@ -527,7 +456,7 @@ _INLINE_ void ext2fs_fast_mark_block_bitmap(ext2fs_block_bitmap bitmap,
 		return;
 	}
 #endif	
-	ext2fs_set_bit(block - bitmap->start, bitmap->bitmap);
+	ext2fs_fast_set_bit(block - bitmap->start, bitmap->bitmap);
 }
 
 _INLINE_ void ext2fs_fast_unmark_block_bitmap(ext2fs_block_bitmap bitmap,
@@ -540,7 +469,7 @@ _INLINE_ void ext2fs_fast_unmark_block_bitmap(ext2fs_block_bitmap bitmap,
 		return;
 	}
 #endif
-	ext2fs_clear_bit(block - bitmap->start, bitmap->bitmap);
+	ext2fs_fast_clear_bit(block - bitmap->start, bitmap->bitmap);
 }
 
 _INLINE_ int ext2fs_fast_test_block_bitmap(ext2fs_block_bitmap bitmap,
@@ -566,7 +495,7 @@ _INLINE_ void ext2fs_fast_mark_inode_bitmap(ext2fs_inode_bitmap bitmap,
 		return;
 	}
 #endif
-	ext2fs_set_bit(inode - bitmap->start, bitmap->bitmap);
+	ext2fs_fast_set_bit(inode - bitmap->start, bitmap->bitmap);
 }
 
 _INLINE_ void ext2fs_fast_unmark_inode_bitmap(ext2fs_inode_bitmap bitmap,
@@ -579,7 +508,7 @@ _INLINE_ void ext2fs_fast_unmark_inode_bitmap(ext2fs_inode_bitmap bitmap,
 		return;
 	}
 #endif
-	ext2fs_clear_bit(inode - bitmap->start, bitmap->bitmap);
+	ext2fs_fast_clear_bit(inode - bitmap->start, bitmap->bitmap);
 }
 
 _INLINE_ int ext2fs_fast_test_inode_bitmap(ext2fs_inode_bitmap bitmap,
@@ -662,7 +591,7 @@ _INLINE_ void ext2fs_mark_block_bitmap_range(ext2fs_block_bitmap bitmap,
 		return;
 	}
 	for (i=0; i < num; i++)
-		ext2fs_set_bit(block + i - bitmap->start, bitmap->bitmap);
+		ext2fs_fast_set_bit(block + i - bitmap->start, bitmap->bitmap);
 }
 
 _INLINE_ void ext2fs_fast_mark_block_bitmap_range(ext2fs_block_bitmap bitmap,
@@ -678,7 +607,7 @@ _INLINE_ void ext2fs_fast_mark_block_bitmap_range(ext2fs_block_bitmap bitmap,
 	}
 #endif	
 	for (i=0; i < num; i++)
-		ext2fs_set_bit(block + i - bitmap->start, bitmap->bitmap);
+		ext2fs_fast_set_bit(block + i - bitmap->start, bitmap->bitmap);
 }
 
 _INLINE_ void ext2fs_unmark_block_bitmap_range(ext2fs_block_bitmap bitmap,
@@ -692,7 +621,8 @@ _INLINE_ void ext2fs_unmark_block_bitmap_range(ext2fs_block_bitmap bitmap,
 		return;
 	}
 	for (i=0; i < num; i++)
-		ext2fs_clear_bit(block + i - bitmap->start, bitmap->bitmap);
+		ext2fs_fast_clear_bit(block + i - bitmap->start, 
+				      bitmap->bitmap);
 }
 
 _INLINE_ void ext2fs_fast_unmark_block_bitmap_range(ext2fs_block_bitmap bitmap,
@@ -708,7 +638,8 @@ _INLINE_ void ext2fs_fast_unmark_block_bitmap_range(ext2fs_block_bitmap bitmap,
 	}
 #endif	
 	for (i=0; i < num; i++)
-		ext2fs_clear_bit(block + i - bitmap->start, bitmap->bitmap);
+		ext2fs_fast_clear_bit(block + i - bitmap->start, 
+				      bitmap->bitmap);
 }
 #undef _INLINE_
 #endif

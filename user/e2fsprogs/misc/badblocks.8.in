@@ -27,6 +27,10 @@ badblocks \- search a device for bad blocks
 .B \-p
 .I num_passes
 ]
+[
+.B \-t
+.I test_pattern
+]
 .I device
 [
 .I last-block
@@ -46,35 +50,49 @@ on the device is used as a default.
 is an optional parameter specifying the starting block number
 for the test, which allows the testing to start in the middle of the
 disk.  If it is not specified the first block on the disk is used as a default.
+.PP
+.B Important note:
+If the output of 
+.B badblocks
+is going to be fed to the
+.B e2fsck
+or 
+.B mke2fs
+programs, it is important that the block size is properly specified,
+since the block numbers which are generated are very dependent on the 
+block size in use by the filesystem.   
+For this reason, it is strongly recommended that
+users 
+.B not
+run 
+.B badblocks 
+directly, but rather use the 
+.B \-c
+option of the
+.B e2fsck
+and 
+.B mke2fs
+programs.
 .SH OPTIONS
 .TP
 .BI \-b " block-size"
-Specify the size of blocks in bytes.
+Specify the size of blocks in bytes.  The default is 1024.
 .TP
 .BI \-c " number of blocks"
-is the number of blocks which are tested at a time.  The default is 16.
-Increasing this number will increase the efficiency of
-.B badblocks
-but also will increase its memory usage.
-.B Badblocks
-needs memory proportional to the number of blocks tested at once, in
-read-only mode, proportional to twice that number in read-write mode,
-and proportional to three times that number in non-destructive read-write
-mode.  If you set the number-of-blocks parameter to too high a value,
-.B badblocks
-will exit almost immediately with an out-of-memory error "while allocating
-buffers".  If you set it too low, however, for a non-destructive-write-mode
-test, then it's possble for questionable blocks on an unreliable
-hard drive to be hidden by the effects of the hard disk track buffer.
+is the number of blocks which are tested at a time.  The default is 64.
 .TP
 .B \-f
 Normally, badblocks will refuse to do a read/write or a non-destructive
-test on a device which is mounted, since this can cause the system to 
-potentially crash.  This can be overriden using the
-.B \-
-flag, but this should not be done under normal circumstances.  The only time
-when this option might be safe is if the /etc/mtab file is incorrect, and
-the device really isn't mounted.
+test on a device which is mounted, since either can cause the system to
+potentially crash and/or damage the filesystem even if it is mounted
+read-only.  This can be overridden using the
+.B \-f
+flag, but should almost never be used --- if you think you're smarter
+than the 
+.B badblocks
+program, you almost certainly aren't.  The only time when this option 
+might be safe to use is if the /etc/mtab file is incorrect, and the device
+really isn't mounted.
 .TP
 .BI \-i " input_file"
 Read a list of already existing known bad blocks.
@@ -111,6 +129,24 @@ Default is 0, meaning
 .B badblocks
 will exit after the first pass.
 .TP
+.BI \-t " test_pattern"
+Specify a test pattern to be read (and written) to disk blocks.   The
+.I test_pattern
+may either be a numeric value between 0 and ULONG_MAX-1 inclusive, or the word 
+"random", which specifies that the block should be filled with a random
+bit pattern.
+For read/write (\fB-w\fR) and non-destructive (\fB-n\fR) modes,
+one or more test patterns may be specified by specifying the
+.B -t
+option for each test pattern desired.  For
+read-only mode only a single pattern may be specified and it may not be
+"random".  Read-only testing with a pattern assumes that the
+specified pattern has previously been written to the disk - if not, large
+numbers of blocks will fail verification.  
+If multiple patterns
+are specified then all blocks will be tested with one pattern 
+before proceeding to the next pattern.
+.TP
 .B \-n
 Use non-destructive read-write mode.  By default only a non-destructive 
 read-only test is done.  This option must not be combined with the 
@@ -135,7 +171,7 @@ option, as they are mutually exclusive.
 .SH WARNING
 Never use the
 .B \-w
-option on an device containing an existing file system.
+option on a device containing an existing file system.
 This option erases data!  If you want to do write-mode testing on
 an existing file system, use the
 .B \-n

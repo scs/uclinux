@@ -36,6 +36,8 @@ struct problem_context {
 #define PR_LATCH_RELOC	0x0050  /* Latch for superblock relocate hint */
 #define PR_LATCH_DBLOCK	0x0060	/* Latch for pass 1b dup block headers */
 #define PR_LATCH_LOW_DTIME 0x0070 /* Latch for pass1 orphaned list refugees */
+#define PR_LATCH_TOOBIG	0x0080	/* Latch for file to big errors */
+#define PR_LATCH_OPTIMIZE_DIR 0x0090 /* Latch for optimize directories */
 
 #define PR_LATCH(x)	((((x) & PR_LATCH_MASK) >> 4) - 1)
 
@@ -122,11 +124,11 @@ struct problem_context {
 /* Superblock has recovery flag set but no journal */
 #define PR_0_JOURNAL_RECOVER_SET 0x000017
 
-/* Warning message about leaving data in the journal */
-#define PR_0_JOURNAL_RESET_JOURNAL 0x000018
+/* Journal has data, but recovery flag is clear */
+#define PR_0_JOURNAL_RECOVERY_CLEAR 0x000018
 
-/* Superblock recovery flag clear - journal needs to be reset */
-#define PR_0_JOURNAL_RESET_PROMPT 0x000019
+/* Ask if we should clear the journal */
+#define PR_0_JOURNAL_RESET_JOURNAL 0x000019
 
 /* Filesystem revision is 0, but feature flags are set */
 #define PR_0_FS_REV_LEVEL	0x00001A
@@ -154,6 +156,42 @@ struct problem_context {
 
 /* Journal has unsupported version number */
 #define PR_0_JOURNAL_UNSUPP_VERSION		0x000027
+
+/* Moving journal to hidden file */
+#define	PR_0_MOVE_JOURNAL			0x000028
+
+/* Error moving journal */
+#define	PR_0_ERR_MOVE_JOURNAL			0x000029
+
+/* Clearing V2 journal superblock */
+#define PR_0_CLEAR_V2_JOURNAL			0x00002A
+
+/* Run journal anyway */
+#define PR_0_JOURNAL_RUN			0x00002B
+
+/* Run journal anyway by default */
+#define PR_0_JOURNAL_RUN_DEFAULT		0x00002C
+
+/* Backup journal inode blocks */
+#define PR_0_BACKUP_JNL				0x00002D
+
+/* Reserved blocks w/o resize_inode */
+#define PR_0_NONZERO_RESERVED_GDT_BLOCKS	0x00002E
+
+/* Resize_inode not enabled, but resize inode is non-zero */
+#define PR_0_CLEAR_RESIZE_INODE			0x00002F
+
+/* Resize inode invalid */
+#define PR_0_RESIZE_INODE_INVALID		0x000030
+
+/* Last mount time is in the future */
+#define PR_0_FUTURE_SB_LAST_MOUNT		0x000031
+
+/* Last write time is in the future */
+#define PR_0_FUTURE_SB_LAST_WRITE		0x000032
+
+/* Superblock hint for external journal incorrect */
+#define PR_0_EXTERNAL_JOURNAL_HINT		0x000033
 
 /*
  * Pass 1 errors
@@ -347,16 +385,70 @@ struct problem_context {
 
 /* Error allocating EA region allocation structure */
 #define PR_1_EA_ALLOC_REGION		0x01003F
-	
+
 /* Error EA allocation collision */
 #define PR_1_EA_ALLOC_COLLISION		0x010040
-	
+
 /* Bad extended attribute name */
 #define PR_1_EA_BAD_NAME		0x010041
 
 /* Bad extended attribute value */
-#define PR_1_EA_BAD_VALUE		0x0100423
-	
+#define PR_1_EA_BAD_VALUE		0x010042
+
+/* Inode too big (latch question) */
+#define PR_1_INODE_TOOBIG		0x010043
+
+/* Directory too big */
+#define PR_1_TOOBIG_DIR			0x010044
+
+/* Regular file too big */
+#define PR_1_TOOBIG_REG			0x010045
+
+/* Symlink too big */
+#define PR_1_TOOBIG_SYMLINK		0x010046
+
+/* INDEX_FL flag set on a non-HTREE filesystem */
+#define PR_1_HTREE_SET			0x010047
+
+/* INDEX_FL flag set on a non-directory */	
+#define PR_1_HTREE_NODIR		0x010048
+
+/* Invalid root node in HTREE directory */	
+#define PR_1_HTREE_BADROOT		0x010049
+
+/* Unsupported hash version in HTREE directory */	
+#define PR_1_HTREE_HASHV		0x01004A
+
+/* Incompatible flag in HTREE root node */	
+#define PR_1_HTREE_INCOMPAT		0x01004B
+
+/* HTREE too deep */	
+#define PR_1_HTREE_DEPTH		0x01004C
+
+/* Bad block has indirect block that conflicts with filesystem block */
+#define PR_1_BB_FS_BLOCK		0x01004D
+
+/* Resize inode failed */
+#define PR_1_RESIZE_INODE_CREATE	0x01004E
+
+/* inode->i_size is too long */	
+#define PR_1_EXTRA_ISIZE		0x01004F
+
+/* attribute name is too long */
+#define PR_1_ATTR_NAME_LEN		0x010050
+
+/* wrong EA value offset */
+#define PR_1_ATTR_VALUE_OFFSET		0x010051
+
+/* wrong EA blocknumber */
+#define PR_1_ATTR_VALUE_BLOCK		0x010052
+
+/* wrong EA value size */
+#define PR_1_ATTR_VALUE_SIZE		0x010053
+
+/* wrong EA hash value */
+#define PR_1_ATTR_HASH			0x010054
+
 /*
  * Pass 1b errors
  */
@@ -382,7 +474,10 @@ struct problem_context {
 /* Error while iterating over blocks */
 #define PR_1B_BLOCK_ITERATE	0x0110006
 
-	
+/* Error adjusting EA refcount */
+#define PR_1B_ADJ_EA_REFCOUNT	0x0110007
+
+
 /* Pass 1C: Scan directories for inodes with dup blocks. */
 #define PR_1C_PASS_HEADER	0x012000
 
@@ -547,14 +642,62 @@ struct problem_context {
 /* Directory filename can't be zero-length  */
 #define PR_2_NULL_NAME		0x020030
 
-/* Invalid fast symlink size */
-#define PR_2_SYMLINK_SIZE	0x020031
+/* Invalid symlink */
+#define PR_2_INVALID_SYMLINK	0x020031
 
 /* i_file_acl (extended attribute) is bad */
 #define PR_2_FILE_ACL_BAD	0x020032
 
 /* Filesystem contains large files, but has no such flag in sb */
 #define PR_2_FEATURE_LARGE_FILES 0x020033
+
+/* Node in HTREE directory not referenced */
+#define PR_2_HTREE_NOTREF	0x020034
+
+/* Node in HTREE directory referenced twice */
+#define PR_2_HTREE_DUPREF	0x020035
+
+/* Node in HTREE directory has bad min hash */
+#define PR_2_HTREE_MIN_HASH	0x020036
+
+/* Node in HTREE directory has bad max hash */
+#define PR_2_HTREE_MAX_HASH	0x020037
+
+/* Clear invalid HTREE directory */
+#define PR_2_HTREE_CLEAR	0x020038
+
+/* Clear the htree flag forcibly */
+/* #define PR_2_HTREE_FCLR	0x020039 */
+
+/* Bad block in htree interior node */
+#define PR_2_HTREE_BADBLK	0x02003A
+
+/* Error adjusting EA refcount */
+#define PR_2_ADJ_EA_REFCOUNT	0x02003B
+
+/* Invalid HTREE root node */
+#define PR_2_HTREE_BAD_ROOT	0x02003C
+
+/* Invalid HTREE limit */
+#define PR_2_HTREE_BAD_LIMIT	0x02003D
+
+/* Invalid HTREE count */
+#define PR_2_HTREE_BAD_COUNT	0x02003E
+
+/* HTREE interior node has out-of-order hashes in table */
+#define PR_2_HTREE_HASH_ORDER	0x02003F
+
+/* Node in HTREE directory has bad depth */
+#define PR_2_HTREE_BAD_DEPTH	0x020040
+
+/* Duplicate directory entry found */
+#define PR_2_DUPLICATE_DIRENT	0x020041
+
+/* Non-unique filename found */
+#define PR_2_NON_UNIQUE_FILE	0x020042
+
+/* Duplicate directory entry found */
+#define PR_2_REPORT_DUP_DIRENT	0x020043
 
 /*
  * Pass 3 errors
@@ -633,6 +776,27 @@ struct problem_context {
 #define PR_3_LPF_NOTDIR			0x030017
 
 /*
+ * Pass 3a --- rehashing diretories
+ */
+/* Pass 3a: Reindexing directories */
+#define PR_3A_PASS_HEADER		0x031000
+
+/* Error iterating over directories */
+#define PR_3A_OPTIMIZE_ITER		0x031001
+
+/* Error rehash directory */
+#define PR_3A_OPTIMIZE_DIR_ERR		0x031002		
+
+/* Rehashing dir header */
+#define PR_3A_OPTIMIZE_DIR_HEADER		0x031003
+
+/* Rehashing directory %d */
+#define PR_3A_OPTIMIZE_DIR		0x031004
+		  
+/* Rehashing dir end */	  
+#define PR_3A_OPTIMIZE_DIR_END		0x031005
+
+/*
  * Pass 4 errors
  */
 
@@ -668,7 +832,7 @@ struct problem_context {
 #define PR_5_BLOCK_BITMAP_HEADER 	0x050003
 
 /* Block not used, but marked in bitmap */
-#define PR_5_UNUSED_BLOCK		0x050004
+#define PR_5_BLOCK_UNUSED		0x050004
 	  
 /* Block used, but not marked used in bitmap */
 #define PR_5_BLOCK_USED			0x050005
@@ -680,7 +844,7 @@ struct problem_context {
 #define PR_5_INODE_BITMAP_HEADER	0x050007
 
 /* Inode not used, but marked in bitmap */
-#define PR_5_UNUSED_INODE		0x050008
+#define PR_5_INODE_UNUSED		0x050008
 	  
 /* Inode used, but not marked used in bitmap */
 #define PR_5_INODE_USED			0x050009
@@ -714,6 +878,18 @@ struct problem_context {
 
 /* Error copying in replacement block bitmap */
 #define PR_5_COPY_BBITMAP_ERROR		0x050013
+
+/* Block range not used, but marked in bitmap */
+#define PR_5_BLOCK_RANGE_UNUSED		0x050014
+	  
+/* Block range used, but not marked used in bitmap */
+#define PR_5_BLOCK_RANGE_USED		0x050015
+
+/* Inode range not used, but marked in bitmap */
+#define PR_5_INODE_RANGE_UNUSED		0x050016
+	  
+/* Inode rangeused, but not marked used in bitmap */
+#define PR_5_INODE_RANGE_USED		0x050017
 
 /*
  * Function declarations

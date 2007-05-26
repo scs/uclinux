@@ -32,10 +32,11 @@ extern ext2_loff_t ext2_llseek (unsigned int, ext2_loff_t, unsigned int);
 #else
 #include <linux/unistd.h>	/* for __NR__llseek */
 
-static int _llseek(unsigned int fd, unsigned long hi, 
-	unsigned long lo, ext2_loff_t *res, unsigned int wh )
+static int _llseek (unsigned int fd, unsigned long oh,
+		    unsigned long ol, ext2_loff_t *result,
+		    unsigned int origin)
 {
-    return syscall(__NR__llseek, fd, hi, lo, res, wh);
+	return syscall (__NR__llseek, fd, oh, ol, result, origin);
 }
 
 static ext2_loff_t my_llseek (unsigned int fd, ext2_loff_t offset,

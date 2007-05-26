@@ -367,10 +367,10 @@
 /* #undef HAVE_SETUTENT_R */
 
 /* Define to 1 if you have the <shadow.h> header file. */
-#ifdef __uClinux__
-#undef HAVE_SHADOW_H
-#else
+#if defined(CONFIG_USER_TINYLOGIN_SHADOWPASSWDS) || defined(CONFIG_USER_SHADOW_UTILS)
 #define HAVE_SHADOW_H 1
+#else
+#undef HAVE_SHADOW_H
 #endif
 
 /* Define to 1 if you have the `sigaction' function. */
@@ -915,6 +915,3 @@ extern void *memmove __P ((void *to, const void *from, size_t sz));
 /* Declare our own silly version.  */
 extern void memset __P ((void *mem, int val, size_t sz));
 #endif
-
-/* Enlarge the buffer size from default in uClibc to 4096 */
-#define BUFSIZ 4096

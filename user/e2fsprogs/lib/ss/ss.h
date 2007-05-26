@@ -9,6 +9,15 @@
  * M.I.T. S.I.P.B. make no representations about the suitability of
  * this software for any purpose.  It is provided "as is" without
  * express or implied warranty.
+ *
+ * This quote is just too good to not pass on:
+ *
+ * 	"BTW, I would have rejected the name Story Server because its
+ * 	initials are SS, the name of the secret police in Nazi
+ * 	Germany, probably the most despised pair of letters in western
+ * 	culture."  --- http://scriptingnewsarchive.userland.com/1999/12/13
+ *
+ * Let no one say political correctness isn't dead....
  */
 
 #ifndef _ss_h
@@ -16,13 +25,15 @@
 
 #include <ss/ss_err.h>
 
-#ifdef __STDC__
 #define __SS_CONST const
 #define __SS_PROTO (int, const char * const *, int, void *)
+
+#ifdef __GNUC__
+#define __SS_ATTR(x) __attribute__(x)
 #else
-#define __SS_CONST
-#define __SS_PROTO ()
+#define __SS_ATTR(x)
 #endif
+
 
 typedef __SS_CONST struct _ss_request_entry {
     __SS_CONST char * __SS_CONST *command_names; /* whatever */
@@ -54,10 +65,12 @@ void ss_help __SS_PROTO;
 #if 0
 char *ss_current_request();	/* This is actually a macro */
 #endif
-#ifdef __STDC__
+
 char *ss_name(int sci_idx);
-void ss_error (int, long, char const *, ...);
+void ss_error (int, long, char const *, ...)
+	__SS_ATTR((format(printf, 3, 4)));
 void ss_perror (int, long, char const *);
+
 int ss_create_invocation(const char *, const char *, void *,
 			 ss_request_table *, int *);
 void ss_delete_invocation(int);
@@ -74,22 +87,9 @@ void ss_subsystem_version(int argc, const char * const *argv,
 			  int sci_idx, void *infop);
 void ss_unimplemented(int argc, const char * const *argv,
 		      int sci_idx, void *infop);
-#else
-char *ss_name();
-void ss_error ();
-void ss_perror ();
-int ss_create_invocation();
-void ss_delete_invocation();
-int ss_listen();
-int ss_execute_line();
-void ss_add_request_table();
-void ss_delete_request_table();
-void ss_abort_subsystem();
-void ss_quit();
-void ss_self_identify();
-void ss_subsystem_name();
-void ss_subsystem_version();
-void ss_unimplemented();
-#endif
+void ss_set_prompt(int sci_idx, char *new_prompt);
+char *ss_get_prompt(int sci_idx);
+void ss_get_readline(int sci_idx);
+
 extern ss_request_table ss_std_requests;
 #endif /* _ss_h */

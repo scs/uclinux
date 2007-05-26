@@ -52,7 +52,8 @@ TODO Modify localcache.c to delete cache file header on failed scan.
 #include "cache.h"
 #include "vscan.h"
 
-static char *argv[20];
+char ext_info[6][BUF_LEN];
+static char *argv[26]; // 20 + # ext vars from ext_info
 
 static enum { NONE, INCOMING, OUTGOING } status = NONE;
 static enum { STARTING, FINISHED, NOTHING } expected_reply = NOTHING;
@@ -73,7 +74,7 @@ int vscan_init(void)
 	if(!config.vscanner)
 		return 0;
 
-	for(i = 0; i < 19; i++) {
+	for(i = 0; i < 25; i++) {
 		while(*p != 0 && *p++ != '"');
 		if(*p == 0)
 			break;
@@ -83,8 +84,13 @@ int vscan_init(void)
 		if(*p == 0)
 			break;
 		*p++ = 0;
-		if(!strcmp(argv[i], "%s"))
-			argv[i] = scanfile;
+		argv[i] = (!strcmp(argv[i], "%f"))? ext_info[0]:
+		          (!strcmp(argv[i], "%r"))? ext_info[1]:
+		          (!strcmp(argv[i], "%o"))? ext_info[2]:
+		          (!strcmp(argv[i], "%x"))? ext_info[3]:
+		          (!strcmp(argv[i], "%a"))? ext_info[4]:
+		          (!strcmp(argv[i], "%v"))? ext_info[5]:
+		          (!strcmp(argv[i], "%s"))? scanfile:argv[i];
 	}
 	argv[i] = NULL;
 
@@ -252,6 +258,13 @@ int vscan_scan(void)
 		dup(0);
 		dup(0);
 
+		strncpy(ext_info[0], inet_ntoa(info->client_control.address.sin_addr),
+				BUF_LEN);
+		strncpy(ext_info[1], info->upload?"up":"down",    BUF_LEN);
+		strncpy(ext_info[2], sstr_buf(info->username),    BUF_LEN);
+		strncpy(ext_info[3], sstr_buf(info->server_name), BUF_LEN);
+		strncpy(ext_info[4], sstr_buf(info->strictpath),  BUF_LEN);
+		strncpy(ext_info[5], sstr_buf(info->filename),    BUF_LEN);
 		execvp(argv[0], argv);
 		die(ERROR, "Failed to exec virus scanner", 0, 0, -1);
 	case -1:

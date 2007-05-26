@@ -1,4 +1,6 @@
 /* simple httpd to be started from tcpserver */
+/* vi:sw=2 noet ts=8 sts=2
+*/
 #include <stdio.h>
 
 #define _FILE_OFFSET_BITS 64
@@ -53,9 +55,9 @@
 // #define CGI
 
 #ifdef CGI
-/* uncomment the following line to enable support for "index.cgi"
- * That is: if "index.html" is not present then look for "index.cgi" */
-#define INDEX_CGI "/cgi-bin/config"
+/* uncomment the following line to enable support for a cgi index
+ * That is: if "index.html" is not present then look for "cgi-bin/index.cgi" */
+#define INDEX_CGI "/cgi-bin/index.cgi"
 #endif
 
 /* the following switch will make fnord normalize the Host: HTTP header
@@ -117,14 +119,24 @@
 
 #define CGI_TIMEOUT	(5*60)	/* 5 minutes time-out for CGI to complete */
 
-#if _FILE_OFFSET_BITS != 64
+/* Static content may be provided for the various possible html error
+ * codes. STATIC_ERRORS is an sprintf() template for these files.
+ *
+ * NOTE that is is very important to keep the %ld since the size
+ * of the template is expected to be the size of the filenames.
+ *
+ * Comment out this if you don't want static error content.
+ */
+#ifndef STATIC_ERRORS
+#define STATIC_ERRORS "%ld-err.html"
+#endif
+
 /* defining USE_SENDFILE enables zero-copy TCP on Linux for static
  * files.  I measured over 320 meg per second with apache bench over
  * localhost with sendfile and keep-alive.  However, sendfile does not
  * work with large files and may be considered cheating ;-)
  * Also, sendfile is a blocking operation.  Thus, no timeout handling. */
-#define USE_SENDFILE
-#endif
+/*#define USE_SENDFILE*/
 
 #ifndef __linux__
 #undef USE_SENDFILE
@@ -143,6 +155,8 @@
 #undef USE_MMAP
 #endif
 
+static int serve_static_data(int fd);
+
 enum { UNKNOWN, GET, HEAD, POST } method;
 
 #ifdef TCP_CORK
@@ -155,6 +169,7 @@ char *args;			/* URL behind ? (for CGIs) */
 char *url;			/* string between GET and HTTP/1.0, demangled */
 char *ua="?";			/* user-agent */
 char *refer;			/* Referrer: header */
+char *accept_enc;		/* Accept-Encoding */
 int httpversion;		/* 0 == 1.0, 1 == 1.1 */
 static int logging;             /* set if we should log accesses */
 #ifdef KEEPALIVE
@@ -228,16 +243,59 @@ static void sanitize(char* ua) {	/* replace strings with underscores for logging
 }
 #endif
 
-static void dolog(long len) {	/* write a log line to stderr */
+static int buffer_put2digits(buffer* b,unsigned int i) {
+  char x[2];
+  x[0]=(i/10)+'0';
+  x[1]=(i%10)+'0';
+  return buffer_put(b,x,2);
+}
+
+static void dolog(off_t len) {	/* write a log line to stderr */
   if (!logging) {
     return;
   }
 #if defined(LOG_TO_STDERR)
+#ifdef COLF
+  time_t t=time(0);
+  struct tm* x=localtime(&t);
+  int l=-(timezone/60);
+  buffer_puts(buffer_2,remote_ip?remote_ip:"0.0.0.0");
+  buffer_puts(buffer_2," - - [");
+
+  buffer_put2digits(buffer_2,x->tm_mday);
+  buffer_puts(buffer_2,"/");
+  buffer_put(buffer_2,months+3*x->tm_mon,3);
+  buffer_puts(buffer_2,"/");
+  buffer_put2digits(buffer_2,(x->tm_year+1900)/100);
+  buffer_put2digits(buffer_2,(x->tm_year+1900)%100);
+  buffer_puts(buffer_2,":");
+  buffer_put2digits(buffer_2,x->tm_hour);
+  buffer_puts(buffer_2,":");
+  buffer_put2digits(buffer_2,x->tm_min);
+  buffer_puts(buffer_2,":");
+  buffer_put2digits(buffer_2,x->tm_sec);
+  buffer_puts(buffer_2,l>=0?" +":" -");
+  if (l<0) l=-l;
+  buffer_put2digits(buffer_2,l/60);
+  buffer_put2digits(buffer_2,l%60);
+  buffer_puts(buffer_2,"] \"");
+  switch (method) {
+  case GET: buffer_puts(buffer_2,"GET "); break;
+  case POST: buffer_puts(buffer_2,"POST "); break;
+  case HEAD: buffer_puts(buffer_2,"HEAD "); break;
+  default: buffer_puts(buffer_2,"? "); break;
+  }
+  buffer_puts(buffer_2,url);
+  buffer_puts(buffer_2,httpversion?" HTTP/1.1\" ":" HTTP/1.0\" ");
+  buffer_putulong(buffer_2,retcode);
+  buffer_putspace(buffer_2);
+  buffer_putrange(buffer_2,len);
+#else
   buffer_puts(buffer_2,remote_ip?remote_ip:"0.0.0.0");
   buffer_putspace(buffer_2);
   buffer_putulong(buffer_2,retcode);
   buffer_putspace(buffer_2);
-  buffer_putulong(buffer_2,len);
+  buffer_putrange(buffer_2,len);
   buffer_putspace(buffer_2);
   sanitize(host);
   buffer_puts(buffer_2,host);
@@ -258,6 +316,7 @@ static void dolog(long len) {	/* write a log line to stderr */
   }
   else
     buffer_puts(buffer_2,"(null)");
+#endif
   buffer_puts(buffer_2,"\n");
   buffer_flush(buffer_2);
 #elif defined(LOG_TO_SYSLOG)
@@ -282,6 +341,30 @@ static void badrequest(long code,const char *httpcomment,const char *message) {
   buffer_putspace(buffer_1);
   buffer_puts(buffer_1,httpcomment);
   buffer_puts(buffer_1,"\r\nContent-Type: text/html\r\nConnection: close\r\n\r\n");
+
+#ifdef STATIC_ERRORS
+  {
+    int fd;
+    char filename[sizeof(STATIC_ERRORS)];
+
+    /* If an appropriate error page exists, send its contents rather than the supplied message */
+    snprintf(filename, sizeof(filename), STATIC_ERRORS, code);
+	/* Skip a leading slash */
+    fd = open(*filename == '/' ? filename + 1 : filename, O_RDONLY);
+    if (fd >= 0) {
+      struct stat st;
+  
+      if (fstat(fd,&st) == 0 && !S_ISDIR(st.st_mode)) {
+	rangestart=0; rangeend=st.st_size;
+	serve_static_data(fd);
+	close(fd);
+	exit(0);
+      }
+      close(fd);
+    }
+  }
+#endif
+
   buffer_puts(buffer_1,message);
   buffer_flush(buffer_1);
   exit(0);
@@ -306,6 +389,7 @@ static const char *cgivars[] = {
   "HTTP_USER_AGENT=",
   "HTTP_COOKIE=",
   "HTTP_REFERER=",
+  "HTTP_ACCEPT_ENCODING=",
   "AUTH_TYPE=",
   "CONTENT_TYPE=",
   "CONTENT_LENGTH=",
@@ -425,6 +509,13 @@ static void do_cgi(const char* pathinfo,const char* const* envp) {
     *tmp=0; ++tmp;
   }
 
+  if (accept_enc) {
+    cgi_env[++i]=tmp;
+    tmp+=str_copy(tmp,"HTTP_ACCEPT_ENCODING=");
+    tmp+=str_copy(tmp,accept_enc);
+    *tmp=0; ++tmp;
+  }
+
   if (auth_type) {
     cgi_env[++i]=tmp;
     tmp+=str_copy(tmp,"AUTH_TYPE=");
@@ -508,10 +599,15 @@ static void do_cgi(const char* pathinfo,const char* const* envp) {
     cgi_arg[1]=0;
   }
 
+  i=strrchr(url,'/')-url;
+  strncpy(tmp,url+1,i);
+  tmp[i]=0;
+  chdir(tmp);
+
   /* program name */
   cgi_arg[0]=tmp;
   tmp[0]='.';
-  tmp[str_copy(tmp+1,url)+1]=0;
+  tmp[str_copy(tmp+1,url+i)+1]=0;
 
   /* Now see if this url represents a "virtual" path */
   while (access(cgi_arg[0], X_OK) != 0) {
@@ -531,36 +627,19 @@ static void do_cgi(const char* pathinfo,const char* const* envp) {
   raise(SIGINT);	/* gateway unavailable. */
 }
 
-static void cgi_child(int sig) {
-  int n;
-  int pid;
+#if defined(SERVER_MODE) || defined(CGI)
+static int child_status;
+static int child_pid;
 
-  pid=waitpid(0,&n,WNOHANG);
-
-  if (pid>0) {
-    if (WIFSIGNALED(n)) {
-      if (WTERMSIG(n)==SIGALRM)
-	badrequest(504,"Gateway Time-out","Gateway has hit the Time-out.");
-      else
-	badrequest(502,"Bad Gateway","Gateway broken or unavailable.");
-    }
-  }
-  signal(SIGCHLD,cgi_child);
-}
-
-#ifdef SERVER_MODE
 /**
- * Just reap children and ignore the result
+ * Reap children and store the results in child_pid and child_status
  */
-static void sig_child_ignore(int sig)
+static void sig_child_handler(int sig)
 {
-  int status = 0;
-  int pid;
-
-  while ((pid = waitpid(0,&status,WNOHANG)) > 0) {
+  while ((child_pid = waitpid(0,&child_status,WNOHANG)) > 0) {
   }
 
-  signal(SIGCHLD, sig_child_ignore);
+  signal(SIGCHLD, sig_child_handler);
 }
 #endif
 
@@ -595,6 +674,9 @@ static void start_cgi(int nph,const char* pathinfo,const char *const *envp) {
     badrequest(500,"Internal Server Error","Server Resource problem.");
   }
 
+  child_pid = 0;
+  signal(SIGCHLD,sig_child_handler);
+
   if ((pid=fork())) {
     if (pid>0) {
       struct pollfd pfd[2];
@@ -602,7 +684,6 @@ static void start_cgi(int nph,const char* pathinfo,const char *const *envp) {
       int startup=1;
       size_t size=0;
 
-      signal(SIGCHLD,cgi_child);
       signal(SIGPIPE,SIG_IGN);		/* NO! no signal! */
 
       close(df[0]);
@@ -619,22 +700,29 @@ static void start_cgi(int nph,const char* pathinfo,const char *const *envp) {
       if (post_len) ++nr;	/* have post data */
       else close(df[1]);	/* no post data */
 
-      while(poll(pfd,nr,-1)!=-1) {
+      while((poll(pfd,nr,-1)!=-1) || (errno==EINTR)) {
 	/* read from cgi */
-	if (pfd[0].revents&POLLIN) {
-	  n=read(fd[0],ibuf,sizeof(ibuf));
-	  if (n<=0) goto cgi_500;
+	if (pfd[0].revents&(POLLIN|POLLHUP)) {
+	  if (!(n=read(fd[0],ibuf,sizeof(ibuf)))) {
+	    /* If the child died, don't pretend that everything is OK */
+	    if (child_pid && WIFSIGNALED(child_status)) {
+	      goto cgi_500;
+	    }
+	    break;
+	  }
+	  if (n<0) goto cgi_500;
 	  /* startup */
 	  if (startup) {
 	    startup=0;
 	    if (nph) {	/* NPH-CGI */
 	      buffer_put(buffer_1,ibuf,n);
-	      scan_ulong(ibuf+9,&retcode); /* only get error code / str_len("HTTP/x.x ")==9 */
+	      scan_ulong(ibuf+9,(unsigned long *)&retcode); /* only get error code / str_len("HTTP/x.x ")==9 */
 	    }
 	    else {	/* CGI */
 	      if (byte_diff(ibuf,10,"Location: ")==0) {
 		retcode=302;
 		buffer_puts(buffer_1,"HTTP/1.0 302 CGI-Redirect\r\nConnection: close\r\n");
+		signal(SIGCHLD,SIG_IGN);
 		cgi_send_correct_http(ibuf,n);
 		buffer_flush(buffer_1);
 		dolog(0);
@@ -642,7 +730,8 @@ static void start_cgi(int nph,const char* pathinfo,const char *const *envp) {
 	      }
 	      else {
 		retcode=200;
-		buffer_puts(buffer_1,"HTTP/1.0 200 OK\r\nServer: "FNORD"\r\nPragma: no-cache\r\nConnection: close\r\n");
+		buffer_puts(buffer_1,"HTTP/1.0 200 OK\r\nServer: "FNORD"\r\nConnection: close\r\n");
+		signal(SIGCHLD,SIG_IGN);
 		cgi_send_correct_http(ibuf,n);
 	      }
 	    }
@@ -652,7 +741,7 @@ static void start_cgi(int nph,const char* pathinfo,const char *const *envp) {
 	    buffer_put(buffer_1,ibuf,n);
 	  }
 	  size+=n;
-	  if (pfd[0].revents&POLLHUP) break;
+//	  if (pfd[0].revents&POLLHUP) break;
 	}
 	/* write to cgi the post data */
 	else if (nr>1 && pfd[1].revents&POLLOUT) {
@@ -671,10 +760,27 @@ static void start_cgi(int nph,const char* pathinfo,const char *const *envp) {
 	    close(df[1]);
 	  }
 	}
-	else if (pfd[0].revents&POLLHUP) break;
+	//else if (pfd[0].revents&POLLHUP) break;
 	else {
-cgi_500:  if (startup)
-	    badrequest(500,"Internal Server Error","Looks like the CGI crashed.");
+cgi_500:  
+	  if (startup) {
+	    if (child_pid) {
+	      if (WIFSIGNALED(child_status)) {
+		if (WTERMSIG(child_status)==SIGALRM) {
+		  badrequest(504,"Gateway Time-out","Gateway has hit the Time-out.");
+		}
+		else if (WTERMSIG(child_status)==SIGINT) {
+		  badrequest(404,"Not Found","<title>Not Found</title>CGI application not found.");
+		}
+		else {
+		  badrequest(502,"Bad Gateway","Gateway broken or unavailable.");
+		}
+	      }
+	    }
+	    else {
+	      badrequest(500,"Internal Server Error","Looks like the CGI crashed.");
+	    }
+	  }
 	  else {
 	    buffer_puts(buffer_1,"\n\n");
 	    buffer_puts(buffer_1,"Looks like the CGI crashed.");
@@ -695,6 +801,8 @@ cgi_500:  if (startup)
     }
   }
   else {
+    signal(SIGCHLD,SIG_DFL);
+
     close(df[1]);
     close(fd[0]);
 
@@ -751,26 +859,36 @@ static char* encoding=0;
 static char* mimetype="text/plain";
 
 static struct mimeentry { const char* name, *type; } mimetab[] = {
-  { "html", "text/html" },
-  { "css", "text/css" },
-  { "dvi", "application/x-dvi" },
-  { "ps", "application/postscript" },
-  { "pdf", "application/pdf" },
-  { "gif", "image/gif" },
-  { "png", "image/png" },
-  { "jpeg", "image/jpeg" },
-  { "jpg", "image/jpeg" },
-  { "mpeg", "video/mpeg" },
-  { "mpg", "video/mpeg" },
-  { "avi", "video/x-msvideo" },
-  { "mov", "video/quicktime" },
-  { "qt", "video/quicktime" },
-  { "mp3", "audio/mpeg" },
-  { "ogg", "audio/x-oggvorbis" },
-  { "wav", "audio/x-wav" },
-  { "pac", "application/x-ns-proxy-autoconfig" },
-  { "sig", "application/pgp-signature" },
-  { "torrent", "application/x-bittorrent" },
+  { "html",	"text/html" },
+  { "htm",	"text/html" },
+  { "css",	"text/css" },
+  { "dvi",	"application/x-dvi" },
+  { "ps",	"application/postscript" },
+  { "pdf",	"application/pdf" },
+  { "gif",	"image/gif" },
+  { "png",	"image/png" },
+  { "jpeg",	"image/jpeg" },
+  { "jpg",	"image/jpeg" },
+  { "mpeg",	"video/mpeg" },
+  { "mpg",	"video/mpeg" },
+  { "avi",	"video/x-msvideo" },
+  { "mov",	"video/quicktime" },
+  { "qt",	"video/quicktime" },
+  { "mp3",	"audio/mpeg" },
+  { "ogg",	"audio/x-oggvorbis" },
+  { "wav",	"audio/x-wav" },
+  { "pac",	"application/x-ns-proxy-autoconfig" },
+  { "sig",	"application/pgp-signature" },
+  { "torrent",	"application/x-bittorrent" },
+  { "class",	"application/octet-stream" },
+  { "js",	"application/x-javascript" },
+  { "tar",	"application/x-tar" },
+  { "zip",	"application/zip" },
+  { "dtd",	"text/xml" },
+  { "xml",	"text/xml" },
+  { "xbm",	"image/x-xbitmap" },
+  { "xpm",	"image/x-xpixmap" },
+  { "xwd",	"image/x-xwindowdump" },
   { 0 } };
 
 /* try to find out MIME type and content encoding.
@@ -928,7 +1046,7 @@ ok:
     /* see if the peer accepts MIME type */
     /* see if the document has been changed */
     ims=parsedate(header(buf,buflen,"If-Modified-Since"));
-    if (ims!=(time_t)-1 && st.st_mtime<ims) { retcode=304; goto bad; }
+    if (ims!=(time_t)-1 && st.st_mtime<=ims) { retcode=304; goto bad; }
     rangestart=0; rangeend=st.st_size;
     if ((accept=header(buf,buflen,"Range"))) {
       /* format: "bytes=17-23", "bytes=23-" */
@@ -942,9 +1060,8 @@ ok:
 	    ++accept;
 	    if (*accept) {
 	      i=scan_range(accept,&rangeend);
-	      if (!i) rangeend=st.st_size;
-	    } else
-	      rangeend=st.st_size;
+	      if (!i) rangeend=st.st_size; else ++rangeend;
+	    }
 	  }
 	}
       }
@@ -1135,14 +1252,6 @@ static int handleindexcgi(const char *testurl,const char* origurl) {
 }
 #endif
 
-static int buffer_put2digits(buffer* b,unsigned int i) {
-  char x[2];
-  x[0]=(i/10)+'0';
-  x[1]=(i%10)+'0';
-  return buffer_put(b,x,2);
-}
-
-
 static void get_ucspi_env(void) {
   char* ucspi=getenv("PROTO");
   if (ucspi) {
@@ -1314,7 +1423,20 @@ static int serve_static_data(int fd) {
     }
 #endif
     buffer_flush(buffer_1);
-    sendfile(1,fd,&offset,rangeend-rangestart);
+    {
+      off_t l=rangeend-rangestart;
+      do {
+	off_t c;
+	c=(l>(1ul<<31))?1ul<<31:l;
+	if (sendfile(1,fd,&offset,c)==-1)
+#ifdef USE_MMAP
+	  return serve_mmap(fd);
+#else
+	  return serve_read_write(fd);
+#endif
+	l-=c;
+      } while (l);
+    }
     return 0;
   }
 #else
@@ -1461,7 +1583,7 @@ int main(int argc,char *argv[],const char *const *envp) {
 	listen(s, 10);
 
 	/* In the server, reap children */
-	signal(SIGCHLD, sig_child_ignore);
+	signal(SIGCHLD, sig_child_handler);
 
 	while (1) {
 	  int child;
@@ -1481,6 +1603,7 @@ int main(int argc,char *argv[],const char *const *envp) {
 	}
 
 	/* Child here, so set up the environment */
+	signal(SIGCHLD, SIG_DFL);
 	putenv("PROTO=TCP");
 	salen = sizeof(salocal);
 	if (getsockname(fd, (struct sockaddr *)&salocal, &salen) == 0) {
@@ -1605,6 +1728,7 @@ handlenext:
     char *tmp;
     if ((tmp=header(buf,len,"User-Agent"))) ua=tmp;
     if ((tmp=header(buf,len,"Referer"))) refer=tmp;
+    if ((tmp=header(buf,len,"Accept-Encoding"))) accept_enc=tmp;
 #ifdef KEEPALIVE
     if ((tmp=header(buf,len,"Connection"))) {	/* see if it's "keep-alive" or "close" */
       if (!strcasecmp(tmp,"keep-alive"))
@@ -1753,8 +1877,19 @@ hostb0rken:
       "Access to this site is restricted.\r\n"
       "Please provide credentials.\r\n");
     buffer_flush(buffer_1);
-    /* Hmmm. Closing 0 seems to make things work better here !?! */
-    close(0);
+    /* Now suck in and throw away any post data */
+    while (post_mlen < post_len) {
+      char buf[512];
+      int len = post_len - post_mlen;
+      if (len > sizeof(buf)) {
+	len = sizeof(buf);
+      }
+      len = read(0, buf, len);
+      if (len <= 0) {
+	      break;
+      }
+      post_mlen += len;
+    }
     exit(0);
   }
   else {
@@ -1871,7 +2006,7 @@ hostb0rken:
 	buffer_puts(buffer_1,"\r\n");
       }
       buffer_puts(buffer_1,"Content-Length: ");
-      buffer_putulong(buffer_1,rangeend-rangestart);
+      buffer_putrange(buffer_1,rangeend-rangestart);
       buffer_puts(buffer_1,"\r\nLast-Modified: ");
       {
 	struct tm* x=gmtime(&st.st_mtime);
@@ -1896,7 +2031,7 @@ hostb0rken:
 	buffer_puts(buffer_1,"Accept-Ranges: bytes\r\nContent-Range: bytes ");
 	buffer_putrange(buffer_1,rangestart);
 	buffer_puts(buffer_1,"-");
-	buffer_putrange(buffer_1,rangeend);
+	buffer_putrange(buffer_1,rangeend-1);
 	buffer_puts(buffer_1,"/");
 	buffer_putrange(buffer_1,st.st_size);
 	buffer_puts(buffer_1,"\r\n");

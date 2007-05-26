@@ -21,6 +21,7 @@
 #include <sys/ioctl.h>
 #endif
 #if HAVE_SYS_MOUNT_H
+#include <sys/param.h>
 #include <sys/mount.h>		/* This may define BLKFLSBUF */
 #endif
 
@@ -62,14 +63,19 @@ errcode_t ext2fs_sync_device(int fd, int flushb)
 	if (flushb) {
 
 #ifdef BLKFLSBUF
-		ioctl (fd, BLKFLSBUF, 0);   /* In case this is a HD */
+		if (ioctl (fd, BLKFLSBUF, 0) == 0)
+			return 0;
 #else
+#ifdef __GNUC__
  #warning BLKFLSBUF not defined
+#endif /* __GNUC__ */
 #endif
 #ifdef FDFLUSH
-		ioctl (fd, FDFLUSH, 0);   /* In case this is floppy */
+		ioctl (fd, FDFLUSH, 0);   /* In case this is a floppy */
 #else
+#ifdef __GNUC__
  #warning FDFLUSH not defined
+#endif /* __GNUC__ */
 #endif
 	}
 	return 0;

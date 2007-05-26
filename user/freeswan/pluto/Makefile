@@ -2,7 +2,7 @@
 srcdir = $(ROOTDIR)/freeswan
 
 PLUTOINCLS    = -I$(srcdir)/pluto
-FREESWANINCLS = -I$(srcdir)/lib -I$(srcdir)
+FREESWANINCLS = -I$(srcdir)/lib -I$(srcdir)/libdes -I$(srcdir)
 FREESWANLIB   = ../lib/libfreeswan.a
 LIBDESINCLS   =
 LIBDESLITE    = $(ROOTDIR)/lib/libdes/libdes.a

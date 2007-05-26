@@ -1,5 +1,5 @@
 /*
- * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/et/error_message.c,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $
+ * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/et/error_message.c,v 1.1.1.2 2006/09/06 01:35:43 steveb Exp $
  * $Source: /cvs/sw/new-wave/user/e2fsprogs/lib/et/error_message.c,v $
  * $Locker:  $
  *
@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include "com_err.h"
@@ -26,14 +27,10 @@
 static char buffer[25];
 
 struct et_list * _et_list = (struct et_list *) NULL;
+struct et_list * _et_dynamic_list = (struct et_list *) NULL;
 
 
-#ifdef __STDC__
 const char * error_message (errcode_t code)
-#else
-const char * error_message (code)
-	errcode_t	code;
-#endif
 {
     int offset;
     struct et_list *et;
@@ -65,6 +62,14 @@ const char * error_message (code)
 	    return(et->table->msgs[offset]);
 	}
     }
+    for (et = _et_dynamic_list; et; et = et->next) {
+	if (et->table->base == table_num) {
+	    /* This is the right table */
+	    if (et->table->n_msgs <= offset)
+		goto oops;
+	    return(et->table->msgs[offset]);
+	}
+    }
 oops:
     strcpy (buffer, "Unknown code ");
     if (table_num) {
@@ -85,4 +90,53 @@ oops:
     *cp++ = '0' + offset;
     *cp = '\0';
     return(buffer);
+}
+
+/*
+ * New interface provided by krb5's com_err library
+ */
+errcode_t add_error_table(const struct error_table * et)
+{
+	struct et_list *el;
+
+	if (!(el = (struct et_list *) malloc(sizeof(struct et_list))))
+		return ENOMEM;
+
+	el->table = et;
+	el->next = _et_dynamic_list;
+	_et_dynamic_list = el;
+
+	return 0;
+}
+
+/*
+ * New interface provided by krb5's com_err library
+ */
+errcode_t remove_error_table(const struct error_table * et)
+{
+	struct et_list *el = _et_dynamic_list;
+	struct et_list *el2 = 0;
+
+	while (el) {
+		if (el->table->base == et->base) {
+			if (el2)	/* Not the beginning of the list */
+				el2->next = el->next;
+			else
+				_et_dynamic_list = el->next;
+			(void) free(el);
+			return 0;
+		}
+		el2 = el;
+		el = el->next;
+	}
+	return ENOENT;
+}
+
+/*
+ * Variant of the interface provided by Heimdal's com_err library
+ */
+void
+add_to_error_table(struct et_list *new_table)
+{
+	add_error_table(new_table->table);
 }

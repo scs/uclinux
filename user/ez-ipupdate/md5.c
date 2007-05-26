@@ -35,18 +35,33 @@
 
 #include "md5.h"
 
-#ifdef _LIBC
-# include <endian.h>
+#if defined( __OpenBSD__ )
+#  include <machine/types.h>
+#  include <sys/endian.h>
+#elif defined( __FreeBSD__ ) || defined( __NetBSD__ )
+#  include <sys/types.h>
+#  include <sys/endian.h>
+#elif defined( BSD ) && ( BSD >= 199103 ) || defined(__APPLE__)
+#  include <machine/endian.h>
+#else
+#  include <endian.h>
+#endif
+
 # if __BYTE_ORDER == __BIG_ENDIAN
 #  define WORDS_BIGENDIAN 1
+# elif __BYTE_ORDER == __LITTLE_ENDIAN
+#  define WORDS_BIGENDIAN 1
+# else
+#  error __BYTE_ORDER is not set correctly
 # endif
-#endif
 
 #if defined(WORDS_BIGENDIAN) || defined(_BIG_ENDIAN)
 # define SWAP(n)							\
     (((n) << 24) | (((n) & 0xff00) << 8) | (((n) >> 8) & 0xff00) | ((n) >> 24))
-#else
+#elif defined(_LITTLE_ENDIAN)
 # define SWAP(n) (n)
+#else
+# error Neither __BYTE_ORDER nor _LITTLE_ENDIAN is defined
 #endif
 
 

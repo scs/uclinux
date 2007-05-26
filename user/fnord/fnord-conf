@@ -2,7 +2,7 @@
 
 set -e
 
-acct=`id -u $1`
+acct=$1
 logacct=$2
 dir=$3
 webroot=$4
@@ -17,7 +17,7 @@ fi
 mkdir -p $dir
 echo "#!/bin/sh" > $dir/run
 echo "cd $webroot" >> $dir/run
-echo "exec tcpserver -u $acct -RHl localhost ${myip:-0} 80 /command/fnord-httpd 2>&1" >> $dir/run
+echo "exec envuidgid $acct tcpserver -RHl localhost ${myip:-0} 80 fnord 2>&1" >> $dir/run
 chmod 755 $dir/run
 
 # tell old daemontools that it should spawn a log process, too

@@ -1,16 +1,16 @@
+-include ../user.mak
+
 ######################################################
 
-VERSION = 1.0.0
+VERSION = 3.0.1
 
 ######################################################
 
 EXEC = flatfsd
 OBJS = flatfsd.o newfs.o reboot.o
-# FLTFLAGS += -s 2048
 
 # force error checking on compile
-#CFLAGS += -Wall -Werror
-CFLAGS += -Wall
+CFLAGS += -Wall -Werror
 
 # CFLAGS += -DDEBUG
 
@@ -33,21 +33,26 @@ ifdef CONFIG_USER_FLATFSD_AUTO
 	endif
 endif
 
+ifdef CONFIG_USER_FLATFSD_COMPRESSED
+	OBJS += flatfs3.o
+	EXTRA_LIBS = -lz
+endif
+
 ######################################################
 
 ifdef USING_DISKLIKE_DEVICE_y
 CFLAGS += -DUSING_DISKLIKE_DEVICE=1
-OBJS += flatfs.o flatfs_disk.o
+OBJS += flatfs.o flatfs1.o disk.o ops.o
 SUBSYS = disk
 else
 ifdef USING_MTD_DEVICE_y
 CFLAGS += -DUSING_MTD_DEVICE=1
-OBJS += flatfs.o flatfs_mtd.o
+OBJS += flatfs.o flatfs1.o mtd.o ops.o
 SUBSYS = mtd
 else
 ifdef USING_BLKMEM_DEVICE_y
 CFLAGS += -DUSING_BLKMEM_DEVICE=1
-OBJS += flatfs.o flatfs_blkmem.o
+OBJS += flatfs.o flatfs1.o blkmem.o ops.o
 SUBSYS = blkmem
 else
 ifdef USING_FLASH_FILESYSTEM_y
@@ -63,6 +68,9 @@ endif
 ifdef CONFIG_PROP_LOGD_LOGD
 CFLAGS += -DLOGGING
 endif
+ifdef CONFIG_USER_FLATFSD_HAS_RTC
+CFLAGS += -DHAS_RTC
+endif
 
 CFLAGS += -DFLATFSD_VERSION='"$(VERSION)$(SUBSYS)"'
 
@@ -71,7 +79,7 @@ CFLAGS += -DFLATFSD_VERSION='"$(VERSION)$(SUBSYS)"'
 all:: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(EXTRA_LIBS) $(LDLIBS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
@@ -81,6 +89,6 @@ clean:
 
 ######################################################
 
-flatfsd.o: Makefile
+$(OBJS): Makefile flatfs.h
 
 ######################################################

@@ -4,7 +4,7 @@ package smbldap_tools;
 use Net::LDAP;
 use Crypt::SmbHash;
 
-# $Id$
+# $Id: smbldap_tools.pm,v 1.54 2005/01/29 15:00:54 jtournier Exp $
 #
 #  This code was developped by IDEALX (http://IDEALX.org/) and
 #  contributors (their names can be found in the CONTRIBUTORS file).

@@ -34,15 +34,18 @@ static int disconnect_inode(e2fsck_t ctx, ext2_ino_t i)
 	pctx.ino = i;
 	pctx.inode = &inode;
 	
+	/*
+	 * Offer to delete any zero-length files that does not have
+	 * blocks.  If there is an EA block, it might have useful
+	 * information, so we won't prompt to delete it, but let it be
+	 * reconnected to lost+found.
+	 */
 	if (!inode.i_blocks && (LINUX_S_ISREG(inode.i_mode) ||
 				LINUX_S_ISDIR(inode.i_mode))) {
-		/*
-		 * This is a zero-length file; prompt to delete it...
-		 */
 		if (fix_problem(ctx, PR_4_ZERO_LEN_INODE, &pctx)) {
 			ext2fs_icount_store(ctx->inode_link_info, i, 0);
 			inode.i_links_count = 0;
-			inode.i_dtime = time(0);
+			inode.i_dtime = ctx->now;
 			e2fsck_write_inode(ctx, i, &inode,
 					   "disconnect_inode");
 			/*
@@ -51,8 +54,8 @@ static int disconnect_inode(e2fsck_t ctx, ext2_ino_t i)
 			e2fsck_read_bitmaps(ctx);
 			ext2fs_unmark_inode_bitmap(ctx->inode_used_map, i);
 			ext2fs_unmark_inode_bitmap(ctx->inode_dir_map, i);
-			ext2fs_unmark_inode_bitmap(fs->inode_map, i);
-			ext2fs_mark_ib_dirty(fs);
+			ext2fs_inode_alloc_stats2(fs, i, -1,
+						  LINUX_S_ISDIR(inode.i_mode));
 			return 0;
 		}
 	}
@@ -86,6 +89,7 @@ void e2fsck_pass4(e2fsck_t ctx)
 #endif
 	struct problem_context	pctx;
 	__u16	link_count, link_counted;
+	char	*buf = 0;
 	int	group, maxgroup;
 	
 #ifdef RESOURCE_TRACK
@@ -108,6 +112,8 @@ void e2fsck_pass4(e2fsck_t ctx)
 			return;
 	
 	for (i=1; i <= fs->super->s_inodes_count; i++) {
+		if (ctx->flags & E2F_FLAG_SIGNAL_MASK)
+			return;
 		if ((i % fs->super->s_inodes_per_group) == 0) {
 			group++;
 			if (ctx->progress)
@@ -126,7 +132,10 @@ void e2fsck_pass4(e2fsck_t ctx)
 		ext2fs_icount_fetch(ctx->inode_link_info, i, &link_count);
 		ext2fs_icount_fetch(ctx->inode_count, i, &link_counted);
 		if (link_counted == 0) {
-			if (e2fsck_process_bad_inode(ctx, 0, i))
+			if (!buf)
+				buf = e2fsck_allocate_memory(ctx,
+				     fs->blocksize, "bad_inode buffer");
+			if (e2fsck_process_bad_inode(ctx, 0, i, buf))
 				continue;
 			if (disconnect_inode(ctx, i))
 				continue;
@@ -157,6 +166,8 @@ void e2fsck_pass4(e2fsck_t ctx)
 	ctx->inode_bb_map = 0;
 	ext2fs_free_inode_bitmap(ctx->inode_imagic_map);
 	ctx->inode_imagic_map = 0;
+	if (buf)
+		ext2fs_free_mem(&buf);
 #ifdef RESOURCE_TRACK
 	if (ctx->options & E2F_OPT_TIME2) {
 		e2fsck_clear_progbar(ctx);

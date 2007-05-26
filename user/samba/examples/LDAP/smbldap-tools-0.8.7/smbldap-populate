@@ -2,7 +2,7 @@
 
 # Populate a LDAP base for Samba-LDAP usage
 #
-# $Id$
+# $Id: smbldap-populate,v 1.21 2005/02/13 14:10:39 jtournier Exp $
 
 #  This code was developped by IDEALX (http://IDEALX.org/) and
 #  contributors (their names can be found in the CONTRIBUTORS file).

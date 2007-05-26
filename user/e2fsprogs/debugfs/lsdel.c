@@ -1,8 +1,9 @@
 /*
- * undelete.c --- routines to try to help a user recover a deleted file.
+ * lsdel.c --- routines to try to help a user recover a deleted file.
  * 
- * Copyright (C) 1994 Theodore Ts'o.  This file may be redistributed
- * under the terms of the GNU Public License.
+ * Copyright (C) 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+ * Theodore Ts'o.  This file may be redistributed under the terms of
+ * the GNU Public License.
  */
 
 #include <stdio.h>
@@ -48,7 +49,7 @@ static int deleted_info_compare(const void *a, const void *b)
 
 static int lsdel_proc(ext2_filsys fs,
 		      blk_t	*block_nr,
-		      int blockcnt,
+		      int blockcnt EXT2FS_ATTR((unused)),
 		      void *private)
 {
 	struct lsdel_struct *lsd = (struct lsdel_struct *) private;
@@ -78,13 +79,21 @@ void do_lsdel(int argc, char **argv)
 	errcode_t		retval;
 	char			*block_buf;
 	int			i;
+ 	long			secs = 0;
+ 	char			*tmp;
+	time_t			now = current_fs->now ? current_fs->now : time(0);
+	FILE			*out;
 	
+	if (common_args_process(argc, argv, 1, 2, "ls_deleted_inodes",
+				"[secs]", 0))
+		return;
 	if (argc > 1) {
-		com_err(argv[0], 0, "Usage: ls_deleted_inodes\n");
-		return;
+		secs = strtol(argv[1],&tmp,0);
+		if (*tmp) {
+			com_err(argv[0], 0, "Bad time - %s",argv[1]);
+			return;
+		}
 	}
-	if (check_fs_open(argv[0]))
-		return;
 
 	max_delarray = 100;
 	num_delarray = 0;
@@ -118,7 +127,8 @@ void do_lsdel(int argc, char **argv)
 	}
 	
 	while (ino) {
-		if (inode.i_dtime == 0)
+		if ((inode.i_dtime == 0) ||
+		    (secs && ((unsigned) abs(now - secs) > inode.i_dtime)))
 			goto next;
 
 		lsd.inode = ino;
@@ -130,7 +140,7 @@ void do_lsdel(int argc, char **argv)
 					      lsdel_proc, &lsd);
 		if (retval) {
 			com_err("ls_deleted_inodes", retval,
-				"while calling ext2_block_iterate");
+				"while calling ext2fs_block_iterate");
 			goto next;
 		}
 		if (lsd.free_blocks && !lsd.bad_blocks) {
@@ -171,18 +181,21 @@ void do_lsdel(int argc, char **argv)
 		}
 	}
 
-	printf("%d deleted inodes found.\n", num_delarray);
-	printf(" Inode  Owner  Mode    Size    Blocks    Time deleted\n");
+	out = open_pager();
+	
+	fprintf(out, " Inode  Owner  Mode    Size    Blocks   Time deleted\n");
 	
 	qsort(delarray, num_delarray, sizeof(struct deleted_info),
 	      deleted_info_compare);
 	
 	for (i = 0; i < num_delarray; i++) {
-		printf("%6u %6d %6o %6llu %4d/%4d %s", delarray[i].ino,
+		fprintf(out, "%6u %6d %6o %6llu %4d/%4d %s", delarray[i].ino,
 		       delarray[i].uid, delarray[i].mode, delarray[i].size,
 		       delarray[i].free_blocks, delarray[i].num_blocks, 
 		       time_to_string(delarray[i].dtime));
 	}
+	fprintf(out, "%d deleted inodes found.\n", num_delarray);
+	close_pager(out);
 	
 error_out:
 	free(block_buf);

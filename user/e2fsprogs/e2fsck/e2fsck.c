@@ -21,15 +21,22 @@ errcode_t e2fsck_allocate_context(e2fsck_t *ret)
 {
 	e2fsck_t	context;
 	errcode_t	retval;
+	char		*time_env;
 
-	retval = ext2fs_get_mem(sizeof(struct e2fsck_struct),
-				(void **) &context);
+	retval = ext2fs_get_mem(sizeof(struct e2fsck_struct), &context);
 	if (retval)
 		return retval;
 	
 	memset(context, 0, sizeof(struct e2fsck_struct));
 
 	context->process_inode_size = 256;
+	context->ext_attr_ver = 2;
+	
+	time_env = getenv("E2FSCK_TIME");
+	if (time_env)
+		context->now = strtoul(time_env, NULL, 0);
+	else
+		context->now = time(0);
 
 	*ret = context;
 	return 0;
@@ -42,6 +49,8 @@ errcode_t e2fsck_allocate_context(e2fsck_t *ret)
 errcode_t e2fsck_reset_context(e2fsck_t ctx)
 {
 	ctx->flags = 0;
+	ctx->lost_and_found = 0;
+	ctx->bad_lost_and_found = 0;
 	if (ctx->inode_used_map) {
 		ext2fs_free_inode_bitmap(ctx->inode_used_map);
 		ctx->inode_used_map = 0;
@@ -72,6 +81,9 @@ errcode_t e2fsck_reset_context(e2fsck_t ctx)
 		ctx->fs->dblist = 0;
 	}
 	e2fsck_free_dir_info(ctx);
+#ifdef ENABLE_HTREE
+	e2fsck_free_dx_dir_info(ctx);
+#endif
 	if (ctx->refcount) {
 		ea_refcount_free(ctx->refcount);
 		ctx->refcount = 0;
@@ -100,20 +112,24 @@ errcode_t e2fsck_reset_context(e2fsck_t ctx)
 		ext2fs_free_inode_bitmap(ctx->inode_imagic_map);
 		ctx->inode_imagic_map = 0;
 	}
+	if (ctx->dirs_to_hash) {
+		ext2fs_u32_list_free(ctx->dirs_to_hash);
+		ctx->dirs_to_hash = 0;
+	}
 
 	/*
 	 * Clear the array of invalid meta-data flags
 	 */
 	if (ctx->invalid_inode_bitmap_flag) {
-		ext2fs_free_mem((void **) &ctx->invalid_inode_bitmap_flag);
+		ext2fs_free_mem(&ctx->invalid_inode_bitmap_flag);
 		ctx->invalid_inode_bitmap_flag = 0;
 	}
 	if (ctx->invalid_block_bitmap_flag) {
-		ext2fs_free_mem((void **) &ctx->invalid_block_bitmap_flag);
+		ext2fs_free_mem(&ctx->invalid_block_bitmap_flag);
 		ctx->invalid_block_bitmap_flag = 0;
 	}
 	if (ctx->invalid_inode_table_flag) {
-		ext2fs_free_mem((void **) &ctx->invalid_inode_table_flag);
+		ext2fs_free_mem(&ctx->invalid_inode_table_flag);
 		ctx->invalid_inode_table_flag = 0;
 	}
 
@@ -147,8 +163,13 @@ void e2fsck_free_context(e2fsck_t ctx)
 		return;
 	
 	e2fsck_reset_context(ctx);
-	
-	ext2fs_free_mem((void **) &ctx);
+	if (ctx->blkid)
+		blkid_put_cache(ctx->blkid);
+
+	if (ctx->profile)
+		profile_release(ctx->profile);
+			
+	ext2fs_free_mem(&ctx);
 }
 
 /*
@@ -169,8 +190,10 @@ int e2fsck_run(e2fsck_t ctx)
 	pass_t	e2fsck_pass;
 
 #ifdef HAVE_SETJMP_H
-	if (setjmp(ctx->abort_loc))
+	if (setjmp(ctx->abort_loc)) {
+		ctx->flags &= ~E2F_FLAG_SETJMP_OK;
 		return (ctx->flags & E2F_FLAG_RUN_RETURN);
+	}
 	ctx->flags |= E2F_FLAG_SETJMP_OK;
 #endif
 		
@@ -187,9 +210,3 @@ int e2fsck_run(e2fsck_t ctx)
 		return (ctx->flags & E2F_FLAG_RUN_RETURN);
 	return 0;
 }
-
-
-	
-
-	
-

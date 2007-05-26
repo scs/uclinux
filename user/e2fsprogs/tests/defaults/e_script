@@ -29,7 +29,7 @@ else
 fi
 
 cat $SRCDIR/progs/test_data/$instance.setup $SRCDIR/progs/test_data/test.$class \
-    | $TEST_PROG -f - 2>&1 | tr -d '\r' > $OUT 
+    | $TEST_PROG -f - 2>&1 | tr -d \\015 > $OUT 
 
 cmp -s $EXPECT $OUT
 status=$?
@@ -41,7 +41,7 @@ if [ "$status" = 0 ] ; then
     touch $test_name.ok
 else
     echo "failed"
-    diff -c $EXPECT $OUT > $test_name.failed
+    diff $DIFF_OPTS $EXPECT $OUT > $test_name.failed
 fi
 
 unset EXPECT OUT class instance

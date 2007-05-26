@@ -11,6 +11,13 @@
 #define const
 #endif
 
+#ifdef __GNUC__
+#define FSCK_ATTR(x) __attribute__(x)
+#else
+#define FSCK_ATTR(x)
+#endif
+
+
 #ifndef DEFAULT_FSTYPE
 #define DEFAULT_FSTYPE	"ext2"
 #endif
@@ -59,6 +66,5 @@ struct fsck_instance {
 	struct fsck_instance *next;
 };
 
-extern char *base_device(char *device);
-extern char *string_copy(const char *s);
-extern const char *identify_fs(const char *fs_name);
+extern char *base_device(const char *device);
+extern const char *identify_fs(const char *fs_name, const char *fs_types);

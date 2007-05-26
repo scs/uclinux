@@ -1,3 +1,127 @@
+2006-03-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.library (real-subdirs): Add real-subdirs:: target so
+		that e2fsprogs builds correctly without any
+		--enable-*libs configuration options.
+
+2006-03-10  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.bsd-lib, Makefile.checker, Makefile.darwin-lib,
+		Makefile.elf-lib, Makefile.library, Makefile.profile,
+		Makefile.solaris-lib: Fix the subdirs logic so it works
+		with GNU make 3.80 (as well as GNU make 3.81).
+
+2005-12-29  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.bsd-lib, Makefile.checker, Makefile.darwin-lib,
+		Makefile.elf-lib, Makefile.library, Makefile.profile,
+		Makefile.solaris-lib: Revamp subdirs target so to avoid
+		needless recompilation of library object files.
+
+2005-12-10  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.elf-lib, Makefile.solaris-lib: Add $(LDFLAGS) to the
+		command line argument when generating the shared library,
+		to allow cross-compile and other builds that might need to
+		specify -L paths to needed libraries.  (Addresses
+		Sourceforge Bug #1261549)
+
+2006-06-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.38
+
+2005-03-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.37
+
+2006-02-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.36
+
+2005-01-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.library (uninstall-shlibs): Fix "make uninstall"
+
+2004-12-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.elf-lib, Makefile.solaris-lib, Makefile.profile,
+		Makefile.darwin-lib: Use Linux-kernel-style makefile
+		output for "make install".  
+
+	* Makefile.elf-lib, Makefile.solaris-lib: Move strip command to
+		install-strip and install-shlibs-strip.
+
+	* Makefile.elf-lib (installdirs-elf-lib), 
+	  Makefile.solaris-lib (installdirs-elf-lib): Use $(MKINSTALLDIRS) 
+		macro
+
+2004-11-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.elf-lib, Makefile.library, Makefile.profile,
+		Makefile.solaris, Makefile.darwin-lib, Makefile.checker:
+		Use Linux-kernel-style makefile output to make it easier
+		to see errors/warnings.
+
+2004-09-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.dll-lib (jump): Remove XSI:isms for greater portability.
+		(Addresses Debian Bug #255589)
+
+2004-02-29  Brian Bergstrand  <brian@bergstrand.org>
+
+	* Makefile.bsd-lib, Makefile.darwin-lib: Define BSDLIB_PIC_FLAG
+		since Darwin requires -fPIC while NetBSD, FreeBSD,
+		et. al. requires -fpic.
+
+2004-02-28  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.35
+
+2003-07-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.34
+
+2003-04-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.33
+
+2003-03-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.darwin-lib: Fix Apple Darwin port.
+
+2003-03-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.darwin-lib: New file to provide support for e2fsprogs
+		on Apple Darwin.
+
+2002-11-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.32
+
+2002-11-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.31
+
+2002-10-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.30
+
+2001-09-24  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.29
+
+2001-08-31  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.28
+
+2002-03-08  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.27
+
+2002-02-03  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.26
+
 2001-09-20  Theodore Tso  <tytso@thunk.org>
 
 	* Release of E2fsprogs 1.25

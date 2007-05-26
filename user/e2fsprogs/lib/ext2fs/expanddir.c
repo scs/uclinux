@@ -24,19 +24,18 @@ struct expand_dir_struct {
 	errcode_t	err;
 };
 
-static int expand_dir_proc(ext2_filsys		fs,
-			   blk_t		*blocknr,
-			   e2_blkcnt_t		blockcnt,
-			   blk_t		ref_block,
-			   int			ref_offset,
-			   void			*priv_data)
+static int expand_dir_proc(ext2_filsys	fs,
+			   blk_t	*blocknr,
+			   e2_blkcnt_t	blockcnt,
+			   blk_t	ref_block EXT2FS_ATTR((unused)),
+			   int		ref_offset EXT2FS_ATTR((unused)),
+			   void		*priv_data)
 {
 	struct expand_dir_struct *es = (struct expand_dir_struct *) priv_data;
 	blk_t	new_blk;
 	static blk_t	last_blk = 0;
 	char		*block;
 	errcode_t	retval;
-	int		group;
 	
 	if (*blocknr) {
 		last_blk = *blocknr;
@@ -56,7 +55,7 @@ static int expand_dir_proc(ext2_filsys		fs,
 		es->done = 1;
 		retval = ext2fs_write_dir_block(fs, new_blk, block);
 	} else {
-		retval = ext2fs_get_mem(fs->blocksize, (void **) &block);
+		retval = ext2fs_get_mem(fs->blocksize, &block);
 		if (retval) {
 			es->err = retval;
 			return BLOCK_ABORT;
@@ -68,14 +67,9 @@ static int expand_dir_proc(ext2_filsys		fs,
 		es->err = retval;
 		return BLOCK_ABORT;
 	}
-	ext2fs_free_mem((void **) &block);
+	ext2fs_free_mem(&block);
 	*blocknr = new_blk;
-	ext2fs_mark_block_bitmap(fs->block_map, new_blk);
-	ext2fs_mark_bb_dirty(fs);
-	group = ext2fs_group_of_blk(fs, new_blk);
-	fs->group_desc[group].bg_free_blocks_count--;
-	fs->super->s_free_blocks_count--;
-	ext2fs_mark_super_dirty(fs);
+	ext2fs_block_alloc_stats(fs, new_blk, +1);
 	es->newblocks++;
 
 	if (es->done)

@@ -35,7 +35,7 @@
  * from: @(#)cmds.c	5.26 (Berkeley) 3/5/91
  */
 char cmds_rcsid[] = 
-   "$Id$";
+   "$Id: cmds.c,v 1.3 2001/08/07 03:33:22 pdh Exp $";
 
 /*
  * FTP User Program -- Command Routines.

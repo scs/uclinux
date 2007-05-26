@@ -23,8 +23,8 @@ static errcode_t e2fsck_handle_read_error(io_channel channel,
 					  unsigned long block,
 					  int count,
 					  void *data,
-					  size_t size,
-					  int actual,
+					  size_t size EXT2FS_ATTR((unused)),
+					  int actual EXT2FS_ATTR((unused)),
 					  errcode_t error)
 {
 	int	i;
@@ -56,8 +56,11 @@ static errcode_t e2fsck_handle_read_error(io_channel channel,
 		printf(_("Error reading block %lu (%s).  "), block,
 		       error_message(error));
 	preenhalt(ctx);
-	if (ask(ctx, _("Ignore error"), 1))
+	if (ask(ctx, _("Ignore error"), 1)) {
+		if (ask(ctx, _("Force rewrite"), 1))
+			io_channel_write_blk(channel, block, 1, data);
 		return 0;
+	}
 
 	return error;
 }
@@ -66,8 +69,8 @@ static errcode_t e2fsck_handle_write_error(io_channel channel,
 					    unsigned long block,
 					    int count,
 					    const void *data,
-					    size_t size,
-					    int actual,
+					    size_t size EXT2FS_ATTR((unused)),
+					    int actual EXT2FS_ATTR((unused)),
 					    errcode_t error)
 {
 	int		i;

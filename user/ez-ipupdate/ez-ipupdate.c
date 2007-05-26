@@ -224,8 +224,6 @@
 #define MAX_WAITRESPONSE_WAIT (24*3600)
 #define MAX_MESSAGE_LEN 256
 #define ARGLENGTH 32
-#define DEFAULT_BLOCK_FILE "/var/run/ez-ipupdate.block"
-char *BLOCK_FILE=DEFAULT_BLOCK_FILE;
 #define PID_FILE "/var/run/ez-ipupdate.pid"
 
 /**************************************************/
@@ -254,6 +252,7 @@ enum {
 char *program_name = NULL;
 char *cache_file = NULL;
 char *config_file = NULL;
+char *block_file = NULL;
 char *server = NULL;
 char *port = NULL;
 char user[256];
@@ -1212,8 +1211,9 @@ int option_handler(int id, char *optarg)
       break;
 
     case CMD_block_file:
-      BLOCK_FILE = optarg;
-      dprintf((stderr, "block_file: %s\n", BLOCK_FILE));
+      if(block_file) { free(block_file); }
+      block_file = strdup(optarg);
+      dprintf((stderr, "block_file: %s\n", block_file));
       break;
 
     case CMD_once:
@@ -4595,17 +4595,17 @@ int main(int argc, char **argv)
 
     for(;;)
     {
-      if(options & OPT_ONCE)
+      if(block_file)
       {
         int f;
 
-        f = open(BLOCK_FILE, O_RDONLY);
+        f = open(block_file, O_RDONLY);
         if(f >= 0)
         {
           close(f);
           show_message("update critically failed on a previous attempt\n");
           show_message("delete %s if the problem has been corrected\n",
-              BLOCK_FILE);
+              block_file);
           break;
 		}
 	  }
@@ -4724,13 +4724,9 @@ int main(int argc, char **argv)
                 system(buf);
               }
 #endif
-              if(options & OPT_ONCE)
+              if(block_file)
               {
-                int f;
-
-                f = open(BLOCK_FILE, O_WRONLY|O_CREAT);
-                if(f >= 0)
-                  close(f);
+                write_block_file(block_file);
               }
               break;
             }

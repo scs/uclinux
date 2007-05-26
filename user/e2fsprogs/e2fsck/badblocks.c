@@ -17,7 +17,7 @@ static int check_bb_inode_blocks(ext2_filsys fs, blk_t *block_nr, int blockcnt,
 				 void *priv_data);
 
 
-static void invalid_block(ext2_filsys fs, blk_t blk)
+static void invalid_block(ext2_filsys fs EXT2FS_ATTR((unused)), blk_t blk)
 {
 	printf(_("Bad block %u out of range; ignored.\n"), blk);
 	return;
@@ -72,8 +72,9 @@ void read_bad_blocks_file(e2fsck_t ctx, const char *bad_blocks_file,
 			goto fatal;
 		}
 	} else {
-		sprintf(buf, "badblocks -b %d %s%s %d", fs->blocksize,
+		sprintf(buf, "badblocks -b %d -X %s%s%s %d", fs->blocksize,
 			(ctx->options & E2F_OPT_PREEN) ? "" : "-s ",
+			(ctx->options & E2F_OPT_WRITECHECK) ? "-n " : "",
 			fs->device_name, fs->super->s_blocks_count);
 		f = popen(buf, "r");
 		if (!f) {
@@ -112,13 +113,10 @@ fatal:
 	
 }
 
-void test_disk(e2fsck_t ctx)
-{
-	read_bad_blocks_file(ctx, 0, 0);
-}
-
-static int check_bb_inode_blocks(ext2_filsys fs, blk_t *block_nr, int blockcnt,
-				 void *priv_data)
+static int check_bb_inode_blocks(ext2_filsys fs, 
+				 blk_t *block_nr, 
+				 int blockcnt EXT2FS_ATTR((unused)),
+				 void *priv_data EXT2FS_ATTR((unused)))
 {
 	if (!*block_nr)
 		return 0;
@@ -128,7 +126,8 @@ static int check_bb_inode_blocks(ext2_filsys fs, blk_t *block_nr, int blockcnt,
 	 */
 	if (*block_nr >= fs->super->s_blocks_count ||
 	    *block_nr < fs->super->s_first_data_block) {
-		printf(_("Warning illegal block %u found in bad block inode.  Cleared.\n"), *block_nr);
+		printf(_("Warning: illegal block %u found in bad block inode.  "
+			 "Cleared.\n"), *block_nr);
 		*block_nr = 0;
 		return BLOCK_CHANGED;
 	}

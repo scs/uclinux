@@ -47,7 +47,8 @@ char * device_name = NULL;
 
 static void usage(void)
 {
-	fprintf(stderr, _("Usage: %s [-r] device file\n"), program_name);
+	fprintf(stderr, _("Usage: %s [-rsI] device image_file\n"), 
+		program_name);
 	exit (1);
 }
 
@@ -58,7 +59,7 @@ static void write_header(int fd, struct ext2_image_hdr *hdr, int blocksize)
 
 	header_buf = malloc(blocksize);
 	if (!header_buf) {
-		fprintf(stderr, _("Couldn't allocate header buffer\n"));
+		fputs(_("Couldn't allocate header buffer\n"), stderr);
 		exit(1);
 	}
 
@@ -77,7 +78,7 @@ static void write_header(int fd, struct ext2_image_hdr *hdr, int blocksize)
 		exit(1);
 	}
 	if (actual != blocksize) {
-		fprintf(stderr, _("short write (only %d bytes) for"
+		fprintf(stderr, _("short write (only %d bytes) for "
 				  "writing image header"), actual);
 		exit(1);
 	}
@@ -146,9 +147,11 @@ static void write_image_file(ext2_filsys fs, int fd)
  * These set of functions are used to write a RAW image file.
  */
 ext2fs_block_bitmap meta_block_map;
+ext2fs_block_bitmap scramble_block_map;	/* Directory blocks to be scrambled */
 
 struct process_block_struct {
 	ext2_ino_t	ino;
+	int		is_dir;
 };
 
 /*
@@ -160,8 +163,9 @@ struct process_block_struct {
 static ino_t stashed_ino = 0;
 static struct ext2_inode *stashed_inode;
 
-static errcode_t meta_get_blocks(ext2_filsys fs, ext2_ino_t ino,
-				  blk_t *blocks)
+static errcode_t meta_get_blocks(ext2_filsys fs EXT2FS_ATTR((unused)), 
+				 ext2_ino_t ino,
+				 blk_t *blocks)
 {
 	int	i;
 	
@@ -173,7 +177,19 @@ static errcode_t meta_get_blocks(ext2_filsys fs, ext2_ino_t ino,
 	return 0;
 }
 
-static errcode_t meta_read_inode(ext2_filsys fs, ext2_ino_t ino,
+static errcode_t meta_check_directory(ext2_filsys fs EXT2FS_ATTR((unused)), 
+				      ext2_ino_t ino)
+{
+	if ((ino != stashed_ino) || !stashed_inode)
+		return EXT2_ET_CALLBACK_NOTHANDLED;
+
+	if (!LINUX_S_ISDIR(stashed_inode->i_mode))
+		return EXT2_ET_NO_DIRECTORY;
+	return 0;
+}
+
+static errcode_t meta_read_inode(ext2_filsys fs EXT2FS_ATTR((unused)), 
+				 ext2_ino_t ino,
 				 struct ext2_inode *inode)
 {
 	if ((ino != stashed_ino) || !stashed_inode)
@@ -182,17 +198,43 @@ static errcode_t meta_read_inode(ext2_filsys fs, ext2_ino_t ino,
 	return 0;
 }
 
-static int process_dir_block(ext2_filsys fs, blk_t *block_nr,
-			     e2_blkcnt_t blockcnt, blk_t ref_block,
-			     int ref_offset, void *priv_data)
+static void use_inode_shortcuts(ext2_filsys fs, int bool)
 {
+	if (bool) {
+		fs->get_blocks = meta_get_blocks;
+		fs->check_directory = meta_check_directory;
+		fs->read_inode = meta_read_inode;
+		stashed_ino = 0;
+	} else {
+		fs->get_blocks = 0;
+		fs->check_directory = 0;
+		fs->read_inode = 0;
+	}
+}
+
+static int process_dir_block(ext2_filsys fs EXT2FS_ATTR((unused)), 
+			     blk_t *block_nr,
+			     e2_blkcnt_t blockcnt EXT2FS_ATTR((unused)), 
+			     blk_t ref_block EXT2FS_ATTR((unused)),
+			     int ref_offset EXT2FS_ATTR((unused)), 
+			     void *priv_data EXT2FS_ATTR((unused)))
+{
+	struct process_block_struct *p;
+
+	p = (struct process_block_struct *) priv_data;
+
 	ext2fs_mark_block_bitmap(meta_block_map, *block_nr);
+	if (scramble_block_map && p->is_dir && blockcnt >= 0) 
+		ext2fs_mark_block_bitmap(scramble_block_map, *block_nr);
 	return 0;
 }
 
-static int process_file_block(ext2_filsys fs, blk_t *block_nr,
-			     e2_blkcnt_t blockcnt, blk_t ref_block,
-			     int ref_offset, void *priv_data)
+static int process_file_block(ext2_filsys fs EXT2FS_ATTR((unused)), 
+			      blk_t *block_nr,
+			      e2_blkcnt_t blockcnt, 
+			      blk_t ref_block EXT2FS_ATTR((unused)),
+			      int ref_offset EXT2FS_ATTR((unused)), 
+			      void *priv_data EXT2FS_ATTR((unused)))
 {
 	if (blockcnt < 0) {
 		ext2fs_mark_block_bitmap(meta_block_map, *block_nr);
@@ -203,7 +245,7 @@ static int process_file_block(ext2_filsys fs, blk_t *block_nr,
 static void mark_table_blocks(ext2_filsys fs)
 {
 	blk_t	block, b;
-	int	i,j;
+	unsigned int	i,j;
 	
 	block = fs->super->s_first_data_block;
 	/*
@@ -216,7 +258,7 @@ static void mark_table_blocks(ext2_filsys fs)
 	 */
 	for (j = 0; j < fs->desc_blocks; j++) {
 		ext2fs_mark_block_bitmap(meta_block_map,
-					 block + j + 1);
+			 ext2fs_descriptor_block_loc(fs, block, j));
 	}
 
 	for (i = 0; i < fs->group_desc_count; i++) {
@@ -225,7 +267,7 @@ static void mark_table_blocks(ext2_filsys fs)
 		 */
 		if (fs->group_desc[i].bg_inode_table) {
 			for (j = 0, b = fs->group_desc[i].bg_inode_table;
-			     j < fs->inode_blocks_per_group;
+			     j < (unsigned) fs->inode_blocks_per_group;
 			     j++, b++)
 				ext2fs_mark_block_bitmap(meta_block_map, b);
 		}
@@ -265,28 +307,111 @@ static int check_zero_block(char *buf, int blocksize)
 	return 1;
 }
 
-static void write_block(int fd, char *buf, int blocksize, blk_t block)
+static void write_block(int fd, char *buf, int sparse_offset,
+			int blocksize, blk_t block)
 {
 	int		count;
 	errcode_t	err;
 
-	count = write(fd, buf, blocksize);
-	if (count != blocksize) {
-		if (count == -1)
-			err = errno;
-		else
-			err = 0;
-		com_err(program_name, err, "error writing block %d", block);
+	if (sparse_offset) {
+#ifdef HAVE_LSEEK64
+		if (lseek64(fd, sparse_offset, SEEK_CUR) < 0)
+			perror("lseek");
+#else
+		if (lseek(fd, sparse_offset, SEEK_CUR) < 0)
+			perror("lseek");
+#endif
+	}
+	if (blocksize) {
+		count = write(fd, buf, blocksize);
+		if (count != blocksize) {
+			if (count == -1)
+				err = errno;
+			else
+				err = 0;
+			com_err(program_name, err, "error writing block %u",
+				block);
+		}
 	}
 }
 
-static output_meta_data_blocks(ext2_filsys fs, int fd)
+int name_id[256];
+
+static void scramble_dir_block(ext2_filsys fs, blk_t blk, char *buf)
+{
+	char *p, *end, *cp;
+	struct ext2_dir_entry_2 *dirent;
+	int rec_len, id, len;
+
+	end = buf + fs->blocksize;
+	for (p = buf; p < end-8; p += rec_len) {
+		dirent = (struct ext2_dir_entry_2 *) p;
+		rec_len = dirent->rec_len;
+#ifdef EXT2FS_ENABLE_SWAPFS
+		if (fs->flags & EXT2_FLAG_SWAP_BYTES) 
+			rec_len = ext2fs_swab16(rec_len);
+#endif
+#if 0
+		printf("rec_len = %d, name_len = %d\n", rec_len, dirent->name_len);
+#endif
+		if (rec_len < 8 || (rec_len % 4) ||
+		    (p+rec_len > end)) {
+			printf("Corrupt directory block %lu: "
+			       "bad rec_len (%d)\n", (unsigned long) blk, 
+			       rec_len);
+			rec_len = end - p;
+#ifdef EXT2FS_ENABLE_SWAPFS
+			if (fs->flags & EXT2_FLAG_SWAP_BYTES) 
+				dirent->rec_len = ext2fs_swab16(rec_len);
+#endif
+			continue;
+		}
+		if (dirent->name_len + 8 > rec_len) {
+			printf("Corrupt directory block %lu: "
+			       "bad name_len (%d)\n", (unsigned long) blk, 
+			       dirent->name_len);
+			dirent->name_len = rec_len - 8;
+			continue;
+		}
+		cp = p+8;
+		len = rec_len - dirent->name_len - 8;
+		if (len > 0)
+			memset(cp+dirent->name_len, 0, len);
+		if (dirent->name_len==1 && cp[0] == '.')
+			continue;
+		if (dirent->name_len==2 && cp[0] == '.' && cp[1] == '.')
+			continue;
+
+		memset(cp, 'A', dirent->name_len);
+		len = dirent->name_len;
+		id = name_id[len]++;
+		while ((len > 0) && (id > 0)) {
+			*cp += id % 26;
+			id = id / 26;
+			cp++;
+			len--;
+		}
+	}
+}
+
+static void output_meta_data_blocks(ext2_filsys fs, int fd)
 {
 	errcode_t	retval;
 	blk_t		blk;
-	char		buf[8192], zero_buf[8192];
+	char		*buf, *zero_buf;
+	int		sparse = 0;
 
-	memset(zero_buf, 0, sizeof(zero_buf));
+	buf = malloc(fs->blocksize);
+	if (!buf) {
+		com_err(program_name, ENOMEM, "while allocating buffer");
+		exit(1);
+	}
+	zero_buf = malloc(fs->blocksize);
+	if (!zero_buf) {
+		com_err(program_name, ENOMEM, "while allocating buffer");
+		exit(1);
+	}
+	memset(zero_buf, 0, fs->blocksize);
 	for (blk = 0; blk < fs->super->s_blocks_count; blk++) {
 		if ((blk >= fs->super->s_first_data_block) &&
 		    ext2fs_test_block_bitmap(meta_block_map, blk)) {
@@ -295,29 +420,31 @@ static output_meta_data_blocks(ext2_filsys fs, int fd)
 				com_err(program_name, retval,
 					"error reading block %d", blk);
 			}
+			if (scramble_block_map && 
+			    ext2fs_test_block_bitmap(scramble_block_map, blk))
+				scramble_dir_block(fs, blk, buf);
 			if ((fd != 1) && check_zero_block(buf, fs->blocksize))
 				goto sparse_write;
-			write_block(fd, buf, fs->blocksize, blk);
+			write_block(fd, buf, sparse, fs->blocksize, blk);
+			sparse = 0;
 		} else {
 		sparse_write:
 			if (fd == 1) {
-				write_block(fd, zero_buf, fs->blocksize, blk);
+				write_block(fd, zero_buf, 0,
+					    fs->blocksize, blk);
 				continue;
 			}
-#ifdef HAVE_LSEEK64
-			if (lseek64(fd, fs->blocksize, SEEK_CUR) < 0)
-				perror("lseek");
-#else
-			if (lseek(fd, fs->blocksize, SEEK_CUR) < 0)
-				perror("lseek");
-#endif			
+			sparse += fs->blocksize;
+			if (sparse >= 1024*1024) {
+				write_block(fd, 0, sparse, 0, 0);
+				sparse = 0;
+			}
 		}
 	}
-	buf[0] = 0;
-	write(fd, buf, 1);
+	write_block(fd, zero_buf, sparse, 1, -1);
 }
 
-static void write_raw_image_file(ext2_filsys fs, int fd)
+static void write_raw_image_file(ext2_filsys fs, int fd, int scramble_flag)
 {
 	struct process_block_struct	pb;
 	struct ext2_inode		inode;
@@ -331,6 +458,16 @@ static void write_raw_image_file(ext2_filsys fs, int fd)
 	if (retval) {
 		com_err(program_name, retval, "while allocating block bitmap");
 		exit(1);
+	}
+
+	if (scramble_flag) {
+		retval = ext2fs_allocate_block_bitmap(fs, "scramble block map",
+						      &scramble_block_map);
+		if (retval) {
+			com_err(program_name, retval, 
+				"while allocating scramble block bitmap");
+			exit(1);
+		}
 	}
 	
 	mark_table_blocks(fs);
@@ -347,9 +484,12 @@ static void write_raw_image_file(ext2_filsys fs, int fd)
 		exit(1);
 	}
 	
+	use_inode_shortcuts(fs, 1);
 	stashed_inode = &inode;
 	while (1) {
 		retval = ext2fs_get_next_inode(scan, &ino, &inode);
+		if (retval == EXT2_ET_BAD_BLOCK_IN_INODE_TABLE)
+			continue;
 		if (retval) {
 			com_err(program_name, retval,
 				_("while getting next inode"));
@@ -357,12 +497,21 @@ static void write_raw_image_file(ext2_filsys fs, int fd)
 		}
 		if (ino == 0)
 			break;
-		if (!inode.i_links_count ||
-		    !ext2fs_inode_has_valid_blocks(&inode))
+		if (!inode.i_links_count)
+			continue;
+		if (inode.i_file_acl) {
+			ext2fs_mark_block_bitmap(meta_block_map,
+						 inode.i_file_acl);
+		}
+		if (!ext2fs_inode_has_valid_blocks(&inode))
 			continue;
 		
 		stashed_ino = ino;
+		pb.ino = ino;
+		pb.is_dir = LINUX_S_ISDIR(inode.i_mode);
 		if (LINUX_S_ISDIR(inode.i_mode) ||
+		    (LINUX_S_ISLNK(inode.i_mode) &&
+		     ext2fs_inode_has_valid_blocks(&inode)) ||
 		    ino == fs->super->s_journal_inum) {
 			retval = ext2fs_block_iterate2(fs, ino, 0, 
 				       block_buf, process_dir_block, &pb);
@@ -385,14 +534,77 @@ static void write_raw_image_file(ext2_filsys fs, int fd)
 					exit(1);
 				}
 			}
-			if (inode.i_file_acl) {
-				ext2fs_mark_block_bitmap(meta_block_map,
-							 inode.i_file_acl);
-			}
 		}
 	}
-	
+	use_inode_shortcuts(fs, 0);
 	output_meta_data_blocks(fs, fd);
+}
+
+static void install_image(char *device, char *image_fn, int raw_flag)
+{
+	errcode_t retval;
+	ext2_filsys fs;
+	int open_flag = EXT2_FLAG_IMAGE_FILE;
+	int fd = 0;
+	io_manager	io_ptr;
+	io_channel	io, image_io;
+
+	if (raw_flag) {
+		com_err(program_name, 0, "Raw images cannot be installed");
+		exit(1);
+	}
+	
+#ifdef CONFIG_TESTIO_DEBUG
+	io_ptr = test_io_manager;
+	test_io_backing_manager = unix_io_manager;
+#else
+	io_ptr = unix_io_manager;
+#endif
+
+	retval = ext2fs_open (image_fn, open_flag, 0, 0,
+			      io_ptr, &fs);
+        if (retval) {
+		com_err (program_name, retval, _("while trying to open %s"),
+			 image_fn);
+		exit(1);
+	}
+
+	retval = ext2fs_read_bitmaps (fs);
+	if (retval) {
+		com_err(program_name, retval, "error reading bitmaps");
+		exit(1);
+	}
+
+
+	fd = open(image_fn, O_RDONLY);
+	if (fd < 0) {
+		perror(image_fn);
+		exit(1);
+	}
+
+	retval = io_ptr->open(device, IO_FLAG_RW, &io); 
+	if (retval) {
+		com_err(device, 0, "while opening device file");
+		exit(1);
+	}
+
+	image_io = fs->io;
+
+	ext2fs_rewrite_to_io(fs, io);
+
+	if (lseek(fd, fs->image_header->offset_inode, SEEK_SET) < 0) {
+		perror("lseek");
+		exit(1);
+	}
+
+	retval = ext2fs_image_inode_read(fs, fd, 0);
+	if (retval) {
+		com_err(image_fn, 0, "while restoring the image table");
+		exit(1);
+	}
+
+	ext2fs_close (fs);
+	exit (0);
 }
 
 int main (int argc, char ** argv)
@@ -400,13 +612,16 @@ int main (int argc, char ** argv)
 	int c;
 	errcode_t retval;
 	ext2_filsys fs;
-	char *outfn;
+	char *image_fn;
 	int open_flag = 0;
 	int raw_flag = 0;
+	int install_flag = 0;
+	int scramble_flag = 0;
 	int fd = 0;
 
 #ifdef ENABLE_NLS
 	setlocale(LC_MESSAGES, "");
+	setlocale(LC_CTYPE, "");
 	bindtextdomain(NLS_CAT_NAME, LOCALEDIR);
 	textdomain(NLS_CAT_NAME);
 #endif
@@ -415,10 +630,16 @@ int main (int argc, char ** argv)
 	if (argc && *argv)
 		program_name = *argv;
 	initialize_ext2_error_table();
-	while ((c = getopt (argc, argv, "r")) != EOF)
+	while ((c = getopt (argc, argv, "rsI")) != EOF)
 		switch (c) {
 		case 'r':
 			raw_flag++;
+			break;
+		case 's':
+			scramble_flag++;
+			break;
+		case 'I':
+			install_flag++;
 			break;
 		default:
 			usage();
@@ -426,23 +647,29 @@ int main (int argc, char ** argv)
 	if (optind != argc - 2 )
 		usage();
 	device_name = argv[optind];
-	outfn = argv[optind+1];
+	image_fn = argv[optind+1];
+
+	if (install_flag) {
+		install_image(device_name, image_fn, raw_flag);
+		exit (0);
+	}
+
 	retval = ext2fs_open (device_name, open_flag, 0, 0,
 			      unix_io_manager, &fs);
         if (retval) {
 		com_err (program_name, retval, _("while trying to open %s"),
 			 device_name);
-		printf(_("Couldn't find valid filesystem superblock.\n"));
+		fputs(_("Couldn't find valid filesystem superblock.\n"), stdout);
 		exit(1);
 	}
 
-	if (strcmp(outfn, "-") == 0)
+	if (strcmp(image_fn, "-") == 0)
 		fd = 1;
 	else {
 #ifdef HAVE_OPEN64
-		fd = open64(outfn, O_CREAT|O_TRUNC|O_WRONLY, 0600);
+		fd = open64(image_fn, O_CREAT|O_TRUNC|O_WRONLY, 0600);
 #else
-		fd = open(outfn, O_CREAT|O_TRUNC|O_WRONLY, 0600);
+		fd = open(image_fn, O_CREAT|O_TRUNC|O_WRONLY, 0600);
 #endif
 		if (fd < 0) {
 			com_err(program_name, errno,
@@ -452,7 +679,7 @@ int main (int argc, char ** argv)
 	}
 
 	if (raw_flag)
-		write_raw_image_file(fs, fd);
+		write_raw_image_file(fs, fd, scramble_flag);
 	else
 		write_image_file(fs, fd);
 

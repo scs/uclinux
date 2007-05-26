@@ -59,24 +59,13 @@ static int block_iterate_ind(blk_t *ind_block, blk_t ref_block,
 		ret |= BLOCK_ERROR;
 		return ret;
 	}
-	if (ctx->fs->flags & EXT2_FLAG_IMAGE_FILE) {
-		ctx->errcode = 0;
-		memset(ctx->ind_buf, 0, ctx->fs->blocksize);
-	} else
-		ctx->errcode = io_channel_read_blk(ctx->fs->io, *ind_block,
-						   1, ctx->ind_buf);
+	ctx->errcode = ext2fs_read_ind_block(ctx->fs, *ind_block, 
+					     ctx->ind_buf);
 	if (ctx->errcode) {
 		ret |= BLOCK_ERROR;
 		return ret;
 	}
-#ifdef EXT2FS_ENABLE_SWAPFS
-	if (ctx->fs->flags & (EXT2_FLAG_SWAP_BYTES |
-			      EXT2_FLAG_SWAP_BYTES_READ)) {
-		block_nr = (blk_t *) ctx->ind_buf;
-		for (i = 0; i < limit; i++, block_nr++)
-			*block_nr = ext2fs_swab32(*block_nr);
-	}
-#endif
+
 	block_nr = (blk_t *) ctx->ind_buf;
 	offset = 0;
 	if (ctx->flags & BLOCK_FLAG_APPEND) {
@@ -106,18 +95,9 @@ static int block_iterate_ind(blk_t *ind_block, blk_t ref_block,
 			offset += sizeof(blk_t);
 		}
 	}
-	if (!(ctx->fs->flags & EXT2_FLAG_IMAGE_FILE) &&
-	    (changed & BLOCK_CHANGED)) {
-#ifdef EXT2FS_ENABLE_SWAPFS
-		if (ctx->fs->flags & (EXT2_FLAG_SWAP_BYTES |
-				      EXT2_FLAG_SWAP_BYTES_WRITE)) {
-			block_nr = (blk_t *) ctx->ind_buf;
-			for (i = 0; i < limit; i++, block_nr++)
-				*block_nr = ext2fs_swab32(*block_nr);
-		}
-#endif
-		ctx->errcode = io_channel_write_blk(ctx->fs->io, *ind_block,
-						    1, ctx->ind_buf);
+	if (changed & BLOCK_CHANGED) {
+		ctx->errcode = ext2fs_write_ind_block(ctx->fs, *ind_block,
+						      ctx->ind_buf);
 		if (ctx->errcode)
 			ret |= BLOCK_ERROR | BLOCK_ABORT;
 	}
@@ -153,24 +133,13 @@ static int block_iterate_dind(blk_t *dind_block, blk_t ref_block,
 		ret |= BLOCK_ERROR;
 		return ret;
 	}
-	if (ctx->fs->flags & EXT2_FLAG_IMAGE_FILE) {
-		ctx->errcode = 0;
-		memset(ctx->dind_buf, 0, ctx->fs->blocksize);
-	} else
-		ctx->errcode = io_channel_read_blk(ctx->fs->io, *dind_block,
-						   1, ctx->dind_buf);
+	ctx->errcode = ext2fs_read_ind_block(ctx->fs, *dind_block, 
+					     ctx->dind_buf);
 	if (ctx->errcode) {
 		ret |= BLOCK_ERROR;
 		return ret;
 	}
-#ifdef EXT2FS_ENABLE_SWAPFS
-	if (ctx->fs->flags & (EXT2_FLAG_SWAP_BYTES |
-			      EXT2_FLAG_SWAP_BYTES_READ)) {
-		block_nr = (blk_t *) ctx->dind_buf;
-		for (i = 0; i < limit; i++, block_nr++)
-			*block_nr = ext2fs_swab32(*block_nr);
-	}
-#endif
+
 	block_nr = (blk_t *) ctx->dind_buf;
 	offset = 0;
 	if (ctx->flags & BLOCK_FLAG_APPEND) {
@@ -202,18 +171,9 @@ static int block_iterate_dind(blk_t *dind_block, blk_t ref_block,
 			offset += sizeof(blk_t);
 		}
 	}
-	if (!(ctx->fs->flags & EXT2_FLAG_IMAGE_FILE) &&
-	    (changed & BLOCK_CHANGED)) {
-#ifdef EXT2FS_ENABLE_SWAPFS
-		if (ctx->fs->flags & (EXT2_FLAG_SWAP_BYTES |
-				      EXT2_FLAG_SWAP_BYTES_WRITE)) {
-			block_nr = (blk_t *) ctx->dind_buf;
-			for (i = 0; i < limit; i++, block_nr++)
-				*block_nr = ext2fs_swab32(*block_nr);
-		}
-#endif
-		ctx->errcode = io_channel_write_blk(ctx->fs->io, *dind_block,
-						    1, ctx->dind_buf);
+	if (changed & BLOCK_CHANGED) {
+		ctx->errcode = ext2fs_write_ind_block(ctx->fs, *dind_block,
+						      ctx->dind_buf);
 		if (ctx->errcode)
 			ret |= BLOCK_ERROR | BLOCK_ABORT;
 	}
@@ -249,24 +209,13 @@ static int block_iterate_tind(blk_t *tind_block, blk_t ref_block,
 		ret |= BLOCK_ERROR;
 		return ret;
 	}
-	if (ctx->fs->flags & EXT2_FLAG_IMAGE_FILE) {
-		ctx->errcode = 0;
-		memset(ctx->tind_buf, 0, ctx->fs->blocksize);
-	} else
-		ctx->errcode = io_channel_read_blk(ctx->fs->io, *tind_block,
-						   1, ctx->tind_buf);
+	ctx->errcode = ext2fs_read_ind_block(ctx->fs, *tind_block, 
+					     ctx->tind_buf);
 	if (ctx->errcode) {
 		ret |= BLOCK_ERROR;
 		return ret;
 	}
-#ifdef EXT2FS_ENABLE_SWAPFS
-	if (ctx->fs->flags & (EXT2_FLAG_SWAP_BYTES |
-			      EXT2_FLAG_SWAP_BYTES_READ)) {
-		block_nr = (blk_t *) ctx->tind_buf;
-		for (i = 0; i < limit; i++, block_nr++)
-			*block_nr = ext2fs_swab32(*block_nr);
-	}
-#endif
+
 	block_nr = (blk_t *) ctx->tind_buf;
 	offset = 0;
 	if (ctx->flags & BLOCK_FLAG_APPEND) {
@@ -298,18 +247,9 @@ static int block_iterate_tind(blk_t *tind_block, blk_t ref_block,
 			offset += sizeof(blk_t);
 		}
 	}
-	if (!(ctx->fs->flags & EXT2_FLAG_IMAGE_FILE) &&
-	    (changed & BLOCK_CHANGED)) {
-#ifdef EXT2FS_ENABLE_SWAPFS
-		if (ctx->fs->flags & (EXT2_FLAG_SWAP_BYTES |
-				      EXT2_FLAG_SWAP_BYTES_WRITE)) {
-			block_nr = (blk_t *) ctx->tind_buf;
-			for (i = 0; i < limit; i++, block_nr++)
-				*block_nr = ext2fs_swab32(*block_nr);
-		}
-#endif
-		ctx->errcode = io_channel_write_blk(ctx->fs->io, *tind_block,
-						    1, ctx->tind_buf);
+	if (changed & BLOCK_CHANGED) {
+		ctx->errcode = ext2fs_write_ind_block(ctx->fs, *tind_block,
+						      ctx->tind_buf);
 		if (ctx->errcode)
 			ret |= BLOCK_ERROR | BLOCK_ABORT;
 	}
@@ -373,8 +313,7 @@ errcode_t ext2fs_block_iterate2(ext2_filsys fs,
 	if (block_buf) {
 		ctx.ind_buf = block_buf;
 	} else {
-		retval = ext2fs_get_mem(fs->blocksize * 3,
-					(void **) &ctx.ind_buf);
+		retval = ext2fs_get_mem(fs->blocksize * 3, &ctx.ind_buf);
 		if (retval)
 			return retval;
 	}
@@ -447,7 +386,7 @@ abort_exit:
 	}
 
 	if (!block_buf)
-		ext2fs_free_mem((void **) &ctx.ind_buf);
+		ext2fs_free_mem(&ctx.ind_buf);
 
 	return (ret & BLOCK_ERROR) ? ctx.errcode : 0;
 }
@@ -468,7 +407,9 @@ struct xlate {
  #pragma argsused
 #endif
 static int xlate_func(ext2_filsys fs, blk_t *blocknr, e2_blkcnt_t blockcnt,
-		      blk_t ref_block, int ref_offset, void *priv_data)
+		      blk_t ref_block EXT2FS_ATTR((unused)),
+		      int ref_offset EXT2FS_ATTR((unused)),
+		      void *priv_data)
 {
 	struct xlate *xl = (struct xlate *) priv_data;
 

@@ -13,7 +13,7 @@
 
 #define CAT_BUF_SIZE 4096
 
-int cat_read_size = 1;
+int cat_read_size = CAT_BUF_SIZE;
 char colon[2] = { ':', ' ' };
 char nl = '\n';
 

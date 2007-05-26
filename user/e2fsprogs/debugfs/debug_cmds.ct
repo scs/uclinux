@@ -103,6 +103,9 @@ request do_mknod, "Create a special file",
 request do_lsdel, "List deleted inodes",
 	list_deleted_inodes, lsdel;
 
+request do_undel, "Undelete file",
+	undelete, undel;
+
 request do_write, "Copy a file from your native filesystem",
 	write;
 
@@ -121,8 +124,32 @@ request do_rdump, "Recursively dump a directory to the native filesystem",
 request do_set_super, "Set superblock value",
 	set_super_value, ssv;
 
+request do_set_inode, "Set inode field",
+	set_inode_field, sif;
+
 request do_logdump, "Dump the contents of the journal",
 	logdump;
+
+request do_htree_dump, "Dump a hash-indexed directory",
+	htree_dump, htree;
+
+request do_dx_hash, "Calculate the directory hash of a filename",
+	dx_hash, hash;
+
+request do_dirsearch, "Search a directory for a particular filename",
+	dirsearch;
+
+request do_bmap, "Calculate the logical->physical block mapping for an inode",
+	bmap;
+
+request do_imap, "Calculate the location of an inode",
+	imap;
+
+request	do_dump_unused, "Dump unused blocks",
+	dump_unused;
+
+request do_set_current_time, "Set current time to use when setting filesystme fields",
+	set_current_time;
 
 end;
 

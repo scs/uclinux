@@ -26,10 +26,15 @@
 #if EXT2_FLAT_INCLUDES
 #include "ext2_fs.h"
 #include "ext2fs.h"
+#include "blkid.h"
 #else
 #include "ext2fs/ext2_fs.h"
 #include "ext2fs/ext2fs.h"
+#include "blkid/blkid.h"
 #endif
+
+#include "profile.h"
+#include "prof_err.h"
 
 #ifdef ENABLE_NLS
 #include <libintl.h>
@@ -40,13 +45,17 @@
 #else
 #define N_(a) (a)
 #endif
-/* FIXME */
+#define P_(singular, plural, n) (ngettext (singular, plural, n))
+#ifndef NLS_CAT_NAME
 #define NLS_CAT_NAME "e2fsprogs"
+#endif
+#ifndef LOCALEDIR
 #define LOCALEDIR "/usr/share/locale"
-/* FIXME */
+#endif
 #else
 #define _(a) (a)
 #define N_(a) a
+#define P_(singular, plural, n) ((n) == 1 ? (singular) : (plural))
 #endif
 
 /*
@@ -58,6 +67,7 @@
 #define FSCK_UNCORRECTED 4	/* File system errors left uncorrected */
 #define FSCK_ERROR       8	/* Operational error */
 #define FSCK_USAGE       16	/* Usage or syntax error */
+#define FSCK_CANCELED	 32	/* Aborted with a signal or ^C */
 #define FSCK_LIBRARY     128	/* Shared library error */
 
 /*
@@ -76,6 +86,41 @@ struct dir_info {
 	ext2_ino_t		dotdot;	/* Parent according to '..' */
 	ext2_ino_t		parent; /* Parent according to treewalk */
 };
+
+
+/*
+ * The indexed directory information structure; stores information for
+ * directories which contain a hash tree index.
+ */
+struct dx_dir_info {
+	ext2_ino_t		ino; 		/* Inode number */
+	int			numblocks;	/* number of blocks */
+	int			hashversion;
+	short			depth;		/* depth of tree */
+	struct dx_dirblock_info	*dx_block; 	/* Array of size numblocks */
+};
+
+#define DX_DIRBLOCK_ROOT	1
+#define DX_DIRBLOCK_LEAF	2
+#define DX_DIRBLOCK_NODE	3
+#define DX_DIRBLOCK_CORRUPT	4
+#define DX_DIRBLOCK_CLEARED	8
+
+struct dx_dirblock_info {
+	int		type;
+	blk_t		phys;
+	int		flags;
+	blk_t		parent;
+	ext2_dirhash_t	min_hash; 
+	ext2_dirhash_t	max_hash;
+	ext2_dirhash_t	node_min_hash; 
+	ext2_dirhash_t	node_max_hash;
+};
+
+#define DX_FLAG_REFERENCED	1
+#define DX_FLAG_DUP_REF		2
+#define DX_FLAG_FIRST		4
+#define DX_FLAG_LAST		8
 
 #ifdef RESOURCE_TRACK
 /*
@@ -101,6 +146,9 @@ struct resource_track {
 #define E2F_OPT_TIME2		0x0020
 #define E2F_OPT_CHECKBLOCKS	0x0040
 #define E2F_OPT_DEBUG		0x0080
+#define E2F_OPT_FORCE		0x0100
+#define E2F_OPT_WRITECHECK	0x0200
+#define E2F_OPT_COMPRESS_DIRS	0x0400
 
 /*
  * E2fsck flags
@@ -117,6 +165,8 @@ struct resource_track {
 #define E2F_FLAG_JOURNAL_INODE	0x0080 /* Create a new ext3 journal inode */
 #define E2F_FLAG_SB_SPECIFIED	0x0100 /* The superblock was explicitly 
 					* specified by the user */
+#define E2F_FLAG_RESTARTED	0x0200 /* E2fsck has been restarted */
+#define E2F_FLAG_RESIZE_INODE	0x0400 /* Request to recreate resize inode */
 
 /*
  * Defines for indicating the e2fsck pass number
@@ -141,13 +191,17 @@ typedef struct e2fsck_struct *e2fsck_t;
 struct e2fsck_struct {
 	ext2_filsys fs;
 	const char *program_name;
-	const char *filesystem_name;
-	const char *device_name;
+	char *filesystem_name;
+	char *device_name;
+	char *io_options;
 	int	flags;		/* E2fsck internal flags */
 	int	options;
 	blk_t	use_superblock;	/* sb requested by user */
 	blk_t	superblock;	/* sb used to open fs */
+	int	blocksize;	/* blocksize */
 	blk_t	num_blocks;	/* Total number of blocks */
+	int	mount_flags;
+	blkid_cache blkid;	/* blkid cache */
 
 #ifdef HAVE_SETJMP_H
 	jmp_buf	abort_loc;
@@ -198,11 +252,29 @@ struct e2fsck_struct {
 	struct ext2_inode *stashed_inode;
 
 	/*
+	 * Location of the lost and found directory
+	 */
+	ext2_ino_t lost_and_found;
+	int bad_lost_and_found;
+	
+	/*
 	 * Directory information
 	 */
 	int		dir_info_count;
 	int		dir_info_size;
 	struct dir_info	*dir_info;
+
+	/*
+	 * Indexed directory information
+	 */
+	int		dx_dir_info_count;
+	int		dx_dir_info_size;
+	struct dx_dir_info *dx_dir_info;
+
+	/*
+	 * Directories to hash
+	 */
+	ext2_u32_list	dirs_to_hash;
 
 	/*
 	 * Tuning parameters
@@ -214,7 +286,7 @@ struct e2fsck_struct {
 	 * ext3 journal support
 	 */
 	io_channel	journal_io;
-	const char	*journal_name;
+	char	*journal_name;
 
 #ifdef RESOURCE_TRACK
 	/*
@@ -230,7 +302,9 @@ struct e2fsck_struct {
 	int progress_pos;
 	int progress_last_percent;
 	unsigned int progress_last_time;
-
+	int interactive;	/* Are we connected directly to a tty? */
+	char start_meta[2], stop_meta[2];
+	
 	/* File counts */
 	int fs_directory_count;
 	int fs_regular_count;
@@ -251,6 +325,12 @@ struct e2fsck_struct {
 	int fs_ext_attr_inodes;
 	int fs_ext_attr_blocks;
 
+	time_t now;
+
+	int ext_attr_ver;
+
+	profile_t	profile;
+
 	/*
 	 * For the use of callers of the e2fsck functions; not used by
 	 * e2fsck functions themselves.
@@ -261,6 +341,11 @@ struct e2fsck_struct {
 /* Used by the region allocation code */
 typedef __u32 region_addr_t;
 typedef struct region_struct *region_t;
+
+#ifndef HAVE_STRNLEN
+#define strnlen(str, x) e2fsck_strnlen((str),(x))
+extern int e2fsck_strnlen(const char * s, int count);
+#endif
 
 /*
  * Procedure declarations
@@ -283,15 +368,20 @@ extern int e2fsck_run(e2fsck_t ctx);
 /* badblock.c */
 extern void read_bad_blocks_file(e2fsck_t ctx, const char *bad_blocks_file,
 				 int replace_bad_blocks);
-extern void test_disk(e2fsck_t ctx);
 
 /* dirinfo.c */
 extern void e2fsck_add_dir_info(e2fsck_t ctx, ext2_ino_t ino, ext2_ino_t parent);
 extern struct dir_info *e2fsck_get_dir_info(e2fsck_t ctx, ext2_ino_t ino);
 extern void e2fsck_free_dir_info(e2fsck_t ctx);
-extern int e2fsck_get_num_dirs(e2fsck_t ctx);
 extern int e2fsck_get_num_dirinfo(e2fsck_t ctx);
 extern struct dir_info *e2fsck_dir_info_iter(e2fsck_t ctx, int *control);
+
+/* dx_dirinfo.c */
+extern void e2fsck_add_dx_dir(e2fsck_t ctx, ext2_ino_t ino, int num_blocks);
+extern struct dx_dir_info *e2fsck_get_dx_dir_info(e2fsck_t ctx, ext2_ino_t ino);
+extern void e2fsck_free_dx_dir_info(e2fsck_t ctx);
+extern int e2fsck_get_num_dx_dirinfo(e2fsck_t ctx);
+extern struct dx_dir_info *e2fsck_dx_dir_info_iter(e2fsck_t ctx, int *control);
 
 /* ea_refcount.c */
 extern errcode_t ea_refcount_create(int size, ext2_refcount_t *ret);
@@ -304,6 +394,7 @@ extern errcode_t ea_refcount_decrement(ext2_refcount_t refcount,
 				       blk_t blk, int *ret);
 extern errcode_t ea_refcount_store(ext2_refcount_t refcount,
 				   blk_t blk, int count);
+extern blk_t ext2fs_get_refcount_size(ext2_refcount_t refcount);
 extern void ea_refcount_intr_begin(ext2_refcount_t refcount);
 extern blk_t ea_refcount_intr_next(ext2_refcount_t refcount, int *ret);
 
@@ -314,22 +405,37 @@ extern void ehandler_init(io_channel channel);
 /* journal.c */
 extern int e2fsck_check_ext3_journal(e2fsck_t ctx);
 extern int e2fsck_run_ext3_journal(e2fsck_t ctx);
+extern void e2fsck_move_ext3_journal(e2fsck_t ctx);
+extern int e2fsck_fix_ext3_journal_hint(e2fsck_t ctx);
 
 /* pass1.c */
 extern void e2fsck_use_inode_shortcuts(e2fsck_t ctx, int bool);
-extern int e2fsck_pass1_check_device_inode(struct ext2_inode *inode);
-extern int e2fsck_pass1_check_symlink(ext2_filsys fs, struct ext2_inode *inode);
+extern int e2fsck_pass1_check_device_inode(ext2_filsys fs,
+					   struct ext2_inode *inode);
+extern int e2fsck_pass1_check_symlink(ext2_filsys fs,
+				      struct ext2_inode *inode, char *buf);
 
 /* pass2.c */
-extern int e2fsck_process_bad_inode(e2fsck_t ctx, ext2_ino_t dir, ext2_ino_t ino);
+extern int e2fsck_process_bad_inode(e2fsck_t ctx, ext2_ino_t dir,
+				    ext2_ino_t ino, char *buf);
 
 /* pass3.c */
 extern int e2fsck_reconnect_file(e2fsck_t ctx, ext2_ino_t inode);
+extern errcode_t e2fsck_expand_directory(e2fsck_t ctx, ext2_ino_t dir,
+					 int num, int gauranteed_size);
+extern ext2_ino_t e2fsck_get_lost_and_found(e2fsck_t ctx, int fix);
+extern errcode_t e2fsck_adjust_inode_count(e2fsck_t ctx, ext2_ino_t ino, 
+					   int adj);
+
 
 /* region.c */
 extern region_t region_create(region_addr_t min, region_addr_t max);
 extern void region_free(region_t region);
 extern int region_allocate(region_t region, region_addr_t start, int n);
+
+/* rehash.c */
+errcode_t e2fsck_rehash_dir(e2fsck_t ctx, ext2_ino_t ino);
+void e2fsck_rehash_directories(e2fsck_t ctx);
 
 /* super.c */
 void check_super_block(e2fsck_t ctx);
@@ -347,6 +453,7 @@ extern void fatal_error(e2fsck_t ctx, const char * fmt_string);
 extern void e2fsck_read_bitmaps(e2fsck_t ctx);
 extern void e2fsck_write_bitmaps(e2fsck_t ctx);
 extern void preenhalt(e2fsck_t ctx);
+extern char *string_copy(e2fsck_t ctx, const char *str, int len);
 #ifdef RESOURCE_TRACK
 extern void print_resource_track(const char *desc,
 				 struct resource_track *track);
@@ -360,8 +467,11 @@ extern void e2fsck_write_inode(e2fsck_t ctx, unsigned long ino,
 #ifdef MTRACE
 extern void mtrace_print(char *mesg);
 #endif
-extern blk_t get_backup_sb(ext2_filsys fs);
+extern blk_t get_backup_sb(e2fsck_t ctx, ext2_filsys fs,
+			   const char *name, io_manager manager);
 extern int ext2_file_type(unsigned int mode);
 
 /* unix.c */
 extern void e2fsck_clear_progbar(e2fsck_t ctx);
+extern int e2fsck_simple_progress(e2fsck_t ctx, const char *label,
+				  float percent, unsigned int dpynum);

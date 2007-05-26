@@ -59,8 +59,8 @@ ec	EXT2_ET_MAGIC_EXT2_FILE,
 ec	EXT2_ET_MAGIC_E2IMAGE,
 	"Wrong magic number for Ext2 Image Header"
 
-ec	EXT2_ET_MAGIC_RESERVED_8,
-	"Wrong magic number --- RESERVED_8"
+ec	EXT2_ET_MAGIC_INODE_IO_CHANNEL,
+	"Wrong magic number for inode io_channel structure"
 
 ec	EXT2_ET_MAGIC_RESERVED_9,
 	"Wrong magic number --- RESERVED_9"
@@ -271,6 +271,30 @@ ec	EXT2_ET_JOURNAL_UNSUPP_VERSION,
 
 ec	EXT2_ET_LOAD_EXT_JOURNAL,
 	"Error loading external journal"
+
+ec	EXT2_ET_NO_JOURNAL,
+	"Journal not found"
+
+ec	EXT2_ET_DIRHASH_UNSUPP,
+	"Directory hash unsupported"
+
+ec	EXT2_ET_BAD_EA_BLOCK_NUM,
+	"Illegal extended attribute block number"
+
+ec	EXT2_ET_TOO_MANY_INODES,
+	"Cannot create filesystem with requested number of inodes"
+
+ec	EXT2_ET_NOT_IMAGE_FILE,
+	"E2image snapshot not in use"
+
+ec	EXT2_ET_RES_GDT_BLOCKS,
+	"Too many reserved group descriptor blocks"
+
+ec	EXT2_ET_RESIZE_INODE_CORRUPT,
+	"Resize inode is corrupt"
+
+ec	EXT2_ET_SET_BMAP_NO_IND,
+	"Missing indirect block not present"
 
 	end
 

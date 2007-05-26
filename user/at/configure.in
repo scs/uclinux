@@ -6,9 +6,9 @@ AC_CONFIG_HEADER(config.h)
 AC_PREREQ(2.7)
 
 
-VERSION="3.1.8"
+VERSION="3.1.7"
 if test "X$CFLAGS" = "X"; then
-CFLAGS=-O2
+CFLAGS=-O
 fi
 
 AC_SUBST(VERSION)
@@ -17,6 +17,7 @@ AC_CANONICAL_HOST
 
 dnl Checks for programs.
 
+AC_C_CROSS
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_LN_S
@@ -78,11 +79,23 @@ AC_STRUCT_TM
 
 dnl Checks for library functions.
 AC_FUNC_VPRINTF
-AC_REPLACE_FUNCS(getloadavg)
+AC_FUNC_GETLOADAVG
 AC_CHECK_FUNCS(getcwd mktime strftime setreuid setresuid sigaction)
 AC_CHECK_FUNCS(waitpid)
 
 dnl Checking for programs
+
+AC_PATH_PROG(MAILX, mailx)
+if test "$ac_cv_path_MAILX" != "" ; then
+AC_DEFINE_UNQUOTED(MAILX,"$ac_cv_path_MAILX")
+MAIL_CMD="$ac_cv_path_MAILX"
+fi
+
+AC_PATH_PROG(MAILC, mail)
+if test "$ac_cv_path_MAILC" != "" ; then
+AC_DEFINE_UNQUOTED(MAILC,"$ac_cv_path_MAILC")
+MAIL_CMD="$ac_cv_path_MAILC"
+fi
 
 AC_PATH_PROG(SENDMAIL, sendmail, , $PATH:/usr/lib:/usr/sbin )
 if test "$ac_cv_path_SENDMAIL" != "" ; then
@@ -139,7 +152,7 @@ elif test -d /usr/spool/cron ; then
   AC_DEFINE(SPOOLDIR, "/usr/spool/cron")
   AC_MSG_RESULT(/usr/spool/cron)
 else
-  AC_MSG_RESULT(not found)
+  AC_ERROR(Cannot determine value for spool directory)
 fi
 
 AC_MSG_CHECKING(jobdir)
@@ -150,9 +163,6 @@ AC_ARG_WITH(jobdir,
     AC_MSG_ERROR(Need JOBDIR.)
     ;;
   yes)
-    if test x$sp == x ; then
-      AC_MSG_ERROR(Need explicit JOBDIR when SPOOLDIR not found.)
-    fi
     AC_DEFINE_UNQUOTED(ATJOB_DIR, "$sp/atjobs")
     AC_MSG_RESULT($ATJOB_DIR)
     ATJBD="$sp/atjobs"
@@ -163,9 +173,6 @@ AC_ARG_WITH(jobdir,
     ATJBD="$withval"
     ;;
   esac ],
-  if test x$sp == x ; then
-    AC_MSG_ERROR(Need --with-jobdir=PATH when SPOOLDIR not found.)
-  fi
   AC_DEFINE_UNQUOTED(ATJOB_DIR, "$sp/atjobs")
   AC_MSG_RESULT($sp/atjobs)
   ATJBD="$sp/atjobs"
@@ -180,9 +187,6 @@ AC_ARG_WITH(atspool,
     AC_MSG_ERROR(Need ATSPOOL.)
     ;;
   yes)
-    if test x$sp == x ; then
-      AC_MSG_ERROR(Need explicit ATSPOOL when SPOOLDIR not found.)
-    fi
     AC_DEFINE_UNQUOTED(ATSPOOL_DIR, "$sp/atspool")
     AC_MSG_RESULT($sp/atspool)
     ATSPD=$sp/atspool
@@ -193,9 +197,6 @@ AC_ARG_WITH(atspool,
     ATSPD=$withval
     ;;
   esac ],
-  if test x$sp == x ; then
-    AC_MSG_ERROR(Need --with-atspool=PATH when SPOOLDIR not found.)
-  fi
   AC_DEFINE_UNQUOTED(ATSPOOL_DIR, "$sp/atspool")
   AC_MSG_RESULT($sp/atspool)
   ATSPD=$sp/atspool

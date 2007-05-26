@@ -29,11 +29,9 @@ extern errcode_t ext2fs_bmap(ext2_filsys fs, ext2_ino_t ino,
 			     char *block_buf, int bmap_flags,
 			     blk_t block, blk_t *phys_blk);
 
-#define BMAP_ALLOC	1
-
 #define inode_bmap(inode, nr) ((inode)->i_block[(nr)])
 
-static errcode_t _BMAP_INLINE_ block_ind_bmap(ext2_filsys fs, int flags, 
+static _BMAP_INLINE_ errcode_t block_ind_bmap(ext2_filsys fs, int flags, 
 					      blk_t ind, char *block_buf, 
 					      int *blocks_alloc,
 					      blk_t nr, blk_t *ret_blk)
@@ -42,12 +40,25 @@ static errcode_t _BMAP_INLINE_ block_ind_bmap(ext2_filsys fs, int flags,
 	blk_t		b;
 
 	if (!ind) {
+		if (flags & BMAP_SET)
+			return EXT2_ET_SET_BMAP_NO_IND;
 		*ret_blk = 0;
 		return 0;
 	}
 	retval = io_channel_read_blk(fs->io, ind, 1, block_buf);
 	if (retval)
 		return retval;
+
+	if (flags & BMAP_SET) {
+		b = *ret_blk;
+#ifdef EXT2FS_ENABLE_SWAPFS
+		if ((fs->flags & EXT2_FLAG_SWAP_BYTES) ||
+		    (fs->flags & EXT2_FLAG_SWAP_BYTES_WRITE))
+			b = ext2fs_swab32(b);
+#endif
+		((blk_t *) block_buf)[nr] = b;
+		return io_channel_write_blk(fs->io, ind, 1, block_buf);
+	}
 
 	b = ((blk_t *) block_buf)[nr];
 
@@ -83,7 +94,7 @@ static errcode_t _BMAP_INLINE_ block_ind_bmap(ext2_filsys fs, int flags,
 	return 0;
 }
 
-static errcode_t _BMAP_INLINE_ block_dind_bmap(ext2_filsys fs, int flags,
+static _BMAP_INLINE_ errcode_t block_dind_bmap(ext2_filsys fs, int flags,
 					       blk_t dind, char *block_buf, 
 					       int *blocks_alloc,
 					       blk_t nr, blk_t *ret_blk)
@@ -94,8 +105,8 @@ static errcode_t _BMAP_INLINE_ block_dind_bmap(ext2_filsys fs, int flags,
 	
 	addr_per_block = (blk_t) fs->blocksize >> 2;
 
-	retval = block_ind_bmap(fs, flags, dind, block_buf, blocks_alloc,
-				nr / addr_per_block, &b);
+	retval = block_ind_bmap(fs, flags & ~BMAP_SET, dind, block_buf, 
+				blocks_alloc, nr / addr_per_block, &b);
 	if (retval)
 		return retval;
 	retval = block_ind_bmap(fs, flags, b, block_buf, blocks_alloc,
@@ -103,7 +114,7 @@ static errcode_t _BMAP_INLINE_ block_dind_bmap(ext2_filsys fs, int flags,
 	return retval;
 }
 
-static errcode_t _BMAP_INLINE_ block_tind_bmap(ext2_filsys fs, int flags,
+static _BMAP_INLINE_ errcode_t block_tind_bmap(ext2_filsys fs, int flags,
 					       blk_t tind, char *block_buf, 
 					       int *blocks_alloc,
 					       blk_t nr, blk_t *ret_blk)
@@ -114,8 +125,8 @@ static errcode_t _BMAP_INLINE_ block_tind_bmap(ext2_filsys fs, int flags,
 	
 	addr_per_block = (blk_t) fs->blocksize >> 2;
 
-	retval = block_dind_bmap(fs, flags, tind, block_buf, blocks_alloc,
-				 nr / addr_per_block, &b);
+	retval = block_dind_bmap(fs, flags & ~BMAP_SET, tind, block_buf, 
+				 blocks_alloc, nr / addr_per_block, &b);
 	if (retval)
 		return retval;
 	retval = block_ind_bmap(fs, flags, b, block_buf, blocks_alloc,
@@ -132,27 +143,40 @@ errcode_t ext2fs_bmap(ext2_filsys fs, ext2_ino_t ino, struct ext2_inode *inode,
 	blk_t	b;
 	char	*buf = 0;
 	errcode_t	retval = 0;
-	int		blocks_alloc = 0;
+	int		blocks_alloc = 0, inode_dirty = 0;
 
-	*phys_blk = 0;
+	if (!(bmap_flags & BMAP_SET))
+		*phys_blk = 0;
 
 	/* Read inode structure if necessary */
 	if (!inode) {
 		retval = ext2fs_read_inode(fs, ino, &inode_buf);
-		if (!retval)
+		if (retval)
 			return retval;
 		inode = &inode_buf;
 	}
 	addr_per_block = (blk_t) fs->blocksize >> 2;
 
 	if (!block_buf) {
-		retval = ext2fs_get_mem(fs->blocksize * 2, (void **) &buf);
+		retval = ext2fs_get_mem(fs->blocksize * 2, &buf);
 		if (retval)
 			return retval;
 		block_buf = buf;
 	}
 
 	if (block < EXT2_NDIR_BLOCKS) {
+		if (bmap_flags & BMAP_SET) {
+			b = *phys_blk;
+#ifdef EXT2FS_ENABLE_SWAPFS
+			if ((fs->flags & EXT2_FLAG_SWAP_BYTES) ||
+			    (fs->flags & EXT2_FLAG_SWAP_BYTES_READ))
+				b = ext2fs_swab32(b);
+#endif
+			inode_bmap(inode, block) = b;
+			inode_dirty++;
+			goto done;
+		}
+
 		*phys_blk = inode_bmap(inode, block);
 		b = block ? inode_bmap(inode, block-1) : 0;
 		
@@ -172,8 +196,11 @@ errcode_t ext2fs_bmap(ext2_filsys fs, ext2_ino_t ino, struct ext2_inode *inode,
 	if (block < addr_per_block) {
 		b = inode_bmap(inode, EXT2_IND_BLOCK);
 		if (!b) {
-			if (!(bmap_flags & BMAP_ALLOC))
-			    goto done;
+			if (!(bmap_flags & BMAP_ALLOC)) {
+				if (bmap_flags & BMAP_SET)
+					retval = EXT2_ET_SET_BMAP_NO_IND;
+				goto done;
+			}
 
 			b = inode_bmap(inode, EXT2_IND_BLOCK-1);
  			retval = ext2fs_alloc_block(fs, b, block_buf, &b);
@@ -192,8 +219,11 @@ errcode_t ext2fs_bmap(ext2_filsys fs, ext2_ino_t ino, struct ext2_inode *inode,
 	if (block < addr_per_block * addr_per_block) {
 		b = inode_bmap(inode, EXT2_DIND_BLOCK);
 		if (!b) {
-			if (!(bmap_flags & BMAP_ALLOC))
-			    goto done;
+			if (!(bmap_flags & BMAP_ALLOC)) {
+				if (bmap_flags & BMAP_SET)
+					retval = EXT2_ET_SET_BMAP_NO_IND;
+				goto done;
+			}
 
 			b = inode_bmap(inode, EXT2_IND_BLOCK);
  			retval = ext2fs_alloc_block(fs, b, block_buf, &b);
@@ -211,8 +241,11 @@ errcode_t ext2fs_bmap(ext2_filsys fs, ext2_ino_t ino, struct ext2_inode *inode,
 	block -= addr_per_block * addr_per_block;
 	b = inode_bmap(inode, EXT2_TIND_BLOCK);
 	if (!b) {
-		if (!(bmap_flags & BMAP_ALLOC))
+		if (!(bmap_flags & BMAP_ALLOC)) {
+			if (bmap_flags & BMAP_SET)
+				retval = EXT2_ET_SET_BMAP_NO_IND;
 			goto done;
+		}
 
 		b = inode_bmap(inode, EXT2_DIND_BLOCK);
 		retval = ext2fs_alloc_block(fs, b, block_buf, &b);
@@ -225,8 +258,8 @@ errcode_t ext2fs_bmap(ext2_filsys fs, ext2_ino_t ino, struct ext2_inode *inode,
 				 &blocks_alloc, block, phys_blk);
 done:
 	if (buf)
-		ext2fs_free_mem((void **) &buf);
-	if ((retval == 0) && blocks_alloc) {
+		ext2fs_free_mem(&buf);
+	if ((retval == 0) && (blocks_alloc || inode_dirty)) {
 		inode->i_blocks += (blocks_alloc * fs->blocksize) / 512;
 		retval = ext2fs_write_inode(fs, ino, inode);
 	}

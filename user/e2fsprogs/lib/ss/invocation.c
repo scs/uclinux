@@ -16,6 +16,9 @@
 #endif
 #include "ss_internal.h"
 #define	size	sizeof(ss_data *)
+#ifdef HAVE_DLOPEN
+#include <dlfcn.h>
+#endif
 
 int ss_create_invocation(subsystem_name, version_string, info_ptr,
 			 request_table_ptr, code_ptr)
@@ -66,7 +69,16 @@ int ss_create_invocation(subsystem_name, version_string, info_ptr,
 		(ss_request_table **) calloc(2, sizeof(ss_request_table *));
 	*(new_table->rqt_tables) = request_table_ptr;
 	*(new_table->rqt_tables+1) = (ss_request_table *) NULL;
+
+	new_table->readline_handle = 0;
+	new_table->readline = 0;
+	new_table->add_history = 0;
+	new_table->redisplay = 0;
+	new_table->rl_completion_matches = 0;
 	_ss_table = table;
+#if defined(HAVE_DLOPEN) && defined(SHARED_ELF_LIB)
+	ss_get_readline(sci_idx);
+#endif
 	return(sci_idx);
 }
 
@@ -79,9 +91,13 @@ ss_delete_invocation(sci_idx)
 
 	t = ss_info(sci_idx);
 	free(t->prompt);
-	free((char *)t->rqt_tables);
+	free(t->rqt_tables);
 	while(t->info_dirs[0] != (char *)NULL)
 		ss_delete_info_dir(sci_idx, t->info_dirs[0], &ignored_code);
-	free((char *)t->info_dirs);
-	free((char *)t);
+	free(t->info_dirs);
+#if defined(HAVE_DLOPEN) && defined(SHARED_ELF_LIB)
+	if (t->readline_shutdown)
+		(*t->readline_shutdown)(t);
+#endif
+	free(t);
 }

@@ -1,3 +1,326 @@
+2006-05-22  Theodore Tso  <tytso@mit.edu>
+
+	* resize2fs.8.in: Fixed spelling mistake (Addresses Debian Bug:
+		#368393)
+
+2006-05-21  Theodore Tso  <tytso@mit.edu>
+
+	* resize2fs.8.in: Clarify man page to indicate that supports ext2
+		and ext3 filesystems, and add reference to LVM.
+		(Addresses Debian Bug: #368179)
+
+2006-05-14  Theodore Tso  <tytso@mit.edu>
+
+	* main.c (main, determine_fs_stride), resize2fs.8.in: Add a new
+		option (-S) to resize2fs which allows the user to specify
+		the RAID stride parameter to be used on new block groups.
+		In addition, add code so that resize2fs can automatically
+		determine the RAID stride parameter that had been
+		previously used on the filesystem.
+
+2006-03-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* main.c, resize2fs.c: Change printf statements to use %u instead
+		of %d when printing block numbers.
+
+	* main.c (main): If the filesystem is mounted, open it in
+		read-only mode since the userspace program should not try
+		to modify it directly.  If the filesystem is not mounted,
+		open it in exclusive mode to avoid potential problems
+		(such as someone trying to mount the filesystem while it
+		is being resized).
+
+2006-03-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.8.in: Update manpage to document that that resize2fs
+		can expand a mounted filesystem.
+
+	* online.c (online_resize_fs): New file which contains the on-line
+		resizing code.
+
+	* main.c (main): If the filesystem to be resized is already
+		mounted, determine the mountpoint, and call online_resize_fs().
+
+	* resize2fs.c (adjust_fs_info, adjust_superblock): Factor out code
+		which only adjusts the in-memory data structures from the
+		code which writes to the disk, since the former can be
+		used by the on-line resizing code.
+
+	* resize2fs.h: Add function prototypes for online_resize_fs() and 
+		adjust_fs_info().
+
+	* Makefile.in (RESIZE_OBJS): Add online.o to list of files to be built.
+
+2005-12-29  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c (mark_table_blocks): Remove unused variables to
+		clean up gcc -Wall complaints.
+
+	* main.c (main): If the filesystem being resized is a regular
+		file, truncate or expand the file to match the new
+		filesystem size.  (Addresses Debian Bug: #271607)
+
+2005-08-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c (move_itables): Fix fencepost error caught by valgrind.
+		(adjust_superblock): Clear the newly allocated descriptor
+		blocks when we allocate them to avoid false positives from
+		valgrind (and so that the unusued descriptors at the tail
+		end of the newly allocated descriptor blocks are zero'ed
+		out, include of random garbage).
+
+2006-06-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.38
+
+2005-05-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c (fix_resize_inode): Don't bother to translate
+		debugging printf's.
+
+	* main.c: Fix case on usage message, and remove _() from messages
+		from a version string that doesn't need translation.
+
+2005-03-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.37
+
+2006-02-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.36
+
+2005-01-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c: Fix bug where we don't release the blocks belonging
+		to the old inode table blocks when we move the inode
+		table.  (Addresses Debian Bug: #290894)
+
+2005-01-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* main.c (main): Use parse_num_blocks() from the e2p library to
+		parse the number of blocks from the command line.
+
+2004-12-16  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c (resize_fs): Call ext2fs_create_resize_inode to
+		fill in the necessary fields in the resize inode.
+		(adjust_superblock): Reserve blocks that are needed for
+		on-line resizing if that feature is enabled.
+
+2004-12-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Move strip command to install-strip target.
+		Use Linux-kernel-style makefile output for "make install"
+
+	* Makefile.in (installdirs): Use $(MKINSTALLDIRS) macro
+
+2004-11-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* main.c: If there is a question mark in the device name,
+		separate out the options to the IO layer, and pass it on
+		to ext2fs_open2().
+
+	* Makefile.in: Use Linux-kernel-style makefile output to make it
+		easier to see errors/warnings.
+
+2004-09-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c (check_and_change_inodes): Fix debugging printf to
+		mask off the high 256 bits of dirent->name_len (which is
+		where the file type information is stored).  (Addresses
+		Debian Bug #271605)
+
+2004-04-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Update the modtime even if subst doesn't need to
+		update the resize2fs man page, to avoid always re-running
+		subst, especially since there are no dependencies on the
+		man page.
+
+2004-02-28  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.35
+
+2003-12-07  Theodore Ts'o  <tytso@mit.edu>
+
+	* main.c, resize2fs.c: Fix gcc -Wall nitpicks.
+
+2003-08-24  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.8.in: Adjust description line so that apropos
+		"ext2" or "ext3" will find the man page.  (Addresses
+		Debian Bug #206845)
+
+2003-08-01  Philipp Thomas <pthomas@suse.de>
+
+	* extent.c, resize2fs.c, sim_progress.c: ext2fs_getmem(),
+		ext2fs_free_mem(), and ext2fs_resize_mem() all now take a
+		'void *' instead of a 'void **' in order to avoid pointer
+		aliasing problems with GCC 3.x.
+
+2003-07-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.34
+
+2003-07-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* main.c (main): Round the default size of the filesystem to be an
+		even multiple of the pagesize to work around a potential
+		Linux kernel bug.
+
+2003-06-24    <tytso@snap.thunk.org>
+
+	* resize2fs.c (block_mover): Don't move blocks associated with the
+		bad blocks inode.  Instead, just remove them from the
+		badblocks list.  (Note this means that shrinking and then
+		enlarging a filesystem is not a reversible operation;
+		information about bad blocks in the part of the filesystem
+		which is to be chopped off is discarded.)
+
+2003-06-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.8.in: Make explicit that you need to run resize2fs
+		after using fdisk to adjust the partition size when
+		expanding the filesystem.  (Addresses Debian Bug #195616)
+
+2003-05-13  root  <tytso@mit.edu>
+
+	* main.c (main): Add the ability to specify units to the size
+		parameter, and make the error and information messages
+		display explicitly the blocksize used by the filesystem,
+		to avoid confusion.  (Addresses Debian bug: #189814)
+
+2003-05-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* main.c (main): Add calls to setup functions for NLS support.
+
+	* Makefile.in: Add $(LIBINTL) to the link line so we can support
+		using the internal gettext library.
+
+	* resize2fs.h: Add #ifndef protection around LOCALEDIR definition.
+
+2003-04-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.33
+
+2003-04-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Use DYLD_LIBRAY_PATH so that "make check" works on
+		Darwin systems when building with shared libraries.
+
+2003-03-06    <tytso@mit.edu>
+
+	* resize2fs.c (blocks_to_move): Bug fix; we were incorrectly
+		moving the block and inode bitmaps for sparse superblock
+		filesystems.  (Address Debian bug #174766)
+
+2002-11-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.32
+
+2002-11-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.31
+
+2002-10-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.30
+
+2002-10-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c (inode_scan_and_fix, check_and_change_inodes): When
+		moving an inode, set the ctime field so that people using
+		dump/restore will backup the changed inode.  Also update
+		the mtime and ctime of directories which get updated when
+		we need to move an inode.
+
+2002-10-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in (install): Search all compression extensions when
+		deleting old man pages.
+
+	* resize2fs.c (adjust_superblock, mark_table_blocks,
+		blocks_to_move): Add support for resizing filesystems that
+		use the meta block group layout.
+
+	* main.c (main): Fixed bug that erroneously (and
+		needlessly) checked the incompat feature flag field
+		against the supported ro_compat feature set.
+
+2002-10-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.8.in: Fix typo in man page.
+
+2001-09-24  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.29
+
+2001-08-31  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.28
+
+2002-08-16  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c (inode_scan_and_fix): Add code to move the extended
+		attribute block.
+	
+2002-07-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* resize2fs.c (block_mover): If there are no blocks to move,
+		release the bmap table.  This significantly speeds up
+		resize2fs when shrinking or expanding a filesystem by a
+		very small number of blocks (which EVMS will do).
+
+2002-05-28    <tytso@mit.edu>
+
+	* main.c (main): If the filesystem has errors or is not valid,
+		then require an e2fsck -f run be done on the filesystem
+		more.
+
+2002-04-09    <tytso@snap.thunk.org>
+
+	* main.c (main): If resize_fs returns an error, don't print the
+		message stating that the filesystem was resized.
+
+2002-03-31    <tytso@mit.edu>
+
+	* main.c (main): If we are resizing a plain file which is smaller
+		than the requested size, then we will attempt to
+		transparently extend the filesize in a sparse fashion by
+		writing a block at the end of the requested part of the
+		filesystem.
+
+	* main.c (main), resize2fs.c (resize_fs), resize2fs.h: Change the
+		function prototype of resize_fs() so that it can modify
+		the new_size parameter with the actual new size of the
+		filesystem after the resize operation.  (This can
+		sometimes be less than the requested new size if there
+		isn't enough space to create the necessary block group
+		metadata for that last bit of disk space.)  Resize2fs now
+		prints the actual new size of the filesystem when it finishes.
+
+2002-03-08  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.27
+
+2002-03-07  Theodore Tso  <tytso@mit.edu>
+
+	* resize2fs.c (process_block, inode_scan_and_fix, 
+		check_and_change_inodes): Fix gcc -Wall complaints in
+		debug code.
+
+	* Makefile.in (check): Use LD_LIBRARY_PATH to run test programs.
+		(From Philipp Thomas <pthomas@suse.de>)
+
+2002-02-24  Theodore Tso  <tytso@mit.edu>
+
+	* Makefile.in (install): Remove any compressed man pages before
+		installing the man pages.
+
+2002-02-03  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.26
+
 2001-09-20  Theodore Tso  <tytso@thunk.org>
 
 	* Release of E2fsprogs 1.25

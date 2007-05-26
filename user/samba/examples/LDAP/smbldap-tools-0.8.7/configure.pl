@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
-# $Id$
-# $Source$
+# $Id: configure.pl,v 1.13 2004/06/25 20:57:51 jtournier Exp $
+# $Source: /opt/cvs/samba/smbldap-tools/configure.pl,v $
 
 # This script can help you setting up the smbldap_conf.pl file. It will get all the defaults value
 # that are defined in the smb.conf configuration file. You should then start with this configuration

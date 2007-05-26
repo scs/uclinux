@@ -35,11 +35,13 @@ struct read_bb_record {
  * Helper function for ext2fs_read_bb_inode()
  */
 #ifdef __TURBOC__
-#pragma argsused
+ #pragma argsused
 #endif
 static int mark_bad_block(ext2_filsys fs, blk_t *block_nr,
-			  e2_blkcnt_t blockcnt, blk_t ref_block,
-			  int ref_offset, void *priv_data)
+			  e2_blkcnt_t blockcnt EXT2FS_ATTR((unused)), 
+			  blk_t ref_block EXT2FS_ATTR((unused)),
+			  int ref_offset EXT2FS_ATTR((unused)), 
+			  void *priv_data)
 {
 	struct read_bb_record *rb = (struct read_bb_record *) priv_data;
 	

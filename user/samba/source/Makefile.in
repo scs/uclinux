@@ -95,7 +95,13 @@ PIDDIR = @piddir@
 # man pages language(s)
 man_langs = "@manlangs@"
 
-LIBSMBCLIENT=bin/libsmbclient.a @LIBSMBCLIENT_SHARED@
+ifneq (@LIBSMBCLIENT_SHARED@,)
+LIBSMBCLIENT=@LIBSMBCLIENT_SHARED@
+LIBSMB_OPTS=-L ./bin -lsmbclient -ldl
+else
+LIBSMBCLIENT=bin/libsmbclient.a
+LIBSMB_OPTS=$(LIBSMBCLIENT) -ldl
+endif
 LIBSMBCLIENT_MAJOR=0
 LIBSMBCLIENT_MINOR=1
 
@@ -384,13 +390,11 @@ SMBD_OBJ_SRV = smbd/files.o smbd/chgpasswd.o smbd/connection.o \
 	       $(AFS_SETTOKEN_OBJ) \
 	       $(MANGLE_OBJ) @VFS_STATIC@
 
-SMBD_OBJ_BASE = $(PARAM_OBJ) $(SMBD_OBJ_SRV) $(LIBSMB_OBJ) \
-		$(RPC_SERVER_OBJ) $(RPC_PARSE_OBJ) $(SECRETS_OBJ) \
+SMBD_OBJ_BASE = $(SMBD_OBJ_SRV) $(RPC_SERVER_OBJ) \
 		$(LOCKING_OBJ) $(PASSDB_OBJ) $(PRINTING_OBJ) $(PROFILE_OBJ) \
-		$(LIB_OBJ) $(PRINTBACKEND_OBJ) $(OPLOCK_OBJ) \
-		$(NOTIFY_OBJ) $(GROUPDB_OBJ) $(AUTH_OBJ) \
-		$(LIBMSRPC_OBJ) \
-		$(LIBADS_OBJ) $(KRBCLIENT_OBJ) $(LIBADS_SERVER_OBJ) \
+		$(PRINTBACKEND_OBJ) $(OPLOCK_OBJ) \
+		$(NOTIFY_OBJ) $(AUTH_OBJ) \
+		$(LIBADS_OBJ) $(LIBADS_SERVER_OBJ) \
 		$(REGISTRY_OBJ) $(POPT_LIB_OBJ) \
 		$(BUILDOPT_OBJ) $(SMBLDAP_OBJ)
 
@@ -416,8 +420,7 @@ NMBD_OBJ1 = nmbd/asyncdns.o nmbd/nmbd.o nmbd/nmbd_become_dmb.o \
             nmbd/nmbd_subnetdb.o nmbd/nmbd_winsproxy.o nmbd/nmbd_winsserver.o \
             nmbd/nmbd_workgroupdb.o nmbd/nmbd_synclists.o
 
-NMBD_OBJ = $(NMBD_OBJ1) $(PARAM_OBJ) $(LIBSMB_OBJ) $(KRBCLIENT_OBJ) $(UBIQX_OBJ) \
-           $(PROFILE_OBJ) $(LIB_NONSMBD_OBJ) $(SECRETS_OBJ) $(POPT_LIB_OBJ) 
+NMBD_OBJ = $(NMBD_OBJ1) $(UBIQX_OBJ) $(PROFILE_OBJ) $(POPT_LIB_OBJ) 
 
 WREPL_OBJ1 = wrepld/server.o wrepld/process.o wrepld/parser.o wrepld/socket.o \
              wrepld/partners.o
@@ -459,10 +462,7 @@ TESTPARM_OBJ = utils/testparm.o \
 TESTPRNS_OBJ = utils/testprns.o $(PARAM_OBJ) $(PRINTING_OBJ) \
                $(LIB_NONSMBD_OBJ) libsmb/nterr.o
 
-SMBPASSWD_OBJ = utils/smbpasswd.o $(PASSCHANGE_OBJ) $(PARAM_OBJ) $(SECRETS_OBJ) \
-		$(LIBSMB_OBJ) $(PASSDB_OBJ) $(GROUPDB_OBJ)\
-                $(LIB_NONSMBD_OBJ) $(KRBCLIENT_OBJ) \
-		$(SMBLDAP_OBJ) $(RPC_PARSE_OBJ) $(LIBMSRPC_OBJ)
+SMBPASSWD_OBJ = utils/smbpasswd.o $(PASSCHANGE_OBJ) $(SMBLDAP_OBJ)
 
 PDBEDIT_OBJ = utils/pdbedit.o $(PARAM_OBJ) $(PASSDB_OBJ) $(LIBSAMBA_OBJ) \
 		$(LIB_NONSMBD_OBJ) $(GROUPDB_OBJ) $(SECRETS_OBJ) \
@@ -504,7 +504,7 @@ LIBSMBCLIENT_OBJ = libsmb/libsmbclient.o libsmb/libsmb_compat.o \
 		   libsmb/libsmb_cache.o \
 		   $(PARAM_OBJ) $(LIB_NONSMBD_OBJ) \
 	  	   $(LIBSMB_OBJ) $(KRBCLIENT_OBJ) \
-		   $(LIBMSRPC_OBJ) $(RPC_PARSE_OBJ) $(PASSDB_GET_SET_OBJ) \
+		   $(LIBMSRPC_OBJ) $(RPC_PARSE_OBJ) $(PASSDB_OBJ) $(GROUPDB_OBJ) \
 		   $(SECRETS_OBJ) 
 
 # This shared library is intended for linking with unit test programs
@@ -542,10 +542,9 @@ NET_OBJ = $(NET_OBJ1) $(PARAM_OBJ) $(SECRETS_OBJ) $(LIBSMB_OBJ) \
 CUPS_OBJ = client/smbspool.o $(PARAM_OBJ) $(LIBSMB_OBJ) \
 	  $(LIB_NONSMBD_OBJ) $(KRBCLIENT_OBJ) $(SECRETS_OBJ)
 
-MOUNT_OBJ = client/smbmount.o \
-             $(PARAM_OBJ) $(LIBSMB_OBJ) $(KRBCLIENT_OBJ) $(LIB_NONSMBD_OBJ) $(SECRETS_OBJ)
+MOUNT_OBJ = client/smbmount.o
 
-MNT_OBJ = client/smbmnt.o $(VERSION_OBJ) $(SNPRINTF_OBJ)
+MNT_OBJ = client/smbmnt.o
 
 UMOUNT_OBJ = client/smbumount.o
 
@@ -810,15 +809,16 @@ bin/.dummy:
 	  dir=bin $(MAKEDIR); fi
 	@: >> $@ || : > $@ # what a fancy emoticon!
 
-bin/smbd@EXEEXT@: $(SMBD_OBJ) @BUILD_POPT@ bin/.dummy
+bin/smbd@EXEEXT@: $(SMBD_OBJ) @BUILD_POPT@ bin/.dummy $(LIBSMBCLIENT)
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SMBD_OBJ) $(LDFLAGS) $(LDAP_LIBS) \
 		$(KRB5LIBS) $(DYNEXP) $(PRINT_LIBS) $(AUTH_LIBS) \
-		$(ACL_LIBS) $(PASSDB_LIBS) $(LIBS) @POPTLIBS@
+		$(ACL_LIBS) $(PASSDB_LIBS) $(LIBS) @POPTLIBS@ $(LIBSMB_OPTS)
 
-bin/nmbd@EXEEXT@: $(NMBD_OBJ) @BUILD_POPT@ bin/.dummy
+bin/nmbd@EXEEXT@: $(NMBD_OBJ) @BUILD_POPT@ bin/.dummy $(LIBSMBCLIENT)
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(NMBD_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(NMBD_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ \
+	$(KRB5LIBS) $(LDAP_LIBS) $(LIBSMB_OPTS)
 
 bin/wrepld@EXEEXT@: $(WREPL_OBJ) @BUILD_POPT@ bin/.dummy
 	@echo Linking $@
@@ -855,17 +855,17 @@ bin/smbspool@EXEEXT@: $(CUPS_OBJ) bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(CUPS_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS)
 
-bin/smbmount@EXEEXT@: $(MOUNT_OBJ) bin/.dummy
+bin/smbmount@EXEEXT@: $(MOUNT_OBJ) bin/.dummy $(LIBSMBCLIENT)
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(MOUNT_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS)
+	@$(CC) $(FLAGS) -o $@ $(MOUNT_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS) $(LIBSMB_OPTS)
 
-bin/smbmnt@EXEEXT@: $(MNT_OBJ) bin/.dummy
+bin/smbmnt@EXEEXT@: $(MNT_OBJ) bin/.dummy $(LIBSMBCLIENT)
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(MNT_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS)
+	@$(CC) $(FLAGS) -o $@ $(MNT_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(LIBSMB_OPTS)
 
-bin/smbumount@EXEEXT@: $(UMOUNT_OBJ) bin/.dummy
+bin/smbumount@EXEEXT@: $(UMOUNT_OBJ) bin/.dummy $(LIBSMBCLIENT)
 	@echo Linking $@
-	@$(CC) $(FLAGS) -o $@ $(UMOUNT_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS)
+	@$(CC) $(FLAGS) -o $@ $(UMOUNT_OBJ) $(DYNEXP) $(LDFLAGS) $(LIBS) $(LIBSMB_OPTS)
 
 bin/testparm@EXEEXT@: $(TESTPARM_OBJ) @BUILD_POPT@ bin/.dummy
 	@echo Linking $@
@@ -890,10 +890,10 @@ bin/smbtree@EXEEXT@: $(SMBTREE_OBJ) @BUILD_POPT@ bin/.dummy
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SMBTREE_OBJ) $(LDFLAGS) $(DYNEXP) $(LIBS) @POPTLIBS@ $(KRB5LIBS) $(LDAP_LIBS) 
 
-bin/smbpasswd@EXEEXT@: $(SMBPASSWD_OBJ) bin/.dummy
+bin/smbpasswd@EXEEXT@: $(SMBPASSWD_OBJ) bin/.dummy $(LIBSMBCLIENT)
 	@echo Linking $@
 	@$(CC) $(FLAGS) -o $@ $(SMBPASSWD_OBJ) $(LDFLAGS) $(PASSDB_LIBS) \
-		$(DYNEXP) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS) 
+		$(DYNEXP) $(LIBS) $(KRB5LIBS) $(LDAP_LIBS) $(LIBSMB_OPTS)
 
 bin/pdbedit@EXEEXT@: $(PDBEDIT_OBJ) @BUILD_POPT@ bin/.dummy
 	@echo Linking $@

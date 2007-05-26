@@ -35,7 +35,7 @@
  * from: @(#)ruserpass.c	5.3 (Berkeley) 3/1/91
  */
 char ruserpass_rcsid[] = 
-  "$Id$";
+  "$Id: ruserpass.c,v 1.1 2000/07/18 01:47:08 gerg Exp $";
 
 #include <stdio.h>
 #include <stdlib.h>

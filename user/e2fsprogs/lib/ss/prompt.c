@@ -1,7 +1,7 @@
 /*
  * prompt.c: Routines for retrieving and setting a prompt.
  *
- * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/ss/prompt.c,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $
+ * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/ss/prompt.c,v 1.1.1.2 2006/09/06 01:35:43 steveb Exp $
  * $Locker:  $
  *
  * Copyright 1987, 1988 by MIT Student Information Processing Board
@@ -19,23 +19,12 @@
 #include <stdio.h>
 #include "ss_internal.h"
 
-#ifdef __STDC__
 void ss_set_prompt(int sci_idx, char *new_prompt)
-#else
-void ss_set_prompt(sci_idx, new_prompt)
-     int sci_idx;
-     char *new_prompt;
-#endif
 {
      ss_info(sci_idx)->prompt = new_prompt;
 }
 
-#ifdef __STDC__
 char *ss_get_prompt(int sci_idx)
-#else
-char *ss_get_prompt(sci_idx)
-     int sci_idx;
-#endif
 {
      return(ss_info(sci_idx)->prompt);
 }

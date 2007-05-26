@@ -31,11 +31,11 @@
  */
 errcode_t ext2fs_read_bb_FILE2(ext2_filsys fs, FILE *f, 
 			       ext2_badblocks_list *bb_list,
-			       void *private,
+			       void *priv_data,
 			       void (*invalid)(ext2_filsys fs,
 					       blk_t blk,
 					       char *badstr,
-					       void *private))
+					       void *priv_data))
 {
 	errcode_t	retval;
 	blk_t		blockno;
@@ -61,7 +61,7 @@ errcode_t ext2fs_read_bb_FILE2(ext2_filsys fs, FILE *f,
 		    ((blockno < fs->super->s_first_data_block) ||
 		    (blockno >= fs->super->s_blocks_count))) {
 			if (invalid)
-				(invalid)(fs, blockno, buf, private);
+				(invalid)(fs, blockno, buf, priv_data);
 			continue;
 		}
 		retval = ext2fs_badblocks_list_add(*bb_list, blockno);
@@ -71,14 +71,19 @@ errcode_t ext2fs_read_bb_FILE2(ext2_filsys fs, FILE *f,
 	return 0;
 }
 
-static void call_compat_invalid(ext2_filsys fs, blk_t blk,
-				char *badstr, void *private)
-{
+struct compat_struct {
 	void (*invalid)(ext2_filsys, blk_t);
+};
 
-	invalid = (void (*)(ext2_filsys, blk_t)) private;
-	if (invalid)
-		invalid(fs, blk);
+static void call_compat_invalid(ext2_filsys fs, blk_t blk,
+				char *badstr EXT2FS_ATTR((unused)), 
+				void *priv_data)
+{
+	struct compat_struct *st;
+
+	st = (struct compat_struct *) priv_data;
+	if (st->invalid)
+		(st->invalid)(fs, blk);
 }
 
 
@@ -89,7 +94,11 @@ errcode_t ext2fs_read_bb_FILE(ext2_filsys fs, FILE *f,
 			      ext2_badblocks_list *bb_list,
 			      void (*invalid)(ext2_filsys fs, blk_t blk))
 {
-	return ext2fs_read_bb_FILE2(fs, f, bb_list, (void *) invalid,
+	struct compat_struct st;
+
+	st.invalid = invalid;
+
+	return ext2fs_read_bb_FILE2(fs, f, bb_list, &st,
 				    call_compat_invalid);
 }
 

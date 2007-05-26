@@ -14,18 +14,18 @@
 /*
  * Badblocks list
  */
-struct ext2_struct_badblocks_list {
+struct ext2_struct_u32_list {
 	int	magic;
 	int	num;
 	int	size;
-	blk_t	*list;
+	__u32	*list;
 	int	badblocks_flags;
 };
 
-struct ext2_struct_badblocks_iterate {
-	int		magic;
-	badblocks_list	bb;
-	int		ptr;
+struct ext2_struct_u32_iterate {
+	int			magic;
+	ext2_u32_list		bb;
+	int			ptr;
 };
 
 
@@ -48,18 +48,13 @@ struct dir_context {
 	ext2_ino_t		dir;
 	int		flags;
 	char		*buf;
-	int (*func)(struct ext2_dir_entry *dirent,
+	int (*func)(ext2_ino_t	dir,
+		    int	entry,
+		    struct ext2_dir_entry *dirent,
 		    int	offset,
 		    int	blocksize,
 		    char	*buf,
 		    void	*priv_data);
-	int (*func2)(ext2_ino_t	dir,
-		     int	entry,
-		     struct ext2_dir_entry *dirent,
-		     int	offset,
-		     int	blocksize,
-		     char	*buf,
-		     void	*priv_data);
 	void		*priv_data;
 	errcode_t	errcode;
 };

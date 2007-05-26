@@ -23,7 +23,6 @@
 #include <termios.h>
 #endif
 #include <stdio.h>
-#define read_a_char()	getchar()
 #endif
 
 #ifdef HAVE_MALLOC_H
@@ -31,6 +30,8 @@
 #endif
 
 #include "e2fsck.h"
+
+extern e2fsck_t e2fsck_global_ctx;   /* Try your very best not to use this! */
 
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -69,6 +70,60 @@ void *e2fsck_allocate_memory(e2fsck_t ctx, unsigned int size,
 	return ret;
 }
 
+char *string_copy(e2fsck_t ctx EXT2FS_ATTR((unused)), 
+		  const char *str, int len)
+{
+	char	*ret;
+	
+	if (!str)
+		return NULL;
+	if (!len)
+		len = strlen(str);
+	ret = malloc(len+1);
+	if (ret) {
+		strncpy(ret, str, len);
+		ret[len] = 0;
+	}
+	return ret;
+}
+
+#ifndef HAVE_STRNLEN
+/*
+ * Incredibly, libc5 doesn't appear to have strnlen.  So we have to
+ * provide our own.
+ */
+int e2fsck_strnlen(const char * s, int count)
+{
+	const char *cp = s;
+
+	while (count-- && *cp)
+		cp++;
+	return cp - s;
+}
+#endif
+
+#ifndef HAVE_CONIO_H
+static int read_a_char(void)
+{
+	char	c;
+	int	r;
+	int	fail = 0;
+
+	while(1) {
+		if (e2fsck_global_ctx &&
+		    (e2fsck_global_ctx->flags & E2F_FLAG_CANCEL)) {
+			return 3;
+		}
+		r = read(0, &c, 1);
+		if (r == 1)
+			return c;
+		if (fail++ > 100)
+			break;
+	}
+	return EOF;
+}
+#endif
+
 int ask_yn(const char * string, int def)
 {
 	int		c;
@@ -88,9 +143,9 @@ int ask_yn(const char * string, int def)
 #endif
 
 	if (def == 1)
-		defstr = _("<y>");
+		defstr = _(_("<y>"));
 	else if (def == 0)
-		defstr = _("<n>");
+		defstr = _(_("<n>"));
 	else
 		defstr = _(" (y/n)");
 	printf("%s%s? ", string, defstr);
@@ -98,6 +153,18 @@ int ask_yn(const char * string, int def)
 		fflush (stdout);
 		if ((c = read_a_char()) == EOF)
 			break;
+		if (c == 3) {
+#ifdef HAVE_TERMIOS_H
+			tcsetattr (0, TCSANOW, &termios);
+#endif
+			if (e2fsck_global_ctx &&
+			    e2fsck_global_ctx->flags & E2F_FLAG_SETJMP_OK) {
+				puts("\n");
+				longjmp(e2fsck_global_ctx->abort_loc, 1);
+			}
+			puts(_("cancelled!\n"));
+			return 0;
+		}
 		if (strchr(short_yes, (char) c)) {
 			def = 1;
 			break;
@@ -110,9 +177,9 @@ int ask_yn(const char * string, int def)
 			break;
 	}
 	if (def)
-		printf ("yes\n\n");
+		puts(_("yes\n"));
 	else
-		printf ("no\n\n");
+		puts (_("no\n"));
 #ifdef HAVE_TERMIOS_H
 	tcsetattr (0, TCSANOW, &termios);
 #endif
@@ -328,6 +395,20 @@ void e2fsck_read_inode(e2fsck_t ctx, unsigned long ino,
 	}
 }
 
+extern void e2fsck_write_inode_full(e2fsck_t ctx, unsigned long ino,
+			       struct ext2_inode * inode, int bufsize,
+			       const char *proc)
+{
+	int retval;
+
+	retval = ext2fs_write_inode_full(ctx->fs, ino, inode, bufsize);
+	if (retval) {
+		com_err("ext2fs_write_inode", retval,
+			_("while writing inode %ld in %s"), ino, proc);
+		fatal_error(ctx, 0);
+	}
+}
+
 extern void e2fsck_write_inode(e2fsck_t ctx, unsigned long ino,
 			       struct ext2_inode * inode, const char *proc)
 {
@@ -352,11 +433,76 @@ void mtrace_print(char *mesg)
 }
 #endif
 
-blk_t get_backup_sb(ext2_filsys fs)
+blk_t get_backup_sb(e2fsck_t ctx, ext2_filsys fs, const char *name,
+		   io_manager manager)
 {
-	if (!fs || !fs->super)
-		return 8193;
-	return fs->super->s_blocks_per_group + fs->super->s_first_data_block;
+	struct ext2_super_block *sb;
+	io_channel		io = NULL;
+	void			*buf = NULL;
+	int			blocksize;
+	blk_t			superblock, ret_sb = 8193;
+	
+	if (fs && fs->super) {
+		ret_sb = (fs->super->s_blocks_per_group +
+			  fs->super->s_first_data_block);
+		if (ctx) {
+			ctx->superblock = ret_sb;
+			ctx->blocksize = fs->blocksize;
+		}
+		return ret_sb;
+	}
+		
+	if (ctx) {
+		if (ctx->blocksize) {
+			ret_sb = ctx->blocksize * 8;
+			if (ctx->blocksize == 1024)
+				ret_sb++;
+			ctx->superblock = ret_sb;
+			return ret_sb;
+		}
+		ctx->superblock = ret_sb;
+		ctx->blocksize = 1024;
+	}
+
+	if (!name || !manager)
+		goto cleanup;
+
+	if (manager->open(name, 0, &io) != 0)
+		goto cleanup;
+
+	if (ext2fs_get_mem(SUPERBLOCK_SIZE, &buf))
+		goto cleanup;
+	sb = (struct ext2_super_block *) buf;
+
+	for (blocksize = EXT2_MIN_BLOCK_SIZE;
+	     blocksize <= EXT2_MAX_BLOCK_SIZE ; blocksize *= 2) {
+		superblock = blocksize*8;
+		if (blocksize == 1024)
+			superblock++;
+		io_channel_set_blksize(io, blocksize);
+		if (io_channel_read_blk(io, superblock,
+					-SUPERBLOCK_SIZE, buf))
+			continue;
+#ifdef EXT2FS_ENABLE_SWAPFS
+		if (sb->s_magic == ext2fs_swab16(EXT2_SUPER_MAGIC))
+			ext2fs_swap_super(sb);
+#endif
+		if (sb->s_magic == EXT2_SUPER_MAGIC) {
+			ret_sb = superblock;
+			if (ctx) {
+				ctx->superblock = superblock;
+				ctx->blocksize = blocksize;
+			}
+			break;
+		}
+	}
+
+cleanup:
+	if (io)
+		io_channel_close(io);
+	if (buf)
+		ext2fs_free_mem(&buf);
+	return (ret_sb);
 }
 
 /*

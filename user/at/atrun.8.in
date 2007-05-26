@@ -17,8 +17,3 @@ with the
 .I -s
 option, and is provided for backward compatibility with older
 installations.
-.SH SEE ALSO
-.BR at (1),
-.BR atd (8).
-.SH AUTHOR
-At was mostly written by Thomas Koenig, ig25@rz.uni-karlsruhe.de.

@@ -1,14 +1,1240 @@
+2006-05-21  Theodore Tso  <tytso@mit.edu>
+
+	* openfs.c (ext2fs_open2): Fix type warning problem with sizeof()
+
+2006-05-12  Theodore Tso  <tytso@mit.edu>
+
+	* alloc_tables.c (ext2fs_allocate_group_table): When allocating
+		space for the RAID filesystems with the stride parameter,
+		place each portion of the group's inode table right up
+		after the superblock (if present) in order to minimize
+		fragmentation of the freespace.
+
+2006-05-08  Theodore Tso  <tytso@mit.edu>
+
+	* rw_bitmaps.c (write_bitmaps, read_bitmaps): Added support for
+		lazy blockgroups.  If a block group has flags indicating
+		that its block or inode data structures have not been
+		initialized, skip reading or writing that portion of the
+		bitmap.
+
+	* inode.c (ext2fs_open_inode_scan, ext2fs_read_inode_full): When
+		scanning a filesystem with lazy blockgroups, skip
+		uninitialized portions of the inode table when iterating
+		over the block group.
+
+	* swapfs.c (ext2fs_swap_group_desc): Byte swap the bg_flags field.
+
+	* ext2fs.h: Define the a new internal flag, EXT2_SF_DO_LAZY, so
+		that the inode interator knows compat_lazy_bg feature is
+		enabled.  Declare that this version of e2fsprogs supports
+		the EXT2_FEATURE_COMPAY_LAZY_BG feature.
+
+	* ext2_fs.h (struct ext2_group_desc): Use the bg_pad field for
+		bg_flags, and define the flags EXT2_BG_INODE_UNINIT and
+		EXT2_BG_BLOCK_UNINIT.  These flags are only honored if
+		EXT2_FEATURE_COMPAT_LAZY_BG feature is enabled (also
+		added).
+
+2006-04-23  Theodore Ts'o  <tytso@mit.edu>
+
+	* rw_bitmaps.c (write_bitmaps, ext2fs_write_inode_bitmap,
+		ext2fs_write_block_bitmap, ext2fs_write_bitmaps): Reduce
+		disk seeks by writing the inode and block bitmaps in an
+		interleaved fashion.
+
+2006-04-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_types.h.in, Makefile.in, tst_types.c: Use the asm_types.h
+		file to define the __[us]{8,16,32,64} types.  Add a
+		tst_types program to make sure the types are correct.
+
+2006-04-04  Theodore Ts'o  <tytso@mit.edu>
+
+	* mkjournal.c (ext2fs_add_journal_inode): If the filesystem is
+		opened in exclusive mode, then device will be busy by
+		definition, so don't return -EBUSY.  This caused mke2fs -j
+		to fail on the 1.39-WIP (29-Mar-2006) release.  (Addresses
+		Debian Bug: #360652)
+
+2006-03-29  Theodore Ts'o  <tytso@mit.edu>
+
+	* bitops.h (ext2fs_set_bit, ext2fs_clear_bit): Fix the constraints
+		so that GCC knows that the ext2fs_set/clear_bit reads and
+		writes the data.
+
+2006-03-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Check the bitfield operations much more carefully,
+		and arrange to have tst_bitops run from "make check"
+
+	* tst_bitops.c: Enahce tst_bitops program so that it is much more
+		thorough in testing bit optations.
+	
+	* bitops.h: Add new functions ext2fs_fast_set_bit() and
+		ext2fs_fast_clear_bit() and make the x86 functions 32-bit
+		clear.  Change the fast inode and block mark/unmark
+		functions to use ext2fs_fast_set/get_bit()
+
+2006-03-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2fs.h (EXT2_FLAG_EXCLUSIVE): Define new flag which requests
+		that the io_channel be opened in exclusive mode.
+
+	* openfs.c (ext2fs_open2), initialize.c (ext2fs_initialize): If
+		EXT2_FLAG_EXCLUSIVE is passed to ext2fs_open or
+		ext2fs_initialize, then pass IO_FLAG_EXCLUSIVE to the
+		io_channel open routine.
+
+	* ext2_io.h (IO_FLAG_EXCLUSIVE), unix_io.c (unix_open): Add new
+		io_channel open flag, IO_FLAG_EXCLUSIVE, which requests
+		that the device be opened in exclusive (O_EXCL) mode.
+
+	* ext2fs.h: Fix documentation so that BLOCK_FLAG_TRAVERSE is
+		BLOCK_FLAG_DEPTH_TRAVERSE.  (Addresses Debian Bug #351268)
+
+2006-03-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* initialize.c (calc_reserved_gdt_blocks): Fix a signed vs
+		unsigned problem which caused mke2fs -O resize_inode to
+		bomb out on large filesystems.  (Addresses Debian Bug
+		#346580)
+
+	* ext2_fs.h (EXT2_IOC_GETVERSION_NEW, EXT2_IOC_SETVERSION_NEW,
+		EXT2_IOC_GROUP_EXTEND, EXT2_IOC_GROUP_ADD): Add ioctl
+		definitions
+
+2005-12-10  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Add a dependency to make sure that the
+		subdirectories are created before creating all of the
+		object files.
+
+2005-12-10  Theodore Ts'o  <tytso@mit.edu>
+
+	* res_gdt.c (ext2fs_create_resize_inode): Fix type-punning warning.
+
+	* read_bb_file.c (ext2fs_read_bb_FILE): Use a data structure
+		instead of stuffing a function pointer dirctly into a void
+		pointer, since that isn't portable.
+
+	* mkjournal.c (ext2fs_add_journal_inode): Fix possiblely
+		uninitialized use of variable warning.
+
+	* initialize.c (calc_reserved_gdt_blocks): Fix signed vs. unsigned
+		type complaint.
+
+	* ext2fs.h: Make the type of the 'now' field to be time_t to avoid
+		gcc -Wall complaints.
+
+	* bitops.h (ext2fs_find_first_bit_set): Fix signed vs unsigned
+		type error.
+
+	* tst_badblocks.c (file_test_invalid): Add test which confirms
+		proper detection of invalid block numbers in
+		ext2fs_read_bb_FILE().
+
+2005-11-20  Theodore Ts'o  <tytso@mit.edu>
+
+	* bitops.h: We no longer have the sparc assembly code in the
+		header file any more, so we shouldn't set
+		_EXT2_HAVE_AS_BITOPS_.  This would break compiles on the
+		sparc architectures when using gcc.
+	
+2005-11-13  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2fs.h: Add #include <string.h> since the inline functions use
+		memcpy().  (Addresses Sourceforge Bug #1251062)
+
+2005-11-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* Fix a bug when writing an external journal device on an big
+		endian machine (such as a S/390), where when the number of
+		block groups is zero, we never end up writing out the
+		primary superblock at all.
+
+2005-09-24  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2fs.h, bb_inode.c, closefs.c, initialize.c, mkdir.c,
+		mkjournal.c, res_gdt.c:  If fs->now is non-zero, use that
+		as the time instead of the system time when setting
+		various filesystem fields (last modified time, last write
+		time, etc.)
+
+2005-08-28  Matthias Andree <matthias.andree@gmx.de>
+
+	* Fix compiler warnings about missing memcpy prototypes.
+
+2005-07-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* test_io.c (safe_getenv): Pass in zero to the unusued arguments
+		of prctl(PR_GET_DUMPABLE) to avoid false positives from
+		valgrind.
+
+2005-07-19  Theodore Ts'o  <tytso@mit.edu>
+
+	* mkjournal.c (ext2fs_add_journal_inode): Check for the case where
+		the filesystem is apparently not mounted, but the device
+		is still busy.  This can happen when the luser doesn't
+		bother to mount /proc and has a bogus /etc/mtab, but still
+		wants to mount the filesystem before using tune2fs(?!?).
+		Add a safety check to save him from his own stupidity, at
+		least on 2.6 kernels.  (Addresses Debian Bug #319002)
+
+2005-07-09  Andreas Dilger <adilger@clusterfs.com>
+
+	* getsize.c (ext2fs_get_device_size): Use fstat/fstat64 to get
+		size of regular files.  Fix file descriptor leaks in error
+		paths.
+
+2006-06-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.38
+
+2005-06-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* bitops.h, bitops.c (ext2fs_set_bit, ext2fs_clear_bit,
+		ext2fs_test_bit): Change these function prototypes to be
+		unsigned int's.  Negative bit numbers were never allowed
+		(and never made any sense), so this should be a safe
+		change.  This is needed to allow safe use of block numbers
+		greater than or equal to 2**31.
+
+2005-06-27  Stephen Tweedie  <sct@redhat.com>
+
+	* ext2fs.h (ext2fs_resize_mem): Fix C99 strict type aliasing
+		problems.  Addresses Red Hat Bugzilla #161183.
+
+2005-06-19  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsectsize.c (BLKSSZGET): Clean up test for when to manually
+		define the BLKSSZGET ioctl.
+
+2005-05-29  Theodore Ts'o  <tytso@mit.edu>
+
+	* ismounted.c (ext2fs_check_mount_point): Add test to see if the
+		device appears to be busy; this only works on Linux 2.6+
+		systems, but provides some additional bullet-proofing in
+		those cases.
+
+2005-05-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* test_io.c (safe_getenv): Fix bug so it would fetch the right
+		environment variable.
+
+2005-04-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* inode.c (ext2fs_write_new_inode), 
+		ind_block.c (ext2fs_read_ind_block): Add missing return
+		value in error return case.  (Otherwise we return garbage
+		instead of the error code.)
+
+2005-03-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* test_io.c (test_open): If called by a setuid/setgid or an
+		otherwise privileged program, be paranoid and ignore the
+		TEST_IO_* environment variables.
+
+2005-03-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.37
+
+2005-03-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_ext_attr.h (EXT2_XATTR_LEN, EXT2_XATTR_SIZE): Add new
+		convenience cpp macros.
+
+2005-03-20  Theodore Ts'o  <tytso@mit.edu>
+
+	* mkdir.c (ext2fs_mkdir): Call ext2fs_write_new_inode() instead of
+		ext2fs_write_inode().
+
+	* inode.c (ext2fs_write_new_inode): New function which should be
+		used when the caller is writing an inode for the first
+		time.  It makes sure that the extra portion of the large
+		inode is initialized properly.
+
+2005-03-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Fix clean target to remove tst_getsectsize.
+
+	* getsize.c (ext2fs_get_device_size): Check to see if the number
+		of blocks is greater than 2**32 when we are doing a binary
+		search to determine the device size.  Thanks to Stephen
+		Tweedie for the patch.
+	
+2006-02-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.36
+
+2005-02-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Remove ext2fs.pc on a "make distclean"
+
+2005-02-04  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in (clean): Remove tst_getsize when doing a make clean
+
+2005-02-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* bitops.c: Make the generic functions more efficient.
+
+	* bitops.h: Drop SPARC assembly code. It's less efficient than GCC
+		3.4 compiled code and also triggers nasty compiler
+		warnings on sparc64.  Thanks to Matthias Andree for his
+		analysis and suggestion.
+	
+2005-01-27  Theodore Ts'o  <tytso@mit.edu>
+
+	* res_gdt.c (ext2fs_create_resize_inode): Create the resize inode
+		even if s_reserved_gdt_blocks is zero.
+
+2005-01-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2fs.pc.in: Add pkg-config files.
+
+2005-01-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2fs.h: Add definition of struct ext2_inode_large
+
+	* ext2_fs.h: Add new function prototypes
+
+	* ext_attr.c (ext2fs_read_ext_attr, ext2fs_write_ext_attr): The
+		ext2fs_swap_ext_attr() has been moved to swapfs.c, and
+		given a new argument, has_header.
+
+	* swapfs.c (ext2fs_swap_ext_attr): Moved from ext_attr.c, and
+		takes an argument which controls whether or not there is
+		an EA header which needs to be byteswaped.
+		(ext2fs_swap_inode_full): New function which byte-swaps
+		the EA in inode.
+
+	* inode.c (ext2fs_get_next_inode_full, ext2fs_read_inode_full,
+		ext2fs_write_inode_full): New functions, originally from
+		Alex Tomas, but which needed to be substantially fixed so
+		that the tests wouldn't cause major stack overwrite bugs
+		in byte-swapping is enabled.
+	
+2005-01-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Fix the kernel compile-time echo commands to be
+		consistent and portable
+
+2005-01-07  Theodore Ts'o  <tytso@mit.edu>
+
+	* unlink.c (ext2fs_unlink): If both the name and the inode number
+		are unspecified, then return an error, so that we don't do
+		something surprising such as unconditionally deleting the
+		first directory entry.
+		(unlink_proc): Delete directory entries by coalescing it
+		with the previous entry, to avoid directory fragmentation.
+
+2005-01-06  Theodore Ts'o  <tytso@mit.edu>
+
+	* version.c (ext2fs_parse_version_string): Change parsing
+		algorithm so that version strings such as 1.36-rc1 returns
+		a non-surprising result (i.e., 136, and not 1361).
+
+2005-01-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* block.c (block_iterate_ind, block_iterate_dind,
+		block_iterate_tind): Move the code which byte swaps and
+		read/writes indirect blocks to ext2fs_{read,write}_ind_block.
+		This saves 400 bytes, and we need them for the
+		resize_inode handling. 
+
+	* ind_block.c (ext2fs_read_ind_block, ext2fs_write_ind_block): New
+		functions.
+
+	* res_gdt.c (ext2fs_create_resize_inode): Use 
+		ext2fs_{read,write}_ind_block so that byte swapping is
+		handled on big-endian systems.
+
+	* dupfs.c (ext2fs_dup_handle): Make sure the new filesystem handle
+		has its own copy of the orig_super data structure.  (This
+		is a better way of fixing a double-free problem in
+		resize2fs which Fedora attempted to fix in 
+		e2fsprogs-1.35-double_free.patch.   Addresses Red Hat
+		Bugzilla #132707.)
+	
+2004-12-23  Theodore Ts'o  <tytso@mit.edu>
+
+	* inode.c (ext2fs_flush_icache): When flushing the icache, clear
+		the last-read block information as well.
+
+	* ext2fs.h (BMAP_SET), bmap.c (ext2fs_bmap): Add support for new
+		flag, BMAP_SET, which allows the caller to set a
+		particular logical->physical block mapping.
+
+	* ext2_err.et.in (EXT2_ET_SET_BMAP_NO_IND): New error code
+
+	* initialize.c (calc_reserved_gdt_blocks): #ifdef out all
+		debugging printf statements.
+	
+	* res_gdt.c (ext2fs_create_resize_inode): Return
+		EXT2_ET_RESIZE_INODE_CORRUPT if the resize inode is not
+		what we expect.  #ifdef out all debugging printf
+		statements.
+
+	* ext2_err.et.in (EXT2_ET_RESIZE_INODE_CORRUPT): Add new error code.
+
+2004-12-22  Theodore Ts'o  <tytso@mit.edu>
+
+	* swapfs.c (ext2fs_swap_super): Byteswap the reserved_gdt_blocks
+		superblocks field.
+
+2004-12-15  Theodore Ts'o  <tytso@mit.edu>
+
+	* sparse.c (ext2fs_list_backups, ext2fs_bg_has_super),
+		res_gdt.c (list_backups), closefs.c (ext2fs_bg_has_super),
+		ext2fs.h: Move ext2fs_list_backups() to res_gdt.c, and
+		ext2fs_bg_has_super() back to closefs.c.  There's no
+		reason for the new file, since list_backups() isn't being
+		used by any other functions, and can be made static, and
+		all users of the ext2fs filesystem will have to call
+		ext2fs_close() anyway.
+
+2004-12-15  Theodore Ts'o  <tytso@mit.edu>
+
+	* Applied resize inode patch from Andreas Dilger
+
+	* res_gdt.c (ext2fs_create_resize_inode): New function that
+		creates the resize inode.
+
+	* initialize.c (ext2fs_initialize): Reserve space for the resize
+		inode.
+
+	* ext2fs.h (EXT2_LIB_FEATURE_COMPAT_SUPP): Add
+		EXT2_FEATURE_COMPAT_RESIZE_INODE to the list of supported
+		capabilities.
+		Add function prototypes for res_gdt.c and sparse.c.
+
+	* closefs.c (ext2fs_super_and_bgd_loc): Take the reserved blocks
+		into account when calculating the number of overhead
+		blocks.
+
+	* closefs.c (ext2fs_bg_has_super, test_root), sparse.c: Move these
+		functions to the new file sparse.c
+
+	* alloc_sb.c (ext2fs_reserve_super_and_bgd): Reserve the blocks
+		saved in the resize inode as being in use.
+
+	* ext2_err.et.in (EXT2_ET_RES_GDT_BLOCKS): Add new error code.
+
+	* Makefile.in (srcdir): Add res_gdt.c and sparse.c to the ext2fs
+		library.
+
+2004-12-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Use Linux-kernel-style makefile output for "make
+		install"
+
+	* Makefile.in (installdirs): Use $(MKINSTALLDIRS) macro
+		Update dependencies.
+
+2004-11-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* unix_io.c (unix_set_option): Add support for the offset option.
+
+	* test_io.c (test_set_option): Add support for the set_option method.
+
+	* ext2_io.h: Add new io_channel method, set_option(), and change
+		io_channel_write_byte() from a macro to a library function.
+
+	* ext2fs.h, openfs.c(ext2fs_open2): New version of ext2fs_open
+		which adds a new parameter, io_options.
+		(ext2fs_open): If there is a question mark in the
+		filename, and no io_options are specified, assumed that
+		the text following the question mark are io_options.
+	
+	* io_manager.c, Makefile.in: New source file which contains
+		high-level functions for the io_channel layer.
+
+	* freefs.c (ext2fs_free): Make sure we don't free the io_channel
+		if image_io is NULL.
+
+	* Makefile.in: Use Linux-kernel-style makefile output to make it
+		easier to see errors/warnings.
+
+2004-11-29  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_fs.h (EXT2_EXTENTS_FL, EXT3_FEATURE_INCOMPAT_EXTENTS, 
+		EXT2_MAX_BLOCK_LOG_SIZE): Add definition for extent
+		feature and inode flag.  Change maximum allowable block
+		size to be 65536.
+
+2004-10-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsize.c (ext2fs_get_device_size): Add support for Windows
+		9x/NT under Cygwin.  Thanks to Sam Robb
+		(samrobb@users.sourceforge.net) for pointing this and the
+		suggested code patch.
+
+2004-09-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsize.c: Clean up header #include's.
+
+	* llseek.c (ext2fs_llseek): On non-linux systems, use lseek64() if
+		it is present.  (Addresses Debian bug #269044)
+
+2004-07-28  Theodore Ts'o  <tytso@mit.edu>
+
+	* rw_bitmaps.c (read_bitmaps), block.c (block_iterate_ind,
+		block_iterate_dind, block_iterate_tind), inode.c
+		(ext2fs_read_inode): If EXT2_FLAG_IMAGE_FILE is set, so
+		read the metadata from fs->image_io instead of fs->io.
+
+	* initialize.c (ext2fs_initialize), openfs.c (ext2fs_open):
+		Initialize fs->image_io to be the same as fs->io.
+	
+	* ext2_err.et.in (EXT2_ET_NOT_IMAGE_FILE): Add new error code. 
+
+	* openfs.c (ext2fs_get_data_io, ext2fs_set_data_io,
+		ext2fs_rewrite_to_io): New functions that allow
+		applications to manipulate fs->image_io and fs->io safely.
+
+	* freefs.c (ext2fs_free): If fs->image_io is different fs->io,
+		then call io_channel_close on fs->image_io.
+
+	* ext2fs.h: Add image_io element to the ext2_filsys data
+		structure.  Add ext2fs_get_data_io() ext2fs_set_data_io(),
+		and ext2fs_rewrite_to_io() prototypes.
+
+2004-05-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* closefs.c (ext2fs_flush): Make sure the master superblock is
+		written last, and only after other I/O has been flushed to
+		disk.  Thanks to Junfeng Yang from the Stanford
+		Metacompilation group for pointing a potential ordering
+		constraint problem if we don't write things out in the
+		right order.
+
+	* test_io.c: Implement the ability to abort after n reads or
+		writes to a particular block.  The block is specified by
+		TEST_IO_BLOCK environment variable, and the read/write
+		count by the TEST_IO_READ_ABORT and TEST_IO_WRITE_ABORT
+		environment variables.  The block data is now only dumped
+		if the 0x10 bit is set in TEST_IO_FLAGS.
+
+2004-04-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_types.h.in: Remove check for _UUID_TYPES since uuid_types.h
+		is no longer used.
+
+2004-03-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsize.c (ext2fs_get_device_size): Only use the BLKGETSIZE64
+		ioctl on Linux 2.6 since it is unreliable in Linux 2.4.
+		(Addresses Debian Bug #236528).  Fix typo in the ioctl
+		used for Mac OS X.
+
+2004-03-02  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsize.c (ext2fs_get_device_size): Update getsize functions to
+		use Apple Darwin and Linux 64-bit ioctl's
+
+2004-02-29  Brian Bergstrand  <brian@bergstrand.org>
+
+	* Makefile.in: Use $(BSDLIB_PIC_FLAG) to determine whether to use
+		-fpic or -fPIC
+
+2004-02-28  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.35
+
+2004-02-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2fs.h (ext2fs_resize_mem): Fix C++ problem.  (Addresses Red
+		Hat Bugzilla #112448; thanks Thomas Woerner from Red Hat.)
+
+2004-02-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* namei.c (follow_link): Correctly deal with symlinks that have
+		extended attribute information.  (Addresses Debian Bug
+		#232328)
+
+2004-01-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_fs.h: Reserve an extra 4 bytes for the journal backup,
+		which we're using due to a typo in the e2fsck code.  (Oops)
+
+	* swapfs.c (ext2fs_swap_inode): Fix byte swap bug which causes SE
+		Linux created symlinks with mandatory attributes to fail
+		to be properly handled on big endian systems.  (Addresses
+		Debian Bug #228723).
+		(ext2fs_swap_super): Byte swap some new fields in the
+		superblock, including the journal backup fields.
+
+2003-12-02  Theodore Ts'o  <tytso@mit.edu>
+
+	* alloc.c, bb_inode.c, bitops.c, block.c, check_desc.c, closefs.c,
+		dir_iterate.c, dirblock.c, expanddir.c, ext2fs.h,
+		get_pathname.c, icount.c, imager.c, initalize.c, inode.c,
+		lookup.c, openfs.c, read_bb.c, read_bb_file.c,
+		rw_bitmaps.c, unix_io.c, unlink.c, write_bb_file.c: Fix
+		gcc -Wall complaints.  Mainly marking variables as being
+		unsued, and catching signed vs. unsigned comparisons.
+
+2003-09-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* closefs.c (ext2fs_super_and_bgd_loc): New function which
+		centralizes the calculation of the superblock and block
+		group descriptors.
+		(ext2fs_flush): Use ext2fs_super_and_bgd_lock to figure
+		out where to write the superblock and block group
+		descriptors.
+
+	* alloc_sb.c (ext2fs_reserve_super_and_bgd): New function which
+		reserves space in the block bitmap using
+		ext2fs_super_and_bgd_loc.
+
+	* initialize.c (ext2fs_initialize): Use
+		ext2fs_reserve_super_and_bgd to initialize the block bitmap.
+
+2003-08-20  Theodore Ts'o  <tytso@mit.edu>
+
+	* inode_io.c (ext2fs_inode_io_intern2), ext2fs.h: Add new function
+		allows the caller to pass in the inode data structure.
+
+	* fileio.c (ext2fs_file_open2), ext2fs.h: Add new function which
+		allows the caller to pass in the inode to be used in the
+		file I/O.
+
+	* ext2_fs.h: Add a backup of the location of the journal inode
+		blocks to the superblock.
+
+	* mkjournal.c (write_journal_inode): Save the location of the
+		journal inode to the backup location in the superblock.
+
+2003-08-01  Philipp Thomas <pthomas@suse.de>
+
+	* alloc.c, badblocks.c, bb_inode.c, bitmaps.c, block.c, bmap.c,
+		bmove.c, brel_ma.c, closefs.c, dblist.c, dblist_dir.c,
+		dir_iterate.c, dirblock.c, dupfs.c, expanddir.c, ext2fs.h,
+		ext_attr.c, fileio.c, freefs.c, get_pathname.c, icount.c,
+		initialize.c, inode.c, inode_io.c, irel_ma.c, mkdir.c,
+		mkjournal.c, namei.c, newdir.c, openfs.c, rs_bitmap.c,
+		rw_bitmaps.c, test_io.c, unix_io.c: ext2fs_getmem(),
+		ext2fs_free_mem(), and ext2fs_resize_mem() all now take a
+		'void *' instead of a 'void **' in order to avoid pointer
+		aliasing problems with GCC 3.x.
+
+2003-07-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.34
+
+2003-07-06  Theodore Ts'o  <tytso@mit.edu>
+
+	* kernel-jbd.h, flushb.c: Fix gcc -Wall nitpicks (indented cpp
+		directives)
+
+	* ext2_types.h.in, initialize.c: Fix gcc -Wall nitpicks 
+		(don't use #elsif)
+
+	* ismounted.c: Fix gcc -Wall nitpicks (Don't use exit as a goto label)
+
+	* llseek.c: Fix gcc -Wall nitpicks (don't use #elsif)
+
+	* lookup.c, read_bb.c: Fix gcc -Wall nitpicks (indent
+		non-traditional #pragma)
+
+	* test_io.c: Fix gcc -Wall nitpicks (const/unsigned type issues)
+
+2003-06-24    <tytso@snap.thunk.org>
+
+	* badblocks.c, ext2fs.h (ext2fs_u32_list_find,
+		ext2fs_u32_list_test, ext2fs_u32_list_del,
+		ext2fs_badblocks_list_del): Add functions to delete a
+		block from the badblocks list.
+	* tst_badblocks.c: Add test cases for ext2fs_badblocks_list_del().
+
+2003-05-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsectsize.c (ext2fs_get_device_sectsize): New function which
+		returns the hardware sector size (if it is available).
+
+2003-05-13  Theodore Ts'o  <tytso@mit.edu>
+
+	* unix_io.c: Add #ifdef NO_IO_CACHE which disables all userspace
+		caching by the unix_io layer.  Not enabled, only for
+		debugging. 
+
+2003-05-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* test_io.c: Pay attention to the environment variables
+		TEST_IO_LOGFILE, TEST_IO_FLAGS, and TEST_IO_BLOCK to
+		determine whether or not we should log io activity, and to
+		where.
+
+2003-05-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* tst_badblocks.c (file_test): Use tmpfile() instead of mktemp().
+
+2003-04-29  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsize.c (ext2fs_get_device_size): Allow windows code to get
+		the resize for filesystems that are in regular files.
+
+2003-04-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.33
+
+2003-04-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Use DYLD_LIBRAY_PATH so that "make check" works on
+		Darwin systems when building with shared libraries.
+
+2003-04-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* unix_io.c: Use __CYGWIN__ instead of CYGWIN.
+
+2003-04-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsize.c: Add Cygwin/Windows version of ext2fs_get_device_size()
+
+2003-04-12  Theodore Ts'o  <tytso@mit.edu>
+
+	* unix_io.c (raw_read_blk): Add Cygwin support (the Windows block
+		device only accepts sector aligned read requests.
+
+	* ismounted.c (check_mntent_file): Deal with OS's that don't
+		define MNTOPT_RO.
+
+	* imager.c: If the OS doesn't define ssize_t, typedef it to int.
+
+2003-04-11  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_fs.h (EXT2_FEATURE_RO_COMPAT_BTREE_DIR): Comment out unused
+		feature flag
+
+2003-03-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Use the compile_et --build-tree option.
+
+2003-03-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* getsize.c: Add support for Apple Darwin's ioctl to get the hard
+		disk size.
+
+	* badblocks.c (ext2fs_u32_list_count), ext2fs.h: Add new function
+		which returns the number of entries in the list.
+
+2003-03-10  Theodore Ts'o  <tytso@mit.edu>
+
+	* fileio.c (ext2fs_file_lseek): Fix bug added when adding 64-bit
+		support; avoid null dereference when ret_pos is NULL.
+
+2003-03-06  Theodore Tso  <tytso@mit.edu>
+
+	* ext2_types.h.in: Don't redefine types if other e2fsprogs
+		*_types.h files have been included already.
+
+	* kernel-jbd.h: Use C99 variadic cpp macros if not using GCC.
+		(Older GCC's don't support the C99 variadic macros.)
+
+	* flushb.c (ext2fs_sync_device), 
+	ismounted.c (ext2fs_check_mount_point): Avoid GCC extension: 
+	#warning not supported by Solaris suncc
+
+	* ext2_ext_attr.h: Avoid GCC extension: 0 length arrays in
+		structure definition.  Not needed for now in 
+		ext2_ext_attr_entry.
+
+2003-01-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* dirhash.c: Fix gcc -Wall nits.
+
+2003-01-22  Theodore Ts'o  <tytso@mit.edu>
+
+	* unix_io.c (unix_write_blk): Fix up GCC -Wall nits.
+
+2003-01-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* fileio.c (ext2fs_file_read, ext2_file_lseek,
+		ext2_file_get_size): Add 64-bit support.
+
+	* ext2fs.h (EXT2_I_SIZE): Add macro which caluates a 64bit size
+		from i_size and i_size_high.
+
+2003-01-19  Theodore Ts'o  <tytso@mit.edu>
+
+	* initialize.c (ext2fs_initialize): If the user specifies a really
+		large number of inodes, then reduce the number of blocks
+		per group until we find a workable set of filesystem
+		parameters.
+
+	* ext2_err.et.in (EXT2_ET_TOO_MANY_INODES): Add new error code.
+
+2002-11-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.32
+
+2002-11-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* unix_io.c (find_cached_block, reuse_cache, unix_read_blk, 
+		unix_write_blk): Optimize routines so that we don't end up
+		searching the cache twice when a block isn't in the
+		cache.  If reads are larger than READ_DIRECT_SIZE, don't
+		let them go through the cache.
+
+	* unix_io.c (find_cached_block): Fixed bug which caused some clean
+		blocks to be erroneously marked as dirty, so they would
+		get written back to the disk before they are evicted from
+		the cache.  Harmless, but it slows down e2fsck
+		significantly.
+
+2002-11-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.31
+
+2002-11-08    <tytso@snap.thunk.org>
+
+	* Makefile.in (check): Skip trying to compile test_byteswap
+		if --disable-byteswaap had been given to configure.
+
+2002-11-07    <tytso@snap.thunk.org>
+
+	* closefs.c (write_bgdesc, ext2fs_flush): Fix bug in meta_bg
+		support when the MASTER_SB_ONLY flag is set.  Some of
+		the descriptor blocks that should have been written out
+		were getting skipped.
+
+2002-10-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.30
+
+2002-10-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_fs.h: Add support for a new inode flag, which is to be used
+		for indicating the top of directory hierarchies for the
+		Orlov block allocator.
+	
+	* ismounted.c (check_mntent, check_mntent_file): Add better
+		support for loopback-mounted filesystems.  Check /etc/mtab
+		if /proc/mounts doesn't turn up any mount flags, since
+		/etc/mtab has the loopback image filename, instead of
+		/dev/loop0.  Also, check based on st_dev and st_ino, so
+		that if a relative pathname or a pathnames using symbolic
+		links are used, we can detect the the filesystem correctly
+		in those cases.  (Addresses Sourceforge bug #619119)
+
+	* flushb.c (ext2fs_sync_device): If the BLKFLSBUF ioctl succeeds,
+		don't try the FDFLUSH ioctl that was required for floppies
+		with older kernels.  This avoids needless whining from the
+		MD device driver.  (Addresses Sourceforge bug #545832).
+
+	* openfs.c (ext2fs_open): Fix bug which caused us to pass the
+		wrong group_block to ext2fs_descriptor_block_loc if we're
+		using the backup superblock/block group descriptors.
+		(ext2fs_descriptor_block_loc): If we're using the backup
+		superblock descriptors, use the backup descriptor block in
+		the next block group.
+
+2002-10-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* alloc_tables.c (ext2fs_allocate_group_table): Allocate the inode
+		table so that it buts up against the bitmap blocks, to
+		avoid block fragmentation.
+
+	* closefs.c (write_bgdesc), initalize.c (ext2fs_initialize): Fix
+		bug; only allocate group descriptor blocks up to
+		s_first_meta_bg.
+
+2002-10-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_fs.h: Add a new superblock field, s_mkfs_time, so that we
+		know when a filesystem was created.  (Sometimes this can
+		be useful...)
+
+	* initialize.c (ext2fs_initialize): Set the s_mkfs_time field.
+
+2002-10-20  Theodore Ts'o  <tytso@valinux.com>
+
+	* ext2_fs.h (EXT3_DEFM_JMODE): Add new default mount options for
+		the journal data mode.
+
+	* closefs.c (ext2fs_flush, write_bgdesc), ext2_fs.h, ext2fs.h,
+	openfs.c (ext2fs_descriptor_block_loc, ext2fs_open), initialize.c
+	(ext2fs_initialize), swapfs.c (ext2fs_swap_super): Add support for
+	the meta_blockgroup filesystem format.
+
+2002-10-15    <tytso@snap.thunk.org>
+
+	* ext2_fs.h: Add new field in superblock for default mount options.
+
+2002-10-13  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2fs.h: Add #include of header files necessary for ext2fs.h to
+		compile cleanly.
+
+2002-10-02  Theodore Y. Ts'o  <tytso@mit.edu>
+
+	* rw_bitmaps.c (ext2fs_write_block_bitmap,
+		ext2fs_read_block_bitmap): Don't set the CHANGED bit just
+		because the bitmap is getting written to disk.  Make
+		ext2fs_swap_bitmap be a static function, since it's not
+		intended to be exported.
+
+	* swapfs.c (ext2fs_swap_super): Byte-swap the hash seed
+
+2001-09-24  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.29
+
+2001-08-31  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.28
+
+2002-08-31  Theodore Ts'o  <tytso@valinux.com>
+
+	* dblist.c (ext2fs_dblist_sort): New function which allows the
+		caller to pass in a special sort comparison function.
+
+2002-08-20  Theodore Ts'o  <tytso@mit.edu>
+
+	* valid_blk.c (ext2fs_inode_has_valid_blocks): Fix bug which
+		failed to accurately characterize non-standard slow
+		symlinks.  (Which don't appear in practice on real-life
+		systems, fortunately.)
+
+2002-08-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Remove inode_io.o from the standard object files,
+		and only build it if debugfs is enabled (it requires
+		fileio.o, which is only built if --disable-debugfs isn't
+		specified to configure).
+
+	* dirhash.c (ext2fs_dirhash): Change the MD4 hash in a backwards
+		incompatible way so that it is no longer
+		endian-dependent.  Add the TEA hash.  Allow the seed
+		parameter to be optional.
+
+	* ext2_fs.h: Remove the HALF_MD4_SEED and HALF_MD4_64 hashes.
+		These features are all now in the HALF_MD4 hash.  Add
+		definition for EXT2_HASH_TEA.
+
+	* ext2fs.h (ext2fs_dirhash): Change function prototype so it takes
+		a pointer instead of an array.
+
+2002-08-16  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_err.et.in (EXT2_ET_BAD_EA_BLOCK_NUM): New error code
+
+	* ext2fs.h (ext2fs_inode_data_blocks): New function which returns
+		the number of data blocks used by an inode exclusive of
+		the EA block.
+
+	* ext_attr.c (ext2fs_adjust_ea_refcount): New function which
+		adjusts the reference count in an extended attribute block.
+
+	* valid_blk.c (ext2fs_inode_has_valid_blocks): Add code to
+		correctly deal with extended attribute blocks in symbolic
+		links. 
+
+2002-08-13    <tytso@snap.thunk.org>
+
+	* Makefile.in: Move dupfs.o and test_io.o from the
+		needed-by-debugfs object list to the needed-by-resizer
+		object list.  Fixes compile problem if the system is built
+		with only --disable-debugfs.
+
+2002-07-29  Theodore Ts'o  <tytso@mit.edu>
+
+	* link.c (ext2fs_link): When adding a new link to a directory,
+		clear the HTREE bit.
+
+2002-07-23  Theodore Ts'o  <tytso@mit.edu>
+
+	* dirhash.c (ext2fs_dirhash): Fix bug which caused MD4
+		calculations for names > 32 characters to be completely
+		bogus.  Changed MD4 calculation to match what is currently
+		being used in the CVS gkernel tree.
+
+2002-07-19  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_fs.h: Add s_hash_seed and s_def_hash_version to the
+		superblock definition.
+
+	* badblocks.c, freefs.c, ext2fs.h: Use the badblocks functions to
+		create a set of u32_list functions.
+
+	* dirhash.c (halfMD4Transform): Shift the hash by one bit,
+		since that's required by the directory indexing code.
+
+2002-07-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2fs.h, read_bb_file.c: Change private to priv_data, to avoid
+		using a C++ reserved word.
+
+	* unix_io.c (unix_open): Only attempt the setrlimit workaround if
+		the kernel version is 2.4.10 -- 2.4.17, since otherwise an
+		old version of glibc (built against 2.2 headers) will
+		interact badly with the workaround to actually cause more
+		problems.  I hate it when the glibc folks think they're
+		being smarter than the kernel....
+
+2002-06-28  Andreas Dilger <adilger@clusterfs.com>
+
+	* ext2_fs.h: Add superblock field for reserved group descriptors.
+
+2002-06-28  Theodore Ts'o  <tytso@mit.edu>
+
+	* bitops.h: Add #define's for ext2fs_{l,b}e{32,16}_to_cpu and
+		ext2fs_cpu_to_{l,b}e{32,16}
+
+2002-06-27  Theodore Ts'o  <tytso@mit.edu>
+
+	* ismounted.c (check_mntent): In AIX 4.3, MOUNTED isn't defined.
+		Add appropriate fallbacks in this case.
+
+2002-06-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* dirhash.c (ext2fs_dirhash): Change function signature to support
+		a hash seed, and to return the minor hash (for 64-bit hash
+		support).   Add support for the half MD4, half MD4 with
+		seed, and half MD4 with seed and 64 bits.
+
+2002-06-15  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_fs.h (EXT2_DIRSYNC_FL): Add new file.
+
+2002-06-09  Andreas Dilger <adilger@clusterfs.com>
+
+	* ext2_fs.h: Add macros for maximum block/inode counts:
+		EXT2_INODES_PER_BLOCK, EXT2_MAX_BLOCKS_PER_GROUP,
+		and EXT2_MAX_INODES_PER_GROUP.
+
+	* openfs.c (ext2fs_open): Check that the number of blocks in a group
+		is less than 2^16, otherwise we need an INCOMPAT flag (not
+		in existence yet, if ever) to open such a filesystem.
+
+	* initialize.c (ext2fs_initialize): Limit the number of blocks and
+		inodes in a group to less than 2^16.
+
+2002-06-09  Andreas Dilger <adilger@clusterfs.com>
+
+	* ext2_fs.h: Further minor cleanups of the header.  Consolidate
+		some checks for __KERNEL__ into one place.
+
+2002-05-22  Andreas Dilger <adilger@clusterfs.com>
+
+	* ext2_fs.h: Remove macros accessing u.ext2_sb field and use
+		the EXT2_SB() macro instead.  Remove kernel function
+		prototypes also.  This matches the 2.5 kernel, and
+		is also cleaner for other reasons.  Whitespace cleanup.
+
+2002-05-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* ext2_ext_attr.h: Update to V2 version of the Bestbits format.
+
+2002-05-16  Andreas Dilger <adilger@clusterfs.com>
+
+	* ext2_fs.h: Change limits to support filesystems with 8k blocks.
+
+	* initialize.c (ext2fs_initialize): Remove assumption that
+		blocksizes are always <= 4k.
+
+2002-05-11  Theodore Ts'o  <tytso@mit.edu>
+
+	* bmap.c (ext2fs_bmap): Fix bug which caused ext2fs_bmap to fail
+		silently if inode pointer is NULL (and ext2fs_bmap is
+		expected to read the inode itself).
+
+2002-04-27  Theodore Ts'o  <tytso@mit.edu>
+
+	* ismounted.c (check_mntent_file, is_swap_device): Verify that the
+		file we are checking is a block device file before looking
+		at st_rdev, since it's not valid for normal files.
+		(is_swap_device): Move so that it is outside the
+		HAVE_MNTENT_H, so that it is always built.
+
+2002-03-11  Theodore Tso  <tytso@mit.edu>
+
+	* dirblock.c (ext2fs_read_dir_block2, ext2fs_write_dir_block): New
+		functions which take an extra flags argument.  The flag
+		EXT2_DIRBLOCK_V2_STRUCT will reverse when the name_len
+		field is byte swampped on big-endian machines, since in
+		the V2 structure, name_len is a char field which is
+		doesn't need to be byte swapped --- except if an
+		old-style kernel had byte-swapped the name_len field
+		as part of the V1 structure.
+
+	* ext2_err.et.in (EXT2_ET_DIRHASH_UNSUPP): New error code
+
+	* dirhash.c (ext2fs_dirhash): New function which calculates the
+		hash for a filename in an indexed directory.
+
+2002-03-08  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.27
+
+2002-03-07  Theodore Tso  <tytso@mit.edu>
+
+	* ext2fs.h (ext2fs_inode_io_intern): Add missing function prototype.
+
+	* bmap.c, fileio.c, inode_io.c, tst_badblocks.c, 
+		tst_byteswap.c: Fix gcc -Wall complaints
+
+	* Makefile.in (check): Use LD_LIBRARY_PATH to run test programs.
+		(From Philipp Thomas <pthomas@suse.de>)
+
+2002-02-25  Theodore Tso  <tytso@mit.edu>
+
+	* ext2_fs.h: Add structure definitions for the directory indexing
+		extension.
+
+2002-02-23  Theodore Tso  <tytso@mit.edu>
+
+	* unix_io.c (unix_open): Fix 2.4 resource limit workaround so that
+		it doesn't break things on mis32, sparc32, and alpha
+		platforms.
+
+2002-02-21  Theodore Tso  <tytso@mit.edu>
+
+	* ismounted.c (is_swap_device): Fix file descriptor/memory leak;
+		we were missing an fclose().
+
+2002-02-20  Theodore Tso  <tytso@mit.edu>
+
+	* Makefile.in, inode_io.c, ext2fs.h, ext2_err.et.in: Add new io
+		abstraction interface which exports an ext2 inode.
+
+	* ext2fs.h, fileio.c (ext2fs_file_flush): Export ext2fs_file_flush
+		as a public interface.  Change void * to const void * in
+		ext2fs_file_write's interface.
+
+	* test_io.c (test_close), unix_io.c (unix_close): Remove unneeded
+		conditional; save a few bytes.
+	
+2002-02-12  Theodore Tso  <tytso@mit.edu>
+
+	* Makefile.in (tst_badblocks): Add some extra .o files when
+		linking the debugging program tst_badblocks which are
+		needed if we aren't compiling with inline functions enable.
+
+	* kernel-list.h (__inline__): On non-gcc and non-Watcom compilers,
+		define away __inline__ since it may not be supported.
+
+	* kernel-jbd.h (jbd_debug): For systems that don't do STDC, use a
+		stripped down jbd_debug that doesn't use variadic
+		arguments.  This will cause warnings under AIX, but things
+		should still build.
+
+2002-02-03  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.26
+
+2002-02-03  Theodore Tso  <tytso@mit.edu>
+
+	* mkdir.c (ext2fs_mkdir): Change to use ext2fs_inode_alloc_stats2
+		so that the number of directories in use is adjusted
+		appropriately.
+
+	* alloc_stats.c (ext2fs_inode_alloc_stats2): Add new function
+		which optionally will modify the number of directories
+		count.
+
+2002-01-03  Theodore Tso  <tytso@mit.edu>
+
+	* dir_iterate.c (ext2fs_dir_iterate2, ext2fs_process_dir_block):
+		Add support for a new flag, DIRENT_FLAG_INCLUDE_REMOVED,
+		which will return deleted directory entries.
+		ext2fs_dir_iterate2 takes a new callback function which
+		is identical with the one used by
+		ext2fs_dblist_dir_iterate().  If the directory entry is
+		deleted, the callback function will be called with the
+		entry paraemter set to DIRENT_DELETED_FILE.
+
+	* Makefile.in, alloc_stats.c (ext2fs_inode_alloc_stats,
+		ext2fs_block_alloc_stats): New functions which update
+		block/inode allocation statistics in the bitmaps, block
+		group descriptors, and superblock.
+
+	* mkjournal.c (mkjournal_proc), mkdir.c (ext2fs_mkdir),
+		expanddir.c (expand_dir_proc), bb_inode.c
+		(clear_bad_block_proc, set_bad_block_proc,
+		ext2fs_update_bb_inode), alloc.c (ext2fs_alloc_block):
+		Update to use new block/inode allocation statistics.
+
+2001-12-24  Theodore Tso  <tytso@mit.edu>
+
+	* ismounted.c (is_swap_device): New function used by
+		ext2fs_check_if_mounted and ext2fs_check_mount_point which
+		determines whether or not the specified device is a swap
+		device by using /proc/swaps.  More bulletproofing for
+		idiotic/careless system administrators!
+
+	* ext2fs.h, openfs.c (ext2fs_open), initialize.c
+		(ext2fs_initialize), mkdir.c (ext2fs_mkdir): Add a new
+		field to struct_ext2_filsys, umask.  This field is
+		initialize to 022, and affects ext2fs_mkdir in the obvious
+		way.  (In the future umask should also affect new file
+		creation routines, but the fileio functions don't
+		currently support this yes.)
+
+	* ismounted.c (check_mntent_file): Stat all of the entries in
+		/etc/mtab and/or /proc/mounts in order to catch dim-witted
+		system administrators who might have created alias
+		devices.
+ 
+2001-12-23  Theodore Tso  <tytso@mit.edu>
+
+	* Makefile.in, jfs_user.h: Move linux/jbd.h to
+		ext2fs/kernel-jbd.h, to avoid using the system header
+		file version of hbd.h when using diet glibc (since it
+		forcibly adds /usr/include to the beginning of the
+		include search path.)
+
+	* kernel-jbd.h, kernel-list.h, jfs_compat.h: Move files from
+		include/linux directory.
+
+2001-12-16  Theodore Tso  <tytso@mit.edu>
+
+	* bitops.h (ext2fs_mark_generic_bitmap, ext2fs_unmark_generic_bitmap),
+		ext_attr.c (ext2fs_read_ext_attr, ext2fs_write_ext_attr),
+		fileio.c (ext2fs_file_write): Fix gcc -Wall nits
+
+	* Makefile.in, jfs_user.h: linux/jfs.h has been renamed to
+		linux/jbd.h
+
+2001-12-03  Theodore Tso  <tytso@mit.edu>
+
+	* unix_io.c (unix_open): Make sure the ulimit workaround works
+		regardless of the version of glibc which is used to
+		compild e2fsprogs.
+
+2001-11-26  Theodore Tso  <tytso@mit.edu>
+
+	* unix_io.c (unix_open): Work around a bug in 2.4.10+ kernels by
+		trying to unset the filesize limit if at all possible,
+		if a block device is getting opened.  (The filesize limit
+		shouldn't be applied against writes to a block device, but
+		starting in 2.4.10, the kernel is doing this.)
+	
+2001-11-05  Theodore Tso  <tytso@mit.edu>
+
+	* mkjournal.c (ext2fs_add_journal_inode): When creating a .journal
+		file on adding a journal to an already-mounted filesystem,
+		try to clear the ext2 file attributes on an already
+		existing .journal file so that we don't fail if on a
+		partially added journal to the filesystem.
+
+	* ext2_fs.h: Define a new ext2 file attribute, EXT2_NOTAIL_FL,
+		which signals that a particular inode should not have the
+		last bits of data (the "tail") be merged with another
+		file.  This is necessary to keep LILO happy.
+
 2001-09-20  Theodore Tso  <tytso@thunk.org>
 
 	* Release of E2fsprogs 1.25
 
-2001-09-16  Theodore Tso  <tytso@valinux.com>
+2001-09-16  Theodore Tso  <tytso@mit.edu>
 
 	* ext2_ext_attr.h: Remove unneeded #include of <linux/config.h>
 		which was breaking the build on the Hurd.  (Addresses
 		Debian bug #112414).
 
-2001-09-13  Theodore Ts'o  <tytso@valinux.com>
+2001-09-13  Theodore Ts'o  <tytso@mit.edu>
 
 	* ismounted.c (check_mntent_file): We now validate the entry in
 		/etc/mtab to make sure the filesystem is really mounted,

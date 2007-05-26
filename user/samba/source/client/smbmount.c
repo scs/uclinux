@@ -322,8 +322,8 @@ static void smb_umount(char *mount_point)
                 return;
         }
 
-        if ((fd = open(MOUNTED"~", O_RDWR|O_CREAT|O_EXCL, 0600)) == -1) {
-                DEBUG(0,("%d: Can't get "MOUNTED"~ lock file", sys_getpid()));
+        if ((fd = open("/var/lock/mtab~", O_RDWR|O_CREAT|O_EXCL, 0600)) == -1) {
+                DEBUG(0,("%d: Can't get /var/lock/mtab~ lock file", sys_getpid()));
                 return;
         }
 
@@ -334,9 +334,11 @@ static void smb_umount(char *mount_point)
 			 sys_getpid(), strerror(errno)));
                 return;
         }
-
+#if CONFIG_SNAPGEAR 
+#define MOUNTED_TMP "/etc/config/mtab.tmp"
+#else
 #define MOUNTED_TMP MOUNTED".tmp"
-
+#endif
         if ((new_mtab = setmntent(MOUNTED_TMP, "w")) == NULL) {
                 DEBUG(0,("%d: Can't open " MOUNTED_TMP ": %s\n",
 			 sys_getpid(), strerror(errno)));
@@ -366,8 +368,8 @@ static void smb_umount(char *mount_point)
                 return;
         }
 
-        if (unlink(MOUNTED"~") == -1) {
-                DEBUG(0,("%d: Can't remove "MOUNTED"~", sys_getpid()));
+        if (unlink("/var/lock/mtab~") == -1) {
+                DEBUG(0,("%d: Can't remove /var/lock/mtab~", sys_getpid()));
                 return;
         }
 }

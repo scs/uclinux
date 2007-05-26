@@ -34,6 +34,12 @@
 #include <sys/stat.h>
 #include "ext2fs/ext2_fs.h"
 
+#ifdef __GNUC__
+#define EXT2FS_ATTR(x) __attribute__(x)
+#else
+#define EXT2FS_ATTR(x)
+#endif
+
 #ifndef S_ISLNK			/* So we can compile even with gcc-warn */
 # ifdef __S_IFLNK
 #  define S_ISLNK(mode)	 __S_ISTYPE((mode), __S_IFLNK)
@@ -78,7 +84,7 @@ static void fatal_error(const char * fmt_string, int errcode)
 	exit (errcode);
 }
 
-#define usage() fatal_error(_("usage: %s [-RV] [-+=AacdijsSu] [-v version] files...\n"), \
+#define usage() fatal_error(_("Usage: %s [-RV] [-+=AacDdijsSu] [-v version] files...\n"), \
 			     1)
 
 struct flags_char {
@@ -89,6 +95,7 @@ struct flags_char {
 static const struct flags_char flags_array[] = {
 	{ EXT2_NOATIME_FL, 'A' },
 	{ EXT2_SYNC_FL, 'S' },
+	{ EXT2_DIRSYNC_FL, 'D' },
 	{ EXT2_APPEND_FL, 'a' },
 	{ EXT2_COMPR_FL, 'c' },
 	{ EXT2_NODUMP_FL, 'd' },
@@ -96,6 +103,8 @@ static const struct flags_char flags_array[] = {
 	{ EXT3_JOURNAL_DATA_FL, 'j' },
 	{ EXT2_SECRM_FL, 's' },
 	{ EXT2_UNRM_FL, 'u' },
+	{ EXT2_NOTAIL_FL, 't' },
+	{ EXT2_TOPDIR_FL, 'T' },
 	{ 0, 0 }
 };
 
@@ -217,6 +226,8 @@ static void change_attributes (const char * name)
 				print_flags (stdout, flags, 0);
 				printf ("\n");
 			}
+			if (!S_ISDIR(st.st_mode))
+				flags &= ~EXT2_DIRSYNC_FL;
 			if (fsetflags (name, flags) == -1)
 				com_err (program_name, errno,
 				         _("while setting flags on %s"), name);
@@ -234,7 +245,7 @@ static void change_attributes (const char * name)
 }
 
 static int chattr_dir_proc (const char * dir_name, struct dirent * de,
-			    void * unused_private)
+			    void * private EXT2FS_ATTR((unused)))
 {
 	if (strcmp (de->d_name, ".") && strcmp (de->d_name, "..")) {
 	        char *path;
@@ -257,6 +268,7 @@ int main (int argc, char ** argv)
 
 #ifdef ENABLE_NLS
 	setlocale(LC_MESSAGES, "");
+	setlocale(LC_CTYPE, "");
 	bindtextdomain(NLS_CAT_NAME, LOCALEDIR);
 	textdomain(NLS_CAT_NAME);
 #endif
@@ -264,7 +276,11 @@ int main (int argc, char ** argv)
 		program_name = *argv;
 	i = 1;
 	while (i < argc && !end_arg) {
-		if (decode_arg (&i, argc, argv) == EOF)
+		/* '--' arg should end option processing */
+		if (strcmp(argv[i], "--") == 0) {
+			i++;
+			end_arg = 1;
+		} else if (decode_arg (&i, argc, argv) == EOF)
 			end_arg = 1;
 		else
 			i++;
@@ -272,15 +288,15 @@ int main (int argc, char ** argv)
 	if (i >= argc)
 		usage ();
 	if (set && (add || rem)) {
-		fprintf (stderr, _("= is incompatible with - and +\n"));
+		fputs(_("= is incompatible with - and +\n"), stderr);
 		exit (1);
 	}
 	if ((rf & af) != 0) {
-		fprintf (stderr, "Can't both set and unset same flag.\n");
+		fputs("Can't both set and unset same flag.\n", stderr);
 		exit (1);
 	}
 	if (!(add || rem || set || set_version)) {
-		fprintf (stderr, _("Must use '-v', =, - or +\n"));
+		fputs(_("Must use '-v', =, - or +\n"), stderr);
 		exit (1);
 	}
 	if (verbose)

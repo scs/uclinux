@@ -49,7 +49,7 @@ struct ext2_icount {
 	ext2_ino_t		count;
 	ext2_ino_t		size;
 	ext2_ino_t		num_inodes;
-	int			cursor;
+	ext2_ino_t		cursor;
 	struct ext2_icount_el	*list;
 };
 
@@ -60,21 +60,21 @@ void ext2fs_free_icount(ext2_icount_t icount)
 
 	icount->magic = 0;
 	if (icount->list)
-		ext2fs_free_mem((void **) &icount->list);
+		ext2fs_free_mem(&icount->list);
 	if (icount->single)
 		ext2fs_free_inode_bitmap(icount->single);
 	if (icount->multiple)
 		ext2fs_free_inode_bitmap(icount->multiple);
-	ext2fs_free_mem((void **) &icount);
+	ext2fs_free_mem(&icount);
 }
 
-errcode_t ext2fs_create_icount2(ext2_filsys fs, int flags, int size,
+errcode_t ext2fs_create_icount2(ext2_filsys fs, int flags, unsigned int size,
 				ext2_icount_t hint, ext2_icount_t *ret)
 {
 	ext2_icount_t	icount;
 	errcode_t	retval;
 	size_t		bytes;
-	int		i;
+	ext2_ino_t	i;
 
 	if (hint) {
 		EXT2_CHECK_MAGIC(hint, EXT2_ET_MAGIC_ICOUNT);
@@ -82,7 +82,7 @@ errcode_t ext2fs_create_icount2(ext2_filsys fs, int flags, int size,
 			size = (size_t) hint->size;
 	}
 	
-	retval = ext2fs_get_mem(sizeof(struct ext2_icount), (void **) &icount);
+	retval = ext2fs_get_mem(sizeof(struct ext2_icount), &icount);
 	if (retval)
 		return retval;
 	memset(icount, 0, sizeof(struct ext2_icount));
@@ -119,7 +119,7 @@ errcode_t ext2fs_create_icount2(ext2_filsys fs, int flags, int size,
 	printf("Icount allocated %d entries, %d bytes.\n",
 	       icount->size, bytes);
 #endif
-	retval = ext2fs_get_mem(bytes, (void **) &icount->list);
+	retval = ext2fs_get_mem(bytes, &icount->list);
 	if (retval)
 		goto errout;
 	memset(icount->list, 0, bytes);
@@ -148,7 +148,8 @@ errout:
 	return(retval);
 }
 
-errcode_t ext2fs_create_icount(ext2_filsys fs, int flags, int size,
+errcode_t ext2fs_create_icount(ext2_filsys fs, int flags, 
+			       unsigned int size,
 			       ext2_icount_t *ret)
 {
 	return ext2fs_create_icount2(fs, flags, size, 0, ret);
@@ -181,7 +182,7 @@ static struct ext2_icount_el *insert_icount_el(ext2_icount_t icount,
 					   sizeof(struct ext2_icount_el),
 					   (size_t) new_size *
 					   sizeof(struct ext2_icount_el),
-					   (void **) &icount->list);
+					   &icount->list);
 		if (retval)
 			return 0;
 		icount->size = new_size;
@@ -273,7 +274,7 @@ static struct ext2_icount_el *get_icount_el(ext2_icount_t icount,
 errcode_t ext2fs_icount_validate(ext2_icount_t icount, FILE *out)
 {
 	errcode_t	ret = 0;
-	int		i;
+	unsigned int	i;
 	const char *bad = "bad icount";
 	
 	EXT2_CHECK_MAGIC(icount, EXT2_ET_MAGIC_ICOUNT);

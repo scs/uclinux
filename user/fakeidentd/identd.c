@@ -16,7 +16,7 @@ echo $CMDLINE; exec $CMDLINE; exit -1
 # */
 #endif
 /*
- * $Id$
+ * $Id: identd.c,v 2.0 2003/05/05 15:21:01 too Exp $
  *
  * Author: Tomi Ollila <too@iki.fi>
  *
@@ -45,10 +45,7 @@ echo $CMDLINE; exec $CMDLINE; exit -1
  * GNU General Public License for more details.
  *
  * HISTORY
- * $Log$
- * Revision 1.1  2005/07/25 02:02:52  magicyang
- * New user folder check in
- *
+ * $Log: identd.c,v $
  * Revision 2.0  2003/05/05 15:21:01  too
  * 	Major update. Removed fdprintf(); replaced with use of
  * 	writev() and newly added outputstrings().
@@ -227,7 +224,7 @@ struct {
 } G;
 
 static const char rcs_id[] =
-/* */ "$Id$";
+/* */ "$Id: identd.c,v 2.0 2003/05/05 15:21:01 too Exp $";
 
 /*
  * Prototypes

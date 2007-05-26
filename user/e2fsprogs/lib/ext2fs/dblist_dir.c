@@ -45,20 +45,18 @@ errcode_t ext2fs_dblist_dir_iterate(ext2_dblist dblist,
 	if (block_buf)
 		ctx.buf = block_buf;
 	else {
-		retval = ext2fs_get_mem(dblist->fs->blocksize,
-					(void **) &ctx.buf);
+		retval = ext2fs_get_mem(dblist->fs->blocksize, &ctx.buf);
 		if (retval)
 			return retval;
 	}
-	ctx.func = 0;
-	ctx.func2 = func;
+	ctx.func = func;
 	ctx.priv_data = priv_data;
 	ctx.errcode = 0;
 
 	retval = ext2fs_dblist_iterate(dblist, db_dir_proc, &ctx);
 	
 	if (!block_buf)
-		ext2fs_free_mem((void **) &ctx.buf);
+		ext2fs_free_mem(&ctx.buf);
 	if (retval)
 		return retval;
 	return ctx.errcode;

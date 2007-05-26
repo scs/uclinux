@@ -25,21 +25,23 @@ struct block_info {
 
 struct block_walk_struct {
 	struct block_info	*barray;
-	int			blocks_left;
-	int			num_blocks;
+	e2_blkcnt_t		blocks_left;
+	e2_blkcnt_t		num_blocks;
 	ext2_ino_t		inode;
 };
 
-static int icheck_proc(ext2_filsys fs,
+static int icheck_proc(ext2_filsys fs EXT2FS_ATTR((unused)),
 		       blk_t	*block_nr,
-		       int blockcnt,
+		       e2_blkcnt_t blockcnt EXT2FS_ATTR((unused)),
+		       blk_t ref_block EXT2FS_ATTR((unused)),
+		       int ref_offset EXT2FS_ATTR((unused)),
 		       void *private)
 {
 	struct block_walk_struct *bw = (struct block_walk_struct *) private;
-	int	i;
+	e2_blkcnt_t	i;
 
 	for (i=0; i < bw->num_blocks; i++) {
-		if (bw->barray[i].blk == *block_nr) {
+		if (!bw->barray[i].ino && bw->barray[i].blk == *block_nr) {
 			bw->barray[i].ino = bw->inode;
 			bw->blocks_left--;
 		}
@@ -59,7 +61,6 @@ void do_icheck(int argc, char **argv)
 	ext2_ino_t		ino;
 	struct ext2_inode	inode;
 	errcode_t		retval;
-	char			*tmp;
 	char			*block_buf;
 	
 	if (argc < 2) {
@@ -84,11 +85,8 @@ void do_icheck(int argc, char **argv)
 	}
 
 	for (i=1; i < argc; i++) {
-		bw.barray[i-1].blk = strtol(argv[i], &tmp, 0);
-		if (*tmp) {
-			com_err(argv[0], 0, "Bad block - %s", argv[i]);
+		if (strtoblk(argv[0], argv[i], &bw.barray[i-1].blk))
 			return;
-		}
 	}
 
 	bw.num_blocks = bw.blocks_left = argc-1;
@@ -110,6 +108,16 @@ void do_icheck(int argc, char **argv)
 	while (ino) {
 		if (!inode.i_links_count)
 			goto next;
+
+		bw.inode = ino;
+
+		if (inode.i_file_acl) {
+			icheck_proc(current_fs, &inode.i_file_acl, 0,
+				    0, 0, &bw);
+			if (bw.blocks_left == 0)
+				break;
+		}
+
 		if (!ext2fs_inode_has_valid_blocks(&inode))
 			goto next;
 		/*
@@ -119,13 +127,11 @@ void do_icheck(int argc, char **argv)
 		if (inode.i_dtime)
 			goto next;
 
-		bw.inode = ino;
-		
-		retval = ext2fs_block_iterate(current_fs, ino, 0, block_buf,
-					      icheck_proc, &bw);
+		retval = ext2fs_block_iterate2(current_fs, ino, 0, block_buf,
+					       icheck_proc, &bw);
 		if (retval) {
 			com_err("icheck", retval,
-				"while calling ext2_block_iterate");
+				"while calling ext2fs_block_iterate");
 			goto next;
 		}
 

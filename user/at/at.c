@@ -108,10 +108,10 @@ gid_t daemon_gid = (gid_t) - 3;
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: at.c,v 1.29 1997/09/28 20:00:16 ig25 Exp $";
+static char rcsid[] = "$Id: at.c,v 1.28 1997/05/26 08:31:34 ig25 Exp ig25 $";
 char *no_export[] =
 {
-    "TERM", "DISPLAY", "_", "SHELLOPTS", "BASH_VERSINFO", "EUID", "GROUPS", "PPID", "UID"
+    "TERM", "DISPLAY", "_", "SHELLOPTS"
 };
 static int send_mail = 0;
 
@@ -235,7 +235,6 @@ writefile(time_t runtimer, char queue)
 /* Install the signal handler for SIGINT; terminate after removing the
  * spool file if necessary
  */
-    memset(&act, 0, sizeof act);
     act.sa_handler = sigc;
     sigemptyset(&(act.sa_mask));
     act.sa_flags = 0;
@@ -275,8 +274,8 @@ writefile(time_t runtimer, char queue)
 	if ((jobno = nextjob()) == EOF)
 	    perr("Cannot generate job number");
 
-	(void)snprintf(ppos, sizeof(atfile) - (ppos - atfile),
-		       "%c%5lx%8lx", queue, jobno, (unsigned long) (runtimer / 60));
+	sprintf(ppos, "%c%5lx%8lx", queue,
+		jobno, (unsigned long) (runtimer / 60));
 
 	for (ap = ppos; *ap != '\0'; ap++)
 	    if (*ap == ' ')
@@ -292,7 +291,7 @@ writefile(time_t runtimer, char queue)
 	 * bit.  Yes, this is a kluge.
 	 */
 	cmask = umask(S_IRUSR | S_IWUSR | S_IXUSR);
-	if ((fd = open(atfile, O_CREAT | O_EXCL | O_TRUNC | O_WRONLY, S_IRUSR)) == -1)
+	if ((fd = creat(atfile, O_WRONLY)) == -1)
 	    perr("Cannot create atjob file %.500s", atfile);
 
 	if ((fd2 = dup(fd)) < 0)
@@ -462,6 +461,14 @@ writefile(time_t runtimer, char queue)
 
     close(fd2);
 
+    /* POSIX.2 allows the shell specified by the user's SHELL environment
+       variable, the login shell from the user's password database entry,
+       or /bin/sh to be the command interpreter that processes the at-job.
+       It also alows a warning diagnostic to be printed.  Because of the
+       possible variance, we always output the diagnostic. */
+
+    fprintf(stderr, "warning: commands will be executed using /bin/sh\n");
+
     runtime = localtime(&runtimer);
 
     /* We only use the sick POSIX time format if POSIXLY_CORRECT
@@ -539,7 +546,6 @@ list_jobs()
     long jobno;
     time_t runtimer;
     char timestr[TIMESIZE];
-    struct passwd *pwd;
 
     PRIV_START
 
@@ -575,10 +581,7 @@ list_jobs()
 	} else {
 	    strftime(timestr, TIMESIZE, TIMEFORMAT_ISO, runtime);
 	}
-	if ((pwd = getpwuid(buf.st_uid)))
-	  printf("%ld\t%s %c %s\n", jobno, timestr, queue, pwd->pw_name);
-	else
-	  printf("%ld\t%s %c\n", jobno, timestr, queue);
+	printf("%ld\t%s %c\n", jobno, timestr, queue);
     }
     PRIV_END
 }
@@ -692,7 +695,7 @@ main(int argc, char **argv)
     char *pgm;
 
     int program = AT;		/* our default program */
-    char *options = "q:f:MmvldhVc";	/* default options for at */
+    char *options = "q:f:mvldVc";	/* default options for at */
     int disp_version = 0;
     time_t timer;
     struct passwd *pwe;
@@ -723,30 +726,22 @@ main(int argc, char **argv)
      */
     if (strcmp(pgm, "atq") == 0) {
 	program = ATQ;
-	options = "hq:V";
+	options = "q:vV";
     } else if (strcmp(pgm, "atrm") == 0) {
 	program = ATRM;
-	options = "hV";
+	options = "V";
     }
     /* process whatever options we can process
      */
     opterr = 1;
     while ((c = getopt(argc, argv, options)) != EOF)
 	switch (c) {
-	case 'h':
-	    usage();
-	    exit (0);
-
 	case 'v':		/* verify time settings */
 	    atverify = 1;
 	    break;
 
 	case 'm':		/* send mail when job is complete */
 	    send_mail = 1;
-	    break;
-
-	case 'M':		/* don't send mail, even when job failed */
-	    send_mail = -1;
 	    break;
 
 	case 'f':
@@ -758,7 +753,7 @@ main(int argc, char **argv)
 		usage();
 
 	    atqueue = queue = *optarg;
-	    if (!(islower(queue) || isupper(queue)) & (queue != '='))
+	    if (!(islower(queue) || isupper(queue)))
 		usage();
 
 	    queue_set = 1;
@@ -777,7 +772,7 @@ main(int argc, char **argv)
 		usage();
 
 	    program = ATQ;
-	    options = "q:V";
+	    options = "q:vV";
 	    break;
 
 	case 'b':
@@ -847,15 +842,6 @@ main(int argc, char **argv)
 	    struct tm *tm = localtime(&timer);
 	    fprintf(stderr, "%s\n", asctime(tm));
 	}
-
-	/* POSIX.2 allows the shell specified by the user's SHELL environment
-	   variable, the login shell from the user's password database entry,
-	   or /bin/sh to be the command interpreter that processes the at-job.
-	   It also alows a warning diagnostic to be printed.  Because of the
-	   possible variance, we always output the diagnostic. */
-
-	fprintf(stderr, "warning: commands will be executed using /bin/sh\n");
-
 	writefile(timer, queue);
 	break;
 

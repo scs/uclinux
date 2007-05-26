@@ -59,7 +59,6 @@ errcode_t ext2fs_update_bb_inode(ext2_filsys fs, ext2_badblocks_list bb_list)
 	errcode_t			retval;
 	struct set_badblock_record 	rec;
 	struct ext2_inode		inode;
-	blk_t				blk;
 	
 	EXT2_CHECK_MAGIC(fs, EXT2_ET_MAGIC_EXT2FS_FILSYS);
 
@@ -70,11 +69,11 @@ errcode_t ext2fs_update_bb_inode(ext2_filsys fs, ext2_badblocks_list bb_list)
 	rec.ind_blocks_size = rec.ind_blocks_ptr = 0;
 	rec.max_ind_blocks = 10;
 	retval = ext2fs_get_mem(rec.max_ind_blocks * sizeof(blk_t),
-				(void **) &rec.ind_blocks);
+				&rec.ind_blocks);
 	if (retval)
 		return retval;
 	memset(rec.ind_blocks, 0, rec.max_ind_blocks * sizeof(blk_t));
-	retval = ext2fs_get_mem(fs->blocksize, (void **) &rec.block_buf);
+	retval = ext2fs_get_mem(fs->blocksize, &rec.block_buf);
 	if (retval)
 		goto cleanup;
 	memset(rec.block_buf, 0, fs->blocksize);
@@ -105,16 +104,6 @@ errcode_t ext2fs_update_bb_inode(ext2_filsys fs, ext2_badblocks_list bb_list)
 							     &rec.bb_iter);
 		if (retval)
 			goto cleanup;
-		while (ext2fs_badblocks_list_iterate(rec.bb_iter, &blk)) {
-			ext2fs_mark_block_bitmap(fs->block_map, blk); 
-		}
-		ext2fs_badblocks_list_iterate_end(rec.bb_iter);
-		ext2fs_mark_bb_dirty(fs);
-		
-		retval = ext2fs_badblocks_list_iterate_begin(bb_list,
-							     &rec.bb_iter);
-		if (retval)
-			goto cleanup;
 		retval = ext2fs_block_iterate2(fs, EXT2_BAD_INO,
 					       BLOCK_FLAG_APPEND, 0,
 					       set_bad_block_proc, &rec);
@@ -135,9 +124,9 @@ errcode_t ext2fs_update_bb_inode(ext2_filsys fs, ext2_badblocks_list bb_list)
 	if (retval)
 		goto cleanup;
 	
-	inode.i_atime = inode.i_mtime = time(0);
+	inode.i_atime = inode.i_mtime = fs->now ? fs->now : time(0);
 	if (!inode.i_ctime)
-		inode.i_ctime = time(0);
+		inode.i_ctime = fs->now ? fs->now : time(0);
 	inode.i_blocks = rec.bad_block_count * (fs->blocksize / 512);
 	inode.i_size = rec.bad_block_count * fs->blocksize;
 
@@ -146,8 +135,8 @@ errcode_t ext2fs_update_bb_inode(ext2_filsys fs, ext2_badblocks_list bb_list)
 		goto cleanup;
 	
 cleanup:
-	ext2fs_free_mem((void **) &rec.ind_blocks);
-	ext2fs_free_mem((void **) &rec.block_buf);
+	ext2fs_free_mem(&rec.ind_blocks);
+	ext2fs_free_mem(&rec.block_buf);
 	return retval;
 }
 
@@ -162,13 +151,13 @@ cleanup:
 #endif
 static int clear_bad_block_proc(ext2_filsys fs, blk_t *block_nr,
 				e2_blkcnt_t blockcnt,
-				blk_t ref_block, int ref_offset,
+				blk_t ref_block EXT2FS_ATTR((unused)),
+				int ref_offset EXT2FS_ATTR((unused)),
 				void *priv_data)
 {
 	struct set_badblock_record *rec = (struct set_badblock_record *)
 		priv_data;
 	errcode_t	retval;
-	int		group;
 	unsigned long 	old_size;
 
 	if (!*block_nr)
@@ -189,7 +178,7 @@ static int clear_bad_block_proc(ext2_filsys fs, blk_t *block_nr,
 			rec->max_ind_blocks += 10;
 			retval = ext2fs_resize_mem(old_size, 
 				   rec->max_ind_blocks * sizeof(blk_t),
-				   (void **) &rec->ind_blocks);
+				   &rec->ind_blocks);
 			if (retval) {
 				rec->max_ind_blocks -= 10;
 				rec->err = retval;
@@ -202,12 +191,7 @@ static int clear_bad_block_proc(ext2_filsys fs, blk_t *block_nr,
 	/*
 	 * Mark the block as unused, and update accounting information
 	 */
-	ext2fs_unmark_block_bitmap(fs->block_map, *block_nr);
-	ext2fs_mark_bb_dirty(fs);
-	group = ext2fs_group_of_blk(fs, *block_nr);
-	fs->group_desc[group].bg_free_blocks_count++;
-	fs->super->s_free_blocks_count++;
-	ext2fs_mark_super_dirty(fs);
+	ext2fs_block_alloc_stats(fs, *block_nr, -1);
 	
 	*block_nr = 0;
 	return BLOCK_CHANGED;
@@ -223,14 +207,15 @@ static int clear_bad_block_proc(ext2_filsys fs, blk_t *block_nr,
  #pragma argsused
 #endif
 static int set_bad_block_proc(ext2_filsys fs, blk_t *block_nr,
-			      e2_blkcnt_t blockcnt, blk_t ref_block, 
-			      int ref_offset, void *priv_data)
+			      e2_blkcnt_t blockcnt,
+			      blk_t ref_block EXT2FS_ATTR((unused)),
+			      int ref_offset EXT2FS_ATTR((unused)),
+			      void *priv_data)
 {
 	struct set_badblock_record *rec = (struct set_badblock_record *)
 		priv_data;
 	errcode_t	retval;
 	blk_t		blk;
-	int		group;
 
 	if (blockcnt >= 0) {
 		/*
@@ -264,17 +249,12 @@ static int set_bad_block_proc(ext2_filsys fs, blk_t *block_nr,
 			rec->err = retval;
 			return BLOCK_ABORT;
 		}
-		ext2fs_mark_block_bitmap(fs->block_map, blk); 
-		ext2fs_mark_bb_dirty(fs);
 	}
 	
 	/*
 	 * Update block counts
 	 */
-	group = ext2fs_group_of_blk(fs, blk);
-	fs->group_desc[group].bg_free_blocks_count--;
-	fs->super->s_free_blocks_count--;
-	ext2fs_mark_super_dirty(fs);
+	ext2fs_block_alloc_stats(fs, blk, +1);
 	
 	*block_nr = blk;
 	return BLOCK_CHANGED;

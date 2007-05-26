@@ -39,7 +39,6 @@ errcode_t ext2fs_mkdir(ext2_filsys fs, ext2_ino_t parent, ext2_ino_t inum,
 	ext2_ino_t		scratch_ino;
 	blk_t			blk;
 	char			*block = 0;
-	int			group;
 
 	EXT2_CHECK_MAGIC(fs, EXT2_ET_MAGIC_EXT2FS_FILSYS);
 
@@ -81,12 +80,12 @@ errcode_t ext2fs_mkdir(ext2_filsys fs, ext2_ino_t parent, ext2_ino_t inum,
 	 * Create the inode structure....
 	 */
 	memset(&inode, 0, sizeof(struct ext2_inode));
-	inode.i_mode = LINUX_S_IFDIR | 0755;
+	inode.i_mode = LINUX_S_IFDIR | (0777 & ~fs->umask);
 	inode.i_uid = inode.i_gid = 0;
 	inode.i_blocks = fs->blocksize / 512;
 	inode.i_block[0] = blk;
 	inode.i_links_count = 2;
-	inode.i_ctime = inode.i_atime = inode.i_mtime = time(NULL);
+	inode.i_ctime = inode.i_atime = inode.i_mtime = fs->now ? fs->now : time(NULL);
 	inode.i_size = fs->blocksize;
 
 	/*
@@ -95,7 +94,7 @@ errcode_t ext2fs_mkdir(ext2_filsys fs, ext2_ino_t parent, ext2_ino_t inum,
 	retval = ext2fs_write_dir_block(fs, blk, block);
 	if (retval)
 		goto cleanup;
-	retval = ext2fs_write_inode(fs, ino, &inode); 
+	retval = ext2fs_write_new_inode(fs, ino, &inode); 
 	if (retval)
 		goto cleanup;
 
@@ -130,23 +129,12 @@ errcode_t ext2fs_mkdir(ext2_filsys fs, ext2_ino_t parent, ext2_ino_t inum,
 	/*
 	 * Update accounting....
 	 */
-	ext2fs_mark_block_bitmap(fs->block_map, blk);
-	ext2fs_mark_bb_dirty(fs);
-	ext2fs_mark_inode_bitmap(fs->inode_map, ino);
-	ext2fs_mark_ib_dirty(fs);
+	ext2fs_block_alloc_stats(fs, blk, +1);
+	ext2fs_inode_alloc_stats2(fs, ino, +1, 1);
 
-	group = ext2fs_group_of_blk(fs, blk);
-	fs->group_desc[group].bg_free_blocks_count--;
-	group = ext2fs_group_of_ino(fs, ino);
-	fs->group_desc[group].bg_free_inodes_count--;
-	fs->group_desc[group].bg_used_dirs_count++;
-	fs->super->s_free_blocks_count--;
-	fs->super->s_free_inodes_count--;
-	ext2fs_mark_super_dirty(fs);
-	
 cleanup:
 	if (block)
-		ext2fs_free_mem((void **) &block);
+		ext2fs_free_mem(&block);
 	return retval;
 
 }

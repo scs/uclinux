@@ -28,14 +28,15 @@
 extern int optind;
 extern char *optarg;
 #endif
-#ifdef HAVE_OPTRESET
-extern int optreset;		/* defined by BSD, but not others */
-#endif
 
 #include "debugfs.h"
+#include "blkid/blkid.h"
 #include "jfs_user.h"
+#include <uuid/uuid.h>
 
 enum journal_location {JOURNAL_IS_INTERNAL, JOURNAL_IS_EXTERNAL};
+
+#define ANY_BLOCK ((unsigned int) -1)
 
 int		dump_all, dump_contents, dump_descriptors;
 unsigned int	block_to_dump, group_to_dump, bitmap_to_dump;
@@ -69,7 +70,6 @@ static void do_hexdump (FILE *, char *, int);
 		blocknr -= (be32_to_cpu((jsb)->s_maxlen) -	\
 			    be32_to_cpu((jsb)->s_first));
 
-
 void do_logdump(int argc, char **argv)
 {
 	int		c;
@@ -80,34 +80,27 @@ void do_logdump(int argc, char **argv)
 	char		*inode_spec = NULL;
 	char		*journal_fn = NULL;
 	int		journal_fd = 0;
+	int		use_sb = 0;
 	ext2_ino_t	journal_inum;
 	struct ext2_inode journal_inode;
 	ext2_file_t 	journal_file;
-	
 	char		*tmp;
-	
-	const char	*logdump_usage = ("Usage: logdump "
-					  "[-ac] [-b<block>] [-i<inode>] "
-					  "[-f<journal_file>] [output_file]");
-	
 	struct journal_source journal_source;
-
-	optind = 0;
-#ifdef HAVE_OPTRESET
-	optreset = 1;		/* Makes BSD getopt happy */
-#endif
+	struct ext2_super_block *es = NULL;
+	
 	journal_source.where = 0;
 	journal_source.fd = 0;
 	journal_source.file = 0;
 	dump_all = 0;
 	dump_contents = 0;
 	dump_descriptors = 1;
-	block_to_dump = -1;
+	block_to_dump = ANY_BLOCK;
 	bitmap_to_dump = -1;
-	inode_block_to_dump = -1;
+	inode_block_to_dump = ANY_BLOCK;
 	inode_to_dump = -1;
 	
-	while ((c = getopt (argc, argv, "ab:ci:f:")) != EOF) {
+	reset_getopt();
+	while ((c = getopt (argc, argv, "ab:ci:f:s")) != EOF) {
 		switch (c) {
 		case 'a':
 			dump_all++;
@@ -131,19 +124,23 @@ void do_logdump(int argc, char **argv)
 			inode_spec = optarg;
 			dump_descriptors = 0;
 			break;
+		case 's':
+			use_sb++;
+			break;
 		default:
-			com_err(argv[0], 0, logdump_usage);
-			return;
+			goto print_usage;
 		}
 	}
 	if (optind != argc && optind != argc-1) {
-		com_err(argv[0], 0, logdump_usage);
-		return;
+		goto print_usage;
 	}
+
+	if (current_fs)
+		es = current_fs->super;
 
 	if (inode_spec) {
 		int inode_group, group_offset, inodes_per_block;
-		
+
 		if (check_fs_open(argv[0]))
 			return;
 
@@ -152,9 +149,9 @@ void do_logdump(int argc, char **argv)
 			return;
 
 		inode_group = ((inode_to_dump - 1)
-			       / current_fs->super->s_inodes_per_group);
+			       / es->s_inodes_per_group);
 		group_offset = ((inode_to_dump - 1)
-				% current_fs->super->s_inodes_per_group);
+				% es->s_inodes_per_group);
 		inodes_per_block = (current_fs->blocksize 
 				    / sizeof(struct ext2_inode));
 		
@@ -180,10 +177,10 @@ void do_logdump(int argc, char **argv)
 		}
 	}
 
-	if (block_to_dump != -1 && current_fs != NULL) {
+	if (block_to_dump != ANY_BLOCK && current_fs != NULL) {
 		group_to_dump = ((block_to_dump - 
-				  current_fs->super->s_first_data_block)
-				 / current_fs->super->s_blocks_per_group);
+				  es->s_first_data_block)
+				 / es->s_blocks_per_group);
 		bitmap_to_dump = current_fs->group_desc[group_to_dump].bg_block_bitmap;
 	}
 
@@ -201,25 +198,44 @@ void do_logdump(int argc, char **argv)
 		
 		journal_source.where = JOURNAL_IS_EXTERNAL;
 		journal_source.fd = journal_fd;
-	} else if ((journal_inum = current_fs->super->s_journal_inum)) {
-		retval = ext2fs_read_inode(current_fs, journal_inum, 
-					   &journal_inode);
-		if (retval) {
-			com_err(argv[0], retval,
-				"while reading inode %u", journal_inum);
-			return;
+	} else if ((journal_inum = es->s_journal_inum)) {
+		if (use_sb) {
+			if (es->s_jnl_backup_type != EXT3_JNL_BACKUP_BLOCKS) {
+				com_err(argv[0], 0,
+					"no journal backup in super block\n");
+				return;
+			}
+			memset(&journal_inode, 0, sizeof(struct ext2_inode));
+			memcpy(&journal_inode.i_block[0], es->s_jnl_blocks, 
+			       EXT2_N_BLOCKS*4);
+			journal_inode.i_size = es->s_jnl_blocks[16];
+			journal_inode.i_links_count = 1;
+			journal_inode.i_mode = LINUX_S_IFREG | 0600;
+		} else {
+			if (debugfs_read_inode(journal_inum, &journal_inode, 
+					       argv[0]))
+				return;
 		}
-
-		retval = ext2fs_file_open(current_fs, journal_inum,
-					  0, &journal_file);
+		
+		retval = ext2fs_file_open2(current_fs, journal_inum,
+					   &journal_inode, 0, &journal_file);
 		if (retval) {
 			com_err(argv[0], retval, "while opening ext2 file");
 			return;
 		}
 		journal_source.where = JOURNAL_IS_INTERNAL;
 		journal_source.file = journal_file;
-	} else if ((journal_fn =
-	    ext2fs_find_block_device(current_fs->super->s_journal_dev))) {
+	} else {
+		char uuid[37];
+		
+		uuid_unparse(es->s_journal_uuid, uuid);
+		journal_fn = blkid_get_devname(NULL, "UUID", uuid);
+		if (!journal_fn)
+				journal_fn = blkid_devno_to_devname(es->s_journal_dev);
+		if (!journal_fn) {
+			com_err(argv[0], 0, "filesystem has no journal");
+			return;
+		}
 		journal_fd = open(journal_fn, O_RDONLY, 0);
 		if (journal_fd < 0) {
 			com_err(argv[0], errno, "while opening %s for logdump",
@@ -232,9 +248,6 @@ void do_logdump(int argc, char **argv)
 		free(journal_fn);
 		journal_source.where = JOURNAL_IS_EXTERNAL;
 		journal_source.fd = journal_fd;
-	} else {
-		com_err(argv[0], 0, "filesystem has no journal");
-		return;
 	}
 
 	dump_journal(argv[0], out_file, &journal_source);
@@ -248,6 +261,10 @@ void do_logdump(int argc, char **argv)
 		fclose(out_file);
 
 	return;
+
+print_usage:
+	fprintf(stderr, "%s: Usage: logdump [-ac] [-b<block>] [-i<inode>]\n\t"
+		"[-f<journal_file>] [output_file]\n", argv[0]);
 }
 
 
@@ -282,7 +299,7 @@ static int read_journal_block(const char *cmd, struct journal_source *source,
 	
 	if (retval)
 		com_err(cmd, retval, "while while reading journal");
-	else if (*got != size) {
+	else if (*got != (unsigned int) size) {
 		com_err(cmd, 0, "short read (read %d, expected %d) while while reading journal", *got, size);
 		retval = -1;
 	}
@@ -315,7 +332,7 @@ static void dump_journal(char *cmdname, FILE *out_file,
 	char			jsb_buffer[1024];
 	char			buf[8192];
 	journal_superblock_t	*jsb;
-	int			blocksize = 1024;
+	unsigned int		blocksize = 1024;
 	unsigned int		got;
 	int			retval;
 	__u32			magic, sequence, blocktype;
@@ -332,21 +349,23 @@ static void dump_journal(char *cmdname, FILE *out_file,
 
 	jsb = (journal_superblock_t *) buf;
 	sb = (struct ext2_super_block *) (buf+1024);
+#ifdef ENABLE_SWAPFS
 	if (sb->s_magic == ext2fs_swab16(EXT2_SUPER_MAGIC)) 
 		ext2fs_swap_super(sb);
+#endif
 	
 	if ((be32_to_cpu(jsb->s_header.h_magic) != JFS_MAGIC_NUMBER) &&
 	    (sb->s_magic == EXT2_SUPER_MAGIC) &&
 	    (sb->s_feature_incompat & EXT3_FEATURE_INCOMPAT_JOURNAL_DEV)) {
 		blocksize = EXT2_BLOCK_SIZE(sb);
 		blocknr = (blocksize == 1024) ? 2 : 1;
-		uuid_unparse(&sb->s_uuid, jsb_buffer);
+		uuid_unparse(sb->s_uuid, jsb_buffer);
 		fprintf(out_file, "Ext2 superblock header found.\n");
 		if (dump_all) {
 			fprintf(out_file, "\tuuid=%s\n", jsb_buffer);
 			fprintf(out_file, "\tblocksize=%d\n", blocksize);
 			fprintf(out_file, "\tjournal data size %ld\n",
-				sb->s_blocks_count);
+				(long) sb->s_blocks_count);
 		}
 	}
 	
@@ -494,9 +513,10 @@ static void dump_descriptor_block(FILE *out_file,
 
 
 static void dump_revoke_block(FILE *out_file, char *buf,
-				  journal_superblock_t *jsb, 
-				  unsigned int blocknr, int blocksize,
-				  tid_t transaction)
+			      journal_superblock_t *jsb EXT2FS_ATTR((unused)), 
+			      unsigned int blocknr, 
+			      int blocksize EXT2FS_ATTR((unused)),
+			      tid_t transaction)
 {
 	int			offset, max;
 	journal_revoke_header_t *header;
@@ -542,7 +562,7 @@ static void show_indirect(FILE *out_file, const char *name, __u32 where)
 
 
 static void dump_metadata_block(FILE *out_file, struct journal_source *source,
-				journal_superblock_t *jsb,
+				journal_superblock_t *jsb EXT2FS_ATTR((unused)),
 				unsigned int log_blocknr, 
 				unsigned int fs_blocknr, 
 				int blocksize,

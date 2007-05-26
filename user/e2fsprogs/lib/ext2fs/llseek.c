@@ -34,7 +34,8 @@
 
 #define my_llseek lseek64
 
-#elif defined(HAVE_LLSEEK)
+#else
+#if defined(HAVE_LLSEEK)
 #include <syscall.h>
 
 #ifndef HAVE_LLSEEK_PROTOTYPE
@@ -58,11 +59,12 @@ extern long long llseek (int fd, long long offset, int origin);
 #endif
 
 #ifndef __i386__
-static int _llseek(unsigned int fd, unsigned long hi, 
-	unsigned long lo, ext2_loff_t *res, unsigned int wh )
-{
-    return syscall(__NR__llseek, fd, hi, lo, res, wh);
-}
+static int _llseek (unsigned int, unsigned long,
+		   unsigned long, ext2_loff_t *, unsigned int);
+
+static _syscall5(int,_llseek,unsigned int,fd,unsigned long,offset_high,
+		 unsigned long, offset_low,ext2_loff_t *,result,
+		 unsigned int, origin)
 #endif
 
 static ext2_loff_t my_llseek (int fd, ext2_loff_t offset, int origin)
@@ -83,6 +85,7 @@ static ext2_loff_t my_llseek (int fd, ext2_loff_t offset, int origin)
 #endif	/* __alpha__ || __ia64__ */
 
 #endif /* HAVE_LLSEEK */
+#endif /* defined(HAVE_LSEEK64) && defined(HAVE_LSEEK64_PROTOTYPE) */
 
 ext2_loff_t ext2fs_llseek (int fd, ext2_loff_t offset, int origin)
 {
@@ -118,12 +121,16 @@ ext2_loff_t ext2fs_llseek (int fd, ext2_loff_t offset, int origin)
 
 ext2_loff_t ext2fs_llseek (int fd, ext2_loff_t offset, int origin)
 {
+#if defined(HAVE_LSEEK64) && defined(HAVE_LSEEK64_PROTOTYPE)
+	return lseek64 (fd, offset, origin);
+#else
 	if ((sizeof(off_t) < sizeof(ext2_loff_t)) &&
 	    (offset >= ((ext2_loff_t) 1 << ((sizeof(off_t)*8) -1)))) {
 		errno = EINVAL;
 		return -1;
 	}
 	return lseek (fd, (off_t) offset, origin);
+#endif
 }
 
 #endif 	/* linux */

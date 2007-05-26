@@ -3957,7 +3957,7 @@ then
   CFLAGS="-O ${CFLAGS}"
 fi
 
-LD=ld
+LD=`${ac_cv_prog_CC} -print-prog-name=ld`
 echo "$as_me:$LINENO: checking if the linker ($LD) is GNU ld" >&5
 echo $ECHO_N "checking if the linker ($LD) is GNU ld... $ECHO_C" >&6
 if test "${ac_cv_prog_gnu_ld+set}" = set; then
@@ -34295,7 +34295,7 @@ if test "${with_smbmount+set}" = set; then
    case "$withval" in
   yes)
 	case "$host_os" in
-	*linux*)
+	*linux* | *elf* )
 		echo "$as_me:$LINENO: result: yes" >&5
 echo "${ECHO_T}yes" >&6
 

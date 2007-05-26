@@ -1,8 +1,186 @@
+2005-12-10  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Add a dependency to make sure that the
+		subdirectories are created before creating all of the
+		object files.
+
+2005-07-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* pager.c (ss_safe_getenv): Pass in zero to the unusued arguments
+		of prctl(PR_GET_DUMPABLE) to avoid false positives from
+		valgrind.
+
+2006-06-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.38
+
+2005-05-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* pager.c (ss_safe_getenv): Fix bug so it would fetch the right
+		environment variable.
+
+2005-03-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* get_readline.c (ss_get_readline), pager.c (ss_page_stdin): If
+		called by a setuid/setgid or an otherwise privileged
+		program, be paranoid and ignore the PAGER and
+		SS_READLINE_PATH environment variables.
+
+2005-03-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.37
+
+2006-02-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.36
+
+2005-02-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Remove ss.pc on a "make distclean"
+
+2005-01-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* ss.pc.in: Add pkg-config files.
+
+2005-01-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Fix the kernel compile-time echo commands to be
+		consistent and portable
+
+2004-12-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Use Linux-kernel-style makefile output for "make
+		install"
+
+	* Makefile.in (installdirs): Use $(MKINSTALLDIRS) macro
+		Update dependencies.
+
+2004-11-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Use Linux-kernel-style makefile output to make it
+		easier to see errors/warnings.
+
+2004-09-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* mk_cmds.sh.in: Remove XSI:isms for greater portability.
+		(Addresses Debian Bug #255589)
+
+2004-02-29  Brian Bergstrand  <brian@bergstrand.org>
+
+	* Makefile.in: Use $(BSDLIB_PIC_FLAG) to determine whether to use
+		-fpic or -fPIC
+
+2004-02-28  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.35
+
+2003-12-07  Theodore Ts'o  <tytso@mit.edu>
+
+	* list_rqs.c, listen.c, requests.c, ss.h, ss_internal.h: Fix gcc
+		-Wall nitpicks.
+
+2003-07-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.34
+
+2003-04-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.33
+
+2003-04-12  Theodore Ts'o  <tytso@mit.edu>
+
+	* help.c: Add #ifdef protection around #include <sys/wait.h>
+
+2003-04-11  Theodore Ts'o  <tytso@mit.edu>
+
+	* get_readline.c (DEFAULT_LIBPATH): Use the SS_READLINE_PATH
+		environment variable to control the search for a suitable
+		readine library.  As a default, try using libreadline,
+		libedit, and libeditline.
+
+2003-03-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* pager.c, listen.c, requests.c, list_rqs.c, ct_c.awk, prompt.c, 
+		error.c, request_tbl.c, ss_internal.h, invocation.c, ss.h,
+		get_readline.c: Remove old support for K&R C and Varargs.
+		Fix gcc -Wall nits.
+
+	* Makefile.in: Use the compile_et --build-tree option.
+
+2003-03-16  Theodore Ts'o  <tytso@mit.edu>
+
+	* mk_cmds.1, Makefile.in: Add (bare-bone) man page
+
+	* Makefile.in (DLOPEN_LIB): Include the dlopen library if it is
+		present on shared libraries.
+
+	* ss_internal.h: Add pointers to dynamic readline functions in the
+		ss_info data structure.
+
+	* listen.c (ss_listen): Use readline instead of fgets if the
+		readline library is present.  Define helper functions to
+		provide command completion from the ss request tables.
+
+	* invocation.c (ss_create_invocation, ss_delete_invocation): If
+		HAVE_DLOPEN is defined, call ss_get_readline() to automatically
+		try to load the readline library.
+
+	* get_readline.c (ss_get_readline): New function which uses dlopen()
+		to dynamically load the readline library if it is present 
+		on the system.
+
+2002-11-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.32
+
+2002-11-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.31
+
+2002-10-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.30
+
+2001-09-24  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.29
+
+2001-08-31  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.28
+
+2002-03-08  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.27
+
+2002-03-07  Theodore Tso  <tytso@mit.edu>
+
+	* pager.c (ss_pager_create), list_rqs.c (ss_list_requests): Fix
+		function prototypes to avoid gcc -Wall complaints.
+
+	* listen.c (ss_listen): Make sure the signal handler for SIGCONT
+		is restored when we exit.  Also, make sure we don't
+		clubber any variables after setjmp/longjmp.  Also removed
+		some bogus, fairly dubious coude.
+
+	* ss.h, ss_internal.h, execute_cmd.c: Add function prototypes to
+		prevent gcc -Wall complaints.
+
+2002-02-12  Theodore Tso  <tytso@mit.edu>
+
+	* requests.c (DECLARE): Fix bug in non-STDC declaration --- we
+		had a mismatch in the function signature and parameter
+		declaration sections for info/infop.
+
+2002-02-03  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.26
+
 2001-09-20  Theodore Tso  <tytso@thunk.org>
 
 	* Release of E2fsprogs 1.25
 
-2001-09-16  Theodore Tso  <tytso@valinux.com>
+2001-09-16  Theodore Tso  <tytso@mit.edu>
 
 	* mk_cmds.sh.in: Make the shell script safe from directory
 		pathnames with spaces.

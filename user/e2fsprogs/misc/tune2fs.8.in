@@ -4,7 +4,7 @@
 .\"
 .TH TUNE2FS 8 "@E2FSPROGS_MONTH@ @E2FSPROGS_YEAR@" "E2fsprogs version @E2FSPROGS_VERSION@"
 .SH NAME
-tune2fs \- adjust tunable filesystem parameters on second extended filesystems
+tune2fs \- adjust tunable filesystem parameters on ext2/ext3 filesystems
 .SH SYNOPSIS
 .B tune2fs
 [
@@ -17,6 +17,9 @@ tune2fs \- adjust tunable filesystem parameters on second extended filesystems
 [
 .B \-e
 .I errors-behavior
+]
+[
+.B \-f
 ]
 [
 .B \-i
@@ -32,6 +35,10 @@ tune2fs \- adjust tunable filesystem parameters on second extended filesystems
 [
 .B \-m
 .I reserved-blocks-percentage
+]
+[
+.B \-o
+.RI [^]mount-options [,...]
 ]
 [
 .B \-r
@@ -66,19 +73,26 @@ tune2fs \- adjust tunable filesystem parameters on second extended filesystems
 .RI [^] feature [,...]
 ]
 [
+.B \-T
+.I time-last-checked
+]
+[
 .B \-U
 .I UUID
 ]
 device
 .SH DESCRIPTION
 .BI tune2fs
-adjusts tunable filesystem parameters on a Linux second extended filesystem.
+allows the system administrator to adjust various tunable filesystem 
+parameters on Linux ext2/ext3 filesystems.
 .SH OPTIONS
 .TP
 .BI \-c " max-mount-counts"
-Adjust the maximal mounts count between two filesystem checks.  If 
+Adjust the number of mounts after which the filesystem will be checked by 
+.BR e2fsck (8).  
+If
 .I max-mount-counts
-is 0 then the number of times the filesystem is mounted will be disregarded
+is 0 or \-1, the number of times the filesystem is mounted will be disregarded 
 by
 .BR e2fsck (8)
 and the kernel.
@@ -104,8 +118,12 @@ option for time-dependent checking.
 .TP
 .BI \-C " mount-count"
 Set the number of times the filesystem has been mounted.
-Can be used in conjunction with -c to force an fsck on
-the filesystem at the next reboot.
+If set to a greater value than the max-mount-counts parameter
+set by the 
+.B \-c
+option,
+.BR e2fsck (8) 
+will check the filesystem at the next reboot.
 .TP
 .BI \-e " error-behavior"
 Change the behavior of the kernel code when errors are detected.
@@ -125,6 +143,20 @@ Remount filesystem read-only.
 .B panic
 Cause a kernel panic.
 .RE
+.TP
+.B \-f
+Force the tune2fs operation to complete even in the face of errors.  This 
+option is useful when removing the 
+.B has_journal
+filesystem feature from a filesystem which has 
+an external journal (or is corrupted
+such that it appears to have an external journal), but that 
+external journal is not available.   
+.sp
+.B WARNING:
+Removing an external journal from a filesystem which was not cleanly unmounted
+without first replaying the external journal can result in
+severe data loss and filesystem corruption.
 .TP
 .BI \-g " group"
 Set the group which can use reserved filesystem blocks.
@@ -160,6 +192,33 @@ option is not specified, the default journal parameters will be used to create
 an appropriately sized journal (given the size of the filesystem) 
 stored within the filesystem.  Note that you must be using a kernel
 which has ext3 support in order to actually make use of the journal.
+.IP
+If this option is used to create a journal on a mounted filesystem, an
+immutable file,
+.BR .journal ,
+will be created in the top-level directory of the filesystem, as it is
+the only safe way to create the journal inode while the filesystem is
+mounted.  While the ext3 journal is visible, it is not safe to
+delete it, or modify it while the filesystem is mounted; for this
+reason the file is marked immutable.
+While checking unmounted filesystems, 
+.BR e2fsck (8)
+will automatically move 
+.B .journal
+files to the invisible, reserved journal inode.  For all filesystems
+except for the root filesystem,  this should happen automatically and
+naturally during the next reboot cycle.  Since the root filesystem is
+mounted read-only,
+.BR e2fsck (8)
+must be run from a rescue floppy in order to effect this transition.
+.IP
+On some distributions, such as Debian, if an initial ramdisk is used,
+the initrd scripts will automatically convert an ext2 root filesystem
+to ext3 if the  
+.BR /etc/fstab
+file specifies the ext3 filesystem for the root filesystem in order to
+avoid requiring the use of a rescue floppy to add an ext3 journal to
+the root filesystem.
 .TP
 .BR \-J " journal-options"
 Override the default ext3 journal parameters. Journal options are comma
@@ -189,6 +248,11 @@ that size.
 @JDEV@.I external-journal
 @JDEV@must be formatted with the same block
 @JDEV@size as filesystems which will be using it.
+@JDEV@In addition, while there is support for attaching
+@JDEV@multiple filesystems to a single external journal,
+@JDEV@the Linux kernel and 
+@JDEV@.BR e2fsck (8)
+@JDEV@do not currently support shared external journals yet.
 @JDEV@.IP
 @JDEV@Instead of specifying a device name directly,
 @JDEV@.I external-journal
@@ -235,6 +299,65 @@ Set the percentage of reserved filesystem blocks.
 .BI \-M " last-mounted-directory"
 Set the last-mounted directory for the filesystem.
 .TP
+.BR \-o " [^]\fImount-option\fR[,...]"
+Set or clear the indicated default mount options in the filesystem.
+Default mount options can be overridden by mount options specified 
+either in 
+.BR /etc/fstab (5)
+or on the command line arguments to
+.BR mount (8).   
+Older kernels may not support this feature; in particular,
+kernels which predate 2.4.20 will almost certainly ignore the
+default mount options field in the superblock.
+.IP
+More than one mount option can be cleared or set by separating
+features with commas.  Mount options prefixed with a 
+caret character ('^') will be cleared in the filesystem's superblock; 
+mount options without a prefix character or prefixed with a plus 
+character ('+') will be added to the filesystem.
+.IP
+The following mount options can be set or cleared using
+.BR tune2fs :
+.RS 1.2i
+.TP
+.B debug
+Enable debugging code for this filesystem.
+.TP
+.B bsdgroups
+Emulate BSD behaviour when creating new files: they will take the group-id
+of the directory in which they were created.  The standard System V behaviour
+is the default, where newly created files take on the fsgid of the current
+process, unless the directory has the setgid bit set, in which case it takes 
+the gid from the parent directory, and also gets the setgid bit set if it is 
+directory itself.
+.TP
+.B user_xattr
+Enable user-specified extended attributes.
+.TP
+.B acl
+Enable Posix Access Control Lists.
+.TP
+.B uid16
+Disables 32-bit UIDs and GIDs.  This is for interoperability with
+older kernels which only store and expect 16-bit values.
+.TP
+.B journal_data
+When the filesystem is mounted with journalling enabled, all data
+(not just metadata) is committed into the journal prior to being written
+into the main filesystem.
+.TP
+.B journal_data_ordered
+When the filesystem is mounted with journalling enabled, all data is forced
+directly out to the main file system prior to its metadata being committed 
+to the journal.
+.TP
+.B journal_data_writeback
+When the filesystem is mounted with journalling enabled, data may be
+written into the main filesystem after its metadata has been committed
+to the journal.  This may increase throughput, however, it may allow old
+data to appear in files after a crash and journal recovery.
+.RE
+.TP
 .BR \-O " [^]\fIfeature\fR[,...]"
 Set or clear the indicated filesystem features (options) in the filesystem.
 More than one filesystem feature can be cleared or set by separating
@@ -247,16 +370,20 @@ The following filesystem features can be set or cleared using
 .BR tune2fs :
 .RS 1.2i
 .TP
-.B sparse_super
-Limit the number of backup superblocks to save space on large filesystems.
+.B dir_index
+Use hashed b-trees to speed up lookups in large directories.
 .TP
 .B filetype
 Store file type information in directory entries.
 .TP
 .B has_journal
-Create an ext3 journal (as if using the
+Use a journal to ensure filesystem consistency even across unclean shutdowns.
+Setting the filesystem feature is equivalent to using the 
 .B \-j
-option).
+option.
+.TP
+.B sparse_super
+Limit the number of backup superblocks to save space on large filesystems.
 .RE
 .IP
 After setting or clearing 
@@ -269,7 +396,11 @@ must be run on the filesystem to return the filesystem to a consistent state.
 .B Tune2fs
 will print a message requesting that the system administrator run
 .BR e2fsck (8)
-if necessary.
+if necessary.  After setting the 
+.B dir_index
+feature, 
+.B e2fsck -D
+can be run to convert existing directories to the hashed B-tree format.
 .IP
 .B Warning:
 Linux kernels before 2.0.39 and many 2.1 series kernels do not support
@@ -294,6 +425,22 @@ doing!  You need to run
 on the filesystem after changing this feature in order to have a valid
 filesystem.
 .TP
+.BI \-T " time-last-checked"
+Set the time the filesystem was last checked using
+.BR  e2fsck .
+This can be useful in scripts which use a Logical Volume Manager to make
+a consistent snapshot of a filesystem, and then check the filesystem 
+during off hours to make sure it hasn't been corrupted due to 
+hardware problems, etc.  If the filesystem was clean, then this option can 
+be used to set the last checked time on the original filesystem.  The format 
+of 
+.I time-last-checked
+is the international date format, with an optional time specifier, i.e.
+YYYYMMDD[[HHMM]SS].   The keyword 
+.B now
+is also accepted, in which case the last checked time will be set to the 
+current time.
+.TP
 .BI \-u " user"
 Set the user who can use the reserved filesystem blocks.
 .I user
@@ -303,7 +450,7 @@ is converted to a numerical uid before it is stored in the superblock.
 .BI \-U " UUID"
 Set the universally unique identifier (UUID) of the filesystem to
 .IR UUID .
-The format of the UUID is a series of hex digits separated by hypthens, 
+The format of the UUID is a series of hex digits separated by hyphens, 
 like this: 
 "c1b9d5a2-f162-11cf-9ece-0020afc76f16".  
 The 
@@ -344,7 +491,8 @@ will automatically use a time-based UUID instead of a randomly-generated UUID.
 We haven't found any bugs yet.  That doesn't mean there aren't any...
 .SH AUTHOR
 .B tune2fs 
-was written by Remy Card <Remy.Card@linux.org>.
+was written by Remy Card <Remy.Card@linux.org>.  It is currently being
+maintained by Theodore Ts'o <tytso@alum.mit.edu>.
 .B tune2fs
 uses the ext2fs library written by Theodore Ts'o <tytso@mit.edu>.
 This manual page was written by Christian Kuhtz <chk@data-hh.Hanse.DE>.

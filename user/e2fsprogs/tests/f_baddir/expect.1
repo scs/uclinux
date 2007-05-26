@@ -14,7 +14,7 @@ Fix? yes
 Entry 'root' in /test (14) is a link to the root inode.
 Clear? yes
 
-Entry 'badino' in /test (14) has bad inode #: 123456.
+Entry 'badino' in /test (14) has invalid inode #: 123456.
 Clear? yes
 
 Entry 'dot' in /test (14) is a link to '.'  Clear? yes
@@ -37,9 +37,6 @@ Inode 12 ref count is 1, should be 2.  Fix? yes
 
 Pass 5: Checking group summary information
 Block bitmap differences:  -22
-Fix? yes
-
-Free blocks count wrong (74, counted=75).
 Fix? yes
 
 Inode bitmap differences:  -13

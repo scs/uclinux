@@ -3,7 +3,7 @@
 # This script was modified by Pawel Wieleba on 2004/10/09.
 
 # LDAP to unix password sync script for samba
-# $Id$
+# $Id: smbldap-passwd,v 1.16 2005/02/13 12:15:11 jtournier Exp $
 
 #  This code was developped by IDEALX (http://IDEALX.org/) and
 #  contributors (their names can be found in the CONTRIBUTORS file).

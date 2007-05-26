@@ -9,6 +9,9 @@
  * %End-Header%
  */
 
+#define _LARGEFILE_SOURCE
+#define _LARGEFILE64_SOURCE
+
 #include <stdio.h>
 #include <string.h>
 #ifdef HAVE_ERRNO_H
@@ -26,7 +29,7 @@
 #include "ext2fs/ext2_fs.h"
 #include "ext2fs/ext2fs.h"
 #include "nls-enable.h"
-#include "get_device_by_label.h"
+#include "blkid/blkid.h"
 #include "util.h"
 
 #ifndef HAVE_STRCASECMP
@@ -45,6 +48,20 @@ int strcasecmp (char *s1, char *s2)
 }
 #endif
 
+/*
+ * Given argv[0], return the program name.
+ */
+char *get_progname(char *argv_zero)
+{
+	char	*cp;
+
+	cp = strrchr(argv_zero, '/');
+	if (!cp )
+		return argv_zero;
+	else
+		return cp+1;
+}
+
 void proceed_question(void)
 {
 	char buf[256];
@@ -52,7 +69,7 @@ void proceed_question(void)
 
 	fflush(stdout);
 	fflush(stderr);
-	printf(_("Proceed anyway? (y,n) "));
+	fputs(_("Proceed anyway? (y,n) "), stdout);
 	buf[0] = 0;
 	fgets(buf, sizeof(buf), stdin);
 	if (strchr(short_yes, buf[0]) == 0)
@@ -62,19 +79,31 @@ void proceed_question(void)
 void check_plausibility(const char *device)
 {
 	int val;
+#ifdef HAVE_OPEN64
+	struct stat64 s;
+	
+	val = stat64(device, &s);
+#else
 	struct stat s;
 	
 	val = stat(device, &s);
+#endif
 	
 	if(val == -1) {
 		fprintf(stderr, _("Could not stat %s --- %s\n"),
 			device, error_message(errno));
 		if (errno == ENOENT)
-			fprintf(stderr, _("\nThe device apparently does "
-			       "not exist; did you specify it correctly?\n"));
+			fputs(_("\nThe device apparently does not exist; "
+				"did you specify it correctly?\n"), stderr);
 		exit(1);
 	}
-	if (!S_ISBLK(s.st_mode)) {
+#if defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+	/* On FreeBSD, all disk devices are character specials */
+	if (!S_ISBLK(s.st_mode) && !S_ISCHR(s.st_mode))
+#else
+	if (!S_ISBLK(s.st_mode))
+#endif
+	{
 		printf(_("%s is not a block special device.\n"), device);
 		proceed_question();
 		return;
@@ -92,8 +121,21 @@ void check_plausibility(const char *device)
 		(((M) >= SCSI_DISK8_MAJOR) && ((M) <= SCSI_DISK15_MAJOR)))
 #endif
 #ifndef SCSI_BLK_MAJOR
-#define SCSI_BLK_MAJOR(M)  (SCSI_DISK_MAJOR(M) || (M) == SCSI_CDROM_MAJOR)
-#endif
+#ifdef SCSI_DISK0_MAJOR
+#ifdef SCSI_DISK8_MAJOR
+#define SCSI_DISK_MAJOR(M) ((M) == SCSI_DISK0_MAJOR || \
+  ((M) >= SCSI_DISK1_MAJOR && (M) <= SCSI_DISK7_MAJOR) || \
+  ((M) >= SCSI_DISK8_MAJOR && (M) <= SCSI_DISK15_MAJOR))
+#else
+#define SCSI_DISK_MAJOR(M) ((M) == SCSI_DISK0_MAJOR || \
+  ((M) >= SCSI_DISK1_MAJOR && (M) <= SCSI_DISK7_MAJOR))
+#endif /* defined(SCSI_DISK8_MAJOR) */
+#define SCSI_BLK_MAJOR(M) (SCSI_DISK_MAJOR((M)) || (M) == SCSI_CDROM_MAJOR)
+#else
+#define SCSI_BLK_MAJOR(M)  ((M) == SCSI_DISK_MAJOR || (M) == SCSI_CDROM_MAJOR)
+#endif /* defined(SCSI_DISK0_MAJOR) */
+#endif /* defined(SCSI_BLK_MAJOR) */
+
 	if (((MAJOR(s.st_rdev) == HD_MAJOR &&
 	      MINOR(s.st_rdev)%64 == 0) ||
 	     (SCSI_BLK_MAJOR(MAJOR(s.st_rdev)) &&
@@ -117,16 +159,25 @@ void check_mount(const char *device, int force, const char *type)
 			device);
 		return;
 	}
-	if (!(mount_flags & EXT2_MF_MOUNTED))
-		return;
-
-	fprintf(stderr, _("%s is mounted; "), device);
-	if (force) {
-		fprintf(stderr, _("mke2fs forced anyway.  "
-			"Hope /etc/mtab is incorrect.\n"));
-	} else {
+	if (mount_flags & EXT2_MF_MOUNTED) {
+		fprintf(stderr, _("%s is mounted; "), device);
+		if (force) {
+			fputs(_("mke2fs forced anyway.  Hope /etc/mtab is "
+				"incorrect.\n"), stderr);
+			return;
+		}
+	abort_mke2fs:
 		fprintf(stderr, _("will not make a %s here!\n"), type);
 		exit(1);
+	}
+	if (mount_flags & EXT2_MF_BUSY) {
+		fprintf(stderr, _("%s is apparently in use by the system; "),
+			device);
+		if (force) {
+			fputs(_("mke2fs forced anyway.\n"), stderr);
+			return;
+		}
+		goto abort_mke2fs;
 	}
 }
 
@@ -139,8 +190,8 @@ void parse_journal_opts(const char *opts)
 	len = strlen(opts);
 	buf = malloc(len+1);
 	if (!buf) {
-		fprintf(stderr, _("Couldn't allocate memory to parse "
-			"journal options!\n"));
+		fputs(_("Couldn't allocate memory to parse journal "
+			"options!\n"), stderr);
 		exit(1);
 	}
 	strcpy(buf, opts);
@@ -161,7 +212,7 @@ void parse_journal_opts(const char *opts)
 		       arg ? arg : "NONE");
 #endif
 		if (strcmp(token, "device") == 0) {
-			journal_device = interpret_spec(arg);
+			journal_device = blkid_get_devname(NULL, arg, NULL);
 			if (!journal_device) {
 				journal_usage++;
 				continue;
@@ -181,15 +232,15 @@ void parse_journal_opts(const char *opts)
 			journal_usage++;
 	}
 	if (journal_usage) {
-		fprintf(stderr, _("\nBad journal options specified.\n\n"
+		fputs(_("\nBad journal options specified.\n\n"
 			"Journal options are separated by commas, "
 			"and may take an argument which\n"
 			"\tis set off by an equals ('=') sign.\n\n"
-			"Valid raid options are:\n"
+			"Valid journal options are:\n"
 			"\tsize=<journal size in megabytes>\n"
 			"\tdevice=<journal device>\n\n"
 			"The journal size must be between "
-			"1024 and 102400 filesystem blocks.\n\n" ));
+			"1024 and 102400 filesystem blocks.\n\n"), stderr);
 		exit(1);
 	}
 }	
@@ -203,18 +254,17 @@ void parse_journal_opts(const char *opts)
  * in the filesystem.  For very small filesystems, it is not reasonable to
  * have a journal that fills more than half of the filesystem.
  */
-int figure_journal_size(int journal_size, ext2_filsys fs)
+int figure_journal_size(int size, ext2_filsys fs)
 {
 	blk_t j_blocks;
 
 	if (fs->super->s_blocks_count < 2048) {
-		fprintf(stderr, _("\nFilesystem too small for a journal\n"));
+		fputs(_("\nFilesystem too small for a journal\n"), stderr);
 		return 0;
 	}
 	
-	if (journal_size >= 0) {
-		j_blocks = journal_size * 1024 /
-			(fs->blocksize	/ 1024);
+	if (size > 0) {
+		j_blocks = size * 1024 / (fs->blocksize	/ 1024);
 		if (j_blocks < 1024 || j_blocks > 102400) {
 			fprintf(stderr, _("\nThe requested journal "
 				"size is %d blocks; it must be\n"
@@ -224,8 +274,8 @@ int figure_journal_size(int journal_size, ext2_filsys fs)
 			exit(1);
 		}
 		if (j_blocks > fs->super->s_free_blocks_count) {
-			fprintf(stderr, _("\nJournal size too big "
-					  "for filesystem.\n"));
+			fputs(_("\nJournal size too big for filesystem.\n"),
+			      stderr);
 			exit(1);
 		}
 		return j_blocks;
@@ -233,10 +283,15 @@ int figure_journal_size(int journal_size, ext2_filsys fs)
 
 	if (fs->super->s_blocks_count < 32768)
 		j_blocks = 1024;
-	else if (fs->super->s_blocks_count < 262144)
+	else if (fs->super->s_blocks_count < 256*1024)
 		j_blocks = 4096;
-	else
+	else if (fs->super->s_blocks_count < 512*1024)
 		j_blocks = 8192;
+	else if (fs->super->s_blocks_count < 1024*1024)
+		j_blocks = 16384;
+	else
+		j_blocks = 32768;
+
 
 	return j_blocks;
 }

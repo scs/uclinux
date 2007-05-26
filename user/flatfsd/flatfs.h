@@ -14,48 +14,31 @@
 /*****************************************************************************/
 
 /*
- *	Magic numbers used in flat file-system.
+ * Hardwire the source and destination directories :-(
  */
-#define	FLATFS_MAGIC	0xcafe1234
-#define	FLATFS_MAGIC_V2	0xcafe2345
-#define	FLATFS_EOF	0xffffffff
-
-#define FLATFSD_CONFIG ".flatfsd"
-
-/*
- *	Flat file-system header structure.
- */
-struct flathdr {
-	unsigned int	magic;
-	unsigned int	chksum;
-};
-
-struct flatent {
-	unsigned int	namelen;
-	unsigned int	filelen;
-};
-
-
-/*
- *	Hardwire the source and destination directories :-(
- */
+#define	FILEFS		"/dev/flash/config"
 #define	DEFAULTDIR	"/etc/default"
 #define	SRCDIR		"/etc/config"
 #define	DSTDIR		SRCDIR
 
-/*
- *	Globals for file and byte count.
- */
-extern int	numfiles;
-extern int	numbytes;
-extern int	numdropped;
+#define FLATFSD_CONFIG	".flatfsd"
 
-extern int flatread(char *flatfs);
-extern int flatwrite(char *flatfs);
-extern int flatnew(const char *dir);
-extern int flatclean(int realclean);
-extern int flatfilecount(void);
-extern int flatneedinit(void);
+
+/*
+ * Globals for file and byte count.
+ */
+extern int numfiles;
+extern int numbytes;
+extern int numdropped;
+extern int numversion;
+
+extern int flat_restorefs(void);
+extern int flat_savefs(int version);
+extern int flat_new(const char *dir);
+extern int flat_clean(int realclean);
+extern int flat_filecount(void);
+extern int flat_needinit(void);
+extern int flat_check(void);
 
 #define ERROR_CODE()	(-(__LINE__)) /* unique failure codes :-) */
 

@@ -35,7 +35,7 @@
  * From: @(#)glob.c	5.9 (Berkeley) 2/25/91
  */
 char glob_rcsid[] = 
-  "$Id$";
+  "$Id: glob.c,v 1.2 2005/06/10 04:43:01 gerg Exp $";
 
 /*
  * C-shell glob for random programs.

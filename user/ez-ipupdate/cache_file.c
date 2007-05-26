@@ -59,6 +59,13 @@ extern int errno;
 #  define error_string "error message not found"
 #endif
 
+static void sync_file(void)
+{
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
+  system("exec flatfsd -s");
+#endif
+}
+
 int read_cache_file(char *file, time_t *date, char **ipaddr)
 {
   FILE *fp = NULL;
@@ -147,22 +154,23 @@ int write_cache_file(char *file, time_t date, char *ipaddr)
 
   fclose(fp);
 
-#ifdef CONFIG_USER_FLATFSD_FLATFSD
-  {
-    char value[16];
-    pid_t pid;
-    int fd;
-
-    fd = open("/var/run/flatfsd.pid", O_RDONLY);
-    if (fd != -1) {
-      if (read(fd, value, sizeof(value)) > 0 &&
-          (pid = atoi(value)) > 1)
-        kill(pid, SIGUSR1);
-      close(fd);
-    }
-  }
-#endif
+  sync_file();
 
   return 0;
 }
 
+int write_block_file(char *file)
+{
+  FILE *fp = NULL;
+
+  if((fp=fopen(file, "w")) == NULL)
+  {
+    return(-1);
+  }
+
+  fclose(fp);
+
+  sync_file();
+
+  return 0;
+}

@@ -1,4 +1,4 @@
-# $Id$
+# $Id: keywords.pl,v 1.1 2001/03/23 06:26:00 gerg Exp $
 
 # Generate keyword tables from ledman.h.
 

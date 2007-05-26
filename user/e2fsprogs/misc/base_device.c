@@ -38,7 +38,7 @@ static const char *devfs_hier[] = {
 	"host", "bus", "target", "lun", 0
 };
 
-char *base_device(char *device)
+char *base_device(const char *device)
 {
 	char *str, *cp;
 	const char **hier, *disk;
@@ -147,8 +147,7 @@ errout:
 }
 
 #ifdef DEBUG
-
-main(int argc, char** argv)
+int main(int argc, char** argv)
 {
 	const char *base;
 	char  buf[256], *cp;
@@ -167,5 +166,4 @@ main(int argc, char** argv)
 	}
 	exit(0);
 }
-
 #endif

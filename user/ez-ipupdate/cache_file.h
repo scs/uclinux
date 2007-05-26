@@ -33,5 +33,6 @@
 
 extern int read_cache_file(char *file, time_t *date, char **ipaddr);
 extern int write_cache_file(char *file, time_t date, char *ipaddr);
+extern int write_block_file(char *file);
 
 #endif

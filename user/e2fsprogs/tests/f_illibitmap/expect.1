@@ -1,9 +1,8 @@
-Note: if there is several inode or block bitmap blocks
-which require relocation, or one part of the inode table
-which must be moved, you may wish to try running e2fsck
-with the '-b 8193' option first.  The problem may lie only
-with the primary block group descriptor, and the backup
-block group descriptor may be OK.
+Note: if several inode or block bitmap blocks or part
+of the inode table require relocation, you may wish to try
+running e2fsck with the '-b 8193' option first.  The problem
+may lie only with the primary block group descriptors, and
+the backup block group descriptors may be OK.
 
 Inode bitmap for group 0 is not in group.  (block 4000)
 Relocate? yes
@@ -16,7 +15,7 @@ Pass 2: Checking directory structure
 Pass 3: Checking directory connectivity
 Pass 4: Checking reference counts
 Pass 5: Checking group summary information
-Inode bitmap differences:  +1 +2 +3 +4 +5 +6 +7 +8 +9 +10 +11
+Inode bitmap differences:  +(1--11)
 Fix? yes
 
 

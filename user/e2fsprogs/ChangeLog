@@ -1,3 +1,384 @@
+2006-04-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* config/config.guess, config/config.sub: Update to newer versions
+		from FSF (2006-02-23)
+
+	* configure.in, Makefile.in, config/parse-types.sh: Make the
+		ext2_types.h.in and blkid_types.h.in from config.sys,
+		instead of using the subst program.  Create the
+		asm_types.h file from the system's
+		/usr/include/asm/types.h header file.
+
+2006-03-23  Theodore Ts'o  <tytso@mit.edu>
+
+	* MCONFIG.in (mandir): Define $(man5dir)
+
+2005-10-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* MCONFIG.in, configure.in: Use BUILD_CCFLAGS and BUILD_LDFLAGS
+		instead of CCFLAGS and LDFLAGS when to avoid potential
+		problems when cross-compiling some of the options are not
+		recognized as valid by the host compiler.  (Addresses
+		Sourceforge Bug #1261547)
+
+2006-06-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.38
+
+2005-03-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Add tests for __secure_getenv(), prctl(),
+		and sys/prctl.h
+
+2005-03-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.37
+
+2006-02-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.36
+
+2005-02-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Make util/gen-tarball executable after it is created.
+
+2005-02-04  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Remove support for --enable-clear-htree; this was
+		only needed during the early development of the htree patch.
+
+	* configure.in, MCONFIG.in: Add support for --enable-maintainer-mode;
+		only rebuild configure from configure.in if it is enabled.
+
+2005-02-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Remove support for the (very old) sparc old-bitops
+		configure option.
+
+2005-01-19  Matthias Andree <matthias.andree@gmx.de>
+
+	* configure.in: Clean up checks for dirent.d_reclen, ssize_t,
+		llseek, lseek64, sockaddr.sa_len and make the lseek checks
+		immune to compiler warnings, so that they can be compiled
+		with Intel C++ 8.1.
+
+2005-01-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Make configure.in script check for prerequisite
+		headers when checking for the presence of sys/disk.h,
+		sys/mount.h, and net/if.h, to improve the configure script
+		on Solaris and *BSD systems. 
+
+2005-01-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Use AC_PROG_AWK instead of AC_PATH_PROG so that we
+		use nawk in preference to awk for Solaris systems.  Use
+		AC_PROG_EGREP because Solaris doesn't support "grep -E".
+
+2005-01-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Use AC_CHECK_TYPES instead of the autoconf 2.13
+		"broken by design" AC_CHECK_TYPE to look for intptr_t.
+
+2004-12-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Add install-strip and install-shlibs-strip targets
+
+	* MCONFIG.in: Add configure-defined variables for MKINSTALLDIRS
+		and INSTALL_SCRIPT.  Filter out comments inserted by newer
+		versions of gcc when using -M in make depend.
+
+2004-11-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Delete autom4te.cache, e2fsprogs.spec,
+		ext2ed/Makefile, and po/stamp-po on make distclean
+
+	* Makefile.in: Use Linux-kernel-style makefile output to make it
+		easier to see errors/warnings.
+
+	* MCONFIG.in: Add definition for ARGEN
+
+2004-09-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Add --disable-e2initrd-helper flag to control
+		whether or not e2initrd_helper program should be
+		built/installed.
+
+2004-09-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Remove XSI:isms for greater portability.
+		(Addresses Debian Bug #255589)
+
+	* config.guess, config.sub: Update to newer version from the FSF
+		(2004-06-11)
+
+	* configure.in, configure: Add test for the sys/queue.h header file.
+
+2004-05-04  Theodore Ts'o  <tytso@mit.edu>
+
+	* e2fsprogs.spec.in: Fix up e2fsprogs.spec file so it should work
+		on a RH 9.0 system.  Based off of changes proposed by
+		Andreas Dilger.
+
+	* configure.in, configure: Enable the fsck wrapper for the Debian
+		FreeBSD kernel / GNU userspace port.  (Addresses Debian
+		Bug #246738)
+
+	* config.guess, config.sub: Update to newer version from the FSF
+		(2004-01-05)
+
+2004-04-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* MCONFIG.in (SUBSTITUTE_UPTIME): New definition which passes the
+		-t option to subst.
+
+	* configure.in: Add test for stdint.h
+
+2004-03-19  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Add tests for sa_len in struct sockaddr and test
+		for net/if_dl.h for better Darwin support.
+
+2004-03-04  Theodore Ts'o  <tytso@mit.edu>
+
+	* e2fsprogs.spec.in: Mostly synchronize spec file with the one
+		found in Fedora core 2.
+
+2004-02-28  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.35
+
+2004-02-21  Matthias Andree <matthias.andree@gmx.de>
+
+	* configure.in: Add -mieee to CFLAGS if we're using GCC and the CPU is
+		an Alpha.
+
+2003-12-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* e2fsprogs.spec.in: Add filefrag program to the RPM spec file.
+
+2003-11-26  Theodore Ts'o  <tytso@mit.edu>
+
+	* MCONFIG.in: Make the gcc-wall print more warnings to catch
+		signed vs. unsigned problems.
+
+2003-08-01  Philipp Thomas <pthomas@suse.de>
+
+	* configure.in: Add tests for inttypes.h and intptr_t.
+
+2003-07-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.34
+
+2003-07-12  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Add tests for posix_memalign, memalign, and valloc.
+
+2003-07-06  Theodore Ts'o  <tytso@mit.edu>
+
+	* MCONFIG.in (WFLAGS): Add additional warning checks.  Remove
+		--traditional since newer versions of gcc are overly annoying.
+
+2003-07-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* Add workaround for Libintl / Darwin incompatibility.  Apparently
+		Darwin's gcc doesn't like the __asm__ statements used by
+		libintl to redirect the system-provided gettext calls.
+
+2003-06-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Adjust defaults for FreeBSD to no longer build the
+		fsck wrapper, and to not install into /usr/local by
+		default.  (Addresses Debian bug #195274)
+
+2003-05-17  Theodore Tso  <tytso@thunk.org>
+
+	* MCONFIG.in, configure.in: Only put the intl directory in the -I
+		search path if we are using --with-internal-gettext.
+		Otherwise causes compatibility problems with the woody
+		glibc.   (Addresses Debian bug #193372)
+
+2003-05-13  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Fix typo in help message for --enable-evms-11
+
+2003-05-05  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in, configure: Add --enable-testio-debug configure option. 
+
+	* configure.in, configure, Makefile.in: Add --with-diet-libc
+		convenience option.  Add --disable-evms option.
+
+2003-05-03  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in: Install the message catalog files
+
+	* ABOUT-NLS, MCONFIG.in, Makefile.in, aclocal.m4, configure,
+		configure.in: Update to using version 0.11.5 of the
+		gettext library.  We now enable NLS by default.
+
+2003-04-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.33
+
+2003-04-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Remove CYGWIN definition; we will use the
+		automatically defined __CYGWIN__ instead.
+
+2003-03-22  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Add E2FSPROGS_DAY expansion.  Add
+		e2fsprogs.spec and util/gen-tarball to the list of files
+		generated by config.status
+
+	* e2fsprogs.spec: Now generated from e2fsprogs.spec.in
+
+	* Makefile.in: Remove tarball generation functions; moved to
+		util/gen-tarball.
+
+2003-03-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Fix the Apple Darwin port.
+
+2003-03-16  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Check to see if libdl exists for the sake of dlopen
+
+2003-03-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Add support for Apple/Darwin shared libraries.
+
+2003-03-06  Theodore Tso  <tytso@thunk.org>
+
+	* Makefile.in (.exclude-subset): Include the doc directory in the
+		subset distribution.
+
+2003-03-02  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in, Makefile.in: Ignore missing directories so we can
+		do a subset distribution.  If there are no e2fsprogs
+		applications, then "make install" will install the
+		library's development files.  "make subset_tar_file" will
+		create a subset distribution which consists of the
+		et, ss, uuid, and blkid libraries.
+
+2003-02-22  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in, configure: Add new configure option 
+		--enable-blkid-debug
+
+2003-01-23  Theodore Ts'o  <tytso@mit.edu>
+
+	* Makefile.in, configure, configure.in: Integrate new blkid library.
+
+2002-11-09  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.32
+
+2002-11-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.31
+
+2002-11-08  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in, configure: Change --enable-jfs-debug to 
+		--enable-jbd-debug for consistency's sake.
+
+	* configure.in, configure: Add new substitution variable,
+		SWAPFS_CMT, which is '' if swapfs has been enabled, and
+		'#' if it has been disabled.
+	
+	* configure.in, configure: Add support for EVMS ABI 1.2.
+		Changed configure option from --enable-old-evms
+		to --enable-evms-10 and --enable-evms-11
+
+2002-10-31  Theodore Ts'o  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.30
+
+2002-10-30  Theodore Ts'o  <tytso@mit.edu>
+
+	* MCONFIG.in (COMPRESS_EXT): Declare all compression extensions
+
+2001-09-24  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.29
+
+2001-08-31  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.28
+
+2002-08-18  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in, configure: Add new substitution variable,
+		LINUX_CMT, which is '' on Linux systems, and '#' on
+		non-Linux systems.  Enable HTREE support by default.
+
+	* Makefile.in: On Linux systems, build lib/evms.
+
+2002-07-14  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in, configure: Remove test for the presence (or
+		absence of d_namlen in the struct dirent) and replace it
+		with a check for pathconf().  lib/e2p/iod.c now uses a
+		different technique for providing struct dirent
+		compatibility.
+
+2002-06-25  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in, configure: Add --enable-htree and --enable-clear-htree
+
+2002-05-24  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: Add makefile for lib/evms for the EVMS FSIM
+		plugin.  Add --enable-old-evms configure option which uses
+		the EVMS 1.0.0 ABI, instead of the ABI used by EVMS 1.1.0.
+
+2002-05-21  Theodore Ts'o  <tytso@mit.edu>
+
+	* configure.in: On Linux systems, if the prefix is defaulted to
+		/usr, then default mandir to /usr/share/man
+
+2002-05-17  Theodore Ts'o  <tytso@mit.edu>
+
+	* Remove check for asm/page.h, and add check for sysconf()
+
+2002-05-16  Andreas Dilger <adilger@clusterfs.com>
+
+	* Add check for asm/page.h
+
+2002-05-11  Theodore Tso <tytso@mit.edu>
+
+	* configure.in, MCONFIG.in: Add new makefile variables, $datadir
+		and $root_sysconfdir, which are normally /usr/share and
+		/etc, respectively, on Linux systems.  Also changed
+		root_bindir, root_sbindir, and root_libdir so that their
+		value is set by the configure script.  This allows the
+		right thing to happen on non-Linux systems when bindir,
+		et. al.  are manually set via the configure script's
+		--bindir switch.  Add ext2ed/Makefile.in as a generated
+		file by the configure script.
+
+2002-03-08  Theodore Tso  <tytso@mit.edu>
+
+	* Release of E2fsprogs 1.27
+
+2002-02-03  Theodore Tso  <tytso@thunk.org>
+
+	* Release of E2fsprogs 1.26
+
+2001-12-24  Theodore Tso  <tytso@valinux.com>
+
+	* MCONFIG.in (ALL_CFLAGS): No longer put $(top_srcdir)/include in
+		the -I search path, since we don't have any header files
+		there any more.
+
+2001-12-16  Theodore Tso  <tytso@valinux.com>
+
+	* configure.in: If journal debugging is enabled, define
+		CONFIG_JBD_DEBUG instead of JFS_DEBUG.
+
 2001-09-20  Theodore Tso  <tytso@thunk.org>
 
 	* Release of E2fsprogs 1.25

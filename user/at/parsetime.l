@@ -58,7 +58,7 @@ day(s)?		{ COPY_TOK ; return DAY; }
 week(s)?	{ COPY_TOK ; return WEEK; }
 month(s)?	{ COPY_TOK ; return MONTH; }
 jan(uary)?	{ COPY_TOK ; return JAN; }
-feb(ruary)?	{ COPY_TOK ; return FEB; }
+feb(uary)?	{ COPY_TOK ; return FEB; }
 mar(ch)?	{ COPY_TOK ; return MAR; }
 apr(il)?	{ COPY_TOK ; return APR; }
 may		{ COPY_TOK ; return MAY; }

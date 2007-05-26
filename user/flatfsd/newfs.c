@@ -19,47 +19,44 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
-
 #include "flatfs.h"
 
 /*****************************************************************************/
 
-#define ERROR_CODE()	(-(__LINE__))	/* unique error codes */
-
-/*****************************************************************************/
-
-/**
+/*
  * If the file .init exists, it indicates that the filesystem should be
  * reinitialised, so return 1.
  */
-int flatneedinit(void)
+
+int flat_needinit(void)
 {
-	if (access(SRCDIR "/.init", R_OK) == 0) {
+	if (access(SRCDIR "/.init", R_OK) == 0)
 		return 1;
-	}
 	return 0;
 }
 
+/*****************************************************************************/
+
 /*
- *	Count the number of files in the config area.
- *  Updates numfiles and numbytes and returns numfiles or < 0 on error.
+ * Count the number of files in the config area.
+ * Updates numfiles and numbytes and returns numfiles or < 0 on error.
  */
 
-int flatfilecount(void)
+int flat_filecount(void)
 {
-	DIR		*dirp;
-	struct dirent	*dp;
+	DIR *dirp;
+	struct dirent *dp;
 	struct stat sb;
 
 	numfiles = 0;
 	numbytes = 0;
 
 	if (chdir(SRCDIR) < 0)
-		return(ERROR_CODE());
+		return ERROR_CODE();
 
 	/* Scan directory */
 	if ((dirp = opendir(".")) == NULL)
-		return(ERROR_CODE());
+		return ERROR_CODE();
 
 	while ((dp = readdir(dirp)) != NULL) {
 		/* Only count normal files */
@@ -72,31 +69,31 @@ int flatfilecount(void)
 	}
 
 	closedir(dirp);
-	return(numfiles);
+	return numfiles;
 }
 
 /*****************************************************************************/
 
 /*
- *	Remove all files from the config file-system.
- *	If 'realclean' is 0, actually just writes the .init file
- *	which indicates that the filesystem should be cleaned out
- *	after the next reboot (during flatfsd -r)
+ * Remove all files from the config file-system.
+ * If 'realclean' is 0, actually just writes the .init file
+ * which indicates that the filesystem should be cleaned out
+ * after the next reboot (during flatfsd -r)
  */
 
-int flatclean(int realclean)
+int flat_clean(int realclean)
 {
 	if (realclean) {
-		DIR		*dirp;
-		struct dirent	*dp;
+		DIR *dirp;
+		struct dirent *dp;
 		struct stat sb;
 
 		if (chdir(SRCDIR) < 0)
-			return(ERROR_CODE());
+			return ERROR_CODE();
 
 		/* Scan directory */
 		if ((dirp = opendir(".")) == NULL)
-			return(ERROR_CODE());
+			return ERROR_CODE();
 
 		while ((dp = readdir(dirp)) != NULL) {
 			/* only delete normal files */
@@ -105,41 +102,40 @@ int flatclean(int realclean)
 		}
 
 		closedir(dirp);
-		return(0);
-	}
-	else {
+		return 0;
+	} else {
 		FILE *fh = fopen(SRCDIR "/.init", "w");
 		if (fh) {
 			fclose(fh);
 			return 1;
 		}
-		return ERROR_CODE();
 	}
+	return ERROR_CODE();
 }
 
 /*****************************************************************************/
 
 /*
- *	This is basically just a directory copy. Copy all files from the
- *	given directory to the config directory.
+ * This is basically just a directory copy. Copy all files from the
+ * given directory to the config directory.
  */
 
-int flatnew(const char *dir)
+int flat_new(const char *dir)
 {
-	DIR		*dirp;
-	struct stat	st;
-	struct dirent	*dp;
-	unsigned int	size, n;
-	int		fddefault, fdconfig;
-	char		filename[512];
-	unsigned char	buf[1024];
+	DIR *dirp;
+	struct stat st;
+	struct dirent *dp;
+	unsigned int size, n;
+	int fddefault, fdconfig;
+	char filename[512];
+	unsigned char buf[1024];
 
 	if (chdir(dir) < 0)
-		return(ERROR_CODE());
+		return ERROR_CODE();
 
 	/* Scan directory */
 	if ((dirp = opendir(".")) == NULL)
-		return(ERROR_CODE());
+		return ERROR_CODE();
 
 	numfiles = 0;
 	numbytes = 0;
@@ -152,7 +148,7 @@ int flatnew(const char *dir)
 			continue;
 
 		if (stat(dp->d_name, &st) < 0)
-			return(ERROR_CODE());
+			return ERROR_CODE();
 
 		strcpy(filename, SRCDIR);
 		strcat(filename, "/");
@@ -160,10 +156,10 @@ int flatnew(const char *dir)
 
 		/* Write the contents of the file. */
 		if ((fddefault = open(dp->d_name, O_RDONLY)) < 0)
-			return(ERROR_CODE());
+			return ERROR_CODE();
 		fdconfig = open(filename, O_WRONLY | O_TRUNC | O_CREAT, st.st_mode);
 		if (fdconfig < 0)
-			return(ERROR_CODE());
+			return ERROR_CODE();
 
 		for (size = st.st_size; (size > 0); size -= n) {
 			n = (size > sizeof(buf)) ? sizeof(buf) : size;
@@ -184,7 +180,7 @@ int flatnew(const char *dir)
 	}
 
 	closedir(dirp);
-	return(0);
+	return 0;
 }
 
 /*****************************************************************************/

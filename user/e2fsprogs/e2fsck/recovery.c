@@ -16,13 +16,11 @@
 #ifndef __KERNEL__
 #include "jfs_user.h"
 #else
-#include <linux/sched.h>
+#include <linux/time.h>
 #include <linux/fs.h>
-#include <linux/jfs.h>
+#include <linux/jbd.h>
 #include <linux/errno.h>
-#include <linux/malloc.h>
-#include <linux/locks.h>
-#include <linux/buffer.h>
+#include <linux/slab.h>
 #endif
 
 /*
@@ -40,13 +38,15 @@ struct recovery_info
 };
 
 enum passtype {PASS_SCAN, PASS_REVOKE, PASS_REPLAY};
-static int do_one_pass(journal_t *, struct recovery_info *, enum passtype);
-static int scan_revoke_records(journal_t *, struct buffer_head *, tid_t, struct recovery_info *);
+static int do_one_pass(journal_t *journal,
+				struct recovery_info *info, enum passtype pass);
+static int scan_revoke_records(journal_t *, struct buffer_head *,
+				tid_t, struct recovery_info *);
 
 #ifdef __KERNEL__
 
 /* Release readahead buffers after use */
-static void brelse_array(struct buffer_head *b[], int n)
+void journal_brelse_array(struct buffer_head *b[], int n)
 {
 	while (--n >= 0)
 		brelse (b[n]);
@@ -69,7 +69,8 @@ static void brelse_array(struct buffer_head *b[], int n)
 static int do_readahead(journal_t *journal, unsigned int start)
 {
 	int err;
-	unsigned int max, nbufs, next, blocknr;
+	unsigned int max, nbufs, next;
+	unsigned long blocknr;
 	struct buffer_head *bh;
 	
 	struct buffer_head * bufs[MAXBUF];
@@ -85,17 +86,15 @@ static int do_readahead(journal_t *journal, unsigned int start)
 	nbufs = 0;
 	
 	for (next = start; next < max; next++) {
-		blocknr = next;
-		if (journal->j_inode)
-			blocknr = bmap(journal->j_inode, next);
-		if (!blocknr) {
-			printk (KERN_ERR "JFS: bad block at offset %u\n",
+		err = journal_bmap(journal, next, &blocknr);
+
+		if (err) {
+			printk (KERN_ERR "JBD: bad block at offset %u\n",
 				next);
-			err = -EIO;
 			goto failed;
 		}
-		
-		bh = getblk(journal->j_dev, blocknr, journal->j_blocksize);
+
+		bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
 		if (!bh) {
 			err = -ENOMEM;
 			goto failed;
@@ -105,7 +104,7 @@ static int do_readahead(journal_t *journal, unsigned int start)
 			bufs[nbufs++] = bh;
 			if (nbufs == MAXBUF) {
 				ll_rw_block(READ, nbufs, bufs);
-				brelse_array(bufs, nbufs);
+				journal_brelse_array(bufs, nbufs);
 				nbufs = 0;
 			}
 		} else
@@ -115,10 +114,10 @@ static int do_readahead(journal_t *journal, unsigned int start)
 	if (nbufs)
 		ll_rw_block(READ, nbufs, bufs);
 	err = 0;
-	
+
 failed:	
 	if (nbufs) 
-		brelse_array(bufs, nbufs);
+		journal_brelse_array(bufs, nbufs);
 	return err;
 }
 
@@ -132,27 +131,26 @@ failed:
 static int jread(struct buffer_head **bhp, journal_t *journal, 
 		 unsigned int offset)
 {
-	unsigned int blocknr;
+	int err;
+	unsigned long blocknr;
 	struct buffer_head *bh;
 
 	*bhp = NULL;
 
 	J_ASSERT (offset < journal->j_maxlen);
-			
-	blocknr = offset;
-	if (journal->j_inode)
-		blocknr = bmap(journal->j_inode, offset);
 	
-	if (!blocknr) {
-		printk (KERN_ERR "JFS: bad block at offset %u\n",
+	err = journal_bmap(journal, offset, &blocknr);
+
+	if (err) {
+		printk (KERN_ERR "JBD: bad block at offset %u\n",
 			offset);
-		return -EIO;
+		return err;
 	}
-	
-	bh = getblk(journal->j_dev, blocknr, journal->j_blocksize);
+
+	bh = __getblk(journal->j_dev, blocknr, journal->j_blocksize);
 	if (!bh)
 		return -ENOMEM;
-	
+
 	if (!buffer_uptodate(bh)) {
 		/* If this is a brand new buffer, start readahead.
                    Otherwise, we assume we are already reading it.  */
@@ -160,14 +158,14 @@ static int jread(struct buffer_head **bhp, journal_t *journal,
 			do_readahead(journal, offset);
 		wait_on_buffer(bh);
 	}
-	
+
 	if (!buffer_uptodate(bh)) {
-		printk (KERN_ERR "JFS: Failed to read block at offset %u\n",
+		printk (KERN_ERR "JBD: Failed to read block at offset %u\n",
 			offset);
 		brelse(bh);
 		return -EIO;
 	}
-		
+
 	*bhp = bh;
 	return 0;
 }
@@ -182,12 +180,12 @@ static int count_tags(struct buffer_head *bh, int size)
 	char *			tagp;
 	journal_block_tag_t *	tag;
 	int			nr = 0;
-	
+
 	tagp = &bh->b_data[sizeof(journal_header_t)];
-	
+
 	while ((tagp - bh->b_data + sizeof(journal_block_tag_t)) <= size) {
 		tag = (journal_block_tag_t *) tagp;
-		
+
 		nr++;
 		tagp += sizeof(journal_block_tag_t);
 		if (!(tag->t_flags & htonl(JFS_FLAG_SAME_UUID)))
@@ -196,7 +194,7 @@ static int count_tags(struct buffer_head *bh, int size)
 		if (tag->t_flags & htonl(JFS_FLAG_LAST_TAG))
 			break;
 	}
-	
+
 	return nr;
 }
 
@@ -208,8 +206,9 @@ do {									\
 		var -= ((journal)->j_last - (journal)->j_first);	\
 } while (0)
 
-/*
- * journal_recover
+/**
+ * int journal_recover(journal_t *journal) - recovers a on-disk journal
+ * @journal: the journal to recover
  *
  * The primary function for recovering the log contents when mounting a
  * journaled device.  
@@ -219,7 +218,6 @@ do {									\
  * blocks.  In the third and final pass, we replay any un-revoked blocks
  * in the log.  
  */
-
 int journal_recover(journal_t *journal)
 {
 	int			err;
@@ -237,23 +235,22 @@ int journal_recover(journal_t *journal)
 	 */
 
 	if (!sb->s_start) {
-		jfs_debug(1, "No recovery required, last transaction %d\n",
+		jbd_debug(1, "No recovery required, last transaction %d\n",
 			  ntohl(sb->s_sequence));
 		journal->j_transaction_sequence = ntohl(sb->s_sequence) + 1;
 		return 0;
 	}
 	
-
 	err = do_one_pass(journal, &info, PASS_SCAN);
 	if (!err)
 		err = do_one_pass(journal, &info, PASS_REVOKE);
 	if (!err)
 		err = do_one_pass(journal, &info, PASS_REPLAY);
 
-	jfs_debug(0, "JFS: recovery, exit status %d, "
+	jbd_debug(0, "JBD: recovery, exit status %d, "
 		  "recovered transactions %u to %u\n",
 		  err, info.start_transaction, info.end_transaction);
-	jfs_debug(0, "JFS: Replayed %d and revoked %d/%d blocks\n", 
+	jbd_debug(0, "JBD: Replayed %d and revoked %d/%d blocks\n", 
 		  info.nr_replays, info.nr_revoke_hits, info.nr_revokes);
 
 	/* Restart the log at the next transaction ID, thus invalidating
@@ -261,22 +258,23 @@ int journal_recover(journal_t *journal)
 	journal->j_transaction_sequence = ++info.end_transaction;
 		
 	journal_clear_revoke(journal);
-	fsync_dev(journal->j_dev);
+	sync_blockdev(journal->j_fs_dev);
 	return err;
 }
 
-/*
- * journal_skip_recovery
+/**
+ * int journal_skip_recovery() - Start journal and wipe exiting records
+ * @journal: journal to startup
  *
  * Locate any valid recovery information from the journal and set up the
  * journal structures in memory to ignore it (presumably because the
  * caller has evidence that it is out of date).  
+ * This function does'nt appear to be exorted..
  *
  * We perform one pass over the journal to allow us to tell the user how
  * much recovery information is being erased, and to let us initialise
  * the journal transaction sequence numbers to the next unused ID. 
  */
-
 int journal_skip_recovery(journal_t *journal)
 {
 	int			err;
@@ -284,32 +282,31 @@ int journal_skip_recovery(journal_t *journal)
 
 	struct recovery_info	info;
 	
-	memset(&info, 0, sizeof(info));
+	memset (&info, 0, sizeof(info));
 	sb = journal->j_superblock;
 	
 	err = do_one_pass(journal, &info, PASS_SCAN);
 
 	if (err) {
-		printk(KERN_ERR "JFS: error %d scanning journal\n", err);
+		printk(KERN_ERR "JBD: error %d scanning journal\n", err);
 		++journal->j_transaction_sequence;
 	} else {
+#ifdef CONFIG_JBD_DEBUG
 		int dropped = info.end_transaction - ntohl(sb->s_sequence);
-		
-		jfs_debug(0, 
-			  "JFS: ignoring %d transaction%s from the journal.\n",
+#endif
+		jbd_debug(0, 
+			  "JBD: ignoring %d transaction%s from the journal.\n",
 			  dropped, (dropped == 1) ? "" : "s");
 		journal->j_transaction_sequence = ++info.end_transaction;
 	}
 
 	journal->j_tail = 0;
-	
 	return err;
 }
 
-static int do_one_pass(journal_t *journal, struct recovery_info *info,
-		       enum passtype pass)
+static int do_one_pass(journal_t *journal,
+			struct recovery_info *info, enum passtype pass)
 {
-	
 	unsigned int		first_commit_ID, next_commit_ID;
 	unsigned long		next_log_block;
 	int			err, success = 0;
@@ -337,9 +334,9 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 	first_commit_ID = next_commit_ID;
 	if (pass == PASS_SCAN)
 		info->start_transaction = first_commit_ID;
-	
-	jfs_debug(1, "Starting recovery pass %d\n", pass);
-	
+
+	jbd_debug(1, "Starting recovery pass %d\n", pass);
+
 	/*
 	 * Now we walk through the log, transaction by transaction,
 	 * making sure that each transaction has a commit block in the
@@ -361,19 +358,19 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 		if (pass != PASS_SCAN)
 			if (tid_geq(next_commit_ID, info->end_transaction))
 				break;
-		
-		jfs_debug(2, "Scanning for sequence ID %u at %lu/%lu\n",
+
+		jbd_debug(2, "Scanning for sequence ID %u at %lu/%lu\n",
 			  next_commit_ID, next_log_block, journal->j_last);
 
 		/* Skip over each chunk of the transaction looking
 		 * either the next descriptor block or the final commit
 		 * record. */
 		
-		jfs_debug(3, "JFS: checking block %ld\n", next_log_block);
+		jbd_debug(3, "JBD: checking block %ld\n", next_log_block);
 		err = jread(&bh, journal, next_log_block);
 		if (err)
 			goto failed;
-		
+
 		next_log_block++;
 		wrap(journal, next_log_block);
 		
@@ -383,16 +380,16 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 		 * expected sequence number.  Otherwise, we're all done
 		 * here. */
 
-		tmp = (journal_header_t *) bh->b_data;
+		tmp = (journal_header_t *)bh->b_data;
 		
 		if (tmp->h_magic != htonl(JFS_MAGIC_NUMBER)) {
 			brelse(bh);
 			break;
 		}
-		
+
 		blocktype = ntohl(tmp->h_blocktype);
 		sequence = ntohl(tmp->h_sequence);
-		jfs_debug(3, "Found magic %d, sequence %d\n", 
+		jbd_debug(3, "Found magic %d, sequence %d\n", 
 			  blocktype, sequence);
 		
 		if (sequence != next_commit_ID) {
@@ -403,14 +400,15 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 		/* OK, we have a valid descriptor block which matches
 		 * all of the sequence number checks.  What are we going
 		 * to do with it?  That depends on the pass... */
-		
+
 		switch(blocktype) {
 		case JFS_DESCRIPTOR_BLOCK:
 			/* If it is a valid descriptor block, replay it
 			 * in pass REPLAY; otherwise, just skip over the
 			 * blocks it describes. */
 			if (pass != PASS_REPLAY) {
-				next_log_block += count_tags(bh, journal->j_blocksize);
+				next_log_block +=
+					count_tags(bh, journal->j_blocksize);
 				wrap(journal, next_log_block);
 				brelse(bh);
 				continue;
@@ -424,7 +422,7 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 			while ((tagp - bh->b_data +sizeof(journal_block_tag_t))
 			       <= journal->j_blocksize) {
 				unsigned long io_block;
-				
+
 				tag = (journal_block_tag_t *) tagp;
 				flags = ntohl(tag->t_flags);
 				
@@ -436,8 +434,8 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 					 * report failure at the end. */
 					success = err;
 					printk (KERN_ERR 
-						"JFS: IO error %d recovering "
-						"block %ld in log\n",
+						"JBD: IO error %d recovering "
+						"block %lu in log\n",
 						err, io_block);
 				} else {
 					unsigned long blocknr;
@@ -458,11 +456,12 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 								
 					/* Find a buffer for the new
 					 * data being restored */
-					nbh = getblk(journal->j_dev, blocknr,
+					nbh = __getblk(journal->j_fs_dev, 
+						       blocknr,
 						     journal->j_blocksize);
 					if (nbh == NULL) {
 						printk(KERN_ERR 
-						       "JFS: Out of memory "
+						       "JBD: Out of memory "
 						       "during recovery.\n");
 						err = -ENOMEM;
 						brelse(bh);
@@ -470,16 +469,21 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 						goto failed;
 					}
 
-					memcpy(nbh->b_data, obh->b_data, 
-					       journal->j_blocksize);
+					lock_buffer(nbh);
+					memcpy(nbh->b_data, obh->b_data,
+							journal->j_blocksize);
 					if (flags & JFS_FLAG_ESCAPE) {
-						* ((unsigned int *) bh->b_data) = htonl(JFS_MAGIC_NUMBER);
+						*((unsigned int *)bh->b_data) =
+							htonl(JFS_MAGIC_NUMBER);
 					}
-					
-					mark_buffer_dirty(nbh, 1);
-					mark_buffer_uptodate(nbh, 1);
+
+					BUFFER_TRACE(nbh, "marking dirty");
+					set_buffer_uptodate(nbh);
+					mark_buffer_dirty(nbh);
+					BUFFER_TRACE(nbh, "marking uptodate");
 					++info->nr_replays;
 					/* ll_rw_block(WRITE, 1, &nbh); */
+					unlock_buffer(nbh);
 					brelse(obh);
 					brelse(nbh);
 				}
@@ -495,7 +499,7 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 			
 			brelse(bh);
 			continue;
-				
+
 		case JFS_COMMIT_BLOCK:
 			/* Found an expected commit block: not much to
 			 * do other than move on to the next sequence
@@ -512,7 +516,7 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 				continue;
 			}
 
-			err = scan_revoke_records(journal, bh, 
+			err = scan_revoke_records(journal, bh,
 						  next_commit_ID, info);
 			brelse(bh);
 			if (err)
@@ -520,8 +524,9 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 			continue;
 
 		default:
-			jfs_debug(3, "Unrecognised magic %d, end of scan.\n",
+			jbd_debug(3, "Unrecognised magic %d, end of scan.\n",
 				  blocktype);
+			brelse(bh);
 			goto done;
 		}
 	}
@@ -540,7 +545,7 @@ static int do_one_pass(journal_t *journal, struct recovery_info *info,
 		/* It's really bad news if different passes end up at
 		 * different places (but possible due to IO errors). */
 		if (info->end_transaction != next_commit_ID) {
-			printk (KERN_ERR "JFS: recovery pass %d ended at "
+			printk (KERN_ERR "JBD: recovery pass %d ended at "
 				"transaction %u, expected %u\n",
 				pass, next_commit_ID, info->end_transaction);
 			if (!success)
@@ -562,7 +567,7 @@ static int scan_revoke_records(journal_t *journal, struct buffer_head *bh,
 {
 	journal_revoke_header_t *header;
 	int offset, max;
-	
+
 	header = (journal_revoke_header_t *) bh->b_data;
 	offset = sizeof(journal_revoke_header_t);
 	max = ntohl(header->r_count);

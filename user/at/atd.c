@@ -22,18 +22,6 @@
 #include "config.h"
 #endif
 
-/* 
- * /usr/bin/mail aka /usr/bin/mailx require the subject to be
- * specified on the command line instead of reading it from stdin like
- * /usr/sbin/sendmail does. For now simply disable MAILC and MAILX,
- *
- * TODO: Remove tests for MAILC and MAILX from configure.in in the
- *       next upstream version.
- */
-#undef MAILC
-#undef MAILX
-
-
 /* System Headers */
 
 #include <sys/types.h>
@@ -113,8 +101,6 @@ static char *namep;
 static char rcsid[] = "$Id: atd.c,v 1.28 1997/05/06 08:31:09 ig25 Exp $";
 static double load_avg = LOADAVG_MX;
 static time_t now;
-static time_t last_chg;
-static int nothing_to_do;
 unsigned int batch_interval;
 static int run_as_daemon = 0;
 
@@ -134,29 +120,6 @@ sdummy(int dummy)
     /* Empty signal handler */
     return;
 }
-
-/* SIGCHLD handler - discards completion status of children */
-RETSIGTYPE
-release_zombie(int dummy)
-{
-  int status;
-  pid_t pid;
-
-  while ((pid = waitpid(-1, &status, WNOHANG)) > 0) {
-#ifdef DEBUG_ZOMBIE
-    if (WIFEXITED(status))
-      syslog(LOG_INFO, "pid %ld exited with status %d.", pid, WEXITSTATUS(status));
-    else if (WIFSIGNALED(status))
-      syslog(LOG_NOTICE, "pid %ld killed with signal %d.", pid, WTERMSIG(status));
-    else if (WIFSTOPPED(status))
-      syslog(LOG_NOTICE, "pid %ld stopped with signal %d.", pid, WSTOPSIG(status));
-    else
-      syslog(LOG_WARNING, "pid %ld unknown reason for SIGCHLD", pid);
-#endif
-  }
-  return;
-}
-    
 
 /* Local functions */
 
@@ -292,13 +255,6 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     fcntl(fd_in, F_SETFD, fflags & ~FD_CLOEXEC);
 
-    /*
-     * If the spool directory is mounted via NFS `atd' isn't able to
-     * read from the job file and will bump out here.  The file is
-     * opened as "root" but it is read as "daemon" which fails over
-     * NFS and works with local file systems.  It's not clear where
-     * the bug is located.  -Joey
-     */
     if (fscanf(stream, "#!/bin/sh\n# atrun uid=%d gid=%d\n# mail %8s %d",
 	       &nuid, &ngid, mailbuf, &send_mail) != 4)
 	pabort("File %.500s is in wrong format - aborting",
@@ -342,8 +298,6 @@ run_file(const char *filename, uid_t uid, gid_t gid)
 
     write_string(fd_out, "Subject: Output from your job ");
     write_string(fd_out, jobbuf);
-    write_string(fd_out, "\nTo: ");
-    write_string(fd_out, mailname);    
     write_string(fd_out, "\n\n");
     fstat(fd_out, &buf);
     size = buf.st_size;
@@ -405,11 +359,6 @@ run_file(const char *filename, uid_t uid, gid_t gid)
      */
     close(fd_in);
     close(fd_out);
-
-    /* We inherited the master's SIGCHLD handler, which does a
-       non-blocking waitpid. So this blocking one will eventually
-       return with an ECHILD error. 
-     */
     waitpid(pid, (int *) NULL, 0);
 
     /* Send mail.  Unlink the output file after opening it, so it
@@ -427,7 +376,7 @@ run_file(const char *filename, uid_t uid, gid_t gid)
     unlink(newname);
     free(newname);
 
-    if (((send_mail != -1) && (buf.st_size != size)) || (send_mail == 1)) {
+    if ((buf.st_size != size) || send_mail) {
 
 	PRIV_START
 
@@ -487,51 +436,34 @@ run_loop()
      * atrun.
      */
 
+    if ((spool = opendir(".")) == NULL)
+	perr("Cannot read " ATJOB_DIR);
+
     next_job = now + CHECK_INTERVAL;
     if (next_batch == 0)
 	next_batch = now;
 
-    /* To avoid spinning up the disk unnecessarily, stat the directory and
-     * return immediately if it hasn't changed since the last time we woke
-     * up.
-     */
-
-    if (stat(".", &buf) == -1)
-	perr("Cannot stat " ATJOB_DIR);
-
-    if (nothing_to_do && buf.st_mtime <= last_chg)
-	return next_job;
-    last_chg = buf.st_mtime;
-
-    if ((spool = opendir(".")) == NULL)
-	perr("Cannot read " ATJOB_DIR);
-
     run_batch = 0;
-    nothing_to_do = 1;
 
     batch_uid = (uid_t) - 1;
     batch_gid = (gid_t) - 1;
 
     while ((dirent = readdir(spool)) != NULL) {
 
-	/* Avoid the stat if this doesn't look like a job file */
+	if (stat(dirent->d_name, &buf) != 0) {
+	    /* Chances are a '=' file has been deleted from under us.
+	     * Ignore.
+	     */
+	}
+
+	/* We don't want directories or files which at(1) hasn't yet
+	 * marked executable.
+	 */
+	if ((!S_ISREG(buf.st_mode)) || !(buf.st_mode & S_IXUSR))
+	    continue;
+
 	if (sscanf(dirent->d_name, "%c%5lx%8lx", &queue, &jobno, &ctm) != 3)
 	    continue;
-
-	/* Chances are a '=' file has been deleted from under us.
-	 * Ignore.
-	 */
-	if (stat(dirent->d_name, &buf) != 0)
-	    continue;
-
-	if (!S_ISREG(buf.st_mode))
-	    continue;
-
-	/* We don't want files which at(1) hasn't yet marked executable. */
-	if (!(buf.st_mode & S_IXUSR)) {
-	    nothing_to_do = 0;  /* it will probably become executable soon */
-	    continue;
-	}
 
 	run_time = (time_t) ctm *60;
 
@@ -561,18 +493,9 @@ run_loop()
 		lock_name[0] = '=';
 		unlink(lock_name);
 		next_job = now;
-		nothing_to_do = 0;
 	    }
 	    continue;
 	}
-
-	/* If we got here, then there are jobs of some kind waiting.
-	 * We could try to be smarter and leave nothing_to_do set if
-	 * we end up processing all the jobs, but that's risky (run_file
-	 * might fail and expect the job to be rescheduled), and it doesn't
-	 * gain us much. */
-	nothing_to_do = 0;
-
 	/* There's a job for later.  Note its execution time if it's
 	 * the earlierst so far.
 	 */
@@ -617,7 +540,6 @@ run_loop()
         }
     }
     if (run_batch && (next_batch < next_job)) {
-	nothing_to_do = 0;
 	next_job = next_batch;
     }
     return next_job;
@@ -709,11 +631,6 @@ main(int argc, char *argv[])
     if (optind < argc)
 	pabort("non-option arguments - not allowed");
 
-    sigaction(SIGCHLD, NULL, &act);
-    act.sa_handler = release_zombie;
-    act.sa_flags   = SA_NOCLDSTOP;
-    sigaction(SIGCHLD, &act, NULL);
-
     if (!run_as_daemon) {
 	now = time(NULL);
 	run_loop();
@@ -729,6 +646,10 @@ main(int argc, char *argv[])
     sigaction(SIGHUP, NULL, &act);
     act.sa_handler = sdummy;
     sigaction(SIGHUP, &act, NULL);
+
+    sigaction(SIGCHLD, NULL, &act);
+    act.sa_handler = SIG_IGN;
+    sigaction(SIGCHLD, &act, NULL);
 
     sigaction(SIGTERM, NULL, &act);
     act.sa_handler = set_term;

@@ -24,8 +24,48 @@
 #endif
 
 #include "ext2_fs.h"
+
+
 #include "ext2fs.h"
 #include "e2image.h"
+
+blk_t ext2fs_descriptor_block_loc(ext2_filsys fs, blk_t group_block, dgrp_t i)
+{
+	int	bg;
+	int	has_super = 0;
+	int	ret_blk;
+
+	if (!(fs->super->s_feature_incompat & EXT2_FEATURE_INCOMPAT_META_BG) ||
+	    (i < fs->super->s_first_meta_bg))
+		return (group_block + i + 1);
+
+	bg = (fs->blocksize / sizeof (struct ext2_group_desc)) * i;
+	if (ext2fs_bg_has_super(fs, bg))
+		has_super = 1;
+	ret_blk = (fs->super->s_first_data_block + has_super + 
+		   (bg * fs->super->s_blocks_per_group));
+	/*
+	 * If group_block is not the normal value, we're trying to use
+	 * the backup group descriptors and superblock --- so use the
+	 * alternate location of the second block group in the
+	 * metablock group.  Ideally we should be testing each bg
+	 * descriptor block individually for correctness, but we don't
+	 * have the infrastructure in place to do that.
+	 */
+	if (group_block != fs->super->s_first_data_block &&
+	    ((ret_blk + fs->super->s_blocks_per_group) <
+	     fs->super->s_blocks_count))
+		ret_blk += fs->super->s_blocks_per_group;
+	return ret_blk;
+}
+
+errcode_t ext2fs_open(const char *name, int flags, int superblock,
+		      unsigned int block_size, io_manager manager, 
+		      ext2_filsys *ret_fs)
+{
+	return ext2fs_open2(name, 0, flags, superblock, block_size, 
+			    manager, ret_fs);
+}
 
 /*
  *  Note: if superblock is non-zero, block-size must also be non-zero.
@@ -38,45 +78,62 @@
  *				features aren't supported.
  *	EXT2_FLAG_JOURNAL_DEV_OK - Open an ext3 journal device
  */
-errcode_t ext2fs_open(const char *name, int flags, int superblock,
-		      int block_size, io_manager manager, ext2_filsys *ret_fs)
+errcode_t ext2fs_open2(const char *name, const char *io_options,
+		       int flags, int superblock,
+		       unsigned int block_size, io_manager manager, 
+		       ext2_filsys *ret_fs)
 {
 	ext2_filsys	fs;
 	errcode_t	retval;
-	int		i, j, groups_per_block;
-	blk_t		group_block;
-	char		*dest;
+	unsigned long	i;
+	int		j, groups_per_block, blocks_per_group, io_flags;
+	blk_t		group_block, blk;
+	char		*dest, *cp;
 	struct ext2_group_desc *gdp;
 	
 	EXT2_CHECK_MAGIC(manager, EXT2_ET_MAGIC_IO_MANAGER);
 
-	retval = ext2fs_get_mem(sizeof(struct struct_ext2_filsys),
-				(void **) &fs);
+	retval = ext2fs_get_mem(sizeof(struct struct_ext2_filsys), &fs);
 	if (retval)
 		return retval;
 	
 	memset(fs, 0, sizeof(struct struct_ext2_filsys));
 	fs->magic = EXT2_ET_MAGIC_EXT2FS_FILSYS;
 	fs->flags = flags;
-	retval = manager->open(name, (flags & EXT2_FLAG_RW) ? IO_FLAG_RW : 0,
-			       &fs->io);
-	if (retval)
-		goto cleanup;
-	fs->io->app_data = fs;
-	retval = ext2fs_get_mem(strlen(name)+1, (void **) &fs->device_name);
+	fs->umask = 022;
+	retval = ext2fs_get_mem(strlen(name)+1, &fs->device_name);
 	if (retval)
 		goto cleanup;
 	strcpy(fs->device_name, name);
-	retval = ext2fs_get_mem(SUPERBLOCK_SIZE, (void **) &fs->super);
+	cp = strchr(fs->device_name, '?');
+	if (!io_options && cp) {
+		*cp++ = 0;
+		io_options = cp;
+	}
+		
+	io_flags = 0;
+	if (flags & EXT2_FLAG_RW)
+		io_flags |= IO_FLAG_RW;
+	if (flags & EXT2_FLAG_EXCLUSIVE)
+		io_flags |= IO_FLAG_EXCLUSIVE;
+	retval = manager->open(fs->device_name, io_flags, &fs->io);
+	if (retval)
+		goto cleanup;
+	if (io_options && 
+	    (retval = io_channel_set_options(fs->io, io_options)))
+		goto cleanup;
+	fs->image_io = fs->io;
+	fs->io->app_data = fs;
+	retval = ext2fs_get_mem(SUPERBLOCK_SIZE, &fs->super);
 	if (retval)
 		goto cleanup;
 	if (flags & EXT2_FLAG_IMAGE_FILE) {
 		retval = ext2fs_get_mem(sizeof(struct ext2_image_hdr),
-					(void **) &fs->image_header);
+					&fs->image_header);
 		if (retval)
 			goto cleanup;
 		retval = io_channel_read_blk(fs->io, 0,
-					     -sizeof(struct ext2_image_hdr),
+					     -(int)sizeof(struct ext2_image_hdr),
 					     fs->image_header);
 		if (retval)
 			goto cleanup;
@@ -101,14 +158,13 @@ errcode_t ext2fs_open(const char *name, int flags, int superblock,
 			goto cleanup;
 		}
 		io_channel_set_blksize(fs->io, block_size);
-		group_block = superblock + 1;
+		group_block = superblock;
 		fs->orig_super = 0;
 	} else {
 		io_channel_set_blksize(fs->io, SUPERBLOCK_OFFSET);
 		superblock = 1;
 		group_block = 0;
-		retval = ext2fs_get_mem(SUPERBLOCK_SIZE,
-					(void **) &fs->orig_super);
+		retval = ext2fs_get_mem(SUPERBLOCK_SIZE, &fs->orig_super);
 		if (retval)
 			goto cleanup;
 	}
@@ -195,34 +251,35 @@ errcode_t ext2fs_open(const char *name, int flags, int superblock,
 	/*
 	 * Read group descriptors
 	 */
-	if ((EXT2_BLOCKS_PER_GROUP(fs->super)) == 0) {
+	blocks_per_group = EXT2_BLOCKS_PER_GROUP(fs->super);
+	if (blocks_per_group == 0 ||
+	    blocks_per_group > EXT2_MAX_BLOCKS_PER_GROUP(fs->super) ||
+	    fs->inode_blocks_per_group > EXT2_MAX_INODES_PER_GROUP(fs->super)) {
 		retval = EXT2_ET_CORRUPT_SUPERBLOCK;
 		goto cleanup;
 	}
 	fs->group_desc_count = (fs->super->s_blocks_count -
 				fs->super->s_first_data_block +
-				EXT2_BLOCKS_PER_GROUP(fs->super) - 1)
-		/ EXT2_BLOCKS_PER_GROUP(fs->super);
+				blocks_per_group - 1) / blocks_per_group;
 	fs->desc_blocks = (fs->group_desc_count +
 			   EXT2_DESC_PER_BLOCK(fs->super) - 1)
 		/ EXT2_DESC_PER_BLOCK(fs->super);
 	retval = ext2fs_get_mem(fs->desc_blocks * fs->blocksize,
-				(void **) &fs->group_desc);
+				&fs->group_desc);
 	if (retval)
 		goto cleanup;
 	if (!group_block)
-		group_block = fs->super->s_first_data_block + 1;
+		group_block = fs->super->s_first_data_block;
 	dest = (char *) fs->group_desc;
+	groups_per_block = fs->blocksize / sizeof(struct ext2_group_desc);
 	for (i=0 ; i < fs->desc_blocks; i++) {
-		retval = io_channel_read_blk(fs->io, group_block, 1, dest);
+		blk = ext2fs_descriptor_block_loc(fs, group_block, i);
+		retval = io_channel_read_blk(fs->io, blk, 1, dest);
 		if (retval)
 			goto cleanup;
-		group_block++;
 #ifdef EXT2FS_ENABLE_SWAPFS
 		if (fs->flags & EXT2_FLAG_SWAP_BYTES) {
 			gdp = (struct ext2_group_desc *) dest;
-			groups_per_block = fs->blocksize /
-				sizeof(struct ext2_group_desc);
 			for (j=0; j < groups_per_block; j++)
 				ext2fs_swap_group_desc(gdp++);
 		}
@@ -237,3 +294,36 @@ cleanup:
 	return retval;
 }
 
+/*
+ * Set/get the filesystem data I/O channel.
+ * 
+ * These functions are only valid if EXT2_FLAG_IMAGE_FILE is true.
+ */
+errcode_t ext2fs_get_data_io(ext2_filsys fs, io_channel *old_io)
+{
+	if ((fs->flags & EXT2_FLAG_IMAGE_FILE) == 0)
+		return EXT2_ET_NOT_IMAGE_FILE;
+	if (old_io) {
+		*old_io = (fs->image_io == fs->io) ? 0 : fs->io;
+	}
+	return 0;
+}
+
+errcode_t ext2fs_set_data_io(ext2_filsys fs, io_channel new_io)
+{
+	if ((fs->flags & EXT2_FLAG_IMAGE_FILE) == 0)
+		return EXT2_ET_NOT_IMAGE_FILE;
+	fs->io = new_io ? new_io : fs->image_io;
+	return 0;
+}
+
+errcode_t ext2fs_rewrite_to_io(ext2_filsys fs, io_channel new_io)
+{
+	if ((fs->flags & EXT2_FLAG_IMAGE_FILE) == 0)
+		return EXT2_ET_NOT_IMAGE_FILE;
+	fs->io = fs->image_io = new_io;
+	fs->flags |= EXT2_FLAG_DIRTY | EXT2_FLAG_RW | 
+		EXT2_FLAG_BB_DIRTY | EXT2_FLAG_IB_DIRTY;
+	fs->flags &= ~EXT2_FLAG_IMAGE_FILE;
+	return 0;
+}

@@ -17,6 +17,9 @@ if [ "$CONFIG_FMT_USE_SHARED_FLAT" = "y" ]; then
 else
 	bool 'Install FLAT shared libraries' CONFIG_INSTALL_FLAT_SHARED_LIBS
 fi
+
+bool 'build with stack overflow checking'	CONFIG_BLACKFIN_CHECK_STACKFLOW
+
 endmenu
 
 
@@ -140,6 +143,9 @@ if [ "$CONFIG_USER_BLUEZ" = "y" ]; then
 	define_bool CONFIG_LIB_BLUEZ y
 fi
 bool	'picocom'		CONFIG_USER_PICOCOM
+bool	'dagrab'		CONFIG_USER_DAGRAB_DAGRAB
+bool	'can4linux examples'	CONFIG_USER_CAN_EXAMPLES
+bool	'horch'			CONFIG_USER_CAN_HORCH
 endmenu
 
 

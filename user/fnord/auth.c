@@ -44,6 +44,12 @@
 
 #include "base64.h"
 
+#ifdef AUTH_PAM
+#include <security/pam_appl.h>
+#include <security/pam_misc.h>
+#include <errno.h>
+#endif
+
 /*#undef DEBUG*/
 
 #ifdef DEBUG
@@ -54,7 +60,9 @@
 
 struct _auth_dir_ {
 	char *directory;
+#ifndef AUTH_PAM
 	FILE *authfile;
+#endif
 	int dir_len;
 	struct _auth_dir_ *next;
 };
@@ -82,13 +90,16 @@ void auth_add(char *directory,char *file)
 
 	new_a = (auth_dir *)malloc(sizeof(auth_dir));
 	/* success of this call will be checked later... */
+#ifndef AUTH_PAM
 	new_a->authfile = fopen(file,"rt");
+#endif
 	new_a->directory = strdup(directory);
 	new_a->dir_len = strlen(directory);
 	new_a->next = auth_list;
 	auth_list = new_a;
 }
 
+#ifndef AUTH_PAM
 /*
  * Name: auth_check_userpass
  *
@@ -163,6 +174,79 @@ static int auth_check_userpass(char *user,char *pass,FILE *fh, char idbuf[15])
 
 	return ret;
 }
+#else
+
+static const char *pam_pw;
+
+static int myconv(int n, const struct pam_message **m, struct pam_response **r, void *nul) {
+	if (n != 1 || m[0]->msg_style != PAM_PROMPT_ECHO_OFF) {
+		syslog(LOG_ERR, "unexpected PAM conversation: %d/%s\n", m[0]->msg_style, m[0]->msg);
+		return PAM_CONV_ERR;
+	}
+	*r = malloc(sizeof(struct pam_response));
+	if (*r == NULL) {
+		syslog(LOG_ERR, "out of memory in PAM conversation: %d", errno);
+		return PAM_CONV_ERR;
+	}
+	(*r)[0].resp = strdup(pam_pw);
+	(*r)[0].resp_retcode = 0;
+	return ((*r)[0].resp != NULL)?PAM_SUCCESS:PAM_CONV_ERR;
+}
+
+static struct pam_conv conv = {
+	&myconv,
+	NULL
+};
+
+static int auth_check_pam(const char *user, const char *pass, char idbuf[15]) {
+	int r, result;
+	pam_handle_t *pamh = NULL;
+
+	pam_pw = pass;
+
+	r = pam_start("fnord", user, &conv, &pamh);
+	if (r != PAM_SUCCESS) {
+		syslog(LOG_ERR, "couldn't initialise PAM: %s", pam_strerror (pamh, r));
+		return 3;
+	}
+
+	r = pam_set_item(pamh, PAM_USER, user);
+	if (r != PAM_SUCCESS) {
+		syslog(LOG_ERR, "couldn't set username: %s", pam_strerror (pamh, r));
+err3:			result = 3;
+err:			pam_end(pamh, r);
+		return result;
+	}
+
+	r = pam_set_item(pamh, PAM_CONV, &conv);
+	if (r != PAM_SUCCESS) {
+		syslog(LOG_ERR, "couldn't set conv: %s", pam_strerror (pamh, r));
+		goto err3;
+	}
+
+	r = pam_authenticate(pamh, 0);
+	if (r == PAM_AUTH_ERR) {
+		syslog(LOG_ERR, "couldn't authenticate: %s", pam_strerror (pamh, r));
+		pam_fail_delay (pamh, 1000000);
+		result = 1;
+		goto err;
+	}
+	if (r == PAM_SUCCESS) {
+		const char *id = pam_getenv(pamh, "USER_AUTHBY");
+		if (id != NULL) {
+			strncpy(idbuf, id, 14);
+			idbuf[14] = '\0';
+		} else
+			idbuf[0] = '\0';
+		pam_end(pamh, r);
+		return 0;
+	}
+	syslog(LOG_ERR, "unable to authenticate");
+	pam_end(pamh, r);
+	return 3;
+}
+
+#endif
 
 int auth_authorize(const char *host, const char *url, const char *remote_ip_addr, const char *authorization, char username[15], char id[15])
 {
@@ -182,10 +266,11 @@ int auth_authorize(const char *host, const char *url, const char *remote_ip_addr
 			}
 
 			if (authorization) {
-				int denied = 1;
+#ifndef AUTH_PAM
 				if (current->authfile==0) {
 					return 0;
 				}
+#endif
 				if (strncasecmp(authorization,"Basic ",6)) {
 					syslog(LOG_ERR, "Can only handle Basic auth\n");
 					return 0;
@@ -199,10 +284,13 @@ int auth_authorize(const char *host, const char *url, const char *remote_ip_addr
 				}
 				
 				*pwd++=0;
-
+#ifdef AUTH_PAM
+				const int denied = auth_check_pam(auth_userpass, pwd, id);
+#else
 				rewind(current->authfile);
 
-				denied = auth_check_userpass(auth_userpass,pwd,current->authfile, id);
+				const int denied = auth_check_userpass(auth_userpass,pwd,current->authfile, id);
+#endif
 #ifdef CONFIG_AMAZON
 				access__attempted(denied, auth_userpass);
 #endif

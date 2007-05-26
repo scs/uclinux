@@ -1,3 +1,15 @@
+1.9:
+  chdir to cgi's base dir (Kuba Winnicki)
+  set HTTP_ACCEPT_ENCODING environment variable (Kuba Winnicki)
+    We actually should export all HTTP headers as HTTP_[header]
+    Any takers?
+  Try not to send error message HTTP headers if we already sent the
+    headers from the CGI (Kuba Winnicki)
+  <ims -> <=ims (Gerrit Pape)
+  64-bit file I/O cleanliness
+  fix HTTP ranges (Joachim Berdal Haga via Gerrit Pape)
+  have fallback in case sendfile fails
+
 1.8a:
   Steve Bennett <steveb@snapgear.com>
   -----------------------------------

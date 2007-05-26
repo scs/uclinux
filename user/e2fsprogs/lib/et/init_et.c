@@ -1,5 +1,5 @@
 /*
- * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/et/init_et.c,v 1.1.1.1 2001/11/11 23:20:38 davidm Exp $
+ * $Header: /cvs/sw/new-wave/user/e2fsprogs/lib/et/init_et.c,v 1.1.1.2 2006/09/06 01:35:43 steveb Exp $
  * $Source: /cvs/sw/new-wave/user/e2fsprogs/lib/et/init_et.c,v $
  * $Locker:  $
  *
@@ -24,25 +24,14 @@
 #include "com_err.h"
 #include "error_table.h"
 
-#ifndef __STDC__
-#define const
-#endif
-
 struct foobar {
     struct et_list etl;
     struct error_table et;
 };
 
-extern struct et_list * _et_list;
+extern struct et_list * _et_dynamic_list;
 
-#ifdef __STDC__
-int init_error_table(const char * const *msgs, int base, int count)
-#else
-int init_error_table(msgs, base, count)
-    const char * const * msgs;
-    int base;
-    int count;
-#endif
+int init_error_table(const char * const *msgs, long base, int count)
 {
     struct foobar * new_et;
 
@@ -57,7 +46,7 @@ int init_error_table(msgs, base, count)
     new_et->et.base = base;
     new_et->et.n_msgs= count;
 
-    new_et->etl.next = _et_list;
-    _et_list = &new_et->etl;
+    new_et->etl.next = _et_dynamic_list;
+    _et_dynamic_list = &new_et->etl;
     return 0;
 }

@@ -11,9 +11,6 @@ struct tm exectm;
 static int isgmt;
 static int time_only;
 
-extern int yyerror(char *s);
-extern int yylex();
-
 int add_date(int number, int period);
 %}
 
@@ -39,30 +36,25 @@ int add_date(int number, int period);
 
 %start timespec
 %%
-timespec        : date
-		| time
+timespec        : time
 		    {
 			time_only = 1;
 		    }
                 | time date
-                | time_or_not inc_or_dec
-                | time_or_not date inc_or_dec
+                | time increment
+                | time date increment
+		| time decrement
+		| time date decrement
                 | nowspec
                 ;
 
 nowspec         : now
-                | now inc_or_dec
+                | now increment
+		| now decrement
                 ;
 
 now		: NOW 
-                | TOMORROW
-		   {
-			add_date(1, DAY);
-		   }
 		;
-
-time_or_not     : time
-		|
 
 time            : hr24clock_hr_min
                 | hr24clock_hr_min timezone_name
@@ -91,11 +83,10 @@ time            : hr24clock_hr_min
                 ;
 
 date            : month_name day_number
-                | month_name day_number year_number
                 | month_name day_number ',' year_number
                 | day_of_week
 		   {
-		       add_date ((6 + $1 - exectm.tm_wday) %7 + 1, DAY);
+		       add_date ((7 + $1 - exectm.tm_wday) %7, DAY);
 		   }
                 | TODAY
                 | TOMORROW
@@ -110,9 +101,6 @@ date            : month_name day_number
 		| month_number '/' day_number '/' year_number
                 ;
 
-inc_or_dec	: increment
-		| decrement
-
 increment       : '+' inc_number inc_period
 		    {
 		        add_date($2, $3);
@@ -123,7 +111,7 @@ increment       : '+' inc_number inc_period
 		    }
 		| NEXT day_of_week
 		    {
-			add_date ((6 + $2 - exectm.tm_wday) %7 +1, DAY);
+			add_date ((7 + $2 - exectm.tm_wday) %7, DAY);
 		    }
                 ;
 
@@ -143,55 +131,11 @@ inc_period      : MINUTE { $$ = MINUTE ; }
 
 hr24clock_hr_min: INT
 		    {
+			exectm.tm_min = -1;
+			exectm.tm_hour = -1;
 			if (strlen($1) == 4) {
-			    exectm.tm_min = -1;
-			    exectm.tm_hour = -1;
 			    sscanf($1, "%2d %2d", &exectm.tm_hour,
 				&exectm.tm_min);
-			} else if (strlen($1) >= 5 && strlen($1) <= 8) {
-				/* Ok, this is a kluge.  I hate design errors...  -Joey */
-				char shallot[5];
-				char *onion;
-
-				onion=$1;
-				memset (shallot, 0, sizeof (shallot));
-				if (strlen($1) == 5 || strlen($1) == 7) {
-				    strncpy (shallot,onion,1);
-				    onion++;
-				} else {
-				    strncpy (shallot,onion,2);
-				    onion+=2;
-				}
-				sscanf(shallot, "%d", &exectm.tm_mon);
-
-				if (exectm.tm_mon < 1 || exectm.tm_mon > 12) {
-				    yyerror("Error in month number");
-				    YYERROR;
-				}
-				exectm.tm_mon--;
-
-				memset (shallot, 0, sizeof (shallot));
-				strncpy (shallot,onion,2);
-			    	sscanf(shallot, "%d", &exectm.tm_mday);
-				if (exectm.tm_mday < 0 || exectm.tm_mday > 31)
-				{
-				    yyerror("Error in day of month");
-				    YYERROR;
-				}
-
-				onion+=2;
-				memset (shallot, 0, sizeof (shallot));
-				strncpy (shallot,onion,4);
-				if ( sscanf(shallot, "%d", &exectm.tm_year) != 1) {
-				    yyerror("Error in year");
-				    YYERROR;
-				}
-				if (exectm.tm_year < 70) {
-				    exectm.tm_year += 100;
-				}
-				else if (exectm.tm_year > 1900) {
-				    exectm.tm_year -= 1900;
-				}
 			}
 			else {
 			    sscanf($1, "%d", &exectm.tm_hour);
@@ -204,7 +148,7 @@ hr24clock_hr_min: INT
 			    YYERROR;
 			}
 			if (exectm.tm_hour > 24 || exectm.tm_hour < 0) {
-			    yyerror("Problem in hours specification");
+			    yyerror("Problem in minutes specification");
 			    YYERROR;
 		        }
 		    }
@@ -237,15 +181,6 @@ minute		: INT
 		;
 
 am_pm		: AM
-		    {
-			if (exectm.tm_hour > 12) {
-			    yyerror("Hour too large for AM");
-			    YYERROR;
-			}
-			else if (exectm.tm_hour == 12) {
-			    exectm.tm_hour = 0;
-			}
-		    }
 		| PM
 		    {
 			if (exectm.tm_hour > 12) {
@@ -367,8 +302,6 @@ parsetime(int argc, char **argv)
     time_only = 0;
     if (yyparse() == 0) {
 	exectime = mktime(&exectm);
-	if (exectime == (time_t)-1)
-	    return 0;
 	if (isgmt) {
 	    exectime += timezone;
 	    if (daylight) {
@@ -386,24 +319,6 @@ parsetime(int argc, char **argv)
 }
 
 #ifdef TEST_PARSER
-/*
-
-Here are some lines to test:
-
-./parsetest 7AM Mar 24 2000
-./parsetest 7AM Mar 24 00
-./parsetest 7AM 032400
-./parsetest 7AM 03/24/00
-./parsetest 7AM 24.03.00
-./parsetest 7AM Mar 24
-
-./parsetest 03242000
-./parsetest noon 03242000
-./parsetest 5:30
-./parsetest 4pm + 3 days
-./parsetest 10am Jul 31
-
- */
 int
 main(int argc, char **argv)
 {
@@ -432,8 +347,6 @@ add_seconds(struct tm *tm, long numsec)
 {
     time_t timeval;
     timeval = mktime(tm);
-    if (timeval == (time_t)-1)
-        timeval = (time_t)0;
     timeval += numsec;
     *tm = *localtime(&timeval);
 }

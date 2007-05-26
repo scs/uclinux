@@ -301,7 +301,7 @@ then
 fi
 
 dnl Check if we use GNU ld
-LD=ld
+LD=`${ac_cv_prog_CC} -print-prog-name=ld`
 AC_PROG_LD_GNU
 
 dnl Certain versions of GNU ld the default is not to have the 

@@ -45,6 +45,12 @@ extern char *optarg;
 #include "../version.h"
 #include "nls-enable.h"
 
+#ifdef __GNUC__
+#define EXT2FS_ATTR(x) __attribute__(x)
+#else
+#define EXT2FS_ATTR(x)
+#endif
+
 static const char * program_name = "lsattr";
 
 static int all;
@@ -114,14 +120,19 @@ static void lsattr_args (const char * name)
 	}
 }
 
-static int lsattr_dir_proc (const char * dir_name, struct dirent * de, void * private)
+static int lsattr_dir_proc (const char * dir_name, struct dirent * de, 
+			    void * private EXT2FS_ATTR((unused)))
 {
 	STRUCT_STAT	st;
 	char *path;
+	int dir_len = strlen(dir_name);
 
-	path = malloc(strlen (dir_name) + 1 + strlen (de->d_name) + 1);
+	path = malloc(dir_len + strlen (de->d_name) + 2);
 
-	sprintf (path, "%s/%s", dir_name, de->d_name);
+	if (dir_len && dir_name[dir_len-1] == '/')
+		sprintf (path, "%s%s", dir_name, de->d_name);
+	else
+		sprintf (path, "%s/%s", dir_name, de->d_name);
 	if (LSTAT (path, &st) == -1)
 		perror (path);
 	else {
@@ -147,6 +158,7 @@ int main (int argc, char ** argv)
 
 #ifdef ENABLE_NLS
 	setlocale(LC_MESSAGES, "");
+	setlocale(LC_CTYPE, "");
 	bindtextdomain(NLS_CAT_NAME, LOCALEDIR);
 	textdomain(NLS_CAT_NAME);
 #endif

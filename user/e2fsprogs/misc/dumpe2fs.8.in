@@ -4,7 +4,7 @@
 .\" 
 .TH DUMPE2FS 8 "@E2FSPROGS_MONTH@ @E2FSPROGS_YEAR@" "E2fsprogs version @E2FSPROGS_VERSION@"
 .SH NAME
-dumpe2fs \- dump filesystem information
+dumpe2fs \- dump ext2/ext3 filesystem information
 .SH SYNOPSIS
 .B dumpe2fs
 [
@@ -39,14 +39,14 @@ use the block
 .I superblock
 when examining the filesystem.
 This option is not usually needed except by a filesystem wizard who 
-is examining the remains of a very badly corupted filesystem.
+is examining the remains of a very badly corrupted filesystem.
 .TP
 .BI \-oB " blocksize"
 use blocks of
 .I blocksize
 bytes when examining the filesystem.
 This option is not usually needed except by a filesystem wizard who 
-is examining the remains of a very badly corupted filesystem.
+is examining the remains of a very badly corrupted filesystem.
 .TP
 .B \-f
 force dumpe2fs to display a filesystem even though it may have some 
@@ -76,7 +76,8 @@ You need to know the physical filesystem structure to understand the
 output.
 .SH AUTHOR
 .B dumpe2fs 
-was written by Remy Card <Remy.Card@linux.org>.
+was written by Remy Card <Remy.Card@linux.org>.  It is currently being
+maintained by Theodore Ts'o <tytso@alum.mit.edu>.
 .SH AVAILABILITY
 .B dumpe2fs
 is part of the e2fsprogs package and is available from 

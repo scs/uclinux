@@ -285,9 +285,9 @@ do_mount(char *share_name, unsigned int flags, struct smb_mount_data *data)
 		return -1;
 	}
 	
-        if ((fd = open(MOUNTED"~", O_RDWR|O_CREAT|O_EXCL, 0600)) == -1)
+        if ((fd = open("/var/lock/mtab~", O_RDWR|O_CREAT|O_EXCL, 0600)) == -1)
         {
-                fprintf(stderr, "Can't get "MOUNTED"~ lock file");
+                fprintf(stderr, "Can't get /var/lock/mtab~ lock file");
                 return 1;
         }
         close(fd);
@@ -310,9 +310,9 @@ do_mount(char *share_name, unsigned int flags, struct smb_mount_data *data)
         }
         endmntent(mtab);
 
-        if (unlink(MOUNTED"~") == -1)
+        if (unlink("/var/lock/mtab~") == -1)
         {
-                fprintf(stderr, "Can't remove "MOUNTED"~");
+                fprintf(stderr, "Can't remove /var/lock/mtab~");
                 return 1;
         }
 

@@ -14,6 +14,9 @@
 #if HAVE_UNISTD_H
 #include <unistd.h>
 #endif
+#if HAVE_ERRNO_H
+#include <errno.h>
+#endif
 #if HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
@@ -63,6 +66,7 @@ errcode_t ext2fs_flush_icache(ext2_filsys fs)
 	for (i=0; i < fs->icache->cache_size; i++)
 		fs->icache->cache[i].ino = 0;
 
+	fs->icache->buffer_blk = 0;
 	return 0;
 }
 
@@ -72,15 +76,14 @@ static errcode_t create_icache(ext2_filsys fs)
 	
 	if (fs->icache)
 		return 0;
-	retval = ext2fs_get_mem(sizeof(struct ext2_inode_cache), 
-				(void **) &fs->icache);
+	retval = ext2fs_get_mem(sizeof(struct ext2_inode_cache), &fs->icache);
 	if (retval)
 		return retval;
 
 	memset(fs->icache, 0, sizeof(struct ext2_inode_cache));
-	retval = ext2fs_get_mem(fs->blocksize, (void **) &fs->icache->buffer);
+	retval = ext2fs_get_mem(fs->blocksize, &fs->icache->buffer);
 	if (retval) {
-		ext2fs_free_mem((void **) &fs->icache);
+		ext2fs_free_mem(&fs->icache);
 		return retval;
 	}
 	fs->icache->buffer_blk = 0;
@@ -89,10 +92,10 @@ static errcode_t create_icache(ext2_filsys fs)
 	fs->icache->refcount = 1;
 	retval = ext2fs_get_mem(sizeof(struct ext2_inode_cache_ent)
 				* fs->icache->cache_size,
-				(void **) &fs->icache->cache);
+				&fs->icache->cache);
 	if (retval) {
-		ext2fs_free_mem((void **) &fs->icache->buffer);
-		ext2fs_free_mem((void **) &fs->icache);
+		ext2fs_free_mem(&fs->icache->buffer);
+		ext2fs_free_mem(&fs->icache);
 		return retval;
 	}
 	ext2fs_flush_icache(fs);
@@ -127,8 +130,7 @@ errcode_t ext2fs_open_inode_scan(ext2_filsys fs, int buffer_blocks,
 		fs->get_blocks = save_get_blocks;
 	}
 
-	retval = ext2fs_get_mem(sizeof(struct ext2_struct_inode_scan),
-				(void **) &scan);
+	retval = ext2fs_get_mem(sizeof(struct ext2_struct_inode_scan), &scan);
 	if (retval)
 		return retval;
 	memset(scan, 0, sizeof(struct ext2_struct_inode_scan));
@@ -146,23 +148,25 @@ errcode_t ext2fs_open_inode_scan(ext2_filsys fs, int buffer_blocks,
 	scan->blocks_left = scan->fs->inode_blocks_per_group;
 	retval = ext2fs_get_mem((size_t) (scan->inode_buffer_blocks * 
 					  fs->blocksize),
-				(void **) &scan->inode_buffer);
+				&scan->inode_buffer);
 	scan->done_group = 0;
 	scan->done_group_data = 0;
 	scan->bad_block_ptr = 0;
 	if (retval) {
-		ext2fs_free_mem((void **) &scan);
+		ext2fs_free_mem(&scan);
 		return retval;
 	}
-	retval = ext2fs_get_mem(scan->inode_size,
-				(void **) &scan->temp_buffer);
+	retval = ext2fs_get_mem(scan->inode_size, &scan->temp_buffer);
 	if (retval) {
-		ext2fs_free_mem((void **) &scan->inode_buffer);
-		ext2fs_free_mem((void **) &scan);
+		ext2fs_free_mem(&scan->inode_buffer);
+		ext2fs_free_mem(&scan);
 		return retval;
 	}
 	if (scan->fs->badblocks && scan->fs->badblocks->num)
 		scan->scan_flags |= EXT2_SF_CHK_BADBLOCKS;
+	if (EXT2_HAS_COMPAT_FEATURE(fs->super, 
+				    EXT2_FEATURE_COMPAT_LAZY_BG))
+		scan->scan_flags |= EXT2_SF_DO_LAZY;
 	*ret_scan = scan;
 	return 0;
 }
@@ -172,11 +176,11 @@ void ext2fs_close_inode_scan(ext2_inode_scan scan)
 	if (!scan || (scan->magic != EXT2_ET_MAGIC_INODE_SCAN))
 		return;
 	
-	ext2fs_free_mem((void **) &scan->inode_buffer);
+	ext2fs_free_mem(&scan->inode_buffer);
 	scan->inode_buffer = NULL;
-	ext2fs_free_mem((void **) &scan->temp_buffer);
+	ext2fs_free_mem(&scan->temp_buffer);
 	scan->temp_buffer = NULL;
-	ext2fs_free_mem((void **) &scan);
+	ext2fs_free_mem(&scan);
 	return;
 }
 
@@ -377,8 +381,8 @@ static inline int is_empty_scan(ext2_inode_scan scan)
 }
 #endif
 
-errcode_t ext2fs_get_next_inode(ext2_inode_scan scan, ext2_ino_t *ino,
-				struct ext2_inode *inode)
+errcode_t ext2fs_get_next_inode_full(ext2_inode_scan scan, ext2_ino_t *ino,
+				     struct ext2_inode *inode, int bufsize)
 {
 	errcode_t	retval;
 	int		extra_bytes = 0;
@@ -406,9 +410,13 @@ errcode_t ext2fs_get_next_inode(ext2_inode_scan scan, ext2_ino_t *ino,
 			return retval;
 	}
 	/*
-	 * This is done outside the above if statement so that the
-	 * check can be done for block group #0.
+	 * These checks are done outside the above if statement so 
+	 * they can be done for block group #0.
 	 */
+	if ((scan->scan_flags & EXT2_SF_DO_LAZY) &&
+	    (scan->fs->group_desc[scan->current_group].bg_flags &
+	     EXT2_BG_INODE_UNINIT))
+		goto force_new_group;
 	if (scan->current_block == 0) {
 		if (scan->scan_flags & EXT2_SF_SKIP_MISSING_ITABLE) {
 			goto force_new_group;
@@ -448,8 +456,10 @@ errcode_t ext2fs_get_next_inode(ext2_inode_scan scan, ext2_ino_t *ino,
 #ifdef EXT2FS_ENABLE_SWAPFS
 		if ((scan->fs->flags & EXT2_FLAG_SWAP_BYTES) ||
 		    (scan->fs->flags & EXT2_FLAG_SWAP_BYTES_READ))
-			ext2fs_swap_inode(scan->fs, inode,
-				 (struct ext2_inode *) scan->temp_buffer, 0);
+			ext2fs_swap_inode_full(scan->fs, 
+				(struct ext2_inode_large *) inode,
+				(struct ext2_inode_large *) scan->temp_buffer, 
+				0, bufsize);
 		else
 #endif
 			*inode = *((struct ext2_inode *) scan->temp_buffer);
@@ -460,11 +470,13 @@ errcode_t ext2fs_get_next_inode(ext2_inode_scan scan, ext2_ino_t *ino,
 #ifdef EXT2FS_ENABLE_SWAPFS
 		if ((scan->fs->flags & EXT2_FLAG_SWAP_BYTES) ||
 		    (scan->fs->flags & EXT2_FLAG_SWAP_BYTES_READ))
-			ext2fs_swap_inode(scan->fs, inode,
-				 (struct ext2_inode *) scan->ptr, 0);
+			ext2fs_swap_inode_full(scan->fs, 
+				(struct ext2_inode_large *) inode,
+				(struct ext2_inode_large *) scan->ptr,
+				0, bufsize);
 		else
 #endif
-			*inode = *((struct ext2_inode *) scan->ptr);
+			memcpy(inode, scan->ptr, bufsize);
 		scan->ptr += scan->inode_size;
 		scan->bytes_left -= scan->inode_size;
 		if (scan->scan_flags & EXT2_SF_BAD_INODE_BLK)
@@ -477,16 +489,24 @@ errcode_t ext2fs_get_next_inode(ext2_inode_scan scan, ext2_ino_t *ino,
 	return retval;
 }
 
+errcode_t ext2fs_get_next_inode(ext2_inode_scan scan, ext2_ino_t *ino,
+				struct ext2_inode *inode)
+{
+	return ext2fs_get_next_inode_full(scan, ino, inode,
+						sizeof(struct ext2_inode));
+}
+
 /*
  * Functions to read and write a single inode.
  */
-errcode_t ext2fs_read_inode (ext2_filsys fs, ext2_ino_t ino,
-			     struct ext2_inode * inode)
+errcode_t ext2fs_read_inode_full(ext2_filsys fs, ext2_ino_t ino,
+				 struct ext2_inode * inode, int bufsize)
 {
 	unsigned long 	group, block, block_nr, offset;
 	char 		*ptr;
 	errcode_t	retval;
-	int 		clen, length, i, inodes_per_block;
+	int 		clen, i, inodes_per_block, length;
+	io_channel	io;
 
 	EXT2_CHECK_MAGIC(fs, EXT2_ET_MAGIC_EXT2FS_FILSYS);
 
@@ -503,10 +523,13 @@ errcode_t ext2fs_read_inode (ext2_filsys fs, ext2_ino_t ino,
 			return retval;
 	}
 	/* Check to see if it's in the inode cache */
-	for (i=0; i < fs->icache->cache_size; i++) {
-		if (fs->icache->cache[i].ino == ino) {
-			*inode = fs->icache->cache[i].inode;
-			return 0;
+	if (bufsize == sizeof(struct ext2_inode)) {
+		/* only old good inode can be retrieve from the cache */
+		for (i=0; i < fs->icache->cache_size; i++) {
+			if (fs->icache->cache[i].ino == ino) {
+				*inode = fs->icache->cache[i].inode;
+				return 0;
+			}
 		}
 	}
 	if ((ino == 0) || (ino > fs->super->s_inodes_count))
@@ -517,6 +540,7 @@ errcode_t ext2fs_read_inode (ext2_filsys fs, ext2_ino_t ino,
 		block_nr += (ino - 1) / inodes_per_block;
 		offset = ((ino - 1) % inodes_per_block) *
 			EXT2_INODE_SIZE(fs->super);
+		io = fs->image_io;
 	} else {
 		group = (ino - 1) / EXT2_INODES_PER_GROUP(fs->super);
 		offset = ((ino - 1) % EXT2_INODES_PER_GROUP(fs->super)) *
@@ -526,44 +550,43 @@ errcode_t ext2fs_read_inode (ext2_filsys fs, ext2_ino_t ino,
 			return EXT2_ET_MISSING_INODE_TABLE;
 		block_nr = fs->group_desc[(unsigned)group].bg_inode_table + 
 			block;
-	}
-	if (block_nr != fs->icache->buffer_blk) {
-		retval = io_channel_read_blk(fs->io, block_nr, 1,
-					     fs->icache->buffer);
-		if (retval)
-			return retval;
-		fs->icache->buffer_blk = block_nr;
+		io = fs->io;
 	}
 	offset &= (EXT2_BLOCK_SIZE(fs->super) - 1);
-	ptr = ((char *) fs->icache->buffer) + (unsigned) offset;
 
-	memset(inode, 0, sizeof(struct ext2_inode));
 	length = EXT2_INODE_SIZE(fs->super);
-	if (length > sizeof(struct ext2_inode))
-		length = sizeof(struct ext2_inode);
-	
-	if ((offset + length) > EXT2_BLOCK_SIZE(fs->super)) {
-		clen = (int) (EXT2_BLOCK_SIZE(fs->super) - offset);
-		memcpy((char *) inode, ptr, clen);
-		length -= clen;
-		
-		retval = io_channel_read_blk(fs->io, block_nr+1, 1,
-					     fs->icache->buffer);
-		if (retval) {
-			fs->icache->buffer_blk = 0;
-			return retval;
+	if (bufsize < length)
+		length = bufsize;
+
+	ptr = (char *) inode;
+	while (length) {
+		clen = length;
+		if ((offset + length) > fs->blocksize)
+			clen = fs->blocksize - offset;
+
+		if (block_nr != fs->icache->buffer_blk) {
+			retval = io_channel_read_blk(io, block_nr, 1,
+						     fs->icache->buffer);
+			if (retval)
+				return retval;
+			fs->icache->buffer_blk = block_nr;
 		}
-		fs->icache->buffer_blk = block_nr+1;
-		
-		memcpy(((char *) inode) + clen,
-		       fs->icache->buffer, length);
-	} else
-		memcpy((char *) inode, ptr, length);
-	
+
+		memcpy(ptr, ((char *) fs->icache->buffer) + (unsigned) offset,
+		       clen);
+
+		offset = 0;
+		length -= clen;
+		ptr += clen;
+		block_nr++;
+	}
+
 #ifdef EXT2FS_ENABLE_SWAPFS
 	if ((fs->flags & EXT2_FLAG_SWAP_BYTES) ||
 	    (fs->flags & EXT2_FLAG_SWAP_BYTES_READ))
-		ext2fs_swap_inode(fs, inode, inode, 0);
+		ext2fs_swap_inode_full(fs, (struct ext2_inode_large *) inode, 
+				       (struct ext2_inode_large *) inode, 
+				       0, length);
 #endif
 
 	/* Update the inode cache */
@@ -575,14 +598,21 @@ errcode_t ext2fs_read_inode (ext2_filsys fs, ext2_ino_t ino,
 	return 0;
 }
 
-errcode_t ext2fs_write_inode(ext2_filsys fs, ext2_ino_t ino,
-			     struct ext2_inode * inode)
+errcode_t ext2fs_read_inode(ext2_filsys fs, ext2_ino_t ino,
+			    struct ext2_inode * inode)
+{
+	return ext2fs_read_inode_full(fs, ino, inode,
+					sizeof(struct ext2_inode));
+}
+
+errcode_t ext2fs_write_inode_full(ext2_filsys fs, ext2_ino_t ino,
+				  struct ext2_inode * inode, int bufsize)
 {
 	unsigned long group, block, block_nr, offset;
-	errcode_t	retval;
-	struct ext2_inode temp_inode;
+	errcode_t retval = 0;
+	struct ext2_inode_large temp_inode, *w_inode;
 	char *ptr;
-	int clen, length, i;
+	int clen, i, length;
 
 	EXT2_CHECK_MAGIC(fs, EXT2_ET_MAGIC_EXT2FS_FILSYS);
 
@@ -613,13 +643,27 @@ errcode_t ext2fs_write_inode(ext2_filsys fs, ext2_ino_t ino,
 	if ((ino == 0) || (ino > fs->super->s_inodes_count))
 		return EXT2_ET_BAD_INODE_NUM;
 
+	length = bufsize;
+	if (length < EXT2_INODE_SIZE(fs->super))
+		length = EXT2_INODE_SIZE(fs->super);
+
+	if (length > (int) sizeof(struct ext2_inode_large)) {
+		w_inode = malloc(length);
+		if (!w_inode)
+			return ENOMEM;
+	} else
+		w_inode = &temp_inode;
+	memset(w_inode, 0, length);
+
 #ifdef EXT2FS_ENABLE_SWAPFS
 	if ((fs->flags & EXT2_FLAG_SWAP_BYTES) ||
 	    (fs->flags & EXT2_FLAG_SWAP_BYTES_WRITE))
-		ext2fs_swap_inode(fs, &temp_inode, inode, 1);
+		ext2fs_swap_inode_full(fs, w_inode, 
+				       (struct ext2_inode_large *) inode, 
+				       1, bufsize);
 	else
 #endif
-		memcpy(&temp_inode, inode, sizeof(struct ext2_inode));
+		memcpy(w_inode, inode, bufsize);
 	
 	group = (ino - 1) / EXT2_INODES_PER_GROUP(fs->super);
 	offset = ((ino - 1) % EXT2_INODES_PER_GROUP(fs->super)) *
@@ -628,54 +672,87 @@ errcode_t ext2fs_write_inode(ext2_filsys fs, ext2_ino_t ino,
 	if (!fs->group_desc[(unsigned) group].bg_inode_table)
 		return EXT2_ET_MISSING_INODE_TABLE;
 	block_nr = fs->group_desc[(unsigned) group].bg_inode_table + block;
+
 	offset &= (EXT2_BLOCK_SIZE(fs->super) - 1);
-	ptr = (char *) fs->icache->buffer + (unsigned) offset;
 
 	length = EXT2_INODE_SIZE(fs->super);
-	clen = length;
-	if (length > sizeof(struct ext2_inode))
-		length = sizeof(struct ext2_inode);
-	
-	if (fs->icache->buffer_blk != block_nr) {
-		retval = io_channel_read_blk(fs->io, block_nr, 1,
-					     fs->icache->buffer);
-		if (retval)
-			return retval;
-		fs->icache->buffer_blk = block_nr;
-	}
-	
-	if ((offset + length) > EXT2_BLOCK_SIZE(fs->super)) {
-		clen = (int) (EXT2_BLOCK_SIZE(fs->super) - offset);
-		length -= clen;
-	} else {
-		length = 0;
-	}
-	memcpy(ptr, &temp_inode, clen);
-	retval = io_channel_write_blk(fs->io, block_nr, 1, fs->icache->buffer);
-	if (retval)
-		return retval;
+	if (length > bufsize)
+		length = bufsize;
 
-	if (length) {
-		retval = io_channel_read_blk(fs->io, ++block_nr, 1,
-					     fs->icache->buffer);
-		if (retval) {
-			fs->icache->buffer_blk = 0;
-			return retval;
+	ptr = (char *) w_inode;
+
+	while (length) {
+		clen = length;
+		if ((offset + length) > fs->blocksize)
+			clen = fs->blocksize - offset;
+
+		if (fs->icache->buffer_blk != block_nr) {
+			retval = io_channel_read_blk(fs->io, block_nr, 1,
+						     fs->icache->buffer);
+			if (retval)
+				goto errout;
+			fs->icache->buffer_blk = block_nr;
 		}
-		fs->icache->buffer_blk = block_nr;
-		memcpy(fs->icache->buffer, ((char *) &temp_inode) + clen,
-		       length);
 
-		retval = io_channel_write_blk(fs->io, block_nr, 1,
+	
+		memcpy((char *) fs->icache->buffer + (unsigned) offset, 
+		       ptr, clen);
+
+		retval = io_channel_write_blk(fs->io, block_nr, 1, 
 					      fs->icache->buffer);
 		if (retval)
-			return retval;
+			goto errout;
+
+		offset = 0;
+		ptr += clen;
+		length -= clen;
+		block_nr++;
 	}
-	
+		
 	fs->flags |= EXT2_FLAG_CHANGED;
-	return 0;
+errout:
+	if (w_inode && w_inode != &temp_inode)
+		free(w_inode);
+	return retval;
 }
 
+errcode_t ext2fs_write_inode(ext2_filsys fs, ext2_ino_t ino,
+			     struct ext2_inode *inode)
+{
+	return ext2fs_write_inode_full(fs, ino, inode,
+				       sizeof(struct ext2_inode));
+}
+
+/* 
+ * This function should be called when writing a new inode.  It makes
+ * sure that extra part of large inodes is initialized properly.
+ */
+errcode_t ext2fs_write_new_inode(ext2_filsys fs, ext2_ino_t ino,
+				 struct ext2_inode *inode)
+{
+	struct ext2_inode	*buf;
+	int 			size = EXT2_INODE_SIZE(fs->super);
+	struct ext2_inode_large	*large_inode;
+
+	if (size == sizeof(struct ext2_inode))
+		return ext2fs_write_inode_full(fs, ino, inode,
+					       sizeof(struct ext2_inode));
+
+	buf = malloc(size);
+	if (!buf)
+		return ENOMEM;
+
+	memset(buf, 0, size);
+	*buf = *inode;
+
+	large_inode = (struct ext2_inode_large *) buf;
+	large_inode->i_extra_isize = sizeof(struct ext2_inode_large) - 
+		EXT2_GOOD_OLD_INODE_SIZE;
+
+	return ext2fs_write_inode_full(fs, ino, buf, size);
+}
+
+ 
 errcode_t ext2fs_get_blocks(ext2_filsys fs, ext2_ino_t ino, blk_t *blocks)
 {
 	struct ext2_inode	inode;

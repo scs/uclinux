@@ -13,13 +13,11 @@ EOT
  *) exit 2 ;;
 esac
 
-#  # turn around bug in dpkg (Bug#17624)
-#  if [ -L /usr/doc/e2fsprogs ]
-#  then
-#      echo 'preinst: removing buggy /usr/doc/e2fsprogs symlink (Bug#17624)'
-#      rm -f /usr/doc/e2fsprogs
-#  fi
+# Old/erroneous conffile from early post-woody sid
+if [ -f /etc/mkinitrd/scripts/e2fsprogs ]
+then
+    rm -rf /etc/mkinitrd/scripts/e2fsprogs
+fi
+rm -f /etc/mkinitrd/scripts/e2fsprogs.mkinitrd
 
 #DEBHELPER#
-
-exit 0
