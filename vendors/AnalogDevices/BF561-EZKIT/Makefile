@@ -49,9 +49,10 @@ romfs::
 	$(ROMFSINST) /etc/modprobe.conf
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
 
-BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$4}')
-BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$3}')
+BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | awk '/.bss/ {print "0x"$$4}')
+BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | awk '/.bss/ {print "0x"$$3}')
 ADDR     = $$(echo $$(($(BSS) + $(BSS_SIZE))))
+ENTRY    = $$($(CROSS_COMPILE)nm $(IMAGE).$$FS | awk '$$NF == "__start" {print $$1}')
 
 ifeq ($(CONFIG_USER_DEV_DYNAMIC),y)
 DEVICE_TABLE = device_table-min.txt
@@ -116,7 +117,7 @@ ifeq ($(CONFIG_MTD_UCLINUX),y)
 			$(CROSS_COMPILE)objcopy -O binary -S $(IMAGE).$$FS $(IMAGE).bin; \
 			gzip -f9 $(IMAGE).bin; \
 			$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
-				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(CONFIG_BOOT_LOAD) -n "uClinux Kernel and $$FS" \
+				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(ENTRY) -n "uClinux Kernel and $$FS" \
 				-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage.$$FS; \
 			rm $(IMAGE).bin.gz; \
 			ln -sf linux.$$FS $(IMAGEDIR)/linux ; \
@@ -127,12 +128,14 @@ ifeq ($(CONFIG_MTD_UCLINUX),y)
 	rm -f $(IMAGEDIR)/vmImage
 
 else
+ifeq ($(CONFIG_BLK_DEV_INITRD),y)
 
-	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
 #
 # make an initramfs image
 #  Note: need to override some vars from userland env
 #
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
+
 	( /bin/bash $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) ; \
 	  awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) ; \
 	  echo "slink /init /sbin/init 0755 0 0" ; \
@@ -155,6 +158,7 @@ else
 	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGEDIR)/linux.initramfs.gz
 	ln -sf linux.initramfs.gz $(IMAGEDIR)/linux
 
+endif
 endif
 
 clean::
