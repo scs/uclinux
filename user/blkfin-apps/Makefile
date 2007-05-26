@@ -28,9 +28,13 @@ dir_$(CONFIG_USER_BLUEZ)                         += bluez-utils
 dir_$(CONFIG_USER_PICOCOM)                       += picocom
 dir_$(CONFIG_USER_MPLAYER)                       += mplayer
 dir_$(CONFIG_USER_VLC)                           += vlc
+dir_$(CONFIG_USER_AWG)                           += ndso
+dir_$(CONFIG_USER_NDSO)                          += ndso
+dir_$(CONFIG_USER_NET_AUDIO)                     += net_audio
+dir_$(CONFIG_USER_NET_AUDIO)                     += musicpd
 
 all %::
-	for i in $(dir_y) ; do make -C $$i $@ || exit $$? ; done
+	for i in $(dir_y) ; do $(MAKE) -C $$i $@ || exit $$? ; done
 
 clean:
-	for i in $(dir_y) $(dir_n) $(dir_) ; do make -C $$i $@ || exit $$? ; done
+	for i in $(dir_y) $(dir_n) $(dir_) ; do $(MAKE) -C $$i $@ || exit $$? ; done
