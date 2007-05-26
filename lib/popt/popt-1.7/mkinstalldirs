@@ -4,7 +4,7 @@
 # Created: 1993-05-16
 # Public domain
 
-# $Id$
+# $Id: mkinstalldirs 1776 2005-12-08 09:24:23Z ksh $
 
 errstatus=0
 
