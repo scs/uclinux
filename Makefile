@@ -41,7 +41,7 @@ STAGEDIR = $(ROOTDIR)/staging
 TFTPDIR    = /tftpboot
 BUILD_START_STRING ?= $(shell date "+%a, %d %b %Y %T %z")
 ifndef NON_SMP_BUILD
-HOST_NCPU := $(shell if [ -f /proc/cpuinfo ]; then n=`grep -c ^processor /proc/cpuinfo`; if [ $$n -gt 1 ];then expr $$n \* 2; else echo $$n; fi; else echo 1; fi)
+HOST_NCPU := $(shell if [ -f /proc/cpuinfo ]; then n=`grep -c processor /proc/cpuinfo`; if [ $$n -gt 1 ];then expr $$n \* 2; else echo $$n; fi; else echo 1; fi)
 else
 HOST_NCPU := 1
 endif
@@ -207,7 +207,7 @@ oldconfig: config.in
 	@$(MAKE) oldconfig_linux
 	@$(MAKE) oldconfig_modules
 	@$(MAKE) oldconfig_config
-#	@$(MAKE) oldconfig_uClibc     # we dont want this in blackfin world
+	@$(MAKE) oldconfig_uClibc
 	@chmod u+x config/setconfig
 	@config/setconfig final
 
@@ -257,7 +257,7 @@ oldconfig_modules:
 oldconfig_linux:
 	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) oldconfig
 oldconfig_uClibc:
-	#[ -z "$(findstring uClibc,$(LIBCDIR))" ] || $(MAKEARCH) -C $(LIBCDIR) oldconfig
+	[ -z "$(findstring uClibc,$(LIBCDIR))" ] || $(MAKEARCH) -C $(LIBCDIR) oldconfig
 
 ############################################################################
 #
@@ -379,8 +379,8 @@ clean: modules_clean
 real_clean mrproper: clean
 	-$(MAKEARCH_KERNEL) -C $(LINUXDIR) mrproper
 	-$(MAKEARCH) -C config clean
-	#-$(MAKEARCH) -C uClibc distclean
-	#-$(MAKEARCH) -C $(RELDIR) clean
+	-$(MAKEARCH) -C uClibc distclean
+	-$(MAKEARCH) -C $(RELDIR) clean
 	rm -rf romfs staging config.in config.arch config.tk images
 	rm -f modules/config.tk
 	rm -rf .config .config.old .oldconfig autoconf.h

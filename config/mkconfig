@@ -113,7 +113,7 @@ fi
 # expect an explosion of libc's just yet ;-)
 #
 
-LIBCS="`ls -d lib/libc uClibc uClibc-* glibc glibc-* 2>/dev/null` None"
+LIBCS="None `ls -d lib/libc uClibc uClibc-* glibc glibc-* 2>/dev/null`"
 NLIBCS="`echo ${LIBCS} | wc -w`"
 if [ ${NLIBCS} -gt 1 ]; then
 	echo -n "choice 'Libc Version' \""

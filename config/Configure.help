@@ -1724,7 +1724,1435 @@ CONFIG_USER_BUSYBOX_BUSYBOX
   you usually find in fileutils, shellutils, findutils, textutils, grep, gzip,
   tar, etc.  Simply select those utilities and options you want.
 
-source ../user/busybox/uclinux-configs/Config.in.help
+CONFIG_USER_BUSYBOX_ADJTIMEX
+  Reads and optionally sets system timebase parameters. See adjtimex(2).
+
+CONFIG_USER_BUSYBOX_AR
+  Extract or list files from an ar archive.
+
+CONFIG_USER_BUSYBOX_ADDGROUP
+  Utility for creating a new group account.
+
+CONFIG_USER_BUSYBOX_ADDUSER
+  Utility for creating a new user account.
+
+CONFIG_USER_BUSYBOX_BASENAME
+  Strips directory path and suffixes from FILE. If specified, also
+  removes any trailing SUFFIX.
+
+CONFIG_USER_BUSYBOX_CAT
+  Concatenates FILE(s) and prints them to stdout.
+
+CONFIG_USER_BUSYBOX_CHMOD
+  Change the access permissions of files.
+
+CONFIG_USER_BUSYBOX_CHOWN
+  Change the owner of files.
+
+CONFIG_USER_BUSYBOX_CHGRP
+  Change the group owner of files.
+
+CONFIG_USER_BUSYBOX_CHROOT
+  Run command with root directory set elsewhere.
+
+CONFIG_USER_BUSYBOX_CHVT
+  Changes the foreground virtual terminal.
+
+CONFIG_USER_BUSYBOX_CLEAR
+  Clear screen.
+
+CONFIG_USER_BUSYBOX_CMP
+  Compare files.
+
+CONFIG_USER_BUSYBOX_CP
+  Copy files.
+
+CONFIG_USER_BUSYBOX_CPIO
+  Copy files to and from archives.
+
+CONFIG_USER_BUSYBOX_CUT
+  Prints selected fields from input file to standard out.
+
+CONFIG_USER_BUSYBOX_DATE
+  Displays the current time or sets the system date.
+
+CONFIG_USER_BUSYBOX_DC
+  This is a Tiny RPN calculator that understands the following
+  operations: +, -, /, *, and, or, not, eor.
+
+CONFIG_USER_BUSYBOX_DD
+  Copy a file with formatting and conversions.
+
+CONFIG_USER_BUSYBOX_DEALLOCVT
+  Deallocate unused virtual terminal.
+
+CONFIG_USER_BUSYBOX_DELGROUP
+  Utility for deleting a group account.
+
+CONFIG_USER_BUSYBOX_DELUSER
+  Utility for deleting a user account.
+
+CONFIG_USER_BUSYBOX_DF
+  Print the filesystem space used and space available.
+
+CONFIG_USER_BUSYBOX_DIRNAME
+  Strips non-directory suffix from arguments.
+
+CONFIG_USER_BUSYBOX_DMESG
+  Prints or controls the kernel ring buffer.
+
+CONFIG_USER_BUSYBOX_DOS2UNIX
+  Converts a text file to/from dos format to unix format.
+
+CONFIG_USER_BUSYBOX_DPKG
+  WORK IN PROGRESS, only usefull for debian-installer.
+
+CONFIG_USER_BUSYBOX_DPKG_DEB
+  Perform actions on debian packages (.debs).
+
+CONFIG_USER_BUSYBOX_DUTMP
+  Dump utmp file format (pipe delimited).
+
+CONFIG_USER_BUSYBOX_DU
+  Summarizes disk space used for each file argument and/or directory. Disk
+  space is printed in units of 1024 bytes.
+
+CONFIG_USER_BUSYBOX_DUMPKMAP
+  Prints out a binary keyboard translation table to standard output.
+
+CONFIG_USER_BUSYBOX_ECHO
+  Prints arguments to stdout.
+
+CONFIG_USER_BUSYBOX_ENV
+  Prints the current environment or runs a program after setting up
+  the specified environment.
+
+CONFIG_USER_BUSYBOX_EXPR
+  Prints the value of an expression to standard output.
+
+CONFIG_USER_BUSYBOX_FBSET
+  Show and modify frame buffer settings.
+
+CONFIG_USER_BUSYBOX_FDFLUSH
+  Forces floppy disk drive to detect disk change
+
+CONFIG_USER_BUSYBOX_FIND
+  Search for files in a directory hierarchy.
+
+CONFIG_USER_BUSYBOX_FREE
+  Displays the amount of free and used system memory.
+
+CONFIG_USER_BUSYBOX_FREERAMDISK
+  Frees all memory used by the specified ramdisk.
+
+CONFIG_USER_BUSYBOX_FSCK_MINIX
+  Performs a consistency check for MINIX filesystems.
+
+CONFIG_USER_BUSYBOX_GETOPT
+  Parse command options.
+
+CONFIG_USER_BUSYBOX_GETTY
+  getty lets you log in on a tty, it is normally invoked by init.
+
+CONFIG_USER_BUSYBOX_GREP
+  Search for a pattern in each file or standard input.
+
+CONFIG_USER_BUSYBOX_GUNZIP
+  Uncompress files.
+
+CONFIG_USER_BUSYBOX_GZIP
+  Compress files.
+
+CONFIG_USER_BUSYBOX_HALT
+  Halt the system.
+
+CONFIG_USER_BUSYBOX_HDPARM
+  hdparm provides a command line interface to various hard disk ioctls
+  supported by the stock Linux ATA/IDE device driver subsystem.  Some
+  options may work correctly only with the latest kernels.
+
+CONFIG_USER_BUSYBOX_HDPARM_GET_IDENTITY
+  enable identity support
+
+CONFIG_USER_BUSYBOX_HDPARM_HDIO_SCAN_HWIF
+  enable scaning support
+
+CONFIG_USER_BUSYBOX_HDPARM_HDIO_UNREGISTER_HWIF
+  enable unregister device support
+
+CONFIG_USER_BUSYBOX_HDPARM_HDIO_DRIVE_RESET
+  enable reset support
+
+CONFIG_USER_BUSYBOX_HDPARM_HDIO_TRISTATE_HWIF
+  enable tristate support
+
+CONFIG_USER_BUSYBOX_HDPARM_HDIO_GETSET_DMA
+  enable DMA set/get state support
+
+CONFIG_USER_BUSYBOX_HEAD
+  Print first 10 lines of each file to standard output.
+
+CONFIG_USER_BUSYBOX_HOSTID
+  Print out a unique 32-bit identifier for the machine.
+
+CONFIG_USER_BUSYBOX_HOSTNAME
+  Get or set the hostname or DNS domain name.
+
+CONFIG_USER_BUSYBOX_ID
+  Print information for specific or current user.
+
+CONFIG_USER_BUSYBOX_IFCONFIG
+  Configure a network interface.
+
+CONFIG_USER_BUSYBOX_INIT
+  Init is the parent of all processes.
+
+CONFIG_USER_BUSYBOX_INSMOD
+  Loads the specified kernel modules into the kernel.
+
+CONFIG_USER_BUSYBOX_IPCALC
+  Busybox ipcalc program
+
+CONFIG_USER_BUSYBOX_IPCALC_FANCY
+  Fancy busybox ipcalc program
+
+CONFIG_USER_BUSYBOX_KILL
+  Send a signal to the specified process(es).
+
+CONFIG_USER_BUSYBOX_KILLALL
+  Send a signal to the specified process(es).
+
+CONFIG_USER_BUSYBOX_KLOGD
+  Kernel logger daemon.
+
+CONFIG_USER_BUSYBOX_LENGTH
+  Prints out the length of the specified string.
+
+CONFIG_USER_BUSYBOX_LN
+  Create a link between two files.
+
+CONFIG_USER_BUSYBOX_LOADACM
+  Loads an acm from standard input.
+
+CONFIG_USER_BUSYBOX_LOADFONT
+  Loads a console font from standard input.
+
+CONFIG_USER_BUSYBOX_LOADKMAP
+  Loads a binary keyboard translation table from standard input.
+
+CONFIG_USER_BUSYBOX_LOGGER
+  Write a message to the system log.
+
+CONFIG_USER_BUSYBOX_LOGIN
+  login is used when signing onto a system.
+
+CONFIG_USER_BUSYBOX_SECURETTY
+  The file  /etc/securetty  is used by (some versions of) login(1).
+  The file contains the device names of tty lines (one per line,
+  without leading /dev/) on which root is allowed to login.
+
+CONFIG_USER_BUSYBOX_SHADOWPASSWDS
+  Build support for shadow password in /etc/shadow.  This file is only
+  readable by root and thus the encrypted passwords are no longer
+  publicly readable.
+
+CONFIG_USER_BUSYBOX_LOGNAME
+  Print the name of the current user.
+
+CONFIG_USER_BUSYBOX_LS
+  List directory contents.
+
+CONFIG_USER_BUSYBOX_LSMOD
+  List the currently loaded kernel modules.
+
+CONFIG_USER_BUSYBOX_MAKEDEVS
+  Creates a range of block or character special files.
+
+CONFIG_USER_BUSYBOX_MD5SUM
+  Print or check MD5 checksums.
+
+CONFIG_USER_BUSYBOX_MKDIR
+  Create directory(ies), if they do not already exist.
+
+CONFIG_USER_BUSYBOX_MKFIFO
+  Creates a named pipe.
+
+CONFIG_USER_BUSYBOX_MKFS_MINIX
+  Make a MINIX filesystem.
+
+CONFIG_USER_BUSYBOX_MKNOD
+  Create a special file (block, character, or pipe).
+
+CONFIG_USER_BUSYBOX_MKSWAP
+  Prepare a disk partition to be used as a swap partition.
+
+CONFIG_USER_BUSYBOX_MKTEMP
+  Creates a temporary file.
+
+CONFIG_USER_BUSYBOX_MODPROBE
+  High level handling of loadable modules.
+
+CONFIG_USER_BUSYBOX_MORE
+  More is a filter for viewing a file one screenful at a time.
+
+CONFIG_USER_BUSYBOX_MOUNT
+  Mount a filesystem.
+
+CONFIG_USER_BUSYBOX_MT
+  Control magnetic tape drive operation.
+
+CONFIG_USER_BUSYBOX_MV
+  Move (rename) files.
+
+CONFIG_USER_BUSYBOX_NC
+  Netcat opens a pipe to a socket.
+
+CONFIG_USER_BUSYBOX_NSLOOKUP
+  Queries the nameserver for the IP address of the given host.
+
+CONFIG_USER_BUSYBOX_PIDOF
+  Find the process ID of a running program.
+
+CONFIG_USER_BUSYBOX_PING
+  Send ICMP ECHO_REQUEST packets to network hosts.
+
+CONFIG_USER_BUSYBOX_PIVOT_ROOT
+  Move the current root file system to put_old and make new_root the
+  new root file system.
+
+CONFIG_USER_BUSYBOX_POWEROFF
+  Halt the system and request that the kernel shut off the power.
+
+CONFIG_USER_BUSYBOX_PRINTF
+  Formats and prints argument(s) according to format, Where format
+        controls the output exactly as in C printf.
+
+CONFIG_USER_BUSYBOX_PS
+  Report process status. This version of ps accepts no options.
+
+CONFIG_USER_BUSYBOX_PWD
+  Print the full filename of the current working directory.
+
+CONFIG_USER_BUSYBOX_RDATE
+  Get and possibly set the system date and time from a remote host.
+
+CONFIG_USER_BUSYBOX_READLINK
+  Read a symbolic link.
+
+CONFIG_USER_BUSYBOX_REBOOT
+  Reboot the system.
+
+CONFIG_USER_BUSYBOX_RENICE
+  Changes priority of running processes. Allowed priorities range from
+  20 (the process runs only when nothing else is running) to 0
+  (default priority) to -20 (almost nothing else ever gets to run).
+
+CONFIG_USER_BUSYBOX_RESET
+  Resets the screen.
+
+CONFIG_USER_BUSYBOX_RM
+  Remove (unlink) the file(s). You may use '--' to indicate that all
+  following arguments are non-options.
+
+CONFIG_USER_BUSYBOX_RMDIR
+  Remove the directory(ies), if they are empty.
+
+CONFIG_USER_BUSYBOX_RMMOD
+  Unloads the specified kernel modules from the kernel.
+
+CONFIG_USER_BUSYBOX_ROUTE
+  Edit the kernel's routing tables.
+
+CONFIG_USER_BUSYBOX_RPM2CPIO
+  Convert an rpm archive to a cpio archive.
+
+CONFIG_USER_BUSYBOX_SED
+  Stream editor.
+
+CONFIG_USER_BUSYBOX_SETKEYCODES
+  Set entries into the kernel's scancode-to-keycode map, allowing
+  unusual keyboards to generate usable keycodes.
+
+CONFIG_USER_BUSYBOX_SHELL
+  Do you want to configure a busybox shell
+
+CONFIG_USER_BUSYBOX_ASH
+  The ASH shell (command interpreter)
+
+CONFIG_USER_BUSYBOX_SH_IS_ASH
+  /bin/sh will use the "ash" shell.
+
+CONFIG_USER_BUSYBOX_HUSH
+  The HUSH shell (command interpreter)
+
+CONFIG_USER_BUSYBOX_SH_IS_HUSH
+  /bin/sh will use the "hush" shell.
+
+CONFIG_USER_BUSYBOX_LASH
+  The BusyBox lame shell (command interpreter)
+
+CONFIG_USER_BUSYBOX_SH_IS_LASH
+  /bin/sh will use the "lash" shell.
+
+CONFIG_USER_BUSYBOX_MSH
+  The BusyBox Minix shell (command interpreter)
+
+CONFIG_USER_BUSYBOX_SH_IS_MSH
+  /bin/sh will use the "msh" shell.
+
+CONFIG_USER_BUSYBOX_SLEEP
+  Pause for a specified number of seconds.
+
+CONFIG_USER_BUSYBOX_SORT
+  Sorts lines of text in the specified files.
+
+CONFIG_USER_BUSYBOX_STRINGS
+  Extract printable strings from a binary file.
+
+CONFIG_USER_BUSYBOX_STTY
+  Print or modify prints baud rate, line discipline, and deviations
+  from stty sane.
+
+CONFIG_USER_BUSYBOX_SWAPONOFF
+  Stop swapping virtual memory pages on the given device.
+
+CONFIG_USER_BUSYBOX_SYNC
+  Write all buffered filesystem blocks to disk.
+
+CONFIG_USER_BUSYBOX_SYSLOGD
+  Linux system and kernel logging utility. Note that this version of
+  syslogd ignores /etc/syslog.conf.
+
+CONFIG_USER_BUSYBOX_TAIL
+  Print last 10 lines of each file to standard output. With more than
+  one file, precede each with a header giving the file name. With no
+  file, or when file is -, read standard input.
+
+CONFIG_USER_BUSYBOX_TAR
+  Create, extract, or list files from a tar file.
+
+CONFIG_USER_BUSYBOX_TEE
+  Copy standard input to each file, and also to standard output.
+
+CONFIG_USER_BUSYBOX_TELNET
+  Telnet is used to establish interactive communication with another
+  computer over a network using the TELNET protocol.
+
+CONFIG_USER_BUSYBOX_TEST
+  Checks file types and compares values returning an exit code
+  determined by the value of an expression.
+
+CONFIG_USER_BUSYBOX_TFTP
+  Transfers a file from/to a tftp server using "octet" mode.
+
+CONFIG_USER_BUSYBOX_TOUCH
+  Update the last-modified date on the given file[s].
+
+CONFIG_USER_BUSYBOX_TR
+  Translate, squeeze, and/or delete characters from standard input,
+  writing to standard output.
+
+CONFIG_USER_BUSYBOX_TRACEROUTE
+  Print the route packets take to a network host.
+
+CONFIG_USER_BUSYBOX_TRUE_FALSE
+  Return an exit code of TRUE (0) or FALSE (1).
+
+CONFIG_USER_BUSYBOX_TTY
+  Print the file name of the terminal connected to standard input.
+
+CONFIG_USER_BUSYBOX_UMOUNT
+  Unmount file systems.
+
+CONFIG_USER_BUSYBOX_UNAME
+  Print certain system information.
+
+CONFIG_USER_BUSYBOX_UNIQ
+  Discard all but one of successive identical lines from input (or
+  standard input), writing to output (or standard output).
+
+CONFIG_USER_BUSYBOX_UNIX2DOS
+  Convert files from unix format to DOS format.
+
+CONFIG_USER_BUSYBOX_UPDATE
+  Periodically flushes filesystem buffers.
+
+CONFIG_USER_BUSYBOX_UPTIME
+  Display the time since the last boot.
+
+CONFIG_USER_BUSYBOX_USLEEP
+  Pause for N microseconds.
+
+CONFIG_USER_BUSYBOX_UUDECODE
+  Uudecode a file that is uuencoded.
+
+CONFIG_USER_BUSYBOX_UUENCODE
+  Uuencode a file.
+
+CONFIG_USER_BUSYBOX_VI
+  Visual file editor.
+
+CONFIG_USER_BUSYBOX_WATCHDOGD
+  Periodically write to watchdog device.
+
+CONFIG_USER_BUSYBOX_WC
+  Print line, word, and byte counts for each file, and a total line if
+  more than one file is specified. with no file, read standard input.
+
+CONFIG_USER_BUSYBOX_WGET
+  Retrieves files via HTTP or FTP.
+
+CONFIG_USER_BUSYBOX_WHICH
+  Locates a command.
+
+CONFIG_USER_BUSYBOX_WHOAMI
+  Prints the user name associated with the current effective user id.
+
+CONFIG_USER_BUSYBOX_XARGS
+  Executes a command on every item given by standard input.
+
+CONFIG_USER_BUSYBOX_YES
+  Repeatedly outputs a line with all specified string(s), or 'y'.
+
+CONFIG_USER_BUSYBOX_BUFFERS_GO_ON_STACK
+  BusyBox will, by default, malloc space for its buffers.  This costs code
+  size for the call to xmalloc.  You can use the following feature to have
+  them put on the stack.  For some very small machines with limited stack
+  space, this can be deadly.  For most folks, this works just fine...
+
+CONFIG_USER_BUSYBOX_BUFFERS_GO_IN_BSS
+  The third alternative for buffer allocation is to use BSS.  This works
+  beautifully for computers with a real MMU (and OS support), but wastes
+  runtime RAM for uCLinux.  This behavior was the only one available for
+  BusyBox versions 0.48 and earlier.
+
+CONFIG_USER_BUSYBOX_USE_DEVPS_PATCH
+  Turn this on to use Erik's very cool devps, and devmtab kernel drivers,
+  thereby eliminating the need for the /proc filesystem and thereby saving
+  lots and lots memory for more important things.  NOTE:  If you enable this
+  feature, you _must_ have patched the kernel to include the devps patch that
+  is included in the busybox/kernel-patches directory.  You will also need to
+  create some device special files in /dev on your embedded system:
+         mknod /dev/mtab c 10 22
+         mknod /dev/ps c 10 21
+  I emailed Linus and this patch will not be going into the stock kernel.
+
+CONFIG_USER_BUSYBOX_VERBOSE_USAGE
+  Show verbose usage messages.  This consumes extra memory.
+
+CONFIG_USER_BUSYBOX_USE_TERMIOS
+  Use termios to manipulate the screen ('more' is prettier with this on)
+
+CONFIG_USER_BUSYBOX_AUTOWIDTH
+  Calculate terminal & column widths (for more and ls).
+
+CONFIG_USER_BUSYBOX_LS_USERNAME
+  Show username/groupnames for ls.
+
+CONFIG_USER_BUSYBOX_LS_TIMESTAMPS
+  Show file time stamps in ls.
+  
+CONFIG_USER_BUSYBOX_LS_FILETYPES
+  Allow ls to know about file types.
+
+CONFIG_USER_BUSYBOX_LS_SORTFILES
+  Allow ls to sort the file names.
+
+CONFIG_USER_BUSYBOX_LS_RECURSIVE
+  Enable ls -R
+
+CONFIG_USER_BUSYBOX_LS_FOLLOWLINKS
+  Enable ls -L
+
+CONFIG_USER_BUSYBOX_FANCY_PING
+  Disable for a smaller (but less functional) ping.
+
+CONFIG_USER_BUSYBOX_USE_INITTAB
+  Make init use a simplified /etc/inittab file (recommended).
+
+CONFIG_USER_BUSYBOX_LINUXRC
+  Enable init being called as /linuxrc.
+
+CONFIG_USER_BUSYBOX_INIT_COREDUMPS
+  Have init enable core dumping for child processes (for debugging only).
+
+CONFIG_USER_BUSYBOX_EXTRA_QUIET
+  Make sure nothing is printed to the console on boot
+
+CONFIG_USER_BUSYBOX_REMOTE_LOG
+  Enable syslogd -R remotehost
+
+CONFIG_USER_BUSYBOX_IPC_SYSLOG
+  Enable syslogd -C
+
+CONFIG_USER_BUSYBOX_FANCY_TAIL
+  Fancy tail implementation.
+
+CONFIG_USER_BUSYBOX_MOUNT_LOOP
+  Enable support for loop devices in mount
+
+CONFIG_USER_BUSYBOX_MTAB_SUPPORT
+  Enable support for a real /etc/mtab file instead of /proc/mounts
+
+CONFIG_USER_BUSYBOX_NFSMOUNT
+  Enable support for mounting remote NFS volumes.
+  You may need to mount with "-o nolock" if you are
+  not running a local portmapper daemon...
+
+CONFIG_USER_BUSYBOX_MOUNT_FORCE
+  Enable support forced filesystem unmounting
+  (i.e. in case of an unreachable NFS system).
+
+CONFIG_USER_BUSYBOX_TAR_CREATE
+  Enable support for creation of tar files.
+
+CONFIG_USER_BUSYBOX_TAR_EXCLUDE
+  Enable support for "--exclude" and "-X" for excluding files
+
+CONFIG_USER_BUSYBOX_TAR_GZIP
+  Enable support for tar -z option (currently only works for inflating)
+
+CONFIG_USER_BUSYBOX_SORT_REVERSE
+  Enable reverse sort
+
+CONFIG_USER_BUSYBOX_SORT_UNIQUE
+  Enable unique sort
+
+CONFIG_USER_BUSYBOX_COMMAND_EDITING
+  Enable command line editing in the shell.
+
+CONFIG_USER_BUSYBOX_TAB_COMPLETION
+  Enable tab completion in the shell.
+  This feature adds a bit over 4k.
+
+CONFIG_USER_BUSYBOX_USERNAME_COMPLETION
+  Attempts to match usernames in a ~-prefixed path
+
+CONFIG_USER_BUSYBOX_SH_STANDALONE_SHELL
+  Allow the shell to invoke all the compiled in BusyBox applets as if they
+  were shell builtins.  Nice for staticly linking an emergency rescue shell,
+  among other things.
+
+CONFIG_USER_BUSYBOX_SH_APPLETS_ALWAYS_WIN
+  When this is enabled, busybox shell applets can be called using full path
+  names.  This causes applets (i.e., most busybox commands) to override
+  real commands on the filesystem.  For example, if you run run /bin/cat, it
+  will use BusyBox cat even if /bin/cat exists on the filesystem and is _not_
+  busybox.  Some systems want this, others do not.  Choose wisely.  :-)
+
+CONFIG_USER_BUSYBOX_SH_FANCY_PROMPT
+  Some deeply embedded systems don't have usernames or even hostnames,
+  and the fancy prompt can look rather hideous on them. Enable this option
+  for a fancy prompt.
+
+CONFIG_USER_BUSYBOX_FBSET_FANCY
+  Turn on extra fbset options.
+
+CONFIG_USER_BUSYBOX_FBSET_READMODE
+  Turn on fbset readmode support.
+
+CONFIG_USER_BUSYBOX_2_2_MODULES
+  Support insmod/lsmod/rmmod for pre 2.1 kernels.
+
+CONFIG_USER_BUSYBOX_2_4_MODULES
+  Support insmod/lsmod/rmmod for 2.1 - 2.4 kernels.
+
+CONFIG_USER_BUSYBOX_2_6_MODULES
+  Support insmod/lsmod/rmmod for 2.6 and above kernels.
+
+CONFIG_USER_BUSYBOX_INSMOD_VERSION_CHECKING
+  Support module version checking.
+
+CONFIG_USER_BUSYBOX_INSMOD_LOADINKMEM
+  Support for uClinux memory usage optimization, which will load the image
+  directly into the kernel memory.  This divides memory requrements by three.
+  If you are not running uClinux (i.e., your CPU has an MMU) leave this
+  disabled...
+
+CONFIG_USER_BUSYBOX_MINIX2
+  Support for Minix filesystem, version 2
+
+CONFIG_USER_BUSYBOX_IFCONFIG_STATUS
+  Enable ifconfig status reporting output -- this feature adds 12k.
+
+CONFIG_USER_BUSYBOX_IFCONFIG_SLIP
+  Enable ifconfig slip-specific options "keepalive" and "outfill"
+
+CONFIG_USER_BUSYBOX_IFCONFIG_MEMSTART_IOADDR_IRQ
+  Enable ifconfig options "mem_start", "io_addr", and "irq".
+
+CONFIG_USER_BUSYBOX_IFCONFIG_HW
+  Enable ifconfig option "hw".  Currently works for only with "ether".
+
+CONFIG_USER_BUSYBOX_INSTALLER
+  Enable busybox --install [-s]
+  to create links (or symlinks) for all the commands that are
+  compiled into the binary.  (needs /proc filesystem)
+
+CONFIG_USER_BUSYBOX_WGET_STATUSBAR
+  Enable a nifty progress meter in wget (adds just under 2k)
+
+CONFIG_USER_BUSYBOX_WGET_AUTHENTICATION
+  Enable HTTP authentication in wget
+
+CONFIG_USER_BUSYBOX_U_W_TMP
+  The files /var/run/utmp and /var/run/wtmp can be used to track when
+  user's have logged into and logged out of the system, allowing programs
+  such as 'who' and 'last' to list who is currently logged in.
+
+CONFIG_USER_BUSYBOX_CLEAN_UP
+  Clean up all memory before exiting -- usually not needed
+  as the OS can clean up...  Don't enable this unless you
+  have a really good reason for cleaning things up manually.
+
+CONFIG_USER_BUSYBOX_HUMAN_READABLE
+  Support for human readable output by ls, du, etc.(example 13k, 23M, 235G)
+
+CONFIG_USER_BUSYBOX_FIND_TYPE
+  Support for the find -type option.
+
+CONFIG_USER_BUSYBOX_FIND_PERM
+  Support for the find -perm option.
+
+CONFIG_USER_BUSYBOX_FIND_MTIME
+  Support for the find -mtine option.
+
+CONFIG_USER_BUSYBOX_GREP_CONTEXT
+  Support for the -A -B and -C context flags in grep.
+
+CONFIG_USER_BUSYBOX_GREP_EGREP_ALIAS
+  Support for the EGREP applet (alias to the grep applet)
+
+CONFIG_USER_BUSYBOX_TFTP_PUT
+  Support the TFTP PUT command.
+
+CONFIG_USER_BUSYBOX_TFTP_GET
+  Support the TFTP GET command.
+
+CONFIG_USER_BUSYBOX_VI_COLON
+  ":" colon commands, no "ex" mode.
+
+CONFIG_USER_BUSYBOX_VI_YANKMARK
+  Yank/Put commands and Mark commands.
+
+CONFIG_USER_BUSYBOX_VI_SEARCH
+  Search and replace commands.
+
+CONFIG_USER_BUSYBOX_VI_USE_SIGNALS
+  Catch signals.
+
+CONFIG_USER_BUSYBOX_VI_DOT_CMD
+  Remember previous command and "." command.
+
+CONFIG_USER_BUSYBOX_VI_READONLY
+  Support "vi -r" and "view" mode.
+
+CONFIG_USER_BUSYBOX_VI_SETOPTS
+  Set-able options: ai ic showmatch.
+
+CONFIG_USER_BUSYBOX_VI_SET
+  Support :set
+
+CONFIG_USER_BUSYBOX_VI_WIN_RESIZE
+  Handle window resizes.
+
+CONFIG_USER_BUSYBOX_LOCALE_SUPPORT
+  Enable a if you system have setuped locale.
+
+CONFIG_USER_BUSYBOX_TELNET_TTYPE
+  Support for TELNET to pass TERM type to remote host.
+ 
+CONFIG_USER_BUSYBOX_PASSWD
+  passwd changes passwords for user and group accounts.  A normal user
+  may only change the password for his/her own account, the super user
+  may change the password for any account.  The administrator of a group
+  may change the password for the group.
+
+CONFIG_USER_BUSYBOX_SU
+  su is used to become another user during a login session.
+  Invoked without a username, su defaults to becoming the super user.
+
+CONFIG_USER_BUSYBOX_SULOGIN
+  sulogin is invoked when the system goes into single user
+  mode (this is done through an entry in inittab).
+
+CONFIG_USER_BUSYBOX_USE_BB_PWD_GRP
+  If you leave this disabled, busybox will use the system's password
+  and group functions.  And if you are using the GNU C library
+  (glibc), you will then need to install the /etc/nsswitch.conf
+  configuration file and the required /lib/libnss_* libraries in
+  order for the password and group functions to work.  This generally
+  makes your embedded system quite a bit larger.
+
+  Enabling this option will cause busybox to directly access the
+  system's /etc/password, /etc/group files (and your system will be
+  smaller, and I will get fewer emails asking about how glibc NSS
+  works).  When this option is enabled, you will not be able to use
+  PAM to access remote LDAP password servers and whatnot.  And if you
+  want hostname resolution to work with glibc, you still need the
+  /lib/libnss_* libraries.
+
+  If you enable this option, it will add about 1.5k to busybox.
+
+CONFIG_USER_BUSYBOX_USE_BB_SHADOW
+  If you leave this disabled, busybox will use the system's shadow
+  password handling functions.  And if you are using the GNU C library
+  (glibc), you will then need to install the /etc/nsswitch.conf
+  configuration file and the required /lib/libnss_* libraries in
+  order for the shadow password functions to work.  This generally
+  makes your embedded system quite a bit larger.
+
+  Enabling this option will cause busybox to directly access the
+  system's /etc/shadow file when handling shadow passwords.  This
+  makes your system smaller and I will get fewer emails asking about
+  how glibc NSS works).  When this option is enabled, you will not be
+  able to use PAM to access shadow passwords from remote LDAP
+  password servers and whatnot.
+
+CONFIG_USER_BUSYBOX_VLOCK
+  Build the "vlock" applet which allows you to lock (virtual) terminals.
+
+CONFIG_USER_BUSYBOX_INITRD
+  Allow init to be called from an initrd as linuxrc.
+
+CONFIG_USER_BUSYBOX_MESG
+  Mesg controls access to your terminal by others.  It is typically
+  used to allow or disallow other users to write to your terminal
+
+CONFIG_USER_BUSYBOX_FDFORMAT
+  fdformat is used to low-level format a floppy disk.
+
+CONFIG_USER_BUSYBOX_FDISK
+  The fdisk utility is used to divide hard disks into one or more
+  logical disks, which are generally called partitions.  This utility
+  can be used to list and edit the set of partitions or BSD style
+  'disk slices' that are defined on a hard drive.
+
+CONFIG_USER_BUSYBOX_AIX_LABEL
+  Enabling this option allows you to create or change AIX disklabels.
+  Most people can safely leave this option disabled.
+
+CONFIG_USER_BUSYBOX_FDISK_ADVANCED
+  Enabling this option allows you to do terribly unsafe things like
+  define arbitrary drive geometry, move the beginning of data in a
+  partition, and similarly evil things.  Unless you have a very good
+  reason you would be wise to leave this disabled.
+
+CONFIG_USER_BUSYBOX_FDISK_WRITABLE
+  Enabling this option allows you to create or change a partition table
+  and write those changes out to disk.  If you leave this option
+  disabled, you will only be able to view the partition table.
+
+CONFIG_USER_BUSYBOX_HWCLOCK_LONGOPTIONS
+  By default, the hwclock utility only uses short options.  If you
+  are overly fond of its long options, such as --hctosys, --utc, etc)
+  then enable this option.
+
+CONFIG_USER_BUSYBOX_OSF_LABEL
+  Enabling this option allows you to create or change BSD disklabels
+  and define and edit BSD disk slices.
+
+CONFIG_USER_BUSYBOX_SGI_LABEL
+  Enabling this option allows you to create or change SGI disklabels.
+  Most people can safely leave this option disabled.
+
+CONFIG_USER_BUSYBOX_SUN_LABEL
+  Enabling this option allows you to create or change SUN disklabels.
+  Most people can safely leave this option disabled.
+
+CONFIG_USER_BUSYBOX_HEXDUMP
+  The hexdump utility is used to display binary data in a readable
+  way that is comparable to the output from most hex editors.
+
+CONFIG_USER_BUSYBOX_HWCLOCK
+  The hwclock utility is used to read and set the hardware clock
+  on a system.  This is primarily used to set the current time on
+  shutdown in the hardware clock, so the hardware will keep the
+  correct time when Linux is _not_ running.
+
+CONFIG_USER_BUSYBOX_FDISK_SUPPORT_LARGE_DISKS
+  Enable this option to support large disks > 4GB.
+
+CONFIG_USER_BUSYBOX_CROND
+  Crond is a background daemon that parses individual crontab
+  files and executes commands on behalf of the users in question.
+  This is a port of dcron from slackware.  It uses files of the
+  format /var/spool/cron/crontabs/<username> files, for example:
+      $ cat /var/spool/cron/crontabs/root
+      # Run daily cron jobs at 4:40 every day:
+      40 4 * * * /etc/cron/daily > /dev/null 2>&1
+
+CONFIG_USER_BUSYBOX_CRONTAB
+  Crontab manipulates the crontab for a particular user.  Only
+  the superuser may specify a different user and/or crontab directory.
+
+CONFIG_USER_BUSYBOX_DEVFSD
+  Provides compatibility with old device names on a devfs systems.
+  You should set it to true if you have devfs enabled.
+  The following keywords in devsfd.conf are supported:
+  "CLEAR_CONFIG", "INCLUDE", "OPTIONAL_INCLUDE", "RESTORE",
+  "PERMISSIONS", "EXECUTE", "COPY", "IGNORE",
+  "MKOLDCOMPAT", "MKNEWCOMPAT","RMOLDCOMPAT", "RMNEWCOMPAT".
+
+  But only if they are written UPPERCASE!!!!!!!!
+
+CONFIG_USER_BUSYBOX_DEVFSD_FG_NP
+  -fg	Run the daemon in the foreground.
+  -np	Exit  after  parsing  the configuration file. Do not poll for events.
+
+CONFIG_USER_BUSYBOX_DEVFSD_MODLOAD
+  This actually doesn't work with busybox  modutils but needs the real modutils.
+
+CONFIG_USER_BUSYBOX_DEVFSD_VERBOSE
+  Increases logging to stderr or syslog.
+
+CONFIG_USER_BUSYBOX_CROND_CALL_SENDMAIL
+  Support calling /usr/sbin/sendmail for send cmd outputs.
+
+CONFIG_USER_BUSYBOX_LAST
+  'last' displays a list of the last users that logged into the system.
+
+CONFIG_USER_BUSYBOX_RX
+  Receive files using the Xmodem protocol.
+
+CONFIG_USER_BUSYBOX_ASH_ALIAS
+  Enable alias support in the ash shell.
+
+CONFIG_USER_BUSYBOX_ASH_CMDCMD
+  Enable support for the ash 'command' builtin, which allows
+  you to run the specified command with the specified arguments,
+  even when there is an ash builtin command with the same name.
+
+CONFIG_USER_BUSYBOX_ASH_GETOPTS
+  Enable builtin getopt in the ash shell.
+
+CONFIG_USER_BUSYBOX_ASH_JOB_CONTROL
+  Enable job control in the ash shell.
+
+CONFIG_USER_BUSYBOX_ASH_MAIL
+  Enable "check for new mail" in the ash shell.
+
+CONFIG_USER_BUSYBOX_ASH_MATH_SUPPORT
+  Enable math support in the ash shell.
+
+CONFIG_USER_BUSYBOX_ASH_MATH_SUPPORT_64
+  Enable 64-bit math support in the ash shell.  This will make
+  the shell slightly larger, but will allow computation with very
+  large numbers.
+
+CONFIG_USER_BUSYBOX_ASH_OPTIMIZE_FOR_SIZE
+  Compile ash for reduced size at price of speed.
+
+CONFIG_USER_BUSYBOX_ASH_RANDOM_SUPPORT
+  Enable pseudorandom generator and dynamic variable "$RANDOM".
+  Each read of "$RANDOM" will generate a new pseudorandom value.
+  You can reset the generator by using a specified start value.
+  After "unset RANDOM" then generator will switch off and this
+  variable will no longer have special treatment.
+
+CONFIG_USER_BUSYBOX_COMMAND_SAVEHISTORY
+  Enable history saving in ash shell.
+
+CONFIG_USER_BUSYBOX_COMMAND_TAB_COMPLETION
+  Enable tab completion in shell.
+
+CONFIG_USER_BUSYBOX_COMMAND_USERNAME_COMPLETION
+  Enable username completion in shell.
+
+CONFIG_USER_BUSYBOX_SH_EXTRA_QUIET
+  Remove the busybox introduction when starting a shell.
+
+CONFIG_USER_BUSYBOX_AWK
+  Awk is used as a pattern scanning and processing language.  This is
+  the BusyBox implementation of that programming language.
+
+CONFIG_USER_BUSYBOX_AWK_MATH
+  Enable math functions of the Awk programming language.
+  NOTE: This will require libm to be present for linking.
+
+CONFIG_USER_BUSYBOX_VI_OPTIMIZE_CURSOR
+  This will make the cursor movement faster, but requires more memory
+  and it makes the applet a tiny bit larger.
+
+CONFIG_USER_BUSYBOX_PATCH
+  Apply a unified diff formatted patch.
+
+CONFIG_USER_BUSYBOX_FIND_INUM
+  Support the 'find -inum' option for searching by inode number.
+
+CONFIG_USER_BUSYBOX_FIND_XDEV
+  This option will allow find to restrict searches to a single
+  filesystem.
+
+CONFIG_USER_BUSYBOX_GREP_FGREP_ALIAS
+          fgrep sees the search pattern as a normal string rather than
+  regular expressions.
+  grep -f is always builtin, this just creates the fgrep alias.
+
+CONFIG_USER_BUSYBOX_XARGS_SUPPORT_CONFIRMATION
+  Support prompt the user about whether to run each command
+  line and read a line from the terminal.
+
+CONFIG_USER_BUSYBOX_XARGS_SUPPORT_QUOTES
+  Default xargs unsupport single and double quotes
+  and backslash for can use aruments with spaces.
+
+CONFIG_USER_BUSYBOX_XARGS_SUPPORT_TERMOPT
+  Enable support exit if the size (see the -s or -n option)
+  is exceeded.
+
+CONFIG_USER_BUSYBOX_XARGS_SUPPORT_ZERO_TERM
+  Enable input filenames are terminated by a null character
+  instead of by whitespace, and the quotes and backslash
+  are not special.
+
+CONFIG_USER_BUSYBOX_CHECK_TAINTED_MODULE
+  Support checking for tainted modules.  These are usually binary
+  only modules that will make the linux-kernel list ignore your
+  support request.
+  This option is required to support GPLONLY modules.
+
+CONFIG_USER_BUSYBOX_INSMOD_KSYMOOPS_SYMBOLS
+  By adding module symbols to the kernel symbol table, Oops messages
+  occuring within kernel modules can be properly debugged.  By enabling
+  this feature, module symbols will always be added to the kernel symbol
+  table for properly debugging support.  If you are not interested in
+  Oops messages from kernel modules, say N.
+
+CONFIG_USER_BUSYBOX_INSMOD_LOAD_MAP
+  Enabling this, one would be able to get a load map
+  output on stdout. This makes kernel module debugging
+  easier.
+  If you don't plan to debug kernel modules, you
+  don't need this option.
+
+CONFIG_USER_BUSYBOX_INSMOD_LOAD_MAP_FULL
+  Without this option, -m will only output section
+  load map.  With this option, -m will also output
+  symbols load map.
+
+CONFIG_USER_BUSYBOX_DMALLOC
+  N/A
+
+CONFIG_USER_BUSYBOX_EFENCE
+  N/A
+
+CONFIG_USER_BUSYBOX_BUFFERS_USE_MALLOC
+  N/A
+
+CONFIG_USER_BUSYBOX_DEVFS
+  Enable if you want BusyBox to work with devfs.
+
+CONFIG_USER_BUSYBOX_DEVPTS
+  Enable if you want BusyBox to use Unix98 PTY support. If enabled,
+  busybox will use /dev/ptmx for the master side of the pseudoterminal
+  and /dev/pts/<number> for the slave side.  Otherwise, BSD style
+  /dev/ttyp<number> will be used. To use this option, you should have
+  devpts or devfs mounted.
+
+CONFIG_USER_BUSYBOX_SUID
+  Support SUID and SGID binaries.
+
+CONFIG_USER_BUSYBOX_SUID_CONFIG
+  Allow the SUID / SGID state of an applet to be determined runtime by
+  checking /etc/busybox.conf.  The format of this file is as follows:
+
+  <applet> = [Ssx-][Ssx-][x-] (<username>|<uid>).(<groupname>|<gid>)
+
+  An example might help:
+
+  [SUID]
+  su = ssx root.0 # applet su can be run by anyone and runs with euid=0/egid=0
+  su = ssx        # exactly the same
+
+  mount = sx- root.disk # applet mount can be run by root and members of group disk
+                        # and runs with euid=0
+
+  cp = --- # disable applet cp for everyone
+
+  Robert 'sandman' Griebl has more information here:
+  <url: http://www.softforge.de/bb/suid.html >.
+
+CONFIG_USER_BUSYBOX_SUID_CONFIG_QUIET
+  /etc/busybox.conf should be readable by the user needing the SUID, check
+  this option to avoid users to be notified about missing permissions.
+
+CONFIG_USER_BUSYBOX_LFS
+  If you want to build BusyBox with large file support, then enable
+  this option.  This will have no effect if your kernel or your C
+  library lacks large file support for large files.  Some of the
+  programs that can benefit from large file support include dd, gzip,
+  cp, mount, tar, and many others.  If you want to access files larger
+  than 2 Gigabytes, enable this option.  Otherwise, leave it set to 'N'.
+
+CONFIG_USER_BUSYBOX_SELINUX
+  Enable support for SE Linux in applets ls, ps, and id.  Also provide
+  the option of compiling in SE Linux applets.
+
+  If you do not have a complete SE Linux Full Userland installed, this
+  stuff will not compile.  Go visit
+	http://www.nsa.gov/selinux/index.html
+  to download the necessary stuff to allow busybox to compile with this
+  option enabled.
+
+  Most people will leave this set to 'N'.
+
+CONFIG_USER_BUSYBOX_STATIC
+  If you want to build a static BusyBox binary, which does not
+  use or require any shared libraries, then enable this option.
+  This can cause BusyBox to be considerably larger, so you should
+  leave this option false unless you have a good reason (i.e.
+  your target platform does not support shared libraries, or
+  you are building an initrd which doesn't need anything but
+  BusyBox, etc).
+
+  Most people will leave this set to 'N'.
+
+CONFIG_USER_BUSYBOX_BUNZIP2
+  bunzip2 is a compression utility using the Burrows-Wheeler block
+  sorting text compression algorithm, and Huffman coding.  Compression
+  is generally considerably better than that achieved by more
+  conventional LZ77/LZ78-based compressors, and approaches the
+  performance of the PPM family of statistical compressors.
+
+  The BusyBox bunzip2 applet is limited to de-compression only.
+  On an x86 system, this applet adds about 11K.
+
+  Unless you have a specific application which requires bunzip2, you
+  should probably say N here.
+
+CONFIG_USER_BUSYBOX_DEB_TAR_BZ2
+  This allows dpkg and dpkg-deb to extract deb's that are compressed internally
+  with bzip2 instead of gzip.
+
+  You only want this if you are creating your own custom debian packages that
+  use an internal control.tar.bz2 or data.tar.bz2.
+
+CONFIG_USER_BUSYBOX_DEB_TAR_GZ
+  This is the default compression method inside the debian ar file.
+
+  If you want compatibility with standard .deb's you should say yes here.
+
+CONFIG_USER_BUSYBOX_DPKG_DEB_EXTRACT_ONLY
+  This reduces dpkg-deb to the equivalent of "ar -p <deb> data.tar.gz | tar -zx".
+  However it saves space as none of the extra dpkg-deb, ar or tar options are
+  needed, they are linked to internally.
+
+CONFIG_USER_BUSYBOX_GUNZIP_UNCOMPRESS
+  Enable if you want gunzip to have the ability to decompress
+  archives created by the program compress (not much
+  used anymore).
+
+CONFIG_USER_BUSYBOX_TAR_BZIP2
+  If you enable this option you'll be able to extract
+  archives compressed with bzip2.
+
+CONFIG_USER_BUSYBOX_TAR_COMPRESS
+  If you enable this option tar will be able to call uncompress,
+  when extracting .tar.Z archives.
+
+CONFIG_USER_BUSYBOX_TAR_FROM
+  If you enable this option you'll be able to specify
+  a list of files to include or exclude from an archive.
+
+CONFIG_USER_BUSYBOX_TAR_GNU_EXTENSIONS
+  With this option busybox supports GNU long filenames and
+  linknames.
+
+CONFIG_USER_BUSYBOX_TAR_LONG_OPTIONS
+  Enable use of long options, increases size by about 400 Bytes
+
+CONFIG_USER_BUSYBOX_TAR_OLDGNU_COMPATABILITY
+  This option is required to unpack archives created in
+  the old GNU format; help to kill this old format by
+  repacking your ancient archives with the new format.
+
+CONFIG_USER_BUSYBOX_UNARCHIVE_TAPE
+  I don't think this is needed anymore.
+
+CONFIG_USER_BUSYBOX_UNCOMPRESS
+  uncompress is used to decompress archives created by compress.
+  Not much used anymore, replaced by gzip/gunzip.
+
+CONFIG_USER_BUSYBOX_SYSCTL
+  sysctl - configure kernel parameters at runtime
+
+CONFIG_USER_BUSYBOX_CPU_USAGE_PERCENTAGE
+  Make top display CPU usage.
+
+CONFIG_USER_BUSYBOX_LOGREAD_REDUCED_LOCKING
+  'logread' ouput to slow serial terminals can have
+  side effects on syslog because of the semaphore.
+  This option make logread to double buffer copy
+  from circular buffer, minimizing semaphore
+  contention at some minor memory expense.
+
+CONFIG_USER_BUSYBOX_DUMPLEASES
+  dumpleases displays the leases written out by the udhcpd server.
+  Lease times are stored in the file by time remaining in lease, or
+  by the absolute time that it expires in seconds from epoch.
+
+  See http://udhcp.busybox.net for further details.
+
+CONFIG_USER_BUSYBOX_UDHCP_DEBUG
+  If selected, udhcpd will output extra debugging output.  If using
+  this option, compile uDHCP with "-g", and do not fork the daemon to
+  the background.
+
+  See http://udhcp.busybox.net for further details.
+
+CONFIG_USER_BUSYBOX_UDHCP_SYSLOG
+  If selected, udhcpd will log all its messages to syslog, otherwise,
+  it will attempt to log them to stdout.
+
+  See http://udhcp.busybox.net for further details.
+
+CONFIG_USER_BUSYBOX_UDHCPC
+  uDHCPc is a DHCP client geared primarily toward embedded systems,
+  while striving to be fully functional and RFC compliant.
+
+  The udhcp client negotiates a lease with the DHCP server and
+  notifies a set of scripts when a lease is obtained or lost.
+
+  See http://udhcp.busybox.net for further details.
+
+CONFIG_USER_BUSYBOX_UDHCPD
+  uDHCPd is a DHCP server geared primarily toward embedded systems,
+  while striving to be fully functional and RFC compliant.
+
+  See http://udhcp.busybox.net for further details.
+
+CONFIG_USER_BUSYBOX_ARPING
+  Ping hosts by ARP packets
+
+CONFIG_USER_BUSYBOX_FANCY_PING6
+  Make the output from the ping6 applet include statistics, and at the
+  same time provide full support for ICMP packets.
+
+CONFIG_USER_BUSYBOX_HTTPD_AUTH_MD5
+  Enables basic per url authentication from /etc/httpd.conf
+  using md5 passwords.
+
+CONFIG_USER_BUSYBOX_HTTPD_BASIC_AUTH
+  Utilizes password settings from /etc/httpd.conf for basic
+  authentication on a per url basis.
+
+CONFIG_USER_BUSYBOX_HTTPD_CGI
+  This option allows scripts and executables to be invoked
+  when specific urls are requested.
+
+CONFIG_USER_BUSYBOX_HTTPD_CONFIG_WITH_MIME_TYPES
+  This option enables support for additional MIME types at
+  run-time to be specified in the configuration file.
+
+CONFIG_USER_BUSYBOX_HTTPD_ENCODE_URL_STR
+  After set, this option allows html encoding arbitrary
+  strings for display of the browser.  Output goes to stdout.
+  For example, httpd -e "<Hello World>" as
+  "&#60Hello&#32World&#62".
+
+CONFIG_USER_BUSYBOX_HTTPD_RELOAD_CONFIG_SIGHUP
+  This option enables processing of SIGHUP to reload cached
+  configuration settings.
+
+CONFIG_USER_BUSYBOX_HTTPD_SETUID
+  This option allows the server to run as a specific user
+  rather than defaulting to the user that starts the server.
+  Use of this option requires special privileges to change to a
+  different user.
+
+CONFIG_USER_BUSYBOX_HTTPD_SET_REMOTE_PORT_TO_ENV
+  Use of this option can assist scripts in generating
+  references that contain a unique port number.
+
+CONFIG_USER_BUSYBOX_HTTPD_USAGE_FROM_INETD_ONLY
+  This option disables uid and port options for the httpd applet
+  but requires inetd server daemon.
+
+CONFIG_USER_BUSYBOX_IFCONFIG_BROADCAST_PLUS
+  Setting this will make ifconfig attempt to find the broadcast
+  automatically if the value '+' is used.
+
+CONFIG_USER_BUSYBOX_INETD_SUPPORT_BILTIN_CHARGEN
+  Familiar character generator internal inetd service
+
+CONFIG_USER_BUSYBOX_INETD_SUPPORT_BILTIN_DAYTIME
+  Return human-readable time internal inetd service
+
+CONFIG_USER_BUSYBOX_INETD_SUPPORT_BILTIN_DISCARD
+  Internet /dev/null internal inetd service
+
+CONFIG_USER_BUSYBOX_INETD_SUPPORT_BILTIN_ECHO
+  Echo received data internal inetd service
+
+CONFIG_USER_BUSYBOX_INETD_SUPPORT_BILTIN_TIME
+  Return 32 bit time since 1900 internal inetd service
+
+CONFIG_USER_BUSYBOX_IPV6
+  Enable IPv6 support to busybox. This makes applets that talk IP
+  able to work with IPv6.
+
+CONFIG_USER_BUSYBOX_TELNETD_INETD
+  Selecting this will make telnetd only callable from inetd,
+  removing the standalone support.
+
+CONFIG_USER_BUSYBOX_TELNET_AUTOLOGIN
+  Setting this option will forward the USER environment variable to the
+  remote host you are connecting to. This is useful when you need to
+  log into a machine without telling the username (autologin). This
+  option enables `-a' and `-l USER' arguments.
+
+CONFIG_USER_BUSYBOX_TFTP_BLOCKSIZE
+  Allow the client to specify the desired block size for transfers.
+
+CONFIG_USER_BUSYBOX_TFTP_DEBUG
+  Enable debug settings for tftp.  This is useful if you're running
+  into problems with tftp as the protocol doesn't help you much when
+  you run into problems.
+
+CONFIG_USER_BUSYBOX_TRACEROUTE_VERBOSE
+  Add some verbosity to traceroute.  This includes amongst other things
+  hostnames and ICMP response types.
+
+CONFIG_USER_BUSYBOX_WGET_IP6_LITERAL
+  Support IPv6 address literal notation in URLs.
+
+CONFIG_USER_BUSYBOX_FTPGET
+  Retrieve a remote file via FTP.
+
+CONFIG_USER_BUSYBOX_FTPPUT
+  Store a remote file via FTP.
+
+CONFIG_USER_BUSYBOX_HTTPD
+  Serve web pages via an HTTP server.
+
+CONFIG_USER_BUSYBOX_IFUPDOWN
+  Activate or deactivate the specified interfaces.  This applet makes
+  use of either "ifconfig" and "route" or the "ip" command to actually
+  configure network interfaces.  Therefore, you will probably also want
+  to enable either CONFIG_IFCONFIG and CONFIG_ROUTE, or enable
+  CONFIG_FEATURE_IFUPDOWN_IP and the various CONFIG_IP options.  Of
+  course you could use non-busybox versions of these programs, so
+  against my better judgement (since this will surely result in plenty
+  of support questions on the mailing list), I do not force you to
+  enable these additional options.  It is up to you to supply either
+  "ifconfig" and "route" or the "ip" command, either via busybox or via
+  standalone utilities.
+
+CONFIG_USER_BUSYBOX_INETD
+  Internet superserver daemon
+
+CONFIG_USER_BUSYBOX_IPADDR
+  Equivalent to selecting address support to "ip", above.
+
+CONFIG_USER_BUSYBOX_IPLINK
+  Equivalent to selecting link support to "ip", above.
+
+CONFIG_USER_BUSYBOX_IPROUTE
+  Equivalent to selecting route support to "ip", above.
+
+CONFIG_USER_BUSYBOX_IPTUNNEL
+  Equivalent to selecting tunnel support to "ip", above.
+
+CONFIG_USER_BUSYBOX_NAMEIF
+  nameif is used to rename network interface by its MAC address.
+  Renamed interfaces MUST be in the down state.
+  It is possible to use a file (default: /etc/mactab)
+  with list of new interface names and MACs.
+  Maximum interface name length: IF_NAMESIZE = 16
+  File fields are separated by space or tab.
+  File format:
+  # Comment
+  new_interface_name	XX:XX:XX:XX:XX:XX
+
+CONFIG_USER_BUSYBOX_NETSTAT
+  netstat prints information about the Linux networking subsystem.
+
+CONFIG_USER_BUSYBOX_PING6
+  This will give you a ping that can talk IPv6.
+
+CONFIG_USER_BUSYBOX_TELNETD
+  A daemon for the TELNET protocol, allowing you to log onto the host
+  running the daemon.  Please keep in mind that the TELNET protocol
+  sends passwords in plain text.  If you can't afford the space for
+  any SSH daemon and you trust your network, you may say 'y' here.
+
+CONFIG_USER_BUSYBOX_VCONFIG
+  Creates, removes, and configures VLAN interfaces
+
+CONFIG_USER_BUSYBOX_CAL
+  cal is used to display a monthly calender.
+
+CONFIG_USER_BUSYBOX_DATE_ISOFMT
+  Enable option (-I) to output an ISO-8601 compliant
+  date/time string.
+
+CONFIG_USER_BUSYBOX_DU_DEFALT_BLOCKSIZE_1K
+  Use a blocksize of (1K) instead of the default 512b.
+
+CONFIG_USER_BUSYBOX_FANCY_HEAD
+  This enables the head options (-c, -q, and -v).
+
+CONFIG_USER_BUSYBOX_FANCY_SLEEP
+  Allow sleep to pause for specified minutes, hours, and days.
+
+CONFIG_USER_BUSYBOX_LS_COLOR
+  Allow ls to use color when displaying files.
+
+CONFIG_USER_BUSYBOX_MD5_SHA1_SUM_CHECK
+  Enabling the -c options allows files to be checked
+  against pre-calculated hash values.
+
+  -s and -w are useful options when verifying checksums.
+
+CONFIG_USER_BUSYBOX_PRESERVE_HARDLINKS
+  Allow cp and mv to preserve hard links.
+
+CONFIG_USER_BUSYBOX_TEE_USE_BLOCK_IO
+  Enable this option for a faster tee, at expense of size.
+
+CONFIG_USER_BUSYBOX_TEST_64
+  Enable 64-bit support in test.
+
+CONFIG_USER_BUSYBOX_FOLD
+  Wrap text to fit a specific width.
+
+CONFIG_USER_BUSYBOX_OD
+  od is used to dump binary files in octal and other formats.
+
+CONFIG_USER_BUSYBOX_REALPATH
+  Return the canonicalized absolute pathname.
+  This isn't provided by GNU shellutils, but where else does it belong.
+
+CONFIG_USER_BUSYBOX_SEQ
+  print a sequence of numbers
+
+CONFIG_USER_BUSYBOX_SHA1SUM
+  Compute and check SHA1 message digest
+
+CONFIG_USER_BUSYBOX_PIPE_PROGRESS
+  Display a dot to indicate pipe activity.
+
+CONFIG_USER_BUSYBOX_RUN_PARTS
+  run-parts is a utility designed to run all the scripts in a directory.
+
+  It is useful to set up a directory like cron.daily, where you need to
+  execute all the scripts in that directory.
+
+  In this implementation of run-parts some features (such as report mode)
+  are not implemented.
+
+  Unless you know that run-parts is used in some of your scripts
+  you can safely say N here.
+
+CONFIG_USER_BUSYBOX_START_STOP_DAEMON
+  start-stop-daemon is used to control the creation and
+  termination of system-level processes, usually the ones
+  started during the startup of the system.
+
+CONFIG_USER_BUSYBOX_OPENVT
+  This program is used to start a command on an unused
+  virtual terminal.
 
 CONFIG_USER_MARADNS_MARADNS
   The MaraDNS nameserver (UDP query daemon); see also zoneserver.
@@ -2621,4 +4049,5 @@ CONFIG_LANG_DEBUG
 # END of proprietary config help
 #
 
+source ../user/busybox/uclinux-configs/Config.in.help
 source Configure-blackfin.help

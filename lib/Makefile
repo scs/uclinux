@@ -102,55 +102,7 @@ dir_4_$(CONFIG_LIB_NETFILTER_CONNTRACK) += libnetfilter_conntrack
 dir_4_$(CONFIG_LIB_LIBPNG)       += libpng
 dir_4_$(CONFIG_LIB_LIBPNG_FORCE) += libpng
 
-#
-# Blackfin additions
-#
-dir_3_$(CONFIG_LIB_DMALLOC)          += dmalloc
-dir_3_$(CONFIG_LIB_DMALLOC_FORCE)    += dmalloc
-dir_3_$(CONFIG_LIB_POPT)             += popt
-dir_3_$(CONFIG_LIB_POPT_FORCE)       += popt
-dir_3_$(CONFIG_LIB_MPFR)             += mpfr
-dir_3_$(CONFIG_LIB_MPFR_FORCE)       += mpfr
-dir_3_$(CONFIG_LIB_NCURSES)          += ncurses
-dir_3_$(CONFIG_LIB_NCURSES_FORCE)    += ncurses
-dir_3_$(CONFIG_LIB_READLINE)         += readline
-dir_3_$(CONFIG_LIB_READLINE_FORCE)   += readline
-dir_3_$(CONFIG_LIB_LIBTOOL)          += libtool
-dir_3_$(CONFIG_LIB_LIBTOOL_FORCE)    += libtool
-dir_3_$(CONFIG_LIB_BFIN_GSM)         += blackfin-gsm
-dir_3_$(CONFIG_LIB_LIBBFDSP)         += libbfdsp
-dir_3_$(CONFIG_LIB_SPEEX)            += speex
-dir_3_$(CONFIG_LIB_SPEEX_FORCE)      += speex
-dir_3_$(CONFIG_LIB_LIBUSB)           += libusb
-dir_3_$(CONFIG_LIB_LIBUSB_FORCE)     += libusb
-dir_3_$(CONFIG_LIB_ALSA_LIB)         += alsa-lib
-dir_3_$(CONFIG_LIB_ALSA_LIB_FORCE)   += alsa-lib
-dir_3_$(CONFIG_LIB_FAAD2)            += faad2
-dir_3_$(CONFIG_LIB_FAAD2_FORCE)      += faad2
-dir_3_$(CONFIG_LIB_FLAC)             += flac
-dir_3_$(CONFIG_LIB_FLAC_FORCE)       += flac
-dir_3_$(CONFIG_LIB_TREMOR)           += tremor
-dir_3_$(CONFIG_LIB_TREMOR_FORCE)     += tremor
-dir_3_$(CONFIG_LIB_LIBAO)            += libao-0.8.6
-dir_3_$(CONFIG_LIB_LIBAO_FORCE)      += libao-0.8.6
-dir_3_$(CONFIG_LIB_LIBAUDIO)         += libaudio
-dir_3_$(CONFIG_LIB_LIBAUDIO_FORCE)   += libaudio
-dir_3_$(CONFIG_LIB_LIBMAD)           += libmad
-dir_3_$(CONFIG_LIB_LIBMAD_FORCE)     += libmad
-dir_3_$(CONFIG_LIB_LIBID3TAG)        += libid3tag
-dir_3_$(CONFIG_LIB_LIBID3TAG_FORCE)  += libid3tag
-dir_3_$(CONFIG_LIB_BLUEZ)            += bluez-libs
-dir_3_$(CONFIG_LIB_BLUEZ_FORCE)      += bluez-libs
-dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
-dir_3_$(CONFIG_LIB_TSLIB_FORCE)      += tslib-1.0
-dir_3_$(CONFIG_LIB_LIBIPOD)          += libipod
-dir_3_$(CONFIG_LIB_LIBIPOD_FORCE)    += libipod
-dir_3_$(CONFIG_LIB_LIBICONV)         += libiconv
-dir_3_$(CONFIG_LIB_LIBICONV_FORCE)   += libiconv
-dir_3_$(CONFIG_LIB_LIBMPEG2)         += mpeg2dec
-dir_3_$(CONFIG_LIB_LIBMPEG2_FORCE)   += mpeg2dec
-dir_3_$(CONFIG_LIB_FFMPEG)           += ffmpeg
-dir_3_$(CONFIG_LIB_FFMPEG_FORCE)     += ffmpeg
+-include Makefile.local
 
 # And build libraries in the prop directory last
 dir_5_y += $(wildcard $(ROOTDIR)/prop)
@@ -174,13 +126,19 @@ all:
 $(DIRS_y):
 	$(MAKE) -C $@
 
+%_only:
+	touch $(@:_only=)/.sgbuilt_lib && $(MAKE) -C $(@:_only=)
+
+%_clean:
+	$(MAKE) -C $(@:_clean=) clean; rm -f $(@:_clean=)/.sgbuilt_lib; true
+
 ##############################################################################
 
 romfs:
 	for i in $(DIRS_y) ; do \
 		[ ! -d $$i ] || $(MAKE) -C $$i romfs || exit $$? ; \
 	done
-	-for i in $(ROMFSDIR)/lib/* ; do \
+	-for i in $(ROMFSDIR)/lib/* $(ROMFSDIR)/usr/lib/* ; do \
 		if [ -f $$i -a ! -h $$i ] ; then \
 			$(STRIP) $$i; \
 		fi; \
