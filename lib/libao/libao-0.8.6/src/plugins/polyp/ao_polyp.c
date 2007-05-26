@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: ao_polyp.c 13 2004-09-19 23:40:00Z lennart $ */
 
 /***
   This file is part of libao-polyp.
