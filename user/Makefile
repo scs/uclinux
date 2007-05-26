@@ -314,10 +314,6 @@ dir_$(CONFIG_USER_RSYSLOGD_RSYSLOGD)        += rsyslogd
 dir_$(CONFIG_USER_RTC_M41T11)               += rtc-m41t11
 dir_$(CONFIG_USER_RTC_DS1302)               += rtc-ds1302
 dir_$(CONFIG_USER_SAMBA)                    += samba
-dir_$(CONFIG_USER_SAMBA_SMBD)               += samba
-dir_$(CONFIG_USER_SAMBA_NMBD)               += samba
-dir_$(CONFIG_USER_SAMBA_SMBMOUNT)           += samba
-dir_$(CONFIG_USER_SAMBA_SMBUMOUNT)          += samba
 dir_$(CONFIG_USER_SASH_REBOOT)              += sash
 dir_$(CONFIG_USER_SASH_SH)                  += sash
 dir_$(CONFIG_USER_SASH_SHUTDOWN)            += sash
@@ -416,7 +412,7 @@ dir_$(CONFIG_USER_ZEBRA_ZEBRA_ZEBRA)        += zebra
 
 dir_y += games
 
-include Makefile.local
+-include Makefile.local
 
 all: config
 	$(MAKE) -j$(HOST_NCPU) $(sort $(dir_y) $(dir_v) $(dir_p)) || exit $$?
@@ -479,3 +475,4 @@ prune_openswan:
 	rm -fr openswan; \
 	cp -R $@/* .; \
 	rm -fr $@
+
