@@ -141,7 +141,7 @@ if [ "$CONFIG_LIB_LIBCURL_FORCE" = "y" ]; then
 fi
 bool 'Build libcrypt_old'	CONFIG_LIB_LIBCRYPT_OLD_FORCE
 
-include config-blackfin-lib.in
+source config-blackfin-lib.in
 
 comment 'Library Configuration'
 bool 'Support time zones'	CONFIG_LIB_UC_LIBC_TIMEZONE
