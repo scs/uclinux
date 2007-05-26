@@ -386,15 +386,22 @@ function extract_help () {
      #first escape regexp special characters in the argument:
      var=$(echo "$1"|sed 's/[][\/.^$*]/\\&/g')
      #now pick out the right help text:
-     text=$(sed -n "/^$var[ 	]*\$/,\${
-                        /^$var[ 	]*\$/c\\
-${var}:\\
-
-                        /^#/b
-                        /^[^ 	]/q
-                        s/^  //
-                        p
-                    }" ${HELP_FILE} ${extra_help})
+     text=$(awk -v var="${var}" '
+        {
+        	regexp = "^" var "[[:space:]]*$"
+        	if ($1 !~ regexp)
+        		next
+        	text = var ":\n"
+        	getline
+        	while ($0 !~ /^[^[:space:]]/) {
+        		if ($0 !~ /^#/) {
+        			sub(/^  /,"")
+        			text = text "\n" $0
+        		}
+        		getline
+        	}
+        }
+        END { print text }' ${HELP_FILE} ${extra_help})
 
      if [ -z "$text" ]
      then
