@@ -24,6 +24,13 @@
 #include <security/pam_modules.h>
 #include <security/pam_ext.h>
 
+#include <config/autoconf.h>
+#ifdef CONFIG_PROP_STATSD_STATSD
+#define MAX_PAM_STATS_BUF_SIZE 200
+#define MAX_PAM_STATS_USR_SIZE  50
+#include <pwd.h>
+#endif
+
 /* the Linux-PAM configuration file */
 
 #ifdef EMBED

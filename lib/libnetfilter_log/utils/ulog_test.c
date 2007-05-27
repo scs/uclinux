@@ -1,4 +1,4 @@
-/* ulog_test, $Revision$
+/* ulog_test, $Revision: 1.4 $
  *
  * small testing program for libipulog, part of the netfilter ULOG target
  * for the linux 2.4 netfilter subsystem.
@@ -7,7 +7,7 @@
  *
  * this code is released under the terms of GNU GPL
  *
- * $Id$
+ * $Id: ulog_test.c 286 2002-06-13 12:56:53Z laforge $
  */
 
 #include <stdio.h>

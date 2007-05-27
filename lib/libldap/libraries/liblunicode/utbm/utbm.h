@@ -24,7 +24,7 @@
 #define _h_utbm
 
 /*
- * $Id$
+ * $Id: utbm.h,v 1.1 1999/09/21 15:45:18 mleisher Exp $
  */
 
 #include "portable.h"

@@ -3,7 +3,7 @@
 # (c) Copyright 1996-1998, TimesTen Performance Software.
 # All rights reserved.
 #
-# $Revision$
+# $Revision: 1.1 $
 #
 
 CPLUSPLUS = CC

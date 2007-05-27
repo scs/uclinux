@@ -5,6 +5,9 @@
 
 SRCROOT := $(ROOTDIR)/lib/STLport/build
 COMPILER_NAME := gcc
+OSNAME := linux
+BUILD_OSNAME := $(shell uname -s | tr '[A-Z]' '[a-z]' | tr ', /\\()"' ',//////' | tr ',/' ',-')
+
 ifdef CONFIG_LIB_STLPORT_SHARED
 ALL_TAGS      := all-shared
 INSTALL_TAGS  := install-release-shared

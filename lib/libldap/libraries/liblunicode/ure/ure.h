@@ -31,7 +31,7 @@
 #include "portable.h"
 
 /*
- * $Id$
+ * $Id: ure.h,v 1.2 1999/09/21 15:47:44 mleisher Exp $
  */
 
 #include <stdio.h>

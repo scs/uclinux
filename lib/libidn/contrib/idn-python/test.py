@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# $Id$
+# $Id: test.py,v 1.1 2003/02/20 23:36:41 jas Exp $
 
 locale = "Latin-1"
 

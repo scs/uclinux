@@ -25,7 +25,7 @@
 #include "portable.h"
 
 /*
- * $Id$
+ * $Id: ucpgba.h,v 1.4 1999/11/19 15:24:30 mleisher Exp $
  */
 
 LDAP_BEGIN_DECL

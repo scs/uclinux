@@ -40,13 +40,83 @@ int pam_authenticate(pam_handle_t *pamh, int flags)
     } else {
 	D(("will resume when ready"));
     }
-
+    	
 #ifdef PRELUDE
     prelude_send_alert(pamh, retval);
 #endif
-
+     	
 #if HAVE_LIBAUDIT
     retval = _pam_auditlog(pamh, PAM_AUTHENTICATE, retval, flags);
+#endif
+
+#ifdef CONFIG_PROP_STATSD_STATSD
+	if (retval != PAM_SUCCESS) {
+
+        char usr[MAX_PAM_STATS_USR_SIZE];
+		char buf[MAX_PAM_STATS_BUF_SIZE]; 
+		struct pam_data *data;
+        char *u = NULL;
+
+		/* The pam_sg module has stored module data so we 
+		 * can tell whether this is a valid user. If not
+		 * we log stats under "unknown". The proper mechanism
+		 * for accessing module data bars access from within 
+		 * application code so we are going around it. This is 
+		 * a kludge, but the best one possible for now.
+		 */
+		data = pamh->data;
+		while (data) {
+			if (!strcmp(data->name, pamh->user)) {
+				u = (char *)(data->data);
+				break;
+			}
+			data = data->next;
+		}
+
+		/* Don't log stats if the module info is unavailable
+		 * or the PAM system itself failed during auth */
+		if ((u != NULL) && strcmp(u, "PAM_SYSTEM_ERR")) {
+
+			u = ((u != NULL) && !strcmp(u, "PAM_USER_UNKNOWN")) ? "unknown":pamh->user;
+			//u = ((u != NULL) && !strcmp(u, "USER_NOTFOUND")) ? "unknown":pamh->user;
+
+			usr[MAX_PAM_STATS_USR_SIZE-1]='\0';
+			strncpy(usr,u,MAX_PAM_STATS_USR_SIZE-1);
+
+			/* OK, start logging stats */
+			memset(buf,'\0',MAX_PAM_STATS_BUF_SIZE);
+
+			snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
+					"statsd incr pam_failed_%s %s",
+					usr,pamh->service_name);
+
+			if (system(buf) == -1) {
+				pam_syslog(pamh, LOG_INFO, "%s failed", buf);
+			}
+
+			snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
+					"statsd push pam_last_failure_%s %s \"%s\" 0",
+					usr,pamh->service_name, pam_strerror(pamh, retval));
+
+			if (system(buf) == -1) {
+				pam_syslog(pamh, LOG_INFO, "%s failed", buf);
+			}
+
+			snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
+					"statsd incr pam_users %s",usr);
+
+			if (system(buf) == -1) {
+				pam_syslog(pamh, LOG_INFO, "%s - failed", buf);
+			}
+
+			snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
+					"statsd incr pam_services %s",pamh->service_name);
+
+			if (system(buf) == -1) {
+				pam_syslog(pamh, LOG_INFO, "%s - failed", buf);
+			}
+		} 
+	}
 #endif
 
     return retval;

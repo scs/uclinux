@@ -28,7 +28,7 @@
 #define _h_ucdata
 
 /*
- * $Id$
+ * $Id: ucdata.h,v 1.6 2001/01/02 18:46:20 mleisher Exp $
  */
 
 LDAP_BEGIN_DECL

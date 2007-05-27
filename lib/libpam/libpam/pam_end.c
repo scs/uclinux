@@ -25,6 +25,37 @@ int pam_end(pam_handle_t *pamh, int pam_status)
     _pam_audit_end(pamh, pam_status);
 #endif
 
+#ifdef CONFIG_PROP_STATSD_STATSD
+	if (pam_status == PAM_SUCCESS) {
+
+		char buf[MAX_PAM_STATS_BUF_SIZE];
+		memset(buf,'\0',MAX_PAM_STATS_BUF_SIZE);
+
+		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
+				"statsd incr pam_succeeded_%s %s",
+				pamh->user,pamh->service_name);
+
+		if (system(buf) == -1) {
+			pam_syslog(pamh, LOG_INFO, "%s %s statsd incr failed",
+						buf, pamh->service_name);
+		}
+
+		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
+				"statsd incr pam_users %s", pamh->user);
+
+		if (system(buf) == -1) {
+			pam_syslog(pamh, LOG_INFO, "%s - failed", buf);
+		}
+
+		snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
+				"statsd incr pam_services %s", pamh->service_name);
+
+		if (system(buf) == -1) {
+			pam_syslog(pamh, LOG_INFO, "%s - failed", buf);
+		}
+	}
+#endif
+
     /* first liberate the modules (it is not inconcevible that the
        modules may need to use the service_name etc. to clean up) */
 

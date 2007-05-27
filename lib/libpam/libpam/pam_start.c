@@ -128,7 +128,27 @@ int pam_start (
 	_pam_drop(*pamh);
 	return PAM_ABORT;
     }
-    
+
+#ifdef CONFIG_PROP_STATSD_STATSD
+	char buf[MAX_PAM_STATS_BUF_SIZE];
+	memset(buf,'\0',MAX_PAM_STATS_BUF_SIZE);
+
+	snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1, "statsd incr pam_attempted %s",
+			(*pamh)->service_name);
+
+	if (system(buf) == -1) {
+		pam_syslog(*pamh, LOG_INFO, "%s %s statsd incr failed", buf, 
+				   (*pamh)->service_name);
+	}
+
+	snprintf(buf, MAX_PAM_STATS_BUF_SIZE-1,
+			"statsd incr pam_services %s", (*pamh)->service_name);
+
+	if (system(buf) == -1) {
+		pam_syslog(*pamh, LOG_INFO, "%s - failed", buf);
+	}
+#endif
+
     D(("exiting pam_start successfully"));
 
     return PAM_SUCCESS;
