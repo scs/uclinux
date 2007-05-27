@@ -1,3 +1,5 @@
+VER = ncurses-5.6
+
 NCURSES_TERMS = linux,vt100,vt220,xterm
 NCURSES_DEMOS = dots firework gdc hanoi newdemo railroad rain tclock worm xmas
 
@@ -7,19 +9,19 @@ else
 NCURSES_SHARED = --without-shared
 endif
 
-all: build/Makefile
-	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 ifeq ($(CONFIG_USER_NCURSES_TESTS),y)
-	$(MAKE) -C build/test
+	$(MAKE) -C build-$(VER)/test
 endif
 
-build/Makefile:
-	find . -type f -print0 | xargs -0 touch -r configure
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
-	rm -rf build ; \
-	mkdir build ; \
-	cd build ; \
-	../configure \
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure \
 		$(CONFIGURE_OPTS) \
 		$(NCURSES_SHARED) \
 		--disable-termcap \
@@ -32,7 +34,7 @@ build/Makefile:
 		--enable-const
 
 clean:
-	rm -rf build
+	rm -rf build*
 
 romfs:
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libncurses.so.5 /lib/
