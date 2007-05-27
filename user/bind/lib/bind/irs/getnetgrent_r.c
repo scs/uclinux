@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.5.2.1.4.2 2004/04/13 04:59:29 marka Exp $";
+static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.5.2.1.4.4 2005/09/03 12:47:38 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -29,7 +29,6 @@ static const char rcsid[] = "$Id: getnetgrent_r.c,v 1.5.2.1.4.2 2004/04/13 04:59
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <netgroup.h>
 #include <stdlib.h>
 #include <port_after.h>
 
@@ -78,8 +77,14 @@ setnetgrent_r(const char *netgroup)
 #endif
 {
 	char *tmp;
+#if defined(NGR_R_ENT_ARGS) && !defined(NGR_R_PRIVATE)
+	UNUSED(buf);
+	UNUSED(buflen);
+#endif
+
 	DE_CONST(netgroup, tmp);
 	setnetgrent(tmp);
+
 #ifdef NGR_R_PRIVATE
 	*buf = NULL;
 #endif
@@ -95,6 +100,11 @@ endnetgrent_r(NGR_R_ENT_ARGS)
 endnetgrent_r(void)
 #endif
 {
+#if defined(NGR_R_ENT_ARGS) && !defined(NGR_R_PRIVATE)
+	UNUSED(buf);
+	UNUSED(buflen);
+#endif
+
 	endnetgrent();
 #ifdef NGR_R_PRIVATE
 	if (*buf != NULL)

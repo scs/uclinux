@@ -13,7 +13,7 @@ mandir=@mandir@
 SUBDIRS=libbridge brctl doc
 
 all:
-	for x in $(SUBDIRS); do (cd $$x && $(MAKE) ); done
+	for x in $(SUBDIRS); do $(MAKE) -C $$x || exit $$? ; done
 
 clean:
 	for x in $(SUBDIRS); do (cd $$x && $(MAKE) clean ); done

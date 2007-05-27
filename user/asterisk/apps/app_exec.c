@@ -7,7 +7,7 @@
  *
  * Tilghman Lesher <app_exec__v001@the-tilghman.com>
  *
- * $Id$
+ * $Id: app_exec.c,v 1.1 2004/04/20 20:05:14 citats Exp $
  *
  * This code is released by the author with no restrictions on usage.
  *

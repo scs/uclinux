@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: rc.dhcp,v 1.1.1.1 1999/11/22 03:48:00 christ Exp $
 #
 # sample command file which can be invoked from dhcpcd
 # This script derived from "rc.inet2"

@@ -124,6 +124,8 @@ static void swap_buf(char *buf, int len)
 	}
 }
 
+#define MAX_IV_SIZE 16
+
 struct alg {
 	const char* name;
 	int	ishash;
@@ -146,8 +148,10 @@ struct alg {
 #ifdef notdef
 	{ "arc4",	0,	8,	1,	32,	CRYPTO_ARC4 },
 #endif
-	{ "md5",	1,	8,	16,	16,	CRYPTO_MD5_HMAC },
-	{ "sha1",	1,	8,	20,	20,	CRYPTO_SHA1_HMAC },
+	{ "md5",	1,	8,	16,	16,	CRYPTO_MD5 },
+	{ "md5_hmac",	1,	8,	16,	16,	CRYPTO_MD5_HMAC },
+	{ "sha1",	1,	8,	20,	20,	CRYPTO_SHA1 },
+	{ "sha1_hmac",	1,	8,	20,	20,	CRYPTO_SHA1_HMAC },
 	{ "sha256",	1,	8,	32,	32,	CRYPTO_SHA2_HMAC },
 	{ "sha384",	1,	8,	48,	48,	CRYPTO_SHA2_HMAC },
 	{ "sha512",	1,	8,	64,	64,	CRYPTO_SHA2_HMAC },
@@ -224,7 +228,7 @@ crget(void)
 static char
 rdigit(void)
 {
-#if 0
+#if 1
 	const char a[] = {
 		0x10,0x54,0x11,0x48,0x45,0x12,0x4f,0x13,0x49,0x53,0x14,0x41,
 		0x15,0x16,0x4e,0x55,0x54,0x17,0x18,0x4a,0x4f,0x42,0x19,0x01
@@ -244,7 +248,7 @@ runtest(struct alg *alg, int count, int size, int cmd, struct timeval *tv)
 	char *cleartext, *ciphertext, *originaltext;
 	struct session_op sop;
 	struct crypt_op cop;
-	char iv[8];
+	char iv[MAX_IV_SIZE];
 
 	bzero(&sop, sizeof(sop));
 	if (!alg->ishash) {
@@ -398,6 +402,11 @@ runtest(struct alg *alg, int count, int size, int cmd, struct timeval *tv)
 
 			if (ioctl(fd, CIOCCRYPT, &cop) < 0)
 				err(1, "ioctl(CIOCCRYPT)");
+
+			if (verbose) {
+				printf("ciphertext:");
+				hexdump(ciphertext, size);
+			}
 		}
 	}
 	gettimeofday(&stop, NULL);
@@ -547,7 +556,9 @@ main(int argc, char **argv)
 	int profile = 0;
 	int i, ch;
 
-	while ((ch = getopt(argc, argv, "VKDcpzsva:bt:")) != -1) {
+	srandom(time(0));
+
+	while ((ch = getopt(argc, argv, "VKDcpzsva:bt:S:")) != -1) {
 		switch (ch) {
 		case 'V': swap_iv = 1; break;
 		case 'K': swap_key = 1; break;
@@ -568,6 +579,9 @@ main(int argc, char **argv)
 				else
 					usage(argv[0]);
 			}
+			break;
+		case 'S':
+			srandom(atoi(optarg));
 			break;
 		case 't':
 			maxthreads = atoi(optarg);

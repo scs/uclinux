@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdata_test.c,v 1.35.12.7 2004/03/08 04:04:27 marka Exp $ */
+/* $Id: rdata_test.c,v 1.35.12.9 2005/03/17 03:58:28 marka Exp $ */
 
 #include <config.h>
 
@@ -920,7 +920,7 @@ main(int argc, char *argv[]) {
 		}
 	}
 
-	memset(&dctx, '0', sizeof(dctx));
+	memset(&dctx, 0, sizeof(dctx));
 	dctx.allowed = DNS_COMPRESS_ALL;
 
 	RUNTIME_CHECK(isc_mem_create(0, 0, &mctx) == ISC_R_SUCCESS);

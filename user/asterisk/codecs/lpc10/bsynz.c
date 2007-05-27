@@ -1,9 +1,6 @@
 /*
 
-$Log$
-Revision 1.1  2005/07/25 01:37:58  magicyang
-New user folder check in
-
+$Log: bsynz.c,v $
 Revision 1.15  2004/06/26 03:50:14  markster
 Merge source cleanups (bug #1911)
 
@@ -56,10 +53,7 @@ extern struct {
 
 /* 	BSYNZ Version 54 */
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: bsynz.c,v $
 /* Revision 1.15  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*
@@ -161,10 +155,7 @@ extern struct {
     real xy, sum, ssq;
     real lpi0, hpi0;
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: bsynz.c,v $
 /* Revision 1.15  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*
@@ -201,10 +192,7 @@ extern struct {
 /*   LPC Configuration parameters: */
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: bsynz.c,v $
 /* Revision 1.15  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*

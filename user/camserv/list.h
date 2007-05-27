@@ -13,8 +13,8 @@
  * The copyright extends to translations of this work into other languages,
  * including machine languages. 
  *
- * $Id$
- * $Name$
+ * $Id: list.h,v 1.1 2005/01/07 01:32:37 damion Exp $
+ * $Name:  $
  */
 
 #ifndef LIST_H

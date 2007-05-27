@@ -134,7 +134,11 @@ int main(int argc, char *argv[])
     filter_setup();
 
     /* get a pty and open up a proxy link on it */
-    get_pty(&proxy_mfd,&proxy_sfd);
+    if (openpty(&proxy_mfd,&proxy_sfd, NULL, NULL, NULL) < 0)
+		die (-1);
+#ifndef USE_BSD_PTYS
+	fcntl(proxy_mfd,F_SETFL,fcntl(proxy_mfd,F_GETFL)|O_NONBLOCK);
+#endif
     proxy_mfp = fdopen(proxy_mfd,"r+");
     proxy_up();
     idle_filter_proxy();
@@ -296,7 +300,6 @@ void signal_setup()
     SIGNAL(SIGUSR1, linkup);            /* User requests the link to go up */
     SIGNAL(SIGUSR2, print_filter_queue); /* dump the packet queue to the log */
     SIGNAL(SIGCHLD, sig_chld);		/* reap dead kids */
-    SIGNAL(SIGALRM, alrm_timer);	/* Deal with a timer expired */
     SIGNAL(SIGPIPE, SIG_IGN);
 }
 
@@ -326,11 +329,12 @@ void unblock_signals()
     sigprocmask(SIG_UNBLOCK, &sig_mask, NULL);
 }
 
+#ifdef USE_BSD_PTYS
 /*
  * Get a pty and open both the slave and master sides.
  */
 
-void get_pty(int *mfd, int *sfd)
+int openpty(int *mfd, int *sfd, void *name, void *termios, void *win)
 {
     char *ptys = "0123456789abcdef";
     int i,c;
@@ -343,12 +347,15 @@ void get_pty(int *mfd, int *sfd)
 	    	sprintf(buf,"/dev/tty%c%c",c,ptys[i]);
 		if ((*sfd = open(buf,O_RDWR|O_NOCTTY|O_NDELAY)) < 0) {
 		    syslog(LOG_ERR,"Can't open slave side of pty: %m");
-		    die(1);
+			return -1;
 		}
-		return;
+		return 0;
 	    }
         }
+	syslog(LOG_ERR,"No pty found in range pty[p-s][0-9a-f]\n");
+	return -1;
 }
+#endif
 
 /* Read a request off the fifo.
  * Valid requests are:

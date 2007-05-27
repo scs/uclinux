@@ -151,10 +151,35 @@ int br_make_port_list(struct bridge *br)
 	return err;
 }
 
+struct bridge *br_create_bridge_by_index(int index)
+{
+	struct bridge *br;
+	int err;
+
+	br = malloc(sizeof(struct bridge));
+	if (!br) {
+		return NULL;
+	}
+	memset(br, 0, sizeof(struct bridge));
+	br->ifindex = index;
+	br->firstport = NULL;
+
+	if ((err = br_read_info(br)) != 0)
+		goto error_out;
+	if ((err = br_make_port_list(br)) != 0)
+		goto error_out;
+
+	return br;
+
+error_out:
+	br_nuke_bridge(br);
+	return NULL;
+}
+
 int br_make_bridge_list()
 {
-	int err;
 	int i;
+	int err;
 	int ifindices[1024];
 	int num;
 
@@ -165,17 +190,13 @@ int br_make_bridge_list()
 	bridge_list = NULL;
 	for (i=0;i<num;i++) {
 		struct bridge *br;
+		br = br_create_bridge_by_index(ifindices[i]);
+		if (!br) {
+			goto error_out;
+		}
 
-		br = malloc(sizeof(struct bridge));
-		memset(br, 0, sizeof(struct bridge));
-		br->ifindex = ifindices[i];
-		br->firstport = NULL;
 		br->next = bridge_list;
 		bridge_list = br;
-		if ((err = br_read_info(br)) != 0)
-			goto error_out;
-		if ((err = br_make_port_list(br)) != 0)
-			goto error_out;
 	}
 
 	return 0;
@@ -194,7 +215,6 @@ int br_make_bridge_list()
 
 int br_init()
 {
-	int err;
 
 	if ((br_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
 		return errno;
@@ -202,8 +222,10 @@ int br_init()
 	if (br_get_version() != BRCTL_VERSION)
 		return 12345;
 
+#if 0
 	if ((err = br_make_bridge_list()) != 0)
 		return err;
+#endif
 
 	return 0;
 }

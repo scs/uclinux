@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Header$ */
+/* $Header: /usr/cvsroot/asterisk/codecs/gsm/src/code.c,v 1.18 2003/10/27 20:00:41 markster Exp $ */
 
 #include	"config.h"
 

@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: signal-handler.c,v 1.3 2001/06/22 03:32:53 davidm Exp $
  *
  * dhcpcd - DHCP client daemon -
  * Copyright (C) 1996 - 1997 Yoichi Hariguchi <yoichi@fore.com>

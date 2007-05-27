@@ -23,11 +23,11 @@
  * For installation instructions see the file INSTALL that came with this file
  */
 
-#define	CM_VERSION	"0.87"
-
 #if HAVE_CONFIG_H
 #include "clamav-config.h"
 #endif
+
+#define	CM_VERSION	VERSION
 
 #include "defaults.h"
 #include "cfgparser.h"
@@ -2851,6 +2851,9 @@ clamfi_eom(SMFICTX *ctx)
 			smfi_addheader(ctx, "X-Virus-Status", buf);
 		}
 
+		if(quarantine_dir)
+			qfile(privdata, sendmailId, virusname);
+
 		if(use_syslog) {
 			/*
 			 * Setup err as a list of recipients
@@ -3017,8 +3020,6 @@ clamfi_eom(SMFICTX *ctx)
 		}
 
 		if(quarantine_dir) {
-			qfile(privdata, sendmailId, virusname);
-
 			/*
 			 * Cleanup filename here otherwise clamfi_free() will
 			 * delete the file that we wish to keep because it
@@ -4173,8 +4174,9 @@ move(const char *oldfile, const char *newfile)
 	int ret;
 #ifdef	C_LINUX
 	struct stat statb;
-	int fin, fout;
+	int fin, fout, c;
 	off_t offset;
+	FILE *fsin, *fsout;
 #else
 	FILE *fin, *fout;
 	int c;
@@ -4211,12 +4213,27 @@ move(const char *oldfile, const char *newfile)
 	ret = sendfile(fout, fin, &offset, statb.st_size);
 	close(fin);
 	if(ret < 0) {
+		/* fall back if sendfile fails, which shouldn't happen */
 		perror(newfile);
 		close(fout);
 		unlink(newfile);
-		return -1;
-	}
-	close(fout);
+
+		fsin = fopen(oldfile, "r");
+		if(fsin == NULL)
+			return -1;
+
+		fsout = fopen(newfile, "w");
+		if(fsout == NULL) {
+			fclose(fsin);
+			return -1;
+		}
+		while((c = getc(fsin)) != EOF)
+			putc(c, fsout);
+
+		fclose(fsin);
+		fclose(fsout);
+	} else
+		close(fout);
 #else
 	fin = fopen(oldfile, "r");
 	if(fin == NULL)

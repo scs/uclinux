@@ -106,7 +106,7 @@ int warn (ANSI_DECL (char *) fmt, VA_DOTDOTDOT)
   va_end (list);
 
 #ifndef DEBUG
-  syslog (log_priority | LOG_ERR, mbuf);
+  syslog (log_priority | LOG_WARNING, mbuf);
 #endif
 
   if (log_perror) {

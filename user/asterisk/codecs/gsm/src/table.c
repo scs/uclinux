@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Header$ */
+/* $Header: /usr/cvsroot/asterisk/codecs/gsm/src/table.c,v 1.16 2003/02/12 13:59:14 matteo Exp $ */
 
 /*  Most of these tables are inlined at their point of use.
  */

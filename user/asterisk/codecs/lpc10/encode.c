@@ -1,9 +1,6 @@
 /*
 
-$Log$
-Revision 1.1  2005/07/25 01:37:58  magicyang
-New user folder check in
-
+$Log: encode.c,v $
 Revision 1.15  2004/06/26 03:50:14  markster
 Merge source cleanups (bug #1911)
 
@@ -51,10 +48,7 @@ static integer c__2 = 2;
 
 /* 	ENCODE Version 54 */
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: encode.c,v $
 /* Revision 1.15  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*
@@ -145,10 +139,7 @@ static integer c__2 = 2;
     /* Local variables */
     integer idel, nbit, i__, j, i2, i3, mrk;
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: encode.c,v $
 /* Revision 1.15  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*
@@ -177,10 +168,7 @@ static integer c__2 = 2;
 /*   LPC Configuration parameters: */
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: encode.c,v $
 /* Revision 1.15  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*

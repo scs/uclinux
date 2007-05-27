@@ -71,6 +71,11 @@ static inline uint32_t EC32(uint32_t v)
 
 extern short cli_leavetemps_flag;
 
+struct offset_list {
+    uint32_t offset;
+    struct offset_list *next;
+};
+
 static uint32_t cli_rawaddr(uint32_t rva, struct pe_image_section_hdr *shp, uint16_t nos, unsigned int *err)
 {
 	int i, found = 0;
@@ -84,7 +89,6 @@ static uint32_t cli_rawaddr(uint32_t rva, struct pe_image_section_hdr *shp, uint
     }
 
     if(!found) {
-	cli_dbgmsg("Can't calculate raw address from RVA 0x%x\n", rva);
 	*err = 1;
 	return 0;
     }
@@ -153,17 +157,20 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 	uint16_t nsections;
 	uint32_t e_lfanew; /* address of new exe header */
 	uint32_t ep; /* entry point (raw) */
+	uint8_t polipos = 0;
 	time_t timestamp;
 	struct pe_image_file_hdr file_hdr;
 	struct pe_image_optional_hdr optional_hdr;
 	struct pe_image_section_hdr *section_hdr;
 	struct stat sb;
 	char sname[9], buff[4096], *tempfile;
+	unsigned char *ubuff;
+	ssize_t bytes;
 	unsigned int i, found, upx_success = 0, min = 0, max = 0, err, broken = 0;
 	unsigned int ssize = 0, dsize = 0, dll = 0;
 	int (*upxfn)(char *, uint32_t , char *, uint32_t *, uint32_t, uint32_t, uint32_t) = NULL;
 	char *src = NULL, *dest = NULL;
-	int ndesc, ret;
+	int ndesc, ret = CL_CLEAN;
 
 
     if(read(desc, &e_magic, sizeof(e_magic)) != sizeof(e_magic)) {
@@ -315,16 +322,18 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
     }
 
     nsections = EC16(file_hdr.NumberOfSections);
-    if(nsections < 1) {
+    if(nsections < 1 || nsections > 99) {
 	if(DETECT_BROKEN) {
 	    if(virname)
 		*virname = "Broken.Executable";
 	    return CL_VIRUS;
 	}
-	cli_warnmsg("PE file contains no sections\n");
+	if(nsections)
+	    cli_warnmsg("PE file contains %d sections\n", nsections);
+	else
+	    cli_warnmsg("PE file contains no sections\n");
 	return CL_CLEAN;
     }
-
     cli_dbgmsg("NumberOfSections: %d\n", nsections);
 
     timestamp = (time_t) EC32(file_hdr.TimeDateStamp);
@@ -479,6 +488,12 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 		max = EC32(section_hdr[i].VirtualAddress) + EC32(section_hdr[i].SizeOfRawData);
 	}
 
+	if(!strlen(sname)) {
+	    if(EC32(section_hdr[i].VirtualSize) > 40000 && EC32(section_hdr[i].VirtualSize) < 70000) {
+		if(EC32(section_hdr[i].Characteristics) == 0xe0000060)
+		    polipos = i;
+	    }
+	}
     }
 
     if((ep = EC32(optional_hdr.AddressOfEntryPoint)) >= min && !(ep = cli_rawaddr(EC32(optional_hdr.AddressOfEntryPoint), section_hdr, nsections, &err)) && err) {
@@ -547,6 +562,97 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 	}
     }
 
+    /* W32.Polipos.A */
+   if(polipos && !dll && nsections > 2 && nsections < 13 && e_lfanew <= 0x800 && (EC16(optional_hdr.Subsystem) == 2 || EC16(optional_hdr.Subsystem) == 3) && EC16(file_hdr.Machine) == 0x14c && optional_hdr.SizeOfStackReserve >= 0x80000) {
+	    uint32_t remaining = EC32(section_hdr[0].SizeOfRawData);
+	    uint32_t chunk = sizeof(buff);
+	    uint32_t val, shift, raddr, curroff, total = 0;
+	    const char *jpt;
+	    struct offset_list *offlist = NULL, *offnode;
+
+
+	cli_dbgmsg("Detected W32.Polipos.A characteristics\n");
+
+	if(remaining < chunk)
+	    chunk = remaining;
+
+	lseek(desc, EC32(section_hdr[0].PointerToRawData), SEEK_SET);
+	while((bytes = cli_readn(desc, buff, chunk)) > 0) {
+	    shift = 0;
+	    while(bytes - 5 > shift) {
+		jpt = buff + shift;
+		if(*jpt != '\xe9' && *jpt != '\xe8') {
+		    shift++;
+		    continue;
+		}
+		val = cli_readint32(jpt + 1);
+		val += 5 + EC32(section_hdr[0].VirtualAddress) + total + shift;
+		raddr = cli_rawaddr(val, section_hdr, nsections, &err);
+
+		if(!err && (raddr >= EC32(section_hdr[polipos].PointerToRawData) && raddr < EC32(section_hdr[polipos].PointerToRawData) + EC32(section_hdr[polipos].SizeOfRawData)) && (!offlist || (raddr != offlist->offset))) {
+		    offnode = (struct offset_list *) cli_malloc(sizeof(struct offset_list));
+		    if(!offnode) {
+			free(section_hdr);
+			while(offlist) {
+			    offnode = offlist;
+			    offlist = offlist->next;
+			    free(offnode);
+			}
+			return CL_EMEM;
+		    }
+		    offnode->offset = raddr;
+		    offnode->next = offlist;
+		    offlist = offnode;
+		}
+
+		shift++;
+	    }
+
+	    if(remaining < chunk) {
+		chunk = remaining;
+	    } else {
+		remaining -= bytes;
+		if(remaining < chunk) {
+		    chunk = remaining;
+		}
+	    }
+
+	    if(!remaining)
+		break;
+
+	    total += bytes;
+	}
+
+	offnode = offlist;
+	while(offnode) {
+	    cli_dbgmsg("Polipos: Checking offset 0x%x (%u) - ", offnode->offset, offnode->offset);
+	    lseek(desc, offnode->offset, SEEK_SET);
+	    if(cli_readn(desc, buff, 9) == 9) {
+		ubuff = (unsigned char *) buff;
+		if(ubuff[0] == 0x55 && ubuff[1] == 0x8b && ubuff[2] == 0xec &&
+		   ((ubuff[3] == 0x83 && ubuff[4] == 0xec && ubuff[6] == 0x60) ||  ubuff[3] == 0x60 ||
+		    (ubuff[3] == 0x81 && ubuff[4] == 0xec && ubuff[7] == 0x00 && ubuff[8] == 0x00))) {
+		    ret = CL_VIRUS;
+		    *virname = "W32.Polipos.A";
+		    break;
+		}
+	    }
+	    offnode = offnode->next;
+	}
+
+	while(offlist) {
+	    offnode = offlist;
+	    offlist = offlist->next;
+	    free(offnode);
+	}
+
+	if(ret == CL_VIRUS) {
+	    free(section_hdr);
+	    return CL_VIRUS;
+	}
+    }
+
+
     if(broken) {
 	free(section_hdr);
 	return CL_CLEAN;
@@ -591,7 +697,7 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 		    uint32_t newesi, newedi, newebx, newedx;
 
 		if(limits && limits->maxfilesize && (ssize > limits->maxfilesize || dsize > limits->maxfilesize)) {
-		    cli_dbgmsg("FSG: Sizes exceeded (ssize: %d, dsize: %d, max: %lu)\n", ssize, dsize , limits->maxfilesize);
+		    cli_dbgmsg("FSG: Sizes exceeded (ssize: %u, dsize: %u, max: %lu)\n", ssize, dsize , limits->maxfilesize);
 		    free(section_hdr);
 		    if(BLOCKMAX) {
 			*virname = "PE.FSG.ExceededFileSize";
@@ -745,7 +851,7 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 
 
 		if(limits && limits->maxfilesize && (ssize > limits->maxfilesize || dsize > limits->maxfilesize)) {
-		    cli_dbgmsg("FSG: Sizes exceeded (ssize: %d, dsize: %d, max: %lu)\n", ssize, dsize, limits->maxfilesize);
+		    cli_dbgmsg("FSG: Sizes exceeded (ssize: %u, dsize: %u, max: %lu)\n", ssize, dsize, limits->maxfilesize);
 		    free(section_hdr);
 		    if(BLOCKMAX) {
 			*virname = "PE.FSG.ExceededFileSize";
@@ -965,7 +1071,7 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 		}
 
 		if(limits && limits->maxfilesize && (ssize > limits->maxfilesize || dsize > limits->maxfilesize)) {
-		    cli_dbgmsg("FSG: Sizes exceeded (ssize: %d, dsize: %d, max: %lu)\n", ssize, dsize, limits->maxfilesize);
+		    cli_dbgmsg("FSG: Sizes exceeded (ssize: %u, dsize: %u, max: %lu)\n", ssize, dsize, limits->maxfilesize);
 		    free(section_hdr);
 		    if(BLOCKMAX) {
 			*virname = "PE.FSG.ExceededFileSize";
@@ -1155,7 +1261,7 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 	    dsize = EC32(section_hdr[i].VirtualSize) + EC32(section_hdr[i + 1].VirtualSize);
 
 	    if(limits && limits->maxfilesize && (ssize > limits->maxfilesize || dsize > limits->maxfilesize)) {
-		cli_dbgmsg("UPX: Sizes exceeded (ssize: %d, dsize: %d, max: %lu)\n", ssize, dsize , limits->maxfilesize);
+		cli_dbgmsg("UPX: Sizes exceeded (ssize: %u, dsize: %u, max: %lu)\n", ssize, dsize , limits->maxfilesize);
 		free(section_hdr);
 		if(BLOCKMAX) {
 		    *virname = "PE.UPX.ExceededFileSize";
@@ -1174,6 +1280,13 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 	    /* FIXME: use file operations in case of big files */
 	    if((src = (char *) cli_malloc(ssize)) == NULL) {
 		free(section_hdr);
+		return CL_EMEM;
+	    }
+
+	    if(dsize > CLI_MAX_ALLOCATION) {
+		cli_errmsg("UPX: Too big value of dsize\n");
+		free(section_hdr);
+		free(src);
 		return CL_EMEM;
 	    }
 
@@ -1349,7 +1462,7 @@ int cli_scanpe(int desc, const char **virname, unsigned long int *scanned, const
 	    dsize = max - min;
 
 	    if(limits && limits->maxfilesize && dsize > limits->maxfilesize) {
-		cli_dbgmsg("Petite: Size exceeded (dsize: %d, max: %lu)\n", dsize, limits->maxfilesize);
+		cli_dbgmsg("Petite: Size exceeded (dsize: %u, max: %lu)\n", dsize, limits->maxfilesize);
 		free(section_hdr);
 		if(BLOCKMAX) {
 		    *virname = "PE.Petite.ExceededFileSize";

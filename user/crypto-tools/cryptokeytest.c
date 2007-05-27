@@ -191,6 +191,7 @@ testit(void)
 	do {
 		BN_pseudo_rand(c, 1024, 0, 0);
 	} while (!BN_is_odd(c));
+	BN_set_bit(c, 1023);
 
 	if (BN_cmp(a, c) > 0) {
 		BIGNUM *rem = BN_new();

@@ -54,6 +54,9 @@
 /* os is irix */
 #undef C_IRIX
 
+/* target is kfreebsd-gnu */
+#undef C_KFREEBSD_GNU
+
 /* target is linux */
 #undef C_LINUX
 
@@ -80,6 +83,9 @@
 
 /* file i/o buffer size */
 #undef FILEBUFF
+
+/* use "Cache-Control: no-cache" in freshclam */
+#undef FRESHCLAM_NO_CACHE
 
 /* access rights in msghdr */
 #undef HAVE_ACCRIGHTS_IN_MSGHDR
@@ -197,6 +203,9 @@
 
 /* Define to 1 if you have the `snprintf' function. */
 #undef HAVE_SNPRINTF
+
+/* Define to 1 if you have the 'socklen_t' type. */
+#undef HAVE_SOCKLEN_T
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -348,5 +357,5 @@
 #undef inline
 #endif
 
-/* Define to `long' if <sys/types.h> does not define. */
+/* Define to `long int' if <sys/types.h> does not define. */
 #undef off_t

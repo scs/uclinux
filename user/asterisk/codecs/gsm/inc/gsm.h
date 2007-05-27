@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/*$Header$*/
+/*$Header: /usr/cvsroot/asterisk/codecs/gsm/inc/gsm.h,v 1.16 2003/02/12 13:59:14 matteo Exp $*/
 
 #ifndef	GSM_H
 #define	GSM_H

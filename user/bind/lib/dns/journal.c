@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,11 +15,12 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.77.2.1.10.8 2004/05/14 05:27:47 marka Exp $ */
+/* $Id: journal.c,v 1.77.2.1.10.13 2005/11/03 23:08:41 marka Exp $ */
 
 #include <config.h>
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <isc/file.h>
 #include <isc/mem.h>
@@ -1035,8 +1036,8 @@ dns_journal_commit(dns_journal_t *j) {
 	 */
 	if (j->x.n_soa != 2) {
 		isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,
-			      "malformed transaction: %d SOAs",
-			      j->x.n_soa);
+			      "%s: malformed transaction: %d SOAs",
+			      j->filename, j->x.n_soa);
 		return (ISC_R_UNEXPECTED);
 	}
 	if (! (DNS_SERIAL_GT(j->x.pos[1].serial, j->x.pos[0].serial) ||
@@ -1044,8 +1045,8 @@ dns_journal_commit(dns_journal_t *j) {
 		j->x.pos[1].serial == j->x.pos[0].serial)))
 	{
 		isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,
-			      "malformed transaction: serial number "
-			      "would decrease");
+			      "%s: malformed transaction: serial number "
+			      "would decrease", j->filename);
 		return (ISC_R_UNEXPECTED);
 	}
 	if (! JOURNAL_EMPTY(&j->header)) {
@@ -1266,8 +1267,8 @@ roll_forward(dns_journal_t *j, dns_db_t *db) {
 
 		if (++n_put > 100)  {
 			isc_log_write(JOURNAL_DEBUG_LOGARGS(3),
-				      "applying diff to database (%u)",
-				      db_serial);
+				      "%s: applying diff to database (%u)",
+				      j->filename, db_serial);
 			(void)dns_diff_print(&diff, NULL);
 			CHECK(dns_diff_apply(&diff, db, ver));
 			dns_diff_clear(&diff);
@@ -1280,8 +1281,8 @@ roll_forward(dns_journal_t *j, dns_db_t *db) {
 
 	if (n_put != 0) {
 		isc_log_write(JOURNAL_DEBUG_LOGARGS(3),
-			      "applying final diff to database (%u)",
-			      db_serial);
+			      "%s: applying final diff to database (%u)",
+			      j->filename, db_serial);
 		(void)dns_diff_print(&diff, NULL);
 		CHECK(dns_diff_apply(&diff, db, ver));
 		dns_diff_clear(&diff);
@@ -1352,7 +1353,8 @@ dns_journal_print(isc_mem_t *mctx, const char *filename, FILE *file) {
 
 	if (result != ISC_R_SUCCESS) {
 		isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,
-			      "journal open failure");
+			      "journal open failure: %s: %s",
+			      isc_result_totext(result), j->filename);
 		return (result);
 	}
 
@@ -1545,7 +1547,8 @@ read_one_rr(dns_journal_t *j) {
 		CHECK(journal_read_xhdr(j, &xhdr));
 		if (xhdr.size == 0) {
 			isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_ERROR,
-				      "journal corrupt: empty transaction");
+				      "%s: journal corrupt: empty transaction",
+				      j->filename);
 			FAIL(ISC_R_UNEXPECTED);
 		}
 		if (xhdr.serial0 != j->it.current_serial) {
@@ -1562,7 +1565,7 @@ read_one_rr(dns_journal_t *j) {
 	/*
 	 * Read an RR.
 	 */
-	result = journal_read_rrhdr(j, &rrhdr);
+	CHECK(journal_read_rrhdr(j, &rrhdr));
 	/*
 	 * Perform a sanity check on the journal RR size.
 	 * The smallest possible RR has a 1-byte owner name
@@ -1748,6 +1751,8 @@ dns_diff_subtract(dns_diff_t diff[2], dns_diff_t *r) {
 	isc_result_t result;
 	dns_difftuple_t *p[2];
 	int i, t;
+	isc_boolean_t append;
+
 	CHECK(dns_diff_sort(&diff[0], rdata_order));
 	CHECK(dns_diff_sort(&diff[1], rdata_order));
 
@@ -1776,11 +1781,17 @@ dns_diff_subtract(dns_diff_t diff[2], dns_diff_t *r) {
 		}
 		INSIST(t == 0);
 		/*
-		 * Identical RRs in both databases; skip them both.
+		 * Identical RRs in both databases; skip them both
+		 * if the ttl differs.
 		 */
+		append = ISC_TF(p[0]->ttl != p[1]->ttl);
 		for (i = 0; i < 2; i++) {
 			ISC_LIST_UNLINK(diff[i].tuples, p[i], link);
-			dns_difftuple_free(&p[i]);
+			if (append) {
+				ISC_LIST_APPEND(r->tuples, p[i], link);
+			} else {
+				dns_difftuple_free(&p[i]);
+			}
 		}
 	next: ;
 	}

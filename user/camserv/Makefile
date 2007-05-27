@@ -9,22 +9,24 @@ LDFLAGS += -Wl,--export-dynamic
 
 LIBS = -lpng -ljpeg -lz -lm -ldl
 
-all: camserv libvideo_v4l.so libjpg_filter.so libtext_filter.so webcam.cgi
+EXE = camserv.bin
+
+all: $(EXE) libvideo_v4l.so libjpg_filter.so libtext_filter.so webcam.cgi
 
 libvideo_v4l.so: video_v4l.o
-	$(CC) -s -shared $(SH_LDFLAGS) -o $@ video_v4l.o $(SH_LDLIBS)
+	$(CC) -shared $(SH_LDFLAGS) -o $@ video_v4l.o $(SH_LDLIBS)
 
 libvideo_basic.so: video_basic.o
-	$(CC) -s -shared $(SH_LDFLAGS) -o $@ video_basic.o $(SH_LDLIBS)
+	$(CC) -shared $(SH_LDFLAGS) -o $@ video_basic.o $(SH_LDLIBS)
 
 libjpg_filter.so: jpg_filter.o
-	$(CC) -s -shared $(SH_LDFLAGS) -o $@ jpg_filter.o $(SH_LDLIBS)
+	$(CC) -shared $(SH_LDFLAGS) -o $@ jpg_filter.o $(SH_LDLIBS)
 
 libtext_filter.so: text_filter.o
-	$(CC) -s -shared $(SH_LDFLAGS) -o $@ text_filter.o $(SH_LDLIBS)
+	$(CC) -shared $(SH_LDFLAGS) -o $@ text_filter.o $(SH_LDLIBS)
 
 librand_filter.so: rand_filter.o
-	$(CC) -s -shared $(SH_LDFLAGS) -o $@ rand_filter.o $(SH_LDLIBS)
+	$(CC) -shared $(SH_LDFLAGS) -o $@ rand_filter.o $(SH_LDLIBS)
 
 OBJ = camconfig.o fixfont.o picture_loop.o \
 		camserv.o jpgstuff.o video.o \
@@ -32,14 +34,14 @@ OBJ = camconfig.o fixfont.o picture_loop.o \
 		hash.o sock_field.o log.o modinfo.o sockset.o socket.o \
 		list.o manager.o databuf.o grafxmisc.o
 
-camserv: $(OBJ)
+$(EXE): $(OBJ)
 	$(CC) $(LDFLAGS) -o $@ $(OBJ) $(LIBS) $(LDLIBS$(LDLIBS_$@))
 
 webcam.cgi: webcam.o camconfig.o hash.o log.o
 	$(CC) $(LDFLAGS) -o $@ camconfig.o log.o hash.o webcam.o $(LIBS) $(LDLIBS$(LDLIBS_$@))
 
 romfs:
-	$(ROMFSINST) camserv /bin/camserv
+	$(ROMFSINST) $(EXE) /bin/camserv
 	if test ! -d $(ROMFSDIR)/lib/camserv; then \
 	mkdir $(ROMFSDIR)/lib/camserv; fi
 	$(ROMFSINST) libvideo_v4l.so /lib/camserv/libvideo_v4l.so
@@ -49,4 +51,4 @@ romfs:
 	$(ROMFSINST) webcam.cgi /home/httpd/cgi-bin/webcam
 
 clean:
-	rm -f *.o *.so camserv webcam.cgi
+	rm -f *.o *.so $(EXE) webcam.cgi

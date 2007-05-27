@@ -13,8 +13,8 @@
  * The copyright extends to translations of this work into other languages,
  * including machine languages. 
  *
- * $Id$
- * $Name$
+ * $Id: hash.c,v 1.1 2005/01/07 01:32:37 damion Exp $
+ * $Name:  $
  */
 
 #include <stdlib.h>
@@ -24,7 +24,7 @@
 #define HASH_IMPLEMENTATION
 #include "hash.h"
 
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: hash.c,v 1.1 2005/01/07 01:32:37 damion Exp $";
 static const char right[] = "Copyright (C) 1997 Kaz Kylheku";
 
 #define INIT_BITS	6

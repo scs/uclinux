@@ -26,8 +26,10 @@ clean:
 
 romfs:
 	[ -d $(ROMFSDIR)/etc/clamav ] || mkdir $(ROMFSDIR)/etc/clamav
+ifndef CONFIG_USER_CLAMAV_NODB
 	$(ROMFSINST) database/main.cvd /etc/clamav/main.cvd
 	$(ROMFSINST) database/daily.cvd /etc/clamav/daily.cvd
+endif
 ifdef CONFIG_USER_CLAMAV_CLAMD
 	$(ROMFSINST) build/clamd/clamd /bin/clamd
 	$(ROMFSINST) etc/clamd.conf /etc/clamav/clamd.conf

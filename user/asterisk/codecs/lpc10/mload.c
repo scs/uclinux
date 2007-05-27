@@ -1,9 +1,6 @@
 /*
 
-$Log$
-Revision 1.1  2005/07/25 01:37:58  magicyang
-New user folder check in
-
+$Log: mload.c,v $
 Revision 1.15  2004/06/26 03:50:14  markster
 Merge source cleanups (bug #1911)
 
@@ -37,10 +34,7 @@ extern int mload_(integer *order, integer *awins, integer *awinf, real *speech, 
 
 /* 	MLOAD Version 48 */
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: mload.c,v $
 /* Revision 1.15  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*

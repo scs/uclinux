@@ -7,7 +7,7 @@
  *
  * Tilghman Lesher <app_eval__v001@the-tilghman.com>
  *
- * $Id$
+ * $Id: app_eval.c,v 1.1 2004/03/09 15:57:56 malcolmd Exp $
  *
  * This code is released by the author with no restrictions on usage.
  *

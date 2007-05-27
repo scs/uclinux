@@ -72,7 +72,8 @@ PROGRAMS = $(bin_PROGRAMS)
 am_freshclam_OBJECTS = output.$(OBJEXT) cfgparser.$(OBJEXT) \
 	getopt.$(OBJEXT) memory.$(OBJEXT) misc.$(OBJEXT) \
 	freshclam.$(OBJEXT) options.$(OBJEXT) manager.$(OBJEXT) \
-	notify.$(OBJEXT) dns.$(OBJEXT) execute.$(OBJEXT)
+	notify.$(OBJEXT) dns.$(OBJEXT) execute.$(OBJEXT) \
+	nonblock.$(OBJEXT)
 freshclam_OBJECTS = $(am_freshclam_OBJECTS)
 freshclam_LDADD = $(LDADD)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir)
@@ -124,6 +125,7 @@ EGREP = @EGREP@
 EXEEXT = @EXEEXT@
 FRESHCLAM_LIBS = @FRESHCLAM_LIBS@
 GETENT = @GETENT@
+GREP = @GREP@
 HAVE_MILTER_FALSE = @HAVE_MILTER_FALSE@
 HAVE_MILTER_TRUE = @HAVE_MILTER_TRUE@
 INSTALL_DATA = @INSTALL_DATA@
@@ -157,8 +159,6 @@ STRIP = @STRIP@
 TH_SAFE = @TH_SAFE@
 VERSION = @VERSION@
 ac_ct_CC = @ac_ct_CC@
-ac_ct_RANLIB = @ac_ct_RANLIB@
-ac_ct_STRIP = @ac_ct_STRIP@
 am__fastdepCC_FALSE = @am__fastdepCC_FALSE@
 am__fastdepCC_TRUE = @am__fastdepCC_TRUE@
 am__include = @am__include@
@@ -173,23 +173,30 @@ build_cpu = @build_cpu@
 build_os = @build_os@
 build_vendor = @build_vendor@
 datadir = @datadir@
+datarootdir = @datarootdir@
+docdir = @docdir@
+dvidir = @dvidir@
 exec_prefix = @exec_prefix@
 host = @host@
 host_alias = @host_alias@
 host_cpu = @host_cpu@
 host_os = @host_os@
 host_vendor = @host_vendor@
+htmldir = @htmldir@
 includedir = @includedir@
 infodir = @infodir@
 install_sh = @install_sh@
 libdir = @libdir@
 libexecdir = @libexecdir@
+localedir = @localedir@
 localstatedir = @localstatedir@
 mandir = @mandir@
 mkdir_p = @mkdir_p@
 oldincludedir = @oldincludedir@
+pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
+psdir = @psdir@
 sbindir = @sbindir@
 sendmailprog = @sendmailprog@
 sharedstatedir = @sharedstatedir@
@@ -222,7 +229,9 @@ freshclam_SOURCES = \
     dns.c \
     dns.h \
     execute.c \
-    execute.h
+    execute.h \
+    nonblock.c \
+    nonblock.h
 
 INCLUDES = -I$(top_srcdir) -I$(top_srcdir)/shared -I$(top_srcdir)/libclamav
 all: all-am
@@ -304,6 +313,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/manager.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memory.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/misc.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/nonblock.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/notify.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/options.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/output.Po@am__quote@

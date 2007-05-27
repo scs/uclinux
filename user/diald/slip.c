@@ -96,7 +96,7 @@ done:
  */
 
 
-static void slip_start_fail(unsigned long data)
+void slip_start_fail(unsigned long data)
 {
    fail = 1;
 }

@@ -245,7 +245,7 @@ cli_untar(const char *dir, int desc, unsigned int posix)
 			}
 			snprintf(fullname, sizeof(fullname) - 1 - suffixLen, "%s/%.*sXXXXXX", dir,
 				(int)(sizeof(fullname) - 9 - suffixLen - strlen(dir)), name);
-#if	defined(C_LINUX) || defined(C_BSD) || defined(HAVE_MKSTEMP) || defined(C_SOLARIS) || defined(C_CYGWIN)
+#if    defined(C_LINUX) || defined(C_BSD) || defined(HAVE_MKSTEMP) || defined(C_SOLARIS) || defined(C_CYGWIN) || defined(C_KFREEBSD_GNU)
 			fd = mkstemp(fullname);
 #else
 			(void)mktemp(fullname);
@@ -273,7 +273,8 @@ cli_untar(const char *dir, int desc, unsigned int posix)
 			size = octal(osize);
 			if(size < 0) {
 				cli_errmsg("Invalid size in tar header\n");
-				fclose(outfile);
+				if(outfile)
+					fclose(outfile);
 				return CL_EFORMAT;
 			}
 			cli_dbgmsg("cli_untar: size = %d\n", size);
@@ -284,7 +285,8 @@ cli_untar(const char *dir, int desc, unsigned int posix)
 			if(nwritten != nbytes) {
 				cli_errmsg("cli_untar: only wrote %d bytes to file %s (out of disk space?)\n",
 					nwritten, fullname);
-				fclose(outfile);
+				if(outfile)
+					fclose(outfile);
 				return CL_EIO;
 			}
 			size -= nbytes;

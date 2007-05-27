@@ -53,6 +53,10 @@
 #define SOCKADDR sockaddr
 #endif
 
+#ifndef USE_BSD_PTYS
+#include <pty.h>
+#endif
+
 #include "config.h"
 #include "fsm.h"
 #include "timer.h"
@@ -328,7 +332,6 @@ extern void fifo_read(void);
 extern void proxy_read(void);
 extern void modem_read(void);
 extern void advance_filter_queue(void);
-extern void alrm_timer(int);
 extern int recv_packet(unsigned char *, int);
 extern void sig_hup(int);
 extern void sig_intr(int);
@@ -430,4 +433,6 @@ extern void mon_write(int,char *,int);
 extern void background_system(const char *);
 extern void block_timer();
 extern void unblock_timer();
-
+extern void del_impulse(FW_unit *unit);
+extern void del_connection(FW_Connection *);
+extern void slip_start_fail(unsigned long data);

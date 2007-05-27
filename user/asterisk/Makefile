@@ -143,7 +143,7 @@ all: asterisk subdirs
 editline/config.h:
 	cd editline && \
 		CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" \
-			./configure --host=$(CROSS_COMPILE:-=)
+			sh configure $(CONFIGURE_OPTS)
 
 
 db1-ast/libdb1.a: FORCE
@@ -190,7 +190,7 @@ stdtime/libtime.a: FORCE
 editline/libedit.a: FORCE
 	cd editline && unset CFLAGS LIBS && test -f config.h || \
 		CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS) -L../tinytcap" LIBS="$(LDLIBS)" \
-			./configure --host=$(CROSS_COMPILE:-=)
+			sh configure $(CONFIGURE_OPTS)
 	$(MAKE) -C editline libedit.a
 
 tinytcap/libtermcap.a: FORCE
@@ -360,8 +360,7 @@ MODULES=apps/app_db.so apps/app_echo.so apps/app_read.so \
 romfs:
 	$(ROMFSINST) /bin/asterisk
 	mkdir -p $(ROMFSDIR)/etc/config/asterisk $(ROMFSDIR)/var/lib/asterisk $(ROMFSDIR)/lib/asterisk/modules $(ROMFSDIR)/var/spool/asterisk
-	cp $(MODULES) $(ROMFSDIR)/lib/asterisk/modules/
-	-$(STRIP) $(ROMFSDIR)/lib/asterisk/modules/*
+	for i in $(MODULES); do $(ROMFSINST) $$i /lib/asterisk/modules/$$i; done
 	cp configs.romfs/*.conf configs.romfs/*.adsi $(ROMFSDIR)/etc/config/asterisk/
 
 adsi: all

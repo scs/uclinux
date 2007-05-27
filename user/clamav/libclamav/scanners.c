@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 2002 - 2005 Tomasz Kojm <tkojm@clamav.net>
+ *  Copyright (C) 2002 - 2006 Tomasz Kojm <tkojm@clamav.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -69,6 +69,7 @@ extern int cli_mbox(const char *dir, int desc, unsigned int options); /* FIXME *
 #include "untar.h"
 #include "special.h"
 #include "binhex.h"
+#include "tnef.h"
 
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -378,7 +379,7 @@ static int cli_scanzip(int desc, const char **virname, unsigned long int *scanne
 	 * Bit 6: Strong encryption was used
 	 * Bit 13: Encrypted central directory
 	 */
-	encrypted = (zdirent.d_flags & 0x2041 != 0);
+	encrypted = ((zdirent.d_flags & 0x2041) != 0);
 
 	cli_dbgmsg("Zip: %s, crc32: 0x%x, offset: %d, encrypted: %d, compressed: %u, normal: %u, method: %d, ratio: %d (max: %d)\n", zdirent.d_name, zdirent.d_crc32, zdirent.d_off, encrypted, zdirent.d_csize, zdirent.st_size, zdirent.d_compr, zdirent.d_csize ? (zdirent.st_size / zdirent.d_csize) : 0, limits ? limits->maxratio : 0);
 
@@ -407,7 +408,7 @@ static int cli_scanzip(int desc, const char **virname, unsigned long int *scanne
 	    if(mdata->size >= 0 && mdata->size != zdirent.st_size)
 		continue;
 
-	    if(mdata->method >= 0 && mdata->method != (unsigned int) zdirent.d_compr)
+	    if(mdata->method >= 0 && mdata->method != zdirent.d_compr)
 		continue;
 
 	    if(mdata->fileno && mdata->fileno != files)
@@ -865,7 +866,7 @@ static int cli_scandir(const char *dirname, const char **virname, unsigned long 
 #else
 	while((dent = readdir(dd))) {
 #endif
-#ifndef C_INTERIX
+#if ((!defined(C_CYGWIN)) && (!defined(C_INTERIX)))
 	    if(dent->d_ino)
 #endif
 	    {
@@ -980,8 +981,11 @@ static int cli_vba_scandir(const char *dirname, const char **virname, unsigned l
 			break;
 		}
 		free(fullname);
-		cli_dbgmsg("VBADir: Decompress WM project '%s' macro:%d key:%d\n", vba_project->name[i], i, vba_project->key[i]);
-		data = (unsigned char *) wm_decrypt_macro(fd, vba_project->offset[i], vba_project->length[i], vba_project->key[i]);
+		cli_dbgmsg("VBADir: Decompress WM project '%s' macro:%d key:%d length:%d\n", vba_project->name[i], i, vba_project->key[i], vba_project->length[i]);
+		if(vba_project->length[i])
+		    data = (unsigned char *) wm_decrypt_macro(fd, vba_project->offset[i], vba_project->length[i], vba_project->key[i]);
+		else
+		    data = NULL;
 		close(fd);
 		
 		if(!data) {
@@ -1018,7 +1022,7 @@ static int cli_vba_scandir(const char *dirname, const char **virname, unsigned l
 #else
 	while((dent = readdir(dd))) {
 #endif
-#ifndef C_INTERIX
+#if ((!defined(C_CYGWIN)) && (!defined(C_INTERIX)))
 	    if(dent->d_ino)
 #endif
 	    {
@@ -1350,7 +1354,7 @@ static int cli_scanmail(int desc, const char **virname, unsigned long int *scann
 
 static int cli_scanraw(int desc, const char **virname, unsigned long int *scanned, const struct cl_node *root, const struct cl_limits *limits, unsigned int options, unsigned int arec, unsigned int mrec, cli_file_t type)
 {
-	int typerec = 0, ret = CL_CLEAN;
+	int typerec = 0, ret = CL_CLEAN, nret = CL_CLEAN;
 
 
     if(type == CL_TYPE_UNKNOWN_TEXT)
@@ -1375,17 +1379,18 @@ static int cli_scanraw(int desc, const char **virname, unsigned long int *scanne
 	switch(ret) {
 	    case CL_TYPE_HTML:
 		if(SCAN_HTML)
-		    if(cli_scanhtml(desc, virname, scanned, root, limits, options, arec, mrec) == CL_VIRUS)
+		    if((nret = cli_scanhtml(desc, virname, scanned, root, limits, options, arec, mrec)) == CL_VIRUS)
 			return CL_VIRUS;
 		    break;
 
 	    case CL_TYPE_MAIL:
 		if(SCAN_MAIL)
-		    if(cli_scanmail(desc, virname, scanned, root, limits, options, arec, mrec) == CL_VIRUS)
+		    if((nret = cli_scanmail(desc, virname, scanned, root, limits, options, arec, mrec)) == CL_VIRUS)
 			return CL_VIRUS;
 		break;
 	}
 	ret == CL_TYPE_MAIL ? mrec-- : arec--;
+	ret = nret;
     }
 
     return ret;
@@ -1393,8 +1398,7 @@ static int cli_scanraw(int desc, const char **virname, unsigned long int *scanne
 
 int cli_magic_scandesc(int desc, const char **virname, unsigned long int *scanned, const struct cl_node *root, const struct cl_limits *limits, unsigned int options, unsigned int arec, unsigned int mrec)
 {
-	int ret = CL_CLEAN, nret;
-	int bread = 0;
+	int ret = CL_CLEAN;
 	cli_file_t type;
 	struct stat sb;
 
@@ -1549,7 +1553,7 @@ int cli_magic_scandesc(int desc, const char **virname, unsigned long int *scanne
     type == CL_TYPE_MAIL ? mrec-- : arec--;
 
     if(type != CL_TYPE_DATA && ret != CL_VIRUS && !root->sdb) {
-	if((ret = cli_scanraw(desc, virname, scanned, root, limits, options, arec, mrec, type) == CL_VIRUS))
+	if(cli_scanraw(desc, virname, scanned, root, limits, options, arec, mrec, type) == CL_VIRUS)
 	    return CL_VIRUS;
     }
 

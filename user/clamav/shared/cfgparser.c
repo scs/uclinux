@@ -34,7 +34,7 @@
 
 struct cfgstruct *parsecfg(const char *cfgfile, int messages)
 {
-	char buff[LINE_LENGTH], *name, *arg;
+	char buff[LINE_LENGTH], *name, *arg, *c;
 	FILE *fs;
 	int line = 0, i, found, ctype, calc;
 	struct cfgstruct *copt = NULL;
@@ -115,6 +115,8 @@ struct cfgstruct *parsecfg(const char *cfgfile, int messages)
 	    {"OnErrorExecute", OPT_FULLSTR}, /* freshclam */
 	    {"OnOutdatedExecute", OPT_FULLSTR}, /* freshclam */
 	    {"LocalIPAddress", OPT_STR}, /* freshclam */
+	    {"ConnectTimeout", OPT_NUM}, /* freshclam */
+	    {"ReceiveTimeout", OPT_NUM}, /* freshclam */
 	    {0, 0},
 	};
 
@@ -166,6 +168,8 @@ struct cfgstruct *parsecfg(const char *cfgfile, int messages)
 				free(arg);
 				arg = strstr(buff, " ");
 				arg = strdup(++arg);
+				if((c = strpbrk(arg, "\n\r")))
+				    *c = '\0';
 				copt = regcfg(copt, name, arg, 0);
 				break;
 			    case OPT_NUM:

@@ -1,9 +1,6 @@
 /******************************************************************************
-$Id$
-$Log$
-Revision 1.1  2005/07/25 01:37:56  magicyang
-New user folder check in
-
+$Id: ixjuser.h,v 1.16 2003/02/12 13:59:14 matteo Exp $
+$Log: ixjuser.h,v $
 Revision 1.16  2003/02/12 13:59:14  matteo
 mer feb 12 14:56:57 CET 2003
 
@@ -130,7 +127,7 @@ Initial revision
 * reset the SRAM values before futher use.
 *
 ******************************************************************************/
-static char ixjuser_h_rcsid[] = "$Id$";
+static char ixjuser_h_rcsid[] = "$Id: ixjuser.h,v 1.16 2003/02/12 13:59:14 matteo Exp $";
 
 #define IXJCTL_DSP_RESET 		_IO  ('q', 0x80)
 #define IXJCTL_RING                     _IO  ('q', 0x82)

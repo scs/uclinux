@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: BINDInstallDlg.cpp,v 1.6.2.6.2.10 2004/05/18 01:20:04 marka Exp $ */
+/* $Id: BINDInstallDlg.cpp,v 1.6.2.6.2.12.6.2 2006/10/04 07:06:02 marka Exp $ */
 
 /*
  * Copyright (c) 1999-2000 by Nortel Networks Corporation
@@ -113,7 +113,10 @@ const FileData installFiles[] =
 	{"msvcrt.dll", FileData::WinSystem, FileData::Critical, TRUE},
 #  endif
 #endif
-#if _MSC_VER >= 1310
+#if _MSC_VER >= 1400
+	{"mfc80.dll", FileData::WinSystem, FileData::Critical, TRUE},
+	{"msvcr80.dll", FileData::WinSystem, FileData::Critical, TRUE},
+#elif _MSC_VER >= 1310
 	{"mfc71.dll", FileData::WinSystem, FileData::Critical, TRUE},
 	{"msvcr71.dll", FileData::WinSystem, FileData::Critical, TRUE},
 #elif _MSC_VER > 1200
@@ -385,6 +388,7 @@ void CBINDInstallDlg::OnUninstall() {
  */
 void CBINDInstallDlg::OnInstall() {
 	BOOL success = FALSE;
+	int oldlen;
 
 	if (CheckBINDService())
 		StopBINDService();
@@ -393,18 +397,45 @@ void CBINDInstallDlg::OnInstall() {
 
 	UpdateData();
 
-	/* Check that the Passwords entered match */ 
+	/*
+	 * Check that the Passwords entered match.
+	 */ 
 	if (m_accountPassword != m_accountPasswordConfirm) {
 		MsgBox(IDS_ERR_PASSWORD);
 		return;
 	}
 
-	/* Check the entered account name */
+	/*
+	 * Check that there is not leading / trailing whitespace.
+	 * This is for compatability with the standard password dialog.
+	 * Passwords really should be treated as opaque blobs.
+	 */
+	oldlen = m_accountPassword.GetLength();
+	m_accountPassword.TrimLeft();
+	m_accountPassword.TrimRight();
+	if (m_accountPassword.GetLength() != oldlen) {
+		MsgBox(IDS_ERR_WHITESPACE);
+		return;
+	}
+	
+	/*
+	 * Check that the Password is not null.
+	 */
+	if (m_accountPassword.GetLength() == 0) {
+		MsgBox(IDS_ERR_NULLPASSWORD);
+		return;
+	}
+
+	/*
+	 * Check the entered account name.
+	 */
 	if (ValidateServiceAccount() == FALSE)
 		return;
 
 
-	/* For Registration we need to know if account was changed */
+	/*
+	 * For Registration we need to know if account was changed.
+	 */
 	if(m_accountName != m_currentAccount)
 		m_accountUsed = FALSE;
 
@@ -462,15 +493,13 @@ void CBINDInstallDlg::OnInstall() {
 		
 		SetCurrent(IDS_ADD_REMOVE);
 		if (RegCreateKey(HKEY_LOCAL_MACHINE, BIND_UNINSTALL_SUBKEY,
-				&hKey) == ERROR_SUCCESS) {
-			char winDir[MAX_PATH];
+				 &hKey) == ERROR_SUCCESS) {
 			CString buf(BIND_DISPLAY_NAME);
-			GetWindowsDirectory(winDir, MAX_PATH);
 
 			RegSetValueEx(hKey, "DisplayName", 0, REG_SZ,
 					(LPBYTE)(LPCTSTR)buf, buf.GetLength());
 
-			buf.Format("%s\\BINDInstall.exe", winDir);
+			buf.Format("%s\\BINDInstall.exe", m_binDir);
 			RegSetValueEx(hKey, "UninstallString", 0, REG_SZ,
 					(LPBYTE)(LPCTSTR)buf, buf.GetLength());
 			RegCloseKey(hKey);

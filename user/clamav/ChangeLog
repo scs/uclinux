@@ -1,3 +1,93 @@
+Sun Nov  5 17:08:22 CET 2006
+-----------------------------
+  * Bugfixes:
+    - freshclam: apply timeout patch from Everton da Silva Marques
+      <everton*lab.ipaccess.diveo.net.br> (new options: ConnectTimeout and
+      ReceiveTimeout)
+    - clamd: change stack size at the right place (closes bug#103)
+      Patch from Jonathan Chen <jon+clamav*spock.org>
+    - libclamav/petite.c: sanity check the number of rebuilt sections (speeds
+      up handling of malformed files)
+
+Sun Oct 15 20:10:31 CEST 2006
+-----------------------------
+  * Bugfixes:
+    - libclamav/rebuildpe.c: fix possible heap overflow [IDEF1597]
+    - libclamav/chmunpack.c: fix possible crash [IDEF1736]
+    - freshclam/manager.c: "Cache-Control: no-cache" is now disabled by default.
+      If you're behind a broken proxy you can recompile freshclam with
+      --enable-no-cache.
+
+Mon Aug  7 20:49:48 CEST 2006
+-----------------------------
+  * Changes:
+    - libclamav/upx.c: fix possible heap overflow
+      See http://www.clamav.net/security/0.88.4.html for details.
+    - libclamav/tnef.c: handle trailing newline at the end of winmail.dat,
+      bug reported by Menno Smits <menno*netboxblue.com>
+    - freshclam/manager.c: fix possible infinite loop when read() fails
+      in get_database(), spotted by Everton da Silva Marques
+      <everton*lab.ipaccess.diveo.net.br>
+
+Sat Jul  1 13:37:18 CEST 2006
+-----------------------------
+  V 0.88.3
+  * Bugfixes:
+    - libclamav/matcher-ac.c: fix possible false matches of alternatives
+      Problem reported by Nicolas Riendeau <knightr*istop.com>
+    - libclamav: Large binhex files were not being handled gracefully. Tidied
+      the handling code. Note that large binhex are not currently decoded.
+      Bug reported by Luca
+    - libclamav/scanners.c: fix zero allocation warning reported by Sergey
+      Svishchev
+
+Sat Apr 29 21:30:47 CEST 2006
+-----------------------------
+  V 0.88.2
+  * Bugfixes:
+    - freshclam/manager.c: fix possible buffer overflow
+      Reported by Ulf Harnhammar <metaur*telia.com> and Peter <remllov_*gmx.de>
+      See http://www.clamav.net/security/0.88.2.html for details.
+
+    - libclamav/zziplib/zzip-zip.c: add missing #include "others.h"
+      Patch by Alex Deiter <tiamat*komi.mts.ru>
+    - fix other implicit function declarations
+      Thanks to Paul Fisher <pnfisher*berkeley.edu>, Ludwig Nussel
+      <ludwig.nussel*suse.de> and Stephen Gran <steve*lobefin.net>
+    - shared/cfgparser.c: don't use CL_FULLSTR for file directives
+      Requested by Tomasz Papszun and others
+    - libclamav/mbox.c:	fix compilation error on CYGWIN
+    - clamav-milter: Ensure that the quarantine location reported in
+      notifications is correct.
+      Patch by Simon Munton <simon at nidoran.m5data.com>
+
+Tue Apr  4 12:04:07 CEST 2006
+-----------------------------
+  V 0.88.1
+  * Bugfixes:
+    - libclamav/matcher.c: properly handle partial reads in cli_scandesc()
+    - libclamav/mbox.c: sync with CVS, fixes detection of Worm.Bagle.CT
+    - freshclam: fix support for LocalIPAddress
+      Patch by Anton Yuzhaninov <citrin*citrin.ru>
+    - docs/man: multiple manpage typo fixes
+      Patch by A. Costa <agcosta*gis.net>)
+    - shared/output.c: properly handle return value of vsnprintf
+      Thanks to Anton Yuzhaninov <citrin*rambler-co.ru>
+    - libclamav/htmlnorm.c: fix typo spotted by Gianluigi Tiesi
+      <sherpya*netfarm.it>
+    - sigtool/sigtool.c: fix possible crash in build(), thanks to Sven
+    - clamd/session.c: remove static timeout (5s) for SESSION
+      Pointed out by Joseph Benden <joe*thrallingpenguin.com>
+    - libclamav/pe.c: fix possible integer overflow reported by Damian Put
+      Note: only exploitable if file size limit (ArchiveMaxFileSize) disabled
+    - libclamav/scanners.c: properly report archive unpacking errors
+      Problem spotted by David F. Skoll <dfs*roaringpenguin.com>
+    - libclamav/others.c: fix possible crash in cli_bitset_test()
+      Reported by David Luyer <david_luyer*pacific.net.au>
+    - libclamav/zziplib: fix possible crash on FreeBSD
+      Reported by Robert Rebbun <robert*desertsurf.com>
+    - clamav-milter: fall back if sendfile() fails
+
 Mon Jan  9 18:26:21 CET 2006
 ----------------------------
   V 0.88

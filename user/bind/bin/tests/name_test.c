@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name_test.c,v 1.33.12.4 2004/04/13 03:24:40 marka Exp $ */
+/* $Id: name_test.c,v 1.33.12.6 2005/03/17 03:58:28 marka Exp $ */
 
 #include <config.h>
 
@@ -168,14 +168,14 @@ main(int argc, char *argv[]) {
 	dns_fixedname_init(&wname2);
 	while (fgets(s, sizeof(s), stdin) != NULL) {
 		len = strlen(s);
-		if (len > 0 && s[len - 1] == '\n') {
+		if (len > 0U && s[len - 1] == '\n') {
 			s[len - 1] = '\0';
 			len--;
 		}
 		isc_buffer_init(&source, s, len);
 		isc_buffer_add(&source, len);
 
-		if (len > 0)
+		if (len > 0U)
 			result = dns_name_fromtext(name, &source, origin,
 						   downcase, NULL);
 		else {

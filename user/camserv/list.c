@@ -13,8 +13,8 @@
  * The copyright extends to translations of this work into other languages,
  * including machine languages. 
  *
- * $Id$
- * $Name$
+ * $Id: list.c,v 1.1 2005/01/07 01:32:37 damion Exp $
+ * $Name:  $
  */
 
 
@@ -30,7 +30,7 @@
 #define lnode_next(N)		((N)->next)
 #define lnode_prev(N)		((N)->prev)
 
-static const char rcsid[] = "$Id$";
+static const char rcsid[] = "$Id: list.c,v 1.1 2005/01/07 01:32:37 damion Exp $";
 static const char right[] = "Copyright (C) 1997 Kaz Kylheku";
 
 /*

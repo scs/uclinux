@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: options.c 4862 2007-02-01 04:42:26Z vapier $
  *
  * dhcpcd - DHCP client daemon -
  * Copyright (C) 1996 - 1997 Yoichi Hariguchi <yoichi@fore.com>

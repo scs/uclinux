@@ -1,9 +1,6 @@
 /*
 
-$Log$
-Revision 1.1  2005/07/25 01:37:58  magicyang
-New user folder check in
-
+$Log: synths.c,v $
 Revision 1.16  2004/06/26 03:50:14  markster
 Merge source cleanups (bug #1911)
 
@@ -69,10 +66,7 @@ static real c_b2 = .7f;
 
 /* 	SYNTHS Version 54 */
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: synths.c,v $
 /* Revision 1.16  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*
@@ -198,10 +192,7 @@ static real c_b2 = .7f;
 	    integer *, real *, struct lpc10_decoder_state *);
     real rci[160]	/* was [10][16] */;
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: synths.c,v $
 /* Revision 1.16  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*
@@ -241,10 +232,7 @@ static real c_b2 = .7f;
 /*   LPC Configuration parameters: */
 /* Frame size, Prediction order, Pitch period */
 /*       Arguments */
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: synths.c,v $
 /* Revision 1.16  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*

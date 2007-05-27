@@ -218,7 +218,7 @@ static void do_symlink(char *path, struct cramfs_inode *i)
 {
 	unsigned long offset = i->offset << 2;
 	unsigned long curr = offset + 4;
-	unsigned long next = *(__u32 *) romfs_read(offset);
+	unsigned long next = *(u32 *) romfs_read(offset);
 	unsigned long size;
 
 	if (next > end_data) {
@@ -292,7 +292,7 @@ static void do_uncompress(int fd, unsigned long offset, unsigned long size)
 
 	do {
 		unsigned long out = PAGE_CACHE_SIZE;
-		unsigned long next = *(__u32 *) romfs_read(offset);
+		unsigned long next = *(u32 *) romfs_read(offset);
 
 		if (next > end_data) {
 			end_data = next;
@@ -422,7 +422,7 @@ int main(int argc, char **argv)
 	void *buf;
 	size_t length;
 	struct stat st;
-	__u32 crc_old, crc_new;
+	u32 crc_old, crc_new;
 #ifdef INCLUDE_FS_TESTS
 	struct cramfs_inode *root;
 #endif /* INCLUDE_FS_TESTS */

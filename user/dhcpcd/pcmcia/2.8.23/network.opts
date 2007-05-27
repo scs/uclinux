@@ -1,6 +1,6 @@
 # Network Adapter Configuration
 #
-# $Id$
+# $Id: network.opts,v 1.1.1.1 1999/11/22 03:47:59 christ Exp $
 #
 # added DHCP option 09/12/96 (Yoichi Hariguchi) 
 #

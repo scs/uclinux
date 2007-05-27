@@ -50,7 +50,8 @@
 #include "../libclamav/others.h"
 #include "../libclamav/str.h" /* cli_strtok */
 #include "dns.h"
-
+#include "execute.h"
+#include "nonblock.h"
 
 int downloadmanager(const struct cfgstruct *copt, const struct optstruct *opt, const char *hostname)
 {
@@ -148,8 +149,8 @@ int downloadmanager(const struct cfgstruct *copt, const struct optstruct *opt, c
     }
 #endif /* HAVE_RESOLV_H */
 
-    if(optl(opt, "localip")) {
-        localip = getargl(opt, "localip");
+    if(optl(opt, "local-address")) {
+        localip = getargl(opt, "local-address");
     } else if((cpt = cfgopt(copt, "LocalIPAddress"))) {
 	localip = cpt->strarg;
     }
@@ -266,7 +267,19 @@ int downloaddb(const char *localname, const char *remotename, const char *hostna
 	char  *tempname, ipaddr[16], *pt;
 	const char *proxy = NULL, *user = NULL, *pass = NULL;
 	int flevel = cl_retflevel();
+	int ctimeout; /* connect timeout in seconds */
+	int rtimeout; /* recv timeout in seconds */
 
+
+    if((cpt = cfgopt(copt, "ConnectTimeout")))
+	ctimeout = cpt->numarg;
+    else
+	ctimeout = CL_DEFAULT_CONNECTTIMEOUT;
+
+    if((cpt = cfgopt(copt, "ReceiveTimeout")))
+	rtimeout = cpt->numarg;
+    else
+	rtimeout = CL_DEFAULT_RECVTIMEOUT;
 
     if((current = cl_cvdhead(localname)) == NULL)
 	nodb = 1;
@@ -326,10 +339,11 @@ int downloaddb(const char *localname, const char *remotename, const char *hostna
     memset(ipaddr, 0, sizeof(ipaddr));
 
     if(!nodb && dbver == -1) {
+
 	if(ip[0]) /* use ip to connect */
-	    hostfd = wwwconnect(ip, proxy, port, ipaddr, localip);
+	    hostfd = wwwconnect(ip, proxy, port, ipaddr, localip, ctimeout);
 	else
-	    hostfd = wwwconnect(hostname, proxy, port, ipaddr, localip);
+	    hostfd = wwwconnect(hostname, proxy, port, ipaddr, localip, ctimeout);
 
 	if(hostfd < 0) {
             mprintf("@No servers could be reached. Giving up\n");
@@ -344,7 +358,7 @@ int downloaddb(const char *localname, const char *remotename, const char *hostna
 	if(!ip[0])
 	    strcpy(ip, ipaddr);
 
-	remote = remote_cvdhead(remotename, hostfd, hostname, proxy, user, pass, &ims);
+	remote = remote_cvdhead(remotename, hostfd, hostname, proxy, user, pass, &ims, rtimeout);
 
 	if(!nodb && !ims) {
 	    mprintf("%s is up to date (version: %d, sigs: %d, f-level: %d, builder: %s)\n", localname, current->version, current->sigs, current->fl, current->builder);
@@ -392,9 +406,9 @@ int downloaddb(const char *localname, const char *remotename, const char *hostna
 
     if(ipaddr[0]) {
 	/* use ipaddr in order to connect to the same mirror */
-	hostfd = wwwconnect(ipaddr, proxy, port, NULL, localip);
+	hostfd = wwwconnect(ipaddr, proxy, port, NULL, localip, ctimeout);
     } else {
-	hostfd = wwwconnect(hostname, proxy, port, ipaddr, localip);
+	hostfd = wwwconnect(hostname, proxy, port, ipaddr, localip, ctimeout);
 	if(!ip[0])
 	    strcpy(ip, ipaddr);
     }
@@ -413,7 +427,7 @@ int downloaddb(const char *localname, const char *remotename, const char *hostna
     tempname = cli_gentemp(".");
 
     mprintf("*Retrieving http://%s/%s\n", hostname, remotename);
-    if((ret = get_database(remotename, hostfd, tempname, hostname, proxy, user, pass))) {
+    if((ret = get_database(remotename, hostfd, tempname, hostname, proxy, user, pass, rtimeout))) {
         mprintf("@Can't download %s from %s (IP: %s)\n", remotename, hostname, ipaddr);
         unlink(tempname);
         free(tempname);
@@ -438,7 +452,7 @@ int downloaddb(const char *localname, const char *remotename, const char *hostna
     }
 
     if(current->version < dbver) {
-	mprintf("@Mirrors are not fully synchronized. Please try again later.\n");
+	logg("^Mirror %s is not synchronized.\n", ip);
     	cl_cvdfree(current);
 	unlink(tempname);
 	free(tempname);
@@ -482,7 +496,7 @@ int downloaddb(const char *localname, const char *remotename, const char *hostna
 
 /* this function returns socket descriptor */
 /* proxy support finshed by njh@bandsman.co.uk */
-int wwwconnect(const char *server, const char *proxy, int pport, char *ip, char *localip)
+int wwwconnect(const char *server, const char *proxy, int pport, char *ip, char *localip, int ctimeout)
 {
 	int socketfd = -1, port, i;
 	struct sockaddr_in name;
@@ -496,6 +510,17 @@ int wwwconnect(const char *server, const char *proxy, int pport, char *ip, char 
 	strcpy(ip, "???");
 
     name.sin_family = AF_INET;
+
+#ifdef PF_INET
+    socketfd = socket(PF_INET, SOCK_STREAM, 0);
+#else
+    socketfd = socket(AF_INET, SOCK_STREAM, 0);
+#endif
+
+    if(socketfd < 0) {
+	mprintf("@Can't create new socket\n");
+	return -1;
+    }
 
     if (localip) {
 	if ((he = gethostbyname(localip)) == NULL) {
@@ -585,6 +610,7 @@ int wwwconnect(const char *server, const char *proxy, int pport, char *ip, char 
 		break;
 	}
         mprintf("@Can't get information about %s: %s\n", hostpt, herr);
+	close(socketfd);
 	return -1;
     }
 
@@ -602,21 +628,15 @@ int wwwconnect(const char *server, const char *proxy, int pport, char *ip, char 
 	name.sin_addr = *((struct in_addr *) host->h_addr_list[i]);
 	name.sin_port = htons(port);
 
-#ifdef PF_INET
-	socketfd = socket(PF_INET, SOCK_STREAM, 0);
-#else
-	socketfd = socket(AF_INET, SOCK_STREAM, 0);
-#endif
-
-	if(connect(socketfd, (struct sockaddr *) &name, sizeof(struct sockaddr_in)) == -1) {
+	if(wait_connect(socketfd, (struct sockaddr *) &name, sizeof(struct sockaddr_in), ctimeout) == -1) {
 	    mprintf("Can't connect to port %d of host %s (IP: %s)\n", port, hostpt, ipaddr);
-	    close(socketfd);
 	    continue;
+	} else {
+	    return socketfd;
 	}
-
-	return socketfd;
     }
 
+    close(socketfd);
     return -2;
 }
 
@@ -628,7 +648,7 @@ int Rfc2822DateTime(char *buf, time_t mtime)
     return strftime(buf, 36, "%a, %d %b %Y %X GMT", time);
 }
 
-struct cl_cvd *remote_cvdhead(const char *file, int socketfd, const char *hostname, const char *proxy, const char *user, const char *pass, int *ims)
+struct cl_cvd *remote_cvdhead(const char *file, int socketfd, const char *hostname, const char *proxy, const char *user, const char *pass, int *ims, int rtimeout)
 {
 	char cmd[512], head[513], buffer[FILEBUFF], *ch, *tmp;
 	int i, j, bread, cnt;
@@ -691,7 +711,7 @@ struct cl_cvd *remote_cvdhead(const char *file, int socketfd, const char *hostna
 
     tmp = buffer;
     cnt = FILEBUFF;
-    while ((bread = recv(socketfd, tmp, cnt, 0)) > 0) {
+    while ((bread = wait_recv(socketfd, tmp, cnt, 0, rtimeout)) > 0) {
 	tmp+=bread;
 	cnt-=bread;
 	if (cnt <= 0) break;
@@ -717,9 +737,9 @@ struct cl_cvd *remote_cvdhead(const char *file, int socketfd, const char *hostna
 	*ims = 1;
     }
 
-    ch = buffer;
-    i = 0;
-    while (1) {
+    i = 3;
+    ch = buffer + i;
+    while(i < sizeof(buffer)) {
       if (*ch == '\n' && *(ch - 1) == '\r' && *(ch - 2) == '\n' && *(ch - 3) == '\r') {
 	ch++;
 	i++;
@@ -727,7 +747,12 @@ struct cl_cvd *remote_cvdhead(const char *file, int socketfd, const char *hostna
       }
       ch++;
       i++;
-    }  
+    }
+
+    if(sizeof(buffer) - i < 512) {
+	mprintf("@Malformed CVD header detected.\n");
+	return NULL;
+    }
 
     memset(head, 0, sizeof(head));
 
@@ -747,7 +772,7 @@ struct cl_cvd *remote_cvdhead(const char *file, int socketfd, const char *hostna
     return cvd;
 }
 
-int get_database(const char *dbfile, int socketfd, const char *file, const char *hostname, const char *proxy, const char *user, const char *pass)
+int get_database(const char *dbfile, int socketfd, const char *file, const char *hostname, const char *proxy, const char *user, const char *pass, int rtimeout)
 {
 	char cmd[512], buffer[FILEBUFF], *ch;
 	int bread, fd, i, rot = 0;
@@ -790,14 +815,18 @@ int get_database(const char *dbfile, int socketfd, const char *file, const char 
     sprintf(cmd, "GET %s/%s HTTP/1.1\r\n"
 	     "Host: %s\r\n%s"
 	     "User-Agent: "PACKAGE"/"VERSION"\r\n"
+#ifdef FRESHCLAM_NO_CACHE
 	     "Cache-Control: no-cache\r\n"
+#endif
 	     "Connection: close\r\n"
 	     "\r\n", (remotename != NULL)?remotename:"", dbfile, hostname, (authorization != NULL)?authorization:"");
 #else
     snprintf(cmd, sizeof(cmd), "GET %s/%s HTTP/1.1\r\n"
 	     "Host: %s\r\n%s"
 	     "User-Agent: "PACKAGE"/"VERSION"\r\n"
+#ifdef FRESHCLAM_NO_CACHE
 	     "Cache-Control: no-cache\r\n"
+#endif
 	     "Connection: close\r\n"
 	     "\r\n", (remotename != NULL)?remotename:"", dbfile, hostname, (authorization != NULL)?authorization:"");
 #endif
@@ -813,7 +842,7 @@ int get_database(const char *dbfile, int socketfd, const char *file, const char 
     while (1) {
       /* recv one byte at a time, until we reach \r\n\r\n */
 
-      if(recv(socketfd, buffer + i, 1, 0) == -1) {
+      if((i >= sizeof(buffer) - 1) || wait_recv(socketfd, buffer + i, 1, 0, rtimeout) == -1) {
         mprintf("@Error while reading database from %s\n", hostname);
         close(fd);
         unlink(file);
@@ -832,7 +861,7 @@ int get_database(const char *dbfile, int socketfd, const char *file, const char 
 
     /* check whether the resource actually existed or not */
 
-    if ((strstr(buffer, "HTTP/1.1 404")) != NULL) { 
+    if ((strstr(buffer, "HTTP/1.1 404")) != NULL || (strstr(buffer, "HTTP/1.0 404")) != NULL) { 
       mprintf("@%s not found on remote server\n", dbfile);
       close(fd);
       unlink(file);
@@ -841,7 +870,7 @@ int get_database(const char *dbfile, int socketfd, const char *file, const char 
 
     /* receive body and write it to disk */
 
-    while((bread = read(socketfd, buffer, FILEBUFF))) {
+    while((bread = wait_recv(socketfd, buffer, FILEBUFF, 0, rtimeout)) > 0) {
 	write(fd, buffer, bread);
 	mprintf("Downloading %s [%c]\r", dbfile, rotation[rot]);
 	fflush(stdout);

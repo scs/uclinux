@@ -35,10 +35,10 @@ install: $(PROGRAMS)
 	$(INSTALL) -m 755 $(PROGRAMS) $(DESTDIR)$(sbindir)
 
 brctl:	$(brctl_OBJECTS)
-	$(CC) $(brctl_OBJECTS) $(LIBS) -o brctl
+	$(CC) $(LDFLAGS) $(brctl_OBJECTS) $(LIBS) -o brctl
 
 brctld:	$(brctld_OBJECTS)
-	$(CC) $(brctld_OBJECTS) $(LIBS) -o brctld
+	$(CC) $(LDFLAGS) $(brctld_OBJECTS) $(LIBS) -o brctld
 
 %.o: %.c brctl.h
 	$(CC) $(CFLAGS) $(INCLUDE) -c $< 

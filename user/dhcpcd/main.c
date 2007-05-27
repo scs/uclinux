@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: main.c,v 1.15 2002/03/07 02:29:14 gerg Exp $
  *
  * dhcpcd - DHCP client daemon -
  * Copyright (C) 1996 - 1997 Yoichi Hariguchi <yoichi@fore.com>

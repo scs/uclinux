@@ -37,7 +37,7 @@
  *
  * #include <asterisk/cvsid.h>
  * #ifndef lint
- * CVSID("$Id$");
+ * CVSID("$Id: cvsid.h,v 1.2 2004/01/27 00:30:03 markster Exp $");
  * #endif
  *
  * You will then be able to run strings(1) on the resulting

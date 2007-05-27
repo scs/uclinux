@@ -238,6 +238,7 @@ void br_cmd_show(struct bridge *br, char *arg0, char *arg1)
 {
 //	printf("%s, %s\n", arg0?:"NULL", arg1?:"NULL");
 	printf("bridge name\tbridge id\t\tSTP enabled\tinterfaces\n");
+	br_make_bridge_list();
 	br = bridge_list;
 	while (br != NULL) {
 		if ((strcmp(arg0,br->ifname) == 0) || (strcmp(arg0,"ANY") ==0)) {
@@ -247,6 +248,13 @@ void br_cmd_show(struct bridge *br, char *arg0, char *arg1)
 			br_dump_interface_list(br);
 		}
 		br = br->next;
+	}
+
+	while (bridge_list) {
+		struct bridge *old;
+		old = bridge_list;
+		bridge_list = bridge_list->next;
+		br_nuke_bridge(old);
 	}
 }
 

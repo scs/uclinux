@@ -1,9 +1,6 @@
 /*
 
-$Log$
-Revision 1.1  2005/07/25 01:37:58  magicyang
-New user folder check in
-
+$Log: pitsyn.c,v $
 Revision 1.16  2004/06/26 03:50:14  markster
 Merge source cleanups (bug #1911)
 
@@ -48,10 +45,7 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
 
 /* 	PITSYN Version 53 */
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: pitsyn.c,v $
 /* Revision 1.16  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*
@@ -166,10 +160,7 @@ extern int pitsyn_(integer *order, integer *voice, integer *pitch, real *rms, re
     real xxy;
 
 /*       Arguments */
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: pitsyn.c,v $
 /* Revision 1.16  2004/06/26 03:50:14  markster
 /* Merge source cleanups (bug #1911)
 /*

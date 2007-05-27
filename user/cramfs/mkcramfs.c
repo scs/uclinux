@@ -3,7 +3,7 @@
  *
  * Copyright (C) 1999-2001 Transmeta Corporation
  *
- * 28 May 2002 - added '@name,[cubp],maj,min' soecial files and '-r' option
+ * 28 May 2002 - added '@name,[cubp],maj,min' special files and '-r' option
  *               David McCullough <davidm@snapgear.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -38,7 +38,7 @@
 
 #define PAD_SIZE 512		/* only 0 and 512 supported by kernel */
 
-#define NODE_PATTERN "@%[a-zA-Z0-9],%c,%d,%d" /* sscanf string for specials */
+#define NODE_PATTERN "@%[a-zA-Z0-9_+-],%c,%d,%d" /* sscanf string for specials */
 
 static const char *progname = "mkcramfs";
 
@@ -59,6 +59,7 @@ static void usage(int status)
 		" -s         sort directory entries (old option, ignored)\n"
 		" -z         make explicit holes (requires >= 2.3.39)\n"
 		" -r         force root uid/gid on all files\n"
+		" -v         verbose output\n"
 		" dirname    root of the filesystem to be compressed\n"
 		" outfile    output file\n", progname, PAD_SIZE);
 
@@ -84,6 +85,7 @@ static int opt_errors = 0;
 static int opt_holes = 0;
 static int opt_pad = 0;
 static int opt_force_root = 0;
+static int opt_verbose = 0;
 static char *opt_image = NULL;
 static char *opt_name = NULL;
 
@@ -470,7 +472,9 @@ static unsigned int write_directory_structure(struct entry *entry, char *base, u
 			   Most filesystems use UTF8 encoding for filenames,
 			   whereas the console is a single-byte character
 			   set like iso-latin-1. */
-			printf("  %s\n", entry->name);
+			if (opt_verbose) {
+				printf("  %s\n", entry->name);
+			}
 			if (entry->child) {
 				if (stack_entries >= MAXENTRIES) {
 					fprintf(stderr, "Exceeded MAXENTRIES.  Raise this value in mkcramfs.c and recompile.  Exiting.\n");
@@ -507,7 +511,9 @@ static unsigned int write_directory_structure(struct entry *entry, char *base, u
 		entry = entry_stack[stack_entries];
 
 		set_data_offset(entry, base, offset);
-		printf("'%s':\n", entry->name);
+		if (opt_verbose) {
+			printf("'%s':\n", entry->name);
+		}
 		entry = entry->child;
 	}
 	return offset;
@@ -571,7 +577,7 @@ static unsigned int do_compress(char *base, unsigned int offset, char const *nam
 			exit(8);
 		}
 
-		*(__u32 *) (base + offset) = curr;
+		*(u32 *) (base + offset) = curr;
 		offset += 4;
 	} while (size);
 
@@ -581,8 +587,10 @@ static unsigned int do_compress(char *base, unsigned int offset, char const *nam
 	   st_blocks * 512.  But if you say that then perhaps
 	   administrative data should also be included in both. */
 	change = new_size - original_size;
-	printf("%6.2f%% (%+d bytes)\t%s\n",
-	       (change * 100) / (double) original_size, change, name);
+	if (opt_verbose) {
+		printf("%6.2f%% (%+d bytes)\t%s\n",
+			   (change * 100) / (double) original_size, change, name);
+	}
 
 	return curr;
 }
@@ -666,7 +674,7 @@ int main(int argc, char **argv)
 	/* initial guess (upper-bound) of required filesystem size */
 	loff_t fslen_ub = sizeof(struct cramfs_super);
 	char const *dirname, *outfile;
-	__u32 crc = crc32(0L, Z_NULL, 0);
+	u32 crc = crc32(0L, Z_NULL, 0);
 	int c;			/* for getopt */
 
 	total_blocks = 0;
@@ -675,12 +683,15 @@ int main(int argc, char **argv)
 		progname = argv[0];
 
 	/* command line options */
-	while ((c = getopt(argc, argv, "hEe:i:n:pszr")) != EOF) {
+	while ((c = getopt(argc, argv, "vhEe:i:n:pszr")) != EOF) {
 		switch (c) {
 		case 'h':
 			usage(0);
 		case 'E':
 			opt_errors = 1;
+			break;
+		case 'v':
+			opt_verbose = 1;
 			break;
 		case 'e':
 			opt_edition = atoi(optarg);

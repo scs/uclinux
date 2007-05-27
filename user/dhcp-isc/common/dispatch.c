@@ -470,12 +470,22 @@ void discover_interfaces (state)
 
 		/* We must have a subnet declaration for each interface. */
 		if (!tmp -> shared_network && (state == DISCOVER_SERVER)) {
-			warn ("No subnet declaration for %s (%s).",
-			      tmp -> name, inet_ntoa (foo.sin_addr));
-			warn ("Please write a subnet declaration in your %s",
-			      "dhcpd.conf file for the");
-			error ("network segment to which interface %s %s",
-			       tmp -> name, "is attached.");
+			/* But if no IP address has been assigned yet, indicate this
+			 * condition explicitly
+			 */
+			if (!foo.sin_addr.s_addr) {
+				warn ("Interface %s does not yet have an address assigned, exiting", tmp->name);
+                cleanup ();
+                exit (1);
+			}
+			else {
+				warn ("No subnet declaration for %s (%s).",
+					  tmp -> name, inet_ntoa (foo.sin_addr));
+				warn ("Please write a subnet declaration in your %s",
+					  "dhcpd.conf file for the");
+				error ("network segment to which interface %s %s",
+					   tmp -> name, "is attached.");
+			}
 		}
 
 		/* Find subnets that don't have valid interface

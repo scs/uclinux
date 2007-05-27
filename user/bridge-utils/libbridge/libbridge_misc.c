@@ -19,8 +19,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/time.h>
 #include <asm/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <sys/ioctl.h>
 #include "libbridge.h"
 #include "libbridge_private.h"
 
@@ -52,10 +57,30 @@ char *br_get_state_name(int state)
 	return "<INVALID STATE>";
 }
 
+
+int br_get_index(char *brname);
+
 struct bridge *br_find_bridge(char *brname)
 {
 	struct bridge *b;
+	int index;
 
+	index = br_get_index(brname);
+
+	if (index < 0) {
+		fprintf(stderr, "Couldn't get bridge index");
+		return NULL;
+	}
+
+	b = br_create_bridge_by_index(index);
+
+	if (b == NULL) {
+		fprintf(stderr, "Coudn't build bridge structure\n");
+	}
+
+	return b;
+
+#if 0
 	b = bridge_list;
 	while (b != NULL) {
 		if (!strcmp(b->ifname, brname))
@@ -63,6 +88,7 @@ struct bridge *br_find_bridge(char *brname)
 
 		b = b->next;
 	}
+#endif
 
 	return NULL;
 }
@@ -84,4 +110,31 @@ struct port *br_find_port(struct bridge *br, char *portname)
 	}
 
 	return NULL;
+}
+
+int br_get_index(char *brname)
+{
+	struct ifreq ifr;
+
+	int fd = socket(PF_INET, SOCK_DGRAM, 0);
+
+	if (fd < 0) {
+		fprintf(stderr, "Couldn't get socket");
+		return -1;
+	}
+
+	bzero(&ifr, sizeof(ifr));
+
+	ifr.ifr_addr.sa_family = AF_INET;
+
+	strlcpy(ifr.ifr_name, brname, sizeof(ifr.ifr_name));
+
+	if (ioctl(fd, SIOCGIFINDEX, &ifr) < 0) {
+		close(fd);
+		fprintf(stderr, "Couldn't get ioctl");
+		return -1;
+	}
+
+	close(fd);
+	return ifr.ifr_ifindex;
 }

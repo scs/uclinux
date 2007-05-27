@@ -7,7 +7,7 @@
  *
  * Tilghman Lesher <app_cut__v003@the-tilghman.com>
  *
- * $Id$
+ * $Id: app_cut.c,v 1.6 2004/07/14 07:22:30 markster Exp $
  *
  * This code is released by the author with no restrictions on usage.
  *

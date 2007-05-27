@@ -1204,7 +1204,7 @@ void dhcp_reply (lease)
 	int result;
 	int i;
 	struct lease_state *state = lease -> state;
-	int nulltp, bootpp;
+	int nulltp, bootpp, unicastp = 1;
 	u_int8_t *prl;
 	int prl_len;
 
@@ -1392,13 +1392,15 @@ void dhcp_reply (lease)
 	} else {
 		to.sin_addr.s_addr = htonl (INADDR_BROADCAST);
 		to.sin_port = remote_port;
+		unicastp = 0;
 	}
 
 	memcpy (&from, state -> from.iabuf, sizeof from);
 
 	result = send_packet (state -> ip,
 			      (struct packet *)0, &raw, packet_length,
-			      from, &to, &hto);
+			      from, &to, 
+				  unicastp ? &hto : (struct hardware *)0);
 
 	free_lease_state (state, "dhcp_reply");
 	lease -> state = (struct lease_state *)0;

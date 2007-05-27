@@ -8,7 +8,7 @@ FLTFLAGS += -s 12288
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBUTIL)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)

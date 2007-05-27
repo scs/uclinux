@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile.org,v 1.1.1.1 1999/11/22 03:47:59 christ Exp $
 
 TARGET=	dhcpcd
 BINDIR= /usr/sbin

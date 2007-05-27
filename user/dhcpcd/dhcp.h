@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: dhcp.h,v 1.4 2001/09/07 05:33:18 davidm Exp $
  *
  * dhcpcd - DHCP client daemon -
  * Copyright (C) 1996 - 1997 Yoichi Hariguchi <yoichi@fore.com>

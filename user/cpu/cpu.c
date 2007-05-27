@@ -85,7 +85,7 @@ int main(int argc, char *argv[])
 	int		c, cnt, repeat, delay, average, idle;
 	char		*procdevice;
 	struct timeval	start, stop;
-	double idletotal = -1.00, idlediff;
+	double 		idletotal = -1.00, idlediff;
 	unsigned int	timediff, idlecount=0, idlepercent;
 	struct sigaction sa;
 
@@ -179,6 +179,11 @@ int main(int argc, char *argv[])
 		getdata(fp, &st);
 
 		curtotal = st.total - stold.total;
+		if (curtotal == 0) {
+			/* Hmm, new stats same as old stats?? */
+			continue;
+		}
+
 		if (idle) {
 			timediff = (stop.tv_sec - start.tv_sec)*1000000
 				+ stop.tv_usec - start.tv_usec;

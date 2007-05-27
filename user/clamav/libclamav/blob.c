@@ -296,14 +296,17 @@ blobcmp(const blob *b1, const blob *b2)
 	return memcmp(blobGetData(b1), blobGetData(b2), s1);
 }
 
-void
+/*
+ * Return clamav return code
+ */
+int
 blobGrow(blob *b, size_t len)
 {
 	assert(b != NULL);
 	assert(b->magic == BLOBCLASS);
 
 	if(len == 0)
-		return;
+		return 0;
 
 	if(b->isClosed) {
 		/*
@@ -328,6 +331,8 @@ blobGrow(blob *b, size_t len)
 			b->data = ptr;
 		}
 	}
+
+	return (b->data) ? 0 : CL_EMEM;
 }
 
 fileblob *
@@ -405,7 +410,7 @@ fileblobSetFilename(fileblob *fb, const char *dir, const char *filename)
 		(int)(sizeof(fullname) - 9 - strlen(dir)), filename);
 #endif
 
-#if	defined(C_LINUX) || defined(C_BSD) || defined(HAVE_MKSTEMP) || defined(C_SOLARIS) || defined(C_CYGWIN) || defined(C_QNX6)
+#if    defined(C_LINUX) || defined(C_BSD) || defined(HAVE_MKSTEMP) || defined(C_SOLARIS) || defined(C_CYGWIN) || defined(C_QNX6) || defined(C_KFREEBSD_GNU)
 	cli_dbgmsg("fileblobSetFilename: mkstemp(%s)\n", fullname);
 	fd = mkstemp(fullname);
 #else

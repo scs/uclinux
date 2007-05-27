@@ -1,9 +1,6 @@
 /*
 
-$Log$
-Revision 1.1  2005/07/25 01:37:58  magicyang
-New user folder check in
-
+$Log: lpcini.c,v $
 Revision 1.18  2003/10/21 18:08:11  markster
 Fix include order
 
@@ -58,10 +55,7 @@ struct {
 
 /* ***************************************************************** */
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: lpcini.c,v $
 /* Revision 1.18  2003/10/21 18:08:11  markster
 /* Fix include order
 /*
@@ -99,10 +93,7 @@ struct {
 /* Subroutine */ int lpcini_(void)
 {
 
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: lpcini.c,v $
 /* Revision 1.18  2003/10/21 18:08:11  markster
 /* Fix include order
 /*
@@ -140,10 +131,7 @@ struct {
 
 /*   LPC Configuration parameters: */
 /* Frame size, Prediction order, Pitch period */
-/* $Log$
- * Revision 1.1  2005/07/25 01:37:58  magicyang
- * New user folder check in
- *
+/* $Log: lpcini.c,v $
 /* Revision 1.18  2003/10/21 18:08:11  markster
 /* Fix include order
 /*

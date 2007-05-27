@@ -345,7 +345,7 @@ void maybe_setup_fallback ()
 	fbi = setup_fallback ();
 	if (fbi) {
 		if_register_fallback (fbi);
-		add_protocol ("fallback", fallback_interface -> wfdesc,
+		add_protocol ("fallback", fallback_interface -> fbdesc,
 			      fallback_discard, fallback_interface);
 	}
 }

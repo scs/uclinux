@@ -14,7 +14,7 @@ int impulse_init_time = 0;
 int impulse_time = 0;
 int impulse_fuzz = 0;
 
-static void del_connection(FW_Connection *);
+void del_connection(FW_Connection *);
 
 /*
  * Initialize the units.
@@ -219,7 +219,7 @@ static void add_connection(
  * Get a connection out of a queue.
  */
 
-static void del_connection(FW_Connection *c)
+void del_connection(FW_Connection *c)
 {
     if (debug&DEBUG_CONNECTION_QUEUE)
 	syslog(LOG_INFO,"Deleting connection %d @ %ld",(int)c,time(0));
@@ -229,7 +229,7 @@ static void del_connection(FW_Connection *c)
     free(c);
 }
 
-static void del_impulse(FW_unit *unit)
+void del_impulse(FW_unit *unit)
 {
 
     if (unit->impulse_mode) {
@@ -466,13 +466,10 @@ int check_firewall(int unitnum, unsigned char *pkt, int len)
     FW_Connection *conn;
     struct iphdr * ip_pkt = (struct iphdr *)pkt;
 
-    block_timer();
-
     if (!initialized) init_units();
 
     if (unitnum < 0 || unitnum >= FW_NRUNIT) {
 	/* FIXME: set an errorno? */
-	unblock_timer();
 	return -1;
     }
 
@@ -490,7 +487,6 @@ int check_firewall(int unitnum, unsigned char *pkt, int len)
     }
 
     if (pprule == 0) {
-	unblock_timer();
 	return -1;	/* No protocol rules? */
     }
 
@@ -614,7 +610,6 @@ int check_firewall(int unitnum, unsigned char *pkt, int len)
 		goto next_rule;
 	}
 
-	unblock_timer();
 	/* Return 1 if accepting rule with non zero timeout, 0 otherwise */
 	return ((fw->filt.type != FW_TYPE_IGNORE || fw->filt.type != FW_TYPE_WAIT) && fw->filt.timeout > 0);
 
@@ -625,7 +620,6 @@ next_rule: /* try the next filter */
     /* Failed to match any rule. This means we ignore the packet */
     if (debug&DEBUG_FILTER_MATCH)
         log_packet(0,ip_pkt,len,0);
-    unblock_timer();
     return 1;
 }
 
