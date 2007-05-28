@@ -1,0 +1,107 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+set case_num 0
+incr case_num
+
+sleep 5
+send "\r"
+
+send "modprobe bfin_ad7171fb\r"
+while 1 {
+   expect {
+      "bfin_ad7171_fb: initializing*fb memory address : 0x*" {
+         case_pass $case_num
+         break
+      }
+
+      timeout {
+         case_fail $case_num
+         exit
+         }
+     }
+}
+expect ">"
+
+set timeout 15
+incr case_num
+send "video_test \r"
+expect "\r"
+while 1 {
+   expect {
+     -re "\[a-zA-Z0-9]" {
+         case_fail $case_num
+         exit
+      }
+
+      timeout {
+         send -s "\3"
+         expect ">"
+         case_pass $case_num
+         break
+         }
+     }
+}
+
+
+incr case_num
+send "rmmod bfin_ad7171fb\r"
+expect "\r"
+while 1 {
+   expect {
+     -re ">" {
+         case_pass $case_num
+         break
+      }
+
+      timeout {
+         case_fail $case_num
+         exit
+         }
+     }
+}
+incr case_num
+send "lsmod\r" 
+while 1 {
+   expect {
+     -re ">" {
+         case_pass $case_num
+         break
+      }
+
+     "bfin_ad7171fb" {
+         case_fail $case_num
+         exit
+         }
+
+      timeout {
+         case_fail $case_num
+         exit
+         }
+     }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
