@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10857);
- script_cve_id("CAN-2002-0013");
- script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2002-0013");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "SNMP bad length field DoS";
  script_name(english:name["english"]);
@@ -40,7 +40,7 @@ Risk factor : High";
 		francais:"Ce script est Copyright (C) 2002 Renaud Deraison");
  family["english"] = "Denial of Service";
  script_family(english:family["english"]);
- script_dependencie("snmp_default_communities.nasl");
+ script_dependencie("snmp_settings.nasl");
  script_require_keys("SNMP/community");
  exit(0);
 }

@@ -67,37 +67,7 @@
 #define DETECTION_KEYWORD 0
 #define RESPONSE_KEYWORD 1
 
-/*
-**  Preprocessor Communication Defines
-**  ----------------------------------
-**  These defines allow preprocessors to be turned
-**  on and off for each packet.  Preprocessors can be
-**  turned off and on before preprocessing occurs and
-**  during preprocessing.
-**
-**  Currently, the order in which the preprocessors are
-**  placed in the snort.conf determine the order of 
-**  evaluation.  So if one module wants to turn off
-**  another module, it must come first in the order.
-*/
-#define PP_ALL                    -1
-#define PP_LOADBALANCING          1
-#define PP_PORTSCAN               2
-#define PP_HTTPINSPECT            4
-#define PP_PORTSCAN_IGNORE_HOSTS  8
-#define PP_RPCDECODE              16
-#define PP_BO                     32
-#define PP_TELNEG                 64
-#define PP_STREAM4                128
-#define PP_FRAG2                  256
-#define PP_ARPSPOOF               512
-#define PP_ASN1DECODE             1024
-#define PP_FNORD                  2048
-#define PP_CONVERSATION           4096
-#define PP_PORTSCAN2              8192
-#define PP_HTTPFLOW               16384
-#define PP_PERFMONITOR            32768
-#define PP_STREAM4_REASSEMBLE    65536
+#include "preprocids.h"
 
 /**************************** Detection Plugin API ****************************/
 
@@ -143,16 +113,45 @@ typedef struct _PreprocessKeywordList
 
 typedef struct _PreprocessFuncNode
 {
-    void (*func)(Packet *);
+    void *context;
+    void (*func)(Packet *, void *);
     struct _PreprocessFuncNode *next;
-
+    unsigned short priority;
+    unsigned int preproc_id;
+    unsigned int preproc_bit;
 } PreprocessFuncNode;
 
 void InitPreprocessors();
 void RegisterPreprocessor(char *, void (*func)(u_char *));
 void DumpPreprocessors();
-void AddFuncToPreprocList(void (*func)(Packet *));
+void MapPreprocessorIds();
+PreprocessFuncNode *AddFuncToPreprocList(void (*func)(Packet *, void *), unsigned short, unsigned int);
+int IsPreprocBitSet(Packet *p, unsigned int preproc_bit);
+int SetPreprocBit(Packet *p, unsigned int preproc_bit);
 
+void CheckPreprocessorsConfig();
+
+typedef struct _PreprocessCheckConfigNode
+{
+    void (*func)(void);
+    struct _PreprocessCheckConfigNode *next;
+} PreprocessCheckConfigNode;
+
+PreprocessCheckConfigNode *AddFuncToConfigCheckList(void (*func)(void));
+
+typedef struct _PreprocSignalFuncNode
+{
+    void (*func)(int, void*);
+    void *arg;
+    struct _PreprocSignalFuncNode *next;
+    unsigned short priority;
+    unsigned int preproc_id;
+} PreprocSignalFuncNode;
+
+void AddFuncToPreprocRestartList(void (*func)(int, void*), void*, unsigned short, unsigned int);
+void AddFuncToPreprocCleanExitList(void (*func)(int, void*), void*, unsigned short, unsigned int);
+void AddFuncToPreprocShutdownList(void (*func)(int, void*), void*, unsigned short, unsigned int);
+PreprocSignalFuncNode *AddFuncToPreprocSignalList(void (*func)(int, void*), void*, PreprocSignalFuncNode *, unsigned short, unsigned int);
 /*************************** End Preprocessor API *****************************/
 
 typedef struct _PluginSignalFuncNode
@@ -160,7 +159,6 @@ typedef struct _PluginSignalFuncNode
     void (*func)(int, void*);
     void *arg;
     struct _PluginSignalFuncNode *next;
-
 } PluginSignalFuncNode;
 
 int PacketIsIP(Packet *);
@@ -173,10 +171,11 @@ int IsTcpSessionTraffic(Packet *);
 int CheckNet(struct in_addr *, struct in_addr *);
 void AddFuncToRestartList(void (*func)(int, void*), void*);
 void AddFuncToCleanExitList(void (*func)(int, void*), void*);
+void AddFuncToShutdownList(void (*func)(int, void*), void*);
+void AddFuncToPostConfigList(void (*func)(int, void *), void *);
 PluginSignalFuncNode *AddFuncToSignalList(void (*func)(int, void*), void*, PluginSignalFuncNode *);
 
-
-
+void PostConfigInitPlugins();
 
 #define ENCODING_HEX 0
 #define ENCODING_BASE64 1
@@ -201,9 +200,6 @@ char *base64(u_char *, int);
 char *ascii(u_char *, int);
 char *hex(u_char *, int);
 char *fasthex(u_char *, int);
-char *int2s(int);
-char *hex2s(int);
-char *str2s(char *);
 /**********************************************************/
 
 #endif /* __PLUGBASE_H__ */

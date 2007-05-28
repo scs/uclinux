@@ -153,7 +153,7 @@ storeAufsClose(SwapDir * SD, storeIOState * sio)
 
 /* Read */
 void
-storeAufsRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t offset, STRCB * callback, void *callback_data)
+storeAufsRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, squid_off_t offset, STRCB * callback, void *callback_data)
 {
     squidaiostate_t *aiostate = (squidaiostate_t *) sio->fsstate;
     assert(sio->read.callback == NULL);
@@ -167,7 +167,7 @@ storeAufsRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t of
 	q = memPoolAlloc(aufs_qread_pool);
 	q->buf = buf;
 	q->size = size;
-	q->offset = offset;
+	q->offset = (off_t) offset;
 	q->callback = callback;
 	q->callback_data = callback_data;
 	cbdataLock(q->callback_data);
@@ -183,10 +183,10 @@ storeAufsRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t of
     sio->offset = offset;
     aiostate->flags.reading = 1;
 #if ASYNC_READ
-    aioRead(aiostate->fd, offset, size, storeAufsReadDone, sio);
+    aioRead(aiostate->fd, (off_t) offset, size, storeAufsReadDone, sio);
     statCounter.syscalls.disk.reads++;
 #else
-    file_read(aiostate->fd, buf, size, offset, storeAufsReadDone, sio);
+    file_read(aiostate->fd, buf, size, (off_t) offset, storeAufsReadDone, sio);
     /* file_read() increments syscalls.disk.reads */
 #endif
 }
@@ -194,7 +194,7 @@ storeAufsRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t of
 
 /* Write */
 void
-storeAufsWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t offset, FREE * free_func)
+storeAufsWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, squid_off_t offset, FREE * free_func)
 {
     squidaiostate_t *aiostate = (squidaiostate_t *) sio->fsstate;
     debug(79, 3) ("storeAufsWrite: dirno %d, fileno %08X, FD %d\n",
@@ -206,7 +206,7 @@ storeAufsWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t o
 	q = memPoolAlloc(aufs_qwrite_pool);
 	q->buf = buf;
 	q->size = size;
-	q->offset = offset;
+	q->offset = (off_t) offset;
 	q->free_func = free_func;
 	linklistPush(&(aiostate->pending_writes), q);
 	return;
@@ -218,17 +218,17 @@ storeAufsWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t o
 	q = memPoolAlloc(aufs_qwrite_pool);
 	q->buf = buf;
 	q->size = size;
-	q->offset = offset;
+	q->offset = (off_t) offset;
 	q->free_func = free_func;
 	linklistPush(&(aiostate->pending_writes), q);
 	return;
     }
     aiostate->flags.writing = 1;
-    aioWrite(aiostate->fd, offset, buf, size, storeAufsWriteDone, sio,
+    aioWrite(aiostate->fd, (off_t) offset, buf, size, storeAufsWriteDone, sio,
 	free_func);
     statCounter.syscalls.disk.writes++;
 #else
-    file_write(aiostate->fd, offset, buf, size, storeAufsWriteDone, sio,
+    file_write(aiostate->fd, (off_t) offset, buf, size, storeAufsWriteDone, sio,
 	free_func);
     /* file_write() increments syscalls.disk.writes */
 #endif
@@ -330,7 +330,7 @@ storeAufsReadDone(int fd, const char *buf, int len, int errflag, void *my_data)
 	debug(79, 3) ("storeAufsReadDone: got failure (%d)\n", errflag);
 	rlen = -1;
     } else {
-	rlen = (ssize_t) len;
+	rlen = len;
 	sio->offset += len;
     }
 #if ASYNC_READ
@@ -393,18 +393,29 @@ storeAufsWriteDone(int fd, int errflag, size_t len, void *my_data)
     }
     sio->offset += len;
 #if ASYNC_WRITE
-    if (!storeAufsKickWriteQueue(sio))
+    if (storeAufsKickWriteQueue(sio))
 	(void) 0;
     else if (aiostate->flags.close_request)
 	storeAufsIOCallback(sio, errflag);
 #else
+    /* loop around storeAufsKickWriteQueue to break recursion stack
+     * overflow when large amounts of data has been queued for write.
+     * As writes are blocking here we immediately get called again
+     * without going via the I/O event loop..
+     */
     if (!aiostate->flags.write_kicking) {
+	/* cbdataLock to protect us from the storeAufsIOCallback on error above */
+	cbdataLock(sio);
 	aiostate->flags.write_kicking = 1;
 	while (storeAufsKickWriteQueue(sio))
-	    (void) 0;
-	aiostate->flags.write_kicking = 0;
-	if (aiostate->flags.close_request)
-	    storeAufsIOCallback(sio, errflag);
+	    if (!cbdataValid(sio))
+		break;
+	if (cbdataValid(sio)) {
+	    aiostate->flags.write_kicking = 0;
+	    if (aiostate->flags.close_request)
+		storeAufsIOCallback(sio, errflag);
+	}
+	cbdataUnlock(sio);
     }
 #endif
     loop_detect--;
@@ -433,8 +444,13 @@ storeAufsIOCallback(storeIOState * sio, int errflag)
     if (fd < 0)
 	return;
     debug(79, 9) ("%s:%d\n", __FILE__, __LINE__);
+#if ASYNC_CLOSE
     aioClose(fd);
     fd_close(fd);
+#else
+    aioCancel(fd);
+    file_close(fd);
+#endif
     store_open_disk_fd--;
     statCounter.syscalls.disk.closes++;
     debug(79, 9) ("%s:%d\n", __FILE__, __LINE__);

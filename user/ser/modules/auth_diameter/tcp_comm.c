@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: tcp_comm.c,v 1.1.2.2 2003/11/13 18:36:47 andrei Exp $
  *
  * Digest Authentication - Diameter support
  *

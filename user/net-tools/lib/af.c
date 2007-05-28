@@ -2,7 +2,7 @@
  * lib/af.c   This file contains the top-level part of the protocol
  *              support functions module for the NET-2 base distribution.
  *
- * Version:     $Id$
+ * Version:     $Id: af.c,v 1.13 2000/05/20 13:38:10 pb Exp $
  *
  * Author:      Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
  *              Copyright 1993 MicroWalt Corporation

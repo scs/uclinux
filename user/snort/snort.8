@@ -2,11 +2,11 @@
 .\" groff -man -Tascii snort.8
 .\"
 .\" $Id$
-.TH SNORT 8 "July 2001" 
+.TH SNORT 8 "January 2006" 
 .SH NAME
 Snort \- open source network intrusion detection system
 .SH SYNOPSIS
-.B snort [-bCdDeGINoOpqsTUvVxXyz?] [-A
+.B snort [-bCdDeEfIMNoOpqQsTUvVwWXy?] [-A
 .I alert-mode
 .B ] [-B
 .I address-conversion-mask
@@ -16,12 +16,18 @@ Snort \- open source network intrusion detection system
 .I bpf-file
 .B ] [-g
 .I grpname
+.B ] [-G
+.I id
 .B ] [-h
 .I home-net
 .B ] [-i
 .I interface
+.B ] [-J
+.I port
 .B ] [-k
 .I checksum-mode
+.B ] [-K
+.I logging-mode
 .B ] [-l
 .I log-dir
 .B ] [-L
@@ -34,12 +40,50 @@ Snort \- open source network intrusion detection system
 .I snap-length 
 .B ] [-r
 .I tcpdump-file
+.B ] [-R
+.I name
 .B ] [-S
 .I variable=value
 .B ] [-t
 .I chroot_directory
 .B ] [-u
 .I usrname
+.B ] [-Z
+.I pathname
+.B ] [--logid
+.I id
+.B ] [--perfmon-file
+.I pathname
+.B ] [--pid-path
+.I pathname
+.B ] [--snaplen
+.I snap-length 
+.B ] [--help
+.B ] [--dynamic-engine-lib
+.I file
+.B ] [--dynamic-engine-lib-dir
+.I directory
+.B ] [--dynamic-detection-lib
+.I file
+.B ] [--dynamic-detection-lib-dir
+.I directory
+.B ] [--dump-dynamic-rules
+.I directory
+.B ] [--dynamic-preprocessor-lib
+.I file
+.B ] [--dynamic-preprocessor-lib-dir
+.I directory
+.B ] [--dump-dynamic-preproc-genmsg
+.I directory
+.B ] [--alert-before-pass
+.B ] [--treat-drop-as-alert
+.B ] [--process-all-events
+.B ] [--pid-path
+.I directory
+.B ] [--create-pidfile
+.B ] [--nolock-pidfile
+.B ] [--disable-inline-initialization
+.B ]
 .B ]
 .I expression
 .SH DESCRIPTION
@@ -116,6 +160,11 @@ Run Snort in daemon mode.  Alerts are sent to /var/log/snort/alert unless
 otherwise specified.
 .IP -e
 Display/log the link layer packet headers.
+.IP -E
+.B *WIN32 ONLY*
+Log alerts to the Windows Event Log.
+.IP -f
+Activate PCAP line buffering
 .IP "-F bpf-file"
 Read BPF filters from 
 .I bpf-file.
@@ -127,6 +176,9 @@ Change the group/GID Snort runs under to
 .I group
 after initialization.  This switch allows Snort to drop root priveleges after 
 it's initialization phase has completed as a security measure.
+.IP "-G id"
+Use id as a base event ID when logging events.  Useful for distinguishing
+events logged to the same database from multiple snort instances.
 .IP "-h home-net"
 Set the "home network" to 
 .I home-net.
@@ -142,6 +194,9 @@ Sniff packets on
 .I interface.
 .IP "-I"
 Print out the receiving interface name in alerts.
+.IP "-J port"
+Use port to read packets when running inline mode on system with divert
+socket.  
 .IP "-k checksum-mode"
 Tune the internal checksum verification functionality with
 .I alert-mode.
@@ -163,6 +218,19 @@ turns off UDP checksum verification.
 turns off ICMP checksum verification. 
 .B None
 turns off the entire checksum verification subsystem.
+.IP "-K logging-mode"
+Select a packet logging mode.  The default is pcap.
+.I logging-mode.
+Valid logging modes include 
+.B pcap, ascii,
+and
+.B none.
+.B Pcap 
+logs packets through the pcap library into pcap (tcpdump) format.
+.B Ascii 
+logs packets in the old "directories and files" format with packet printouts in each file.
+.B None
+Turns off packet logging.
 .IP "-l log-dir"
 Set the output logging directory to 
 .I log-dir.
@@ -176,6 +244,9 @@ the file is created plus "snort.log".
 .IP "-m umask"
 Set the file mode creation mask to 
 .I umask
+.IP "-M"
+Log console messages to syslog when not running daemon mode.  This switch
+has no impact on logging of alerts.
 .IP "-n packet-count"
 Process 
 .I packet-count
@@ -200,6 +271,8 @@ Set the packet snaplen to
 .  By default, this is set to 1514.
 .IP "-q"
 Quiet operation.  Don't display banner and initialization information.
+.IP "-Q"
+Read packets from iptables/IPQ (Linux only) when running in-line mode.
 .IP "-r tcpdump-file"
 Read the tcpdump-formatted file 
 .I tcpdump-file.
@@ -207,6 +280,8 @@ This will cause Snort to read and process the file fed to it.  This is
 useful if, for instance, you've got a bunch of SHADOW files that you want to 
 process for content, or even if you've got a bunch of reassembled packet
 fragments which have been written into a tcpdump formatted file.
+.IP "-R name"
+Use name as a suffix to the snort pidfile.
 .IP -s
 Send alert messages to syslog.  On linux boxen, they will appear in
 /var/log/secure, /var/log/messages on many other platforms.
@@ -245,24 +320,68 @@ use the '-v' switch, you
 drop packets.
 .IP -V
 Show the version number and exit.
+.IP "-w"
+Show management frames if runnong on an 802.11 (wireless) network.
+.IP "-W"
+.B *WIN32 ONLY*
+Enumerate the network interfaces available.
 .IP -X
 Dump the raw packet data starting at the link layer.  This switch overrides the
 '-d' switch.
 .IP -y
 Include the year in alert and log files
-.IP -z
-The -z switch is used in concert with the stream4 preprocessor code.  It takes 
-advantage of stream4's stateful inspection capabilities to reduce the amount of
-spoofing that may be done against Snort.  By default, snort doesn't worry
-about the TCP state of a packet when it's about to issue an alert.  The -z 
-switch tells Snort to only allow alerts to be generated for packets that are 
-.B part of a known, established session.
-This allows Snort to greatly reduce the effect of anti-NIDS tools like
-.B stick 
-and
-.B snot.
+.IP "-Z pathname"
+Set the perfmonitor preprocessor path/filename to pathname.
 .IP -?
 Show the program usage statement and exit.
+.IP "--logid id"
+Same as -G.
+.IP "--perfmon-file pathname"
+Same as -Z.
+.IP "--pid-path pathname"
+Specify the pathname for the Snort PID file.
+.IP "--snaplen snap-length"
+Same as -P.
+.IP "--help"
+Same as -?
+.IP "--dynamic-engine-lib file"
+Load a dynamic detection engine shared library specified by file.
+.IP "--dynamic-engine-lib-dir directory"
+Load all dynamic detection engine shared libraries specified from directory.
+.IP "--dynamic-detection-lib file"
+Load a dynamic detection rules shared library specified by file.
+.IP "--dynamic-detection-lib-dir directory"
+Load all dynamic detection rules shared libraries specified from directory.
+.IP "--dump-dynamic-rules directory"
+Create stub rule files from all loaded dynamic detection rules libraries.
+Files will be created in directory.  This is required to be done prior
+to running snort using those detection rules and the generated rules files
+must be included in snort.conf.
+.IP "--dynamic-preprocessor-lib file"
+Load a dynamic preprocessor shared library specified by file.
+.IP "--dynamic-preprocessor-lib-dir directory"
+Load all dynamic preprocessor shared libraries specified from directory.
+.IP "--dump-dynamic-preproc-genmsg directory"
+Create gen-msg.map files from all loaded dynamic preprocessor libraries.
+Files will be created in directory.  
+.IP "--alert-before-pass"
+Process alert, drop, sdrop, or reject before pass.
+Default is pass before alert, drop, etc.
+.IP "--treat-drop-as-alert"
+Converts drop, sdrop, and reject rules into alert rules during startup.
+.IP "--process-all-events"
+Process all triggered events in group order, per Rule Ordering
+configuration.  Default stops after first group.
+.IP "--pid-path directory"
+Specify the path for Snort's PID file.
+.IP "--create-pidfile"
+Create PID file, even when not in Daemon mode.
+.IP "--nolock-pidfile"
+Do not try to lock Snort PID file.
+.IP "--disable-inline-initialization
+Do not initialize IPTables when in inline mode.  To be used with -T
+to test for a valid configuration without requiring opening inline
+devices and adversely affecting traffic flow.
 .IP "\fI expression\fP"
 .RS
 selects which packets will be dumped.  If no \fIexpression\fP

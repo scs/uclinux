@@ -3,7 +3,7 @@
 #
 # This is the Makefile for vgetty.
 #
-# $Id$
+# $Id: Makefile,v 1.6 2000/08/14 19:51:55 gert Exp $
 #
 
 VGETTYOBJS=vgetty.o answer.o button.o event.o message.o rings.o

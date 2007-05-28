@@ -14,7 +14,7 @@
 #  *    Original code.
 #  * MODIFICATION-HISTORY
 #  *    10/01/99  schaefer  Created this file.
-#  * $Id$
+#  * $Id: Makefile,v 1.1 1999/01/16 17:17:05 gert Exp $
 #  */
 
 CFLAGS=-Wall

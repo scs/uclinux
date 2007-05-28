@@ -1,24 +1,38 @@
+#
+# (C) Tenable Network Security
+#
+
+desc["english"] = "
+Synopsis :
+
+It is possible to access the remote NFS shares
+
+Description :
+
+Some of the NFS shares exported by the remote server could be
+mounted by the scanning host. An attacker may exploit this problem
+to gain read (and possibly write) access to files on remote host.
+
+Solution :
+
+Configure NFS on the remote host so that only authorized hosts can mount
+the remote shares.
+
+Risk factor :
+
+Medium / CVSS Base Score : 5 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:P/B:C)";
 
 
 if(description)
 {
  script_id(11356);
- script_version ("$Revision: 1.4 $");
- script_cve_id("CVE-1999-0170", "CVE-1999-0211", "CAN-1999-0554");
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-1999-0170", "CVE-1999-0211", "CVE-1999-0554");
  
  name["english"] = "Mountable NFS shares";
  script_name(english:name["english"]);
  
- desc["english"] = "
-This plugin attempts to mount each exported NFS shares,
-and issues a red alert if it succeeded.
-
-Some old versions of nfsd do not do the proper checkings when
-it comes to NFS access controls, or the remote host may be 
-badly configured.
-
-
-Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -30,11 +44,9 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2006 Tenable Network Security");
  family["english"] = "Remote file access";
- family["francais"] = "Accès aux fichiers distants";
- script_family(english:family["english"], francais:family["francais"]);
+ script_family(english:family["english"]);
  script_dependencie("rpc_portmap.nasl", "showmount.nasl");
  script_require_keys("rpc/portmap");
  exit(0);
@@ -54,9 +66,11 @@ shares = make_list(list);
 
 
 port = get_rpc_port(program:100005, protocol:IPPROTO_UDP);
+if ( ! port ) exit(0);
 soc = open_priv_sock_udp(dport:port);
 
 port2 = get_rpc_port(program:100003, protocol:IPPROTO_UDP);
+if ( ! port2 ) exit(0);
 soc2 = open_priv_sock_udp(dport:port2);
 
 if(!soc)exit(0);
@@ -86,12 +100,8 @@ close(soc);
 
 if(mountable)
 {
- report = string("The following NFS shares could be mounted : \n", 
- 		  mountable,
-		 "\n",
-		 "Make sure the proper access lists are set\n",
-		 "Risk factor : High");
+ report = desc["english"] + '\n\nPlugin output :\n\n' + string("The following NFS shares could be mounted : \n", mountable);
 
- security_hole(port:2049, proto:"udp", data:report);
+ security_warning(port:2049, proto:"udp", data:report);
 }		 
 

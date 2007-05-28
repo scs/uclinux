@@ -22,9 +22,9 @@
 if(description)
 {
  script_id(11126);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CAN-2002-1001");
- script_bugtraq_id(5138);
+ script_bugtraq_id(5138, 5139);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-1001");
  name["english"] = "SOCKS4A hostname overflow";
  script_name(english:name["english"]);
  

@@ -48,8 +48,12 @@
 extern OptTreeNode *otn_tmp;    /* global ptr to current rule data */
 
 char *data_dump_buffer;     /* printout buffer for PrintNetData */
-int dump_size;          /* size of printout buffer */
-extern u_int32_t event_id;
+int data_dump_buffer_size = 0;/* size of printout buffer */
+int dump_size;              /* amount of data to print */
+
+extern u_int16_t event_id;
+
+void AllocDumpBuf();
 
 
 /***************** LOG ASCII ROUTINES *******************/
@@ -99,7 +103,7 @@ void PrintNetData(FILE * fp, u_char * start, const int len)
    
     end = (char*) (start + (len - 1));    /* set the end of buffer ptr */
 
-    if(len > 65535)
+    if(len > IP_MAXPACKET)
     {
         if(pv.verbose_flag)
         {
@@ -135,17 +139,14 @@ void PrintNetData(FILE * fp, u_char * start, const int len)
     }
 
     /* generate the buffer */
-    data_dump_buffer = (char *) malloc(dbuf_size);
-
-    /* make sure it got allocated properly */
-    if(data_dump_buffer == NULL)
+    //data_dump_buffer = (char *) malloc(dbuf_size);
+    if (data_dump_buffer == NULL)
     {
-        FatalError("PrintNetData(): Failed allocating %X bytes! (Length: %X)\n",
-                   dbuf_size, len);
+        AllocDumpBuf();
     }
+
     /* clean it out */
     memset(data_dump_buffer, 0x20, dbuf_size);
-
 
     /* set the byte buffer pointer to step thru the data buffer */
     data = (char*) start;
@@ -213,6 +214,7 @@ void PrintNetData(FILE * fp, u_char * start, const int len)
                 dump_size = (int) (c_ptr - data_dump_buffer);
                 fwrite(data_dump_buffer, dump_size, 1, fp);
 
+                //ClearDumpBuf();
                 return;
             }
         }
@@ -227,6 +229,8 @@ void PrintNetData(FILE * fp, u_char * start, const int len)
             frame_ptr += FRAME_SIZE;
         }
     }
+
+    //ClearDumpBuf();
 }
 
 
@@ -250,6 +254,7 @@ void PrintCharData(FILE * fp, char *data, int data_len)
     int linecount = 0;      /* number of lines in this dump */
     char *index;        /* index pointer into the data buffer */
     char *ddb_ptr;      /* index pointer into the data_dump_buffer */
+    int size;
 
     /* if there's no data, return */
     if(data == NULL)
@@ -262,7 +267,28 @@ void PrintCharData(FILE * fp, char *data, int data_len)
     index = data;
 
     /* allocate a buffer to print the data to */
-    data_dump_buffer = (char *) calloc(data_len + (data_len >> 6) + 2, sizeof(char));
+    //data_dump_buffer = (char *) calloc(data_len + (data_len >> 6) + 2, sizeof(char));
+    if (data_dump_buffer == NULL)
+    {
+        AllocDumpBuf();
+    }
+
+    size = (data_len + (data_len >> 6) + 2) * sizeof(char);
+
+    /* Based on data_len < 65535, this should never happen, but check just in
+     * case sizeof(char) is big or something. */
+    if (data_dump_buffer_size < size)
+    {
+        data_dump_buffer_size = size;
+        ClearDumpBuf();
+
+        /* Reallocate for a bigger size. */
+        AllocDumpBuf();
+    }
+
+    /* clean it out */
+    memset(data_dump_buffer, 0x20, size);
+
     ddb_ptr = data_dump_buffer;
 
     /* loop thru the bytes in the data buffer */
@@ -297,6 +323,8 @@ void PrintCharData(FILE * fp, char *data, int data_len)
 
     dump_size = (int) (ddb_ptr - data_dump_buffer);
     fwrite(data_dump_buffer, dump_size, 1, fp);
+
+    //ClearDumpBuf();
 }
 
 
@@ -346,8 +374,8 @@ void PrintIPPkt(FILE * fp, int type, Packet * p)
                 else
                 {
                     PrintNetData(fp, (u_char *) 
-				 ((u_char *)p->iph + (IP_HLEN(p->iph) << 2)), 
-				 (p->actual_ip_len - (IP_HLEN(p->iph) << 2)));
+                                        ((u_char *)p->iph + (IP_HLEN(p->iph) << 2)), 
+                                        (p->actual_ip_len - (IP_HLEN(p->iph) << 2)));
                 }
 
                 break;
@@ -360,8 +388,8 @@ void PrintIPPkt(FILE * fp, int type, Packet * p)
                 else
                 {
                     PrintNetData(fp, (u_char *) 
-				 ((u_char *)p->iph + (IP_HLEN(p->iph) << 2)), 
-				 (p->actual_ip_len - (IP_HLEN(p->iph) << 2)));
+                                        ((u_char *)p->iph + (IP_HLEN(p->iph) << 2)), 
+                                        (p->actual_ip_len - (IP_HLEN(p->iph) << 2)));
                 }
 
                 break;
@@ -374,14 +402,14 @@ void PrintIPPkt(FILE * fp, int type, Packet * p)
                 else
                 {
 /*
-		   printf("p->iph: %p\n", p->iph);
-		   printf("p->icmph: %p\n", p->icmph);
-		   printf("p->iph->ip_hlen: %d\n", (IP_HLEN(p->iph) << 2));
-		   printf("p->iph->ip_len: %d\n", p->iph->ip_len);
+           printf("p->iph: %p\n", p->iph);
+           printf("p->icmph: %p\n", p->icmph);
+           printf("p->iph->ip_hlen: %d\n", (IP_HLEN(p->iph) << 2));
+           printf("p->iph->ip_len: %d\n", p->iph->ip_len);
  */
                     PrintNetData(fp, (u_char *) 
-                            ((u_char *) p->iph + (IP_HLEN(p->iph) << 2)), 
-                            (ntohs(p->iph->ip_len) - (IP_HLEN(p->iph) << 2)));
+                                        ((u_char *) p->iph + (IP_HLEN(p->iph) << 2)), 
+                                        (ntohs(p->iph->ip_len) - (IP_HLEN(p->iph) << 2)));
                 }
 
                 break;
@@ -462,6 +490,38 @@ FILE *OpenAlertFile(char *filearg)
 }
 
 
+/*
+ *
+ * Function: AllocDumpBuf()
+ *
+ * Purpose: Allocate the buffer that PrintNetData() uses
+ *
+ * Arguments: None.
+ *
+ * Returns: void function
+ *
+ */
+void AllocDumpBuf()
+{
+    if (data_dump_buffer_size == 0)
+    {
+        if (pv.verbose_bytedump_flag == 1)
+        {
+            data_dump_buffer_size = (((IP_MAXPACKET+1)/16) * (FRAME_SIZE + 8)) + (FRAME_SIZE + 8) + 1;
+        }
+        else
+        {
+            data_dump_buffer_size = ((IP_MAXPACKET+1)/16) * FRAME_SIZE + FRAME_SIZE + 1;
+        }
+    }
+    data_dump_buffer = (char *)malloc( data_dump_buffer_size );
+
+    /* make sure it got allocated properly */
+    if(data_dump_buffer == NULL)
+    {
+        FatalError("AllocDumpBuf(): Failed allocating %X bytes!\n", data_dump_buffer_size);
+    }
+}
 
 /*
  *
@@ -548,10 +608,12 @@ void Print2ndHeader(FILE * fp, Packet * p)
                 PrintWifiHeader(fp, p);
             break;
 #endif     
+#ifdef DLT_IEEE802
         case DLT_IEEE802:                /* Token Ring */
             if(p && p->trh)
                 PrintTrHeader(fp, p);
             break;    
+#endif
 #ifdef DLT_LINUX_SLL        
         case DLT_LINUX_SLL:
             if (p && p->sllh)
@@ -601,7 +663,7 @@ void PrintTrHeader(FILE * fp, Packet * p)
         fprintf(fp, "bcast: 0x%X length: 0x%X direction: 0x%X largest"
                 "fr. size: 0x%X res: 0x%X\n",
                 TRH_MR_BCAST(p->trhmr), TRH_MR_LEN(p->trhmr),
-		TRH_MR_DIR(p->trhmr), TRH_MR_LF(p->trhmr),
+        TRH_MR_DIR(p->trhmr), TRH_MR_LF(p->trhmr),
                 TRH_MR_RES(p->trhmr));
         fprintf(fp, "rseg -> %X:%X:%X:%X:%X:%X:%X:%X\n",
                 p->trhmr->rseg[0], p->trhmr->rseg[1], p->trhmr->rseg[2],
@@ -707,13 +769,13 @@ void PrintArpHeader(FILE * fp, Packet * p)
         mac_dst = p->eh->ether_dst;
     } /* per table 4, 802.11 section 7.2.2 */
     else if (p->wifih != NULL && 
-	     (p->wifih->frame_control & WLAN_FLAG_FROMDS))
+             (p->wifih->frame_control & WLAN_FLAG_FROMDS))
     {
         mac_src = p->wifih->addr3;
         mac_dst = p->wifih->addr2;
     }
     else if (p->wifih != NULL &&
-	     (p->wifih->frame_control & WLAN_FLAG_TODS))
+             (p->wifih->frame_control & WLAN_FLAG_TODS))
     {
         mac_src = p->wifih->addr2;
         mac_dst = p->wifih->addr3;
@@ -914,7 +976,7 @@ void PrintIPHeader(FILE * fp, Packet * p)
     {
         fprintf(fp, "Frag Offset: 0x%04X   Frag Size: 0x%04X\n",
                 (p->frag_offset & 0x1FFF),
-		(ntohs(p->iph->ip_len) - (IP_HLEN(p->iph) << 2)));
+                (ntohs(p->iph->ip_len) - (IP_HLEN(p->iph) << 2)));
     }
 }
 
@@ -965,53 +1027,6 @@ void PrintTCPHeader(FILE * fp, Packet * p)
         PrintTcpOptions(fp, p);
     }
 }
-
-
-void PrintEmbeddedTCPHeader(FILE * fp, Packet * p, int size)
-{
-    char tcpFlags[9];
-
-    DEBUG_WRAP(DebugMessage(DEBUG_FLOW, "size is %d\n", size););
-
-    if(size >= 16)
-    { 
-        CreateTCPFlagString(p, tcpFlags);
-        fwrite(tcpFlags, 8, 1, fp); 
-        fprintf(fp, " Seq: 0x%lX  Ack: 0x%lX  Win: 0x%X  TcpLen: %d\n",
-                (u_long) ntohl(p->tcph->th_seq),
-                (u_long) ntohl(p->tcph->th_ack),
-                ntohs(p->tcph->th_win), TCP_OFFSET(p->tcph) << 2);
-    }
-    else if(size >= 14)
-    { 
-        CreateTCPFlagString(p, tcpFlags);
-        fwrite(tcpFlags, 8, 1, fp); 
-        fprintf(fp, " Seq: 0x%lX  Ack: 0x%lX  TcpLen: %d\n",
-                (u_long) ntohl(p->tcph->th_seq), 
-                (u_long) ntohl(p->tcph->th_ack),
-                TCP_OFFSET(p->tcph) << 2);
-    }
-    else if(size >= 13)
-    {
-        fprintf(fp, "Seq: 0x%lX  Ack: 0x%lX  TcpLen: %d\n",
-                (u_long) ntohl(p->tcph->th_seq), 
-                (u_long) ntohl(p->tcph->th_ack), TCP_OFFSET(p->tcph) << 2);
-    }
-    else if(size >= 12)
-    {
-        fprintf(fp, "Seq: 0x%lX  Ack: 0x%lX\n",
-                (u_long) ntohl(p->tcph->th_seq), 
-                (u_long) ntohl(p->tcph->th_ack));
-    }
-    else if(size >= 8)
-    {
-
-        fprintf(fp, "Seq: 0x%lX\n",
-                (u_long) ntohl(p->tcph->th_seq));
-    }
-}
-
-
 
 /* Input is packet and an nine-byte (including NULL) character array.  Results
  * are put into the character array.
@@ -1164,68 +1179,16 @@ void PrintICMPHeader(FILE * fp, Packet * p)
                     break;
 
             }
-            {
-                Packet op;
-                Packet *orig_p;
-                int orig_iph_size;
 
-                bzero((char *) &op, sizeof(Packet));
-                orig_p = &op;
-                orig_p->iph = p->orig_iph;
-                orig_p->tcph = p->orig_tcph;
-                orig_p->udph = p->orig_udph;
-                orig_p->sp = p->orig_sp;
-                orig_p->dp = p->orig_dp;
+            PrintICMPEmbeddedIP(fp, p);
 
-                if(orig_p->iph != NULL)
-                {
-                    orig_iph_size = IP_HLEN(orig_p->iph) << 2;
-
-                    fprintf(fp, "\n** ORIGINAL DATAGRAM DUMP:\n");
-                    PrintIPHeader(fp, orig_p);
-
-                    switch(orig_p->iph->ip_proto)
-                    {
-                        case IPPROTO_TCP:
-                            /* 
-                             * we can only guarantee the first 8 bytes of the
-                             * tcp header are encapsulated, so lets just print 
-                             * them instead of freaking people out all the time
-                             *   --MFR
-                             */
-                            if(orig_p->tcph != NULL)
-                                PrintEmbeddedTCPHeader(fp, orig_p, 
-                                        p->dsize-orig_iph_size);
-                            break;
-
-                        case IPPROTO_UDP:
-                            if(orig_p->udph != NULL)
-                                PrintUDPHeader(fp, orig_p);
-                            break;
-
-                        case IPPROTO_ICMP:
-                            if(orig_p->icmph != NULL)
-                                fprintf(fp, "orig type: %d  code: %d\n", 
-                                        orig_p->icmph->type, orig_p->icmph->code);
-                            break;
-
-                        default:
-                            fprintf(fp, "Protocol: 0x%X (unknown or "
-                                    "header truncated)", orig_p->iph->ip_proto);
-                            break;
-                    }       /* switch */
-
-                    fprintf(fp, "** END OF DUMP");
-                }
-                else
-                {
-                    fprintf(fp, "\nORIGINAL DATAGRAM TRUNCATED");
-                }
-            }
             break;
 
         case ICMP_SOURCE_QUENCH:
             fwrite("SOURCE QUENCH", 13, 1, fp);
+
+            PrintICMPEmbeddedIP(fp, p);
+
             break;
 
         case ICMP_REDIRECT:
@@ -1251,65 +1214,7 @@ void PrintICMPHeader(FILE * fp, Packet * p)
              
             fprintf(fp, " NEW GW: %s", inet_ntoa(p->icmph->s_icmp_gwaddr));
 
-            {
-                Packet op;
-                Packet *orig_p;
-                int orig_iph_size;
-
-                bzero((char *) &op, sizeof(Packet));
-                orig_p = &op;
-
-                orig_p->iph = p->orig_iph;
-                orig_p->tcph = p->orig_tcph;
-                orig_p->udph = p->orig_udph;
-                orig_p->sp = p->orig_sp;
-                orig_p->dp = p->orig_dp;
-
-                if(orig_p->iph != NULL)
-                {
-                    orig_iph_size = IP_HLEN(orig_p->iph) << 2;
-
-                    fprintf(fp, "\n** ORIGINAL DATAGRAM DUMP:\n");
-                    PrintIPHeader(fp, orig_p);
-
-                    switch(orig_p->iph->ip_proto)
-                    {
-                        case IPPROTO_TCP:
-                            /* 
-                             * we can only guarantee the first 8 bytes of the
-                             * tcp header are encapsulated, so lets just print 
-                             * them instead of freaking people out all the time
-                             *   --MFR
-                             */
-                            if(orig_p->tcph != NULL)
-                                PrintEmbeddedTCPHeader(fp, orig_p, 
-                                        p->dsize-orig_iph_size);
-                            break;
-
-                        case IPPROTO_UDP:
-                            if(orig_p->udph != NULL)
-                                PrintUDPHeader(fp, orig_p);
-                            break;
-
-                        case IPPROTO_ICMP:
-                            if(orig_p->icmph != NULL)
-                                fprintf(fp, "orig type: %d  code: %d\n", 
-                                        orig_p->icmph->type, orig_p->icmph->code);
-                            break;
-
-                        default:
-                            fprintf(fp, "Protocol: 0x%X (unknown or "
-                                    "header truncated)", orig_p->iph->ip_proto);
-                            break;
-                    }       /* switch */
-
-                    fprintf(fp, "** END OF DUMP");
-                }
-                else
-                {
-                    fprintf(fp, "\nORIGINAL DATAGRAM TRUNCATED");
-                }
-            }
+            PrintICMPEmbeddedIP(fp, p);
                     
             break;
 
@@ -1323,7 +1228,7 @@ void PrintICMPHeader(FILE * fp, Packet * p)
             fprintf(fp, "ROUTER ADVERTISMENT: "
                     "Num addrs: %d Addr entry size: %d Lifetime: %u", 
                     p->icmph->s_icmp_num_addrs, p->icmph->s_icmp_wpa, 
-                    p->icmph->s_icmp_lifetime);
+                    ntohs(p->icmph->s_icmp_lifetime));
             break;
 
         case ICMP_ROUTER_SOLICIT:
@@ -1342,6 +1247,9 @@ void PrintICMPHeader(FILE * fp, Packet * p)
                     fwrite(" TIME EXCEEDED IN FRAG REASSEMBLY", 33, 1, fp);
                     break;
             }
+
+            PrintICMPEmbeddedIP(fp, p);
+
             break;
 
         case ICMP_PARAMETERPROB:
@@ -1361,6 +1269,9 @@ void PrintICMPHeader(FILE * fp, Packet * p)
                     fwrite(": BAD LENGTH", 12, 1, fp);
                     break;
             }
+
+            PrintICMPEmbeddedIP(fp, p);
+
             break;
 
         case ICMP_TIMESTAMP:
@@ -1407,6 +1318,148 @@ void PrintICMPHeader(FILE * fp, Packet * p)
 
 }
 
+/****************************************************************************
+ *
+ * Function: PrintICMPEmbeddedIP(FILE *, Packet *)
+ *
+ * Purpose: Prints the original/encapsulated IP header + 64 bits of the
+ *          original IP payload in an ICMP packet
+ *
+ * Arguments: fp => file stream
+ *            p  => packet struct
+ *
+ * Returns: void function
+ *
+ ***************************************************************************/
+void PrintICMPEmbeddedIP(FILE *fp, Packet *p)
+{
+    Packet op;
+    Packet *orig_p;
+    u_int32_t orig_ip_hlen;
+
+    if (fp == NULL || p == NULL)
+        return;
+
+    bzero((char *) &op, sizeof(Packet));
+    orig_p = &op;
+
+    orig_p->iph = p->orig_iph;
+    orig_p->tcph = p->orig_tcph;
+    orig_p->udph = p->orig_udph;
+    orig_p->sp = p->orig_sp;
+    orig_p->dp = p->orig_dp;
+    orig_p->icmph = p->orig_icmph;
+
+    if(orig_p->iph != NULL)
+    {
+        fprintf(fp, "\n** ORIGINAL DATAGRAM DUMP:\n");
+        PrintIPHeader(fp, orig_p);
+        orig_ip_hlen = IP_HLEN(p->orig_iph) << 2;
+
+        switch(orig_p->iph->ip_proto)
+        {
+            case IPPROTO_TCP:
+                if(orig_p->tcph != NULL)
+                    fprintf(fp, "Seq: 0x%lX\n",
+                            (u_long)ntohl(orig_p->tcph->th_seq));
+                break;
+
+            case IPPROTO_UDP:
+                if(orig_p->udph != NULL)
+                    fprintf(fp, "Len: %d  Csum: %d\n",
+                            ntohs(orig_p->udph->uh_len) - UDP_HEADER_LEN,
+                            ntohs(orig_p->udph->uh_chk));
+                break;
+
+            case IPPROTO_ICMP:
+                if(orig_p->icmph != NULL)
+                    PrintEmbeddedICMPHeader(fp, orig_p->icmph);
+                break;
+
+            default:
+                fprintf(fp, "Protocol: 0x%X (unknown or "
+                        "header truncated)", orig_p->iph->ip_proto);
+                break;
+        }       /* switch */
+
+        /* if more than 8 bytes of original IP payload sent */
+        if (p->dsize - orig_ip_hlen > 8)
+        {
+            fprintf(fp, "(%d more bytes of original packet)\n",
+                    p->dsize - orig_ip_hlen - 8);
+        }
+
+        fprintf(fp, "** END OF DUMP");
+    }
+    else
+    {
+        fprintf(fp, "\nORIGINAL DATAGRAM TRUNCATED");
+    }
+}
+
+/****************************************************************************
+ *
+ * Function: PrintEmbeddedICMPHeader(FILE *, ICMPHdr *)
+ *
+ * Purpose: Prints the 64 bits of the original IP payload in an ICMP packet
+ *          that requires it
+ *
+ * Arguments: fp => file stream
+ *            icmph  => ICMPHdr struct pointing to original ICMP
+ *
+ * Returns: void function
+ *
+ ***************************************************************************/
+void PrintEmbeddedICMPHeader(FILE *fp, ICMPHdr *icmph)
+{
+    if (fp == NULL || icmph == NULL)
+        return;
+
+    fprintf(fp, "Type: %d  Code: %d  Csum: %u",
+            icmph->type, icmph->code, ntohs(icmph->csum));
+
+    switch (icmph->type)
+    {
+        case ICMP_DEST_UNREACH:
+        case ICMP_TIME_EXCEEDED:
+        case ICMP_SOURCE_QUENCH:
+            break;
+
+        case ICMP_PARAMETERPROB:
+            if (icmph->code == 0)
+                fprintf(fp, "  Ptr: %u", icmph->s_icmp_pptr);
+            break;
+
+        case ICMP_REDIRECT:
+            fprintf(fp, "  New Gwy: %s", inet_ntoa(icmph->s_icmp_gwaddr));
+            break;
+
+        case ICMP_ECHO:
+        case ICMP_ECHOREPLY:
+        case ICMP_TIMESTAMP:
+        case ICMP_TIMESTAMPREPLY:
+        case ICMP_INFO_REQUEST:
+        case ICMP_INFO_REPLY:
+        case ICMP_ADDRESS:
+        case ICMP_ADDRESSREPLY:
+            fprintf(fp, "  Id: %u  SeqNo: %u", 
+                    ntohs(icmph->s_icmp_id), ntohs(icmph->s_icmp_seq));
+            break;
+
+        case ICMP_ROUTER_ADVERTISE:
+            fprintf(fp, "  Addrs: %u  Size: %u  Lifetime: %u",
+                    icmph->s_icmp_num_addrs, icmph->s_icmp_wpa,
+                    ntohs(icmph->s_icmp_lifetime));
+            break;
+
+        default:
+            break;
+    }
+
+    fprintf(fp, "\n");
+
+    return;
+}
 
 void PrintIpOptions(FILE * fp, Packet * p)
 {
@@ -1478,7 +1531,10 @@ void PrintIpOptions(FILE * fp, Packet * p)
                 {
                     for(j = 0; j < p->ip_options[i].len; j++)
                     {
-                        fprintf(fp, "%02X", p->ip_options[i].data[j]);
+                        if (p->ip_options[i].data)
+                            fprintf(fp, "%02X", p->ip_options[i].data[j]);
+                        else
+                            fprintf(fp, "%02X", 0);
                         
                         if((j % 2) == 0)
                             fprintf(fp, " ");
@@ -1522,7 +1578,8 @@ void PrintTcpOptions(FILE * fp, Packet * p)
             case TCPOPT_MAXSEG:
                 bzero((char *) tmp, 5);
                 fwrite("MSS: ", 5, 1, fp);
-                memcpy(tmp, p->tcp_options[i].data, 2);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, p->tcp_options[i].data, 2);
                 fprintf(fp, "%u ", EXTRACT_16BITS(tmp));
                 break;
 
@@ -1535,15 +1592,20 @@ void PrintTcpOptions(FILE * fp, Packet * p)
                 break;
 
             case TCPOPT_WSCALE:
-                fprintf(fp, "WS: %u ", p->tcp_options[i].data[0]);
+                if (p->tcp_options[i].data)
+                    fprintf(fp, "WS: %u ", p->tcp_options[i].data[0]);
+                else
+                    fprintf(fp, "WS: %u ", 0);
                 break;
 
             case TCPOPT_SACK:
                 bzero((char *) tmp, 5);
-                memcpy(tmp, p->tcp_options[i].data, 2);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, p->tcp_options[i].data, 2);
                 fprintf(fp, "Sack: %u@", EXTRACT_16BITS(tmp));
                 bzero((char *) tmp, 5);
-                memcpy(tmp, (p->tcp_options[i].data) + 2, 2);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, (p->tcp_options[i].data) + 2, 2);
                 fprintf(fp, "%u ", EXTRACT_16BITS(tmp));
                 break;
 
@@ -1553,40 +1615,47 @@ void PrintTcpOptions(FILE * fp, Packet * p)
 
             case TCPOPT_ECHO:
                 bzero((char *) tmp, 5);
-                memcpy(tmp, p->tcp_options[i].data, 4);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, p->tcp_options[i].data, 4);
                 fprintf(fp, "Echo: %u ", EXTRACT_32BITS(tmp));
                 break;
 
             case TCPOPT_ECHOREPLY:
                 bzero((char *) tmp, 5);
-                memcpy(tmp, p->tcp_options[i].data, 4);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, p->tcp_options[i].data, 4);
                 fprintf(fp, "Echo Rep: %u ", EXTRACT_32BITS(tmp));
                 break;
 
             case TCPOPT_TIMESTAMP:
                 bzero((char *) tmp, 5);
-                memcpy(tmp, p->tcp_options[i].data, 4);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, p->tcp_options[i].data, 4);
                 fprintf(fp, "TS: %u ", EXTRACT_32BITS(tmp));
                 bzero((char *) tmp, 5);
-                memcpy(tmp, (p->tcp_options[i].data) + 4, 4);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, (p->tcp_options[i].data) + 4, 4);
                 fprintf(fp, "%u ", EXTRACT_32BITS(tmp));
                 break;
 
             case TCPOPT_CC:
                 bzero((char *) tmp, 5);
-                memcpy(tmp, p->tcp_options[i].data, 4);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, p->tcp_options[i].data, 4);
                 fprintf(fp, "CC %u ", EXTRACT_32BITS(tmp));
                 break;
 
             case TCPOPT_CCNEW:
                 bzero((char *) tmp, 5);
-                memcpy(tmp, p->tcp_options[i].data, 4);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, p->tcp_options[i].data, 4);
                 fprintf(fp, "CCNEW: %u ", EXTRACT_32BITS(tmp));
                 break;
 
             case TCPOPT_CCECHO:
                 bzero((char *) tmp, 5);
-                memcpy(tmp, p->tcp_options[i].data, 4);
+                if (p->tcp_options[i].data)
+                    memcpy(tmp, p->tcp_options[i].data, 4);
                 fprintf(fp, "CCECHO: %u ", EXTRACT_32BITS(tmp));
                 break;
 
@@ -1598,7 +1667,10 @@ void PrintTcpOptions(FILE * fp, Packet * p)
 
                     for(j = 0; j < p->tcp_options[i].len; j++)
                     {
-                        fprintf(fp, "%02X", p->tcp_options[i].data[j]);
+                        if (p->tcp_options[i].data)
+                            fprintf(fp, "%02X", p->tcp_options[i].data[j]);
+                        else
+                            fprintf(fp, "%02X", 0);
                         
                         if((j % 2) == 0)
                             fprintf(fp, " ");
@@ -1700,7 +1772,8 @@ void SnortSetEvent
     event->sig_rev = rev;
     event->classification = classification;
     event->priority = priority;
-    event->event_id = ++event_id;         /* this one gets set automatically */
+    /* this one gets set automatically */
+    event->event_id = ++event_id | pv.event_log_id;
     if(event_ref)
         event->event_reference = event_ref;
     else
@@ -1748,16 +1821,16 @@ void PrintEapolPkt(FILE * fp, Packet * p)
 
     /* dump the application layer data */
     if(pv.data_flag && !pv.verbose_bytedump_flag)
-      {
+    {
         if(pv.char_data_flag)
-	  PrintCharData(fp, (char*) p->data, p->dsize);
+            PrintCharData(fp, (char*) p->data, p->dsize);
         else
-	  PrintNetData(fp, p->data, p->dsize);
-      }
+            PrintNetData(fp, p->data, p->dsize);
+    }
     else if(pv.verbose_bytedump_flag)
-      {
+    {
         PrintNetData(fp, p->pkt, p->pkth->caplen);
-      }
+    }
     
     fprintf(fp, "=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+\n\n");    
 }
@@ -1854,15 +1927,15 @@ void PrintWifiHeader(FILE * fp, Packet * p)
   
   if (sa != NULL) {
     fprintf(fp, "%X:%X:%X:%X:%X:%X -> ", sa[0],
-	    sa[1], sa[2], sa[3], sa[4], sa[5]);
+        sa[1], sa[2], sa[3], sa[4], sa[5]);
   }
   else {
     fprintf(fp, "ta: %X:%X:%X:%X:%X:%X da: ", ta[0],
-	    ta[1], ta[2], ta[3], ta[4], ta[5]);
+        ta[1], ta[2], ta[3], ta[4], ta[5]);
   } 
   
   fprintf(fp, "%X:%X:%X:%X:%X:%X\n", da[0],
-	  da[1], da[2], da[3], da[4], da[5]);
+      da[1], da[2], da[3], da[4], da[5]);
 
   if(bssid)
   {
@@ -1872,7 +1945,7 @@ void PrintWifiHeader(FILE * fp, Packet * p)
   
   if (ra != NULL) {
     fprintf(fp, " ra: %X:%X:%X:%X:%X:%X", ra[0],
-	    ra[1], ra[2], ra[3], ra[4], ra[5]);
+        ra[1], ra[2], ra[3], ra[4], ra[5]);
   }
   fprintf(fp, " Flags:");
   if (p->wifih->frame_control & WLAN_FLAG_TODS)    fprintf(fp," ToDs");
@@ -2002,29 +2075,29 @@ void PrintEAPHeader(FILE * fp, Packet * p)
       fprintf(fp, " type: ");
       switch(*(p->eaptype)) {
       case EAP_TYPE_IDENTITY:
-	fprintf(fp, "id");
-	break;
+    fprintf(fp, "id");
+    break;
       case EAP_TYPE_NOTIFY:
-	fprintf(fp, "notify");
-	break;
+    fprintf(fp, "notify");
+    break;
       case EAP_TYPE_NAK:
-	fprintf(fp, "nak");
-	break;
+    fprintf(fp, "nak");
+    break;
       case EAP_TYPE_MD5:
-	fprintf(fp, "md5");
-	break;
+    fprintf(fp, "md5");
+    break;
       case EAP_TYPE_OTP:
-	fprintf(fp, "otp");
-	break;
+    fprintf(fp, "otp");
+    break;
       case EAP_TYPE_GTC:
-	fprintf(fp, "token");
-	break;
+    fprintf(fp, "token");
+    break;
       case EAP_TYPE_TLS:
-	fprintf(fp, "tls");
-	break;
+    fprintf(fp, "tls");
+    break;
       default:
-	fprintf(fp, "undef");
-	break;
+    fprintf(fp, "undef");
+    break;
       }
     }
     fprintf(fp, "\n");

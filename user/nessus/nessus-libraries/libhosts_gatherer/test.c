@@ -42,6 +42,11 @@ void main(int argc, char * argv[])
 	}
 
  
+ if(hg_test_syntax(argv[optind], flags) < 0 )
+ {
+  printf("BAD SYNTAX\n");
+  exit(1);
+ }
  globals = hg_init(argv[optind], flags);
  e  = hg_next_host(globals,&ip, m, sizeof(m));
  while(e >= 0)

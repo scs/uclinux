@@ -3,7 +3,7 @@
  *
  * Conversion pvf <--> USR GSM and ADPCM formats.
  *
- * $Id$
+ * $Id: usr.c,v 1.5 2001/12/22 19:44:09 marcs Exp $
  *
  */
 

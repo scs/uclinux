@@ -10,9 +10,10 @@
 if(description)
 {
  script_id(11312);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2003-0026","CAN-2002-0702", "CAN-2003-0039");
- script_bugtraq_id(4701, 6627, 6628);
+ script_bugtraq_id(4701, 6627, 6628, 11591);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2002-0702", "CVE-2003-0026", "CVE-2003-0039", "CVE-2004-1006");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:034-01");
  
  name["english"] = "DHCP server overflow / format string bug";
  
@@ -51,7 +52,8 @@ Risk factor : High";
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
  family["english"] = "Gain root remotely";
  script_family(english:family["english"]);
- script_dependencie("nmap_osfingerprint.nes");
+ script_dependencie("os_fingerprint.nasl", "dhcp.nasl");
+ script_require_keys("DHCP/Running");
  exit(0);
 }
 
@@ -59,30 +61,35 @@ Risk factor : High";
 # The script code starts here
 #
 
-os = get_kb_item("Host/OS");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+
+os = get_kb_item("Host/OS/icmp");
 if(os)
 {
  # Windows is not affected
- if(ereg(pattern:"windows", string:os, icase:TRUE))exit(0);
+ if(egrep(pattern:"windows", string:os, icase:TRUE))exit(0);
  
  # OpenBSD not affected
- if(ereg(pattern:"openbsd", string:os, icase:TRUE))exit(0);
+ if(egrep(pattern:"openbsd", string:os, icase:TRUE))exit(0);
  
  # CISCO not affected
- if(ereg(pattern:"cisco", string:os, icase:TRUE))exit(0);
+ if(egrep(pattern:"cisco", string:os, icase:TRUE))exit(0);
  
  # Hitachi not affected
- if(ereg(pattern:"hitachi", string:os, icase:TRUE))exit(0);
+ if(egrep(pattern:"hitachi", string:os, icase:TRUE))exit(0);
  
  # NetBSD >= 1.5 not affected
- if(ereg(pattern:"NetBSD 1\.[5-9]\..*", string:os, icase:TRUE))exit(0);
+ if(egrep(pattern:"NetBSD 1\.[5-9]\..*", string:os, icase:TRUE))exit(0);
  
  # MacOS X not affected
- if(ereg(pattern:"Mac OS X", string:os))exit(0);
+ if(egrep(pattern:"Mac OS 10", string:os))exit(0);
  
  # FreeBSD not affected
- if(ereg(pattern:"FreeBSD", string:os))exit(0);
-}
+ if(egrep(pattern:"FreeBSD", string:os))exit(0);
+} else exit(0);
 
 # Can't test on localhost due to libpcap on linux :(
 if(islocalhost())exit(0);

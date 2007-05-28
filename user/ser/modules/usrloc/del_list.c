@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: del_list.c,v 1.5 2003/03/12 12:49:19 janakj Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

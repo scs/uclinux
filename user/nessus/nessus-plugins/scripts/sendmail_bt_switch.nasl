@@ -3,11 +3,17 @@
 #
 # See the Nessus Scripts License for details
 #
+# Ref:
+# To: BUGTRAQ@SECURITYFOCUS.COM
+# Subject: sendmail -bt negative index bug...
+# From: Michal Zalewski <lcamtuf@DIONE.IDS.PL>
+# Date: Sun, 8 Oct 2000 15:12:46 +0200 
+#
 
 if(description)
 {
  script_id(10809);
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "Sendmail -bt option";
  name["francais"] = "Option -bt de sendmail";
@@ -63,13 +69,17 @@ Note : cette vulnérabilité est locale uniquement";
 #
 
 include("smtp_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia > 1 ) exit(0);
+
 
 port = get_kb_item("Services/smtp");
 if(!port) port = 25;
 
 banner = get_smtp_banner(port: port);
 
-if(banner)
+if(banner && "Switch-" >!< banner )
 {
  if(egrep(pattern:".*Sendmail.*((8\.(([0-9]\..*)|(10\..*)|(11\.[0-2])))|SMI-8\.).*",
 	string:banner))

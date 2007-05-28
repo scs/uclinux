@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/*$Id$ */
+/*$Id: proto.h,v 1.4 1998/09/09 21:06:52 gert Exp $ */
 
 #ifndef   PROTO_H
 #define   PROTO_H

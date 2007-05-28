@@ -1,12 +1,9 @@
 /*
 #-------------------------------------------------------------------------------
 #                                                                                                                         
-# $Id$     
+# $Id: netstat-nat.c,v 1.17 2002/09/12 19:32:12 mardan Exp $     
 #       
-# $Log$
-# Revision 1.2  2005/07/25 04:44:51  magicyang
-# New user folder check in
-#
+# $Log: netstat-nat.c,v $
 # Revision 1.17  2002/09/12 19:32:12  mardan
 # Added display local connections to NAT box self
 # Updated README
@@ -111,7 +108,7 @@
 #include "netstat-nat.h"
 
 
-static char const rcsid[] = "$Id$";
+static char const rcsid[] = "$Id: netstat-nat.c,v 1.17 2002/09/12 19:32:12 mardan Exp $";
 char SRC_IP[35];
 char DST_IP[35];
 int SNAT = 1;

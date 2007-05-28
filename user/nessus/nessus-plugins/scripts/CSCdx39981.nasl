@@ -11,7 +11,9 @@
 if(description)
 {
  script_id(11295);
- script_version("$Revision: 1.2 $");
+ script_bugtraq_id(5625);
+ script_version("$Revision: 1.5 $");
+ script_cve_id("CVE-2002-1095");
 
 
  name["english"] = "CSCdx39981";
@@ -20,7 +22,8 @@ if(description)
 
  desc["english"] = "
 The remote VPN concentrator is subject to a VPN client
-authentication vulnerabiliy.
+authentication vulnerability that can force a reload of the
+conectrator when a very large string for the username prompt is sent.
 
 This vulnerability is documented as Cisco bug ID CSCdx39981
 

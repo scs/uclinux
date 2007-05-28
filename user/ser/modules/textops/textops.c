@@ -1,4 +1,4 @@
-/*$Id$
+/*$Id: textops.c,v 1.29.2.1.2.3 2004/04/28 18:43:52 jiri Exp $
  *
  * Example ser module, it implements the following commands:
  * search_append("key", "txt") - insert a "txt" after "key"

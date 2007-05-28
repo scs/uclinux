@@ -4,12 +4,9 @@
 # 
 # Copyright 1998 Gert Doering, gert@greenie.net
 #
-# CVS: $Id$
+# CVS: $Id: faxhist.in,v 1.6 2001/01/30 11:39:03 gert Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:29:48  vapier
-# import from upstream uClinux
-#
+# $Log: faxhist.in,v $
 # Revision 1.6  2001/01/30 11:39:03  gert
 # make "can't parse" error message easier to understand
 #

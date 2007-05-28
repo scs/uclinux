@@ -7,7 +7,8 @@
 if(description)
 {
   script_id(11222);
-  script_version ("$Revision: 1.3 $");
+  script_version ("$Revision: 1.5 $");
+#  script_cve_id("CVE-MAP-NOMATCH");
  
   name["english"] = "Writesrv";
   script_name(english:name["english"]);
@@ -42,12 +43,8 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"Copyright (C) 2003 Michel Arboi");
- family["english"] = "General";
  family["english"] = "Useless services";
- family["francais"] = "Services inutiles";
- family["portugues"] = "Serviços menos utilizados";
- script_family(english:family["english"], francais:family["francais"],
- 		portugues:family["portugues"]);
+ script_family(english:family["english"]);
  # script_dependencies("find_service.nes");
  exit(0);
 }

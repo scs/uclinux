@@ -1,6 +1,6 @@
 # Copyright 1999-2003 Fraunhofer Fokus
 # Distributed under the terms of the GNU General Public License v2
-# $Header$
+# $Header: /cvs/sw/new-wave/user/ser/gentoo/ser-0.8.14.ebuild,v 1.2 2004/11/24 01:33:21 pchunt Exp $
 
 DESCRIPTION="SIP Express Router"
 

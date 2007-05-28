@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/config_f.h,v 3.23 2000/06/11 02:14:10 kim Exp $ */
 /*
  * config_f.h -- configure various defines for tcsh
  *

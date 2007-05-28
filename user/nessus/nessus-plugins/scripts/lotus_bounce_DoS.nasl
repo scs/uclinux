@@ -14,9 +14,9 @@ if(description)
 {
  script_id(11717);
  script_bugtraq_id(3212);
- script_cve_id("CAN-2000-1203");
+ script_cve_id("CVE-2000-1203");
  
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.6 $");
  name["english"] = "Lotus Domino SMTP bounce DoS";
  script_name(english:name["english"]);
  
@@ -55,18 +55,16 @@ Risk factor : High";
 
 include("smtp_func.inc");
 
+port = get_kb_item("Services/smtp");
+if (!port) port = 25;
+buff = get_smtp_banner(port:port);
+
+if ( ! buff || "Lotus Domino" >!< buff ) exit(0);
+
 # Disable the test if the server relays e-mails or if safe checks
 # are enabled
 if (get_kb_item("SMTP/spam") || safe_checks())
 {
-  port = get_kb_item("Services/smtp");
-  if (!port) port = 25;
-
-  if(!get_port_state(port))exit(0);
-  s = open_sock_tcp(port);
-  if(!s)exit(0);
-
-  buff = smtp_recv_banner(socket:s);
   if(egrep(pattern:"^220.*Lotus Domino Release ([0-4]\.|5\.0\.[0-8][^0-9])", string:buff))
   {
    security_hole(port);
@@ -88,10 +86,6 @@ n_sent = 0;
 fromaddr = string("bounce", rand(), "@[127.0.0.1]");
 toaddr = string("nessus", rand(), "@invalid", rand(), ".net");
 
-port = get_kb_item("Services/smtp");
-if (!port) port = 25;
-
-if(!get_port_state(port))exit(0);
 
  s = open_sock_tcp(port);
  if(!s)exit(0);
@@ -110,7 +104,7 @@ flag = 1;
 soc = open_sock_tcp(port);
 if (soc)
 {
-  send(socket: soc, data: string("HELO nessus\r\n"));
+  send(socket: soc, data: string("HELO example.com\r\n"));
   buff = recv_line(socket: soc, length: 2048);
   if (buff =~ "^2[0-9][0-9] ")
     flag = 0;

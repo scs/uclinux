@@ -29,6 +29,7 @@
 #include "common_defs.h"
 #include "util_str.h"
 #include "util_net.h"
+#include "snort_packet_header.h"
 
 #ifndef WIN32
 #include <sys/socket.h>
@@ -262,8 +263,8 @@ static void FlowPSInit(u_char *args)
 
     FlowPSOutputConfig(pstp);
     
-    AddFuncToCleanExitList(FlowPSCleanExit, NULL);
-    AddFuncToRestartList(FlowPSRestart, NULL);
+    AddFuncToPreprocCleanExitList(FlowPSCleanExit, NULL, PRIORITY_LAST, PP_FLOW);
+    AddFuncToPreprocRestartList(FlowPSRestart, NULL, PRIORITY_LAST, PP_FLOW);
 }
 
 
@@ -402,7 +403,7 @@ static void FlowPSParseOption(PS_CONFIG *config,
     }
     else if(!strcasecmp(key, "talker-sliding-scale-factor"))
     {
-        config->limit_talker.window_scale = strtod(value, NULL);
+        config->limit_talker.window_scale = (float)strtod(value, NULL);
     }
     else if(!strcasecmp(key, "scanner-fixed-threshold"))
     {
@@ -426,7 +427,7 @@ static void FlowPSParseOption(PS_CONFIG *config,
     }
     else if(!strcasecmp(key, "scanner-sliding-scale-factor"))
     {
-        config->limit_scanner.window_scale = strtod(value, NULL);
+        config->limit_scanner.window_scale = (float)strtod(value, NULL);
     }
     else if(!strcasecmp(key, "base-score"))
     {
@@ -893,7 +894,7 @@ static int score_entry_sprint(unsigned char *buf, int buflen, SCORE_ENTRY *sep, 
     int printed = 0; /* tmp */
     int total_printed = 0;
     int remaining = buflen;
-    int i;
+    u_int32_t i;
     
     if(buf && buflen > 0 && sep && address)
     {

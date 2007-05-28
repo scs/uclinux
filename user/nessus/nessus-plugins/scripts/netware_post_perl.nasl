@@ -1,7 +1,5 @@
 # (c) 2002 visigoth <visigoth@securitycentric.com>
-# this script is distributed under a BSD style license
-# allowing free use and continued development provided
-# the above Copyright message remains.
+# GPLv2
 
 
 #
@@ -11,9 +9,9 @@
 if(description)
 {
  script_id(11158);
- script_version ("$Revision: 1.3 $");
- script_bugtraq_id(5520);
- script_cve_id("CAN-2002-1436", "CAN-2002-1437", "CAN-2002-1438"); 
+ script_bugtraq_id(5520, 5521, 5522);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-1436", "CVE-2002-1437", "CVE-2002-1438"); 
  
  name["english"] = "Novell NetWare HTTP POST Perl Code Execution Vulnerability";
  script_name(english:name["english"]);
@@ -44,7 +42,7 @@ this service would be appropriate.";
  family["english"] = "Netware";
  script_family(english:family["english"], francais:family["francais"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www",80,2200);
  exit(0);
 }
@@ -54,15 +52,14 @@ this service would be appropriate.";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
+port = get_http_port(default:80);
 
-if(!port)port = 80;
+
 if (! get_port_state(port)) port = 2200;
 if (! get_port_state(port)) exit(0);
 
-sock = http_open_socket(port);
-if (! sock) exit(0);
 
 http_POST = string("POST /perl/ HTTP/1.1\r\n",
 	 	   "Content-Type: application/octet-stream\r\n",
@@ -72,11 +69,9 @@ http_POST = string("POST /perl/ HTTP/1.1\r\n",
 perl_code = 'print("Content-Type: text/plain\\r\\n\\r\\n", "Nessus=", 42+42);';
 
 length = strlen(perl_code);
-send(socket:sock, data:string(http_POST, length ,"\r\n\r\n",  perl_code));
-
-rcv = http_recv(socket:sock);
+data = string(http_POST, length ,"\r\n\r\n",  perl_code);
+rcv = http_keepalive_send_recv(port:port, data:data);
 if(!rcv) exit(0);
-http_close_socket(sock);
 
 if("Nessus=84" >< rcv)
 {

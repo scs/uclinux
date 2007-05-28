@@ -6,9 +6,9 @@
 
 if(description) {
   script_id(11443);
-  script_version("$Revision: 1.3 $");
-  script_cve_id("CVE-2000-0246");
   script_bugtraq_id(1081);
+  script_version("$Revision: 1.9 $");
+  script_cve_id("CVE-2000-0246");
 
   name["english"] = "Microsoft IIS UNC Mapped Virtual Host Vulnerability";
   script_name(english:name["english"]);
@@ -19,7 +19,7 @@ Your IIS webserver allows the retrieval of ASP/HTR source code.
 An attacker can use this vulnerability to see how your
 pages interact and find holes in them to exploit.
 
-Risk factor : Serious";
+Risk factor : High";
 
   script_description(english:desc["english"]);
 
@@ -28,18 +28,19 @@ Risk factor : Serious";
   script_copyright(english:"(C) tony@libpcap.net");
   script_category(ACT_GATHER_INFO);
 
-  family["english"] = "CGI abuses";
+  family["english"] = "Web Servers";
   script_family(english:family["english"]);
 
   script_require_ports("Services/www", 80);
+  script_dependencies("http_version.nasl", "www_fingerprinting_hmap.nasl");
   exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
 
 if(get_port_state(port)) {
   # common ASP files
@@ -49,7 +50,7 @@ if(get_port_state(port)) {
   
   files = get_kb_list(string("www/", port, "/content/extensions/asp"));
   if(!isnull(files)){
-  	files = make_list(files);
+ 	files = make_list(files);
 	f[3] = files[0] + "%5C";
 	}
 

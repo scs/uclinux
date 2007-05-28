@@ -152,6 +152,11 @@ typedef int socklen_t;
 #ifdef HAVE_NETLINK
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#if (defined(HAVE_LINUX_VERSION_H) && LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19))
+#include <linux/if_link.h>
+#include <linux/if_addr.h>
+#include <linux/neighbour.h>
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19) */
 #else
 #define RT_TABLE_MAIN		0
 #endif /* HAVE_NETLINK */
@@ -496,5 +501,37 @@ struct fifo
 
 #define FIFO_TOP(F)                                   \
   (FIFO_EMPTY(F) ? NULL : ((struct fifo *)(F))->next)
+
+#ifndef IFA_RTA
+#define IFA_RTA(r) \
+	((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifaddrmsg))))
+#endif
+#ifndef IFA_PAYLOAD
+#define IFA_PAYLOAD(n)	NLMSG_PAYLOAD(n,sizeof(struct ifaddrmsg))
+#endif
+
+#ifndef IFLA_RTA
+#define IFLA_RTA(r) \
+	((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifinfomsg))))
+#endif
+#ifndef IFLA_PAYLOAD
+#define IFLA_PAYLOAD(n)	NLMSG_PAYLOAD(n,sizeof(struct ifinfomsg))
+#endif
+
+#ifndef NDA_RTA
+#define NDA_RTA(r) \
+	((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ndmsg))))
+#endif
+#ifndef NDA_PAYLOAD
+#define NDA_PAYLOAD(n)	NLMSG_PAYLOAD(n,sizeof(struct ndmsg))
+#endif
+
+#ifndef NDTA_RTA
+#define NDTA_RTA(r) \
+	((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ndtmsg))))
+#endif
+#ifndef NDTA_PAYLOAD
+#define NDTA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ndtmsg))
+#endif
 
 #endif /* _ZEBRA_H */

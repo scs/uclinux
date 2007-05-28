@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: udomain.c,v 1.26.4.1.2.1 2004/07/21 10:34:45 sobomax Exp $ 
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

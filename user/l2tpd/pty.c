@@ -13,6 +13,7 @@
  * from pty-redir by Magosanyi Arpad.
  *
  */
+#ifdef USE_BSD_PTYS
 
 #include "l2tp.h"
 #include <fcntl.h>
@@ -60,3 +61,4 @@ int getPtyMaster (char *tty10, char *tty01)
     log (LOG_CRIT, "%s: No more free pseudo-tty's\n", __FUNCTION__);
     return -1;
 }
+#endif

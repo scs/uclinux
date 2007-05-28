@@ -24,15 +24,7 @@
 #include "pptp_msg.h"
 #include "dirutil.h"
 #include "vector.h"
-
-#ifdef EMBED
-#include <syslog.h>
-// #define fprintf(x, a...) syslog(LOG_INFO, ##a)
-#define fprintf(x, a...)
-#undef assert
-#define assert(x) \
-	if (!(x)) syslog(LOG_INFO,"%s,%d ***ASSERT*** - " #x "\n",__FILE__,__LINE__);else
-#endif
+#include "util.h"
 
 int open_inetsock(struct in_addr inetaddr);
 int open_unixsock(struct in_addr inetaddr);
@@ -41,7 +33,7 @@ void close_unixsock(int fd, struct in_addr inetaddr);
 
 sigjmp_buf env;
 void sighandler(int sig) {
-  fprintf(stderr, "Got handled-signal %d\n", sig);
+  pptp_debug("Got handled-signal %d", sig);
   siglongjmp(env, 1);
 }
 
@@ -57,7 +49,7 @@ struct local_conninfo {
 
 void do_nothing(int sig) {
   /* do nothing signal handler */
-  fprintf(stderr, "Got nothing-signal %d\n", sig);
+  pptp_debug("Got nothing-signal %d", sig);
 }
 
 /* Connection callback */
@@ -70,7 +62,7 @@ void conn_callback(PPTP_CONN *conn, enum conn_state state) {
     siglongjmp(env, 1);
     break;
   default:
-    fprintf(stderr, "Unhandled connection callback state [%d].", (int) state);
+    logmsg("Unhandled connection callback state [%d].", (int) state);
     break;
   }
 }
@@ -86,10 +78,10 @@ void call_callback(PPTP_CONN *conn, PPTP_CALL *call, enum call_state state) {
     /* okey dokey.  This means that the call_id and peer_call_id are now
      * valid, so lets send them on to our friends who requested this call.
      */
-	fprintf(stderr, "About to get the call closure stuff\n");
+	pptp_debug("About to get the call closure stuff");
     lci = pptp_call_closure_get(conn, call); assert(lci != NULL);
     pptp_call_get_ids(conn, call, &call_id[0], &call_id[1]);
-	fprintf(stderr,"writing out the call_ids\n");
+	pptp_debug("writing out the call_ids");
 	if (lci)
     write(lci->unix_sock, (char *) &call_id, sizeof(call_id));
     /* Our duty to the fatherland is now complete. */
@@ -110,7 +102,7 @@ void call_callback(PPTP_CONN *conn, PPTP_CALL *call, enum call_state state) {
       kill(lci->pid[0], SIGTERM);
     }
 	if (lci) {
-	  fprintf(stderr, "close %d\n", lci->unix_sock);
+	  pptp_debug("close %d", lci->unix_sock);
       close(lci->unix_sock);
 	  lci->unix_sock = -1;
 #if 0
@@ -121,7 +113,7 @@ void call_callback(PPTP_CONN *conn, PPTP_CALL *call, enum call_state state) {
 	}
     break;
   default:
-    fprintf(stderr, "Unhandled call callback state [%d].", (int) state);
+    logmsg("Unhandled call callback state [%d].", (int) state);
     break;
   }
 }
@@ -138,15 +130,15 @@ int main(int argc, char **argv, char **envp) {
   int retval;
   int i;
 
-//  openlog("pptp_callmgr", LOG_PID, 0);
+  openlog("pptp_callmgr", LOG_PID, 0);
 
   /* Step 0: Check arguments */
   if (argc!=2){
-    fprintf(stderr, "Usage: %s ip.add.ress.here\n", argv[0]);
+    logmsg("Usage: %s ip.add.ress.here", argv[0]);
 	exit(0);
   }
   if (inet_aton(argv[1], &inetaddr)==0){
-    fprintf(stderr, "Invalid IP address: %s\n", argv[1]);
+    logmsg("Invalid IP address: %s", argv[1]);
 	exit(0);
   }
 
@@ -156,12 +148,12 @@ int main(int argc, char **argv, char **envp) {
   have already started.
   */
   if ((unix_sock = open_unixsock(inetaddr)) < 0){
-    fprintf(stderr, "Could not open unix socket for %s\n", argv[1]);
+    logmsg("Could not open unix socket for %s", argv[1]);
 	exit(0); /*Exit because there is nothing yet to be done in here*/
   }
 
   if ((inet_sock = open_inetsock(inetaddr)) < 0){  /* Step 1: Open sockets. */
-    fprintf(stderr,"Could not open control connection to %s\n", argv[1]);
+    logmsg("Could not open control connection to %s", argv[1]);
 	close_unixsock(unix_sock, inetaddr);
 	sleep(2); /* so we don't respawn too quickly and annoy init */
 	exit(0);
@@ -187,12 +179,12 @@ int main(int argc, char **argv, char **envp) {
 
   /* Step 2: Open control connection and register callback */
   if ((conn = pptp_conn_open(inet_sock, 1, NULL/* callback */)) == NULL) {
-    fprintf(stderr,"Could not open connection.\n");
+    logmsg("Could not open connection.");
 	sleep(2); /* so we don't respawn too quickly and annoy init */
 	goto cleanup;
   }
 
-  fprintf(stderr, "Call Mgr Started\n");
+  pptp_debug("Call Mgr Started for %s", argv[1]);
 
   FD_ZERO(&call_set);
   max_fd = inet_sock > unix_sock ? inet_sock : unix_sock;
@@ -200,7 +192,7 @@ int main(int argc, char **argv, char **envp) {
   { 
     struct local_conninfo *conninfo = malloc(sizeof(*conninfo));
     if (conninfo==NULL) {
-      fprintf(stderr,"No memory.");
+      logmsg("No memory.");
 	  goto cleanup;
     }
     conninfo->call_list = call_list;
@@ -208,7 +200,7 @@ int main(int argc, char **argv, char **envp) {
     pptp_conn_closure_put(conn, conninfo);
   }
 
-  if (sigsetjmp(env, 1)!=0) { fprintf(stderr, "signalled!\n"); goto shutdown; }
+  if (sigsetjmp(env, 1)!=0) { pptp_debug("signalled!"); goto shutdown; }
 
   setpgrp(); /* stop our dad from killing us */
 
@@ -224,7 +216,9 @@ int main(int argc, char **argv, char **envp) {
 
     /* Step 4: Wait on INET or UNIX event */
     if (select(max_fd+1, &read_set, &write_set, &excpt_set, NULL)<0) {
-	  fprintf(stderr, "select: %s\n", strerror(errno));
+	  if (errno != EINTR) {
+		logmsg("select: %s", strerror(errno));
+	  }
 	  sleep(1); /* hope the error goes away,  but be nice to the host also */
       /* a signal or somesuch. */
       continue;
@@ -244,13 +238,13 @@ int main(int argc, char **argv, char **envp) {
 
       /* Accept the socket */
       if ((s = accept(unix_sock, (struct sockaddr *) &from, &len))<0) {
-		fprintf(stderr, "Socket not accepted: %s", strerror(errno));
+		logmsg("Socket not accepted: %s", strerror(errno));
 		goto skip_accept;
       }
-	  fprintf(stderr, "accepting unixsock %d\n", s);
+	  pptp_debug("accepting unixsock %d", s);
       /* Allocate memory for local call information structure. */
       if ((lci = malloc(sizeof(*lci))) == NULL) {
-		fprintf(stderr, "Out of memory.");
+		logmsg("Out of memory.");
 		close(s);
 		goto skip_accept;
       }
@@ -259,14 +253,14 @@ int main(int argc, char **argv, char **envp) {
       /* Give the initiator time to write the PIDs while we open the call */
       call = pptp_call_open(conn, call_callback);
 	  if (call == NULL){
-	    fprintf(stderr, "Couldn't allocate new call\n");
+	    logmsg("Couldn't allocate new call");
 	    close(s);
 	    goto skip_accept;
 	  }
       /* Read and store the associated pids */
-	  fprintf(stderr, "Waiting to read the pids\n");
+	  pptp_debug("Waiting to read the pids");
       read(s, &lci->pid[0], sizeof(lci->pid[0]));
-	  fprintf(stderr, "pids read!!\n");
+	  pptp_debug("pids read!!");
       /* associate the local information with the call */
       pptp_call_closure_put(conn, call, (void *) lci);
       /* The rest is done on callback. */
@@ -279,7 +273,7 @@ int main(int argc, char **argv, char **envp) {
     }
   skip_accept:
   	if (pptp_conn_down(conn)) {
-      fprintf(stderr, "conn down!\n");
+      logmsg("conn down!");
 	  goto shutdown;
 	}
     /* Step 5c: Handle socket close */
@@ -289,7 +283,7 @@ int main(int argc, char **argv, char **envp) {
 	/* close it */
 	PPTP_CALL * call;
 
-	fprintf(stderr, "exception/data on fd %d\n", i);
+	pptp_debug("exception/data on fd %d", i);
 	retval = vector_search(call_list, i, &call);
 	if (retval) {
 #if 1
@@ -306,15 +300,15 @@ int main(int argc, char **argv, char **envp) {
 	  pptp_call_close(conn, call);
 	}
 	FD_CLR(i, &call_set);
-	fprintf(stderr, "closing unixsock %d\n", i);
+	pptp_debug("closing unixsock %d", i);
 	close(i);
       }
 	}
   } while (!pptp_conn_down(conn) && (vector_size(call_list)>0 || first));
 
-  fprintf(stderr, "Callmanager has no more calls ! exiting\n");
+  logmsg("Callmanager has no more calls ! exiting");
 shutdown:
-  fprintf(stderr, "Shutdown\n");
+  pptp_debug("Shutdown");
   /* make sure we clean up properly if interrupted during shutdown */
   signal(SIGINT, sighandler);
   signal(SIGTERM, sighandler);
@@ -324,7 +318,7 @@ shutdown:
   if (!pptp_conn_down(conn)) {
     fd_set read_set, write_set;
 
-    fprintf(stderr, "Shutdown cleanly\n");
+    pptp_debug("Shutdown cleanly");
     /* kill all open calls */
     for (i=0; i<vector_size(call_list); i++) {
       PPTP_CALL *call = vector_get_Nth(call_list, i);
@@ -359,7 +353,7 @@ cleanup:
   inet_sock = -1;
   close_unixsock(unix_sock, inetaddr);
   unix_sock = -1;
-  fprintf(stderr, "Gone\n");
+  pptp_debug("Gone");
   return 0;
 }
 
@@ -372,11 +366,11 @@ int open_inetsock(struct in_addr inetaddr) {
   dest.sin_addr   = inetaddr;
 
   if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-    fprintf(stderr,"socket: %s", strerror(errno));
+    logmsg("socket: %s", strerror(errno));
     return s;
   }
   if (connect(s, (struct sockaddr *) &dest, sizeof(dest)) < 0) {
-    fprintf(stderr,"connect: %s", strerror(errno));
+    logmsg("connect: %s", strerror(errno));
     close(s); return -1;
   }
   return s;
@@ -390,7 +384,7 @@ int open_unixsock(struct in_addr inetaddr) {
   char *call_id_str = getenv("pptp_call_id");
 
   if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-    fprintf(stderr, "socket: %s", strerror(errno));
+    logmsg("socket: %s", strerror(errno));
     return s;
   }
 
@@ -400,20 +394,21 @@ int open_unixsock(struct in_addr inetaddr) {
 	   call_id_str ? "." : "", call_id_str ? call_id_str : "");
 
   if (stat(where.sun_path, &st) >= 0) {
-    fprintf(stderr, "Call manager for %s is already running.\n", inet_ntoa(inetaddr)); fflush(stderr);
+    logmsg("Call manager for %s is already running.", inet_ntoa(inetaddr));
     close(s); return -1;
   }
 
   /* Make sure path is valid. */
   dir = dirname(where.sun_path);
   if (!make_valid_path(dir, 0770))
-    fprintf(stderr, "Could not make path to %s: %s\n", where.sun_path, strerror(errno));
+    logmsg("Could not make path to %s: %s", where.sun_path, strerror(errno));
   free(dir);
 
   if (bind(s, (struct sockaddr *) &where, sizeof(where)) < 0) {
-    fprintf(stderr,"bind: %s", strerror(errno));
+    logmsg("bind: %s", strerror(errno));
     close(s); return -1;
   }
+  pptp_debug("Bound unix domain socket: %s", where.sun_path);
 
   chmod(where.sun_path, 0777);
 
@@ -430,7 +425,7 @@ void close_unixsock(int fd, struct in_addr inetaddr) {
   snprintf(where.sun_path, sizeof(where.sun_path), 
 	   PPTP_SOCKET_PREFIX "%s", inet_ntoa(inetaddr));
   unlink(where.sun_path);
-  fprintf(stderr, "*** UNLINK %s ***\n", where.sun_path);
+  pptp_debug("unlink %s", where.sun_path);
 }
   
 

@@ -6,6 +6,7 @@
 
 
 if(description) {
+	script_id(11187);
 	desc="
 The backdoor '4553' seems to be installed on this host, which indicates
 it has been compromised. 
@@ -15,7 +16,9 @@ Risk factor : Critical";
 	
 
 	
-	script_version("$Revision: 1.3 $");
+	script_version("$Revision: 1.6 $");
+	# script_cve_id("CVE-MAP-NOMATCH");
+	# NOTE: no CVE id assigned (jfs, december 2003)
 	script_name(english:"4553 Parasite Mothership Detect");
 	script_description(english:desc);
 	script_summary(english:"Detects the presence of 4553 parasite's mothership");
@@ -25,7 +28,6 @@ Risk factor : Critical";
 	script_family(english:"Backdoors");
 	script_require_ports(21227, 21317);
 	
-	script_id(11187);
 	exit(0);
 }
 

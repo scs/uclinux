@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10768);
- script_cve_id("CVE-2001-0843");
  script_bugtraq_id(3354);
- script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-0843");
+ script_version ("$Revision: 1.16 $");
  name["english"] = "DoSable squid proxy server";
  script_name(english:name["english"]);
  desc["english"] = "
@@ -27,7 +27,7 @@ on your proxy.
 *** Note that Nessus solely relied on the version number of the remote
 *** proxy to issue this warning
 
-Risk factor : Medium/High";
+Risk factor : Medium / High";
  script_description(english:desc["english"]);
  summary["english"] = "Determines via ver. if a proxy server is DoSable";
  script_summary(english:summary["english"]);
@@ -47,8 +47,8 @@ Risk factor : Medium/High";
 include("http_func.inc");
 
 port = get_kb_item("Services/http_proxy");
-if(!port)port = 8080;
-if(!get_port_state(port))port = 3128;
+if(!port)port = 3128;
+if(!get_port_state(port))port = 8080;
 
 
 if(get_port_state(port))
@@ -72,7 +72,7 @@ if(get_port_state(port))
 			 ("STABLE4" >< data) ||
 			 ("STABLE5" >< data))
    {
-    security_hole(port);
+    security_warning(port);
    }
    #CHECK VERSION 2.4
    if(("2.4" >< data) && ("STABLE1" >< data) || 
@@ -81,7 +81,7 @@ if(get_port_state(port))
 			 ("DEVEL4" >< data) ||
 			 ("DEVEL2" >< data))
    {
-    security_hole(port);
+    security_warning(port);
    }
   }
  }

@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_client.c,v 1.105.2.4 2005/04/19 22:19:27 hno Exp $
  *
  * DEBUG: section 20    Storage Manager Client-Side Interface
  * AUTHOR: Duane Wessels
@@ -141,10 +141,6 @@ storeClientListAdd(StoreEntry * e, void *data)
     sc->flags.disk_io_pending = 0;
     sc->entry = e;
     sc->type = storeClientType(e);
-    if (sc->type == STORE_DISK_CLIENT)
-	/* assert we'll be able to get the data we want */
-	/* maybe we should open swapin_fd here */
-	assert(e->swap_filen > -1 || storeSwapOutAble(e));
     dlinkAdd(sc, &sc->node, &mem->clients);
 #if DELAY_POOLS
     sc->delay_id = 0;
@@ -179,18 +175,18 @@ storeClientCopyEvent(void *data)
 void
 storeClientCopy(store_client * sc,
     StoreEntry * e,
-    off_t seen_offset,
-    off_t copy_offset,
+    squid_off_t seen_offset,
+    squid_off_t copy_offset,
     size_t size,
     char *buf,
     STCB * callback,
     void *data)
 {
     assert(!EBIT_TEST(e->flags, ENTRY_ABORTED));
-    debug(20, 3) ("storeClientCopy: %s, seen %d, want %d, size %d, cb %p, cbdata %p\n",
+    debug(20, 3) ("storeClientCopy: %s, seen %" PRINTF_OFF_T ", want %" PRINTF_OFF_T ", size %d, cb %p, cbdata %p\n",
 	storeKeyText(e->hash.key),
-	(int) seen_offset,
-	(int) copy_offset,
+	seen_offset,
+	copy_offset,
 	(int) size,
 	callback,
 	data);
@@ -220,7 +216,7 @@ storeClientCopy(store_client * sc,
 static int
 storeClientNoMoreToSend(StoreEntry * e, store_client * sc)
 {
-    ssize_t len;
+    squid_off_t len;
     if (e->store_status == STORE_PENDING)
 	return 0;
     if ((len = objectLen(e)) < 0)
@@ -265,7 +261,7 @@ static void
 storeClientCopy3(StoreEntry * e, store_client * sc)
 {
     MemObject *mem = e->mem_obj;
-    size_t sz;
+    ssize_t sz;
 
     if (storeClientNoMoreToSend(e, sc)) {
 	/* There is no more to send! */
@@ -316,6 +312,8 @@ storeClientCopy3(StoreEntry * e, store_client * sc)
 	debug(20, 3) ("storeClientCopy3: Copying from memory\n");
 	sz = stmemCopy(&mem->data_hdr,
 	    sc->copy_offset, sc->copy_buf, sc->copy_size);
+	if (EBIT_TEST(e->flags, RELEASE_REQUEST))
+	    storeSwapOutMaintainMemObject(e);
 	storeClientCallback(sc, sz);
 	return;
     }
@@ -342,7 +340,7 @@ storeClientFileRead(store_client * sc)
 	    sc);
     } else {
 	if (sc->entry->swap_status == SWAPOUT_WRITING)
-	    assert(storeOffset(mem->swapout.sio) > sc->copy_offset + mem->swap_hdr_sz);
+	    assert(storeSwapOutObjectBytesOnDisk(mem) > sc->copy_offset);
 	storeRead(sc->swapin_sio,
 	    sc->copy_buf,
 	    sc->copy_size,
@@ -431,6 +429,7 @@ storeClientReadHeader(void *data, const char *buf, ssize_t len)
 	    }
 	    break;
 	case STORE_META_STD:
+	case STORE_META_STD_LFS:
 	    break;
 	case STORE_META_VARY_HEADERS:
 	    if (mem->vary_headers) {
@@ -534,16 +533,18 @@ storeUnregister(store_client * sc, StoreEntry * e, void *data)
     /*assert(!sc->flags.disk_io_pending); */
     cbdataFree(sc);
     assert(e->lock_count > 0);
+    storeSwapOutMaintainMemObject(e);
     if (mem->nclients == 0)
 	CheckQuickAbort(e);
     return 1;
 }
 
-off_t
+squid_off_t
 storeLowestMemReaderOffset(const StoreEntry * entry)
 {
     const MemObject *mem = entry->mem_obj;
-    off_t lowest = mem->inmem_hi + 1;
+    squid_off_t lowest = mem->inmem_hi + 1;
+    squid_off_t highest = -1;
     store_client *sc;
     dlink_node *nx = NULL;
     dlink_node *node;
@@ -553,14 +554,15 @@ storeLowestMemReaderOffset(const StoreEntry * entry)
 	nx = node->next;
 	if (sc->callback_data == NULL)	/* open slot */
 	    continue;
-	if (sc->type != STORE_MEM_CLIENT)
+	if (sc->copy_offset > highest)
+	    highest = sc->copy_offset;
+	if (mem->swapout.sio != NULL && sc->type != STORE_MEM_CLIENT)
 	    continue;
-	if (sc->type == STORE_DISK_CLIENT)
-	    if (NULL != sc->swapin_sio)
-		continue;
 	if (sc->copy_offset < lowest)
 	    lowest = sc->copy_offset;
     }
+    if (highest < lowest && highest >= 0)
+	return highest;
     return lowest;
 }
 
@@ -603,9 +605,9 @@ storePendingNClients(const StoreEntry * e)
 static int
 CheckQuickAbort2(StoreEntry * entry)
 {
-    int curlen;
-    int minlen;
-    int expectlen;
+    squid_off_t curlen;
+    squid_off_t minlen;
+    squid_off_t expectlen;
     MemObject *mem = entry->mem_obj;
     assert(mem);
     debug(20, 3) ("CheckQuickAbort2: entry=%p, mem=%p\n", entry, mem);
@@ -618,8 +620,8 @@ CheckQuickAbort2(StoreEntry * entry)
 	return 1;
     }
     expectlen = mem->reply->content_length + mem->reply->hdr_sz;
-    curlen = (int) mem->inmem_hi;
-    minlen = (int) Config.quickAbort.min << 10;
+    curlen = mem->inmem_hi;
+    minlen = Config.quickAbort.min << 10;
     if (minlen < 0) {
 	debug(20, 3) ("CheckQuickAbort2: NO disabled\n");
 	return 0;

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10389);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CAN-2000-0429");
  script_bugtraq_id(1153);
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-2000-0429");
  
  name["english"] = "Cart32 ChangeAdminPassword";
  name["francais"] = "Cart32 ChangeAdminPassword";
@@ -24,11 +24,8 @@ This software contains several security flaws :
 	- users may be able to change the admin password remotely
 
 
-You should use something else.
-
 See also : http://www.cerberus-infosec.co.uk/advcart32.html
-
-Solution : use another shopping cart software
+Solution : Use Cart32 version 5.0 or newer
 Risk factor : High";
 
 
@@ -49,6 +46,7 @@ Risk factor : High";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -56,5 +54,20 @@ Risk factor : High";
 # The script code starts here
 #
 
-port = is_cgi_installed("c32web.exe/ChangeAdminPassword");
-if(port)security_hole(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+port = get_http_port(default:80);
+if ( !port || ! get_port_state(port) ) exit(0);
+
+foreach dir (cgi_dirs())
+{
+ req = http_get(item:dir + "/cart32.exe", port:port);
+ res = http_keepalive_send_recv(port:port, data:req);
+ if ( res == NULL ) exit(0);
+ if ( egrep(pattern:"<title>Cart32 [0-2]\.", string:res) )
+	{
+	security_hole(port);
+	exit(0);
+	}
+}
+	

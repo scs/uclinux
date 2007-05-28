@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: md5.c,v 1.14 2001/11/21 23:47:12 hno Exp $
  */
 
 /* taken from RFC-1321/Appendix A.3 */

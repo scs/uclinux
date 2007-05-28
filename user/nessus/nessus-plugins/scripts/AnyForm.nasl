@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10277);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CVE-1999-0066");
  script_bugtraq_id(719);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-1999-0066");
  name["english"] = "AnyForm";
  name["francais"] = "AnyForm";
  script_name(english:name["english"], francais:name["francais"]);
@@ -22,7 +22,7 @@ anyone execute arbitrary commands with the privileges of the http daemon
 (root or nobody).
 
 Solution : remove it.
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -40,7 +40,7 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -48,7 +48,13 @@ Risk factor : Serious";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("AnyForm2");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"AnyForm2", port:port);
+if( res )security_hole(port);
 

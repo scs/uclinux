@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998, 1999, 2000 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,16 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  */
  
@@ -101,7 +91,7 @@ void _detached_send_mail(globals)
   /*
    * Close all open files
    */
-  for(i=0;i<1024;i++)close(i);
+  for(i=0;i<getdtablesize();i++)close(i);
   
   /*
    * Our email file becomes stdin

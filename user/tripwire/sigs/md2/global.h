@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: global.h,v 1.2 1993/08/19 05:27:52 genek Exp $ */
 
 /* GLOBAL.H - RSAREF types and constants
  */

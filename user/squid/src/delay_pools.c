@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: delay_pools.c,v 1.5.54.5.2.1 2003/06/27 00:56:06 hno Exp $
  *
  * DEBUG: section 77    Delay Pools
  * AUTHOR: David Luyer <david@luyer.net>

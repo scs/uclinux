@@ -19,10 +19,10 @@
 if(description)
 {
  script_id(11442);
+ script_bugtraq_id(7106, 7206);
  
- script_version ("$Revision: 1.3 $");
- script_cve_id("CAN-2003-0085");
- script_bugtraq_id(7206, 7106);
+ script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2003-0085");
 
  name["english"] = "Samba TNG multiple flaws";
 
@@ -30,13 +30,11 @@ if(description)
  
  desc["english"] = "
 The remote Samba server, according to its version number,
-may be vulnerable to multiple flaws which may let an attacker
+is vulnerable to multiple flaws which may let an attacker
 gain a root shell on this host
 
-*** No flaw was tested so this might be a false positive
 
-
-Solution : upgrade to Samba TNG 0.3.1
+Solution : Upgrade to Samba TNG 0.3.1
 Risk factor : High";
 
 

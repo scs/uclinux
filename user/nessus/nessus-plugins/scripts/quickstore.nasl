@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(10712);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CAN-1999-0607", "CAN-2000-1188");
+ script_bugtraq_id(1983);
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-1999-0607", "CVE-2000-1188");
  
  name["english"] = "quickstore traversal";
  name["francais"] = "quickstore traversal";
@@ -21,7 +22,7 @@ files with the privileges of the http daemon (usually root or nobody).
 
 Solution : remove it from /cgi-bin or upgrade to the latest version.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'quickstore.cgi' est installé. Celui-ci possède
@@ -51,6 +52,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -61,8 +63,8 @@ Facteur de risque : Sérieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

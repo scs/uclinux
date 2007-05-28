@@ -23,7 +23,7 @@
 CREATE TABLE schema ( vseq        INT4     NOT NULL,
                       ctime       TIMESTAMP with time zone NOT NULL,
                       PRIMARY KEY (vseq));
-INSERT INTO schema  (vseq, ctime) VALUES ('106', now());
+INSERT INTO schema  (vseq, ctime) VALUES ('107', now());
 
 CREATE TABLE signature ( sig_id       SERIAL NOT NULL,
                          sig_name     TEXT NOT NULL,
@@ -31,6 +31,7 @@ CREATE TABLE signature ( sig_id       SERIAL NOT NULL,
                          sig_priority INT8,
                          sig_rev      INT8,
                          sig_sid      INT8,
+                         sig_gid      INT8,
                          PRIMARY KEY (sig_id));
 CREATE INDEX sig_name_idx ON signature (sig_name);
 CREATE INDEX sig_class_idx ON signature (sig_class_id);

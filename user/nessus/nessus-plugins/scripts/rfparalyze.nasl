@@ -10,9 +10,9 @@
 if(description)
 {
  script_id(10392);
-script_cve_id("CVE-2000-0347");
  script_bugtraq_id(1163);
- script_version ("$Revision: 1.13 $");
+script_cve_id("CVE-2000-0347");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "rfparalyze";
  script_name(english:name["english"]);
  
@@ -55,6 +55,7 @@ Facteur de risque : Elevé";
 function PadName(orig)
 {
  ret = "";
+ if ( isnull(orig) ) return;
  len = strlen(orig);
  for(i=0;i<15;i=i+1)
  {
@@ -117,6 +118,7 @@ if(soc)
 {
 send(socket:soc, data:req, length:72);
 r = recv(socket:soc, length:4000);
+if ( r == NULL || strlen(r) == 0 ) exit(0);
 if(ord(r[0])==0x82)
 {
  send(socket:soc, data:blowup, length:72);

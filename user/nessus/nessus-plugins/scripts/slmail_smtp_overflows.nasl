@@ -15,7 +15,9 @@
 if(description)
 {
  script_id(11593);
- script_version ("$Revision: 1.1 $");
+ script_bugtraq_id(7512, 7515, 7519, 7525, 7526);
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2003-0264");
 
  
  name["english"] = "SLMail SMTP overflows";
@@ -28,7 +30,7 @@ which may allow to execute arbitrary commands on this
 host or to disable it remotely.
 
 Solution : Upgrade to SLMail 5.1.0.4433 or newer
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -43,7 +45,7 @@ Risk Factor : High";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("find_service.nes", "smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -57,6 +59,7 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(get_port_state(port))
 {
@@ -86,8 +89,5 @@ if(get_port_state(port))
   
   soc = open_sock_tcp(port);
   if(!soc){security_hole(port); exit(0);}
-  r = recv_line(socket:soc, length:4096);
-  if(!r)security_hole(port);
-  close(soc);
  }
 }

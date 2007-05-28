@@ -99,53 +99,7 @@ static int f_parse_noopt(struct filter_util *qu, char *fhandle, int argc, char *
 #endif
 
 #ifdef NO_DL
-#ifdef TC_CONFIG_ATM
-extern struct qdisc_util atm_util;
-#endif
-#ifdef TC_CONFIG_DIFFSERV
-extern struct qdisc_util dsmark_util;
-extern struct qdisc_util gred_util;
-extern struct qdisc_util ingress_util;
-#endif
-extern struct qdisc_util cbq_util;
-extern struct qdisc_util htb_util;
-extern struct qdisc_util pfifo_util;
-extern struct qdisc_util bfifo_util;
-#if 0
-extern struct qdisc_util csz_util;
-extern struct qdisc_util hfsc_util;
-extern struct qdisc_util hpfq_util;
-#endif
-extern struct qdisc_util prio_util;
-extern struct qdisc_util red_util;
-extern struct qdisc_util wrr_util;
-extern struct qdisc_util sfq_util;
-extern struct qdisc_util tbf_util;
-static struct qdisc_util *qdisc[] = {
-#ifdef TC_CONFIG_ATM
-	&atm_util,
-#endif
-#ifdef TC_CONFIG_DIFFSERV
-	&dsmark_util,
-	&gred_util,
-	&ingress_util,
-#endif
-	&cbq_util,
-	&htb_util,
-	&pfifo_util,
-	&bfifo_util,
-#if 0
-	&csz_util,
-	&hfsc_util,
-	&hpfq_util,
-#endif
-	&prio_util,
-	&red_util,
-	&wrr_util,
-	&sfq_util,
-	&tbf_util,
-	NULL
-};
+#include "qdisc.c"
 #endif
 
 struct qdisc_util *get_qdisc_kind(char *str)
@@ -206,23 +160,7 @@ noexist:
 
 
 #ifdef NO_DL
-extern struct filter_util fw_util;
-extern struct filter_util route_util;
-extern struct filter_util rsvp_util;
-#ifdef TC_CONFIG_DIFFSERV
-extern struct filter_util tcindex_util;
-#endif
-extern struct filter_util u32_util;
-static struct filter_util *filter[] = {
-	&fw_util,
-	&route_util,
-	&rsvp_util,
-#ifdef TC_CONFIG_DIFFSERV
-	&tcindex_util,
-#endif
-	&u32_util,
-	NULL
-};
+#include "filter.c"
 #endif
 
 struct filter_util *get_filter_kind(char *str)

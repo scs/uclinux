@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11779);
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.11 $");
 
  script_name(english:"FTP server hosting copyrighted material");
 	     
@@ -19,7 +19,7 @@ avi or asf files.");
  script_category(ACT_GATHER_INFO);
  script_family(english:"Peer-To-Peer File Sharing");
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- script_dependencie("find_service.nes", "logins.nasl", "smtp_settings.nasl");
+ script_dependencie("find_service_3digits.nasl", "logins.nasl", "smtp_settings.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -41,21 +41,24 @@ function get_files(socket, basedir, level)
  
  send(socket:socket, data:'CWD ' + basedir + '\r\n');
  r = ftp_recv_line(socket:socket);
- if(!ereg(pattern:"^250 ", string:r))return NULL;
+ if(!egrep(pattern:"^250 ", string:r))return NULL;
  
  
  if( level > 3 )
  	return NULL;
 	
- p = ftp_get_pasv_port(socket:socket);
+ p = ftp_pasv(socket:socket);
  if(!p)return NULL;
  
  s = open_sock_tcp(p, transport:get_port_transport(port));
  if(!s)return NULL;
  send(socket:socket, data:'NLST .\r\n' );
+ r = ftp_recv_line(socket:socket);
+ if ( egrep(string:r, pattern:"^150 ") )
+ {
  l = ftp_recv_listing(socket:s);
  r = ftp_recv_line(socket:socket);
- r = ftp_recv_line(socket:socket);
+ }
  close(s);
  l = split(l, keep:0);
  m = make_list();
@@ -86,14 +89,14 @@ soc = open_sock_tcp(port);
 report = NULL;
 if(soc)
 {
- r = ftp_log_in(socket:soc, user:login, pass:pass);
+ r = ftp_authenticate(socket:soc, user:login, pass:pass);
  if(r)
  {
   files = get_files(socket:soc, basedir:"/", level:0);
   num_suspects = 0;
   foreach file (files)
   {
-   if(ereg(pattern:".*\.(mp3|mpg|mpeg|ogg|avi|wav|asf)", string:file, icase:TRUE))
+   if(ereg(pattern:".*\.(mp3|mpg|mpeg|ogg|avi|wav|asf|wma)", string:file, icase:TRUE))
    {
     report += ' - ' + file + '\n';
     num_suspects ++;

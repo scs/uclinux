@@ -9,7 +9,7 @@
  * This version is a complete rewrite to use the IS 101 mode of the
  * Elite 2864.
  *
- * $Id$
+ * $Id: ZyXEL_2864.c,v 1.8 2005/03/13 17:27:46 gert Exp $
  *
  */
 

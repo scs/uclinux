@@ -1,6 +1,6 @@
 /*
  *
- * $Id$
+ * $Id: vm.c,v 1.30.2.1.2.3 2004/01/16 12:02:19 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -11,20 +11,23 @@ password = "db2fenc1";
 if(description)
 {
  script_id(11860);
- script_version ("$Revision: 1.1 $");
- script_cve_id("CAN-2001-0051");
- script_name(english:string("Default password (", password, ") for ", account));
-	     
+ script_bugtraq_id(2068);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-0051");
+ script_name(english:"Default password (db2fenc1) for db2fenc1");
 
- script_description(english:string("
-The account '", account, "' has the password ", password, "
+ desc["english"] =
+"
+The account 'db2fenc1' has the password 'db2fenc1'
 An attacker may use it to gain further privileges on this system
 
 Risk factor : High
-Solution : Set a strong password for this account or disable it. This may disable dependant applications so beware"));
+Solution : Set a strong password for this account or disable it.
+This may disable dependant applications so beware";
+
+ script_description(english:desc["english"]);
 		 
-script_summary(english:"Logs into the remote host",
-	       francais:"Translate");
+ script_summary(english:"Logs into the remote host");
 
 script_copyright(english:"This script is Copyright (C) 2003 Chris Foster");
 
@@ -32,8 +35,9 @@ script_copyright(english:"This script is Copyright (C) 2003 Chris Foster");
 
  script_family(english:"Default Unix Accounts");
  
- script_dependencie("find_service.nes");
- script_require_ports("Services/telnet", 23);
+ script_dependencie("find_service.nes", "ssh_detect.nasl");
+ script_require_ports("Services/telnet", 23, "Services/ssh", 22);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
@@ -41,6 +45,9 @@ script_copyright(english:"This script is Copyright (C) 2003 Chris Foster");
 # The script code starts here : 
 #
 include("default_account.inc");
+include("global_settings.inc");
+
+if ( ! thorough_tests )exit(0);
 
 port = check_account(login:account, password:password);
 if(port)security_hole(port);

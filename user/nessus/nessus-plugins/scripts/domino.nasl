@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10057);
- script_version ("$Revision: 1.25 $");
+ script_version ("$Revision: 1.30 $");
  
  name["english"] = "Lotus Domino ?open Vulnerability";
  name["francais"] = "Vulnérabilité ?open dans Lotus Domino";
@@ -46,7 +46,7 @@ Solution :
 	   field, choose No,
 	4. Save the document.
 	
-Risk factor : Serious";	
+Risk factor : High";	
  desc["francais"] = "Il est possible de lister
 les répertoires du site distant en ajoutant ?open
 à la fin de l'url demandée, comme par exemple :
@@ -98,9 +98,8 @@ Facteur de risque : Sérieux.";
  family["english"] = "Remote file access";
  family["francais"] = "Accès aux fichiers distants";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/domino");
  exit(0);
 }
 
@@ -109,11 +108,13 @@ Facteur de risque : Sérieux.";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
+port = get_http_port(default:80);
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
 
 if(!get_port_state(port))exit(0);
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "Lotus Domino" >!< sig ) exit(0);
 
 
 banner = get_http_banner(port:port);
@@ -121,6 +122,6 @@ banner = get_http_banner(port:port);
 if(egrep(pattern:"Server:.*otus.*", string:banner))
 {
  cgi = "/?open";
- ok = is_cgi_installed(item:cgi, port:port);
+ ok = is_cgi_installed_ka(item:cgi, port:port);
  if(ok)security_hole(port);
 }

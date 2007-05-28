@@ -102,7 +102,7 @@ static SF_EVENTQ s_eventq;
 int sfeventq_init(int max_nodes, int log_nodes, int event_size, 
                   int (*sort)(void *, void *))
 {
-    if(max_nodes <= 0 || log_nodes <= 0 || event_size <= 0 || !sort)
+    if(max_nodes <= 0 || log_nodes <= 0 || event_size <= 0 ) /* || !sort) Jan06 -- not required */
         return -1;
 
     /*
@@ -220,6 +220,11 @@ static SF_EVENTQ_NODE *get_eventq_node(void *event)
         **  If this event does not have a higher priority than
         **  the last one, we don't won't it.
         */
+        if (!s_eventq.sort)
+        {
+            return NULL;
+        }
+
         if(!s_eventq.sort(event, s_eventq.last->event))
         {
             s_eventq.reserve_event = event;
@@ -301,24 +306,27 @@ int sfeventq_add(void *event)
     /*
     **  Now we search for where to insert this node.
     */
-    for(tmp = s_eventq.head; tmp; tmp = tmp->next)
+    if( s_eventq.sort ) /* Not used --- Jan06 each action group is presorted in fpFinalSelect */
     {
-        if(s_eventq.sort(event, tmp->event))
+        for(tmp = s_eventq.head; tmp; tmp = tmp->next)
         {
-            /*
-            **  Put node here.
-            */
-            if(tmp->prev)
-                tmp->prev->next = node;
-            else
-                s_eventq.head   = node;
-                
-            node->prev = tmp->prev;
-            node->next = tmp;
+            if(s_eventq.sort(event, tmp->event))
+            {
+                /*
+                **  Put node here.
+                */
+                if(tmp->prev)
+                    tmp->prev->next = node;
+                else
+                    s_eventq.head   = node;
 
-            tmp->prev  = node;
+                node->prev = tmp->prev;
+                node->next = tmp;
 
-            return 0;
+                tmp->prev  = node;
+
+                return 0;
+            }
         }
     }
 

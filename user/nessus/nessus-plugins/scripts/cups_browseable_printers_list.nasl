@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11754);
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.3 $");
  
  
  name["english"] = "List of printers is available through CUPS";
@@ -22,7 +22,7 @@ This is particulary useful as some attacks require an attacker
 to provide a valid printer name.
 
 Solution : Filter incoming traffic to this port 
-Risk Factor : Low";
+Risk factor : Low";
 
  script_description(english:desc["english"]);
  
@@ -34,7 +34,7 @@ Risk Factor : Low";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Misc.";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "httpver.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www",631);
  script_require_keys("www/cups");
  exit(0);
@@ -86,7 +86,7 @@ The following list of printers has been obtained :
 The remote host default printer is " + default + "
 
 Solution : Filter incoming traffic to this port 
-Risk Factor : Low";
+Risk factor : Low";
  security_warning(port:port, data:report);
  exit(0);
  }

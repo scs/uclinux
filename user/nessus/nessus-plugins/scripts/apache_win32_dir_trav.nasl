@@ -12,9 +12,9 @@
 if(description)
 {
  script_id(11092);
- script_version("$Revision: 1.11 $");
  script_bugtraq_id(5434);
- script_cve_id("CAN-2002-0661");
+ script_version("$Revision: 1.19 $");
+ script_cve_id("CVE-2002-0661");
  name["english"] = "Apache 2.0.39 Win32 directory traversal";
  script_name(english:name["english"]);
  
@@ -43,9 +43,9 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/apache");
  exit(0);
@@ -54,26 +54,24 @@ Risk factor : High";
 # 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
+banner = get_http_banner(port:port);
+if ( "Apache" >!< banner ) exit(0);
 
 cginameandpath[0] = "/error/%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5cautoexec.bat";
 cginameandpath[1] = "/error/%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5cwinnt%5cwin.ini";
 cginameandpath[2] = "/error/%5c%2e%2e%5c%2e%2e%5c%2e%2e%5c%2e%2e%5cboot.ini";
 cginameandpath[3] = "";
 
-
-qc=1;
-n = string("www/no404/", port);
-r = get_kb_item(n);
-if (r) qc=0;
-
 for (i = 0; cginameandpath[i]; i = i + 1)
 { 
   u = cginameandpath[i];
-  if(check_win_dir_trav(port: port, url:u, quickcheck: qc))
+  if(check_win_dir_trav(port: port, url:u))
   {
     security_hole(port);
     exit(0);
@@ -94,6 +92,6 @@ inaccessible using a directory traversal attack.
 ** You may have already applied the RedirectMatch wordaround.
 ** Anyway, you should upgrade your server to Apache 2.0.40
 
-Risk factor : High/None";
+Risk factor : None / High";
   security_warning(port: port, data: m);
 }

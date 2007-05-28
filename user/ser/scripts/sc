@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: sc,v 1.62.4.1.2.3 2004/07/27 09:20:37 andrei Exp $
 #
 # sc: ser control; tool for maintaining ser's databases
 #
@@ -63,7 +63,7 @@ ACL_GROUPS="local ld int voicemail free-pstn"
 FOREVER='2020-05-28 21:32:15'
 FOREVER_REL=1003741823
 
-VERSION='$Revision$'
+VERSION='$Revision: 1.62.4.1.2.3 $'
 #### SQL names
 
 # Usr Loc Table

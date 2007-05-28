@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-3b2g.h,v 1.2 1993/08/19 05:26:48 genek Exp $ */
 
 /*
  * conf-3b2g.h

@@ -15,7 +15,8 @@
 if(description)
 {
  script_id(11573);
- script_version ("$Revision: 1.2 $");
+ script_bugtraq_id(7472, 7473, 7474);
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "SmallFTP traversal";
  
@@ -55,7 +56,7 @@ include("ftp_func.inc");
 
 function dir()
 {
- p = ftp_get_pasv_port(socket:soc);
+ p = ftp_pasv(socket:soc);
  if(!p)exit(0);
  soc2 = open_sock_tcp(p, transport:get_port_transport(port));
  if(!soc2)return(0);
@@ -86,7 +87,7 @@ if(soc)
 {
  login = get_kb_item("ftp/login");
  pass = get_kb_item("ftp/password");
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
  send(socket:soc, data:string("CWD /\r\n"));
  r = ftp_recv_line(socket:soc);

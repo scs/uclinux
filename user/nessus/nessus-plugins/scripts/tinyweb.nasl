@@ -3,7 +3,7 @@ if(description)
 {
  script_id(11894);
  script_bugtraq_id(8810);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.4 $");
  
  name["english"] = "TinyWeb 1.9";
 
@@ -16,7 +16,7 @@ A remote user can issue an HTTP GET request for /cgi-bin/.%00./dddd.html
 and cause the server consume large amounts of CPU time (88%-92%).
 
 Solution : contact vendor http://www.ritlabs.com
-Risk Factor : High";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -36,8 +36,8 @@ Risk Factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port)) {
         ban = get_http_banner(port: port);

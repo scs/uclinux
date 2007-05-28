@@ -5,12 +5,9 @@
 # watch mgetty log file (the "auth.log" syslog file) for repeated failure
 # messages, alarming system administrator after repeated failures
 #
-# RCS: $Id$
+# RCS: $Id: watchit.pl,v 1.2 1998/10/07 13:54:06 gert Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:26:54  vapier
-# import from upstream uClinux
-#
+# $Log: watchit.pl,v $
 # Revision 1.2  1998/10/07 13:54:06  gert
 # add RCS keywords
 #

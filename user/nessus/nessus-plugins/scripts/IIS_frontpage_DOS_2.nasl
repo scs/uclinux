@@ -7,20 +7,20 @@
 if(description)
 {
  script_id(10585);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CVE-2001-0096");
  script_bugtraq_id(2144);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-0096");
  name["english"] = "IIS FrontPage DoS";
  script_name(english:name["english"]);
  
  desc["english"] = " Microsoft IIS, running Frontpage extensions, is 
 vulnerable to a remote DoS attack usually called the 'malformed
 web submission' vulnerability.  An attacker, exploiting this vulnerability,
-will be able to render the service unuseable.  If this machine serves a
+will be able to render the service unusable.  If this machine serves a
 business-critical functionality, there could be an impact to the business.
 
 
-Solution: See http://www.microsoft.com/technet/security/bulletin/MS00-100.asp
+Solution: See http://www.microsoft.com/technet/security/bulletin/MS00-100.mspx
 
 Risk factor : High";
 
@@ -35,26 +35,31 @@ Risk factor : High";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes",  "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
 #
 # The script code starts here
 #
 
-port=get_kb_item("Services/www");
-if(!port)port=80;
+port = get_http_port(default:80);
+
+if ( ! get_port_state(port) ) exit(0);
+
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 i=0;
-if(is_cgi_installed(item:"/_vti_bin/shtml.dll/_vti_rpc", port:port)) {
+if(is_cgi_installed_ka(item:"/_vti_bin/shtml.dll/_vti_rpc", port:port)) {
 		i=i+1;
 		filename[i]="shtml.dll/_vti_rpc";
 }
-if(is_cgi_installed(item:"/_vti_bin/_vti_aut/author.dll", port:port)) {
+if(is_cgi_installed_ka(item:"/_vti_bin/_vti_aut/author.dll", port:port)) {
 		i=i+1;
 		filename[i]="_vti_aut/author.dll";
 }

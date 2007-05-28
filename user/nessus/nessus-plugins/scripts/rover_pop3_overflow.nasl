@@ -7,17 +7,16 @@
 if(description)
 {
  script_id(10206);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(894);
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-2000-0060");
  name["english"] = "Rover pop3 overflow";
  name["francais"] = "Divers dépassement de buffers dans Rover pop3";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The remote pop3 server is vulnerable to a buffer
-overflow when issued a very long user name
-(10,000 chars)
+The remote pop3 server seems vulnerable to a buffer overflow when 
+issued a very long user name (10,000 chars)
 
 This *may* allow an attacker to execute arbitrary commands
 as root on the remote POP3 server.
@@ -70,8 +69,9 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
-  r = recv(socket:soc, length:4096);
+  r = recv_line(socket:soc, length:4096);
   if(!r)exit(0);
+  if ( "rover" >!< tolower(r)) exit(0);
   c = string("USER ", crap(10000), "\r\n");
   send(socket:soc, data:c);
   d = recv_line(socket:soc, length:1024);
@@ -87,7 +87,7 @@ if(get_port_state(port))
     if(!soc2)security_hole(port);
     else close(soc2);
     }
+  close(soc);
  }
- close(soc);
 }
 

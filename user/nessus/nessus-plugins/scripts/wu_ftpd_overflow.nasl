@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(10318);
- script_version ("$Revision: 1.35 $");
- script_bugtraq_id(2242);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-b-0003");
+ script_bugtraq_id(113, 2242, 599, 747);
+ script_version ("$Revision: 1.42 $");
  script_cve_id("CVE-1999-0368", "CVE-1999-0878", "CVE-1999-0879", "CVE-1999-0950");
  
  name["english"] = "wu-ftpd buffer overflow";
@@ -64,7 +65,7 @@ Facteur de risque : Elevé";
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
  		  francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
 		  
- script_dependencie("find_service.nes", "ftp_write_dirs.nes");
+ script_dependencie("find_service.nes", "ftp_writeable_directories.nasl");
  script_require_keys("ftp/login", "ftp/writeable_dir");
  script_require_ports("Services/ftp", 21);
  exit(0);
@@ -75,6 +76,12 @@ Facteur de risque : Elevé";
 #
 
 include("ftp_func.inc");
+
+port = get_kb_item("Services/ftp");
+if ( ! port ) port = 21;
+
+banner = get_ftp_banner(port:port);
+if ( ! banner || "wu-" >!< banner ) exit(0);
 
 if(!safe_checks())
 {
@@ -108,7 +115,7 @@ if(login && wri)
 soc = open_sock_tcp(port);
 if(soc)
 {
- if(ftp_log_in(socket:soc, user:login, pass:password))
+ if(ftp_authenticate(socket:soc, user:login, pass:password))
  {
  
   # We are in
@@ -132,7 +139,7 @@ if(soc)
   send(socket:soc, data:mkd);
   b = ftp_recv_line(socket:soc);
  
-  if(strlen(b) && !ereg(pattern:"^257 .*", string:b)){
+  if(strlen(b) && !egrep(pattern:"^257 .*", string:b)){
   	set_kb_item(name:"ftp/no_mkdir", value:TRUE);
 	i = 20;
 	}
@@ -153,7 +160,7 @@ if(soc)
 	
   send(socket:soc,data:cwd);
   b = ftp_recv_line(socket:soc);
-  if(strlen(b) && !ereg(pattern:"^250 .*", string:b))
+  if(strlen(b) && !egrep(pattern:"^250 .*", string:b))
   	{
   	set_kb_item(name:"ftp/no_mkdir", value:TRUE);
 	i = 20;
@@ -182,7 +189,7 @@ if(soc)
   if(num_dirs == 0)exit(0);
   soc = open_sock_tcp(port);
   if(!soc)exit(0);
-  ftp_log_in(socket:soc, user:login, pass:password);
+  ftp_authenticate(socket:soc, user:login, pass:password);
   send(socket:soc, data:string("CWD ", wri, "\r\n"));
   r = ftp_recv_line(socket:soc);
   for(j=0;j<num_dirs;j=j+1)
@@ -197,7 +204,7 @@ if(soc)
   {
    send(socket:soc, data:string("RMD ", crap(2540),  "\r\n"));
    r = ftp_recv_line(socket:soc);
-   if(!ereg(pattern:"^250 .*", string:r))exit(0);
+   if(!egrep(pattern:"^250 .*", string:r))exit(0);
    send(socket:soc, data:string("CWD ..\r\n"));
    r = ftp_recv_line(socket:soc);
   }

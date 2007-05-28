@@ -25,8 +25,9 @@
 if(description)
 {
  script_id(11546);
- script_version ("$Revision: 1.4 $");
- script_cve_id("CAN-2002-1248");
+ script_bugtraq_id(6098);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-1248");
  
  name["english"] = "Xeneo web server %A DoS";
  script_name(english:name["english"]);
@@ -57,13 +58,14 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(! port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
+b = get_http_banner(port: port);
+if ( "Xeneo/" >!< b ) exit(0);
 
 if(safe_checks())
 {
-  b = get_http_banner(port: port);
   # I got one banner: "Server: Xeneo/2.2"
   if (b =~ 'Server: *Xeneo/2\\.(([0-1][ \t\r\n.])|(2(\\.[0-9])?[ \t\r\n]))')
   {
@@ -75,7 +77,8 @@ It may be crashed by requesting an URL ending with /%A or /%
 ** just checked the version number in the banner
 
 Solution : upgrade to Xeneo 2.2.10
-Risk factor : high";
+
+Risk factor : High";
     security_hole(port: port, data: report);
   }
     

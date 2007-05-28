@@ -10,27 +10,43 @@
 # Subject: [SmartFTP] Two Buffer Overflow Vulnerabilities
 #
 
+ desc["english"] = "
+Synopsis :
+
+It is possible to execute arbitrary code on the remote host thru a remote 
+FTP client.
+
+Description :
+
+
+The remote host is running SmartFTP - an FTP client.
+
+There is a flaw in the remote version of this software which may allow an 
+attacker to execute arbitrary code on this host.
+
+To exploit it, an attacker would need to set up a rogue FTP server and have 
+a user on this host connect to it.
+
+Solution : 
+
+Upgrade to version 1.0.976.x or newer
+
+Risk factor :
+
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
+
+
 if(description)
 {
  script_id(11709);
- script_version("$Revision: 1.2 $");
+ script_bugtraq_id(7858, 7861);
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "SmartFTP Overflow";
 
  script_name(english:name["english"]);
  
- desc["english"] = "
-The remote host is running SmartFTP - a FTP client.
-
-There is a flaw in the remote version of this software which may 
-allow an attacker to execute arbitrary code on this host.
-
-To exploit it, an attacker would need to set up a rogue FTP
-server and have a user on this host connect to it.
-
-Solution : Upgrade to version 1.0.976.x or newer
-Risk factor : High";
-
 
 
  script_description(english:desc["english"]);
@@ -45,86 +61,55 @@ Risk factor : High";
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
 
+rootfile = hotfix_get_programfilesdir();
+if ( ! rootfile ) exit(1);
 
-
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\Windows\CurrentVersion", item:"ProgramFilesDir");
-if(!rootfile)
-{
- exit(0);
-}
-else
-{
- share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
- exe =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\SmartFTP\SmartFTP.exe", string:rootfile);
- }
-
-
-
+share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
+exe =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\SmartFTP\SmartFTP.exe", string:rootfile);
 
 name 	=  kb_smb_name();
 login	=  kb_smb_login();
 pass  	=  kb_smb_password();
 domain 	=  kb_smb_domain();
 port    =  kb_smb_transport();
-if(!port) port = 139;
 
 
-
-if(!get_port_state(port))exit(0);
-
+if(!get_port_state(port))exit(1);
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if(!soc)exit(1);
+
+session_init(socket:soc, hostname:name);
+
+r = NetUseAdd(login:login, password:pass, domain:domain, share:share);
+if ( r != 1 ) exit(1);
 
 
+handle = CreateFile (file:exe, desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_NORMAL,
+                     share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
 
-r = smb_session_request(soc:soc, remote:name);
-if(!r)exit(0);
-
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);
-
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r)exit(0);
-
-uid = session_extract_uid(reply:r);
-
-
-r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-tid = tconx_extract_tid(reply:r);
-if(!tid)exit(0);
-
-fid = OpenAndX(socket:soc, uid:uid, tid:tid, file:exe);
-if(fid != 0)
+if ( ! isnull(handle) )
 {
- fsize = smb_get_file_size(socket:soc, uid:uid, tid:tid, fid:fid);
- off = fsize - 788667;
- data = ReadAndX(socket:soc, uid:uid, tid:tid, fid:fid, count:16384, off:off);
- data = str_replace(find:raw_string(0), replace:"", string:data);
- version = strstr(data, "ProductVersion");
- if(!version)exit(0);
- for(i=strlen("ProductVersion");i<strlen(version);i++)
- {
- if((ord(version[i]) < ord("0") ||
-    ord(version[i]) > ord("9")) && 
-    version[i] != ".")break;
- else 
-   v += version[i];
-} 
+ version = GetFileVersion (handle:handle);
+ CloseFile(handle:handle);
+ if ( isnull(version) )
+	{
+	 NetUseDel();
+	 exit(1);
+	}
 
+ if ( version[0] < 1 || ( version[0] == 1  && version[1] == 0 && version[2] < 976 ) )
+	security_warning( port : port, data : desc["english"] + '\n\nPlugin output :\n\n' + rootfile + ' version '+   version[0] + '.' + version[1] + '.' + version[2] + '.' + version[3] + ' is installed on the remote host' );
 
- 
- if(ereg(pattern:"1\.0\.([0-9]\.|[0-9][0-9]\.|[0-8][0-9][0-9]\.|9[0-6][0-9]\.|97[0-5]\.)[0-9]*", string:v))security_hole(port);
 }
+
+NetUseDel();

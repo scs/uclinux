@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,17 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  */
  
@@ -260,7 +249,7 @@ tree_cell* nasl_strlen(lex_ctxt* lexic)
  int		len = get_var_size_by_num(lexic, 0);
  tree_cell * retc;
  
- retc = emalloc(sizeof(tree_cell));
+ retc = alloc_tree_cell(0, NULL);
  retc->ref_count = 1;
  retc->type = CONST_INT;
  retc->x.i_val = len;
@@ -312,8 +301,7 @@ tree_cell* nasl_display(lex_ctxt* lexic)
   for (j = 0; j < r->size; j ++)
     putchar(isprint(r->x.str_val[j]) || isspace(r->x.str_val[j]) ?
 	    r->x.str_val[j] : '.');
-  retc = emalloc(sizeof(tree_cell));
-  retc->ref_count = 1;
+  retc = alloc_tree_cell(0, NULL);
   retc->type = CONST_INT;
   retc->x.i_val = r->size;
   deref_cell(r);
@@ -375,7 +363,7 @@ tree_cell* nasl_hexstr(lex_ctxt * lexic)
 tree_cell* nasl_ord(lex_ctxt* lexic)
 {
   tree_cell	*retc;
-  unsigned char	*val = get_str_var_by_num(lexic, 0);
+  unsigned char	*val = (unsigned char*)get_str_var_by_num(lexic, 0);
 
  
   if (val == NULL)
@@ -401,7 +389,7 @@ tree_cell * nasl_tolower(lex_ctxt * lexic)
  if(str == NULL)
   return NULL;
   
- str = strndup(str, str_len);
+ str = nasl_strndup(str, str_len);
  for(i=0;i<str_len;i++)
  	str[i] = tolower(str[i]);
 	
@@ -423,7 +411,7 @@ tree_cell * nasl_toupper(lex_ctxt * lexic)
  if(str == NULL)
   return NULL;
   
- str = strndup(str, str_len);
+ str = nasl_strndup(str, str_len);
  for(i=0;i<str_len;i++)
  	str[i] = toupper(str[i]);
 	
@@ -448,6 +436,7 @@ tree_cell* nasl_ereg(lex_ctxt* lexic)
  char * pattern = get_str_local_var_by_name(lexic, "pattern");
  char * string = get_str_local_var_by_name(lexic, "string");
  int	icase       = get_int_local_var_by_name(lexic, "icase", 0);
+ int	multiline = get_int_local_var_by_name(lexic, "multiline", 0);
  char * s;
  int copt = 0;
  tree_cell * retc;
@@ -469,7 +458,10 @@ tree_cell* nasl_ereg(lex_ctxt* lexic)
   retc = alloc_tree_cell(0, NULL);
   retc->type = CONST_INT;
   string = estrdup(string);
-  s = strchr(string, '\n');
+  if (multiline)
+    s = NULL;
+  else
+    s = strchr(string, '\n');
   if ( s != NULL ) s[0] = '\0';
   if (s != string )
   {
@@ -648,6 +640,8 @@ tree_cell* nasl_ereg_replace(lex_ctxt* lexic)
   }
 
  r = _regreplace(pattern, replace, string, icase, 1);
+ if ( r == NULL )
+	return FAKE_CELL;
  
  retc = alloc_tree_cell(0, NULL);
  retc->type = CONST_DATA;
@@ -795,7 +789,10 @@ nasl_eregmatch(lex_ctxt* lexic)
     }
   
   if(nasl_regexec(&re, string, (size_t)NS, subs, 0) != 0)
+   {
+    nasl_regfree(&re);
     return NULL;
+   }
       
   retc = alloc_tree_cell(0, NULL);
   retc->type = DYN_ARRAY;
@@ -806,7 +803,7 @@ nasl_eregmatch(lex_ctxt* lexic)
       {
 	v.var_type = VAR2_DATA;
 	v.v.v_str.s_siz = subs[i].rm_eo - subs[i].rm_so;
-	v.v.v_str.s_val = string + subs[i].rm_so;
+	v.v.v_str.s_val = (unsigned char*)string + subs[i].rm_so;
 	(void) add_var_to_list(a, i, &v);
       }
 
@@ -833,7 +830,7 @@ tree_cell* nasl_substr(lex_ctxt* lexic)
 #define MAX_INT (~(1 << (sizeof(int) * 8 - 1)))
 #endif
   i2 = get_int_var_by_num(lexic, 2, MAX_INT);
-  if (i2 > sz1) i2 = sz1-1;
+  if (i2 >= sz1) i2 = sz1-1;
 
   if (s1 == NULL || i1 < 0)
     {
@@ -882,7 +879,7 @@ tree_cell* nasl_insstr(lex_ctxt* lexic)
       return NULL;
     }
 
-  if (i1 > sz1)
+  if (i1 >= sz1)
     {
       nasl_perror(lexic, "insstr: cannot insert string2 after end of string1\n");
       return NULL;
@@ -927,12 +924,12 @@ nasl_match(lex_ctxt* lexic)
   if (pattern == NULL)
     {
       nasl_perror(lexic, "nasl_match: parameter 'pattern' missing\n");
-      pattern = "";
+      return NULL;
     }
   if (string == NULL)
     {
       nasl_perror(lexic, "nasl_match: parameter 'string' missing\n");
-      string = "";
+      return NULL;
     }
 
   retc = alloc_tree_cell(0, NULL);
@@ -952,12 +949,31 @@ nasl_split(lex_ctxt* lexic)
 
 
   str = get_str_var_by_num(lexic, 0);
-  if (str == NULL)
-    return NULL;
+  if (str == NULL) 
+    {
+#if NASL_DEBUG > 0
+      nasl_perror(lexic, "split: missing string parameter\n");
+#endif
+      return NULL;
+    }
   len = get_var_size_by_num(lexic, 0);
+  if (len <= 0)
+    len = strlen(str);
+  if (len <= 0)
+    return NULL;
+
   sep = get_str_local_var_by_name(lexic, "sep");
   if (sep != NULL)
+    {
     sep_len = get_var_size_by_name(lexic, "sep");
+    if ( sep_len <= 0 ) sep_len = strlen(sep);
+    if ( sep_len <= 0 ) 
+	{
+      	   nasl_perror(lexic, "split: invalid 'seplen' parameter\n");
+	   return NULL;
+	}
+    }
+
   keep = get_int_local_var_by_name(lexic, "keep", 1);
 
   retc = alloc_tree_cell(0, NULL);
@@ -972,10 +988,10 @@ nasl_split(lex_ctxt* lexic)
       i = 0; j = 0;
       for(;;)
 	{
-	  if ((p = (char*)memmem(str + i, len - i, sep, sep_len)) == NULL)
+	  if ((p = (char*)nasl_memmem(str + i, len - i, sep, sep_len)) == NULL)
 	    {
 	      v.v.v_str.s_siz = len - i;
-	      v.v.v_str.s_val = str + i;
+	      v.v.v_str.s_val = (unsigned char*)str + i;
 	      (void) add_var_to_list(a, j ++, &v);
 	      return retc;
 	    }
@@ -985,7 +1001,7 @@ nasl_split(lex_ctxt* lexic)
 		v.v.v_str.s_siz = (p - (str + i)) + sep_len;
 	      else
 		v.v.v_str.s_siz = p - (str + i); 
-	      v.v.v_str.s_val = str + i;
+	      v.v.v_str.s_val = (unsigned char*)str + i;
 	      (void) add_var_to_list(a, j ++, &v);
 	      i = (p - str) + sep_len;
 	      if (i >= len)
@@ -1004,7 +1020,7 @@ nasl_split(lex_ctxt* lexic)
 	    v.v.v_str.s_siz = i - i0 + 1;
 	  else
 	    v.v.v_str.s_siz = i - i0 - 1;
-	  v.v.v_str.s_val = str + i0;
+	  v.v.v_str.s_val = (unsigned char*)str + i0;
 	  i0 = i + 1;
 	  (void) add_var_to_list(a, j ++, &v);
 	}
@@ -1014,7 +1030,7 @@ nasl_split(lex_ctxt* lexic)
 	    v.v.v_str.s_siz = i - i0 + 1;
 	  else
 	    v.v.v_str.s_siz = i - i0;
-	  v.v.v_str.s_val = str + i0;
+	  v.v.v_str.s_val = (unsigned char*)str + i0;
 	  i0 = i + 1;
 	  (void) add_var_to_list(a, j ++, &v);
 	}
@@ -1023,7 +1039,7 @@ nasl_split(lex_ctxt* lexic)
   if (i > i0)
     {
       v.v.v_str.s_siz = i - i0;
-      v.v.v_str.s_val = str + i0;
+      v.v.v_str.s_val = (unsigned char*)str + i0;
       (void) add_var_to_list(a, j ++, &v);
     }
   return retc;
@@ -1146,14 +1162,14 @@ tree_cell* nasl_strstr(lex_ctxt * lexic)
  if(sz_b > sz_a)
   return NULL;
  
- c = (char*)memmem(a, sz_a, b, sz_b);
+ c = (char*)nasl_memmem(a, sz_a, b, sz_b);
  if(c == NULL)
   return FAKE_CELL;
  
  retc = alloc_tree_cell(0, NULL);
  retc->type = CONST_DATA;
  retc->size = sz_a - (c - a);
- retc->x.str_val = strndup(c, retc->size);
+ retc->x.str_val = nasl_strndup(c, retc->size);
  return retc;
 }
 
@@ -1193,7 +1209,7 @@ nasl_stridx(lex_ctxt * lexic)
   if ((sz_a == start) || (sz_b > sz_a + start))
     return retc;
 
-  c = (char*)memmem(a + start, sz_a - start, b, sz_b);
+  c = (char*)nasl_memmem(a + start, sz_a - start, b, sz_b);
   if(c != NULL)
     retc->x.i_val = c - a;
   return retc;
@@ -1242,9 +1258,9 @@ nasl_str_replace(lex_ctxt * lexic)
   s = emalloc(1);
   sz2 = 0;
   n = 0;
-  for (i1 = i2 = 0; i1 < sz_a - sz_b; )
+  for (i1 = i2 = 0; i1 <= sz_a - sz_b; )
     {
-      c = (char*)memmem(a + i1, sz_a - i1, b, sz_b);
+      c = (char*)nasl_memmem(a + i1, sz_a - i1, b, sz_b);
       if(c == NULL)
 	break;
       l = (c - a) - i1; 

@@ -12,7 +12,8 @@
 if(description)
 {
  script_id(11699);
- script_version ("$Revision: 1.1 $");
+ script_bugtraq_id(7767);
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "URLScan Detection";
  script_name(english:name["english"]);
@@ -25,7 +26,7 @@ However since it is possible to determine that URLScan is installed,
 an attacker may safely assume that the remote web server is 
 Internet Information Server.
 
-Risk Factor : None";
+Risk factor : None";
 
 
  script_description(english:desc["english"]);
@@ -39,7 +40,7 @@ Risk Factor : None";
  
  family["english"] = "Misc.";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "httpver.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -50,9 +51,11 @@ include("http_func.inc");
 include("http_keepalive.inc");
 include("misc_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
+
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 
 
 #
@@ -62,7 +65,7 @@ if (! get_port_state(port)) exit(0);
 # 
 soc = http_open_socket(port);
 if(!soc)exit(0);
-req = http_head(item:"/someunexistantstuff", port:port);
+req = http_head(item:"/someunexistantstuff" + rand() + rand() + ".html", port:port);
 send(socket:soc, data:req);
 res = http_recv(socket:soc);
 close(soc);
@@ -78,7 +81,8 @@ res2 = http_recv(socket:soc);
 close(soc); 
 res2 = tolower(res2);
 
-if( "<!doctype" >< res2 || "<html>" >< res2 ) { security_note(port); exit(0); }
+flag = 0;
+if( "<!doctype" >< res2 || "<html>" >< res2 ) { flag = 1; }
 
 #
 # Method#2 : Compare the results for a HTTP GET for a non-existant
@@ -87,7 +91,7 @@ if( "<!doctype" >< res2 || "<html>" >< res2 ) { security_note(port); exit(0); }
 # If UseFastPathReject is set, we will receive a very very small error
 # message, whereas we will receive a much longer one if it's not
 # 
-req = http_get(item:"/someunexistantantsutff", port:port);
+req = http_get(item:"/someunexistantantsutff" + rand() + rand() + ".html", port:port);
 res = http_keepalive_send_recv(port:port, data:req);
 if(!ereg(pattern:"^HTTP/[0-9]\.[0-9] 404 ", string:res))exit(0);
 if( res == NULL ) exit(0);
@@ -97,10 +101,5 @@ res2 = http_keepalive_send_recv(port:port, data:req);
 if(!ereg(pattern:"^HTTP/[0-9]\.[0-9] 404 ", string:res2))exit(0);
 if( res2 == NULL ) exit(0);
 
-if(strlen(res) > 2 * strlen(res2))security_note(port);
+if(strlen(res) > 2 * strlen(res2) && flag )security_note(port);
 
-#
-# Method#3 : OPTIONS returns a 404 error code when URLScan is enabled.
-# Problem : I guess a lot of small web server (like SWAT) will do the
-# same, therefore we won't implement it.
-#

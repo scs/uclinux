@@ -6,15 +6,30 @@
 #
 #
 
+
+desc["english"] = "
+Synopsis :
+
+File sharing service is available.
+
+Description :
+
+The remote host is running an AppleShare IP file service.
+By sending DSIGetStatus request on tcp port 548, it was
+possible to disclose information about the remote host.
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
+
+
 if (description)
 {
   	script_id(10666);
- 	script_version ("$Revision: 1.10 $");
+ 	script_version ("$Revision: 1.18 $");
 	script_name(english: "AppleShare IP Server status query");
-	script_description(english: 
-	string("This script determines if a host is running AppleShare IP file services.\n",
-	"Risk factor : Medium"));
-
+	script_description(english:desc["english"]);
 	script_summary(english: "connects to port 548/tcp, issues DSIGetStatus");
 	script_category(ACT_GATHER_INFO);
 	script_family(english: "Misc.", francais:"Divers");
@@ -28,6 +43,8 @@ include("misc_func.inc");
 
 function b2dw(a, b, c, d)
 {
+	local_var a1, b2, c1, dword;
+
 	a1 = a * 256 * 256 * 256;
 	b1 = b * 256 * 256;
 	c1 = c * 256;
@@ -37,8 +54,11 @@ function b2dw(a, b, c, d)
 
 function b2w(low, high)	
 {
+	local_var word;
+
 	word = high * 256;
 	word = word + low;
+
 	return(word);
 }
 
@@ -46,6 +66,8 @@ function b2w(low, high)
 
 function pstring(offset, packet)
 {
+	local_var plen, i, pstr;
+
 	plen = ord(packet[offset]);
 	#display("offset: ", offset, "  length: ", plen, "\n");
 	pstr = "";	# avoid interpreter warning
@@ -60,6 +82,7 @@ function pstring(offset, packet)
 
 function pluck_counted(offset, packet)
 {
+	local_var count, str, plucked, count_offset, j;
 	count = ord(packet[offset]);
 	#display("plucking ", count, " items\n");
 	str = "";
@@ -103,17 +126,17 @@ function parse_FPGetSrvrInfo(packet)
 "  UAMs: ", uams, "\n",
 "  AFP Versions: ", versions, "\n");
 
-	#display(report);
-	security_note(port:548, data:report);
-	register_service(port:548, proto:"appleshare");
 
-	if ("No User Authen" >< uams)
-	{
-		report = string( 
-"This AppleShare File Server allows the 'guest' user to connect.\n");
-		#display(report);
-		security_hole(port:548, data:report);
-	}	
+if ("No User Authen" >< uams) {
+	report += '\nThis AppleShare File Server allows the "guest" user to connect';
+}
+
+	report = string (desc["english"],
+			"\n\nPlugin output :\n\n",
+			report);
+
+        security_note(port:548, data:report);
+	register_service(port:548, proto:"appleshare");
 }
 
 
@@ -132,11 +155,7 @@ function parse_DSIGetStatus(packet)
 
 	if (!(reqid == 57005))
 	{
-		report = string(
-"Wrong signature in reply packet (got ", requid, " but expected 57005)\n"
-			);
-		security_note(port:548, data:report);
-		exit(1);
+	 exit(1);
 	}
 
 	# ignore error / data offset DO for now
@@ -149,11 +168,10 @@ function parse_DSIGetStatus(packet)
 
 	if (!(cmd == 3))
 	{
-		security_note(port:548, data:"error: can only handle a reply of type 3");
 		exit(1);
 	}
 
-	return (parse_FPGetSrvrInfo(packet));
+	return (parse_FPGetSrvrInfo(packet:packet));
 }
 
 
@@ -163,7 +181,6 @@ function parse_DSIGetStatus(packet)
 
 function send_DSIGetStatus(sock)
 {
-
 	packet = raw_string
 		(
 		0x00,			# 0- request, 1-reply
@@ -198,7 +215,7 @@ function asip_status(port)
 		{
 		parse_DSIGetStatus(packet:packet);
 		} 
-		close(sock);
+		close(s);
 	}
 }
 

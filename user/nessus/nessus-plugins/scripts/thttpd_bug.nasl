@@ -7,25 +7,23 @@
 if(description)
 {
  script_id(10286);
- script_version ("$Revision: 1.16 $");
- script_cve_id("CAN-1999-1457");
+ script_version ("$Revision: 1.23 $");
+ script_cve_id("CVE-1999-1456");
  
  name["english"] = "thttpd flaw";
  name["francais"] = "Problème de thttpd";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "The remote HTTP server
-allows an attacker to read arbitrary files
-on the remote web server, simply by adding
-a slash in front of its name. 
+ desc["english"] = "
+The remote HTTP server allows an attacker to read arbitrary files
+on the remote web server, simply by adding a slash in front of its name. 
 Example:
 	GET //etc/passwd 
 
 will return /etc/passwd.
 
 Solution : upgrade your web server or change it.
-
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Le serveur HTTP distant
 permet à un pirate de lire des fichiers
@@ -53,7 +51,7 @@ Facteur de risque : sérieux";
  family["english"] = "Remote file access";
  family["francais"] = "Accès aux fichiers distants";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -63,18 +61,16 @@ Facteur de risque : sérieux";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( ! port ) exit(0);
+
+
 if(get_port_state(port))
 {
- soc = http_open_socket(port);
- if(soc)
- {
   buf = http_get(item:"//etc/passwd", port:port);
-  send(socket:soc, data:buf);
-  rep = http_recv(socket:soc);
+  rep = http_keepalive_send_recv(port:port, data:buf);
+  if ( ! rep ) exit(0);
   if(egrep(pattern:".*root:.*:0:[01]:.*", string:rep))security_hole(port);
-  http_close_socket(soc);
- }
 }

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10099);
- script_version ("$Revision: 1.9 $");
- script_cve_id("CAN-1999-1053");
  script_bugtraq_id(776);
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-1999-1053");
  name["english"] = "guestbook.pl";
  name["francais"] = "guestbook.pl";
  script_name(english:name["english"], francais:name["francais"]);
@@ -20,7 +20,7 @@ if(description)
 
 Solution :  remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 desc["francais"] = "Le cgi 'guestbook.pl' est installé. Celui-ci possède
 un problème de sécurité bien connu qui permet à n'importe qui de faire
@@ -49,7 +49,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  
  exit(0);
@@ -58,8 +58,14 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("guestbook.pl");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"guestbook.pl", port:port);
+if(res)security_hole(port);
 
    

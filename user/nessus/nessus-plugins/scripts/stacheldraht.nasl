@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10270);
- script_version ("$Revision: 1.12 $");
- script_cve_id("CAN-2000-0138");
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-2000-0138");
  name["english"] = "Stacheldraht Detect";
  name["francais"] = "Detection de Stacheldraht";
  
@@ -63,10 +63,14 @@ Facteur de risque : Critique";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
- 
- 
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
+
+
+include('global_settings.inc');
+if ( islocalhost() ) exit(0);
+if ( ! thorough_tests ) exit(0);
 
 src = this_host();
 ip = forge_ip_packet(	ip_v : 4,	ip_hl : 5,

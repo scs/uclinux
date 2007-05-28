@@ -24,8 +24,6 @@
 
 #include "includes.h"
 
-#if !defined(HAVE_OSF_SIA)
-
 # ifdef HAVE_CRYPT_H
 #  include <crypt.h>
 # endif
@@ -95,6 +93,11 @@ shadow_pw(struct passwd *pw)
 	if (spw != NULL)
 		pw_password = spw->sp_pwdp;
 # endif
+
+#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+	return(get_iaf_password(pw));
+#endif
+
 # if defined(HAVE_GETPWANAM) && !defined(DISABLE_SHADOW)
 	struct passwd_adjunct *spw;
 	if (issecure() && (spw = getpwanam(pw->pw_name)) != NULL)
@@ -104,13 +107,7 @@ shadow_pw(struct passwd *pw)
 
 	if (spw != NULL)
 		pw_password = spw->ufld.fd_encrypt;
-# elif defined(__hpux) && !defined(HAVE_SECUREWARE)
-	struct pr_passwd *spw;
-        if (iscomsec() && (spw = getprpwnam(pw->pw_name)) != NULL)
-                pw_password = spw->ufld.fd_encrypt;
 # endif
 
 	return pw_password;
 }
-
-#endif /* !defined(HAVE_OSF_SIA) */

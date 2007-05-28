@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10303);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(932);
- script_cve_id("CAN-2000-0066");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0066");
  
  name["english"] = "WebSite pro reveals the physical file path of web directories";
  name["francais"] = "WebSite pro donne le chemin absolu des fichiers html";
@@ -60,6 +60,7 @@ Facteur de risque : Faible";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes");
  script_require_ports("Services/www", 80);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
@@ -67,8 +68,13 @@ Facteur de risque : Faible";
 # The script code starts here
 #
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+include("http_func.inc");
+include('global_settings.inc');
+
+if ( ! thorough_tests ) exit(0);
+
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);

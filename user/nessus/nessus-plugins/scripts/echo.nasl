@@ -8,14 +8,20 @@
 if(description)
 {
  script_id(10061);
- script_version ("$Revision: 1.24 $");
- script_cve_id("CVE-1999-0103", "CAN-1999-0635");
+ script_version ("$Revision: 1.27 $");
+ script_cve_id("CVE-1999-0103", "CVE-1999-0635");
  name["english"] = "Echo port open";
  name["francais"] = "Port echo ouvert";
  name["deutsch"] = "Echo Port offen";
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  
  desc["english"] = "
+Synopsis :
+
+An echo service is running on the remote host.
+
+Description :
+
 The remote host is running the 'echo' service. This service 
 echoes any data which is sent to it. 
  
@@ -39,8 +45,10 @@ Then launch cmd.exe and type :
    
 To restart the service.
 
-	
-Risk factor : Low";
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -83,9 +91,9 @@ if(get_port_state(port))
   data = string(pattern, "\r\n");
   send(socket:soc, data:data);
   res = recv_line(socket:soc, length:1024);
-  if(pattern >< res)
+  if(data == res)
    {
-   security_warning(port);
+   security_note(port);
    register_service(port:port, proto:"echo");
    }
   close(soc);
@@ -102,7 +110,7 @@ if(get_udp_port_state(port))
   res2 = recv(socket:soc, length:1024);
   if(res2)
   {
-  if(pattern >< res2)security_warning(port, protocol:"udp");
+  if(data ==  res2)security_note(port, protocol:"udp");
   #  if (udp_ping_pong(port: port, data: data, answer: res2))
       
   }

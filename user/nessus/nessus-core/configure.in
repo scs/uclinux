@@ -14,12 +14,12 @@ dnl --enable-unix-socket
 
 
 AC_INIT(.root-dir)
-AC_REVISION($Revision: 1.117.2.2 $)dnl
+AC_REVISION($Revision: 1.127.2.2 $)dnl
 
 dnl version stuff -- jordan
 save_IFS="${IFS}"
 IFS=.
-read NESSUS_MAJOR NESSUS_MINOR NESSUS_PATCH <VERSION
+read NESSUS_MAJOR NESSUS_MINOR NESSUS_PATCH NESSUS_RC <VERSION
 IFS="${save_IFS}"
 NESSUS_DATE=\"`date '+%b %d, %Y'`\"
 expr 0 + $NESSUS_MAJOR + $NESSUS_MINOR + $NESSUS_PATCH + 0 >/dev/null ||
@@ -59,8 +59,6 @@ test "x$enable_language" = x && enable_language="english"
 test "x$enable_syslog" = "x" && enable_syslog="yes";
 test "x$enable_syslog" = "xno" && unset enable_syslog
 test "x$enable_gtk" = "x" && enable_gtk="yes"
-test "x$enable_save_kb" = "x" && enable_save_kb="yes"
-test "x$enable_save_sessions" = "x" && enable_save_sessions="yes"
 
 
 nessus_lib=-lnessus
@@ -92,18 +90,12 @@ AC_ARG_ENABLE(syslog,[  --enable-syslog	  log messages via syslog()],
 	AC_DEFINE(USE_SYSLOG))
 
 AC_ARG_ENABLE(gtk,[  --enable-gtk		  build with GTK],
-        test $enable_gtk = yes && gtk_flags="-DUSE_GTK" && AC_DEFINE(USE_GTK))
+        test "$enable_gtk" = "yes" && gtk_flags="-DUSE_GTK" && AC_DEFINE(USE_GTK))
 
 AC_ARG_ENABLE(tcpwrappers,[  --enable-tcpwrappers	  use the libwrap.a library],
-        libwrap="-lwrap")
+        test "$enable_tcpwrappers" = "yes" && libwrap="-lwrap")
 	
 	
-AC_ARG_ENABLE(save-sessions, [  --enable-save-sessions  save the tests on the server side],
-	AC_DEFINE(ENABLE_SAVE_TESTS))
-	
-AC_ARG_ENABLE(save-kb, [  --enable-save-kb  	  save the information gathered from the remote 
-			  hosts)],
-	AC_DEFINE(ENABLE_SAVE_KB))
 
 
 
@@ -492,7 +484,7 @@ dnl AC_DEFINE_UNQUOTED(NESS_OS_NAME, "`uname -s`")
 dnl AC_DEFINE_UNQUOTED(NESS_OS_VERSION, "`uname -r`")
 
 dnl version defines have been extracted to a separate file
-NESS_COMPILER="`$CC -v 2>&1 | tail -1`"
+NESS_COMPILER="`$CC -v 2>&1 | tail -1 2>/dev/null`"
 NESS_OS_NAME="`uname -s`"
 NESS_OS_VERSION="`uname -r`"
 test "$use_pthreads" = "" && unset pthread_lib
@@ -520,7 +512,7 @@ fi
 
 
 case "$host" in
-    *-freebsd*|*-bsdi*|*-netbsd*)
+    *-freebsd*|*-bsdi*|*-netbsd*|*-darwin*)
     AC_DEFINE(BSD_BYTE_ORDERING)
 esac
 
@@ -630,12 +622,7 @@ test "x$GTKCONFIG" = x && {
 	}
 	
 	
-	
-test "$GTKCONFIG" || {
-  AC_PATH_PROG(PKGCONFIG, pkg-config,,$XPATH)
-  test -z "$PKGCONFIG" &&
-	AC_WARN("**** gtk-config not found.")
-}
+AC_PATH_PROG(PKGCONFIG, pkg-config,,$XPATH)
 
 
 	
@@ -643,9 +630,12 @@ test -n "$GTKCONFIG" -o "$PKGCONFIG" &&
 {
  client=client
  client_install=client-install
- test -n "$GTKCONFIG" && GTKVERSION=`$GTKCONFIG --version`
- test -z "$GTKCONFIG" && GTKVERSION=`$PKGCONFIG --modversion gtk+-2.0`
  AC_MSG_CHECKING([GTK version])
+ test -n "$PKGCONFIG" && {
+	GTKVERSION=`$PKGCONFIG --modversion gtk+-2.0 2>/dev/null`
+	test -z "$GTKVERSION" && PKGCONFIG=""
+	}
+ test -z "$PKGCONFIG" -o -z "$GTKVERSION" && GTKVERSION=`$GTKCONFIG --version`
  AC_MSG_RESULT($GTKVERSION)
  GTK_VERSION=`echo $GTKVERSION | sed 's/\./ /g' | awk {'print $1$2'}`
  test -n "$GTK_VERSION" && AC_DEFINE_UNQUOTED(GTK_VERSION,$GTK_VERSION)
@@ -660,6 +650,10 @@ test "x$GLIBCONFIG" = x && {
 }
 
 
+test -z "$GTKCONFIG" && AC_WARN(**** gtk not found)
+
+
+
 lang=$enable_language
 
 
@@ -671,13 +665,6 @@ dnl LD_RUN_PATH value (eg. on Solaris)
 
 test "x$enable_gtk" = "xno" ||
 {
- test -n "$PKGCONFIG" &&
-  {
-   GTKCONFIG_CFLAGS=`$PKGCONFIG --cflags gtk+-2.0`
-   GTKCONFIG_LIBS=`$PKGCONFIG --libs gtk+-2.0`
-  }
-  
-  
   test -n "$GTKCONFIG" && 
   {
  case `${GTKCONFIG} --libs` in
@@ -688,11 +675,21 @@ test "x$enable_gtk" = "xno" ||
  GTKCONFIG_CFLAGS=`$GTKCONFIG --cflags`
  GTKCONFIG_LIBS=`$GTKCONFIG --libs`
  }
- 
+
  test -n "$GLIBCONFIG" && {
  GLIBCONFIG_CFLAGS=`$GLIBCONFIG --cflags`
  GLIBCONFIG_LIBS=`$GLIBCONFIG --libs`
  }
+
+ test -n "$PKGCONFIG" &&
+  {
+   GTKCONFIG_CFLAGS=`$PKGCONFIG --cflags gtk+-2.0`
+   GTKCONFIG_LIBS=`$PKGCONFIG --libs gtk+-2.0`
+   GLIBCONFIG_CFLAGS=""
+   GLIBCONFIG_LIBS=""
+  }
+  
+ 
 
  
  
@@ -746,6 +743,7 @@ AC_SUBST(GTK_VERSION)
 AC_SUBST(NESSUS_MAJOR)
 AC_SUBST(NESSUS_MINOR)
 AC_SUBST(NESSUS_PATCH)
+AC_SUBST(NESSUS_RC)
 AC_SUBST(NESSUS_DATE)
 AC_SUBST(NESS_COMPILER)
 AC_SUBST(NESS_OS_NAME)
@@ -808,12 +806,6 @@ AC_WARN(gtk-config could not be found : the client will not be built. \
 If you want to build a command-line only client then type ./configure --disable-gtk)
 }
 
-test -n "$PKGCONFIG" && {
-AC_WARN(Only gtk+-2.0 was found : the client will be built but will be extremely buggy. \
-Install gtk+-1.2 if you want stability. If you do not understand why you would \
-want to install version 1.2.x when you have 2.0.x  send a mail to the GTK+ team \
-(www.gtk.org) and complain about their inability to handle backward compatibility)
-}
 }
 
 exit 0

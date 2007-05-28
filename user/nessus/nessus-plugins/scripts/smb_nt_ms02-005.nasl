@@ -1,135 +1,85 @@
 #
-# This script was written by Michael Scheidell <scheidell at secnap.net>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
 #
 #
 # Also supercedes MS02-005, MS02-047, MS02-027, MS02-023, MS02-015, MS01-015
 #
-# Other CVEs: CVE-2001-1325  CVE-2001-0149 CVE-2001-0727
-#	      CVE-2001-0875  CVE-2001-0339 CVE-2001-0002
-#	      CAN-2002-0190  CVE-2002-0026 CAN-2003-1326
-#	      CVE-2002-0027  CVE-2002-0022 CAN-2003-1328
-#	      CAN-2002-1262  CAN-2002-0193 CAN-1999-1016
-#             CVE-2003-0344  CAN-2003-0233 CAN-2003-0309
-#	      
 # 
 
 if(description)
 {
  script_id(10861);
- script_version("$Revision: 1.28 $");
- script_bugtraq_id(3578, 8556, 8565);
- script_cve_id("CAN-2003-0838", "CAN-2003-0809", 
- 	       "CAN-2003-0530", "CAN-2003-0531", 
-	       "CAN-2003-0113", "CAN-2003-0114", 
-	       "CAN-2003-0115", "CAN-2003-0116");
- if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0018");
- name["english"] = "IE 5.01 5.5 6.0 Cumulative patch";
+ script_bugtraq_id(11388, 11385, 11383, 11381, 11377, 11367, 11366);
+ if ( NASL_LEVEL >= 2191 ) script_bugtraq_id(10473, 8565, 9009, 9012, 9013, 9014, 9015, 9182, 9663, 9798, 12477, 12475, 12473, 12530, 13123, 13117, 13120);
+ script_version("$Revision: 1.75 $");
+ #script_cve_id("CVE-2004-0842", "CVE-2004-0727", "CVE-2004-0216", "CVE-2004-0839", "CVE-2004-0844", "CVE-2004-0843", "CVE-2004-0841", "CVE-2004-0845");
+ if ( NASL_LEVEL >= 2191 ) script_cve_id("CVE-2003-0814", "CVE-2003-0815", "CVE-2003-0816", "CVE-2003-0817", "CVE-2003-0823", "CVE-2004-0549", "CVE-2004-0566", "CVE-2003-1048", "CVE-2001-1325", "CVE-2001-0149", "CVE-2001-0727", "CVE-2001-0875", "CVE-2001-1325", "CVE-2001-0149", "CVE-2001-0727", "CVE-2001-0875", "CVE-2001-0339", "CVE-2001-0002", "CVE-2002-0190", "CVE-2002-0026", "CVE-2003-1326", "CVE-2002-0027", "CVE-2002-0022", "CVE-2003-1328", "CVE-2002-1262", "CVE-2002-0193", "CVE-1999-1016", "CVE-2003-0344", "CVE-2003-0233", "CVE-2003-0309", "CVE-2003-0113", "CVE-2003-0114", "CVE-2003-0115", "CVE-2003-0116", "CVE-2003-0531", "CVE-2003-0809", "CVE-2003-0530", "CVE-2003-1025", "CVE-2003-1026", "CVE-2003-1027", "CVE-2005-0554", "CVE-2005-0555");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-a-0004");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0014");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2004-A-0016");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2005-A-0006");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-b-0001");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2004-t-0021");
+ name["english"] = "IE 5.01 5.5 6.0 Cumulative patch (890923)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-The 4 June 2003 Cumulative Patch for IE is
-not applied on the remote host.
+Synopsis :
+
+Arbitrary code can be executed on the remote host through the web client.
+
+Description :
+
+The Cumulative Patch for IE is not applied on the remote host.
 
 Impact of vulnerability: Run code of attacker's choice. 
 
-Recommendation: Customers using IE should install the patch immediately. 
+Solution : 
 
-Affected Software: 
+Microsoft has released a set of patches for the Windows 2000, XP and 2003 :
 
-Microsoft Internet Explorer 5.01 (SP3 required to install)
-Microsoft Internet Explorer 5.5 (SP2 required to install)
-Microsoft Internet Explorer 6.0 
+http://www.microsoft.com/technet/security/bulletin/ms05-020.mspx
 
-NOTE: Might require full registry access on win2k, xp and Server 2003
+Risk factor : 
 
-Supersedes MS01-055, MS01-058, MS02-005, MS02-066, MS02-068, MS03-004, MS03-014, 
-MS03-015, MS03-020, MS03-032 and others
+High / CVSS Base Score : 8 
+(AV:R/AC:H/Au:NR/C:C/A:C/I:C/B:N)";
 
-See http://www.microsoft.com/technet/security/bulletin/ms03-040.asp
-
-Risk factor : High";
-
- script_description(english:desc["english"]);
- 
- summary["english"] = "Determines whether the hotfix Q828750 is installed";
+ script_description(english:desc["english"]); 
+ summary["english"] = "Determines whether the hotfix 890923 is installed";
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Michael Scheidell");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network SEcurity");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_full_access.nasl",
- 		     "smb_reg_service_pack.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password", "SMB/registry_full_access");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
- script_require_keys("SMB/WindowsVersion");
  exit(0);
 }
 
-include("smb_nt.inc");
 
-access = get_kb_item("SMB/registry_full_access");
-if(!access)exit(0);
+include("smb_hotfixes_fcheck.inc");
+include("smb_hotfixes.inc");
+include("smb_func.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+if ( hotfix_check_sp(xp:3, win2003:1, win2k:6) <= 0 ) exit(0);
 
-
-version = get_kb_item("SMB/WindowsVersion");
-
-if(version)
+if (is_accessible_share())
 {
- key = "SOFTWARE\Microsoft\Internet Explorer\Version Vector";
- item = "IE";
- value = string(registry_get_sz(key:key, item:item));
-
- if(!value)
- {
-   exit(0);
- }
-
- report = string("We were able to determine that you are running IE Version ",value);
+ if ( hotfix_is_vulnerable (os:"5.2", sp:0, file:"Mshtml.dll", version:"6.0.3790.279", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:1, file:"Mshtml.dll", version:"6.0.2800.1498", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:2, file:"Mshtml.dll", version:"6.0.2900.2627", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Mshtml.dll", version:"6.0.2800.1498", min_version:"6.0.0.0", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", sp:3, file:"Mshtml.dll", version:"5.0.3539.2400", dir:"\system32") || 
+      hotfix_is_vulnerable (os:"5.0", sp:4, file:"Mshtml.dll", version:"5.0.3826.2400", dir:"\system32") )
+   security_hole (get_kb_item("SMB/transport"));
+   hotfix_check_fversion_end();
  
- key =  "SOFTWARE\Microsoft\Windows\CurrentVersion\Internet Settings";
- item = "MinorVersion";
- minorversion = string(registry_get_sz(key:key, item:item));
-
- if(minorversion)
-    report = report + string("\nwith these IE Hotfixes installed:",minorversion);
-
-
- missing = NULL;
- if("Q828750" >!< minorversion)missing += "Q828750 (MS03-040) ";
-# if("822925" >!< minorversion) missing += "Q822925 (MS03-032) ";
-# if("Q818529" >!< minorversion)missing += "Q818529 (MS03-020) ";
-# if("Q813489" >!< minorversion)missing += "Q813489 (MS03-015) ";
-# if("Q330994" >!< minorversion)missing += "Q330994 (MS03-014) ";
-  
- if( missing )
-   {
-    report = report + string("\n
-But is missing security update(s) ", missing, "
-Recommendation: Customers using Microsoft IE  should install
-this patch immediately. 
-
-Impact of vulnerability: Run code of attacker's choice. 
-
-See http://www.microsoft.com/technet/security/bulletin/ms03-040.asp 
-
-Supersedes MS01-055, MS01-058, MS02-005, MS02-066, MS02-068, MS03-004, MS03-014, 
-MS03-015, MS03-020, MS03-032 and others
-
-Risk factor : High");
-
-   security_hole(port:port, data:report);
-  }
- else
-   security_note(port:port, data:report);
+ exit (0);
 }
-

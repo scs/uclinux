@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(11401);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2002-0266");
  script_bugtraq_id(4035);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-0266");
  
 
  name["english"] = "texi.exe path disclosure";
@@ -38,6 +38,7 @@ Risk factor : Low";
 
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  
  exit(0);
 }
@@ -48,15 +49,15 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
-foreach d (make_list("", cgi_dirs()))
+foreach d ( cgi_dirs() )
 {
 req = http_get(item:string(d, "/texis.exe/nessus"), port:port);
-res = http_keepalive_send_recv(port:port, data:req);
+res = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
 
 if ( res == NULL ) exit (0);
 if(egrep(pattern:"[a-z]:\\.*\\nessus", string:res)) {

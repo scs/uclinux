@@ -30,7 +30,7 @@ if(description)
 {
  script_id(11171);
  script_bugtraq_id(5664);
- script_version("$Revision: 1.9 $");
+ script_version("$Revision: 1.10 $");
  
  name["english"] = "HTTP unfinished line denial";
  script_name(english:name["english"]);
@@ -65,8 +65,8 @@ Solution : Upgrade your web server";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (!get_port_state(port)) exit(0);
 
 if(http_is_dead(port:port))exit(0);

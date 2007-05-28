@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10016);
- script_version ("$Revision: 1.24 $");
  script_bugtraq_id(762);
+ script_version ("$Revision: 1.27 $");
  script_cve_id("CVE-1999-0947");
  
  name["english"] = "AN-HTTPd tests CGIs";
@@ -71,7 +71,7 @@ Solution : installez la version 1.21 du produit, diponible à
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -94,12 +94,10 @@ function check(item, exp)
 }
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
-if(http_is_dead(port:port))exit(0);
-http_keepalive_enabled(port:port);
 
 cgi[0] = "/test.bat";
 cgi[1] = "/input.bat";

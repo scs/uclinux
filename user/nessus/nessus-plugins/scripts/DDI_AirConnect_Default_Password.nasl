@@ -7,7 +7,8 @@
 if(description)
 {
     script_id(10961);
-    script_version("$Revision: 1.5 $");
+    script_version("$Revision: 1.9 $");
+    script_cve_id("CVE-1999-0508");
     name["english"] = "AirConnect Default Password";
     script_name(english:name["english"]);
 
@@ -38,7 +39,7 @@ if(description)
     family["english"] = "Misc.";
     family["francais"] = "Divers";
     script_family(english:family["english"], francais:family["francais"]);
-    script_dependencie("find_service.nes");
+    script_dependencie("http_version.nasl");
     script_require_keys("Services/www");
     
     exit(0);
@@ -59,8 +60,8 @@ function sendrequest (request, port)
 #
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)){ exit(0); }
 
 req = string("GET / HTTP/1.0\r\nAuthorization: Basic Y29tY29tY29tOmNvbWNvbWNvbQ==\r\n\r\n");

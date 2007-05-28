@@ -7,49 +7,44 @@
 if(description)
 {
  script_id(10702);
- script_version ("$Revision: 1.10 $");
- script_bugtraq_id(1354);
- script_cve_id("CVE-2000-0483");
+ script_bugtraq_id(2458);
+ script_version ("$Revision: 1.15 $");
  
  name["english"] = "Zope DoS";
- name["francais"] = "Zope DoS";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
-The remote web server is Zope < 2.2.5
+Synopsis :
 
-There is a security issue in all releases
-prior to version 2.2.5 which allow any Zope
-user to create a denial of service by modifying
-Zope data structures, thus rendering the site
-unusable.
+The remote web server contains an application server that is prone to
+a denial of service issue. 
 
-*** Nessus solely relied on the version number of your
-*** server, so if you applied the hotfix already,
-*** consider this alert as a false positive.
+Description :
 
-Solution : Upgrade to Zope 2.2.5 
-Risk factor : Serious";
+The remote web server is Zope < 2.2.5.  Such versions allow any Zope
+user to create a denial of service by modifying Zope data structures,
+thus rendering the site unusable. 
 
+*** Since Nessus solely relied on the version number of your server, 
+*** consider this a false positive if you applied the hotfix already.
 
+Solution : 
 
+Upgrade to Zope 2.2.5 or later.
 
+Risk factor : 
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:R/C:N/A:P/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
  summary["english"] = "Checks for Zope";
- summary["francais"] = "Vérifie la présence de Zope";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
- 
+ script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
- 
- 
- script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2001 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/zope");
@@ -62,8 +57,8 @@ Risk factor : Serious";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 banner = get_http_banner(port:port);
 
@@ -71,6 +66,6 @@ if(banner)
 {
   if(egrep(pattern:"Server: .*Zope 2\.((0\..*)|(1\..*)|(2\.[0-4]))", 
   		string:banner))
-     security_hole(port);
+     security_note(port);
 }
 

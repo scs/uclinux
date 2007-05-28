@@ -23,10 +23,13 @@
 #include "util.h"
 #include "rules.h"
 #include "mstring.h"
+#include "sfutil/sfghash.h"
 
 extern char *file_name;
 extern int file_line;
 
+SFGHASH * soid_sg_otn_map = NULL;
+SFGHASH * sg_rule_otn_map = NULL;
 
 /********************* Reference Implementation *******************************/
 
@@ -84,7 +87,7 @@ void FPrintReference(FILE *fp, ReferenceNode *refNode)
 
 void ParseReference(char *args, OptTreeNode *otn)
 {
-    char **toks;
+    char **toks, *system, *id;
     int num_toks;
 
     /* 2 tokens: system, id */
@@ -96,7 +99,15 @@ void ParseReference(char *args, OptTreeNode *otn)
     }
     else
     {
-    otn->sigInfo.refs = AddReference(otn->sigInfo.refs, toks[0], toks[1]);
+        system = toks[0];
+        while ( isspace((int) *system) )
+            system++;
+
+        id = toks[1];
+        while ( isspace((int) *id) )
+            id++;
+            
+        otn->sigInfo.refs = AddReference(otn->sigInfo.refs, system, id);
     }
 
     mSplitFree(&toks, num_toks);
@@ -204,6 +215,29 @@ void ParseSID(char *sid, OptTreeNode *otn)
     return;
 }
 
+void ParseGID(char *gid, OptTreeNode *otn)
+{
+    if(gid != NULL)
+    {
+        while(isspace((int)*gid)) { gid++; }
+
+        if(isdigit((int)gid[0]))
+        {
+            otn->sigInfo.generator = atoi(gid);
+            otn->event_data.sig_generator = atoi(gid);
+            return;
+        }
+
+        LogMessage("WARNING %s(%d) => Bad GID found: %s\n", file_name, 
+                file_line, gid);
+        return;
+    }
+
+    LogMessage("WARNING %s(%d) => GID found without ID number\n", file_name, 
+               file_line);
+
+    return;
+}
 void ParseRev(char *rev, OptTreeNode *otn)
 {
     if(rev != NULL)
@@ -263,7 +297,115 @@ void ParsePriority(char *priority, OptTreeNode *otn)
 
     return;
 }
+/*
+ * metadata may be key/value pairs or just keys
+ * 
+ * metdadata: key [=] value, key [=] value, key [=] value, key, key, ... ;
+ *
+ * This option may be used one or more times, with one or more key/value pairs.
+ *
+ * keys:
+ * 
+ * engine
+ * soid
+ * unknown data is ignored
+ */
+void ParseMetadata(char * metadata, OptTreeNode *otn)
+{
+    char * key;
+    char * value;
+    char **toks;
+    int    num_toks;
+    char **key_toks;
+    int    num_keys;
+    char  *endPtr;
+    int    i;
 
+    if( !metadata )
+    {
+        LogMessage("WARNING %s(%d) => Metadata without an argument!\n", 
+            file_name,file_line);
+        return;
+    }
+    
+    while(isspace((int)*metadata)) 
+        metadata++;
+    
+    if( !strlen(metadata) ) return;
+    
+    key_toks = mSplit(metadata, ",", 100, &num_keys, 0);
+   
+    for(i=0;i<num_keys;i++)
+    {
+        /* keys are requied .. */
+        key   = strtok(key_toks[i]," =");
+        if( !key  )
+        {
+            mSplitFree(&key_toks, num_keys);
+            return;
+        }
+
+        /* values are optional - depends on the key */
+        value = strtok(0," ");
+
+        if( strcmp(key,"engine")==0 )
+        {
+            if( !value )
+                FatalError("metadata key '%s' requires a value\n",key);
+            
+            if( strcmp(value,"shared")==0 )
+            {
+                otn->sigInfo.shared = 1;
+            }
+            else
+            {
+            //LogMessage("metadata='%s' has unknown value='%s'\n",key,value);
+            FatalError("metadata='%s' has unknown value='%s'\n",key,value);
+            }
+        }
+        
+        else if (strcmp(key, "soid")==0 )
+        {
+            if( !value )
+                FatalError("metadata key '%s' requires a value\n",key);
+
+            /* value is a : separated pair of gid:sid representing
+             * the GID/SID of the original rule.  This is used when
+             * the rule is duplicated rule by a user with different
+             * IP/port info.
+             */
+            toks = mSplit(value, "|", 2, &num_toks, 0);
+            if (num_toks != 2)
+            {
+                FatalError("%s(%d)=> Metadata Key '%s' Invalid Value."
+                    "Must be a pipe (|) separated pair.\n",
+                    file_name, file_line, key);
+            }
+
+            otn->sigInfo.otnKey.generator = strtoul(toks[0], &endPtr, 10);
+            if( *endPtr )
+                FatalError("Bogus gid %s",toks[0]);
+            
+            otn->sigInfo.otnKey.id = strtoul(toks[1], &endPtr, 10);
+            if( *endPtr )
+                FatalError("Bogus sid %s",toks[1]);
+
+            mSplitFree(&toks, num_toks);
+        }
+        
+        /* unknown metadata...just ignore it */
+        else
+        {
+         /*
+         * LogMessage("Ignoring Meta-Data : %s = %s \n",key,(value)?value:" ");
+         */
+        }
+    }
+
+    mSplitFree(&key_toks, num_keys);
+
+    return;
+}
 
 void ParseClassType(char *classtype, OptTreeNode *otn)
 {
@@ -421,6 +563,42 @@ int AddClassificationConfig(ClassType *newNode)
 
     return newNode->id;
 }
+
+static OptTreeNode *soidOTN;
         
+OptTreeNode * soid_sg_otn_lookup( u_int32_t gid, u_int32_t sid )
+{
+    OptTreeNode * otn = NULL;
+    sg_otn_key_t  key;
+
+    key.generator=gid;
+    key.id       =sid;
+    soidOTN = otn = (OptTreeNode*) sfghash_find(soid_sg_otn_map,&key);
+    return otn;
+}
+
+OptTreeNode * soid_sg_otn_lookup_next( u_int32_t gid, u_int32_t sid )
+{
+    OptTreeNode * otn = NULL;
+
+    if (soidOTN)
+    {
+        otn = soidOTN->nextSoid;
+        soidOTN = soidOTN->nextSoid;
+    }
+
+    return otn;
+}
+
+OptTreeNode * otn_lookup( u_int32_t gid, u_int32_t sid )
+{
+    OptTreeNode * otn;
+    sg_otn_key_t  key;
+
+    key.generator=gid;
+    key.id       =sid;
+    otn = (OptTreeNode*) sfghash_find(sg_rule_otn_map,&key);
+    return otn;
+}
         
 /***************** End of Class/Priority Implementation ***********************/

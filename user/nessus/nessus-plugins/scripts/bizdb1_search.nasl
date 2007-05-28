@@ -11,15 +11,14 @@
 if(description)
 {
  script_id(10383);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1104);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-2000-0287");
 
 
  name["english"] = "bizdb1-search.cgi located";
  script_name(english:name["english"]);
  desc["english"] = "
- 
 BizDB is a web database integration product
 using Perl CGI scripts. One of the scripts,
 bizdb-search.cgi, passes a variable's
@@ -38,7 +37,7 @@ utility like netcat.
 
 see also : http://www.hack.co.za/daem0n/cgi/cgi/bizdb.htm
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -49,7 +48,7 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -58,12 +57,17 @@ Risk factor : Serious";
 # The script code starts here
 #
 
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
 
 cgi = string("bizdb1-search.cgi");
-port = is_cgi_installed(cgi);
-if(port)security_hole(port);
- 
-
-
-  
-
+res = is_cgi_installed_ka(item:cgi, port:port);
+if( res ) {
+	if ( is_cgi_installed_ka(item:"nessus" + rand() + ".cgi", port:port) ) exit(0);
+	security_hole(port);
+}

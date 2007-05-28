@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.str.c,v 3.9 1996/04/26 19:21:42 christos Exp $ */
 /*
  * tc.str.c: Short string package
  * 	     This has been a lesson of how to write buggy code!
@@ -37,7 +37,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tc.str.c,v 3.9 1996/04/26 19:21:42 christos Exp $")
 
 #define MALLOC_INCR	128
 

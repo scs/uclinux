@@ -3,7 +3,7 @@
 # very quick-and-dirty downscaler from 2^16 to 2^8 grey levels
 # (because otherwise ppmtogif will complain "too many colours" and die)
 #
-# $Id$
+# $Id: simplequant.pl,v 1.2 2001/11/20 20:48:14 gert Exp $
 #
 $format=<>;
 chomp $format;

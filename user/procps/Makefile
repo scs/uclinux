@@ -20,6 +20,8 @@ export INSTALLSCT =  install --mode a=rx
 export INSTALLMAN =  install --mode a=r
 
 ALLPROG    = kill oldps uptime tload free w top vmstat watch skill snice pgrep pkill sysctl
+GDBPROGS := $(ALLPROG:%=%.gdb)
+
 BPROG      =  #					-> BINDIR
 ifdef CONFIG_USER_PROCPS_KILL
 BPROG     +=  kill
@@ -82,10 +84,8 @@ endif
 #export OPT        =  -O3
 export CFLAGS     +=  -D_GNU_SOURCE $(OPT) -I$(shell pwd) $(INCDIRS) -Wall -Wno-unused
 
-ifdef CONFIG_UCLINUX
-export SHARED     =  0# no shared libraries for uClinux
-else
-export SHARED     =  1# build/install both a static and ELF shared library
+ifndef CONFIG_UCLINUX
+export SHARED     =  y# build/install both a static and ELF shared library
 endif
 export SHLIBDIR   =  $(DESTDIR)/lib# where to install the shared library
 
@@ -120,11 +120,11 @@ W_SHOWFROM =  -DW_SHOWFROM# show remote host users are logged in from.
 BUILD = $(BPROG) $(UPROG) $(PPROG) $(SPROG) $(SUBDIRS) $(DESKTOP)
 
 # BUILD LIBRARIES + PROGRAMS
-all: proc/libproc.a $(BUILD)
+all: $(BUILD)
 
 # INSTALL PROGRAMS + DOCS
 install: $(patsubst %,install_%,$(BUILD) $(XSCPT) $(MAN1) $(MAN5) $(MAN8))
-ifeq ($(SHARED),1)
+ifdef SHARED
 	install $(OWNERGROUP) --mode a=rx $(LIB_TGT) $(SHLIBDIR)
 endif
 
@@ -133,7 +133,7 @@ libinstall:
 	$(MAKE) -C proc install $(LIBPROCPASS)
 
 romfs:
-	$(ROMFSINST) -e SHARED proc/libproc.so /lib/libproc.so.2.0.7
+	if [ -f proc/libproc.so ]; then $(ROMFSINST) proc/libproc.so /lib/libproc.so.2.0.7; fi
 	$(ROMFSINST) -e CONFIG_USER_PROCPS_FREE $(USRBINDIR)/free
 	$(ROMFSINST) -e CONFIG_USER_PROCPS_KILL $(BINDIR)/kill
 	$(ROMFSINST) -e CONFIG_USER_PROCPS_PGREP $(USRBINDIR)/pgrep
@@ -150,7 +150,7 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_PROCPS_WATCH $(USRBINDIR)/watch
 
 clean:
-	$(RM) -f $(OBJ) $(ALLPROG) \
+	$(RM) -f $(OBJ) $(ALLPROG) $(GDBPROGS) \
 	      proc/signames.h proc/.depend
 	for i in proc $(SUBDIRS); do $(MAKE) -C $$i clean ; done
 
@@ -187,7 +187,7 @@ endif
 
 # libproc setup
 
-ifeq ($(SHARED),1)
+ifeq ($(SHARED),y)
     LIB_TGT = proc/libproc.so.$(LIBVERSION)
 else
     LIB_TGT = proc/libproc.a
@@ -201,7 +201,7 @@ $(LIB_TGT): $(wildcard proc/*.[ch])
 # needed for those packages which use Imake.)
 
 ps:              build_ps
-build_ps:				; $(MAKE) -C ps
+build_ps:		$(LIB_TGT)		; $(MAKE) -C ps
 install_ps:      ps		; $(MAKE) -C ps install
 
 # executable dependencies

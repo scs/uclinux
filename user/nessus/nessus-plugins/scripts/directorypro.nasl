@@ -7,10 +7,10 @@
 if(description)
 {
  script_id(10679);
- script_cve_id("CAN-2001-0780");
  script_bugtraq_id(2793);
+ script_cve_id("CVE-2001-0780");
  
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.16 $");
  
  name["english"] = "directory pro web traversal";
  name["francais"] = "directory pro web traversal";
@@ -22,7 +22,7 @@ files with the privileges of the http daemon (usually root or nobody).
 
 Solution : remove it from /cgi-bin or upgrade to the latest version.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'directorypro.cgi' est installé. Celui-ci possède
@@ -52,6 +52,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -62,8 +63,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

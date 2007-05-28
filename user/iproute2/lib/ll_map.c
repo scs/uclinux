@@ -21,6 +21,7 @@
 
 #include "libnetlink.h"
 #include "ll_map.h"
+#include "../ip/netdevice.h"
 
 struct idxmap
 {

@@ -5,7 +5,9 @@
 if(description)
 {
         script_id(11151);
-        script_version("$Revision: 1.2 $");
+        script_bugtraq_id(5803);
+	script_cve_id("CVE-2002-1521");
+        script_version("$Revision: 1.7 $");
         script_name(english:"Webserver 4D Cleartext Passwords");
 
 
@@ -38,8 +40,8 @@ Risk Factor: Low");
 
 
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if (!port)port = 80;
+port = get_http_port(default:80);
+
 
 banner = get_http_banner(port:port);
 
@@ -50,6 +52,6 @@ if(banner)
         if("Web_Server_4D" >< banner) 
 	{
                 yo = string("The following banner was received: ", poprocks, "\n\nVersion 3.6 and lower of Webserver 4D stores all usernames and passwords in cleartext.\n\nFile: C:\\Program Files\\MDG\\Web Server 4D 3.6.0\\Ws4d.4DD\n\nRisk Factor: Low\nSolution: Contact http://www.mdg.com for an update.");
-                security_note(port:80, data:yo);
+                security_note(port:port, data:yo);
  	}
 }

@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: authdb_mod.c,v 1.15 2003/09/15 19:47:02 janakj Exp $
  *
  * Digest Authentication Module
  *

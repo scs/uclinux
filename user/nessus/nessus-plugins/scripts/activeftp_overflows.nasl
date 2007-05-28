@@ -1,12 +1,12 @@
 #
 # (C) Tenable Network Security
 #
-# Ref: http://www.securiteam.com/windowsntfocus/5MP0B1PAAG.html
+
 if(description)
 {
  script_id(11757);
  script_bugtraq_id(7900);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.4 $");
  
  
  name["english"] = "NGC ActiveFTP Denial of Service";
@@ -22,7 +22,7 @@ may allow an attacker to crash this service remotely by sending
 an overly long argument to various FTP commands (USER, CWD, and more).
 
 Solution : None at this time. Use another FTP daemon
-Risk Factor : Medium";
+Risk factor : Medium";
 
 
  script_description(english:desc["english"]);
@@ -37,7 +37,7 @@ Risk Factor : Medium";
  
  family["english"] = "FTP";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes");
+ script_dependencie("find_service_3digits.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }

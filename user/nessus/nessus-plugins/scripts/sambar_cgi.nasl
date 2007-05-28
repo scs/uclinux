@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10246);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1002);
- script_cve_id("CAN-2000-0213");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-2000-0213");
  
  name["english"] = "Sambar Web Server CGI scripts";
  name["francais"] = "Scripts CGI du serveur web Sambar";
@@ -67,9 +67,16 @@ Facteur de risque : Elevé";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-hello = is_cgi_installed("hello.bat");
-echo = is_cgi_installed("echo.bat");
-if(hello) security_hole(hello);
-else if(echo) security_hole(echo);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port ( default:port );
+if(!port) exit(0);
+
+if (is_cgi_installed_ka(item:"hello.bat", port:port) ||
+    is_cgi_installed_ka(item:"echo.bat", port:port))
+  security_hole(port);
 

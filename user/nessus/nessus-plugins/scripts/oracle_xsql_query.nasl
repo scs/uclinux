@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10613);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "Oracle XSQL Sample Application Vulnerability";
  name["francais"] = "Oracle XSQL Sample Application Vulnerability";
  script_name(english:name["english"], francais:name["francais"]);
@@ -40,10 +40,9 @@ Risk factor : Low";
  
  script_copyright(english:"This script is Copyright (C) 2001 Matt Moore",
 		francais:"Ce script est Copyright (C) 2001 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -52,22 +51,14 @@ Risk factor : Low";
 # Check uses a default sample page supplied with the XSQL servlet. 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
- req = http_get(item:"/xsql/demo/adhocsql/query.xsql?sql=select%20username%20from%20ALL_USERS",
-	 port:port);
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
+ req = http_get(item:"/xsql/demo/adhocsql/query.xsql?sql=select%20username%20from%20ALL_USERS", port:port);
+ r   = http_keepalive_send_recv(port:port, data:req);
  if("USERNAME" >< r)	
  	security_hole(port);
-
- 
- }
 }

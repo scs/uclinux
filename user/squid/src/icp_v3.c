@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: icp_v3.c,v 1.33 2001/01/12 00:37:18 wessels Exp $
  *
  * DEBUG: section 12    Internet Cache Protocol
  * AUTHOR: Duane Wessels

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: Stack.c,v 1.11 2001/01/12 00:37:12 wessels Exp $
  *
  * AUTHOR: Alex Rousskov
  *

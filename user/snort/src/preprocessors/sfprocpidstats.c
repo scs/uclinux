@@ -50,8 +50,8 @@ typedef struct _USERSYS {
 
 static int giCPUs = 1;
 
-static USERSYS *gpStatCPUs;
-static USERSYS *gpStatCPUs_2;
+static USERSYS *gpStatCPUs = NULL;
+static USERSYS *gpStatCPUs_2 = NULL;
 
 static FILE *proc_stat;
 

@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11671);
  script_bugtraq_id(7678);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.6 $");
 
  
  name["english"] = "Ultimate PHP Board admin_ip.php code injection";
@@ -26,7 +26,7 @@ of this web site will read the logs through admin_ip.php,
 the code will be executed.
 
 Solution : Upgrade to the latest version of this CGI 
-Risk Factor : Serious";
+Risk factor : High";
 
 
 
@@ -45,8 +45,9 @@ Risk Factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -55,12 +56,13 @@ Risk Factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
-foreach d (make_list( "", "/upb", "/board", cgi_dirs()))
+foreach d (make_list( "/upb", "/board", cgi_dirs()))
 {
  req = http_get(item:string(d, "/index.php"), port:port);
  res = http_keepalive_send_recv(port:port, data:req);

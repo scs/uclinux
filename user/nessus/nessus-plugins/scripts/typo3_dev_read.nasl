@@ -1,3 +1,5 @@
+#
+#
 # This script was written by Renaud Deraison <deraison@cvs.nessus.org>
 #
 #
@@ -10,8 +12,8 @@
 if(description)
 {
  script_id(11284);
- script_version ("$Revision: 1.4 $");
- script_bugtraq_id(6993, 6988, 6986, 6985, 6984, 6983, 6982);
+ script_bugtraq_id(6982, 6983, 6984, 6985, 6986, 6988, 6993);
+ script_version ("$Revision: 1.9 $");
  
  
  name["english"] = "typo3 arbitrary file reading";
@@ -41,8 +43,9 @@ Risk factor : High";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -68,10 +71,11 @@ function check(port, dir)
 }
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
 
-dirs = make_list(cgi_dirs(), "", "/typo3", "/testsite/typo3");
+if(!can_host_php(port:port))exit(0);
+
+dirs = make_list(cgi_dirs(),  "/typo3", "/testsite/typo3");
 
 foreach dir (dirs)
 {

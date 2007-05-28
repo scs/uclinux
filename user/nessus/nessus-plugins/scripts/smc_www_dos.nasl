@@ -10,7 +10,7 @@
 if(description)
 {
     script_id(11141);
-    script_version ("$Revision: 1.4 $");
+    script_version ("$Revision: 1.8 $");
     name["english"] = "Crash SMC AP";
     script_name(english:name["english"]);
     desc["english"] = "
@@ -19,7 +19,8 @@ specially formatted HTTP request.
 
 
 Solution: Contact vendor for a fix
-Risk factor: Medium/Low";
+
+Risk factor: Medium";
 
     script_description(english:desc["english"]);
     summary["english"] = "Crash SMC Access Point";
@@ -41,8 +42,8 @@ Risk factor: Medium/Low";
 
 include ("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 if(http_is_dead(port: port))exit(0);
@@ -52,7 +53,7 @@ req = string(req, "Referer: http://localhost/bob\r\n");
 req = string(req, "Content-Type: application/x-www-form-urlencoded\r\n");
 req = string(req, "Connection: Keep-Alive\r\n");
 req = string(req, "Cookie: VARIABLE=FOOBAR; path=/\r\n");
-req = string(req, "User-Agent: Mozilla/4.75 [en] (X11, U; Nessus)\r\n");
+req = string(req, "User-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)\r\n");
 req = string(req, "Variable: result\r\n");
 req = string(req, "Host: ", get_host_name(), "\r\nContent-length: 13\r\n");
 req = string(req, "Accept: image/gif, image/x-xbitmap, image/jpeg, image/pjpeg, image/png\r\n");
@@ -68,7 +69,7 @@ if (soc) {
 
 if(http_is_dead(port: port))
 {
-  security_hole(port);
+  security_warning(port);
 }
 
 

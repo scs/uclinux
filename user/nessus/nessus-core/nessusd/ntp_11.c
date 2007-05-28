@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,16 +14,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * Nessus Communication Manager -- it manages the Nessus Transfer Protocol, 
  * version 1.1 and 1.2
@@ -86,22 +76,28 @@ int ntp_11_parse_input(globals, input)
    char * input;
 {
  char * str;
- char * orig = emalloc(strlen(input)+1);
- strncpy(orig, input, strlen(input));
+ int input_len = strlen(input);
+ char * orig = emalloc(input_len + 1);
+
+ strncpy(orig, input, input_len);
  
- str = strchr(input, '<');
- if(!str){
+ str = strstr(input, " <|> ");
+ if( str == NULL )
+	{
  	efree(&orig);
 	return 1;
 	}
- str = str - 1;
- str[0] = 0;
- if(!strcmp(input, "CLIENT"))
+
+ str[0] = '\0';
+ if( strcmp(input, "CLIENT") == 0 )
  {
   input = str + 5;
   str = strchr(input, ' ');
-  if(str)str[0]=0;
-  if(input[strlen(input)-1]=='\n')input[strlen(input)-1]=0;
+  if(str != NULL )
+	str[0] = '\0';
+
+  if(input[strlen(input) - 1] == '\n')
+	input[strlen(input) - 1] = '\0';
   
 #ifdef ENABLE_SAVE_TESTS
   if(!strcmp(input, "SESSIONS_LIST")){
@@ -142,7 +138,9 @@ int ntp_11_parse_input(globals, input)
   if(!strcmp(input, "PLUGIN_INFO")) {
   	char * t, *s;
 	t = strstr(&(str[1]), " <|> ");
-	if(!t)return -1;
+	if( t == NULL )
+		return -1;
+
 	s = t + 5;
   	plugin_send_infos(globals, atoi(s));
 	return 1;
@@ -196,7 +194,7 @@ int ntp_11_parse_input(globals, input)
 		log_write("user %s : stopping attack against %s\n",  user, s);
 		hosts_stop_host(globals, s);
 		ntp_1x_timestamp_host_scan_interrupted(globals, s);
-		ntp_11_show_end(globals, s);
+		ntp_11_show_end(globals, s, 0);
 		}
 		
   efree(&orig);
@@ -226,7 +224,7 @@ ntp_11_long_attack(globals, orig)
 #if DEBUGMORE
   printf("long_attack :%s\n", input);
 #endif
-  if(!strncmp(input, "<|> CLIENT", strlen("<|> CLIENT")))
+  if(!strncmp(input, "<|> CLIENT", sizeof("<|> CLIENT")))
    return 1; 
   size = atoi(input);
   target = emalloc(size+1);
@@ -240,7 +238,7 @@ ntp_11_long_attack(globals, orig)
    else return -1;
   }
  plugin_set = arg_get_value(preferences, "plugin_set");
- if(!plugin_set || !strlen(plugin_set))
+ if(!plugin_set || plugin_set[0] == '\0' )
  {
   plugin_set = emalloc(3);
   sprintf(plugin_set, "-1");
@@ -286,15 +284,17 @@ ntp_11_read_prefs(globals)
 {
  struct arglist *  preferences = arg_get_value(globals, "preferences");
  int soc = (int)arg_get_value(globals, "global_socket");
- char input [32768];
+ char * input;
+ int input_sz = 1024*1024;
  int n;
 
+ input = emalloc(input_sz);
  for (;;) {
-   bzero(input, sizeof(input));
+   input[0] = '\0';
 #if defined NESSUS_ON_SSL && DEBUG_SSL > 2
    fprintf(stderr, "ntp_11_read_prefs > soc=%d\n", soc);
 #endif
-   n = recv_line (soc, input, sizeof (input) - 1);
+   n = recv_line (soc, input, input_sz - 1);
 
   if (n < 0 || input [0] == '\0') {
     log_write ("Empty data string -- closing comm. channel\n");
@@ -338,18 +338,19 @@ ntp_11_read_prefs(globals)
 	 !strcmp(pref, "log_plugins_name_at_load") ||
 	 !strcmp(pref, "plugin_upload")     ||
 	 !strcmp(pref, "plugin_upload_suffixes") ||
-	 !strcmp(pref, "admin_user"))
+	 !strcmp(pref, "admin_user") ||
+         !strcmp(pref, "nasl_no_signature_check"))
       	continue;
       
       old = arg_get_value(preferences, pref);
 #ifdef DEBUGMORE     
       printf("%s - %s (old : %s)\n", pref, value, old);
 #endif     
-      value[strlen(value)-1]='\0';
+      if ( value[0] != '\0' )value[strlen(value)-1]='\0';
     
-      if(old)
+      if( old != NULL )
       {
-       if(strcmp(old, value))
+       if( strcmp(old, value) != 0 )
         {
 	 efree(&old); 
          v = estrdup(value);
@@ -365,6 +366,7 @@ ntp_11_read_prefs(globals)
   }
  }
 
+ efree(&input);
  return(0);
 }
 
@@ -393,13 +395,14 @@ ntp_11_rules(globals)
  while(!finished)
  {
   auth_gets(globals, buffer, 4095);
-  if(!strlen(buffer))
+  if( buffer[0] == '\0' )
     {
       log_write("Empty buffer - exiting\n");
       EXIT(0);
     }
 
-  if(strstr(buffer, "<|> CLIENT"))finished = 1;
+  if( strstr(buffer, "<|> CLIENT") != NULL )
+	finished = 1;
   else 
   {
 #ifdef DEBUG_RULES
@@ -445,9 +448,8 @@ static int ntp_11_new_attack(globals, input)
    efree(&plugin_set);
   
   plugin_set = emalloc(3);
-  arg_set_value(preferences, "plugin_set", 2, plugin_set);
   sprintf(plugin_set, "-1");
-  if(!arg_get_value(preferences, "plugin_set")) 
+  if( arg_get_value(preferences, "plugin_set") == NULL ) 
    arg_add_value(preferences, "plugin_set", ARG_STRING, strlen(plugin_set), plugin_set);
   else
    arg_set_value(preferences, "plugin_set", strlen(plugin_set), plugin_set);
@@ -463,11 +465,18 @@ static int ntp_11_new_attack(globals, input)
 
 
 void 
-ntp_11_show_end(globals, name)
+ntp_11_show_end(globals, name, internal)
  struct arglist*  globals;
  char * name;
+ int internal;
 { 
- auth_printf(globals, "SERVER <|> FINISHED <|> %s <|> SERVER\n", name);
+ int soc = (int)arg_get_value( globals, "global_socket");
+ char buf[1024];
+ snprintf(buf, sizeof(buf), "SERVER <|> FINISHED <|> %s <|> SERVER\n", name);
+ if ( internal )
+ 	internal_send(soc, buf, INTERNAL_COMM_MSG_TYPE_DATA);
+ else
+	auth_printf(globals, "%s", buf);
 }
 
 
@@ -478,13 +487,16 @@ files_add_translation(globals, remotename, localname)
  char * localname;
 {
  harglst * trans = arg_get_value(globals, "files_translation");
- if(!trans)
+#if 0
+ fprintf(stderr, "files_add_translation: R=%s\tL=%s\n", remotename, localname);
+#endif
+ if( trans == NULL )
  {
   trans = harg_create(10);
   arg_add_value(globals, "files_translation", ARG_PTR, -1, trans);
  }
  
- if(!harg_get_string(trans, remotename))
+ if( harg_get_string(trans, remotename) == NULL )
  	harg_add_string(trans, remotename, localname);
  else
  	harg_set_string(trans, remotename, localname);
@@ -504,18 +516,21 @@ ntp_11_recv_file(globals)
  long tot = 0;
  int fd;
  
-
+#if 0
+ fprintf(stderr, "ntp_11_recv_file\n");
+#endif
  n = recv_line(soc, input, sizeof(input) - 1);
  if(n <= 0)
   return -1;
   
- if(!strncmp(input, "name: ", strlen("name: ")))
+ if( strncmp(input, "name: ", strlen("name: ")) == 0 )
  {
-  origname = estrdup(input + strlen("name: "));
+  origname = estrdup(input + sizeof("name: ")-1);
   if(origname[strlen(origname) - 1] == '\n')
    origname[strlen(origname) - 1] = '\0';
  }
-  else return -1;
+ else 
+   return -1;
  
  n = recv_line(soc, input, sizeof(input) - 1);
  if(n <= 0)
@@ -524,14 +539,16 @@ ntp_11_recv_file(globals)
  
  n = recv_line(soc, input, sizeof(input) - 1);
  if(n <= 0)
+
   return -1;
   
- if(!strncmp(input, "bytes: ", strlen("bytes: ")))
+ if( strncmp(input, "bytes: ", sizeof("bytes: ")-1) == 0 )
  {
-  char * t = input + strlen("bytes: ");
+  char * t = input + sizeof("bytes: ")-1;
   bytes = atol(t);
  }
-  else return -1;
+ else 
+  return -1;
   
  /*
   * Ok. We now know that we have to read <bytes> bytes from the
@@ -544,7 +561,9 @@ ntp_11_recv_file(globals)
    perror("ntp_11_recv_file: open() ");
    return -1;
   }
-  
+#if 0
+  fprintf(stderr, "ntp_11_recv_file: localname=%s\n", localname);
+#endif  
   while(tot < bytes)
   {
    bzero(input, sizeof(input));
@@ -568,6 +587,7 @@ ntp_11_recv_file(globals)
    */
   auth_printf(globals, "SERVER <|> FILE_ACCEPTED <|> SERVER\n"); 
   files_add_translation(globals, origname, localname);
+  efree(&localname);
   close(fd);
   return 0;
 }
@@ -746,12 +766,15 @@ __ntp_1x_timestamp_scan(globals, msg)
   char timestr[1024];
   char * tmp;
   time_t t;
+  int len;
   
   t = time(NULL);
   tmp = ctime(&t);
+  timestr[sizeof ( timestr ) - 1 ] = '\0';
   strncpy(timestr, tmp, sizeof(timestr) - 1);
-  if( timestr[strlen(timestr) - 1 ] == '\n' )
-	   timestr[strlen(timestr) - 1 ] = '\0';
+  len = strlen(timestr);
+  if( timestr[len - 1 ] == '\n' )
+	   timestr[len - 1 ] = '\0';
 
   auth_printf(globals, "SERVER <|> TIME <|> %s <|> %s <|> SERVER\n",msg, timestr);
   }
@@ -771,16 +794,23 @@ __ntp_1x_timestamp_scan_host(globals, msg, host)
   char timestr[1024];
   char * tmp;
   time_t t;
+  int len;
+  char buf[1024];
+  int soc;
   
   t = time(NULL);
   tmp = ctime(&t);
+  timestr [ sizeof(timestr) - 1] = '\0';
   strncpy(timestr, tmp, sizeof(timestr) - 1);
-  if( timestr[strlen(timestr) - 1 ] == '\n' )
-	   timestr[strlen(timestr) - 1 ] = '\0';
-  auth_printf(globals, "SERVER <|> TIME <|> %s <|> %s <|> %s <|> SERVER\n",
-  				msg,
-				host, 
-				timestr);
+  len = strlen(timestr);
+  if( timestr[len - 1 ] == '\n' )
+	   timestr[len - 1 ] = '\0';
+
+   soc = (int)arg_get_value(globals, "global_socket");
+   
+   snprintf(buf, sizeof(buf), "SERVER <|> TIME <|> %s <|> %s <|> %s <|> SERVER\n", msg, host, timestr);
+   
+   internal_send(soc, buf, INTERNAL_COMM_MSG_TYPE_DATA); 
   }
   return 0;
 }
@@ -829,25 +859,56 @@ ntp_1x_timestamp_host_scan_interrupted(globals, host)
 
 
 
-/* 
- * XXXXXXX 
- */
-static char*
-find_plugin(plugins, fname)
-	struct arglist * plugins;
-	char * fname;
+
+/*--------------------------------------------------------------------------------------------*/
+static int qsort_cmp( const void * a, const void * b )
 {
- if(plugins == NULL)
-  return NULL;
- while(plugins->next)
- {
-  if(!strcmp(plugins->name, fname))
-   return plug_get_name(plugins->value);
-  else
-   plugins = plugins->next;
- }
- return NULL;
+ struct arglist ** plugin_a, ** plugin_b;
+
+ plugin_a = (struct arglist ** ) a;
+ plugin_b = (struct arglist ** ) b;
+
+ return strcmp((*plugin_a)->name, (*plugin_b)->name);
 }
+
+
+static char * _find_plugin(struct arglist ** array, char * fname, int start, int end, int rend )
+{
+ int mid;
+ struct arglist * plugin;
+ int e;
+
+ if ( start >= rend )
+	return NULL;
+
+ if ( start == end )
+ {
+  plugin = array[start];
+ 
+  if ( strcmp(fname, plugin->name) == 0 )
+	return plug_get_name(plugin->value);
+   else
+	return NULL;
+ }
+
+ mid = ( start + end ) / 2;
+ plugin = array[mid];
+ e = strcmp( plugin->name, fname );
+ if ( e > 0 )
+	return _find_plugin(array, fname, start, mid, rend);
+  else if ( e < 0 )
+	return _find_plugin(array, fname, mid + 1, end, rend);
+ else
+	return plug_get_name(plugin->value);
+}
+
+
+
+static char * find_plugin(struct arglist ** array, char * fname, int num_plugins )
+{
+ return _find_plugin ( array, fname, 0, num_plugins, num_plugins);
+}
+
 
 int 
 ntp_1x_send_dependencies(globals)
@@ -855,8 +916,12 @@ ntp_1x_send_dependencies(globals)
 {
  struct arglist * p = arg_get_value(globals, "plugins");
  struct arglist * plugins = p;
+ struct arglist ** array;
+ int num_plugins = 0;
  char * buf;
  int buf_size = 1024;
+ int i = 0;
+
 
  if(plugins == NULL)
  {
@@ -864,6 +929,22 @@ ntp_1x_send_dependencies(globals)
   return -1;
  }
  
+ while ( p->next != NULL ) 
+ {
+   num_plugins ++;
+   p = p->next;
+ }
+
+ /* Store the plugins in an array index by filename */
+ array = emalloc ( num_plugins * sizeof(struct arglist * ));
+ p = plugins;
+ while ( p->next != NULL )
+ {
+   array[i++] = p;
+   p = p->next;
+ }
+
+ qsort ( array, num_plugins, sizeof(struct arglist *), qsort_cmp);
  
  auth_printf(globals, "SERVER <|> PLUGINS_DEPENDENCIES\n");
   
@@ -885,8 +966,8 @@ ntp_1x_send_dependencies(globals)
   strncat(buf, " <|> ", buf_size);
   while(deps->next)
   {
-   char * fname = find_plugin(p, deps->name);
-   if(!fname)
+   char * fname = find_plugin(array, deps->name, num_plugins);
+   if( fname == NULL )
    {
     deps = deps->next;
     continue;
@@ -894,13 +975,18 @@ ntp_1x_send_dependencies(globals)
    if(strlen(fname) + strlen(buf) + 6 > buf_size)
    {
     buf_size *= 2;
+    if(strlen(fname) + strlen(buf) + 6 > buf_size)
+    	buf_size = strlen(fname) + strlen(buf) + 6;
+
     buf = erealloc(buf, buf_size);
    }
    strncat(buf, fname, buf_size);
    strncat(buf, " <|> ", buf_size);
    deps = deps->next;
   }
+#if 0
   arg_free_all(d);
+#endif
   
   auth_printf(globals, "%s\n", buf);
    
@@ -910,5 +996,6 @@ ntp_1x_send_dependencies(globals)
  }
  auth_printf(globals, "<|> SERVER\n");
  efree(&buf);
+ efree(&array);
  return 0;
 }

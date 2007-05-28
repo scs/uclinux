@@ -65,7 +65,7 @@ ask_filter_callback(u1, ctrls)
    return;
   }
  else {
- 	char * filter = gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls,"ENTRY")));
+ 	char * filter = (char*)gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls,"ENTRY")));
 	filter_on_name = GTK_TOGGLE_BUTTON(arg_get_value(ctrls, "FILTER_NAME"))->active;
 	filter_on_description = GTK_TOGGLE_BUTTON(arg_get_value(ctrls, "FILTER_DESCRIPTION"))->active;
 	filter_on_summary = GTK_TOGGLE_BUTTON(arg_get_value(ctrls, "FILTER_SUMMARY"))->active;

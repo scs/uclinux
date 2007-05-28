@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10160);
- script_version ("$Revision: 1.17 $");
- script_cve_id("CVE-2000-0063");
  script_bugtraq_id(938);
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-2000-0063");
  name["english"] = "Nortel Contivity DoS";
  name["francais"] = "Nortel Contivity DoS";
  script_name(english:name["english"], francais:name["francais"]);
@@ -20,7 +20,7 @@ request :
 	 GET /cgi/cgiproc?$
 
 Solution : upgrade to VxWorks 2.60
-Risk factor : Serious
+Risk factor : High
 Bugtraq ID : 938";
 
 
@@ -59,11 +59,12 @@ ID Bugtraq : 938";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
- port = get_kb_item("Services/www");
- if(!port) port = 80;
+ port = get_http_port(default:80);
+
  if(http_is_dead(port:port))exit(0);
- is_cgi_installed(item:"/cgi/cgiproc?$", port:port);
+ is_cgi_installed_ka(item:"/cgi/cgiproc?$", port:port);
  sleep(5); 
  if(http_is_dead(port:port))
  {

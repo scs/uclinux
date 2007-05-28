@@ -5,7 +5,7 @@
  * options to a default value. Then it parses the configuration file and
  * after that the command line options.
  *
- * $Id$
+ * $Id: config.c,v 1.4 1998/09/09 21:07:09 gert Exp $
  *
  */
 

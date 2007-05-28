@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10130);
- script_version ("$Revision: 1.21 $");
  script_bugtraq_id(283);
+ script_version ("$Revision: 1.23 $");
  script_cve_id("CVE-1999-0920");
  
  name["english"] = "ipop2d buffer overflow";
@@ -98,7 +98,7 @@ interactive shell on this host.
 Solution : upgrade
 Risk factor : Medium";
 	 
-	 security_hole(port:port, data:alrt);
+	 security_warning(port:port, data:alrt);
 	 }
  }
  exit(0);
@@ -124,7 +124,7 @@ if(get_port_state(port))
  b = recv_line(socket:soc, length:1024);
  send(socket:soc, data:s2);
  c = recv_line(socket:soc, length:1024);
- if(strlen(c) == 0)security_hole(port);
+ if(strlen(c) == 0)security_warning(port);
  close(soc);
 }
 

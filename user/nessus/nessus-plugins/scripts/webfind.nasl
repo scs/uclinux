@@ -8,53 +8,53 @@
 if(description)
 {
  script_id(10475);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1487);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2000-0622");
- name["english"] = "Buffer overflow in WebSitePro webfind.exe";
- name["francais"] = "Dépassement de buffer dans webfind.exe de WebSite pro";
- script_name(english:name["english"], francais:name["francais"]);
+ name["english"] = "Buffer overflow in WebSite Professional's webfind.exe";
+ script_name(english:name["english"]);
  
  desc["english"] = "
-The remote CGI '/cgi-bin/webfind.exe' is vulnerable to
-a buffer overflow when given a too long 'keywords' argument.
+Synopsis :
 
-This problem allows an attacker to execute arbitrary code
-as root on this host.
+The remote web server contains a CGI script that is affected by a
+buffer overflow flaw. 
 
-Solution : upgrade to WebSitePro 2.5 or delete this CGI
-Risk factor : High";
+Description :
+
+The 'webfind.exe' CGI script on the remote host is vulnerable to a
+buffer overflow when given a too long 'keywords' argument.  This
+problem allows an attacker to execute arbitrary code as root on this
+host. 
+
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2000-07/0268.html
+
+Solution : 
+
+Upgrade to WebSite Professional 2.5 or delete this CGI.
+
+Risk factor : 
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 	
- desc["francais"] = "
-Le CGI distant '/cgi-bin/webfind.exe' est vulnérable à
-un dépassement de buffer lorsqu'on lui donne un argument
-'keywords' trop long.
-
-Ce problème permet à un pirate d'executer du code arbitraire
-sur ce serveur.
-
-Solution : mettez website pro à jour en version 2.5 ou effacez de CGI
-Facteur de risque : Elevé";
-
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
- summary["english"] = "buffer overflow attempt";
- summary["francais"] = "essai de dépassement de buffer";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
+ summary["english"] = "Buffer overflow attempt";
+ script_summary(english:summary["english"]);
  
  # This test is harmless
  script_category(ACT_ATTACK);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
  family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_family(english:family["english"]);
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_keys("www/websitepro");
  exit(0);
 }
@@ -63,8 +63,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

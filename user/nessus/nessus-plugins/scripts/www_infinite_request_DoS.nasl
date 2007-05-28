@@ -21,8 +21,8 @@
 if(description)
 {
  script_id(11084);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(2465);
+ script_version ("$Revision: 1.21 $");
  name["english"] = "Infinite HTTP request";
  script_name(english:name["english"]);
  
@@ -55,38 +55,48 @@ Risk factor : High";
 ########
 
 include("http_func.inc");
+include('global_settings.inc');
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
-#banner = get_http_banner(port:port);
-#if(egrep(pattern:"Server.*Apache", string:banner))exit(0);
-#if(egrep(pattern:"Server.*Microsoft", string:banner))exit(0);
+banner = get_http_banner(port:port);
+# WN waits for 30 s before sending back a 408 code
+if (egrep(pattern:"Server: +WN/2\.4\.", string:banner)) exit(0);
 
 if (http_is_dead(port: port)) exit(0);
 
 soc = http_open_socket(port);
 if(! soc) exit(0);
 
-r= http_get(item:"/", port:port);
-r= r - string("\r\n\r\n");
-r= string(r, "\r\n", "Referer: ", crap(512));
+crap512 = crap(512);
+r= http_get(item: '/', port:port);
+r= r - '\r\n\r\n';
+r= strcat(r, '\r\nReferer: ', crap512);
 
 send(socket:soc, data: r);
 cnt = 0;
 
-while (send(socket: soc, data: crap(512)) > 0) { 
+while (send(socket: soc, data: crap512) > 0) { 
 	cnt = cnt+512;
 	if(cnt > 524288) {
 		r = recv(socket: soc, length: 13, timeout: 2);
-		#display("r=", r, "\n");
 		http_close_socket(soc);
-		if (r) exit(0);
+		if (r)
+		{
+			debug_print('r=', r);
+			exit(0);
+		}
 		if(http_is_dead(port:port)) {
+			log_print('Infinite request killed the web server on port ', port, ' after ', cnt, ' bytes\n');
 			security_hole(port);
 			exit(0);
 		}
+
+                if ((report_paranoia > 1) || thorough_tests || experimental_scripts)
+                {
 		m = "
 Your web server seems to accept unlimited requests.
 It may be vulnerable to the 'WWW infinite request' attack, which
@@ -96,15 +106,15 @@ allows a cracker to consume all available memory on your system.
 *** so this might be a false alert.
 
 Solution : upgrade your software or protect it with a filtering reverse proxy
-Risk factor : High";
+Risk factor : Medium";
 		security_warning(port: port, data: m); 
-		exit(0);
+		}
+                exit(0);
 	}
 }
 
-#display("CNT=", cnt, "\n");
-# Keep the socket open
-
+debug_print(level: 2, 'port=', port, ', CNT=', cnt, '\n');
+# Keep the socket open, in case the web server itself is saturated
 
 if(http_is_dead(port: port)) security_hole(port); 
 

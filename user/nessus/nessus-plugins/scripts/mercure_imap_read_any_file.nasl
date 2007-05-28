@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10382);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CVE-2000-0318");
  script_bugtraq_id(1144);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2000-0318");
  
 
  
@@ -30,7 +30,7 @@ Warning : this flaw has not been actually checked but was deduced
           from the server banner
 Solution : There was no solution ready when this vulnerability was written;
 Please contact the vendor for updates that address this vulnerability.
-Risk factor : Serious
+Risk factor : High
 See also : http://oliver.efri.hr/~crv/security/bugs/Others/mercur3.html";
  
  desc["francais"] = "

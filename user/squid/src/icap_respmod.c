@@ -46,8 +46,8 @@ static void icapReadReply3(IcapStateData * icap);
 const char *crlf = "\r\n";
 
 static void
-getICAPRespModString(MemBuf * mb, int o1, int o2, int o3, const char *client_addr,
-    IcapStateData * icap, const icap_service *service)
+getICAPRespModString(MemBuf * mb, int o1, int o2, int o3,
+    const char *client_addr, IcapStateData * icap, const icap_service * service)
 {
     memBufPrintf(mb, "RESPMOD %s ICAP/1.0\r\nEncapsulated:", service->uri);
     if (o1 >= 0)
@@ -63,8 +63,9 @@ getICAPRespModString(MemBuf * mb, int o1, int o2, int o3, const char *client_add
     if (Config.icapcfg.send_client_ip || service->flags.need_x_client_ip) {
 	memBufPrintf(mb, "X-Client-IP: %s\r\n", client_addr);
     }
-    if ((Config.icapcfg.send_auth_user || service->flags.need_x_authenticated_user)
-	 && (icap->request->auth_user_request != NULL)) {
+    if ((Config.icapcfg.send_auth_user
+	    || service->flags.need_x_authenticated_user)
+	&& (icap->request->auth_user_request != NULL)) {
 	icapAddAuthUserHeader(mb, icap->request->auth_user_request);
     }
 #if NOT_YET_FINISHED
@@ -72,7 +73,7 @@ getICAPRespModString(MemBuf * mb, int o1, int o2, int o3, const char *client_add
 	memBufPrintf(mb, "X-TE: trailers\r\n");
     }
 #endif
-   if (service->flags.allow_204)
+    if (service->flags.allow_204)
 	memBufPrintf(mb, "Allow: 204\r\n");
 }
 
@@ -82,8 +83,8 @@ buildRespModHeader(MemBuf * mb, IcapStateData * icap, char *buf,
 {
     MemBuf mb_hdr;
     char *client_addr;
-    int o2;
-    int o3;
+    int o2=0;
+    int o3=0;
     int hlen;
     int consumed;
     icap_service *service;
@@ -93,36 +94,50 @@ buildRespModHeader(MemBuf * mb, IcapStateData * icap, char *buf,
 	memBufDefInit(&icap->respmod.req_hdr_copy);
 
     memBufAppend(&icap->respmod.req_hdr_copy, buf, len);
-    hlen = headersEnd(icap->respmod.req_hdr_copy.buf,
-	icap->respmod.req_hdr_copy.size);
-    debug(81, 3) ("buildRespModHeader: headersEnd = %d\n", hlen);
-    if (0 == hlen)
-	return 0;
 
-    /*
-     * calc how many bytes from this 'buf' went towards the
-     * reply header.
-     */
-    consumed = hlen - (icap->respmod.req_hdr_copy.size - len);
-    debug(81, 3) ("buildRespModHeader: consumed = %d\n", consumed);
+    if (icap->respmod.req_hdr_copy.size > 4 && strncmp(icap->respmod.req_hdr_copy.buf, "HTTP/", 5)) {
+	debug(81, 3) ("buildRespModHeader: Non-HTTP-compliant header: '%s'\n", buf);
+	/*
+	 *Possible we can consider that we did not have http responce headers 
+	 *(maybe HTTP 0.9 protocol), lets returning -1...
+	 */
+	consumed=-1;
+	o2=-1;
+	memBufDefInit(&mb_hdr);
+    }
+    else{
 
-    /*
-     * now, truncate our req_hdr_copy at the header end.
-     * this 'if' statement might be unncessary?
-     */
-    if (hlen < icap->respmod.req_hdr_copy.size)
-	icap->respmod.req_hdr_copy.size = hlen;
+        hlen = headersEnd(icap->respmod.req_hdr_copy.buf,
+			   icap->respmod.req_hdr_copy.size);
+        debug(81, 3) ("buildRespModHeader: headersEnd = %d(%s)\n", hlen,buf);
+        if (0 == hlen)
+            return 0;
 
-    /* Copy request header */
-    memBufDefInit(&mb_hdr);
-    httpBuildRequestPrefix(icap->request, icap->request,
-	icap->respmod.entry, &mb_hdr, icap->http_flags);
-    o2 = mb_hdr.size;
+	/*
+	 * calc how many bytes from this 'buf' went towards the
+	 * reply header.
+	 */
+	consumed = hlen - (icap->respmod.req_hdr_copy.size - len);
+	debug(81, 3) ("buildRespModHeader: consumed = %d\n", consumed);
+
+
+	/*
+	 * now, truncate our req_hdr_copy at the header end.
+	 * this 'if' statement might be unncessary?
+	 */
+	if (hlen < icap->respmod.req_hdr_copy.size)
+	     icap->respmod.req_hdr_copy.size = hlen;
+	
+	/* Copy request header */
+	memBufDefInit(&mb_hdr);
+	httpBuildRequestPrefix(icap->request, icap->request,
+			       icap->respmod.entry, &mb_hdr, icap->http_flags);
+	o2 = mb_hdr.size;
+    }
 
     /* Copy response header - Append to request header mbuffer */
     memBufAppend(&mb_hdr,
-	icap->respmod.req_hdr_copy.buf,
-	icap->respmod.req_hdr_copy.size);
+	icap->respmod.req_hdr_copy.buf, icap->respmod.req_hdr_copy.size);
     o3 = mb_hdr.size;
 
     service = icap->current_service;
@@ -139,14 +154,22 @@ buildRespModHeader(MemBuf * mb, IcapStateData * icap, char *buf,
     else
 	getICAPRespModString(mb, 0, o2, -o3, client_addr, icap, service);
     if (Config.icapcfg.preview_enable)
-	if (icap->preview_size >= 0)
+	if (icap->preview_size >= 0) {
 	    memBufPrintf(mb, "Preview: %d\r\n", icap->preview_size);
-
-    memBufAppend(mb, "Connection: keep-alive\r\n", 24);
+	    icap->flags.preview_done = 0;
+	}
+    if(service->keep_alive){
+	icap->flags.keep_alive = 1;
+	memBufAppend(mb, "Connection: keep-alive\r\n", 24);
+    }
+    else{
+	icap->flags.keep_alive = 0;
+	memBufAppend(mb, "Connection: close\r\n", 19);
+    }
     memBufAppend(mb, crlf, 2);
     memBufAppend(mb, mb_hdr.buf, mb_hdr.size);
     memBufClean(&mb_hdr);
-    icap->flags.keep_alive = 1;
+
 
     return consumed;
 }
@@ -173,10 +196,11 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
 	     * first copy the data that we already sent to the ICAP server
 	     */
 	    memBufAppend(&icap->chunk_buf,
-		icap->respmod.resp_copy.buf,
-		icap->respmod.resp_copy.size);
+		icap->respmod.resp_copy.buf, icap->respmod.resp_copy.size);
 	    icap->respmod.resp_copy.size = 0;
 	}
+	debug(81, 5) ("icapSendRepMod: len=%d theEnd=%d write_pending=%d\n",
+	    len, theEnd, icap->flags.write_pending);
 	if (len) {
 	    /*
 	     * also copy any new data from the HTTP side
@@ -189,8 +213,7 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
     if (theEnd) {
 	if (icap->respmod.res_body_sz)
 	    icap->flags.send_zero_chunk = 1;
-	else
-	    icap->flags.http_server_eof = 1;
+	icap->flags.http_server_eof = 1;
     }
     /*
      * httpReadReply is going to call us with a chunk and then
@@ -210,19 +233,46 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
     }
     memBufDefInit(&mb);
 
+#if SUPPORT_ICAP_204 || ICAP_PREVIEW
     /*
      * make a copy of the response in case ICAP server gives us a 204
      */
+    /*
+     * This piece of code is problematic for 204 responces outside preview.
+     * The icap->respmod.resp_copy continues to filled until we had responce
+     * If the icap server waits to gets all data before sends its responce 
+     * then we are puting all downloading object to the main system memory.
+     * My opinion is that 204 responces outside preview must be disabled .....
+     * /chtsanti
+     */
+
     if (len && icap->flags.copy_response) {
-	if (memBufIsNull(&icap->respmod.resp_copy))
-	    memBufDefInit(&icap->respmod.resp_copy);
-	memBufAppend(&icap->respmod.resp_copy, buf, len);
+	 if (memBufIsNull(&icap->respmod.resp_copy))
+	      memBufDefInit(&icap->respmod.resp_copy);
+	 memBufAppend(&icap->respmod.resp_copy, buf, len);
     }
+
+#endif
+
     if (icap->sc == 0) {
 	/* No data sent yet. Start with headers */
-	icap->sc = buildRespModHeader(&mb, icap, buf, len, theEnd);
-	buf += icap->sc;
-	len -= icap->sc;
+	 if((icap->sc = buildRespModHeader(&mb, icap, buf, len, theEnd))>0){
+	      buf += icap->sc;
+	      len -= icap->sc;
+	 }
+	 /*
+	  * Then we do not have http responce headers. All data (previous and those in buf)
+	  * now are exist to icap->respmod.req_hdr_copy. Lets get them back.......
+	  */
+	 if(icap->sc <0){
+	      memBufAppend(&icap->respmod.buffer,
+			   icap->respmod.req_hdr_copy.buf,
+			   icap->respmod.req_hdr_copy.size);
+	      icap->sc=icap->respmod.req_hdr_copy.size;
+	      icap->respmod.req_hdr_copy.size=0;
+	      buf=NULL;
+	      len=0;
+	 }
     }
     if (0 == icap->sc) {
 	/* check again; bail if we're not ready to send ICAP/HTTP hdrs */
@@ -236,7 +286,8 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
 
     if (!icap->flags.preview_done) {
 	/* preview not yet sent */
-	if (icap->sc > 0 && icap->respmod.buffer.size <= preview_size && len > 0) {
+	if (icap->sc > 0 && icap->respmod.buffer.size <= preview_size
+	    && len > 0) {
 	    /* Try to collect at least preview_size+1 bytes */
 	    /* By collecting one more byte than needed for preview we know best */
 	    /* whether we have to send the ieof chunk extension */
@@ -244,7 +295,10 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
 	    if (size > preview_size + 1)
 		size = preview_size + 1;
 	    size -= icap->respmod.buffer.size;
-	    debug(81, 3) ("icapSendRespMod: FD %d: copy %d more bytes to preview buffer.\n", icap->icap_fd, size);
+	    debug(81,
+		3)
+		("icapSendRespMod: FD %d: copy %d more bytes to preview buffer.\n",
+		icap->icap_fd, size);
 	    memBufAppend(&icap->respmod.buffer, buf, size);
 	    buf = ((char *) buf) + size;
 	    len -= size;
@@ -275,7 +329,10 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
 		ch = icap->respmod.buffer.buf[preview_size];
 		memBufReset(&icap->respmod.buffer);	/* will now be used for other data */
 		memBufAppend(&icap->respmod.buffer, &ch, 1);
-		debug(81, 3) ("icapSendRespMod: FD %d: sending preview and keeping %d bytes in internal buf.\n", icap->icap_fd, len + 1);
+		debug(81,
+		    3)
+		    ("icapSendRespMod: FD %d: sending preview and keeping %d bytes in internal buf.\n",
+		    icap->icap_fd, len + 1);
 		if (len > 0)
 		    memBufAppend(&icap->respmod.buffer, buf, len);
 	    }
@@ -285,16 +342,15 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
     } else if (icap->flags.wait_for_preview_reply) {
 	/* received new data while waiting for preview response */
 	/* add data to internal buffer and send later */
-	debug(81, 3) ("icapSendRespMod: FD %d: add %d more bytes to internal buf while waiting for preview-response.\n", icap->icap_fd, len);
+	debug(81,
+	    3)
+	    ("icapSendRespMod: FD %d: add %d more bytes to internal buf while waiting for preview-response.\n",
+	    icap->icap_fd, len);
 	if (len > 0)
 	    memBufAppend(&icap->respmod.buffer, buf, len);
 	/* do not send any data now while waiting for preview response */
 	/* but prepare for read more data on the HTTP connection */
-	if (!icap->flags.http_server_eof) {
-	    debug(81, 3) ("icapSendRespMod: FD %d: commSetSelect on read icapRespModReadReply waiting for preview response.\n", icap->icap_fd);
-	    commSetSelect(icap->icap_fd, COMM_SELECT_READ, icapRespModReadReply,
-		icap, 0);
-	}
+	memBufClean(&mb);
 	return;
     } else
 #endif
@@ -303,7 +359,8 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
 	/* there may still be some data in the buffer */
 	if (icap->respmod.buffer.size > 0) {
 	    memBufPrintf(&mb, "%x\r\n", icap->respmod.buffer.size);
-	    memBufAppend(&mb, icap->respmod.buffer.buf, icap->respmod.buffer.size);
+	    memBufAppend(&mb, icap->respmod.buffer.buf,
+		icap->respmod.buffer.size);
 	    memBufAppend(&mb, crlf, 2);
 	    icap->sc += icap->respmod.buffer.size;
 	    memBufReset(&icap->respmod.buffer);
@@ -331,7 +388,8 @@ icapSendRespMod(IcapStateData * icap, char *buf, int len, int theEnd)
 	memBufClean(&mb);
 	return;
     }
-    debug(81, 5) ("icapSendRespMod: FD %d writing {%s}\n", icap->icap_fd, mb.buf);
+    debug(81, 5) ("icapSendRespMod: FD %d writing {%s}\n", icap->icap_fd,
+	mb.buf);
     icap->flags.write_pending = 1;
     comm_write_mbuf(icap->icap_fd, mb, icapSendRespModDone, icap);
 }
@@ -340,12 +398,12 @@ static void
 icapRespModReadReply(int fd, void *data)
 {
     IcapStateData *icap = data;
-    LOCAL_ARRAY(char, tmpbuf, SQUID_TCP_SO_RCVBUF);
+    int version_major, version_minor;
+    const char *str_status;
     int x;
     int status = 0;
     int isIcap = 0;
     int directResponse = 0;
-    float ver;
     ErrorState *err;
     const char *start;
     const char *end;
@@ -377,11 +435,9 @@ icapRespModReadReply(int fd, void *data)
      */
     assert(icap->icap_hdr.size);
     debug(81, 3) ("Parse icap header : <%s>\n", icap->icap_hdr.buf);
-    ver = -999.999;		/* initalize the version to a bogus number. I
-				 * think that we should parse it using 2
-				 * integers and a %d.%d scanf format - Basile
-				 * june 2002 */
-    if (sscanf(icap->icap_hdr.buf, "ICAP/%f %d %s\r", &ver, &status, tmpbuf) < 3 || ver <= 0.0) {
+    if ((status =
+	    icapParseStatusLine(icap->icap_hdr.buf, icap->icap_hdr.size,
+		&version_major, &version_minor, &str_status)) < 0) {
 	debug(81, 1) ("BAD ICAP status line <%s>\n", icap->icap_hdr.buf);
 	/* is this correct in case of ICAP protocol error? */
 	err = errorCon(ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR);
@@ -391,46 +447,45 @@ icapRespModReadReply(int fd, void *data)
 	comm_close(fd);
 	return;
     };
+    /*  OK here we have responce. Lets stop filling the 
+     *  icap->respmod.resp_copy buffer ....
+     */
+    icap->flags.copy_response = 0;
+
+    icapSetKeepAlive(icap, icap->icap_hdr.buf);
+#if ICAP_PREVIEW
     if (icap->flags.wait_for_preview_reply) {
-	if (status == 100) {
+	if (100 == status) {
 	    debug(81, 5) ("icapRespModReadReply: 100 Continue received\n");
 	    icap->flags.wait_for_preview_reply = 0;
-	    /*
+	    /* if http_server_eof
 	     * call again icapSendRespMod to handle data that
-	     * was received while waiting fot this ICAP response
+	     * was received while waiting for this ICAP response
+	     * else let http to call icapSendRespMod when new data arrived
 	     */
-	    icapSendRespMod(icap, NULL, 0, 0);
+	    if (icap->flags.http_server_eof)
+		icapSendRespMod(icap, NULL, 0, 0);
 	    /*
 	     * reset the header to send the rest of the preview
 	     */
 	    if (!memBufIsNull(&icap->icap_hdr))
-		memBufReset(&icap->icap_hdr); 
+		memBufReset(&icap->icap_hdr);
+
+	    /*We do n't need it any more .......*/
+	    if (!memBufIsNull(&icap->respmod.resp_copy))
+		 memBufClean(&icap->respmod.resp_copy);
+
 	    return;
-#if SUPPORT_ICAP_204
-	} else if (status == 204) {
-	    debug(81, 5) ("icapRespModReadReply: 204 No modification received\n");
+	}
+	if (204 == status) {
+	    debug(81,
+		5) ("icapRespModReadReply: 204 No modification received\n");
 	    icap->flags.wait_for_preview_reply = 0;
-	    if (icap->flags.http_server_eof) {
-		/* Reset is required to avoid duplicate stmemFreeDataUpto ,
-		 * but will I loose all info now ? */
-		/* storeEntryReset(icap->respmod.entry); */
-		/* stmemFreeDataUpto(&(entry->mem_obj->data_hdr), -icap->sc); */
-		fwdComplete(icap->httpState->fwd);
-	    } else {
-		commSetSelect(fd, COMM_SELECT_READ, icapRespModReadReply,
-		    icap, 0);
-	    }
-	    comm_close(fd);
-	    return;
-#endif
 	}
     }
-    if (100 == status) {
-	debug(81, 3) ("icapRespModReadReply: 100 Continue received\n");
-	commSetSelect(fd, COMM_SELECT_READ, icapRespModReadReply, icap, 0);
-	return;
-    }
-    icapSetKeepAlive(icap, icap->icap_hdr.buf);
+#endif /*ICAP_PREVIEW */
+
+#if SUPPORT_ICAP_204 || ICAP_PREVIEW
     if (204 == status) {
 	debug(81, 3) ("got 204 status from ICAP server\n");
 	debug(81, 3) ("setting icap->flags.no_content\n");
@@ -441,18 +496,20 @@ icapRespModReadReply(int fd, void *data)
 	debug(81, 3) ("copying %d bytes from resp_copy to chunk_buf\n",
 	    icap->respmod.resp_copy.size);
 	memBufAppend(&icap->chunk_buf,
-	    icap->respmod.resp_copy.buf,
-	    icap->respmod.resp_copy.size);
+	    icap->respmod.resp_copy.buf, icap->respmod.resp_copy.size);
 	icap->respmod.resp_copy.size = 0;
 	if (icapReadReply2(icap) < 0)
 	    comm_close(fd);
 	/*
 	 * XXX ideally want to clean icap->respmod.resp_copy here
 	 * XXX ideally want to "close" ICAP server connection here
+	 * OK do it....
 	 */
+	if (!memBufIsNull(&icap->respmod.resp_copy))
+	     memBufClean(&icap->respmod.resp_copy);
 	return;
     }
-    icap->flags.copy_response = 0;
+#endif
     if (200 != status) {
 	debug(81, 1) ("Unsupported status '%d' from ICAP server\n", status);
 	/* Did not find a proper ICAP response */
@@ -466,7 +523,9 @@ icapRespModReadReply(int fd, void *data)
     if (icapFindHeader(icap->icap_hdr.buf, "Encapsulated:", &start, &end)) {
 	icapParseEncapsulated(icap, start, end);
     } else {
-	debug(81, 1) ("WARNING: icapRespModReadReply() did not find 'Encapsulated' header\n");
+	debug(81,
+	    1)
+	    ("WARNING: icapRespModReadReply() did not find 'Encapsulated' header\n");
     }
     if (icap->enc.res_hdr > -1)
 	directResponse = 1;
@@ -508,7 +567,8 @@ icapRespModGobble(int fd, void *data)
     IcapStateData *icap = data;
     int len;
     LOCAL_ARRAY(char, junk, SQUID_TCP_SO_RCVBUF);
-    debug(81, 3) ("icapRespModGobble: FD %d gobbling %d bytes\n", fd, icap->bytes_to_gobble);
+    debug(81, 3) ("icapRespModGobble: FD %d gobbling %d bytes\n", fd,
+	icap->bytes_to_gobble);
     len = FD_READ_METHOD(fd, junk, icap->bytes_to_gobble);
     debug(81, 3) ("icapRespModGobble: gobbled %d bytes\n", len);
     if (len < 0) {
@@ -550,18 +610,23 @@ icapSendRespModDone(int fd, char *bufnotused, size_t size, int errflag,
 	return;
     }
     if (EBIT_TEST(icap->respmod.entry->flags, ENTRY_ABORTED)) {
+        debug(81, 3) ("icapSendRespModDone: Entry Aborded\n");	
 	comm_close(fd);
 	return;
     }
     if (icap->flags.send_zero_chunk) {
-	debug(81, 3) ("icapSendRespModDone: I'm supposed to send zero chunk now\n");
+	debug(81,
+	    3) ("icapSendRespModDone: I'm supposed to send zero chunk now\n");
 	icap->flags.send_zero_chunk = 0;
 	icapSendRespMod(icap, NULL, 0, 1);
 	return;
     }
     if (icap->flags.wait_for_preview_reply || icap->flags.wait_for_reply) {
 	/* Schedule reading the ICAP response */
-	debug(81, 3) ("icapSendRespModDone: FD %d: commSetSelect on read icapRespModReadReply.\n", fd);
+	debug(81,
+	    3)
+	    ("icapSendRespModDone: FD %d: commSetSelect on read icapRespModReadReply.\n",
+	    fd);
 	commSetSelect(fd, COMM_SELECT_READ, icapRespModReadReply, icap, 0);
 #if 1
 	commSetTimeout(fd, Config.Timeout.read, icapReadTimeout, icap);
@@ -603,7 +668,8 @@ icapConnectOver(int fd, int status, void *data)
 
 
 IcapStateData *
-icapRespModStart(icap_service_t type, request_t * request, StoreEntry * entry, http_state_flags http_flags)
+icapRespModStart(icap_service_t type, request_t * request, StoreEntry * entry,
+    http_state_flags http_flags)
 {
     IcapStateData *icap = NULL;
     CNCB *theCallback = NULL;
@@ -619,16 +685,22 @@ icapRespModStart(icap_service_t type, request_t * request, StoreEntry * entry, h
     }
     if (service->unreachable) {
 	if (service->bypass) {
-	    debug(81, 5) ("icapRespModStart: BYPASS because service unreachable: %s\n", service->uri);
+	    debug(81,
+		5)
+		("icapRespModStart: BYPASS because service unreachable: %s\n",
+		service->uri);
 	    return NULL;
 	} else {
-	    debug(81, 5) ("icapRespModStart: ERROR  because service unreachable: %s\n", service->uri);
+	    debug(81,
+		5)
+		("icapRespModStart: ERROR  because service unreachable: %s\n",
+		service->uri);
 	    return (IcapStateData *) - 1;
 	}
     }
     switch (type) {
-       /* TODO: When we support more than ICAP_SERVICE_RESPMOD_PRECACHE, we needs to change
-	* this switch, because callbacks isn't keep */
+	/* TODO: When we support more than ICAP_SERVICE_RESPMOD_PRECACHE, we needs to change
+	 * this switch, because callbacks isn't keep */
     case ICAP_SERVICE_RESPMOD_PRECACHE:
 	theCallback = icapConnectOver;
 	break;
@@ -666,7 +738,17 @@ icapRespModStart(icap_service_t type, request_t * request, StoreEntry * entry, h
      * make a copy the HTTP response that we send to the ICAP server in
      * case it turns out to be a 204
      */
+#ifdef SUPPORT_ICAP_204
     icap->flags.copy_response = 1;
+#elif ICAP_PREVIEW
+    if(preview_size < 0 || !Config.icapcfg.preview_enable)
+	 icap->flags.copy_response = 0;
+    else
+	 icap->flags.copy_response = 1;
+#else
+    icap->flags.copy_response = 0;
+#endif
+    
     statCounter.icap.all.requests++;
     debug(81, 3) ("icapRespModStart: returning %p\n", icap);
     return icap;
@@ -681,7 +763,7 @@ icapHttpReplyHdrState(IcapStateData * icap)
     return icap->httpState->reply_hdr_state;
 }
 
-void
+static void
 icapProcessHttpReplyHeader(IcapStateData * icap, const char *buf, int size)
 {
     if (NULL == icap->httpState) {
@@ -697,6 +779,38 @@ icapProcessHttpReplyHeader(IcapStateData * icap, const char *buf, int size)
 }
 
 /*
+ * icapRespModKeepAliveOrClose
+ *
+ * Called when we are done reading from the ICAP server.
+ * Either close the connection or keep it open for a future
+ * transaction.
+ */
+static void
+icapRespModKeepAliveOrClose(IcapStateData * icap)
+{
+    int fd = icap->icap_fd;
+    if (fd < 0)
+	return;
+    if (!icap->flags.keep_alive) {
+	debug(81, 3) ("%s:%d keep_alive not set, closing\n", __FILE__,
+	    __LINE__);
+	comm_close(fd);
+	return;
+    }
+    debug(81, 3) ("%s:%d FD %d looks good, keeping alive\n", __FILE__, __LINE__,
+	fd);
+    commSetDefer(fd, NULL, NULL);
+    commSetTimeout(fd, -1, NULL, NULL);
+    commSetSelect(fd, COMM_SELECT_READ, NULL, NULL, 0);
+    comm_remove_close_handler(fd, icapStateFree, icap);
+    pconnPush(fd, icap->current_service->hostname, icap->current_service->port);
+    icap->icap_fd = -1;
+    icapStateFree(-1, icap);
+}
+
+
+
+/*
  * copied from httpPconnTransferDone
  *
  */
@@ -704,16 +818,6 @@ static int
 icapPconnTransferDone(int fd, IcapStateData * icap)
 {
     debug(81, 3) ("icapPconnTransferDone: FD %d\n", fd);
-    /*
-     * Did we request a persistent connection?
-     */
-    /*
-     * What does the reply have to say about keep-alive?
-     */
-    if (!icap->flags.keep_alive) {
-	debug(81, 5) ("icapPconnTransferDone: keep_alive not set, ret 0\n");
-	return 0;
-    }
     /*
      * Be careful with 204 responses.  Normally we are done when we
      * see the zero-end chunk, but that won't happen for 204s, so we
@@ -724,20 +828,23 @@ icapPconnTransferDone(int fd, IcapStateData * icap)
 	return 1;
     }
     if (icapHttpReplyHdrState(icap) != 2) {
-	debug(81, 5) ("icapPconnTransferDone: didn't see end of HTTP hdrs, ret 0\n");
+	debug(81,
+	    5) ("icapPconnTransferDone: didn't see end of HTTP hdrs, ret 0\n");
 	return 0;
     }
     if (icap->enc.null_body > -1) {
 	debug(81, 5) ("icapPconnTransferDone: no message body, ret 1\n");
 	return 1;
     }
-    if (icap->chunk_size != -2) {
+    if (icap->chunk_size == -2) {	//AI: was != -2 ; and change content with bottom
 	/* zero end chunk reached */
-	debug(81, 5) ("icapPconnTransferDone: didnt get zero end chunk yet\n");
-	return 0;
+	debug(81, 5) ("icapPconnTransferDone: got zero end chunk\n");
+	return 1;
     }
-    debug(81, 5) ("icapPconnTransferDone: got zero end chunk\n");
-    return 1;
+
+    debug(81, 5) ("icapPconnTransferDone: didnt get zero end chunk yet\n");	//AI: change with second top condition
+
+    return 0;
 }
 
 static int
@@ -747,6 +854,9 @@ icapExpectedHttpReplyHdrSize(IcapStateData * icap)
 	return (icap->enc.res_body - icap->enc.res_hdr);
     if (icap->enc.null_body > -1 && icap->enc.res_hdr > -1)
 	return icap->enc.null_body - icap->enc.res_hdr;
+    /*The case we did not get res_hdr .....*/
+    if(icap->enc.res_body > -1 )
+	 return icap->enc.res_body;
     if (icap->enc.null_body > -1)
 	return icap->enc.null_body;
     return -1;
@@ -766,6 +876,10 @@ icapReadReply(int fd, void *data)
     const request_t *request = icap->request;
     int len;
     debug(81, 5) ("icapReadReply: FD %d: icap %p.\n", fd, data);
+    if (icap->flags.no_content && !icap->flags.http_server_eof) {	//AI
+
+	return;
+    }
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
 	comm_close(fd);
 	return;
@@ -798,7 +912,8 @@ icapReadReply(int fd, void *data)
 	    errorAppendEntry(entry, err);
 	    comm_close(fd);
 	} else {
-	    debug(81, 2) ("icapReadReply: FD %d: just calling comm_close()\n", fd);
+	    debug(81, 2) ("icapReadReply: FD %d: just calling comm_close()\n",
+		fd);
 	    comm_close(fd);
 	}
 	return;
@@ -825,7 +940,8 @@ icapReadReply2(IcapStateData * icap)
     if (icap->chunk_buf.size == 0) {
 	/* Retrieval done. */
 	if (icapHttpReplyHdrState(icap) < 2)
-	    icapProcessHttpReplyHeader(icap, icap->chunk_buf.buf, icap->chunk_buf.size);
+	    icapProcessHttpReplyHeader(icap, icap->chunk_buf.buf,
+		icap->chunk_buf.size);
 	icap->flags.http_server_eof = 1;
 	icapReadReply3(icap);
 	return 0;
@@ -840,24 +956,26 @@ icapReadReply2(IcapStateData * icap)
 	assert(needed < 0 || needed >= 0);
 	if (0 > expect) {
 	    icapProcessHttpReplyHeader(icap,
-		icap->chunk_buf.buf,
-		icap->chunk_buf.size);
+		icap->chunk_buf.buf, icap->chunk_buf.size);
 	} else if (0 == expect) {
 	    /*
 	     * this icap reply doesn't give us new HTTP headers
 	     * so we must copy them from our copy
 	     */
-	    debug(81, 1) ("WARNING: untested code at %s:%d\n", __FILE__, __LINE__);
-	    assert(icap->respmod.req_hdr_copy.size);
-	    storeAppend(entry,
-		icap->respmod.req_hdr_copy.buf,
-		icap->respmod.req_hdr_copy.size);
-	    icapProcessHttpReplyHeader(icap, icap->chunk_buf.buf, icap->chunk_buf.size);
+	    debug(81, 1) ("WARNING: untested code at %s:%d\n", __FILE__,
+		__LINE__);
+	    if(icap->respmod.req_hdr_copy.size){/*For HTTP 0.9 we do not have headers*/
+		 storeAppend(entry,
+			     icap->respmod.req_hdr_copy.buf,
+			     icap->respmod.req_hdr_copy.size);
+	    }
+	    icapProcessHttpReplyHeader(icap, icap->chunk_buf.buf,
+				       icap->chunk_buf.size);
 	    assert(icapHttpReplyHdrState(icap) == 2);
+	    icap->chunk_size = 0;/*we are ready to read chunks of data now....*/
 	} else if (needed) {
 	    icapProcessHttpReplyHeader(icap,
-		icap->chunk_buf.buf,
-		icap->chunk_buf.size);
+		icap->chunk_buf.buf, icap->chunk_buf.size);
 	    if (icap->chunk_buf.size >= needed) {
 		storeAppend(entry, icap->chunk_buf.buf, needed);
 		so_far += needed;
@@ -873,22 +991,27 @@ icapReadReply2(IcapStateData * icap)
 		 * the partial reply buffered in 'chunk_buf' and wait
 		 * for more.
 		 */
-		assert(icapHttpReplyHdrState(icap) == 0);
+                debug(81,3)("We don't have full Http headers.Schedule a new read\n");
+  		commSetSelect(icap->icap_fd, COMM_SELECT_READ, icapReadReply, icap, 0);
 	    }
 	}
 	icap->http_header_bytes_read_so_far = so_far;
     }
-    debug(81, 3) ("%s:%d: icap->chunk_buf.size=%d\n", __FILE__, __LINE__, (int) icap->chunk_buf.size);
-    debug(81, 3) ("%s:%d: flags.no_content=%d\n", __FILE__, __LINE__, icap->flags.no_content);
+    debug(81, 3) ("%s:%d: icap->chunk_buf.size=%d\n", __FILE__, __LINE__,
+	(int) icap->chunk_buf.size);
+    debug(81, 3) ("%s:%d: flags.no_content=%d\n", __FILE__, __LINE__,
+	icap->flags.no_content);
     if (icap->flags.no_content) {
 	/* data from http.c is not chunked */
-	debug(81, 3) ("copying %d bytes from chunk_buf to entry\n",
-	    icap->chunk_buf.size);
-	storeAppend(entry, icap->chunk_buf.buf, icap->chunk_buf.size);
-	icap->chunk_buf.size = 0;
+	if (!EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
+	    debug(81, 3) ("copying %d bytes from chunk_buf to entry\n",
+		icap->chunk_buf.size);
+	    storeAppend(entry, icap->chunk_buf.buf, icap->chunk_buf.size);
+	    icap->chunk_buf.size = 0;
+	}
     } else if (2 == icapHttpReplyHdrState(icap)) {
 	if (icap->chunk_buf.size)
-	    icapParseChunkedBody(icap, storeAppend, entry);
+	    icapParseChunkedBody(icap, (STRCB *) storeAppend, entry);
     }
     icapReadReply3(icap);
     return 0;
@@ -901,19 +1024,18 @@ icapReadReply3(IcapStateData * icap)
     int fd = icap->icap_fd;
     debug(81, 3) ("icapReadReply3\n");
     if (EBIT_TEST(entry->flags, ENTRY_ABORTED)) {
+	debug(81, 3) ("icapReadReply3: Entry Aborded\n");
 	comm_close(fd);
     } else if (icapPconnTransferDone(fd, icap)) {
-	/* yes we have to clear all these! */
-	commSetDefer(fd, NULL, NULL);
-	commSetTimeout(fd, -1, NULL, NULL);
-	commSetSelect(fd, COMM_SELECT_READ, NULL, NULL, 0);
-	comm_remove_close_handler(fd, icapStateFree, icap);
-	pconnPush(fd, fd_table[fd].pconn_name, fd_table[fd].remote_port);
 	storeComplete(entry);
-	icap->icap_fd = -1;
-	icapStateFree(-1, icap);
-    } else {
+	icapRespModKeepAliveOrClose(icap);
+    } else if (!icap->flags.no_content) {
 	/* Wait for EOF condition */
 	commSetSelect(fd, COMM_SELECT_READ, icapReadReply, icap, 0);
+	debug(81,
+	    3)
+	    ("icapReadReply3: Going to read mode data throught icapReadReply\n");
+    } else {
+	debug(81, 3) ("icapReadReply3: Nothing\n");
     }
 }

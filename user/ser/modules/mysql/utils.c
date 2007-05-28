@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: utils.c,v 1.6 2002/12/02 09:17:45 janakj Exp $ 
  *
  * MySQL module utilities
  *

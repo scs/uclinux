@@ -7,86 +7,57 @@
 if(description)
 {
  script_id(10509);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1304);
+ script_version ("$Revision: 1.19 $");
 
- script_cve_id("CAN-2000-0544");
+ script_cve_id("CVE-2000-0544");
  name["english"] =  "Malformed RPC Packet patch";
- name["francais"] = "Malformed RPC Packet patch";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
-The hotfix for the 'Malformed RPC Packet' 
-problem has not been applied.
+Synopsis :
+
+It is possible to crash the remote host
+
+Description :
+
+The hotfix for the 'Malformed RPC Packet' problem has
+not been applied.
 
 This vulnerability allows a malicious user,  to cause
 a denial of service against this host.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-066.asp
-Risk factor : Medium";
+Solution :
 
+http://www.microsoft.com/technet/security/bulletin/ms00-066.mspx
 
- desc["francais"] = "
-Le hotfix pour le problème de paquet RPC mal formé n'a pas
-été installé.
+Risk factor :
 
-Cette vulnérabilité permet a un pirate de causer un déni de service
-contre ce serveur.
+Medium / CVSS Base Score : 5 
+(AV:R/AC:L/Au:NR/C:N/A:C/I:N/B:A)";
 
-Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-066.asp
-Facteur de risque : Moyen";
-
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines whether the hotfix Q272303 is installed";
- summary["francais"] = "Détermine si le hotfix Q272303 est installé";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_W2K.nasl"
-		     );
- script_require_keys("SMB/name", "SMB/login", "SMB/password", 
- 			"SMB/registry_access", "SMB/WindowsVersion");
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
 
 
-include("smb_nt.inc");
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+include("smb_hotfixes.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+if ( hotfix_check_sp(win2k:2) <= 0 ) exit(0);
+if ( hotfix_missing(name:"Q272303") > 0 )
+	security_warning(get_kb_item("SMB/transport"));
 
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
-
-version = get_kb_item("SMB/WindowsVersion");
-if(version == "5.0")
-{
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))
-	exit(0);
-	
-	
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q272303";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
-}

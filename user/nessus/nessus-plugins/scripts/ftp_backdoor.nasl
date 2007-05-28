@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10080);
- script_version ("$Revision: 1.9 $");
- script_cve_id("CAN-1999-0452");
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-1999-0452");
  script_name(english:"Linux FTP backdoor",
  	     francais:"Backdoor dans un serveur FTP sous Linux");
 	     
@@ -41,7 +41,7 @@ script_summary(english:"Checks for the NULL ftpd backdoor",
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
  		  francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
  
- script_dependencie("find_service.nes", "DDI_FTP_Any_User_Login.nasl");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl", "DDI_FTP_Any_User_Login.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -50,6 +50,7 @@ script_summary(english:"Checks for the NULL ftpd backdoor",
 # The script code starts here : 
 #
 
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(get_port_state(port))
@@ -59,6 +60,6 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
-  if(ftp_log_in(socket:soc, user:"NULL", pass:"NULL"))security_hole(port);
+  if(ftp_authenticate(socket:soc, user:"NULL", pass:"NULL"))security_hole(port);
  }
 }

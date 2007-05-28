@@ -14,9 +14,9 @@
 if(description)
 {
  script_id(11130);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CVE-2000-0908");
  script_bugtraq_id(1702);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2000-0908");
  name["english"] = "BrowseGate HTTP headers overflows";
  script_name(english:name["english"]);
  
@@ -52,8 +52,8 @@ include("http_func.inc");
 
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 if (http_is_dead(port: port)) exit(0);
 

@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: net_db.c,v 1.158.2.9 2005/03/26 02:50:53 hno Exp $
  *
  * DEBUG: section 38    Network Measurement Database
  * AUTHOR: Duane Wessels
@@ -42,8 +42,8 @@ typedef struct {
     StoreEntry *e;
     store_client *sc;
     request_t *r;
-    off_t seen;
-    off_t used;
+    squid_off_t seen;
+    squid_off_t used;
     size_t buf_sz;
     char *buf;
 } netdbExchangeState;
@@ -247,7 +247,7 @@ netdbSendPing(const ipcache_addrs * ia, void *data)
 	    hostname, n->network, na->network);
 	x = (net_db_name *) hash_lookup(host_table, hostname);
 	if (x == NULL) {
-	    debug(38, 1) ("netdbSendPing: net_db_name list bug: %s not found", hostname);
+	    debug(38, 1) ("netdbSendPing: net_db_name list bug: %s not found\n", hostname);
 	    xfree(hostname);
 	    return;
 	}
@@ -531,7 +531,7 @@ netdbExchangeHandleReply(void *data, char *buf, ssize_t size)
 {
     netdbExchangeState *ex = data;
     int rec_sz = 0;
-    off_t o;
+    ssize_t o;
     struct in_addr addr;
     double rtt;
     double hops;
@@ -621,7 +621,7 @@ netdbExchangeHandleReply(void *data, char *buf, ssize_t size)
     }
     debug(38, 3) ("netdbExchangeHandleReply: used %d entries, (x %d bytes) == %d bytes total\n",
 	nused, rec_sz, nused * rec_sz);
-    debug(38, 3) ("netdbExchangeHandleReply: seen %d, used %d\n", ex->seen, ex->used);
+    debug(38, 3) ("netdbExchangeHandleReply: seen %ld, used %ld\n", (long int) ex->seen, (long int) ex->used);
     if (EBIT_TEST(ex->e->flags, ENTRY_ABORTED)) {
 	debug(38, 3) ("netdbExchangeHandleReply: ENTRY_ABORTED\n");
 	netdbExchangeDone(ex);
@@ -792,6 +792,13 @@ netdbDump(StoreEntry * sentry)
     }
     xfree(list);
 #else
+    http_reply *reply = sentry->mem_obj->reply;
+    http_version_t version;
+    httpReplyReset(reply);
+    httpBuildVersion(&version, 1, 0);
+    httpReplySetHeaders(reply, version, HTTP_BAD_REQUEST, "Bad Request",
+	NULL, -1, squid_curtime, -2);
+    httpReplySwapOut(reply, sentry);
     storeAppendPrintf(sentry,
 	"NETDB support not compiled into this Squid cache.\n");
 #endif
@@ -963,6 +970,7 @@ netdbBinaryExchange(StoreEntry * s)
     httpBuildVersion(&version, 1, 0);
     httpReplySetHeaders(reply, version, HTTP_BAD_REQUEST, "Bad Request",
 	NULL, -1, squid_curtime, -2);
+    httpReplySwapOut(reply, s);
     storeAppendPrintf(s, "NETDB support not compiled into this Squid cache.\n");
 #endif
     storeComplete(s);

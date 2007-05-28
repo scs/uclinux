@@ -6,9 +6,9 @@
 if(description)
 {
  script_id(11394);
- script_version ("$Revision: 1.5 $");
- 
  script_bugtraq_id(2962);
+ script_version ("$Revision: 1.10 $");
+ 
  script_cve_id("CVE-2001-1161");
 
  name["english"] = "Lotus Domino XSS";
@@ -34,13 +34,12 @@ Risk factor : Medium";
  
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
 
- script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl", "domino_default_db.nasl", "cross_site_scripting.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "domino_default_db.nasl", "cross_site_scripting.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/domino");
  exit(0);
 }
 
@@ -50,9 +49,12 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+banner = get_http_banner (port:port);
+if ("Lotus Domino" >!< banner) exit (0);
+
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
 
 list = get_kb_list(string("www/domino/", port, "/db"));

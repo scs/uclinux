@@ -6,7 +6,8 @@
 if(description)
 {
  script_id(10798);
- script_version ("$Revision: 1.14 $");
+ script_version ("$Revision: 1.18 $");
+ script_cve_id("CVE-1999-0508");
  name["english"] = "Unprotected PC Anywhere Service";
  script_name(english:name["english"]);
 
@@ -36,7 +37,7 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2002 Digital Defense Incorporated");
- family["english"] = "Windows";
+ family["english"] = "General";
  script_family(english:family["english"]);
  script_dependencies("find_service.nes", "PC_anywhere_tcp.nasl");
  script_require_ports("Services/pcanywheredata", 5631);
@@ -119,7 +120,7 @@ if(get_port_state(port))
                 }
             }
                        
-            if(! sv[d] >< r)
+            if( sv[d] >!< r)
             {
             
                 close(soc);

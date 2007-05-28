@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11882);
  
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "AOL Instant Messenger is Installed";
 
@@ -33,20 +33,15 @@ Risk factor : Low";
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		    "smb_login.nasl","smb_registry_access.nasl",
-		    "smb_registry_full_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/domain","SMB/transport");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
+if ( ! get_kb_item("SMB/Registry/Enumerated") ) exit(1);
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\AOL Instant Messenger", item:"DisplayName");
-if(rootfile)
-{
- security_note(get_kb_item("SMB/transport"));
-}
+key = "SMB/Registry/HKLM/SOFTWARE/Microsoft/Windows/CurrentVersion/Uninstall/AOL Instant Messenger/DisplayName";
+
+if (get_kb_item (key))
+  security_note(get_kb_item("SMB/transport"));

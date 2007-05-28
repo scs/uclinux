@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: cf_gen.c,v 1.10.6.2 2002/08/22 12:30:59 squidadm Exp $
  *
  * DEBUG: none          Generate squid.conf.default and cf_parser.h
  * AUTHOR: Max Okumoto

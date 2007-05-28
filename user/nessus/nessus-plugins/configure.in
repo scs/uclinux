@@ -4,7 +4,7 @@ dnl
 
 
 AC_INIT(.root-dir)
-AC_REVISION($Revision: 1.49 $)dnl
+AC_REVISION($Revision: 1.50 $)dnl
 
 
 dnl Set up the main lines of the config script
@@ -88,95 +88,21 @@ AC_PATH_PROG(MKDIR, mkdir)
 AC_PATH_PROG(CAT, cat)
 AC_PATH_PROG(GZIP, gzip)
 
-# Figure out what to use to fetch plugin updates
-AC_PATH_PROG(LYNX, lynx)
-AC_PATH_PROG(WGET, wget)
-AC_PATH_PROG(CURL, curl)
-AC_PATH_PROG(LINKS, links)
-
-AC_ARG_WITH(fetchcmd, [  --with-fetchcmd=[wget|lynx|<cmd>]
-			  Use this command for fetching updates.  This command
-
-			  must take a url as it's only argument and send the
-			  retrieved file to STDIN.  If you want to use lynx
-			  or wget then no arguments need be specified.
-			  [Default: wget]])
-
-FETCHCMD="no"
-
-
-if test -n "$with_fetchcmd" -a "$with_fetchcmd" != no ; then
-    if test "$with_fetchcmd" = "yes" ; then
-	AC_MSG_WARN([Must supply an argument when using --with-fetchcmd])
-    else
-	FETCHCMD="$with_fetchcmd"
-	# This should be verified that it works
-    fi
-fi
-
-
-dnl reorder these to get a different set of preferences.
-if test "$FETCHCMD" = "no" -o "$FETCHCMD" = "lynx" ; then
-    if test -n "$LYNX" -a -x "$LYNX" ; then
-	FETCHCMD="$LYNX"
-	FETCHARGS="-source"
-    fi
-fi
 
 
 
 
-if test "$FETCHCMD" = "no" -o "$FETCHCMD" = "wget" ; then
-    if test -n "$WGET" -a -x "$WGET" ; then
-	FETCHCMD="$WGET"
-	FETCHARGS="-q -O -"
-    fi
-fi
 
-
-if test "$FETCHCMD" = "no" -o "$FETCHCMD" = "links" ; then
-    if test -n "$LINKS" -a -x "$LINKS" ; then
-	FETCHCMD="$LINKS"
-	FETCHARGS="-source"
-    fi
-fi
-
-if test "$FETCHCMD" = "no" -o "$FETCHCMD" = "curl" ; then
-    if test -n "$CURL" -a -x "$CURL" ; then
-	FETCHCMD="$CURL"
-	FETCHARGS="-s -o -"
-    fi
-fi
-
-
-dnl Add another possible fetch command here
-
-dnl Be informative
-AC_MSG_CHECKING(for fetch command)
-if test -n "$FETCHCMD" -a "$FETCHCMD" = "no"
-then
-    FETCHCMD=""
-    AC_MSG_RESULT(no)
-else
-    AC_MSG_RESULT($FETCHCMD)
-fi
 
 dnl Make sure everything is complete for the updater
-if test "$FETCHCMD" = "no" -o -z "$GZIP"
+if test -z "$GZIP"
 then
-    AC_WARN(Could not find gzip or a fetch utility such as wget. I will not install nessus-update-plugins)
+    AC_WARN(Could not find gzip. I will not install nessus-update-plugins)
 else
     INSTALL_UPDATER=install-updater
 fi
 
 
-if [ test -n "$FETCHCMD" -a  -n "$GZIP" ];
-then
- INSTALL_UPDATER=install-updater
-else
- AC_WARN([lynx, wget and/or gzip could not be found. I will not install nessus-update-plugins])
-fi
- 
 AC_CHECK_LIB(net, libnet_init, CFLAGS="$CFLAGS -DHAVE_LIBNET_1_1")
 
 AC_SUBST(INSTALL_DIR)
@@ -190,10 +116,6 @@ AC_SUBST(ECHO)
 AC_SUBST(TEST)
 AC_SUBST(MKDIR)
 AC_SUBST(CAT)
-AC_SUBST(LYNX)
-AC_SUBST(WGET)
-AC_SUBST(FETCHCMD)
-AC_SUBST(FETCHARGS)
 AC_SUBST(GZIP)
 AC_SUBST(PWDD)
 AC_SUBST(LIBUTIL)

@@ -3,31 +3,31 @@
 #
 #
 # Ref:
-#  http://www.microsoft.com/technet/treeview/default.asp?url=/technet/security/bulletin/MS03-016.asp
+#  http://www.microsoft.com/technet/security/bulletin/MS03-016.mspx
 
 
 if (description)
 {
  script_id(11638);
- script_cve_id("CAN-2003-0117", "CAN-2003-0118");
  script_bugtraq_id(7469, 7470);
- script_version ("$Revision: 1.1 $");
+ script_cve_id("CVE-2003-0117", "CVE-2003-0118");
+ script_version ("$Revision: 1.10 $");
 
  script_name(english:"biztalk server flaws");
  desc["english"] = "
 The remote host seems to be running Microsoft BizTalk server.
 
 There are two flaws in this software which may allow an attacker
-to issue an SQL insertion attack or to execute arbitary code on
+to issue an SQL insertion attack or to execute arbitrary code on
 the remote host.
 
 *** Nessus solely relied on the presence of Biztalk to issue
 *** this alert, so this might be a false positive
 
 Solution : Make sure you installed the relevant Microsoft Patches available at
-http://www.microsoft.com/technet/security/bulletin/MS03-016.asp
+http://www.microsoft.com/technet/security/bulletin/MS03-016.mspx
 
-Risk Factor : High";
+Risk factor : High";
 
 
 
@@ -38,6 +38,7 @@ Risk Factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -46,8 +47,8 @@ include("http_keepalive.inc");
 
 
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 dirs = get_kb_list(string("www/", port, "/content/directories"));
@@ -57,6 +58,8 @@ dirs = make_list(dirs, cgi_dirs());
 	
 foreach d (dirs)
 {
+ if ( is_cgi_installed_ka(item:d + "/biztalkhttpreceive.dll", port:port) ) 
+ {
  req = http_post(item:d+"/biztalkhttpreceive.dll", port:port);
  idx = stridx(req, string("\r\n\r\n"));
  req = insstr(req, string("\r\nContent-Length: 6\r\n\r\nNESSUS"), idx);
@@ -82,4 +85,5 @@ foreach d (dirs)
 	if(i + 1 < end) sleep(1);	
 	}
     }
+ }
 }

@@ -20,53 +20,52 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-udp.c,v 1.138 2005/04/07 00:28:17 mcr Exp $ (LBL)";
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-
-#ifdef NOERROR
-#undef NOERROR					/* Solaris sucks */
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-#ifdef T_UNSPEC
-#undef T_UNSPEC					/* SINIX does too */
-#endif
-#include <arpa/nameser.h>
+
+#include <tcpdump-stdinc.h>
+
 #ifdef SEGSIZE
 #undef SEGSIZE
 #endif
 #include <arpa/tftp.h>
 
-#include <rpc/rpc.h>
-
 #include <stdio.h>
+#include <string.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "extract.h"
 #include "appletalk.h"
 
-#include "nfsv2.h"
+#include "udp.h"
+
+#include "ip.h"
+#ifdef INET6
+#include "ip6.h"
+#endif
+#include "ipproto.h"
+#include "rpc_auth.h"
+#include "rpc_msg.h"
+
+#include "nameser.h"
+#include "nfs.h"
 #include "bootp.h"
 
 struct rtcphdr {
-	u_short rh_flags;	/* T:2 P:1 CNT:5 PT:8 */
-	u_short rh_len;		/* length of message (in words) */
-	u_int rh_ssrc;		/* synchronization src id */
+	u_int16_t rh_flags;	/* T:2 P:1 CNT:5 PT:8 */
+	u_int16_t rh_len;	/* length of message (in words) */
+	u_int32_t rh_ssrc;	/* synchronization src id */
 };
 
 typedef struct {
-	u_int upper;		/* more significant 32 bits */
-	u_int lower;		/* less significant 32 bits */
+	u_int32_t upper;	/* more significant 32 bits */
+	u_int32_t lower;	/* less significant 32 bits */
 } ntp64;
 
 /*
@@ -74,9 +73,9 @@ typedef struct {
  */
 struct rtcp_sr {
 	ntp64 sr_ntp;		/* 64-bit ntp timestamp */
-	u_int sr_ts;		/* reference media timestamp */
-	u_int sr_np;		/* no. packets sent */
-	u_int sr_nb;		/* no. bytes sent */
+	u_int32_t sr_ts;	/* reference media timestamp */
+	u_int32_t sr_np;	/* no. packets sent */
+	u_int32_t sr_nb;	/* no. bytes sent */
 };
 
 /*
@@ -84,12 +83,12 @@ struct rtcp_sr {
  * Time stamps are middle 32-bits of ntp timestamp.
  */
 struct rtcp_rr {
-	u_int rr_srcid;		/* sender being reported */
-	u_int rr_nl;		/* no. packets lost */
-	u_int rr_ls;		/* extended last seq number received */
-	u_int rr_dv;		/* jitter (delay variance) */
-	u_int rr_lsr;		/* orig. ts from last rr from this src  */
-	u_int rr_dlsr;		/* time from recpt of last rr to xmit time */
+	u_int32_t rr_srcid;	/* sender being reported */
+	u_int32_t rr_nl;	/* no. packets lost */
+	u_int32_t rr_ls;	/* extended last seq number received */
+	u_int32_t rr_dv;	/* jitter (delay variance) */
+	u_int32_t rr_lsr;	/* orig. ts from last rr from this src  */
+	u_int32_t rr_dlsr;	/* time from recpt of last rr to xmit time */
 };
 
 /*XXX*/
@@ -107,22 +106,23 @@ struct rtcp_rr {
 #define RTCP_PT_BYE	203
 #define RTCP_PT_APP	204
 
+#if !defined(EMBED)
 static void
-vat_print(const void *hdr, u_int len, register const struct udphdr *up)
+vat_print(const void *hdr, register const struct udphdr *up)
 {
 	/* vat/vt audio */
-	u_int ts = *(u_short *)hdr;
+	u_int ts = *(u_int16_t *)hdr;
 	if ((ts & 0xf060) != 0) {
 		/* probably vt */
-		(void)printf(" udp/vt %u %d / %d",
-			     (u_int32_t)(ntohs(up->uh_ulen) - sizeof(*up)),
+		(void)printf("udp/vt %u %d / %d",
+			     (u_int32_t)(EXTRACT_16BITS(&up->uh_ulen) - sizeof(*up)),
 			     ts & 0x3ff, ts >> 10);
 	} else {
 		/* probably vat */
-		u_int i0 = ntohl(((u_int *)hdr)[0]);
-		u_int i1 = ntohl(((u_int *)hdr)[1]);
-		printf(" udp/vat %u c%d %u%s",
-			(u_int32_t)(ntohs(up->uh_ulen) - sizeof(*up) - 8),
+		u_int32_t i0 = EXTRACT_32BITS(&((u_int *)hdr)[0]);
+		u_int32_t i1 = EXTRACT_32BITS(&((u_int *)hdr)[1]);
+		printf("udp/vat %u c%d %u%s",
+			(u_int32_t)(EXTRACT_16BITS(&up->uh_ulen) - sizeof(*up) - 8),
 			i0 & 0xffff,
 			i1, i0 & 0x800000? "*" : "");
 		/* audio format */
@@ -132,16 +132,18 @@ vat_print(const void *hdr, u_int len, register const struct udphdr *up)
 			printf(" s%d", (i0 >> 24) & 0x3f);
 	}
 }
+#endif
 
+#if !defined(EMBED)
 static void
 rtp_print(const void *hdr, u_int len, register const struct udphdr *up)
 {
 	/* rtp v1 or v2 */
 	u_int *ip = (u_int *)hdr;
 	u_int hasopt, hasext, contype, hasmarker;
-	u_int i0 = ntohl(((u_int *)hdr)[0]);
-	u_int i1 = ntohl(((u_int *)hdr)[1]);
-	u_int dlen = ntohs(up->uh_ulen) - sizeof(*up) - 8;
+	u_int32_t i0 = EXTRACT_32BITS(&((u_int *)hdr)[0]);
+	u_int32_t i1 = EXTRACT_32BITS(&((u_int *)hdr)[1]);
+	u_int dlen = EXTRACT_16BITS(&up->uh_ulen) - sizeof(*up) - 8;
 	const char * ptype;
 
 	ip += 2;
@@ -165,7 +167,7 @@ rtp_print(const void *hdr, u_int len, register const struct udphdr *up)
 		ip += 1;
 		len -= 1;
 	}
-	printf(" udp/%s %d c%d %s%s %d %u",
+	printf("udp/%s %d c%d %s%s %d %u",
 		ptype,
 		dlen,
 		contype,
@@ -174,7 +176,7 @@ rtp_print(const void *hdr, u_int len, register const struct udphdr *up)
 		i0 & 0xffff,
 		i1);
 	if (vflag) {
-		printf(" %u", i1);
+		printf(" %u", EXTRACT_32BITS(&((u_int *)hdr)[2]));
 		if (hasopt) {
 			u_int i2, optlen;
 			do {
@@ -202,7 +204,9 @@ rtp_print(const void *hdr, u_int len, register const struct udphdr *up)
 			printf(" 0x%04x", ip[0] >> 16);
 	}
 }
+#endif
 
+#if !defined(EMBED)
 static const u_char *
 rtcp_print(const u_char *hdr, const u_char *ep)
 {
@@ -211,15 +215,15 @@ rtcp_print(const u_char *hdr, const u_char *ep)
 	struct rtcp_sr *sr;
 	struct rtcphdr *rh = (struct rtcphdr *)hdr;
 	u_int len;
-	u_short flags;
+	u_int16_t flags;
 	int cnt;
 	double ts, dts;
 	if ((u_char *)(rh + 1) > ep) {
 		printf(" [|rtcp]");
 		return (ep);
 	}
-	len = (ntohs(rh->rh_len) + 1) * 4;
-	flags = ntohs(rh->rh_flags);
+	len = (EXTRACT_16BITS(&rh->rh_len) + 1) * 4;
+	flags = EXTRACT_16BITS(&rh->rh_flags);
 	cnt = (flags >> 8) & 0x1f;
 	switch (flags & 0xff) {
 	case RTCP_PT_SR:
@@ -228,16 +232,16 @@ rtcp_print(const u_char *hdr, const u_char *ep)
 		if (len != cnt * sizeof(*rr) + sizeof(*sr) + sizeof(*rh))
 			printf(" [%d]", len);
 		if (vflag)
-		  printf(" %u", (u_int32_t)ntohl(rh->rh_ssrc));
+			printf(" %u", EXTRACT_32BITS(&rh->rh_ssrc));
 		if ((u_char *)(sr + 1) > ep) {
 			printf(" [|rtcp]");
 			return (ep);
 		}
-		ts = (double)((u_int32_t)ntohl(sr->sr_ntp.upper)) +
-		    ((double)((u_int32_t)ntohl(sr->sr_ntp.lower)) /
+		ts = (double)(EXTRACT_32BITS(&sr->sr_ntp.upper)) +
+		    ((double)(EXTRACT_32BITS(&sr->sr_ntp.lower)) /
 		    4294967296.0);
-		printf(" @%.2f %u %up %ub", ts, (u_int32_t)ntohl(sr->sr_ts),
-		    (u_int32_t)ntohl(sr->sr_np), (u_int32_t)ntohl(sr->sr_nb));
+		printf(" @%.2f %u %up %ub", ts, EXTRACT_32BITS(&sr->sr_ts),
+		    EXTRACT_32BITS(&sr->sr_np), EXTRACT_32BITS(&sr->sr_nb));
 		rr = (struct rtcp_rr *)(sr + 1);
 		break;
 	case RTCP_PT_RR:
@@ -246,18 +250,18 @@ rtcp_print(const u_char *hdr, const u_char *ep)
 			printf(" [%d]", len);
 		rr = (struct rtcp_rr *)(rh + 1);
 		if (vflag)
-		  printf(" %u", (u_int32_t)ntohl(rh->rh_ssrc));
+			printf(" %u", EXTRACT_32BITS(&rh->rh_ssrc));
 		break;
 	case RTCP_PT_SDES:
 		printf(" sdes %d", len);
 		if (vflag)
-		  printf(" %u", (u_int32_t)ntohl(rh->rh_ssrc));
+			printf(" %u", EXTRACT_32BITS(&rh->rh_ssrc));
 		cnt = 0;
 		break;
 	case RTCP_PT_BYE:
 		printf(" bye %d", len);
 		if (vflag)
-		  printf(" %u", (u_int32_t)ntohl(rh->rh_ssrc));
+			printf(" %u", EXTRACT_32BITS(&rh->rh_ssrc));
 		cnt = 0;
 		break;
 	default:
@@ -273,176 +277,501 @@ rtcp_print(const u_char *hdr, const u_char *ep)
 			return (ep);
 		}
 		if (vflag)
-			printf(" %u", (u_int32_t)ntohl(rr->rr_srcid));
-		ts = (double)((u_int32_t)ntohl(rr->rr_lsr)) / 65536.;
-		dts = (double)((u_int32_t)ntohl(rr->rr_dlsr)) / 65536.;
+			printf(" %u", EXTRACT_32BITS(&rr->rr_srcid));
+		ts = (double)(EXTRACT_32BITS(&rr->rr_lsr)) / 65536.;
+		dts = (double)(EXTRACT_32BITS(&rr->rr_dlsr)) / 65536.;
 		printf(" %ul %us %uj @%.2f+%.2f",
-		    (u_int32_t)ntohl(rr->rr_nl) & 0x00ffffff,
-		    (u_int32_t)ntohl(rr->rr_ls),
-		    (u_int32_t)ntohl(rr->rr_dv), ts, dts);
+		    EXTRACT_32BITS(&rr->rr_nl) & 0x00ffffff,
+		    EXTRACT_32BITS(&rr->rr_ls),
+		    EXTRACT_32BITS(&rr->rr_dv), ts, dts);
 	}
 	return (hdr + len);
 }
+#endif
 
-/* XXX probably should use getservbyname() and cache answers */
-#define TFTP_PORT 69		/*XXX*/
-#define KERBEROS_PORT 88	/*XXX*/
-#define SUNRPC_PORT 111		/*XXX*/
-#define SNMP_PORT 161		/*XXX*/
-#define NTP_PORT 123		/*XXX*/
-#define SNMPTRAP_PORT 162	/*XXX*/
-#define RIP_PORT 520		/*XXX*/
-#define KERBEROS_SEC_PORT 750	/*XXX*/
+static int udp_cksum(register const struct ip *ip,
+		     register const struct udphdr *up,
+		     register u_int len)
+{
+	union phu {
+		struct phdr {
+			u_int32_t src;
+			u_int32_t dst;
+			u_char mbz;
+			u_char proto;
+			u_int16_t len;
+		} ph;
+		u_int16_t pa[6];
+	} phu;
+	register const u_int16_t *sp;
+
+	/* pseudo-header.. */
+	phu.ph.len = htons((u_int16_t)len);
+	phu.ph.mbz = 0;
+	phu.ph.proto = IPPROTO_UDP;
+	memcpy(&phu.ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
+	if (IP_HL(ip) == 5)
+		memcpy(&phu.ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
+	else
+		phu.ph.dst = ip_finddst(ip);
+
+	sp = &phu.pa[0];
+	return in_cksum((u_short *)up, len,
+			sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5]);
+}
+
+#ifdef INET6
+static int udp6_cksum(const struct ip6_hdr *ip6, const struct udphdr *up,
+	u_int len)
+{
+	size_t i;
+	register const u_int16_t *sp;
+	u_int32_t sum;
+	union {
+		struct {
+			struct in6_addr ph_src;
+			struct in6_addr ph_dst;
+			u_int32_t	ph_len;
+			u_int8_t	ph_zero[3];
+			u_int8_t	ph_nxt;
+		} ph;
+		u_int16_t pa[20];
+	} phu;
+
+	/* pseudo-header */
+	memset(&phu, 0, sizeof(phu));
+	phu.ph.ph_src = ip6->ip6_src;
+	phu.ph.ph_dst = ip6->ip6_dst;
+	phu.ph.ph_len = htonl(len);
+	phu.ph.ph_nxt = IPPROTO_UDP;
+
+	sum = 0;
+	for (i = 0; i < sizeof(phu.pa) / sizeof(phu.pa[0]); i++)
+		sum += phu.pa[i];
+
+	sp = (const u_int16_t *)up;
+
+	for (i = 0; i < (len & ~1); i += 2)
+		sum += *sp++;
+
+	if (len & 1)
+		sum += htons((*(const u_int8_t *)sp) << 8);
+
+	while (sum > 0xffff)
+		sum = (sum & 0xffff) + (sum >> 16);
+	sum = ~sum & 0xffff;
+
+	return (sum);
+}
+#endif
+
+static void
+udpipaddr_print(const struct ip *ip, int sport, int dport)
+{
+#ifdef INET6
+	const struct ip6_hdr *ip6;
+
+	if (IP_V(ip) == 6)
+		ip6 = (const struct ip6_hdr *)ip;
+	else
+		ip6 = NULL;
+
+	if (ip6) {
+		if (ip6->ip6_nxt == IPPROTO_UDP) {
+			if (sport == -1) {
+				(void)printf("%s > %s: ",
+					ip6addr_string(&ip6->ip6_src),
+					ip6addr_string(&ip6->ip6_dst));
+			} else {
+				(void)printf("%s.%s > %s.%s: ",
+					ip6addr_string(&ip6->ip6_src),
+					udpport_string(sport),
+					ip6addr_string(&ip6->ip6_dst),
+					udpport_string(dport));
+			}
+		} else {
+			if (sport != -1) {
+				(void)printf("%s > %s: ",
+					udpport_string(sport),
+					udpport_string(dport));
+			}
+		}
+	} else
+#endif /*INET6*/
+	{
+		if (ip->ip_p == IPPROTO_UDP) {
+			if (sport == -1) {
+				(void)printf("%s > %s: ",
+					ipaddr_string(&ip->ip_src),
+					ipaddr_string(&ip->ip_dst));
+			} else {
+				(void)printf("%s.%s > %s.%s: ",
+					ipaddr_string(&ip->ip_src),
+					udpport_string(sport),
+					ipaddr_string(&ip->ip_dst),
+					udpport_string(dport));
+			}
+		} else {
+			if (sport != -1) {
+				(void)printf("%s > %s: ",
+					udpport_string(sport),
+					udpport_string(dport));
+			}
+		}
+	}
+}
 
 void
-udp_print(register const u_char *bp, u_int length, register const u_char *bp2)
+udp_print(register const u_char *bp, u_int length,
+	  register const u_char *bp2, int fragmented)
 {
 	register const struct udphdr *up;
 	register const struct ip *ip;
 	register const u_char *cp;
 	register const u_char *ep = bp + length;
-	u_short sport, dport, ulen;
+	u_int16_t sport, dport, ulen;
+#ifdef INET6
+	register const struct ip6_hdr *ip6;
+#endif
 
 	if (ep > snapend)
 		ep = snapend;
 	up = (struct udphdr *)bp;
 	ip = (struct ip *)bp2;
+#ifdef INET6
+	if (IP_V(ip) == 6)
+		ip6 = (struct ip6_hdr *)bp2;
+	else
+		ip6 = NULL;
+#endif /*INET6*/
 	cp = (u_char *)(up + 1);
-	if (cp > snapend) {
-		printf("[|udp]");
+	if (!TTEST(up->uh_dport)) {
+		udpipaddr_print(ip, -1, -1);
+		(void)printf("[|udp]");
 		return;
 	}
+
+	sport = EXTRACT_16BITS(&up->uh_sport);
+	dport = EXTRACT_16BITS(&up->uh_dport);
+
 	if (length < sizeof(struct udphdr)) {
-		(void)printf(" truncated-udp %d", length);
+		udpipaddr_print(ip, sport, dport);
+		(void)printf("truncated-udp %d", length);
 		return;
 	}
 	length -= sizeof(struct udphdr);
 
-	sport = ntohs(up->uh_sport);
-	dport = ntohs(up->uh_dport);
-	ulen = ntohs(up->uh_ulen);
+	if (cp > snapend) {
+		udpipaddr_print(ip, sport, dport);
+		(void)printf("[|udp]");
+		return;
+	}
+
+	ulen = EXTRACT_16BITS(&up->uh_ulen);
+	if (ulen < 8) {
+		udpipaddr_print(ip, sport, dport);
+		(void)printf("truncated-udplength %d", ulen);
+		return;
+	}
 	if (packettype) {
-		register struct rpc_msg *rp;
-		enum msg_type direction;
+#if !defined(EMBED)
+		register struct sunrpc_msg *rp;
+		enum sunrpc_msg_type direction;
+#endif
 
 		switch (packettype) {
 
 		case PT_VAT:
-			(void)printf("%s.%s > %s.%s:",
-				ipaddr_string(&ip->ip_src),
-				udpport_string(sport),
-				ipaddr_string(&ip->ip_dst),
-				udpport_string(dport));
-			vat_print((void *)(up + 1), length, up);
+			udpipaddr_print(ip, sport, dport);
+#if !defined(EMBED)
+			vat_print((void *)(up + 1), up);
+#endif
 			break;
 
 		case PT_WB:
-			(void)printf("%s.%s > %s.%s:",
-				ipaddr_string(&ip->ip_src),
-				udpport_string(sport),
-				ipaddr_string(&ip->ip_dst),
-				udpport_string(dport));
+			udpipaddr_print(ip, sport, dport);
+#if !defined(EMBED)
 			wb_print((void *)(up + 1), length);
+#endif
 			break;
 
+#if !defined(EMBED)
 		case PT_RPC:
-			rp = (struct rpc_msg *)(up + 1);
-			direction = (enum msg_type)ntohl(rp->rm_direction);
-			if (direction == CALL)
+			rp = (struct sunrpc_msg *)(up + 1);
+			direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
+			if (direction == SUNRPC_CALL)
 				sunrpcrequest_print((u_char *)rp, length,
 				    (u_char *)ip);
 			else
 				nfsreply_print((u_char *)rp, length,
 				    (u_char *)ip);			/*XXX*/
 			break;
+#endif
 
 		case PT_RTP:
-			(void)printf("%s.%s > %s.%s:",
-				ipaddr_string(&ip->ip_src),
-				udpport_string(sport),
-				ipaddr_string(&ip->ip_dst),
-				udpport_string(dport));
+			udpipaddr_print(ip, sport, dport);
+#if !defined(EMBED)
 			rtp_print((void *)(up + 1), length, up);
+#endif
 			break;
 
 		case PT_RTCP:
-			(void)printf("%s.%s > %s.%s:",
-				ipaddr_string(&ip->ip_src),
-				udpport_string(sport),
-				ipaddr_string(&ip->ip_dst),
-				udpport_string(dport));
+			udpipaddr_print(ip, sport, dport);
+#if !defined(EMBED)
 			while (cp < ep)
 				cp = rtcp_print(cp, ep);
+#endif
+			break;
+
+		case PT_SNMP:
+			udpipaddr_print(ip, sport, dport);
+#if !defined(EMBED)
+			snmp_print((const u_char *)(up + 1), length);
+#endif
+			break;
+
+		case PT_CNFP:
+			udpipaddr_print(ip, sport, dport);
+#if !defined(EMBED)
+			cnfp_print(cp, (const u_char *)ip);
+#endif
+			break;
+
+		case PT_TFTP:
+			udpipaddr_print(ip, sport, dport);
+			tftp_print(cp, length);
+			break;
+
+		case PT_AODV:
+			udpipaddr_print(ip, sport, dport);
+#if !defined(EMBED)
+			aodv_print((const u_char *)(up + 1), length,
+#ifdef INET6
+			    ip6 != NULL);
+#else
+			    0);
+#endif
+#endif
 			break;
 		}
 		return;
 	}
 
 	if (!qflag) {
-		register struct rpc_msg *rp;
-		enum msg_type direction;
+#if !defined(EMBED)
+		register struct sunrpc_msg *rp;
+		enum sunrpc_msg_type direction;
 
-		rp = (struct rpc_msg *)(up + 1);
+		rp = (struct sunrpc_msg *)(up + 1);
 		if (TTEST(rp->rm_direction)) {
-			direction = (enum msg_type)ntohl(rp->rm_direction);
-			if (dport == NFS_PORT && direction == CALL) {
+			direction = (enum sunrpc_msg_type)EXTRACT_32BITS(&rp->rm_direction);
+			if (dport == NFS_PORT && direction == SUNRPC_CALL) {
 				nfsreq_print((u_char *)rp, length,
 				    (u_char *)ip);
 				return;
 			}
-			if (sport == NFS_PORT && direction == REPLY) {
+			if (sport == NFS_PORT && direction == SUNRPC_REPLY) {
 				nfsreply_print((u_char *)rp, length,
 				    (u_char *)ip);
 				return;
 			}
 #ifdef notdef
-			if (dport == SUNRPC_PORT && direction == CALL) {
+			if (dport == SUNRPC_PORT && direction == SUNRPC_CALL) {
 				sunrpcrequest_print((u_char *)rp, length, (u_char *)ip);
 				return;
 			}
 #endif
 		}
+#endif
+#if !defined(EMBED) || defined(CONFIG_ATALK) || defined(CONFIG_ATALK_MODULE)
 		if (TTEST(((struct LAP *)cp)->type) &&
 		    ((struct LAP *)cp)->type == lapDDP &&
 		    (atalk_port(sport) || atalk_port(dport))) {
 			if (vflag)
 				fputs("kip ", stdout);
-			atalk_print(cp, length);
+			llap_print(cp, length);
 			return;
 		}
+#endif
 	}
-	(void)printf("%s.%s > %s.%s:",
-		ipaddr_string(&ip->ip_src), udpport_string(sport),
-		ipaddr_string(&ip->ip_dst), udpport_string(dport));
+	udpipaddr_print(ip, sport, dport);
+
+	if (IP_V(ip) == 4 && (vflag > 1) && !fragmented) {
+		int sum = up->uh_sum;
+		if (sum == 0) {
+			(void)printf("[no cksum] ");
+		} else if (TTEST2(cp[0], length)) {
+			sum = udp_cksum(ip, up, length + sizeof(struct udphdr));
+			if (sum != 0)
+				(void)printf("[bad udp cksum %x!] ", sum);
+			else
+				(void)printf("[udp sum ok] ");
+		}
+	}
+#ifdef INET6
+	if (IP_V(ip) == 6 && ip6->ip6_plen && vflag && !fragmented) {
+		int sum = up->uh_sum;
+		/* for IPv6, UDP checksum is mandatory */
+		if (TTEST2(cp[0], length)) {
+			sum = udp6_cksum(ip6, up, length + sizeof(struct udphdr));
+			if (sum != 0)
+				(void)printf("[bad udp cksum %x!] ", sum);
+			else
+				(void)printf("[udp sum ok] ");
+		}
+	}
+#endif
 
 	if (!qflag) {
 #define ISPORT(p) (dport == (p) || sport == (p))
 		if (ISPORT(NAMESERVER_PORT))
-			ns_print((const u_char *)(up + 1), length);
+			ns_print((const u_char *)(up + 1), length, 0);
+		else if (ISPORT(MULTICASTDNS_PORT))
+			ns_print((const u_char *)(up + 1), length, 1);
+#if !defined(EMBED)
+		else if (ISPORT(TIMED_PORT))
+			timed_print((const u_char *)(up + 1));
+#endif
 		else if (ISPORT(TFTP_PORT))
 			tftp_print((const u_char *)(up + 1), length);
+#if !defined(EMBED)
 		else if (ISPORT(IPPORT_BOOTPC) || ISPORT(IPPORT_BOOTPS))
-			bootp_print((const u_char *)(up + 1), length,
-			    sport, dport);
+			bootp_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED)
 		else if (ISPORT(RIP_PORT))
 			rip_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED)
+		else if (ISPORT(AODV_PORT))
+			aodv_print((const u_char *)(up + 1), length,
+#ifdef INET6
+			    ip6 != NULL);
+#else
+			    0);
+#endif
+#endif
+#if !defined(EMBED)
+	        else if (ISPORT(ISAKMP_PORT))
+			 isakmp_print(gndo, (const u_char *)(up + 1), length, bp2);
+  	        else if (ISPORT(ISAKMP_PORT_NATT))
+			 isakmp_rfc3948_print(gndo, (const u_char *)(up + 1), length, bp2);
+#if 1 /*???*/
+   	        else if (ISPORT(ISAKMP_PORT_USER1) || ISPORT(ISAKMP_PORT_USER2))
+			isakmp_print(gndo, (const u_char *)(up + 1), length, bp2);
+#endif
+#endif
+#if !defined(EMBED)
 		else if (ISPORT(SNMP_PORT) || ISPORT(SNMPTRAP_PORT))
 			snmp_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED) || defined(CONFIG_USER_MSNTP_MSNTP) || defined(CONFIG_USER_NTPCLIENT_NTPCLIENT) || defined(CONFIG_USER_NTPD_NTPD)
 		else if (ISPORT(NTP_PORT))
 			ntp_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED)
 		else if (ISPORT(KERBEROS_PORT) || ISPORT(KERBEROS_SEC_PORT))
-			krb_print((const void *)(up + 1), length);
+			krb_print((const void *)(up + 1));
+#endif
+#if !defined(EMBED) || defined(CONFIG_USER_L2TPD_L2TPD)
+		else if (ISPORT(L2TP_PORT))
+			l2tp_print((const u_char *)(up + 1), length);
+#endif
+#ifdef TCPDUMP_DO_SMB
+		else if (ISPORT(NETBIOS_NS_PORT))
+			nbt_udp137_print((const u_char *)(up + 1), length);
+		else if (ISPORT(NETBIOS_DGRAM_PORT))
+			nbt_udp138_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED)
 		else if (dport == 3456)
-			vat_print((const void *)(up + 1), length, up);
+			vat_print((const void *)(up + 1), up);
+#endif
+#if !defined(EMBED)
+		else if (ISPORT(ZEPHYR_SRV_PORT) || ISPORT(ZEPHYR_CLT_PORT))
+			zephyr_print((const void *)(up + 1), length);
+#endif
+		/*
+		 * Since there are 10 possible ports to check, I think
+		 * a <> test would be more efficient
+		 */
+#if !defined(EMBED)
+		else if ((sport >= RX_PORT_LOW && sport <= RX_PORT_HIGH) ||
+			 (dport >= RX_PORT_LOW && dport <= RX_PORT_HIGH))
+			rx_print((const void *)(up + 1), length, sport, dport,
+				 (u_char *) ip);
+#endif
+#ifdef INET6
+		else if (ISPORT(RIPNG_PORT))
+			ripng_print((const u_char *)(up + 1), length);
+		else if (ISPORT(DHCP6_SERV_PORT) || ISPORT(DHCP6_CLI_PORT)) {
+			dhcp6_print((const u_char *)(up + 1), length);
+		}
+#endif /*INET6*/
 		/*
 		 * Kludge in test for whiteboard packets.
 		 */
+#if !defined(EMBED)
 		else if (dport == 4567)
 			wb_print((const void *)(up + 1), length);
+#endif
+#if !defined(EMBED)
+		else if (ISPORT(CISCO_AUTORP_PORT))
+			cisco_autorp_print((const void *)(up + 1), length);
+#endif
+#if !defined(EMBED)
+		else if (ISPORT(RADIUS_PORT) ||
+			 ISPORT(RADIUS_NEW_PORT) ||
+			 ISPORT(RADIUS_ACCOUNTING_PORT) ||
+			 ISPORT(RADIUS_NEW_ACCOUNTING_PORT) )
+			radius_print((const u_char *)(up+1), length);
+#endif
+#if !defined(EMBED)
+		else if (dport == HSRP_PORT)
+			hsrp_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED)
+		else if (ISPORT(LWRES_PORT))
+			lwres_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED)
+                else if (ISPORT(LDP_PORT))
+			ldp_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED)
+                else if (ISPORT(MPLS_LSP_PING_PORT))
+			lspping_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED)
+		else if (dport == BFD_CONTROL_PORT ||
+			 dport == BFD_ECHO_PORT )
+			bfd_print((const u_char *)(up+1), length, dport);
+#endif
+#if !defined(EMBED)
+                else if (ISPORT(LMP_PORT))
+			lmp_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED) || defined(CONFIG_USER_SER_SER)
+                else if (ISPORT(SIP_PORT))
+			sip_print((const u_char *)(up + 1), length);
+#endif
+#if !defined(EMBED) || defined(CONFIG_USER_BUSYBOX_REMOTE_LOG)
+                else if (ISPORT(SYSLOG_PORT))
+			syslog_print((const u_char *)(up + 1), length);
+#endif
 		else
-			(void)printf(" udp %u",
+			(void)printf("UDP, length %u",
 			    (u_int32_t)(ulen - sizeof(*up)));
 #undef ISPORT
 	} else
-		(void)printf(" udp %u", (u_int32_t)(ulen - sizeof(*up)));
+		(void)printf("UDP, length %u", (u_int32_t)(ulen - sizeof(*up)));
 }
+
+
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */
+

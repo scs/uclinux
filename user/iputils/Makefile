@@ -111,7 +111,6 @@ snapshot: clean
 	@cd ..; tar c iputils | gzip -9c > `date +iputils-ss%y%m%d.tar.gz`
 
 romfs:
-	-$(STRIP) $(TARGETS)
 	$(ROMFSINST) -e CONFIG_USER_IPUTILS_PING6 $(BINDIR)/ping6
 	$(ROMFSINST) -e CONFIG_USER_IPUTILS_PING $(BINDIR)/ping
 	$(ROMFSINST) -e CONFIG_USER_IPUTILS_TRACEROUTE6 $(BINDIR)/traceroute6

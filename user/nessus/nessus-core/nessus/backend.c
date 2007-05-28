@@ -44,8 +44,6 @@
 
 
 
-
-
 	
 #define MAX_TMPFILES 256
 struct backend backends[MAX_TMPFILES];
@@ -53,7 +51,7 @@ struct backend backends[MAX_TMPFILES];
 
 
 
-void be_info(be, str)
+void be_info(int be, const char * str)
 {
 #ifdef BACKEND_DEBUG
  printf("%s(%d) disposable:%d, fd:%d, %s\n",
@@ -77,6 +75,13 @@ backend_init(fname)
  char * tmpfile;
  int i = 0;
  char * tmpdir;
+ static int bzeroed = 0;
+
+ if ( bzeroed == 0 )
+ {
+   bzero(backends, sizeof(backends));
+   bzeroed ++;
+ }
  
  while((backends[i].fname) && (i<MAX_TMPFILES))i++;
  if(backends[i].fname)
@@ -250,20 +255,53 @@ backend_insert_report_data(be, subnet, host, port, script_id, severity, data)
  return 0;
 }
 
+int _backend_cmpcb(void *unused, harglst *not_used, hargkey_t *lKey,
+	hargtype_t lType, hargkey_t *rKey, hargtype_t rType) 
+{
+	unsigned long rin,lin;
+	unsigned long rip,lip;
+	rin = (unsigned long)inet_addr(rKey);
+	lin = (unsigned long)inet_addr(lKey);
+	if(rin == 0xffffffff) {
+		if(lin == 0xffffffff) {
+			return strcmp(rKey,lKey);
+		} else {
+			return 1;
+		}
+	} else {
+		if(lin == 0xffffffff) {
+			return -1;
+		} else {
+			rip = ntohl(rin);
+			lip = ntohl(lin);
+			if(lip < rip ) { return 1; }
+			if(lip == rip) { return 0; } 
+			if(lip > rip)  { return -1; }
+		}
+	}
+	return 0;
+}
+
+
 
 struct arglist *
 backend_convert(be)
  int be;
 {
  harglst * hhosts;
- hargwalk * hw;
- FILE * fd = fopen(backends[be].fname, "r");
+ FILE * fd;  
  char buf[65535];
  char * current_hostname = NULL;
  struct arglist* current_host = NULL;
  struct arglist * nhosts = NULL;
  char * key;
  int line = 0;
+ unsigned x;
+
+ if ( backends[be].fname == NULL )
+	return NULL; 
+
+ fd = fopen(backends[be].fname, "r");
 
  if(!fd)
   {
@@ -389,7 +427,13 @@ backend_convert(be)
   	buffer = estrdup("INFO");
   else if(!strcmp(t, "Security Hole"))
   	buffer = estrdup("REPORT");
+  else buffer = NULL;
  
+  if ( buffer == NULL )
+	{
+	 fprintf(stderr, "Error - line %d is malformed\n", line);
+	 continue;
+	}
   content = arg_get_value(port, buffer);
   
   if(!content)
@@ -413,10 +457,11 @@ parse_error:
  /*
   *  harglist -> arglist conversion
   */
- hw = harg_walk_init(hhosts);
+ harg_csort(hhosts,_backend_cmpcb,"heh");
+ harg_sort(hhosts);
+ x = 0;
  nhosts = emalloc(sizeof(struct arglist));
- while((key = (char*)harg_walk_next(hw)))
- {
+ while((key = (char *)harg_get_nth(hhosts,x))) {
   struct arglist * new = emalloc(sizeof(struct arglist));
   struct arglist * h = harg_get_ptr(hhosts, key);
   new->name = strdup(key);
@@ -425,25 +470,23 @@ parse_error:
   new->value = h;
   new->next = nhosts;
   nhosts = new;
+  x++;
  }
- /*harg_walk_stop(hw);*/
- harg_close(hhosts);
+
  return nhosts;
 }
-
-
 
 int
 backend_close(be)
  int be;
 {
  be_info(be, "CLOSE");
+ 
 #ifdef HAVE_MMAP
  if(backends[be].mmap)
  {
-  struct stat  buf;
-  fstat(backends[be].fd, &buf);
-  munmap(backends[be].mmap, buf.st_size);
+  int len = backends[be].mmap_size;
+  munmap(backends[be].mmap, len);
   backends[be].mmap = NULL;
   efree(&backends[be].lines);
   efree(&backends[be].eols);
@@ -520,6 +563,7 @@ backend_empty(be)
    return -1;
  }
  
+ lseek(backends[be].fd, 0, SEEK_SET);
  f = fdopen(backends[be].fd, "r");
  if ( f == NULL ) 
  {
@@ -532,11 +576,11 @@ backend_empty(be)
   buf[sizeof(buf) - 1] = '\0';
   if(strncmp(buf, "results", strlen("results")) == 0)
    {
-   return 0;
+   return 1;
    }
  }
  
- return 1;
+ return 0;
 }
 
 

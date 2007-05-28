@@ -6,9 +6,9 @@
 if(description)
 {
  script_id(11197);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CAN-2003-0001");
  script_bugtraq_id(6535);
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2003-0001");
  
  
 
@@ -17,20 +17,31 @@ if(description)
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host is vulnerable to an 'Etherleak' -
-the remote ethernet driver seems to leak bits of the
-content of the memory of the remote operating system.
+Synopsis :
 
-Note that an attacker may take advantage of this flaw
-only when its target is on the same physical subnet.
+The remote host leaks memory in network packets.
 
-See also : http://www.atstake.com/research/advisories/2003/a010603-1.txt 
-Solution : Contact your vendor for a fix
-Risk factor : Serious";
+Description :
 
+The remote host is vulnerable to an 'Etherleak' - the remote
+ethernet driver seems to leak bits of the content of the memory
+of the remote operating system.
 
+Note that an attacker may take advantage of this flaw only when
+its target is on the same physical subnet.
 
+See also :
 
+http://www.atstake.com/research/advisories/2003/a010603-1.txt 
+
+Solution :
+
+Contact your vendor for a fix
+
+Risk factor :
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -50,6 +61,9 @@ Risk factor : Serious";
 #
 # The script code starts here
 #
+##include("dump.inc");
+
+if ( ! islocalnet() ) exit(0);
 
 function probe()
 {
@@ -65,6 +79,7 @@ function probe()
  }
 
  if(rep == NULL)exit(0);
+##dump(dtitle: "ICMP", ddata: rep);
 
  len = get_ip_element(ip:rep, element:"ip_len");
  if(strlen(rep) > len)
@@ -86,7 +101,7 @@ function ping()
 
  filter = string("icmp and src host ", get_host_ip(), " and dst host ", this_host());
 
- for(i=0;i<5;i++) rep = send_packet(icmp, pcap_filter:filter);
+ for(i=0;i<3;i++) rep = send_packet(icmp, pcap_filter:filter, pcap_timeout:1);
 }
 
 if(islocalhost())exit(0);
@@ -99,7 +114,13 @@ if(islocalnet())
  sleep(1);
  str2 = probe();
 
+##dump(dtitle: "ether1", ddata: str1);
+##dump(dtitle: "ether2", ddata: str2);
+
  if(isnull(str1) || isnull(str2))exit(0);
 
- if(!(str1 == str2)){security_hole(proto:"icmp", port:0);}
+ if( str1 != str2 ){
+		security_note(proto:"icmp", port:0);
+		set_kb_item(name:"Host/etherleak", value:TRUE);
+	}
 }

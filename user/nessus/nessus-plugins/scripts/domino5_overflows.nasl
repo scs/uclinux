@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(11338);
- script_version ("$Revision: 1.7 $");
- script_bugtraq_id(7038, 7039);
- script_cve_id("CAN-2003-0123", "CAN-2001-1311");
+ script_bugtraq_id(3041, 7038, 7039);
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2003-0123", "CVE-2001-1311");
 
  name["english"] = "Lotus Domino Vulnerabilities";
  script_name(english:name["english"], francais:name["francais"]);
@@ -26,8 +26,8 @@ execute arbitrary commands on the remote host.
 	
 
 References :
-    http://www.rapid7.com/advisories/R7-0011-info.html
-    http://www.rapid7.com/advisories/R7-0012-info.html
+    http://www.rapid7.com/advisories/R7-0011.html
+    http://www.rapid7.com/advisories/R7-0012.html
 
 Solution : Update to Domino 5.0.12 or 6.0.1
 Risk factor : High";	
@@ -45,9 +45,8 @@ Risk factor : High";
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
  family["english"] = "Gain a shell remotely";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "webmirror.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "webmirror.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/domino");
  exit(0);
 }
 
@@ -58,8 +57,11 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "Lotus Domino" >!< sig ) exit(0);
 
 banner = get_http_banner(port:port);
 if(!banner)exit(0);

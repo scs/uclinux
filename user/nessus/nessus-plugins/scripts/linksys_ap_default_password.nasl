@@ -7,8 +7,11 @@
 
 if(description)
 {
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.7 $");
  script_id(11522);
+
+ script_xref(name:"OSVDB", value:"821");
+
  script_name(english:"Linksys Router default password");
  
  
@@ -33,7 +36,7 @@ Risk factor : High";
  family["english"] = "Misc.";
  script_family(english:family["english"]);
  script_dependencies("http_version.nasl");
- script_require_ports(80);
+ script_require_ports("Services/www", 80);
  exit(0);
 }
 
@@ -43,14 +46,20 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = 80;
+port = get_http_port(default:80);
 if(!get_port_state(port))exit(0);
 
 req = http_get(item:"/", port:port);
-req -= string("\r\n\r\n");
+res = http_get_cache(item:"/", port:port);
+if ( res == NULL ) exit(0);
 
-req += string("\r\nAuthorization: Basic OmFkbWlu\r\n\r\n");
-res = http_keepalive_send_recv(port:port, data:req);
-if (res == NULL ) exit(0);
-if("HTTP/1.1 200 OK" >< res && "WANConnectionSel" >< res && "linksys" >< res)security_hole(port);
+if ( egrep ( pattern:"^HTTP/.* 401 .*", string:res ) )
+{
+ req -= string("\r\n\r\n");
+ req += string("\r\nAuthorization: Basic OmFkbWlu\r\n\r\n");
+ res = http_keepalive_send_recv(port:port, data:req);
+ if (res == NULL ) exit(0);
+ if ( egrep ( pattern:"^HTTP/.* 200 .*", string:res) )
+	security_hole(port);
+}
 

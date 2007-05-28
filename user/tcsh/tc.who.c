@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.who.c,v 3.32 2000/11/12 02:18:07 christos Exp $ */
 /*
  * tc.who.c: Watch logins and logouts...
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tc.who.c,v 3.32 2000/11/12 02:18:07 christos Exp $")
 
 #include "tc.h"
 

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10064);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(2248);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0279");
  name["english"] = "Excite for WebServers";
  name["francais"] = "Excite for WebServers";
@@ -25,7 +25,7 @@ Versions newer than 1.1. are patched.
 Solution : if you are running version 1.1 or older, then
 upgrade it.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Excite for Webservers est installé. Celui-ci possède
@@ -67,7 +67,14 @@ script_description(english:desc["english"], francais:desc["francais"]);
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("ews/ews/architext_query.pl");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"ews/ews/architext_query.pl", port:port);
+if(res)security_hole(port);
 

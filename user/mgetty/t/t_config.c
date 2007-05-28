@@ -1,12 +1,9 @@
 /* test program for mgetty's config routines 
  *  - ptr/int + struct size checks
  *
- * $Id$
+ * $Id: t_config.c,v 1.1 2004/11/02 08:14:19 gert Exp $
  *
- * $Log$
- * Revision 1.1  2006/08/05 07:31:16  vapier
- * import from upstream uClinux
- *
+ * $Log: t_config.c,v $
  * Revision 1.1  2004/11/02 08:14:19  gert
  * test ptr/int and struct alignment for mgetty's config routines
  *

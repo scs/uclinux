@@ -5,7 +5,7 @@
  *
  * Modified for use with vgetty, Russell King (rmk@ecs.soton.ac.uk)
  *
- * $Id$
+ * $Id: multitech.c,v 1.3 1998/09/09 21:07:02 gert Exp $
  *
  */
 

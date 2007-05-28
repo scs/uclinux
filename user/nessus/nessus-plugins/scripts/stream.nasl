@@ -11,27 +11,23 @@
 if(description)
 {
  script_id(10271);
- script_version ("$Revision: 1.12 $");
- # BID549 / CVE-1999-0770 = FW-1 saturation
  script_bugtraq_id(549);
+ script_version ("$Revision: 1.15 $");
+ # BID549 / CVE-1999-0770 = FW-1 saturation
  script_cve_id("CVE-1999-0770");
 
  name["english"] = "stream.c";
  name["francais"] = "stream.c";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "It was possible
-to make the remote server crash
-using the 'stream.c' attack. 
+ desc["english"] = "
+It seems it was possible to make the remote server crash 
+using the 'stream' (or 'raped') attack. 
 
-An attacker may use this flaw to
-shut down this server, thus 
-preventing your network from
-working properly.
+An attacker may use this flaw to shut down this server, thus preventing 
+your network from working properly.
 
-Solution : contact your operating
-system vendor for a patch.
-
+Solution : contact your operating system vendor for a patch.
 Workaround : if you use IP filter,
 then add these rules :
 
@@ -45,33 +41,10 @@ Reference : http://online.securityfocus.com/archive/1/42723
 Risk factor : High";
 
 
- desc["francais"] = "Il s'est avéré
-possible de faire planter la 
-machine distante en utilisant
-l'attaque 'stream.c'. 
-
-Un pirate peut utiliser cette
-attaque pour empecher votre
-réseau de fonctionner normallement.
-
-Solution : contactez le vendeur
-de votre OS pour un patch.
-
-Solution temporaire : Si vous
-utilisez IP filter, alors ajoutez
-ces règles :
-
-	block in quick proto tcp from any to any head 100
-	pass in quick proto tcp from any to any flags S keep state group 100
-	pass in all
-	
-	
-Facteur de risque : Elevé";
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
- summary["english"] = "Crashes the remote host using the 'stream.c' attack";
- summary["francais"] = "Plante le serveur distant en utilisant l'attaque 'stream.c'";
+ summary["english"] = "Crashes the remote host using the 'stream' attack";
+ summary["francais"] = "Plante le serveur distant en utilisant l'attaque 'stream'";
  script_summary(english:summary["english"], francais:summary["francais"]);
  
  if (ACT_FLOOD) script_category(ACT_FLOOD);
@@ -133,6 +106,7 @@ for(i=0;i<40000;i=i+1)
 			     
  send_packet(tcpip, pcap_active:FALSE);
 }
+sleep(5);
 alive = end_denial();
 
 if(!alive)     {

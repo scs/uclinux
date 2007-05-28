@@ -1,24 +1,33 @@
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
 #
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
+
+ desc["english"] = "
+Synopsis :
+
+It is possible to retrieve users who can not change their password
+using the supplied credentials.
+
+Description :
+
+Using the supplied credentials it was possible to extract the list of
+domain users who can not change their password.
+It is recommended to allow/force users to change their password for
+security reasons.
+
+Risk factor :
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
+
 
 if(description)
 {
  script_id(10896);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.7 $");
  name["english"] = "Users information : Can't change password";
 
  script_name(english:name["english"]);
- 
- desc["english"] = "
-This script displays the names of the users that
-can not change their password.
-
-
-Risk factor : Serious";
-
-
 
  script_description(english:desc["english"]);
  
@@ -30,7 +39,7 @@ Risk factor : Serious";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows : User management";
  
  script_family(english:family["english"]);
@@ -62,9 +71,10 @@ while(login)
 
 if(logins)
 {
- rep = string("The following accounts can not change their password :\n\n",
-  logins,
-  "\n\nTo minimize the risk of break-in, users should have the right to\n",
-  "change their password regularly");
- security_warning(port:port, data:rep);
+ report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		"The following users can not change their password :\n",
+		logins);
+
+ security_warning (port:0, data:report);
 }

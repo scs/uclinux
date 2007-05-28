@@ -5,9 +5,9 @@
 if(description)
 {
  script_id(11828);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(8518);
- script_cve_id("CAN-2003-0743");
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2003-0743");
  
  name["english"] = "Exim Heap Overflow";
  script_name(english:name["english"]);
@@ -21,7 +21,7 @@ to gain a shell on this host, although it currently is considered as being
 unexploitable.
 
 Solution : Upgrade to Exim 4.22
-Risk Factor : High";
+Risk factor : High";
 
  script_description(english:desc["english"]);
 		    

@@ -11,20 +11,35 @@
 if(description)
 {
   script_id(11734);
+  script_bugtraq_id(7873);
   
-  script_version ("$Revision: 1.1 $");
+  script_version ("$Revision: 1.5 $");
   name["english"] = "Argosoft DoS";
   script_name(english:name["english"]);
  
   desc["english"] = "
-It was possible to kill the remote HTTP server
-sending an invalid request to it ('GET  /index.html\n\n').
+Synopsis :
 
-A cracker may exploit this vulnerability to make your web server
-crash continually or even execute arbitrary code on your system.
+The remote mail server suffers from a denial of service vulnerability. 
 
-Solution : upgrade your software to the latest version
-Risk factor : High";
+Description :
+
+It is possible to kill the remote HTTP server by sending an invalid
+request to it.  An unauthenticated attacker may leverage this issue
+to crash the affected server. 
+
+See also :
+
+http://www.securityfocus.com/archive/1/324750
+
+Solution : 
+
+Unknown at this time.
+
+Risk factor : 
+
+Low / CVSS Base Score : 2
+(AV:R/AC:L/Au:NR/C:N/A:P/I:N/B:N)";
 
   script_description(english:desc["english"]);
  
@@ -33,11 +48,11 @@ Risk factor : High";
  
   script_category(ACT_MIXED_ATTACK);
  
-  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
+  script_copyright(english:"This script is Copyright (C) 2003-2006 Tenable Network Security");
   family["english"] = "Denial of Service";
   script_family(english:family["english"]);
   script_require_ports("Services/www", 80);
-  script_dependencie("find_service.nes", "httpver.nasl", "http_version.nasl");
+  script_dependencie("http_version.nasl");
   exit(0);
 }
 
@@ -45,16 +60,17 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
+banner = get_http_banner(port:port);
+if ( "ArGoSoft" >!< banner ) exit(0);
 
 if( safe_checks() )
 {
- banner = get_http_banner(port:port);
  if(egrep(pattern:"^Server: ArGoSoft Mail Server.*.1\.([0-7]\..*|8\.([0-2]\.|3\.[0-5]))", string:banner))
  	{
-	security_hole(port);
+	security_note(port);
 	}
  exit(0);	
 }
@@ -68,4 +84,4 @@ send(socket:soc, data:'GET  /index.html\n\n');
 r = recv_line(socket:soc, length:2048);
 close(soc);
 
-if (http_is_dead(port: port)) {  security_hole(port); exit(0); }
+if (http_is_dead(port: port)) {  security_note(port); exit(0); }

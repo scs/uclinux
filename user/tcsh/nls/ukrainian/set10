@@ -1,4 +1,4 @@
-$ $Id$
+$ $Id: set10,v 1.1 2000/11/11 23:03:42 christos Exp $
 $ ma.setp.c
 $set 10 
 1 setpath: invalid command '%s'.\n

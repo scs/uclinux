@@ -1,50 +1,40 @@
 #
-# This script was written by Michael Scheidell SECNAP Network Security
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(11146);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2002-0863"); # and 864
- script_bugtraq_id(5410);
+ script_bugtraq_id(5410, 5711, 5712);
+ script_version("$Revision: 1.12 $");
+ script_cve_id("CVE-2002-0863");
 
- name["english"] = "Microsoft RDP flaws could allow sniffing and DOS(Q324380)";
+ name["english"] = "Cryptographic Flaw in RDP Protocol can Lead to Information Disclosure (Q324380)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-Remote Data Protocol (RDP) version 5.0 in Microsoft
-Windows 2000 and RDP 5.1 in Windows XP does not
-encrypt the checksums of plaintext session data,
-which could allow a remote attacker to determine the
-contents of encrypted sessions via sniffing, and 
-Remote Data Protocol (RDP) version 5.1 in Windows
-XP allows remote attackers to cause a denial of
-service (crash) when Remote Desktop is enabled via a
-PDU Confirm Active data packet that does not set the
-Pattern BLT command.
+Synopsis :
 
-Impact of vulnerability: Two vulnerabilities:
-information disclosure, denial of service.
+It is possible to crash the remote desktop service.
 
-Maximum Severity Rating: Moderate. 
+Description :
 
-Recommendation: Administrators of Windows
-2000 terminal servers and Windows XP users
-who have enabled Remote Desktop should apply
-the patch.
+The remote host contains a version of the Remote Desktop protocol/service
+which is vulnerable to a security flaw which may allow an attacker to crash
+the remote service and cause the system to stop responding.
+Another vulnerability may allow an attacker to disclose information.
 
-Affected Software: 
+Solution : 
 
-Microsoft Windows 2000 
-Microsoft Windows XP
+Microsoft has released a set of patches for Windows 2000 and XP :
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-051.asp
+http://www.microsoft.com/technet/security/bulletin/ms02-051.mspx
 
-Risk factor : High";
+Risk factor : 
+
+Medium / CVSS Base Score : 5 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
@@ -54,60 +44,31 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 SECNAP Network Security, LLC");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_XP.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
- script_exclude_keys("SMB/XP/ServicePack","SMB/WinNT4/ServicePack");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
+if ( hotfix_check_sp(xp:1, win2k:4) <= 0 ) exit(0);
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-
-version = get_kb_item("SMB/WindowsVersion");
-
-if("5.0" >< version)
+if (is_accessible_share())
 {
-# win2k servers only.  Not workstations
- key = "SYSTEM\CurrentControlSet\Control\ProductOptions";
- item = "ProductType";
- value = registry_get_sz(key:key, item:item);
- if(value == "WinNT")exit(0);
-
-
-# fixed in Service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
-}
+ if ( hotfix_is_vulnerable (os:"5.1", sp:0, file:"Rdpwd.sys", version:"5.1.2600.48", dir:"\system32\drivers") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Rdpwd.sys", version:"5.0.2195.5880", dir:"\system32\drivers") )
+   security_hole (get_kb_item("SMB/transport"));
  
-if("5.1" >< version)
-{
-# fixed in SP 1
- sp = get_kb_item("SMB/XP/ServicePack");
- if(sp)exit(0);
+ hotfix_check_fversion_end();
+ exit (0);
 }
-
-
-if("4.0" >< version)exit(0); # not for NT 4.0
-if(ereg(pattern:"([6-9]\.[0-9])|(5\.[2-9])", string:version))exit(0);
-
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Hotfix\Q324380";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
+else if ( hotfix_missing(name:"Q324380") > 0 )
+	security_hole(get_kb_item("SMB/transport"));
 

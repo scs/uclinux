@@ -43,30 +43,14 @@ Show the help summary
 
 .SH PROXIES
 
-If you are behind a web proxy, then create a file called 
-.I .nessus-update-pluginsrc
-in your home, and add the following lines in it :
-.br
-proxy_user=
-.I username
-.br
-proxy_passwd=
-.I password
-.br
-proxy=
-.I address_of_your_proxy
-.br
-A valid rc file would be :
-.br
-proxy_user=renaud
-.br
-proxy_passwd=topsecr3t
-.br
-proxy=prof.fr.nessus.org:8080
+If you are behind a web proxy, then read the manual page of
+.I nessus-fetch
+to configure nessus-fetch with a proper proxy support.
+
 .br
 .SH SECURITY NOTES
 
-nessus-update-plugins uses lynx(1) to retrieve the archive of the new plugins, at http://www.nessus.org/nasl/all.tar.gz. 
+nessus-update-plugins uses lynx(1) to retrieve the archive of the new plugins, at http://www.nessus.org/nasl/all-2.0.tar.gz. 
 .B "The scripts are not signed"
 so a cracker may poison your DNS server and force this script to retrieve
 scripts on another web server, and then force your nessusd to execute

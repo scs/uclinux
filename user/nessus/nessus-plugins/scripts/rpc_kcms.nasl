@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10832);
- script_version("$Revision: 1.7 $");
- script_cve_id("CVE-2001-0595");
  script_bugtraq_id(2605);
+ script_version("$Revision: 1.14 $");
+ script_cve_id("CVE-2001-0595");
 
  name["english"] = "Kcms Profile Server";
  script_name(english:name["english"]);
@@ -48,12 +48,23 @@ Risk factor : High";
 
  family["english"] = "RPC"; 
  script_family(english:family["english"]);
- script_dependencie("rpc_portmap.nasl", "nmap_osfingerprint.nes");
+ if ( !defined_func("bn_random") ) 
+ 	script_dependencie("rpc_portmap.nasl", "os_fingerprint.nasl");
+ else
+ 	script_dependencie("rpc_portmap.nasl", "os_fingerprint.nasl", "solaris251_103879.nasl", "solaris251_x86_103881.nasl", "solaris26_107336.nasl", "solaris26_x86_107338.nasl", "solaris7_107337.nasl", "solaris7_x86_107339.nasl", "solaris8_111400.nasl", "solaris8_x86_111401.nasl", "solaris9_114636.nasl", "solaris9_x86_114637.nasl" );
  script_require_keys("rpc/portmap");
  exit(0);
 }
 
 include("misc_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+
+if ( get_kb_item("BID-2605") ) exit(0);
+version = get_kb_item("Host/Solaris/Version");
+if ( version && ereg(pattern:"^5\.1[0-9]", string:version)) exit(0);
 
 RPC_PROG = 100221;
 tcp = 0;
@@ -66,17 +77,11 @@ if(!port){
 if(port)
 {
  vulnerable = 0;
- os = get_kb_item("Host/OS");
+ os = get_kb_item("Host/OS/icmp");
  if(!os)vulnerable = 1;
  else
  {
-  # QueSO signatures are not handled (too hazardous)
-  if(ereg(pattern:"^\*.*", string:os))vulnerable = 1;
-  else
-  {
-   # Nmap
-   if(ereg(pattern:"Solaris 2\.5", string:os))vulnerable = 1;
-  }
+   if(ereg(pattern:"Solaris (2\.[56]|[7-9])", string:os))vulnerable = 1;
  }
 
  if(vulnerable)

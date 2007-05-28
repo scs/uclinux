@@ -9,7 +9,7 @@
 if (description)
 {
  script_id(11410);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.2 $");
  script_name(english:"Notes detection");
  desc["english"] = "
 A Lotus Domino server is listening on this port
@@ -19,7 +19,7 @@ Risk factor : Low";
  script_description(english:desc["english"]);
  script_summary(english:"Determine if a remote host is Domino");
  script_category(ACT_GATHER_INFO);
- script_family(english:"General");
+ script_family(english:"Service detection");
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  script_require_ports(1352);
  exit(0);

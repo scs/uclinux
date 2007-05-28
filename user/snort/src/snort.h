@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 1998-2002 Martin Roesch <roesch@sourcefire.com>
+** Copyright (C) 1998-2005 Martin Roesch <roesch@sourcefire.com>
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -36,6 +36,10 @@
 #include "inline.h"
 #endif /* GIDS */
 
+#ifdef INLINE_FAILOPEN
+#include "pthread.h"
+#endif
+
 extern SFPERF sfPerf;
 
 /* Mark this as a modern version of snort */
@@ -46,14 +50,12 @@ extern SFPERF sfPerf;
 /* This macro helps to simplify the differences between Win32 and
    non-Win32 code when printing out the name of the interface */
 #ifndef WIN32
-    #define PRINT_INTERFACE(i)  i
+    #define PRINT_INTERFACE(i)  (i ? i : "NULL")
 #else
     #define PRINT_INTERFACE(i)  print_interface(i)
 #endif
 
 /*  D E F I N E S  ************************************************************/
-#define BUILD "14"
-
 #define STD_BUF  1024
 
 #define RF_ANY_SIP    0x01
@@ -108,11 +110,17 @@ extern char _PATH_VARRUN[STD_BUF];
 #define LOG_UNIFIED         0x00000001
 #define LOG_TCPDUMP         0x00000002
 
+#define SIGNAL_SNORT_ROTATE_STATS  28
+#define SIGNAL_SNORT_CHILD_READY   29
+
 /*  D A T A  S T R U C T U R E S  *********************************************/
 
 #define MODE_PACKET_DUMP    1
 #define MODE_PACKET_LOG     2
 #define MODE_IDS            3
+#define MODE_TEST           4
+#define MODE_RULE_DUMP      5
+#define MODE_VERSION        6
 
 extern u_int8_t runMode;
 
@@ -148,12 +156,61 @@ typedef struct _runtime_config
 
 #define MAX_IFS        1
 
+/* This feature allows us to change the state of a rule,
+ * independent of it appearing in a rules file.
+ */
+#define RULE_STATE_DISABLED 0
+#define RULE_STATE_ENABLED 1
+
+typedef struct _RuleState
+{
+    int sid;
+    int gid;
+    int state;
+    int action;
+    struct _RuleState *next;
+} RuleState;
+
+#include "profiler.h"
+
+/* GetoptLong Option numbers */
+#define PID_PATH                  1
+#ifdef DYNAMIC_PLUGIN
+#define DYNAMIC_LIBRARY_DIRECTORY 2
+#define DYNAMIC_LIBRARY_FILE      3
+#define DYNAMIC_PREPROC_DIRECTORY 4
+#define DYNAMIC_PREPROC_FILE      5
+#define DYNAMIC_ENGINE_FILE       6
+#define DYNAMIC_ENGINE_DIRECTORY  7
+#define DUMP_DYNAMIC_RULES        8
+#define DUMP_DYNAMIC_PREPROCS     9
+#endif
+#define ARG_RESTART               10
+#define CREATE_PID_FILE           11
+#define TREAT_DROP_AS_ALERT       12
+#define PROCESS_ALL_EVENTS        13
+#define ALERT_BEFORE_PASS         14
+#define NOLOCK_PID_FILE           15
+#define DISABLE_INLINE_INIT       16
+#ifdef INLINE_FAILOPEN
+#define DISABLE_INLINE_FAILOPEN   17
+#endif
+
+#ifdef DYNAMIC_PLUGIN
+typedef struct _DynamicDetectionSpecifier
+{
+    int type;
+    char *path;
+} DynamicDetectionSpecifier;
+#endif
+
 /* struct to contain the program variables and command line args */
 typedef struct _progvars
 {
     int stateful;
     int line_buffer_flag;
     int checksums_mode;
+    int checksums_drop;
     int assurance_mode;
     int max_pattern;
     int test_mode_flag;
@@ -168,8 +225,15 @@ typedef struct _progvars
     int readmode_flag;
     int show2hdr_flag;
     int showwifimgmt_flag;
-#ifdef GIDS
     int inline_flag;
+    char disable_inline_init_flag;
+#ifdef INLINE_FAILOPEN
+    char initialization_done_flag;
+    char pass_thread_running_flag;
+    pthread_t pass_thread_id;
+    char inline_failopen_disabled_flag;
+#endif
+#ifdef GIDS
 #ifndef IPFW
     char layer2_resets;
     u_char enet_src[6];
@@ -191,7 +255,10 @@ typedef struct _progvars
     int rules_order_flag;
     int track_flag;
     int daemon_flag;
+    int daemon_restart_flag;
+    int logtosyslog_flag;
     int quiet_flag;
+    int print_version;
     int pkt_cnt;
     int pkt_snaplen;
     u_long homenet;
@@ -219,15 +286,60 @@ typedef struct _progvars
     u_int8_t log_mode;
     int num_rule_types;
     char pidfile_suffix[MAX_PIDFILE_SUFFIX+1]; /* room for a null */
+    char create_pid_file;
+    char nolock_pid_file;
     DecoderFlags decoder_flags; /* if decode.c alerts are going to be enabled */
+    char ignore_ports[0x10000]; /* 65536, enough to hold ports */
+    int rotate_perf_file;
+    u_int32_t event_log_id;
 
-#ifdef NEW_DECODER
-    char *daq_method;
-    char *interface_list[MAX_IFS];
-    int interface_count;
-    char *pcap_filename;
-    char *daq_filter_string;
-#endif  // NEW_DECODER
+#ifdef DYNAMIC_PLUGIN
+#define MAX_DYNAMIC_ENGINES 16
+    u_int32_t dynamicEngineCount;
+    u_int8_t dynamicEngineCurrentDir;
+    DynamicDetectionSpecifier *dynamicEngine[MAX_DYNAMIC_ENGINES];
+
+#define MAX_DYNAMIC_DETECTION_LIBS 16
+    u_int8_t dynamicLibraryCount;
+    u_int8_t dynamicLibraryCurrentDir;
+    DynamicDetectionSpecifier *dynamicDetection[MAX_DYNAMIC_DETECTION_LIBS];
+
+    char dump_dynamic_rules_flag;
+    char dynamic_rules_path[STD_BUF];
+
+#define MAX_DYNAMIC_PREPROC_LIBS 16
+    u_int8_t dynamicPreprocCount;
+    u_int8_t dynamicPreprocCurrentDir;
+    DynamicDetectionSpecifier *dynamicPreprocs[MAX_DYNAMIC_PREPROC_LIBS];
+
+#endif
+
+    int default_rule_state; /* Enabled */
+    u_int32_t numRuleStates;
+    RuleState *ruleStateList;
+
+    int done_processing;
+
+#if defined(ENABLE_RESPONSE2) && !defined(ENABLE_RESPONSE)
+    int respond2_link;
+    int respond2_rows;
+    int respond2_memcap;
+    u_int8_t respond2_attempts;
+    char *respond2_ethdev;
+#endif
+    int usr_signal;
+    int exit_signal;
+    int restart_flag;
+#ifdef PERF_PROFILING
+    int profile_rules_flag;
+    int profile_rules_sort;
+    int profile_preprocs_flag;
+    int profile_preprocs_sort;
+#endif
+    int tagged_packet_limit;
+    int treat_drop_as_alert;
+    int process_all_events;
+    int alert_before_pass;
 } PV;
 
 /* struct to collect packet statistics */
@@ -243,6 +355,10 @@ typedef struct _PacketCount
     u_long eapol;
     u_long ipv6;
     u_long ipx;
+    u_long ethloopback;
+#ifdef GRE
+    u_long gre;
+#endif
     u_long discards;
     u_long alert_pkts;
     u_long log_pkts;
@@ -260,6 +376,7 @@ typedef struct _PacketCount
     u_long rebuilt_tcp;     /* number of phoney tcp packets generated */
     u_long tcp_streams;     /* number of tcp streams created */
     u_long rebuilt_segs;    /* number of tcp segments used in rebuilt pkts */
+    u_long queued_segs;     /* number of tcp segments stored for rebuilt pkts */
     u_long str_mem_faults;  /* number of times the stream memory cap was hit */
 
   /* wireless statistics */
@@ -332,11 +449,12 @@ extern runtime_config snort_runtime;
 int SnortMain(int argc, char *argv[]);
 int ParseCmdLine(int, char**);
 void *InterfaceThread(void *);
+void InitPcap( int );
 int OpenPcap();
-void DefineIfaceVar(char *,u_char *, u_char *);
 int SetPktProcessor();
 void CleanExit(int);
-void ProcessPacket(char *, struct pcap_pkthdr *, u_char *);
+void PcapProcessPacket(char *, struct pcap_pkthdr *, u_char *);
+void ProcessPacket(char *, struct pcap_pkthdr *, u_char *, void *);
 int ShowUsage(char *);
 void SigCantHupHandler(int signal);
 

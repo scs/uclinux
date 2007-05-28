@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11892);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "Citrix redirection bug";
  script_name(english:name["english"]);
@@ -29,7 +29,7 @@ server is a part of.
 Solution : Place your Citrix server behind a reverse proxy or 
 authenticating firewall.
 
-Risk Factor : Medium";
+Risk factor : Medium";
 
  script_description(english:desc["english"]);
 
@@ -42,6 +42,8 @@ Risk Factor : Medium";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
+ script_dependencies("http_version.nasl");
+ script_require_ports("Services/www", 80);
  exit(0);
 }
 
@@ -51,9 +53,9 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
 
 dirs = make_list("", "/NFuse17", "/NFuse16");
 
@@ -123,7 +125,7 @@ if(!found)exit(0);
     flags = get_tcp_element(tcp:rpkt2, element:"th_flags");
 
     if (flags & TH_SYN) {
-       security_hole(port);
+       security_warning(port);
     }
 
   }

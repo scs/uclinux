@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -15,20 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
- *
  */
 #include "includes.h"
+
 #include "nasl_raw.h"
+#include "nasl.h"
 
 #include "nasl_tree.h"
 #include "nasl_global_ctxt.h"
@@ -46,7 +37,9 @@
 #include "nasl_text_utils.h"
 #include "nasl_nessusd_glue.h"
 #include "nasl_misc_funcs.h"
+#include "nasl_cmd_exec.h"
 #include "nasl_crypto.h"
+#include "nasl_crypto2.h"
 
 
 
@@ -83,22 +76,29 @@ static init_func libfuncs[] = {
   "script_exclude_keys", script_exclude_keys, 999, { NULL },
   "script_add_preference", script_add_preference, 0,  { "name", "type", "value", NULL },
   "script_get_preference", script_get_preference, 1, { NULL }, 
+  "script_get_preference_file_content", script_get_preference_file_content, 1, { NULL }, 
+  "script_get_preference_file_location", script_get_preference_file_location, 1, { NULL }, 
+
   "script_id", 		script_id, 1, { NULL },
   "script_cve_id",      script_cve_id, 999, { NULL },
   "script_bugtraq_id",  script_bugtraq_id, 999, { NULL },
   "script_xref",	script_xref, 0, {"name", "value", NULL}, 
+  "get_preference",	nasl_get_preference, 1, { NULL }, 
   "safe_checks", 	safe_checks, 	  0, { NULL },
+  "replace_kb_item",    replace_kb_item,    0, {"name", "value", NULL },
   "set_kb_item",        set_kb_item, 	    0, {"name", "value", NULL },
   "get_kb_item",        get_kb_item,	    1, { NULL },
+  "get_kb_fresh_item",  get_kb_fresh_item,  1, { NULL },
   "get_kb_list", 	get_kb_list,	    1, { NULL },
   "security_warning",   security_warning,   1, { "data", "port", "proto", "protocol", NULL },
   "security_note",      security_note,      1, { "data", "port", "proto", "protocol", NULL },
   "security_hole", 	security_hole,	    1, { "data", "port", "proto", "protocol", NULL },
  
-  "open_sock_tcp",      nasl_open_sock_tcp,  1, { "timeout", "transport", NULL },
+  "open_sock_tcp",      nasl_open_sock_tcp,  1, { "bufsz", "timeout", "transport", NULL },
   "open_sock_udp",      nasl_open_sock_udp,  1, { NULL },
   "open_priv_sock_tcp", nasl_open_priv_sock_tcp, 0, { "dport", "sport", "timeout", NULL },
   "open_priv_sock_udp", nasl_open_priv_sock_udp, 0, { "dport", "sport", NULL },
+  "socket_get_error", nasl_socket_get_error, 1, { NULL },
   
   "recv",		nasl_recv, 0, { "length", "min", "socket", "timeout", NULL },
   "recv_line",		nasl_recv_line, 0, { "length", "socket", "timeout", NULL },
@@ -106,7 +106,7 @@ static init_func libfuncs[] = {
   "close",		nasl_close_socket, 1, {  NULL },
   "join_multicast_group", nasl_join_multicast_group, 1, { NULL },
   "leave_multicast_group", nasl_leave_multicast_group, 1, { NULL },
-  
+  "get_source_port", nasl_get_source_port, 1, { NULL }, /* DOC! */
   
   "cgibin",		cgibin,		  0, { NULL },
   "is_cgi_installed",   nasl_is_cgi_installed, 1, {"item", "port", NULL },
@@ -117,10 +117,11 @@ static init_func libfuncs[] = {
   "http_delete", 	http_delete,	  0, {"data", "item", "port", NULL },
   "http_put", 		http_put,	  0, {"data", "item", "port", NULL },
   "http_close_socket",	http_close_socket, 0, { "socket", NULL },
-  "http_recv_headers", http_recv_headers, 1, { NULL },
   
   "get_host_name",	get_hostname, 0, { NULL }, 
   "get_host_ip",        get_host_ip,  0, { NULL },
+  "same_host",		nasl_same_host, 2, { "cmp_hostname" },
+
   "get_host_open_port", get_host_open_port, 0, { NULL },
   "get_port_state",     get_port_state, 1, { NULL },
   "get_tcp_port_state", get_port_state, 1, { NULL },
@@ -144,7 +145,7 @@ static init_func libfuncs[] = {
   "hex",       nasl_hex, 1, { NULL },
   "hexstr",    nasl_hexstr, 1, { NULL },
   "strstr",	nasl_strstr, 2, { NULL },
-  "ereg",	nasl_ereg, 0, { "icase", "pattern", "string", NULL },
+  "ereg",	nasl_ereg, 0, { "icase", "multiline", "pattern", "string", NULL },
   "ereg_replace", nasl_ereg_replace, 0, {"icase",  "pattern", "replace", "string", NULL },
   "egrep",	nasl_egrep, 0, { "icase", "pattern", "string", NULL },
   "eregmatch",	nasl_eregmatch, 0, { "icase", "pattern", "string", NULL },
@@ -167,7 +168,14 @@ static init_func libfuncs[] = {
   "keys",	nasl_keys, 9999, { NULL },
   "max_index",  nasl_max_index, 1, { NULL },
   "sort",	nasl_sort_array, 9999, { NULL },
-   
+
+  "unixtime",	nasl_unixtime, 0, { NULL },
+  "gettimeofday",	nasl_gettimeofday, 0, { NULL },
+  "localtime",	nasl_localtime, 1, { "utc" },
+  "mktime",	nasl_mktime, 0, { "hour", "isdst", "mday", "min", "mon", "sec", "year" },
+
+  "open_sock_kdc", nasl_open_sock_kdc, 0, { NULL },
+
   "telnet_init",	nasl_telnet_init, 1, { NULL },
   "ftp_log_in",	nasl_ftp_log_in, 0, {"pass", "socket", "user", NULL },
   "ftp_get_pasv_port", nasl_ftp_get_pasv_address, 0, { "socket", NULL }, 
@@ -183,6 +191,9 @@ static init_func libfuncs[] = {
   "sleep", 	nasl_sleep,  1, { NULL },
   "isnull",	nasl_isnull, 1, { NULL },
   "defined_func",	nasl_defined_func, 1, { NULL },
+  "func_named_args",	nasl_func_named_args, 1, { NULL },
+  "func_unnamed_args",	nasl_func_unnamed_args, 1, { NULL },
+  "func_has_arg",	nasl_func_has_arg, 2, { NULL },
 
   "forge_ip_packet", forge_ip_packet, 0, 
   { "data", "ip_dst", "ip_hl", "ip_id", "ip_len", "ip_off", "ip_p", 
@@ -234,7 +245,8 @@ static init_func libfuncs[] = {
   "send_packet", nasl_send_packet, 99, 
   { "length", "pcap_active", "pcap_filter", "pcap_timeout", NULL },
   
-  "pcap_next", nasl_pcap_next, 1, { "interface", "pcap_filter", "timeout"},
+  "pcap_next", nasl_pcap_next, 1, { "interface", "pcap_filter", "timeout", NULL},
+  "send_capture", nasl_send_capture, 1, { "data", "interface", "length", "option", "pcap_filter", "socket", "timeout", NULL},
   
 #ifdef HAVE_SSL
 #ifdef HAVE_OPENSSL_MD2_H
@@ -256,17 +268,53 @@ static init_func libfuncs[] = {
   "HMAC_DSS", nasl_hmac_dss, 0, { "data", "key", NULL },
  
   "HMAC_RIPEMD160", nasl_hmac_ripemd160, 0, { "data", "key", NULL },
+  "dh_generate_key", nasl_dh_generate_key, 0, { "g" , "p", "priv", NULL },
+  "bn_random", nasl_bn_random, 0, { "need", NULL },
+  "bn_cmp", nasl_bn_cmp, 0, { "key1", "key2", NULL },
+  "dh_compute_key", nasl_dh_compute_key, 0, { "dh_server_pub", "g", "p", "priv_key", "pub_key", NULL },
+  "rsa_public_decrypt", nasl_rsa_public_decrypt, 0, { "e", "n", "sig", NULL },
+  "bf_cbc_encrypt", nasl_bf_cbc_encrypt, 0, { "data", "iv", "key", NULL},
+  "bf_cbc_decrypt", nasl_bf_cbc_decrypt, 0, { "data", "iv", "key", NULL},
+  "dsa_do_verify", nasl_dsa_do_verify, 0, { "data", "g", "p", "pub", "q", "r", "s", NULL },
+  "pem_to_rsa", nasl_pem_to_rsa, 0, { "passphrase", "priv", NULL },
+  "pem_to_dsa", nasl_pem_to_dsa, 0, { "passphrase", "priv", NULL },
+  "rsa_sign", nasl_rsa_sign, 0, { "d", "data", "e", "n", NULL },
+  "dsa_do_sign", nasl_dsa_do_sign, 0, { "data", "g", "p", "priv", "pub", "q", NULL },  
 #endif  
-  "NTLMv1_HASH",  nasl_ntlmv1_hash, 0, {"cryptkey", "passhash", NULL },
-  "NTLMv2_HASH",  nasl_ntlmv2_hash, 0, {"cryptkey", "length", "passhash", NULL }, 
-#ifdef HAVE_OPENSSL_MD4_H
-  "nt_owf_gen", nasl_nt_owf_gen, 1, { NULL },
-#endif
-  "lm_owf_gen", nasl_lm_owf_gen, 1, { NULL },
-  "ntv2_owf_gen", nasl_ntv2_owf_gen, 0, {"domain", "login", "owf", NULL },
+
+  "pread", nasl_pread, 0, { "argv", "cd", "cmd", "nice", NULL },
+  "find_in_path", nasl_find_in_path, 1, { NULL },
+  "fread", nasl_fread, 1, { NULL },
+  "fwrite", nasl_fwrite, 0, { "data", "file", NULL },
+  "unlink", nasl_unlink, 1, { NULL },
+  "get_tmp_dir", nasl_get_tmp_dir, 0, { NULL },
+
+
+  "file_stat", nasl_file_stat, 1, { NULL },
+  "file_open", nasl_file_open, 0, { "mode", "name", NULL },
+  "file_close", nasl_file_close, 1, { NULL },
+  "file_read", nasl_file_read, 0, { "fp", "length", NULL },
+  "file_write", nasl_file_write, 0, { "data", "fp", NULL },
+  "file_seek", nasl_file_seek, 0, { "fp", "offset", NULL }, 
+
+  "shared_socket_register", nasl_shared_socket_register, 0, { "name", "socket", NULL},
+  "shared_socket_acquire", nasl_shared_socket_acquire, 1, { NULL },
+  "shared_socket_release", nasl_shared_socket_release, 1, { NULL },
+  "shared_socket_destroy", nasl_shared_socket_destroy, 1, { NULL },
+
   NULL, NULL, 0, { NULL }
 } ;
 
+/* String variables */
+static struct {
+  const char	*name;
+  const char	*val;
+} libsvars[] = {
+  "NESSUS_VERSION", VERSION,
+  NULL, NULL, 
+};
+
+/* Integer variables */
 static struct {
   const char	*name;
   int		val;
@@ -286,6 +334,8 @@ static struct {
   "ENCAPS_SSLv2",  NESSUS_ENCAPS_SSLv2,
   "ENCAPS_SSLv3",  NESSUS_ENCAPS_SSLv3,
   "ENCAPS_TLSv1",  NESSUS_ENCAPS_TLSv1,
+
+  "NASL_LEVEL",	NASL_LEVEL,
 
   "TH_FIN", TH_FIN,
   "TH_SYN", TH_SYN,
@@ -308,12 +358,23 @@ static struct {
   "ACT_SCANNER", ACT_SCANNER,
   "ACT_SETTINGS", ACT_SETTINGS,
   "ACT_KILL_HOST", ACT_KILL_HOST,
+  "ACT_FLOOD", ACT_FLOOD,
   "ACT_END", ACT_END,
 
   "MSG_OOB", MSG_OOB,
 
+  "NOERR",      NASL_ERR_NOERR,
+  "ETIMEDOUT",  NASL_ERR_ETIMEDOUT,
+  "ECONNRESET", NASL_ERR_ECONNRESET,
+  "EUNREACH",   NASL_ERR_EUNREACH,
+  "EUNKNOWN",   NASL_ERR_EUNKNOWN,
+
   NULL, 0, 
 };
+/* See also in exec.c:
+ * COMMAND_LINE
+ * description
+ */
 
 int init_nasl_library(lex_ctxt* lexic)
 {
@@ -326,6 +387,7 @@ int init_nasl_library(lex_ctxt* lexic)
   memset(&tc, 0, sizeof(tc));
   for (i = 0, c= 0; i < sizeof(libfuncs) / sizeof(libfuncs[0])-1; i ++)
     {
+
       if ((pf = insert_nasl_func(lexic, libfuncs[i].name, NULL)) == NULL)
 	{
 	  nasl_perror(lexic, "init_nasl2_library: could not define fct '%s'\n",
@@ -357,6 +419,20 @@ int init_nasl_library(lex_ctxt* lexic)
 	{
 	  nasl_perror(lexic, "init_nasl2_library: could not define var '%s'\n",
 		  libivars[i].name);
+	  continue;
+	}
+      c ++;
+    }
+
+  tc.type = CONST_DATA;
+  for (i = 0; i < sizeof(libsvars) / sizeof(libsvars[0])-1; i ++)
+    {
+      tc.x.str_val = libsvars[i].val;
+      tc.size = strlen(libsvars[i].val);
+      if ((v = add_named_var_to_ctxt(lexic, libsvars[i].name, &tc)) == NULL)
+	{
+	  nasl_perror(lexic, "init_nasl2_library: could not define var '%s'\n",
+		  libsvars[i].name);
 	  continue;
 	}
       c ++;

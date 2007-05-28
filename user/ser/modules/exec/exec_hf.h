@@ -1,6 +1,6 @@
 /*
  *
- * $Id$
+ * $Id: exec_hf.h,v 1.3 2003/01/23 18:58:13 andrei Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

@@ -13,7 +13,7 @@ if(description)
  script_id(10628);
  script_bugtraq_id(6557);
 
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "php IMAP overflow";
  name["francais"] = "php IMAP overflow";
  script_name(english:name["english"], francais:name["francais"]);
@@ -72,20 +72,13 @@ Facteur de risque : Elevé";
 #
 
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(get_port_state(port))
-{
- banner = get_http_banner(port:port);
- if(!banner)exit(0);
+port = get_http_port(default:80);
+banner = get_http_banner(port:port);
+if(!banner)exit(0);
+php = get_php_version(banner:banner);
+if ( ! php ) exit(0);
  
- serv = strstr(banner, "Server");
-
- if(ereg(pattern:"(.*PHP/4\.0\.[0-3])",
-          string:serv))
- {
+if(ereg(pattern:"PHP/4\.0\.[0-3][^0-9]", string:php))
    security_hole(port);
- }
-}
- 

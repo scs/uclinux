@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10284);
- script_version ("$Revision: 1.21 $");
- script_cve_id("CAN-1999-1516");
+ script_version ("$Revision: 1.25 $");
+ script_cve_id("CVE-1999-1516");
  
  name["english"] = "TFS SMTP 3.2 MAIL FROM overflow";
  name["francais"] = "Dépassement de buffer dans TFS SMTP 3.2 suite à la commande MAIL FROM";
@@ -66,7 +66,7 @@ Facteur de risque : Elevé";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped",
  		     "SMTP/postfix",
 		     "SMTP/qmail");
@@ -82,6 +82,7 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(safe_checks())
 { 
@@ -119,7 +120,7 @@ if(get_port_state(port))
  if(soc)
  {
  data = smtp_recv_banner(socket:soc);	
- crp = string("HELO nessus.org\r\n");
+ crp = string("HELO example.com\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:1024);
  if("250 " >< data)
@@ -135,7 +136,7 @@ if(get_port_state(port))
   
   if(!s){
 	 security_hole(port);
-	 set_kb_item(item:string("SMTP/", port, "/mail_from_overflow"), value:TRUE);
+	 set_kb_item(name:string("SMTP/", port, "/mail_from_overflow"), value:TRUE);
 	}
 			
   }

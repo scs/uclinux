@@ -256,6 +256,9 @@ main(argc, argv)
 
     script_env = NULL;
 
+	/* And set an initial PATH for scripts */
+	script_setenv("PATH", "/bin:/usr/bin:/sbin:/usr/sbin");
+
     /* Initialize syslog facilities */
     reopen_log();
 
@@ -627,7 +630,6 @@ main(argc, argv)
 	    set_up_tty(pty_slave, 1);
 	}
 
-#ifndef EMBED
 	/*
 	 * Lock the device if we've been asked to.
 	 */
@@ -637,7 +639,6 @@ main(argc, argv)
 		goto fail;
 	    locked = 1;
 	}
-#endif
 
 	/*
 	 * Open the serial device and set it up to be the ppp interface.
@@ -933,12 +934,13 @@ main(argc, argv)
 	    close(pty_slave);
 	if (real_ttyfd >= 0)
 	    close_tty();
-#ifndef EMBED
+	
 	if (locked) {
 	    unlock();
 	    locked = 0;
 	}
 
+#ifndef EMBED
 	if (!demand) {
 #endif
 	    if (pidfilename[0] != 0
@@ -1048,7 +1050,10 @@ reopen_log()
     openlog("pppd", LOG_PID);
 #else
     openlog("pppd", LOG_PID | LOG_NDELAY, LOG_PPP);
-    setlogmask(LOG_UPTO(LOG_INFO));
+    if (debug) 
+	setlogmask(LOG_UPTO(LOG_DEBUG));
+    else 
+	setlogmask(LOG_UPTO(LOG_INFO));
 #endif
 }
 
@@ -1242,11 +1247,10 @@ cleanup()
 		} else
 			fclose(in);
 	}
-    }	
-#ifndef EMBED
+    }
+
     if (locked)
 	unlock();
-#endif
 }
 
 /*
@@ -1584,6 +1588,9 @@ device_script(program, in, out, dont_wait)
     int pid;
     int status = -1;
     int errfd;
+#ifdef EMBED
+    char *prog_copy = strdup(program);
+#endif
 
     ++conn_running;
     /* Close syslog BEFORE doing the fork since we can't do it after if we vfork() */
@@ -1641,24 +1648,27 @@ device_script(program, in, out, dont_wait)
 	    exit(1);
 	}
 	setgid(getgid());
+
 #ifdef EMBED
-        /*
-         *      On uClinux we don't have a full shell, just call chat
-         *      program directly (obviously it can't be a sh script!).
-         */
+/*
+ *	Save on memory/resources by not running a shell process
+ *	and just running the program directly.
+ *	We work on a copy of the program to run rather than
+ *	change what was passed in.
+ */
 {
-        char    *argv[16], *sp;
-        int     argc = 0, prevspace = 1;
-        /*printf("%s(%d): constructing argv list...\n", __FILE__, __LINE__);*/
-        for (sp = program; (*sp != 0); ) {
-                if (prevspace && !isspace(*sp))
-                        argv[argc++] = sp;
-                if ((prevspace = isspace(*sp)))
-                        *sp = 0;
-                sp++;
-        }
-        argv[argc] = 0;
-        execv(argv[0], argv);
+	char    *argv[16], *sp;
+	int     argc = 0, prevspace = 1;
+
+	for (sp = prog_copy; (*sp != 0); ) {
+		if (prevspace && !isspace(*sp))
+			argv[argc++] = sp;
+		if ((prevspace = isspace(*sp)))
+			*sp = 0;
+		sp++;
+	}
+	argv[argc] = 0;
+	execv(argv[0], argv);
 }
 #else
 	execl("/bin/sh", "sh", "-c", program, (char *)0);
@@ -1668,6 +1678,10 @@ device_script(program, in, out, dont_wait)
 	/* NOTREACHED */
     }
 
+#ifdef EMBED
+    if (prog_copy)
+	free(prog_copy);
+#endif
     /* Reopen the log in the parent */
     reopen_log();
 

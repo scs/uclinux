@@ -31,7 +31,7 @@
 *  The base address of the main firmware depends on the modem revision (as of
 *  2004-02-14, only rev4 is different). The end pattern is also a jump command.
 *
-* $Id$
+* $Id: firmware.c,v 1.4 2004/02/17 21:45:17 edgomez Exp $
 */
 
 #ifndef _FIRMWARE_C_

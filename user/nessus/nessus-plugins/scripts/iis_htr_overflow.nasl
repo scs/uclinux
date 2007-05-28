@@ -5,9 +5,11 @@
 if(description)
 {
  script_id(11028);
- script_cve_id("CVE-2002-0364", "CAN-2002-0071", "CAN-2002-0364");
- script_bugtraq_id(4855);
- script_version ("$Revision: 1.7 $");
+ script_bugtraq_id(4855, 5003);
+ script_cve_id("CVE-2002-0364", "CVE-2002-0071");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0002"); 
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0013");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "IIS .HTR overflow";
  name["francais"] = "IIS .HTR ISAPI overflow";
  script_name(english:name["english"], francais:name["francais"]);
@@ -45,9 +47,8 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 include("http_func.inc");
@@ -59,14 +60,16 @@ req = string("POST /NULL.htr HTTP/1.1\r\n",
  crap(32), "\r\n",
  "0\r\n\r\n");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 if(!get_port_state(port))exit(0);
 soc = http_open_socket(port);
 if(soc)
 {
   send(socket:soc, data:req);
-  r = http_recv_headers(soc);
+  r = http_recv_headers2(socket:soc);
   if(egrep(string:r, 
 	   pattern:"^HTTP/1.[01] 100 Continue")
     )

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xjab_presence.c,v 1.6 2003/06/02 15:42:21 dcm Exp $
  *
  * XJAB module
  *

@@ -72,7 +72,15 @@ be_index_keywords(be)
 {
   int i;
   char * field[BE_NUM_FIELDS];
-  char buf[32768];
+  static char * buf = NULL;
+  static int bufsz = 0;
+
+
+  if ( buf == NULL )
+  {
+   bufsz = 1024 * 1024;
+   buf   = emalloc ( bufsz );
+  }
   
   
   if(backends[be].fields)
@@ -90,12 +98,12 @@ be_index_keywords(be)
   if(eol)
   {
    len = (int)(eol - sol);
-   memcpy(buf, sol, MIN(len, sizeof(buf)));
+   memcpy(buf, sol, MIN(len, bufsz));
   }
   else
   {
    len = strlen(backends[be].lines[i]);
-   memcpy(buf, backends[be].lines[i], MIN(sizeof(buf), len));
+   memcpy(buf, backends[be].lines[i], MIN(bufsz, len));
   }
   
   __split_line(buf, &field[0], &field[1], &field[2], &field[3], &field[4], &field[5], &field[6]);
@@ -170,13 +178,15 @@ be_mk_index(be)
    char ** lines;
    char ** eols;
    char * sol, * eol;
+   char * eof = NULL;
    
    lines = emalloc(num_allocated_lines*sizeof(*lines));
    eols  = emalloc(num_allocated_lines*sizeof(*eols));
    sol = backends[be].mmap;
+   eof = sol + backends[be].mmap_size;
   
    num_lines = 0;
-   while(sol)
+   while(sol != NULL && sol != eof )
    {
     eol = strchr(sol, '\n');
     lines[num_lines] = sol;
@@ -215,6 +225,9 @@ mmap_read_line_n(be, buf, size, n)
  int n;
 {
  char* sol, * eol;
+ if ( size <= 0 )
+	return -1;
+ size --;
  sol = backends[be].lines[n];
  if(!sol)
   return -1;
@@ -265,10 +278,12 @@ read_line(be, buf, size)
  if(!backends[be].mmap_attempts)
  {
   struct stat buf;
+  int len;
   fstat(backends[be].fd, &buf);
+  len = (int)buf.st_size;
+  backends[be].mmap_size = len;
   if((backends[be].mmap = 
-   	mmap(NULL, buf.st_size, PROT_READ, MAP_SHARED, backends[be].fd, 0)) 
-			== MAP_FAILED)
+   	mmap(NULL, len, PROT_READ, MAP_SHARED, backends[be].fd, 0)) == MAP_FAILED)
    	backends[be].mmap = NULL;
   else
   	 be_mk_index(be);
@@ -288,6 +303,9 @@ read_line(be, buf, size)
    }
 	
   eol = backends[be].eols[backends[be].cur_line];
+  if ( size <= 0 )
+	return -1;
+  size --;
   
   if(eol)
   {
@@ -1172,7 +1190,14 @@ execute_query_flatfile(be, query)
  struct query * query;
 {
  struct subset * ret = NULL;
- static char buf[32768];
+ static char *buf = NULL;
+ static int   buf_sz = 0;
+
+ if ( buf == NULL ) {
+	buf_sz = 1024*1024;
+	buf = emalloc(buf_sz);
+ }
+
 #ifdef HAVE_MMAP
  if(backends[be].mmap) backends[be].cur_line = 0;
  else
@@ -1203,7 +1228,6 @@ execute_query_flatfile(be, query)
    { 
    int j;
    char * val = NULL;
-   char buf[32768];
    char * table;
    char * subnet;
    char * hostname;
@@ -1211,7 +1235,7 @@ execute_query_flatfile(be, query)
    char * plugin_id;
    char * severity;
    char * data;
-   mmap_read_line_n(be, buf, sizeof(buf), i);
+   mmap_read_line_n(be, buf, buf_sz, i);
    __split_line(buf, &table, &subnet, &hostname, &port, &plugin_id, &severity, &data);
    for(j=0;j<query->num;j++)
    {
@@ -1252,7 +1276,7 @@ execute_query_flatfile(be, query)
   return ret;
  }
 #endif 
- while(read_line(be,buf, sizeof(buf)) > 0)
+ while(read_line(be,buf, buf_sz ) > 0)
  {
   char * table;
   char * subnet;

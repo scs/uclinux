@@ -1,4 +1,4 @@
-$Id$
+$Id: HOW-TO-CONNECT,v 1.1.1.1 2000/11/17 05:28:41 davidm Exp $
 
 This package lets you connect a Linux machine to Sympatico HSE or Magma's
 high-speed service using a Nortel 1-meg modem.

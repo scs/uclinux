@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11898);
  script_bugtraq_id(2953);
- script_version("$Revision: 1.7 $");
+ script_version("$Revision: 1.8 $");
  
  name["english"] = "Obtain /etc/passwd using NetInfo";
  
@@ -359,6 +359,8 @@ for ( i = 0 ; i < num_users ; i ++ )
   {
   passwdless += '  . ' + user["name"] + '\n';
   }
+ if ( ! ereg(pattern:"^\**", string:user["passwd"]) )
+	not_shadow ++;
  }
  }
  }
@@ -376,21 +378,33 @@ if(strlen(report))
 Using NetInfo, it was possible to obtain the password file of the remote host
 by querying it directly. The content of this file is :
 
-" + report + "
+" + report;
+
+
+if ( no_shadow ) report += "
 
 An attacker may use it to set up a brute force attack to crack the 
 passwords contained in the file, and then use the gained passwords to
 login into the remote host, either remotely or locally";
+else report += "
+
+An attacker may use it to set up a brute force attack against the
+remote account names.";
 
 
 
 if(strlen(passwdless)) 
 {
+ no_shadow++;
  report += "
 
 Note that the following accounts have NO PASSWORD set :
 " + passwdless;
 	}
 
- security_hole(port:port, data:report);
+ if ( no_shadow )
+  security_hole(port:port, data:report);
+ else
+  security_warning(port:port, data:report);
+
  }

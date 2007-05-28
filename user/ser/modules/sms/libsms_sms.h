@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: libsms_sms.h,v 1.4 2002/10/25 12:28:19 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -150,7 +150,7 @@ static int add_rule_callback(w, ctrls)
  
  if(text)
  {
-  z = gtk_entry_get_text(GTK_ENTRY(text));
+  z = (char*)gtk_entry_get_text(GTK_ENTRY(text));
   rule = emalloc(strlen(z)+1);
   strncpy(rule, z, strlen(z));
  

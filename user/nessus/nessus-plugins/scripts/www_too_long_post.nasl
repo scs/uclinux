@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10687);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "Too long POST command";
  script_name(english:name["english"]);
@@ -51,8 +51,8 @@ Solution : Upgrade your web server.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 if(http_is_dead(port:port))exit(0);

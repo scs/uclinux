@@ -17,7 +17,7 @@
  * This file then adapted for the Multitec MT5600ZDXv by
  * Bill Nugent <whn@lopi.com>
  *
- * $Id$
+ * $Id: Multitech_5600ZDXv.c,v 1.5 2005/03/13 17:27:46 gert Exp $
  *
  */
 

@@ -9,7 +9,7 @@ exec /usr/local/bin/perl -x $0
 # WARNING: you MUST use the "#!" lines as shown, otherwise perl/vm get into
 #          a recursive loop until your system runs out of file descriptors
 #
-# $Id$
+# $Id: demo.pl,v 1.1 1998/04/18 17:49:14 gert Exp $
 #
 
 require 5.004;

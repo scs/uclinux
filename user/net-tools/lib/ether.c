@@ -2,7 +2,7 @@
  * lib/ether.c        This file contains an implementation of the "Ethernet"
  *              support functions.
  *
- * Version:     $Id$
+ * Version:     $Id: ether.c,v 1.7 1999/09/27 11:00:47 philip Exp $
  *
  * Author:      Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
  *              Copyright 1993 MicroWalt Corporation

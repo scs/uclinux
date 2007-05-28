@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.decls.h,v 3.47 2000/11/12 02:18:06 christos Exp $ */
 /*
  * tc.decls.h: Function declarations from all the tcsh modules
  */

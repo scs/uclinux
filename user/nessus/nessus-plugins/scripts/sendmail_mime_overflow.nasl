@@ -8,7 +8,7 @@ if(description)
 {
  script_id(10588);
 script_cve_id("CVE-1999-0206");
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "Sendmail mime overflow";
  name["francais"] = "Dépassement de buffer dans sendmail";
@@ -66,7 +66,7 @@ if(!port) port = 25;
 
 banner = get_smtp_banner(port:port);
 
-if(banner)
+if(banner && "Switch-" >!< banner )
 {
  if(egrep(pattern:".*Sendmail.*8\.8\.[01]/.*", string:banner))
  	security_hole(port);

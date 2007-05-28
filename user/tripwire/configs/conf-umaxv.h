@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-umaxv.h,v 1.3 1993/11/30 19:29:52 genek Exp $ */
 
 /*
  * conf-umaxv.h

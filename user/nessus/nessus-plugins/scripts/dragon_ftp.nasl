@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10450);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1352);
- script_cve_id("CAN-2000-0479");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0479");
  name["english"] = "Dragon FTP overflow";
  name["francais"] = "Dragon FTP overflow";
  
@@ -27,7 +27,7 @@ with the rest of the world.
 
 Solution : upgrade to the latest version your FTP server.
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "Il s'est avéré possible
@@ -41,7 +41,7 @@ ressources avec le reste du monde.
 
 Solution : mettez à jour votre server FTP.
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
 
  script_description(english:desc["english"], francais:desc["francais"]);

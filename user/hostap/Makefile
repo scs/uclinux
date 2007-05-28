@@ -202,12 +202,12 @@ install_pci: install_check install_crypt install_hostap
 romfs:
 	mkdir -p $(ROMFSDIR)/$(MODPATH_PCI)
 	mkdir -p $(ROMFSDIR)/$(MODPATH_CS)
-	$(ROMFSINST) $(MSRC)/hostap.o $(MODPATH_PCI)/hostap.o
-	$(ROMFSINST) $(MSRC)/hostap_crypt.o $(MODPATH_PCI)/hostap_crypt.o
-	$(ROMFSINST) $(MSRC)/hostap_crypt_wep.o $(MODPATH_PCI)/hostap_crypt_wep.o
-	$(ROMFSINST) -e CONFIG_USER_HOSTAP_PCI \
+	$(ROMFSINST) -S $(MSRC)/hostap.o $(MODPATH_PCI)/hostap.o
+	$(ROMFSINST) -S $(MSRC)/hostap_crypt.o $(MODPATH_PCI)/hostap_crypt.o
+	$(ROMFSINST) -S $(MSRC)/hostap_crypt_wep.o $(MODPATH_PCI)/hostap_crypt_wep.o
+	$(ROMFSINST) -S -e CONFIG_USER_HOSTAP_PCI \
 			$(MSRC)/$(MODULE_PCI) $(MODPATH_PCI)/$(MODULE_PCI)
-	$(ROMFSINST) -e CONFIG_USER_HOSTAP_CS \
+	$(ROMFSINST) -S -e CONFIG_USER_HOSTAP_CS \
 			$(MSRC)/$(MODULE_CS) $(MODPATH_CS)/hostap_cs.o
 	mkdir -p $(ROMFSDIR)/etc/pcmcia
 	$(ROMFSINST) -e CONFIG_USER_HOSTAP_CS \

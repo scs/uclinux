@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: message.c,v 1.1.2.3 2003/11/21 12:50:58 andrei Exp $
  *
  * 2003-04-07 created by bogdan
  *

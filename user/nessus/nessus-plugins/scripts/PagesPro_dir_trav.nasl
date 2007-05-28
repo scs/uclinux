@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11221);
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.6 $");
  name["english"] = "Pages Pro CD directory traversal";
  name["francais"] = "Traversée de répertoire sur le CD-ROM Pages Pro";
  script_name(english:name["english"], francais:name["francais"]);
@@ -56,7 +56,7 @@ Risque : Élevé";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 8100);
  exit(0);
 }
@@ -71,21 +71,14 @@ include("misc_func.inc");
 ports = add_port_in_list(list:get_kb_list("Services/www"), port:8100);
 foreach port (ports)
 {
- file[0] = "boot.ini";
- file[1] = "win.ini";
- file[2] = "autoexec.bat";
-
-
- n = string("www/no404/", port);
- r = get_kb_item(n);
- qc=1;
- if (r) qc = 0;
+ file[0] = "windows/win.ini";
+ file[1] = "winnt/win.ini";
 
  for (i = 0; file[i]; i = i + 1)
  { 
   u = string("/note.txt?F_notini=&T_note=&nomentreprise=blah&filenote=../../",
              file[i]);
-  if(check_win_dir_trav_ka(port: port, url:u, quickcheck: qc))
+  if(check_win_dir_trav_ka(port: port, url:u))
   {
     security_hole(port);
     break;

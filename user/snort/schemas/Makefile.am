@@ -5,4 +5,5 @@ EXTRA_DIST = Makefile.am \
 create_mssql \
 create_mysql \
 create_oracle.sql \
-create_postgresql
+create_postgresql \
+create_db2

@@ -30,10 +30,14 @@
 if(description)
 {
  script_id(11366);
- script_version("$Revision: 1.5 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-t-0015");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-t-0017");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-b-0007");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-t-0001");
+ script_bugtraq_id(3997);
+ script_version("$Revision: 1.11 $");
  
  script_cve_id("CVE-2002-0018");
- script_bugtraq_id(3997);
  
  name["english"] = "Trusting domains bad verification";
  
@@ -61,7 +65,7 @@ to those associated with any desired user or group, including the Domain
 Administrators group for the trusting domain. This would enable the attacker 
 to gain full Domain Administrator access on computers in the trusting domain. 
 
-Solution : see http://www.microsoft.com/technet/security/ms02-001.asp
+Solution : see http://www.microsoft.com/technet/security/bulletin/ms02-001.mspx
 Risk factor : Medium";
 
  script_description(english:desc["english"]);
@@ -72,41 +76,17 @@ Risk factor : Medium";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_full_access.nasl",
- 		     "smb_reg_service_pack.nasl", "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password", "SMB/registry_full_access", "SMB/WindowsVersion");
- script_require_ports(139, 445);
- script_require_keys("SMB/WindowsVersion");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_hotfixes.inc");
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(nt:7, win2k:3) <= 0 ) exit(0);
+if ( hotfix_missing(name:"Q299444") > 0 && hotfix_missing(name:"SP2SRP1") > 0 ) 
+	security_warning(get_kb_item("SMB/transport"));
 
-vers = get_kb_item("SMB/WindowsVersion");
-
-if( vers == "4.0" )
-{
- value = registry_get_sz(key:"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Hotfix\Q299444", item:"Description");
- if(!value)security_hole(get_kb_item("SMB/transport"));
-}
-else if (vers == "5.0")
-{
-  sp = get_kb_item("SMB/Win2K/ServicePack");
-  if(ereg(pattern:"Service Pack [3-9]", string:sp))exit(0);
-  
-  value = registry_get_sz(key:"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Hotfix\Q299444", item:"Comments");
-  if(value)exit(0);
-  
-  access = get_kb_item("SMB/registry_full_access");
-  if(!access)exit(0);
-  
-  value = registry_get_sz(key:"SOFTWARE\Microsoft\Updates\Windows 2000\SP3\SP2SRP1", item:"Description");
-  if(!value)security_hole(get_kb_item("SMB/transport"));
-}

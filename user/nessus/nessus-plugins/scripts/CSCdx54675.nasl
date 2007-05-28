@@ -11,8 +11,9 @@
 if(description)
 {
  script_id(11296);
- script_version("$Revision: 1.2 $");
-
+ script_bugtraq_id(5622);
+ script_version("$Revision: 1.5 $");
+ script_cve_id("CVE-2002-1102");
 
  name["english"] = "CSCdx54675";
 
@@ -20,7 +21,11 @@ if(description)
 
  desc["english"] = "
 The remote VPN concentrator is subject to a LAN-to-LAN
-IPSEC tunnel vulnerability.
+IPSEC tunnel vulnerability which allows remote attackers
+to cause a denial of service. Existing associations might
+be removed when a new connection is made and no check is done
+in order to determine if the connection comes from the proper
+network.
 
 This vulnerability is documented as Cisco bug ID CSCdx54675
 

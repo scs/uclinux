@@ -29,6 +29,7 @@ struct backend {
 	int  disposable;
 #ifdef HAVE_MMAP	
 	char * mmap;
+	int    mmap_size;
 	int mmap_attempts;
 	char ** lines;
 	char ** eols;

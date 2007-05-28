@@ -12,13 +12,13 @@
 if(description)
 {
  script_id(11138);
- script_version ("$Revision: 1.5 $");
  script_bugtraq_id(5817);
+ script_version ("$Revision: 1.7 $");
  name["english"] = "Citrix published applications";
  script_name(english:name["english"]);
 
  desc["english"] = "
- Attempt to enumerate Citrix published Applications 
+Attempt to enumerate Citrix published Applications 
  Risk factor : Medium";
 
 
@@ -60,8 +60,8 @@ soc = open_sock_udp(port);
 if (soc) {
     send (socket:soc, data:trickmaster);
     incoming = recv(socket:soc, length:1024);
+    close(soc);
     if (incoming) {
-        close(soc);
 	soc = open_sock_udp(port);
         send(socket:soc, data:get_pa);
 	incoming = recv(socket:soc, length:1024);

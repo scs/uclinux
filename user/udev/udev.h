@@ -1,8 +1,6 @@
 /*
- * udev.h
- *
  * Copyright (C) 2003 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2003-2005 Kay Sievers <kay.sievers@vrfy.org>
+ * Copyright (C) 2003-2006 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the
@@ -15,7 +13,7 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -27,16 +25,14 @@
 
 #include "list.h"
 #include "logging.h"
-#include "udev_libc_wrapper.h"
+#include "udev_sysdeps.h"
 #include "udev_version.h"
 
 #define COMMENT_CHARACTER			'#'
 #define PATH_TO_NAME_CHAR			'@'
 #define LINE_SIZE				512
+#define PATH_SIZE				512
 #define NAME_SIZE				128
-#define PATH_SIZE				256
-#define USER_SIZE				32
-#define SEQNUM_SIZE				32
 #define VALUE_SIZE				128
 
 #define DEFAULT_PARTITIONS_COUNT		15
@@ -56,8 +52,8 @@ struct sysfs_device {
 	struct list_head node;			/* for device cache */
 	struct sysfs_device *parent;		/* already cached parent*/
 	char devpath[PATH_SIZE];
-	char subsystem[NAME_SIZE];		/* $class/$bus/"drivers" */
-	char kernel_name[NAME_SIZE];		/* device instance name */
+	char subsystem[NAME_SIZE];		/* $class, $bus, drivers, module */
+	char kernel[NAME_SIZE];			/* device instance name */
 	char kernel_number[NAME_SIZE];
 	char driver[NAME_SIZE];			/* device driver name */
 };
@@ -73,9 +69,9 @@ struct udevice {
 	char name[PATH_SIZE];
 	struct list_head symlink_list;
 	int symlink_final;
-	char owner[USER_SIZE];
+	char owner[NAME_SIZE];
 	int owner_final;
-	char group[USER_SIZE];
+	char group[NAME_SIZE];
 	int group_final;
 	mode_t mode;
 	int mode_final;
@@ -111,7 +107,8 @@ extern dev_t udev_device_get_devt(struct udevice *udev);
 extern char sysfs_path[PATH_SIZE];
 extern int sysfs_init(void);
 extern void sysfs_cleanup(void);
-extern void sysfs_device_set_values(struct sysfs_device *dev, const char *devpath, const char *subsystem);
+extern void sysfs_device_set_values(struct sysfs_device *dev, const char *devpath,
+				    const char *subsystem, const char *driver);
 extern struct sysfs_device *sysfs_device_get(const char *devpath);
 extern struct sysfs_device *sysfs_device_get_parent(struct sysfs_device *dev);
 extern struct sysfs_device *sysfs_device_get_parent_with_subsystem(struct sysfs_device *dev, const char *subsystem);
@@ -140,9 +137,10 @@ extern char *name_list_add(struct list_head *name_list, const char *name, int so
 extern char *name_list_key_add(struct list_head *name_list, const char *key, const char *value);
 extern void name_list_cleanup(struct list_head *name_list);
 extern int add_matching_files(struct list_head *name_list, const char *dirname, const char *suffix);
+extern uid_t lookup_user(const char *user);
+extern gid_t lookup_group(const char *group);
 
 /* udev_utils_string.c */
-extern int strcmp_pattern(const char *p, const char *s);
 extern int string_is_true(const char *str);
 extern void remove_trailing_chars(char *path, char c);
 extern int utf8_encoded_valid_unichar(const char *str);

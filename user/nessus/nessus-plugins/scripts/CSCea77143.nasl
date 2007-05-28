@@ -9,14 +9,17 @@
 if(description)
 {
  script_id(11594);
- script_version("$Revision: 1.1 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0011");
+ script_version("$Revision: 1.5 $");
+ script_cve_id("CVE-2003-0258","CVE-2003-0259","CVE-2003-0260");
  name["english"] = "CSCdea77143, CSCdz15393, CSCdt84906";
+ 
 
  script_name(english:name["english"]);
 
  desc["english"] = "
 
-The remote switch is vulnerable to various flaws
+The remote Cisco VPN 3000 concentrator is vulnerable to various flaws
 which may allow an attacker to use this device
 to break into a VPN, disable the remote device by sending
 a malformed SSH initialization packet or disable the
@@ -26,7 +29,7 @@ This vulnerability is documented with the CISCO
 bugs ID CSCdea77143, CSCdz15393 and CSCdt84906
 
 Solution : http://www.cisco.com/warp/public/707/cisco-sa-20030507-vpn3k.shtml
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

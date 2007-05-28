@@ -10,8 +10,8 @@
 if(description)
 {
  script_id(10266);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1009);
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CVE-2000-0221");
  name["english"] = "UDP null size going to SNMP DoS";
  name["francais"] = "Déni de service par paquet UDP de taille nulle allant SNMP";

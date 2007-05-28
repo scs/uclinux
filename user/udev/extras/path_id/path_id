@@ -96,6 +96,56 @@ handle_pci () {
 	RESULT=0
 }
 
+handle_platform () {
+	local DEV=$1
+	cd -P $1
+	DEV=${PWD}
+	platform_id=${DEV##*/}
+	host_dev_path=$DEV
+	while [ ! -z "$host_dev_path" ] ; do
+		case "$host_dev_path" in
+			*/platform*)
+				host_dev_path=${host_dev_path%/*}
+				;;
+			*)
+				break
+				;;
+		esac
+	done
+	if [ "$d" ]; then
+		d="platform-$platform_id-$d"
+	else
+		d="platform-$platform_id"
+	fi
+	D="$host_dev_path"
+	RESULT=0
+}
+
+handle_serio () {
+	local DEV=$1
+	cd -P $1
+	DEV=${PWD}
+	serio_id=${DEV##*/serio}
+	host_dev_path=$DEV
+	while [ ! -z "$host_dev_path" ] ; do
+		case "$host_dev_path" in
+			*/serio*)
+				host_dev_path=${host_dev_path%/*}
+				;;
+			*)
+				break
+				;;
+		esac
+	done
+	if [ "$d" ]; then
+		d="serio-$serio_id-$d"
+	else
+		d="serio-$serio_id"
+	fi
+	D="$host_dev_path"
+	RESULT=0
+}
+
 handle_ide () {
 	: handle_ide $*
 	local DEV=$1
@@ -170,7 +220,7 @@ handle_scsi () {
 }
 
 handle_firewire () {
-	:handle_firewire $*
+	: handle_firewire $*
 	local DEV=$1
 	if [ -f "$D/ieee1394_id" ] ; then
 		read ieee1394_id < $D/ieee1394_id
@@ -202,6 +252,7 @@ handle_fc () {
 	fi
 	if [ -z "$wwpn" ] ; then
 		: no WWPN
+		D=
 		RESULT=1
 		return
 	fi
@@ -232,7 +283,7 @@ handle_sas () {
 	sas_phy_path="${sas_phy_path%%/target*}"
 	sas_phy_id="${sas_phy_path%%/*}"
 	sas_rphy_id="${sas_phy_path##*/}"
-	sas_phy_dev="${sas_host_path}/${sas_phy_id}/sas_phy:${sas_phy_id}"
+	sas_phy_dev="/sys/class/sas_phy/${sas_phy_id}"
 	if [ -e "$sas_phy_dev/sas_address" ]; then
 		read phy_address < $sas_phy_dev/sas_address
 		read phy_port < $sas_phy_dev/port_identifier
@@ -240,17 +291,19 @@ handle_sas () {
 	fi
 	if [ -z "$phy_address" ] ; then
 		: no initiator address
+		D=
 		RESULT=1
 		return
 	fi
 	sas_phy_address="$phy_address:$phy_port:$phy_id"
-	sas_rphy_dev="${sas_host_path}/${sas_phy_path}/sas_rphy:${sas_rphy_id}"
+	sas_rphy_dev="/sys/class/sas_device/${sas_rphy_id}"
 	if [ -e "$sas_rphy_dev/sas_address" ]; then
 		read rphy_address < $sas_rphy_dev/sas_address
 		read rphy_id < $sas_rphy_dev/phy_identifier
 	fi
 	if [ -z "$rphy_address" ] ; then
 		: no initiator address
+		D=
 		RESULT=1
 		return
 	fi
@@ -259,6 +312,61 @@ handle_sas () {
 	# SAS devices are always endpoints
 	d="sas-${sas_phy_address}-${sas_rphy_address}"
 	D="$controller_dev"
+	RESULT=0
+}
+
+handle_iscsi() {
+	local DEV=$1
+	local iscsi_session_dir
+	local iscsi_session iscsi_session_path
+	local iscsi_connection iscsi_connection_path
+	# iSCSI device
+	iscsi_session_dir="${DEV%%/target*}"
+	iscsi_session="${iscsi_session_dir##*/}"
+	iscsi_session_path=/sys/class/iscsi_session/${iscsi_session}
+	if [ ! -d "$iscsi_session_path" ] ; then
+	    : no iSCSI session path
+	    RESULT=1
+	    return
+	fi
+	# Currently we're not doing MC/S
+	for conn in ${iscsi_session_dir}/connection* ; do
+	    iscsi_conn_num=${conn##*:}
+	    if [ "$iscsi_conn_num" = '0' ] ; then
+		iscsi_connection=$(basename $conn)
+	    fi
+	done
+	if [ -z "$iscsi_connection" ] ; then
+	    : no iSCSI connection found
+	    RESULT=1
+	    return
+	fi
+	iscsi_connection_path=/sys/class/iscsi_connection/${iscsi_connection}
+	if [ ! -d "$iscsi_connection_path" ] ; then
+	    : no iSCSI connection path
+	    RESULT=1
+	    return
+	fi
+	if [ -e "${iscsi_session_path}/targetname" ]; then
+	    read iscsi_tgtname < ${iscsi_session_path}/targetname
+	fi
+	if [ -z "$iscsi_tgtname" ] ; then
+	    : No iSCSI Targetname
+	    RESULT=1
+	    return
+	fi
+	if [ -e "${iscsi_connection_path}/persistent_address" ] ; then
+	    read iscsi_address < ${iscsi_connection_path}/persistent_address
+	fi
+	if [ -z "$iscsi_address" ] ; then
+	    : No iSCSI Target address
+	    RESULT=1
+	    return
+	fi
+	if [ -e "${iscsi_connection_path}/persistent_port" ] ; then
+	    read iscsi_port < ${iscsi_connection_path}/persistent_port
+	fi
+	d="ip-${iscsi_address}:${iscsi_port}-iscsi-${iscsi_tgtname}"
 	RESULT=0
 }
 
@@ -299,30 +407,35 @@ handle_usb () {
 
 handle_device () {
 	full_sysfs_path="$SYSFS$DEVPATH"
-	if [ -L $full_sysfs_path/subsystem ]; then
-		# new sysfs block layout
-		full_sysfs_path="${full_sysfs_path%/*}"
-		cd "$full_sysfs_path/subsystem";
-		subsys="`pwd -P`"
-		cd "$OPWD"
-		subsys="${subsys##*/}"
-		if [ "$subsys" == "block" ]; then
-			# parent is "block", it's a partition, move one up
-			full_sysfs_path="${full_sysfs_path%/*}"
-		fi
-		cd $full_sysfs_path
-	else
-		# old sysfs block layout
-		if [ ! -L $full_sysfs_path/device ] ; then
-			if [ -f $full_sysfs_path/range ] ; then return ; fi
-			full_sysfs_path="${full_sysfs_path%/*}"
-			: full_sysfs_path "$full_sysfs_path"
-			if [ ! -L $full_sysfs_path/device -o ! -f $full_sysfs_path/dev ] ; then
-				return
+	case "$DEVPATH" in
+		/devices/*)
+			# new sysfs layout
+			if [ -L $full_sysfs_path/subsystem ]; then
+				full_sysfs_path="${full_sysfs_path%/*}"
+				cd "$full_sysfs_path/subsystem";
+				subsys="`pwd -P`"
+				cd "$OPWD"
+				subsys="${subsys##*/}"
+				if [ "$subsys" = "block" ]; then
+					# parent is "block", it's a partition, move one up
+				full_sysfs_path="${full_sysfs_path%/*}"
+				fi
+				cd $full_sysfs_path
 			fi
-		fi
-		cd $full_sysfs_path/device
-	fi
+			;;
+		*)
+			# old sysfs layout
+			if [ ! -L $full_sysfs_path/device ] ; then
+				if [ -f $full_sysfs_path/range ] ; then return ; fi
+				full_sysfs_path="${full_sysfs_path%/*}"
+				: full_sysfs_path "$full_sysfs_path"
+				if [ ! -L $full_sysfs_path/device -o ! -f $full_sysfs_path/dev ] ; then
+					return
+				fi
+			fi
+			cd $full_sysfs_path/device
+			;;
+	esac
 	full_sysfs_device_path="`pwd -P`"
 	cd "$OPWD"
 	D=$full_sysfs_device_path
@@ -363,6 +476,10 @@ handle_device () {
 			*/fw-host[0-9]*/*)
 				handle_firewire "$D"
 				;;
+			*/session[0-9]*/*)
+				handle_iscsi "$D"
+				D=
+				;;
 			*/host[0-9]*/[0-9]*:[0-9]*:[0-9]*:[0-9]*)
 				handle_scsi "$D"
 				;;
@@ -371,6 +488,12 @@ handle_device () {
 				;;
 			*/pci[0-9]*:[0-9]*)
 				handle_pci "$D"
+				;;
+			*/serio[0-9]*)
+				handle_serio "$D"
+				;;
+			*/platform/*)
+				handle_platform "$D"
 				;;
 			*/devices)
 				D=
@@ -382,7 +505,7 @@ handle_device () {
 				;;
 		esac
 	done
-	if [ "$TYPE" == "scsi_tape" ] ; then
+	if [ "$TYPE" = "scsi_tape" ] ; then
 		devname=${full_sysfs_path##*/}
 		rewind="${devname%%st*}"
 		mode="${devname##*st}"

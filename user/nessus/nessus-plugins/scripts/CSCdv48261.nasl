@@ -12,7 +12,8 @@
 if(description)
 {
  script_id(10985);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.6 $");
+ script_cve_id("CVE-2001-0929");
 
  name["english"] = "CSCdv48261";
 

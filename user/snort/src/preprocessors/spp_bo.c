@@ -1,5 +1,5 @@
 /*
-** Copyright (C) 1998-2002 Martin Roesch <roesch@sourcefire.com>
+** Copyright (C) 1998-2005 Martin Roesch <roesch@sourcefire.com>
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -100,6 +100,14 @@
  *   BoRandValues_DefaultKey[6] = LocalBoRand() % 256;  --> 173 (0xad)
  *   BoRandValues_DefaultKey[7] = LocalBoRand() % 256;  -->  29 (0x1d)
  * 
+ * Notes:
+ * 
+ *   10/13/2005 marc norton - This has a lot of changes  to the runtime 
+ *   decoding and testing.  The '% 256' op was removed, 
+ *   the xor op is bit wise so modulo is not needed, 
+ *   the char casting truncates to one byte,
+ *   and len testing has been modified as was the xor decode copy and 
+ *   final PONG test.
  */
 
 #include <sys/types.h>
@@ -117,24 +125,50 @@
 #include "mstring.h"
 #include "util.h"
 #include "event_queue.h"
+/* In case we need to drop this packet */
+#include "inline.h"
 
 #include "snort.h"
 
-#define BACKORIFICE_DEFAULT_KEY  31337
-#define BACKORIFICE_MAGIC_SIZE   8
-#define BACKORIFICE_MIN_SIZE   18
+#include "profiler.h"
+
+#define BACKORIFICE_DEFAULT_KEY   31337
+#define BACKORIFICE_MAGIC_SIZE    8
+#define BACKORIFICE_MIN_SIZE      18
+#define BACKORIFICE_DEFAULT_PORT  31337
+#define BO_TYPE_PING              1
+#define BO_FROM_UNKNOWN           0
+#define BO_FROM_CLIENT            1
+#define BO_FROM_SERVER            2
+
+#define BO_BUF_SIZE         8
+#define BO_BUF_ATTACK_SIZE  1024
+
+/* Configuration defines */
+#define START_LIST      "{"
+#define END_LIST        "}"
+#define CONF_SEPARATORS         " \t\n\r"
+#define BO_ALERT_GENERAL        0x0001
+#define BO_ALERT_CLIENT         0x0002
+#define BO_ALERT_SERVER         0x0004
+#define BO_ALERT_SNORT_ATTACK   0x0008
+
 
 /* list of function prototypes for this preprocessor */
 void BoInit(u_char *);
-void ParseBoArgs(char *);
 void BoProcess(Packet *);
-void PrecalcPrefix();
-void BoFind(Packet *);
+void BoFind(Packet *, void *);
+
+/* list of private functions */
+static int  BoGetDirection(Packet *p, char *pkt_data);
+static void PrecalcPrefix();
+static char BoRand();
+static void ProcessArgs(u_char *args);
+static int  ProcessOptionList(void);
+static void PrintConfig(void);
 
 #define MODNAME "spp_bo"
 
-int BoRand();
-void ParseBoArgs(char *);
 
 /* global keyvalue for the BoRand() function */
 static long holdrand = 1L;
@@ -143,8 +177,16 @@ static long holdrand = 1L;
 int brute_force_enable = 1;
 int default_key;
 
+static u_int16_t noalert_flags = 0;
+static u_int16_t drop_flags = 0;
+
+
 u_int16_t lookup1[65536][3];
 u_int16_t lookup2[65536];
+
+#ifdef PERF_PROFILING
+PreprocStats boPerfStats;
+#endif
 
 /*
  * Function: SetupBo()
@@ -179,15 +221,189 @@ void SetupBo()
  */
 void BoInit(u_char *args)
 {
-    DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN,"Preprocessor: Bo Initialized\n"););
+    static int bIsInitialized = 0;
 
-    /* we no longer need to take args */
-    PrecalcPrefix();
+    /* BoInit is re-entrant */
+    if ( !bIsInitialized )
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN,"Preprocessor: Bo Initialized\n"););
 
-    /* Set the preprocessor function into the function list */
-    AddFuncToPreprocList(BoFind);
+        /* we no longer need to take args */
+        PrecalcPrefix();
+
+        /* Set the preprocessor function into the function list */
+        AddFuncToPreprocList(BoFind, PRIORITY_LAST, PP_BO);
+
+#ifdef PERF_PROFILING
+        RegisterPreprocessorProfile("backorifice", &boPerfStats, 0, &totalPerfStats);
+#endif
+
+        bIsInitialized = 1;
+    }
+
+    /* Process argument list */
+    ProcessArgs(args);
 }
 
+
+/*
+ * Function: ProcessArgs(u_char *)
+ *
+ * Purpose: Parse additional config items.
+ *
+ * Arguments: args => ptr to argument string
+ *   syntax:
+ *     preprocessor bo: noalert { client | server | general | snort_attack } \
+ *                      drop    { client | server | general | snort_attack }
+ *
+ *   example:
+ *     preprocessor bo: noalert { general server } drop { snort_attack }
+ *
+ * Returns: void function
+ *
+ */
+static void ProcessArgs(u_char *args)
+{
+    char *arg;
+   
+    if ( args == NULL )
+        return;
+
+    arg = strtok(args, CONF_SEPARATORS);
+    
+    while ( arg != NULL )
+    {
+        if ( !strcasecmp("noalert", arg) )
+        {
+            noalert_flags = ProcessOptionList();
+        }
+        else if ( !strcasecmp("drop", arg) )
+        {
+            drop_flags = ProcessOptionList();
+        }
+        else
+        {
+            FatalError("%s(%d) => Unknown bo option %s.\n", 
+                        file_name, file_line, arg);
+        }
+
+        arg = strtok(NULL, CONF_SEPARATORS);
+    }
+
+    PrintConfig();
+
+    return;
+}
+
+
+/*
+ * Function: ProcessOptionList(u_char *)
+ *
+ * Purpose: Parse config list, either "noalert" or "drop".
+ *
+ * Arguments: none, use string from strtok in ProcessArgs
+ *
+ * Returns: AND'ed list of flags based on option list
+ *
+ */
+static int ProcessOptionList(void)
+{
+    char *arg;
+    int   retFlags = 0;
+    int   endList = 0;
+
+    arg = strtok(NULL, CONF_SEPARATORS);
+
+    if ( arg == NULL || strcmp(START_LIST, arg) )
+    {
+        FatalError("%s(%d) => Invalid bo option.\n", 
+                        file_name, file_line);        
+        return 0;
+    }
+    
+    while ( (arg = strtok(NULL, CONF_SEPARATORS)) )
+    {
+        if ( !strcmp(END_LIST, arg) )
+        {
+            endList = 1;
+            break;
+        }
+
+        if ( !strcasecmp("general", arg) )
+        {
+            retFlags |= BO_ALERT_GENERAL;
+        }
+        else if ( !strcasecmp("client", arg) )
+        {
+            retFlags |= BO_ALERT_CLIENT;
+        }
+        else if ( !strcasecmp("server", arg) )
+        {
+            retFlags |= BO_ALERT_SERVER;
+        }
+        else if ( !strcasecmp("snort_attack", arg) )
+        {
+            retFlags |= BO_ALERT_SNORT_ATTACK;
+        }
+        else
+        {
+            FatalError("%s(%d) => Invalid bo option argument %s.\n", 
+                        file_name, file_line, arg);        
+        }
+    }
+
+    if ( !endList )
+    {
+        FatalError("%s(%d) => Must end configuration list with %s.\n", 
+                        file_name, file_line, END_LIST);      
+        return 0;
+    }
+
+    return retFlags;
+}
+
+/*
+ * Function: PrintConfig(u_char *)
+ *
+ * Purpose: Print configuration
+ *
+ * Arguments: none
+ *
+ * Returns: none
+ *
+ */
+static void PrintConfig(void)
+{
+    if ( noalert_flags != 0 || drop_flags != 0 )
+        LogMessage("Back Orifice Config:\n");
+    
+    if ( noalert_flags != 0 )
+    {
+        LogMessage("    Disable alerts:");
+        if ( noalert_flags & BO_ALERT_CLIENT )
+            LogMessage(" client");
+        if ( noalert_flags & BO_ALERT_SERVER )
+            LogMessage(" server");
+        if ( noalert_flags & BO_ALERT_GENERAL )
+            LogMessage(" general");
+        if ( noalert_flags & BO_ALERT_SNORT_ATTACK )
+            LogMessage(" snort_attack");
+        LogMessage("\n");
+    }
+    if ( drop_flags != 0 )
+    {
+        LogMessage("    Drop packets (inline only) on alerts:");
+        if ( drop_flags & BO_ALERT_CLIENT )
+            LogMessage(" client");
+        if ( drop_flags & BO_ALERT_SERVER )
+            LogMessage(" server");
+        if ( drop_flags & BO_ALERT_GENERAL )
+            LogMessage(" general");
+        if ( drop_flags & BO_ALERT_SNORT_ATTACK )
+            LogMessage(" snort_attack");
+        LogMessage("\n");
+    }
+}
 
 /*
  * Function: BoRand()
@@ -198,9 +414,10 @@ void BoInit(u_char *args)
  *
  * Returns: key to XOR with current char to be "encrypted"
  */
-int BoRand()
+static char BoRand()
 {
-    return(((holdrand = holdrand * 214013L + 2531011L) >> 16) & 0x7fff);
+    holdrand = holdrand * 214013L + 2531011L;
+    return (char) (((holdrand  >> 16) & 0x7fff) & 0xFF);
 }
 
 
@@ -209,7 +426,7 @@ int BoRand()
  * to recover the key.  Using this in the BoFind() function below is much
  * faster than the old brute force method
  */
-void PrecalcPrefix()
+static void PrecalcPrefix()
 {
     u_int8_t cookie_cyphertext[BACKORIFICE_MAGIC_SIZE];
     char *cookie_plaintext = "*!*QWTY?";
@@ -227,7 +444,7 @@ void PrecalcPrefix()
         /* convert the plaintext cookie to cyphertext for this key */
         for(cookie_index=0;cookie_index<BACKORIFICE_MAGIC_SIZE;cookie_index++)
         {
-            cookie_cyphertext[cookie_index] =(u_int8_t)(*cp_ptr^(BoRand()%256));
+            cookie_cyphertext[cookie_index] =(u_int8_t)(*cp_ptr^(BoRand()));
             cp_ptr++;
         }
 
@@ -279,8 +496,9 @@ void PrecalcPrefix()
  *
  * Returns: void function
  *
+ *
  */
-void BoFind(Packet *p)
+void BoFind(Packet *p, void *context)
 {
     u_int16_t cyphertext_referent;
     u_int16_t cyphertext_suffix;
@@ -290,15 +508,10 @@ void BoFind(Packet *p)
     char *magic_data;
     char *end;
     char plaintext;
-    char outstring[STD_BUF];
     int i;
+    int bo_direction = 0;
+    PROFILE_VARS;
 
-
-    if(!(p->preprocessors & PP_BO))
-    {
-        return;
-    }
-    
     /* make sure it's UDP and that it's at least 19 bytes long */
     if(!PacketIsUDP(p))
     {
@@ -311,6 +524,8 @@ void BoFind(Packet *p)
     {
         return;
     }
+
+    PREPROC_PROFILE_START(boPerfStats);
 
     /*
      * take the first two characters of the packet and generate the 
@@ -341,37 +556,233 @@ void BoFind(Packet *p)
         if(lookup2[key] == cyphertext_suffix)
         {
             holdrand = key;
-            pkt_data = p->data;
-            end = p->data + BACKORIFICE_MAGIC_SIZE;
+            pkt_data = (char*)p->data;
+            end = (char*)p->data + BACKORIFICE_MAGIC_SIZE;
             magic_data = magic_cookie;
 
             while(pkt_data<end)
             {
-                plaintext = (char) (*pkt_data ^ (BoRand()%256));
+                plaintext = (char) (*pkt_data ^ BoRand());
 
                 if(*magic_data != plaintext)
                 {
                     DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, 
                             "Failed check one on 0x%X : 0x%X\n", 
                             *magic_data, plaintext););
+                    PREPROC_PROFILE_END(boPerfStats);
                     return;
                 }
 
                 magic_data++;
                 pkt_data++;
             }
-
+            
             /* if we fall thru there's a detect */
             DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, 
                         "Detected Back Orifice Data!\n");
             DebugMessage(DEBUG_PLUGIN, "hash value: %d\n", key););
-            snprintf(outstring, STD_BUF-1, 
-                    "spp_bo: Back Orifice Traffic detected (key: %d)", key);
             
-            SnortEventqAdd(GENERATOR_SPP_BO, BO_TRAFFIC_DETECT, 1, 0, 0,
-                    BO_TRAFFIC_DETECT_STR, 0);
+            bo_direction = BoGetDirection(p, pkt_data);
+
+            if ( bo_direction == BO_FROM_CLIENT )
+            {
+                if ( !(noalert_flags & BO_ALERT_CLIENT) )
+                {
+                    SnortEventqAdd(GENERATOR_SPP_BO, BO_CLIENT_TRAFFIC_DETECT, 1, 0, 0,
+                                            BO_CLIENT_TRAFFIC_DETECT_STR, 0);
+                }
+                if ( (drop_flags & BO_ALERT_CLIENT) && InlineMode() )
+                {
+                    InlineDrop(p);
+                }
+                DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Client packet\n"););
+            }
+            else if ( bo_direction == BO_FROM_SERVER )
+            {
+                if ( !(noalert_flags & BO_ALERT_SERVER) )
+                {
+                    SnortEventqAdd(GENERATOR_SPP_BO, BO_SERVER_TRAFFIC_DETECT, 1, 0, 0,
+                                            BO_SERVER_TRAFFIC_DETECT_STR, 0);
+                }
+                if ( (drop_flags & BO_ALERT_SERVER) && InlineMode() )
+                {
+                    InlineDrop(p);
+                }
+                DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Server packet\n"););
+            }
+            else
+            {
+                if ( !(noalert_flags & BO_ALERT_GENERAL) )
+                {
+                    SnortEventqAdd(GENERATOR_SPP_BO, BO_TRAFFIC_DETECT, 1, 0, 0,
+                                            BO_TRAFFIC_DETECT_STR, 0);
+                }
+                if ( (drop_flags & BO_ALERT_GENERAL) && InlineMode() )
+                {
+                    InlineDrop(p);
+                }
+            }           
         }
     }
 
+    PREPROC_PROFILE_END(boPerfStats);
+
     return;
+}
+
+
+/*
+ * Function: BoGetDirection(Packet *)
+ *
+ * Purpose: Attempt to guess the direction this packet is going in.
+ *
+ * Arguments: p        => pointer to the current packet data struct
+ *            pkt_data => pointer to data after magic cookie
+ *
+ * Returns: BO_FROM_UNKNOWN  if direction unknown
+ *          BO_FROM_CLIENT   if direction from client to server
+ *          BO_FROM_SERVER   if direction from server to client
+ *
+ * Reference: http://www.magnux.org/~flaviovs/boproto.html
+ *    BO header structure:
+ *      Mnemonic    Size in bytes
+ *      -------------------------
+ *      MAGIC       8
+ *      LEN         4
+ *      ID          4
+ *      T           1
+ *      DATA        variable
+ *      CRC         1
+ *
+ */
+static int BoGetDirection(Packet *p, char *pkt_data)
+{
+    u_int32_t len = 0;
+    u_int32_t id = 0;
+    u_int32_t l, i;
+    char type;
+    static char buf1[BO_BUF_SIZE];
+    char plaintext;
+    
+    /* Check for the default port on either side */
+    if ( p->dp == BACKORIFICE_DEFAULT_PORT )
+    {
+        return BO_FROM_CLIENT;
+    }
+    else if ( p->sp == BACKORIFICE_DEFAULT_PORT )
+    {
+        return BO_FROM_SERVER;
+    }
+    
+    /* Didn't find default port, so look for ping packet */  
+    
+    /* Get length from BO header - 32 bit int */
+    for ( i = 0; i < 4; i++ )
+    {
+        plaintext = (char) (*pkt_data ^ BoRand());
+        l = (u_int32_t) plaintext;
+        len += l << (8*i);
+        pkt_data++;
+    }
+
+    /* Get ID from BO header - 32 bit int */
+    for ( i = 0; i < 4; i++ )
+    {
+        plaintext = (char) (*pkt_data ^ BoRand() );
+        l = ((u_int32_t) plaintext) & 0x000000FF;
+        id += l << (8*i);
+        pkt_data++;
+    }
+    
+    DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Data length = %lu\n", len););
+    DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "ID = %lu\n", id););
+
+    /* Do more len checking */
+    
+    if ( len >= BO_BUF_ATTACK_SIZE )
+    {
+        if ( !(noalert_flags & BO_ALERT_SNORT_ATTACK) )
+        {
+            SnortEventqAdd(GENERATOR_SPP_BO, BO_SNORT_BUFFER_ATTACK, 1, 0, 0,
+                                            BO_SNORT_BUFFER_ATTACK_STR, 0);
+        }
+        if ( (drop_flags & BO_ALERT_SNORT_ATTACK) && InlineMode() )
+        {
+            InlineDrop(p);
+        }
+
+        return BO_FROM_UNKNOWN;
+    }
+
+    /* Adjust for BO packet header length */
+    len -= BACKORIFICE_MIN_SIZE;
+
+    if( len == 0 )
+    {
+        /* Need some data, or we can't figure out client or server */
+        return BO_FROM_UNKNOWN; 
+    }
+    
+    if( len > 7 )
+    {
+        len = 7; /* we need no more than  7 variable chars */
+    }
+
+    /* length must be 7 OR LESS due to above logic  */
+  
+    if( p->dsize < len )
+    {
+        /* We don't have enough data to inspect */
+        return BO_FROM_UNKNOWN;
+    }
+    
+    /* Continue parsing BO header */
+    type = (char) (*pkt_data ^ BoRand());
+    pkt_data++;
+        
+    if ( type & 0x80 )
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Partial packet\n"););
+    }
+    if ( type & 0x40 )
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Continued packet\n"););
+    }
+
+    /* Extract type of BO packet */
+    type = type & 0x3F;
+
+    DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Type = 0x%x\n", type););
+
+    /* Only examine data if this is a ping request or response */
+    if ( type == BO_TYPE_PING )
+    {
+        if ( len < 7 )
+        {
+            return BO_FROM_CLIENT;
+        }
+
+        for(i=0;i<len;i++ ) /* start at 0 to advance the BoRand() function properly */
+        {
+            buf1[i] = (char) (pkt_data[i] ^ BoRand());
+            if ( buf1[i] == 0 )
+            {
+                return BO_FROM_UNKNOWN; 
+            }
+        }
+
+        if( ( buf1[3] == 'P' || buf1[3] == 'p' ) &&
+            ( buf1[4] == 'O' || buf1[4] == 'o' ) && 
+            ( buf1[5] == 'N' || buf1[5] == 'n' ) && 
+            ( buf1[6] == 'G' || buf1[6] == 'g' ) )
+        {
+            return BO_FROM_SERVER;
+        }
+        else
+        {
+            return BO_FROM_CLIENT;
+        }
+    } 
+   
+    return BO_FROM_UNKNOWN;
 }

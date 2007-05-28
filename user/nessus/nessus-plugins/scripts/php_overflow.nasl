@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10178);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(712);
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-1999-0058");
  name["english"] = "php.cgi buffer overrun";
  name["francais"] = "php.cgi buffer overrun";
@@ -21,7 +21,7 @@ web server (root or nobody).
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Il y a un dépassement de buffer
@@ -57,12 +57,15 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+port = get_http_port(default:80);
 
-port = is_cgi_installed("php.cgi");
-if(port)
+res = is_cgi_installed_ka(item:"php.cgi", port:port);
+if(res)
 {
  c = string("php.cgi?", crap(32000));
- p2 = is_cgi_installed(c);
+ p2 = is_cgi_installed_ka(item:c, port:port);
  if(p2 == 0)
  {
   security_hole(port);

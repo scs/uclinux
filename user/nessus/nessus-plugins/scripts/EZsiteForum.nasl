@@ -11,9 +11,12 @@
 if(description)
 {
  script_id(11833);
- 
+ script_version("$Revision$");
  name["english"] = "EZsite Forum Discloses Passwords to Remote Users";
  script_name(english:name["english"]);
+ # script_cve_id("CVE-MAP-NOMATCH");
+ # NOTE: reviewed, and no CVE id currently assigned (jfs, december 2003)
+ # Also, I've not found a bugtraq ID for this vulnerability
  
  desc["english"] = "
 The remote host is running EZsite Forum.
@@ -40,8 +43,9 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 deepquest");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -50,13 +54,16 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
 
-dirs = make_list(cgi_dirs(), "");
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
+
+dirs = make_list(cgi_dirs());
 
 foreach d (dirs)
 {

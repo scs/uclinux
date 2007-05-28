@@ -3,7 +3,7 @@
  * This file contains definitions for global variables and functions
  * for the VoiceModem program.
  *
- * $Id$
+ * $Id: vm.h,v 1.4 1998/09/09 21:08:13 gert Exp $
  *
  */
 

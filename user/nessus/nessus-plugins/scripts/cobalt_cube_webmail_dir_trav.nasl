@@ -17,8 +17,8 @@
 if(description)
 {
  script_id(11073);
- script_cve_id("CAN-2001-1408");
- script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-2001-1408");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "readmsg.php detection";
  script_name(english:name["english"]);
@@ -51,15 +51,26 @@ Risk factor : Low";
  script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 444);
  exit(0);
 }
 
 #
 
-port = is_cgi_installed("/base/webmail/readmsg.php");
-if(port) security_warning(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+if ( ! get_port_state(port) ) exit(0);
+if ( ! can_host_php(port:port) ) exit(0);
+
+res = is_cgi_installed_ka(item:"/base/webmail/readmsg.php", port:port);
+if( res ) security_warning(port);
 
 # The attack is:
 # http://YOURCOBALTBOX:444/base/webmail/readmsg.php?mailbox=../../../../../../../../../../../../../../etc/passwd&id=1

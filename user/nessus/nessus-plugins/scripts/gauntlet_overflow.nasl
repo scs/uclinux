@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(10420);
- script_version ("$Revision: 1.7 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:" 2000-a-0003");
  script_bugtraq_id(1234);
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CVE-2000-0437");
  
  name["english"] = "Gauntlet overflow";
@@ -67,6 +68,14 @@ if(get_port_state(port))
   soc = open_sock_tcp(port);
   if(soc)
   {
+    req = string("10003.http://", crap(10), "\r\n");
+    send(socket:soc, data:req);
+    r = recv(socket:soc, length:2048);
+    close(soc);
+    if ( ! r ) exit(0);
+
+    soc = open_sock_tcp(port);
+    if ( ! soc ) exit(0);
     req = string("10003.http://", crap(10000), "\r\n");
     send(socket:soc, data:req);
     r = recv(socket:soc, length:2048);

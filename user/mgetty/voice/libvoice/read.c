@@ -3,7 +3,7 @@
  *
  * Read data from the voice modem device.
  *
- * $Id$
+ * $Id: read.c,v 1.4 1998/09/09 21:07:34 gert Exp $
  *
  */
 

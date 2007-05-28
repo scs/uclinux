@@ -13,8 +13,10 @@
 if(description)
 {
 	script_id(10994);
-	script_version ("$Revision: 1.4 $");
-	script_bugtraq_id(2651);
+	script_bugtraq_id(2083, 2651);
+	script_version ("$Revision: 1.6 $");
+	script_cve_id("CVE-2001-0039","CVE-2001-0494");
+
  
  	name["english"] = "IPSwitch IMail SMTP Buffer Overflow";
  	script_name(english:name["english"]);

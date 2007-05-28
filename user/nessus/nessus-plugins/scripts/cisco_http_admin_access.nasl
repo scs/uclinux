@@ -10,9 +10,9 @@
 if(description)
 {
  script_id(10700);
- script_cve_id("CVE-2001-0537");
  script_bugtraq_id(2936);
- script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2001-0537");
+ script_version ("$Revision: 1.19 $");
  
 
  name["english"] = "Cisco IOS HTTP Configuration Arbitrary Administrative Access";
@@ -52,7 +52,7 @@ Risk factor : High";
  family["english"] = "CISCO";
  family["francais"] = "CISCO";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "httpver.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -60,7 +60,14 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = 80;
+port = get_http_port(default:80);
+kb   = get_kb_item("www/no404/" + port);
+
+banner = get_http_banner(port:port);
+if ( ! banner || "cisco-IOS" >!< banner ) exit(0);
+
+if ( ! isnull(kb) ) exit(0);
+
 if(get_port_state(port))
 {
   for(i=16;i<100;i=i+1)

@@ -6,7 +6,12 @@
 if(description)
 {
 	script_id(11032);
-	script_version ("$Revision: 1.25 $");
+	script_version ("$Revision: 1.62 $");
+	# script_cve_id("CVE-MAP-NOMATCH");
+	# NOTE: reviewed, and no CVE id currently assigned (jfs, december 2003)
+ if (defined_func("script_xref"))
+  script_xref(name:"OWASP", value:"OWASP-CM-006");
+
  
  	name["english"] = "Directory Scanner";
  	script_name(english:name["english"]);
@@ -22,14 +27,19 @@ common dirs on the remote web server";
 	script_copyright(english:"This script is Copyright (C) 2002 Digital Defense Inc.");
 	family["english"] = "Misc.";
 	script_family(english:family["english"]);
-	script_dependencie("find_service.nes");
+	script_dependencie("find_service.nes", "httpver.nasl", "embedded_web_server_detect.nasl");
 	script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
 	script_timeout(360);
 	exit(0);
 }
 
+include("global_settings.inc");
 include("http_func.inc");
 include("http_keepalive.inc");
+
+num_discovered = 0;
+
 
 function check_cgi_dir(dir)
 {
@@ -98,6 +108,8 @@ function add_discovered_list (dir)
     {  
         discovered[discovered_last] = dir;
         discovered_last = discovered_last + 1;
+	num_discovered ++;
+        if ( num_discovered > 50 ) exit(0); # Bogus Server
     }
 }
 
@@ -105,8 +117,8 @@ CGI_Dirs = make_list();
 
 
 
-dirs[0] = ".cobalt";
-dirs[1] = "1";
+dirs[0] = ".cobalt";  score[0] = 1;
+dirs[1] = "1";	      
 dirs[2] = "10";
 dirs[3] = "2";
 dirs[4] = "3";
@@ -116,10 +128,10 @@ dirs[7] = "6";
 dirs[8] = "7";
 dirs[9] = "8";
 dirs[10] = "9";
-dirs[11] = "AdminWeb";
-dirs[12] = "Admin_files";
-dirs[13] = "Administration";
-dirs[14] = "AdvWebAdmin";
+dirs[11] = "AdminWeb"; 		score[11] = 1;
+dirs[12] = "Admin_files"; 	score[12] = 1;
+dirs[13] = "Administration"; 	score[13] = 1;
+dirs[14] = "AdvWebAdmin"; 	score[14] = 1;
 dirs[15] = "Agent";
 dirs[16] = "Agents";
 dirs[17] = "Album";
@@ -131,76 +143,76 @@ dirs[22] = "GXApp";
 dirs[23] = "HB";
 dirs[24] = "HBTemplates";
 dirs[25] = "IBMWebAS";
-dirs[26] = "Install";
+dirs[26] = "Install";		score[26] = 1;
 dirs[27] = "JBookIt";
 dirs[28] = "Log";
-dirs[29] = "Mail";
+dirs[29] = "Mail";		score[29] = 1;
 dirs[30] = "Msword";
 dirs[31] = "NSearch";
 dirs[32] = "NetDynamic";
 dirs[33] = "NetDynamics";
-dirs[34] = "News";
-dirs[35] = "PDG_Cart";
-dirs[36] = "README";
+dirs[34] = "News";		score[34] = 1;
+dirs[35] = "PDG_Cart";		score[35] = 1;
+dirs[36] = "README";		score[36] = 1;
 dirs[37] = "ROADS";
-dirs[38] = "Readme";
+dirs[38] = "Readme";		score[38] = 1;
 dirs[39] = "SilverStream";
-dirs[40] = "Stats";
-dirs[41] = "StoreDB";
-dirs[42] = "Templates";
-dirs[43] = "ToDo";
+dirs[40] = "Stats";		score[40] = 1;
+dirs[41] = "StoreDB";		score[41] = 1;
+dirs[42] = "Templates";	
+dirs[43] = "ToDo";		score[43] = 1;
 dirs[44] = "WebBank";
-dirs[45] = "WebCalendar";
+dirs[45] = "WebCalendar";	score[45] = 1;
 dirs[46] = "WebDB";
 dirs[47] = "WebShop";
-dirs[48] = "WebTrend";
+dirs[48] = "WebTrend";		score[48] = 1;
 dirs[49] = "Web_store";
 dirs[50] = "XSL";
 dirs[51] = "_ScriptLibrary";
-dirs[52] = "_backup";
+dirs[52] = "_backup";		score[52] = 1;
 dirs[53] = "_derived";
-dirs[54] = "_errors";
+dirs[54] = "_errors";		score[54] = 1;
 dirs[55] = "_fpclass";
 dirs[56] = "_mem_bin";
 dirs[57] = "_notes";
 dirs[58] = "_objects";
 dirs[59] = "_old";
 dirs[60] = "_pages";
-dirs[61] = "_passwords";
-dirs[62] = "_private";
-dirs[63] = "_scripts";
+dirs[61] = "_passwords";	score[61] = 1;
+dirs[62] = "_private";		score[62] = 1;
+dirs[63] = "_scripts";		score[63] = 1; exec[63] = 1;
 dirs[64] = "_sharedtemplates";
-dirs[65] = "_tests";
+dirs[65] = "_tests";		score[65] = 1;
 dirs[66] = "_themes";
-dirs[67] = "_vti_bin";
-dirs[68] = "_vti_bot";
-dirs[69] = "_vti_log";
-dirs[70] = "_vti_pvt";
-dirs[71] = "_vti_shm";
-dirs[72] = "_vti_txt";
+dirs[67] = "_vti_bin";		score[67] = 1;
+dirs[68] = "_vti_bot";		score[68] = 1;
+dirs[69] = "_vti_log";		score[69] = 1;
+dirs[70] = "_vti_pvt";		score[70] = 1;
+dirs[71] = "_vti_shm";		score[71] = 1;
+dirs[72] = "_vti_txt";		score[72] = 1;
 dirs[73] = "a";
 dirs[74] = "acceso";
-dirs[75] = "access";
+dirs[75] = "access";		score[75] = 1;
 dirs[76] = "accesswatch";
 dirs[77] = "acciones";
-dirs[78] = "account";
-dirs[79] = "accounting";
+dirs[78] = "account";		score[78] = 1;
+dirs[79] = "accounting";	score[79] = 1;
 dirs[80] = "activex";
-dirs[81] = "adm";
+dirs[81] = "adm";		score[81] = 1;
 dirs[82] = "admcgi";
 dirs[83] = "admentor";
-dirs[84] = "admin";
-dirs[85] = "admin-bak";
-dirs[86] = "admin-old";
-dirs[87] = "admin.back";
-dirs[88] = "admin_";
-dirs[89] = "administration";
-dirs[90] = "administrator";
-dirs[91] = "adminuser";
-dirs[92] = "adminweb";
-dirs[93] = "admisapi";
+dirs[84] = "admin";		score[84] = 1;
+dirs[85] = "admin-bak";		score[85] = 1;
+dirs[86] = "admin-old";		score[86] = 1;
+dirs[87] = "admin.back";	score[87] = 1;
+dirs[88] = "admin_";		score[88] = 1;
+dirs[89] = "administration";	score[89] = 1;
+dirs[90] = "administrator";	score[90] = 1;
+dirs[91] = "adminuser";		score[91] = 1;
+dirs[92] = "adminweb";		score[92] = 1;
+dirs[93] = "admisapi";		
 dirs[94] = "agentes";
-dirs[95] = "analog";
+dirs[95] = "analog";		score[95] = 1;
 dirs[96] = "anthill";
 dirs[97] = "apache";
 dirs[98] = "app";
@@ -209,21 +221,21 @@ dirs[100] = "application";
 dirs[101] = "applications";
 dirs[102] = "apps";
 dirs[103] = "ar";
-dirs[104] = "archive";
-dirs[105] = "archives";
-dirs[106] = "asp";
+dirs[104] = "archive";		score[104] = 1;
+dirs[105] = "archives";		score[105] = 1;
+dirs[106] = "asp";		score[106] = 1; exec[106] = 1;
 dirs[107] = "atc";
-dirs[108] = "auth";
-dirs[109] = "authadmin";
+dirs[108] = "auth";		score[108] = 1;
+dirs[109] = "authadmin";	score[109] = 1;
 dirs[110] = "aw";
 dirs[111] = "ayuda";
 dirs[112] = "b";
 dirs[113] = "b2-include";
 dirs[114] = "back";
 dirs[115] = "backend";
-dirs[116] = "backup";
-dirs[117] = "backups";
-dirs[118] = "bak";
+dirs[116] = "backup";		score[116] = 1;
+dirs[117] = "backups";		score[117] = 1;
+dirs[118] = "bak";		score[118] = 1;
 dirs[119] = "banca";
 dirs[120] = "banco";
 dirs[121] = "bank";
@@ -255,11 +267,11 @@ dirs[146] = "cart";
 dirs[147] = "cash";
 dirs[148] = "caspsamp";
 dirs[149] = "catalog";
-dirs[150] = "cbi-bin";
-dirs[151] = "ccard";
-dirs[152] = "ccards";
+dirs[150] = "cbi-bin";		score[150] = 1 ; exec[150] = 1;
+dirs[151] = "ccard";		score[151] = 1;
+dirs[152] = "ccards";		score[152] = 1;
 dirs[153] = "cd";
-dirs[154] = "cd-cgi";		exec[154]		= 1;
+dirs[154] = "cd-cgi";		score[154] = 1; exec[154]		= 1;
 dirs[155] = "cdrom";
 dirs[156] = "ce_html";
 dirs[157] = "cert";
@@ -267,27 +279,27 @@ dirs[158] = "certificado";
 dirs[159] = "certificate";
 dirs[160] = "cfappman";
 dirs[161] = "cfdocs";
-dirs[162] = "cfide";		exec[162]	  = 1;
-dirs[163] = "cgi";		exec[163]	  = 1;
-dirs[164] = "cgi-auth";		exec[164]	  = 1;
-dirs[165] = "cgi-bin";		exec[165]	  = 1;
-dirs[166] = "cgi-bin2";		exec[166]	  = 1;
-dirs[167] = "cgi-csc";		exec[167]	  = 1;
-dirs[168] = "cgi-lib";		exec[168]	  = 1;
-dirs[169] = "cgi-local";	exec[169]	  = 1;
-dirs[170] = "cgi-scripts";	exec[170]	  = 1;
-dirs[171] = "cgi-shl";		exec[171]	  = 1;
-dirs[172] = "cgi-shop";		exec[172]	  = 1;
-dirs[173] = "cgi-sys";		exec[173]	  = 1;
-dirs[174] = "cgi-weddico";	exec[174]	  = 1;  	  
-dirs[175] = "cgi-win";		exec[175]	  = 1;
-dirs[176] = "cgibin";		exec[176]	  = 1;
-dirs[177] = "cgilib";		exec[177]	  = 1;
-dirs[178] = "cgis";		exec[178]	  = 1;
-dirs[179] = "cgiscripts";	exec[179]	  = 1;
-dirs[180] = "cgiwin";		exec[180]	  = 1;
-dirs[181] = "class";		exec[181]	  = 1;
-dirs[182] = "classes";		exec[182]	  = 1;
+dirs[162] = "cfide";		score[162] = 1;	exec[162]	  = 1;
+dirs[163] = "cgi";		score[163] = 1; exec[163]	  = 1;
+dirs[164] = "cgi-auth";		score[164] = 1; exec[164]	  = 1;
+dirs[165] = "cgi-bin";		score[165] = 1; exec[165]	  = 1;
+dirs[166] = "cgi-bin2";		score[166] = 1; exec[166]	  = 1;
+dirs[167] = "cgi-csc";		score[167] = 1; exec[167]	  = 1;
+dirs[168] = "cgi-lib";		score[168] = 1; exec[168]	  = 1;
+dirs[169] = "cgi-local";	score[169] = 1; exec[169]	  = 1;
+dirs[170] = "cgi-scripts";	score[170] = 1; exec[170]	  = 1;
+dirs[171] = "cgi-shl";		score[171] = 1; exec[171]	  = 1;
+dirs[172] = "cgi-shop";		score[172] = 1; exec[172]	  = 1;
+dirs[173] = "cgi-sys";		score[173] = 1; exec[173]	  = 1;
+dirs[174] = "cgi-weddico"; 	score[174] = 1; exec[174]	  = 1;  	  
+dirs[175] = "cgi-win";		score[175] = 1; exec[175]	  = 1;
+dirs[176] = "cgibin";		score[176] = 1; exec[176]	  = 1;
+dirs[177] = "cgilib";		score[177] = 1; exec[177]	  = 1;
+dirs[178] = "cgis";		score[178] = 1; exec[178]	  = 1;
+dirs[179] = "cgiscripts";	score[179] = 1; exec[179]	  = 1;
+dirs[180] = "cgiwin";		score[180] = 1; exec[180]	  = 1;
+dirs[181] = "class";		score[181] = 1; exec[181]	  = 1;
+dirs[182] = "classes";		score[182] = 1; exec[182]	  = 1;
 dirs[183] = "cliente";
 dirs[184] = "clientes";
 dirs[185] = "cm";
@@ -302,7 +314,7 @@ dirs[193] = "compras";
 dirs[194] = "compressed";
 dirs[195] = "conecta";
 dirs[196] = "conf";
-dirs[197] = "config";
+dirs[197] = "config";		score[197] = 1;
 dirs[198] = "connect";
 dirs[199] = "console";
 dirs[200] = "controlpanel";
@@ -310,7 +322,7 @@ dirs[201] = "core";
 dirs[202] = "corp";
 dirs[203] = "correo";
 dirs[204] = "counter";
-dirs[205] = "credit";
+dirs[205] = "credit";		score[205] = 1;
 dirs[206] = "cron";
 dirs[207] = "crons";
 dirs[208] = "crypto";
@@ -319,49 +331,49 @@ dirs[210] = "css";
 dirs[211] = "cuenta";
 dirs[212] = "cuentas";
 dirs[213] = "currency";
-dirs[214] = "customers";
+dirs[214] = "customers";	score[214] = 1;
 dirs[215] = "cvsweb";
 dirs[216] = "cybercash";
 dirs[217] = "d";
 dirs[218] = "darkportal";
 dirs[219] = "dat";
 dirs[220] = "data";
-dirs[221] = "database";
-dirs[222] = "databases";
-dirs[223] = "datafiles";
+dirs[221] = "database";		score[221] = 1;
+dirs[222] = "databases";	score[222] = 1;
+dirs[223] = "datafiles";	score[223] = 1;
 dirs[224] = "dato";
 dirs[225] = "datos";
-dirs[226] = "db";
-dirs[227] = "dbase";
+dirs[226] = "db";		score[226] = 1;
+dirs[227] = "dbase";		score[227] = 1;
 dirs[228] = "dcforum";
 dirs[229] = "ddreport";
 dirs[230] = "ddrint";
-dirs[231] = "demo";
+dirs[231] = "demo";		score[231] = 1;
 dirs[232] = "demoauct";
 dirs[233] = "demomall";
-dirs[234] = "demos";
+dirs[234] = "demos";		score[234] = 1;
 dirs[235] = "design";
-dirs[236] = "dev";
-dirs[237] = "devel";
+dirs[236] = "dev";		score[236] = 1;
+dirs[237] = "devel";		score[237] = 1;
 dirs[238] = "development";
 dirs[239] = "dir";
-dirs[240] = "directory";
+dirs[240] = "directory";	score[240] = 1;
 dirs[241] = "directorymanager";
 dirs[242] = "dl";
 dirs[243] = "dm";
 dirs[244] = "dms";
 dirs[245] = "dms0";
 dirs[246] = "dmsdump";
-dirs[247] = "doc";
+dirs[247] = "doc";		score[247] = 1;
 dirs[248] = "doc-html";
 dirs[249] = "doc1";
 dirs[250] = "docs";
 dirs[251] = "docs1";
-dirs[252] = "document";
-dirs[253] = "documents";
+dirs[252] = "document";		score[252] = 1;
+dirs[253] = "documents";	score[253] = 1;
 dirs[254] = "down";
-dirs[255] = "download";
-dirs[256] = "downloads";
+dirs[255] = "download";		score[255] = 1;
+dirs[256] = "downloads";	score[256] = 1;
 dirs[257] = "dump";
 dirs[258] = "durep";
 dirs[259] = "e";
@@ -369,7 +381,7 @@ dirs[260] = "easylog";
 dirs[261] = "eforum";
 dirs[262] = "ejemplo";
 dirs[263] = "ejemplos";
-dirs[264] = "email";
+dirs[264] = "email";	      score[264] = 1;
 dirs[265] = "emailclass";
 dirs[266] = "employees";
 dirs[267] = "empoyees";
@@ -420,16 +432,16 @@ dirs[311] = "guestbook";
 dirs[312] = "guests";
 dirs[313] = "help";
 dirs[314] = "helpdesk";
-dirs[315] = "hidden";
+dirs[315] = "hidden";	score[315] = 1;
 dirs[316] = "hide";
 dirs[317] = "hit_tracker";
 dirs[318] = "hitmatic";
-dirs[319] = "hlstats";
+dirs[319] = "hlstats";   score[319] = 1;
 dirs[320] = "home";
 dirs[321] = "hostingcontroller";
 dirs[322] = "ht";
-dirs[323] = "htbin";
-dirs[324] = "htdocs";
+dirs[323] = "htbin";  score[323] = 1; exec[323] = 1;
+dirs[324] = "htdocs"; score[324] = 1;
 dirs[325] = "html";
 dirs[326] = "hyperstat";
 dirs[327] = "ibank";
@@ -437,8 +449,8 @@ dirs[328] = "ibill";
 dirs[329] = "icons";
 dirs[330] = "idea";
 dirs[331] = "ideas";
-dirs[332] = "iisadmin";
-dirs[333] = "iissamples";
+dirs[332] = "iisadmin"; 	score[332] = 1;
+dirs[333] = "iissamples";	score[333] = 1;
 dirs[334] = "image";
 dirs[335] = "imagenes";
 dirs[336] = "imagery";
@@ -448,16 +460,16 @@ dirs[339] = "imp";
 dirs[340] = "import";
 dirs[341] = "impreso";
 dirs[342] = "inc";
-dirs[343] = "include";
-dirs[344] = "includes";
-dirs[345] = "incoming";
+dirs[343] = "include";		score[343] = 1;
+dirs[344] = "includes";		score[344] = 1;
+dirs[345] = "incoming";		score[345] = 1;
 dirs[346] = "info";
 dirs[347] = "information";
 dirs[348] = "ingresa";
 dirs[349] = "ingreso";
 dirs[350] = "install";
 dirs[351] = "internal";
-dirs[352] = "intranet";
+dirs[352] = "intranet";		score[352] = 1;
 dirs[353] = "inventory";
 dirs[354] = "invitado";
 dirs[355] = "isapi";
@@ -485,16 +497,16 @@ dirs[376] = "libro";
 dirs[377] = "links";
 dirs[378] = "linux";
 dirs[379] = "loader";
-dirs[380] = "log";
+dirs[380] = "log";		score[380] = 1;
 dirs[381] = "logfile";
 dirs[382] = "logfiles";
 dirs[383] = "logg";
 dirs[384] = "logger";
 dirs[385] = "logging";
-dirs[386] = "login";
-dirs[387] = "logon";
-dirs[388] = "logs";
-dirs[389] = "lost+found";
+dirs[386] = "login";		score[386] = 1;
+dirs[387] = "logon";		score[387] = 1;
+dirs[388] = "logs";		score[388] = 1;
+dirs[389] = "lost+found";	score[389] = 1;
 dirs[390] = "mail";
 dirs[391] = "mail_log_files";
 dirs[392] = "mailman";
@@ -514,7 +526,7 @@ dirs[405] = "movimientos";
 dirs[406] = "mqseries";
 dirs[407] = "msql";
 dirs[408] = "mysql";
-dirs[409] = "mysql_admin";
+dirs[409] = "mysql_admin";	score[409] = 1;
 dirs[410] = "ncadmin";
 dirs[411] = "nchelp";
 dirs[412] = "ncsample";
@@ -530,12 +542,12 @@ dirs[421] = "nl";
 dirs[422] = "noticias";
 dirs[423] = "objects";
 dirs[424] = "odbc";
-dirs[425] = "old";
-dirs[426] = "old_files";
-dirs[427] = "oldfiles";
+dirs[425] = "old";		score[425] = 1;
+dirs[426] = "old_files";	score[426] = 1;
+dirs[427] = "oldfiles";		score[427] = 1;
 dirs[428] = "oprocmgr-service";
 dirs[429] = "oprocmgr-status";
-dirs[430] = "oracle";
+dirs[430] = "oracle";		score[430] = 1;
 dirs[431] = "oradata";
 dirs[432] = "order";
 dirs[433] = "orders";
@@ -543,10 +555,10 @@ dirs[434] = "outgoing";
 dirs[435] = "owners";
 dirs[436] = "pages";
 dirs[437] = "passport";
-dirs[438] = "password";
-dirs[439] = "passwords";
-dirs[440] = "payment";
-dirs[441] = "payments";
+dirs[438] = "password";		score[438] = 1;
+dirs[439] = "passwords";	score[439] = 1;
+dirs[440] = "payment";		score[440] = 1;
+dirs[441] = "payments";		score[441] = 1;
 dirs[442] = "pccsmysqladm";
 dirs[443] = "perl";
 dirs[444] = "perl5";
@@ -554,16 +566,16 @@ dirs[445] = "personal";
 dirs[446] = "pforum";
 dirs[447] = "phorum";
 dirs[448] = "php";
-dirs[449] = "phpBB";
-dirs[450] = "phpMyAdmin";
-dirs[451] = "phpPhotoAlbum";
-dirs[452] = "phpSecurePages";
-dirs[453] = "php_classes";
-dirs[454] = "phpclassifieds";
-dirs[455] = "phpimageview";
-dirs[456] = "phpnuke";
-dirs[457] = "phpprojekt";
-dirs[458] = "piranha";
+dirs[449] = "phpBB";		exec[449] = 1;
+dirs[450] = "phpMyAdmin";	exec[450] = 1;
+dirs[451] = "phpPhotoAlbum";	exec[451] = 1;
+dirs[452] = "phpSecurePages";	exec[452] = 1;
+dirs[453] = "php_classes";	exec[453] = 1;
+dirs[454] = "phpclassifieds";	exec[454] = 1;
+dirs[455] = "phpimageview";	exec[455] = 1;
+dirs[456] = "phpnuke";		exec[456] = 1;
+dirs[457] = "phpprojekt";	exec[457] = 1;
+dirs[458] = "piranha";	
 dirs[459] = "pls";
 dirs[460] = "poll";
 dirs[461] = "polls";
@@ -572,9 +584,9 @@ dirs[463] = "ppwb";
 dirs[464] = "printers";
 dirs[465] = "priv";
 dirs[466] = "privado";
-dirs[467] = "private";
+dirs[467] = "private";		score[467] = 1;
 dirs[468] = "prod";
-dirs[469] = "protected";
+dirs[469] = "protected";	score[469] = 1;
 dirs[470] = "prueba";
 dirs[471] = "pruebas";
 dirs[472] = "prv";
@@ -607,9 +619,9 @@ dirs[498] = "script";
 dirs[499] = "scripts";			exec[499] = 1;
 dirs[500] = "search";
 dirs[501] = "search-ui";
-dirs[502] = "secret";
-dirs[503] = "secure";
-dirs[504] = "secured";
+dirs[502] = "secret";		score[502] = 1;
+dirs[503] = "secure";		score[503] = 1;
+dirs[504] = "secured";		score[504] = 1;
 dirs[505] = "sell";
 dirs[506] = "server-info";
 dirs[507] = "server-status";
@@ -631,11 +643,11 @@ dirs[522] = "shipping";
 dirs[523] = "shop";
 dirs[524] = "shopper";
 dirs[525] = "site";
-dirs[526] = "siteadmin";
+dirs[526] = "siteadmin";	score[526] = 1;
 dirs[527] = "sitemgr";
 dirs[528] = "siteminder";
 dirs[529] = "siteminderagent";
-dirs[530] = "sites";
+dirs[530] = "sites";		score[530] = 1;
 dirs[531] = "siteserver";
 dirs[532] = "sitestats";
 dirs[533] = "siteupdate";
@@ -650,16 +662,16 @@ dirs[541] = "sql";
 dirs[542] = "squid";
 dirs[543] = "src";
 dirs[544] = "srchadm";
-dirs[545] = "ssi";
-dirs[546] = "ssl";
-dirs[547] = "sslkeys";
+dirs[545] = "ssi";		score[545] = 1;
+dirs[546] = "ssl";		score[546] = 1;
+dirs[547] = "sslkeys";		score[547] = 1;
 dirs[548] = "staff";
-dirs[549] = "stat";
-dirs[550] = "statistic";
-dirs[551] = "statistics";
-dirs[552] = "stats";
+dirs[549] = "stat";		score[549] = 1;
+dirs[550] = "statistic";	score[550] = 1;
+dirs[551] = "statistics";	score[551] = 1;
+dirs[552] = "stats";		score[552] = 1;
 dirs[553] = "stats-bin-p";
-dirs[554] = "stats_old";
+dirs[554] = "stats_old";	score[554] = 1;
 dirs[555] = "status";
 dirs[556] = "storage";
 dirs[557] = "store";
@@ -676,9 +688,9 @@ dirs[567] = "sun";
 dirs[568] = "super_stats";
 dirs[569] = "support";
 dirs[570] = "supporter";
-dirs[571] = "sys";
-dirs[572] = "sysadmin";
-dirs[573] = "sysbackup";
+dirs[571] = "sys";		score[571] = 1;
+dirs[572] = "sysadmin";		score[572] = 1;
+dirs[573] = "sysbackup";	score[573] = 1;
 dirs[574] = "system";
 dirs[575] = "tar";
 dirs[576] = "tarjetas";
@@ -689,14 +701,14 @@ dirs[580] = "temp";
 dirs[581] = "template";
 dirs[582] = "templates";
 dirs[583] = "temporal";
-dirs[584] = "test";
-dirs[585] = "test-cgi";
-dirs[586] = "testing";
-dirs[587] = "tests";
+dirs[584] = "test";		score[584] = 1;
+dirs[585] = "test-cgi";		
+dirs[586] = "testing";	 	score[586] = 1;
+dirs[587] = "tests";		score[587] = 1;
 dirs[588] = "testweb";
 dirs[589] = "ticket";
 dirs[590] = "tickets";
-dirs[591] = "tmp";
+dirs[591] = "tmp";		score[591] = 1;
 dirs[592] = "tools";
 dirs[593] = "tpv";
 dirs[594] = "trabajo";
@@ -710,10 +722,10 @@ dirs[601] = "uploads";
 dirs[602] = "us";
 dirs[603] = "usage";
 dirs[604] = "user";
-dirs[605] = "userdb";
-dirs[606] = "users";
+dirs[605] = "userdb";		score[605] = 1;
+dirs[606] = "users";		score[606] = 1;
 dirs[607] = "usr";
-dirs[608] = "ustats";
+dirs[608] = "ustats";		score[608] = 1;
 dirs[609] = "usuario";
 dirs[610] = "usuarios";
 dirs[611] = "util";
@@ -725,10 +737,10 @@ dirs[616] = "way-board";
 dirs[617] = "web";
 dirs[618] = "web800fo";
 dirs[619] = "webMathematica";
-dirs[620] = "web_usage";
-dirs[621] = "webaccess";
-dirs[622] = "webadmin";
-dirs[623] = "webalizer";
+dirs[620] = "web_usage";	score[620] = 1;
+dirs[621] = "webaccess";	score[621] = 1;
+dirs[622] = "webadmin";		score[622] = 1;
+dirs[623] = "webalizer";	score[623] = 1;
 dirs[624] = "webapps";
 dirs[625] = "webboard";
 dirs[626] = "webcart";
@@ -747,33 +759,33 @@ dirs[638] = "webreports";
 dirs[639] = "webreps";
 dirs[640] = "webshare";
 dirs[641] = "website";
-dirs[642] = "webstat";
-dirs[643] = "webstats";
+dirs[642] = "webstat";		score[642] = 1;
+dirs[643] = "webstats";		score[643] = 1;
 dirs[644] = "webtrace";
-dirs[645] = "webtrends";
+dirs[645] = "webtrends";	score[645] = 1;
 dirs[646] = "windows";
 dirs[647] = "word";
 dirs[648] = "work";
 dirs[649] = "wsdocs";
-dirs[650] = "wstats";
-dirs[651] = "wusage";
+dirs[650] = "wstats";		score[650] = 1;
+dirs[651] = "wusage";		score[651] = 1;
 dirs[652] = "www";
 dirs[653] = "www-sql";
 dirs[654] = "wwwjoin";
-dirs[655] = "wwwlog";
-dirs[656] = "wwwstat";
-dirs[657] = "wwwstats";
+dirs[655] = "wwwlog";		score[655] = 1;
+dirs[656] = "wwwstat";		score[656] = 1;
+dirs[657] = "wwwstats";		score[657] = 1;
 dirs[658] = "xGB";
 dirs[659] = "xml";
 dirs[660] = "xtemp";
 dirs[661] = "zb41";
 dirs[662] = "zipfiles";
 dirs[663] = "~1";
-dirs[664] = "~admin";
+dirs[664] = "~admin";		score[664] = 1;
 dirs[665] = "~log";
 dirs[666] = "~root";
-dirs[667] = "~stats";
-dirs[668] = "~webstats";
+dirs[667] = "~stats";		score[667] = 1;
+dirs[668] = "~webstats";	score[668] = 1;
 dirs[669] = "~wsdocs";
 dirs[670] = "track";
 dirs[671] = "tracking";
@@ -782,17 +794,96 @@ dirs[673] = "BizTalkServerDocs";
 dirs[674] = "BizTalkServerRepository";
 dirs[675] = "MessagingManager";
 dirs[676] = "iisprotect";
-dirs[677] = "mp3";
-dirs[678] = "mp3s";
+dirs[677] = "mp3";		score[667] = 1;
+dirs[678] = "mp3s";		score[668] = 1;
 dirs[679] = "acid";
 dirs[680] = "chat";
 dirs[681] = "eManager";
 dirs[682] = "keyserver";
 dirs[683] = "search97";
 dirs[684] = "tarantella";
+dirs[685] = "webmail";
+dirs[686] = "flexcube@";
+dirs[687] = "flexcubeat";
+dirs[688] = "ganglia";
+dirs[689] = "sitebuildercontent";
+dirs[690] = "sitebuilderfiles";
+dirs[691] = "sitebuilderpictures";
+dirs[692] = "WSsamples";
+dirs[693] = "mercuryboard";
+dirs[694] = "tdbin";
+dirs[695] = "AlbumArt_";
+
+
+i = 696;	# max_index(dirs);
+# The three following directories exist on Resin default installation
+dirs[i++] = "faq";
+dirs[i++] = "ref";
+dirs[i++] = "cmp";
+# Phishing
+dirs[i] = "cgi-bim";          exec[i++] = 1; 
+# Lite-serve
+dirs[i] = "cgi-isapi";		exec[i++] = 1;
+# HyperWave
+dirs[i++] = "wavemaster.internal";
+# Urchin
+dirs[i++] = "urchin";
+dirs[i++] = "urchin3";
+dirs[i++] = "urchin5";
+# CVE-2000-0237
+dirs[i++] = "publisher";
+# Common Locale
+dirs[i++] = "en";
+dirs[i++] = "en-US";
+dirs[i++] = "fr";
+dirs[i++] = "intl";
+# Seen on Internet
+dirs[i++] = "about";
+dirs[i++] = "aspx";
+dirs[i++] = "Boutiques";
+dirs[i++] = "business";
+dirs[i++] = "content";
+dirs[i++] = "Corporate";
+dirs[i++] = "company";
+dirs[i++] = "client";
+dirs[i++] = "DB4Web";
+dirs[i] = "dll";	exec[i++] = 1;
+dirs[i++] = "frameset";
+dirs[i++] = "howto";
+dirs[i++] = "legal";
+dirs[i++] = "member";
+dirs[i++] = "myaccount";
+dirs[i++] = "obj";
+dirs[i++] = "offers";
+dirs[i++] = "personal_pages";
+dirs[i++] = "rem";
+dirs[i++] = "Remote";
+dirs[i++] = "serve";
+dirs[i++] = "shopping";
+dirs[i++] = "slide";
+dirs[i++] = "solutions";
+dirs[i++] = "v4";
+dirs[i++] = "wws";		# Sympa
+dirs[i++] = "squirrelmail";
+dirs[i++] = "dspam";
+dirs[i++] = "cacti";
+
+# Add domain name parts
+hn = get_host_name();
+if (! ereg(string: hn, pattern: "^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$"))
+{
+ hnp = split(hn, sep: ".");
+ foreach p (hnp)
+ {
+   n = max_index(dirs);
+   for (j = 0; j < n && dirs[j] != p; j ++)
+     ;
+   if (j < n) dirs[n] = p;
+ }
+}
 
 # this needs to be updated to match the above list
-dirs_last = 684;
+dirs_last = i-1;
 
 # these are the strings used by the 404 checks
 errmsg[0] = "not found";
@@ -836,13 +927,17 @@ Check403 = 1;
 discovered[0] = 0;
 discovered_last = 0;
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port))
+port = get_http_port(default:80);
+
+if(!port || !get_port_state(port))
 {
     if(debug) display(":: Error: port ", port, " was not open on target.\n");
     exit(0);
 }
+
+
+
+if ( get_kb_item("Services/www/" + port + "/embedded") && ! thorough_tests ) exit(0);
 
 ##
 # pull the robots.txt file
@@ -854,9 +949,9 @@ if(debug)display(":: Checking for robots.txt...\n");
 req = http_get(item:"/robots.txt", port:port);
 http_data = http_keepalive_send_recv(port:port, data:req);
 
-if (ereg(pattern:"HTTP/1.[01] 200", string:http_data))
+if (ereg(pattern:"^HTTP/1.[01] 200 ", string:http_data))
 {
-    strings = split(http_data, string("\n"));
+    strings = split(http_data);
     foreach string (strings)
     {
         if (   egrep(pattern:"disallow:.*/", string:string, icase:TRUE) &&
@@ -891,7 +986,7 @@ req = http_get(item:"/CVS/Entries", port:port);
 http_data = http_keepalive_send_recv(port:port, data:req);
 if(http_data == NULL)exit(0);
 
-if (ereg(pattern:"HTTP/1.[01] 200", string:http_data))
+if (ereg(pattern:"^HTTP/1.[01] 200 ", string:http_data))
 {
     strings = split(http_data, string("\n"));
     
@@ -923,7 +1018,7 @@ http_resp = http_keepalive_send_recv(port:port, data:req);
 if(http_resp == NULL)exit(0);
 
 
-if(ereg(pattern:"HTTP/1.[01] 200", string: http_resp))
+if(ereg(pattern:"^HTTP/1.[01] 200 ", string: http_resp))
 {
     fake404 = 0;
     
@@ -947,13 +1042,13 @@ if(ereg(pattern:"HTTP/1.[01] 200", string: http_resp))
     fake404 = string("BadString0987654321*DDI*");
 }
 
-if(ereg(pattern:"^HTTP/1.[01] 401", string: http_resp))
+if(ereg(pattern:"^HTTP/1.[01] 401 ", string: http_resp))
 {
     if(debug) display(":: This server requires authentication for non-existent directories, disabling 401 checks.\n");
     Check401 = 0;
 }
 
-if(ereg(pattern:"^HTTP/1.[01] 403", string: http_resp))
+if(ereg(pattern:"^HTTP/1.[01] 403 ", string: http_resp))
 {
     if(debug) display(":: This server returns a 403 for non-existent directories, disabling 403 checks.\n");
     Check403 = 0;
@@ -979,21 +1074,26 @@ for (dcp=0; dirs[dcp] ; dcp=dcp+1)
     cdirs_last = dcp;
 }
 
-# this loop is for recursion, which isn't handled yet
-while (keep_scanning == 1)
+
+for ( pass = 0 ; pass < 2 ; pass ++ )
 {
 
+    start_pass = unixtime();
     if(debug)display(":: Starting the directory scan...\n");
     for(i=0;cdirs[i] ;i = i + 1 )
     {   
+	if ( pass == 0 && score[i] == 0 ) continue;
+	if ( pass == 1 && score[i] != 0 ) continue;
 	res = http_keepalive_send_recv(port:port, data:http_get(item:string(ScanRootDir, cdirs[i], "/"), port:port));
-	#display(res);
+	if ( res == NULL ) exit(0);
+	http_code = int(substr(res, 9, 11));
+
 	
 	if(!res)res = "BogusBogusBogus";
        
 
         if( Check200 && 
-            ereg(pattern:"HTTP/1.[01] 200", string:res) &&
+            http_code == 200 &&
             ! (egrep(pattern:fake404, string:res, icase:TRUE))
           )
         {
@@ -1013,7 +1113,7 @@ while (keep_scanning == 1)
             found=found+1;
         }
 
-        if(Check403 && ereg(pattern:"HTTP/1.[01] 403", string: res))
+        if(Check403 && http_code == 403 )
         {
 
             if (debug) display(":: Got a 403 for ", ScanRootDir, cdirs[i], ", checking for file in the directory...\n");
@@ -1021,7 +1121,7 @@ while (keep_scanning == 1)
             soc = check_req_send(port:port, url:string(ScanRootDir, cdirs[i], "/NonExistent.html"));
 	    res2 = check_req_recv(soc:soc);
 	    
-            if(ereg(pattern:"HTTP/1.[01] 403", string:res2))
+            if(ereg(pattern:"^HTTP/1.[01] 403 ", string:res2))
             {
                 # the whole directory appears to be protected 
                 if (debug) display("::   403 applies to the entire directory \n");   
@@ -1044,7 +1144,7 @@ while (keep_scanning == 1)
             }
         }
 
-        if(Check401 && ereg(pattern:"HTTP/1.[01] 401", string: res))
+        if(Check401 && http_code == 401 )
         {
 
             if (debug) display(":: Got a 401 for ", ScanRootDir + cdirs[i], "\n");
@@ -1054,12 +1154,12 @@ while (keep_scanning == 1)
             } else {
                 authreport = authreport + ScanRootDir + cdirs[i];
             }
+	    num_discovered ++;
+            if ( num_discovered > 50 ) exit(0); # Bogus Server
             authfound=authfound+1;            
         }    
     }
-    
-    # recursion not handled yet
-    keep_scanning = 0;
+ if ( pass == 0 && unixtime() - start_pass > 80 && ! thorough_tests ) break; 
 }
 
 

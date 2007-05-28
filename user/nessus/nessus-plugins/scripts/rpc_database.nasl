@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10214);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "database service";
  name["francais"] = "Service database";
  script_name(english:name["english"], francais:name["francais"]);
@@ -58,6 +58,10 @@ Facteur de risque : Faible";
 
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 RPC_PROG = 100016;

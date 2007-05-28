@@ -36,7 +36,7 @@
  * From: @(#)af.c	8.1 (Berkeley) 6/5/93
  */
 char af_rcsid[] = 
-  "$Id$";
+  "$Id: af.c,v 1.8 1999/09/28 15:48:20 dholland Exp $";
 
 #include "defs.h"
 

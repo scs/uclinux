@@ -11,22 +11,21 @@
 if(description)
 {
  script_id(11044);
- script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2002-1982");
  script_bugtraq_id(5189);
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "ICECast FileSystem disclosure";
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote server does not return the same error codes when it is requested
-a non-existent directory and an existing one. An attacker may use this flaw
-to deduct the presence of several key directory on the remote server, and
-therefore gain further knowledge about it.
+The remote server does not return the same error codes when it is
+requested a non-existent directory and an existing one.  An attacker
+may use this flaw to deduct the presence of several key directory on
+the remote server, and therefore gain further knowledge about it. 
 
 Risk factor : Low
 Solution : None";
-
-
  script_description(english:desc["english"]);
  
  summary["english"] = "Determines if the error code is the same when requesting inexisting and existing dirs";
@@ -41,7 +40,7 @@ Solution : None";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 8000);
  exit(0);
 }
@@ -54,10 +53,13 @@ Solution : None";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8000;
-
+port = get_http_port(default:8000);
+if(!port) exit(0);
 if(!get_port_state(port))exit(0);
+
+banner = get_http_banner(port:port);
+if ( ! banner ) exit(0);
+if ( "icecast/" >!< tolower(banner) ) exit(0);
 
 req1 = http_get(port:port, item:"/test/../../../../../../../../../inexistant_i_hope/");
 req2 = http_get(port:port, item:"/test/../../../../../../../../../etc/");
@@ -75,4 +77,3 @@ r2 = recv_line(socket:soc2, length:13);
 http_close_socket(soc2);
 
 if(!(r2 == r1))security_warning(port);
-

@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: ssl_support.h,v 1.4 2001/10/19 22:34:49 hno Exp $
  *
  * AUTHOR: Benno Rice
  *

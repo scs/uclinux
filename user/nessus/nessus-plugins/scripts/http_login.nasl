@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11149);
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "HTTP login page";
  name["francais"] = "Page de connexion HTTP";
@@ -73,8 +73,8 @@ if (http_pass)
 	pattern: "%PASS%", replace: http_pass);
 }
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 soc = http_open_socket(port);
@@ -86,7 +86,7 @@ if (http_login_page)
 {
   req = http_get(port: port, item: http_login_page);
   send(socket: soc, data: req);
-  r = http_recv_headers(soc);
+  r = http_recv_headers2(socket:soc);
   #r2 = recv(socket: soc, length: 1024);
   close(soc);
   soc = http_open_socket(port);
@@ -117,7 +117,7 @@ req = ereg_replace(string: req, pattern: "Content-Length: ",
 	replace: string("Content-Type: application/x-www-form-urlencoded\r\n",
 			referer, cookie1, "Content-Length: ") );
 send(socket:soc, data:req);
-r = http_recv_headers(soc);
+r = http_recv_headers2(socket:soc);
 close(soc);
 
 # Failed - permission denied or bad gateway or whatever
@@ -134,6 +134,11 @@ if (cookies)
   c = ereg_replace(string: cookies, 
 	pattern: "^Cookie2? *: *", replace: "");
   #display("Authentication cookie = ", c);
+}
+else if (cookie1)
+{
+  set_kb_item(name: string("/tmp/http/auth/", port), value: cookie1);
+  #display("Trying to use session cookie\n");
 }
 
 

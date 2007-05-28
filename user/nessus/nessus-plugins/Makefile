@@ -43,7 +43,6 @@ install-nes: install-dirs
 install-conf:
 	test -d $(DESTDIR)${localstatedir}/nessus || $(INSTALL_DIR) -m 755 \
 		$(DESTDIR)${localstatedir}/nessus
-	$(INSTALL) -m 444 plugins/nmap_osfingerprint/nmap-os-fingerprints $(DESTDIR)${localstatedir}/nessus
 
 install-man:
 	test -d $(DESTDIR)${mandir}/man1 || $(INSTALL_DIR) -m 755 \

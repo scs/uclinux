@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10346);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1056);
- script_cve_id("CAN-2000-0239");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0239");
  name["english"] = "Mercur WebView WebClient";
  name["francais"] = "Mercur WebView WebClient";
  script_name(english:name["english"], francais:name["francais"]);
@@ -31,7 +31,7 @@ mails.
 
 
 Solution : contact the vendor for a patch
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "

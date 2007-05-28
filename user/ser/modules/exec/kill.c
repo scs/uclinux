@@ -1,6 +1,6 @@
 /*
  *
- * $Id$
+ * $Id: kill.c,v 1.3 2003/03/12 12:49:25 andrei Exp $
  *
  * in this file, we implement the ability to send a kill signal to
  * a child after some time; its a quick ugly hack, for example kill

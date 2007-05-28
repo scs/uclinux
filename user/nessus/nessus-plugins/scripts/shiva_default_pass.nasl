@@ -7,7 +7,8 @@
 if(description)
 {
 	script_id(10500);
- script_version ("$Revision: 1.5 $");
+  	script_cve_id("CVE-1999-0508");
+ 	script_version ("$Revision: 1.7 $");
 	name["english"] = "Shiva Integrator Default Password";
 	script_name(english:name["english"]);
  

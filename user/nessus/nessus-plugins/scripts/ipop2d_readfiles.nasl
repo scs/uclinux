@@ -20,8 +20,8 @@
 if(description)
 {
  script_id(10469);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1484);
+ script_version ("$Revision: 1.12 $");
  
  
  
@@ -36,7 +36,7 @@ The remote pop2 server allows the reading of arbitrary
 files for authenticated users, using the 'fold' command.
 
 Solution : Contact your vendor for the latest software release.
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "

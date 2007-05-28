@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10166);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CAN-1999-0546");
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-1999-0546");
  name["english"] = "Windows NT ftp 'guest' account";
  name["francais"] = "Accompte 'guest' FTP de WindowsNT";
  
@@ -62,6 +62,7 @@ Facteur de risque : Moyen";
 
 # it the server accepts any login/password, then
 # no need to do this check
+include('ftp_func.inc');
 
 any = get_kb_item("ftp/wftp_login_problem");
 if(any)exit(0);
@@ -75,7 +76,7 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
-  if(ftp_log_in(socket:soc, user:"guest", pass:""))
+  if(ftp_authenticate(socket:soc, user:"guest", pass:""))
   {
    login = get_kb_item("ftp/login");
    if(!login)

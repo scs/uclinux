@@ -7,7 +7,8 @@
 if(description)
 {
 	script_id(11884);
-	script_version("$Revision: 1.3 $");
+	script_bugtraq_id(8821);
+	script_version("$Revision: 1.7 $");
 	name["english"] = "WinSyslog (DoS)";
 	script_name(english:name["english"]);
 
@@ -27,9 +28,18 @@ Risk factor: High";
 	script_category(ACT_DENIAL);	# ACT_FLOOD?
 	script_copyright(english:"This script is copyright (C) 2003 Matthew North");
 	family["english"] = "Denial of Service";
+  	script_dependencies('os_fingerprint.nasl');
 	script_family(english:family["english"]);
 	exit(0);
 }
+
+
+include('global_settings.inc');
+
+os = get_kb_item("Host/OS/icmp");
+if ( os && "Windows" >!< os ) exit(0);
+
+if ( report_paranoia < 2 ) exit(0);
 
 
 soc = open_sock_udp(514);
@@ -46,4 +56,4 @@ for(i=0; i < 1000; i++) {
 close(soc);
 sleep(5);
 alive = end_denial();
-if(!alive)security_hole(port);
+if(!alive)security_hole(port:514, proto:"udp");

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10618);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CAN-2001-0302");
  script_bugtraq_id(2381);
+ script_version ("$Revision: 1.11 $");
+ script_cve_id("CVE-2001-0302");
  
  name["english"] = "Pi3Web tstisap.dll overflow";
  name["francais"] = "Pi3Web tstisap.dll overflow";
@@ -21,7 +21,7 @@ commands with the privileges of the http service.
 
 Solution : remove it from /isapi.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi '/isapi/tstisapi.dll' est installé. Celui-ci possède
@@ -56,10 +56,11 @@ Facteur de risque : Sérieux";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-
+port = get_http_port(default:80);
 if(!get_port_state(port))exit(0);
+
+banner = get_http_banner(port:port);
+if ( "Pi3Web/" >!< banner ) exit(0);
 
 soc = http_open_socket(port);
 

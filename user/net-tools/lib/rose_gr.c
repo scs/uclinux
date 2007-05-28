@@ -3,7 +3,7 @@
  * lib/rose_gr.c      This file contains an implementation of the "ROSE"
  *                      route print support functions.
  *
- * Version:     $Id$
+ * Version:     $Id: rose_gr.c,v 1.4 1999/01/05 20:54:07 philip Exp $
  *
  * Author:      Terry Dawson, VK2KTJ, <terry@perf.no.itg.telstra.com.au>
  *              based on ax25_gr.c by:

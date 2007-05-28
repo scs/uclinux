@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-aux3.h,v 1.2 1993/08/19 05:26:51 genek Exp $ */
 
 /*
  * conf-aux3.h

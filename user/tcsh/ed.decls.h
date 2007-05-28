@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/ed.decls.h,v 3.29 2000/07/15 19:58:50 christos Exp $ */
 /*
  * ed.decls.h: Editor external definitions
  */

@@ -1,4 +1,4 @@
-[ $Id$ ]
+[ $Id: README,v 1.6 2002/12/03 22:09:35 gert Exp $ ]
 
 This is a collection of tools to maintain mgetty using a WWW interface
 (CGI binaries and a couple of static pages).

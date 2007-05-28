@@ -1,7 +1,7 @@
 #
 #  Makefile for the Squid SASL authentication helper
 #
-#  $Id$
+#  $Id: Makefile.am,v 1.1.2.4 2004/06/08 11:35:22 hno Exp $
 #
 #  Uncomment and customize the following to suit your needs:
 #

@@ -34,7 +34,7 @@
 
 /* **** FILES **** */
 
-#define NESSUS_SERVICES		CONF_DIR "/nessus-services"
+#define NESSUS_SERVICES		NESSUS_STATE_DIR "/nessus/nessus-services"
 /* If you want Nessus to use a second input file, uncomment next line */
 /*#define NESSUS_IANA_PORTS	CONF_DIR "/iana-port-numbers"*/
 
@@ -43,9 +43,12 @@
 /* Not really useful but for debug or information */
 #define NESSUS_SERVICES_TXT	NESSUS_STATE_DIR	"/nessus/services.txt"
 
+#define SERVICES_MAGIC 0x42
+
 struct nessus_service {
+  char		 	magic;
   unsigned short	ns_port;
-  char			ns_name[32];
+  char			ns_name[128];
 };
 
 ExtFunc const char*	nessus_get_svc_name(int, const char*);

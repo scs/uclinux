@@ -9,11 +9,11 @@
 if(description)
 {
  script_id(11791);
- script_cve_id("CAN-2003-0567");
- if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0010");
  script_bugtraq_id(8211);
+ script_cve_id("CVE-2003-0567");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0010");
 
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.7 $");
 
  name["english"] = "CISCO IOS Interface blocked by IPv4 Packet";
 
@@ -27,7 +27,7 @@ IPv4 packets.
 An attacker may use this flaw to render this router inoperable.
 
 Solution : http://www.cisco.com/warp/public/707/cisco-sa-20030717-blocked.shtml
-Risk Factor : High
+Risk factor : High
 See also : http://www.cert.org/advisories/CA-2003-15.html
 
 *** As Nessus solely relied on the banner of the remote host

@@ -165,7 +165,7 @@ SWIG_TypeQuery(const char *name) {
 
 
 /*
- * $Header$
+ * $Header: /cvs/sw/new-wave/user/can4linux/canLtwo_wrap.c,v 1.1 2003/07/18 00:11:46 gerg Exp $
  * 
  * swigtcl8.swg
  */

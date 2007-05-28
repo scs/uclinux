@@ -93,6 +93,9 @@ device "3c575_cb"
 device "apa1480_cb"
   class "scsi" module "cb_enabler", "apa1480_cb"
 
+device "tulip"
+  class "network" module "tulip"
+
 device "tulip_cb"
   class "network" module "cb_enabler", "tulip_cb"
 
@@ -832,6 +835,10 @@ card "NetGear FA410TXC Fast Ethernet"
 card "NetGear FA411 Fast Ethernet"
   version "NETGEAR", "FA411"
   bind "pcnet_cs"
+
+card "NetGear FA511 Notebook Adaptor"
+  pci 0x1317, 0x1985
+  bind "tulip"
 
 card "NE2000 Compatible Fast Ethernet"
   manfid 0x0149, 0x0230

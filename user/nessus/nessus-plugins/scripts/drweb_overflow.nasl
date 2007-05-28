@@ -10,7 +10,7 @@ if(description)
  script_id(11625);
  script_bugtraq_id(7022);
  
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.5 $");
 
  name["english"] = "DrWeb Folder Name Overflow";
 
@@ -43,33 +43,17 @@ Risk factor : High";
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
 
-include("smb_nt.inc");
+include("smb_func.inc");
 
 
-
-rootfile = registry_get_sz(key:"SOFTWARE\DialogueScience\DrWeb", item:"Path");
-if(!rootfile)
-{
- exit(0);
-}
-else
-{
- share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
- exe =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1", string:rootfile);
- }
-
-
+if ( ! get_kb_item("SMB/Registry/Enumerated") ) exit(0);
 
 
 name 	=  kb_smb_name();
@@ -77,55 +61,65 @@ login	=  kb_smb_login();
 pass  	=  kb_smb_password(); 
 domain 	=  kb_smb_domain();
 port    =  kb_smb_transport();
-if(!port) port = 139;
-
-
 if(!get_port_state(port))exit(0);
 
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
 
+if ( ! soc ) exit(0);
 
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(1);
 
-r = smb_session_request(soc:soc, remote:name);
-if(!r)exit(0);
-
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);
-
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r)exit(0);
-
-uid = session_extract_uid(reply:r);
-
-
-
-r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-tid = tconx_extract_tid(reply:r);
-if(!tid)exit(0);
-
-fid = OpenAndX(socket:soc, uid:uid, tid:tid, file:exe);
-if(fid != 0)
+hklm = RegConnectRegistry(hkey:HKEY_LOCAL_MACHINE);
+if ( isnull(hklm) ) 
 {
- fsize = smb_get_file_size(socket:soc, uid:uid, tid:tid, fid:fid);
-
- off = fsize - 16384;
- data = ReadAndX(socket:soc, uid:uid, tid:tid, fid:fid, count:16384, off:off);
- data = str_replace(find:raw_string(0), replace:"", string:data);
-
- version = strstr(data, "ProductVersion");
- if(!version)exit(0);
- for(i=strlen("ProductVersion");i<strlen(version);i++)
- {
- if((ord(version[i]) < ord("0") ||
-    ord(version[i]) > ord("9")) && 
-    version[i] != ".")break;
- else 
-   v += version[i];
-} 
- if("4.29" >< v)
- 	v = v + version[i];
-	
- if(ereg(pattern:"([123]\..*|4\.([0-9][^0-9]|1[0-9]|2[0-8]|29a?))", string:v))
- 	security_warning(port);
+ NetUseDel();
+ exit(1);
 }
+
+
+key_h = RegOpenKey(handle:hklm, key:"SOFTWARE\DialogueScience\DrWeb", mode:MAXIMUM_ALLOWED);
+if ( isnull(key_h) )
+{
+ RegCloseKey(handle:hklm);
+ NetUseDel();
+ exit(0);
+}
+
+item = RegQueryValue(handle:key_h, item:"Path");
+RegCloseKey(handle:key_h);
+RegCloseKey(handle:hklm);
+NetUseDel(close:FALSE);
+if ( isnull(item) ) {
+ NetUseDel();
+ exit(0);
+}
+
+rootfile = item[1];
+share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
+exe =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1", string:rootfile);
+
+r = NetUseAdd(login:login, password:pass, domain:domain, share:share);
+if ( r != 1 )
+{
+ NetUseDel();
+ exit(1);
+}
+
+handle = CreateFile (file:exe, desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_NORMAL,
+                     share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
+if( ! isnull(handle) )
+{
+ version = GetFileVersion(handle:handle);
+ CloseFile(handle:handle);
+ if ( ! isnull(version) )
+ {
+ v = string(version[0], ".", version[1], ".", version[2], ".", version[3]);
+ set_kb_item(name:"DrWeb/Version", value:v);
+ if ( version[0] < 4 ||
+      (version[0] == 4 && version[1] == 0 && version[2] == 0 && version[3] < 29 ) )
+ 	security_warning(port);
+ }
+}
+NetUseDel();

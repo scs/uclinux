@@ -12,23 +12,21 @@
 if(description)
 {
  script_id(10931);
- script_version("$Revision: 1.6 $");
- script_cve_id("CAN-2001-1289");
  script_bugtraq_id(3123);
+ script_version("$Revision: 1.9 $");
+ script_cve_id("CVE-2001-1289");
  name["english"] = "Quake3 Arena 1.29 f/g DOS";
  name["francais"] = "Déni de service contre Quake3 Arena 1.29 f/g";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "It was possible to crash
-the Quake3 Arena daemon by sending a specially
+ desc["english"] = "
+It was possible to crash the Quake3 Arena daemon by sending a specially
 crafted login string.
 
-A cracker may use this attack to make this
-service crash continuously, preventing you
-from playing.
+A cracker may use this attack to make this service crash continuously, 
+preventing you from playing.
 
 Solution: upgrade your software
-
 Risk factor : Low";
 
 

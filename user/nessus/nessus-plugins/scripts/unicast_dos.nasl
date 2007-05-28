@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10289);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(1000);
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CVE-2000-0211");
  
  name["english"] = "Microsoft Media Server 4.1 - DoS";
@@ -20,8 +20,8 @@ It was possible to crash the remote Microsoft
 Media Server by sending it specially crafted
 packets.
 
-Solution : http://www.microsoft.com/technet/security/bulletin/fq00-013.asp
-Risk factor : Serious";
+Solution : http://www.microsoft.com/technet/security/bulletin/fq00-013.mspx
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -29,7 +29,7 @@ Il s'est avéré possible de faire planter le
 serveur Microsoft Media Server en lui envoyant
 des paquets mal formés.
 
-Solution : http://www.microsoft.com/technet/security/bulletin/fq00-013.asp
+Solution : http://www.microsoft.com/technet/security/bulletin/fq00-013.mspx
 Facteur de risque : Sérieux ";
 
  script_description(english:desc["english"], francais:desc["francais"]);

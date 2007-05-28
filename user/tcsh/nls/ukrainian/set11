@@ -1,4 +1,4 @@
-$ $Id$
+$ $Id: set11,v 1.1 2000/11/11 23:03:42 christos Exp $
 $ sh.c
 $set 11 
 1 Warning: no access to tty (%s).\n

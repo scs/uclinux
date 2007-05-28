@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10089);
- script_version ("$Revision: 1.19 $");
  script_bugtraq_id(269);
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-1999-0219");
  name["english"] = "FTP ServU CWD overflow";
  name["francais"] = "FTP ServU CWD overflow";
@@ -72,14 +72,13 @@ Facteur de risque : Moyen";
 #
 
 
-#
-# Microsoft's FTP server close the connection when they are
-# given a too long string
-#
-
+include('ftp_func.inc');
 
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
+
+banner = get_ftp_banner(port:port);
+if ( ! banner || "Microsoft FTP" >< banner ) exit(0);
 
 
 
@@ -93,7 +92,7 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
-  if(ftp_log_in(socket:soc, user:login, pass:password))
+  if(ftp_authenticate(socket:soc, user:login, pass:password))
   {
    s = string("CWD ", crap(4096), "\r\n");
    send(socket:soc, data:s);

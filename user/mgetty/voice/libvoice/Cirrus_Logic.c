@@ -27,7 +27,7 @@
  * as per the spec. The silence threshold and time was wrongly set. Fixed now.
  * - Mitch DSouza <Mitch.DSouza@Uk.Sun.COM>
  *
- * $Id$
+ * $Id: Cirrus_Logic.c,v 1.8 2005/03/13 17:27:45 gert Exp $
  *
  */
 

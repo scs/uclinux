@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: case_acce.h,v 1.3 2003/08/05 17:14:27 janakj Exp $ 
  *
  * Accept and Accept-Language Header Field Name Parsing Macros
  *

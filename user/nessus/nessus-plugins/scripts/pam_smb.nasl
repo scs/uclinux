@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10517);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1666);
- script_cve_id("CAN-2000-0843");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-2000-0843");
  
  name["english"] = "pam_smb / pam_ntdom overflow";
  name["francais"] = "Dépassement de buffer dans pam_smb / pam_ntdom";
@@ -97,6 +97,9 @@ Facteur de risque : Elevé";
  exit(0);
 }
 
+include('telnet_func.inc');
+include('global_settings.inc');
+if ( report_paranoia < 2 ) exit(0);
 
 port = get_kb_item("Services/telnet");
 if(!port)port = 23;
@@ -106,7 +109,7 @@ if(get_port_state(port))
 soc = open_sock_tcp(port);
 if(soc)
  {
-  r = telnet_init(soc);
+  r = telnet_negotiate(socket:soc);
   if(!r)exit(0);
   if("HP JetDirect" >< r )exit(0);
   login = crap(length:1024, data:"nessus") + string("\r\n");

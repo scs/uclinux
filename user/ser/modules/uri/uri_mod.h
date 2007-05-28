@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: uri_mod.h,v 1.6.6.2 2004/02/20 00:39:55 jiri Exp $
  *
  * Various URI related functions
  *

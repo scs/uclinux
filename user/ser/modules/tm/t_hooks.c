@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_hooks.c,v 1.7.8.1 2004/07/21 13:41:53 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

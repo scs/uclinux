@@ -9,10 +9,10 @@
 if(description)
 {
  script_id(11285);
- script_cve_id("CAN-2002-1222");
  script_bugtraq_id(5976);
+ script_cve_id("CVE-2002-1222");
 
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "CSCdy26428";
 
@@ -30,7 +30,7 @@ bug ID CSCdy26428
 
 Solution : 
 http://www.cisco.com/warp/public/707/catos-http-overflow-vuln.shtml
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

@@ -24,6 +24,9 @@
 #include "network.h"
 
 
+#define MAXROUTES 1024
+
+
 struct interface_info {
     char name[64];
     struct in_addr addr;
@@ -95,7 +98,10 @@ get_mac_addr(addr, mac)
   
  bpf = bpf_open_live(iface, filter);
  if(bpf < 0)
+  {
+  close(soc);
   return -1;
+  }
   
  /*
   * We only deal with ethernet
@@ -214,14 +220,14 @@ get_datalink_size(datalink)
   case DLT_IEEE802: offset = 22; break;
   case DLT_NULL: offset = 4; break;
   case DLT_SLIP:
-#if (FREEBSD || OPENBSD || NETBSD || BSDI)
+#if (FREEBSD || OPENBSD || NETBSD || BSDI || DARWIN)
     offset = 16;
 #else
     offset = 24; /* Anyone use this??? */
 #endif
     break;
   case DLT_PPP: 
-#if (FREEBSD || OPENBSD || NETBSD || BSDI)
+#if (FREEBSD || OPENBSD || NETBSD || BSDI || DARWIN)
     offset = 4;
 #else
 #ifdef SOLARIS
@@ -316,7 +322,11 @@ struct interface_info *getinterfaces(int *howmany) {
 #ifdef HAVE_SOCKADDR_SA_LEN
     len = ifr->ifr_addr.sa_len;
 #else
+#ifdef HAVE_STRUCT_IFMAP
+    len = sizeof(struct ifmap);
+#else
     len = sizeof(struct sockaddr);
+#endif
 #endif
     for(; ifr && *((char *)ifr) && ((char *)ifr) < buf + ifc.ifc_len; 
 	((*(char **)&ifr) +=  sizeof(ifr->ifr_name) + len )) {
@@ -346,7 +356,7 @@ struct interface_info *getinterfaces(int *howmany) {
 int getsourceip(struct in_addr *src, struct in_addr *dst) {
   int sd;
   struct sockaddr_in sock;
-  int socklen = sizeof(struct sockaddr_in);
+  unsigned int socklen = sizeof(struct sockaddr_in);
   unsigned short p1;
   
   
@@ -409,7 +419,7 @@ char *routethrough(struct in_addr *dest, struct in_addr *source) {
     struct interface_info *dev;
     unsigned long mask;
     unsigned long dest;
-  } myroutes[128];
+  } myroutes[MAXROUTES];
   int numinterfaces = 0;
   char *p, *endptr;
   char iface[64];
@@ -478,8 +488,11 @@ char *routethrough(struct in_addr *dest, struct in_addr *source) {
 	  if (i == numinterfaces) 
 	    printf("Failed to find interface %s mentioned in /proc/net/route\n", iface);
 	  numroutes++;
-	  if (numroutes == 128)
+	  if (numroutes >= MAXROUTES)
+            {
 	    printf("My god!  You seem to have WAY to many routes!\n");
+            break;
+            }
       }
       fclose(routez);
     } else {

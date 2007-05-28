@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_lookup.c,v 1.80.4.3.2.1 2004/07/15 21:18:34 andrei Exp $
  *
  * This C-file takes care of matching requests and replies with
  * existing transactions. Note that we do not do SIP-compliant

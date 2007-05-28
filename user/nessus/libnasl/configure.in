@@ -15,14 +15,14 @@ dnl --enable-syslog
 
 
 AC_INIT(.root-dir)
-AC_REVISION($Revision: 1.63.2.1 $)dnl
+AC_REVISION($Revision: 1.67.2.1 $)dnl
 
 
 PWDD=`pwd`	
 
 save_IFS="${IFS}"
 IFS=.
-read NESSUS_MAJOR NESSUS_MINOR NESSUS_PATCH <VERSION
+read NESSUS_MAJOR NESSUS_MINOR NESSUS_PATCH NESSUS_RC <VERSION
 VERSION=`cat VERSION`
 NESSUS_SUPER=`expr $NESSUS_MAJOR + $NESSUS_MINOR`
 IFS="${save_IFS}"
@@ -153,6 +153,7 @@ AC_CHECK_HEADERS(sys/types.h stdlib.h stdio.h pthread.h sys/filio.h pwd.h)
 AC_CHECK_HEADERS(assert.h netdb.h netinet/in.h arpa/inet.h)
 AC_CHECK_HEADERS(poll.h sys/poll.h netinet/ip_tcp.h)
 AC_CHECK_HEADERS(sys/stat.h stat.h net/if.h sys/mman.h search.h)
+AC_CHECK_HEADERS(locale.h)
 
 dnl ./configure fails to determine the existence of some 
 dnl headers under IRIX
@@ -340,48 +341,7 @@ if test $ac_cv_sockaddr_has_sa_len = yes ; then
 fi
 
 
-BROKEN_REGEXP=""
 
-#
-# RedHat 8.0 ships with a broken regexp library (Nessus bug#90)
-#
-test -f /etc/redhat-release && 
-{
- cat /etc/redhat-release | egrep "(8\.0|9)" >/dev/null && BROKEN_REGEXP=y
- }
- 
-
-test -z "$BROKEN_REGEXP" &&
-{
-AC_MSG_CHECKING([for a working regexp implementation])
-AC_TRY_RUN([
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <regex.h>
-
-int main()
-{
-  char fastmap[1 << 8];
-  struct re_pattern_buffer pb;
-  struct re_registers regs;
- 
-  pb.allocated = 8;
-  pb.buffer = malloc(8);
-  pb.fastmap = fastmap;
-  pb.translate = 0;
-  re_set_syntax(RE_SYNTAX_POSIX_EGREP);
-  re_compile_pattern(".*nessus.*", strlen(".*nessus.*"), &pb);
-  re_compile_fastmap(&pb);
-  return re_search(&pb, 
-  		"i use nessus everyday",
-		strlen("i use nessus everyday"),
-		0, 
-  		strlen("i use nessus everyday"),
-		&regs);
-}
-], [AC_MSG_RESULT([yes]);AC_DEFINE(HAVE_REGEX_SUPPORT)],[AC_MSG_RESULT([no])])
-}
 
 
 AC_MSG_CHECKING([for a working strndup implementation])
@@ -405,7 +365,7 @@ int main()
 
 
 case "$host" in
-    *-freebsd*|*-bsdi*|*-netbsd*)
+    *-freebsd*|*-bsdi*|*-netbsd*|*-darwin*)
     AC_DEFINE(BSD_BYTE_ORDERING)
 esac
 

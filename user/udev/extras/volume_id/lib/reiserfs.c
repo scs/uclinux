@@ -54,7 +54,7 @@ struct reiser4_super_block {
 #define REISERFS1_SUPERBLOCK_OFFSET		0x2000
 #define REISERFS_SUPERBLOCK_OFFSET		0x10000
 
-int volume_id_probe_reiserfs(struct volume_id *id, uint64_t off)
+int volume_id_probe_reiserfs(struct volume_id *id, uint64_t off, uint64_t size)
 {
 	struct reiserfs_super_block *rs;
 	struct reiser4_super_block *rs4;
@@ -66,7 +66,7 @@ int volume_id_probe_reiserfs(struct volume_id *id, uint64_t off)
 	if (buf == NULL)
 		return -1;
 
-	rs = (struct reiserfs_super_block *) buf;;
+	rs = (struct reiserfs_super_block *) buf;
 	if (memcmp(rs->magic, "ReIsErFs", 8) == 0) {
 		strcpy(id->type_version, "3.5");
 		id->type = "reiserfs";

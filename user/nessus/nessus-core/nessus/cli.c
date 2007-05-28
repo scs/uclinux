@@ -428,6 +428,8 @@ int cli_connect_to_nessusd(cli)
   return -1;
  }
  
+ bzero(cli->login, strlen(cli->login));
+ bzero(cli->password, strlen(cli->password));
  return 0;
 }
 

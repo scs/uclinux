@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-apollo.h,v 1.1 1994/02/22 07:45:25 gkim Exp $ */
 
 /*
  * conf-apollo.h (Apollo Domain/OS SR10.X, m68k or a88k, BSD environment)

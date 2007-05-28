@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10359);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.17 $");
 
  name["english"] = "ctss.idc check";
  name["francais"] = "verification de ctss.idc";
@@ -28,7 +28,7 @@ Solution : Delete the file
 Reference : http://online.securityfocus.com/archive/101/200779
 Reference : http://online.securityfocus.com/archive/101/200615
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -56,9 +56,8 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -66,7 +65,20 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+if ( ! get_port_state(port) ) exit(0);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
+
 cgi = "/scripts/tools/ctss.idc";
-port = is_cgi_installed(cgi);
-if(port)security_hole(port);
+res = is_cgi_installed_ka(item:cgi, port:port);
+if(res)security_hole(port);
 

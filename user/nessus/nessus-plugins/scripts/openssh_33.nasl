@@ -9,14 +9,15 @@
 #
 #
 #
-# also covers CAN-2002-0765
+# also covers CVE-2002-0765
 
 if(description)
 {
  script_id(11031);
- script_version ("$Revision: 1.11 $");
- script_cve_id("CVE-2002-0639", "CVE-2002-0640", "CAN-2002-0639", "CAN-2002-0640");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0011");
  script_bugtraq_id(5093);
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-2002-0639", "CVE-2002-0640");
  
  name["english"] = "OpenSSH <= 3.3";
  script_name(english:name["english"]);
@@ -58,7 +59,10 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ if (  ! defined_func("bn_random") )
+ 	script_dependencie("ssh_detect.nasl");
+ else
+ 	script_dependencie("ssh_detect.nasl", "redhat-RHSA-2002-131.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -67,31 +71,18 @@ Risk factor : High";
 # The script code starts here
 #
 
+include("backport.inc"); 
+
+if ( get_kb_item("CVE-2002-0640") ) exit(0);
 
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
 
 
-
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    banner = tolower(banner);
-    close(soc);
-  }
-}
-
-if(!banner)exit(0);
-
-banner = banner - string("\r\n");
-
+banner = get_kb_item("SSH/banner/" + port ) ;
+if( ! banner ) exit(0);
+banner = get_backport_banner(banner:banner);
 banner = tolower(banner);
 if("openssh" >< banner)
 {

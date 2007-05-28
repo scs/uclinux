@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(11720);
- script_version ("$Revision: 1.2 $");
+#script_cve_id("CVE-MAP-NOMATCH");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "S-HTTP detection";
  script_name(english:name["english"]);
@@ -43,8 +44,9 @@ Risk factor : Low";
 
 #
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+include("http_func.inc");
+port = get_http_port(default:80);
+
 if (!get_port_state(port)) exit(0);
 
 soc = http_open_socket(port);

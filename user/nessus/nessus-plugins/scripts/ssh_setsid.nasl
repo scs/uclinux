@@ -11,19 +11,19 @@
 if(description)
 {
  script_id(11169);
- script_version ("$Revision: 1.4 $");
+ script_bugtraq_id(6247);
+ script_cve_id("CVE-2002-1644");
+ script_version ("$Revision: 1.8 $");
  
  
  name["english"] = "SSH setsid() vulnerability";
  script_name(english:name["english"]);
  
  desc["english"] = "
-You are running a version of SSH which is 
-older than version 3.1.5 or 3.2.2.
+You are running a version of SSH which is older than version 3.1.5 or 3.2.2.
 
-There is a bug in that version which may allow
-a user to obtain higher privileges due to a flaw
-in the way setsid() is used.
+There is a bug in that version which may allow a user to obtain higher 
+privileges due to a flaw in the way setsid() is used.
 
 
 Solution : Upgrade to the latest version of SSH
@@ -46,7 +46,7 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("ssh_detect.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -55,31 +55,16 @@ Risk factor : High";
 # The script code starts here
 #
 
+include("backport.inc");
 
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
 
-
-
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    close(soc);
-  }
-}
-
-if(!banner)exit(0);
-
-
-banner = tolower(banner);
+banner = tolower(get_backport_banner(banner:banner));
 
 if("f-secure" >< banner)exit(0);
 

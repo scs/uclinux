@@ -1,3 +1,240 @@
+Summary of changes from v099 to v100
+============================================
+
+Kay Sievers:
+      update SUSE rules
+      fix messed up ChangeLog from release 099
+      man: add $attr{} section about symlinks
+      revert persistent-storage ata-serial '_' '-' replacement
+
+
+Summary of changes from v098 to v099
+============================================
+
+Greg KH:
+      update Gentoo rules
+
+Kay Sievers:
+      udev_db.c: include <sys/stat.h>
+      use fnmatch() instead of our own pattern match code
+      rename major/minor variable to maj/min to avoid warning
+      update source file headers
+      udevtest: print header that ENV{} can't work
+      update TODO
+      udevtrigger: options to filter by subsystem and sysfs attribute
+      udevtrigger: remove unused longindex
+      udevinfo: use long options
+      udevd: use files instead of symlinks for /dev/.udev/queue,failed
+      udevtrigger: fix pattern match
+      reorder options in udevinfo man page
+      udevinfo: fix SUBSYTEMS spelling error
+      fix ENV{TEST}="Test: $env{TEST}"
+      let $attr{symlink} return the last element of the path
+      cdrom_id: add rules file to call cdrom_id
+      udevinfo: do not show symlinks as attributes in --attribute-walk
+      remove broken name_cdrom.pl
+
+Marco d'Itri:
+      update Debian rules
+      run_program: close pipe fd's which are connected to child process
+      add persistent rules generator for net devices and optical drives
+
+MUNEDA Takahiro:
+      changes rules for ata disk from '_' to '-'
+
+Sergey Vlasov:
+      make struct option arrays static const
+      fix "subsytem" typo
+
+
+Summary of changes from v097 to v098
+============================================
+
+Alex Merry:
+      udevtest: allow /sys in the devpath paramter
+
+Harald Hoyer:
+      selinux: init once in the daemon, not in every event process
+
+Kay Sievers:
+      udevd: remove huge socket buffer on the control socket
+      man page: fix typo
+      rename udev_libc_wrapper -> udev_sysdeps
+      db: store devpath - node relationship for all devices
+      udevinfo: allow -a -n <node>
+      udevinfo, udevtest: simplify '/sys' stripping from devpath argument
+      lookup_user, lookup_group: report "unknown user" and "lookup failed"
+      consistent key naming to match only the event device or include all parent devices
+      skip rule, if too may keys of the same type are used
+      introduce ATTR{file}="value" to set sysfs attributes
+      update SUSE rules
+      update default rules
+      export DRIVER for older kernels as a replacement for PHYSDEVDRIVER
+      fix typo in SUBSYSTEMS key parsing
+      udevtrigger: add --retry-failed
+      volume_id: add suspend partition detection
+      vol_id: use primary group of 'nobody' instead of 'nogroup'
+      remove built-in /etc/passwd /etc/group parser
+      always expect KEY{value} on ATTR, ATTRS, ENV keys
+      use new key names in test programs
+      cleanup commandline argument handling
+      db: don't create a db file for only a node name to store
+      man: add ATTR{file}="value" assignment
+
+Lennart Poettering:
+      volume_id: fix fat32 cluster chain traversal
+
+Marco d'Itri:
+      fix 'unknow user' error from getpwnam/getgrnam
+      fix rc when using udev --daemon
+      update Debian rules
+
+Micha≈Ç Bartoszkiewicz:
+      man pages: fix typos
+
+
+Summary of changes from v096 to v097
+============================================
+
+Anssi Hannula:
+      add joystick support to persistent input rules
+
+Kay Sievers:
+      firmware.sh: remove needless '/'
+      vol_id: add --skip-raid and --probe-all option
+      switch uevent netlink socket to group 1 only
+      increase /proc/stat read buffer
+      use "change" instead of "online" events
+      remove 'static' from local variable
+      libvolume_id: add parameter 'size' to all probe functions
+      man pages: replace 'device-path' by 'devpath'
+      man pages: work around xmlto which tries to be smart
+      refresh vol_id man page
+      udevinfo: add DRIVER==
+      Makefile: fix dependency
+      libvolume_id: read ufs2 label
+      switch ifdef __KLIBC__ to ifndef __GLIBC__
+      report failing getpwnam/getgrnam as error
+      rename udevcontrol message types and variables
+      initialize unused sockets to -1
+      udevd: remove useless udevinitsend parameter
+      update README
+      udevd: autotune max_childs/max_childs_running
+      update frugalware rules
+      update SUSE rules
+      move default rules to etc/udev/rules.d/
+      add 'crypto' devices to persistent storage rules
+      add late.rules to default rules
+      update Fedora rules
+      don't report an error on overlong comment lines
+      update SUSE rules
+      udevd: read DRIVER from the environment
+
+Marco d'Itri:
+      make rename_netif() error messages useful
+      path_id: fix an harmless syntax error
+
+Piter PUNK:
+      update slackware rules
+
+Richard Purdie:
+      Fix inotify syscalls on ARM
+
+
+Summary of changes from v095 to v096
+============================================
+
+Kay Sievers:
+      Makefiles: fix .PHONY for man page target
+      allow longer devpath values
+      path_id: prepare for new sysfs layout
+
+
+Summary of changes from v094 to v095
+============================================
+
+Kay Sievers:
+      update SUSE rules
+      don't remove symlinks if they are already there
+      allow "online" events to create/update symlinks
+      udevinfo: clarify parent device attribute use
+      update SUSE rules
+      netif rename: optimistic loop for the name to become free
+      remove broken %e enumeration
+
+Tobias Klauser:
+      print usage of udevcontrol when no or invalid command is given
+
+
+Summary of changes from v093 to v094
+============================================
+
+Daniel Drake:
+      update "writing udev rules"
+
+Kay Sievers:
+      libvolume_id: gfs + gfs2 support
+      remove MODALIAS key and substitution
+      add persistent-input.rules
+
+Marco d'Itri:
+      update Debian rules
+
+
+Summary of changes from v092 to v093
+============================================
+
+Hannes Reinecke:
+      path_id: add support for iSCSI devices
+
+Kay Sievers:
+      libvolume_id: fat - check for signature at end of sector
+      libvolume_id: add more software raid signatures
+      update Fedora rules
+      path_id: prevent endless loop for SAS devices on older kernels
+      remove udevsend
+      replace binary firmware helper with shell script
+      skip device mapper devices for persistent links
+
+
+Summary of changes from v091 to v092
+============================================
+
+Kay Sievers:
+      don't include stropts.h, some libc's don't like it
+      udevd: create leading directories for /dev/.udev/uevent_seqnum
+      vol_id: fix logging from libvolume_id's log function
+      update SUSE rules
+      update SUSE rules
+      add more warnings for invalid key operations
+      fix offsetof() build issue with recent glibc
+      selinux: fix typo in block device node selection
+      vol_id: add NetWare volume detection
+      edd_id: fix "(null)" output if "mbr_signature" does not exist
+      update Fedora rules
+      libvolume_id: nss - use different uuid
+
+Libor Klepac:
+      path_id: add platform and serio support
+
+Marco d'Itri:
+      update Debian rules
+      path_id: fix bashism
+
+
+Summary of changes from v090 to v091
+============================================
+
+Hannes Reinecke:
+      path_id: fix SAS device path generation
+
+Kay Sievers:
+      udevtest: don't try to delete symlinks
+      persistent rules: fix typo in dm rule
+      allow NAME=="value" to check for already assigned value
+      udevd: export initial sequence number on startup
+
+
 Summary of changes from v089 to v090
 ============================================
 
@@ -433,7 +670,7 @@ Greg Kroah-Hartman:
   fix nbd error messages with a gentoo rule hack
   fix scsi_id rule in gentoo config file
 
-J¸rg Billeter:
+J√ºrg Billeter:
   EXTRAS/Makefile: fix install targets to match main Makefile
 
 Kay Sievers:
@@ -646,7 +883,7 @@ Kay Sievers:
   ata_id: check for empty serial number
   compile dasd only on s390
 
-Ville Skytt‰:
+Ville Skytt√§:
   correct default mode documentation in udev
 
 
@@ -1016,7 +1253,7 @@ Summary of changes from v050 to v051
 <tklauser:access.unizh.chbk>:
   o I tried to compile udev 050plus with the GCC 4.0 snapshot 200412119 and got two errors about possibly uninitialized structs, so I fixed this. 
 
-Christian Borntr‰ger:
+Christian Borntr√§ger:
   o udev_volume_id: fix -d option
 
 Greg Kroah-Hartman:

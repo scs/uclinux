@@ -14,9 +14,10 @@
 if(description)
 {
  script_id(11056);
- script_version("$Revision: 1.4 $");
- script_cve_id("CVE-2002-0813");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0014");
  script_bugtraq_id(5328);
+ script_version("$Revision: 1.6 $");
+ script_cve_id("CVE-2002-0813");
 
  name["english"] = "CSCdy03429";
 

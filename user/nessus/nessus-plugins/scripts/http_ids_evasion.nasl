@@ -8,10 +8,13 @@
 # See the Nessus Scripts License for details
 #
 
+
+if ( NASL_LEVEL >= 3000 ) exit(0);
+
 if(description)
 {
  script_id(10890);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.13 $");
 
  name["english"] = "HTTP NIDS evasion";
  name["francais"] = "Fonctions HTTP Anti NIDS (détecteur d'intrusions)";
@@ -95,9 +98,13 @@ Risk factor : None";
  script_add_preference(name:"HTTP/0.9 requests", type:"checkbox", value:"no");
 
  script_add_preference(name:"Force protocol string : ", type:"entry", value:"");
-
+ script_add_preference(name:"Random case sensitivity (Nikto only)", type:"checkbox", value:"no");
  exit(0);
 }
+
+# TBD: Implement "Random case sensitivity" from Nikto
+
+whisker_nids = 'X';
 
 opt = script_get_preference("HTTP User-Agent");
 if (opt)
@@ -118,6 +125,7 @@ if("none" >< opt)opt = 0;
 if(opt)
 {
  set_kb_item(name:"NIDS/HTTP/URL_encoding", value:opt);
+ whisker_nids = '1';
  warn = 1;
 }
 
@@ -144,6 +152,7 @@ if (opt)
  {
  	set_kb_item(name:"NIDS/HTTP/reverse_traversal", value:1000);
 	warn = 1;
+	whisker_nids = '4';
  }
 }
 
@@ -173,6 +182,7 @@ opt = script_get_preference("Self-reference directories");
 if(opt == "yes")
 {
  set_kb_item(name:"NIDS/HTTP/self_ref_dir", value:"yes");
+ whisker_nids = '2';
  warn = 1;
 }
 
@@ -182,6 +192,7 @@ if(opt == "yes")
 {
  set_kb_item(name:"NIDS/HTTP/dos_win_syntax", value:"yes");
  warn = 1;
+ whisker_nids = '8';
 }
 
 
@@ -199,6 +210,7 @@ if(opt == "yes")
 {
  set_kb_item(name:"NIDS/HTTP/tab_separator", value:"yes");
  warn = 1;
+ whisker_nids = '6';
 }
 
 
@@ -216,6 +228,7 @@ if(opt == "yes")
 {
  set_kb_item(name:"NIDS/HTTP/premature_request_ending", value:"yes");
  warn = 1;
+ whisker_nids = '3';
 }
 
 
@@ -232,6 +245,7 @@ if(opt == "yes")
 {
  set_kb_item(name:"NIDS/HTTP/param_hiding", value:"yes");
  warn = 1;
+ whisker_nids = 5;
 }
 
 
@@ -242,6 +256,15 @@ if(p && (p != "no"))
  warn = 1;
 }
 
+opt = script_get_preference("Random case sensitivity (Nikto only)");
+if(opt == "yes")
+{
+ set_kb_item(name:"NIDS/HTTP/random_case", value: "yes");
+ whisker_nids = 7;
+ #warn = 1;
+}
+
+set_kb_item(name:"/Settings/Whisker/NIDS", value:string(whisker_nids));
 
 if(warn)
 {

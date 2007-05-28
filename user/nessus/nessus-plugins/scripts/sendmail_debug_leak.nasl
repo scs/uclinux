@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(11088);
- script_cve_id("CAN-2001-0715");
  script_bugtraq_id(3898);
- script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-2001-0715");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "Sendmail debug mode leak";
  name["francais"] = "Fuite d'information dans le mode debug de sendmail";
@@ -32,8 +32,9 @@ If users are not allowed to process the queue (which is the default)
 then you are not vulnerable.
 
 Solution : upgrade to the latest version of Sendmail or 
+
 do not allow users to process the queue (RestrictQRun option)
-Risk factor : Very low / none
+Risk factor : Low
 Note : This vulnerability is _local_ only"; 
 
 
@@ -86,7 +87,7 @@ port = get_kb_item("Services/smtp");
 if(!port) port = 25;
 
 banner = get_smtp_banner(port: port);
-if(! banner) exit(0);
+if(! banner || "Switch-" >< banner ) exit(0);
 
 if(egrep(pattern:".*Sendmail.*8\.(([0-9]\..*)|(1[01]\..*)|(12\.0)).*",
 	string:banner))

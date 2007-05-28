@@ -11,10 +11,10 @@
 if(description)
 {
    script_id(10714);
-   script_version ("$Revision: 1.12 $");
-   
    script_bugtraq_id(3161);
-   script_cve_id("CAN-1999-0571");
+   script_version ("$Revision: 1.15 $");
+   
+   script_cve_id("CVE-1999-0571");
    
    name["english"] = "Default password router Zyxel";
    name["francais"] = "Router Zyxel sans mot de passe";
@@ -46,17 +46,19 @@ Risk factor : High";
    exit(0);
 }
 
+
 port = 23;
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
  if(soc)
  {
-   r = recv(socket:soc, length:8192, min:1);
+   r = recv(socket:soc, length:8192);
+   if ( "Password:" >!< r ) exit(0);
    s = string("1234\r\n");
    send(socket:soc, data:s);
-   r = recv(socket:soc, length:8192, min:1);
+   r = recv(socket:soc, length:8192);
    close(soc);
-   if("ZyXEL" >< r)security_hole(port);
+   if("ZyXEL" >< r || "ZyWALL" >< r )security_hole(port);
  }
 }

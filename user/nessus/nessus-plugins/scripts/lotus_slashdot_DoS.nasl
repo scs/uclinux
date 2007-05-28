@@ -12,7 +12,7 @@ if (description)
   script_id(11718);
   script_bugtraq_id(3656);
   script_cve_id("CVE-2001-0954");
-  script_version("$Revision: 1.2 $");
+  script_version("$Revision: 1.5 $");
   name["english"] = "Lotus /./ database lock";
   script_name(english:name["english"]);
 
@@ -50,11 +50,11 @@ Risk factor : Medium";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 
 b = get_http_banner(port: port);
-if(egrep(pattern: "^Server: Lotus-Domino/(Release-)?(5\.0\.[0-8])", string:b))
-  security_hole(port);
+if(egrep(pattern: "^Server: Lotus-Domino/(Release-)?(5\.0\.[0-8][^0-9])", string:b))
+  security_warning(port);

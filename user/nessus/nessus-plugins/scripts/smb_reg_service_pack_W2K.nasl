@@ -1,105 +1,117 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# See the Nessus Scripts License for details
+# This script is released under Tenable Plugins License
 #
+
+
+ desc["english"] = "
+Synopsis :
+
+Remote system has latest service pack installed.
+
+Description :
+
+By reading the registry key HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CSDVersion
+it was possible to determine the Service Pack version of the Windows 2000
+system.
+
+Risk factor :
+
+None";
+
+
+ desc_hole["english"] = "
+Synopsis :
+
+Remote system is not up to date.
+
+Description :
+
+By reading the registry key HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CSDVersion
+it was possible to determine that the remote Windows 2000 system is not
+up to date.
+
+Solution :
+
+Apply Windows 2000 Service Pack 4.
+
+Risk factor :
+
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
+
 
 if(description)
 {
  script_id(10531);
- script_version ("$Revision: 1.24 $");
- script_cve_id("CAN-1999-0662");
  script_bugtraq_id(7930, 8090, 8128, 8154);
+ script_version ("$Revision: 1.33 $");
+ script_cve_id("CVE-1999-0662");
  name["english"] = "SMB Registry : Win2k Service Pack version";
- name["francais"] = "Obtention du numéro du service pack de Win2k par SMB";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
- desc["english"] = "
 
-This script reads the registry
-key HKLM\SOFTWARE\Microsoft\Windows NT\CSDVersion
-to determine the Service Pack the host is running.
-
-Sensitive servers should always run the latest service
-pack for security reasons.
-
-Risk factor : Medium 
-";
-
-
- desc["francais"] = "
-
-Ce script lit la clé de la base de registre 
-HKLM\SOFTWARE\Microsoft\Windows NT\CSDVersion
-pour obtenir la version du Service Pack qui
-tourne. 
-
-Les serveurs sensibles devraient toujours
-tourner sous les derniers SP.
-
-Facteur de risque : Moyen";
-
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines the remote SP";
- summary["francais"] = "Détermine le service pack installé";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl");
- script_require_keys("SMB/transport", "SMB/name", "SMB/login", "SMB/password", "SMB/registry_access");
- script_require_ports(139, 445);
+ script_dependencies("smb_reg_service_pack.nasl");
+ script_require_keys("SMB/WindowsVersion","SMB/CSDVersion");
  exit(0);
 }
 
-include("smb_nt.inc");
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-
 port = get_kb_item("SMB/transport");
 if(!port)port = 139;
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
 
+win = get_kb_item("SMB/WindowsVersion"); 
+if (!win) exit(0);
 
+sp = get_kb_item("SMB/CSDVersion");
 
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion";
-item = "CurrentVersion";
-value = registry_get_sz(key:key, item:item);
-if(!get_kb_item("SMB/WindowsVersion") && value)set_kb_item(name:"SMB/WindowsVersion",value:value);
-
-if(value == "5.0")
+if(win == "5.0")
 {
- item = "CSDVersion";
- value = registry_get_sz(key:key, item:item);
- if(value)set_kb_item(name:"SMB/Win2K/ServicePack", value:value);
-
- if((!value)||
-   (ereg(pattern:"Service Pack [123]",string:value)))
+ if (sp)
  {
-  report = string(
-"The remote Windows 2000 does not have the Service Pack 4 applied.\n",
-"(it uses ", value, " instead)\n",
-"You should apply it to be up-to-date\n",
-"Risk factor : High\n",
-"Solution : go to http://www.microsoft.com/windows2000/downloads/");
-  security_hole(data:report, port:port);
+  if ( ("Service Pack 4" >< sp) && (get_kb_item("SMB/URP1")) )
+  {
+    replace_kb_item (name:"SMB/CSDVersion", value:"Service Pack 5");
+    set_kb_item(name:"SMB/Win2K/ServicePack", value:"Service Pack 5");
+  }
+  else
+    set_kb_item(name:"SMB/Win2K/ServicePack", value:sp);
+ }
+
+
+ if((!sp) || (ereg(pattern:"Service Pack [123]",string:sp)))
+ {
+  report = 'The remote Windows 2000 does not have the Service Pack 4 applied.\n';
+  if (!sp)
+    report = string (desc_hole["english"],
+		"\n\nPlugin output :\n\n",
+		"The remote Windows 2000 system has no service pack applied.\n");
+  else
+  report = string (desc_hole["english"],
+		"\n\nPlugin output :\n\n",
+		"The remote Windows 2000 system has ", sp , " applied.\n");
+
+  security_warning(data:report, port:port);
   exit(0);
  }
  else
-  {
-    report = string("The remote Windows 2000 system has ",value," applied.\n");
+ {
+  report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		"The remote Windows 2000 system has ", sp , " applied.\n");
+
+  security_note (port:port, data:report);
  }
 }

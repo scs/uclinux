@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10042);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(2387);
- script_cve_id("CAN-1999-0261");
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-0261");
  name["english"] = "Chameleon SMTPd overflow";
  name["francais"] = "Chameleon SMTPd overflow";
  script_name(english:name["english"],
@@ -29,7 +29,7 @@ work properly.
 
 Solution : Update your SMTP server.
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "Il s'est avéré
@@ -44,7 +44,7 @@ dérangeant ainsi dans votre travail.
 
 Solution : Mettez à jour votre server SMTP.
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
 
  script_description(english:desc["english"],
@@ -78,6 +78,7 @@ Facteur de risque : Moyen";
 include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(get_port_state(port))soc = open_sock_tcp(port);
 else exit(0);

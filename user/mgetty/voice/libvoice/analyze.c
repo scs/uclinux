@@ -5,7 +5,7 @@
  * possibilities given in expected_answers in the form "OK|BUSY".
  * If this fails, try to detect some standard voice modem answers.
  *
- * $Id$
+ * $Id: analyze.c,v 1.6 2001/05/14 11:24:18 marcs Exp $
  *
  */
 

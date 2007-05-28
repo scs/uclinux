@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(10251);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(104);
+ script_version ("$Revision: 1.7 $");
  script_cve_id("CVE-1999-0008");
  
  name["english"] = "rpc.nisd overflow";
@@ -32,13 +32,20 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencies("rpc_portmap.nasl");
+ if ( !defined_func("bn_random") ) 
+ 	script_dependencies("rpc_portmap.nasl");
+ else
+ 	script_dependencies("rpc_portmap.nasl", "solaris26_105401.nasl", "solaris26_x86_105402.nasl");
  script_require_keys("rpc/portmap");
  
  exit(0);
 }
 
 include("misc_func.inc");
+
+version = get_kb_item("Host/Solaris/Version");
+if ( version && ereg(pattern:"^5\.([7-9]|10)", string:version)) exit(0);
+if ( get_kb_item("BID-102") ) exit(0);
 
 function ping()
 {

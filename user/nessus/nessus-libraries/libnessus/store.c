@@ -60,17 +60,18 @@ static char * arglist2str(struct arglist * arg)
 }
 
 
-static struct arglist * str2arglist(char * str)
+struct arglist * str2arglist(char * str)
 {
- struct arglist * ret = emalloc(sizeof(struct arglist));
+ struct arglist * ret;
  char * t = strchr(str, ',');
 
 
  if(!str || str[0] == '\0')
   {
-   efree(&ret);
    return NULL;
   }
+
+ ret = emalloc ( sizeof(struct arglist) );
   
   
  while((t = strchr(str, ',')) != NULL)
@@ -86,9 +87,7 @@ static struct arglist * str2arglist(char * str)
  
  while(str[0]==' ')str++;
  if(str[0] != '\0')
-  {
    arg_add_value(ret, str, ARG_INT, 0, (void*)1);
-  }
   
 
   return ret;
@@ -96,11 +95,6 @@ static struct arglist * str2arglist(char * str)
 
 
 
-/*-----------------------------------------------------------------------------*/
-static int cmp_plugs(struct plugin * a, struct plugin * b)
-{
- return a->id - b->id;
-}
 
 /*-----------------------------------------------------------------------------*/	
 static int safe_copy(char * str, char * dst, int sz, char * path, char * item)
@@ -113,7 +107,7 @@ static int safe_copy(char * str, char * dst, int sz, char * path, char * item)
   
  if(strlen(str) >= sz)
  {
-  fprintf(stderr, "nessus-libraries/libnessus/store.c: %s has a too long %s (%d)\n", path, item, strlen(str));
+  fprintf(stderr, "nessus-libraries/libnessus/store.c: %s has a too long %s (%ld)\n", path, item, strlen(str));
   return -1;
  }
  strcpy(dst, str);
@@ -164,10 +158,6 @@ int store_init_user(char * dir)
 
 /*--------------------------------------------------------------------------------*/
 
-static int cmp_find_plugin(struct plugin * a, struct plugin * b)
-{
- return a->id - b->id;
-}
 
 int store_get_plugin_f(struct plugin * plugin, struct pprefs * pprefs, char * dir, char * file)
 {
@@ -178,6 +168,7 @@ int store_get_plugin_f(struct plugin * plugin, struct pprefs * pprefs, char * di
  char file_name[PATH_MAX+1];
  char * str;
  
+ bzero(plugin, sizeof(*plugin));
  plugin->id = -1;
  
  if(dir == NULL || dir[0] == '\0' || file == NULL || file[0] == '\0')
@@ -246,7 +237,7 @@ int store_get_plugin(struct plugin * p, char * name)
 
 /*--------------------------------------------------------------------------------*/
 
-struct arglist * store_load_plugin(char * dir, char * file, char * md5, struct arglist * prefs)
+struct arglist * store_load_plugin(char * dir, char * file,  struct arglist * prefs)
 {
  char desc_file[PATH_MAX+1];
  char plug_file[PATH_MAX+1];
@@ -257,19 +248,33 @@ struct arglist * store_load_plugin(char * dir, char * file, char * md5, struct a
  
  struct arglist * ret;
  int i;
+ struct stat st1, st2;
+ struct arglist * al;
  
  bzero(pp, sizeof(pp));
  
  snprintf(desc_file, sizeof(desc_file), "%s/.desc/%s", dir, file);
-
  str = strrchr(desc_file, '.');
  if( str != NULL )
  {
   str[0] = '\0';
   if(	strlen(desc_file) + 6 < sizeof(desc_file) )
   	strcat(desc_file, ".desc");
+
  }
  snprintf(plug_file, sizeof(plug_file), "%s/%s", dir, file);
+
+ if (  stat(plug_file, &st1) < 0 || 
+       stat(desc_file, &st2) < 0 ) 
+		return NULL;
+
+ /* 
+  * Look if the plugin is newer, and if that's the case also make sure that
+  * the plugin mtime is not in the future...
+  */
+ if ( st1.st_mtime > st2.st_mtime && st1.st_mtime <= time(NULL) )
+	return NULL;
+	
  snprintf(store_dir, sizeof(store_dir), "%s/.desc", dir);
  if(store_get_plugin_f(&p, pp, store_dir, file) < 0)
   return NULL;
@@ -278,17 +283,37 @@ struct arglist * store_load_plugin(char * dir, char * file, char * md5, struct a
  	return NULL;
 	
 	
- if(p.id > 0)
- {
-  if(md5 != NULL && strcmp(p.md5, md5) != 0)
-   return NULL;
- }
- else return NULL;
+ if(p.id <= 0) return NULL;
     
  ret = emalloc(sizeof(struct arglist));   
  plug_set_id(ret, p.id);
  plug_set_category(ret, p.category);
  plug_set_fname(ret, file);
+ plug_set_path(ret, p.path);
+ plug_set_family(ret, p.family, NULL);
+
+  al = str2arglist(p.required_ports);
+ if ( al != NULL ) arg_add_value(ret, "required_ports", ARG_ARGLIST, -1, al);
+
+ al = str2arglist(p.required_keys);
+ if ( al != NULL ) arg_add_value(ret, "required_keys", ARG_ARGLIST, -1, al);
+
+ al = str2arglist(p.required_udp_ports);
+ if ( al != NULL ) arg_add_value(ret, "required_udp_ports", ARG_ARGLIST, -1, al)
+;
+
+ al = str2arglist(p.excluded_keys);
+ if ( al != NULL ) arg_add_value(ret, "excluded_keys", ARG_ARGLIST, -1, al);
+
+ al = str2arglist(p.dependencies);
+ if ( al != NULL ) arg_add_value(ret, "DEPENDENCIES", ARG_ARGLIST, -1, al);
+
+ 
+ if ( p.timeout != 0 ) arg_add_value(ret, "TIMEOUT", ARG_INT, -1, (void*)p.timeout);
+
+ arg_add_value(ret, "NAME", ARG_STRING, strlen(p.name), estrdup(p.name));
+
+
  arg_add_value(ret, "preferences", ARG_ARGLIST, -1, prefs);
  
  if(p.has_prefs)
@@ -302,7 +327,12 @@ struct arglist * store_load_plugin(char * dir, char * file, char * md5, struct a
  return ret;
 }
 
-struct arglist * store_plugin(struct arglist * plugin, char * file, char * md5)
+
+#define OLD_CVE_SZ 128
+#define OLD_BID_SZ 64
+#define OLD_XREF_SZ 512
+
+struct arglist * store_plugin(struct arglist * plugin, char * file)
 {
  char desc_file[PATH_MAX+1];
  char path[PATH_MAX+1];
@@ -353,9 +383,6 @@ struct arglist * store_plugin(struct arglist * plugin, char * file, char * md5)
  e = safe_copy(path, plug.path, sizeof(plug.path), path, "path"); 
  if(e < 0)return NULL;
 
- e = safe_copy(md5, plug.md5, sizeof(plug.md5), path, "md5");
- if(e < 0)return NULL;
- 
  
  plug.timeout = _plug_get_timeout(plugin);
  plug.category = _plug_get_category(plugin);
@@ -387,14 +414,27 @@ struct arglist * store_plugin(struct arglist * plugin, char * file, char * md5)
  if(e < 0)return NULL;
  
  str = _plug_get_cve_id(plugin);
+#ifdef DEBUG_STORE
+ if ( str != NULL && strlen(str) > OLD_CVE_SZ )
+	fprintf(stderr, "WARNING! CVE size will be too long for older versions of Nessus!\n");
+#endif
+	
  e = safe_copy(str, plug.cve_id, sizeof(plug.cve_id), path, "cve_id");
  if(e < 0)return NULL;
  
  str = _plug_get_bugtraq_id(plugin);
+#ifdef DEBUG_STORE
+ if ( str != NULL && strlen(str) > OLD_BID_SZ)
+	fprintf(stderr, "WARNING! BID size will be too long for older versions of Nessus!\n");
+#endif
  e = safe_copy(str, plug.bid, sizeof(plug.bid), path, "bugtraq id");
  if(e < 0)return NULL;
  
  str = _plug_get_xref(plugin);
+#ifdef DEBUG_STORE
+ if ( str != NULL && strlen(str) > OLD_XREF_SZ)
+	fprintf(stderr, "WARNING! BID size will be too long for older versions of Nessus!\n");
+#endif
  e = safe_copy(str, plug.xref, sizeof(plug.xref), path, "xref id");
  if(e < 0)return NULL;
  
@@ -488,14 +528,10 @@ struct arglist * store_plugin(struct arglist * plugin, char * file, char * md5)
  close(fd); 
  
  
- ret = emalloc(sizeof(struct arglist));
- plug_set_id(ret, _plug_get_id(plugin));
- plug_set_category(ret, _plug_get_category(plugin));
- plug_set_fname(ret, file);
- arg_add_value(ret, "preferences", ARG_ARGLIST, -1, arg_get_value(plugin, "preferences"));
+
  arg_set_value(plugin, "preferences", -1, NULL);
  arg_free_all(plugin);
- return ret;
+ return NULL;
 }
 
 

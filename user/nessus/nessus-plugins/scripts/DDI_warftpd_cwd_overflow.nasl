@@ -7,10 +7,10 @@
 if(description)
 {
 	script_id(11205);
-	script_version("$Revision: 1.2 $");
+	script_bugtraq_id(966);
+	script_version("$Revision: 1.4 $");
 	
 	script_cve_id("CVE-2000-0131");
-	script_bugtraq_id(966);
 
 	name["english"] = "War FTP Daemon CWD/MKD Buffer Overflow";
 	script_name(english:name["english"]);
@@ -36,7 +36,7 @@ Risk factor: High";
 	family["english"] = "FTP";
 	script_family(english:family["english"]);
 	script_require_ports("Services/ftp", 21);
-	script_dependencies("find_service.nes");
+	script_dependencies("find_service_3digits.nasl");
 	exit(0);
 }
 

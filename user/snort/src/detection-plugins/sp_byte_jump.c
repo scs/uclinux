@@ -1,6 +1,22 @@
 /* $Id$ */
-/* Copyright (C) 2002 Sourcefire Inc. */
-/* Author: Martin Roesch*/
+/*
+ ** Copyright (C) 2002-2006 Sourcefire, Inc.
+ ** Author: Martin Roesch
+ **
+ ** This program is free software; you can redistribute it and/or modify
+ ** it under the terms of the GNU General Public License as published by
+ ** the Free Software Foundation; either version 2 of the License, or
+ ** (at your option) any later version.
+ **
+ ** This program is distributed in the hope that it will be useful,
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ ** GNU General Public License for more details.
+ **
+ ** You should have received a copy of the GNU General Public License
+ ** along with this program; if not, write to the Free Software
+ ** Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
 
 /* sp_byte_jump 
  * 
@@ -74,7 +90,7 @@ extern u_int8_t DecodeBuffer[DECODE_BLEN];
 typedef struct _ByteJumpData
 {
     u_int32_t bytes_to_grab; /* number of bytes to compare */
-    u_int32_t offset;
+    int32_t offset;
     u_int8_t relative_flag;
     u_int8_t data_string_convert_flag;
     u_int8_t from_beginning_flag;
@@ -135,7 +151,7 @@ void ByteJumpInit(char *data, OptTreeNode *otn, int protocol)
 
     if(idx == NULL)
     {
-        FatalError("%s(%d): Unable to allocate byte_test data node\n", 
+        FatalError("%s(%d): Unable to allocate byte_jump data node\n", 
                    file_name, file_line);
     }
 
@@ -149,6 +165,10 @@ void ByteJumpInit(char *data, OptTreeNode *otn, int protocol)
      * individually
      */
     fpl->context = (void *) idx;
+
+    if (idx->relative_flag == 1)
+        fpl->isRelative = 1;
+
 }
 
 
@@ -180,7 +200,7 @@ void ByteJumpParse(char *data, ByteJumpData *idx, OptTreeNode *otn)
     toks = mSplit(data, ",", 12, &num_toks, 0);
 
     if(num_toks < 2)
-        FatalError("ERROR %s (%d): Bad arguments to byte_test: %s\n", file_name,
+        FatalError("ERROR %s (%d): Bad arguments to byte_jump: %s\n", file_name,
                 file_line, data);
 
     /* set how many bytes to process from the packet */
@@ -194,7 +214,7 @@ void ByteJumpParse(char *data, ByteJumpData *idx, OptTreeNode *otn)
 
     if(idx->bytes_to_grab > PARSELEN || idx->bytes_to_grab == 0)
     {
-        FatalError("%s(%d): byte_test can't process more or less than "
+        FatalError("%s(%d): byte_jump can't process more than "
                 "%d bytes!\n", file_name, file_line, PARSELEN);
     }
 
@@ -318,6 +338,7 @@ int ByteJump(Packet *p, struct _OptTreeNode *otn, OptFpList *fp_list)
 {
     ByteJumpData *bjd;
     u_int32_t value = 0;
+    u_int32_t jump_value = 0;
     int dsize;
     int use_alt_buffer = p->packet_flags & PKT_ALT_DECODE;
     char *base_ptr, *end_ptr, *start_ptr;
@@ -402,38 +423,48 @@ int ByteJump(Packet *p, struct _OptTreeNode *otn, OptFpList *fp_list)
                 "grabbed %d bytes, value = %08X\n", 
                 bjd->bytes_to_grab, value););
 
+    /* Adjust the jump_value (# bytes to jump forward) with
+     * the multiplier.
+     */
+    jump_value = value * bjd->multiplier;
+
+    DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH,
+                "grabbed %d bytes, after multiplier value = %08X\n", 
+                bjd->bytes_to_grab, jump_value););
+
+
     /* if we need to align on 32-bit boundries, round up to the next
      * 32-bit value
      */
     if(bjd->align_flag)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
-                    "offset currently at %d\n", value););
-        if ((value % 4) != 0)
+                    "offset currently at %d\n", jump_value););
+        if ((jump_value % 4) != 0)
         {
-            value += (4 - (value % 4));
+            jump_value += (4 - (jump_value % 4));
         }
         DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH,
-                    "offset aligned to %d\n", value););
+                    "offset aligned to %d\n", jump_value););
     }
 
     DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH,
                 "Grabbed %d bytes at offset %d, value = 0x%08X\n",
-                bjd->bytes_to_grab, bjd->offset, value););
+                bjd->bytes_to_grab, bjd->offset, jump_value););
 
     if(bjd->from_beginning_flag)
     {
         /* Reset base_ptr if from_beginning */
         DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH,
-                                "jumping from beginning %d bytes\n", value););
+                                "jumping from beginning %d bytes\n", jump_value););
         base_ptr = start_ptr;
 
         /* from base, push doe_ptr ahead "value" number of bytes */
-        doe_ptr = base_ptr + value * bjd->multiplier;
+        doe_ptr = base_ptr + jump_value;
     }
     else
     {
-        doe_ptr = base_ptr + bjd->bytes_to_grab + value * bjd->multiplier;
+        doe_ptr = base_ptr + bjd->bytes_to_grab + jump_value;
     }
    
     if(!inBounds(start_ptr, end_ptr, doe_ptr))

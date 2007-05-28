@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(11218);
- script_version ("$Revision: 1.1 $");
+# script_cve_id("CVE-MAP-NOMATCH");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "Tomcat /status information disclosure";
  script_name(english:name["english"]);
  
@@ -36,7 +37,7 @@ the administrator's machine.";
 		francais:"Ce script est Copyright (C) 2003 StrongHoldNet");
  family["english"] = "Misc.";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/apache");
  
@@ -48,23 +49,16 @@ the administrator's machine.";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
+port = get_http_port(default:80);
 
-if(!port) port = 80;
+
 if(get_port_state(port))
 {
- soc = http_open_socket(port);
- if(soc)
- {
   buffer = http_get(item:"/status", port:port);
-  send(socket:soc, data:buffer);
-  data = http_recv(socket:soc);
+  data = http_keepalive_send_recv(port:port, data:buffer);
   if( ("Status information for" >< data) && ("<a href='jkstatus?scoreboard.reset'>reset</a>" >< data) )
-  {
    security_warning(port);
-  }
-  http_close_socket(soc);
- }
 }
 

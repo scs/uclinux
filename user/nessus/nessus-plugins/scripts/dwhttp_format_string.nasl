@@ -4,7 +4,7 @@
 # Script audit and contributions from Carmichael Security <http://www.carmichaelsecurity.com>
 #      Erik Anderson <eanders@carmichaelsecurity.com>
 #      Added BugtraqID
-#      This script could also cover BID:1556 and CAN-2000-0697
+#      This script could also cover BID:1556 and CVE-2000-0697
 #
 # GPL
 # *untested*
@@ -24,8 +24,8 @@
 if(description)
 {
  script_id(11075);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(5384);
+ script_version ("$Revision: 1.15 $");
 
  name["english"] = "dwhttpd format string";
  script_name(english:name["english"]);
@@ -63,9 +63,11 @@ include("misc_func.inc");
 
 function check(port)
 {
+ banner = get_http_banner(port: port);
+ if ( "dwhttp/" >!< banner ) return 0;
+
  if (safe_checks()) 
  {
-	banner = get_http_banner(port: port);
 	if (egrep(string: banner, pattern: "^Server: *dwhttp/4.(0|1[^0-9])"))
 		security_warning(port);
 	return(0);

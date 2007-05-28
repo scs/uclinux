@@ -1,134 +1,113 @@
-# This script was written by Noam Rathaus <noamr@securiteam.com>
+#
+# (C) Tenable Network Security
+#
+ desc["english"] = "
+Synopsis :
+
+A VPN server is listening on the remote port.
+
+Description :
+
+The remote host is running a PPTP (Point-to-Point Tunneling Protocol)
+server. It allows users to set up a tunnel between their host and the
+network the remote host is attached to.
+
+Make sure the use of this software is done in accordance with your 
+corporate security policy.
+
+Solution :
+
+Disable this software if you do not use it
+
+Risk factor :
+
+None";
+
+
+
+
 
 if (description)
 {
  script_id(10622);
- script_version ("$Revision: 1.9 $");
- script_name(english:"PPTP detection and versioning");
- desc["english"] = "
-The remote host seems to be running a PPTP (VPN) service, this service
-allows remote users to connect to the internal network and play a trusted
-rule in it. This service should be protect with encrypted username
-& password combinations, and should be accessible only to trusted
-individuals. By default the service leaks out such information as Server
-version (PPTP version), Hostname and Vendor string this could help an
-attacker better prepare her next attack.
-
-Also note that PPTP is not configured as being cryptographically
-secure, and you should use another VPN method if you can
-
-
-See also : http://www.counterpane.com/pptp-faq.html
-
-Solution: Restrict access to this port from untrusted networks. Make sure
-only encrypt channels are allowed through the PPTP (VPN) connection.
-
-Risk factor : Low";
-
+ script_version ("$Revision: 1.14 $");
+ script_name(english:"PPTP Detection"); 
  script_description(english:desc["english"]);
- script_summary(english:"Determine if a remote host is running a PPTP (VPN) service");
+ script_summary(english:"Connects to port 1723 to determine if a PPTP server is listening");
  script_category(ACT_GATHER_INFO);
- script_family(english:"Misc.");
- script_copyright(english:"This script is Copyright (C) 2001 SecuriTeam");
+ script_family(english:"Service detection");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  script_require_ports(1723);
  exit(0);
 }
 
-
+port=1723;
 include("misc_func.inc");
+include("byte_func.inc");
 
-buffer = 
-raw_string(0x00, 0x9C) +
-# Length
+if ( ! get_port_state(port) ) exit(0);
 
-raw_string(0x00, 0x01) +
-# Control packet
+set_byte_order(BYTE_ORDER_BIG_ENDIAN);
 
-raw_string(0x1A, 0x2B, 0x3C, 0x4D) +
-# Magic Cookie
+pptp_head =	mkword(1) +			# Message Type
+        	mkdword(0x1a2b3c4d) +		# Cookie
+ 		mkword(1) +			# Control type (Start-Control-Connection-Request)
+		mkword(0) +			# Reserved
+		mkword(0x0100) +		# Protocol Version (1.0)
+  		mkword(0) +			# Reserved
+		mkdword(1) +			# Framing Capabilities
+		mkdword(1) +			# Bearer capabilities
+		mkword(0);			# Maximum channels
+pptp_vendor = mkword(NASL_LEVEL) +		# Firmware revision 
+	      mkpad(64) +			# Hostname 
+	      mkpad(64);			# Vendor
 
-raw_string(0x00, 0x01) +
-# Control Message = Start Session Request
 
-raw_string(0x00, 0x00) +
-# Reserved word 1
+pptp = mkword(strlen(pptp_head) + strlen(pptp_vendor) + 2) + pptp_head + pptp_vendor;
 
-raw_string(0x01, 0x00) +
-# Protocol version = 256
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+send(socket:soc, data:pptp);
+r = recv(socket:soc, length:2);
+if ( ! r || strlen(r) != 2 ) exit(0);
+l = getword(blob:r, pos:0); 
+r += recv(socket:soc, length:l - 2, min:l - 2);
+if ( strlen(r) != l ) exit(0);
+if ( strlen(r) < strlen(pptp_head) + strlen(pptp_vendor) ) exit(0);
 
-raw_string(0x00) +
-# Reserved byte 1
+cookie = getdword(blob:r, pos:4);
+if ( cookie != 0x1a2b3c4d ) exit(0);
 
-raw_string(0x00) +
-# Reserved byte 2
-
-raw_string(0x00, 0x00, 0x00, 0x01) +
-# Framing Capability Summary (Can do async PPP)
-
-raw_string(0x00, 0x00, 0x00, 0x01) +	
-# Bearer Capability Summary (Can do analog calls)
-
-raw_string(0x00, 0x00) +
-# Max Channels
-
-raw_string(0x08, 0x70) +
-# Frimware Revision = 2160
-
-raw_string(
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00) +
-# Hostname
-
-raw_string(
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00);
-# Vendor string
-
-port = 1723;
-if (get_port_state(port))
-{
- soc = open_sock_tcp(1723);
- if (soc)
+ptr = strlen(pptp_head) + 2;
+firmware = getword(blob:r, pos:ptr);
+ptr += 2;
+rhostname = substr(r , ptr, ptr + 63);
+for ( i = 0 ; ord(rhostname[i]) != 0 && i < 64;  i ++ )
  {
-  send(socket:soc, data:buffer);
-  rec_buffer = recv(socket:soc, length:156);
-
-  # Verify PPTP response
-
-  # Verify PPTP packet
-  if ((ord(rec_buffer[2]) == 0) && (ord(rec_buffer[3]) == 1)) # Control Packet
-  {
-   if ((ord(rec_buffer[8]) == 0) && (ord(rec_buffer[9]) == 2)) # Replay packet
-   {
-
-    firmware_version = 0;
-    firmware_version = ord(rec_buffer[26])*256 + ord(rec_buffer[27]);
-
-    host_name = "";
-    for (i=28; (i<28+64) && (ord(rec_buffer[i]) > 0); i=i+1){
-    host_name = host_name + rec_buffer[i];}
-
-    vendor_string = "";
-    for (i=92; (i<92+64) && (ord(rec_buffer[i]) > 0); i=i+1){
-    vendor_string = vendor_string + rec_buffer[i];}
-
-    buffer = string("A PPTP server is running on this port\n", 
-    		     "Firmware Revision:", firmware_version, 
-		     "\nHost name:", host_name, 
-		     "\nVendor string:", 
-		     vendor_string);
-    security_note(port:port, data: buffer);
-    register_service(port:port, proto:"pptp");
-   }
-  }
+  hostname += rhostname[i];
  }
+
+ptr += 64;
+rvendor   = substr(r, ptr, ptr + 63);
+for ( i = 0 ; ord(rvendor[i]) != 0 && i < 64;  i ++ )
+ {
+  vendor += rvendor[i];
+ }
+
+report = desc["english"];
+
+if ( firmware != 0 || strlen(vendor) || strlen(hostname))
+{
+ report += '\n\nPlugin output :\n\n';
+ report += 'It was possible to extract the following information from the remote PPTP server :\n';
+ if ( firmware != 0 )
+ 	report += 'Firmware Version : ' + firmware + '\n';
+ if ( strlen(vendor) != 0 )
+ 	report += 'Vendor Name : ' + vendor + '\n';
+ if ( strlen(hostname) != 0 )
+ 	report += 'Host name : ' + hostname + '\n';
 }
 
+
+register_service(port:port, proto:"pptp");
+security_note(port:port, data:report);

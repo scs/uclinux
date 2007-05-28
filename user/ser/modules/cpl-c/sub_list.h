@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sub_list.h,v 1.3 2003/09/04 13:09:34 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -1,63 +1,52 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# Script audit and contributions from Carmichael Security <http://www.carmichaelsecurity.com>
-#      Erik Anderson <eanders@carmichaelsecurity.com>
-#      Added link to the Microsoft Knowledgebase
+# This script is released under Tenable Plugins License
 #
-# See the Nessus Scripts License for details
-#
+
+ desc["english"] = "
+Synopsis :
+
+Anyone can logon to the remote system.
+
+Description :
+
+This script determines whether the autologon feature is enabled.
+This feature allows an intruder to log into the remote host as 
+DefaultUserName with the password DefaultPassword.
+
+Solution : 
+
+Delete the keys AutoAdminLogon and DefaultPassword under
+HKLM\SOFTWARE\Microsoft\Window NT\CurrentVersion\Winlogon
+
+See also : 
+
+http://www.microsoft.com/windows2000/techinfo/reskit/en-us/regentry/12315.asp
+
+Risk factor :
+
+High / CVSS Base Score : 7 
+(AV:L/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
+
 
 if(description)
 {
  script_id(10412);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.19 $");
  
  name["english"] = "SMB Registry : Autologon";
- name["francais"] = "Base de registres: Autologon";
+
+ script_name(english:name["english"]);
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
- 
- desc["english"] = "
- This script determines whether the autologon feature
- is enabled. This feature allows an intruder to log
- into the remote host as DefaultUserName with the
- password DefaultPassword.
-
-
- Solution : Delete the keys AutoAdminLogon and DefaultPassword
- under HKLM\SOFTWARE\Microsoft\Window NT\CurrentVersion\Winlogon
-
- Reference : http://www.microsoft.com/windows2000/techinfo/reskit/en-us/regentry/12315.asp
-
- Risk factor : High
-";
-
-
- desc["francais"] = "
-
- Ce script determines si la fonctionnalité 'autologon' est 
- activée sur le NT distant. Celle-ci permet à un pirate
- de se logguer sur la machine en tant que DefaultUserName
- avec le mot de pass DefaultPassword.
-
- Solution : supprimez les clés AutoAdminLogon et DefaultPassword
- sous HKLM\SOFTWARE\Microsoft\Window NT\CurrentVersion\Winlogon
-
- Facteur de risque : Elevé";
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines if the autologon feature is installed";
- summary["francais"] = "Détermine si la fonctionalité autologon est activée";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
@@ -68,35 +57,58 @@ if(description)
  exit(0);
 }
 
-include("smb_nt.inc");
+
+include("smb_func.inc");
 
 port = get_kb_item("SMB/transport");
 if(!port)port = 139;
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+name	= kb_smb_name(); 	if(!name)exit(0);
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
 
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
 
+hklm = RegConnectRegistry(hkey:HKEY_LOCAL_MACHINE);
+if ( isnull(hklm) ) 
+{
+ NetUseDel();
+ exit(0);
+}
 
 
 key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon";
 item1 = "DefaultUserName";
 item2 = "DefaultPassword";
+item3 = "AutoAdminLogon";
 
-user = registry_get_sz(key:key, item:item1);
-pass = registry_get_sz(key:key, item:item2);
-
-if(user && pass)
+key_h = RegOpenKey(handle:hklm, key:key, mode:MAXIMUM_ALLOWED);
+if ( ! isnull(key_h) )
 {
-  rep = "The autologon is enabled on this host." + string("\n") +
-        "This allows an attacker to access it as " + user + "/" + pass +
-	string("\n\n") +
-	string("Solution : using regedt32, delete the items AutoAdminLogon and DefaultPassword\n") + "under HKLM\SOFTWARE\Microsoft\Window NT\CurrentVersion\Winlogon" + string("\nRisk factor : High");
- security_hole(port:port, data:rep);
+ value1 = RegQueryValue(handle:key_h, item:item1);
+ value2 = RegQueryValue(handle:key_h, item:item2);
+ value3 = RegQueryValue(handle:key_h, item:item3);
+
+ if ((!isnull(value3) && (value3[1] != "0")) && (!isnull (value1) && !isnull(value2)))
+ {
+  rep = 'Autologon is enabled on this host.\n' +
+        "This allows an attacker to access it as " + value1[1] + "/" + value2[1];
+  
+  report = desc["english"] + '\n\nPlugin output :\n\n' + rep;
+
+  security_hole(port:port, data:report);
+ }
+
+ RegCloseKey (handle:key_h);
 }
+
+RegCloseKey (handle:hklm);
+NetUseDel ();

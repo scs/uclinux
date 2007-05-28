@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(11849);
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(8679);
+ script_version ("$Revision: 1.3 $");
  name["english"] = "ProFTPd ASCII upload overflow";
  
  script_name(english:name["english"]);
@@ -24,7 +24,7 @@ flaw to gain a root shell on this host.
 *** positive.
 
 Solution : Upgrade to ProFTPD 1.2.9 when available or to 1.2.8p
-Risk Factor : High";
+Risk factor : High";
 		 
 	
  script_description(english:desc["english"]);

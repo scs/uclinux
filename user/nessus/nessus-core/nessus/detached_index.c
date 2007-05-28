@@ -97,7 +97,7 @@ detached_draw_window()
  struct arglist * ret = emalloc(sizeof(*ret));
  char * titles[] = {"Session ID", "Targets"}; 
  
- window = gtk_window_new(GTK_WINDOW_DIALOG);
+ window = gtk_window_new(WINDOW_DIALOG);
  gtk_window_set_title(GTK_WINDOW(window), "Detached sessions");
  gtk_widget_set_usize(GTK_WIDGET(window), 640, 480);
  gtk_container_border_width(GTK_CONTAINER(window), 10);

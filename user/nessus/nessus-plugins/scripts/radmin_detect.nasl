@@ -9,7 +9,7 @@
 if(description)
 {
   script_id(11123);
-  script_version ("$Revision: 1.4 $");
+  script_version ("$Revision: 1.8 $");
  
   script_name(english:"radmin detection");
  
@@ -17,6 +17,10 @@ if(description)
 radmin is running on this port. 
 Make sure that you use a strong password, otherwise a cracker
 may brute-force it and control your machine.
+
+If you did not install this on the computer, you may have
+been hacked into.
+See: http://www.secnap.com/security/radmin001.html
 
 Solution: disable it if you do not use it
 
@@ -32,7 +36,7 @@ Risk factor : Medium";
   script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi");
   family["english"] = "Backdoors";
   script_family(english:family["english"]);
-  script_dependencie("find_service.nes");
+  script_dependencie("find_service2.nasl");
   script_require_ports("Services/unknown", 4899);
 
   exit(0);
@@ -47,12 +51,12 @@ if(safe_checks())
 }
 else
 {
- port = get_kb_item("Services/unknown");
- if (! port) port=4899;
+ port = get_unknown_svc(4899);
+ if ( ! port ) exit(0);
 }
 if (! get_port_state(port)) exit(0);
 
-if (known_service(port: port)) exit(0);
+if (! service_is_unknown(port: port)) exit(0);
 
 soc = open_sock_tcp(port);
 if (! soc) exit(0);

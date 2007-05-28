@@ -7,9 +7,12 @@
 if(description)
 {
  script_id(11152);
- script_cve_id("CAN-2002-1219");
+ script_bugtraq_id(6160);
+ script_cve_id("CVE-2002-1219");
 if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0011");
- script_version ("$Revision: 1.3 $");
+if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-a-0006");
+if(defined_func("script_xref"))script_xref(name:"SuSE", value:"SUSE-SA:2002:044");
+ script_version ("$Revision: 1.9 $");
  
  
  name["english"] = "BIND vulnerable to cached RR overflow";
@@ -23,7 +26,7 @@ RR overflow vulnerability.
 An attacker may use this flaw to gain a shell
 on this system.
 
-Solution : upgrade to bind 8.2.7, 8.3.4 or 4.9.11
+Solution : Upgrade to bind 8.2.7, 8.3.4 or 4.9.11.
 
 Workaround :  Disable recursion on this server if it's not used
 as a recursive name server.
@@ -59,10 +62,10 @@ Risk factor : High";
 vers = get_kb_item("bind/version");
 if(!vers)exit(0);
 if(ereg(string:vers,
-	 pattern:"8\.2\.[0-6][^0-9]*$"))security_hole(53);
+	 pattern:"^8\.2\.[0-6][^0-9]*$"))security_hole(53);
 	 
 if(ereg(string:vers,
-	 pattern:"8\.3\.[0-3][^0-9]*$"))security_hole(53);
+	 pattern:"^8\.3\.[0-3][^0-9]*$"))security_hole(53);
 	 
 if(ereg(string:vers,
-	 pattern:"4\.9\.([0-9][^0-9]*$|10)"))security_hole(53);	 	 
+	 pattern:"^4\.9\.([0-9][^0-9]*$|10)"))security_hole(53);	 	 

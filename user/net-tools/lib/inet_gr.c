@@ -1,5 +1,5 @@
 /*
-   $Id$
+   $Id: inet_gr.c,v 1.13 2000/10/08 01:00:44 ecki Exp $
 
    Modifications:
    1998-07-01 - Arnaldo Carvalho de Melo - GNU gettext instead of catgets

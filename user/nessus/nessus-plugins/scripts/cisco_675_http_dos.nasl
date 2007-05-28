@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10561);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.15 $");
 
  name["english"] = "cisco 675 http DoS";
  name["francais"] = "Déni de service Cisco 675 par http";
@@ -79,7 +79,7 @@ Facteur de risque : Elevé";
  family["francais"] = "CISCO";
  script_family(english:family["english"], francais:family["francais"]);
  script_require_ports("Services/www", 80);
- script_dependencies("find_service.nes");
+ script_dependencies("find_service.nes", "os_fingerprint.nasl");
  exit(0);
 }
 
@@ -88,8 +88,14 @@ Facteur de risque : Elevé";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+os = get_kb_item("Host/OS/icmp");
+if ( os && "CISCO" >!< os ) exit(0);
+
+
+port = get_http_port(default:80);
+banner = get_http_banner(port:port);
+if ( "cisco-IOS" >!< banner ) exit(0);
+
 if(get_port_state(port))
 {
   if(http_is_dead(port:port))exit(0);

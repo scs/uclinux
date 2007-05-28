@@ -14,10 +14,12 @@
 if(description)
 {
  script_id(11665);
- script_cve_id("CAN-2003-0245", "CAN-2003-0189");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0012");
  script_bugtraq_id(7723, 7725);
+ script_cve_id("CVE-2003-0245", "CVE-2003-0189");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:186-01");
 
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.12 $");
  
  name["english"] = "Apache < 2.0.46";
 
@@ -50,9 +52,8 @@ Risk factor : Medium";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Misc.";
- family["francais"] = "Divers";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  script_require_keys("www/apache");
  script_require_ports("Services/www", 80);
@@ -63,13 +64,15 @@ Risk factor : Medium";
 # The script code starts here
 #
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 
 
-banner = get_http_banner(port: port);
+banner = get_backport_banner(banner:get_http_banner(port: port));
 if(!banner)exit(0);
  
 serv = strstr(banner, "Server");

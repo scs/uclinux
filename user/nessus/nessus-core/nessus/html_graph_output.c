@@ -75,36 +75,16 @@
 #include "nsr_output.h"
 
 
-static char* ne_strcasestr(char*, char *);
 static void insert_img(FILE *, char*);
 
 
-extern int out_graph(short, short, FILE *, GDC_CHART_T, int, char **, int, float *);
+extern int out_graph(short, short, FILE *, GDC_CHART_T, int, char **, int, ...);
 
 
 
 /*
  * Handy functions
  */
- 
-static char * 
-ne_strcasestr(char * haystack, char * needle)
-{
- int len_h = strlen(haystack);
- int len_needle = strlen(needle);
- 
- while(len_h >= len_needle)
- {
-  if(!strncasecmp(haystack, needle, len_needle))
-   return haystack;
-  else
-  {
-   len_h --;
-   haystack++;
-  }
- }
- return NULL;
-}
 
 static void
 insert_img(f, name)
@@ -120,39 +100,6 @@ insert_img(f, name)
 	                   Percentage of risk severity
 			   
  ---------------------------------------------------------------------------------*/
-static int risk_severity_by_kind(reports, risks)
- struct arglist * reports;
- float * risks;
-{
-while(reports && reports->next)
- {
-   if(ne_strcasestr(reports->value, "Risk factor : Low"))
-    risks[0] = risks[0] + 1;
-   else
-    {
-    if(ne_strcasestr(reports->value,"Risk factor : Medium"))
-      risks[1] = risks[1] + 1;
-    else 
-     {
-      if(ne_strcasestr(reports->value, "Risk factor : Serious"))
-      	 risks[2] = risks[2] + 1;
-     else 
-        {
-	 if(ne_strcasestr(reports->value, "Risk factor : High")||
-             ne_strcasestr(reports->value, "Risk factor : Very High")||
-	     ne_strcasestr(reports->value, "Risk factor : Critical"))
-              risks[3] = risks[3] + 1;
-          else
-	  	/* Not a security problem - skip */
-              risks[4] = risks[4] + 1;
-	}
-      }
-    }       
-  reports = reports->next;
- }
- return 0;
-}
-
  
 static int risk_severity_by_port(port, risks)
  struct arglist * port;
@@ -163,12 +110,15 @@ static int risk_severity_by_port(port, risks)
  struct arglist * notes;
  while(port && port->next)
  {
+
   holes = arg_get_value(port->value, "REPORT");
   warnings = arg_get_value(port->value, "INFO");
   notes = arg_get_value(port->value, "NOTE");
-  if(holes)risk_severity_by_kind(holes, risks);
-  if(warnings)risk_severity_by_kind(warnings, risks);
-  if(notes)risk_severity_by_kind(notes, risks);
+
+  risks[2] +=  arglist_length(holes);
+  risks[1] +=  arglist_length(warnings);
+  risks[0] +=  arglist_length(notes);
+
   port = port->next;
  }
  return 0;     
@@ -178,7 +128,8 @@ static int risk_severity_by_host(host, risks)
  struct arglist * host;
  float *risks;
 {
- while(host && host->next)
+ if ( host == NULL ) return 0;
+ while( host->next != NULL )
  {
   risk_severity_by_port(host->value, risks);
   host = host->next;
@@ -190,8 +141,11 @@ static int risk_severity(hosts, risks)
  struct arglist * hosts;
  float *risks;
 { 
- bzero(risks, sizeof(float)*5);
- while(hosts && hosts->next)
+ int i;
+ for ( i = 0; i < 3 ; i ++ ) risks[i] = 0;
+ if ( hosts == NULL );
+
+ while( hosts->next != NULL )
  {
   risk_severity_by_host(hosts->value, risks);
   hosts = hosts->next;
@@ -578,7 +532,7 @@ print_data_with_links(file, str, plugin_id)
 {
  while(str != NULL && str[0] != '\0')
  {
-  if(strncmp(str, "http:", 5) == 0)
+  if(strncmp(str, "http:", 5) == 0 || strncmp(str, "https:", 6) == 0 )
   {
    char * e1, * e2;
    char tmp = 0;
@@ -612,7 +566,7 @@ print_data_with_links(file, str, plugin_id)
   str = extract_xref(file, str, "http://cgi.nessus.org/bid.php3?bid=");
   }
   else fputc(str[0], file);
-  str++;
+  if ( str != NULL ) str++;
  }
  
  fprintf(file, "Nessus ID : <a href=\"http://cgi.nessus.org/nessus_id.php3?id=%s\">%s</a>", plugin_id, plugin_id);
@@ -923,7 +877,7 @@ create_host_report(struct arglist * host)
  f = fopen("index.html", "w");
  if(f)
  {
-   char * lbl[] = {"Low", "Medium", "Serious", "High"};
+   char * lbl[] = {"Low/Info", "Medium", "High"};
    int	expl[] = { 0, 0, 0, 20};
 
    unsigned long   clr[] = { 0x80FF80L, 0xFFFF80L, 0xFF80FFL, 0xFF4040L};
@@ -941,7 +895,7 @@ create_host_report(struct arglist * host)
    /*
     * Make a pie
     */
-    if(total)
+    if(total > 1)
     {
     pie = fopen("pie_risks.gif", "wb");
     GDCPIE_other_threshold = -1;
@@ -955,7 +909,7 @@ create_host_report(struct arglist * host)
     GDCPIE_label_size = GDC_SMALL;
     GDCPIE_title_size = GDC_MEDBOLD;
     GDCPIE_3d_angle  = 45;
-    GDCPIE_explode   = expl;
+    if ( total > 1 ) GDCPIE_explode   = expl;
     GDCPIE_Color = clr;
     GDCPIE_BGColor = 0xFFFFFFL;
     GDC_generate_gif = TRUE;
@@ -1011,7 +965,7 @@ create_host_report(struct arglist * host)
 		              Make the global index
 
 ------------------------------------------------------------------------------*/
-static int make_index(hosts)
+static int html_make_index(hosts)
  struct arglist * hosts;
 {
  FILE * f = fopen("index.html", "w");
@@ -1064,16 +1018,16 @@ static int make_index(hosts)
   */
   {
  
-   float risks_f[5];
-   char * lbl[] = {"Low", "Medium", "Serious", "High"};
-   int expl [] = {0,0,0,0};
-   unsigned long   clr[] = { 0x80FF80L, 0xFFFF80L,  0xFF80FFL, 0xFF4040L};
+   float risks_f[3];
+   char * lbl[] = {"Low/Info", "Medium", "High"};
+   int expl [] = {0,0,0};
+   unsigned long   clr[] = { 0x80FF80L, 0xFFFF80L, 0xFF4040L};
    FILE * pie;
    int num_risks = 0;
    int i;
    
    risk_severity(hosts, risks_f);
-   for(i=0;i<4;i++)
+   for(i=0;i<3;i++)
    {
     if(risks_f[i] == 0)
     {
@@ -1090,7 +1044,7 @@ static int make_index(hosts)
    
    expl[num_risks-1] = 20;
    
-   if(num_risks)
+   if(num_risks > 1)
    {			
     pie = fopen("pie_risks.gif", "wb");
     GDCPIE_title = "Security Risks";
@@ -1239,8 +1193,10 @@ static int make_index(hosts)
     }
     names[0] = most->name;
     names[1] = "Others";
-   
-    
+
+
+    if (values[1] != 0 && total > 1 )
+    {
     pie = fopen("pie_most.gif", "wb");
     GDCPIE_other_threshold = -1;
     GDCPIE_title = "Most dangerous host weight in the global insecurity";
@@ -1254,10 +1210,11 @@ static int make_index(hosts)
     GDCPIE_EdgeColor = 0x000000L;
     GDCPIE_missing = NULL;
     GDCPIE_percent_labels = GDCPIE_PCT_RIGHT;
-   pie_gif(480, 360, pie, GDC_3DPIE, 2,names, values);
-   fclose(pie);
-   insert_img(f, "pie_most.gif");
+    pie_gif(480, 360, pie, GDC_3DPIE, 2,names, values);
+    fclose(pie);
+    insert_img(f, "pie_most.gif");
      }
+    }
     }
    /*
     * Toc
@@ -1338,7 +1295,7 @@ int arglist_to_html_graph(hosts, directory)
   * First of all, save the .nsr file. This stuff is still in beta
   */
  arglist_to_file(hosts, "report.nsr"); 
- if(make_index(hosts)<0)
+ if(html_make_index(hosts)<0)
  {
   show_error(strerror(errno));
   return -1;

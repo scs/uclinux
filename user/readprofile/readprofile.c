@@ -78,7 +78,7 @@ FILE *pro;
 FILE *map;
 int proFd;
 char *mapFile, *proFile;
-unsigned int len, add0=0, step, index, totalticks, percent;
+unsigned int len, add0=0, step, index, totalticks, percent, totalpercent;
 unsigned int *buf, total, fn_len;
 unsigned int fn_add, next_add;           /* current and next address */
 char fn_name[S_LEN], next_name[S_LEN];   /* current and next name */
@@ -155,6 +155,7 @@ int popenMap;   /* flag to tell if popen() has been used */
     } 
 
   total=0;
+  totalpercent = 0;
 
   if (!(map=myopen(mapFile,"r",&popenMap)))
     {fprintf(stderr,"%s: ",prgname);perror(mapFile);exit(1);}
@@ -193,7 +194,9 @@ int popenMap;   /* flag to tell if popen() has been used */
 	      prgname,mapFile, maplineno);
       exit(1);
       }
-    if (*mode!='T' && *mode!='t') break; /* only text is profiled */
+
+    /* only text is profiled */
+    if (*mode!='T' && *mode!='t' && *mode!='W' && *mode!='w') break;
 
     while (index < (next_add-add0)/step)
       this += buf[index++];
@@ -201,6 +204,7 @@ int popenMap;   /* flag to tell if popen() has been used */
 
     fn_len = next_add-fn_add;
     percent = (this * 100) / totalticks;
+    totalpercent += percent;
     if (percent && (this || optAll))
       {
       if (optVerbose)
@@ -218,12 +222,12 @@ int popenMap;   /* flag to tell if popen() has been used */
   /* trailer */
   printf("---------------------------------------------------------------------------\n");
   if (optVerbose)
-    printf("     %08x %-36s %6i %8d.%04d\n",
-	   0,"total",total,
+    printf("%3d%% %08x %-36s %6i %8d.%04d\n",
+	   totalpercent, 0,"total",total,
 	   (total / (fn_add-add0)), ((total*10000)/(fn_add-add0))%10000 );
   else
-    printf("     %6i %-36s %8d.%04d\n",
-	   total,"total",
+    printf("%3d%% %6i %-36s %8d.%04d\n",
+	   totalpercent, total,"total",
 	   (total / (fn_add-add0)), ((total*10000)/(fn_add-add0))%10000 );
 	
   popenMap ? pclose(map) : fclose(map);

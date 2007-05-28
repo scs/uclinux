@@ -1,6 +1,6 @@
 Paranoid Secure Port Implementation
 Marc SCHAEFER <schaefer@alphanet.ch>
-$Id$
+$Id: secure_tty.txt,v 4.2 1999/01/24 12:35:53 marcs Exp $
 V1.0 PV005
 Creation: 11/11/96
 Update:   10/01/99

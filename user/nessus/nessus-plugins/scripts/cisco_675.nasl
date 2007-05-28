@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10045);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CVE-1999-0889");
  name["english"] = "Cisco 675 passwordless router";
  name["francais"] = "Cisco 675 sans mot de passe";
@@ -59,14 +59,17 @@ Facteur de risque : Elevé";
 #
 # The script code starts here
 #
+include('telnet_func.inc');
 
 port = 23;
 if(get_port_state(port))
 {
+ buf = get_telnet_banner(port:port);
+ if ( ! buf || "User Access Verification" >!< buf ) exit(0);
  soc = open_sock_tcp(port);
  if(soc)
  {
-  buf = telnet_init(soc);
+  buf = telnet_negotiate(socket:soc);
   if("User Access Verification" >< buf)
   {
    buf = recv(socket:soc, length:1024);

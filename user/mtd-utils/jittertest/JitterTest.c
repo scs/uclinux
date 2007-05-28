@@ -22,9 +22,6 @@
  *  Revision History:
  *  $Id$
  *  $Log: JitterTest.c,v $
- *  Revision 1.13  2005/11/07 11:15:20  gleixner
- *  [MTD / JFFS2] Clean up trailing white spaces
- *
  *  Revision 1.12  2001/08/10 19:23:11  vipin
  *  Ready to be released under GPL! Added proper headers etc.
  *
@@ -94,7 +91,7 @@
 
 
 /**************************** Enumerations ****************************/
-enum timerActions
+enum timerActions 
     {
         ONESHOT,
         AUTORESETTING
@@ -200,7 +197,7 @@ static long ProfileTriggerMSecs = 15000l; /* Jitter time in seconds that trigger
 static int SignalGCTask = FALSE; /* should be signal SIGSTOP/SIGCONT to gc task?*/
 static int GCTaskPID;
 
-static int RunAsRTTask = FALSE; /* default action unless priority is
+static int RunAsRTTask = FALSE; /* default action unless priority is 
 				   specified on cmd line */
 
 
@@ -234,14 +231,14 @@ int main(
     char *argv[])
 {
     struct sched_param schedParam;
-
+    
     int mypri;
     char tmpBuf[200];
-
-
+    
+    
     strcpy(OutFileName,"jitter.dat");
     InterruptPeriodMilliSec = MIN_INT_PERIOD_MILLISEC;
-
+    
     /* Get the minimum and maximum priorities. */
     MinPriority = sched_get_priority_min(PRIORITY_POLICY);
     MaxPriority = sched_get_priority_max(PRIORITY_POLICY);
@@ -253,10 +250,10 @@ int main(
         printf("\n*** Unable to get maximum priority. ***\n");
         exit(EXIT_MAX_PRIORITY_ERR);
     }
-
+    
     /* Set requested priority to minimum value as default. */
     RequestedPriority = MinPriority;
-
+    
     HandleCmdLineArgs(argc, argv);
 
     if(mlockall(MCL_CURRENT|MCL_FUTURE) < 0){
@@ -276,8 +273,8 @@ int main(
 	  close(Fd1);
 	  exit(EXIT_SET_SCHEDULER_ERR);
 	}
-
-
+	
+	
 	/* Double check as I have some doubts that it's really
 	   running at realtime priority! */
 	if((mypri = sched_getscheduler(0)) != RequestedPriority)
@@ -288,7 +285,7 @@ int main(
 	    {
 	      printf("Running with %i priority. Good!\n", mypri);
 	    }
-
+	
     }
 
     /*------------------------- Initializations --------------------------*/
@@ -297,20 +294,20 @@ int main(
         perror("Cannot open outfile for write:");
         exit(1);
     }
-
+    
     /* If a request is made to read from a specified file, then create that
        file and fill with junk data so that there is something there to read.
     */
     if(DoRead)
     {
-
+        
         if((Fd2 = open(ReadFile, O_RDWR|O_CREAT|O_SYNC|O_TRUNC)) <= 0)
         {
             perror("cannot open read file:");
             exit(1);
         }else
         {
-
+            
             /* Don't really care how much we write here */
             if(write(Fd2, READ_FILE_MESSAGE, strlen(READ_FILE_MESSAGE)) < 0)
             {
@@ -320,9 +317,9 @@ int main(
             lseek(Fd2, 0, SEEK_SET); /* position back to byte #0 */
         }
     }
-
-
-
+    
+    
+    
     /* Also log output to console. This way we can capture it
        on a serial console to a log file.
     */
@@ -331,83 +328,83 @@ int main(
         perror("cannot open o/p logfile:");
         exit(1);
     }
-
-
+    
+    
     /* Set-up handler for periodic interrupt. */
     if (signal(SIGALRM, &AlarmHandler) == SIG_ERR) {
         printf("Couldn't register signal handler for SIGALRM.\n");
         sprintf(tmpBuf,
                 "Couldn't register signal handler for SIGALRM.\n");
         Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
+        
         close(Fd1);
         exit(EXIT_REG_SIGALRM_ERR);
     }
-
+    
     /* Set-up handler for Ctrl+C to exit the program. */
     if (signal(SIGINT, &SignalHandler) == SIG_ERR) {
         printf("Couldn't register signal handler for SIGINT.\n");
         sprintf(tmpBuf,
                 "Couldn't register signal handler for SIGINT.\n");
         Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
+        
         close(Fd1);
         exit(EXIT_REG_SIGINT_ERR);
     }
-
+    
     printf("Press Ctrl+C to exit the program.\n");
     printf("Output File:        %s\n", OutFileName);
     printf("Scheduler priority: %d\n", RequestedPriority);
     sprintf(tmpBuf, "\nScheduler priority: %d\n",
             RequestedPriority);
     Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
+    
     Write(Cfd, tmpBuf, strlen(tmpBuf), __LINE__);
-
+    
     printf("Interrupt period:   %ld milliseconds\n",
            InterruptPeriodMilliSec);
     sprintf(tmpBuf, "Interrupt period:   %ld milliseconds\n",
             InterruptPeriodMilliSec);
-
+    
     Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
+    
     Write(Cfd, tmpBuf, strlen(tmpBuf), __LINE__);
-
-
+    
+    
     fflush(0);
-
-
-
+    
+    
+    
     /* Initialize the periodic timer. */
     InitITimer(&ITimer, ONESHOT);
-
+    
     /* Initialize "previous" time. */
     if (gettimeofday(&PrevTimeVal, NULL) != (int) 0) {
         printf("Exiting - ");
         printf("Unable to initialize previous time of day.\n");
         sprintf(tmpBuf, "Exiting - ");
         Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
+        
         sprintf(tmpBuf,
                 "Unable to initialize previous time of day.\n");
-
+        
         Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
+        
     }
-
+    
     /* Start the periodic timer. */
     setitimer(ITIMER_REAL, &ITimer, NULL);
-
-
+    
+    
     while(TRUE) {    /* Intentional infinite loop. */
         /* Sleep for one second. */
         sleep((unsigned int) 1);
     }
-
+    
     /* Just in case. File should be closed in SignalHandler. */
     close(Fd1);
     close(Cfd);
-
+    
     return 0;
 }
 
@@ -425,18 +422,18 @@ void SignalHandler(
 {
 
     char tmpBuf[200];
-
+    
     /* Note sigNum not used. */
     printf("Ctrl+C detected. Worst Jitter time was:%fms.\nJitterTest exiting.\n",
            (float)LastMaxDiff/1000.0);
-
+    
     sprintf(tmpBuf,
             "\nCtrl+C detected. Worst Jitter time was:%fms\nJitterTest exiting.\n",
             (float)LastMaxDiff/1000.0);
     Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
+    
     Write(Cfd, tmpBuf, strlen(tmpBuf), __LINE__);
-
+    
     close(Fd1);
     close(Cfd);
     exit(0);
@@ -458,7 +455,7 @@ void doGrabKProfile(int jitterusec, char *fileName)
     int fdProfile;
     int readBytes;
     char readBuf[4096];
-
+    
     if((fdSnapshot = open(fileName, O_WRONLY | O_CREAT)) <= 0)
     {
         fprintf(stderr, "Could not open file %s.\n", fileName);
@@ -484,11 +481,11 @@ void doGrabKProfile(int jitterusec, char *fileName)
     {
         perror("Could Not clear profile by writing to /proc/profile:");
     }
-
+        
     close(fdProfile);
-
-
-
+    
+    
+    
 }/* end doGrabKProfile()*/
 
 
@@ -496,27 +493,27 @@ void doGrabKProfile(int jitterusec, char *fileName)
   Call this routine to clear the kernel profiling buffer /proc/profile
 */
 void clearProfileBuf(void){
-
-
+  
+  
   int fdProfile;
   char readBuf[10];
-
+  
 
   if((fdProfile = open("/proc/profile", O_RDWR)) <= 0)
     {
       fprintf(stderr, "Could not open file /proc/profile. Make sure you booted with profile=2\n");
       return;
     }
-
-
+  
+ 
   if(write(fdProfile, readBuf, 1) != 1)
     {
       perror("Could Not clear profile by writing to /proc/profile:");
     }
-
+  
   close(fdProfile);
-
-
+  
+  
 }/* end clearProfileBuf() */
 
 
@@ -533,11 +530,11 @@ void clearProfileBuf(void){
 void AlarmHandler(
     int sigNum)                     /* signal number (not used)         */
 {
-
+    
     long timeDiffusec;  /* diff time in micro seconds */
     long intervalusec;
-
-
+    
+    
     char tmpBuf[MAX_WRITE_BYTES];
     int cntr;
     char padChar;
@@ -549,33 +546,33 @@ void AlarmHandler(
 				   where time() will be the same as this time
 				   if invoked < 1sec apart.
 				*/
-
+    
     if (gettimeofday(&CurrTimeVal, NULL) == (int) 0) {
-
+        
         /*----------------------------------------------------------------
          * Compute the elapsed time between the current and previous
          * time of day values and store the result.
          *
-         * Print the elapsed time to the output file.
+         * Print the elapsed time to the output file. 
          *---------------------------------------------------------------*/
-
+        
         timeDiffusec = (long)(((((long long)CurrTimeVal.tv_sec) * 1000000L) + CurrTimeVal.tv_usec) -
                         (((long long)PrevTimeVal.tv_sec * 1000000L) + PrevTimeVal.tv_usec));
-
+        
         sprintf(tmpBuf," %f ms  ", (float)timeDiffusec/1000.0);
-
+        
         intervalusec = InterruptPeriodMilliSec * 1000L;
-
+        
         timeDiffusec = timeDiffusec - intervalusec;
-
+        
         sprintf(&tmpBuf[strlen(tmpBuf)]," %f ms", (float)timeDiffusec/1000.0);
-
-
+        
+        
 	/* should we send a SIGSTOP/SIGCONT to the specified PID? */
 	if(SignalGCTask){
-
+	    
 	  if(kill(GCTaskPID, SIGSTOP) < 0){
-
+	    
 	    perror("error:");
 	  }
 	}
@@ -590,31 +587,31 @@ void AlarmHandler(
 	    if((GrabKProfile == TRUE) && (ProfileTriggerMSecs < (abs(timeDiffusec)/1000)))
 	      {
 		  sprintf(profileFileName, "JitterTest.profilesnap-%i", profileFileNo);
-
+		
 		  /* go and grab the kernel performance profile. */
 		  doGrabKProfile(timeDiffusec, profileFileName);
 		  profileFileNo++; /* unique name next time */
-
+		  
 		  /* Say so on the console so that a marker gets put in the console log */
 		  sprintf(&tmpBuf[strlen(tmpBuf)],"<Profile saved in file:%s>",
 			  profileFileName);
-
+		  
 	      }
-
+	    
         }
 
 
-
+        
 
         sprintf(&tmpBuf[strlen(tmpBuf)],"\n"); /* CR for the data going out of the console */
-
+        
         Write(Cfd, tmpBuf, strlen(tmpBuf), __LINE__);
 
 
         /* The "-1" below takes out the '\n' at the end that we appended for the msg printed on
          the console.*/
         sprintf(&tmpBuf[strlen(tmpBuf)-1]," PadBytes:");
-
+        
         /* Now pad the output file if requested by user. */
         if(WriteBytes > MIN_WRITE_BYTES)
         {
@@ -644,30 +641,30 @@ void AlarmHandler(
 
         /* write out the entire line to the output file. */
         Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
-
+        
+        
         /* Read a byte from the specified file */
         if(DoRead)
         {
-
+            
             read(Fd2, tmpBuf, 1);
             lseek(Fd2, 0, SEEK_SET); /* back to start */
         }
-
-
+        
+        
         /* Start the periodic timer again. */
         setitimer(ITIMER_REAL, &ITimer, NULL);
-
-
+        
+        
         /* Update previous time with current time. */
         PrevTimeVal.tv_sec  = CurrTimeVal.tv_sec;
         PrevTimeVal.tv_usec = CurrTimeVal.tv_usec;
     }
-
+    
     else {
         sprintf(tmpBuf, "gettimeofday error \n");
         Write(Fd1, tmpBuf, strlen(tmpBuf), __LINE__);
-
+        
         printf("gettimeofday error \n");
     }
 
@@ -679,14 +676,14 @@ void AlarmHandler(
 
     /* should we send a SIGSTOP/SIGCONT to the specified PID? */
     if(SignalGCTask){
-
+      
       if(kill(GCTaskPID, SIGCONT) < 0){
-
+	
 	perror("error:");
       }
     }
 
-
+    
     return;
 }
 
@@ -704,7 +701,7 @@ void InitITimer(
 {
     long seconds;                   /* seconds portion of int. period   */
     long microSeconds;              /* microsec. portion of int. period */
-
+    
     /*--------------------------------------------------------------------
      * Divide the desired interrupt period into its seconds and
      * microseconds components.
@@ -719,23 +716,23 @@ void InitITimer(
             (InterruptPeriodMilliSec - (seconds * MILLISEC_PER_SEC)) *
             MICROSEC_PER_MILLISEC;
     }
-
+    
     /* Initialize the interrupt period structure. */
     pITimer->it_value.tv_sec     = seconds;
     pITimer->it_value.tv_usec    = microSeconds;
-
+    
     if(action == ONESHOT)
     {
         /* This will (should) prevent the timer from restarting itself */
         pITimer->it_interval.tv_sec  = 0;
-        pITimer->it_interval.tv_usec = 0;
+        pITimer->it_interval.tv_usec = 0;      
     }else
     {
         pITimer->it_interval.tv_sec  = seconds;
-        pITimer->it_interval.tv_usec = microSeconds;
-
+        pITimer->it_interval.tv_usec = microSeconds;            
+        
     }
-
+    
     return;
 }
 
@@ -750,20 +747,20 @@ void HandleCmdLineArgs(
     char *argv[])                   /* ptrs to command-line arguments   */
 {
     int argNum;                     /* argument number                  */
-
+    
     if (argc > (int) 1) {
-
+        
         for (argNum = (int) 1; argNum < argc; argNum++) {
-
+            
             /* The command line contains an argument. */
-
+            
             if ((strcmp(argv[argNum],"--version") == STRINGS_EQUAL) ||
                 (strcmp(argv[argNum],"-v")        == STRINGS_EQUAL)) {
                 /* Print version information and exit. */
                 PrintVersionInfo();
                 exit(0);
             }
-
+            
             else if ((strcmp(argv[argNum],"--help") == STRINGS_EQUAL) ||
                      (strcmp(argv[argNum],"-h")     == STRINGS_EQUAL) ||
                      (strcmp(argv[argNum],"-?")     == STRINGS_EQUAL)) {
@@ -771,7 +768,7 @@ void HandleCmdLineArgs(
                 PrintHelpInfo();
                 exit(0);
             }
-
+            
             else if ((strcmp(argv[argNum],"--file") == STRINGS_EQUAL) ||
                      (strcmp(argv[argNum],"-f")     == STRINGS_EQUAL)) {
                 /* Set the name of the output file. */
@@ -784,7 +781,7 @@ void HandleCmdLineArgs(
                     printf("Default output file name will be used.\n");
                 }
             }
-
+            
             else if ((strcmp(argv[argNum],"--time") == STRINGS_EQUAL) ||
                      (strcmp(argv[argNum],"-t")     == STRINGS_EQUAL)) {
                 /* Set the interrupt period. */
@@ -796,9 +793,9 @@ void HandleCmdLineArgs(
                     printf("*** Interrupt period not specified. ***\n");
                     printf("Default interrupt period will be used.\n");
                 }
-
+                
             }
-
+            
             else if ((strcmp(argv[argNum],"--priority") ==
                       STRINGS_EQUAL) ||
                      (strcmp(argv[argNum],"-p")       == STRINGS_EQUAL)) {
@@ -811,34 +808,34 @@ void HandleCmdLineArgs(
                     printf("*** Scheduler priority not specified. ***\n");
                     printf("Default scheduler priority will be used.\n");
                 }
-
+                
             }
-
+            
             else if ((strcmp(argv[argNum],"--readfile") ==
                       STRINGS_EQUAL) ||
                      (strcmp(argv[argNum],"-r")       == STRINGS_EQUAL)) {
                 /* Set the file to read*/
                 ++argNum;
-
+                
                 strncpy(ReadFile, argv[argNum], sizeof(ReadFile));
                 DoRead = TRUE;
             }
-
+            
             else if ((strcmp(argv[argNum],"--write_bytes") ==
                       STRINGS_EQUAL) ||
                      (strcmp(argv[argNum],"-w")       == STRINGS_EQUAL)) {
                 /* Set the file to read*/
                 ++argNum;
-
+                
                 WriteBytes = atoi(argv[argNum]);
-
+                
                 if(WriteBytes < MIN_WRITE_BYTES)
                 {
                     printf("Writing less than %i bytes is not allowed. Bye.\n",
                            MIN_WRITE_BYTES);
                     exit(0);
                 }
-
+                
 
             }
 
@@ -847,23 +844,23 @@ void HandleCmdLineArgs(
                      (strcmp(argv[argNum],"-c")       == STRINGS_EQUAL)) {
 	      /* Set the file to log console log on. */
 	      ++argNum;
-
+	      
 	      strncpy(LogFile, argv[argNum], sizeof(LogFile));
             }
-
+	    
             else if ((strcmp(argv[argNum],"--grab_kprofile") ==
                       STRINGS_EQUAL))
 	      {
                 /* We will read the /proc/profile file on configurable timeout */
                 GrabKProfile = TRUE;
-
+		
                 ++argNum;
-
+                
                 /* If the jittter is > this #, then the profile is grabbed. */
                 ProfileTriggerMSecs = (long) atoi(argv[argNum]);
-
+		
 		if(ProfileTriggerMSecs <= 0){
-
+		  
 		  printf("Illegal value for profile trigger threshold.\n");
 		  exit(0);
 		}
@@ -874,19 +871,19 @@ void HandleCmdLineArgs(
 	      {
                 /* We will SIGSTOP/SIGCONT the specified pid */
                 SignalGCTask = TRUE;
-
+		
                 ++argNum;
-
+                
                 GCTaskPID = atoi(argv[argNum]);
-
+		
 		if(ProfileTriggerMSecs <= 0){
-
+		  
 		  printf("Illegal value for JFFS(2) GC task pid.\n");
 		  exit(0);
 		}
 	      }
-
-
+            
+            
             else {
 	      /* Unknown argument. Print help information and exit. */
 	      printf("Invalid option %s\n", argv[argNum]);
@@ -895,7 +892,7 @@ void HandleCmdLineArgs(
             }
         }
     }
-
+    
     return;
 }
 
@@ -909,7 +906,7 @@ void SetFileName(
     char * pFileName)               /* ptr to desired output file name  */
 {
     size_t fileNameLen;             /* file name length (bytes)         */
-
+    
     /* Check file name length. */
     fileNameLen = strlen(pFileName);
     if (fileNameLen > (size_t) MAX_FILE_NAME_LEN) {
@@ -917,10 +914,10 @@ void SetFileName(
                pFileName, MAX_FILE_NAME_LEN);
         exit(0);
     }
-
+    
     /* File name length is OK so save the file name. */
     strcpy(OutFileName, pFileName);
-
+    
     return;
 }
 
@@ -935,7 +932,7 @@ void SetInterruptPeriod(
     pASCIIInterruptPeriodMilliSec)
 {
     long period;                    /* interrupt period                 */
-
+    
     period = atol(pASCIIInterruptPeriodMilliSec);
     if ((period < MIN_INT_PERIOD_MILLISEC) ||
         (period > MAX_INT_PERIOD_MILLISEC)) {
@@ -958,7 +955,7 @@ void SetSchedulerPriority(
     char * pASCIISchedulerPriority) /* ptr to desired scheduler priority*/
 {
     int priority;                   /* desired scheduler priority value */
-
+    
     priority = atoi(pASCIISchedulerPriority);
     if ((priority < MinPriority) ||
         (priority > MaxPriority)) {
@@ -1017,28 +1014,28 @@ void PrintHelpInfo(void)
     printf("  [--grab_kprofile <THRESHOLD in ms>]    Read the /proc/profile if jitter is > THRESHOLD and store in file.\n");
     printf("  [--siggc <PID>]   Before writing to fs send SIGSTOP to PID. After write send SIGCONT\n");
     return;
-
+    
 }
 
 
 /* A common write that checks for write errors and exits. Pass it __LINE__ for lineNo */
 int Write(int fd, void *buf, size_t bytes, int lineNo)
 {
-
+    
     int err;
 
     err = write(fd, buf, bytes);
-
+    
     if(err < bytes)
     {
-
+        
         printf("Write Error at line %i! Wanted to write %i bytes, but wrote only %i bytes.\n",
                lineNo, bytes, err);
         perror("Write did not complete. Error. Bye:"); /* show error from errno. */
 	exit(1);
-
+        
     }
-
+    
     return err;
-
+    
 }/* end Write*/

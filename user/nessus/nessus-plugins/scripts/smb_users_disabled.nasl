@@ -1,25 +1,32 @@
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
 #
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
+
+ desc["english"] = "
+Synopsis :
+
+It is possible to retrieve disabled users account using the supplied
+credentials.
+
+Description :
+
+Using the supplied credentials it was possible to extract the disabled
+user account list.
+Permanently disabled accounts should be suppressed.
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:L/AC:H/Au:R/C:N/A:N/I:N/B:N)";
+
 
 if(description)
 {
  script_id(10897);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.5 $");
  name["english"] = "Users information : disabled accounts";
 
  script_name(english:name["english"]);
- 
- desc["english"] = "
-This script displays the names of the disabled
-accounts.
-
-Permanently disabled accounts should be suppressed.
-
-Risk factor : Low";
-
-
 
  script_description(english:desc["english"]);
  
@@ -31,10 +38,10 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows : User management";
  script_family(english:family["english"]);
-script_dependencies("smb_netusergetinfo.nasl");
+ script_dependencies("smb_netusergetinfo.nasl");
  
  exit(0);
 }
@@ -60,10 +67,10 @@ while(login)
 
 if(logins)
 {
- rep = string("The following accounts are disabled :\n\n",
-  logins,
-  "\n\nTo minimize the risk of break-in, permanently disabled accounts\n",
-  "should be deleted\n",
-  "Risk factor : Low");
- security_note(port:port, data:rep);
+ report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		"The following accounts are disabled :\n",
+		logins);
+
+ security_note (port:0, data:report);
 }

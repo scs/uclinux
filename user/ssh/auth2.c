@@ -23,7 +23,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2.c,v 1.102 2003/08/26 09:58:43 markus Exp $");
+RCSID("$OpenBSD: auth2.c,v 1.107 2004/07/28 09:40:29 markus Exp $");
 
 #include "ssh2.h"
 #include "xmalloc.h"
@@ -35,6 +35,7 @@ RCSID("$OpenBSD: auth2.c,v 1.102 2003/08/26 09:58:43 markus Exp $");
 #include "dispatch.h"
 #include "pathnames.h"
 #include "monitor_wrap.h"
+#include "buffer.h"
 
 #ifdef SECURITY_COUNTS
 #define AA_EXTERN_ONLY
@@ -49,8 +50,7 @@ RCSID("$OpenBSD: auth2.c,v 1.102 2003/08/26 09:58:43 markus Exp $");
 extern ServerOptions options;
 extern u_char *session_id2;
 extern u_int session_id2_len;
-
-Authctxt *x_authctxt = NULL;
+extern Buffer loginmsg;
 
 /* methods */
 
@@ -84,19 +84,14 @@ static void input_userauth_request(int, u_int32_t, void *);
 static Authmethod *authmethod_lookup(const char *);
 static char *authmethods_get(void);
 int user_key_allowed(struct passwd *, Key *);
-int hostbased_key_allowed(struct passwd *, const char *, char *, Key *);
 
 /*
  * loop until authctxt->success == TRUE
  */
 
-Authctxt *
-do_authentication2(void)
+void
+do_authentication2(Authctxt *authctxt)
 {
-	Authctxt *authctxt = authctxt_new();
-
-	x_authctxt = authctxt;		/*XXX*/
-
 	/* challenge-response is implemented via keyboard interactive */
 	if (options.challenge_response_authentication)
 		options.kbd_interactive_authentication = 1;
@@ -104,8 +99,6 @@ do_authentication2(void)
 	dispatch_init(&dispatch_protocol_error);
 	dispatch_set(SSH2_MSG_SERVICE_REQUEST, &input_service_request);
 	dispatch_run(DISPATCH_BLOCK, &authctxt->success, authctxt);
-
-	return (authctxt);
 }
 
 static void
@@ -164,24 +157,23 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 	if (authctxt->attempt++ == 0) {
 		/* setup auth context */
 		authctxt->pw = PRIVSEP(getpwnamallow(user));
+		authctxt->user = xstrdup(user);
 		if (authctxt->pw && strcmp(service, "ssh-connection")==0) {
 			authctxt->valid = 1;
 			debug2("input_userauth_request: setting up authctxt for %s", user);
-#ifdef USE_PAM
-			if (options.use_pam)
-				PRIVSEP(start_pam(authctxt->pw->pw_name));
-#endif
 		} else {
-			logit("input_userauth_request: illegal user %s", user);
+			logit("input_userauth_request: invalid user %s", user);
 			authctxt->pw = fakepw();
-#ifdef USE_PAM
-			if (options.use_pam)
-				PRIVSEP(start_pam(user));
+#ifdef SSH_AUDIT_EVENTS
+			PRIVSEP(audit_event(SSH_INVALID_USER));
 #endif
 		}
-		setproctitle("%s%s", authctxt->pw ? user : "unknown",
+#ifdef USE_PAM
+		if (options.use_pam)
+			PRIVSEP(start_pam(authctxt));
+#endif
+		setproctitle("%s%s", authctxt->valid ? user : "unknown",
 		    use_privsep ? " [net]" : "");
-		authctxt->user = xstrdup(user);
 		authctxt->service = xstrdup(service);
 		authctxt->style = style ? xstrdup(style) : NULL;
 		if (use_privsep)
@@ -226,12 +218,26 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 
 	/* Special handling for root */
 	if (authenticated && authctxt->pw->pw_uid == 0 &&
-	    !auth_root_allowed(method))
+	    !auth_root_allowed(method)) {
 		authenticated = 0;
+#ifdef SSH_AUDIT_EVENTS
+		PRIVSEP(audit_event(SSH_LOGIN_ROOT_DENIED));
+#endif
+	}
 
 #ifdef USE_PAM
-	if (options.use_pam && authenticated && !PRIVSEP(do_pam_account()))
-		authenticated = 0;
+	if (options.use_pam && authenticated) {
+		if (!PRIVSEP(do_pam_account())) {
+			/* if PAM returned a message, send it to the user */
+			if (buffer_len(&loginmsg) > 0) {
+				buffer_append(&loginmsg, "\0", 1);
+				userauth_send_banner(buffer_ptr(&loginmsg));
+				packet_write_wait();
+			}
+			fatal("Access denied for user %s by PAM account "
+			    "configuration", authctxt->user);
+		}
+	}
 #endif
 
 #ifdef _UNICOS
@@ -261,8 +267,12 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		/* now we can break out */
 		authctxt->success = 1;
 	} else {
-		if (authctxt->failures++ > AUTH_FAIL_MAX)
+		if (authctxt->failures++ > options.max_authtries) {
+#ifdef SSH_AUDIT_EVENTS
+			PRIVSEP(audit_event(SSH_LOGIN_EXCEED_MAXTRIES));
+#endif
 			packet_disconnect(AUTH_FAIL_MSG, authctxt->user);
+		}
 		methods = authmethods_get();
 		packet_start(SSH2_MSG_USERAUTH_FAILURE);
 		packet_put_cstring(methods);
@@ -271,14 +281,6 @@ userauth_finish(Authctxt *authctxt, int authenticated, char *method)
 		packet_write_wait();
 		xfree(methods);
 	}
-}
-
-/* get current user */
-
-struct passwd*
-auth_get_user(void)
-{
-	return (x_authctxt != NULL && x_authctxt->valid) ? x_authctxt->pw : NULL;
 }
 
 #define	DELIM	","

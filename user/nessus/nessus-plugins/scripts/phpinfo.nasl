@@ -6,7 +6,7 @@
 
 if(description)
 {
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
  script_id(11229);
  
  name["english"] = "phpinfo.php";
@@ -37,7 +37,7 @@ Risk factor : Low";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_require_ports("Services/www", 80);
- script_dependencies("http_version.nasl", "no404.nasl");
+ script_dependencies("http_version.nasl");
  exit(0);
 }
 
@@ -47,8 +47,10 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port=80;
+port = get_http_port(default:80);
+
+if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 dirs = get_kb_list(string("www/", port, "/content/directories"));
 if(isnull(dirs))dirs = make_list("");

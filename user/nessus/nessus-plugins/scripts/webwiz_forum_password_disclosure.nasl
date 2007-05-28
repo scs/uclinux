@@ -2,37 +2,45 @@
 # This script was written by Renaud Deraison <deraison@cvs.nessus.org>
 #
 # See the Nessus Scripts License for details
-#
-# Ref: 
-#  Date: 17 Apr 2003 19:45:39 -0000
-#  From: Uziel aka nuJIurpuM <Uziel@uziel.biz>
-#  To: bugtraq@securityfocus.com
-#  Subject: Web Wiz Forums all version db stealing
 
 
 if(description)
 {
  script_id(11542);
  script_bugtraq_id(7380);
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "Web Wiz Forums database disclosure";
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote server is running Web Wiz Site Forum, a set of .asp
-scripts to manage online forums.
+Synopsis :
 
-This release comes with a wwforum.mdb database, usually located
-under admin/ which contains sensitive information, such as the
-user passwords and emails.
+The remote web server contains an ASP application that is affected by
+an information disclosure vulnerability. 
 
-An attacker may use this flaw to gain unauthorized access to the 
-remote forum site and potentially edit its content.
+Description :
 
-Solution : Prevent the download of .mdb files from your website.
-Risk factor : High";
+The remote server is running Web Wiz Site Forum, a set of ASP scripts
+to manage online forums. 
 
+This release comes with a 'wwforum.mdb' database, usually located
+under 'admin' which contains sensitive information, such as the user
+passwords and emails.  An attacker may use this flaw to gain
+unauthorized access to the affected application.
+
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2003-04/0234.html
+
+Solution : 
+
+Prevent the download of .mdb files from your website.
+
+Risk factor : 
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -46,34 +54,35 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
 
+include("global_settings.inc");
 include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-
+port = get_http_port(default:80);
 if(!get_port_state(port))exit(0);
+if (!can_host_asp(port:port)) exit(0);
 
 
-dirs = make_list(cgi_dirs(), "");
+if (thorough_tests) dirs = make_list("/forums", "/forum", cgi_dirs());
+else dirs = make_list(cgi_dirs());
 
-foreach d (dirs)
+foreach d ( dirs )
 {
  req = http_get(item:string(d, "/admin/wwforum.mdb"), port:port);
- res = http_keepalive_send_recv(port:port, data:req);
- 
+ res = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
  if ( res == NULL ) exit(0);
  
  if("Standard Jet DB" >< res)
 	{
- 	 security_warning(port);
+ 	 security_note(port);
 	 exit(0);
 	 }
 }

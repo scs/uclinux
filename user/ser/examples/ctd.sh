@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: ctd.sh,v 1.11 2003/08/21 15:17:33 jiri Exp $
 #
 # Usage: ctd.sh $FROM $TARGET
 # 

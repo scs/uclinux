@@ -27,6 +27,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
+#include <pwd.h>
 #include <grp.h>
 #include <sys/ioctl.h>
 
@@ -63,10 +65,13 @@ void log_message(int priority, const char *format, ...)
 static void vid_log(int priority, const char *file, int line, const char *format, ...)
 {
 #ifdef USE_LOG
+	char log_str[1024];
 	va_list args;
 
 	va_start(args, format);
-	log_message(priority, format, args);
+	vsnprintf(log_str, sizeof(log_str), format, args);
+	log_str[sizeof(log_str)-1] = '\0';
+	log_message(priority, "%s:%i %s", file, line, log_str);
 	va_end(args);
 #endif
 	return;
@@ -106,11 +111,14 @@ static void set_str(char *to, const char *from, size_t count)
 
 int main(int argc, char *argv[])
 {
-	const char help[] = "usage: vol_id [--export|-t|-l|-u] <device>\n"
-			    "       --export\n"
-			    "       -t filesystem type\n"
-			    "       -l filesystem label\n"
-			    "       -u filesystem uuid\n"
+	const char help[] = "Usage: vol_id [options] <device>\n"
+			    " --export        export key/value pairs\n"
+			    "  -t             filesystem type\n"
+			    "  -l             filesystem label\n"
+			    "  -u             filesystem uuid\n"
+			    " --skip-raid     don't probe for raid\n"
+			    " --probe-all     find possibly conflicting signatures\n"
+			    " --help\n"
 			    "\n";
 	enum print_type {
 		PRINT_EXPORT,
@@ -122,9 +130,11 @@ int main(int argc, char *argv[])
 	static char name[VOLUME_ID_LABEL_SIZE];
 	int i;
 	uint64_t size;
+	int skip_raid = 0;
+	int probe_all = 0;
 	const char *node = NULL;
-	uid_t nobody_uid;
-	gid_t nobody_gid;
+	struct passwd *pw;
+	int retval;
 	int rc = 0;
 
 	logging_init("vol_id");
@@ -143,6 +153,13 @@ int main(int argc, char *argv[])
 			print = PRINT_LABEL;
 		} else if (strcmp(arg, "-u") == 0) {
 			print = PRINT_UUID;
+		} else if (strcmp(arg, "--skip-raid") == 0) {
+			skip_raid = 1;
+		} else if (strcmp(arg, "--probe-all") == 0) {
+			probe_all = 1;
+		} else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
+			printf(help);
+			goto exit;
 		} else
 			node = arg;
 	}
@@ -164,27 +181,102 @@ int main(int argc, char *argv[])
 		size = 0;
 	dbg("BLKGETSIZE64=%llu", size);
 
-	/* drop all privileges */
-	nobody_uid = lookup_user("nobody");
-	nobody_gid = lookup_group("nogroup");
-	if (nobody_uid > 0 && nobody_gid > 0) {
+	/* try to drop all privileges before reading disk content */
+	pw = getpwnam ("nobody");
+	if (pw != NULL && pw->pw_uid > 0 && pw->pw_gid > 0) {
+		dbg("dropping privileges to %u:%u", (unsigned int)pw->pw_uid, (unsigned int)pw->pw_gid);
 		if (setgroups(0, NULL) != 0 ||
-		    setgid(nobody_gid) != 0 ||
-		    setuid(nobody_uid) != 0) {
+		    setgid(pw->pw_gid) != 0 ||
+		    setuid(pw->pw_uid) != 0) {
+			fprintf(stderr, "error dropping privileges: %s\n", strerror(errno));
 			rc = 3;
 			goto exit;
 		}
 	}
 
-	if (volume_id_probe_all(vid, 0, size) == 0)
-		goto print;
+	if (probe_all) {
+		if (volume_id_probe_linux_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_intel_software_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_lsi_mega_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_via_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_silicon_medley_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_nvidia_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_promise_fasttrack_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_highpoint_45x_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_adaptec_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_jmicron_raid(vid, 0, size) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_vfat(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_linux_swap(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_luks(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_xfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_ext(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_reiserfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_jfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_udf(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_iso9660(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_hfs_hfsplus(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_ufs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_ntfs(vid, 0, 0)  == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_cramfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_romfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_hpfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_sysv(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_minix(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_ocfs1(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_ocfs2(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_vxfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_squashfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_netware(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_gfs(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
+		if (volume_id_probe_gfs2(vid, 0, 0) == 0)
+			printf("%s\n", vid->type);
 
-	if (print != PRINT_EXPORT)
+		goto exit;
+	}
+
+	if (skip_raid)
+		retval = volume_id_probe_filesystem(vid, 0, size);
+	else
+		retval = volume_id_probe_all(vid, 0, size);
+	if (retval != 0) {
 		fprintf(stderr, "%s: unknown volume type\n", node);
-	rc = 4;
-	goto exit;
+		rc = 4;
+		goto exit;
+	}
 
-print:
 	set_str(name, vid->label, sizeof(vid->label));
 	replace_untrusted_chars(name);
 
@@ -201,15 +293,14 @@ print:
 		printf("%s\n", vid->type);
 		break;
 	case PRINT_LABEL:
-		if (name[0] == '\0' ||
-		    (vid->usage_id != VOLUME_ID_FILESYSTEM && vid->usage_id != VOLUME_ID_DISKLABEL)) {
+		if (name[0] == '\0' || vid->usage_id == VOLUME_ID_RAID) {
 			rc = 3;
 			goto exit;
 		}
 		printf("%s\n", name);
 		break;
 	case PRINT_UUID:
-		if (vid->uuid[0] == '\0' || vid->usage_id != VOLUME_ID_FILESYSTEM) {
+		if (vid->uuid[0] == '\0' || vid->usage_id == VOLUME_ID_RAID) {
 			rc = 4;
 			goto exit;
 		}

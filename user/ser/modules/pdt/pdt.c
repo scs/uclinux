@@ -1,5 +1,5 @@
 /**
- * $Id$
+ * $Id: pdt.c,v 1.5.4.1 2003/11/14 19:36:53 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

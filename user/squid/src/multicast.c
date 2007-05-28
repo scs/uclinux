@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: multicast.c,v 1.9 2001/01/12 00:37:19 wessels Exp $
  *
  * DEBUG: section 7     Multicast
  * AUTHOR: Martin Hamilton

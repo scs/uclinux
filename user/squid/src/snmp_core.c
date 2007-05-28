@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: snmp_core.c,v 1.51.2.5 2005/05/04 18:03:47 hno Exp $
  *
  * DEBUG: section 49    SNMP support
  * AUTHOR: Glenn Chisholm
@@ -496,7 +496,6 @@ static void
 snmpDecodePacket(snmp_request_t * rq)
 {
     struct snmp_pdu *PDU;
-    struct snmp_session Session;
     aclCheck_t checklist;
     u_char *Community;
     u_char *buf = rq->buf;
@@ -506,8 +505,8 @@ snmpDecodePacket(snmp_request_t * rq)
     debug(49, 5) ("snmpDecodePacket: Called.\n");
     /* Now that we have the data, turn it into a PDU */
     PDU = snmp_pdu_create(0);
-    Session.Version = SNMP_VERSION_1;
-    Community = snmp_parse(&Session, PDU, buf, len);
+    rq->session.Version = SNMP_VERSION_1;
+    Community = snmp_parse(&rq->session, PDU, buf, len);
     memset(&checklist, '\0', sizeof(checklist));
     checklist.src_addr = rq->from.sin_addr;
     checklist.snmp_community = (char *) Community;
@@ -534,17 +533,13 @@ snmpDecodePacket(snmp_request_t * rq)
 static void
 snmpConstructReponse(snmp_request_t * rq)
 {
-    struct snmp_session Session;
     struct snmp_pdu *RespPDU;
 
     debug(49, 5) ("snmpConstructReponse: Called.\n");
     RespPDU = snmpAgentResponse(rq->PDU);
     snmp_free_pdu(rq->PDU);
     if (RespPDU != NULL) {
-	Session.Version = SNMP_VERSION_1;
-	Session.community = rq->community;
-	Session.community_len = strlen((char *) rq->community);
-	snmp_build(&Session, RespPDU, rq->outbuf, &rq->outlen);
+	snmp_build(&rq->session, RespPDU, rq->outbuf, &rq->outlen);
 	sendto(rq->sock, rq->outbuf, rq->outlen, 0, (struct sockaddr *) &rq->from, sizeof(rq->from));
 	snmp_free_pdu(RespPDU);
     }
@@ -558,45 +553,59 @@ static struct snmp_pdu *
 snmpAgentResponse(struct snmp_pdu *PDU)
 {
     struct snmp_pdu *Answer = NULL;
-    oid_ParseFn *ParseFn = NULL;
-
-    variable_list *VarPtr, *VarNew = NULL, **VarPtrP;
-    int index = 0;
 
     debug(49, 5) ("snmpAgentResponse: Called.\n");
 
     if ((Answer = snmp_pdu_create(SNMP_PDU_RESPONSE))) {
 	Answer->reqid = PDU->reqid;
 	Answer->errindex = 0;
-	if (PDU->command == SNMP_PDU_GET) {
-	    variable_list **RespVars;
-
-	    RespVars = &(Answer->variables);
+	if (PDU->command == SNMP_PDU_GET || PDU->command == SNMP_PDU_GETNEXT) {
+	    int get_next = (PDU->command == SNMP_PDU_GETNEXT);
+	    variable_list *VarPtr_;
+	    variable_list **RespVars = &(Answer->variables);
+	    oid_ParseFn *ParseFn;
+	    int index = 0;
 	    /* Loop through all variables */
-	    for (VarPtrP = &(PDU->variables);
-		*VarPtrP;
-		VarPtrP = &((*VarPtrP)->next_variable)) {
-		VarPtr = *VarPtrP;
+	    for (VarPtr_ = PDU->variables; VarPtr_; VarPtr_ = VarPtr_->next_variable) {
+		variable_list *VarPtr = VarPtr_;
+		variable_list *VarNew = NULL;
+		oid *NextOidName = NULL;
+		snint NextOidNameLen = 0;
 
 		index++;
 
 		/* Find the parsing function for this variable */
-		ParseFn = snmpTreeGet(VarPtr->name, VarPtr->name_length);
-
+		if (get_next)
+		    ParseFn = snmpTreeNext(VarPtr->name, VarPtr->name_length, &NextOidName, &NextOidNameLen);
+		else
+		    ParseFn = snmpTreeGet(VarPtr->name, VarPtr->name_length);
 		if (ParseFn == NULL) {
 		    Answer->errstat = SNMP_ERR_NOSUCHNAME;
-		    debug(49, 5) ("snmpAgentResponse: No such oid. ");
-		} else
+		    debug(49, 5) ("snmpAgentResponse: No such oid.\n");
+		} else {
+		    if (get_next) {
+			VarPtr = snmp_var_new(NextOidName, NextOidNameLen);
+			xfree(NextOidName);
+		    }
 		    VarNew = (*ParseFn) (VarPtr, (snint *) & (Answer->errstat));
+		    if (get_next)
+			snmp_var_free(VarPtr);
+		}
 
 		/* Was there an error? */
-		if ((Answer->errstat != SNMP_ERR_NOERROR) ||
-		    (VarNew == NULL)) {
+		if ((Answer->errstat != SNMP_ERR_NOERROR) || (VarNew == NULL)) {
 		    Answer->errindex = index;
-		    debug(49, 5) ("snmpAgentParse: successful.\n");
-		    /* Just copy the rest of the variables.  Quickly. */
-		    *RespVars = VarPtr;
-		    *VarPtrP = NULL;
+		    debug(49, 5) ("snmpAgentResponse: error.\n");
+		    if (VarNew)
+			snmp_var_free(VarNew);
+		    /* Free the already processed results, if any */
+		    while ((VarPtr = Answer->variables) != NULL) {
+			Answer->variables = VarPtr->next_variable;
+			snmp_var_free(VarPtr);
+		    }
+		    /* Steal the original PDU list of variables for the error response */
+		    Answer->variables = PDU->variables;
+		    PDU->variables = NULL;
 		    return (Answer);
 		}
 		/* No error.  Insert this var at the end, and move on to the next.
@@ -604,37 +613,6 @@ snmpAgentResponse(struct snmp_pdu *PDU)
 		*RespVars = VarNew;
 		RespVars = &(VarNew->next_variable);
 	    }
-	    return (Answer);
-	} else if (PDU->command == SNMP_PDU_GETNEXT) {
-	    oid *NextOidName = NULL;
-	    snint NextOidNameLen = 0;
-
-	    ParseFn = snmpTreeNext(PDU->variables->name, PDU->variables->name_length,
-		&NextOidName, &NextOidNameLen);
-
-	    if (ParseFn == NULL) {
-		Answer->errstat = SNMP_ERR_NOSUCHNAME;
-		debug(49, 5) ("snmpAgentResponse: No such oid: ");
-		snmpDebugOid(5, PDU->variables->name, PDU->variables->name_length);
-	    } else {
-		xfree(PDU->variables->name);
-		PDU->variables->name = NextOidName;
-		PDU->variables->name_length = NextOidNameLen;
-		VarNew = (*ParseFn) (PDU->variables, (snint *) & Answer->errstat);
-	    }
-
-	    /* Was there an error? */
-	    if (Answer->errstat != SNMP_ERR_NOERROR) {
-		Answer->errindex = 1;
-		Answer->variables = PDU->variables;
-		PDU->variables = NULL;
-	    } else {
-		Answer->variables = VarNew;
-	    }
-
-	} else {
-	    snmp_free_pdu(Answer);
-	    Answer = NULL;
 	}
     }
     return (Answer);
@@ -1043,7 +1021,7 @@ snmpDebugOid(int lvl, oid * Name, snint Len)
 static void
 snmpSnmplibDebug(int lvl, char *buf)
 {
-    debug(49, lvl) ("%s", buf);
+    debug(49, lvl) ("%s\n", buf);
 }
 
 void

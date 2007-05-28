@@ -36,7 +36,7 @@
  * From: @(#)timer.c	8.1 (Berkeley) 6/5/93
  */
 char timer_rcsid[] = 
-  "$Id$";
+  "$Id: timer.c,v 1.7 1999/08/01 22:39:59 dholland Exp $";
 
 
 /*

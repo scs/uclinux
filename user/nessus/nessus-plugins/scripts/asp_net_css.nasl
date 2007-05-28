@@ -11,21 +11,39 @@
 if(description)
 {
  script_id(10844);
- script_version ("$Revision: 1.9 $");
+ script_bugtraq_id(7731);
+ script_version ("$Revision: 1.17 $");
  name["english"] = "ASP.NET Cross Site Scripting";
- script_cve_id("CAN-2003-0223");
+ script_cve_id("CVE-2003-0223");
  script_name(english:name["english"]);
 
  desc["english"] = "
+Synopsis :
+
 ASP.NET is vulnerable to a cross site scripting vulnerability.
 
-Solution : There was no solution ready when this vulnerability was written;
-Please contact the vendor for updates that address this vulnerability.
+Description : 
 
-Reference : http://online.securityfocus.com/archive/1/254001
-Reference : http://msdn.microsoft.com/library/en-us/dncode/html/secure07152002.asp
+The remote ASP.NET installation is vulnerable to a cross site 
+scripting issue.
 
-Risk factor : Medium";
+An attacker may exploit this flaw to execute arbitrary HTML code 
+on third party clients.
+
+Solution : 
+
+Microsoft released a patch for this issue :
+http://support.microsoft.com/?kbid=811114
+
+See also :
+
+http://online.securityfocus.com/archive/1/254001
+http://msdn.microsoft.com/library/en-us/dncode/html/secure07152002.asp
+
+Risk factor : 
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
 
  script_description(english:desc["english"]);
 
@@ -37,12 +55,11 @@ Risk factor : Medium";
 
  script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2002 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "cross_site_scripting.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "cross_site_scripting.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -50,9 +67,9 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port)) exit(0);
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
 
 str = "/~/<script>alert(document.cookie)</script>.aspx?aspxerrorpath=null";
@@ -62,5 +79,5 @@ if( r == NULL ) exit(0);
 lookfor = "<script>alert(document.cookie)</script>";
 if(lookfor >< r)
 {
-   security_warning(port);
+   	security_warning(port);
 }

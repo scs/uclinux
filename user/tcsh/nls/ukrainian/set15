@@ -1,4 +1,4 @@
-$ $Id$
+$ $Id: set15,v 1.1 2000/11/11 23:03:43 christos Exp $
 $ sh.func.c
 $set 15 
 1 %s: %s: Can't %s%s limit\n

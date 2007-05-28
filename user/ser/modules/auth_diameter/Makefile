@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 2003/08/29 18:56:20 ramona Exp $
 #
 # Digest Authentication - Diameter support
 #

@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11419);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "Office files list";
  script_name(english:name["english"]);
@@ -70,15 +70,31 @@ function test_files(files)
 }
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
-report = NULL;
+report = "";
 
+software["doc"] = "Word";
+software["wri"] = "Write";
+software["xls"] = "Excel";
+software["ppt"] = "PowerPoint";
+software["csv"] = "spreadsheet";
+software["dif"] = "spreadsheet";
+software["rtf"] = "word processor";
+software["pdf"] = "Acrobat";
+software["sxw"] = "OO Writer";
+software["sxi"] = "00 Presentation";
+software["sxc"] = "00 Spreadsheet";
+software["sdw"] = "StarWriter";
+software["sdd"] = "StarImpress";
+software["sdc"] = "StarCalc";
 
-t = get_kb_list(string("www/", port, "/content/extensions/doc"));
+foreach ext(keys(software))
+{
+ t = get_kb_list(string("www/", port, "/content/extensions/", ext));
 if(!isnull(t)){
  t = test_files(files:make_list(t));
  word = NULL;
@@ -86,50 +102,12 @@ if(!isnull(t)){
  {
   word += '   ' + f + '\n';
  }
- if( word != NULL ) report += 'The following Word files (.doc) are available on the remote server : \n' + word;
-}
-
-t = get_kb_list(string("www/", port, "/content/extensions/xls"));
-if(!isnull(t)){
- t = test_files(files:make_list(t));
- xl = NULL;
- foreach f (t)
- {
-  xl += '   ' + f + '\n';
+ if(word)
+  report += 'The following ' + software[ext] + ' files (.' + ext + ') are available on the remote server : \n' + word;
  }
- 
-  if( xl != NULL ) report += 'The following Excel files (.xls) are available on the remote server : \n' + xl;
 }
 
-
-t = get_kb_list(string("www/", port, "/content/extensions/ppt"));
-if(!isnull(t)){
- t = test_files(files:make_list(t));
- ppt = NULL;
- foreach f (t)
- {
-  ppt += '   ' + f + '\n';
- }
- 
- if( ppt != NULL) report += 'The following PowerPoint files (.ppt) are available on the remote server : \n' + ppt;
- 
-}
-
-t = get_kb_list(string("www/", port, "/content/extensions/pdf"));
-if(!isnull(t)){
- t = test_files(files:make_list(t));
- pdf = NULL;
- foreach f (t)
- {
-  pdf += '   ' + f + '\n';
- }
- 
- if( pdf != NULL )report += 'The following PDF files (.pdf) are available on the remote server : \n' + pdf;
-}
-
-
-
-if( report != NULL )
+if (report)
 {
  report += '
  

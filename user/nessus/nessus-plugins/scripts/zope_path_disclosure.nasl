@@ -9,53 +9,46 @@
 if(description)
 {
  script_id(11234);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(5806);
- #script_cve_id("");
+ script_version ("$Revision: 1.6 $");
  
- name["english"] = "Zope installation path disclose";
- name["francais"] = "Zope dévoile son répertoire d'installation";
- script_name(english:name["english"], francais:name["francais"]);
+ name["english"] = "Zope Installation Path Disclosure";
+ script_name(english:name["english"]);
  
  desc["english"] = "
-The remote web server is Zope
-There is a minor security problem in all releases of Zope
-prior to version 2.5.1b1 which reveal the installation
-path when an invalid XML RPC request is sent
+Synopsis :
+
+The remote web server contains an application server that is prone to
+information disclosure. 
+
+Description :
+
+There is a minor security problem in all releases of Zope prior to
+version 2.5.1b1 - they reveal the installation path when an invalid
+XML RPC request is sent. 
+
+See also :
 
 http://collector.zope.org/Zope/359
 
-Solution : Upgrade to Zope 2.5.1b1 or 2.6.0b1
-Risk factor : Low";
+Solution : 
 
- desc["francais"] = "
-Le serveur web distant est Zope
-Un problème de sécurité mineur affecte toutes les 
-versions de Zope inférieures à 2.5.1b1 : elles révèlent
-leur répertoire d'installation quand on envoie une
-requête XML RPC invalide.
+Upgrade to Zope 2.5.1b1 / 2.6.0b1 or later.
 
-http://collector.zope.org/Zope/359
+Risk factor : 
 
-Solution : Mettez Zope à jour en version 2.5.1b1 ou 2.6.0b1
-Facteur de risque : Faible";
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
 
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for Zope installation directory";
- summary["francais"] = "Détecte le répertoire d'installation de Zope";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
- 
+ script_summary(english:summary["english"]);
  script_category(ACT_ATTACK);
  
- 
- script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi",
-		francais:"Ce script est Copyright (C) 2003 Michel Arboi");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/zope");
@@ -65,8 +58,8 @@ Facteur de risque : Faible";
 # The script code starts here
 
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 s = http_open_socket(port);
@@ -91,5 +84,5 @@ send(socket: s, data: req);
 a = http_recv(socket: s);
 if (egrep(string: a, 
          pattern: "(File|Bobo-Exception-File:) +(/[^/]*)*/[^/]+.py"))
-  security_warning(port);
+  security_note(port);
 http_close_socket(s);

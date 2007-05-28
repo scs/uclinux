@@ -1,7 +1,7 @@
 /*
  * Presence Agent, error reporting
  *
- * $Id$
+ * $Id: paerrno.h,v 1.4 2003/05/02 08:37:53 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

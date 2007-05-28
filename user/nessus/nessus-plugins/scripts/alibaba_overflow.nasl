@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10012);
- script_cve_id("CAN-2000-0626");
  script_bugtraq_id(1482);
- script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-2000-0626");
+ script_version ("$Revision: 1.25 $");
 
  name["english"] = "Alibaba 2.0 buffer overflow";
  name["francais"] = "Dépassement de buffer dans Alibaba 2.0";
@@ -67,16 +67,17 @@ Facteur de risque : Elevé";
 #
 
 include("http_func.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+banner = get_http_banner(port: port);
+ 
+if(!egrep(pattern:"^Server:.*[aA]libaba.*", string:banner)) exit(0);
 
 if(safe_checks())
 {
- banner = get_http_banner(port: port);
- 
- if(egrep(pattern:"^Server:.*[aA]libaba.*", string:banner))
- {
+  if ( paranoia_level < 2 ) exit(0);
   alrt =  "It may be possible to make the remote Alibaba web server execute
 arbitrary code by sending the following request :
 
@@ -93,8 +94,7 @@ Solution : None at this time. Use another web server
 Risk factor : High";
  
   security_hole(port:port, data:alrt);
- }
- exit(0);
+  exit(0);
 }
 if(get_port_state(port))
 {

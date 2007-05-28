@@ -3,82 +3,41 @@
 #
 # See the Nessus Scripts License for details
 #
-# Also covers:
-# CAN-2002-0126
-# CVE-2000-0870
-# ezserver FTP overflow (tested -> crashes by sending a too long username)
-#
-# References:
-# From: support@securiteam.com
-# Subject: [NT] Hyperion FTP Server Buffer Overflow (dir)
-# To: list@securiteam.com
-# Date: 25 Dec 2002 11:08:39 +0200
-#
-# From: support@securiteam.com
-# Subject: [NT] Multiple Vulnerabilities in Enceladus Server (cd, dir, mget)
-# To: list@securiteam.com
-# Date: 25 Dec 2002 11:03:42 +0200
-#
-# From:	"Carsten H. Eiram" <che@secunia.com>
-# To: "Full Disclosure" <full-disclosure@lists.netsys.com>,
-#    "VulnWatch" <vulnwatch@vulnwatch.org> 
-# Date:	26 Jun 2003 17:00:57 +0200
-# Subject: Secunia Research: FTPServer/X Response Buffer Overflow Vulnerability
-# 
-	
-
 
 if(description)
 {
  script_id(10084);
- script_version ("$Revision: 1.45 $");
- script_cve_id("CAN-2000-0133", "CVE-2000-0943", "CAN-2002-0126", "CVE-2000-0870", "CVE-2000-1035", "CVE-2000-1194", "CAN-2000-1035");
- script_bugtraq_id(961, 1858, 3884, 7251, 7278, 7307);
+ if ( NASL_LEVEL >= 2200 )script_bugtraq_id(13454, 1227, 1675, 1690, 1858, 3884, 7251, 7278, 7307, 961, 12704, 113, 269);
+ script_version ("$Revision: 1.63 $");
+ if ( NASL_LEVEL >= 2200 )script_cve_id("CVE-2000-0133", "CVE-2000-0943", "CVE-2002-0126", "CVE-2000-0870", "CVE-2000-1035", "CVE-2000-1194", "CVE-2000-1035", "CVE-1999-0219");
 
  name["english"] = "ftp USER, PASS or HELP overflow";
- name["francais"] = "dépassement de buffer avec les commandes USER, PASS ou HELP";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
- desc["english"] = "The remote FTP server closes
-the connection when a command is too long or is given
-a too long argument. 
+ desc["english"] = "
+Synopsis :
 
-This probably due to a buffer overflow, which
-allows anyone to execute arbitrary code
-on the remote host.
+The remote FTP server is susceptible to buffer overflow attacks. 
 
-This problem is threatening, because
-the attackers don't need an account 
-to exploit this flaw.
+Description :
 
-Solution : Upgrade your FTP server or change it
-Risk factor : High";
+The remote FTP server closes the connection when a command or argument
+is too long.  This is probably due to a buffer overflow and may allow
+an attacker to execute arbitrary code on the remote host. 
 
+Solution : 
 
- desc["francais"] = "Le server FTP distant coupe
-la connection lorsque l'une des commandes est accompagnée 
-d'un argument trop long.
+Upgrade / switch the FTP server software or disable the service if not
+needed. 
 
-C'est probablement du à un dépassement de
-buffer, ce qui permet à n'importe qui
-d'executer du code arbitraire sur cette
-machine.
+Risk factor : 
 
-Ce problème est grave, car les pirates
-n'ont pas besoin d'avoir un accompte
-sur le serveur FTP pour exploiter ce
-probleme.
-
-Solution : Mettez à jour votre serveur FTP
-ou changez-le
-Facteur de risque : Elevé";
-
-
- script_description(english:desc["english"], francais:desc["francais"]);
+High / CVSS Base Score : 8 
+(AV:R/AC:H/Au:NR/C:C/A:C/I:C/B:N)";
+ script_description(english:desc["english"]);
  
  summary["english"] = "attempts some buffer overflows";
- summary["francais"] = "essaye des buffers overflows";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_DESTRUCTIVE_ATTACK);
  
@@ -86,9 +45,9 @@ Facteur de risque : Elevé";
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
  family["english"] = "FTP";
- family["francais"] = "FTP";
- script_family(english:family["english"], francais:family["francais"]);
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "ftpserver_detect_type_nd_version.nasl");
+ script_require_keys("ftp/login", "ftp/password");
  script_exclude_keys("ftp/msftpd", "ftp/ncftpd", "ftp/fw1ftpd", "ftp/vxftpd");
  script_require_ports("Services/ftp", 21);
  exit(0);
@@ -104,6 +63,17 @@ port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 
 
+function is_vulnerable (value)
+{
+ soc = open_sock_tcp (port);
+ if (!soc)
+ {
+   set_kb_item(name:"ftp/overflow", value:TRUE);
+   set_kb_item(name:"ftp/overflow_method", value:value);
+   security_hole(port);
+ }
+ exit (0);
+}
 
 if(get_port_state(port))
 {
@@ -116,15 +86,15 @@ if(get_port_state(port))
 	close(soc);
 	exit(0);
 	}
-  if(!ereg(pattern:"^220 ", string:d))
+  if(!egrep(pattern:"^220[ -]", string:d))
    {
-    # not a FTP server
+    # not an FTP server
     set_kb_item(name:"ftp/false_ftp", value:TRUE);
     close(soc);
     exit(0);	
    }
  
-  if("Microsoft FTP service" >< d)exit(0);
+  if("Microsoft FTP Service" >< d)exit(0);
  
   req = string("USER ftp\r\n");
   send(socket:soc, data:req);
@@ -137,48 +107,53 @@ if(get_port_state(port))
   }
   
   soc = open_sock_tcp(port);
+  if ( ! soc ) exit(0);
   d = ftp_recv_line(socket:soc);
   s = string("USER ", crap(4096), "\r\n");
   send(socket:soc, data:s);
   d = ftp_recv_line(socket:soc);
   if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"USER");
-	security_hole(port);
+	close (soc);
+	is_vulnerable (value:"USER");
 	}
   else
   {
-   s = string("USER nessus\r\n");
+   # Let's try to access it with valid credentials now.
+   login = get_kb_item("ftp/login");
+   password = get_kb_item("ftp/password");
+
+   s = string("USER ", login, "\r\n");
    send(socket:soc, data:s);
    d = ftp_recv_line(socket:soc);
-   s = string("PASS ", crap(4096), "\r\n");
+   # ProFTPD 1.5.2 crashes with more than 12 KB
+   s = string("PASS ", crap(12500), "\r\n");
    send(socket:soc, data:s);
    d = ftp_recv_line(socket:soc);
    if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"PASS");
-	security_hole(port);
+	close (soc);
+	is_vulnerable (value:"PASS");
 	}
    else
    {
+     s = string("PASS ", password, "\r\n");
+     send(socket:soc, data:s);
+     d = ftp_recv_line(socket:soc);
+     if(!d) exit(0);
+
      s = string("CWD ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"CWD");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"CWD");
 	}
 	
      s = string("LIST ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"LIST");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"LIST");
 	}
 	
 		
@@ -186,49 +161,40 @@ if(get_port_state(port))
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"STOR");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"STOR");
 	}
 	
      s = string("RNTO ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"RNTO");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"RNTO");
 	}
 	
      s = string("MKD ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"MKD");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"MKD");
 	}	
 		
      s = string("XMKD ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"XMKD");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"XMKD");
 	}
 	
      s = string("RMD ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"RMD");
-	security_hole(port);
+	close (soc);
+	is_vulnerable (value:"RMD");
 	exit(0);
 	}	
 
@@ -237,40 +203,32 @@ if(get_port_state(port))
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"XRMD");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"XRMD");
 	}	
 	
      s = string("APPE ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"APPE");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"APPE");
 	}
 	
      s = string("SIZE ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"SIZE");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"SIZE");
 	}
 	
      s = string("RNFR ", crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"RNFR");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"RNFR");
 	}
 	
 				
@@ -278,23 +236,19 @@ if(get_port_state(port))
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"HELP");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"HELP");
 	}
 
      s = string(crap(4096), "\r\n");
      send(socket:soc, data:s);
      d = ftp_recv_line(socket:soc);
      if(!d){
-  	set_kb_item(name:"ftp/overflow", value:TRUE);
-	set_kb_item(name:"ftp/overflow_method", value:"");
-	security_hole(port);
-	exit(0);
+	close (soc);
+	is_vulnerable (value:"");
 	}
      }
     }
-   close(soc);
+   if ( soc )  close(soc);
   }
  }

@@ -7,9 +7,9 @@
 if (description)
 {
  script_id(11389);
+#script_cve_id("CVE-MAP-NOMATCH");
  
- 
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.8 $");
  script_name(english:"rsync modules");
  desc["english"] = "
 This plugin extracts the rsync modules available on the remote
@@ -51,6 +51,8 @@ welcome = recv_line(socket:soc, length:4096);
 send(socket:soc, data:string("@BOGUS\n"));
 if(!welcome)exit(0);
 motd = NULL;
+
+set_kb_item(name:"rsync/" + port + "/banner", value:welcome);
 
 for(i=0;i<1024;i++)
 {
@@ -100,5 +102,5 @@ if (modules != NULL )
  d, 
  "\nMake sure that only the relevant persons have access to them\n");
  if("(readable by anyone)" >< report) security_hole(port:port, data:report);
- else security_warning(port:port, data:report);
+ else security_note(port:port, data:report);
 }

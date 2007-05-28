@@ -7,101 +7,79 @@
 if(description)
 {
  script_id(11790);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2003-0352");
+ script_bugtraq_id(8205, 8458, 8460);
+ script_version("$Revision: 1.26 $");
+ script_cve_id("CVE-2003-0352", "CVE-2003-0715", "CVE-2003-0528", "CVE-2003-0605");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0011");
  
- name["english"] = "Buffer overrun in RPC Interface (823980)";
+ name["english"] = "Buffer overrun in RPC Interface (824146)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+Arbitrary code can be executed on the remote host.
+
+Description :
+
 The remote host is running a version of Windows which has a flaw in 
 its RPC interface, which may allow an attacker to execute arbitrary code 
 and gain SYSTEM privileges.
 
-Solution : see http://www.microsoft.com/technet/security/bulletin/ms03-026.asp
- 
-Risk factor : High";
+Solution : 
+
+Microsoft has released a set of patches for Windows NT, 2000, XP and 2003 :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-026.mspx
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Checks for hotfix Q823980";
+ summary["english"] = "Checks for hotfix Q824146";
 
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Jeffrey Adams");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_full_access.nasl",
-		     "smb_reg_service_pack_XP.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_full_access","SMB/WindowsVersion");
- script_exclude_keys("SMB/Win2003/ServicePack");
-
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
+if ( get_kb_item("SMB/KB824146") ) exit(0);
 
-access = get_kb_item("SMB/registry_full_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(nt:7, win2k:5, xp:2, win2003:1) <= 0 ) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-
-
-
-
-
-if("5.0" >< version)
+if (is_accessible_share())
 {
- key = "SOFTWARE\Microsoft\Updates\Windows 2000\SP5\KB823980";
- item = "Description";
-
-# fixed in Service Pack 5
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [5-9]"))exit(0);
+ if ( hotfix_is_vulnerable (os:"5.2", sp:0, file:"Rpcrt4.dll", version:"5.2.3790.59", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:1, file:"Rpcrt4.dll", version:"5.1.2600.1230", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Rpcrt4.dll", version:"5.1.2600.109", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Rpcrt4.dll", version:"5.0.2195.6753", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Rpcrt4.dll", version:"4.0.1381.7219", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Rpcrt4.dll", version:"4.0.1381.33474", min_version:"4.0.1381.33000", dir:"\system32") )
+   security_hole (get_kb_item("SMB/transport"));
  
- 
- value = registry_get_sz(item:item, key:key);
- if(!value)security_hole(port);
+ hotfix_check_fversion_end();
+ exit (0);
 }
-
-if("5.1" >< version)
-{
- key = "SOFTWARE\Microsoft\Updates\Windows XP\SP2\KB823980";
- item = "Description";
-
-# fixed in Service Pack 2
- sp = get_kb_item("SMB/WinXP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
- 
- 
- value = registry_get_sz(item:item, key:key);
- if(!value)security_hole(port);
-}
-
-
-if("5.2" >< version)
-{
-  key = "SOFTWARE\Microsoft\Updates\Windows Server 2003\SP1\KB823980";
- item = "Description";
-
-# fixed in Service Pack 1
- sp = get_kb_item("SMB/Win2003/ServicePack");
- if(sp)exit(0);
- 
- 
- value = registry_get_sz(item:item, key:key);
- if(!value)security_hole(port);
-}
+else if ( hotfix_missing(name:"824146") > 0 && 
+          hotfix_missing(name:"828741") > 0 &&
+          hotfix_missing(name:"873333") > 0 &&
+          hotfix_missing(name:"902400") > 0 &&
+	  !((hotfix_check_sp (win2k:6) > 0) && ( hotfix_missing(name:"913580") <= 0 ) ) )
+	security_hole(get_kb_item("SMB/transport"));

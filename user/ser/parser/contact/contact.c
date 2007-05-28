@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: contact.c,v 1.6 2003/07/02 12:08:23 janakj Exp $
  *
  * Parses one Contact in Contact HF body
  *

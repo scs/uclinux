@@ -1,7 +1,7 @@
 /*
  * Presence Agent, domain list
  *
- * $Id$
+ * $Id: dlist.c,v 1.6.2.1 2003/11/11 14:32:27 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

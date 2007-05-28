@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: regexp.c,v 1.2 2003/05/07 12:05:08 andrei Exp $
  *
  * Regular expression functions
  *

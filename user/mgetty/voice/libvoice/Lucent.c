@@ -3,7 +3,7 @@
  *
  * This file contains the Lucent specific hardware stuff.
  *
- * $Id$
+ * $Id: Lucent.c,v 1.4 2005/03/13 17:27:46 gert Exp $
  *
  */
 

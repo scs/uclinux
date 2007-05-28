@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(10998);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-1999-0508");
  
  
  name["english"] = "Shiva LanRover Blank Password";
@@ -50,14 +51,18 @@ Risk factor : High";
  exit(0);
 }
 
-
+include('telnet_func.inc');
 port = 23;
 if(!get_port_state(port))exit(0);
+
+banner = get_telnet_banner(port:port);
+if ( ! banner || "@ Userid:" >!< r ) exit(0);
+
 soc = open_sock_tcp(port);
 
 if(soc)
 {
-    r = telnet_init(soc);
+    r = telnet_negotiate(socket:soc);
 
     if("@ Userid:" >< r)
     { 

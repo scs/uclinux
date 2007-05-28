@@ -1,10 +1,7 @@
 dnl 
 dnl custom mawk macros for autoconf
 dnl 
-dnl $Log$
-dnl Revision 1.2  2005/07/25 04:03:15  magicyang
-dnl New user folder check in
-dnl
+dnl $Log: mawk.ac.m4,v $
 dnl Revision 1.15  1996/09/04 23:40:34  mike
 dnl Small tweak to strtod bug check
 dnl

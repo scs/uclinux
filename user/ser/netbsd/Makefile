@@ -4,7 +4,7 @@
 #
 # $NetBSD$
 #
-# $Id$
+# $Id: Makefile,v 1.3.2.1 2003/11/14 15:55:58 andrei Exp $
 #
 
 COMMENT= "SIP Express Router"

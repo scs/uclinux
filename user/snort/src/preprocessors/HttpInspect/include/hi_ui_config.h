@@ -1,5 +1,5 @@
 /**
-**  @file       httpinspect_configuration.h
+**  @file       hi_ui_config.h
 **  
 **  @author     Daniel Roelker <droelker@sourcefire.com>
 **
@@ -24,6 +24,13 @@
 #define HI_UI_CONFIG_STATEFUL  1
 #define HI_UI_CONFIG_MAX_PIPE  20
 
+/*
+**  Special characters treated as whitespace before or after URI
+*/
+
+#define HI_UI_CONFIG_WS_BEFORE_URI 0x01
+#define HI_UI_CONFIG_WS_AFTER_URI  0x02
+
 /**
 **  Defines a search type for the server configurations in the
 **  global configuration.  We want this generic so we can change
@@ -42,6 +49,17 @@ typedef struct s_HTTPINSPECT_CONF_OPT
     int alert;  /**< if true, alert if option is found */
 
 }  HTTPINSPECT_CONF_OPT;
+
+/* The following are used to delineate server profiles for user output
+ * and debugging information. */
+typedef enum e_PROFILES 
+{
+    HI_ALL,
+    HI_APACHE,
+    HI_IIS,
+    HI_IIS4,
+    HI_IIS5
+} PROFILES;
 
 /**
 **  This is the configuration construct that holds the specific
@@ -69,7 +87,7 @@ typedef struct s_HTTPINSPECT_CONF
     /*
     **  Chunk encoding anomaly detection
     */
-    int  chunk_length;
+    unsigned int chunk_length;
 
     /*
     **  pipeline requests
@@ -88,6 +106,16 @@ typedef struct s_HTTPINSPECT_CONF
     int allow_proxy;
 
     /*
+    **  Handle tab char (0x09) as a URI delimiter.  Apache honors this, IIS does not.
+    */
+    int tab_uri_delimiter;
+
+    /*
+    **  Characters to be treated as whitespace bracketing a URI.
+    */
+    char whitespace[256];
+
+    /*
     **  These are the URI encoding configurations
     */
     HTTPINSPECT_CONF_OPT ascii;
@@ -97,7 +125,7 @@ typedef struct s_HTTPINSPECT_CONF
     HTTPINSPECT_CONF_OPT base36;
     HTTPINSPECT_CONF_OPT utf_8;
     HTTPINSPECT_CONF_OPT iis_unicode;
-    int                  non_rfc_chars[256];
+    char                 non_rfc_chars[256];
 
     /*
     **  These are the URI normalization configurations
@@ -108,6 +136,8 @@ typedef struct s_HTTPINSPECT_CONF
     HTTPINSPECT_CONF_OPT webroot;
     HTTPINSPECT_CONF_OPT apache_whitespace;
     HTTPINSPECT_CONF_OPT iis_delimiter;
+
+    PROFILES profile;
     
 }  HTTPINSPECT_CONF;
 
@@ -151,6 +181,7 @@ int hi_ui_config_add_server(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
 
 int hi_ui_config_set_profile_apache(HTTPINSPECT_CONF *GlobalConf);
 int hi_ui_config_set_profile_iis(HTTPINSPECT_CONF *GlobalConf, int *);
+int hi_ui_config_set_profile_iis_4or5(HTTPINSPECT_CONF *GlobalConf, int *);
 int hi_ui_config_set_profile_all(HTTPINSPECT_CONF *GlobalConf, int *);
 
 #endif

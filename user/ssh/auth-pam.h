@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: auth-pam.h,v 1.27 2004/09/11 12:17:26 dtucker Exp $ */
 
 /*
  * Copyright (c) 2000 Damien Miller.  All rights reserved.
@@ -31,17 +31,20 @@
 # define SSHD_PAM_SERVICE		__progname
 #endif
 
-void start_pam(const char *);
+void start_pam(Authctxt *);
 void finish_pam(void);
 u_int do_pam_account(void);
 void do_pam_session(void);
 void do_pam_set_tty(const char *);
 void do_pam_setcred(int );
-int is_pam_password_change_required(void);
 void do_pam_chauthtok(void);
 int do_pam_putenv(char *, char *);
-void print_pam_messages(void);
 char ** fetch_pam_environment(void);
+char ** fetch_pam_child_environment(void);
 void free_pam_environment(char **);
+void sshpam_thread_cleanup(void);
+void sshpam_cleanup(void);
+int sshpam_auth_passwd(Authctxt *, const char *);
+int is_pam_session_open(void);
 
 #endif /* USE_PAM */

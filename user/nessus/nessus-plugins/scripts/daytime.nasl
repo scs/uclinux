@@ -8,18 +8,22 @@
 if(description)
 {
  script_id(10052);
- script_version ("$Revision: 1.18 $");
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-1999-0103");
  name["english"] = "Daytime";
  name["francais"] = "Daytime";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
+Synopsis :
+
+A daytime service is running on the remote host
+
+Description :
+
 The remote host is running a 'daytime' service. This service
 is designed to give the local time of the day of this host
 to whoever connects to this port.
-
- 
  
 The date format issued by this service may sometimes help an attacker 
 to guess the operating system type of this host, or to set up 
@@ -46,7 +50,10 @@ Then launch cmd.exe and type :
    
 To restart the service.
 
-Risk factor : Low";
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
 
 
 
@@ -63,7 +70,7 @@ Risk factor : Low";
  family["english"] = "Useless services";
  family["francais"] = "Services inutiles";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("find_service2.nasl");
 
  exit(0);
 }
@@ -74,20 +81,24 @@ Risk factor : Low";
 
 include("misc_func.inc");
 
+port = get_kb_item("Services/daytime");
+if (! port) port = 13;
 
-if(get_port_state(13))
+if(get_port_state(port))
 {
- p = known_service(port:13);
- if( p == NULL || p == "daytime" )
+ k = 'FindService/tcp/'+port+'/spontaneous';
+ a = get_kb_item(k);
+ if (!a)
  {
- soc = open_sock_tcp(13);
- if(soc)
+  soc = open_sock_tcp(port);
+  if(soc)
   {
-  a = recv(socket:soc, length:1024);
-  if(a)security_warning(13);
-  close(soc);
+   a = recv(socket:soc, length:1024);
+   close(soc);
   }
+  if (a) set_kb_item(name: k, value: a);
  }
+ if(a) security_note(port);
 }
 
 include("pingpong.inc");
@@ -95,11 +106,11 @@ include("pingpong.inc");
 if(get_udp_port_state(13))
 {
  udpsoc = open_sock_udp(13);
- data = string("\n");
+ data = '\n';
  send(socket:udpsoc, data:data);
  b = recv(socket:udpsoc, length:1024);
  
- if(b)security_warning(port:13, protocol:"udp");
+ if(b)security_note(port:13, protocol:"udp");
  
   # if (udp_ping_pong(port: 13, data: data, answer: b))
   #   security_hole(port:13, protocol:"udp");

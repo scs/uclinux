@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10062);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(665);
- script_cve_id("CAN-1999-1533");
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-1999-1533");
  name["english"] = "Eicon Diehl LAN ISDN modem DoS";
  name["francais"] = "Déni de service contre les modems Eicon Diehl";
  
@@ -72,8 +72,8 @@ Facteur de risque : Elevé";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  if(http_is_dead(port:port))exit(0);

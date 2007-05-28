@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: protos.h,v 1.420.2.34 2005/04/19 22:19:27 hno Exp $
  *
  *
  * SQUID Web Proxy Cache          http://www.squid-cache.org/
@@ -125,7 +125,7 @@ extern cbdata_type cbdataAddType(cbdata_type type, const char *label, int size, 
 extern int cbdataLocked(const void *p);
 
 extern void clientdbInit(void);
-extern void clientdbUpdate(struct in_addr, log_type, protocol_t, size_t);
+extern void clientdbUpdate(struct in_addr, log_type, protocol_t, squid_off_t);
 extern int clientdbCutoffDenied(struct in_addr);
 extern void clientdbDump(StoreEntry *);
 extern void clientdbFreeMemory(void);
@@ -141,8 +141,6 @@ extern void clientOpenListenSockets(void);
 extern void clientHttpConnectionsClose(void);
 extern StoreEntry *clientCreateStoreEntry(clientHttpRequest *, method_t, request_flags);
 extern int isTcpHit(log_type);
-extern CB clientReadBody;
-extern void clientAbortBody(request_t * req);
 
 extern int commSetNonBlocking(int fd);
 extern int commUnsetNonBlocking(int fd);
@@ -208,6 +206,7 @@ extern void packerPrintf();
 extern Ctx ctx_enter(const char *descr);
 extern void ctx_exit(Ctx ctx);
 
+extern void _db_set_syslog(const char *facility);
 extern void _db_init(const char *logfile, const char *options);
 extern void _db_rotate_log(void);
 
@@ -225,24 +224,12 @@ extern void debugObj(int section, int level, const char *label, void *obj, ObjPa
 /* disk.c */
 extern int file_open(const char *path, int mode);
 extern void file_close(int fd);
-extern void file_write(int, off_t, void *, int len, DWCB *, void *, FREE *);
+extern void file_write(int, off_t, void *, size_t len, DWCB *, void *, FREE *);
 extern void file_write_mbuf(int fd, off_t, MemBuf mb, DWCB * handler, void *handler_data);
-extern void file_read(int, char *, int, off_t, DRCB *, void *);
+extern void file_read(int, char *, size_t, off_t, DRCB *, void *);
 extern void disk_init(void);
 
-/* diskd.c */
-extern diskd_queue *afile_create_queue(void);
-extern void afile_destroy_queue(diskd_queue *);
-extern void afile_sync_queue(diskd_queue *);
-extern void afile_sync(void);
-extern void afile_open(const char *path, int mode, DOCB *, void *);
-extern void afile_close(int fd, DCCB * callback, void *data);
-extern void afile_write(int, off_t, void *, int len, DWCB *, void *, FREE *);
-extern void afile_write_mbuf(int fd, off_t, MemBuf, DWCB *, void *);
-extern void afile_read(int, char *, int, off_t, DRCB *, void *);
-extern void afile_unlink(const char *path, DUCB *, void *);
-extern void afile_truncate(const char *path, DTCB *, void *);
-
+/* dns.s */
 extern void dnsShutdown(void);
 extern void dnsInit(void);
 extern void dnsSubmit(const char *lookup, HLPCB * callback, void *data);
@@ -259,6 +246,7 @@ extern void eventRun(void);
 extern int eventNextTime(void);
 extern void eventDelete(EVH * func, void *arg);
 extern void eventInit(void);
+extern void eventCleanup(void);
 extern void eventFreeMemory(void);
 extern int eventFind(EVH *, void *);
 
@@ -306,7 +294,7 @@ extern int httpCachable(method_t);
 extern void httpStart(FwdState *);
 extern void httpParseReplyHeaders(const char *, http_reply *);
 extern void httpProcessReplyHeader(HttpStateData *, const char *, int);
-extern mb_size_t httpBuildRequestPrefix(request_t * request,
+extern int httpBuildRequestPrefix(request_t * request,
     request_t * orig_request,
     StoreEntry * entry,
     MemBuf * mb,
@@ -374,13 +362,13 @@ extern void httpHdrRangePackInto(const HttpHdrRange * range, Packer * p);
 /* iterate through specs */
 extern HttpHdrRangeSpec *httpHdrRangeGetSpec(const HttpHdrRange * range, HttpHdrRangePos * pos);
 /* adjust specs after the length is known */
-extern int httpHdrRangeCanonize(HttpHdrRange *, ssize_t);
+extern int httpHdrRangeCanonize(HttpHdrRange *, squid_off_t);
 /* other */
 extern String httpHdrRangeBoundaryStr(clientHttpRequest * http);
 extern int httpHdrRangeIsComplex(const HttpHdrRange * range);
 extern int httpHdrRangeWillBeComplex(const HttpHdrRange * range);
-extern ssize_t httpHdrRangeFirstOffset(const HttpHdrRange * range);
-extern ssize_t httpHdrRangeLowestOffset(const HttpHdrRange * range, ssize_t);
+extern squid_off_t httpHdrRangeFirstOffset(const HttpHdrRange * range);
+extern squid_off_t httpHdrRangeLowestOffset(const HttpHdrRange * range, squid_off_t);
 extern int httpHdrRangeOffsetLimit(HttpHdrRange *);
 
 
@@ -393,7 +381,7 @@ extern void httpHdrContRangeDestroy(HttpHdrContRange * crange);
 extern HttpHdrContRange *httpHdrContRangeDup(const HttpHdrContRange * crange);
 extern void httpHdrContRangePackInto(const HttpHdrContRange * crange, Packer * p);
 /* inits with given spec */
-extern void httpHdrContRangeSet(HttpHdrContRange *, HttpHdrRangeSpec, ssize_t);
+extern void httpHdrContRangeSet(HttpHdrContRange *, HttpHdrRangeSpec, squid_off_t);
 
 /* Http Header Tools */
 extern HttpHeaderFieldInfo *httpHeaderBuildFieldsInfo(const HttpHeaderFieldAttrs * attrs, int count);
@@ -404,14 +392,14 @@ extern const char *httpHeaderNameById(int id);
 extern void httpHeaderMaskInit(HttpHeaderMask * mask, int value);
 extern void httpHeaderCalcMask(HttpHeaderMask * mask, const int *enums, int count);
 extern int httpHeaderHasConnDir(const HttpHeader * hdr, const char *directive);
-extern void httpHeaderAddContRange(HttpHeader *, HttpHdrRangeSpec, ssize_t);
+extern void httpHeaderAddContRange(HttpHeader *, HttpHdrRangeSpec, squid_off_t);
 extern void strListAdd(String * str, const char *item, char del);
 extern int strListIsMember(const String * str, const char *item, char del);
 extern int strListIsSubstr(const String * list, const char *s, char del);
 extern int strListGetItem(const String * str, char del, const char **item, int *ilen, const char **pos);
 extern const char *getStringPrefix(const char *str, const char *end);
 extern int httpHeaderParseInt(const char *start, int *val);
-extern int httpHeaderParseSize(const char *start, ssize_t * sz);
+extern squid_off_t httpHeaderParseSize(const char *start, squid_off_t * sz);
 extern int httpHeaderReset(HttpHeader * hdr);
 #if STDC_HEADERS
 extern void
@@ -436,6 +424,7 @@ extern void httpHeaderPackInto(const HttpHeader * hdr, Packer * p);
 /* field manipulation */
 extern int httpHeaderHas(const HttpHeader * hdr, http_hdr_type type);
 extern void httpHeaderPutInt(HttpHeader * hdr, http_hdr_type type, int number);
+extern void httpHeaderPutSize(HttpHeader * hdr, http_hdr_type type, squid_off_t number);
 extern void httpHeaderPutTime(HttpHeader * hdr, http_hdr_type type, time_t htime);
 extern void httpHeaderPutStr(HttpHeader * hdr, http_hdr_type type, const char *str);
 extern void httpHeaderPutAuth(HttpHeader * hdr, const char *auth_scheme, const char *realm);
@@ -444,6 +433,7 @@ extern void httpHeaderPutContRange(HttpHeader * hdr, const HttpHdrContRange * cr
 extern void httpHeaderPutRange(HttpHeader * hdr, const HttpHdrRange * range);
 extern void httpHeaderPutExt(HttpHeader * hdr, const char *name, const char *value);
 extern int httpHeaderGetInt(const HttpHeader * hdr, http_hdr_type id);
+extern squid_off_t httpHeaderGetSize(const HttpHeader * hdr, http_hdr_type id);
 extern time_t httpHeaderGetTime(const HttpHeader * hdr, http_hdr_type id);
 extern TimeOrTag httpHeaderGetTimeOrTag(const HttpHeader * hdr, http_hdr_type id);
 extern HttpHdrCc *httpHeaderGetCc(const HttpHeader * hdr);
@@ -485,7 +475,7 @@ extern void httpReplyReset(HttpReply * rep);
 /* absorb: copy the contents of a new reply to the old one, destroy new one */
 extern void httpReplyAbsorb(HttpReply * rep, HttpReply * new_rep);
 /* parse returns -1,0,+1 on error,need-more-data,success */
-extern int httpReplyParse(HttpReply * rep, const char *buf, ssize_t);
+extern int httpReplyParse(HttpReply * rep, const char *buf, size_t);
 extern void httpReplyPackInto(const HttpReply * rep, Packer * p);
 /* ez-routines */
 /* mem-pack: returns a ready to use mem buffer with a packed reply */
@@ -494,10 +484,10 @@ extern MemBuf httpReplyPack(const HttpReply * rep);
 extern void httpReplySwapOut(const HttpReply * rep, StoreEntry * e);
 /* set commonly used info with one call */
 extern void httpReplySetHeaders(HttpReply * rep, http_version_t ver, http_status status,
-    const char *reason, const char *ctype, int clen, time_t lmt, time_t expires);
+    const char *reason, const char *ctype, squid_off_t clen, time_t lmt, time_t expires);
 /* do everything in one call: init, set, pack, clean, return MemBuf */
 extern MemBuf httpPackedReply(http_version_t ver, http_status status, const char *ctype,
-    int clen, time_t lmt, time_t expires);
+    squid_off_t clen, time_t lmt, time_t expires);
 /* construct 304 reply and pack it into MemBuf, return MemBuf */
 extern MemBuf httpPacked304Reply(const HttpReply * rep);
 /* update when 304 reply is received for a cached object */
@@ -508,7 +498,7 @@ extern const char *httpReplyContentType(const HttpReply * rep);
 extern time_t httpReplyExpires(const HttpReply * rep);
 extern int httpReplyHasCc(const HttpReply * rep, http_hdr_cc_type type);
 extern void httpRedirectReply(HttpReply *, http_status, const char *);
-extern int httpReplyBodySize(method_t, HttpReply *);
+extern squid_off_t httpReplyBodySize(method_t, const HttpReply *);
 
 /* Http Request */
 extern request_t *requestCreate(method_t, protocol_t, const char *urlpath);
@@ -521,6 +511,8 @@ extern void httpRequestPack(const request_t * req, Packer * p);
 extern int httpRequestPrefixLen(const request_t * req);
 extern int httpRequestHdrAllowed(const HttpHeaderEntry * e, String * strConnection);
 extern int httpRequestHdrAllowedByName(http_hdr_type id);
+extern void requestReadBody(request_t * request, char *buf, size_t size, CBCB * callback, void *cbdata);
+extern void requestAbortBody(request_t * request);
 
 extern void icmpOpen(void);
 extern void icmpClose(void);
@@ -608,7 +600,7 @@ extern void memBufReset(MemBuf * mb);
 /* unfirtunate hack to test if the buffer has been Init()ialized */
 extern int memBufIsNull(MemBuf * mb);
 /* calls memcpy, appends exactly size bytes, extends buffer if needed */
-extern void memBufAppend(MemBuf * mb, const char *buf, mb_size_t size);
+extern void memBufAppend(MemBuf * mb, const char *buf, int size);
 /* calls snprintf, extends buffer if needed */
 #if STDC_HEADERS
 extern void
@@ -758,7 +750,7 @@ extern char *authenticateAuthUserRequestMessage(auth_user_request_t *);
 extern int authenticateAuthUserInuse(auth_user_t * auth_user);
 extern void authenticateAuthUserRequestRemoveIp(auth_user_request_t *, struct in_addr);
 extern void authenticateAuthUserRequestClearIp(auth_user_request_t *);
-extern size_t authenticateAuthUserRequestIPCount(auth_user_request_t *);
+extern int authenticateAuthUserRequestIPCount(auth_user_request_t *);
 extern int authenticateDirection(auth_user_request_t *);
 extern FREE authenticateFreeProxyAuthUser;
 extern void authenticateFreeProxyAuthUserACLResults(void *data);
@@ -790,7 +782,7 @@ extern void shut_down(int);
 
 
 extern void start_announce(void *unused);
-extern void sslStart(clientHttpRequest *, size_t *, int *);
+extern void sslStart(clientHttpRequest *, squid_off_t *, int *);
 extern void waisStart(FwdState *);
 
 /* ident.c */
@@ -853,7 +845,7 @@ extern void memFree16K(void *);
 extern void memFree32K(void *);
 extern void memFree64K(void *);
 extern int memInUse(mem_type);
-extern size_t memTotalAllocated(void);
+extern int memTotalAllocated(void);
 extern void memDataInit(mem_type, const char *, size_t, int);
 extern void memCheckInit(void);
 
@@ -871,11 +863,13 @@ extern void memPoolReport(const MemPool * pool, StoreEntry * e);
 /* Mem */
 extern void memReport(StoreEntry * e);
 
-extern int stmemFreeDataUpto(mem_hdr *, int);
+extern squid_off_t stmemFreeDataUpto(mem_hdr *, squid_off_t);
 extern void stmemAppend(mem_hdr *, const char *, int);
-extern ssize_t stmemCopy(const mem_hdr *, off_t, char *, size_t);
+extern ssize_t stmemCopy(const mem_hdr *, squid_off_t, char *, size_t);
 extern void stmemFree(mem_hdr *);
 extern void stmemFreeData(mem_hdr *);
+extern void stmemNodeFree(void *);
+extern char *stmemNodeGet(mem_node *);
 
 /* ----------------------------------------------------------------- */
 
@@ -926,8 +920,8 @@ extern void storeAppendPrintf();
 extern void storeAppendVPrintf(StoreEntry *, const char *, va_list ap);
 extern int storeCheckCachable(StoreEntry * e);
 extern void storeSetPrivateKey(StoreEntry *);
-extern int objectLen(const StoreEntry * e);
-extern int contentLen(const StoreEntry * e);
+extern squid_off_t objectLen(const StoreEntry * e);
+extern squid_off_t contentLen(const StoreEntry * e);
 extern HttpReply *storeEntryReply(StoreEntry *);
 extern int storeTooManyDiskFilesOpen(void);
 extern void storeEntryReset(StoreEntry *);
@@ -948,10 +942,10 @@ extern void storeReplSetup(void);
 extern storeIOState *storeCreate(StoreEntry *, STFNCB *, STIOCB *, void *);
 extern storeIOState *storeOpen(StoreEntry *, STFNCB *, STIOCB *, void *);
 extern void storeClose(storeIOState *);
-extern void storeRead(storeIOState *, char *, size_t, off_t, STRCB *, void *);
-extern void storeWrite(storeIOState *, char *, size_t, off_t, FREE *);
+extern void storeRead(storeIOState *, char *, size_t, squid_off_t, STRCB *, void *);
+extern void storeWrite(storeIOState *, char *, size_t, squid_off_t, FREE *);
 extern void storeUnlink(StoreEntry *);
-extern off_t storeOffset(storeIOState *);
+extern squid_off_t storeOffset(storeIOState *);
 
 /*
  * store_log.c
@@ -1009,7 +1003,7 @@ extern void storeDirDiskFull(sdirno);
 extern void storeDirInit(void);
 extern void storeDirOpenSwapLogs(void);
 extern void storeDirSwapLog(const StoreEntry *, int op);
-extern void storeDirUpdateSwapSize(SwapDir *, size_t size, int sign);
+extern void storeDirUpdateSwapSize(SwapDir *, squid_off_t size, int sign);
 extern void storeDirSync(void);
 extern void storeDirCallback(void);
 extern void storeDirLRUDelete(StoreEntry *);
@@ -1042,7 +1036,8 @@ extern void storeSwapInStart(store_client *);
  */
 extern void storeSwapOut(StoreEntry * e);
 extern void storeSwapOutFileClose(StoreEntry * e);
-extern int storeSwapOutAble(const StoreEntry * e);
+extern int /* swapout_able */ storeSwapOutMaintainMemObject(StoreEntry * e);
+extern squid_off_t storeSwapOutObjectBytesOnDisk(const MemObject * mem);
 
 /*
  * store_client.c
@@ -1051,10 +1046,10 @@ extern int storeSwapOutAble(const StoreEntry * e);
 extern store_client *storeClientListSearch(const MemObject * mem, void *data);
 #endif
 extern store_client *storeClientListAdd(StoreEntry * e, void *data);
-extern void storeClientCopy(store_client *, StoreEntry *, off_t, off_t, size_t, char *, STCB *, void *);
+extern void storeClientCopy(store_client *, StoreEntry *, squid_off_t, squid_off_t, size_t, char *, STCB *, void *);
 extern int storeClientCopyPending(store_client *, StoreEntry * e, void *data);
 extern int storeUnregister(store_client * sc, StoreEntry * e, void *data);
-extern off_t storeLowestMemReaderOffset(const StoreEntry * entry);
+extern squid_off_t storeLowestMemReaderOffset(const StoreEntry * entry);
 extern void InvokeHandlers(StoreEntry * e);
 extern int storePendingNClients(const StoreEntry * e);
 
@@ -1154,7 +1149,7 @@ extern void dlinkDelete(dlink_node * m, dlink_list * list);
 extern void dlinkNodeDelete(dlink_node * m);
 extern dlink_node *dlinkNodeNew(void);
 
-extern void kb_incr(kb_t *, size_t);
+extern void kb_incr(kb_t *, squid_off_t);
 extern double gb_to_double(const gb_t *);
 extern const char *gb_to_str(const gb_t *);
 extern void gb_flush(gb_t *);	/* internal, do not use this */
@@ -1344,6 +1339,7 @@ typedef void EAH(void *data, void *result);
 extern void externalAclLookup(aclCheck_t * ch, void *acl_data, EAH * handler, void *data);
 extern void externalAclInit(void);
 extern void externalAclShutdown(void);
+extern int externalAclRequiresAuth(void *acl_data);
 extern char *strtokFile(void);
 
 #ifdef HS_FEAT_ICAP
@@ -1369,7 +1365,7 @@ int icapParseKeepAlive(const IcapStateData *, const char *, const char *);
 void icapSetKeepAlive(IcapStateData * icap, const char *hdrs);
 size_t icapParseChunkedBody(IcapStateData *, STRCB *, void *);
 void icapAddAuthUserHeader(MemBuf *, auth_user_request_t *);
-
+int icapParseStatusLine(const char *, int , int *, int *, const char **);
 
 /*
  * icap_respmod.c

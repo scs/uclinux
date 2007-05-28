@@ -1,5 +1,5 @@
 # Generated automatically from Makefile.in by configure.
-# $Id$
+# $Id: Makefile,v 1.2 2001/09/03 05:50:39 philipc Exp $
 #	Makefile.in	4.3	6/11/83
 #
 # C Shell with process control; VM/UNIX VAX Makefile

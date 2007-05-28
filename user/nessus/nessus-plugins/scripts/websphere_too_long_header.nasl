@@ -16,9 +16,9 @@
 if(description)
 {
  script_id(11181);
- script_version ("$Revision: 1.5 $");
  script_bugtraq_id(5749);
- script_cve_id("CAN-2002-1153");
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-1153");
 
  name["english"] = "WebSphere Host header overflow";
  script_name(english:name["english"]);
@@ -54,10 +54,10 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
-# if (http_is_dead(port: port)) exit(0);
+if (http_is_dead(port: port)) exit(0);
 
 soc = http_open_socket(port);
 if(! soc) exit(0);

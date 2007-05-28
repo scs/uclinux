@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11198);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.4 $");
 
  name["english"] = "BitKeeper remote command execution";
  
@@ -22,7 +22,7 @@ arbitrary commands with the privileges of the BitKeeper daemon.
 *** relied on the banner of the remote server to issue this warning
 
 Solution : Contact the vendor for a fix
-See also : http://www.securiteam.com/securitynews/5TP0D0K8UQ.html
+See also : http://secunia.com/advisories/7854/
 Risk factor : High";
 
 
@@ -54,11 +54,11 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8080;
+port = get_http_port(default:8080);
+if(!port) exit(0);
 if(get_port_state(port))
 {
- banner = get_http_banner(port);
+ banner = get_http_banner(port:port);
  if(!banner)exit(0);
  
  # The original exploit says that the bug can be exploited

@@ -61,11 +61,9 @@ ftpshut$(EXEEXT): utils
 	$(CC) $(LDFLAGS) -o $@ $(BUILD_FTPSHUT_OBJS) $(LIBS)
 
 ftptop$(EXEEXT): lib utils
-	#$(CC) $(LDFLAGS) -o $@ $(BUILD_FTPTOP_OBJS) $(CURSES_LIBS) -lsupp
 	$(CC) $(LDFLAGS) -o $@ $(BUILD_FTPTOP_OBJS) $(CURSES_LIBS) $(LIBS)
 
 ftpwho$(EXEEXT): lib utils
-	#$(CC) $(LDFLAGS) -o $@ $(BUILD_FTPWHO_OBJS) -lsupp
 	$(CC) $(LDFLAGS) -o $@ $(BUILD_FTPWHO_OBJS) $(LIBS)
 
 

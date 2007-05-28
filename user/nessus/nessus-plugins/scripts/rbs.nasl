@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10521);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CVE-2000-1036");
  script_bugtraq_id(1704);
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-1036");
  
  name["english"] = "Extent RBS ISP";
  name["francais"] = "Extent RBS ISP";
@@ -21,7 +21,7 @@ files with the privileges of the http daemon (root or nobody).
 
 Solution : remove it or patch it (http://www.extent.com/solutions/down_prod.shtml)
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le logiciel 'Extent RBS ISP 2.5' est installé. Celui-ci possède un problème de sécurité bien connu qui permet à n'importe qui de 
@@ -48,7 +48,7 @@ Facteur de risque : Sérieux";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
- script_require_ports(8002,"Services/www");
+ script_require_ports("Services/www",80);
  exit(0);
 }
 
@@ -57,9 +57,11 @@ Facteur de risque : Sérieux";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
+port = get_http_port(default:80);
 
-port = is_cgi_installed("/newuser");
-if(port){
+res = is_cgi_installed_ka(port:port, item:"/newuser");
+if(res){
  req = string("/newuser?Image=../../database/rbsserv.mdb");
  req = http_get(item:req, port:port);
  soc = http_open_socket(port);

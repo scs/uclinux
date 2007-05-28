@@ -7,15 +7,31 @@
 if(description)
 {
   script_id(11907);
-  script_version ("$Revision: 1.1 $");
+  script_version ("$Revision: 1.3 $");
 
   name["english"] = "BGP detection";
   script_name(english:name["english"]);
  
   desc["english"] = "
-This machine is running BGP.
+Synopsis :
 
-Risk factor : Low";
+The remote host is running a BGP (Border Gatway Protocol) service.
+
+Description :
+
+The remote host is running BGP, a popular routing protocol. This indicates
+that the remote host is probably a network router.
+
+Solution :
+
+If the remote service is not used, disable it.  
+Make sure that access to this service is either filtered so that only
+allowed hosts can connect to it, or that TCP MD5 is enabled to protect
+this service from rogue connections.
+
+Risk factor : 
+
+None";
 
   script_description(english:desc["english"]);
  
@@ -23,9 +39,7 @@ Risk factor : Low";
   script_summary(english:summary["english"]);
   script_category(ACT_GATHER_INFO); 
   script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi");
-  family["english"] = "Misc.";
-  family["francais"] = "Divers";
-  script_family(english:family["english"], francais:family["francais"]);
+  script_family(english:"Service detection");
   exit(0);
 }
 

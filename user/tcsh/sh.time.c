@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.time.c,v 3.22 2000/06/10 21:35:41 kim Exp $ */
 /*
  * sh.time.c: Shell time keeping and printing.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: sh.time.c,v 3.22 2000/06/10 21:35:41 kim Exp $")
 
 #ifdef SUNOS4
 # include <machine/param.h>

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-osf1.h,v 1.3 1994/07/15 11:02:47 gkim Exp $ */
 
 /*
  * conf-osf1.h

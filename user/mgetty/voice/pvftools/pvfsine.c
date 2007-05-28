@@ -4,7 +4,7 @@
  * pvfsine produces a simple sine wave. Output is in the pvf
  * (portable voice format) format.
  *
- * $Id$
+ * $Id: pvfsine.c,v 1.4 1998/09/09 21:07:50 gert Exp $
  *
  */
 

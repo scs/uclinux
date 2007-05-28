@@ -1,6 +1,6 @@
 DOS Video functions
 
-$Id$
+$Id: video.txt,v 1.1.1.1 2001/04/29 20:36:22 karll Exp $
 
 video normal -- select normal video brightness
 video dim -- select dim video brightness

@@ -1,7 +1,5 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 #
 # MS01-011 was superceded by MS01-036
@@ -9,96 +7,60 @@
 if(description)
 {
  script_id(10619);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(2929);
+ script_version ("$Revision: 1.23 $");
  script_cve_id("CVE-2001-0502");
  
- name["english"] =  "Malformed request to domain controller";
- name["francais"] = "Malformed request to domain controller";
+ name["english"] =  "LDAP over SSL could allow passwords to be changed (Q299687)";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
-The hotfix for the 'Malformed request to domain controller'
-problem has not been applied.
+Synopsis :
 
-This vulnerability can allow an attacker to disable temporarily
-a Windows 2000 domain controller.
+A bug in Windows 2000 may allow an attacker to change the password of a third 
+party user.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms01-036.asp
-Risk factor : Serious";
+Description :
+
+The remote version of Windows 2000 contains a bug in its LDAP implementation
+which fails to validate the permissions of a user requesting to change the
+password of a third party user.
+
+An attacker may exploit this vulnerability to gain unauthorized access to the
+remote host.
+
+Solution : 
+
+http://www.microsoft.com/technet/security/bulletin/ms01-036.mspx
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
 
- desc["francais"] = "
-Le patch pour la vulnérabilité des de paquets de requete de controlleur
-de domaine n'a pas été installé.
 
-Cette vulnérabilité permet à un pirate de désactiver temporairement le
-controlleur de domaine distant.
-
-Solution : cf http://www.microsoft.com/technet/security/bulletin/ms01-036.asp
-Facteur de risque : Sérieux";
-
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines whether the hotfix Q287397 is installed";
- summary["francais"] = "Détermine si le hotfix Q287397 est installé";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password", "SMB/registry_access");
- script_exclude_keys("SMB/XP/ServicePack","SMB/WinNT4/ServicePack");
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
 
-include("smb_nt.inc");
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
+include("smb_hotfixes.inc");
 
-#check for PDC/BDC first
-key = "SYSTEM\CurrentControlSet\Control\ProductOptions";
-item = "ProductType";
-
-value = registry_get_sz(key:key, item:item);
-if(!(value == "LanmanNT"))exit(0);
-
-version = get_kb_item("SMB/WindowsVersion");
-if(version == "5.0")
-{
- # check for Win2k post SP2 SRP first.
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\SP2SPR1";
- item = "Comments";
- value = string(registry_get_sz(key:key, item:item));
- if(value)exit(0);
- # then for service pack 3.
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [3-9]"))exit(0);
-
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q299687";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)
- {
- security_hole(port);
- exit(0);
- }
-}
+if ( hotfix_check_domain_controler() <= 0 ) exit(0);
+if ( hotfix_check_sp(win2k:3) <= 0 ) exit(0);
+if ( hotfix_missing(name:"SP2SPR1") > 0 && hotfix_missing(name:"Q299687") > 0 )
+	security_hole(get_kb_item("SMB/transport"));

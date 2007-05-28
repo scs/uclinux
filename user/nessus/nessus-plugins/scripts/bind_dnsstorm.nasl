@@ -14,10 +14,12 @@
 if(description)
 {
  script_id(10886);
- script_version ("$Revision: 1.4 $");
- script_cve_id("CAN-2002-1221", "CAN-2002-1219", "CAN-2002-1220");
- if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0011");
  script_bugtraq_id(6159, 6160, 6161);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2002-1219", "CVE-2002-1220", "CVE-2002-1221");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-a-0006");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0011");
+ if(defined_func("script_xref"))script_xref(name:"SuSE", value:"SUSE-SA:2002:044");
  
  name["english"] = "BIND vulnerable to DNS storm";
  
@@ -33,7 +35,7 @@ recursive DNS functionality, is vulnerable to a buffer overflow.
 via SIG RR elements with invalid expiry times.
 
 3) The remote BIND server is vulnerable to a denial of service.
-When a DNS lookup is requested on a non-existant sub-domain of 
+When a DNS lookup is requested on a non-existent sub-domain of 
 a valid domain and an OPT resource record with a large UDP 
 payload is attached, the server may fail. 
 
@@ -63,5 +65,5 @@ vers = get_kb_item("bind/version");
 if(!vers)exit(0);
 
 if(ereg(string:vers,
-	 pattern:"8\.(([0-1].*)|(2\.[0-6])|(3\.0\.[0-3])).*"))security_hole(53);
+	 pattern:"^8\.(([0-1].*)|(2\.[0-6])|(3\.0\.[0-3])).*"))security_hole(53);
 

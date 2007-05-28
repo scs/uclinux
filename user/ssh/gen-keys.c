@@ -83,7 +83,7 @@ static void exec(char *const av[]) {
 extern char	**environ;
 int		  status;
 pid_t		  pid;
-#ifdef USE_VFORK
+#ifdef __uClinux__
 	pid = vfork();
 #else
 	pid = fork();
@@ -91,7 +91,7 @@ pid_t		  pid;
 	if (pid == 0) {
 		/* Child */
 		execve("/bin/ssh-keygen", av, environ);
-#ifdef USE_VFORK
+#ifdef __uClinux__
 		_exit(0);
 #else
 		exit(0);
@@ -134,17 +134,10 @@ int		  i;
 
 #if defined(INCLUDE_SSHD) || defined(INCLUDE_SSH)
 /* Write back our config file system */
-static inline void sync_files(void) {
-char		  value[16];
-pid_t		  pid;
-int		  fd;
-	fd = open("/var/run/flatfsd.pid", O_RDONLY);
-	if (fd != -1) {
-		if (read(fd, value, sizeof(value)) > 0 &&
-				(pid = atoi(value)) > 1)
-			kill(pid, SIGUSR1);
-		close(fd);
-	}
+static inline void
+sync_files(void)
+{
+	system("exec flatfsd -s");
 }
 #endif
 

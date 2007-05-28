@@ -27,6 +27,7 @@
 #include "config.h"
 #ifndef HAVE_STRNSTR
 #include <string.h>
+#include <util.h>
 
 char *strnstr(const char *haystack, const char *needle, size_t haystacklen)
 {

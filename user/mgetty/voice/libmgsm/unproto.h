@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: unproto.h,v 1.4 1998/09/09 21:06:56 gert Exp $ */
 
 #ifdef    PROTO_H        /* sic */
 #undef    PROTO_H

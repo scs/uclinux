@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10697);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(2138);
- script_cve_id("CAN-2001-0098");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2001-0098");
  name["english"] = "WebLogic Server DoS";
  name["francais"] = "WebLogic Server DoS";
  
@@ -47,8 +47,8 @@ Solution : upgrade to at least WebLogic 5.1 with Service Pack 7";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {

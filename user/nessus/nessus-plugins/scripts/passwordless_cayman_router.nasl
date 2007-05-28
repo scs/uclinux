@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10345);
- script_version ("$Revision: 1.5 $");
- script_cve_id("CAN-1999-0508");
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-1999-0508");
  
 
  name["english"] = "Passwordless Cayman DSL router";
@@ -20,7 +20,7 @@ The remote router has no password. An intruder
 may connect to it and disable them easily.
 
 Solution : Set a password (see http://cayman.com/security.html#passwordprotect)
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Le routeur distant n'a pas de mot de passe. Un
@@ -52,16 +52,18 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
-
+include('telnet_func.inc');
 port = get_kb_item("Services/telnet");
 if(!port) port = 23;
 
 if(get_port_state(port))
 {
+ buf = get_telnet_banner(port:port);
+ if ( ! buf || "Terminal shell" >!< buf ) exit(0);
  soc = open_sock_tcp(port);
  if(soc)
  {
-  buf = telnet_init(soc);
+  buf = telnet_negotiate(socket:soc);
   if("Terminal shell" >< buf)
   	{
 	 r = recv(socket:soc, length:2048);

@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11220);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.2 $");
  name["english"] = "Netscape /.perf accessible";
  name["francais"] = "Netscape /.perf accessible";
  
@@ -45,9 +45,9 @@ disabled in the magnus.conf file or web server admin.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
+port = get_http_port(default:80);
 str = "ListenSocket";
-if(!port) port = 80;
+
 if(get_port_state(port))
 {
  soc = http_open_socket(port);

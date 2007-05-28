@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10276);
-script_cve_id("CAN-1999-1201");
  script_bugtraq_id(225);
- script_version ("$Revision: 1.14 $");
+script_cve_id("CVE-1999-1201");
+ script_version ("$Revision: 1.18 $");
  
  name["english"] = "TCP Chorusing";
  name["francais"] = "TCP Chorusing";
@@ -71,7 +71,7 @@ Facteur de risque : moyen.";
  family["english"] = "Misc.";
  family["francais"] = "Divers";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("nmap_osfingerprint.nes");
+ script_dependencie("os_fingerprint.nasl");
  script_exclude_keys("SMB/WindowsVersion");
 
  
@@ -86,11 +86,16 @@ Facteur de risque : moyen.";
 
 if(islocalhost())exit(0);
 
-os = get_kb_item("Host/OS");
+# broken
+exit(0);
+
+os = get_kb_item("Host/OS/icmp");
 if(os)
 {
- if(!("Windows" >< os))exit(0);
+ if("Windows 9" >!< os)exit(0);
 }
+
+
 port = get_host_open_port();
 if(!port)port = 21;
 

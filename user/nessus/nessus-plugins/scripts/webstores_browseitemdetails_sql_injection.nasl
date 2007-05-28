@@ -4,25 +4,41 @@
 if(description)
 {
  script_id(11692);
+ script_cve_id("CVE-2004-0304");
  script_bugtraq_id(7766);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.8 $");
  name["english"] = "WebStores 2000 browse_item_details.asp SQL injection";
  script_name(english:name["english"]);
 
  desc["english"] = "
-The remote web server is running WebStore 2000, a set of ASP
-scripts designed to set up an e-commerce store.
+Synopsis :
 
-There is a flaw in the version of WebStore which is being
-used which may allow an attacker to make arbitrary SQL statements
-to the backend database being used.
+The remote web server contains an ASP application that is prone to SQL
+injection attacks. 
 
-An attacker may use this flaw to take the control of your
-database.
+Description :
 
+The remote web server is running WebStore 2000, a set of ASP scripts
+designed to set up an e-commerce store. 
 
-Solution : None at this time
-Risk factor : High";
+There is a flaw in the version of WebStore used on the remote host
+that may allow an attacker to make arbitrary SQL statements to the
+backend database.  An attacker may be able to exploit this issue to
+add administrative accounts, execute arbitrary commands using the
+'xp_cmdshell' function, and the like. 
+
+See also :
+
+http://marc.theaimsgroup.com/?l=bugtraq&m=107712159425226&w=2
+
+Solution : 
+
+Unknown at this time.
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
  script_description(english:desc["english"]);
 
@@ -36,8 +52,9 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "httpver.nasl", "no404.nasl", "webmirror.nasl");
+ script_dependencie("http_version.nasl", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -46,23 +63,27 @@ Risk factor : High";
 #
 
 
+include("global_settings.inc");
 include("http_func.inc");
 include("http_keepalive.inc");
 
 
-
- 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
+if (!get_port_state(port))exit(0);
+if (!can_host_asp(port:port)) exit(0);
+if (get_kb_item("www/no404/"+port)) exit(0);
 
 
-dirs = make_list("", "/store", cgi_dirs());
+if (thorough_tests) dirs = make_list("/store", cgi_dirs());
+else dirs = make_list(cgi_dirs());
+
 foreach dir (dirs)
 {
- req = http_get(item:dir + "/browse_item_details.asp?Item_ID='", port:port);
- res = http_keepalive_send_recv(port:port, data:req);
+ req = http_get(
+   item:string(dir, "/browse_item_details.asp?Item_ID='", SCRIPT_NAME), 
+   port:port
+ );
+ res = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
  if ( res == NULL ) exit(0);
  
  if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 ", string:res) && 

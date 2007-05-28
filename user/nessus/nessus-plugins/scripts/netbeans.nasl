@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10149);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(816);
- script_cve_id("CAN-1999-1527");
+ script_version ("$Revision: 1.18 $");
+ script_cve_id("CVE-1999-1527");
  name["english"] = "NetBeans Java IDE";
  name["francais"] = "NetBeans Java IDE";
  
@@ -47,7 +47,7 @@ Solution : Mettez le 'Enable' de HTTP Server à FAUX dans les project settings
  family["francais"] = "Accès aux fichiers distants";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "httpver.nasl");
- script_require_ports("Services/www", 8082);
+ script_require_ports("Services/www", 80, 8082);
  exit(0);
 }
 
@@ -55,48 +55,31 @@ Solution : Mettez le 'Enable' de HTTP Server à FAUX dans les project settings
 # The script code starts here
 #
 include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-if(get_port_state(8082))
+function netbeans(port)
 {
- port = 8082;
 if(get_port_state(port))
 {
-  soc = http_open_socket(port);
-  if(soc)
-  {
-  buffer = http_get(item:"/", port:port);
-  send(socket:soc, data:buffer);
-  data = http_recv(socket:soc);
-  http_close_socket(soc);
+  data = http_get_cache(item:"/", port:port);
   data_low = tolower(data);
   seek = "<title>index of /</title>";
   if(seek >< data_low)
   {
-   if("netbeans" >< data_low) security_hole(port);
-  }
-  exit(0);
- } 
+   if("netbeans" >< data_low) { 
+	security_hole(port);
+	exit(0);
+	}
+   }
+ }
 }
-}
+
 #
 # NetBeans might be running on another port.
 # 
-port = get_kb_item("Services/www");
+if ( thorough_tests ) netbeans(port:8082);
+
+port = get_http_port(default:80);
 if(!port)exit(0);
-if(!(port == 80))
-{
- soc = http_open_socket(port);
- if(soc)
- {
-  buffer = http_get(item:"/", port:port);
-  send(socket:soc, data:buffer);
-  data = http_recv(socket:soc);
-  data_low = tolower(data);
-  seek = "<title>index of /</title>";
-  if(seek >< data_low)
-  {
-   if("netbeans" >< data_low) security_hole(port);
-  }
-  http_close_socket(soc);
- }
-}
+if( port != 8082 || thorough_tests == 0 ) netbeans(port:port);

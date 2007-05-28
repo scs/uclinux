@@ -1,31 +1,31 @@
 /* vi: set sw=4 ts=4: */
-/*
- * jffs2reader v0.0.18 A jffs2 image reader
+/* 
+ * jffs2reader v0.0.18 A jffs2 image reader 
  *
  * Copyright (c) 2001 Jari Kirma <Jari.Kirma@hut.fi>
- *
+ * 
  * This software is provided 'as-is', without any express or implied
  * warranty. In no event will the author be held liable for any damages
  * arising from the use of this software.
- *
+ * 
  * Permission is granted to anyone to use this software for any
  * purpose, including commercial applications, and to alter it and
  * redistribute it freely, subject to the following restrictions:
- *
+ * 
  * 1. The origin of this software must not be misrepresented; you must
  * not claim that you wrote the original software. If you use this
  * software in a product, an acknowledgment in the product
  * documentation would be appreciated but is not required.
- *
+ * 
  * 2. Altered source versions must be plainly marked as such, and must
  * not be misrepresented as being the original software.
- *
+ * 
  * 3. This notice may not be removed or altered from any source
  * distribution.
  *
  *
  *********
- *  This code was altered September 2001
+ *  This code was altered September 2001 
  *  Changes are Copyright (c) Erik Andersen <andersen@codepoet.org>
  *
  * In compliance with (2) above, this is hereby marked as an altered
@@ -40,7 +40,7 @@
  *      *) Several twisty code paths have been fixed so I can understand them.
  *  -Erik, 1 September 2001
  *
- *      *) Made it show major/minor numbers for device nodes
+ *      *) Made it show major/minor numbers for device nodes 
  *      *) Made it show symlink targets
  *  -Erik, 13 September 2001
  *
@@ -66,7 +66,6 @@
 
 
 #include <errno.h>
-#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,7 +82,7 @@
 #define SCRATCH_SIZE (5*1024*1024)
 
 #ifndef MAJOR
-/* FIXME:  I am using illicit insider knowledge of
+/* FIXME:  I am using illicit insider knowledge of 
  * kernel major/minor representation...  */
 #define MAJOR(dev) (((dev)>>8)&0xff)
 #define MINOR(dev) ((dev)&0xff)
@@ -95,9 +94,9 @@
 
 struct dir {
 	struct dir *next;
-	uint8_t type;
-	uint8_t nsize;
-	uint32_t ino;
+	__u8 type;
+	__u8 nsize;
+	__u32 ino;
 	char name[256];
 };
 
@@ -107,16 +106,16 @@ void printdir(char *o, size_t size, struct dir *d, char *path,
 			  int recurse);
 void freedir(struct dir *);
 
-struct jffs2_raw_inode *find_raw_inode(char *o, size_t size, uint32_t ino);
-struct jffs2_raw_dirent *resolvedirent(char *, size_t, uint32_t, uint32_t,
-									   char *, uint8_t);
-struct jffs2_raw_dirent *resolvename(char *, size_t, uint32_t, char *, uint8_t);
-struct jffs2_raw_dirent *resolveinode(char *, size_t, uint32_t);
+struct jffs2_raw_inode *find_raw_inode(char *o, size_t size, __u32 ino);
+struct jffs2_raw_dirent *resolvedirent(char *, size_t, __u32, __u32,
+									   char *, __u8);
+struct jffs2_raw_dirent *resolvename(char *, size_t, __u32, char *, __u8);
+struct jffs2_raw_dirent *resolveinode(char *, size_t, __u32);
 
-struct jffs2_raw_dirent *resolvepath0(char *, size_t, uint32_t, char *,
-									  uint32_t *, int);
-struct jffs2_raw_dirent *resolvepath(char *, size_t, uint32_t, char *,
-									 uint32_t *);
+struct jffs2_raw_dirent *resolvepath0(char *, size_t, __u32, char *,
+									  __u32 *, int);
+struct jffs2_raw_dirent *resolvepath(char *, size_t, __u32, char *,
+									 __u32 *);
 
 void lsdir(char *, size_t, char *, int);
 void catfile(char *, size_t, char *, char *, size_t, size_t *);
@@ -426,7 +425,7 @@ void freedir(struct dir *d)
     inode, or NULL
 */
 
-struct jffs2_raw_inode *find_raw_inode(char *o, size_t size, uint32_t ino)
+struct jffs2_raw_inode *find_raw_inode(char *o, size_t size, __u32 ino)
 {
 	/* aligned! */
 	union jffs2_node_union *n;
@@ -434,11 +433,11 @@ struct jffs2_raw_inode *find_raw_inode(char *o, size_t size, uint32_t ino)
 	union jffs2_node_union *lr;	/* last block position */
 	union jffs2_node_union *mp = NULL;	/* minimum position */
 
-	uint32_t vmin, vmint, vmaxt, vmax, vcur, v;
+	__u32 vmin, vmint, vmaxt, vmax, vcur, v;
 
 	vmin = 0;					/* next to read */
-	vmax = ~((uint32_t) 0);		/* last to read */
-	vmint = ~((uint32_t) 0);
+	vmax = ~((__u32) 0);		/* last to read */
+	vmint = ~((__u32) 0);
 	vmaxt = 0;					/* found maximum */
 	vcur = 0;					/* XXX what is smallest version number used? */
 	/* too low version number can easily result excess log rereading */
@@ -473,7 +472,7 @@ struct jffs2_raw_inode *find_raw_inode(char *o, size_t size, uint32_t ino)
 		if (lr == n) {			/* whole loop since last read */
 			vmax = vmaxt;
 			vmin = vmint;
-			vmint = ~((uint32_t) 0);
+			vmint = ~((__u32) 0);
 
 			if (vcur < vmax && vcur < vmin)
 				return (&(mp->i));
@@ -494,7 +493,7 @@ struct jffs2_raw_inode *find_raw_inode(char *o, size_t size, uint32_t ino)
   return value: result directory structure, replaces d.
 */
 
-struct dir *collectdir(char *o, size_t size, uint32_t ino, struct dir *d)
+struct dir *collectdir(char *o, size_t size, __u32 ino, struct dir *d)
 {
 	/* aligned! */
 	union jffs2_node_union *n;
@@ -502,11 +501,11 @@ struct dir *collectdir(char *o, size_t size, uint32_t ino, struct dir *d)
 	union jffs2_node_union *lr;	/* last block position */
 	union jffs2_node_union *mp = NULL;	/* minimum position */
 
-	uint32_t vmin, vmint, vmaxt, vmax, vcur, v;
+	__u32 vmin, vmint, vmaxt, vmax, vcur, v;
 
 	vmin = 0;					/* next to read */
-	vmax = ~((uint32_t) 0);		/* last to read */
-	vmint = ~((uint32_t) 0);
+	vmax = ~((__u32) 0);		/* last to read */
+	vmint = ~((__u32) 0);
 	vmaxt = 0;					/* found maximum */
 	vcur = 0;					/* XXX what is smallest version number used? */
 	/* too low version number can easily result excess log rereading */
@@ -535,7 +534,7 @@ struct dir *collectdir(char *o, size_t size, uint32_t ino, struct dir *d)
 
 					lr = n;
 					vcur++;
-					vmint = ~((uint32_t) 0);
+					vmint = ~((__u32) 0);
 				}
 			}
 
@@ -546,7 +545,7 @@ struct dir *collectdir(char *o, size_t size, uint32_t ino, struct dir *d)
 		if (lr == n) {			/* whole loop since last read */
 			vmax = vmaxt;
 			vmin = vmint;
-			vmint = ~((uint32_t) 0);
+			vmint = ~((__u32) 0);
 
 			if (vcur < vmax && vcur < vmin) {
 				d = putdir(d, &(mp->d));
@@ -583,8 +582,8 @@ struct dir *collectdir(char *o, size_t size, uint32_t ino, struct dir *d)
 */
 
 struct jffs2_raw_dirent *resolvedirent(char *o, size_t size,
-									   uint32_t ino, uint32_t pino,
-									   char *name, uint8_t nsize)
+									   __u32 ino, __u32 pino,
+									   char *name, __u8 nsize)
 {
 	/* aligned! */
 	union jffs2_node_union *n;
@@ -592,7 +591,7 @@ struct jffs2_raw_dirent *resolvedirent(char *o, size_t size,
 
 	struct jffs2_raw_dirent *dd = NULL;
 
-	uint32_t vmax, v;
+	__u32 vmax, v;
 
 	if (!pino && ino <= 1)
 		return dd;
@@ -639,8 +638,8 @@ struct jffs2_raw_dirent *resolvedirent(char *o, size_t size,
                 filesystem image or NULL
 */
 
-struct jffs2_raw_dirent *resolvename(char *o, size_t size, uint32_t pino,
-									 char *name, uint8_t nsize)
+struct jffs2_raw_dirent *resolvename(char *o, size_t size, __u32 pino,
+									 char *name, __u8 nsize)
 {
 	return resolvedirent(o, size, 0, pino, name, nsize);
 }
@@ -656,7 +655,7 @@ struct jffs2_raw_dirent *resolvename(char *o, size_t size, uint32_t pino,
                 filesystem image or NULL
 */
 
-struct jffs2_raw_dirent *resolveinode(char *o, size_t size, uint32_t ino)
+struct jffs2_raw_dirent *resolveinode(char *o, size_t size, __u32 ino)
 {
 	return resolvedirent(o, size, ino, 0, NULL, 0);
 }
@@ -679,13 +678,13 @@ struct jffs2_raw_dirent *resolveinode(char *o, size_t size, uint32_t ino)
                 (return value is NULL), but it has inode (*inos=1)
 */
 
-struct jffs2_raw_dirent *resolvepath0(char *o, size_t size, uint32_t ino,
-									  char *p, uint32_t * inos, int recc)
+struct jffs2_raw_dirent *resolvepath0(char *o, size_t size, __u32 ino,
+									  char *p, __u32 * inos, int recc)
 {
 	struct jffs2_raw_dirent *dir = NULL;
 
 	int d = 1;
-	uint32_t tino;
+	__u32 tino;
 
 	char *next;
 
@@ -736,7 +735,7 @@ struct jffs2_raw_dirent *resolvepath0(char *o, size_t size, uint32_t ino,
 			continue;
 		}
 
-		dir = resolvename(o, size, ino, path, (uint8_t) strlen(path));
+		dir = resolvename(o, size, ino, path, (__u8) strlen(path));
 
 		if (DIRENT_INO(dir) == 0 ||
 			(next != NULL &&
@@ -795,8 +794,8 @@ struct jffs2_raw_dirent *resolvepath0(char *o, size_t size, uint32_t ino,
                 (return value is NULL), but it has inode (*inos=1)
 */
 
-struct jffs2_raw_dirent *resolvepath(char *o, size_t size, uint32_t ino,
-									 char *p, uint32_t * inos)
+struct jffs2_raw_dirent *resolvepath(char *o, size_t size, __u32 ino,
+									 char *p, __u32 * inos)
 {
 	return resolvepath0(o, size, ino, p, inos, 0);
 }
@@ -814,7 +813,7 @@ void lsdir(char *o, size_t size, char *path, int recurse)
 	struct jffs2_raw_dirent *dd;
 	struct dir *d = NULL;
 
-	uint32_t ino;
+	__u32 ino;
 
 	dd = resolvepath(o, size, 1, path, &ino);
 
@@ -846,7 +845,7 @@ void catfile(char *o, size_t size, char *path, char *b, size_t bsize,
 {
 	struct jffs2_raw_dirent *dd;
 	struct jffs2_raw_inode *ri;
-	uint32_t ino;
+	__u32 ino;
 
 	dd = resolvepath(o, size, 1, path, &ino);
 

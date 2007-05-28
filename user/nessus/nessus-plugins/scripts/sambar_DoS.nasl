@@ -17,10 +17,10 @@
 
 if(description)
 {
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.13 $");
  script_id(11131);
- script_name(english:"Sambar web server DOS");
  script_bugtraq_id(3885);
+ script_name(english:"Sambar web server DOS");
  script_cve_id("CVE-2002-0128");
  
  desc["english"] = "
@@ -43,7 +43,7 @@ Risk factor : Medium";
  summary["english"] = "Crashes Sambar web server";
  script_summary(english:summary["english"]);
  
- script_category(ACT_MIXED_ATTACK);
+ script_category(ACT_DENIAL);
  
  script_copyright("This script is Copyright (C) 2002 Michel Arboi");
  family["english"] = "Denial of Service";
@@ -58,6 +58,7 @@ Risk factor : Medium";
 # The script code starts here
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
 # The advisories are not clear: is this cgitest.exe or testcgi.exe?
 # Is it in cgi-bin or cgi-win?
@@ -69,58 +70,12 @@ fil[0] = "cgitest.exe";
 fil[1] = "testcgi.exe";
 fil[2] = "Pbcgi.exe";
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 banner = get_http_banner(port: port);
 if (! banner) exit(0);
-
-if (safe_checks())
-{
- # 5.1b (beta) or 5.1p (prod) announce "Server: SAMBAR 5.1"
-
- if (egrep(pattern: "Server: *SAMBAR +([1-4]\.|5\.0)", 
-	string:banner, icase: 1))
- {
-    msg = "It should possible to kill the Sambar web server 'server.exe'
-by sending it a long request like:
-	/cgi-win/testcgi.exe?XXXX...X
-	/cgi-win/cgitest.exe?XXXX...X
-	/cgi-win/Pbcgi.exe?XXXXX...X
-(or maybe in /cgi-bin/)
-
-A cracker may use this flaw to make your server crash 
-continuously, preventing you from working properly.
-
-** Nessus only check the version number in the banner and did not
-** perform the real attack. It might be a false positive.
-
-Solution : upgrade your server to Sambar 51p or delete those CGI.
-
-Risk factor : Medium";
-
-   security_hole(port: port, data: msg);
-   exit(0);
-  }
-
- for (c=0; c<3; c=c+1) {
-  for (d=0; d<3; d=d+1) {
-   if (is_cgi_installed(port: port, item: string(dir[d], fil[c]))) {
-    msg2 = string(dir[d], fil[c], " is installed.\n",
-	"They are usually shiped with the Sambar web server.\n",
-	"Version before 51p are vulnerable to an overflow that leads to \n",
-	"a denial of service\n\n",
-	"** Nessus was unable to check the version number in the banner \n",
-	"** and did not perform the real attack. This may be a false positive\n\n",
-	"Solution : upgrade your server to Sambar 51p or delete those CGI.\n\n",
-	"Risk factor : Medium");
-    security_warning(port: port, data: msd2);
-    exit(0);
-   }
-  }
- }
-}
 
 
 if(http_is_dead(port:port))exit(0);

@@ -26,8 +26,8 @@
 if(description)
 {
  script_id(10634);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(6341);
+ script_version ("$Revision: 1.22 $");
 
  
  name["english"] = "proftpd exhaustion attack";
@@ -101,25 +101,21 @@ pass  = get_kb_item("ftp/password");
 
 if(!login || safe_checks())
 {
-# Connect to the FTP server
-soc = open_sock_tcp(port);
-if(soc)
- {
- r = ftp_recv_line(socket:soc);
- if(egrep(pattern:"^220 ProFTPD ((1\.1\.*)|(1\.2\.(0|1)*))",
-         string:r))security_hole(port);
- close(soc);
- }
+banner = get_ftp_banner ( port : port );
+if ( ! banner ) exit(0);
+if(egrep(pattern:"^220 ProFTPD ((1\.1\..*)|(1\.2\.(0|1)[^0-9]))", string:banner ))security_hole(port);
 }
 else
 {
  soc = open_sock_tcp(port);
  if(soc)
  {
-  if(ftp_log_in(socket:soc, user:login, pass:pass))
+  if(ftp_authenticate(socket:soc, user:login, pass:pass))
   {
-   pasv_port = ftp_get_pasv_port(socket:soc);
+   pasv_port = ftp_pasv(socket:soc);
    soc2 = open_sock_tcp(pasv_port, transport:get_port_transport(port));
+   if (! soc2)
+	exit(0);
    req = string("NLST /../*/../*/../\r\n");
    send(socket:soc, data:req);
    code = ftp_recv_line(socket:soc);

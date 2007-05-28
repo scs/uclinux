@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10196);
- script_version ("$Revision: 1.19 $");
  script_bugtraq_id(133);
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-1999-0006");
  name["english"] = "qpopper buffer overflow";
  name["francais"] = "Dépassement de buffer dans qpopper";
@@ -41,7 +41,7 @@ if(description)
  
  script_family(english:family["english"],
  	       francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("popserver_detect.nasl");
  script_require_ports("Services/pop3", 110);
  exit(0);
 }
@@ -92,6 +92,7 @@ if(!get_port_state(port))exit(0);
 soc = open_sock_tcp(port);
 if(!soc)exit(0);
 buf = recv_line(socket:soc, length:4095);
+if ( "QPOP" >!< buf ) exit(0);
 if(!strlen(buf)){
 	set_kb_item(name:"pop3/false_pop3", value:TRUE);
  	close(soc);

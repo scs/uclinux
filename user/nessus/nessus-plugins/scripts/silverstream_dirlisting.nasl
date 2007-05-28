@@ -16,7 +16,7 @@
 if(description)
 {
  script_id(10846);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
  #script_cve_id("CVE-XXXX-YYYY");
  name["english"] = "SilverStream directory listing";
  script_name(english:name["english"]);
@@ -45,7 +45,7 @@ cannot view directory listings";
  script_copyright(english:"This script is Copyright (C) 2002 Tor Houghton");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
   script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -55,21 +55,18 @@ cannot view directory listings";
 #
 
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+include("http_keepalive.inc");
+port = get_http_port(default:80);
+
 
 if(get_port_state(port)) {
-   soc = http_open_socket(port);
-   if(soc) {
-      buf = string("/SilverStream");
-      buf = http_get(item:buf, port:port);
-      send(socket:soc,data:buf);
-      rep = http_recv(socket:soc);
-      http_close_socket(soc);
-      lookfor = "<html><head><title>.*SilverStream.*</title>";
+     buf = string("/SilverStream");
+     buf = http_get(item:buf, port:port);
+     rep = http_keepalive_send_recv(port:port, data:buf);
+     if ( ! rep ) exit(0);
+     lookfor = "<html><head><title>.*SilverStream.*</title>";
       
       if((egrep(pattern:lookfor, string:rep)) && ("/Pages" >< rep))
          security_warning(port);
-   }
 }
 

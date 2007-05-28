@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: main.c,v 1.4 2005/01/04 07:59:59 pchunt Exp $
  *
  * History:
  * --------

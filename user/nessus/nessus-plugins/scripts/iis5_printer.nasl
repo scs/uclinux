@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(10657);
- script_version ("$Revision: 1.17 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0005");
  script_bugtraq_id(2674);
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-2001-0241");
  name["english"] = "NT IIS 5.0 Malformed HTTP Printer Request Header Buffer Overflow Vulnerability";
 
@@ -28,7 +29,7 @@ on the Web server.
 See http://www.eeye.com/html/Research/Advisories/AD20010501.html 
 for more details.
 
-Solution: See http://www.microsoft.com/technet/security/bulletin/ms01-023.asp
+Solution: See http://www.microsoft.com/technet/security/bulletin/ms01-023.mspx
 
 Risk factor : High";
 
@@ -42,7 +43,7 @@ Risk factor : High";
  script_category(ACT_DESTRUCTIVE_ATTACK);
 
  # Dependencie(s)
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
 
  # Family
  family["english"] = "Gain root remotely";
@@ -55,7 +56,6 @@ Risk factor : High";
                   francais:"Ce script est Copyright (C) 2001 John lampe");
 
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -64,8 +64,12 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
+
 if(get_port_state(port)) {
     if(http_is_dead(port:port))exit(0);
     

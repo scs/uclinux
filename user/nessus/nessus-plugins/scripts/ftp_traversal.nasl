@@ -6,26 +6,6 @@
 #
 # This is a generic test which checks for FTP traversal vulns.
 #
-# Misc. references:
-# Date: Tue, 12 Nov 2002 17:58:06 +0200
-# From: "Tamer Sahin" <ts@securityoffice.net>
-# To: vulnwatch@vulnwatch.org
-# Subject: Hyperion Ftp Server v2.8.1 Directory Traversal Vulnerability
-#
-# Date: Sat, 18 Jan 2003 14:56:59 +0100
-# From: matrix@infowarfare.dk
-# To: "news@securiteam.com" <news@securiteam.com>, 
-#   "vulnwatch@vulnwatch.org" <vulnwatch@vulnwatch.org>
-# Subject: Multible vulnerabilities found in Shambala Server version 4.5
-#
-# Date: Tue, 21 Jan 2003 21:06:07 +0100
-# From: matrix@infowarfare.dk
-# Subject: Directory Traversal vulnerability found in Enceladus Server Suite version 3.9
-#
-# Date: Mon, 27 Jan 2003 08:01:52 +0100
-# From: matrix@infowarfare.dk
-# Subject: Multiple vulnerabilities found in PlatinumFTPserver V1.0.7
-#
 
  desc = string("
 The remote FTP server allows any anonymous user to browse the 
@@ -42,9 +22,9 @@ Risk factor : High");
 if(description)
 {
  script_id(11112);
- script_cve_id("CVE-2001-0680", "CAN-2001-1335", "CAN-2001-0582");
- script_bugtraq_id(2618, 2786);
- script_version ("$Revision: 1.19 $");
+ script_bugtraq_id(2618, 2786, 5168, 11159);
+ script_cve_id("CVE-2001-0680", "CVE-2001-1335", "CVE-2001-0582");
+ script_version ("$Revision: 1.24 $");
  
  name["english"] = "Generic FTP traversal";
  
@@ -73,7 +53,7 @@ if(description)
 function dir(loc, soc)
 {
  local_var p;
- p = ftp_get_pasv_port(socket:soc);
+ p = ftp_pasv(socket:soc);
  if(!p)exit(0);
  soc2 = open_sock_tcp(p, transport:get_port_transport(port));
  if(!soc2)return;
@@ -106,7 +86,7 @@ if(!get_port_state(port))exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
- if(ftp_log_in(socket:soc, user:"anonymous", pass:string("nessus@", get_host_name())))
+ if(ftp_authenticate(socket:soc, user:"anonymous", pass:string("nessus@", get_host_name())))
  {
   l1 = dir(loc: "/", soc: soc);	# previous version used "/"
   if (isnull(l1))

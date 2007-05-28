@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: pinger.c,v 1.4.106.1 2004/03/02 07:01:20 rhorstmann Exp $
  *
  * DEBUG: section 42    ICMP Pinger program
  * AUTHOR: Duane Wessels

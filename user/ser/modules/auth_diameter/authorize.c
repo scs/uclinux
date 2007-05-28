@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: authorize.c,v 1.2.4.2 2004/07/02 15:32:55 andrei Exp $
  *
  * Digest Authentication - Diameter support
  *

@@ -13,17 +13,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
- *
  */
 
  
@@ -38,6 +27,7 @@
 
 
 #define BPF_SOCKET_PATH NESSUS_STATE_DIR"/nessus/bpf"
+#define BPF_SERVER_PID_FILE NESSUS_STATE_DIR"/nessus/bpf_server.pid"
 
 /*
  * The traditional pcap code is much more handy, so we'll try to use
@@ -113,6 +103,10 @@ static void sigterm()
 /*------------------------------------------------------------------------*
  *				Server part 				  *
  *------------------------------------------------------------------------*/
+
+int bpf_svr_close(int);
+
+
 static struct bpf_pcap * add_pcap(char * iface, pcap_t * pcap)
 {
  struct bpf_pcap * bpc;
@@ -126,13 +120,32 @@ static struct bpf_pcap * add_pcap(char * iface, pcap_t * pcap)
  strncpy(bpc->iface, iface, sizeof(bpc->iface) - 1);
  bpc->iface[sizeof(bpc->iface) - 1] = '\0';
  pcap_lookupnet(iface, &network, &netmask, 0);
- pcap_compile(pcap, &bpc->bpf_filter, "", 0, netmask); 
+ pcap_compile(pcap, &bpc->bpf_filter, "", 1, netmask); 
  bpc->next = pcaps;
  pcaps = bpc;
  return bpc;
 }
 
 
+static void rm_pcap(char * iface )
+{
+ struct bpf_pcap * bpc = pcaps, * prev = NULL;
+ while( bpc != NULL )
+ {
+  if(strcmp(bpc->iface, iface) == 0)
+	{
+ 	 struct bpf_pcap * next;
+	 next = bpc->next;
+	 pcap_close(bpc->pcap);
+	 efree(&bpc);
+	 if ( prev ) prev->next = next;
+	 else pcaps = next;
+	}
+  prev = bpc;
+  if ( bpc != NULL )
+   bpc = bpc->next;
+ }
+}
 
 static pcap_t * get_pcap(char * iface)
 {
@@ -171,7 +184,7 @@ static pcap_t * new_pcap(char * iface)
    return NULL;
  }
  
- if(pcap_compile(pcap, &filter_prog, filter, 0, netmask) < 0)
+ if(pcap_compile(pcap, &filter_prog, filter, 1, netmask) < 0)
  {
   pcap_perror(pcap, "pcap_compile");
   pcap_close(pcap);
@@ -428,6 +441,7 @@ static int read_clients()
      if(clients[i].iface[0] == '\0')
      { 
        int dl; 
+       int pcap_compile_failed = 0;
        pcap_t * pcap;
        bpf_u_int32 netmask, network;
        if(buf[0] != '\0')buf[strlen(buf) - 1 ] = '\0';
@@ -436,6 +450,7 @@ static int read_clients()
        send(clients[i].soc, ".", 1, 0);
        
        
+again:
        pcap = bpf_add_pcap(clients[i].iface);
        
      
@@ -452,8 +467,22 @@ static int read_clients()
 #endif       
        pcap_lookupnet(clients[i].iface, &network, &netmask, 0);
      /*  pcap_restart(NULL);    */    
-       pcap_compile(pcap, &clients[i].bpf_filter, buf, 0, netmask);
-       clients[i].flag = 1;
+       if ( pcap_compile(pcap, &clients[i].bpf_filter, buf, 1, netmask) 
+< 0 )
+	 {
+	 if ( pcap_compile_failed == 0 )
+		{
+		 rm_pcap(clients[i].iface);
+		 pcap_compile_failed++;
+		 goto again;
+		}
+	  else {
+	   fprintf(stderr, "pcap_compile(%s) failed\n", buf);
+	   send(clients[i].soc, "e", 1, 0);
+           }
+	 }
+        else 
+	 clients[i].flag = 1;
       }
        else send(clients[i].soc, "e", 1, 0);
      }
@@ -477,14 +506,14 @@ static int add_clients(int soc)
 {
  fd_set rd;
  struct timeval tv = {0,0};
- int clnt;
+ unsigned int clnt;
  
  FD_ZERO(&rd);
  FD_SET(soc, &rd);
  if(select(soc+1, &rd, &rd, &rd, &tv) > 0)
  {
   struct sockaddr_un soca;
-  int len = sizeof(soca);
+  unsigned int len = sizeof(soca);
   clnt = accept(soc, (struct sockaddr*)&soca,&len); 
   if(clnt > 0)
   {
@@ -528,11 +557,34 @@ int bpf_server()
  int i;
  int lst;
  int pid;
+ int fd  = open(BPF_SERVER_PID_FILE, O_RDONLY);
+ 
+ 
+ if ( fd >= 0 )
+ {
+  char buf[256];
+  pid_t pid;
+  read(fd, buf, sizeof(buf) - 1);
+  buf[sizeof(buf) - 1] = 0;
+  pid = atoi(buf);
+  close(fd);
+  if ( kill(pid, 0) == 0 ) return pid; /* Already running */
+  else unlink(BPF_SERVER_PID_FILE);
+ }
+ 
  
  for(i=0;i<NUM_CLIENTS;i++)bzero(&clients[i], sizeof(clients[i]));
 
  if((pid = fork()) == 0)
  {
+  fd = open(BPF_SERVER_PID_FILE, O_CREAT|O_TRUNC|O_WRONLY, 0644);
+  if ( fd >= 0 )
+  {
+   char buf[256];
+   snprintf(buf, sizeof(buf), "%d", getpid());
+   write(fd, buf, strlen(buf));
+   close(fd);
+  }
   signal(SIGPIPE, SIG_IGN);
   signal(SIGHUP, SIG_IGN);
   signal(SIGTERM, sigterm);
@@ -557,6 +609,7 @@ int bpf_svr_close(int n)
 	}
  if(clients[n].bpf_filter.bf_insns != NULL)free(clients[n].bpf_filter.bf_insns);
  bzero(&clients[n], sizeof(clients[n]));
+ return 0;
 }
 
 /*--------------------------------------------------------------------------*
@@ -885,7 +938,7 @@ int bpf_open_live(char * iface, char * filter)
  if(iface == NULL)
   iface = pcap_lookupdev(errbuf);
  
- ret = pcap_open_live(iface, 1500, 0, 100, errbuf);
+ ret = pcap_open_live(iface, 1500, 0, 1, errbuf);
  if(ret == NULL)
  {
     printf("%s\n", errbuf);	 
@@ -899,7 +952,7 @@ int bpf_open_live(char * iface, char * filter)
    return -1;
  }
  
- if(pcap_compile(ret, &filter_prog, filter, 0, netmask) < 0)
+ if(pcap_compile(ret, &filter_prog, filter, 1, netmask) < 0)
  {
   pcap_perror(ret, "pcap_compile");
   pcap_close(ret);
@@ -922,10 +975,25 @@ u_char* bpf_next_tv(int bpf, int * caplen, struct timeval * tv)
 {
   u_char * p = NULL;
   struct pcap_pkthdr head;
+  struct timeval timeout, now;
 
+  gettimeofday(&timeout, NULL);
+  timeout.tv_sec += tv->tv_sec;
+  timeout.tv_usec += tv->tv_usec;
+  while ( timeout.tv_usec >= 1000000 ) {
+        timeout.tv_sec ++;
+        timeout.tv_usec -= 1000000;
+  }
   
- p = (u_char*)pcap_next(pcaps[bpf], &head);
- *caplen  = head.caplen;
+ do {
+  p = (u_char*)pcap_next(pcaps[bpf], &head);
+  *caplen  = head.caplen;
+  if ( p != NULL ) break;
+  gettimeofday(&now, NULL);
+ } while ( !((now.tv_sec > timeout.tv_sec) ||
+             (now.tv_sec == timeout.tv_sec && now.tv_usec >= timeout.tv_usec ) ));
+
+
  return p;
 }
 

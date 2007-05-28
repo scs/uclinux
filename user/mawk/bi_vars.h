@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 
-/* $Log$
- * Revision 1.2  2005/07/25 04:03:15  magicyang
- * New user folder check in
- *
+/* $Log: bi_vars.h,v $
  * Revision 1.1.1.1  1993/07/03  18:58:09  mike
  * move source to cvs
  *

@@ -9,9 +9,10 @@
 if(description)
 {
  script_id(11210);
- script_cve_id("CAN-2003-0017");
-
- script_version("$Revision: 1.2 $");
+ script_bugtraq_id(6660);
+ script_cve_id("CVE-2003-0017");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0003"); 
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "Apache < 2.0.44 file reading on Win32";
 
@@ -54,13 +55,13 @@ Risk factor : High";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port: port);
  if(!banner)exit(0);
- if("Server: Apache" >< banner)
+ if("Server: Apache" >< banner && "Win32" >< banner )
  {
   req = http_get(item:"/<<<<<<<<<<<<", port:port);
   soc = http_open_socket(port);

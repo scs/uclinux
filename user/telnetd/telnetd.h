@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)telnetd.h	5.3 (Berkeley) 3/1/91
- *	$Id$
+ *	$Id: telnetd.h,v 1.1.1.1 1999/11/22 03:47:58 christ Exp $
  */
 
 

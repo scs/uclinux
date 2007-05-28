@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10076);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(2079);
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-1999-0172");
  
  name["english"] = "formmail.pl";
@@ -21,7 +21,7 @@ if(description)
 
 Solution :  remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 desc["francais"] = "Le cgi 'formmail.pl' est installé. Celui-ci possède
 un problème de sécurité bien connu qui permet à n'importe qui de faire
@@ -52,18 +52,24 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  
  exit(0);
 }	  
+
+# deprecated
+exit (0);
+
   
 #
 # The script code starts here
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 
 
 foreach dir (cgi_dirs())

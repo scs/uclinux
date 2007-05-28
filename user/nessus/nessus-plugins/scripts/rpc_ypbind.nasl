@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10241);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(52);
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-1999-0312");
  
  name["english"] = "ypbind service";
@@ -59,6 +59,10 @@ Facteur de risque : Faible";
 
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 RPC_PROG = 100007;
@@ -71,6 +75,6 @@ if(!port){
 
 if(port)
 {
- if(tcp)security_warning(port);
- else security_warning(port, protocol:"udp");
+ if(tcp)security_note(port);
+ else security_note(port, protocol:"udp");
 }

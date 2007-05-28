@@ -236,12 +236,12 @@ SpoAlertFullData *ParseAlertFullArgs(char *args)
     SpoAlertFullData *data;
 
     data = (SpoAlertFullData *)SnortAlloc(sizeof(SpoAlertFullData));
-    DEBUG_WRAP(DebugMessage(DEBUG_LOG,"ParseAlertFullArgs: %s\n", args););
     if(args == NULL)
     {
         data->file = OpenAlertFile(NULL);
         return data;
     }
+    DEBUG_WRAP(DebugMessage(DEBUG_LOG,"ParseAlertFullArgs: %s\n", args););
 
     toks = mSplit(args, " ", 2, &num_toks, 0);
     if(strcasecmp("stdout", toks[0]) == 0)

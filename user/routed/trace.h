@@ -32,7 +32,7 @@
  *
  *	From: @(#)trace.h	5.8 (Berkeley) 6/1/90
  *	From: @(#)trace.h	8.1 (Berkeley) 6/5/93
- *	$Id$
+ *	$Id: trace.h,v 1.5 1996/11/25 17:28:24 dholland Exp $
  */
 
 /*

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10313);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(2111);
- script_cve_id("CAN-1999-0140");
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-1999-0140");
  
  name["english"] = "WindowsNT PPTP flood denial";
  name["francais"] = "WindowNT PPTP flood denial";

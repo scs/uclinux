@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: callid.c,v 1.2 2003/04/10 21:44:34 janakj Exp $
  *
  * Fast Call-ID Generator
  *

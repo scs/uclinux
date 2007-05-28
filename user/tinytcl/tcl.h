@@ -13,7 +13,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Id$
+ * $Id: tcl.h,v 1.1.1.1 2001/04/29 20:34:18 karll Exp $
  */
 
 #ifndef _TCL

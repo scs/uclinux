@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: HttpHdrContRange.c,v 1.14.2.1 2005/03/26 02:50:50 hno Exp $
  *
  * DEBUG: section 68    HTTP Content-Range Header
  * AUTHOR: Alex Rousskov
@@ -81,7 +81,7 @@ httpHdrRangeRespSpecParseInit(HttpHdrRangeSpec * spec, const char *field, int fl
     p++;
     /* do we have last-pos ? */
     if (p - field < flen) {
-	ssize_t last_pos;
+	squid_off_t last_pos;
 	if (!httpHeaderParseSize(p, &last_pos))
 	    return 0;
 	spec->length = size_diff(last_pos + 1, spec->offset);
@@ -101,8 +101,8 @@ httpHdrRangeRespSpecPackInto(const HttpHdrRangeSpec * spec, Packer * p)
     if (!known_spec(spec->offset) || !known_spec(spec->length))
 	packerPrintf(p, "*");
     else
-	packerPrintf(p, "bytes %ld-%ld",
-	    (long int) spec->offset, (long int) spec->offset + spec->length - 1);
+	packerPrintf(p, "bytes %" PRINTF_OFF_T "-%" PRINTF_OFF_T "",
+	    spec->offset, spec->offset + spec->length - 1);
 }
 
 /*
@@ -152,9 +152,9 @@ httpHdrContRangeParseInit(HttpHdrContRange * range, const char *str)
 	range->elength = range_spec_unknown;
     else if (!httpHeaderParseSize(p, &range->elength))
 	return 0;
-    debug(68, 8) ("parsed content-range field: %ld-%ld / %ld\n",
-	(long int) range->spec.offset, (long int) range->spec.offset + range->spec.length - 1,
-	(long int) range->elength);
+    debug(68, 8) ("parsed content-range field: %" PRINTF_OFF_T "-%" PRINTF_OFF_T " / %" PRINTF_OFF_T "\n",
+	range->spec.offset, range->spec.offset + range->spec.length - 1,
+	range->elength);
     return 1;
 }
 
@@ -187,7 +187,7 @@ httpHdrContRangePackInto(const HttpHdrContRange * range, Packer * p)
 }
 
 void
-httpHdrContRangeSet(HttpHdrContRange * cr, HttpHdrRangeSpec spec, ssize_t ent_len)
+httpHdrContRangeSet(HttpHdrContRange * cr, HttpHdrRangeSpec spec, squid_off_t ent_len)
 {
     assert(cr && ent_len >= 0);
     cr->spec = spec;

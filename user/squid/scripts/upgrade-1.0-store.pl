@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-# $Id$
+# $Id: upgrade-1.0-store.pl,v 1.2 1996/10/11 19:56:06 wessels Exp $
 
 select(STDERR); $|=1;
 select(STDOUT); $|=1;

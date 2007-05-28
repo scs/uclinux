@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10070);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-0660");
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-1999-0660");
  name["english"] = "Finger backdoor";
  name["francais"] = "Finger backdoor";
  script_name(english:name["english"], francais:name["francais"]);
@@ -64,6 +64,11 @@ Facteur de risque : Elevé";
 #
 # The script code starts here
 #
+
+
+include('global_settings.inc');
+
+if ( report_paranoia < 2 )exit(0);
 
 port = get_kb_item("Services/finger");
 if(!port)port = 79;

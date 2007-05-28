@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: extcmd_funcs.h,v 1.2 2002/11/28 17:07:36 bogdan Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

@@ -9,12 +9,9 @@
 if(description)
 {
  script_id(10971);
- script_cve_id("CVE-2001-0861", "CVE-2001-0862", "CVE-2001-0863",
- 	       "CVE-2001-0864", "CVE-2001-0865", "CVE-2001-0866",
-	       "CVE-2001-0867");
- 
- script_bugtraq_id(3534, 3535, 3536, 3537, 3538, 3539, 3540);
- script_version("$Revision: 1.5 $");
+ script_bugtraq_id(3534);
+ script_cve_id("CVE-2001-0861");
+ script_version("$Revision: 1.7 $");
 
  name["english"] = "GSR ICMP unreachable";
 

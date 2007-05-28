@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10086);
- script_version ("$Revision: 1.21 $");
+ script_version ("$Revision: 1.27 $");
  script_cve_id("CVE-1999-0075");
  name["english"] = "Ftp PASV on connect crashes the FTP server";
  name["francais"] = "Une commande PASV à la connexion d'un serveur FTP le plante";
@@ -19,7 +19,7 @@ The FTP server is very likely to write a world readable core file
 which contains portions of the passwd file. This allows local users
 to obtain the shadowed passwd file.
 
-Risk factor : Medium [remote] / High [local].
+Risk factor : High.
 
 Solution : Upgrade your FTP server to a newer version or disable it";
 
@@ -29,7 +29,7 @@ la connection. Le serveur FTP a sans doute écrit un fichier core lisible
 par tous, contenant une portion du fichier passwd shadow. Cela permet
 aux utilisateurs locaux de récuperer le fichier shadow.
 
-Facteur de risque : Moyen [à distance] / Elevé [local].
+Facteur de risque : Elevé. 
 
 Solution : Mettez à jour votre serveur FTP ou désactivez-le";
 
@@ -50,7 +50,7 @@ Solution : Mettez à jour votre serveur FTP ou désactivez-le";
  script_family(english:family["english"],
  	       francais:family["francais"]);
 	       
- script_dependencie("find_service.nes");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -60,6 +60,7 @@ Solution : Mettez à jour votre serveur FTP ou désactivez-le";
 #
 
 include("ftp_func.inc");
+include("global_settings.inc");
 
 
 port = get_kb_item("Services/ftp");
@@ -72,7 +73,9 @@ if(get_port_state(port))
  # False positive in WinGate and FireWall 1
  if("WinGate Engine" >< banner)exit(0);
  if("Check Point FireWall-1" >< banner)exit(0);
+ if("vsftp" >< banner) exit(0);
  
+ if ( report_paranoia < 2 && "SunOS" >!< banner  ) exit(0);
 
 
  soc = open_sock_tcp(port);
@@ -80,7 +83,7 @@ if(get_port_state(port))
  {
   h = ftp_recv_line(socket:soc);
   if(!h)exit(0);
-  if(ereg(pattern:"^220.*", string:h))
+  if(egrep(pattern:"^220.*", string:h))
   {
   send(socket:soc, data:'HELP\r\n');
   c = ftp_recv_line(socket:soc);

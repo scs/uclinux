@@ -9,10 +9,10 @@
 if(description)
 {
  script_id(11504);
+ script_cve_id("CVE-2002-1629");
  script_bugtraq_id(7203);
  
- 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.5 $");
  
  name["english"] = "MultiTech Proxy Server Default Password";
 
@@ -25,10 +25,8 @@ the 'supervisor' account.
 An attacker may log in the remote host and reconfigure it 
 easily.
 
-Solution : Set a password for the supervisor account
+Solution : Set a password for the supervisor account.
 Risk factor : High";
-
-
  script_description(english:desc["english"]);
  
  summary["english"] = "Attempts to log into the remote web server";
@@ -56,8 +54,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 req = http_get(item:"/std.html", port:port);

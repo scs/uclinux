@@ -14,26 +14,9 @@
 
 int commitChanges() {
 #ifdef CONFIG_USER_FLATFSD_FLATFSD
-        char value[16];
-        pid_t pid;
-        FILE *in;
-
-        /* get the pid of flatfsd */
-        if ((in = fopen("/var/run/flatfsd.pid", "r")) == NULL)
-                return -1;
-
-        if (fread(value, 1, sizeof(value), in) <= 0) {
-                fclose(in);
-                return -1;
-        }
-        fclose(in);
-
-		pid = atoi(value);
-
-        if (pid == 0 || kill(pid, 10) == -1)
-                return -1;
+	system("exec flatfsd -s");
 #endif
-        return 0;
+	return 0;
 }
 
 
@@ -57,7 +40,7 @@ int route_add_host(int type) {
                 exit(0);
         } else if (pid > 0) {
                 waitpid(pid, &s, 0);
-	}
+        }
         return 0;
 }
 

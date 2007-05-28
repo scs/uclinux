@@ -1,7 +1,45 @@
 # -*- Fundamental -*-
-# smb_nt.inc 
-# $Revision: 1.48 $
 #
+# (C) Tenable Network Security
+#
+# smb_nt.inc 
+# $Revision: 1.84 $
+#
+
+include ('crypto_func.inc');
+
+global_var multiplex_id, g_mhi, g_mlo;
+
+multiplex_id = rand();
+g_mhi = multiplex_id / 256;
+g_mlo = multiplex_id % 256;
+
+function raw_byte (b)
+{
+ return raw_string (b);
+}
+
+function raw_dword (d)
+{
+ return raw_string ( (d)     & 255,
+                     (d>>8)  & 255,
+                     (d>>16) & 255,
+                     (d>>24) & 255 );
+}
+
+
+function get_dword (blob, pos)
+{
+ if (pos > (strlen (blob) - 4))
+   return NULL;
+
+ return ( ord(blob[pos]) + 
+          (ord(blob[pos+1]) << 8) +
+          (ord(blob[pos+2]) << 16) +
+          (ord(blob[pos+3]) << 24) );
+}
+
+
 
 
 function kb_smb_name()
@@ -26,7 +64,10 @@ function kb_smb_password()
 
 function kb_smb_transport()
 {
- return get_kb_item("SMB/transport");
+ local_var r;
+ r = get_kb_item("SMB/transport");
+ if ( r ) return int(r);
+ else return 445;
 }
 
 
@@ -34,42 +75,57 @@ function kb_smb_transport()
 # Reads a SMB packet						  #
 #-----------------------------------------------------------------#
 function smb_recv(socket, length)
+{
+   local_var header, len, trailer;
+
+   header = recv(socket:socket, length:4, min:4);
+   if (strlen(header) < 4)return(NULL);
+   len = 256 * ord(header[2]);
+   len += ord(header[3]);
+   if (len == 0)return(header);
+   trailer = recv(socket:socket, length:len, min:len);
+   if(strlen(trailer) < len )return(NULL);
+   return strcat(header, trailer);
+}
+
+#-----------------------------------------------------------------#
+# Encode name and service to the netbios network format           #
+#-----------------------------------------------------------------#
+function netbios_encode(data,service)
+{
+ local_var tmpdata, ret;
+
+ ret = "";
+ tmpdata = data; 
+
+ while (strlen(tmpdata) < 15)
  {
-   ____msg_header = recv(socket:socket, length:4, min:4);
-   if (strlen(____msg_header) < 4)return(NULL);
-   ____msg_trailer_length = 256 * ord(____msg_header[2]);
-   ____msg_trailer_length = ____msg_trailer_length + ord(____msg_header[3]);
-   if (____msg_trailer_length == 0)return(____msg_header);
-   ____msg_trailer = recv(socket:socket, length:____msg_trailer_length, min:____msg_trailer_length);
-   if(strlen(____msg_trailer) < ____msg_trailer_length)return(NULL);
-   return(____msg_header+____msg_trailer);
+   tmpdata += " ";
  }
+
+ tmpdata += raw_string(service);
+
+ for(i=0;i<16;i=i+1)
+ {
+   o = ord(tmpdata[i]);
+   odiv = o/16;
+   odiv = odiv + ord("A");
+   omod = o%16;
+   omod = omod + ord("A");
+   c = raw_string(odiv, omod);
+
+   ret = ret+c;
+ }
+
+ return(ret); 
+}
 
 #-----------------------------------------------------------------#
 # Convert a netbios name to the netbios network format            #
 #-----------------------------------------------------------------#
 function netbios_name(orig)
 {
- ret = "";
- len = strlen(orig);
- for(i=0;i<16;i=i+1)
- {
-   if(i >= len)
-   {
-     c = "CA";
-   }
-   else
-   {
-     o = ord(orig[i]);
-     odiv = o/16;
-     odiv = odiv + ord("A");
-     omod = o%16;
-     omod = omod + ord("A");
-     c = raw_string(odiv, omod);
-   }
- ret = ret+c;
- }
- return(ret); 
+ return netbios_encode(data:orig, service:0x20); 
 }
 
 #--------------------------------------------------------------#
@@ -105,12 +161,7 @@ function unicode(data)
   ret = ret + raw_string(0);
   
   
- if(even)
-  {
-  ret = ret + raw_string(0x00, 0x00, 0x19, 0x00, 0x02, 0x00);
-  }
- else
-  ret = ret + raw_string(0x19, 0x00, 0x02, 0x00);
+ if(even) ret = ret + raw_string(0x00, 0x00);
  
   
  return(ret);
@@ -122,9 +173,13 @@ function unicode(data)
 #----------------------------------------------------------#
 # Request a new SMB session                                #
 #----------------------------------------------------------#
-function smb_session_request(soc, remote)
+function smb_session_request(soc, remote, transport)
 {
- trp = kb_smb_transport();
+ if ( transport )
+	trp = transport;
+ else 
+ 	trp = kb_smb_transport();
+
  # We don't need to request a session when talking on top of
  # port 445
  if(trp == 445)
@@ -175,7 +230,7 @@ function smb_neg_prot_cleartext(soc)
 	 0x00, 0x00, 0x00, 0x18, 0x01, 0x20, 0x00, 0x00,
 	 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	 0x00, 0x00, 0x00, 0x00, 0x00, 0x28, 0x00, 0x00,
-	 0x00, 0x00, 0x00, 0x66, 0x00, 0x02, 0x50, 0x43,
+	 g_mlo, g_mhi, 0x00, 0x66, 0x00, 0x02, 0x50, 0x43,
 	 0x20, 0x4E, 0x45, 0x54, 0x57, 0x4F, 0x52, 0x4B,
 	 0x20, 0x50, 0x52, 0x4F, 0x47, 0x52, 0x41, 0x4D,
 	 0x20, 0x31, 0x2E, 0x30, 0x00, 0x02, 0x4D, 0x49,
@@ -210,7 +265,7 @@ function smb_neg_prot_NTLMv1(soc)
 	 0x4D, 0x42, 0x72, 0x00, 0x00, 0x00, 0x00, 0x08,
 	 0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	 0x4D, 0x0B, 0x00, 0x00, 0x01, 0x00, 0x00, 0x81,
+	 0x4D, 0x0B, 0x00, 0x00, g_mlo, g_mhi, 0x00, 0x81,
 	 0x00, 0x02
 	 ) + "PC NETWORK PROGRAM 1.0" + raw_string(0x00, 0x02) +
 	 "MICROSOFT NETWORKS 1.03" + raw_string(0x00, 0x02) + 
@@ -231,7 +286,7 @@ function smb_neg_prot_NTLMv1(soc)
 
 function smb_neg_prot(soc)
 {
- if(defined_func("nt_owf_gen"))
+ if(defined_func("MD5"))
    return smb_neg_prot_NTLMv1(soc:soc);
  else 
   return smb_neg_prot_cleartext(soc:soc);
@@ -248,7 +303,7 @@ function smb_neg_prot_cs(prot)
  if(smb_neg_prot_value(prot:prot) < 7)
   return NULL;
   
- return substr(prot, 73, 73 + 8);
+ return substr(prot, 73, 73 + 7);
 }
  
 function smb_neg_prot_domain(prot)
@@ -328,30 +383,36 @@ function smb_session_setup_NTLMvN(soc, login, password, domain, cs, version)
   local_var len_hi, len_lo, bcc_hi_n, bcc_lo;
   local_var plen;
   
-  local_var NT_H, LM_H, lm, nt;
-  local_var ntlmv2_hash;
-  
-  
+  local_var response, pass, i, log, dom, ipass, spass;
+
+  pass = log = dom = NULL;
+  for (i=0;i < strlen(password);i++)
+    pass += password[i] + raw_string(0x00);
+
+  for (i=0;i < strlen(login);i++)
+    log += login[i] + raw_string(0x00);
+
+  for (i=0;i < strlen(domain);i++)
+    dom += domain[i] + raw_string(0x00);
+
+  ipass = spass = NULL;
 
   if(version == 1)
   {
-  	if(password)
+  	if(login && password)
   	{
-  	NT_H = nt_owf_gen(password);
-  	LM_H = lm_owf_gen(password);
-  
-	lm   = NTLMv1_HASH(cryptkey:cs, passhash:LM_H);
-  	nt   = NTLMv1_HASH(cryptkey:cs, passhash:NT_H);
-  	}
+  	 response = NTLM_Response (password:pass, challenge:cs);
+  	 if (!isnull(response))
+           ipass = response[0];
+        }
   }
   else 
   {
-    	if(password)
+    	if(login && password)
 	{
-	 NT_H = nt_owf_gen(password);
-	 ntlmv2_hash = ntv2_owf_gen(owf:NT_H, login:login, domain:domain);
-	 lm = NTLMv2_HASH(cryptkey:cs, passhash:ntlmv2_hash, length:8);
-	 nt = NTLMv2_HASH(cryptkey:cs, passhash:ntlmv2_hash, length:64);
+         response = LMv2_Response (password:pass, login:log, domain:dom, challenge:cs);
+  	 if (!isnull(response))
+           ipass = response[0];
 	}
   }
   
@@ -359,15 +420,12 @@ function smb_session_setup_NTLMvN(soc, login, password, domain, cs, version)
   extra = 0;
   native_os = "Unix";
   native_lanmanager = "Nessus";
-  if(!domain)domain = "WORKGROUP";
 
-  if(domain) extra = 3 + strlen(domain) + strlen(native_os) + strlen(native_lanmanager);
-  else extra = strlen(native_os) + strlen(native_lanmanager) + 2;
-
-
+  extra = 3 + strlen(domain) + strlen(native_os) + strlen(native_lanmanager);
   
-  len = strlen(login) + strlen(lm) + strlen(nt) + 62 + extra;
-  bcc = 1 + strlen(login) + strlen(lm) + strlen(nt) + extra;
+  
+  len = strlen(login) + strlen(ipass) + strlen(spass) + 62 + extra;
+  bcc = 1 + strlen(login) + strlen(ipass) + strlen(spass) + extra;
   
   
   len_hi = len / 256;
@@ -376,38 +434,20 @@ function smb_session_setup_NTLMvN(soc, login, password, domain, cs, version)
   bcc_hi = bcc / 256;
   bcc_lo = bcc % 256;
   
-  if(password) {
-  	plen_lm = strlen(lm);
-	plen_nt = strlen(nt);
-  	} else {
-	 	plen_lm = 0;
-		plen_nt = 0;
-		plen = 0;
-		}
-  
-  pass_len_hi = pass_len / 256;
-  pass_len_lo = pass_len % 256;
-  
- 
-  
-
-  if (! login) login="";
-  if (! password) password="";
   
   st = raw_string(0x00,0x00,
     	  len_hi, len_low, 0xFF, 0x53,
 	  0x4D, 0x42, 0x73, 0x00, 0x00, 0x00, 0x00, 0x08,
 	  0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	  0xA0, 0xF5, 0x00, 0x00, 0x01, 0x00, 0x0D, 0xFF,
+	  0x00, 0x28, 0x00, 0x00, g_mlo, g_mhi, 0x0D, 0xFF,
 	  0x00, 0x00, 0x00, 0x00, 0x44, 0x02, 0x00, 0xA0,
-	  0xF5, 0x00, 0x00, 0x00, 0x00, plen_lm, 0x00, plen_nt,
+	  0xF5, 0x00, 0x00, 0x00, 0x00, strlen(ipass) % 256, 0x00, strlen(spass) % 256,
 	  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	  0x00, bcc_lo, bcc_hi) + lm + nt + toupper(login) + 
+	  0x00, bcc_lo, bcc_hi) + ipass + spass + login + 
 	  raw_string(0);
 	  
-  if(domain)
-  	st += domain + raw_string(0x00);	
+  st += domain + raw_string(0x00);	
 	
   st += native_os + raw_string(0x00) + native_lanmanager + raw_string(0x00);
   	  
@@ -490,10 +530,10 @@ function tconx_extract_tid(reply)
 
 
 #--------------------------------------------------------#
-# Request the creation of a pipe to winreg. We will      #
-# then use it to do our work                             #
+# Request the creation of a pipe to name. Name must      #
+# contain '\'.                                           #
 #--------------------------------------------------------#
-function smbntcreatex(soc, uid, tid)
+function smbntcreatex(soc, uid, tid, name, always_return_blob)
 {
  tid_high = tid / 256;
  tid_low  = tid % 256;
@@ -501,22 +541,24 @@ function smbntcreatex(soc, uid, tid)
  uid_high = uid / 256;
  uid_low  = uid % 256;
  
-  req = raw_string(0x00, 0x00,
-  		   0x00, 0x5B, 0xFF, 0x53, 0x4D, 0x42, 0xA2, 0x00,
+  req = raw_string(0xFF, 0x53, 0x4D, 0x42, 0xA2, 0x00,
 		   0x00, 0x00, 0x00, 0x18, 0x03, 0x00, 0x50, 0x81,
 		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		   0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
-		   0x00, 0x00, 0x18, 0xFF, 0x00, 0x00, 0x00, 0x00,
+		   g_mlo, g_mhi, 0x18, 0xFF, 0x00, 0x00, 0x00, 0x00,
 		   0x07, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00,
 		   0x00, 0x00, 0x9F, 0x01, 0x02, 0x00, 0x00, 0x00,
 		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		   0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00,
 		   0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
-		   0x00, 0x00, 0x00, 0x08, 0x00, 0x5C, 0x77, 0x69,
-		   0x6e, 0x72, 0x65, 0x67, 0x00);
+		   0x00, 0x00, 0x00, (strlen(name)+1) % 256, 0x00)
+	+ name + raw_string (0x00);
+
+ req = raw_string(0x00, 0x00, 0x00, (strlen(req)%256)) + req;
 
  send(socket:soc, data:req);
  r = smb_recv(socket:soc, length:4000);
+ if ( always_return_blob ) return r;
  if(strlen(r) < 10)return(FALSE);
  if(ord(r[9])==0x00)return(r);
  else return(FALSE);
@@ -559,7 +601,7 @@ function pipe_accessible_registry(soc, uid, tid, pipe)
 		  0x00, 0x00, 0x00, 0x18, 0x03, 0x00, 0x1B, 0x81,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x48, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x48, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x4C,
 		  0x00, 0x48, 0x00, 0x4C, 0x00, 0x02, 0x00, 0x26,
@@ -583,11 +625,13 @@ function pipe_accessible_registry(soc, uid, tid, pipe)
 
 
 #----------------------------------------------------------#
-# Step 1                                                   #
+# RegOpenHKLM()                                            #
 #----------------------------------------------------------#
 
-function registry_access_step_1(soc, uid, tid, pipe)
+function registry_open_hklm(soc, uid, tid, pipe)
 {
+ local_var req, tid_low, tid_high, uid_low, uid_high, pipe_low, pipe_high, r;
+
  tid_low = tid % 256;
  tid_high = tid / 256;
  uid_low = uid % 256;
@@ -600,7 +644,7 @@ function registry_access_step_1(soc, uid, tid, pipe)
 		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x1D, 0x83,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x24, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x24, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x24, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -621,19 +665,184 @@ function registry_access_step_1(soc, uid, tid, pipe)
  else return(FALSE);
 }
 
-
-#---------------------------------------------------------------------#
-# Get the key                                                         #
-#---------------------------------------------------------------------#
-		 
-function registry_get_key(soc, uid, tid, pipe, key, reply)
+#----------------------------------------------------------#
+# RegOpenHKU()                                             #
+#----------------------------------------------------------#
+function registry_open_hku(soc, uid, tid, pipe)
 {
- local_var _na_start;
+ local_var req, tid_low, tid_high, uid_low, uid_high, pipe_low, pipe_high, r;
+
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ 
+ req = raw_string(0x00, 0x00,
+ 		  0x00, 0x78, 0xFF, 0x53, 0x4D, 0x42, 0x25, 0x00,
+		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x1D, 0x83,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x24, 0x00, 0x00,
+		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
+		  0x00, 0x24, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
+		  0x00, pipe_low, pipe_high, 0x35, 0x00, 0x00, 0x5c, 0x00,
+		  0x50, 0x00, 0x49, 0x00, 0x50, 0x00, 0x45, 0x00,
+		  0x5C, 0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0x00,
+		  0x00, 0x03, 0x10, 0x00, 0x00, 0x00, 0x24, 0x00,
+		  0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0C, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x10, 0xFF,
+		  0x12, 0x00, 0x30, 0x39, 0x01, 0x00, 0x00, 0x00,
+		  0x00, 0x02);
+		  
+
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:4096);
+ if(strlen(r) < 10)return(FALSE);
+ if(ord(r[9])==0)return(r);
+ else return(FALSE);
+}
+#----------------------------------------------------------#
+# RegOpenHKCR()                                            #
+#----------------------------------------------------------#
+function registry_open_hkcr(soc, uid, tid, pipe)
+{
+ local_var req, tid_low, tid_high, uid_low, uid_high, pipe_low, pipe_high, r;
+
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ 
+ req = raw_string(0x00, 0x00,
+ 		  0x00, 0x78, 0xFF, 0x53, 0x4D, 0x42, 0x25, 0x00,
+		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x1D, 0x83,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x24, 0x00, 0x00,
+		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
+		  0x00, 0x24, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
+		  0x00, pipe_low, pipe_high, 0x35, 0x00, 0x00, 0x5c, 0x00,
+		  0x50, 0x00, 0x49, 0x00, 0x50, 0x00, 0x45, 0x00,
+		  0x5C, 0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0x00,
+		  0x00, 0x03, 0x10, 0x00, 0x00, 0x00, 0x24, 0x00,
+		  0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x0C, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0xFF,
+		  0x12, 0x00, 0x30, 0x39, 0x01, 0x00, 0x00, 0x00,
+		  0x00, 0x02);
+		  
+
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:4096);
+ if(strlen(r) < 10)return(FALSE);
+ if(ord(r[9])==0)return(r);
+ else return(FALSE);
+}
+#----------------------------------------------------------#
+# RegFlush()						   #
+#----------------------------------------------------------#
+function registry_flush(soc, uid, tid, pipe, reply)
+{
+ local_var magic, req, r, tid_low, tid_high, uid_low, uid_high, pipe_low, pipe_high, name, data, i, len;
+ 
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ 
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ 
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ 
+ magic = raw_string(ord(reply[84]));		  
+ for(i=1;i<20;i=i+1)
+ {
+  magic = magic + raw_string(ord(reply[84+i]));
+ }
+
+ req = raw_string(0x00, 0x00, 0x00, 0x78, 0xFF, 0x53, 
+		  0x4D, 0x42, 0x25, 0x00, 0x00, 0x00, 0x00, 0x08,
+		  0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, tid_low, tid_high,
+		  0x00, 0x28, uid_low, uid_high, g_mlo, g_mhi, 0x10, 0x00,
+		  0x00, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x4c, 0x00, 0x2c, 0x00, 0x4c,
+		  0x00, 0x02, 0x00, 0x26, 0x00, pipe_low, pipe_high, 0x35,
+		  0x00, 0x5c, 0x50, 0x49, 0x50, 0x45, 0x5c, 0x00,
+		  0x00, 0x00, 0x05, 0x00, 0x00, 0x03, 0x10, 0x00,
+		  0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0xcf, 0x01,
+		  0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x0b, 0x00) + magic;
+		  
+		  
+		  
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:65535);
+ return substr(r, strlen(r) - 4, strlen(r) - 1);
+}
+  
+#----------------------------------------------------------#
+# RegClose()                                               #
+#----------------------------------------------------------#
+
+function registry_close(soc, uid, tid, pipe, reply)
+{
+ local_var magic, req, r, tid_low, tid_high, uid_low, uid_high, pipe_low, pipe_high, name, data, i, len;
+ 
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ 
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ 
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ 
+ magic = raw_string(ord(reply[84]));		  
+ for(i=1;i<20;i=i+1)
+ {
+  magic = magic + raw_string(ord(reply[84+i]));
+ }
+
+ req = raw_string(0x00, 0x00, 0x00, 0x78, 0xFF, 0x53, 
+		  0x4D, 0x42, 0x25, 0x00, 0x00, 0x00, 0x00, 0x08,
+		  0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, tid_low, tid_high,
+		  0x00, 0x28, uid_low, uid_high, g_mlo, g_mhi, 0x10, 0x00,
+		  0x00, 0x2c, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x4c, 0x00, 0x2c, 0x00, 0x4c,
+		  0x00, 0x02, 0x00, 0x26, 0x00, pipe_low, pipe_high, 0x35,
+		  0x00, 0x5c, 0x50, 0x49, 0x50, 0x45, 0x5c, 0x00,
+		  0x00, 0x00, 0x05, 0x00, 0x00, 0x03, 0x10, 0x00,
+		  0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0xcf, 0x01,
+		  0x00, 0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x05, 0x00) + magic;
+		  
+		  
+		  
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:65535);
+ return substr(r, strlen(r) - 4, strlen(r) - 1);
+}
+
+#----------------------------------------------------------#
+# RegDelKey()						   #
+#----------------------------------------------------------#
+
+function registry_delete_key(soc, uid, tid, pipe, key, reply )
+{
+ local_var _na_start, i, error;
 
  key_len = strlen(key) + 1;
  key_len_hi = key_len / 256;
  key_len_lo = key_len % 256;
- 
  
  
  tid_low = tid % 256;
@@ -642,7 +851,7 @@ function registry_get_key(soc, uid, tid, pipe, key, reply)
  uid_high = uid / 256;
  pipe_low = pipe % 256;
  pipe_high = pipe / 256;
- uc = unicode(data:key);
+ uc = unicode3(data:key);
  
  len = 148 + strlen(uc);
  
@@ -673,7 +882,434 @@ function registry_get_key(soc, uid, tid, pipe, key, reply)
 		 raw_string(
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00,tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
-		  0x00, 0x00, 0x10, 0x00, 0x00, x_lo, x_hi, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, x_lo, x_hi, 0x00,
+		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
+		  0x00, x_lo, x_hi, 0x54, 0x00, 0x02, 0x00, 0x26,
+		  0x00, pipe_low, pipe_high, y_lo, y_hi, 0x00, 0x5C, 0x00,
+		  0x50, 0x00, 0x49, 0x00, 0x50, 0x00, 0x45, 0x00,
+		  0x5C, 0x00, 0x00, 0x00, 0x00, 0xb9, 0x05, 0x00,
+		  0x00, 0x03, 0x10, 0x00, 0x00, 0x00, x_lo, x_hi,
+		  0x00, 0x00, 0x02, 0x00, 0x00, 0x00, z_lo, z_hi,
+		  0x00, 0x00, 0x00, 0x00, 0x07, 0x00);
+		  
+ magic = raw_string(ord(reply[84]));
+ for(i=1;i<20;i=i+1)
+ {
+  magic = magic + raw_string(ord(reply[84+i]));
+ }
+
+ x = strlen(key) + strlen(key) + 2;
+ x_lo = x % 256;
+ x_hi = x / 256;
+ 
+ req = req + magic + raw_string(x_lo, x_hi, x_lo, x_hi, 0x01, 0x00,
+ 		0x00, 0x00, key_len_lo, key_len_hi, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, key_len_lo, key_len_hi, 0x00) +
+		uc + raw_string(0);
+		  
+
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:4096);
+ if(strlen(r) < 10)return(1);
+ error = substr(r, strlen(r) - 4, strlen(r) - 1);
+ return ( ( int(ord(error[3])) * 256 + int(ord(error[2])) ) * 256 + int(ord(error[1])) * 256 ) + int(ord(error[0]));
+}
+#----------------------------------------------------------#
+# RegDelValue()						   #
+#----------------------------------------------------------#
+
+function registry_delete_value(soc, uid, tid, pipe, value, reply )
+{
+ local_var _na_start, i, error;
+
+ key_len = strlen(value) + 1;
+ key_len_hi = key_len / 256;
+ key_len_lo = key_len % 256;
+ 
+ 
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ uc = unicode3(data:value);
+ 
+ len = 148 + strlen(uc);
+ 
+ len_hi = len / 256;
+ len_lo = len % 256;
+ 
+ 
+ z = 40 + strlen(uc);
+ z_lo = z % 256;
+ z_hi = z / 256;
+ 
+ y = 81 + strlen(uc);
+ y_lo = y % 256;
+ y_hi = y / 256;
+ 
+ x = 64 + strlen(uc);
+ x_lo = x % 256;
+ x_hi = x / 256;
+ 
+ if(strlen(reply) < 17)exit(0);
+ magic1 = raw_string(ord(reply[16]), ord(reply[17]));
+ 
+ req = raw_string(0x00, 0x00,
+ 		  len_hi, len_lo, 0xFF, 0x53, 0x4D, 0x42, 0x25, 0x00,
+		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80)
+		  +
+		  magic1 +
+		 raw_string(
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00,tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, x_lo, x_hi, 0x00,
+		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
+		  0x00, x_lo, x_hi, 0x54, 0x00, 0x02, 0x00, 0x26,
+		  0x00, pipe_low, pipe_high, y_lo, y_hi, 0x00, 0x5C, 0x00,
+		  0x50, 0x00, 0x49, 0x00, 0x50, 0x00, 0x45, 0x00,
+		  0x5C, 0x00, 0x00, 0x00, 0x00, 0xb9, 0x05, 0x00,
+		  0x00, 0x03, 0x10, 0x00, 0x00, 0x00, x_lo, x_hi,
+		  0x00, 0x00, 0x97, 0x00, 0x00, 0x00, z_lo, z_hi,
+		  0x00, 0x00, 0x00, 0x00, 0x08, 0x00);
+		  
+ magic = raw_string(ord(reply[84]));
+ for(i=1;i<20;i=i+1)
+ {
+  magic = magic + raw_string(ord(reply[84+i]));
+ }
+
+ x = strlen(value) + strlen(value) + 2;
+ x_lo = x % 256;
+ x_hi = x / 256;
+ 
+ req = req + magic + raw_string(x_lo, x_hi, x_lo, x_hi, 0x01, 0x00,
+ 		0x00, 0x00, key_len_lo, key_len_hi, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, key_len_lo, key_len_hi, 0x00) +
+		uc + raw_string(0);
+		  
+
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:4096);
+ if(strlen(r) < 10)return(1);
+ error = substr(r, strlen(r) - 4, strlen(r) - 1);
+ 
+ return ( ( int(ord(error[3])) * 256 + int(ord(error[2])) ) * 256 + int(ord(error[1])) * 256 ) + int(ord(error[0]));
+}
+#--------------------------------------------------------------#
+# RegShutdown()                                                #
+#--------------------------------------------------------------#
+function registry_shutdown(soc, uid, tid, pipe, message, timeout, reboot, closeapps )
+{
+ local_var _na_start, i, error, msg_len, msg_len_hi, msg_len_lo, tid_low, tid_high, uid_low, uid_high, pipe_low, pipe_high, uc;
+
+ msg_len = strlen(message) + 1;
+ msg_len_hi = msg_len / 256;
+ msg_len_lo = msg_len % 256;
+ 
+ 
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ uc = unicode4(data:message);
+ 
+ len = 146 + strlen(uc);
+ 
+ len_hi = len / 256;
+ len_lo = len % 256;
+ 
+ 
+ z = 38 + strlen(uc);
+ z_lo = z % 256;
+ z_hi = z / 256;
+ 
+ y = 79 + strlen(uc);
+ y_lo = y % 256;
+ y_hi = y / 256;
+ 
+ x = 62 + strlen(uc);
+ x_lo = x % 256;
+ x_hi = x / 256;
+ 
+ 
+ req = raw_string(0x00, 0x00,
+ 		  len_hi, len_lo, 0xFF, 0x53, 0x4D, 0x42, 0x25, 0x00,
+		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x00, 0x00 ) +
+		 raw_string(
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00,tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, x_lo, x_hi, 0x00,
+		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
+		  0x00, x_lo, x_hi, 0x54, 0x00, 0x02, 0x00, 0x26,
+		  0x00, pipe_low, pipe_high, y_lo, y_hi, 0x00, 0x5C, 0x00,
+		  0x50, 0x00, 0x49, 0x00, 0x50, 0x00, 0x45, 0x00,
+		  0x5C, 0x00, 0x00, 0x00, 0x00, 0xb9, 0x05, 0x00,
+		  0x00, 0x03, 0x10, 0x00, 0x00, 0x00, x_lo, x_hi,
+		  0x00, 0x00, 0x02, 0x00, 0x00, 0x00, z_lo, z_hi,
+		  0x00, 0x00, 0x00, 0x00, 0x18, 0x00);
+
+ x = strlen(message) + strlen(message);
+ x_lo = x % 256;
+ x_hi = x / 256;
+ y = x + 2;
+ y_lo = y % 256;
+ y_hi = y / 256;
+
+ msg_len2 = msg_len - 1;
+ msg_len2_lo = msg_len2 % 256;
+ msg_len2_hi = msg_len2 / 256;
+
+ req += raw_string( 0x01, 0x00, 0x00, 0x00,  # ptr_1
+		    0x01, 0x00, 0x00, 0x00,  # ptr_2
+		    0x01, 0x00, 0x00, 0x00,  # ptr_3
+		    x_lo, x_hi,		     # uni_str_len
+		    y_lo, y_hi,		     # max_str_len
+		    0x01, 0x00, 0x00, 0x00,  # buffer
+		    msg_len_lo, msg_len_hi, 0x00, 0x00,  # uni_max_len
+		    0x00, 0x00, 0x00, 0x00 , # undoc
+		    msg_len2_lo, msg_len2_hi, 0x00, 0x00  # str_max_len
+	 );
+		    
+		  
+ req += uc;
+ req += raw_string(timeout % 256, (timeout/256) % 256, (timeout/(256*256)) % 256, timeout / (256*256*256));
+
+ 
+ if ( closeapps ) req += raw_string(0x01);
+ else req += raw_string(0x00);
+ 
+ if ( reboot ) req += raw_string(0x01);
+ else req += raw_string(0x00);
+
+		  
+
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:4096);
+ if(strlen(r) < 10)return(1);
+ error = substr(r, strlen(r) - 4, strlen(r) - 1);
+ return ( ( int(ord(error[3])) * 256 + int(ord(error[2])) ) * 256 + int(ord(error[1])) * 256 ) + int(ord(error[0]));
+}
+#----------------------------------------------------------#
+# RegEnumKey()                                             #
+#----------------------------------------------------------#
+function registry_enum_key(soc, uid, tid, pipe, reply)
+{
+
+ local_var magic, req, r, tid_low, tid_high, uid_low, uid_high, pipe_low, pipe_high, name, data, list, i, j;
+ 
+ list = make_list();
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ 
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ 
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ 
+ magic = raw_string(ord(reply[84]));		  
+ for(i=1;i<20;i=i+1)
+ {
+  magic = magic + raw_string(ord(reply[84+i]));
+ }
+
+ for(j=0;j>=0;j++)
+ {
+ req = raw_string(0x00, 0x00, 0x00, 0xa8, 0xFF, 0x53, 
+		  0x4D, 0x42, 0x25, 0x00, 0x00, 0x00, 0x00, 0x08,
+		  0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, tid_low, tid_high,
+		  0x00, 0x28, uid_low, uid_high, g_mlo, g_mhi, 0x10, 0x00,
+		  0x00, 0x5c, 0x00, 0x00, 0x00, 0x00, 0x08, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x4c, 0x00, 0x5c, 0x00, 0x4c,
+		  0x00, 0x02, 0x00, 0x26, 0x00, pipe_low, pipe_high, 0x65,
+		  0x00, 0x5c, 0x50, 0x49, 0x50, 0x45, 0x5c, 0x00,
+		  0x00, 0x00, 0x05, 0x00, 0x00, 0x03, 0x10, 0x00,
+		  0x00, 0x00, 0x5c, 0x00, 0x00, 0x00, 0xff, 0x00,
+		  0x00, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x09, 0x00); 
+		  
+		  
+		  
+  req2= magic + raw_string(
+                  j % 256, j / 256, 0x00, 0x00,  # key ID
+		  0x00, 0x00, 		    # key name len
+		  0x14, 0x04,  		    # unknown
+                  0x01, 0x00, 0x00, 0x00,   # ptr
+		  0x0a, 0x02, 0x00, 0x00,   # unknown_2
+                  0x00, 0x00, 0x00, 0x00,   # padding
+		  0x00, 0x00, 0x00, 0x00,   # padding
+                  0x01, 0x00, 0x00, 0x00,   # ptr2
+                  0x00, 0x00, 0x00, 0x00,   # padding2
+                  0x00, 0x00, 0x00, 0x00,   # padding2
+		  0x01, 0x00, 0x00, 0x00,   # ptr3 
+		  0xff, 0xff, 0xff, 0xff,   # smb_io_time low
+	          0xff, 0xff, 0xff, 0x7f   # smb_io_time high
+		  );
+
+	
+ req += req2;
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:65535);
+ if(strlen(r) < 80)return(NULL);
+
+ len = ord(r[60+24+16]);
+ if (!len)
+   break;
+
+ name = "";
+ for (i=0;i<len - 1; i++)
+    name += r[60+43+i*2+1];
+
+ list = make_list(list, name);
+ }
+
+ return list;
+}
+
+
+#----------------------------------------------------------#
+# RegEnumValue()                                           #
+#----------------------------------------------------------#
+# Author: Nicolas Pouvesle
+function registry_enum_value(soc, uid, tid, pipe, reply)
+{
+ local_var magic, req, r, tid_low, tid_high, uid_low, uid_high, pipe_low, pipe_high, name, data, list, i, j;
+ 
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ 
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ 
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ 
+ magic = raw_string(ord(reply[84]));		  
+ for(i=1;i<20;i=i+1)
+ {
+  magic = magic + raw_string(ord(reply[84+i]));
+ }
+
+ for(j=0;j>=0;j++)
+ {
+ req = raw_string(0x00, 0x00,
+ 		  0x00, 0xC0, 0xFF, 0x53, 0x4D, 0x42, 0x25, 0x00,
+		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x00, 0x83,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x6C, 0x00, 0x00,
+		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
+		  0x00, 0x6C, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
+		  0x00, pipe_low, pipe_high, 0x59, 0x00, 0x00, 0x5C, 0x00,
+		  0x50, 0x00, 0x49, 0x00, 0x50, 0x00, 0x45, 0x00,
+		  0x5C, 0x00, 0x00, 0x00, 0xEE, 0xD5, 0x05, 0x00,
+		  0x00, 0x03, 0x10, 0x00, 0x00, 0x00, 0x6C, 0x00,
+		  0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x30, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x0A, 0x00);
+		  
+  req = req + magic + raw_string(
+                  j % 256, j / 256, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02,
+                  0xcc, 0xf9, 0x06, 0x00, 0x00, 0x01, 0x00, 0x00,
+                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                  0xa0, 0xf9, 0x06, 0x00, 0x59, 0xe6, 0x07, 0x00,
+                  0x00, 0xc4, 0x04, 0x01, 0x00, 0x80, 0x00, 0x00,
+                  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                  0xb0, 0xf9, 0x06, 0x00, 0x00, 0x80, 0x00, 0x00,
+                  0x94, 0xf9, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00); 
+
+	
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:65535);
+ if(strlen(r) < 80)return(NULL);
+
+ len = ord(r[60+24]);
+ if (!len)
+   break;
+
+ name = "";
+ for (i=0;i<len;i = i+2)
+    name += r[60+43+i+1];
+
+ if (!ord(r[60+43+len+2])) len+=2;
+
+ dlen = ord(r[60+43+len+21]);
+
+ data = "";
+ for (i=0;i<dlen;i = i+2)
+    data += r[60+43+len+24+i+1];
+
+ list[j*2] = name;
+ list[j*2+1] = data;
+ }
+
+ return list;
+}
+#---------------------------------------------------------------------#
+# RegOpenKey()							      #
+#---------------------------------------------------------------------#
+		 
+function registry_get_key(soc, uid, tid, pipe, key, reply, write)
+{
+ local_var _na_start, i, error, access_mask;
+
+ key_len = strlen(key) + 1;
+ key_len_hi = key_len / 256;
+ key_len_lo = key_len % 256;
+ 
+ 
+ 
+ tid_low = tid % 256;
+ tid_high = tid / 256;
+ uid_low = uid % 256;
+ uid_high = uid / 256;
+ pipe_low = pipe % 256;
+ pipe_high = pipe / 256;
+ uc = unicode(data:key);
+
+ if ( write ) access_mask = raw_string(0x19, 0x00, 0x02, 0x02);
+ else access_mask = raw_string(0x19, 0x00, 0x02, 0x00);
+ 
+ uc += access_mask;
+ len = 148 + strlen(uc);
+ 
+ len_hi = len / 256;
+ len_lo = len % 256;
+ 
+ 
+ z = 40 + strlen(uc);
+ z_lo = z % 256;
+ z_hi = z / 256;
+ 
+ y = 81 + strlen(uc);
+ y_lo = y % 256;
+ y_hi = y / 256;
+ 
+ x = 64 + strlen(uc);
+ x_lo = x % 256;
+ x_hi = x / 256;
+ 
+ if(strlen(reply) < 17)exit(0);
+ magic1 = raw_string(ord(reply[16]), ord(reply[17]));
+ 
+ req = raw_string(0x00, 0x00,
+ 		  len_hi, len_lo, 0xFF, 0x53, 0x4D, 0x42, 0x25, 0x00,
+		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80)
+		  +
+		  magic1 +
+		 raw_string(
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00,tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, x_lo, x_hi, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, x_lo, x_hi, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -689,7 +1325,7 @@ function registry_get_key(soc, uid, tid, pipe, key, reply)
  {
   magic = magic + raw_string(ord(reply[84+i]));
  }
- 
+
  x = strlen(key) + strlen(key) + 2;
  x_lo = x % 256;
  x_hi = x / 256;
@@ -714,7 +1350,7 @@ function registry_get_key(soc, uid, tid, pipe, key, reply)
      _na_data = _na_data + r[_na_start + _na_cnt];
 
  # access denied, returned by Windows XP+
- if (_na_data == raw_string(0x05,0x00,0x00,0x00))
+ if (_na_data == raw_string(0x05,0x00,0x00,0x00) || _na_data == raw_string(0x02, 0x00, 0x00, 0x00))
     return(FALSE);
 
  if(ord(r[9])==0)return(r);
@@ -832,7 +1468,7 @@ function registry_get_key_security(soc, uid, tid, pipe, reply)
 		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x00, 0x83,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x3C, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x3C, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x3C, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -865,7 +1501,7 @@ function registry_get_key_security(soc, uid, tid, pipe, reply)
 		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x00, 0x83,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x48, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x48, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x48, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -889,15 +1525,13 @@ function registry_get_key_security(soc, uid, tid, pipe, reply)
 }
 
  
-		 
 #---------------------------------------------------------------------#
-# returns 'TRUE' if <key> is writeable				      #
+# returns 'TRUE' if <key> exists				      #
 #---------------------------------------------------------------------#
-
-
-function registry_get_acl(key)
+function registry_key_exists(key)
 {
  local_var name, domain, _smb_port, login, pass, soc, r, uid, tid, pipe, ret, prot;
+ local_var magic, flag, i;
  
 name =  kb_smb_name();
 if(!name)exit(0);
@@ -918,6 +1552,7 @@ if(!pass) pass = "";
 
 	  
 soc = open_sock_tcp(_smb_port);
+if ( ! soc ) return NULL;
 
 #
 # Request the session
@@ -953,7 +1588,7 @@ if(!tid)return(NULL);
 #
 # Create a pipe to \winreg
 #
-r = smbntcreatex(soc:soc, uid:uid, tid:tid);
+r = smbntcreatex(soc:soc, uid:uid, tid:tid, name:"\winreg");
 if(!r)return(NULL);
 # and extract its ID
 pipe = smbntcreatex_extract_pipe(reply:r);
@@ -966,17 +1601,112 @@ pipe = smbntcreatex_extract_pipe(reply:r);
 
 r = pipe_accessible_registry(soc:soc, uid:uid, tid:tid, pipe:pipe);
 if(!r)return(FALSE);
-r = registry_access_step_1(soc:soc, uid:uid, tid:tid, pipe:pipe);
-if(strlen(key))
-{
+r = registry_open_hklm(soc:soc, uid:uid, tid:tid, pipe:pipe);
 r2 = registry_get_key(soc:soc, uid:uid, tid:tid, pipe:pipe, key:key, reply:r);
+close(soc);
+registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r2);
+registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r);
+if ( ! r2 && strlen(r2) < 104) return NULL;
+flag = 0;
+for(i=1;i<20;i=i+1)
+ {
+  if ( ord(r2[84+i]) != 0 ) flag = 1;
+ }
+
+if ( flag ) return TRUE;
+else return NULL;
+
 }
-else r2 = r;
+		 
+#---------------------------------------------------------------------#
+# returns 'TRUE' if <key> is writeable				      #
+#---------------------------------------------------------------------#
+
+
+function registry_get_acl(key)
+{
+ local_var name, domain, _smb_port, login, pass, soc, r, uid, tid, pipe, ret, prot;
+ 
+name =  kb_smb_name();
+if(!name)exit(0);
+
+
+domain = kb_smb_domain();
+_smb_port = kb_smb_transport();
+if(!_smb_port)exit(0);
+
+
+if(!get_port_state(_smb_port))return(FALSE);
+
+login = kb_smb_login();
+pass  = kb_smb_password();
+
+if(!login)login = "";
+if(!pass) pass = "";
+
+	  
+soc = open_sock_tcp(_smb_port);
+if ( ! soc ) return NULL;
+
+#
+# Request the session
+# 
+r = smb_session_request(soc:soc,  remote:name);
+if(!r)return(FALSE);
+
+#
+# Negociate the protocol
+#
+prot = smb_neg_prot(soc:soc);
+if(!prot)return(FALSE);
+
+
+#
+# Set up our session
+#
+r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
+if(!r)return(FALSE);
+# and extract our uid
+uid = session_extract_uid(reply:r);
+
+
+#
+# Connect to the remote IPC and extract the TID
+# we are attributed
+#      
+r = smb_tconx(soc:soc, name:name, uid:uid, share:"IPC$");
+# and extract our tree id
+tid = tconx_extract_tid(reply:r);
+if(!tid)return(NULL);
+
+#
+# Create a pipe to \winreg
+#
+r = smbntcreatex(soc:soc, uid:uid, tid:tid, name:"\winreg");
+if(!r)return(NULL);
+# and extract its ID
+pipe = smbntcreatex_extract_pipe(reply:r);
+
+#
+# Setup things
+#
+
+
+
+r = pipe_accessible_registry(soc:soc, uid:uid, tid:tid, pipe:pipe);
+if(!r)return(FALSE);
+r = registry_open_hklm(soc:soc, uid:uid, tid:tid, pipe:pipe);
+if(strlen(key))
+ r2 = registry_get_key(soc:soc, uid:uid, tid:tid, pipe:pipe, key:key, reply:r);
+else 
+ r2 = r;
 
 
 if(r2)
  {
  r3 =  registry_get_key_security(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r2);
+ registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r2);
+ if ( strlen(key) )  registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r);
  close(soc);
  
  if(strlen(r3) < 100)return(NULL);
@@ -1003,9 +1733,35 @@ function unicode2(data)
  return(ret);
 }
 
+function unicode3(data)
+{
+ len = strlen(data);
+ ret = raw_string(0, ord(data[0]));
+ 
+ for(i=1;i<len;i=i+1)
+ {
+  ret = ret + raw_string(0, ord(data[i]));
+ }
+ if(len & 1)ret = ret + raw_string(0x00, 0x00); 
+ else ret = ret + raw_string(0x00, 0x00, 0x00, 0x00);
+ return(ret);
+}
+function unicode4(data)
+{
+ len = strlen(data);
+ ret = raw_string(0, ord(data[0]));
+ 
+ for(i=1;i<len;i=i+1)
+ {
+  ret = ret + raw_string(ord(data[i]),0);
+ }
+ if(len & 1)ret = ret + raw_string(0x00); 
+ return(ret);
+}
 
 function registry_get_item_sz(soc, uid, tid, pipe, item, reply)
 {
+ local_var i;
  item_len = strlen(item) + 1;
  item_len_lo = item_len % 256;
  item_len_hi = item_len / 256;
@@ -1038,7 +1794,7 @@ function registry_get_item_sz(soc, uid, tid, pipe, item, reply)
 		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x1D, 0x83,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
-		  0x00, 0x00, 0x10, 0x00, 0x00, z_lo, z_hi, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, z_lo, z_hi, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, z_lo, z_hi, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -1085,8 +1841,10 @@ function registry_get_item_sz(soc, uid, tid, pipe, item, reply)
 # Decode the reply from the registry                   #
 #------------------------------------------------------#
 
-function registry_decode_sz(data)
+function registry_decode_binary(data)
 {
+ local_var i, o, len, index;
+
  len = ord(data[2])*256;
  len = len + ord(data[3]);
  if(len < 130)return(NULL);
@@ -1096,6 +1854,32 @@ function registry_decode_sz(data)
  data_len = ord(data[data_offset+43]);
  data_len = data_len * 256;
  data_len = data_len + ord(data[data_offset+44]);
+ index = data_offset + 48;
+ o = "";
+ data_len = data_len - 2;
+ for(i=0;i<data_len;i=i+1)
+ {
+   o = string(o, raw_string(ord(data[index+i])));
+ }
+ return(o);
+}
+
+
+
+function registry_decode_sz(data)
+{
+ local_var i, o, len, index;
+
+ len = ord(data[2])*256;
+ len = len + ord(data[3]);
+ if(len < 128)return(NULL);
+ 
+ data_offset = ord(data[52])*256;
+ data_offset = data_offset + ord(data[51]) + 4;
+ data_len = ord(data[data_offset+47]);
+ data_len = data_len * 256 + ord(data[data_offset+46]);
+ data_len = data_len * 256 + ord(data[data_offset+45]);
+ data_len = data_len * 256 + ord(data[data_offset+44]);
  index = data_offset + 48;
  o = "";
  data_len = data_len - 2;
@@ -1114,6 +1898,9 @@ function registry_decode_sz(data)
 
 function registry_get_item_dword(soc, uid, tid, pipe, item, reply)
 {
+ local_var item_len, item_len_lo, item_len_hi, uc2, len, len_lo, len_hi, tid_low, tid_high, uid_low, uid_high;
+ local_var pipe_low, pipe_high, bcc, bcc_lo, bcc_hi, y, y_lo, y_hi, z, z_lo, z_hi, req;
+ local_var magic, x, x_lo, x_hi;
  item_len = strlen(item) + 1;
  item_len_lo = item_len % 256;
  item_len_hi = item_len / 256;
@@ -1146,7 +1933,7 @@ function registry_get_item_dword(soc, uid, tid, pipe, item, reply)
 		  0x00, 0x00, 0x00, 0x18, 0x03, 0x80, 0x1D, 0x83,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_low, tid_high, 0x00, 0x28, uid_low, uid_high,
-		  0x00, 0x00, 0x10, 0x00, 0x00, z_lo, z_hi, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, z_lo, z_hi, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, z_lo, z_hi, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -1225,6 +2012,7 @@ function registry_get_dword(key, item)
 {
  local_var name, port, login, pass, soc, dom, r, prot, value;
  
+ if ( get_kb_item("SMB/samba") ) exit(0);
  
  port = kb_smb_transport();
  if(!port)exit(0);
@@ -1250,20 +2038,20 @@ if(!pass) pass = "";
  # Request the session
  # 
  r = smb_session_request(soc:soc,  remote:name);
- if(!r)return NULL;
+ if(!r){ close(soc); return NULL;}
 
  #
  # Negociate the protocol
  #
  prot = smb_neg_prot(soc:soc);
- if(!prot) return NULL;
+ if(!prot) { close(soc); return NULL;}
 
 
  #
  # Set up our session
  #
  r = smb_session_setup(soc:soc, login:login, password:pass, domain:dom, prot:prot);
- if(!r)return NULL;
+ if(!r){ close(soc); return NULL;}
  # and extract our uid
  uid = session_extract_uid(reply:r);
 
@@ -1279,8 +2067,8 @@ if(!pass) pass = "";
  #
  # Create a pipe to \winreg
  #
- r = smbntcreatex(soc:soc, uid:uid, tid:tid);
- if(!r)return(NULL);
+ r = smbntcreatex(soc:soc, uid:uid, tid:tid, name:"\winreg");
+ if(!r){ close(soc); return(NULL); }
  # and extract its ID
  pipe = smbntcreatex_extract_pipe(reply:r);
 
@@ -1288,26 +2076,31 @@ if(!pass) pass = "";
  # Setup things
  #
  r = pipe_accessible_registry(soc:soc, uid:uid, tid:tid, pipe:pipe);
- if(!r)return(NULL);
- r = registry_access_step_1(soc:soc, uid:uid, tid:tid, pipe:pipe);
+ if(!r){ close(soc); return(NULL); }
+ r = registry_open_hklm(soc:soc, uid:uid, tid:tid, pipe:pipe);
 
  r2 = registry_get_key(soc:soc, uid:uid, tid:tid, pipe:pipe, key:key, reply:r);
  if(r2)
  {
  r3 =  registry_get_item_dword(soc:soc, uid:uid, tid:tid, pipe:pipe, item:item, reply:r2);
+ registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r2);
+ registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r);
  value = registry_decode_dword(data:r3);
+ close(soc);
  return(value); 
  }
+ close(soc);
+ return NULL;
 }
 			  
-		 
 #---------------------------------------------------------------------#
-# registry_get_sz()						      #
+# registry_get_binary()						      #
 #---------------------------------------------------------------------#
-
-
-function registry_get_sz(key, item)
+function registry_get_binary(key, item)
 {
+ local_var name, _smb_port, login, pass, domain, soc, uid, tid, r, prot, pipe;
+
+if ( get_kb_item("SMB/samba") ) exit(0);
 
 name = kb_smb_name();
 if(!name)exit(0);
@@ -1333,20 +2126,20 @@ if(!soc)return(FALSE);
 # Request the session
 # 
 r = smb_session_request(soc:soc,  remote:name);
-if(!r)return(FALSE);
+if(!r) { close(soc); return(FALSE); }
 
 #
 # Negociate the protocol
 #
 prot = smb_neg_prot(soc:soc);
-if(!prot)return(FALSE);
+if(!prot){ close(soc); return(FALSE); }
 
 
 #
 # Set up our session
 #
 r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r)return(FALSE);
+if(!r){ close(soc); return(FALSE); }
 # and extract our uid
 uid = session_extract_uid(reply:r);
 
@@ -1357,13 +2150,13 @@ uid = session_extract_uid(reply:r);
 r = smb_tconx(soc:soc, name:name, uid:uid, share:"IPC$");
 # and extract our tree id
 tid = tconx_extract_tid(reply:r);
-if(!tid)return(FALSE);
+if(!tid){ close(soc); return(FALSE); }
 
 #
 # Create a pipe to \winreg
 #
-r = smbntcreatex(soc:soc, uid:uid, tid:tid);
-if(!r)return(FALSE);
+r = smbntcreatex(soc:soc, uid:uid, tid:tid, name:"\winreg");
+if(!r){ close(soc); return(FALSE);}
 # and extract its ID
 pipe = smbntcreatex_extract_pipe(reply:r);
 
@@ -1371,17 +2164,110 @@ pipe = smbntcreatex_extract_pipe(reply:r);
 # Setup things
 #
 r = pipe_accessible_registry(soc:soc, uid:uid, tid:tid, pipe:pipe);
-if(!r)return(FALSE);
-r = registry_access_step_1(soc:soc, uid:uid, tid:tid, pipe:pipe);
+if(!r){ close(soc); return(FALSE); }
+r = registry_open_hklm(soc:soc, uid:uid, tid:tid, pipe:pipe);
 
 r2 = registry_get_key(soc:soc, uid:uid, tid:tid, pipe:pipe, key:key, reply:r);
 if(r2)
 {
  r3 =  registry_get_item_sz(soc:soc, uid:uid, tid:tid, pipe:pipe, item:item, reply:r2);
+ registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r2);
+ registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r);
+ value = registry_decode_binary(data:r3);
+ close(soc);
+ return(value);
+}
+close(soc);
+return(FALSE);
+}
+		 
+#---------------------------------------------------------------------#
+# registry_get_sz()						      #
+#---------------------------------------------------------------------#
+
+
+function registry_get_sz(key, item)
+{
+ local_var name, _smb_port, login, pass, domain, soc, uid, tid, r, prot, pipe;
+
+if ( get_kb_item("SMB/samba") ) exit(0);
+
+name = kb_smb_name();
+if(!name)exit(0);
+
+_smb_port = kb_smb_transport();
+if(!_smb_port)exit(0);
+
+if(!get_port_state(_smb_port))return(FALSE);
+
+login = kb_smb_login();
+pass  = kb_smb_password();
+
+domain = kb_smb_domain();
+
+if(!login)login = "";
+if(!pass) pass = "";
+
+	  
+soc = open_sock_tcp(_smb_port);
+if(!soc)return(FALSE);
+
+#
+# Request the session
+# 
+r = smb_session_request(soc:soc,  remote:name);
+if(!r) { close(soc); return(FALSE); }
+
+#
+# Negociate the protocol
+#
+prot = smb_neg_prot(soc:soc);
+if(!prot){ close(soc); return(FALSE); }
+
+
+#
+# Set up our session
+#
+r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
+if(!r){ close(soc); return(FALSE); }
+# and extract our uid
+uid = session_extract_uid(reply:r);
+
+#
+# Connect to the remote IPC and extract the TID
+# we are attributed
+#      
+r = smb_tconx(soc:soc, name:name, uid:uid, share:"IPC$");
+# and extract our tree id
+tid = tconx_extract_tid(reply:r);
+if(!tid){ close(soc); return(FALSE); }
+
+#
+# Create a pipe to \winreg
+#
+r = smbntcreatex(soc:soc, uid:uid, tid:tid, name:"\winreg");
+if(!r){ close(soc); return(FALSE);}
+# and extract its ID
+pipe = smbntcreatex_extract_pipe(reply:r);
+
+#
+# Setup things
+#
+r = pipe_accessible_registry(soc:soc, uid:uid, tid:tid, pipe:pipe);
+if(!r){ close(soc); return(FALSE); }
+r = registry_open_hklm(soc:soc, uid:uid, tid:tid, pipe:pipe);
+
+r2 = registry_get_key(soc:soc, uid:uid, tid:tid, pipe:pipe, key:key, reply:r);
+if(r2)
+{
+ r3 =  registry_get_item_sz(soc:soc, uid:uid, tid:tid, pipe:pipe, item:item, reply:r2);
+ registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r2);
+ registry_close(soc:soc, uid:uid, tid:tid, pipe:pipe, reply:r);
  value = registry_decode_sz(data:r3);
  close(soc);
  return(value);
 }
+close(soc);
 return(FALSE);
 }
 
@@ -1406,7 +2292,7 @@ function OpenPipeToSamr(soc, uid, tid)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x18, 0xFF, 0x00, 0xDE, 0xDE, 0x00,
+		  g_mlo, g_mhi, 0x18, 0xFF, 0x00, 0xDE, 0xDE, 0x00,
 		  0x0A, 0x00, 0x16, 0x00, 0x00, 0x00, 0x00, 0x00, 
 		  0x00, 0x00, 0x9F, 0x01, 0x02, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -1445,7 +2331,7 @@ function samr_smbwritex(soc, tid, uid, pipe)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x0E, 0xFF, 0x00, 0xDE, 0xDE, pipe_lo,
+		  g_mlo, g_mhi, 0x0E, 0xFF, 0x00, 0xDE, 0xDE, pipe_lo,
 		  pipe_hi, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF,
 		  0xFF, 0x08, 0x00, 0x48, 0x00, 0x00, 0x00, 0x48,
 		  0x00, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x49,
@@ -1478,7 +2364,7 @@ function samr_smbreadx(soc, tid, uid, pipe)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x0C, 0xFF, 0x00, 0xDE, 0xDE, pipe_lo,
+		  g_mlo, g_mhi, 0x0C, 0xFF, 0x00, 0xDE, 0xDE, pipe_lo,
 	       pipe_hi, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00,
 		  0x04, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x04, 0x00, 
 		  0x00, 0x00, 0x00, 0x00, 0x00);
@@ -1548,7 +2434,7 @@ function SamrConnect2(soc, tid, uid, pipe, name)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x10, 0x00, 0x00,total_data_count_lo, total_data_count_hi, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00,total_data_count_lo, total_data_count_hi, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, total_data_count_lo, total_data_count_hi, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -1612,7 +2498,7 @@ function _SamrEnumDomains(soc, uid, tid, pipe, samrhdl)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x34, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x34, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x34, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -1698,7 +2584,7 @@ function SamrDom2Sid(soc, tid, uid, pipe, samrhdl, dom)
 		 0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		 0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		 0x00, 0x00, 0x10, 0x00, 0x00, tot_dat_count_lo, tot_dat_count_hi, 0x00,
+		 g_mlo, g_mhi, 0x10, 0x00, 0x00, tot_dat_count_lo, tot_dat_count_hi, 0x00,
 		 0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		 0x00, tot_dat_count_lo, tot_dat_count_hi, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -1761,7 +2647,7 @@ function SamrOpenDomain(soc, tid, uid, pipe, samrhdl, sid)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x4C, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x4C, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x4C, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -1799,6 +2685,49 @@ function SamrOpenDomain(soc, tid, uid, pipe, samrhdl, sid)
 }		  
 
 
+#------------------------------------------------------#
+# NetUserModalsGet - does not work yet		       #
+#------------------------------------------------------#
+function SamrQueryDomainInfo(soc, tid, uid, pipe, samrhdl,  level)
+{
+ #display("sid = ", strlen(sid), "\n");
+ tid_hi = tid / 256;
+ tid_lo = tid % 256;
+ uid_hi = uid / 256;
+ uid_lo = uid % 256;
+ 
+ pipe_hi = pipe / 256;
+ pipe_lo = pipe % 256;
+ 
+ 
+ req = raw_string(0x00, 0x00,
+ 		  0x00, 0x82, 0xFF, 0x53, 0x4D, 0x42, 0x25, 0x00,
+		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x2e, 0x00, 0x00,
+		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
+		  0x00, 0x2e, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
+		  0x00, pipe_lo, pipe_hi, 0x3f, 0x00, 0x00, 0x5C, 0x00,
+		  0x50, 0x00, 0x49, 0x00, 0x50, 0x00, 0x45, 0x00,
+		  0x5C, 0x00, 0x00, 0x00, 0x45, 0x00, 0x05, 0x00,
+		  0x00, 0x03, 0x10, 0x00, 0x00, 0x00, 0x2E, 0x00,
+		  0x00, 0x00, 0x05, 0x00, 0x00, 0x00, 0x16, 0x00,
+		  0x00, 0x00, 0x00, 0x00, 0x08, 0x00) + samrhdl +
+	raw_string(level % 256, level / 256);
+		  
+		  
+		  
+ send(socket:soc, data:req);
+ r = smb_recv(socket:soc, length:4096);
+ if(strlen(r) < 30)
+ 	return(FALSE);
+
+ return r;	
+}		  
+
+
 function SamrOpenBuiltin(soc, tid, uid, pipe, samrhdl)
 {
  tid_hi = tid / 256;
@@ -1814,7 +2743,7 @@ function SamrOpenBuiltin(soc, tid, uid, pipe, samrhdl)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x80, 0x03, 0x10, 0x00, 0x00, 0x40, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x40, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x40, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -1899,7 +2828,7 @@ function SamrLookupNames(soc, uid, tid, pipe, name, domhdl)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x10, 0x00, 0x00, tdc_l, tdc_h, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, tdc_l, tdc_h, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, tdc_l, tdc_h, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -1957,7 +2886,7 @@ function SamrOpenUser(soc, uid, tid, pipe, samrhdl, rid)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x34, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x34, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x34, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -2011,7 +2940,7 @@ function SamrQueryUserGroups(soc, uid, tid, pipe, usrhdl)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x2C, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x2C, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x2C, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26, 
@@ -2070,7 +2999,7 @@ function SamrQueryUserInfo(soc, uid, tid, pipe, usrhdl)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x2E, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x2E, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x2E, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -2122,7 +3051,7 @@ function SamrQueryUserAliases(soc, uid, tid, pipe, usrhdl, sid, rid)
 		  0x00, 0x00, 0x00, 0x18, 0x07, 0xC8, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x10, 0x00, 0x00, 0x5C, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x10, 0x00, 0x00, 0x5C, 0x00, 0x00,
 		  0x00, 0x00, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x54,
 		  0x00, 0x5C, 0x00, 0x54, 0x00, 0x02, 0x00, 0x26,
@@ -2312,7 +3241,7 @@ function OpenAndX(socket, uid, tid, file)
  		  0x4D, 0x42, 0x2D, 0x00, 0x00, 0x00, 0x00, 0x08,
 		  0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, tid_lo, tid_hi,
-		  0x00, 0x28, uid_lo, uid_hi, 0x00, 0x00, 0x0F, 0xFF,
+		  0x00, 0x28, uid_lo, uid_hi, g_mlo, g_mhi, 0x0F, 0xFF,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x40, 0x00, 0x06,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -2321,7 +3250,7 @@ function OpenAndX(socket, uid, tid, file)
 
 
 
- send(socket:soc, data:req);
+ send(socket:socket, data:req);
  rep = smb_recv(socket:socket, length:4096);
  if(strlen(rep) < 65)return(NULL);
  else
@@ -2355,7 +3284,7 @@ function ReadAndX(socket, uid, tid, fid, count, off)
  		  0x4D, 0x42, 0x2E, 0x00, 0x00, 0x00, 0x00, 0x08,
 		  0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, tid_lo, tid_hi,
-		  0x00, 0x28, uid_lo, uid_hi, 0x00, 0x00, 0x0A, 0xFF,
+		  0x00, 0x28, uid_lo, uid_hi, g_mlo, g_mhi, 0x0A, 0xFF,
 		  0x00, 0x00, 0x00, fid_lo, fid_hi, off_lo_lo, off_lo_hi, off_hi_lo, 
 		  off_hi_hi, cnt_lo, cnt_hi, cnt_lo, cnt_hi, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
@@ -2363,8 +3292,8 @@ function ReadAndX(socket, uid, tid, fid, count, off)
  send(socket:socket, data:req);
  r = smb_recv(socket:socket, length:65535);
  ret = "";
- if(strlen(r) < 36 + 28)return(NULL);
- return substr(r, 35+28, strlen(r) - 1);	   
+ if(strlen(r) < 37 + 28)return(NULL);
+ return substr(r, 36+28, strlen(r) - 1);	   
 }
 
 
@@ -2382,7 +3311,7 @@ function smb_get_file_size(socket, uid, tid, fid)
  		  0x4D, 0x42, 0x32, 0x00, 0x00, 0x00, 0x00, 0x08,
 		  0x01, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, tid_lo, tid_hi,
-		  0x00, 0x28, uid_lo, uid_hi, 0x00, 0x00, 0x0F, 0x04,
+		  0x00, 0x28, uid_lo, uid_hi, g_mlo, g_mhi, 0x0F, 0x04,
 		  0x00, 0x00, 0x00, 0x02, 0x00, 0x04, 0x11, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x04, 0x00, 0x44, 0x00, 0x00, 0x00, 0x48,
@@ -2390,7 +3319,7 @@ function smb_get_file_size(socket, uid, tid, fid)
 		  0x44, 0x20, fid_lo, fid_hi, 0x07, 0x01);
 		  
  send(socket:socket, data:req);
- r = smb_recv(socket:soc, length:4096);
+ r = smb_recv(socket:socket, length:4096);
  if(strlen(r) < 112) return -1;
  
  ret = ord(r[115]);			
@@ -2408,11 +3337,12 @@ function smb_get_file_size(socket, uid, tid, fid)
 #
 function FindFirst2(socket, uid, tid, pattern)
 {
- local_var uid_lo, uid_hi, tid_lo, tid_hi, r;
+ local_var uid_lo, uid_hi, tid_lo, tid_hi, r, r2;
  local_var t, nxt, off, name, ret, bcc, bcc_lo, bcc_hi;
  local_var len, len_lo, len_hi;
  local_var unicode_pattern, i;
  local_var data_off, data_off_lo, data_off_hi, bcc2, bcc2_lo, bcc2_hi;
+ local_var eof, search_id, err;
  
  
  if(isnull(pattern))pattern = "\*";
@@ -2444,25 +3374,32 @@ function FindFirst2(socket, uid, tid, pattern)
  		  0x4D, 0x42, 0x32, 0x00, 0x00, 0x00, 0x00, 0x08,
  		  0x01, 0xC0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, tid_lo, tid_hi,
-		  0x00, 0x28, uid_lo, uid_hi, 0x00, 0x00, 0x0F, bcc2_lo,
-		  bcc2_hi, 0x00, 0x00, 0x0A, 0x00, 0x04, 0x41, 0x00,
+		  0x00, 0x28, uid_lo, uid_hi, g_mlo, g_mhi, 0x0F, bcc2_lo,
+		  bcc2_hi, 0x00, 0x00, 0x0A, 0x00, 0x04, 0x11, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, bcc2_lo, bcc2_hi, 0x44, 0x00, 0x00, 0x00, data_off_lo,
 		  data_off_hi, 0x01, 0x00, 0x01, 0x00, bcc_lo, bcc_hi, 0x00,
 		  0x44, 0x20, 0x16, 0x00, 0x00, 0x02, 0x06, 0x00,
 		  0x04, 0x01, 0x00, 0x00, 0x00, 0x00) + unicode_pattern;
-		  
+
  send(socket:soc, data:req);
  r = smb_recv(socket:soc, length:65535);
  if(strlen(r) < 80)return(NULL);
+
+ err = substr(r, 11, 12);
+ if ( hexstr(err) != "0000" ) return NULL;
  
+ search_id = substr(r, 60, 61);
  off = 72;
+ while ( TRUE )
+ {
+ eof = ord(r[64]);
  while(TRUE)
  {
  t = 1;
  nxt = 0;
  
- if(off + i + 4 > strlen(r))break;
+ if(off + i + 4 >= strlen(r))break;
  
  for(i=0;i<4;i++)
  {
@@ -2475,7 +3412,7 @@ function FindFirst2(socket, uid, tid, pattern)
  t = 1;
  len = 0;
  
- if( off+4+4+8+8+8+8+8+8+4+i+4 > strlen(r))break;
+ if( off+4+4+8+8+8+8+8+8+4+i+4 >= strlen(r))break;
  
  for(i=0;i<4;i++)
  {
@@ -2484,11 +3421,14 @@ function FindFirst2(socket, uid, tid, pattern)
  }
 
 
- if(len > strlen(r))break;
+ if(len >= strlen(r)) break;
+	
  
  name = NULL;
  
- if(off+4+4+8+8+8+8+8+8+4+4+4+1+1+24+i+len >  strlen(r)) break;
+ if(off+4+4+8+8+8+8+8+8+4+4+1+1+24+i+len >  strlen(r)) 
+	 break;
+
  for(i=0;i<len;i+=2)
  {
  name += r[off+4+4+8+8+8+8+8+8+4+4+4+1+1+24+i];
@@ -2506,6 +3446,66 @@ function FindFirst2(socket, uid, tid, pattern)
  if(nxt == 0)break;
  if((off >= strlen(r)) || off < 0 )return ret;
  }
+  if ( eof ) break;
+  else {
+    req = raw_string(0x00, 0x00, 0x00, 0x52, 0xff, 0x53, 0x4d, 0x42,
+		     0x32, 0x00, 0x00, 0x00, 0x00, 0x08, 0x01, 0xC0,
+		     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		     0x00, 0x00, 0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28,
+		     uid_lo, uid_hi, g_mlo, g_mhi, 0x0f, 0x0e, 0x00, 0x00,
+		     0x00, 0x0a, 0x00, 0x04, 0x11, 0x00, 0x00, 0x00, 
+		     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0e,
+		     0x00, 0x44, 0x00, 0x00, 0x00, 0x52, 0x00, 0x01,
+		     0x00, 0x02, 0x00, 0x11, 0x00, 0x00, 0x44, 0x20) + search_id + raw_string(0x00, 0x02, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x0e, 0x00, 0x00, 0x00);
+
+  send(socket:soc, data:req);
+  r = smb_recv(socket:soc, length:65535);
+  err = substr(r, 11, 12);
+  if ( hexstr(err) != "0000" ) return NULL;
+  if ( strlen(r) <= 64  && hexstr(substr(r, 9, 12)) == "00000000" ) r = smb_recv(socket:soc, length:65535);
+  else if ( strlen(r) <= 64 ) break;
+  off = 68;
+  }
+ }
 
  return ret;
 }
+
+
+
+
+
+function GetFileVersion(socket, uid, tid, fid)
+{
+ local_var i, fsize, data, off, tmp, version, v, len;
+
+ fsize = smb_get_file_size(socket:socket, uid:uid, tid:tid, fid:fid);
+ if  ( fsize < 720896 ) 
+	off = 0;
+ else 
+	off = fsize - 720896 ;
+
+
+ for ( i = 0 ; off < fsize ; i ++ )
+ {
+   tmp = ReadAndX(socket:soc, uid:uid, tid:tid, fid:fid, count:16384, off:off); 
+   tmp = str_replace(find:raw_string(0), replace:"", string:tmp);
+   data += tmp;
+   version = strstr(data, "ProductVersion");
+   if ( version )
+   {
+     len = strlen(version);
+     for(i=strlen("ProductVersion");i<len;i++)
+     {
+      if((ord(version[i]) < ord("0") || ord(version[i]) > ord("9")) && version[i] != ".")
+	return (v);
+      else 
+        v += version[i];
+     }
+   }
+   off += 16384;
+ }
+
+ return NULL;
+}
+

@@ -7,8 +7,9 @@
 if(description)
 {
    script_id(10760);
- script_version ("$Revision: 1.7 $");
- script_bugtraq_id(2568);
+   script_cve_id("CVE-2001-1424", "CVE-2001-1425");
+   script_bugtraq_id(2568);
+   script_version ("$Revision: 1.11 $");
    name["english"] = "Alcatel ADSL modem with firewalling off";
    name["francais"] = "Modem ADSL Alcatel avec Firewalling off";
    script_name(english:name["english"]);
@@ -63,6 +64,10 @@ Facteur de risque : Elevé";
  
    exit(0);
 }
+
+include('global_settings.inc');
+
+if ( ! thorough_tests && ! ereg(pattern:"^10\.0\.0\..*", string:get_host_ip())) exit(0);
 
 port = 23; # alcatel's ADSL modem telnet module can't bind to something else
 

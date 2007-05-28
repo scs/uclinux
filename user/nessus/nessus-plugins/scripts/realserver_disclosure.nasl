@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(10554);
- script_version ("$Revision: 1.11 $");
- script_cve_id("CVE-2000-1181");
  script_bugtraq_id(1957);
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-2000-1181");
  
  name["english"] = "RealServer Memory Content Disclosure";
  name["francais"] = "RealServer donne le contenu de sa mémoire";
@@ -62,17 +62,23 @@ Facteur de risque : Elevé";
 
  script_require_ports(7070, "Services/realserver");
  script_dependencies("find_service.nes");
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 
 include("http_func.inc");
+include('global_settings.inc');
+
+if ( ! thorough_tests )exit(0);
 
 port7070 = get_kb_item("Services/realserver");
 if(!port7070)port7070 = 7070;
 
 if(get_port_state(port7070))
 {
+  if ( ! get_http_banner(port:port7070) ) exit(0);
+
   req = http_get(item:"/admin/includes", port:port7070);
   soc = http_open_socket(port7070);
   if(soc)
@@ -86,10 +92,9 @@ if(get_port_state(port7070))
     soc = http_open_socket(port7070);
     send(socket:soc, data:req);
     r = recv_line(socket:soc, length:4096);
-    flag = 0;
-    headers = http_recv_headers(soc);
+    headers = http_recv_headers2(socket:soc);
     body = http_recv_body(socket:soc, headers:headers, length:0);
-    if("application/octet-stream" >< headers) flag = 1;
+    if("application/octet-stream" >!< headers) exit(0);
     http_close_socket(soc);
     if(strlen(body) > 2)
       security_hole(port7070);

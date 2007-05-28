@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_reply.h,v 1.13.6.1 2003/12/02 15:34:39 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

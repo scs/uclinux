@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xjab_jcon.c,v 1.10 2003/06/02 15:42:21 dcm Exp $
  *
  * eXtended JABber module - functions used for SIP 2 JABBER communication
  *

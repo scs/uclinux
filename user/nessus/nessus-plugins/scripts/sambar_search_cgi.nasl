@@ -7,9 +7,9 @@
 if(description)
 {
   script_id(10514);
- script_version ("$Revision: 1.12 $");
- script_bugtraq_id(1684);
-  script_cve_id("CAN-2000-0835");
+  script_bugtraq_id(1684);
+ script_version ("$Revision: 1.15 $");
+  script_cve_id("CVE-2000-0835");
   
   name["english"] = "Directory listing through Sambar's search.dll";
   name["francais"] = "Listing du contenu d'un repertoire avec search.dll de Sambar";
@@ -63,8 +63,8 @@ Solution : désactivez ce CGI ou mettez Sambar à jour en 4.4b4";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {

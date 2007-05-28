@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: rule.c,v 1.2 2003/05/23 15:59:56 andrei Exp $
  *
  * PERMISSIONS module
  *

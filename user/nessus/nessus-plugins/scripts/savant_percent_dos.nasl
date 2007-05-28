@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10633);
- script_version ("$Revision: 1.7 $");
  script_bugtraq_id(2468);
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "Savant DoS";
  name["francais"] = "Déni de service Savant";
@@ -65,8 +65,8 @@ Facteur de risque : Elevé";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
   if(http_is_dead(port:port))exit(0);

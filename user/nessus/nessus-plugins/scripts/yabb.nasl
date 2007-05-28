@@ -7,49 +7,52 @@
 if(description)
 {
  script_id(10512);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1668);
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-2000-0853");
- name["english"] = "YaBB";
- name["francais"] = "YaBB";
- script_name(english:name["english"], francais:name["francais"]);
+ name["english"] = "YaBB Information Disclosure";
+ script_name(english:name["english"]);
  
- desc["english"] = "The 'YaBB.pl' CGI is installed. This CGI has
-a well known security flaw that lets an attacker read arbitrary
-files with the privileges of the http daemon (usually root or nobody).
+ desc["english"] = "
+Synopsis :
 
-Solution : remove 'YaBB.pl' from /cgi-bin or upgrade to the latest version.
+The remote web server contains a CGI script that suffers from an
+information disclosure vulnerability. 
 
-Risk factor : Serious";
+Description :
 
+The 'YaBB.pl' CGI script is installed on the remote host.  This script
+has a well known security flaw that lets an attacker read arbitrary
+files with the privileges of the http daemon (usually root or nobody). 
 
- desc["francais"] = "Le cgi 'YaBB.pl' est installé. Celui-ci possède
-un problème de sécurité bien connu qui permet à n'importe qui de 
-faire lire des fichiers  arbitraires au daemon http, avec les privilèges
-de celui-ci (root ou nobody). 
+See also :
 
-Solution : retirez-le de /cgi-bin ou mettez-le à jour 
+http://archives.neohapsis.com/archives/bugtraq/2000-09/0072.html
 
-Facteur de risque : Sérieux";
+Solution :
 
+Remove 'YaBB.pl' or upgrade to the latest version.
 
- script_description(english:desc["english"], francais:desc["francais"]);
+Risk factor : 
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
+
+ script_description(english:desc["english"]);
  
- summary["english"] = "Checks for the presence of /cgi-bin/YaBB.pl";
- summary["francais"] = "Vérifie la présence de /cgi-bin/YaBB.pl";
+ summary["english"] = "Checks for the presence of YaBB.pl";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
  family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_family(english:family["english"]);
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -59,17 +62,21 @@ Facteur de risque : Sérieux";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
+
+if (thorough_tests) dirs = make_list("/yabb", "/forum", cgi_dirs());
+else dirs = make_list(cgi_dirs());
 
 foreach dir (cgi_dirs())
 {
  req = string(dir, "/YaBB.pl?board=news&action=display&num=../../../../../../etc/passwd%00");
  req = http_get(item:req, port:port);
- r = http_keepalive_send_recv(port:port, data:req);
+ r = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
  if(egrep(pattern:".*root:.*:0:[01]:.*", string:r))
- 	security_hole(port);
+ 	security_warning(port);
 }

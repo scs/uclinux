@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11633);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "lovgate virus is installed";
 
@@ -33,7 +33,7 @@ Risk : High";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+# script_dependencie("find_service.nes");
  script_require_ports(10168, 1192, 20168);
  exit(0);
 }
@@ -45,19 +45,11 @@ Risk : High";
 ports = make_list(10168, 1192, 20168);
 foreach port (ports)
 {
- if(get_port_state(port))
- {
-  soc = open_sock_tcp(port);
-  if(soc)
-  {
-   r = recv(socket:soc, length:4192);
-   close(soc);
-   if(r)
+ r = get_kb_item("FindService/tcp/" + port + "/spontaneous");
+ if(r)
    {
     if("Microsoft Windows" >< r &&
        "(C) Copyright 1985-" >< r &&
        "Microsoft Corp." >< r){security_hole(port); exit(0);}
    }
-  }
- }
 }

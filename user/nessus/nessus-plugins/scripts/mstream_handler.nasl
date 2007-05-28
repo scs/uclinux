@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10391);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CAN-2000-0138");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2000-0138");
  
  name["english"] = "mstream handler Detect";
  name["francais"] = "Detection d'un handler mstream";
@@ -69,10 +69,15 @@ Facteur de risque : Critique";
 
  script_require_ports(6723, 15104, 12754); 
  script_dependencies("find_service.nes");
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 include("misc_func.inc");
+include('global_settings.inc');
+if ( islocalhost() ) exit(0);
+if (!  thorough_tests ) exit(0);
+
 
 function check(port, pass)
 {
@@ -94,10 +99,9 @@ function check(port, pass)
   return(0);
 }
 
-port = get_kb_item("Services/unknown");
+port = get_unknown_svc();
 if(port)
 {
- if (known_service(port: port)) exit(0);
  if(check(port:port, pass:"sex"))exit(0);
  if(check(port:port, pass:"N7%diApf!"))exit(0);
 }

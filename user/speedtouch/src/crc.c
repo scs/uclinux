@@ -19,7 +19,7 @@
 *  Author : Edouard Gomez (ed.gomez@free.fr)
 *  Creation : 08/08/2001
 *
-* $Id$
+* $Id: crc.c,v 1.5 2003/04/14 23:30:54 edgomez Exp $
 */
 
 #ifndef _CRC_C_

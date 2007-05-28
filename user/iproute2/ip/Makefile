@@ -10,8 +10,8 @@ ALLOBJ=$(IPOBJ) $(ADDOBJ) $(RTOBJ)
 
 all: ip rtmon rtacct
 
-ip: $(IPOBJ) $(LIBNETLINK) $(LIBUTIL)
-	$(CC) $(LDFLAGS) -o $@ $(IPOBJ) $(LIBNETLINK) $(LIBUTIL) $(LDLIBS$(LDLIBS_$@))
+ip: $(IPOBJ) $(LIBNETLINK)
+	$(CC) $(LDFLAGS) -o $@ $(IPOBJ) $(LIBNETLINK) $(LDLIBS$(LDLIBS_$@))
 
 rtmon: $(RTMONOBJ) $(LIBNETLINK)
 	$(CC) $(LDFLAGS) -o $@ $(RTMONOBJ) $(LIBNETLINK) $(LDLIBS$(LDLIBS_$@))

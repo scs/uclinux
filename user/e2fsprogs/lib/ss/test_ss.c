@@ -2,10 +2,10 @@
  *------------------------------------------------------------------
  *
  * $Source: /cvs/sw/new-wave/user/e2fsprogs/lib/ss/test_ss.c,v $
- * $Revision$
- * $Date$
+ * $Revision: 1.1.1.2 $
+ * $Date: 2006/09/06 01:35:43 $
  * $State: Exp $
- * $Author$
+ * $Author: steveb $
  * $Locker:  $
  *
  * $Log: test_ss.c,v $

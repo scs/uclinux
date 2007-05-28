@@ -7,20 +7,20 @@
 if(description)
 {
  script_id(10274);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(952);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-2000-0113");
  
  name["english"] = "SyGate Backdoor";
  script_name(english:name["english"]);
  
  desc["english"] = "
-SyGate engine remote controller seems to be running on
-this port. It may be used by malicious users which
-are on the same subnet as yours to reconfigure your
-Sybase engine.
+SyGate engine remote controller seems to be running on this port. 
+It may be used by malicious users which are on the same subnet as this host
+to reconfigure the remote SyGate engine.
 
-Risk factor : Serious";
+Solution : Filter incoming traffic to this port
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -40,15 +40,10 @@ Risk factor : Serious";
 # The script code starts here
 #
 
+include('telnet_func.inc');
 port = 7323;
 if (get_port_state(port))
 {
- soc = open_sock_tcp(port);
-
- if (soc)
- {
-   banner = telnet_init(soc);
-   if("yGate" >< banner)security_hole(port);
- }
- close(soc);
+ banner = get_telnet_banner(port:port);
+ if("yGate" >< banner)security_hole(port);
 }

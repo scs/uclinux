@@ -402,8 +402,7 @@ static int set_options(int argc, char **argv, const char *short_opts,
 	/*
 	 * optind is a global extern used by getopt. Since we can call
 	 * set_options twice (once for command line, and once for config
-	 * file) we have to reset this back to 1. [Note glibc handles
-	 * setting this to 0, but klibc does not.]
+	 * file) we have to reset this back to 1.
 	 */
 	optind = 1;
 	while (1) {
@@ -680,7 +679,7 @@ static int scsi_id(const char *devpath, char *maj_min_dev)
 			if (reformat_serial)
 				format_serial(serial);
 			if (display_bus_id)
-				printf("%s: ", dev_scsi->kernel_name);
+				printf("%s: ", dev_scsi->kernel);
 			printf("%s\n", serial);
 		}
 		dbg("%s\n", serial);

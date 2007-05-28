@@ -1,5 +1,5 @@
 .\"
-.\"   $Id$
+.\"   $Id: radvd.conf.5.man,v 1.7 2002/06/21 11:57:15 psavola Exp $
 .\"
 .\"   Authors:
 .\"    Lars Fenneberg		<lf@elemental.net>

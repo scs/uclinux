@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(11722);
- script_version ("$Revision: 1.4 $");
- script_cve_id("CAN-2001-1150");
  script_bugtraq_id(3216);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-1150");
  
  
  name["english"] = "cgiWebupdate.exe vulnerability";
@@ -30,7 +30,7 @@ Solution : remove it from the cgi-bin or scripts folder.
 *** this might be a false positive
 
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -49,6 +49,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -58,9 +59,12 @@ Risk factor : Serious";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 flag = 0;

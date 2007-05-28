@@ -7,20 +7,33 @@
 if(description)
 {
  script_id(11395);
- script_version ("$Revision: 1.3 $");
- script_cve_id("CAN-2000-0746");
  script_bugtraq_id(1594, 1595);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2000-0746");
 
  name["english"] = "Microsoft Frontpage XSS";
  script_name(english:name["english"]);
 
  desc["english"] = "
-The remote server is vulnerable to Cross-Site-Scripting (XSS)
-when the FrontPage CGI /_vti_bin/shtml.dll is fed with improper
-arguments.
+Synopsis :
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-060.asp
-Risk factor : Medium";
+The remote web server is vulnerable to a cross site scripting attack.
+
+Description :
+
+The remote web server is running with Front Page extensions.
+The remote version of the FrontPage extensions are vulnerable to 
+a cross site scripting issue when the CGI /_vti_bin/shtml.dll is 
+provided with improper parameters.
+
+Solution : 
+
+http://www.microsoft.com/technet/security/bulletin/ms00-060.mspx
+
+Risk factor : 
+
+Low / CVSS Base Score : 3
+(AV:R/AC:H/Au:NR/C:P/A:N/I:N/B:C)";
 
 
 
@@ -32,14 +45,11 @@ Risk factor : Medium";
  script_category(ACT_GATHER_INFO);
 
 
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "cross_site_scripting.nasl");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "CGI abuses : XSS";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl", "cross_site_scripting.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -50,14 +60,16 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
+if(!get_port_state(port))exit(0);
 
-req = http_get(item:"/_vti_bin/shtml.exe/<script>alert(document.domain)</script>", port:port);
+banner = get_http_banner(port:port);
+if ( banner && "IIS" >!< banner ) exit(0);
 
-res = http_keepalive_send_recv(port:port, data:req, bodyonly:1);
+
+req = http_get(item:"/_vti_bin/shtml.dll/<script>alert(document.domain)</script>", port:port);
+res = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
 if( res == NULL ) exit(0);
 
-if("<script>alert(document.domain)</script>" >< res)security_warning(port);
+if("<script>alert(document.domain)</script>" >< res)security_note(port);

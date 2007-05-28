@@ -3,13 +3,11 @@
 #
 # GPL
 #
-# References: http://www.securiteam.com/exploits/6S0022A6AA.html
-#
 
 if(description)
 {
  script_id(11190);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "overflow.cgi detection";
  script_name(english:name["english"]);
@@ -47,5 +45,13 @@ Risk factor : High";
 
 #
 
-port = is_cgi_installed("/cgi-bin/.cobalt/overflow/overflow.cgi");
-if(port) security_hole(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"/cgi-bin/.cobalt/overflow/overflow.cgi", port:port);
+if(res) security_hole(port);

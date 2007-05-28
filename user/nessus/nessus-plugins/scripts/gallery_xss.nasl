@@ -6,8 +6,9 @@
 if(description)
 {
  script_id(11810);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(8288);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2003-0614");
  name["english"] = "gallery xss";
 
  script_name(english:name["english"]);
@@ -36,11 +37,12 @@ Risk factor : Low";
  
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "cross_site_scripting.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "cross_site_scripting.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -51,11 +53,11 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
-if(http_is_dead(port:port))exit(0);
+if(!can_host_php(port:port)) exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
 
 function check(url)
@@ -72,7 +74,6 @@ if ( r == NULL ) exit(0);
  
 }
 
-check(url:"");
 foreach dir (cgi_dirs())
 {
  check(url:dir);

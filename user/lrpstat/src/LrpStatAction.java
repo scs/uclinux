@@ -15,9 +15,9 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-// $Revision$
-// $Author$
-// $Header$
+// $Revision: 1.6 $
+// $Author: hejl $
+// $Header: /home/cvs/lrpStat/src/LrpStatAction.java,v 1.6 2002/03/12 22:19:13 hejl Exp $
 
 import java.io.BufferedInputStream;
 import java.io.InputStreamReader;

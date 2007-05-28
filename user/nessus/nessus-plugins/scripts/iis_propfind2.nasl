@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10667);
- script_cve_id("CVE-2001-0151");
  script_bugtraq_id(2453);
- script_version ("$Revision: 1.18 $");
+ script_cve_id("CVE-2001-0151");
+ script_version ("$Revision: 1.23 $");
 
  name["english"] = "IIS 5.0 PROPFIND Vulnerability";
  script_name(english:name["english"]);
@@ -26,9 +26,9 @@ Solution : disable the WebDAV extensions, as well as the PROPFIND command
 See 
 http://support.microsoft.com/support/kb/articles/Q241/5/20.ASP
 See also: 
-http://www.microsoft.com/technet/security/bulletin/MS01-016.asp
+http://www.microsoft.com/technet/security/bulletin/MS01-016.mspx
 
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
 
@@ -41,9 +41,8 @@ Risk factor : Serious";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -53,8 +52,10 @@ Risk factor : Serious";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 
 if(!get_port_state(port))exit(0);
 
@@ -87,8 +88,8 @@ Solution : disable the WebDAV extensions, as well as the PROPFIND
 command See 
 http://support.microsoft.com/support/kb/articles/Q241/5/20.ASP
 also:
-http://www.microsoft.com/technet/security/bulletin/MS01-016.asp
-Risk factor : Serious";
+http://www.microsoft.com/technet/security/bulletin/MS01-016.mspx
+Risk factor : High";
 
      security_hole(port:port, data:alrt);
     }

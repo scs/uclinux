@@ -21,7 +21,7 @@
 if(description)
 {
  script_id(11235);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.4 $");
  #script_bugtraq_id(2979);
  #script_cve_id("CVE-2000-0002");
  
@@ -76,8 +76,8 @@ Solution : Mettez à jour votre serveur web.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 

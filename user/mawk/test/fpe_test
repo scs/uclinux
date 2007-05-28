@@ -3,10 +3,7 @@
 # tests if mawk has been compiled to correctly handle
 # floating point exceptions
 #
-# $Log$
-# Revision 1.2  2005/07/25 04:03:16  magicyang
-# New user folder check in
-#
+# $Log: fpe_test,v $
 # Revision 1.3  1995/08/29  14:17:18  mike
 # exit 2 changes
 #

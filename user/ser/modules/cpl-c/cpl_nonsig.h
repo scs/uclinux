@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl_nonsig.h,v 1.3 2003/07/02 16:22:47 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

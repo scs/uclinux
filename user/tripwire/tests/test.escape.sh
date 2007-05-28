@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id$
+# $Id: test.escape.sh,v 1.2 1993/12/12 01:39:05 genek Exp $
 #
 #	Rigorous Tripwire functionality test suite
 #

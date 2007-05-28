@@ -1,19 +1,24 @@
 #
-# This script was written by Renaud Deraison
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
 
 if(description)
 {
  script_id(11583);
  script_bugtraq_id(7402);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "Microsoft Shlwapi.dll Malformed HTML form tag DoS";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+It is possible to crash the remote web client.
+
+Description :
+
 The remote host is running a version of the shlwapi.dll which crashes
 when processing a malformed HTML form.
 
@@ -24,8 +29,14 @@ To exploit this flaw, an attacker would need to send a malformed
 HTML file to the remote user, either by e-mail or by making him
 visit a rogue web site.
 
-Solution : None
-Risk Factor : Low";
+Solution :
+
+None
+
+Risk factor :
+
+Low / CVSS Base Score : 3 
+(AV:R/AC:H/Au:NR/C:N/A:P/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
@@ -35,15 +46,12 @@ Risk Factor : Low";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_exclude_keys("SMB/samba");
  script_require_ports(139, 445);
  exit(0);
@@ -51,20 +59,15 @@ Risk Factor : Low";
 
 
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
 
 
+rootfile = hotfix_get_systemroot();
+if ( ! rootfile ) exit(1);
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\Windows NT\CurrentVersion", item:"SystemRoot");
-if(!rootfile)
-{
- exit(0);
-}
-else
-{
- share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
- file =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\System32\shlwapi.dll", string:rootfile);
-}
+share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
+file =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\System32\shlwapi.dll", string:rootfile);
 
 
 
@@ -73,85 +76,30 @@ login	= kb_smb_login();
 pass  	= kb_smb_password();
 domain 	= kb_smb_domain();
 port    = kb_smb_transport();
-if(!port) port = 139;
-
-
-
-if(!get_port_state(port))exit(0);
-
+if(!get_port_state(port))exit(1);
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if(!soc)exit(1);
 
 
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:share);
+if ( r != 1 ) exit(1);
+ 
 
-r = smb_session_request(soc:soc, remote:name);
-if(!r)exit(0);
-
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);
-
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r)exit(0);
-
-uid = session_extract_uid(reply:r);
-
-
-
-r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-tid = tconx_extract_tid(reply:r);
-if(!tid)exit(0);
-
-fid = OpenAndX(socket:soc, uid:uid, tid:tid, file:file);
-if(!fid)exit(0);
-
-fsize = smb_get_file_size(socket:soc, uid:uid, tid:tid, fid:fid);
-
-
-
-off = fsize - 65535;
-
-for(i=0;i<4;i=i+1)
+handle = CreateFile (file:file, desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_NORMAL, share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
+if ( ! isnull(handle) )
 {
- data += ReadAndX(socket:soc, uid:uid, tid:tid, count:16384, off:off);
- off += 16383;
-}
-
-data = str_replace(find:raw_string(0), replace:"", string:data);
-
-version = strstr(data, "ProductVersion");
-if(!version)exit(0);
-
-v = "";
-
-for(i=strlen("ProductVersion");i<strlen(version);i++)
-{
- if((ord(version[i]) < ord("0") ||
-    ord(version[i]) > ord("9")) && 
-    version[i] != ".")break;
- else 
-   v += version[i];
-}
-
-
-if(strlen(v))
-{
- security_warning(port);
- exit(0);
- 
- # 
- # It's not fixed yet....
- # 
- vers = split(v, sep:".");
- 
- 
- if(int(vers[0]) > 5)exit(0);
- 
- if(int(vers[0]) < 4){ security_hole(port); exit(0); }
- else 
+ v = GetFileVersion(handle:handle);
+ CloseFile(handle:handle);
+ if ( ! isnull(v) )
  {
-  if(int(vers[1]) > 6)exit(0);
-  else if(int(vers[2]) > 0)exit(0);
-  else if(int(vers[3]) >= 8513)exit(0);
-  else security_hole(port);
+  if ( v[0] < 6 || (v[0] == 6 && v[1] == 0 && (v[2] < 2800 || ( v[2] == 2800 && v[3] < 1106 ) ) ) ) 
+	security_note ( port );
  }
+ else {
+	NetUseDel();
+	exit(1);
+      }
 }
+
+NetUseDel();

@@ -13,7 +13,7 @@
 
 
 /*
- * $Id$
+ * $Id: rfc2617.c,v 1.5.2.1 2003/09/23 16:05:41 hno Exp $
  *
  * DEBUG:
  * AUTHOR: RFC 2617 & Robert Collins

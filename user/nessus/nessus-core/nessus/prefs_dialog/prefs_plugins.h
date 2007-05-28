@@ -20,5 +20,5 @@
 #define _NESSUSC_PREFS_PLUGINS_H
 
 struct arglist *  prefs_dialog_plugins(GtkWidget*);
-void prefs_plugins_redraw(GtkWidget *, void *, struct arglist *);
+int prefs_plugins_redraw(GtkWidget *, void *, struct arglist *);
 #endif

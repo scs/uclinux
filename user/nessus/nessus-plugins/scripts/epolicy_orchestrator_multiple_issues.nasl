@@ -6,8 +6,9 @@
 if(description)
 {
  script_id(11812);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2003-0148", "CAN-2003-0149", "CAN-2003-0616");
+ script_bugtraq_id(8316, 8318, 8319);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2003-0148", "CVE-2003-0149", "CVE-2003-0616");
  
 
  name["english"] = "ePolicy orchestrator multiple issues";
@@ -23,8 +24,8 @@ to execute arbitrary code.
 *** so this might be a false positive. Make sure you are running
 *** the latest version of ePolicy Orchestrator
 
-Solution : http://www.nai.com/us/promos/mcafee/epo_vulnerabilities.asp
-Risk Factor : High";
+Solution : http://www.networkassociates.com/us/downloads/updates/hotfixes.asp
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -50,6 +51,9 @@ include("misc_func.inc");
 
 function check(port)
 {
+	if ( get_kb_item("Services/www/" + port + "/broken") ) return 0;
+	banner = get_http_banner(port:port);
+	if ( ! banner || "Server: Spipe/1.0" >!< banner ) return 0;
    	req = http_get(item:"/SERVER.INI", port:port);
 	res = http_keepalive_send_recv(port:port, data:req);
 	if( res != NULL )
@@ -66,5 +70,5 @@ function check(port)
 ports = add_port_in_list(list:get_kb_list("Services/www"), port:8081);
 foreach port (ports)
 {
- check(port:port);
+ if ( get_port_state(port) ) check(port:port);
 }

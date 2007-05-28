@@ -1,7 +1,7 @@
 /*
  * Presence Agent, presentity state definitions
  *
- * $Id$
+ * $Id: pstate.h,v 1.2 2003/04/30 17:49:29 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

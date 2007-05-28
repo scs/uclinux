@@ -7,10 +7,11 @@
 if(description)
 {
  script_id(11844);
- script_version("$Revision: 1.4 $");
+ script_bugtraq_id(7680);
+ script_version("$Revision: 1.6 $");
  name["english"] = "Kazaa P2P check";
  script_name(english:name["english"]);
- script_cve_id("CAN-2003-0397");
+ script_cve_id("CVE-2003-0397");
  desc["english"] = "
 The remote server seems to be a Kazaa Peer-to-Peer client, 
 which may not be suitable for a business environment. 

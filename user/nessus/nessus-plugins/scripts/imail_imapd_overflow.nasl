@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10123);
- script_version ("$Revision: 1.16 $");
- script_cve_id("CAN-1999-1557");
  script_bugtraq_id(502);
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-1999-1557");
  name["english"] = "Imail's imap buffer overflow";
  name["francais"] = "Dépassement de buffer dans imap de imail";
  script_name(english:name["english"],
@@ -77,6 +77,7 @@ if(get_port_state(port))
  if(soc > 0)
  {
   buf = recv_line(socket:soc, length:1024);
+  if ( "imail" >!< tolower(buf) ) exit(0);
  if(!strlen(buf))
  	{ 
 	 	close(soc);

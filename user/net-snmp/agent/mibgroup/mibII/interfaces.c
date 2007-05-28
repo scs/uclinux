@@ -3,6 +3,17 @@
  *
  */
 
+/* Portions of this file are subject to the following copyright(s).  See
+ * the Net-SNMP's COPYING file for more details and other copyrights
+ * that may apply:
+ */
+/*
+ * Portions of this file are copyrighted by:
+ * Copyright © 2003 Sun Microsystems, Inc. All rights reserved.
+ * Use is subject to license terms specified in the COPYING file
+ * distributed with the Net-SNMP package.
+ */
+
 #include <net-snmp/net-snmp-config.h>
 
 #if defined(IFNET_NEEDS_KERNEL) && !defined(_KERNEL) && !defined(IFNET_NEEDS_KERNEL_LATE)
@@ -188,6 +199,7 @@
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
 #include <net-snmp/agent/auto_nlist.h>
+#include <net-snmp/data_access/interface.h>
 
 #include "interfaces.h"
 #include "struct.h"
@@ -201,6 +213,12 @@
 #define MIB_IF_ADMIN_STATUS_DOWN 2
 #endif
 
+/* if you want caching enabled for speed retrival purposes, set this to 5?*/
+#define MINLOADFREQ 0                     /* min reload frequency in seconds */
+#ifdef linux
+static unsigned long LastLoad = 0;        /* ET in secs at last table load */
+#endif
+
 extern struct timeval starttime;
 
 static int      Interface_Count = 0;
@@ -212,6 +230,7 @@ static int writeIfEntry(int action, u_char * var_val, u_char var_val_type, size_
 
 struct variable3 interfaces_variables[] = {
     {IFNUMBER, ASN_INTEGER, RONLY, var_interfaces, 1, {1}},
+#if !defined(NETSNMP_ENABLE_MFD_REWRITES)
     {IFINDEX, ASN_INTEGER, RONLY, var_ifEntry, 3, {2, 1, 1}},
     {IFDESCR, ASN_OCTET_STR, RONLY, var_ifEntry, 3, {2, 1, 2}},
     {IFTYPE, ASN_INTEGER, RONLY, var_ifEntry, 3, {2, 1, 3}},
@@ -238,6 +257,7 @@ struct variable3 interfaces_variables[] = {
     {IFOUTERRORS, ASN_COUNTER, RONLY, var_ifEntry, 3, {2, 1, 20}},
     {IFOUTQLEN, ASN_GAUGE, RONLY, var_ifEntry, 3, {2, 1, 21}},
     {IFSPECIFIC, ASN_OBJECT_ID, RONLY, var_ifEntry, 3, {2, 1, 22}}
+#endif /* !def NETSNMP_ENABLE_MFD_REWRITES */
 };
 
 /*
@@ -257,10 +277,6 @@ init_interfaces(void)
                  interfaces_variables_oid);
     REGISTER_SYSOR_ENTRY(interfaces_module_oid,
                          "The MIB module to describe generic objects for network interface sub-layers");
-
-    snmpd_register_config_handler("interface", parse_interface_config,
-                                  free_interface_config,
-                                  "name type speed");
 
 #ifndef USE_SYSCTL_IFLIST
 #if HAVE_NET_IF_MIB_H
@@ -309,87 +325,9 @@ if_type_from_name(const char *pcch)
 #endif
 
 
-typedef struct _conf_if_list {
-    char           *name;
-    int             type;
-    u_long          speed;
-    struct _conf_if_list *next;
-} conf_if_list;
-
-static conf_if_list *conf_list;
 #ifdef linux
 static struct ifnet *ifnetaddr_list;
 #endif
-
-static void
-parse_interface_config(const char *token, char *cptr)
-{
-    conf_if_list   *if_ptr, *if_new;
-    char           *name, *type, *speed, *ecp;
-
-    name = strtok(cptr, " \t");
-    if (!name) {
-        config_perror("Missing NAME parameter");
-        return;
-    }
-    type = strtok(NULL, " \t");
-    if (!type) {
-        config_perror("Missing TYPE parameter");
-        return;
-    }
-    speed = strtok(NULL, " \t");
-    if (!speed) {
-        config_perror("Missing SPEED parameter");
-        return;
-    }
-    if_ptr = conf_list;
-    while (if_ptr)
-        if (strcmp(if_ptr->name, name))
-            if_ptr = if_ptr->next;
-        else
-            break;
-    if (if_ptr)
-        config_pwarn("Duplicate interface specification");
-    if_new = (conf_if_list *) malloc(sizeof(conf_if_list));
-    if (!if_new) {
-        config_perror("Out of memory");
-        return;
-    }
-    if_new->speed = strtoul(speed, &ecp, 0);
-    if (*ecp) {
-        config_perror("Bad SPEED value");
-        free(if_new);
-        return;
-    }
-    if_new->type = strtol(type, &ecp, 0);
-    if (*ecp || if_new->type < 0) {
-        config_perror("Bad TYPE");
-        free(if_new);
-        return;
-    }
-    if_new->name = strdup(name);
-    if (!if_new->name) {
-        config_perror("Out of memory");
-        free(if_new);
-        return;
-    }
-    if_new->next = conf_list;
-    conf_list = if_new;
-}
-
-static void
-free_interface_config(void)
-{
-    conf_if_list   *if_ptr = conf_list, *if_next;
-    while (if_ptr) {
-        if_next = if_ptr->next;
-        free(if_ptr->name);
-        free(if_ptr);
-        if_ptr = if_next;
-    }
-    conf_list = NULL;
-}
-
 
 
 /*
@@ -502,7 +440,8 @@ Interface_Scan_By_Index(int iindex,
     struct if_msghdr *ifp;
     int             have_ifinfo = 0, have_addr = 0;
 
-    memset(sifa, 0, sizeof(*sifa));
+    if (NULL != sifa)
+        memset(sifa, 0, sizeof(*sifa));
     for (cp = if_list; cp < if_list_end; cp += ifp->ifm_msglen) {
         ifp = (struct if_msghdr *) cp;
         DEBUGMSGTL(("mibII/interfaces", "ifm_type = %d, ifm_index = %d\n",
@@ -530,7 +469,7 @@ Interface_Scan_By_Index(int iindex,
             {
                 struct ifa_msghdr *ifap = (struct ifa_msghdr *) cp;
 
-                if (ifap->ifam_index == iindex) {
+                if ((NULL != sifa) && (ifap->ifam_index == iindex)) {
                     const struct in_addr *ia;
 
                     /*
@@ -568,7 +507,7 @@ Interface_Scan_By_Index(int iindex,
                         ifp->ifm_type));
         }
     }
-    if (have_ifinfo && have_addr) {
+    if (have_ifinfo && (NULL == sifa) || (have_addr)) {
         return 0;
     } else if (have_ifinfo && !(if_msg->ifm_flags & IFF_UP))
         return 0;
@@ -640,7 +579,7 @@ var_ifEntry(struct variable *vp,
     int             interface;
     struct if_msghdr if_msg;
     static char     if_name[100];
-    struct small_ifaddr sifa;
+    conf_if_list   *if_ptr;
     char           *cp;
 
     interface =
@@ -648,8 +587,9 @@ var_ifEntry(struct variable *vp,
     if (interface == MATCH_FAILED)
         return NULL;
 
-    if (Interface_Scan_By_Index(interface, &if_msg, if_name, &sifa) != 0)
+    if (Interface_Scan_By_Index(interface, &if_msg, if_name, NULL) != 0)
         return NULL;
+    if_ptr = netsnmp_access_interface_entry_overrides_get(if_name);
 
     switch (vp->magic) {
     case IFINDEX:
@@ -660,18 +600,25 @@ var_ifEntry(struct variable *vp,
         *var_len = strlen(if_name);
         return (u_char *) cp;
     case IFTYPE:
+        if (if_ptr)
+            long_return = if_ptr->type;
+        else
         long_return = (long) if_msg.ifm_data.ifi_type;
         return (u_char *) & long_return;
     case IFMTU:
         long_return = (long) if_msg.ifm_data.ifi_mtu;
         return (u_char *) & long_return;
     case IFSPEED:
+        if (if_ptr)
+            long_return = if_ptr->speed;
+        else {
 #if STRUCT_IFNET_HAS_IF_BAUDRATE_IFS_VALUE
         long_return = (u_long) if_msg.ifm_data.ifi_baudrate.ifs_value <<
             if_msg.ifm_data.ifi_baudrate.ifs_log2;
 #else
         long_return = (u_long) if_msg.ifm_data.ifi_baudrate;
 #endif
+        }
         return (u_char *) & long_return;
     case IFPHYSADDRESS:
         /*
@@ -808,7 +755,7 @@ var_ifEntry(struct variable *vp,
     static struct in_ifaddr in_ifaddr;
     static char     Name[16];
     char           *cp;
-    conf_if_list   *if_ptr = conf_list;
+    conf_if_list   *if_ptr;
 #if STRUCT_IFNET_HAS_IF_LASTCHANGE_TV_SEC
     struct timeval  now;
 #endif
@@ -819,8 +766,7 @@ var_ifEntry(struct variable *vp,
         return NULL;
 
     Interface_Scan_By_Index(interface, Name, &ifnet, &in_ifaddr);
-    while (if_ptr && strcmp(Name, if_ptr->name))
-        if_ptr = if_ptr->next;
+    if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
 
     switch (vp->magic) {
     case IFINDEX:
@@ -874,11 +820,12 @@ var_ifEntry(struct variable *vp,
         return (u_char *) & long_return;
     case IFPHYSADDRESS:
         Interface_Get_Ether_By_Index(interface, return_buf);
-        *var_len = 6;
         if ((return_buf[0] == 0) && (return_buf[1] == 0) &&
             (return_buf[2] == 0) && (return_buf[3] == 0) &&
             (return_buf[4] == 0) && (return_buf[5] == 0))
             *var_len = 0;
+        else
+            *var_len = 6;
         return (u_char *) return_buf;
     case IFADMINSTATUS:
         long_return = ifnet.if_flags & IFF_UP ? 1 : 2;
@@ -1047,6 +994,7 @@ var_ifEntry(struct variable *vp,
     int             hp_fd;
     int             hp_len = sizeof(hp_ifEntry);
 #endif
+    conf_if_list   *if_ptr;
 
     interface =
         header_ifEntry(vp, name, length, exact, var_len, write_method);
@@ -1077,6 +1025,7 @@ var_ifEntry(struct variable *vp,
         }
     }
 #endif
+    if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
 
     switch (vp->magic) {
     case IFINDEX:
@@ -1094,6 +1043,9 @@ var_ifEntry(struct variable *vp,
         *var_len = strlen(cp);
         return (u_char *) cp;
     case IFTYPE:
+        if (if_ptr)
+            long_return = if_ptr->type;
+        else {
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifType;
 #else
@@ -1102,6 +1054,7 @@ var_ifEntry(struct variable *vp,
         else
             long_return = 1;    /* OTHER */
 #endif
+        }
         return (u_char *) & long_return;
     case IFMTU:{
 #if defined(hpux11)
@@ -1112,6 +1065,9 @@ var_ifEntry(struct variable *vp,
             return (u_char *) & long_return;
         }
     case IFSPEED:
+        if (if_ptr)
+            long_return = if_ptr->speed;
+        else {
 #if defined(hpux11)
         long_return = ifnet.if_entry.ifSpeed;
 #else
@@ -1120,6 +1076,7 @@ var_ifEntry(struct variable *vp,
         else
             long_return = (u_long) 1;   /* OTHER */
 #endif
+        }
         return (u_char *) & long_return;
     case IFPHYSADDRESS:
 #if defined(hpux11)
@@ -1127,11 +1084,12 @@ var_ifEntry(struct variable *vp,
         return (u_char *) ifnet.if_entry.ifPhysAddress.o_bytes;
 #else
         Interface_Get_Ether_By_Index(interface, return_buf);
-        *var_len = 6;
         if ((return_buf[0] == 0) && (return_buf[1] == 0) &&
             (return_buf[2] == 0) && (return_buf[3] == 0) &&
             (return_buf[4] == 0) && (return_buf[5] == 0))
             *var_len = 0;
+        else
+            *var_len = 6;
         return (u_char *) return_buf;
 #endif
     case IFADMINSTATUS:
@@ -1301,7 +1259,7 @@ var_ifEntry(struct variable * vp,
 {
     int             interface;
     mib2_ifEntry_t  ifstat;
-
+    conf_if_list   *if_ptr = NULL;
 
     interface =
         header_ifEntry(vp, name, length, exact, var_len, write_method);
@@ -1313,6 +1271,11 @@ var_ifEntry(struct variable * vp,
         DEBUGMSGTL(("mibII/interfaces", "... no mib stats\n"));
         return NULL;
     }
+    /*
+     * hmmm.. where to get the interface name to check overrides?
+     *
+     * if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
+     */
     switch (vp->magic) {
     case IFINDEX:
         long_return = ifstat.ifIndex;
@@ -1322,12 +1285,18 @@ var_ifEntry(struct variable * vp,
         (void) memcpy(return_buf, ifstat.ifDescr.o_bytes, *var_len);
         return (u_char *) return_buf;
     case IFTYPE:
+        if (if_ptr)
+            long_return = if_ptr->type;
+        else
         long_return = (u_long) ifstat.ifType;
         return (u_char *) & long_return;
     case IFMTU:
         long_return = (u_long) ifstat.ifMtu;
         return (u_char *) & long_return;
     case IFSPEED:
+        if (if_ptr)
+            long_return = if_ptr->speed;
+        else
         long_return = (u_long) ifstat.ifSpeed;
         return (u_char *) & long_return;
     case IFPHYSADDRESS:
@@ -1380,6 +1349,9 @@ var_ifEntry(struct variable * vp,
     case IFOUTQLEN:
         long_return = (u_long) ifstat.ifOutQLen;
         return (u_char *) & long_return;
+    case IFSPECIFIC:
+	long_return = (u_long) ifstat.ifSpecific;
+	return (u_char *) & long_return;
     default:
         DEBUGMSGTL(("snmpd", "unknown sub-id %d in var_ifEntry\n",
                     vp->magic));
@@ -1413,91 +1385,18 @@ static int      saveIndex = 0;
 * Determines network interface speed. It is system specific. Only linux
 * realization is made. 
 */
-unsigned int getIfSpeed(int fd, struct ifreq ifr){
-	unsigned int retspeed = 10000000;
+unsigned int getIfSpeed(int fd, struct ifreq ifr)
+{
 #ifdef linux
-/* the code is based on mii-diag utility by Donald Becker
-* see ftp://ftp.scyld.com/pub/diag/mii-diag.c
-*/
-	ushort *data = (ushort *)(&ifr.ifr_data);
-	unsigned int *data32 = (unsigned int *)(&ifr.ifr_data);
-	unsigned phy_id;
-	unsigned char new_ioctl_nums = 0;
-	int mii_reg, i;
-	ushort mii_val[32];
-	ushort bmcr, bmsr, new_bmsr, nway_advert, lkpar;
-	const unsigned int media_speeds[] = {10000000, 10000000, 100000000, 100000000, 10000000, 0};	
-/* It corresponds to "10baseT", "10baseT-FD", "100baseTx", "100baseTx-FD", "100baseT4", "Flow-control", 0, */
+    /** temporary expose internal until this module can be re-written */
+    extern unsigned int
+        netsnmp_arch_interface_get_if_speed(int fd, const char *name);
 
-
-	data[0] = 0;
-
-	if (ioctl(fd, 0x8947, &ifr) >= 0) {
-		new_ioctl_nums = 1;
-	} else if (ioctl(fd, SIOCDEVPRIVATE, &ifr) >= 0) {
-		new_ioctl_nums = 0;
-	} else {
-		DEBUGMSGTL(("mibII/interfaces", "SIOCGMIIPHY on %s failed\n", ifr.ifr_name));
-		return retspeed;
-	}
-/* Begin getting mii register values */
-	phy_id = data[0];
-	for (mii_reg = 0; mii_reg < 8; mii_reg++){
-		data[0] = phy_id;
-		data[1] = mii_reg;
-		if(ioctl(fd, new_ioctl_nums ? 0x8948 : SIOCDEVPRIVATE+1, &ifr) <0){
-			DEBUGMSGTL(("mibII/interfaces", "SIOCGMIIREG on %s failed\n", ifr.ifr_name));
-		}
-		mii_val[mii_reg] = data[3];		
-	}
-/*Parsing of mii values*/
-/*Invalid basic mode control register*/
-	if (mii_val[0] == 0xffff  ||  mii_val[1] == 0x0000) {
-		DEBUGMSGTL(("mibII/interfaces", "No MII transceiver present!.\n"));
-		return retspeed;
-	}
-	/* Descriptive rename. */
-	bmcr = mii_val[0]; 	  /*basic mode control register*/
-	bmsr = mii_val[1]; 	  /* basic mode status register*/
-	nway_advert = mii_val[4]; /* autonegotiation advertisement*/
-	lkpar = mii_val[5]; 	  /*link partner ability*/
-	
-/*Check for link existence, returns 0 if link is absent*/
-	if ((bmsr & 0x0016) != 0x0004){
-		DEBUGMSGTL(("mibII/interfaces", "No link...\n"));
-		retspeed = 0;
-		return retspeed;
-	}
-	
-	if(!(bmcr & 0x1000) ){
-		DEBUGMSGTL(("mibII/interfaces", "Auto-negotiation disabled.\n"));
-		retspeed = bmcr & 0x2000 ? 100000000 : 10000000;
-		return retspeed;
-	}
-/* Link partner got our advertised abilities */	
-	if (lkpar & 0x4000) {
-		int negotiated = nway_advert & lkpar & 0x3e0;
-		int max_capability = 0;
-		/* Scan for the highest negotiated capability, highest priority
-		   (100baseTx-FDX) to lowest (10baseT-HDX). */
-		int media_priority[] = {8, 9, 7, 6, 5}; 	/* media_names[i-5] */
-		for (i = 0; media_priority[i]; i++){
-			if (negotiated & (1 << media_priority[i])) {
-				max_capability = media_priority[i];
-				break;
-			}
-		}
-		if (max_capability)
-			retspeed = media_speeds[max_capability - 5];
-		else
-			DEBUGMSGTL(("mibII/interfaces", "No common media type was autonegotiated!\n"));
-	}
-	return retspeed;
+    return netsnmp_arch_interface_get_if_speed(fd, ifr.ifr_name);
 #else /*!linux*/			   
-	return retspeed;
+    return 10000000;
 #endif 
 }
-
 
 void
 Interface_Scan_Init(void)
@@ -1507,15 +1406,37 @@ Interface_Scan_Init(void)
     struct ifreq    ifrq;
     struct ifnet  **ifnetaddr_ptr;
     FILE           *devin;
-    unsigned long   rec_pkt, rec_oct, rec_err, rec_drop;
-    unsigned long   snd_pkt, snd_oct, snd_err, snd_drop, coll;
     int             i, fd;
     conf_if_list   *if_ptr;
+    /*
+     * scanline_2_2:
+     *  [               IN                        ]
+     *   byte pkts errs drop fifo frame cmprs mcst |
+     *  [               OUT                               ]
+     *   byte pkts errs drop fifo colls carrier compressed
+     */
+#ifdef SCNuMAX
+    uintmax_t       rec_pkt, rec_oct, rec_err, rec_drop;
+    uintmax_t       snd_pkt, snd_oct, snd_err, snd_drop, coll;
+    const char     *scan_line_2_2 =
+        "%"   SCNuMAX " %"  SCNuMAX " %"  SCNuMAX " %"  SCNuMAX
+        " %*" SCNuMAX " %*" SCNuMAX " %*" SCNuMAX " %*" SCNuMAX
+        " %"  SCNuMAX " %"  SCNuMAX " %"  SCNuMAX " %"  SCNuMAX
+        " %*" SCNuMAX " %"  SCNuMAX;
+    const char     *scan_line_2_0 =
+        "%"   SCNuMAX " %"  SCNuMAX " %*" SCNuMAX " %*" SCNuMAX
+        " %*" SCNuMAX " %"  SCNuMAX " %"  SCNuMAX " %*" SCNuMAX
+        " %*" SCNuMAX " %"  SCNuMAX;
+#else
+    unsigned long   rec_pkt, rec_oct, rec_err, rec_drop;
+    unsigned long   snd_pkt, snd_oct, snd_err, snd_drop, coll;
     const char     *scan_line_2_2 =
         "%lu %lu %lu %lu %*lu %*lu %*lu %*lu %lu %lu %lu %lu %*lu %lu";
     const char     *scan_line_2_0 =
         "%lu %lu %*lu %*lu %*lu %lu %lu %*lu %*lu %lu";
+#endif
     const char     *scan_line_to_use;
+    struct timeval et;                              /* elapsed time */
 
 #endif
 
@@ -1524,7 +1445,16 @@ Interface_Scan_Init(void)
 #endif
     saveIndex = 0;
 
+
 #ifdef linux
+    /*  disallow reloading of structures too often */
+    gettimeofday ( &et, ( struct timezone * ) 0 );  /*  get time-of-day */
+    if ( et.tv_sec < LastLoad + MINLOADFREQ ) {     /*  only reload so often */
+      ifnetaddr = ifnetaddr_list;                   /*  initialize pointer */
+      return;
+    }
+    LastLoad = et.tv_sec;
+
     /*
      * free old list: 
      */
@@ -1700,12 +1630,18 @@ Interface_Scan_Init(void)
 
         nnew->if_type = 0;
 
+        /*
+         * NOTE: this ioctl does not guarantee 6 bytes of a physaddr.
+         * In particular, a 'sit0' interface only appears to get back
+         * 4 bytes of sa_data.
+         */
+        memset(ifrq.ifr_hwaddr.sa_data, (0), IFHWADDRLEN);
         strncpy(ifrq.ifr_name, ifname, sizeof(ifrq.ifr_name));
         ifrq.ifr_name[ sizeof(ifrq.ifr_name)-1 ] = 0;
         if (ioctl(fd, SIOCGIFHWADDR, &ifrq) < 0)
-            memset(nnew->if_hwaddr, (0), 6);
+            memset(nnew->if_hwaddr, (0), IFHWADDRLEN);
         else {
-            memcpy(nnew->if_hwaddr, ifrq.ifr_hwaddr.sa_data, 6);
+            memcpy(nnew->if_hwaddr, ifrq.ifr_hwaddr.sa_data, IFHWADDRLEN);
 
 #ifdef ARPHRD_LOOPBACK
             switch (ifrq.ifr_hwaddr.sa_family) {
@@ -1772,10 +1708,7 @@ Interface_Scan_Init(void)
         nnew->if_mtu = 0;
 #endif
 
-        for (if_ptr = conf_list; if_ptr; if_ptr = if_ptr->next)
-            if (!strcmp(if_ptr->name, ifname))
-                break;
-
+        if_ptr = netsnmp_access_interface_entry_overrides_get(ifname);
         if (if_ptr) {
             nnew->if_type = if_ptr->type;
             nnew->if_speed = if_ptr->speed;
@@ -1789,8 +1722,8 @@ Interface_Scan_Init(void)
             nnew->if_speed = nnew->if_type == 6 ? getIfSpeed(fd, ifrq) :
                 nnew->if_type == 24 ? 10000000 :
                 nnew->if_type == 9 ? 4000000 : 0;
-            /*Zero speed means link problem*/
-            if(nnew->if_speed == 0 && nnew->if_flags & IFF_UP){
+            /*Zero speed means link problem (but only for ethernet) */
+            if(nnew->if_type == 6 && nnew->if_speed == 0 && nnew->if_flags & IFF_UP){
                 nnew->if_flags &= ~IFF_RUNNING;
             }
         }
@@ -2134,7 +2067,7 @@ Interface_Get_Ether_By_Index(int Index, u_char * EtherAddr)
 #endif
 #endif
 
-#if defined(mips) || defined(hpux) || defined(osf4) || defined(osf3)
+#if defined(mips) || defined(hpux) || defined(osf4) || defined(osf3) || defined(osf5)
     memset(arpcom.ac_enaddr, 0, sizeof(arpcom.ac_enaddr));
 #else
     memset(&arpcom.ac_enaddr, 0, sizeof(arpcom.ac_enaddr));
@@ -2483,6 +2416,7 @@ var_ifEntry(struct variable * vp,
     static struct ifmibdata ifmd;
     size_t          len;
     char           *cp;
+    conf_if_list   *if_ptr = NULL;
 
     interface = header_ifEntry(vp, name, length, exact, var_len,
                                write_method);
@@ -2493,6 +2427,11 @@ var_ifEntry(struct variable * vp,
     len = sizeof ifmd;
     if (sysctl(sname, 6, &ifmd, &len, 0, 0) < 0)
         return NULL;
+    /*
+     * hmmm.. where to get the interface name to check overrides?
+     *
+     * if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
+     */
 
     switch (vp->magic) {
     case IFINDEX:
@@ -2503,12 +2442,18 @@ var_ifEntry(struct variable * vp,
         *var_len = strlen(cp);
         return (u_char *) cp;
     case IFTYPE:
+        if (if_ptr)
+            long_return = if_ptr->type;
+        else
         long_return = ifmd.ifmd_data.ifi_type;
         return (u_char *) & long_return;
     case IFMTU:
         long_return = (long) ifmd.ifmd_data.ifi_mtu;
         return (u_char *) & long_return;
     case IFSPEED:
+        if (if_ptr)
+            long_return = if_ptr->speed;
+        else
         long_return = ifmd.ifmd_data.ifi_baudrate;
         return (u_char *) & long_return;
     case IFPHYSADDRESS:
@@ -2698,14 +2643,18 @@ var_ifEntry(struct variable * vp,
             int exact, size_t * var_len, WriteMethod ** write_method)
 {
     int             ifIndex;
-    static char     Name[16];
-    conf_if_list   *if_ptr = conf_list;
     static MIB_IFROW ifRow;
-
+    conf_if_list   *if_ptr;
+    
     ifIndex =
         header_ifEntry(vp, name, length, exact, var_len, write_method);
     if (ifIndex == MATCH_FAILED)
         return NULL;
+    /*
+     * hmmm.. where to get the interface name to check overrides?
+     *
+     * if_ptr = netsnmp_access_interface_entry_overrides_get(Name);
+     */
 
     /*
      * Get the If Table Row by passing index as argument 
@@ -2721,12 +2670,18 @@ var_ifEntry(struct variable * vp,
         *var_len = ifRow.dwDescrLen;
         return (u_char *) ifRow.bDescr;
     case IFTYPE:
+        if (if_ptr)
+            long_return = if_ptr->type;
+        else
         long_return = ifRow.dwType;
         return (u_char *) & long_return;
     case IFMTU:
         long_return = (long) ifRow.dwMtu;
         return (u_char *) & long_return;
     case IFSPEED:
+        if (if_ptr)
+            long_return = if_ptr->speed;
+        else
         long_return = (long) ifRow.dwSpeed;
         return (u_char *) & long_return;
     case IFPHYSADDRESS:
@@ -2738,10 +2693,11 @@ var_ifEntry(struct variable * vp,
         *write_method = writeIfEntry;
         return (u_char *) & long_return;
     case IFOPERSTATUS:
-        long_return = ifRow.dwOperStatus;
+        long_return =
+           (MIB_IF_OPER_STATUS_OPERATIONAL == ifRow.dwOperStatus) ? 1 : 2;
         return (u_char *) & long_return;
     case IFLASTCHANGE:
-        long_return = ifRow.dwLastChange;
+        long_return = 0 /* XXX not a UNIX epochal time ifRow.dwLastChange */ ;
         return (u_char *) & long_return;
     case IFINOCTETS:
         long_return = ifRow.dwInOctets;

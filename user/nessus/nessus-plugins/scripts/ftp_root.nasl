@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10088);
- script_version ("$Revision: 1.18 $");
- script_cve_id("CAN-1999-0527");
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-0527");
  name["english"] = "Writeable FTP root";
  name["francais"] = "On peut écrire sur la racine du répertoire FTP";
  name["portugues"] = "Escrita permitida no diretório raiz do servidor FTP";
@@ -21,7 +21,7 @@ or to turn your FTP server in to a warez server.
 
 Solution : chown root ~ftp && chmod 0555 ~ftp.
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Il est possible d'écrire à la racine
 de ce serveur FTP anonyme. Cela permet à des
@@ -74,7 +74,7 @@ Fator de risco: Sério";
 #
 # The script code starts here
 #
-
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 
@@ -88,12 +88,12 @@ if(login)
 {
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
- if(ftp_log_in(socket:soc, user:login,pass:password))
+ if(ftp_authenticate(socket:soc, user:login,pass:password))
  {
   data = string("CWD /\r\n");
   send(socket:soc, data:data);
   a = recv_line(socket:soc, length:1024);
-  pasv = ftp_get_pasv_port(socket:soc); 
+  pasv = ftp_pasv(socket:soc); 
   data = string("STOR nessus_test\r\n");
   send(socket:soc, data:data);
   r = recv_line(socket:soc, length:3);

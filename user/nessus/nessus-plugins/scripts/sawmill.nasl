@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10453);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1402);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2000-0588");
 
  name["english"] = "sawmill allows the reading of the first line of any file";
@@ -49,6 +49,7 @@ Facteur de risque : Moyen";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports(8987, "Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -75,8 +76,8 @@ if(get_port_state(port))
 }
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

@@ -2,35 +2,23 @@ TCOBJ=tc.o tc_qdisc.o tc_class.o tc_filter.o tc_util.o m_police.o m_estimator.o
 
 include ../Config
 
+SCH=atm cbq csz dsmark gred hfsc htb ingress prio red sfq tbf wrr
+CLS=fw route rsvp tcindex u32
+
+SCH_OPT = $(call TEST_CONFIG,$(call upper,$(SCH)),NET_SCH)
+CLS_OPT = $(call TEST_CONFIG,$(call upper,$(CLS)),NET_CLS)
+
+TEST_OBJ=$(foreach i,$(call lower,$(1)),$(2)_$(i).o)
+TEST_CFLAGS=$(foreach i,$(1),-DTC_CONFIG_$(2)_$(i))
+
 TCMODULES :=
 TCMODULES += q_fifo.o
-TCMODULES += q_sfq.o
-TCMODULES += q_red.o
-TCMODULES += q_prio.o
-TCMODULES += q_tbf.o
-TCMODULES += q_cbq.o
-TCMODULES += q_wrr.o
-TCMODULES += f_rsvp.o
-TCMODULES += f_u32.o
-TCMODULES += f_route.o
-TCMODULES += f_fw.o
-ifeq ($(TC_CONFIG_DIFFSERV),y)
-  TCMODULES += q_dsmark.o
-  TCMODULES += q_gred.o
-  TCMODULES += f_tcindex.o
-  TCMODULES += q_ingress.o
-  CFLAGS += -DTC_CONFIG_DIFFSERV
-endif
-ifeq ($(TC_CONFIG_ATM),y)
-  TCMODULES += q_atm.o
-  LDLIBS += -latm
-  CFLAGS += -DTC_CONFIG_ATM
-endif
+TCMODULES +=$(call TEST_OBJ,$(SCH_OPT),q) $(call TEST_OBJ,$(CLS_OPT),f)
+CFLAGS += $(call TEST_CFLAGS,$(SCH_OPT),SCH) $(call TEST_CFLAGS,$(CLS_OPT),CLS)
 
-#TCMODULES += q_csz.o
-TCMODULES += q_htb.o
-#TCMODULES += q_hpfq.o
-#TCMODULES += q_hfsc.o
+ifneq ($(filter atm,$(SCH_OPT)),)
+  LDLIBS += -latm
+endif
 
 TCOBJ += $(TCMODULES)
 
@@ -44,8 +32,22 @@ LDLIBS := -L. -ltc -lm $(LDLIBS)
 
 all: libtc.a tc
 
-tc: $(TCOBJ) $(LIBNETLINK) $(LIBUTIL) $(TCLIB)
-	$(CC) $(LDFLAGS) -o $@ $(TCOBJ) $(LIBNETLINK) $(LIBUTIL) $(TCLIB) $(LDLIBS$(LDLIBS_$@))
+tc: $(TCOBJ) $(LIBNETLINK) $(TCLIB)
+	$(CC) $(LDFLAGS) -o $@ $(TCOBJ) $(LIBNETLINK) $(TCLIB) $(LDLIBS$(LDLIBS_$@))
+
+tc.o: qdisc.c filter.c
+
+qdisc.c: $(KERNEL_DIR)/.config Makefile
+	@printf "$(foreach i,$(call lower,pfifo bfifo $(SCH_OPT)),extern struct qdisc_util $(i)_util;\n)" > qdisc.c
+	@printf "static struct qdisc_util *qdisc[] = {\n" >> qdisc.c
+	@printf "$(foreach i,$(call lower,pfifo bfifo $(SCH_OPT)),\t&$(i)_util,\n)" >> qdisc.c
+	@printf "\tNULL\n};\n" >> qdisc.c
+
+filter.c: $(KERNEL_DIR)/.config Makefile
+	@printf "$(foreach i,$(call lower,$(CLS_OPT)),extern struct filter_util $(i)_util;\n)" > filter.c
+	@printf "static struct filter_util *filter[] = {\n" >> filter.c
+	@printf "$(foreach i,$(call lower,$(CLS_OPT)),\t&$(i)_util,\n)" >> filter.c
+	@printf "\tNULL\n};\n" >> filter.c
 
 libtc.a: $(TCLIB)
 	$(CROSS)ar rcs $@ $(TCLIB)

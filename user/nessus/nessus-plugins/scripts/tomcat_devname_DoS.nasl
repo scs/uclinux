@@ -24,8 +24,9 @@
 if(description)
 {
  script_id(11150);
- script_version("$Revision: 1.5 $");
- script_name(english:"Tomcat servlet engine MD/DOS device names denial of service");
+ script_cve_id("CVE-2003-0045");
+ script_version("$Revision: 1.12 $");
+ script_name(english:"Tomcat servlet engine MS/DOS device names denial of service");
  
  desc["english"] = "
 It was possible to freeze or crash Windows or the web server
@@ -35,8 +36,7 @@ servlet engine, using a file name like /examples/servlet/AUX
 A cracker may use this flaw to make your system crash 
 continuously, preventing you from working properly.
 
-Solution : upgrade your Apache Tomcat web server to version 4.1.10.
-
+Solution : Upgrade your Apache Tomcat web server to version 4.1.10.
 Risk factor : High";
 
  desc["francais"] = "
@@ -77,9 +77,13 @@ include("http_func.inc");
 
 start_denial();
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
+
+banner = get_http_banner(port:port);
+if ("Tomcat" >!< banner)
+  exit (0);
 
 if (http_is_dead(port: port)) exit(0);
 soc = http_open_socket(port);
@@ -99,13 +103,11 @@ for (i = 0; i <= 1000; i = i + 1)
     sleep(1);
     soc = http_open_socket(port);
     if (! soc)
-    {
-      security_hole(port);
-      exit(0);
-    }
+      break;
   }
 }
 
-http_close_socket(soc);
-sleep(1);
-if (http_is_dead(port: port)) security_hole(port);
+if (soc) http_close_socket(soc);
+# sleep(1);
+alive = end_denial();
+if (! alive || http_is_dead(port: port)) security_hole(port);

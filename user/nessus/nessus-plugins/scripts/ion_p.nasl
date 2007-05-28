@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(11729);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2002-1559");
  script_bugtraq_id(6091);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-1559");
  
  
  name["english"] = "ion-p.exe vulnerability";
@@ -25,7 +25,7 @@ the Web server.
 
 Solution : remove it from the cgi-bin or scripts directory.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -44,6 +44,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -54,8 +55,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 flag = 0;
@@ -66,14 +67,14 @@ foreach dir (cgi_dirs()) {
 	res = http_keepalive_send_recv(port:port, data:req);
 	if( res == NULL ) exit(0);
 	
-	if (egrep(pattern:".*\[fonts\].*", string:r, icase:TRUE)) {
+	if (egrep(pattern:".*\[fonts\].*", string:res, icase:TRUE)) {
 			security_hole(port);
 			exit(0);
 		}
 		
 	req = http_get(item: dir + "/ion-p.exe?page=../../../../../etc/passwd", port:port);
 	res = http_keepalive_send_recv(port:port, data:req);
-	if (egrep(pattern:".*root:.*:0:[01]:.*", string:r)) 
+	if (egrep(pattern:".*root:.*:0:[01]:.*", string:res)) 
 	{
 	 security_hole(port);
 	 exit(0);

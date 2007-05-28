@@ -22,6 +22,12 @@
 
 #define inline __inline
 
+#else
+#ifdef inline
+#undef inline
+#endif
+
+#define inline 
 #endif
 
 /*
@@ -112,10 +118,10 @@ enum {
 */
 typedef struct {
   
-	int acsmMaxStates;  
-	int acsmNumStates;  
+    int acsmMaxStates;  
+    int acsmNumStates;  
 
-	ACSM_PATTERN2    * acsmPatterns;
+    ACSM_PATTERN2    * acsmPatterns;
         acstate_t        * acsmFailState;
         ACSM_PATTERN2   ** acsmMatchList;
 
@@ -129,7 +135,7 @@ typedef struct {
         int          acsmSparseMaxRowNodes;
         int          acsmSparseMaxZcnt;
         
-	int          acsmNumTrans;
+        int          acsmNumTrans;
         int          acsmAlphabetSize;
         int          acsmFSA;
 
@@ -143,7 +149,7 @@ int acsmAddPattern2( ACSM_STRUCT2 * p, unsigned char * pat, int n,
                     int nocase, int offset, int depth, void *  id, int iid );
 int acsmCompile2 ( ACSM_STRUCT2 * acsm );
 int acsmSearch2 ( ACSM_STRUCT2 * acsm,unsigned char * T, int n, 
-		  int (*Match)( void * id, int index, void * data ),
+          int (*Match)( void * id, int index, void * data ),
                   void * data );
 void acsmFree2 ( ACSM_STRUCT2 * acsm );
 

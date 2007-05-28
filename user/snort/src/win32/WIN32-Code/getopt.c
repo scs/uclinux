@@ -26,11 +26,11 @@
 /* static (global) variables that are specified as exported by getopt() */ 
 char *optarg = NULL;    /* pointer to the start of the option argument  */ 
 int   optind = 1;       /* number of the next argv[] to be evaluated    */ 
-int   optopt = 0;       
 int   opterr = 1;       /* non-zero if a question mark should be returned 
                            when a non-valid option character is detected */
+int   optopt;
 
-int getopt(int argc, char *argv[], const char *opstring) 
+int getopt(int argc, char *argv[], char *opstring) 
 { 
     static char *pIndexPosition = NULL; /* place inside current argv string */ 
     char *pArgString = NULL;        /* where to start from next */ 
@@ -82,6 +82,7 @@ int getopt(int argc, char *argv[], const char *opstring)
          * Rare case: if opterr is non-zero, return a question mark; 
          * otherwise, just return the colon we're on. 
          *-------------------------------------------------------------------*/ 
+        optopt = *pArgString;
         return (opterr ? (int)'?' : (int)':'); 
     } 
     else if ((pOptString = strchr(opstring, *pArgString)) == 0) { 
@@ -90,6 +91,7 @@ int getopt(int argc, char *argv[], const char *opstring)
          *-------------------------------------------------------------------*/ 
         optarg = NULL;              /* no argument follows the option */ 
         pIndexPosition = NULL;      /* not in the middle of anything */ 
+        optopt = *pArgString;
         return (opterr ? (int)'?' : (int)*pArgString); 
     } 
     else { 
@@ -111,6 +113,7 @@ int getopt(int argc, char *argv[], const char *opstring)
                     optarg = argv[optind++]; 
                 else { 
                     optarg = NULL; 
+                    optopt = *pArgString;
                     return (opterr ? (int)'?' : (int)*pArgString); 
                 } 
             } 

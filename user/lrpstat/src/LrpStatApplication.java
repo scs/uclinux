@@ -16,9 +16,9 @@
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-// $Revision$
-// $Author$
-// $Header$
+// $Revision: 1.8 $
+// $Author: hejl $
+// $Header: /home/cvs/lrpStat/src/LrpStatApplication.java,v 1.8 2002/04/10 19:46:22 hejl Exp $
 
 import java.awt.*;
 import java.awt.event.*;

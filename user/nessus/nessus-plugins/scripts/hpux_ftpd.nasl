@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10490);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1560);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2000-0699");
 
  
@@ -56,7 +56,7 @@ Facteur de risque : Elevé";
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
                   francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
                   
- script_dependencie("find_service.nes");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl", "ftp_kibuv_worm.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -71,6 +71,11 @@ port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(!get_port_state(port))exit(0);
 
+if (get_kb_item('ftp/'+port+'/backdoor')) exit(0);
+
+banner = get_ftp_banner(port:port);
+if ( ! banner || " FTP server" >!< banner ) exit(0);
+
 # Connect to the FTP server
 soc = open_sock_tcp(port);
 ftpport = port;
@@ -78,6 +83,8 @@ if(soc)
 {
  r = ftp_recv_line(socket:soc);
  if(!strlen(r))exit(0);
+
+ 
  req = string("USER ftp\r\n");
  send(socket:soc, data:req);
  
@@ -90,7 +97,7 @@ if(soc)
  r = ftp_recv_line(socket:soc);
  
  
- if(ereg(string:r, pattern:"^230 .*"))
+ if(egrep(string:r, pattern:"^230 .*"))
  {
   req = string("HELP\r\n");
   send(socket:soc, data:req);

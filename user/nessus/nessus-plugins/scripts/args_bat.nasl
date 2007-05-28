@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(11465);
- script_version ("$Revision: 1.1 $");
- script_cve_id("CAN-1999-1180");
+ script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-1999-1180");
  
  name["english"] = "args.bat";
  
@@ -21,7 +21,7 @@ arbitrary files on the remote web server.
 
 Solution : remove it from /cgi-dos.
 
-Risk factor : Medium";
+Risk factor : High";
 
 
 
@@ -50,10 +50,13 @@ Risk factor : Medium";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 res = is_cgi_installed_ka(item:"/cgi-dos/args.bat", port:port);

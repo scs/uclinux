@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: enum.h,v 1.3.6.1 2004/04/27 22:08:37 jiri Exp $
  *
  * Header file for Enum and E164 related functions
  *

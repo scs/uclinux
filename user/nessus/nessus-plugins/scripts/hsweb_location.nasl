@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10606);
- script_cve_id("CAN-2001-0200");
  script_bugtraq_id(2336);
- script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2001-0200");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "HSWeb document path";
  script_name(english:name["english"]);
  
@@ -38,7 +38,7 @@ Risk factor : Low";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -48,25 +48,19 @@ Risk factor : Low";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {
   req = http_get(item:"/cgi", port:port);
-  soc = http_open_socket(port);
-  if(soc)
-  {
-   send(socket:soc, data:req);
-   result = http_recv(socket:soc);
-   http_close_socket(soc);
-   
-   if("Directory listing of" >< result)
+  result = http_keepalive_send_recv(port:port, data:req);
+  if("Directory listing of" >< result)
    {
     security_warning(port);
     exit(0);
    }
-  }
 }
 

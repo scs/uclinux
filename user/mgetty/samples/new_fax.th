@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# $Id$
+# $Id: new_fax.th,v 1.1 1998/08/31 20:25:38 gert Exp $
 # Program which is called for newly received faxes
 #
 # take all fax data, pack together (tar archive + gzip), and send as

@@ -6,7 +6,8 @@ if(description)
 {
  script_id(11783);
  script_bugtraq_id(8038);
- script_version ("$Revision: 1.1 $");
+ script_cve_id("CVE-2003-0478");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "Multiple IRC daemons format string attack";
  script_name(english:name["english"]);
@@ -23,7 +24,7 @@ Solution : Upgrade to one of the following IRC daemon :
 	DALnet Bahamut IRCd 1.4.36
 	digatech digatech IRCd 1.2.2
 	methane methane IRCd 0.1.2
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);

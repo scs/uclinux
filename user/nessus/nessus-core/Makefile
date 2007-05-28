@@ -2,7 +2,7 @@ include nessus.tmpl
 
 ALLDEPS = nessus.tmpl
 
-all: $(ALLDEPS) $(CLIENT) server sslstuff doc
+all: $(ALLDEPS) $(CLIENT) server sslstuff doc fetchtool
 
 
 nessus.tmpl: nessus.tmpl.in configure VERSION
@@ -21,8 +21,8 @@ install: all $(CLIENT_INSTALL) install-bin install-man
 
 install-bin:
 	test -d $(DESTDIR)${sbindir} || $(INSTALL_DIR) -m 755 $(DESTDIR)${sbindir}
-	$(INSTALL) -m $(SERVERMODE) \
-		${make_bindir}/nessusd $(DESTDIR)${sbindir}
+	$(INSTALL) -m $(SERVERMODE)  ${make_bindir}/nessusd $(DESTDIR)${sbindir}
+	$(INSTALL) -m $(SERVERMODE) ${make_bindir}/nessus-check-signature $(DESTDIR)${sbindir}
 	test -d $(DESTDIR)${sysconfdir} || $(INSTALL_DIR) -m 755 $(DESTDIR)${sysconfdir}
 	test -d $(DESTDIR)${sysconfdir}/nessus || $(INSTALL_DIR) -m 755 $(DESTDIR)${sysconfdir}/nessus	
 	test -d $(DESTDIR)${NESSUSD_DATADIR} || \
@@ -35,8 +35,10 @@ install-bin:
 	test -d $(DESTDIR)${NESSUSD_STATEDIR} || $(INSTALL_DIR) -m 755 $(DESTDIR)${NESSUSD_STATEDIR}
 	test -d $(DESTDIR)${NESSUSD_STATEDIR}/users || $(INSTALL_DIR) -m 755 $(DESTDIR)${NESSUSD_STATEDIR}/users
 	test -d $(DESTDIR)${NESSUSD_STATEDIR}/logs  || $(INSTALL_DIR) -m 755 $(DESTDIR)${NESSUSD_STATEDIR}/logs
+	test -d $(DESTDIR)${NESSUSD_STATEDIR}/tmp || $(INSTALL_DIR) -m 755 $(DESTDIR)${NESSUSD_STATEDIR}/tmp
 	test -d $(DESTDIR)${NESSUSD_STATEDIR}/jobs  || $(INSTALL_DIR) -m 755 $(DESTDIR)${NESSUSD_STATEDIR}/jobs
 	test -d $(DESTDIR)${NESSUSD_LOGDIR} || $(INSTALL_DIR) -m 755 $(DESTDIR)${NESSUSD_LOGDIR}
+	$(INSTALL) -c -m 0444 nessus-services $(DESTDIR)${NESSUSD_STATEDIR}/
 	$(INSTALL) -c -m 0444 include/config.h $(DESTDIR)${includedir}/nessus
 	$(INSTALL) -c -m 0444 include/ntcompat.h $(DESTDIR)${includedir}/nessus
 	$(INSTALL) -c -m 0444 include/includes.h $(DESTDIR)${includedir}/nessus
@@ -46,6 +48,7 @@ install-bin:
 	$(INSTALL) -c -m 0444 include/nessusicmp.h $(DESTDIR)${includedir}/nessus
 	$(INSTALL) -c -m 0444 include/nessustcp.h $(DESTDIR)${includedir}/nessus
 	$(INSTALL) -c -m 0444 include/nessusudp.h $(DESTDIR)${includedir}/nessus
+	$(INSTALL) -m $(CLIENTMODE) nessus-fetch/nessus-fetch $(DESTDIR)${bindir}
 	$(INSTALL) -m $(CLIENTMODE) nessus-adduser $(DESTDIR)${sbindir}
 	$(INSTALL) -m $(CLIENTMODE) nessus-rmuser $(DESTDIR)${sbindir}
 	$(INSTALL) -m $(CLIENTMODE) nessus-mkcert $(DESTDIR)${sbindir}
@@ -59,6 +62,7 @@ install-man:
 	@test -d $(DESTDIR)${mandir}/man8 || $(INSTALL_DIR) $(DESTDIR)${mandir}/man8
 
 	$(INSTALL) -c -m 0444 ${MAN_NESSUS_1} $(DESTDIR)${mandir}/man1/nessus.1
+	$(INSTALL) -c -m 0444 doc/nessus-fetch.1 $(DESTDIR)${mandir}/man1/nessus-fetch.1
 	$(INSTALL) -c -m 0444 ${MAN_NESSUSD_8} $(DESTDIR)${mandir}/man8/nessusd.8
 	$(INSTALL) -c -m 0444 doc/nessus-adduser.8 $(DESTDIR)${mandir}/man8/nessus-adduser.8
 	$(INSTALL) -c -m 0444 doc/nessus-rmuser.8 $(DESTDIR)${mandir}/man8/nessus-rmuser.8
@@ -91,6 +95,10 @@ sslstuff :
 	cd ssl && $(MAKE)
 
 
+fetchtool:
+	cd nessus-fetch && $(MAKE)
+
+
 doc : $(MAN_NESSUS_1) $(MAN_NESSUSD_8)
 
 $(MAN_NESSUS_1) : $(MAN_NESSUS_1).in
@@ -102,6 +110,7 @@ $(MAN_NESSUSD_8) : $(MAN_NESSUSD_8).in
 
 clean:
 	cd nessus && $(MAKE) clean
+	cd nessus-fetch && $(MAKE) clean
 	cd nessusd && $(MAKE) clean
 	cd ssl && $(MAKE) clean
 

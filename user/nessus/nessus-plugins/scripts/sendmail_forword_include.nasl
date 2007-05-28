@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11349);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CVE-1999-0129");
  script_bugtraq_id(715);
+ script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-1999-0129");
 
  name["english"] = "Sendmail Group Permissions Vulnerability";
  script_name(english:name["english"]);

@@ -18,9 +18,10 @@ if(description)
 {
 
  script_id(11067);
- script_cve_id("CAN-2002-1123");
  script_bugtraq_id(5411);
- script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-1123");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-B-0007");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "Microsoft's SQL Hello Overflow";
  script_name(english:name["english"]);
  
@@ -47,7 +48,7 @@ Risk factor : High";
  script_category(ACT_DESTRUCTIVE_ATTACK); 
  
  script_copyright(english:"This script is Copyright (C) 2002 Dave Aitel");
- family["english"] = "Windows";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
  script_require_ports(1433, "Services/mssql");
  script_dependencie("mssqlserver_detect.nasl", "mssql_version.nasl"); 

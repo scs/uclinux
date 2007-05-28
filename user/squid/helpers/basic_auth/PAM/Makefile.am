@@ -1,7 +1,7 @@
 #
 #  Makefile for the Squid PAM authentication helper
 #
-#  $Id$
+#  $Id: Makefile.am,v 1.1.2.3 2002/08/12 01:13:40 hno Exp $
 #
 #  Uncomment and customize the following to suit your needs:
 #

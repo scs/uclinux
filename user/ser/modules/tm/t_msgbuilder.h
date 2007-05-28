@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_msgbuilder.h,v 1.12.6.2 2004/02/11 18:51:59 janakj Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

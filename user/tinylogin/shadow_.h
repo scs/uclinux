@@ -43,7 +43,7 @@
  * This information is not derived from AT&T licensed sources.  Posted
  * to the USENET 11/88, and updated 11/90 with information from SVR4.
  *
- *	$Id$
+ *	$Id: shadow_.h,v 1.6 2001/08/22 04:05:52 philipc Exp $
  */
 
 typedef long sptime;

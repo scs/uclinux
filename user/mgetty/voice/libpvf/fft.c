@@ -3,7 +3,7 @@
  *
  * Original code by ulrich@Gaston.westfalen.de (Heinz Ulrich Stille).
  *
- * $Id$
+ * $Id: fft.c,v 1.5 1999/03/16 09:59:19 marcs Exp $
  *
  */
 

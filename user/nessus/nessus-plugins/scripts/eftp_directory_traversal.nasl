@@ -8,9 +8,9 @@
 if(description)
 {
   script_id(10933);
-  script_cve_id("CAN-2001-1109");
   script_bugtraq_id(3333);
-  script_version("$Revision: 1.14 $");
+  script_cve_id("CVE-2001-1109");
+  script_version("$Revision: 1.20 $");
  name["english"] = "EFTP tells if a given file exists";
  name["francais"] = "EFTP indique si un fichier existe";
  
@@ -72,11 +72,14 @@ Facteur de risque : Faible";
  script_dependencie("find_service.nes", "ftp_anonymous.nasl");
  script_require_ports("Services/ftp", 21);
  script_require_keys("ftp/login");
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 #
 include("ftp_func.inc");
+include('global_settings.inc');
+if ( ! thorough_tests ) exit(0);
 
 cmd[0] = "SIZE";
 cmd[1] = "MDTM";
@@ -95,7 +98,7 @@ if(get_port_state(port))
  {
   if(login)
   {
-   if(ftp_log_in(socket:soc, user:login, pass:pass))
+   if(ftp_authenticate(socket:soc, user:login, pass:pass))
    {
     tested=tested+1;
     for (i = 0; cmd[i]; i = i + 1)
@@ -144,7 +147,7 @@ useful when used with other vulnerabilities.
 
 Solution : update your FTP server and change it
 Risk factor : Low";
-    security_warning(port:port, report:rep);
+    security_warning(port:port, data:rep);
    }
    exit(0);
   }

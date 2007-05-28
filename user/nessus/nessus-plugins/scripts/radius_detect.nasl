@@ -7,10 +7,10 @@
 if(description)
 {
   script_id(11738);
-  script_version ("$Revision: 1.1 $");
-  script_bugtraq_id(7892, 5103, 4230, 3530, 3529, 2994, 2989, 2991, 6261, 3532);
-  script_cve_id("CAN-2001-1377", "CAN-2000-0321", "CAN-2001-0534", 
-  	        "CAN-2001-1081", "CAN-2001-1376", "CAN-2001-1377");
+  if ( NASL_LEVEL >= 2200 ) script_bugtraq_id(1147, 2989, 2991, 2994, 3529, 3530, 3532, 4230, 5103, 6261, 7892);
+  script_version ("$Revision: 1.8 $");
+  script_cve_id("CVE-2000-0321", "CVE-2001-0534",
+  	        "CVE-2001-1081", "CVE-2001-1376", "CVE-2001-1377");
 		
   script_name(english:"RADIUS server detection");
  
@@ -21,7 +21,7 @@ Several flaws are affecting various different various servers, however
 Nessus could not determine if they affect the remote host.
 
 The flaws range between obtaining a root shell remotely to be
-able to set up a dictionnary attack against the remote server.
+able to set up a dictionary attack against the remote server.
 
 
 *** As Nessus solely relied on the presence of this service to
@@ -30,7 +30,7 @@ able to set up a dictionnary attack against the remote server.
 Solution : Make sure you are running the latest version of your radius server and
 filter incoming traffic to this port.
 
-Risk Factor : High";
+Risk factor : High";
 
 
 

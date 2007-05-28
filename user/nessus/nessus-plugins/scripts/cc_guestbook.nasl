@@ -16,7 +16,7 @@ if(description)
 {
  script_id(11503);
  script_bugtraq_id(7237);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.7 $");
 
 
  name["english"] = "cc_guestbook.pl XSS";
@@ -24,15 +24,28 @@ if(description)
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host is running cc_guestbook.pl
+Synopsis :
+
+The remote web server contains a perl script is vulnerable to a cross site
+scripting vulnerability.
+
+Description : 
+
+The remote host is running cc_guestbook.pl, a guestbook written in Perl.
+
 
 This CGI is vulnerable to a cross-site scripting attack.
-	
 An attacker may use this flaw to steal the cookies of your users.
 
 
-Solution : Delete this package
-Risk factor : Low";
+Solution : 
+
+Delete this CGI
+
+Risk factor : 
+
+Low / CVSS Base Score : 3 
+(AV:R/AC:H/Au:NR/C:P/A:N/I:N/B:C)";
 
 
 
@@ -48,11 +61,12 @@ Risk factor : Low";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -64,23 +78,13 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
 
-
-gdir = make_list(cgi_dirs());
-
-dirs = make_list("", "/guestbook");
-foreach d (gdir)
-{
-  dirs = make_list(dirs, string(d, "/guestbook"), d);
-}
-
-
-foreach dir (dirs)
+foreach dir ( cgi_dirs() )
 {
  req = http_get(item:string(dir, "/cc_guestbook.pl"), port:port);
  res = http_keepalive_send_recv(port:port, data:req);
@@ -90,7 +94,7 @@ foreach dir (dirs)
  if("Please enter a valid email address" >< res &&
     "Please enter your homepage title" >< res)
  	{
-	security_warning(port);
+	security_note(port);
 	exit(0);
 	}
 }

@@ -14,7 +14,7 @@
  * TODO: implement other voice compression modes supported by modem
  *       add other IS-101 analog source/destination configurations (?)
  *
- * $Id$
+ * $Id: Compaq_VS.c,v 1.4 2005/03/13 17:27:45 gert Exp $
  *
  */
 

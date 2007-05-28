@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: lock.h,v 1.25.8.1 2004/07/26 23:18:36 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

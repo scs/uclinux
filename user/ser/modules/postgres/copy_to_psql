@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 #
-# $Id$
+# $Id: copy_to_psql,v 1.1 2003/04/08 01:25:35 lgfausak Exp $
 #
 # sc: ser control; tool for maintaining ser's databases
 #

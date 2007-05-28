@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10445);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1349);
- script_cve_id("CAN-2000-0473");
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-2000-0473");
  name["english"] = "AnalogX denial of service by long CGI name";
  name["francais"] = "Déni de service AnalogX par nom de cgi long";
  script_name(english:name["english"], francais:name["francais"]);
@@ -28,7 +28,7 @@ where 'TOO-MANY-CHARACTERS' represents a random string of
 Solution : Upgrade your web server to the latest version, or consider 
 an alternate web server, such as Apache (http://www.apache.org).
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -66,8 +66,9 @@ Facteur de risque : Sérieux";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+if (http_is_dead(port: port)) exit(0);
 
 if(!get_port_state(port))exit(0);
 

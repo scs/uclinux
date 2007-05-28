@@ -1,7 +1,7 @@
 #
 #  Makefile for the Squid Object Cache server
 #
-#  $Id$
+#  $Id: Makefile.am,v 1.16.2.11 2005/04/23 01:32:27 hno Exp $
 #
 #  Uncomment and customize the following to suit your needs:
 #
@@ -77,9 +77,6 @@ EXTRA_PROGRAMS = \
 	pinger \
 	dnsserver
 
-noinst_PROGRAMS = \
-	cf_gen
-
 sbin_PROGRAMS = \
 	squid
 
@@ -92,11 +89,9 @@ libexec_PROGRAMS = \
 	$(UNLINKD) \
 	cachemgr$(CGIEXT)
 
-cf_gen_SOURCES = cf_gen.c defines.h
-nodist_cf_gen_HEADER = cf_gen_defines.h
-cf_gen.$(OBJEXT): cf_gen_defines.h
 squidclient_SOURCES = client.c
 cachemgr__CGIEXT__SOURCES = cachemgr.c
+cachemgr__CGIEXT__CFLAGS = -DDEFAULT_CACHEMGR_CONFIG=\"$(DEFAULT_CACHEMGR_CONFIG)\" $(AM_CFLAGS)
 
 EXTRA_squid_SOURCES = \
 	delay_pools.c \
@@ -275,10 +270,12 @@ EXTRA_DIST = \
 	store_modules.sh \
 	repl_modules.sh \
 	mib.txt \
+	cachemgr.conf \
 	mime.conf.default
 
 DEFAULT_PREFIX		= $(prefix)
 DEFAULT_CONFIG_FILE     = $(sysconfdir)/squid.conf
+DEFAULT_CACHEMGR_CONFIG = $(sysconfdir)/cachemgr.conf
 DEFAULT_MIME_TABLE	= $(sysconfdir)/mime.conf
 DEFAULT_DNSSERVER       = $(libexecdir)/`echo dnsserver | sed '$(transform);s/$$/$(EXEEXT)/'`
 DEFAULT_LOG_PREFIX	= $(localstatedir)/logs
@@ -324,6 +321,22 @@ cf_parser.h: cf.data cf_gen$(EXEEXT)
 cf_gen_defines.h: $(srcdir)/cf_gen_defines $(srcdir)/cf.data.pre
 	awk -f $(srcdir)/cf_gen_defines <$(srcdir)/cf.data.pre >cf_gen_defines.h
 
+cf_gen: $(srcdir)/cf_gen.c cf_gen_defines.h $(srcdir)/defines.h
+	cc -o $@ $(INCLUDES) $(srcdir)/cf_gen.c -lm
+
+romfs:
+	$(ROMFSINST) squid /bin/squid
+	$(ROMFSINST) squidclient /bin/squidclient
+	$(ROMFSINST) $(srcdir)/snapgear.conf /etc/default/squid.conf
+	$(ROMFSINST) $(srcdir)/mime.conf.default /etc/mime.conf
+	$(ROMFSINST) $(srcdir)/mib.txt /etc/mib.txt
+if USE_DNSSERVER
+	$(ROMFSINST) dnsserver /bin/dnsserver
+endif
+if ENABLE_UNLINKD
+	$(ROMFSINST) unlinkd /bin/unlinkd
+endif
+
 
 ## FIXME: generate a sed command file from configure. Then this doesn't
 ## depend on the Makefile. 
@@ -366,6 +379,12 @@ install-data-local: install-sysconfDATA install-dataDATA
 	else \
 	        echo "$(INSTALL_DATA) squid.conf.default $(DESTDIR)$(DEFAULT_CONFIG_FILE)"; \
 	        $(INSTALL_DATA) squid.conf.default $(DESTDIR)$(DEFAULT_CONFIG_FILE); \
+	fi
+	@if test -f $(DESTDIR)$(DEFAULT_CACHEMGR_CONFIG) ; then \
+	        echo "$@ will not overwrite existing $(DESTDIR)$(DEFAULT_CACHEMGR_CONFIG)" ; \
+	else \
+	        echo "$(INSTALL_DATA) $(srcdir)/cachemgr.conf $(DESTDIR)$(DEFAULT_CACHEMGR_CONFIG)"; \
+	        $(INSTALL_DATA) $(srcdir)/cachemgr.conf $(DESTDIR)$(DEFAULT_CACHEMGR_CONFIG); \
 	fi
 	$(mkinstalldirs) $(DESTDIR)$(DEFAULT_LOG_PREFIX)
 

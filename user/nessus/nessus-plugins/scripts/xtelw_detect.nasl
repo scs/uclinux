@@ -10,7 +10,8 @@
 if(description)
 {
   script_id(11120);
-  script_version ("$Revision: 1.4 $");
+#  script_cve_id("CVE-MAP-NOMATCH");
+  script_version ("$Revision: 1.7 $");
  
   script_name(english:"xtelw detection", francais:"detection de xtelw");
  
@@ -42,9 +43,7 @@ Risque : Aucun";
  
   script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi",
 		francais:"Ce script est Copyright (C) 2002 Michel Arboi");
-  family["english"] = "Misc.";
-  family["francais"] = "Divers";
-  script_family(english:family["english"], francais:family["francais"]);
+  script_family(english:"Service detection");
   script_dependencie("find_service.nes");
   script_require_ports("Services/unknown", 1314);
 
@@ -62,7 +61,7 @@ port=1314;
 #if (! port) { port=1314; }
 
 if (! get_port_state(port)) exit(0);
-if (known_service(port: port)) exit(0);
+if (! service_is_unknown(port: port)) exit(0);
 
 banner = get_unknown_banner(port: port, dontfetch:0);
 if (! banner) exit(0);

@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(10605);
- script_version ("$Revision: 1.11 $");
- script_bugtraq_id(2302);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0001");
+ script_bugtraq_id(2302, 2307, 2309, 2321);
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CVE-2001-0010", "CVE-2001-0011", "CVE-2001-0012", "CVE-2001-0013");
  
  
@@ -61,5 +62,5 @@ if(ereg(string:vers,
 	 pattern:"^8\.(([0-1].*)|(2\.[0-2])).*"))security_hole(53);
 
 if(ereg(string:vers,
-    	pattern:"^4\.([0-8]|9\.[0-7]).*"))security_hole(53);
+    	pattern:"^4\.([0-8]|9\.[0-7]([^0-9]|$)).*"))security_hole(53);
 

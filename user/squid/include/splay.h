@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: splay.h,v 1.10 2001/10/08 16:18:31 hno Exp $
  */
 
 #ifndef SQUID_SPLAY_H

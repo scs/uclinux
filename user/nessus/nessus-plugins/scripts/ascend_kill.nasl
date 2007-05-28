@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10019);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(714);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0060");
  name["english"] = "Ascend Kill";
  name["francais"] = "Ascend Kill";

@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,16 +14,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * This is the Authentification Manager
  *
@@ -68,24 +58,24 @@ auth_check_user(globals, from, dname)
   
     auth_printf(globals,"User : ");
     auth_gets(globals, buf_user, 254);
-    if(!strlen(buf_user)) {
+    if( buf_user[0] == '\0' ) {
 		EXIT(0);
     }
   
     auth_printf(globals, "Password : ");
     auth_gets(globals, buf_password, 254);
-    if(!strlen(buf_password)) {
+    if( buf_password[0] == '\0' ) {
 	EXIT(0);
     }
   
     l = strlen(buf_user);
-    if (l  &&  buf_user[l-1] == '\n')buf_user[--l] = '\0';
-    if (l  &&  buf_user[l-1] == '\r')buf_user[--l] = '\0';
+    if (l  &&  buf_user[l - 1] == '\n')buf_user[--l] = '\0';
+    if (l  &&  buf_user[l - 1] == '\r')buf_user[--l] = '\0';
     
   
     l = strlen(buf_password);
-    if (l  &&  buf_password[l-1] == '\n')buf_password[--l] = '\0';
-    if (l  &&  buf_password[l-1] == '\r')buf_password[--l] = '\0';
+    if (l  &&  buf_password[l - 1] == '\n')buf_password[--l] = '\0';
+    if (l  &&  buf_password[l - 1] == '\r')buf_password[--l] = '\0';
   }
 
   if((permissions = check_user(buf_user, buf_password, dname))

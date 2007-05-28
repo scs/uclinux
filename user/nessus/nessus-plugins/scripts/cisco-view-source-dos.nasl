@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10682);
- script_cve_id("CVE-2000-0984");
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1838);
+ script_cve_id("CVE-2000-0984");
+ script_version ("$Revision: 1.16 $");
  
  name["english"] = "CISCO view-source DoS";
  name["francais"] = "CISCO view-source DoS";
@@ -53,8 +53,12 @@ Risk factor : High";
 # The script code starts here
 #
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+include("http_func.inc");
+include("global_settings.inc");
+
+port = get_http_port(default:80);
+if ( report_paranoia < 2 ) exit(0);
+
 
 if(get_port_state(port))
 {

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10222);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "nsemntd service";
  name["francais"] = "Service nsemntd";
@@ -58,6 +58,10 @@ Facteur de risque : Faible";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 

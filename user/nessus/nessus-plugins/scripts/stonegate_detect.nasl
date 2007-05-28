@@ -8,7 +8,8 @@
 if(description)
 {
  script_id(11762);
- script_version ("$Revision: 1.1 $");
+#script_cve_id("CVE-MAP-NOMATCH");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "StoneGate client authentication detection";
  
@@ -45,22 +46,13 @@ Risk factor : Medium";
 
 function test_stonegate(port)
 {
- soc = open_sock_tcp(port);
-
- if(soc)
- {
-  r = recv(socket:soc, length:2048);
-  close(soc);
-
+  r = get_kb_item("FindService/tcp/" + port + "/spontaneous");
+  if ( ! r ) return 0;
   match = egrep(pattern:"(StoneGate firewall|SG login:)", string : r); 
-
   if(match)
-  {
 	return(r);
-  }
   else	
   	return(0);
- }
 }
 
 

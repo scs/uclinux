@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(11013);
- script_version ("$Revision: 1.11 $");
- script_cve_id("CAN-2002-0882");
- script_bugtraq_id(4794);
+ script_bugtraq_id(4794, 4798);
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2002-0882");
  
  name["english"] = "Cisco VoIP phones DoS";
  script_name(english:name["english"]);
@@ -46,9 +46,10 @@ Risk factor : High";
 #
 # The script code starts here
 #
+include("http_func.inc");
 
-port=get_kb_item("Services/www");
-if(!port)port=80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 

@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10410);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1216);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-0350");
  name["english"] = "ICEcap default password";
  name["francais"] = "Mot de passe par défaut de ICEcap";
@@ -30,7 +30,7 @@ in ICEcap v2.0.23 and below.
 
 Solution : Set a password. If you are running version <= 2.0.23
 of ICEcap, go to http://advice.networkice.com/advice/Support/KB/q000166/
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -77,21 +77,15 @@ Facteur de risque : Sérieux";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
 port = get_kb_item("Services/ICEcap");
 if(!port)port = 8082;
 
 if(get_port_state(port))
 {
-   soc = http_open_socket(port);
-   if(soc)
-   {
-    a = http_get(item:"/", port:port);
-    send(socket:soc, data:a);
-    code = recv_line(socket:soc, length:1024);
-   # r = http_recv(socket:soc);
-    http_close_socket(soc);
-    if(ereg(string:code, pattern:"^HTTP/[0-9]\.[0-9] 401 .*"))
+    code = http_get_cache(item:"/", port:port);
+    if(code && ereg(string:code, pattern:"^HTTP/[0-9]\.[0-9] 401 .*"))
     {
      soc = open_sock_tcp(port);
      s = http_get(item:"/", port:port);
@@ -107,9 +101,8 @@ if(get_port_state(port))
       {
        security_hole(port);
       }
-    } 
-  }
-}	
+    }
+}
    
    
 

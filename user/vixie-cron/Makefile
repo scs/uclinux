@@ -17,7 +17,7 @@
 
 # Makefile for vixie's cron
 #
-# $Id$
+# $Id: Makefile,v 2.9 1994/01/15 20:43:43 vixie Exp $
 #
 # vix 03mar88 [moved to RCS, rest of log is in there]
 # vix 30mar87 [goodbye, time.c; hello, getopt]

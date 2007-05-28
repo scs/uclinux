@@ -1,4 +1,8 @@
 # -*- Fundamental -*-
+#
+# (C) Tenable Network Security
+#
+#
 # NFS functions
 #
 # 
@@ -15,7 +19,7 @@
 #		          any more (soc is a socket opened to the mount daemon)
 #
 #
-# $Id: nfs_func.inc,v 1.5 2003/06/12 17:34:56 renaud Exp $
+# $Id: nfs_func.inc,v 1.9 2006/04/10 18:37:22 renaud Exp $
 
 function padsz(len)
 {
@@ -40,6 +44,9 @@ function rpclong(val)
 function str2long(val, idx)
 {
  local_var ret;
+ if ( strlen(val) <= (idx + 3) )
+	return NULL;
+
  ret = ord(val[idx]) * 256 * 256 * 256 + 
        ord(val[idx+1]) * 256 * 256 +
        ord(val[idx+2]) * 256 +
@@ -97,7 +104,7 @@ function mount(soc, share)
 		   
   send(socket:soc, data:req);
   r = recv(socket:soc, length:4096);
-  if(strlen(r) < 24)
+  if(strlen(r) < 60)
    return NULL;
   else
    {
@@ -150,6 +157,7 @@ function readdir(soc, fid)
  ret = make_list();
  while(str2long(val:r, idx:i) == 1)
  {
+  if ( i > strlen(r)) break;
   i += 4;
   i += 4; # File ID - don't care
   len = str2long(val:r, idx:i);

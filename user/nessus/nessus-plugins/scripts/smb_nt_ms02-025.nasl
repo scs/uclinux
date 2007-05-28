@@ -1,36 +1,42 @@
 #
-# This script was written by Michael Scheidell <scheidell at secnap.net>
-# Copyright 2002 SECNAP Network Security, LLC.
-
+# (C) Tenable Network Security
 #
+
 if(description)
 {
  script_id(11143);
- script_version("$Revision: 1.3 $");
- script_cve_id("CAN-2002-0368");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-b-0002"); 
+ script_bugtraq_id(4881);
+ script_version("$Revision: 1.13 $");
+ script_cve_id("CVE-2002-0368");
  name["english"] = "Exchange 2000 Exhaust CPU Resources (Q320436)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-Malformed Mail Attribute can Cause Exchange 2000 to Exhaust CPU
-Resources (Q320436)
+Synopsis :
 
-Impact of vulnerability: Denial of Service
+It is possible to cause a DoS against the Mail Server.
 
-Affected Software: 
+Description :
 
-Recommendation: Users using any of the affected
-products should install the patch immediately.
+The remote host is running Exchange Server 2000. The remote
+version of this software contains a flaw wich may allow an
+attacker to cause a denial of service.
 
-Maximum Severity Rating: Critical
+To cause the DoS, the attacker needs to send a mail with 
+malformed attributes.
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-025.asp
+Solution : 
 
-(note: requires admin level netbios login account to check)
+Microsoft has released a set of patches for Exchange 2000 :
 
-Risk factor : High";
+http://www.microsoft.com/technet/security/bulletin/ms02-025.mspx
+
+Risk factor : 
+
+Medium / CVSS Base Score : 5 
+(AV:R/AC:L/Au:NR/C:N/A:C/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
@@ -40,51 +46,36 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Michael Scheidell");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_full_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl","smtpserver_detect.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_full_access","SMB/WindowsVersion",
-		     "SMTP/microsoft_esmtp_5");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-#check for server:
-key = "SYSTEM\CurrentControlSet\Control\ProductOptions";
-item = "ProductType";
 
-value = registry_get_sz(key:key, item:item);
+server = hotfix_check_nt_server();
+if (!server) exit (0);
 
-if( (value == "LanmanNT") || (value == "ServerNT"))
+version = get_kb_item ("SMB/Exchange/Version");
+if (!version || (version != 60)) exit (0);
+
+sp = get_kb_item ("SMB/Exchange/SP");
+if (sp && (sp >= 3)) exit (0);
+
+if (is_accessible_share())
 {
-
- access = get_kb_item("SMB/registry_full_access");
- if(!access)exit(0);
-
-
- #check for Exchange sp3 or above: 6249
- key = "SOFTWARE\Microsoft\Exchange\Setup";
- item = "ServicePackBuild";
-
- value = registry_get_dword(key:key, item:item);
- if(value)
- {
- if(ereg(string:value, pattern:"6249|[7-9][0-9][0-9][0-9]|6[3-9][0-9][0-9]|62[5-9][0-9]"))exit(0);
- }
-
- key = "SOFTWARE\Microsoft\Updates\Exchange Server 2000\SP3\Q320436";
-
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(25);
- 
+ path = get_kb_item ("SMB/Exchange/Path") + "\bin";
+ if ( hotfix_is_vulnerable (os:"5.0", file:"Exprox.dll", version:"6.0.5770.91", dir:path) )
+   security_warning (get_kb_item("SMB/transport"));
+ hotfix_check_fversion_end();
 }
-
+else if (hotfix_missing (name:"320436") > 0 )
+ security_warning(get_kb_item("SMB/transport"));

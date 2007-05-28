@@ -32,7 +32,11 @@
  *
  */
 
+/* _GNU_SOURCE is required for strcasestr */
+#define _GNU_SOURCE 1
+
 #include "squid.h"
+#include "util.h"
 
 extern PF httpStateFree;
 
@@ -65,7 +69,8 @@ icapClose()
  * the buffer.
  */
 int
-icapFindHeader(const char *buf, const char *hdr, const char **Start, const char **End)
+icapFindHeader(const char *buf, const char *hdr, const char **Start,
+    const char **End)
 {
     const char *start = NULL;
     const char *end = NULL;
@@ -129,10 +134,11 @@ icapParseEncapsulated(IcapStateData * icap, const char *enc_start,
 	else
 	    current++;		/* skip ',' */
     }
-    debug(81, 3) ("icapParseEncapsulated: res-hdr=%d, req-hdr=%d, null-body=%d, "
-	"res-body=%d, req-body=%d, opt-body=%d\n",
-	icap->enc.res_hdr, icap->enc.req_hdr, icap->enc.null_body,
-	icap->enc.res_body, icap->enc.req_body, icap->enc.opt_body);
+    debug(81,
+	3) ("icapParseEncapsulated: res-hdr=%d, req-hdr=%d, null-body=%d, "
+	"res-body=%d, req-body=%d, opt-body=%d\n", icap->enc.res_hdr,
+	icap->enc.req_hdr, icap->enc.null_body, icap->enc.res_body,
+	icap->enc.req_body, icap->enc.opt_body);
 
 }
 
@@ -141,8 +147,8 @@ icapService(icap_service_t type, request_t * r)
 {
     icap_service_list *isl_iter;
     int is_iter;
-    int nb_unreachable=0;
-    icap_service * unreachable_one=NULL;
+    int nb_unreachable = 0;
+    icap_service *unreachable_one = NULL;
 
     debug(81, 8) ("icapService: type=%s\n", icapServiceToStr(type));
     if (NULL == r) {
@@ -154,37 +160,42 @@ icapService(icap_service_t type, request_t * r)
 	return NULL;
     }
     for (isl_iter = r->class->isl; isl_iter; isl_iter = isl_iter->next) {
-        /* TODO:luc: Do a round-robin, choose a random value ? 
+	/* TODO:luc: Do a round-robin, choose a random value ? 
 	 * For now, we use a simple round robin with checking is the
 	 * icap server is available */
 	is_iter = isl_iter->last_service_used;
-	do
-	 {
-	   is_iter = (is_iter + 1) % isl_iter->nservices;
-	   debug(81, 8) ("icapService: checking service %s/id=%d\n",isl_iter->services[is_iter]->name,is_iter);
-	   if (type == isl_iter->services[is_iter]->type)
-	    {
-	      if (!isl_iter->services[is_iter]->unreachable)
-	       {
-		 debug(81, 2) ("icapService: found service %s/id=%d\n", isl_iter->services[is_iter]->name,is_iter);
-		 isl_iter->last_service_used = is_iter;
-		 return isl_iter->services[is_iter];
-	       }
-	      debug(81, 8) ("icapService: found service %s/id=%d, but it's unreachable. I don't want to use it\n", isl_iter->services[is_iter]->name,is_iter);
-	      unreachable_one = isl_iter->services[is_iter];
-	      nb_unreachable++;
-	      /* FIXME:luc: in response mod, if we return an NULL pointer, user can bypass
-	       * the filter, is it normal ? */
+	do {
+	    is_iter = (is_iter + 1) % isl_iter->nservices;
+	    debug(81, 8) ("icapService: checking service %s/id=%d\n",
+		isl_iter->services[is_iter]->name, is_iter);
+	    if (type == isl_iter->services[is_iter]->type) {
+		if (!isl_iter->services[is_iter]->unreachable) {
+		    debug(81, 8) ("icapService: found service %s/id=%d\n",
+			isl_iter->services[is_iter]->name, is_iter);
+		    isl_iter->last_service_used = is_iter;
+		    return isl_iter->services[is_iter];
+		}
+		debug(81,
+		    8)
+		    ("icapService: found service %s/id=%d, but it's unreachable. I don't want to use it\n",
+		    isl_iter->services[is_iter]->name, is_iter);
+		unreachable_one = isl_iter->services[is_iter];
+		nb_unreachable++;
+		/* FIXME:luc: in response mod, if we return an NULL pointer, user can bypass
+		 * the filter, is it normal ? */
 	    }
-	 } while (is_iter != isl_iter->last_service_used);
+	} while (is_iter != isl_iter->last_service_used);
     }
     debug(81, 8) ("icapService: no service found\n");
+    isl_iter = r->class->isl;
 
-    if (nb_unreachable > 0){
-	    debug(81, 8) ("All the services are unreachable, returning an unreachable one\n");
-	    return unreachable_one;
+    if (nb_unreachable > 0) {
+	debug(81,
+	    8)
+	    ("All the services are unreachable, returning an unreachable one\n");
+	return unreachable_one;
     } else {
-	    return NULL;
+	return NULL;
     }
 }
 
@@ -225,9 +236,7 @@ icapConnect(IcapStateData * icap, CNCB * theCallback)
     cbdataLock(icap);
     commConnectStart(icap->icap_fd,
 	icap->current_service->hostname,
-	icap->current_service->port,
-	theCallback,
-	icap);
+	icap->current_service->port, theCallback, icap);
     rc = cbdataValid(icap);
     cbdataUnlock(icap);
     debug(81, 3) ("icapConnect: returning %d\n", rc);
@@ -316,7 +325,7 @@ icapReadTimeout(int fd, void *data)
 	debug(81, 3) ("icapReadTimeout: FD %d, unreachable=1\n", fd);
 	icapOptSetUnreachable(icap->current_service);
     } else
-        debug(81, 3) ("icapReadTimeout: FD %d, still reachable\n", fd);
+	debug(81, 3) ("icapReadTimeout: FD %d, still reachable\n", fd);
     comm_close(fd);
 }
 
@@ -350,9 +359,7 @@ icapAclChecklistCreate(const acl_access * acl, const clientHttpRequest * http)
 {
     aclCheck_t *ch;
     ConnStateData *conn = http->conn;
-    ch = aclChecklistCreate(acl,
-	http->request,
-	0);
+    ch = aclChecklistCreate(acl, http->request, 0);
     ch->conn = conn;
     cbdataLock(ch->conn);
     return ch;
@@ -434,11 +441,12 @@ icapReadHeader(int fd, IcapStateData * icap, int *isIcap)
 	len = recv(fd, tmpbuf, peek_sz, MSG_PEEK);
 	debug(81, 5) ("recv(FD %d, ..., MSG_PEEK) ret %d\n", fd, len);
 	if (len < 0) {
-	    debug(81, 1) ("icapReadHeader: FD %d recv error: %s\n", fd, xstrerror());
+	    debug(81, 1) ("icapReadHeader: FD %d recv error: %s\n", fd,
+		xstrerror());
 	    return -1;
 	}
 	if (len == 0) {
-	    debug(81, 1) ("icapReadHeader: FD %d recv EOF\n", fd);
+	    debug(81, 2) ("icapReadHeader: FD %d recv EOF\n", fd);
 	    return -1;
 	}
 	headlen = headersEnd(tmpbuf, len);
@@ -459,8 +467,10 @@ icapReadHeader(int fd, IcapStateData * icap, int *isIcap)
 	 */
 	peek_sz *= 2;
 	if (peek_sz >= SQUID_TCP_SO_RCVBUF) {
-	    debug(81, 1) ("icapReadHeader: Failed to find end of ICAP header\n");
-	    debug(81, 1) ("\twithin first %d bytes of response\n", SQUID_TCP_SO_RCVBUF);
+	    debug(81,
+		1) ("icapReadHeader: Failed to find end of ICAP header\n");
+	    debug(81, 1) ("\twithin first %d bytes of response\n",
+		SQUID_TCP_SO_RCVBUF);
 	    debug(81, 1) ("\tpossible persistent connection bug/confusion\n");
 	    return -1;
 	}
@@ -493,7 +503,8 @@ icapReadHeader(int fd, IcapStateData * icap, int *isIcap)
 }
 
 static int
-icapParseConnectionClose(const IcapStateData * icap, const char *s, const char *e)
+icapParseConnectionClose(const IcapStateData * icap, const char *s,
+    const char *e)
 {
     char *t;
     char *q;
@@ -501,7 +512,7 @@ icapParseConnectionClose(const IcapStateData * icap, const char *s, const char *
      * s points to the start of the line "Connection: ... "
      * e points to *after* the last character on the line
      */
-    s += 11;	/* skip past Connection: */
+    s += 11;			/* skip past Connection: */
     while (s < e && isspace(*s))
 	s++;
     if (e - s < 5)
@@ -509,15 +520,55 @@ icapParseConnectionClose(const IcapStateData * icap, const char *s, const char *
     /*
      * create a buffer that we can use strtok on
      */
-    t = xmalloc(e-s+1);
-    strncpy(t, s, e-s);
-    *(t+(e-s)) = '\0';
+    t = xmalloc(e - s + 1);
+    strncpy(t, s, e - s);
+    *(t + (e - s)) = '\0';
     for (q = strtok(t, ","); q; q = strtok(NULL, ",")) {
-        if (0 == strcasecmp(q, "close"))
+	 if (0 == strcasecmp(q, "close")){
+	      xfree(t);
 	    return 1;
+	 }
     }
+    xfree(t);
     return 0;
 }
+
+/* returns icap status, version and subversion extracted from status line or -1 on parsing failure 
+ * The str_status pointr points to the text returned from the icap server.
+ * sline probably is NOT terminated with '\0' 
+ */
+int
+icapParseStatusLine(const char *sline, int slinesize, int *version_major,
+    int *version_minor, const char **str_status)
+{
+    char *sp, *stmp, *ep = (char *) sline + slinesize;
+    int status;
+    if (slinesize < 14)		/*The format of this line is: "ICAP/x.x xxx[ msg....]\r\n" */
+	return -1;
+
+    if (strncmp(sline, "ICAP/", 5) != 0)
+	return -1;
+    if (sscanf(sline + 5, "%d.%d", version_major, version_minor) != 2)
+	return -1;
+
+    if (!(sp = memchr(sline, ' ', slinesize)))
+	return -1;
+
+    while (sp < ep && xisspace(*++sp));
+
+    if (!xisdigit(*sp) || sp >= ep)
+	return -1;
+
+    if ((status = strtol(sp, &stmp, 10)) <= 0)
+	return -1;
+    sp = stmp;
+
+    while (sp < ep && xisspace(*++sp));
+    *str_status = sp;
+    /*Must add a test for "\r\n" end headers .... */
+    return status;
+}
+
 
 void
 icapSetKeepAlive(IcapStateData * icap, const char *hdrs)

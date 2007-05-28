@@ -79,12 +79,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-
 #ifndef WIN32
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#endif
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+#endif /* !WIN32 */
 
 #include "portscan.h"
 #include "decode.h"
@@ -92,6 +91,7 @@
 #include "sfxhash.h"
 #include "ipobj.h"
 #include "flow.h"
+#include "stream_api.h"
 
 typedef struct s_PS_INIT
 {
@@ -124,6 +124,8 @@ typedef struct s_PS_ALERT_CONF
 static int      g_ps_tracker_size;
 static PS_INIT  g_ps_init;
 static SFXHASH *g_hash;
+
+extern int g_include_midstream;
 
 /*
 **  Scanning configurations.  This is where we configure what the thresholds
@@ -295,17 +297,18 @@ int ps_init(int detect_scans, int detect_scan_type, int sense_level,
 /**
 **  Check scanner and scanned ips to see if we can filter them out.
 */
-static int ps_ignore_ip(unsigned long scanner, unsigned long scanned)
+static int ps_ignore_ip(unsigned long scanner, unsigned short scanner_port,
+                        unsigned long scanned, unsigned short scanned_port)
 {
     if(g_ps_init.ignore_scanners)
     {
-        if(ipset_contains(g_ps_init.ignore_scanners, &scanner, IPV4_FAMILY))
+        if(ipset_contains(g_ps_init.ignore_scanners, &scanner, &scanner_port, IPV4_FAMILY))
             return 1;
     }
 
     if(g_ps_init.ignore_scanned)
     {
-        if(ipset_contains(g_ps_init.ignore_scanned, &scanned, IPV4_FAMILY))
+        if(ipset_contains(g_ps_init.ignore_scanned, &scanned, &scanned_port, IPV4_FAMILY))
             return 1;
     }
 
@@ -412,12 +415,12 @@ static int ps_filter_ignore(PS_PKT *ps_pkt)
     
     if(reverse_pkt)
     {
-        if(ps_ignore_ip(scanned, scanner))
+        if(ps_ignore_ip(scanned, p->dp, scanner, p->sp))
             return 1;
     }
     else
     {
-        if(ps_ignore_ip(scanner, scanned))
+        if(ps_ignore_ip(scanner, p->sp, scanned, p->dp))
             return 1;
     }
     
@@ -425,10 +428,10 @@ static int ps_filter_ignore(PS_PKT *ps_pkt)
 
     if(g_ps_init.watch_ip)
     {
-        if(ipset_contains(g_ps_init.watch_ip, &scanner, IPV4_FAMILY))
+        if(ipset_contains(g_ps_init.watch_ip, &scanner, &(p->sp), IPV4_FAMILY))
             return 0;
 
-        if(ipset_contains(g_ps_init.watch_ip, &scanned, IPV4_FAMILY))
+        if(ipset_contains(g_ps_init.watch_ip, &scanned, &(p->dp), IPV4_FAMILY))
             return 0;
 
         return 1;
@@ -462,13 +465,12 @@ static int ps_tracker_init(PS_TRACKER *tracker)
 */
 static int ps_tracker_get(PS_TRACKER **ht, PS_HASH_KEY *key)
 {
-    PS_TRACKER new_ht;
     int iRet;
 
     *ht = (PS_TRACKER *)sfxhash_find(g_hash, (void *)key);
     if(!(*ht))
     {
-        iRet = sfxhash_add(g_hash, (void *)key, &new_ht);
+        iRet = sfxhash_add(g_hash, (void *)key, NULL);
         if(iRet == SFXHASH_OK)
         {
             *ht = (PS_TRACKER *)sfxhash_mru(g_hash);
@@ -847,15 +849,13 @@ static int ps_tracker_update_tcp(PS_PKT *ps_pkt, PS_TRACKER *scanner,
         PS_TRACKER *scanned, int proto_idx)
 {
     Packet  *p;
-    Session *ssn;
     time_t  pkt_time;
     FLOW    *flow;
+    u_int32_t session_flags;
     
-
     p = (Packet *)ps_pkt->pkt;
     pkt_time = packet_timeofday();
 
-    ssn  = (Session *)p->ssnptr;
     flow = (FLOW *)p->flow;
 
     /*
@@ -864,11 +864,18 @@ static int ps_tracker_update_tcp(PS_PKT *ps_pkt, PS_TRACKER *scanner,
     **  If this what stream4 considers to be a valid initiator, then
     **  we will use the available stream4 information.  Otherwise, we
     **  can just revert to flow and look for initiators and responders.
+    **
+    **  The "midstream" logic below says that, if we include sessions
+    **  picked up midstream, then we don't care about the MIDSTREAM flag.
+    **  Otherwise, only consider streams not picked up midstream.
     */
-    if(ssn)
+    if(p->ssnptr && stream_api)
     {
-        if((ssn->session_flags & SSNFLAG_SEEN_CLIENT) && 
-           !(ssn->session_flags & SSNFLAG_SEEN_SERVER))
+        session_flags = stream_api->get_session_flags(p->ssnptr);
+
+        if((session_flags & SSNFLAG_SEEN_CLIENT) && 
+           !(session_flags & SSNFLAG_SEEN_SERVER) &&
+           (g_include_midstream || !(session_flags & SSNFLAG_MIDSTREAM)))
         {
             if(scanned)
             {
@@ -899,7 +906,7 @@ static int ps_tracker_update_tcp(PS_PKT *ps_pkt, PS_TRACKER *scanner,
         else if((p->packet_flags & PKT_FROM_SERVER) &&
                 (p->tcph->th_flags & TH_RST) &&
                 (!(p->packet_flags & PKT_STREAM_EST) ||
-                (ssn->session_flags & SSNFLAG_MIDSTREAM)))
+                (session_flags & SSNFLAG_MIDSTREAM)))
         {
             if(scanned)
             {
@@ -1033,13 +1040,13 @@ static int ps_tracker_update_ip(PS_PKT *ps_pkt, PS_TRACKER *scanner,
                 if(scanned)
                 {
                     ps_proto_update(&scanned->proto[proto_idx],1,0,
-                        p->iph->ip_src.s_addr,(int)p->iph->ip_proto, pkt_time);
+                        p->iph->ip_src.s_addr,(u_short)p->iph->ip_proto, pkt_time);
                 }
 
                 if(scanner)
                 {
                     ps_proto_update(&scanner->proto[proto_idx],1,0,
-                        p->iph->ip_dst.s_addr,(int)p->iph->ip_proto, pkt_time);
+                        p->iph->ip_dst.s_addr,(u_short)p->iph->ip_proto, pkt_time);
                 }
             }
             else if(flow->stats.direction == FROM_RESPONDER)
@@ -1356,7 +1363,7 @@ static int ps_alert_one_to_many(PS_PROTO *scanner, PS_PROTO *scanned,
 {
     if(!conf)
         return -1;
-
+     
     if(scanner && !scanner->alerts)
     {
         if(scanner->priority_count >= conf->priority_count)
@@ -1610,7 +1617,7 @@ static int ps_alert_icmp(PS_PROTO *scanner, PS_PROTO *scanned)
     {
         case PS_SENSE_HIGH:
             one_to_many = &g_icmp_hi_sweep;
-
+     
             break;
 
         case PS_SENSE_MEDIUM:

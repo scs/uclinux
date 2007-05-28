@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(10487);
- script_version ("$Revision: 1.12 $");
- script_cve_id("CAN-2000-0647");
+ script_bugtraq_id(1506);
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2000-0647");
  
  name["english"] = "WFTP 2.41 rc11 multiple DoS";
  name["francais"] = "Multiples déni de service WFTP 2.41 rc11";
@@ -26,7 +27,7 @@ Solution : if you are using wftp, then upgrade to
 version 2.41 RC12, if you are not, then contact
 your vendor for a fix.
 
-Risk factor : Serious";
+Risk factor : High";
  
 
 
@@ -93,7 +94,7 @@ from publishing anything using FTP.
 Solution : Make sure you are running WFTP 2.41 RC12
 or newer 
 
-Risk factor : Serious";
+Risk factor : High";
  security_hole(port:port, data:desc);
  }
  exit(0);

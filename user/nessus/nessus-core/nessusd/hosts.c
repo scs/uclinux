@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2003 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,18 +14,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
- * $Id: hosts.c,v 1.21 2003/07/01 21:03:51 renaud Exp $
+ * $Id: hosts.c,v 1.25.2.2 2006/01/30 20:56:54 renaud Exp $
  */
 
 #include <includes.h>
@@ -74,60 +64,59 @@ static void sigchld_handler(int sig)
 /*-------------------------------------------------------------------------*/
 static int forward(struct arglist * globals, int in, int out)
 {
- fd_set rd;
- struct timeval tv;
- int e;
  struct arglist * preferences = globals ? arg_get_value(globals, "preferences"):NULL;
- char buf[8192];
+ static char * buf = NULL;
+ static int bufsz = 0;
+ int n;
+ int len;
+ int type;
  
- 
-again:
- tv.tv_sec = 0;
- tv.tv_usec = 1000;
- FD_ZERO(&rd);
- FD_SET(in, &rd);
- if((e = select(in + 1, &rd, NULL, NULL, &tv)) > 0)
+
+ if ( internal_recv(in, &buf, &bufsz, &type) < 0 )
+	return -1;
+
+ if ( type & INTERNAL_COMM_MSG_TYPE_CTRL )
  {
-  int n;
-  int m = 0, r;
-  
-  if(data_left(in) <= 0)
-   return -1;
-   
-  n = recv_line(in, buf, sizeof(buf) - 1);
-  if(n <= 0)
-   return -1;
+	errno = type & ~INTERNAL_COMM_MSG_TYPE_CTRL;
+	return -1;
+ }
+ else if (  ( type & INTERNAL_COMM_MSG_TYPE_DATA) == 0 )
+ {
+  fprintf(stderr, "hosts.c:forward(): bad msg type (%d)\n", type);
+  return -1;
+ }
+
+  len = strlen(buf);
   
   if(preferences != NULL)
   {
   if(preferences_detached_scan(preferences) != 0)
-		detached_copy_data(globals, estrdup(buf), n);
+		detached_copy_data(globals, estrdup(buf), len);
 		
   if(preferences_save_session(preferences) != 0)
   		save_tests_write_data(globals, estrdup(buf));		
   }
-  
+
+
   	
-  while(out != -1 && (m != n))
+  if ( out > 0 ) 
+   for ( n = 0; n < len ; )
+   {
+   int e;
+   e = nsend(out, buf + n, len - n, 0);
+   if ( e < 0 && errno == EINTR ) continue;
+   else if ( e <= 0 ) return -1;
+   else n += e;
+   }
+
+  if ( bufsz > 65535 )
   {
-   r = nsend(out, buf + m, n - m, 0);
-   if(r <= 0)
-    return -1;
-   else
-    m += r;
+    efree(&buf);
+    buf = NULL;
+    bufsz = 0;
   }
 
-  /* Make sure the buffer was not full */
-  if(buf[n - 1] != '\n')
-    	goto again;
-  
-  /* Ack the reception */
-  (void)send(in, ".", 1, 0);
- 
   return 0;
- }
- else if(e < 0 && errno == EINTR)goto again;
- return -1;
 }
 
 

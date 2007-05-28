@@ -7,9 +7,13 @@
 if(description)
 {
  script_id(11622);
- script_version("$Revision: 1.3 $");
- script_cve_id("CAN-2002-1157");
+ script_version("$Revision: 1.8 $");
+
+ script_cve_id("CVE-2002-1157");
  script_bugtraq_id(6029);
+ if (defined_func("script_xref")) {
+   script_xref(name:"OSVDB", value:"2107");
+ }
  
  name["english"] = "mod_ssl wildcard DNS cross site scripting vulnerability";
 
@@ -41,7 +45,7 @@ Risk factor : Low";
  
  
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "cross_site_scripting.nasl");
  script_require_ports("Services/www", 80);
@@ -53,9 +57,12 @@ Risk factor : Low";
 # The script code starts here
 #
 include("http_func.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+if ( report_paranoia < 2 ) exit(0);
+port = get_http_port(default:80);
+
+
 if(!get_port_state(port)) exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
 
@@ -63,6 +70,7 @@ banner = get_http_banner(port:port);
 if(!banner)exit(0);
  
 serv = strstr(banner, "Server");
+if("Apache/" >!< serv ) exit(0);
 if("Apache/2" >< serv) exit(0);
 if("Apache-AdvancedExtranetServer/2" >< serv)exit(0);
 

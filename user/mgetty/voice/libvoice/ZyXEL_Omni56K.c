@@ -6,7 +6,7 @@
  * Based on code for Elite 2864 modems (ZyXEL_2864.c), with
  * corrections made by Const Kaplinsky <const@ce.cctpu.edu.ru>
  *
- * $Id$
+ * $Id: ZyXEL_Omni56K.c,v 1.4 2005/03/13 17:27:46 gert Exp $
  *
  */
 

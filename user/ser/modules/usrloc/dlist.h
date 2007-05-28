@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dlist.h,v 1.10 2003/10/08 21:56:33 janakj Exp $
  *
  * List of registered domains
  *

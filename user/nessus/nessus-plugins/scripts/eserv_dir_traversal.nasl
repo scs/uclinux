@@ -13,8 +13,8 @@
 if(description)
 {
  script_id(11656);
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(7669);
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "Eserv Directory Index";
  script_name(english:name["english"]);
@@ -29,7 +29,7 @@ of supposedly hidden files stored on this
 web server.
 
 Solution : None at this time
-Risk Factor : Medium";
+Risk factor : Medium";
 
  script_description(english:desc["english"]);
  
@@ -54,15 +54,13 @@ Risk Factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
-req = http_get(item:"/", port:port);
-res = http_keepalive_send_recv(port:port, data:req);
+res = http_get_cache(item:"/", port:port);
 if( res == NULL ) exit(0);
-
 if('a href="./"' >< res && 'a href="../"' >< res)exit(0);
  
  

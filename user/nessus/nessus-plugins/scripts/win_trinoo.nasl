@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10307);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CAN-2000-0138");
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2000-0138");
  
  name["english"] = "Trin00 for Windows Detect";
  name["francais"] = "Detection de Trin00 pour Windows";
@@ -66,6 +66,7 @@ Facteur de risque : Critique";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
+ script_require_keys("Settings/ThoroughTests");
 
  
  exit(0);
@@ -75,6 +76,11 @@ Facteur de risque : Critique";
 # The script code starts here
 #
 
+
+include('global_settings.inc');
+
+if ( ! thorough_tests ) exit(0);
+if ( islocalhost() ) exit(0);
 
 command = string("png []..Ks l44");
 die = string("d1e []..Ks l44");

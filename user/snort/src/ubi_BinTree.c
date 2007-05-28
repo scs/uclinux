@@ -29,6 +29,13 @@
  * ========================================================================== **
  */
 
+/*
+ * 04 Feb 2005: SAS Updated to add ubi_btCheck function that calls a
+ *                  user provided function to find a node in a
+ *                  particular tree.
+ *
+ */
+
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
@@ -709,6 +716,36 @@ ubi_btNodePtr ubi_btFind( ubi_btRootPtr RootPtr,
   return( qFind( RootPtr->cmp, FindMe, RootPtr->root ) );
   } /* ubi_btFind */
 
+int ubi_btCheck( ubi_btRootPtr RootPtr,
+                        ubi_btCheckFunc func,
+                        void *UserData )
+  /* ------------------------------------------------------------------------ **
+   * This function performs a non-recursive search of a tree checking for any
+   * node that matches the data supplied, by calling func.
+   *
+   *  Input:
+   *     RootPtr  -  a pointer to the header of the tree to be searched.
+   *     func     -  a pointer function to perform the check
+   *     UserData -  a pointer to the user data to pass to func
+   *
+   *  Output:
+   *     Returns 1 when found, 0 if not found
+   *   
+   *  Note:
+   * ------------------------------------------------------------------------ **
+   */
+  {
+  ubi_btNodePtr p = ubi_btFirst( RootPtr->root );
+
+  while( NULL != p )
+    {
+    if ((*func)( p, UserData ))
+      return ( 1 );
+    p = ubi_btNext( p );
+    }
+  return( 0 );
+  } /* ubi_btCheck */
+
 ubi_btNodePtr ubi_btNext( ubi_btNodePtr P )
   /* ------------------------------------------------------------------------ **
    * Given the node indicated by P, find the (sorted order) Next node in the
@@ -855,6 +892,42 @@ unsigned long ubi_btTraverse( ubi_btRootPtr   RootPtr,
     count++;
     if(RootPtr->count != 0)
         p = ubi_btNext( p );
+    else
+        return count;
+    }
+  return( count );
+  } /* ubi_btTraverse */
+
+unsigned long ubi_btTraverseReverse( ubi_btRootPtr   RootPtr,
+                              ubi_btActionRtn EachNode,
+                              void           *UserData )
+  /* ------------------------------------------------------------------------ **
+   * Traverse a tree in reverse sorted order (non-recursively).  At each node,
+   * call (*EachNode)(), passing a pointer to the current node, and UserData
+   * as the second parameter.
+   *
+   *  Input:   RootPtr  -  a pointer to an ubi_btRoot structure that indicates
+   *                       the tree to be traversed.
+   *           EachNode -  a pointer to a function to be called at each node
+   *                       as the node is visited.
+   *           UserData -  a generic pointer that may point to anything that
+   *                       you choose.
+   *
+   *  Output:  A count of the number of nodes visited.  This will be zero
+   *           if the tree is empty.
+   *
+   * ------------------------------------------------------------------------ **
+   */
+  {
+  ubi_btNodePtr p = ubi_btLast( RootPtr->root );
+  unsigned long count = 0;
+
+  while( NULL != p )
+    {
+    (*EachNode)( p, UserData );
+    count++;
+    if(RootPtr->count != 0)
+        p = ubi_btPrev( p );
     else
         return count;
     }

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10055);
- script_cve_id("CVE-1999-0047");
  script_bugtraq_id(685);
- script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-1999-0047");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "Sendmail 8.8.3 and 8.8.4 mime conversion overflow";
  script_name(english:name["english"]);
@@ -57,7 +57,7 @@ if(!port) port = 25;
 
 banner = get_smtp_banner(port:port);
 
-if(banner)
+if(banner && "Switch-" >!< banner )
 {
  if(egrep(pattern:".*Sendmail.*8\.8\.[34]/.*", string:banner))
  	security_hole(port);

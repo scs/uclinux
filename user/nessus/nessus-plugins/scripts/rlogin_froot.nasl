@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10161);
- script_version ("$Revision: 1.4 $");
- script_cve_id("CVE-1999-0113");
  script_bugtraq_id(458);
+ script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-1999-0113");
  name["english"] = "rlogin -froot";
  name["francais"] = "rlogin -froot";
  script_name(english:name["english"], francais:name["francais"]);

@@ -5,20 +5,32 @@
 if(description)
 {
  script_id(11897);
- script_version("$Revision: 1.7 $");
+ script_version("$Revision: 1.15 $");
  
  name["english"] = "NetInfo daemon";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-A 'NetInfo' daemon is running on this port. NetInfo is in charge of maintaining
-databases (or 'maps') regarding the system. Such databases include the list
-of users, the password file, and more. This service should not be reachable
-directly from the network.
+Synopsis :
 
-Solution : Filter incoming traffic to this port
-Risk Factor : Medium";
+A NetInfo daemon is listening on the remote port.
+
+Description :
+
+A 'NetInfo' daemon is running on this port. NetInfo is in charge of 
+maintaining databases (or 'maps') regarding the system. Such databases 
+include the list of users, the password file, and more. If the remote host
+is not a NetInfo server, this service should not be reachable directly 
+from the network.
+
+Solution : 
+
+Filter incoming traffic to this port
+
+Risk factor :
+
+None";
 
 
  script_description(english:desc["english"]);
@@ -30,33 +42,37 @@ Risk Factor : Medium";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "General";
- script_family(english:family["english"]);
+ script_family(english:"Service detection");
  script_dependencies("find_service.nes", "find_service2.nasl");
  exit(0);
 }
 
 
 include("misc_func.inc");
+include("global_settings.inc");
+
 
 function netinfo_recv(socket)
 {
  local_var buf, len;
 
- buf = recv(socket:soc, length:4);
+ buf = recv(socket:socket, length:4);
  if(strlen(buf) < 4)return NULL;
 
  len = ord(buf[3]) + ord(buf[2])*256;
 
- buf += recv(socket:soc, length:len);
+ buf += recv(socket:socket, length:len);
  if(strlen(buf) != len + 4)return NULL;
  return buf;
 }
 
 
-port = get_kb_item("Services/unknown");
-if(!port)port = 1033;
-if(known_service(port:port))exit(0);
+if (  thorough_tests )
+ port = get_unknown_svc(1033);
+else 
+ port = 1033;
+
+if(!port)exit(0);
 
 if(!get_port_state(port))exit(0);
 soc = open_sock_tcp(port);
@@ -74,5 +90,5 @@ close(soc);
 if(r && "6efd67a9" >< hexstr(r) && strlen(r) == 40 && ord(r[11]) == 0x01 && ord(r[0]) == 0x80 && ord(r[strlen(r) - 2]) == 0)
 {
  register_service(port:port, proto:"netinfo");
- security_warning(port);
+ security_note(port);
 }

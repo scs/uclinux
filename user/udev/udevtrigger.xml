@@ -3,19 +3,6 @@
   "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
 
 <article>
-  <articleinfo>
-    <title>xmlto</title>
-    <author>
-      <firstname>Kay</firstname>
-      <surname>Sievers</surname>
-      <email>kay.sievers@vrfy.org</email>
-    </author>
-    <copyright>
-      <year>2006</year>
-      <holder>Kay Sievers</holder>
-    </copyright>
-  </articleinfo>
-
   <section>
     <title>udevtrigger</title>
     <refentry>
@@ -28,6 +15,7 @@
       <refmeta>
         <refentrytitle>udevtrigger</refentrytitle>
         <manvolnum>8</manvolnum>
+        <refmiscinfo class="version"></refmiscinfo>
       </refmeta>
 
       <refnamediv>
@@ -39,6 +27,12 @@
           <command>udevtrigger</command>
           <arg><option>--verbose</option></arg>
           <arg><option>--dry-run</option></arg>
+          <arg><option>--retry-failed</option></arg>
+          <arg><option>--help</option></arg>
+          <arg><option>--subsystem-match=<replaceable>subsystem</replaceable></option></arg>
+          <arg><option>--subsystem-nomatch=<replaceable>subsystem</replaceable></option></arg>
+          <arg><option>--attr-match=<replaceable>attribute=value</replaceable></option></arg>
+          <arg><option>--attr-nomatch=<replaceable>attribute=value</replaceable></option></arg>
         </cmdsynopsis>
       </refsynopsisdiv>
 
@@ -51,13 +45,51 @@
           <varlistentry>
             <term><option>--verbose</option></term>
             <listitem>
-              <para>print out the devices found in sysfs.</para>
+              <para>Print the list of devices which will be triggered.</para>
             </listitem>
           </varlistentry>
           <varlistentry>
             <term><option>--dry-run</option></term>
             <listitem>
-              <para>don't actually trigger the event.</para>
+              <para>Do not actually trigger the event.</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><option>--retry-failed</option></term>
+            <listitem>
+              <para>Trigger only the events which are failed during a previous run.</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><option>--subsystem-match=<replaceable>subsystem</replaceable></option></term>
+            <listitem>
+              <para>Trigger events for devices which belong to a matching subsystem. This option
+              can be specified multiple times and supports shell style pattern matching.</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><option>--subsystem-nomatch=<replaceable>subsystem</replaceable></option></term>
+            <listitem>
+              <para>Do not trigger events for devices which belong to a matching subsystem. This option
+              can be specified multiple times and supports shell style pattern matching.</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><option>--attr-match=<replaceable>attribute=value</replaceable></option></term>
+            <listitem>
+              <para>Trigger events for devices with a matching sysfs attribute. If a value is specified
+              along with the attribute name, the content of the attribute is matched against the given
+              value using shell style pattern matching. If no value is specified, the existence of the
+              sysfs attribute is checked. This option can be specified multiple times.</para>
+            </listitem>
+          </varlistentry>
+          <varlistentry>
+            <term><option>--attr-nomatch<replaceable>attribute=value</replaceable></option></term>
+            <listitem>
+              <para>Do not trigger events for devices with a matching sysfs attribute. If a value is
+              specified along with the attribute name, the content of the attribute is matched against
+              the given value using shell style pattern matching. If no value is specified, the existence
+              of the sysfs attribute is checked. This option can be specified multiple times.</para>
             </listitem>
           </varlistentry>
         </variablelist>

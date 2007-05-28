@@ -10,6 +10,7 @@
 #include <stdlib.h>
 
 #include "hi_util_hbm.h"
+#include "util.h"
 
 /*
 *
@@ -17,7 +18,7 @@
 *    
 */
 #ifndef WIN32  /* To avoid naming conflict, Win32 will use the hbm_prepx() in mwm.c */
-HBM_STRUCT * hbm_prepx(HBM_STRUCT *p, unsigned char * pat, int m)
+int hbm_prepx(HBM_STRUCT *p, unsigned char * pat, int m)
 {
      int     k;
 
@@ -33,7 +34,7 @@ HBM_STRUCT * hbm_prepx(HBM_STRUCT *p, unsigned char * pat, int m)
      for(k = 0; k < 256; k++) p->bcShift[k] = m;
      for(k = 0; k < m; k++)   p->bcShift[pat[k]] = m - k - 1;
 
-     return p;
+     return 1;
 }
 #endif
 
@@ -45,10 +46,14 @@ HBM_STRUCT * hbm_prep(unsigned char * pat, int m)
 {
      HBM_STRUCT    *p;
 
-     p = (HBM_STRUCT*)malloc( sizeof(HBM_STRUCT) );
-     if( !p ) return 0;
+     p = (HBM_STRUCT*)SnortAlloc(sizeof(HBM_STRUCT));
 
-     return hbm_prepx( p, pat, m );
+     if( !hbm_prepx( p, pat, m ) )
+     {
+          FatalError("Error initializing pattern matching. Check arguments.");
+     }
+
+     return p;
 }
 #endif
 

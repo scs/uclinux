@@ -9,8 +9,9 @@
 if(description)
 {
  script_id(11632);
+ script_cve_id("CVE-2003-0305");
 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.5 $");
 
  name["english"] = "CSCdx17916, CSCdx61997";
 
@@ -19,13 +20,14 @@ if(description)
  desc["english"] = "
 
 It is possible to crash the remote router by sending malformed
-RTR packets. For this flaw to be exploitable, the router needs
+Response Time Responder (RTR) packets. 
+For this flaw to be exploitable, the router needs
 to have RTR responder enabled.
 
 This bug is referenced as CISCO bug id CSCdx17916 and CSCdx61997
 
 Solution : See http://www.cisco.com/warp/public/707/cisco-sa-20030515-saa.shtml
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

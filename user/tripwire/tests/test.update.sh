@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id$
+# $Id: test.update.sh,v 1.6 1994/02/22 07:46:22 gkim Exp $
 #
 #	Rigorous Tripwire functionality test suite
 #

@@ -6,6 +6,8 @@
 **  @brief      This file wraps the HttpInspect functionality for Snort
 **              and starts the HttpInspect flow.
 **
+**  Copyright (C) 2003-2005 Sourcefire,Inc.
+**
 **  The file takes a Packet structure from the Snort IDS to start the
 **  HttpInspect flow.  This also uses the Stream Interface Module which
 **  is also Snort-centric.  Mainly, just a wrapper to HttpInspect               
@@ -25,6 +27,7 @@
 **  NOTES:
 **
 **  - 2.11.03:  Initial Development.  DJR
+**  - 2.4.05:   Added tab_uri_delimiter config option.  AJM.
 */
 #include <stdlib.h>
 #include <string.h>
@@ -45,7 +48,7 @@
 #include "plugbase.h"
 #include "util.h"
 #include "event_queue.h"
-#include "stream.h"
+#include "stream_api.h"
 
 #include "hi_return_codes.h"
 #include "hi_ui_config.h"
@@ -53,6 +56,12 @@
 #include "hi_si.h"
 #include "hi_mi.h"
 #include "hi_norm.h"
+
+#include "profiler.h"
+#ifdef PERF_PROFILING
+extern PreprocStats hiDetectPerfStats;
+extern int hiDetectCalled;
+#endif
 
 extern PV pv;
 
@@ -130,6 +139,8 @@ extern PV pv;
 #define INSPECT_URI_ONLY  "inspect_uri_only"
 #define GLOBAL_ALERT      "no_alerts"
 #define WEBROOT           "webroot"
+#define TAB_URI_DELIMITER "tab_uri_delimiter"
+#define WHITESPACE        "whitespace_chars"
 
 /*
 **  Alert subkeywords
@@ -142,6 +153,8 @@ extern PV pv;
 */
 #define APACHE        "apache"
 #define IIS           "iis"
+#define IIS4_0        "iis4_0"
+#define IIS5_0        "iis5_0" /* 5.0 only. For 5.1 and beyond, use IIS */
 #define ALL           "all"
 
 /*
@@ -625,6 +638,33 @@ static int ProcessGlobalConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
     return 0;
 }
 
+
+/*
+**  NAME
+**    ProcessProfile::
+*/
+/** Returns error messages for failed hi_ui_config_set_profile calls.
+ **
+ ** Called exclusively by ProcessProfile.
+ */
+static inline int _ProcessProfileErr(int iRet, char* ErrorString, 
+                int ErrStrLen, char *token)
+{
+    if(iRet == HI_MEM_ALLOC_FAIL)
+    {
+        snprintf(ErrorString, ErrStrLen,
+                "Memory allocation failed while setting the '%s' "
+                "profile.", token);
+        return -1;
+    }
+    else
+    {
+        snprintf(ErrorString, ErrStrLen,
+                "Undefined error code for set_profile_%s.", token);
+        return -1;
+    }
+}
+
 /*
 **  NAME
 **    ProcessProfile::
@@ -671,66 +711,42 @@ static int ProcessProfile(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
     {
         if((iRet = hi_ui_config_set_profile_apache(ServerConf)))
         {
-            if(iRet == HI_MEM_ALLOC_FAIL)
-            {
-                snprintf(ErrorString, ErrStrLen,
-                        "Memory allocation failed while setting the '%s' "
-                        "profile.", APACHE);
-
-                return -1;
-            }
-            else
-            {
-                snprintf(ErrorString, ErrStrLen,
-                        "Undefined error code for set_profile_apache.");
-
-                return -1;
-            }
+            /*  returns -1 */
+            return _ProcessProfileErr(iRet, ErrorString, ErrStrLen, pcToken);
         }
+        ServerConf->profile = HI_APACHE;
     }
     else if(!strcmp(IIS, pcToken))
     {
-        if((iRet = hi_ui_config_set_profile_iis(ServerConf, 
+        if((iRet = 
+           hi_ui_config_set_profile_iis(ServerConf, 
                                                 GlobalConf->iis_unicode_map)))
         {
-            if(iRet == HI_MEM_ALLOC_FAIL)
-            {
-                snprintf(ErrorString, ErrStrLen,
-                        "Memory allocation failed while setting the '%s' "
-                        "profile.", IIS);
-
-                return -1;
-            }
-            else
-            {
-                snprintf(ErrorString, ErrStrLen,
-                        "Undefined error code for set_profile_iis.");
-
-                return -1;
-            }
+            /* returns -1 */
+            return _ProcessProfileErr(iRet, ErrorString, ErrStrLen, pcToken);
         }
+        ServerConf->profile = HI_IIS;
+    }
+    else if(!strcmp(IIS4_0, pcToken) || !strcmp(IIS5_0, pcToken))
+    {
+        if((iRet = hi_ui_config_set_profile_iis_4or5(ServerConf, 
+                                                GlobalConf->iis_unicode_map)))
+        {
+            /* returns -1 */
+            return _ProcessProfileErr(iRet, ErrorString, ErrStrLen, pcToken);
+        }
+        ServerConf->profile = (pcToken[3]=='4'?HI_IIS4:HI_IIS5);
     }
     else if(!strcmp(ALL, pcToken))
     {
         if((iRet = hi_ui_config_set_profile_all(ServerConf,
                                                 GlobalConf->iis_unicode_map)))
         {
-            if(iRet == HI_MEM_ALLOC_FAIL)
-            {
-                snprintf(ErrorString, ErrStrLen,
-                        "Memory allocation failed while setting the '%s' "
-                        "profile.", ALL);
-
-                return -1;
-            }
-            else
-            {
-                snprintf(ErrorString, ErrStrLen,
-                        "Undefined error code for set_profile_all.");
-
-                return -1;
-            }
+            /* returns -1 */
+            return _ProcessProfileErr(iRet, ErrorString, ErrStrLen, pcToken);
         }
+
+        ServerConf->profile = HI_ALL;
     }
     else
     {
@@ -741,6 +757,8 @@ static int ProcessProfile(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
     }
 
     return 0;
+
+
 }
 
 /*
@@ -790,6 +808,8 @@ static int ProcessPorts(HTTPINSPECT_CONF *ServerConf,
         return -1;
     }
     
+    memset(ServerConf->ports, 0, 65536);
+
     while((pcToken = strtok(NULL, CONF_SEPARATORS)))
     {
         if(!strcmp(END_PORT_LIST, pcToken))
@@ -884,7 +904,8 @@ static int ProcessFlowDepth(HTTPINSPECT_CONF *ServerConf,
         return -1;
     }
 
-    if(iFlowDepth < 0 || iFlowDepth > 1460)
+    /* -1 here is okay, which means ignore ALL server side traffic */
+    if(iFlowDepth < -1 || iFlowDepth > 1460)
     {
         snprintf(ErrorString, ErrStrLen,
                 "Invalid argument to '%s'.  Must be between 0 and "
@@ -1107,6 +1128,94 @@ static int ProcessNonRfcChar(HTTPINSPECT_CONF *ServerConf,
 
 /*
 **  NAME
+**    ProcessWhitespaceChars::
+*/
+/***
+**  Configure any characters that the user wants to be treated as
+**  whitespace characters before and after a URI.
+**
+**
+**  @param ServerConf  pointer to the server configuration structure
+**  @param ErrorString error string buffer
+**  @param ErrStrLen   the length of the error string buffer
+**
+**  @return an error code integer 
+**          (0 = success, >0 = non-fatal error, <0 = fatal error)
+**
+**  @retval  0 successs
+**  @retval -1 generic fatal error
+**  @retval  1 generic non-fatal error
+*/
+static int ProcessWhitespaceChars(HTTPINSPECT_CONF *ServerConf,
+                             char *ErrorString, int ErrStrLen)
+{
+    char *pcToken;
+    char *pcEnd;
+    int  iChar;
+    int  iEndChar = 0;
+
+    pcToken = strtok(NULL, CONF_SEPARATORS);
+    if(!pcToken)
+    {
+        snprintf(ErrorString, ErrStrLen,
+                "Invalid '%s' list format.", WHITESPACE);
+
+        return -1;
+    }
+
+    if(strcmp(START_PORT_LIST, pcToken))
+    {
+        snprintf(ErrorString, ErrStrLen,
+                "Must start a '%s' list with the '%s' token.",
+                WHITESPACE, START_PORT_LIST);
+
+        return -1;
+    }
+    
+    while((pcToken = strtok(NULL, CONF_SEPARATORS)))
+    {
+        if(!strcmp(END_PORT_LIST, pcToken))
+        {
+            iEndChar = 1;
+            break;
+        }
+
+        iChar = strtol(pcToken, &pcEnd, 16);
+        if(*pcEnd)
+        {
+            snprintf(ErrorString, ErrStrLen,
+                    "Invalid argument to '%s'.  Must be a single "
+                    "character.", WHITESPACE);
+
+            return -1;
+        }
+
+        if(iChar < 0 || iChar > 255)
+        {
+            snprintf(ErrorString, ErrStrLen,
+                    "Invalid character value to '%s'.  Must be a single "
+                    "character no greater than 255.", WHITESPACE);
+
+            return -1;
+        }
+
+        ServerConf->whitespace[iChar] = HI_UI_CONFIG_WS_BEFORE_URI;
+    }
+
+    if(!iEndChar)
+    {
+        snprintf(ErrorString, ErrStrLen,
+                "Must end '%s' configuration with '%s'.",
+                WHITESPACE, END_PORT_LIST);
+
+        return -1;
+    }
+
+    return 0;
+}
+
+/*
+**  NAME
 **    ProcessServerConf::
 */
 /**
@@ -1297,6 +1406,10 @@ static int ProcessServerConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
         {
             ServerConf->no_alerts = 1;
         }
+        else if(!strcmp(TAB_URI_DELIMITER, pcToken))
+        {
+            ServerConf->tab_uri_delimiter = 1;
+        }        
         else if(!strcmp(OVERSIZE_DIR, pcToken))
         {
             if((iRet = ProcessOversizeDir(ServerConf, 
@@ -1467,7 +1580,15 @@ static int ProcessServerConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
                 return iRet;
             }
         }
-        else if(!strcmp(IIS_DELIMITER, pcToken))
+        else if(!strcmp(WHITESPACE, pcToken))
+        {
+            if((iRet = ProcessWhitespaceChars(ServerConf,
+                                      ErrorString, ErrStrLen)))
+            {
+                return iRet;
+            }
+        }
+         else if(!strcmp(IIS_DELIMITER, pcToken))
         {
             ConfOpt = &ServerConf->iis_delimiter;
             if((iRet = ProcessConfOpt(ConfOpt, IIS_DELIMITER,
@@ -1523,13 +1644,22 @@ static int PrintServerConf(HTTPINSPECT_CONF *ServerConf)
 {
     char buf[STD_BUF+1];
     int iCtr;
-    int iNonRfcChar = 0;
+    int iChar = 0;
+    PROFILES prof;
 
     if(!ServerConf)
     {
         return HI_INVALID_ARG;
     }
 
+    prof = ServerConf->profile;
+    LogMessage("      Server profile: %s\n",
+        prof==HI_ALL?"All":
+        prof==HI_APACHE?"Apache":
+        prof==HI_IIS?"IIS":
+        prof==HI_IIS4?"IIS4":"IIS5");
+           
+                    
     memset(buf, 0, STD_BUF+1);
     snprintf(buf, STD_BUF, "      Ports: ");
 
@@ -1602,11 +1732,33 @@ static int PrintServerConf(HTTPINSPECT_CONF *ServerConf)
         if(ServerConf->non_rfc_chars[iCtr])
         {
             sfsnprintfappend(buf, STD_BUF, "0x%.2x ", (u_char)iCtr);
-            iNonRfcChar = 1;
+            iChar = 1;
         }
     }
 
-    if(!iNonRfcChar)
+    if(!iChar)
+    {
+        sfsnprintfappend(buf, STD_BUF, "NONE");
+    }
+
+    LogMessage("%s\n", buf);
+
+    /*
+    **  Print out the whitespace chars
+    */
+    iChar = 0;
+    memset(buf, 0, STD_BUF+1);
+    snprintf(buf, STD_BUF, "      Whitespace Characters: ");
+    for(iCtr = 0; iCtr < 256; iCtr++)
+    {
+        if(ServerConf->whitespace[iCtr])
+        {
+            sfsnprintfappend(buf, STD_BUF, "0x%.2x ", (u_char)iCtr);
+            iChar = 1;
+        }
+    }
+
+    if(!iChar)
     {
         sfsnprintfappend(buf, STD_BUF, "NONE");
     }
@@ -1616,6 +1768,8 @@ static int PrintServerConf(HTTPINSPECT_CONF *ServerConf)
     return 0;
 }
 
+static int s_iDefaultServer = 0;
+
 static int ProcessUniqueServerConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
                              char *ErrorString, int ErrStrLen)
 {
@@ -1623,7 +1777,6 @@ static int ProcessUniqueServerConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
     unsigned long Ip;
     struct in_addr ip_addr;
     HTTPINSPECT_CONF *ServerConf;
-    static int s_iDefaultServer = 0;
     int iRet;
 
     pcToken = strtok(NULL, CONF_SEPARATORS);
@@ -1652,17 +1805,6 @@ static int ProcessUniqueServerConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf,
         s_iDefaultServer = 1;
 
         ServerConf = &GlobalConf->global_server;
-
-        /*
-        **  Reset the global server configuration
-        */
-        if(hi_ui_config_reset_server(ServerConf))
-        {
-            snprintf(ErrorString, ErrStrLen,
-                    "Cannot reset the HttpInspect default server configuration.");
-
-            return -1;
-        }
 
         if((iRet = ProcessServerConf(GlobalConf, ServerConf, 
                                      ErrorString, ErrStrLen)))
@@ -1796,11 +1938,11 @@ static int PrintGlobalConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf)
 **  @retval -1 generic fatal error
 **  @retval -2 ErrorString is undefined
 */
+static int  s_iGlobal = 0;
 int HttpInspectSnortConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf, char *args, int iGlobal,
                          char *ErrorString, int ErrStrLen)
 {
     char        *pcToken;
-    static int  s_iGlobal = 0;
     int         iRet;
 
     /*
@@ -1859,29 +2001,6 @@ int HttpInspectSnortConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf, char *args, int iG
             return -1;
         }
 
-        /*
-        **  Reset the Global configuration
-        */
-        if(hi_ui_config_reset_global(GlobalConf))
-        {
-            snprintf(ErrorString, ErrStrLen,
-                    "Cannot reset the HttpInspect global configuration.");
-
-            return -1;
-        }
-
-        /*
-        **  Reset the global server, so if there isn't one specified, we
-        **  honor that.
-        */
-        if(hi_ui_config_reset_server(&GlobalConf->global_server))
-        {
-            snprintf(ErrorString, ErrStrLen,
-                    "Cannot reset the HttpInspect default server configuration.");
-
-            return -1;
-        }
-
         if((iRet = ProcessGlobalConf(GlobalConf, ErrorString, ErrStrLen)))
         {
             return iRet;
@@ -1932,6 +2051,30 @@ int HttpInspectSnortConf(HTTPINSPECT_GLOBAL_CONF *GlobalConf, char *args, int iG
 
 /*
 **  NAME
+**    HttpInspectCheckConfig::
+*/
+/**
+**  This function verifies the HttpInspect configuration is complete
+**
+**  @return none
+*/
+void HttpInspectCheckConfig(void)
+{
+    if (s_iGlobal && !s_iDefaultServer)
+        FatalError("HttpInspectConfigCheck() default server configuration "
+            "not specified\n");
+
+    /* So we don't have to check it every time we use it */
+    if (s_iGlobal)
+    {
+        if ((!stream_api) || (stream_api->version < STREAM_API_VERSION4))
+            FatalError("HttpInspectConfigCheck() Streaming & reassembly "
+                       "must be enabled\n");
+    }
+}
+
+/*
+**  NAME
 **    LogEvents::
 */
 /**
@@ -1971,19 +2114,16 @@ static inline int LogEvents(HI_SESSION *hi_ssn, Packet *p, int iInspectMode)
     HI_GEN_EVENTS GenEvents;
     HI_EVENT      *OrigEvent;
     HI_EVENT      *HiEvent = NULL;
-    Session       *ssn = NULL;
     u_int32_t     uiMask = 0;
     int           iGenerator;
     int           iStackCnt;
     int           iEvent;
     int           iCtr;
+    u_int32_t     httpflags = 0;
 
     /*
     **  Set the session ptr, if applicable
     */
-    if(p && p->ssnptr)
-        ssn = (Session *)p->ssnptr;
-    
     if(iInspectMode == HI_SI_CLIENT_MODE)
     {
         GenEvents.stack =       hi_ssn->client.event_list.stack;
@@ -2073,7 +2213,13 @@ static inline int LogEvents(HI_SESSION *hi_ssn, Packet *p, int iInspectMode)
     **  If we've already logged this event for this stream, then
     **  don't log it again.
     */
-    if(ssn && (ssn->http_alert_flags & uiMask))
+    if(p->ssnptr)
+    {
+        httpflags = (u_int32_t)stream_api->get_application_data(p->ssnptr,
+                                                     PP_HTTPINSPECT);
+    }
+
+    if (httpflags & uiMask)
     {
         return 0;
     }
@@ -2081,11 +2227,15 @@ static inline int LogEvents(HI_SESSION *hi_ssn, Packet *p, int iInspectMode)
     SnortEventqAdd(iGenerator, iEvent, 1, 0, 3, HiEvent->event_info->alert_str,0);
 
     /*
-    **  Set the http_flag bit so we don't log the event on a reassembled
+    **  Set the http_flag (preproc_specific data) bit so we don't log the event on a reassembled
     **  stream.
     */
-    if(ssn)
-        ssn->http_alert_flags |= uiMask;
+    if(p->ssnptr)
+    {
+        httpflags |= uiMask;
+        stream_api->set_application_data(p->ssnptr, PP_HTTPINSPECT,
+                        (void *)httpflags, NULL);
+    }
 
     /*
     **  Reset the event queue stack counter, in the case of pipelined
@@ -2098,22 +2248,16 @@ static inline int LogEvents(HI_SESSION *hi_ssn, Packet *p, int iInspectMode)
 
 static inline int SetSiInput(HI_SI_INPUT *SiInput, Packet *p)
 {
-    Session *ssnptr = NULL;
-
     SiInput->sip   = p->iph->ip_src.s_addr;
     SiInput->dip   = p->iph->ip_dst.s_addr;
     SiInput->sport = p->sp;
     SiInput->dport = p->dp;
 
-    if(p->ssnptr)
-    {
-        ssnptr = (Session *)p->ssnptr;
-    }
-
     /*
     **  We now set the packet direction
     */
-    if(ssnptr && ssnptr->session_flags & SSNFLAG_MIDSTREAM)
+    if(p->ssnptr &&
+        stream_api->get_session_flags(p->ssnptr) & SSNFLAG_MIDSTREAM)
     {
         SiInput->pdir = HI_SI_NO_MODE;
     }
@@ -2162,7 +2306,6 @@ static inline int SetSiInput(HI_SI_INPUT *SiInput, Packet *p)
 int SnortHttpInspect(HTTPINSPECT_GLOBAL_CONF *GlobalConf, Packet *p)
 {
     extern HttpUri UriBufs[URI_COUNT];
-    extern int     do_detect;
     extern OptTreeNode *otn_tmp;
 
     HI_SESSION  *Session;
@@ -2170,6 +2313,8 @@ int SnortHttpInspect(HTTPINSPECT_GLOBAL_CONF *GlobalConf, Packet *p)
     int iInspectMode = 0;
     int iRet;
     int iCallDetect = 1;
+
+    PROFILE_VARS;
     
     if(!p->iph || !p->tcph)
     {
@@ -2242,6 +2387,21 @@ int SnortHttpInspect(HTTPINSPECT_GLOBAL_CONF *GlobalConf, Packet *p)
         p->uri_count = 0;
         UriBufs[0].decode_flags = 0;
 
+        if(iInspectMode == HI_SI_SERVER_MODE)
+        {
+            /* Don't do server inspection */
+            if (Session->server_conf->flow_depth == -1)
+            {
+                DisableDetect(p);
+
+                SetPreprocBit(p, PP_SFPORTSCAN);
+                SetPreprocBit(p, PP_PERFMONITOR);
+                SetPreprocBit(p, PP_STREAM4);
+
+                return 0;
+            }
+        }
+
         if((iRet = hi_mi_mode_inspection(Session, iInspectMode, p->data,
                                          p->dsize)))
         {
@@ -2271,12 +2431,15 @@ int SnortHttpInspect(HTTPINSPECT_GLOBAL_CONF *GlobalConf, Packet *p)
                 UriBufs[0].uri    = Session->client.request.uri_norm;
                 UriBufs[0].length = Session->client.request.uri_norm_size;
                 p->uri_count = 1;
+                p->packet_flags |= PKT_HTTP_DECODE;
             }
             else if(Session->client.request.uri)
             {
                 UriBufs[0].uri    = Session->client.request.uri;
                 UriBufs[0].length = Session->client.request.uri_size;
                 p->uri_count = 1;
+
+                p->packet_flags |= PKT_HTTP_DECODE;
             }
         }
         else if(iInspectMode == HI_SI_SERVER_MODE)
@@ -2296,11 +2459,11 @@ int SnortHttpInspect(HTTPINSPECT_GLOBAL_CONF *GlobalConf, Packet *p)
             */
             if(p->dsize == 0)
             {
-                do_detect = 0;
-                p->preprocessors = 0;
-
-                p->preprocessors |= PP_PORTSCAN;
-                p->preprocessors |= PP_STREAM4;
+                DisableDetect(p);
+                
+                SetPreprocBit(p, PP_SFPORTSCAN);
+                SetPreprocBit(p, PP_PERFMONITOR);
+                SetPreprocBit(p, PP_STREAM4);
 
                 return 0;
             }
@@ -2333,8 +2496,13 @@ int SnortHttpInspect(HTTPINSPECT_GLOBAL_CONF *GlobalConf, Packet *p)
         **  better than having all these Packet struct field checks in the
         **  main detection engine for each protocol field.
         */
+        PREPROC_PROFILE_START(hiDetectPerfStats);
         Detect(p);
         otn_tmp = NULL;
+#ifdef PERF_PROFILING
+        hiDetectCalled = 1;
+#endif
+        PREPROC_PROFILE_END(hiDetectPerfStats);
 
         /*
         **  Handle event stuff after we do detection.
@@ -2352,21 +2520,20 @@ int SnortHttpInspect(HTTPINSPECT_GLOBAL_CONF *GlobalConf, Packet *p)
         **  We set the global detection flag here so that if request pipelines
         **  fail, we don't do any detection.
         */
-        do_detect = 0;
         iCallDetect = 0;
 
-        p->preprocessors = 0;
-        p->preprocessors |= PP_STREAM4;
+        SetPreprocBit(p, PP_SFPORTSCAN);
+        SetPreprocBit(p, PP_PERFMONITOR);
+        SetPreprocBit(p, PP_STREAM4);
 
     } while(Session->client.request.pipeline_req);
 
+    if ( iCallDetect == 0 )
+    {
+        /* Detect called at least once from above pkt processing loop. */
+        DisableAllDetect(p);
+    }
+
     return 0;
 }
-
-    
-    
-
-
-
-
 

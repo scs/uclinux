@@ -5,25 +5,6 @@ noinst_LIBRARIES = libhi_ui.a
 libhi_ui_a_SOURCES = \
 hi_ui_config.c \
 hi_ui_server_lookup.c \
-hi_ui_iis_unicode_map.c \
-../include/hi_ad.h \
-../include/hi_client.h \
-../include/hi_client_norm.h \
-../include/hi_eo_events.h \
-../include/hi_eo.h \
-../include/hi_eo_log.h \
-../include/hi_include.h \
-../include/hi_mi.h \
-../include/hi_norm.h \
-../include/hi_return_codes.h \
-../include/hi_server.h \
-../include/hi_si.h \
-../include/hi_ui_config.h \
-../include/hi_ui_iis_unicode_map.h \
-../include/hi_ui_server_lookup.h \
-../include/hi_util.h \
-../include/hi_util_hbm.h \
-../include/hi_util_kmap.h \
-../include/hi_util_xmalloc.h
+hi_ui_iis_unicode_map.c 
 
 INCLUDES = @INCLUDES@

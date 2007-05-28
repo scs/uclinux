@@ -24,6 +24,9 @@
 **  along with this program; if not, write to the Free Software
 **  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 **
+** 6/13/05 - marc norton
+**   Added plugin support for fast pattern match data, requires DYNAMIC_PLUGIN be defined
+**
 */
 
 #include <stdio.h>
@@ -40,9 +43,14 @@
 #include "sp_ip_proto.h"
 #include "plugin_enum.h"
 #include "util.h"
+#include "rules.h"
 
 #include "mpse.h"
-#include "bitop.h"
+#include "bitop_funcs.h"
+
+#ifdef DYNAMIC_PLUGIN
+#include "dynamic-plugins/sp_dynamic.h"
+#endif
 
 /*
 #define LOCAL_DEBUG
@@ -118,6 +126,15 @@ static int OtnHasContent( OptTreeNode * otn )
         return 1; 
     }
 
+#ifdef DYNAMIC_PLUGIN
+    if (otn->ds_list[PLUGIN_DYNAMIC])
+    {
+        DynamicData *dd = (DynamicData *)otn->ds_list[PLUGIN_DYNAMIC];
+        if (dd->fpContentFlags & FASTPATTERN_NORMAL)
+            return 1;
+    }
+#endif
+
     return 0;
 }
 
@@ -127,6 +144,15 @@ static int OtnHasUriContent( OptTreeNode * otn )
 
     if( otn->ds_list[PLUGIN_PATTERN_MATCH_URI] )
         return 1; 
+
+#ifdef DYNAMIC_PLUGIN
+    if (otn->ds_list[PLUGIN_DYNAMIC])
+    {
+        DynamicData *dd = (DynamicData *)otn->ds_list[PLUGIN_DYNAMIC];
+        if (dd->fpContentFlags & FASTPATTERN_URI)
+            return 1;
+    }
+#endif
 
     return 0;
 }
@@ -186,7 +212,8 @@ int fpInitDetectionEngine()
     **  reinjected through snort.
     */
     fpDetect.inspect_stream_insert = 1;
-    fpDetect.search_method = MPSE_MWM;
+    fpDetect.search_method = MPSE_ACF;
+    fpDetect.search_method_verbose = 0;
     fpDetect.debug = 0;
     fpDetect.max_queue_events = 5;
 
@@ -200,57 +227,66 @@ int fpInitDetectionEngine()
 }
 
 /*
-   Search method is set using "config detect: search-method ac | mwm | auto"
+   Search method is set using:
+   config detect: search-method ac | ac-full | ac-sparsebands | ac-sparse | ac-banded | ac-std | verbose
 */
 int fpSetDetectSearchMethod( char * method )
 {
-        LogMessage("Detection:\n");
+    LogMessage("Detection:\n");
 
-	if( !strcasecmp(method,"ac-std") )
-	{
-	   fpDetect.search_method = MPSE_AC ;
-	   LogMessage("   Search-Method = AC-Std\n");
-	   return 0;
-	}
-	if( !strcasecmp(method,"ac") )
-	{
-	   fpDetect.search_method = MPSE_ACF ;
-	   LogMessage("   Search-Method = AC-Full\n");
-	   return 0;
-	}
-	if( !strcasecmp(method,"acs") )
-	{
-	   fpDetect.search_method = MPSE_ACS ;
-	   LogMessage("   Search-Method = AC-Sparse\n");
-	   return 0;
-	}
-	if( !strcasecmp(method,"ac-banded") )
-	{
-	   fpDetect.search_method = MPSE_ACB ;
-	   LogMessage("   Search-Method = AC-Banded\n");
-	   return 0;
-	}
-	if( !strcasecmp(method,"ac-sparsebands") )
-	{
-	   fpDetect.search_method = MPSE_ACSB ;
-	   LogMessage("   Search-Method = AC-Sparse-Bands\n");
-	   return 0;
-	}
+    if( !strcasecmp(method,"ac-std") ) /* default */
+    {
+       fpDetect.search_method = MPSE_AC ;
+       LogMessage("   Search-Method = AC-Std\n");
+       return 0;
+    }
+    if( !strcasecmp(method,"ac-bnfa") )
+    {
+       fpDetect.search_method = MPSE_AC_BNFA ;
+       LogMessage("   Search-Method = AC-BNFA\n");
+       return 0;
+    }
+    if( !strcasecmp(method,"ac") )
+    {
+       fpDetect.search_method = MPSE_ACF ;
+       LogMessage("   Search-Method = AC-Full\n");
+       return 0;
+    }
+    if( !strcasecmp(method,"acs") )
+    {
+       fpDetect.search_method = MPSE_ACS ;
+       LogMessage("   Search-Method = AC-Sparse\n");
+       return 0;
+    }
+    if( !strcasecmp(method,"ac-banded") )
+    {
+       fpDetect.search_method = MPSE_ACB ;
+       LogMessage("   Search-Method = AC-Banded\n");
+       return 0;
+    }
+    if( !strcasecmp(method,"ac-sparsebands") )
+    {
+       fpDetect.search_method = MPSE_ACSB ;
+       LogMessage("   Search-Method = AC-Sparse-Bands\n");
+       return 0;
+    }
+        
+    /* These are for backwards compatability - and will be removed in future releases*/
 
-	if( !strcasecmp(method,"mwm") )
-	{
-	   fpDetect.search_method = MPSE_MWM ;
-	   LogMessage("   Search-Method = Modified Wu-Manber\n");
-	   return 0;
-	}
+    if( !strcasecmp(method,"mwm") ) 
+    {
+       fpDetect.search_method = MPSE_LOWMEM ;
+       LogMessage("   Search-Method = Low-Mem (MWM depracated)\n");
+       return 0;
+    }
 
-	if( !strcasecmp(method,"lowmem") )
-	{
-	   fpDetect.search_method = MPSE_LOWMEM ;
-	   LogMessage("   Search-Method = Low-Mem Trie\n");
-	   return 0;
-	}
-    return 1;	
+    if( !strcasecmp(method,"lowmem") )
+    {
+       fpDetect.search_method = MPSE_LOWMEM ;
+       LogMessage("   Search-Method = Low-Mem\n");
+       return 0;
+    }
+    return 1;
 }
 
 /*
@@ -305,6 +341,10 @@ void BuildMultiPatGroupsUri( PORT_GROUP * pg )
     PMX              *pmx;
     void             *mpse_obj;
     int               method;
+#ifdef DYNAMIC_PLUGIN
+    DynamicData      *dd;
+    FPContentInfo    *fplist[PLUGIN_MAX_FPLIST_SIZE];
+#endif
 
     if(!pg || !pg->pgCount)
         return;
@@ -316,7 +356,7 @@ void BuildMultiPatGroupsUri( PORT_GROUP * pg )
     method = fpDetect.search_method;
     
     mpse_obj = mpseNew(method);
-    MEMASSERT(mpse_obj,"mpse_obj-uricontent");
+    MEMASSERT(mpse_obj,"BuildMultiPatGroupUri: mpse_obj=mpseNew");
 
     /*  
     **  Save the Multi-Pattern data structure for processing Uri's in this 
@@ -366,26 +406,59 @@ void BuildMultiPatGroupsUri( PORT_GROUP * pg )
 
                 mpseAddPattern(mpse_obj, pmd->pattern_buf, pmd->pattern_size,
                 pmd->nocase,  /* NoCase: 1-NoCase, 0-Case */
-   	        pmd->offset,
+                pmd->offset,
                 pmd->depth,
                 pmx, //(unsigned)rnWalk,        /* rule ptr */ 
                 //(unsigned)pmd,
-		rnWalk->iRuleNodeID );
+                rnWalk->iRuleNodeID );
             }
             
             pmd = pmd->next;
         }
+#ifdef DYNAMIC_PLUGIN
+        /* 
+        ** 
+        ** Add in plugin contents for fast pattern matcher  
+        **
+        **/     
+        dd =(DynamicData*) otn->ds_list[PLUGIN_DYNAMIC];
+        if( dd )
+        {
+            int n,i;
+            n = dd->fastPatternContents(dd->contextData,FASTPATTERN_URI,fplist,PLUGIN_MAX_FPLIST_SIZE);
+        
+            for(i=0;i<n;i++) 
+            {
+                pmd = (PatternMatchData*)malloc(sizeof(PatternMatchData) );
+                MEMASSERT(pmd,"pmd-plugin-content");
+            
+                pmx = (PMX*)malloc(sizeof(PMX) );
+                MEMASSERT(pmx,"pmx-plugin-content");
+            
+                pmx->RuleNode        = rnWalk;
+                pmx->PatternMatchData= pmd;
+            
+                pmd->pattern_buf = fplist[i]->content;
+                pmd->pattern_size= fplist[i]->length;
+                pmd->nocase      = fplist[i]->noCaseFlag;
+                pmd->offset      = 0;
+                pmd->depth       = 0;
+            
+                mpseAddPattern( mpse_obj, 
+                    pmd->pattern_buf, 
+                    pmd->pattern_size,
+                    pmd->nocase,  /* 1--NoCase, 0-Case */
+                    pmd->offset,
+                    pmd->depth,
+                    pmx,  
+                    rnWalk->iRuleNodeID );
+            }
+        }
+#endif
     }
 
-    /*
-    **  This function call sets up an optimized pattern match for Uri
-    **  contents.  This only works if the minimum size of a pattern is
-    **  2 chars. If we comment this out we use the standard 1 byte bad
-    **  character shifts
-    */
-    mpseLargeShifts( mpse_obj, 1 );
-    
     mpsePrepPatterns( mpse_obj );
+    if( fpDetect.debug ) mpsePrintInfo( mpse_obj );
 }
 
 /*
@@ -441,27 +514,27 @@ static PatternMatchData * FindLongestPattern( PatternMatchData * pmd )
 {
     PatternMatchData *pmdmax;
    
-    /* Find the 1st pattern that is not a NOT pattern */	   
-	while( pmd && pmd->exception_flag ) pmd=pmd->next;
+    /* Find the 1st pattern that is not a NOT pattern */   
+    while( pmd && pmd->exception_flag ) pmd=pmd->next;
         
-	if( !pmd ) return NULL;  /* All Patterns are NOT patterns */
+    if( !pmd ) return NULL;  /* All Patterns are NOT patterns */
       
-        pmdmax = pmd;
-	
-        while( pmd )
+    pmdmax = pmd;
+
+    while( pmd )
+    {
+        if(pmd->pattern_buf) 
         {
-            if(pmd->pattern_buf) 
+            if( (pmd->pattern_size > pmdmax->pattern_size) && 
+                    !pmd->exception_flag)
             {
-                if( (pmd->pattern_size > pmdmax->pattern_size) && 
-                        !pmd->exception_flag)
-                {
-                    pmdmax = pmd;
-                }
+                pmdmax = pmd;
             }
-            pmd = pmd->next;
         }
-	
-	return pmdmax;
+        pmd = pmd->next;
+    }
+
+    return pmdmax;
 }
 
 /*
@@ -478,7 +551,10 @@ void BuildMultiPatGroup( PORT_GROUP * pg )
     void             *mpse_obj;
     /*int maxpats; */
     int               method;
-
+#ifdef DYNAMIC_PLUGIN
+    DynamicData      *dd;
+    FPContentInfo    *fplist[PLUGIN_MAX_FPLIST_SIZE];
+#endif
     if(!pg || !pg->pgCount)
         return;
      
@@ -489,8 +565,8 @@ void BuildMultiPatGroup( PORT_GROUP * pg )
     method = fpDetect.search_method;
 
     mpse_obj = mpseNew( method );
-    MEMASSERT(mpse_obj,"mpse_obj-content");
-
+    if(!mpse_obj) FatalError("BuildMultiPatGroup: memory error, mpseNew(%d) failed\n",fpDetect.search_method);
+            
     /* Save the Multi-Pattern data structure for processing this group later 
        during packet analysis.
     */
@@ -516,7 +592,7 @@ void BuildMultiPatGroup( PORT_GROUP * pg )
         otn = otnx->otn;
         rtn = otnx->rtn;
 
-	/* Add the longest AND patterns, 'content:' patterns*/
+        /* Add the longest AND patterns, 'content:' patterns*/
         pmd = otn->ds_list[PLUGIN_PATTERN_MATCH];
 
         /*
@@ -581,7 +657,7 @@ void BuildMultiPatGroup( PORT_GROUP * pg )
                rnWalk->iRuleNodeID );
            }
         }
-	   
+
         /* Add all of the OR contents 'file-list' content */     
         pmd = otn->ds_list[PLUGIN_PATTERN_MATCH_OR];
         while( pmd )
@@ -604,8 +680,48 @@ void BuildMultiPatGroup( PORT_GROUP * pg )
 
             pmd = pmd->next;
         }
-    }
 
+#ifdef DYNAMIC_PLUGIN
+        /* 
+        ** 
+        ** Add in plugin contents for fast pattern matcher  
+        **
+        */     
+        dd =(DynamicData*) otn->ds_list[PLUGIN_DYNAMIC];
+        if( dd )
+        {
+            int n,i;
+            n = dd->fastPatternContents(dd->contextData,FASTPATTERN_NORMAL,fplist,PLUGIN_MAX_FPLIST_SIZE);
+            
+            for(i=0;i<n;i++) 
+            {
+                pmd = (PatternMatchData*)malloc(sizeof(PatternMatchData) );
+                MEMASSERT(pmd,"pmd-plugin-content");
+                
+                pmx = (PMX*)malloc(sizeof(PMX) );
+                MEMASSERT(pmx,"pmx-plugin-content");
+                
+                pmx->RuleNode        = rnWalk;
+                pmx->PatternMatchData= pmd;
+                
+                pmd->pattern_buf = fplist[i]->content;
+                pmd->pattern_size= fplist[i]->length;
+                pmd->nocase      = fplist[i]->noCaseFlag;
+                pmd->offset      = 0;
+                pmd->depth       = 0;
+                
+                mpseAddPattern( mpse_obj, 
+                    pmd->pattern_buf, 
+                    pmd->pattern_size,
+                    pmd->nocase,  /* 1--NoCase, 0-Case */
+                    pmd->offset,
+                    pmd->depth,
+                    pmx,  
+                    rnWalk->iRuleNodeID );
+            }
+        }
+#endif
+    }
     /*
     **  We don't have PrepLongPatterns here, because we've found that
     **  the minimum length for the BM shift is not fulfilled by snort's
@@ -614,6 +730,8 @@ void BuildMultiPatGroup( PORT_GROUP * pg )
     */
     
     mpsePrepPatterns( mpse_obj );
+    if( fpDetect.debug ) mpsePrintInfo( mpse_obj );
+
 }
 
 /*
@@ -641,23 +759,34 @@ void BuildMultiPatternGroups( PORT_RULE_MAP * prm )
      
     for(i=0;i<MAX_PORTS;i++)
     {
+        
         pg = prmFindSrcRuleGroup( prm, i );
         if(pg)
         {
+            if( fpDetect.debug )
+                printf("---SrcRuleGroup-Port %d\n",i);
             BuildMultiPatGroup( pg );
+            if( fpDetect.debug )
+                printf("---SrcRuleGroup-UriPort %d\n",i);
             BuildMultiPatGroupsUri( pg );
         }
 
         pg = prmFindDstRuleGroup( prm, i );
         if(pg)
         {
+            if( fpDetect.debug )
+                printf("---DstRuleGroup-Port %d\n",i);
             BuildMultiPatGroup( pg );
+            if( fpDetect.debug )
+                printf("---DstRuleGroup-UriPort %d\n",i);
             BuildMultiPatGroupsUri( pg );
         }
     }
 
     pg = prm->prmGeneric;
      
+    if( fpDetect.debug )
+        printf("---GenericRuleGroup \n");
     BuildMultiPatGroup( pg );
     BuildMultiPatGroupsUri( pg );
 }
@@ -736,8 +865,9 @@ int fpCreateFastPacketDetection()
                 printf("** hsp = %u\n", rtn->hsp);
                 printf("** lsp = %u\n", rtn->lsp);
                 printf("** hdp = %u\n", rtn->hdp);
-                printf("** ldp = %u\n\n", rtn->ldp);
+                printf("** ldp = %u\n", rtn->ldp);
 #endif
+
                 /*
                 **  Check for bi-directional rules
                 */
@@ -745,7 +875,7 @@ int fpCreateFastPacketDetection()
                 {
                     iBiDirectional = 1;
                 }else{
-	 	    iBiDirectional = 0;
+                    iBiDirectional = 0;
                 }
 
 
@@ -770,6 +900,12 @@ int fpCreateFastPacketDetection()
                 /* Walk OTN list -Add as Content/UriContent, or NoContent */
                 for( otn = rtn->down; otn; otn=otn->next )
                 {
+                    /* Not enabled, don't do the FP content */
+                    if (otn->rule_state != RULE_STATE_ENABLED)
+                    {
+                        continue;
+                    }
+
                     otnx = malloc( sizeof(OTNX) );
                     MEMASSERT(otnx,"otnx-TCP");
 
@@ -786,7 +922,7 @@ int fpCreateFastPacketDetection()
                         }
                         prmAddRule(prmTcpRTNX, dport, sport, otnx);
 
-                        if(iBiDirectional)
+                        if(iBiDirectional && (sport!=dport))
                         {
                             /*
                             **  We switch the ports.
@@ -803,7 +939,7 @@ int fpCreateFastPacketDetection()
                         }
                         prmAddRuleUri(prmTcpRTNX, dport, sport, otnx);
 
-                        if(iBiDirectional)
+                        if(iBiDirectional && (sport!=dport) )
                         {
                             /*
                             **  We switch the ports.
@@ -820,7 +956,7 @@ int fpCreateFastPacketDetection()
                         }
                         prmAddRuleNC(prmTcpRTNX, dport, sport, otnx);
 
-                        if(iBiDirectional)
+                        if(iBiDirectional && (sport!=dport))
                         {
                             /*
                             **  We switch the ports.
@@ -848,16 +984,17 @@ int fpCreateFastPacketDetection()
                 printf("** hsp = %u\n", rtn->hsp);
                 printf("** lsp = %u\n", rtn->lsp);
                 printf("** hdp = %u\n", rtn->hdp);
-                printf("** ldp = %u\n\n", rtn->ldp);
+                printf("** ldp = %u\n", rtn->ldp);
 #endif
+
                 /*
                 **  Check for bi-directional rules
                 */
-		if(rtn->flags & BIDIRECTIONAL)
+                if(rtn->flags & BIDIRECTIONAL)
                 {
                     iBiDirectional = 1;
                 }else{
-	 	    iBiDirectional = 0;
+                    iBiDirectional = 0;
                 }
 
                 sport = CheckPorts(rtn->hsp, rtn->lsp);
@@ -882,6 +1019,12 @@ int fpCreateFastPacketDetection()
                 /* Walk OTN list -Add as Content, or NoContent */
                 for( otn = rtn->down; otn; otn=otn->next )
                 {
+                    /* Not enabled, don't do the FP content */
+                    if (otn->rule_state != RULE_STATE_ENABLED)
+                    {
+                        continue;
+                    }
+
                     otnx = malloc( sizeof(OTNX) );
                     MEMASSERT(otnx,"otnx-UDP");
 
@@ -902,7 +1045,7 @@ int fpCreateFastPacketDetection()
                         **  If rule is bi-directional we switch
                         **  the ports.
                         */
-                        if(iBiDirectional)
+                        if(iBiDirectional && (sport!=dport))
                         {
                             prmAddRule(prmUdpRTNX, sport, dport, otnx);
                         }
@@ -911,7 +1054,7 @@ int fpCreateFastPacketDetection()
                     {
                         if(fpDetect.debug)
                         {
-			                printf("UDP NoContent-Rule[dst=%d,src=%d] %s\n",
+                            printf("UDP NoContent-Rule[dst=%d,src=%d] %s\n",
                                     dport,sport,otn->sigInfo.message);
                         }
                         prmAddRuleNC(prmUdpRTNX, dport, sport, otnx);
@@ -920,7 +1063,7 @@ int fpCreateFastPacketDetection()
                         **  If rule is bi-directional we switch
                         **  the ports.
                         */
-                        if(iBiDirectional)
+                        if(iBiDirectional && (dport != sport) )
                         {
                             prmAddRuleNC(prmUdpRTNX, sport, dport, otnx);
                         }
@@ -942,14 +1085,19 @@ int fpCreateFastPacketDetection()
                     int type;
                     IcmpTypeCheckData * IcmpType;
 
+                    /* Not enabled, don't do the FP content */
+                    if (otn->rule_state != RULE_STATE_ENABLED)
+                    {
+                        continue;
+                    }
                     otnx = malloc( sizeof(OTNX) );
                     MEMASSERT(otnx,"otnx-ICMP");
 
                     otnx->otn = otn;
                     otnx->rtn = rtn;
                     otnx->content_length = 0;
-	            
-		    IcmpType = (IcmpTypeCheckData *)otn->ds_list[PLUGIN_ICMP_TYPE];
+
+                    IcmpType = (IcmpTypeCheckData *)otn->ds_list[PLUGIN_ICMP_TYPE];
                     if( IcmpType && (IcmpType->operator == ICMP_TYPE_TEST_EQ) )
                     {
                         type = IcmpType->icmp_type;
@@ -998,7 +1146,12 @@ int fpCreateFastPacketDetection()
                 {
                     IpProtoData * IpProto;
                     int protocol;
-		    
+
+                    /* Not enabled, don't do the FP content */
+                    if (otn->rule_state != RULE_STATE_ENABLED)
+                    {
+                        continue;
+                    }
                     otnx = malloc( sizeof(OTNX) );
                     MEMASSERT(otnx,"otnx-IP");
 
@@ -1025,7 +1178,7 @@ int fpCreateFastPacketDetection()
                     {
                         protocol = -1;
                     }
-		    
+
                     if( OtnHasContent( otn ) )
                     {
                         if(fpDetect.debug)
@@ -1084,10 +1237,14 @@ int fpCreateFastPacketDetection()
     prmCompileGroups(prmIcmpRTNX);
     prmCompileGroups(prmIpRTNX);
 
+    if(fpDetect.debug)printf("\n** TCP Rule Group Stats -- ");
     BuildMultiPatternGroups(prmTcpRTNX);
+    if(fpDetect.debug)printf("\n** UDP Rule Group Stats -- ");
     BuildMultiPatternGroups(prmUdpRTNX);
+    if(fpDetect.debug)printf("\n** Icmp Rule Group Stats -- ");
     BuildMultiPatternGroups(prmIcmpRTNX);
-    BuildMultiPatternGroups(prmIpRTNX);
+    if(fpDetect.debug)printf("\n** Ip Rule Group Stats -- ");
+    BuildMultiPatternGroups(prmIpRTNX) ;
 
     if(fpDetect.debug)
     {
@@ -1126,5 +1283,4 @@ int fpShowEventStats()
     printf("\n** IP Event Stats -- ");    prmShowEventStats(prmIpRTNX);
     return 0;
 }
-   
 

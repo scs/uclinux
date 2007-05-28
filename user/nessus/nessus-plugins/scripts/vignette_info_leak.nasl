@@ -10,8 +10,9 @@
 if(description)
 {
  script_id(11526);
- script_cve_id("CAN-2002-0385");
- script_version("$Revision: 1.1 $");
+ script_bugtraq_id(7296);
+ script_cve_id("CVE-2002-0385");
+ script_version("$Revision: 1.4 $");
  
  name["english"] = "Vignette StoryServer Information Disclosure";
  script_name(english:name["english"]);
@@ -50,8 +51,8 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 

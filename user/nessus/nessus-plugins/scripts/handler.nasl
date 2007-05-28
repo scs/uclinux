@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10100);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(380);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-0148");
  name["english"] = "Handler";
  name["francais"] = "Handler";
@@ -20,7 +20,7 @@ commands with the privileges of the http daemon (root or nobody).
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'handler' est installé. Celui-ci possède
@@ -59,8 +59,8 @@ Facteur de risque : Sérieux";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {

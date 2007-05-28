@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: gen_ha1.c,v 1.3 2002/09/19 12:23:56 jku Rel $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

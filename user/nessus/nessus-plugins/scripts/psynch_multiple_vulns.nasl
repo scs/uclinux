@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11694);
  script_bugtraq_id(7740, 7745, 7747);
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.6 $");
  name["english"] = "P-Synch multiple issues";
  script_name(english:name["english"]);
 
@@ -35,6 +35,7 @@ Risk factor : Low";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "httpver.nasl", "no404.nasl", "webmirror.nasl", "cross_site_scripting.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -49,13 +50,13 @@ include("http_keepalive.inc");
 
 
  
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
 
-dirs = make_list("", "/psynch", cgi_dirs());
+dirs = make_list("/psynch", cgi_dirs());
 foreach dir (dirs)
 {
  foreach cgi (make_list("nph-psa.exe", "nph-psf.exe"))

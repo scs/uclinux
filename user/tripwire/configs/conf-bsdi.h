@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-bsdi.h,v 1.2 1994/08/04 03:44:12 gkim Exp $ */
 
 /*
  * conf-bsdi.h

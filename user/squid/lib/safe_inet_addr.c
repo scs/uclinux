@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: safe_inet_addr.c,v 1.12 2001/02/07 18:56:51 hno Exp $
  */
 
 #include "config.h"

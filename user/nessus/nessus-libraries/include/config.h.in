@@ -281,6 +281,7 @@
 #undef LINUX
 #undef FREEBSD
 #undef OPENBSD
+#undef DARWIN
 #undef SOLARIS
 #undef SUNOS
 #undef BSDI
@@ -300,6 +301,12 @@
 #undef HAVE_SYS_SYSCTL_H
 #undef HAVE_SYS_PARAM_H
 
+#undef HAVE_LINUX_MSG_H
+#undef HAVE_SYS_MSG_H
+#undef HAVE_SYS_IPC_H
+#undef HAVE_SYS_UIO_H
+#undef HAVE_SYS_RESOURCE_H
+
 #undef EGD_PATH
 
 #undef HAVE_DEV_BPFN
@@ -308,3 +315,13 @@
 #undef HAVE_RAND_STATUS
 
 #undef HAVE_SETITIMER
+#undef USE_ARPA_NAMESER_COMPAT_H
+#undef HAVE_STRUCT_IFMAP
+
+#undef HAVE_SENDMSG
+#undef HAVE_RECVMSG
+
+#undef HAVE_ACCRIGHTS_IN_MSGHDR
+#undef HAVE_CONTROL_IN_MSGHDR
+
+#undef DEBUG_STORE

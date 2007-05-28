@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_hooks.h,v 1.14 2003/07/08 15:24:27 jiri Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

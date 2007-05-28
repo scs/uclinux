@@ -29,6 +29,7 @@
 #include "rt_names.h"
 #include "utils.h"
 #include "ip_common.h"
+#include "netdevice.h"
 
 #define NUD_VALID	(NUD_PERMANENT|NUD_NOARP|NUD_REACHABLE|NUD_PROBE|NUD_STALE|NUD_DELAY)
 

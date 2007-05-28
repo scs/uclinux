@@ -8,10 +8,10 @@
 if(description)
 {
  script_id(10641);
- script_cve_id("CAN-2001-0271");
  script_bugtraq_id(2391);
+ script_cve_id("CVE-2001-0271");
  
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "mailnews.cgi";
  name["francais"] = "mailnews.cgi";
  script_name(english:name["english"], francais:name["francais"]);
@@ -22,7 +22,7 @@ commands with the privileges of the http daemon (usually root or nobody).
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'mailnews' est installé. Celui-ci possède
@@ -56,6 +56,14 @@ Facteur de risque : Sérieux";
  exit(0);
 }
 
-port = is_cgi_installed("mailnews.cgi");
-if(port)
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"mailnews.cgi", port:port);
+if(res)
  security_warning(port);

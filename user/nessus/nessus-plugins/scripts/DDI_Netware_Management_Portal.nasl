@@ -8,24 +8,23 @@
 if(description)
 {
  script_id(10826);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.9 $");
+ # script_cve_id("CVE-MAP-NOMATCH");
+ # NOTE: reviewed, and no CVE id currently assigned (jfs, december 2003)
  name["english"] = "Unprotected Netware Management Portal";
  script_name(english:name["english"]);
 
  desc["english"] = "
  
-The Netware Management Portal software is running
-on this machine. The Portal allows anyone to view
-the current server configuration and locate other
-Portal servers on the network. It is possible to
-browse the server's filesystem by requesting the
-volume in the URL. However, a valid user account
-is needed to do so.
+The Netware Management Portal software is running on this machine. The 
+Portal allows anyone to view the current server configuration and 
+locate other Portal servers on the network. It is possible to browse the 
+server's filesystem by requesting the volume in the URL. However, a valid 
+user account is needed to do so.
 
 
-Solution: Disable this service if it is not in use or
-block connections to this server on TCP ports 
-8008 and 8009.
+Solution: Disable this service if it is not in use or block connections to 
+this server on TCP ports 8008 and 8009.
 
 Risk factor : High";
 
@@ -40,7 +39,7 @@ Risk factor : High";
  family["english"] = "General";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 8008);
  exit(0);
 }
@@ -50,24 +49,15 @@ Risk factor : High";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
 
 # ssl version sometimes on port 8009
-port = get_kb_item("Services/www");
-if (!port) port = 8008;
-
+port = get_http_port(default:8008);
+if( ! port ) exit(0);
 if(get_port_state(port))
- {
-  soc = http_open_socket(port);
-  if (soc)
-  {
-    req = http_get(item:"/", port:port);
-    send(socket:soc, data:req);
-    buf = http_recv(socket:soc);
-    http_close_socket(soc);
-    if ("NetWare Server" >< buf)
-    {
+{
+    res = http_get_cache(item:"/", port:port);
+    if (res && "NetWare Server" >< res )
      security_hole(port);
-    }
-  }
- }
+}

@@ -18,9 +18,9 @@
 if(description)
 {
  script_id(11416);
- script_version ("$Revision: 1.3 $");
- script_bugtraq_id(6425, 6232);
- script_cve_id("CAN-2002-1385");
+ script_bugtraq_id(6232, 6425);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-1385");
  name["english"] = "openwebmail command execution";
  script_name(english:name["english"]);
 
@@ -48,6 +48,7 @@ francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl" );
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -58,10 +59,10 @@ francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
 
-foreach d (make_list(cgi_dirs(), ""))
+
+foreach d (cgi_dirs())
 {
   # UGLY UGLY UGLY
   req = http_get(item:string(d, "/openwebmail/openwebmail.pl"), port:port);

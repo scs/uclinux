@@ -19,7 +19,7 @@
 *  Author : Edouard Gomez (ed.gomez@free.fr)
 *  Creation : 14/08/2001
 *
-* $Id$
+* $Id: atm.c,v 1.11 2003/06/30 21:11:25 edgomez Exp $
 */
 
 #ifndef _ATM_C_

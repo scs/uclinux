@@ -16,8 +16,8 @@
 if(description)
 {
    script_id(11513);
-   script_version ("$Revision: 1.3 $");
    script_bugtraq_id(3274);
+   script_version ("$Revision: 1.5 $");
   
    name["english"] = "Solaris lpd remote command execution";
   
@@ -41,7 +41,7 @@ Risk factor : High";
    summary["english"] = "Reads the remote password file, thanks to lpd";
    script_summary(english:summary["english"]);
  
-   script_category(ACT_ATTACK);
+   script_category(ACT_DESTRUCTIVE_ATTACK); # Intrusive?
  
    script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
    script_family(english:"Gain root remotely");
@@ -207,7 +207,7 @@ if(!soc){
  soc = open_sock_tcp(1);
  if(soc){
  	r = recv_line(socket:soc, length:4096);
- 	if("uid=" >< r)security_hole(port);
+ 	if(egrep(pattern:"uid=[0-9].*gid=[0-9]", string:r))security_hole(port);
 	}
   exit(0);
 }

@@ -1,35 +1,37 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* Parser needs these defines  always, even if USE_RAID is not defined */
-#define RAID_TYPE_0 1       // Striping
-#define RAID_TYPE_x 2       // Some new modes
-#define RAID_TYPE_y 3       // 
+#define RAID_TYPE_0 1       /* Striping */
+#define RAID_TYPE_x 2       /* Some new modes */
+#define RAID_TYPE_y 3
 
 #define RAID_DEFAULT_CHUNKS 4
 #define RAID_DEFAULT_CHUNKSIZE 256*1024 /* 256kB */
 
+C_MODE_START
+#define my_raid_type(raid_type)  raid_type_string[(int)(raid_type)]
 extern const char *raid_type_string[];
+C_MODE_END
 
+#ifdef DONT_USE_RAID
+#undef USE_RAID
+#endif
 #if defined(USE_RAID)
 
-#ifdef __GNUC__
-#pragma interface			/* gcc class implementation */
-#endif
 #include "my_dir.h"
 
 /* Trap all occurences of my_...() in source and use our wrapper around this function */
@@ -39,7 +41,7 @@ extern const char *raid_type_string[];
 #define my_write(A,B,C,D)    my_raid_write(A,B,C,D)
 #define my_pwrite(A,B,C,D,E) my_raid_pwrite(A,B,C,D,E)
 #define my_pread(A,B,C,D,E)  my_raid_pread(A,B,C,D,E)
-#define my_chsize(A,B,C)     my_raid_chsize(A,B,C)
+#define my_chsize(A,B,C,D)   my_raid_chsize(A,B,C,D)
 #define my_close(A,B)        my_raid_close(A,B)
 #define my_tell(A,B)         my_raid_tell(A,B)
 #define my_seek(A,B,C,D)     my_raid_seek(A,B,C,D)
@@ -80,14 +82,16 @@ extern "C" {
 
   int my_raid_lock(File,int locktype, my_off_t start, my_off_t length,
 		   myf MyFlags);
-  int my_raid_chsize(File fd, my_off_t newlength, myf MyFlags);
+  int my_raid_chsize(File fd, my_off_t newlength, int filler, myf MyFlags);
   int my_raid_close(File, myf MyFlags);
   int my_raid_fstat(int Filedes, struct stat *buf,  myf MyFlags);
 
-  const char *my_raid_type(int raid_type);
-
 #ifdef __cplusplus
 }
+
+#ifdef USE_PRAGMA_INTERFACE
+#pragma interface			/* gcc class implementation */
+#endif
 
 class RaidName {
   public:
@@ -96,9 +100,9 @@ class RaidName {
     bool IsRaid();
     int Rename(const char * from, const char * to, myf MyFlags);
   private:
-    uint _raid_type;       // RAID_TYPE_0 or RAID_TYPE_1 or RAID_TYPE_5
-    uint _raid_chunks;     // 1..n
-    ulong _raid_chunksize; // 1..n in bytes
+    uint _raid_type;       /* RAID_TYPE_0 or RAID_TYPE_1 or RAID_TYPE_5 */
+    uint _raid_chunks;     /* 1..n */
+    ulong _raid_chunksize; /* 1..n in bytes */
 };
 
 class RaidFd {
@@ -113,23 +117,23 @@ class RaidFd {
     int Write(const byte *Buffer, uint Count, myf MyFlags);
     int Read(const byte *Buffer, uint Count, myf MyFlags);
     int Lock(int locktype, my_off_t start, my_off_t length, myf MyFlags);
-    int Chsize(File fd, my_off_t newlength, myf MyFlags);
+    int Chsize(File fd, my_off_t newlength, int filler, myf MyFlags);
     int Fstat(int fd, MY_STAT *stat_area, myf MyFlags );
     int Close(myf MyFlags);
     static bool IsRaid(File fd);
     static DYNAMIC_ARRAY _raid_map;		/* Map of RaidFD* */
   private:
 
-    uint _raid_type;       // RAID_TYPE_0 or RAID_TYPE_1 or RAID_TYPE_5
-    uint _raid_chunks;     // 1..n
-    ulong _raid_chunksize; // 1..n in bytes
+    uint _raid_type;       /* RAID_TYPE_0 or RAID_TYPE_1 or RAID_TYPE_5 */
+    uint _raid_chunks;     /* 1..n */
+    ulong _raid_chunksize; /* 1..n in bytes */
 
-    ulong _total_block;    // We are operating with block no x (can be 0..many).
-    uint _this_block;      // can be 0.._raid_chunks
-    uint _remaining_bytes; // Maximum bytes that can be written in this block
+    ulong _total_block;    /* We are operating with block no x (can be 0..many). */
+    uint _this_block;      /* can be 0.._raid_chunks */
+    uint _remaining_bytes; /* Maximum bytes that can be written in this block */
 
     my_off_t _position;
-    my_off_t _size;        // Cached file size for faster seek(SEEK_END)
+    my_off_t _size;        /* Cached file size for faster seek(SEEK_END) */
     File _fd;
     File *_fd_vector;		/* Array of File */
     off_t *_seek_vector;	/* Array of cached seek positions */
@@ -141,7 +145,7 @@ class RaidFd {
 			 (ulong) _position, _raid_chunksize, (ulong) _size));
 
       _total_block = (ulong) (_position / _raid_chunksize);
-      _this_block = _total_block % _raid_chunks;    // can be 0.._raid_chunks
+      _this_block = _total_block % _raid_chunks;    /* can be 0.._raid_chunks */
       _remaining_bytes = (uint) (_raid_chunksize -
 				 (_position - _total_block * _raid_chunksize));
       DBUG_PRINT("info",

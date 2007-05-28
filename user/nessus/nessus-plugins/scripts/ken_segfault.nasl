@@ -7,9 +7,11 @@
 if(description)
 {
  script_id(10375);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CVE-2000-0262");
  script_bugtraq_id(1103);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2000-0262");
+ script_xref(name:"OSVDB", value:"13157");
+
  name["english"] = "Ken! DoS";
  name["francais"] = "Déni de service contre Ken!";
  script_name(english:name["english"], francais:name["francais"]);

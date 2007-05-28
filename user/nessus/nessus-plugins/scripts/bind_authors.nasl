@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10728);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "Determine if Bind 9 is running";
  script_name(english:name["english"]);
  
@@ -33,6 +33,8 @@ Risk factor : Low";
  script_family(english:family["english"]);
  script_dependencies("bind_version.nasl");
  script_exclude_keys("bind/version");
+ script_require_keys("DNS/udp/53");
+
  exit(0);
 }
 

@@ -1,7 +1,7 @@
 #
 #  Makefile for the DISKD storage driver for the Squid Object Cache server
 #
-#  $Id$
+#  $Id: Makefile.am,v 1.1 2001/08/31 11:19:33 robertc Exp $
 #
 
 libexec_PROGRAMS = diskd

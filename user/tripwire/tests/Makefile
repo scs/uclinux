@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.14 1993/12/15 23:03:40 genek Exp $
 #
 # 	Tripwire test
 

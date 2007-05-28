@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: url.c,v 1.133.2.5 2003/01/18 14:16:49 hno Exp $
  *
  * DEBUG: section 23    URL Parsing
  * AUTHOR: Duane Wessels

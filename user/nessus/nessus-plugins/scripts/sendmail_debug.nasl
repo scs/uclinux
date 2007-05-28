@@ -3,52 +3,36 @@
 #
 # See the Nessus Scripts License for details
 #
+# MA 2004-12-29: I merge sendmail_wiz.nasl into this one
 
-if(description)
-{
- script_id(10247);
- script_version ("$Revision: 1.14 $");
- script_bugtraq_id(1);
- script_cve_id("CVE-1999-0095");
- 
- name["english"] = "Sendmail DEBUG";
- name["francais"] = "Sendmail DEBUG";
- script_name(english:name["english"],
- 	     francais:name["francais"]);
- 
- desc["english"] = "
-Your MTA accepts the DEBUG mode.
+desc = "
+Your MTA accepts the DEBUG command. It must be a very old version
+of sendmail.
 
-This mode is dangerous as it allows remote
+This command is dangerous as it allows remote
 users to execute arbitrary commands as root
 without the need to log in.
 
 Solution : Upgrade your MTA.
 
 Risk factor : High"; 
-	
 
- desc["francais"] = "
-Votre MTA accepte le mode DEBUG.
+if(description)
+{
+ script_id(10247);
+ script_bugtraq_id(1, 2897);
+ script_version ("$Revision: 1.18 $");
+ script_cve_id("CVE-1999-0095", "CVE-1999-0145");
+ script_xref(name:"OSVDB", value:"1877");
 
-Ce mode est dangereux puisqu'il permet à 
-des utilisateurs distants d'executer des
-commandes arbitraires en tant que root
-sur ce système, sans avoir à se logger.
-
-
-Solution : Mettez à jour votre MTA.
-
-Facteur de risque : Elevé";
-
- script_description(english:desc["english"],
- 	 	    francais:desc["francais"]);
+ name["english"] = "Sendmail DEBUG";
+ script_name(english:name["english"]);
+ 
+ script_description(english:desc);
 		    
  
- summary["english"] = "Checks for the presence of the DEBUG mode"; 
- summary["francais"] = "Vérifie la présence du mode DEBUG";
- script_summary(english:summary["english"],
- 		 francais:summary["francais"]);
+ summary["english"] = "Checks for the presence of DEBUG or WIZ commands"; 
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
@@ -58,7 +42,7 @@ Facteur de risque : Elevé";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "smtpserver_detect.nasl");
+ script_dependencie("find_service.nes", "smtpserver_detect.nasl", "smtpscan.nasl");
  script_require_keys("SMTP/sendmail");
  script_exclude_keys("SMTP/wrapped");
 
@@ -76,19 +60,30 @@ include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
 if(!get_port_state(port))exit(0);
-if(get_kb_item("SMTP/wrapped"))exit(0);
+
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+if (! get_kb_item("SMTP/sendmail")) exit(0);
 
 soc = open_sock_tcp(port);
-if(soc)
- {
-  b = smtp_recv_banner(socket:soc);
+if(! soc) exit(0);
 
-  s = string("debug\r\n");
-  send(socket:soc, data:s);
-  r = recv_line(socket:soc, length:1024);
-  r = tolower(r);
-
-  
-  if(("200 debug set" >< r))security_hole(port);
+b = smtp_recv_banner(socket:soc);
+if (!b)
+{
   close(soc);
+  exit(0);
 }
+
+
+foreach cmd (make_list('DEBUG', 'WIZ'))
+{
+  send(socket:soc, data: cmd + '\r\n');
+  r = recv_line(socket:soc, length:1024);
+  if (r =~ '^2[0-9][0-9][ \t]')
+  {
+   security_hole(port: port, data: str_replace(string: desc, find: 'DEBUG', replace: cmd));
+   break;
+  }
+}
+close(soc);
+

@@ -3,7 +3,7 @@
  *              support functions for the net-tools.
  *              (NET-3 base distribution).
  *
- * Version:     $Id$
+ * Version:     $Id: econet.c,v 1.11 2000/05/27 17:36:16 pb Exp $
  *
  * Author:      Philip Blundell <philb@gnu.org>
  *

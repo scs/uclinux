@@ -8,7 +8,7 @@
 if(description)
 {
         script_id(11201);
- 	script_version ("$Revision: 1.1 $");
+ 	script_version ("$Revision: 1.3 $");
         name["english"] = "Nortel/Bay Networks/Xylogics Annex default password";
         script_name(english:name["english"]);
 
@@ -48,6 +48,7 @@ Risk factor : High";
         exit(0);
 }
 
+include('telnet_func.inc');
 
 
 function myrecv(socket, pattern) {
@@ -65,12 +66,15 @@ function myrecv(socket, pattern) {
 #
 port = 23;
 
+banner = get_telnet_banner(port:port);
+if ( ! banner || "Annex" >!< banner ) exit(0);
+
 if(get_port_state(port)) {
 
 
 	soc=open_sock_tcp(port);
 	if(!soc)exit(0);
-	buf=telnet_init(soc);
+	buf=telnet_negotiate(socket:soc);
 	#display(buf);
 	nudge = string("\r\n");
 	send(socket:soc, data:nudge);

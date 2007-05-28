@@ -13,10 +13,12 @@
 if(description)
 {
  script_id(11512);
- script_bugtraq_id(7184, 7185, 6714, 6713, 6712);
- script_cve_id("CAN-2003-0072", "CAN-2003-0082", "CAN-2003-0059", "CAN-2003-0060", "CAN-2002-0036");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0007");
+ script_bugtraq_id(11078, 11079, 6712, 6713, 6714, 7184, 7185);
+ script_cve_id("CVE-2003-0072", "CVE-2003-0082", "CVE-2003-0059", "CVE-2003-0060", "CVE-2002-0036", "CVE-2003-0028", "CVE-2003-0138", "CVE-2003-0139");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:091-01");
 
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "Kerberos 5 issues";
  script_name(english:name["english"]);
  
@@ -52,6 +54,9 @@ francais:summary["francais"]);
  script_family(english:family["english"]);
  exit(0);
 }
+
+include('global_settings.inc');
+if ( report_paranoia < 2 ) exit(0);
 
 
 name = "whatever";

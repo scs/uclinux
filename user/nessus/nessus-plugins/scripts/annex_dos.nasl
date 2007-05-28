@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10017);
- script_version ("$Revision: 1.24 $");
- script_cve_id("CAN-1999-1070");
+ script_version ("$Revision: 1.27 $");
+ script_cve_id("CVE-1999-1070");
  
  name["english"] = "Annex DoS";
  name["francais"] = "Déni de service Annex";
@@ -72,14 +72,15 @@ Facteur de risque : Elevé";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
 cgi = "/ping";
-if(is_cgi_installed(item:cgi, port:port))
+if(is_cgi_installed_ka(item:cgi, port:port))
 {
  soc = http_open_socket(port);
  start_denial();

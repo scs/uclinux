@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11488);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.5 $");
  
  
 
@@ -50,6 +50,7 @@ Risk factor : High";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -58,13 +59,15 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
+if ( ! can_host_php(port:port) ) exit(0);
 
-dirs = make_list(cgi_dirs(), "", "/imp", "/horde/imp");
+
+dirs = make_list(cgi_dirs(), "/imp", "/horde/imp");
 
 foreach d (dirs)
 {

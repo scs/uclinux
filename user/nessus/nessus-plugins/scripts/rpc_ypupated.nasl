@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10243);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CVE-1999-0208");
  name["english"] = "ypupdated service";
  name["francais"] = "Service ypupdated";
@@ -66,6 +66,10 @@ Facteur de risque : Elevé";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 RPC_PROG = 100028;
@@ -78,6 +82,6 @@ if(!port){
 
 if(port)
 {
- if(tcp)security_hole(port);
- else security_hole(port, protocol:"udp");
+ if(tcp)security_warning(port);
+ else security_warning(port, protocol:"udp");
 }

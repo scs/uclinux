@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.hist.c,v 3.27 2000/06/10 22:07:56 kim Exp $ */
 /*
  * sh.hist.c: Shell history expansions and substitutions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: sh.hist.c,v 3.27 2000/06/10 22:07:56 kim Exp $")
 
 #include "tc.h"
 

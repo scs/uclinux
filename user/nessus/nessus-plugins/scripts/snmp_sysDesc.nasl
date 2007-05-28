@@ -1,122 +1,104 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
+ desc["english"] = "
+Synopsis :
+
+The System Information of the remote host can be obtained via SNMP.
+
+Description :
+
+It is possible to obtain the system information about the remote
+host by sending SNMP requests with the OID 1.3.6.1.2.1.1.1.
+
+An attacker may use this information to gain more knowledge about
+the target host.
+
+Solution : 
+
+Disable the SNMP service on the remote host if you do not use it,
+or filter incoming UDP packets going to this port.
+
+Risk factor : 
+
+Low";
 
 
 if(description)
 {
  script_id(10800);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.14 $");
  
- name["english"] = "Obtain OS type via SNMP";
+ name["english"] = "Obtain system info type via SNMP";
  
  script_name(english:name["english"]);
- 
- desc["english"] = "
-This script uses SNMP to obtain the remote operating
-system type and version.
-
-Risk factor : Low";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Enumerates OS via SNMP";
+ summary["english"] = "Enumerates system info via SNMP";
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "SNMP";
  script_family(english:family["english"]);
  
- script_dependencie("snmp_default_communities.nasl");
+ script_dependencie("snmp_settings.nasl");
  script_require_keys("SNMP/community");
  exit(0);
 }
 
 
-#
-# Solaris comes with a badly configured snmpd which
-# always reply with the same value. We make sure the answers
-# we receive are not in the list of default values usually
-# answered...
-#
-function valid_snmp_value(value)
-{
- if("/var/snmp/snmpdx.st" >< value)return(0);
- if("/etc/snmp/conf" >< value)return(0);
- if( (strlen(value) == 1) && (ord(value[0]) < 32) )return(0);
- return(1);
-}
-
-#--------------------------------------------------------------------#
-# Forges an SNMP GET NEXT packet                                     #
-#--------------------------------------------------------------------#
-function get_next(community, id, object)
-{
- len = strlen(community);
-#display("len : ", len, "\n");
- len = len % 256;
- 
- tot_len = 4 + strlen(community) + 12 + strlen(object) + 4;
-# display(hex(tot_len), "\n");
- _r = raw_string(0x30, tot_len, 0x02, 0x01, 0x00, 0x04, len);
- o_len = strlen(object) + 2;
- 
- a_len = 13 + strlen(object);
- _r = _r + community + raw_string( 0xA1,
-	a_len, 0x02, 0x01, id,   0x02, 0x01, 0x00, 0x02,
-	0x01, 0x00, 0x30,o_len) + object + raw_string(0x05, 0x00);
-# display("len : ", strlen(_r), "\n");
- return(_r);
-}
-
-
+include ("snmp_func.inc");
 
 community = get_kb_item("SNMP/community");
 if(!community)exit(0);
-
-ifaces = "";
 
 port = get_kb_item("SNMP/port");
 if(!port)port = 161;
 
 soc = open_sock_udp(port);
+if (!soc)
+  exit (0);
 
-first = raw_string(0x30, 0x82, 0x00, 
-		   0x0B, 0x06, 0x07, 0x2b, 0x06, 0x01, 0x02, 0x01,
-		   0x01, 0x01);
-		  
-id = 2;
-req = get_next(id:id, community:community, object:first);
 
-send(socket:soc, data:req);
-r = recv(socket:soc, length:1025);
-if(strlen(r) < 48)exit(0);
+system = NULL;
 
-sysDesc = "";
+descr = snmp_request (socket:soc, community:community, oid:"1.3.6.1.2.1.1.1.0");
+objectid = snmp_request (socket:soc, community:community, oid:"1.3.6.1.2.1.1.2.0");
+uptime = snmp_request (socket:soc, community:community, oid:"1.3.6.1.2.1.1.3.0");
+contact = snmp_request (socket:soc, community:community, oid:"1.3.6.1.2.1.1.4.0");
+name = snmp_request (socket:soc, community:community, oid:"1.3.6.1.2.1.1.5.0");
+location = snmp_request (socket:soc, community:community, oid:"1.3.6.1.2.1.1.6.0");
+services = snmp_request (socket:soc, community:community, oid:"1.3.6.1.2.1.1.7.0");
 
-len = strlen(r);
-if(ord(r[2]) == 0x02)
+if (descr || objectid || uptime || contact || name || location || services)
+  system =
+string (
+"System information :\n",
+" sysDescr     : ", descr, "\n",
+" sysObjectID  : ", objectid, "\n",
+" sysUptime    : ", uptime, "\n",
+" sysContact   : ", contact, "\n",
+" sysName      : ", name, "\n",
+" sysLocation  : ", location, "\n",
+" sysServices  : ", services, "\n",
+"\n"
+);
+
+if(strlen(system))
 {
- start = 34 + strlen(community);
-}
-else
-{
-start = 38 + strlen(community);
-}
+ if (descr)
+   set_kb_item(name:"SNMP/sysDesc", value:descr);
+ if (objectid)
+   set_kb_item(name:"SNMP/OID", value:objectid);
 
-for(i=start;i<len;i=i+1)
-{
-  if( (ord(r[i]) >= 10) && (ord(r[i]) <= 127) )
-     sysDesc = string(sysDesc, r[i]);
-}
 
-if(valid_snmp_value(value:sysDesc))
-{
-set_kb_item(name:"SNMP/sysDesc", value:sysDesc);
-report = string("Using SNMP, we could determine that the remote operating system is :\n", sysDesc);
-security_note(port:port, data:report, protocol:"udp");
+ report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		system);
+
+ security_note(port:port, data:report, protocol:"udp");
 }

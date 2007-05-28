@@ -15,8 +15,8 @@
 if(description)
 {
  script_id(10701);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(2954);
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CVE-2001-1246");
  
  name["english"] = "php safemode";
@@ -61,17 +61,13 @@ Risk factor : High";
 # The script code starts here
 #
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
 banner = get_http_banner(port: port);
 if(!banner) exit(0);
+php = get_php_version(banner:banner);
+if ( ! php ) exit(0);
 
- serv = strstr(banner, "Server");
- if(ereg(pattern:".*PHP/4\.0\.5.*",
-          string:serv))
- {
+if(ereg(pattern:"PHP/4\.0\.5.*", string:php))
    security_warning(port);
- }
-
- 

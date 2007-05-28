@@ -47,6 +47,7 @@
 extern int F_quiet_mode;
 
 int comm_send_file(char*);
+static int cli_send_prefs_arglist(struct arglist*, harglst **, int );
 
 /*
  * Parses a plugin description message, and returns an arglist with the
@@ -74,55 +75,64 @@ parse_plugin(buf)
   
   str = parse_separator(buf);if(!str)return NULL;
   arg_add_value(plugin, "NAME", ARG_STRING, strlen(str), estrdup(str));
+  
 
 	
   l   += strlen(str) + 5;
+  free(str);
  
   str =  parse_separator(buf+l);if(!str)return NULL;
   arg_add_value(plugin, "CATEGORY", ARG_STRING, strlen(str),estrdup(str));
 	
   l += strlen(str) + 5;
+  free(str);
   str =  parse_separator(buf+l);if(!str)return NULL;
   arg_add_value(plugin, "COPYRIGHT", ARG_STRING, strlen(str), estrdup(str));
 	
   l+= strlen(str) + 5;
 	
   
+  free(str);
   str = parse_separator(buf+l);if(!str)return  NULL;
   t = str;
   while((t=strchr(t, ';')))t[0]='\n';
   arg_add_value(plugin, "DESCRIPTION", ARG_STRING, strlen(str), estrdup(str));
   l+= strlen(str) + 5;
 	
+  free(str);
   str = parse_separator(buf+l);if(!str)return NULL;
   arg_add_value(plugin, "SUMMARY", ARG_STRING, strlen(str), estrdup(str));
 	
   l+= strlen(str) + 5;
 	
+  free(str);
    str = parse_separator(buf+l);if(!str)return NULL;
    arg_add_value(plugin, "FAMILY", ARG_STRING, strlen(str), estrdup(str));
-   
-   
    l+= strlen(str) + 5;
+   free(str);
    str = parse_separator(buf+l);
    if(str){
    arg_add_value(plugin, "VERSION", ARG_STRING, strlen(str), estrdup(str));
-  
-   
    l+= strlen(str) + 5;
+   free(str);
    str = parse_separator(buf+l);
    if(str != NULL)
     {
     arg_add_value(plugin, "CVE_ID", ARG_STRING, strlen(str), estrdup(str));
     l += strlen(str) + 5;
+    free(str);
    
     str = parse_separator(buf + l);
     if(str != NULL)
      { 
      arg_add_value(plugin, "BUGTRAQ_ID", ARG_STRING, strlen(str), estrdup(str));
      l += strlen(str) + 5;
+     free(str);
      str = parse_separator(buf + l);
-     if( str != NULL )arg_add_value(plugin, "XREFS", ARG_STRING, strlen(str), estrdup(str));
+     if( str != NULL ) {
+	 arg_add_value(plugin, "XREFS", ARG_STRING, strlen(str), estrdup(str));
+	 free(str);
+	 }
      }
    }
    
@@ -135,17 +145,11 @@ parse_plugin(buf)
     */
    if((!strcmp(arg_get_value(plugin, "CATEGORY"), "denial")) ||
       (!strcmp(arg_get_value(plugin, "CATEGORY"), "kill_host")) ||
-	   (!strcmp(arg_get_value(plugin, "CATEGORY"), "destructive_attack")))
+	! strcmp(arg_get_value(plugin, "CATEGORY"), "flood") ||
+	   (!strcmp(arg_get_value(plugin, "CATEGORY"), "destructive_attack"))||
+	!strcmp(arg_get_value(plugin, "CATEGORY"), "scanner") )
 	 arg_add_value(plugin, "ENABLED", ARG_INT, sizeof(int), (void*)0);
     else
-	 if(!strcmp(arg_get_value(plugin, "CATEGORY"), "scanner"))
-	 {
-	  if(!strcmp(arg_get_value(plugin, "NAME"), "Nmap"))
-	   arg_add_value(plugin, "ENABLED", ARG_INT, sizeof(int), (void*)1);
-	  else
-	   arg_add_value(plugin, "ENABLED", ARG_INT, sizeof(int), (void*)0);
-	 }
-	 else
 	  arg_add_value(plugin, "ENABLED", ARG_INT, sizeof(int), (void *)1);
 	  
 	  
@@ -224,6 +228,7 @@ comm_plugin_upload(fname)
  char buff[2048];
  char *content;
  char *e;
+ int len;
  
  e = strrchr(fname, '/');
  if(!e)e = fname;
@@ -239,11 +244,12 @@ comm_plugin_upload(fname)
  }
  
  fstat(fd, &stt);
+ len = (int)stt.st_size;
  network_printf("CLIENT <|> ATTACHED_PLUGIN\n");
  network_printf("name: %s\n", e);
  network_printf("content: octet/stream\n");
- network_printf("bytes: %ld\n", stt.st_size);
- content = mmap(NULL, stt.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+ network_printf("bytes: %d\n", len);
+ content = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
  if(content == MAP_FAILED)
   {
    show_error(strerror(errno));
@@ -252,21 +258,21 @@ comm_plugin_upload(fname)
   }
   
   
- while(tot != stt.st_size)
+ while(tot != len)
  {
   int e;
-  e = write_stream_connection(GlobalSocket, content + tot, stt.st_size - tot);
+  e = write_stream_connection(GlobalSocket, content + tot, len - tot);
   if(e < 0)
   {
    show_error(strerror(errno));
-   munmap(content, stt.st_size);
+   munmap(content, len);
    close(fd);
    return -1;
   }
   tot += e;
  }
  
- munmap(content, stt.st_size);
+ munmap(content, len);
  close(fd);
  network_gets(buff, sizeof(buff) - 1); /* Confirmation message */
  return 0;
@@ -417,7 +423,7 @@ cli_comm_get_preferences(prefs)
      if(arg_get_type(plugs_prefs, pref) < 0)
       {
       char * x = strchr(v, ';');
-      if(!ListOnly && x )x[0] = '\0';
+      if(!ListOnly && strstr(v, "[radio]") != NULL && x != NULL )x[0] = '\0';
       arg_add_value(plugs_prefs, pref, ARG_STRING, strlen(v), v);
       }
      }
@@ -448,15 +454,10 @@ comm_get_preferences(prefs)
  Detached_sessions_saved = 0;
 #endif
 
- if(F_quiet_mode)
- {
-  serv_prefs = arg_get_value(prefs, "SERVER_PREFS");
-  if(!serv_prefs)serv_prefs = emalloc(sizeof(struct arglist));
- }
- else
- {
- serv_prefs = emalloc(sizeof(struct arglist));
- }
+ 
+ serv_prefs = arg_get_value(prefs, "SERVER_PREFS");
+ if(!serv_prefs)serv_prefs = emalloc(sizeof(struct arglist));
+ 
  serv_infos = emalloc(sizeof(struct arglist));
  buf = emalloc(32768);
  network_gets(buf, 32768);
@@ -503,13 +504,9 @@ comm_get_preferences(prefs)
 	 }
 	 else
 	  {
-	   if(F_quiet_mode)
-	   {
-	    if(arg_get_type(serv_prefs, pref) < 0)
+	   if(arg_get_type(serv_prefs, pref) < 0)
     	 	arg_add_value(serv_prefs, pref, ARG_STRING, strlen(v), v);
-	   }
-	   else arg_add_value(serv_prefs, pref, ARG_STRING, strlen(v), v);
-	 }
+	  }
        }
     else
     {
@@ -582,9 +579,10 @@ comm_get_preferences(prefs)
 
 
 static int
-cli_send_prefs_arglist(pref, upload)
+cli_send_prefs_arglist(pref, upload, pprefs)
  struct arglist * pref;
  harglst** upload;
+ int pprefs;
 {
  if(!pref)
   return -1;
@@ -599,7 +597,7 @@ cli_send_prefs_arglist(pref, upload)
      	harg_add_int(*upload, pref->value, 1);
    	}
 	
-    	network_printf("%s <|> %s\n", pref->name, pref->value);
+        network_printf("%s <|> %s\n", pref->name, pref->value);
     }
    else if(pref->type == ARG_INT)
     {
@@ -629,8 +627,8 @@ cli_comm_send_preferences(preferences)
  network_printf("ntp_short_status <|> yes\n");
  network_printf("ntp_client_accepts_notes <|> yes\n");
  network_printf("ntp_escape_crlf <|> yes\n");
- if(pref)cli_send_prefs_arglist(pref, &files_to_send);
- if(pprefs)cli_send_prefs_arglist(pprefs, &files_to_send);
+ if(pref)cli_send_prefs_arglist(pref, &files_to_send, 0);
+ if(pprefs)cli_send_prefs_arglist(pprefs, &files_to_send, 1);
  network_printf("<|> CLIENT\n");
  if(files_to_send)
  { 
@@ -774,6 +772,7 @@ comm_send_file(fname)
  struct stat stt;
  long tot = 0;
  char buff[1024];
+ int len;
  
  if(!fname || !strlen(fname))
   return 0;
@@ -786,11 +785,12 @@ comm_send_file(fname)
  }
  
  fstat(fd, &stt);
+ len = (int)stt.st_size;
  network_printf("CLIENT <|> ATTACHED_FILE\n");
  network_printf("name: %s\n", fname);
  network_printf("content: octet/stream\n");
- network_printf("bytes: %ld\n", stt.st_size);
- tot = stt.st_size;
+ network_printf("bytes: %d\n", len);
+ tot = len;
  while(tot > 0)
  {
   int m = 0, n;
@@ -912,13 +912,14 @@ int
 comm_get_plugins()
 {
   char * buf;
+  int bufsz;
   int flag = 0;
   int num = 0;
   int num_2 = 0;
   struct arglist * plugin_set;
   struct arglist * scanner_set;
   int ret;
-  
+ 
  /* arg_free_all(Plugins);
   arg_free_all(Scanners);
   */
@@ -927,13 +928,18 @@ comm_get_plugins()
   plugin_set = arg_get_value(Prefs, "PLUGIN_SET");
   scanner_set = arg_get_value(Prefs, "SCANNER_SET");
   
-  buf = emalloc(32768);
+  bufsz = 1024 * 1024;
+  buf = emalloc(bufsz);
   network_gets(buf, 27);
   if(strncmp(buf, "SERVER <|> PLUGIN_LIST <|>", 26))return(-1);
-  bzero(buf, 32768);
   while(!flag)
     {
-      network_gets(buf, 32768);
+      network_gets(buf, bufsz);
+      if ( buf[0] == '\0' ) 
+	{
+	  show_error("The daemon shut down the communication");
+	  break;
+	}
       if(!strncmp(buf, "<|> SERVER", 10))flag = 1;
       else
 	{
@@ -955,13 +961,12 @@ comm_get_plugins()
            else
              arg_set_value(Scanners,  arg_get_value(plugin, "NAME"), -1, plugin); 
             if(scanner_set && 
-              ((int)arg_get_type(scanner_set, plugin_asc_id(plugin))<0))
-              arg_add_value(scanner_set, plugin_asc_id(plugin), ARG_INT,
-                 sizeof(int),(void*)1);
+              ((int)arg_get_type(scanner_set, plugin_asc_id(plugin))<0)) arg_add_value(scanner_set, plugin_asc_id(plugin), ARG_INT, sizeof(int),arg_get_value(plugin, "ENABLED"));
            }
           else
           {
            num++;
+	
            if(!arg_get_value(Plugins,  arg_get_value(plugin, "NAME")))
 	    arg_add_value(Plugins,  arg_get_value(plugin, "NAME"), ARG_ARGLIST,
 			-1, plugin);
@@ -970,8 +975,7 @@ comm_get_plugins()
               
            if(plugin_set &&
              ((int)arg_get_type(plugin_set, plugin_asc_id(plugin))<0))
-              arg_add_value(plugin_set, plugin_asc_id(plugin), ARG_INT,
-              sizeof(int),(void*)1);
+              arg_add_value(plugin_set, plugin_asc_id(plugin), ARG_INT, sizeof(int),arg_get_value(plugin, "ENABLED"));
             
            }
 	}
@@ -987,6 +991,7 @@ audit to be complete");
        }
   PluginsNum = num;
   ScannersNum = num_2;
+  efree(&buf);
   
   return(0);
 }

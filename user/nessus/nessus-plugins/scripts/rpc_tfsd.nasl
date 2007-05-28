@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10238);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "tfsd service";
  name["francais"] = "Service tfsd";
@@ -57,6 +57,10 @@ Facteur de risque : Faible";
 # The script code starts here
 #
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 RPC_PROG = 100037;

@@ -15,41 +15,51 @@
 if(description)
 {
  script_id(11315);
- script_version ("$Revision: 1.3 $");
  script_bugtraq_id(7000);
+ script_version ("$Revision: 1.9 $");
 
- name["english"] = "webchat code injection";
+ name["english"] = "Webchat code injection";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-It is possible to make the remote host include php files hosted
-on a third party server using webchat.
+Synopsis :
 
-An attacker may use this flaw to inject arbitrary code in the remote
-host and gain a shell with the privileges of the web server.
+The remote web server contains a PHP application that is affected by a
+remote code inclusion flaw. 
 
-Solution : See http://www.phpsecure.org or contact the vendor for a patch
-Risk factor : Serious";
+Description :
 
+The version of Webchat installed on the remote host allows an attacker
+to read local files or execute PHP code, possibly taken from third-
+party sites, subject to the permissions of the web server user id. 
 
+See also :
 
+http://www.securityfocus.com/archive/1/313606
+
+Solution : 
+
+Contact the vendor for a patch or remove the application.
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Checks for the presence of includes.php";
- 
+ summary["english"] = "Checks for the presence of Webchat's defines.php";
  script_summary(english:summary["english"]);
  
  script_category(ACT_ATTACK);
  
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -62,9 +72,10 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
 
@@ -72,25 +83,14 @@ function check(loc)
 {
  req = http_get(item:string(loc, "/defines.php?WEBCHATPATH=http://xxxxxxxx/"),
  		port:port);			
- r = http_keepalive_send_recv(port:port, data:req);
+ r = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
  if( r == NULL )exit(0);
- if(egrep(pattern:".*http://xxxxxxxx/db_mysql\.php", string:r))
+ if("http://xxxxxxxx/db_mysql.php" >< r )
  {
  	security_hole(port);
 	exit(0);
  }
 }
-
-
-dir = make_list(cgi_dirs());
-foreach d (dir)
-{
- if(isnull(dirs))dirs = make_list(string(d, "/webchat"), string(d, "/webchat-077"));
- else dirs = make_list(dirs, string(d, "/webchat"), string(d, "/webchat-077"));
-}
-
-dirs = make_list(dirs, "", "/webchat", "/webchat-077");
-
 
 
 foreach dir (dirs)

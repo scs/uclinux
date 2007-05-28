@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_def.h,v 1.3 2002/09/19 12:23:55 jku Rel $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

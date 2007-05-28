@@ -7,10 +7,10 @@
 if(description)
 {
  script_id(11392);
-
- script_cve_id("CAN-2000-0176", "CVE-1999-0838");
  script_bugtraq_id(1016, 859);
- script_version ("$Revision: 1.4 $");
+
+ script_cve_id("CVE-2000-0176", "CVE-1999-0838");
+ script_version ("$Revision: 1.9 $");
  
  script_name(english:"Serv-U path disclosure");
  
@@ -64,7 +64,7 @@ if (! pass) pass="test@nessus.com";
 
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
- if(ftp_log_in(socket:soc, user:login,pass:pass))
+ if(ftp_authenticate(socket:soc, user:login,pass:pass))
  {
    send(socket:soc, data:string("CWD ", rand(), rand(), "-", rand(), "\r\n"));
    r = ftp_recv_line(socket:soc);
@@ -77,7 +77,5 @@ if (! pass) pass="test@nessus.com";
 # Could not log in
 # 
  r = get_ftp_banner(port: port);
- if(egrep(pattern:"^220 Serv-U FTP-Server v2\.(([0-4])|(5[a-d]))", string:r))
- {
- 	security_security(port:port, data:data);
- }
+if(egrep(pattern:"^220 Serv-U FTP-Server v2\.(([0-4])|(5[a-d]))", string:r))
+ 	security_warning(port);

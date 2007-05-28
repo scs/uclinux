@@ -19,8 +19,9 @@
 if(description)
 {
  script_id(11170);
- script_version ("$Revision: 1.5 $");
- script_cve_id("CAN-2002-1272");
+ script_bugtraq_id(6220);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-1272");
 
  name["english"] = "Alcatel OmniSwitch 7700/7800 switches backdoor";
  name["francais"] = "Porte derobee dans les switchs Alcatel OmniSwitch 7700/7800";
@@ -77,7 +78,7 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
- data = get_telnet_banner(port:port);
+  data = get_telnet_banner(port:port);
  if(data)
   {
   security_note(port:port,data:string("The banner:\n",data,"\nshould be reported to deraison@nessus.org\n"));

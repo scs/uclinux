@@ -1,7 +1,6 @@
 AC_INIT(strace.c)
 AC_CANONICAL_SYSTEM()
 AC_MSG_CHECKING(for supported operating system)
-changequote(,)dnl
 
 case "$host_os" in
 linux*)
@@ -19,7 +18,7 @@ sysv4*)
 sysv5*)
 	opsys=svr4
 	;;
-irix[56]*)
+irix[[56]]*)
 	opsys=svr4
 	;;
 freebsd*)
@@ -38,7 +37,7 @@ opsys_list='
 
 AC_MSG_CHECKING(for supported architecture)
 case "$target_cpu" in
-i[3456]86|pentium)
+i[[3456]]86|pentium)
 	arch=i386
 	;;
 ia64)
@@ -62,6 +61,9 @@ ppc|powerpc)
 arm)
 	arch=arm
 	;;
+sh)
+	arch=sh
+	;;
 s390)
 	arch=s390
 	;;
@@ -76,18 +78,17 @@ AC_MSG_RESULT($arch)
 
 # Autoheader trick.  Heh, heh.
 arch_list='
-@@@syms="$syms I386 IA64 M68K SPARC MIPS ALPHA ARM POWERPC S390 HPPA"@@@
+@@@syms="$syms I386 IA64 M68K SPARC MIPS ALPHA ARM SH POWERPC S390 HPPA"@@@
 '
 
 osarch="$opsys"
-if [ -d "$srcdir/$opsys/$arch" ]; then
+if test -d "$srcdir/$opsys/$arch"; then
 	osarch="$opsys/$arch"
 fi
 
-OPSYS=`echo $opsys | tr '[a-z]' '[A-Z]'`
-ARCH=`echo $arch | tr '[a-z]' '[A-Z]'`
+OPSYS=`echo $opsys | tr '[[a-z]]' '[[A-Z]]'`
+ARCH=`echo $arch | tr '[[a-z]]' '[[A-Z]]'`
 
-changequote([,])dnl
 CFLAGS="-D_GNU_SOURCE $CFLAGS"
 AC_CONFIG_HEADER(config.h)
 AC_SUBST(opsys)
@@ -163,7 +164,7 @@ if test x$OPSYS != xLINUX; then
 AC_CHECK_LIB(nsl, main)
 fi
 AC_CHECK_FUNCS(sigaction strerror strsignal pread sys_siglist _sys_siglist getdents mctl putpmsg prctl sendmsg inet_ntop if_indextoname)
-AC_CHECK_HEADERS(sys/reg.h sys/filio.h sys/acl.h sys/asynch.h sys/door.h stropts.h sys/conf.h sys/stream.h sys/tihdr.h sys/tiuser.h sys/sysconfig.h asm/sigcontext.h ioctls.h sys/ioctl.h sys/ptrace.h termio.h linux/ptrace.h asm/reg.h linux/icmp.h linux/in6.h sys/uio.h sys/aio.h linux/netlink.h linux/if_packet.h poll.h sys/poll.h sys/vfs.h netinet/tcp.h netinet/udp.h asm/sysmips.h linux/utsname.h sys/nscsys.h)
+AC_CHECK_HEADERS(sys/reg.h sys/filio.h sys/quota.h sys/user.h sys/acl.h sys/asynch.h sys/door.h stropts.h sys/conf.h sys/stream.h sys/tihdr.h sys/tiuser.h sys/sysconfig.h asm/sigcontext.h ioctls.h sys/ioctl.h sys/ptrace.h termio.h linux/ptrace.h asm/reg.h linux/icmp.h linux/in6.h sys/uio.h sys/aio.h linux/netlink.h linux/if_packet.h poll.h sys/poll.h sys/vfs.h netinet/tcp.h netinet/udp.h asm/sysmips.h linux/utsname.h sys/nscsys.h)
 AC_DECL_SYS_ERRLIST
 AC_DECL_SYS_SIGLIST
 AC_DECL__SYS_SIGLIST

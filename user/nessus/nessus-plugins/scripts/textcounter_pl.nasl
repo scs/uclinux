@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11451);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CVE-1999-1479");
  script_bugtraq_id(2265);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-1999-1479");
 
  name["english"] = "textcounter.pl";
  
@@ -23,7 +23,7 @@ arbitrary commands with the privileges of the http daemon
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -43,6 +43,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -52,10 +53,14 @@ Risk factor : Serious";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 

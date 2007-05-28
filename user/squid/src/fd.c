@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: fd.c,v 1.43.2.1 2003/12/14 12:30:36 hno Exp $
  *
  * DEBUG: section 51    Filedescriptor Functions
  * AUTHOR: Duane Wessels

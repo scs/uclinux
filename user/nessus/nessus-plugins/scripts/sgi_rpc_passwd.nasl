@@ -2,7 +2,7 @@
 # This script was written by Renaud Deraison <deraison@cvs.nessus.org>
 #
 #
-# This is *NOT* the issue described in CAN-2002-0357, which happens
+# This is *NOT* the issue described in CVE-2002-0357, which happens
 # to be a logic error for which details have not been leaked at all.
 #
 #
@@ -13,10 +13,10 @@
 if(description)
 {
  script_id(11021);
- script_cve_id("CAN-2002-0357");
  script_bugtraq_id(4939);
+ script_cve_id("CVE-2002-0357");
  
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.11 $");
 
  
  name["english"] = "irix rpc.passwd overflow";

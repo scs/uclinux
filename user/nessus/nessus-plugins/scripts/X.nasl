@@ -1,186 +1,212 @@
-# Fri May 12 15:58:21 GMT 2000
-# John Jackson <jjackson@attrition.org>
 #
-# Test for an "open" X server
+# (C) Tenable Network Security
+#
+  desc["english"] = "
+Synopsis :
 
-# An X server's access control is disabled (e.g. through an "xhost +" command) and 
-# allows anyone to connect to the server. 
+A X11 server is listening on the remote host
 
-# proper X11 protocol handling
-# by Pavel Kankovsky <kan@dcit.cz>
+Description :
 
-#
-# Changes by rd :
-#
-# - description
-# - minor style issues
-# - script_require_ports()
-#
+The remote host is running a X11 server. X11 is a client-server protocol
+which can be used to display graphical applications running on a given
+host on a remote client.
+
+Since the X11 traffic is not ciphered, it is possible for an attacker
+to eavesdrop on the connection. 
+
+Solution :
+
+Restrict access to this port. If the X11 client/server facility is not
+used, disable TCP entirely.
+
+Risk factor :
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:H/Au:R/C:P/A:N/I:N/B:C)";
+
 
 if(description)
 {
   script_id(10407);
- script_version ("$Revision: 1.20 $");
-  script_cve_id("CVE-1999-0526");
+  script_version ("$Revision: 1.27 $");
 
-  name["english"] = "X Server";
+  name["english"] = "X Server Detection";
   script_name(english:name["english"]);
 
-  desc["english"] = "
-X11 is a client - server protocol. Basically, the server is in charge of the 
-screen, and the clients connect to it and send several requests like drawing 
-a window or a menu, and the server sends events back to the clients, such as 
-mouse clicks, key strokes, and so on...
 
-An improperly configured X server will accept connections from clients from 
-anywhere. This allows an attacker to make a client connect to the X server to 
-record the keystrokes of the user, which may contain sensitive information,
-such as account passwords.
-
-To solve this problem, use xauth or MIT cookies.
-
-Solution : Use xhost, MIT cookies, and filter incoming TCP connections to this 
-port.
-
-Risk factor : High";
 
  script_description(english:desc["english"]);
 
- summary["english"] = "An X Windows System Server is present";
+ summary["english"] = "X11 detection";
  script_summary(english:summary["english"]);
 
  script_category(ACT_GATHER_INFO);
- family["english"] = "Misc.";
- family["francais"] = "Divers";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Service detection";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes");
  script_require_ports(6000, 6001, 6002, 6003, 6004, 6005, 6006, 6007, 6008, 6009);
- 
- script_copyright(english:"This script is Copyright (C) 2000 John Jackson");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  exit(0);
-}
-
-#
-# The script code starts here
-#
-function riptext(data, begin, length)
-{
-  count=begin;
-  end=begin+length-1;
-  if (end >= strlen(data))
-    end = strlen(data) - 1;
-  text="";
-  for(count=begin;count<=end;count=count+1)
-  {
-    text = string(text + data[count]);
-  }
-  return(text);
 }
 
 include("misc_func.inc");
 
-####   ##   # ###
-# # # #  #  # #  #
-# # #  ## # # #  #
 
-#
-# The format of client request
-#  CARD8    byteOrder (66 'B'=MSB, 108 'l'=LSB)
-#  BYTE     padding
-#  CARD16   majorVersion, minorVersion
-#  CARD16   nBytesAuthProto  (authorization protocol)
-#  CARD16   nBytesAuthString (authorization data)
-#  CARD     padding
-#  STRING8  authProto
-#  STRING8  authString
-#
-# The format of server response:
-#  CARD8    success (0=Failed, 1=Success, 2=Authenticate)
-#  BYTE     lengthReason (unused if success==1)
-#  CARD16   majorVersion, minorVersion (unused if success==2)
-#  CARD16   length (of additional data)
-#  STRING8  reason (for success==0 or success==1)
-#
-# CARD16 values are endian-sensitive; endianness is determined by
-# the first byte sent by a client
-#
-
-# hmm....it might look like a good idea to raise the higher limit to test
-# connections forwarded by OpenSSH but it is pointless because OpenSSH
-# does not process connections without a cookie--everything you'll get
-# will be a stale connection
-
-for(port=6000; port<6010; port++)
+function x11_request(socket)
 {
-  if(get_port_state(port))
-  { 
-    tcpsock = open_sock_tcp(port);
-    if(tcpsock)
-    {
-    xwininfo = raw_string(108,0,11,0,0,0,0,0,0,0,0,0);
-    # change the xwininfo bytes above to force servers to send a version mismatch
+ local_var req, r, len;
 
-    send(socket:tcpsock, data:xwininfo);
-    tcpresult = recv(socket:tcpsock, length:32);
-    close(tcpsock);
+ req = raw_string(
+	0x6c,		# Little-Endian
+	0x00,		# Unused
+	0x0b, 0x00,	# Protocol Major Version
+	0x00, 0x00,	# Protocol Minir Version
+	0x00, 0x00,	# Authorization protocol name length
+	0x00, 0x00,	# Authorization protocol data length
+	0x00, 0x00);	# Unused
 
-    if(tcpresult && strlen(tcpresult) >= 8)
-    {
-      result = ord(tcpresult[0]);
 
-      if (result == 0) # Failed
-          {
-            major = ord(tcpresult[2]) + 256 * ord(tcpresult[3]);
-            minor = ord(tcpresult[4]) + 256 * ord(tcpresult[5]);
-            textresult=riptext(data:tcpresult, begin:8, length:ord(tcpresult[1]));
+ send(socket:socket, data:req);
+ 
+ r = recv(socket:socket, length:8);
+ if ( strlen(r) != 8 ) return NULL;
 
-	    report = string("This X server does *not* allow any client to connect to it\n",
-	    	"however it is recommended that you filter incoming connections\n",
-		"to this port as attacker may send garbage data and slow down\n",
-		"your X session or even kill the server.\n\n",
-		"Here is the server version : ", major, ".", minor, "\n",
-		"Here is the message we received : ", textresult, "\n\n",
-		"Solution : filter incoming connections to ports 6000-6009\n",
-		"Risk factor : Low");
-            security_warning(port:port, data:report);
-	    register_service(port: port, proto: "X11");
-          }
+ len = substr(r, 6, 7);
+ len = ord(len[0]) + ord(len[1]) * 256;
+ r += recv(socket:socket, length:len, min:len);
+ if ( strlen(r) != len + 8 ) return NULL;
+ return r;
+}
 
-      if (result == 1) # Success
-          {
-            major = ord(tcpresult[2]) + 256 * ord(tcpresult[3]);
-            minor = ord(tcpresult[4]) + 256 * ord(tcpresult[5]);
-            textresult=riptext(data:tcpresult, begin:40, length:ord(tcpresult[24]));
+function x11_open(blob)
+{
+ local_var ret;
 
-            report = string("This X server accepts clients from anywhere. This\n",
-	    	"allows an attacker to connect to it and record any of your keystrokes.\n\n",
-		"Here is the server version : ", major, ".", minor, "\n",
-		"Here is the server type : ", textresult, "\n\n",
-		"Solution : use xauth or MIT cookies to restrict the access to this server\n",
-		"Risk factor : High");
-			
-	    security_hole(port:port, data:report);	
-	    register_service(port: port, proto: "X11");
-          }
+ if ( ! blob ) return NULL;
+ return ord(blob[0]);
+}
 
-      if (result == 2) # Authenticate
-          {
-            textresult=riptext(data:tcpresult, begin:8, length:ord(tcpresult[1]));
+function x11_version(blob)
+{
+ local_var ret, vers;
 
-	    report = string("This X server does *not* allow any client to connect to it\n",
-	    	"however it is recommended that you filter incoming connections\n",
-		"to this port as attacker may send garbage data and slow down\n",
-		"your X session or even kill the server.\n\n",
-		"Here is the message we received : ", textresult, "\n\n",
-		"Solution : filter incoming connections to ports 6000-6009\n",
-		"Risk factor : Low");
-            security_warning(port:port, data:report);
-	    register_service(port: port, proto: "X11");
-          }
+ if ( strlen(blob) <= 8 ) return NULL;
+ vers = ord(blob[2]) + ord(blob[3]) * 256;
+ ret = string(vers);
+ vers = ord(blob[4]) + ord(blob[5]) * 256;
+ ret += "." + vers;
+ return ret;
+}
 
-    } #if tcpresult
-   } #if tcpsock
-  } #if port open
-} #for portnum
+function x11_release(blob)
+{
+ local_var ret;
 
-exit(0);
+ if ( strlen(blob) <= 11 ) return NULL;
+ ret = substr(blob, 8, 11);
+ ret = ord(ret[0]) + (ord(ret[1]) << 8) + (ord(ret[2]) << 16) + (ord(ret[3]) << 24);
+ return ret;
+}
+
+
+
+function x11_vendor(blob)
+{
+ local_var len;
+
+ if ( strlen(blob) < 25 ) return NULL;
+
+ len = substr(blob, 24, 25);
+ len = ord(len[0]) + ord(len[1]) * 256;
+ if ( len >= strlen(blob) ) return NULL;
+ return substr(blob, 40, 40 + len - 1);
+}
+
+
+function select(num, sockets, timeout)
+{
+ local_var flag, e, then, soc, i, ret;
+
+ if ( ! defined_func("socket_ready") ) return sockets;
+
+ then = unixtime();
+ flag = 0;
+ for ( i = 0 ; i < num ; i ++ ) ret[i] = 0;
+
+ while ( TRUE )
+ {
+   flag = 0;
+   for ( i = 0 ; i < num ; i ++ ) 
+   {
+    if ( sockets[i] != 0 )
+	{
+	 e = socket_ready(sockets[i]);
+	 if ( e < 0 ) {
+	 	close(sockets[i]);
+		sockets[i] = 0;
+		}
+	 else if ( e > 0 ) {
+	 	 ret[i] = sockets[i];
+		 sockets[i] = 0;
+		}
+	 else flag ++;
+	}
+   }
+   if ( unixtime() - then >= timeout ) return ret;
+   if ( flag != 0 ) sleep(1);
+   else break;
+ }
+
+ return ret;
+}
+
+for ( i = 0 ; i < 10 ; i ++ )
+ {
+  if ( get_port_state(6000 + i ) )
+	{
+	 if ( func_has_arg("open_sock_tcp", "nonblocking") )
+  		sockets[i] = open_sock_tcp(6000 + i, nonblocking:TRUE);
+	 else
+  		sockets[i] = open_sock_tcp(6000 + i);
+	}
+  else
+	sockets[i] = 0;
+}
+
+
+if ( NASL_LEVEL >= 3000 ) sockets = select(num:10, sockets:sockets, timeout:5);
+
+for ( i = 0 ; i < 10 ; i ++ )
+{
+ soc = sockets[i];
+ if ( soc != 0 )
+ {
+ report = NULL;
+ blob = x11_request(socket:soc);
+ close(soc);
+ if ( ! blob ) continue;
+ open = x11_open(blob:blob);
+ version = x11_version(blob:blob);
+ if ( open )
+ {
+  release = x11_release(blob:blob);
+  vendor  = x11_vendor(blob:blob);
+ }
+ port = 6000 + i;
+ if ( open == 1 ) set_kb_item(name:"x11/" + port + "/open", value:open);
+ if ( version ) set_kb_item(name:"x11/" + port + "/version", value:version);
+ if ( release ) set_kb_item(name:"x11/" + port + "/release", value:release);
+ if ( vendor  ) set_kb_item(name:"x11/" + port + "/vendor", value:vendor);
+ report = desc["english"] + '\n\nPlugin output :\n\n';
+ report += 'X11 Version : ' + version + '\n';
+ if ( open )
+ {
+  report += 'X11 Release : ' + release + '\n';
+  report += 'X11 Vendor  : ' + vendor  + '\n';
+ }
+ security_note(port:port, data:report);
+ register_service(port:port, proto:'x11');
+ }
+}
+

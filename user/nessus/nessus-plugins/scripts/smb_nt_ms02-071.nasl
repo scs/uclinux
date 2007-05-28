@@ -1,39 +1,39 @@
 #
-# This script was written by Michael Scheidell <scheidell at secnap.net>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(11191);
- script_version("$Revision: 1.6 $");
- script_cve_id("CAN-2002-1230");
  script_bugtraq_id(5927);
+ script_version("$Revision: 1.16 $");
+ script_cve_id("CVE-2002-1230");
  name["english"] = "WM_TIMER Message Handler Privilege Elevation (Q328310)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-A security issue has been identified in WM_TIMER that
-could allow an attacker to compromise a computer running 
-Microsoft Windows and gain complete control over it.
+Synopsis :
 
-Recommendation: Users using any of the affected
-products should install the patch immediately.
+Local users can elevate their privileges on the remote host.
 
-Maximum Severity Rating: Critical 
+Description :
 
-Affected Software: 
+The remote version of Windows contains a flaw in the handling of 
+WM_TIMER messages for interactive processes which may allow a 
+local user to execute arbitrary code on the remote host with the
+SYSTEM privileges.
 
-Microsoft Windows NT 4.0 
-Microsoft Windows NT 4.0, Terminal Server Edition 
-Microsoft Windows 2000 
-Microsoft Windows XP 
+Solution : 
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-071.asp
+Microsoft has released a set of patches for Windows NT, XP and 2000 :
 
-Risk factor : High";
+http://www.microsoft.com/technet/security/bulletin/ms02-071.mspx
+
+Risk factor :
+
+High / CVSS Base Score : 7 
+(AV:L/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -43,60 +43,46 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Michael Scheidell");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_W2K.nasl",
-		     "smb_reg_service_pack_XP.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_access","SMB/WindowsVersion");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+if ( hotfix_check_sp(nt:7, win2k:4, xp:2) <= 0 ) exit(0);
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-
-version = get_kb_item("SMB/WindowsVersion");
-if(ereg(pattern:"([6-9]\.[0-9])|(5\.[2-9])", string:version))exit(0);
-
-
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q328310";
-item = "Comments";
-
-if("4.0" >< version)
+if (is_accessible_share())
 {
- value = registry_get_sz(key:key, item:item);
- if(!value){
- 	security_hole(port);
-	}
- exit(0);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:1, file:"User32.dll", version:"5.1.2600.1134", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"User32.dll", version:"5.1.2600.104", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"User32.dll", version:"5.0.2195.6097", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"User32.dll", version:"4.0.1381.7202", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"User32.dll", version:"4.0.1381.33544", min_version:"4.0.1381.33000", dir:"\system32") )
+   security_hole (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
-
-
-if("5.0" >< version)
+else
 {
-# fixed in Service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
+ if ( hotfix_check_sp(nt:7) > 0 )
+ {
+  if (hotfix_missing(name:"840987") == 0 ) exit(0);
+ }
+ if ( hotfix_check_sp(win2k:4) > 0 )
+ {
+  if (hotfix_missing(name:"840987") == 0 ) exit(0);
+  if (hotfix_missing(name:"841533") == 0 ) exit(0);
+ }
+
+ if ( hotfix_missing(name:"328310") > 0 ) 
+   security_hole(get_kb_item("SMB/transport"));
 }
-
-if("5.1" >< version)
-{
- # fixed in XP service Pack 2
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
-}
-
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
-

@@ -26,11 +26,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: defs.h,v 1.25 2001/07/10 13:48:44 hughesj Exp $
  */
 
 #ifdef linux
 #include <features.h>
+#include <linux/version.h>
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -114,9 +115,10 @@
 #else
 /* Work around awkward prototype in ptrace.h. */
 #define ptrace xptrace
-#ifdef HAVE_SYS_PTRACE_H
+#if defined(HAVE_SYS_PTRACE_H)
 #include <sys/ptrace.h>
-#elif defined(HAVE_LINUX_PTRACE_H)
+#endif
+#if defined(HAVE_LINUX_PTRACE_H)
 #include <linux/ptrace.h>
 #endif
 #undef ptrace

@@ -1,6 +1,22 @@
 /* $Id$ */
-/* Copyright (C) 2002 Sourcefire Inc. */
-/* Author: Martin Roesch*/
+/*
+ ** Copyright (C) 2002-2006 Sourcefire, Inc.
+ ** Author: Martin Roesch
+ **
+ ** This program is free software; you can redistribute it and/or modify
+ ** it under the terms of the GNU General Public License as published by
+ ** the Free Software Foundation; either version 2 of the License, or
+ ** (at your option) any later version.
+ **
+ ** This program is distributed in the hope that it will be useful,
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ ** GNU General Public License for more details.
+ **
+ ** You should have received a copy of the GNU General Public License
+ ** along with this program; if not, write to the Free Software
+ ** Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
 
 /* sp_byte_check 
  * 
@@ -112,7 +128,7 @@ typedef struct _ByteTestData
     u_int32_t bytes_to_compare; /* number of bytes to compare */
     u_int32_t cmp_value;
     u_int32_t operator;
-    u_int32_t offset;
+    int32_t offset;
     u_int8_t not_flag;
     u_int8_t relative_flag;
     u_int8_t data_string_convert_flag;
@@ -186,6 +202,10 @@ void ByteTestInit(char *data, OptTreeNode *otn, int protocol)
      * individually
      */
     fpl->context = (void *) idx;
+
+    if (idx->relative_flag == 1)
+        fpl->isRelative = 1;
+
 }
 
 
@@ -229,7 +249,7 @@ void ByteTestParse(char *data, ByteTestData *idx, OptTreeNode *otn)
 
     if(idx->bytes_to_compare > PARSELEN || idx->bytes_to_compare == 0)
     {
-        FatalError("%s(%d): byte_test can't process more or less than "
+        FatalError("%s(%d): byte_test can't process more than "
                 "10 bytes!\n", file_name, file_line);
     }
 

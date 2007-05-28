@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: group.c,v 1.8 2003/05/26 15:24:45 andrei Exp $
  *
  * Group membership
  *

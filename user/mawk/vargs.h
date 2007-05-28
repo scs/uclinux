@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 /*
-$Log$
-Revision 1.2  2005/07/25 04:03:15  magicyang
-New user folder check in
-
+$Log: vargs.h,v $
  * Revision 1.4  1994/12/14  14:36:54  mike
  * sometimes stdarg.h exists, but depending on compiler flags it is
  * unusable -- assume NO_PROTOS => NO_STDARG_H

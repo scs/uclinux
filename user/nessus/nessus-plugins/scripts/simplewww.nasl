@@ -12,8 +12,8 @@
 if(description)
 {
  script_id(10705);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(3112);
+ script_version ("$Revision: 1.13 $");
  name["english"]  = "SimpleServer remote execution";
  name["francais"] = "SimpleServer execution de commandes a distance";
 
@@ -40,7 +40,7 @@ Risk factor : High";
  family["english"]  = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -54,10 +54,13 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
+
+banner = get_http_banner(port:port);
+if("SimpleServer" >!< banner) exit(0);
 
 
  match = "Reply from 127.0.0.1";

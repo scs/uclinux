@@ -20,6 +20,6 @@
 #define _NESSUSC_PREFS_DIALOG_SCAN_OPT_H
 
 struct arglist * prefs_dialog_scan_opt();
-void prefs_scanner_redraw(GtkWidget * , void *, struct arglist *);
+int prefs_scanner_redraw(GtkWidget * , void *, struct arglist *);
 void  fill_scanner_list(struct arglist *);
 #endif

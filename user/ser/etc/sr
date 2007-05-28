@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: sr,v 1.6 2003/05/27 23:11:48 jiri Exp $
 #
 #
 # 3w-xxxx:      Starts the sip_router process

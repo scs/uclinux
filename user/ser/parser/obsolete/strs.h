@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: strs.h,v 1.2 2002/09/19 12:23:55 jku Rel $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

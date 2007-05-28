@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $Id$
+XCOMM $Id: Imakefile,v 1.78 2000/11/19 20:50:41 christos Exp $
 XCOMM
 XCOMM Imakefile for tcsh 6.10
 XCOMM Marc Horowitz, MIT SIPB

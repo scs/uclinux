@@ -11,8 +11,10 @@
 if(description)
 {
  script_id(10620);
- script_version ("$Revision: 1.13 $");
- script_bugtraq_id(2412);
+ script_bugtraq_id(2412, 223);
+ script_cve_id("CVE-2001-0280");
+ script_xref(name:"OSVDB", value:"6027");
+ script_version ("$Revision: 1.18 $");
  
  name["english"] = "EXPN overflow";
  name["francais"] = "EXPN overflow";
@@ -89,10 +91,11 @@ soc = open_sock_tcp(port);
 	}
 	
   
-  s = string("HELO nessus.org\r\n");
+  s = string("HELO example.com\r\n");
   send(socket:soc, data:s);
   r = recv_line(socket:soc, length:1024);
-  s = string("EXPN ", crap(200), "\r\nQUIT\r\n");
+  # MA 2005-03-07: 200 bytes are enough for Mercure (?), but not for SLMail
+  s = string("EXPN ", crap(4096), "\r\nQUIT\r\n");
   send(socket:soc, data:s);
   #r = recv_line(socket:soc, length:1024);
   close(soc); 

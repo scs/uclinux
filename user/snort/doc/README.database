@@ -59,23 +59,23 @@ working.
          > grant INSERT,SELECT,UPDATE on snort.sensor to snortusr@localhost;
 
    5) Build the structure of the database according to files supplied
-      with snort in the "contrib" directory as the user created in 
+      with snort in the "schemas" directory as the user created in 
       step 4.
 
       Do this while in the snort source directory.
 
       For MySQL
-      % mysql -D snort -u root -p < ./contrib/create_mysql
+      % mysql -D snort -u root -p < ./schemas/create_mysql
 
       For Postgresql
-      % psql snort < ./contrib/create_postgresql
+      % psql snort < ./schemas/create_postgresql
 
       For Oracle
-      The file "./contrib/create_oracle.sql" contains the database 
+      The file "./schemas/create_oracle.sql" contains the database 
       structure.
 
       For MS SQL Server
-      The file "./contrib/create_mssql" contains the database
+      The file "./schemas/create_mssql" contains the database
       structure.
 
       If you are using unixODBC, be sure to properly configure and

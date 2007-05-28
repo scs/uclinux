@@ -7,14 +7,18 @@
 if(description)
 {
  script_id(10198);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-1999-0103");
  name["english"] = "Quote of the day";
  name["francais"] = "Quote of the day";
  script_name(english:name["english"], francais:name["francais"]);
 
     desc["english"] = "
+Synopsis :
+
 The quote service (qotd) is running on this host.
+
+Description :
 
 A server listens for TCP connections on TCP port 17. Once a connection 
 is established a short message is sent out the connection (and any 
@@ -30,8 +34,6 @@ a quote (the data in the received datagram is ignored).
 An easy attack is 'pingpong' which IP spoofs a packet between two machines
 running qotd. This will cause them to spew characters at each other,
 slowing the machines down and saturating the network.
-
-
 
 Solution : 
  
@@ -49,7 +51,10 @@ Then launch cmd.exe and type :
    
 To restart the service.
 
-Risk factor : Low";
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
 
  
  script_description(english:desc["english"]);
@@ -83,7 +88,7 @@ if(get_port_state(17))
  if(soc)
   {
     a = recv_line(socket:soc, length:1024);
-    if(a)security_warning(17);
+    if(a)security_note(17);
     close(soc);
   }
  }
@@ -94,6 +99,6 @@ if(get_udp_port_state(17))
  udpsoc = open_sock_udp(17);
  send(socket:udpsoc, data:'\r\n');
  b = recv(socket:udpsoc, length:1024);
- if(b)security_warning(port:17, protocol:"udp");
+ if(b)security_note(port:17, protocol:"udp");
  close(udpsoc);
 }

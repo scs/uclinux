@@ -1,8 +1,5 @@
 
-% $Log$
-% Revision 1.2  2005/07/25 04:03:15  magicyang
-% New user folder check in
-%
+% $Log: array.w,v $
 % Revision 1.4  1996/09/18 00:37:25  mike
 % 1) Fix stupid bozo in A[expr], expr is numeric and not integer.
 % 2) Add static for non-ansi compilers.

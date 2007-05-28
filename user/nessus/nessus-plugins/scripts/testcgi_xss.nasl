@@ -6,7 +6,7 @@ if (description)
 {
  script_id(11610);
  script_bugtraq_id(7214);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.6 $");
 
  script_name(english:"testcgi.exe Cross Site Scripting");
  desc["english"] = "
@@ -21,18 +21,19 @@ Risk factor : Low";
  script_description(english:desc["english"]);
  script_summary(english:"Determine if testcgi.exe is vulnerable to xss");
  script_category(ACT_GATHER_INFO);
- script_family(english:"CGI abuses", francais:"Abus de CGI");
+ script_family(english:"CGI abuses : XSS", francais:"Abus de CGI");
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  script_dependencie("find_service.nes", "no404.nasl", "cross_site_scripting.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
 

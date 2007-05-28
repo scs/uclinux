@@ -47,16 +47,26 @@ tree_cell * script_require_keys(lex_ctxt * );
 tree_cell * script_exclude_keys(lex_ctxt * );
 tree_cell * script_require_ports(lex_ctxt * );
 tree_cell * script_require_udp_ports(lex_ctxt * );
+tree_cell * nasl_get_preference(lex_ctxt * );
 tree_cell * script_add_preference(lex_ctxt * );
 tree_cell * script_get_preference(lex_ctxt * );
+tree_cell * script_get_preference_file_content(lex_ctxt * ); 
+tree_cell * script_get_preference_file_location(lex_ctxt * ); 
 tree_cell * safe_checks(lex_ctxt * );
 tree_cell * get_kb_item(lex_ctxt * );
+tree_cell * get_kb_fresh_item(lex_ctxt * );
 tree_cell * get_kb_list(lex_ctxt * );
 tree_cell * set_kb_item(lex_ctxt * );
+tree_cell * replace_kb_item(lex_ctxt * );
 tree_cell * security_hole(lex_ctxt * );
 tree_cell * security_warning(lex_ctxt * );
 tree_cell * security_note(lex_ctxt * );
 tree_cell * nasl_scanner_get_port(lex_ctxt * );
 tree_cell * nasl_scanner_add_port(lex_ctxt * );
 tree_cell * nasl_scanner_status(lex_ctxt * );
+
+tree_cell * nasl_shared_socket_register(lex_ctxt *);
+tree_cell * nasl_shared_socket_acquire(lex_ctxt *);
+tree_cell * nasl_shared_socket_release(lex_ctxt *);
+tree_cell * nasl_shared_socket_destroy(lex_ctxt *);
 #endif

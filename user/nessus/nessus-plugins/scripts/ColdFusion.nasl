@@ -12,9 +12,10 @@ if(description)
  
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  script_id(10001);
- script_version ("$Revision: 1.19 $");
- script_cve_id("CAN-1999-0455", "CAN-1999-0477");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-b-0001");
  script_bugtraq_id(115);
+ script_version ("$Revision: 1.25 $");
+ script_cve_id("CVE-1999-0455", "CVE-1999-0477");
  
  desc["english"] = "
 It is possible to read arbitrary files on the remote
@@ -102,38 +103,39 @@ Risiko Faktor: Hoch";
  family["francais"] = "Abus de CGI";
  family["deutsch"] = "CGI Sicherheitsluecken";
  script_family(english:family["english"], francais:family["francais"], deutsch:family["deutsch"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
 
 include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
 
 #
 # The script code starts here
 #
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
-
 cgi = "/cfdocs/expeval/ExprCalc.cfm?OpenFilePath=c:\winnt\win.ini";
 cgi2 = "/cfdocs/expeval/ExprCalc.cfm?OpenFilePath=c:\windows\win.ini";
-y = is_cgi_installed(item:cgi, port:port);
+y = is_cgi_installed_ka(item:cgi, port:port);
 if(!y){
-	port = is_cgi_installed(item:cgi2, port:port);
+	y = is_cgi_installed_ka(item:cgi2, port:port);
 	cgi = cgi2;
 	}
 	
 	
-if(port){
-	soc = http_open_socket(port);
+if(y){
 	req = http_get(item:cgi, port:port);
-	send(socket:soc, data:req);
-	r = http_recv(socket:soc);
-	http_close_socket(soc);
-	if("[fonts]" >< r)
+	res = http_keepalive_send_recv(port:port, data:req);
+  	if ( res == NULL ) exit(0);
+	if( "[fonts]" >< res )
 		security_hole(port);
 	}

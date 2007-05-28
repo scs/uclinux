@@ -87,6 +87,9 @@
 /* Define if this is an arm architecture.  */
 #undef ARM
 
+/* Define if this is an sh architecture.  */
+#undef SH
+
 /* Define if this is a powerpc architecture.  */
 #undef POWERPC
 
@@ -260,6 +263,12 @@
 
 /* Define if you have the <sys/reg.h> header file.  */
 #undef HAVE_SYS_REG_H
+
+/* Define if you have the <sys/quota.h> header file.  */
+#undef HAVE_SYS_QUOTA_H
+
+/* Define if you have the <sys/user.h> header file.  */
+#undef HAVE_SYS_USER_H
 
 /* Define if you have the <sys/stream.h> header file.  */
 #undef HAVE_SYS_STREAM_H

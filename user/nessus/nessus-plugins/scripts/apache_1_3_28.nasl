@@ -7,8 +7,8 @@ if(description)
 {
  script_id(11793);
  script_bugtraq_id(8226);
- script_cve_id("CAN-2003-0460", "CAN-2002-0061");
- script_version("$Revision: 1.6 $");
+ script_cve_id("CVE-2003-0460", "CVE-2002-0061");
+ script_version("$Revision: 1.12 $");
  
  name["english"] = "Apache < 1.3.28";
 
@@ -39,10 +39,9 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "Misc.";
- family["francais"] = "Divers";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2003-2006 Tenable Network Security");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  script_require_keys("www/apache");
  script_require_ports("Services/www", 80);
@@ -53,19 +52,19 @@ Risk factor : High";
 # The script code starts here
 #
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
 banner = get_http_banner(port: port);
 if(!banner)exit(0);
+banner = get_backport_banner(banner:banner);
  
 serv = strstr(banner, "Server:");
 if(!serv)exit(0);
-# IBM_HTTP_SERVER 1.3.20 patched it at of 1.3.19.4
-if(ereg(pattern:"^Server: IBM_HTTP_SERVER/1\.3\.19\.[4-9]  Apache/1.3.20", string:serv))exit(0);
-if(ereg(pattern:"^Server:.*Apache(-AdvancedExtranetServer)?/(1\.([0-2]\.[0-9]|3\.([0-9][^0-9]|[0-1][0-9]|2[0-7])))", string:serv))
+if(ereg(pattern:"^Server:.*Apache(-AdvancedExtranetServer)?/(1\.([0-2]\.[0-9]|3\.([0-9][^0-9]|[0-1][0-9]|2[0-7]))).*Win32.*", string:serv))
  {
    security_hole(port);
  } 

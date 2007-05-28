@@ -1,7 +1,7 @@
 
 README file for procplace Tiny Tcl 6.8
 
-$Id$
+$Id: README.txt,v 1.1 2001/04/29 20:58:32 karll Exp $
 
 Tiny Tcl 6.8 is a rommable, minimal Tcl for embedded applications.
 

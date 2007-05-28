@@ -7,9 +7,10 @@
 if(description)
 {
  script_id(11510);
- script_version ("$Revision: 1.5 $");
  script_bugtraq_id(7228);
- script_cve_id("CAN-2002-0684");
+ script_version ("$Revision: 1.9 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-B-0001");
+ script_cve_id("CVE-2002-0684");
 
  name["english"] = "BIND 4.x resolver overflow";
  script_name(english:name["english"]);
@@ -54,7 +55,7 @@ if(!vers)exit(0);
 vers = string(vers);
 if(vers[0] == "4") 
 { 
- if(ereg(string:vers, pattern:"4\.([0-8]\..*|9\.[0-4][^0-9]*)"))
+ if(ereg(string:vers, pattern:"^4\.([0-8]\..*|9\.[0-4][^0-9]*)"))
  {
   security_hole(port:53, proto:"udp");
   exit(0);

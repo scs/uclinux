@@ -1,7 +1,5 @@
 /*
- * udevmonitor.c
- *
- * Copyright (C) 2004-2005 Kay Sievers <kay.sievers@vrfy.org>
+ * Copyright (C) 2004-2006 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the
@@ -14,13 +12,14 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -35,8 +34,8 @@
 #include "udev.h"
 #include "udevd.h"
 
-static int uevent_netlink_sock;
-static int udev_monitor_sock;
+static int uevent_netlink_sock = -1;
+static int udev_monitor_sock = -1;
 static volatile int udev_exit;
 
 static int init_udev_monitor_socket(void)
@@ -81,7 +80,7 @@ static int init_uevent_netlink_sock(void)
 	memset(&snl, 0x00, sizeof(struct sockaddr_nl));
 	snl.nl_family = AF_NETLINK;
 	snl.nl_pid = getpid();
-	snl.nl_groups = 0xffffffff;
+	snl.nl_groups = 1;
 
 	uevent_netlink_sock = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
 	if (uevent_netlink_sock == -1) {
@@ -117,22 +116,21 @@ int main(int argc, char *argv[])
 
 	for (i = 1 ; i < argc; i++) {
 		char *arg = argv[i];
-		if (strcmp(arg, "--env") == 0 || strcmp(arg, "-e") == 0) {
+		if (strcmp(arg, "--env") == 0 || strcmp(arg, "-e") == 0)
 			env = 1;
-		}
 		else if (strcmp(arg, "--help") == 0  || strcmp(arg, "-h") == 0){
-			printf("Usage: udevmonitor [--env]\n"
+			printf("Usage: udevmonitor [--help] [--env]\n"
 				"  --env    print the whole event environment\n"
 				"  --help   print this help text\n\n");
 			exit(0);
 		} else {
-			fprintf(stderr, "unknown option\n\n");
+			fprintf(stderr, "unrecognized option '%s'\n", arg);
 			exit(1);
 		}
 	}
 
 	if (getuid() != 0) {
-		fprintf(stderr, "need to be root, exit\n\n");
+		fprintf(stderr, "root privileges required\n");
 		exit(2);
 	}
 
@@ -147,6 +145,7 @@ int main(int argc, char *argv[])
 	retval = init_udev_monitor_socket();
 	if (retval)
 		goto out;
+
 	retval = init_uevent_netlink_sock();
 	if (retval)
 		goto out;
@@ -155,7 +154,7 @@ int main(int argc, char *argv[])
 	       "and the event which udev sends out after rule processing [UDEV]\n\n");
 
 	while (!udev_exit) {
-		static char buf[UEVENT_BUFFER_SIZE*2];
+		char buf[UEVENT_BUFFER_SIZE*2];
 		ssize_t buflen;
 		int fdcount;
 		struct timeval tv;
@@ -164,9 +163,9 @@ int main(int argc, char *argv[])
 
 		buflen = 0;
 		FD_ZERO(&readfds);
-		if (uevent_netlink_sock > 0)
+		if (uevent_netlink_sock >= 0)
 			FD_SET(uevent_netlink_sock, &readfds);
-		if (udev_monitor_sock > 0)
+		if (udev_monitor_sock >= 0)
 			FD_SET(udev_monitor_sock, &readfds);
 
 		fdcount = select(UDEV_MAX(uevent_netlink_sock, udev_monitor_sock)+1, &readfds, NULL, NULL, NULL);
@@ -182,7 +181,7 @@ int main(int argc, char *argv[])
 		} else
 			timestr[0] = '\0';
 
-		if ((uevent_netlink_sock > 0) && FD_ISSET(uevent_netlink_sock, &readfds)) {
+		if ((uevent_netlink_sock >= 0) && FD_ISSET(uevent_netlink_sock, &readfds)) {
 			buflen = recv(uevent_netlink_sock, &buf, sizeof(buf), 0);
 			if (buflen <=  0) {
 				fprintf(stderr, "error receiving uevent message: %s\n", strerror(errno));
@@ -191,7 +190,7 @@ int main(int argc, char *argv[])
 			printf("UEVENT[%s] %s\n", timestr, buf);
 		}
 
-		if ((udev_monitor_sock > 0) && FD_ISSET(udev_monitor_sock, &readfds)) {
+		if ((udev_monitor_sock >= 0) && FD_ISSET(udev_monitor_sock, &readfds)) {
 			buflen = recv(udev_monitor_sock, &buf, sizeof(buf), 0);
 			if (buflen <=  0) {
 				fprintf(stderr, "error receiving udev message: %s\n", strerror(errno));
@@ -226,9 +225,9 @@ int main(int argc, char *argv[])
 	}
 
 out:
-	if (uevent_netlink_sock > 0)
+	if (uevent_netlink_sock >= 0)
 		close(uevent_netlink_sock);
-	if (udev_monitor_sock > 0)
+	if (udev_monitor_sock >= 0)
 		close(udev_monitor_sock);
 
 	if (retval)

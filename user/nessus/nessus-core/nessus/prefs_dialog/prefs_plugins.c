@@ -46,52 +46,14 @@
 
 static struct plugin_families * families;
 
-void prefs_plugins_redraw(GtkWidget *, void *, struct arglist *);
+int prefs_plugins_redraw(GtkWidget *, void *, struct arglist *);
 void fill_plugins_family(struct arglist *);
 static void prefs_family_toggle_callback(GtkWidget * , struct arglist *);
 static void prefs_plugin_list_toggle_callback(GtkWidget * , struct arglist * );
 static void prefs_plugin_list_callback(GtkWidget * , struct arglist * );
 static void prefs_family_list_callback(GtkWidget * , struct arglist * );
 static GtkWidget * warning_sign(GtkWidget *);
-
-
-
-static int
-file_dialog_hide(GtkWidget * filew, GtkWidget * nul)
-{
- gtk_widget_hide(filew);
- gtk_widget_destroy(filew);
- return 0;
-}
-
-static int
-file_selected(GtkWidget * nul,
-	      GtkWidget * filew)
-{
- char * fname = (char*)gtk_file_selection_get_filename(GTK_FILE_SELECTION(filew));
- gtk_widget_hide(filew);
- 
- comm_plugin_upload(fname);
- return 0;
-}	  
-
-
-
-static int hdl_plugin_upload(w, y)
- GtkWidget * w, * y;
-{
- GtkWidget * filew = gtk_file_selection_new("Select file");
- gtk_signal_connect(GTK_OBJECT(GTK_FILE_SELECTION(filew)->ok_button),
- 		"clicked", (GtkSignalFunc)file_selected, filew); 
-
- gtk_signal_connect_object (GTK_OBJECT (GTK_FILE_SELECTION (filew)->cancel_button),
-                                 "clicked",
-                                 GTK_SIGNAL_FUNC (file_dialog_hide),
-                                 GTK_OBJECT (filew));			
- gtk_widget_show(filew);		
- return 0;		
-}
-
+static int glist_cmp( gconstpointer a, gconstpointer b);
 
 
 static int warning_expl()
@@ -221,29 +183,6 @@ enable_all(w, ctrls)
 }
 
 
-static int 
-enable_all_but_dos(w, ctrls)
- GtkWidget * w;
- struct arglist * ctrls;
-{
- struct arglist * buttons = arg_get_value(ctrls, "families_buttons");
- if(buttons)
- {
- while(buttons->next)
-  {
-  family_enable(buttons->name, Plugins, ENABLE_FAMILY_BUT_DOS);
-  gtk_object_set_data(GTK_OBJECT(buttons->value), "be_lazy", (void*)1);
-  if(family_enabled(buttons->name, Plugins))
-   gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(buttons->value), 1);
-  else
-   gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(buttons->value), 0);
-  gtk_object_remove_data(GTK_OBJECT(buttons->value), "be_lazy");
-  buttons = buttons->next;
-  } 
- }
- pluginset_reload(Plugins, Scanners);
- return 0;
-}
 
 
 
@@ -306,48 +245,14 @@ prefs_dialog_plugins(window)
 			   
   gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
   gtk_widget_show(button);
-  
- 
- 
-  
-   
-  button = gtk_button_new_with_label("Enable all but dangerous plugins");
+  button = gtk_button_new_with_label("Disable all");
   gtk_signal_connect(GTK_OBJECT(button),
-			     "clicked",
-			     GTK_SIGNAL_FUNC(enable_all_but_dos),
-			     ctrls);
-  gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
-  gtk_widget_show(button);
-   button = gtk_button_new_with_label("Disable all");
-   gtk_signal_connect(GTK_OBJECT(button),
 			     "clicked",
 			     GTK_SIGNAL_FUNC(disable_all),
 			     ctrls);
-  gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
-  
-  gtk_widget_show(button);
-  
-  
-  button = gtk_button_new_with_label("Upload plugin...");
-  gtk_signal_connect(GTK_OBJECT(button),
-			     "clicked",
-			     GTK_SIGNAL_FUNC(hdl_plugin_upload),
-			     ctrls);
-  gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
-  gtk_widget_show(button);	
-  
-  
-  hbox = gtk_hbox_new(FALSE, 5);
-  gtk_box_pack_start(GTK_BOX(vbox),
-  		     hbox, 
-		     FALSE, FALSE, 5);
-  gtk_widget_show(hbox);
-  
-  button = gtk_check_button_new_with_label("Enable dependencies at runtime");
+			   
   gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
   gtk_widget_show(button);
-  arg_add_value(ctrls, "ENABLE_DEPS_AT_RUNTIME", ARG_PTR, -1, button);
-  
   
 #if GTK_VERSION < 20
   button = gtk_button_new_with_label("Filter...");
@@ -373,6 +278,37 @@ prefs_dialog_plugins(window)
 #endif
   gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
   gtk_widget_show(button);
+ 
+ 
+  
+  
+#if 0
+  button = gtk_button_new_with_label("Upload plugin...");
+  gtk_signal_connect(GTK_OBJECT(button),
+			     "clicked",
+			     GTK_SIGNAL_FUNC(hdl_plugin_upload),
+			     ctrls);
+  gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
+  gtk_widget_show(button);	
+#endif
+  
+  
+  hbox = gtk_hbox_new(FALSE, 5);
+  gtk_box_pack_start(GTK_BOX(vbox),
+  		     hbox, 
+		     FALSE, FALSE, 5);
+  gtk_widget_show(hbox);
+  
+  button = gtk_check_button_new_with_label("Enable dependencies at runtime");
+  gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
+  gtk_widget_show(button);
+  arg_add_value(ctrls, "ENABLE_DEPS_AT_RUNTIME", ARG_PTR, -1, button);
+  
+  button = gtk_check_button_new_with_label("Silent dependencies");
+  gtk_box_pack_start(GTK_BOX(hbox), button, TRUE, TRUE, 0);
+  gtk_widget_show(button);
+  arg_add_value(ctrls, "SILENT_DEPS", ARG_PTR, -1, button);
+  
 
   		      
   
@@ -521,6 +457,7 @@ prefs_family_list_callback(widget, ctrls)
 	  char * cat = arg_get_value(plugs->value, "CATEGORY");
 	  int warning = cat? (!strcmp(cat, "denial") ||
 			      !strcmp(cat, "kill_host") ||
+			      !strcmp(cat, "flood") ||
 	  		      !strcmp(cat, "destructive_attack")):0;
 	  GtkWidget * sign = NULL;
 	  	
@@ -578,12 +515,13 @@ prefs_family_list_callback(widget, ctrls)
       plugs = plugs->next;	
     }
   gtk_tooltips_enable(tooltips);
+  dlist = g_list_sort(dlist, glist_cmp);
   gtk_list_append_items(GTK_LIST(arg_get_value(ctrls, "PLUGINS_LIST")), dlist);
   pluginset_reload(Plugins, Scanners);
 }
 
 
-void prefs_plugins_redraw(w, dumb, ctrls)
+int prefs_plugins_redraw(w, dumb, ctrls)
  GtkWidget * w;
  void * dumb;
  struct arglist * ctrls;
@@ -595,8 +533,20 @@ void prefs_plugins_redraw(w, dumb, ctrls)
   fill_plugins_family(ctrls);
   arg_set_value(ctrls, "PLUGINS_NUM", sizeof(int), (void *)PluginsNum);
  }
+ return 0;
 }
 
+static int glist_cmp( gconstpointer a, gconstpointer b)
+{
+     GtkWidget * item_a = (GtkWidget*)a;
+     GtkWidget * item_b = (GtkWidget*)b;
+
+     char * str_a, * str_b;
+
+     str_a = gtk_object_get_data(GTK_OBJECT(item_a), "list_item_data");
+     str_b = gtk_object_get_data(GTK_OBJECT(item_b), "list_item_data");
+     return strcmp(str_a, str_b);
+}
 
 void 
 fill_plugins_family(ctrls)
@@ -692,6 +642,8 @@ fill_plugins_family(ctrls)
 			 lfamilies->name);
      lfamilies = lfamilies->next;
    }
+
+   dlist = g_list_sort(dlist, glist_cmp);
    gtk_tooltips_enable(tooltips);
    gtk_list_append_items(GTK_LIST(arg_get_value(ctrls, "FAMILIES_LIST")), dlist);
    f = arg_get_value(ctrls, "FAMILIES");

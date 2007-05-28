@@ -75,7 +75,7 @@ prefs_dialog_about(window)
  gtk_widget_show(hr);
  }
 
- label = gtk_label_new("Nessus "NESSUS_VERSION"\nCopyright (C) 1998 - 2003 : ");
+ label = gtk_label_new("Nessus "NESSUS_FULL_VERSION"\nCopyright (C) 1998 - 2004 : ");
  gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 10);
  gtk_widget_show(label);
  

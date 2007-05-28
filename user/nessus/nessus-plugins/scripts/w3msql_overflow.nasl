@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10296);
- script_version ("$Revision: 1.19 $");
  script_bugtraq_id(898);
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CVE-2000-0012");
  
  name["english"] = "w3-msql overflow";
@@ -16,12 +16,12 @@ if(description)
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
- The mini-sql program comes with the
-w3-msql CGI which is vulnerable to a buffer overflow.
+The mini-sql program comes with the w3-msql CGI which is vulnerable 
+to a buffer overflow.
 
 An attacker may use it to gain a shell on this system.
 
-Solution : contact the vendor of mini-sql (http://hugues.com.au)
+Solution : contact the vendor of mini-sql (http://www.hugues.com.au)
            and ask for a patch. Meanwhile, remove w3-msql from
 	   /cgi-bin
 	   
@@ -49,7 +49,7 @@ Facteur de risque : Elevé";
  
  script_summary(english:summary["english"], francais:summary["francais"]);
  
- script_category(ACT_MIXED_ATTACK); # mixed
+ script_category(ACT_DENIAL);
  
  
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
@@ -59,6 +59,7 @@ Facteur de risque : Elevé";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -70,9 +71,11 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+
+if (http_is_dead(port: port)) exit(0);
 
 flag = 0;
 cgi = "w3-msql/index.html";
@@ -88,30 +91,6 @@ foreach dir (cgi_dirs())
 }
 
 if(!flag)exit(0);
-
-
-if(safe_checks())
-{
- data =  "
-Some versions of the mini-sql program comes with a
-w3-msql CGI which is vulnerable to a buffer overflow.
-
-An attacker may use it to gain a shell on this system.
-
-*** Nessus reports this vulnerability using only
-*** information that was gathered. Use caution
-*** when testing without safe checks enabled.
-
-Solution : contact the vendor of mini-sql (http://hugues.com.au)
-           and ask for a patch. Meanwhile, remove w3-msql from
-	   /cgi-bin
-	   
-Risk factor : High";
-
-  security_hole(port:port, data:data);
- exit(0);
-}
-
 
 
 s = "POST " + directory + "/w3-msql/index.html HTTP/1.0\r\n" +
@@ -131,8 +110,12 @@ if(soc)
 {
     send(socket:soc, data:s3);
     b = http_recv(socket:soc);
-    if(!b)security_hole(port);
     close(soc); 
+    if(!b)
+    {
+     if (http_is_dead(port: port))
+       security_hole(port);
+    }
 }
 
 

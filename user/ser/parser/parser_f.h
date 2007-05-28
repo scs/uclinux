@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: parser_f.h,v 1.7 2003/03/25 22:39:26 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

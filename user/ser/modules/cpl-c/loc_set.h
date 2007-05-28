@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: loc_set.h,v 1.5.4.3 2003/12/01 13:04:03 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

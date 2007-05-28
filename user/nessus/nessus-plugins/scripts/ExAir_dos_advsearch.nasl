@@ -8,12 +8,12 @@ if(description)
 {
  name["english"] = "IIS possible DoS using ExAir's advsearch";
  name["francais"] = "Déni de service possible de IIS en utilisant advsearch de ExAir";
- script_bugtraq_id(193);
  name["deutsch"] = "Moeglicher IIS DoS-Angriff mittels ExAir's advsearch";
   
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  script_id(10002);
- script_version ("$Revision: 1.18 $");
+ script_bugtraq_id(193);
+ script_version ("$Revision: 1.25 $");
  script_cve_id("CVE-1999-0449");
  
  desc["english"] = "IIS comes with the sample site 'ExAir'. Unfortunately,
@@ -23,7 +23,7 @@ client requests.
 
 Solution : Delete the 'ExAir' sample IIS site.
 
-Risk factor : Medium/High";
+Risk factor : High";
 
 
  desc["francais"] = "IIS est livré avec un site de démonstration : 'ExAir'.
@@ -31,7 +31,7 @@ Hélas, une des ses pages, /iissamples/exair/search/advsearch.asp, peut
 etre utilisée pour bloquer IIS, l'empechant ainsi de répondre aux
 connections de clients légitimes.
 
-Facteur de risque : Moyen/Elevé.
+Facteur de risque : Elevé.
 
 Solution : Supprimez le site de démonstration 'ExAir'";
 
@@ -40,7 +40,7 @@ Ungluecklicherweise kann durch Aufruf einer der Seiten, naemlich
 	/iissamples/exair/search/advsearch.asp
 der komplette IIS aufgehaengt werden. 
 
-Risiko Faktor:	Mittel/Hoch
+Risiko Faktor:	Hoch
 
 Loesung:	Loeschen Sie die 'ExAir' Beispiel IIS-Site.";
 
@@ -63,7 +63,7 @@ Loesung:	Loeschen Sie die 'ExAir' Beispiel IIS-Site.";
  family["deutsch"] = "CGI Sicherheitsluecken";
  script_family(english:family["english"], francais:family["francais"], deutsch:family["deutsch"]);
  
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
 
  exit(0);
@@ -73,8 +73,17 @@ Loesung:	Loeschen Sie die 'ExAir' Beispiel IIS-Site.";
 # The script code starts here
 #
 
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
 
 cgi = "/iissamples/exair/search/advsearch.asp";
-port = is_cgi_installed(cgi);
-if(port)security_hole(port);
+ok = is_cgi_installed_ka(item:cgi, port:port);
+if(ok)security_hole(port);
 

@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10807);
-script_cve_id("CAN-2000-0759");
  script_bugtraq_id(1531);
- script_version ("$Revision: 1.12 $");
+script_cve_id("CVE-2000-0759");
+ script_version ("$Revision: 1.17 $");
  name["english"] = "Jakarta Tomcat Path Disclosure";
 
  script_name(english:name["english"]);
@@ -40,7 +40,7 @@ Risk factor : Low";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
- script_require_ports("Services/www", 80);
+ script_require_ports("Services/www", 8080);
  script_require_keys("www/apache");
  exit(0);
 }
@@ -56,25 +56,20 @@ Risk factor : Low";
 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8080;
+port = get_http_port(default:8080);
 if(get_port_state(port))
 { 
  req = http_get(item:string("/:/x.jsp"), port:port);
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
+ r = http_keepalive_send_recv(port:port, data:req);
+ if ( ! r ) exit(0);
  
- if("Tomcat" >< r)
+ if("Server: Apache Tomcat/3" >< r)
   {
   path = ereg_replace(pattern:".*HTTP Status 404 - ([^<]*) .The.*",
 		    string:r,
 		    replace:"\1");
   if(ereg(string:path, pattern:"[A-Z]:\\.*", icase:TRUE))security_warning(port);
   }
- }
 }

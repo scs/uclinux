@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_fwd.c,v 1.52.4.1 2003/11/28 15:22:24 andrei Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

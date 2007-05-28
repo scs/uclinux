@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(10960);
- script_version ("$Revision: 1.4 $");
+ script_bugtraq_id(4793);
+ script_version ("$Revision: 1.7 $");
  script_cve_id("CVE-2002-0892");
- script_bugtraq_id(4793); 
  name["english"] = "ServletExec 4.1 ISAPI Physical Path Disclosure";
  name["francais"] = "ServletExec 4.1 ISAPI Physical Path Disclosure";
  script_name(english:name["english"], francais:name["francais"]);
@@ -45,7 +45,7 @@ Risk factor : Low";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -53,24 +53,18 @@ Risk factor : Low";
 # Check starts here
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
  req = http_get(item:"/servlet/com.newatlanta.servletexec.JSP10Servlet", port:port);
-
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
+ r = http_keepalive_send_recv(port:port, data:req);
  confirmed = string("newatlanta");
  confirmedtoo = string("filename"); 
  if ((confirmed >< r) && (confirmedtoo ><r))	
  	security_hole(port);
 
- }
 }
 

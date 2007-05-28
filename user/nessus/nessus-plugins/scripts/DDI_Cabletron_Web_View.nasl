@@ -5,7 +5,9 @@
 if(description)
 {
 	script_id(10962);
-	script_version ("$Revision: 1.4 $");
+	script_version ("$Revision: 1.8 $");
+        # script_cve_id("CVE-MAP-NOMATCH");
+# NOTE: reviewed, and no CVE id currently assigned (jfs, december 2003)
  
  	name["english"] = "Cabletron Web View Administrative Access";
  	script_name(english:name["english"]);
@@ -41,8 +43,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {
@@ -57,6 +59,7 @@ if(get_port_state(port))
 		if("Chassis Configuration" >< r)
 		{
 			security_hole(port:port); 
+			set_kb_item(name:"Services/www/" + port + "/embedded", value:TRUE);
 			exit(0);
 		}
 

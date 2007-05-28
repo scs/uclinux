@@ -1,4 +1,4 @@
-# $Id$
+# $Id: tripwire.chk,v 1.2 1993/08/19 05:27:24 genek Exp $
 #
 # tripwire.chk - S.J. Safdar (shabby@cc.purdue.edu)
 # Provide a cops-style interface to tripwire.

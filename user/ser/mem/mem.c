@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: mem.c,v 1.9 2003/04/08 16:02:45 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

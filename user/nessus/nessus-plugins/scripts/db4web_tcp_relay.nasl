@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11180);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.6 $");
   
  name["english"] = "DB4Web TCP relay";
  script_name(english:name["english"]);
@@ -23,7 +23,7 @@ You may be held for responsible.
 
 Solution : Replace the debug page with a non-verbose error page.
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -33,7 +33,7 @@ Votre responsabilité pourrait être engagée.
 
 Solution : Remplacez la page de debug par une page d'erreur moins verbeuse 
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
 
 
@@ -56,28 +56,25 @@ Facteur de risque : Moyen";
  script_family(english:family["english"], francais:family["francais"]);
  	
 
- script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
-s = http_open_socket(port);
-if (!s) exit(0);
 
 # testhost = "nosuchwww.example.com";
 testhost = this_host_name();
 
 r = http_get(port: port, item: string("/DB4Web/", testhost, ":23/foo"));
-send(socket: s, data: r);
-c = http_recv(socket: s);
-http_close_socket(s);
+c = http_keepalive_send_recv(port:port, data:r);
 
 if ((("connect() ok" >< c) || ("connect() failed:" >< c)) &&
     ("callmethodbinary_2 failed" >< c))

@@ -6,8 +6,8 @@
 if(description)
 {
  script_id(11880);
- script_version ("$Revision: 1.1 $");
-# script_cve_id("CAN-2003-00002");
+ script_version ("$Revision: 1.4 $");
+# script_cve_id("CVE-2003-00002");
  name["english"] = "Fluxay Sensor Detection";
  script_name(english:name["english"]);
  
@@ -36,7 +36,7 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 J.Mlødzianøwski");
  family["english"] = "Backdoors";
  script_family(english:family["english"]);
- script_dependencie("nmap_osfingerprint.nes", "find_service.nes");
+ script_dependencie("find_service2.nasl");
  exit(0);
 }
 
@@ -45,18 +45,5 @@ Risk factor : High";
 # The code starts here:
 #
 
-include("misc_func.inc");
-
-port = get_kb_item("Services/unknown");
-# port = 10;
-
-if (!port) exit(0);
-if (known_service(port: port)) exit(0);
-
-soc = open_sock_tcp(port);
-if(!soc) exit(0);
-
-r = recv(socket:soc, length:30);
-if(!r) exit(0);
-
-if("Sensor Console Password:" >< r)  security_hole(port);
+port = get_kb_item("Services/fluxay");
+if ( port ) security_hole(port);

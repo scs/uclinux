@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: aug_alloc.h,v 1.1 2003/04/08 01:25:35 lgfausak Exp $
  *
  * POSTGRES module, portions of this code were templated using
  * the mysql module, thus it's similarity.
@@ -39,13 +39,13 @@
 ** ________________________________________________________________________
 **
 **
-**                      $RCSfile$
-**                     $Revision$
+**                      $RCSfile: aug_alloc.h,v $
+**                     $Revision: 1.1 $
 **
-**             Last change $Date$
-**           Last change $Author$
-**                        $State$
-**                       $Locker$
+**             Last change $Date: 2003/04/08 01:25:35 $
+**           Last change $Author: lgfausak $
+**                        $State: Exp $
+**                       $Locker:  $
 **
 **               Original author: Andrew Fullford
 **

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10570);
- script_version ("$Revision: 1.7 $");
  script_bugtraq_id(1876);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-1024");
  name["english"] = "Unify eWave ServletExec 3.0C file upload";
  name["francais"] = "Unify eWave ServletExec 3.0C file upload";
@@ -22,7 +22,7 @@ uploaded file may have code that can later be executed on the
 server, leading to remote command execution.
 
 Solution : Remove it
-Risk factor : Serious";
+Risk factor : High";
 
 
  
@@ -43,15 +43,26 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
 
 # Check starts here
 
-port = is_cgi_installed("/servlet/com.unify.servletexec.UploadServlet");
-if(port)
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"/servlet/nessus." + string(rand(),rand(), rand()), port:port);
+if ( res ) exit(0);
+
+res = is_cgi_installed_ka(item:"/servlet/com.unify.servletexec.UploadServlet", port:port);
+if(res)
 {
  security_hole(port);
 }

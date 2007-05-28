@@ -4,8 +4,6 @@
 /*   telegram with write just by sending out an array of telegrams. */
  
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -18,7 +16,7 @@
 int main(int argc,char **argv)
 {
 int fd;
-int i, sent;
+int i,sent;
 canmsg_t tx[256];
 char device[40];
 
@@ -35,9 +33,9 @@ char device[40];
         exit(1);
     }
 
-    for(i = 0; i < 16; i++) {
+    for(i=0;i<16;i++) {
       sprintf( tx[i].data,"msg%d",i);
-      printf("sending '%s'\n", tx[i].data );
+      printf("sending '%s'\n",tx[i].data );
       tx[i].flags = 0;  
       tx[i].length = strlen(tx[i].data);  
       tx[i].id=500 + i;
@@ -45,9 +43,9 @@ char device[40];
     }
 
     printf("fast xmit message\n");
-    sent = write(fd, tx, 16 ); sleep(1);
+    sent=write(fd, tx, 16 ); sleep(1);
     if(sent <= 0) {
-	perror("sent");
+	printf("not ready");
     }
     close(fd);
     return 0;

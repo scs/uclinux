@@ -4,7 +4,8 @@
 if(description)
 {
   script_id(11858);
-  script_version("$Revision: 1.3 $");
+# script_cve_id("CVE-MAP-NOMATCH");
+  script_version("$Revision: 1.4 $");
   script_name(english:"TTL Anomaly detection");
   script_description(english:"
 The remote host, when queried on open ports, replies with differing TTL values.  This could be an 

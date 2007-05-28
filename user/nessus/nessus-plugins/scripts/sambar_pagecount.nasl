@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10711);
+ script_bugtraq_id(3091, 3092);
  script_cve_id("CVE-2001-1010");
- script_bugtraq_id(3091);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "Sambar webserver pagecount hole";
  name["francais"] = "Sambar webserver pagecount hole";
  
@@ -51,8 +51,8 @@ Solution : Remove this script";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  soc = http_open_socket(port);

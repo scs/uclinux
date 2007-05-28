@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10155);
- script_version ("$Revision: 1.20 $");
- script_cve_id("CVE-1999-0752");
  script_bugtraq_id(516);
+ script_version ("$Revision: 1.22 $");
+ script_cve_id("CVE-1999-0752");
  name["english"] = "Netscape Enterprise Server DoS";
  name["francais"] = "Déni de service contre Netscape Entrerprise Server";
  
@@ -30,7 +30,7 @@ Or else, report this vulnerability to your vendor.
 
 
 BugTraq id : 516
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "

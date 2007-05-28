@@ -1,7 +1,5 @@
 /*
- * udevcontrol.c
- *
- * Copyright (C) 2005 Kay Sievers <kay.sievers@vrfy.org>
+ * Copyright (C) 2005-2006 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the
@@ -14,14 +12,10 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/wait.h>
-#include <sys/un.h>
 #include <time.h>
 #include <errno.h>
 #include <stdio.h>
@@ -29,12 +23,14 @@
 #include <stddef.h>
 #include <string.h>
 #include <unistd.h>
-#include <linux/stddef.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
+#include <sys/un.h>
 
 #include "udev.h"
 #include "udevd.h"
 
-/* global variables */
 static int sock = -1;
 static int udev_log = 0;
 
@@ -52,10 +48,9 @@ void log_message (int priority, const char *format, ...)
 }
 #endif
 
-
 int main(int argc, char *argv[], char *envp[])
 {
-	static struct udevd_msg usend_msg;
+	static struct udevd_ctrl_msg ctrl_msg;
 	struct sockaddr_un saddr;
 	socklen_t addrlen;
 	const char *env;
@@ -76,48 +71,71 @@ int main(int argc, char *argv[], char *envp[])
 		goto exit;
 	}
 
-	memset(&usend_msg, 0x00, sizeof(struct udevd_msg));
-	strcpy(usend_msg.magic, UDEV_MAGIC);
+	memset(&ctrl_msg, 0x00, sizeof(struct udevd_ctrl_msg));
+	strcpy(ctrl_msg.magic, UDEVD_CTRL_MAGIC);
 
 	for (i = 1 ; i < argc; i++) {
 		char *arg = argv[i];
 
 		if (!strcmp(arg, "stop_exec_queue"))
-			usend_msg.type = UDEVD_STOP_EXEC_QUEUE;
+			ctrl_msg.type = UDEVD_CTRL_STOP_EXEC_QUEUE;
 		else if (!strcmp(arg, "start_exec_queue"))
-			usend_msg.type = UDEVD_START_EXEC_QUEUE;
+			ctrl_msg.type = UDEVD_CTRL_START_EXEC_QUEUE;
 		else if (!strcmp(arg, "reload_rules"))
-			usend_msg.type = UDEVD_RELOAD_RULES;
+			ctrl_msg.type = UDEVD_CTRL_RELOAD_RULES;
 		else if (!strncmp(arg, "log_priority=", strlen("log_priority="))) {
-			intval = (int *) usend_msg.envbuf;
+			intval = (int *) ctrl_msg.buf;
 			val = &arg[strlen("log_priority=")];
-			usend_msg.type = UDEVD_SET_LOG_LEVEL;
+			ctrl_msg.type = UDEVD_CTRL_SET_LOG_LEVEL;
 			*intval = log_priority(val);
 			info("send log_priority=%i", *intval);
 		} else if (!strncmp(arg, "max_childs=", strlen("max_childs="))) {
-			intval = (int *) usend_msg.envbuf;
+			char *endp;
+			int count;
+
+			intval = (int *) ctrl_msg.buf;
 			val = &arg[strlen("max_childs=")];
-			usend_msg.type = UDEVD_SET_MAX_CHILDS;
-			*intval = atoi(val);
+			ctrl_msg.type = UDEVD_CTRL_SET_MAX_CHILDS;
+			count = strtoul(val, &endp, 0);
+			if (endp[0] != '\0' || count < 1) {
+				fprintf(stderr, "invalid number\n");
+				goto exit;
+			}
+			*intval = count;
 			info("send max_childs=%i", *intval);
+		} else if (!strncmp(arg, "max_childs_running=", strlen("max_childs_running="))) {
+			char *endp;
+			int count;
+
+			intval = (int *) ctrl_msg.buf;
+			val = &arg[strlen("max_childs_running=")];
+			ctrl_msg.type = UDEVD_CTRL_SET_MAX_CHILDS_RUNNING;
+			count = strtoul(val, &endp, 0);
+			if (endp[0] != '\0' || count < 1) {
+				fprintf(stderr, "invalid number\n");
+				goto exit;
+			}
+			*intval = count;
+			info("send max_childs_running=%i", *intval);
 		} else if (strcmp(arg, "help") == 0  || strcmp(arg, "--help") == 0  || strcmp(arg, "-h") == 0) {
 			printf("Usage: udevcontrol COMMAND\n"
-				"  log_priority=<level> set the udev log level for the daemon\n"
-				"  stop_exec_queue      keep udevd from executing events, queue only\n"
-				"  start_exec_queue     execute events, flush queue\n"
-				"  reload_rules         reloads the rules files\n"
-				"  max_childs=<N>       maximum number of childs running at the same time\n"
-				"  --help               print this help text\n\n");
-			exit(0);
+				"  log_priority=<level>   set the udev log level for the daemon\n"
+				"  stop_exec_queue        keep udevd from executing events, queue only\n"
+				"  start_exec_queue       execute events, flush queue\n"
+				"  reload_rules           reloads the rules files\n"
+				"  max_childs=<N>         maximum number of childs\n"
+				"  max_childs_running=<N> maximum number of childs running at the same time\n"
+				"  --help                 print this help text\n\n");
+			goto exit;
 		} else {
-			fprintf(stderr, "unknown option\n\n");
-			exit(1);
+			fprintf(stderr, "unrecognized command '%s'\n", arg);
+			goto exit;
 		}
 	}
 
 	if (getuid() != 0) {
-		fprintf(stderr, "need to be root, exit\n\n");
-		exit(1);
+		fprintf(stderr, "root privileges required\n");
+		goto exit;
 	}
 
 	sock = socket(AF_LOCAL, SOCK_DGRAM, 0);
@@ -129,23 +147,20 @@ int main(int argc, char *argv[], char *envp[])
 	memset(&saddr, 0x00, sizeof(struct sockaddr_un));
 	saddr.sun_family = AF_LOCAL;
 	/* use abstract namespace for socket path */
-	strcpy(&saddr.sun_path[1], UDEVD_SOCK_PATH);
+	strcpy(&saddr.sun_path[1], UDEVD_CTRL_SOCK_PATH);
 	addrlen = offsetof(struct sockaddr_un, sun_path) + strlen(saddr.sun_path+1) + 1;
 
-
-	retval = sendto(sock, &usend_msg, sizeof(usend_msg), 0, (struct sockaddr *)&saddr, addrlen);
+	retval = sendto(sock, &ctrl_msg, sizeof(ctrl_msg), 0, (struct sockaddr *)&saddr, addrlen);
 	if (retval == -1) {
 		err("error sending message: %s", strerror(errno));
 		retval = 1;
 	} else {
-		dbg("sent message type=0x%02x, %u bytes sent", usend_msg.type, retval);
+		dbg("sent message type=0x%02x, %u bytes sent", ctrl_msg.type, retval);
 		retval = 0;
 	}
 
 	close(sock);
-
 exit:
 	logging_close();
-
 	return retval;
 }

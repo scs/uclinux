@@ -19,7 +19,7 @@
 *  Author   : Richard Tobin
 *  Creation : May 2001
 *
-* $Id$
+* $Id: pusb-bsd.c,v 1.18 2004/03/03 22:11:01 edgomez Exp $
 */
 
 #include <stdio.h>

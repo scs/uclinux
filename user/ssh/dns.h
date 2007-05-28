@@ -1,4 +1,4 @@
-/*	$OpenBSD: dns.h,v 1.3 2003/05/14 22:56:51 jakob Exp $	*/
+/*	$OpenBSD: dns.h,v 1.6 2005/10/17 14:13:35 stevesk Exp $	*/
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -25,10 +25,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "includes.h"
 
-#ifdef DNS
 #ifndef DNS_H
 #define DNS_H
 
@@ -46,12 +44,11 @@ enum sshfp_hashes {
 #define DNS_RDATACLASS_IN	1
 #define DNS_RDATATYPE_SSHFP	44
 
-#define DNS_VERIFY_FAILED	-1
-#define DNS_VERIFY_OK		0
-#define DNS_VERIFY_ERROR	1
+#define DNS_VERIFY_FOUND	0x00000001
+#define DNS_VERIFY_MATCH	0x00000002
+#define DNS_VERIFY_SECURE	0x00000004
 
-int	verify_host_key_dns(const char *, struct sockaddr *, Key *);
-int	export_dns_rr(const char *, Key *, FILE *, int);
+int	verify_host_key_dns(const char *, struct sockaddr *, const Key *, int *);
+int	export_dns_rr(const char *, const Key *, FILE *, int);
 
 #endif /* DNS_H */
-#endif /* DNS */

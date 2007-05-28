@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: hslot.c,v 1.5 2002/09/19 12:23:55 jku Rel $ 
  *
  * Hash table collision slot related functions
  *

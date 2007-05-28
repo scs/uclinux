@@ -412,6 +412,7 @@ static int get_pci_id(int ns, pci_id_t *id)
 {
     socket_info_t *s = &socket[ns];
     config_info_t config;
+    unsigned char *bp;
     char fn[50];
     int fd;
 
@@ -429,8 +430,9 @@ static int get_pci_id(int ns, pci_id_t *id)
 	read(fd, &config.ConfigBase, 4);
 	close(fd);
     }
-    id->vendor = config.ConfigBase & 0xffff;
-    id->device = config.ConfigBase >> 16;
+    bp = (unsigned char *) &config.ConfigBase;
+    id->vendor = bp[0] | (bp[1] << 8);
+    id->device = bp[2] | (bp[3] << 8);
     return 1;
 }
 

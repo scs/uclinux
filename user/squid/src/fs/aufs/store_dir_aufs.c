@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_dir_aufs.c,v 1.40.2.14 2005/03/26 23:27:10 serassio Exp $
  *
  * DEBUG: section 47    Store Directory Routines
  * AUTHOR: Duane Wessels
@@ -82,7 +82,7 @@ static EVH storeAufsDirRebuildFromSwapLog;
 static int storeAufsDirGetNextFile(RebuildState *, sfileno *, int *size);
 static StoreEntry *storeAufsDirAddDiskRestore(SwapDir * SD, const cache_key * key,
     sfileno file_number,
-    size_t swap_file_sz,
+    squid_file_sz swap_file_sz,
     time_t expires,
     time_t timestamp,
     time_t lastref,
@@ -111,7 +111,6 @@ static STUNREFOBJ storeAufsDirUnrefObj;
 static QS rev_int_sort;
 static int storeAufsDirClean(int swap_index);
 static EVH storeAufsDirCleanEvent;
-static int storeAufsDirIs(SwapDir * sd);
 static int storeAufsFilenoBelongsHere(int fn, int F0, int F1, int F2);
 static int storeAufsCleanupDoubleCheck(SwapDir *, StoreEntry *);
 static void storeAufsDirStats(SwapDir *, StoreEntry *);
@@ -331,10 +330,6 @@ storeAufsDirOpenSwapLog(SwapDir * sd)
     }
     debug(50, 3) ("Cache Dir #%d log opened on FD %d\n", sd->index, fd);
     aioinfo->swaplog_fd = fd;
-    if (0 == n_asyncufs_dirs)
-	assert(NULL == asyncufs_dir_index);
-    n_asyncufs_dirs++;
-    assert(n_asyncufs_dirs <= Config.cacheSwap.n_configured);
 }
 
 static void
@@ -347,10 +342,6 @@ storeAufsDirCloseSwapLog(SwapDir * sd)
     debug(47, 3) ("Cache Dir #%d log closed on FD %d\n",
 	sd->index, aioinfo->swaplog_fd);
     aioinfo->swaplog_fd = -1;
-    n_asyncufs_dirs--;
-    assert(n_asyncufs_dirs >= 0);
-    if (0 == n_asyncufs_dirs)
-	safe_free(asyncufs_dir_index);
 }
 
 static void
@@ -364,6 +355,7 @@ storeAufsDirInit(SwapDir * sd)
     storeAufsDirInitBitmap(sd);
     if (storeAufsDirVerifyCacheDirs(sd) < 0)
 	fatal(errmsg);
+    squidaio_init();
     storeAufsDirOpenSwapLog(sd);
     storeAufsDirRebuild(sd);
     if (!started_clean_event) {
@@ -371,6 +363,24 @@ storeAufsDirInit(SwapDir * sd)
 	started_clean_event = 1;
     }
     (void) storeDirGetBlkSize(sd->path, &sd->fs.blksize);
+}
+
+static void
+storeAufsDirRebuildComplete(RebuildState * rb)
+{
+    if (rb->log) {
+	debug(47, 1) ("Done reading %s swaplog (%d entries)\n",
+	    rb->sd->path, rb->n_read);
+	fclose(rb->log);
+	rb->log = NULL;
+    } else {
+	debug(47, 1) ("Done scanning %s (%d entries)\n",
+	    rb->sd->path, rb->counts.scancount);
+    }
+    store_dirs_rebuilding--;
+    storeAufsDirCloseTmpSwapLog(rb->sd);
+    storeRebuildComplete(&rb->counts);
+    cbdataFree(rb);
 }
 
 static void
@@ -396,12 +406,7 @@ storeAufsDirRebuildFromDirectory(void *data)
 	assert(fd == -1);
 	fd = storeAufsDirGetNextFile(rb, &filn, &size);
 	if (fd == -2) {
-	    debug(47, 1) ("Done scanning %s swaplog (%d entries)\n",
-		rb->sd->path, rb->n_read);
-	    store_dirs_rebuilding--;
-	    storeAufsDirCloseTmpSwapLog(rb->sd);
-	    storeRebuildComplete(&rb->counts);
-	    cbdataFree(rb);
+	    storeAufsDirRebuildComplete(rb);
 	    return;
 	} else if (fd < 0) {
 	    continue;
@@ -453,10 +458,39 @@ storeAufsDirRebuildFromDirectory(void *data)
 		assert(t->length == MD5_DIGEST_CHARS);
 		xmemcpy(key, t->value, MD5_DIGEST_CHARS);
 		break;
+#if SIZEOF_SQUID_FILE_SZ == SIZEOF_SIZE_T
 	    case STORE_META_STD:
 		assert(t->length == STORE_HDR_METASIZE);
 		xmemcpy(&tmpe.timestamp, t->value, STORE_HDR_METASIZE);
 		break;
+#else
+	    case STORE_META_STD_LFS:
+		assert(t->length == STORE_HDR_METASIZE);
+		xmemcpy(&tmpe.timestamp, t->value, STORE_HDR_METASIZE);
+		break;
+	    case STORE_META_STD:
+		assert(t->length == STORE_HDR_METASIZE_OLD);
+		{
+		    struct {
+			time_t timestamp;
+			time_t lastref;
+			time_t expires;
+			time_t lastmod;
+			size_t swap_file_sz;
+			u_short refcount;
+			u_short flags;
+		    }     *tmp = t->value;
+		    assert(sizeof(*tmp) == STORE_HDR_METASIZE_OLD);
+		    tmpe.timestamp = tmp->timestamp;
+		    tmpe.lastref = tmp->lastref;
+		    tmpe.expires = tmp->expires;
+		    tmpe.lastmod = tmp->lastmod;
+		    tmpe.swap_file_sz = tmp->swap_file_sz;
+		    tmpe.refcount = tmp->refcount;
+		    tmpe.flags = tmp->flags;
+		}
+		break;
+#endif
 	    default:
 		break;
 	    }
@@ -530,21 +564,10 @@ storeAufsDirRebuildFromSwapLog(void *data)
     /* load a number of objects per invocation */
     for (count = 0; count < rb->speed; count++) {
 	if (fread(&s, ss, 1, rb->log) != 1) {
-	    debug(47, 1) ("Done reading %s swaplog (%d entries)\n",
-		rb->sd->path, rb->n_read);
-	    fclose(rb->log);
-	    rb->log = NULL;
-	    store_dirs_rebuilding--;
-	    storeAufsDirCloseTmpSwapLog(rb->sd);
-	    storeRebuildComplete(&rb->counts);
-	    cbdataFree(rb);
+	    storeAufsDirRebuildComplete(rb);
 	    return;
 	}
 	rb->n_read++;
-	if (s.op <= SWAP_LOG_NOP)
-	    continue;
-	if (s.op >= SWAP_LOG_MAX)
-	    continue;
 	/*
 	 * BC: during 2.4 development, we changed the way swap file
 	 * numbers are assigned and stored.  The high 16 bits used
@@ -691,6 +714,216 @@ storeAufsDirRebuildFromSwapLog(void *data)
     eventAdd("storeRebuild", storeAufsDirRebuildFromSwapLog, rb, 0.0, 1);
 }
 
+#if SIZEOF_SQUID_FILE_SZ != SIZEOF_SIZE_T
+/* This is an exact copy of the above, but using storeSwapLogDataOld entry type */
+static void
+storeAufsDirRebuildFromSwapLogOld(void *data)
+{
+    RebuildState *rb = data;
+    SwapDir *SD = rb->sd;
+    StoreEntry *e = NULL;
+    storeSwapLogDataOld s;
+    size_t ss = sizeof(storeSwapLogDataOld);
+    int count;
+    int used;			/* is swapfile already in use? */
+    int disk_entry_newer;	/* is the log entry newer than current entry? */
+    double x;
+    assert(rb != NULL);
+    /* load a number of objects per invocation */
+    for (count = 0; count < rb->speed; count++) {
+	if (fread(&s, ss, 1, rb->log) != 1) {
+	    storeAufsDirRebuildComplete(rb);
+	    return;
+	}
+	rb->n_read++;
+	/*
+	 * BC: during 2.4 development, we changed the way swap file
+	 * numbers are assigned and stored.  The high 16 bits used
+	 * to encode the SD index number.  There used to be a call
+	 * to storeDirProperFileno here that re-assigned the index 
+	 * bits.  Now, for backwards compatibility, we just need
+	 * to mask it off.
+	 */
+	s.swap_filen &= 0x00FFFFFF;
+	debug(47, 3) ("storeAufsDirRebuildFromSwapLog: %s %s %08X\n",
+	    swap_log_op_str[(int) s.op],
+	    storeKeyText(s.key),
+	    s.swap_filen);
+	if (s.op == SWAP_LOG_ADD) {
+	    (void) 0;
+	} else if (s.op == SWAP_LOG_DEL) {
+	    /* Delete unless we already have a newer copy */
+	    if ((e = storeGet(s.key)) != NULL && s.lastref > e->lastref) {
+		/*
+		 * Make sure we don't unlink the file, it might be
+		 * in use by a subsequent entry.  Also note that
+		 * we don't have to subtract from store_swap_size
+		 * because adding to store_swap_size happens in
+		 * the cleanup procedure.
+		 */
+		storeExpireNow(e);
+		storeReleaseRequest(e);
+		if (e->swap_filen > -1) {
+		    storeAufsDirReplRemove(e);
+		    storeAufsDirMapBitReset(SD, e->swap_filen);
+		    e->swap_filen = -1;
+		    e->swap_dirn = -1;
+		}
+		storeRelease(e);
+		rb->counts.objcount--;
+		rb->counts.cancelcount++;
+	    }
+	    continue;
+	} else {
+	    x = log(++rb->counts.bad_log_op) / log(10.0);
+	    if (0.0 == x - (double) (int) x)
+		debug(47, 1) ("WARNING: %d invalid swap log entries found\n",
+		    rb->counts.bad_log_op);
+	    rb->counts.invalid++;
+	    continue;
+	}
+	if ((++rb->counts.scancount & 0xFFF) == 0) {
+	    struct stat sb;
+	    if (0 == fstat(fileno(rb->log), &sb))
+		storeRebuildProgress(SD->index,
+		    (int) sb.st_size / ss, rb->n_read);
+	}
+	if (!storeAufsDirValidFileno(SD, s.swap_filen, 0)) {
+	    rb->counts.invalid++;
+	    continue;
+	}
+	if (EBIT_TEST(s.flags, KEY_PRIVATE)) {
+	    rb->counts.badflags++;
+	    continue;
+	}
+	e = storeGet(s.key);
+	used = storeAufsDirMapBitTest(SD, s.swap_filen);
+	/* If this URL already exists in the cache, does the swap log
+	 * appear to have a newer entry?  Compare 'lastref' from the
+	 * swap log to e->lastref. */
+	disk_entry_newer = e ? (s.lastref > e->lastref ? 1 : 0) : 0;
+	if (used && !disk_entry_newer) {
+	    /* log entry is old, ignore it */
+	    rb->counts.clashcount++;
+	    continue;
+	} else if (used && e && e->swap_filen == s.swap_filen && e->swap_dirn == SD->index) {
+	    /* swapfile taken, same URL, newer, update meta */
+	    if (e->store_status == STORE_OK) {
+		e->lastref = s.timestamp;
+		e->timestamp = s.timestamp;
+		e->expires = s.expires;
+		e->lastmod = s.lastmod;
+		e->flags = s.flags;
+		e->refcount += s.refcount;
+		storeAufsDirUnrefObj(SD, e);
+	    } else {
+		debug_trap("storeAufsDirRebuildFromSwapLog: bad condition");
+		debug(47, 1) ("\tSee %s:%d\n", __FILE__, __LINE__);
+	    }
+	    continue;
+	} else if (used) {
+	    /* swapfile in use, not by this URL, log entry is newer */
+	    /* This is sorta bad: the log entry should NOT be newer at this
+	     * point.  If the log is dirty, the filesize check should have
+	     * caught this.  If the log is clean, there should never be a
+	     * newer entry. */
+	    debug(47, 1) ("WARNING: newer swaplog entry for dirno %d, fileno %08X\n",
+		SD->index, s.swap_filen);
+	    /* I'm tempted to remove the swapfile here just to be safe,
+	     * but there is a bad race condition in the NOVM version if
+	     * the swapfile has recently been opened for writing, but
+	     * not yet opened for reading.  Because we can't map
+	     * swapfiles back to StoreEntrys, we don't know the state
+	     * of the entry using that file.  */
+	    /* We'll assume the existing entry is valid, probably because
+	     * were in a slow rebuild and the the swap file number got taken
+	     * and the validation procedure hasn't run. */
+	    assert(rb->flags.need_to_validate);
+	    rb->counts.clashcount++;
+	    continue;
+	} else if (e && !disk_entry_newer) {
+	    /* key already exists, current entry is newer */
+	    /* keep old, ignore new */
+	    rb->counts.dupcount++;
+	    continue;
+	} else if (e) {
+	    /* key already exists, this swapfile not being used */
+	    /* junk old, load new */
+	    storeExpireNow(e);
+	    storeReleaseRequest(e);
+	    if (e->swap_filen > -1) {
+		storeAufsDirReplRemove(e);
+		/* Make sure we don't actually unlink the file */
+		storeAufsDirMapBitReset(SD, e->swap_filen);
+		e->swap_filen = -1;
+		e->swap_dirn = -1;
+	    }
+	    storeRelease(e);
+	    rb->counts.dupcount++;
+	} else {
+	    /* URL doesnt exist, swapfile not in use */
+	    /* load new */
+	    (void) 0;
+	}
+	/* update store_swap_size */
+	rb->counts.objcount++;
+	e = storeAufsDirAddDiskRestore(SD, s.key,
+	    s.swap_filen,
+	    s.swap_file_sz,
+	    s.expires,
+	    s.timestamp,
+	    s.lastref,
+	    s.lastmod,
+	    s.refcount,
+	    s.flags,
+	    (int) rb->flags.clean);
+	storeDirSwapLog(e, SWAP_LOG_ADD);
+    }
+    eventAdd("storeRebuild", storeAufsDirRebuildFromSwapLogOld, rb, 0.0, 1);
+}
+
+#endif
+
+static void
+storeAufsDirRebuildFromSwapLogCheckVersion(void *data)
+{
+    RebuildState *rb = data;
+    storeSwapLogHeader hdr;
+
+    if (fread(&hdr, sizeof(hdr), 1, rb->log) != 1) {
+	storeAufsDirRebuildComplete(rb);
+	return;
+    }
+    if (hdr.op == SWAP_LOG_VERSION) {
+	if (fseek(rb->log, hdr.record_size, SEEK_SET) != 0) {
+	    storeAufsDirRebuildComplete(rb);
+	    return;
+	}
+	if (hdr.version == 1 && hdr.record_size == sizeof(storeSwapLogData)) {
+	    eventAdd("storeRebuild", storeAufsDirRebuildFromSwapLog, rb, 0.0, 1);
+	    return;
+	}
+#if SIZEOF_SQUID_FILE_SZ != SIZEOF_SIZE_T
+	if (hdr.version == 1 && hdr.record_size == sizeof(storeSwapLogDataOld)) {
+	    debug(47, 1) ("storeAufsDirRebuildFromSwapLog: Found current version but without large file support. Upgrading\n");
+	    eventAdd("storeRebuild", storeAufsDirRebuildFromSwapLogOld, rb, 0.0, 1);
+	    return;
+	}
+#endif
+	debug(47, 1) ("storeAufsDirRebuildFromSwapLog: Unsupported swap.state version %d size %d\n",
+	    hdr.version, hdr.record_size);
+	storeAufsDirRebuildComplete(rb);
+	return;
+    }
+    rewind(rb->log);
+    debug(47, 1) ("storeAufsDirRebuildFromSwapLog: Old version detected. Upgrading\n");
+#if SIZEOF_SQUID_FILE_SZ == SIZEOF_SIZE_T
+    eventAdd("storeRebuild", storeAufsDirRebuildFromSwapLog, rb, 0.0, 1);
+#else
+    eventAdd("storeRebuild", storeAufsDirRebuildFromSwapLogOld, rb, 0.0, 1);
+#endif
+}
+
 static int
 storeAufsDirGetNextFile(RebuildState * rb, sfileno * filn_p, int *size)
 {
@@ -783,7 +1016,7 @@ storeAufsDirGetNextFile(RebuildState * rb, sfileno * filn_p, int *size)
 static StoreEntry *
 storeAufsDirAddDiskRestore(SwapDir * SD, const cache_key * key,
     sfileno file_number,
-    size_t swap_file_sz,
+    squid_file_sz swap_file_sz,
     time_t expires,
     time_t timestamp,
     time_t lastref,
@@ -847,7 +1080,7 @@ storeAufsDirRebuild(SwapDir * sd)
 	    fclose(fp);
 	func = storeAufsDirRebuildFromDirectory;
     } else {
-	func = storeAufsDirRebuildFromSwapLog;
+	func = storeAufsDirRebuildFromSwapLogCheckVersion;
 	rb->log = fp;
 	rb->flags.clean = (unsigned int) clean;
     }
@@ -867,12 +1100,6 @@ storeAufsDirCloseTmpSwapLog(SwapDir * sd)
     char *new_path = xstrdup(storeAufsDirSwapLogFile(sd, ".new"));
     int fd;
     file_close(aioinfo->swaplog_fd);
-#if defined (_SQUID_OS2_) || defined (_SQUID_CYGWIN_)
-    if (unlink(swaplog_path) < 0) {
-	debug(50, 0) ("%s: %s\n", swaplog_path, xstrerror());
-	fatal("storeAufsDirCloseTmpSwapLog: unlink failed");
-    }
-#endif
     if (xrename(new_path, swaplog_path) < 0) {
 	fatal("storeAufsDirCloseTmpSwapLog: rename failed");
     }
@@ -885,6 +1112,31 @@ storeAufsDirCloseTmpSwapLog(SwapDir * sd)
     safe_free(new_path);
     aioinfo->swaplog_fd = fd;
     debug(47, 3) ("Cache Dir #%d log opened on FD %d\n", sd->index, fd);
+}
+
+static void
+storeSwapLogDataFree(void *s)
+{
+    memFree(s, MEM_SWAP_LOG_DATA);
+}
+
+static void
+storeAufsWriteSwapLogheader(int fd)
+{
+    storeSwapLogHeader *hdr = memAllocate(MEM_SWAP_LOG_DATA);
+    hdr->op = SWAP_LOG_VERSION;
+    hdr->version = 1;
+    hdr->record_size = sizeof(storeSwapLogData);
+    /* The header size is a full log record to keep some level of backward
+     * compatibility even if the actual header is smaller
+     */
+    file_write(fd,
+	-1,
+	hdr,
+	sizeof(storeSwapLogData),
+	NULL,
+	NULL,
+	(FREE *) storeSwapLogDataFree);
 }
 
 static FILE *
@@ -916,6 +1168,7 @@ storeAufsDirOpenTmpSwapLog(SwapDir * sd, int *clean_flag, int *zero_flag)
 	fatal("storeDirOpenTmpSwapLog: Failed to open swap log.");
     }
     aioinfo->swaplog_fd = fd;
+    storeAufsWriteSwapLogheader(fd);
     /* open a read-only stream of the old log */
     fp = fopen(swaplog_path, "r");
     if (fp == NULL) {
@@ -944,7 +1197,7 @@ struct _clean_state {
     char *new;
     char *cln;
     char *outbuf;
-    off_t outbuf_offset;
+    int outbuf_offset;
     int fd;
     RemovalPolicyWalker *walker;
 };
@@ -975,6 +1228,7 @@ storeAufsDirWriteCleanStart(SwapDir * sd)
 	xfree(state);
 	return -1;
     }
+    storeAufsWriteSwapLogheader(state->fd);
     state->cur = xstrdup(storeAufsDirSwapLogFile(sd, NULL));
     state->cln = xstrdup(storeAufsDirSwapLogFile(sd, ".last-clean"));
     state->outbuf = xcalloc(CLEAN_BUF_SZ, 1);
@@ -1077,9 +1331,6 @@ storeAufsDirWriteCleanDone(SwapDir * sd)
 #if defined(_SQUID_OS2_) || defined (_SQUID_CYGWIN_)
 	file_close(state->fd);
 	state->fd = -1;
-	if (unlink(state->cur) < 0)
-	    debug(50, 0) ("storeDirWriteCleanLogs: unlinkd failed: %s, %s\n",
-		xstrerror(), state->cur);
 #endif
 	xrename(state->new, state->cur);
     }
@@ -1100,12 +1351,6 @@ storeAufsDirWriteCleanDone(SwapDir * sd)
     safe_free(state);
     sd->log.clean.state = NULL;
     sd->log.clean.write = NULL;
-}
-
-static void
-storeSwapLogDataFree(void *s)
-{
-    memFree(s, MEM_SWAP_LOG_DATA);
 }
 
 static void
@@ -1227,53 +1472,36 @@ storeAufsDirClean(int swap_index)
 static void
 storeAufsDirCleanEvent(void *unused)
 {
-    static int swap_index = 0;
-    int i;
+    static int swap_index = -1;
     int j = 0;
     int n = 0;
     /*
      * Assert that there are AUFS cache_dirs configured, otherwise
      * we should never be called.
      */
-    assert(n_asyncufs_dirs);
-    if (NULL == asyncufs_dir_index) {
+    if (swap_index == -1) {
 	SwapDir *sd;
 	squidaioinfo_t *aioinfo;
-	/*
-	 * Initialize the little array that translates AUFS cache_dir
-	 * number into the Config.cacheSwap.swapDirs array index.
-	 */
-	asyncufs_dir_index = xcalloc(n_asyncufs_dirs, sizeof(*asyncufs_dir_index));
-	for (i = 0, n = 0; i < Config.cacheSwap.n_configured; i++) {
-	    sd = &Config.cacheSwap.swapDirs[i];
-	    if (!storeAufsDirIs(sd))
-		continue;
-	    asyncufs_dir_index[n++] = i;
-	    aioinfo = (squidaioinfo_t *) sd->fsdata;
-	    j += (aioinfo->l1 * aioinfo->l2);
-	}
-	assert(n == n_asyncufs_dirs);
 	/*
 	 * Start the storeAufsDirClean() swap_index with a random
 	 * value.  j equals the total number of AUFS level 2
 	 * swap directories
 	 */
+	for (n = 0; n < n_asyncufs_dirs; n++) {
+	    sd = &Config.cacheSwap.swapDirs[asyncufs_dir_index[n]];
+	    aioinfo = (squidaioinfo_t *) sd->fsdata;
+	    j += (aioinfo->l1 * aioinfo->l2);
+	}
 	swap_index = (int) (squid_random() % j);
     }
     if (0 == store_dirs_rebuilding) {
 	n = storeAufsDirClean(swap_index);
 	swap_index++;
+	if (swap_index < 0)
+	    swap_index = 0;
     }
     eventAdd("storeDirClean", storeAufsDirCleanEvent, NULL,
 	15.0 * exp(-0.25 * n), 1);
-}
-
-static int
-storeAufsDirIs(SwapDir * sd)
-{
-    if (strncmp(sd->type, "aufs", 4) == 0)
-	return 1;
-    return 0;
 }
 
 /*
@@ -1689,6 +1917,9 @@ storeAufsDirParse(SwapDir * sd, int index, char *path)
 
     /* Initialise replacement policy stuff */
     sd->repl = createRemovalPolicy(Config.replPolicy);
+
+    asyncufs_dir_index = realloc(asyncufs_dir_index, (n_asyncufs_dirs + 1) * sizeof(*asyncufs_dir_index));
+    asyncufs_dir_index[n_asyncufs_dirs++] = index;
 }
 
 /*

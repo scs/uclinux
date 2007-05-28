@@ -15,8 +15,9 @@
 if(description)
 {
   script_id(11780);
-  script_version("$Revision: 1.5 $");
-  script_bugtraq_id(6055, 6058, 5393);
+  script_cve_id("CVE-2002-1581", "CVE-2002-1582");
+  script_bugtraq_id(5393, 6055, 6058);
+  script_version("$Revision: 1.10 $");
 
   name["english"] = "mailreader.com directory traversal and arbitrary command execution";
   script_name(english:name["english"]);
@@ -43,6 +44,7 @@ Risk factor : High";
  
   script_dependencie("find_service.nes", "no404.nasl", "webmirror.nasl");
   script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
 
   exit(0);
 }
@@ -50,8 +52,8 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 
 if(! get_port_state(port)) exit(0);
 

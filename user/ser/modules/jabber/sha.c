@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sha.c,v 1.5 2002/10/16 14:12:42 dcm Exp $
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

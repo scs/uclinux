@@ -24,12 +24,12 @@
 if(description)
 {
  script_id(10704);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(3009);
+ script_xref(name: "OWASP", value: "OWASP-CM-004");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2001-0731");
  name["english"] = "Apache Directory Listing";
- name["francais"] = "Apache Directory Listing";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 By making a request to the Apache web server ending in '?M=A' it is sometimes possible to obtain a 
@@ -54,11 +54,9 @@ Risk factor : Low";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2001 Matt Moore",
-		  francais:"Ce script est Copyright (C) 2001 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2001 Matt Moore");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/apache");
@@ -75,10 +73,13 @@ Risk factor : Low";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
+
 if(get_port_state(port))
 { 
+ banner = get_http_banner(port:port);
+if ( banner && "Apache" >!< banner  ) exit(0);
  # First, we make sure that the remote server is not already
  # spitting the content of the directory.
  req = http_get(item:"/", port:port);

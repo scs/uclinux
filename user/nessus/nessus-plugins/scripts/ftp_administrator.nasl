@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11160);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.4 $");
  script_name(english:"Windows Administrator NULL FTP password");
 	     
 
@@ -40,6 +40,7 @@ script_summary(english:"Checks for a NULL Windows Administrator FTP password",
 # The script code starts here : 
 #
 
+include('ftp_func.inc');
 
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
@@ -50,6 +51,6 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
-  if(ftp_log_in(socket:soc, user:"Administrator", pass:""))security_hole(port);
+  if(ftp_authenticate(socket:soc, user:"Administrator", pass:""))security_hole(port);
  }
 }

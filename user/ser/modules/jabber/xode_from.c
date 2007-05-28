@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xode_from.c,v 1.2 2003/06/02 15:42:21 dcm Exp $
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

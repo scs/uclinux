@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sl_funcs.c,v 1.45.4.1 2003/11/26 16:44:27 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

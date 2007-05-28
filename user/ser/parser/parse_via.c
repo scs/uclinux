@@ -1,5 +1,5 @@
 /*
- * $Id$ 
+ * $Id: parse_via.c,v 1.20 2003/07/09 17:59:50 andrei Exp $ 
  *
  * via parsing automaton
  * 

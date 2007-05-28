@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10436);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(1316);
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CVE-2000-0472");
  name["english"] = "INN version check (2)";
  name["francais"] = "Vérification de la version de INN (2)";

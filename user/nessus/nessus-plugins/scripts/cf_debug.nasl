@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10797);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.14 $");
  name["english"] = "ColdFusion Debug Mode";
  script_name(english:name["english"]);
 
@@ -43,6 +43,7 @@ Risk factor : Medium";
  script_dependencie("find_service.nes", "http_version.nasl");
  script_dependencie("httpver.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -52,8 +53,8 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
  
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 dir[0] = "/";
 dir[1] = "/index.cfm";
@@ -75,7 +76,7 @@ if(get_port_state(port))
        
 	if("CF_TEMPLATE_PATH" >< r)
         	{
-        		security_hole(port);
+        		security_warning(port);
         		exit(0);
         	}
   }
@@ -90,7 +91,7 @@ if(get_port_state(port))
  
  if("CF_TEMPLATE_PATH" >< r)
 	    {
-		    security_hole(port);
+		    security_warning(port);
 		    exit(0);
 	    } 
  }

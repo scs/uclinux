@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: MemPool.c,v 1.28.2.2 2005/03/26 02:50:51 hno Exp $
  *
  * DEBUG: section 63    Low Level Memory Pool Management
  * AUTHOR: Alex Rousskov
@@ -46,7 +46,7 @@ unsigned int mem_pool_free_calls = 0;
 /* module globals */
 
 /* huge constant to set mem_idle_limit to "unlimited" */
-static const size_t mem_unlimited_size = 2 * 1024 * MB;
+static const size_t mem_unlimited_size = 2 * 1024 * MB - 1;
 
 /* we cannot keep idle more than this limit */
 static size_t mem_idle_limit = 0;
@@ -58,9 +58,9 @@ static gb_t mem_traffic_volume =
 static Stack Pools;
 
 /* local prototypes */
-static void memShrink(ssize_t new_limit);
+static void memShrink(size_t new_limit);
 static void memPoolDescribe(const MemPool * pool);
-static void memPoolShrink(MemPool * pool, ssize_t new_limit);
+static void memPoolShrink(MemPool * pool, size_t new_limit);
 
 
 static double
@@ -135,9 +135,9 @@ memCleanModule(void)
 
 
 static void
-memShrink(ssize_t new_limit)
+memShrink(size_t new_limit)
 {
-    ssize_t start_limit = TheMeter.idle.level;
+    size_t start_limit = TheMeter.idle.level;
     int i;
     assert(start_limit >= 0 && new_limit >= 0);
     debug(63, 1) ("memShrink: started with %ld KB goal: %ld KB\n",
@@ -145,7 +145,7 @@ memShrink(ssize_t new_limit)
     /* first phase: cut proportionally to the pool idle size */
     for (i = 0; i < Pools.count && TheMeter.idle.level > new_limit; ++i) {
 	MemPool *pool = Pools.items[i];
-	const ssize_t target_pool_size = (size_t) ((double) pool->meter.idle.level * new_limit) / start_limit;
+	const size_t target_pool_size = (size_t) ((double) pool->meter.idle.level * new_limit) / start_limit;
 	memPoolShrink(pool, target_pool_size);
     }
     debug(63, 1) ("memShrink: 1st phase done with %ld KB left\n", (long int) toKB(TheMeter.idle.level));
@@ -276,7 +276,7 @@ memPoolFree(MemPool * pool, void *obj)
 }
 
 static void
-memPoolShrink(MemPool * pool, ssize_t new_limit)
+memPoolShrink(MemPool * pool, size_t new_limit)
 {
     assert(pool);
     assert(new_limit >= 0);
@@ -308,7 +308,7 @@ size_t
 memPoolInUseSize(const MemPool * pool)
 {
     assert(pool);
-    return pool->obj_size * pool->meter.inuse.level;
+    return (pool->obj_size * pool->meter.inuse.level);
 }
 
 /* to-do: make debug level a parameter? */
@@ -321,7 +321,7 @@ memPoolDescribe(const MemPool * pool)
 	(long int) toKB(memPoolInUseSize(pool)));
 }
 
-size_t
+int
 memTotalAllocated(void)
 {
     return TheMeter.alloc.level;

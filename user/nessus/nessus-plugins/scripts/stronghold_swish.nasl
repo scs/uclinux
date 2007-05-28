@@ -4,7 +4,7 @@
 
 if(description)
 {
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
  script_id(11230);
  script_bugtraq_id(4785);
  name["english"] = "Stronghold Swish";
@@ -37,6 +37,7 @@ Risk factor : Low";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -47,8 +48,8 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 
 

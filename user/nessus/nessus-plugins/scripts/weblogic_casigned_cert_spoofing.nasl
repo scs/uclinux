@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11628);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  
  
  name["english"] = "WebLogic Certificates Spoofing";
@@ -48,8 +48,8 @@ Risk factor : Medium";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 banner = get_http_banner(port:port);
@@ -76,6 +76,6 @@ if (banner =~ "WebLogic .* 6\.0 ")
 
 if (banner =~ "WebLogic .* 7\.0(\.0\.1)? ")
 {
-  if (banner !~ " SP[2-9]") security_hole(port);
+  if (banner !~ " SP[2-9]") security_warning(port);
   exit(0);
 }

@@ -66,6 +66,10 @@ typedef struct {
   int		last_ssl_err;	/* Last SSL error code */
 #endif
  pid_t		pid;		/* Owner - for debugging only */
+
+  char*		buf;		/* NULL if unbuffered */
+  int		bufsz, bufcnt, bufptr;
+  int 		last_err;
 } nessus_connection;
 
 /* 
@@ -149,6 +153,23 @@ static int data_left(soc)
 } /* data_left */
 #endif
 
+int
+stream_get_err(fd)
+ int fd;
+{
+ nessus_connection *p;
+ 
+ if(!NESSUS_STREAM(fd))
+    {
+     errno = EINVAL;
+     return -1;
+    }
+    
+    
+ p = &(connections[fd - NESSUS_FD_OFF]);
+ return p->last_err;
+}
+
 /*
  * Returns a free file descriptor
  */
@@ -172,6 +193,8 @@ get_connection_fd()
  return -1;
 }
 
+
+
 static int
 release_connection_fd(fd)
  int fd;
@@ -186,6 +209,8 @@ release_connection_fd(fd)
     
     
  p = &(connections[fd - NESSUS_FD_OFF]);
+
+ efree(&p->buf);
 
 #ifdef HAVE_SSL
  if (p->ssl != NULL)
@@ -245,6 +270,7 @@ nessus_register_connection(s, ssl)
   p->port = 0;			/* just used for debug */
   p->fd = s;
   p->transport = (ssl != NULL) ? NESSUS_ENCAPS_SSLv23 : NESSUS_ENCAPS_IP;
+  p->last_err  = 0;
   return fd;
 }
 
@@ -602,7 +628,10 @@ open_SSL_connection(fp, timeout, cert, key, passwd, cert_names)
 	{
 	  d = tictac + timeout - time(NULL);
 	  if (d <= 0)
+	    {
+	    fp->last_err = ETIMEDOUT;
 	    return -1;
+            }
 	  to.tv_sec = d;
 	  to.tv_usec = 0;
 	  errno = 0;
@@ -615,7 +644,10 @@ open_SSL_connection(fp, timeout, cert, key, passwd, cert_names)
 	}
       while (ret < 0 && errno == EINTR);
       if (ret <= 0)
+	{
+	fp->last_err = ETIMEDOUT;
 	return -1;
+        }
     }
   /*NOTREACHED*/
 }
@@ -627,10 +659,11 @@ set_ids_evasion_mode(args, fp)
      struct arglist	*args;
      nessus_connection	*fp;
 {
- char		*ids_evasion_split = plug_get_key(args, "NIDS/TCP/split");
- char 		*ids_evasion_inject = plug_get_key(args, "NIDS/TCP/inject");
- char 		*ids_evasion_short_ttl = plug_get_key(args,"NIDS/TCP/short_ttl");
- char		*ids_evasion_fake_rst = plug_get_key(args, "NIDS/TCP/fake_rst");
+ struct kb_item ** kb = plug_get_kb(args);
+ char		*ids_evasion_split = kb_item_get_str(kb, "NIDS/TCP/split");
+ char 		*ids_evasion_inject = kb_item_get_str(kb, "NIDS/TCP/inject");
+ char 		*ids_evasion_short_ttl = kb_item_get_str(kb,"NIDS/TCP/short_ttl");
+ char		*ids_evasion_fake_rst = kb_item_get_str(kb, "NIDS/TCP/fake_rst");
  int option = 0;
  
  
@@ -713,6 +746,7 @@ open_stream_connection(args, port, transport, timeout)
  fp->transport = transport;
  fp->timeout   = timeout;
  fp->port      = port;
+ fp->last_err  = 0;
  set_ids_evasion_mode(args, fp);
 
  if(fp->options & NESSUS_CNX_IDS_EVASION_FAKE_RST)
@@ -732,13 +766,13 @@ open_stream_connection(args, port, transport, timeout)
   case NESSUS_ENCAPS_SSLv3:
   case NESSUS_ENCAPS_TLSv1:
     renice_myself();
-    cert   = plug_get_key(args, "SSL/cert");
-    key    = plug_get_key(args, "SSL/key");
-    passwd = plug_get_key(args, "SSL/password");
+    cert   = kb_item_get_str(plug_get_kb(args), "SSL/cert");
+    key    = kb_item_get_str(plug_get_kb(args), "SSL/key");
+    passwd = kb_item_get_str(plug_get_kb(args), "SSL/password");
 
-    cafile = plug_get_key(args, "SSL/CA");
+    cafile = kb_item_get_str(plug_get_kb(args), "SSL/CA");
 
-    if ((cafile != NULL) && strlen(cafile))
+    if ((cafile != NULL) && cafile[0] != '\0')
       {
 	cert_names = SSL_load_client_CA_file(cafile);
 	if (cert_names == NULL)
@@ -767,34 +801,43 @@ failed:
 
 
 ExtFunc int
-open_stream_connection_unknown_encaps(args, port, timeout, p)
+open_stream_connection_unknown_encaps5(args, port, timeout, p, delta_t)
  struct arglist * args;
  unsigned int  port;
  int timeout, * p;
+ int	*delta_t;		/* time, in micro-seconds */
 {
  int fd;
  int i;
-#ifdef HAVE_SSL
+  struct timeval	tv1, tv2;
  static int encaps[] = {
+#ifdef HAVE_SSL
    NESSUS_ENCAPS_SSLv2,
    NESSUS_ENCAPS_TLSv1,
    NESSUS_ENCAPS_SSLv3,
-    };
 #endif
+    NESSUS_ENCAPS_IP
+  };
  
 #if DEBUG_SSL > 2
  fprintf(stderr, "[%d] open_stream_connection_unknown_encaps: TCP:%d; %d\n",
 	 getpid(), port,timeout);
 #endif
 
-#ifdef HAVE_SSL
  for (i = 0; i < sizeof(encaps) / sizeof(*encaps); i ++)
+    {
+      if (delta_t != NULL) (void) gettimeofday(&tv1, NULL);
    if ((fd = open_stream_connection(args, port, encaps[i], timeout)) >= 0)
      {
        *p = encaps[i];
 #if DEBUG_SSL > 2
        fprintf(stderr, "[%d] open_stream_connection_unknown_encaps: TCP:%d -> transport=%d\n", getpid(), port, *p);
 #endif
+	  if (delta_t != NULL)
+	    {
+	      (void) gettimeofday(&tv2, NULL);
+	      *delta_t = (tv2.tv_sec - tv1.tv_sec) * 1000000 + (tv2.tv_usec - tv1.tv_usec);
+	    }
        return fd;
      }
    else if (__port_closed)
@@ -804,23 +847,17 @@ open_stream_connection_unknown_encaps(args, port, timeout, p)
 #endif
        return -1;
      }
-
- /* 
-  * No need to try to connect to the remote port twice
-  */
- if(__port_closed)
+    }
   return -1;
-#endif 
- if ((fd = open_stream_connection(args, port, NESSUS_ENCAPS_IP, timeout)) >= 0)
- {
-  *p = NESSUS_ENCAPS_IP;
-#if DEBUG_SSL > 2
-       fprintf(stderr, "[%d] open_stream_connection_unknown_encaps: TCP:%d -> transport=%d\n", getpid(), port, *p);
-#endif
-  return fd;
  }
  
- return -1;
+ExtFunc int
+open_stream_connection_unknown_encaps(args, port, timeout, p)
+ struct arglist * args;
+ unsigned int  port;
+ int timeout, * p;
+{
+  return open_stream_connection_unknown_encaps5(args, port, timeout, p, NULL);
 }
 
 
@@ -904,8 +941,8 @@ stream_set_options(fd, reset_opt, set_opt)
 }
 
 
-ExtFunc int 
-read_stream_connection_min(fd, buf0, min_len, max_len)
+static int 
+read_stream_connection_unbuffered(fd, buf0, min_len, max_len)
  int fd;
  void* buf0;
  int min_len, max_len;
@@ -916,6 +953,9 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
   nessus_connection	*fp = NULL;
   fd_set		fdr, fdw;
   struct timeval	tv;
+  time_t		now, then;
+
+  int		 	select_status;
  
 #if 0
   fprintf(stderr, "read_stream_connection(%d, 0x%x, %d, %d)\n",
@@ -927,6 +967,7 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
       fp = &(connections[fd - NESSUS_FD_OFF]);
       trp = fp->transport;
       realfd = fp->fd;
+      fp->last_err = 0;
       if (fp->timeout != -2)
 	timeout = fp->timeout;
     }
@@ -965,17 +1006,11 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
 	  if(select(realfd + 1, &fdr, NULL, NULL, timeout > 0 ? &tv : NULL) <= 0)
 	    {
 	      t += INCR_TIMEOUT;
-	      if (min_len <= 0)
-		{
-		  /* Try to be smart */
-		  if (total > 0 && flag) 
-		    return total;
-		  else
-		    flag ++;
-		}
-	      else
-		if (total > min_len)
-		  return total;
+	      /* Try to be smart */
+	      if (total > 0 && flag) 
+		return total;
+	      else if (total >= min_len)
+		flag ++;
 	    }
 	  else
 	    {
@@ -983,16 +1018,25 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
 	      ret = recv(realfd, buf + total, max_len - total, waitall);
 	      if (ret < 0)
 		if (errno != EINTR)
+                  {
+		  fp->last_err = errno;
 		  return total;
+                  }
 		else
 		  ret = 0;
 	      else if (ret == 0) /* EOF */
+                {
+                fp->last_err = EPIPE;
 		return total;
+                }
 	      /*ret > 0*/
 	      total += ret; 
+	      if (min_len > 0 && total >= min_len)
+		return total;
 	      flag = 0;
 	    }
 	}
+      if ( t >= timeout ) fp->last_err = ETIMEDOUT;
       return total;
     }
 
@@ -1015,15 +1059,24 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
 
       FD_ZERO(&fdr); FD_ZERO(&fdw);
       FD_SET(realfd, &fdr); FD_SET(realfd, &fdw); 
-      for (t = 0; timeout <= 0 || t < timeout; t += INCR_TIMEOUT)
-	{
+      now = then = time(NULL);
+      for (t = 0; timeout <= 0 || t < timeout; t = now - then )
+	{	
+          now = time(NULL);
 	  tv.tv_sec = INCR_TIMEOUT; tv.tv_usec = 0;
-	  if (select(realfd+1, &fdr, &fdw, NULL, &tv) > 0)
+	  select_status = select ( realfd + 1, &fdr, &fdw, NULL, &tv );
+          if ( select_status == 0 )
+          {
+      	   FD_ZERO(&fdr); FD_ZERO(&fdw);
+      	   FD_SET(realfd, &fdr); FD_SET(realfd, &fdw); 
+          }
+	  else
+	  if ( select_status > 0 )
 	    {
 	  ret = SSL_read(fp->ssl, buf + total, max_len - total);
 	  if (ret > 0)
 		{
-	    total += ret;
+	          total += ret;
 		  FD_SET(realfd, &fdr);
 		  FD_SET(realfd, &fdw); 
 		}
@@ -1033,7 +1086,8 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
 	      if (ret <= 0)
 		{
 		  err = SSL_get_error(fp->ssl, ret);
-		  FD_ZERO(&fdr); FD_ZERO(&fdw);
+		  FD_ZERO(&fdr); 
+		  FD_ZERO(&fdw);
 		  switch (err)
 	   {
 		    case SSL_ERROR_WANT_READ:
@@ -1046,6 +1100,7 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
 #if DEBUG_SSL > 2
 		      fprintf(stderr, "SSL_Connect[%d]: SSL_ERROR_WANT_WRITE\n", getpid());
 #endif
+		      FD_SET(realfd, &fdr);
 		      FD_SET(realfd, &fdw);
 		      break;
 
@@ -1053,12 +1108,14 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
 #if DEBUG_SSL > 2
 		      fprintf(stderr, "SSL_Connect[%d]: SSL_ERROR_ZERO_RETURN\n", getpid());
 #endif
+		      fp->last_err = EPIPE;
 		      return total;
 
 		    default:
 #if DEBUG_SSL > 0
 		      sslerror2("SSL_read", err);
 #endif
+		      fp->last_err = EPIPE;
 		      return total;
 		    }
 		}
@@ -1072,18 +1129,83 @@ read_stream_connection_min(fd, buf0, min_len, max_len)
 		else
 		  flag ++;
 	      }
-	  else if (total > min_len)
+	  else if (total >= min_len)
 		return total;
 	}
+      if ( t >= timeout ) fp->last_err = ETIMEDOUT;
       return total;
 #endif
     default :
-      fprintf(stderr, "Severe bug! Unhandled transport layer %d (fd=%d)\n",
-	      fp->transport, fd);
+      if (fp->transport != -1 || fp->fd != 0)
+	fprintf(stderr, "Severe bug! Unhandled transport layer %d (fd=%d)\n",
+		fp->transport, fd);
+      else
+	fprintf(stderr, "read_stream_connection_unbuffered: fd=%d is closed\n", fd);
       errno = EINVAL;
       return -1;
     }
   /*NOTREACHED*/
+}
+
+ExtFunc int 
+read_stream_connection_min(fd, buf0, min_len, max_len)
+ int fd;
+ void* buf0;
+ int min_len, max_len;
+{
+  nessus_connection	*fp;
+
+  if (NESSUS_STREAM(fd))
+    {
+      fp = &(connections[fd - NESSUS_FD_OFF]);
+      if (fp->buf != NULL)
+	{
+	  int		l1, l2;
+
+	  if (max_len == 1) min_len = 1; /* avoid "magic read" later */
+	  l2 = max_len > fp->bufcnt ? fp->bufcnt : max_len;
+	  if (l2 > 0)
+	    {
+	      memcpy(buf0, fp->buf + fp->bufptr, l2);
+	      fp->bufcnt -= l2;
+	      if (fp->bufcnt == 0)
+		{
+		  fp->bufptr = 0;
+		  fp->buf[0] = '\0'; /* debug */
+		}
+	      else
+		fp->bufptr += l2;
+	      if (l2 >= min_len || l2 >= max_len)
+		return l2;
+	      max_len -= l2;
+	      min_len -= l2;
+	    }
+	  if (min_len > fp->bufsz)
+	    {
+	      l1 = read_stream_connection_unbuffered(fd, (char*)buf0 + l2,
+						     min_len, max_len);
+	      if (l1 > 0)
+		return l1 + l2;
+	      else
+		return l2;
+	    }
+	  /* Fill buffer */
+	  l1 = read_stream_connection_unbuffered(fd, fp->buf, min_len, fp->bufsz);
+	  if (l1 <= 0)
+	    return l2;
+	  
+	  fp->bufcnt = l1;
+	  l1 = max_len > fp->bufcnt ? fp->bufcnt : max_len;
+	  memcpy((char*)buf0 + l2, fp->buf + fp->bufptr, l1);
+	  fp->bufcnt -= l1;
+	  if (fp->bufcnt == 0)
+	    fp->bufptr = 0;
+	  else
+	    fp->bufptr += l1;
+	  return l1 + l2;
+	}
+    }
+  return read_stream_connection_unbuffered(fd, buf0, min_len, max_len);
 }
 
 ExtFunc int 
@@ -1107,6 +1229,7 @@ write_stream_connection4(fd, buf0, n, i_opt)
  nessus_connection * fp;
   fd_set		fdr, fdw;
   struct timeval	tv;
+  int e;
 
  if(!NESSUS_STREAM(fd))
    {
@@ -1121,6 +1244,7 @@ write_stream_connection4(fd, buf0, n, i_opt)
     }
 
  fp = &(connections[fd - NESSUS_FD_OFF]);
+ fp->last_err = 0;
  
 #if DEBUG_SSL > 8
  fprintf(stderr, "> write_stream_connection(%d, 0x%x, %d, 0x%x) \tE=%d 0=0x%x\n",
@@ -1145,7 +1269,11 @@ write_stream_connection4(fd, buf0, n, i_opt)
        ret = send(fp->fd, buf + count, n - count, i_opt);
 
     if(ret <= 0)
-      break;
+      {
+       if ( ret < 0 ) fp->last_err = errno;
+       else fp->last_err = EPIPE;
+       break;
+      }
      
      count += ret;
     }
@@ -1188,18 +1316,26 @@ write_stream_connection4(fd, buf0, n, i_opt)
 #if DEBUG_SSL > 0
 		  sslerror2("SSL_write", err);
 #endif      
+		  fp->last_err = EPIPE;
   	break;
      }
 	      if (fp->timeout >= 0)
 		tv.tv_sec = fp->timeout;
      else 
 		tv.tv_sec = TIMEOUT;
+
 	      tv.tv_usec = 0;
-	      if (select(fp->fd+1, &fdr, &fdw, NULL, &tv) <= 0)
+ 	      do {
+ 	      errno = 0;
+	      e = select(fp->fd+1, &fdr, &fdw, NULL, &tv);
+ 	      } while ( e < 0 && errno == EINTR );
+
+	    if ( e <= 0 )
 		{
 #if DEBUG_SSL > 0
 		  nessus_perror("select");
 #endif
+		  fp->last_err = ETIMEDOUT;
 		  break;
 		}
 	    }
@@ -1207,8 +1343,11 @@ write_stream_connection4(fd, buf0, n, i_opt)
     break;
 #endif
    default:
-     fprintf(stderr, "Severe bug! Unhandled transport layer %d (fd=%d)\n",
-	     fp->transport, fd);
+     if (fp->transport != -1 || fp->fd != 0)
+       fprintf(stderr, "Severe bug! Unhandled transport layer %d (fd=%d)\n",
+	       fp->transport, fd);
+     else
+       fprintf(stderr, "read_stream_connection_unbuffered: fd=%d is closed\n", fd);
      errno =EINVAL;
      return -1;
   }
@@ -1235,7 +1374,7 @@ nsend (fd, data, length, i_opt)
  void * data;
  int length, i_opt;
 {
-  int		i, n;
+  int		n = 0;
 
  if(NESSUS_STREAM(fd))
  {
@@ -1248,7 +1387,7 @@ nsend (fd, data, length, i_opt)
  else
    fprintf(stderr, "nsend[%d]: fd=%d\n", getpid(), fd);
 #endif
-#if 1
+#if 0
    for (i = 0; i < NESSUS_FD_MAX; i ++)
      if (connections[i].fd == fd && connections[i].transport > 0)
        {
@@ -1262,8 +1401,19 @@ nsend (fd, data, length, i_opt)
    block_socket(fd);		/* ??? */
    do
  {
+       struct timeval tv = {0,5};
+       fd_set wr;
+       int e;
+       
+       FD_ZERO(&wr);
+       FD_SET(fd, &wr);
+       
        errno = 0;
-   n = send(fd, data, length, i_opt);
+       e  = select(fd + 1, NULL, &wr, NULL, &tv);
+       if ( e > 0 )
+        n = os_send(fd, data, length, i_opt);
+       else if ( e < 0 && errno == EINTR ) continue;
+       else break;
      }
    while (n <= 0 && errno == EINTR);
    if (n < 0)
@@ -1277,6 +1427,7 @@ nrecv (fd, data, length, i_opt)
  void * data;
  int length, i_opt;
 {
+  int e;
 #if DEBUG_SSL > 8
    fprintf(stderr, "nrecv: fd=%d len=%d\n", fd, length);
 #endif
@@ -1287,11 +1438,19 @@ nrecv (fd, data, length, i_opt)
   else 
     return read_stream_connection(fd, data, length);
  }
- /* Trying OS's recv() */
- block_socket(fd);		/* ??? */
- return recv(fd, data, length, i_opt);
+ /* Trying OS's recv() 
+  *
+  * Do *NOT* use os_recv() here, as it will be blocking until the exact
+  * amount of requested data arrives
+  */
+ block_socket(fd);
+ do {
+	e = recv(fd, data, length, i_opt);
+ } while ( e < 0 && errno == EINTR );
+ return e;
 }
  
+
 ExtFunc int
 close_stream_connection(fd)
  int fd;
@@ -1386,7 +1545,8 @@ open_socket(struct sockaddr_in *paddr,
   fd_set		fd_w;
   struct timeval	to;
   int			soc, x;
-  int			opt, opt_sz;
+  int			opt;
+  unsigned int opt_sz;
 
   __port_closed = 0;
 
@@ -1444,6 +1604,7 @@ open_socket(struct sockaddr_in *paddr,
 #if debug_SSL > 2
       nessus_perror("connect");
 #endif
+again:
       switch (errno)
 	{
 	case EINPROGRESS:
@@ -1464,11 +1625,16 @@ open_socket(struct sockaddr_in *paddr,
 	    }
 	  else if (x < 0)
 	    {
+	      if ( errno == EINTR )
+               {
+ 		 errno = EAGAIN;
+		 goto again;
+	       }
 	      nessus_perror("select");
 	      socket_close(soc);
 	      return -1;
-}
-
+            }
+ 
 	  opt = 0; opt_sz = sizeof(opt);
 	  if (getsockopt(soc, SOL_SOCKET, SO_ERROR, &opt, &opt_sz) < 0)
 	    {
@@ -1503,10 +1669,6 @@ int open_sock_opt_hn(hostname, port, type, protocol, timeout)
  int timeout;
 {
  struct sockaddr_in addr;
- int soc;
- fd_set		fd_w;
- struct timeval	to;
- int		x;
   
   bzero((void*)&addr, sizeof(addr));
   addr.sin_family=AF_INET;
@@ -1531,13 +1693,33 @@ int open_sock_tcp_hn(hostname, port)
 }
 
 
+
 ExtFunc
 int open_sock_tcp(args, port, timeout)
  struct arglist * args; 
  unsigned int port;
  int timeout;
 {
-  return open_sock_option(args, port, SOCK_STREAM,IPPROTO_TCP, timeout);
+  char name[32];
+  int ret;
+  int type;
+  
+
+  /*
+   * If we timed out against this port in the past, there's no need
+   * to scan it again
+   */
+  snprintf(name, sizeof(name), "/tmp/ConnectTimeout/TCP/%d", port);
+  if ( plug_get_key ( args, name, &type ) ) 
+	return -1;
+
+
+  errno = 0;
+  ret  = open_sock_option(args, port, SOCK_STREAM,IPPROTO_TCP, timeout);
+  if ( ret < 0 && errno == ETIMEDOUT )
+    plug_set_key( args, name, ARG_INT, (void*)1); 
+
+  return ret;
 }
 
 
@@ -1645,7 +1827,15 @@ int open_sock_option(args, port, type, protocol, timeout)
   struct sockaddr_in addr;
   struct in_addr * t;
 
+#if 0
+  /* 
+   * MA 2004-08-15: IMHO, as this is often (always?) tested in the NASL scripts
+   * this should not be here. 
+   * If it has to be somewhere else, I'd rather put it in libnasl (and add
+   * a parameter to "force" the connection)
+   */
   if(host_get_port_state(args, port)<=0)return(-1);
+#endif
   bzero((void*)&addr, sizeof(addr));
   addr.sin_family=AF_INET;
   addr.sin_port=htons((unsigned short)port);
@@ -1710,12 +1900,15 @@ int recv_line(soc, buf, bufsiz)
    if(ret > 0 )
    {
    if (buf[ret - 1] != '\0')
-     buf[ ret ] = '\0';
+	{
+	if ( ret < bufsiz ) 
+		buf[ ret ] = '\0';
+	else 
+		buf [ bufsiz - 1 ] = '\0';
+	}
    }
    return ret;  
   }
-  
-  
   else
   {
    fd_set rd;
@@ -1725,6 +1918,7 @@ int recv_line(soc, buf, bufsiz)
    {
       int e;
  again:
+      errno = 0;
       FD_ZERO(&rd);
       FD_SET(soc, &rd);
       tv.tv_sec = 5;
@@ -1758,7 +1952,12 @@ int recv_line(soc, buf, bufsiz)
     if(ret > 0)
     {
     if(buf[ret - 1] != '\0')
-      buf[ret] = '\0';
+      {
+	if ( ret < bufsiz )
+	      	buf[ret] = '\0';
+	else
+		buf[bufsiz - 1] = '\0';
+      }
     }
   }
   return ret;
@@ -1916,4 +2115,219 @@ fd_is_stream(fd)
      int	fd;
 {
   return NESSUS_STREAM(fd);	/* Should probably be smarter... */
+}
+
+
+ExtFunc int 
+stream_get_buffer_sz ( int fd )
+{
+  nessus_connection	*p;
+  if (! NESSUS_STREAM(fd))
+    return -1;
+  p = &(connections[fd - NESSUS_FD_OFF]);
+  return p->bufsz;
+}
+
+
+ExtFunc int
+stream_set_buffer(fd, sz)
+     int	fd, sz;
+{
+  nessus_connection	*p;
+  char			*b;
+
+  if (! NESSUS_STREAM(fd))
+    return -1;
+
+  p = &(connections[fd - NESSUS_FD_OFF]);
+  if (sz < p->bufcnt)
+      return -1;		/* Do not want to lose data */
+
+  if (sz == 0)
+    {
+      efree(&p->buf);
+      p->bufsz = 0;
+      return 0;
+    }
+  else if (p->buf == 0)
+    {
+      p->buf = malloc(sz);
+      if (p->buf == NULL)
+	return -1;
+      p->bufsz = sz;
+      p->bufptr = 0;
+      p->bufcnt = 0;
+      return 0;
+    }
+  else
+    {
+      if (p->bufcnt > 0)
+	{
+	  memmove(p->buf, p->buf + p->bufptr, p->bufcnt);
+	  p->bufptr = 0;
+	}
+      b = realloc(p->buf, sz);
+      if (b == NULL)
+	return -1;
+      p->bufsz = sz;
+      return 0;
+    }
+  /*NOTREACHED*/
+}
+
+
+
+/*------------------------------------------------------------------*/
+
+
+int os_send(int soc, void * buf, int len, int opt )
+{
+ char * buf0 = (char*)buf;
+ int e, n;
+ for ( n = 0 ; n < len ; ) 
+ {
+  errno = 0;
+  e = send(soc, buf0 + n , len -  n, opt);
+  if ( e < 0 && errno == EINTR ) continue; 
+  else if ( e <= 0 ) return -1;
+  else n += e;
+ }
+ return n;
+}
+
+int os_recv(int soc, void * buf, int len, int opt )
+{
+ char * buf0 = (char*)buf;
+ int e, n;
+ for ( n = 0 ; n < len ; ) 
+ {
+  errno = 0;
+  e = recv(soc, buf0 + n , len -  n, opt);
+  if ( e < 0 && errno == EINTR ) continue; 
+  else if ( e <= 0 ) return -1;
+  else n += e;
+ }
+ return n;
+}
+
+
+/* 
+ * internal_send() / internal_recv() :
+ *
+ * When processes are passing messages to each other, the format is
+ * <length><msg>, with <length> being a long integer. The functions
+ * internal_send() and internal_recv() encapsulate and decapsulate
+ * the messages themselves. 
+ */
+int internal_send(int soc, char * data, int msg_type )
+{
+ int len;
+ int e;
+ int ack;
+ fd_set rd;
+ struct timeval tv;
+ 
+ if ( data == NULL )
+	data = "";
+
+ e = os_send(soc, &msg_type, sizeof(len), 0 );
+ if ( e < 0 ) return -1;
+
+ if ( (msg_type & INTERNAL_COMM_MSG_TYPE_CTRL) == 0 )
+  {
+ len = strlen(data);
+
+ e = os_send(soc, &len, sizeof(len), 0 );
+ if ( e < 0 ) return -1;
+ e = os_send(soc, data, len, 0 );
+ if ( e < 0 ) return -1;
+ }
+
+ e = os_recv(soc, &ack, sizeof(ack), 0);
+ if ( e < 0 ){
+	fprintf(stderr, "internal_send->os_recv(%d): %s\n",soc, strerror(errno));
+	return -1;
+	}
+
+ return 0;
+}
+
+
+int internal_recv(int soc, char ** data, int * data_sz, int * msg_type )
+{
+ int len = 0;
+ int e;
+ char * buf = *data;
+ int    sz  = *data_sz;
+ fd_set rd;
+ struct timeval tv;
+ int type;
+ int ack;
+ 
+ if ( buf == NULL )
+ {
+  sz = 65535;
+  buf = emalloc ( sz );
+ }
+
+   
+ e = os_recv(soc, &type, sizeof(type), 0 );
+ if ( e < 0 ) goto error;
+
+ if ( (type & INTERNAL_COMM_MSG_TYPE_CTRL) == 0 )
+ {
+ e = os_recv(soc, &len, sizeof(len), 0);
+ if ( e < 0 ) goto error;
+ 
+ if ( len >= sz )
+ {
+  sz = len + 1;
+  buf = erealloc( buf, sz );
+ }
+
+ if ( len > 0 )
+ {
+ e = os_recv(soc, buf,len, 0);
+ if ( e < 0 ) goto error;
+ buf[len] = '\0';
+ }
+
+ if ( data != NULL )
+ 	*data = buf;
+ if ( data_sz != NULL )
+ 	*data_sz = sz;
+ }
+ 
+ *msg_type = type;
+ ack = INTERNAL_COMM_MSG_TYPE_CTRL | INTERNAL_COMM_CTRL_ACK;
+ e = os_send(soc, &ack, sizeof(ack), 0);
+ if ( e < 0 ) goto error;
+
+ 
+ return len;
+error:
+ efree(&buf);
+ *data = NULL;
+ *data_sz = 0;
+ return -1;
+}
+
+
+ExtFunc int stream_pending(int fd)
+{
+  nessus_connection * fp;
+ if ( ! NESSUS_STREAM(fd) )
+ {
+  errno = EINVAL;
+  return -1;
+ }
+ fp = &(connections[fd - NESSUS_FD_OFF]);
+
+ if ( fp->bufcnt )
+        return fp->bufcnt;
+#ifdef HAVE_SSL
+ else if ( fp->transport != NESSUS_ENCAPS_IP )
+        return SSL_pending(fp->ssl);
+#endif
+ return 0;
 }

@@ -36,7 +36,7 @@
  * From: @(#)utility.c	5.8 (Berkeley) 3/22/91
  */
 char util_rcsid[] = 
-  "$Id$";
+  "$Id: utility.c,v 1.2 2003/07/21 03:11:25 davidm Exp $";
 #endif
 
 #define PRINTOPTIONS

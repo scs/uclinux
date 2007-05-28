@@ -4,7 +4,7 @@
 
 #define MAX_PREFS 32
 
-#define MAGIC 0x43
+#define MAGIC 0x45
 
 struct pprefs {
 	char type[9];
@@ -16,7 +16,6 @@ struct pprefs {
 struct plugin {
 	char magic;
  	int id;
-	char md5		[33];
  	char path	  	[256];
 	int timeout;
 	int category;
@@ -27,10 +26,10 @@ struct plugin {
 	char copyright   	[128];	
 	char family	 	[32];	
 	
-	char cve_id	 	[128];
-	char bid	 	[64];
+	char cve_id	 	[1404];
+	char bid	 	[500];
 	
-	char xref	 	[512];
+	char xref	 	[1024];
 	
 	char dependencies	[512];
 	char required_keys	[128];

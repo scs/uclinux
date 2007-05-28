@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10040);
- script_version ("$Revision: 1.21 $");
- script_cve_id("CVE-2002-0128");
  script_bugtraq_id(3885);
+ script_version ("$Revision: 1.26 $");
+ script_cve_id("CVE-2002-0128");
  
  
  name["english"] = "cgitest.exe buffer overrun";
@@ -23,7 +23,7 @@ web server (root or nobody).
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Il y a un dépassement de buffer
@@ -43,7 +43,7 @@ Facteur de risque : Sérieux";
  
  script_summary(english:summary["english"], francais:summary["francais"]);
  
- script_category(ACT_MIXED_ATTACK); # mixed
+ script_category(ACT_DENIAL);
  
  
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
@@ -53,6 +53,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -63,8 +64,8 @@ Facteur de risque : Sérieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 flag = 0;
@@ -78,29 +79,6 @@ foreach dir (cgi_dirs())
   directory = dir;
   break;
  } 
-}
- 
-
-if(safe_checks())
-{
-  if(flag)
-  {
-rep = "
-There may be a buffer overrun in
-the 'cgitest.exe' CGI program, which will allow anyone to
-execute arbitrary commands with the same privileges as the
-web server (root or nobody).
-
-*** Nessus reports this vulnerability using only
-*** information that was gathered. Use caution
-*** when testing without safe checks enabled.
-
-Solution : remove it from " + directory + "
-
-Risk factor : Serious";
- security_hole(port:port, data:rep);
- exit(0);
- }
 }
 
 if(!flag)exit(0);

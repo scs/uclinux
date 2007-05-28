@@ -53,12 +53,16 @@
 
 #define GENERATOR_SPP_BO            105
 #define     BO_TRAFFIC_DETECT           1
+#define     BO_CLIENT_TRAFFIC_DETECT    2
+#define     BO_SERVER_TRAFFIC_DETECT    3
+#define     BO_SNORT_BUFFER_ATTACK      4
 
 #define GENERATOR_SPP_RPC_DECODE    106
 #define     RPC_FRAG_TRAFFIC                1
 #define     RPC_MULTIPLE_RECORD             2
 #define     RPC_LARGE_FRAGSIZE              3
 #define     RPC_INCOMPLETE_SEGMENT          4
+#define     RPC_ZERO_LENGTH_FRAGMENT        5
 
 #define GENERATOR_SPP_STREAM2       107
 #define GENERATOR_SPP_STREAM3       108
@@ -91,6 +95,11 @@
 #define     STREAM4_MULTIPLE_ACKED              18
 #define     STREAM4_EMERGENCY                   19
 #define     STREAM4_SUSPEND                     20
+#define     STREAM4_ZERO_TIMESTAMP              21
+#define     STREAM4_OVERLAP_LIMIT               22
+#define     STREAM4_TCP_NO_ACK                  23
+#define     STREAM4_EVASIVE_FIN                 24
+#define     STREAM4_SYN_ON_ESTABLISHED          25
 
 #define GENERATOR_SPP_ARPSPOOF      112
 #define     ARPSPOOF_UNICAST_ARP_REQUEST         1
@@ -127,6 +136,7 @@
 #define     DECODE_IPV4_DGRAM_LT_IPHDR            3
 #define     DECODE_IPV4OPT_BADLEN                 4
 #define     DECODE_IPV4OPT_TRUNCATED              5
+#define     DECODE_IPV4_DGRAM_GT_IPHDR            6
 
 #define     DECODE_TCP_DGRAM_LT_TCPHDR            45
 #define     DECODE_TCP_INVALID_OFFSET             46
@@ -141,6 +151,7 @@
 #define     DECODE_UDP_DGRAM_LT_UDPHDR            95
 #define     DECODE_UDP_DGRAM_INVALID_LENGTH       96
 #define     DECODE_UDP_DGRAM_SHORT_PACKET         97
+#define     DECODE_UDP_DGRAM_LONG_PACKET          98
 
 #define     DECODE_ICMP_DGRAM_LT_ICMPHDR          105
 #define     DECODE_ICMP_DGRAM_LT_TIMESTAMPHDR     106
@@ -163,6 +174,21 @@
 #define     DECODE_BAD_TR_ETHLLC                  141
 #define     DECODE_BAD_TR_MR_LEN                  142
 #define     DECODE_BAD_TRHMR                      143
+
+#define     DECODE_BAD_TRAFFIC_LOOPBACK           150 
+#define     DECODE_BAD_TRAFFIC_SAME_SRCDST        151 
+
+#ifdef GRE
+#define     DECODE_GRE_DGRAM_LT_GREHDR            160
+#define     DECODE_GRE_MULTIPLE_ENCAPSULATION     161
+#endif
+
+#define     DECODE_ICMP_ORIG_IP_TRUNCATED         250
+#define     DECODE_ICMP_ORIG_IP_NOT_IPV4          251
+#define     DECODE_ICMP_ORIG_DGRAM_LT_ORIG_IP     252
+#define     DECODE_ICMP_ORIG_PAYLOAD_LT_64        253
+#define     DECODE_ICMP_ORIG_PAYLOAD_GT_576       254
+#define     DECODE_ICMP_ORIG_IP_WITH_FRAGOFFSET   255
 
 #define GENERATOR_SPP_SCAN2         117
 #define     SCAN_TYPE                             1
@@ -241,7 +267,62 @@
 
 #define     PSNG_OPEN_PORT                         27
 
+#define GENERATOR_SPP_FRAG3                       123
+#define     FRAG3_IPOPTIONS                         1
+#define     FRAG3_TEARDROP                          2
+#define     FRAG3_SHORT_FRAG                        3
+#define     FRAG3_ANOMALY_OVERSIZE                  4
+#define     FRAG3_ANOMALY_ZERO                      5
+#define     FRAG3_ANOMALY_BADSIZE_SM                6
+#define     FRAG3_ANOMALY_BADSIZE_LG                7
+#define     FRAG3_ANOMALY_OVLP                      8
+
 #define GENERATOR_SMTP                             124
+#define     SMTP_COMMAND_OVERFLOW                  1
+#define     SMTP_DATA_HDR_OVERFLOW                 2
+#define     SMTP_RESPONSE_OVERFLOW                 3
+#define     SMTP_SPECIFIC_CMD_OVERFLOW             4
+#define     SMTP_UNKNOWN_CMD                       5
+#define     SMTP_ILLEGAL_CMD                       6
+    
+/*
+**  FTPTelnet Generator IDs
+**
+**  IMPORTANT::
+**    Whenever events are added to the internal FTP or Telnet
+**    event queues, you must also add the event here.  The
+**    trick is that whatever the number is in FTPTelnet,
+**    it must be +1 when you define it here.
+*/
+#define GENERATOR_SPP_FTPP_FTP                     125
+#define FTPP_FTP_TELNET_CMD                   1
+#define FTPP_FTP_INVALID_CMD                  2
+#define FTPP_FTP_PARAMETER_LENGTH_OVERFLOW    3
+#define FTPP_FTP_MALFORMED_PARAMETER          4
+#define FTPP_FTP_PARAMETER_STR_FORMAT         5
+#define FTPP_FTP_RESPONSE_LENGTH_OVERFLOW     6
+#define FTPP_FTP_ENCRYPTED                    7
+#define FTPP_FTP_BOUNCE                       8
+#define GENERATOR_SPP_FTPP_TELNET                  126
+#define FTPP_TELNET_AYT_OVERFLOW              1
+#define FTPP_TELNET_ENCRYPTED                 2
+
+#define GENERATOR_SPP_ISAKMP                 127
+#define GENERATOR_SPP_SSH                128
+
+#define GENERATOR_SPP_STREAM5                     129
+#define     STREAM5_SYN_ON_EST                      1
+#define     STREAM5_DATA_ON_SYN                     2
+#define     STREAM5_DATA_ON_CLOSED                  3
+#define     STREAM5_BAD_TIMESTAMP                   4
+#define     STREAM5_BAD_SEGMENT                     5
+#define     STREAM5_WINDOW_TOO_LARGE                6
+#define     STREAM5_EXCESSIVE_TCP_OVERLAPS          7
+
+#define GENERATOR_DCERPC                          130
+#define     DCERPC_MEMORY_OVERFLOW                  1
+
+#define GENERATOR_DNS                             131
 
 /*  This is where all the alert messages will be archived for each
     internal alerts */
@@ -261,6 +342,9 @@
 #define ASN1_DATUM_BAD_LENGTH_STR "(spp_asn1) ASN.1 Attack: Datum length > packet length"
 
 #define BO_TRAFFIC_DETECT_STR "(spo_bo) Back Orifice Traffic detected"
+#define BO_CLIENT_TRAFFIC_DETECT_STR "(spo_bo) Back Orifice Client Traffic detected"
+#define BO_SERVER_TRAFFIC_DETECT_STR "(spo_bo) Back Orifice Server Traffic detected"
+#define BO_SNORT_BUFFER_ATTACK_STR "(spo_bo) Back Orifice Snort buffer attack"
 
 #define FNORD_NOPSLED_IA32_STR "(spp_fnord) Possible Mutated IA32 NOP Sled detected"
 #define FNORD_NOPSLED_HPPA_STR "(spp_fnord) Possible Mutated HPPA NOP Sled detected"
@@ -276,14 +360,15 @@
 #define FRAG2_EMERGENCY_STR "(spp_frag2) Shifting to Emergency Session Mode"
 #define FRAG2_SUSPEND_STR "(spp_frag2) Shifting to Suspend Mode"
 
-
-
+/*  spp_http_decode strings */
 #define HTTP_DECODE_LARGE_METHOD_STR "(spp_http_decode) A large HTTP method was received"
 #define HTTP_DECODE_MISSING_URI_STR "(spp_http_decode) HTTP request without URI"
 #define HTTP_DECODE_DOUBLE_ENC_STR  "(spp_http_decode) Double Hex Encoding Received"
 #define HTTP_DECODE_ILLEGAL_HEX_STR "(spp_http_decode) Illegal URL hex encoding"
 #define HTTP_DECODE_OVERLONG_CHAR_STR "(spp_http_decode) Overlong Unicode character received"
 
+
+/*  spp_stream4 strings */
 #define STREAM4_MULTIPLE_ACKED_STR "(spp_stream4) Multiple Acked Packets (possible fragroute)"
 #define STREAM4_DATA_ON_SYN_STR  "(spp_stream4) DATA ON SYN detection"
 #define STREAM4_STEALTH_NMAP_FINGERPRINT_STR "(spp_stream4) NMAP FINGERPRINT (stateful) detection"
@@ -306,13 +391,38 @@
 "(spp_stream4) TCP TOO FAST RETRANSMISSION WITH DIFFERENT DATA SIZE (possible fragroute) detection"
 #define STREAM4_EMERGENCY_STR "(spp_stream4) Shifting to Emergency Session Mode"
 #define STREAM4_SUSPEND_STR "(spp_stream4) Shifting to Suspend Mode"
+#define STREAM4_ZERO_TIMESTAMP_STR "(spp_stream4) TCP Option Timestamp value of 0"
+#define STREAM4_OVERLAP_LIMIT_STR "(spp_stream4) TCP stream too many overlapping packets"
+#define STREAM4_TCP_NO_ACK_STR "(spp_stream4) Packet in Established TCP stream missing ACK"
+#define STREAM4_EVASIVE_FIN_STR "(spp_stream4) possible EVASIVE FIN detection"
+#define STREAM4_SYN_ON_ESTABLISHED_STR "(spp_stream4) SYN on established session detection, resetting reassembly queue"
 
+/*   FRAG3 strings */
+#define FRAG3_IPOPTIONS_STR "(spp_frag3) Inconsistent IP Options on Fragmented Packets"
+#define FRAG3_TEARDROP_STR "(spp_frag3) Teardrop attack"
+#define FRAG3_SHORT_FRAG_STR "(spp_frag3) Short fragment, possible DoS attempt"
+#define FRAG3_ANOM_OVERSIZE_STR "(spp_frag3) Fragment packet ends after defragmented packet"
+#define FRAG3_ANOM_ZERO_STR "(spp_frag3) Zero-byte fragment packet"
+#define FRAG3_ANOM_BADSIZE_SM_STR "(spp_frag3) Bad fragment size, packet size is negative"
+#define FRAG3_ANOM_BADSIZE_LG_STR "(spp_frag3) Bad fragment size, packet size is greater than 65536"
+#define FRAG3_ANOM_OVLP_STR "(spp_frag3) Fragmentation overlap"
 
+/*   Stream5 strings */
+#define     STREAM5_SYN_ON_EST_STR "Syn on established session"
+#define     STREAM5_DATA_ON_SYN_STR "Data on SYN packet"
+#define     STREAM5_DATA_ON_CLOSED_STR "Data sent on stream not accepting data"
+#define     STREAM5_BAD_TIMESTAMP_STR "TCP Timestamp is outside of PAWs window"
+#define     STREAM5_BAD_SEGMENT_STR "Bad segment, adjusted size <= 0"
+#define     STREAM5_WINDOW_TOO_LARGE_STR "Window size (after scaling) larger than policy allows"
+#define     STREAM5_EXCESSIVE_TCP_OVERLAPS_STR "Limit on number of overlapping TCP packets reached"
+
+/*   Snort decoder strings */
 #define DECODE_NOT_IPV4_DGRAM_STR "(snort_decoder) WARNING: Not IPv4 datagram!"
 #define DECODE_IPV4_INVALID_HEADER_LEN_STR "(snort_decoder) WARNING: hlen < IP_HEADER_LEN!"
 #define DECODE_IPV4_DGRAM_LT_IPHDR_STR "(snort_decoder) WARNING: IP dgm len < IP Hdr len!"
 #define DECODE_IPV4OPT_BADLEN_STR      "(snort_decoder): Ipv4 Options found with bad lengths"
 #define DECODE_IPV4OPT_TRUNCATED_STR   "(snort_decoder): Truncated Ipv4 Options"
+#define DECODE_IPV4_DGRAM_GT_IPHDR_STR "(snort_decoder) WARNING: IP dgm len > IP Hdr len!"
 
 #define DECODE_TCP_DGRAM_LT_TCPHDR_STR "(snort_decoder) TCP packet len is smaller than 20 bytes!"
 #define DECODE_TCP_INVALID_OFFSET_STR "(snort_decoder) WARNING: TCP Data Offset is less than 5!"
@@ -329,6 +439,7 @@
 #define DECODE_UDP_DGRAM_LT_UDPHDR_STR "(snort_decoder) WARNING: Truncated UDP Header!"
 #define DECODE_UDP_DGRAM_INVALID_LENGTH_STR "(snort_decoder): Invalid UDP header, length field < 8"
 #define DECODE_UDP_DGRAM_SHORT_PACKET_STR "(snort_decoder): Short UDP packet, length field > payload length"
+#define DECODE_UDP_DGRAM_LONG_PACKET_STR "(snort_decoder): Long UDP packet, length field < payload length"
 
 #define DECODE_ICMP_DGRAM_LT_ICMPHDR_STR "(snort_decoder) WARNING: ICMP Header Truncated!"
 #define DECODE_ICMP_DGRAM_LT_TIMESTAMPHDR_STR "(snort_decoder) WARNING: ICMP Timestamp Header Truncated!"
@@ -351,14 +462,34 @@
 #define DECODE_BAD_TRHMR_STR "(snort_decoder) WARNING: Bad Token Ring MR Header!"
 
 
+#define     DECODE_BAD_TRAFFIC_LOOPBACK_STR     "(snort decoder) Bad Traffic Loopback IP"      
+#define     DECODE_BAD_TRAFFIC_SAME_SRCDST_STR  "(snort decoder) Bad Traffic Same Src/Dst IP"      
+
+#ifdef GRE
+#define DECODE_GRE_DGRAM_LT_GREHDR_STR "(snort decoder) WARNING: GRE header length > payload length"
+#define DECODE_GRE_MULTIPLE_ENCAPSULATION_STR "(snort decoder) WARNING: Multiple GRE encapsulations in packet"
+#endif
+
+#define DECODE_ICMP_ORIG_IP_TRUNCATED_STR "(snort_decoder) WARNING: ICMP Original IP Header Truncated!"
+#define DECODE_ICMP_ORIG_IP_NOT_IPV4_STR "(snort_decoder) WARNING: ICMP Original IP Header Not IPv4!"
+#define DECODE_ICMP_ORIG_DGRAM_LT_ORIG_IP_STR "(snort_decoder) WARNING: ICMP Original Datagram Length < Original IP Header Length!"
+#define DECODE_ICMP_ORIG_PAYLOAD_LT_64_STR "(snort_decoder) WARNING: ICMP Original IP Payload < 64 bits!"
+#define DECODE_ICMP_ORIG_PAYLOAD_GT_576_STR "(snort_decoder) WARNING: ICMP Origianl IP Payload > 576 bytes!"
+#define DECODE_ICMP_ORIG_IP_WITH_FRAGOFFSET_STR "(snort_decoder) WARNING: ICMP Original IP Fragmented and Offset Not 0!"
+
+/*  Portscan2 strings */
 #define SCAN2_PREFIX_STR "(spp_portscan2) Portscan detected from "
 
+/*  spp_conversation strings */
 #define CONV_BAD_IP_PROTOCOL_STR "(spp_conversation) Bad IP protocol!"
 
+/*  RPC decode preprocessor strings */
 #define RPC_FRAG_TRAFFIC_STR "(spp_rpc_decode) Fragmented RPC Records"
 #define RPC_MULTIPLE_RECORD_STR "(spp_rpc_decode) Multiple RPC Records"
 #define RPC_LARGE_FRAGSIZE_STR  "(spp_rpc_decode) Large RPC Record Fragment"
 #define RPC_INCOMPLETE_SEGMENT_STR "(spp_rpc_decode) Incomplete RPC segment"
+#define RPC_ZERO_LENGTH_FRAGMENT_STR "(spp_rpc_decode) Zero-length RPC Fragment"
+
 
 #define PSNG_TCP_PORTSCAN_STR "(portscan) TCP Portscan"
 #define PSNG_TCP_DECOY_PORTSCAN_STR "(portscan) TCP Decoy Portscan"

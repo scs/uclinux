@@ -2,7 +2,7 @@
  * lib/ppp_ac.c       This file contains the activation for the
  *              PPP line disciplines, called from activate_ld().
  *
- * Version:     $Id$
+ * Version:     $Id: ppp_ac.c,v 1.3 1998/11/15 20:11:50 freitag Exp $
  *
  * Author:      Bernd 'eckes' Eckenfels
  *

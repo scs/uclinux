@@ -22,7 +22,7 @@
  * From: @(#)authenc.c	5.1 (Berkeley) 3/1/91
  */
 char authenc_rcsid[] =
-  "$Id$";
+  "$Id: authenc.c,v 1.2 2003/07/21 03:11:25 davidm Exp $";
 #endif
 
 #if	defined(ENCRYPT) || defined(AUTHENTICATE)

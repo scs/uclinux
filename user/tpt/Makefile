@@ -1,4 +1,4 @@
-# $Header$
+# $Header: /cvs/sw/new-wave/user/tpt/Makefile,v 1.2 2002/05/02 14:04:20 gerg Exp $
 
 CFLAGS+=-Wall -Wshadow
 

@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11685);
  
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.4 $");
  name["english"] = "mod_gzip running";
  script_name(english:name["english"]);
 
@@ -17,7 +17,7 @@ obtained by requesting /mod_gzip_status.
 If you do not use this module, disable it completely.
 
 Solution : Change the directive 'mod_gzip_command_version' to something secret
-Risk Factor : Low";
+Risk factor : Low";
 
  script_description(english:desc["english"]);
 
@@ -29,7 +29,7 @@ Risk Factor : Low";
 
 
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "httpver.nasl", "no404.nasl", "webmirror.nasl");
  script_require_ports("Services/www", 80);
@@ -47,8 +47,8 @@ include("http_keepalive.inc");
 
 
  
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

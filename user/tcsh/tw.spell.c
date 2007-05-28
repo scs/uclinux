@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tw.spell.c,v 3.14 1996/04/26 19:23:27 christos Exp $ */
 /*
  * tw.spell.c: Spell check words
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tw.spell.c,v 3.14 1996/04/26 19:23:27 christos Exp $")
 
 #include "tw.h"
 

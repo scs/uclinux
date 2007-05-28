@@ -1,5 +1,5 @@
 dnl
-dnl  $Id$
+dnl  $Id: configure.in,v 1.7 2002/06/15 10:25:04 psavola Exp $
 dnl
 dnl   Authors:
 dnl    Lars Fenneberg		<lf@elemental.net>	 
@@ -13,7 +13,7 @@ dnl   may request it from <lutchann@litech.org>.
 dnl
 dnl
 
-AC_REVISION ($Id$)
+AC_REVISION ($Id: configure.in,v 1.7 2002/06/15 10:25:04 psavola Exp $)
 AC_INIT(radvd.c)
 
 AC_CANONICAL_SYSTEM

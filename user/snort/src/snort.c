@@ -43,6 +43,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#ifdef TIMESTATS
+#include <signal.h> /* added for new hourly stats function in util.c */
+#include <time.h>   /* added for new time stats function in util.c */
+#endif
 #ifdef HAVE_STRINGS_H
 #include <strings.h>
 #endif
@@ -54,7 +58,14 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #endif  /* !WIN32 */
+#ifdef HAVE_GETOPT_LONG
+//#define _GNU_SOURCE
+/* A GPL copy of getopt & getopt_long src code is now in sfutil */
+#undef HAVE_GETOPT_LONG
+#endif
+#include <getopt.h>
 #include <timersub.h>
+#include <setjmp.h>
 
 #include "snort.h"
 #include "rules.h"
@@ -73,13 +84,68 @@
 #include "packet_time.h"
 #include "src/preprocessors/flow/flow_print.h"
 #include "src/detection-plugins/sp_flowbits.h"
+#include "src/preprocessors/spp_perfmonitor.h"
+#include "mempool.h"
+#include "sfutil/bitop_funcs.h"
+
+#ifdef HAVE_LIBPRELUDE
+ #include "src/output-plugins/spo_alert_prelude.h"
+#endif
+
 #include "event_queue.h"
 #include "asn1.h"
 #include "inline.h"
+#include "mpse.h"
+#include "generators.h"
+
+#ifdef DYNAMIC_PLUGIN
+#include "dynamic-plugins/sf_dynamic_engine.h"
+#include "dynamic-plugins/sf_dynamic_detection.h"
+#define PROFILE_PREPROCS_NOREDEF
+#include "dynamic-plugins/sf_dynamic_preprocessor.h"
+#include "dynamic-plugins/sp_preprocopt.h"
+#endif
+
+/* Undefine the one from sf_dynamic_preprocessor.h */
+#include "profiler.h"
+#ifdef PERF_PROFILING
+extern PreprocStats detectPerfStats, decodePerfStats,
+       totalPerfStats, eventqPerfStats, rulePerfStats, mpsePerfStats;
+#endif
+
+extern char *optarg;                /* for getopt */
+extern int   optind,opterr,optopt;  /* for getopt */
+
+extern char *file_name;        /* parser.c - current rules file being processed */
+extern int file_line;          /* parser.c - current line being processed in the rules */
+
+/* set/cleared in otnx_match */
+OptTreeNode * current_otn=0;
+
+/*
+ * used to identifiy code in use when segv signal happened
+ * SIGLOC_xxxx
+ */
+enum { SIGLOC_PARSE_RULES_FILE=1, SIGLOC_PCAP_LOOP };
+int signal_location=0;
+
+
+#ifndef DLT_LANE8023
+/*
+ * Old OPEN BSD Log format is 17.
+ * Define DLT_OLDPFLOG unless DLT_LANE8023 (Suse 6.3) is already
+ * defined in bpf.h.
+ */
+#define DLT_OLDPFLOG 17
+#endif
 
 /*  G L O B A L S  ************************************************************/
 extern OutputFuncNode *AlertList;
 extern OutputFuncNode *LogList;
+
+#ifdef TIMESTATS
+long start_time;    /* tracks how many seconds snort actually ran */
+#endif
 
 extern int errno;
 /*extern char *malloc_options;*/
@@ -98,7 +164,10 @@ struct passwd *pw;
 struct group *gr;
 char *pcap_cmd;         /* the BPF command string */
 char *pktidx;           /* index ptr for the current packet */
-pcap_t *pd;             /* pcap handle */
+pcap_t *pd = NULL;      /* pcap handle */
+
+int g_drop_pkt;        /* inline drop pkt flag */ 
+int g_pcap_test;       /* pcap test mode */
 
 /* deprecated? */
 FILE *alert;            /* alert file ptr */
@@ -111,14 +180,15 @@ struct pcap_pkthdr *g_pkthdr;   /* packet header ptr */
 u_char *g_pkt;          /* ptr to the packet data */
 u_long g_caplen;        /* length of the current packet */
 char *protocol_names[256];
-u_int snaplen;
+u_int snaplen = SNAPLEN;
 
 
 grinder_t grinder;
 runtime_config snort_runtime;   /* run-time configuration struct */
 
+
 /*
- * you may need to ajust this on the systems which don't have standard
+ * you may need to adjust this on the systems which don't have standard
  * paths defined
  */
 #ifndef _PATH_VARRUN
@@ -132,13 +202,123 @@ static char *ConfigFileSearch();
 static int ProcessAlertCommandLine();
 static int ProcessLogCommandLine();
 static void Restart();
+#ifdef DYNAMIC_PLUGIN
+static void LoadDynamicPlugins();
+#endif
+static void PrintVersion();
+#ifdef INLINE_FAILOPEN
+void *InlineFailOpenThread(void *arg);
+#endif
 
 /* Signal handler declarations ************************************************/
 static void SigTermHandler(int signal);
 static void SigIntHandler(int signal);
 static void SigQuitHandler(int signal);
 static void SigHupHandler(int signal);
-static void SigUsr1Handler(int signal);
+static void SigUsrHandler(int signal);
+#ifdef CATCH_SEGV
+static void SigSegvHandler(int signal);
+#else
+#ifndef WIN32
+#include <sys/resource.h>
+#endif
+#endif
+
+/*
+ *  Check for SIGHUP and invoke restart to
+ *  cleanup
+ */
+int hup_check()
+{
+    int quiet_flag = pv.quiet_flag;
+
+    if (pv.usr_signal == SIGHUP)
+    {
+        pv.quiet_flag = 0;
+        LogMessage("*** Caught Hup-Signal\n");
+        Restart();
+        pv.quiet_flag = quiet_flag;
+        pv.usr_signal = 0;
+        pv.restart_flag = 1;
+        return 1;
+    }
+
+    return 0;
+}
+
+/*
+ *  Check for signal activity 
+ */
+static int exit_logged = 0;
+int sig_check()
+{
+        int quiet_flag = pv.quiet_flag;
+        pv.quiet_flag = 0;
+
+        switch (pv.exit_signal)
+        {
+#ifndef DEBUG
+            case SIGSEGV:
+            case SIGFPE:
+                /* Try to exit cleanly -- if this fails and we get
+                 * another signal, we'll exit immediately.  */
+                CleanExit(1);
+                return 2;
+                break;
+#endif
+            case SIGTERM:
+                if (!exit_logged)
+                {
+                    LogMessage("*** Caught Term-Signal\n");
+                    exit_logged = 1;
+                }
+                CleanExit(0);
+                return 1;
+                break;
+            case SIGINT:
+                if (!exit_logged)
+                {
+                    LogMessage("*** Caught Int-Signal\n");
+                    exit_logged = 1;
+                }
+                CleanExit(0);
+                return 1;
+                break;
+            case SIGQUIT:
+                if (!exit_logged)
+                {
+                    LogMessage("*** Caught Quit-Signal\n");
+                    exit_logged = 1;
+                }
+                CleanExit(0);
+                return 1;
+                break;
+            case 0:
+            default:
+                break;
+        }
+        pv.exit_signal = 0;
+
+        switch (pv.usr_signal)
+        {
+            case SIGUSR1:
+                LogMessage("*** Caught Usr-Signal\n");
+                DropStats(0);
+                break;
+            case SIGNAL_SNORT_ROTATE_STATS:
+                LogMessage("*** Caught Usr-Signal: 'Rotate Stats'\n");
+                pv.rotate_perf_file = 1;
+                break;
+            case SIGHUP:
+                pv.quiet_flag = quiet_flag;
+                return 1;
+                break;
+        }
+        pv.quiet_flag = quiet_flag;
+        pv.usr_signal = 0;
+
+        return 0;
+}
 
 /*
  *
@@ -194,14 +374,18 @@ int main(int argc, char* argv[])
 int SnortMain(int argc, char *argv[])
 {
 #ifndef WIN32
-    #if defined(LINUX) || defined(FREEBSD) || defined(OPENBSD) || defined(SOLARIS)
-        sigset_t set;
+#if defined(LINUX) || defined(FREEBSD) || defined(OPENBSD) || defined(SOLARIS) || defined(BSD) || defined(MACOS)
+    sigset_t set;
 
-        sigemptyset(&set);
-        sigprocmask(SIG_SETMASK, &set, NULL);
-    #else
-        sigsetmask(0);
-    #endif
+    sigemptyset(&set);
+#if defined(HAVE_LIBPRELUDE) || defined(INLINE_FAILOPEN)
+    pthread_sigmask(SIG_SETMASK, &set, NULL);
+#else
+    sigprocmask(SIG_SETMASK, &set, NULL);
+#endif /* HAVE_LIBPRELUDE || INLINE_FAILOPEN */
+#else
+    sigsetmask(0);
+#endif /* LINUX, BSD, SOLARIS */
 #endif  /* !WIN32 */
 
     /*    malloc_options = "AX";*/
@@ -215,7 +399,23 @@ int SnortMain(int argc, char *argv[])
     signal(SIGINT, SigIntHandler);      if(errno!=0) errno=0;
     signal(SIGQUIT, SigQuitHandler);    if(errno!=0) errno=0;
     signal(SIGHUP, SigHupHandler);      if(errno!=0) errno=0;
-    signal(SIGUSR1, SigUsr1Handler);    if(errno!=0) errno=0;
+    signal(SIGUSR1, SigUsrHandler);    if(errno!=0) errno=0;
+   
+    signal(SIGNAL_SNORT_ROTATE_STATS, SigUsrHandler);
+                                        if(errno!=0) errno=0;
+#ifdef CATCH_SEGV
+    signal(SIGSEGV,SigSegvHandler);  if(errno!=0) errno=0;
+    signal(SIGFPE, SigSegvHandler);  if(errno!=0) errno=0;
+#else
+#ifdef NOCOREFILE
+    {
+        struct rlimit rlim;
+        getrlimit(RLIMIT_CORE, &rlim);
+        rlim.rlim_max = 0;
+        setrlimit(RLIMIT_CORE, &rlim);
+    }
+#endif
+#endif
 
     /*
      * set a global ptr to the program name so other functions can tell what
@@ -264,17 +464,33 @@ int SnortMain(int argc, char *argv[])
      */
     pv.quiet_flag = 0;
 
+    /* initialize "rotate performance stats file" flag */
+    pv.rotate_perf_file = 0;
+
     InitDecoderFlags();
     
     /* turn on checksum verification by default */
     pv.checksums_mode = DO_IP_CHECKSUMS | DO_TCP_CHECKSUMS |
                         DO_UDP_CHECKSUMS | DO_ICMP_CHECKSUMS;
 
+    /* Default event log ID of instance 0 on CPU 0 */
+    pv.event_log_id = 0x0000;
+
+    /* Default limit on tagged packets */
+    pv.tagged_packet_limit = 256;
+
+    pv.default_rule_state = RULE_STATE_ENABLED;
+
 #if defined(WIN32) && defined(ENABLE_WIN32_SERVICE)
     /* initialize flags which control the Win32 service */
     pv.terminate_service_flag = 0;
     pv.pause_service_flag = 0;
 #endif  /* WIN32 && ENABLE_WIN32_SERVICE */
+
+#ifdef DYNAMIC_PLUGIN
+    /* Initialize storage space for preprocessor defined rule options */
+    PreprocessorRuleOptionsInit();
+#endif
 
     /* chew up the command line */
     ParseCmdLine(argc, argv);
@@ -284,7 +500,37 @@ int SnortMain(int argc, char *argv[])
         signal(SIGHUP, SigCantHupHandler);
     
     /* determine what run mode we are going to be in */
-    if(pv.config_file)
+    if(pv.test_mode_flag)
+    {
+        if(!pv.quiet_flag)
+        {
+            if (pv.config_file)
+                LogMessage("Running in Test mode with config file: %s\n",
+                    pv.config_file);
+            else if((pv.config_file = ConfigFileSearch()))
+                LogMessage("Running in Test mode with inferred config file: %s\n",
+                    pv.config_file);
+        }
+    }
+
+    if(pv.print_version)
+    {
+        /* Do nothing, just fall through */
+        runMode = MODE_VERSION;
+    }
+#ifdef DYNAMIC_PLUGIN
+    else if(pv.dump_dynamic_rules_flag)
+    {
+        runMode = MODE_RULE_DUMP;
+        if(!pv.quiet_flag)
+        {
+            if (pv.config_file)
+                LogMessage("Running in Rule Dump mode with config file: %s\n",
+                    pv.config_file);
+        }
+    }
+#endif
+    else if(pv.config_file)
     {
         runMode = MODE_IDS;
         if(!pv.quiet_flag)
@@ -317,7 +563,8 @@ int SnortMain(int argc, char *argv[])
         PrintError("\n\nUh, you need to tell me to do something...\n\n");
         exit(1);
     }
-        
+     
+    
     /* set the default logging dir if not set yet */
     /* XXX should probably be done after reading config files */
     if(!pv.log_dir)
@@ -329,6 +576,11 @@ int SnortMain(int argc, char *argv[])
     /*
     **  Validate the log directory for logging packets
     */
+    /* 
+     * MFR - 16/9/05 Changing to call CheckLogDir only in logger mode so
+     * we don't bail by accident if there's a logdir config option in the
+     * snort.conf file
+     */
     if(runMode == MODE_PACKET_LOG)
     {
         CheckLogDir();
@@ -342,7 +594,8 @@ int SnortMain(int argc, char *argv[])
     /* if we are in packet log mode, make sure we have a logging mode set */
     if(runMode == MODE_PACKET_LOG && !pv.log_mode)
     {
-        pv.log_mode = LOG_ASCII;
+        /* MFR - 16/9/05 Changing default logging mode to PCAP */
+        pv.log_mode = LOG_PCAP;
     }
     
     /*
@@ -362,26 +615,12 @@ int SnortMain(int argc, char *argv[])
 
     if (InlineMode())
     {
-        InitInline();
+        if (!(pv.test_mode_flag && pv.disable_inline_init_flag))
+        {
+            InitInline();
+        }
     }
-    else
 #endif /* GIDS */
-
-    if(!pv.readmode_flag)
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Opening interface: %s\n", 
-                    PRINT_INTERFACE(pv.interface)););
-        /* open up our libpcap packet capture interface */
-        OpenPcap();
-    }
-    else
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Opening file: %s\n", 
-                    pv.readfile););
-
-        /* open the packet file for readback */
-        OpenPcap();
-    }
 
     /* extract the config directory from the config filename */
     if(pv.config_file)
@@ -436,6 +675,7 @@ int SnortMain(int argc, char *argv[])
         LogMessage("\n        --== Initializing Snort ==--\n");
     }
 
+    
     if(runMode == MODE_IDS && pv.rules_order_flag)
     {
         if(!pv.quiet_flag)
@@ -451,52 +691,51 @@ int SnortMain(int argc, char *argv[])
     if(pv.daemon_flag)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Entering daemon mode\n"););
-        GoDaemon();
+        openlog("snort", LOG_PID | LOG_CONS, LOG_DAEMON ); 
     }
+    else if(pv.logtosyslog_flag)
+    {
+        openlog("snort", LOG_PID | LOG_CONS, LOG_DAEMON );
+    }
+
+#ifdef TIMESTATS
+    /*
+     * Establish a handler for SIGALRM signals
+     */
+    signal (SIGALRM, DropHourlyStats);
+
+    /* Set an alarm to go off in approximately one hour... */
+    alarm(3600);
+#endif
 
     InitOutputPlugins();
     
-    /* create the PID file */
-    /* TODO should be part of the GoDaemon process */
-    if((runMode == MODE_IDS) || pv.log_mode || pv.daemon_flag 
-            || *pv.pidfile_suffix)
-    {
-        /* ... then create a PID file if not reading from a file */
-        if (!pv.readmode_flag && (pv.daemon_flag || *pv.pidfile_suffix))
-        {
-#ifndef WIN32
-#ifdef GIDS
-            if (InlineMode())
-            {
-                CreatePidFile("inline");
-            }
-            else
-            {
-#else
-            CreatePidFile(pv.interface);
-#endif /* GIDS */
-#ifdef GIDS
-            }
-#endif /* GIDS */
-#else
-            CreatePidFile("WIN32");
-#endif
-        }
-    }
-
-
-    DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Setting Packet Processor\n"););
-
-    /* set the packet processor (ethernet, slip, t/r, etc ) */
-    SetPktProcessor();
+    /*
+     * If snort is not run with root priveleges, 
+     * no interfaces will be defined, so user
+     * beware if an iface_ADDRESS variable is used
+     * in snort.conf and snort is not run as root
+     * (even if just in read mode)
+     */
+    if (!pv.readmode_flag && (runMode != MODE_VERSION))
+        DefineAllIfaceVars();
 
     /* if we're using the rules system, it gets initialized here */
-    if(runMode == MODE_IDS)
+    if(runMode == MODE_IDS || runMode == MODE_RULE_DUMP || runMode == MODE_VERSION)
     {
         /* initialize all the plugin modules */
         InitPreprocessors();
         InitPlugIns();
         InitTag();
+#ifdef PERF_PROFILING
+        /* Register the main high level perf stats */
+        RegisterPreprocessorProfile("detect", &detectPerfStats, 0, &totalPerfStats);
+        RegisterPreprocessorProfile("mpse", &mpsePerfStats, 1, &detectPerfStats);
+        RegisterPreprocessorProfile("rule eval", &rulePerfStats, 1, &detectPerfStats);
+        RegisterPreprocessorProfile("decode", &decodePerfStats, 0, &totalPerfStats);
+        RegisterPreprocessorProfile("eventq", &eventqPerfStats, 0, &totalPerfStats);
+        RegisterPreprocessorProfile("total", &totalPerfStats, 0, NULL);
+#endif
 
 #ifdef DEBUG
         DumpPreprocessors();
@@ -507,25 +746,47 @@ int SnortMain(int argc, char *argv[])
         /* setup the default rule action anchor points */
         CreateDefaultRules();
 
+        /* rule order flag '-o' requested, moves pass before alert and drop */
         if(pv.rules_order_flag)
         {
 #ifdef GIDS
             OrderRuleLists("activation dynamic pass drop sdrop reject alert log");
 #else
-            OrderRuleLists("pass activation dynamic alert log");
+            if(InlineMode())
+                OrderRuleLists("activation dynamic pass drop alert log");
+            else 
+                OrderRuleLists("activation dynamic pass drop alert log");
 #endif /* GIDS */
+        }
+
+        if( pv.alert_before_pass )
+        {
+#ifdef GIDS
+            OrderRuleLists("activation dynamic drop sdrop reject alert pass log");
+#else
+            OrderRuleLists("activation dynamic drop alert pass log");
+#endif
         }
 
         if(!(pv.quiet_flag && !pv.daemon_flag))
             LogMessage("Parsing Rules file %s\n", pv.config_file);
 
-        ParseRulesFile(pv.config_file, 0);
-    
-        CheckLogDir();
+        if (pv.config_file)
+        {
+            signal_location = SIGLOC_PARSE_RULES_FILE;
+            ParseRulesFile(pv.config_file, 0);
+            signal_location = 0;
+        }
+        else
+        {
+           LogMessage("Rules File not specified, is this correct?\n");
+        }
+        /* XXX: Why are we doing this twice? */
+        //CheckLogDir();
+
+        LogMessage("Tagged Packet Limit: %d\n", pv.tagged_packet_limit);
 
         OtnXMatchDataInitialize();
-
-        FlowBitsVerify();
 
         asn1_init_mem(512);
 
@@ -538,7 +799,10 @@ int SnortMain(int argc, char *argv[])
 #ifndef IPFW
         if (InlineMode())
         {
-            InitInlinePostConfig();
+            if (!(pv.test_mode_flag && pv.disable_inline_init_flag))
+            {
+                InitInlinePostConfig();
+            }
         }
 #endif /* IPFW */
 #endif /* GIDS */
@@ -551,23 +815,185 @@ int SnortMain(int argc, char *argv[])
         }
     }
 
+#ifdef DYNAMIC_PLUGIN
+    LoadDynamicPlugins();
+#endif
+
+    /*
+     *  Display snort version information here so that we can also show dynamic
+     *  plugin versions, if loaded.
+     */
+    switch ( pv.print_version )
+    {
+        case 'V':
+            PrintVersion();
+            exit(0);
+            break;
+#ifdef WIN32
+        case 'W':
+            PrintVersion();
+            PrintDeviceList(pv.interface);
+            exit(0);
+            break;
+#endif
+        case '?':
+            PrintVersion();
+            ShowUsage(progname);
+            if ( optopt )
+                exit(1);
+            exit(0);
+            break;
+    }
     
+#ifdef DYNAMIC_PLUGIN
+    InitDynamicEngines();
+
+    if (pv.dump_dynamic_rules_flag)
+    {
+        DumpDetectionLibRules();
+        CleanExit(0);
+    }
+
+    InitDynamicPreprocessors();
+    ConfigureDynamicPreprocessors();
+
+    InitDynamicDetectionPlugins();
+#endif
+    MapPreprocessorIds();
+
+    /* Check rule state lists, enable/disabled
+     * and err on 'special' GID without OTN.
+     */
+    /* 
+     * Modified toi use sigInfo.shared in otn instead of the GENERATOR ID  - man 
+     */ 
+    SetRuleStates();
+
+    /* Verify the preprocessors are configured properly */
+    CheckPreprocessorsConfig();
+
+    /* Need to do this after dynamic detection stuff is initialized, too */
+    FlowBitsVerify();
+
+    if( pv.daemon_flag )
+    {
+        /* Test pcap open */
+        /* Do it here, so that we FatalError before daemonizing
+         * if pcap cannot be opened.
+         */
+        InitPcap( 1 );
+
+        if (pd)
+        {
+            pcap_close(pd);
+            pd = NULL;
+        }
+        GoDaemon();
+    }
+
+    /* If PCAP is not initialized (or closed prior to daemonizing),
+     * do it here... */
+    if (!pd)
+        InitPcap( 0 );
+
+#ifdef INLINE_FAILOPEN
+    /* If in inline mode, start a thread to pull packets off the wire
+     * and pass them through until we've read and initialized all the
+     * rules, preprocessors, output plugins, etc.
+     */
+    pv.pass_thread_running_flag = 0;
+    pv.initialization_done_flag = 0;
+    if (InlineMode() && !pv.readmode_flag && !pv.inline_failopen_disabled_flag)
+    {
+        LogMessage("Inline Fail Open Thread starting..\n");
+        if (pthread_create(&pv.pass_thread_id, NULL, InlineFailOpenThread, NULL))
+        {
+            ErrorMessage("Failed to start Inline Fail Open Thread. Starting "
+                    "normally\n");
+        }
+        else
+        {
+            while (!pv.pass_thread_running_flag)
+            {
+                /* wait for the thread to spin up */
+                LogMessage("Waiting for Inline Fail Open Thread to start..\n");
+                sleep(1);
+            }
+            LogMessage("Inline Fail Open Thread started %d\n",
+                pv.pass_thread_id);
+
+            if (pthread_detach(pv.pass_thread_id))
+            {
+                LogMessage("Inline Fail Open Thread %d not detached %d %s\n",
+                        pv.pass_thread_id, errno, strerror(errno));
+            }
+        }
+    }
+#endif
+
+    DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Setting Packet Processor\n"););
+
+    /* set the packet processor (ethernet, slip, t/r, etc ) */
+    SetPktProcessor();
+
+    /* create the PID file */
+    /* TODO should be part of the GoDaemon process */
+    if((runMode == MODE_IDS) || pv.log_mode || pv.daemon_flag 
+            || *pv.pidfile_suffix || pv.create_pid_file)
+    {
+        /* ... then create a PID file if not reading from a file */
+        if (!pv.readmode_flag && (pv.daemon_flag || *pv.pidfile_suffix || pv.create_pid_file))
+        {
+#ifdef WIN32
+            CreatePidFile("WIN32");
+#else            
+#ifdef GIDS
+                if (InlineMode())
+                {
+                    if (pv.interface)
+                    {
+                        CreatePidFile(pv.interface);
+                    }
+                    else
+                    {
+                        CreatePidFile("inline");
+                    }
+                }
+                else
+                {
+                    /* We need to create the PID over here too */    
+                    CreatePidFile(pv.interface);
+                }
+#else
+                CreatePidFile(pv.interface);
+#endif /* GIDS */
+                if (pv.daemon_flag)
+                {
+                    SignalWaitingParent();
+                }
+#endif /* WIN32 */
+        }
+    }
+
 #ifndef WIN32
     /* Drop the Chrooted Settings */
     if(pv.chroot_dir)
         SetChroot(pv.chroot_dir, &pv.log_dir);
-    
     /* Drop privileges if requested, when initialization is done */
     SetUidGid();
     
 #endif /*WIN32*/
 
+#ifdef HAVE_LIBPRELUDE
+    AlertPreludeSetupAfterSetuid();
+#endif
+    
     /* 
      * if we are in IDS mode and either an alert option was specified on the
      * command line or we do not have any alert plugins active, set them up
      * now
      */
-    if(runMode == MODE_IDS &&
+    if(runMode == MODE_IDS && !pv.test_mode_flag &&
        (pv.alert_cmd_override || !pv.alert_plugin_active))
     {
         ProcessAlertCommandLine();
@@ -583,7 +1009,9 @@ int SnortMain(int argc, char *argv[])
     {
         ProcessLogCommandLine();
     }
-            
+
+    PostConfigInitPlugins();
+
     /*
     **  Create Fast Packet Classification Arrays
     **  from RTN list.  These arrays will be used to
@@ -603,7 +1031,9 @@ int SnortMain(int argc, char *argv[])
 
     /* Tell 'em who wrote it, and what "it" is */
     if(!pv.quiet_flag)
-        DisplayBanner();
+    {
+        PrintVersion();
+    }
 
     if(pv.test_mode_flag)
     {
@@ -616,6 +1046,47 @@ int SnortMain(int argc, char *argv[])
     {
         LogMessage("Snort initialization completed successfully (pid=%u)\n",getpid());
     }
+    
+    
+    if( getenv("PCAP_FRAMES") )
+    {
+        LogMessage("Using PCAP_FRAMES = %s\n", getenv("PCAP_FRAMES") );
+    }
+    else
+    {
+        LogMessage("Not Using PCAP_FRAMES\n" );
+    }
+
+#ifdef TIMESTATS
+    start_time = time(&start_time); /* start counting seconds */
+#endif
+
+#ifdef INLINE_FAILOPEN
+    if (InlineMode() &&
+        !pv.readmode_flag &&
+        !pv.inline_failopen_disabled_flag &&
+        pv.pass_thread_running_flag)
+    {
+        /* Tell the inline wait thread to go away */
+        pv.initialization_done_flag = 1;
+        LogMessage("Inline Fail Open Thread running (%d), terminating it...\n",
+            pv.pass_thread_id);
+
+        /* wait for thread to exit... */
+        LogMessage("Waiting for Inline Fail Open Thread to terminate.\n");
+        if (pthread_join(pv.pass_thread_id, NULL))
+        {
+            LogMessage("Inline Thread terminated.\n");
+        }
+        else
+        {
+            LogMessage("Inline Thread failed to terminate %d: %s\n",
+                errno, strerror(errno) );
+        }
+
+        /* Okay, thread is gone, we can start up */
+    }
+#endif
 
 #ifdef GIDS
     if (InlineMode())
@@ -630,24 +1101,180 @@ int SnortMain(int argc, char *argv[])
     {
 #endif /* GIDS */
 
-    DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Entering pcap loop\n"););
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Entering pcap loop\n"););
 
-    InterfaceThread(NULL);
+        InterfaceThread(NULL);
 
 #ifdef GIDS
     }
 #endif /* GIDS */
 
+    /* If we are exiting because of a HUP, re-exec ourselves */
+    if (hup_check() || pv.restart_flag)
+    {
+        if (pv.daemon_flag)
+        {
+            char *arg;
+            int argIndex = 0;
+            for  (arg = progargs[argIndex]; arg; argIndex++)
+            {
+                if (!strcmp(progargs[argIndex], "--restart"))
+                {
+                    break;
+                }
+                if (!strcmp(progargs[argIndex], "-D"))
+                {
+                    /* Replace -D with --restart */
+                    progargs[argIndex++] = strdup("--restart");
+                    break;
+                }
+            }
+        }
+
+#ifdef PARANOID
+        execv(progname, progargs);
+#else
+        execvp(progname, progargs);
+#endif
+
+        /* only get here if we failed to restart */
+        LogMessage("Restarting %s failed: %s\n", progname, strerror(errno));
+        if(pv.daemon_flag || pv.logtosyslog_flag)
+        {
+#ifndef WIN32
+            closelog();
+#endif
+        }
+        exit(-1);
+    }
+    
+    if(pv.daemon_flag || pv.logtosyslog_flag)
+    {
+#ifndef WIN32
+        closelog();
+#endif
+    }
+
     return 0;
 }
 
-void ProcessPacket(char *user, struct pcap_pkthdr * pkthdr, u_char * pkt)
+#ifdef DYNAMIC_PLUGIN
+static void LoadDynamicPlugins()
 {
-    Packet p;
+    u_int32_t i;
+    
+    /* Load the dynamic engines */
+    for (i=0;i<pv.dynamicEngineCount;i++)
+    {
+        switch (pv.dynamicEngine[i]->type)
+        {
+            case DYNAMIC_ENGINE_FILE:
+                LoadDynamicEngineLib(pv.dynamicEngine[i]->path, 0);
+                break;
+            case DYNAMIC_ENGINE_DIRECTORY:
+                LoadAllDynamicEngineLibs(pv.dynamicEngine[i]->path);
+                break;
+        }
+    }
 
-    /* reset the packet flags for each packet */
-    p.packet_flags = 0;
+    /* Load the dynamic detection libs */
+    for (i=0;i<pv.dynamicLibraryCount;i++)
+    {
+        switch (pv.dynamicDetection[i]->type)
+        {
+            case DYNAMIC_LIBRARY_FILE:
+                LoadDynamicDetectionLib(pv.dynamicDetection[i]->path, 0);
+                break;
+            case DYNAMIC_LIBRARY_DIRECTORY:
+                LoadAllDynamicDetectionLibs(pv.dynamicDetection[i]->path);
+                break;
+        }
+    }
 
+    /* Load the dynamic preprocessors */
+    for (i=0;i<pv.dynamicPreprocCount;i++)
+    {
+        switch (pv.dynamicPreprocs[i]->type)
+        {
+            case DYNAMIC_PREPROC_FILE:
+                LoadDynamicPreprocessor(pv.dynamicPreprocs[i]->path, 0);
+                break;
+            case DYNAMIC_PREPROC_DIRECTORY:
+                LoadAllDynamicPreprocessors(pv.dynamicPreprocs[i]->path);
+                break;
+        }
+    }
+}
+#endif
+
+
+#ifdef DYNAMIC_PLUGIN
+static void DisplayDynamicPluginVersions()
+{
+    void *lib = NULL;
+    DynamicPluginMeta *meta;
+
+    RemoveDuplicateEngines();
+    RemoveDuplicateDetectionPlugins();
+    RemoveDuplicatePreprocessorPlugins();
+
+    lib = GetNextEnginePluginVersion(NULL);
+    while ( lib != NULL )
+    {
+        meta = GetDetectionPluginMetaData(lib);
+
+        fprintf(stderr, "           Rules Engine: %s  Version %d.%d  <Build %d>\n",
+                    meta->uniqueName, meta->major, meta->minor, meta->build);
+        lib = GetNextEnginePluginVersion(lib);
+    }
+    
+    lib = GetNextDetectionPluginVersion(NULL);
+    while ( lib != NULL )
+    {
+        meta = GetEnginePluginMetaData(lib);
+
+        fprintf(stderr, "           Rules Object: %s  Version %d.%d  <Build %d>\n",
+                    meta->uniqueName, meta->major, meta->minor, meta->build);
+        lib = GetNextDetectionPluginVersion(lib);
+    }    
+    
+    lib = GetNextPreprocessorPluginVersion(NULL);
+    while ( lib != NULL )
+    {
+        meta = GetPreprocessorPluginMetaData(lib);
+
+        fprintf(stderr, "           Preprocessor Object: %s  Version %d.%d  <Build %d>\n",
+                    meta->uniqueName, meta->major, meta->minor, meta->build);
+        lib = GetNextPreprocessorPluginVersion(lib);
+    }    
+}
+#endif
+
+static void PrintVersion()
+{
+    DisplayBanner();
+    
+#ifdef DYNAMIC_PLUGIN
+    //  Get and print out library versions
+    DisplayDynamicPluginVersions();
+#endif
+
+}
+
+/*
+ */
+void PcapProcessPacket(char *user, struct pcap_pkthdr * pkthdr, u_char * pkt)
+{
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(totalPerfStats);
+    
+    /* First thing we do is process a Usr signal that we caught */
+    if( sig_check() )
+    {
+        PREPROC_PROFILE_END(totalPerfStats);
+        return;
+    }
     pc.total++;
 
     /*
@@ -659,18 +1286,111 @@ void ProcessPacket(char *user, struct pcap_pkthdr * pkthdr, u_char * pkt)
     /* reset the thresholding subsystem checks for this packet */
     sfthreshold_reset();
 
+    PREPROC_PROFILE_START(eventqPerfStats);
     SnortEventqReset();
+    PREPROC_PROFILE_END(eventqPerfStats);
 
 #if defined(WIN32) && defined(ENABLE_WIN32_SERVICE)
     if( pv.terminate_service_flag || pv.pause_service_flag )
     {
-        ClearDumpBuf();  /* cleanup and return without processing */
+        //ClearDumpBuf();  /* cleanup and return without processing */
         return;
     }
 #endif  /* WIN32 && ENABLE_WIN32_SERVICE */
 
+    ProcessPacket(user, pkthdr, pkt, NULL);
+    
+    /* Collect some "on the wire" stats about packet size, etc */
+    UpdateWireStats(&(sfPerf.sfBase), pkthdr->caplen);
+
+    PREPROC_PROFILE_END(totalPerfStats);
+    return;
+}
+
+/* 
+ * This function is used below in ProcessPacket to manage the
+ * freeing of the packetBitOp.pucBitBuffer before the local
+ * packetBitOp goes out of scope.
+ * If BitOpBucket is not NULL it is assumed that the pucBitBuffer
+ * for the packetBitOp came from the MemPool otherwise it is 
+ * assumed that boInitBITOP was used to allocate the pucBitBuffer
+ * in which case the memory is freed.
+ */
+static INLINE void free_packetBitOp(BITOP *BitOp, MemPool *BitOpPool, MemBucket *BitOpBucket)
+{
+    if (BitOpBucket && BitOpPool)
+        mempool_free(BitOpPool, BitOpBucket);
+    else if (BitOp && BitOp->pucBitBuffer)
+        boFreeBITOP(BitOp);
+
+    BitOp->pucBitBuffer = NULL;
+}
+
+static MemPool bitop_pool;
+static PoolCount num_bitops = 4;
+static int s_bitOpInit = 0;
+static unsigned int bitop_numbits;
+
+extern unsigned int num_preprocs; /* from plugbase.c */
+
+void ProcessPacket(char *user, struct pcap_pkthdr * pkthdr, u_char * pkt, void *ft)
+{
+    Packet p;
+    MemBucket *bitop_bucket = NULL;
+    BITOP packetBitOp;
+
+    if (!s_bitOpInit)
+    {
+        unsigned int bitop_numbytes;
+
+        bitop_numbits = num_preprocs + 1;
+        bitop_numbytes = bitop_numbits >> 3;
+
+        if(bitop_numbits & 7) 
+            bitop_numbytes++;
+
+        if (mempool_init(&bitop_pool, num_bitops, bitop_numbytes) == 1)
+            FatalError("Out of memory initializing BitOp memory pool\n");
+
+        s_bitOpInit = 1;
+    }
+
+    /* reset the packet flags for each packet */
+    p.packet_flags = 0;
+#ifndef GIDS
+    g_drop_pkt = 0;
+#endif
+
     /* call the packet decoder */
     (*grinder) (&p, pkthdr, pkt);
+
+    if(!p.pkth || !p.pkt)
+    {
+        return;
+    }
+
+    bitop_bucket = mempool_alloc(&bitop_pool);
+    if (bitop_bucket == NULL)
+    {
+        memset(&packetBitOp, 0, sizeof(packetBitOp));
+        boInitBITOP(&packetBitOp, bitop_numbits);
+    }
+    else 
+    {
+        boInitStaticBITOP(&packetBitOp, bitop_pool.obj_size, (unsigned char *)bitop_bucket->data);
+    }
+
+    p.preprocessor_bits = &packetBitOp;
+
+#ifdef GRE
+    if (ft && p.greh == NULL)
+#else
+    if (ft)
+#endif
+    {
+        p.packet_flags |= PKT_REBUILT_FRAG;
+        p.fragtracker = ft;
+    }
 
     /* print the packet to the screen */
     if(pv.verbose_flag)
@@ -701,9 +1421,18 @@ void ProcessPacket(char *user, struct pcap_pkthdr * pkthdr, u_char * pkt)
             {
                 DEBUG_WRAP(DebugMessage(DEBUG_DECODE,
                             "MinTTL reached in main detection loop\n"););
+
+                free_packetBitOp(&packetBitOp, &bitop_pool, bitop_bucket);
                 return;
             } 
             
+            /* just throw away the packet if we are configured to ignore this port */
+            if ( p.packet_flags & PKT_IGNORE_PORT )
+            {
+                free_packetBitOp(&packetBitOp, &bitop_pool, bitop_bucket);
+                return;
+            }
+
             /* start calling the detection processes */
             Preprocess(&p);
             break;
@@ -711,8 +1440,9 @@ void ProcessPacket(char *user, struct pcap_pkthdr * pkthdr, u_char * pkt)
             break;
     }
 
-    ClearDumpBuf();
+    free_packetBitOp(&packetBitOp, &bitop_pool, bitop_bucket);
 
+    //ClearDumpBuf();
 }
 
 
@@ -755,6 +1485,7 @@ int ShowUsage(char *progname)
                                   " (alert file alerts only)\n");
     FPUTS_UNIX ("                   \"unsock\" enables UNIX socket logging (experimental).\n");
     FPUTS_BOTH ("        -b         Log packets in tcpdump format (much faster!)\n");
+    FPUTS_BOTH ("        -B <mask>  Obfuscated IP addresses in alerts and packet dumps using CIDR mask\n");
     FPUTS_BOTH ("        -c <rules> Use Rules File <rules>\n");
     FPUTS_BOTH ("        -C         Print out payloads with character data only (no hex)\n");
     FPUTS_BOTH ("        -d         Dump the Application Layer\n");
@@ -764,6 +1495,7 @@ int ShowUsage(char *progname)
     FPUTS_BOTH ("        -f         Turn off fflush() calls after binary log writes\n");
     FPUTS_BOTH ("        -F <bpf>   Read BPF filters from file <bpf>\n");
     FPUTS_UNIX ("        -g <gname> Run snort gid as <gname> group (or gid) after initialization\n");
+    FPUTS_BOTH ("        -G <0xid>  Log Identifier (to uniquely id events for multiple snorts)\n");
     FPUTS_BOTH ("        -h <hn>    Home network = <hn>\n");
     FPUTS_BOTH ("        -i <if>    Listen on interface <if>\n");
     FPUTS_BOTH ("        -I         Add Interface name to alert output\n");
@@ -773,8 +1505,10 @@ int ShowUsage(char *progname)
 #endif
 #endif
     FPUTS_BOTH ("        -k <mode>  Checksum mode (all,noip,notcp,noudp,noicmp,none)\n");
+    FPUTS_BOTH ("        -K <mode>  Logging mode (pcap[default],ascii,none)\n");
     FPUTS_BOTH ("        -l <ld>    Log to directory <ld>\n");
     FPUTS_BOTH ("        -L <file>  Log to this tcpdump file\n");
+    FPUTS_UNIX ("        -M         Log messages to syslog (not alerts)\n");
     FPUTS_UNIX ("        -m <umask> Set umask = <umask>\n");
     FPUTS_BOTH ("        -n <cnt>   Exit after receiving <cnt> packets\n");
     FPUTS_BOTH ("        -N         Turn off logging (alerts still work)\n");
@@ -805,18 +1539,133 @@ int ShowUsage(char *progname)
 #endif
     FPUTS_BOTH ("        -X         Dump the raw packet data starting at the link layer\n");
     FPUTS_BOTH ("        -y         Include year in timestamp in the alert and log files\n");
+    FPUTS_BOTH ("        -Z <file>  Set the performonitor preprocessor file path and name\n");
     FPUTS_BOTH ("        -z         Set assurance mode, match on established sesions (for TCP)\n");
     FPUTS_BOTH ("        -?         Show this information\n");
     FPUTS_BOTH ("<Filter Options> are standard BPF options, as seen in TCPDump\n");
 
+    FPUTS_BOTH ("Longname options and their corresponding single char version\n");
+    FPUTS_BOTH ("   --logid <0xid>                  Same as -G\n");
+    FPUTS_BOTH ("   --perfmon-file <file>           Same as -Z\n");
+    FPUTS_BOTH ("   --pid-path <path>               Specify the path for the Snort PID file\n");
+    FPUTS_BOTH ("   --snaplen <snap>                Same as -P\n");
+    FPUTS_BOTH ("   --help                          Same as -?\n");
+    FPUTS_BOTH ("   --alert-before-pass             Process alert, drop, sdrop, or reject before pass, default is pass before alert, drop,...\n");
+    FPUTS_BOTH ("   --treat-drop-as-alert           Converts drop, sdrop, and reject rules into alert rules during startup\n");
+    FPUTS_BOTH ("   --process-all-events            Process all queued events (drop, alert,...), default stops after 1st action group\n");
+#ifdef DYNAMIC_PLUGIN
+    FPUTS_BOTH ("   --dynamic-engine-lib <file>     Load a dynamic detection engine\n");
+    FPUTS_BOTH ("   --dynamic-engine-lib-dir <path> Load all dynamic engines from directory\n");
+    FPUTS_BOTH ("   --dynamic-detection-lib <file>  Load a dynamic rules library\n");
+    FPUTS_BOTH ("   --dynamic-detection-lib-dir <path> Load all dynamic rules libraries from directory\n");
+    FPUTS_BOTH ("   --dump-dynamic-rules <path>     Creates stub rule files of all loaded rules libraries\n");
+    FPUTS_BOTH ("   --dynamic-preprocessor-lib <file>  Load a dynamic preprocessor library\n");
+    FPUTS_BOTH ("   --dynamic-preprocessor-lib-dir <path> Load all dynamic preprocessor libraries from directory\n");
+    FPUTS_BOTH ("   --dump-dynamic-preproc-genmsg <path>  Creates gen-msg.map files of all loaded preprocessor libraries\n");
+#endif
+    FPUTS_UNIX ("   --create-pidfile                Create PID file, even when not in Daemon mode\n");
+    FPUTS_UNIX ("   --nolock-pidfile                Do not try to lock Snort PID file\n");
+    FPUTS_UNIX ("   --disable-inline-initialization Do not perform the IPTables initialization in inline mode.\n");
+#ifdef INLINE_FAILOPEN
+    FPUTS_UNIX ("   --disable-inline-init-failopen  Do not fail open and pass packets while initializing with inline mode.\n");
+#endif
 #undef FPUTS_WIN32
 #undef FPUTS_UNIX
 #undef FPUTS_BOTH
-
     return 0;
 }
 
+void ParseDynamicLibInfo(int type)
+{
+#ifdef DYNAMIC_PLUGIN
+    DynamicDetectionSpecifier *dynamicLib;
+    char *tmpDir;
+    switch (type)
+    {
+        case DYNAMIC_PREPROC_FILE: /* Load dynamic preprocessor lib specified */
+        case DYNAMIC_PREPROC_DIRECTORY:
+            DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Dynamic preprocessor specifier\n"););
+            if (pv.dynamicPreprocCount >= MAX_DYNAMIC_PREPROC_LIBS)
+            {
+                FatalError("Maximum number of loaded Dynamic Preprocessor Libs (%d) exceeded\n", MAX_DYNAMIC_PREPROC_LIBS);
+            }
 
+            dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+            dynamicLib->type = type;
+            if (!optarg && type == DYNAMIC_PREPROC_DIRECTORY)
+            {
+                tmpDir = getcwd(dynamicLib->path, 0);
+                dynamicLib->path = strdup(tmpDir);
+
+            } else if (optarg)
+            {
+                dynamicLib->path = strdup(optarg);
+            }
+            else
+            {
+                FatalError("Missing specifier for Dynamic Preprocessor Library\n");
+            }
+            pv.dynamicPreprocs[pv.dynamicPreprocCount] = dynamicLib;
+            pv.dynamicPreprocCount++;
+            break;
+        case DYNAMIC_LIBRARY_FILE: /* Load dynamic detection lib specified */
+        case DYNAMIC_LIBRARY_DIRECTORY:
+            DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Dynamic detection specifier\n"););
+            if (pv.dynamicLibraryCount >= MAX_DYNAMIC_PREPROC_LIBS)
+            {
+                FatalError("Maximum number of loaded Dynamic Detection Libs (%d) exceeded\n", MAX_DYNAMIC_PREPROC_LIBS);
+            }
+
+            dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+            dynamicLib->type = type;
+            if (!optarg && type == DYNAMIC_LIBRARY_DIRECTORY)
+            {
+                tmpDir = getcwd(dynamicLib->path, 0);
+                dynamicLib->path = strdup(tmpDir);
+            }
+            else if (optarg)
+            {
+                dynamicLib->path = strdup(optarg);
+            }
+            else
+            {
+                FatalError("Missing specifier for Dynamic Detection Library\n");
+            }
+
+            pv.dynamicDetection[pv.dynamicLibraryCount] = dynamicLib;
+            pv.dynamicLibraryCount++;
+            break;
+        case DYNAMIC_ENGINE_FILE: /* Load dynamic engine lib specified */
+        case DYNAMIC_ENGINE_DIRECTORY: /* Load dynamic engine lib specified */
+            DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Dynamic engine specifier\n"););
+            if (pv.dynamicEngineCount >= MAX_DYNAMIC_ENGINES)
+            {
+                FatalError("Maximum number of loaded Dynamic Engine Libs (%d) exceeded\n", MAX_DYNAMIC_ENGINES);
+            }
+
+            dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+            dynamicLib->type = type;
+
+            if (!optarg && type == DYNAMIC_LIBRARY_DIRECTORY)
+            {
+                tmpDir = getcwd(dynamicLib->path, 0);
+                dynamicLib->path = strdup(tmpDir);
+            }
+            else if (optarg)
+            {
+                dynamicLib->path = strdup(optarg);
+            }
+            else
+            {
+                FatalError("Missing specifier for Dynamic Engine Library\n");
+            }
+
+            pv.dynamicEngine[pv.dynamicEngineCount] = dynamicLib;
+            pv.dynamicEngineCount++;
+            break;
+    }
+#endif
+}
 
 /*
  * Function: ParseCmdLine(int, char *)
@@ -828,8 +1677,55 @@ int ShowUsage(char *progname)
  *
  * Returns: 0 => success, 1 => exit on error
  */
-extern char *optarg;                /* for getopt */
-extern int   optind,opterr,optopt;  /* for getopt */
+
+#ifndef WIN32
+#ifdef GIDS
+#ifndef IPFW
+static char *valid_options = "?a:A:bB:c:CdDefF:g:G:h:i:Ik:K:l:L:m:Mn:NoOpP:qQr:R:sS:t:Tu:UvVw:XyzZ:";
+#else
+static char *valid_options = "?a:A:bB:c:CdDefF:g:G:h:i:IJ:k:K:l:L:m:Mn:NoOpP:qr:R:sS:t:Tu:UvVw:XyzZ:";
+#endif /* IPFW */
+#else
+    /* Unix does not support an argument to -s <wink marty!> OR -E, -W */
+static char *valid_options = "?a:A:bB:c:CdDefF:g:G:h:i:Ik:K:l:L:m:Mn:NoOpP:qQr:R:sS:t:Tu:UvVw:XyzZ:";
+#endif /* GIDS */
+#else
+    /* Win32 does not support:  -D, -g, -m, -t, -u */
+    /* Win32 no longer supports an argument to -s, either! */
+static char *valid_options = "?A:bB:c:CdeEfF:G:h:i:Ik:K:l:L:Mn:NoOpP:qr:R:sS:TUvVw:WXyzZ:";
+#endif
+
+#define LONGOPT_ARG_NONE 0
+#define LONGOPT_ARG_REQUIRED 1
+#define LONGOPT_ARG_OPTIONAL 2
+static struct option long_options[] = {
+   {"logid", LONGOPT_ARG_REQUIRED, NULL, 'G'},
+   {"perfmon-file", LONGOPT_ARG_REQUIRED, NULL, 'Z'},
+   {"snaplen", LONGOPT_ARG_REQUIRED, NULL, 'P'},
+   {"help", LONGOPT_ARG_NONE, NULL, '?'},
+#ifdef DYNAMIC_PLUGIN
+   {"dynamic-engine-lib", LONGOPT_ARG_REQUIRED, NULL, DYNAMIC_ENGINE_FILE},
+   {"dynamic-engine-lib-dir", LONGOPT_ARG_REQUIRED, NULL, DYNAMIC_ENGINE_DIRECTORY},
+   {"dynamic-detection-lib", LONGOPT_ARG_REQUIRED, NULL, DYNAMIC_LIBRARY_FILE},
+   {"dynamic-detection-lib-dir", LONGOPT_ARG_REQUIRED, NULL, DYNAMIC_LIBRARY_DIRECTORY},
+   {"dump-dynamic-rules", LONGOPT_ARG_REQUIRED, NULL, DUMP_DYNAMIC_RULES},
+   {"dynamic-preprocessor-lib", LONGOPT_ARG_REQUIRED, NULL, DYNAMIC_PREPROC_FILE},
+   {"dynamic-preprocessor-lib-dir", LONGOPT_ARG_REQUIRED, NULL, DYNAMIC_PREPROC_DIRECTORY},
+   {"dump-dynamic-preproc-genmsg", LONGOPT_ARG_REQUIRED, NULL, DUMP_DYNAMIC_PREPROCS},
+#endif
+   {"alert-before-pass", LONGOPT_ARG_NONE, NULL, ALERT_BEFORE_PASS},
+   {"treat-drop-as-alert", LONGOPT_ARG_NONE, NULL, TREAT_DROP_AS_ALERT},
+   {"process-all-events", LONGOPT_ARG_NONE, NULL, PROCESS_ALL_EVENTS},
+   {"restart", LONGOPT_ARG_NONE, NULL, ARG_RESTART},
+   {"pid-path", LONGOPT_ARG_REQUIRED, NULL, PID_PATH},
+   {"create-pidfile", LONGOPT_ARG_NONE, NULL, CREATE_PID_FILE},
+   {"nolock-pidfile", LONGOPT_ARG_NONE, NULL, NOLOCK_PID_FILE},
+   {"disable-inline-initialization", LONGOPT_ARG_NONE, NULL, DISABLE_INLINE_INIT}, 
+#ifdef INLINE_FAILOPEN
+   {"disable-inline-init-failopen", LONGOPT_ARG_NONE, NULL, DISABLE_INLINE_FAILOPEN},
+#endif
+   {0, 0, 0, 0}
+};
 
 int ParseCmdLine(int argc, char *argv[])
 {
@@ -838,14 +1734,19 @@ int ParseCmdLine(int argc, char *argv[])
     char bpf_file[STD_BUF];
     char *eq_n;
     char *eq_p;
+#ifdef WIN32
     char errorbuf[PCAP_ERRBUF_SIZE];
+#endif
     int umaskchange = 1;
     int defumask = 0;
+    int option_index = -1;
+    int isName = 0;
 #ifdef WIN32
     char *devicet;
     int adaplen;
+#else
+    int i;
 #endif
-    char *valid_options;
 
     DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Parsing command line...\n"););
     /* generally speaking, Snort works best when it's in promiscuous mode */
@@ -856,6 +1757,8 @@ int ParseCmdLine(int argc, char *argv[])
     groupname = NULL;
     pv.pidfile_suffix[0] = 0;
 
+    pv.logtosyslog_flag = 0;
+    
     /*
     **  Set this so we know whether to return 1 on invalid input.
     **  Snort uses '?' for help and getopt uses '?' for telling us there
@@ -864,29 +1767,67 @@ int ParseCmdLine(int argc, char *argv[])
     */
     optopt = 0;
 
-#ifndef WIN32
-#ifdef GIDS
-#ifndef IPFW
-    valid_options = "?A:bB:c:CdDefF:g:h:i:Ik:l:L:m:n:NoOpP:qQr:R:sS:t:Tu:UvVwXyz";
-#else
-    valid_options = "?A:bB:c:CdDefF:g:h:i:IJ:k:l:L:m:n:NoOpP:qr:R:sS:t:Tu:UvVwXyz";
-#endif /* IPFW */
-#else
-    /* Unix does not support an argument to -s <wink marty!> OR -E, -W */
-    valid_options = "?A:bB:c:CdDefF:g:h:i:Ik:l:L:m:n:NoOpP:qr:R:sS:t:Tu:UvVwXyz";
-#endif /* GIDS */
-#else
-    /* Win32 does not support:  -D, -g, -m, -t, -u */
-    /* Win32 no longer supports an argument to -s, either! */
-    valid_options = "?A:bB:c:CdeEfF:h:i:Ik:l:L:n:NoOpP:qr:R:sS:TUvVwWXyz";
-#endif
-
     /* loop through each command line var and process it */
-    while((ch = getopt(argc, argv, valid_options)) != -1)
+    while((ch = getopt_long(argc, argv, valid_options, long_options, &option_index)) != -1)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Processing cmd line switch: %c\n", ch););
         switch(ch)
         {
+#ifdef DYNAMIC_PLUGIN
+            case DYNAMIC_ENGINE_FILE: /* Load dynamic engine specified */
+                ParseDynamicLibInfo(ch);
+                break;
+            case DYNAMIC_ENGINE_DIRECTORY: /* Load dynamic engine specified */
+                ParseDynamicLibInfo(ch);
+                break;
+            case DYNAMIC_PREPROC_FILE: /* Load dynamic preprocessor lib specified */
+                ParseDynamicLibInfo(ch);
+                break;
+            case DYNAMIC_PREPROC_DIRECTORY:
+                ParseDynamicLibInfo(ch);
+                break;
+            case DYNAMIC_LIBRARY_FILE: /* Load dynamic detection lib specified */
+                ParseDynamicLibInfo(ch);
+                break;
+            case DYNAMIC_LIBRARY_DIRECTORY:
+                ParseDynamicLibInfo(ch);
+                break;
+            case DUMP_DYNAMIC_RULES:
+                DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Dumping dynamic engine rules\n"););
+                pv.dump_dynamic_rules_flag = 1;
+                if (strlen(optarg) < STD_BUF)
+                    strcpy(pv.dynamic_rules_path, optarg);
+                else
+                    FatalError("Dump Path long than allowable %d characters\n", STD_BUF-1);
+                break;
+#endif
+            case ALERT_BEFORE_PASS:
+                pv.alert_before_pass=1;
+                break;
+            case PROCESS_ALL_EVENTS:
+                pv.process_all_events=1;
+                break;
+            case TREAT_DROP_AS_ALERT:
+                pv.treat_drop_as_alert=1;
+                break;
+            case PID_PATH:
+                strcpy(pv.pid_path, optarg);
+                pv.create_pid_file = 1;
+                break;
+            case CREATE_PID_FILE:
+                pv.create_pid_file = 1;
+                break;
+            case NOLOCK_PID_FILE:
+                pv.nolock_pid_file = 1;
+                break;
+            case DISABLE_INLINE_INIT:
+                pv.disable_inline_init_flag = 1;
+                break;
+#ifdef INLINE_FAILOPEN
+            case DISABLE_INLINE_FAILOPEN:
+                pv.inline_failopen_disabled_flag = 1;
+                break;
+#endif
             case 'A':                /* alert mode */
                 if(!strcasecmp(optarg, "none"))
                 {
@@ -904,7 +1845,9 @@ int ParseCmdLine(int argc, char *argv[])
                 {
                     pv.alert_mode = ALERT_STDOUT;
                 }
-                else if(!strcasecmp(optarg, "cmg"))
+                else if(!strcasecmp(optarg, "cmg") ||
+                        !strcasecmp(optarg, "jh") ||
+                        !strcasecmp(optarg, "djr"))
                 {
                     pv.alert_mode = ALERT_CMG;
                     /* turn off logging */
@@ -957,6 +1900,9 @@ int ParseCmdLine(int argc, char *argv[])
                 DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Data Flag active\n"););
                 break;
 
+            case ARG_RESTART:        /* Restarting from daemon mode */
+                pv.daemon_restart_flag = 1;
+                /* Fall through */
             case 'D':                /* daemon mode */
 #ifdef WIN32
                 FatalError("Setting the Daemon mode is not supported in the "
@@ -967,6 +1913,12 @@ int ParseCmdLine(int argc, char *argv[])
                 pv.daemon_flag = 1;
                 flow_set_daemon();
                 pv.quiet_flag = 1;
+                if (pv.test_mode_flag)
+                {
+                    FatalError("Cannot use test mode and daemon mode together."
+                            "\nTo verify configuration run first in test "
+                            "mode and then restart in daemon mode\n");
+                }
                 break;
 
             case 'e':                /* show second level header info */
@@ -1007,7 +1959,16 @@ int ParseCmdLine(int argc, char *argv[])
 
                 bcopy(optarg, groupname, strlen(optarg));
 
-                if((groupid = atoi(groupname)) == 0)
+                isName = 0;
+                for (i=0;i<strlen(groupname);i++)
+                {
+                    if (isdigit(groupname[i]) == 0)
+                    {
+                        isName = 1;
+                        break;
+                    }
+                }
+                if (((groupid = atoi(groupname)) == 0) || isName)
                 {
                     gr = getgrnam(groupname);
                     if(gr == NULL)
@@ -1016,6 +1977,38 @@ int ParseCmdLine(int argc, char *argv[])
                     groupid = gr->gr_gid;
                 }
 #endif
+                break;
+
+            case 'G':                /* snort loG identifier */
+                if (!strncmp(optarg, "0x", 2))
+                {
+                    if (!sscanf(optarg, "0x%x", &pv.event_log_id))
+                    {
+                        pv.event_log_id = 0;
+                    }
+                }
+                else
+                {
+                    char *endPtr;
+                    pv.event_log_id = strtoul(optarg, &endPtr, 0);
+                    if (endPtr == optarg)
+                    {
+                        FatalError("Snort log identifier invalid: %s\n",
+                                optarg);
+                    }
+                }
+                if (pv.event_log_id > 0xFFFF)
+                {
+                    FatalError("Snort log identifier invalid: %d.  It must "
+                               "be no larger than a 2 byte value\n",
+                               pv.event_log_id);
+                }
+                else
+                {
+                    u_int32_t id = pv.event_log_id;
+                    pv.event_log_id = id << 16;
+                }
+                DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Log ID: 0x%x\n", pv.event_log_id););
                 break;
 
             case 'h':                /* set home network to x, this will help
@@ -1122,6 +2115,28 @@ int ParseCmdLine(int argc, char *argv[])
                 }
                 break;
 
+            case 'K':                /* log mode */
+                if(!strcasecmp(optarg, "none"))
+                {
+                    pv.log_mode = LOG_NONE;
+                    pv.log_cmd_override = 1;
+                }
+                else if(!strcasecmp(optarg, "pcap"))
+                {
+                    pv.log_mode = LOG_PCAP;
+                    pv.log_cmd_override = 1;
+                }
+                else if(!strcasecmp(optarg, "ascii"))
+                {
+                    pv.log_mode = LOG_ASCII;
+                    pv.log_cmd_override = 1;
+                }
+                else
+                {
+                    FatalError("Unknown command line log option: %s\n", optarg);
+                }
+                break;
+
             case 'l':                /* use log dir <X> */
                 if(!(pv.log_dir = strdup(optarg)))
                 {
@@ -1150,6 +2165,10 @@ int ParseCmdLine(int argc, char *argv[])
                 }             
                 break;
 
+            case 'M':
+                pv.logtosyslog_flag = 1;
+                break;
+                
             case 'm': /* set the umask for the output files */
 #ifdef WIN32
                 FatalError("Setting the umask is not supported in the "
@@ -1186,8 +2205,8 @@ int ParseCmdLine(int argc, char *argv[])
 
             case 'o': /* change the rules processing order to
                        * passlist first */
-                pv.rules_order_flag = 1;
-                DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Rule application order changed to Pass->Alert->Log\n"););
+                /* depracated  pv.rules_order_flag = 1;  see alert-before-pass */
+                DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Rule application order changed to Pass->Alert->Log (DEPRACATED!!!)\n"););
                 break;
 
             case 'O':  /* obfuscate the logged IP addresses for
@@ -1208,16 +2227,11 @@ int ParseCmdLine(int argc, char *argv[])
             case 'q':  /* no stdout output mode */
                 pv.quiet_flag = 1;
                 break;
-#ifdef GIDS
-#ifndef IPFW
+
             case 'Q':
                 LogMessage("Reading from iptables\n");
                 pv.inline_flag = 1;
-                pv.promisc_flag = 0;
-                pv.interface = NULL;
                 break;
-#endif
-#endif /* GIDS */
 
             case 'r':  /* read packets from a TCPdump file instead
                         * of the net */
@@ -1297,6 +2311,12 @@ int ParseCmdLine(int argc, char *argv[])
             case 'T': /* test mode, verify that the rules load properly */
                 pv.test_mode_flag = 1;
                 DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Snort starting in test mode...\n"););
+                if (pv.daemon_flag)
+                {
+                    FatalError("Cannot use test mode and daemon mode together."
+                            "\nTo verify configuration run first in test "
+                            "mode and then restart in daemon mode\n");
+                }
                 break;    
 
             case 'u':  /* setuid */
@@ -1309,7 +2329,17 @@ int ParseCmdLine(int argc, char *argv[])
 
                 bcopy(optarg, username, strlen(optarg));
 
-                if((userid = atoi(username)) == 0)
+                isName = 0;
+                for (i=0;i<strlen(username);i++)
+                {
+                    if (isdigit(username[i]) == 0)
+                    {
+                        isName = 1;
+                        break;
+                    }
+                }
+
+                if (((userid = atoi(username)) == 0) || isName)
                 {
                     pw = getpwnam(username);
                     if(pw == NULL)
@@ -1354,17 +2384,17 @@ int ParseCmdLine(int argc, char *argv[])
 
             case 'V': /* prog ver already gets printed out, so we
                        * just exit */
-                DisplayBanner();
-                exit(0);
+                pv.print_version = ch;
+                pv.quiet_flag = 1;
+                break;
 
 #ifdef WIN32
             case 'W':
                 if ((pv.interface = pcap_lookupdev(errorbuf)) == NULL)
                     perror(errorbuf);
 
-                DisplayBanner();
-                PrintDeviceList(pv.interface);
-                exit(0);
+                pv.print_version = ch;
+                pv.quiet_flag = 1;
                 break;
 #endif  /* WIN32 */
 
@@ -1384,18 +2414,13 @@ int ParseCmdLine(int argc, char *argv[])
                 DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Enabled year in timestamp\n"););
                 break;
 
-            case 'z': /* set assurance mode (used with stream 4) */
-                pv.assurance_mode = ASSURE_EST;
+            case 'Z': /* Set preprocessor performon file path/filename */
+                SetPerfmonitorFile(optarg);
                 break;
 
             case '?':  /* show help and exit with 1 */
-                DisplayBanner();
-                ShowUsage(progname);
-
-                if(optopt)
-                    exit(1);
-
-                exit(0);
+                pv.print_version = ch;
+                pv.quiet_flag = 1;
         }
     }
 
@@ -1421,22 +2446,6 @@ int ParseCmdLine(int argc, char *argv[])
     {
         /* set the BPF rules string (thanks Mike!) */
         pv.pcap_cmd = copy_argv(&argv[optind]);
-    }
-
-    if((pv.interface == NULL) && !pv.readmode_flag)
-    {
-#ifdef GIDS
-        if (!InlineMode())
-        {
-#endif /* GIDS */
-        pv.interface = pcap_lookupdev(errorbuf);
-
-        if(pv.interface == NULL)
-            FatalError( "Failed to lookup for interface: %s."
-                    " Please specify one with -i switch\n", errorbuf);
-#ifdef GIDS
-        }
-#endif /* GIDS */
     }
 
     DEBUG_WRAP(DebugMessage(DEBUG_INIT, "pcap_cmd is %s\n", 
@@ -1504,7 +2513,22 @@ int SetPktProcessor()
             grinder = DecodeIEEE80211Pkt;
             break;
 #endif
+#ifdef DLT_ENC
+        case DLT_ENC:           /* Encapsulated data */
+            if (!pv.readmode_flag)
+            {
+                if (!pv.quiet_flag)
+                    LogMessage("Decoding Encapsulated data on interface %s\n",
+                           PRINT_INTERFACE(pv.interface));
+            }
+
+            grinder = DecodeEncPkt;
+            break;
+
+#else
         case 13:
+#endif /* DLT_ENC */
+#ifdef DLT_IEEE802
         case DLT_IEEE802:                /* Token Ring */
             if(!pv.readmode_flag)
             {
@@ -1516,7 +2540,9 @@ int SetPktProcessor()
             grinder = DecodeTRPkt;
 
             break;
+#endif
 
+#ifdef DLT_FDDI
         case DLT_FDDI:                /* FDDI */
             if(!pv.readmode_flag)
             {
@@ -1528,6 +2554,7 @@ int SetPktProcessor()
             grinder = DecodeFDDIPkt;
 
             break;
+#endif
 
 #ifdef DLT_CHDLC
         case DLT_CHDLC:              /* Cisco HDLC */
@@ -1540,6 +2567,7 @@ int SetPktProcessor()
             break;
 #endif
 
+#ifdef DLT_SLIP
         case DLT_SLIP:                /* Serial Line Internet Protocol */
             if(!pv.readmode_flag)
             {
@@ -1559,7 +2587,9 @@ int SetPktProcessor()
             grinder = DecodeSlipPkt;
 
             break;
+#endif
 
+#ifdef DLT_PPP
         case DLT_PPP:                /* point-to-point protocol */
             if(!pv.readmode_flag)
             {
@@ -1579,6 +2609,7 @@ int SetPktProcessor()
             grinder = DecodePppPkt;
 
             break;
+#endif
 
 #ifdef DLT_PPP_SERIAL
         case DLT_PPP_SERIAL:         /* PPP with full HDLC header*/
@@ -1630,12 +2661,28 @@ int SetPktProcessor()
             break;
 #endif
 
+#ifdef DLT_OLDPFLOG
+        case DLT_OLDPFLOG:
+            if(!pv.readmode_flag)
+            {
+                if(!pv.quiet_flag)
+                    LogMessage("Decoding old OpenBSD PF log on interface %s\n",
+                            PRINT_INTERFACE(pv.interface));
+            }
+
+            grinder = DecodeOldPflog;
+
+            break;
+#endif
+
 #ifdef DLT_LOOP
         case DLT_LOOP:
 #endif
+#ifdef DLT_NULL
         case DLT_NULL:            /* loopback and stuff.. you wouldn't perform
                                    * intrusion detection on it, but it's ok for
                                    * testing. */
+#endif
             if(!pv.readmode_flag)
             {
                 if(!pv.quiet_flag)
@@ -1720,45 +2767,158 @@ int SetPktProcessor()
 
     return 0;
 }
+/*
+ *  Handle idle time checks in snort packet processing loop 
+ */
+static 
+int snort_idle()
+{
+    /* Rollover of performance log */ 
+    if( pv.rotate_perf_file )
+    {
+        sfRotatePerformanceStatisticsFile(&sfPerf);
+        pv.rotate_perf_file=0; 
+    }
+    
+    return 0;
+}
 
+#ifdef INLINE_FAILOPEN
+static int inline_ignored_packets = 0;
+void PcapIgnorePacket(char *user, struct pcap_pkthdr * pkthdr, u_char * pkt)
+{
+    /* Empty function -- do nothing with the packet we just read */
+    inline_ignored_packets++;
 
+    if (pv.initialization_done_flag)
+    {
+        pv.pass_thread_running_flag = 0;
+        pthread_exit(NULL);
+    }
+
+    return;
+}
+
+void *InlineFailOpenThread(void *arg)
+{
+    int pcap_ret;
+    sigset_t mtmask, oldmask;
+
+    sigemptyset(&mtmask);
+
+    /* Get the current set of signals inherited from main thread. */
+    pthread_sigmask(SIG_UNBLOCK, &mtmask, &oldmask);
+
+    /* Now block those signals from being delivered to this thread.
+     * now Main receives all signals. */
+    pthread_sigmask(SIG_BLOCK, &oldmask, NULL);
+
+    pv.pass_thread_running_flag = 1;
+
+    //LogMessage("Inline Fail Open Thread started\n");
+
+    while (!pv.initialization_done_flag)
+    {
+        //LogMessage("Inline Fail Open Thread calling pcap_dispatch\n");
+        pcap_ret = pcap_dispatch(pd, 1, (pcap_handler)PcapIgnorePacket, NULL);
+
+        if (pcap_ret >= 0)
+        {
+            //LogMessage("Inline Fail Open Thread read %d packets\n", pcap_ret);
+        }
+    }
+
+    //LogMessage("Inline Fail Open Thread exiting (allowed %d packets through)\n",
+            //inline_ignored_packets);
+    pv.pass_thread_running_flag = 0;
+
+    pthread_exit(NULL);
+
+    return NULL;
+}
+#endif
+    
 /*
  * Function: void *InterfaceThread(void *arg)
  *
  * Purpose: wrapper for pthread_create() to create a thread per interface
  */
+static struct timeval starttime;
+static struct timeval endtime;
 void *InterfaceThread(void *arg)
 {
-    static int intnum = 0;
-    int myint;
-    struct timeval starttime;
-    struct timeval endtime;
-    struct timeval difftime;
+    int pcap_ret;
     struct timezone tz;
-
-    myint = intnum;
-    intnum++;
+    int pkts_to_read = pv.pkt_cnt;
 
     bzero((char *) &tz, sizeof(tz));
     gettimeofday(&starttime, &tz);
 
+    signal_location =  SIGLOC_PCAP_LOOP;
+
     /* Read all packets on the device.  Continue until cnt packets read */
-    if(pcap_loop(pd, pv.pkt_cnt, (pcap_handler) ProcessPacket, NULL) < 0)
+#ifdef USE_PCAP_LOOP
+    pcap_ret = pcap_loop(pd, pv.pkt_cnt, (pcap_handler) PcapProcessPacket, NULL);
+#else
+    while(1)
+    {
+        pcap_ret = pcap_dispatch(pd, pkts_to_read, (pcap_handler)PcapProcessPacket, NULL);
+        if (pv.usr_signal == SIGHUP)
+        {
+            pv.done_processing = 1;
+            return NULL;
+        }
+
+        if (pcap_ret < 0)
+        {
+            break;
+        }
+
+        /* If reading from a file... 0 packets at EOF */
+        if (pv.readmode_flag && (pcap_ret == 0))
+        {
+            break;
+        }
+
+        /* continue... pcap_ret packets that time around. */
+        pkts_to_read -= pcap_ret;
+
+        if ((pkts_to_read <= 0) && (pv.pkt_cnt != -1))
+        {
+            break;
+        }
+      
+        /* check for signals */
+        if (sig_check())
+        {
+            if (hup_check())
+            {
+                /* Actually return so we can restart */
+                return NULL;
+            }
+        }
+
+        /* idle time processing..quick things to check or do ... */
+        snort_idle();
+    }
+#endif
+    if (pcap_ret < 0)
     {
         if(pv.daemon_flag)
-            syslog(LOG_CONS | LOG_DAEMON, "pcap_loop: %s", pcap_geterr(pd));
+        {
+            syslog(LOG_PID | LOG_CONS | LOG_DAEMON,
+                    "pcap_loop: %s", pcap_geterr(pd));
+        }
         else
+        {
             ErrorMessage("pcap_loop: %s\n", pcap_geterr(pd));
-
+        }
         CleanExit(1);
     }
+    
+    signal_location =  0;
 
-    gettimeofday(&endtime, &tz);
-
-    TIMERSUB(&endtime, &starttime, &difftime);
-
-    printf("Run time for packet processing was %lu.%lu seconds\n", 
-            (unsigned long)difftime.tv_sec, (unsigned long)difftime.tv_usec);
+    pv.done_processing = 1;
 
     CleanExit(0);
 
@@ -1785,6 +2945,8 @@ int OpenPcap()
     struct bpf_program fcode;        /* Finite state machine holder */
     char errorbuf[PCAP_ERRBUF_SIZE];        /* buffer to put error strings in */
     bpf_u_int32 defaultnet = 0xFFFFFF00;
+
+    errorbuf[0] = '\0';
 
     /* if we're not reading packets from a file */
     if(pv.interface == NULL)
@@ -1894,6 +3056,13 @@ int OpenPcap()
                        PRINT_INTERFACE(pv.interface), errorbuf);
         }
     }
+
+    if (strlen(errorbuf) > 0)
+    {
+        LogMessage("Warning: OpenPcap() device %s success with warning:"
+                   "\n\t%s\n", PRINT_INTERFACE(pv.interface), errorbuf);
+    }
+
     /* get local net and netmask */
     if(pcap_lookupnet(pv.interface, &localnet, &netmask, errorbuf) < 0)
     {
@@ -1909,12 +3078,6 @@ int OpenPcap()
          * interfaces)
          */
         netmask = htonl(defaultnet);
-    }
-    else
-    {
-        DefineIfaceVar(PRINT_INTERFACE(pv.interface),
-                       (u_char *) &localnet, 
-                       (u_char *) &netmask);
     }
 
     /* compile BPF filter spec info fcode FSM */
@@ -2043,7 +3206,7 @@ static int ProcessLogCommandLine()
 {
     if(!pv.log_cmd_override)
     {
-        ActivateOutputPlugin("log_ascii", NULL);
+        ActivateOutputPlugin("log_tcpdump", NULL);
     }
     else
     {
@@ -2073,51 +3236,74 @@ static int ProcessLogCommandLine()
 }
 
 /* Signal Handlers ************************************************************/
+void saveSignalInfo(int signal)
+{
+    /* If we are already processing an exit signal, nothing to do */
+    if (pv.exit_signal)
+        return;
+
+    pv.exit_signal = signal;
+}
+
+#ifdef CATCH_SEGV
+static int sawSegv = 0;
+static void SigSegvHandler(int signal)
+{
+    if (sawSegv == 1)
+    {
+        /* Handle the reentrant issues for SEGV...
+         * If we get a SEGV while processing one, just exit */
+        exit(-1);
+    }
+
+    sawSegv = 1;
+    saveSignalInfo(signal);
+    LogMessage("*** \n");
+    LogMessage("*** Snort caught a SEGV exception, shutting down.\n");
+
+    switch( signal_location)
+    {
+        case SIGLOC_PARSE_RULES_FILE:
+            LogMessage("*** SEGV caught while parsing '%s' at line %d.\n",
+                       file_name, file_line );
+            break;
+
+        case SIGLOC_PCAP_LOOP:
+            if( current_otn )
+            {
+                LogMessage("*** SEGV caught in event generator id = %u, sid = %u\n",
+                           current_otn->sigInfo.generator, current_otn->sigInfo.id);
+            }
+            break;
+
+        default:
+            break;
+    }
+
+    LogMessage("*** \n");
+
+    CleanExit(1);
+}
+#endif
 
 static void SigTermHandler(int signal)
 {
-    CleanExit(0);
+    saveSignalInfo(signal);
 }
 
 static void SigIntHandler(int signal)
 {
-    CleanExit(0);
+    saveSignalInfo(signal);
 }   
 
 static void SigQuitHandler(int signal)
 {
-    CleanExit(0);
+    saveSignalInfo(signal);
 }
 
 static void SigHupHandler(int signal)
 {
-    Restart();
-}
-
-static void SigUsr1Handler(int signal)
-{
-#ifndef WIN32
-#if defined(LINUX) || defined(FREEBSD) || defined(OPENBSD) || defined(SOLARIS)
-    sigset_t set;
-
-    /* XXX why do we unblock all signals here? */
-    sigemptyset(&set);
-    sigprocmask(SIG_SETMASK, &set, NULL);
-#else
-    sigsetmask(0);
-#endif
-#endif  /* !WIN32 */
-
-    if(pv.quiet_flag)
-    {
-        pv.quiet_flag = 0;
-        DropStats(0);
-        pv.quiet_flag = 1;
-    }
-    else
-    {
-        DropStats(0);
-    }
+    pv.usr_signal = signal;
 }
 
 /**
@@ -2127,7 +3313,15 @@ static void SigUsr1Handler(int signal)
  */
 void SigCantHupHandler(int signal)
 {
-        LogMessage("Reload via Signal HUP does not work if you aren't root or are chroot'ed\n");
+    LogMessage("Reload via Signal HUP does not work if you aren't root or are chroot'ed\n");
+}
+
+static void SigUsrHandler(int signal)
+{
+    /* Just set a flag that we caught a SIGUSR
+     * (or whatever else we handle in here)
+     */
+    pv.usr_signal = signal;
 }
 
 /****************************************************************************
@@ -2141,12 +3335,19 @@ void SigCantHupHandler(int signal)
  * Returns: void function
  *
  ****************************************************************************/
+extern PluginSignalFuncNode *PluginShutdownList;
 extern PluginSignalFuncNode *PluginCleanExitList;
 extern PluginSignalFuncNode *PluginRestartList;
+extern PreprocSignalFuncNode *PreprocShutdownList;
+extern PreprocSignalFuncNode *PreprocCleanExitList;
+extern PreprocSignalFuncNode *PreprocRestartList;
 
 void CleanExit(int exit_val)
 {
-    PluginSignalFuncNode *idx = NULL;
+    PreprocSignalFuncNode *idxPreproc = NULL;
+    PreprocSignalFuncNode *tempPreproc = NULL;
+    PluginSignalFuncNode *idxPlugin = NULL;
+    PluginSignalFuncNode *tempPlugin = NULL;
 
     /* This function can be called more than once.  For example,
      * once from the SIGINT signal handler, and once recursively
@@ -2163,16 +3364,83 @@ void CleanExit(int exit_val)
     }
     already_exiting = 1;
 
+#ifdef INLINE_FAILOPEN
+    if(pv.pass_thread_running_flag)
+    {
+        pv.initialization_done_flag = 1;
+        pthread_kill(pv.pass_thread_id, SIGKILL);
+    }
+#endif
+
+    /* Do some post processing on any incomplete Preprocessor Data */
+    idxPreproc = PreprocShutdownList;
+    while (idxPreproc)
+    {
+        idxPreproc->func(SIGQUIT, idxPreproc->arg);
+        idxPreproc = idxPreproc->next;
+    }
+
+    /* Do some post processing on any incomplete Plugin Data */
+    idxPlugin = PluginShutdownList;
+    while(idxPlugin)
+    {
+        idxPlugin->func(SIGQUIT, idxPlugin->arg);
+        tempPlugin = idxPlugin;
+        idxPlugin = idxPlugin->next;
+        free(tempPlugin);
+    }
+
+    if (pv.done_processing)
+    {
+        struct timeval difftime;
+        struct timezone tz;
+
+        bzero((char *) &tz, sizeof(tz));
+        gettimeofday(&endtime, &tz);
+
+        TIMERSUB(&endtime, &starttime, &difftime);
+
+        if ( !pv.quiet_flag )
+        {
+            printf("Run time for packet processing was %lu.%lu seconds\n", 
+                (unsigned long)difftime.tv_sec, (unsigned long)difftime.tv_usec);
+        }
+    }
+
+#ifdef TIMESTATS
+    alarm(0);   /* cancel any existing alarm and disable alarm() function */
+#endif
+
+    /* Exit preprocessors */
+    idxPreproc = PreprocCleanExitList;
+    while(idxPreproc)
+    {
+        idxPreproc->func(SIGQUIT, idxPreproc->arg);
+        tempPreproc = idxPreproc;
+        idxPreproc = idxPreproc->next;
+        free(tempPreproc);
+    }
+
     /* Print Statistics */
     if(!pv.test_mode_flag)
     {
         fpShowEventStats();
+#ifdef PERF_PROFILING
+        {
+            int quiet_flag_save;
+            quiet_flag_save = pv.quiet_flag;
+            pv.quiet_flag = 0;
+            ShowPreprocProfiles();
+            ShowRuleProfiles();
+            pv.quiet_flag = quiet_flag_save;
+        }
+#endif
         DropStats(0);
     }
 
     /* Exit plugins */
-    idx = PluginCleanExitList;
-    //if(idx)
+    idxPlugin = PluginCleanExitList;
+    //if(idxPlugin)
     //    LogMessage("WARNING: Deprecated Plugin API still in use\n");
 
 #ifdef GIDS
@@ -2189,23 +3457,34 @@ void CleanExit(int exit_val)
 #endif /* IPFW (may need cleanup code here) */
 #endif /* GIDS */
 
-    while(idx)
+    while(idxPlugin)
     {
-        idx->func(SIGQUIT, idx->arg);
-        idx = idx->next;
+        idxPlugin->func(SIGQUIT, idxPlugin->arg);
+        idxPlugin = idxPlugin->next;
     }
 
     /* free allocated memory */
 
     /* close pcap */
+#ifdef GIDS
     if (pd && !InlineMode())
+#else
+    if (pd)
+#endif
+    {
         pcap_close(pd);
+        pd = NULL;
+    }
 
     LogMessage("Snort exiting\n");
+
+    ClearDumpBuf();
 
     /* remove pid file */
     if(pv.pid_filename)
         unlink(pv.pid_filename);
+
+    ClosePidFile();
 
     /* exit */
     exit(exit_val);
@@ -2213,7 +3492,20 @@ void CleanExit(int exit_val)
 
 static void Restart()
 {
-    PluginSignalFuncNode *idx = NULL;
+    PreprocSignalFuncNode *idxPreproc = NULL;
+    PreprocSignalFuncNode *preprocTemp= NULL;
+    PluginSignalFuncNode *idxPlugin = NULL;
+    PluginSignalFuncNode *plugTemp = NULL;
+
+    /* Exit preprocessors */
+    idxPreproc = PreprocRestartList;
+    while(idxPreproc)
+    {
+        idxPreproc->func(SIGHUP, idxPreproc->arg);
+        preprocTemp = idxPreproc;
+        idxPreproc = idxPreproc->next;
+        free(preprocTemp);
+    }
 
     /* Print statistics */
     if(!pv.test_mode_flag)
@@ -2224,28 +3516,43 @@ static void Restart()
 
     /* Exit plugins */
     /* legacy exit code */
-    idx = PluginRestartList;
-    //if(idx)
+    idxPlugin = PluginRestartList;
+    //if(idxPlugin)
     //    LogMessage("WARNING: Deprecated Plugin API still in use\n");
 
-    while(idx)
+    while(idxPlugin)
     {
-        idx->func(SIGHUP, idx->arg);
-        idx = idx->next;
+        idxPlugin->func(SIGHUP, idxPlugin->arg);
+        plugTemp = idxPlugin;
+        idxPlugin = idxPlugin->next;
+        free(plugTemp);
     }
 
     /* free allocated memory */
 
     /* close pcap */
-    if(pd)
+#ifdef GIDS
+    if (pd && !InlineMode())
+#else
+    if (pd)
+#endif
+    {
         pcap_close(pd);
+        pd = NULL;
+    }
+
+    ClearDumpBuf();
 
     /* remove pid file */
-
     if(pv.pid_filename)
         unlink(pv.pid_filename);
+
     LogMessage("Restarting Snort\n");
 
+    /* For pcap_loop to return */
+    //pcap_breakloop();
+
+#if 0
     /* re-exec Snort */
 #ifdef PARANOID
     execv(progname, progargs);
@@ -2256,11 +3563,82 @@ static void Restart()
     /* only get here if we failed to restart */
     LogMessage("Restarting %s failed: %s\n", progname, strerror(errno));
     exit(1);
+#endif
 }
 
+void
+InitPcap( int test_flag )
+{
+#ifndef MUST_SPECIFY_DEVICE    
+    if((pv.interface == NULL) && !pv.readmode_flag && !pv.print_version &&
+#ifdef DYNAMIC_PLUGIN
+        !pv.dump_dynamic_rules_flag &&
+#endif
+        !pv.test_mode_flag)
+    {
+        char errorbuf[PCAP_ERRBUF_SIZE];
+#ifdef GIDS
+        if (!InlineMode())
+        {
+#endif /* GIDS */
+        pv.interface = pcap_lookupdev(errorbuf);
 
+        if(pv.interface == NULL)
+            FatalError( "Failed to lookup for interface: %s."
+                    " Please specify one with -i switch\n", errorbuf);
+        else
+            LogMessage("***\n*** interface device lookup found: %s\n***\n",pv.interface);
+#ifdef GIDS
+        }
+#endif /* GIDS */
+    }
+#else /* MUST_SPECIFY_DEVICE */
+    if((pv.interface == NULL) && !pv.readmode_flag && !pv.print_version &&
+#ifdef DYNAMIC_PLUGIN
+        !pv.dump_dynamic_rules_flag &&
+#endif
+        !pv.test_mode_flag)
+    {
+            FatalError( "You must specify either: a network interface (-i), "
+#ifdef DYNAMIC_PLUGIN
+                        "dump dynamic rules to a file (--dump-dynamic-rules), "
+#endif
+                        "a capture file (-r), or the test flag (-T)\n");
+    }
+#endif /* MUST_SPECIFY_DEVICE */
 
+    g_pcap_test = test_flag;
 
+    if(!pv.readmode_flag && !pv.test_mode_flag && !pv.print_version)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "%s interface: %s\n", 
+                    test_flag ? "Testing" : "Opening", 
+                    PRINT_INTERFACE(pv.interface)););
+        /* open up our libpcap packet capture interface */
+        OpenPcap();
+    }
+    else if (!pv.test_mode_flag && !pv.print_version)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "%s file: %s\n", 
+                    test_flag ? "Testing" : "Opening", 
+                    pv.readfile););
 
-/* vim: smartindent:expandtab:sw=4:ts=4:tw=0
- */
+        /* open the packet file for readback */
+        OpenPcap();
+    }
+
+    /* If test mode, need to close pcap again. */
+    if ( test_flag )
+    {
+#ifdef GIDS
+        if (pd && !InlineMode())
+#else
+        if (pd)
+#endif
+        {
+           pcap_close(pd);
+           pd = NULL;
+        }
+    }
+}
+

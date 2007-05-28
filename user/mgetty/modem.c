@@ -1,4 +1,4 @@
-#ident "$Id$ Copyright (c) Gert Doering"
+#ident "$Id: modem.c,v 4.4 1997/12/05 23:48:08 gert Exp $ Copyright (c) Gert Doering"
 
 /* modem.c
  *

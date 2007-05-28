@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10784);
- script_cve_id("CVE-2001-0834");
  script_bugtraq_id(3410);
- script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2001-0834");
+ script_version ("$Revision: 1.16 $");
  
  script_name(english:"ht://Dig's htsearch potential exposure/dos");
  desc = "
@@ -29,7 +29,7 @@ remote host by specifying /dev/zero as a configuration file.
 Solution: Upgrade to ht://Dig 3.1.6 or newer
 (http://www.htdig.org/files/snapshots/)
 
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc);
 
@@ -40,6 +40,7 @@ Risk factor : Serious";
  script_category(ACT_GATHER_INFO);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_copyright("Copyright (C) 2001 Renaud Deraison"); 
  exit(0);
 }
@@ -50,8 +51,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

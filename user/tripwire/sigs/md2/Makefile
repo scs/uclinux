@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.3 1993/11/22 06:38:14 genek Exp $
 #
 # Makefile for MD2 wrapper
 #

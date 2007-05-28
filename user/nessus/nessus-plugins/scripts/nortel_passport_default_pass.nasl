@@ -7,7 +7,7 @@
  if(description)
  {
 	 script_id(10989);
-       script_version ("$Revision: 1.6 $");
+       script_version ("$Revision: 1.7 $");
 	 name["english"] = "Nortel/Bay Networks default password";
 	 script_name(english:name["english"]);
  
@@ -39,9 +39,13 @@
  #
  # The script code starts here
  #
+ include('telnet_func.inc');
  port = 23;
  
  if(get_port_state(port)) {
+
+	banner = get_telnet_banner(port:port);
+	if ( !banner || "Passport" >!< banner ) exit(0);
  
        # Although there are at least 11 (!?) default passwords to check, the passport will only allow
        # 3 attempts before closing down the telnet port for 60 seconds. Fortunatelly, nothing prevents
@@ -85,7 +89,7 @@
        for(i=0;i<PASS;i=i+1) {
 	       soc=open_sock_tcp(port);
 	       if(!soc)exit(0);
-	       buf=telnet_init(soc);
+	       buf=telnet_negotiate(socket:soc);
 	       #display(buf);
 	       if("NetLogin:" >< buf)exit(0);
 	       if ( "Passport" >< buf ){

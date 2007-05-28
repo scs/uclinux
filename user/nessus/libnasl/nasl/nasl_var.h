@@ -104,4 +104,9 @@ tree_cell*	copy_ref_array(const tree_cell*);
 int		hash_str2(const char*, int);
 tree_cell*	var2cell(anon_nasl_var*);
 
+tree_cell*	make_array_from_elems(tree_cell*);
+const char* 	array2str(const nasl_array*);
+
+
+
 #endif

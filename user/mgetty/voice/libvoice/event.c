@@ -4,7 +4,7 @@
  * This is the callback function for the modem to the higher level
  * routines.
  *
- * $Id$
+ * $Id: event.c,v 1.9 2005/03/13 17:27:46 gert Exp $
  *
  */
 

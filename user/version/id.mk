@@ -1,3 +1,5 @@
-BANNER="Welcome to Blackfin Linux!"
+BANNER="Welcome to uClinux/ColdFire!"
 TOOLCHAIN = $(TOOLS)
-VERSION = $(shell grep '^Version:' $(ROOTDIR)/release_notes | awk '{print $$NF}')
+VERSION = 1
+PATCHLEVEL = 0
+SUBLEVEL = 0

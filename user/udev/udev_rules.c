@@ -1,21 +1,19 @@
 /*
- * udev_rules.c
- *
  * Copyright (C) 2003 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2003-2005 Kay Sievers <kay.sievers@vrfy.org>
+ * Copyright (C) 2003-2006 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the
  *	Free Software Foundation version 2 of the License.
- * 
+ *
  *	This program is distributed in the hope that it will be useful, but
  *	WITHOUT ANY WARRANTY; without even the implied warranty of
  *	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
  *	General Public License for more details.
- * 
+ *
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -28,6 +26,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <syslog.h>
+#include <fnmatch.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
 
@@ -246,7 +245,7 @@ static int import_parent_into_env(struct udevice *udev, const char *filter)
 				if (pos) {
 					pos[0] = '\0';
 					pos++;
-					if (strcmp_pattern(filter, name) == 0) {
+					if (fnmatch(filter, name, 0) == 0) {
 						dbg("import key '%s'", name_loop->name);
 						name_list_add(&udev->env_list, name_loop->name, 0);
 						setenv(name, pos, 1);
@@ -261,88 +260,6 @@ static int import_parent_into_env(struct udevice *udev, const char *filter)
 	}
 
 	return rc;
-}
-
-static int match_name_and_get_number(const char *base, const char *devname)
-{
-	size_t baselen;
-	char *endptr;
-	int num;
-
-	baselen = strlen(base);
-	if (strncmp(base, devname, baselen) != 0)
-		return -1;
-	if (devname[baselen] == '\0')
-		return 0;
-	if (!isdigit(devname[baselen]))
-		return -1;
-	num = strtoul(&devname[baselen], &endptr, 10);
-	if (endptr[0] != '\0')
-		return -1;
-	return num;
-}
-
-/* finds the lowest positive device number such that <name>N isn't present in the udevdb
- * if <name> doesn't exist, 0 is returned, N otherwise */
-static int find_free_number(const char *base, const char *devpath)
-{
-	char db_devpath[PATH_SIZE];
-	char filename[PATH_SIZE];
-	struct udevice *udev_db;
-	int num = 0;
-	static int warn = 1;
-
-	if (warn) {
-		err("%%e is deprecated, will be removed and is unlikely to work correctly. Don't use it.");
-		warn = 0;
-	}
-
-	/* check if the device already owns a matching name */
-	udev_db = udev_device_init();
-	if (udev_db == NULL)
-		return -1;
-	if (udev_db_get_device(udev_db, devpath) == 0) {
-		struct name_entry *name_loop;
-		int devnum;
-
-		devnum = match_name_and_get_number(base, udev_db->name);
-		if (devnum >= 0) {
-			num = devnum;
-			dbg("device '%s', already has the node '%s' with num %u, use it", devpath, base, num);
-			goto out;
-		}
-		list_for_each_entry(name_loop, &udev_db->symlink_list, node) {
-			devnum = match_name_and_get_number(base, name_loop->name);
-			if (devnum >= 0) {
-				num = devnum;
-				dbg("device '%s', already has a symlink '%s' with num %u, use it", devpath, base, num);
-				goto out;
-			}
-		}
-	}
-
-	/* just search the database again and again until a free name is found */
-	strlcpy(filename, base, sizeof(filename));
-	while (1) {
-		dbg("look for existing node '%s'", filename);
-		if (udev_db_lookup_name(filename, db_devpath, sizeof(db_devpath)) != 0) {
-			dbg("free num=%d", num);
-			break;
-		}
-
-		num++;
-		if (num > 100000) {
-			err("find_free_number aborted at num=%d", num);
-			num = -1;
-			break;
-		}
-		snprintf(filename, sizeof(filename), "%s%d", base, num);
-		filename[sizeof(filename)-1] = '\0';
-	}
-
-out:
-	udev_device_cleanup(udev_db);
-	return num;
 }
 
 #define WAIT_LOOP_PER_SECOND		50
@@ -386,22 +303,19 @@ void udev_rules_apply_format(struct udevice *udev, char *string, size_t maxsize)
 	int len;
 	int i;
 	int count;
-	unsigned int next_free_number;
 	enum subst_type {
 		SUBST_UNKNOWN,
 		SUBST_DEVPATH,
+		SUBST_KERNEL,
 		SUBST_KERNEL_NUMBER,
-		SUBST_KERNEL_NAME,
 		SUBST_ID,
 		SUBST_MAJOR,
 		SUBST_MINOR,
 		SUBST_RESULT,
-		SUBST_SYSFS,
-		SUBST_ENUM,
+		SUBST_ATTR,
 		SUBST_PARENT,
 		SUBST_TEMP_NODE,
 		SUBST_ROOT,
-		SUBST_MODALIAS,
 		SUBST_ENV,
 	};
 	static const struct subst_map {
@@ -409,20 +323,19 @@ void udev_rules_apply_format(struct udevice *udev, char *string, size_t maxsize)
 		char fmt;
 		enum subst_type type;
 	} map[] = {
-		{ .name = "devpath",		.fmt = 'p',	.type = SUBST_DEVPATH },
-		{ .name = "number",		.fmt = 'n',	.type = SUBST_KERNEL_NUMBER },
-		{ .name = "kernel",		.fmt = 'k',	.type = SUBST_KERNEL_NAME },
-		{ .name = "id",			.fmt = 'b',	.type = SUBST_ID },
-		{ .name = "major",		.fmt = 'M',	.type = SUBST_MAJOR },
-		{ .name = "minor",		.fmt = 'm',	.type = SUBST_MINOR },
-		{ .name = "result",		.fmt = 'c',	.type = SUBST_RESULT },
-		{ .name = "sysfs",		.fmt = 's',	.type = SUBST_SYSFS },
-		{ .name = "enum",		.fmt = 'e',	.type = SUBST_ENUM },
-		{ .name = "parent",		.fmt = 'P',	.type = SUBST_PARENT },
-		{ .name = "tempnode",		.fmt = 'N',	.type = SUBST_TEMP_NODE },
-		{ .name = "root",		.fmt = 'r',	.type = SUBST_ROOT },
-		{ .name = "modalias",		.fmt = 'A',	.type = SUBST_MODALIAS },
-		{ .name = "env",		.fmt = 'E',	.type = SUBST_ENV },
+		{ .name = "devpath",	.fmt = 'p',	.type = SUBST_DEVPATH },
+		{ .name = "number",	.fmt = 'n',	.type = SUBST_KERNEL_NUMBER },
+		{ .name = "kernel",	.fmt = 'k',	.type = SUBST_KERNEL },
+		{ .name = "id",		.fmt = 'b',	.type = SUBST_ID },
+		{ .name = "major",	.fmt = 'M',	.type = SUBST_MAJOR },
+		{ .name = "minor",	.fmt = 'm',	.type = SUBST_MINOR },
+		{ .name = "result",	.fmt = 'c',	.type = SUBST_RESULT },
+		{ .name = "attr",	.fmt = 's',	.type = SUBST_ATTR },
+		{ .name = "sysfs",	.fmt = 's',	.type = SUBST_ATTR },
+		{ .name = "parent",	.fmt = 'P',	.type = SUBST_PARENT },
+		{ .name = "tempnode",	.fmt = 'N',	.type = SUBST_TEMP_NODE },
+		{ .name = "root",	.fmt = 'r',	.type = SUBST_ROOT },
+		{ .name = "env",	.fmt = 'E',	.type = SUBST_ENV },
 		{ NULL, '\0', 0 }
 	};
 	enum subst_type type;
@@ -451,8 +364,7 @@ void udev_rules_apply_format(struct udevice *udev, char *string, size_t maxsize)
 						goto found;
 					}
 				}
-			}
-			else if (head[0] == '%') {
+			} else if (head[0] == '%') {
 				/* substitute format char */
 				if (head[1] == '\0')
 					break;
@@ -487,9 +399,9 @@ found:
 			strlcat(string, udev->dev->devpath, maxsize);
 			dbg("substitute devpath '%s'", udev->dev->devpath);
 			break;
-		case SUBST_KERNEL_NAME:
-			strlcat(string, udev->dev->kernel_name, maxsize);
-			dbg("substitute kernel name '%s'", udev->dev->kernel_name);
+		case SUBST_KERNEL:
+			strlcat(string, udev->dev->kernel, maxsize);
+			dbg("substitute kernel name '%s'", udev->dev->kernel);
 			break;
 		case SUBST_KERNEL_NUMBER:
 			strlcat(string, udev->dev->kernel_number, maxsize);
@@ -497,8 +409,8 @@ found:
 			break;
 		case SUBST_ID:
 			if (udev->dev_parent != NULL) {
-				strlcat(string, udev->dev_parent->kernel_name, maxsize);
-				dbg("substitute id '%s'", udev->dev_parent->kernel_name);
+				strlcat(string, udev->dev_parent->kernel, maxsize);
+				dbg("substitute id '%s'", udev->dev_parent->kernel);
 			}
 			break;
 		case SUBST_MAJOR:
@@ -545,41 +457,46 @@ found:
 				dbg("substitute result string '%s'", udev->program_result);
 			}
 			break;
-		case SUBST_SYSFS:
-			if (attr == NULL) {
-				dbg("missing attribute");
-				break;
-			} else {
-				struct sysfs_device *dev_parent;
-				const char *value;
+		case SUBST_ATTR:
+			if (attr == NULL)
+				err("missing file parameter for attr");
+			else {
+				const char *value = NULL;
+				size_t size;
 
-				dev_parent = udev->dev;
-				do {
-					dbg("looking at '%s'", dev_parent->devpath);
-					value = sysfs_attr_get_value(dev_parent->devpath, attr);
-					if (value != NULL) {
-						strlcpy(temp2, value, sizeof(temp2));
-						break;
-					}
-					dev_parent = sysfs_device_get_parent(dev_parent);
-				} while (dev_parent != NULL);
+				/* first try the current device, other matches may have selected */
+				if (udev->dev_parent != NULL && udev->dev_parent != udev->dev)
+					value = sysfs_attr_get_value(udev->dev_parent->devpath, attr);
 
-				/* strip trailing whitespace of sysfs value */
-				i = strlen(temp2);
-				while (i > 0 && isspace(temp2[i-1]))
-					temp2[--i] = '\0';
+				/* look at all devices along the chain of parents */
+				if (value == NULL) {
+					struct sysfs_device *dev_parent = udev->dev;
+
+					do {
+						dbg("looking at '%s'", dev_parent->devpath);
+						value = sysfs_attr_get_value(dev_parent->devpath, attr);
+						if (value != NULL) {
+							strlcpy(temp2, value, sizeof(temp2));
+							break;
+						}
+						dev_parent = sysfs_device_get_parent(dev_parent);
+					} while (dev_parent != NULL);
+				}
+
+				if (value == NULL)
+					break;
+
+				/* strip trailing whitespace and replace untrusted characters of sysfs value */
+				size = strlcpy(temp2, value, sizeof(temp2));
+				if (size >= sizeof(temp2))
+					size = sizeof(temp2)-1;
+				while (size > 0 && isspace(temp2[size-1]))
+					temp2[--size] = '\0';
 				count = replace_untrusted_chars(temp2);
-				if (count)
+				if (count > 0)
 					info("%i untrusted character(s) replaced" , count);
 				strlcat(string, temp2, maxsize);
 				dbg("substitute sysfs value '%s'", temp2);
-			}
-			break;
-		case SUBST_ENUM:
-			next_free_number = find_free_number(string, udev->dev->devpath);
-			if (next_free_number > 0) {
-				sprintf(temp2, "%d", next_free_number);
-				strlcat(string, temp2, maxsize);
 			}
 			break;
 		case SUBST_PARENT:
@@ -618,24 +535,6 @@ found:
 		case SUBST_ROOT:
 			strlcat(string, udev_root, maxsize);
 			dbg("substitute udev_root '%s'", udev_root);
-			break;
-		case SUBST_MODALIAS:
-			{
-				const char *value;
-				static int warn = 1;
-
-				if (warn) {
-					err("$modalias is deprecated, use $env{MODALIAS} or "
-					    "$sysfs{modalias} instead.");
-					warn = 0;
-				}
-
-				value = sysfs_attr_get_value(udev->dev->devpath, "modalias");
-				if (value != NULL) {
-					strlcat(string, value, maxsize);
-					dbg("substitute MODALIAS '%s'", temp2);
-				}
-			}
 			break;
 		case SUBST_ENV:
 			if (attr == NULL) {
@@ -680,7 +579,8 @@ static int match_key(const char *key_name, struct udev_rule *rule, struct key *k
 	char *key_value;
 	char *pos;
 
-	if (key->operation == KEY_OP_UNSET)
+	if (key->operation != KEY_OP_MATCH &&
+	    key->operation != KEY_OP_NOMATCH)
 		return 0;
 
 	strlcpy(value, rule->buf + key->val_off, sizeof(value));
@@ -694,7 +594,7 @@ static int match_key(const char *key_name, struct udev_rule *rule, struct key *k
 			pos++;
 		}
 		dbg("match %s '%s' <-> '%s'", key_name, key_value, val);
-		match = (strcmp_pattern(key_value, val) == 0);
+		match = (fnmatch(key_value, val, 0) == 0);
 		if (match && (key->operation != KEY_OP_NOMATCH)) {
 			dbg("%s is true (matching value)", key_name);
 			return 0;
@@ -717,7 +617,7 @@ static int match_rule(struct udevice *udev, struct udev_rule *rule)
 	if (match_key("ACTION", rule, &rule->action, udev->action))
 		goto nomatch;
 
-	if (match_key("KERNEL", rule, &rule->kernel_name, udev->dev->kernel_name))
+	if (match_key("KERNEL", rule, &rule->kernel, udev->dev->kernel))
 		goto nomatch;
 
 	if (match_key("SUBSYSTEM", rule, &rule->subsystem, udev->dev->subsystem))
@@ -726,29 +626,19 @@ static int match_rule(struct udevice *udev, struct udev_rule *rule)
 	if (match_key("DEVPATH", rule, &rule->devpath, udev->dev->devpath))
 		goto nomatch;
 
-	if (rule->modalias.operation != KEY_OP_UNSET) {
-		const char *value;
-		static int warn = 1;
+	if (match_key("DRIVER", rule, &rule->driver, udev->dev->driver))
+		goto nomatch;
 
-		if (warn) {
-			err("MODALIAS is deprecated, use ENV{MODALIAS} or SYSFS{modalias} instead.");
-			warn = 0;
-		}
-
-		value = sysfs_attr_get_value(udev->dev->devpath, "modalias");
-		if (value == NULL) {
-			dbg("MODALIAS value not found");
-			goto nomatch;
-		}
-		if (match_key("MODALIAS", rule, &rule->modalias, value))
-			goto nomatch;
-	}
+	/* match NAME against a value assigned by an earlier rule */
+	if (match_key("NAME", rule, &rule->name, udev->name))
+		goto nomatch;
 
 	for (i = 0; i < rule->env.count; i++) {
 		struct key_pair *pair = &rule->env.keys[i];
 
 		/* we only check for matches, assignments will be handled later */
-		if (pair->key.operation != KEY_OP_ASSIGN) {
+		if (pair->key.operation == KEY_OP_MATCH ||
+		    pair->key.operation == KEY_OP_NOMATCH) {
 			const char *key_name = key_pair_name(rule, pair);
 			const char *value = getenv(key_name);
 
@@ -765,38 +655,62 @@ static int match_rule(struct udevice *udev, struct udev_rule *rule)
 		int found;
 
 		found = (wait_for_sysfs(udev, key_val(rule, &rule->wait_for_sysfs), 3) == 0);
-		if (!found && (rule->wait_for_sysfs.operation != KEY_OP_NOMATCH)) {
-			dbg("WAIT_FOR_SYSFS failed");
+		if (!found && (rule->wait_for_sysfs.operation != KEY_OP_NOMATCH))
 			goto nomatch;
+	}
+
+	/* check for matching sysfs attribute pairs */
+	for (i = 0; i < rule->attr.count; i++) {
+		struct key_pair *pair = &rule->attr.keys[i];
+
+		if (pair->key.operation == KEY_OP_MATCH ||
+		    pair->key.operation == KEY_OP_NOMATCH) {
+			const char *key_name = key_pair_name(rule, pair);
+			const char *key_value = key_val(rule, &pair->key);
+			const char *value;
+			char val[VALUE_SIZE];
+			size_t len;
+
+			value = sysfs_attr_get_value(udev->dev->devpath, key_name);
+			if (value == NULL)
+				goto nomatch;
+			strlcpy(val, value, sizeof(val));
+
+			/* strip trailing whitespace of value, if not asked to match for it */
+			len = strlen(key_value);
+			if (len > 0 && !isspace(key_value[len-1])) {
+				len = strlen(val);
+				while (len > 0 && isspace(val[len-1]))
+					val[--len] = '\0';
+				dbg("removed %zi trailing whitespace chars from '%s'", strlen(val)-len, val);
+			}
+
+			if (match_key("ATTR", rule, &pair->key, val))
+				goto nomatch;
 		}
 	}
 
 	/* walk up the chain of parent devices and find a match */
 	udev->dev_parent = udev->dev;
 	while (1) {
+		/* check for matching kernel device name */
+		if (match_key("KERNELS", rule, &rule->kernels, udev->dev_parent->kernel))
+			goto try_parent;
+
+		/* check for matching subsystem value */
+		if (match_key("SUBSYSTEMS", rule, &rule->subsystems, udev->dev_parent->subsystem))
+			goto try_parent;
+
 		/* check for matching driver */
-		if (rule->driver.operation != KEY_OP_UNSET) {
-			if (match_key("DRIVER", rule, &rule->driver, udev->dev_parent->driver))
-				goto try_parent;
-		}
+		if (match_key("DRIVERS", rule, &rule->drivers, udev->dev_parent->driver))
+			goto try_parent;
 
-		/* check for matching subsystem/bus value */
-		if (rule->bus.operation != KEY_OP_UNSET) {
-			if (match_key("BUS", rule, &rule->bus, udev->dev_parent->subsystem))
-				goto try_parent;
-		}
+		/* check for matching sysfs attribute pairs */
+		for (i = 0; i < rule->attrs.count; i++) {
+			struct key_pair *pair = &rule->attrs.keys[i];
 
-		/* check for matching bus id (device name) */
-		if (rule->id.operation != KEY_OP_UNSET) {
-			if (match_key("ID", rule, &rule->id, udev->dev_parent->kernel_name))
-				goto try_parent;
-		}
-
-		/* check for matching sysfs pairs */
-		if (rule->sysfs.count) {
-			dbg("check %i SYSFS keys", rule->sysfs.count);
-			for (i = 0; i < rule->sysfs.count; i++) {
-				struct key_pair *pair = &rule->sysfs.keys[i];
+			if (pair->key.operation == KEY_OP_MATCH ||
+			    pair->key.operation == KEY_OP_NOMATCH) {
 				const char *key_name = key_pair_name(rule, pair);
 				const char *key_value = key_val(rule, &pair->key);
 				const char *value;
@@ -819,10 +733,9 @@ static int match_rule(struct udevice *udev, struct udev_rule *rule)
 					dbg("removed %zi trailing whitespace chars from '%s'", strlen(val)-len, val);
 				}
 
-				if (match_key("SYSFS", rule, &pair->key, val))
+				if (match_key("ATTRS", rule, &pair->key, val))
 					goto try_parent;
 			}
-			dbg("all %i SYSFS keys matched", rule->sysfs.count);
 		}
 
 		/* found matching device  */
@@ -834,7 +747,7 @@ try_parent:
 		if (udev->dev_parent == NULL)
 			goto nomatch;
 		dbg("looking at dev_parent->devpath='%s'", udev->dev_parent->devpath);
-		dbg("looking at dev_parent->bus_kernel_name='%s'", udev->dev_parent->kernel_name);
+		dbg("looking at dev_parent->kernel='%s'", udev->dev_parent->kernel);
 	}
 
 	/* execute external program */
@@ -901,18 +814,48 @@ try_parent:
 		struct key_pair *pair = &rule->env.keys[i];
 
 		if (pair->key.operation == KEY_OP_ASSIGN) {
+			char temp_value[NAME_SIZE];
 			const char *key_name = key_pair_name(rule, pair);
 			const char *value = key_val(rule, &pair->key);
-			char *key_value = name_list_key_add(&udev->env_list, key_name, value);
+			char *key_value;
+
+			/* make sure we don't write to the same string we possibly read from */
+			strlcpy(temp_value, value, sizeof(temp_value));
+			udev_rules_apply_format(udev, temp_value, NAME_SIZE);
+
+			key_value = name_list_key_add(&udev->env_list, key_name, temp_value);
 			if (key_value == NULL)
 				break;
 
-			udev_rules_apply_format(udev, key_value, NAME_SIZE);
 			putenv(key_value);
 			dbg("export ENV '%s'", key_value);
 		}
 	}
 
+	/* if we have ATTR assignements write value to sysfs file */
+	for (i = 0; i < rule->attr.count; i++) {
+		struct key_pair *pair = &rule->attr.keys[i];
+
+		if (pair->key.operation == KEY_OP_ASSIGN) {
+			const char *key_name = key_pair_name(rule, pair);
+			const char *key_value = key_val(rule, &pair->key);
+			char attr[PATH_SIZE];
+			FILE *f;
+
+			strlcpy(attr, sysfs_path, sizeof(attr));
+			strlcat(attr, udev->dev->devpath, sizeof(attr));
+			strlcat(attr, "/", sizeof(attr));
+			strlcat(attr, key_name, sizeof(attr));
+			dbg("write '%s' to '%s'", key_value, attr);
+			f = fopen(attr, "w");
+			if (f != NULL) {
+				if (fprintf(f, "%s\n", key_value) <= 0)
+					err("error writing ATTR{%s}: %s", attr, strerror(errno));
+				fclose(f);
+			} else
+				err("error opening ATTR{%s} for writing: %s", attr, strerror(errno));
+		}
+	}
 	return 0;
 
 nomatch:
@@ -925,7 +868,7 @@ int udev_rules_get_name(struct udev_rules *rules, struct udevice *udev)
 	int name_set = 0;
 
 	dbg("udev->dev->devpath='%s'", udev->dev->devpath);
-	dbg("udev->dev->kernel_name='%s'", udev->dev->kernel_name);
+	dbg("udev->dev->kernel='%s'", udev->dev->kernel);
 
 	/* look for a matching rule to apply */
 	udev_rules_iter_init(rules);
@@ -934,7 +877,10 @@ int udev_rules_get_name(struct udev_rules *rules, struct udevice *udev)
 		if (rule == NULL)
 			break;
 
-		if (name_set && rule->name.operation != KEY_OP_UNSET) {
+		if (name_set &&
+		    (rule->name.operation == KEY_OP_ASSIGN ||
+		     rule->name.operation == KEY_OP_ASSIGN_FINAL ||
+		     rule->name.operation == KEY_OP_ADD)) {
 			dbg("node name already set, rule ignored");
 			continue;
 		}
@@ -943,7 +889,7 @@ int udev_rules_get_name(struct udev_rules *rules, struct udevice *udev)
 		if (match_rule(udev, rule) == 0) {
 			/* apply options */
 			if (rule->ignore_device) {
-				info("rule applied, '%s' is ignored", udev->dev->kernel_name);
+				info("rule applied, '%s' is ignored", udev->dev->kernel);
 				udev->ignore_device = 1;
 				return 0;
 			}
@@ -963,21 +909,21 @@ int udev_rules_get_name(struct udev_rules *rules, struct udevice *udev)
 				if (rule->mode_operation == KEY_OP_ASSIGN_FINAL)
 					udev->mode_final = 1;
 				udev->mode = rule->mode;
-				dbg("applied mode=%#o to '%s'", rule->mode, udev->dev->kernel_name);
+				dbg("applied mode=%#o to '%s'", rule->mode, udev->dev->kernel);
 			}
 			if (!udev->owner_final && rule->owner.operation != KEY_OP_UNSET) {
 				if (rule->owner.operation == KEY_OP_ASSIGN_FINAL)
 					udev->owner_final = 1;
 				strlcpy(udev->owner, key_val(rule, &rule->owner), sizeof(udev->owner));
 				udev_rules_apply_format(udev, udev->owner, sizeof(udev->owner));
-				dbg("applied owner='%s' to '%s'", udev->owner, udev->dev->kernel_name);
+				dbg("applied owner='%s' to '%s'", udev->owner, udev->dev->kernel);
 			}
 			if (!udev->group_final && rule->group.operation != KEY_OP_UNSET) {
 				if (rule->group.operation == KEY_OP_ASSIGN_FINAL)
 					udev->group_final = 1;
 				strlcpy(udev->group, key_val(rule, &rule->group), sizeof(udev->group));
 				udev_rules_apply_format(udev, udev->group, sizeof(udev->group));
-				dbg("applied group='%s' to '%s'", udev->group, udev->dev->kernel_name);
+				dbg("applied group='%s' to '%s'", udev->group, udev->dev->kernel);
 			}
 
 			/* collect symlinks */
@@ -1020,7 +966,9 @@ int udev_rules_get_name(struct udev_rules *rules, struct udevice *udev)
 			}
 
 			/* set name, later rules with name set will be ignored */
-			if (rule->name.operation != KEY_OP_UNSET) {
+			if (rule->name.operation == KEY_OP_ASSIGN ||
+			    rule->name.operation == KEY_OP_ASSIGN_FINAL ||
+			    rule->name.operation == KEY_OP_ADD) {
 				int count;
 
 				name_set = 1;
@@ -1030,7 +978,7 @@ int udev_rules_get_name(struct udev_rules *rules, struct udevice *udev)
 				if (count)
 					info("%i untrusted character(s) replaced", count);
 
-				info("rule applied, '%s' becomes '%s'", udev->dev->kernel_name, udev->name);
+				info("rule applied, '%s' becomes '%s'", udev->dev->kernel, udev->name);
 				if (strcmp(udev->dev->subsystem, "net") != 0)
 					dbg("name, '%s' is going to have owner='%s', group='%s', mode=%#o partitions=%i",
 					    udev->name, udev->owner, udev->group, udev->mode, udev->partitions);
@@ -1060,7 +1008,7 @@ int udev_rules_get_name(struct udev_rules *rules, struct udevice *udev)
 	}
 
 	if (!name_set) {
-		strlcpy(udev->name, udev->dev->kernel_name, sizeof(udev->name));
+		strlcpy(udev->name, udev->dev->kernel, sizeof(udev->name));
 		info("no node name set, will use kernel name '%s'", udev->name);
 	}
 
@@ -1077,7 +1025,7 @@ int udev_rules_get_run(struct udev_rules *rules, struct udevice *udev)
 {
 	struct udev_rule *rule;
 
-	dbg("udev->kernel_name='%s'", udev->dev->kernel_name);
+	dbg("udev->kernel='%s'", udev->dev->kernel);
 
 	/* look for a matching rule to apply */
 	udev_rules_iter_init(rules);
@@ -1095,7 +1043,7 @@ int udev_rules_get_run(struct udev_rules *rules, struct udevice *udev)
 
 		if (match_rule(udev, rule) == 0) {
 			if (rule->ignore_device) {
-				info("rule applied, '%s' is ignored", udev->dev->kernel_name);
+				info("rule applied, '%s' is ignored", udev->dev->kernel);
 				udev->ignore_device = 1;
 				return 0;
 			}

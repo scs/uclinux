@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10648);
- script_version ("$Revision: 1.20 $");
  script_bugtraq_id(2548);
- script_cve_id("CAN-2001-0247");
+ script_version ("$Revision: 1.28 $");
+ script_cve_id("CVE-2001-0247");
  name["english"] = "ftp 'glob' overflow";
  name["francais"] = "Dépassement de buffer ftp par 'glob'";
  
@@ -66,7 +66,7 @@ Facteur de risque : Elevé";
  script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison",
  		  francais:"Ce script est Copyright (C) 2001 Renaud Deraison");
 		  
- script_dependencie("find_service.nes", "ftp_write_dirs.nes");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl", "ftp_writeable_directories.nasl");
  script_require_keys("ftp/login", "ftp/writeable_dir");
  script_require_ports("Services/ftp", 21);
  exit(0);
@@ -77,10 +77,16 @@ Facteur de risque : Elevé";
 #
 
 include("ftp_func.inc");
+include("global_settings.inc");
 
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(!get_port_state(port))exit(0);
+
+
+
+if ( report_paranoia == 0 ) exit(0);
+
 
 
 # First, we need access
@@ -159,14 +165,14 @@ if(soc)
 {
  if(login && wri)
  {
- if(ftp_log_in(socket:soc, user:login, pass:password))
+ if(ftp_authenticate(socket:soc, user:login, pass:password))
  {
   # We are in
  
   c = string("CWD ", wri, "\r\n");
   send(socket:soc, data:c);
   b = ftp_recv_line(socket:soc);
-  if(!ereg(pattern:"^250.*", string:b))exit(0);
+  if(!egrep(pattern:"^250.*", string:b))exit(0);
   cwd = string("CWD ", crap(255), "\r\n");
   mkd = string("MKD ", crap(255), "\r\n");
   
@@ -183,7 +189,7 @@ if(soc)
   send(socket:soc, data:mkd);
   b = ftp_recv_line(socket:soc);
  
-  if(!ereg(pattern:"^257 .*", string:b) && !("ile exists" >< b)){
+  if(!egrep(pattern:"^257 .*", string:b) && !("ile exists" >< b)){
   	set_kb_item(name:"ftp/no_mkdir", value:TRUE);
 	i = 5;
 	}
@@ -191,7 +197,7 @@ if(soc)
   }
   
   
-  port2 = ftp_get_pasv_port(socket:soc);
+  port2 = ftp_pasv(socket:soc);
   soc2 = open_sock_tcp(port2, transport:get_port_transport(port));
   
   send(socket:soc, data:string("NLST ", wri, "/X*/X*/X*/X*/X*\r\n"));
@@ -213,7 +219,7 @@ if(soc)
   if(!num_dirs)exit(0);
   
   soc = open_sock_tcp(port);
-  ftp_log_in(socket:soc, user:login, pass:password);
+  ftp_authenticate(socket:soc, user:login, pass:password);
   send(socket:soc, data:string("CWD ", wri, "\r\n"));
   b = ftp_recv_line(socket:soc);
   

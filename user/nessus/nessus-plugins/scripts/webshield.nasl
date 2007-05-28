@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10557);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1589, 1993);
- script_cve_id("CVE-2000-0738", "CAN-2000-1130");
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-2000-0738", "CVE-2000-1130");
 
 
  name["english"] = "WebShield";
@@ -68,7 +68,7 @@ Facteur de risque : Elevé";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -79,6 +79,8 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);

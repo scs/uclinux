@@ -11,9 +11,11 @@
 if(description)
 {
  script_id(11039);
- script_version("$Revision: 1.10 $");
- script_cve_id("CVE-2002-0653");
  script_bugtraq_id(5084);
+ script_version("$Revision: 1.15 $");
+ script_cve_id("CVE-2002-0653");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2002:028");
+
  
  name["english"] = "mod_ssl off by one";
 
@@ -46,7 +48,7 @@ Risk factor : High";
  
  
  script_copyright(english:"This script is Copyright (C) 2002 Thomas Reinke");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  script_require_ports("Services/www", 80);
@@ -58,15 +60,19 @@ Risk factor : High";
 # The script code starts here
 #
 include("http_func.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+if ( report_paranoia < 2 ) exit(0);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);
  if(!banner)exit(0);
  
  serv = strstr(banner, "Server");
+ if("Apache/" >!< serv ) exit(0);
  if("Apache/2" >< serv) exit(0);
  if("Apache-AdvancedExtranetServer/2" >< serv)exit(0);
 

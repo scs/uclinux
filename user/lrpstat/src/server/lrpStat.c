@@ -1,6 +1,6 @@
-/* $Revision$ */
-/* $Author$ */
-/* $Header$ */
+/* $Revision: 1.7 $ */
+/* $Author: hejl $ */
+/* $Header: /home/cvs/lrpStat/src/server/lrpStat.c,v 1.7 2002/05/15 10:13:51 hejl Exp $ */
 
 #include <ctype.h>
 #include <stdio.h>

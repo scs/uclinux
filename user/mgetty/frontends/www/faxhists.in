@@ -4,12 +4,9 @@
 # 
 # Copyright 1998 Gert Doering, gert@greenie.net
 #
-# CVS: $Id$
+# CVS: $Id: faxhists.in,v 1.2 1998/12/04 14:57:54 gert Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:29:48  vapier
-# import from upstream uClinux
-#
+# $Log: faxhists.in,v $
 # Revision 1.2  1998/12/04 14:57:54  gert
 # substitute regex specials for dummy users
 #

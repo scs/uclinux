@@ -122,10 +122,7 @@ int cap_free(void *data_p)
 }
 
 /*
- * $Log$
- * Revision 1.1  2005/07/25 05:10:02  magicyang
- * New user folder check in
- *
+ * $Log: cap_alloc.c,v $
  * Revision 1.2  2003/05/15 00:49:13  castaglia
  *
  * Bug#2000 - mod_cap should not use bundled libcap.  This patch updates the

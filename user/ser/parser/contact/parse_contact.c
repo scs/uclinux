@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_contact.c,v 1.4 2003/04/10 12:38:18 janakj Exp $
  *
  * Contact header field body parser
  *

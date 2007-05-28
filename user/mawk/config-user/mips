@@ -1,10 +1,7 @@
 # mips
 # if you prefer to use cc or no gcc
 
-# $Log$
-# Revision 1.2  2005/07/25 04:03:16  magicyang
-# New user folder check in
-#
+# $Log: mips,v $
 # Revision 1.1  1995/06/03  09:27:19  mike
 # initial checkin
 #

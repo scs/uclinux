@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11619);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "Eserv Memory Leaks";
  script_name(english:name["english"]);
@@ -27,7 +27,7 @@ any attacker to consumme all the available memory on
 this host by making repeated requests to this service.
 
 Solution : None at this time
-Risk Factor : Medium";
+Risk factor : Medium";
 
 
  script_description(english:desc["english"]);
@@ -53,8 +53,8 @@ include("http_func.inc");
 include("ftp_func.inc");
 include("smtp_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);

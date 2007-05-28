@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: checks.c,v 1.10.6.2 2004/02/20 00:39:55 jiri Exp $
  *
  * Various URI checks
  *

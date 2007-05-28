@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11752);
  script_bugtraq_id(7954);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.6 $");
 
  name["english"] = "Proxomitron DoS";
 
@@ -24,7 +24,7 @@ in this software which may allow an attacker to disable it remotely.
 
 
 Solution : Disable this service
-Risk Factor : Medium";
+Risk factor : Medium";
 
 
 
@@ -43,7 +43,7 @@ Risk Factor : Medium";
  family["english"] = "Denial of Service";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes");
- script_require_ports("Services/www", 80);
+ script_require_ports("Services/www", 8080);
  exit(0);
 }
 
@@ -55,32 +55,8 @@ Risk Factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 8080;
+port = get_http_port(default:8080);
 if(!get_port_state(port))exit(0);
-
-
-if ( 1 || safe_checks() )
-{
- req = http_get(item:"/", port:port);
- res = http_keepalive_send_recv(port:port, data:req);
- if ( res == NULL ) exit(0);
- 
- if( "<title>The Proxomitron Reveals...</title>" >< res )
- {
-  security_hole(port:port, data:report);
-  exit(0);
- }
-}
-
-#
-# the following makes proxomitron close the connection abruptely, 
-# however it's false positive prone so it's disabled.
-#
-
-req = http_get(item:crap(data:"/../..0%%../", length:5000), port:port);
-soc = http_open_socket(port);
-if( !soc ) exit(0);
-send(socket:soc, data:req);
-res = http_recv(socket:soc);
-close(soc);
+res = http_get_cache(item:"/", port:port);
+if ( res == NULL ) exit(0);
+if( "<title>The Proxomitron Reveals...</title>" >< res ) security_warning(port);

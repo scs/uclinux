@@ -7,10 +7,10 @@
 if (description)
 {
  script_id(11390);
- script_cve_id("CAN-2002-0048");
  script_bugtraq_id(3958);
+ script_cve_id("CVE-2002-0048");
  
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.9 $");
  script_name(english:"rsync array overflow");
  desc["english"] = "
 The remote rsync server is vulnerable to an array index
@@ -57,6 +57,8 @@ if(!soc)exit(0);
 
 welcome = recv_line(socket:soc, length:4096);
 if(!welcome)exit(0);
+if(!ereg(pattern:"@RSYNCD: (1[0-9]|2[0-5])[^0-9]", string:welcome)) exit(0);
+
 send(socket:soc, data:string("@BOGUS\n"));
 motd = NULL;
 

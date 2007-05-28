@@ -183,6 +183,9 @@ int control_finish (struct tunnel *t, struct call *c)
     char ip1[STRLEN];
     char ip2[STRLEN];
     char dummy_buf[128] = "/var/l2tp/"; /* jz: needed to read /etc/ppp/var.options - just kick it if you dont like */
+    int tmptid;
+    int tmpcid;
+
     if (c->msgtype < 0)
     {
         log (LOG_DEBUG, "%s: Whoa...  non-ZLB with no message type!\n",
@@ -381,7 +384,7 @@ int control_finish (struct tunnel *t, struct call *c)
          c->needclose = -1;
          return -EINVAL;
          }  */
-        if (!strlen (t->hostname))
+        if ((!strlen (t->hostname)) && ((t->chal_us.state) || ((t->lns->challenge))))
         {
             if (DEBUG)
                 log (LOG_DEBUG,
@@ -495,7 +498,7 @@ int control_finish (struct tunnel *t, struct call *c)
          c->needclose = -1;
          return -EINVAL;
          } */
-        if (!strlen (t->hostname))
+        if ((!strlen (t->hostname)) && ((t->chal_them.state) || ((t->chal_us.state))))
         {
             if (DEBUG)
                 log (LOG_DEBUG,
@@ -642,12 +645,17 @@ int control_finish (struct tunnel *t, struct call *c)
                      __FUNCTION__);
             return -EINVAL;
         }
-        if ((t->qtid != t->tid) && (t->tid > 0))
+	/* Work around bug in MSL2TP client */
+        if ((t->firmware == 0xff00) && (!(strncmp(t->vendor, "Deterministic Networks Inc.", 27))))
+            tmptid = t->ourtid; 
+        else
+            tmptid = t->tid; 
+        if ((t->qtid != tmptid) && (tmptid > 0))
         {
             if (DEBUG)
                 log (LOG_DEBUG,
                      "%s: Peer tried to disconnect with invalid TID (%d != %d)\n",
-                     __FUNCTION__, t->qtid, t->tid);
+                     __FUNCTION__, t->qtid, tmptid);
             return -EINVAL;
         }
         /* In case they're disconnecting immediately after SCCN */
@@ -1041,7 +1049,12 @@ int control_finish (struct tunnel *t, struct call *c)
         }
         else
             p = c;
-        if ((c->qcid != p->cid) && p->cid > 0)
+	/* Work around bug in MSL2TP client */
+        if ((t->firmware == 0xff00) && (!(strncmp(t->vendor, "Deterministic Networks Inc.", 27))))
+            tmpcid = p->ourcid; 
+        else
+            tmpcid = p->cid; 
+        if ((c->qcid != tmpcid) && tmpcid > 0)
         {
             if (DEBUG)
                 log (LOG_DEBUG,
@@ -1117,7 +1130,7 @@ inline int check_control (const struct buffer *buf, struct tunnel *t,
     {
         if (DEBUG)
             log (LOG_DEBUG,
-                 "%s: Received out of order control packet on tunnel %d (%d != %d)\n",
+                 "%s: Received out of order control packet on tunnel %d (got %d, expected %d)\n",
                  __FUNCTION__, t->tid, h->Ns, t->control_rec_seq_num);
         if (((h->Ns < t->control_rec_seq_num) && 
             ((t->control_rec_seq_num - h->Ns) < 32768)) ||

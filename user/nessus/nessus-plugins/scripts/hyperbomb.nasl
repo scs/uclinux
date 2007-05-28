@@ -7,26 +7,20 @@
 if(description)
 {
  script_id(10108);
- script_version ("$Revision: 1.15 $");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-1999-1336");
  name["english"] = "Hyperbomb";
  name["francais"] = "Hyperbomb";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-It was possible to reboot the remote
-host (possibly an HyperARC router)
+It was possible to reboot the remote host (possibly an HyperARC router)
 by sending it a high volume of IACs.
 
-An attacker may use this flaw to shut down
-your internet connection.
+An attacker may use this flaw to shut down your internet connection.
 
-
-Solution : add a telnet access list to your
-Hyperarc router. If the remote system is not
-an Hyperarc router, then contact your vendor
-for a patch
-
+Solution : add a telnet access list to your Hyperarc router. If the remote 
+system is not an Hyperarc router, then contact your vendor for a patch
 Risk factor : High";
 
 

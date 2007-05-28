@@ -1,63 +1,51 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
-#
-# Ref:
-#  Date: Wed, 30 Apr 2003 16:34:27 +0200 (CEST)
-#  From: Marco Ivaldi <raptor@mediaservice.net>
-#  To: <bugtraq@securityfocus.com>
-#  Subject: OpenSSH/PAM timing attack allows remote users identification
-#
-#
+
+if ( ! defined_func("bn_random") || ! defined_func("unixtime") ) exit(0);
 
 if(description)
 {
  script_id(11574);
- script_version ("$Revision: 1.5 $");
- script_cve_id("CAN-2003-0190");
- script_bugtraq_id(7482, 7467, 7342);
+ script_bugtraq_id(7342, 7467, 7482, 11781);
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-2003-0190");
+
  
  
  name["english"] = "Portable OpenSSH PAM timing attack";
  script_name(english:name["english"]);
  
  desc["english"] = "
-You are running OpenSSH-portable 3.6.1p1 or older.
-
-If PAM support is enabled, an attacker may use a flaw in this version
-to determine the existence or a given login name by comparing the times
-the remote sshd daemon takes to refuse a bad password for a non-existant
-login compared to the time it takes to refuse a bad password for a
-valid login.
+The remote host seem to be  running an SSH server which can allow
+an attacker to determine the existence of a given login by comparing
+the time the remote sshd daemon takes to refuse a bad password for a 
+non-existent login compared to the time it takes to refuse a bad password
+for a valid login.
 
 An attacker may use this flaw to set up  a brute force attack against
 the remote host.
 
-*** Nessus did not check whether the remote SSH daemon is actually
-*** using PAM or not, so this might be a false positive
+Solution : Disable PAM support if you do not use it, upgrade to the newest 
+version of OpenSSH
 
-Solution : Upgrade to OpenSSH-portable 3.6.1p2 or newer
-Risk Factor : Low";
+Risk factor : Low";
 	
 	
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Checks for the remote SSH version";
- summary["francais"] = "Vérifie la version de SSH";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ summary["english"] = "Checks the timing of the remote SSH server";
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2004 Tenable Network Security");
  family["english"] = "Misc.";
 
  script_family(english:family["english"]);
- script_dependencie("find_service.nes");
+ script_dependencie("ssh_detect.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -67,34 +55,35 @@ Risk Factor : Low";
 #
 
 
+include("ssh_func.inc");
+include("global_settings.inc");
+
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+banner = get_kb_item("SSH/banner/" + port);
+if ( ! banner ) exit(0);
+
+if ( thorough_tests ) 
+  if ( "openssh" >!<  tolower(banner) ) exit(0);
 
 
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    banner = tolower(banner);
-    close(soc);
-  }
-}
 
-if(!banner)exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
 
-banner = banner - string("\r\n");
+then = unixtime();
+ret = ssh_login(socket:soc, login:"nonexistent" + rand(), password:"n3ssus");
+now = unixtime();
+close(soc);
 
-banner = tolower(banner);
-if("openssh" >< banner)
-{
- if(ereg(pattern:".*openssh[-_]((1\..*p[0-9])|(2\..*p[0-9])|(3\.(([0-5](\.[0-9]*)*)p[0-9]*|6(p|\.1p1))))", string:banner))
-	security_warning(port);
-}
+inval_diff = now - then;
 
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+then = unixtime();
+ret = ssh_login(socket:soc, login:"bin", password:"n3ssus");
+now = unixtime();
+val_diff = now - then;
+if ( ( val_diff - inval_diff ) >= 2 ) security_note(port);
 

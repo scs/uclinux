@@ -5,12 +5,15 @@
 **
 **  @brief      This file contains library calls to configure HttpInspect.
 **
+**  Copyright (C) 2003-2005 Sourcefire,Inc.
+**
 **  This file deals with configuring HttpInspect processing.  It contains
 **  routines to set a default configuration, add server configurations, etc.
 **
 **  NOTES:
 **
 **  - 2.10.03:  Initial Developments.  DJR
+**  - 2.4.05:   Added tab_uri_delimiter config option.  AJM.
 */
 #include <stdlib.h>
 #include <stdio.h>
@@ -114,6 +117,11 @@ int hi_ui_config_default(HTTPINSPECT_GLOBAL_CONF *GlobalConf)
 
     GlobalConf->global_server.non_strict = 1;
 
+    GlobalConf->global_server.whitespace[9] = HI_UI_CONFIG_WS_BEFORE_URI | HI_UI_CONFIG_WS_AFTER_URI;   /* horizontal tab */
+    GlobalConf->global_server.whitespace[11] = HI_UI_CONFIG_WS_BEFORE_URI;  /* vertical tab */
+    GlobalConf->global_server.whitespace[12] = HI_UI_CONFIG_WS_BEFORE_URI;  /* form feed */
+    GlobalConf->global_server.whitespace[13] = HI_UI_CONFIG_WS_BEFORE_URI;  /* carriage return */
+
     return HI_SUCCESS;
 }
 
@@ -204,6 +212,11 @@ int hi_ui_config_set_profile_apache(HTTPINSPECT_CONF *ServerConf)
 
     ServerConf->utf_8.on = 1;
 
+    ServerConf->whitespace[9] = HI_UI_CONFIG_WS_BEFORE_URI | HI_UI_CONFIG_WS_AFTER_URI;   /* horizontal tab */
+    ServerConf->whitespace[11] = HI_UI_CONFIG_WS_BEFORE_URI | HI_UI_CONFIG_WS_AFTER_URI;  /* vertical tab */
+    ServerConf->whitespace[12] = HI_UI_CONFIG_WS_BEFORE_URI | HI_UI_CONFIG_WS_AFTER_URI;  /* form feed */
+    ServerConf->whitespace[13] = HI_UI_CONFIG_WS_BEFORE_URI | HI_UI_CONFIG_WS_AFTER_URI;  /* carriage return */
+
     return HI_SUCCESS;
 }
     
@@ -254,8 +267,8 @@ int hi_ui_config_set_profile_iis(HTTPINSPECT_CONF *ServerConf,
     ServerConf->webroot.on = 1;
     ServerConf->webroot.alert = 1;
 
-    ServerConf->double_decoding.on    = 1;
-    ServerConf->double_decoding.alert = 1;
+    ServerConf->double_decoding.on    = 0;
+    ServerConf->double_decoding.alert = 0;
 
     ServerConf->u_encoding.on         = 1;
     ServerConf->u_encoding.alert      = 1;
@@ -274,7 +287,37 @@ int hi_ui_config_set_profile_iis(HTTPINSPECT_CONF *ServerConf,
 
     ServerConf->non_strict = 1;
 
+    ServerConf->whitespace[9] = HI_UI_CONFIG_WS_BEFORE_URI | HI_UI_CONFIG_WS_AFTER_URI;   /* horizontal tab */
+    ServerConf->whitespace[11] = HI_UI_CONFIG_WS_BEFORE_URI;  /* vertical tab */
+    ServerConf->whitespace[12] = HI_UI_CONFIG_WS_BEFORE_URI;  /* form feed */
+    ServerConf->whitespace[13] = HI_UI_CONFIG_WS_BEFORE_URI;  /* carriage return */
+
     return HI_SUCCESS;
+}
+
+/*
+**  NAME
+**    hi_ui_set_profile_iis_4or5::
+*/
+/**
+** Double decoding decoding attacks exist for IIS
+** 4.0 and 5.0, but not 5.1 and beyond.
+**
+** This function uses the general IIS setup, hi_ui_config_set_profile_iis,
+** but set the double_decoding flags.
+**/
+
+int hi_ui_config_set_profile_iis_4or5(HTTPINSPECT_CONF *ServerConf,
+                                 int *iis_unicode_map)
+{
+    int ret;
+    
+    ret = hi_ui_config_set_profile_iis(ServerConf, iis_unicode_map);
+    
+    ServerConf->double_decoding.on = 1;
+    ServerConf->double_decoding.alert = 1;
+    
+    return ret;
 }
 
 /*
@@ -341,6 +384,11 @@ int hi_ui_config_set_profile_all(HTTPINSPECT_CONF *ServerConf,
     ServerConf->apache_whitespace.on     = 1;
 
     ServerConf->non_strict = 1;
+
+    ServerConf->whitespace[9] = HI_UI_CONFIG_WS_BEFORE_URI | HI_UI_CONFIG_WS_AFTER_URI;   /* horizontal tab */
+    ServerConf->whitespace[11] = HI_UI_CONFIG_WS_BEFORE_URI;  /* vertical tab */
+    ServerConf->whitespace[12] = HI_UI_CONFIG_WS_BEFORE_URI;  /* form feed */
+    ServerConf->whitespace[13] = HI_UI_CONFIG_WS_BEFORE_URI;  /* carriage return */
 
     return HI_SUCCESS;
 }

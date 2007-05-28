@@ -30,9 +30,9 @@
 if(description)
 {
  script_id(11076);
- script_version ("$Revision: 1.8 $");
- script_bugtraq_id(3765);
- script_cve_id("CAN-2002-0386");
+ script_bugtraq_id(3765, 5902);
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2002-0386");
  name["english"] = "Oracle webcache admin interface DoS";
  script_name(english:name["english"]);
  
@@ -54,9 +54,8 @@ Risk factor : Low";
  script_category(ACT_DENIAL);
  
  script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi");
- family["english"] = "Denial of Service";
- family["francais"] = "Déni de service";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_require_ports("Services/www", 4000);
  script_dependencie("find_service.nes", "httpver.nasl", "http_version.nasl");
  exit(0);
@@ -70,6 +69,8 @@ include("misc_func.inc");
 function check(port)
 {
   local_var	soc, r;
+
+ if (http_is_dead(port: port)) return;
 
  soc = http_open_socket(port);
   if(! soc) return;
@@ -106,6 +107,6 @@ function check(port)
  return;
 }
 
-ports = add_port_in_list(list:"Services/www", port:4000);
+ports = add_port_in_list(list:get_kb_list("Services/www"), port:4000);
 foreach port (ports) check(port: port);
 

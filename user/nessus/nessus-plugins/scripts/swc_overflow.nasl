@@ -11,11 +11,10 @@
 if(description)
 {
  script_id(10493);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.17 $");
  
  name["english"] = "SWC Overflow";
- name["francais"] = "Dépassement de buffer dans SWC";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 The CGI 'swc' (Simple Web Counter) is present and vulnerable
@@ -27,41 +26,24 @@ An attacker may use this flaw to gain a shell on this host
 Solution : Use another web counter, or patch this one by hand
 
 Reference : http://online.securityfocus.com/archive/1/76818
-Reference : http://www.securiteam.com/unixfocus/5FP0O202AE.html
 
-Risk factor : Serious";
+Risk factor : High";
 
-
- desc["francais"] = "
-Le CGI 'swc' (Simple Web Counter) est présent et vulnérable à un
-dépassement de buffer lorsqu'une valeur trop longue est donnée
-à l'argument 'ctr='.
-
-Un pirate peut utiliser ce problème pour obtenir un shell sur
-ce système.
-
-Solution : Utilisez un autre compteur web, ou patchez celui-ci à
-la main
-Facteur de risque : Sérieux";
-
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for the presence of /cgi-bin/swc";
- summary["francais"] = "Vérifie la présence de /cgi-bin/swc";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
  family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -72,8 +54,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

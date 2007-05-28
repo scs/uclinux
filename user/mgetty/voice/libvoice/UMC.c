@@ -11,7 +11,7 @@
  *
  * New updated driver by Jens Adner <Jens.Adner@Wirtschaft.TU-Ilmenau.DE>.
  *
- * $Id$
+ * $Id: UMC.c,v 1.10 2005/03/13 17:27:46 gert Exp $
  *
  */
 

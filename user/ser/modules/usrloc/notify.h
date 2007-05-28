@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: notify.h,v 1.3.6.1 2004/03/24 14:50:43 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

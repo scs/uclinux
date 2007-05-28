@@ -47,6 +47,7 @@ extern int extendedlog;
 typedef struct _config {
     char	srcip[200];
     char	server[200];
+    char	ident[200];
 
     int		redirmode;
     int		selectserver;
@@ -58,6 +59,7 @@ typedef struct _config {
     struct {
 	int	autodirectory;
 	char	quarantine[200];
+	char virusevent[200];
 	} clamav;
 
     int		spamscan;

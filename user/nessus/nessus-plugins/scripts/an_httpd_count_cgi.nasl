@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11555);
  script_bugtraq_id(7397);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "AN HTTPd count.pl file truncation";
  script_name(english:name["english"]);
  
@@ -25,7 +25,7 @@ the privileges of the httpd server.
 An attacker may use this flaw to prevent this host from working properly.
 
 Solution : Delete /isapi/count.pl
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -39,15 +39,19 @@ Risk factor : Serious";
  script_family(english:family["english"]);
  script_require_ports("Services/www", 80);
  script_dependencies("find_service.nes", "http_version.nasl");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 file = "nessus-" + rand() + "-" + rand();

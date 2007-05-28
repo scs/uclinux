@@ -1,6 +1,4 @@
 /*
- * udev_device.c - main udev data object
- *
  * Copyright (C) 2004-2006 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -14,7 +12,7 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -26,7 +24,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <ctype.h>
-#include <stropts.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
 #include <net/if.h>
 #include <linux/sockios.h>
 
@@ -69,24 +68,24 @@ void udev_device_cleanup(struct udevice *udev)
 dev_t udev_device_get_devt(struct udevice *udev)
 {
 	const char *attr;
-	unsigned int major, minor;
+	unsigned int maj, min;
 
 	/* read it from sysfs  */
 	attr = sysfs_attr_get_value(udev->dev->devpath, "dev");
 	if (attr != NULL) {
-		if (sscanf(attr, "%u:%u", &major, &minor) == 2)
-			return makedev(major, minor);
+		if (sscanf(attr, "%u:%u", &maj, &min) == 2)
+			return makedev(maj, min);
 	}
 	return makedev(0, 0);
 }
 
-static int rename_net_if(struct udevice *udev)
+static int rename_netif(struct udevice *udev)
 {
 	int sk;
 	struct ifreq ifr;
 	int retval;
 
-	info("changing net interface name from '%s' to '%s'", udev->dev->kernel_name, udev->name);
+	info("changing net interface name from '%s' to '%s'", udev->dev->kernel, udev->name);
 	if (udev->test_run)
 		return 0;
 
@@ -97,14 +96,47 @@ static int rename_net_if(struct udevice *udev)
 	}
 
 	memset(&ifr, 0x00, sizeof(struct ifreq));
-	strlcpy(ifr.ifr_name, udev->dev->kernel_name, IFNAMSIZ);
+	strlcpy(ifr.ifr_name, udev->dev->kernel, IFNAMSIZ);
 	strlcpy(ifr.ifr_newname, udev->name, IFNAMSIZ);
-
 	retval = ioctl(sk, SIOCSIFNAME, &ifr);
-	if (retval != 0)
-		err("error changing net interface name: %s", strerror(errno));
-	close(sk);
+	if (retval != 0) {
+		int loop;
 
+		/* see if the destination interface name already exists */
+		if (errno != EEXIST) {
+			err("error changing netif name %s to %s: %s", ifr.ifr_name, ifr.ifr_newname, strerror(errno));
+			goto exit;
+		}
+
+		/* free our own name, another process may wait for us */
+		strlcpy(ifr.ifr_newname, udev->dev->kernel, IFNAMSIZ);
+		strlcat(ifr.ifr_newname, "_rename", IFNAMSIZ);
+		retval = ioctl(sk, SIOCSIFNAME, &ifr);
+		if (retval != 0) {
+			err("error changing netif name %s to %s: %s", ifr.ifr_name, ifr.ifr_newname, strerror(errno));
+			goto exit;
+		}
+
+		/* wait 30 seconds for our target to become available */
+		strlcpy(ifr.ifr_name, ifr.ifr_newname, IFNAMSIZ);
+		strlcpy(ifr.ifr_newname, udev->name, IFNAMSIZ);
+		loop = 30 * 20;
+		while (loop--) {
+			retval = ioctl(sk, SIOCSIFNAME, &ifr);	
+			if (retval != 0) {
+				if (errno != EEXIST) {
+					err("error changing net interface name %s to %s: %s",
+					    ifr.ifr_name, ifr.ifr_newname, strerror(errno));
+					break;
+				}
+				dbg("wait for netif '%s' to become free, loop=%i", udev->name, (30 * 20) - loop);
+				usleep(1000 * 1000 / 20);
+			}
+		}
+	}
+
+exit:
+	close(sk);
 	return retval;
 }
 
@@ -113,7 +145,8 @@ int udev_device_event(struct udev_rules *rules, struct udevice *udev)
 	int retval = 0;
 
 	/* add device node */
-	if (major(udev->devt) != 0 && strcmp(udev->action, "add") == 0) {
+	if (major(udev->devt) != 0 &&
+	    (strcmp(udev->action, "add") == 0 || strcmp(udev->action, "change") == 0)) {
 		struct udevice *udev_old;
 
 		dbg("device node add '%s'", udev->dev->devpath);
@@ -131,17 +164,38 @@ int udev_device_event(struct udev_rules *rules, struct udevice *udev)
 		/* read current database entry, we may want to cleanup symlinks */
 		udev_old = udev_device_init();
 		if (udev_old != NULL) {
-			if (udev_db_get_device(udev_old, udev->dev->devpath) == 0) {
-				info("device '%s' already known, remove possible symlinks", udev->dev->devpath);
-				udev_node_remove_symlinks(udev_old);
-			}
-			udev_device_cleanup(udev_old);
+			if (udev_db_get_device(udev_old, udev->dev->devpath) != 0) {
+				udev_device_cleanup(udev_old);
+				udev_old = NULL;
+			} else
+				info("device '%s' already in database, validate currently present symlinks",
+				     udev->dev->devpath);
 		}
 
-		/* create node and symlinks, store record in database */
+		/* create node and symlinks */
 		retval = udev_node_add(udev, udev_old);
-		if (retval == 0)
+		if (retval == 0) {
+			/* store record in database */
 			udev_db_add_device(udev);
+
+			/* remove possibly left-over symlinks */
+			if (udev_old != NULL) {
+				struct name_entry *link_loop;
+				struct name_entry *link_old_loop;
+				struct name_entry *link_old_tmp_loop;
+
+				/* remove still valid symlinks from old list */
+				list_for_each_entry_safe(link_old_loop, link_old_tmp_loop, &udev_old->symlink_list, node)
+					list_for_each_entry(link_loop, &udev->symlink_list, node)
+						if (strcmp(link_old_loop->name, link_loop->name) == 0) {
+							dbg("symlink '%s' still valid, keep it", link_old_loop->name);
+							list_del(&link_old_loop->node);
+							free(link_old_loop);
+						}
+				udev_node_remove_symlinks(udev_old);
+				udev_device_cleanup(udev_old);
+			}
+		}
 		goto exit;
 	}
 
@@ -155,23 +209,23 @@ int udev_device_event(struct udev_rules *rules, struct udevice *udev)
 		}
 
 		/* look if we want to change the name of the netif */
-		if (strcmp(udev->name, udev->dev->kernel_name) != 0) {
+		if (strcmp(udev->name, udev->dev->kernel) != 0) {
 			char *pos;
 
-			retval = rename_net_if(udev);
+			retval = rename_netif(udev);
 			if (retval != 0)
 				goto exit;
 			info("renamed netif to '%s'", udev->name);
 
 			/* export old name */
-			setenv("INTERFACE_OLD", udev->dev->kernel_name, 1);
+			setenv("INTERFACE_OLD", udev->dev->kernel, 1);
 
 			/* now fake the devpath, because the kernel name changed silently */
 			pos = strrchr(udev->dev->devpath, '/');
 			if (pos != NULL) {
 				pos[1] = '\0';
 				strlcat(udev->dev->devpath, udev->name, sizeof(udev->dev->devpath));
-				strlcpy(udev->dev->kernel_name, udev->name, sizeof(udev->dev->kernel_name));
+				strlcpy(udev->dev->kernel, udev->name, sizeof(udev->dev->kernel));
 				setenv("DEVPATH", udev->dev->devpath, 1);
 				setenv("INTERFACE", udev->name, 1);
 			}
@@ -194,8 +248,8 @@ int udev_device_event(struct udev_rules *rules, struct udevice *udev)
 			list_for_each_entry(name_loop, &udev->env_list, node)
 				putenv(name_loop->name);
 		} else {
-			dbg("'%s' not found in database, using kernel name '%s'", udev->dev->devpath, udev->dev->kernel_name);
-			strlcpy(udev->name, udev->dev->kernel_name, sizeof(udev->name));
+			dbg("'%s' not found in database, using kernel name '%s'", udev->dev->devpath, udev->dev->kernel);
+			strlcpy(udev->name, udev->dev->kernel, sizeof(udev->name));
 		}
 
 		udev_rules_get_run(rules, udev);

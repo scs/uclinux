@@ -1,4 +1,4 @@
-$Id$
+$Id: ser.txt,v 1.1 2003/01/30 15:22:18 jiri Exp $
 
 iptel.org SIP Express Router (SER) is a high-performance, 
 configurable, free server implementing Session Initiation 

@@ -1,4 +1,4 @@
-@(#) $Header$ (LBL)
+@(#) $Header: /cvs/sw/new-wave/user/traceroute/INSTALL,v 1.1.1.1 1999/11/22 03:48:05 christ Exp $ (LBL)
 
 Traceroute is known to build and run under SunOS 4.1.4 and Solaris 5.4.
 If you are running a really old kernel, see the instructions under the

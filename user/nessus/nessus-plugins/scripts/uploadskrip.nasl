@@ -7,22 +7,41 @@
 if(description)
 {
  script_id(11746);
- script_version ("$Revision: 1.1 $");
- script_cve_id("CAN-2001-0938");
- 
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-0938");
+ script_bugtraq_id(3608);
  
  name["english"] = "AspUpload vulnerability";
  name["francais"] = "AspUpload vulnerability";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The AspUpload software resides on this server. 
+Synopsis :
 
-Some versions of this software are vulnerable to remote exploit.
+The remote web server contains an ASP script that may allow uploading
+of arbitrary files. 
 
-Solution : Update the software at http://www.aspupload.com 
+Description :
 
-Risk factor : Serious";
+At least one example script distributed with AspUpload appears to be
+installed on the remote web server.  AspUpload is an ASP script that
+supports saving and processing files uploading through other web
+scripts, and the example script likely contains a flaw that allows an
+attacker to upload arbitrary files and store them anywhere on the
+affected drive. 
+
+See also :
+
+http://marc.theaimsgroup.com/?l=bugtraq&m=100715294425985&w=2
+
+Solution : 
+
+Unknown at this time.
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -41,6 +60,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -51,17 +71,17 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
 if(!get_port_state(port))exit(0);
+if(!can_host_asp(port:port))exit(0);
 
  
 foreach dir (cgi_dirs())
 {
 	req = http_get(item:dir + "/Test11.asp", port:port);
-	res = http_keepalive_send_recv(port:port, data:req);
+	res = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
 	if( res == NULL ) exit(0);
-	if (egrep(pattern:".*UploadScript11\.asp.*", string:r)) 
+	if ("UploadScript11.asp" >< r) 
 		{
 			security_hole(port);
 			exit(0);

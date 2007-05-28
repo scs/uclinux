@@ -1,4 +1,4 @@
-/*	$OpenBSD: hostfile.h,v 1.13 2002/11/21 23:03:51 deraadt Exp $	*/
+/*	$OpenBSD: hostfile.h,v 1.15 2005/03/01 10:40:26 djm Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -20,9 +20,14 @@ typedef enum {
 
 int	 hostfile_read_key(char **, u_int *, Key *);
 HostStatus check_host_in_hostfile(const char *, const char *,
-	    Key *, Key *, int *);
-int	add_host_to_hostfile(const char *, const char *, Key *);
+	    const Key *, Key *, int *);
+int	add_host_to_hostfile(const char *, const char *, const Key *, int);
 int	lookup_key_in_hostfile_by_type(const char *, const char *,
 	    int, Key *, int *);
+
+#define HASH_MAGIC	"|1|"
+#define HASH_DELIM	'|'
+
+char	*host_hash(const char *, const char *, u_int);
 
 #endif

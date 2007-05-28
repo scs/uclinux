@@ -11,10 +11,7 @@
 */
 
 /*
-$Log$
-Revision 1.2  2005/07/25 04:03:16  magicyang
-New user folder check in
-
+$Log: argvmks.c,v $
  * Revision 1.2  1995/01/07  14:47:24  mike
  * remove return 1 from void function
  *

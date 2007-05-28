@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10295);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1808);
- script_cve_id("CAN-1999-0970");
+ script_version ("$Revision: 1.23 $");
+ script_cve_id("CVE-1999-0970");
  
  name["english"] = "OmniHTTPd visadmin exploit";
  name["francais"] = "Exploitation du cgi visadmin de OmniHTTPd";
@@ -25,13 +25,13 @@ does not execute it.
 
 Solution : remove visadmin.exe from /cgi-bin.
 
-Risk factor : Medium/High";
+Risk factor : Medium / High";
 
  desc["francais"] = "Il est possible de remplir le disque dur 
 d'un serveur OmniHTTPd en faisant la requete suivante :
  	http://omni.server/cgi-bin/visadmin.exe?user=guest
-Ce problème permet à un attaquant de faire planter votre server.
-Ce script vérifie la présence du CGI coupable, mais ne l'execute
+Ce problème permet à un attaquant de tuer votre serveur.
+Ce script vérifie la présence du CGI coupable, mais ne l'exécute
 pas.
 
 Solution : retirez visadmin.exe du dossier cgi-bin.
@@ -64,5 +64,16 @@ Facteur de risque : Moyen/Elevé";
 # Script code
 #
 
-port = is_cgi_installed("visadmin.exe");
-if(port)security_hole(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+banner = get_http_banner(port:port);
+if ( ! banner || "OmniHTTP" >!< banner ) exit(0);
+
+res = is_cgi_installed_ka(port:port, item:"visadmin.exe");
+if(res)security_warning(port);

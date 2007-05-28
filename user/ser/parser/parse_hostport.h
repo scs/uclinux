@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_hostport.h,v 1.4 2003/03/18 16:07:42 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

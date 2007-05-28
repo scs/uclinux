@@ -3,19 +3,6 @@
   "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd">
 
 <article>
-  <articleinfo>
-    <title>xmlto</title>
-    <author>
-      <firstname>Kay</firstname>
-      <surname>Sievers</surname>
-      <email>kay.sievers@vrfy.org</email>
-    </author>
-    <copyright>
-      <year>2006</year>
-      <holder>Kay Sievers</holder>
-    </copyright>
-  </articleinfo>
-
   <section>
     <title>udev</title>
     <refentry>
@@ -28,6 +15,7 @@
       <refmeta>
         <refentrytitle>udev</refentrytitle>
         <manvolnum>7</manvolnum>
+        <refmiscinfo class="version"></refmiscinfo>
       </refmeta>
 
       <refnamediv>
@@ -93,8 +81,8 @@
         <refsect2><title>Rules files</title>
           <para>The udev rules are read from the files located in the
           <filename>/etc/udev/rules.d</filename> directory or at the location specified
-          value in the configuraton file. Every line in the rules file contains at least
-          one key value pair. There are two kind of keys, match and assignement keys.
+          value in the configuration file. Every line in the rules file contains at least
+          one key value pair. There are two kind of keys, match and assignment keys.
           If all match keys are matching against its value, the rule gets applied and the
           assign keys get the specified value assigned. A matching rule may specify the
           name of the device node, add a symlink pointing to the node, or run a specified
@@ -122,7 +110,7 @@
             <varlistentry>
               <term><option>=</option></term>
               <listitem>
-                <para>Asign a value to a key. Keys that represent a list, are reset
+                <para>Assign a value to a key. Keys that represent a list, are reset
                 and only this single value is assigned.</para>
               </listitem>
             </varlistentry>
@@ -153,52 +141,71 @@
             </varlistentry>
 
             <varlistentry>
-              <term><option>KERNEL</option></term>
+              <term><option>DEVPATH</option></term>
               <listitem>
-                <para>Match the name of the device.</para>
+                <para>Match the devpath of the event device.</para>
               </listitem>
             </varlistentry>
 
             <varlistentry>
-              <term><option>DEVPATH</option></term>
+              <term><option>KERNEL</option></term>
               <listitem>
-                <para>Match the devpath of the device.</para>
+                <para>Match the name of the event device.</para>
               </listitem>
             </varlistentry>
 
             <varlistentry>
               <term><option>SUBSYSTEM</option></term>
               <listitem>
-                <para>Match the subsystem of the device.</para>
+                <para>Match the subsystem of the event device.</para>
               </listitem>
             </varlistentry>
-
-            <varlistentry>
-              <term><option>BUS</option></term>
-              <listitem>
-                <para>Search the devpath upwards for a matching device subsystem name.</para>
-              </listitem>
-            </varlistentry>
-
+<!--
             <varlistentry>
               <term><option>DRIVER</option></term>
               <listitem>
-                <para>Search the devpath upwards for a matching device driver name.</para>
+                <para>Match the driver name of the event device. Only set for devices created by a bus driver.</para>
+              </listitem>
+            </varlistentry>
+-->
+            <varlistentry>
+              <term><option>ATTR{<replaceable>filename</replaceable>}</option></term>
+              <listitem>
+                <para>Match sysfs attribute values of the event device. Up to five
+                <option>ATTR</option> keys can be specified per rule. Trailing
+                whitespace in the attribute values is ignored, if the specified match
+                value does not contain trailing whitespace itself. Depending on the type
+                of operator, this key is also used to set the value of a sysfs attribute.
+                </para>
               </listitem>
             </varlistentry>
 
             <varlistentry>
-              <term><option>ID</option></term>
+              <term><option>KERNELS</option></term>
               <listitem>
                 <para>Search the devpath upwards for a matching device name.</para>
               </listitem>
             </varlistentry>
 
             <varlistentry>
-              <term><option>SYSFS{<replaceable>filename</replaceable>}</option></term>
+              <term><option>SUBSYSTEMS</option></term>
+              <listitem>
+                <para>Search the devpath upwards for a matching device subsystem name.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>DRIVERS</option></term>
+              <listitem>
+                <para>Search the devpath upwards for a matching device driver name.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
+              <term><option>ATTRS{<replaceable>filename</replaceable>}</option></term>
               <listitem>
                 <para>Search the devpath upwards for a device with matching sysfs attribute values.
-                Up to five <option>SYSFS</option> keys can be specified per rule. All attributes
+                Up to five <option>ATTRS</option> keys can be specified per rule. All attributes
                 must match on the same device. Trailing whitespace in the attribute values is ignored,
                 if the specified match value does not contain trailing whitespace itself.</para>
               </listitem>
@@ -208,8 +215,8 @@
               <term><option>ENV{<replaceable>key</replaceable>}</option></term>
               <listitem>
                 <para>Match against the value of an environment variable. Up to five <option>ENV</option>
-                keys can be specified per rule. This key can also be used to export a variable to
-                the environment.</para>
+                keys can be specified per rule. Depending on the type of operator, this key is also used
+                to export a variable to the environment.</para>
               </listitem>
             </varlistentry>
 
@@ -250,7 +257,7 @@
             <varlistentry>
               <term><option>[]</option></term>
               <listitem>
-                <para>Matches any single character specified within the brackets.
+                <para>Matches any single character specified within the brackets. For
                 example, the pattern string 'tty[SR]' would match either 'ttyS' or 'ttyR'.
                 Ranges are also supported within this match with the '-' character.
                 For example, to match on the range of all digits, the pattern [0-9] would
@@ -290,10 +297,19 @@
             </varlistentry>
 
             <varlistentry>
+              <term><option>ATTR{<replaceable>key</replaceable>}</option></term>
+              <listitem>
+                <para>The value that should be written to a sysfs attribute of the
+                event device. Depending on the type of operator, this key is also
+                used to match against the value of a sysfs attribute.</para>
+              </listitem>
+            </varlistentry>
+
+            <varlistentry>
               <term><option>ENV{<replaceable>key</replaceable>}</option></term>
               <listitem>
-                <para>Export a variable to the environment. This key can also be used to match
-                against an environment variable.</para>
+                <para>Export a variable to the environment. Depending on the type of operator,
+                this key is also to match against an environment variable.</para>
               </listitem>
             </varlistentry>
 
@@ -327,7 +343,7 @@
               <listitem>
                 <para>Import the printed result or the value of a file in environment key
                 format into the event environment. <option>program</option> will execute an
-                external program and read its output. <option>file</option> will inport a
+                external program and read its output. <option>file</option> will import a
                 text file. If no option is given, udev will determine it from the  executable
                 bit of of the file permissions.</para>
               </listitem>
@@ -349,8 +365,9 @@
                 <option>ignore_device</option> will ignore this event completely.
                 <option>ignore_remove</option> will ignore  any  later  remove  event  for  this
                 device. This may be useful as a workaround for broken device drivers.
-                <option>all_partitions</option> will create device nodes for all available partitions of
-                a block device. This may be useful for removable media.</para>
+                <option>all_partitions</option> will create the device nodes for all available
+                partitions of a block device. This may be useful for removable media devices where
+                media changes are not detected.</para>
               </listitem>
             </varlistentry>
           </variablelist>
@@ -389,15 +406,20 @@
               <term><option>$id</option>, <option>%b</option></term>
               <listitem>
                 <para>The name of the device matched while searching the devpath upwards for
-                  <option>BUS</option>, <option>ID</option> <option>DRIVER</option> and <option>SYSFS</option>.
+                  <option>SUBSYSTEMS</option>, <option>KERNELS</option>, <option>DRIVERS</option> and <option>ATTRS</option>.
                 </para>
               </listitem>
             </varlistentry>
 
             <varlistentry>
-              <term><option>$sysfs{<replaceable>file</replaceable>}</option>, <option>%s{<replaceable>file</replaceable>}</option></term>
+              <term><option>$attr{<replaceable>file</replaceable>}</option>, <option>%s{<replaceable>file</replaceable>}</option></term>
               <listitem>
-                <para>The value of a sysfs attribute found at the current or a parent device.</para>
+                <para>The value of a sysfs attribute found at the device, where
+                all keys of the rule have matched. If the matching device does not have
+                such an attribute, all devices along the chain of parents are searched
+                for a matching attribute.
+                If the attribute is a symlink, the last element of the symlink target is
+                returned as the value.</para>
               </listitem>
             </varlistentry>
 

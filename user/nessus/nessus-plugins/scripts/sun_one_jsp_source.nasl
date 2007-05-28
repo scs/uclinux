@@ -13,7 +13,9 @@
 if(description)
 {
  script_id(11658);
- script_version("$Revision: 1.1 $");
+ script_bugtraq_id(7709);
+ script_cve_id("CVE-2003-0411");
+ script_version("$Revision: 1.6 $");
  
  name["english"] = "SunONE Application Server source disclosure";
  script_name(english:name["english"]);
@@ -28,7 +30,7 @@ and possibly obtain passwords and other relevant information about
 this host.
 
 Solution : None at this time
-Risk Factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -61,8 +63,8 @@ function check(file)
  return 0;
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  files = get_kb_list(string("www/", port, "/content/extensions/jsp"));

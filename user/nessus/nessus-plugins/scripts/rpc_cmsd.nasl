@@ -7,8 +7,10 @@
 if(description)
 {
  script_id(10213);
- script_version ("$Revision: 1.18 $");
- script_bugtraq_id(428, 5356);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0015");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-a-0008");
+ script_bugtraq_id(428, 524, 5356);
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CVE-1999-0320", "CVE-1999-0696", "CVE-2002-0391");
  name["english"] = "cmsd service";
  name["francais"] = "Service cmsd";
@@ -16,10 +18,8 @@ if(description)
  
  desc["english"] = "
 The cmsd RPC service is running. 
-This service has a long history of 
-security holes, so you should really
-know what you are doing if you decide
-to let it run.
+This service has a long history of security holes, so you should really
+know what you are doing if you decide to let it run.
 
 *** No security hole regarding this program has been tested, so 
 *** this might be a false positive
@@ -72,6 +72,9 @@ Facteur de risque : Elevé";
 
 
 include("misc_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
 
 
 RPC_PROG = 100068;

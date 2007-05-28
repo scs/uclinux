@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(10922);
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.12 $");
 
  name["english"] = "CVS/Entries";
  script_name(english:name["english"]);
@@ -35,23 +35,32 @@ Risk factor : Medium";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
 
 include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("/CVS/Entries");
-# is_cgi_installed takes care of servers that always return 200
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+if ( get_kb_item("www/" + port + "/no404") ) exit(0);
+
+res = is_cgi_installed_ka(item:"/CVS/Entries", port:port);
+# is_cgi_installed_ka takes care of servers that always return 200
 # This was tested with nessus 1.2.1 
-if(port)
+if(res)
 {
+ if (debug_level) display("cvs_in_www.nasl: ", res, "\n");
+
  soc = http_open_socket(port);
  file = string("/CVS/Entries");
  req = http_get(item:file, port:port);
  send(socket:soc, data:req);
- h = http_recv_headers(soc);
+ h = http_recv_headers2(socket:soc);
  r = http_recv_body(socket:soc, headers:h, length:0);
  http_close_socket(soc);
 

@@ -27,7 +27,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: ioctlent.sh,v 1.1 1999/11/01 00:46:49 wichert Exp $
 
 # Files to find.
 file_find='asm/*.h linux/*.h scsi/*.h'

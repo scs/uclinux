@@ -24,7 +24,7 @@
  *	and configure. Also define the default number we try to configure.
  */
 #define	MAXETHS		16
-#define	DEFAULTETHS	2
+#define	DEFAULTETHS	16
 
 #ifndef ETHPREFIX
 #define ETHPREFIX "eth"
@@ -61,6 +61,7 @@ unsigned char mactable[MAXETHS * 6] = {
 };
 
 int numeths = DEFAULTETHS;
+int debug = 0;
 
 /****************************************************************************/
 
@@ -228,6 +229,47 @@ void readmacflash(char *flash, off_t macoffset)
 
 /****************************************************************************/
 
+void runflashmac(void)
+{
+	FILE *fp;
+	char cmd[32], result[32], *cp;
+	unsigned int i, mac[6];
+
+	for (i = 0; i < numeths; i++) {
+
+		sprintf(cmd, "flash mac%d", i);
+		fp = popen(cmd, "r");
+		if (!fp)
+			continue;
+		cp = fgets(result, sizeof(result), fp);
+		pclose(fp);
+
+		if (!cp)
+			continue;
+
+		if (sscanf(cp, "%02x %02x %02x %02x %02x %02x", &mac[0], &mac[1],
+				   	&mac[2], &mac[3], &mac[4], &mac[5]) != 6)
+			continue;
+
+		/* Do simple checks for a valid MAC address */
+		if ((mac[0] == 0) && (mac[1] == 0) && (mac[2] == 0) &&
+		    (mac[3] == 0) && (mac[4] == 0) && (mac[5] == 0))
+			continue;
+		if ((mac[0] == 0xff) && (mac[1] == 0xff) && (mac[2] == 0xff) &&
+		    (mac[3] == 0xff) && (mac[4] == 0xff) && (mac[5] == 0xff))
+			continue;
+
+		mactable[i*6+0] = mac[0];
+		mactable[i*6+1] = mac[1];
+		mactable[i*6+2] = mac[2];
+		mactable[i*6+3] = mac[3];
+		mactable[i*6+4] = mac[4];
+		mactable[i*6+5] = mac[5];
+	}
+}
+
+/****************************************************************************/
+
 void getmac(int port, unsigned char *mac)
 {
 	memcpy(mac, &mactable[port*6], 6);
@@ -245,22 +287,59 @@ void setmac(int port, unsigned char *mac)
 	sprintf(macs, "%02x:%02x:%02x:%02x:%02x:%02x",
 		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-	if ((pid = fork()) < 0) {
+	if ((pid = vfork()) < 0) {
 		perror("setmac: failed to fork()");
 		return;
 	}
 
 	if (pid == 0) {
+		/* we do not want to see the output unless debug is enabled */
+		if (!debug) {
+			close(0);
+			close(1);
+			close(2);
+			open("/dev/null", O_RDWR);
+			dup(0);
+			dup(0);
+		}
 		execlp("ifconfig", "ifconfig", eths, "hw", "ether", macs, NULL);
 		exit(1);
 	}
 
 	waitpid(pid, &status, 0);
 
-	if (WIFEXITED(status))
+	if (WIFEXITED(status) && WEXITSTATUS(status) == 0)
 		printf("Set %s to MAC address %s\n", eths, macs);
-	else
-		printf("FAILED to set %s to MAC address %s\n", eths, macs);
+}
+
+/****************************************************************************/
+
+static int basemac(const char *p)
+{
+	unsigned int i, j, mac[6];
+
+
+	if (sscanf(p, "%02x%*c%02x%*c%02x%*c%02x%*c%02x%*c%02x",
+				mac, mac+1, mac+2, mac+3, mac+4, mac+5) != 6)
+		return -1;
+
+	for (i = 0; i < numeths; i++) {
+		mactable[i*6+0] = mac[0];
+		mactable[i*6+1] = mac[1];
+		mactable[i*6+2] = mac[2];
+		mactable[i*6+3] = mac[3];
+		mactable[i*6+4] = mac[4];
+		mactable[i*6+5] = mac[5];
+
+		for (j=5; j>0; j++) {
+			mac[j]++;
+			if (mac[j] != 256)
+				break;
+			mac[j] = 0;
+		}
+	}
+
+	return 0;
 }
 
 /****************************************************************************/
@@ -268,11 +347,13 @@ void setmac(int port, unsigned char *mac)
 void usage(int rc)
 {
 	printf("usage: setmac [-hs?] [OPTION]...\n"
+		"\t-b <base-mac>\n"
 		"\t-s\n"
 		"\t-f <flash-device>\n"
 		"\t-m <mtd-name>\n"
 		"\t-n <num-eth-interfaces>\n"
 		"\t-o <offset>\n"
+		"\t-p\n"
 		"\t-r <redboot-config-name>\n");
 	exit(rc);
 }
@@ -288,14 +369,28 @@ int main(int argc, char *argv[])
 	off_t macoffset = 0x24000;
 	char *redboot = NULL;
 	int swapmacs = 0;
+	int runflash = 0;
 
-	while ((c = getopt(argc, argv, "h?sm:n:o:r:f:")) > 0) {
+	while ((c = getopt(argc, argv, "h?b:dspm:n:o:r:f:")) > 0) {
 		switch (c) {
 		case '?':
 		case 'h':
 			usage(0);
+		case 'b':
+			if (basemac(optarg) < 0) {
+				printf("ERROR: invalid base MAC\n");
+				exit(1);
+			}
+			flash = NULL;
+			break;
 		case 's':
 			swapmacs++;
+			break;
+		case 'p':
+			runflash++;
+			break;
+		case 'd':
+			debug++;
 			break;
 		case 'f':
 			flash = optarg;
@@ -324,7 +419,9 @@ int main(int argc, char *argv[])
 	if (mtdname)
 		flash = findmtddevice(mtdname);
 
-	if (flash) {
+	if (runflash) {
+		runflashmac();
+	} else if (flash) {
 		if (redboot)
 			readmacredboot(flash, redboot);
 		else

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-sco.h,v 1.1 1994/02/22 07:45:26 gkim Exp $ */
 
 /*
  * conf-sco.h

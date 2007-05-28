@@ -14,7 +14,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rhosts.c,v 1.31 2003/06/02 09:17:34 markus Exp $");
+RCSID("$OpenBSD: auth-rhosts.c,v 1.33 2005/07/17 07:17:54 djm Exp $");
 
 #include "packet.h"
 #include "uidswap.h"
@@ -133,7 +133,7 @@ check_rhosts_file(const char *filename, const char *hostname,
 		/* If the entry was negated, deny access. */
 		if (negated) {
 			auth_debug_add("Matched negative entry in %.100s.",
-			     filename);
+			    filename);
 			return 0;
 		}
 		/* Accept authentication. */
@@ -172,10 +172,6 @@ auth_rhosts2_raw(struct passwd *pw, const char *client_user, const char *hostnam
 
 	debug2("auth_rhosts2: clientuser %s hostname %s ipaddr %s",
 	    client_user, hostname, ipaddr);
-
-	/* no user given */
-	if (pw == NULL)
-		return 0;
 
 	/* Switch to the user's uid. */
 	temporarily_use_uid(pw);

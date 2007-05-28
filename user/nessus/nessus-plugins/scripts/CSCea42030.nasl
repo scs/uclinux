@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(11547);
- script_cve_id("CAN-2003-0216");
+ script_cve_id("CVE-2003-0216");
 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "CSCea42030";
 
@@ -27,7 +27,7 @@ this host remotely.
 This vulnerability is documented with the CISCO bug ID CSCde42030
 
 Solution : http://www.cisco.com/warp/public/707/cisco-sa-20030424-catos.shtml
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

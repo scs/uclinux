@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10094);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CAN-1999-0660");
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-1999-0660");
  name["english"] = "GirlFriend";
  name["francais"] = "GirlFriend";
  script_name(english:name["english"], francais:name["francais"]);
@@ -74,12 +74,17 @@ Facteur de risque : Elevé.";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes");
  script_require_ports(21554,21544);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 #
 # The script code starts here
 #
+
+include('global_settings.inc');
+
+if ( ! thorough_tests ) exit(0);
 
 #1.0 beta
 port = 21554;

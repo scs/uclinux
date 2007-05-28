@@ -9,9 +9,11 @@ if(description)
 {
  
  script_id(11456);  
- script_version ("$Revision: 1.4 $");
- script_bugtraq_id(6610, 6614, 5527, 5497, 6615, 6611, 6612, 6613, 7075);
- script_cve_id("CAN-2002-1402", "CAN-2002-1401", "CAN-2002-1400", "CAN-2002-1397", "CAN-2002-1399");
+ script_bugtraq_id(5497, 5527, 6610, 6611, 6612, 6613, 6614, 6615, 7075);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-1402", "CVE-2002-1401", "CVE-2002-1400", "CVE-2002-1397", "CVE-2002-1399");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:0010-10");
+
  
 
  name["english"] = "PostgreSQL multiple flaws";
@@ -38,9 +40,8 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Gain a shell remotely";
- family["francais"] = "Obtenir un shell à distance";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes");
  script_require_ports("Services/postgres", 5432);
  exit(0);

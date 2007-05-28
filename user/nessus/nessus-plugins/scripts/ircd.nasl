@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11156);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "IRC daemon identification";
  script_name(english:name["english"]);
@@ -42,19 +42,30 @@ if(! get_port_state(port)) exit(0);
 soc = open_sock_tcp(port);
 if (! soc) exit(0);
 
-nick = string("Nessus", rand());
+nick = NULL;
+for (i=0;i<9;i++)
+ nick += raw_string (0x41 + (rand() % 10));
+
 user = nick;
 
 req = string("NICK ", nick, "\r\n", 
 	"USER ", nick, " ", this_host_name(), " ", get_host_name(), 
 	" :", user, "\r\n");
 send(socket: soc, data: req);
-a = recv(socket: soc, length: 4096);
+while ( a = recv_line(socket:soc, length:4096) )
+{
+ #display(a);
+ if ( a =~ "^PING." )
+ {
+  a = ereg_replace(pattern:"PING", replace:"PONG", string:a);
+  send(socket:soc, data:a);
+ }
+}
 
 send(socket: soc, data: string("VERSION\r\n"));
 v = "x";
 while ((v) && ! (" 351 " >< v)) v = recv_line(socket: soc, length: 256);
-# display(v);
+#display(v);
 send(socket: soc, data: string("QUIT\r\n"));
 close(soc);
 
@@ -65,7 +76,7 @@ set_kb_item(name: k, value: v);
 
 # Answer looks like:
 # :irc.sysdoor.com 351 nessus123 2.8/csircd-1.13. irc.sysdoor.com :http://www.codestud.com/ircd
-v2 = ereg_replace(string: v, pattern: ": *[^ ]+ +[0-9]+ +[a-zA-Z0-9]+ +([^ ]+) +[^ ]+ *:.*", replace: "\1");
+v2 = ereg_replace(string: v, pattern: ": *[^ ]+ +[0-9]+ +[a-zA-Z0-9]+ +([^ ]+) +[^ ]+ *:(.*)", replace: "\1 \2");
 # display(v2);
 if (v == v2) exit(0);
 

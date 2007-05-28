@@ -1,65 +1,68 @@
 #
-# Copyright 2001 by Noam Rathaus <noamr@securiteam.com>
-#
-# See the Nessus Scripts License for details
-#
-# Modifications by rd :
-#	- we read www/banner/<port> first
-#	- egrep()
-#	- no output of the version (redundant with the server banner)
+# (C) Tenable Network Security
 #
 
-if(description)
-{
- script_id(10743);
- script_version ("$Revision: 1.9 $");
 
- name["english"] = "Tripwire for Webpages Detection";
- script_name(english:name["english"]);
+if (description) {
+  script_id(10743);
+  script_version("$Revision: 1.12 $");
 
- desc["english"] = "We detected the remote web server as running 
-Tripwire for web pages under the Apache web server. This software 
-allows attackers to gather sensitive information about your server 
-configuration.
+  name["english"] = "Tripwire for Webpages Information Disclosure Vulnerability";
+  script_name(english:name["english"]);
+ 
+  desc["english"] = "
+Synopsis :
 
-Solution: Modify the banner used by Apache by adding the option
-'ServerTokens' to 'ProductOnly' in httpd.conf
+The remote web server is using a product to monitor for changes in its
+web pages. 
 
-Risk factor : Low
+Description :
 
-Additional information can be found at:
-http://www.securiteam.com/securitynews/5RP0L1540K.html (Web Server banner removal guide)
-";
+The remote host is running Tripwire for Webpages, a commercial product
+to monitor for changes in web pages.  This information may prove useful
+to anyone doing reconnaissance before launching an actual attack. 
 
- script_description(english:desc["english"]);
+See also : 
 
- summary["english"] = "Tripwire for Webpages Detect";
- script_summary(english:summary["english"]);
+http://archives.neohapsis.com/archives/bugtraq/2001-08/0389.html
 
- script_category(ACT_GATHER_INFO);
+Solution :
 
- script_copyright(english:"This script is Copyright (C) 2001 SecuriTeam");
- family["english"] = "General";
- script_family(english:family["english"]);
+Set Apache's 'ServerTokens' directive to 'Prod'.
 
- script_dependencie("find_service.nes", "http_version.nasl");
- script_require_keys("www/apache");
- script_require_ports("Services/www", 80);
- exit(0);
+Risk factor :
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
+  script_description(english:desc["english"]);
+ 
+  summary["english"] = "Checks for information disclosure vulnerability in Tripwire for Webpages";
+  script_summary(english:summary["english"]);
+ 
+  script_category(ACT_GATHER_INFO);
+  script_family(english:"General");
+
+  script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+
+  script_dependencies("http_version.nasl");
+  script_require_ports("Services/www", 80);
+
+  exit(0);
 }
 
-#
-# The script code starts here
-#
- include("http_func.inc");
- 
- port = get_kb_item("Services/www");
- if (!port) port = 80;
- if(!get_port_state(port))exit(0);
- banner = get_http_banner(port:port);
+
+include("http_func.inc");
 
 
-  if (egrep(string:banner, pattern:"^Server: Apache.* Intrusion/"))
-  {
-   security_warning(port);
-  }
+port = get_http_port(default:80);
+if (!get_port_state(port)) exit(0);
+
+
+# Check the banner.
+banner = get_http_banner(port:port);
+if (
+  banner && 
+  egrep(pattern:"^Server: +Apache.+ Intrusion/[0-9]", string:banner)
+) {
+  security_note(port);
+}

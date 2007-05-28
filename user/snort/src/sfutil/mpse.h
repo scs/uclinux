@@ -40,7 +40,6 @@
 
 #include "bitop.h"
 
-
 /*
 *   Move these defines to a generic Win32/Unix compatability file, 
 *   there must be one somewhere...
@@ -58,19 +57,19 @@
 #endif
 
 
-
 /*
 *  Pattern Matching Methods 
 */
-#define MPSE_MWM      1
+//#define MPSE_MWM      1
 #define MPSE_AC       2
-#define MPSE_KTBM     3
+//#define MPSE_KTBM     3
 #define MPSE_LOWMEM   4    
-#define MPSE_AUTO     5 
+//#define MPSE_AUTO     5
 #define MPSE_ACF      6 
 #define MPSE_ACS      7 
 #define MPSE_ACB      8 
 #define MPSE_ACSB     9 
+#define MPSE_AC_BNFA   10 
 
 /*
 ** PROTOTYPES
@@ -78,10 +77,9 @@
 void * mpseNew( int method );
 void   mpseFree( void * pv );
 
-int    mpseAddPattern  ( void * pv, void * P, int m, 
-       unsigned noCase,unsigned offset, unsigned depth,  void* ID, int IID );
+int  mpseAddPattern  ( void * pv, void * P, int m, 
+     unsigned noCase,unsigned offset, unsigned depth,  void* ID, int IID );
 
-void mpseLargeShifts   ( void * pv, int flag );
 int  mpsePrepPatterns  ( void * pv );
 
 void mpseSetRuleMask   ( void *pv, BITOP * rm );
@@ -93,7 +91,7 @@ int  mpseSearch( void *pv, unsigned char * T, int n,
 UINT64 mpseGetPatByteCount();
 void   mpseResetByteCount();
 
-int mpsePrintDetail( void * obj );
+int mpsePrintInfo( void * obj );
 int mpsePrintSummary( );
 
 #endif

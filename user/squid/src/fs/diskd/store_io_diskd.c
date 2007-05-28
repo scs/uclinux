@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_io_diskd.c,v 1.22.2.4 2005/03/26 02:50:55 hno Exp $
  *
  * DEBUG: section 79    Squid-side DISKD I/O functions.
  * AUTHOR: Duane Wessels
@@ -42,7 +42,7 @@
 
 #include "store_diskd.h"
 
-static int storeDiskdSend(int, SwapDir *, int, storeIOState *, int, int, off_t);
+static int storeDiskdSend(int, SwapDir *, int, storeIOState *, int, off_t, int);
 static void storeDiskdIOCallback(storeIOState * sio, int errflag);
 static CBDUNL storeDiskdIOFreeEntry;
 
@@ -59,7 +59,7 @@ storeDiskdOpen(SwapDir * SD, StoreEntry * e, STFNCB * file_callback,
     storeIOState *sio;
     char *buf;
     diskdstate_t *diskdstate;
-    off_t shm_offset;
+    int shm_offset;
     diskdinfo_t *diskdinfo = SD->fsdata;
     debug(79, 3) ("storeDiskdOpen: fileno %08X\n", f);
     /*
@@ -115,7 +115,7 @@ storeDiskdCreate(SwapDir * SD, StoreEntry * e, STFNCB * file_callback,
     int x;
     storeIOState *sio;
     char *buf;
-    off_t shm_offset;
+    int shm_offset;
     diskdinfo_t *diskdinfo = SD->fsdata;
     diskdstate_t *diskdstate;
     /*
@@ -191,10 +191,10 @@ storeDiskdClose(SwapDir * SD, storeIOState * sio)
 }
 
 void
-storeDiskdRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t offset, STRCB * callback, void *callback_data)
+storeDiskdRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, squid_off_t offset, STRCB * callback, void *callback_data)
 {
     int x;
-    off_t shm_offset;
+    int shm_offset;
     char *rbuf;
     diskdstate_t *diskdstate = sio->fsstate;
     debug(79, 3) ("storeDiskdRead: dirno %d, fileno %08X\n", sio->swap_dirn, sio->swap_filen);
@@ -219,8 +219,8 @@ storeDiskdRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t o
 	SD,
 	diskdstate->id,
 	sio,
-	(int) size,
-	(int) offset,
+	size,
+	(off_t) offset,
 	shm_offset);
     if (x < 0) {
 	debug(79, 1) ("storeDiskdSend READ: %s\n", xstrerror());
@@ -231,11 +231,11 @@ storeDiskdRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t o
 }
 
 void
-storeDiskdWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t offset, FREE * free_func)
+storeDiskdWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, squid_off_t offset, FREE * free_func)
 {
     int x;
     char *sbuf;
-    off_t shm_offset;
+    int shm_offset;
     diskdstate_t *diskdstate = sio->fsstate;
     debug(79, 3) ("storeDiskdWrite: dirno %d, fileno %08X\n", SD->index, sio->swap_filen);
     assert(!diskdstate->flags.close_request);
@@ -252,8 +252,8 @@ storeDiskdWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t 
 	SD,
 	diskdstate->id,
 	sio,
-	(int) size,
-	(int) offset,
+	size,
+	(off_t) offset,
 	shm_offset);
     if (x < 0) {
 	debug(79, 1) ("storeDiskdSend WRITE: %s\n", xstrerror());
@@ -267,7 +267,7 @@ void
 storeDiskdUnlink(SwapDir * SD, StoreEntry * e)
 {
     int x;
-    off_t shm_offset;
+    int shm_offset;
     char *buf;
     diskdinfo_t *diskdinfo = SD->fsdata;
 
@@ -462,7 +462,7 @@ storeDiskdIOCallback(storeIOState * sio, int errflag)
 }
 
 static int
-storeDiskdSend(int mtype, SwapDir * sd, int id, storeIOState * sio, int size, int offset, off_t shm_offset)
+storeDiskdSend(int mtype, SwapDir * sd, int id, storeIOState * sio, int size, off_t offset, int shm_offset)
 {
     int x;
     diomsg M;

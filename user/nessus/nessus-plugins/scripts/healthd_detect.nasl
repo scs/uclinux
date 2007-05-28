@@ -1,106 +1,72 @@
 #
-# Copyright 2001 by Noam Rathaus <noamr@securiteam.com> 
-#
-# Script audit and contributions from Carmichael Security <http://www.carmichaelsecurity.com>
-#      Erik Anderson <eanders@carmichaelsecurity.com>
-#      Should cover BID: 1107
-#
-# See the Nessus Scripts License for details
-#
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(10731); 
- script_version ("$Revision: 1.6 $");
- 
- name["english"] = "HealthD detection";
+ script_version ("$Revision: 1.10 $");
+ name["english"] = "healthd detection";
  script_name(english:name["english"]);
  
-desc["english"] = "The FreeBSD Health Daemon was detected.
-The HealthD provides remote administrators with information about the 
-current hardware temperature, fan speed, etc, allowing them to monitor
-the status of the server.
+desc["english"] = "
+Synopsis :
 
-Such information about the hardware's current state might be sensitive; 
-it is recommended that you do not allow access to this service from the 
-network.
+healthd is listening on the remote port
 
-Solution: Configure your firewall to block access to this port.
+Description :
 
-Risk factor : Low";
+The remote host is running healthd, a daemon which uses the
+sensors of the remote host to report the temperature of various
+of its components.
+
+It is recommended to not let anyone connect to this port.
+
+See also :
+
+http://healthd.thehousleys.net/
+
+
+Solution : 
+
+Filter incoming traffic to this port, or disable this service
+if you do not use it
+
+Risk factor : 
+
+None";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "HealthD detection";
+ summary["english"] = "healthd detection";
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- family["english"] = "General";
- script_family(english:family["english"]);
+ script_family(english: "Service detection");
 
- script_copyright(english:"This script is Copyright (C) 2001 SecuriTeam");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  script_dependencie("find_service.nes");
- script_require_ports("Services/healthd", 1281, 9669);
+ script_require_ports("Services/healthd", 1281);
  exit(0);
 }
 
 #
 # The script code starts here
 #
+include('misc_func.inc');
 
- port = get_kb_item("Services/healthd");
- if (!port) port = 1281;
+port = get_kb_item("Services/healthd");
+if ( ! port ) port = 1281;
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
 
- if (get_port_state(port))
- {
-  soctcp1281 = open_sock_tcp(port);
-
-  if (!soctcp1281)
-  {
-   port = 9669;
-  }
-
-  close(soctcp1281);
- }
-
- if (get_port_state(port))
- {
-  soctcphealthd = open_sock_tcp(port);
-
-  if (soctcphealthd)
-  {
-   data = string("foobar");
-   resultsend = send(socket:soctcphealthd, data:data);
-   resultrecv = recv(socket:soctcphealthd, length:8192);
-   if ("ERROR: Unsupported command" >< resultrecv)
-   {
-    data = string("VER d");
-    resultsend = send(socket:soctcphealthd, data:data);
-    resultrecv = recv(socket:soctcphealthd, length:8192);
-
-    if ("ERROR: Unsupported command" >< resultrecv)
-    {
-     security_warning(port:port);
-    }
-    else
-    {
-data = string("The FreeBSD Health Daemon was detected.\n",
-"The HealthD provides remote administrators with information about\n",
-"the current hardware temperature, fan speed, etc, allowing them to monitor\n",
-"the status of the server.\n",
-"\n",
-"Such information about the hardware's current state might be sensitive; \n",
-"it is recommended that you do not allow access to this service from the \n",
-"network.",
-"\n\nThe HealthD version we found is: ", resultrecv, "\n\n",
-"Solution: Configure your firewall to block access to this port.\n",
-"\n",
-"Risk factor : Low\n");
-     security_warning(port:port, data:data);
-    }
-   close(soctcphealthd);
-   }
-  }
- }
+send(socket:soc, data:'CFG Nessus\r\n');
+r = recv_line(socket:soc, length:255);
+if ( r && r =~ "^ERROR: Unknown class" )
+{
+ register_service(proto:"healthd", port:port);
+ security_note(port);
+}
+ 

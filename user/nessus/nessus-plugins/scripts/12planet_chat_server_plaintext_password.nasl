@@ -10,7 +10,10 @@ if(description)
 {
  script_id(11591);
  script_bugtraq_id(7354);
- script_version ("$Revision: 1.2 $");
+ # script_cve_id("CVE-MAP-NOMATCH");
+ # NOTE: no CVE id assigned (jfs, december 2003)
+
+ script_version ("$Revision: 1.5 $");
 
  name["english"] = "12Planet Chat Server ClearText Password";
  script_name(english:name["english"]);
@@ -56,8 +59,7 @@ foreach port (ports)
 {
  if(get_port_state(port))
  {
-  req = http_get(item:"/", port:port);
-  res = http_keepalive_send_recv(port:port, data:req);
+  res = http_get_cache(port:port, item:"/");
   if(res != NULL && "one2planet.tools.PSDynPage" >< res)
   {
     if(get_port_transport(port) == ENCAPS_IP){ security_warning(port); exit(0); }

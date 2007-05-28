@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10918);
- script_cve_id("CVE-2002-0082");
  script_bugtraq_id(4189);
- script_version("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-0082");
+ script_version("$Revision: 1.11 $");
  
  name["english"] = "Apache-SSL overflow";
 
@@ -53,12 +53,13 @@ Risk factor : High";
 # The script code starts here
 #
 include ("http_func.inc");
+include ("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
- banner = get_http_banner(port: port);
+ banner = get_backport_banner(banner:get_http_banner(port: port));
  
  serv = strstr(banner, "Server");
  if(ereg(pattern:".*Apache(-AdvancedExtranetServer)?/.* Ben-SSL/1\.([0-9][^0-9]|[0-3][0-9]|4[0-6])[^0-9]", string:serv))

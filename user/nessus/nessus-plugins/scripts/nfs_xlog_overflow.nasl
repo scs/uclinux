@@ -12,9 +12,12 @@
 if(description)
 {
  script_id(11800);
- script_version ("$Revision: 1.3 $");
- script_cve_id("CAN-2003-0252");
  script_bugtraq_id(8179);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2003-0252");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:206-01");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:031");
+
  
  name["english"] = "Linux nfs-utils xlog() off-by-one overflow";
  script_name(english:name["english"]);
@@ -25,7 +28,7 @@ which may be exploited by an attacker to gain a root shell on this
 host.
 
 Solution : Upgrade to the latest version of nfs-utils
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -41,7 +44,7 @@ Risk Factor : High";
  
  family["english"] = "Gain root remotely";
  script_family(english:family["english"]);
- script_dependencie("rpc_portmap.nasl", "showmount.nasl", "nmap_osfingerprint.nes");
+ script_dependencie("rpc_portmap.nasl", "showmount.nasl", "os_fingerprint.nasl");
  script_require_keys("rpc/portmap");
  exit(0);
 }
@@ -50,6 +53,7 @@ Risk Factor : High";
 
 include("misc_func.inc");
 include("nfs_func.inc");
+include("global_settings.inc");
 
 #
 # Returns <1> if the remote mountd replies anything to our
@@ -101,16 +105,19 @@ function zmount(soc, share)
 
 
 port = get_rpc_port(program:100005, protocol:IPPROTO_UDP);
+if ( ! port ) exit(0);
 soc = open_priv_sock_udp(dport:port);
 if(!soc)exit(0);
 
 if(safe_checks())
 {
- os = get_kb_item("Host/OS");
- if(os && "Linux" >!< os)exit(0);
+ os = get_kb_item("Host/OS/icmp");
+ if(os && "Linux 2.4" >!< os)exit(0);
  
  if(zmount(soc:soc, share:"/nessus"))
  {
+
+  if ( report_paranoia < 2 ) exit(0);
   rep = "
 The remote rpc.mountd daemon might be vulnerable to an off-by-one overflow
 which may be exploited by an attacker to gain a root shell on this
@@ -122,7 +129,7 @@ host.
 *** such as RedHat 6.1 or 6.2.
 
 Solution : Upgrade to the latest version of nfs-utils
-Risk Factor : High"; 
+Risk factor : High"; 
 
  security_hole(port:port, data:rep);
  }

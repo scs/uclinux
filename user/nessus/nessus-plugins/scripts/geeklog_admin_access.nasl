@@ -9,10 +9,10 @@
 if(description)
 {
  script_id(11670);
- script_cve_id("CAN-2002-0962", "CVE-2002-0096", "CVE-2002-0097");
- script_bugtraq_id(7742, 7744, 6601, 6602, 6603, 6604);
+ script_bugtraq_id(3783, 3844, 4969, 4974, 6601, 6602, 6603, 6604, 7742, 7744);
+ script_cve_id("CVE-2002-0962", "CVE-2002-0096", "CVE-2002-0097");
 
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "GeekLog SQL vulns";
  
  script_name(english:name["english"], francais:name["francais"]);
@@ -47,8 +47,9 @@ francais:summary["francais"]);
  family["english"] = "CGI abuses";
  
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl");
- script_require_ports("Services/www");
+ script_dependencie("find_service.nes", "http_version.nasl");
+ script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -79,11 +80,12 @@ function check(port, dir)
     
     
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
 
-foreach dir (make_list("/geeklog", "/log", "", cgi_dirs()))
+if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
+
+foreach dir (make_list("/geeklog", "/log", cgi_dirs()))
 {
 check(dir:dir, port:port);
 }

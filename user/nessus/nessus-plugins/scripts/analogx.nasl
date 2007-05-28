@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10366);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1076);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2000-0243");
  name["english"] = "AnalogX denial of service";
  name["francais"] = "Déni de service AnalogX";
@@ -25,7 +25,7 @@ Solution : Upgrade to the latest version of your web server
 software, or consider an alternate web server such as 
 Apache (http://www.apache.org).
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -62,8 +62,13 @@ Facteur de risque : Sérieux";
 #
 include("http_func.inc");
 
- port = get_kb_item("Services/www");
- if(!port)port = 80;
+ port = get_http_port(default:80);
+
+ banner = get_http_banner(port:port);
+ if ( "AnalogX Simple Server" >!< banner )exit(0);
+
+ if (http_is_dead(port: port)) exit(0);
+
  if(get_port_state(port))
 {
   soc = http_open_socket(port);

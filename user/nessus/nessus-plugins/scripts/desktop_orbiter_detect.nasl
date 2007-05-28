@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11691);
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "Desktop Orbiter Server Detection";
  script_name(english:name["english"]);
 
@@ -34,17 +34,18 @@ Risk factor : High";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("nmap_osfingerprint.nes", "find_service.nes");
+ script_dependencie("os_fingerprint.nasl", "find_service2.nasl");
  script_require_ports("Services/unknown", 51051);
  exit(0);
 }
 
 include("misc_func.inc");
+include('global_settings.inc');
 
-os = get_kb_item("Host/OS");
+os = get_kb_item("Host/OS/icmp");
 if(os)
 {
- if(!("indows" >< os))exit(0);
+ if("Windows" >!< os)exit(0);
 }
 
 function probe(port)
@@ -69,8 +70,13 @@ if("Reply version" >< r) { security_hole(port); register_service(port:port, prot
 
 
 
-ports = add_port_in_list(list:get_kb_list("Services/unknown"), port:51051);
+if ( thorough_tests ) ports = add_port_in_list(list:get_kb_list("Services/unknown"), port:51051);
+else {
+	if ( ! get_port_state(51051) ) exit(0);
+	ports = make_list(51051);
+     }
+
 foreach port (ports)
 {
- probe(port:port);
+ if ( port != 135 && port != 139 && port != 445 ) probe(port:port);
 }

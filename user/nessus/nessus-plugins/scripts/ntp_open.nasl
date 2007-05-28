@@ -10,12 +10,12 @@
 if(description)
 {
  script_id(10884);
- script_version("$Revision: 1.8 $");
+ script_version("$Revision: 1.12 $");
  name["english"] = "NTP read variables";
  script_name(english:name["english"]);
  
  desc["english"] = "
-A NTP server is listening on this port.
+An NTP (Network Time Protocol) server is listening on this port.
 
 Risk factor : Low";
 
@@ -91,13 +91,26 @@ if( !(get_udp_port_state(123)) ) exit(0);
 r = ntp_installed();
 if(r)
    {
+      set_kb_item(name:"NTP/Running", value:TRUE);
       list = ntp_read_list();
       if(!list)security_note(port:123, protocol:"udp");
       else
        {
+       if ("system" >< list )
+        {
+         s = egrep(pattern:"system=", string:list);
+	 os = ereg_replace(string:s, pattern:".*system='([^']*)'.*", replace:"\1");
+         set_kb_item(name:"Host/OS/ntp", value:os);
+        }
+       if ("processor" >< list )
+        {
+         s = egrep(pattern:"processor=", string:list);
+	 os = ereg_replace(string:s, pattern:".*processor='([^']*)'.*", replace:"\1");
+         set_kb_item(name:"Host/processor/ntp", value:os);
+        }
       report = "It is possible to determine a lot of information about the remote host 
-by querying the NTP variables - these include OS descriptor, and 
-time settings.
+by querying the NTP (Network Time Protocol) variables - these include 
+OS descriptor, and time settings.
 
 It was possible to gather the following information from the remote NTP host : 
 

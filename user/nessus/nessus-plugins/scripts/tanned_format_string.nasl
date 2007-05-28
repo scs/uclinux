@@ -12,8 +12,9 @@
 if(description)
 {
  script_id(11495);
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2003-1236");
  script_bugtraq_id(6553);
+ script_version ("$Revision: 1.5 $");
  
  
  name["english"] = "tanned format string vulnerability";

@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,16 +14,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * Nessus Communication Manager -- it manages the NTP Protocol, version 1.0 and 1.1
  *
@@ -69,7 +59,10 @@ extract_extensions(caps, banner)
  if(!t)
   return;
  
- t+=2;
+ t++;
+ if ( *t == '\0' ) return;
+ t++;
+ if ( *t == '\0' ) return;
  
  for(;;)
  {
@@ -231,8 +224,9 @@ send_plug_info(globals, plugins)
  struct arglist * plugins;
 {
   int i=1,j;
-  const char * categories[] =
-  	{"init", "scanner", "settings" , "infos", "attack", "mixed", "destructive_attack", "denial", "kill_host", "unknown" };
+  static const char * categories[] =
+    {"init", "scanner", "settings" , "infos", "attack", "mixed", "destructive_attack", "denial", "kill_host", "flood", "end", "unknown" };
+#define CAT_MAX	(sizeof(categories) / sizeof(categories[0]))
   struct arglist * args;
   char * t;
   const char *a, *b, *d, *e = NULL;
@@ -250,7 +244,7 @@ send_plug_info(globals, plugins)
       		while((t=strchr(t,'\n')))t[0]=';';
 		}
       j = plug_get_category(args);
-      if(j > ACT_LAST || j < ACT_FIRST)	j = ACT_LAST + 1;
+      if(j >= CAT_MAX || j < ACT_FIRST)	j = CAT_MAX - 1;
 
       if(caps->plugins_version)
        {
@@ -449,7 +443,8 @@ comm_send_preferences(globals)
 	 strcmp(prefs->name, "cert_file")	  &&
 	 strcmp(prefs->name, "be_nice")		  &&
 	 strcmp(prefs->name, "log_plugins_name_at_load") &&
-	 strcmp(prefs->name, "admin_user")	)  
+	 strcmp(prefs->name, "admin_user") &&
+	 strcmp(prefs->name, "nasl_no_signature_check")	)  
     		auth_printf(globals, "%s <|> %s\n", prefs->name, (const char *) prefs->value);
   }
   prefs = prefs->next;
@@ -507,71 +502,120 @@ comm_wait_order(globals)
 }
 
 
-/* 
- * Marks the plugins that will be
- * launched, according to the list
- * provided by the client (list of numbers
- * we should use)
- */
-void 
-comm_setup_plugins(globals, id_list)
-     struct arglist * globals;
-     char * id_list;
+/*-------------------------------------------------------------------------------*/
+static int qsort_cmp( const void * a, const void * b )
 {
-  char * list = id_list;
-  char * buf;
+ struct arglist ** plugin_a = (struct arglist**) a;
+ struct arglist ** plugin_b = (struct arglist**) b;
+
+ int id_a = plug_get_id((*plugin_a)->value);
+ int id_b = plug_get_id((*plugin_b)->value);
+
+ return id_a - id_b;
+}
+
+static struct arglist * _get_plug_by_id(struct arglist ** array, int id, int start, int end, int rend )
+{
+  int mid;
+  int plugin_id;
+
+  if ( start >= rend ) 
+	return NULL;
+
+  if ( start == end )
+  {
+  plugin_id = plug_get_id(array[start]->value);
+   if ( plugin_id == id ) 
+        return array[start];
+   else 
+        return NULL;
+  }
+
+  mid = ( start + end ) / 2;
+  plugin_id = plug_get_id(array[mid]->value);
+  if ( plugin_id > id ) 
+	return _get_plug_by_id(array, id, start, mid, rend );
+  else if ( plugin_id < id )
+	return _get_plug_by_id(array, id, mid + 1, end, rend );
+
+  return array[mid];
+}
+
+
+static struct arglist * get_plug_by_id(struct arglist ** array, int id, int num_plugins )
+{
+ return _get_plug_by_id(array, id, 0, num_plugins, num_plugins); 
+}
+
+/*-------------------------------------------------------------------------------*/
+
+
+/* 
+ * Enable the plugins which have been selected by the user 
+ */
+void comm_setup_plugins( struct arglist * globals, char * list )
+{
   int id;
   int num_plugins=0;
   struct arglist * plugins = arg_get_value(globals, "plugins");
   struct arglist * p = plugins;
-  /* list = a string like '16;5;3' */
+  struct arglist ** array;
+  char * t;
+  int i;
+  int enable = 0;
   
- if(!list){
-   list = emalloc(4);
-   sprintf(list, "-1;");
-   }
-  while(plugins && plugins->next){
-    num_plugins++;
-    plug_set_launch(plugins->value, 0);
-    plugins = plugins->next;
-  }
-  plugins = p;
+  if ( p == NULL ) return;
+  if ( list == NULL ) list = "-1;";
+
+  if ( atoi(list) == -1 ) enable = LAUNCH_RUN;
+  /* Disable every plugin */
+  while( p->next != NULL )
+    {
+     num_plugins++;
+     plug_set_launch(p->value, enable);
+     p = p->next;
+    }
+
+  if ( num_plugins == 0 || enable != 0  )
+	return;
 
   
-  buf = emalloc(strlen(id_list)+1);
-  while(sscanf(list, "%d;%s", &id, buf) && list[0] != '\0')
+
+  /* Store the plugins in an array for quick access */
+  p = plugins;
+  i = 0;
+  array = emalloc ( num_plugins * sizeof(struct arglist ** ));
+  while ( p->next != NULL ) 
+  {
+   array[i++] = p;
+   p = p->next;
+  }
+ 
+  qsort( array, num_plugins, sizeof(struct arglist * ), qsort_cmp);
+ 
+  t = list;
+  while ( t[0] == ';' ) t ++;
+
+  /* Read the list provided by the user and enable the plugins accordingly */
+  for ( ;; )
     {
-      if(id==0)break;
-      p = plugins;
-      if(id<0)
- 	{
-	  struct arglist * lp = NULL;
-          
-          lp=plugins;
-	  if(lp) 
-	    while(lp->next)
-	    {
-	      plug_set_launch(lp->value, 1);
-	      lp = lp->next;
-	    }
-	  break;
- 	}
-       else
-        if(p) 
-	 while(p->next)
-	 {
-	  struct arglist * pa = p->value;
-	  int pid = plug_get_id(pa);
-	  if(id == pid){
-	  	plug_set_launch(pa, 1);
-		break;
-		}
-	  p = p->next;
-	 }
-      sprintf(list, "%s", buf);
-      bzero(buf, strlen(id_list)+1);
+       id = atoi(t);
+       if ( id != 0 )
+	{
+         p = get_plug_by_id(array, id, num_plugins);
+         if ( p != NULL ) plug_set_launch(p->value, LAUNCH_RUN);
+#ifdef DEBUG
+	 else printf("PLUGIN ID %d NOT FOUND!!!\n", id);
+#endif
+	}
+
+	t = strchr(t + 1, ';');
+	if ( t != NULL ) t ++;
+	else break;
     }
-  efree(&buf);
+
+
+  efree(&array);
 }
 
 void

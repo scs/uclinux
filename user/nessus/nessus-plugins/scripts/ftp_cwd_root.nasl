@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10083);
- script_version ("$Revision: 1.17 $");
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-1999-0082");
  name["english"] = "FTP CWD ~root";
  name["francais"] = "FTP CWD ~root";
@@ -86,6 +86,10 @@ script_description(english:desc["english"], francais:desc["francais"],
 
 
 include("ftp_func.inc");
+include("global_settings.inc");
+
+
+if ( report_paranoia < 2 ) exit(0); 
 
 login = get_kb_item("ftp/login");
 password = get_kb_item("ftp/password");
@@ -123,9 +127,10 @@ if(login)
  send(socket:soc, data:data);
  a = ftp_recv_line(socket:soc);
 
- port2 = ftp_get_pasv_port(socket:soc);
+ port2 = ftp_pasv(socket:soc);
  if(!port2)exit(0); # ???
  soc2 = open_sock_tcp(port2);
+ if ( ! soc2 ) exit(0);
  data = string("STOR .nessus_test_2\r\n");
  send(socket:soc, data:data);
  r = recv_line(socket:soc, length:3);

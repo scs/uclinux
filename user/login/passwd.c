@@ -19,7 +19,7 @@
 #ifndef __UC_LIBC__
 #include <crypt.h>
 #endif
-#ifdef OLD_CONFIG_PASSWORDS
+#ifdef CONFIG_USER_OLD_PASSWORDS
 #include <crypt_old.h>
 #endif
 #ifdef EMBED
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
 		if (strcmp(password1, password2) == 0) {
 			if (-1 == set_password("root", password1))
 				printf("Unable to write password file\n");
-#ifdef OLD_CONFIG_PASSWORDS
+#ifdef CONFIG_USER_OLD_PASSWORDS
 			else if (-1 == writeConfig("/etc/config/config", "passwd",
 						crypt_old(password1, crypt_make_salt())))
 				printf("Unable to write legacy password\n");
@@ -198,35 +198,8 @@ int
 commitChanges()
 {
 #ifdef CONFIG_USER_FLATFSD_FLATFSD
-	#define FLATFSD_PID_FILE		"/var/run/flatfsd.pid"
-
-	pid_t pid;
-	FILE *in;
-	char value[16];
-
-	/* get the pid of flatfsd */
-	in = fopen(FLATFSD_PID_FILE, "r");
-
-	if(!in) {
-		/* couldn't access flatfsd pid file */
+	if (system("exec flatfsd -s") == -1)
 		return -1;
-	}
-
-	if(fread(value, 1, sizeof(value), in) > 0) {
-		/* we read something.. hopefully the pid */
-	} else {
-		/* no data read from file */
-		fclose(in);
-		return -1;
-	}
-	fclose(in);
-
-	pid = atoi(value);
-
-	/* send that pid signal 10 */
-	if (pid == 0 || kill(pid, 10) == -1) {
-		return -1;
-	}
 #endif
 	return 0;
 }

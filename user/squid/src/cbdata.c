@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: cbdata.c,v 1.42.2.1 2003/07/16 07:18:43 hno Exp $
  *
  * DEBUG: section 45    Callback Data Registry
  * ORIGINAL AUTHOR: Duane Wessels

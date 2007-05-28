@@ -27,6 +27,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <resolv.h>
+#include <linux/autoconf.h>
 #include <config/autoconf.h>
 
 #include "utils.h"
@@ -148,7 +149,7 @@ int get_addr_1(inet_prefix *addr, char *name, int family)
 		return 0;
 	}
 
-#ifdef CONFIG_USER_IPV6
+#ifdef CONFIG_IPV6
 	if (strchr(name, ':')) {
 		addr->family = AF_INET6;
 		if (family != AF_UNSPEC && family != AF_INET6)

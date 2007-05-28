@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10341);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(1032);
+ script_version ("$Revision: 1.10 $");
  script_cve_id("CVE-2000-0225");
  
  name["english"] = "Pocsag password";
@@ -72,15 +72,18 @@ Facteur de risque : faible";
 #
 # The script code starts here
 #
-
+include('telnet_func.inc');
 port = 8000;
 
 if(get_port_state(port))
 {
+ buf = get_telnet_banner(port:port);
+ if ( ! buf || "Remote Access" >!< buf ) exit(0);
+
  soc = open_sock_tcp(port);
  if(soc)
  {
-  r = telnet_init(soc);
+  r = telnet_negotiate(socket:soc);
   if("Remote Access" >< r)
    {
    data = string("password\r\n");

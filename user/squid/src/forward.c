@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: forward.c,v 1.82.2.15 2005/03/26 02:50:53 hno Exp $
  *
  * DEBUG: section 17    Request Forwarding
  * AUTHOR: Duane Wessels
@@ -41,7 +41,7 @@ static void fwdDispatch(FwdState *);
 static void fwdConnectStart(void *);	/* should be same as EVH */
 static void fwdStateFree(FwdState * fwdState);
 static PF fwdConnectTimeout;
-PF fwdServerClosed;
+static PF fwdServerClosed;
 static PF fwdPeerClosed;
 static CNCB fwdConnectDone;
 static int fwdCheckRetry(FwdState * fwdState);
@@ -152,7 +152,7 @@ fwdCheckRetriable(FwdState * fwdState)
     /* If there is a request body then Squid can only try once
      * even if the method is indempotent
      */
-    if (fwdState->request->body_connection)
+    if (fwdState->request->body_reader)
 	return 0;
 
     /* RFC2616 9.1 Safe and Idempotent Methods */
@@ -173,7 +173,7 @@ fwdCheckRetriable(FwdState * fwdState)
     return 1;
 }
 
-void
+static void
 fwdServerClosed(int fd, void *data)
 {
     FwdState *fwdState = data;
@@ -693,9 +693,18 @@ fwdCheckDeferRead(int fd, void *data)
 #endif
     if (EBIT_TEST(e->flags, ENTRY_FWD_HDR_WAIT))
 	return rc;
-    if (mem->inmem_hi - storeLowestMemReaderOffset(e) < READ_AHEAD_GAP)
-	return rc;
-    return 1;
+    if (EBIT_TEST(e->flags, RELEASE_REQUEST)) {
+	/* Just a small safety cap to defer storing more data into the object
+	 * if there already is way too much. This handles the case when there
+	 * is disk clients pending on a too large object being fetched and a
+	 * few other corner cases.
+	 */
+	if (mem->inmem_hi - mem->inmem_lo > SM_PAGE_SIZE + Config.Store.maxInMemObjSize + READ_AHEAD_GAP)
+	    return 1;
+    }
+    if (mem->inmem_hi - storeLowestMemReaderOffset(e) > READ_AHEAD_GAP)
+	return 1;
+    return rc;
 }
 
 void
@@ -844,13 +853,14 @@ int
 fwdReforwardableStatus(http_status s)
 {
     switch (s) {
+    case HTTP_BAD_GATEWAY:
+    case HTTP_GATEWAY_TIMEOUT:
+	return 1;
     case HTTP_FORBIDDEN:
     case HTTP_INTERNAL_SERVER_ERROR:
     case HTTP_NOT_IMPLEMENTED:
-    case HTTP_BAD_GATEWAY:
     case HTTP_SERVICE_UNAVAILABLE:
-    case HTTP_GATEWAY_TIMEOUT:
-	return 1;
+	return Config.retry.onerror;
     default:
 	return 0;
     }

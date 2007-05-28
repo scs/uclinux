@@ -9,10 +9,7 @@
 #
 #  e.g. -DREARGV=argvmks
 
-#$Log$
-#Revision 1.2  2005/07/25 04:03:16  magicyang
-#New user folder check in
-#
+#$Log: makefile.tcc,v $
 # Revision 1.1  1995/08/20  17:44:37  mike
 # minor fixes to msc and lower case makefile names
 #

@@ -11,9 +11,12 @@
 if(description)
 {
  script_id(10848);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2002-0563");
+ script_version("$Revision: 1.10 $");
+
+ script_cve_id("CVE-2002-0563");
  script_bugtraq_id(4293);
+ script_xref(name:"OSVDB", value:"705");
+
  name["english"] = "Oracle 9iAS Dynamic Monitoring Services";
  name["francais"] = "Oracle 9iAS Dynamic Monitoring Services";
  script_name(english:name["english"], francais:name["francais"]);
@@ -37,9 +40,8 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2002 Matt Moore",
 		francais:"Ce script est Copyright (C) 2002 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/OracleApache"); 
@@ -50,8 +52,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
  req = http_get(item:"/dms0", port:port);	      

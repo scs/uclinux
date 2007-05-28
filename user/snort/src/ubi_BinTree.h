@@ -219,6 +219,8 @@ typedef ubi_btNode *ubi_btNodePtr;     /* Pointer to an ubi_btNode structure. */
  *  ------------------------------------------------------------------------- **
  */
 
+typedef  int (*ubi_btCheckFunc)( ubi_btNodePtr, void * );
+
 typedef  int (*ubi_btCompFunc)( ubi_btItemPtr, ubi_btNodePtr );
 
 typedef void (*ubi_btActionRtn)( ubi_btNodePtr, void * );
@@ -453,6 +455,24 @@ ubi_btNodePtr ubi_btFind( ubi_btRootPtr RootPtr,
    * ------------------------------------------------------------------------ **
    */
 
+int ubi_btCheck( ubi_btRootPtr RootPtr, ubi_btCheckFunc func, void *UserData );
+  /* ------------------------------------------------------------------------ **
+   * This function performs a non-recursive search of a tree checking for any
+   * node that matches the data supplied, by calling func.
+   *
+   *  Input:
+   *     RootPtr  -  a pointer to the header of the tree to be searched.
+   *     func     -  a pointer function to perform the check
+   *     UserData -  a pointer to the user data to pass to func
+   *
+   *  Output:
+   *     Returns 1 when found, 0 if not found
+   *   
+   *  Note:
+   * ------------------------------------------------------------------------ **
+   */
+
+
 ubi_btNodePtr ubi_btNext( ubi_btNodePtr P );
   /* ------------------------------------------------------------------------ **
    * Given the node indicated by P, find the (sorted order) Next node in the
@@ -564,6 +584,27 @@ unsigned long ubi_btTraverse( ubi_btRootPtr   RootPtr,
    * ------------------------------------------------------------------------ **
    */
 
+
+unsigned long ubi_btTraverseReverse( ubi_btRootPtr   RootPtr,
+                              ubi_btActionRtn EachNode,
+                              void           *UserData );
+  /* ------------------------------------------------------------------------ **
+   * Traverse a tree in reverse sorted order (non-recursively).  At each node,
+   * call (*EachNode)(), passing a pointer to the current node, and UserData
+   * as the second parameter.
+   *
+   *  Input:   RootPtr  -  a pointer to an ubi_btRoot structure that indicates
+   *                       the tree to be traversed.
+   *           EachNode -  a pointer to a function to be called at each node
+   *                       as the node is visited.
+   *           UserData -  a generic pointer that may point to anything that
+   *                       you choose.
+   *
+   *  Output:  A count of the number of nodes visited.  This will be zero
+   *           if the tree is empty.
+   *
+   * ------------------------------------------------------------------------ **
+   */
 
 unsigned long ubi_btKillTree( ubi_btRootPtr     RootPtr,
                               ubi_btKillNodeRtn FreeNode );
@@ -680,6 +721,9 @@ int ubi_btModuleID( int size, char *list[] );
 #define ubi_trFind( Rp, Ip ) \
         ubi_btFind( (ubi_btRootPtr)(Rp), (ubi_btItemPtr)(Ip) )
 
+#define ubi_trCheck( Rp, Fp, Ud) \
+        ubi_btCheck( (ubi_btRootPtr)(Rp), (ubi_btCheckFunc)(Fp), (void *)(Ud) )
+
 #define ubi_trNext( P ) ubi_btNext( (ubi_btNodePtr)(P) )
 
 #define ubi_trPrev( P ) ubi_btPrev( (ubi_btNodePtr)(P) )
@@ -700,6 +744,9 @@ int ubi_btModuleID( int size, char *list[] );
 
 #define ubi_trTraverse( Rp, En, Ud ) \
         ubi_btTraverse((ubi_btRootPtr)(Rp), (ubi_btActionRtn)(En), (void *)(Ud))
+
+#define ubi_trTraverseReverse( Rp, En, Ud ) \
+        ubi_btTraverseReverse((ubi_btRootPtr)(Rp), (ubi_btActionRtn)(En), (void *)(Ud))
 
 #define ubi_trKillTree( Rp, Fn ) \
         ubi_btKillTree( (ubi_btRootPtr)(Rp), (ubi_btKillNodeRtn)(Fn) )

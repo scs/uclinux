@@ -1,4 +1,4 @@
-#ident "$Id$ Copyright (c) Gert Doering"
+#ident "$Id: faxq-helper.c,v 4.16 2005/04/10 20:47:43 gert Exp $ Copyright (c) Gert Doering"
 
 /* faxq-helper.c
  *
@@ -47,10 +47,7 @@
  * Note: right now, this needs an ANSI C compiler, and might not be 
  *       as portable as the remaining mgetty code.  Send diffs :-)
  *
- * $Log$
- * Revision 1.1  2006/08/05 07:27:14  vapier
- * import from upstream uClinux
- *
+ * $Log: faxq-helper.c,v $
  * Revision 4.16  2005/04/10 20:47:43  gert
  * make do_sanitize() work on a copy of the input line
  * (strtok() modifies the input string, leading to corrupt JOB files)

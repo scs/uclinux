@@ -46,25 +46,9 @@
 #include <sys/time.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include "mtd/mtd-user.h"
+#include <linux/mtd/ftl.h>
 
-#include <mtd/mtd-user.h>
-#include <mtd/ftl-user.h>
-
-#include <byteswap.h>
-#include <endian.h>
-
-#if __BYTE_ORDER == __LITTLE_ENDIAN
-# define TO_LE32(x) (x)
-# define TO_LE16(x) (x)
-#elif __BYTE_ORDER == __BIG_ENDIAN
-# define TO_LE32(x) (bswap_32(x))
-# define TO_LE16(x) (bswap_16(x))
-#else
-# error cannot detect endianess
-#endif
-
-#define FROM_LE32(x) TO_LE32(x)
-#define FROM_LE16(x) TO_LE16(x)
 
 /*====================================================================*/
 
@@ -86,7 +70,7 @@ static void check_partition(int fd, int verbose)
     erase_unit_header_t hdr, hdr2;
     u_int i, j, nbam, *bam;
     int control, data, free, deleted;
-
+    
     /* Get partition size, block size */
     if (ioctl(fd, MEMGETINFO, &mtd) != 0) {
 	perror("get info failed");
@@ -106,33 +90,33 @@ static void check_partition(int fd, int verbose)
 	    break;
 	}
 	read(fd, &hdr, sizeof(hdr));
-	if ((FROM_LE32(hdr.FormattedSize) > 0) &&
-	    (FROM_LE32(hdr.FormattedSize) <= mtd.size) &&
-	    (FROM_LE16(hdr.NumEraseUnits) > 0) &&
-	    (FROM_LE16(hdr.NumEraseUnits) <= mtd.size/mtd.erasesize))
+	if ((hdr.FormattedSize > 0) &&
+	    (hdr.FormattedSize <= mtd.size) &&
+	    (hdr.NumEraseUnits > 0) &&
+	    (hdr.NumEraseUnits <= mtd.size/mtd.erasesize))
 	    break;
     }
     if (i == mtd.size/mtd.erasesize) {
 	fprintf(stderr, "No valid erase unit headers!\n");
 	return;
     }
-
+    
     printf("Partition header:\n");
     printf("  Formatted size = ");
-    print_size(FROM_LE32(hdr.FormattedSize));
+    print_size(hdr.FormattedSize);
     printf(", erase units = %d, transfer units = %d\n",
-	   FROM_LE16(hdr.NumEraseUnits), hdr.NumTransferUnits);
+	   hdr.NumEraseUnits, hdr.NumTransferUnits);
     printf("  Erase unit size = ");
     print_size(1 << hdr.EraseUnitSize);
     printf(", virtual block size = ");
     print_size(1 << hdr.BlockSize);
     printf("\n");
-
+    
     /* Create basic block allocation table for control blocks */
     nbam = (mtd.erasesize >> hdr.BlockSize);
     bam = malloc(nbam * sizeof(u_int));
 
-    for (i = 0; i < FROM_LE16(hdr.NumEraseUnits); i++) {
+    for (i = 0; i < hdr.NumEraseUnits; i++) {
 	if (lseek(fd, (i << hdr.EraseUnitSize), SEEK_SET) == -1) {
 	    perror("seek failed");
 	    break;
@@ -146,12 +130,12 @@ static void check_partition(int fd, int verbose)
 	    (hdr2.NumEraseUnits != hdr.NumEraseUnits) ||
 	    (hdr2.SerialNumber != hdr.SerialNumber))
 	    printf("  Erase unit header is corrupt.\n");
-	else if (FROM_LE16(hdr2.LogicalEUN) == 0xffff)
-	    printf("  Transfer unit, erase count = %d\n", FROM_LE32(hdr2.EraseCount));
+	else if (hdr2.LogicalEUN == 0xffff)
+	    printf("  Transfer unit, erase count = %d\n", hdr2.EraseCount);
 	else {
 	    printf("  Logical unit %d, erase count = %d\n",
-		   FROM_LE16(hdr2.LogicalEUN), FROM_LE32(hdr2.EraseCount));
-	    if (lseek(fd, (i << hdr.EraseUnitSize)+FROM_LE32(hdr.BAMOffset),
+		   hdr2.LogicalEUN, hdr2.EraseCount);
+	    if (lseek(fd, (i << hdr.EraseUnitSize)+hdr.BAMOffset,
 		      SEEK_SET) == -1) {
 		perror("seek failed");
 		break;
@@ -162,11 +146,11 @@ static void check_partition(int fd, int verbose)
 	    }
 	    free = deleted = control = data = 0;
 	    for (j = 0; j < nbam; j++) {
-		if (BLOCK_FREE(FROM_LE32(bam[j])))
+		if (BLOCK_FREE(bam[j]))
 		    free++;
-		else if (BLOCK_DELETED(FROM_LE32(bam[j])))
+		else if (BLOCK_DELETED(bam[j]))
 		    deleted++;
-		else switch (BLOCK_TYPE(FROM_LE32(bam[j]))) {
+		else switch (BLOCK_TYPE(bam[j])) {
 		case BLOCK_CONTROL: control++; break;
 		case BLOCK_DATA: data++; break;
 		default: break;
@@ -178,13 +162,6 @@ static void check_partition(int fd, int verbose)
     }
 } /* format_partition */
 
-/* Show usage information */
-void showusage(char *pname)
-{
-	fprintf(stderr, "usage: %s [-v] device\n", pname);
-	fprintf(stderr, "-v verbose messages\n");
-}
-
 /*====================================================================*/
 
 int main(int argc, char *argv[])
@@ -192,22 +169,20 @@ int main(int argc, char *argv[])
     int verbose;
     int optch, errflg, fd;
     struct stat buf;
-
+    
     errflg = 0;
     verbose = 0;
-    while ((optch = getopt(argc, argv, "vh")) != -1) {
+    while ((optch = getopt(argc, argv, "v")) != -1) {
 	switch (optch) {
-	case 'h':
-	    errflg = 1; break;
 	case 'v':
 	    verbose = 1; break;
 	default:
-	    errflg = -1; break;
+	    errflg = 1; break;
 	}
     }
     if (errflg || (optind != argc-1)) {
-	showusage(argv[0]);
-	exit(errflg > 0 ? 0 : EXIT_FAILURE);
+	fprintf(stderr, "usage: %s [-v] device\n", argv[0]);
+	exit(EXIT_FAILURE);
     }
 
     if (stat(argv[optind], &buf) != 0) {
@@ -227,7 +202,7 @@ int main(int argc, char *argv[])
 
     check_partition(fd, verbose);
     close(fd);
-
+    
     exit(EXIT_SUCCESS);
     return 0;
 }

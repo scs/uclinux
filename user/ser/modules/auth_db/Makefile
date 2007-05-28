@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.2 2003/05/23 15:43:42 andrei Exp $
 #
 # Digest Authentication - Database support
 #

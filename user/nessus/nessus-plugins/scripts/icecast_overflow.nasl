@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10600);
- script_cve_id("CVE-2001-0197");
  script_bugtraq_id(2264);
- script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-0197");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "ICECast Format String";
  script_name(english:name["english"]);
@@ -50,26 +50,11 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 8000;
+port = get_http_port(default:8000);
+if(!port) exit(0);
 
-if(get_port_state(port))
-{
-soc = open_sock_tcp(port);
-if(soc)
-{
- req = http_head(item:"/", port:port);
- send(socket:soc,
-	data:req);
+banner = tolower(get_http_banner(port:port));
+if ( ! banner ) exit(0);
 
-  r = http_recv(socket:soc);
-  close(soc);
-  str = strstr(r, "icecast");
-  if(str)
-  {
-    if(ereg(pattern:"icecast/1\.3\.(7|8 *beta[012])", string:str))
+if("icecast/" >< banner && egrep(pattern:"icecast/1\.3\.(7|8 *beta[012])", string:banner))
       security_hole(port);
-  }
-   
- }
-}

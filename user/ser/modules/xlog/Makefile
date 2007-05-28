@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 2003/06/06 14:56:22 ramona Exp $
 #
 # example module makefile
 #

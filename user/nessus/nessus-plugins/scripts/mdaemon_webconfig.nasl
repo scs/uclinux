@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10138);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(820);
- script_cve_id("CAN-1999-0844");
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-1999-0844");
  name["english"] = "MDaemon Webconfig crash";
  name["francais"] = "Plantage de Webconfig de MDaemon";
  script_name(english:name["english"], francais:name["francais"]);
@@ -79,6 +79,6 @@ if(get_port_state(port))
   r = http_recv(socket:soc);
   http_close_socket(soc);
   
-  if(http_is_dead(port:port))security_hole(port);
+  if(http_is_dead(port:port))security_warning(port);
  }
 }

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10290);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.18 $");
  
  name["english"] = "Upload cgi";
  name["francais"] = "cgi upload";
@@ -19,7 +19,7 @@ files on the remote web server.
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'upload.cgi' est installé. Celui-ci possède
@@ -56,5 +56,13 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 
-port = is_cgi_installed("upload.cgi");
-if(port)security_hole(port);
+exit(0); # So many 'upload.cgi' out there that this does not make sense...
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"upload.cgi", port:port);
+if(res)security_warning(port);

@@ -12,8 +12,8 @@
 if(description)
 {
  script_id(10444); 
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1386);
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-2000-0540");
  name["english"] = "JRun's viewsource.jsp";
 
@@ -48,8 +48,8 @@ See also : http://www.macromedia.com/devnet/security/security_zone/asb00-15.html
 
  script_family(english:family["english"], francais:family["francais"]);
  
- script_dependencie("find_service.nes", "no404.nasl");
- script_require_ports(8000);
+ script_dependencie("http_version.nasl");
+ script_require_ports("Services/www", 8000);
  exit(0);
 }
 
@@ -59,6 +59,7 @@ See also : http://www.macromedia.com/devnet/security/security_zone/asb00-15.html
 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
 
 
@@ -66,27 +67,21 @@ file[0] = "/../../../../../../../../../boot.ini";    res[0] = "boot loader";
 file[1] = "/../../../../../../../../../etc/passwd";  res[1] = "root:";
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:8000);
+
 if(!get_port_state(port)){ exit(0); }
+banner = get_http_banner(port:port);
+if ( "jrun" >!< tolower(banner) ) exit(0);
 
 function check_page(req, pat)
 {
     str = http_get(item:req, port:port);
-    soc = open_sock_tcp(port);
-    if(soc)
-    {
-        send(socket:soc, data:str);
-        r = http_recv(socket:soc);
-	http_close_socket(soc);
-       if(pat >< r)
+    r = http_keepalive_send_recv(port:port, data:str);
+    if(pat >< r)
             {
                 security_hole(port:port);
-                close(soc);
                 exit(0);
             }
-     }
-    return(0);
 }
 
 

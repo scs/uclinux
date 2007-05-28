@@ -9,11 +9,10 @@
 if(description)
 {
  script_id(10956);
- script_cve_id("CAN-1999-0739");
- script_version("$Revision: 1.3 $");
+ script_cve_id("CVE-1999-0739");
+ script_version("$Revision: 1.8 $");
  name["english"] = "Codebrws.asp Source Disclosure Vulnerability";
- name["francais"] = "Codebrws.asp Source Disclosure Vulnerability";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 Microsoft's IIS 5.0 web server is shipped with a set of
@@ -43,14 +42,11 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Matt Moore / HD Moore",
-		francais:"Ce script est Copyright (C) 2002 Matt Moore / HD Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_copyright(english:"This script is Copyright (C) 2002 Matt Moore / HD Moore");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -58,19 +54,15 @@ Risk factor : High";
 # to use the output of webmirror.nasl, and actually exploit the vulnerability.
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port)){ exit(0); }
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
 
-soc = http_open_socket(port);
-if (!soc) exit(0);
 
 req = http_get(item:"/iissamples/sdk/asp/docs/codebrws.asp", port:port);
-send(socket:soc, data:req);
-res = http_recv(socket:soc);
-http_close_socket(soc);
+res = http_keepalive_send_recv(data:req, port:port);
 if ("View Active Server Page Source" >< res)
 {
-    security_hole(port:port);
+    security_hole(port);
 }

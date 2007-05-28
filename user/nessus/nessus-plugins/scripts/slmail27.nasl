@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10255);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CAN-1999-0231");
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-1999-0231");
  
  name["english"] = "SLMail:27 denial of service";
  name["francais"] = "Déni de service contre SLMail:27";
@@ -27,7 +27,7 @@ and receiving emails.
 
 Solution : Update your MTA, or change it.
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Il a été possible de créer
 un déni de service contre le serveur SMTP

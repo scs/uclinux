@@ -11,9 +11,10 @@
 if(description)
 {
  script_id(10179);
- script_version ("$Revision: 1.16 $");
- script_cve_id("CVE-1999-0918");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-t-0011");
  script_bugtraq_id(514);
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-0918");
  
  name["english"] = "pimp";
  name["francais"] = "pimp";
@@ -28,7 +29,7 @@ using it.
 
 Solution : filter incoming IGMP traffic
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Il s'est avéré possible de tuer

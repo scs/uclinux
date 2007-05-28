@@ -750,7 +750,7 @@ print_compiled_pattern (bufp)
   unsigned char *buffer = bufp->buffer;
 
   print_partial_compiled_pattern (buffer, buffer + bufp->used);
-  printf ("%d bytes used/%d bytes allocated.\n", bufp->used, bufp->allocated);
+  printf ("%ld bytes used/%ld bytes allocated.\n", bufp->used, bufp->allocated);
 
   if (bufp->fastmap_accurate && bufp->fastmap)
     {
@@ -758,7 +758,7 @@ print_compiled_pattern (bufp)
       print_fastmap (bufp->fastmap);
     }
 
-  printf ("re_nsub: %d\t", bufp->re_nsub);
+  printf ("re_nsub: %ld\t", bufp->re_nsub);
   printf ("regs_alloc: %d\t", bufp->regs_allocated);
   printf ("can_be_null: %d\t", bufp->can_be_null);
   printf ("newline_anchor: %d\n", bufp->newline_anchor);
@@ -2408,13 +2408,13 @@ typedef struct
 	DEBUG_PRINT2 ("  Pushing reg: %d\n", this_reg);			\
         DEBUG_STATEMENT (num_regs_pushed++);				\
 									\
-	DEBUG_PRINT2 ("    start: 0x%x\n", regstart[this_reg]);		\
+	DEBUG_PRINT2 ("    start: %p\n", regstart[this_reg]);		\
         PUSH_FAILURE_ITEM (regstart[this_reg]);				\
                                                                         \
-	DEBUG_PRINT2 ("    end: 0x%x\n", regend[this_reg]);		\
+	DEBUG_PRINT2 ("    end: %p\n", regend[this_reg]);		\
         PUSH_FAILURE_ITEM (regend[this_reg]);				\
 									\
-	DEBUG_PRINT2 ("    info: 0x%x\n      ", reg_info[this_reg]);	\
+	DEBUG_PRINT2 ("    info: %p\n      ", reg_info[this_reg]);	\
         DEBUG_PRINT2 (" match_null=%d",					\
                       REG_MATCH_NULL_STRING_P (reg_info[this_reg]));	\
         DEBUG_PRINT2 (" active=%d", IS_ACTIVE (reg_info[this_reg]));	\
@@ -2432,11 +2432,11 @@ typedef struct
     DEBUG_PRINT2 ("  Pushing high active reg: %d\n", highest_active_reg);\
     PUSH_FAILURE_ITEM (highest_active_reg);				\
 									\
-    DEBUG_PRINT2 ("  Pushing pattern 0x%x: ", pattern_place);		\
+    DEBUG_PRINT2 ("  Pushing pattern %p: ", pattern_place);		\
     DEBUG_PRINT_COMPILED_PATTERN (bufp, pattern_place, pend);		\
     PUSH_FAILURE_ITEM (pattern_place);					\
 									\
-    DEBUG_PRINT2 ("  Pushing string 0x%x: `", string_place);		\
+    DEBUG_PRINT2 ("  Pushing string %p: `", string_place);		\
     DEBUG_PRINT_DOUBLE_STRING (string_place, string1, size1, string2,   \
 				 size2);				\
     DEBUG_PRINT1 ("'\n");						\
@@ -2506,19 +2506,19 @@ typedef struct
   if (string_temp != NULL)						\
     str = (const char *) string_temp;					\
 									\
-  DEBUG_PRINT2 ("  Popping string 0x%x: `", str);			\
+  DEBUG_PRINT2 ("  Popping string %p: `", str);			\
   DEBUG_PRINT_DOUBLE_STRING (str, string1, size1, string2, size2);	\
   DEBUG_PRINT1 ("'\n");							\
 									\
   pat = (unsigned char *) POP_FAILURE_ITEM ();				\
-  DEBUG_PRINT2 ("  Popping pattern 0x%x: ", pat);			\
+  DEBUG_PRINT2 ("  Popping pattern %p: ", pat);			\
   DEBUG_PRINT_COMPILED_PATTERN (bufp, pat, pend);			\
 									\
   /* Restore register info.  */						\
-  high_reg = (unsigned) POP_FAILURE_ITEM ();				\
+  high_reg = (size_t) POP_FAILURE_ITEM ();				\
   DEBUG_PRINT2 ("  Popping high active reg: %d\n", high_reg);		\
 									\
-  low_reg = (unsigned) POP_FAILURE_ITEM ();				\
+  low_reg = (size_t) POP_FAILURE_ITEM ();				\
   DEBUG_PRINT2 ("  Popping  low active reg: %d\n", low_reg);		\
 									\
   for (this_reg = high_reg; this_reg >= low_reg; this_reg--)		\
@@ -2526,13 +2526,13 @@ typedef struct
       DEBUG_PRINT2 ("    Popping reg: %d\n", this_reg);			\
 									\
       reg_info[this_reg].word = POP_FAILURE_ITEM ();			\
-      DEBUG_PRINT2 ("      info: 0x%x\n", reg_info[this_reg]);		\
+      DEBUG_PRINT2 ("      info: %p\n", reg_info[this_reg]);		\
 									\
       regend[this_reg] = (const char *) POP_FAILURE_ITEM ();		\
-      DEBUG_PRINT2 ("      end: 0x%x\n", regend[this_reg]);		\
+      DEBUG_PRINT2 ("      end: %p\n", regend[this_reg]);		\
 									\
       regstart[this_reg] = (const char *) POP_FAILURE_ITEM ();		\
-      DEBUG_PRINT2 ("      start: 0x%x\n", regstart[this_reg]);		\
+      DEBUG_PRINT2 ("      start: %p\n", regstart[this_reg]);		\
     }									\
 									\
   DEBUG_STATEMENT (nfailure_points_popped++);				\
@@ -3221,7 +3221,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
      it gets discarded and the next next one is tried.  */
   fail_stack_type fail_stack;
 #ifdef DEBUG
-  static unsigned failure_id = 0;
+  static size_t failure_id = 0;
   unsigned nfailure_points_pushed = 0, nfailure_points_popped = 0;
 #endif
 
@@ -3231,8 +3231,8 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
   unsigned num_regs = bufp->re_nsub + 1;
   
   /* The currently active registers.  */
-  unsigned lowest_active_reg = NO_LOWEST_ACTIVE_REG;
-  unsigned highest_active_reg = NO_HIGHEST_ACTIVE_REG;
+  size_t lowest_active_reg = NO_LOWEST_ACTIVE_REG;
+  size_t highest_active_reg = NO_HIGHEST_ACTIVE_REG;
 
   /* Information on the contents of registers. These are pointers into
      the input strings; they record just what was matched (on this
@@ -3396,7 +3396,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
      fails at this starting point in the input data.  */
   for (;;)
     {
-      DEBUG_PRINT2 ("\n0x%x: ", p);
+      DEBUG_PRINT2 ("\n%p: ", p);
 
       if (p == pend)
 	{ /* End of pattern means we might have succeeded.  */
@@ -3647,11 +3647,11 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
           old_regstart[*p] = REG_MATCH_NULL_STRING_P (reg_info[*p])
                              ? REG_UNSET (regstart[*p]) ? d : regstart[*p]
                              : regstart[*p];
-	  DEBUG_PRINT2 ("  old_regstart: %d\n", 
-			 POINTER_TO_OFFSET (old_regstart[*p]));
+	  DEBUG_PRINT2 ("  old_regstart: %p\n", 
+			 (void *)POINTER_TO_OFFSET (old_regstart[*p]));
 
           regstart[*p] = d;
-	  DEBUG_PRINT2 ("  regstart: %d\n", POINTER_TO_OFFSET (regstart[*p]));
+	  DEBUG_PRINT2 ("  regstart: %p\n", (void *)POINTER_TO_OFFSET (regstart[*p]));
 
           IS_ACTIVE (reg_info[*p]) = 1;
           MATCHED_SOMETHING (reg_info[*p]) = 0;
@@ -3683,11 +3683,11 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
           old_regend[*p] = REG_MATCH_NULL_STRING_P (reg_info[*p])
                            ? REG_UNSET (regend[*p]) ? d : regend[*p]
 			   : regend[*p];
-	  DEBUG_PRINT2 ("      old_regend: %d\n", 
-			 POINTER_TO_OFFSET (old_regend[*p]));
+	  DEBUG_PRINT2 ("      old_regend: %p\n", 
+			 (void *)POINTER_TO_OFFSET (old_regend[*p]));
 
           regend[*p] = d;
-	  DEBUG_PRINT2 ("      regend: %d\n", POINTER_TO_OFFSET (regend[*p]));
+	  DEBUG_PRINT2 ("      regend: %p\n", (void *)POINTER_TO_OFFSET (regend[*p]));
 
           /* This register isn't active anymore.  */
           IS_ACTIVE (reg_info[*p]) = 0;
@@ -3785,7 +3785,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
                           regstart[r] = old_regstart[r];
 
                           /* xx why this test?  */
-                          if ((int) old_regend[r] >= (int) regstart[r])
+                          if ((size_t) old_regend[r] >= (size_t) regstart[r])
                             regend[r] = old_regend[r];
                         }     
                     }
@@ -3936,7 +3936,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
           DEBUG_PRINT1 ("EXECUTING on_failure_keep_string_jump");
           
           EXTRACT_NUMBER_AND_INCR (mcnt, p);
-          DEBUG_PRINT3 (" %d (to 0x%x):\n", mcnt, p + mcnt);
+          DEBUG_PRINT3 (" %d (to %p):\n", mcnt, p + mcnt);
 
           PUSH_FAILURE_POINT (p + mcnt, NULL, -2);
           break;
@@ -3959,7 +3959,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
           DEBUG_PRINT1 ("EXECUTING on_failure_jump");
 
           EXTRACT_NUMBER_AND_INCR (mcnt, p);
-          DEBUG_PRINT3 (" %d (to 0x%x)", mcnt, p + mcnt);
+          DEBUG_PRINT3 (" %d (to %p)", mcnt, p + mcnt);
 
           /* If this on_failure_jump comes right before a group (i.e.,
              the original * applied to a group), save the information
@@ -4110,7 +4110,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
 	  EXTRACT_NUMBER_AND_INCR (mcnt, p);	/* Get the amount to jump.  */
           DEBUG_PRINT2 ("EXECUTING jump %d ", mcnt);
 	  p += mcnt;				/* Do the jump.  */
-          DEBUG_PRINT2 ("(to 0x%x).\n", p);
+          DEBUG_PRINT2 ("(to %p).\n", p);
 	  break;
 
 	
@@ -4159,11 +4159,11 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
                mcnt--;
 	       p += 2;
                STORE_NUMBER_AND_INCR (p, mcnt);
-               DEBUG_PRINT3 ("  Setting 0x%x to %d.\n", p, mcnt);
+               DEBUG_PRINT3 ("  Setting %p to %d.\n", p, mcnt);
             }
 	  else if (mcnt == 0)
             {
-              DEBUG_PRINT2 ("  Setting two bytes from 0x%x to no_op.\n", p+2);
+              DEBUG_PRINT2 ("  Setting two bytes from %p to no_op.\n", p+2);
 	      p[2] = (unsigned char) no_op;
               p[3] = (unsigned char) no_op;
               goto on_failure;
@@ -4193,7 +4193,7 @@ re_match_2 (bufp, string1, size1, string2, size2, pos, regs, stop)
             EXTRACT_NUMBER_AND_INCR (mcnt, p);
             p1 = p + mcnt;
             EXTRACT_NUMBER_AND_INCR (mcnt, p);
-            DEBUG_PRINT3 ("  Setting 0x%x to %d.\n", p1, mcnt);
+            DEBUG_PRINT3 ("  Setting %p to %d.\n", p1, mcnt);
 	    STORE_NUMBER (p1, mcnt);
             break;
           }

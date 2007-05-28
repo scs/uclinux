@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10503);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1658);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2000-0868");
 
  name["english"] = "Reading CGI script sources using /cgi-bin-sdb";
@@ -30,7 +30,7 @@ Solution : In httpd.conf, change the directive:
 Alias /cgi-bin-sdb/ /usr/local/httpd/cgi-bin/
 to
 ScriptAlias /cgi-bin-sdb/ /usr/local/httpd/cgi-bin/
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -73,7 +73,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -83,50 +83,38 @@ Facteur de risque : Sérieux";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {
- soc = http_open_socket(port);
- if(soc)
- {
   # First try : attempt to get printenv
   req = string("/cgi-bin-sdb/printenv");
   req = http_get(item:req, port:port);
-  send(socket:soc, data:req);
-  r = http_recv(socket:soc);
-  http_close_socket(soc);
+  r   = http_keepalive_send_recv(port:port, data:req);
+  if ( ! r ) exit(0);
   if("/usr/bin/perl" >< r)
   {
   	security_hole(port);
 	exit(0);
   }
  
-  soc = http_open_socket(port);
-  if(!soc)exit(0);
   req = string("/cgi-bin-sdb/sdbsearch.cgi");
   req = http_get(item:req, port:port);
-  send(socket:soc, data:req);
-  r = recv_line(socket:soc, length:2048);
-  http_close_socket(soc);
+  r   = http_keepalive_send_recv(port:port, data:req);
   if("HTTP/1.1 403 " >< r){
   	#
 	# Attempt to obtain something else in the same
 	# directory
 	#
-	soc = http_open_socket(port);
-	if(!soc)exit(0);
 	req = http_get(item:"/cgi-bin-sdb/nessus", port:port);
-	send(socket:soc, data:req);
-	r = recv_line(socket:soc, length:4096);
-	http_close_socket(soc);
+  	r   = http_keepalive_send_recv(port:port, data:req);
 	if("HTTP/1.1 403 " >< r)
 	  exit(0);
 	else
   	 security_hole(port);
 	exit(0);
 	}
- }
 }

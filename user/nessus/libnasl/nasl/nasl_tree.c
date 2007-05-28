@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,17 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  */
 #include <includes.h>
@@ -159,13 +148,11 @@ free_tree(tree_cell *c)
 	break;
 
       case CONST_REGEX:
-#if 0
       case COMP_RE_MATCH:
       case COMP_RE_NOMATCH:
-#endif
 	if (c->x.ref_val != NULL)
 	  {
-	    regfree(c->x.ref_val);
+	    nasl_regfree(c->x.ref_val);
 	    efree(&c->x.ref_val);
 	  }
 	break;
@@ -185,6 +172,7 @@ free_tree(tree_cell *c)
       case NODE_DECL:
       case NODE_ARG:
       case NODE_ARRAY_EL:
+      case NODE_FOREACH:
 	efree(&c->x.str_val);
 	break;
       }
@@ -234,6 +222,8 @@ static char * node_names[] = {
   "NODE_ARG",
   "NODE_RETURN",
   "NODE_BREAK",
+  "NODE_CONTINUE",
+
   "NODE_ARRAY_EL",
   "NODE_AFF",
   "NODE_VAR",
@@ -285,6 +275,8 @@ static char * node_names[] = {
   "CONST_STR",
   "CONST_DATA",
   "CONST_REGEX",
+
+  "ARRAY_ELEM",
 
   "REF_VAR",
   "REF_ARRAY",
@@ -391,6 +383,7 @@ dump_tree(const tree_cell* c, int n, int idx)
     case NODE_DECL:
     case NODE_ARG:
     case NODE_ARRAY_EL:
+    case ARRAY_ELEM:
       prefix(n, 0);
       if (c->x.str_val == NULL)
 	printf("Val=(null)\n");

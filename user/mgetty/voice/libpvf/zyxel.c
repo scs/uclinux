@@ -8,7 +8,7 @@
  * The ZyXEL 2864 and the ISDN4Linux driver can also store voice data in
  * this format.
  *
- * $Id$
+ * $Id: zyxel.c,v 1.4 1998/09/09 21:07:06 gert Exp $
  *
  */
 

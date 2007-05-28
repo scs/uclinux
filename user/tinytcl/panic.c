@@ -14,7 +14,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Id$
+ * $Id: panic.c,v 1.1.1.1 2001/04/29 20:34:05 karll Exp $
  */
 
 #include <stdio.h>

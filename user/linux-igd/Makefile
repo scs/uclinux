@@ -36,5 +36,6 @@ ifndef CONFIG_USER_LINUXIGD_DEFAULT
 	$(ROMFSINST) etc/gatedesc.snapgear /etc/linuxigd/gatedesc.xml
 else
 	$(ROMFSINST) etc/gatedesc.xml /etc/linuxigd/gatedevice.xml
+	$(ROMFSINST) etc/upnpd.conf /etc/default/upnpd.conf
 endif
 endif

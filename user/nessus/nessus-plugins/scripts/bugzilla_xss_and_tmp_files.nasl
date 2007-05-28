@@ -16,7 +16,8 @@ if(description)
 {
  script_id(11553);
  script_bugtraq_id(7412);
- script_version ("$Revision: 1.2 $");
+ script_cve_id("CVE-2003-0603");
+ script_version ("$Revision: 1.8 $");
  
 
  name["english"] = "Bugzilla XSS and insecure temporary filenames";
@@ -24,14 +25,25 @@ if(description)
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote Bugzilla bug tracking system, according to its
-version number, is vulnerable to various flaws that may
-let an attacker perform cross site scripting attacks or
-even delete local file files (provided he has an account
+Synopsis :
+
+The remote host contains a CGI which is vulnerable to a cross site scripting
+and file deletion vulnerability
+
+Description : 
+
+The remote Bugzilla bug tracking system, according to its version number, is 
+vulnerable to various flaws that may let an attacker perform cross site 
+scripting attacks or even delete local file files (provided he has an account
 on the remote host).
 
-Solution : Upgrade to 2.16.3 or 2.17.4
-Risk factor : Medium";
+Solution : 
+
+Upgrade to 2.16.3 or 2.17.4
+
+Risk factor : 
+Low / CVSS Base Score : 3
+(AV:R/AC:L/Au:R/C:N/A:N/I:C/B:I)";
 
 
 
@@ -62,8 +74,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 version = get_kb_item(string("www/", port, "/bugzilla/version"));
@@ -71,6 +83,7 @@ if(!version)exit(0);
 
 
 if(ereg(pattern:"(1\..*)|(2\.(0\..*|1[0-3]\..*|14\..*|15\..*|16\.[0-2]|17\.[0-3]))[^0-9]*$",
-       string:version))security_warning(port);
-       
+       string:version)){
+		 security_note(port);
+	}
        

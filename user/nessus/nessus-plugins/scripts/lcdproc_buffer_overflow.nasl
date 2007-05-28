@@ -1,48 +1,52 @@
 #
-# This script was written by Noam Rathaus <noamr@securiteam.com>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(10378);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(1131);
- script_cve_id("CAN-2000-0295");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0295");
  name["english"] = "LCDproc buffer overflow";
  script_name(english:name["english"]);
  
- desc["english"] = "LCDproc (http://lcdproc.omnipotent.net) is a 
-system that is used to display system information and other data 
-on an LCD display (or any supported display device, including 
-curses or text)
-The LCDproc version 4.0 and above uses a client-server protocol, allowing 
-anyone with access to the LCDproc server to modify the displayed content.
-It is possible to cause the LCDproc server to crash and execute arbitrary 
-code by sending the server a large buffer that will overflow its internal 
-buffer.
+ desc["english"] = "
+Synopsis :
 
-For more information see article:
-http://www.securiteam.com/exploits/Remote_vulnerability_in_LCDproc_0_4__shell_access_.html
-(NOTE: URL maybe wrapped)
+A buffer overflow in the remote LCDproc server may allow an attacker
+to execute arbitrary code on the remote host.
 
-Risk factor : High
-Solution: Disable access to this service from outside by disabling access 
- to TCP port 13666 (default port used)";
+Description :
+
+The remote LCDproc service is vulnerable to a buffer overflow vulnerability
+when processing commands received from the network due to a lack of bound
+checks.
+
+An attacker may exploit this flaw to execute arbitrary code on the remote host,
+with the privileges of the LCDproc process (usually, nobody).
+
+Solution : 
+
+Upgrade to LCDproc 0.4.1 or newer
+
+Risk factor :
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Check whether LCDproc is vulnerable to attack";
+ summary["english"] = "LCDproc version check";
  
  script_summary(english:summary["english"]);
  
- script_category(ACT_DESTRUCTIVE_ATTACK);
+ script_category(ACT_GATHER_INFO);
  
-  script_copyright(english:"This script is Copyright (C) 2000 SecuriTeam");
- family["english"] = "Misc.";
+  script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security"); 
+ family["english"] = "Gain root remotely";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes");
+ script_dependencie("lcdproc_detect.nasl");
   script_require_ports("Services/lcdproc", 13666);
  exit(0);
 }
@@ -54,19 +58,6 @@ Solution: Disable access to this service from outside by disabling access
 port = get_kb_item("Services/lcdproc");
 if(!port)port = 13666;
 
-if(get_port_state(port))
-{
-  req = crap(4096);
-  soc = open_sock_tcp(port);
-  if(soc)
-  {
-   send(socket:soc, data:req);
-   result = recv(socket:soc, length:4096);
-   if(strlen(result) == 0)
-   {
-    security_hole(port:port);
-    exit(0);
-   }
-  }
-}
-
+version = get_kb_item("lcdproc/version");
+if ( ! version ) exit(0);
+if ( ereg(pattern:"^0\.([0-3]([^0-9]|$)|4([^0-9.]|$)|4\.0)", string:version) ) security_hole(port);

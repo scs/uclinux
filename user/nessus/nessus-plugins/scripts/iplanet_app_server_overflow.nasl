@@ -17,9 +17,9 @@
 if(description)
 {
  script_id(11403);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(7082);
- script_cve_id("CAN-2002-0387");
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2002-0387");
  
  name["english"] = "iPlanet Application Server Buffer Overflow";
  script_name(english:name["english"]);
@@ -63,8 +63,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 d = get_kb_item(string("www/", port, "/SunOneApplicationServer/prefix"));

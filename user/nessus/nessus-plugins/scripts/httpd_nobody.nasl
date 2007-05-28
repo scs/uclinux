@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10484);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.10 $");
 
  name["english"] = "Read any file thanks to ~nobody/";
  name["francais"] = "Read any file thanks to ~nobody/";
@@ -22,7 +22,7 @@ This problem is due to a misconfiguration in your Apache
 server that sets UserDir to ./.
 
 Solution : Set UserDir to public_html/ or something else
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -53,7 +53,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -62,18 +62,14 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+include("http_keepalive.inc");
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
- soc = http_open_socket(port);
- if(soc)
- {  
   req = http_get(item:"/~nobody/etc/passwd", port:port);
-  send(socket:soc, data:req);
-  r = http_recv(socket:soc);
-  http_close_socket(soc);
-  if(egrep(pattern:".*root:.*:0:[01]:.*", string:r))security_hole(port);
- }
+  res = http_keepalive_send_recv(port:port, data:req);
+  if ( ! res ) exit(0);
+  if(egrep(pattern:".*root:.*:0:[01]:.*", string:res))security_hole(port);
 }
 

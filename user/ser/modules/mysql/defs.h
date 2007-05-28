@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: defs.h,v 1.4 2002/09/19 12:23:54 jku Rel $ 
  *
  * MySQL module various definitions
  *

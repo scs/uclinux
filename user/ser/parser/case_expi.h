@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: case_expi.h,v 1.6 2003/02/28 14:12:26 jiri Exp $ 
  *
  * Expires Header Field Name Parsing Macros
  *

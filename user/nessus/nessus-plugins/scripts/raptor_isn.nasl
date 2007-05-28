@@ -11,32 +11,32 @@
 if(description)
 {
  script_id(11057);
- script_cve_id("CAN-2002-1463");
- script_version("$Revision: 1.9 $");
- name["english"] = "Raptor Weak ISN";
+ script_bugtraq_id(5387, 8652);
+ script_cve_id("CVE-2002-1463");
+ script_version("$Revision: 1.16 $");
+ name["english"] = "Weak Initial Sequence Number";
  script_name(english:name["english"]);
 
  desc["english"] = "
-The remote host seems to generate Initial Sequence Numbers
-(ISN) in a weak manner which seems to solely depend
-on the source and dest port of the TCP packets.
+The remote host seems to generate Initial Sequence Numbers (ISN) in a weak 
+manner which seems to solely depend on the source and dest port of the TCP 
+packets.
 
-The Raptor Firewall is known to be vulnerable to this flaw,
-certain versions of Novell Netware, as may others be.
+An attacker may exploit this flaw to establish spoofed connections to the 
+remote host.
 
-An attacker may use this flaw to establish spoofed connections
-to the remote host.
+The Raptor Firewall and Novell Netware are known to be vulnerable to this 
+flaw, although other network devices may be vulnerable as well.
 
 
-Solution : If you are using a Raptor Firewall, see
-http://www.symantec.com/techsupp/bulletin/archive/firewall/082002firewall.html
+Solution : 
 
-If you are running Novell Netware 6, see:
-http://support.novell.com/servlet/tidfinder/2964249
+If you are using a Raptor Firewall, see
+ http://www.symantec.com/techsupp/bulletin/archive/firewall/082002firewall.html
 
-or else contact your vendor for a patch
+Otherwise, contact your vendor for a patch.
 
-Reference: http://online.securityfocus.com/archive/1/285729
+Reference : http://online.securityfocus.com/archive/1/285729
 
 Risk factor : High";
 
@@ -51,10 +51,12 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
  family["english"] = "Firewalls";
  script_family(english:family["english"]);
- 
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
+include('global_settings.inc');
+if ( ! thorough_tests ) exit(0);
 if(islocalhost())exit(0);
 
  port = get_host_open_port();

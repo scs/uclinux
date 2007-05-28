@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: syscall.c,v 1.32 2001/07/10 13:48:44 hughesj Exp $
  */
 
 #include "defs.h"
@@ -658,7 +658,7 @@ struct tcb *tcp;
 #elif defined (M68K)
 	static long d0;
 #elif defined (ARM)
-	static int r0;
+	static struct pt_regs regs; /* should be in tcb */
 #elif defined (ALPHA)
 	static long r0;
 	static long a3;
@@ -732,11 +732,54 @@ struct tcb *tcp;
 			return -1;
 	}
 #elif defined (ARM)
-	{ 
-	    long pc;
-	    upeek(pid, 4*15, &pc);
-	    umoven(tcp, pc-4, 4, (char *)&scno);
-	    scno &= 0x000fffff;
+	/*
+	 * Read complete register set in one go.
+	 */
+	if (ptrace(PTRACE_GETREGS, pid, 0, (void *)&regs) < 0)
+		return -1;
+
+	/*
+	 * We only need to grab the syscall number on syscall entry.
+	 */
+	if (regs.ARM_ip == 0) {
+		/*
+		 * Note: we only deal with only 32-bit CPUs here.
+		 */
+		if (regs.ARM_cpsr & 0x20) {
+			/*
+			 * Get the Thumb-mode system call number
+			 */
+			scno = regs.ARM_r7;
+		} else {
+			/*
+			 * Get the ARM-mode system call number
+			 */
+			errno = 0;
+			scno = ptrace(PTRACE_PEEKTEXT, pid, regs.ARM_pc - 4, 0);
+			if (errno)
+				return -1;
+
+			if ((scno & 0x0ff00000) != 0x0f900000) {
+				fprintf(stderr, "syscall: unknown syscall trap 0x%08lx\n",
+					scno);
+				return -1;
+			}
+
+			/*
+			 * Fixup the syscall number
+			 */
+			scno &= 0x000fffff;
+		}
+
+		if (tcp->flags & TCB_INSYSCALL) {
+			fprintf(stderr, "pid %d stray syscall entry\n", tcp->pid);
+			tcp->flags &= ~TCB_INSYSCALL;
+		}
+	} else {
+		if (!(tcp->flags & TCB_INSYSCALL)) {
+			fprintf(stderr, "pid %d stray syscall exit\n", tcp->pid);
+			tcp->flags |= TCB_INSYSCALL;
+		}
 	}
 #elif defined (M68K)
 	if (upeek(pid, 4*PT_ORIG_D0, &scno) < 0)
@@ -1028,13 +1071,9 @@ struct tcb *tcp;
 		return 0;
 	}
 #elif defined (ARM)
-	if (upeek(pid, 4*0, (long *)&r0) < 0)
-		return -1;
-	if ( 0 && r0 != -ENOSYS && !(tcp->flags & TCB_INSYSCALL)) {
-		if (debug)
-			fprintf(stderr, "stray syscall exit: d0 = %ld\n", r0);
-		return 0;
-	}
+	/*
+	 * Nothing required
+	 */
 #elif defined (HPPA)
 	if (upeek(pid, PT_GR28, &r28) < 0)
 		return -1;
@@ -1122,12 +1161,12 @@ struct tcb *tcp;
 		}
 #else /* !M68K */
 #ifdef ARM
-		if (r0 && (unsigned) -r0 < nerrnos) {
+		if (regs.ARM_r0 && (unsigned) -regs.ARM_r0 < nerrnos) {
 			tcp->u_rval = -1;
-			u_error = -r0;
+			u_error = -regs.ARM_r0;
 		}
 		else {
-			tcp->u_rval = r0;
+			tcp->u_rval = regs.ARM_r0;
 			u_error = 0;
 		}
 #else /* !ARM */
@@ -1363,6 +1402,17 @@ struct tcb *tcp;
 			if (upeek(pid, PT_GR26-4*i, &tcp->u_arg[i]) < 0)
 				return -1;
 		}
+	}
+#elif defined(ARM)
+	{
+		int i;
+
+		if (tcp->scno >= 0 && tcp->scno < nsyscalls && sysent[tcp->scno].nargs != -1)
+			tcp->u_nargs = sysent[tcp->scno].nargs;
+		else
+			tcp->u_nargs = MAX_ARGS;
+		for (i = 0; i < tcp->u_nargs; i++)
+			tcp->u_arg[i] = regs.uregs[i];
 	}
 #elif defined(SH)
        {

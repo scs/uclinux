@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: group.h,v 1.1 2003/02/26 14:03:47 janakj Exp $
  *
  * Group membership
  *

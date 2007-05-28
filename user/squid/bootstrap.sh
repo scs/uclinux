@@ -52,6 +52,13 @@ bootstrap() {
   fi
 }
 
+fixmakefiles() {
+  bad_files="`find . -name Makefile.in | xargs grep -l "AR = ar"`"
+  if [ -n "$bad_files" ]; then
+    perl -i -p -e 's/^/#/ if /^AR = ar/' $bad_files
+  fi
+}
+
 # Make sure cfgaux exists
 mkdir -p cfgaux
 
@@ -63,6 +70,7 @@ acver=`find_version autoconf ${acversions}`
 bootstrap aclocal$amver
 bootstrap autoheader$acver
 bootstrap automake$amver --foreign --add-missing
+fixmakefiles
 bootstrap autoconf$acver
 
 echo "Autotool bootstrapping complete."

@@ -19,7 +19,7 @@
 #include <sys/sysmacros.h>
 #include "devname.h"
 
-#include <asm/page.h>
+#include <sys/user.h>
 #ifndef PAGE_SIZE
 #define PAGE_SIZE (sizeof(long)*1024)
 #endif

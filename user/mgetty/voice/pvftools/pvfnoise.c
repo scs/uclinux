@@ -4,7 +4,7 @@
  * pvfnoise produces noise. Output is in the pvf (portable voice format)
  * format.
  *
- * $Id$
+ * $Id: pvfnoise.c,v 1.1 1998/09/09 21:51:14 gert Exp $
  *
  */
 

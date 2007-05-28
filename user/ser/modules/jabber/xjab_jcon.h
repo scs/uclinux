@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xjab_jcon.h,v 1.6 2003/06/02 15:42:21 dcm Exp $
  *
  * eXtended JABber module - headers for functions used for JABBER srv conection
  *

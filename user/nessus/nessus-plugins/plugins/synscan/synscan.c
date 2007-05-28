@@ -2,11 +2,13 @@
 #include <nessusraw.h>
 
 
-#undef DEBUG 10
+
+#undef DEBUG 
 #undef SHOW_RETRIES
 #undef SHOW_RTT_REMOVAL
 
 #define NUM_RETRIES 2
+#define SCAN_FATAL_ERR (void*)(-1)
 
 /*----------------------------------------------------------------------------*/
 struct pseudohdr {
@@ -67,12 +69,25 @@ struct timeval
 timeval(unsigned long val)
 {
 	struct timeval  ret;
+	unsigned int h, l;
 
 	val = ntohl(val);
 
-	ret.tv_sec = ((val & 0xF0000000) >> 28);
-	ret.tv_usec = ((val & 0x0FFFFFFF) << 4);
+	h = ( val & 0xF0000000 ) >> 28;
+	l = ( val & 0x0FFFFFFF)  << 4;
+     
+	ret.tv_sec = h;
+	ret.tv_usec = l;
+	while ( ret.tv_usec >= 1000000 ) 
+	 {
+	  ret.tv_usec -= 1000000;
+	  ret.tv_sec ++;
+	 }
 
+	if ( ret.tv_sec > 2 ) {
+	 ret.tv_sec = 2;
+	 ret.tv_usec = 0;
+	}
 	return ret;
 }
 
@@ -88,18 +103,19 @@ compute_rtt(unsigned long then)
 	unsigned long   now = maketime();
 	unsigned long   res;
 	unsigned long   a, b;
-#if DEBUG > 4
-	printf("now = 0x%.8x, then = 0x%.8x\n", ntohl(now), ntohl(then));
-#endif
+
 	a = (unsigned long) ntohl(now);
 	b = (unsigned long) ntohl(then);
+
 
 	if (b > a) {
 		return 0;
 	}
 	res = a - b;
+	if ( res >= (1 << 28) ) 
+		res = 1 << 28;
 
-        return htonl(res + 5000);
+        return htonl(res);
 }
 
 
@@ -114,7 +130,7 @@ packetdead(unsigned long then, unsigned long rtt)
 
 
 
-	if ((now - then) > rtt) {
+	if ((now - then) >= 2 << 28 ) {
 		return 1;
 	} else {
 		return 0;
@@ -169,6 +185,7 @@ struct list {
 struct list    *
 get_packet(struct list * l, unsigned short dport)
 {
+	if ( l == SCAN_FATAL_ERR ) return NULL;
 	while (l != NULL) {
 		if (l->dport == dport)
 			return l;
@@ -184,6 +201,7 @@ add_packet(struct list * l, unsigned short dport, unsigned long ack)
 {
 	struct list    *ret;
 
+	if ( l == SCAN_FATAL_ERR ) return NULL;
 	ret = get_packet(l, dport);
 	if (ret != NULL) {
 #ifdef SHOW_RETRIES
@@ -215,6 +233,7 @@ rm_packet(struct list * l, unsigned short dport)
 	struct list    *ret = l;
 	struct list    *p = get_packet(l, dport);
 
+	if ( l == SCAN_FATAL_ERR ) return NULL;
 	if (p == NULL) {
 #if DEBUG > 1
 		fprintf(stderr, "Odd - no entry for %d - RTT too low ?!\n", dport);
@@ -240,6 +259,7 @@ rm_dead_packets(struct list * l, unsigned long rtt, int *retry)
 	struct list    *p = l;
 
 
+	if ( l == SCAN_FATAL_ERR ) return NULL;
 	*retry = 0;
 	while (p != NULL) {
 		struct list    *next = p->next;
@@ -324,7 +344,7 @@ issynack(char *pkt, int len)
 }
 
 char           *
-mktcp(struct in_addr src, int sport, struct in_addr dst, int dport, unsigned long th_ack)
+mktcp(struct in_addr src, int sport, struct in_addr dst, int dport, unsigned long th_ack, unsigned char flag)
 {
 	static char     pkt[sizeof(struct ip) + sizeof(struct tcphdr)];
 	struct ip      *ip;
@@ -353,7 +373,7 @@ mktcp(struct in_addr src, int sport, struct in_addr dst, int dport, unsigned lon
 	tcp->th_ack = 0;
 	tcp->th_x2 = 0;
 	tcp->th_off = 5;
-	tcp->th_flags = TH_SYN;
+	tcp->th_flags = flag;
 	tcp->th_win = 4096;
 	tcp->th_sum = 0;
 	tcp->th_urp = 0;
@@ -410,19 +430,19 @@ find_rtt(struct in_addr dst, unsigned long *rtt)
 	for (i = 0; ports[i] != 0; i++) {
 		char           *res;
 		unsigned long   ack = maketime();
-		char           *pkt = mktcp(src, magic, dst, ports[i], ack);
+		char           *pkt = mktcp(src, magic, dst, ports[i], ack, TH_SYN);
 		int             e;
-		struct timeval  tv = {2, 0};
+		struct timeval  tv = {1, 0};
 		int             err = 0;
 		unsigned short  p = ports[i];
 
 #if DEBUG > 1
 		printf("send to port %d\n", ports[i]);
 #endif
-
+		errno = 0;
 		e = sendto(soc, pkt, sizeof(struct ip) + sizeof(struct tcphdr), 0, (struct sockaddr *) & soca, sizeof(soca));
 		if (e < 0) {
-			perror("sendto ");
+			perror("synscan->find_rtt->sendto ");
 			close(soc);
 			bpf_close(bpf);
 			return -1;
@@ -444,7 +464,7 @@ find_rtt(struct in_addr dst, unsigned long *rtt)
 #endif
 		bpf_close(bpf);
 		close(soc);
-		*rtt = htonl(2 << 28);	/* Two seconds */
+		*rtt = htonl(1 << 28);	/* One second */
 		return 0;
 	}
 	max = max_max = 0;
@@ -454,13 +474,18 @@ find_rtt(struct in_addr dst, unsigned long *rtt)
 		unsigned long   ack = maketime();
 		char           *pkt;
 		int             e;
-		struct timeval  tv = {2, 0};
+		struct timeval  tv = {1, 0};
 
 
-		pkt = mktcp(src, magic, dst, use[n % num], ack);
+		pkt = mktcp(src, magic, dst, use[n % num], ack, TH_SYN);
 		e = sendto(soc, pkt, sizeof(struct ip) + sizeof(struct tcphdr), 0, (struct sockaddr *) & soca, sizeof(soca));
 		if (e < 0)
-			perror("sendto ");
+			{
+			 perror("synscan->find_rtt(2)->sendto ");
+			 close(soc);
+			 bpf_close(bpf);
+			 return -1;
+			}
 		res = (char *) bpf_next_tv(bpf, &len, &tv);
 
 
@@ -488,7 +513,7 @@ find_rtt(struct in_addr dst, unsigned long *rtt)
 			if (noresend > 4)
 				noresend = 0;
 			if (err > 10) {
-				*rtt = htonl(2 << 28);
+				*rtt = htonl(1 << 28);
 				return 0;
 			}
 		}
@@ -496,59 +521,84 @@ find_rtt(struct in_addr dst, unsigned long *rtt)
 
 	close(soc);
 	bpf_close(bpf);
-        if(max == 0)max = htonl(2 << 28);
+        if(max == 0)max = htonl(1 << 28);
 	*rtt = max;
 	return 1;
 }
 
 
 struct list    *
-sendpacket(int soc, int bpf, int skip, struct in_addr dst, struct in_addr src, int dport, int magic, struct list * packets, struct timeval rtt_tv, int sniff, struct arglist * env)
+sendpacket(int soc, int bpf, int skip, struct in_addr dst, struct in_addr src, int dport, int magic, struct list * packets, unsigned long * rtt, int sniff, struct arglist * env)
 {
 	unsigned long   ack = maketime();
-	char           *pkt = mktcp(src, magic, dst, dport, ack);
+	char           *pkt = mktcp(src, magic, dst, dport, ack, TH_SYN);
 	int             len;
 	char           *res;
 	struct sockaddr_in soca;
+  	struct timeval rtt_tv = timeval(*rtt);
+	static int retry = 0;
 
 	bzero(&soca, sizeof(soca));
 	soca.sin_family = AF_INET;
 	soca.sin_addr = dst;
+	rtt_tv.tv_sec *= 1000;
+	rtt_tv.tv_sec /= 8;
+	
+	rtt_tv.tv_usec += (rtt_tv.tv_sec % 1000) * 1000;
+	rtt_tv.tv_sec  /= 1000;
+        if ( rtt_tv.tv_sec >= 1 )
+		{
+		rtt_tv.tv_sec  = 1;
+		rtt_tv.tv_usec = 0;
+		}
 
 	if (dport != 0) {
 		int             e;
 		packets = add_packet(packets, dport, ack);
+
+send:
+		errno = 0;
 		e = sendto(soc, pkt, sizeof(struct ip) + sizeof(struct tcphdr), 0, (struct sockaddr *) & soca, sizeof(soca));
 		if (e < 0) {
-			perror("sendto ");
-			close(soc);
-			bpf_close(bpf);
-			return NULL;
+			if ( errno == ENOBUFS )
+			{
+			 retry ++;
+			 if ( retry < 60 )
+				{
+				  sleep(1);
+				  goto send;
+				}
+			}
+			perror("synscan->sendpacket->sendto ");
+			return SCAN_FATAL_ERR;
 		}
 	}
 	if (sniff != 0) {
 		struct timeval  t, n;
 again:
-		gettimeofday(&t, NULL);
 		res = (char *) bpf_next_tv(bpf, &len, &rtt_tv);
-		gettimeofday(&n, NULL);
-#if 0
-		if (n.tv_sec == t.tv_sec &&
-		    (n.tv_usec - t.tv_usec > rtt_tv.tv_usec))
-			printf("Woops - %ld (instead of %ld)\n", n.tv_usec - t.tv_usec, rtt_tv.tv_usec);
-#endif
 		if (res != NULL) {
 			unsigned short  sport = extractsport(res + skip, len);
 			int             synack = issynack(res + skip, len);
+			unsigned int rack = extractack(res + skip, len);
 			if (synack) {
+			  char * rst;
 #ifdef DEBUG
 				printf("=> Port %d is open\n", sport);
 #endif
-				scanner_add_port(env, sport, "tcp");
+		  	   scanner_add_port(env, sport, "tcp");
+			  /* Send a RST to make sure the connection is closed on the remote side */
+			  rst = mktcp(src, magic, dst, sport, ack + 1, TH_RST);
+			  sendto(soc, rst, sizeof(struct ip) + sizeof(struct tcphdr), 0, (struct sockaddr *) & soca, sizeof(soca));
+			
+			  /* Adjust the rtt */
+			  *rtt = compute_rtt(rack);
+			  if ( ntohl(*rtt) >= ( 1 << 28 ) ) *rtt = 1 << 28;
+
 			}
 			packets = rm_packet(packets, sport);
 			rtt_tv.tv_sec = 0;
-			rtt_tv.tv_usec = 100;
+			rtt_tv.tv_usec = 0;
 			goto again;
 		}
 	}
@@ -591,36 +641,46 @@ scan(struct arglist * env, struct in_addr dst, unsigned long rtt)
 	soca.sin_addr = dst;
 
 
-	for (i = 0; ports[i]; i += 2) {
-		int             retry = 0;
+	for (i = 0; i < num ; i += 2) {
+		int  retry = 0;
 
+   	  	if (i % 100 == 0)
+                        comm_send_status(globals, hname, "portscan", i, num);
 
-		if (i % 100 == 0)
-			comm_send_status(globals, hname, "portscan", i, num);
-		packets = sendpacket(soc, bpf, skip, dst, src, ports[i], magic, packets, rtt_tv, 0, env);
-		packets = sendpacket(soc, bpf, skip, dst, src, ports[i + 1], magic, packets, rtt_tv, 1, env);
+		packets = sendpacket(soc, bpf, skip, dst, src, ports[i], magic, packets, &rtt, 0, env);
+		if ( packets == SCAN_FATAL_ERR ) break;
+	 	if ( i + 1 < num ) {
+			packets = sendpacket(soc, bpf, skip, dst, src, ports[i + 1], magic, packets, &rtt, 1, env);
+			if ( packets == SCAN_FATAL_ERR ) break;
+			}
 	}
 
 #ifdef DEBUG
 	printf("Done with the sending\n");
 #endif
 
-	while (packets != NULL) {
+	while (packets != NULL && packets != SCAN_FATAL_ERR ) {
 		i = 0;
 		retry = 0;
 		packets = rm_dead_packets(packets, rtt, &retry);
-		while (retry != 0 && i < 3) {
-			packets = sendpacket(soc, bpf, skip, dst, src, retry, magic, packets, rtt_tv, 0, env);
+		while (retry != 0 && i < 2) {
+			packets = sendpacket(soc, bpf, skip, dst, src, retry, magic, packets, &rtt, 0, env);
+			if ( packets == SCAN_FATAL_ERR ) break;
 			packets = rm_dead_packets(packets, rtt, &retry);
 			i++;
 		}
-		packets = sendpacket(soc, bpf, skip, dst, src, retry, magic, packets, rtt_tv, 0, env);
+		packets = sendpacket(soc, bpf, skip, dst, src, retry, magic, packets, &rtt, 1, env);
 	}
 
 	comm_send_status(globals, hname, "portscan", num, num);
+#if 0
+        plug_set_key(env, "Host/num_ports_scanned", ARG_INT, (void*)num);
+#endif
 	close(soc);
 	bpf_close(bpf);
 	if(ports != NULL)efree(&ports);
+	if (num >= 65535)
+	  plug_set_key(env, "Host/full_scan", ARG_INT, (void*) 1);
 	return 0;
 }
 
@@ -644,7 +704,7 @@ PlugExport int
 plugin_init(struct arglist * desc)
 {
 	plug_set_id(desc, 11219);
-	plug_set_version(desc, "$Revision: 1.9 $");
+	plug_set_version(desc, "$Revision: 1.22 $");
 
 
 
@@ -671,11 +731,16 @@ plugin_run(struct arglist * env)
 	struct timeval  tv;
 
 
+      if ( islocalhost(dst) ) return 0;
 
+#if 0
 	if (find_rtt(*dst, &rtt) < 0) {
 		fprintf(stderr, "Something went wrong, bailing out\n");
 		return (1);
 	}
+#endif
+	rtt = htonl(1 << 28);
+
 #ifdef DEBUG
 	printf("RTT = 0x%.8x\n", ntohl(rtt));
 #endif
@@ -683,11 +748,15 @@ plugin_run(struct arglist * env)
 	tv = timeval(rtt);
 
 #ifdef DEBUG
-	printf("That %d seconds and %d usecs\n", tv.tv_sec, tv.tv_usec);
+	printf("That's %d seconds and %d usecs\n", tv.tv_sec, tv.tv_usec);
 #endif
 
 
 	scan(env, *dst, rtt);
 	plug_set_key(env, "Host/scanned", ARG_INT, (void *) 1);
+	plug_set_key(env, "Host/scanners/synscan", ARG_INT, (void*)1);
 	return 0;
 }
+
+
+

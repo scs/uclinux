@@ -8,7 +8,7 @@ build/Makefile: makefile
 	( \
 		cd build; \
 		CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" \
-			../configure --host=$(CROSS_COMPILE:-=) \
+			sh ../configure $(CONFIGURE_OPTS) \
 			--disable-dietlibc --enable-release \
 			--with-configfile=/etc/config/ips.cfg \
 			--enable-dependency-tracking \

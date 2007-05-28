@@ -5,9 +5,9 @@
 if(description)
 {
  script_id(11742);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7667);
- script_cve_id("CAN-2003-0391");
+ script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-2003-0391");
  
  name["english"] = "Magic WinMail Format string";
  script_name(english:name["english"]);

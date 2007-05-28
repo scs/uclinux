@@ -32,7 +32,7 @@
  *
  *	from: @(#)af.h	5.7 (Berkeley) 6/1/90
  *	from: @(#)af.h	8.1 (Berkeley) 6/5/93
- *	$Id$
+ *	$Id: af.h,v 1.3 1996/11/25 16:36:17 dholland Exp $
  */
 
 /*

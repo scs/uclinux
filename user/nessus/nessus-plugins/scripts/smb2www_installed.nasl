@@ -1,7 +1,7 @@
 if(description)
 {
  script_id(11377);
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.3 $");
  
  
  
@@ -32,6 +32,7 @@ Risk factor : Medium";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -40,8 +41,8 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 

@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(10929);
- script_version("$Revision: 1.11 $");
+ script_version("$Revision: 1.15 $");
  script_name(english:"FTP Windows 98 MS/DOS device names DOS");
  
  desc["english"] = "
@@ -119,15 +119,15 @@ if (! r)
    soc = open_sock_tcp(port);
    if(soc)
    {
-    if (ftp_log_in(socket:soc, user:login, pass:pass))
+    if (ftp_authenticate(socket:soc, user:login, pass:pass))
     {
-     port2 = ftp_get_pasv_port(socket:soc);
+     port2 = ftp_pasv(socket:soc);
      soc2 = open_sock_tcp(port2, transport:get_port_transport(port));
      req = string("RETR ", name, "\r\n");
      send(socket:soc, data:req);
      if (soc2) close(soc2);
-     close(soc);
     }
+    close(soc);
    }
   }
  }

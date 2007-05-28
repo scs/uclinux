@@ -1,53 +1,41 @@
 #
-# This script was written by Michael Scheidell SECNAP Network Security
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(11148);
- script_version("$Revision: 1.4 $");
- script_cve_id("CAN-2002-0370", "CAN-2002-1139"); 
+ script_bugtraq_id(5873, 5876);
+ script_version("$Revision: 1.12 $");
+ script_cve_id("CVE-2002-0370", "CVE-2002-1139"); 
 
- name["english"] = "Unchecked Buffer in Decompression Functions(Q329048)";
+ name["english"] = "Unchecked Buffer in File Decompression Functions Could Lead to Code Execution (Q329048)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-Two vulnerabilities exist in the Compressed Folders function: 
+Synopsis :
 
-An unchecked buffer exists in the programs that handles
-the decompressing of files from a zipped file. A
-security vulnerability results because attempts to open
-a file with a specially malformed filename contained in
-a zipped file could possibly result in Windows Explorer
-failing, or in code of the attacker's choice being run.
+Arbitrary code can be executed on the remote host through Explorer.
 
-The decompression function could place a file in a
-directory that was not the same as, or a child of, the
-target directory specified by the user as where the
-decompressed zip files should be placed. This could
-allow an attacker to put a file in a known location on
-the users system, such as placing a program in a
-startup directory
+Description :
 
-Impact of vulnerability: Two vulnerabilities, the most serious
-of which could run code of attacker's choice
+The remote host contains a version of Windows which is vulnerable to a 
+security flaw in the compressed files (ZIP) implementation.
+An attacker can exploit this flaw by sending a malicious zip files
+to the remote user. When the user opens the file with explorer
+the code will be executed.
 
-Maximum Severity Rating: Moderate 
+Solution : 
 
-Recommendation: Consider applying the patch to affected systems 
+Microsoft has released a set of patches for Windows NT, 2000 and XP :
 
-Affected Software: 
+http://www.microsoft.com/technet/security/bulletin/ms02-054.mspx
 
-Microsoft Windows 98 with Plus! Pack 
-Microsoft Windows Me 
-Microsoft Windows XP 
+Risk factor :
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-054.asp
-
-Risk factor : High";
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -57,43 +45,33 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 SECNAP Network Security, LLC");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_XP.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
- script_exclude_keys("SMB/Win2K/ServicePack","SMB/WinNT4/ServicePack");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(xp:2) <= 0 ) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-
-if("5.1" >< version)
+if (is_accessible_share())
 {
-# fixed in Service Pack 2
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Hotfix\Q329048";
-# note : despite the microsoft web site, win2k DOES update this reg,
-# and it is safer to check, only needs user privs
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:1, file:"Zipfldr.dll", version:"6.0.2600.1126", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Zipfldr.dll", version:"6.0.2600.101", dir:"\system32") )
+   security_warning (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
+else if ( hotfix_missing(name:"329048") > 0 &&
+          hotfix_missing(name:"873376") > 0 )
+    security_warning(get_kb_item("SMB/transport"));
+

@@ -4,9 +4,9 @@
 
 if (description) {
   script_id(11314);
-  script_version ("$Revision: 1.2 $");
-  script_cve_id("CVE-2002-0020");
   script_bugtraq_id(4061);
+  script_version ("$Revision: 1.5 $");
+  script_cve_id("CVE-2002-0020");
  
   name["english"] = "Buffer overflow in Microsoft Telnet";
   script_name(english:name["english"]);
@@ -17,7 +17,7 @@ probably because of a buffer overflow.
 
 An attacker may use this flaw to gain a shell on this host.
 
-Solution: see http://www.microsoft.com/technet/security/ms02-004.asp
+Solution: see http://www.microsoft.com/technet/security/bulletin/ms02-004.mspx
 Risk factor : High";
   script_description(english:desc["english"]);
  
@@ -35,6 +35,8 @@ Risk factor : High";
   script_require_ports("Services/telnet", 23);
   exit(0);
 }
+
+include('telnet_func.inc');
 
 #
 # The script code starts here.
@@ -110,7 +112,7 @@ function attack(port, negotiate) {
   if (!soc) return (0);
   if (negotiate)
     # standard negotiation
-    r = telnet_init(soc);
+    r = telnet_negotiate(socket:soc);
   else {
     # wierd BSD magic, is is necessary?
     send(socket:soc, data:iac_will_naol);

@@ -8,7 +8,9 @@
 if(description)
 {
  script_id(11627);
- script_version ("$Revision: 1.1 $");
+ script_cve_id("CVE-2003-1224", "CVE-2003-1225");
+ script_bugtraq_id(7563);
+ script_version ("$Revision: 1.5 $");
  
  
  name["english"] = "WebLogic clear-text passwords";
@@ -46,8 +48,8 @@ Risk factor : Low";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 banner = get_http_banner(port:port);

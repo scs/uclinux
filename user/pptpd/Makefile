@@ -7,9 +7,9 @@ OBJS1 = pptpd.o configfile.o pptpmanager.o compat.o $(LIBRESOLV)
 EXEC2 = pptpctrl
 OBJS2 = pptpctrl.o ctrlpacket.o inststr.o compat.o pptpgre.o ppphdlc.o
 
-CFLAGS += -include config.embed.h -DPACKAGE='"$(PACKAGE)"' -DVERSION='"$(pptpd.VERSION).$(pptpd.PATCHLEVEL).$(pptpd.SUBLEVEL)"'
+CFLAGS += -include config.embed.h -DPACKAGE='"$(PACKAGE)"' -DVERSION='"$(shell ./version)"'
 FLTFLAGS += -s 8192
-LIBUTIL += -lutil
+
 
 all: $(EXEC1) $(EXEC2)
 

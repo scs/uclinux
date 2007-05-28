@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(10577);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.19 $");
 
   script_name(english:"Check for bdir.htr files");
   desc["english"] = "
@@ -31,11 +31,10 @@ Risk factor : Medium";
   script_description(english:desc["english"]);
   script_summary(english:"Check for existence of bdir.htr");
   script_category(ACT_GATHER_INFO);
-  script_family(english:"CGI abuses", francais:"Abus de CGI");
+  script_family(english:"Web Servers");
   script_copyright(english:"By John Lampe....j_lampe@bellsouth.net");
-  script_dependencies("find_service.nes", "http_version.nasl", "no404.nasl");
+  script_dependencies("http_version.nasl");
   script_require_ports("Services/www", 80);   
-  script_require_keys("www/iis");
   exit(0);
 }
 
@@ -46,9 +45,15 @@ Risk factor : Medium";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
     
-port=get_kb_item("Services/www");
-if(!port)port=80;
+port = get_http_port(default:80);
+
+sig = get_http_banner(port:port);
+if ( sig && "Server: Microsoft/IIS" >!< sig ) exit(0);
 if(get_port_state(port)) 
 {
     if(is_cgi_installed_ka(item:"/scripts/iisadmin/bdir.htr", port:port))

@@ -23,7 +23,7 @@
 if(description)
 {
  script_id(10735);
- script_version ("$Revision: 1.19 $");
+ script_version ("$Revision: 1.22 $");
  
  name["english"] = "Generic flood";
  name["francais"] = "Surcharge générique";
@@ -39,7 +39,7 @@ to exploit this flaw to execute arbitrary code on this host.
 
 Solution : upgrade your software or contact your vendor and inform it of this 
 vulnerability
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "Il a été possible de tuer 
@@ -55,7 +55,7 @@ Solution: mettez à jour votre logiciel ou
 contactez votre vendeur et informez-le de cette
 vulnérabilité.
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
@@ -80,7 +80,8 @@ Facteur de risque : Moyen";
 
 #
 
-port = get_kb_item("Services/unknown");
+include('misc_func.inc');
+port = get_unknown_svc();
 if (! port) exit(0);
 if (! get_port_state(port)) exit(0);
 

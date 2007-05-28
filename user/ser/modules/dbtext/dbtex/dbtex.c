@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dbtex.c,v 1.2 2003/07/01 14:26:31 dcm Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

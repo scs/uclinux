@@ -7,40 +7,56 @@
 if(description)
 {
  script_id(10592);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(2166);
+ script_version ("$Revision: 1.15 $");
+
  name["english"] = "webdriver";
- name["francais"] = "webdriver";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
- desc["english"] = "The 'webdriver' cgi is installed. This CGI usually
-lets anyone access the Informix databases of the hosts that run it.
+ desc["english"] = "
+Synopsis :
 
-*** Warning : Nessus solely relied on the presence of this CGI, it did not
-*** determine if you specific version is vulnerable to that problem
+The remote web server contains a CGI script that may fail to restrict
+access to an installed database. 
 
-Solution : remove it from /cgi-bin.
+Description :
 
-Risk factor : Serious";
+The remote host may be running Informix Webdriver, a web-to-database
+interface.  If not configured properly, this CGI script may give an
+unauthenticated attacker the ability to modify and even delete
+databases on the remote host. 
 
+*** Nessus relied solely on the presence of this CGI; it did not
+*** try to determine if the installed version is vulnerable to 
+*** that problem.
 
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2001-01/0002.html
+http://archives.neohapsis.com/archives/bugtraq/2001-01/0043.html
+
+Solution : 
+
+Consult the product documentation to properly configure the script.
+
+Risk factor :
+
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Checks for the presence of /cgi-bin/webdriver";
- summary["francais"] = "Vérifie la présence de /cgi-bin/webdriver";
+ summary["english"] = "Checks for the presence of Webdriver";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- 
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
  family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_family(english:family["english"]);
+ script_dependencie("http_version.nasl");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -48,6 +64,13 @@ Risk factor : Serious";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("webdriver");
-if(port)security_warning(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(port:port, item:"webdriver");
+if(res)security_warning(port);

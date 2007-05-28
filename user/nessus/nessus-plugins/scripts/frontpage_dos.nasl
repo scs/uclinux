@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10497);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1608);
- script_cve_id("CAN-2000-0709");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2000-0709");
 
  name["english"] = "Microsoft Frontpage DoS";
  name["francais"] = "Déni de service Microsoft Frontpage"; 
@@ -25,7 +25,7 @@ An attacker may use this flaw to prevent anyone to change
 this website using frontpage.
 
 Solution : Upgrade to FP 1.2
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Il est possible de désactiver les extensions frontpage
@@ -55,9 +55,8 @@ Facteur de risque : Sérieux";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -67,8 +66,10 @@ Facteur de risque : Sérieux";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 
 if(get_port_state(port))
 {

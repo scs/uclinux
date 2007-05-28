@@ -3,19 +3,12 @@
 #
 # See the Nessus Scripts License for details
 #
-# Ref:
-# From: support@securiteam.com
-# To: list@securiteam.com
-# X-Mailer: Beyond Security Mailer
-# Date: 2 Mar 2003 23:51:57 +0200
-# Subject: [UNIX] Vulnerability in myphpPagetool Enables Arbitrary Code Execution
-
 
 
 if(description)
 {
  script_id(11310);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.8 $");
 
  name["english"] = "myphpPageTool code injection";
 
@@ -29,7 +22,7 @@ An attacker may use this flaw to inject arbitrary code in the remote
 host and gain a shell with the privileges of the web server.
 
 Solution : See http://www.phpsecure.org or contact the vendor for a patch
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -50,6 +43,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -61,9 +55,10 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
 
@@ -82,10 +77,10 @@ function check(loc)
 
 
 dir = make_list(cgi_dirs());
+dirs = make_list();
 foreach d (dir)
 {
- if(isnull(dirs))dirs = make_list(string(d, "/myphpPageTool"));
- else dirs = make_list(dirs, string(d, "/myphpPageTool"));
+ dirs = make_list(dirs, string(d, "/myphpPageTool"));
 }
 
 dirs = make_list(dirs, "", "/myphpPageTool");

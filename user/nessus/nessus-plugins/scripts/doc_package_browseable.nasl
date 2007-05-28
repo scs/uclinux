@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10518);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CVE-2000-1016");
  script_bugtraq_id(1707);
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2000-1016");
  name["english"] = "/doc/packages directory browsable ?";
  script_name(english:name["english"]);
  
@@ -61,8 +61,8 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  data = http_get(item:"/doc/packages/", port:port);

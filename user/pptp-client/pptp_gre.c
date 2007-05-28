@@ -16,6 +16,7 @@
 #include <fcntl.h>
 #include "ppp_fcs.h"
 #include "pptp_msg.h"
+#include "util.h"
 
 #define PACKET_MAX 4096
 
@@ -53,24 +54,12 @@ void print_packet(int fd, void *pack, unsigned len) {
 }
 #endif
 
-#ifdef EMBED
-#include <syslog.h>
-#define fprintf(x, a...) syslog(LOG_INFO, ##a)
-#undef assert
-#define assert(x) \
-	if (!(x)) syslog(LOG_INFO,"%s,%d ***ASSERT*** - " #x "\n",__FILE__,__LINE__);else
-#else
-#include <stdio.h>
-#endif
-
 void pptp_gre_copy(u_int16_t call_id, u_int16_t peer_call_id, 
 		   int pty_fd, int gre_fd, struct in_addr inetaddr) {
   struct sockaddr_in src_addr;
   int s = gre_fd, n, stat1, stat2;
 
-#ifdef EMBED
   openlog("pptp_gre", 0, 0);
-#endif
 
   pptp_gre_call_id = call_id;
   pptp_gre_peer_call_id = peer_call_id;
@@ -80,7 +69,8 @@ void pptp_gre_copy(u_int16_t call_id, u_int16_t peer_call_id,
   src_addr.sin_addr   = inetaddr;
   src_addr.sin_port   = 0;
   if (connect(s, (struct sockaddr *) &src_addr, sizeof(src_addr))<0) {
-    fprintf(stderr, "connect: %s\n", strerror(errno)); return;
+    logmsg("connect: %s", strerror(errno));
+	return;
   }
   /* Pseudo-terminal already open. */
   
@@ -158,8 +148,9 @@ int decaps_hdlc(int fd, int (*cb)(int cl, void *pack, unsigned len), int cl) {
       continue;
     }
     /* check, then remove the 16-bit FCS checksum field */
-    if (pppfcs16(PPPINITFCS16, copy, len) != PPPGOODFCS16)
-      fprintf(stderr,"Bad FCS\n");
+    if (pppfcs16(PPPINITFCS16, copy, len) != PPPGOODFCS16) {
+      logmsg("Bad FCS");
+	}
     len-=sizeof(u_int16_t);
     /* so now we have a packet of length 'len' in 'copy' */
     if ((status=cb(cl, copy, len))<0) return status; /* error-check */
@@ -205,11 +196,11 @@ int decaps_gre (int fd, int (*cb)(int cl, void *pack, unsigned len), int cl) {
   int status, ip_len=0;
 
   if ((status = read(fd, buffer, sizeof(buffer))) < 0) {
-    fprintf(stderr, "read: %s\n", strerror(errno));
+    logmsg("read: %s", strerror(errno));
     return status;
   }
   if (status == 0) {
-    fprintf(stderr, "read: (zero)\n");
+    logmsg("read: (zero)");
     return(-1);
   }
 
@@ -226,7 +217,7 @@ int decaps_gre (int fd, int (*cb)(int cl, void *pack, unsigned len), int cl) {
       (!PPTP_GRE_IS_K(ntoh8(header->flags))) || /* flag K should be set     */
       ((ntoh8(header->flags)&0xF)!=0)) { /* routing and recursion ctrl = 0  */
     /* if invalid, discard this packet */
-    fprintf(stderr,"Discarding GRE: %X %X %X %X %X %X\n", 
+    logmsg("Discarding GRE: %X %X %X %X %X %X", 
 	 ntoh8(header->ver)&0x7F, ntoh16(header->protocol), 
 	 PPTP_GRE_IS_C(ntoh8(header->flags)),
 	 PPTP_GRE_IS_R(ntoh8(header->flags)), 
@@ -235,7 +226,7 @@ int decaps_gre (int fd, int (*cb)(int cl, void *pack, unsigned len), int cl) {
     return 0;
   }
   if (ntoh16(header->call_id) != pptp_gre_peer_call_id) {
-  	// fprintf(stderr, "Discarding packet for another session: %d != %d\n",
+  	// logmsg("Discarding packet for another session: %d != %d",
 	//   ntoh16(header->call_id), pptp_gre_peer_call_id);
 	return(0);
   }
@@ -267,9 +258,8 @@ int decaps_gre (int fd, int (*cb)(int cl, void *pack, unsigned len), int cl) {
       seq_recv = seq;
 
       return cb(cl, buffer+ip_len+headersize, payload_len);
-    } else {
-      fprintf(stderr, "discarding out-of-order 0x%x 0x%x\n",
-			  seq, seq_recv); 
+    } else if (seq || seq_recv) {
+      logmsg("discarding out-of-order 0x%x 0x%x", seq, seq_recv); 
       return 0; /* discard out-of-order packets */
     }
   }
@@ -293,14 +283,18 @@ int encaps_gre (int fd, void *pack, unsigned len) {
   u.header.call_id	= hton16(pptp_gre_call_id);
   
   /* special case ACK with no payload */
-  if (pack==NULL) 
+  if (pack==NULL) {
     if (ack_sent != seq_recv) {
       u.header.ver |= hton8(PPTP_GRE_FLAG_A);
       u.header.payload_len = hton16(0);
       u.header.seq = hton32(seq_recv); /* ack is in odd place because S=0 */
       ack_sent = seq_recv;
       return write(fd,(char *)&u.header,sizeof(u.header)-sizeof(u.header.seq));
-    } else return 0; /* we don't need to send ACK */
+    }
+	else {
+		return 0; /* we don't need to send ACK */
+	}
+  }
   /* send packet with payload */
   u.header.flags |= hton8(PPTP_GRE_FLAG_S);
   u.header.seq    = hton32(seq);

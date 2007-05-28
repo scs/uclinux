@@ -9,12 +9,12 @@
 * This program may be distributed according to the terms of the GNU
 * General Public License, version 2 or (at your option) any later version.
 *
-* $Id$
+* $Id: pppoe-server.c,v 1.25 2000/09/15 23:51:56 dfs Exp $
 *
 ***********************************************************************/
 
 static char const RCSID[] =
-"$Id$";
+"$Id: pppoe-server.c,v 1.25 2000/09/15 23:51:56 dfs Exp $";
 
 #include "config.h"
 #include <assert.h>
@@ -925,6 +925,7 @@ startPPPD(struct ClientSession *session)
     char buffer[SMALLBUF];
     int i = 0;
     pid_t child;
+	char options_file[100];
 
     argv[i++] = "pppd";
     argv[i++] = "pty";
@@ -941,7 +942,14 @@ startPPPD(struct ClientSession *session)
     }
 
     argv[i++] = "file";
-    argv[i++] = PPPOE_SERVER_OPTIONS;
+
+	snprintf(options_file, sizeof(options_file), "%s.%s", PPPOE_SERVER_OPTIONS, IfName);
+	if (access(options_file, R_OK) == 0) {
+		argv[i++] = options_file;
+	}
+	else {
+		argv[i++] = PPPOE_SERVER_OPTIONS;
+	}
 
     snprintf(buffer, SMALLBUF, "%d.%d.%d.%d:%d.%d.%d.%d",
 	    (int) LocalIP[0], (int) LocalIP[1],

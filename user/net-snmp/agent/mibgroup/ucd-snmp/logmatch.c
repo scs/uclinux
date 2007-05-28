@@ -9,6 +9,8 @@
  */
 #include <net-snmp/net-snmp-config.h>
 
+#ifdef HAVE_REGEX_H
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -32,12 +34,12 @@
 #include <winsock.h>
 #endif
 
+#include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
+
 #if HAVE_DMALLOC_H
 #include <dmalloc.h>
 #endif
-
-#include <net-snmp/net-snmp-includes.h>
-#include <net-snmp/agent/net-snmp-agent-includes.h>
 
 #include "struct.h"
 #include "util_funcs.h"
@@ -114,14 +116,8 @@ logmatch_free_config(void)
 
     /*
      * ------------------------------------ 
-     */
-    /*
      * the only memory we have allocated    
-     */
-    /*
      * is the memory allocated by regcomp   
-     */
-    /*
      * ------------------------------------ 
      */
 
@@ -155,14 +151,8 @@ logmatch_parse_config(const char *token, char *cptr)
 
         /*
          * ------------------------------------ 
-         */
-        /*
          * be careful this counter needs to be  
-         */
-        /*
          * resetfrom persistant storage         
-         */
-        /*
          * ------------------------------------ 
          */
 
@@ -175,17 +165,9 @@ logmatch_parse_config(const char *token, char *cptr)
 
         /*
          * ------------------------------------ 
-         */
-        /*
          * be careful: the flag 255 must fit to 
-         */
-        /*
          * the size of regEx as definded in     
-         */
-        /*
          * logmatch.h                           
-         */
-        /*
          * ------------------------------------ 
          */
 
@@ -215,17 +197,9 @@ logmatch_parse_config(const char *token, char *cptr)
 
         /*
          * ------------------------------------ 
-         */
-        /*
          * just to be safe "NULL" the end of    
-         */
-        /*
          * the arary regEx as sscanf won't do   
-         */
-        /*
          * it with the %c modifier              
-         */
-        /*
          * ------------------------------------ 
          */
 
@@ -234,11 +208,7 @@ logmatch_parse_config(const char *token, char *cptr)
 
         /*
          * ------------------------------------ 
-         */
-        /*
          * now compile the regular expression   
-         */
-        /*
          * ------------------------------------ 
          */
 
@@ -278,7 +248,7 @@ updateLogmatch(int iindex)
     regmatch_t      myMatch;
     int             matchResultCode;
     char            inbuf[1024];
-    char            perfilename[512];
+    char            perfilename[1024];
     FILE           *perfile;
     unsigned long   pos, ccounter, counter;
     int             result;
@@ -288,23 +258,11 @@ updateLogmatch(int iindex)
 
     /*
      * ------------------------------------ 
-     */
-    /*
      * we can never be sure if this is the  
-     */
-    /*
      * last time we are being called here,  
-     */
-    /*
      * so we always update a persistent     
-     */
-    /*
      * data file with our current file      
-     */
-    /*
      * position                             
-     */
-    /*
      * ------------------------------------ 
      */
 
@@ -315,36 +273,20 @@ updateLogmatch(int iindex)
 
         /*
          * ------------------------------------ 
-         */
-        /*
          * this is the first time we are being  
-         */
-        /*
          * called; let's try to find an old     
-         */
-        /*
          * file position stored in a persistent 
-         */
-        /*
          * data file and restore it             
-         */
-        /*
          * ------------------------------------ 
          */
 
-        if (perfile = fopen(perfilename, "r")) {
+        if ((perfile = fopen(perfilename, "r"))) {
 
 
             /*
              * ------------------------------------ 
-             */
-            /*
              * the persistent data file exists so   
-             */
-            /*
              * let's read it out                    
-             */
-            /*
              * ------------------------------------ 
              */
 
@@ -356,34 +298,20 @@ updateLogmatch(int iindex)
 
                 /*
                  * ------------------------------------ 
-                 */
-                /*
                  * the data could be read; now let's    
-                 */
-                /*
                  * try to open the  logfile to be       
-                 */
-                /*
                  * scanned                              
-                 */
-                /*
                  * ------------------------------------ 
                  */
 
-                if (logmatchTable[iindex].logfile =
-                    fopen(logmatchTable[iindex].filename, "r")) {
+                if ((logmatchTable[iindex].logfile =
+                    fopen(logmatchTable[iindex].filename, "r"))) {
 
 
                     /*
                      * ------------------------------------ 
-                     */
-                    /*
                      * the log file could be opened; now    
-                     */
-                    /*
                      * let's try to set the pointer         
-                     */
-                    /*
                      * ------------------------------------ 
                      */
 
@@ -393,29 +321,13 @@ updateLogmatch(int iindex)
 
                         /*
                          * ------------------------------------ 
-                         */
-                        /*
                          * the pointer could be set - this is   
-                         */
-                        /*
                          * the most that we can do: if the      
-                         */
-                        /*
                          * pointer is smaller than the file     
-                         */
-                        /*
                          * size we must assume that the pointer 
-                         */
-                        /*
                          * still points to where it read the    
-                         */
-                        /*
                          * file last time; let's restore the    
-                         */
-                        /*
                          * data                                 
-                         */
-                        /*
                          * ------------------------------------ 
                          */
 
@@ -438,20 +350,10 @@ updateLogmatch(int iindex)
 
     /*
      * ------------------------------------ 
-     */
-    /*
      * now the pointer and the counter are  
-     */
-    /*
      * set either zero or reset to old      
-     */
-    /*
      * value; now let's try to read some    
-     */
-    /*
      * data                                 
-     */
-    /*
      * ------------------------------------ 
      */
 
@@ -463,8 +365,8 @@ updateLogmatch(int iindex)
             toobig = FALSE;
         }
 
-        if (logmatchTable[iindex].logfile =
-            fopen(logmatchTable[iindex].filename, "r")) {
+        if ((logmatchTable[iindex].logfile =
+            fopen(logmatchTable[iindex].filename, "r"))) {
 
             result =
                 fseek(logmatchTable[iindex].logfile,
@@ -476,20 +378,10 @@ updateLogmatch(int iindex)
 
                 /*
                  * ------------------------------------ 
-                 */
-                /*
                  * when we are here that means we       
-                 */
-                /*
                  * could't set the file position maybe  
-                 */
-                /*
                  * the file was rotated; let's reset    
-                 */
-                /*
                  * the filepointer, but not the counter 
-                 */
-                /*
                  * ------------------------------------ 
                  */
 
@@ -524,26 +416,12 @@ updateLogmatch(int iindex)
 
     /*
      * ------------------------------------ 
-     */
-    /*
      * at this point we can be safe that    
-     */
-    /*
      * our current file position is         
-     */
-    /*
      * straightened out o.k. - we never     
-     */
-    /*
      * know if this is the last time we are 
-     */
-    /*
      * being called so save the position    
-     */
-    /*
      * in a file                            
-     */
-    /*
      * ------------------------------------ 
      */
 
@@ -552,11 +430,7 @@ updateLogmatch(int iindex)
 
         /*
          * ------------------------------------ 
-         */
-        /*
          * o.k. lets write out our variable     
-         */
-        /*
          * ------------------------------------ 
          */
 
@@ -594,7 +468,7 @@ var_logmatch_table(struct variable *vp,
                    size_t * var_len, WriteMethod ** write_method)
 {
     static long     long_ret;
-    static char     message[256];
+    static char     message[1024];
     int             iindex;
     struct logmatchstat *logmatch;
 
@@ -680,3 +554,5 @@ var_logmatch_table(struct variable *vp,
 
     return NULL;
 }
+
+#endif /* HAVE_REGEX */

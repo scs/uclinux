@@ -7,39 +7,28 @@
 if(description)
 {
  script_id(10030);
- script_version ("$Revision: 1.18 $");
- script_cve_id("CAN-1999-0258");
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-1999-0258");
  name["english"] = "Bonk";
  name["francais"] = "Bonk";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "It was possible
-to make the remote server crash
-using the 'bonk' attack. 
+ desc["english"] = "
+It was possible to make the remote server crash using the 'bonk' attack. 
 
-An attacker may use this flaw to
-shut down this server, thus 
-preventing your network from
-working properly.
+An attacker may use this flaw to shut down this server, thus preventing your 
+network from working properly.
 
-Solution : contact your operating
-system vendor for a patch.
-
+Solution : contact your operating system vendor for a patch.
 Risk factor : High";
 
 
- desc["francais"] = "Il s'est avéré
-possible de faire planter la 
-machine distante en utilisant
-l'attaque 'bonk'. 
+ desc["francais"] = "Il s'est avéré possible de faire planter la 
+machine distante en utilisant l'attaque 'bonk'. 
 
-Un pirate peut utiliser cette
-attaque pour empecher votre
-réseau de fonctionner normallement.
-
-Solution : contactez le vendeur
-de votre OS pour un patch.
-
+Un pirate peut utiliser cette attaque pour empecher votre
+réseau de fonctionner normallement.  
+Solution : contactez le vendeur de votre OS pour un patch.
 Facteur de risque : Elevé";
 
  script_description(english:desc["english"], francais:desc["francais"]);

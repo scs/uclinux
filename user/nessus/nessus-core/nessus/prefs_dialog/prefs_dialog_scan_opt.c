@@ -41,62 +41,6 @@
 static void  scanner_infos_cb(GtkWidget *, struct arglist *);
      
      
-static void detached_cb(w, ctrls)
- GtkWidget * w;
- struct arglist * ctrls;
-{
- GtkWidget * cont;
- GtkWidget * label, * entry, *email, *email_label;
- 
- if(GTK_TOGGLE_BUTTON(w) -> active)
- {
-  show_warning("If you enable this option, the scan will run in background\n\
-and you will not get the results in realtime. In addition to this\n\
-you will not be able to stop it in real time, so use this option\n\
-with caution.\n\
-See http://www.nessus.org/doc/detached_scan.html for details\n");
- }
- cont  = arg_get_value(ctrls, "CONTINUOUS_SCAN");
- label = arg_get_value(ctrls, "DELAY_LABEL");
- entry = arg_get_value(ctrls, "DELAY");
- email = arg_get_value(ctrls, "EMAIL_ADDR"); 
- email_label = arg_get_value(ctrls, "EMAIL_ADDR_LABEL");
- 
- gtk_widget_set_sensitive(cont, GTK_TOGGLE_BUTTON(w) -> active);
- gtk_widget_set_sensitive(email, GTK_TOGGLE_BUTTON(w)->active);
- gtk_widget_set_sensitive(email_label, GTK_TOGGLE_BUTTON(w)->active);
-   
-   
- if(!GTK_TOGGLE_BUTTON(w) -> active)
- {
-  gtk_widget_set_sensitive(label, FALSE);
-  gtk_widget_set_sensitive(entry, FALSE);
- }
- else
- {
-   gtk_widget_set_sensitive(label, GTK_TOGGLE_BUTTON(cont)->active);
-   gtk_widget_set_sensitive(entry, GTK_TOGGLE_BUTTON(cont)->active);
- }
- 
- 
-}
-static void continuous_cb(w, ctrls)
- GtkWidget* w;
- struct arglist * ctrls;
-{
- GtkWidget * label, * entry;
-  if(GTK_TOGGLE_BUTTON(w) -> active)
- {
-  show_warning("If you enable this option, you are asking nessusd to\n\
-continuously scan your network, again and again.\n\
-Be sure to have read http://www.nessus.org/doc/detached_scan.html first !\n");
- }
- label = arg_get_value(ctrls, "DELAY_LABEL");
- entry = arg_get_value(ctrls, "DELAY");
- 
- gtk_widget_set_sensitive(label, GTK_TOGGLE_BUTTON(w) -> active);
- gtk_widget_set_sensitive(entry, GTK_TOGGLE_BUTTON(w) -> active);
-}
  
 struct arglist * prefs_dialog_scan_opt()
 {
@@ -114,10 +58,6 @@ struct arglist * prefs_dialog_scan_opt()
  GtkWidget * entry;
  GtkWidget * scanners_window;
  GtkWidget * list;
-#ifdef ENABLE_SAVE_KB
- GtkWidget * hbox;
- GtkWidget * opt;
-#endif
  
  struct arglist * ctrls = emalloc(sizeof(struct arglist));
  
@@ -219,7 +159,9 @@ struct arglist * prefs_dialog_scan_opt()
  gtk_box_pack_start(GTK_BOX(box), use_mac_addr, FALSE, FALSE, 0);
  gtk_widget_show(use_mac_addr);
  
+
 #ifdef ENABLE_SAVE_KB
+#if 0
  opt = gtk_check_button_new_with_label("Detached scan");
  arg_add_value(ctrls, "DETACHED_SCAN", ARG_PTR, -1, opt);
  gtk_box_pack_start(GTK_BOX(box), opt, FALSE, FALSE, 0);
@@ -274,6 +216,7 @@ struct arglist * prefs_dialog_scan_opt()
  gtk_box_pack_start(GTK_BOX(hbox), opt, TRUE, TRUE, 0);
  gtk_widget_set_sensitive(opt, FALSE);
  gtk_widget_show(opt);
+#endif
 #endif
  scanners_window = gtk_scrolled_window_new(NULL,NULL);
  gtk_container_border_width(GTK_CONTAINER(scanners_window), 0);
@@ -373,7 +316,7 @@ fill_scanner_list(ctrls)
    gtk_list_append_items(GTK_LIST(arg_get_value(ctrls, "SCANNERS_LIST")), dlist);
 }
 
-void prefs_scanner_redraw(w, dumb, ctrls)
+int prefs_scanner_redraw(w, dumb, ctrls)
  GtkWidget * w;
  void * dumb;
  struct arglist * ctrls;
@@ -385,6 +328,7 @@ void prefs_scanner_redraw(w, dumb, ctrls)
   fill_scanner_list(ctrls);
   arg_set_value(ctrls, "SCANNERS_NUM", sizeof(int), (void *)ScannersNum);
   }
+ return 0;
 }
 
 

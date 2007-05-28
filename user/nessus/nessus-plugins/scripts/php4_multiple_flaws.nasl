@@ -9,10 +9,12 @@
 if(description)
 {
  script_id(11850);
- script_bugtraq_id(8693, 8696);
- script_cve_id("CAN-2003-0442");
+ script_bugtraq_id(6488, 7761, 8693, 8696);
+ script_cve_id("CVE-2002-1396", "CVE-2003-0442");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:204-01");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:0009");
 
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.14 $");
  name["english"] = "php4 multiple flaws";
  
 
@@ -55,26 +57,16 @@ Risk factor : Medium";
 #
 
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);
  if(!banner)exit(0);
- serv = strstr(banner, "Server");
- if(ereg(pattern:".*PHP/4\.([0-2]\..*|3\.[0-2]))[^0-9]*", string:serv))
- {
+ php = get_php_version(banner:banner);
+ if ( ! php ) exit(0);
+ if(ereg(pattern:"PHP/4\.([0-2]\..*|3\.[0-2]))[^0-9]", string:php))
    security_warning(port);
-   exit(0);
- }
- else
- {
-   serv = strstr(banner, "X-Powered-By:");
-   if(ereg(pattern:".*PHP/([4\.([0-2]\..*|3\.[0-1]))[^0-9]*", string:serv))
-   {
-     security_warning(port);
-     exit(0);
-   }
- }
 }

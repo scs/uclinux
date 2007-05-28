@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: HttpHdrRange.c,v 1.26.2.1 2005/03/26 02:50:50 hno Exp $
  *
  * DEBUG: section 64    HTTP Range Header
  * AUTHOR: Alex Rousskov
@@ -55,7 +55,7 @@
 
 
 /* local constants */
-#define range_spec_unknown ((ssize_t)-1)
+#define range_spec_unknown ((squid_off_t)-1)
 
 /* local routines */
 #define known_spec(s) ((s) != range_spec_unknown)
@@ -102,7 +102,7 @@ httpHdrRangeSpecParseCreate(const char *field, int flen)
 	p++;
 	/* do we have last-pos ? */
 	if (p - field < flen) {
-	    ssize_t last_pos;
+	    squid_off_t last_pos;
 	    if (!httpHeaderParseSize(p, &last_pos))
 		return NULL;
 	    spec.length = size_diff(last_pos + 1, spec.offset);
@@ -136,12 +136,12 @@ static void
 httpHdrRangeSpecPackInto(const HttpHdrRangeSpec * spec, Packer * p)
 {
     if (!known_spec(spec->offset))	/* suffix */
-	packerPrintf(p, "-%ld", (long int) spec->length);
+	packerPrintf(p, "-%" PRINTF_OFF_T, spec->length);
     else if (!known_spec(spec->length))		/* trailer */
-	packerPrintf(p, "%ld-", (long int) spec->offset);
+	packerPrintf(p, "%" PRINTF_OFF_T "-", spec->offset);
     else			/* range */
-	packerPrintf(p, "%ld-%ld",
-	    (long int) spec->offset, (long int) spec->offset + spec->length - 1);
+	packerPrintf(p, "%" PRINTF_OFF_T "-%" PRINTF_OFF_T,
+	    spec->offset, spec->offset + spec->length - 1);
 }
 
 /* fills "absent" positions in range specification based on response body size 
@@ -151,8 +151,8 @@ httpHdrRangeSpecPackInto(const HttpHdrRangeSpec * spec, Packer * p)
 static int
 httpHdrRangeSpecCanonize(HttpHdrRangeSpec * spec, size_t clen)
 {
-    debug(64, 5) ("httpHdrRangeSpecCanonize: have: [%ld, %ld) len: %ld\n",
-	(long int) spec->offset, (long int) spec->offset + spec->length, (long int) spec->length);
+    debug(64, 5) ("httpHdrRangeSpecCanonize: have: [%" PRINTF_OFF_T ", %" PRINTF_OFF_T ") len: %" PRINTF_OFF_T "\n",
+	spec->offset, spec->offset + spec->length, spec->length);
     if (!known_spec(spec->offset))	/* suffix */
 	spec->offset = size_diff(clen, spec->length);
     else if (!known_spec(spec->length))		/* trailer */
@@ -162,8 +162,8 @@ httpHdrRangeSpecCanonize(HttpHdrRangeSpec * spec, size_t clen)
     assert(known_spec(spec->offset));
     spec->length = size_min(size_diff(clen, spec->offset), spec->length);
     /* check range validity */
-    debug(64, 5) ("httpHdrRangeSpecCanonize: done: [%ld, %ld) len: %ld\n",
-	(long int) spec->offset, (long int) spec->offset + (long int) spec->length, (long int) spec->length);
+    debug(64, 5) ("httpHdrRangeSpecCanonize: done: [%" PRINTF_OFF_T ", %" PRINTF_OFF_T ") len: %" PRINTF_OFF_T "\n",
+	spec->offset, spec->offset + spec->length, spec->length);
     return spec->length > 0;
 }
 
@@ -303,7 +303,7 @@ httpHdrRangePackInto(const HttpHdrRange * range, Packer * p)
  *   - there is at least one range spec
  */
 int
-httpHdrRangeCanonize(HttpHdrRange * range, ssize_t clen)
+httpHdrRangeCanonize(HttpHdrRange * range, squid_off_t clen)
 {
     int i;
     HttpHdrRangeSpec *spec;
@@ -415,10 +415,10 @@ httpHdrRangeWillBeComplex(const HttpHdrRange * range)
  * Returns lowest known offset in range spec(s), or range_spec_unknown
  * this is used for size limiting
  */
-ssize_t
+squid_off_t
 httpHdrRangeFirstOffset(const HttpHdrRange * range)
 {
-    ssize_t offset = range_spec_unknown;
+    squid_off_t offset = range_spec_unknown;
     HttpHdrRangePos pos = HttpHdrRangeInitPos;
     const HttpHdrRangeSpec *spec;
     assert(range);
@@ -435,11 +435,11 @@ httpHdrRangeFirstOffset(const HttpHdrRange * range)
  * ranges are combined into one, for example FTP REST.
  * Use 0 for size if unknown
  */
-ssize_t
-httpHdrRangeLowestOffset(const HttpHdrRange * range, ssize_t size)
+squid_off_t
+httpHdrRangeLowestOffset(const HttpHdrRange * range, squid_off_t size)
 {
-    ssize_t offset = range_spec_unknown;
-    ssize_t current;
+    squid_off_t offset = range_spec_unknown;
+    squid_off_t current;
     HttpHdrRangePos pos = HttpHdrRangeInitPos;
     const HttpHdrRangeSpec *spec;
     assert(range);

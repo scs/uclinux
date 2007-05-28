@@ -3,7 +3,7 @@
  *
  * New DOS functions.
  *
- * $Id$
+ * $Id: dos.c,v 1.1.1.1 2001/04/29 20:35:50 karll Exp $
  */
 
 #include <stdio.h>

@@ -3,10 +3,7 @@
    floating point exception handling does.
 */
 
-/* $Log$
- * Revision 1.2  2005/07/25 04:03:15  magicyang
- * New user folder check in
- *
+/* $Log: fpe_check.c,v $
  * Revision 1.7  1996/08/30 00:07:14  mike
  * Modifications to the test and implementation of the bug fix for
  * solaris overflow in strtod.

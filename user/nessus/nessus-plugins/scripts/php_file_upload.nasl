@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10513);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1649);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2000-0860");
  name["english"] = "php file upload";
  name["francais"] = "php file upload";
@@ -25,7 +25,7 @@ an attacker may be able to read arbitrary files from the server.
 Solution : upgrade to php 3.0.17 or 4.0.3, and see also 
 	   http://www.php.net/manual/language.variables.predefined.php
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -57,7 +57,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -68,8 +68,8 @@ Facteur de risque : Sérieux";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 if(get_port_state(port))

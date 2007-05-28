@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10272);
- script_version ("$Revision: 1.15 $");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-1999-0273");
  
  name["english"] = "SunKill";
@@ -69,6 +69,7 @@ Facteur de risque : Elevé";
 # session, so if we know that we are facing it,
 # we go away
 
+include('telnet_func.inc');
 wingate = get_kb_item("wingate/enabled");
 if(wingate)exit(0);
 
@@ -79,7 +80,7 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
-  c = telnet_init(soc);
+  c = telnet_negotiate(socket:soc);
   d = raw_string(0x255);
   data = crap(length:2550, data:d);
   send(socket:soc, data:data);

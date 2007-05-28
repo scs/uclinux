@@ -5,26 +5,32 @@
 if(description)
 {
   script_id(10723);
+  script_version ("$Revision: 1.18 $");
+
   script_cve_id("CVE-1999-0385");
- script_bugtraq_id(503);
-  script_version ("$Revision: 1.10 $");
+  script_bugtraq_id(503);
+  script_xref(name:"OSVDB", value:"9723");
+
   script_name(english:"LDAP allows anonymous binds");
   desc["english"] = "
-Improperly configured LDAP servers will allow any user to connect to 
-the server and query for information.
+Synopsis :
 
-The LDAP bind function in Exchange 5.5 has a buffer overflow
-that allows a remote attacker to conduct a denial of service
-or execute commands in all version prior to Exchange server sp2
+It is possible to disclose LDAP information.
 
-Note: no test was done to see what version of Exchange server
-is running, nor attempt to verify service pack.
+Description :
 
-Solution: Disable NULL BIND on your LDAP server
+Improperly configured LDAP servers will allow any user to connect to the
+server and query for information.
 
-Also see: http://www.microsoft.com/technet/security/bulletin/ms99-009.asp
+Solution :
 
-Risk factor : Medium";
+Disable NULL BIND on your LDAP server
+
+Risk factor :
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
+
 
 
   script_description(english:desc["english"]);
@@ -32,6 +38,10 @@ Risk factor : Medium";
   script_category(ACT_GATHER_INFO);
   script_family(english:"Remote file access");
   script_copyright(english:"By John Lampe....j_lampe@bellsouth.net");
+
+  script_dependencies("ldap_detect.nasl");
+  script_require_ports("Services/ldap", 389);
+
   exit(0);
 }
 
@@ -45,7 +55,6 @@ Risk factor : Medium";
 function send_stuff (myport) {
     soc = open_sock_tcp(myport);
     if (!soc) {
-        close(soc);
         return(0);
     }
     send(socket:soc, data:string);
@@ -55,7 +64,9 @@ function send_stuff (myport) {
 }
 
 
-port = 389;
+port = get_kb_item("Services/ldap");
+if (!port) port = 389;
+
 string = raw_string (0x30,0x0C,0x02,0x01,0x01,0x60,0x07,0x02,0x01,0x02,0x04,0x00,0x80,0x80);
 positiveid = raw_string (0x30,0x0C,0x02,0x01,0x01,0x61,0x07,0x0A,0x01,0x00,0x04,0x00,0x04,0x00);
 
@@ -64,7 +75,7 @@ if (get_port_state(port)) {
     if(result1)
     {
     error_code = substr(result1, strlen(result1) - 7, strlen(result1) - 5);
-    if (hexstr(error_code) == "0a0100") security_hole(port);
+    if (hexstr(error_code) == "0a0100") security_note(port);
     }
 }
 

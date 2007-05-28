@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(11562);
- script_version ("$Revision: 1.1 $");
- script_bugtraq_id(7477, 7575);
+ script_bugtraq_id(7475, 7477);
+ script_version ("$Revision: 1.4 $");
 
  name["english"] = "The ScriptLogic service is running";
  script_name(english:name["english"]);
@@ -24,7 +24,7 @@ privileges, which can be used to gain a shell on this host.
 *** running on this host, this might be a false positive
 
 Solution : Make sure you are running ScriptLogic 4.15 or newer
-Risk Factor : High";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  

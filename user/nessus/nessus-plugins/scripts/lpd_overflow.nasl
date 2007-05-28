@@ -10,8 +10,9 @@
 if(description)
 {
    script_id(10727);
- script_version ("$Revision: 1.19 $");
- script_bugtraq_id(2894);
+   if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-t-0007");
+   script_bugtraq_id(2894);
+ script_version ("$Revision: 1.22 $");
    script_cve_id("CVE-2001-0353");
    name["english"] = "Buffer overflow in Solaris in.lpd";
   
@@ -147,7 +148,7 @@ if(soc)
  for(i=0;i<400;i=i+1)
  {
  send(socket:soc, data:subcommand(num:i));
- send(socket:soc, data:ack(num:i));
+ send(socket:soc, data:ack());
  r = recv(socket:soc, length:2);
  if(flag)
  {
@@ -170,7 +171,7 @@ if(soc)
       }
  }
  send(socket:soc, data:subcommand(num:i));
- send(socket:soc, data:ack(num:i));
+ send(socket:soc, data:ack());
  sleep(1);
  r = recv(socket:soc, length:4096);
  if(!r)security_hole(port);

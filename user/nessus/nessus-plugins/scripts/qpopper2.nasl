@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10948);
- script_version ("$Revision: 1.7 $");
  script_bugtraq_id(2811);
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CVE-2001-1046");
  name["english"] = "qpopper options buffer overflow";
  script_name(english:name["english"]);

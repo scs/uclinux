@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: mf_funcs.h,v 1.8 2002/09/19 12:23:53 jku Rel $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

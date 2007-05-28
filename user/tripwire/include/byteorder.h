@@ -25,7 +25,7 @@
 #endif
 
 
-/* $Id$
+/* $Id: byteorder.h,v 1.1 2001/02/14 00:39:14 pauli Exp $
 
 Then, wherever you use the value, replace:
 

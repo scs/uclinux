@@ -28,7 +28,11 @@
 #ifdef HAVE_NETINET_IN_H /* (debian) linux wants this - jh */
 #include <netinet/in.h>
 #endif
+#ifdef USE_ARPA_NAMESER_COMPAT_H
+#include <arpa/nameser_compat.h>
+#else
 #include <arpa/nameser.h>
+#endif
 #include <resolv.h>
 
 

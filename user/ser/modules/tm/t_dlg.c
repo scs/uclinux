@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_dlg.c,v 1.4 2003/01/21 13:53:48 jiri Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

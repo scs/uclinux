@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10686);
- script_cve_id("CAN-2001-0031");
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(2088);
+ script_cve_id("CVE-2001-0031");
+ script_version ("$Revision: 1.14 $");
  name["english"] = "BroadVision Physical Path Disclosure Vulnerability";
 
  script_name(english:name["english"]);
@@ -40,7 +40,7 @@ Risk factor : Low";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -50,8 +50,9 @@ Risk factor : Low";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
+
 if(get_port_state(port))
 { 
  req = http_get(item:string("/nosuchfile-", rand(), "-", rand(), ".jsp"), 

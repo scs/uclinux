@@ -149,7 +149,7 @@ main(int argc, char **argv)
 	}
 	u = hash_lookup(hash, user);
 	if (u == NULL) {
-	    printf("ERR\n");
+	    printf("ERR No such user\n");
 	} else {
 	    DigestCalcHA1("md5", user, realm, u->passwd, NULL, NULL, HA1, HHA1);
 	    printf("%s\n", HHA1);

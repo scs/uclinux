@@ -7,9 +7,12 @@
 if(description)
 {
  script_id(11321);
- script_cve_id("CAN-2002-1165");
  script_bugtraq_id(5845);
- script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-2002-1165", "CVE-2002-1337");
+ script_version ("$Revision: 1.10 $");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:073-06");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:023");
+
  
  name["english"] = "Sendmail 8.8.8 to 8.12.7 Double Pipe Access Validation Vulnerability";
  script_name(english:name["english"]);
@@ -60,6 +63,6 @@ banner = get_smtp_banner(port:port);
 if(banner)
 {
  if(egrep(pattern:"Sendmail.*(8\.8\.[89]|8\.9\..*|8\.1[01]\.*|8\.12\.[0-7][^0-9])/", string:banner))
-        security_hole(port);
+        security_warning(port);
 }
 

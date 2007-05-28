@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11175);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.9 $");
 
  name["english"] = "Too long line";
  name["francais"] = "Ligne trop longue";
@@ -46,7 +46,7 @@ Risk factor : High";
 
 #
 
-
+include('misc_func.inc');
 ports = get_kb_list("Services/unknown");
 if(isnull(ports))exit(0);
 
@@ -54,6 +54,8 @@ line = string(crap(512), "\r\n");
 
 foreach port (make_list(ports))
 {
+    if ( service_is_unknown(port:port) && port != 135 && port != 139 && port != 445 ) 
+    {
     port = int(port);
     s = open_sock_tcp(port);
     if (s)
@@ -65,4 +67,5 @@ foreach port (make_list(ports))
       if (s) { close(s); }
       else { security_hole(port); }
     }
+   }
 }

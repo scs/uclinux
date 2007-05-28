@@ -1,10 +1,7 @@
 # ultrix4.2 mips
 # prefer to use cc or no gcc
 
-# $Log$
-# Revision 1.2  2005/07/25 04:03:16  magicyang
-# New user folder check in
-#
+# $Log: ultrix-mips,v $
 # Revision 1.1  1994/12/14  00:11:06  mike
 # initial ci
 #

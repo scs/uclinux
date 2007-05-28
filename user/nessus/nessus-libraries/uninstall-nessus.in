@@ -114,6 +114,7 @@ rm -f  $sbindir/nessus-rmuser
 rm -f  $sbindir/nessusd
 rm -f  $sbindir/nessus-update-plugins
 rm -f  $sbindir/nessus-mkcert
+rm -f  $sbindir/nessus-check-signature
 
 rm -rf $includedir/nessus
 

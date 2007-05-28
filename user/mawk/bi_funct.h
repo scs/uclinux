@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 
-/* $Log$
- * Revision 1.2  2005/07/25 04:03:15  magicyang
- * New user folder check in
- *
+/* $Log: bi_funct.h,v $
  * Revision 1.2  1994/12/11  22:10:15  mike
  * fflush
  *

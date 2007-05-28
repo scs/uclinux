@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10506);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1215);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2000-0432");
  name["english"] = "calendar_admin.pl";
  name["francais"] = "calendar_admin.pl";
@@ -20,7 +20,7 @@ commands with the privileges of the http daemon (root or nobody).
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'calendar_admin.pl' est installé. Celui-ci possède
@@ -50,6 +50,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -60,8 +61,8 @@ Facteur de risque : Sérieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)) exit(0);
 
 function go(dir, cgi, port)
@@ -70,7 +71,7 @@ function go(dir, cgi, port)
  req = http_get(item:item, port:port);
  r = http_keepalive_send_recv(port:port, data:req);
  if( r == NULL)exit(0);
- if(egrep(pattern:".*root:.*:0:[01]:.*", string:r))
+ if(egrep(pattern:"root:.*:0:[01]:", string:r))
   {
    security_hole(port);
    exit(0);
@@ -80,6 +81,6 @@ function go(dir, cgi, port)
 foreach dir (cgi_dirs())
 {
  go(dir:dir, cgi:"calendar_admin.pl", port:port);
- go(dir:dir, cgi:"calendar/calendar_admin.pl", port:port);
- go(dir:dir, cgi:"calendar/calender.pl", port:port);
+# go(dir:dir, cgi:"calendar/calendar_admin.pl", port:port);
+# go(dir:dir, cgi:"calendar/calender.pl", port:port);
 }

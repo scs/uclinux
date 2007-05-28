@@ -3,7 +3,7 @@
  *
  * Some useful defines.
  *
- * $Id$
+ * $Id: util.h,v 1.4 1998/09/09 21:06:38 gert Exp $
  *
  */
 

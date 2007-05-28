@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: authorize.c,v 1.9.4.1.4.1 2004/07/18 22:56:23 sobomax Exp $
  *
  * Digest Authentication - Radius support
  *

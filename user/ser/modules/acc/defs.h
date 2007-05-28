@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: defs.h,v 1.4.4.1 2003/11/13 20:19:56 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

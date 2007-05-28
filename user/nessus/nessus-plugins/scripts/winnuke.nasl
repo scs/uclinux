@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10314);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(2010);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0153");
  
  name["english"] = "Winnuke";

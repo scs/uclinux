@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: ip_user.h,v 1.1.2.1 2002/07/12 08:33:10 hno Exp $
 * Copyright (C) 2002 Rodrigo Campos
 *
 * This program is free software; you can redistribute it and/or modify

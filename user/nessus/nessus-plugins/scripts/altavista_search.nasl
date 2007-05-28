@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10015);
- script_version ("$Revision: 1.21 $");
  script_bugtraq_id(896);
+ script_version ("$Revision: 1.25 $");
  script_cve_id("CVE-2000-0039");
  name["english"] = "AltaVista Intranet Search";
  name["francais"] = "AltaVista Intranet Search";
@@ -56,7 +56,7 @@ Risk factor : High";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
   script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -68,14 +68,10 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
-
-
-foreach dir (cgi_dirs())
-{
-item = string(dir, "/query?mss=%2e%2e/config");
+item = "/cgi-bin/query?mss=%2e%2e/config";
 req = http_get(item:item, port:port);
 result = http_keepalive_send_recv(port:port, data:req);
 if( result == NULL ) exit(0);
@@ -83,6 +79,3 @@ if("MGMT_PW" >< result){
 	security_hole(port);
 	exit(0);
 	}
-} 
- 
-

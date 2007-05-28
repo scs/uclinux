@@ -5,27 +5,43 @@
 #
 
 
+ desc["english"] = "
+Synopsis :
+
+The remote SMTP and IMAP servers are prone to buffer overflow attacks. 
+
+Description :
+
+The remote host is running a version of the MailMax mail server that is
+vulnerable to various overflows.  These issues may allow an
+unauthenticated remote attacker to disable the affected service and
+possibly to execute arbitrary commands on the affected host. 
+
+See also :
+
+http://www.securityfocus.com/archive/1/318290
+
+Solution : 
+
+Upgrade to MailMax 5.0.10.8 or newer
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
+
+
 if(description)
 {
  script_id(11598);
- script_bugtraq_id(7326);
+ script_bugtraq_id(2312, 7326);
  script_cve_id("CVE-1999-0404");
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.9 $");
 
  
- name["english"] = "MailMax IMAP overflows";
+ name["english"] = "MailMax SMTP / IMAP overflows";
  script_name(english:name["english"]);
  
- desc["english"] = "
-The remote host is running a version of the MailMax 
-IMAP server which is vulnerable to various overflows
-which may allow to execute arbitrary commands on this
-host or to disable it remotely.
-
-Solution : Upgrade to MailMax 5.0.10.8 or newer
-Risk Factor : High";
-
-
  script_description(english:desc["english"]);
  
  summary["english"] = "Overflows the remote IMAP server";
@@ -46,50 +62,50 @@ Risk Factor : High";
 # The script code starts here
 #
 
-include("smtp_func.inc");
+include("imap_func.inc");
 
 port = get_kb_item("Services/imap");
 if(!port)port = 143;
+if (!get_port_state(port)) exit(0);
 
-if(get_port_state(port))
+banner = get_imap_banner(port:port);
+if (!banner || "MailMax " >!< banner) exit(0);
+
+
+if(safe_checks())
 {
- soc = open_sock_tcp(port);
- if(soc)
- {
-  r = recv_line(socket:soc, length:4096);
-  if(safe_checks())
+  if(egrep(pattern:"MailMax [1-5][^0-9]", string:banner))
   {
-   if(egrep(pattern:"MailMax [1-5][^0-9]", string:r))
-   {
-    report = "
-The remote host is running a version of the MailMax 
-IMAP server which is vulnerable to various overflows
-which may allow to execute arbitrary commands on this
-host or to disable it remotely.
-
-*** Since safe_checks are enabled, Nessus did not actually
-*** check for this flaw but relied on the banner instead.
-*** This might be a false positive.
-
-Solution : Upgrade to MailMax 5.0.10.8 or newer
-Risk Factor : High";    
-  security_hole(data:report, port:port);
-   }
-    exit(0);
+    report = string(
+      desc["english"],
+      "\n\n",
+      "Plugin output :\n",
+      "\n",
+      "Nessus has determined the flaw exists with the application\n",
+      "simply by looking at the version in the IMAP server's banner.\n"
+    );
+    security_hole(port:port, data:report);
   }
-  send(socket:soc, data:string("0000 CAPABILITY\r\n"));
+  exit(0);
+}
+
+soc = open_sock_tcp(port);
+if(soc)
+{
   r = recv_line(socket:soc, length:4096);
-  r = recv_line(socket:soc, length:4096);
-  send(socket:soc, data:'0001 LOGIN "nobody@example.com" "'+crap(50)+'\r\n');
- 
-  r = recv_line(socket:soc, length:4096);
-  r = recv_line(socket:soc, length:4096);
-  close(soc);
-  
-  soc = open_sock_tcp(port);
-  if(!soc){security_hole(port); exit(0);}
-  r = recv_line(socket:soc, length:4096);
-  if(!r)security_hole(port);
-  close(soc);  
- }
+  if ( ! r ) exit(0);
+   send(socket:soc, data:string("0000 CAPABILITY\r\n"));
+   r = recv_line(socket:soc, length:4096);
+   r = recv_line(socket:soc, length:4096);
+   send(socket:soc, data:'0001 LOGIN "nobody@example.com" "'+crap(50)+'\r\n');
+
+   r = recv_line(socket:soc, length:4096);
+   r = recv_line(socket:soc, length:4096);
+   close(soc);
+
+   soc = open_sock_tcp(port);
+   if(!soc){security_hole(port); exit(0);}
+   r = recv_line(socket:soc, length:4096);
+   if(!r)security_hole(port);
+   close(soc);  
 }

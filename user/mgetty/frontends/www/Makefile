@@ -1,11 +1,8 @@
 # frontends/www/Makefile
 #
-# RCS: $Id$
+# RCS: $Id: Makefile,v 1.15 2004/11/17 15:40:57 gert Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:29:48  vapier
-# import from upstream uClinux
-#
+# $Log: Makefile,v $
 # Revision 1.15  2004/11/17 15:40:57  gert
 # create install directories if not present yet
 #

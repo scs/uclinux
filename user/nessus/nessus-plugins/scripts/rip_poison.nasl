@@ -14,7 +14,7 @@
 if(description)
 {
   script_id(11829);
-  script_version ("$Revision: 1.6 $");
+  script_version ("$Revision: 1.9 $");
 
   name["english"] = "RIP poisoning";
   script_name(english:name["english"]);
@@ -44,12 +44,15 @@ Risk factor : Low";
   family["francais"] = "Divers";
   script_family(english:family["english"], francais:family["francais"]);
   script_dependencie("rip_detect.nasl");
+  script_require_keys("Services/udp/rip");
   exit(0);
 }
 
 ##include("dump.inc");
 
-port = 520;
+port = get_kb_item("Services/udp/rip");
+if (! port) port = 520;
+
 #if (! get_udp_port_state(port)) exit(0); # Not very efficient with UDP!
 
 a1 = 192; a2 = 0; a3 = 34; a4 =  166;	# example.com
@@ -129,7 +132,7 @@ Solution : reconfigure your RIP listener if possible
 	or use another routing protocol,
 	or disable the RIP listener if you don't need it.
 
-Risk factor : Serious");
+Risk factor : High");
 
 # Fix it: set the number of hops to "infinity".
 

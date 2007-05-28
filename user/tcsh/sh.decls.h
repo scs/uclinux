@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.decls.h,v 3.34 1999/02/06 15:01:21 christos Exp $ */
 /*
  * sh.decls.h	 External declarations from sh*.c
  */

@@ -16,7 +16,7 @@
 if(description)
 {
  script_id(10847);
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.7 $");
 
  name["english"] = "SilverStream database structure";
  script_name(english:name["english"]);
@@ -57,19 +57,15 @@ cannot view database structure";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port)) {
-   soc = http_open_socket(port);
-   if(soc) {
       buf = string("/SilverStream/Meta/Tables/?access-mode=text");
       buf = http_get(item:buf, port:port);
-      send(socket:soc,data:buf);
-      rep = http_recv(socket:soc);
+      rep = http_keepalive_send_recv(port:port, data:buf);
       if("_DBProduct" >< rep)
          security_warning(port);
-      http_close_socket(soc);
-   }
 }
 

@@ -15,7 +15,7 @@ if(description)
  script_cve_id("CVE-2000-0182");
  
  
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "HTTP header overflow";
  script_name(english:name["english"]);
  
@@ -55,8 +55,8 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 if (http_is_dead(port: port)) exit(0);
 

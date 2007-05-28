@@ -12,6 +12,9 @@
 
 /*****************************************************************************/
 
+/* Make sure we get the gnu version of basename */
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -25,12 +28,13 @@
 #ifndef __UC_LIBC__
 #include <crypt.h>
 #endif
-#ifdef OLD_CONFIG_PASSWORDS
+#ifdef CONFIG_USER_OLD_PASSWORDS
 #include <crypt_old.h>
 #endif
 #include <sys/types.h>
 #include <pwd.h>
 #include <syslog.h>
+
 
 #ifdef SECURITY_COUNTS
 #include "logcnt.c"
@@ -112,7 +116,7 @@ int main(int argc, char *argv[])
 		if (strcmp(cpwd, pwp->pw_passwd) == 0) 
 			good++;
 
-#ifdef OLD_CONFIG_PASSWORDS
+#ifdef CONFIG_USER_OLD_PASSWORDS
 		cpwd = crypt_old(gotpwd, pwp->pw_passwd);
 		if (strcmp(cpwd, pwp->pw_passwd) == 0)
 			good++;
@@ -122,9 +126,14 @@ int main(int argc, char *argv[])
 		access__attempted(!good, user);
 #endif
 		if (good) {
+			char arg0[100];
+
+			snprintf(arg0, sizeof(arg0), "-%s", basename(pwp->pw_shell));
+
 			syslog(LOG_INFO, "Authentication successful for %s from %s\n",
 					user, host ? host : "unknown");
-			execlp(pwp->pw_shell, "-sh", NULL);
+
+			execlp(pwp->pw_shell, arg0, NULL);
 		} else {
 			syslog(LOG_ERR, "Authentication attempt failed for %s from %s because: Bad Password\n",
 					user, host ? host : "unknown");

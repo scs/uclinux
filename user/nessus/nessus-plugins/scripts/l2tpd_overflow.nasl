@@ -7,9 +7,10 @@
 if (description)
 {
  script_id(11388);
+ script_bugtraq_id(5451);
  script_cve_id("CVE-2002-0872", "CVE-2002-0873");
  
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.8 $");
  script_name(english:"l2tpd < 0.68 overflow");
  desc["english"] = "
 The remote host is running a version of l2tpd which is older or
@@ -30,9 +31,12 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  script_family(english:"Gain root remotely");
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_dependencie("l2tp_detection.nasl");
+ script_require_ports("Services/udp/l2tp");
  exit(0);
 }
 
+if ( ! get_kb_item("Services/udp/l2tp") ) exit(0);
 
 function find_firmware(rep)
 {

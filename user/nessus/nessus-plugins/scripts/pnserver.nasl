@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10183);
- script_version ("$Revision: 1.11 $");
- script_cve_id("CAN-1999-0271");
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-1999-0271");
  name["english"] = "pnserver crash";
  name["francais"] = "crash de pnserver";
  script_name(english:name["english"], francais:name["francais"]);
@@ -25,7 +25,7 @@ may alter the quality of your service
 Solution : Contact Progressive Networks for
 a patch.
 
-Risk factor : Low/Medium";
+Risk factor : Medium";
 
  desc["francais"] = "
 Il s'est avéré possible de faire planter le
@@ -41,7 +41,7 @@ service.
 Solution : Contactez Progressive Networks et demandez un
 patch.
 
-Facteur de risque : Faible/Moyen";
+Facteur de risque : Moyen";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
@@ -80,7 +80,7 @@ if(get_port_state(port))
   sleep(5);
   
   soc2 = open_sock_tcp(port);
-  if(!soc2)security_hole(port);
+  if(!soc2)security_warning(port);
   else close(soc2);
   }
 }

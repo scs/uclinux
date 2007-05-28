@@ -14,9 +14,9 @@
 if(description)
 {
  script_id(10732);
-
  script_bugtraq_id(2736);
- script_version ("$Revision: 1.16 $");
+
+ script_version ("$Revision: 1.20 $");
 
 
 #Name used in the client window.
@@ -95,14 +95,12 @@ script_family(english:family["english"], francais:family["francais"]);
 
 #Portscan the target/try SMB SP test  before executing this script.
 
-script_dependencies("find_service.nes", 
-		   "http_version.nasl");
+script_dependencies("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
 
 #optimization, stop here if either no web service was found 
 # by find_service.nes plugin or no port 80 was open.
 
 script_require_ports(80, "Services/www");
-script_require_keys("www/iis");
 
 exit(0);
 }
@@ -133,8 +131,18 @@ function check(poison, port)
 	return(0);
 }
 
-port = get_kb_item("Services/www");
-if(!port) port=80;
+port = get_http_port(default:80);
+
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig )
+	{
+	if ( "IIS" >!< sig ) exit(0);
+	}
+else	{
+	sig = get_http_banner(port:port);
+	if ( !egrep(pattern:"^Server:.*IIS", string:sig )) exit(0);
+	}
 
 if(!get_port_state(port)) exit(0);
 

@@ -4,7 +4,7 @@
 # file suffixes and file format conversions that are not handled by 
 # the built-in routines in "faxspool" can be added here
 #
-# $Id$
+# $Id: faxspool.rules,v 4.2 2005/03/13 17:46:44 gert Exp $
 
 # file name suffix -> file format mapping
 # after the SUFFIX key word, name the extention, and then the file format:

@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10219);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CVE-1999-0832", "CAN-2002-0830");
  script_bugtraq_id(782);
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-1999-0832", "CVE-2002-0830");
  name["english"] = "nfsd service";
  name["francais"] = "Service nfsd";
  script_name(english:name["english"], francais:name["francais"]);
@@ -52,7 +52,10 @@ Facteur de risque : Elevé";
  family["english"] = "RPC"; 
  family["francais"] = "RPC";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("rpc_portmap.nasl");
+ if ( ! defined_func("bn_random") )
+ 	script_dependencie("rpc_portmap.nasl");
+ else
+ 	script_dependencie("rpc_portmap.nasl", "ssh_get_info.nasl");
  script_require_keys("rpc/portmap");
  exit(0);
 }
@@ -63,7 +66,18 @@ Facteur de risque : Elevé";
 
 
 include("misc_func.inc");
+include("freebsd_package.inc");
+include('global_settings.inc');
 
+if ( report_paranoia < 2 ) exit(0);
+
+if ( get_kb_item("Host/RedHat/release") ) exit(0);
+if ( get_kb_item("Host/Solaris/Version") ) exit(0);
+freebsd = get_kb_item("Host/FreeBSD/release");
+if ( freebsd )
+{
+ if ( pkg_cmp(pkg:freebsd, reference:"FreeBSD-4.6.1_7") >= 0 ) exit(0);
+}
 
 RPC_PROG = 100003;
 tcp = 0;

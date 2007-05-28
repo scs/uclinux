@@ -23,12 +23,14 @@
 /*****************************************************************************/
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <string.h>
 
 /*****************************************************************************/
 
-char	*version = "1.0.1";
+char	*version = "1.0.2";
 char	*progname;
 
 /*
@@ -77,7 +79,7 @@ int main(int argc, char *argv[])
 	char		obuf[160];
 	unsigned short	sval;
 	unsigned char	ibuf[16];
-	unsigned long	addr, val, offset = 0L;
+	unsigned int	addr, val, offset = 0L;
 
 	progname = argv[0];
 

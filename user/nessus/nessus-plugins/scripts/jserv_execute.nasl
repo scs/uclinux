@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10925);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2001-0307");
+ script_version("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-0307");
  
  name["english"] = "Oracle Jserv Executes outside of doc_root";
  script_name(english:name["english"]);
@@ -59,7 +59,7 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2002 Michael Scheidell");
- family["english"] = "General";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
 
  script_dependencie("find_service.nes", "httpver.nasl", "no404.nasl",  "http_version.nasl");
@@ -72,24 +72,9 @@ Risk factor : High";
 # The script code starts here
 #
 include("http_func.inc");
+include("http_keepalive.inc");
 
- port = get_kb_item("Services/www");
- if (!port) port = 80;
-
- if (get_port_state(port))
- {
-  soctcp80 = open_sock_tcp(port);
-
-  if (soctcp80)
-  {
-   data = http_get(item:"/", port:port);
-   resultsend = send(socket:soctcp80, data:data);
-   resultrecv = http_recv_headers(soctcp80);
-   str = egrep(pattern:"apachejserv/1\.",string:tolower(resultrecv));
-
-
-   if(ereg(pattern:".*apachejserv/1\.(0|1\.[0-1])",string:str))
+port = get_http_port(default:80);
+str = http_get_cache(item:"/", port:port);
+if(ereg(pattern:".*apachejserv/1\.(0|1\.[0-1][^0-9])",string:str))
       security_hole(port);
-  }
-  close(soctcp80);
- }

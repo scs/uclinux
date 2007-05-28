@@ -9,7 +9,7 @@ if(description)
 {
  
  script_id(10483);  
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.11 $");
 
  name["english"] = "Unpassworded PostgreSQL";
  name["francais"] = "PostgreSQL sans mot de passe";
@@ -39,9 +39,8 @@ et d'en obtenir la liste des bases qu'il gère.";
  
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "Remote file access";
- family["francais"] = "Accès aux fichiers distants";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes");
  script_require_ports("Services/postgres", 5432);
  exit(0);

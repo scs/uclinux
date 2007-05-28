@@ -4,12 +4,19 @@
 # 
 # See the Nessus Scripts License for details
 #
+# References:
+# From: "Michael S. Scheidell" <Scheidell@secnap.com>
+# Subject: [VU#317417] Denial of Service condition in vxworks ftpd/3com nbx
+# To: "BugTraq" <bugtraq@securityfocus.com>, <security@windriver.com>,
+#    <support@windriver.com>
+# Date: Mon, 2 Dec 2002 13:04:31 -0500
+#
 
 if(description)
 {
  script_id(11184);
  script_bugtraq_id(6297, 7480);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.6 $");
  
  name["english"] = "vxworks ftpd buffer overflow Denial of Service";
  

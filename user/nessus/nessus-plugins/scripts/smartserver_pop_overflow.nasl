@@ -11,16 +11,16 @@
 if(description)
 {
  script_id(10257);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(790);
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "SmartServer pop3 overflow";
  name["francais"] = "Divers dépassement de buffers dans SmartServer pop3";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The remote pop3 server is vulnerable to a buffer
-overflow when issued a very long command.
+The remote pop3 server seems vulnerable to a buffer overflow when issued a 
+very long command.
 
 This *may* allow an attacker to execute arbitrary commands
 as root on the remote POP3 server.
@@ -73,8 +73,10 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
-  r = recv(socket:soc, length:4096);
+  r = recv_line(socket:soc, length:4096);
   if(!r)exit(0);
+  if ( "smart" >!< tolower(r)) exit(0);
+  
   c = string("USER ", crap(800), "\r\n");
   send(socket:soc, data:c);
   d = recv_line(socket:soc, length:1024);
@@ -90,7 +92,7 @@ if(get_port_state(port))
     if(!soc2)security_hole(port);
     else close(soc2);
     }
- }
  close(soc);
+ }
 }
 

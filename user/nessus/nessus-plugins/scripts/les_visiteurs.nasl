@@ -4,7 +4,12 @@
 if(description)
 {
  script_id(11911);
+ script_cve_id("CVE-2003-1148");
  script_bugtraq_id(8902);
+ if (defined_func("script_xref")) {
+   script_xref(name:"OSVDB", value:"3586");
+ }
+ script_version("$Revision$");
  name["english"] = "'Les Visiteurs' script injection";
  script_name(english:name["english"]);
 
@@ -14,7 +19,7 @@ wherein any anonymous user can force the server to redirect to
 any arbitrary IP and download a potentially malicious include file.  
 
 This can allow an attacker to upload and execute malicious
-code on the web server
+code on the web server.
 
 Solution: Upgrade to version 2.0.2 - http://chezwam.net/main/publications/lesvisiteurs/
 Risk factor : High";
@@ -31,6 +36,8 @@ Risk factor : High";
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
+ script_dependencies("http_version.nasl");
  exit(0);
 }
 
@@ -39,11 +46,12 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if (!get_port_state(port)) exit(0);
+port = get_http_port(default:80);
 
-foreach dir (make_list("", cgi_dirs()))
+if (!get_port_state(port)) exit(0);
+if (!can_host_php(port:port)) exit(0);
+
+foreach dir (cgi_dirs())
 {
  req = http_get(item:dir + "/new-visitor.inc.php?lvc_include_dir=http://xxxxxxxxx/", port:port);
  res = http_keepalive_send_recv(port:port, data:req);

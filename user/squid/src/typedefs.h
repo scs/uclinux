@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: typedefs.h,v 1.132.2.8 2005/03/27 00:20:13 hno Exp $
  *
  *
  * SQUID Web Proxy Cache          http://www.squid-cache.org/
@@ -41,9 +41,29 @@ typedef unsigned int swap_status_t;
 typedef signed int sfileno;
 typedef signed int sdirno;
 
+#if SIZEOF_INT64_T > SIZEOF_LONG && defined(PRId64) && defined(INT64_MAX) && HAVE_STRTOLL
+typedef int64_t squid_off_t;
+#define SIZEOF_SQUID_OFF_T SIZEOF_INT64_T
+#define PRINTF_OFF_T PRId64
+#define strto_off_t (int64_t)strtoll
+#else
+typedef long squid_off_t;
+#define SIZEOF_SQUID_OFF_T SIZEOF_LONG
+#define PRINTF_OFF_T "ld"
+#define strto_off_t strtol
+#endif
+
+#if LARGE_CACHE_FILES
+typedef squid_off_t squid_file_sz;
+#define SIZEOF_SQUID_FILE_SZ SIZEOF_SQUID_OFF_T
+#else
+typedef size_t squid_file_sz;
+#define SIZEOF_SQUID_FILE_SZ SIZEOF_SIZE_T
+#endif
+
 typedef struct {
-    size_t bytes;
-    size_t kb;
+    squid_off_t bytes;
+    squid_off_t kb;
 } kb_t;
 
 typedef struct {
@@ -90,7 +110,6 @@ typedef struct _SquidConfig SquidConfig;
 typedef struct _SquidConfig2 SquidConfig2;
 typedef struct _close_handler close_handler;
 typedef struct _dread_ctrl dread_ctrl;
-typedef struct _dnsserver_t dnsserver_t;
 typedef struct _dwrite_q dwrite_q;
 typedef struct _ETag ETag;
 typedef struct _fde fde;
@@ -169,6 +188,8 @@ typedef struct _dlink_list dlink_list;
 typedef struct _StatCounters StatCounters;
 typedef struct _tlv tlv;
 typedef struct _storeSwapLogData storeSwapLogData;
+typedef struct _storeSwapLogDataOld storeSwapLogDataOld;
+typedef struct _storeSwapLogHeader storeSwapLogHeader;
 typedef struct _authConfig authConfig;
 typedef struct _cacheSwap cacheSwap;
 typedef struct _StatHist StatHist;
@@ -245,7 +266,7 @@ typedef int DEFER(int fd, void *data);
 typedef int READ_HANDLER(int, char *, int);
 typedef int WRITE_HANDLER(int, const char *, int);
 typedef void CBCB(char *buf, ssize_t size, void *data);
-typedef void CB(void *, char *, size_t, CBCB *, void *);
+typedef void BODY_HANDLER(request_t * req, char *, size_t, CBCB *, void *);
 
 typedef void STIOCB(void *their_data, int errflag, storeIOState *);
 typedef void STFNCB(void *their_data, int errflag, storeIOState *);
@@ -284,8 +305,8 @@ typedef void STSYNC(SwapDir *);
 typedef storeIOState *STOBJCREATE(SwapDir *, StoreEntry *, STFNCB *, STIOCB *, void *);
 typedef storeIOState *STOBJOPEN(SwapDir *, StoreEntry *, STFNCB *, STIOCB *, void *);
 typedef void STOBJCLOSE(SwapDir *, storeIOState *);
-typedef void STOBJREAD(SwapDir *, storeIOState *, char *, size_t, off_t, STRCB *, void *);
-typedef void STOBJWRITE(SwapDir *, storeIOState *, char *, size_t, off_t, FREE *);
+typedef void STOBJREAD(SwapDir *, storeIOState *, char *, size_t, squid_off_t, STRCB *, void *);
+typedef void STOBJWRITE(SwapDir *, storeIOState *, char *, size_t, squid_off_t, FREE *);
 typedef void STOBJUNLINK(SwapDir *, StoreEntry *);
 
 typedef void STLOGOPEN(SwapDir *);
@@ -331,7 +352,7 @@ typedef void AUTHSSTATS(StoreEntry *);
 typedef const char *AUTHSCONNLASTHEADER(auth_user_request_t *);
 
 /* append/vprintf's for Packer */
-typedef void (*append_f) (void *, const char *buf, int size);
+typedef void (*append_f) (void *, const char *buf, size_t size);
 #if STDC_HEADERS
 typedef void (*vprintf_f) (void *, const char *fmt, va_list args);
 #else
@@ -345,13 +366,13 @@ typedef unsigned char cache_key;
 typedef int Ctx;
 
 /* in case we want to change it later */
-typedef ssize_t mb_size_t;
+typedef int mb_size_t;
 
 /* iteration for HttpHdrRange */
 typedef int HttpHdrRangePos;
 
 /*iteration for headers; use HttpHeaderPos as opaque type, do not interpret */
-typedef ssize_t HttpHeaderPos;
+typedef int HttpHeaderPos;
 
 /* big mask for http headers */
 typedef char HttpHeaderMask[8];
@@ -373,8 +394,5 @@ typedef int STDIRSELECT(const StoreEntry *);
 
 typedef struct _external_acl external_acl;
 typedef struct _external_acl_entry external_acl_entry;
-
-/* Request hooks */
-typedef int REQHOOK(ConnStateData * connState, clientHttpRequest * http, void *data);
 
 #endif /* SQUID_TYPEDEFS_H */

@@ -34,7 +34,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: process.c,v 1.31 2001/08/03 11:51:28 wichert Exp $
  */
 
 #include "defs.h"
@@ -55,6 +55,11 @@
 #ifdef SUNOS4
 #include <machine/reg.h>
 #endif /* SUNOS4 */
+
+/* this should probably be expanded for all linux ? */
+#ifdef M68K
+#include <linux/ptrace.h>
+#endif
 
 #ifdef FREEBSD
 #include <sys/ptrace.h>
@@ -518,9 +523,9 @@ int new;
 	    	return -1;
 	return 0;
 #elif defined(SH)
-       if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)(REG_SYSCALL), new)<0)
-               return -1;
-       return 0;
+	if (ptrace(PTRACE_POKEUSER, tcp->pid, (char*)(REG_REG0+3), new)<0)
+		return -1;
+	return 0;
 #else
 #warning Do not know how to handle change_syscall for this architecture
 #endif /* architecture */
@@ -1756,6 +1761,12 @@ static struct xlat ptrace_cmds[] = {
 	{ PTRACE_SINGLESTEP,	"PTRACE_SINGLESTEP"	},
 	{ PTRACE_ATTACH,	"PTRACE_ATTACH"		},
 	{ PTRACE_DETACH,	"PTRACE_DETACH"		},
+#ifdef ARM
+	{ PTRACE_GETREGS,	"PTRACE_GETREGS"	},
+	{ PTRACE_SETREGS,	"PTRACE_SETREGS"	},
+	{ PTRACE_GETFPREGS,	"PTRACE_GETFPREGS",	},
+	{ PTRACE_SETFPREGS,	"PTRACE_SETFPREGS",	},
+#endif
 #ifdef SUNOS4
 	{ PTRACE_GETREGS,	"PTRACE_GETREGS"	},
 	{ PTRACE_SETREGS,	"PTRACE_SETREGS"	},
@@ -2091,6 +2102,24 @@ struct xlat struct_user_offsets[] = {
 	{ 4*EFL,		"4*EFL"					},
 	{ 4*UESP,		"4*UESP"				},
 	{ 4*SS,			"4*SS"					},
+#elif defined(ARM)
+	{ uoff(regs.ARM_r0),	"r0"					},
+	{ uoff(regs.ARM_r1),	"r1"					},
+	{ uoff(regs.ARM_r2),	"r2"					},
+	{ uoff(regs.ARM_r3),	"r3"					},
+	{ uoff(regs.ARM_r4),	"r4"					},
+	{ uoff(regs.ARM_r5),	"r5"					},
+	{ uoff(regs.ARM_r6),	"r6"					},
+	{ uoff(regs.ARM_r7),	"r7"					},
+	{ uoff(regs.ARM_r8),	"r8"					},
+	{ uoff(regs.ARM_r9),	"r9"					},
+	{ uoff(regs.ARM_r10),	"r10"					},
+	{ uoff(regs.ARM_fp),	"fp"					},
+	{ uoff(regs.ARM_ip),	"ip"					},
+	{ uoff(regs.ARM_sp),	"sp"					},
+	{ uoff(regs.ARM_lr),	"lr"					},
+	{ uoff(regs.ARM_pc),	"pc"					},
+	{ uoff(regs.ARM_cpsr),	"cpsr"					},
 #else /* !I386 */
 #ifdef M68K
 	{ 4*PT_D1,		"4*PT_D1"				},
@@ -2137,7 +2166,6 @@ struct xlat struct_user_offsets[] = {
        { 4*REG_GBR,            "4*REG_GBR"                             },
        { 4*REG_MACH,           "4*REG_MACH"                            },
        { 4*REG_MACL,           "4*REG_MACL"                            },
-       { 4*REG_SYSCALL,        "4*REG_SYSCALL"                         },
        { 4*REG_FPUL,           "4*REG_FPUL"                            },
        { 4*REG_FPREG0,         "4*REG_FPREG0"                          },
        { 4*(REG_FPREG0+1),     "4*REG_FPREG1"                          },
@@ -2155,14 +2183,22 @@ struct xlat struct_user_offsets[] = {
        { 4*(REG_FPREG0+13),    "4*REG_FPREG13"                         },
        { 4*(REG_FPREG0+14),    "4*REG_FPREG14"                         },
        { 4*REG_FPREG15,        "4*REG_FPREG15"                         },
-       { 4*REG_XDREG0,         "4*REG_XDREG0"                          },
-       { 4*(REG_XDREG0+2),     "4*REG_XDREG2"                          },
-       { 4*(REG_XDREG0+4),     "4*REG_XDREG4"                          },
-       { 4*(REG_XDREG0+6),     "4*REG_XDREG6"                          },
-       { 4*(REG_XDREG0+8),     "4*REG_XDREG8"                          },
-       { 4*(REG_XDREG0+10),    "4*REG_XDREG10"                         },
-       { 4*(REG_XDREG0+12),    "4*REG_XDREG12"                         },
-       { 4*REG_XDREG14,        "4*REG_XDREG14"                         },
+       { 4*REG_XFREG0,         "4*REG_XFREG0"                          },
+       { 4*(REG_XFREG0+1),     "4*REG_XFREG1"                          },
+       { 4*(REG_XFREG0+2),     "4*REG_XFREG2"                          },
+       { 4*(REG_XFREG0+3),     "4*REG_XFREG3"                          },
+       { 4*(REG_XFREG0+4),     "4*REG_XFREG4"                          },
+       { 4*(REG_XFREG0+5),     "4*REG_XFREG5"                          },
+       { 4*(REG_XFREG0+6),     "4*REG_XFREG6"                          },
+       { 4*(REG_XFREG0+7),     "4*REG_XFREG7"                          },
+       { 4*(REG_XFREG0+8),     "4*REG_XFREG8"                          },
+       { 4*(REG_XFREG0+9),     "4*REG_XFREG9"                          },
+       { 4*(REG_XFREG0+10),    "4*REG_XFREG10"                         },
+       { 4*(REG_XFREG0+11),    "4*REG_XFREG11"                         },
+       { 4*(REG_XFREG0+12),    "4*REG_XFREG12"                         },
+       { 4*(REG_XFREG0+13),    "4*REG_XFREG13"                         },
+       { 4*(REG_XFREG0+14),    "4*REG_XFREG14"                         },
+       { 4*(REG_XFREG15),      "4*REG_XFREG15"                         },
        { 4*REG_FPSCR,          "4*REG_FPSCR"                           },
 #endif /* SH */
 

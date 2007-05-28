@@ -10,22 +10,21 @@
 if(description)
 {
  script_id(10781);
- script_cve_id("CVE-2001-0660");
  script_bugtraq_id(3301);
- script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-0660");
+ script_version ("$Revision: 1.17 $");
  
  name["english"] = "Outlook Web anonymous access";
  script_name(english:name["english"]);
  
- desc["english"] = "It is possible to browse the
-information of the OWA server by accessing as an
+ desc["english"] = "
+It is possible to browse the information of the OWA server by accessing as an
 anonymous user with the following URL:
 
 http://www.example.com/exchange/root.asp?acs=anon
 
-After this access, the anonymous user can search
-for valid users in the OWA server and can enumerate
-all users by accessing the following URL:
+After this access, the anonymous user can search for valid users in the OWA 
+server and can enumerate all users by accessing the following URL:
 
 http://www.example.com/exchange/finduser/details.asp?obj=XXX
 (where XXX is a string of 65 hexadecimal numbers)
@@ -69,10 +68,8 @@ Risk factor : Medium";
  script_copyright(english:"This script is Copyright (C) 2001 Javier Fernández-Sanguino Peña");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
-# This should also depend on finding an IIS
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -81,18 +78,18 @@ Risk factor : Medium";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
 
-if(!get_port_state(port))exit(0);
+if ( ! can_host_asp(port:port) ) exit(0);
+
 
 
 
 
  cgi = "/exchange/root.asp?acs=anon";
- port = is_cgi_installed(cgi);
- if(port)
+ if(is_cgi_installed_ka(item:cgi, port:port))
  {
   soc = http_open_socket(port);
   req = http_get(item:"/exchange/root.asp?acs=anon", port:port);
@@ -109,7 +106,7 @@ if(!get_port_state(port))exit(0);
 
    if (!("This page has been disabled" >< r))
    {
-    security_hole(port);
+    security_warning(port);
    }
   }
  }

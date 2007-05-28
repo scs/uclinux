@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dbase.h,v 1.8 2002/11/28 17:05:16 janakj Exp $
  *
  * MySQL module core functions
  *

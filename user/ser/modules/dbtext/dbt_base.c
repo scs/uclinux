@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dbt_base.c,v 1.5.4.2.2.1 2004/01/20 18:20:39 dcm Exp $
  *
  * DBText module core functions
  *

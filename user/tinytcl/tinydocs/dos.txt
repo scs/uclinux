@@ -1,6 +1,6 @@
 Tcl commands to interface to DOS 
 
-$Id$
+$Id: dos.txt,v 1.1.1.1 2001/04/29 20:36:22 karll Exp $
 
 kbhit - returns 1 if a key has been hit, else 0
 

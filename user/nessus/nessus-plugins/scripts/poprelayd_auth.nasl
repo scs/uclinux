@@ -15,9 +15,9 @@
 if(description)
 {
  script_id(11080);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CVE-2001-1075");
  script_bugtraq_id(2986);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2001-1075");
  name["english"] = "poprelayd & sendmail authentication problem";
  name["francais"] = "Problème d'authentification de poprelayd & sendmail";
  script_name(english:name["english"],
@@ -54,7 +54,7 @@ Solution : Disable poprelayd";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl", 
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl", 
 		"smtp_relay.nasl", "smtp_settings.nasl");
  script_exclude_keys("SMTP/wrapped", "SMTP/postfix", "SMTP/qmail");
  script_require_ports("Services/smtp", 25);
@@ -63,6 +63,10 @@ Solution : Disable poprelayd";
 
 
 include("smtp_func.inc");
+include("global_settings.inc");
+
+
+if ( report_paranoia < 2 ) exit(0);
 
 # can't perform this test on localhost
 if(islocalhost())exit(0);
@@ -70,6 +74,7 @@ if(islocalhost())exit(0);
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
 if(!get_port_state(port)) exit(0);
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 soc = open_sock_tcp(port);
 if (!soc) exit(0);

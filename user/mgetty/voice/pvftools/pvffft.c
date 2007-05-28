@@ -5,7 +5,7 @@
  * output the result in form of a table or decides, whether the input
  * samples belong to a data call or to a voice call.
  *
- * $Id$
+ * $Id: pvffft.c,v 1.4 1998/09/09 21:07:47 gert Exp $
  *
  */
 

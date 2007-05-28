@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10479);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1510);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2000-0671");
  name["english"] = "Roxen Server /%00/ bug";
  name["francais"] = "Roxen Server /%00/ bug";
@@ -59,7 +59,7 @@ Solution : Mettez Roxen à jour en sa dernière version";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -69,22 +69,17 @@ Solution : Mettez Roxen à jour en sa dernière version";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
- soc = http_open_socket(port);
- if(soc)
- {
   buffer = http_get(item:"/%00/", port:port);
-  send(socket:soc, data:buffer);
-  data = http_recv(socket:soc);
+  data = http_keepalive_send_recv(port:port, data:buffer);
   seek = "Directory listing of";
   if(seek >< data)
   {
    security_hole(port);
   }
-  http_close_socket(soc);
- }
 }

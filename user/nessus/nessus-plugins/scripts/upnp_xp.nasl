@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10829);
- script_version("$Revision: 1.12 $");
  script_bugtraq_id(3723);
+ script_version("$Revision: 1.15 $");
  script_cve_id("CVE-2001-0876");
  name["english"] = "scan for UPNP hosts";
  script_name(english:name["english"]);
@@ -33,10 +33,14 @@ Risk factor : High";
  family["english"] = "Windows";
  script_family(english:family["english"]);
  script_require_ports(5000);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
- if(islocalhost())exit(0);
+include('global_settings.inc');
+
+if( ! thorough_tests ) exit(0);
+if(islocalhost())exit(0);
 #script based on eeye advisory Multiple Remote Windows XP/ME/98 Vulnerabilities
 
   myaddr = this_host();
@@ -74,7 +78,7 @@ Risk factor : High";
         data    :mystring
         );
 
-  for(i=0;i<5;i++)
+  for(i=0;i<3;i++)
   {
   rpkt = send_packet(udppacket, pcap_active:FALSE);
 

@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tw.init.c,v 3.27 2000/11/11 23:03:40 christos Exp $ */
 /*
  * tw.init.c: Handle lists of things to complete
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tw.init.c,v 3.27 2000/11/11 23:03:40 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"

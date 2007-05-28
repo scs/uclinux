@@ -4,12 +4,9 @@
 # 
 # Copyright 1998 Simone Demmel simone@greenie.net
 #
-# CVS: $Id$
+# CVS: $Id: faxq.in,v 1.15 2001/08/07 20:44:46 neko Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:29:48  vapier
-# import from upstream uClinux
-#
+# $Log: faxq.in,v $
 # Revision 1.15  2001/08/07 20:44:46  neko
 # * File fuer Fax-Q zuletzte bearbeitet nach Vorbild faxspool gesetzt,
 # * kleine Korektur in der Repraesentation des Datums (das 101-Problem

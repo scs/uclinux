@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tw.decls.h,v 3.17 2000/06/11 02:14:16 kim Exp $ */
 /*
  * tw.decls.h: Tenex external declarations
  */

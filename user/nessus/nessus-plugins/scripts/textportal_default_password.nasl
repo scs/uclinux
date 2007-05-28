@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11660);
  script_bugtraq_id(7673);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "TextPortal Default Passwords";
  script_name(english:name["english"]);
@@ -30,7 +30,7 @@ At least one of these two passwords is still set. An attacker
 could use them to edit the content of the remote website.
 
 Solution : edit admin_pass.php and change the passwords of these users
-Risk Factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -46,6 +46,7 @@ Risk Factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -64,15 +65,16 @@ function check(dir, passwd)
  if ("admin.php?blokk=" >< res) return(1);
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
 
-dirs = make_list("",  cgi_dirs());
+if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
+
 passwds = make_list("admin", "12345");
 
 if(get_port_state(port))
 {
- foreach dir (dirs)
+ foreach dir (cgi_dirs())
  {
  	if(is_cgi_installed_ka(port:port, item:dir + "/admin.php"))
 	{

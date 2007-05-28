@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: event.c,v 1.31.2.2 2005/02/21 02:55:04 hno Exp $
  *
  * DEBUG: section 41    Event Processing
  * AUTHOR: Henrik Nordstrom
@@ -147,6 +147,26 @@ eventRun(void)
 	    func(arg);
 	}
 	memFree(event, MEM_EVENT);
+    }
+}
+
+void
+eventCleanup(void)
+{
+    struct ev_entry **p = &tasks;
+
+    debug(41, 0) ("eventCleanup\n");
+
+    while (*p) {
+	struct ev_entry *event = *p;
+	if (!cbdataValid(event->arg)) {
+	    debug(41, 0) ("eventCleanup: cleaning '%s'\n", event->name);
+	    *p = event->next;
+	    cbdataUnlock(event->arg);
+	    memFree(event, MEM_EVENT);
+	} else {
+	    p = &event->next;
+	}
     }
 }
 

@@ -2,7 +2,7 @@
 !
 ! RIPd sample configuration file
 !
-! $Id$
+! $Id: ripd.conf.sample,v 1.11 1999/02/19 17:28:42 developer Exp $
 !
 hostname ripd
 password zebra

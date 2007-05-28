@@ -6,8 +6,9 @@
 if(description)
 {
  script_id(11107);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2001-0849");
+ script_version ("$Revision: 1.8 $");
+ script_bugtraq_id(3495);
+ script_cve_id("CVE-2001-0849");
  name["english"] = "viralator";
  script_name(english:name["english"]);
  
@@ -19,7 +20,7 @@ the privileges of the web server
 ** No flaw was tested. Your script might be a safe version.
 
 Solutions : Upgrade this script to version 0.9pre2 or newer
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -42,9 +43,15 @@ Risk factor : Serious";
 }
 
 
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("viralator.cgi");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"viralator.cgi", port:port);
+if( res )security_hole(port);
 
 
 

@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(11331);
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(2296);
+ script_version ("$Revision: 1.3 $");
  script_cve_id("CVE-2001-0187");
  
  name["english"] = "wu-ftpd PASV format string";
@@ -50,7 +50,7 @@ include("ftp_func.inc");
 port = get_kb_item("Services/ftp");
 if(!port) port = 21;
 
-banner = get_ftp_banner(port);
+banner = get_ftp_banner(port:port);
 if(banner)
 {
   banner = tolower(banner);

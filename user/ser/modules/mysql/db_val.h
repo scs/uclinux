@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: db_val.h,v 1.3 2004/12/16 07:54:21 pchunt Exp $ 
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

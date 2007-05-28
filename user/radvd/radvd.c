@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: radvd.c,v 1.12 2001/12/28 08:39:54 psavola Exp $
  *
  *   Authors:
  *    Pedro Roque		<roque@di.fc.ul.pt>
@@ -22,7 +22,7 @@
 struct Interface *IfaceList = NULL;
 
 char usage_str[] =
-	"[-vh] [-d level] [-C config_file] [-m log_method] [-l log_file]\n"
+	"[-vhn] [-d level] [-C config_file] [-m log_method] [-l log_file]\n"
 	"\t[-f facility] [-p pid_file] [-u username] [-t chrootdir]";
 
 #ifdef HAVE_GETOPT_LONG
@@ -74,6 +74,7 @@ main(int argc, char *argv[])
 	int facility, fd;
 	char *username = NULL;
 	char *chrootdir = NULL;
+	int dodaemon = 1;
 #ifdef HAVE_GETOPT_LONG
 	int opt_idx;
 #endif
@@ -90,9 +91,9 @@ main(int argc, char *argv[])
 
 	/* parse args */
 #ifdef HAVE_GETOPT_LONG
-	while ((c = getopt_long(argc, argv, "d:C:l:m:p:t:u:vh", prog_opt, &opt_idx)) > 0)
+	while ((c = getopt_long(argc, argv, "d:C:l:m:np:t:u:vh", prog_opt, &opt_idx)) > 0)
 #else
-	while ((c = getopt(argc, argv, "d:C:l:m:p:t:u:vh")) > 0)
+	while ((c = getopt(argc, argv, "d:C:l:m:np:t:u:vh")) > 0)
 #endif
 	{
 		switch (c) {
@@ -133,6 +134,9 @@ main(int argc, char *argv[])
 				fprintf(stderr, "%s: unknown log method: %s\n", pname, optarg);
 				exit(1);
 			}
+			break;
+		case 'n':
+			dodaemon = 0;
 			break;
 		case 't':
 			chrootdir = strdup(optarg);
@@ -199,7 +203,7 @@ main(int argc, char *argv[])
 	}
 	
 	/* if we know how to do it, check whether forwarding is enabled */
-	if (check_ip6_forwarding()) {
+	if (dodaemon && check_ip6_forwarding()) {
 		if (get_debuglevel() == 0) {
 			log(LOG_ERR, "IPv6 forwarding seems to be disabled, exiting");
 			exit(1);
@@ -224,7 +228,7 @@ main(int argc, char *argv[])
 	 * lets fork now...
 	 */
 
-	if (get_debuglevel() == 0) {
+	if (get_debuglevel() == 0 && dodaemon) {
 
 		/* Detach from controlling terminal */
 		if (daemon(0, 0) < 0)

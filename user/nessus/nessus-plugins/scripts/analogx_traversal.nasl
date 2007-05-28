@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10489);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1508);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2000-0664");
  
  name["english"] = "AnalogX web server traversal";
@@ -51,7 +51,7 @@ Facteur de risque : Elevé";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -60,24 +60,20 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-
+port = get_http_port(default:80);
 if(! get_port_state(port)) exit(0);
 
-req1 = http_get(item:"%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/windows/win.ini", port:port);
-req2 = http_get(item:"%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/winnt/win.ini", port:port);
+server = get_http_banner(port:port);
+if ( ! server || ( "AnalogX" >!< server && "Simple Server" >!< server) ) exit(0);
 
-if (check_win_dir_trav(port: port, url: req1, quickcheck: 0))
+foreach d (make_list("windows", "winnt"))
 {
-  security_hole(port);
-  exit(0);
+ u = strcat("%2E%2E/%2E%2E/%2E%2E/%2E%2E/%2E%2E/", d, "/win.ini");
+ if (check_win_dir_trav_ka(port: port, url: u))
+ {
+   security_hole(port);
+   exit(0);
+ }
 }
-
-if (check_win_dir_trav(port: port, url: req2, quickcheck: 0))
-{
-  security_hole(port);
-  exit(0);
-}
-

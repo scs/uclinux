@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(11650);
- script_version ("$Revision: 1.2 $");
- script_bugtraq_id(7562);
+ script_bugtraq_id(10937, 7562);
+ script_version ("$Revision: 1.7 $");
  
 
  name["english"] = "MAILsweeper PowerPoint DoS";
@@ -31,7 +31,7 @@ loop which will consume all available CPU resources on this host.
 *** on the banner to identify them. Therefore, this warning may be
 *** a false positive
 
-Solution : Upgrade to MAILsweeper 4.3.8 or newer
+Solution : Upgrade to MAILsweeper 4.3.15 or newer
 Risk factor : Medium";
 
 
@@ -53,7 +53,7 @@ Risk factor : Medium";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -64,15 +64,8 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
-if(get_port_state(port))
-{
- soc = open_sock_tcp(port);
- if(soc)
- {
-  r = smtp_recv_banner(socket:soc);
-  if(!r)exit(0);
-  if(egrep(string:r,
-	pattern:"^220 .* MAILsweeper ESMTP Receiver Version ([0-3]\.|4\.([0-2]\.|3\.[0-7]\.)).*$"))
-		security_warning(port);
-  }
-}
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
+banner = get_smtp_banner(port:port);
+if ( ! banner ) exit(0);
+if(egrep(string:banner, pattern:"^220 .* MAILsweeper ESMTP Receiver Version ([0-3]\.|4\.([0-2]\.|3\.([0-9]|1[0-4])[^0-9])).*$")) security_warning(port);

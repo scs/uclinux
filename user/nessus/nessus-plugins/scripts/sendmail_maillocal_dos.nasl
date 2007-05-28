@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11351);
- script_version ("$Revision: 1.3 $");
- script_cve_id("CVE-2000-0319");
  script_bugtraq_id(1146);
+ script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-2000-0319");
 
  name["english"] = "Sendmail mail.local DOS";
  script_name(english:name["english"]);

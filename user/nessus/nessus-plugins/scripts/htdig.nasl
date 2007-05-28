@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10105);
- script_version ("$Revision: 1.17 $");
- script_bugtraq_id(1026);
+ script_bugtraq_id(1026, 867);
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-1999-0978", "CVE-2000-0208");
  name["english"] = "htdig";
  name["francais"] = "htdig";
@@ -19,15 +19,16 @@ which is part of the htdig package, allows
 a malicious user to view any file on the target 
 computer.
 
-Risk factor : Medium/High
 Solution : Upgrade to a newer version (3.1.5 or newer)
-	   available at http://www.htdig.org";
+	   available at http://www.htdig.org
+Risk factor : High
+";
 
  desc["francais"] = "Le CGI 'htsearch', qui
 appartient au package htDig, permet à un 
 pirate de lire n'importe quel fichier sur la machine cible.>
 
-Facteur de risque : Moyen/Elevé
+Facteur de risque : Elevé
 Solution : Mettez à jour htdig en 3.1.5 ou plus récent.
 	   htdig est disponible à http://www.htdig.org";
 
@@ -48,6 +49,7 @@ Solution : Mettez à jour htdig en 3.1.5 ou plus récent.
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
   script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -59,8 +61,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

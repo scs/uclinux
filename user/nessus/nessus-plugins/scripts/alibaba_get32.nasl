@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10011);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(770);
- script_cve_id("CAN-1999-0885");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-0885");
  
  name["english"] = "get32.exe vulnerability";
  name["francais"] = "get32.exe";
@@ -23,7 +23,7 @@ if(description)
 Solution : Remove the 'get32.exe' script from your web server's 
 CGI directory (usually cgi-bin/)..
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'get32.exe' est installé. Celui-ci possède
@@ -51,7 +51,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -60,8 +60,15 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 
-port = is_cgi_installed("get32.exe");
-if(port)
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"get32.exe", port:port);
+if( res )
 {
  security_hole(port);
 }

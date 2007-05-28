@@ -196,6 +196,16 @@ NODE_DATA sflist_next( SF_LIST * s )
     }
     return 0;
 }
+NODE_DATA sflist_prev( SF_LIST * s )
+{
+    if( s->cur )
+    {
+        s->cur = s->cur->prev;
+        if( s->cur ) 
+            return s->cur->ndata;
+    }
+    return 0;
+}
 /* 
 *   List walk - First/Next - return the node data or NULL
 */
@@ -268,6 +278,46 @@ NODE_DATA sflist_remove_tail (SF_LIST * s)
     }
   return (NODE_DATA)ndata;
 }
+
+/*
+ * Written to remove current node from an SFLIST
+ * MFR - 29May04
+ */
+NODE_DATA sflist_remove_current (SF_LIST * s) 
+{
+    NODE_DATA ndata = NULL;
+    SF_LNODE *l;
+
+    l = s->cur;
+    
+    if(l)
+    {
+        ndata = l->ndata;
+
+        if(l->prev)
+        {
+            l->prev->next = l->next;
+            s->cur = l->prev;
+        }
+        else
+        {
+            s->head = l->next;
+            s->cur = l->next;
+        }
+
+        if(l->next)
+            l->next->prev = l->prev;
+        else
+            s->tail = l->prev;
+
+        s->count--;
+        s_free(l);
+        return (NODE_DATA)ndata;
+    }
+
+    return NULL;
+}
+
 
 /*
 *  Remove Head Item from queue

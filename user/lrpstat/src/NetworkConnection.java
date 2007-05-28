@@ -17,9 +17,9 @@
 */
 
 
-// $Revision$
-// $Author$
-// $Header$
+// $Revision: 1.14 $
+// $Author: hejl $
+// $Header: /home/cvs/lrpStat/src/NetworkConnection.java,v 1.14 2002/04/10 19:46:22 hejl Exp $
 
 
 import java.net.Socket;

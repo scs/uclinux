@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10031);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-0647");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-1999-0647");
  name["english"] = "bootparamd service";
  name["francais"] = "Service bootparamd";
  script_name(english:name["english"], francais:name["francais"]);
@@ -31,7 +31,7 @@ Solution : filter incoming traffic to prevent connections
 to the portmapper and to the bootparam daemon,
 or deactivate this service if you do not use it.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "

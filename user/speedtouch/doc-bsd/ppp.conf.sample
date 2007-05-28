@@ -10,7 +10,7 @@
 # `adsl' profile is for the default PPPoA mode
 # `pppoe' profile is for the bridged PPPoE mode
 #
-#   $Id$
+#   $Id: ppp.conf.sample,v 1.5 2003/07/23 03:36:41 rogler Exp $
 #################################################################
 
 default:

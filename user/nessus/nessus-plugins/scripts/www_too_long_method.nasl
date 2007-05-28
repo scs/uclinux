@@ -7,31 +7,14 @@
 #      Erik Anderson <eanders@carmichaelsecurity.com>
 #      Added BugtraqID and CAN
 #
-# References:
-# From:"Matthew Murphy" <mattmurphy@kc.rr.com>
-# To:"BugTraq" <bugtraq@securityfocus.com>, 
-#  "Vuln-Dev" <vuln-dev@securityfocus.com>, 
-#  "SecurITeam News" <news@securiteam.com>,
-#  "Full Disclosure" <full-disclosure@lists.netsys.com>
-# Subject: Unchecked Buffer in Jana Web Server
-# Date: Mon, 5 Aug 2002 17:38:45 -0500
-#
-# Date:  Fri, 26 Jul 2002 12:12:45 +0400
-# From: "3APA3A" <3APA3A@SECURITY.NNOV.RU>
-# To: bugtraq@securityfocus.com
-# Subject: SECURITY.NNOV: multiple vulnerabilities in JanaServer
-#
-# Affected:
-# JanaServer?
-# 
 
 
 if(description)
 {
  script_id(11065);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CAN-2002-1061");
  script_bugtraq_id(5319);
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2002-1061");
  name["english"] = "HTTP method overflow";
  script_name(english:name["english"]);
  
@@ -71,8 +54,8 @@ include("http_func.inc");
 
 r = string(crap(data:"HEADNESSUSNESSUS", length: 2048), " / HTTP/1.0\r\n\r\n");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 if (http_is_dead(port: port)) exit(0);

@@ -1,4 +1,4 @@
-/*	$OpenBSD: servconf.h,v 1.65 2003/09/01 18:15:50 markus Exp $	*/
+/*	$OpenBSD: servconf.h,v 1.72 2005/12/06 22:38:27 reyk Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -16,6 +16,8 @@
 #ifndef SERVCONF_H
 #define SERVCONF_H
 
+#include "buffer.h"
+
 #define MAX_PORTS		256	/* Max # ports. */
 
 #define MAX_ALLOW_USERS		256	/* Max # users on allow list. */
@@ -24,6 +26,7 @@
 #define MAX_DENY_GROUPS		256	/* Max # groups on deny list. */
 #define MAX_SUBSYSTEMS		256	/* Max # subsystems. */
 #define MAX_HOSTKEYS		256	/* Max # hostkeys. */
+#define MAX_ACCEPT_ENV		256	/* Max # of env vars. */
 
 /* permit_root_login */
 #define	PERMIT_NOT_SET		-1
@@ -32,6 +35,7 @@
 #define	PERMIT_NO_PASSWD	2
 #define	PERMIT_YES		3
 
+#define DEFAULT_AUTH_FAIL_MAX	6	/* Default for MaxAuthTries */
 
 typedef struct {
 	u_int num_ports;
@@ -39,6 +43,7 @@ typedef struct {
 	u_short ports[MAX_PORTS];	/* Port number to listen on. */
 	char   *listen_addr;		/* Address on which the server listens. */
 	struct addrinfo *listen_addrs;	/* Addresses on which the server listens. */
+	int     address_family;		/* Address family used by the server. */
 	char   *host_key_files[MAX_HOSTKEYS];	/* Files containing host keys. */
 	int     num_host_key_files;     /* Number of files for host keys. */
 	char   *pid_file;	/* Where to put our pid */
@@ -58,7 +63,7 @@ typedef struct {
 	int     x11_use_localhost;	/* If true, use localhost for fake X11 server. */
 	char   *xauth_location;	/* Location of xauth program */
 	int     strict_modes;	/* If true, require string home dir modes. */
-	int     keepalives;	/* If true, set SO_KEEPALIVE. */
+	int     tcp_keep_alive;	/* If true, set SO_KEEPALIVE. */
 	char   *ciphers;	/* Supported SSH2 ciphers. */
 	char   *macs;		/* Supported SSH2 macs. */
 	int	protocol;	/* Supported protocol versions. */
@@ -80,6 +85,8 @@ typedef struct {
 						 * /etc/passwd */
 	int     kerberos_ticket_cleanup;	/* If true, destroy ticket
 						 * file on logout. */
+	int     kerberos_get_afs_token;		/* If true, try to get AFS token if
+						 * authenticated with Kerberos. */
 	int     gss_authentication;	/* If true, permit GSSAPI authentication */
 	int     gss_cleanup_creds;	/* If true, destroy cred cache on logout */
 	int     password_authentication;	/* If true, permit password
@@ -105,9 +112,13 @@ typedef struct {
 	char   *subsystem_name[MAX_SUBSYSTEMS];
 	char   *subsystem_command[MAX_SUBSYSTEMS];
 
+	u_int num_accept_env;
+	char   *accept_env[MAX_ACCEPT_ENV];
+
 	int	max_startups_begin;
 	int	max_startups_rate;
 	int	max_startups;
+	int	max_authtries;
 	char   *banner;			/* SSH-2 banner message */
 	int	use_dns;
 	int	client_alive_interval;	/*
@@ -122,13 +133,16 @@ typedef struct {
 
 	char   *authorized_keys_file;	/* File containing public keys */
 	char   *authorized_keys_file2;
+
 	int	use_pam;		/* Enable auth via PAM */
+
+	int	permit_tun;
 }       ServerOptions;
 
 void	 initialize_server_options(ServerOptions *);
-void	 read_server_config(ServerOptions *, const char *);
 void	 fill_default_server_options(ServerOptions *);
 int	 process_server_config_line(ServerOptions *, char *, const char *, int);
-
+void	 load_server_config(const char *, Buffer *);
+void	 parse_server_config(ServerOptions *, const char *, Buffer *);
 
 #endif				/* SERVCONF_H */

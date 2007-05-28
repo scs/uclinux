@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(11012);
- script_version ("$Revision: 1.7 $");
- script_cve_id("CAN-2002-0769");
- script_bugtraq_id(4711);
+ script_bugtraq_id(4711, 4712);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2002-0769");
  
  name["english"] = "ATA-186 password circumvention / recovery";
  script_name(english:name["english"]);
@@ -52,8 +52,8 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port=get_kb_item("Services/www");
-if(!port)port=80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

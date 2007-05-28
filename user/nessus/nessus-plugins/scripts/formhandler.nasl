@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10075);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-1051");
  script_bugtraq_id(799);
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-1051");
  name["english"] = "FormHandler.cgi";
  name["francais"] = "FormHandler.cgi";
  script_name(english:name["english"], francais:name["francais"]);
@@ -20,7 +20,7 @@ file with the privileges of the http daemon (root or nobody).
 
 Solution : remove it from /.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'FormHandler.cgi' est installé. Celui-ci possède
@@ -48,7 +48,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "smtp_settings.nasl");
+ script_dependencie("http_version.nasl", "smtp_settings.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -57,9 +57,10 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  domain = get_kb_item("Settings/third_party_domain");
@@ -80,14 +81,8 @@ if(get_port_state(port))
 
  s3 = string(s,s2);
  
- soc = http_open_socket(port);
- if(soc)
- {
-    send(socket:soc, data:s3);
-    b = http_recv(socket:soc);
-    if(egrep(pattern:"root:.*:0:[01]:.*", string:b))security_hole(port);
-    http_close_socket(soc);
- }
+ b = http_keepalive_send_recv( port:port, data:s3);
+ if(egrep(pattern:"root:.*:0:[01]:.*", string:b))security_hole(port);
 } 
 
 

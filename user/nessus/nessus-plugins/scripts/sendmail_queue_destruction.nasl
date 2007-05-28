@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(11087);
- script_cve_id("CAN-2001-0714");
  script_bugtraq_id(3378);
- script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-2001-0714");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Sendmail queue manipulation & destruction";
  name["francais"] = "Manipulation & destruction de la file d'attente de sendmail";
@@ -82,7 +82,7 @@ port = get_kb_item("Services/smtp");
 if(!port) port = 25;
 
 banner = get_smtp_banner(port: port);
-if(! banner) exit(0);
+if(! banner || "Switch-" >< banner ) exit(0);
 
 if(egrep(pattern:".*Sendmail.*8\.(([0-9]\..*)|(1[01]\..*)|(12\.0)).*",
 	string:banner))

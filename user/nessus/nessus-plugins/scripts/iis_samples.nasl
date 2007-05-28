@@ -9,61 +9,38 @@
 # See the Nessus Scripts License for details
 #
 
-head = "
+desc = "
 Some of the IIS sample files are present.
 
 They all contain various security flaws which could allow 
 an attacker to execute arbitrary commands, read arbitrary files 
 or gain valuable information about the remote system. 
 
-";
-
-
-tail = "
 Solution : Delete the whole /iissamples directory
 Reference : http://online.securityfocus.com/infocus/1318
 Risk factor : High";
 
-desc["english"] = head + tail;
-
-desc["francais"] = "
-Certains des fichiers d'exemples sont installés.
-
-Ils contiennent tous des failles permettant à un pirate
-d'executer des commandes arbitraires, de lire des fichiers
-arbitraires ou bien d'avoir plus d'informations sur ce
-système.
-
-Solution : effacez le dossier /iissamples
-Facteur de risque : Elevé";
-
 if(description)
 {
  script_id(10370);
- script_version ("$Revision: 1.18 $");
+ script_version ("$Revision: 1.23 $");
 
  name["english"] = "IIS dangerous sample files";
- name["francais"] = "Fichiers d'exemples IIS dangereux";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc);
  
  summary["english"] = "Determines whether IIS samples files are installed";
- summary["francais"] = "Determines si les fichiers d'exemples de IIS sont installés";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-    francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -125,13 +102,12 @@ messages[12] = "Sample ASP Search Form";
 found_files = "";
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
 
-if(get_port_state(port))
-{ 
-  for(i = 0; files[i]; i = i + 1)
-  {
+
+for(i = 0; files[i]; i = i + 1)
+{
       request = http_get(item: files[i], port: port);
       response = http_keepalive_send_recv(port:port, data:request);
       if(response == NULL)break;
@@ -140,7 +116,6 @@ if(get_port_state(port))
       {
         found_files = string(found_files, files[i], "\n");
       }
-   }
 }
 
 #--
@@ -149,6 +124,6 @@ if(get_port_state(port))
 if(found_files != "")
 {
   msg = string("\n\nThe following files are present:\n\n");
-  report = string(head, msg, found_files, "\n", tail);  
+  report = string(desc, msg, found_files);  
   security_hole(data: report, port: port);
 }

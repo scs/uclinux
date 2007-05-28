@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10133);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(2666);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-1999-0016");
  name["english"] = "Land";
  name["francais"] = "Land";

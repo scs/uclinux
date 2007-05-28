@@ -1,9 +1,9 @@
 if(description)
 {
  script_id(10647);
- script_cve_id("CVE-2001-0414");
  script_bugtraq_id(2540);
- script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-2001-0414");
+ script_version ("$Revision: 1.21 $");
 
  
  name["english"] = "ntpd overflow";
@@ -29,10 +29,12 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"]);
- script_dependencie("nmap_osfingerprint.nes");
+ script_dependencies("ntp_open.nasl");
+ script_require_keys("NTP/Running");
  exit(0);
 }
 
+include('global_settings.inc');
 
 
 function ntp_installed()
@@ -81,6 +83,7 @@ if(ntp_installed())
 {
 if(safe_checks())
  { 
+  if ( report_paranoia == 0 ) exit(0);
   if(ntp_filter())exit(0);
  warn = "
 An NTP server is running on the remote host. Make sure that

@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(11798);
- script_version ("$Revision: 1.9 $");
- script_bugtraq_id(8234);
- script_cve_id("CAN-2003-0605");
+ script_bugtraq_id(8234, 8460);
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-2003-0605");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0012");
  
  name["english"] = "RPC DCOM Interface DoS";
@@ -24,25 +24,8 @@ rebooted to recover.
 An attacker may exploit this flaw to remotely disable RPC related 
 programs on this host.
 
-Solution : http://www.microsoft.com/technet/security/bulletin/ms03-039.asp
-
-Workaround :
-
-For a temporary workaround, either filter ALL TCP
-traffic to this host, including TCP port 135 and ALL
-ports used for RPC services or disable the
-Microsoft Distributed Transaction Coordinator
-
-NOTE: Turning Distributed Transaction Coordinator in
-Service panel will NOT fix the problem, the 'dcom' config
-program must be used instead :
-
->> Start >> Run >> 'dcomcnfg.exe'
->> Default Properties Tab
-Clear the 'Enable Distributed Com on this computer'  
->>OK
-
-Risk Factor : Serious";
+Solution : http://www.microsoft.com/technet/security/bulletin/ms03-039.mspx
+Risk factor : High";
 
 
 
@@ -77,7 +60,6 @@ r = recv(socket:soc, length:60);
 send(socket:soc, data:request);
 r = recv(socket:soc, length:60);
 close(soc);
-
 sleep(1);
-soc = open_sock_tcp(135);
-if(!soc)security_hole(port);
+soc = open_sock_tcp(135, timeout:10);
+if(!soc)security_hole(135);

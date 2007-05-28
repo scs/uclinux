@@ -229,18 +229,21 @@ int LogSessionData(Packet *p, struct _OptTreeNode *otn, OptFpList *fp_list)
     FILE *session;         /* session file ptr */
 
     /* if there's data in this packet */
-    if((p != NULL && p->dsize != 0 && p->data != NULL) || p->frag_flag != 1)
-    {
-        session = OpenSessionFile(p);
-
-        if(session == NULL)
+    if(p != NULL) 
+    { 
+        if((p->dsize != 0 && p->data != NULL) || p->frag_flag != 1)
         {
-            return fp_list->next->OptTestFunc(p, otn, fp_list->next);
+             session = OpenSessionFile(p);
+
+             if(session == NULL)
+             {
+                 return fp_list->next->OptTestFunc(p, otn, fp_list->next);
+             }
+
+             DumpSessionData(session, p, otn);
+
+             fclose(session);
         }
-
-        DumpSessionData(session, p, otn);
-
-        fclose(session);
     }
 
     return fp_list->next->OptTestFunc(p, otn, fp_list->next);

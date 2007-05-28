@@ -10,7 +10,7 @@
  *
  * Marc
  *
- * $Id$
+ * $Id: Dolphin.c,v 1.8 2005/03/13 17:27:45 gert Exp $
  *
  */
 

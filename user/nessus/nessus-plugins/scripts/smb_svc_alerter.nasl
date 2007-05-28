@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10457);
- script_version ("$Revision: 1.9 $");
- script_cve_id("CAN-1999-0630"); 
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-1999-0630"); 
 
  name["english"] = "The alerter service is running";
  name["francais"] = "Le service 'avertissement' tourne";

@@ -3,7 +3,7 @@
 if(description)
 {
  script_id(11358);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CVE-1999-0168");
  
  name["english"] = "The remote portmapper forwards NFS requests";
@@ -11,10 +11,11 @@ if(description)
  
  desc["english"] = "
 The remote RPC portmapper forwards NFS requests made to it.
-An attacker may use this flaw to make NFS mount requests which
-will appear to come from localhost.
 
-Solution : Upgrade your portmapper
+An attacker may use this flaw to make NFS mount requests which will appear 
+to come from localhost and therefore override the ACLs set up for NFS.
+
+Solution : Upgrade your portmapper to a newer version
 Risk factor : High";
 
 
@@ -48,6 +49,7 @@ shares = make_list(list);
 
 
 port = get_rpc_port(program:100005, protocol:IPPROTO_UDP);
+if ( ! port ) exit(0);
 soc = open_priv_sock_udp(dport:port);
 
 if(!soc)exit(0);

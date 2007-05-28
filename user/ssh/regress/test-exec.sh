@@ -1,13 +1,31 @@
-#	$OpenBSD: test-exec.sh,v 1.14 2002/04/15 15:19:48 markus Exp $
+#	$OpenBSD: test-exec.sh,v 1.28 2005/05/20 23:14:15 djm Exp $
 #	Placed in the Public Domain.
 
-PORT=4242
 #SUDO=sudo
+
+# Unbreak GNU head(1)
+_POSIX2_VERSION=199209
+export _POSIX2_VERSION
+
+case `uname -s 2>/dev/null` in
+OSF1*)
+	BIN_SH=xpg4
+	export BIN_SH
+	;;
+esac
+
+if [ ! -z "$TEST_SSH_PORT" ]; then
+	PORT="$TEST_SSH_PORT"
+else
+	PORT=4242
+fi
 
 if [ -x /usr/ucb/whoami ]; then
 	USER=`/usr/ucb/whoami`
 elif whoami >/dev/null 2>&1; then
 	USER=`whoami`
+elif logname >/dev/null 2>&1; then
+	USER=`logname`
 else
 	USER=`id -un`
 fi
@@ -30,13 +48,15 @@ if [ ! -f $SCRIPT ]; then
 	echo "not a file: $SCRIPT"
 	exit 2
 fi
-if sh -n $SCRIPT; then
+if $TEST_SHELL -n $SCRIPT; then
 	true
 else
 	echo "syntax error in $SCRIPT"
 	exit 2
 fi
 unset SSH_AUTH_SOCK
+
+SRC=`dirname ${SCRIPT}`
 
 # defaults
 SSH=ssh
@@ -47,35 +67,49 @@ SSHKEYGEN=ssh-keygen
 SSHKEYSCAN=ssh-keyscan
 SFTP=sftp
 SFTPSERVER=/usr/libexec/openssh/sftp-server
+SCP=scp
 
 if [ "x$TEST_SSH_SSH" != "x" ]; then
-	SSH=${TEST_SSH_SSH}
+	SSH="${TEST_SSH_SSH}"
 fi
 if [ "x$TEST_SSH_SSHD" != "x" ]; then
-	SSHD=${TEST_SSH_SSHD}
+	SSHD="${TEST_SSH_SSHD}"
 fi
 if [ "x$TEST_SSH_SSHAGENT" != "x" ]; then
-	SSHAGENT=${TEST_SSH_SSHAGENT}
+	SSHAGENT="${TEST_SSH_SSHAGENT}"
 fi
 if [ "x$TEST_SSH_SSHADD" != "x" ]; then
-	SSHADD=${TEST_SSH_SSHADD}
+	SSHADD="${TEST_SSH_SSHADD}"
 fi
 if [ "x$TEST_SSH_SSHKEYGEN" != "x" ]; then
-	SSHKEYGEN=${TEST_SSH_SSHKEYGEN}
+	SSHKEYGEN="${TEST_SSH_SSHKEYGEN}"
 fi
 if [ "x$TEST_SSH_SSHKEYSCAN" != "x" ]; then
-	SSHKEYSCAN=${TEST_SSH_SSHKEYSCAN}
+	SSHKEYSCAN="${TEST_SSH_SSHKEYSCAN}"
 fi
 if [ "x$TEST_SSH_SFTP" != "x" ]; then
-	SFTP=${TEST_SSH_SFTP}
+	SFTP="${TEST_SSH_SFTP}"
 fi
 if [ "x$TEST_SSH_SFTPSERVER" != "x" ]; then
-	SFTPSERVER=${TEST_SSH_SFTPSERVER}
+	SFTPSERVER="${TEST_SSH_SFTPSERVER}"
+fi
+if [ "x$TEST_SSH_SCP" != "x" ]; then
+	SCP="${TEST_SSH_SCP}"
+fi
+
+# Path to sshd must be absolute for rexec
+case "$SSHD" in
+/*) ;;
+*) SSHD=`which sshd` ;;
+esac
+
+if [ "x$TEST_SSH_LOGFILE" = "x" ]; then
+	TEST_SSH_LOGFILE=/dev/null
 fi
 
 # these should be used in tests
-export SSH SSHD SSHAGENT SSHADD SSHKEYGEN SSHKEYSCAN SFTP SFTPSERVER
-#echo $SSH $SSHD $SSHAGENT $SSHADD $SSHKEYGEN $SSHKEYSCAN $SFTP $SFTPSERVER
+export SSH SSHD SSHAGENT SSHADD SSHKEYGEN SSHKEYSCAN SFTP SFTPSERVER SCP
+#echo $SSH $SSHD $SSHAGENT $SSHADD $SSHKEYGEN $SSHKEYSCAN $SFTP $SFTPSERVER $SCP
 
 # helper
 echon()
@@ -122,6 +156,7 @@ cleanup ()
 
 trace ()
 {
+	echo "trace: $@" >>$TEST_SSH_LOGFILE
 	if [ "X$TEST_SSH_TRACE" = "Xyes" ]; then
 		echo "$@"
 	fi
@@ -129,6 +164,7 @@ trace ()
 
 verbose ()
 {
+	echo "verbose: $@" >>$TEST_SSH_LOGFILE
 	if [ "X$TEST_SSH_QUIET" != "Xyes" ]; then
 		echo "$@"
 	fi
@@ -137,12 +173,14 @@ verbose ()
 
 fail ()
 {
+	echo "FAIL: $@" >>$TEST_SSH_LOGFILE
 	RESULT=1
 	echo "$@"
 }
 
 fatal ()
 {
+	echo "FATAL: $@" >>$TEST_SSH_LOGFILE
 	echon "FATAL: "
 	fail "$@"
 	cleanup
@@ -156,14 +194,23 @@ trap fatal 3 2
 
 # create server config
 cat << EOF > $OBJ/sshd_config
+	StrictModes		no
 	Port			$PORT
+	AddressFamily		inet
 	ListenAddress		127.0.0.1
 	#ListenAddress		::1
 	PidFile			$PIDFILE
 	AuthorizedKeysFile	$OBJ/authorized_keys_%u
-	LogLevel		QUIET
-	StrictModes		no
+	LogLevel		VERBOSE
+	AcceptEnv		_XXX_TEST_*
+	AcceptEnv		_XXX_TEST
+	Subsystem	sftp	$SFTPSERVER
 EOF
+
+if [ ! -z "$TEST_SSH_SSHD_CONFOPTS" ]; then
+	trace "adding sshd_config option $TEST_SSH_SSHD_CONFOPTS"
+	echo "$TEST_SSH_SSHD_CONFOPTS" >> $OBJ/sshd_config
+fi
 
 # server config for proxy connects
 cp $OBJ/sshd_config $OBJ/sshd_proxy
@@ -185,11 +232,14 @@ Host *
 	ChallengeResponseAuthentication	no
 	HostbasedAuthentication	no
 	PasswordAuthentication	no
-	RhostsAuthentication	no
-	RhostsRSAAuthentication	no
 	BatchMode		yes
 	StrictHostKeyChecking	yes
 EOF
+
+if [ ! -z "$TEST_SSH_SSH_CONFOPTS" ]; then
+	trace "adding ssh_config option $TEST_SSH_SSHD_CONFOPTS"
+	echo "$TEST_SSH_SSH_CONFOPTS" >> $OBJ/ssh_config
+fi
 
 rm -f $OBJ/known_hosts $OBJ/authorized_keys_$USER
 
@@ -197,7 +247,7 @@ trace "generate keys"
 for t in rsa rsa1; do
 	# generate user key
 	rm -f $OBJ/$t
-	${SSHKEYGEN} -q -N '' -t $t  -f $OBJ/$t ||\
+	${SSHKEYGEN} -b 1024 -q -N '' -t $t  -f $OBJ/$t ||\
 		fail "ssh-keygen for $t failed"
 
 	# known hosts file for client
@@ -222,7 +272,7 @@ chmod 644 $OBJ/authorized_keys_$USER
 # create a proxy version of the client config
 (
 	cat $OBJ/ssh_config
-	echo proxycommand ${SUDO} ${SSHD} -i -f $OBJ/sshd_proxy
+	echo proxycommand ${SUDO} sh ${SRC}/sshd-log-wrapper.sh ${SSHD} ${TEST_SSH_LOGFILE} -i -f $OBJ/sshd_proxy
 ) > $OBJ/ssh_proxy
 
 # check proxy config
@@ -232,7 +282,7 @@ start_sshd ()
 {
 	# start sshd
 	$SUDO ${SSHD} -f $OBJ/sshd_config -t	|| fatal "sshd_config broken"
-	$SUDO ${SSHD} -f $OBJ/sshd_config
+	$SUDO ${SSHD} -f $OBJ/sshd_config -e >>$TEST_SSH_LOGFILE 2>&1
 
 	trace "wait for sshd"
 	i=0;

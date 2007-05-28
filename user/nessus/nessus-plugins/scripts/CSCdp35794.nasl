@@ -12,9 +12,9 @@
 if(description)
 {
  script_id(10975);
- script_version("$Revision: 1.4 $");
- script_cve_id("CVE-2000-0700");
  script_bugtraq_id(1541);
+ script_version("$Revision: 1.5 $");
+ script_cve_id("CVE-2000-0700");
 
  name["english"] = "CSCdp35794";
 

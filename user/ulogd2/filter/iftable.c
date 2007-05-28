@@ -56,6 +56,13 @@ int iftable_dump(FILE *outfd)
 	return 0;
 }
 
+#ifndef IFLA_RTA
+#define IFLA_RTA(r)  ((struct rtattr*)(((char*)(r)) + NLMSG_ALIGN(sizeof(struct ifinfomsg))))
+#endif
+#ifndef IFLA_PAYLOAD
+#define IFLA_PAYLOAD(n) NLMSG_PAYLOAD(n,sizeof(struct ifinfomsg))
+#endif
+
 /* iftable_add - Add/Update an entry to/in the interface table
  * @n:		netlink message header of a RTM_NEWLINK message
  * @arg:	not used

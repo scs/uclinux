@@ -1,7 +1,7 @@
 /* Nessuslib -- the Nessus Library
  * Copyright (C) 1998 - 2002 Renaud Deraison
  *
- * $Id: ids_send.c,v 1.26 2003/05/21 14:41:32 renaud Exp $
+ * $Id: ids_send.c,v 1.27.2.1 2005/07/06 20:48:11 renaud Exp $
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Library General Public
@@ -159,8 +159,8 @@ int which_ttl(method, old_ttl)
   */
  else /* if(method & NESSUS_CNX_IDS_EVASION_INJECT) */
  {
- int f;
 #ifdef LINUX
+ int f;
  f = open("/proc/sys/net/ipv4/ip_default_ttl", O_RDONLY);
  if(f >= 0)
  {
@@ -388,9 +388,9 @@ ids_send(fd, buf0, n, method)
  int ret = 0;
  int len;
  char * buf = (char*)buf0;
- int sz  = sizeof(sockaddr);
+ unsigned int sz  = sizeof(sockaddr);
  int e;
- const char * packet;
+ unsigned char * packet;
  int bpf;
  
  bzero(&sockaddr, sizeof(sockaddr));
@@ -497,7 +497,6 @@ int ids_open_sock_tcp(args, port, method, timeout)
  char * src_host, * dst_host;
  int ret = 0;
  int len;
- int b;
 
  dst = plug_get_host_ip(args);
  if(!dst)
@@ -521,7 +520,7 @@ int ids_open_sock_tcp(args, port, method, timeout)
   ret = open_sock_tcp(args, port, timeout);
   if(ret >= 0)
   {
-   const char * packet = bpf_next(bpf, &len);
+   unsigned char * packet = bpf_next(bpf, &len);
    if(packet)
    {
    char *pkt_ip;

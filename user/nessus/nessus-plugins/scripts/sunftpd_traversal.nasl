@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(11374);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.6 $");
  #NO bugtraq_id
- script_cve_id("CAN-2001-0283");
+ script_cve_id("CVE-2001-0283");
  name["english"] = "SunFTP directory traversal";
 
  script_name(english:name["english"]);
@@ -38,7 +38,7 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi",
  		  francais:"Ce script est Copyright (C) 2003 Xue Yong Zhi");
 
- script_dependencie("find_service.nes");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl");
  script_require_keys("ftp/login"); 
  script_require_ports("Services/ftp", 21);
  exit(0);
@@ -91,7 +91,7 @@ if(!login)exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
-  if(ftp_log_in(socket:soc, user:login, pass:pass))
+  if(ftp_authenticate(socket:soc, user:login, pass:pass))
   {
 	#dir name may already exists, try 5 times to get one unused
 	for(i=0;i<5;i++) {
@@ -104,15 +104,15 @@ if(soc)
 		#Try to creat a new dir
 		send(socket:soc, data:mkdir);
 		b = ftp_recv_line(socket:soc);
-		if(ereg(pattern:"^257 .*", string:b)) {
+		if(egrep(pattern:"^257 .*", string:b)) {
 
-			#If the system is not vunerable, it may create the
+			#If the system is not vulnerable, it may create the
 			#new dir in the current dir, instead of the parent dir.
 			#if we can CWD into it, the system is not vunerable.
 			
 			send(socket:soc, data:cwd);
 			b = ftp_recv_line(socket:soc);
-			if(!ereg(pattern:"^250 .*", string:b)) {
+			if(!egrep(pattern:"^250 .*", string:b)) {
 				security_hole(port);
 			} else {
 				send(socket:soc, data:up);	#cd..

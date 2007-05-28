@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10812);
- script_cve_id("CAN-2001-0927");
- script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2001-0927");
+ script_version ("$Revision: 1.8 $");
  
  
  name["english"] = "libgtop_daemon format string";

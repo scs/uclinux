@@ -47,8 +47,19 @@
 #include "util.h"
 #include "mstring.h"
 #include "parser.h"
+#include "debug.h"
 
 #include "IpAddrSet.h"
+
+IpAddrSet *IpAddrSetCreate()
+{
+    IpAddrSet *tmp;
+
+    tmp = (IpAddrSet *) SnortAlloc(sizeof(IpAddrSet));
+
+    return tmp;
+}
+
 
 void IpAddrSetDestroy(IpAddrSet *ipAddrSet)
 {
@@ -64,7 +75,7 @@ void IpAddrSetDestroy(IpAddrSet *ipAddrSet)
 
 static char buffer[1024];
 
-void IpAddrSetPrint(IpAddrSet *ipAddrSet)
+void IpAddrSetPrint(char *prefix, IpAddrSet *ipAddrSet)
 {
     struct in_addr in;
     size_t offset = 0;
@@ -79,7 +90,10 @@ void IpAddrSetPrint(IpAddrSet *ipAddrSet)
         in.s_addr = ipAddrSet->netmask;
         offset += snprintf(buffer + offset, 1024 - offset, "%s", inet_ntoa(in));
         buffer[offset] = '\0';
-        LogMessage("%s\n", buffer);
+        if (prefix)
+            LogMessage("%s%s\n", prefix, buffer);
+        else
+            LogMessage("%s%s\n", buffer);
         ipAddrSet = ipAddrSet->next;
     }
 }
@@ -140,11 +154,12 @@ int ParseIP(char *paddr, IpAddrSet *address_data)
     char **toks;        /* token dbl buffer */
     int num_toks;       /* number of tokens found by mSplit() */
     int cidr = 1;       /* is network expressed in CIDR format */
-    int nmask;          /* netmask temporary storage */
+    int nmask = -1;     /* netmask temporary storage */
     char *addr;         /* string to parse, eventually a
                          * variable-contents */
     struct hostent *host_info;  /* various struct pointers for stuff */
     struct sockaddr_in sin; /* addr struct */
+    char broadcast_addr_set = 0;
 
     addr = paddr;
 
@@ -199,6 +214,12 @@ int ParseIP(char *paddr, IpAddrSet *address_data)
                 if(!isdigit((int) toks[1][0]))
                     nmask = -1;
 
+                /* if second char is != '\0', it must be a digit
+                 * by Daniel B. Cid, dcid@sourcefire.com
+                 */ 
+                if((toks[1][1] != '\0')&&(!isdigit((int) toks[1][1]) ))
+                    nmask = -1;
+                
                 if((nmask > -1) && (nmask < 33))
                 {
                     address_data->netmask = netmasks[nmask];
@@ -233,6 +254,9 @@ int ParseIP(char *paddr, IpAddrSet *address_data)
                     FatalError("ERROR %s(%d): Unable to parse rule netmask "
                             "(%s)\n", file_name, file_line, toks[1]);
                 }
+                /* Set nmask so we don't try to do a host lookup below.
+                 * The value of 0 is irrelevant. */
+                nmask = 0;
             }
             break;
 
@@ -241,6 +265,8 @@ int ParseIP(char *paddr, IpAddrSet *address_data)
                     file_name, file_line, addr);
             break;
     }
+    sin.sin_addr.s_addr = inet_addr(toks[0]);
+
 #ifndef WORDS_BIGENDIAN
     /*
      * since PC's store things the "wrong" way, shuffle the bytes into the
@@ -251,62 +277,182 @@ int ParseIP(char *paddr, IpAddrSet *address_data)
         address_data->netmask = htonl(address_data->netmask);
     }
 #endif
-
-    /* convert names to IP addrs */
-    if(isalpha((int) toks[0][0]))
-    {
-        /* get the hostname and fill in the host_info struct */
-        if((host_info = gethostbyname(toks[0])))
-        {
-            /* protecting against malicious DNS servers */
-            if(host_info->h_length <= sizeof(sin.sin_addr))
-            {
-                bcopy(host_info->h_addr, (char *) &sin.sin_addr, host_info->h_length);
-            }
-            else
-            {
-                bcopy(host_info->h_addr, (char *) &sin.sin_addr, sizeof(sin.sin_addr));
-            }
-        }
-        else if((sin.sin_addr.s_addr = inet_addr(toks[0])) == INADDR_NONE)
-        {
-            FatalError("ERROR %s(%d): Couldn't resolve hostname %s\n",
-                    file_name, file_line, toks[0]);
-        }
-
-        address_data->ip_addr = ((u_long) (sin.sin_addr.s_addr) &
-                                 (address_data->netmask));
-        mSplitFree(&toks, num_toks);
-        return 1;
-    }
-
-    /* convert the IP addr into its 32-bit value */
-
     /* broadcast address fix from Steve Beaty <beaty@emess.mscd.edu> */
-
-    /*
-     * if the address is the (v4) broadcast address, inet_addr returns -1 *
-     * which usually signifies an error, but in the broadcast address case, *
-     * is correct.  we'd use inet_aton() here, but it's less portable.
-     */
+    /* Changed location */
     if(!strncmp(toks[0], "255.255.255.255", 15))
     {
         address_data->ip_addr = INADDR_BROADCAST;
+        broadcast_addr_set = 1;
     }
-    else if((address_data->ip_addr = inet_addr(toks[0])) == -1)
+    else if (nmask == -1)
     {
-        FatalError("ERROR %s(%d): Rule IP addr (%s) didn't translate\n", 
-                file_name, file_line, toks[0]);
+        /* Try to do a host lookup if the address didn't
+         * convert to a valid IP and there were not any
+         * mask bits specified (CIDR or dot notation). */
+        if(sin.sin_addr.s_addr == INADDR_NONE)
+        {
+            /* get the hostname and fill in the host_info struct */
+            if((host_info = gethostbyname(toks[0])))
+            {
+                /* protecting against malicious DNS servers */
+                if(host_info->h_length <= sizeof(sin.sin_addr))
+                {
+                    bcopy(host_info->h_addr, (char *) &sin.sin_addr, host_info->h_length);
+                }
+                else
+                {
+                    bcopy(host_info->h_addr, (char *) &sin.sin_addr, sizeof(sin.sin_addr));
+                }
+            }
+            /* Using h_errno */
+            else if(h_errno == HOST_NOT_FOUND)
+            /*else if((sin.sin_addr.s_addr = inet_addr(toks[0])) == INADDR_NONE)*/
+            {
+                FatalError("ERROR %s(%d): Couldn't resolve hostname %s\n",
+                    file_name, file_line, toks[0]);
+            }
+        }
+        else
+        {
+            /* It was a valid IP address with no netmask specified. */
+            /* Noop */
+        }
     }
     else
     {
-        /* set the final homenet address up */
-        address_data->ip_addr = ((u_long) (address_data->ip_addr) &
-                (address_data->netmask));
+        if(sin.sin_addr.s_addr == INADDR_NONE)
+        {
+            /* It was not a valid IP address but had a valid netmask. */
+            FatalError("ERROR %s(%d): Rule IP addr (%s) didn't translate\n",
+                file_name, file_line, toks[0]);
+        }
     }
 
+    /* Only set this if we haven't set it above as 255.255.255.255 */
+    if (!broadcast_addr_set)
+    {
+        address_data->ip_addr = ((u_long) (sin.sin_addr.s_addr) &
+            (address_data->netmask));
+    }
     mSplitFree(&toks, num_toks);
-
     return 0;
 }                                                                                            
 
+
+IpAddrSet *IpAddrSetParse(char *addr)
+{
+    IpAddrSet *ias = NULL;
+    IpAddrSet *tmp_ias = NULL;
+    char **toks;
+    int num_toks;
+    int i;
+    char *tmp;
+    char *enbracket;
+    char *index;
+    int flags = 0;
+
+    index = addr;
+    
+    while(isspace((int)*index)) index++;
+    
+    if(*index == '!')
+    {
+        flags = EXCEPT_IP;
+    }
+
+    if(*index == '$')
+    {
+        if((tmp = VarGet(index+1)) == NULL)
+        {
+            FatalError("%s(%d) => Undefined variable %s\n", file_name, file_line,
+                    index);
+        }
+    }
+    else
+    {
+        tmp = index;
+    }
+
+    if(*tmp == '[')
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Found IP list!\n"););
+
+        enbracket = strrchr(tmp, (int)']'); /* null out the en-bracket */
+
+        if(enbracket) 
+            *enbracket = '\x0';
+        else
+            FatalError("%s(%d) => Unterminated IP List\n", file_name, file_line);
+
+        toks = mSplit(tmp+1, ",", 128, &num_toks, 0);
+
+        DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"mSplit got %d tokens...\n", 
+                    num_toks););
+
+        for(i=0; i< num_toks; i++)
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"adding %s to IP "
+                        "address list\n", toks[i]););
+            tmp = toks[i];
+
+            while (isspace((int)*tmp)||*tmp=='[') tmp++;
+
+            enbracket = strrchr(tmp, (int)']'); /* null out the en-bracket */
+
+            if(enbracket) 
+                *enbracket = '\x0';
+
+            if (!strlen(tmp))
+                continue;
+                
+            if(!ias)
+            {
+                ias = (IpAddrSet *) SnortAlloc(sizeof(IpAddrSet));
+                tmp_ias = ias;
+            }
+            else
+            {
+                tmp_ias->next = (IpAddrSet *) SnortAlloc(sizeof(IpAddrSet));
+                tmp_ias = tmp_ias->next;
+            }
+            
+            ParseIP(tmp, tmp_ias);
+        }
+
+        mSplitFree(&toks, num_toks);
+    }
+    else
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,
+                    "regular IP address, processing...\n"););
+
+        ias = (IpAddrSet *) SnortAlloc(sizeof(IpAddrSet));
+
+        ParseIP(tmp, ias);
+    }
+
+    return ias;
+}
+
+
+int IpAddrSetContains(IpAddrSet *ias, struct in_addr test_addr)
+{
+    IpAddrSet *index;
+    u_int32_t raw_addr;
+    int exception_flag = 0;
+
+
+    raw_addr = test_addr.s_addr;
+    
+    for(index = ias; index != NULL; index = index->next)
+    {
+        if(index->addr_flags & EXCEPT_IP) exception_flag = 1;
+
+        if(((index->ip_addr == (raw_addr & index->netmask)) ^ exception_flag))
+        {
+            return 1;
+        }
+    }
+
+    return 0;
+}

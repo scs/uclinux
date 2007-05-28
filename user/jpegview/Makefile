@@ -1,13 +1,10 @@
 EXEC = jpegview 
-OBJS = jpegview.o
 
-CFLAGS += -I $(ROOTDIR)/lib/libjpeg 
-LDLIBS += -L $(ROOTDIR)/lib/libjpeg -ljpeg
+CFLAGS  += -I$(ROOTDIR)/lib/libjpeg 
+LDFLAGS += -L$(ROOTDIR)/lib/libjpeg
+LDLIBS  += -ljpeg
 
 all: $(EXEC)
-
-$(EXEC): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
@@ -15,5 +12,4 @@ romfs:
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
 
-jpegview.o: jpegview.c 
-
+.PHONY: all clean romfs

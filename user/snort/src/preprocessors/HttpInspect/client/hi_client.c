@@ -6,6 +6,8 @@
 **  @brief      Main file for all the client functions and inspection
 **              flow.
 **
+**  Copyright (C) 2003-2005 Sourcefire,Inc.
+**
 **  The job of the client module is to analyze and inspect the HTTP
 **  protocol, finding where the various fields begin and end.  This must
 **  be accomplished in a stateful and stateless manner.
@@ -18,6 +20,7 @@
 **  
 **  NOTES:
 **    - 3.8.03:  Initial development.  DJR
+**    - 2.4.05:  Added tab_uri_delimiter config option.  AJM.
 */
 
 #include <stdlib.h>
@@ -82,6 +85,8 @@ typedef int (*LOOKUP_FCN)(HI_SESSION *, u_char *, u_char *, u_char **,
 */
 static LOOKUP_FCN lookup_table[256];
 static int hex_lookup[256];
+static int NextNonWhiteSpace(HI_SESSION *Session, u_char *start,
+        u_char *end, u_char **ptr, URI_PTR *uri_ptr);
 
 /*
 **  NAME
@@ -112,7 +117,7 @@ static int hex_lookup[256];
 */
 static int CheckChunkEncoding(HI_SESSION *Session, u_char *start, u_char *end)
 {
-    u_int  iChunkLen   = 0;
+    u_int   iChunkLen   = 0;
     int    iChunkChars = 0;
     int    iCheckChunk = 1;
     u_char *ptr;
@@ -452,7 +457,7 @@ static int find_rfc_delimiter(HI_SESSION *Session, u_char *start,
         return URI_END;
     }
 
-    return NO_URI;
+    return NextNonWhiteSpace(Session, start, end, ptr, uri_ptr);
 }
 
 /*
@@ -572,6 +577,17 @@ static int NextNonWhiteSpace(HI_SESSION *Session, u_char *start,
     u_char **end_sp;
 
     /*
+    **  Horizontal tab is only accepted by apache web servers, not IIS.
+    **  Some IIS exploits contain a tab (0x09) in the URI, so we don't want
+    **  to treat it as a URI delimiter and cut off the URI.
+    */
+    if ( **ptr == '\t' && !ServerConf->tab_uri_delimiter )
+    {
+        (*ptr)++;
+        return HI_SUCCESS;
+    }
+
+    /*
     **  Reset the identifier, because we've just seen another space.  We
     **  should only see the identifier immediately after a space followed
     **  by a delimiter.
@@ -615,6 +631,18 @@ static int NextNonWhiteSpace(HI_SESSION *Session, u_char *start,
         if(uri_ptr->second_sp_end)
         {
             return NO_URI;
+        }
+
+        /* 
+        **  Treat whitespace differently at the end of the URI than we did
+        **  at the beginning.  Ignore and return if special characters are
+        **  not defined as whitespace after the URI.
+        */
+        if(ServerConf->whitespace[**ptr]
+            && !(ServerConf->whitespace[**ptr] & HI_UI_CONFIG_WS_AFTER_URI))
+        {
+            (*ptr)++;
+            return HI_SUCCESS;
         }
 
         /*
@@ -663,7 +691,7 @@ static int NextNonWhiteSpace(HI_SESSION *Session, u_char *start,
             (*ptr)++;
             continue;
         }
-        else if((**ptr == '\t'))
+        else if(ServerConf->whitespace[**ptr])
         {
             if(ServerConf->apache_whitespace.on)
             {
@@ -673,14 +701,9 @@ static int NextNonWhiteSpace(HI_SESSION *Session, u_char *start,
                     hi_eo_client_event_log(Session, HI_EO_CLIENT_APACHE_WS,
                                            NULL, NULL);
                 }
-
-                (*ptr)++;
-                continue;
             }
-            else
-            {
-                return NO_URI;
-            }
+            (*ptr)++;
+            continue;
         }
         else
         {
@@ -1311,10 +1334,18 @@ static int StatelessInspection(HI_SESSION *Session, unsigned char *data,
     */
     while(hi_util_in_bounds(start, end, ptr))
     {
-        if(lookup_table[*ptr])
+        if(lookup_table[*ptr] || ServerConf->whitespace[*ptr])
         {
-            if((iRet = (lookup_table[*ptr])(Session, start, end,
-                            &ptr, &uri_ptr)))
+            if(lookup_table[*ptr])
+            {
+                iRet = (lookup_table[*ptr])(Session, start, end,
+                            &ptr, &uri_ptr);
+            }
+            else
+            {
+                iRet = NextNonWhiteSpace(Session, start, end, &ptr, &uri_ptr);
+            }
+            if(iRet)
             {
                 if(iRet == URI_END)
                 {
@@ -1541,7 +1572,6 @@ int hi_client_init(HTTPINSPECT_GLOBAL_CONF *GlobalConf)
         lookup_table[0x00] = SetBinaryNorm;
 
         lookup_table[' ']  = NextNonWhiteSpace;
-        lookup_table['\t'] = NextNonWhiteSpace;
         lookup_table['\r'] = find_rfc_delimiter;
         lookup_table['\n'] = find_non_rfc_delimiter;
 

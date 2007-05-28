@@ -10,10 +10,7 @@ Mawk is distributed without warranty under the terms of
 the GNU General Public License, version 2, 1991.
 ********************************************/
 
-/* $Log$
- * Revision 1.2  2005/07/25 04:03:15  magicyang
- * New user folder check in
- *
+/* $Log: sizes.h,v $
  * Revision 1.8  1995/10/14  22:09:51  mike
  * getting MAX__INT from values.h didn't really work since the value was
  * unusable in an #if MAX__INT <= 0x7fff

@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11777);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.18 $");
  
  name["english"] = "SMB share hosting copyrighted material";
  script_name(english:name["english"]);
@@ -28,41 +28,50 @@ and attempts to find potentially copyrighted contents on it
  family["english"] = "Peer-To-Peer File Sharing";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_enum_shares.nasl",
-		     "smb_login_as_users.nasl",
-		     "smb_accessible_shares.nasl");
- script_require_keys("SMB/transport", "SMB/name", "SMB/login", "SMB/password");
+ script_dependencies("smb_accessible_shares.nasl");
+ script_require_keys("SMB/shares");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = kb_smb_transport();
-if(!port) port = 139;
+include("smb_func.inc");
+include('global_settings.inc');
 
-function get_dirs(socket, uid, tid, basedir, level)
+if ( thorough_tests ) MaxRecursivity = 3;
+else MaxRecursivity = 1;
+
+port = kb_smb_transport();
+
+function get_dirs(basedir, level)
 {
  local_var ret,ret2, r, subdirs, subsub;
  
 
- if(level > 3)
+  if(level >= MaxRecursivity )
  	return NULL;
 	
  subdirs = NULL;
- ret = FindFirst2(socket:soc, uid:uid, tid:tid, pattern:basedir + "\*");
+ retx  = FindFirstFile(pattern:basedir + "\*");
+ ret = make_list();
+ while ( ! isnull(retx[1]) )
+ {
+ ret  = make_list(ret, retx[1]);
+ retx = FindNextFile(handle:retx);
+ } 
+ 
  if(isnull(ret))
  	return NULL;
 	
  foreach r (ret)
  { 
+  subsub = NULL;
   if(isnull(ret2))
   	ret2 = make_list(basedir + "\" + r);
   else
   	ret2 = make_list(ret2, basedir + "\" + r);
 	
   if("." >!< r)
-  	subsub  = get_dirs(socket:soc, uid:uid, tid:tid, basedir:basedir + "\" + r, level:level + 1);
+  	subsub  = get_dirs(basedir:basedir + "\" + r, level:level + 1);
   if(!isnull(subsub))
   {
   	if(isnull(subdirs))subdirs = make_list(subsub);
@@ -80,51 +89,33 @@ function get_dirs(socket, uid, tid, basedir, level)
 
 function list_supicious_files(share)
 {
+ local_var dirs;
  num_suspects = 0;
- soc = open_sock_tcp(port);
- if(soc)
+
+ r = NetUseAdd(login:login, password:pass, share:share);
+ if ( r != 1 ) return NULL;
+ suspect = NULL;
+
+ dirs = get_dirs(basedir:NULL, level:0);
+ if ( ! isnull(dirs) ) foreach dir (dirs)
  {
- r = smb_session_request(soc:soc,  remote:name);
- if(!r)return(FALSE);
-
-  #
-  # Negociate the protocol
-  #
-  prot = smb_neg_prot(soc:soc);
-  if(!prot)exit(0);
-  #
-  # Set up our null session 
-  #
-  r = smb_session_setup(soc:soc, login:login, password:pass, domain:dom, prot:prot);
-  if(!r)return(FALSE);
-  # and extract our uid
-  uid = session_extract_uid(reply:r);
-
-  suspect = NULL;
-  r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-  if(r)
-  { 
-   tid = tconx_extract_tid(reply:r);
-   dirs = get_dirs(socket:soc, uid:uid, tid:tid, basedir:NULL, level:0);
-  
-   foreach dir (dirs)
+  Ldir = tolower(dir);
+  if("clock.avi" >!< Ldir && "\winamp\demo.mp3" != Ldir &&
+     !ereg(pattern:"^MVI_", string:dir, icase:TRUE) && ereg(pattern:".*\.(mp3|mpg|mpeg|ogg|avi|wma)$", string:dir, icase:TRUE))
    {
-    if(ereg(pattern:".*\.(mp3|mpg|mpeg|ogg|avi)$", string:dir, icase:TRUE))
+    if(isnull(suspect)) suspect = make_list(dir);
+    else suspect = make_list(suspect, dir);
+    num_suspects ++;
+    if (num_suspects >= 40 )
     {
-     if(isnull(suspect)) suspect = make_list(dir);
-     else suspect = make_list(suspect, dir);
-     num_suspects ++;
-     if (num_suspects >= 40 )
-     {
-      suspect = make_list(suspect, "... (more) ...");
-      return suspect;
-     }
+     suspect = make_list(suspect, "... (more) ...");
+     return suspect;
     }
    }
-  }
-  else close(soc);
-  }
-  return(suspect);
+ } 
+ NetUseDel(close:FALSE);
+ 
+ return(suspect);
 }		
 
 
@@ -134,29 +125,27 @@ function list_supicious_files(share)
 
 
 name = kb_smb_name();
-if(!name)exit(0);
-
-
-
-
 login = kb_smb_login();
 pass =  kb_smb_password();
-
-if(!login)login = "";
-if(!pass)pass = "";
-
 dom = kb_smb_domain();
 
-
-if(!get_port_state(port))exit(0);
+if(!get_port_state(port))exit(1);
 shares = get_kb_list("SMB/shares");
+
 if(isnull(shares))exit(0);
 else shares = make_list(shares);
 
+soc = open_sock_tcp(port);
+if (!soc)
+  exit (0);
+
+session_init(socket:soc, hostname:name);
 
 report = NULL;
 foreach share (shares) 
 {
+  if ( share != "ADMIN$" )
+  {
   files = list_supicious_files(share:share);
   if(!isnull(files))
   {
@@ -167,7 +156,10 @@ foreach share (shares)
    }
    report += '\n\n';
   }
+ }
 }
+
+NetUseDel();
 
 if(report != NULL)
  {
@@ -178,7 +170,7 @@ movies or music files.
 
 If any of this file actually contains copyrighted material and if
 they are freely swapped around, your organization might be held liable
-for copyright infrigement by associations such as the RIAA or the MPAA.
+for copyright infringement by associations such as the RIAA or the MPAA.
 
 " + report + "
 
@@ -186,3 +178,4 @@ Solution : Delete all the copyrighted files";
 
   security_warning(port:port, data:report);
  }
+

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10110);
- script_version ("$Revision: 1.17 $");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0897");
  name["english"] = "iChat";
  name["francais"] = "iChat";
@@ -56,6 +56,7 @@ Solution : Mettez à jour votre serveur iChat, ou alors désactivez le";
 #
 
 include("http_func.inc");
+
 
 if(get_port_state(4080))
 {

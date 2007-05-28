@@ -47,7 +47,7 @@
  *    - virtual_connection from Marc SCHAEFER <schaefer@alphanet.ch>, GPL.
  * MODIFICATION-HISTORY
  *    10/01/99  schaefer  Created this file.
- * $Id$
+ * $Id: ptylogin.c,v 1.1 1999/01/16 17:17:08 gert Exp $
  */
 
 #include <stdio.h>
@@ -137,7 +137,7 @@ static void set_raw(int mode);
 /* Public constants */
 
 char rcsid[] =
-  "$Id$";
+  "$Id: ptylogin.c,v 1.1 1999/01/16 17:17:08 gert Exp $";
 
 
 /* Private constants */

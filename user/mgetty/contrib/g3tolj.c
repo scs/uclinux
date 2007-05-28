@@ -50,10 +50,7 @@
  * Update 22 may 1994 Chel van Gennip Better handling of EOF of input files
  * Support for long faxes
  *
- * $Log$
- * Revision 1.1  2006/08/05 07:26:54  vapier
- * import from upstream uClinux
- *
+ * $Log: g3tolj.c,v $
  * Revision 1.2  2003/10/03 11:36:02  gert
  * fix some return types and prototypes (Debian/ABA)
  *

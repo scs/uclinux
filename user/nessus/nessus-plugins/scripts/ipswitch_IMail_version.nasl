@@ -22,7 +22,7 @@
 if(description)
 {
  script_id(11271);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.4 $");
  
  name["english"] = "IMail account hijack";
 
@@ -42,16 +42,14 @@ Risk factor : Medium";
  script_description(english:desc["english"]);
  
  summary["english"] = "Checks for version of IMail web interface";
- summary["francais"] = "Vérifie la version de l'interface web de IMail";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"Copyright (C) 2003 Michel Arboi");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  #script_require_keys("www/IMail");
  script_require_ports("Services/www", 80);
@@ -62,8 +60,8 @@ Risk factor : Medium";
 
 include ("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 banner = get_http_banner(port: port);

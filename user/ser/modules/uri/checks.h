@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: checks.h,v 1.2.6.1 2004/02/20 00:39:55 jiri Exp $
  *
  * Various URI checks
  *

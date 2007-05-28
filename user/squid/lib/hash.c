@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: hash.c,v 1.6 2001/03/07 22:14:44 squidadm Exp $
  *
  * DEBUG: section 0     Hash Tables
  * AUTHOR: Harvest Derived

@@ -8,9 +8,9 @@ if(description)
 {
  script_id(11280);
  script_bugtraq_id(6915);
- script_cve_id("CAN-2003-0101");
+ script_cve_id("CVE-2003-0101");
  
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.6 $");
  name["english"] = "Usermin Session ID Spoofing";
  
  script_name(english:name["english"], francais:name["francais"]);

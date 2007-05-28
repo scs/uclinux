@@ -7,17 +7,21 @@
 if(description)
 {
  script_id(10499);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1613);
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-2000-0771");
 
  name["english"] =  "Local Security Policy Corruption";
- name["francais"] = "Local Security Policy Corruption";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+A local user can corrupt the remote system.
+
+Description :
+
 The hotfix for the 'Local Security Policy Corruption'
 problem has not been applied.
 
@@ -26,66 +30,36 @@ a Windows 2000 system's local security policy, which may
 prevent this host from communicating with other hosts
 in this domain.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-062.asp
-Risk factor : Medium";
+Solution :
 
+http://www.microsoft.com/technet/security/bulletin/ms00-062.mspx
 
- desc["francais"] = "
-Le hotfix pour le problème de corruption de LSA n'a pas été appliqué.
+Risk factor :
 
-Cette vulnérabilité permet à un utilisateur malicieux de corrompre
-la LSA, ce qui empechera ce poste de communiquer avec les autres
-appartenant à ce domaine.
+Low / CVSS Base Score : 2 
+(AV:L/AC:L/Au:NR/C:N/A:N/I:P/B:I)";
 
-Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-062.asp
-Facteur de risque : Moyen";
-
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines whether the hotfix Q269609 is installed";
- summary["francais"] = "Détermine si le hotfix Q269609 est installé";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl"
-		     );
- script_require_keys("SMB/name", "SMB/login", "SMB/password", "SMB/registry_access");
- script_require_ports(139, 445);
- script_exclude_keys("SMB/Win2K/ServicePack");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
 
 
-include("smb_nt.inc");
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+include("smb_hotfixes.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+if ( hotfix_check_sp(win2k:1) <= 0 ) exit(0);
 
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
-
-version = get_kb_item("SMB/WindowsVersion");
-if(version == "5.0")
-{
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"^Service Pack [1-9]$"))exit(0);
- 
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q269609";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
-}
+if ( hotfix_missing(name:"Q269609") > 0 ) 
+	security_note(get_kb_item("SMB/transport"));

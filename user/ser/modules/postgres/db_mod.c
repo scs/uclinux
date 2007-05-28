@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: db_mod.c,v 1.3 2003/10/08 13:07:22 janakj Exp $ 
  *
  * Postgres module interface
  *

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10552);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CVE-2000-1171");
  script_bugtraq_id(1963);
+ script_version ("$Revision: 1.18 $");
+ script_cve_id("CVE-2000-1171");
  
  name["english"] = "cgiforum";
  name["francais"] = "cgiforum";
@@ -21,7 +21,7 @@ files on the remote host.
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'cgiforum.pl' est installé. Celui-ci possède
@@ -50,6 +50,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -60,8 +61,8 @@ Facteur de risque : Sérieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

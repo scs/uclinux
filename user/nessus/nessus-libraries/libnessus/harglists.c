@@ -16,7 +16,7 @@
  *  along with this library; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *  $Id: harglists.c,v 1.36 2003/02/27 10:09:57 renaud Exp $
+ *  $Id: harglists.c,v 1.37.2.1 2005/03/22 01:31:46 renaud Exp $
  *
  * Author: Jordan Hrycaj <jordan@mjh.teddy-net.com>
  *
@@ -973,6 +973,10 @@ harg_inct
   r->d.d.ptr [0] = (void*)((int)(r->d.d.ptr [0]) - inc) ;
   errno = 0 ;
   return (int)r->d.d.ptr [0];
+}
+
+void harg_sort(harglst *a) {
+	sort_hlst(a->x);
 }
 
 

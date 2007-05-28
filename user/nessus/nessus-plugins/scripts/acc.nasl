@@ -13,8 +13,8 @@
 if(description)
 {
  script_id(10351);
- script_version ("$Revision: 1.6 $");
  script_bugtraq_id(183);
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CVE-1999-0383");
  
  name["english"] = "The ACC router shows configuration without authentication";
@@ -65,15 +65,19 @@ Facteur de risque : Moyen";
 #
 # The script code starts here
 #
-
+include('telnet_func.inc');
 port = get_kb_item("Services/telnet");
 if(!port)port = 23;
+
+banner = get_telnet_banner(port:port);
+if ( ! banner || "Login:" >< banner ) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
  if(soc)
  {
-  first_line = telnet_init(soc);
+  first_line = telnet_negotiate(socket:soc);
   if("Login:" >< first_line) {
    req = string("\x15SHOW\r\n");
    send(socket:soc, data:req);
@@ -82,7 +86,7 @@ if(get_port_state(port))
    if(("SET" >< r) ||
       ("ADD" >< r) ||
       ("RESET" >< r)) {
-    security_hole(port);
+    security_warning(port);
     # cleanup the router...
     while(! ("RESET" >< r)) {
      if("Type 'Q' to quit" >< r) {

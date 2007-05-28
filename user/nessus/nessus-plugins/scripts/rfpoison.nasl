@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10204);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(754);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-1999-0980");
  name["english"] = "rfpoison";
  name["francais"] = "rfpoison";
@@ -27,7 +27,6 @@ working properly.
 Solution: See Microsoft Technet 
 http://support.microsoft.com/support/kb/articles/Q231/4/57.ASP
 
-More information : http://www.wiretrip.net/rfp/p/doc.asp?id=23&iface=2
 Risk factor : High";
 
 
@@ -40,7 +39,6 @@ Un pirate peut utiliser cette
 attaque pour empecher votre
 réseau de fonctionner normallement.
 
-Plus d'informations : http://www.wiretrip.net/rfp/p/doc.asp?id=23&iface=2
 Solution : Cf http://support.microsoft.com/support/kb/articles/Q231/4/57.ASP
 
 Facteur de risque : Elevé";
@@ -67,6 +65,10 @@ Facteur de risque : Elevé";
 #
 # The script code starts here
 #
+
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
 
 version = get_kb_item("SMB/WindowsVersion");
 if( version )
@@ -126,7 +128,7 @@ This packet is supposed to crash the 'services.exe' process,
 rendering the system instable.
 If you see that this attack was successful, have a look
 at this page : 
-   http://www.wiretrip.net/rfp/p/doc.asp?id=23&iface=2";
+   http://support.microsoft.com/support/kb/articles/Q231/4/57.ASP";
 
 security_warning(port:139, data:msg);
 close(soc);

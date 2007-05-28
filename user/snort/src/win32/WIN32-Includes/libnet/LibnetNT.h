@@ -1,5 +1,5 @@
 #include "snort.h"
-#include <winsock.h>
+#include <winsock2.h>
 #include "packet_types.h"
 #include <time.h>
 #define LIBNET_LIL_ENDIAN 1

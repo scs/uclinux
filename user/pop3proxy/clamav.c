@@ -266,7 +266,12 @@ int doscanmail(pop3_t *x)
 				break;
 			}
 
-		fprintf (fp, "%s\n", p);
+		if (fprintf (fp, "%s\n", p) < 0) {
+			fclose(fp);
+			printerror(1, "-PROXY", "IO error on writing spoolfile: filename= %s, reason= %s", x->spoolfile, strerror(errno));
+			/* file is removed by cleanup() which is registered with atexit() */
+		}
+
 		x->size += strlen(p) + 2;	/* e-mail line terminator is CRLF */
 		}
 
@@ -406,8 +411,13 @@ int doscanmail(pop3_t *x)
 			if ((fp = fopen(x->spoolfile, "w")) == NULL)
 				printerror(1, "-PROXY", "can't rewrite email: filename= %s", x->spoolfile);
 
-			fprintf (fp, "From: Virus-Scanner\r\n");
-			fprintf (fp, "Subject: pop3proxy - virus found: %s\r\n", virusname);
+			if (x->config->ident && *(x->config->ident)) {
+				fprintf(fp, "From: %s\r\n", x->config->ident);
+				fprintf(fp, "Subject: %s - virus found: %s\r\n", x->config->ident, virusname);
+			} else {
+				fprintf (fp, "From: Virus-Scanner\r\n");
+				fprintf (fp, "Subject: pop3proxy - virus found: %s\r\n", virusname);
+			}
 			fprintf (fp, "\r\n");
 
 			fprintf (fp, "E-Mail headers follow:\r\n");
@@ -420,16 +430,77 @@ int doscanmail(pop3_t *x)
 				}
 
 			fprintf (fp, "\r\n");
-			fprintf (fp, "E-Mail was blocked by %s/%s using %s.\r\n",
-						program, VERSION, x->clamav.version);
+			if (x->config->ident && *(x->config->ident)) {
+				fprintf (fp, "E-Mail was blocked by %s with %s/%s using %s.\r\n",
+							x->config->ident, program, VERSION, x->clamav.version);
+			} else {
+				fprintf (fp, "E-Mail was blocked by %s/%s using %s.\r\n",
+							program, VERSION, x->clamav.version);
+			}
 
 			if (basename != NULL  &&  *basename != 0)
 				fprintf (fp, "ID= %s\r\n", basename);
 
 			fprintf (fp, "\r\n");
 			fclose (fp);
+
+			/* 
+			 * Run the specified virus event program
+			 * In the style of clamd's VirusEvent action
+			 */
+
+			if (*x->config->clamav.virusevent != 0) {
+				pid = fork();
+				if (pid == 0) {
+					/* child */
+					char *buffer, *pt, *cmd;
+
+					cmd = strdup(x->config->clamav.virusevent);
+					if ((pt = strstr(cmd, "%c"))) {
+						buffer = (char *)allocate(strlen(cmd) + strlen(x->client.username)); 
+						*pt = 0; pt += 2;
+						strcpy(buffer, cmd);
+						strcat(buffer, x->client.username);
+						strcat(buffer, pt);
+						free(cmd);
+						cmd = strdup(buffer);
+						free(buffer);
+					}
+
+					if ((pt = strstr(cmd, "%i"))) {
+						buffer = (char *)allocate(strlen(cmd) + strlen(x->client.ipnum)); 
+						*pt = 0; pt += 2;
+						strcpy(buffer, cmd);
+						strcat(buffer, x->client.ipnum);
+						strcat(buffer, pt);
+						free(cmd);
+						cmd = strdup(buffer);
+						free(buffer);
+					}
+
+					if ((pt = strstr(cmd, "%s"))) {
+						buffer = (char *)allocate(strlen(cmd) + strlen(x->server.hostname)); 
+						*pt = 0; pt += 2;
+						strcpy(buffer, cmd);
+						strcat(buffer, x->server.hostname);
+						strcat(buffer, pt);
+						free(cmd);
+						cmd = strdup(buffer);
+						free(buffer);
+					}
+
+					exit(system(cmd));
+
+					/* not reached, but serves as a
+					 * reminder that cmd is still
+					 * allocated */
+					free(cmd);
+				} else if (pid < 0) {
+					printerror(0, "-ERR", "can't fork virus action, error = %s", strerror(errno));
+				}
 			}
 		}
+	}
 
 
 	/*

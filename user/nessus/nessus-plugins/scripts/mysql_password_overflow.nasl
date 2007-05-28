@@ -14,11 +14,14 @@ if(description)
 {
  
  script_id(11842);  
- script_version ("$Revision: 1.1 $");
- script_cve_id("CAN-2003-0780");
  script_bugtraq_id(8590);
+ script_version ("$Revision: 1.11 $");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:281-01");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:042");
+
+ script_cve_id("CVE-2003-0780");
  
- name["english"] = "MySQL password handler overflaw";
+ name["english"] = "MySQL password handler overflow";
  script_name(english:name["english"]);
  
  desc["english"] = "
@@ -48,9 +51,8 @@ Risk factor : Medium";
  
  
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "Gain a shell remotely";
- family["francais"] = "Obtenir un shell à distance";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "mysql_version.nasl");
  script_require_ports("Services/mysql", 3306);
  exit(0);
@@ -65,8 +67,8 @@ include("misc_func.inc");
 port = get_kb_item("Services/mysql");
 if(!port)port = 3306;
 
-ver=get_mysql_version(port); 
-if(ver==NULL) exit(0);
-if(ereg(pattern:"3\.(([0-9]\..*|(1[0-9]\..*)|(2[0-2]\..*))|23\.([0-4][0-9]|5[0-7])[^0-9])",
-  	  string:ver))security_hole(port);	  
-if(ereg(pattern:"4\.0\.([0-5][^0-9]|1[0-4])", string:ver))security_hole(port);	  
+ver=get_mysql_version(port:port); 
+if (isnull(ver)) exit(0);
+if(ereg(pattern:"^3\.(([0-9]\..*|(1[0-9]\..*)|(2[0-2]\..*))|23\.([0-4][0-9]|5[0-7])[^0-9])",
+  	  string:ver))security_warning(port);	  
+if(ereg(pattern:"^4\.0\.([0-5][^0-9]|1[0-4])", string:ver))security_warning(port);	  

@@ -15,9 +15,9 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-// $Revision$
-// $Author$
-// $Header$
+// $Revision: 1.7 $
+// $Author: hejl $
+// $Header: /home/cvs/lrpStat/src/LongEnumeration.java,v 1.7 2002/03/12 22:19:13 hejl Exp $
 
 /**
  * Implements the Enumeration interface for long-values

@@ -8,9 +8,11 @@ if(description)
 {
   script_id(11484);
   script_bugtraq_id(2070, 6828, 7200);
-  script_cve_id("CVE-2001-0040", "CAN-2003-0098", "CAN-2003-0099");
+  script_cve_id("CVE-2001-0040", "CVE-2003-0098", "CVE-2003-0099");
+  if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:022");
+
   
-  script_version ("$Revision: 1.4 $");
+  script_version ("$Revision: 1.6 $");
  
   script_name(english:"apcupsd overflows");
  

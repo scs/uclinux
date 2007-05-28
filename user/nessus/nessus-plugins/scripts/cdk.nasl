@@ -10,28 +10,24 @@
 if(description)
 {
  script_id(10036);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CAN-1999-0660");
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-1999-0660");
  name["english"] = "CDK Detect";
  name["francais"] = "Detection de CDK";
  
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The remote host appears to be running
-CDK, which is a backdoor that can be 
-used to control your system.
+The remote host appears to be running CDK, which is a backdoor that can be 
+used to control your system.  
 
-To use it, an attacker just has to connect 
-onto this port, and send the password 'ypi0ca'
+To use it, an attacker just has to connect onto this port, and send the 
+password 'ypi0ca'
 
-It is very likely that this host
-has been compromised
+It is very likely that this host has been compromised
 
-Solution : Restore your system from backups,
-	   contact CERT and your local
+Solution : Restore your system from backups, contact CERT and your local
 	   authorities
-
 Risk factor : Critical";
 
 
@@ -76,6 +72,9 @@ Facteur de risque : Critique";
 }
 
 
+include('global_settings.inc');
+
+
 if(get_port_state(15858))
 {
  soc = open_sock_tcp(15858);
@@ -91,6 +90,8 @@ if(get_port_state(15858))
   close(soc);
  }
 }
+
+if ( report_paranoia < 1 ) exit(0);
 
 if(get_port_state(79))
 {

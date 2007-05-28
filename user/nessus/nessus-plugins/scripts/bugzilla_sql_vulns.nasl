@@ -7,9 +7,15 @@
 if(description)
 {
  script_id(11917);
- script_version ("$Revision: 1.1 $");
+ script_cve_id(
+   "CVE-2003-1042",
+   "CVE-2003-1043",
+   "CVE-2003-1044",
+   "CVE-2003-1045",
+   "CVE-2003-1046"
+ );
  script_bugtraq_id(8953);
-  
+ script_version ("$Revision: 1.5 $");
 
  name["english"] = "Bugzilla SQL flaws";
  
@@ -21,11 +27,8 @@ vulnerable to various flaws that may let a rogue administrator execute
 arbitrary SQL commands on this host, and which may allow an attacker to
 obtain information about bugs marked as being confidential.
 
-Solution : Upgrade to 2.16.4 or 2.17.5
+Solution : Upgrade to 2.16.4 or 2.17.5.
 Risk factor : Medium";
-
-
-
  script_description(english:desc["english"]);
  
  summary["english"] = "Checks for the presence of bugzilla";
@@ -52,8 +55,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 version = get_kb_item(string("www/", port, "/bugzilla/version"));
@@ -62,5 +65,3 @@ if(!version)exit(0);
 
 if(ereg(pattern:"(1\..*)|(2\.(16\.[0-3]|17\.[0-4]))[^0-9]*$",
        string:version))security_warning(port);
-       
-       

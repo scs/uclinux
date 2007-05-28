@@ -2,7 +2,7 @@
  * lib/netrom_gr.c    This file contains an implementation of the NET/ROM
  *                      route support functions.
  *
- * Version:     $Id$
+ * Version:     $Id: netrom_gr.c,v 1.5 2000/10/08 01:00:44 ecki Exp $
  *
  * Author:      Bernd Eckenfels, <ecki@lina.inka.de>
  *              Copyright 1999 Bernd Eckenfels, Germany

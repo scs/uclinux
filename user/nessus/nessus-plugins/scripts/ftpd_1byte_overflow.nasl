@@ -1,20 +1,16 @@
 #
-# This script was written by Xue Yong Zhi<xueyong@udel.edu>
 #
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
+# This script was written by Xue Yong Zhi <yong@tenablesecurity.com>
 #
-# TODO: check banner!
-#
-# exploit is available at:
-# http://www.securityfocus.com/data/vulnerabilities/exploits/7350oftpd.tar.gz
 #
 
 if(description)
 {
  script_id(11371);
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(2124);
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CVE-2001-0053");
  name["english"] = "BSD ftpd Single Byte Buffer Overflow";
 
@@ -38,10 +34,9 @@ Risk factor : High";
  script_category(ACT_DESTRUCTIVE_ATTACK);
  script_family(english:"FTP");
 
- script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi",
- 		  francais:"Ce script est Copyright (C) 2003 Xue Yong Zhi");
+ script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
 
- script_dependencie("find_service.nes", "ftp_write_dirs.nes");
+ script_dependencie("find_service.nes", "ftp_writeable_directories.nasl");
  script_require_keys("ftp/login", "ftp/writeable_dir");
  script_require_ports("Services/ftp", 21);
  exit(0);
@@ -66,6 +61,32 @@ if(safe_checks())
 }
 
 
+function clean_exit()
+{
+  soc = open_sock_tcp(port);
+  if ( soc )
+  {
+  ftp_authenticate(socket:soc, user:login, pass:pass);
+  send(socket:soc, data:string("CWD ", wri, "\r\n"));
+  r = ftp_recv_line(socket:soc);
+  for(j=0;j<num_dirs - 1;j=j+1)
+  {
+   send(socket:soc, data:string("CWD ", crap(144), "\r\n"));
+   r = ftp_recv_line(socket:soc);
+  }
+
+  for(j=0;j<num_dirs;j=j+1)
+  {
+   send(socket:soc, data:string("RMD ", crap(144),  "\r\n"));
+   r = ftp_recv_line(socket:soc);
+   if(!egrep(pattern:"^250 .*", string:r))exit(0);
+   send(socket:soc, data:string("CWD ..\r\n"));
+   r = ftp_recv_line(socket:soc);
+  }
+ }
+}
+
+
 # First, we need anonymous access
 
 login = get_kb_item("ftp/login");
@@ -84,7 +105,7 @@ if(nomkdir)exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
   num_dirs = 0;
   # We are in
@@ -112,11 +133,11 @@ if(soc)
   # but who knows ?
 
   if(!b){
-  	security_hole(port);
-	exit(0);
+  	#security_hole(port);
+	clean_exit();
 	}
 
-  if(!ereg(pattern:"^257 .*", string:b))
+  if(!egrep(pattern:"^257 .*", string:b))
   {
    i = 20;
   }
@@ -131,11 +152,11 @@ if(soc)
 
   if(!b)
        {
-  	security_hole(port);
-	exit(0);
+  	#security_hole(port);
+	clean_exit();
        }
 
-   if(!ereg(pattern:"^250 .*", string:b))
+   if(!egrep(pattern:"^250 .*", string:b))
    {
     i = 20;
    }
@@ -151,32 +172,9 @@ if(soc)
   if(!b)
        {
   	security_hole(port);
-	exit(0);
+	clean_exit();
        }
 
   ftp_close(socket:soc);
-
-  if(!num_dirs)exit(0);
-
-  soc = open_sock_tcp(port);
-  if(!soc)exit(0);
-
-  ftp_log_in(socket:soc, user:login, pass:pass);
-  send(socket:soc, data:string("CWD ", wri, "\r\n"));
-  r = ftp_recv_line(socket:soc);
-  for(j=0;j<num_dirs;j=j+1)
-  {
-   send(socket:soc, data:string("CWD ", crap(254), "\r\n"));
-   r = ftp_recv_line(socket:soc);
-  }
-
-  for(j=0;j<num_dirs + 1;j=j+1)
-  {
-   send(socket:soc, data:string("RMD ", crap(254),  "\r\n"));
-   r = ftp_recv_line(socket:soc);
-   if(!ereg(pattern:"^250 .*", string:r))exit(0);
-   send(socket:soc, data:string("CWD ..\r\n"));
-   r = ftp_recv_line(socket:soc);
-  }
  }
 }

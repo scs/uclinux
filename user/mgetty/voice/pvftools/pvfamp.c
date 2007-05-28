@@ -4,7 +4,7 @@
  * pvfamp increases or decreases the volume of the sound signal. Input and
  * output is in the pvf (portable voice format) format.
  *
- * $Id$
+ * $Id: pvfamp.c,v 1.4 1998/09/09 21:07:45 gert Exp $
  *
  */
 

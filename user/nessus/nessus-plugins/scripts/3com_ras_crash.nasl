@@ -4,7 +4,7 @@
 # See the Nessus Scripts License for details
 #
 # THIS SCRIPT WAS NOT TESTED !
-# (will only work with Nessus >= 2.0.2 thougn, because of a bug in insert_ip_option())
+# (will only work with Nessus >= 2.0.2 though, because of a bug in insert_ip_option())
 #
 # Ref:
 #
@@ -12,13 +12,18 @@
 # From: Piotr Chytla <pch@isec.pl>
 # Reply-To: iSEC Security Research <security@isec.pl>
 # To: bugtraq@securityfocus.com, <vulnwatch@vulnwatch.org>
+#
+# Josh Zlatin-Amishav has also discovered that this affects 
+# Wyse Winterm 1125SE thin client devices:
+#    http://www.securityfocus.com/archive/1/407903/30/0/threaded
 
 
 if(description)
 {
  script_id(11475);
- script_bugtraq_id(7175);
- script_version ("$Revision: 1.2 $");
+ script_cve_id("CVE-2005-2577");
+ script_bugtraq_id(7175, 14536);
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "3com RAS 1500 DoS";
  script_name(english:name["english"]);

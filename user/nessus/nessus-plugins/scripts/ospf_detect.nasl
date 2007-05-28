@@ -17,15 +17,29 @@
 if(description)
 {
   script_id(11906);
-  script_version ("$Revision: 1.1 $");
+  script_version ("$Revision: 1.12 $");
 
   name["english"] = "OSPF detection";
   script_name(english:name["english"]);
  
   desc["english"] = "
-This plugin detects OSPF agents.
+Synopsis :
 
-Risk factor : Low";
+The remote host is running an OSPF (Open Shortest Path First) agent.
+
+Description :
+
+The remote host is running OSPF, a popular routing protocol.
+
+Solution :
+
+If the remote service is not used, disable it.  
+
+Risk factor : 
+
+None";
+
+
 
   script_description(english:desc["english"]);
  
@@ -33,13 +47,23 @@ Risk factor : Low";
   script_summary(english:summary["english"]);
   script_category(ACT_GATHER_INFO); 
   script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi");
-  family["english"] = "Misc.";
-  family["francais"] = "Divers";
-  script_family(english:family["english"], francais:family["francais"]);
+  script_family(english:"Service detection");
+  script_require_keys("Settings/ThoroughTests");
   exit(0);
 }
 
 ##include("dump.inc");
+
+include('global_settings.inc');
+
+if ( ! thorough_tests)
+{
+ log_print('ospf_detect.nasl is enabled in "Thorough tests" mode only\n');
+ exit(0);
+}
+
+if ( islocalhost() ) exit(0);
+if ( ! islocalnet() ) exit(0);
 
 if (! defined_func("join_multicast_group")) exit(0);
 
@@ -48,10 +72,11 @@ join_multicast_group("224.0.0.6");	# AllDRouters
 # join_multicast_group is necessary, because pcap_next does not put the 
 # interface in promiscuous mode
 
-function on_exit()
+function clean_exit()
 {
   leave_multicast_group("224.0.0.5");
   leave_multicast_group("224.0.0.6");
+  exit(0);
 }
 
 function extract_ip_addr(pkt, off)
@@ -69,8 +94,8 @@ function extract_ip_addr(pkt, off)
 }
 
 f = "ip proto 89 and src " + get_host_ip();
-p = pcap_next(pcap_filter: f, timeout: 30);
-if (isnull(p)) exit(0);
+p = pcap_next(pcap_filter: f, timeout: 5);
+if (isnull(p)) clean_exit();
 
 ##dump(ddata: p, dtitle: "IP");
 
@@ -140,4 +165,4 @@ if (type == 1)
 
 rep += '\nRisk factor : Low';
 security_note(port: 0, protocol: "ospf", data: rep);
-
+clean_exit();

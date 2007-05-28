@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: ucontact.c,v 1.20.2.1.2.2.2.1 2004/07/21 10:34:45 sobomax Exp $ 
  *
  * Usrloc contact structure
  *

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11519);
-
  script_bugtraq_id(6320);
- script_version("$Revision: 1.4 $");
+
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "mod_jk chunked encoding DoS";
 
@@ -52,8 +52,8 @@ Risk factor : Medium";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);
@@ -62,6 +62,6 @@ if(get_port_state(port))
  
  if(ereg(pattern:".*mod_jk/1\.([0-1]\..*|2\.0)", string:serv))
  {
-   security_hole(port);
+   security_warning(port);
  }
 }

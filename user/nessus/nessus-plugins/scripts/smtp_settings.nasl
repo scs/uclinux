@@ -5,14 +5,14 @@
 #
 # GPL...
 #
-# SMTP is defined by RFC 821. Messages are defined by RFC 822
+# SMTP is defined by RFC 2821. Messages are defined by RFC 2822
 
-default_domain = "nessus.org";
+default_domain = "example.com";
 
 if(description)
 {
  script_id(11038);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
  name["english"] = "SMTP settings";
  script_name(english:name["english"]);
  

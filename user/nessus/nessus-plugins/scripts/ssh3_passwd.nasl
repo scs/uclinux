@@ -7,27 +7,37 @@
 if(description)
 {
  script_id(10708);;
- script_cve_id("CVE-2001-0553");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-t-0018");
  script_bugtraq_id(3078);
- script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-0553");
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "SSH 3.0.0";
  name["francais"] = "SSH 3.0.0";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-You are running SSH 3.0.0. 
+Synopsis :
 
-There is a bug in this release which allows any user
-to log into accounts whose password entry is two chars
-long or less.
+An attacker might be able to use the remote SSH server
+to log into the remote host without proper credentials
 
-An attacker may gain root privileges using this flaw
+Description :
+
+The remote host is running SSH 3.0.0.  There is a bug in this 
+release which allows any user to log into accounts whose 
+password entry is two characters long or less.
+
+An attacker might gain root privileges using this flaw.
 
 Solution :
+
 Upgrade to version 3.0.1 of SSH which solves this problem.
 
-Risk factor : High";
+Risk factor :
+
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
 	
 	
 
@@ -46,41 +56,26 @@ Risk factor : High";
  family["english"] = "Gain a shell remotely";
  family["francais"] = "Obtenir un shell à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "ssh_detect.nasl");
+ script_dependencie("ssh_detect.nasl");
  script_require_ports("Services/ssh", 22);
- script_exclude_keys("ssh/openssh");
  exit(0);
 }
 
 #
 # The script code starts here
 #
+include("backport.inc");
 
 
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
 
 
-
-
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    close(soc);
-  }
-}
-
-if(!banner)exit(0);
-
-banner = tolower(banner);
+banner = tolower(get_backport_banner(banner:banner));
 
 if("openssh" >< banner)exit(0);
 
-if("3.0.0" >< banner)security_hole(port);
+if("3.0.0" >< banner)security_warning(port);

@@ -16,10 +16,14 @@
 # for the build syntax, and have your client libraries installed in 
 # /opt/oracle
 
-rpmbuild -bb --target i386 --with mysql --with postgresql snort.org.spec 
-rpmbuild -bs --target i386 snort.org.spec
+rpmbuild -bb --target i386 --with mysql --with postgresql snort.spec 
+rpmbuild -bs --target i386 snort.spec
 
-rpmbuild -bb --target i386 --with fedora --with mysql --with postgresql snort.org.spec 
-rpmbuild -bs --target i386 --with fedora snort.org.spec
+# If you wish to build with Inline support, you need to use the 
+# --with inline build syntax. You will need iptables-devel (for libipq)
+# and libnet installed.
 
+# The following will build the above binary packages with Inline support:
+
+#rpmbuild -bb --target i386 --with inline --with mysql --with postgresql snort.spec 
 

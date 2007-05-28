@@ -216,13 +216,18 @@ sfthd_create_threshold_local(	THD_STRUCT * thd,
         sfthd_item->sig_id          = sig_id;
         sfthd_item->sfthd_node_list = sflist_new();
 
-	if(!sfthd_item->sfthd_node_list)
+        if(!sfthd_item->sfthd_node_list)
+        {
+            free(sfthd_item);
             return -4;
+        }
 
         /* Add the sfthd_item to the hash table */
         hstatus = sfghash_add( sfthd_hash, (void*)&sig_id, sfthd_item );
         if( hstatus )
         {
+            sflist_free(sfthd_item->sfthd_node_list);
+            free(sfthd_item);
             return -5;
         }
     }     
@@ -241,13 +246,13 @@ sfthd_create_threshold_local(	THD_STRUCT * thd,
       p = (THD_NODE*)sfthd_item->sfthd_node_list->tail->ndata;
       if(p) /* just to be safe- if thers a tail, there is is node data */
       {
-	 if( p->type != THD_TYPE_SUPPRESS && type != THD_TYPE_SUPPRESS )
-	 {
+    	 if( p->type != THD_TYPE_SUPPRESS && type != THD_TYPE_SUPPRESS )
+	     {
 #ifdef THD_DEBUG
-	     printf("THD_DEBUG: Could not add a 2nd Threshold object, you can onlky have 1 per sid: gid=%u, sid=%u\n",gen_id,sig_id);
+    	     printf("THD_DEBUG: Could not add a 2nd Threshold object, you can onlky have 1 per sid: gid=%u, sid=%u\n",gen_id,sig_id);
 #endif	 
-	     return THD_TOO_MANY_THDOBJ;/* cannot add more than one threshold per sid in version 3.0, wait for 3.2 and CIDR blocks */	 
-	 }
+    	     return THD_TOO_MANY_THDOBJ;/* cannot add more than one threshold per sid in version 3.0, wait for 3.2 and CIDR blocks */	 
+    	 }
       }
     }
 
@@ -279,12 +284,12 @@ sfthd_create_threshold_local(	THD_STRUCT * thd,
    
     if( type == THD_TYPE_SUPPRESS )
     {
-	sfthd_node->priority = THD_PRIORITY_SUPPRESS;
+    	sfthd_node->priority = THD_PRIORITY_SUPPRESS;
 
-	if( sfthd_node->ip_mask == 0 && sfthd_node->ip_address != 0 )
-	{
+    	if( sfthd_node->ip_mask == 0 && sfthd_node->ip_address != 0 )
+    	{
             sfthd_node->ip_mask = 0xffffffff;
-	}
+	    }
     }
 
     thd->count++;
@@ -1047,7 +1052,7 @@ global_test:
      g_thd_node = thd->sfthd_garray[ gen_id ];
      if( g_thd_node )
      {
-         status = sfthd_test_gobject( thd, g_thd_node, sig_id, gen_id, sip, dip, curtime );
+         status = sfthd_test_gobject( thd, g_thd_node, gen_id, sig_id, sip, dip, curtime );
          if( status < 0 ) /* -1 == Don't log and stop looking */
          {
 #ifdef THD_DEBUG

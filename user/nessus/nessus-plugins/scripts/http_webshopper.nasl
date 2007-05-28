@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10533);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CVE-2000-0922");
  script_bugtraq_id(1776);
+ script_version ("$Revision: 1.18 $");
+ script_cve_id("CVE-2000-0922");
  
  
  name["english"] = "Web Shopper remote file retrieval";
@@ -29,7 +29,7 @@ Solution: Uncomment the #$debug=1 variable in the script
 so that it will check for, and disallow, viewing of
 arbitrary files.
 
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -45,6 +45,7 @@ Risk factor : Serious";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -55,8 +56,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

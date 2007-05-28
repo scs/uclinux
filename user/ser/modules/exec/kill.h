@@ -1,6 +1,6 @@
 /*
  *
- * $Id$
+ * $Id: kill.h,v 1.2 2002/09/19 12:23:53 jku Rel $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

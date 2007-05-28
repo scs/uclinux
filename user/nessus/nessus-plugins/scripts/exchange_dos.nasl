@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10558);
- script_cve_id("CVE-2000-1006");
  script_bugtraq_id(1869);
- script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2000-1006");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "Exchange Malformed MIME header";
  name["francais"] = "En-tete MIME mal formée";
  script_name(english:name["english"],
@@ -26,7 +26,7 @@ lets malformed MIME headers crash it.
 
 The full testing methodology is available at http://online.securityfocus.com/archive/1/144494
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/MS00-082.asp
+Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-082.mspx
 Risk factor : High";
 
  desc["francais"] = "
@@ -38,7 +38,7 @@ qui permettrait à des entetes MIME mal formée de le faire planter.
 *** s'agit peut etre d'une fausse alerte - d'autant plus que
 *** la banière de ce service ne CHANGE PAS si le patch a été appliqué
 
-Solution : Cf http://www.microsoft.com/technet/security/bulleting/MS00-082.asp
+Solution :  http://www.microsoft.com/technet/security/bulletin/MS00-082.mspx
 Facteur de risque : Elevé";
 
 
@@ -61,7 +61,7 @@ Facteur de risque : Elevé";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -73,6 +73,8 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(get_port_state(port))
 {

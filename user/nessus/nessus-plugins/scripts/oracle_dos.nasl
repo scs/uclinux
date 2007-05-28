@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10808);
- script_version ("$Revision: 1.10 $");
- script_bugtraq_id(3760);
- script_cve_id("CAN-2002-0102");
+ script_bugtraq_id(3760, 3762);
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2002-0102");
  
  name["english"] = "DoSable Oracle WebCache server";
  script_name(english:name["english"]);
@@ -31,7 +31,7 @@ Risk factor : Medium";
  summary["english"] = "Determines via ver. the remote server can be disabled";
  script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
- family["english"] = "Denial of Service";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
  script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison");
  script_dependencies("find_service.nes", "proxy_use.nasl");
@@ -56,5 +56,5 @@ foreach port (ports)
 {
 data = get_http_banner(port:port);
 if(egrep(pattern:".*Oracle9iAS Web Cache/2\.0\.0\.[012].*",
-	  string:data))security_hole(port);
+	  string:data))security_warning(port);
 }

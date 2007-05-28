@@ -38,9 +38,7 @@ typedef unsigned long long _u64;
 #define BINARY "l2tpd"
 #define SERVER_VERSION "0.69"
 #define VENDOR_NAME "l2tpd.org"
-#ifdef EMBED
-#define PPPD		"/bin/pppd"
-#else
+#ifndef PPPD
 #define PPPD		"/usr/sbin/pppd"
 #endif
 #define CALL_PPP_OPTS "defaultroute"

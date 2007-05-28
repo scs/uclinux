@@ -12,7 +12,7 @@
 
 if(description)
 {
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.4 $");
  script_id(11491);
  script_bugtraq_id(7207, 7208);
  script_name(english:"Sambar default CGI info disclosure");
@@ -51,8 +51,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 

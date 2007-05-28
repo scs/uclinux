@@ -6,7 +6,7 @@
 #
 # Derived from dtmf.sh by Thomas Ziegler <zie@lte.e-technik.uni-erlangen.de>
 #
-# $Id$
+# $Id: button.sh,v 1.3 1998/09/09 21:07:59 gert Exp $
 #
 
 VOICE_DIR=/var/spool/voice

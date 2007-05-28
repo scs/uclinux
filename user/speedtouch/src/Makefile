@@ -4,7 +4,7 @@
 #
 # Written by Francois Rogler <francois@rogler.org>
 #
-# $Id$
+# $Id: Makefile,v 1.2 2005/01/20 05:24:01 damion Exp $
 #
 # ###############################################################
 

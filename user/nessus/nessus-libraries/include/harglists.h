@@ -16,7 +16,7 @@
  *  along with this library; if not, write to the Free Software
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- *  $Id: harglists.h,v 1.19 2002/06/02 09:02:31 renaud Exp $
+ *  $Id: harglists.h,v 1.20 2003/12/15 15:54:39 renaud Exp $
  *
  * Author: Jordan Hrycaj <jordan@mjh.teddy-net.com>
  *
@@ -1112,6 +1112,7 @@ extern unsigned    harg_get_sizet  (harglst*,hargkey_t*,hargtype_t);
 extern hargwalk   *harg_walk_init  (harglst*);
 extern hargkey_t  *harg_walk_nextT (hargwalk*,hargtype_t*);
 extern void        harg_walk_stop  (hargwalk*);
+extern void harg_sort(harglst*);
 
 extern int         harg_do         (harglst*, 
    int(*)(void*state,void*data,hargtype_t,unsigned size,hargkey_t*),

@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10465);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1469);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-0670");
  name["english"] = "CVSWeb 1.80 gives a shell to cvs committers";
  name["francais"] = "CVSWeb 1.80 donne un shell aux commiters";
@@ -24,7 +24,7 @@ commands on your server, with the privileges of the
 HTTPd process.
 
 Solution : upgrade to version 1.86 (http://stud.fh-heilbronn.de/~zeller/cgi/cvsweb.cgi/)
-Risk factor : Medium";
+Risk factor : High";
 
 
 
@@ -37,7 +37,7 @@ arbitraires sur votre serveur, avec les privileges du
 serveur web.
 
 Solution : mettez ce cgi à jour en version 1.86 (http://stud.fh-heilbronn.de/~zeller/cgi/cvsweb.cgi/)
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
@@ -62,13 +62,14 @@ Facteur de risque : Moyen";
 # The script code starts here
 #
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+include("http_func.inc");
+port = get_http_port(default:80);
+
  name = string("www/", port, "/cvsweb/version");
  version = get_kb_item(name);
  if(version)
  {
- if(ereg(pattern:"1\.([0-7].*|8[0-5])[^0-9]",
+ if(ereg(pattern:"^1\.([0-7].*|8[0-5])[^0-9]",
          string:version))
 	 	security_hole(port);
  }

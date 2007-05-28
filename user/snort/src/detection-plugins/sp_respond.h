@@ -25,9 +25,9 @@
 ************************************************************/
 #ifndef __RESPOND_H__
 #define __RESPOND_H__
-#ifdef ENABLE_RESPONSE
+#if defined(ENABLE_RESPONSE) && !defined(ENABLE_RESPONSE2)
 
 void SetupRespond(void);
 
-#endif
+#endif /* ENABLE_RESPONSE && !ENABLE_RESPONSE2 */
 #endif /* __RESPOND_H__ */

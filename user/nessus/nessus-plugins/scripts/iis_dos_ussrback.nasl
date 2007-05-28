@@ -10,8 +10,8 @@
 if(description)
 {
  script_id(10406);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(1190);
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-2000-0408");
  name["english"] = "IIS Malformed Extension Data in URL";
  name["francais"] = "IIS Malformed Extension Data in URL";
@@ -33,7 +33,7 @@ Solution : Microsoft has made patches available at :
  - For Internet Information Server 5.0:
    http://www.microsoft.com/Downloads/Release.asp?ReleaseID=20904
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -64,7 +64,7 @@ Facteur de risque : Sérieux";
  script_category(ACT_DENIAL);	# ACT_FLOOD?
 
  # Dependencie(s)
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  
  # Family
  family["english"] = "Denial of Service";
@@ -77,14 +77,20 @@ Facteur de risque : Sérieux";
  		  francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
  
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
+else {
+	sig = get_http_banner(port:port);
+	if ( sig && ! egrep(pattern:"^Server:.*IIS", string:sig) ) exit(0);
+     }
+
 
 if(get_port_state(port))
 {

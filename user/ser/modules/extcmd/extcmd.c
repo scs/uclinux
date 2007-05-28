@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: extcmd.c,v 1.8 2003/04/06 20:28:12 janakj Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

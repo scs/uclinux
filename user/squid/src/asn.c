@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: asn.c,v 1.78.2.2 2005/03/26 02:50:51 hno Exp $
  *
  * DEBUG: section 53    AS Number handling
  * AUTHOR: Duane Wessels, Kostas Anagnostakis
@@ -73,8 +73,8 @@ struct _ASState {
     store_client *sc;
     request_t *request;
     int as_number;
-    off_t seen;
-    off_t offset;
+    squid_off_t seen;
+    squid_off_t offset;
 };
 
 typedef struct _ASState ASState;

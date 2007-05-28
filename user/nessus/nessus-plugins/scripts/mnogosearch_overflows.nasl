@@ -1,12 +1,13 @@
 #
 # (C) Tenable Network Security
 #
-# ref: http://www.securiteam.com/securitynews/5BP0G0AAAY.html
+
 if(description)
 {
  script_id(11735);
- script_version ("$Revision: 1.2 $");
- 
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2003-0436", "CVE-2003-0437");
+ script_bugtraq_id (7865, 7866); 
  
  name["english"] = "Mnogosearch overflows";
  script_name(english:name["english"], francais:name["francais"]);
@@ -21,9 +22,7 @@ an attacker to gain a shell on this host.
 Solution : Disable this CGI if you do not use it, or upgrade to the latest
 version.
 
-See also : http://www.securiteam.com/securitynews/5BP0G0AAAY.html
-
-Risk Factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -42,6 +41,7 @@ Risk Factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -52,8 +52,8 @@ Risk Factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 

@@ -16,9 +16,9 @@
 if(description)
 {
  script_id(11162);
- script_version("$Revision: 1.9 $");
- script_cve_id("CAN-2002-1169");
  script_bugtraq_id(6002);
+ script_version("$Revision: 1.14 $");
+ script_cve_id("CVE-2002-1169");
   
  name["english"] = "WebSphere Edge caching proxy denial of service";
  script_name(english:name["english"]);
@@ -46,6 +46,7 @@ Solution : Upgrade your web server or remove this CGI.";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "httpver.nasl", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -55,15 +56,15 @@ Solution : Upgrade your web server or remove this CGI.";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if (! get_port_state(port)) exit(0);
+port = get_http_port(default:80);
+
+if (! get_port_state(port) || http_is_dead(port: port)) exit(0);
 
 foreach dir (cgi_dirs())
 {
  p = string(dir, "/helpout.exe");
  soc = http_open_socket(port);
- if (! soc) exit(0);
+ if (! soc) exit(0);	# Bug?
 
  req = string("GET ", p, " HTTP\r\n\r\n");
  send(socket:soc, data:req);

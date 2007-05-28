@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.sched.c,v 3.17 2000/07/04 19:46:23 christos Exp $ */
 /*
  * tc.sched.c: Scheduled command execution
  *
@@ -38,7 +38,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tc.sched.c,v 3.17 2000/07/04 19:46:23 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"

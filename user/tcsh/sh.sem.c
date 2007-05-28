@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.sem.c,v 3.51 2000/11/11 23:03:38 christos Exp $ */
 /*
  * sh.sem.c: I/O redirections and job forking. A touchy issue!
  *	     Most stuff with builtins is incorrect
@@ -37,7 +37,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: sh.sem.c,v 3.51 2000/11/11 23:03:38 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"

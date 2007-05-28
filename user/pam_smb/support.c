@@ -1,5 +1,5 @@
 /* 
- * $Header$ 
+ * $Header: /data/cvs/pam_smb/support.c,v 1.2 1998/05/11 18:56:53 airlied Exp $ 
  */
  
 /*
@@ -39,10 +39,7 @@
  */
 
 /*
- * $Log$
- * Revision 1.1  2006/08/05 07:58:07  vapier
- * import from upstream uClinux
- *
+ * $Log: support.c,v $
  * Revision 1.2  1998/05/11 18:56:53  airlied
  *
  *

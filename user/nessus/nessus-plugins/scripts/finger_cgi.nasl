@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10071);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.17 $");
  
  name["english"] = "Finger cgi";
  name["francais"] = "Finger cgi";
@@ -22,7 +22,7 @@ service installed.
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'finger' est installé. Ce n'est
@@ -61,9 +61,16 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("finger");
-if(port)
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(port:port, item:"finger");
+if(res)
 {
  security_warning(port);
 }

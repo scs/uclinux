@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl.c,v 1.30.4.8 2004/07/02 16:00:33 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

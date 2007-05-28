@@ -186,6 +186,32 @@
 #include <sys/mman.h>
 #endif
 
+
+#ifdef HAVE_LINUX_MSG_H
+#include <linux/msg.h>
+#else
+#ifdef HAVE_SYS_IPC_H
+#include <sys/ipc.h>
+#endif
+#ifdef HAVE_SYS_MSG_H
+#include <sys/msg.h>
+#endif
+#endif
+
+
+#ifdef HAVE_SYS_RESOURCE_H
+#include <sys/resource.h>
+#endif
+
+
+#ifdef HAVE_SYS_UIO_H
+#include <sys/uio.h>
+#endif
+
+#ifndef MSGMAX
+#define MSGMAX 4000 	/* This is awkwardly arbitrary */
+#endif
+
 #ifdef BSD_BYTE_ORDERING
 # define FIX(n) (n)
 # define UNFIX(n) (n)

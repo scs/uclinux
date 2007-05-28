@@ -12,8 +12,7 @@ $(EXEC1): $(OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
 
 $(EXEC2): $(EXEC1)
-	rm -f $(EXEC2)
-	ln $(EXEC1) $(EXEC2)
+	ln -f $(EXEC1) $(EXEC2)
 
 $(EXEC3): $(OBJS3)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS3) $(LDLIBS)

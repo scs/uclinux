@@ -24,7 +24,8 @@
 ** along with this program; if not, write to the Free Software
 ** Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 **
-**  
+** 6/13/05 - marc norton
+**   Added plugin support for fast pattern match data, requires DYNAMIC_PLUGIN be defined
 **
 */
 #ifndef __FPCREATE_H__
@@ -41,6 +42,12 @@
 #ifndef INLINE
 #define INLINE inline
 #endif
+
+/*
+ *  This controls how many fast pattern match contents may be 
+ *  used/retrieved per rule in fpcreate.c.
+ */
+#define PLUGIN_MAX_FPLIST_SIZE 16
 
 /*
 **  This structure holds the RTN and OTN
@@ -71,6 +78,7 @@ typedef struct _FPDETECT {
     
     int inspect_stream_insert;
     int search_method;
+    int search_method_verbose;
     int debug;
     int max_queue_events;
 

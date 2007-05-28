@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: internal.c,v 1.23 2001/01/12 00:37:18 wessels Exp $
  *
  * DEBUG: section 76    Internal Squid Object handling
  * AUTHOR: Duane, Alex, Henrik

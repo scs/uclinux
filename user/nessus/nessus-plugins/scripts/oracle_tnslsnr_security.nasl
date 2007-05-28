@@ -9,7 +9,7 @@
 if (description)
 {
 	script_id(10660);
- 	script_version ("$Revision: 1.7 $");
+ 	script_version ("$Revision: 1.13 $");
 	script_name(english: "Oracle tnslsnr security");
 	script_description(english: 
 "The remote Oracle tnslsnr has no password assigned.
@@ -17,19 +17,21 @@ An attacker may use this fact to shut it down arbitrarily,
 thus preventing legitimate users from using it properly.
 
 Solution:  use the lsnrctrl SET PASSWORD command to assign a password to, the tnslsnr.
-Risk factor : Serious"
+Risk factor : High"
 
 	);
 
 	script_summary(english: "Determines if the Oracle tnslsnr has been assigned a password.");
 
 	script_category(ACT_GATHER_INFO);
-	script_family(english: "Misc.", francais:"Divers");
+	script_family(english: "Databases");
 	script_copyright(english: "James W. Abendschan <jwa@jammed.com> (GPL)");
-	script_dependencie("find_service.nes");
-	script_require_ports(1521, 1541);
+	script_dependencie("oracle_tnslsnr_version.nasl");
+        script_require_ports("Services/oracle_tnslsnr");
 	exit(0);
 }
+
+include('global_settings.inc');
 
 function tnscmd(sock, command)
 {
@@ -75,6 +77,8 @@ function oracle_tnslsnr_security(port)
 	{
 		cmd = "(CONNECT_DATA=(COMMAND=STATUS))";
 		reply = tnscmd(sock:sock, command:cmd);
+		close(sock);
+		if ( ! reply ) return 0;
 
 		if ("SECURITY=OFF" >< reply)
 		{
@@ -82,7 +86,7 @@ function oracle_tnslsnr_security(port)
 		}
 		else
 		{
-			if ("SECURITY=ON" >< reply)
+			if ("SECURITY=ON" >< reply || "ERROR=(CODE=1169)" >< reply )
 			{
 				# FYI
 				report = string
@@ -91,35 +95,22 @@ function oracle_tnslsnr_security(port)
 				);
 				security_note(port:port, data:report);
 			}
-			else
+			else if ( "ERROR=(CODE=12618)" >< reply && report_verbosity == 2 )
 			{
-				# the 3rd, not-likely-but-just-in-case case..
-				report = string
-				(
-"That's odd; the TNS STATUS command didn't include a SECURITY field?",
-"\n",
-"The reply packet follows:\n", reply, "\n",
-"Please report this to jwa@jammed.com\n"
-				);
-				#display(report);
-				# security_warning seems to truncate
-				# long strings .. oh well.
+				report = string( "This host has an incompatible version of tnslsnr for the plugin. This cannot be checked.\n");
 				security_note(port:port, data:report);
-			}	
+			}
 		} 
 	}	
-	close(sock);
 }
 
 # tnslsnr runs on different ports . . .
 
-if(get_port_state(1521))
-{
-	oracle_tnslsnr_security(port:1521);
-}
+port = get_kb_item("Services/oracle_tnslsnr");
+if ( isnull(port)) exit(0);
 
-if(get_port_state(1541))
-{
-	oracle_tnslsnr_security(port:1541);
-}
+if(get_port_state(port))
+ {
+  oracle_tnslsnr_security(port:port);
+ }
 

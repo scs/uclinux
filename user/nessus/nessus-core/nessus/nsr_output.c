@@ -152,18 +152,29 @@ int nsr_to_backend(filename)
  return be;
 }
 
+extern int	F_quiet_mode;
+
 int backend_to_nsr(be, filename)
  int be;
  char * filename;
 {
- int fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0600);
- struct subset  * sq, *q;
- cmp_func_t cmp[] = {safe_strcmp};
+  int fd;
+  struct subset  * sq, *q;
+  static cmp_func_t cmp[] = {safe_strcmp};
+
+  if (F_quiet_mode)
+    fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0600);
+  else
+    fd = open(filename, O_RDWR|O_CREAT|O_EXCL, 0600);
+
  if(fd < 0)
  {
-  perror(filename);
-  show_error(strerror(errno));
-  return -1;
+   char	err[1024];
+   int	e = errno;
+   perror(filename);
+   snprintf(err, sizeof(err), "%s: %s", filename, strerror(e));
+   show_error(err);
+   return -1;
  }
 
  

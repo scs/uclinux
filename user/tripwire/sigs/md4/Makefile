@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.4 1993/11/22 06:38:16 genek Exp $
 #
 # Makefile for MD4 wrapper
 #

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10438);
- script_version ("$Revision: 1.18 $");
  script_bugtraq_id(1297);
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-2000-0490");
  name["english"] = "Netwin's DMail ETRN overflow";
  name["francais"] = "Dépassement de buffer ETRN dans DMail de Netwin";
@@ -60,7 +60,7 @@ Facteur de risque : Elevé";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -74,6 +74,7 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(safe_checks())
 {
@@ -115,7 +116,7 @@ if(get_port_state(port))
  if(soc)
  {
  data = smtp_recv_banner(socket:soc);     
- crp = string("HELO nessus.org\r\n");
+ crp = string("HELO example.com\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:1024);
  crp = string("ETRN ", crap(500), "\r\n");

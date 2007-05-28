@@ -11,21 +11,20 @@ password = "root";
 if(description)
 {
  script_id(11255);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CVE-1999-0502");
  
- script_name(english:string("Default password (", password, ") for ", account));
-	     
-
- script_description(english:string("
-The account '", account, "' has the password ", password, "
-An attacker may use it to gain further privileges on this system
+ script_name(english:"Default password 'root' for account 'root'");
+     
+ desc["english"] = "
+The account 'root' has the password 'root'.  An attacker may use it to
+gain further privileges on this system
 
 Risk factor : High
-Solution : Set a password for this account or disable it"));
-		 
-script_summary(english:"Logs into the remote host",
-	       francais:"Translate");
+Solution : Set a password for this account or disable it";
+ script_description(english:desc["english"]);
+
+ script_summary(english:"Logs into the remote host");
 
  script_category(ACT_GATHER_INFO);
 
@@ -34,8 +33,8 @@ script_summary(english:"Logs into the remote host",
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  
  
- script_dependencie("find_service.nes");
- script_require_ports("Services/telnet", 23);
+ script_dependencie("find_service.nes", "ssh_detect.nasl");
+ script_require_ports("Services/telnet", 23, "Services/ssh", 22);
  exit(0);
 }
 

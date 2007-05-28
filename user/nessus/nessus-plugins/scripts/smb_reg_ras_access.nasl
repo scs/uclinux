@@ -1,79 +1,61 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# Script audit and contributions from Carmichael Security <http://www.carmichaelsecurity.com>
-#      Erik Anderson <eanders@carmichaelsecurity.com>
-#      Added BugtraqID and CAN
-#
-# See the Nessus Scripts License for details
+# This script is released under Tenable Plugins License
 #
 
 if(description)
 {
  script_id(10567);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CAN-2001-0045");
  script_bugtraq_id(2064);
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-2001-0045");
 
  name["english"] = "SMB Registry : permissions of the RAS key";
- name["francais"] = "SMB : Vérification des permissions de la clé RAS";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
 
-This script checks whether the following key can
-be modified by non admins :
+Local users can gain additinal privileges.
+
+Description :
+
+This script checks whether the following key can be modified
+by non admins :
 
 HKLM\Software\Microsoft\Windows\RAS
 
+Write access to this key allows an unprivileged user to gain
+additional privileges.
 
-Write access to this key allows an unprivileged user
-to gain additional privileges.
+See also :
 
-See Microsoft Security Bulletin MS00-095
+http://www.microsoft.com/technet/security/bulletin/ms00-095.mspx
 
-Solution : use regedt32 and set the permissions of this
-key to :
+Solution : 
 
-	- admin group  : Full Control
-	- system       : Full Control
-	- everyone     : Read
+Use regedt32 and set the permissions of this key to :
+
+- admin group  : Full Control
+- system       : Full Control
+- everyone     : Read
 	
-Risk factor : Serious";
+Risk factor :
+
+Medium / CVSS Base Score : 5 
+(AV:L/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
 
- desc["francais"] = "
- 
-La clé HKLM\Software\Microsoft\Windows\RAS est en écriture
-libre pour des utilisateurs non-administrateurs.
-
-Le fait de pouvoir modifier cette clé permet à n'importe
-qui d'elever ses privileges sur cette machine.
-
-Solution : utilisez regedt32 et changez les permissions
-de cette clé en :
-
-	- groupe admin  : control total
-	- sytem         : control total
-	- tout le monde : lecture
-	
-	
-Facteur de risque : Elevé";
-
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines the access rights of a remote key";
- summary["francais"] = "Détermine les droits d'accès de la clé distante";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
@@ -84,12 +66,47 @@ Facteur de risque : Elevé";
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
 
-val = registry_get_acl(key:"Software\Microsoft\Windows\RAS");
-if(!val)exit(0);
+access = get_kb_item("SMB/registry_access");
+if(!access)exit(0);
 
-if(registry_key_writeable_by_non_admin(security_descriptor:val))
- security_hole(get_kb_item("SMB/transport"));
- 
- 
+port = get_kb_item("SMB/transport");
+if(!port)port = 139;
+
+name	= kb_smb_name(); 	if(!name)exit(0);
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
+
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
+
+hklm = RegConnectRegistry(hkey:HKEY_LOCAL_MACHINE);
+if ( isnull(hklm) )
+{
+ NetUseDel();
+ exit(0);
+}
+
+key = "SOFTWARE\Microsoft\Windows\RAS";
+
+key_h = RegOpenKey(handle:hklm, key:key, mode:MAXIMUM_ALLOWED | ACCESS_SYSTEM_SECURITY); 
+if(!isnull(key_h))
+{
+ rep = RegGetKeySecurity (handle:key_h, type: DACL_SECURITY_INFORMATION | SACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION);
+ if(!isnull(rep) && registry_key_writeable_by_non_admin(security_descriptor:rep))
+ {
+   security_warning (port);
+ }
+ RegCloseKey (handle:key_h);
+}
+
+RegCloseKey (handle:hklm);
+NetUseDel();

@@ -4,9 +4,10 @@ OBJS=syslog.o
 
 ifndef CONFIG_LIB_TINYTCL_STATIC
 CFLAGS += -fpic
+SH_LDFLAGS += -L$(TCLDIR)
 
 syslog.so: $(OBJS)
-	$(CC) -shared $(SH_LDFLAGS) -o $@ $(OBJS) $(SH_LDLIBS)
+	$(CC) -shared $(SH_LDFLAGS) -o $@ $(OBJS) -ltcl $(SH_LDLIBS)
 
 else
 all: $(OBJS)

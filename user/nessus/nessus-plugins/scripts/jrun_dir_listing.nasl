@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(10604);
- script_version ("$Revision: 1.7 $");
- script_cve_id("CVE-2000-1050");
  script_bugtraq_id(1830);
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-1050");
 
  name["english"] = "Allaire JRun Directory Listing";
  name["francais"] = "Allaire JRun Directory Listing";
@@ -29,7 +29,7 @@ An attacker may use this flaw to download 'hidden' files on
 your server.
 
 Solution : upgrade to JRun 3.0sp2
-Risk factor : Low/Medium";
+Risk factor : Medium";
 
  desc["francais"] = "
 Demander une URL avec un '/./' au début force un serveur
@@ -40,7 +40,7 @@ Un pirate peut utiliser ce problème pour télécharger les fichiers
 'cachés' de votre serveur.
 
 Solution : mettez à jour JRun 3.0sp2
-Facteur de risque : Faible/Moyen";
+Facteur de risque : Moyen";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
@@ -56,8 +56,8 @@ Facteur de risque : Faible/Moyen";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
- script_require_ports("Services/www", 80);
+ script_dependencie("http_version.nasl");
+ script_require_ports("Services/www", 8000);
  exit(0);
 }
 
@@ -65,23 +65,15 @@ Facteur de risque : Faible/Moyen";
 # The script code starts here
 #
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8000;
-
+port = get_http_port(default:8000);
 if(get_port_state(port))
 {
- soc = http_open_socket(port);
- if(soc)
- {
   req = http_get(item:"/./WEB-INF/", port:port);
-  send(socket:soc, data:req);
-  r = recv_line(socket:soc, length:4096);
-  if(" 200 " >< r)
+  r =   http_keepalive_send_recv(port:port, data:req);
+  if(ereg(pattern:"^HTTP.* 200 ", string:r)  )
   {
-   r = http_recv(socket:soc);
-   http_close_socket(soc);
-   if("Index of /./WEB-INF/" >< r)security_hole(port);
+   if("Index of /./WEB-INF/" >< r)security_warning(port);
   }
- }
 }

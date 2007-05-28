@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10559);
- script_version ("$Revision: 1.12 $");
- script_cve_id("CAN-2000-0841");
  script_bugtraq_id(1652);
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-2000-0841");
  name["english"] = "XMail APOP Overflow";
  name["francais"] = "Dépassement de buffer APOP dans XMail";
  script_name(english:name["english"], francais:name["francais"]);
@@ -52,7 +52,7 @@ Facteur de risque : Elevé";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "qpopper.nasl");
+ script_dependencie("popserver_detect.nasl", "qpopper.nasl");
  script_exclude_keys("pop3/false_pop3");
  script_require_ports("Services/pop3", 110);
  exit(0);
@@ -62,10 +62,17 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 
-fake = get_kb_item("pop3/false_pop3");
-if(fake)exit(0);
+include('global_settings.inc');
+
+if (report_paranoia < 1)
+{
+ fake = get_kb_item("pop3/false_pop3");
+ if (fake) exit(0);
+}
+
 port = get_kb_item("Services/pop3");
 if(!port)port = 110;
+if (! get_port_state(port)) exit(0);
 
 if(safe_checks())
 {
@@ -102,29 +109,30 @@ Risk factor : High";
  exit(0);
 }
 
-
-if(get_port_state(port))
-{
  soc = open_sock_tcp(port);
- if(soc)
- {
+ if(! soc) exit(0);
+
   d = recv_line(socket:soc, length:1024);
-  if(!d){close(soc);exit(0);}
+  if(!d || !ereg(pattern:".*[xX]mail.*", string:d))
+  {
+   close(soc);
+   exit(0);
+  }
   c = string("APOP ", crap(2048), " ", crap(2048), "\r\n");
   send(socket:soc, data:c);
   r = recv_line(socket:soc, length:1024);
-  if(!r){
-  	security_hole(port);
-  	exit(0);
-	}
+
   close(soc);
+
+for (i = 1; i <= 3; i ++)
+{
   soc = open_sock_tcp(port);
+  if (soc) break;
+  sleep(i);
+}
   if(!soc)security_hole(port);
   else {
    	r = recv_line(socket:soc, length:1024);
 	if(!r)security_hole(port);
 	close(soc);
 	}
- 
- }
-}

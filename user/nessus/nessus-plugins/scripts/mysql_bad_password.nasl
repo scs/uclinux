@@ -9,7 +9,7 @@ if(description)
  
  script_id(10343);  
  script_bugtraq_id(975);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-2000-0148");
  name["english"] = "MySQLs accepts any password";
  name["francais"] = "MySQLs accepte n'importe quel mot de passe";
@@ -61,9 +61,8 @@ ou bien patchez le fichier  mysql-xxx/sql/password.c :
  
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "Remote file access";
- family["francais"] = "Accès aux fichiers distants";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "mysql_version.nasl");
  script_require_ports("Services/mysql", 3306);
  exit(0);
@@ -78,7 +77,7 @@ include("misc_func.inc");
 port = get_kb_item("Services/mysql");
 if(!port)port = 3306;
 
-ver = get_mysql_version(port);
+ver = get_mysql_version(port:port);
 if (ver == NULL) exit(0);
-if(ereg(pattern:"3\.(22\.(2[6789]|30)|23\.([89]|10))", string:ver))security_hole(port);
+if(ereg(pattern:"^3\.(22\.(2[6789]|30)|23\.([89]|10))", string:ver))security_hole(port);
 

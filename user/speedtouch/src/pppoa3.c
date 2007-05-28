@@ -23,7 +23,7 @@
  *  also be used as a daemon to create a tap device that rp-pppoe can use as a
  *  standard ethernet device (this is the ethernet bridging mode rfc 1483).
  *
- *  $Id$
+ *  $Id: pppoa3.c,v 1.48 2004/05/24 19:22:05 papillau Exp $
  */
 
 #ifndef _PPPOA3_C_

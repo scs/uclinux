@@ -5,7 +5,15 @@
 #include "config.h"
 #endif
 
+#ifdef WIN32
+#include <winsock2.h>
+#else
+#include <sys/time.h>
+#endif
+
+#include <stdlib.h>
 #include <time.h>
+#include <sys/types.h>
 
 
 /* this is equivalent to the pcap pkthdr struct, but we need one for

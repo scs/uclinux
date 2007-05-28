@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: case_requ.h,v 1.6 2003/02/28 14:12:26 jiri Exp $ 
  *
  * Require Header Field Name Parsing Macros
  *

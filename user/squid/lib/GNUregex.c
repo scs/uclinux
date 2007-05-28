@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: GNUregex.c,v 1.12.2.3 2005/03/05 21:00:40 hno Exp $
  */
 
 /* Extended regular expression matching and search library,
@@ -3663,7 +3663,7 @@ re_match_2(bufp, string1, size1, string2, size2, pos, regs, stop)
 		    /* Compare that many; failure if mismatch, else move
 		     * past them.  */
 		    if (translate
-			? bcmp_translate(d, d2, mcnt, translate)
+			? bcmp_translate((unsigned char *)d, (unsigned char *)d2, mcnt, translate)
 			: memcmp(d, d2, mcnt))
 			goto fail;
 		    d += mcnt, d2 += mcnt;
@@ -4440,18 +4440,18 @@ re_comp(s)
 
     if (!s) {
 	if (!re_comp_buf.buffer)
-	    return "No previous regular expression";
+	    return (char *)"No previous regular expression";
 	return 0;
     }
     if (!re_comp_buf.buffer) {
 	re_comp_buf.buffer = (unsigned char *) malloc(200);
 	if (re_comp_buf.buffer == NULL)
-	    return "Memory exhausted";
+	    return (char *)"Memory exhausted";
 	re_comp_buf.allocated = 200;
 
 	re_comp_buf.fastmap = (char *) malloc(1 << BYTEWIDTH);
 	if (re_comp_buf.fastmap == NULL)
-	    return "Memory exhausted";
+	    return (char *)"Memory exhausted";
     }
     /* Since `re_exec' always passes NULL for the `regs' argument, we
      * don't need to initialize the pattern buffer fields which affect it.  */

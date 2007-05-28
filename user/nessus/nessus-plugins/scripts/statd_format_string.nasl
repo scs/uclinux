@@ -8,9 +8,11 @@
 if(description)
 {
  script_id(10544);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1480);
- script_cve_id("CVE-2000-0666", "CAN-2000-0800");
+ script_version ("$Revision: 1.26 $");
+ script_cve_id("CVE-2000-0666", "CVE-2000-0800");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-b-0005");
+
  
  name["english"] = "format string attack against statd";
  name["francais"] = "format string attack against statd";
@@ -53,7 +55,10 @@ Facteur de risque : Elevé";
  family["english"] = "RPC"; 
  family["francais"] = "RPC";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("rpc_portmap.nasl");
+ if ( ! defined_func("bn_random") )
+  script_dependencie("os_fingerprint.nasl", "rpc_portmap.nasl");
+ else
+  script_dependencie("os_fingerprint.nasl", "rpc_portmap.nasl", "redhat_fixes.nasl");
  script_require_keys("rpc/portmap");
  exit(0);
 }
@@ -62,20 +67,40 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 include("misc_func.inc");
+include("global_settings.inc");
 
+
+if ( get_kb_item("Host/Solaris/Version") )  exit(0);
+
+if ( get_kb_item("CVE-2000-0666") ) exit(0);
 
 port = get_rpc_port(program:100024,
 		protocol:IPPROTO_UDP);
+
+if ( ! port && safe_checks() ) 
+	port = get_rpc_port(program:100024,
+		protocol:IPPROTO_TCP);
 
 if(port)
 {
  if(safe_checks())
  {
+  os = get_kb_item("Host/OS/icmp");
+  if ( os ) {
+	if ("Linux" >!< os ) exit(0);
+        if ("Linux Kernel 2.4" >< os ||
+	    "Linux Kernel 2.6" >< os ) exit(0);
+	}
+  else if ( report_paranoia < 2 ) exit(0);
+  
+ 
   report = "
 The remote statd service may be vulnerable to a format string attack.
 
 This means that an attacker may execute arbitrary code thanks to a bug in 
 this daemon.
+
+Only older versions of statd under Linux are affected by this problem.
 
 *** Nessus reports this vulnerability using only information that was gathered.
 *** Use caution when testing without safe checks enabled.
@@ -137,3 +162,4 @@ if(!r){
 
 close(soc);
 }
+

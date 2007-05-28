@@ -11,20 +11,22 @@ password = "db2as";
 if(description)
 {
  script_id(11864);
- script_version ("$Revision: 1.1 $");
- script_cve_id("CAN-2001-0051");
- script_name(english:string("Default password (", password, ") for ", account));
-	     
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-0051");
+ script_bugtraq_id(2068);
+ script_name(english:"Default password (db2as) for db2as");
 
- script_description(english:string("
-The account '", account, "' has the password ", password, "
+ desc["english"] = "
+The account 'db2as' has the password 'db2as'
 An attacker may use it to gain further privileges on this system
 
 Risk factor : High
-Solution : Set a strong password for this account or disable it. This may disable dependant applications so beware"));
-		 
-script_summary(english:"Logs into the remote host",
-	       francais:"Translate");
+Solution : Set a strong password for this account or disable it.
+This may disable dependant applications so beware";
+
+ script_description(english:desc["english"]);
+ 
+ script_summary(english:"Logs into the remote host");
 
  script_copyright(english:"This script is Copyright (C) 2003 Chris Foster");
 
@@ -32,8 +34,9 @@ script_summary(english:"Logs into the remote host",
 
  script_family(english:"Default Unix Accounts");
  
- script_dependencie("find_service.nes");
- script_require_ports("Services/telnet", 23);
+ script_dependencie("find_service.nes", "ssh_detect.nasl");
+ script_require_ports("Services/telnet", 23, "Services/ssh", 22);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
@@ -41,6 +44,9 @@ script_summary(english:"Logs into the remote host",
 # The script code starts here : 
 #
 include("default_account.inc");
+include("global_settings.inc");
+
+if ( ! thorough_tests ) exit(0);
 
 port = check_account(login:account, password:password);
 if(port)security_hole(port);

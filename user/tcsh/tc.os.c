@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.os.c,v 3.52 2000/11/11 23:03:39 christos Exp $ */
 /*
  * tc.os.c: OS Dependent builtin functions
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tc.os.c,v 3.52 2000/11/11 23:03:39 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"

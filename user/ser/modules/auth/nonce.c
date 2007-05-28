@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: nonce.c,v 1.11 2003/04/28 22:03:15 janakj Exp $
  *
  * Nonce related functions
  *

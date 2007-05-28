@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-hpux.h,v 1.5 1994/07/16 23:39:37 gkim Exp $ */
 
 /*
  * conf-hpux.h

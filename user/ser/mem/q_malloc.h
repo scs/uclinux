@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: q_malloc.h,v 1.12 2003/06/30 10:04:02 andrei Exp $
  *
  * simple & fast malloc library
  *

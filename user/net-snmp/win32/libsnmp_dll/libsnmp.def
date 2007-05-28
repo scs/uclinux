@@ -128,6 +128,7 @@ EXPORTS
 ;	ascii_to_binary
 ;	hex_to_binary
 	get_tc_descriptor
+	get_tc_description
 	setenv
 	find_module
 	snmp_async_send
@@ -215,6 +216,7 @@ EXPORTS
 	snmp_out_toggle_options
 	snmp_out_toggle_options_usage
 	snmp_oid_compare
+	snmp_oidtree_compare
 	netsnmp_oid_equals
 	usm_free_user
 	usm_add_user
@@ -267,6 +269,7 @@ EXPORTS
 	vacm_scanAccessNext
 	vacm_scanViewInit
 	vacm_scanViewNext
+	vacm_checkSubtree
 	snmp_synch_response_cb
 	snmp_clone_varbind
 	snmp_free_varbind
@@ -327,6 +330,8 @@ EXPORTS
 	netsnmp_oid_stash_get_data
 	netsnmp_oid_find_prefix
 	netsnmp_container_init_list
+	netsnmp_container_null_init
+	netsnmp_container_ssll_init
 	netsnmp_strdup_and_null
 	build_oid
 	build_oid_noalloc
@@ -345,17 +350,68 @@ EXPORTS
 	netsnmp_udp_parse_security
 	netsnmp_udp_getSecName
 	find_sec_mod
-	NetSnmpVersionInfo
+	strlcpy
 	getopt
-	optarg
-	optind
+	optarg                  DATA
+	opterr                  DATA
+	optind                  DATA
+	optopt                  DATA
+	optreset                DATA
 	usmNoAuthProtocol
 	usmHMACMD5AuthProtocol
 	usmHMACSHA1AuthProtocol
 	usmNoPrivProtocol
 	usmDESPrivProtocol
+	usmAESPrivProtocol
+	snprint_bitstring
+	snprint_value
+	snprint_objid
+	snprint_variable
+	snmp_synch_reset
+	snmp_log_options
+	snmp_log_syslogname
+	netsnmp_clear_callback_list
+	netsnmp_clear_tdomain_list
+	clear_sec_mod
+	clear_snmp_enum
+	clear_callback
+	clear_user_list
+	netsnmp_ds_get_void
+	netsnmp_ds_set_void
+	netsnmp_ds_shutdown
+	netsnmp_sprint_realloc_objid_tree
+	module_name
 	Mib                     DATA
 	tree_head               DATA
 	snmp_errno              DATA
-;	NetSnmpVersionInfo      DATA
+	netsnmp_daemonize
+	snmp_log_options_usage
+	netsnmp_container_free_list
+	netsnmp_oid_stash_getnext_node
+	netsnmp_oid_stash_free
+	netsnmp_get_list_node
+	netsnmp_remove_list_node
+	netsnmp_remove_loghandler
+	netsnmp_register_loghandler
+	get_logh_head
+	dbg_tokens
+	debug_num_tokens
+	create_winpipe_transport
+	get_temp_file_pattern
+	netsnmp_strdup
+	netsnmp_calloc
+	netsnmp_malloc
+	netsnmp_realloc
+	netsnmp_free
+	netsnmp_udp6_agent_config_tokens_register
+	init_usm_conf
+	strtok_r
+        snmp_reset_var_buffers
+        netsnmp_container_add_index
+        netsnmp_container_find
+        netsnmp_c64_check32_and_update
+;IPv6        netsnmp_udp6_parse_security
+;IPv6        netsnmp_udp6_getSecName
+;IPv6        netsnmp_TCPIPv6Domain
+;IPv6        netsnmp_UDPIPv6Domain
 

@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: urirad_mod.c,v 1.5.6.1 2004/07/18 22:56:24 sobomax Exp $ 
  *
  * URI checks using Radius
  *

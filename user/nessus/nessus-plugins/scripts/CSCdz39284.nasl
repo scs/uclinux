@@ -10,8 +10,12 @@ if(description)
 {
  script_id(11380);
  script_bugtraq_id(6904);
+ # script_cve_id("CVE-MAP-NOMATCH");
+ # NOTE: no CVE id currently assigned (jfs, december 2003)
+ # Review http://cve.mitre.org/cve/refs/refmap/source-CISCO.html
+ # in the future to see if this gets updated
 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.5 $");
 
  name["english"] = "CSCdz39284, CSCdz41124";
 
@@ -26,7 +30,7 @@ These vulnerabilities are documented as CISCO bug id CSCdz39284 and
 CSCdz41124.
 
 Solution : See http://www.cisco.com/warp/public/707/cisco-sa-20030221-protos.shtml
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

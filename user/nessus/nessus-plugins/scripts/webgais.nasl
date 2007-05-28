@@ -7,49 +7,50 @@
 if(description)
 {
  script_id(10300); 
- script_version ("$Revision: 1.17 $");
- script_cve_id("CVE-1999-0176");
  script_bugtraq_id(2058);
+ script_version ("$Revision: 1.23 $");
+ script_cve_id("CVE-1999-0176");
  
  name["english"] = "webgais";
  name["francais"] = "webgais";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "The 'webgais' CGI is installed. This CGI has
-a well known security flaw that lets an attacker execute arbitrary
-commands with the privileges of the http daemon (usually root or nobody).
+ desc["english"] = "
+Synopsis :
 
-Solution : remove it from /cgi-bin
+The remote web server contains a CGI script that is prone to arbitrary
+code execution. 
 
-Risk factor : Serious";
+Description :
 
+The 'webgais' CGI is installed.  This CGI may let an attacker execute
+arbitrary commands with the privileges of the http daemon (usually root
+or nobody). 
 
- desc["francais"] = "Le cgi 'webgais' est installé. Celui-ci possède
-un problème de sécurité bien connu qui permet à n'importe qui de faire
-executer des commandes arbitraires au daemon http, avec les privilèges
-de celui-ci (root ou nobody). 
+See also :
 
-Solution : retirez-le de /cgi-bin.
+http://archives.neohapsis.com/archives/bugtraq/1997_3/0057.html
 
-Facteur de risque : Sérieux";
+Solution : 
 
+Remove this CGI.
 
- script_description(english:desc["english"], francais:desc["francais"]);
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for the presence of /cgi-bin/webgais";
- summary["francais"] = "Vérifie la présence de /cgi-bin/webgais";
+ script_summary(english:summary["english"]);
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_category(ACT_GATHER_INFO); 
  
- script_category(ACT_GATHER_INFO);
- 
- 
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison");
  family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "webmirror.nasl");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -57,6 +58,12 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("webgais");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"webgais", port:port);
+if(res)security_hole(port);

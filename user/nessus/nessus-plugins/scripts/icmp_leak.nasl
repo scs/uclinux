@@ -20,7 +20,8 @@
 if(description)
 {
  script_id(11704);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-2003-0418");
 
  name["english"] = "icmp leak";
  script_name(english:name["english"]);
@@ -65,6 +66,8 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Misc.";
  script_family(english:family["english"]);
+ script_dependencies("os_fingerprint.nasl");
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
@@ -75,8 +78,14 @@ Risk factor : High";
 # The script code starts here
 # 
 
-if(islocalhost())exit(0);
+include('global_settings.inc');
 
+
+if(islocalhost())exit(0);
+if ( !thorough_tests) exit(0);
+
+os = get_kb_item("Host/OS/icmp");
+if ( os && !egrep(pattern:"Linux 2\.[0-2]", string:os) ) exit(0);
 
 
 # Sends a fragmented ping packet

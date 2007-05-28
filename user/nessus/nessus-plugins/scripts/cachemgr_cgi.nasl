@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10034);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(2059);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-0710");
  name["english"] = "RedHat 6.0 cachemgr.cgi";
  name["francais"] = "RedHat 6.0 cachemgr.cgi";
@@ -112,6 +112,14 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
 cgi = "cachemgr.cgi";
-port = is_cgi_installed(cgi);
-if(port)security_hole(port);
+res = is_cgi_installed_ka(item:cgi, port:port);
+if(res)security_hole(port);

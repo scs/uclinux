@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: hf.c,v 1.16 2003/10/13 21:26:58 janakj Exp $ 
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

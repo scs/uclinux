@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: reply.c,v 1.17.2.1.2.1 2003/11/26 16:44:27 bogdan Exp $
  *
  * Send a reply
  *

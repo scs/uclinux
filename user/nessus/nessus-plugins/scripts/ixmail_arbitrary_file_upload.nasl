@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(11781);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(8046, 8048);
+ script_version ("$Revision: 1.7 $");
 
  
  name["english"] = "iXmail arbitrary file upload";
@@ -23,7 +23,7 @@ arbitrary files on the remote host, with the privileges of the
 web server.
 
 Solution : Upgrade to iXMail 0.4
-Risk Factor : Medium";
+Risk factor : Medium";
 
 
  script_description(english:desc["english"]);
@@ -42,6 +42,7 @@ Risk Factor : Medium";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -50,11 +51,11 @@ Risk Factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)) exit(0);
 
-foreach dir (make_list("", "/ixmail", cgi_dirs()))
+foreach dir (make_list("/ixmail", cgi_dirs()))
 {
  # Ugly.
  req = http_get(item:dir + "/README.TXT", port:port);

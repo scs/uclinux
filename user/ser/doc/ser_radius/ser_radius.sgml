@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: ser_radius.sgml,v 1.5.6.1 2004/07/26 15:21:38 janakj Exp $ -->
 <!DOCTYPE Book PUBLIC "-//OASIS//DTD DocBook V4.2//EN" [
 
 <!ENTITY ser "<acronym>SIP</acronym> Express Router">
@@ -29,8 +29,8 @@
 	</copyright>
 	<revhistory>
 	    <revision>
-		<revnumber>$Revision$</revnumber>
-		<date>$Date$</date>
+		<revnumber>$Revision: 1.5.6.1 $</revnumber>
+		<date>$Date: 2004/07/26 15:21:38 $</date>
 	    </revision>
 	</revhistory>
     </bookinfo>

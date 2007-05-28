@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(10164);
- script_version ("$Revision: 1.12 $");
+ script_bugtraq_id(2563);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-1177", "CVE-2001-0400");
  
  name["english"] = "nph-publish.cgi";
@@ -20,7 +21,7 @@ if(description)
 
 Solution :  remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 desc["francais"] = "Le cgi 'nph-publish.cgi' est installé. Celui-ci possède
 un problème de sécurité bien connu qui permet à n'importe qui de faire
@@ -58,6 +59,12 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("nph-publish.cgi");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(port:port, item:"nph-publish.cgi");
+if( res )security_hole(port);

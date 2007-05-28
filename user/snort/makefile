@@ -1,41 +1,47 @@
+.EXPORT_ALL_VARIABLES:
+
+CONFOPTS =--enable-dependency-tracking						\
+		--disable-shared						\
+		--enable-inline 						\
+		--disable-dynamicplugin 					\
+		--with-libipq-includes=$(ROOTDIR)/user/iptables/include/libipq	\
+		--with-libipq-libraries=$(ROOTDIR)/user/iptables/libipq 	\
+		--with-libpcap-includes=$(ROOTDIR)/include			\
+		--with-libpcap-libraries=$(ROOTDIR)/lib/libpcap/build		\
+		--with-libnet=$(ROOTDIR)/lib/Libnet				\
+		--with-libnet-includes=$(ROOTDIR)/lib/Libnet/include		\
+		--with-libnet-libraries=$(ROOTDIR)/lib/Libnet/lib		\
+		--with-libpcre-includes=$(ROOTDIR)/include			\
+		--with-libpcre-libraries=$(ROOTDIR)/lib
+LDFLAGS += -L$(ROOTDIR)/user/iptables/libipq
 
 ifdef CONFIG_USER_MYSQL_CLIB
-CFLAGS += -I$(ROOTDIR)/user/mysql/include -DENABLE_MYSQL
-LDLIBS := -L$(ROOTDIR)/user/mysql/libmysql/.libs -lmysqlclient $(LDLIBS)
+CONFOPTS += --with-mysql=$(ROOTDIR)/user/mysql
+LDFLAGS += -L$(ROOTDIR)/user/mysql/libmysql
+LDFLAGS += -L$(ROOTDIR)/lib/Libnet/lib -lnet
 endif
 
-all: build/Makefile
+all: build/build
 	$(MAKE) -C build
 
-build/Makefile: makefile
-	chmod u+x configure
+build/build: makefile
 	rm -rf build
 	mkdir build
-	( \
-		cd build; \
-		CC="$(CC) -I$(ROOTDIR)/user/snort/build $(CFLAGS)" \
-		LDFLAGS="-L$(ROOTDIR)/lib/Libnet/lib $(LDFLAGS)" \
-		LIBS="$(LDLIBS)" \
-		PATH="$(PATH):$(ROOTDIR)/lib/Libnet" \
-			../configure --host=$(CROSS_COMPILE:-=) \
-			--enable-dependency-tracking \
-			--enable-inline \
-			--with-libipq-includes=$(ROOTDIR)/user/iptables/include/libipq \
-			--with-libipq-libraries=$(ROOTDIR)/user/iptables/libipq \
-			--with-libnet-includes=$(ROOTDIR)/lib/Libnet/include \
-			--with-libnet-libraries=$(ROOTDIR)/lib/Libnet/lib \
-			; \
-	)
+	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
+	touch build/build
+
+clean:
+	rm -rf build
 
 romfs:
 	$(ROMFSINST) build/src/snort /bin/snort
 	$(ROMFSINST) -s /bin/snort /bin/snort-inline
-	$(ROMFSINST) rules/local.rules /etc/default/local.rules
+	$(ROMFSINST) std-rules/local.rules /etc/default/local.rules
 	$(ROMFSINST) drop-rules/local.rules /etc/default/local-drop.rules
 	# Copy default rule set across
 	[ -d $(ROMFSDIR)/etc/snort ] || mkdir $(ROMFSDIR)/etc/snort
 	[ -d $(ROMFSDIR)/etc/snort/drop-rules ] || mkdir $(ROMFSDIR)/etc/snort/drop-rules
-	for i in rules/*.rules; do $(ROMFSINST) $$i /etc/snort/`basename $$i`; done
+	for i in std-rules/*.rules; do $(ROMFSINST) $$i /etc/snort/`basename $$i`; done
 	for i in drop-rules/*.rules; do $(ROMFSINST) $$i /etc/snort/drop-rules/`basename $$i`; done
 	# Local rules go elsewhere...
 	if [ -f $(ROMFSDIR)/etc/snort/local.rules ]; then rm -f $(ROMFSDIR)/etc/snort/local.rules; fi
@@ -43,7 +49,3 @@ romfs:
 	$(ROMFSINST) etc/classification.config /etc/snort/classification.config
 	$(ROMFSINST) etc/reference.config /etc/snort/reference.config
 	$(ROMFSINST) etc/unicode.map /etc/snort/unicode.map
-
-clean:
-	rm -rf build
-

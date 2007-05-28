@@ -9,10 +9,12 @@
 if(description)
 {
  script_id(11382);
- script_cve_id("CVE-2002-1024");
  script_bugtraq_id(5114);
+ script_cve_id("CVE-2002-1024");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-A-0013");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-b-0006");
 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.7 $");
 
  name["english"] = "CSCdv85279, CSCdw59394";
 
@@ -27,7 +29,7 @@ This vulnerability is documented with the CISCO
 bug ID CSCdv85279 and CSCdw59394
 
 Solution : http://www.cisco.com/warp/public/707/SSH-scanning.shtml
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive
@@ -77,10 +79,10 @@ if(!egrep(pattern:".*Cisco Catalyst Operating System.*", string:os))exit(0);
 if(egrep(string:os, pattern:"(6\.3\(([0-2][^0-9]|3.[0-5])\)|6\.3),"))ok=1;
 
 # 7.1
-if(egrep(string:os, pattern:"(7\.1\(([0--1][^0-9]|0.([0-9]|[1-8][0-9]|9[0-3]))\)|7\.1),"))ok=1;
+if(egrep(string:os, pattern:"(7\.1\(([0-1][^0-9]|0.([0-9]|[1-8][0-9]|9[0-3]))\)|7\.1),"))ok=1;
 
 # 7.2
-if(egrep(string:os, pattern:"(7\.2\(([0--1][^0-9]|0.([0-9]|1[0-3]))\)|7\.2),"))ok=1;
+if(egrep(string:os, pattern:"(7\.2\(([0-1][^0-9]|0.([0-9]|1[0-3]))\)|7\.2),"))ok=1;
 
 
 #----------------------------------------------

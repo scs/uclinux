@@ -146,7 +146,7 @@ SMB_Negotiate(SMB_Handle_Type Con_Handle, const char *Prots[])
     }
     /* Now plug in the bits we need */
 
-    bzero(SMB_Hdr(pkt), SMB_negp_len);
+    memset(SMB_Hdr(pkt), 0, SMB_negp_len);
     SIVAL(SMB_Hdr(pkt), SMB_hdr_idf_offset, SMB_DEF_IDF);	/* Plunk in IDF */
     *(SMB_Hdr(pkt) + SMB_hdr_com_offset) = SMBnegprot;
     SSVAL(SMB_Hdr(pkt), SMB_hdr_pid_offset, Con_Handle->pid);
@@ -255,7 +255,6 @@ SMB_Negotiate(SMB_Handle_Type Con_Handle, const char *Prots[])
 	Con_Handle->Encrypt_Key_Len = SVAL(SMB_Hdr(pkt), SMB_negrLM_ekl_offset);
 
 	p = (SMB_Hdr(pkt) + SMB_negrLM_buf_offset);
-	fprintf(stderr, "%d", (int) (SMB_Hdr(pkt) + SMB_negrLM_buf_offset));
 	memcpy(Con_Handle->Encrypt_Key, p, 8);
 
 	p = (SMB_Hdr(pkt) + SMB_negrLM_buf_offset + Con_Handle->Encrypt_Key_Len);
@@ -397,7 +396,7 @@ SMB_TreeConnect(SMB_Handle_Type Con_Handle,
 
     /* Now plug in the values ... */
 
-    bzero(SMB_Hdr(pkt), SMB_tcon_len);
+    memset(SMB_Hdr(pkt), 0, SMB_tcon_len);
     SIVAL(SMB_Hdr(pkt), SMB_hdr_idf_offset, SMB_DEF_IDF);	/* Plunk in IDF */
     *(SMB_Hdr(pkt) + SMB_hdr_com_offset) = SMBtcon;
     SSVAL(SMB_Hdr(pkt), SMB_hdr_pid_offset, Con_Handle->pid);

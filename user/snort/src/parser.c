@@ -44,6 +44,7 @@
 #include "rules.h"
 #include "parser.h"
 #include "plugbase.h"
+#include "plugin_enum.h"
 #include "debug.h"
 #include "util.h"
 #include "mstring.h"
@@ -59,6 +60,22 @@
 #include "inline.h"
 #include "event_queue.h"
 #include "asn1.h"
+#include "sfutil/sfghash.h"
+
+#define MAX_RULE_OPTIONS 256
+#define MAX_LINE_LENGTH  4096 
+
+int g_nopcre=0;
+
+
+/*
+ *  sid+gid -> otn mapping
+ *  declared in signature.c/.h
+ *  
+ */
+extern SFGHASH * soid_sg_otn_map;
+extern SFGHASH * sg_rule_otn_map;
+
 
 ListHead Alert;         /* Alert Block Header */
 ListHead Log;           /* Log Block Header */
@@ -97,15 +114,17 @@ extern PreprocessKeywordList *PreprocessKeywords;   /* preprocessor plugin
 extern OutputFuncNode *AlertList;   /* Alert function list */
 extern OutputFuncNode *LogList; /* log function list */
 
-#ifdef GIDS
 extern OutputFuncNode *DropList;
+#ifdef GIDS
 extern OutputFuncNode *SDropList;
 extern OutputFuncNode *RejectList;
 #endif /* GIDS */
 
 /* Local Function Declarations */
 void ProcessHeadNode(RuleTreeNode *, ListHead *, int);
+void ParseMetadata(char *, OptTreeNode *);
 void ParseSID(char *, OptTreeNode *);
+void ParseGID(char *, OptTreeNode *);
 void ParseRev(char *, OptTreeNode *);
 void XferHeader(RuleTreeNode *, RuleTreeNode *);
 void DumpChain(RuleTreeNode *, char *, char *);
@@ -119,7 +138,25 @@ OptTreeNode *GetDynamicOTN(int, RuleTreeNode *);
 void AddrToFunc(RuleTreeNode *, int);
 void PortToFunc(RuleTreeNode *, int, int, int);
 void SetupRTNFuncList(RuleTreeNode *);
+static void ParsePortList(char *args);
+static void ParseRuleState(char *args);
+#ifdef DYNAMIC_PLUGIN
+static void ParseDynamicEngine(char *args);
+static void ParseDynamicDetection(char *args);
+static void ParseDynamicPreprocessor(char *args);
 
+typedef struct _DynamicPreprocConfig
+{
+    char *file;
+    int line_num;
+    char *preproc;
+    char *preproc_args;
+    struct _DynamicPreprocConfig *next;
+} DynamicPreprocConfig;
+DynamicPreprocConfig *dynamicConfigListHead = NULL;
+DynamicPreprocConfig *dynamicConfigListTail = NULL;
+
+#endif
 
 /****************************************************************************
  *
@@ -136,15 +173,27 @@ void SetupRTNFuncList(RuleTreeNode *);
  ***************************************************************************/
 void ParseRulesFile(char *file, int inclevel)
 {
-    FILE *thefp;        /* file pointer for the rules file */
-    char buf[STD_BUF];      /* file read buffer */
-    char *index;        /* buffer indexing pointer */
-    char *stored_file_name = file_name;
-    int stored_file_line = file_line;
-    char *saved_line = NULL;
-    int continuation = 0;
-    char *new_line = NULL;
-    struct stat file_stat; /* for include path testing */
+    FILE  * thefp;        /* file pointer for the rules file */
+    char  * index;        /* buffer indexing pointer */
+    char  * stored_file_name = file_name;
+    int     stored_file_line = file_line;
+    char  * saved_line = NULL;
+    int     continuation = 0;
+    char  * new_line = NULL;
+    struct  stat file_stat; /* for include path testing */
+    char  * rule;
+    char  * buf;
+    
+    rule = malloc(PARSERULE_SIZE);
+    if( ! rule ) 
+    {
+       FatalError("ParseRulesFile : ran out of 'rule' memory\n"); 
+    }
+    buf = malloc(MAX_LINE_LENGTH+1);
+    if( ! buf ) 
+    {
+       FatalError("ParseRulesFile : ran out of 'buf' memory\n"); 
+    }
 
     if(inclevel == 0)
     {
@@ -158,6 +207,29 @@ void ParseRulesFile(char *file, int inclevel)
     stored_file_line = file_line;
     stored_file_name = file_name;
     file_line = 0;
+    
+   
+    /* Init sid-gid -> otn map */
+    if (!soid_sg_otn_map)
+    {
+        soid_sg_otn_map = sfghash_new(10000,sizeof(sg_otn_key_t),0,free);
+    }
+    if( !soid_sg_otn_map )
+    {
+            FatalError("ParseRulesFile soid_sg_otn_map sfghash_new failed: %s\n", 
+                       strerror(errno));
+    }
+
+    /* Init sid-gid -> otn map */
+    if (!sg_rule_otn_map)
+    {
+        sg_rule_otn_map = sfghash_new(10000,sizeof(sg_otn_key_t),0,free);
+    }
+    if( !sg_rule_otn_map )
+    {
+            FatalError("ParseRulesFile sg_rule_otn_map sfghash_new failed: %s\n", 
+                       strerror(errno));
+    }
     
     /* Changed to
      *  stat the file relative to the  current directory
@@ -209,33 +281,52 @@ void ParseRulesFile(char *file, int inclevel)
     }
 
     /* clear the line buffer */
-    bzero((char *) buf, STD_BUF);
+    bzero((char *) buf, MAX_LINE_LENGTH+1);
 
 
     /* loop thru each file line and send it to the rule parser */
-    while((fgets(buf, STD_BUF, thefp)) != NULL)
+    while((fgets(buf, MAX_LINE_LENGTH, thefp)) != NULL)
     {
+
         /*
          * inc the line counter so the error messages know which line to
          * bitch about
          */
         file_line++;
 
+        /* fgets always appends a null, so doing a strlen should be safe */
+        if( strlen(buf)+1 == MAX_LINE_LENGTH )
+        {
+            FatalError("ParseRuleFile : Line %d too long, '%.*s...'\n",file_line,30,buf);
+        }
+        
         index = buf;
 
 #ifdef DEBUG2
-	LogMessage("Got line %s (%d): %s\n", file_name, file_line, buf);
+    LogMessage("Got line %s (%d): %s\n", file_name, file_line, buf);
 #endif
         /* advance through any whitespace at the beginning of the line */
         while(*index == ' ' || *index == '\t')
             index++;
 
+        if(index && 
+           ( (*index == 0x0d && (strlen(index) > 1) && *(index+1) != 0x0a) ||
+             (*index == 0x0d && (strlen(index) == 1))) ) 
+        {
+            FatalError("Carriage return ('\\\\r') found without a trailing"
+                       " newline. Corrupt file?\n");
+        }
+          
         /* if it's not a comment or a <CR>, send it to the parser */
-        if((*index != '#') && (*index != 0x0a) && (*index != ';') && 
-                (index != NULL))
+        if(index && (*index != '#') && (*index != 0x0a) && 
+           (*index != 0x0d) && (*index != ';') )
         {
             if(continuation == 1)
             {
+                if( (strlen(saved_line) + strlen(index)) > PARSERULE_SIZE )
+                {
+                    FatalError("ParseRuleFile : VAR/RULE too long '%.*s...' \n",30,saved_line);
+                }
                 new_line = (char *) calloc((strlen(saved_line) + strlen(index)
                             +1), sizeof(char)); 
                 strncat(new_line, saved_line, strlen(saved_line));
@@ -284,7 +375,7 @@ void ParseRulesFile(char *file, int inclevel)
             }   
         }
 
-        bzero((char *) buf, STD_BUF);
+        bzero((char *) buf, MAX_LINE_LENGTH+1);
     }
 
     if(file_name)
@@ -295,11 +386,11 @@ void ParseRulesFile(char *file, int inclevel)
 
     if(inclevel == 0 && !pv.quiet_flag)
     {
-	LogMessage("%d Snort rules read...\n", rule_count);
-	LogMessage("%d Option Chains linked into %d Chain Headers\n", opt_count, 
-                head_count);
-	LogMessage("%d Dynamic rules\n", dynamic_rules_present);
-	LogMessage("+++++++++++++++++++++++++++++++++++++++++++++++++++\n\n");
+        LogMessage("%d Snort rules read...\n", rule_count);
+        LogMessage("%d Option Chains linked into %d Chain Headers\n",
+                opt_count, head_count);
+        LogMessage("%d Dynamic rules\n", dynamic_rules_present);
+        LogMessage("+++++++++++++++++++++++++++++++++++++++++++++++++++\n\n");
     }
 
     fclose(thefp);
@@ -319,6 +410,11 @@ void ParseRulesFile(char *file, int inclevel)
         IntegrityCheckRules();
         /*FindMaxSegSize();*/
     }
+
+    otn_tmp = NULL;
+
+    free( buf );
+    free( rule );
 
     return;
 }
@@ -476,23 +572,24 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
     char **toks;        /* dbl ptr for mSplit call, holds rule tokens */
     int num_toks;       /* holds number of tokens found by mSplit */
     int rule_type;      /* rule type enumeration variable */
-    char rule[PARSERULE_SIZE];
     int protocol = 0;
     char *tmp;
     RuleTreeNode proto_node;
     RuleListNode *node = RuleLists;
-
+    char *  rule=0;
+    int ret;
+    
     /* chop off the <CR/LF> from the string */
     strip(prule);
 
-    /* expand all variables */
-    bzero((void *)rule, sizeof(rule));
-
-    strncpy(rule, ExpandVars(prule), PARSERULE_SIZE-1);
+    rule = strdup( ExpandVars(prule) );
+    if( !rule )
+    {
+        FatalError(" ParseRule : ran out of 'rule' memory\n");
+    }
 
     /* break out the tokens from the rule string */
     toks = mSplit(rule, " ", 10, &num_toks, 0);
-
 
     /* clean house */
     bzero((char *) &proto_node, sizeof(RuleTreeNode));
@@ -507,7 +604,6 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
     /* handle non-rule entries */
     switch(rule_type)
     {
-#ifdef GIDS
         case RULE_DROP:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Drop\n"););
 
@@ -515,33 +611,40 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
              * any drop rules in the configuration file */
             if (!InlineMode())
             {
+                mSplitFree(&toks, num_toks);
+                free(rule);
                 return;
             }
             break;
-				
+                
+#ifdef GIDS
         case RULE_SDROP:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"SDrop\n"););
-			  
+              
             /* if we are not listening to iptables, let's ignore
              * any sdrop rules in the configuration file */
             if (!InlineMode())
             {
+                mSplitFree(&toks, num_toks);
+                free(rule);
                 return;
             }
             break;
-				
+                
         case RULE_REJECT:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Reject\n"););
-			  
+              
             /* if we are not listening to iptables, let's ignore
              * any reject rules in the configuration file */
             if (!InlineMode())
             {
+                mSplitFree(&toks, num_toks);
+                free(rule);
                 return;
             }
             break;
 #endif /* GIDS */
-				
+                
         case RULE_PASS:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Pass\n"););
             break;
@@ -571,24 +674,28 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
 
             ParseRulesFile(tmp, inclevel + 1);
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
 
         case RULE_VAR:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Variable\n"););
             VarDefine(toks[1], toks[2]);
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
 
         case RULE_PREPROCESS:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Preprocessor\n"););
             ParsePreprocessor(rule);
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
 
         case RULE_OUTPUT:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Output Plugin\n"););
             ParseOutputPlugin(rule);
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
 
         case RULE_ACTIVATE:
@@ -603,24 +710,28 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Rule file config\n"););
             ParseConfig(rule);
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
 
         case RULE_DECLARE:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Rule type declaration\n"););
             ParseRuleTypeDeclaration(rule_file, rule);
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
  
         case RULE_THRESHOLD:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Threshold\n"););
             ParseSFThreshold(rule_file, rule);
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
         
-	case RULE_SUPPRESS:
+        case RULE_SUPPRESS:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Suppress\n"););
             ParseSFSuppress(rule_file, rule);
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
  
         case RULE_UNKNOWN:
@@ -642,9 +753,45 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
 
             break; 
 
+        case RULE_STATE:
+            DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"RuleState\n"););
+            if (num_toks == 2)
+                ParseRuleState(toks[1]);
+            else
+                FatalError("%s(%d) => Missing parameters for rule_state\n", 
+                           file_name, file_line);
+
+            mSplitFree(&toks, num_toks);
+            free(rule);
+            return;
+
+#ifdef DYNAMIC_PLUGIN
+        case RULE_DYNAMICENGINE:
+            DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"DynamicEngine\n"););
+            ParseDynamicEngine(rule);
+            mSplitFree(&toks, num_toks);
+            free(rule);
+            return;
+
+        case RULE_DYNAMICDETECTION:
+            DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"DynamicDetection\n"););
+            ParseDynamicDetection(rule);
+            mSplitFree(&toks, num_toks);
+            free(rule);
+            return;
+
+        case RULE_DYNAMICPREPROCESSOR:
+            DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"DynamicPreprocessor\n"););
+            ParseDynamicPreprocessor(rule);
+            mSplitFree(&toks, num_toks);
+            free(rule);
+            return;
+#endif
+
         default:
             DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Invalid input: %s\n", prule););
             mSplitFree(&toks, num_toks);
+            free(rule);
             return;
     }
 
@@ -661,7 +808,6 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
                    "    at the end of the line,  make sure there are no\n"
                    "    carriage returns before the end of this line)\n",
                    file_name, file_line);
-        return;
     }
 
     if (rule_type == RULE_UNKNOWN)
@@ -703,11 +849,18 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
     }
 
     /* do the same for the port */
-    if(ParsePort(toks[3], (u_short *) & proto_node.hsp,
+    ret = ParsePort(toks[3], (u_short *) & proto_node.hsp,
                 (u_short *) & proto_node.lsp, toks[1],
-                (int *) &proto_node.not_sp_flag))
+                (int *) &proto_node.not_sp_flag);
+    if(ret > 0)
     {
         proto_node.flags |= ANY_SRC_PORT;
+    } 
+    else if(ret < 0) 
+    {
+        mSplitFree(&toks, num_toks);
+        free(rule);
+        return;
     }
 
     if(proto_node.not_sp_flag)
@@ -747,11 +900,18 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
     /* we found a negated address */
     ProcessIP(toks[5], &proto_node, DST);
 
-    if(ParsePort(toks[6], (u_short *) & proto_node.hdp,
+    ret = ParsePort(toks[6], (u_short *) & proto_node.hdp,
                 (u_short *) & proto_node.ldp, toks[1],
-                (int *) &proto_node.not_dp_flag))
+                (int *) &proto_node.not_dp_flag);
+    if(ret > 0)
     {
         proto_node.flags |= ANY_DST_PORT;
+    } 
+    else if(ret < 0)
+    {
+        mSplitFree(&toks, num_toks);
+        free(rule);
+        return;
     }
 
     /* if there is anything beyond the dst port, it must begin with "(" */
@@ -771,29 +931,29 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
 
     switch(rule_type)
     {
-#ifdef GIDS
         case RULE_DROP:
             if (InlineMode())
             {
                 ProcessHeadNode(&proto_node, &Drop, protocol);
             }
             break;
-			 
+             
+#ifdef GIDS
         case RULE_SDROP:
             if (InlineMode())
             {
                 ProcessHeadNode(&proto_node, &SDrop, protocol);
             }
             break;
-			 
+             
         case RULE_REJECT:
             if (InlineMode())
             {
                 ProcessHeadNode(&proto_node, &Reject, protocol);
             }
             break;
-#endif /* GIDS */		 
-		 
+#endif /* GIDS */         
+         
         case RULE_ALERT:
             ProcessHeadNode(&proto_node, &Alert, protocol);
             break;
@@ -830,9 +990,9 @@ void ParseRule(FILE *rule_file, char *prule, int inclevel)
         ParseRuleOptions(rule, node->mode, protocol);
     else
         ParseRuleOptions(rule, rule_type, protocol);
-
+    
     mSplitFree(&toks, num_toks);
-
+    free(rule);
     return;
 }
 
@@ -1213,7 +1373,7 @@ void SetupRTNFuncList(RuleTreeNode * rtn)
         PortToFunc(rtn, (rtn->flags & ANY_SRC_PORT ? 1 : 0),
                    (rtn->flags & EXCEPT_SRC_PORT ? 1 : 0), SRC);
 
-	    /* link in the proper IP address detection function */
+        /* link in the proper IP address detection function */
         AddrToFunc(rtn, SRC);
 
         /* last verse, same as the first (but for dest IP) ;) */
@@ -1335,10 +1495,6 @@ void PortToFunc(RuleTreeNode * rtn, int any_flag, int except_flag, int mode)
     return;
 }
 
-
-
-
-
 /****************************************************************************
  *
  * Function: ParsePreprocessor(char *)
@@ -1366,6 +1522,9 @@ void ParsePreprocessor(char *rule)
     int found = 0;      /* flag var */
     PreprocessKeywordList *pl_idx;  /* index into the preprocessor
                                      * keyword/func list */
+#ifdef DYNAMIC_PLUGIN
+    DynamicPreprocConfig *dynamicConfig;
+#endif
 
     /* break out the arguments from the keywords */
     toks = mSplit(rule, ":", 2, &num_arg_toks, '\\');
@@ -1392,8 +1551,8 @@ void ParsePreprocessor(char *rule)
     while(pl_idx != NULL)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,
-				"comparing: \"%s\" => \"%s\"\n",
-				funcname, pl_idx->entry.keyword););
+                "comparing: \"%s\" => \"%s\"\n",
+                funcname, pl_idx->entry.keyword););
         /* compare the keyword against the current list element's keyword */
         if(!strcasecmp(funcname, pl_idx->entry.keyword))
         {
@@ -1405,19 +1564,108 @@ void ParsePreprocessor(char *rule)
             pl_idx = pl_idx->next;
         }
         else
+        {
             break;
+        }
     }
 
     if(!found)
     {
-        FatalError(" unknown preprocessor \"%s\"\n",
-                   funcname);
+#ifdef DYNAMIC_PLUGIN
+        dynamicConfig = calloc(1, sizeof(DynamicPreprocConfig));
+        if (!dynamicConfig)
+        {
+            FatalError("Failed to allocate memory for dynamic "
+            "preprocessor configuration\n");
+        }
+        dynamicConfig->file = strdup(file_name);
+        dynamicConfig->line_num = file_line;
+        dynamicConfig->preproc = strdup(funcname);
+        if (pp_args)
+            dynamicConfig->preproc_args = strdup(pp_args);
+        else
+            dynamicConfig->preproc_args = NULL;
+        dynamicConfig->next = NULL;
+        if (!dynamicConfigListHead)
+            dynamicConfigListHead = dynamicConfig;
+        if (dynamicConfigListTail)
+        {
+            dynamicConfigListTail->next = dynamicConfig;
+        }
+        dynamicConfigListTail = dynamicConfig;
+#else
+        FatalError("%s(%d) unknown preprocessor \"%s\"\n",
+                   file_name, file_line, funcname);
+#endif
     }
 
     mSplitFree(&toks, num_arg_toks);
     mSplitFree(&pp_head, num_head_toks);
 }
 
+#ifdef DYNAMIC_PLUGIN
+void ConfigureDynamicPreprocessors()
+{
+    int found;      /* flag var */
+    PreprocessKeywordList *pl_idx;  /* index into the preprocessor
+                                     * keyword/func list */
+    DynamicPreprocConfig *dynamicConfig = dynamicConfigListHead;
+    DynamicPreprocConfig *prevDynamicConfig;
+    int errors = 0;
+    while (dynamicConfig)
+    {
+        /* set the index to the head of the keyword list */
+        pl_idx = PreprocessKeywords;
+
+        found = 0;
+
+        /* walk the keyword list */
+        while(pl_idx != NULL)
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,
+                    "comparing: \"%s\" => \"%s\"\n",
+                    dynamicConfig->preproc, pl_idx->entry.keyword););
+            /* compare the keyword against the current list element's keyword */
+            if(!strcasecmp(dynamicConfig->preproc, pl_idx->entry.keyword))
+            {
+                file_name = dynamicConfig->file;
+                file_line = dynamicConfig->line_num;
+                pl_idx->entry.func(dynamicConfig->preproc_args);
+                found = 1;
+            }
+            if(!found)
+            {
+                pl_idx = pl_idx->next;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        if(!found)
+        {
+            ErrorMessage("%s(%d) unknown dynamic preprocessor \"%s\"\n",
+                       dynamicConfig->file, dynamicConfig->line_num,
+                       dynamicConfig->preproc);
+            errors = 1;
+        }
+
+        prevDynamicConfig = dynamicConfig;
+        dynamicConfig = dynamicConfig->next;
+
+        /* Clean up the memory... don't need that one around anymore */
+        free(prevDynamicConfig->file);
+        free(prevDynamicConfig->preproc);
+        free(prevDynamicConfig->preproc_args);
+        free(prevDynamicConfig);
+    }
+    if (errors)
+    {
+        FatalError("Misconfigured dynamic preprocessor(s)\n");
+    }
+}
+#endif
 
 void ParseOutputPlugin(char *rule)
 {
@@ -1524,7 +1772,7 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
     KeywordXlateList *kw_idx;
     THDX_STRUCT thdx;
     int one_threshold = 0;
-    
+    sg_otn_key_t sg_otn_key;
 
     /* set the OTN to the beginning of the list */
     otn_idx = rtn_tmp->down;
@@ -1579,6 +1827,10 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
     otn_tmp->type = rule_type;
     otn_tmp->proto_node = rtn_tmp;
     otn_tmp->event_data.sig_generator = GENERATOR_SNORT_ENGINE;
+    otn_tmp->sigInfo.generator        = GENERATOR_SNORT_ENGINE;
+
+        /* Set the default rule state */
+    otn_tmp->rule_state = pv.default_rule_state;
 
     /* add link to parent RuleTreeNode */
     otn_tmp->rtn = rtn_tmp;
@@ -1596,6 +1848,7 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
         int one_count = 0;
         int one_tag = 0;
         int one_sid = 0;
+        int one_gid = 0;
         int one_rev = 0;
         int one_priority = 0;
         int one_classtype = 0;
@@ -1620,7 +1873,15 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
          * NOTE: if you want to include a semicolon in the content of your
          * rule, it must be preceeded with a '\'
          */
-        toks = mSplit(idx, ";", 64, &num_toks, '\\');
+        /* Ask for max + 1.  If we get that many back, scream and jump
+         * up and down. */
+        toks = mSplit(idx, ";", MAX_RULE_OPTIONS+1, &num_toks, '\\');
+        if (num_toks > MAX_RULE_OPTIONS)
+        {
+            /* don't allow more than MAX_RULE_OPTIONS */
+            FatalError("%s(%d): More than %d options in rule: %s.\n",
+                       file_name, file_line, MAX_RULE_OPTIONS, rule);
+        }
         original_num_toks = num_toks;  /* so we can properly deallocate toks later */
 
         DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"   Got %d tokens\n", num_toks););
@@ -1629,8 +1890,8 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
 
         DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"Parsing options list: "););
 
-	
-        while(num_toks)		
+    
+        while(num_toks)        
         {
             char* option_name = NULL;
             char* option_args = NULL;
@@ -1653,7 +1914,7 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
             /* advance to the beginning of the data (past the whitespace) */
             while(isspace((int) *option_name))
                 option_name++;
-	    
+        
             /* figure out which option tag we're looking at */
             if(!strcasecmp(option_name, "msg"))
             {
@@ -1668,6 +1929,13 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
                             "keyword \"%s\"\nMake sure you didn't forget a ':' "
                             "or the argument to this keyword!\n", file_name, 
                             file_line, option_name);
+                }
+            }
+            else if(!strcasecmp(option_name, "metadata"))
+            {
+                if( num_opts >= 2 )
+                {
+                  ParseMetadata(option_args,otn_tmp);
                 }
             }
             else if(!strcasecmp(option_name, "logto"))
@@ -1780,6 +2048,21 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
                             file_line, opts[0]);
                 }
             }
+            else if(!strcasecmp(option_name, "gid"))
+            {
+                ONE_CHECK (one_gid, opts[0]);
+                if(num_opts == 2)
+                {
+                    ParseGID(opts[1], otn_tmp);
+                }
+                else
+                {
+                    FatalError("\n%s(%d) => No argument passed to "
+                            "keyword \"%s\"\nMake sure you didn't forget a ':' "
+                            "or the argument to this keyword!\n", file_name, 
+                            file_line, opts[0]);
+                }
+            }
             else if(!strcasecmp(option_name, "rev"))
             {
                 ONE_CHECK (one_rev, opts[0]);
@@ -1852,7 +2135,7 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
                 while(kw_idx != NULL)
                 {
                     DEBUG_WRAP(DebugMessage(DEBUG_INIT, "comparing: \"%s\" => \"%s\"\n", 
-					    option_name, kw_idx->entry.keyword););
+                        option_name, kw_idx->entry.keyword););
 
                     if(!strcasecmp(option_name, kw_idx->entry.keyword))
                     {
@@ -1885,6 +2168,12 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
             i++;
         }
 
+        if ( !one_sid )
+        {
+            FatalError("%s(%d) => Each rule must contain a Rule-sid\n",
+                file_name, file_line);
+        }
+
         DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,"OptListEnd\n"););
         AddOptFuncToList(OptListEnd, otn_tmp);
     }
@@ -1894,26 +2183,56 @@ void ParseRuleOptions(char *rule, int rule_type, int protocol)
         AddOptFuncToList(OptListEnd, otn_tmp);
     }
 
-   if( one_threshold )
-   {
-	   int rstat;
-	   thdx.sig_id = otn_tmp->sigInfo.id;
-	   thdx.gen_id = GENERATOR_SNORT_ENGINE;
-	   if( (rstat=sfthreshold_create( &thdx )) )
-	   {
-              if( rstat == THD_TOO_MANY_THDOBJ )
-	      {
-	        FatalError("Rule-Threshold-Parse: could not create a threshold object -- only one per sid, sid = %u\n",thdx.sig_id);
-	      }
-	      else
-	      {
-	        FatalError("Unable to add Threshold object for Rule-sid =  %u\n",thdx.sig_id);
-	      }
-	   }
-   }
+    if( one_threshold )
+    {
+        int rstat;
+        thdx.sig_id = otn_tmp->sigInfo.id;
+        thdx.gen_id = otn_tmp->sigInfo.generator;
+        if( (rstat=sfthreshold_create( &thdx )) )
+        {
+            if( rstat == THD_TOO_MANY_THDOBJ )
+            {
+                FatalError("Rule-Threshold-Parse: could not create a threshold object -- only one per sid, sid = %u\n",thdx.sig_id);
+            }
+            else
+            {
+                FatalError("Unable to add Threshold object for Rule-sid =  %u\n",thdx.sig_id);
+            }
+        }
+    }
+
+    /* setup gid,sid->otn mapping */
+    if (otn_tmp->sigInfo.otnKey.generator == 0)
+    {
+         otn_tmp->sigInfo.otnKey.generator= otn_tmp->sigInfo.generator;
+         otn_tmp->sigInfo.otnKey.id = otn_tmp->sigInfo.id;
+    }
+    if (sfghash_add(soid_sg_otn_map,&(otn_tmp->sigInfo.otnKey),otn_tmp) == SFGHASH_INTABLE)
+    {
+         OptTreeNode *otn_original = soid_sg_otn_map->cnode->data;
+         if (!otn_original)
+         {
+             /* */
+             FatalError("Missing Duplicate\n");
+         }
+         while (otn_original->nextSoid)
+         {
+             otn_original = otn_original->nextSoid;
+         }
+         otn_original->nextSoid = otn_tmp;
+    }
+
+    sg_otn_key.generator = otn_tmp->sigInfo.generator;
+    sg_otn_key.id = otn_tmp->sigInfo.id;
+
+    sfghash_add(sg_rule_otn_map, &sg_otn_key, otn_tmp);
    
+    /* cleanup */ 
     if(idx != NULL)
-       mSplitFree(&toks,original_num_toks);
+        mSplitFree(&toks,original_num_toks);
+
+    //printf("RuleParser---gid = %d, sid = %d\n",otn_tmp->event_data.sig_generator,otn_tmp->event_data.sig_id); 
+    /*printf("---gid = %d, sid = %d\n",otn_tmp->sigInfo.generator,otn_tmp->sigInfo.id); */
 }
 
 
@@ -1936,17 +2255,31 @@ int RuleType(char *func)
         FatalError("%s(%d) => NULL rule type\n", file_name, file_line);
     }
    
-#ifdef GIDS
     if (!strcasecmp(func, "drop"))
-        return RULE_DROP;
-	 
+    {
+        if( pv.treat_drop_as_alert )
+            return RULE_ALERT;
+        else
+            return RULE_DROP;
+    }
+
+#ifdef GIDS
     if (!strcasecmp(func, "sdrop"))
-        return RULE_SDROP;
-	 
+    {
+        if( pv.treat_drop_as_alert )
+            return RULE_ALERT;
+        else
+            return RULE_SDROP;
+    }
     if (!strcasecmp(func, "reject"))
-        return RULE_REJECT;
+    {
+        if( pv.treat_drop_as_alert )
+            return RULE_ALERT;
+        else
+            return RULE_REJECT;
+    }
 #endif /* GIDS */ 
-	 
+     
     if(!strcasecmp(func, "log"))
         return RULE_LOG;
 
@@ -1985,6 +2318,20 @@ int RuleType(char *func)
     
     if(!strcasecmp(func, "suppress"))
         return RULE_SUPPRESS;
+
+    if(!strcasecmp(func, "rule_state"))
+        return RULE_STATE;
+
+#ifdef DYNAMIC_PLUGIN
+    if(!strcasecmp(func, "dynamicengine"))
+        return RULE_DYNAMICENGINE;
+
+    if(!strcasecmp(func, "dynamicdetection"))
+        return RULE_DYNAMICDETECTION;
+
+    if(!strcasecmp(func, "dynamicpreprocessor"))
+        return RULE_DYNAMICPREPROCESSOR;
+#endif
 
     return RULE_UNKNOWN;
 }
@@ -2261,10 +2608,17 @@ int ParsePort(char *prule_port, u_short * hi_port, u_short * lo_port, char *prot
         *hi_port = 0;
         *lo_port = 0;
         return 1;
-    }
+    } 
 
     if(rule_port[0] == '!')
     {
+        if(!strcasecmp(&rule_port[1], "any"))
+        {
+            LogMessage("Warning: %s(%d) => Negating \"any\" is invalid. Rule will be ignored\n", 
+                            file_name, file_line);
+            return -1;
+        } 
+
         *not_flag = 1;
         rule_port++;
     }
@@ -2430,7 +2784,7 @@ void ParseMessage(char *msg)
         if(*read == '\\')
         {
             read++;
-	    count++;
+            count++;
 
             if(read >= end)
             {
@@ -2456,7 +2810,7 @@ void ParseMessage(char *msg)
         otn_tmp->sigInfo.message = strdup(ptr);
 
         DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES, "Rule message set to: %s\n", 
-				otn_tmp->sigInfo.message););
+                otn_tmp->sigInfo.message););
 
     }
     else
@@ -2752,6 +3106,8 @@ struct VarEntry *VarAlloc()
 struct VarEntry *VarDefine(char *name, char *value)
 {
     struct VarEntry *p;
+    int    vlen,n;
+    char  *s;
 
     if(value == NULL)
     {
@@ -2764,7 +3120,18 @@ struct VarEntry *VarDefine(char *name, char *value)
     {
         p = VarAlloc();
         p->name = strdup(name);
+        if(!p->name) 
+        {
+            FatalError("VarDefine Failed to allocate memory for variable name '%s'\n", name);
+        }
         p->value = strdup(value);
+        if(!p->value) 
+        {
+            free(p->name);
+            FatalError("VarDefine Failed to allocate memory for variable '%s' value '%s'\n", name, value);
+        }
+
+        
         p->prev = p;
         p->next = p;
 
@@ -2778,14 +3145,15 @@ struct VarEntry *VarDefine(char *name, char *value)
     {
         if(strcasecmp(p->name, name) == 0)
         {
-	    if (!(p->flags & VAR_STATIC))
+            if (!(p->flags & VAR_STATIC))
             {
                 if( p->value )
                     free(p->value);
                 
                 p->value = strdup(value);
             }
-	    return (p);
+            LogMessage("Var '%s' redefined\n", p->name);
+            return (p);
         }
         p = p->next;
 
@@ -2793,12 +3161,45 @@ struct VarEntry *VarDefine(char *name, char *value)
 
     p = VarAlloc();
     p->name = strdup(name);
+
+    if(!p->name) 
+    {
+        FatalError("VarDefine Failed to allocate memory for variable name '%s'\n", name);
+    }
+
     p->value = strdup(value);
+
+    if(!p->value) 
+    {
+        free(p->name);
+        FatalError("VarDefine Failed to allocate memory for variable '%s' value '%s'\n", name, value);
+    }
+
     p->prev = VarHead;
     p->next = VarHead->next;
     p->next->prev = p;
     VarHead->next = p;
-    
+        
+    vlen = strlen(value);
+    LogMessage("Var '%s' defined, value len = %d chars", p->name, vlen  );
+ 
+    if( vlen < 64 )
+    {
+      LogMessage(", value = %s\n", value );
+    }
+    else
+    {
+      LogMessage("\n");
+      n = 128;
+      s = value;
+      while(vlen)
+      {
+         if( n > vlen ) n = vlen;
+         LogMessage("   %.*s\n", n, s );
+         s    += n;
+         vlen -= n;
+      }
+    }
     return p;
 }
 
@@ -2902,15 +3303,17 @@ char *VarGet(char *name)
  ***************************************************************************/
 char *ExpandVars(char *string)
 {
-    static char estring[PARSERULE_SIZE];
-    char rawvarname[128], varname[128], varaux[128], varbuffer[128], varmodifier, *varcontents;
+    static char estring[ PARSERULE_SIZE ];
+
+    char rawvarname[128], varname[128], varaux[128], varbuffer[128];
+    char varmodifier, *varcontents;
     int varname_completed, c, i, j, iv, jv, l_string, name_only;
     int quote_toggle = 0;
 
     if(!string || !*string || !strchr(string, '$'))
         return(string);
 
-    bzero((char *) estring, sizeof(estring));
+    bzero((char *) estring, PARSERULE_SIZE);
 
     i = j = 0;
     l_string = strlen(string);
@@ -2988,7 +3391,7 @@ char *ExpandVars(char *string)
 
                 bzero((char *) varbuffer, sizeof(varbuffer));
 
-                varcontents = VarGet(varname);
+                varcontents = VarSearch(varname);
 
                 switch(varmodifier)
                 {
@@ -3008,6 +3411,13 @@ char *ExpandVars(char *string)
                                 FatalError("Undefined variable \"%s\"\n", varname);
                         }
                         break;
+                }
+
+                /* If variable not defined now, we're toast */
+                if(!varcontents || !strlen(varcontents))
+                {
+                    FatalError("Undefined variable name: (%s:%d): %s\n",
+                        file_name, file_line, varname);
                 }
 
                 if(varcontents)
@@ -3033,7 +3443,7 @@ char *ExpandVars(char *string)
 
     DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES, "ExpandVars, After: %s\n", estring););
 
-    return(estring);
+    return estring;
 }
 
 
@@ -3244,6 +3654,8 @@ void ProcessEventQueue(char **args, int nargs)
 {
     int iCtr;
 
+    g_event_queue.process_all_events = pv.process_all_events;
+
     for(iCtr = 0; iCtr < nargs; iCtr++)
     {
         if(!strcasecmp("max_queue", args[iCtr]))
@@ -3308,6 +3720,10 @@ void ProcessEventQueue(char **args, int nargs)
                            file_name, file_line);
             }
         }
+        else if(!strcasecmp("process_all_events", args[iCtr]))
+        {
+            g_event_queue.process_all_events = 1;
+        }
         else
         {
             FatalError("%s(%d) => Invalid argument to 'event_queue'.  "
@@ -3316,35 +3732,37 @@ void ProcessEventQueue(char **args, int nargs)
                        file_name, file_line);
         }
     }
-    
+
+    if( g_event_queue.max_events < g_event_queue.log_events )
+    {
+        g_event_queue.max_events = g_event_queue.log_events;
+    }
     return;
 }
 
 void ProcessDetectionOptions( char ** args, int nargs )
 {
-	int i;
+    int i;
     
-	for(i=0;i<nargs;i++)
-	{
-	   if( !strcasecmp(args[i],"search-method") )
-	   {
-	       i++;
-	       if( i < nargs ) 
+    for(i=0;i<nargs;i++)
+    {
+       if( !strcasecmp(args[i],"search-method") )
+       {
+           i++;
+           if( i < nargs ) 
            {
                if(fpSetDetectSearchMethod(args[i]))
                {
-                   FatalError("%s (%d)=> Invalid argument to 'search-method'"
-                              ".  Must be either 'mwm' or 'ac'.\n",
-                              file_name, file_line);
+                   FatalError("%s (%d)=> Invalid argument to 'search-method': %s.\n",
+                              file_name, file_line, args[i]);
                }
            }
            else
            {
-               FatalError("%s (%d)=> No argument to 'search-method'. "
-                          "Must be either 'mwm' or 'ac'.\n",
-                          file_name, file_line);
+               FatalError("%s (%d)=> Invalid argument to 'search-method': %s.\n",
+                          file_name, file_line, args[i]);
            }
-	   }
+       }
        else if(!strcasecmp(args[i], "debug"))
        {
            fpSetDebugMode();
@@ -3389,9 +3807,9 @@ void ProcessResetMac(char ** args, int nargs)
 
     if(num_macargs != 6)
     {
-	FatalError("%s (%d)=> '%s' is not a valid macaddress "
-	           "for layer2resets\n",
-		   file_name, file_line, args[0]);
+    FatalError("%s (%d)=> '%s' is not a valid macaddress "
+               "for layer2resets\n",
+           file_name, file_line, args[0]);
     }
 
     for(i = 0; i < num_macargs; i++)
@@ -3402,6 +3820,160 @@ void ProcessResetMac(char ** args, int nargs)
 
     return;
 } 
+
+#ifdef PERF_PROFILING
+void ParseProfileRules(char *args)
+{
+    char ** toks;
+    int     num_toks = 0;
+    char ** opts;
+    int     num_opts = 0;
+    int i;
+    char *endPtr;
+
+    /* Initialize the defaults */
+    pv.profile_rules_flag = -1;
+    pv.profile_rules_sort = PROFILE_SORT_AVG_TICKS;
+
+    toks = mSplit(args, ",", 20, &num_toks, 0);
+
+    if (num_toks > 2)
+    {
+        FatalError("profile_rules speciified with invalid options (%s)\n", args);
+    }
+
+    for (i=0;i<num_toks;i++)
+    {
+        opts = mSplit(toks[i], " ", 3, &num_opts, 0);
+        if (num_opts != 2)
+        {
+            FatalError("profile_rules has an invalid option (%s)\n", toks[i]);
+        }
+
+        if (!strcasecmp(opts[0], "print"))
+        {
+            if (!strcasecmp(opts[1], "all"))
+            {
+                pv.profile_rules_flag = -1;
+            }
+            else
+            {
+                pv.profile_rules_flag = strtol(opts[1], &endPtr, 10);
+            }
+        }
+        else if (!strcasecmp(opts[0], "sort"))
+        {
+            if (!strcasecmp(opts[1], "checks"))
+            {
+                pv.profile_rules_sort = PROFILE_SORT_CHECKS;
+            }
+            else if (!strcasecmp(opts[1], "matches"))
+            {
+                pv.profile_rules_sort = PROFILE_SORT_MATCHES;
+            }
+            else if (!strcasecmp(opts[1], "nomatches"))
+            {
+                pv.profile_rules_sort = PROFILE_SORT_NOMATCHES;
+            }
+            else if (!strcasecmp(opts[1], "avg_ticks"))
+            {
+                pv.profile_rules_sort = PROFILE_SORT_AVG_TICKS;
+            }
+            else if (!strcasecmp(opts[1], "avg_ticks_per_match"))
+            {
+                pv.profile_rules_sort = PROFILE_SORT_AVG_TICKS_PER_MATCH;
+            }
+            else if (!strcasecmp(opts[1], "avg_ticks_per_nomatch"))
+            {
+                pv.profile_rules_sort = PROFILE_SORT_AVG_TICKS_PER_NOMATCH;
+            }
+            else if (!strcasecmp(opts[1], "total_ticks"))
+            {
+                pv.profile_rules_sort = PROFILE_SORT_TOTAL_TICKS;
+            }
+            else
+            {
+                FatalError("profile_rules has an invalid sort option (%s)\n", toks[i]);
+            }
+        }
+        else
+        {
+            FatalError("profile_rules has an invalid option (%s)\n", toks[i]);
+        }
+
+        mSplitFree(&opts, num_opts);
+    }
+    mSplitFree(&toks, num_toks );
+}
+
+void ParseProfilePreprocs(char *args)
+{
+    char ** toks;
+    int     num_toks = 0;
+    char ** opts;
+    int     num_opts = 0;
+    int i;
+    char *endPtr;
+
+    /* Initialize the defaults */
+    pv.profile_preprocs_flag = -1;
+    pv.profile_preprocs_sort = PROFILE_SORT_AVG_TICKS;
+
+    toks = mSplit(args, ",", 20, &num_toks, 0);
+
+    if (num_toks > 2)
+    {
+        FatalError("profile_preprocs speciified with invalid options (%s)\n", args);
+    }
+
+    for (i=0;i<num_toks;i++)
+    {
+        opts = mSplit(toks[i], " ", 3, &num_opts, 0);
+        if (num_opts != 2)
+        {
+            FatalError("profile_preprocs has an invalid option (%s)\n", toks[i]);
+        }
+
+        if (!strcasecmp(opts[0], "print"))
+        {
+            if (!strcasecmp(opts[1], "all"))
+            {
+                pv.profile_preprocs_flag = -1;
+            }
+            else
+            {
+                pv.profile_preprocs_flag = strtol(opts[1], &endPtr, 10);
+            }
+        }
+        else if (!strcasecmp(opts[0], "sort"))
+        {
+            if (!strcasecmp(opts[1], "checks"))
+            {
+                pv.profile_preprocs_sort = PROFILE_SORT_CHECKS;
+            }
+            else if (!strcasecmp(opts[1], "avg_ticks"))
+            {
+                pv.profile_preprocs_sort = PROFILE_SORT_AVG_TICKS;
+            }
+            else if (!strcasecmp(opts[1], "total_ticks"))
+            {
+                pv.profile_preprocs_sort = PROFILE_SORT_TOTAL_TICKS;
+            }
+            else
+            {
+                FatalError("profile_preprocs has an invalid sort option (%s)\n", toks[i]);
+            }
+        }
+        else
+        {
+            FatalError("profile_preprocs has an invalid option (%s)\n", toks[i]);
+        }
+
+        mSplitFree(&opts, num_opts);
+    }
+    mSplitFree(&toks, num_toks );
+}
+#endif
 
 void ParseConfig(char *rule)
 {
@@ -3434,11 +4006,18 @@ void ParseConfig(char *rule)
         if(!pv.rules_order_flag)
             OrderRuleLists(args);
         else
-	LogMessage("Commandline option overiding rule file config\n");
-    
-	mSplitFree(&rule_toks,num_rule_toks);
+            LogMessage("Commandline option overiding rule file config\n");
+
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
-	
+    
+        return;
+    }
+    else if(!strcasecmp(config, "nopcre"))
+    {
+        g_nopcre=1;
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "alertfile"))
@@ -3446,17 +4025,17 @@ void ParseConfig(char *rule)
         toks = mSplit(args, " ", 1, &num_toks, 0);
 
         ProcessAlertFileOption(toks[0]);
-	
+    
         mSplitFree( &toks, num_toks );
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "classification"))
     {
         ParseClassificationConfig(args);
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3534,8 +4113,8 @@ void ParseConfig(char *rule)
         /* dump the application layer as text only */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Character payload dump set\n"););
         pv.char_data_flag = 1;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3544,21 +4123,64 @@ void ParseConfig(char *rule)
         /* dump the application layer */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Payload dump set\n"););
         pv.data_flag = 1;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
+#ifdef INLINE_FAILOPEN
+    else if (!strcasecmp(config, "disable_inline_init_failopen"))
+    {
+        /* disable the fail open during initialization */
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Inline Init Failopen disabled\n"););
+
+        pv.inline_failopen_disabled_flag = 1;
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+#endif
     else if(!strcasecmp(config, "disable_decode_alerts"))
     {
         /* dump the application layer */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the decoder alerts\n"););
         pv.decoder_flags.decode_alerts = 0;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
+    else if(!strcasecmp(config, "enable_decode_oversized_alerts"))
+    {
+        /* dump the application layer */
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Enabling the decoder oversized packet alerts\n"););
+        pv.decoder_flags.oversized_alert = 1;
+    
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+    else if(!strcasecmp(config, "enable_decode_oversized_drops"))
+    {
+        /* dump the application layer */
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Enabling the drop of decoder oversized packets\n"););
+        pv.decoder_flags.oversized_drop = 1;
+    
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+
+    else if(!strcasecmp(config, "enable_decode_drops"))
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of decoder alerts\n"););
+        pv.decoder_flags.drop_alerts = 1;
+    
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+    /* OBSOLETE -- default is disabled */
     else if(!strcasecmp(config, "disable_decode_drops"))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of decoder alerts\n"););
@@ -3573,11 +4195,21 @@ void ParseConfig(char *rule)
         /* dump the application layer */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the tcpopt experimental alerts\n"););
         pv.decoder_flags.tcpopt_experiment = 0;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
+    else if(!strcasecmp(config, "enable_tcpopt_experimental_drops"))
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of tcpopt exprimental alerts\n"););
+        pv.decoder_flags.drop_tcpopt_experiment = 1;
+   
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }              
+    /* OBSOLETE -- default is disabled */
     else if(!strcasecmp(config, "disable_tcpopt_experimental_drops"))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of tcpopt exprimental alerts\n"););
@@ -3587,17 +4219,26 @@ void ParseConfig(char *rule)
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }              
-
     else if(!strcasecmp(config, "disable_tcpopt_obsolete_alerts"))
     {
         /* dump the application layer */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the tcpopt obsolete alerts\n"););
         pv.decoder_flags.tcpopt_obsolete = 0;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
+    else if(!strcasecmp(config, "enable_tcpopt_obsolete_drops"))
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of tcpopt obsolete alerts\n"););
+        pv.decoder_flags.drop_tcpopt_obsolete = 1;
+   
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }              
+    /* OBSOLETE -- default is disabled */
     else if(!strcasecmp(config, "disable_tcpopt_obsolete_drops"))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of tcpopt obsolete alerts\n"););
@@ -3607,18 +4248,28 @@ void ParseConfig(char *rule)
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }              
-
     else if(!strcasecmp(config, "disable_ttcp_alerts") ||
             !strcasecmp(config, "disable_tcpopt_ttcp_alerts"))
     {
         /* dump the application layer */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the ttcp alerts\n"););
         pv.decoder_flags.tcpopt_ttcp = 0;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
+    else if(!strcasecmp(config, "enable_ttcp_drops") ||
+            !strcasecmp(config, "enable_tcpopt_ttcp_drops"))
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of ttcp alerts\n"););
+        pv.decoder_flags.drop_tcpopt_ttcp = 1;
+   
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }              
+    /* OBSOLETE -- default is disabled */
     else if(!strcasecmp(config, "disable_ttcp_drops"))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of ttcp alerts\n"););
@@ -3634,11 +4285,21 @@ void ParseConfig(char *rule)
         /* dump the application layer */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the all the other tcpopt alerts\n"););
         pv.decoder_flags.tcpopt_decode = 0;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
+    else if(!strcasecmp(config, "enable_tcpopt_drops"))
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of all other tcpopt alerts\n"););
+        pv.decoder_flags.drop_tcpopt_decode = 1;
+   
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }              
+    /* OBSOLETE -- default is disabled */
     else if(!strcasecmp(config, "disable_tcpopt_drops"))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of all other tcpopt alerts\n"););
@@ -3648,17 +4309,26 @@ void ParseConfig(char *rule)
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }              
-
     else if(!strcasecmp(config, "disable_ipopt_alerts"))
     {
         /* dump the application layer */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the all the ipopt alerts\n"););
         pv.decoder_flags.ipopt_decode = 0;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
+    else if(!strcasecmp(config, "enable_ipopt_drops"))
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of all the ipopt alerts\n"););
+        pv.decoder_flags.drop_ipopt_decode = 1;
+   
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }              
+    /* OBSOLETE -- default is disabled */
     else if(!strcasecmp(config, "disable_ipopt_drops"))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "disabling the drop of all the ipopt alerts\n"););
@@ -3668,14 +4338,13 @@ void ParseConfig(char *rule)
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }              
-
     else if(!strcasecmp(config, "decode_data_link"))
     {
         /* dump the data link layer as text only */
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Decode DLL set\n"););
         pv.show2hdr_flag = 1;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3685,7 +4354,7 @@ void ParseConfig(char *rule)
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "BPF file set\n"););
         /* suck 'em in */
         pv.pcap_cmd = read_infile(args);
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3712,7 +4381,7 @@ void ParseConfig(char *rule)
             groupid = gr->gr_gid;
         }
 #endif
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
 
         return;
@@ -3723,8 +4392,8 @@ void ParseConfig(char *rule)
         pv.daemon_flag = 1;
         flow_set_daemon();
         pv.quiet_flag = 1;
-	
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
 
@@ -3732,14 +4401,14 @@ void ParseConfig(char *rule)
     else if(!strcasecmp(config, "reference_net"))
     {
         GenHomenet(args);
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "threshold"))
     {
         ProcessThresholdOptions(args);
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3762,14 +4431,14 @@ void ParseConfig(char *rule)
             /* open up our libpcap packet capture interface */
             OpenPcap();
         }
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "alert_with_interface_name"))
     {
         pv.alert_interface_flag = 1;
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3784,6 +4453,18 @@ void ParseConfig(char *rule)
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
+#ifdef NOT_UNTIL_WE_DAEMONIZE_AFTER_READING_CONFFILE
+    else if(!strcasecmp(config, "pidpath"))
+    {
+        LogMessage("Found pidpath config directive (%s)\n", args);
+        strncpy(pv.pid_path,args,STD_BUF);
+        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Pid Path directory = %s\n", 
+                    pv.pid_path););
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+#endif
     else if(!strcasecmp(config, "chroot"))
     {
         LogMessage("Found chroot config directive (%s)\n", args);
@@ -3799,10 +4480,8 @@ void ParseConfig(char *rule)
     {
         char *p;
         long val = 0;
-        int umaskchange = 1;
+        int umaskchange = 0;
         int defumask = 0;
-
-        umaskchange = 0;
 
         val = strtol(args, &p, 8);
         if (*p != '\0' || val < 0 || (val & ~FILEACCESSBITS))
@@ -3812,10 +4491,11 @@ void ParseConfig(char *rule)
         else
         {
             defumask = val;
+            umaskchange = 1;
         }
 
         /* if the umask arg happened, set umask */
-        if (umaskchange)
+        if (!umaskchange)
         {
             umask(077);           /* set default to be sane */
         }
@@ -3823,7 +4503,7 @@ void ParseConfig(char *rule)
         {
             umask(defumask);
         }
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3831,7 +4511,7 @@ void ParseConfig(char *rule)
     {
         pv.pkt_cnt = atoi(args);
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Exiting after %d packets\n", pv.pkt_cnt););
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3839,14 +4519,14 @@ void ParseConfig(char *rule)
     {
         pv.log_mode = LOG_NONE;
         pv.log_cmd_override = 1;    /* XXX this is a funky way to do things */
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "obfuscate"))
     {
         pv.obfuscation_flag = 1;
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3854,7 +4534,7 @@ void ParseConfig(char *rule)
     {
         pv.promisc_flag = 0;
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Promiscuous mode disabled!\n"););
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3863,88 +4543,153 @@ void ParseConfig(char *rule)
         pv.pkt_snaplen = atoi(args);
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Snaplength of Packets set to: %d\n", 
                     pv.pkt_snaplen););
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "quiet"))
     {
         pv.quiet_flag = 1;
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "read_bin_file"))
     {
-        strlcpy(pv.readfile, args, STD_BUF);
-        pv.readmode_flag = 1;
-        DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Opening file: %s\n", pv.readfile););
+        if(args) 
+        {
+            strlcpy(pv.readfile, args, STD_BUF);
+            pv.readmode_flag = 1;
+            DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Opening file: %s\n", pv.readfile););
 
-        /* open the packet file for readback */
-        OpenPcap();
-	mSplitFree(&rule_toks,num_rule_toks);
+            if(pd != NULL)
+            {
+                pcap_close(pd);
+                pd = NULL;
+            }
+
+            /* open the packet file for readback */
+            OpenPcap();
+        }
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "checksum_mode"))
     {
-	int num_atoks,i;
-	char **atoks;
+        int num_atoks,i;
+        char **atoks;
 
         atoks  = mSplit(args, " ",10 , &num_atoks, 0);
-	
-	for(i=0;i<num_atoks;i++)
-	{
-        args=atoks[i];
+    
+        for(i=0;i<num_atoks;i++)
+        {
+            args=atoks[i];
 
-        if(args == NULL || !strcasecmp(args, "all"))
-        {
-            pv.checksums_mode = DO_IP_CHECKSUMS | DO_TCP_CHECKSUMS |
-                DO_UDP_CHECKSUMS | DO_ICMP_CHECKSUMS;
+            if(args == NULL || !strcasecmp(args, "all"))
+            {
+                pv.checksums_mode = DO_IP_CHECKSUMS | DO_TCP_CHECKSUMS |
+                    DO_UDP_CHECKSUMS | DO_ICMP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "none"))
+            {
+                pv.checksums_mode = 0;
+            }
+            else if(!strcasecmp(args, "noip")) 
+            {
+                pv.checksums_mode &= ~DO_IP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "notcp"))
+            {
+                pv.checksums_mode &= ~DO_TCP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "noudp"))
+            {
+                pv.checksums_mode &= ~DO_UDP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "noicmp"))
+            {
+                pv.checksums_mode &= ~DO_ICMP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "ip")) 
+            {
+                pv.checksums_mode |= DO_IP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "tcp"))
+            {
+                pv.checksums_mode |= DO_TCP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "udp"))
+            {
+                pv.checksums_mode |= DO_UDP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "icmp"))
+            {
+                pv.checksums_mode |= DO_ICMP_CHECKSUMS;
+            }
         }
-        else if(!strcasecmp(args, "none"))
-        {
-            pv.checksums_mode = 0;
-        }
+    
+        mSplitFree(&atoks,num_atoks);
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+    else if(!strcasecmp(config, "checksum_drop"))
+    {
+        int num_atoks,i;
+        char **atoks;
 
-	else if(!strcasecmp(args, "noip")) 
+        atoks  = mSplit(args, " ",10 , &num_atoks, 0);
+    
+        for(i=0;i<num_atoks;i++)
         {
-            pv.checksums_mode ^= DO_IP_CHECKSUMS;
-        }
-	else if(!strcasecmp(args, "notcp"))
-        {
-            pv.checksums_mode ^= DO_TCP_CHECKSUMS;
-        }
-	else if(!strcasecmp(args, "noudp"))
-        {
-            pv.checksums_mode ^= DO_UDP_CHECKSUMS;
-        }
-	else if(!strcasecmp(args, "noicmp"))
-        {
-            pv.checksums_mode ^= DO_ICMP_CHECKSUMS;
-        }
+            args=atoks[i];
 
-	else if(!strcasecmp(args, "ip")) 
-        {
-            pv.checksums_mode |= DO_IP_CHECKSUMS;
+            if(args == NULL || !strcasecmp(args, "all"))
+            {
+                pv.checksums_drop = DO_IP_CHECKSUMS | DO_TCP_CHECKSUMS |
+                    DO_UDP_CHECKSUMS | DO_ICMP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "none"))
+            {
+                pv.checksums_drop = 0;
+            }
+            else if(!strcasecmp(args, "noip")) 
+            {
+                pv.checksums_drop &= ~DO_IP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "notcp"))
+            {
+                pv.checksums_drop &= ~DO_TCP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "noudp"))
+            {
+                pv.checksums_drop &= ~DO_UDP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "noicmp"))
+            {
+                pv.checksums_drop &= ~DO_ICMP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "ip")) 
+            {
+                pv.checksums_drop |= DO_IP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "tcp"))
+            {
+                pv.checksums_drop |= DO_TCP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "udp"))
+            {
+                pv.checksums_drop |= DO_UDP_CHECKSUMS;
+            }
+            else if(!strcasecmp(args, "icmp"))
+            {
+                pv.checksums_drop |= DO_ICMP_CHECKSUMS;
+            }
         }
-	else if(!strcasecmp(args, "tcp"))
-        {
-            pv.checksums_mode |= DO_TCP_CHECKSUMS;
-        }
-	else if(!strcasecmp(args, "udp"))
-        {
-            pv.checksums_mode |= DO_UDP_CHECKSUMS;
-        }
-	else if(!strcasecmp(args, "icmp"))
-        {
-            pv.checksums_mode |= DO_ICMP_CHECKSUMS;
-        }
-	
-	}
-	
-	mSplitFree(&atoks,num_atoks);
-	mSplitFree(&rule_toks,num_rule_toks);
+    
+        mSplitFree(&atoks,num_atoks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -3953,6 +4698,11 @@ void ParseConfig(char *rule)
 #ifdef WIN32
         FatalError("Setting the user id is not supported in the WIN32 port of snort!\n");
 #else
+        if(args == NULL)
+        {
+            FatalError("Setting the user id requires an argument.\n");
+        }
+        
         if((username = calloc(strlen(args) + 1, 1)) == NULL)
             FatalPrintError("malloc");
 
@@ -3991,14 +4741,14 @@ void ParseConfig(char *rule)
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "UserID: %lu GroupID: %lu\n",
                     (unsigned long) userid, (unsigned long) groupid););
 #endif
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "utc"))
     {
         pv.use_utc = 1;
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -4006,7 +4756,7 @@ void ParseConfig(char *rule)
     {
         pv.verbose_flag = 1;
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Verbose Flag active\n"););
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -4016,7 +4766,7 @@ void ParseConfig(char *rule)
                     "Verbose packet bytecode dumps enabled\n"););
 
         pv.verbose_bytedump_flag = 1;
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -4024,14 +4774,14 @@ void ParseConfig(char *rule)
     {
         pv.include_year = 1;
         DEBUG_WRAP(DebugMessage(DEBUG_INIT, "Enabled year in timestamp\n"););
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
     else if(!strcasecmp(config, "stateful")) /* this one's for Johnny! */
     {
         pv.assurance_mode = ASSURE_EST;
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -4045,7 +4795,7 @@ void ParseConfig(char *rule)
         {
             FatalError("config min_ttl requires an argument\n");
         }
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
@@ -4060,16 +4810,723 @@ void ParseConfig(char *rule)
             ErrorMessage("%s(%d) => Reference config without "
                          "arguments\n", file_name, file_line);
         }
-	mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+    else if (!strcasecmp(config, "ignore_ports"))
+    {
+        LogMessage("Found ignore_ports config directive (%s)\n", args);
+        ParsePortList(args);        
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+    else if(!strcasecmp(config, "default_rule_state"))
+    {
+        LogMessage("Found rule_state config directive (%s)\n", args);
+        if (args)
+        {
+            if (!strcasecmp(args, "disabled"))
+                pv.default_rule_state = RULE_STATE_DISABLED;
+            else
+                pv.default_rule_state = RULE_STATE_ENABLED;
+        }
+        else
+        {
+                pv.default_rule_state = RULE_STATE_ENABLED;
+        }
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+#ifdef PERF_PROFILING
+    else if (!strcasecmp(config, "profile_rules"))
+    {
+        LogMessage("Found profile_rules config directive (%s)\n", args);
+        ParseProfileRules(args);        
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+    else if (!strcasecmp(config, "profile_preprocs"))
+    {
+        LogMessage("Found profile_preprocs config directive (%s)\n", args);
+        ParseProfilePreprocs(args);        
+        mSplitFree(&rule_toks,num_rule_toks);
+        mSplitFree(&config_decl,num_config_decl_toks);
+        return;
+    }
+#endif
+    else if(!strcasecmp(config, "tagged_packet_limit"))
+    {
+        pv.tagged_packet_limit = atoi(args);
+        mSplitFree(&rule_toks,num_rule_toks);
         mSplitFree(&config_decl,num_config_decl_toks);
         return;
     }
 
+#if defined(ENABLE_RESPONSE2) && !defined(ENABLE_RESPONSE)
+    else if (!strcasecmp(config, "flexresp2_interface"))
+    {
+        if (args)
+        {
+#ifdef WIN32
+            char *devicet = NULL;
+            int adaplen = atoi(args);
+            char errorbuf[PCAP_ERRBUF_SIZE];
+
+            if (adaplen > 0)
+            {
+                devicet = pcap_lookupdev(errorbuf);
+                if (devicet == NULL)
+                    FatalError("%s(%d) => flexresp2_interface failed in "
+                            "pcap_lookupdev(): %s.\n", file_name, file_line,
+                            strerror(errorbuf));
+
+                pv.respond2_ethdev = GetAdapterFromList(devicet, adaplen);
+                if (pv.respond2_ethdev == NULL)
+                    FatalError("%s(%d) => flexresp2_interface: Invalid "
+                            "interface '%d'.\n", file_name, file_line,
+                            atoi(adaplen));
+
+                pv.respond2_link = 1;
+                DEBUG_WRAP(
+                        DebugMessage(DEBUG_INIT,
+                                "sp_respond2: link-layer responses: ENABLED\n");
+                        DebugMessage(DEBUG_INIT,
+                                "sp_respond2: link-layer device: %s\n",
+                                pv.respond2_ethdev););
+                return;
+            }
+            else
+#endif /* WIN32 */
+            {
+                pv.respond2_ethdev = (char *)malloc(strlen(args) + 1);
+                strlcpy(pv.respond2_ethdev, args, strlen(args) + 1);
+                pv.respond2_link = 1;
+                DEBUG_WRAP(
+                        DebugMessage(DEBUG_INIT,
+                                "sp_respond2: link-layer responses: ENABLED\n");
+                        DebugMessage(DEBUG_INIT,
+                                "sp_respond2: link-layer device: %s\n",
+                                pv.respond2_ethdev););
+            }
+            return;
+        }
+        else 
+        {
+            FatalError("%s(%d) => flexresp2_interface config without "
+                         "arguments\n", file_name, file_line);
+        }
+    }
+    else if (!strcasecmp(config, "flexresp2_attempts"))
+    {
+        char *endp;
+        u_long val = 0;
+
+        if (args)
+        {
+            val = strtoul(args, &endp, 0);
+            if (args == endp || *endp)
+                FatalError("%s(%d) => flexresp2_attempts: Invalid number of "
+                        "response attempts '%s'.\n", file_name, file_line, args);
+
+            if (val < 21)
+            {
+                pv.respond2_attempts = (u_int8_t)val;
+                DEBUG_WRAP(DebugMessage(DEBUG_INIT, "sp_respond2: "
+                            "response attempts: %u\n", pv.respond2_attempts););
+                return;
+            }
+            else
+            {
+                ErrorMessage("%s(%d) => flexresp2_attempts: Maximum "
+                        "number of response attempts is 20.\n", file_name,
+                        file_line);
+                pv.respond2_attempts = 20;
+                DEBUG_WRAP(DebugMessage(DEBUG_INIT, "sp_respond2: response "
+                            "attempts: %u\n", pv.respond2_attempts););
+                return;
+            }
+        }
+        else 
+        {
+            FatalError("%s(%d) => flexresp2_attempts config without "
+                         "arguments\n", file_name, file_line);
+        }
+    }
+    else if (!strcasecmp(config, "flexresp2_memcap"))
+    {
+        char *endp;
+        long val = 0;
+
+        if (args)
+        {
+            val = strtol(args, &endp, 0);
+            if (args == endp || *endp)
+                FatalError("%s(%d) => flexresp2_memcap: Invalid memcap '%s'.\n", 
+                        file_name, file_line, args);
+
+                DEBUG_WRAP(DebugMessage(DEBUG_INIT, "sp_respond2: memcap: "
+                            "%d\n", pv.respond2_memcap););
+                return;
+        }
+        else
+        {
+            FatalError("%s(%d) => flexresp2_memcap config without "
+                         "arguments\n", file_name, file_line);
+        }
+    }
+    else if (!strcasecmp(config, "flexresp2_rows"))
+    {
+        char *endp;
+        long val = 0;
+
+        if (args)
+        {
+            val = strtol(args, &endp, 0);
+            if (args == endp || *endp)
+                FatalError("%s(%d) => flexresp2_memcap: Invalid rows '%s'.\n", 
+                        file_name, file_line, args);
+
+                DEBUG_WRAP(DebugMessage(DEBUG_INIT, "sp_respond2: rows: %d\n", 
+                            pv.respond2_rows););
+                return;
+        }
+        else
+        {
+            FatalError("%s(%d) => flexresp2_rows config without "
+                         "arguments\n", file_name, file_line);
+        }
+    }
+#endif /* defined(ENABLE_RESPONSE2) && !defined(ENABLE_RESPONSE) */
+
     FatalError("Unknown config directive: %s\n", rule);
-	
+    
 
     return;
 }
+
+/****************************************************************************
+ *
+ * Purpose: Check that special rules have an OTN.
+ *          TODO: Free up memory associated with disabled rules.
+ *
+ * Arguments: list => Pointer for a list of rules
+ *
+ * Returns: void function
+ *
+ * Notes: man - modified to used .shared flag in otn sigInfo instead of specialGID
+ *        sas - removed specialGID
+ * 
+ *****************************************************************************/
+int CheckRuleStates(RuleTreeNode **list)
+{
+    RuleTreeNode *rtn;
+    OptTreeNode *otnPrev;
+    OptTreeNode *otn;
+    int oneErr = 0;
+
+    if (!list || !(*list))
+        return 0;
+
+    for (rtn = *list; rtn != NULL; rtn = rtn->right)
+    {
+        otn = rtn->down;
+        otnPrev = NULL;
+        while (otn)
+        {
+            if ( otn->sigInfo.shared )
+            {
+                if (otn->ds_list[PLUGIN_DYNAMIC] == NULL)
+                {
+                    LogMessage("Encoded Rule Plugin SID: %d, GID: %d not registered properly.  Disabling this rule.\n",
+                            otn->sigInfo.id, otn->sigInfo.generator);
+                    oneErr = 1;
+
+                    otn->rule_state = RULE_STATE_DISABLED;
+                }
+            }
+            if (otn->rule_state != RULE_STATE_ENABLED)
+            {
+                /* XXX: Future, free it and clean up */
+#if 0
+                if (otnPrev)
+                {
+                    otnPrev->next = otn->next;
+                    free(otn);
+                    otn = otnPrev->next;
+                }
+                else
+                {
+                    rtn->down = otn->next;
+                    free(otn);
+                    otn = rtn->down;
+                }
+                /* Removed a node.  */
+                continue;
+#endif
+            }
+            otn = otn->next;
+        }
+    }
+    return oneErr;
+}
+
+/****************************************************************************
+ *
+ * Purpose: Adjust the information for a given rule
+ *          relative to the Rule State list
+ *
+ * Arguments: None
+ *
+ * Returns: void function
+ *
+ * Notes:  specialGID is depracated, uses sigInfo.shared flag
+ * 
+ *****************************************************************************/
+void SetRuleStates()
+{
+    RuleState *ruleState = pv.ruleStateList;
+    OptTreeNode *otn = NULL;
+    RuleListNode *rule;
+    int oneErr = 0, err;
+
+    /* First, cycle through the rule state list and update the
+     * rule state for each one we find.
+     */
+    while (ruleState)
+    {
+        /* Lookup the OTN by ruleState->sid, ruleState->gid */
+        otn = otn_lookup(ruleState->gid, ruleState->sid);
+        if (!otn)
+        {
+            FatalError("Rule state specified for invalid SID: %d GID: %d\n",
+                    ruleState->sid, ruleState->gid);
+        }
+
+        otn->rule_state = ruleState->state;
+
+        /* Set the action -- err "rule type" */
+        otn->type = ruleState->action;
+
+        ruleState = ruleState->next;
+    }
+
+    /* Next, cycle through all rules.
+     * For all RTNs that are disabled, pull them out of the list.
+     * If an OTN matching the special GID doesn't have any OTN info, fatal.
+     */
+    for (rule=RuleLists; rule; rule=rule->next)
+    {
+        if(!rule->RuleList)
+            continue;
+
+        /* First Check TCP */
+        err = CheckRuleStates(&(rule->RuleList->TcpList));
+        if (err)
+            oneErr = 1;
+        /* Next Check UDP */
+        err = CheckRuleStates(&(rule->RuleList->UdpList));
+        if (err)
+            oneErr = 1;
+        /* Next Check ICMP */
+        err = CheckRuleStates(&(rule->RuleList->IcmpList));
+        if (err)
+            oneErr = 1;
+        /* Finally IP */
+        err = CheckRuleStates(&(rule->RuleList->IpList));
+        if (err)
+            oneErr = 1;
+    }
+#ifdef DYNAMIC_PLUGIN
+#if 0
+    if (oneErr)
+    {
+        FatalError("Misconfigured or unregistered encoded rule plugins\n");
+    }
+#endif
+#endif
+}
+
+/****************************************************************************
+ *
+ * Purpose: Parses a rule state line.
+ *          Format is sid, gid, state, action.
+ *          state should be "enabled" or "disabled"
+ *          action should be "alert", "drop", "sdrop", "log", etc.
+ *
+ * Arguments: args => string containing a single rule state entry
+ *
+ * Returns: void function
+ *
+ *****************************************************************************/
+void ParseRuleState(char *args)
+{
+    char ** toks;
+    int     num_toks = 0;
+    RuleState state;
+    RuleState *newState;
+
+    toks = mSplit(args, ", ", 65535, &num_toks, 0);
+
+    if ( !num_toks || num_toks != 4)
+    {
+        FatalError("%s(%d) => config rule_state: Empty state info.\n", 
+                    file_name, file_line);
+    }
+
+    if (!isdigit(toks[0][0]))
+        FatalError("%s(%d) => config rule_state: Invalid SID.\n", 
+                    file_name, file_line);
+
+    state.sid = atoi(toks[0]);
+
+    if (!isdigit(toks[1][0]))
+        FatalError("%s(%d) => config rule_state: Invalid GID.\n", 
+                    file_name, file_line);
+
+    state.gid = atoi(toks[1]);
+
+    if (!strcasecmp(toks[2], "disabled"))
+    {
+        state.state = RULE_STATE_DISABLED;
+    }
+    else if (!strcasecmp(toks[2], "enabled"))
+    {
+        state.state = RULE_STATE_ENABLED;
+    }
+    else
+    {
+        FatalError("%s(%d) => config rule_state: Invalid state - "
+                    "must be either 'enabled' or 'disabled'.\n", 
+                    file_name, file_line);
+    }
+
+    state.action = RuleType(toks[3]);
+    state.next = NULL;
+    switch (state.action)
+    {
+        case RULE_LOG:
+        case RULE_PASS:
+        case RULE_ALERT:
+        case RULE_DROP:
+#ifdef GIDS
+        case RULE_SDROP:
+        case RULE_REJECT:
+#endif
+        case RULE_ACTIVATE:
+        case RULE_DYNAMIC:
+            break;
+        default:
+            FatalError("%s(%d) => config rule_state: Invalid action - "
+                    "must be a valid rule type.\n", 
+                    file_name, file_line);
+    }
+
+    pv.numRuleStates++;
+    newState = (RuleState *)SnortAlloc(sizeof(RuleState));
+    if (!newState)
+        FatalError("%s(%d) => config rule_state: Could not allocate "
+                   "rule state node.\n", 
+                   file_name, file_line);
+    memcpy(newState, &state, sizeof(RuleState));
+
+    if (!pv.ruleStateList)
+    {
+        pv.ruleStateList = newState;
+    }
+    else
+    {
+        newState->next = pv.ruleStateList;
+        pv.ruleStateList = newState;
+    }
+}
+
+#ifdef DYNAMIC_PLUGIN
+/****************************************************************************
+ *
+ * Purpose: Parses a dynamic engine line
+ *          Format is full path of dynamic engine
+ *
+ * Arguments: args => string containing a single dynamic engine
+ *
+ * Returns: void function
+ *
+ *****************************************************************************/
+void ParseDynamicEngine(char *args)
+{
+    char **toks;
+    int num_toks;
+    DynamicDetectionSpecifier *dynamicLib;
+    char *dynamicEngineLibPath = NULL;
+    int type = DYNAMIC_LIBRARY_FILE;
+
+    if (pv.dynamicEngineCount >= MAX_DYNAMIC_ENGINES)
+    {
+        FatalError("Maximum number of loaded Dynamic Engines (%d) exceeded\n", MAX_DYNAMIC_ENGINES);
+    }
+
+    toks = mSplit(args, " ", 4, &num_toks, 0);
+    if(num_toks == 1)
+    {
+        /* Load everything from current dir */
+        if (!pv.dynamicEngineCurrentDir)
+        {
+            dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+            /* getcwd will dynamically allocate space for the path */
+            dynamicEngineLibPath = getcwd(dynamicLib->path, 0);
+            dynamicLib->path = strdup(dynamicEngineLibPath);
+            dynamicLib->type = DYNAMIC_ENGINE_DIRECTORY;
+            pv.dynamicEngineCurrentDir = 1;
+
+            pv.dynamicEngine[pv.dynamicEngineCount] = dynamicLib;
+            pv.dynamicEngineCount++;
+            return;
+        }
+    }
+    else if (num_toks == 2)
+    {
+        /* Old default case -- dynamicengine sharedlibpath */
+        dynamicEngineLibPath = toks[1];
+        type = DYNAMIC_ENGINE_FILE;
+    }
+    else if (num_toks == 3)
+    {
+        dynamicEngineLibPath = toks[2];
+        if (!strcasecmp(toks[1], "file"))
+        {
+            type = DYNAMIC_ENGINE_FILE;
+        }
+        else if (!strcasecmp(toks[1], "directory"))
+        {
+            type = DYNAMIC_ENGINE_DIRECTORY;
+        }
+        else
+        {
+            FatalError("%s(%d) Invalid specifier for Dynamic Engine "
+                        "Libs.\n Should be file|directory pathname.\n",
+                        file_name, file_line);
+        }
+    }
+    else
+    {
+        FatalError("%s(%d) => Missing/incorrect dynamic engine lib "
+                    "specifier.\n", 
+                    file_name, file_line);
+    }
+
+    dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+    dynamicLib->type = type;
+    dynamicLib->path = strdup(dynamicEngineLibPath);
+
+    pv.dynamicEngine[pv.dynamicEngineCount] = dynamicLib;
+    pv.dynamicEngineCount++;
+    mSplitFree(&toks, num_toks);
+}
+
+/****************************************************************************
+ *
+ * Purpose: Parses a dynamic detection lib line
+ *          Format is full path of dynamic engine
+ *
+ * Arguments: args => string containing a single dynamic engine
+ *
+ * Returns: void function
+ *
+ *****************************************************************************/
+void ParseDynamicDetection(char *args)
+{
+    char **toks;
+    int num_toks;
+    DynamicDetectionSpecifier *dynamicLib;
+    char *dynamicDetectionLibPath = NULL;
+    int type = DYNAMIC_LIBRARY_FILE;
+
+    if (pv.dynamicLibraryCount >= MAX_DYNAMIC_DETECTION_LIBS)
+    {
+        FatalError("Maximum number of loaded Dynamic Detection Libs (%d) exceeded\n", MAX_DYNAMIC_DETECTION_LIBS);
+    }
+
+    toks = mSplit(args, " ", 4, &num_toks, 0);
+    if(num_toks == 1)
+    {
+        /* Load everything from current dir */
+        if (!pv.dynamicLibraryCurrentDir)
+        {
+            dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+            /* getcwd will dynamically allocate space for the path */
+            dynamicDetectionLibPath = getcwd(dynamicLib->path, 0);
+            dynamicLib->path = strdup(dynamicDetectionLibPath);
+            dynamicLib->type = DYNAMIC_LIBRARY_DIRECTORY;
+            pv.dynamicLibraryCurrentDir = 1;
+
+            pv.dynamicDetection[pv.dynamicLibraryCount] = dynamicLib;
+            pv.dynamicLibraryCount++;
+            return;
+        }
+    }
+    else if (num_toks == 3)
+    {
+        dynamicDetectionLibPath = toks[2];
+        if (!strcasecmp(toks[1], "file"))
+        {
+            type = DYNAMIC_LIBRARY_FILE;
+        }
+        else if (!strcasecmp(toks[1], "directory"))
+        {
+            type = DYNAMIC_LIBRARY_DIRECTORY;
+        }
+        else
+        {
+            FatalError("%s(%d) Invalid specifier for Dynamic Detection "
+                        "Libs.\n Should be file|directory pathname.\n",
+                        file_name, file_line);
+        }
+    }
+    else
+    {
+        FatalError("%s(%d) => Missing/incorrect dynamic detection lib "
+                    "specifier.\n", 
+                    file_name, file_line);
+    }
+
+    dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+    dynamicLib->type = type;
+    dynamicLib->path = strdup(dynamicDetectionLibPath);
+
+    pv.dynamicDetection[pv.dynamicLibraryCount] = dynamicLib;
+    pv.dynamicLibraryCount++;
+}
+
+/****************************************************************************
+ *
+ * Purpose: Parses a dynamic preprocessor lib line
+ *          Format is full path of dynamic engine
+ *
+ * Arguments: args => string containing a single dynamic engine
+ *
+ * Returns: void function
+ *
+ *****************************************************************************/
+void ParseDynamicPreprocessor(char *args)
+{
+    char **toks;
+    int num_toks;
+    DynamicDetectionSpecifier *dynamicLib;
+    char *dynamicDetectionLibPath = NULL;
+    int type = DYNAMIC_PREPROC_FILE;
+
+    if (pv.dynamicPreprocCount >= MAX_DYNAMIC_PREPROC_LIBS)
+    {
+        FatalError("Maximum number of loaded Dynamic Preprocessor Libs (%d) exceeded\n", MAX_DYNAMIC_PREPROC_LIBS);
+    }
+
+    toks = mSplit(args, " ", 4, &num_toks, 0);
+    if(num_toks == 1)
+    {
+        /* Load everything from current dir */
+        if (!pv.dynamicPreprocCurrentDir)
+        {
+            dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+            /* getcwd will dynamically allocate space for the path */
+            dynamicDetectionLibPath = getcwd(dynamicLib->path, 0);
+            dynamicLib->path = strdup(dynamicDetectionLibPath);
+            dynamicLib->type = DYNAMIC_PREPROC_DIRECTORY;
+            pv.dynamicPreprocCurrentDir = 1;
+
+            pv.dynamicPreprocs[pv.dynamicPreprocCount] = dynamicLib;
+            pv.dynamicPreprocCount++;
+            return;
+        }
+    }
+    else if (num_toks == 3)
+    {
+        dynamicDetectionLibPath = toks[2];
+        if (!strcasecmp(toks[1], "file"))
+        {
+            type = DYNAMIC_PREPROC_FILE;
+        }
+        else if (!strcasecmp(toks[1], "directory"))
+        {
+            type = DYNAMIC_PREPROC_DIRECTORY;
+        }
+        else
+        {
+            FatalError("%s(%d) Invalid specifier for Dynamic Detection "
+                        "Libs.\n Should be file|directory pathname.\n",
+                        file_name, file_line);
+        }
+    }
+    else
+    {
+        FatalError("%s(%d) => Missing/incorrect dynamic detection lib "
+                    "specifier.\n", 
+                    file_name, file_line);
+    }
+
+    dynamicLib = calloc(1, sizeof(DynamicDetectionSpecifier));
+    dynamicLib->type = type;
+    dynamicLib->path = strdup(dynamicDetectionLibPath);
+
+    pv.dynamicPreprocs[pv.dynamicPreprocCount] = dynamicLib;
+    pv.dynamicPreprocCount++;
+}
+
+#endif
+
+ /****************************************************************************
+ *
+ * Purpose: Parses a protocol plus a list of ports.
+ *          The protocol should be "udp" or "tcp".
+ *          The ports list should be a list of numbers or pairs of numbers.
+ *          Each element of the list is separated by a space character.
+ *          Each pair of numbers is separated by a colon character.
+ *          So the string passed in is e.g. "tcp 443 578 6667:6681 13456"
+ *          The numbers do not have to be in numerical order.
+ *
+ * Arguments: args => string containing protocol plus list of ports
+ *
+ * Returns: void function
+ *
+ *****************************************************************************/
+void ParsePortList(char *args)
+{
+    char ** toks;
+    int     num_toks = 0;
+    int     i, p;
+    u_short hi_port, lo_port;
+    int     protocol;
+    int     not_flag;
+
+    toks = mSplit(args, " ", 65535, &num_toks, 0);
+
+    if ( !num_toks )
+    {
+        FatalError("%s(%d) => config ignore_ports: Empty port list.\n", 
+                    file_name, file_line);
+    }
+
+    protocol = WhichProto(toks[0]);
+
+    if ( !(protocol == IPPROTO_TCP || protocol == IPPROTO_UDP) )
+    {
+        FatalError("%s(%d) => Invalid protocol: %s\n", file_name, file_line, toks[0]);
+    }
+
+    for ( i = 1; i < num_toks; i++ )
+    {  
+        /*  Re-use function from rules processing  */
+        ParsePort(toks[i], &hi_port, &lo_port, toks[0], &not_flag);      
+           
+        for ( p = lo_port; p <= hi_port; p++ )
+            pv.ignore_ports[p] = protocol;
+    }
+    
+    mSplitFree(&toks, num_toks);
+}
+
 
 /* verify that we are not reusing some other keyword */
 int checkKeyword(char *keyword)
@@ -4194,25 +5651,33 @@ void ParseRuleTypeDeclaration(FILE* rule_file, char *rule)
     return;
 }
 
-/* adapted from ParseRuleFule in rules.c */
+/* adapted from ParseRuleFile in rules.c */
 char *ReadLine(FILE * file)
 {
-    char buf[STD_BUF];
-    char *index;
+    char * index;
+    char * buf; 
+    char * p;
+    
+    buf = malloc(MAX_LINE_LENGTH+1);
+    if( !buf )
+    {
+        FatalError( " ReadLine : ran out of 'buf' memory\n");
+    }
 
-    bzero((char *) buf, STD_BUF);
+
+    bzero((char *) buf, MAX_LINE_LENGTH+1);
 
     /*
      * Read a line from file and return it. Skip over lines beginning with #,
      * ;, or a newline
      */
-    while((fgets(buf, STD_BUF, file)) != NULL)
+    while((fgets(buf, MAX_LINE_LENGTH, file)) != NULL)
     {
         file_line++;
         index = buf;
 
 #ifdef DEBUG2
-	LogMessage("Got line %s (%d): %s\n", file_name, file_line, buf);
+        LogMessage("Got line %s (%d): %s\n", file_name, file_line, buf);
 #endif
         /* if it's not a comment or a <CR>, we return it */
         if((*index != '#') && (*index != 0x0a) && (*index != ';')
@@ -4223,7 +5688,9 @@ char *ReadLine(FILE * file)
                 ++index;
 
             /* return a copy of the line */
-            return strdup(index);
+             p = strdup(index);
+             free( buf );
+             return p;
         }
     }
 

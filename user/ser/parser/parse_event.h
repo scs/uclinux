@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_event.h,v 1.3 2002/09/23 13:42:56 janakj Rel $
  *
  * Event header field body parser
  * This parser was written for Presence Agent module only.

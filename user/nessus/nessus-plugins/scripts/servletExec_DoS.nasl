@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(10958);
- script_cve_id("CAN-2002-0894", "CVE-2000-0681");
- script_bugtraq_id(4796, 1570);
- script_version ("$Revision: 1.8 $");
+ script_bugtraq_id(1570, 4796);
+ script_cve_id("CVE-2002-0894", "CVE-2000-0681");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "ServletExec 4.1 / JRun ISAPI DoS";
  name["francais"] = "ServletExec 4.1 / JRun ISAPI DoS";
  script_name(english:name["english"], francais:name["francais"]);
@@ -59,11 +59,13 @@ include("http_func.inc");
 crashes_already = get_kb_item("www/too_long_url_crash");
 if(crashes_already)exit(0);
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
- if(http_is_dead(port:port))exit(0);
+ banner = get_http_banner(port:port);
+ if ( ! banner ) exit(0);
+ if ( "JRun" >!<  banner ) exit(0);
  
  buff = string("/", crap(3000), ".jsp");
 

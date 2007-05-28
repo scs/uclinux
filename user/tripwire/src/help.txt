@@ -1,4 +1,4 @@
-# $Id$
+# $Id: help.txt,v 1.5 1994/04/04 00:34:31 gkim Exp $
 #
 # this file contains the help text that is printed out when 'help' is
 # invoked in Interactive mode, or when '-help' is invoked on the command

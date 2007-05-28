@@ -5,7 +5,9 @@
 if(description)
 {
  script_id(11765);
- script_version("$Revision: 1.2 $");
+ script_bugtraq_id(3723);
+ script_version("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-0876");
  
  name["english"] = "scan for UPNP/Tcp hosts";
  script_name(english:name["english"]);
@@ -16,10 +18,13 @@ The remote host is running Microsoft UPnP TCP helper.
 If the tested network is not a home network, you should disable
 this service.
 
-Solution : Delete the registry key HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\RunServices\SSDPSRV 
-and reboot the remote host
+Solution : Set the following registry key :
+                Location : HKLM\SYSTEM\CurrentControlSet\Services\SSDPSRV
+                Key      : Start
+                Value    : 0x04
 
-Risk Factor : Low";
+
+Risk factor : Low";
 
 
  script_description(english:desc["english"]);
@@ -37,6 +42,10 @@ Risk Factor : Low";
  exit(0);
 }
 
+
+include('global_settings.inc');
+
+if ( report_paranoia < 1 ) exit(0);
 
 if(get_port_state(5000))
 {

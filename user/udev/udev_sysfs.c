@@ -1,7 +1,5 @@
 /*
- * udev_sysfs.c - sysfs access
- *
- * Copyright (C) 2005 Kay Sievers <kay.sievers@vrfy.org>
+ * Copyright (C) 2005-2006 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the
@@ -14,7 +12,7 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -79,24 +77,27 @@ void sysfs_cleanup(void)
 	}
 }
 
-void sysfs_device_set_values(struct sysfs_device *dev, const char *devpath, const char *subsystem)
+void sysfs_device_set_values(struct sysfs_device *dev, const char *devpath,
+			     const char *subsystem, const char *driver)
 {
 	char *pos;
 
 	strlcpy(dev->devpath, devpath, sizeof(dev->devpath));
 	if (subsystem != NULL)
 		strlcpy(dev->subsystem, subsystem, sizeof(dev->subsystem));
+	if (driver != NULL)
+		strlcpy(dev->driver, driver, sizeof(dev->driver));
 
 	/* set kernel name */
 	pos = strrchr(dev->devpath, '/');
 	if (pos == NULL)
 		return;
 
-	strlcpy(dev->kernel_name, &pos[1], sizeof(dev->kernel_name));
-	dbg("kernel_name='%s'", dev->kernel_name);
+	strlcpy(dev->kernel, &pos[1], sizeof(dev->kernel));
+	dbg("kernel='%s'", dev->kernel);
 
 	/* some devices have '!' in their name, change that to '/' */
-	pos = dev->kernel_name;
+	pos = dev->kernel;
 	while (pos[0] != '\0') {
 		if (pos[0] == '!')
 			pos[0] = '/';
@@ -104,7 +105,7 @@ void sysfs_device_set_values(struct sysfs_device *dev, const char *devpath, cons
 	}
 
 	/* get kernel number */
-	pos = &dev->kernel_name[strlen(dev->kernel_name)];
+	pos = &dev->kernel[strlen(dev->kernel)];
 	while (isdigit(pos[-1]))
 		pos--;
 	strlcpy(dev->kernel_number, pos, sizeof(dev->kernel_number));
@@ -181,7 +182,7 @@ struct sysfs_device *sysfs_device_get(const char *devpath)
 		return NULL;
 	memset(dev, 0x00, sizeof(struct sysfs_device));
 
-	sysfs_device_set_values(dev, devpath_real, NULL);
+	sysfs_device_set_values(dev, devpath_real, NULL, NULL);
 
 	/* get subsystem */
 	if (strncmp(dev->devpath, "/class/", 7) == 0) {
@@ -345,6 +346,7 @@ char *sysfs_attr_get_value(const char *devpath, const char *attr_name)
 	char value[NAME_SIZE];
 	struct sysfs_attr *attr_loop;
 	struct sysfs_attr *attr;
+	struct stat statbuf;
 	int fd;
 	ssize_t size;
 	size_t sysfs_len;
@@ -374,6 +376,38 @@ char *sysfs_attr_get_value(const char *devpath, const char *attr_name)
 	dbg("add to cache '%s'", path_full);
 	list_add(&attr->node, &attr_list);
 
+	if (lstat(path_full, &statbuf) != 0) {
+		dbg("stat '%s' failed: %s", path_full, strerror(errno));
+		goto out;
+	}
+
+	if (S_ISLNK(statbuf.st_mode)) {
+		/* links return the last element of the target path */
+		char link_target[PATH_SIZE];
+		int len;
+		const char *pos;
+
+		len = readlink(path_full, link_target, sizeof(link_target));
+		if (len > 0) {
+			link_target[len] = '\0';
+			pos = strrchr(link_target, '/');
+			if (pos != NULL) {
+				dbg("cache '%s' with link value '%s'", path_full, value);
+				strlcpy(attr->value_local, &pos[1], sizeof(attr->value_local));
+				attr->value = attr->value_local;
+			}
+		}
+		goto out;
+	}
+
+	/* skip directories */
+	if (S_ISDIR(statbuf.st_mode))
+		goto out;
+
+	/* skip non-readable files */
+	if ((statbuf.st_mode & S_IRUSR) == 0)
+		goto out;
+
 	/* read attribute value */
 	fd = open(path_full, O_RDONLY);
 	if (fd < 0) {
@@ -390,7 +424,7 @@ char *sysfs_attr_get_value(const char *devpath, const char *attr_name)
 	/* got a valid value, store and return it */
 	value[size] = '\0';
 	remove_trailing_chars(value, '\n');
-	dbg("cache '%s' with value '%s'", path_full, value);
+	dbg("cache '%s' with attribute value '%s'", path_full, value);
 	strlcpy(attr->value_local, value, sizeof(attr->value_local));
 	attr->value = attr->value_local;
 

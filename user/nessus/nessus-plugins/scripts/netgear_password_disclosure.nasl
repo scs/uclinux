@@ -50,8 +50,8 @@
 if(description)
 {
  script_id(11514);
- script_version ("$Revision: 1.5 $");
- script_bugtraq_id(7270, 7267);
+ script_bugtraq_id(7267, 7270);
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Netgear ProSafe Router password disclosure";
  
@@ -106,15 +106,21 @@ req = string("POST /upnp/service/WANPPPConnection HTTP/1.1\r\n",
 'Content-Length: ', strlen(content), '\r\n\r\n',
 content);
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+
+
+banner = get_http_banner(port:port);
+if ( ! banner || "Server: UPnP" >!< banner ) exit(0);
+
+
 
 
 req1 = ereg_replace(string:req, pattern:"CHANGEME", replace:"GetUserName");
 req2 = ereg_replace(string:req, pattern:"CHANGEME", replace:"GetPassword");
 
-res = http_keepalive_send_recv(port:port, data:req1);
+res = http_keepalive_send_recv(port:port, data:req1, embedded:TRUE);
 if(res == NULL) exit(0);
 
 if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 .*", string:res))
@@ -128,7 +134,7 @@ if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 .*", string:res))
 }
 
 
-res = http_keepalive_send_recv(port:port, data:req2);
+res = http_keepalive_send_recv(port:port, data:req2, embedded:TRUE);
 if(res == NULL) exit(0);
 
 if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 .*", string:res))

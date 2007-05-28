@@ -1,45 +1,39 @@
-
 CONFIG_LANGUAGE ?= english
 ifeq ($(CONFIG_LANGUAGE),)
 CONFIG_LANGUAGE=english
 endif
 
-ifneq ($(findstring english,$(CONFIG_LANGUAGE)),)
-SQUID_LANG:=English
+SQUID_LANG := English
+ifdef CONFIG_LANG_JAPANESE
+SQUID_LANG += Japanese
 endif
-ifneq ($(findstring japanese,$(CONFIG_LANGUAGE)),)
-SQUID_LANG:=Japanese
-endif
-ifneq ($(findstring chinese,$(CONFIG_LANGUAGE)),)
-SQUID_LANG:=Simplify_Chinese
+ifdef CONFIG_LANG_CHINESE
+SQUID_LANG += Simplify_Chinese
 endif
 
+CONFOPTS=--prefix= \
+		--with-headers=$(ROOTDIR)/$(LINUXDIR)/include		\
+		--sysconfdir=/etc/config				\
+		--datadir=/etc --libexecdir=/bin			\
+		--enable-err-languages="$(sort $(SQUID_LANG))"		\
+		--enable-default-err-language=English			\
+		--enable-linux-netfilter --disable-ident-lookups	\
+		--enable-icap-support \
+		--enable-dependency-tracking
 
-all: build
+all: build/build
 	$(MAKE) -C build
 
-romfs:
-	$(MAKE) -C build $@
-
-build: makefile
-	chmod a+x configure
+build/build: makefile
 	rm -rf build
 	mkdir build
-	( \
-		cd build; \
-		CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)"		\
-			../configure --prefix= --build=i386-redhat-linux		\
-				--with-headers=$(ROOTDIR)/$(LINUXDIR)/include		\
-				--target=$(CROSS_COMPILE:-=)				\
-				--sysconfdir=/etc/config				\
-				--datadir=/etc --libexecdir=/bin			\
-				--enable-err-languages="$(sort $(SQUID_LANG) English)"	\
-				--enable-default-err-language=$(SQUID_LANG)		\
-				--enable-linux-netfilter --disable-ident-lookups	\
-				--enable-dependency-tracking				\
-				--enable-icap-support					\
-	)
+	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
+	touch build/build
 
 clean:
 	rm -rf build
 
+romfs:
+	$(MAKE) -C build/errors $@
+	$(MAKE) -C build/icons $@
+	$(MAKE) -C build/src $@

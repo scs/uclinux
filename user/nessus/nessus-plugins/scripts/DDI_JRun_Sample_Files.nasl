@@ -9,9 +9,9 @@
 if(description)
 {
     script_id(10996);
-    script_version ("$Revision: 1.5 $");
-    script_cve_id("CVE-2000-0539");
     script_bugtraq_id(1386);
+    script_version ("$Revision: 1.11 $");
+    script_cve_id("CVE-2000-0539");
     name["english"] = "JRun Sample Files";
     name["francais"] = "JRun Sample Files";
     script_name(english:name["english"], francais:name["francais"]);
@@ -31,7 +31,7 @@ Solution: Sample files should never be left on production
           servers.  Remove the sample files and any other 
           files that are not required.
           
-Risk factor : Medium
+Risk factor : High 
 ";
 
     desc["francais"] = "JRun Sample Files";
@@ -52,7 +52,8 @@ Risk factor : Medium
     family["english"] = "Backdoors";
     family["francais"] = "Backdoors";
     script_family(english:family["english"], francais:family["francais"]);
-    script_dependencie("find_service.nes");
+    script_dependencie("http_version.nasl");
+    script_require_ports("Services/www", 80);
     
     exit(0);
 }
@@ -71,8 +72,8 @@ file[1] = "/docs/servlets/index.html";  res[1] = "JRun Servlet Engine";
 file[2] = "/jsp/index.html";            res[2] = "JRun Scripting Examples";
 file[3] = "/webl/index.html";           res[3] = "What is WebL";
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 if(!get_port_state(port)){ exit(0); }
@@ -85,7 +86,6 @@ function check_page(req, pat)
     if(pat >< r)
             {
                 security_hole(port:port);
-                close(soc);
                 exit(0);
             }
     return(0);

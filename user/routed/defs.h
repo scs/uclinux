@@ -32,7 +32,7 @@
  *
  *	from: @(#)defs.h	5.10 (Berkeley) 2/28/91
  *	from: @(#)defs.h	8.1 (Berkeley) 6/5/93
- *	$Id$
+ *	$Id: defs.h,v 1.9 1999/08/01 19:19:16 dholland Exp $
  */
 
 /*

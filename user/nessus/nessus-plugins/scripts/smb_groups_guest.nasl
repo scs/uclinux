@@ -1,27 +1,36 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 
 if(description)
 {
  script_id(10907);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.7 $");
  name["english"] = "Guest belongs to a group";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-The guest user belongs to groups other than 
-guest users or domain guests.
+Synopsis :
 
-As guest should not have any privilege, you should
-fix this.
+The Guest account have too much privileges.
 
-Risk factor : Medium";
+Description :
 
+Using the supplied credentials it was possible to determine that
+the guest user belongs to groups other than guest users or domain
+guests.
+As guest should not have any privilege, you should fix this.
 
+Solution :
+
+Edit local or domain policy to restict guest account.
+
+Risk factor :
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
 
  script_description(english:desc["english"]);
  
@@ -33,38 +42,61 @@ Risk factor : Medium";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows : User management";
  script_family(english:family["english"]);
- script_dependencies("smb_netusergetgroups.nasl", 
- 		     "smb_netusergetaliases.nasl");
- script_require_keys("SMB/Users/2");
+ script_dependencies("smb_sid2user.nasl", "smb_sid2localuser.nasl");
+ script_require_ports (139,445);
  exit(0);
 }
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include ("smb_func.inc");
 
+guest_dom = get_kb_item ("SMB/Users/2");
+guest_host = get_kb_item ("SMB/LocalUsers/2");
 
-aliases = get_kb_item("SMB/Users/2/LocalGroups");
-groups  = get_kb_item("SMB/Users/2/Groups");
+name	= kb_smb_name();
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
 
-if(groups)
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
+
+if (guest_host)
+  aliases = NetUserGetLocalGroups (user:guest_host);
+
+if (guest_dom)
+  groups = NetUserGetGroups (user:guest_dom);
+
+NetUseDel();
+
+if(!isnull(groups))
 {
- groups = groups - "0x00-0x00-0x02-0x01";
- if(strlen(groups) > 5)
+ foreach group ( groups )
  {
-  security_warning(port);
-  exit(0);
- }
+  if ( group != 514 && group != 513 )
+  {
+   security_warning(0);
+   exit(0);
+  }
+ } 
 }
 
-
-if(aliases)
+if(!isnull(aliases))
 {
- groups = groups - "0x00-0x00-0x02-0x22";
- if(strlen(groups) > 5)
+ foreach alias ( aliases )
  {
-  security_warning(port);
+  if ( alias != 546 ) 
+  {
+   security_warning(0);
+   exit(0);
+  }
  }
 }

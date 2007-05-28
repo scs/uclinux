@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: common.h,v 1.8 2003/03/16 17:59:20 janakj Exp $
  *
  * Digest Authentication Module
  *

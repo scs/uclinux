@@ -19,8 +19,8 @@
 #ifndef _NESSUSD_PLUGINLOAD_H
 #define _NESSUSD_PLUGINLOAD_H
 
-struct arglist * plugins_init(struct arglist *);
-struct arglist * plugins_reload(struct arglist *, struct arglist *);
+struct arglist * plugins_init(struct arglist *, int);
+struct arglist * plugins_reload(struct arglist *, struct arglist *, int);
 struct arglist * plugins_reload_user(struct arglist*, struct arglist*, struct arglist*);
 void plugin_set_socket(struct arglist *, int);
 int  plugin_get_socket(struct arglist * );
@@ -32,13 +32,9 @@ typedef struct pl_class_s {
     const char* extension;
     struct pl_class_s* (*pl_init)(struct arglist*, struct arglist*);
     struct arglist* (*pl_add)(char*, char*, struct arglist*, struct arglist*);
-    int (*pl_launch)(struct arglist*, struct arglist *, struct arglist*,
-		      struct arglist*, struct arglist*, char *, int);
+    int (*pl_launch)(struct arglist*, struct arglist *, struct arglist*, struct arglist*, struct kb_item **, char *);
 } pl_class_t;
 
 extern pl_class_t nes_plugin_class;
 extern pl_class_t nasl_plugin_class;
-#ifdef PERL_PLUGINS
-extern pl_class_t perl_plugin_class;
-#endif
 #endif

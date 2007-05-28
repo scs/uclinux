@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10680);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(1193, 1488);
+ script_version ("$Revision: 1.25 $");
  script_cve_id("CVE-2000-0457", "CVE-2000-0630");
 
  name["english"] = "Test Microsoft IIS Source Fragment Disclosure";
@@ -21,8 +21,17 @@ fragments of source code which should otherwise be
 inaccessible. This is done by appending +.htr to a
 request for a known .asp (or .asa, .ini, etc) file.
 
-Solution : install patches from Microsoft (see MS advisory MS00-044)
-Risk factor : Serious";
+Solution : .htr script mappings should be removed if not required.
+
+- open Internet Services Manager
+- right click on the web server and select properties
+- select WWW service | Edit | Home Directory | Configuration
+- remove the application mappings reference to .htr
+
+If .htr functionality is required, install the relevant patches 
+from Microsoft (MS01-004)
+See also: http://www.microsoft.com/technet/security/bulletin/MS01-004.mspx
+Risk factor : High";
 
  script_description(english:desc["english"]);
 
@@ -36,8 +45,7 @@ Risk factor : Serious";
  family["english"] = "Remote file access";
  family["francais"] = "Accès aux fichiers distants";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
- script_require_keys("www/iis");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -50,8 +58,9 @@ include("http_func.inc");
 
 BaseURL="";        # root of the default app
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
 if(get_port_state(port))
 {
   soc=http_open_socket(port);
@@ -61,8 +70,8 @@ if(get_port_state(port))
     send(socket:soc,data:req);
     data = http_recv(socket:soc);
 
-    if(" 403 Access Forbidden" >< data)exit(0); # if default response is Access Forbidden, a false positive will result
-    if(" 401 Unauthorized" >< data)exit(0);
+    if ( ! data ) exit(0);
+    if(egrep(pattern:"^HTTP.* 40[123] .*", string:data) )exit(0); # if default response is Access Forbidden, a false positive will result
     if("WWW-Authenticate" >< data)exit(0); 
     http_close_socket(soc);
 
@@ -105,6 +114,7 @@ if(get_port_state(port))
       send(socket:soc, data:req);
       data = http_recv(socket:soc);
       http_close_socket(soc);
+      if ( ! data ) exit(0);
       if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 40[13] .*", string:data))exit(0);
       if("WWW-Authenticate:" >< data)exit(0);
       
@@ -127,9 +137,21 @@ if(get_port_state(port))
         {
           security_hole(port:port, protocol:"tcp",
                         data:string("We could disclosure the source 
-code of the ", string(BaseURL,"global.asa"), " on your web 
-server.\nThis allows an attacker to gain access to fragments of source 
-code of your applications.\nRisk factor : Serious\nSolution : see MS00-044") );
+code of the ", string(BaseURL,"global.asa"), " on the remote web 
+server.
+This allows an attacker to gain access to fragments of source 
+code of the remote applications.
+
+Solution : .htr script mappings should be removed if not required.
+
+- open Internet Services Manager
+- right click on the web server and select properties
+- select WWW service | Edit | Home Directory | Configuration
+- remove the application mappings reference to .htr
+
+If .htr functionality is required, install the relevant patches
+from Microsoft (MS01-004)\n
+Risk factor : High") );
         }
       }
       # HTTP/1.x 401 - Access denied
@@ -146,8 +168,17 @@ should otherwise be inaccessible. This is done by
 appending +.htr to a request for a known .asp (or
 .asa, .ini, etc) file.
 
-Solution : install patches from Microsoft (see MS00-044)
-Risk factor : Serious");
+Solution : .htr script mappings should be removed if not required.
+
+- open Internet Services Manager
+- right click on the web server and select properties
+- select WWW service | Edit | Home Directory | Configuration
+- remove the application mappings reference to .htr
+
+If .htr functionality is required, install the relevant patches 
+from Microsoft (MS01-004)
+See also: http://www.microsoft.com/technet/security/bulletin/MS01-004.mspx
+Risk factor : High");
         }
         else
         {
@@ -161,8 +192,17 @@ should otherwise be inaccessible. This is done by
 appending +.htr to a request for a known .asp (or
 .asa, .ini, etc) file.
 
-Solution : install patches from Microsoft (see MS00-044)
-Risk factor : Serious");
+Solution : .htr script mappings should be removed if not required.
+
+- open Internet Services Manager
+- right click on the web server and select properties
+- select WWW service | Edit | Home Directory | Configuration
+- remove the application mappings reference to .htr
+
+If .htr functionality is required, install the relevant patches 
+from Microsoft (MS01-004)
+See also: http://www.microsoft.com/technet/security/bulletin/MS01-004.mspx
+Risk factor : High");
           }
         }
       }

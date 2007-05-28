@@ -59,6 +59,11 @@ main(int argc, char *argv[])
 
 	char name[30] = "/dev/mixer";
 
+	if (argc > 1 && strcmp(argv[1], "-v") == 0) {
+		printf("%s version 1.0\n", argv[0]);
+		return 0;
+	}
+
 	if (!strcmp(argv[0], "mixer0"))
 	   strcpy(name, "/dev/mixer");
 	else

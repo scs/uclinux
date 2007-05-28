@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: snmp_agent.c,v 1.83.2.3 2004/05/31 22:39:00 hno Exp $
  *
  * DEBUG: section 49     SNMP Interface
  * AUTHOR: Kostas Anagnostakis

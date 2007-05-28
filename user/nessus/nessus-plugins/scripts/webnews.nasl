@@ -7,20 +7,45 @@
 if(description)
 {
  script_id(11732);
- script_version ("$Revision: 1.1 $");
- script_cve_id("CVE-2002-0290");
  script_bugtraq_id(4124);
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2002-0290");
  
  
  name["english"] = "Webnews.exe vulnerability";
  name["francais"] = "Webnews.exe vulnerability";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "The Webnews.exe exists on this webserver.  
-Some versions of this file are vulnerable to remote exploit.
+ desc["english"] = "
+Synopsis :
 
-Solution : remove it from /cgi-bin.
-Risk factor : Serious";
+The remote web server contains a CGI script that suffers from a buffer
+overflow vulnerability. 
+
+Description :
+
+The remote host appears to be running WebNews, which offers web-based
+access to Usenet news. 
+
+Some versions of WebNews are prone to a buffer overflow when
+processing a query string with an overly-long group parameter.  An
+attacker may be able to leverage this issue to execute arbitrary shell
+code on the remote host subject to the permissions of the web server
+user id. 
+
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2002-02/0186.html
+
+Solution : 
+
+Apply the patch made released by the vendor on February 14th, 2002 if
+running Webnews 1.1 or older. 
+
+Risk factor : 
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:R/C:P/A:P/I:P/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -39,6 +64,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -48,9 +74,12 @@ Risk factor : Serious";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
 if(!get_port_state(port))exit(0);
 
 flag = 0;
@@ -64,4 +93,4 @@ foreach dir (cgi_dirs()) {
    } 
 }
  
-if (flag) security_hole(port);
+if (flag) security_warning(port);

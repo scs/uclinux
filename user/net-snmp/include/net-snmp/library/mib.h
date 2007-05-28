@@ -122,6 +122,9 @@ SOFTWARE.
     void            shutdown_mib(void);
     void            print_description(oid *, size_t, int);
     void            fprint_description(FILE *, oid *, size_t, int);
+    int             snprint_description(char *, size_t, oid *, size_t, int);
+    int             sprint_realloc_description(u_char **, size_t *, size_t *,
+                                               int, oid *, size_t, int);
     int             get_module_node(const char *, const char *, oid *,
                                     size_t *);
     int             get_wild_node(const char *, oid *, size_t *);
@@ -167,13 +170,27 @@ SOFTWARE.
                                             const netsnmp_variable_list *
                                             variable);
 
-    struct tree    *netsnmp_sprint_realloc_objid_tree(u_char ** buf,
+#ifndef DISABLE_MIB_LOADING
+    struct tree    *
+#else
+    void
+#endif
+                    netsnmp_sprint_realloc_objid_tree(u_char ** buf,
                                                       size_t * buf_len,
                                                       size_t * out_len,
                                                       int allow_realloc,
                                                       int *buf_overflow,
                                                       const oid * objid,
                                                       size_t objidlen);
+
+    void
+                    netsnmp_sprint_realloc_objid(u_char ** buf,
+                                                 size_t * buf_len,
+                                                 size_t * out_len,
+                                                 int allow_realloc,
+                                                 int *buf_overflow,
+                                                 const oid * objid,
+                                                 size_t objidlen);
 
     void            print_value(const oid * objid, size_t objidlen,
                                 const netsnmp_variable_list * variable);
@@ -487,6 +504,7 @@ SOFTWARE.
     char           *snmp_out_toggle_options(char *);
     void            snmp_out_toggle_options_usage(const char *, FILE *);
     char           *snmp_in_toggle_options(char *);
+    char           *snmp_in_options(char *, int, char * const *);
     void            snmp_in_toggle_options_usage(const char *, FILE *);
     u_char          mib_to_asn_type(int mib_type);
 

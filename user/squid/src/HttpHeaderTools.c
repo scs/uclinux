@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: HttpHeaderTools.c,v 1.32.2.4 2005/03/26 02:50:51 hno Exp $
  *
  * DEBUG: section 66    HTTP Header Tools
  * AUTHOR: Alex Rousskov
@@ -138,7 +138,7 @@ httpHeaderPutStrvf(HttpHeader * hdr, http_hdr_type id, const char *fmt, va_list 
 
 /* wrapper arrounf PutContRange */
 void
-httpHeaderAddContRange(HttpHeader * hdr, HttpHdrRangeSpec spec, ssize_t ent_len)
+httpHeaderAddContRange(HttpHeader * hdr, HttpHdrRangeSpec spec, squid_off_t ent_len)
 {
     HttpHdrContRange *cr = httpHdrContRangeCreate();
     assert(hdr && ent_len >= 0);
@@ -316,11 +316,14 @@ httpHeaderParseInt(const char *start, int *value)
     return 1;
 }
 
-int
-httpHeaderParseSize(const char *start, ssize_t * value)
+squid_off_t
+httpHeaderParseSize(const char *start, squid_off_t * value)
 {
-    int v;
-    const int res = httpHeaderParseInt(start, &v);
+    squid_off_t v;
+    char *end;
+    int res;
+    v = strto_off_t(start, &end, 10);
+    res = start != end;
     assert(value);
     *value = res ? v : 0;
     return res;

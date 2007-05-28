@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/ed.screen.c,v 3.48 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.screen.c: Editor/termcap-curses interface
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: ed.screen.c,v 3.48 2000/11/11 23:03:34 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"

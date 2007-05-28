@@ -8,9 +8,9 @@ if(description)
 {
  script_id(11279);
  script_bugtraq_id(6915);
- script_cve_id("CAN-2003-0101");
+ script_cve_id("CVE-2003-0101");
  
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "Webmin Session ID Spoofing";
  
  script_name(english:name["english"], francais:name["francais"]);
@@ -44,7 +44,7 @@ francais:summary["francais"]);
  family["francais"] = "Passer root à distance";
  
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("webmin.nasl");
  script_require_ports("Services/www", 10000);
  exit(0);
 }
@@ -60,6 +60,8 @@ ports = add_port_in_list(list:get_kb_list("Services/www"),  port:10000);
 
 function check(port)
 {
+  if ( ! get_kb_item("www/" + port + "/webmin") ) return;
+
   req = http_get(item:"/", port:port);
   ua  = egrep(string:req, pattern:"^User-Agent");
   req = req - ua;
@@ -95,5 +97,5 @@ function check(port)
     
 foreach port (ports)
 {
-   check(port:port);
+   if ( get_port_state(port) && ! get_kb_item("Services/www/" + port + "/broken") ) check(port:port);
 }

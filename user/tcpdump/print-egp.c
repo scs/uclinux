@@ -19,35 +19,36 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-egp.c,v 1.37 2005/01/12 11:19:09 hannes Exp $ (LBL)";
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/uio.h>
-#include <sys/socket.h>
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
+#if !defined(EMBED)
 
-#include <netdb.h>
+#include <tcpdump-stdinc.h>
+
 #include <stdio.h>
 
 #include "interface.h"
 #include "addrtoname.h"
+#include "extract.h"
+
+#include "ip.h"
 
 struct egp_packet {
-	u_char  egp_version;
+	u_int8_t  egp_version;
 #define	EGP_VERSION	2
-	u_char  egp_type;
+	u_int8_t  egp_type;
 #define  EGPT_ACQUIRE	3
 #define  EGPT_REACH	5
 #define  EGPT_POLL	2
 #define  EGPT_UPDATE	1
 #define  EGPT_ERROR	8
-	u_char  egp_code;
+	u_int8_t  egp_code;
 #define  EGPC_REQUEST	0
 #define  EGPC_CONFIRM	1
 #define  EGPC_REFUSE	2
@@ -55,7 +56,7 @@ struct egp_packet {
 #define  EGPC_CEASEACK	4
 #define  EGPC_HELLO	0
 #define  EGPC_HEARDU	1
-	u_char  egp_status;
+	u_int8_t  egp_status;
 #define  EGPS_UNSPEC	0
 #define  EGPS_ACTIVE	1
 #define  EGPS_PASSIVE	2
@@ -68,13 +69,13 @@ struct egp_packet {
 #define  EGPS_UP	1
 #define  EGPS_DOWN	2
 #define  EGPS_UNSOL	0x80
-	u_short  egp_checksum;
-	u_short  egp_as;
-	u_short  egp_sequence;
+	u_int16_t  egp_checksum;
+	u_int16_t  egp_as;
+	u_int16_t  egp_sequence;
 	union {
-		u_short  egpu_hello;
-		u_char egpu_gws[2];
-		u_short  egpu_reason;
+		u_int16_t  egpu_hello;
+		u_int8_t egpu_gws[2];
+		u_int16_t  egpu_reason;
 #define  EGPR_UNSPEC	0
 #define  EGPR_BADHEAD	1
 #define  EGPR_BADDATA	2
@@ -88,14 +89,14 @@ struct egp_packet {
 #define  egp_extgw  egp_handg.egpu_gws[1]
 #define  egp_reason  egp_handg.egpu_reason
 	union {
-		u_short  egpu_poll;
+		u_int16_t  egpu_poll;
 		u_int32_t egpu_sourcenet;
 	} egp_pands;
 #define  egp_poll  egp_pands.egpu_poll
 #define  egp_sourcenet  egp_pands.egpu_sourcenet
 };
 
-char *egp_acquire_codes[] = {
+const char *egp_acquire_codes[] = {
 	"request",
 	"confirm",
 	"refuse",
@@ -103,7 +104,7 @@ char *egp_acquire_codes[] = {
 	"cease_ack"
 };
 
-char *egp_acquire_status[] = {
+const char *egp_acquire_status[] = {
 	"unspecified",
 	"active_mode",
 	"passive_mode",
@@ -114,18 +115,18 @@ char *egp_acquire_status[] = {
 	"protocol_violation"
 };
 
-char *egp_reach_codes[] = {
+const char *egp_reach_codes[] = {
 	"hello",
 	"i-h-u"
 };
 
-char *egp_status_updown[] = {
+const char *egp_status_updown[] = {
 	"indeterminate",
 	"up",
 	"down"
 };
 
-char *egp_reasons[] = {
+const char *egp_reasons[] = {
 	"unspecified",
 	"bad_EGP_header_format",
 	"bad_EGP_data_field_format",
@@ -136,15 +137,15 @@ char *egp_reasons[] = {
 };
 
 static void
-egpnrprint(register const struct egp_packet *egp, register u_int length)
+egpnrprint(register const struct egp_packet *egp)
 {
-	register const u_char *cp;
+	register const u_int8_t *cp;
 	u_int32_t addr;
 	register u_int32_t net;
 	register u_int netlen;
 	int gateways, distances, networks;
 	int t_gateways;
-	char *comma;
+	const char *comma;
 
 	addr = egp->egp_sourcenet;
 	if (IN_CLASSA(addr)) {
@@ -160,7 +161,7 @@ egpnrprint(register const struct egp_packet *egp, register u_int length)
 		net = 0;
 		netlen = 0;
 	}
-	cp = (u_char *)(egp + 1);
+	cp = (u_int8_t *)(egp + 1);
 
 	t_gateways = egp->egp_intgw + egp->egp_extgw;
 	for (gateways = 0; gateways < t_gateways; ++gateways) {
@@ -215,26 +216,25 @@ trunc:
 }
 
 void
-egp_print(register const u_char *bp, register u_int length,
-	  register const u_char *bp2)
+egp_print(register const u_int8_t *bp, register u_int length)
 {
 	register const struct egp_packet *egp;
-	register const struct ip *ip;
 	register int status;
 	register int code;
 	register int type;
 
 	egp = (struct egp_packet *)bp;
-	ip = (struct ip *)bp2;
-        (void)printf("%s > %s: egp: ",
-		     ipaddr_string(&ip->ip_src),
-		     ipaddr_string(&ip->ip_dst));
+        if (!TTEST2(*egp, length)) {
+		printf("[|egp]");
+		return;
+	}
+	(void)printf("egp: ");
 
 	if (egp->egp_version != EGP_VERSION) {
 		printf("[version %d]", egp->egp_version);
 		return;
 	}
-	printf("as:%d seq:%d", ntohs(egp->egp_as), ntohs(egp->egp_sequence));
+	printf("as:%d seq:%d", EXTRACT_16BITS(&egp->egp_as), EXTRACT_16BITS(&egp->egp_sequence));
 
 	type = egp->egp_type;
 	code = egp->egp_code;
@@ -259,8 +259,8 @@ egp_print(register const u_char *bp, register u_int length,
 				break;
 			}
 			printf(" hello:%d poll:%d",
-			       ntohs(egp->egp_hello),
-			       ntohs(egp->egp_poll));
+			       EXTRACT_16BITS(&egp->egp_hello),
+			       EXTRACT_16BITS(&egp->egp_poll));
 			break;
 
 		case EGPC_REFUSE:
@@ -331,7 +331,7 @@ egp_print(register const u_char *bp, register u_int length,
 		       egp->egp_intgw,
 		       egp->egp_extgw);
 		if (vflag)
-			egpnrprint(egp, length);
+			egpnrprint(egp);
 		break;
 
 	case EGPT_ERROR:
@@ -341,10 +341,10 @@ egp_print(register const u_char *bp, register u_int length,
 		else
 			printf(" [status %d]", status);
 
-		if (ntohs(egp->egp_reason) <= EGPR_UVERSION)
-			printf(" %s", egp_reasons[ntohs(egp->egp_reason)]);
+		if (EXTRACT_16BITS(&egp->egp_reason) <= EGPR_UVERSION)
+			printf(" %s", egp_reasons[EXTRACT_16BITS(&egp->egp_reason)]);
 		else
-			printf(" [reason %d]", ntohs(egp->egp_reason));
+			printf(" [reason %d]", EXTRACT_16BITS(&egp->egp_reason));
 		break;
 
 	default:
@@ -352,3 +352,4 @@ egp_print(register const u_char *bp, register u_int length,
 		break;
 	}
 }
+#endif

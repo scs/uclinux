@@ -1,29 +1,35 @@
 #
-# This script was written by Vincent Renardias <vincent@strongholdnet.com>
+# (C) Tenable Network Security
 #
-# License : GPLv2
-#
+
+ desc["english"] = "
+Synopsis :
+
+An IMAP server is running on the remote host.
+
+Description :
+
+An IMAP (Internet Message Access Protocol) server is
+installed and running on the remote host.
+
+Risk factor :
+
+None";
+
 
 if(description)
 {
  script_id(11414);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  
- name["english"] = "IMAP Banner";
- name["francais"] = "Banniere IMAP";
+ name["english"] = "Get the IMAP Banner";
  
- script_name(english:name["english"],francais:name["francais"]);
+ script_name(english:name["english"]);
  
- desc["english"] = "
-Displays the imap4 service banner.
-
-Risk factor: None";
-
- script_copyright(english:"This script is Copyright (C) 2003 StrongHoldNet",
- 		  francais:"Ce script est Copyright (C) 2003 StrongHoldNet");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
 
  script_description(english:desc["english"]);
- summary["english"] = "displays the imap4 banner";
+ summary["english"] = "Grab and display the IMAP banner";
  script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
  family["english"] = "General";
@@ -34,18 +40,19 @@ Risk factor: None";
  exit(0);
 }
 
+include ("imap_func.inc");
 
 port = get_kb_item("Services/imap");
-
 if(!port) port = 143;
 
-banner = get_kb_item(string("imap/banner/", port));
-
+banner = get_imap_banner (port:port);
 if(banner)
 {
- if (!ereg(pattern:"\* OK", string:banner)) exit(0);
- report = string("The remote imap server banner is :\n",banner,
- "\nVersions and types should be omitted where possible.\nChange the imap banner to something generic.");
+ report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		"The remote imap server banner is :\n",
+		banner);
+
  security_note(port:port, data:report);
 }
 

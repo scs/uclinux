@@ -1,10 +1,7 @@
 
 /* missing.c */
 
-/*$Log$
- *Revision 1.2  2005/07/25 04:03:15  magicyang
- *New user folder check in
- *
+/*$Log: missing.c,v $
  * Revision 1.2  1995/06/03  09:31:11  mike
  * handle strchr(s,0) correctly
  *

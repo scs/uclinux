@@ -6,8 +6,9 @@
 if(description)
 {
 	script_id(11208);
-	script_version("$Revision: 1.5 $");
+	script_version("$Revision: 1.8 $");
 	name["english"] = "Netscape Enterprise Default Administrative Password";
+	script_cve_id("CVE-1999-0502");
 	script_name(english:name["english"]);
 	desc["english"] = "
 This host is running the Netscape Enterprise Server.  The Administrative 
@@ -44,6 +45,9 @@ ports = add_port_in_list(list:get_kb_list("Services/www"), port:8888);
 
 foreach port (ports)
 {
+	if ( !get_port_state(port) ) continue;
+	banner = get_http_banner(port:port);
+	if ( ! banner || ("Netscape" >!< banner && "iPlanet" >!< banner ) ) continue;
 	soc = http_open_socket(port);
 	
 	if (soc)

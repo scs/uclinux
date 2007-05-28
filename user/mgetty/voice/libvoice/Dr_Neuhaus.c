@@ -3,7 +3,7 @@
  *
  * This file contains the Dr. Neuhaus Cybermod specific hardware stuff.
  *
- * $Id$
+ * $Id: Dr_Neuhaus.c,v 1.9 2005/03/13 17:27:45 gert Exp $
  *
  */
 

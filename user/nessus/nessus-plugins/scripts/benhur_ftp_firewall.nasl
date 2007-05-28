@@ -11,8 +11,8 @@
 if(description)
 {
  script_id(11052);
- script_version("$Revision: 1.7 $");
  script_bugtraq_id(5279);
+ script_version("$Revision: 1.13 $");
 
  name["english"] = "BenHur Firewall active FTP firewall leak";
  script_name(english:name["english"]);
@@ -46,18 +46,19 @@ Risk factor : High";
 
 
 
-if(islocalhost())exit(0);
+include('global_settings.inc');
+
+if(islocalhost() || NASL_LEVEL < 2204 )exit(0);
 
 
-
-
+port = 8888;
 	
-soc = open_priv_sock_tcp(sport:20, dport:8888);
+soc = open_priv_sock_tcp(sport:20, dport:port);
 if(soc){
 	close(soc);
-	soc = open_sock_tcp(8888);
+	soc = open_sock_tcp(port);
 	if(soc){ close(soc); exit(0); }
-	security_hole(8888);
+	security_hole(port);
 	}
 
 

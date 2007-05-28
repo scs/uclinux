@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10095);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(2026);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0147");
  name["english"] = "glimpse";
  name["francais"] = "glimpse";
@@ -24,7 +24,7 @@ version.
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'glimpse' est installé. Celui-ci possède
@@ -64,10 +64,16 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
 cgi = "aglimpse";
-port = is_cgi_installed(cgi);
-if(port)
+res = is_cgi_installed_ka(item:cgi,port:port);
+if(res)
 {
  security_hole(port);
 }

@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,17 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  */
 #include <includes.h>
@@ -42,6 +31,10 @@
 #ifndef NASL_DEBUG
 #define NASL_DEBUG 0
 #endif
+
+/* Local prototypes */
+static void	copy_array(nasl_array*, const nasl_array*, int);
+
 
 #if 0
 static int
@@ -133,7 +126,6 @@ get_var_ref_by_name(lex_ctxt* ctxt, const char* name, int climb)
   int		h = hash_str(name);
   lex_ctxt	*c;
 
-
   if(climb != 0)
     {
       for (c = ctxt; c != NULL; c = c->up_ctxt)
@@ -196,6 +188,12 @@ get_var_ref_by_num(lex_ctxt* ctxt, int num)
 {
   anon_nasl_var	*v;
 
+  if (num < 0)			/* safer */
+    {
+      nasl_perror(ctxt, "Negative index %d is invalid for array\n", num);
+      return NULL;
+    }
+
   if (ctxt->ctx_vars.max_idx <= num)
     {
       ctxt->ctx_vars.num_elt = erealloc(ctxt->ctx_vars.num_elt, sizeof(anon_nasl_var*) * (num+1));
@@ -227,12 +225,22 @@ var2cell(anon_nasl_var* v)
 tree_cell*
 get_variable_by_name(lex_ctxt* ctxt, const char* name)
 {
-  named_nasl_var	* v;
-
   if (name == NULL)
     return NULL;
-  v = get_var_ref_by_name(ctxt, name, 1);
-  return var2cell(&v->u);
+  /* Broken: Need also code in get_array_elem */
+  if (strcmp(name, "_FCT_ANON_ARGS") == 0)
+      {
+	tree_cell	*retc = alloc_typed_cell(DYN_ARRAY);
+	nasl_array	*a = retc->x.ref_val = emalloc(sizeof(nasl_array));
+	copy_array(a, &ctxt->ctx_vars, 0);
+	return retc;
+      }
+  else
+    {
+      named_nasl_var	* v = get_var_ref_by_name(ctxt, name, 1);
+      return var2cell(&v->u);
+    }
+  /*NOTREACHED*/
 }
 
 static const char*
@@ -250,13 +258,29 @@ get_var_name(anon_nasl_var *v)
 tree_cell*
 get_array_elem(lex_ctxt* ctxt, const char* name, tree_cell* idx)
 {
-  named_nasl_var	*v = get_var_ref_by_name(ctxt, name, 1);
   named_nasl_var	*nv;
-  anon_nasl_var		*u, *av;
+  anon_nasl_var		*u, *av, fake_var;
   tree_cell	*tc, idx0;
 
 
-  u = &v->u;
+  /* Fake variable */
+  if (strcmp(name, "_FCT_ANON_ARGS") == 0)
+    {
+      lex_ctxt	*c;
+      for (c = ctxt; c != NULL && ! c->fct_ctxt; c = c->up_ctxt)
+	;
+      if (c == NULL)
+	return NULL;
+      fake_var.var_type = VAR2_ARRAY;
+      fake_var.v.v_arr = c->ctx_vars;
+      fake_var.v.v_arr.hash_elt = NULL;	/* mask named elements */
+      u = &fake_var;
+    }
+  else
+    {
+      named_nasl_var	*v = get_var_ref_by_name(ctxt, name, 1);
+      u = &v->u;
+    }
 
   if (idx == NULL)
     {
@@ -278,7 +302,9 @@ get_array_elem(lex_ctxt* ctxt, const char* name, tree_cell* idx)
       switch(idx->type)
 	{
 	case CONST_INT:
-	  av = nasl_get_var_by_num(&u->v.v_arr, idx->x.i_val, 1);
+	  av = nasl_get_var_by_num(&u->v.v_arr, idx->x.i_val, 
+				   /* avoid dangling pointers */
+				   strcmp(name, "_FCT_ANON_ARGS"));
 	  return var2cell(av);
 	  
 	case CONST_STR:
@@ -490,7 +516,9 @@ copy_anon_var(anon_nasl_var* v1, const anon_nasl_var *v2)
       break;
 
     case VAR2_ARRAY:
-      /* TBD: handle arrays here for multi-dimensional arrays */
+      copy_array(&v1->v.v_arr, &v2->v.v_arr, 0);
+      break;
+
     default:
       nasl_perror(NULL, "copy_anon_var: unhandled type 0x%x\n", v2->var_type);
       clear_anon_var(v1);
@@ -525,7 +553,7 @@ dup_named_var(const named_nasl_var* v)
 }
 
 static void
-copy_array(nasl_array *a1, const nasl_array *a2)
+copy_array(nasl_array *a1, const nasl_array *a2, int copy_named)
 {
   int		i;
   named_nasl_var	*v1, *v2, *v;
@@ -538,6 +566,12 @@ copy_array(nasl_array *a1, const nasl_array *a2)
 #endif
       return;
     }
+
+ if ( a1 == NULL || a2 == NULL )
+ { 
+    nasl_perror(NULL, "Internal inconsistency - null array\n");
+    abort();
+ }
  
   clear_array(a1);
 
@@ -548,7 +582,7 @@ copy_array(nasl_array *a1, const nasl_array *a2)
       for (i = 0; i < a2->max_idx; i ++)
 	a1->num_elt[i] = dup_anon_var(a2->num_elt[i]);
     }
-  if (a2->hash_elt != NULL)
+  if (copy_named && a2->hash_elt != NULL)
     {
       a1->hash_elt = emalloc(VAR_NAME_HASH * sizeof(named_nasl_var*));
       for (i = 0; i < VAR_NAME_HASH; i ++)
@@ -576,7 +610,7 @@ copy_ref_array(const tree_cell* c1)
 
   c2 = alloc_tree_cell(0, NULL); c2->type = DYN_ARRAY;
   c2->x.ref_val = a2 = emalloc(sizeof(nasl_array));
-  copy_array(a2, c1->x.ref_val);
+  copy_array(a2, c1->x.ref_val, 1);
   return c2;
 }
 
@@ -590,6 +624,9 @@ affect_to_anon_var(anon_nasl_var* v1, tree_cell* rval)
   int		t1, t2;
   void		*p;
 
+
+  if ( v1 == NULL || v1 == FAKE_CELL )
+	return NULL;
 
   t1 = v1->var_type;
 
@@ -726,9 +763,13 @@ affect_to_anon_var(anon_nasl_var* v1, tree_cell* rval)
 	  }
 	break;
       case VAR2_ARRAY:
-	copy_array(&v1->v.v_arr, a);
+	copy_array(&v1->v.v_arr, a, 1);
+#if 0
+	/* MA 2004-08-13: I guess that the code changed somewhere some day and
+	 * this part created a memory leak */
 	if (v0.var_type == VAR2_ARRAY)
 	  bzero(&v0, sizeof(v0));	/* So that we don't clear the variable twice */
+#endif
 	break;
       }
 
@@ -855,7 +896,12 @@ add_numbered_var_to_ctxt(lex_ctxt* lexic, int num, tree_cell* val)
       v = a->num_elt[num];
       if (v != NULL && v->var_type != VAR2_UNDEF)
 	{
-	  nasl_perror(lexic, "Cannot add existing variable %d\n", num);
+	  if (val != NULL)
+	    nasl_perror(lexic, "Cannot add existing variable %d\n", num);
+#if NASL_DEBUG > 0
+	  else
+	    nasl_perror(lexic, "Will not clear existing variable %d\n", num);
+#endif
 	  return NULL;
 	}
       free_anon_var(a->num_elt[num]);
@@ -880,7 +926,12 @@ add_named_var_to_ctxt(lex_ctxt* lexic, const char* name, tree_cell* val)
   for (v = lexic->ctx_vars.hash_elt[h]; v != NULL; v = v->next_var)
     if (v->var_name != NULL && strcmp(name, v->var_name) == 0)
       {
-	nasl_perror(lexic, "Cannot add existing variable %s\n", name);
+	if (val != NULL)
+	  nasl_perror(lexic, "Cannot add existing variable %s\n", name);
+#if NASL_DEBUG > 0
+	else
+	  nasl_perror(lexic, "Will not clear existing variable %s\n", name);
+#endif
 	return NULL;
       }
   v = create_named_var(name, val);
@@ -897,6 +948,9 @@ nasl_read_var_ref(lex_ctxt* lexic, tree_cell* tc)
 {
   tree_cell	*ret;
   anon_nasl_var	*v;
+#if NASL_DEBUG > 0
+  const char		*name;
+#endif
 
   if (tc == NULL || tc == FAKE_CELL)
     {
@@ -912,7 +966,9 @@ nasl_read_var_ref(lex_ctxt* lexic, tree_cell* tc)
   v = tc->x.ref_val;
   if (v == NULL)
     {
+#if NASL_DEBUG > 0
       nasl_perror(lexic, "nasl_read_var_ref: NULL variable in REF_VAR\n");
+#endif
       return NULL;
     }
 
@@ -931,7 +987,7 @@ nasl_read_var_ref(lex_ctxt* lexic, tree_cell* tc)
       /* Fix bad string length */
       if (v->v.v_str.s_siz <= 0 && v->v.v_str.s_val[0] != '\0')
 	{
-	  v->v.v_str.s_siz = strlen(v->v.v_str.s_val);
+	  v->v.v_str.s_siz = strlen((char*)v->v.v_str.s_val);
 	  nasl_perror(lexic, "nasl_read_var_ref: Bad string length fixed\n");
 	}
       /* Go on next case */
@@ -1004,7 +1060,7 @@ nasl_incr_variable(lex_ctxt* lexic, tree_cell* tc, int pre, int val)
 #if NASL_DEBUG > 0
       nasl_perror(lexic, "nasl_incr_variable: variable %s is a STRING %s - converting to integer\n", "", get_line_nb(tc));
 #endif
-      old_val = v->v.v_str.s_val == NULL ? 0 : atoi(v->v.v_str.s_val);
+      old_val = v->v.v_str.s_val == NULL ? 0 : atoi((char*)v->v.v_str.s_val);
       break;
     case VAR2_UNDEF:
 #if NASL_DEBUG > 0
@@ -1046,7 +1102,7 @@ var2int(anon_nasl_var* v, int defval)
 
     case VAR2_STRING:
     case VAR2_DATA:
-      return atoi(v->v.v_str.s_val);
+      return atoi((char*)v->v.v_str.s_val);
 
     case VAR2_UNDEF:
 #if NASL_DEBUG > 1
@@ -1455,5 +1511,79 @@ array_max_index(nasl_array* a)
 	return i+1;
       }
   return 0;
+}
+
+/*
+ * make_array_from_list is used by the parser only
+ * The list of elements is freed after use
+ */
+
+tree_cell*
+make_array_from_elems(tree_cell* el)
+{
+  int		n;
+  tree_cell	*c, *c2;
+  nasl_array	*a;
+  anon_nasl_var	v;
+
+  a = emalloc(sizeof(nasl_array));
+  /* Either the elements are all "named", or they are "numbered". No mix! */
+  if (el->x.str_val == NULL) /* numbered */
+    {
+      for (n = 0, c = el; c != NULL; c= c->link[1])
+	n ++;
+      a->max_idx = n;
+      a->num_elt = emalloc(sizeof(anon_nasl_var*) * n);
+      a->hash_elt = NULL;
+    }
+  else
+    {
+      a->num_elt = NULL;
+      a->hash_elt = emalloc(VAR_NAME_HASH * sizeof(named_nasl_var*));
+    }
+  
+  for (n = 0, c = el; c != NULL; c= c->link[1])
+    {
+      c2 = c->link[0];
+      if (c2 != NULL && c2 != FAKE_CELL)
+	{
+	  memset(&v, 0, sizeof(v));
+	  switch (c2->type)
+	    {
+	    case CONST_INT:
+	      v.var_type = VAR2_INT;
+	      v.v.v_int = c2->x.i_val;
+	      break;
+	    case CONST_STR:
+	    case CONST_DATA:
+	      v.var_type = c2->type == CONST_STR ? VAR2_STRING : VAR2_DATA;
+	      if (c2->x.str_val == NULL )
+		{
+		  v.v.v_str.s_val = NULL;
+		  v.v.v_str.s_siz = 0;
+		}
+	      else
+		{
+		  v.v.v_str.s_siz = c2->size;
+		  v.v.v_str.s_val = (unsigned char*)c2->x.str_val;
+		}
+	      break;
+	    default:
+	      nasl_perror(NULL, "make_array_from_list: unhandled cell type %s at position %d\n", nasl_type_name(c2->type), n);
+	      v.var_type = VAR2_UNDEF;
+	      break;
+	    }
+	}
+
+      if (c->x.str_val == NULL)
+	add_var_to_list(a, n ++, &v);
+      else
+	add_var_to_array(a, c->x.str_val, &v);
+    }
+
+  c = alloc_typed_cell(DYN_ARRAY);
+  c->x.ref_val = a;
+  deref_cell(el);
+  return c;
 }
 

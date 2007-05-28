@@ -61,12 +61,12 @@
 **
 **  The current implementation assumes that for each rule the src and dst ports
 **  each have one of 2 possible values.  Either a specific port number or the 
-**  ANYPORT designation. This does allow us to handle port ranges, and NOT port
+**  ANYPORT designation. This does allow us to handle port ranges and NOT port
 **  rules as well.
 **
 **  We make the following assumptions about classifying packets based on ports:
 **
-**    1) There are Unique ports which represent special sevices.  For example,
+**    1) There are Unique ports which represent special services.  For example,
 **       ports 21,25,80,110,etc.
 **
 **    2) Patterns can be grouped into Unique Pattern groups, and a Generic 
@@ -79,7 +79,7 @@
 **  We make the following assumptions about packet traffic:
 **  
 **    1) Well behaved traffic has one Unique port and one ephemeral port for 
-**       most packets and sometimes legitmately, as in the case of  DNS, has 
+**       most packets and sometimes legitimately, as in the case of DNS, has 
 **       two unique ports that are the same. But we always determine that 
 **       packets with two different but Unique ports is bogus, and should 
 **       generate an alert.  For example, if you have traffic going from
@@ -88,7 +88,7 @@
 **    2) In fact, state could tell us which side of this connection is a 
 **       service and which side is a client. Than we could handle this packet 
 **       more precisely, but this is a rare situation and is still bogus. We 
-**       can choose not to do pattern inspections on these packets, or to do
+**       can choose not to do pattern inspections on these packets or to do
 **       complete inspections.
 **
 **  Rules are placed into each group as follows:
@@ -106,45 +106,45 @@
 **  
 **  Initialization
 **  --------------
-**  For each rule check the dst-port, if it's specific, than add it to the 
-**  dst table.  If the dst-port is Any port, than do not add it to the dst 
+**  For each rule check the dst-port, if it's specific, then add it to the 
+**  dst table.  If the dst-port is Any port, then do not add it to the dst 
 **  port table. Repeat this for the src-port.
 **
-**  If the rule has Any for both ports than it's added generic rule list.
+**  If the rule has Any for both ports then it's added generic rule list.
 **
 **  Also, fill in the Unique-Conflicts array, this indicates if it's OK to have
 **  the same Unique service port for both destination and source. This will 
-**  force an alert if it's not ok.  We optionally, pattern match against this
-**  anyways.
+**  force an alert if it's not ok.  We optionally pattern match against this
+**  anyway.
 **
-**  Procsessing Rules
+**  Processing Rules
 **  -----------------
 **  When packets arrive:
 **
 **   Categorize the Port Uniqueness:
 **   
 **   a)Check the DstPort[DstPort] for possible rules, 
-**     if no entry than no rules exist for this packet with this destination.
+**     if no entry,then no rules exist for this packet with this destination.
 **
 **   b)Check the SrcPort[SrcPort] for possible rules, 
-**     if no entry than no rules exist for this packet with this source.
+**     if no entry,then no rules exist for this packet with this source.
 **     
 **   Process the Uniqueness:
 **     
-**   If a AND !b has rules or !a AND b has rules than 
-**      match agaionst those rules
+**   If a AND !b has rules or !a AND b has rules then 
+**      match against those rules
 **   
-**   If a AND b has rules than 
+**   If a AND b have rules then 
 **      if( sourcePort != DstPort ) 
-**         Alert on this traffic, and optionally match both rule sets
+**         Alert on this traffic and optionally match both rule sets
 **      else if( SourcePort == DstPort ) 
 **         Check the Unique-Conflicts array for allowable conflicts
 **             if( NOT allowed ) 
 **	       Alert on this traffic, optionally match the rules
 **	    else 
-**	       match both sets of tules against this traffic
+**	       match both sets of rules against this traffic
 **  
-**   If( !a AND ! b )  than
+**   If( !a AND ! b )  then
 **      Pattern Match against the Generic Rules ( these apply to all packets)
 ** 
 **
@@ -1209,19 +1209,6 @@ PORT_GROUP * prmFindSrcRuleGroup( PORT_RULE_MAP * p, int port )
     return 0;
 }
 
-/*
-** Access each Rule group by index (0-MAX_PORTS)
-*/
-PORT_GROUP * prmFindByteRuleGroupUnique( BYTE_RULE_MAP * p, int port )
-{
-    if( port < 0 || port >= MAX_PORTS ) return 0;
-	
-    if( p->prmByteGroup[port].pgCount )	
-      return &p->prmByteGroup[port];
-    
-    return 0;
-}
-
 
 /*
 ** Assign the pattern matching data to this group
@@ -1251,7 +1238,7 @@ void * prmGetGroupPatData( PORT_GROUP * pg )
 **    twice when packets have 2 unique ports, but this will not 
 **    occur often.
 **
-**    The generic rues are added to the Unique rule groups, so that 
+**    The generic rules are added to the Unique rule groups, so that 
 **    the setwise methodology can be taking advantage of.
 **
 **  FORMAL INPUTS
@@ -1278,7 +1265,7 @@ int prmCompileGroups( PORT_RULE_MAP * p )
    for(i=0;i<MAX_PORTS;i++)  
    {
      /* Add to the Unique Src and Dst Groups as well, 
-     ** but don't inc thier prmNUMxxx counts, we want these to be true Uniqe counts
+     ** but don't inc thier prmNUMxxx counts, we want these to be true Unique counts
      ** we can add the Generic numbers if we want these, besides
      ** each group has it's own count.
      */
@@ -1474,57 +1461,6 @@ int prmShowStats( PORT_RULE_MAP * p )
 }
 
 
-int prmShowByteStats( BYTE_RULE_MAP * p )
-{
-   int i;
-   PORT_GROUP * pg;
-
-   printf("Packet Classification Rule Manager Stats ----\n");
-   printf("NumGroups   : %d\n",p->prmNumGroups);
-   printf("\n");
-   printf("NumRules    : %d\n",p->prmNumRules);
-   printf("NumGenericRules: %d\n",p->prmNumGenericRules);
-   printf("\n");
-
-   printf("%d Byte Groups In Use, %d Unique Rules, includes generic\n",p->prmNumGroups,p->prmNumRules);
-   for(i=0;i<256;i++)
-   {
-     pg = prmFindByteRuleGroupUnique( p, i );
-     if(pg)
-     {
-       printf("  Proto/Type %5d : %d content, %d nocontent \n",i, 
-                 pg->pgContentCount,pg->pgNoContentCount);
-       if( pg->avgLen )
-       {
-         printf("MinLen=%d MaxLen=%d AvgLen=%d",pg->minLen,pg->maxLen,pg->avgLen);
-         if(pg->c1)printf(" [1]=%d",pg->c1);   
-         if(pg->c2)printf(" [2]=%d",pg->c2);   
-         if(pg->c3)printf(" [3]=%d",pg->c3);   
-         if(pg->c4)printf(" [4]=%d",pg->c4);   
-         printf("\n");
-       }
-     }
-   }
-
- 
-   pg = &p->prmGeneric;
-     if(pg){
-        printf("   Generic Rules : %d content, %d nocontent \n",
-                pg->pgContentCount,pg->pgNoContentCount);
-        if( pg->avgLen )
-	{
-	  printf("MinLen=%d MaxLen=%d AvgLen=%d",pg->minLen,pg->maxLen,pg->avgLen);
-          if(pg->c1)printf(" [1]=%d",pg->c1);   
-          if(pg->c2)printf(" [2]=%d",pg->c2);   
-          if(pg->c3)printf(" [3]=%d",pg->c3);   
-          if(pg->c4)printf(" [4]=%d",pg->c4);   
-          printf("\n");
-	}
-     }
-
-   return 0;
-}
-
 /*
 **
 **  NAME
@@ -1630,55 +1566,3 @@ int prmShowEventStats( PORT_RULE_MAP * p )
    return 0;
 }
 
-int prmShowEventByteStats( BYTE_RULE_MAP * p )
-{
-   int i;
-   PORT_GROUP * pg;
-
-   int NQEvents = 0;
-   int QEvents = 0;
-
-   printf("Packet Classification Rule Manager Stats ----\n");
-   printf("NumGroups   : %d\n",p->prmNumGroups);
-   printf("\n");
-   printf("NumRules    : %d\n",p->prmNumRules);
-   printf("NumGenericRules: %d\n",p->prmNumGenericRules);
-   printf("\n");
-
-   printf("%d Byte Groups In Use, %d Unique Rules, includes generic\n",p->prmNumGroups,p->prmNumRules);
-   for(i=0;i<256;i++)
-   {
-     pg = prmFindByteRuleGroupUnique( p, i );
-     if(pg)
-     {
-       NQEvents += pg->pgNQEvents;
-       QEvents  += pg->pgQEvents;
-
-       if( pg->pgNQEvents + pg->pgQEvents )
-       {
-          printf("  Proto/Type %5d : %d group entries \n",i, pg->pgCount);
-          printf("      NQ Events  : %d\n", pg->pgNQEvents);
-          printf("       Q Events  : %d\n", pg->pgQEvents);
-       }
-     }
-   }
-
-   pg = &p->prmGeneric;
-   if(pg)
-   {
-      NQEvents += pg->pgNQEvents;
-      QEvents += pg->pgQEvents;
-
-      if( pg->pgNQEvents + pg->pgQEvents )
-      {
-        printf("  Generic Rules : %d group entries\n", pg->pgCount);
-        printf("    NQ Events   : %d\n", pg->pgNQEvents);
-        printf("     Q Events   : %d\n", pg->pgQEvents);
-      }
-   }
-
-   printf("Total NQ Events : %d\n", NQEvents);
-   printf("Total  Q Events  : %d\n", QEvents);
-
-   return 0;
-}

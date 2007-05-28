@@ -1,15 +1,13 @@
 #
-# This script was written by Xue Yong Zhi <xueyong@udel.edu>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(11431);
- #No bugtraq_id found
+# script_cve_id("CVE-MAP-NOMATCH");
  
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "XoloX is installed";
 
@@ -32,26 +30,20 @@ Risk factor : Low";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi");
+ script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Peer-To-Peer File Sharing";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/domain","SMB/transport");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
 
-include("smb_nt.inc");
+if ( ! get_kb_item("SMB/Registry/Enumerated") ) exit(1);
 
+key = "SMB/Registry/HKLM/SOFTWARE/Microsoft/Windows/CurrentVersion/Uninstall/XoloX/DisplayName";
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\CurrentVersion\Uninstall\XoloX", item:"DisplayName");
-if(rootfile)
-{
- security_note(get_kb_item("SMB/transport"));
-}
-
+if (get_kb_item (key))
+  security_note(get_kb_item("SMB/transport"));

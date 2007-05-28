@@ -40,6 +40,11 @@
 #include "event_queue.h"
 #include "inline.h"
 
+#include "profiler.h"
+#ifdef PERF_PROFILING
+PreprocStats decodePerfStats;
+#endif
+
 /* No great place to put this right now */
 HttpUri UriBufs[URI_COUNT];
 u_int8_t DecodeBuffer[DECODE_BLEN];
@@ -61,6 +66,9 @@ void DecodeEthPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
     u_int32_t pkt_len;      /* suprisingly, the length of the packet */
     u_int32_t cap_len;      /* caplen value */
+    PROFILE_VARS;
+        
+    PREPROC_PROFILE_START(decodePerfStats);
 
     bzero((char *) p, sizeof(Packet));
 
@@ -87,6 +95,8 @@ void DecodeEthPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             ErrorMessage("Captured data length < Ethernet header length!"
                          " (%d bytes)\n", p->pkth->caplen);
         }
+        
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -104,6 +114,7 @@ void DecodeEthPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
         case ETHERNET_TYPE_PPPoE_DISC:
         case ETHERNET_TYPE_PPPoE_SESS:
             DecodePPPoEPkt(p, pkthdr, pkt);
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_IP:
@@ -116,34 +127,47 @@ void DecodeEthPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             DecodeIP(p->pkt + ETHERNET_HEADER_LEN, 
                     cap_len - ETHERNET_HEADER_LEN, p);
 
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_ARP:
         case ETHERNET_TYPE_REVARP:
             DecodeARP(p->pkt + ETHERNET_HEADER_LEN, 
                     cap_len - ETHERNET_HEADER_LEN, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_IPV6:
             DecodeIPV6(p->pkt + ETHERNET_HEADER_LEN, 
                     (cap_len - ETHERNET_HEADER_LEN));
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_IPX:
             DecodeIPX(p->pkt + ETHERNET_HEADER_LEN, 
                     (cap_len - ETHERNET_HEADER_LEN));
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
+
+        case ETHERNET_TYPE_LOOP:
+            DecodeEthLoopback(p->pkt + ETHERNET_HEADER_LEN, 
+                    (cap_len - ETHERNET_HEADER_LEN));
+            PREPROC_PROFILE_END(decodePerfStats);
+            return; 
 
         case ETHERNET_TYPE_8021Q:
             DecodeVlan(p->pkt + ETHERNET_HEADER_LEN, 
                     cap_len - ETHERNET_HEADER_LEN, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return; 
 
         default:
             pc.other++;
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
     }
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -162,10 +186,13 @@ void DecodeEthPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
  * Returns: void function
  */
 void DecodeIEEE80211Pkt(Packet * p, struct pcap_pkthdr * pkthdr, 
-			u_int8_t * pkt)
+                        u_int8_t * pkt)
 {
     u_int32_t pkt_len;      /* suprisingly, the length of the packet */
     u_int32_t cap_len;      /* caplen value */
+    PROFILE_VARS;
+        
+    PREPROC_PROFILE_START(decodePerfStats);
 
     bzero((char *) p, sizeof(Packet));
 
@@ -190,6 +217,7 @@ void DecodeIEEE80211Pkt(Packet * p, struct pcap_pkthdr * pkthdr,
         {
             ErrorMessage("Captured data length < IEEE 802.11 header length! (%d bytes)\n", p->pkth->caplen);
         }
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
     /* lay the wireless structure over the packet data */
@@ -255,10 +283,11 @@ void DecodeIEEE80211Pkt(Packet * p, struct pcap_pkthdr * pkthdr,
                     if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                     {
                        DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                       InlineDrop();
+                       InlineDrop(p);
                     }
                 }
                 
+                PREPROC_PROFILE_END(decodePerfStats);
                 return;
             }
 
@@ -266,7 +295,7 @@ void DecodeIEEE80211Pkt(Packet * p, struct pcap_pkthdr * pkthdr,
 
 #ifdef DEBUG
             PrintNetData(stdout,(u_int8_t *)  p->ehllc, sizeof(EthLlc));
-            ClearDumpBuf();
+            //ClearDumpBuf();
 
             printf("LLC Header:\n");
             printf("   DSAP: 0x%X\n", p->ehllc->dsap);
@@ -291,17 +320,18 @@ void DecodeIEEE80211Pkt(Packet * p, struct pcap_pkthdr * pkthdr,
                         if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                         {
                            DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n");); 
-                           InlineDrop();
+                           InlineDrop(p);
                         }
                     }
                     
+                    PREPROC_PROFILE_END(decodePerfStats);
                     return;
                 }
 
                 p->ehllcother = (EthLlcOther *) (pkt + IEEE802_11_DATA_HDR_LEN + sizeof(EthLlc));
 #ifdef DEBUG
                 PrintNetData(stdout,(u_int8_t *) p->ehllcother, sizeof(EthLlcOther));
-                ClearDumpBuf();
+                //ClearDumpBuf();
                 printf("LLC Other Header:\n");
                 printf("   CTRL: 0x%X\n", p->ehllcother->ctrl);
                 printf("   ORG: 0x%02X%02X%02X\n", p->ehllcother->org_code[0], 
@@ -316,6 +346,7 @@ void DecodeIEEE80211Pkt(Packet * p, struct pcap_pkthdr * pkthdr,
                                 sizeof(EthLlcOther), 
                                 pkt_len - IEEE802_11_DATA_HDR_LEN - sizeof(EthLlc) - 
                                 sizeof(EthLlcOther), p);
+                        PREPROC_PROFILE_END(decodePerfStats);
                         return;
 
                     case ETHERNET_TYPE_ARP:
@@ -324,20 +355,24 @@ void DecodeIEEE80211Pkt(Packet * p, struct pcap_pkthdr * pkthdr,
                                 sizeof(EthLlcOther), 
                                 pkt_len - IEEE802_11_DATA_HDR_LEN - sizeof(EthLlc) -
                                 sizeof(EthLlcOther), p);
+                        PREPROC_PROFILE_END(decodePerfStats);
                         return;
                     case ETHERNET_TYPE_EAPOL:
                         DecodeEapol(p->pkt + IEEE802_11_DATA_HDR_LEN + sizeof(EthLlc) +
                                 sizeof(EthLlcOther),
                                 pkt_len - IEEE802_11_DATA_HDR_LEN - sizeof(EthLlc) -
                                 sizeof(EthLlcOther), p);
+                        PREPROC_PROFILE_END(decodePerfStats);
                         return;
                     case ETHERNET_TYPE_8021Q:
                         DecodeVlan(p->pkt + IEEE802_11_DATA_HDR_LEN , 
                                    cap_len - IEEE802_11_DATA_HDR_LEN , p);
+                        PREPROC_PROFILE_END(decodePerfStats);
                         return; 
 
                     default:
                         pc.other++;
+                        PREPROC_PROFILE_END(decodePerfStats);
                         return;
                 }
             }
@@ -347,6 +382,7 @@ void DecodeIEEE80211Pkt(Packet * p, struct pcap_pkthdr * pkthdr,
             break;
     }
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -365,7 +401,7 @@ void DecodeVlan(u_int8_t * pkt, const u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n");); 
-               InlineDrop();
+               InlineDrop(p);
             }
  
         }
@@ -404,7 +440,7 @@ void DecodeVlan(u_int8_t * pkt, const u_int32_t len, Packet * p)
                  if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                  {
                     DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                    InlineDrop();
+                    InlineDrop(p);
                  }
  
             }
@@ -436,7 +472,7 @@ void DecodeVlan(u_int8_t * pkt, const u_int32_t len, Packet * p)
                     if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                     {
                       DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                      InlineDrop();
+                      InlineDrop(p);
                     }
 
                 }
@@ -515,7 +551,10 @@ void DecodeIptablesPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
     u_int32_t len;
     u_int32_t cap_len;
-	
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
+
     bzero((char *) p, sizeof(Packet));
     p->pkth = pkthdr;
     p->pkt = pkt;
@@ -524,6 +563,8 @@ void DecodeIptablesPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
     cap_len = pkthdr->caplen;
 
     DecodeIP(p->pkt, cap_len, p);
+
+    PREPROC_PROFILE_END(decodePerfStats);
 }
 #else
 /*
@@ -541,7 +582,10 @@ void DecodeIpfwPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
     u_int32_t len;
     u_int32_t cap_len;
+    PROFILE_VARS;
         
+    PREPROC_PROFILE_START(decodePerfStats);
+
     bzero((char *) p, sizeof(Packet));
     p->pkth = pkthdr;
     p->pkt = pkt;
@@ -551,6 +595,7 @@ void DecodeIpfwPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 
     DecodeIP(p->pkt, cap_len, p);
 
+    PREPROC_PROFILE_END(decodePerfStats);
 }
 #endif
 #endif /* GIDS */
@@ -572,6 +617,9 @@ void DecodeNullPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
     u_int32_t len;
     u_int32_t cap_len;
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
 
     bzero((char *) p, sizeof(Packet));
 
@@ -592,10 +640,12 @@ void DecodeNullPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                     cap_len);
         }
 
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
     DecodeIP(p->pkt + NULL_HDRLEN, cap_len - NULL_HDRLEN, p);
+    PREPROC_PROFILE_END(decodePerfStats);
 }
 
 /*
@@ -615,7 +665,9 @@ void DecodeTRPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
     u_int32_t pkt_len;      /* suprisingly, the length of the packet */
     u_int32_t cap_len;      /* caplen value */
     u_int32_t dataoff;      /* data offset is variable here */
+    PROFILE_VARS;
 
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -647,11 +699,12 @@ void DecodeTRPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-               InlineDrop();
+               InlineDrop(p);
             }
 
         }
 
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -689,10 +742,11 @@ void DecodeTRPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-              InlineDrop();
+              InlineDrop(p);
             }
 
         }
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -721,11 +775,12 @@ void DecodeTRPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                 if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                 {
                    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                   InlineDrop();
+                   InlineDrop(p);
                 }
 
             }
             
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
         }
         
@@ -748,11 +803,12 @@ void DecodeTRPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                 if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                 {
                    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                   InlineDrop();
+                   InlineDrop(p);
                 }
  
             }
             
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
         }
         
@@ -782,6 +838,7 @@ void DecodeTRPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                    DebugMessage(DEBUG_DECODE, "DSAP and SSAP arent set to SNAP\n");
                 );
         p->trhllc = NULL;
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -790,6 +847,7 @@ void DecodeTRPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
         case ETHERNET_TYPE_IP:
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Decoding IP\n"););
             DecodeIP(p->pkt + dataoff, cap_len - dataoff, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_ARP:
@@ -799,19 +857,23 @@ void DecodeTRPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                     );
             pc.arp++;
 
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_8021Q:
             DecodeVlan(p->pkt + dataoff, cap_len - dataoff, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return; 
 
         default:
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Unknown network protocol: %d\n", 
                         htons(p->trhllc->ethertype)));
             pc.other++;
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
     }
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -833,7 +895,9 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
     u_int32_t pkt_len;      /* length of the packet */
     u_int32_t cap_len;      /* capture length variable */
     u_int32_t dataoff = sizeof(Fddi_hdr) + sizeof(Fddi_llc_saps);
+    PROFILE_VARS;
 
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -859,6 +923,7 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
         {
             ErrorMessage("Captured data length < FDDI header length! "
                          "(%d %d bytes)\n", p->pkth->caplen, dataoff);
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
         }
     }
@@ -884,6 +949,7 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             {
                 ErrorMessage("Captured data length < FDDI header length! "
                              "(%d %d bytes)\n", p->pkth->caplen, dataoff);
+                PREPROC_PROFILE_END(decodePerfStats);
                 return;
             }
         }
@@ -901,6 +967,7 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             {
                 ErrorMessage("Captured data length < FDDI header length! "
                              "(%d %d bytes)\n", p->pkth->caplen, dataoff);
+                PREPROC_PROFILE_END(decodePerfStats);
                 return;
             }
         }
@@ -920,6 +987,7 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             {
                 ErrorMessage("Captured data length < FDDI header length! "
                              "(%d %d bytes)\n", p->pkth->caplen, dataoff);
+                PREPROC_PROFILE_END(decodePerfStats);
                 return;
             }
         }
@@ -936,6 +1004,7 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                 DebugMessage(DEBUG_DECODE, 
                     "This FDDI Packet isn't an IP/ARP packet...\n");
                 );
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -947,6 +1016,7 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
         case ETHERNET_TYPE_IP:
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Decoding IP\n"););
             DecodeIP(p->pkt + dataoff, cap_len, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_ARP:
@@ -954,10 +1024,12 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Decoding ARP\n"););
             pc.arp++;
 
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_8021Q:
             DecodeVlan(p->pkt + dataoff, cap_len, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return; 
 
 
@@ -967,9 +1039,11 @@ void DecodeFDDIPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                     );
             pc.other++;
 
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
     }
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -993,6 +1067,9 @@ void DecodeLinuxSLLPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
     u_int32_t pkt_len;      /* the length of the packet */
     u_int32_t cap_len;      /* caplen value */
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
 
     bzero((char *) p, sizeof(Packet));
 
@@ -1018,6 +1095,7 @@ void DecodeLinuxSLLPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             ErrorMessage("Captured data length < SLL header length (your "
                          "libpcap is broken?)! (%d bytes)\n", p->pkth->caplen);
         }
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
     /* lay the ethernet structure over the packet data */
@@ -1032,35 +1110,42 @@ void DecodeLinuxSLLPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                         (unsigned long)(cap_len - SLL_HDR_LEN)););
 
             DecodeIP(p->pkt + SLL_HDR_LEN, cap_len - SLL_HDR_LEN, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_ARP:
         case ETHERNET_TYPE_REVARP:
             DecodeARP(p->pkt + SLL_HDR_LEN, cap_len - SLL_HDR_LEN, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_IPV6:
             DecodeIPV6(p->pkt + SLL_HDR_LEN, (cap_len - SLL_HDR_LEN));
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_IPX:
             DecodeIPX(p->pkt + SLL_HDR_LEN, (cap_len - SLL_HDR_LEN));
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case LINUX_SLL_P_802_3:
             DEBUG_WRAP(DebugMessage(DEBUG_DATALINK,
                         "Linux SLL P 802.3 is not supported.\n"););
             pc.other++;
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case LINUX_SLL_P_802_2:
             DEBUG_WRAP(DebugMessage(DEBUG_DATALINK,
                         "Linux SLL P 802.2 is not supported.\n"););
             pc.other++;
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
         case ETHERNET_TYPE_8021Q:
             DecodeVlan(p->pkt + SLL_HDR_LEN, cap_len - SLL_HDR_LEN, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return; 
 
         default:
@@ -1070,13 +1155,97 @@ void DecodeLinuxSLLPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
                         "(need tcpdump snapshots to test. Please contact us)\n",
                         p->sllh->sll_protocol););
             pc.other++;
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
     }
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
 #endif /* DLT_LINUX_SLL */
+
+/*
+ * Function: DecodeOldPflog(Packet *, struct pcap_pkthdr *, u_int8_t *)
+ *
+ * Purpose: Pass old pflog format device packets off to IP or IP6 -fleck
+ *
+ * Arguments: p => pointer to the decoded packet struct
+ *            pkthdr => ptr to the packet header
+ *            pkt => pointer to the packet data
+ *
+ * Returns: void function
+ *
+ */
+void DecodeOldPflog(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
+{
+    u_int32_t pkt_len;      /* suprisingly, the length of the packet */
+    u_int32_t cap_len;      /* caplen value */
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
+
+    bzero((char *) p, sizeof(Packet));
+
+    p->pkth = pkthdr;
+    p->pkt = pkt;
+
+    /* set the lengths we need */
+    pkt_len = pkthdr->len;  /* total packet length */
+    cap_len = pkthdr->caplen;   /* captured packet length */
+
+    if(snaplen < pkt_len)
+        pkt_len = cap_len;
+
+    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Packet!\n");
+            DebugMessage(DEBUG_DECODE, "caplen: %lu    pktlen: %lu\n", 
+                (unsigned long)cap_len, (unsigned long)pkt_len););
+
+    /* do a little validation */
+    if(p->pkth->caplen < OLDPFLOG_HDRLEN)
+    {
+        if(pv.verbose_flag)
+        {
+            ErrorMessage("Captured data length < Pflog header length! "
+                    "(%d bytes)\n", p->pkth->caplen);
+        }
+        PREPROC_PROFILE_END(decodePerfStats);
+        return;
+    }
+
+    /* lay the pf header structure over the packet data */
+    p->opfh = (OldPflogHdr *) pkt;
+
+    /*  get the network type - should only be AF_INET or AF_INET6 */
+    switch(ntohl(p->opfh->af))
+    {
+        case AF_INET:   /* IPv4 */
+            DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "IP datagram size calculated to be %lu "
+                        "bytes\n", (unsigned long)(cap_len - OLDPFLOG_HDRLEN)););
+
+            DecodeIP(p->pkt + OLDPFLOG_HDRLEN, cap_len - OLDPFLOG_HDRLEN, p);
+            PREPROC_PROFILE_END(decodePerfStats);
+            return;
+
+#ifdef AF_INET6
+        case AF_INET6:  /* IPv6 */
+            DecodeIPV6(p->pkt + OLDPFLOG_HDRLEN, (cap_len - OLDPFLOG_HDRLEN));
+            PREPROC_PROFILE_END(decodePerfStats);
+            return;
+#endif
+
+        default:
+            /* To my knowledge, pflog devices can only 
+             * pass IP and IP6 packets. -fleck 
+             */
+            pc.other++;
+            PREPROC_PROFILE_END(decodePerfStats);
+            return;
+    }
+
+    PREPROC_PROFILE_END(decodePerfStats);
+    return;
+}
 
 /*
  * Function: DecodePflog(Packet *, struct pcap_pkthdr *, u_int8_t *)
@@ -1094,6 +1263,9 @@ void DecodePflog(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
     u_int32_t pkt_len;      /* suprisingly, the length of the packet */
     u_int32_t cap_len;      /* caplen value */
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
 
     bzero((char *) p, sizeof(Packet));
 
@@ -1119,6 +1291,7 @@ void DecodePflog(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             ErrorMessage("Captured data length < Pflog header length! "
                     "(%d bytes)\n", p->pkth->caplen);
         }
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -1126,18 +1299,21 @@ void DecodePflog(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
     p->pfh = (PflogHdr *) pkt;
 
     /*  get the network type - should only be AF_INET or AF_INET6 */
-    switch(ntohl(p->pfh->af))
+    /* p->pfh->af is sa_family_t which is a u_int8_t */
+    switch(p->pfh->af)
     {
         case AF_INET:   /* IPv4 */
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "IP datagram size calculated to be %lu "
                         "bytes\n", (unsigned long)(cap_len - PFLOG_HDRLEN)););
 
             DecodeIP(p->pkt + PFLOG_HDRLEN, cap_len - PFLOG_HDRLEN, p);
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 
 #ifdef AF_INET6
         case AF_INET6:  /* IPv6 */
             DecodeIPV6(p->pkt + PFLOG_HDRLEN, (cap_len - PFLOG_HDRLEN));
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
 #endif
 
@@ -1146,9 +1322,11 @@ void DecodePflog(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
              * pass IP and IP6 packets. -fleck 
              */
             pc.other++;
+            PREPROC_PROFILE_END(decodePerfStats);
             return;
     }
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -1181,11 +1359,6 @@ void DecodePPPoEPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
     int i;
 #endif
 
-    bzero((char *) p, sizeof(Packet));
-
-    p->pkth = pkthdr;
-    p->pkt = pkt;
-
     /* set the lengths we need */
     pkt_len = pkthdr->len;  /* total packet length */
     cap_len = pkthdr->caplen;   /* captured packet length */
@@ -1213,7 +1386,7 @@ void DecodePPPoEPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-              InlineDrop();
+              InlineDrop(p);
             }
 
         }
@@ -1225,14 +1398,24 @@ void DecodePPPoEPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
      * This code breaks the decode model that Snort uses, we should 
      * reimplement it properly ASAP
      */
+    /*
+     * Not sure how long ago the above comment was added, but
+     * it is now fixed.  It may or may not fall under the 'ASAP'
+     * category.
+     */
 
     /* lay the ethernet structure over the packet data */
+    /* Don't need to do this.  It is already done in the decoding
+     * of the ethernet header, which then calls this function for
+     * PPP over Ethernet.
     p->eh = (EtherHdr *) pkt;
+     */
 
     DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "%X   %X\n", 
                 *p->eh->ether_src, *p->eh->ether_dst););
 
-    ppppoep = (PPPoEHdr *)pkt;
+    /* lay the PPP over ethernet structure over the packet data */
+    ppppoep = p->pppoeh = (PPPoEHdr *)pkt;
 
     /* grab out the network type */
     switch(ntohs(p->eh->ether_type))
@@ -1470,10 +1653,7 @@ void DecodePppPktEncapsulated(Packet * p, const u_int32_t len, u_int8_t * pkt)
 {
     static int had_vj = 0;
     u_int16_t protocol;
-    u_int16_t hlen = 1; /* HEADER - try 1 then 2 */    
-    struct pcap_pkthdr *pkthdr = p->pkth;
-    p->pkth = pkthdr;
-    p->pkt = pkt;
+    u_int32_t hlen = 1; /* HEADER - try 1 then 2 */    
     
     DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Packet!\n"););
 
@@ -1520,7 +1700,7 @@ void DecodePppPktEncapsulated(Packet * p, const u_int32_t len, u_int8_t * pkt)
         case PPP_VJ_UCOMP:
             /* VJ compression modifies the protocol field. It must be set
              * to tcp (only TCP packets can be VJ compressed) */
-            if(len < hlen + IP_HEADER_LEN)
+            if(len < (hlen + IP_HEADER_LEN))
             {
                 if(pv.verbose_flag)
                     ErrorMessage("PPP VJ min packet length > captured len! "
@@ -1528,15 +1708,15 @@ void DecodePppPktEncapsulated(Packet * p, const u_int32_t len, u_int8_t * pkt)
                 return;
             }
 
-            ((IPHdr *)(p->pkt + hlen))->ip_proto = IPPROTO_TCP;
+            ((IPHdr *)(pkt + hlen))->ip_proto = IPPROTO_TCP;
             /* fall through */
 
         case PPP_IP:
-            DecodeIP(p->pkt + hlen, len - hlen, p);
+            DecodeIP(pkt + hlen, len - hlen, p);
             break;
 
         case PPP_IPX:
-            DecodeIPX(p->pkt + hlen, len - hlen);
+            DecodeIPX(pkt + hlen, len - hlen);
             break;
     }
 }
@@ -1558,7 +1738,9 @@ void DecodePppPktEncapsulated(Packet * p, const u_int32_t len, u_int8_t * pkt)
 void DecodePppPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
     int hlen = 0;
+    PROFILE_VARS;
 
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -1573,6 +1755,7 @@ void DecodePppPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             ErrorMessage("Length not big enough for even a single "
                          "header or a one byte payload\n");
         }
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -1586,6 +1769,7 @@ void DecodePppPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 
     DecodePppPktEncapsulated(p, p->pkth->caplen - hlen, p->pkt + hlen);
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -1605,6 +1789,9 @@ void DecodePppPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
  */
 void DecodePppSerialPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -1619,6 +1806,7 @@ void DecodePppSerialPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
             ErrorMessage("Captured data length < PPP header length"
                          " (%d bytes)\n", p->pkth->caplen);
         }
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -1629,6 +1817,7 @@ void DecodePppSerialPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
         DecodeChdlcPkt(p, pkthdr, pkt);
     }
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -1649,7 +1838,9 @@ void DecodeSlipPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
     u_int32_t len;
     u_int32_t cap_len;
+    PROFILE_VARS;
 
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -1665,10 +1856,12 @@ void DecodeSlipPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
     {
         ErrorMessage("SLIP header length < captured len! (%d bytes)\n",
                      cap_len);
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
     DecodeIP(p->pkt + SLIP_HEADER_LEN, cap_len - SLIP_HEADER_LEN, p);
+    PREPROC_PROFILE_END(decodePerfStats);
 }
 
 
@@ -1689,6 +1882,9 @@ void DecodeSlipPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
  */
 void DecodeRawPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -1698,6 +1894,7 @@ void DecodeRawPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 
     DecodeIP(pkt, p->pkth->caplen, p);
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -1719,6 +1916,9 @@ void DecodeRawPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
  */
 void DecodeI4LRawIPPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
 {
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -1728,12 +1928,14 @@ void DecodeI4LRawIPPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "What the hell is this?\n"););
         pc.other++;
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
     DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Packet!\n"););
     DecodeIP(pkt + 2, p->pkth->len - 2, p);
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -1756,6 +1958,9 @@ void DecodeI4LRawIPPkt(Packet * p, struct pcap_pkthdr * pkthdr, u_int8_t * pkt)
  */
 void DecodeI4LCiscoIPPkt(Packet *p, struct pcap_pkthdr *pkthdr, u_int8_t *pkt)
 {
+    PROFILE_VARS;
+        
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -1765,6 +1970,7 @@ void DecodeI4LCiscoIPPkt(Packet *p, struct pcap_pkthdr *pkthdr, u_int8_t *pkt)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "What the hell is this?\n"););
         pc.other++;
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
@@ -1773,6 +1979,7 @@ void DecodeI4LCiscoIPPkt(Packet *p, struct pcap_pkthdr *pkthdr, u_int8_t *pkt)
 
     DecodeIP(pkt + 4, p->pkth->caplen - 4, p);
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
@@ -1791,6 +1998,9 @@ void DecodeI4LCiscoIPPkt(Packet *p, struct pcap_pkthdr *pkthdr, u_int8_t *pkt)
  */
 void DecodeChdlcPkt(Packet *p, struct pcap_pkthdr *pkthdr, u_int8_t *pkt)
 {
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
     bzero((char *) p, sizeof(Packet));
 
     p->pkth = pkthdr;
@@ -1803,13 +2013,14 @@ void DecodeChdlcPkt(Packet *p, struct pcap_pkthdr *pkthdr, u_int8_t *pkt)
             ErrorMessage("Captured data length < CHDLC header length"
                          " (%d bytes)\n", p->pkth->caplen);
         }
+        PREPROC_PROFILE_END(decodePerfStats);
         return;
     }
 
     DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Packet!\n"););
 
     if ((pkt[0] == CHDLC_ADDR_UNICAST || pkt[0] == CHDLC_ADDR_MULTICAST) &&
-           ntohs(pkt[2] | pkt[3] << 8) == ETHERNET_TYPE_IP)
+           ntohs((u_int16_t)(pkt[2] | pkt[3] << 8)) == ETHERNET_TYPE_IP)
     {
         DecodeIP(p->pkt + CHDLC_HEADER_LEN,
                  p->pkth->caplen - CHDLC_HEADER_LEN, p);
@@ -1817,10 +2028,105 @@ void DecodeChdlcPkt(Packet *p, struct pcap_pkthdr *pkthdr, u_int8_t *pkt)
         pc.other++;
     }
 
+    PREPROC_PROFILE_END(decodePerfStats);
     return;
 }
 
+/*
+ * Some IP Header tests
+ * Land Attack(same src/dst ip)
+ * Loopback (src or dst in 127/8 block)
+ * Modified: 2/22/05-man for High Endian Architecture.
+ */
+void IPHdrTests( Packet * p )
+{
+    /* Land attack */
+    if( p->iph->ip_src.s_addr == p->iph->ip_dst.s_addr )
+    {
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                    DECODE_BAD_TRAFFIC_SAME_SRCDST, 1, DECODE_CLASS, 3, 
+                    DECODE_BAD_TRAFFIC_SAME_SRCDST_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            {
+               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet"
+                           "-- same IP\n"););
+               InlineDrop(p);
+            }
+        }
+    }
+    
+    /* Loopback traffic  - don't use htonl for speed reasons - s_addr is always in network order */
+#ifdef WORDS_BIGENDIAN
+    if( (p->iph->ip_src.s_addr & 0xff000000) == 0x7f000000  || (p->iph->ip_dst.s_addr & 0xff000000 ) == 0x7f000000 )/* BE */
+#else
+    if( (p->iph->ip_src.s_addr & 0xff) == 0x7f || (p->iph->ip_dst.s_addr & 0xff ) == 0x7f ) /* LE */
+#endif
+    {
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                    DECODE_BAD_TRAFFIC_LOOPBACK, 1, DECODE_CLASS, 3, 
+                    DECODE_BAD_TRAFFIC_LOOPBACK_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            {
+               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet"
+                           "-- loopback\n"););
+               InlineDrop(p);
+            }
+        }
+    }
+}
 
+#ifdef DLT_ENC
+/* see http://sourceforge.net/mailarchive/message.php?msg_id=1000380 */
+/*
+ * Function: DecodeEncPkt(Packet *, struct pcap_pkthdr *, u_int8_t *)
+ *
+ * Purpose: Decapsulate packets of type DLT_ENC.
+ *          XXX Are these always going to be IP in IP?
+ *
+ * Arguments: p => pointer to decoded packet struct
+ *            pkthdr => pointer to the packet header
+ *            pkt => pointer to the real live packet data
+ */
+void DecodeEncPkt(Packet *p, struct pcap_pkthdr *pkthdr, u_int8_t *pkt)
+{
+    struct enc_header *enc_h;
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(decodePerfStats);
+
+    bzero((char *)p, sizeof(Packet));
+    p->pkth = pkthdr;
+    p->pkt = pkt;
+
+    if (p->pkth->caplen < ENC_HEADER_LEN)
+    {
+        if (pv.verbose_flag)
+        {
+            ErrorMessage("Captured data length < Encap header length!  (%d bytes)\n", p->pkth->caplen);
+        }
+        PREPROC_PROFILE_END(decodePerfStats);
+        return;
+    }
+
+    enc_h = (struct enc_header *)p->pkt;
+    if (enc_h->af == AF_INET)
+    {
+        DecodeIP(p->pkt + ENC_HEADER_LEN + IP_HEADER_LEN,
+                 pkthdr->caplen - ENC_HEADER_LEN - IP_HEADER_LEN, p);
+    }
+    else
+    {
+        ErrorMessage("[!] WARNING: Unknown address family! (af: 0x%x)\n",
+                enc_h->af);
+    }
+    PREPROC_PROFILE_END(decodePerfStats);
+    return;
+}
+#endif /* DLT_ENC */
 
 /*
  * Function: DecodeIP(u_int8_t *, const u_int32_t, Packet *)
@@ -1865,8 +2171,8 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
         if(pv.verbose_flag)
         {
             ErrorMessage("Not IPv4 datagram! "
-                         "([ver: 0x%x][len: 0x%x])\n", 
-                         IP_VER(p->iph), p->iph->ip_len);
+                    "([ver: 0x%x][len: 0x%x])\n", 
+                    IP_VER(p->iph), p->iph->ip_len);
         }
         if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
         {
@@ -1874,10 +2180,9 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
                     DECODE_CLASS, 3, DECODE_NOT_IPV4_DGRAM_STR, 0);
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
-               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-               InlineDrop();
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
             }
- 
         }
         p->iph = NULL;
         pc.discards++;
@@ -1898,7 +2203,7 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 #ifdef DEBUG
         if(pv.verbose_flag)
             ErrorMessage("Bogus IP header length of %i bytes\n", 
-                         hlen);
+                    hlen);
 #endif
         if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts) 
         {
@@ -1907,8 +2212,8 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
                     DECODE_IPV4_INVALID_HEADER_LEN_STR, 0);
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
-               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-               InlineDrop();
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
             }
 
         }
@@ -1926,20 +2231,35 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 #ifdef DEBUG
             if (pv.verbose_flag)
                 ErrorMessage("IP Len field is %d bytes bigger"
-                             " than captured length.\n"
-                             "    (ip.len: %lu, cap.len: %lu)\n",
-                             ip_len - len, ip_len, len);
+                        " than captured length.\n"
+                        "    (ip.len: %lu, cap.len: %lu)\n",
+                        ip_len - len, ip_len, len);
 #endif
-            ip_len = len;
+            if((runMode == MODE_IDS) && pv.decoder_flags.oversized_alert) 
+            {
+                SnortEventqAdd(GENERATOR_SNORT_DECODE, DECODE_IPV4_DGRAM_GT_IPHDR, 
+                        1, DECODE_CLASS, 3, DECODE_IPV4_DGRAM_GT_IPHDR_STR, 0);
+                if ((InlineMode()) && pv.decoder_flags.oversized_drop)
+                { 
+                    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                    InlineDrop(p);
+                }
+    
+            }
+
+            p->iph = NULL;
+            pc.discards++;
+            return;
+            //ip_len = len;
         }
         else
         {
 #ifdef DEBUG
             if (pv.verbose_flag)
                 ErrorMessage("IP Len field is %d bytes "
-                             "smaller than captured length.\n"
-                             "    (ip.len: %lu, cap.len: %lu)\n",
-                             len - ip_len, ip_len, len);
+                        "smaller than captured length.\n"
+                        "    (ip.len: %lu, cap.len: %lu)\n",
+                        len - ip_len, ip_len, len);
 #endif
 
         }
@@ -1950,7 +2270,7 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
         if(pv.verbose_flag)
         {
             ErrorMessage("IP dgm len (%d bytes) < IP hdr "
-                         "len (%d bytes), packet discarded\n", ip_len, hlen);
+                    "len (%d bytes), packet discarded\n", ip_len, hlen);
         }
 
         if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts) 
@@ -1959,15 +2279,24 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
                     1, DECODE_CLASS, 3, DECODE_IPV4_DGRAM_LT_IPHDR_STR, 0);
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             { 
-               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-               InlineDrop();
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
             }
- 
+
         }
 
         p->iph = NULL;
         pc.discards++;
         return;
+    }
+
+
+    /* 
+     * IP Header tests: Land attack, and Loop back test 
+     */
+    if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts) 
+    {
+        IPHdrTests( p);
     }
 
 
@@ -1983,12 +2312,12 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
         {
             p->csum_flags |= CSE_IP;
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Bad IP checksum\n"););
- 
-            if(InlineMode())
+
+            if(InlineMode() && (pv.checksums_drop & DO_IP_CHECKSUMS))
             {
                 DEBUG_WRAP(DebugMessage(DEBUG_DECODE, 
                             "Dropping packet with Bad IP checksum\n"););
-                InlineDrop();
+                InlineDrop(p);
             }
         }
 #ifdef DEBUG
@@ -2009,11 +2338,22 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
     }
     else
     {
+#ifdef GRE
+    /* if delivery header for GRE encapsulated packet is IP and it 
+     * had options, p->ip_options_data will be pointing to this outer
+     * IP's options
+     * set to NULL so these options aren't associated with this inner IP
+     * since p->iph will be pointing to this inner IP
+     */
+    if (p->greh != NULL)
+        p->ip_options_data = NULL;
+#endif
+
         p->ip_option_count = 0;
     }
 
     /* set the real IP length for logging */
-    p->actual_ip_len = ip_len;
+    p->actual_ip_len = (u_int16_t) ip_len;
 
     /* set the remaining packet length */
     ip_len -= hlen;
@@ -2038,9 +2378,11 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
         p->frag_flag = 1;
         pc.frags++;
     }
-   
-    /* if this packet isn't a fragment */
-    if(!(p->frag_flag))
+
+    /* if this packet isn't a fragment
+     * or if it is, its a UDP packet and offset isn't 0 */
+    if(!(p->frag_flag) || 
+            (p->frag_flag && (p->frag_offset == 0) && (p->iph->ip_proto == IPPROTO_UDP)))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "IP header length: %lu\n", 
                     (unsigned long)hlen););
@@ -2050,26 +2392,34 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             case IPPROTO_TCP:
                 pc.tcp++;
                 DecodeTCP(pkt + hlen, ip_len, p);
-                ClearDumpBuf();
+                //ClearDumpBuf();
                 return;
 
             case IPPROTO_UDP:
                 pc.udp++;
                 DecodeUDP(pkt + hlen, ip_len, p);
-                ClearDumpBuf();
+                //ClearDumpBuf();
                 return;
 
             case IPPROTO_ICMP:
                 pc.icmp++;
                 DecodeICMP(pkt + hlen, ip_len, p);
-                ClearDumpBuf();
+                //ClearDumpBuf();
                 return;
+
+#ifdef GRE
+            case IPPROTO_GRE:
+                pc.gre++;
+                DecodeGRE(pkt + hlen, ip_len, p);
+                //ClearDumpBuf();
+                return;
+#endif
 
             default:
                 pc.other++;
                 p->data = pkt + hlen;
                 p->dsize = (u_short) ip_len;
-                ClearDumpBuf();
+                //ClearDumpBuf();
                 return;
         }
     }
@@ -2080,153 +2430,6 @@ void DecodeIP(u_int8_t * pkt, const u_int32_t len, Packet * p)
         p->dsize = (u_short) ip_len;
     }
 }
-/*
- * Function: DecodeIPOnly(u_int8_t *, const u_int32_t, Packet *)
- *
- * Purpose: Decode the IP network layer but not recurse
- *
- * Arguments: pkt => ptr to the packet data
- *            len => length from here to the end of the packet
- *            p   => pointer to dummy packet decode struct
- *
- * Returns: void function
- */
-int DecodeIPOnly(u_int8_t * pkt, const u_int32_t len, Packet * p)
-{
-    u_int32_t ip_len;       /* length from the start of the ip hdr to the
-                             * pkt end */
-    u_int32_t hlen;             /* ip header length */
-
-    /* lay the IP struct over the raw data */
-    p->orig_iph = (IPHdr *) pkt;
-
-    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "DecodeIPOnly: ip header starts at: %p, "
-                "length is %lu\n", p->orig_iph, (unsigned long) len););
-
-    /* do a little validation */
-    if(len < IP_HEADER_LEN)
-    {
-        if(pv.verbose_flag)
-        {
-            ErrorMessage("ICMP Unreachable IP short header (%d bytes)\n", len);
-        }
-        p->orig_iph = NULL;
-        return(0);
-    }
-
-    /*
-     * with datalink DLT_RAW it's impossible to differ ARP datagrams from IP.
-     * So we are just ignoring non IP datagrams
-     */
-    if(IP_VER(p->orig_iph) != 4)
-    {
-        if(pv.verbose_flag)
-        {
-            ErrorMessage("ICMP Unreachable not IPv4 datagram "
-                         "([ver: 0x%x][len: 0x%x])\n", 
-                         IP_VER(p->orig_iph), p->orig_iph->ip_len);
-
-        }
-
-        p->orig_iph = NULL;
-
-        return(0);
-    }
-
-    /* set the IP datagram length */
-    ip_len = ntohs(p->orig_iph->ip_len);
-
-    /* set the IP header length */
-    hlen = IP_HLEN(p->orig_iph) << 2;
-
-    if(len < hlen)
-    {
-        if(pv.verbose_flag)
-        {
-            ErrorMessage("ICMP Unreachable IP len (%d bytes) < "
-                         "IP hdr len (%d bytes), packet discarded\n", ip_len, hlen);
-        }
-        
-        p->orig_iph = NULL;
-
-        return(0);
-    }
-
-    p->ip_option_count = 0;
-
-    /* set the remaining packet length */
-    ip_len = len - hlen;
-
-    /* check for fragmented packets */
-    p->frag_offset = ntohs(p->orig_iph->ip_off);
-
-    /* get the values of the reserved, more 
-     * fragments and don't fragment flags 
-     */
-    p->rf = (u_int8_t)(p->frag_offset & 0x8000) >> 15;
-    p->df = (u_int8_t)(p->frag_offset & 0x4000) >> 14;
-    p->mf = (u_int8_t)(p->frag_offset & 0x2000) >> 13;
-
-    /* mask off the high bits in the fragment offset field */
-    p->frag_offset &= 0x1FFF;
-
-    if(p->frag_offset || p->mf)
-    {
-        /* set the packet fragment flag */
-        p->frag_flag = 1;
-
-        /* set the payload pointer and payload size */
-        p->data = pkt + hlen;
-        p->dsize = (u_short) ip_len;
-    }
-    else
-    {
-        p->frag_flag = 0;
-
-        DEBUG_WRAP(
-                DebugMessage(DEBUG_DECODE, "ICMP Unreachable IP header length: "
-                    "%lu\n", (unsigned long)hlen););
-
-        switch(p->orig_iph->ip_proto)
-        {
-            case IPPROTO_TCP: /* decode the interesting part of the header */
-                if(ip_len > 4)
-                {
-                    p->orig_tcph =(TCPHdr *)(pkt + hlen);
-
-                    /* stuff more data into the printout data struct */
-                    p->orig_sp = ntohs(p->orig_tcph->th_sport);
-                    p->orig_dp = ntohs(p->orig_tcph->th_dport);
-                }
-
-                break;
-
-            case IPPROTO_UDP:
-                if(ip_len > 4)
-                {
-                    p->orig_udph = (UDPHdr *)(pkt + hlen);
-
-                    /* fill in the printout data structs */
-                    p->orig_sp = ntohs(p->orig_udph->uh_sport);
-                    p->orig_dp = ntohs(p->orig_udph->uh_dport);
-                }
-
-                break;
-
-            case IPPROTO_ICMP:
-                if(ip_len > 4)
-                {
-                    p->orig_icmph = (ICMPHdr *) (pkt+hlen);
-                }
-
-                break;
-        }
-    }
-
-    return(1);
-}
-
-
 
 /*
  * Function: DecodeTCP(u_int8_t *, const u_int32_t, Packet *)
@@ -2267,7 +2470,7 @@ void DecodeTCP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {  
                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-               InlineDrop();
+               InlineDrop(p);
             }
  
         }
@@ -2301,7 +2504,7 @@ void DecodeTCP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {  
                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-               InlineDrop();
+               InlineDrop(p);
             }
 
         }
@@ -2320,14 +2523,14 @@ void DecodeTCP(u_int8_t * pkt, const u_int32_t len, Packet * p)
                          TCP_OFFSET(p->tcph) << 2, len);
         }
 
-        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        if((runMode == MODE_IDS) && pv.decoder_flags.oversized_alert)
         {
             SnortEventqAdd(GENERATOR_SNORT_DECODE, DECODE_TCP_LARGE_OFFSET, 1, 
                     DECODE_CLASS, 3, DECODE_TCP_LARGE_OFFSET_STR, 0);
-            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            if ((InlineMode()) && pv.decoder_flags.oversized_drop)
             {  
                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n");); 
-               InlineDrop();
+               InlineDrop(p);
             }
  
         }
@@ -2337,6 +2540,10 @@ void DecodeTCP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 
         return;
     }
+
+    /* stuff more data into the printout data struct */
+    p->sp = ntohs(p->tcph->th_sport);
+    p->dp = ntohs(p->tcph->th_dport);
 
     if(pv.checksums_mode & DO_TCP_CHECKSUMS)
     {
@@ -2358,11 +2565,11 @@ void DecodeTCP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Bad TCP checksum\n",
                                     "0x%x versus 0x%x\n", csum,
                                     ntohs(p->tcph->th_sum)););
-            if(InlineMode())
+            if(InlineMode() && (pv.checksums_drop & DO_TCP_CHECKSUMS))
             {     
                 DEBUG_WRAP(DebugMessage(DEBUG_DECODE, 
                             "Dropping packet with Bad TCP checksum\n"););
-                InlineDrop();
+                InlineDrop(p);
             }
         }
         else
@@ -2373,10 +2580,6 @@ void DecodeTCP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 
     DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "tcp header starts at: %p\n", p->tcph););
 
-
-    /* stuff more data into the printout data struct */
-    p->sp = ntohs(p->tcph->th_sport);
-    p->dp = ntohs(p->tcph->th_dport);
 
     /* if options are present, decode them */
     p->tcp_options_len = hlen - 20;
@@ -2404,6 +2607,13 @@ void DecodeTCP(u_int8_t * pkt, const u_int32_t len, Packet * p)
     else
     {
         p->dsize = 0;
+    }
+
+    /*  Drop packet if we ignore this port  */
+    if ((pv.ignore_ports[p->sp] == IPPROTO_TCP) || (pv.ignore_ports[p->dp] == IPPROTO_TCP) )
+    {
+        /*  Ignore all preprocessors for this packet */
+        p->packet_flags |= PKT_IGNORE_PORT;
     }
 }
 
@@ -2446,7 +2656,7 @@ void DecodeUDP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-               InlineDrop();
+               InlineDrop(p);
             }
  
         }
@@ -2460,7 +2670,17 @@ void DecodeUDP(u_int8_t * pkt, const u_int32_t len, Packet * p)
     /* set the ptr to the start of the UDP header */
     p->udph = (UDPHdr *) pkt;
 
-    uhlen = ntohs(p->udph->uh_len); 
+    if (!p->frag_flag)
+    {
+        uhlen = ntohs(p->udph->uh_len);
+    }
+    else
+    {
+        u_int16_t ip_len = ntohs(p->iph->ip_len);
+        /* Don't forget, IP_HLEN is a word - multiply x 4 */
+        uhlen = ip_len - (IP_HLEN(p->iph) * 4 );
+        p->udph->uh_chk = 0;
+    }
     
     /* verify that the header len is a valid value */
     if(uhlen < UDP_HEADER_LEN)
@@ -2478,7 +2698,7 @@ void DecodeUDP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-               InlineDrop();
+               InlineDrop(p);
             }
 
         }
@@ -2504,7 +2724,32 @@ void DecodeUDP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {  
                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n");); 
-               InlineDrop();
+               InlineDrop(p);
+            }
+ 
+        }
+
+        p->udph = NULL;
+        pc.discards++;
+
+        return;
+    } 
+    else if(len > uhlen)
+    {
+        if(pv.verbose_flag)
+        {
+            ErrorMessage("Long UDP packet, length field < payload length\n");
+        }
+
+        if((runMode == MODE_IDS) && pv.decoder_flags.oversized_alert) 
+        {
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                    DECODE_UDP_DGRAM_LONG_PACKET, 1, DECODE_CLASS, 3, 
+                    DECODE_UDP_DGRAM_LONG_PACKET_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.oversized_drop)
+            {  
+               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n");); 
+               InlineDrop(p);
             }
  
         }
@@ -2514,6 +2759,10 @@ void DecodeUDP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 
         return;
     }
+
+    /* fill in the printout data structs */
+    p->sp = ntohs(p->udph->uh_sport);
+    p->dp = ntohs(p->udph->uh_dport);
 
     if(pv.checksums_mode & DO_UDP_CHECKSUMS)
     {
@@ -2538,11 +2787,11 @@ void DecodeUDP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             p->csum_flags |= CSE_UDP;
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Bad UDP Checksum\n"););
 
-            if(InlineMode())
+            if(InlineMode() && (pv.checksums_drop & DO_UDP_CHECKSUMS))
             {     
                 DEBUG_WRAP(DebugMessage(DEBUG_DECODE, 
                             "Dropping packet with Bad UDP checksum\n"););
-                InlineDrop();
+                InlineDrop(p);
             }
         }
         else
@@ -2553,14 +2802,17 @@ void DecodeUDP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 
     DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "UDP header starts at: %p\n", p->udph););
 
-    /* fill in the printout data structs */
-    p->sp = ntohs(p->udph->uh_sport);
-    p->dp = ntohs(p->udph->uh_dport);
-
     p->data = (u_int8_t *) (pkt + UDP_HEADER_LEN);
     
     /* length was validated up above */
     p->dsize = uhlen - UDP_HEADER_LEN; 
+
+    /*  Drop packet if we ignore this port  */
+    if ( (pv.ignore_ports[p->sp] == IPPROTO_UDP) || (pv.ignore_ports[p->dp] == IPPROTO_UDP) )
+    {
+        /*  Ignore all preprocessors for this packet */
+        p->packet_flags |= PKT_IGNORE_PORT;
+    }
 
     return;
 }
@@ -2581,7 +2833,6 @@ void DecodeUDP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 {
     u_int16_t csum;
-    u_int16_t orig_p_caplen;
 
     if(len < ICMP_HEADER_LEN)
     {
@@ -2602,15 +2853,15 @@ void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 
     switch (p->icmph->type)
     {
-        case ICMP_ECHOREPLY:
         case ICMP_DEST_UNREACH:
         case ICMP_SOURCE_QUENCH:
         case ICMP_REDIRECT:
+        case ICMP_TIME_EXCEEDED:
+        case ICMP_PARAMETERPROB:
+        case ICMP_ECHOREPLY:
         case ICMP_ECHO:
         case ICMP_ROUTER_ADVERTISE:
         case ICMP_ROUTER_SOLICIT:
-        case ICMP_TIME_EXCEEDED:
-        case ICMP_PARAMETERPROB:
         case ICMP_INFO_REQUEST:
         case ICMP_INFO_REPLY:
             if (len < 8)
@@ -2628,7 +2879,7 @@ void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
                     if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                     { 
                       DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                      InlineDrop();
+                      InlineDrop(p);
                     }
  
                 }
@@ -2658,7 +2909,7 @@ void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
                     if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                     { 
                       DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                      InlineDrop();
+                      InlineDrop(p);
                     }
 
                 }
@@ -2689,7 +2940,7 @@ void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
                     if ((InlineMode()) && pv.decoder_flags.drop_alerts)
                     {
                       DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                      InlineDrop();
+                      InlineDrop(p);
                     }
  
                 }
@@ -2714,11 +2965,11 @@ void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 
             DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Bad ICMP Checksum\n"););
  
-            if(InlineMode())
+            if(InlineMode() && (pv.checksums_drop & DO_ICMP_CHECKSUMS))
             {     
                 DEBUG_WRAP(DebugMessage(DEBUG_DECODE, 
                             "Dropping packet with Bad ICMP checksum\n"););
-                InlineDrop();
+                InlineDrop(p);
             }
         }
         else
@@ -2735,13 +2986,8 @@ void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
 
     switch(p->icmph->type)
     {
-        case ICMP_ECHOREPLY:
-            /* setup the pkt id ans seq numbers */
-            p->dsize -= sizeof(struct idseq);
-            p->data += sizeof(struct idseq);
-            break;
-
         case ICMP_ECHO:
+        case ICMP_ECHOREPLY:
             /* setup the pkt id and seq numbers */
             p->dsize -= sizeof(struct idseq);   /* add the size of the 
                                                  * echo ext to the data
@@ -2751,76 +2997,15 @@ void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             break;
 
         case ICMP_DEST_UNREACH:
-            {
-                /* if unreach packet is smaller than expected! */
-                if(len < 16)
-                {
-                    if(pv.verbose_flag)
-                    {
-                        ErrorMessage("Truncated ICMP-UNREACH "
-                                     "header (%d bytes)\n", len);
-                    }
-
-                    /* if it is less than 8 we are in trouble */
-                    if(len < 8)
-                        break;
-                }
-
-                orig_p_caplen = len - 8;
-
-                if(!DecodeIPOnly(pkt + 8, orig_p_caplen, p))
-                {
-                    if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
-                    {
-                        SnortEventqAdd(GENERATOR_SNORT_DECODE, 
-                                DECODE_IPV4_DGRAM_UNKNOWN, 1, DECODE_CLASS, 3,
-                                DECODE_IPV4_DGRAM_UNKNOWN_STR, 0);
-                         if ((InlineMode()) && pv.decoder_flags.drop_alerts)
-                        { 
-                          DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                          InlineDrop();
-                        }
- 
-                    }
-                }
-            }
-
-            break;
-
         case ICMP_REDIRECT:
-            {
-                /* if unreach packet is smaller than expected! */
-                if(p->dsize < 28)
-                {
-                    if(pv.verbose_flag)
-                    {
-                        ErrorMessage("Truncated ICMP-REDIRECT "
-                                     "header (%d bytes)\n", len);
-                    }
-                        
-                    /* if it is less than 8 we are in trouble */
-                    if(p->dsize < 8)
-                        break;
-                }
+        case ICMP_SOURCE_QUENCH:
+        case ICMP_TIME_EXCEEDED:
+        case ICMP_PARAMETERPROB:
+            /* account for extra 4 bytes in header */
+            p->dsize -= 4; 
+            p->data += 4;
 
-                orig_p_caplen = p->dsize - 8;
-
-                if(!DecodeIPOnly(pkt + 8, orig_p_caplen, p))
-                {
-                    if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
-                    {
-                        SnortEventqAdd(GENERATOR_SNORT_DECODE, 
-                                DECODE_IPV4_DGRAM_UNKNOWN, 1, DECODE_CLASS, 3, 
-                                DECODE_IPV4_DGRAM_UNKNOWN_STR, 0);
-                        if ((InlineMode()) && pv.decoder_flags.drop_alerts)
-                        { 
-                          DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                          InlineDrop();
-                        }
- 
-                    }
-                }
-            }
+            DecodeICMPEmbeddedIP(p->data, p->dsize, p);
 
             break;
     }
@@ -2828,7 +3013,215 @@ void DecodeICMP(u_int8_t * pkt, const u_int32_t len, Packet * p)
     return;
 }
 
+/*
+ * Function: DecodeICMPEmbeddedIP(u_int8_t *, const u_int32_t, Packet *)
+ *
+ * Purpose: Decode the ICMP embedded IP header + 64 bits payload
+ *
+ * Arguments: pkt => ptr to the packet data
+ *            len => length from here to the end of the packet
+ *            p   => pointer to dummy packet decode struct
+ *
+ * Returns: void function
+ */
+void DecodeICMPEmbeddedIP(u_int8_t *pkt, const u_int32_t len, Packet *p)
+{
+    u_int32_t ip_len;       /* length from the start of the ip hdr to the
+                             * pkt end */
+    u_int32_t hlen;             /* ip header length */
+    u_int16_t orig_frag_offset;
 
+    /* lay the IP struct over the raw data */
+    p->orig_iph = (IPHdr *) pkt;
+
+    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "DecodeICMPEmbeddedIP: ip header starts at: %p, "
+                            "length is %lu\n", p->orig_iph, (unsigned long) len););
+
+    /* do a little validation */
+    if(len < IP_HEADER_LEN)
+    {
+        if(pv.verbose_flag)
+        {
+            ErrorMessage("ICMP: IP short header (%d bytes)\n", len);
+        }
+
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                           DECODE_ICMP_ORIG_IP_TRUNCATED, 1, DECODE_CLASS, 3, 
+                           DECODE_ICMP_ORIG_IP_TRUNCATED_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            { 
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
+            }
+        }
+
+        p->orig_iph = NULL;
+        return;
+    }
+
+    /*
+     * with datalink DLT_RAW it's impossible to differ ARP datagrams from IP.
+     * So we are just ignoring non IP datagrams
+     */
+    if(IP_VER(p->orig_iph) != 4)
+    {
+        if(pv.verbose_flag)
+        {
+            ErrorMessage("ICMP: not IPv4 datagram "
+                         "([ver: 0x%x][len: 0x%x])\n", 
+                         IP_VER(p->orig_iph), p->orig_iph->ip_len);
+
+        }
+
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                           DECODE_ICMP_ORIG_IP_NOT_IPV4, 1, DECODE_CLASS, 3, 
+                           DECODE_ICMP_ORIG_IP_NOT_IPV4_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            { 
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
+            }
+        }
+
+        p->orig_iph = NULL;
+        return;
+    }
+
+    /* set the IP datagram length */
+    ip_len = ntohs(p->orig_iph->ip_len);
+
+    /* set the IP header length */
+    hlen = IP_HLEN(p->orig_iph) << 2;
+
+    if(len < hlen)
+    {
+        if(pv.verbose_flag)
+        {
+            ErrorMessage("ICMP: IP len (%d bytes) < "
+                         "IP hdr len (%d bytes), packet discarded\n", ip_len, hlen);
+        }
+
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                           DECODE_ICMP_ORIG_DGRAM_LT_ORIG_IP, 1, DECODE_CLASS, 3, 
+                           DECODE_ICMP_ORIG_DGRAM_LT_ORIG_IP_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            { 
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
+            }
+        }
+        
+        p->orig_iph = NULL;
+        return;
+    }
+
+    /* set the remaining packet length */
+    ip_len = len - hlen;
+
+    orig_frag_offset = ntohs(p->orig_iph->ip_off);
+    orig_frag_offset &= 0x1FFF;
+
+    if (orig_frag_offset == 0) 
+    {
+        /* Original IP payload should be 64 bits */
+        if (ip_len < 8)
+        {
+            if (pv.verbose_flag)
+            {
+                ErrorMessage("ICMP: IP payload length < 64 bits\n");
+            }
+
+            if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+            {
+                SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                               DECODE_ICMP_ORIG_PAYLOAD_LT_64, 1, DECODE_CLASS, 3, 
+                               DECODE_ICMP_ORIG_PAYLOAD_LT_64_STR, 0);
+                if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+                { 
+                    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                    InlineDrop(p);
+                }
+            }
+
+            return;
+        }
+        /* ICMP error packets could contain as much of original payload
+         * as possible, but not exceed 576 bytes
+         */
+        else if (ntohs(p->iph->ip_len) > 576)
+        {
+            if (pv.verbose_flag)
+            {
+                ErrorMessage("ICMP: ICMP error packet length > 576 bytes\n");
+            }
+
+            if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+            {
+                SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                               DECODE_ICMP_ORIG_PAYLOAD_GT_576, 1, DECODE_CLASS, 3, 
+                               DECODE_ICMP_ORIG_PAYLOAD_GT_576_STR, 0);
+                if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+                { 
+                    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                    InlineDrop(p);
+                }
+            }
+        }
+    }
+    else
+    {
+        /* RFC states that only first frag will get an ICMP response */
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, 
+                           DECODE_ICMP_ORIG_IP_WITH_FRAGOFFSET, 1, DECODE_CLASS, 3, 
+                           DECODE_ICMP_ORIG_IP_WITH_FRAGOFFSET_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            { 
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
+            }
+        }
+
+        return;
+    }
+
+    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "ICMP Unreachable IP header length: "
+                            "%lu\n", (unsigned long)hlen););
+
+    switch(p->orig_iph->ip_proto)
+    {
+        case IPPROTO_TCP: /* decode the interesting part of the header */
+            p->orig_tcph = (TCPHdr *)(pkt + hlen);
+
+            /* stuff more data into the printout data struct */
+            p->orig_sp = ntohs(p->orig_tcph->th_sport);
+            p->orig_dp = ntohs(p->orig_tcph->th_dport);
+
+            break;
+
+        case IPPROTO_UDP:
+            p->orig_udph = (UDPHdr *)(pkt + hlen);
+
+            /* fill in the printout data structs */
+            p->orig_sp = ntohs(p->orig_udph->uh_sport);
+            p->orig_dp = ntohs(p->orig_udph->uh_dport);
+
+            break;
+
+        case IPPROTO_ICMP:
+            p->orig_icmph = (ICMPHdr *)(pkt + hlen);
+            break;
+    }
+
+    return;
+}
 
 /*
  * Function: DecodeARP(u_int8_t *, u_int32_t, Packet *)
@@ -2859,7 +3252,7 @@ void DecodeARP(u_int8_t * pkt, u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n");); 
-              InlineDrop();
+              InlineDrop(p);
             }
         }
 
@@ -2897,7 +3290,7 @@ void DecodeEapol(u_int8_t * pkt, u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-              InlineDrop();
+              InlineDrop(p);
             } 
 
         }
@@ -2940,7 +3333,7 @@ void DecodeEapolKey(u_int8_t * pkt, u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-              InlineDrop();
+              InlineDrop(p);
             } 
 
         }
@@ -2978,7 +3371,7 @@ void DecodeEAP(u_int8_t * pkt, const u_int32_t len, Packet * p)
             if ((InlineMode()) && pv.decoder_flags.drop_alerts)
             {
               DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-              InlineDrop();
+              InlineDrop(p);
             } 
 
         }
@@ -3013,6 +3406,24 @@ void DecodeIPV6(u_int8_t *pkt, u_int32_t len)
 
 
 /*
+ * Function: DecodeEthLoopback(u_int8_t *, u_int32_t)
+ *
+ * Purpose: Just like IPX, it's just for counting.
+ *
+ * Arguments: pkt => ptr to the packet data
+ *            len => length from here to the end of the packet
+ *
+ * Returns: void function
+ */
+void DecodeEthLoopback(u_int8_t *pkt, u_int32_t len)
+{
+    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "EthLoopback is not supported.\n"););
+    pc.ethloopback++;
+    return;
+}
+
+
+/*
  * Function: DecodeIPX(u_int8_t *, u_int32_t)
  *
  * Purpose: Well, it doesn't do much of anything right now...
@@ -3030,6 +3441,271 @@ void DecodeIPX(u_int8_t *pkt, u_int32_t len)
     return;
 }
 
+
+#ifdef GRE
+/*
+ * Function: DecodeGRE(u_int8_t *, u_int32_t, Packet *)
+ *
+ * Purpose: Decode Generic Routing Encapsulation Protocol
+ *
+ * Arguments: pkt => ptr to the packet data
+ *            len => length from here to the end of the packet
+ *            p   => pointer to decoded packet struct
+ *
+ * Returns: void function
+ *
+ * Notes: see RFCs 1701 and 2784
+ */
+void DecodeGRE(u_int8_t *pkt, const u_int32_t len, Packet *p)
+{
+    u_int8_t flags;
+    u_int32_t hlen;    /* GRE header length */
+    u_int32_t payload_len;
+   
+    if (len < sizeof(GREHdr))
+    {
+        if(pv.verbose_flag)
+            ErrorMessage("GRE header length > rest of packet length");
+
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        { 
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, DECODE_GRE_DGRAM_LT_GREHDR, 
+                           1, DECODE_CLASS, 3, DECODE_GRE_DGRAM_LT_GREHDR_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            {
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
+            }
+        }
+
+        p->pkt = NULL;
+        pc.discards++;
+        return;
+    }
+
+    if (p->greh != NULL)
+    {
+        /* discard packet - multiple GRE encapsulation */
+        /* not sure if this is ever used but I am assuming it is not */
+        if(pv.verbose_flag)
+            ErrorMessage("Multiple GRE encapsulations in packet");
+
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        { 
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, DECODE_GRE_MULTIPLE_ENCAPSULATION, 
+                           1, DECODE_CLASS, 3, DECODE_GRE_MULTIPLE_ENCAPSULATION_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            {
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
+            }
+        }
+
+        p->pkt = NULL;
+        pc.discards++;
+        return;
+    }
+
+    /* Note: Since GRE doesn't have a field to indicate header length and 
+     * can contain a few options, we need to walk through the header to 
+     * figure out the length
+     */
+
+    p->greh = (GREHdr *)pkt;
+    hlen = GRE_HEADER_LEN;
+
+    flags = p->greh->flags;
+    flags &= 0xF8;
+
+    /* check flags */
+    if (flags & (GRE_CHECKSUM_FLAG | GRE_ROUTING_FLAG))
+    {
+        hlen += GRE_CHECKSUM_LEN + GRE_OFFSET_LEN;
+    }
+
+    if (flags & GRE_KEY_FLAG)
+    {
+        hlen += GRE_KEY_LEN;
+    }   
+
+    if (flags & GRE_SEQNO_FLAG)
+    {
+        hlen += GRE_SEQNO_LEN;
+    }
+
+    /* if this flag is set, we need to walk through all of the
+     * Source Route Entries
+     */
+    if (flags & GRE_ROUTING_FLAG)
+    {
+        u_int16_t sre_addrfamily;
+        u_int8_t sre_offset;
+        u_int8_t sre_length;
+        u_int8_t *sre_ptr;
+       
+        sre_ptr = pkt + hlen;
+
+        while (1)
+        {
+            hlen += GRE_SRE_HEADER_LEN;
+            if (hlen > len)
+                break;
+
+            sre_addrfamily = ntohs(*((u_int16_t *)sre_ptr));
+            sre_ptr += sizeof(sre_addrfamily);
+            sre_offset = *((u_int8_t *)sre_ptr);
+            sre_ptr += sizeof(sre_offset);
+            sre_length = *((u_int8_t *)sre_ptr);
+            sre_ptr += sizeof(sre_length);
+
+            if (sre_addrfamily == 0 && sre_length == 0)
+                break;
+
+            hlen += sre_length;
+            sre_ptr += sre_length;
+        }
+    }
+
+    payload_len = len - hlen;
+
+    if (payload_len < 0)
+    {
+        if(pv.verbose_flag)
+            ErrorMessage("GRE header length > rest of packet length");
+
+        if((runMode == MODE_IDS) && pv.decoder_flags.decode_alerts)
+        { 
+            SnortEventqAdd(GENERATOR_SNORT_DECODE, DECODE_GRE_DGRAM_LT_GREHDR, 
+                           1, DECODE_CLASS, 3, DECODE_GRE_DGRAM_LT_GREHDR_STR, 0);
+            if ((InlineMode()) && pv.decoder_flags.drop_alerts)
+            {
+                DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
+                InlineDrop(p);
+            }
+        }
+
+        p->pkt = NULL;
+        pc.discards++;
+        return;
+    }
+
+    /* send to next protocol decoder */
+    /* As described in RFC 2784 the possible protocols are listed in
+     * RFC 1700 under "ETHER TYPES"
+     * See also "Current List of Protocol Types" in RFC 1701
+     */
+    switch (ntohs(p->greh->ether_type))
+    {
+        case ETHERNET_TYPE_IP:
+            DecodeIP(pkt + hlen, payload_len, p);
+            return;
+
+        case GRE_TYPE_TRANS_BRIDGING:
+            DecodeTransBridging(pkt + hlen, payload_len, p); 
+            return;
+
+        case ETHERNET_TYPE_ARP:
+        case ETHERNET_TYPE_REVARP:
+            DecodeARP(pkt + hlen, payload_len, p);
+            return;
+
+        case ETHERNET_TYPE_IPV6:
+            DecodeIPV6(pkt + hlen, payload_len); 
+            return;
+
+        case ETHERNET_TYPE_IPX:
+            DecodeIPX(pkt + hlen, payload_len); 
+            return;
+
+        case ETHERNET_TYPE_LOOP:
+            DecodeEthLoopback(pkt + hlen, payload_len);
+            return; 
+
+        default:
+            pc.other++;
+            p->data = pkt + hlen;
+            p->dsize = (u_short)payload_len;
+            return;
+    }
+}
+
+/*
+ * Function: DecodeTransBridging(u_int8_t *, const u_int32_t, Packet)
+ *
+ * Purpose: Decode Transparent Ethernet Bridging
+ *
+ * Arguments: pkt => pointer to the real live packet data
+ *            len => length of remaining data in packet
+ *            p => pointer to the decoded packet struct
+ *            
+ *
+ * Returns: void function
+ *
+ * Note: This is basically the code from DecodeEthPkt but the calling
+ * convention needed to be changed and the stuff at the beginning 
+ * wasn't needed since we are already deep into the packet
+ */
+void DecodeTransBridging(u_int8_t *pkt, const u_int32_t len, Packet *p)
+{
+    if(len < ETHERNET_HEADER_LEN)
+    {
+        if(pv.verbose_flag)
+        {
+            ErrorMessage("GRE encapsulated ethernet header truncated! (%d bytes)\n", len);
+        }
+
+        return;
+    }
+
+    /* The Packet struct's ethernet header will now point to the inner ethernet
+     * header of the packet
+     */
+    p->eh = (EtherHdr *)pkt;
+
+    DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "GRE encapsulated ethernet header\n %X   %X\n", 
+                            *p->eh->ether_src, *p->eh->ether_dst););
+
+    switch(ntohs(p->eh->ether_type))
+    {
+        case ETHERNET_TYPE_IP:
+            DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "GRE encapsulated IP datagram size calculated to be %lu bytes\n",
+                                   (unsigned long)(len - ETHERNET_HEADER_LEN)););
+
+            DecodeIP(pkt + ETHERNET_HEADER_LEN, len - ETHERNET_HEADER_LEN, p);
+            return;
+
+        case ETHERNET_TYPE_ARP:
+        case ETHERNET_TYPE_REVARP:
+            DecodeARP(pkt + ETHERNET_HEADER_LEN, len - ETHERNET_HEADER_LEN, p);
+            return;
+
+        case ETHERNET_TYPE_IPV6:
+            DecodeIPV6(pkt + ETHERNET_HEADER_LEN, len - ETHERNET_HEADER_LEN);
+            return;
+
+        case ETHERNET_TYPE_IPX:
+            DecodeIPX(pkt + ETHERNET_HEADER_LEN, len - ETHERNET_HEADER_LEN);
+            return;
+
+        case ETHERNET_TYPE_LOOP:
+            DecodeEthLoopback(pkt + ETHERNET_HEADER_LEN, len - ETHERNET_HEADER_LEN);
+            return; 
+
+        case ETHERNET_TYPE_8021Q:
+            DecodeVlan(pkt + ETHERNET_HEADER_LEN, len - ETHERNET_HEADER_LEN, p);
+            return; 
+
+        default:
+            pc.other++;
+            p->data = pkt + ETHERNET_HEADER_LEN;
+            p->dsize = (u_short)(len - ETHERNET_HEADER_LEN);
+            return;
+    }
+
+    return;
+}
+
+#endif
 
 
 /** 
@@ -3060,7 +3736,7 @@ static inline int OptLenValidate(u_int8_t *option_ptr,
         return TCP_OPT_TRUNC;
     }
     
-    if(len_ptr == 0 || expected_len == 0 || expected_len == 1)
+    if(*len_ptr == 0 || expected_len == 0 || expected_len == 1)
     {
         return TCP_OPT_BADLEN;
     }
@@ -3078,7 +3754,7 @@ static inline int OptLenValidate(u_int8_t *option_ptr,
             return TCP_OPT_BADLEN;
         }
     }
-    else /* expected_len < 0 */
+    else /* expected_len < 0 (i.e. variable length) */
     {
         if(*len_ptr < 2)
         {
@@ -3245,6 +3921,9 @@ void DecodeTCPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
         case TCPOPT_SACK:
             code = OptLenValidate(option_ptr, end_ptr, len_ptr, -1,
                                   &p->tcp_options[opt_count], &byte_skip);
+            if(p->tcp_options[opt_count].data == NULL)
+                code = TCP_OPT_BADLEN;
+
             break;
         case TCPOPT_CC_ECHO:
             ttcp_found = 1;
@@ -3297,7 +3976,7 @@ void DecodeTCPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
                     if ((InlineMode()) && pv.decoder_flags.drop_tcpopt_decode)
                     {
                         DEBUG_WRAP( DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                        InlineDrop();
+                        InlineDrop(p);
                     }
                 }
                 else if(code == TCP_OPT_TRUNC && pv.decoder_flags.tcpopt_decode)
@@ -3308,7 +3987,7 @@ void DecodeTCPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
                     if ((InlineMode()) && pv.decoder_flags.drop_tcpopt_decode)
                     {
                         DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                        InlineDrop();
+                        InlineDrop(p);
                     }
                 }
             }
@@ -3331,7 +4010,7 @@ void DecodeTCPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
         if ((InlineMode()) && pv.decoder_flags.drop_tcpopt_experiment)
         {
           DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-          InlineDrop();
+          InlineDrop(p);
         }
 
     }
@@ -3343,7 +4022,7 @@ void DecodeTCPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
         if ((InlineMode()) && pv.decoder_flags.drop_tcpopt_obsolete)
         {
           DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-          InlineDrop();
+          InlineDrop(p);
         }
 
     }
@@ -3355,7 +4034,7 @@ void DecodeTCPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
         if ((InlineMode()) && pv.decoder_flags.drop_tcpopt_ttcp)
         {
           DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-          InlineDrop();
+          InlineDrop(p);
         }
 
     }
@@ -3389,7 +4068,7 @@ void DecodeIPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
     DEBUG_WRAP(DebugMessage(DEBUG_DECODE,  "Decoding %d bytes of IP options\n", o_len););
 
 
-    while((option_ptr < end_ptr) && (opt_count < 40) && (code >= 0))
+    while((option_ptr < end_ptr) && (opt_count < IP_OPTMAX) && (code >= 0))
     {
         p->ip_options[opt_count].code = *option_ptr;
 
@@ -3436,7 +4115,7 @@ void DecodeIPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
                     if ((InlineMode()) && pv.decoder_flags.drop_ipopt_decode)
                     {
                         DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                        InlineDrop();
+                        InlineDrop(p);
                     }
                 }
                 else if(code == TCP_OPT_TRUNC && pv.decoder_flags.ipopt_decode)
@@ -3448,7 +4127,7 @@ void DecodeIPOptions(u_int8_t *start, u_int32_t o_len, Packet *p)
                     if ((InlineMode()) && pv.decoder_flags.drop_ipopt_decode)
                     {
                         DEBUG_WRAP(DebugMessage(DEBUG_DECODE, "Dropping bad packet\n"););
-                        InlineDrop();
+                        InlineDrop(p);
                     }
                 }
             }
@@ -3475,17 +4154,19 @@ void InitDecoderFlags(void)
 {
     /* turn on decoder alerts by default -- useful for bug reports.. */
     pv.decoder_flags.decode_alerts          = 1;
-    pv.decoder_flags.drop_alerts            = 1;
+    pv.decoder_flags.oversized_alert        = 0;
+    pv.decoder_flags.oversized_drop         = 0;
+    pv.decoder_flags.drop_alerts            = 0;
     pv.decoder_flags.tcpopt_experiment      = 1;
-    pv.decoder_flags.drop_tcpopt_experiment = 1;
+    pv.decoder_flags.drop_tcpopt_experiment = 0;
     pv.decoder_flags.tcpopt_obsolete        = 1;
-    pv.decoder_flags.drop_tcpopt_obsolete   = 1;
+    pv.decoder_flags.drop_tcpopt_obsolete   = 0;
     pv.decoder_flags.tcpopt_ttcp            = 1;
-    pv.decoder_flags.drop_tcpopt_ttcp       = 1;
+    pv.decoder_flags.drop_tcpopt_ttcp       = 0;
     pv.decoder_flags.tcpopt_decode          = 1;
-    pv.decoder_flags.drop_tcpopt_decode     = 1;
+    pv.decoder_flags.drop_tcpopt_decode     = 0;
     pv.decoder_flags.ipopt_decode           = 1;
-    pv.decoder_flags.drop_ipopt_decode      = 1;
+    pv.decoder_flags.drop_ipopt_decode      = 0;
 }
 
 #if defined(WORDS_MUSTALIGN) && !defined(__GNUC__)

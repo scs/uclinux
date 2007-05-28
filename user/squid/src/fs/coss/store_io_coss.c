@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_io_coss.c,v 1.13.2.11 2005/03/26 23:40:21 hno Exp $
  *
  * DEBUG: section 79    Storage Manager COSS Interface
  * AUTHOR: Eric Stern
@@ -296,7 +296,7 @@ storeCossClose(SwapDir * SD, storeIOState * sio)
 }
 
 void
-storeCossRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t offset, STRCB * callback, void *callback_data)
+storeCossRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, squid_off_t offset, STRCB * callback, void *callback_data)
 {
     char *p;
     CossState *cstate = (CossState *) sio->fsstate;
@@ -337,7 +337,7 @@ storeCossRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t of
 }
 
 void
-storeCossWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t offset, FREE * free_func)
+storeCossWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, squid_off_t offset, FREE * free_func)
 {
     char *dest;
     CossMemBuf *membuf;
@@ -373,7 +373,7 @@ storeCossReadDone(int fd, const char *buf, int len, int errflag, void *my_data)
     void *their_data = sio->read.callback_data;
     SwapDir *SD = INDEXSD(sio->swap_dirn);
     CossState *cstate = (CossState *) sio->fsstate;
-    size_t rlen;
+    ssize_t rlen;
 
     debug(79, 3) ("storeCossReadDone: fileno %d, FD %d, len %d\n",
 	sio->swap_filen, fd, len);
@@ -547,7 +547,7 @@ storeCossWriteMemBufDone(int fd, int errflag, size_t len, void *my_data)
     if (errflag) {
 	coss_stats.stripe_write.fail++;
 	debug(79, 1) ("storeCossWriteMemBufDone: got failure (%d)\n", errflag);
-	debug(79, 1) ("FD %d, size=%x\n", fd, t->diskend - t->diskstart);
+	debug(79, 1) ("FD %d, size=%x\n", fd, (int) (t->diskend - t->diskstart));
     } else {
 	coss_stats.stripe_write.success++;
     }

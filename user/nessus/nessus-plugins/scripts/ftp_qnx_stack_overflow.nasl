@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10692);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(2342);
- script_cve_id("CAN-2001-0325");
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2001-0325");
 
  name["english"] = "ftpd strtok() stack overflow";
 
@@ -56,6 +56,7 @@ Risk factor : High";
 # The script code starts here
 #
 
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(get_port_state(port))
@@ -68,7 +69,7 @@ if(login)
 {
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
- if(ftp_log_in(socket:soc, user:login,pass:password))
+ if(ftp_authenticate(socket:soc, user:login,pass:password))
  {
  crp = crap(data:"a ", length:320);
  req = string("STAT ", crp, "\r\n");

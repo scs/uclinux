@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-mach.h,v 1.2 1993/08/19 05:26:58 genek Exp $ */
 
 /*
  * conf-mach.h

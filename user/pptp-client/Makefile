@@ -15,8 +15,8 @@ OBJS2 = pptp_callmgr.o pptp_ctrl.o dirutil.o vector.o \
  
 
 CFLAGS += '-DPPPD_BINARY="/bin/pppd"' '-DPPTP_LINUX_VERSION="1.0.2"'
+#CFLAGS += -DPPTPDEBUG
 FLTFLAGS += -s 8192
-LIBUTIL += -lutil
 
 all:		$(EXEC1) $(EXEC2)
 

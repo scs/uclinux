@@ -2,7 +2,7 @@ $Id$
 
 Snort Installation for the Win32 environment
 March 2003 by Rich Adamson ( radamson at routers dot com )
-and updated in December 2004.
+and updated in December 2004, March 2006.
 
 Introduction
 The snort intrusion detection system was written as an application intended for 
@@ -25,9 +25,9 @@ Following the installation instructions provided with snort.
 
 WinPcap Driver
 Snort requires the WinPcap driver to be installed in order to function.  Snort
-has been extensively tested with WinPcap v3.0.  The current installation 
+has been extensively tested with WinPcap v3.1.  The current installation 
 package can be downloaded from:
-  http://winpcap.polito.it/
+  http://winpcap.org/
 The WinPcap installation will install packet.dll and wpcap.dll drivers in the
 system32 directory.  (Note: if older versions of these two drivers exist, the
 instructions at the above URL suggests manually deleting them from your system,
@@ -37,8 +37,8 @@ versions as they are likely to fail.)
 LibnetNT Driver
 Certain snort functions, notably the FlexResp functions, will also require an
 appropriate version of LibnetNT to be installed in order for snort to operate
-properly. Snort 2.0 has been tested with the version of LibnetNT from May
-2003.  The current installation package can be downloaded from:
+properly. Snort 2.6 has been tested with the version of LibnetNT version 1.02f.
+The current installation package can be downloaded from:
   http://www.securitybugware.org/libnetnt/
 The snort installation includes LibnetNT.dll driver in the snort/bin
 directory, and relies on the use the WinPcap drivers noted above to function.

@@ -7,9 +7,11 @@
 if(description)
 {
  script_id(10374);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.17 $");
+
+ script_cve_id("CVE-2000-0284");
  script_bugtraq_id(1110);
- script_cve_id("CAN-2000-0284");
+ script_xref(name:"OSVDB", value:"12037");
  
  name["english"] = "uw-imap buffer overflow after logon";
  name["francais"] = "dépassement de buffer dans uw-imapd après le logon";
@@ -23,7 +25,7 @@ which allows an authenticated user to obtain a remote
 shell.
 
 Solution : upgrade your imap server or use another one
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Il y a un dépassement de buffer dans le serveur imap

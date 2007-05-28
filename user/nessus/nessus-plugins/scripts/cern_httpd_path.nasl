@@ -7,12 +7,11 @@
 if(description)
 {
  script_id(10037);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(936);
- script_cve_id("CAN-2000-0079");
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-2000-0079");
  name["english"] = "CERN httpd problem";
- name["francais"] = "CERN httpd problem";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "It was possible to
 get the physical location of a
@@ -31,40 +30,20 @@ Solution : use Apache (www.apache.org) since
 Bugtraq ID : 936
 Risk factor : Low";
 
- desc["francais"] = "Il s'est avéré possible
-d'obtenir l'emplacement physique du
-dossier web virtuel de ce serveur
-en entrant la commande :
-
-	GET /cgi-bin/ls HTTP/1.0
-	
-D'habitude, moins les pirates en savent sur
-votre système, mieux il se porte, donc vous
-devriez corriger ce problème.
-
-Solution : utilisez Apache (www.apache.org)
-           puisque le CERN httpd n'est plus
-	   maintenu
-
-ID Bugtraq : 936
-Facteur de risque : Faible";
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Attempts to find the location of the remote web root";
- summary["francais"] = "Essaye de trouver le chemin d'accès à la racine web distante";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_keys("www/cern");
  exit(0);
 }
@@ -76,8 +55,8 @@ Facteur de risque : Faible";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

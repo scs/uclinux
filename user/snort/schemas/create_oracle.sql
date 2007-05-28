@@ -49,7 +49,7 @@ CREATE TABLE schema ( vseq        INT          NOT NULL,
                       ctime       VARCHAR2(24) NOT NULL,
                       PRIMARY KEY (vseq));
 
-INSERT INTO schema  (vseq, ctime) VALUES ('106', sysdate);
+INSERT INTO schema  (vseq, ctime) VALUES ('107', sysdate);
 
 prompt event;
 drop table event;
@@ -67,6 +67,7 @@ CREATE TABLE signature ( sig_id   INT           NOT NULL,
                          sig_priority INT,
                          sig_rev      INT,
                          sig_sid      INT,
+                         sig_gid      INT,
                          PRIMARY KEY (sig_id));
 
 --

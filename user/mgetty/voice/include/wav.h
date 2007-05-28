@@ -3,7 +3,7 @@
  *
  * This file includes the definitions for the wav file format.
  *
- * $Id$
+ * $Id: wav.h,v 1.4 1998/09/09 21:06:40 gert Exp $
  *
  */
 

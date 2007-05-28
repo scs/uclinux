@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10730);
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "Raptor FW version 6.5 detection";
 
  script_name(english:name["english"]);
@@ -50,8 +50,8 @@ if(description)
 # The script code starts here
 #
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {
@@ -67,7 +67,8 @@ if(get_port_state(port))
    {
     report = string("The remote WWW host is very likely behind Raptor FW Version 6.5\n", "You should patch the httpd proxy to return bogus version and stop\n", "the information leak\n");
     security_note(port:port, data:report);
+    set_kb_item(name:"Services/www/" + port + "/embedded", value:TRUE);
    }
-  }
   close(socwww);
+  }
  }

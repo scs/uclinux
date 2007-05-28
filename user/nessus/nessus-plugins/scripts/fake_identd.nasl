@@ -16,9 +16,10 @@
 if(description)
 {
  script_id(11054);
-
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2002-1792");
  script_bugtraq_id(5351);
+
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "fakeidentd overflow";
  script_name(english:name["english"], francais:name["francais"]);
@@ -30,8 +31,8 @@ requests with a fixed username.
 There is a buffer overflow in some versions of this program
 that allow an attacker to execute arbitrary code on this server.
 
-Solution : disable this service if you do not use it, or upgrade
-(see http://software.freshmeat.net/projects/fakeidentd/)
+Solution : Disable this service if you do not use it, or upgrade.
+See http://software.freshmeat.net/projects/fakeidentd/
 
 Additional Info : http://online.securityfocus.com/archive/1/284953
 
@@ -52,7 +53,7 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("find_service1.nasl");
  script_require_ports("Services/auth", 113);
  exit(0);
 }
@@ -98,6 +99,7 @@ if(soc)
  
  
  soc2 = open_sock_tcp(port);
+ if ( ! soc2 ) exit(0);
  send(socket:soc2, data:crap(19));
  deux = raw_string(0x41, 0x5B, 0xFF, 0xFF, 0xFF);
  send(socket:soc2, data:deux);
@@ -107,6 +109,7 @@ if(soc)
  close(soc2);
  
  soc2 = open_sock_tcp(port);
+ if ( ! soc2 ) exit(0);
  send(socket:soc2, data:string("1234, 1234\n"));
  r = recv(socket:soc2, length:4096);
  close(soc2);

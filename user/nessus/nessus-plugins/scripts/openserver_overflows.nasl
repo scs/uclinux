@@ -4,9 +4,9 @@
 
 if(description) {
  script_id(11895);
- script_cve_id("CAN-2002-0164", "CAN-2002-0158");
- script_bugtraq_id(4396);
- script_version ("$Revision: 1.2 $");
+ script_bugtraq_id(4396, 4985);
+ script_cve_id("CVE-2002-0158", "CVE-2002-0164");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "SCO OpenServer multiple vulnerabilities";
  script_name(english:name["english"]);
 
@@ -29,9 +29,9 @@ shared memory segment on the system.
 
 
 More information can be found at:
-http://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CAN-2002-0158
+http://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2002-0158
 http://marc.theaimsgroup.com/?l=bugtraq&m=101776858410652&w=2
-http://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CAN-2002-0164
+http://www.cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2002-0164
 http://marc.theaimsgroup.com/?l=bugtraq&m=103547625009363&w=2
 http://www.securityfocus.com/bid/4396
 
@@ -68,5 +68,5 @@ include ("telnet_func.inc");
 
 port = get_kb_item("Services/telnet");
 if (!port) port=23;
-r = get_telnet_banner(port); 
+r = get_telnet_banner(port:port); 
 if (egrep(pattern:".*SCO OpenServer\(TM\) Release.*5\.0\.[5-7].*", string:r)) security_hole(0);

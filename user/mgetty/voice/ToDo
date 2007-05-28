@@ -86,4 +86,4 @@
  52) Proper detection of hangup, see ISDN4Linux NO_CARRIER, especially
      for ZyXEL 2864I since I have it.
 
-$Id$
+$Id: ToDo,v 1.11 2001/03/11 12:07:07 marcs Exp $

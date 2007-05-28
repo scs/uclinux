@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10309);
- script_version ("$Revision: 1.14 $");
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-1999-0291");
  
  name["english"] = "Passwordless Wingate installed";
@@ -28,7 +28,7 @@ from anywhere as a telnet relay.
 
 Solution : check the WinGate configuration.
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Wingate est un programme qui
 permet de transformer un poste Windows98 en
@@ -68,12 +68,16 @@ Facteur de risque : Sérieux";
  	       francais:family["francais"]);
  script_dependencie("find_service.nes");
  script_require_ports("Services/telnet", 23);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 #
 # The script code starts here
 #
+include('global_settings.inc');
+
+if ( ! thorough_tests ) exit(0);
 
 port = get_kb_item("Services/telnet");
 if(!port) port = 23;

@@ -12,8 +12,8 @@ if(description)
 
 
 script_id(10716);
- script_version ("$Revision: 1.13 $");
- script_bugtraq_id(2788);
+script_bugtraq_id(2788);
+ script_version ("$Revision: 1.19 $");
 
 #Name used in the client window.
 
@@ -108,7 +108,7 @@ script_family(english:family["english"], francais:family["francais"]);
 
 #Portscan the target and get back.
 
-script_dependencie("find_service.nes", "no404.nasl");
+script_dependencie("find_service.nes", "http_version.nasl");
 
 
 #optimization, 
@@ -172,10 +172,15 @@ else return(0);
 #search web port in knowledge database
 #default is port 80
 
-port=get_kb_item("Services/www");
-if (!port) port=80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port)) exit(0);
+
+if ( ! get_port_state(port) ) exit(0);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "OmniHTTPd" >!< sig ) exit(0);
 
 
 Egg = "%20 ";
@@ -187,7 +192,7 @@ if (!check_header(probe:probe, port:port)) exit(0);
 
 poison=string("/", signature, Egg);
 
-if (check(item:poison, port:port))
+if (check(poison:poison, port:port))
 {
 report="OmniPro HTTPd web server is online and contains a security 
 vulnerability that allows anybody to see PHP, SSI and SHTML scripts sources.
@@ -199,7 +204,7 @@ from non executable directories.
 
 Solution : none yet
 Risk factor : Medium";
-security_hole(port:port, data:report);
+security_warning(port:port, data:report);
 }
 else
 {

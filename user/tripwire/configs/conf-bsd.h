@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-bsd.h,v 1.2 1993/08/19 05:26:52 genek Exp $ */
 
 /*
  * conf-bsd.h

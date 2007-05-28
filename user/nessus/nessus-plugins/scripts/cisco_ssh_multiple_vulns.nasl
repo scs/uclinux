@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10972);
- script_cve_id("CAN-2001-0572");
- script_version("$Revision: 1.7 $");
+ script_cve_id("CVE-2001-0572");
+ script_version("$Revision: 1.9 $");
 
  name["english"] = "Multiple SSH vulnerabilities";
 
@@ -25,7 +25,7 @@ information that may help in brute force key recovery, or brute force
 a session key.
 
 Solution : http://www.cisco.com/warp/public/707/SSH-multiple-pub.html
-Risk factor : Medium
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10927);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(4025);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-2002-0237");
  name["english"] = "BlackIce DoS (ping flood)";
  name["francais"] = "Déni de service BlackIce (ping flood)";
@@ -62,8 +62,13 @@ Facteur de risque : Elevé";
  #script_add_preference(name:"Flood length :", type:"entry", value:"600");
  #script_add_preference(name:"Data length :", type:"entry", value:"10000");
  #script_add_preference(name:"MTU :",  type:"entry", value:"576");
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
+
+include("global_settings.inc");
+
+if ( ! thorough_tests ) exit(0);
 
 #
 # The script code starts here

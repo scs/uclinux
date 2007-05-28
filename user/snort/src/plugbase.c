@@ -48,20 +48,18 @@
 #include "detect.h"
 
 /* built-in preprocessors */
-#include "preprocessors/spp_portscan.h"
 #include "preprocessors/spp_rpc_decode.h"
 #include "preprocessors/spp_bo.h"
 #include "preprocessors/spp_telnet_negotiation.h"
 #include "preprocessors/spp_stream4.h"
+#include "preprocessors/spp_stream5.h"
 #include "preprocessors/spp_frag2.h"
 #include "preprocessors/spp_arpspoof.h"
-#include "preprocessors/spp_conversation.h"
-#include "preprocessors/spp_portscan2.h"
 #include "preprocessors/spp_perfmonitor.h"
 #include "preprocessors/spp_httpinspect.h"
 #include "preprocessors/spp_flow.h"
 #include "preprocessors/spp_sfportscan.h"
-#include "preprocessors/spp_xlink2state.h"
+#include "preprocessors/spp_frag3.h"
 
 /* built-in detection plugins */
 #include "detection-plugins/sp_pattern_match.h"
@@ -91,11 +89,17 @@
 #include "detection-plugins/sp_pcre.h"
 #include "detection-plugins/sp_flowbits.h"
 #include "detection-plugins/sp_asn1.h"
-#ifdef ENABLE_RESPONSE
+#if defined(ENABLE_RESPONSE) && !defined(ENABLE_RESPONSE2)
 #include "detection-plugins/sp_react.h"
 #include "detection-plugins/sp_respond.h"
+#elif defined(ENABLE_RESPONSE2) && !defined(ENABLE_RESPONSE)
+#include "detection-plugins/sp_respond2.h"
 #endif
-
+#if defined(ENABLE_REACT) && !defined(ENABLE_RESPONSE)
+#include "detection-plugins/sp_react.h"
+#endif
+#include "detection-plugins/sp_ftpbounce.h"
+#include "detection-plugins/sp_urilen_check.h"
 
 /* built-in output plugins */
 #include "output-plugins/spo_alert_syslog.h"
@@ -108,12 +112,27 @@
 #include "output-plugins/spo_unified.h"
 #include "output-plugins/spo_log_null.h"
 #include "output-plugins/spo_log_ascii.h"
+
+#ifdef ARUBA
+#include "output-plugins/spo_alert_arubaaction.h"
+#endif
+
+#ifdef HAVE_LIBPRELUDE
+#include "output-plugins/spo_alert_prelude.h"
+#endif
+
 #ifdef LINUX
 #include "output-plugins/spo_alert_sf_socket.h"
 #endif
 
+PluginSignalFuncNode *PluginShutdownList;
 PluginSignalFuncNode *PluginCleanExitList;
 PluginSignalFuncNode *PluginRestartList;
+PluginSignalFuncNode *PluginPostConfigList;
+
+PreprocSignalFuncNode *PreprocShutdownList;
+PreprocSignalFuncNode *PreprocCleanExitList;
+PreprocSignalFuncNode *PreprocRestartList;
 
 extern int file_line;
 extern char *file_name;
@@ -157,10 +176,17 @@ void InitPlugIns()
     SetupPcre();
     SetupFlowBits();
     SetupAsn1();
-#ifdef ENABLE_RESPONSE
+#if defined(ENABLE_RESPONSE) && !defined(ENABLE_RESPONSE2)
     SetupReact();
     SetupRespond();
+#elif defined(ENABLE_RESPONSE2) && !defined(ENABLE_RESPONSE)
+    SetupRespond2();
 #endif
+#if defined(ENABLE_REACT) && !defined(ENABLE_RESPONSE)
+    SetupReact();
+#endif
+    SetupFTPBounce();
+    SetupUriLenCheck();
 }
 
 /****************************************************************************
@@ -181,8 +207,8 @@ void RegisterPlugin(char *keyword, void (*func) (char *, OptTreeNode *, int))
 {
     KeywordXlateList *idx;
 
-    DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Registering keyword:func => %s:%p\n", keyword, 
-			    func););
+    DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Registering keyword:func => %s:%p\n",
+               keyword, func););
 
     idx = KeywordList;
 
@@ -205,7 +231,6 @@ void RegisterPlugin(char *keyword, void (*func) (char *, OptTreeNode *, int))
             {
                 FatalError("RegisterPlugin: Duplicate detection plugin keyword:"
                         " (%s) (%s)!\n", idx->entry.keyword, keyword);
-			   
             }
             idx = idx->next;
         }
@@ -388,8 +413,9 @@ void AddRspFuncToList(int (*func) (Packet *, struct _RspFpList *), OptTreeNode *
 
 
 /************************** Preprocessor Plugin API ***************************/
-PreprocessKeywordList *PreprocessKeywords;
-PreprocessFuncNode *PreprocessList;
+PreprocessKeywordList *PreprocessKeywords = NULL;
+PreprocessFuncNode *PreprocessList = NULL;
+PreprocessCheckConfigNode *PreprocessConfigCheckList = NULL;
 
 void InitPreprocessors()
 {
@@ -397,21 +423,49 @@ void InitPreprocessors()
     {
         LogMessage("Initializing Preprocessors!\n");
     }
-    SetupPortscan();
-    SetupPortscanIgnoreHosts();
     SetupRpcDecode();
     SetupBo();
     SetupTelNeg();
     SetupStream4();
     SetupFrag2();
     SetupARPspoof();
-    SetupConv();
-    SetupScan2();
     SetupHttpInspect();
     SetupPerfMonitor();
     SetupFlow();
     SetupPsng();
-    SetupXLINK2STATE();
+    SetupFrag3();
+    SetupStream5();
+}
+
+void CheckPreprocessorsConfig()
+{
+    PreprocessCheckConfigNode *idx;
+
+    idx = PreprocessConfigCheckList;
+
+    if(!pv.quiet_flag)
+    {
+        LogMessage("Verifying Preprocessor Configurations!\n");
+    }
+
+    while(idx != NULL)
+    {
+        idx->func();
+        idx = idx->next;
+    }
+}
+
+void PostConfigInitPlugins()
+{
+    PluginSignalFuncNode *idx;
+
+    idx = PluginPostConfigList;
+
+    while (idx != NULL)
+    {
+        idx->func(0, idx->arg);
+        idx = idx->next;
+    }
 }
 
 /****************************************************************************
@@ -513,11 +567,46 @@ void DumpPreprocessors()
     printf("-------------------------------------------------\n\n");
 }
 
+static SFGHASH *preprocIdTable = NULL;
+unsigned int num_preprocs = 0;
+int IsPreprocBitSet(Packet *p, unsigned int preproc_bit)
+{
+#if 0
+    int preproc_bit;
+    PreprocessFuncNode *idx = sfghash_find(preprocIdTable, &preproc_id);
+    if (idx)
+    {
+        preproc_bit = idx->preproc_bit;
+        return boIsBitSet(p->preprocessor_bits, preproc_bit);
+    }
+    return 0;
+#endif
+    return boIsBitSet(p->preprocessor_bits, preproc_bit);
+}
 
-void AddFuncToPreprocList(void (*func) (Packet *))
+int SetPreprocBit(Packet *p, unsigned int preproc_id)
+{
+    int preproc_bit;
+    PreprocessFuncNode *idx = sfghash_find(preprocIdTable, &preproc_id);
+    if (idx)
+    {
+        preproc_bit = idx->preproc_bit;
+        return boSetBit(p->preprocessor_bits, preproc_bit);
+    }
+    return 0;
+}
+
+PreprocessFuncNode *AddFuncToPreprocList(void (*func) (Packet *, void *),
+        unsigned short priority,
+        unsigned int preproc_id)
 {
     PreprocessFuncNode *idx;
+    PreprocessFuncNode *tmpNext;
+    PreprocessFuncNode *insertAfter = NULL;
 
+    DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,
+        "Adding preprocessor function ID %d/bit %d/pri %d to list\n",
+         preproc_id, num_preprocs, priority););
     idx = PreprocessList;
 
     if(idx == NULL)
@@ -526,20 +615,173 @@ void AddFuncToPreprocList(void (*func) (Packet *))
             calloc(sizeof(PreprocessFuncNode), sizeof(char));
 
         PreprocessList->func = func;
+        PreprocessList->priority = priority;
+        PreprocessList->preproc_id = preproc_id;
+        PreprocessList->preproc_bit = num_preprocs++;
+
+        idx = PreprocessList;
+    }
+    else
+    {
+        do
+        {
+            if (idx->preproc_id == preproc_id)
+            {
+                FatalError("Preprocessor already registered with ID %d\n",
+                        preproc_id);
+                return NULL;
+            }
+            
+            if (idx->priority > priority)
+                break;
+            insertAfter = idx;
+            idx = idx->next;
+        }
+        while (idx);
+
+        idx = (PreprocessFuncNode *)
+            calloc(sizeof(PreprocessFuncNode), sizeof(char));
+        if (insertAfter)
+        {
+            tmpNext = insertAfter->next;
+            insertAfter->next = idx;
+            idx->next = tmpNext;
+        }
+        else
+        {
+            idx->next = PreprocessList;
+            PreprocessList = idx;
+        }
+
+        idx->func = func;
+        idx->priority = priority;
+        idx->preproc_id = preproc_id;
+        idx->preproc_bit = num_preprocs++;
+    }
+
+    return idx;
+}
+
+void MapPreprocessorIds()
+{
+    PreprocessFuncNode *idx;
+    if (preprocIdTable || !num_preprocs)
+        return;
+
+    preprocIdTable = sfghash_new(num_preprocs, 4, 1, NULL);
+
+    idx = PreprocessList;
+
+    while (idx)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_CONFIGRULES,
+                   "Adding preprocessor ID %d/bit %d/pri %d to hash table\n",
+                   idx->preproc_id, idx->preproc_bit, idx->priority););
+        sfghash_add(preprocIdTable, &(idx->preproc_id), idx);
+        idx = idx->next;
+    }
+}
+
+PreprocessCheckConfigNode *AddFuncToConfigCheckList(void (*func)(void))
+{
+    PreprocessCheckConfigNode *idx;
+
+    idx = PreprocessConfigCheckList;
+
+    if(idx == NULL)
+    {
+        PreprocessConfigCheckList = (PreprocessCheckConfigNode *)
+            calloc(sizeof(PreprocessCheckConfigNode), sizeof(char));
+
+        PreprocessConfigCheckList->func = func;
+
+        idx = PreprocessConfigCheckList;
     }
     else
     {
         while(idx->next != NULL)
             idx = idx->next;
 
-        idx->next = (PreprocessFuncNode *)
-            calloc(sizeof(PreprocessFuncNode), sizeof(char));
+        idx->next = (PreprocessCheckConfigNode *)
+            calloc(sizeof(PreprocessCheckConfigNode), sizeof(char));
 
         idx = idx->next;
         idx->func = func;
     }
 
-    return;
+    return idx;
+}
+
+/* functions to aid in cleaning up aftre plugins */
+void AddFuncToPreprocRestartList(void (*func) (int, void *), void *arg,
+        unsigned short priority, unsigned int preproc_id)
+{
+    PreprocRestartList = AddFuncToPreprocSignalList(func, arg, PreprocRestartList, priority, preproc_id);
+}
+
+void AddFuncToPreprocCleanExitList(void (*func) (int, void *), void *arg,
+        unsigned short priority, unsigned int preproc_id)
+{
+    PreprocCleanExitList = AddFuncToPreprocSignalList(func, arg, PreprocCleanExitList, priority, preproc_id);
+}
+
+void AddFuncToPreprocShutdownList(void (*func) (int, void *), void *arg,
+        unsigned short priority, unsigned int preproc_id)
+{
+    PreprocShutdownList = AddFuncToPreprocSignalList(func, arg, PreprocShutdownList, priority, preproc_id);
+}
+
+PreprocSignalFuncNode *AddFuncToPreprocSignalList(void (*func) (int, void *), void *arg,
+                                          PreprocSignalFuncNode * list, unsigned short priority, unsigned int preproc_id)
+{
+    PreprocSignalFuncNode *idx;
+    PreprocSignalFuncNode *insertAfter = NULL;
+    PreprocSignalFuncNode *tmpNext;
+
+    idx = list;
+
+    if(idx == NULL)
+    {
+        idx = (PreprocSignalFuncNode *) calloc(sizeof(PreprocSignalFuncNode), sizeof(char));
+
+        idx->func = func;
+        idx->arg = arg;
+        idx->preproc_id = preproc_id;
+        idx->priority = priority;
+        list = idx;
+    }
+    else
+    {
+        do
+        {
+            if (idx->priority > priority)
+                break;
+
+            insertAfter = idx;
+            idx = idx->next;
+        }
+        while(idx);
+
+        idx = (PreprocSignalFuncNode *) calloc(sizeof(PreprocSignalFuncNode), sizeof(char));
+        if (insertAfter)
+        {
+            tmpNext = insertAfter->next;
+            insertAfter->next = idx;
+            idx->next = tmpNext;
+        }
+        else
+        {
+            idx->next = list;
+            list = idx;
+        }
+
+        idx->func = func;
+        idx->arg = arg;
+        idx->priority = priority;
+        idx->preproc_id = preproc_id;
+    }
+
+    return list;
 }
 
 /************************ End Preprocessor Plugin API  ************************/
@@ -550,7 +792,6 @@ OutputFuncNode *AlertList;
 OutputFuncNode *LogList;
 OutputFuncNode *AppendOutputFuncList(void (*) (Packet *,char *,void *,Event*),
                 void *, OutputFuncNode *);
-
 
 void InitOutputPlugins()
 {
@@ -571,9 +812,18 @@ void InitOutputPlugins()
     LogNullSetup();
     UnifiedSetup();
     LogAsciiSetup();
+
+#ifdef ARUBA
+    AlertArubaActionSetup();
+#endif
+
 #ifdef LINUX
     /* This uses linux only capabilities */
     AlertSFSocket_Setup();
+#endif
+
+#ifdef HAVE_LIBPRELUDE
+    AlertPreludeSetup();
 #endif
 }
 
@@ -645,7 +895,7 @@ void RegisterOutputPlugin(char *keyword, int type, void (*func) (u_char *))
     OutputKeywordList *idx;
 
     DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN,"Registering keyword:output => %s:%p\n", 
-			    keyword, func););
+                keyword, func););
 
     idx = OutputKeywords;
 
@@ -924,6 +1174,16 @@ void AddFuncToCleanExitList(void (*func) (int, void *), void *arg)
     PluginCleanExitList = AddFuncToSignalList(func, arg, PluginCleanExitList);
 }
 
+void AddFuncToShutdownList(void (*func) (int, void *), void *arg)
+{
+    PluginShutdownList = AddFuncToSignalList(func, arg, PluginShutdownList);
+}
+
+void AddFuncToPostConfigList(void (*func)(int, void *), void *arg)
+{
+    PluginPostConfigList = AddFuncToSignalList(func, arg, PluginPostConfigList);
+}
+
 PluginSignalFuncNode *AddFuncToSignalList(void (*func) (int, void *), void *arg,
                                           PluginSignalFuncNode * list)
 {
@@ -1026,7 +1286,7 @@ char *GetIP(char * iface)
         }
         close(s);
 
-        return str2s(inet_ntoa(addr->sin_addr));
+        return strdup(inet_ntoa(addr->sin_addr));
     }
     else
     {
@@ -1053,7 +1313,7 @@ char *GetHostname()
     GetComputerName(buff, &bufflen);
     return buff;
 #else
-	char * error = "unknown";
+    char * error = "unknown";
     if(getenv("HOSTNAME")) return getenv("HOSTNAME");
     else if(getenv("HOST")) return getenv("HOST");
     else return error;
@@ -1319,17 +1579,17 @@ char *ascii(u_char *xdata, int length)
          {
              if(xdata[i] == '<')
              {
-                 strncpy(ret_val, "&lt;", size - (d_ptr - ret_val));
+                 strncpy(d_ptr, "&lt;", size - (d_ptr - ret_val));
                  d_ptr+=4;
              }
              else if(xdata[i] == '&')
              {
-                 strncpy(ret_val, "&amp;", size - (d_ptr - ret_val));
+                 strncpy(d_ptr, "&amp;", size - (d_ptr - ret_val));
                  d_ptr += 5;
              }
              else if(xdata[i] == '>')
              {
-                 strncpy(ret_val, "&gt;", size - (d_ptr - ret_val));
+                 strncpy(d_ptr, "&gt;", size - (d_ptr - ret_val));
                  d_ptr += 4;
              }
              else
@@ -1406,101 +1666,3 @@ char *fasthex(u_char *xdata, int length)
     return retbuf;
 }
 
-
-/****************************************************************************
- *
- * Function: int2s(int val)
- *
- * Purpose:  int2s creates a string representing the integer supplied as
- *           the first argument. It returns a char * that needs to be freed
- *           after it is used. 
- *
- * Arguments: val is the integer you want to convert to a string
- *
- * Returns: char * -- You must free this char * when you are done with it.
- *
- ***************************************************************************/
-char *int2s(int val)
-{
-    char * ptr;
-
-    ptr = (char *)malloc(SMALLBUFFER);
-
-    if(val)
-    {
-        snprintf(ptr, SMALLBUFFER, "%u", val);
-    }
-    else
-    {
-        ptr[0] = '\0';
-    }
-    return ptr;
-}
-
-
-/****************************************************************************
- *
- * Function: str2s(char * val)
- *
- * Purpose: str2s returns a string that is an exact replica of the char 
- *          supplied as the first argument. The purpose of this
- *          function is to create a dynamically allocated copy of a
- *          string. It is used when populating data structures that
- *          have char * elements that are freed. The point is that
- *          this is a short way to avoid calling free() on a buffer
- *          that is not dynamically allocated by this process. 
- *
- * Arguments: val is the string you want to copy 
- *
- * Returns: char * -- You must free this char * when you are done with it.
- *
- ***************************************************************************/
-char *str2s(char * val)
-{
-    char * ptr;
-
-    if(val)
-    {
-        ptr = (char *)malloc(strlen(val) + 1);
-        strncpy(ptr, val, strlen(val) + 1);
-        memset( ptr, '\0', strlen(val) + 1 );
-        strncpy( ptr, val, strlen(val) );
-        /* Old: strncpy(ptr, val, strlen(val) + 1); */
-
-        return ptr;
-    }
-    else
-    {
-        return val;
-    }
-}
-
-/****************************************************************************
- *
- * Function: hex2s(int val)
- *
- * Purpose:  hex2s creates a string representing the hexidecimal conversion
- *           of an integer. It returns a char * that needs to be freed after
- *           it is used. 
- *
- * Arguments: val is the integer you want to convert to a string
- *
- * Returns: char * -- You must free this char * when you are done with it.
- *
- ***************************************************************************/
-char *hex2s(int val)
-{
-    char * ptr;
-
-    ptr = (char *)malloc(SMALLBUFFER);
-
-    if(val)
-    {
-        snprintf(ptr, SMALLBUFFER, "0x%x", val);
-    }
-    else
-    {
-        ptr[0] = '\0';
-    }
-    return ptr;
-}

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: strerror.c,v 1.6 2001/01/12 00:37:13 wessels Exp $
  *
  * DEBUG: 
  * AUTHOR: Duane Wessels

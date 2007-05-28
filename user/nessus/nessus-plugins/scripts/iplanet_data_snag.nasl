@@ -4,7 +4,9 @@
 
 if (description) {
  script_id(11856);
- script_version("$Revision: 1.4 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0007");
+ script_bugtraq_id(6826);
+ script_version("$Revision: 1.8 $");
  script_cve_id("CVE-2001-0327");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0012");
  
@@ -18,8 +20,9 @@ The remote iPlanet webserver (according to it's version number) is vulnerable
 to a bug wherein a remote user can retrieve sensitive data from memory 
 allocation pools, or cause a denial of service against the server.
 
-*** Since Nessus solely relied on the banner of this server
-*** to issue this alert, this may be a false positive
+*** Since Nessus solely relied on the banner of this server,
+*** (and iPlanet 4 does not include the SP level in the banner),
+*** to issue this alert, this may be a false positive.
 
 Solution : Update to iPlanet 4.1 SP7 or newer
 
@@ -50,8 +53,8 @@ include("http_func.inc");
 
 
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 mybanner = get_http_banner(port:port);
 if(!mybanner)exit(0);
 

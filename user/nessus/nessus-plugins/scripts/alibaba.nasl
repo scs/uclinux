@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10010);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(270);
- script_cve_id("CAN-1999-0776");
+ script_version ("$Revision: 1.25 $");
+ script_cve_id("CVE-1999-0776");
  name["english"] = "AliBaba path climbing";
  name["francais"] = "Remontée de chemin avec Alibaba";
  script_name(english:name["english"], francais:name["francais"]);
@@ -29,7 +29,7 @@ version that solves this vulnerability, or
 consider changing to another web server, such 
 as Apache (http://www.apache.org).
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Le serveur HTTP distant
 permet à un pirate de lire des fichiers
@@ -63,9 +63,19 @@ Facteur de risque : Sérieux";
  exit(0);
 }
 
+# FP + other Directory Traversal scripts do the same thing
+exit (0);
+
 #
 # The script code starts here
 #
-port = is_cgi_installed("../../../boot.ini");
-if(port)security_hole(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(port:port, item:"../../../boot.ini");
+if( res )security_hole(port);
 

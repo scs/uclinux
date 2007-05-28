@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: system.c,v 1.24 2001/04/18 15:11:52 hughesj Exp $
  */
 
 #include "defs.h"
@@ -1595,7 +1595,9 @@ static struct xlat sysctl_root[] = {
 	{ CTL_KERN, "CTL_KERN" },
 	{ CTL_VM, "CTL_VM" },
 	{ CTL_NET, "CTL_NET" },
+#ifdef CTL_PROC
 	{ CTL_PROC, "CTL_PROC" },
+#endif
 	{ CTL_FS, "CTL_FS" },
 	{ CTL_DEBUG, "CTL_DEBUG" },
 	{ CTL_DEV, "CTL_DEV" },
@@ -1694,15 +1696,21 @@ static struct xlat sysctl_kern[] = {
 };
 
 static struct xlat sysctl_vm[] = {
+#ifdef VM_SWAPCTL
 	{ VM_SWAPCTL, "VM_SWAPCTL" },
+#endif
 #ifdef VM_KSWAPD
 	{ VM_KSWAPD, "VM_KSWAPD" },
 #endif
 #ifdef VM_SWAPOUT
 	{ VM_SWAPOUT, "VM_SWAPOUT" },
 #endif
+#ifdef VM_FREEPG
 	{ VM_FREEPG, "VM_FREEPG" },
+#endif
+#ifdef VM_BDFLUSH
 	{ VM_BDFLUSH, "VM_BDFLUSH" },
+#endif
 #ifdef VM_MAXID
 	{ VM_MAXID, "VM_MAXID" },
 #endif

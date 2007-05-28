@@ -87,11 +87,11 @@ ifeq ($(KERN_25), y)
 		cp -rf $(LINUX_SRC)/.tmp_versions $(PWD)/../ ; \
 	fi
 
-	$(MAKE) -C $(LINUX_SRC) SUBDIRS=$(PWD) WLAN_SRC=$(PWD)/ \
+	$(MAKEARCH_KERNEL) -C $(LINUX_SRC) SUBDIRS=$(PWD) WLAN_SRC=$(PWD)/ \
 		MODVERDIR=$(PWD)/../.tmp_versions modules
 else # kbuild 2.4
 
-	$(MAKE) -C $(LINUX_SRC) SUBDIRS=$(PWD) WLAN_SRC=$(PWD)/ \
+	$(MAKEARCH_KERNEL) -C $(LINUX_SRC) SUBDIRS=$(PWD) WLAN_SRC=$(PWD)/ \
 		modules
 endif # kbuild switch
 

@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: udomain.h,v 1.9 2003/10/08 21:56:33 janakj Exp $ 
  *
  * Usrloc domain structure
  *

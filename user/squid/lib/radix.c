@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: radix.c,v 1.16.2.1 2003/06/18 23:53:34 hno Exp $
  *
  * DEBUG: section 53     Radix tree data structure implementation
  * AUTHOR: NetBSD Derived

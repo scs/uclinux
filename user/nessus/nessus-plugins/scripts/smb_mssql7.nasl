@@ -1,15 +1,17 @@
 # Script audit and contributions from Carmichael Security <http://www.carmichaelsecurity.com>
 #      Erik Anderson <eanders@carmichaelsecurity.com>
 #      Added BugtraqID and CAN
-#      Should also cover BID:4135/CAN-2002-0056
+#      Should also cover BID:4135/CVE-2002-0056
 
 
 if(description)
 {
  script_id(10642);
- script_version ("$Revision: 1.17 $");
- script_cve_id("CVE-2002-0642");
  script_bugtraq_id(5205);
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-2002-0642");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-B-0004");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0001");
  name["english"] = "SMB Registry : SQL7 Patches";
  
  

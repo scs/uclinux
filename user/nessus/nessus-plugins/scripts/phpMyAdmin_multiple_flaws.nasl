@@ -15,35 +15,48 @@
 if(description)
 {
  script_id(11761);
- script_bugtraq_id(7965, 7964, 7963, 7962);
- script_version ("$Revision: 1.6 $");
+ script_bugtraq_id(7962, 7963, 7964, 7965);
+ script_version ("$Revision: 1.13 $");
  name["english"] = "phpMyAdmin multiple flaws";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis : 
+
+The remote web server contains a PHP application that suffers from
+multiple vulnerabilities. 
+
+Description :
+
 The remote host is running a version of phpMyAdmin which is vulnerable to 
 several flaws :
 
  - It may be tricked into disclosing the physical path of the remote PHP
-   installation
+   installation.
    
- - It is vulnerable to Cross-Site scripting, which may allow an attacker
-   to steal the cookies of your users
+ - It is vulnerable to cross-site scripting, which may allow an attacker
+   to steal the cookies of your users.
    
  - It is vulnerable to a flaw which may allow an attacker to list the
-   content of arbitrary directories on the remote server.
-   
- 
+   contents of arbitrary directories on the remote server.
+
 An attacker may use these flaws to gain more knowledge about the remote
 host and therefore set up more complex attacks against it.
 
+See also :
 
-Solution : None at this time.
-Risk Factor : Medium";
+http://www.securityfocus.com/archive/1/325641
+http://www.securityfocus.com/archive/1/327511
 
+Solution : 
 
+Upgrade to phpMyAdmin 2.5.2 or later.
 
+Risk factor : 
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -54,11 +67,12 @@ Risk Factor : Medium";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2006 Tenable Network Security");
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("phpMyAdmin_detect.nasl");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -70,30 +84,25 @@ Risk Factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-
+port = get_http_port(default:80);
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
-function check(dir)
-{
- req = http_get(item:string(dir, "/db_details_importdocsql.php?submit_show=true&do=import&docpath=../../../../../../../../../../etc"),
+# Test an install.
+install = get_kb_item(string("www/", port, "/phpMyAdmin"));
+if (isnull(install)) exit(0);
+matches = eregmatch(string:install, pattern:"^(.+) under (/.*)$");
+if (!isnull(matches)) {
+  dir = matches[2];
+
+  req = http_get(item:string(dir, "/db_details_importdocsql.php?submit_show=true&do=import&docpath=../../../../../../../../../../etc"),
  		port:port);
- r = http_keepalive_send_recv(port:port, data:req);
- if( r == NULL ) exit(0);
- if("Ignoring file passwd" >< r)
-   {
- 	security_warning(port);
-	exit(0);
-   }
+  r = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
+  if( r == NULL ) exit(0);
+  if("Ignoring file passwd" >< r)
+  {
+    security_note(port);
+    exit(0);
+  }
 }
-
-
-
-
-foreach dir (make_list("/phpMyAdmin", cgi_dirs()))
-{
- check(dir:dir);
-}
-

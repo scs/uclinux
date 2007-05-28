@@ -1,5 +1,5 @@
 /**
- * $Id$
+ * $Id: msilo.c,v 1.30.6.3 2004/07/23 20:16:03 dcm Exp $
  *
  * MSILO module
  *

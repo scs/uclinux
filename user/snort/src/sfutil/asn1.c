@@ -108,7 +108,7 @@ int asn1_init_mem(int iNodes)
         return ASN1_ERR_INVALID_ARG;
 
     /*
-    **  This makes sure that we don't initialize multipl times.
+    **  This makes sure that we don't initialize multiple times.
     */
     if(g_asn1_mem && g_asn1_max_nodes > 0)
         return ASN1_OK;
@@ -928,8 +928,8 @@ int asn1_traverse(ASN1_TYPE *asn1, void *user,
 */
 int asn1_print_types(ASN1_TYPE *asn1_type, void *user)
 {
-    int iTabs = 0;
-    int iCtr;
+    unsigned int iTabs = 0;
+    unsigned int iCtr;
 
     if(user)
         iTabs = *((int *)user);

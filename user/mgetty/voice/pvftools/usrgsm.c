@@ -22,7 +22,7 @@
  *
  * Note. Files are playable on the USRobotics after conversion to .rmd format.
  *
- * $Id$
+ * $Id: usrgsm.c,v 1.3 1999/01/23 15:17:08 marcs Exp $
  *
  */
 

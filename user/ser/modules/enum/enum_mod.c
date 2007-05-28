@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: enum_mod.c,v 1.8.6.1 2004/04/27 22:08:37 jiri Exp $
  *
  * Enum module
  *

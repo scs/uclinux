@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(11193);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(6323);
+ script_version ("$Revision: 1.3 $");
 
  name["english"] = "akfingerd";
  script_name(english:name["english"]);

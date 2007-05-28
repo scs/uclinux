@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sip_msg.h,v 1.3 2003/03/26 16:44:50 janakj Exp $
  *
  * SIP message related functions
  *

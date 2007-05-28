@@ -6,6 +6,9 @@
 # See the Nessus Scripts License for details
 #
 
+
+MAX_ADDITIONAL_SMB_LOGINS = 3;
+
 default_http_login = "";
 default_http_password = "";
 
@@ -29,12 +32,11 @@ default_smb_login = "";
 default_smb_password = "";
 default_smb_domain = "";
 
-default_snmp_community = "";
 
 if(description)
 {
  script_id(10870);
- script_version ("$Revision: 1.17 $");
+ script_version ("$Revision: 1.23 $");
  name["english"] = "Login configurations";
  name["francais"] = "Configuration des logins";
  
@@ -100,90 +102,21 @@ Facteur de risque : Aucun";
  script_add_preference(name:"SMB account :", type:"entry", value:default_smb_login);
  script_add_preference(name:"SMB password :", type:"password", value:default_smb_password);
  script_add_preference(name:"SMB domain (optional) :", type:"entry", value:default_smb_domain);
- if(defined_func("nt_owf_gen"))script_add_preference(name:"Never send SMB credentials in clear text", type:"checkbox", value:"yes");
- if(defined_func("ntv2_owf_gen"))script_add_preference(name:"Only use NTLMv2", type:"checkbox", value:"no");
- script_add_preference(name:"SNMP community (sent in clear) :", type:"entry", value:default_snmp_community);
+
+ for ( i = 1 ; i <= MAX_ADDITIONAL_SMB_LOGINS ; i ++ )
+ {
+ script_add_preference(name:"Additional SMB account (" + i + ") :", type:"entry", value:default_smb_login);
+ script_add_preference(name:"Additional SMB password (" + i + ") :", type:"password", value:default_smb_password);
+ script_add_preference(name:"Additional SMB domain (optional) (" + i + ") :", type:"entry", value:default_smb_password);
+ }
+
+
+ if(defined_func("MD5")) script_add_preference(name:"Never send SMB credentials in clear text", type:"checkbox", value:"yes");
+ if(defined_func("MD5")) script_add_preference(name:"Only use NTLMv2", type:"checkbox", value:"no");
  exit(0);
 }
 
-#
-# base64 conversion was written by Renaud Deraison.
-#
-__base64_code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-function base64_code(c)
-{
- return(__base64_code[c]);
-}
-
-function pow2(x)
-{
- __ret = 1;
- while(x)
-  {
-  __ret = __ret * 2;
-  x = x  - 1;
-  }
- return(__ret);
-}
-
-function base64(str)
-{
- len = strlen(str);
- i = 0;
- ret = "";
- char_count = 0;
- _bits = 0;
- while(i < len)
- {
-  _bits = _bits + ord(str[i]);
-  char_count = char_count + 1;
-  if(char_count == 3)
-  {
-    val = _bits / 262144;
-    ret = string(ret, base64_code(c:val));
-    val = _bits / 4096;
-    val = val & 0x3F;
-    ret = string(ret, base64_code(c:val));
-    val = _bits / 64;
-    val = val & 0x3F;
-    ret = string(ret, base64_code(c:val));
-    val = _bits & 0x3F;
-    ret = string(ret, base64_code(c:val));
-    char_count = 0;
-    _bits = 0;
- }
- else {
-       _bits = _bits * 256;
-       }
- i = i + 1;
- }
-
-
- if(!(char_count == 0))
- {
-  cnt = char_count * 8;
-  mul = 16;
-  mul = mul - cnt;
-  mul = pow2(x:mul);
-  _bits = _bits * mul;
-  val = _bits / 262144;
-  ret = string(ret, base64_code(c:val));
-  val = _bits / 4096;
-  val = val & 0x3F;
-  ret = string(ret, base64_code(c:val));
- if(char_count == 1)
- { 
-  ret = string(ret, "==");
- }
- else
- {
-   val = _bits / 64;
-   val = val & 0x3F;
-   ret = string(ret, base64_code(c:val), "=");
-  }
- }
- return(ret);
-}
+include("misc_func.inc");
 
 # HTTP
 http_login = script_get_preference("HTTP account :");
@@ -276,7 +209,7 @@ if(!smb_password)smb_password = "";
 smb_domain = script_get_preference("SMB domain (optional) :");
 if(!smb_domain)smb_domain = "";
 
-if(defined_func("nt_owf_gen"))
+if(defined_func("MD5"))
 {
 smb_ctxt = script_get_preference("Never send SMB credentials in clear text");
 if(!smb_ctxt)smb_ctxt = "yes";
@@ -287,7 +220,7 @@ if(smb_ctxt == "yes")
 
 
 
-if(defined_func("ntv2_owf_gen"))
+if(defined_func("MD5"))
 {
  smb_ntv1 = script_get_preference("Only use NTLMv2");
  if(smb_ntv1 == "yes"){
@@ -299,26 +232,26 @@ if(defined_func("ntv2_owf_gen"))
 
 if(smb_login)
 {
-  set_kb_item(name:"SMB/login_filled", value:smb_login);
+  set_kb_item(name:"SMB/login_filled/0", value:smb_login);
 }
   
 if(smb_password)
 {
-  set_kb_item(name:"SMB/password_filled", value:smb_password);
+  set_kb_item(name:"SMB/password_filled/0", value:smb_password);
 }
 
 if(smb_domain)
 { 
- set_kb_item(name:"SMB/domain_filled", value:smb_domain);
+ set_kb_item(name:"SMB/domain_filled/0", value:smb_domain);
 }
 
-
-
-
-
-# SNMP
-snmp_community = script_get_preference("SNMP community (sent in clear) :");
-if(strlen(snmp_community) > 0 )
+for ( i = 1 ; i <= MAX_ADDITIONAL_SMB_LOGINS ; i ++ )
 {
- set_kb_item(name:"SNMP/community", value:snmp_community);
+ l = script_get_preference("Additional SMB account (" + i + ") :");
+ p = script_get_preference("Additional SMB password (" + i + ") :");
+ d = script_get_preference("Additional SMB domain (optional) (" + i + ") :");
+ if ( l ) set_kb_item(name:"SMB/login_filled/" + i, value:l);
+ if ( p ) set_kb_item(name:"SMB/password_filled/" + i, value:p);
+ if ( d ) set_kb_item(name:"SMB/domain_filled/" + i, value:d);
+ if ( l || p ) j ++;
 }

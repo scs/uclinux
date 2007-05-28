@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10350);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CAN-2000-0138");
  script_bugtraq_id(2189);
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0138");
  
  name["english"] = "Shaft Detect";
  name["francais"] = "Detection de Shaft";
@@ -67,6 +67,7 @@ Facteur de risque : Critique";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
+ script_require_keys("Settings/ThoroughTests");
 
  
  exit(0);
@@ -75,6 +76,12 @@ Facteur de risque : Critique";
 #
 # The script code starts here
 #
+
+
+include('global_settings.inc');
+
+if ( islocalhost() ) exit(0);
+if ( ! thorough_tests ) exit(0);
 
 shaft_dstport = 18753;
 shaft_rctport = 20433;

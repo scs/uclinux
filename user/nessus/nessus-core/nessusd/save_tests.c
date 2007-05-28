@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,16 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * save_tests :
  *  save the tests in real time, allowing the user a safe
@@ -473,6 +463,7 @@ save_tests_setup_playback(globals, session)
  char * target;
  struct arglist * prefs;
  char * plugin_set;
+ int len;
  
  session = estrdup(session);
  
@@ -498,15 +489,16 @@ save_tests_setup_playback(globals, session)
   }
  
  stat(index, &st);
+ len = (int)st.st_size;
  
  /*
   * Get the first line of our file, which contains the 
   * list of hosts to test
   */
- buf = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+ buf = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
  t = buf;
  while(t[length] && t[length]!='\n')length++;
- munmap(buf, st.st_size);
+ munmap(buf, len);
  close(fd);
  
  target = emalloc(length+3);
@@ -545,7 +537,7 @@ save_tests_setup_playback(globals, session)
   arg_add_value(prefs, "TARGET", ARG_STRING, strlen(target), target);
   
   plugin_set = arg_get_value(prefs, "plugin_set");
- if(!plugin_set || !strlen(plugin_set))
+ if( plugin_set == NULL || plugin_set[0] == '\0' )
  {
   plugin_set = emalloc(3);
   sprintf(plugin_set, "-1");

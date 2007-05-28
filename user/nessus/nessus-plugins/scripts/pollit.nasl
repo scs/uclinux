@@ -7,13 +7,14 @@
 # Changes by rd :
 #    - attempt to read /etc/passwd
 #    - script_id
+#    - script_bugtraq_id(1431);
 #
 
 if(description)
 {
  script_id(10459);
- script_version ("$Revision: 1.17 $"); 
  script_bugtraq_id(1431);
+ script_version ("$Revision: 1.21 $"); 
  script_cve_id("CVE-2000-0590");
  name["english"] = "Poll It v2.0 cgi";
  name["francais"] = "Poll It v2.0 cgi";
@@ -25,7 +26,7 @@ if(description)
 
 Solution:  remove 'Poll_It_SSI_v2.0.cgi' from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 desc["francais"] = "Le cgi 'Poll_It_SSI_v2.0.cgi' est installé. Celui-ci possède
 un problème de sécurité bien connu qui permet à a un pirate de lire des
@@ -55,6 +56,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  
  exit(0);
 }	  
@@ -65,8 +67,8 @@ Facteur de risque : Sérieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {

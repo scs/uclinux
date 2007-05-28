@@ -10,10 +10,7 @@ Mawk is distributed without warranty under the terms of
 the GNU General Public License, version 2, 1991.
 ********************************************/
 
-/*$Log$
- *Revision 1.2  2005/07/25 04:03:15  magicyang
- *New user folder check in
- *
+/*$Log: zmalloc.h,v $
  * Revision 1.2  1993/07/04  12:52:22  mike
  * start on autoconfig changes
  *

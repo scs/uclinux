@@ -1,6 +1,6 @@
 # (C) Copyright 2001,2002, Martin Roesch, Brian Caswell, et al.
 #    All rights reserved.
-# $Id$
+# $Id: oracle.rules,v 1.6.2.1 2003/02/07 22:04:56 cazz Exp $
 #----------
 # ORACLE RULES
 #----------
@@ -17,8 +17,8 @@
 #
 
 drop tcp $HONEYNET any -> $EXTERNAL_NET $ORACLE_PORTS (msg:"ORACLE EXECUTE_SYSTEM attempt"; flow:to_server,established; content:"EXECUTE_SYSTEM"; nocase; classtype:system-call-detect; sid:1673; rev:3;)
-drop tcp $HONEYNET any -> $EXTERNAL_NET $ORACLE_PORTS (msg:"ORACLE connect_data\(command=version\) attempt"; flow:to_server,established; content:"connect_data\(command=version\)"; nocase; classtype:protocol-command-decode; sid:1674; rev:3;)
-drop tcp $HONEYNET any -> $EXTERNAL_NET $ORACLE_PORTS (msg:"ORACLE misparsed login response"; flow:from_server,established; content:"description=\("; nocase; content:!"connect_data=\(sid="; nocase; content:!"address=\(protocol=tcp"; nocase; classtype:suspicious-login; sid:1675; rev:3;)
+# drop tcp $HONEYNET any -> $EXTERNAL_NET $ORACLE_PORTS (msg:"ORACLE connect_data\(command=version\) attempt"; flow:to_server,established; content:"connect_data\(command=version\)"; nocase; classtype:protocol-command-decode; sid:1674; rev:3;)
+# drop tcp $HONEYNET any -> $EXTERNAL_NET $ORACLE_PORTS (msg:"ORACLE misparsed login response"; flow:from_server,established; content:"description=\("; nocase; content:!"connect_data=\(sid="; nocase; content:!"address=\(protocol=tcp"; nocase; classtype:suspicious-login; sid:1675; rev:3;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $ORACLE_PORTS (msg:"ORACLE select union attempt"; flow:to_server,established; content:"select "; nocase; content:" union "; nocase; classtype:protocol-command-decode; sid:1676; rev:3;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $ORACLE_PORTS (msg:"ORACLE select like '%' attempt"; flow:to_server,established; content:" where "; nocase; content:" like '%'"; nocase; classtype:protocol-command-decode; sid:1677; rev:3;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $ORACLE_PORTS (msg:"ORACLE select like \"%\" attempt"; flow:to_server,established; content:" where "; nocase; content:" like \"%\""; nocase; classtype:protocol-command-decode; sid:1678; rev:3;)

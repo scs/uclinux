@@ -12,7 +12,7 @@
 #include "pppd.h"
 #include "md4.h"
 #ifndef USE_CRYPT
-#include <des.h>
+#include <des/des.h>
 #endif
 
 /* quick wrapper for easy md4 */

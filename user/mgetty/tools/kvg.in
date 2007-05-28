@@ -4,7 +4,7 @@
 #
 # (part of the "mgetty+sendfax" package)
 #
-# RCS: $Id$
+# RCS: $Id: kvg.in,v 1.2 1998/07/03 11:03:10 gert Exp $
 #
 SIG=-15
 if expr "$1" : "-[A-Z0-9]" >/dev/null ; then SIG=$1 ; shift ; fi

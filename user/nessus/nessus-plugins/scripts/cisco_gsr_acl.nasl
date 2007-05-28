@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10970);
- script_cve_id("CVE-2000-0700");
- script_bugtraq_id(1541);
- script_version("$Revision: 1.4 $");
+ script_bugtraq_id(3535, 3536, 3537, 3538, 3539, 3540);
+ script_cve_id("CVE-2001-0862", "CVE-2001-0863", "CVE-2001-0864", "CVE-2001-0865", "CVE-2001-0866", "CVE-2001-0867");
+ script_version("$Revision: 1.8 $");
 
  name["english"] = "GSR ACL pub";
 

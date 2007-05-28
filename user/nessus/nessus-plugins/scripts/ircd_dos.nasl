@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11797);
  script_bugtraq_id(8131);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.2 $");
  
  name["english"] = "IRCd OperServ Raw Join DoS";
  script_name(english:name["english"]);
@@ -18,7 +18,7 @@ when it receives certain raw messages.
 An attacker may use this flaw to disable this service remotely.
 
 Solution : Upgrade to UnrealIRCD 3.2 beta17 or 3.1.6
-Risk Factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);

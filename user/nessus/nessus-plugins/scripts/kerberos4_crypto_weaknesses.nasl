@@ -1,7 +1,5 @@
 #
-# This script was written by Renaud Deraison (renaud@tenablesecurity.com)
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 # Ref:
 # Delivered-To: moderator for bugtraq@securityfocus.com
@@ -14,9 +12,9 @@ if(description)
 {
  script_id(11511);
  script_bugtraq_id(7113);
- script_cve_id("CAN-2003-0138");
+ script_cve_id("CVE-2003-0138");
 
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "Kerberos IV cryptographic weaknesses";
  script_name(english:name["english"]);
  
@@ -32,7 +30,7 @@ See also : http://web.mit.edu/kerberos/www/advisories/MITKRB5-SA-2003-004-krb4.t
 Solution : Use kerberos 5 instead. If you run Kerberos 5 with kerberos IV backward
 compatibility, make sure you upgrade to version 1.3
 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -47,7 +45,7 @@ francais:summary["francais"]);
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2004 Tenable Network Security");
  family["english"] = "General";
  script_family(english:family["english"]);
  exit(0);

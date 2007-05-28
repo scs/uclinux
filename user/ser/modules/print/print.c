@@ -1,4 +1,4 @@
-/*$Id$
+/*$Id: print.c,v 1.13 2003/04/30 17:51:24 janakj Exp $
  *
  * Example ser module, it will just print its string parameter to stdout
  *

@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: auth_mod.c,v 1.42.4.3 2004/04/28 13:51:15 janakj Exp $ 
  *
  * Digest Authentication Module
  *

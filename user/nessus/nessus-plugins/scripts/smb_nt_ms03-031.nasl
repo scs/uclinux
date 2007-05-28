@@ -5,15 +5,21 @@
 if(description)
 {
  script_id(11804);
- script_version ("$Revision: 1.4 $");
+ script_bugtraq_id(8274, 8275, 8276);
+ script_version ("$Revision: 1.12 $");
  name["english"] = "Cumulative Patch for MS SQL Server (815495)";
  script_name(english:name["english"]);
  
- script_cve_id("CAN-2003-0230", "CAN-2003-0231", "CAN-2003-0232");
+ script_cve_id("CVE-2003-0230", "CVE-2003-0231", "CVE-2003-0232");
 	       
- script_bugtraq_id(8274, 8275, 8276);
   
  desc["english"] = "
+Synopsis :
+
+Arbitrary code can be executed on the remote host through SQL service.
+
+Description :
+
 The remote Microsoft SQL server is vulnerable to several flaws :
 
 - Named pipe hijacking
@@ -23,8 +29,16 @@ The remote Microsoft SQL server is vulnerable to several flaws :
 These flaws may allow a user to gain elevated privileges on this
 host.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms03-031.asp
-Risk Factor : High";
+Solution : 
+
+Microsoft has released a set of patches for MSSQL 7 and 2000 :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-031.mspx
+
+Risk factor :
+
+High / CVSS Base Score : 8 
+(AV:R/AC:H/Au:NR/C:C/A:C/I:C/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -34,34 +48,29 @@ Risk Factor : High";
 
  script_category(ACT_GATHER_INFO);
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
- script_dependencies("mssql_version.nasl");
- script_require_keys("mssql/SQLVersion");
- script_require_ports(139, 445, 1433, "Services/mssql");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
+ script_require_ports(139, 445);
 
  exit(0);
 }
 
 
-# Filed by mssql_version.nasl
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-version = get_kb_item("mssql/SQLVersion");
-if(!version)exit(0);
+path = hotfix_get_mssqldir();
+if (!path)
+  exit (0);
 
-if(ereg(pattern:"^7\.00\.([0-9][0-9]?[0-9]?$|10([0-8][0-9]|9[0-3]))", string:version))
+if (is_accessible_share ())
 {
- port = get_kb_item("Services/mssql");
- if(!port)port = 1433;
- if(!get_port_state(port))port = get_kb_item("SMB/transport");
- security_hole(port);
- exit(0);
-}
+ if ( ( hotfix_check_fversion(path:path, file:"sqlrepss.dll", version:"2000.80.765.0", min_version:"2000.80.0.0") == HCF_OLDER ) ||
+      ( hotfix_check_fversion(path:path, file:"ums.dll", version:"2000.33.25.0", min_version:"2000.33.0.0") == HCF_OLDER ) )
+  security_hole(get_kb_item("SMB/transport"));
 
-if(ereg(pattern:"^8\.00\.(0?[0-9]?[0-9]?$|0?([0-7][0-9][0-9]|8(0[0-9]|1[0-7]))$)", string:version))
-{
- port = get_kb_item("Services/mssql");
- if(!port)port = 1433;
- if(!get_port_state(port))port = get_kb_item("SMB/transport");
- security_hole(port);
+ hotfix_check_fversion_end();
 }

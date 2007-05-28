@@ -12,11 +12,10 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keygen.c,v 1.108 2003/08/14 16:08:58 markus Exp $");
+RCSID("$OpenBSD: ssh-keygen.c,v 1.135 2005/11/29 02:04:55 dtucker Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <openssl/engine.h>
 
 #include "xmalloc.h"
 #include "key.h"
@@ -27,18 +26,19 @@ RCSID("$OpenBSD: ssh-keygen.c,v 1.108 2003/08/14 16:08:58 markus Exp $");
 #include "bufaux.h"
 #include "pathnames.h"
 #include "log.h"
-#include "readpass.h"
-#include "moduli.h"
+#include "misc.h"
+#include "match.h"
+#include "hostfile.h"
 
 #ifdef SMARTCARD
 #include "scard.h"
 #endif
-#ifdef DNS
 #include "dns.h"
-#endif
 
-/* Number of bits in the RSA/DSA key.  This value can be changed on the command line. */
-int bits = 1024;
+/* Number of bits in the RSA/DSA key.  This value can be set on the command line. */
+#define DEFAULT_BITS		2048
+#define DEFAULT_BITS_DSA	1024
+u_int32_t bits = 0;
 
 /*
  * Flag indicating that we just want to change the passphrase.  This can be
@@ -53,6 +53,13 @@ int change_passphrase = 0;
 int change_comment = 0;
 
 int quiet = 0;
+
+/* Flag indicating that we want to hash a known_hosts file */
+int hash_hosts = 0;
+/* Flag indicating that we want lookup a host in known_hosts file */
+int find_host = 0;
+/* Flag indicating that we want to delete a host from a known_hosts file */
+int delete_host = 0;
 
 /* Flag indicating that we just want to see the key fingerprint */
 int print_fingerprint = 0;
@@ -80,13 +87,13 @@ int print_generic = 0;
 char *key_type_name = NULL;
 
 /* argv0 */
-#ifdef HAVE___PROGNAME
 extern char *__progname;
-#else
-char *__progname;
-#endif
 
 char hostname[MAXHOSTNAMELEN];
+
+/* moduli.c */
+int gen_candidates(FILE *, u_int32_t, u_int32_t, BIGNUM *);
+int prime_test(FILE *, FILE *, u_int32_t, u_int32_t);
 
 static void
 ask_filename(struct passwd *pw, const char *prompt)
@@ -192,8 +199,8 @@ do_convert_to_ssh2(struct passwd *pw)
 static void
 buffer_get_bignum_bits(Buffer *b, BIGNUM *value)
 {
-	int bits = buffer_get_int(b);
-	int bytes = (bits + 7) / 8;
+	u_int bignum_bits = buffer_get_int(b);
+	u_int bytes = (bignum_bits + 7) / 8;
 
 	if (buffer_len(b) < bytes)
 		fatal("buffer_get_bignum_bits: input buffer too small: "
@@ -243,6 +250,7 @@ do_convert_private_ssh2_from_blob(u_char *blob, u_int blen)
 	} else if (strstr(type, "rsa")) {
 		ktype = KEY_RSA;
 	} else {
+		buffer_free(&b);
 		xfree(type);
 		return NULL;
 	}
@@ -544,6 +552,201 @@ do_fingerprint(struct passwd *pw)
 	exit(0);
 }
 
+static void
+print_host(FILE *f, char *name, Key *public, int hash)
+{
+	if (hash && (name = host_hash(name, NULL, 0)) == NULL)
+		fatal("hash_host failed");
+	fprintf(f, "%s ", name);
+	if (!key_write(public, f))
+		fatal("key_write failed");
+	fprintf(f, "\n");
+}
+
+static void
+do_known_hosts(struct passwd *pw, const char *name)
+{
+	FILE *in, *out = stdout;
+	Key *public;
+	char *cp, *cp2, *kp, *kp2;
+	char line[16*1024], tmp[MAXPATHLEN], old[MAXPATHLEN];
+	int c, i, skip = 0, inplace = 0, num = 0, invalid = 0, has_unhashed = 0;
+
+	if (!have_identity) {
+		cp = tilde_expand_filename(_PATH_SSH_USER_HOSTFILE, pw->pw_uid);
+		if (strlcpy(identity_file, cp, sizeof(identity_file)) >=
+		    sizeof(identity_file))
+			fatal("Specified known hosts path too long");
+		xfree(cp);
+		have_identity = 1;
+	}
+	if ((in = fopen(identity_file, "r")) == NULL)
+		fatal("fopen: %s", strerror(errno));
+
+	/*
+	 * Find hosts goes to stdout, hash and deletions happen in-place
+	 * A corner case is ssh-keygen -HF foo, which should go to stdout
+	 */
+	if (!find_host && (hash_hosts || delete_host)) {
+		if (strlcpy(tmp, identity_file, sizeof(tmp)) >= sizeof(tmp) ||
+		    strlcat(tmp, ".XXXXXXXXXX", sizeof(tmp)) >= sizeof(tmp) ||
+		    strlcpy(old, identity_file, sizeof(old)) >= sizeof(old) ||
+		    strlcat(old, ".old", sizeof(old)) >= sizeof(old))
+			fatal("known_hosts path too long");
+		umask(077);
+		if ((c = mkstemp(tmp)) == -1)
+			fatal("mkstemp: %s", strerror(errno));
+		if ((out = fdopen(c, "w")) == NULL) {
+			c = errno;
+			unlink(tmp);
+			fatal("fdopen: %s", strerror(c));
+		}
+		inplace = 1;
+	}
+
+	while (fgets(line, sizeof(line), in)) {
+		num++;
+		i = strlen(line) - 1;
+		if (line[i] != '\n') {
+			error("line %d too long: %.40s...", num, line);
+			skip = 1;
+			invalid = 1;
+			continue;
+		}
+		if (skip) {
+			skip = 0;
+			continue;
+		}
+		line[i] = '\0';
+
+		/* Skip leading whitespace, empty and comment lines. */
+		for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
+			;
+		if (!*cp || *cp == '\n' || *cp == '#') {
+			if (inplace)
+				fprintf(out, "%s\n", cp);
+			continue;
+		}
+		/* Find the end of the host name portion. */
+		for (kp = cp; *kp && *kp != ' ' && *kp != '\t'; kp++)
+			;
+		if (*kp == '\0' || *(kp + 1) == '\0') {
+			error("line %d missing key: %.40s...",
+			    num, line);
+			invalid = 1;
+			continue;
+		}
+		*kp++ = '\0';
+		kp2 = kp;
+
+		public = key_new(KEY_RSA1);
+		if (key_read(public, &kp) != 1) {
+			kp = kp2;
+			key_free(public);
+			public = key_new(KEY_UNSPEC);
+			if (key_read(public, &kp) != 1) {
+				error("line %d invalid key: %.40s...",
+				    num, line);
+				key_free(public);
+				invalid = 1;
+				continue;
+			}
+		}
+
+		if (*cp == HASH_DELIM) {
+			if (find_host || delete_host) {
+				cp2 = host_hash(name, cp, strlen(cp));
+				if (cp2 == NULL) {
+					error("line %d: invalid hashed "
+					    "name: %.64s...", num, line);
+					invalid = 1;
+					continue;
+				}
+				c = (strcmp(cp2, cp) == 0);
+				if (find_host && c) {
+					printf("# Host %s found: "
+					    "line %d type %s\n", name,
+					    num, key_type(public));
+					print_host(out, cp, public, 0);
+				}
+				if (delete_host && !c)
+					print_host(out, cp, public, 0);
+			} else if (hash_hosts)
+				print_host(out, cp, public, 0);
+		} else {
+			if (find_host || delete_host) {
+				c = (match_hostname(name, cp,
+				    strlen(cp)) == 1);
+				if (find_host && c) {
+					printf("# Host %s found: "
+					    "line %d type %s\n", name,
+					    num, key_type(public));
+					print_host(out, cp, public, hash_hosts);
+				}
+				if (delete_host && !c)
+					print_host(out, cp, public, 0);
+			} else if (hash_hosts) {
+				for (cp2 = strsep(&cp, ",");
+				    cp2 != NULL && *cp2 != '\0';
+				    cp2 = strsep(&cp, ",")) {
+					if (strcspn(cp2, "*?!") != strlen(cp2))
+						fprintf(stderr, "Warning: "
+						    "ignoring host name with "
+						    "metacharacters: %.64s\n",
+						    cp2);
+					else
+						print_host(out, cp2, public, 1);
+				}
+				has_unhashed = 1;
+			}
+		}
+		key_free(public);
+	}
+	fclose(in);
+
+	if (invalid) {
+		fprintf(stderr, "%s is not a valid known_host file.\n",
+		    identity_file);
+		if (inplace) {
+			fprintf(stderr, "Not replacing existing known_hosts "
+			    "file because of errors\n");
+			fclose(out);
+			unlink(tmp);
+		}
+		exit(1);
+	}
+
+	if (inplace) {
+		fclose(out);
+
+		/* Backup existing file */
+		if (unlink(old) == -1 && errno != ENOENT)
+			fatal("unlink %.100s: %s", old, strerror(errno));
+		if (link(identity_file, old) == -1)
+			fatal("link %.100s to %.100s: %s", identity_file, old,
+			    strerror(errno));
+		/* Move new one into place */
+		if (rename(tmp, identity_file) == -1) {
+			error("rename\"%s\" to \"%s\": %s", tmp, identity_file,
+			    strerror(errno));
+			unlink(tmp);
+			unlink(old);
+			exit(1);
+		}
+
+		fprintf(stderr, "%s updated.\n", identity_file);
+		fprintf(stderr, "Original contents retained as %s\n", old);
+		if (has_unhashed) {
+			fprintf(stderr, "WARNING: %s contains unhashed "
+			    "entries\n", old);
+			fprintf(stderr, "Delete this file to ensure privacy "
+			    "of hostnames\n");
+		}
+	}
+
+	exit(0);
+}
+
 /*
  * Perform changing a passphrase.  The argument is the passwd structure
  * for the current user.
@@ -626,12 +829,11 @@ do_change_passphrase(struct passwd *pw)
 	exit(0);
 }
 
-#ifdef DNS
 /*
  * Print the SSHFP RR.
  */
 static void
-do_print_resource_record(struct passwd *pw, char *hostname)
+do_print_resource_record(struct passwd *pw, char *hname)
 {
 	Key *public;
 	char *comment = NULL;
@@ -645,7 +847,7 @@ do_print_resource_record(struct passwd *pw, char *hostname)
 	}
 	public = key_load_public(identity_file, &comment);
 	if (public != NULL) {
-		export_dns_rr(hostname, public, stdout, print_generic);
+		export_dns_rr(hname, public, stdout, print_generic);
 		key_free(public);
 		xfree(comment);
 		exit(0);
@@ -656,7 +858,6 @@ do_print_resource_record(struct passwd *pw, char *hostname)
 	printf("failed to read v2 public key from %s.\n", identity_file);
 	exit(1);
 }
-#endif /* DNS */
 
 /*
  * Change the comment of a private key file.
@@ -760,31 +961,38 @@ usage(void)
 {
 	fprintf(stderr, "Usage: %s [options]\n", __progname);
 	fprintf(stderr, "Options:\n");
-	fprintf(stderr, "  -b bits     Number of bits in the key to create.\n");
-	fprintf(stderr, "  -c          Change comment in private and public key files.\n");
-	fprintf(stderr, "  -e          Convert OpenSSH to IETF SECSH key file.\n");
-	fprintf(stderr, "  -f filename Filename of the key file.\n");
-	fprintf(stderr, "  -g          Use generic DNS resource record format.\n");
-	fprintf(stderr, "  -i          Convert IETF SECSH to OpenSSH key file.\n");
-	fprintf(stderr, "  -l          Show fingerprint of key file.\n");
-	fprintf(stderr, "  -p          Change passphrase of private key file.\n");
-	fprintf(stderr, "  -q          Quiet.\n");
-	fprintf(stderr, "  -y          Read private key file and print public key.\n");
-	fprintf(stderr, "  -t type     Specify type of key to create.\n");
+	fprintf(stderr, "  -a trials   Number of trials for screening DH-GEX moduli.\n");
 	fprintf(stderr, "  -B          Show bubblebabble digest of key file.\n");
+	fprintf(stderr, "  -b bits     Number of bits in the key to create.\n");
 	fprintf(stderr, "  -C comment  Provide new comment.\n");
-	fprintf(stderr, "  -N phrase   Provide new passphrase.\n");
-	fprintf(stderr, "  -P phrase   Provide old passphrase.\n");
-#ifdef DNS
-	fprintf(stderr, "  -r hostname Print DNS resource record.\n");
-#endif /* DNS */
+	fprintf(stderr, "  -c          Change comment in private and public key files.\n");
 #ifdef SMARTCARD
 	fprintf(stderr, "  -D reader   Download public key from smartcard.\n");
+#endif /* SMARTCARD */
+	fprintf(stderr, "  -e          Convert OpenSSH to IETF SECSH key file.\n");
+	fprintf(stderr, "  -F hostname Find hostname in known hosts file.\n");
+	fprintf(stderr, "  -f filename Filename of the key file.\n");
+	fprintf(stderr, "  -G file     Generate candidates for DH-GEX moduli.\n");
+	fprintf(stderr, "  -g          Use generic DNS resource record format.\n");
+	fprintf(stderr, "  -H          Hash names in known_hosts file.\n");
+	fprintf(stderr, "  -i          Convert IETF SECSH to OpenSSH key file.\n");
+	fprintf(stderr, "  -l          Show fingerprint of key file.\n");
+	fprintf(stderr, "  -M memory   Amount of memory (MB) to use for generating DH-GEX moduli.\n");
+	fprintf(stderr, "  -N phrase   Provide new passphrase.\n");
+	fprintf(stderr, "  -P phrase   Provide old passphrase.\n");
+	fprintf(stderr, "  -p          Change passphrase of private key file.\n");
+	fprintf(stderr, "  -q          Quiet.\n");
+	fprintf(stderr, "  -R hostname Remove host from known_hosts file.\n");
+	fprintf(stderr, "  -r hostname Print DNS resource record.\n");
+	fprintf(stderr, "  -S start    Start point (hex) for generating DH-GEX moduli.\n");
+	fprintf(stderr, "  -T file     Screen candidates for DH-GEX moduli.\n");
+	fprintf(stderr, "  -t type     Specify type of key to create.\n");
+#ifdef SMARTCARD
 	fprintf(stderr, "  -U reader   Upload private key to smartcard.\n");
 #endif /* SMARTCARD */
-
-	fprintf(stderr, "  -G file     Generate candidates for DH-GEX moduli\n");
-	fprintf(stderr, "  -T file     Screen candidates for DH-GEX moduli\n");
+	fprintf(stderr, "  -v          Verbose.\n");
+	fprintf(stderr, "  -W gen      Generator to use for generating DH-GEX moduli.\n");
+	fprintf(stderr, "  -y          Read private key file and print public key.\n");
 
 	exit(1);
 }
@@ -797,27 +1005,27 @@ main(int ac, char **av)
 {
 	char dotsshdir[MAXPATHLEN], comment[1024], *passphrase1, *passphrase2;
 	char out_file[MAXPATHLEN], *reader_id = NULL;
-	char *resource_record_hostname = NULL;
+	char *rr_hostname = NULL;
 	Key *private, *public;
 	struct passwd *pw;
 	struct stat st;
-	int opt, type, fd, download = 0, memory = 0;
-	int generator_wanted = 0, trials = 100;
+	int opt, type, fd, download = 0;
+	u_int32_t memory = 0, generator_wanted = 0, trials = 100;
 	int do_gen_candidates = 0, do_screen_candidates = 0;
+	int log_level = SYSLOG_LEVEL_INFO;
 	BIGNUM *start = NULL;
 	FILE *f;
+	const char *errstr;
 
 	extern int optind;
 	extern char *optarg;
 
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
+
 	__progname = ssh_get_progname(av[0]);
 
 	SSLeay_add_all_algorithms();
-
-	/* Init available hardware crypto engines. */
-	ENGINE_load_builtin_engines();
-	ENGINE_register_all_complete();
-
 	log_init(av[0], SYSLOG_LEVEL_INFO, SYSLOG_FACILITY_USER, 1);
 
 	init_rng();
@@ -835,14 +1043,24 @@ main(int ac, char **av)
 	}
 
 	while ((opt = getopt(ac, av,
-	    "degiqpclBRxXyb:f:t:U:D:P:N:C:r:g:T:G:M:S:a:W:")) != -1) {
+	    "degiqpclBHvxXyF:b:f:t:U:D:P:N:C:r:g:R:T:G:M:S:a:W:")) != -1) {
 		switch (opt) {
 		case 'b':
-			bits = atoi(optarg);
-			if (bits < 512 || bits > 32768) {
-				printf("Bits has bad value.\n");
-				exit(1);
-			}
+			bits = strtonum(optarg, 768, 32768, &errstr);
+			if (errstr)
+				fatal("Bits has bad value %s (%s)",
+					optarg, errstr);
+			break;
+		case 'F':
+			find_host = 1;
+			rr_hostname = optarg;
+			break;
+		case 'H':
+			hash_hosts = 1;
+			break;
+		case 'R':
+			delete_host = 1;
+			rr_hostname = optarg;
 			break;
 		case 'l':
 			print_fingerprint = 1;
@@ -857,7 +1075,9 @@ main(int ac, char **av)
 			change_comment = 1;
 			break;
 		case 'f':
-			strlcpy(identity_file, optarg, sizeof(identity_file));
+			if (strlcpy(identity_file, optarg, sizeof(identity_file)) >=
+			    sizeof(identity_file))
+				fatal("Identity filename too long");
 			have_identity = 1;
 			break;
 		case 'g':
@@ -874,10 +1094,6 @@ main(int ac, char **av)
 			break;
 		case 'q':
 			quiet = 1;
-			break;
-		case 'R':
-			/* unused */
-			exit(0);
 			break;
 		case 'e':
 		case 'x':
@@ -903,36 +1119,47 @@ main(int ac, char **av)
 		case 'U':
 			reader_id = optarg;
 			break;
-		case 'r':
-			resource_record_hostname = optarg;
-			break;
-		case 'W':
-			generator_wanted = atoi(optarg);
-			if (generator_wanted < 1)
-				fatal("Desired generator has bad value.");
-			break;
-		case 'a':
-			trials = atoi(optarg);
-			if (trials < TRIAL_MINIMUM) {
-				fatal("Minimum primality trials is %d", 
-				    TRIAL_MINIMUM);
+		case 'v':
+			if (log_level == SYSLOG_LEVEL_INFO)
+				log_level = SYSLOG_LEVEL_DEBUG1;
+			else {
+				if (log_level >= SYSLOG_LEVEL_DEBUG1 &&
+				    log_level < SYSLOG_LEVEL_DEBUG3)
+					log_level++;
 			}
 			break;
+		case 'r':
+			rr_hostname = optarg;
+			break;
+		case 'W':
+			generator_wanted = strtonum(optarg, 1, UINT_MAX, &errstr);
+			if (errstr)
+				fatal("Desired generator has bad value: %s (%s)",
+					optarg, errstr);
+			break;
+		case 'a':
+			trials = strtonum(optarg, 1, UINT_MAX, &errstr);
+			if (errstr)
+				fatal("Invalid number of trials: %s (%s)",
+					optarg, errstr);
+			break;
 		case 'M':
-			memory = atoi(optarg);
-			if (memory != 0 && 
-			   (memory < LARGE_MINIMUM || memory > LARGE_MAXIMUM)) {
-				fatal("Invalid memory amount (min %ld, max %ld)",
-				    LARGE_MINIMUM, LARGE_MAXIMUM);
+			memory = strtonum(optarg, 1, UINT_MAX, &errstr);
+			if (errstr) {
+				fatal("Memory limit is %s: %s", errstr, optarg);
 			}
 			break;
 		case 'G':
 			do_gen_candidates = 1;
-			strlcpy(out_file, optarg, sizeof(out_file));
+			if (strlcpy(out_file, optarg, sizeof(out_file)) >=
+			    sizeof(out_file))
+				fatal("Output filename too long");
 			break;
 		case 'T':
 			do_screen_candidates = 1;
-			strlcpy(out_file, optarg, sizeof(out_file));
+			if (strlcpy(out_file, optarg, sizeof(out_file)) >=
+			    sizeof(out_file))
+				fatal("Output filename too long");
 			break;
 		case 'S':
 			/* XXX - also compare length against bits */
@@ -944,6 +1171,10 @@ main(int ac, char **av)
 			usage();
 		}
 	}
+
+	/* reinit */
+	log_init(av[0], log_level, SYSLOG_FACILITY_USER, 1);
+
 	if (optind < ac) {
 		printf("Too many arguments.\n");
 		usage();
@@ -952,6 +1183,8 @@ main(int ac, char **av)
 		printf("Can only have one of -p and -c.\n");
 		usage();
 	}
+	if (delete_host || hash_hosts || find_host)
+		do_known_hosts(pw, rr_hostname);
 	if (print_fingerprint || print_bubblebabble)
 		do_fingerprint(pw);
 	if (change_passphrase)
@@ -964,12 +1197,8 @@ main(int ac, char **av)
 		do_convert_from_ssh2(pw);
 	if (print_public)
 		do_print_public(pw);
-	if (resource_record_hostname != NULL) {
-#ifdef DNS
-		do_print_resource_record(pw, resource_record_hostname);
-#else /* DNS */
-		fatal("no DNS support.");
-#endif /* DNS */
+	if (rr_hostname != NULL) {
+		do_print_resource_record(pw, rr_hostname);
 	}
 	if (reader_id != NULL) {
 #ifdef SMARTCARD
@@ -984,14 +1213,16 @@ main(int ac, char **av)
 
 	if (do_gen_candidates) {
 		FILE *out = fopen(out_file, "w");
-		
+
 		if (out == NULL) {
 			error("Couldn't open modulus candidate file \"%s\": %s",
 			    out_file, strerror(errno));
 			return (1);
 		}
+		if (bits == 0)
+			bits = DEFAULT_BITS;
 		if (gen_candidates(out, memory, bits, start) != 0)
-			fatal("modulus candidate generation failed\n");
+			fatal("modulus candidate generation failed");
 
 		return (0);
 	}
@@ -1003,7 +1234,7 @@ main(int ac, char **av)
 		if (have_identity && strcmp(identity_file, "-") != 0) {
 			if ((in = fopen(identity_file, "r")) == NULL) {
 				fatal("Couldn't open modulus candidate "
-				    "file \"%s\": %s", identity_file, 
+				    "file \"%s\": %s", identity_file,
 				    strerror(errno));
 			}
 		} else
@@ -1014,21 +1245,24 @@ main(int ac, char **av)
 			    out_file, strerror(errno));
 		}
 		if (prime_test(in, out, trials, generator_wanted) != 0)
-			fatal("modulus screening failed\n");
+			fatal("modulus screening failed");
 		return (0);
 	}
 
 	arc4random_stir();
 
-	if (key_type_name == NULL) {
-		printf("You must specify a key type (-t).\n");
-		usage();
-	}
+	if (key_type_name == NULL)
+		key_type_name = "rsa";
+
 	type = key_type_from_name(key_type_name);
 	if (type == KEY_UNSPEC) {
 		fprintf(stderr, "unknown key type %s\n", key_type_name);
 		exit(1);
 	}
+	if (bits == 0)
+		bits = (type == KEY_DSA) ? DEFAULT_BITS_DSA : DEFAULT_BITS;
+	if (type == KEY_DSA && bits != 1024)
+		fatal("DSA keys must be 1024 bits");
 	if (!quiet)
 		printf("Generating public/private %s key pair.\n", key_type_name);
 	private = key_generate(type, bits);
@@ -1041,7 +1275,7 @@ main(int ac, char **av)
 	if (!have_identity)
 		ask_filename(pw, "Enter file in which to save the key");
 
-	/* Create ~/.ssh directory if it doesn\'t already exist. */
+	/* Create ~/.ssh directory if it doesn't already exist. */
 	snprintf(dotsshdir, sizeof dotsshdir, "%s/%s", pw->pw_dir, _PATH_SSH_USER_DIR);
 	if (strstr(identity_file, dotsshdir) != NULL &&
 	    stat(dotsshdir, &st) < 0) {

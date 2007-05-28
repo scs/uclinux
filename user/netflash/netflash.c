@@ -41,7 +41,7 @@
 #include <netinet/in.h>
 #include <stdarg.h>
 
-#include <linux/config.h>
+#include <linux/autoconf.h>
 #include <linux/version.h>
 #include <config/autoconf.h>
 #include <linux/major.h>
@@ -109,7 +109,10 @@
 
 #define CHECKSUM_LENGTH	4
 
+#ifdef CONFIG_USER_BUSYBOX_WATCHDOGD
 #define CONFIG_USER_NETFLASH_WATCHDOG 1
+#endif
+
 /****************************************************************************/
 
 char *version = "2.1.4";
@@ -557,8 +560,11 @@ void check_crypto_signature(void) {
 		BIO *in;
 		struct stat st;
 
-		if (stat(PUBLIC_KEY_FILE, &st) == -1 && errno == ENOENT)
+		if (stat(PUBLIC_KEY_FILE, &st) == -1 && errno == ENOENT) {
+			printf("WARNING: no public key file found, %s\n",
+				PUBLIC_KEY_FILE);
 			return;
+		}
 		in = BIO_new(BIO_s_file());
 		if (in == NULL) {
 			error("cannot allocate a bio structure");
@@ -647,6 +653,8 @@ void check_crypto_signature(void) {
 			}
 		}
 	}
+
+	printf("netflash: signed image approved\n");
 }
 #endif
 
@@ -1583,6 +1591,11 @@ static void program_blkmem_segment(int rd, char *sgdata, int sgpos,
 static void program_generic_segment(int rd, char *sgdata,
 		int sgpos, int sglength, int sgsize)
 {
+	if (!stop_early && sglength < sgsize) {
+		memset(sgdata + sglength, 0xff, sgsize - sglength);
+		sglength = sgsize;
+	}
+
 	if (sglength > 0) {
 		if (lseek(rd, sgpos, SEEK_SET) != sgpos) {
 			error("lseek(%x) failed", sgpos);
@@ -2005,7 +2018,11 @@ int netflashmain(int argc, char *argv[])
 				exit_failed(BAD_OPEN_FLASH);
 			}
 			devsize = l*512; /* Sectors are always 512 bytes */
-			sgsize = 64*1024; /* Just a random power of 2 */
+			/* Use a larger sgsize for efficiency, but it
+			 * must divide evenly into devsize. */
+			for (sgsize = 512; sgsize < 64 * 1024; sgsize <<= 1)
+				if (devsize & sgsize)
+					break;
 		}
 #endif
 #ifdef CONFIG_IDE
@@ -2023,7 +2040,11 @@ int netflashmain(int argc, char *argv[])
 				exit_failed(BAD_OPEN_FLASH);
 			}
 			devsize = geo.heads*geo.cylinders*geo.sectors*512;
-			sgsize = 64*1024; /* Just a random power of 2 */
+			/* Use a larger sgsize for efficiency, but it
+			 * must divide evenly into devsize. */
+			for (sgsize = 512; sgsize < 64 * 1024; sgsize <<= 1)
+				if (devsize & sgsize)
+					break;
 		}
 #endif
 	}

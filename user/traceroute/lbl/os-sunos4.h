@@ -18,7 +18,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /cvs/sw/new-wave/user/traceroute/lbl/os-sunos4.h,v 1.1.1.1 1999/11/22 03:48:06 christ Exp $ (LBL)
  */
 
 /* Prototypes missing in SunOS 4 */

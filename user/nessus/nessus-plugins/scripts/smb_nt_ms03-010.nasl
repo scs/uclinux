@@ -1,34 +1,37 @@
 #
-# written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
-
 
 if(description)
 {
  script_id(11485);
- script_version ("$Revision: 1.5 $");
- script_cve_id("CAN-2002-1561");
+ script_bugtraq_id(6005);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0008");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-2002-1561");
  
  name["english"] = "Flaw in RPC Endpoint Mapper (MS03-010)";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+It is possible to disable a remote RPC service.
+
+Description :
+
 A flaw exists in the RPC endpoint mapper, which can be used by an attacker
 to disable it remotely.
 
 An attacker may use this flaw to prevent this host from working
 properly
 
+Solution : 
 
-Affected Software:
+Microsoft has released a set of patches for the Windows 2000 and XP :
 
-Microsoft Windows NT 4
-Microsoft Windows 2000
-Microsoft Windows XP
-
-Solution for Win2k and XP: see
-http://www.microsoft.com/technet/security/bulletin/ms03-010.asp
+http://www.microsoft.com/technet/security/bulletin/ms03-010.mspx
 
 There is no patch for NT4.
 
@@ -36,62 +39,50 @@ Microsoft strongly recommends that customers still using
 Windows NT 4.0 protect those systems by placing them behind a
 firewall which is filtering traffic on Port 135.
 
-Risk factor : Serious";
+Risk factor :
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:N/A:P/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Checks for hotfix Q331953";
+ summary["english"] = "Checks for SP version";
 
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
- script_require_ports(445, 139);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
+ script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(nt:7, win2k:4, xp:2) <= 0 ) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-
-
-if("4.0" >< version)
+if (is_accessible_share())
 {
- # Microsoft does not intend to release a patch. They are so understaffed
- # that we can understand this very well.
- security_hole(port);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:1, file:"Rpcrt4.dll", version:"5.1.2600.1140", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Rpcrt4.dll", version:"5.1.2600.105", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Rpcrt4.dll", version:"5.0.2195.6106", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Rpcrt4.dll", version:"5.0.0.0", dir:"\system32") )
+   security_warning (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
-
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q331953";
-item = "Comments";
-value = registry_get_sz(key:key, item:item);
-
-if("5.0" >< version)
-{
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(pattern:"Service Pack [4-9]", string:sp))exit(0);
- if(!value)security_hole(port);
-}
-
-if("5.1" >< version)
-{
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(pattern:"Service Pack [2-9]", string:sp))exit(0);
- if(!value)security_hole(port);
-}
-
+else if ( hotfix_missing(name:"331953") > 0 && 
+          hotfix_missing(name:"824146") > 0 && 
+          hotfix_missing(name:"873333") > 0 && 
+          hotfix_missing(name:"828741") > 0 &&
+          hotfix_missing(name:"902400") > 0 &&
+	  !((hotfix_check_sp (win2k:6) > 0) && ( hotfix_missing(name:"913580") <= 0 ) ) )
+  security_warning(get_kb_item("SMB/transport"));

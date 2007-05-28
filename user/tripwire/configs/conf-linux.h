@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-linux.h,v 1.1 1994/07/22 00:14:46 gkim Exp $ */
 
 /*
  * conf-dynix.h

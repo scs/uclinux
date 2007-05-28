@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xjab_worker.h,v 1.14.8.1 2004/07/26 23:18:35 andrei Exp $
  *
  * eXtended JABber module
  *

@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/ed.chared.c,v 3.63 2000/11/11 23:03:33 christos Exp $ */
 /*
  * ed.chared.c: Character editing functions.
  */
@@ -76,7 +76,7 @@
 
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: ed.chared.c,v 3.63 2000/11/11 23:03:33 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"

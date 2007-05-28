@@ -36,7 +36,7 @@
  * From: @(#)startup.c	8.1 (Berkeley) 6/5/93
  */
 char startup_rcsid[] = 
-  "$Id$";
+  "$Id: startup.c,v 1.10 1999/12/12 19:06:02 dholland Exp $";
 
 
 /*

@@ -1,7 +1,7 @@
 /*
  * Presence Agent, time handling
  *
- * $Id$
+ * $Id: ptime.h,v 1.1 2002/11/14 14:29:48 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

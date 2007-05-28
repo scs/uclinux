@@ -12,7 +12,7 @@
 
 if(description)
 {
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.7 $");
  script_id(11492);
  script_bugtraq_id(7209);
  script_name(english:"Sambar XSS");
@@ -35,7 +35,7 @@ Risk factor : Medium";
  script_category(ACT_GATHER_INFO);
  
  script_copyright("This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencies("find_service.nes", "http_version.nasl", "cross_site_scripting.nasl");
@@ -50,8 +50,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
 

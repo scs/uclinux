@@ -30,6 +30,7 @@
 #include <net/if_arp.h>
 #include <netinet/in.h>
 
+#include "../lib/if_ether.h"
 #include "if_tunnel.h"
 #include "rt_names.h"
 #include "utils.h"
@@ -186,11 +187,20 @@ static int parse_args(int argc, char **argv, int cmd, struct ip_tunnel_parm *p)
 				p->iph.protocol = IPPROTO_IPIP;
 			} else if (strcmp(*argv, "gre") == 0 ||
 				   strcmp(*argv, "gre/ip") == 0) {
-				if (p->iph.protocol && p->iph.protocol != IPPROTO_GRE) {
+				if (p->iph.protocol && (p->iph.protocol != IPPROTO_GRE || p->iph.id != 0)) {
 					fprintf(stderr,"You managed to ask for more than one tunnel mode.\n");
 					exit(-1);
 				}
 				p->iph.protocol = IPPROTO_GRE;
+			} else if (strcmp(*argv, "eogre") == 0 ||
+				   strcmp(*argv, "ether/gre") == 0 ||
+				   strcmp(*argv, "ether/gre/ip") == 0) {
+				if (p->iph.protocol && (p->iph.protocol != IPPROTO_GRE || p->iph.id != htons(ETH_P_BRIDGE))) {
+					fprintf(stderr,"You managed to ask for more than one tunnel mode.\n");
+					exit(-1);
+				}
+				p->iph.protocol = IPPROTO_GRE;
+				p->iph.id = htons(ETH_P_BRIDGE);
 			} else if (strcmp(*argv, "sit") == 0 ||
 				   strcmp(*argv, "ipv6/ip") == 0) {
 				if (p->iph.protocol && p->iph.protocol != IPPROTO_IPV6) {
@@ -409,8 +419,9 @@ void print_tunnel(struct ip_tunnel_parm *p)
 	inet_ntop(AF_INET, &p->i_key, s3, sizeof(s3));
 	inet_ntop(AF_INET, &p->o_key, s4, sizeof(s4));
 
-	printf("%s: %s/ip  remote %s  local %s ",
+	printf("%s: %s%s/ip  remote %s  local %s ",
 	       p->name,
+	       p->iph.id == htons(ETH_P_BRIDGE) ? "ether/" : "",
 	       p->iph.protocol == IPPROTO_IPIP ? "ip" :
 	       (p->iph.protocol == IPPROTO_GRE ? "gre" :
 		(p->iph.protocol == IPPROTO_IPV6 ? "ipv6" : "unknown")),

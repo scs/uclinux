@@ -2,15 +2,6 @@
 #
 # GPL
 #
-# References:
-# Message-ID: <000701c28e80$77b05c80$e62d1c41@kc.rr.com>
-# From: "Matthew Murphy" <mattmurphy@kc.rr.com>
-# To: "SecurITeam News" <news@securiteam.com>,
-#   "BugTraq" <bugtraq@securityfocus.com>,
-#  "VulnWatch" <vulnwatch@vulnwatch.org>
-# Date: Sun, 17 Nov 2002 15:29:53 -0600
-# Subject: LiteServe URL Decoding DoS
-#
 # Affected:
 # Webseal 3.8
 #
@@ -19,7 +10,7 @@
 if(description)
 {
  script_id(11155);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "LiteServe URL Decoding DoS";
  name["francais"] = "Déni de service contre Webseal lors du décodage de l'URL";
@@ -73,8 +64,8 @@ Facteur de risque : Elevé";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if (! get_port_state(port)) exit(0);
 

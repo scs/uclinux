@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10197);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(948);
- script_cve_id("CAN-2000-0096");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-2000-0096");
  
  name["english"] = "qpopper LIST buffer overflow";
  name["francais"] = "dépassement de buffer dans qpopper - commande LIST";
@@ -90,7 +90,7 @@ if(get_port_state(port))
  {
   send(socket:soc, data:s3);
   c = recv_line(socket:soc, length:1024);
-  if(strlen(c) == 0)security_hole(port);
+  if(strlen(c) == 0)security_warning(port);
  }
  close(soc);
 }

@@ -5,7 +5,7 @@
  * exactly one unnested call to voice_desimpersonify() for each
  * voice_impersonify() because of the static umask below.
  *
- * $Id$
+ * $Id: access.c,v 1.3 2003/04/23 08:49:16 gert Exp $
  *
  */
 

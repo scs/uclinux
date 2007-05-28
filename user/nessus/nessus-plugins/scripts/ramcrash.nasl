@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10199);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(888);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-2000-0001");
  
  name["english"] = "RealServer Ramgen crash (ramcrash)";
@@ -27,9 +27,8 @@ An attacker may use this flaw to prevent this
 system from serving Real Audio or Video
 content to legitimate clients
 
-Risk factor : Serious
-Solution : Upgrade to a fixed version of RealServer.";
-
+Solution : Upgrade to a fixed version of RealServer.
+Risk factor : High";
 
 
 desc["francais"] = "
@@ -44,8 +43,8 @@ empecher ce système de servir des données
 au format real audio / real video aux
 clients légitimes.
 
-Facteur de risque : Serieux
-Solution : Upgradez en version 6.0";
+Solution : Upgradez en version 6.0
+Facteur de risque : Elevé"; 
 
  script_description(english:desc["english"], francais:desc["francais"]);
  

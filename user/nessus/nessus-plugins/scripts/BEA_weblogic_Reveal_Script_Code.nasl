@@ -12,8 +12,8 @@ if(description)
 {
 
 script_id(10715);
-script_version("$Revision: 1.17 $");
 script_bugtraq_id(2527);
+script_version("$Revision: 1.22 $");
 #script_cve_id("");
 
 #Name used in the client window.
@@ -84,9 +84,10 @@ script_family(english:family["english"], francais:family["francais"]);
 #thus to prevent any false positive answer.
 
 
-script_dependencie("find_service.nes", "no404.nasl", "webmirror.nasl");
+script_dependencie("find_service.nes", "http_version.nasl", "webmirror.nasl");
  
 script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
 
 exit(0);
 }
@@ -112,15 +113,17 @@ if (signature >< response) return(1);
 return(0);
 }
 
-port=get_kb_item("Services/www");
-if(!port) port=80;
+port = get_http_port(default:80);
 
 if(!get_port_state(port)) exit(0);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "WebLogic" >!< sig ) exit(0);
 
 foreach dir (cgi_dirs())
 {
 poison = string(dir, "/index.js%70");
-if (check(req:poison, port:port)) security_hole(port:port); 
+if (check(req:poison, port:port)) security_warning(port:port); 
 }
 
 # Try with a known jsp file
@@ -130,6 +133,6 @@ files = make_list(files);
 file = ereg_replace(string:files[0], pattern:"(.*js)p$",
 		    replace:"\1");
 poison = string(file, "%70");
-if(check(req:poison, port:port))security_hole(port);
+if(check(req:poison, port:port))security_warning(port);
  
 

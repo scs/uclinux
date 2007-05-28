@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10422);
- script_cve_id("CVE-2000-0446");
  script_bugtraq_id(1252);
- script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2000-0446");
+ script_version ("$Revision: 1.11 $");
  
  
  name["english"] = "MDBMS overflow";
@@ -55,6 +55,9 @@ ou filtrez les connections vers les port 2223 et 2224";
 }
 
 
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
 
 port = 2224;
 if(!get_port_state(port))exit(0);
@@ -62,8 +65,12 @@ if(!get_port_state(port))exit(0);
 soc = open_sock_tcp(port);
 if(!soc){
 	port = 2223;
-	soc = open_sock_tcp(port);
-	if(!soc)exit(0);
+	if ( get_port_state(port) )
+	 {
+	 soc = open_sock_tcp(port);
+	 if(!soc)exit(0);
+	 }
+	else exit(0);
 	}
 
 r = recv_line(socket:soc, length:1024);

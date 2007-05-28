@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10035);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1975);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-0146");
  
  name["english"] = "Campas";
@@ -21,7 +21,7 @@ commands with the privileges of the http daemon (root or nobody).
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'campas' est installé. Celui-ci possède
@@ -58,5 +58,13 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 
-port = is_cgi_installed("campas");
-if(port)security_hole(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"campas", port:port);
+if(res)security_hole(port);

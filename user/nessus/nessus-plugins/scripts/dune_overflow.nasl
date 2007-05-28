@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11751);
  script_bugtraq_id(7945);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
 
 
  name["english"] = "Dune Web Server Overflow";
@@ -19,7 +19,7 @@ There is a flaw in this software which may be exploited by an attacker
 to gain a shell on this host.
 
 Solution : Use another web server or upgrade to Dune 0.6.8
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -44,8 +44,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

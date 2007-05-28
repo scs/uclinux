@@ -5,7 +5,7 @@
  * supports the shell script execution function to test vgetty scripts
  * and to build special standalone scripts.
  *
- * $Id$
+ * $Id: main.c,v 1.10 2005/03/13 17:27:50 gert Exp $
  *
  */
 

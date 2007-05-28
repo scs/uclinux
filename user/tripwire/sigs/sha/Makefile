@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.2 1993/11/22 06:38:24 genek Exp $
 #
 # Makefile for SHA wrapper
 #

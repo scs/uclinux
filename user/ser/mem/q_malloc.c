@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: q_malloc.c,v 1.14 2003/08/15 14:19:18 andrei Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

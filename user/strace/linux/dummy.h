@@ -25,13 +25,16 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: dummy.h,v 1.8 2000/05/01 01:54:00 wichert Exp $
  */
 
 #include <linux/version.h>
 
-#if LINUX_VERSION_CODE <= 0x020100
+#ifndef __NR_query_module
 #define sys_query_module	printargs
+#endif
+
+#if LINUX_VERSION_CODE <= 0x020100
 #define sys_rt_sigaction	printargs
 #define sys_rt_sigprocmask	printargs
 #define sys_rt_sigpending	printargs

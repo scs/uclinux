@@ -17,8 +17,9 @@
 if(description)
 {
  script_id(11871);
- script_version("$Revision: 1.2 $");
- script_cve_id("CAN-2002-0419");          
+ script_bugtraq_id(4235);
+ script_version("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-0419");          
  name["english"] = "Find if IIS server allows BASIC and/or NTLM authentication";
 
  script_name(english:name["english"]);
@@ -33,7 +34,7 @@ can ascertain whether or not the authentication scheme is in use.  This can
 be used for brute-force attacks against known UserIDs.
 
 Solution : None at this time
-Risk Factor : Low";
+Risk factor : Low";
 
  script_description(english:desc["english"]);
  
@@ -47,8 +48,7 @@ Risk Factor : Low";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Misc.";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
- script_require_keys("www/iis");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -58,9 +58,13 @@ Risk Factor : Low";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
+
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 
 
 
@@ -92,7 +96,7 @@ for (i=0; req[i]; i++) {
   }
 }
 
-mywarning += string("\n\nSolution : None at this time\nRisk Factor : Low");
+mywarning += string("\n\nSolution : None at this time\nRisk factor : Low");
 
 if (flag) security_note(port:port, data:mywarning);
 exit(0);

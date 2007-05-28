@@ -14,7 +14,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Id$
+ * $Id: tinytcl.c,v 1.2 2001/04/29 20:56:17 karll Exp $
  */
 
 #include <stdio.h>

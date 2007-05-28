@@ -15,7 +15,7 @@
 if(description)
 {
  script_id(11163);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.13 $");
   
  name["english"] = "msmmask.exe";
  script_name(english:name["english"]);
@@ -65,6 +65,7 @@ Facteur de risque : Elevé";
 
  script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -72,9 +73,9 @@ Facteur de risque : Elevé";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
-if (! get_port_state(port)) exit(0);
+port = get_http_port(default:80);
+
+if (! can_host_asp(port:port) ) exit(0);
 
 
 foreach dir (cgi_dirs())

@@ -1,27 +1,35 @@
+#
+# (C) Tenable Network Security
+#
 
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
-#
-# See the Nessus Scripts License for details
-#
+ desc["english"] = "
+Synopsis :
+
+It is possible to retrieve Users in the 'Server Operators' group using
+the supplied credentials.
+
+Description :
+
+Using the supplied credentials it was possible to extract the member
+list of group 'Server Operators'.
+Members of this group can perform most common administrative tasks.
+
+You should make sure that only the proper users are member of this
+group.
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:L/AC:H/Au:R/C:N/A:N/I:N/B:N)";
+
 
 if(description)
 {
  script_id(10903);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.9 $");
  name["english"] = "Users in the 'System Operator' group";
 
  script_name(english:name["english"]);
- 
- desc["english"] = "
-This script displays the names of the users that
-are in the 'system operator' group.
-
-You should make sure that only the proper users
-are member of this group.
-
-Risk factor : Low";
-
-
 
  script_description(english:desc["english"]);
  
@@ -33,43 +41,72 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows : User management";
  script_family(english:family["english"]);
- script_dependencies("smb_netusergetaliases.nasl");
- script_require_keys("SMB/Users/enumerated");
+ script_dependencies("netbios_name_get.nasl",
+ 		     "smb_login.nasl");
+ script_require_keys("SMB/transport", "SMB/name", "SMB/login", "SMB/password");
+ script_require_ports (139,445);
+ exit(0);
+}
+ 
+include ("smb_func.inc");
+
+sid = raw_string (0x01,0x02,0x00,0x00,0x00,0x00,0x00,0x05,0x20,0x00,0x00,0x00,0x25,0x02,0x00,0x00);
+
+name	= kb_smb_name(); 	if(!name)exit(0);
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
+
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
+
+group = NULL;
+
+lsa = LsaOpenPolicy (desired_access:0x20801);
+if (!isnull(lsa))
+{
+ sids = NULL;
+ sids[0] = sid;
+ names = LsaLookupSid (handle:lsa, sid_array:sids);
+ if (!isnull(names))
+ {
+  group = parse_lsalookupsid(data:names[0]);
+ }
+ 
+ LsaClose (handle:lsa);
+}
+
+if (isnull(group))
+{
+ NetUseDel();
  exit(0);
 }
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+members = NetLocalGroupGetMembers (group:group[2]);
 
-
-report = "";
-count = 1;
-login = get_kb_item(string("SMB/Users/", count));
-while(login)
+foreach member ( members )
 {
- groups = get_kb_item(string("SMB/Users/", count, "/LocalGroups"));
- if(groups)
- {
-  grp = string("0x00-0x00-0x02-0x25");
-  if(grp >< groups)
-  {
-  report = report + string(". ", login, "\n");
-  }
- }
- count = count + 1;
- login = get_kb_item(string("SMB/Users/", count));
+  member = parse_lsalookupsid(data:member);
+  report = report + string(". ", member[1], "\\", member[2], " (", SID_TYPE[member[0]], ")\n");
 }
 
+NetUseDel();
 
-if(strlen(report))
+if( report )
 {
- data = 
- string("The following users are in the 'System Operator' group :\n", report,
- "\n", "You should make sure that only the proper users are member of this
- group\n", "Risk factor : Low");
- 
- security_note(port:port, data:data);
+ report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		"The following users are in the 'Server Operators' group :\n",
+		report);
+
+ security_note(port:0, data:report);
 }

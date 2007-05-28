@@ -31,7 +31,7 @@ source directory.
 #ifdef HAS_BOOT_H
 #include <asm/boot.h>
 #else
-#include <linux/config.h>
+#include <linux/autoconf.h>
 #endif
 
 #define nelem(a) (sizeof(a)/sizeof((a)[0]))

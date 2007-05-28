@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10112);
- script_version ("$Revision: 1.18 $");
  script_bugtraq_id(2126);
- script_cve_id("CAN-1999-1069");
+ script_version ("$Revision: 1.24 $");
+ script_cve_id("CVE-1999-1069");
  name["english"] = "icat";
  name["francais"] = "icat";
  script_name(english:name["english"], francais:name["francais"]);
@@ -18,15 +18,15 @@ if(description)
 user to read arbitrary file on the target system. Make sure you
 are running the latest version of icat.
 
-Risk factor : Medium/High
-
-Solution : Upgrade to the latest version of icat";
+Solution : Upgrade to the latest version of icat
+Risk factor : High
+";
 
  desc["francais"] = "Plusieurs versions du CGI 'icat' permettent
 à un cracker de lire des fichiers arbitraires sur la machine cible.
 Assurez-vous que vous faites tourner la derniere version de icat.
 
-Facteur de risque : Moyen/Elevé.
+Facteur de risque : Elevé.
 
 Solution : Upgradez icat s'il est trop vieux";
 
@@ -46,6 +46,7 @@ Solution : Upgradez icat s'il est trop vieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -56,8 +57,8 @@ Solution : Upgradez icat s'il est trop vieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

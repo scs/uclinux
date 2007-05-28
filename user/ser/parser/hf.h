@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: hf.h,v 1.11.4.1 2004/02/28 02:13:48 bogdan Exp $ 
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

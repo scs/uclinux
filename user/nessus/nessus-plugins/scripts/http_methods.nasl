@@ -1,11 +1,26 @@
 #
 # Check for bad permissions on a web server
 #
+# RFCs:
+# 1945 Hypertext Transfer Protocol -- HTTP/1.0. T. Berners-Lee, R.
+#      Fielding, H. Frystyk. May 1996. (Format: TXT=137582 bytes) (Status:
+#      INFORMATIONAL)
+# 2068 Hypertext Transfer Protocol -- HTTP/1.1. R. Fielding, J. Gettys,
+#      J. Mogul, H. Frystyk, T. Berners-Lee. January 1997. (Format:
+#      TXT=378114 bytes) (Obsoleted by RFC2616) (Status: PROPOSED STANDARD)
+# 2616 Hypertext Transfer Protocol -- HTTP/1.1. R. Fielding, J. Gettys,
+#      J. Mogul, H. Frystyk, L. Masinter, P. Leach, T. Berners-Lee. June
+#      1999. (Format: TXT=422317, PS=5529857, PDF=550558 bytes) (Obsoletes
+#      RFC2068) (Updated by RFC2817) (Status: DRAFT STANDARD)
+#
 
 if(description)
 {
  script_id(10498);
- script_version ("$Revision: 1.23 $");
+ script_version ("$Revision: 1.31 $");
+ script_bugtraq_id(12141);
+ if (defined_func("script_xref"))
+  script_xref(name:"OWASP", value:"OWASP-CM-001");
  
  name["english"] = "Test HTTP dangerous methods";
  name["francais"] = "Teste les méthodes HTTP dangereuses";
@@ -16,7 +31,7 @@ Misconfigured web servers allows remote clients to perform
 dangerous HTTP methods such as PUT and DELETE. This script
 checks if they are enabled and can be run
 
-Risk factor : Medium/Serious";
+Risk factor : Medium";
 
 
  desc["francais"] = "
@@ -78,9 +93,10 @@ function exists(file, port)
 }
 
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if (!get_port_state(port)) exit(0);
+if ( get_kb_item("Services/www/" + port + "/embedded" ) ) exit(0);
 
 soc = http_open_socket(port);
 if (!soc) exit(0);
@@ -113,15 +129,15 @@ if (!soc) exit(0);
  upload=0;
  if (exists(port:port, file:name)) {
   upload=1;
-  security_hole(port:port, protocol:"tcp",
+  security_warning(port:port, protocol:"tcp",
 data: string("We could upload the file '",name, "' onto your web server\nThis allows an attacker to run arbitrary code on your server, or set a trojan horse\nSolution : disable this method\nRisk factor : High") );
  } else {
    #if("yes" >< integrist)
     {
-  if (" 403 " >< l && "PUT" >< allow) {
+  if (" 401 " >< l && "PUT" >< allow) {
    #display("answer = ", l, "\n");
    security_warning(port:port, protocol:"tcp",
-data:string("It seems that the PUT method is enabled on your web server\nAlthough we could not exploit this, you'd better disable it\nSolution : disable this method\nRisk factor : Serious"));
+data:string("It seems that the PUT method is enabled on your web server\nAlthough we could not exploit this, you'd better disable it\nSolution : disable this method\nRisk factor : Medium"));
     }
   }
  }
@@ -149,9 +165,9 @@ else
 
   if(!e)
     security_hole(port:port, protocol:"tcp",
-data: string("We could DELETE the file '", name, "'on your web server\nThis allows an attacker to destroy some of your pages\nSolution : disable this method\nRisk factor : Serious") ) ;
+data: string("We could DELETE the file '", name, "'on your web server\nThis allows an attacker to destroy some of your pages\nSolution : disable this method\nRisk factor : High") ) ;
  } else {
-  if (" 403 " >< l && " is disabled " >!< l && "DELETE" >< allow) {
+  if (" 401 " >< l && " is disabled " >!< l && "DELETE" >< allow) {
    security_warning(port:port, protocol:"tcp",
 data:string("It seems that the DELETE method is enabled on your web server\nAlthough we could not exploit this, you'd better disable it\nSolution : disable this method\nRisk factor : Medium"));
  }

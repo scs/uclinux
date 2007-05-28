@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: grouprad_mod.h,v 1.3.8.1 2004/07/18 22:56:24 sobomax Exp $
  *
  * Group membership checking over Radius
  *

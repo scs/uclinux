@@ -9,10 +9,11 @@
 if(description)
 {
  script_id(11383);
- script_cve_id("CAN-2002-1357", "CAN-2002-1358", "CAN-2002-1359", "CAN-2002-1360");
- script_bugtraq_id(6397);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0001");
+ script_bugtraq_id(6397, 6405, 6407, 6408, 6410);
+ script_cve_id("CVE-2002-1357", "CVE-2002-1358", "CVE-2002-1359", "CVE-2002-1360");
 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "CSCdz60229, CSCdy87221, CSCdu75477";
 
@@ -28,7 +29,7 @@ CSCdu75477
 
 Solution : See 
 http://www.cisco.com/warp/public/707/ssh-packet-suite-vuln.shtml
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

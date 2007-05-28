@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parser_f.c,v 1.4 2003/01/27 21:19:48 jiri Exp $
  *
  * parser helper  functions
  *

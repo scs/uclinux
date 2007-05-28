@@ -1,3 +1,21 @@
+/* $Id$ */
+/*
+ ** Copyright (C) 2004-2006 Sourcefire, Inc.
+ **
+ ** This program is free software; you can redistribute it and/or modify
+ ** it under the terms of the GNU General Public License as published by
+ ** the Free Software Foundation; either version 2 of the License, or
+ ** (at your option) any later version.
+ **
+ ** This program is distributed in the hope that it will be useful,
+ ** but WITHOUT ANY WARRANTY; without even the implied warranty of
+ ** MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ ** GNU General Public License for more details.
+ **
+ ** You should have received a copy of the GNU General Public License
+ ** along with this program; if not, write to the Free Software
+ ** Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+ */
 /**
 **  @file       event_queue.c
 **
@@ -25,8 +43,16 @@
 /*
 **  Set default values
 */
-SNORT_EVENT_QUEUE g_event_queue = {8,3,SNORT_EVENTQ_CONTENT_LEN};
+SNORT_EVENT_QUEUE g_event_queue = {8,3,SNORT_EVENTQ_CONTENT_LEN,0};
 
+/*
+ *  Changed so events are inserted in action config order 'drop alert ...',
+ *  and sub sorted in each action group by priority or content length.
+ *  The sub sorting is done in fpFinalSelect inf fpdetect.c.  Once the
+ *  events are inserted they can all be logged, as we only insert
+ *  g_event_queue.log_events into the queue.
+ *  ... Jan '06
+ */
 int SnortEventqAdd(unsigned int gid, 
                    unsigned int sid, 
                    unsigned int rev, 
@@ -54,7 +80,7 @@ int SnortEventqAdd(unsigned int gid,
 
     return 0;
 }
-
+#ifdef OLD_RULE_ORDER
 static int OrderPriority(void *event1, void *event2)
 {
     EventNode *e1;
@@ -123,11 +149,12 @@ static int OrderContentLength(void *event1, void *event2)
 
     return 0;
 }
+#endif
 
 int SnortEventqInit(void)
 {
     int (*sort)(void *, void*) = NULL;
-
+#ifdef OLD_RULE_ORDER
     if(g_event_queue.order == SNORT_EVENTQ_PRIORITY)
     {
         sort = OrderPriority;
@@ -140,7 +167,9 @@ int SnortEventqInit(void)
     {
         FatalError("Order function for event queue is invalid.\n");
     }
-        
+#else
+    sort = 0;
+#endif
     if(sfeventq_init(g_event_queue.max_events, g_event_queue.log_events,
                     sizeof(EventNode), sort))
     {
@@ -172,7 +201,11 @@ static int LogSnortEvents(void *event, void *user)
         otnx = (OTNX *)en->rule_info;
         if(!otnx->rtn || !otnx->otn)
             return 0;
-
+#if 0
+        LogMessage("LogSnortEvents: calling fpLogEvent( sid: %u,gid: %u, p ) \n",
+           otnx->otn->sigInfo.id,
+           otnx->otn->sigInfo.generator );
+#endif
         snort_user->rule_alert = 1;
 
         fpLogEvent(otnx->rtn, otnx->otn, p);

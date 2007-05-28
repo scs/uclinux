@@ -8,9 +8,9 @@
 if(description)
 {
   script_id(10442);
- script_version ("$Revision: 1.10 $");
- script_bugtraq_id(1343);
-  script_cve_id("CAN-2000-0543");
+  script_bugtraq_id(1343);
+ script_version ("$Revision: 1.13 $");
+  script_cve_id("CVE-2000-0543");
   script_name(english:"NAI PGP Cert Server DoS");
   script_description(english:"
 It was possible to make the remote PGP Cert Server
@@ -22,7 +22,7 @@ certificate server from working properly.
 
 Solution: Upgrade to the latest version.
 
-Risk factor : Medium");
+Risk factor : High");
   script_summary(english:"Check for DoS in PGP Cert Server");
   script_category(ACT_DENIAL);
   script_family(english:"Denial of Service", francais:"Déni de service");

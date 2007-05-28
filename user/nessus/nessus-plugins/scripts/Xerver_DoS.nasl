@@ -14,9 +14,9 @@
 if(description)
 {
  script_id(11015);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2002-0448");
  script_bugtraq_id(4254);
+ script_version("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-0448");
  name["english"] = "Xerver web server DOS";
  name["francais"] = "Déni de service contre Xerver";
  script_name(english:name["english"], francais:name["francais"]);
@@ -31,7 +31,7 @@ service crash continuously.
 
 Solution: upgrade your software
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "Il a été possible de tuer
@@ -45,7 +45,7 @@ service.
 
 Solution: mettez à jour votre logiciel
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
@@ -53,7 +53,7 @@ Facteur de risque : Moyen";
  summary["francais"] = "Déni de service contre Xerver";
  script_summary(english:summary["english"], francais:summary["francais"]);
  
- script_category(ACT_DESTRUCTIVE_ATTACK);
+ script_category(ACT_DENIAL);
  
  script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi",
 		francais:"Ce script est Copyright (C) 2002 Michel Arboi");

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl_time.h,v 1.2 2003/09/02 16:08:57 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

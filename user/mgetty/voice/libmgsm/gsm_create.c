@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: gsm_create.c,v 1.4 1998/09/09 21:06:45 gert Exp $ */
 
 #include  "config.h"
 

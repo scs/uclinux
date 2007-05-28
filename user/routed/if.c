@@ -36,7 +36,7 @@
  * From: @(#)if.c	8.1 (Berkeley) 6/5/93
  */
 char if_rcsid[] = 
-  "$Id$";
+  "$Id: if.c,v 1.5 1999/08/01 19:19:16 dholland Exp $";
 
 /*
  * Routing Table Management Daemon

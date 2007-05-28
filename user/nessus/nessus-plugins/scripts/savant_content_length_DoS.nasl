@@ -27,7 +27,9 @@
 if(description)
 {
  script_id(11174);
- script_version("$Revision: 1.6 $");
+ script_cve_id("CVE-2002-1828", "CVE-2002-2147");
+ script_bugtraq_id(5707, 6255);
+ script_version("$Revision: 1.12 $");
  
  name["english"] = "HTTP negative Content-Length DoS";
  script_name(english:name["english"]);
@@ -39,9 +41,8 @@ GET HTTP request with a negative Content-Length field.
 A cracker may exploit this flaw to disable your service or
 even execute arbitrary code on your system.
 
-Risk factor : High
-
-Solution : Upgrade your web server";
+Solution : Upgrade your web server
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -64,8 +65,8 @@ Solution : Upgrade your web server";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 if(http_is_dead(port:port))exit(0);

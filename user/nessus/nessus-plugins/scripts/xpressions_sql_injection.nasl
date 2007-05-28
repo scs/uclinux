@@ -12,7 +12,7 @@ if(description)
  script_id(11698);
  script_bugtraq_id(7804);
 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.8 $");
  name["english"] = "SQL injection in XPression Software";
  script_name(english:name["english"]);
  
@@ -25,7 +25,7 @@ to inject arbitrary SQL commands, which may in turn be used to
 gain administrative access on the remote host.
 
 Solution : Upgrade to the latest version of this software
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -41,6 +41,7 @@ Risk Factor : High";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -71,11 +72,12 @@ function check(req)
  return(0);
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
 
 
-foreach dir (make_list("", cgi_dirs()))
+
+foreach dir ( cgi_dirs() )
 {
- check(req:dir + "/manage/login.asp");
+  if ( is_cgi_installed_ka(item:dir + "/manage/login.asp", port:port) ) check(req:dir + "/manage/login.asp");
 }

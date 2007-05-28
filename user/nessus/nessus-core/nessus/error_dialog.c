@@ -98,16 +98,24 @@ show_dialog(error_text, type)
 	name = "Error";
 	break;
   }
- 
-  dialog = gtk_window_new(GTK_WINDOW_DIALOG);
+  
+  #if GTK_VERSION < 20 
+    dialog = gtk_window_new(WINDOW_DIALOG);
+  #else
+    dialog = gtk_dialog_new();
+  #endif
   gtk_window_set_title(GTK_WINDOW(dialog), name);
   gtk_signal_connect (GTK_OBJECT (dialog), "delete_event",
 		      GTK_SIGNAL_FUNC (delete_event), NULL); 
   gtk_window_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
-  vbox = gtk_vbox_new(FALSE, 15);
-  gtk_container_border_width(GTK_CONTAINER(dialog), 10);
-  gtk_container_add(GTK_CONTAINER(dialog), vbox);
-  gtk_widget_show(vbox);
+  #if GTK_VERSION < 20
+    vbox = gtk_vbox_new(FALSE, 15);
+    gtk_container_border_width(GTK_CONTAINER(dialog), 10);
+    gtk_container_add(GTK_CONTAINER(dialog), vbox);
+    gtk_widget_show(vbox);
+  #else
+    vbox = GTK_DIALOG(dialog)->vbox;
+  #endif
   
   hbox = gtk_hbox_new(FALSE,5);
   gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE,0);
@@ -203,7 +211,7 @@ void show_dialog_and_wait_build(int * ok, char * error_text, int type)
 	name = "Error";
 	break;
   }
-  dialog = gtk_window_new(GTK_WINDOW_DIALOG);
+  dialog = gtk_window_new(WINDOW_DIALOG);
   gtk_widget_realize(dialog);
   gtk_window_set_title(GTK_WINDOW(dialog), name);
   gtk_signal_connect (GTK_OBJECT (dialog), "delete_event",

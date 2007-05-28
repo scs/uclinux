@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: challenge.h,v 1.3 2003/03/06 15:32:39 janakj Exp $
  *
  * Challenge related functions
  *

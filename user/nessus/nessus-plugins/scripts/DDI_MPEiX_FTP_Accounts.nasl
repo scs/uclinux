@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(11000); 
- script_version ("$Revision: 1.3 $");  
+ script_version ("$Revision: 1.6 $");  
+ script_cve_id("CVE-1999-0502");
  name["english"] = "MPEi/X Default Accounts";
 
  script_name(english:name["english"]);
@@ -180,7 +181,7 @@ for(i=0; accounts[i]; i = i +1)
         cracked = string(cracked, username, "\n");
     }
 }
-ftp_close(soc);
+ftp_close(socket:soc);
 
 if (strlen(cracked))
 {

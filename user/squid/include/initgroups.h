@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: initgroups.h,v 1.1.2.1 2004/08/09 13:54:23 hno Exp $
  */
 #ifndef SQUID_INITGROUPS_H
 #define SQUID_INITGROUPS_H

@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(10820);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.9 $");
  name["english"] = "F5 Device Default Support Password";
+ script_cve_id("CVE-1999-0508");
  script_name(english:name["english"]);
 
  desc["english"] = "
@@ -49,15 +50,14 @@ Risk factor : High";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 include("misc_func.inc");
 
-ports = add_port_in_list(list:get_kb_list("Services/www"), port:443);
-
-foreach port (ports)
-{
-  soc = http_open_socket(port);
-  if (soc)
-  {
+port = get_http_port(default:443);
+if (  !port ) exit(0);
+soc = http_open_socket(port);
+if (soc)
+ {
     req = string("GET /bigipgui/bigconf.cgi?command=bigcommand&CommandType=bigpipe HTTP/1.0\r\nAuthorization: Basic c3VwcG9ydDpzdXBwb3J0\r\n\r\n");
     send(socket:soc, data:req);
     buf = http_recv(socket:soc);
@@ -65,6 +65,6 @@ foreach port (ports)
     if (("/bigipgui/" >< buf) && ("System Command" >< buf))
     {
      security_hole(port);
+     set_kb_item(name:"Services/www/" + port + "/embedded", value:TRUE);
     }
-  }
-}
+ }

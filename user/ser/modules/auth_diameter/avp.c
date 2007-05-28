@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: avp.c,v 1.1.2.2 2003/11/21 12:50:58 andrei Exp $
  *
  * Copyright (C) 2002-2003 Fhg Fokus
  *

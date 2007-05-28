@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.h,v 3.4 1996/04/26 19:21:03 christos Exp $ */
 /*
  * tc.h: Tcsh includes
  */

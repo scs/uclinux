@@ -7,12 +7,13 @@
 
 0. Copyright
 
-This document was written by Michel Arboi <arboi@alussinan.org>
+This document was written by Michel Arboi <mikhail@nessus.org>
 Anybody may reproduce it, send it, print it, engrave in marble,
 transfer on a T-shirt, etc., provided it is not modified -- and this
 means, of course, that this copyright should stay here.
 Devin Harris <devin.harris@abraxis.com> read and fixed my quick &
-dirty French to English translation. 
+dirty French to English translation. I added typos & broken English
+since. 
 
 
 1. Why this document?
@@ -40,7 +41,9 @@ At least we warned you!
 
 a) Nessus looks for open ports
    - by calling the external scanner nmap,
-   - by calling snmpwalk (against a badly configured machine),
+   - by calling snmpwalk [*]
+   - by connecting to the netstat service [*] or by running netstat on
+     the machine if we have an SSH access.
    - by using an internal plugin, based upon one of nmap's modes,
    - or by reading an external file, in nmap format, written by any
      tool, e.g. by connecting the output of the netstat command.
@@ -55,12 +58,18 @@ c) Nessus then tries miscellaneous attacks on every open port.
    For example, if a scripts targets web servers, it will be launched
    against every port where a HTTP or HTTPS server has been found.
 
+[*] The fact that a machine leaks information through netstat or SNMP
+is a weakness. However, those services can be configured to answer
+only to a restricted set of machines, including the Nessus scanner.
+
  3.2. Plugin types
 
 Nessus plugins are organised into "families".  They can be grouped in
 the graphical interface, but this does not change the scanner
 work.  There is a "denial of service" family, but all dangerous scripts
-are not there; only those which goal is to kill the system.
+are not there; only those which goal is to kill the system. More over,
+some scripts in this family are not dangerous: they just check if a
+software is vulnerable without killing it.
 
 Each plugin has a "category":
 - ACT_INIT
@@ -85,6 +94,9 @@ Each plugin has a "category":
   The script tries to kill a service
 - ACT_KILL_HOST
   The script tries to kill the operating system.
+- ACT_FLOOD
+  The script tries to kill the machine by flooding with packets. It
+  may badly disrupt the whole network.
 - ACT_END
   The script just compile information after everything else run.
 
@@ -98,6 +110,7 @@ Notes:
 - ACT_INIT, ACT_END and ACT_KILL_HOST were introduced in 1.3.0
   Before that (1.2.6), ACT_INIT scripts (if any) were handled in
   ACT_SETTINGS and ACT_KILL_HOST was merged with ACT_DENIAL.
+- ACT_FLOOD appeared in 2.1.0
 - before version 1.2.6, ACT_SETTINGS was run first, but we lost 
   time when we scanned an address range with few "up" machines. By 
   putting ACT_SCANNER first, we filter with ping.nasl
@@ -127,13 +140,13 @@ So:
 With the GUI, one can
 - select everything in one click,
 - select "Everything but dangerous plugins".
-  This choice eliminates the categories ACT_DENIAL, ACT_KILL_HOST or
-  ACT_DESTRUCTIVE_ATTACK. This is redundant with the "safe checks"
-  option and will probably disappear one day.
+  This choice eliminates the categories ACT_FLOOD, ACT_DENIAL,
+  ACT_KILL_HOST or ACT_DESTRUCTIVE_ATTACK. This is redundant with the
+  "safe checks" option and will probably disappear one day.
 - select or remove each plugin individually.
 - select a whole family.
   Keep in mind that all dangerous scripts are not in the "denial of
-  service" family!
+  service" family and that some scripts in this family are not dangerous!
 
  3.4. Important options
 
@@ -177,8 +190,8 @@ This option is more dangerous that it looks:
   Scripts delivered with Nessus are supposed to be safe, but a
   "unofficial" or experimental script might be dangerous.
 
-Note that ACT_DENIAL, ACT_KILL_HOST and ACT_DESTRUCTIVE_ATTACK scripts
-are never run when this option is on.
+Note that ACT_FLOOD, ACT_DENIAL, ACT_KILL_HOST and
+ACT_DESTRUCTIVE_ATTACK scripts are never run when this option is on. 
 
 
 4. How a security test may kill your system
@@ -220,6 +233,10 @@ You can get the list of open ports with the netstat command and
 convert it with netstat2nmap.pl into a fake nmap file that can be read
 by Nessus.  So you do not need to run a scanner. However, the main
 point in this is to speed the test up, rather than limit the risk.
+Starting from version 2.1.2, one can use the netstat_portscan plugin,
+if the netstat service is running (this is a bad idea, unless the
+access is restricted to the Nessus scanner IP) or if Nessus has an SSH
+access to the target.
 
  4.3. Nessus demolition company
 
@@ -257,6 +274,7 @@ does not hurt too much...
 
  5.1. Do not port scan
 
+In version 2.0.x:
 - Log onto guinea-pig, run "netstat -a -n --inet" or any other command
   that gives you the list of open IP ports (--inet) in a numeric
   output (-n).
@@ -266,6 +284,13 @@ does not hurt too much...
   netstat2nmap guinea-pig > gp.nmap  
 - _Only_ select the "nmap" scanner and feed it with gp.nmap. The
   "scanned" port range should be 1-65535
+
+Or in version 2.1.2 or later (including 2.2.x):
+ - give Nessus an SSH access to guinea-pig and only enable
+   netstat_portscan
+Note: currently, the new Nmap wrapper only reads "grepable" output
+(nmap -oG), not the "normal" (netstat -oN) format which is produced by
+netstat2nmap. 
 
  5.2. Remove Nessus' teeth
 
@@ -339,11 +364,13 @@ risk to an reasonable level:
 
 - If the client and the server run on the same machine, configure
   Nessus to use Unix sockets. Verify that port 1241 is closed.
+Or:
 - Configure Nessus with the TCP wrappers and limit the access to a few
   workstations, e.g. localhost.
 - Enable the strong authentication (X.509 client
   certificates). Generate your own certificates, do not use those from
-  the "Nessus kabale"!
+  the "Nessus kabale"! (they have been removed from the CVS repository
+  for a long time)
   You should also protect your server & client private keys with a
   solid password. The nessus-mkcert script does not do this. You will
   have to set up your own "certificate factory".
@@ -352,3 +379,138 @@ risk to an reasonable level:
 
 Note: currently, certificate based authentication is incompatible with
 Unix sockets.
+
+9.4. "Only paranoids survive"
+
+
+It was asked some times on the mailing lists how privilege separation
+can be implemented with Nessus.
+The short answer is that this question is a troll.
+The long answer follows.
+
+First, we must remind that privilege separation limits the
+consequences of a flaw by giving the cracker a non privileged access
+instead of a root access.
+In the case of Nessus, the gain is limited: if a cracker can control
+the nessusd daemon under any user identity, he will be able to attack
+the whole scanned network, which might be more dangerous than just
+controlling one machine.
+
+Therefore, we should  focus on the protection of the nessusd
+access rather than block a privilege increase once an attacker has
+pierced the first defence line.
+
+ 9.4.1. Risks
+
+In theory, three ways would allow to control Nessusd by getting around
+the authentication mechanism [we ignore here potential bugs in this
+mechanism] : 
+- an attack against the Nessus listener or the OpenSSL layer which is
+used for the client / server communication.
+- a "reverse attack" against the NASL interpretor, for example a
+buffer overflow on reading abnormal data.
+- a "reverse attack" against the libraries that are used by NASL, or
+the system libraries, especially OpenSSL which is the most complex,
+thus definitely the most fragile.
+
+ 9.4.2. Generic counter-measures
+
+PaX and "stack protector" lower the probability of success of the
+attack (or increase its difficulty), RBAC or privilege separation
+lower the impact of a succeeded attack.
+
+* PaX
+
+http://pax.grsecurity.net/
+PaX is a Linux kernel patch; its role is to block the exploitations of
+buffer overflows, or at least to make them much more complex.
+PaX is not compatible with some programs that use strange memory
+access methods.
+
+* gcc -fstack-protector
+
+This GCC option protects the compiled program against buffer
+overflows.
+
+* MAC, RBAC...
+
+Systems like SELinux or GrSec divide the role of the super user into
+several "privileges" and enforce fine grain access control to the
+miscellaneous objects that the operating system handles.
+Thus, if an exploit succeeds, a program will not be able to run
+programs or read files that are not needed usually.
+Managing those systems is cumbersome if the configuration is often
+changed.
+
+* GrSecurity 
+
+This "catch-all" patch combines generic protections against known
+attacks (PaX and other things) with a RBAC system.
+
+* Privilege separation
+
+This technique is similar to the previous ones, but it is implemented
+without kernel patch, by relying upong the standard Unix mechanisms.
+It is less fine grained, thus less efficient, and often needs a big
+programming work. However it works on a unpatched system.
+The principle is to cut the program in two pieces; the piece in charge
+of the "dangerous" operations (like interpreting input data) drops the
+root privileges.
+
+ 9.4.3. NASL sandbox
+
+Nobody can claim he never makes any mistakes, but we tried (1) to
+implement clean code in NASL: we control array indexes, we always use
+a format string, etc., (2) we avoid some libc functions that have been
+flawed on some systems or that we do not trust. 
+At worst, a malicious server could crash a NASL script by using too
+much memory for example -- Nessus is protected against this by setting
+a limit to resource consumption by child processes.
+
+We call only one complex library that we are calling is OpenSSL
+because there is no other  library and because as SSL is complex, an
+SSL library will always be complex. There is no satisfying solution,
+maybe you want to recompile OpenSSL with gcc -fstack-protector or
+implement PaX.
+
+NB : even the SSH protocol is coded directly in NASL, using some
+cryptographic C functions.
+
+ 9.4.4. SSL listener separation
+
+One can easily separate the SSL listener from the core daemon with
+stunnel.
+With this configuration, stunnel decrypts SSL data in a chroot jail,
+then connects in clear text to the nessusd daemon:
+- run "nessusd -a 127.0.0.1:1241" with "ssl_version=none" in "nessusd.conf"
+  The client software must use SSL however
+  (ssl_version=tlsV1 in .nessusrc)
+- run stunnel with a configuration file like that:
+  comme :
+chroot  = /chroot/stunnel	# For example
+client  = no
+accept  = 11.12.13.14:1241	# Put your external IP here
+connect = 127.0.0.1:1241
+#
+setgid = nessusnobody		# For example
+setuid = nessusnobody
+#
+verify = 2		# Asks for a client certificate
+CAfile = ...
+cert = ...
+key = ...
+CRLpath = ...
+CRLfile = ...
+
+ 9.5. On the Nesuss client side
+
+The Nessus client also handles sensitive data: 
+- it receives reports which contain vulnerabilities on the target
+machines. Starting with version 2.3, the Unix GTK client stores those
+reports.
+- the ".nessusrc" file contains passwords to some services. Those
+passwords are hidden in the GUI but saved in clear text on the disk.
+
+It is important to protect the access to the client machine. It is
+also a good idea to save reports and nessusrc files on an encrypted
+disk.

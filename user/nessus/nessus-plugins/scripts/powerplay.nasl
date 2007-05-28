@@ -11,8 +11,8 @@
 if(description)
 {
  script_id(10187);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(491);
+ script_version ("$Revision: 1.19 $");
 
  name["english"] = "Cognos Powerplay WE Vulnerability";
  name["francais"] = "Cognos Powerplay WE Vulnerability";
@@ -89,6 +89,13 @@ Facteur de risque : Moyen";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("ppdscgi.exe");
-if(port)security_warning(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"ppdscgi.exe", port:port);
+if(res)security_warning(port);

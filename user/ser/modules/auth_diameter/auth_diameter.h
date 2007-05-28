@@ -1,5 +1,5 @@
 /*
- * $Id$ 
+ * $Id: auth_diameter.h,v 1.1 2003/08/29 18:55:15 ramona Exp $ 
  * Digest Authentication - Diameter support
  *
  * Copyright (C) 2001-2003 Fhg Fokus

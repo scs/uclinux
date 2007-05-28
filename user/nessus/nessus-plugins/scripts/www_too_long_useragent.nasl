@@ -23,9 +23,9 @@
 if(description)
 {
  script_id(11069);
- script_version ("$Revision: 1.12 $");
- script_cve_id("CVE-2001-0836");
  script_bugtraq_id(3443, 3449, 7054);
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2001-0836");
  name["english"] = "HTTP User-Agent overflow";
  script_name(english:name["english"]);
  
@@ -65,8 +65,8 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 if(http_is_dead(port: port)) exit(0);
 

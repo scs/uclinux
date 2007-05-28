@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(10959);
- script_version ("$Revision: 1.5 $");
- script_cve_id("CAN-2002-0893");
  script_bugtraq_id(4795);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2002-0893");
  name["english"] = "ServletExec 4.1 ISAPI File Reading";
  name["francais"] = "ServletExec 4.1 ISAPI File Reading";
  script_name(english:name["english"], francais:name["francais"]);
@@ -55,24 +55,19 @@ Risk factor : Medium";
 # Check starts here
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
 # Uses global.asa as target to retrieve. Could be improved to use output of webmirror.nasl
 
  req = http_get(item:"/servlet/com.newatlanta.servletexec.JSP10Servlet/..%5c..%5cglobal.asa", port:port);
-	  
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
+ r = http_keepalive_send_recv(port:port, data:req);
+ if ( ! r ) exit(0);
  confirmed = string("OBJECT RUNAT=Server"); 
  if(confirmed >< r)	
- 	security_hole(port);
- }
+ 	security_warning(port);
 }
 

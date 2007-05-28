@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+    "@(#) $Header: /cvs/sw/new-wave/user/traceroute/savestr.c,v 1.1.1.1 1999/11/22 03:48:06 christ Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: fake-rfc2553.h,v 1.12 2005/08/03 05:36:21 dtucker Exp $ */
 
 /*
  * Copyright (C) 2000-2003 Damien Miller.  All rights reserved.
@@ -114,9 +114,16 @@ struct sockaddr_in6 {
 #endif /* !NI_MAXHOST */
 
 #ifndef EAI_NODATA
-# define EAI_NODATA	1
-# define EAI_MEMORY	2
-# define EAI_NONAME	3
+# define EAI_NODATA	(INT_MAX - 1)
+#endif
+#ifndef EAI_MEMORY
+# define EAI_MEMORY	(INT_MAX - 2)
+#endif
+#ifndef EAI_NONAME
+# define EAI_NONAME	(INT_MAX - 3)
+#endif
+#ifndef EAI_SYSTEM
+# define EAI_SYSTEM	(INT_MAX - 4)
 #endif
 
 #ifndef HAVE_STRUCT_ADDRINFO
@@ -133,19 +140,26 @@ struct addrinfo {
 #endif /* !HAVE_STRUCT_ADDRINFO */
 
 #ifndef HAVE_GETADDRINFO
+#ifdef getaddrinfo
+# undef getaddrinfo
+#endif
+#define getaddrinfo(a,b,c,d)	(ssh_getaddrinfo(a,b,c,d))
 int getaddrinfo(const char *, const char *, 
     const struct addrinfo *, struct addrinfo **);
 #endif /* !HAVE_GETADDRINFO */
 
 #if !defined(HAVE_GAI_STRERROR) && !defined(HAVE_CONST_GAI_STRERROR_PROTO)
+#define gai_strerror(a)		(ssh_gai_strerror(a))
 char *gai_strerror(int);
 #endif /* !HAVE_GAI_STRERROR */
 
 #ifndef HAVE_FREEADDRINFO
+#define freeaddrinfo(a)		(ssh_freeaddrinfo(a))
 void freeaddrinfo(struct addrinfo *);
 #endif /* !HAVE_FREEADDRINFO */
 
 #ifndef HAVE_GETNAMEINFO
+#define getnameinfo(a,b,c,d,e,f,g) (ssh_getnameinfo(a,b,c,d,e,f,g))
 int getnameinfo(const struct sockaddr *, size_t, char *, size_t, 
     char *, size_t, int);
 #endif /* !HAVE_GETNAMEINFO */

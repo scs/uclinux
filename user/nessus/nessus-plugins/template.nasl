@@ -30,7 +30,7 @@ if(description)
  family["english"] = 
  family["francais"] = 
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie(
+ script_dependencie("example1.nasl");
  
  exit(0);
 }
@@ -38,3 +38,10 @@ if(description)
 #
 # The script code starts here
 #
+
+include("http_func.inc");
+include("http_keepalive.inc");
+
+port = get_http_port(default:80);
+res = http_keepalive_send_recv(port:port, data:http_get(item:"/", port:port));
+display(res);

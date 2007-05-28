@@ -1,47 +1,43 @@
 #
-# This script was written by Michael Scheidell <scheidell at secnap.net>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(10943);
+ script_bugtraq_id(4006, 4474, 4476, 4478, 4490, 6069, 6070, 6071, 6072);
  script_cve_id("CVE-2002-0147", "CVE-2002-0149",
- 	       "CVE-2002-0150", "CAN-2002-0224",
- 	       "CAN-2002-0869", "CAN-2002-1182",
-	       "CAN-2002-1180", "CAN-2002-1181");
- script_bugtraq_id(4474);
- script_version("$Revision: 1.13 $");
+ 	       "CVE-2002-0150", "CVE-2002-0224",
+ 	       "CVE-2002-0869", "CVE-2002-1182",
+	       "CVE-2002-1180", "CVE-2002-1181");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0002");
+ script_version("$Revision: 1.24 $");
  name["english"] = "Cumulative Patch for Internet Information Services (Q327696)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-Cumulative Patch for Microsoft IIS (Q327696)
+Synopsis :
 
-Impact of vulnerability: Ten new vulnerabilities, the most
-serious of which could enable code of an attacker's choice
-to be run on a server.
+Arbitrary code can be executed on the remote host through the web server.
 
-Recommendation: Users using any of the affected
-products should install the patch immediately.
+Description :
 
-Maximum Severity Rating: Critical 
+The remote version of Windows contains multiple flaws in the Internet
+Information Service (IIS) like Heap Overflow, DoS, XSS which may allow
+an attacker to execute arbitrary code on the remote host with the SYSTEM
+privileges.
 
-Affected Software: 
+Solution : 
 
-Microsoft Internet Information Server 4.0 
-Microsoft Internet Information Services 5.0 
-Microsoft Internet Information Services 5.1 
+Microsoft has released a set of patches for IIS 4.0, 5.0, 5.1 :
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-062.asp
+http://www.microsoft.com/technet/security/bulletin/ms02-062.mspx
 
-Supersedes
+Risk factor : 
 
-http://www.microsoft.com/technet/security/bulletin/ms02-018.asp
-
-Risk factor : High";
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -51,65 +47,35 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Michael Scheidell");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_W2K.nasl",
-		     "smb_reg_service_pack_XP.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_access","SMB/WindowsVersion");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+if ( hotfix_check_iis_installed() <= 0 ) exit(0);
+if ( hotfix_check_sp(nt:7, win2k:3, xp:1 ) <= 0 ) exit(0);
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-
-version = get_kb_item("SMB/WindowsVersion");
-
-key = "SYSTEM\CurrentControlSet\Services\W3SVC";
-item = "ImagePath";
-
-value = registry_get_sz(key:key, item:item);
-if(!value)exit(0); # No IIS installed
-if("inetinfo" >!< value)exit(0); # Not IIS
-
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q327696";
-item = "Comments";
-
-if("4.0" >< version)
+if (is_accessible_share())
 {
- value = registry_get_sz(key:key, item:item);
- if(!value){
- 	security_hole(port);
-	}
- exit(0);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:0, file:"W3svc.dll", version:"5.1.2600.1125", dir:"\system32\inetsrv") ||
+      hotfix_is_vulnerable (os:"5.0", file:"W3svc.dll", version:"5.0.2195.5995", dir:"\system32\inetsrv") ||
+      hotfix_is_vulnerable (os:"4.0", file:"W3svc.dll", version:"4.2.780.1", dir:"\system32\inetsrv") )
+   security_hole (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
-
-
-if("5.0" >< version)
-{
-# fixed in Service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
-}
-
-if("5.1" >< version)
-{
- # fixed in XP service Pack 2
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
-}
-
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
+else if ( hotfix_missing(name:"Q811114") > 0 &&
+          hotfix_missing(name:"Q327696") > 0  ) 
+  security_hole(get_kb_item("SMB/transport"));
+     
 

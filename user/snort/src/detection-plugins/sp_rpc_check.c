@@ -145,7 +145,7 @@ void RpcCheckInit(char *data, OptTreeNode *otn, int protocol)
 void ParseRpc(char *data, OptTreeNode *otn)
 {
     RpcCheckData *ds_ptr;  /* data struct pointer */
-    char *tmp;
+    char *tmp = NULL;
 
     /* set the ds pointer to make it easier to reference the option's
        particular data struct */

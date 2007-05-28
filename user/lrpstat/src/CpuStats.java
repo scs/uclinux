@@ -15,9 +15,9 @@
 // along with this program; if not, write to the Free Software
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-// $Revision$
-// $Author$
-// $Header$
+// $Revision: 1.5 $
+// $Author: hejl $
+// $Header: /home/cvs/lrpStat/src/CpuStats.java,v 1.5 2002/03/12 22:19:12 hejl Exp $
 
 /**
  * Class that holds the CPU-Info

@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10039);
- script_version ("$Revision: 1.18 $");
+ script_version ("$Revision: 1.21 $");
  name["english"] = "/cgi-bin directory browsable ?";
  script_name(english:name["english"]);
  
@@ -36,6 +36,7 @@ Risk factor : Medium";
 
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -46,8 +47,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
@@ -68,6 +69,8 @@ Risk factor : Medium";
 
 foreach dir (cgi_dirs())
 {
+ if ( strlen(dir) )
+ {
  data = string(dir ,"/");
  req = http_get(item:data, port:port);
  buf = http_keepalive_send_recv(port:port, data:req);
@@ -80,6 +83,7 @@ foreach dir (cgi_dirs())
   if( must_see >< buf ){
   	dirs += '.  ' + dir + '\n';
 	}
+ }
  }
 }
 

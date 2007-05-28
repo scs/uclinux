@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10656);
-script_cve_id("CAN-2001-0304");
  script_bugtraq_id(2384);
- script_version ("$Revision: 1.7 $");
+script_cve_id("CVE-2001-0304");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "Resin traversal";
  name["francais"] = "Resin traversal";
@@ -56,21 +56,14 @@ Facteur de risque : Elevé";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8080; # by default, Resin listens on this port, not 80
-
+port = get_http_port(default:8080); # by default, Resin listens on this port, not 80
 if(get_port_state(port))
 {
  req = string("/\\../readme.txt");
  rq = http_get(item:req, port:port);
- soc = http_open_socket(port);
- if(soc)
- {
-  send(socket:soc, data:rq);
-  r = http_recv(socket:soc);
-  http_close_socket(soc);
-  if ("This is the README file for Resin(tm)" >< r)
+ r = http_keepalive_send_recv(port:port, data:rq);
+ if ("This is the README file for Resin(tm)" >< r)
    security_hole(port);
- }
 }

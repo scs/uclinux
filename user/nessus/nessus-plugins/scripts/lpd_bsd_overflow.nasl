@@ -10,9 +10,10 @@
 if(description)
 {
    script_id(11406);
-   script_version ("$Revision: 1.2 $");
+   if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-t-0015");
    script_bugtraq_id(3252);
-   script_cve_id("CVE-2001-0670", "CAN-1999-0061");
+   script_version ("$Revision: 1.5 $");
+   script_cve_id("CVE-2001-0670", "CVE-1999-0061");
    name["english"] = "Buffer overflow in BSD in.lpd";
   
    script_name(english:name["english"]);

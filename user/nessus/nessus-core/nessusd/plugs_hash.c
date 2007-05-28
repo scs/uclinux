@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -15,16 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * This module computes the hash of the plugins (and the hash of the
  * hashes of the plugins)
@@ -43,17 +33,20 @@ file_hash(fname)
  struct stat st;
  int fd = open(fname, O_RDONLY);
  char * content;
+ int len;
+
  if(fd < 0)
   return NULL;
   
  fstat(fd, &st);
  
- content = mmap(NULL, st.st_size, PROT_READ, MAP_SHARED,fd, 0);
+ len = (int)st.st_size;
+ content = mmap(NULL,len, PROT_READ, MAP_SHARED,fd, 0);
  if(content &&
     (content != MAP_FAILED))
     {
-     char * ret = md5sum(content, st.st_size);
-     munmap(content, st.st_size);
+     char * ret = md5sum(content, len);
+     munmap(content, len);
      close(fd);
      return ret;
     }

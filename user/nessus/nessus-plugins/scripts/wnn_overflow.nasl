@@ -12,9 +12,9 @@
 if(description)
 {
  script_id(11108);
- script_version ("$Revision: 1.3 $");
  script_bugtraq_id(1603);
- script_cve_id("CAN-2000-0704");
+ script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-2000-0704");
  name["english"] = "Omron WorldView Wnn Overflow";
  
  script_name(english:name["english"]);

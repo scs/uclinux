@@ -15,9 +15,9 @@
 if(description)
 {
 	script_id(11098);
-	script_version ("$Revision: 1.5 $");
-	script_cve_id("CAN-2002-0826");
 	script_bugtraq_id(5427);
+	script_version ("$Revision: 1.9 $");
+	script_cve_id("CVE-2002-0826");
 	name["english"] = "WS_FTP SITE CPWD Buffer Overflow";
 	script_name(english:name["english"]);
 	desc["english"] = "
@@ -32,14 +32,14 @@ The vendor has released a patch that fixes this issue.  Please install
 the latest patch available from the vendor's website at 
 http://www.ipswitch.com/support/.
 
-Risk factor : Medium";
+Risk factor : High";
 		 
 	script_description(english:desc["english"]);
 	script_summary(english:"Checks FTP server banner for vulnerable version of WS_FTP Server");
 	script_category(ACT_GATHER_INFO); 
 	script_family(english:"FTP");
 	script_copyright(english:"This script is Copyright (C) 2002 Digital Defense, Inc.");
-	script_dependencie("find_service.nes");
+	script_dependencie("find_service_3digits.nasl");
 	script_require_ports("Services/ftp", 21);
 	exit(0);
 }

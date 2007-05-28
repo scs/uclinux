@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: db_mod.c,v 1.18 2003/10/08 13:07:21 janakj Exp $ 
  *
  * MySQL module interface
  *

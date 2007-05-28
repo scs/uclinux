@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10234);
- script_version ("$Revision: 1.11 $");
- script_cve_id("CAN-1999-0613");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-1999-0613");
  name["english"] = "sprayd service";
  name["francais"] = "Service sprayd";
  script_name(english:name["english"], francais:name["francais"]);
@@ -57,6 +57,10 @@ Facteur de risque : Faible";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 

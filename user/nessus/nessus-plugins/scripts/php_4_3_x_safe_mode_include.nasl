@@ -8,10 +8,10 @@
 if(description)
 {
  script_id(11807);
-
- script_version("$Revision: 1.2 $");
- name["english"] = "php < 4.3.3";
  script_bugtraq_id(8201);
+
+ script_version("$Revision: 1.7 $");
+ name["english"] = "php < 4.3.3";
 
  script_name(english:name["english"]);
  desc["english"] = "
@@ -53,26 +53,15 @@ Risk factor : Medium";
 #
 
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);
  if(!banner)exit(0);
- serv = strstr(banner, "Server");
- if(ereg(pattern:".*PHP/4\.3\.[0-2][^0-9]*", string:serv))
- {
-   security_hole(port);
-   exit(0);
- }
- else
- {
-   serv = strstr(banner, "X-Powered-By:");
-   if(ereg(pattern:".*PHP/4\.3\.[0-2][^0-9]*", string:serv))
-   {
-     security_hole(port);
-     exit(0);
-   }
- }
+ php = get_php_version(banner:banner);
+ if ( ! php ) exit(0);
+ if(ereg(pattern:"PHP/4\.3\.[0-2][^0-9]", string:php))
+   security_warning(port);
 }

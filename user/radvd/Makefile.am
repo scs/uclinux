@@ -1,5 +1,5 @@
 #
-#   $Id$
+#   $Id: Makefile.am,v 1.1 2001/11/14 19:58:10 lutchann Exp $
 #
 #   Authors:
 #    Lars Fenneberg		<lf@elemental.net>	 

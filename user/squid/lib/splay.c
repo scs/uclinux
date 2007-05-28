@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: splay.c,v 1.12.4.2 2004/12/21 17:45:10 hno Exp $
  */
 
 #include "config.h"
@@ -104,6 +104,8 @@ splay_splay(const void *data, splayNode * top, SPLAYCMP * compare)
 void
 splay_destroy(splayNode * top, SPLAYFREE * free_func)
 {
+    if (!top)
+	return;
     if (top->left)
 	splay_destroy(top->left, free_func);
     if (top->right)

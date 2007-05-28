@@ -1,6 +1,6 @@
 # Makefile.in -- strace Makefile prototype                     -*- Makefile -*-
 #
-# $Id$
+# $Id: Makefile.in,v 1.7 2001/02/16 20:14:40 wichert Exp $
 #
 
 srcdir		= @srcdir@

@@ -3,7 +3,7 @@
  * VoiceModem is the program for handling the voice modem functionality
  * from shell scripts.
  *
- * $Id$
+ * $Id: usage.c,v 1.8 2005/03/13 17:27:50 gert Exp $
  *
  */
 

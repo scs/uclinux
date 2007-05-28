@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10022);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(736);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-1999-0905");
  name["english"] = "Axent Raptor's DoS";
  name["francais"] = "Déni de service contre Raptor de Axent";
@@ -84,6 +84,6 @@ send_packet(tcp, pcap_active:FALSE) x 10;
 sleep(5);
 alive = end_denial();					     
 if(!alive){
-  		security_hole(80);
+  		security_hole(0);
 		set_kb_item(name:"Host/dead", value:TRUE);
 		}

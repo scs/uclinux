@@ -15,9 +15,9 @@
 if(description)
 {
  script_id(11227);
- script_version("$Revision: 1.2 $");
- script_cve_id("CVE-2001-1371");
  script_bugtraq_id(4289);
+ script_version("$Revision: 1.5 $");
+ script_cve_id("CVE-2001-1371");
  name["english"] = "Oracle 9iAS SOAP Default Configuration Vulnerability ";
  script_name(english:name["english"]);
  
@@ -69,9 +69,8 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2003 Javier Fernandez-Sanguino");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/OracleApache");
@@ -82,8 +81,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 { 

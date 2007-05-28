@@ -40,6 +40,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <linux/autoconf.h>
 #include <config/autoconf.h>
 
 extern char **environ;
@@ -54,6 +55,14 @@ extern char **environ;
 
 #define MAX_CONNECT 8
 #define MAX_ARGS  20
+
+union sa {
+        struct sockaddr sa;
+        struct sockaddr_in sin;
+#ifdef CONFIG_IPV6
+        struct sockaddr_in6 sin6;
+#endif
+};
 
 static void read_config(void);
 
@@ -144,7 +153,7 @@ static inline int generate_select_fds(fd_set * readmask, fd_set * writemask)
 }
 
 static char env_buffer[500];
-static char *env_pointers[8];
+static char *env_pointers[9];
 static int env_used;
 static int env_count;
 
@@ -169,59 +178,53 @@ static void add_env(const char *format, ...)
 }
 
 static pid_t
-start_child(struct stService *p, int fd, int tcp, int ipv6, int local_port, struct sockaddr *remote)
+start_child(struct stService *p, int fd, int tcp, int ipv6, int local_port, union sa *remote)
 {
   pid_t pid;
-#ifdef CONFIG_USER_IPV6
+  const char *proto = tcp ? "TCP" : "UDP";
+#ifdef CONFIG_IPV6
   char buf[INET6_ADDRSTRLEN];
 #endif
-
-  const char *proto = tcp ? "TCP" : "UDP";
 
   init_env();
   add_env("PROTO=%s", proto);
   if (tcp) {
-	if (ipv6) {
-#ifdef CONFIG_USER_IPV6
-		struct sockaddr_in6 local;
-		socklen_t local_size = sizeof(local);
+    union sa local;
+    socklen_t local_size = sizeof(local);
 
-		local.sin6_family = AF_INET6;
-
-		if (getsockname(fd, (struct sockaddr *)&local, &local_size) == 0) {
-		  add_env("TCPLOCALIP=%s", inet_ntop(AF_INET6, (struct in_addr6 *) &local.sin6_addr, buf, INET6_ADDRSTRLEN));
-		}
-		else {
-		  add_env("TCPLOCALIP=::");
-		}
-	    add_env("TCPREMOTEIP=%s", inet_ntop(AF_INET6, &((struct sockaddr_in6 *) remote)->sin6_addr, buf, INET6_ADDRSTRLEN));
-
-	    add_env("%sREMOTEPORT=%d", proto, ntohs( ((struct sockaddr_in6 *) remote) -> sin6_port));
+#ifdef CONFIG_IPV6
+    if (ipv6) {
+      if (getsockname(fd, &local.sa, &local_size) == 0) {
+        add_env("TCPLOCALIP=%s", inet_ntop(AF_INET6, &local.sin6.sin6_addr, buf, sizeof(buf)));
+      }
+      else {
+        add_env("TCPLOCALIP=::");
+      }
+      add_env("TCPREMOTEIP=%s", inet_ntop(AF_INET6, &remote->sin6.sin6_addr, buf, sizeof(buf)));
+      add_env("%sREMOTEPORT=%d", proto, ntohs(remote->sin6.sin6_port));
+    } else
 #endif
- 	} else {
-		struct sockaddr_in local;
-		socklen_t local_size = sizeof(local);
-
-		if (getsockname(fd, (struct sockaddr *)&local, &local_size) == 0) {
-		  add_env("TCPLOCALIP=%s", inet_ntoa(local.sin_addr));
-		}
-		else {
-		  add_env("TCPLOCALIP=0.0.0.0");
-		}
-	    add_env("TCPREMOTEIP=%s", inet_ntoa(((struct sockaddr_in *) remote)->sin_addr));
-
-	    add_env("%sREMOTEPORT=%d", proto, ntohs(((struct sockaddr_in *) remote)->sin_port));
-	}
+    {
+      if (getsockname(fd, &local.sa, &local_size) == 0) {
+        add_env("TCPLOCALIP=%s", inet_ntoa(local.sin.sin_addr));
+      }
+      else {
+        add_env("TCPLOCALIP=0.0.0.0");
+      }
+      add_env("TCPREMOTEIP=%s", inet_ntoa(remote->sin.sin_addr));
+      add_env("%sREMOTEPORT=%d", proto, ntohs(remote->sin.sin_port));
+    }
   }
   add_env("%sLOCALPORT=%d", proto, local_port);
+  add_env("PATH=%s", getenv("PATH") ?: "/bin:/usr/bin:/sbin:/usr/sbin");
   env_pointers[env_count] = 0;
 
 #ifdef DEBUG
   fprintf(stderr, "start_child(%s port %d from %s)\n", proto, local_port, 
-#ifdef CONFIG_USER_IPV6
-  		ipv6?inet_ntop(AF_INET6, &((struct sockaddr_in6 *) remote)->sin6_addr, buf, INET6_ADDRSTRLEN):
+#ifdef CONFIG_IPV6
+        ipv6 ? inet_ntop(AF_INET6, &remote->sin6.sin6_addr, buf, sizeof(buf)) :
 #endif
-				inet_ntoa(((struct sockaddr_in *) remote)->sin_addr));
+        inet_ntoa(remote->sin.sin_addr));
 
   {
     int i;
@@ -239,7 +242,7 @@ start_child(struct stService *p, int fd, int tcp, int ipv6, int local_port, stru
       dup2(fd, 0);
     if (fd != 1)
       dup2(fd, 1);
-#if 1
+#if 0
     /* Don't redirect stderr to stdout */
     if (fd != 2)
       dup2(fd, 2);
@@ -266,7 +269,7 @@ static inline void handle_incoming_fds(fd_set * readmask, fd_set * writemask)
   for(p=servicelist; p!=NULL; p=p->next) {
     int fd;
     if (p->master_socket && FD_ISSET(p->master_socket, readmask)) {
-      struct sockaddr remote;
+      union sa remote;
       int j;
 /*
  *    There is always at least one slot available in the loop below,
@@ -276,17 +279,9 @@ static inline void handle_incoming_fds(fd_set * readmask, fd_set * writemask)
         if (p->pid[j] == 0)
           break;
 
-      if (p->ipv6) {
-#ifdef CONFIG_USER_IPV6
-      	remote.sa_family = AF_INET6;
-#endif
-      } else {
-      	remote.sa_family = AF_INET;
-      }
-
       if (p->tcp) {
         int remotelen = sizeof(remote);
-        fd = accept(p->master_socket, (struct sockaddr*)&remote, &remotelen);
+        fd = accept(p->master_socket, &remote.sa, &remotelen);
         if (fd < 0) {
           fprintf(stderr, "accept failed\n");
           break;
@@ -319,138 +314,94 @@ static inline void start_services(void) {
   struct server_sockaddr;
 
   for(p=servicelist; p!=NULL; p=p->next) {
+    union sa server_sockaddr;
+    int family;
 
     if (p->master_socket || !strlen(p->args[0]))
       continue;
 
     p->enabled = 0;
 
+#ifdef CONFIG_IPV6
+    if (p->ipv6) {
+      family = AF_INET6;
+    } else
+#endif
+    {
+      family = AF_INET;
+    }
+
     if (p->tcp) {
-	if(p->ipv6) {
-#ifdef CONFIG_USER_IPV6
-	      int true;
-    	      struct sockaddr_in6 server_sockaddr;
+      int true;
 
-	      if ((s = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-        	fprintf(stderr, "Unable to create socket\n");
-        	continue;
-	      }
+      if ((s = socket(family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+        fprintf(stderr, "Unable to create socket\n");
+        continue;
+      }
 
-	      close_on_exec(s);
+      close_on_exec(s);
 
-	      server_sockaddr.sin6_family = AF_INET6;
-	      server_sockaddr.sin6_port = htons(p->port);
-	      memcpy(&server_sockaddr.sin6_addr.s6_addr,&in6addr_any, sizeof(in6addr_any));
-
-	      true = 1;
-
-	      if((setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&true, 
-        	 sizeof(true))) == -1) {
-        	perror("setsockopt: ");
-	      }
-
-	      if(bind(s, (struct sockaddr *)&server_sockaddr, 
-        	sizeof(server_sockaddr)) == -1)  {
-        	if (p->changed) {
-        	  fprintf(stderr, "Unable to bind server socket to port %d: %s\n", p->port, strerror(errno));
-        	  p->changed = 0;
-        	}
-        	close(s);
-        	continue;
-	      }
-
-	      if(listen(s, 1) == -1) {
-        	fprintf(stderr, "Unable to listen to socket: %s\n", strerror(errno));
-        	close(s);
-        	continue;
-	      }
+      server_sockaddr.sa.sa_family = family;
+#ifdef CONFIG_IPV6
+      if (p->ipv6) {
+        server_sockaddr.sin6.sin6_port = htons(p->port);
+        memcpy(&server_sockaddr.sin6.sin6_addr.s6_addr, &in6addr_any, sizeof(in6addr_any));
+      } else
 #endif
-	} else {
-	      int true;
-   	      struct sockaddr_in server_sockaddr;
+      {
+        server_sockaddr.sin.sin_port = htons(p->port);
+        server_sockaddr.sin.sin_addr.s_addr = htonl(INADDR_ANY);
+      }
+      
+      true = 1;
 
-	      if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-        	fprintf(stderr, "Unable to create socket\n");
-        	continue;
-	      }
+      if((setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&true, 
+         sizeof(true))) == -1) {
+        perror("setsockopt: ");
+      }
 
-	      close_on_exec(s);
+      if (bind(s, &server_sockaddr.sa, sizeof(server_sockaddr)) == -1)  {
+        if (p->changed) {
+          fprintf(stderr, "Unable to bind server socket to port %d: %s\n", p->port, strerror(errno));
+          p->changed = 0;
+        }
+        close(s);
+        continue;
+      }
 
-	      server_sockaddr.sin_family = AF_INET;
-	      server_sockaddr.sin_port = htons(p->port);
-	      server_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	      true = 1;
-
-	      if((setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (void *)&true, 
-        	 sizeof(true))) == -1) {
-        	perror("setsockopt: ");
-	      }
-
-	      if(bind(s, (struct sockaddr *)&server_sockaddr, 
-        	sizeof(server_sockaddr)) == -1)  {
-        	if (p->changed) {
-        	  fprintf(stderr, "Unable to bind server socket to port %d: %s\n", p->port, strerror(errno));
-        	  p->changed = 0;
-        	}
-        	close(s);
-        	continue;
-	      }
-
-	      if(listen(s, 1) == -1) {
-        	fprintf(stderr, "Unable to listen to socket: %s\n", strerror(errno));
-        	close(s);
-        	continue;
-	      }
-    	}
+      if(listen(s, 1) == -1) {
+        fprintf(stderr, "Unable to listen to socket: %s\n", strerror(errno));
+        close(s);
+        continue;
+      }
     } else {
-	if(p->ipv6) {
-#ifdef CONFIG_USER_IPV6
-    	      struct sockaddr_in6 server_sockaddr;
-	      if ((s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        	fprintf(stderr, "Unable to create socket\n");
-        	continue;
-	      }
+      if ((s = socket(family, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
+        fprintf(stderr, "Unable to create socket\n");
+        continue;
+      }
 
-	      close_on_exec(s);
+      close_on_exec(s);
 
-	      server_sockaddr.sin6_family = AF_INET;
-	      server_sockaddr.sin6_port = htons(p->port);
-	      memcpy(&server_sockaddr.sin6_addr.s6_addr,&in6addr_any, sizeof(in6addr_any));
-
-	      if(bind(s, (struct sockaddr *)&server_sockaddr,
-        	sizeof(server_sockaddr)) == -1)  {
-        	if (p->changed) {
-        	  fprintf(stderr, "Unable to bind server socket to port %d: %s\n", p->port, strerror(errno));
-        	  p->changed = 0;
-        	}
-        	close(s);
-        	continue;
-	      }
+      server_sockaddr.sa.sa_family = family;
+#ifdef CONFIG_IPV6
+      if (p->ipv6) {
+        server_sockaddr.sin6.sin6_port = htons(p->port);
+        memcpy(&server_sockaddr.sin6.sin6_addr.s6_addr, &in6addr_any, sizeof(in6addr_any));
+      } else
 #endif
-	} else {
-   	      struct sockaddr_in server_sockaddr;
-	      if ((s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        	fprintf(stderr, "Unable to create socket\n");
-        	continue;
-	      }
+      {
+        server_sockaddr.sin.sin_port = htons(p->port);
+        server_sockaddr.sin.sin_addr.s_addr = htonl(INADDR_ANY);
+      }
 
-	      close_on_exec(s);
-
-	      server_sockaddr.sin_family = AF_INET;
-	      server_sockaddr.sin_port = htons(p->port);
-	      server_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-
-	      if(bind(s, (struct sockaddr *)&server_sockaddr,
-        	sizeof(server_sockaddr)) == -1)  {
-        	if (p->changed) {
-        	  fprintf(stderr, "Unable to bind server socket to port %d: %s\n", p->port, strerror(errno));
-        	  p->changed = 0;
-        	}
-        	close(s);
-        	continue;
-	      }
-	}
+      if (bind(s, &server_sockaddr.sa, sizeof(server_sockaddr)) == -1)  {
+        if (p->changed) {
+          fprintf(stderr, "Unable to bind server socket to port %d: %s\n", p->port, strerror(errno));
+          p->changed = 0;
+        }
+        close(s);
+        continue;
+      }
     }
     p->master_socket = s;
     p->reconfig = 1;
@@ -645,29 +596,32 @@ read_config_lines(FILE *cfp)
     }
 
     if (strcmp(args[2], "tcp") == 0) {
-    	p->tcp = 1;
-	p->ipv6 = 0;
+      p->tcp = 1;
+      p->ipv6 = 0;
     } else if (strcmp(args[2], "udp") == 0) {
-    	p->tcp = 0;
-	p->ipv6 = 0;
+      p->tcp = 0;
+      p->ipv6 = 0;
     }
-#ifdef CONFIG_USER_IPV6
-      else if (strcmp(args[2], "tcp6") == 0) {
-    	p->tcp = 1;
-	p->ipv6 = 1;
-	strcpy(args[2], "tcp");
+#ifdef CONFIG_IPV6
+    else if (strcmp(args[2], "tcp6") == 0) {
+      p->tcp = 1;
+      p->ipv6 = 1;
     } else if (strcmp(args[2], "udp6") == 0) {
-    	p->tcp = 0;
-	p->ipv6 = 1;
-	strcpy(args[2], "udp");
+      p->tcp = 0;
+      p->ipv6 = 1;
     } 
 #endif
+    else {
+        fprintf(stderr, "unknown service type %s\n", args[2]);
+        free(p);
+        continue;
+    }
 
 	/* for "wait" processes,  only ever allow one to be run */
 
     p->limit = (strcmp(args[3], "wait") == 0) ? 1 : MAX_CONNECT;
 
-    sent = getservbyname(args[0], args[2]);
+    sent = getservbyname(args[0], p->tcp ? "tcp" : "udp");
     if (sent == NULL) {
       if (atoi(args[0]) > 0) {
         p->port = atoi(args[0]);
@@ -817,7 +771,7 @@ read_config()
              p->args[0],
              p->port,
              p->tcp ? "tcp" : "udp",
-	     p->ipv6 ? "IPv6" : "IPv4",
+             p->ipv6 ? "IPv6" : "IPv4",
              p->discard ? "discard" : "active",
              p->enabled ? "enabled" : "disabled");
   }

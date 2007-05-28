@@ -709,8 +709,11 @@ int main(int argc, char *argv[])
 	device = "/dev/dsp";
 	dsphw = 1;
 
-	while ((c = getopt(argc, argv, "?hmvqzt:8RZPTg:s:d:w:l:B:")) >= 0) {
+	while ((c = getopt(argc, argv, "?hmvqzt:8RZPTg:s:d:w:l:B:V")) >= 0) {
 		switch (c) {
+		case 'V':
+			printf("%s version 1.0\n", argv[0]);
+			return 0;
 		case 'v':
 			verbose++;
 			break;

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: digest_parser.h,v 1.6 2003/03/16 18:01:49 janakj Exp $
  *
  * Digest credentials parser
  *

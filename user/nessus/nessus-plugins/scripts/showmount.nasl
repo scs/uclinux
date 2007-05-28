@@ -10,8 +10,8 @@
 if(description)
 {
  script_id(10437);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-0554", "CAN-1999-0548");
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-0554", "CVE-1999-0548");
  
  name["english"] = "NFS export";
  name["francais"] = "Export NFS";
@@ -23,7 +23,7 @@ and issues a red alert if some of them are world readable.
 
 It also warns the user if the remote NFS server is superfluous.
 
-Risk factor : Low/Medium";
+Risk factor : Low / Medium";
 
  desc["francais"] ="
 Ce plugin lit la liste des partitions NFS exportés, et
@@ -75,6 +75,7 @@ else
  proto = "udp";
  port = get_rpc_port(program:100005, protocol:IPPROTO_UDP);
  if(port) soc = open_priv_sock_udp(dport:port);
+ else exit(0);
 }
   
    
@@ -144,15 +145,14 @@ else
  {
   report = string("Here is the export list of ", get_host_name(), " : \n");
   report = report + list;
-  if(security_problem)security_hole(port:2049, data:report, proto:proto);
-  else security_warning(port:2049, data:report, proto:proto);
+  security_note(port:2049, data:report, proto:proto);
   exit(0);
  }
  else
    {
     report = string("You are running a superfluous NFS daemon.\n", 
  		 "You should consider removing it\n"); 
-    security_warning(port:2049, data:report, proto:proto);
+    security_note(port:2049, data:report, proto:proto);
     exit(0);
    }		  
   }
@@ -160,6 +160,6 @@ else
    {
     report = string("You are running a superfluous NFS daemon.\n", 
  		 "You should consider removing it\n"); 
-    security_warning(port:2049, data:report, proto:proto);
+    security_note(port:2049, data:report, proto:proto);
    }
 }

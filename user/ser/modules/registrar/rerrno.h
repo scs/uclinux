@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: rerrno.h,v 1.5 2003/02/14 12:04:23 janakj Exp $
  *
  * Registrar errno
  *

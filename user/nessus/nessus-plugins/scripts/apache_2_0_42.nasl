@@ -8,10 +8,10 @@
 if(description)
 {
  script_id(11408);
- script_cve_id("CAN-2002-1156", "CAN-2003-0083");
  script_bugtraq_id(6065);
+ script_cve_id("CVE-2002-1156", "CVE-2003-0083");
 
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.10 $");
  
  name["english"] = "Apache < 2.0.43";
 
@@ -44,9 +44,8 @@ Risk factor : Medium";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Misc.";
- family["francais"] = "Divers";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  script_require_keys("www/apache");
  script_require_ports("Services/www", 80);
@@ -57,12 +56,13 @@ Risk factor : Medium";
 # The script code starts here
 #
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
-banner = get_http_banner(port: port);
+banner = get_backport_banner(banner:get_http_banner(port: port));
 if(!banner)exit(0);
  
 serv = strstr(banner, "Server");

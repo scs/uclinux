@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10418);
- script_cve_id("CAN-2000-0109");
  script_bugtraq_id(1080);
- script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2000-0109");
+ script_version ("$Revision: 1.11 $");
 
  name["english"] = "Standard & Poors detection";
  script_name(english:name["english"]);

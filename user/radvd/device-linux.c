@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: device-linux.c,v 1.8 2002/07/02 06:49:20 psavola Exp $
  *
  *   Authors:
  *    Lars Fenneberg		<lf@elemental.net>	 

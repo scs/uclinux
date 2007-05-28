@@ -1,7 +1,7 @@
 #
-# This script was written by Renaud Deraison 
+# This script was written by Tenable Network Security
 #
-# See the Nessus Scripts License for details
+# This script is released under Tenable Plugins License
 #
 #
 # Fixed in Windows XP SP1
@@ -15,14 +15,21 @@
 if(description)
 {
  script_id(11595);
- script_version("$Revision: 1.4 $");
- script_cve_id("CAN-2003-0228");
+ script_bugtraq_id(7517);
+ script_version("$Revision: 1.14 $");
+ script_cve_id("CVE-2003-0228");
  
  name["english"] = "Windows Media Player Skin Download Overflow";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+Arbitrary code can be executed on the remote host through the media player.
+
+Description :
+
 The remote host is using a version of Windows Media player which is
 vulnerable to a directory traversal through its handling of 'skins'.
 
@@ -38,12 +45,16 @@ Affected Software:
  - Microsoft Windows Media Player 7.1
  - Microsoft Windows Media Player for Windows XP (Version 8.0)
 
-
 Solution : 
- - see http://www.microsoft.com/technet/security/bulletin/ms03-017.asp
- - If you run Windows XP, install Service Pack 2
 
-Risk factor : Serious";
+Microsoft has released a set of patches for Windows Media Player :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-017.mspx
+
+Risk factor :
+
+High / CVSS Base Score : 8 
+(AV:R/AC:H/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -53,65 +64,46 @@ Risk factor : Serious";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_full_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl",
-		     "smb_reg_service_pack_XP.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_full_access","SMB/WindowsVersion");
-
-
+ 
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys( "SMB/WindowsVersion", "SMB/registry_access");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
+
+if ( hotfix_check_sp(xp:2) <= 0 ) exit(0);
+
 port = get_kb_item("SMB/transport");
 if(!port)port = 139;
-
 
 access = get_kb_item("SMB/registry_full_access");
 if(!access)exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
+version = get_kb_item("SMB/WindowsMediaPlayer");
+if(!version)exit(0);
 
-if("5.1" >< version)
+
+if (is_accessible_share())
 {
-  # This is windows XP
-  sp = get_kb_item("SMB/XP/ServicePack");
-  if(sp && ereg(pattern:"Service Pack [2-9]", string:sp))exit(0);
-  security_hole(port);
-  exit(0);
+ path = hotfix_get_systemroot() + "\system32";
+
+ if ( hotfix_check_fversion(path:path, file:"Wmplayer.exe", version:"8.0.0.4490", min_version:"8.0.0.0") == HCF_OLDER ) security_hole(port);
+ if ( hotfix_check_fversion(path:path, file:"Wmplayer.exe", version:"7.10.0.3074", min_version:"7.10.0.0") == HCF_OLDER ) security_hole(port);
+
+ hotfix_check_fversion_end();
+ 
+ exit (0);
 }
-
-key = "SOFTWARE\Microsoft\MediaPlayer\9.0\Registration";
-item = "UDBVersion";
-version = registry_get_sz(key:key, item:item);
-if(version)exit(0);  # does not apply to media player 9.0
-
-
-key = "SOFTWARE\Microsoft\MediaPlayer\7.1\Registration";
-item = "UDBVersion";
-version = registry_get_sz(key:key, item:item);
-if(!version)
+else
 {
- key = "SOFTWARE\Microsoft\MediaPlayer\7.0\Registration";
- item = "UDBVersion";
- version = registry_get_sz(key:key, item:item);
- if(!version)
- {
- key = "SOFTWARE\Microsoft\MediaPlayer\8.0\Registration";
- item = "UDBVersion";
- version = registry_get_sz(key:key, item:item);
- if(!version)exit(0);
- }
+ fix = get_kb_item ("SMB/Registry/HKLM/SOFTWARE/Microsoft/Updates/Windows Media Player/wm817787");
+ if(!fix) security_hole(port);
 }
-
-key = "SOFTWARE\Microsoft\Updates\Windows Media Player\wm817787";
-item = "Description";
-hf = registry_get_sz(key:key, item:item); 
-if(!hf)security_hole(port);

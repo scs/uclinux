@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10202);
-script_cve_id("CAN-1999-0246");
- script_version ("$Revision: 1.11 $");
+script_cve_id("CVE-1999-0246");
+ script_version ("$Revision: 1.12 $");
  name["english"] = "remwatch";
  name["francais"] = "remwatch";
  script_name(english:name["english"],

@@ -6,6 +6,7 @@
 CONFOPTS =
 CONFOPTS += --prefix=
 CONFOPTS += --sbindir=/bin
+CONFOPTS += --program-transform-name=
 
 ifndef CONFIG_USER_QUAGGA_ZEBRA_ZEBRA
 CONFOPTS += --disable-zebra

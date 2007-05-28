@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10269);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(843);
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-1999-0834");
  
  name["english"] = "SSH Overflow";
@@ -16,55 +16,46 @@ if(description)
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-You are running a version of SSH which is 
-older than (or as old as) version 1.2.27.
-If this version was compiled against the
-RSAREF library, then it is very likely to
-be vulnerable to a buffer overflow which
-may be exploited by an attacker to gain
-root on your system.
+Synopsis :
 
-To determine if you compiled ssh against
-the RSAREF library, type 'ssh -V' on the
-remote host.
+Arbitrary code might be executed on the remote host
 
-Risk factor : High
-Solution : Use ssh 2.x, or do not compile ssh
-against the RSAREF library";
+Description :
+
+The remote host is a running a version of the SSH server which is older than 
+(or as old as) version 1.2.27.
+
+If this version was compiled against the RSAREF library, then it is very 
+likely to be vulnerable to a buffer overflow which may be exploited by an 
+attacker to gain root privileges on your system.
+
+To determine if you compiled ssh against the RSAREF library, type 
+'ssh -V' on the remote host.
+
+Solution : 
+
+Use SSH 2.x, or do not compile ssh against the RSAREF library
+
+Risk factor :
+
+Critical / CVSS Base Score : 8
+(AV:R/AC:H/Au:NR/C:C/A:C/I:C/B:N)";
 
 	
- desc["francais"] = "
-Vous faites tourner une version de ssh
-plus ancienne ou égale à la version 1.2.27.
-
-Cette version est vulnérable à un dépassement
-de buffer dans le cas où elle serait compilée
-avec la bibliothèque RSAREF, ce qui permettrait
-à un pirate de passer root sur ce système.
-
-Pour déterminer si vous avez compilé SSH avec
-RSAREF, tappez 'ssh -V' sur le système distant.
-
-Facteur de risque : Elevé
-Solution : utilisez ssh 2.x, ou recompilez ssh en
-désactivant le support rsaref.";
 
 
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for the remote SSH version";
- summary["francais"] = "Vérifie la version de SSH";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 1999 - 2006 Tenable Network Security");
  family["english"] = "Gain a shell remotely";
- family["francais"] = "Obtenir un shell à distance";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_family(english:family["english"]);
+ script_dependencie("ssh_detect.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -72,22 +63,20 @@ désactivant le support rsaref.";
 #
 # The script code starts here
 #
+include('global_settings.inc');
+include('backport.inc');
 
+if ( report_paranoia < 2 ) exit(0);
 
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
-if(!banner)
-{
- if(!get_port_state(port))exit(0);
- soc = open_sock_tcp(22);
- if(!soc)exit(0);
- banner = recv_line(socket:soc, length:4096);
- close(soc);
-}
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
 
-if(ereg(string:banner,
-  	pattern:"SSH-.*-1\.([0-1]|2\.([0-1]..*|2[0-7]))[^0-9]*$", icase:TRUE))security_warning(port);
+banner = get_backport_banner(banner:banner);
+
+if ( "openssh" >< tolower(banner) ) exit(0);
+
+if(ereg(string:banner, pattern:"SSH-.*-1\.([0-1]|2\.([0-1]..*|2[0-7]))[^0-9]*$", icase:TRUE))security_warning(port);

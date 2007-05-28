@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.h,v 3.93 2000/11/19 20:50:43 christos Exp $ */
 /*
  * sh.h: Catch it all globals and includes file!
  */

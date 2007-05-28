@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10451);
- script_version ("$Revision: 1.11 $");
- script_cve_id("CAN-2000-0480");
  script_bugtraq_id(1352);
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2000-0480");
  name["english"] = "Dragon telnet overflow";
  name["francais"] = "Dragon telnet overflow";
  
@@ -25,7 +25,7 @@ remote administration of this host.
 
 Solution : upgrade to the latest version your telnet server.
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "Il s'est avéré possible
@@ -39,7 +39,7 @@ d'empecher ce serveur d'etre administré
 
 Solution : mettez à jour votre serveur telnet.
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
 
  script_description(english:desc["english"], francais:desc["francais"]);
@@ -60,15 +60,20 @@ Facteur de risque : Moyen";
  script_require_ports("Services/telnet", 23);
  exit(0);
 }
+
+include('telnet_func.inc');
+include('global_settings.inc');
 port = get_kb_item("Services/telnet");
 if(!port)port = 23;
+
+if ( report_paranoia < 2 ) exit(0);
 
 if(!get_port_state(port))exit(0);
 
 soc = open_sock_tcp(port);
 if(soc)
 {
-  r = telnet_init(soc);
+  r = telnet_negotiate(socket:soc);
   r2 = recv(socket:soc, length:4096);
   r = r + r2;
   if(r)
@@ -81,7 +86,7 @@ if(soc)
   soc2 = open_sock_tcp(port);
   if(!soc2)security_hole(port);
   else {
-  	r = telnet_init(soc2);
+  	r = telnet_negotiate(socket:soc2);
 	r2 = recv(socket:soc2, length:4096);
 	r = r + r2;
   	close(soc2);

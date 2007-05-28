@@ -9,9 +9,10 @@ if(description)
 {
  
  script_id(10626);  
- script_bugtraq_id(2380, 2522);
- script_cve_id("CVE-2000-0045", "CAN-2001-1275", "CVE-2001-0407");
- script_version ("$Revision: 1.13 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-t-0004");
+ script_bugtraq_id(2380, 2522, 926);
+ script_cve_id("CVE-2000-0045", "CVE-2001-1275", "CVE-2001-0407");
+ script_version ("$Revision: 1.20 $");
  name["english"] = "MySQL various flaws";
  name["francais"] = "MySQL various flaws";
  script_name(english:name["english"], francais:name["francais"]);
@@ -43,9 +44,8 @@ Solution : Upgrade to version 3.23.36";
  
  script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2001 Renaud Deraison");
- family["english"] = "Remote file access";
- family["francais"] = "Accès aux fichiers distants";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "mysql_version.nasl");
  script_require_ports("Services/mysql", 3306);
  exit(0);
@@ -60,8 +60,8 @@ include("misc_func.inc");
 port = get_kb_item("Services/mysql");
 if(!port)port = 3306;
 
-ver=get_mysql_version(port);
-if(ver==NULL) exit(0);
-if(ereg(pattern:"3\.(([0-9]\..*)|(1[0-9]\..*)|(2(([0-2]\..*)|3\.(([0-9]$)|([0-2][0-9])|(3[0-5])))))",
+ver=get_mysql_version(port:port);
+if (isnull(ver)) exit(0);
+if(ereg(pattern:"^3\.(([0-9]\..*)|(1[0-9]\..*)|(2(([0-2]\..*)|3\.(([0-9]$)|([0-2][0-9])|(3[0-5])))))",
 	string:ver))
 		security_hole(port);

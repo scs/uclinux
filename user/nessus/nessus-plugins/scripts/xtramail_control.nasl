@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10323);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(791);
- script_cve_id("CAN-1999-1511");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-1511");
  
  name["english"] = "XTramail control denial";
  name["francais"] = "Déni de service control contre le MTA Xtramail";
@@ -118,6 +118,7 @@ if(get_port_state(port))
  if(soc)
  {
   s = recv_line(socket:soc, length:1024);
+  if ( ! s ) exit(0);
   c = string("Username: ", crap(15000), "\r\n");
   send(socket:soc, data:c);
   s = recv_line(socket:soc, length:1024);

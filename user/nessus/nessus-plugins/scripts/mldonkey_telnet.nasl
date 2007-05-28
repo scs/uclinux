@@ -10,7 +10,7 @@
 if(description)
 {
   script_id(11124);
-  script_version ("$Revision: 1.7 $");
+  script_version ("$Revision: 1.8 $");
  
   script_name(english:"mldonkey telnet");
  
@@ -36,31 +36,20 @@ Risk factor : Medium";
   script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi");
   family["english"] = "Peer-To-Peer File Sharing";
   script_family(english:family["english"]);
-  script_dependencie("find_service.nes");
-  #script_require_ports("Services/unknown", 4000);
-  script_require_ports(4000);
-
+  script_dependencie("find_service2.nasl");
   exit(0);
 }
 
 include("misc_func.inc");
 
-#port = get_kb_item("Services/unknown");
-#if (! port) port = 4000;
-port = 4000;
-
-if (known_service(port: port)) exit(0);
-if (! get_port_state(port)) exit(0);
+port = get_kb_item("Services/mldonkey-telnet");
+if (! port) port = 4000;
+if ( ! get_port_state(port) ) exit(0);
 
 r = get_unknown_banner(port: port, dontfetch:0);
 
 if(!r)exit(0);
-# soc = open_sock_tcp(port);
-# if (!soc) exit(0);
-# r = recv(socket: soc, length: 36);
-
 if ("Welcome on mldonkey command-line" >< r)
 {
  security_warning(port);
- register_service(port: port, proto: "mldonkey-telnet");
 }

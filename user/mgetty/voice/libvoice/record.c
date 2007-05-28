@@ -4,7 +4,7 @@
  * This command records voice data from the voice modem and
  * saves them in the given file.
  *
- * $Id$
+ * $Id: record.c,v 1.5 1999/06/27 14:29:02 marcs Exp $
  *
  */
 

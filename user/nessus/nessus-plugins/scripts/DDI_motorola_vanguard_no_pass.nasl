@@ -8,7 +8,8 @@
 if(description)
 {
 	script_id(11203);
-	script_version("$Revision: 1.1 $");
+	script_version("$Revision: 1.4 $");
+	script_cve_id("CVE-1999-0508");
 	name["english"] = "Motorola Vanguard with No Password";
 	script_name(english:name["english"]);
  
@@ -37,7 +38,7 @@ Risk factor: High";
 	exit(0);
 }
 
-
+include('telnet_func.inc');
 
 function greprecv(socket, pattern)
 {
@@ -62,6 +63,9 @@ port = 23;
 
 if(get_port_state(port))
 {
+	banner = get_telnet_banner(port:port);
+	if ( ! banner || "OK" >!< banner ) exit(0);
+
 	soc = open_sock_tcp(port);
 	if(soc)
 	{

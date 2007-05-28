@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: diameter_msg.h,v 1.1.2.2 2003/11/13 18:36:47 andrei Exp $
  *
  * 2003-04-07 created by bogdan
  *

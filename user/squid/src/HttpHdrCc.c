@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: HttpHdrCc.c,v 1.22.2.1 2005/04/22 20:18:43 hno Exp $
  *
  * DEBUG: section 65    HTTP Cache Control Header
  * AUTHOR: Alex Rousskov
@@ -103,15 +103,18 @@ httpHdrCcParseInit(HttpHdrCc * cc, const String * str)
     const char *pos = NULL;
     int type;
     int ilen;
+    int nlen;
     assert(cc && str);
 
     /* iterate through comma separated list */
     while (strListGetItem(str, ',', &item, &ilen, &pos)) {
-	/* strip '=' statements @?@ */
-	if ((p = strchr(item, '=')) && (p - item < ilen))
-	    ilen = p++ - item;
+	/* isolate directive name */
+	if ((p = memchr(item, '=', ilen)))
+	    nlen = p++ - item;
+	else
+	    nlen = ilen;
 	/* find type */
-	type = httpHeaderIdByName(item, ilen,
+	type = httpHeaderIdByName(item, nlen,
 	    CcFieldsInfo, CC_ENUM_END);
 	if (type < 0) {
 	    debug(65, 2) ("hdr cc: unknown cache-directive: near '%s' in '%s'\n", item, strBuf(*str));
@@ -147,8 +150,13 @@ httpHdrCcParseInit(HttpHdrCc * cc, const String * str)
 		cc->max_stale = -1;
 	    }
 	    break;
+	case CC_OTHER:
+	    if (strLen(cc->other))
+		strCat(cc->other, ", ");
+	    stringAppend(&cc->other, item, ilen);
+	    break;
 	default:
-	    /* note that we ignore most of '=' specs */
+	    /* note that we ignore most of '=' specs (RFC-VIOLATION) */
 	    break;
 	}
     }
@@ -159,6 +167,8 @@ void
 httpHdrCcDestroy(HttpHdrCc * cc)
 {
     assert(cc);
+    if (strBuf(cc->other))
+	stringClean(&cc->other);
     memFree(cc, MEM_HTTP_HDR_CC);
 }
 
@@ -200,6 +210,8 @@ httpHdrCcPackInto(const HttpHdrCc * cc, Packer * p)
 	    pcount++;
 	}
     }
+    if (strLen(cc->other))
+	packerPrintf(p, (pcount ? ", %s" : "%s"), strBuf(cc->other));
 }
 
 void

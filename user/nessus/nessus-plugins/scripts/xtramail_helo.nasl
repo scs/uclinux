@@ -10,9 +10,9 @@
 if(description)
 {
  script_id(10324);
- script_version ("$Revision: 1.19 $");
- script_cve_id("CAN-1999-1511");
  script_bugtraq_id(791);
+ script_version ("$Revision: 1.22 $");
+ script_cve_id("CVE-1999-1511");
  
  name["english"] = "XTramail MTA 'HELO' denial";
  name["francais"] = "Déni de service 'HELO' contre le MTA Xtramail";
@@ -68,7 +68,7 @@ Facteur de risque : Elevé";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl", "slmail_helo.nasl", "csm_helo.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl", "slmail_helo.nasl", "csm_helo.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -81,6 +81,7 @@ Facteur de risque : Elevé";
 include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(safe_checks())
 {

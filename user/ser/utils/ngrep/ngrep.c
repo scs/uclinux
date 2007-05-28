@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ngrep.c,v 1.3 2002/09/19 12:25:23 jku Rel $
  *
  * Copyright (c) 2001  Jordan Ritter <jpr5@darkridge.com>
  *
@@ -69,7 +69,7 @@
 	dump_line_by_line((_a),(_b)) : _dump((_a),(_b)) )
 
 
-static char rcsver[] = "$Revision$";
+static char rcsver[] = "$Revision: 1.3 $";
 
 int snaplen = 65535, promisc = 1, to = 1000;
 int show_empty = 0, show_hex = 0, quiet = 0;

@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.prompt.c,v 3.41 2000/11/11 23:03:39 christos Exp $ */
 /*
  * tc.prompt.c: Prompt printing stuff
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tc.prompt.c,v 3.41 2000/11/11 23:03:39 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"

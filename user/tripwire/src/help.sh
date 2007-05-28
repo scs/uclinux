@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id$
+# $Id: help.sh,v 1.5 1994/04/04 00:34:30 gkim Exp $
 #
 # This file generates 'help.c' from the text in 'help.txt'
 #

@@ -1,7 +1,7 @@
 .TH SNMPTRAPD.CONF 5 "28 Aug 2001" VVERSIONINFO "Net-SNMP"
 .UC 4
 .SH NAME
-SYSCONFDIR/snmp/snmptrapd.conf - configuration file for the Net-SNMP trap daemon.
+snmptrapd.conf - configuration file for the Net-SNMP trap daemon
 .SH DESCRIPTION
 .B snmptrapd.conf
 is the configuration file(s) which define how the Net-SNMP SNMP trap
@@ -79,11 +79,44 @@ for the layout characters available.
 .IP "format2 format"
 The format used to print a SNMPv2 TRAP2 or INFORM message (note that
 the SNMPv3 protocol uses SNMPv2 style TRAPs and INFORMs).
+.IP "forward OID|default DESTINATION"
+Forwards traps received to DESTINATION if they match the notification
+type indicated by OID (or the word default forwards them all).
+.RE
+.IP "ignoreAuthFailure (1|yes|true|0|no|false)"
+Whether or not ignore authenticationFailure traps.
+.RE
+.IP "doNotLogTraps (1|yes|true|0|no|false)"
+Whether or not to log traps.  This is
+useful if you want the snmptrapd application to only run traphandle 
+hooks and not to log any traps to any location.
+.RE
+.IP "logOption string"
+Specify where logging output should be directed (standard error or 
+output,  to  a file or via syslog).  See LOGGING OPTIONS in 
+snmpcmd(1) for details.
+.RE
+.IP "outputOption string"
+The same output formatting (-O) options as the other Net-SNMP 
+commands.  See the section  OUTPUT  OPTIONS  in  the snmpcmd(1) 
+manual page.
+.RE
+.IP "printEventNumbers (1|yes|true|0|no|false)"
+Whether or not to print event numbers (rising/falling alarm etc.).
+.RE
+.IP "doNotFork (1|yes|true|0|no|false)"
+Whether or not to fork from the calling shell.
+.RE
+.IP "pidFile string"
+What file to store the process id in
+.RE
 .SH NOTES
 .IP o
 The daemon blocks on the executing traphandle commands.  (This should
 be fixed in the future with an appropriate signal catch and wait()
 combination).
+.SH FILES
+SYSCONFDIR/snmp/snmptrapd.conf
 .SH "SEE ALSO"
 snmp_config(5), snmptrapd(8), syslog(8), variables(5), snmpd.conf(5), read_config(3).
 

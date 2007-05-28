@@ -1,8 +1,6 @@
 /*
- * udev.c
- *
  * Copyright (C) 2003-2004 Greg Kroah-Hartman <greg@kroah.com>
- * Copyright (C) 2004-2005 Kay Sievers <kay.sievers@vrfy.org>
+ * Copyright (C) 2004-2006 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
  *	under the terms of the GNU General Public License as published by the
@@ -15,7 +13,7 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -32,6 +30,7 @@
 
 #include "udev.h"
 #include "udev_rules.h"
+#include "udev_selinux.h"
 
 #ifdef USE_LOG
 void log_message(int priority, const char *format, ...)
@@ -76,7 +75,7 @@ int main(int argc, char *argv[], char *envp[])
 		exit(0);
 	}
 
-	/* set std fd's to /dev/null, if the kernel forks us, we don't have them at all */
+	/* set std fd's to /dev/null, /sbin/hotplug forks us, we don't have them at all */
 	devnull = open("/dev/null", O_RDWR);
 	if (devnull >= 0)  {
 		if (devnull != STDIN_FILENO)
@@ -91,8 +90,9 @@ int main(int argc, char *argv[], char *envp[])
 
 	logging_init("udev");
 	if (devnull < 0)
-		err("fatal, could not open /dev/null: %s", strerror(errno));
+		err("open /dev/null failed: %s", strerror(errno));
 	udev_config_init();
+	selinux_init();
 	dbg("version %s", UDEV_VERSION);
 
 	/* set signal handlers */

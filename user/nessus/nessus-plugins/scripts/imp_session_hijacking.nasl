@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10801);
- script_version ("$Revision: 1.11 $");
- script_cve_id("CVE-2001-0857");
  script_bugtraq_id(3525);
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2001-0857");
  
 
  
@@ -32,7 +32,7 @@ an attacker to hijack a victim's IMP session.
 *** consider this alert as a false positive
 
 Solution: Upgrade to IMP 2.2.7
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -59,10 +59,10 @@ Risk factor : Serious";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
 
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 dir[0] = "/";
 dir[1] = "/imp/";

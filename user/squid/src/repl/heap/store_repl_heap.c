@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_repl_heap.c,v 1.8.2.2 2004/08/05 20:23:01 hno Exp $
  *
  * DEBUG: section ?     HEAP based removal policies
  * AUTHOR: Henrik Nordstrom

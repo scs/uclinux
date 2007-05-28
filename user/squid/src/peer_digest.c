@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: peer_digest.c,v 1.83.2.2 2005/03/26 02:50:53 hno Exp $
  *
  * DEBUG: section 72    Peer Digest Routines
  * AUTHOR: Alex Rousskov
@@ -453,7 +453,7 @@ peerDigestSwapInCBlock(void *data, char *buf, ssize_t size)
     if (size >= StoreDigestCBlockSize) {
 	PeerDigest *pd = fetch->pd;
 	HttpReply *rep = fetch->entry->mem_obj->reply;
-	const int seen = fetch->offset + size;
+	const squid_off_t seen = fetch->offset + size;
 
 	assert(pd && rep);
 	if (peerDigestSetCBlock(pd, buf)) {
@@ -498,7 +498,7 @@ peerDigestSwapInMask(void *data, char *buf, ssize_t size)
     fetch->offset += size;
     fetch->mask_offset += size;
     if (fetch->mask_offset >= pd->cd->mask_size) {
-	debug(72, 2) ("peerDigestSwapInMask: Done! Got %d, expected %d\n",
+	debug(72, 2) ("peerDigestSwapInMask: Done! Got %" PRINTF_OFF_T ", expected %d\n",
 	    fetch->mask_offset, pd->cd->mask_size);
 	assert(fetch->mask_offset == pd->cd->mask_size);
 	assert(peerDigestFetchedEnough(fetch, NULL, 0, "peerDigestSwapInMask"));
@@ -540,8 +540,8 @@ peerDigestFetchedEnough(DigestFetchState * fetch, char *buf, ssize_t size, const
 	else
 	    host = strBuf(pd->host);
     }
-    debug(72, 6) ("%s: peer %s, offset: %d size: %d.\n",
-	step_name, host, fcb_valid ? fetch->offset : -1, size);
+    debug(72, 6) ("%s: peer %s, offset: %" PRINTF_OFF_T " size: %d.\n",
+	step_name, host, fcb_valid ? fetch->offset : (squid_off_t) - 1, (int) size);
 
     /* continue checking (with pd and host known and valid) */
     if (!reason) {
@@ -778,7 +778,7 @@ peerDigestSetCBlock(PeerDigest * pd, const char *buf)
     /* check consistency further */
     if (cblock.mask_size != cacheDigestCalcMaskSize(cblock.capacity, cblock.bits_per_entry)) {
 	debug(72, 0) ("%s digest cblock is corrupted (mask size mismatch: %d ? %d).\n",
-	    host, cblock.mask_size, cacheDigestCalcMaskSize(cblock.capacity, cblock.bits_per_entry));
+	    host, cblock.mask_size, (int) cacheDigestCalcMaskSize(cblock.capacity, cblock.bits_per_entry));
 	return 0;
     }
     /* there are some things we cannot do yet */

@@ -13,7 +13,8 @@ if(description)
 {
  script_id(11843);
  script_bugtraq_id(8655);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.4 $");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:041");
 
  
  name["english"] = "lsh overflow";
@@ -44,7 +45,7 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("ssh_detect.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -57,29 +58,7 @@ Risk factor : High";
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
 
-
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    banner = tolower(banner);
-    close(soc);
-  }
-}
-
-if(!banner)exit(0);
-banner = tolower(banner);
-
-banner = banner - string("\r\n");
-banner = tolower(banner);
-if("lsh" >< banner)
-{
- if(ereg(pattern:".*lshd[-_](0\..*|1\.[0-4]\.|1\.5\.[0-2])", string:banner))
-	security_hole(port);
-}
+if(egrep(pattern:".*lshd[-_](0\..*|1\.[0-4]\.|1\.5\.[0-2])", string:banner, icase:TRUE)) security_hole(port);

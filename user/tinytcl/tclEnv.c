@@ -13,13 +13,11 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Id$
+ * $Id: tclEnv.c,v 1.1.1.1 2001/04/29 20:34:37 karll Exp $
  */
 
 #include "tclInt.h"
 #include "tclUnix.h"
-
-//#define environ _environ
 
 
 /*
@@ -40,31 +38,13 @@ static EnvInterp *firstInterpPtr;
 				/* First in list of all managed interpreters,
 				 * or NULL if none. */
 
-#if 0
-static int environSize = 0;	/* Non-zero means that the all of the
-				 * environ-related information is malloc-ed
-				 * and the environ array itself has this
-				 * many total entries allocated to it (not
-				 * all may be in use at once).  Zero means
-				 * that the environment array is in its
-				 * original static state. */
-#endif
-
 /*
  * Declarations for local procedures defined in this file:
  */
 
-static void		EnvInit _ANSI_ARGS_((void));
 static char *		EnvTraceProc _ANSI_ARGS_((ClientData clientData,
 			    Tcl_Interp *interp, char *name1, char *name2,
 			    int flags));
-/*
-static int		FindVariable _ANSI_ARGS_((CONST char *name,
-			    int *lengthPtr));
-void			setenv _ANSI_ARGS_((CONST char *name,
-			    CONST char *value));
-*/
-//void			unsetenv _ANSI_ARGS_((CONST char *name));
 
 /*
  *----------------------------------------------------------------------
@@ -96,17 +76,6 @@ TclSetupEnv(interp)
 {
     EnvInterp *eiPtr;
     int i;
-
-#if 0
-    /*
-     * First, initialize our environment-related information, if
-     * necessary.
-     */
-
-    if (environSize == 0) {
-	EnvInit();
-    }
-#endif
 
     /* Next, verify that file descriptors 0, 1 and 2 are connected to something.
      * If not, we open them connected to /dev/null since Tcl assumes that
@@ -156,258 +125,6 @@ TclSetupEnv(interp)
 	    TCL_GLOBAL_ONLY | TCL_TRACE_WRITES | TCL_TRACE_UNSETS,
 	    EnvTraceProc, (ClientData) NULL);
 }
-
-#if 0
-/*
- *----------------------------------------------------------------------
- *
- * FindVariable --
- *
- *	Locate the entry in environ for a given name.
- *
- * Results:
- *	The return value is the index in environ of an entry with the
- *	name "name", or -1 if there is no such entry.   The integer at
- *	*lengthPtr is filled in with the length of name (if a matching
- *	entry is found) or the length of the environ array (if no matching
- *	entry is found).
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-FindVariable(name, lengthPtr)
-    CONST char *name;		/* Name of desired environment variable. */
-    int *lengthPtr;		/* Used to return length of name (for
-				 * successful searches) or number of non-NULL
-				 * entries in environ (for unsuccessful
-				 * searches). */
-{
-    int i;
-    CONST register char *p1, *p2;
-
-    for (i = 0, p1 = environ[i]; p1 != NULL; i++, p1 = environ[i]) {
-	for (p2 = name; *p2 == *p1; p1++, p2++) {
-	    /* NULL loop body. */
-	}
-	if ((*p1 == '=') && (*p2 == '\0')) {
-	    *lengthPtr = p2-name;
-	    return i;
-	}
-    }
-    *lengthPtr = i;
-    return -1;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * setenv --
- *
- *	Set an environment variable, replacing an existing value
- *	or creating a new variable if there doesn't exist a variable
- *	by the given name.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	The environ array gets updated, as do all of the interpreters
- *	that we manage.
- *
- *----------------------------------------------------------------------
- */
-
-void
-setenv(name, value)
-    CONST char *name;		/* Name of variable whose value is to be
-				 * set. */
-    CONST char *value;		/* New value for variable. */
-{
-    int index, length, nameLength;
-    char *p;
-    EnvInterp *eiPtr;
-
-    if (environSize == 0) {
-	EnvInit();
-    }
-
-    /*
-     * Figure out where the entry is going to go.  If the name doesn't
-     * already exist, enlarge the array if necessary to make room.  If
-     * the name exists, free its old entry.
-     */
-
-    index = FindVariable(name, &length);
-    if (index == -1) {
-	if ((length+2) > environSize) {
-	    char **newEnviron;
-
-	    newEnviron = (char **) ckalloc((unsigned)
-		    ((length+5) * sizeof(char *)));
-	    memcpy((VOID *) newEnviron, (VOID *) environ,
-		    length*sizeof(char *));
-	    ckfree((char *) environ);
-	    environ = newEnviron;
-	    environSize = length+5;
-	}
-	index = length;
-	environ[index+1] = NULL;
-	nameLength = strlen(name);
-    } else {
-	/*
-	 * Compare the new value to the existing value.  If they're
-	 * the same then quit immediately (e.g. don't rewrite the
-	 * value or propagate it to other interpeters).  Otherwise,
-	 * when there are N interpreters there will be N! propagations
-	 * of the same value among the interpreters.
-	 */
-
-	if (strcmp(value, environ[index]+length+1) == 0) {
-	    return;
-	}
-	ckfree(environ[index]);
-	nameLength = length;
-    }
-
-    /*
-     * Create a new entry and enter it into the table.
-     */
-
-    p = (char *) ckalloc((unsigned) (nameLength + strlen(value) + 2));
-    environ[index] = p;
-    strcpy(p, name);
-    p += nameLength;
-    *p = '=';
-    strcpy(p+1, value);
-
-    /*
-     * Update all of the interpreters.
-     */
-
-    for (eiPtr= firstInterpPtr; eiPtr != NULL; eiPtr = eiPtr->nextPtr) {
-	(void) Tcl_SetVar2(eiPtr->interp, "env", (char *) name,
-		p+1, TCL_GLOBAL_ONLY);
-    }
-}
-#endif
-
-/*
- *----------------------------------------------------------------------
- *
- * putenv --
- *
- *	Set an environment variable.  Similar to setenv except that
- *	the information is passed in a single string of the form
- *	NAME=value, rather than as separate name strings.  This procedure
- *	is a stand-in for the standard UNIX procedure by the same name,
- *	so that applications using that procedure will interface
- *	properly to Tcl.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	The environ array gets updated, as do all of the interpreters
- *	that we manage.
- *
- *----------------------------------------------------------------------
- */
-
-#if 0
-int
-putenv(string)
-    const char *string;		/* Info about environment variable in the
-				 * form NAME=value. */
-{
-    int nameLength;
-    char *name, *value;
-
-    if (string == NULL) {
-	return 0;
-    }
-
-    /*
-     * Separate the string into name and value parts, then call
-     * setenv to do all of the real work.
-     */
-
-    value = strchr(string, '=');
-    if (value == NULL) {
-	return 0;
-    }
-    nameLength = value - string;
-    if (nameLength == 0) {
-	return 0;
-    }
-    name = ckalloc(nameLength+1);
-    memcpy(name, string, nameLength);
-    name[nameLength] = 0;
-    setenv(name, value+1);
-    ckfree(name);
-    return 0;
-}
-#endif
-
-#if 0
-/*
- *----------------------------------------------------------------------
- *
- * unsetenv --
- *
- *	Remove an environment variable, updating the "env" arrays
- *	in all interpreters managed by us.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Interpreters are updated, as is environ.
- *
- *----------------------------------------------------------------------
- */
-
-void
-unsetenv(name)
-    CONST char *name;			/* Name of variable to remove. */
-{
-    int index, dummy;
-    char **envPtr;
-    EnvInterp *eiPtr;
-
-    if (environSize == 0) {
-	EnvInit();
-    }
-
-    /*
-     * Update the environ array.
-     */
-
-    index = FindVariable(name, &dummy);
-    if (index == -1) {
-	return;
-    }
-    ckfree(environ[index]);
-    for (envPtr = environ+index+1; ; envPtr++) {
-	envPtr[-1] = *envPtr;
-	if (*envPtr == NULL) {
-	    break;
-       }
-    }
-
-    /*
-     * Update all of the interpreters.
-     */
-
-    for (eiPtr = firstInterpPtr; eiPtr != NULL; eiPtr = eiPtr->nextPtr) {
-	(void) Tcl_UnsetVar2(eiPtr->interp, "env", (char *) name,
-		TCL_GLOBAL_ONLY);
-    }
-}
-#endif
 
 /*
  *----------------------------------------------------------------------
@@ -486,47 +203,3 @@ EnvTraceProc(clientData, interp, name1, name2, flags)
     }
     return NULL;
 }
-
-#if 0
-/*
- *----------------------------------------------------------------------
- *
- * EnvInit --
- *
- *	This procedure is called to initialize our management
- *	of the environ array.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Environ gets copied to malloc-ed storage, so that in
- *	the future we don't have to worry about which entries
- *	are malloc-ed and which are static.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-EnvInit()
-{
-    char **newEnviron;
-    int i, length;
-
-    if (environSize != 0) {
-	return;
-    }
-    for (length = 0; environ[length] != NULL; length++) {
-	/* Empty loop body. */
-    }
-    environSize = length+5;
-    newEnviron = (char **) ckalloc((unsigned)
-		(environSize * sizeof(char *)));
-    for (i = 0; i < length; i++) {
-	newEnviron[i] = (char *) ckalloc((unsigned) (strlen(environ[i]) + 1));
-	strcpy(newEnviron[i], environ[i]);
-    }
-    newEnviron[length] = NULL;
-    environ = newEnviron;
-}
-#endif

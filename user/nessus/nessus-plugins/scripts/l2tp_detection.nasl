@@ -7,7 +7,7 @@
 if (description)
 {
  script_id(11387);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  script_name(english:"L2TP detection");
  desc["english"] = "
 This host is running a L2TP server - it's probably a VPN endpoint.
@@ -39,4 +39,7 @@ send(socket:soc, data:req);
 r = recv(socket:soc, length:1024);
 if(!r)exit(0);
 close(soc);
-if((ord(r[1]) & 0x0F) == 0x02)security_note(port:1701, proto:"udp");
+if((ord(r[1]) & 0x0F) == 0x02){
+	set_kb_item(name:"Services/udp/l2tp", value:1701);
+	security_note(port:1701, proto:"udp");
+	}

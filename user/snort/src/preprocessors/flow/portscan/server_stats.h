@@ -26,7 +26,6 @@ int server_stats_add_ipv4(SERVER_STATS *ssp, u_int8_t ip_proto, u_int32_t addres
 int server_stats_remove_ipv4(SERVER_STATS *ssp, u_int8_t ip_proto, u_int32_t address, u_int16_t port);
 
 int server_stats_save(SERVER_STATS *ssp, char *filename);
-int server_stats_load(SERVER_STATS *ssp, char *filename);
 
 int server_stats_row_count(SERVER_STATS *sbp);
 int server_stats_memcap(SERVER_STATS *sbp);

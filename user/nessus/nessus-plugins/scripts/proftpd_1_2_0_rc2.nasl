@@ -9,7 +9,8 @@
 if(description)
 {
  script_id(11407);
- script_version ("$Revision: 1.1 $");
+ script_bugtraq_id(6781);
+ script_version ("$Revision: 1.2 $");
  script_cve_id("CVE-2001-0318");
  
  name["english"] = "proftpd 1.2.0rc2 format string vuln";

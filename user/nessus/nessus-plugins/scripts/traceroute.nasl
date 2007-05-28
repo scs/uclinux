@@ -4,10 +4,13 @@
 # See the Nessus Scripts License for details
 #
 
+if ( isnull(NESSUS_VERSION) ) exit(0);
+
 if(description)
 {
  script_id(10287);
- script_version ("$Revision: 1.36 $");
+# script_cve_id("CVE-MAP-NOMATCH");
+ script_version ("$Revision: 1.43 $");
  name["english"] = "Traceroute";
  name["francais"] = "Traceroute";
  script_name(english:name["english"], francais:name["francais"]);
@@ -38,6 +41,8 @@ Risk factor : Low";
 #
 # The script code starts here
 #
+include("global_settings.inc");
+
 
 dport = get_host_open_port();
 if(!dport)dport = 80;
@@ -66,11 +71,11 @@ if(islocalhost())
 #dub security_note(port:0, protocol:"udp", data:report);
  exit(0);
 }
-report = string("For your information, here is the traceroute to ", dst, " : \n", this_host(), "\n");
+report = string("For your information, here is the traceroute from ", src, " to ", dst, " : \n", this_host(), "\n");
 filter = string("dst host ", src, " and ((icmp and ((icmp[0]=3) or (icmp[0]=11)))" + 
 		" or (src host ", get_host_ip(), " and tcp and tcp[0:2]=", dport, " and tcp[2:2]=", my_sport, " and (tcp[13]=4 or tcp[13]=18)))");
 
-#display(filter, "\n");
+debug_print(level: 2, 'Filter=', filter, '\n');
 d = get_host_ip();
 prev = string("");
 
@@ -155,6 +160,8 @@ function make_pkt(ttl, proto)
 }
 
 proto=0;	# Prefer TCP
+gateway_n = 0;
+
 while(!finished)
 {
 
@@ -163,10 +170,14 @@ while(!finished)
   err=1;
   p = make_pkt(ttl: ttl, proto: proto);
   rep = send_packet(p, pcap_active:TRUE, pcap_filter:filter, pcap_timeout:1);
+  then = unixtime();
   while(rep)
   {
+   if ( unixtime() - then > 5 ) {
+	rep = NULL;
+	break;
+   }
    if(filter(p:rep) != 0 ) { 
-   	#display("Again!\n");
    	rep = pcap_next(pcap_filter:filter, timeout:1);
  	}
  	else break;
@@ -177,7 +188,7 @@ while(!finished)
   {
    psrc = get_ip_element(ip:rep, element:"ip_src");
    #display("+", psrc, "\n");
-   report = report + string(psrc, "\n");	
+   gateway[gateway_n ++] = psrc;
    d = psrc - d;
    if(!d)finished = 1;
    d = get_host_ip();
@@ -195,7 +206,7 @@ while(!finished)
  if(err)
  {
   #display("...\");
-  if (!error) report = report + string("?\n");
+  if (!error) gateway[gateway_n++] = '?';
   error = error+1;
  }
  ttl = ttl+1;
@@ -210,7 +221,17 @@ while(!finished)
  #
  if(ttl > 50)finished = 1;
 }
- 		   
+
+max = 0;
+for (i = 1; i < max_index(gateway); i ++)
+ if (gateway[i] != gateway[i-1])
+  max = i;
+ else
+  debug_print('Duplicate router #', i, '(', gateway[i], ') in trace to ', get_host_ip(), '\n');
+
+for (i = 0; i <= max; i ++)
+ report = strcat(report, gateway[i], '\n');
+
 #
 # show if at least one route was obtained.
 #

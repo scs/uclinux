@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_disposition.h,v 1.2 2003/09/10 12:20:53 bogdan Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl_parser.h,v 1.5 2003/09/23 00:23:36 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

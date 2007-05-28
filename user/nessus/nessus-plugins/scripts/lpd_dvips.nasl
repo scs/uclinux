@@ -7,9 +7,9 @@
 if(description)
 {
    script_id(11023);
+   script_bugtraq_id(3241);
    script_cve_id("CVE-2001-1002");
- script_bugtraq_id(3241);
-   script_version ("$Revision: 1.7 $");
+   script_version ("$Revision: 1.9 $");
    name["english"] = "lpd, dvips and remote command execution";
    script_name(english:name["english"]);
  
@@ -109,6 +109,7 @@ data = raw_string(0xF7, 0x02, 0x01, 0x83, 0x82, 0xC0,
 cmd = raw_string(0x03) + string(strlen(data) ," dfA081", name) + CR;
 send(socket:soc, data:cmd);
 r = recv(socket:soc, length:1);
+if ( isnull(r) ) exit(0);
 if(ord(r))exit(0);
 
 
@@ -117,7 +118,8 @@ if(ord(r))exit(0);
  send(socket:soc, data:data);
  send(socket:soc, data:raw_string(0));
  r = recv(socket:soc, length:1);
-if(ord(r))exit(0);
+ if ( isnull(r) ) exit(0);
+ if(ord(r))exit(0);
  
  
  cmd = string("Hlocal", CR, "Prenaud", CR, "fdfA081", name, CR,
@@ -126,6 +128,7 @@ if(ord(r))exit(0);
  send(socket:soc, data:cmd1);
  
  r = recv(socket:soc, length:1);
+ if ( isnull(r) ) exit(0);
  if(ord(r))exit(0);
  
  

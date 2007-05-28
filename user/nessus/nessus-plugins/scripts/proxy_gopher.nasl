@@ -5,7 +5,7 @@
 # See the Nessus Scripts License for details
 #
 #
-# This script does not check for CAN-2002-0371 per se,
+# This script does not check for CVE-2002-0371 per se,
 # but references it as an example of an abuse in the gopher
 # protocol. MS advisory MS02-027 also suggests disabling
 # the gopher protocol handling completely.
@@ -14,8 +14,9 @@
 if(description)
 { 
  script_id(11305);
- script_cve_id("CAN-2002-0371");
- script_version ("$Revision: 1.3 $");
+ script_bugtraq_id(4930);
+ script_cve_id("CVE-2002-0371");
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "Proxy accepts gopher:// requests";
  

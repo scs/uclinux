@@ -1,7 +1,7 @@
 /*
  * Accounting module
  *
- * $Id$
+ * $Id: acc_mod.c,v 1.27.2.1.4.1 2004/07/18 22:56:23 sobomax Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

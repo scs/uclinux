@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10240);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-1999-0181");
  
  name["english"] = "walld service";
@@ -15,27 +15,19 @@ if(description)
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The walld RPC service is running. 
-It is usually used by the administrator
-to tell something to the users of a
-network by making a message appear
+The walld RPC service is running.  It is usually used by the administrator
+to tell something to the users of a network by making a message appear
 on their screen.
 
-Since this service lacks any kind
-of authentication, an attacker
-may use it to trick users into
-doing something (change their password,
-leave the console, or worse), by sending
-a message which would appear to be
+Since this service lacks any kind of authentication, an attacker
+may use it to trick users into doing something (change their password,
+leave the console, or worse), by sending a message which would appear to be
 written by the administrator.
 
-It can also be used as a denial of service
-attack, by continually sending garbage
-to the users screens, preventing them
-from working properly.
+It can also be used as a denial of service attack, by continually sending 
+garbage to the users screens, preventing them from working properly.
 
-Solution : Deactivate this service.
-
+Solution : Disable this service.
 Risk factor : Medium";
 
 
@@ -88,6 +80,10 @@ Facteur de risque : Moyen";
 #
 
 include("misc_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 RPC_PROG = 100008;

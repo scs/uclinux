@@ -3,7 +3,7 @@
  *
  * Conversion pvf <--> au.
  *
- * $Id$
+ * $Id: au.c,v 1.6 2001/05/14 09:52:30 marcs Exp $
  *
  */
 

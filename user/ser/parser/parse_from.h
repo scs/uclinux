@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_from.h,v 1.7 2002/12/08 00:11:50 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

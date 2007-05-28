@@ -28,8 +28,10 @@
 if(description)
 {
  script_id(11135);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0004");
+ script_bugtraq_id(2524);
  script_cve_id("CVE-2001-0154"); # For MS01-020 - should be changed later
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "Bugbear worm";
  name["francais"] = "Ver Bugbear";
 
@@ -60,7 +62,7 @@ Solution:
 - Close your Windows shares
 - Update your IE browser 
   See 'Incorrect MIME Header Can Cause IE to Execute E-mail Attachment'
-  http://www.microsoft.com/technet/security/bulletin/MS01-020.asp
+  http://www.microsoft.com/technet/security/bulletin/MS01-020.mspx
 
 Risk factor : Critical";
 
@@ -87,7 +89,7 @@ Solution:
 - Fermez vous partages Windows
 - Mettez à jour votre navigateur IE 
   Cf. 'Incorrect MIME Header Can Cause IE to Execute E-mail Attachment'
-  http://www.microsoft.com/technet/security/bulletin/MS01-020.asp
+  http://www.microsoft.com/technet/security/bulletin/MS01-020.mspx
 
 Risk factor : Critical";
 
@@ -113,10 +115,7 @@ Risk factor : Critical";
 #
 include("misc_func.inc");
 
-# port = get_kb_item("Services/unknown");
-# if (! port) port = 36794;
 port = 36794;
-# if (known_service(port: port) exit(0);
 
 if (! get_port_state(port)) exit(0);
 soc = open_sock_tcp(port);
@@ -141,6 +140,6 @@ Although Nessus was unable to get an answer from the worm,
 you'd better check your machine with an up to date 
 antivirus scanner.
 
-Risk factor: Critical / None";
+Risk factor: Medium";
 security_warning(port: port, data: msg);
 

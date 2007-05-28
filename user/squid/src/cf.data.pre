@@ -1,6 +1,6 @@
 
 #
-# $Id$
+# $Id: cf.data.pre,v 1.245.2.94 2005/05/10 23:08:40 hno Exp $
 #
 #
 # SQUID Web Proxy Cache          http://www.squid-cache.org/
@@ -1040,7 +1040,7 @@ DOC_START
 DOC_END
 
 NAME: ftp_list_width
-TYPE: size_t
+TYPE: int
 DEFAULT: 32
 LOC: Config.Ftp.list_width
 DOC_START
@@ -1293,12 +1293,18 @@ DOC_START
 	login credentials if the request is being denied by a proxy_auth
 	type acl.
 
+	WARNING: authenitcation can't be used in a transparently intercepting
+	proxy as the client then thinks it is talking to an origin server and
+	not the proxy. This is a limitation of bending the TCP/IP protocol to
+	transparently intercepting port 80, not a limitation in Squid.
+
 	=== Parameters for the basic scheme follow. ===
 	
 	"program" cmdline
 	Specify the command for the external authenticator.  Such a program
 	reads a line containing "username password" and replies "OK" or
-	"ERR" in an endless loop.
+	"ERR" in an endless loop. "ERR" responses may optionally be followed
+	by a error description available as %m in the returned error page.
 
 	By default, the basic authentication sheme is not used unless a
 	program is specified.
@@ -1984,13 +1990,22 @@ DOC_START
 	acl aclname dst      ip-address/netmask ... (URL host's IP address)
 	acl aclname myip     ip-address/netmask ... (local socket IP address)
 
+	acl aclname arp      mac-address ... (xx:xx:xx:xx:xx:xx notation)
+	  # The arp ACL requires the special configure option --enable-arp-acl.
+	  # Furthermore, the arp ACL code is not portable to all operating systems.
+	  # It works on Linux, Solaris, FreeBSD and some other *BSD variants.
+	  #
+	  # NOTE: Squid can only determine the MAC address for clients that are on
+	  # the same subnet. If the client is on a different subnet, then Squid cannot
+	  # find out its MAC address.
+
 	acl aclname srcdomain   .foo.com ...    # reverse lookup, client IP
 	acl aclname dstdomain   .foo.com ...    # Destination server from URL
 	acl aclname srcdom_regex [-i] xxx ...   # regex matching client name
 	acl aclname dstdom_regex [-i] xxx ...   # regex matching server
 	  # For dstdomain and dstdom_regex  a reverse lookup is tried if a IP
-	  # based URL is used. The name "none" is used if the reverse lookup
-	  # fails.
+	  # based URL is used and no match is found. The name "none" is used
+	  # if the reverse lookup fails.
 
 	acl aclname time     [day-abbrevs]  [h1:m1-h2:m2]
 	    day-abbrevs:
@@ -2089,6 +2104,7 @@ DOC_START
 	  # external_acl_type directive.
 
 Examples:
+acl macaddress arp 09:00:2b:23:45:67
 acl myexample dst_as 1241
 acl password proxy_auth REQUIRED
 acl fileupload req_mime_type -i ^multipart/form-data$
@@ -2264,7 +2280,7 @@ DEFAULT_IF_NONE: deny all
 LOC: Config.accessList.identLookup
 DOC_START
 	A list of ACL elements which, if matched, cause an ident
-	(RFC 931) lookup to be performed for this request.  For
+	(RFC931) lookup to be performed for this request.  For
 	example, you might choose to always perform ident lookups
 	for your main multi-user Unix boxes, but not for your Macs
 	and PCs.  By default, ident lookups are not performed for
@@ -2302,10 +2318,13 @@ DOC_START
 	tcp_outgoing_tos 0x20 good_service_net
 
 	TOS/DSCP values really only have local significance - so you should
-	know what you're specifying. For more, see RFC 2474
+	know what you're specifying. For more information, see RFC2474 and 
+	RFC3260.
 
-	The TOS/DSCP byte must be exactly that - a byte, value  0 - 255, or
-	"default" to use whatever default your host has.
+	The TOS/DSCP byte must be exactly that - a octet value  0 - 255, or
+	"default" to use whatever default your host has. Note that in
+	practice often only values 0 - 63 is useable as the two highest bits
+	have been redefined for use by ECN (RFC3168).
 
 	Processing proceeds in the order specified, and stops at first fully
 	matching line.
@@ -2335,6 +2354,18 @@ DOC_START
 
 	Processing proceeds in the order specified, and stops at first fully
 	matching line.
+DOC_END
+NAME: reply_header_max_size
+COMMENT: (KB)
+TYPE: b_size_t
+DEFAULT: 20 KB
+LOC: Config.maxReplyHeaderSize
+DOC_START
+	This specifies the maximum size for HTTP headers in a reply.
+	Reply headers are usually relatively small (about 512 bytes).
+	Placing a limit on the reply header size will catch certain
+	bugs (for example with persistent connections) and possibly
+	buffer-overflow or denial-of-service attacks.
 DOC_END
 
 NAME: reply_body_max_size
@@ -2579,7 +2610,7 @@ NAME: httpd_accel_uses_host_header
 COMMENT: on|off
 TYPE: onoff
 DEFAULT: off
-LOC: opt_accel_uses_host
+LOC: Config.onoff.accel_uses_host_header
 DOC_START
 	HTTP/1.1 requests include a Host: header which is basically the
 	hostname from the URL.  The Host: header is used for domain based
@@ -2596,6 +2627,22 @@ DOC_START
 	However, you will need to enable this option if you run Squid
 	as a transparent proxy.  Otherwise, virtual servers which
 	require the Host: header will not be properly cached.
+DOC_END
+
+NAME: httpd_accel_no_pmtu_disc
+COMMENT: on|off
+TYPE: onoff
+DEFAULT: off
+LOC: Config.onoff.accel_no_pmtu_disc
+DOC_START
+	In many setups of transparently intercepting proxies Path-MTU
+	discovery can not work on traffic towards the clients. This is
+	the case when the intercepting device does not fully track
+	connections and fails to forward ICMP must fragment messages
+	to the cache server. 
+	
+	If you have such setup and experience that certain clients
+	sporadically hang or never complete requests set this to on.
 DOC_END
 
 COMMENT_START
@@ -2696,7 +2743,7 @@ DEFAULT: none
 DOC_START
 	Defines a single ICAP service
 
-	icap_service servicename vectoring_point bypass service_url
+	icap_service servicename vectoring_point bypass service_url [options ...]
 
 	vectoring_point = reqmod_precache|reqmod_postcache|respmod_precache|respmod_postcache
 		This specifies at which point of request processing the ICAP
@@ -2706,11 +2753,18 @@ DOC_START
 		through without being processed by an ICAP server
 	service_url = icap://servername:port/service
 
+	Options: 
+
+        no-keep-alive	To always close the connection to icap server
+        		after the transaction completes
+
+
 	Note: reqmod_precache and respmod_postcache is not yet implemented
 
 Example:
 icap_service service_1 reqmod_precache 0 icap://icap1.mydomain.net:1344/reqmod
-icap_service service_2 respmod_precache 0 icap://icap2.mydomain.net:1344/respmod
+icap_service service_1 reqmod_precache 0 icap://icap2.mydomain.net:1344/reqmod no-keep-alive
+icap_service service_2 respmod_precache 0 icap://icap3.mydomain.net:1344/respmod 
 DOC_END
 
 NAME: icap_class
@@ -2874,7 +2928,7 @@ DOC_END
 NAME: memory_pools_limit
 COMMENT: (bytes)
 TYPE: b_size_t
-DEFAULT: none
+DEFAULT: 5 MB
 LOC: Config.MemPools.limit
 DOC_START
 	Used only with memory_pools on:
@@ -2888,9 +2942,8 @@ DOC_START
 	memory_pools_limit to a reasonably high value even if your
 	configuration will use less memory.
 
-	If not set (default) or set to zero, Squid will keep all memory it
-	can. That is, there will be no limit on the total amount of memory
-	used for safe-keeping.
+	If set to zero, Squid will keep all memory it can. That is, there
+	will be no limit on the total amount of memory used for safe-keeping.
 
 	To disable memory allocation optimization, do not set
 	memory_pools_limit to 0. Set memory_pools to "off" instead.
@@ -3154,8 +3207,9 @@ DOC_START
 	Usage: always_direct allow|deny [!]aclname ...
 
 	Here you can use ACL elements to specify requests which should
-	ALWAYS be forwarded directly to origin servers.  For example,
-	to always directly forward requests for local servers use
+	ALWAYS be forwarded by Squid to the origin servers without using
+	any peers.  For example, to always directly forward requests for
+	local servers ignoring any parents or siblings you may have use
 	something like:
 
 		acl local-servers dstdomain my.domain.net
@@ -3176,6 +3230,15 @@ DOC_START
 		acl local-servers dstdomain  .foo.net
 		always_direct deny local-external
 		always_direct allow local-servers
+
+	NOTE: If your goal is to make the client forward the request
+	directly to the origin server bypassing Squid then this needs
+	to be done in the client configuration. Squid configuration
+	can only tell Squid how Squid should fetch the object.
+
+	NOTE: This directive is not related to caching. The replies
+	is cached as usual even if you use always_direct. To not cache
+	the replies see no_cache.
 
 	This option replaces some v1.1 options such as local_domain
 	and local_ip.
@@ -3342,6 +3405,17 @@ DOC_START
 
 	Note: This is in addition to the request reforwarding which
 	takes place if Squid fails to get a satisfying response.
+DOC_END
+
+NAME: retry_on_error
+TYPE: onoff
+LOC: Config.retry.onerror
+DEFAULT: off
+DOC_START
+	If set to on Squid will automatically retry requests when
+	receiving an error response. This is mainly useful if you
+	are in a complex cache hierarchy to work around access
+	control errors.
 DOC_END
 
 NAME: snmp_port
@@ -3530,10 +3604,13 @@ IFDEF: DELAY_POOLS
 LOC: Config.Delay
 DOC_START
 	This is used to determine which delay pool a request falls into.
-	The first matched delay pool is always used, i.e., if a request falls
-	into delay pool number one, no more delay are checked, otherwise the
-	rest are checked in order of their delay pool number until they have
-	all been checked.  For example, if you want some_big_clients in delay
+
+	delay_access is sorted per pool and the matching starts with pool 1,
+       	then pool 2, ..., and finally pool N. The first delay pool where the
+       	request is allowed is selected for the request. If it does not allow
+	the request to any pool then the request is not delayed (default).
+
+      	For example, if you want some_big_clients in delay
 	pool 1 and lotsa_little_clients in delay pool 2:
 
 Example:
@@ -3715,7 +3792,7 @@ DOC_START
 	Some HTTP servers has broken implementations of PUT/POST,
 	and rely on an extra CRLF pair sent by some WWW clients.
 
-	Quote from RFC 2068 section 4.1 on this matter:
+	Quote from RFC2068 section 4.1 on this matter:
 
 	  Note: certain buggy HTTP/1.0 client implementations generate an
 	  extra CRLF's after a POST request. To restate what is explicitly
@@ -4005,7 +4082,10 @@ DOC_START
 	even if not explicitly forbidden.
 
 	Set this directive to on if you have clients which insists
-	on sending request entities in GET or HEAD requests.
+	on sending request entities in GET or HEAD requests. But be warned
+	that there is server software (both proxies and web servers) which
+	can fail to properly process this kind of request which may make you
+	vulnerable to cache pollution attacks if enabled.
 DOC_END
 
 NAME: high_response_time_warning
@@ -4114,4 +4194,22 @@ DOC_START
 	until all the child processes have been started.
 DOC_END
 
+NAME: relaxed_header_parser
+COMMENT: on|off|warn
+TYPE: tristate
+LOC: Config.onoff.relaxed_header_parser
+DEFAULT: on
+DOC_START
+	In the default "on" setting Squid accepts certain forms
+	of non-compliant HTTP messages where it is unambiguous
+	what the sending application intended even if the message
+	is not correctly formatted. The messages is then normalized
+	to the correct form when forwarded by Squid.
+
+	If set to "warn" then a warning will be emitted in cache.log
+	each time such HTTP error is encountered.
+
+	If set to "off" then such HTTP errors will cause the request
+	or response to be rejected.
+DOC_END
 EOF

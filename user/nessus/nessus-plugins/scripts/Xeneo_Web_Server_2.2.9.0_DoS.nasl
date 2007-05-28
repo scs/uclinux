@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11545);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "Xeneo Web Server 2.2.9.0 DoS";
  name["francais"] = "Xeneo Web Server 2.2.9.0 DoS";
  
@@ -40,7 +40,7 @@ Risk factor : High";
  family["english"] = "Denial of Service";
  family["francais"] = "Deni de Service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -51,11 +51,12 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {
+ if ( ! can_host_php(port:port) ) exit(0);
  if(http_is_dead(port:port))exit(0);
  soc = http_open_socket(port);
  if(soc)

@@ -19,9 +19,9 @@
 if(description)
 {
  script_id(11049);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2002-1029");
  script_bugtraq_id(5169);
+ script_version("$Revision: 1.7 $");
+ script_cve_id("CVE-2002-1029");
  name["english"] = "Worldspan gateway DOS";
  name["francais"] = "Déni de service contre la passerelle Wordspan";
  script_name(english:name["english"], francais:name["francais"]);

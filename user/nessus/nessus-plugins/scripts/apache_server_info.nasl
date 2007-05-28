@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10678);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.14 $");
  name["english"] = "Apache /server-info accessible";
  name["francais"] = "Apache /server-info accessible";
  
@@ -34,9 +34,8 @@ the administrator's machine.";
  
  script_copyright(english:"This script is Copyright (C) 2001 StrongHoldNet",
 		francais:"Ce script est Copyright (C) 2001 StrongHoldNet");
- family["english"] = "Misc.";
- family["francais"] = "Divers";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/apache");
@@ -48,22 +47,17 @@ the administrator's machine.";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
+port = get_http_port(default:80);
 str = "Apache Server Information";
-if(!port) port = 80;
-if(get_port_state(port))
+
+if(get_port_state(port) )
 {
- soc = http_open_socket(port);
- if(soc)
- {
   buffer = http_get(item:"/server-info", port:port);
-  send(socket:soc, data:buffer);
-  data = http_recv(socket:soc);
+  data = http_keepalive_send_recv(port:port, data:buffer);
   if( str >< data )
   {
    security_warning(port);
   }
-  http_close_socket(soc);
- }
 }

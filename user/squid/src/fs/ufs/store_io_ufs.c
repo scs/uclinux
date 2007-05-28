@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_io_ufs.c,v 1.9.2.6 2005/03/26 22:44:10 hno Exp $
  *
  * DEBUG: section 79    Storage Manager UFS Interface
  * AUTHOR: Duane Wessels
@@ -150,7 +150,7 @@ storeUfsClose(SwapDir * SD, storeIOState * sio)
 }
 
 void
-storeUfsRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t offset, STRCB * callback, void *callback_data)
+storeUfsRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, squid_off_t offset, STRCB * callback, void *callback_data)
 {
     ufsstate_t *ufsstate = (ufsstate_t *) sio->fsstate;
 
@@ -166,19 +166,19 @@ storeUfsRead(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t off
     file_read(ufsstate->fd,
 	buf,
 	size,
-	offset,
+	(off_t) offset,
 	storeUfsReadDone,
 	sio);
 }
 
 void
-storeUfsWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, off_t offset, FREE * free_func)
+storeUfsWrite(SwapDir * SD, storeIOState * sio, char *buf, size_t size, squid_off_t offset, FREE * free_func)
 {
     ufsstate_t *ufsstate = (ufsstate_t *) sio->fsstate;
     debug(79, 3) ("storeUfsWrite: dirn %d, fileno %08X, FD %d\n", sio->swap_dirn, sio->swap_filen, ufsstate->fd);
     ufsstate->flags.writing = 1;
     file_write(ufsstate->fd,
-	offset,
+	(off_t) offset,
 	buf,
 	size,
 	storeUfsWriteDone,
@@ -213,7 +213,7 @@ storeUfsReadDone(int fd, const char *buf, int len, int errflag, void *my_data)
 	debug(79, 3) ("storeUfsReadDone: got failure (%d)\n", errflag);
 	rlen = -1;
     } else {
-	rlen = (ssize_t) len;
+	rlen = len;
 	sio->offset += len;
     }
     assert(callback);
@@ -221,7 +221,7 @@ storeUfsReadDone(int fd, const char *buf, int len, int errflag, void *my_data)
     sio->read.callback = NULL;
     sio->read.callback_data = NULL;
     if (cbdataValid(their_data))
-	callback(their_data, buf, (size_t) rlen);
+	callback(their_data, buf, rlen);
     cbdataUnlock(their_data);
 }
 

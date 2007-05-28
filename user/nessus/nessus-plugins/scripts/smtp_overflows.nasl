@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(11772);
-  script_version("$Revision: 1.3 $");
+  script_version("$Revision: 1.5 $");
  
   name["english"] = "Generic SMTP overflows";
   script_name(english:name["english"]);
@@ -37,7 +37,7 @@ Risk factor : High";
   family["english"] = "SMTP problems";
   family["francais"] = "Problèmes SMTP";
   script_family(english:family["english"], francais:family["francais"]);
-  script_dependencie("find_service.nes", "sendmail_expn.nasl", "smtpserver_detect.nasl");
+  script_dependencie("sendmail_expn.nasl", "smtpserver_detect.nasl");
   script_exclude_keys("SMTP/wrapped");
   script_require_ports("Services/smtp", 25);
   exit(0);
@@ -49,11 +49,17 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if (! port) port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 if(! get_port_state(port)) exit(0);
 
 soc = open_sock_tcp(port);
 if (! soc) exit(0);
 banner = smtp_recv_banner(socket:soc);
+if (!banner)
+{
+  close(soc);
+  exit(0);
+}
 
 cmds = make_list(
 	"HELO", 

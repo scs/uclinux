@@ -4,7 +4,7 @@
  * Added small modification to support a non C string for the pattern with
  * a given length.
  *
- * $Id$
+ * $Id: wildmat.c,v 1.1 1998/09/09 21:43:07 gert Exp $
  *
  */
 

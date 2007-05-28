@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10805);
- script_cve_id("CAN-2001-0924");
  script_bugtraq_id(3575);
- script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-0924");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "Informix traversal";
  name["francais"] = "Informix traversal";
@@ -18,7 +18,7 @@ if(description)
  desc["english"] = "
 The Web DataBlade modules for Informix
 SQL allows an attacker to read arbitrary files on
-the remote system by sending a specially crafter
+the remote system by sending a specially crafted
 request, like :
 
 	GET /ifx/?LO=../../../../file
@@ -52,8 +52,8 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {

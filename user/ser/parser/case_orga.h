@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: case_orga.h,v 1.1 2003/08/05 11:13:01 bogdan Exp $ 
  *
  * Organization Header Field Name Parsing Macros
  *

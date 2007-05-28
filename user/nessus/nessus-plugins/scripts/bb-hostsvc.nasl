@@ -8,36 +8,30 @@
 if(description)
 {
  script_id(10460);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(1455);
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-2000-0638");
  script_name(english:"bb-hostsvc.sh");
- 
- script_description(
- 	english:"It is possible to view arbitrary files on a system where versions 
+
+ desc["english"] =
+"It is possible to view arbitrary files on a system where versions 
 1.4h or older of 'BigBrother' are installed, using a flaw in the bb-hostsvc.sh CGI
 program.
 
 Solution : Upgrade to version 1.4i or later.
 
-Risk factor : High",
+Risk factor : High";
 
-	francais:"Il est possible de lire des fichiers arbitraires sur
-un système sur lequel la version 1.4h ou plus ancienne de  'BigBrother' sont
-installées, en utilisant un problème dans le programme cgi 'bb-hostsvc.sh'.
+ script_description(english:desc["english"]);
 
-Solution: Upgradez à la version 1.4i ou plus récente.
+ script_summary(english:"Read arbitrary files using the CGI bb-hostsvc.sh");
 
-Facteur de risque : Elevé");
-
- script_summary(english:"Read arbitrary files using the CGI bb-hostsvc.sh",
-	 	francais:"Lit des fichiers arbitraires en utilisant le CGI bb-hostsvc.sh");
-
- script_family(english:"CGI abuses", francais:"Abus de CGI");
+ script_family(english:"CGI abuses");
   
  script_category(ACT_GATHER_INFO);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_copyright("Copyright (C) 1999 Renaud Deraison"); 
  exit(0);
 }
@@ -50,8 +44,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10836);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(3702);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2001-1199");
  
  name["english"] = "Agora CGI Cross Site Scripting";
@@ -16,18 +16,25 @@ if(description)
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
- Agora is a CGI based e-commerce package. Due to poor input validation, 
- Agora allows an attacker to execute cross-site scripting attacks. 
- For example:
+Synopsis :
 
-http://www.example.com/store/agora.cgi?cart_id=<SCRIPT>alert(document.domain)</SCRIPT>&xm=on&product=HTML
+The remote web server contains a CGI which is vulnerable to a cross-site
+scripting issue.
 
-Solution : At the time of writing this test, no solution was available 
-for this problem. However, a new version of Agora may become available 
-at http://www.agoracgi.com. Please check the Agora CGI web site or 
-contact your vendor for the latest version.
+Description :
 
-Risk factor : High";
+Agora is a CGI based e-commerce package. Due to poor input validation, 
+Agora allows an attacker to execute cross-site scripting attacks. 
+
+
+Solution : 
+
+Upgrade to Agora 4.0e or newer.
+
+Risk factor : 
+
+Low / CVSS Base Score : 3
+(AV:R/AC:H/Au:NR/C:P/A:N/I:N/B:C)";
 
  script_description(english:desc["english"]);
  
@@ -39,10 +46,10 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2002 Matt Moore",
 		francais:"Ce script est Copyright (C) 2002 Matt Moore");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "cross_site_scripting.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -50,24 +57,18 @@ Risk factor : High";
 # Check starts here
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+if ( get_kb_item("www/" + port + "/generic_xss") ) exit(0);
+
 if(get_port_state(port))
 { 
- 
-installed = is_cgi_installed(item:"/store/agora.cgi", port:port);
-if (!installed) exit(0);
-
  req = http_get(item:"/store/agora.cgi?cart_id=<SCRIPT>alert(document.domain)</SCRIPT>&xm=on&product=HTML", port:port);
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
- if("<SCRIPT>alert(document.domain)</SCRIPT>" >< r)	
- 	security_hole(port);
-
- }
+ r = http_keepalive_send_recv(port:port, data:req, bodyonly:1);
+ if ( r == NULL ) exit(0);
+ if("<SCRIPT>alert(document.domain)</SCRIPT>" >< r)	{
+		security_note(port);
+	}
 }

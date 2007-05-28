@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10769);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CAN-2001-0997");
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2001-0997");
  
  name["english"] = "Checks for listrec.pl";
  script_name(english:name["english"]);
@@ -19,7 +19,7 @@ commands on the remote server, usually with the privileges of the web server.
 
 Solution: Remove it from /cgi-bin/common/.
 
-Risk factor : Serious
+Risk factor : High
 
 References:
 www.textor.com/index.html (vendor)
@@ -47,6 +47,7 @@ www.securitytracker.com/alerts/2001/Sep/1002404.html (advisory)
 
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -58,8 +59,8 @@ www.securitytracker.com/alerts/2001/Sep/1002404.html (advisory)
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

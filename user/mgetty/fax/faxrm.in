@@ -7,7 +7,7 @@
 # There are still a lot rough edges - but it works, and should give you an
 # idea how to improve it
 #
-# SCCS: $Id$ Copyright (C) 1994 Gert Doering
+# SCCS: $Id: faxrm.in,v 4.6 2003/02/04 16:46:36 gert Exp $ Copyright (C) 1994 Gert Doering
 
 FAX_SPOOL=@FAX_SPOOL@
 FAX_SPOOL_OUT=@FAX_SPOOL_OUT@

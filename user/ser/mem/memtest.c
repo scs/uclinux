@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: memtest.c,v 1.5 2002/09/19 12:23:53 jku Rel $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

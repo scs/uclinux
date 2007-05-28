@@ -1,9 +1,14 @@
+#
+# (C) Tenable Network Security
+#
+
 if(description)
 {
  script_id(11910);
-# script_cve_id("");                   #there is not currently a CVE ID
-# if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-");
+ script_cve_id("CVE-2003-1177");
  script_bugtraq_id(8861);
+ script_version("$Revision$");
+# if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-");
 
  name["english"] = "Mercur SMTP server AUTH overflow";
 
@@ -14,7 +19,6 @@ The remote Atrium Mercur SMTP server (mail server) seems to be vulnerable
 to a remote buffer overflow.  Successful exploitation of this vulnerability
 would give a remote attacker administrative access to the mail server and
 access to potentially confidential data. 
-
 
 See also : http://www.atrium-software.com/mercur/mercur_e.html 
 Solution : Contact your vendor or visit atrium-software.com for a patch.
@@ -63,6 +67,10 @@ if ( safe_checks() )
 
 req = string("AUTH PLAIN kJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQ");
 
+
+banner = get_smtp_banner(port:port);
+if ("MERCURE SMTP-Server" >!< banner)
+  exit (0);
 
 soc=open_sock_tcp(port);
 if (!soc) exit(0);

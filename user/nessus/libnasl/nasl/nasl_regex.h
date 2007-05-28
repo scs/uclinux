@@ -342,6 +342,7 @@ struct re_pattern_buffer
         /* If true, an anchor at a newline matches.  */
   unsigned newline_anchor : 1;
 
+  char * orig;
 /* [[[end pattern_buffer]]] */
 };
 
@@ -499,4 +500,5 @@ extern int nasl_regexec (const regex_t *preg, const char *string, size_t nmatch,
 extern size_t nasl_regerror (int errcode, const regex_t *preg, char *errbuf,
              size_t errbuf_size);
 extern reg_syntax_t nasl_re_set_syntax  (reg_syntax_t syntax);
+extern char * nasl_regorig(regex_t * preg);
 extern void nasl_regfree  (regex_t *preg);

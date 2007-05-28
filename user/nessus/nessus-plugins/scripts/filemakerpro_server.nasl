@@ -6,8 +6,8 @@
 if (description)
 {
   	script_id(11586);
-	script_bugtraq_id(7315);
- 	script_version ("$Revision: 1.1 $");
+  	script_bugtraq_id(7315);
+ 	script_version ("$Revision: 1.3 $");
 	script_name(english: "FileMakerPro Detection");
 	script_description(english:"
 The remote host is running a FileMakerPro server on this port.
@@ -20,7 +20,7 @@ without knowing their password, only by connecting to this port
 with a rogue client.
 
 Solution : Do not store any sensitive data in your FileMakerPro database.
-Risk Factor : High");
+Risk factor : High");
 
 
 	script_summary(english: "connects to port 49727 and says 'hello'");

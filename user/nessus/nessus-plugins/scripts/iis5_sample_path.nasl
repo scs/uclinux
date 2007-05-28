@@ -7,10 +7,9 @@
 if(description)
 {
  script_id(10573);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.12 $");
  name["english"] = "IIS 5.0 Sample App reveals physical path of web root";
- name["francais"] = "IIS 5.0 Sample App reveals physical path of web root";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "A sample application shipped with IIS 5.0 discloses 
 the physical path of the web root. An attacker can use this information 
@@ -30,18 +29,24 @@ Risk factor : Low";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Matt Moore",
-		francais:"Ce script est Copyright (C) 2000 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
+ script_copyright(english:"This script is Copyright (C) 2000 Matt Moore");
+ family["english"] = "Web Servers";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 # Check starts here
 
-port = is_cgi_installed("/iissamples/sdk/asp/interaction/ServerVariables_Jscript.asp");
-if(port)security_warning(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
+res = is_cgi_installed_ka(item:"/iissamples/sdk/asp/interaction/ServerVariables_Jscript.asp", port:port);
+if(res)security_warning(port);

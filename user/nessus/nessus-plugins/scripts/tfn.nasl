@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10283);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CAN-2000-0138");
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2000-0138");
  
  name["english"] = "TFN Detect";
  name["francais"] = "Detection de TFN";

@@ -11,9 +11,10 @@
 if(description)
 {
  script_id(11724);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CVE-2000-0682");
  script_bugtraq_id(1518);
+ script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2000-0682");
+ script_xref(name:"OSVDB", value:"1481");
  
  
  name["english"] = "WebLogic source code disclosure";
@@ -25,9 +26,8 @@ There is a bug in the Weblogic web application.  Namely,
 by inserting a /ConsoleHelp/ into a URL, critical source code
 files may be viewed.
 
-Solution : See http://developer.bea.com/alerts/security_000731.html 
-
-Risk factor : Serious";
+Solution : http://dev2dev.bea.com/resourcelibrary/advisoriesnotifications/BEA02-03.jsp
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -56,8 +56,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 jspfiles = get_kb_list(string("www/", port, "/content/extensions/jsp"));

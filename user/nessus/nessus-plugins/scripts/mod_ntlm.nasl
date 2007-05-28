@@ -14,9 +14,9 @@
 if(description)
 {
  script_id(11552); 
- script_bugtraq_id(7393, 7388);
+ script_bugtraq_id(7388, 7393);
 
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.5 $");
 
  name["english"] = "mod_ntlm overflow / format string bug";
  script_name(english:name["english"]);
@@ -49,8 +49,8 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 if(!get_port_state(port))exit(0);

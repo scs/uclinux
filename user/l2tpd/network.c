@@ -25,7 +25,6 @@
 #include "l2tp.h"
 
 char hostname[256];
-unsigned int listen_addy = INADDR_ANY;  /* Address to listen on */
 struct sockaddr_in server, from;        /* Server and transmitter structs */
 int server_socket;              /* Server socket */
 #ifdef USE_KERNEL
@@ -47,7 +46,7 @@ int init_network (void)
     int length = sizeof (server);
     gethostname (hostname, sizeof (hostname));
     server.sin_family = AF_INET;
-    server.sin_addr.s_addr = htonl (listen_addy);
+    server.sin_addr.s_addr = gconfig.listenaddr; 
     server.sin_port = htons (gconfig.port);
     if ((server_socket = socket (PF_INET, SOCK_DGRAM, 0)) < 0)
     {
@@ -249,6 +248,66 @@ void udp_xmit (struct buffer *buf)
 
 }
 
+int build_fdset (fd_set *readfds)
+{
+	struct tunnel *tun;
+	struct call *call;
+	int max = 0;
+
+	tun = tunnels.head;
+	FD_ZERO (readfds);
+
+	while (tun)
+	{
+		call = tun->call_head;
+		while (call)
+		{
+			if (call->needclose ^ call->closing)
+			{
+				call_close (call);
+				call = tun->call_head;
+				if (!call)
+					break;
+				continue;
+			}
+			if (call->fd > -1)
+			{
+				if (!call->needclose && !call->closing)
+				{
+					if (call->fd > max)
+						max = call->fd;
+					FD_SET (call->fd, readfds);
+				}
+			}
+			call = call->next;
+		}
+		/* Now that call fds have been collected, and checked for
+		 * closing, check if the tunnel needs to be closed too
+		 */
+		if (tun->self->needclose ^ tun->self->closing)
+		{
+			if (debug_tunnel)
+				log (LOG_DEBUG, "%s: closing down tunnel %d\n",
+						__FUNCTION__, tun->ourtid);
+			call_close (tun->self);
+			/* Reset the while loop
+			 * and check for NULL */
+			tun = tunnels.head;
+			if (!tun)
+				break;
+			continue;
+		}
+		tun = tun->next;
+	}
+	FD_SET (server_socket, readfds);
+	if (server_socket > max)
+		max = server_socket;
+	FD_SET (control_fd, readfds);
+	if (control_fd > max)
+		max = control_fd;
+	return max;
+}
+
 void network_thread ()
 {
     /*
@@ -268,60 +327,7 @@ void network_thread ()
     buf = new_buf (MAX_RECV_SIZE);
     for (;;)
     {
-        /*
-           * First, let's send out any outgoing packets that are waiting on us.
-           * xmit_udp should only
-           * contain control packets in the unthreaded version!
-         */
-        max = 0;
-        FD_ZERO (&readfds);
-        st = tunnels.head;
-        while (st)
-        {
-            if (st->self->needclose ^ st->self->closing)
-            {
-                if (debug_tunnel)
-                    log (LOG_DEBUG, "%S: closing down tunnel %d\n",
-                         __FUNCTION__, st->ourtid);
-                call_close (st->self);
-                /* Reset the while loop
-                   and check for NULL */
-                st = tunnels.head;
-                if (!st)
-                    break;
-                continue;
-            }
-            sc = st->call_head;
-            while (sc)
-            {
-                if (sc->needclose ^ sc->closing)
-                {
-                    call_close (sc);
-                    sc = st->call_head;
-                    if (!sc)
-                        break;
-                    continue;
-                }
-                if (sc->fd > -1)
-                {
-/*					if (!sc->throttle && !sc->needclose && !sc->closing) { */
-                    if (!sc->needclose && !sc->closing)
-                    {
-                        if (sc->fd > max)
-                            max = sc->fd;
-                        FD_SET (sc->fd, &readfds);
-                    }
-                }
-                sc = sc->next;
-            }
-            st = st->next;
-        }
-        FD_SET (server_socket, &readfds);
-        if (server_socket > max)
-            max = server_socket;
-        FD_SET (control_fd, &readfds);
-        if (control_fd > max)
-            max = control_fd;
+        max = build_fdset (&readfds);
         tv.tv_sec = 1;
         tv.tv_usec = 0;
         schedule_unlock ();
@@ -362,8 +368,6 @@ void network_thread ()
             else
             {
                 buf->len = recvsize;
-                fix_hdr (buf->start);
-                extract (buf->start, &tunnel, &call);
                 if (debug_network)
                 {
                     log (LOG_DEBUG, "%s: recv packet from %s, size = %d, "
@@ -374,6 +378,8 @@ void network_thread ()
                 {
                     do_packet_dump (buf);
                 }
+                fix_hdr (buf->start);
+                extract (buf->start, &tunnel, &call);
                 if (!
                     (c =
                      get_call (tunnel, call, from.sin_addr.s_addr,

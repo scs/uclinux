@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10939);
- script_version ("$Revision: 1.6 $");
  script_bugtraq_id(4006);
- script_cve_id("CAN-2002-0224");
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2002-0224");
  name["english"] = "MSDTC denial of service by flooding with nul bytes";
  script_name(english:name["english"]);
  
@@ -19,9 +19,9 @@ It was possible to crash the MSDTC service by sending
 20200 nul bytes.
 
 Solution : Read the MS02-018 bulletin
-http://www.microsoft.com/technet/security/bulletin/ms02-018.asp
+http://www.microsoft.com/technet/security/bulletin/ms02-018.mspx
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -29,7 +29,7 @@ Risk factor : Serious";
 en lui envoyant 20200 octets nuls.
 
 Solution : Lisez le bulletin MS02-018
-http://www.microsoft.com/technet/security/bulletin/ms02-018.asp
+http://www.microsoft.com/technet/security/bulletin/ms02-018.mspx
 
 Facteur de risque : Sérieux";
 

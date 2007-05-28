@@ -15,7 +15,7 @@ if (description)
 {
  script_id(11494);
  
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.3 $");
  script_name(english:"l2tpd DoS");
  desc["english"] = "
 The remote host is running a version of l2tpd which can be disabled
@@ -32,11 +32,14 @@ Risk factor : High";
  script_summary(english:"Determines the version of the remote l2tpd or crashes it");
  script_category(ACT_MIXED_ATTACK);
  script_family(english:"Denial of Service");
+ script_dependencie("l2tp_detection.nasl");
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_require_ports("Services/udp/l2tp");
  exit(0);
 }
 
 
+if ( ! get_kb_item("Services/udp/l2tp") ) exit(0);
 
 
 function ping(flag)

@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(10757);
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.11 $");
+# script_cve_id("CVE-MAP-NOMATCH");
  name["english"] = "Check for Webmin";
  name["francais"] = "Vérifie la présence de Webmin";
  script_name(english:name["english"], francais:name["francais"]);
@@ -80,6 +81,7 @@ foreach port (ports)
      if(banner != NULL ) {
      if(egrep(pattern:"webmin", string:banner, icase:TRUE))
      {
+     set_kb_item(name:"www/" + port + "/webmin", value:TRUE);
      security_warning(port);
      version = ereg_replace(pattern:".*Webmin *([0-9]\.[0-9][0-9]).*$",
     			    string:banner,
@@ -88,7 +90,7 @@ foreach port (ports)
      if (version)
      {
        security_note(port:port, data:string("The Webmin version is : ", version));
-       set_kb_item(name:"webmin/version",value:version); 
+       set_kb_item(name:"webmin/" + port + "/version",value:version); 
      }
     }
    }

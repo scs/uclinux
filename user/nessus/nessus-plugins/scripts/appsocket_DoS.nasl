@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11090);
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.6 $");
  name["english"] = "AppSocket DoS";
  script_name(english:name["english"]);
  
@@ -36,6 +36,9 @@ Risk factor : Low";
  exit(0);
 }
 
+
+include('global_settings.inc');
+if ( report_paranoia == 0 ) exit(0);
 #
 function test_app_socket(port)
 {

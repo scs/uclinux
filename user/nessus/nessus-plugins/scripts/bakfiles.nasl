@@ -1,22 +1,43 @@
-# Written by Renaud Deraison <deraison@nessus.org>
+# (C) Tenable Network Security
 #
 #
 # This plugin uses the data collected by webmirror.nasl to try
 # to download a backup file old each CGI (as in foo.php -> foo.php.old)
 
+desc["english"] = "
+Synopsis :
+
+It is possible to download the source code of several scripts
+on the remote web server
+
+Description :
+
+By appending various suffixes (ie: .old, .bak, ~, etc...) to the
+names of several pages on the remote host, it seems possible to
+download the source code of these scripts.
+
+You should ensure these files do no contain any sensitive information, such
+as credentials to connect to a database.
+
+Solution :
+
+Delete these files.
+
+Risk factor :
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
+
+
 
 if(description)
 {
  script_id(11411);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.16 $");
  
  name["english"] = "Backup CGIs download";
  script_name(english:name["english"]);
  
- desc["english"] = "
-This script attempts to download a backup file of each
-CGI by doing a GET request on the name of each CGI, followed by
-a .bak, ~ or .old.";
 
 
 
@@ -35,7 +56,7 @@ a .bak, ~ or .old.";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "httpver.nasl", "webmirror.nasl", "no404.nasl");
+ script_dependencie("find_service.nes", "webmirror.nasl", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -45,10 +66,9 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
+if(!port || !get_port_state(port))exit(0);
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 
 list = make_list();
 
@@ -59,6 +79,7 @@ if(!isnull(t)){
 	c = c - s;
 	list = make_list(list, c);
 	}
+
 
 t = get_kb_list(string("www/", port, "/content/extensions/asp"));
 if(!isnull(t))list = make_list(list, t);
@@ -79,24 +100,32 @@ t = get_kb_list(string("www/", port, "/content/extensions/cfm"));
 if(!isnull(t))list = make_list(list, t);
 
 
-exts = make_list(".old", ".bak", "~", ".2", ".copy", ".tmp");
+list = make_list(list, "/.htaccess");
+
+
+exts = make_list(".old", ".bak", "~", ".2", ".copy", ".tmp", ".swp", ".swp");
+prefixes = make_list("", "",   "",  "",   "",      "",     "",      ".");
 
 oldfiles = make_list();
 foreach f (list)
 {
  this_oldfiles = make_list();
- all_match = TRUE;
- foreach e (exts)
+ num_match = 0;
+ for ( i = 0; exts[i]; i ++ )
  {
-   if(is_cgi_installed_ka(port:port, item:string(f, e)))
+   file = ereg_replace(pattern:"(.*)/([^/]*)$", replace:"\1/" + prefixes[i] + "\2" + exts[i], string:f);
+   if(is_cgi_installed_ka(port:port, item:file))
    {
-     this_oldfiles = make_list(this_oldfiles, string(f, e));
+    file2 = ereg_replace(pattern:"(.*)/([^/]*)$", replace:"\1/" + prefixes[i] + "\2" + exts[i], string:string(f, rand()));
+    if(!is_cgi_installed_ka(port:port, item:file2))
+    {
+     this_oldfiles = make_list(this_oldfiles, file);
+     num_match ++;
+    }
    }
-   else all_match = FALSE;
  }
- # To avoid some false positives, if this file matched on all the extensions,
- # then we don't include these in the report.
- if(!all_match) oldfiles = make_list(oldfiles, this_oldfiles);
+ # Avoid false positives
+ if(num_match < 5) oldfiles = make_list(oldfiles, this_oldfiles);
 }
 
 report = NULL;
@@ -108,13 +137,6 @@ foreach f (oldfiles)
 
 if( report != NULL )
   {
-    report = "
-It seems that the source code of various CGIs can be accessed by 
-requesting the CGI name with a special suffix (.old, .bak, ~ or .copy)
-
-Here is the list of CGIs Nessus gathered :
-" + report + '\n\nYou should delete these files.';
-
-  security_hole(port:port, data:report);
-
+    report = desc["english"]  + '\n\nPlugin output :\n\nIt s possible to read the following files :\n' + report;
+    security_warning(port:port, data:report);
   }

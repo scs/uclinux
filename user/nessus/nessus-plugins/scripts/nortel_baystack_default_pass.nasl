@@ -8,7 +8,7 @@
 if(description)
 {
         script_id(11327);
- 	script_version ("$Revision: 1.1 $");
+ 	script_version ("$Revision: 1.2 $");
         name["english"] = "Nortel Baystack switch password test";
         script_name(english:name["english"]);
 
@@ -44,6 +44,7 @@ Risk factor : High";
 
 
 
+include('telnet_func.inc');
 function myrecv(socket, pattern) {
 	while(1) {
 		r = recv_line(socket:soc, length:1024);
@@ -61,10 +62,13 @@ port = 23;
 
 if(get_port_state(port)) {
 
+	buf = get_telnet_banner(port:port);
+	if ( ! buf || "Ctrl-Y" >!< buf ) exit(0);
+
 
 	soc=open_sock_tcp(port);
 	if(!soc)exit(0);
-	buf=telnet_init(soc);
+	buf=telnet_negotiate(socket:soc);
 	#display(buf);
 	# If we catch one of these, it's something else
 	if("NetLogin:" >< buf)exit(0);

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10154);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(631);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-0751");
  name["english"] = "Netscape Enterprise 'Accept' buffer overflow";
  name["francais"] = "Dépassement de buffer Netscape Enterprise 'Accept'";
@@ -75,8 +75,8 @@ Facteur de risque : Elevé";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
   if(http_is_dead(port:port))exit(0);

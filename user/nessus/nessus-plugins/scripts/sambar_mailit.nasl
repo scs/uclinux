@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10417);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.14 $");
  name["english"] = "Sambar /cgi-bin/mailit.pl installed ?";
  script_name(english:name["english"]);
  
@@ -17,7 +17,7 @@ a POST request from any host and sends a mail to a supplied address.
 
 
 Solution : remove it from /cgi-bin.
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -42,7 +42,14 @@ Risk factor : Serious";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
 
 cgi = "/cgi-bin/mailit.pl";
-port = is_cgi_installed(cgi);
-if(port)security_hole(port);
+res = is_cgi_installed_ka(port:port, item:cgi);
+if(res)security_hole(port);

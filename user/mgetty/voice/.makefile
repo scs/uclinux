@@ -1,7 +1,7 @@
 #
 # makefile for vgetty
 #
-# $Id$
+# $Id: makefile,v 1.96 1998/09/09 19:16:41 marc Exp $
 #
 # This makefile contains local stuff
 #

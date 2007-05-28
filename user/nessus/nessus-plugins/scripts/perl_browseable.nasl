@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(10511);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1678);
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CVE-2000-0883");
  name["english"] = "/perl directory browsable ?";
  script_name(english:name["english"]);
@@ -34,7 +34,7 @@ Risk factor : Low";
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -44,9 +44,9 @@ Risk factor : Low";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(get_port_state(port))
+port = get_http_port(default:80);
+
+if(get_port_state(port) && ! get_kb_item("Services/www/" + port + "/embedded") )
 {
  data = http_get(item:"/perl/", port:port);
  soc = http_open_socket(port);

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10625);
- script_cve_id("CAN-1999-1224");
- script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-1999-1224");
+ script_version ("$Revision: 1.15 $");
  
  
  name["english"] = "IMAP4rev1 buffer overflow after logon";
@@ -23,7 +23,7 @@ which allows an authenticated user to obtain a remote
 shell.
 
 Solution : upgrade your imap server or use another one
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Il y a un dépassement de buffer dans le serveur imap

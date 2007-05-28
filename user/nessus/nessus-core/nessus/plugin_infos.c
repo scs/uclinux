@@ -136,7 +136,7 @@ do_set_timeout(b, ctrls)
  
  id  = (int)arg_get_value(ctrls, "ID");
  
- to = gtk_entry_get_text(GTK_ENTRY(w));
+ to = (char*)gtk_entry_get_text(GTK_ENTRY(w));
  pref = emalloc(40);
  
  sprintf(pref, "timeout.%d", id);
@@ -167,7 +167,7 @@ set_timeout_build_window(id, cur_to, def_to)
  struct arglist * ctrls = emalloc(sizeof(*ctrls));
  
 
- window = gtk_window_new(GTK_WINDOW_DIALOG);
+ window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
  gtk_window_set_title(GTK_WINDOW(window), "Set plugin timeout...");
  gtk_container_border_width(GTK_CONTAINER(window), 10);
  gtk_signal_connect(GTK_OBJECT(window), "destroy", 

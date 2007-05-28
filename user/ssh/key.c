@@ -32,7 +32,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: key.c,v 1.54 2003/07/09 13:58:19 avsm Exp $");
+RCSID("$OpenBSD: key.c,v 1.58 2005/06/17 02:44:32 djm Exp $");
 
 #include <openssl/evp.h>
 
@@ -143,8 +143,9 @@ key_free(Key *k)
 	}
 	xfree(k);
 }
+
 int
-key_equal(Key *a, Key *b)
+key_equal(const Key *a, const Key *b)
 {
 	if (a == NULL || b == NULL || a->type != b->type)
 		return 0;
@@ -170,7 +171,8 @@ key_equal(Key *a, Key *b)
 }
 
 u_char*
-key_fingerprint_raw(Key *k, enum fp_type dgst_type, u_int *dgst_raw_length)
+key_fingerprint_raw(const Key *k, enum fp_type dgst_type,
+    u_int *dgst_raw_length)
 {
 	const EVP_MD *md = NULL;
 	EVP_MD_CTX ctx;
@@ -229,7 +231,7 @@ static char *
 key_fingerprint_hex(u_char *dgst_raw, u_int dgst_raw_len)
 {
 	char *retval;
-	int i;
+	u_int i;
 
 	retval = xmalloc(dgst_raw_len * 3 + 1);
 	retval[0] = '\0';
@@ -292,7 +294,7 @@ key_fingerprint_bubblebabble(u_char *dgst_raw, u_int dgst_raw_len)
 }
 
 char *
-key_fingerprint(Key *k, enum fp_type dgst_type, enum fp_rep dgst_rep)
+key_fingerprint(const Key *k, enum fp_type dgst_type, enum fp_rep dgst_rep)
 {
 	char *retval = NULL;
 	u_char *dgst_raw;
@@ -490,7 +492,7 @@ key_read(Key *ret, char **cpp)
 }
 
 int
-key_write(Key *key, FILE *f)
+key_write(const Key *key, FILE *f)
 {
 	int n, success = 0;
 	u_int len, bits = 0;
@@ -522,8 +524,8 @@ key_write(Key *key, FILE *f)
 	return success;
 }
 
-char *
-key_type(Key *k)
+const char *
+key_type(const Key *k)
 {
 	switch (k->type) {
 	case KEY_RSA1:
@@ -539,8 +541,8 @@ key_type(Key *k)
 	return "unknown";
 }
 
-char *
-key_ssh_name(Key *k)
+const char *
+key_ssh_name(const Key *k)
 {
 	switch (k->type) {
 	case KEY_RSA:
@@ -554,7 +556,7 @@ key_ssh_name(Key *k)
 }
 
 u_int
-key_size(Key *k)
+key_size(const Key *k)
 {
 	switch (k->type) {
 	case KEY_RSA1:
@@ -611,7 +613,7 @@ key_generate(int type, u_int bits)
 }
 
 Key *
-key_from_private(Key *k)
+key_from_private(const Key *k)
 {
 	Key *n = NULL;
 	switch (k->type) {
@@ -676,11 +678,11 @@ key_names_valid2(const char *names)
 }
 
 Key *
-key_from_blob(u_char *blob, u_int blen)
+key_from_blob(const u_char *blob, u_int blen)
 {
 	Buffer b;
-	char *ktype;
 	int rlen, type;
+	char *ktype = NULL;
 	Key *key = NULL;
 
 #ifdef DEBUG_PK
@@ -688,24 +690,38 @@ key_from_blob(u_char *blob, u_int blen)
 #endif
 	buffer_init(&b);
 	buffer_append(&b, blob, blen);
-	ktype = buffer_get_string(&b, NULL);
+	if ((ktype = buffer_get_string_ret(&b, NULL)) == NULL) {
+		error("key_from_blob: can't read key type");
+		goto out;
+	}
+
 	type = key_type_from_name(ktype);
 
 	switch (type) {
 	case KEY_RSA:
 		key = key_new(type);
-		buffer_get_bignum2(&b, key->rsa->e);
-		buffer_get_bignum2(&b, key->rsa->n);
+		if (buffer_get_bignum2_ret(&b, key->rsa->e) == -1 ||
+		    buffer_get_bignum2_ret(&b, key->rsa->n) == -1) {
+			error("key_from_blob: can't read rsa key");
+			key_free(key);
+			key = NULL;
+			goto out;
+		}
 #ifdef DEBUG_PK
 		RSA_print_fp(stderr, key->rsa, 8);
 #endif
 		break;
 	case KEY_DSA:
 		key = key_new(type);
-		buffer_get_bignum2(&b, key->dsa->p);
-		buffer_get_bignum2(&b, key->dsa->q);
-		buffer_get_bignum2(&b, key->dsa->g);
-		buffer_get_bignum2(&b, key->dsa->pub_key);
+		if (buffer_get_bignum2_ret(&b, key->dsa->p) == -1 ||
+		    buffer_get_bignum2_ret(&b, key->dsa->q) == -1 ||
+		    buffer_get_bignum2_ret(&b, key->dsa->g) == -1 ||
+		    buffer_get_bignum2_ret(&b, key->dsa->pub_key) == -1) {
+			error("key_from_blob: can't read dsa key");
+			key_free(key);
+			key = NULL;
+			goto out;
+		}
 #ifdef DEBUG_PK
 		DSA_print_fp(stderr, key->dsa, 8);
 #endif
@@ -715,18 +731,20 @@ key_from_blob(u_char *blob, u_int blen)
 		break;
 	default:
 		error("key_from_blob: cannot handle type %s", ktype);
-		break;
+		goto out;
 	}
 	rlen = buffer_len(&b);
 	if (key != NULL && rlen != 0)
 		error("key_from_blob: remaining bytes in key blob %d", rlen);
-	xfree(ktype);
+ out:
+	if (ktype != NULL)
+		xfree(ktype);
 	buffer_free(&b);
 	return key;
 }
 
 int
-key_to_blob(Key *key, u_char **blobp, u_int *lenp)
+key_to_blob(const Key *key, u_char **blobp, u_int *lenp)
 {
 	Buffer b;
 	int len;
@@ -768,9 +786,9 @@ key_to_blob(Key *key, u_char **blobp, u_int *lenp)
 
 int
 key_sign(
-    Key *key,
+    const Key *key,
     u_char **sigp, u_int *lenp,
-    u_char *data, u_int datalen)
+    const u_char *data, u_int datalen)
 {
 	switch (key->type) {
 	case KEY_DSA:
@@ -780,7 +798,7 @@ key_sign(
 		return ssh_rsa_sign(key, sigp, lenp, data, datalen);
 		break;
 	default:
-		error("key_sign: illegal key type %d", key->type);
+		error("key_sign: invalid key type %d", key->type);
 		return -1;
 		break;
 	}
@@ -792,9 +810,9 @@ key_sign(
  */
 int
 key_verify(
-    Key *key,
-    u_char *signature, u_int signaturelen,
-    u_char *data, u_int datalen)
+    const Key *key,
+    const u_char *signature, u_int signaturelen,
+    const u_char *data, u_int datalen)
 {
 	if (signaturelen == 0)
 		return -1;
@@ -807,7 +825,7 @@ key_verify(
 		return ssh_rsa_verify(key, signature, signaturelen, data, datalen);
 		break;
 	default:
-		error("key_verify: illegal key type %d", key->type);
+		error("key_verify: invalid key type %d", key->type);
 		return -1;
 		break;
 	}
@@ -815,7 +833,7 @@ key_verify(
 
 /* Converts a private to a public key */
 Key *
-key_demote(Key *k)
+key_demote(const Key *k)
 {
 	Key *pk;
 

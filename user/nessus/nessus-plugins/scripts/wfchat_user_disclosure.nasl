@@ -1,24 +1,39 @@
 #
 # (C) Tenable Network Security
 #
-# SEE:http://lists.insecure.org/lists/bugtraq/2003/Mar/0271.html
-#
+
 
 if(description)
 {
  script_id(11688);
  script_bugtraq_id(7147);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "WF-Chat User Account Disclosure";
  script_name(english:name["english"]);
  
  desc["english"] = "
-The WF-Chat allows an attacker to view user account by doing:
-http://[somehost]/chat/!nicks.txt 
-http://[somehost]/chat/!pwds.txt 
+Synopsis :
 
-Solution : Delete this CGI
-Risk factor : Serious";
+The remote web server contains a CGI application that is prone
+to information disclosure.
+
+Description :
+
+The WF-Chat allows an attacker to view information about registered
+users by requesting the files '!nicks.txt' and '!pwds.txt'. 
+
+See also :
+
+http://lists.insecure.org/lists/bugtraq/2003/Mar/0271.html
+
+Solution : 
+
+Delete this CGI.
+
+Risk factor : 
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -35,9 +50,9 @@ francais:"Ce script est Copyright (C) 2003 Tenable Network Security");
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl", "http_version.nasl");
+ script_dependencie("http_version.nasl", "no404.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 #
@@ -47,21 +62,22 @@ francais:"Ce script est Copyright (C) 2003 Tenable Network Security");
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
 if(!get_port_state(port))exit(0);
+if (get_kb_item("www/no404/"+port)) exit(0);
 
-dirs = make_list("/chat", "", cgi_dirs());
+dirs = make_list("/chat", cgi_dirs());
 foreach dir (dirs)
 {
  req = http_get(item:dir + "/!pwds.txt", port:port);
- res = http_keepalive_send_recv(port:port, data:req);
+ res = http_keepalive_send_recv(port:port, data:req, bodyonly:FALSE);
  if( res == NULL ) exit(0);
  
  if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 ", string:res))
  {
   idx = stridx(res, string("\r\n\r\n"));
-  data = substr(res, idx, strlen(res));
+  if ( idx < 0 ) exit(0);
+  data = substr(res, idx, strlen(res) - 1);
   notme = egrep(pattern:"^[^ ].*$", string:data);
   if(notme == NULL ){
    req = http_get(item:dir + "/chatlog.txt", port:port);
@@ -69,7 +85,7 @@ foreach dir (dirs)
    if(res == NULL ) exit(0);
    if(egrep(pattern:"[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+ .[0-9].*", string:res))
    {
-   security_hole(port);
+   security_note(port);
    exit(0);
    }
   }

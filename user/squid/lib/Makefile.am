@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 #
-#  $Id$
+#  $Id: Makefile.am,v 1.3.2.2 2004/08/09 13:57:00 hno Exp $
 #
 
 if NEED_OWN_SNPRINTF

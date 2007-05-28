@@ -10,8 +10,8 @@
 if(description)
 {
  script_id(10799);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(3518);
+ script_version ("$Revision: 1.16 $");
  name["english"] = "IBM-HTTP-Server View Code";
  script_name(english:name["english"]);
 
@@ -54,8 +54,8 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 dir[0] = "/index.html";
 dir[1] = "/index.htm";

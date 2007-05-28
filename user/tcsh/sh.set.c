@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.set.c,v 3.37 2000/07/15 19:58:51 christos Exp $ */
 /*
  * sh.set.c: Setting and Clearing of variables
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: sh.set.c,v 3.37 2000/07/15 19:58:51 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"

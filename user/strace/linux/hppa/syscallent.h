@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2001 Hewlett-Packard, Matthew Wilcox
  *
- * $Id$
+ * $Id: syscallent.h,v 1.4 2001/08/03 12:27:54 wichert Exp $
  *
  */
 

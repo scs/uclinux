@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11697);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.2 $");
  
  
  name["english"] = "IRCXPro Default Admin password";
@@ -27,7 +27,7 @@ combination admin/password.
 An attacker may use this flaw to gain the control of this server.
 
 Solution : Disable this service or set a strong password and username
-Risk Factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  

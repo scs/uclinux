@@ -2581,7 +2581,7 @@ prism2sta_proc_read(
 	hwtype |= BIT2;
 #endif
 
-#define PRISM2_CVS_ID "$Id$"
+#define PRISM2_CVS_ID "$Id: prism2sta.c,v 1.3 2004/04/20 14:55:47 solomon Exp $"
 
 	p += sprintf(p, "# prism2_%s version %s (%s) '%s'\n\n", 
 		     dev_info,

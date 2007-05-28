@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: db_utils.c,v 1.1 2003/04/08 01:25:35 lgfausak Exp $
  *
  * POSTGRES module, portions of this code were templated using
  * the mysql module, thus it's similarity.

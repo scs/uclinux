@@ -7,9 +7,10 @@
 if(description)
 {
  script_id(10954);
- script_cve_id("CVE-2002-0575", "CAN-2002-0575");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0011");
  script_bugtraq_id(4560);
- script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-0575");
+ script_version ("$Revision: 1.16 $");
  
  name["english"] = "OpenSSH AFS/Kerberos ticket/token passing";
  script_name(english:name["english"]);
@@ -44,7 +45,10 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2002 Thomas Reinke");
  family["english"] = "Gain root remotely";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes");
+ if (  ! defined_func("bn_random") ) 
+	script_dependencie("ssh_detect.nasl");
+ else
+	script_dependencie("ssh_detect.nasl", "redhat-RHSA-2002-131.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -54,34 +58,19 @@ Risk factor : High";
 #
 
 
+include("backport.inc"); 
+
+if ( get_kb_item("CVE-2002-0640") ) exit(0);
+
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
 
-
-
-
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    banner = tolower(banner);
-    close(soc);
-  }
-}
-
+banner = get_kb_item("SSH/banner/" + port );
 if(!banner)exit(0);
 
 
-banner = tolower(banner);
+banner = tolower(get_backport_banner(banner:banner));
 
 if(ereg(pattern:".*openssh[-_](2\..*|3\.([01].*|2\.0)).*", 
-	string:banner))
-{
- security_hole(port);
-}
+	string:banner)) security_hole(port);

@@ -1,0 +1,46 @@
+# Confusingly this file is included via modules/$(modulename)/Makefile
+
+MOD_NAME = $(NAME:.so=)
+MOD_DIR  = $(shell pwd)
+
+include ../../Makefile.defs
+CFLAGS += $(DEFS)
+
+# An expression identifying the objects needing to be built
+SRCS := $(wildcard $(MOD_DIR)/*.c)
+OBJS := $(patsubst $(MOD_DIR)/%.c, $(MOD_DIR)/%.o, $(SRCS))
+DEPS := $(patsubst $(MOD_DIR)/%.c, $(MOD_DIR)/%.d, $(SRCS))
+
+# Build everything
+.PHONY: all
+all: $(MOD_DIR)/$(NAME)
+
+# clean out the builds
+.PHONY: clean
+clean:
+	@echo "- Cleaning out built objects and libraries"
+	@$(RM) $(OBJS) $(DEPS) $(MOD_DIR)/$(NAME)
+
+# Build a dynamic library
+$(MOD_DIR)/$(NAME): $(OBJS) $(MYSQLOBJS)
+	@echo "- Linking module dynamic library: $@"
+	$(CC) -shared -o $@ -L$(ROOTDIR)/lib/$(LIBCDIR)/lib/ -lc -lgcc $^
+
+# Build a dynamic library from the static archive
+#$(MOD_DIR)/$(NAME): $(MOD_DIR)/$(STATIC_NAME)
+#	@echo "- Linking module dynamic library: $@"
+#	$(CC) -shared -o $@ \
+#		-Wl,--whole-archive,$<,--no-whole-archive \
+#		-L$(ROOTDIR)/lib/$(LIBCDIR)/lib/ -lc -lgcc
+
+
+# Build a static archive of objects
+#$(MOD_DIR)/$(STATIC_NAME): $(OBJS) 
+#	@echo "- Archiving module static library: $@"
+#	$(ARCMD)
+#	$(RANLIB) $@
+
+# Build an object file from a c source file
+$(MOD_DIR)/%.o: $(MOD_DIR)/%.c
+	@echo "- Compiling module object file: $@"
+	$(CC) $(CFLAGS) -fPIC -c $<

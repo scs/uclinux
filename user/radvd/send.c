@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: send.c,v 1.12 2002/10/28 17:28:37 psavola Exp $
  *
  *   Authors:
  *    Pedro Roque		<roque@di.fc.ul.pt>

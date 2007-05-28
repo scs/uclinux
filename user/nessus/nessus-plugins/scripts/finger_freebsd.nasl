@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10534);
- script_version ("$Revision: 1.7 $");
  script_bugtraq_id(1803);
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CVE-2000-0915");
 
  name["english"] = "FreeBSD 4.1.1 Finger";

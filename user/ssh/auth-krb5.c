@@ -28,7 +28,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-krb5.c,v 1.12 2003/08/28 12:54:34 markus Exp $");
+RCSID("$OpenBSD: auth-krb5.c,v 1.16 2005/11/21 09:42:10 dtucker Exp $");
 
 #include "ssh.h"
 #include "ssh1.h"
@@ -40,7 +40,6 @@ RCSID("$OpenBSD: auth-krb5.c,v 1.12 2003/08/28 12:54:34 markus Exp $");
 #include "auth.h"
 
 #ifdef KRB5
-
 #include <krb5.h>
 
 extern ServerOptions	 options;
@@ -50,17 +49,11 @@ krb5_init(void *context)
 {
 	Authctxt *authctxt = (Authctxt *)context;
 	krb5_error_code problem;
-	static int cleanup_registered = 0;
 
 	if (authctxt->krb5_ctx == NULL) {
 		problem = krb5_init_context(&authctxt->krb5_ctx);
 		if (problem)
 			return (problem);
-		krb5_init_ets(authctxt->krb5_ctx);
-	}
-	if (!cleanup_registered) {
-		fatal_add_cleanup(krb5_cleanup_proc, authctxt);
-		cleanup_registered = 1;
 	}
 	return (0);
 }
@@ -71,14 +64,10 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 #ifndef HEIMDAL
 	krb5_creds creds;
 	krb5_principal server;
-	char ccname[40];
-	int tmpfd;
-#endif	
+#endif
 	krb5_error_code problem;
 	krb5_ccache ccache = NULL;
-
-	if (authctxt->pw == NULL)
-		return (0);
+	int len;
 
 	temporarily_use_uid(authctxt->pw);
 
@@ -102,14 +91,15 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 		goto out;
 
 	restore_uid();
-	
+
 	problem = krb5_verify_user(authctxt->krb5_ctx, authctxt->krb5_user,
 	    ccache, password, 1, NULL);
-	
+
 	temporarily_use_uid(authctxt->pw);
 
 	if (problem)
 		goto out;
+
 	problem = krb5_cc_gen_new(authctxt->krb5_ctx, &krb5_fcc_ops,
 	    &authctxt->krb5_fwd_ccache);
 	if (problem)
@@ -140,30 +130,14 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 	temporarily_use_uid(authctxt->pw);
 	if (problem)
 		goto out;
-	
-	if (!krb5_kuserok(authctxt->krb5_ctx, authctxt->krb5_user, 
+
+	if (!krb5_kuserok(authctxt->krb5_ctx, authctxt->krb5_user,
 			  authctxt->pw->pw_name)) {
 		problem = -1;
 		goto out;
-	} 
-
-	snprintf(ccname,sizeof(ccname),"FILE:/tmp/krb5cc_%d_XXXXXX",geteuid());
-	
-	if ((tmpfd = mkstemp(ccname+strlen("FILE:")))==-1) {
-		logit("mkstemp(): %.100s", strerror(errno));
-		problem = errno;
-		goto out;
 	}
-	
-	if (fchmod(tmpfd,S_IRUSR | S_IWUSR) == -1) {
-		logit("fchmod(): %.100s", strerror(errno));
-		close(tmpfd);
-		problem = errno;
-		goto out;
-	}
-	close(tmpfd);
 
-	problem = krb5_cc_resolve(authctxt->krb5_ctx, ccname, &authctxt->krb5_fwd_ccache);
+	problem = ssh_krb5_cc_gen(authctxt->krb5_ctx, &authctxt->krb5_fwd_ccache);
 	if (problem)
 		goto out;
 
@@ -171,14 +145,24 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 				     authctxt->krb5_user);
 	if (problem)
 		goto out;
-				
+
 	problem= krb5_cc_store_cred(authctxt->krb5_ctx, authctxt->krb5_fwd_ccache,
 				 &creds);
 	if (problem)
 		goto out;
-#endif		
+#endif
 
 	authctxt->krb5_ticket_file = (char *)krb5_cc_get_name(authctxt->krb5_ctx, authctxt->krb5_fwd_ccache);
+
+	len = strlen(authctxt->krb5_ticket_file) + 6;
+	authctxt->krb5_ccname = xmalloc(len);
+	snprintf(authctxt->krb5_ccname, len, "FILE:%s",
+	    authctxt->krb5_ticket_file);
+
+#ifdef USE_PAM
+	if (options.use_pam)
+		do_pam_putenv("KRB5CCNAME", authctxt->krb5_ccname);
+#endif
 
  out:
 	restore_uid();
@@ -201,14 +185,12 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 		else
 			return (0);
 	}
-	return (1);
+	return (authctxt->valid ? 1 : 0);
 }
 
 void
-krb5_cleanup_proc(void *context)
+krb5_cleanup_proc(Authctxt *authctxt)
 {
-	Authctxt *authctxt = (Authctxt *)context;
-
 	debug("krb5_cleanup_proc called");
 	if (authctxt->krb5_fwd_ccache) {
 		krb5_cc_destroy(authctxt->krb5_ctx, authctxt->krb5_fwd_ccache);
@@ -224,4 +206,34 @@ krb5_cleanup_proc(void *context)
 	}
 }
 
+#ifndef HEIMDAL
+krb5_error_code
+ssh_krb5_cc_gen(krb5_context ctx, krb5_ccache *ccache) {
+	int tmpfd, ret;
+	char ccname[40];
+	mode_t old_umask;
+
+	ret = snprintf(ccname, sizeof(ccname),
+	    "FILE:/tmp/krb5cc_%d_XXXXXXXXXX", geteuid());
+	if (ret < 0 || (size_t)ret >= sizeof(ccname))
+		return ENOMEM;
+
+	old_umask = umask(0177);
+	tmpfd = mkstemp(ccname + strlen("FILE:"));
+	umask(old_umask);
+	if (tmpfd == -1) {
+		logit("mkstemp(): %.100s", strerror(errno));
+		return errno;
+	}
+
+	if (fchmod(tmpfd,S_IRUSR | S_IWUSR) == -1) {
+		logit("fchmod(): %.100s", strerror(errno));
+		close(tmpfd);
+		return errno;
+	}
+	close(tmpfd);
+
+	return (krb5_cc_resolve(ctx, ccname, ccache));
+}
+#endif /* !HEIMDAL */
 #endif /* KRB5 */

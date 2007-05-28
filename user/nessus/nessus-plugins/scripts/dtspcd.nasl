@@ -8,10 +8,12 @@
 if(description)
 {
  script_id(10833);
- script_version("$Revision: 1.11 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-t-0016");
  script_bugtraq_id(3517);
+ script_version("$Revision: 1.16 $");
  script_cve_id("CVE-2001-0803");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0001");
+
  name["english"] = "dtspcd overflow";
  script_name(english:name["english"]);
  
@@ -54,6 +56,9 @@ Risk factor : High";
 
 
 include("misc_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
 
 if(get_port_state(6112))
 {
@@ -73,7 +78,7 @@ if(soc)
  r = recv(socket:soc, length:4096);
   if("SPC_" >< r)
   {
-  security_hole(6112);
+   if ( report_paranoia > 0 ) security_hole(6112);
   register_service(port:6112, proto:"dtspcd");
   }
  }

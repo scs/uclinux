@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: comm_select.c,v 1.8.6.5.2.1 2003/05/27 12:57:44 hno Exp $
  *
  * DEBUG: section 5     Socket Functions
  *

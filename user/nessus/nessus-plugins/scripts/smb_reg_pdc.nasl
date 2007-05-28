@@ -1,61 +1,43 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# See the Nessus Scripts License for details
+# This script is released under Tenable Plugins License
 #
 
 if(description)
 {
  script_id(10413);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CAN-1999-0659");
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-1999-0659");
  name["english"] = "SMB Registry : is the remote host a PDC/BDC";
- name["francais"] = "Base de registres: l'hote distant est-il un PDC/BDC ?";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host seems to be a Primary Domain Controller
-or a Backup Domain Controller.
+Synopsis :
 
-This can be told by the value of the registry
-key ProductType under
-HKLM\SYSTEM\CurrentControlSet\Control\ProductOptions
+Remote system is a Domain Controller
 
-This knowledge may be of some use to an attacker and help
-him to focus his attack on this host.
+Description :
 
-Solution : filter the traffic going to this port
-Risk factor : Low";
+The remote host seems to be a Primary Domain Controller or a 
+Backup Domain Controller.
 
+This can be told by the value of the registry key ProductType
+under HKLM\SYSTEM\CurrentControlSet\Control\ProductOptions
 
- desc["francais"] = "
-L'hote distant semble être un Primary Domain Controler
-ou un Backup Domain Controler.
+Risk factor :
 
-On peut affirmer ceci grace à la valeur de la clé
-ProductType de la base de registre, située sous
-HKLM\SYSTEM\CurrentControlSet\Control\ProductOptions
+None";
 
-Cette donnée est utile pour un pirate puisqu'elle va
-lui permettre de savoir qu'il faut qu'il concentre
-son attaque sur cette machine.
-
-Solution : filtrez le traffic allant vers ce port
-Facteur de risque : Faible";
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines if the remote host is a PDC/BDC";
- summary["francais"] = "Détermine si l'hote distant est un PDC/BDC";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
@@ -66,16 +48,45 @@ Facteur de risque : Faible";
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
+
 port = get_kb_item("SMB/transport");
 if(!port)port = 139;
+
+name	= kb_smb_name(); 	if(!name)exit(0);
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
+
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
+
+hklm = RegConnectRegistry(hkey:HKEY_LOCAL_MACHINE);
+if ( isnull(hklm) ) 
+{
+ NetUseDel();
+ exit(0);
+}
+
 
 key = "SYSTEM\CurrentControlSet\Control\ProductOptions";
 item = "ProductType";
 
-value = registry_get_sz(key:key, item:item);
-
-if(value == "LanmanNT")
+key_h = RegOpenKey(handle:hklm, key:key, mode:MAXIMUM_ALLOWED);
+if ( ! isnull(key_h) )
 {
- security_warning(port);
+ value = RegQueryValue(handle:key_h, item:item);
+ if (!isnull (value) && (value[1] == "LanmanNT"))
+   security_note (port);
+ 
+ RegCloseKey (handle:key_h);
 }
+
+RegCloseKey (handle:hklm);
+NetUseDel ();

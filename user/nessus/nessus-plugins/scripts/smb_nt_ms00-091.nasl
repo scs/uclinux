@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10563);
- script_cve_id("CAN-2000-1039");
  script_bugtraq_id(2022);
- script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2000-1039");
+ script_version ("$Revision: 1.20 $");
 
  
  name["english"] =  "Incomplete TCP/IP packet vulnerability";
@@ -25,8 +25,8 @@ problem has not been applied.
 This vulnerability allows a user to prevent this host
 from communicating with the network
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-091.asp
-Risk factor : Serious";
+Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-091.mspx
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -36,7 +36,7 @@ Le patch pour la vulnérabilité de paquets TCP/IP incomplets n'a pas
 Cette vulnérabilité permet à un pirate d'empecher cette machine
 de communiquer avec le réseau.
 
-Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-091.asp
+Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-091.mspx
 Facteur de risque : Sérieux";
 
 
@@ -51,40 +51,17 @@ Facteur de risque : Sérieux";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl"
-		     );
- script_require_keys("SMB/name", "SMB/login", "SMB/password", "SMB/registry_access",
- 		     "SMB/WindowsVersion");
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
-include("smb_nt.inc");
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+include("smb_hotfixes.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
-
-
-# nt 4.0 only.
+if ( hotfix_check_sp(nt:7) <= 0 ) exit(0);
+if ( hotfix_missing(name:"Q299444") > 0 && hotfix_missing(name:"Q275567") > 0 ) 
+	security_hole(get_kb_item("SMB/transport"));
 	
-version = get_kb_item("SMB/WindowsVersion");
-if(version == "4.0")
-{
-  key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q299444";
-  item = "Comments";
-  value = registry_get_sz(key:key, item:item);
-  if(value)exit(0);
-  key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q275567";
-  value = registry_get_sz(key:key, item:item);
-  if(!value)security_hole(port);
-}

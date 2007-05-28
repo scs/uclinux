@@ -3,14 +3,6 @@
 #
 # GPLv2
 #
-########################
-# References:
-########################
-#
-# De: "Uffe Nielsen" <uni@protego.dk>
-# To: vulnwatch@vulnwatch.org, bugtraq@securityfocus.com, news@securiteam.com
-# Date: Wed, 23 Jul 2003 16:17:46 +0200
-# Subject: Buffer Overflow in Netware Web Server PERL Handler
 #
 # Vulnerable:
 # Netware 5.1 SP6, Netware 6
@@ -19,8 +11,9 @@
 if(description)
 {
  script_id(11827);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2003-0562");
+ script_bugtraq_id(8251);
+ script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2003-0562");
 
  name["english"] = "Netware Perl CGI overflow";
  script_name(english:name["english"]);
@@ -63,8 +56,8 @@ Solution : Upgrade your web server.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 if(http_is_dead(port:port))exit(0);

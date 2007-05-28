@@ -20,31 +20,15 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-null.c,v 1.53.2.3 2005/07/07 01:24:38 guy Exp $ (LBL)";
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-#include <sys/file.h>
-#include <sys/ioctl.h>
-
-#if __STDC__
-struct mbuf;
-struct rtentry;
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-#include <net/if.h>
 
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/if_ether.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcpip.h>
+#include <tcpdump-stdinc.h>
 
 #include <pcap.h>
 #include <stdio.h>
@@ -53,71 +37,161 @@ struct rtentry;
 #include "interface.h"
 #include "addrtoname.h"
 
-#ifndef AF_NS
-#define AF_NS		6		/* XEROX NS protocols */
+#include "ip.h"
+#ifdef INET6
+#include "ip6.h"
 #endif
 
+#if defined(DLT_NULL) || defined(DLT_LOOP)
+
 /*
- * The DLT_NULL packet header is 4 bytes long. It contains a network
- * order 32 bit integer that specifies the family, e.g. AF_INET
+ * The DLT_NULL packet header is 4 bytes long. It contains a host-byte-order
+ * 32-bit integer that specifies the family, e.g. AF_INET.
+ *
+ * Note here that "host" refers to the host on which the packets were
+ * captured; that isn't necessarily *this* host.
+ *
+ * The OpenBSD DLT_LOOP packet header is the same, except that the integer
+ * is in network byte order.
  */
 #define	NULL_HDRLEN 4
 
-static void
-null_print(const u_char *p, const struct ip *ip, u_int length)
+/*
+ * BSD AF_ values.
+ *
+ * Unfortunately, the BSDs don't all use the same value for AF_INET6,
+ * so, because we want to be able to read captures from all of the BSDs,
+ * we check for all of them.
+ */
+#define BSD_AF_INET		2
+#define BSD_AF_NS		6		/* XEROX NS protocols */
+#define BSD_AF_ISO		7
+#define BSD_AF_APPLETALK	16
+#define BSD_AF_IPX		23
+#define BSD_AF_INET6_BSD	24	/* OpenBSD (and probably NetBSD), BSD/OS */
+#define BSD_AF_INET6_FREEBSD	28
+#define BSD_AF_INET6_DARWIN	30
+
+const struct tok bsd_af_values[] = {
+        { BSD_AF_INET, "IPv4" },
+        { BSD_AF_NS, "NS" },
+        { BSD_AF_ISO, "ISO" },
+        { BSD_AF_APPLETALK, "Appletalk" },
+        { BSD_AF_IPX, "IPX" },
+        { BSD_AF_INET6_BSD, "IPv6" },
+        { BSD_AF_INET6_FREEBSD, "IPv6" },
+        { BSD_AF_INET6_DARWIN, "IPv6" },
+        { 0, NULL}
+};
+
+
+/*
+ * Byte-swap a 32-bit number.
+ * ("htonl()" or "ntohl()" won't work - we want to byte-swap even on
+ * big-endian platforms.)
+ */
+#define	SWAPLONG(y) \
+((((y)&0xff)<<24) | (((y)&0xff00)<<8) | (((y)&0xff0000)>>8) | (((y)>>24)&0xff))
+
+static inline void
+null_hdr_print(u_int family, u_int length)
 {
-	u_int family;
-
-	memcpy((char *)&family, (char *)p, sizeof(family));
-
-	if (nflag) {
-		/* XXX just dump the header */
-		return;
+	if (!qflag) {
+		(void)printf("AF %s (%u)",
+			tok2str(bsd_af_values,"Unknown",family),family);
+	} else {
+		(void)printf("%s",
+			tok2str(bsd_af_values,"Unknown AF %u",family));
 	}
-	switch (family) {
 
-	case AF_INET:
-		printf("ip: ");
-		break;
-
-	case AF_NS:
-		printf("ns: ");
-		break;
-
-	default:
-		printf("AF %d: ", family);
-		break;
-	}
+	(void)printf(", length %u: ", length);
 }
 
-void
-null_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+/*
+ * This is the top level routine of the printer.  'p' points
+ * to the ether header of the packet, 'h->ts' is the timestamp,
+ * 'h->len' is the length of the packet off the wire, and 'h->caplen'
+ * is the number of bytes actually captured.
+ */
+u_int
+null_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int length = h->len;
 	u_int caplen = h->caplen;
-	const struct ip *ip;
+	u_int family;
 
-	ts_print(&h->ts);
+	if (caplen < NULL_HDRLEN) {
+		printf("[|null]");
+		return (NULL_HDRLEN);
+	}
+
+	memcpy((char *)&family, (char *)p, sizeof(family));
 
 	/*
-	 * Some printers want to get back at the link level addresses,
-	 * and/or check that they're not walking off the end of the packet.
-	 * Rather than pass them all the way down, we set these globals.
+	 * This isn't necessarily in our host byte order; if this is
+	 * a DLT_LOOP capture, it's in network byte order, and if
+	 * this is a DLT_NULL capture from a machine with the opposite
+	 * byte-order, it's in the opposite byte order from ours.
+	 *
+	 * If the upper 16 bits aren't all zero, assume it's byte-swapped.
 	 */
-	packetp = p;
-	snapend = p + caplen;
-
-	length -= NULL_HDRLEN;
-
-	ip = (struct ip *)(p + NULL_HDRLEN);
+	if ((family & 0xFFFF0000) != 0)
+		family = SWAPLONG(family);
 
 	if (eflag)
-		null_print(p, ip, length);
+		null_hdr_print(family, length);
 
-	ip_print((const u_char *)ip, length);
+	length -= NULL_HDRLEN;
+	caplen -= NULL_HDRLEN;
+	p += NULL_HDRLEN;
 
-	if (xflag)
-		default_print((const u_char *)ip, caplen - NULL_HDRLEN);
-	putchar('\n');
+	switch (family) {
+
+	case BSD_AF_INET:
+		ip_print(gndo, p, length);
+		break;
+
+#ifdef INET6
+	case BSD_AF_INET6_BSD:
+	case BSD_AF_INET6_FREEBSD:
+	case BSD_AF_INET6_DARWIN:
+		ip6_print(p, length);
+		break;
+#endif
+
+#if !defined(EMBED)
+	case BSD_AF_ISO:
+		isoclns_print(p, length, caplen);
+		break;
+#endif
+
+#if !defined(EMBED) || defined(CONFIG_ATALK) || defined(CONFIG_ATALK_MODULE)
+	case BSD_AF_APPLETALK:
+		atalk_print(p, length);
+		break;
+#endif
+
+#if !defined(EMBED) || defined(CONFIG_IPX) || defined(CONFIG_IPX_MODULE)
+	case BSD_AF_IPX:
+		ipx_print(p, length);
+		break;
+#endif
+
+	default:
+		/* unknown AF_ value */
+		if (!eflag)
+			null_hdr_print(family, length + NULL_HDRLEN);
+		if (!suppress_default_print)
+			default_print(p, caplen);
+	}
+
+	return (NULL_HDRLEN);
 }
+#endif
 
+/*
+ * Local Variables:
+ * c-style: whitesmith
+ * c-basic-offset: 8
+ * End:
+ */

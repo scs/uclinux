@@ -7,16 +7,16 @@
 if(description)
 {
  script_id(10786);
- script_cve_id("CVE-2001-1162");
  script_bugtraq_id(2928);
- script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-1162");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "Samba Remote Arbitrary File Creation";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
 The remote Samba server, according to its version number,
-may be vulnerable to a remote file creation vulnerability.
+is vulnerable to a remote file creation vulnerability.
 
 This vulnerability allows an attacker to overwrite arbitrary
 files by supplying an arbitrarily formed NetBIOS machine name

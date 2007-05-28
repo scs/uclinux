@@ -8,9 +8,10 @@
 if(description)
 {
  script_id(11409);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2002-0690");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0006");
  script_bugtraq_id(7111);
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2002-0690");
 
  name["english"] = "ePolicy orchestrator format string";
  script_name(english:name["english"]);
@@ -46,11 +47,15 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 include("misc_func.inc");
+include('global_settings.inc');
+
+
 
 function check(port)
 {
  if (safe_checks()) 
  {
+	if ( report_paranoia < 2 ) exit(0);
    	# To be confirmed...
    	req = http_get(item:"/SERVER.INI", port:port);
 	res = http_keepalive_send_recv(port:port, data:req);
@@ -72,8 +77,8 @@ Solution : upgrade your software or protect it with a filtering reverse proxy
 Risk factor : High";
 	  security_hole(port:port, data:report);
 	}
-	return(0);
 	}
+	return(0);
  }
  if(http_is_dead(port: port)) { return(0); }
 

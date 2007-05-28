@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_dir_coss.c,v 1.30.2.13 2005/04/19 22:27:45 hno Exp $
  *
  * DEBUG: section 47    Store COSS Directory Routines
  * AUTHOR: Eric Stern
@@ -63,7 +63,7 @@ static char *storeCossDirSwapLogFile(SwapDir *, const char *);
 static EVH storeCossRebuildFromSwapLog;
 static StoreEntry *storeCossAddDiskRestore(SwapDir * SD, const cache_key * key,
     int file_number,
-    size_t swap_file_sz,
+    squid_file_sz swap_file_sz,
     time_t expires,
     time_t timestamp,
     time_t lastref,
@@ -318,7 +318,7 @@ storeCossRebuildFromSwapLog(void *data)
 static StoreEntry *
 storeCossAddDiskRestore(SwapDir * SD, const cache_key * key,
     int file_number,
-    size_t swap_file_sz,
+    squid_file_sz swap_file_sz,
     time_t expires,
     time_t timestamp,
     time_t lastref,
@@ -411,12 +411,6 @@ storeCossDirCloseTmpSwapLog(SwapDir * sd)
     char *new_path = xstrdup(storeCossDirSwapLogFile(sd, ".new"));
     int fd;
     file_close(cs->swaplog_fd);
-#ifdef _SQUID_OS2_
-    if (unlink(swaplog_path) < 0) {
-	debug(50, 0) ("%s: %s\n", swaplog_path, xstrerror());
-	fatal("storeCossDirCloseTmpSwapLog: unlink failed");
-    }
-#endif
     if (xrename(new_path, swaplog_path) < 0) {
 	fatal("storeCossDirCloseTmpSwapLog: rename failed");
     }
@@ -485,7 +479,7 @@ struct _clean_state {
     char *new;
     char *cln;
     char *outbuf;
-    off_t outbuf_offset;
+    int outbuf_offset;
     int fd;
     dlink_node *current;
 };
@@ -613,9 +607,6 @@ storeCossDirWriteCleanDone(SwapDir * sd)
 #ifdef _SQUID_OS2_
 	file_close(state->fd);
 	state->fd = -1;
-	if (unlink(cur) < 0)
-	    debug(50, 0) ("storeCossDirWriteCleanLogs: unlinkd failed: %s, %s\n",
-		xstrerror(), cur);
 #endif
 	xrename(state->new, state->cur);
     }

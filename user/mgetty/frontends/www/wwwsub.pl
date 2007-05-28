@@ -1,7 +1,7 @@
 #
 # mgetty WWW gui common "things"
 #
-# RCS: $Id$
+# RCS: $Id: wwwsub.pl,v 1.6 2004/11/17 14:12:55 gert Exp $
 #
 # $Log
 

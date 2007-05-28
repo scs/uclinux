@@ -1,12 +1,12 @@
 # (C) Copyright 2001,2002, Martin Roesch, Brian Caswell, et al.
 #    All rights reserved.
-# $Id$
+# $Id: web-misc.rules,v 1.92.2.2 2003/02/07 22:05:16 cazz Exp $
 #---------------
 # WEB-MISC RULES
 #---------------
 
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC cross site scripting attempt"; flow:to_server,established; content:"<SCRIPT>"; nocase; classtype:web-application-attack; sid:1497; rev:6;)
-drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC cross site scripting \(img src=javascript\) attempt"; flow:to_server,established; content:"img src=javascript"; nocase; classtype:web-application-attack; sid:1667; rev:4;)
+# drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC cross site scripting \(img src=javascript\) attempt"; flow:to_server,established; content:"img src=javascript"; nocase; classtype:web-application-attack; sid:1667; rev:4;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC Netscape Enterprise DOS"; content:"REVLOG / "; offset:0; depth:9; flow:to_server,established; reference:cve,CAN-2001-0251; reference:bugtraq,2294; classtype:web-application-attack; sid:1047; rev:6;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC Netscape Enterprise directory listing attempt"; content:"INDEX "; offset:0; depth:6; flow:to_server,established; reference:cve,CAN-2001-0250; reference:bugtraq,2285; classtype:web-application-attack; sid:1048;  rev:6;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC iPlanet GETPROPERTIES attempt"; flow:to_server,established; content:"GETPROPERTIES"; offset:0; depth:13; classtype:web-application-attack; sid:1050;  rev:6;)
@@ -80,7 +80,7 @@ drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC cd.."; flow:t
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC Phorum auth access"; flow:to_server,established; content:"PHP_AUTH_USER=boogieman"; nocase;  reference:bugtraq,2274; reference:arachnids,206; classtype:attempted-recon; sid:1137;  rev:5;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC Cisco Web DOS attempt"; flow:to_server,established; content: "|20 2F 25 25|"; depth: 16; reference:arachnids,275; classtype:attempted-dos; sid:1138;  rev:4;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC guestbook.pl access"; flow:to_server,established; uricontent:"/guestbook.pl"; nocase; reference:nessus,10099; reference:bugtraq,776; reference:cve,CVE-1999-0237; reference:arachnids,228; classtype:attempted-recon; sid:1140; rev:7;)
-drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC handler attempt"; flow:to_server,established; uricontent:"/handler"; uricontent:"\|"; nocase; reference:nessus,10100; reference:bugtraq,380; reference:arachnids,235; reference:cve,CVE-1999-0148; classtype:web-application-attack; sid:1613; rev:4;)
+# drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC handler attempt"; flow:to_server,established; uricontent:"/handler"; uricontent:"\|"; nocase; reference:nessus,10100; reference:bugtraq,380; reference:arachnids,235; reference:cve,CVE-1999-0148; classtype:web-application-attack; sid:1613; rev:4;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC handler access"; flow:to_server,established; uricontent:"/handler"; nocase; reference:nessus,10100; reference:bugtraq,380; reference:arachnids,235; reference:cve,CVE-1999-0148; classtype:web-application-activity; sid:1141; rev:7;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC /...."; flow:to_server,established; content:"|2f2e2e2e2e|"; classtype:attempted-recon; sid:1142;  rev:4;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-MISC ///cgi-bin"; flow:to_server,established; uricontent:"///cgi-bin"; nocase; classtype:attempted-recon; sid:1143;  rev:4;)
@@ -329,8 +329,8 @@ drop tcp $HONEYNET any -> $EXTERNAL_NET 8181 (msg:"WEB-MISC CISCO PIX Firewall M
 
 
 drop tcp $HONEYNET any -> $EXTERNAL_NET 9090 (msg:"WEB-MISC Sun JavaServer default password login attempt"; flow:to_server,established; uricontent:"/servlet/admin"; content:"ae9f86d6beaa3f9ecb9a5b7e072a4138"; reference:nessus,10995; classtype:default-login-attempt; sid:1859; rev:2;)
-drop tcp $HONEYNET any -> $EXTERNAL_NET 8080 (msg:"WEB-MISC Linksys router default password login attempt \(\:admin\)"; flow:to_server,established; content:"Authorization\: Basic OmFkbWlu"; reference:nessus,10999; classtype:default-login-attempt; sid:1860; rev:2;)
-drop tcp $HONEYNET any -> $EXTERNAL_NET 8080 (msg:"EXPERIMENTAL WEB-MISC Linksys router default password login attempt \(admin\:admin\)";  flow:to_server,established; content:"Authorization\: "; nocase; content:" Basic "; nocase; content:"YWRtaW46YWRtaW4"; reference:nessus,10999; classtype:default-login-attempt; sid:1861; rev:3;)
+# drop tcp $HONEYNET any -> $EXTERNAL_NET 8080 (msg:"WEB-MISC Linksys router default password login attempt \(\:admin\)"; flow:to_server,established; content:"Authorization\: Basic OmFkbWlu"; reference:nessus,10999; classtype:default-login-attempt; sid:1860; rev:2;)
+# drop tcp $HONEYNET any -> $EXTERNAL_NET 8080 (msg:"EXPERIMENTAL WEB-MISC Linksys router default password login attempt \(admin\:admin\)";  flow:to_server,established; content:"Authorization\: "; nocase; content:" Basic "; nocase; content:"YWRtaW46YWRtaW4"; reference:nessus,10999; classtype:default-login-attempt; sid:1861; rev:3;)
 
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-CGI mrtg.cgi directory traversal attempt"; flow:to_server,established; uricontent:"/mrtg.cgi"; content:"cfg=/../"; reference:nessus,11001; classtype:web-application-attack; sid:1862; rev:2;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET $HTTP_PORTS (msg:"WEB-CGI mrtg.cgi access"; flow:to_server,established; uricontent:"/mrtg.cgi"; reference:nessus,11001; classtype:web-application-activity; sid:1863; rev:2;)

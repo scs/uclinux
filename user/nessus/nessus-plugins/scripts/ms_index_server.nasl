@@ -8,14 +8,13 @@
 if(description)
 {
  script_id(10356);
- script_version ("$Revision: 1.18 $");
- script_bugtraq_id(1084);
+ script_bugtraq_id(1084, 950);
+ script_version ("$Revision: 1.25 $");
  script_cve_id("CVE-2000-0302", "CVE-2000-0097");
  
  
  name["english"] = "Microsoft's Index server reveals ASP source code";
- name["francais"] = "L'index serveur de Microsoft donne la source des fichiers asp";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 It is possible to get the source code of
@@ -28,53 +27,25 @@ as usernames and passwords.
 
 Solution : If you need the functionality provided by
 WebHits, then install the patch available at :
-http://www.microsoft.com/technet/security/bulletin/ms00-006.asp
+http://www.microsoft.com/technet/security/bulletin/ms00-006.mspx
 	
 If you do not need this functionality, then unmap the
 .htw extensions from webhits.dll using the Internet
 Service Manager MMC snap-in.
 
-Risk factor : Serious";
-	
- desc["francais"] = "
-Il est possible d'obtenir le code source des fichiers
-ASP distants en faisant la requete :
+Risk factor : High";
 
-GET /null.htw?CiWebHitsFile=/default.asp%20&CiRestriction=none&CiHiliteType=Full
-
-
-Les codes sources ASP contiennent souvent des informations
-sensibles telles que des logins et des mots de passe.
-
-Solution : si vous avez besoin des fonctionnalités
-apportées par WebHits, alors installez le patch
-disponible à :
-http://www.microsoft.com/technet/security/bulletin/ms00-006.asp
-
-Sinon, alors déliez les extensions .htw de webhits.dll au
-travers du snap-in Internet Service Manager MMC.
-
-Facteur de risque : Sérieux";
-
-
- script_description(english:desc["english"], francais:desc["francais"]);
- 
+ script_description(english:desc["english"]);
  summary["english"] = "Checks for a problem in webhits.dll";
- summary["francais"] = "Vérifie la présence d'un problème dans webhits.dll";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
- 
+ script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "httpver.nasl", "http_version.nasl", "webmirror.nasl");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl", "webmirror.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -105,9 +76,8 @@ function check(file)
  return(0);
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(get_port_state(port))
+port = get_http_port(default:80);
+if(can_host_asp(port:port))
 {
  check(file:"/default.asp");
  files = get_kb_list(string("www/", port, "/content/extensions/asp"));

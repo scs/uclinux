@@ -1,4 +1,4 @@
-$Id$
+$Id: tmemo-jiri-phone-shopping.txt,v 1.2 2003/04/14 03:05:15 jiri Exp $
 
 jiri's SIP phone shopping list
 ------------------------------

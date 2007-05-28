@@ -11,31 +11,28 @@
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied.
  * See the Licence for the specific language governing rights and
  * limitations under the Licence.
-
+  
   This program opens files in progression (file00001, file00002 etc),
   upto MAX_NUM_FILES and checks their CRC. If a file is not found or the
   CRC does not match it stops it's operation.
-
+  
   Everything is logged in a logfile called './logfile'.
-
+  
   If everything is ok this program sends a signal, via com1, to the remote
   power control box to power cycle this computer.
-
+  
   This program then proceeds to create new files file0....file<MAX_NUM_FILES>
   in a endless loop and checksum each before closing them.
-
+  
   STRUCTURE OF THE FILES:
   The fist int is the size of the file in bytes.
   The last 2 bytes are the CRC for the entire file.
   There is random data in between.
-
+  
   The files are opened in the current dir.
-
+  
   $Id$
   $Log: checkfs.c,v $
-  Revision 1.8  2005/11/07 11:15:17  gleixner
-  [MTD / JFFS2] Clean up trailing white spaces
-
   Revision 1.7  2001/06/21 23:04:17  dwmw2
   Initial import to MTD CVS
 
@@ -63,7 +60,7 @@
   power failed. If the write did succeed, then the newer data will have its own
   CRC in place when it gets checked => hence no error. In theory at least!
 
-
+  
   Revision 1.2  2001/05/11 19:27:33  vipin
   Added cmd line args to change serial port, and specify max size of
   random files created. Some cleanup. Added -Wall to Makefile.
@@ -76,7 +73,7 @@
   "checkfs" is then run on every powerup to check consistancy
   of the files. See checkfs.c for more details.
 
-
+  
 */
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -157,34 +154,34 @@ static const unsigned short crc_ccitt_table[] = {
 
   [A possible enhancement to this program would be to pass these
   parameters via the command line.]
-
+  
   Returns file descriptor to open port. Use this fd to write to port
   and close it later, when done.
 */
 int setupSerial (const char *dev) {
     int i, fd;
     struct termios tios;
-
+    
     fd = open(dev,O_RDWR | O_NDELAY );
     if (fd < 0) {
-        fprintf(stderr, "%s: %s\n", dev, sys_errlist[errno]);
+        fprintf(stderr, "%s: %s\n", dev, sys_errlist[errno]); 
         exit(1);
     }
     if (tcgetattr(fd, &tios) < 0) {
         fprintf(stderr,"Could not get terminal attributes: %s",sys_errlist[errno]);
         exit(1);
     }
-
-    tios.c_cflag =
+    
+    tios.c_cflag = 
         CS7 |
         CREAD |			// Enable Receiver
         HUPCL |			// Hangup after close
         CLOCAL |                // Ignore modem control lines
         PARENB;			// Enable parity (even by default)
-
-
-
-    tios.c_iflag      = IGNBRK; // Ignore break
+    
+    
+    
+    tios.c_iflag      = IGNBRK; // Ignore break 
     tios.c_oflag      = 0;
     tios.c_lflag      = 0;
     for(i = 0; i < NCCS; i++) {
@@ -192,10 +189,10 @@ int setupSerial (const char *dev) {
     }
     tios.c_cc[VMIN] = 1;
     tios.c_cc[VTIME] = 0;
-
+    
     cfsetospeed (&tios, B9600);
     cfsetispeed (&tios, B9600);
-
+    
     if (tcsetattr(fd, TCSAFLUSH, &tios) < 0) {
         fprintf(stderr,"Could not set attributes: ,%s",sys_errlist[errno]);
         exit(1);
@@ -224,7 +221,7 @@ int check_crc_ccitt(char *filename)
     char dataByte;
     int retry;
     char done;
-
+    
     fp =   fopen(filename,"rb");
     if(!fp){
         logfp = fopen("logfile","a"); /*open for appending only.*/
@@ -232,8 +229,8 @@ int check_crc_ccitt(char *filename)
         fclose(logfp);
         return FALSE;
     }
-
-
+    
+    
     /*the first int contains an int that is the length of the file in long.*/
     if(fread(&len, sizeof(int), 1, fp) != 1){
         logfp = fopen("logfile","a"); /*open for appending only.*/
@@ -257,13 +254,13 @@ int check_crc_ccitt(char *filename)
         fclose(logfp);
         return FALSE;
     }
-
-
+    
+    
     rewind(fp);
     len+=2; /*the file has two extra bytes at the end, it's checksum. Those
               two MUST also be included in the checksum calculation.
             */
-
+    
     for (;len>0;len--){
         retry=5; /*retry 5 times*/
         done = FALSE;
@@ -307,11 +304,11 @@ int check_crc_ccitt(char *filename)
   program.
 */
 void send_pwrdn_ok(void){
-
+    
     int fd;
     FILE *cyclefp;
     int cycle_fd;
-
+    
     cyclefp =   fopen("cycleCnt","rb");
     if(!cyclefp){
         printf("expecting file \"cycleCnt\". Cannot continue.\n");
@@ -322,9 +319,9 @@ void send_pwrdn_ok(void){
         exit(1);
     }
     fclose(cyclefp);
-
+    
     CycleCount++;
-
+    
     /*now write this puppy back*/
     cyclefp  = fopen("cycleCnt","wb");
     cycle_fd = fileno(cyclefp);
@@ -340,10 +337,10 @@ void send_pwrdn_ok(void){
         fprintf(stderr, "Error! cannot sync file buffer with disk.\n");
         exit(1);
     }
-
+    
     fclose(cyclefp);
     (void)sync();
-
+    
     printf("\n\n Sending Power down command to the remote box.\n");
     fd = setupSerial(SerialDevice);
 
@@ -352,7 +349,7 @@ void send_pwrdn_ok(void){
         fprintf(stderr, "Error sending power down command.\n");
         exit(1);
     }
-
+    
     close(fd);
 }//end send_pwrnd_ok()
 
@@ -364,12 +361,12 @@ void send_pwrdn_ok(void){
   Make sure buf, extends at least 2 bytes beyond.
  */
 void appendChecksum(char *buf, int numBytes){
-
+    
     unsigned short crc = 0xffff;
     int index = 0;
 
     /* printf("Added CRC (2 bytes) to %i bytes.\n", numBytes); */
-
+        
     for (; numBytes > 0; numBytes--){
 
         crc = (crc >> 8) ^ crc_ccitt_table[(crc ^ buf[index++]) & 0xff];
@@ -380,8 +377,8 @@ void appendChecksum(char *buf, int numBytes){
     buf[index++] = crc;
     buf[index++] = crc >> 8;
 
-
-
+    
+    
 }/*end checksum()*/
 
 
@@ -396,8 +393,8 @@ void appendChecksum(char *buf, int numBytes){
   data to read and checksum later).
 */
 void make_new_file(char *filename){
-
-
+    
+    
     int dfd; /* data file descriptor */
     int rand_data;
     int data_size;
@@ -405,13 +402,13 @@ void make_new_file(char *filename){
     int dataIndex = 0;
     int err;
 
-
+    
     struct {
         int sizeInBytes; /* must be int */
         int dataInt[MAX_INTS_ALLOW+1]; /* how many int's can we write? */
     }__attribute((packed)) dataBuf;
-
-
+    
+    
     fprintf(stderr, "Creating File:%s. ", filename);
 
     if((dfd = open(filename, O_RDWR | O_CREAT | O_SYNC)) <= 0)
@@ -429,28 +426,28 @@ void make_new_file(char *filename){
     while(
 	((data_size = (int)(1+(int)((FileSizeMax/sizeof(int))*rand()/(RAND_MAX+1.0)))) < 5)
     );
-
+    
     /* printf("Writing %i ints to the file.\n", data_size); */
-
+    
     temp_size = data_size * sizeof(int);
 
     /* Make sure that all data is written in one go! This is important to
        check for reliability of file systems like JFFS/JFFS that purport to
        have "reliable" writes during powre fail.
      */
-
+    
     dataBuf.sizeInBytes = temp_size;
 
     data_size--; /*one alrady written*/
     dataIndex = 0;
-
+    
     while(data_size--){
         rand_data =  (int)(1 + (int)(10000.0*rand()/(RAND_MAX+1.0)));
 
         dataBuf.dataInt[dataIndex++] = rand_data;
-
+        
     }
-
+    
     /*now calculate the file checksum and append it to the end*/
     appendChecksum((char *)&dataBuf, dataBuf.sizeInBytes);
 
@@ -474,11 +471,11 @@ void make_new_file(char *filename){
         perror("Error: Unable to truncate file.");
         exit(1);
     }
-
-
+    
+    
     close(dfd);
-
-
+    
+    
 }//end make_new_file()
 
 
@@ -497,14 +494,14 @@ void printHelp(char **argv)
            CMDLINE_MAXERROR);
     printf("%s or %s: This Help screen.\n", CMDLINE_HELPSHORT,
            CMDLINE_HELPLONG);
-
+    
 }/* end printHelp()*/
 
 
 
 void processCmdLine(int argc, char **argv)
 {
-
+    
     int cnt;
 
     /* skip past name of this program, process rest */
@@ -524,7 +521,7 @@ void processCmdLine(int argc, char **argv)
                            MAX_INTS_ALLOW*sizeof(int));
                     exit(0);
                 }
-
+                
                 continue;
             }else
                 if(strcmp(argv[cnt], CMDLINE_HELPSHORT) == 0)
@@ -538,21 +535,21 @@ void processCmdLine(int argc, char **argv)
                         printHelp(argv);
                         exit(0);
                     }else
-
+                        
                         if(strcmp(argv[cnt], CMDLINE_MAXERROR) == 0)
                         {
                             MaxErrAllowed = atoi(argv[++cnt]);
-                        }
+                        }           
                         else
                         {
                             printf("Unknown cmd line option:%s\n", argv[cnt]);
                             printHelp(argv);
                             exit(0);
-
+                            
                         }
     }
-
-
+    
+    
 }/* end processCmdLine() */
 
 
@@ -560,7 +557,7 @@ void processCmdLine(int argc, char **argv)
 
 
 int main(int argc, char **argv){
-
+    
     FILE *logfp;
     int log_fd;
     char filename[30];
@@ -572,16 +569,16 @@ int main(int argc, char **argv){
     time_t timep;
     char * time_string;
     unsigned int seed;
-
-
+    
+    
     numberFiles = MAX_NUM_FILES;
 
     if(argc >= 1)
     {
         processCmdLine(argc, argv);
     }
-
-
+    
+    
     /*
       First open MAX_NUM_FILES and make sure that the checksum is ok.
       Also make an intry into the logfile.
@@ -589,7 +586,7 @@ int main(int argc, char **argv){
     /* timestamp! */
     time(&timep);
     time_string = (char *)ctime((time_t *)&timep);
-
+    
     /*start a new check, make a log entry and continue*/
     logfp = fopen("logfile","a"); /*open for appending only.*/
     log_fd = fileno(logfp);
@@ -598,23 +595,23 @@ int main(int argc, char **argv){
     if(fdatasync(log_fd) == -1){
         fprintf(stderr,"Error! Cannot sync file data with disk.\n");
         exit(1);
-    }
-
+    }  
+    
     fclose(logfp);
     (void)sync();
-
+    
     /*
       Now check all random data files in this dir.
     */
     for(counter=0;counter<MAX_NUM_FILES;counter++){
-
+        
         fprintf(stderr, "%i.", counter);
-
+        
         /*create the filename in sequence. The number of files
           to check and the algorithm to create the filename is
           fixed and known in advance.*/
         sprintf(filename,"file%i",filenameCounter++);
-
+        
         if(!check_crc_ccitt(filename)){
             /*oops, checksum does not match. Make an entry into the log file
               and decide if we can continue or not.*/
@@ -628,10 +625,10 @@ int main(int argc, char **argv){
             }
             fclose(logfp);
             (void)sync();
-
+            
             error = TRUE;
             errorCnt++;
-
+            
             if(errorCnt > MaxErrAllowed){
                 logfp = fopen("logfile","a"); /*open for appending only.*/
                 log_fd = fileno(logfp);
@@ -642,17 +639,17 @@ int main(int argc, char **argv){
                 }
                 fclose(logfp);
                 (void)sync();
-
+                
                 fprintf(stderr, "Too many errors. See \"logfile\".\n");
                 exit(1);
             }/* if too many errors */
-
+            
             /*we have decided to continue, however first repair this file
               so that we do not cumulate errors across power cycles.*/
             make_new_file(filename);
         }
     }//for
-
+    
     /*all files checked, make a log entry and continue*/
     logfp = fopen("logfile","a"); /*open for appending only.*/
     log_fd = fileno(logfp);
@@ -660,36 +657,36 @@ int main(int argc, char **argv){
     if(fdatasync(log_fd)){
         fprintf(stderr, "Error! cannot sync file buffer with disk.\n");
         exit(1);
-    }
-
+    }  
+    
     fclose(logfp);
     (void)sync();
-
+    
     /*now send a message to the remote power box and have it start a random
       pwer down timer after which power will be killed to this unit.
     */
     send_pwrdn_ok();
-
-    /*now go into a forever loop of writing to files and CRC'ing them on
+    
+    /*now go into a forever loop of writing to files and CRC'ing them on 
       a continious basis.*/
-
+    
     /*start from a random file #*/
     /*seed rand based on the current time*/
     seed = (unsigned int)time(NULL);
     srand(seed);
-
+    
     filenameCounter=(int)(1+(int)((float)(MAX_NUM_FILES-1)*rand()/(RAND_MAX+1.0)));
-
+    
     while(1){
-
+        
         for(;filenameCounter<MAX_NUM_FILES;filenameCounter++){
-
+            
             /*create the filename in sequence*/
             sprintf(filename,"file%i",filenameCounter);
             make_new_file(filename);
         }
         filenameCounter = 0;
     }
-
+    
     exit(0); /* though we will never reach here, but keeps the compiler happy*/
 }/*end main()*/

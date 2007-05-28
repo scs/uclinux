@@ -17,15 +17,13 @@
 ** Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-#ifndef __GETOPT_H__
-#define __GETOPT_H__
+
 
 #define _next_char(string)  (char)(*(string+1))
 
 extern char * optarg; 
 extern int    optind; 
 
-int getopt(int, char**, const char*);
+int getopt(int, char**, char*);
 
 
-#endif

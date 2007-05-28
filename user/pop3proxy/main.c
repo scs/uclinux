@@ -455,6 +455,12 @@ int main(int argc, char *argv[])
 
 				extendedlog = atoi(argv[k++]);
 				}
+			else if (c == 'X') {
+				if (k >= argc)
+					missing_arg(c, "virus event");
+
+				copy_string(config.clamav.virusevent, argv[k++], sizeof(config.clamav.virusevent));
+				}
 			else if (c == 'y') {
 				if (config.spamscan == 0)
 					config.spamscan = 1;
@@ -485,6 +491,12 @@ int main(int argc, char *argv[])
 					copy_string(bindarg, argv[k++], sizeof(bindarg));
 					}
 				}
+			else if (c == 'I') {
+				if (k >= argc)
+					missing_arg(c, "anti-virus identification string");
+
+				copy_string(config.ident, argv[k++], sizeof(config.ident));
+			}
 			else if (c == 'T') {
 				if (k >= argc)
 					missing_arg(c, "temporary directory");
@@ -521,7 +533,7 @@ int main(int argc, char *argv[])
 			}
 
 		if (k < argc)
-			printerror(1, "-ERR", "unexpected arguments");
+			printerror(1, "-ERR", "unexpected arguments: %s", argv[k]);
 		}
 
 

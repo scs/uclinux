@@ -1,6 +1,6 @@
 # (C) Copyright 2001,2002, Martin Roesch, Brian Caswell, et al.
 #    All rights reserved.
-# $Id$
+# $Id: smtp.rules,v 1.23.2.2 2003/03/04 20:03:07 cazz Exp $
 #-----------
 # SMTP RULES
 #-----------

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10258);
- script_version ("$Revision: 1.26 $");
  script_bugtraq_id(2308);
+ script_version ("$Revision: 1.28 $");
  script_cve_id("CVE-1999-0203");
  
  name["english"] = "Sendmail's from piped program";
@@ -96,7 +96,7 @@ if(get_port_state(port))
  if(!data)exit(0);
  if("Sendmail" >!< data)exit(0);
 
- crp = string("HELO nessus.org\r\n");
+ crp = string("HELO example.com\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:1024);
  crp = string("MAIL FROM: |testing\r\n");

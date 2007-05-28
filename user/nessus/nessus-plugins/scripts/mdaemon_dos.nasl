@@ -14,8 +14,9 @@
 if(description)
 {
  script_id(10137);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-0846");
+ script_bugtraq_id(8554);
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-0846");
  
  name["english"] = "MDaemon DoS";
  name["francais"] = "Déni de service MDaemon";
@@ -48,7 +49,7 @@ SYN floods, you should turn on that features, i.e. Linux's CONFIG_SYN_COOKIES
 The best solution may be Cisco's 'TCP intercept' feature.
 
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Il s'est avéré possible de faire
@@ -79,7 +80,7 @@ Facteur de risque : Sérieux";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -90,12 +91,19 @@ Facteur de risque : Sérieux";
 #
 
 
+include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
 if(get_port_state(port))
 {
  i = 0;
+ ref_soc = open_sock_tcp(port);
+ if ( ! ref_soc ) exit(0);
+ banner = smtp_recv_line(socket:ref_soc);
+ 
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
  while(TRUE)
@@ -104,12 +112,18 @@ if(get_port_state(port))
   if(!soc){
   	sleep(5);
 	soc2 = open_sock_tcp(port);
-	if(!soc2)security_hole(port);
+	if(!soc2){
+	 send(socket:ref_soc, data:'HELP\r\n');
+         out = smtp_recv_line(socket:ref_soc);
+         if ( ! out ) security_hole(port);
+         }
 	else close(soc2);
+        close(ref_soc);
 	exit(0);
     }
   if( i > 400)
   {
+        close(ref_soc);
  	exit(0);
   }
   i = i + 1;

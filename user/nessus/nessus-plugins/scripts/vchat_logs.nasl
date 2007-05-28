@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11471);
  script_bugtraq_id(7186, 7188);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.6 $");
 
 
 
@@ -59,6 +59,7 @@ Risk factor : Low";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -70,30 +71,19 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
-
-
-gdir = make_list(cgi_dirs());
-
-dirs = make_list("", "/vchat", "/chat");
-foreach d (gdir)
-{
-  dirs = make_list(dirs, string(d, "/vchat"), string(d, "/chat"), d);
-}
-
-
-foreach dir (dirs)
+foreach dir (cgi_dirs())
 {
  req = http_get(item:string(dir, "/msg.txt"), port:port);
  res = http_keepalive_send_recv(port:port, data:req);
 
  if( res == NULL ) exit(0);
 
- if(egrep(pattern:"HTTP/.* 200 .*", string:res))
+ if(egrep(pattern:"HTTP/.\.. 200 ", string:res))
  {
   if(egrep(pattern:"^<b>.* :</b>.*<br>$", string:res))
   {

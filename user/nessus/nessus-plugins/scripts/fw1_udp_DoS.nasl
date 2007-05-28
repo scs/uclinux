@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(11905);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(1419);
+ script_version ("$Revision: 1.4 $");
 
  name["english"] = "Checkpoint Firewall-1 UDP denial of service";
  script_name(english:name["english"]);
@@ -43,6 +43,10 @@ Risk factor : High";
 }
 
 #
+
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0); #FP
 
 id = rand() % 65535 + 1;
 sp = rand() % 65535 + 1;

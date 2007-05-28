@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10050);
- script_version ("$Revision: 1.20 $");
  script_bugtraq_id(895);
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-2000-0042");
  name["english"] = "CSM Mail server MTA 'HELO' denial";
  name["francais"] = "Déni de service 'HELO' contre le MTA CSM Mail server";
@@ -55,6 +55,7 @@ include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
 
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 if(get_kb_item("SMTP/3comnbx"))exit(0);
 
 if(safe_checks())

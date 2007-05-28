@@ -1,7 +1,7 @@
 if(description)
 {
  script_id(11384);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "Public CVS pserver";
  script_name(english:name["english"]);
  
@@ -22,7 +22,7 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  family["english"] = "General";
  script_family(english:family["english"]);
- script_require_ports("Services/cvspserver", port);
+ script_require_ports("Services/cvspserver", 2401);
  script_dependencies("find_service.nes");
  exit(0);
 }

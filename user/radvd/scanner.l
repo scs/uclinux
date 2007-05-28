@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: scanner.l,v 1.6 2002/07/11 21:26:16 lutchann Exp $
  *
  *   Authors:
  *    Pedro Roque		<roque@di.fc.ul.pt>
@@ -35,6 +35,7 @@ addr3		({hexdigit}{1,4}":"){7}{hexdigit}{1,4}
 addr		({addr1}|{addr2}|{addr3}|"::")
 whitespace	([ \t])+
 string		[a-z]([a-z]|{digit})*([:.]{digit}+)?
+filepath	\"[^"\n]+\"
 %%
 
 #.*$			{/* ignore comments */}
@@ -114,6 +115,21 @@ off			{ yylval.bool = 0; return SWITCH; }
 			name[IFNAMSIZ-1] = '\0';
 			yylval.str = name;
 			return STRING;
+		}
+
+{filepath}	{
+			static char filepath[MAXPATHLEN];
+			int len;
+
+			len = yyleng-2;
+			if (len < 0)
+				len = 0;
+			if (len >= MAXPATHLEN)
+				len = MAXPATHLEN-1;
+			strncpy(filepath, yytext+1, len);
+			filepath[len] = '\0';
+			yylval.str = filepath;
+			return FILEPATH;
 		}
 
 "{"|"}"|";"|"/"	{ return *yytext; }

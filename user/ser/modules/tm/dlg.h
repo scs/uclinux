@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dlg.h,v 1.5 2003/07/08 16:38:51 dcm Exp $
  * Copyright (C) 2001-2003 Fhg Fokus
  *
  * This file is part of ser, a free SIP server.

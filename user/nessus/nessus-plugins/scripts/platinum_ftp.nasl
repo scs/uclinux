@@ -7,7 +7,6 @@
 #
 # See the Nessus Scripts License for details
 #
-# Ref: http://www.securiteam.com/windowsntfocus/5DP0D0U8UC.html
 #
 # Ref: 
 # Message-ID: <1043650912.3e34d960788ac@webmail.web-sale.dk>
@@ -17,7 +16,7 @@
 
 if(description){
  script_id(11200);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "Platinum FTP Server";
  

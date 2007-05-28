@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10224);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(37);
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CVE-1999-0627");
  name["english"] = "rexd service";
  name["francais"] = "Service rexd";
@@ -60,6 +60,10 @@ Facteur de risque : Faible";
 
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 RPC_PROG = 100017;

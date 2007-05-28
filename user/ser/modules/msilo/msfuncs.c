@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: msfuncs.c,v 1.10.8.2 2004/07/23 20:16:03 dcm Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

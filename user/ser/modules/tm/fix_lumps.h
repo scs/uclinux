@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: fix_lumps.h,v 1.3.6.2 2004/07/01 15:36:05 andrei Exp $
  *
  * here, we delete message lumps which are generated in
  * core functions using pkg_malloc and applied to shmem

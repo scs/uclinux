@@ -1,7 +1,7 @@
 # Makefile for the "t/" subtree
 # of mgetty+sendfax
 #
-# CVS: $Id$ Copyright (c) Gert Doering
+# CVS: $Id: Makefile,v 1.4 2005/03/16 11:06:59 gert Exp $ Copyright (c) Gert Doering
 #
 
 CC=gcc

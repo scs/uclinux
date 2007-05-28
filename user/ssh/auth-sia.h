@@ -26,7 +26,6 @@
 
 #ifdef HAVE_OSF_SIA
 
-int	auth_sia_password(Authctxt *, char *);
 void	session_setup_sia(struct passwd *, char *);
 
 #endif /* HAVE_OSF_SIA */

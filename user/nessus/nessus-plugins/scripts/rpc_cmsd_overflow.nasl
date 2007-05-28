@@ -24,23 +24,20 @@
 if(description)
 {
  script_id(11418);
- script_version ("$Revision: 1.3 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0015");
  script_bugtraq_id(5356);
+ script_version ("$Revision: 1.7 $");
  script_cve_id("CVE-2002-0391");
  name["english"] = "Sun rpc.cmsd overflow";
  script_name(english:name["english"]);
 
  desc["english"] = "
-Your Sun rpc.cmsd has integer overflow problem in 
-xdr_array. An attacker may use this flaw to execute
-arbitrary code on this host with the privileges
-rpc.cmsd is running as (typically, root), by
-sending a specially crafted request to this service.
+The remote Sun rpc.cmsd has integer overflow problem in xdr_array. An attacker 
+may use this flaw to execute arbitrary code on this host with the privileges
+rpc.cmsd is running as (typically, root), by sending a specially crafted 
+request to this service.
 
-We suggest that you disable this
-service and apply a new patch.
-
-
+Solution : We suggest that you disable this service and apply a new patch.
 Risk factor : High";
 
 
@@ -49,7 +46,7 @@ Risk factor : High";
  summary["english"] = "Checks if Sun rpc.cmsd overflow";
  script_summary(english:summary["english"]);
 
- script_category(ACT_ATTACK); # rpc.cmsd is started from inetd
+ script_category(ACT_DESTRUCTIVE_ATTACK); # rpc.cmsd is started from inetd
 
 
  script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi",

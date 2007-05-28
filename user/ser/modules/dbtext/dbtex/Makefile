@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 2003/02/07 20:21:20 dcm Exp $
 #
 # database example module makefile
 #

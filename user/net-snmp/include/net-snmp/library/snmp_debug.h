@@ -23,12 +23,17 @@ extern          "C" {
     void            debugmsg(const char *token, const char *format, ...);
     void            debugmsgtoken(const char *token, const char *format,
                                   ...);
+    void            debug_combo_nc(const char *token, const char *format,
+                                   ...);
 #else
     void            debugmsg(va_alist);
     void            debugmsgtoken(va_alist);
+    void            debug_combo_nc(va_alist);
 #endif
     void            debugmsg_oid(const char *token, const oid * theoid,
                                  size_t len);
+    void            debugmsg_suboid(const char *token, const oid * theoid,
+                                    size_t len);
     void            debugmsg_var(const char *token,
                                  netsnmp_variable_list * var);
     void            debugmsg_oidrange(const char *token,
@@ -88,6 +93,13 @@ extern          "C" {
      * token: line part 1 and part 2
      * 
      * as debugging output.
+     *
+     *
+     * Each of these macros also have a version with a suffix of '_NC'. The
+     * NC suffix stands for 'No Check', which means that no check will be
+     * performed to see if debug is enabled or if the token has been turned
+     * on. These NC versions are intended for use within a DEBUG_IF {} block,
+     * where the debug/token check has already been performed.
      */
 
 #ifndef SNMP_NO_DEBUGGING       /* make sure we're wanted */
@@ -104,17 +116,22 @@ extern          "C" {
 #define DEBUGIF(x)         if (_DBG_IF_ && debug_is_token_registered(x) == SNMPERR_SUCCESS)
 
 #define __DBGMSGT(x)     debugmsgtoken x,  debugmsg x
+#define __DBGMSG_NC(x)   debugmsg x
+#define __DBGMSGT_NC(x)  debug_combo_nc x
+#define __DBGMSGL_NC(x)  __DBGTRACE; debugmsg x
+#define __DBGMSGTL_NC(x) __DBGTRACE; debug_combo_nc x
 
 #ifdef  HAVE_CPP_UNDERBAR_FUNCTION_DEFINED
-#define __DBGTRACE       __DBGMSGT(("trace","%s(): %s, %d\n",__FUNCTION__,\
+#define __DBGTRACE       __DBGMSGT(("trace","%s(): %s, %d:\n",__FUNCTION__,\
                                  __FILE__,__LINE__))
 #else
-#define __DBGTRACE       __DBGMSGT(("trace"," %s, %d\n", __FILE__,__LINE__))
+#define __DBGTRACE       __DBGMSGT(("trace"," %s, %d:\n", __FILE__,__LINE__))
 #endif
 
 #define __DBGMSGL(x)     __DBGTRACE, debugmsg x
 #define __DBGMSGTL(x)    __DBGTRACE, debugmsgtoken x, debugmsg x
 #define __DBGMSGOID(x)     debugmsg_oid x
+#define __DBGMSGSUBOID(x)  debugmsg_suboid x
 #define __DBGMSGVAR(x)     debugmsg_var x
 #define __DBGMSGOIDRANGE(x) debugmsg_oidrange x
 #define __DBGMSGHEX(x)     debugmsg_hex x
@@ -167,6 +184,7 @@ extern          "C" {
 #define DEBUGMSGL(x)       do {if (_DBG_IF_) {__DBGMSGL(x);} }while(0)
 #define DEBUGMSGTL(x)      do {if (_DBG_IF_) {__DBGMSGTL(x);} }while(0)
 #define DEBUGMSGOID(x)     do {if (_DBG_IF_) {__DBGMSGOID(x);} }while(0)
+#define DEBUGMSGSUBOID(x)  do {if (_DBG_IF_) {__DBGMSGSUBOID(x);} }while(0)
 #define DEBUGMSGVAR(x)     do {if (_DBG_IF_) {__DBGMSGVAR(x);} }while(0)
 #define DEBUGMSGOIDRANGE(x) do {if (_DBG_IF_) {__DBGMSGOIDRANGE(x);} }while(0)
 #define DEBUGMSGHEX(x)     do {if (_DBG_IF_) {__DBGMSGHEX(x);} }while(0)
@@ -188,6 +206,9 @@ extern          "C" {
 #define DEBUGDUMPSETUP(token,buf,len) \
 	do {if (_DBG_IF_) {__DBGDUMPSETUP(token,buf,len);} }while(0)
 
+#define DEBUGMSG_NC(x)  do { __DBGMSG_NC(x); }while(0)
+#define DEBUGMSGT_NC(x) do { __DBGMSGT_NC(x); }while(0)
+
 #else                           /* SNMP_NO_DEBUGGING := enable streamlining of the code */
 
 #define DEBUGMSG(x)
@@ -196,6 +217,7 @@ extern          "C" {
 #define DEBUGMSGL(x)
 #define DEBUGMSGTL(x)
 #define DEBUGMSGOID(x)
+#define DEBUGMSGSUBOID(x)
 #define DEBUGMSGVAR(x)
 #define DEBUGMSGOIDRANGE(x)
 #define DEBUGMSGHEX(x)
@@ -210,6 +232,9 @@ extern          "C" {
 #define DEBUGDUMPHEADER(token,x)
 #define DEBUGDUMPSECTION(token,x)
 #define DEBUGDUMPSETUP(token, buf, len)
+
+#define DEBUGMSG_NC(x)
+#define DEBUGMSGT_NC(x)
 
 #endif
 
@@ -235,6 +260,19 @@ extern          "C" {
     void            snmp_set_do_debugging(int);
     int             snmp_get_do_debugging(void);
 
+/*
+ * internal:
+ * You probably shouldn't be using this information unless the word
+ * "expert" applies to you.  I know it looks tempting.
+ */
+typedef struct netsnmp_token_descr_s {
+    char *token_name;
+    char  enabled;
+} netsnmp_token_descr;
+
+extern int                 debug_num_tokens;
+extern netsnmp_token_descr dbg_tokens[MAX_DEBUG_TOKENS];
+    
 #ifdef __cplusplus
 }
 #endif

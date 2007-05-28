@@ -24,7 +24,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kexgexc.c,v 1.1 2003/02/16 17:09:57 markus Exp $");
+RCSID("$OpenBSD: kexgexc.c,v 1.3 2005/11/04 05:15:59 djm Exp $");
 
 #include "xmalloc.h"
 #include "key.h"
@@ -42,23 +42,21 @@ kexgex_client(Kex *kex)
 	BIGNUM *p = NULL, *g = NULL;
 	Key *server_host_key;
 	u_char *kbuf, *hash, *signature = NULL, *server_host_key_blob = NULL;
-	u_int klen, kout, slen, sbloblen;
+	u_int klen, kout, slen, sbloblen, hashlen;
 	int min, max, nbits;
 	DH *dh;
 
 	nbits = dh_estimate(kex->we_need * 8);
 
 	if (datafellows & SSH_OLD_DHGEX) {
-		debug("SSH2_MSG_KEX_DH_GEX_REQUEST_OLD sent");
-
 		/* Old GEX request */
 		packet_start(SSH2_MSG_KEX_DH_GEX_REQUEST_OLD);
 		packet_put_int(nbits);
 		min = DH_GRP_MIN;
 		max = DH_GRP_MAX;
-	} else {
-		debug("SSH2_MSG_KEX_DH_GEX_REQUEST sent");
 
+		debug("SSH2_MSG_KEX_DH_GEX_REQUEST_OLD(%u) sent", nbits);
+	} else {
 		/* New GEX request */
 		min = DH_GRP_MIN;
 		max = DH_GRP_MAX;
@@ -66,6 +64,9 @@ kexgex_client(Kex *kex)
 		packet_put_int(min);
 		packet_put_int(nbits);
 		packet_put_int(max);
+
+		debug("SSH2_MSG_KEX_DH_GEX_REQUEST(%u<%u<%u) sent",
+		    min, nbits, max);
 	}
 #ifdef DEBUG_KEXDH
 	fprintf(stderr, "\nmin = %d, nbits = %d, max = %d\n",
@@ -154,7 +155,8 @@ kexgex_client(Kex *kex)
 		min = max = -1;
 
 	/* calc and verify H */
-	hash = kexgex_hash(
+	kexgex_hash(
+	    kex->evp_md,
 	    kex->client_version_string,
 	    kex->server_version_string,
 	    buffer_ptr(&kex->my), buffer_len(&kex->my),
@@ -164,25 +166,27 @@ kexgex_client(Kex *kex)
 	    dh->p, dh->g,
 	    dh->pub_key,
 	    dh_server_pub,
-	    shared_secret
+	    shared_secret,
+	    &hash, &hashlen
 	);
+
 	/* have keys, free DH */
 	DH_free(dh);
 	xfree(server_host_key_blob);
 	BN_clear_free(dh_server_pub);
 
-	if (key_verify(server_host_key, signature, slen, hash, 20) != 1)
+	if (key_verify(server_host_key, signature, slen, hash, hashlen) != 1)
 		fatal("key_verify failed for server_host_key");
 	key_free(server_host_key);
 	xfree(signature);
 
 	/* save session id */
 	if (kex->session_id == NULL) {
-		kex->session_id_len = 20;
+		kex->session_id_len = hashlen;
 		kex->session_id = xmalloc(kex->session_id_len);
 		memcpy(kex->session_id, hash, kex->session_id_len);
 	}
-	kex_derive_keys(kex, hash, shared_secret);
+	kex_derive_keys(kex, hash, hashlen, shared_secret);
 	BN_clear_free(shared_secret);
 
 	kex_finish(kex);

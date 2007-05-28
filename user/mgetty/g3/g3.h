@@ -1,4 +1,4 @@
-#ident "$Id$ Copyright (c) Gert Doering"
+#ident "$Id: g3.h,v 4.1 1997/01/12 14:54:21 gert Exp $ Copyright (c) Gert Doering"
 
 #ifndef NULL
 #define NULL 0L

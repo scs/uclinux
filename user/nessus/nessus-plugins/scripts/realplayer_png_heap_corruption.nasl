@@ -1,36 +1,48 @@
 #
-# This script was written by Renaud Deraison
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(11496);
  script_bugtraq_id(7177);
- script_cve_id("CAN-2003-0141");  
+ script_cve_id("CVE-2003-0141");  
  
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.5 $");
 
  name["english"] = "RealPlayer PNG deflate heap corruption";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host has RealPlayer installed. There is a flaw
-in the remote version which may allow an attacker to execute
-arbitrary code on the remote host, with the privileges of the
-user running RealPlayer.
+Synopsis :
 
-To do so, an attacker would need to send a corrupted PNG file to
-a remote user and have him open it using RealPlayer.
+The remote Windows application is affected by a heap corruption
+vulnerability. 
 
-Solution : Go to http://service.real.com/help/faq/security/securityupdate_march2003.html
+Description :
 
-If you have uninstalled RealPlayer you may wish to delete
-the old registry key at SOFTWARE\RealNetworks\RealPlayer.
+According to its version number, the installed version of RealPlayer /
+RealOne Player / RealPlayer Enterprise for Windows has a flaw in the
+remote version that may allow an attacker to execute arbitrary code on
+the remote host, with the privileges of the user running RealPlayer. 
 
-Risk factor : High";
+To do so, an attacker would need to send a corrupted PNG file to a
+remote user and have him open it using RealPlayer. 
+
+See also :
+
+http://www.coresecurity.com/common/showdoc.php?idx=311&idxseccion=10
+http://service.real.com/help/faq/security/securityupdate_march2003.html
+
+Solution :
+
+Upgrade according to the vendor advisories referenced above. 
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -41,35 +53,39 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/domain","SMB/transport");
-
- script_require_ports(139, 445);
+ script_dependencies("realplayer_detect.nasl");
+ script_require_keys("SMB/RealPlayer/Version");
  exit(0);
 }
 
 
-include("smb_nt.inc");
+# Check version of RealPlayer.
+ver = get_kb_item("SMB/RealPlayer/Version");
+if (ver) {
+  iver = split(ver, sep:'.', keep:FALSE);
 
-
-version = registry_get_sz(key:"SOFTWARE\RealNetworks\RealPlayer", item:"version");
- 
- 
-if(version)
-{
- if(ereg(pattern:"6\.0\.9\.([0-9]|[0-9][0-9]|[0-4][0-9][0-9]|5[0-7][0-9]|58[0-4])$", string:version))
- 		security_hole(port);
-		
- if(ereg(pattern:"6\.0\.10\..*", string:version))
- 		security_hole(port);
-		
- if(ereg(pattern:"6\.0\.11\.([0-9]|[0-9][0-9]|[0-7][0-9][0-9]|8[0-4][0-9]|85[0-3])$", string:version))
- 		security_hole(port);		
+  # There's a problem if the version is:
+  #  - [6.0.9.0, 6.0.9.584], RealPlayer 8
+  #  - [6.0.10.0, 6.0.10.505], RealOne Player
+  #  - [6.0.11.0, 6.0.11.774], RealOne Enterprise
+  #  - [6.0.11.818, 6.0.11.853], RealOne Player version 2
+  iver = split(ver, sep:'.', keep:FALSE);
+  if (
+    int(iver[0]) < 6 ||
+    (
+      int(iver[0]) == 6 &&
+      int(iver[1]) == 0 &&
+      (
+        int(iver[2]) < 8 ||
+        (int(iver[2]) == 9 && int(iver[3]) <= 584) ||
+        (int(iver[2]) == 10 && int(iver[3]) <= 505) ||
+        (int(iver[2]) == 11 && int(iver[3]) <= 774) ||
+        (int(iver[2]) == 11 && int(iver[3]) >= 818 && int(iver[3]) <= 853)
+      )
+    )
+  ) security_hole(port);
 }
-

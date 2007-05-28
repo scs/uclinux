@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(11520);
- script_cve_id("CAN-2003-0169");
- script_version("$Revision: 1.3 $");
+ script_bugtraq_id(7246);
+ script_cve_id("CVE-2003-0169");
+ script_version("$Revision: 1.11 $");
  
  name["english"] = "HP Instant TopTools DoS";
 
@@ -30,13 +31,14 @@ Risk factor : High";
  
  script_summary(english:summary["english"]);
  
- script_category(ACT_MIXED_ATTACK);
+ script_category(ACT_DENIAL);
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  family["english"] = "Denial of Service";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -47,9 +49,11 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+
+if ( get_kb_item("Services/www/" + port + "/embedded" )) exit(0);
 
 if(safe_checks() == 0)
 {
@@ -62,23 +66,4 @@ if(safe_checks() == 0)
  }
  
 exit(0);
-}
-
-
-res = is_cgi_installed(port:port, item:"hpnst.exe");
-if(res != 0) {
- 
- report = "The remote host has the CGI 'hpnst.exe' installed.
-
-Older versions of this CGI (pre 5.55) are vulnerable
-to a denial of service attack where the user can make
-the CGI request itself.
-
-*** As safe checks are enabled, Nessus did not really test
-*** for this flaw, so this might be a false positive
-
-Solution : upgrade to version 5.55
-Risk factor : High";
-
-  security_hole(port:port, data:report);
 }

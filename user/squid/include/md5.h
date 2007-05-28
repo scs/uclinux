@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: md5.h,v 1.12 2001/11/13 19:25:08 hno Exp $
  */
 
 #ifndef SQUID_MD5_H

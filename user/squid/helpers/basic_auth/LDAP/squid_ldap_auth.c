@@ -30,6 +30,10 @@
  * or (at your option) any later version.
  *
  * Changes:
+ * 2005-01-07: Henrik Nordstrom <hno@squid-cache.org>
+ *             - Added some sanity checks on login names to avoid
+ *             users bypassing equality checks by exploring the
+ *             overly helpful match capabilities of LDAP
  * 2004-07-17: Henrik Nordstrom <hno@squid-cache.org>
  *             - Corrected non-persistent mode to only issue one
  *             ldap_bind per connection.
@@ -83,7 +87,7 @@
 #include <stdlib.h>
 #include <lber.h>
 #include <ldap.h>
-
+#include <ctype.h>
 #include "util.h"
 
 #define PROGRAM_NAME "squid_ldap_auth"
@@ -116,6 +120,10 @@ static int checkLDAP(LDAP * ld, const char *userid, const char *password, const 
 static int readSecret(const char *filename);
 
 /* Yuck.. we need to glue to different versions of the API */
+
+#ifndef LDAP_NO_ATTRS
+#define LDAP_NO_ATTRS "1.1"
+#endif
 
 #if defined(LDAP_API_VERSION) && LDAP_API_VERSION > 1823
 static int
@@ -244,21 +252,56 @@ open_ldap_connection(const char *ldapServer, int port)
     if (version == -1) {
 	version = LDAP_VERSION2;
     }
-    if (ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version)
-	!= LDAP_OPT_SUCCESS) {
+    if (ldap_set_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) != LDAP_SUCCESS) {
 	fprintf(stderr, "Could not set LDAP_OPT_PROTOCOL_VERSION %d\n",
 	    version);
 	exit(1);
     }
-    if (use_tls && (version == LDAP_VERSION3) && (ldap_start_tls_s(ld, NULL, NULL) != LDAP_SUCCESS)) {
-	fprintf(stderr, "Could not Activate TLS connection\n");
+    if (use_tls) {
+#ifdef LDAP_OPT_X_TLS
+        if (version == LDAP_VERSION3 && ldap_start_tls_s(ld, NULL, NULL) != LDAP_SUCCESS) {
+	    fprintf(stderr, "Could not Activate TLS connection\n");
+	    exit(1);
+	} else {
+	    fprintf(stderr, "TLS requires LDAP version 3\n");
+	    exit(1);
+	}
+#else
+	fprintf(stderr, "TLS not supported with your LDAP library\n");
 	exit(1);
+#endif
     }
 #endif
     squid_ldap_set_timelimit(ld, timelimit);
     squid_ldap_set_referrals(ld, !noreferrals);
     squid_ldap_set_aliasderef(ld, aliasderef);
     return ld;
+}
+
+/* Make a sanity check on the username to reject oddly typed names */
+static int
+validUsername(const char *user)
+{
+    const unsigned char *p = (const unsigned char *)user;
+
+    /* Leading whitespace? */
+    if (isspace(p[0]))
+	return 0;
+    while(p[0] && p[1]) {
+	if (isspace(p[0])) {
+	    /* More than one consequitive space? */
+	    if (isspace(p[1]))
+		return 0;
+	    /* or odd space type character used? */
+	    if (p[0] != ' ')
+		return 0;
+	}
+	p++;
+    }
+    /* Trailing whitespace? */
+    if (isspace(p[0]))
+	return 0;
+    return 1;
 }
 
 int
@@ -481,6 +524,10 @@ main(int argc, char **argv)
 	}
 	rfc1738_unescape(user);
 	rfc1738_unescape(passwd);
+	if (!validUsername(user)) {
+	    printf("ERR No such user\n");
+	    continue;
+	}
 	tryagain = (ld != NULL);
       recover:
 	if (ld == NULL && persistent)
@@ -492,7 +539,7 @@ main(int argc, char **argv)
 		ld = NULL;
 		goto recover;
 	    }
-	    printf("ERR\n");
+	    printf("ERR %s\n", ldap_err2string(squid_ldap_errno(ld)));
 	} else {
 	    printf("OK\n");
 	}
@@ -552,8 +599,7 @@ checkLDAP(LDAP * persistent_ld, const char *userid, const char *password, const 
 	char escaped_login[256];
 	LDAPMessage *res = NULL;
 	LDAPMessage *entry;
-	char *searchattr[] =
-	{NULL};
+	char *searchattr[] = {LDAP_NO_ATTRS, NULL};
 	char *userdn;
 	int rc;
 	LDAP *search_ld = persistent_ld;

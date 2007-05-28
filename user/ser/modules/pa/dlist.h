@@ -1,7 +1,7 @@
 /*
  * Presence Agent, domain list
  *
- * $Id$
+ * $Id: dlist.h,v 1.1.4.1 2003/11/12 20:00:10 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

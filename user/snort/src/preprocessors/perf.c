@@ -30,15 +30,16 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #ifndef WIN32
 #include <time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #endif /* WIN32 */
 
+#include "util.h"
 #include "perf.h"
 
-int CheckSampleInterval(time_t curr_time, SFPERF *sfPerf);
 int InitPerfStats(SFPERF *sfPerf);
 int UpdatePerfStats(SFPERF *sfPerf, unsigned char *pucPacket, int len,
         int iRebuiltPkt);
@@ -108,6 +109,7 @@ int sfSetPerformanceStatistics(SFPERF *sfPerf, int iFlag)
     
     return 0;
 }
+
 int sfSetPerformanceStatisticsEx(SFPERF *sfPerf, int iFlag, void * p)
 {
 #ifndef WIN32    
@@ -118,7 +120,7 @@ int sfSetPerformanceStatisticsEx(SFPERF *sfPerf, int iFlag, void * p)
     {
         sfPerf->iPerfFlags = sfPerf->iPerfFlags | SFPERF_FILE;
         
-	    strncpy( sfPerf->file, p, sizeof(sfPerf->file)-1 );
+        strncpy( sfPerf->file, p, sizeof(sfPerf->file)-1 );
         sfPerf->file[sizeof(sfPerf->file)-1] = 0x00;
 
         /* this file needs to be readable by everyone */
@@ -126,28 +128,107 @@ int sfSetPerformanceStatisticsEx(SFPERF *sfPerf, int iFlag, void * p)
         old_umask = umask(022);
 #endif         
 
-	sfPerf->fh = fopen(sfPerf->file,"at");
+        sfPerf->fh = fopen(sfPerf->file,"at");
 
 #ifndef WIN32
         umask(old_umask);
 #endif
         
-	if( !sfPerf->fh ) return -1;
+        if( !sfPerf->fh )
+            return -1;
+    }
+    else if(iFlag & SFPERF_FILECLOSE)
+    {
+        if (sfPerf->fh)
+        {
+            fclose(sfPerf->fh);
+            sfPerf->fh = NULL;
+        }
     }
     else if(iFlag & SFPERF_PKTCNT)
     {
         sfPerf->iPktCnt = *(int*)p;
     }
+    else if (iFlag & SFPERF_SUMMARY)
+    {
+        sfPerf->iPerfFlags |= SFPERF_SUMMARY;
+    }
     return 0;
 }
 
+
+#ifndef PATH_MAX
+#define PATH_MAX 1024
+#endif
+
+#ifndef FILE_MAX
+#define FILE_MAX  (PATH_MAX + 256)
+#endif
+
+int sfRotatePerformanceStatisticsFile(SFPERF *sfPerf)
+{
+    int        ret;
+    time_t     t;
+    struct tm *tm;
+    char       newfile[FILE_MAX];
+    char       dir[PATH_MAX];
+    char      *ptr;
+
+    /* Close current stats file - if it is open already */
+    if(!sfPerf->fh)
+    {
+        LogMessage("Performance log file '%s' not open",
+                        sfPerf->file);
+
+        return(1);
+    }
+    
+    ret = fclose(sfPerf->fh);
+    
+    if ( ret != 0 )
+    {
+        FatalError("Cannot close performance log file '%s': %s\n",
+                                    sfPerf->file, strerror(errno));
+    }
+    
+    /* Rename current stats file with yesterday's date */
+    strncpy(dir, sfPerf->file, PATH_MAX-1);
+    ptr = strrchr(dir, '/');
+    if ( ptr != NULL )
+        *ptr = '\0';
+
+    /* Get current time, then subtract one day to get yesterday */
+    t = time(&t);
+    t -= (24*60*60);
+    tm = localtime(&t);
+    snprintf(newfile, FILE_MAX - 1, "%s/%d-%02d-%02d",
+                        dir, tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+
+    /* Checking return code from rename */
+    if(rename(sfPerf->file, newfile) != 0)
+    {
+        LogMessage("Cannot move performance log file '%s' to '%s': %s\n",
+                        sfPerf->file, newfile,strerror(errno));
+    }
+
+    ret = sfSetPerformanceStatisticsEx(sfPerf, SFPERF_FILE, sfPerf->file);
+
+    if( ret != 0 )
+    {
+        FatalError("Cannot open performance log file '%s': %s\n",
+                                    sfPerf->file, strerror(errno));
+    }
+
+    return 0;
+}
 
 int sfPerformanceStats(SFPERF *sfPerf, unsigned char *pucPacket, int len,
                        int iRebuiltPkt)
 {
     static unsigned int cnt=0;
 
-    if( cnt==0 || cnt >= sfPerf->iPktCnt )
+    if (( cnt==0 || cnt >= sfPerf->iPktCnt ) &&
+        !(sfPerf->iPerfFlags & SFPERF_SUMMARY))
     {
        cnt=1;
        CheckSampleInterval(time(NULL), sfPerf);
@@ -222,15 +303,20 @@ int UpdatePerfStats(SFPERF *sfPerf, unsigned char *pucPacket, int len,
     return 0;
 }
 
+int sfProcessPerfStats(SFPERF *sfPerf)
+{
+    return ProcessPerfStats(sfPerf);
+}
+
 int ProcessPerfStats(SFPERF *sfPerf)
 {
     if(sfPerf->iPerfFlags & SFPERF_BASE)
     {
-	/* Allow this to go out to console and/or a file */
+        /* Allow this to go out to console and/or a file */
         ProcessBaseStats(&(sfPerf->sfBase),
-			 sfPerf->iPerfFlags & SFPERF_CONSOLE,
-			 sfPerf->iPerfFlags & SFPERF_FILE,
-			 sfPerf->fh );
+                sfPerf->iPerfFlags & SFPERF_CONSOLE,
+                sfPerf->iPerfFlags & SFPERF_FILE,
+                sfPerf->fh );
     }
     
     /* Always goes to the console */

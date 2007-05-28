@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_fline.h,v 1.5 2003/01/29 19:24:10 jiri Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

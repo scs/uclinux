@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11357);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CVE-1999-0166");
  
  name["english"] = "NFS cd ..";
@@ -55,9 +55,11 @@ shares = make_list(list);
 
 
 port = get_rpc_port(program:100005, protocol:IPPROTO_UDP);
+if ( ! port ) exit(0);
 soc = open_priv_sock_udp(dport:port);
 
 port2 = get_rpc_port(program:100003, protocol:IPPROTO_UDP);
+if ( ! port2 ) exit(0);
 soc2 = open_priv_sock_udp(dport:port2);
 
 if(!soc || !soc2)exit(0);

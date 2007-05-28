@@ -9,7 +9,7 @@ facilitates logging multiple events.
 
 The general configuration of the event queue is as follows:
 
-config event_queue: [max_events [size]] [log [size]] [order_events [TYPE]]
+config event_queue: [max_queue [size]] [log [size]] [order_events [TYPE]]
 
 Event Queue Configuration Options
 ---------------------------------

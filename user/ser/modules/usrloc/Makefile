@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.8 2003/05/23 15:43:44 andrei Exp $
 #
 # Usrloc module Makefile
 #

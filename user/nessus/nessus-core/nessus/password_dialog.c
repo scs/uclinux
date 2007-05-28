@@ -205,7 +205,7 @@ static void pass_dialog_callback(nul, ctrls)
  char * pass_str;
 
  gtk_grab_remove(arg_get_value(ctrls, "WINDOW"));
- pass_str = gtk_entry_get_text(GTK_ENTRY(pass));
+ pass_str = (char*)gtk_entry_get_text(GTK_ENTRY(pass));
  if(!pass_str || !strlen(pass_str))
  	show_warning("You must enter a valid password");
  else {

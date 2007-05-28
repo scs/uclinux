@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10393);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.14 $");
 
  name["english"] = "spin_client.cgi buffer overrun";
  name["francais"] = "spin_client.cgi buffer overrun";
@@ -23,7 +23,7 @@ web server (root or nobody).
 Solution : remove it from /cgi-bin or contact
 your vendor for a fix
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Il y a un dépassement de buffer
@@ -54,6 +54,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -65,8 +66,8 @@ Facteur de risque : Sérieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

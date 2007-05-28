@@ -17,9 +17,12 @@
 if(description)
 {
  script_id(11398);
- script_cve_id("CAN-2003-0085", "CAN-2003-0086");
  script_bugtraq_id(7106, 7107);
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2003-0085", "CVE-2003-0086");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:095-03");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:016");
+
+ script_version ("$Revision: 1.10 $");
 
  name["english"] = "Samba Fragment Reassembly Overflow";
 
@@ -27,7 +30,7 @@ if(description)
  
  desc["english"] = "
 The remote Samba server, according to its version number,
-may be vulnerable to a remote buffer overflow when receiving
+is vulnerable to a remote buffer overflow when receiving
 specially crafted SMB fragment packets.
 
 An attacker needs to be able to access at least one
@@ -64,5 +67,5 @@ Risk factor : High";
 lanman = get_kb_item("SMB/NativeLanManager");
 if("Samba" >< lanman)
 {
- if(ereg(pattern:"Samba 2\.(0\..*|2\.[0-7][^0-9]*)$", string:lanman))security_hole(139);
+ if(ereg(pattern:"Samba 2\.(0\..*|2\.[0-7][^0-9].*)", string:lanman))security_hole(139);
 }

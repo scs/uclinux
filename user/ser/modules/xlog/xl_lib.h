@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xl_lib.h,v 1.2 2003/07/09 14:18:18 ramona Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

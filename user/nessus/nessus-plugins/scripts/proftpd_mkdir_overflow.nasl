@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10189);
- script_version ("$Revision: 1.25 $");
  script_bugtraq_id(612);
- script_cve_id("CAN-1999-0911");
+ script_version ("$Revision: 1.30 $");
+ script_cve_id("CVE-1999-0911");
  name["english"] = "proftpd mkdir buffer overflow";
  name["francais"] = "Dépassement de buffer proftpd par mkdir";
  
@@ -65,8 +65,7 @@ Facteur de risque : Elevé";
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
  		  francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
 		  
- script_dependencie("find_service.nes", "ftp_write_dirs.nes",
- 		    "wu_ftpd_overflow.nasl");
+ script_dependencie("find_service.nes", "ftp_writeable_directories.nasl", "wu_ftpd_overflow.nasl");
  script_require_keys("ftp/login", "ftp/writeable_dir");
  script_require_ports("Services/ftp", 21);
  exit(0);
@@ -133,7 +132,7 @@ if(nomkdir)exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
   num_dirs = 0;
   # We are in
@@ -165,7 +164,7 @@ if(soc)
 	exit(0);
 	}
 	
-  if(!ereg(pattern:"^257 .*", string:b))
+  if(!egrep(pattern:"^257 .*", string:b))
   {
    i = 20;
   }
@@ -184,7 +183,7 @@ if(soc)
 	exit(0);
        }
        
-   if(!ereg(pattern:"^250 .*", string:b))
+   if(!egrep(pattern:"^250 .*", string:b))
    {
     i = 20;
    }
@@ -198,7 +197,7 @@ if(soc)
   soc = open_sock_tcp(port);
   if(!soc)exit(0);
   
-  ftp_log_in(socket:soc, user:login, pass:pass);
+  ftp_authenticate(socket:soc, user:login, pass:pass);
   send(socket:soc, data:string("CWD ", wri, "\r\n"));
   r = ftp_recv_line(socket:soc);
   for(j=0;j<num_dirs;j=j+1)
@@ -211,9 +210,10 @@ if(soc)
   {
    send(socket:soc, data:string("RMD ", crap(254),  "\r\n"));
    r = ftp_recv_line(socket:soc);
-   if(!ereg(pattern:"^250 .*", string:r))exit(0);
+   if(!egrep(pattern:"^250 .*", string:r))exit(0);
    send(socket:soc, data:string("CWD ..\r\n"));
    r = ftp_recv_line(socket:soc);
   }
  }
 }
+

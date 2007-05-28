@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10858);
- script_cve_id("CAN-2002-0012");
  script_bugtraq_id(4088);
- script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-0012");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "SNMP bad length field DoS (2)";
  script_name(english:name["english"]);
@@ -25,7 +25,7 @@ to execute arbitrary code with the privileges of the
 SNMP daemon).
 
 Solution : see www.cert.org/advisories/CA-2002-03.html
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -42,7 +42,7 @@ Risk factor : Serious";
 		francais:"Ce script est Copyright (C) 2002 Renaud Deraison");
  family["english"] = "Denial of Service";
  script_family(english:family["english"]);
- script_dependencie("snmp_default_communities.nasl");
+ script_dependencie("snmp_settings.nasl");
  script_require_keys("SNMP/community");
  exit(0);
 }

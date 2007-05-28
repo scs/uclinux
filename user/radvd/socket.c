@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: socket.c,v 1.5 2002/07/02 06:49:20 psavola Exp $
  *
  *   Authors:
  *    Pedro Roque		<roque@di.fc.ul.pt>

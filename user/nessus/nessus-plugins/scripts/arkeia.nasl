@@ -9,9 +9,9 @@
 if(description)
 { 
  script_id(10018);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(661);
- script_cve_id("CAN-1999-1534");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-1534");
  name["english"] = "Knox Arkeia buffer overflow";
  name["francais"] = "Dépassement de buffer dans Arkeia de Knox";
  script_name(english:name["english"], francais:name["francais"]);
@@ -54,7 +54,7 @@ Facteur de risque : Elevé";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("arkeia_default_account.nasl");
  script_require_ports(617);
  exit(0);
 }
@@ -66,35 +66,13 @@ Facteur de risque : Elevé";
 include("misc_func.inc");
 
 port = 617;
-p = known_service(port:port);
-if(p && p != "arkeia")exit(0);
-
+version = get_kb_item("arkeia-client/617");
+if ( ! version ) exit(0);
+if ( !ereg(pattern:"^[0-4]\.", string:version) )  exit(0);
 
 if(safe_checks())
 {
- soc = open_sock_tcp(port);
- if(soc)
- {
-  close(soc);
-  alrt = "
-The remote host seems to be running Knox's 
-Arkeia server.
-
-Some versions of this server come with a buffer overflow
-which allow anyone to execute arbitrary commands
-as root.
-
-*** Nessus reports this vulnerability using only
-*** information that was gathered. Use caution
-*** when testing without safe checks enabled.
-
-Solution : upgrade to the latest version of Arkeia and/or filter
-incoming traffic to TCP port 617.
-
-Risk factor : High";
- 
-  security_hole(port:port, data:alrt);
- }
+ security_hole(port);
  exit(0);
 }
 

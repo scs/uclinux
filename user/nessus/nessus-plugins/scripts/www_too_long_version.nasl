@@ -18,7 +18,9 @@
 if(description)
 {
  script_id(11061);
- script_version ("$Revision: 1.10 $");
+ script_bugtraq_id(5319, 5320, 5322, 5324);
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2002-1061");
  name["english"] = "HTTP version number overflow";
  script_name(english:name["english"]);
  
@@ -60,8 +62,8 @@ include("http_func.inc");
 
 r = string("GET / HTTP/", crap(2048), ".O\r\n\r\n");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 if(http_is_dead(port:port))exit(0);

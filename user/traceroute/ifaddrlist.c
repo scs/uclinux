@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+    "@(#) $Header: /cvs/sw/new-wave/user/traceroute/ifaddrlist.c,v 1.1.1.1 1999/11/22 03:48:05 christ Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>

@@ -4,7 +4,7 @@
 #
 # $FreeBSD$
 #
-# $Id$
+# $Id: Makefile,v 1.6.2.2 2003/11/20 12:47:06 andrei Exp $
 #
 
 

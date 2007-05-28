@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: diskd.c,v 1.10.2.2 2005/03/26 23:29:56 hno Exp $
  *
  * DEBUG: section --    External DISKD process implementation.
  * AUTHOR: Harvest Derived
@@ -135,18 +135,18 @@ do_read(diomsg * r, int len, char *buf)
     }
     if (r->offset > -1 && r->offset != fs->offset) {
 	DEBUG(2)
-	    fprintf(stderr, "seeking to %d\n", r->offset);
+	    fprintf(stderr, "seeking to %" PRINTF_OFF_T "\n", (squid_off_t) r->offset);
 	if (lseek(fs->fd, r->offset, SEEK_SET) < 0) {
 	    DEBUG(1) {
-		fprintf(stderr, "%d FD %d, offset %d: ", (int) mypid, fs->fd, r->offset);
+		fprintf(stderr, "%d FD %d, offset %" PRINTF_OFF_T ": ", (int) mypid, fs->fd, (squid_off_t) r->offset);
 		perror("lseek");
 	    }
 	}
     }
     x = read(fs->fd, buf, readlen);
     DEBUG(2)
-	fprintf(stderr, "%d READ %d,%d,%d ret %d\n", (int) mypid,
-	fs->fd, readlen, r->offset, x);
+	fprintf(stderr, "%d READ %d,%d,%" PRINTF_OFF_T " ret %d\n", (int) mypid,
+	fs->fd, readlen, (squid_off_t) r->offset, x);
     if (x < 0) {
 	DEBUG(1) {
 	    fprintf(stderr, "%d FD %d: ", (int) mypid, fs->fd);
@@ -176,14 +176,14 @@ do_write(diomsg * r, int len, const char *buf)
     if (r->offset > -1 && r->offset != fs->offset) {
 	if (lseek(fs->fd, r->offset, SEEK_SET) < 0) {
 	    DEBUG(1) {
-		fprintf(stderr, "%d FD %d, offset %d: ", (int) mypid, fs->fd, r->offset);
+		fprintf(stderr, "%d FD %d, offset %" PRINTF_OFF_T ": ", (int) mypid, fs->fd, (squid_off_t) r->offset);
 		perror("lseek");
 	    }
 	}
     }
     DEBUG(2)
-	fprintf(stderr, "%d WRITE %d,%d,%d\n", (int) mypid,
-	fs->fd, wrtlen, r->offset);
+	fprintf(stderr, "%d WRITE %d,%d,%" PRINTF_OFF_T "\n", (int) mypid,
+	fs->fd, wrtlen, (squid_off_t) r->offset);
     x = write(fs->fd, buf, wrtlen);
     if (x < 0) {
 	DEBUG(1) {

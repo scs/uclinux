@@ -4,9 +4,9 @@
 
 if(description)
 {
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.9 $");
  script_id(11531);
- script_bugtraq_id(7313, 7310, 7309);
+ script_bugtraq_id(7309, 7310, 7313);
  
  name["english"] = "PHPay Information Disclosure";
 
@@ -40,11 +40,12 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
                 francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_require_ports("Services/www", 80);
- script_dependencies("http_version.nasl", "no404.nasl");
+ script_exclude_keys("Settings/disable_cgi_scanning");
+ script_dependencies("http_version.nasl", "http_version.nasl");
  exit(0);
 }
 
@@ -54,12 +55,14 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port=80;
+port = get_http_port(default:80);
+
+if ( ! get_port_state(port) ) exit(0);
+if ( ! can_host_php(port:port) ) exit(0);
 
 
 
-foreach dir (make_list("", "/phpay", cgi_dirs()))
+foreach dir (make_list("/phpay", cgi_dirs()))
 {
  req = http_get(item:string(dir, "/admin/phpinfo.php"), port:port);
  res = http_keepalive_send_recv(port:port, data:req);

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10471);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1452);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2000-0640");
  
  name["english"] = "Guild FTPd tells if a given file exists";
@@ -88,9 +88,9 @@ if(!get_port_state(port)) exit(0);
  {
   if(login)
   {
-  if(ftp_log_in(socket:soc, user:login, pass:pass))
+  if(ftp_authenticate(socket:soc, user:login, pass:pass))
    {
-    pasv_port = ftp_get_pasv_port(socket:soc);
+    pasv_port = ftp_pasv(socket:soc);
     soc2 = open_sock_tcp(pasv_port, transport:get_port_transport(port));
     req = string("RETR ../../../../../../nonexistent_at_all.txt\r\n");
   
@@ -101,7 +101,7 @@ if(!get_port_state(port)) exit(0);
     {
     
      close(soc2);
-     pasv_port = ftp_get_pasv_port(socket:soc);
+     pasv_port = ftp_pasv(socket:soc);
      soc2 = open_sock_tcp(pasv_port, transport:get_port_transport(port));
      req = string("RETR ../../../../../../../../autoexec.bat\r\n");
      send(socket:soc, data:req);
@@ -129,7 +129,7 @@ r = get_ftp_banner(port: port);
   if("GuildFTPD" >< r)
   {
    r = strstr(r, "Version ");
-   if(ereg(string:r, pattern:".*Version 0\.([0-8].*|9[0-7]).*"))
+   if(egrep(string:r, pattern:".*Version 0\.([0-8].*|9[0-7]).*"))
   {
     security_warning(port);
   }

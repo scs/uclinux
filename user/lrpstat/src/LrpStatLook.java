@@ -21,9 +21,9 @@ import java.awt.Image;
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-// $Revision$
-// $Author$
-// $Header$
+// $Revision: 1.10 $
+// $Author: hejl $
+// $Header: /home/cvs/lrpStat/src/LrpStatLook.java,v 1.10 2002/04/10 19:46:22 hejl Exp $
 
 /**
  * Class that keeps info about the desired look

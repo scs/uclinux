@@ -8,7 +8,7 @@
 if (description)
 {
  script_id(11482);
-
+ script_version("$Revision$");
  script_name(english:"Post-Nuke information disclosure");
  desc["english"] = "
 The remote host is running post-nuke. It is possible to use it
@@ -29,7 +29,7 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  script_family(english:"CGI abuses", francais:"Abus de CGI");
  script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison");
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("postnuke_detect.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -38,23 +38,19 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
+port = get_http_port(default:80);
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+kb = get_kb_item("www/" + port + "/postnuke" );
+if ( ! kb ) exit(0);
+stuff = eregmatch(pattern:"(.*) under (.*)", string:kb );
+dir = stuff[2];
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
-foreach dir (make_list("", "/post-nuke", "/pn", cgi_dirs()))
-{
- req = http_get(item:string(dir, "/modules.php?op=modload&name=Members_List&file=index&letter=All&sortby=foobar"),
- 		port:port);
- res = http_keepalive_send_recv(port:port, data:req);
- if(res == NULL ) exit(0);
+req = http_get(item:string(dir, "/modules.php?op=modload&name=Members_List&file=index&letter=All&sortby=foobar"), port:port);
+res = http_keepalive_send_recv(port:port, data:req);
+if(res == NULL ) exit(0);
  
- if("Program: /" >< res &&
-    "Database: " >< res &&
-    "Unknown column 'foobar'" >< res)
-    	{
+if("Program: /" >< res && "Database: " >< res && "Unknown column 'foobar'" >< res)
     	security_warning(port);
-	exit(0);
-	}
-}

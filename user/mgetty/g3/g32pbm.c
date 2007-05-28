@@ -1,4 +1,4 @@
-#ident "$Id$ (c) Gert Doering, Chris Lewis et.al."
+#ident "$Id: g32pbm.c,v 4.3 1998/06/01 12:00:09 gert Exp $ (c) Gert Doering, Chris Lewis et.al."
 
 /* G32pbm.c
  *

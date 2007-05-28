@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sl_funcs.h,v 1.12 2002/10/21 20:30:15 jiri Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

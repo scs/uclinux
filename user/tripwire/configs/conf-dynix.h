@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-dynix.h,v 1.2 1993/08/19 05:26:54 genek Exp $ */
 
 /*
  * conf-dynix.h

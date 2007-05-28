@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: ins_list.h,v 1.6.8.1 2004/07/21 10:34:45 sobomax Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

@@ -1,7 +1,7 @@
 /*
  * Presence Agent, subscribe handling
  *
- * $Id$
+ * $Id: subscribe.c,v 1.10.4.1.2.1 2004/07/02 15:32:56 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

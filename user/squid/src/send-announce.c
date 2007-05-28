@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: send-announce.c,v 1.62 2001/04/14 00:03:23 hno Exp $
  *
  * DEBUG: section 27    Cache Announcer
  * AUTHOR: Duane Wessels

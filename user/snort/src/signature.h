@@ -79,6 +79,14 @@ void ParseSID(char *sid, struct _OptTreeNode *otn);
 void ParseRev(char *sid, struct _OptTreeNode *otn);
 
 
+/*
+ *  sid-gid -> otn mapping
+ */
+typedef struct {
+   u_int32_t generator;
+   u_int32_t id;
+}sg_otn_key_t;
+
 typedef struct _SigInfo
 {
     u_int32_t generator;
@@ -89,9 +97,12 @@ typedef struct _SigInfo
     u_int32_t priority;
     char *message;
     ReferenceNode *refs;
+    int            shared;
+    sg_otn_key_t otnKey;
 } SigInfo;
 
-
-
+struct _OptTreeNode * soid_sg_otn_lookup( u_int32_t gid, u_int32_t sid );
+struct _OptTreeNode * soid_sg_otn_lookup_next( u_int32_t gid, u_int32_t sid );
+struct _OptTreeNode * otn_lookup( u_int32_t gid, u_int32_t sid );
 
 #endif /* SIGNATURE */

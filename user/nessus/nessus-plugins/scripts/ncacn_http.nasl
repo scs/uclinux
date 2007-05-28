@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10761);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "Detect CIS ports";
  script_name(english:name["english"]);
  
@@ -56,6 +56,6 @@ key = string("ncacn_http/banner/", port);
 banner = get_kb_item(key);
 if(banner)
 {
- data = string("There is a CIS (COM+ Internet Services) on this port\nServer banner :\n", banner);
- security_warning(port:port, data:data);
+ data = string("A CIS (COM+ Internet Services) server is listening on this port\nServer banner :\n", banner);
+ security_note(port:port, data:data);
 }

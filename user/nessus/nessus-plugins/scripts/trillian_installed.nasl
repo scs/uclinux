@@ -7,11 +7,11 @@
 if(description)
 {
  script_id(11428);
-
  script_bugtraq_id(5677, 5733, 5755, 5765, 5769, 5775, 5776, 5777, 5783);
+
  # no cve_id
  
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "Trillian is installed";
 
@@ -38,22 +38,13 @@ Risk factor : Low";
  family["english"] = "Peer-To-Peer File Sharing";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/domain","SMB/transport");
-
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
 
-include("smb_nt.inc");
 
+rootfile = get_kb_item("SMB/Registry/HKLM/SOFTWARE/Microsoft/Windows/CurrentVersion/Uninstall/Trillian/DisplayName");
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\CurrentVersion\Uninstall\Trillian", item:"DisplayName");
-if(rootfile)
-{
- security_note(get_kb_item("SMB/transport"));
-}
-
+if(rootfile) security_note(get_kb_item("SMB/transport")); 

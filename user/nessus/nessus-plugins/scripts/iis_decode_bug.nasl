@@ -11,8 +11,9 @@
 if(description)
 {
  script_id(10671);
- script_version ("$Revision: 1.24 $");
- script_bugtraq_id(2708);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0006");
+ script_bugtraq_id(2708, 3193);
+ script_version ("$Revision: 1.32 $");
  script_cve_id("CVE-2001-0507", "CVE-2001-0333");
 
  name["english"] = "IIS Remote Command Execution";
@@ -29,7 +30,7 @@ Thus, a specially crafted request could allow an attacker to
 execute arbitrary commands on the IIS Server.
 
 Solution:  See MS advisory MS01-026(Superseded by ms01-044)
-See http://www.microsoft.com/technet/security/bulletin/ms01-044.asp
+See http://www.microsoft.com/technet/security/bulletin/ms01-044.mspx
 
 Risk factor : High";
 
@@ -40,19 +41,20 @@ Risk factor : High";
  script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
  script_copyright(english:"This script is Copyright (C) 2001 Matt Moore / H D Moore");
- family["english"] = "CGI abuses";
- script_family(english:family["english"], francais:"Abus de CGI");
- script_dependencie("find_service.nes", "http_version.nasl");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+banner = get_http_banner(port:port);
+if ( "Microsoft/IIS" >!< banner ) exit(0);
 
 if(!get_port_state(port))exit(0);
 

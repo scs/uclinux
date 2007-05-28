@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_to.c,v 1.17 2003/09/10 12:07:43 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10574);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1773);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-0919");
  
  name["english"] = "PHPix directory traversal vulnerability";
@@ -23,7 +23,7 @@ will return all the files that are nested within /etc directory.
 
 Solution: Contact your vendor for the latest software release.
 
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -36,7 +36,7 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -46,23 +46,17 @@ Risk factor : Serious";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
- soc = http_open_socket(port);
- if(soc)
- {
-  buf = http_get(item:string("/Album/?mode=album&album=..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc&dispsize=640&start=0"),
-	 port:port);
-  send(socket:soc, data:buf);
-  rep = http_recv(socket:soc);
-  http_close_socket(soc);
+  buf = http_get(item:string("/Album/?mode=album&album=..%2F..%2F..%2F..%2F..%2F..%2F..%2F..%2Fetc&dispsize=640&start=0"), port:port);
+  rep = http_keepalive_send_recv(port:port, data:buf);
   if("Prev 20" >< rep)
   	{
 	if(("group" >< rep) && ("passwd" >< rep))
          	security_hole(port);
 	}
- }
 }

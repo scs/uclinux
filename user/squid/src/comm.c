@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: comm.c,v 1.324.2.5 2005/02/13 05:53:56 hno Exp $
  *
  * DEBUG: section 5     Socket Functions
  * AUTHOR: Harvest Derived
@@ -271,7 +271,6 @@ commConnectStart(int fd, const char *host, u_short port, CNCB * callback, void *
     cs->data = data;
     cbdataLock(cs->data);
     comm_add_close_handler(fd, commConnectFree, cs);
-    xstrncpy(fd_table[fd].pconn_name, host, SQUIDHOSTNAMELEN);
     ipcache_nbgethostbyname(host, commConnectDnsHandle, cs);
 }
 
@@ -411,8 +410,6 @@ commConnectHandle(int fd, void *data)
 	cs->S.sin_family = AF_INET;
 	cs->S.sin_addr = cs->in_addr;
 	cs->S.sin_port = htons(cs->port);
-	if (Config.onoff.log_fqdn)
-	    fqdncache_gethostbyaddr(cs->S.sin_addr, FQDN_LOOKUP_IF_MISS);
     }
     switch (comm_connect_addr(fd, &cs->S)) {
     case COMM_INPROGRESS:

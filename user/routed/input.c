@@ -36,7 +36,7 @@
  * From: @(#)input.c	8.1 (Berkeley) 6/5/93
  */
 char input_rcsid[] = 
-  "$Id$";
+  "$Id: input.c,v 1.8 1999/08/01 19:19:16 dholland Exp $";
 
 
 /*

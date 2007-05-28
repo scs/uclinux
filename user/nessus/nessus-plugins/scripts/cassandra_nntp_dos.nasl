@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10388);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(1156);
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CVE-2000-0341");
  name["english"] = "Cassandra NNTP Server DoS";
  name["francais"] = "Déni de service contre le serveur de news Cassandra";
@@ -21,7 +21,7 @@ giving a too long argument to the 'AUTHINFO USER'
 command.
 
 Solution : contact your vendor for a fix
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Il s'est avéré possible de désactiver le serveur
@@ -48,7 +48,7 @@ Facteur de risque : Sérieux";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("find_service_3digits.nasl");
  script_require_ports("Services/nntp", 119);
  
  exit(0);

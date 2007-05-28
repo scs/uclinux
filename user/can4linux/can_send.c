@@ -3,11 +3,12 @@
 *  send messages commissioned via command line
 * 
 * To do:
-* - more sequences for -t 
+* - weitere testsequencen
+* - steuerung der Bitrate beim Start
 * - -debug schaltet mit debug level auch Treiber in debug mode
 * - ..
-* - do configuration of test with a special file format (can_send.rc)
-* - use nanosleep() see test3() ?
+* - Konfiguration über config-datei
+* - nanosleep() siehe test3()
 */
 
 #include <sys/types.h>
@@ -16,10 +17,9 @@
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stddef.h>
 #include <string.h>
 #include <signal.h>
-#include <sys/time.h>
+/* #include <sys/time.h> */
 #include <time.h>
 #include <sys/ioctl.h>
 
@@ -31,16 +31,12 @@
 #include <errno.h>
 #include "can4linux.h"
 
+#define    DEBUG_NONE  ioctl(can_fd, CAN_DEBUG_LEVEL, CAN_DEBUG_NONE)
+#define    DEBUG_SOME  ioctl(can_fd, CAN_DEBUG_LEVEL, CAN_DEBUG_SOME)
+#define    DEBUG_ALL   ioctl(can_fd, CAN_DEBUG_LEVEL, CAN_DEBUG_ALL)
+
 #define STDDEV "/dev/can1"
-
-
-
-#if defined(EMBED)
-#define STDDEV "/dev/can0"
-#else
-#define STDDEV "/dev/can1"
-#endif
-#define VERSION "1.7"
+#define VERSION "1.6"
 
 #ifndef TRUE
 # define TRUE  1
@@ -76,7 +72,6 @@ void test10(void);
 void test11(void);
 void test12(void);
 void test20(void);
-void test30(void);
 
 /***********************************************************************
 *
@@ -99,18 +94,33 @@ volatile Command_par_t cmd;
 
 
     cmd.cmd = CMD_STOP;
-    ioctl(fd, CAN_IOCTL_COMMAND, &cmd);
+    ioctl(fd, COMMAND, &cmd);
 
     cfg.target = CONF_TIMING; 
     cfg.val1   = baud;
-    ioctl(fd, CAN_IOCTL_CONFIG, &cfg);
+    ioctl(fd, CONFIG, &cfg);
 
     cmd.cmd = CMD_START;
-    ioctl(fd, CAN_IOCTL_COMMAND, &cmd);
+    ioctl(fd, COMMAND, &cmd);
     return 0;
 }
 
-#include "getstat.c"
+/*  */
+void getStat(void)
+{
+CanStatusPar_t status;
+    ioctl(can_fd, STATUS, &status);
+    printf(":: %02x %d %d %d %02x | %d | r%d t%d\n",
+    	status.status,
+    	status.error_warning_limit,
+    	status.rx_errors,
+    	status.tx_errors,
+    	status.error_code,
+    	status.rx_buffer_size,
+    	status.rx_buffer_used,
+    	status.tx_buffer_used
+    	);
+}
 
 int can_reset( void ) {
 
@@ -119,7 +129,7 @@ volatile Command_par_t cmd;
 
 
     cmd.cmd = CMD_RESET;
-    ret = ioctl(can_fd, CAN_IOCTL_COMMAND, &cmd);
+    ret = ioctl(can_fd, COMMAND, &cmd);
 
     return ret;
 }
@@ -136,11 +146,10 @@ int cnt;
 int c;
 char *pname;
 extern char *optarg;
-extern int optind;
+extern int optind, opterr, optopt;
 char device[40] = STDDEV;
 int max_priority;
 int increment = 0;
-long int test_count = 0;
 
     pname = *argv;
 
@@ -164,7 +173,6 @@ long int test_count = 0;
     message.data[6] = 7;
     message.data[7] = 0xaa;
 
-    /* parse command line */
     while ((c = getopt(argc, argv, "b:dehl:rp:s:n:D:t:T:VR")) != EOF) {
 	switch (c) {
 	    case 'r':
@@ -180,9 +188,9 @@ long int test_count = 0;
 		load = atoi(optarg);
 		doload = TRUE;
 		break;
+#ifdef USE_RT_SCHEDULING
 	    case 'p':
 	        {
-#ifdef USE_RT_SCHEDULING
 	        struct sched_param mysched;
 		    priority = atoi(optarg);
 		    if (priority < 0 ) {
@@ -204,9 +212,9 @@ long int test_count = 0;
 		    if ( debug == TRUE ) {
 			printf("mlockall() = %d\n", ret);
 		    }
-#endif
 		}
 		break;
+#endif
 	    case 's':
 		sleeptime = atoi(optarg);
 		break;
@@ -217,14 +225,6 @@ long int test_count = 0;
 	    case 'D':
 	        if (0 == strcmp(optarg, "stdout")) {
 	            cstdout = TRUE;
-		} else if (
-		    /* path ist starting with '.' or '/', use it as it is */
-			optarg[0] == '.'
-			|| 
-			optarg[0] == '/'
-			) {
-		    sprintf(device, "%s", optarg);
-
 	        } else {
 		    sprintf(device, "/dev/%s", optarg);
 		}
@@ -252,7 +252,6 @@ long int test_count = 0;
     }
 
 
-    /* look for additional arguments given on the command line */
     if ( argc - optind > 0 ) {
         /* at least one additional argument, the message id is given */
 	message.id =  strtol(argv[optind++], NULL, 0);
@@ -277,9 +276,8 @@ long int test_count = 0;
     if ( debug == TRUE ) {
 
 	printf("can_send V " VERSION ", " __DATE__ "\n");
-	printf("(c) 1996-2006 port GmbH\n");
+	printf("(c) 1996-2003 port GmbH\n");
 	printf(" using canmsg_t with %d bytes\n", sizeof(canmsg_t));
-	printf("  data at offset %d\n", offsetof(canmsg_t, data));
 	printf(" max process priority is \"-p %d\"\n", max_priority);
 	if (stresstest) {
 	    printf("should send one of the test sequences\n");
@@ -346,9 +344,8 @@ long int test_count = 0;
 	    case 10: test10(); exit(0); break;
 	    case 11: test11(); exit(0); break;
 	    case 12: test12(); exit(0); break;
-	    case 30: test30(); exit(0); break;
 	    default:
-	    fprintf(stderr, "test type %d is not defined\n", testtype);
+	    fprintf(stderr, "test type %d is not defined\n", testtype); break;
 	    exit(0); break;
 	}
     }
@@ -375,16 +372,10 @@ long int test_count = 0;
 	} else {
 	}
 	if ( debug == TRUE ) {
-	     showCANStat(can_fd);
+	     getStat();
  	}
 	if (sleeptime > 0) usleep(sleeptime);
 	message.id += increment;
-
-	if (++test_count == test_count_soll) {
-	    break;
-	}
-
-
     }
     while(sleeptime > 0);
 
@@ -425,10 +416,9 @@ int i;
 void usage(char *s)
 {
 static char *usage_text  = "\
- if optional id is not specified, 100 (0x64) is used\n\
- and 8 data bytes are used to construct a mesage.\n\
- Id and date can be given decimal (100) or hex 0x64\n\
-Options:\n\
+ ist optional id nicht angegeben wird 100 benutzt\n\
+ sind keine Daten angegeben, werden max 8 ausgegeben\n\
+ eingabe dezimal 100 or hex 0x64\n\
 -r send message as rtr message.\n\
 -e send message in extended message format.\n\
 -l load try to reach this bus load, given in %\n\
@@ -441,25 +431,22 @@ Options:\n\
 "\
 -t type \n\
    1 Stresstest für Knoten, Sendet Bursts von kurzen rtr messages\n\
-   2 transmit bursts of 5 data frames, same ID\n\
-   3 transmit bursts of 5 data frames, different ID\n\
-     frame 5 contains counter variable\n\
+   2 sendet bursts von 5 Daten Messages, gleiche ID\n\
+   3 sendet bursts von 5 Daten Messages, unterschiedliche ID\n\
+     message 5 enthält counter \n\
    4 as without this option, but incremnts CAN-ID with each message\n\
-   10 transmit bursts of 9 data frames, used for communication verification\n\
-   11 transmit -T number of frames as fast as possible, write(fd, buf, 1)\n\
-      if transmit buffer is full, sleep for -s ms time. \n\
-      if == 0: don't sleep, poll\n\
-      after every frame the message-id will be incremented\n\
+   10 sendet bursts von 9 Daten Messages, für Comm. Verification\n\
+   11 send -T number of messages as fast as possible, if transmit buffer\n\
+      is full, sleep for -s ms time. time == 0:don't sleep, poll\n\
+      after every message the messageid will increment\n\
    12 same as 11\n\
-      but the message-id is constant and the databytes will be incremented\n\
-   30 transmit consecutive messages with the same id\n\
-      -T specifies the muber of messages in this burst\n\
--R   reset CAN Controller only, exit() program after reset\n\
--T   number of bursts, time distance -s n (for -t<n>)\n\
--V   print program version\n\
+      but the message id is constant and the databytes will be increment\n\
+-R   setzt nur CAN Controller zurück, danach exit()\n\
+-T   Anzahl der Bursts, Abstand -s n (für -t)\n\
+-V   version\n\
 \n\
 ";
-    fprintf(stderr, "usage: %s [options] [id [ byte ..]]\n", s);
+    fprintf(stderr, "usage: %s options [id [ byte ..]]\n", s);
     fprintf(stderr, usage_text);
 
 
@@ -541,7 +528,6 @@ int ret;
 	}
     }
     while ( sleeptime > 0 );
-    sleep(1);
 }
 
 /* test2:
@@ -618,18 +604,7 @@ unsigned int cnt = 0;
     tm[4].cob = 0;
     tm[4].length = 4;
     tm[4].flags = 0;
-
-    /* currently data[] starts at offset 22 within canmsg_t
-     * Therfore a misalignment bus error is generated on some
-     * targets where a 4 byte value like cnt must be 4 byte aligned.
-     * The following code does not work in this machines
-     *
-     * *(unsigned int *)&tm[4].data[0] = cnt++
-     */
-     
-    *(unsigned short *)&tm[4].data[0] = cnt & 0xffff;
-    *(unsigned short *)&tm[4].data[2] = (cnt & 0xfffff) >> 16;
-    cnt++;
+    *(unsigned int *)&tm[4].data[0] = cnt++;
 
     if (extd) {
 	tm[4].flags |= MSG_EXT;
@@ -651,10 +626,7 @@ unsigned int cnt = 0;
 	    }
 	}
 
-	/* *(unsigned int *)&tm[4].data[0] = cnt++; */
-	*(unsigned short *)&tm[4].data[0] = cnt & 0xffff;
-	*(unsigned short *)&tm[4].data[2] = (cnt & 0xfffff) >> 16;
-	cnt++;
+	*(unsigned int *)&tm[4].data[0] = cnt++;
 	if (++test_count == test_count_soll) {
 	    break;
 	}
@@ -664,7 +636,6 @@ unsigned int cnt = 0;
 	}
     }
     while(sleeptime > 0);
-    sleep(1);
 }
 
 /* test3:
@@ -746,10 +717,7 @@ struct timespec req;
     tm[4].cob = 0;
     tm[4].length = 4;
     tm[4].flags = 0;
-    /* *(unsigned int *)&tm[4].data[0] = cnt++; */
-    *(unsigned short *)&tm[4].data[0] = cnt & 0xffff;
-    *(unsigned short *)&tm[4].data[2] = (cnt & 0xfffff) >> 16;
-    cnt++;
+    *(unsigned int *)&tm[4].data[0] = cnt++;
 
     if (extd) {
 	tm[4].flags |= MSG_EXT;
@@ -785,16 +753,13 @@ struct timespec req;
 	    }
 	}
 
-	*(unsigned short *)&tm[4].data[0] = cnt & 0xffff;
-	*(unsigned short *)&tm[4].data[2] = (cnt & 0xfffff) >> 16;
-	cnt++;
-
+	*(unsigned int *)&tm[4].data[0] = cnt++;
 	if (++test_count == test_count_soll) {
 	    break;
 	}
 
 	if ( debug == TRUE ) {
-	    showCANStat(can_fd);
+	    getStat();
 	}
 
 	if (sleeptime > 0) {
@@ -813,7 +778,6 @@ struct timespec req;
 	}
     }
     while(sleeptime > 0);
-    sleep(1);
 }
 
 
@@ -865,11 +829,8 @@ int i;
     for (i = 0; i < SEQN; i++) {
         char *p;
         p = &((m + i)->data[0]);
-#if defined(EMBED)
-	*(unsigned short *)p += 1;
-#else
+
 	*(unsigned long long *)p += 1;
-#endif
     }
 }
 
@@ -930,7 +891,7 @@ canmsg_t tm[SEQN] =  {
 		}
 	    }
 	    if ( debug == TRUE ) {
-		showCANStat(can_fd);
+		getStat();
 	    }
 	    seq -= ret;
 	    start += ret;
@@ -965,6 +926,7 @@ void test20(void)
 int n, i, test_count;
 int run;
 int ret;
+// int bits;		/* bits per message */
 
     /* first assume we have only 11 bit and 8 data bytes */
     /* 1 Message = 120 bits */
@@ -974,14 +936,12 @@ int ret;
     n = n * load / 100;
 
     test_count = 0;
-    printf("send %ld messages, %d messages  every 20 ms cycle \n",
+    printf("send %ld mesages, %d messages  every 20 ms cycle \n",
     	test_count_soll, n);
 
     /* printf("soll %ld \n", test_count_soll); */
     sleeptime = 19000;
-    run = 0;
     run = TRUE;
-
     while(run) {
 	for(i = 0; i < n; i++) {
 	    ret = write(can_fd, &message, 1);
@@ -1000,7 +960,7 @@ int ret;
 	    }
 	    /* printf("  count %d \n", test_count); */
 	}
-	usleep(sleeptime);
+	/* usleep(sleeptime); */
     }
 
 }
@@ -1042,15 +1002,13 @@ int ret;
 		goto again;
 	    /* } */
 	} else if (ret != 1) {
-	    /* write buffer full? try it again */
-	    /* fprintf(stderr, "transmitted %d from 1\n", ret); */
-	    /* Only if buffer full, sleep a while if specified */
+	    fprintf(stderr, "transmitted %d from 1\n", ret);
 		if (sleeptime) { usleep(sleeptime);  }
 		goto again;
 	} else {
 	}
 	if ( debug == TRUE )
-	     showCANStat(can_fd);
+	     getStat();
 	message.id = message.id++ % 2000;
     }
     while(++test_count != test_count_soll);
@@ -1084,22 +1042,9 @@ int ret;
     	message.data[3] = (test_count >> 24) % 0x100;
     again:
         if ( debug == TRUE ) {
-	     printf(" %6ld: transmit message %ld\n",
-	     	test_count, message.id );
+	     printf(" transmit message %ld\n", message.id );
 	 }
-#if 0
-	gettimeofday(&tstamp, NULL);
-	printf("%12lu.%06lu >", tstamp.tv_sec, tstamp.tv_usec);
-	showCANStat(can_fd);
-#endif
 	ret = write(can_fd, &message, 1);
-#if 0
-	gettimeofday(&tstamp, NULL);
-	printf("%12lu.%06lu <", tstamp.tv_sec, tstamp.tv_usec);
-	showCANStat(can_fd);
-	fputs("\n", stdout);
-#endif
-
 	if (ret == -1) {
 	    /* int e = errno; */
 	    perror("write error");
@@ -1109,141 +1054,14 @@ int ret;
 		goto again;
 	    /* } */
 	} else if (ret != 1) {
-	    /* fprintf(stdout, "transmitted %d from 1\n", ret); */
+	    /* fprintf(stderr, "transmitted %d from 1\n", ret); */
 		if (sleeptime) { usleep(sleeptime);  }
 		goto again;
 	} else {
 	}
 	if ( debug == TRUE )
-	     showCANStat(can_fd);
+	     getStat();
     }
     while(++test_count != test_count_soll);
     usleep(1000000);
-}
-
-void test30(void)
-{
-/* long int test_count = 0; */
-/* unsigned int cnt = 0; */
-
-#define MAXTESTMSG 5
-canmsg_t tm[MAXTESTMSG];
-int ret;
-
- /* shold be malloced  here according to the variable 
-	    test_count_soll
-    and all messages initialized in a loop
-    */
-
-    tm[0].id = message.id;
-    tm[0].cob = 0;
-    tm[0].length = 8;
-    tm[0].flags = 0;
-    if (extd) {
-	tm[0].flags |= MSG_EXT;
-    }
-    tm[0].data[0] = 0x55;
-    tm[0].data[1] = 2;
-    tm[0].data[2] = 3;
-    tm[0].data[3] = 4;
-    tm[0].data[4] = 5;
-    tm[0].data[5] = 6;
-    tm[0].data[6] = 7;
-    tm[0].data[7] = 0xaa;
-
-    tm[1].id = message.id;
-    tm[1].cob = 0;
-    tm[1].length = 8;
-    tm[1].flags = 0;
-    if (extd) {
-	tm[1].flags |= MSG_EXT;
-    }
-    tm[1].data[0] = 0xaa;
-    tm[1].data[1] = 7;
-    tm[1].data[2] = 6;
-    tm[1].data[3] = 5;
-    tm[1].data[4] = 4;
-    tm[1].data[5] = 3;
-    tm[1].data[6] = 2;
-    tm[1].data[7] = 0x55;
-
-
-    tm[2].id = message.id;
-    tm[2].cob = 0;
-    tm[2].length = 8;
-    tm[2].flags = 0;
-    if (extd) {
-	tm[2].flags |= MSG_EXT;
-    }
-    tm[2].data[0] = 0xaa;
-    tm[2].data[1] = 7;
-    tm[2].data[2] = 6;
-    tm[2].data[3] = 5;
-    tm[2].data[4] = 4;
-    tm[2].data[5] = 3;
-    tm[2].data[6] = 2;
-    tm[2].data[7] = 0x55;
-
-
-    tm[3].id = message.id;
-    tm[3].cob = 0;
-    tm[3].length = 8;
-    tm[3].flags = 0;
-    if (extd) {
-	tm[3].flags |= MSG_EXT;
-    }
-    tm[3].data[0] = 0xaa;
-    tm[3].data[1] = 7;
-    tm[3].data[2] = 6;
-    tm[3].data[3] = 5;
-    tm[3].data[4] = 4;
-    tm[3].data[5] = 3;
-    tm[3].data[6] = 2;
-    tm[3].data[7] = 0x55;
-
-    tm[4].id = message.id;
-    tm[4].cob = 0;
-    tm[4].length = 8;
-    tm[4].flags = 0;
-    if (extd) {
-	tm[4].flags |= MSG_EXT;
-    }
-    tm[4].data[0] = 0xaa;
-    tm[4].data[1] = 7;
-    tm[4].data[2] = 6;
-    tm[4].data[3] = 5;
-    tm[4].data[4] = 4;
-    tm[4].data[5] = 3;
-    tm[4].data[6] = 2;
-    tm[4].data[7] = 0x55;
-
-    if(test_count_soll > MAXTESTMSG)
-	    test_count_soll = MAXTESTMSG;
-
-    do {
-	ret = write(can_fd, &tm[0], test_count_soll);
-	if (ret == -1) {
-	    perror("write error");
-	    usleep(sleeptime); 
-	    continue;
-	} else if (ret == 0) {
-	    printf("transmit timed out\n");
-	    usleep(sleeptime); 
-	    continue;
-	} else {
-	    if ( debug == TRUE ) {
-		printf("transmitted %d\n", ret);
-	    }
-	}
-
-	if ( sleeptime > 0 ) {
-	    usleep(sleeptime);
-	}
-    }
-    while(sleeptime > 0);
-    sleep(1);
-}
-
-void test31(void)
-{
 }

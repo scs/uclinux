@@ -3,7 +3,7 @@
  *
  * This file contains a dummy event routine.
  *
- * $Id$
+ * $Id: no_modem.c,v 1.6 2005/03/13 17:27:44 gert Exp $
  *
  */
 

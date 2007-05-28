@@ -56,6 +56,12 @@
 #define RULE_DROP        14
 #define RULE_SDROP       15
 #define RULE_REJECT      16
+#define RULE_STATE       17
+#ifdef DYNAMIC_PLUGIN
+#define RULE_DYNAMICENGINE 18
+#define RULE_DYNAMICDETECTION 19
+#define RULE_DYNAMICPREPROCESSOR 20
+#endif
 
 #define EXCEPT_SRC_IP  0x01
 #define EXCEPT_DST_IP  0x02
@@ -102,7 +108,11 @@
 #define DST                  1
 
 #ifndef PARSERULE_SIZE
-#define PARSERULE_SIZE	     8192
+#define PARSERULE_SIZE	     65535
+#endif
+
+#ifndef UINT64
+#define UINT64 unsigned long long
 #endif
 
 /*  D A T A  S T R U C T U R E S  *********************************************/
@@ -135,6 +145,8 @@ typedef struct _OptFpList
     int (*OptTestFunc)(Packet *, struct _OptTreeNode *, struct _OptFpList *);
 
     struct _OptFpList *next;
+
+    unsigned char isRelative;
 
 } OptFpList;
 
@@ -210,6 +222,22 @@ typedef struct _OptTreeNode
 
     struct _OptTreeNode *next;
     struct _RuleTreeNode *rtn;
+
+    struct _OptTreeNode *nextSoid;
+
+    u_int8_t failedCheckBits;
+
+    int rule_state; /* Enabled or Disabled */
+
+#ifdef PERF_PROFILING
+    UINT64 ticks;
+    UINT64 ticks_match;
+    UINT64 ticks_no_match;
+    u_int32_t checks;
+    u_int32_t matches;
+    u_int32_t alerts;
+    u_int8_t noalerts; 
+#endif
 
 } OptTreeNode;
 

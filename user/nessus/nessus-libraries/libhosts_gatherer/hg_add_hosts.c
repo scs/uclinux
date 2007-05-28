@@ -112,7 +112,7 @@ static int netmask_to_cidr_netmask(struct in_addr nm)
  return ret;
 }
 
-void
+int
 hg_add_host(globals, hostname)
  struct hg_globals * globals;
  char * hostname;
@@ -132,14 +132,11 @@ hg_add_host(globals, hostname)
  int convs; /* number of conversions made by sscanf */
  char rangehost[20]; /* used to store string representation of ip */
   	 	 	 	
- char comp1[8]="\0"; /* string components */
- char comp2[8]="\0";
- char comp3[8]="\0";
- char comp4[8]="\0";
+ char comp1[8], comp2[8], comp3[8], comp4[8];
  char * reminder;
  int unquote = 0;
  
- 
+ *comp1 = *comp2 = *comp3 = *comp4 = '\0';
  
  t = strchr(hostname, '-');
  if(t != NULL)
@@ -159,8 +156,35 @@ hg_add_host(globals, hostname)
      
       start = hg_resolv(hostname);
       end = hg_resolv(&(t[1]));
-      hg_add_host_with_options(globals, inet_ntoa(start), start, 1, 32, 1, &end);
-      return;
+      
+      if ( globals->flags & HG_DISTRIBUTE )
+        {
+         int jump;
+         unsigned long diff;
+         int i, j;
+         
+         diff = ntohl(end.s_addr) - ntohl(start.s_addr);
+         if ( diff > 255 ) jump = 255;
+         else if ( diff > 128 ) jump = 10;
+         else jump = 1;
+         
+        
+         
+         for ( j = 0 ; j < jump ; j ++ )
+         {
+         for ( i = j ; i <= diff ; i += jump )
+         {
+          struct in_addr ia;
+          ia.s_addr = htonl(ntohl(start.s_addr) + i);
+          if ( ntohl(ia.s_addr) > ntohl(end.s_addr) )break;
+         
+          hg_add_host_with_options(globals, inet_ntoa(ia), ia, 1, 32, 1, &ia);
+         }
+        }
+       }
+      else
+        hg_add_host_with_options(globals, inet_ntoa(start), start, 1, 32, 1, &end);
+      return 0;
      }
    t[0] = '-';  
  }
@@ -175,9 +199,16 @@ next:
 	 unquote++;
 	 goto noranges;
  }
-	 
+ 
+ for (t = hostname; *t != '\0'; t ++)
+   if (! isdigit(*t) && *t != '-' && *t != '.')
+     break;
+
+ if (*t == '\0')
  convs=sscanf(hostname, COMP DOT COMP DOT COMP DOT COMP REMINDER,
  		comp1, comp2, comp3, comp4, reminder);
+ else
+   convs = 0;
 
  free(reminder);
  if (convs != 4) goto noranges; /* there are definitely no ranges here, so
@@ -210,7 +241,7 @@ next:
    }
   }
  }
- return;
+ return 0;
  
 noranges:
  if(unquote)
@@ -270,9 +301,14 @@ noranges:
 	 {
 	  struct in_addr c_end;
   	  struct in_addr c_start;
-	  
+	  int addition;
+          
+          if ( cidr_netmask <= 21 ) addition = 8;
+          else if ( cidr_netmask <= 24 ) addition = 5;
+          else addition = 2;
+          
 	  c_start = first;
-  	  c_end   = cidr_get_last_ip(c_start, cidr_netmask + 2);
+  	  c_end   = cidr_get_last_ip(c_start, cidr_netmask + addition);
   	 
   	  for(;;)
 	  {
@@ -286,7 +322,7 @@ noranges:
 				  c_start, 1, 32, 1,
 				  &c_end);	
    	   c_start.s_addr  = htonl(ntohl(c_end.s_addr) + 2);
-   	   c_end = cidr_get_last_ip(c_start, cidr_netmask + 2);	
+   	   c_end = cidr_get_last_ip(c_start, cidr_netmask + addition);	
 	   c_start.s_addr  = htonl(ntohl(c_start.s_addr) - 1);
 	
 	  if(dobreak) break;			  
@@ -295,7 +331,12 @@ noranges:
 	else hg_add_host_with_options(globals, hostname, first, 1,32,1,&last);
        }
       }
+      else {
+      	free(copy);
+	return -1;
+	}
  free(copy);
+ return 0;
 }
  
  
@@ -305,9 +346,10 @@ noranges:
  * host1/nm,host2/nm,xxx.xxx.xxx.xxx/xxx, ....
  *
  */
-void
-hg_add_comma_delimited_hosts(globals)
+int
+hg_add_comma_delimited_hosts(globals, limit)
  struct hg_globals * globals;
+ int limit;
 {
  char * p, *v;
  int n = 0;
@@ -316,10 +358,10 @@ hg_add_comma_delimited_hosts(globals)
  while(p)
  {
    int len;
-   if(n > 256) /* Don't resolve more than 256 host names in a row */
+   if(limit > 0 && n > limit) /* Don't resolve more than 256 host names in a row */
    {
    globals->marker = p;
-   return;
+   return 0;
    } 
   
   while((*p == ' ')&&(p!='\0'))
@@ -338,7 +380,14 @@ hg_add_comma_delimited_hosts(globals)
   	p[len-1]='\0';
 	len --;
 	}
-  hg_add_host(globals, p);
+  if(hg_add_host(globals, p) <  0)
+  {
+   if ( v != NULL )
+	globals->marker = v + 1;
+   else
+	globals->marker = NULL; 
+   return -1;
+  }
   n ++;
   if(v != NULL)
   	p = v+1;
@@ -347,6 +396,7 @@ hg_add_comma_delimited_hosts(globals)
  }
  
  globals->marker = NULL;
+ return 0;
 }
 
 void

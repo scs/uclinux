@@ -7,7 +7,7 @@ if(description)
 {
 
 script_id(11854);
-script_version ("$Revision: 1.1 $");
+script_version ("$Revision: 1.2 $");
 name["english"] = "FsSniffer Detection";
 script_name(english:name["english"]);
 
@@ -34,7 +34,7 @@ script_category(ACT_GATHER_INFO);
 script_copyright(english:"This script is Copyright (C) 2003 J.Mlodzianowski");
 family["english"] = "Backdoors";
 script_family(english:family["english"]);
-script_dependencie("find_service.nes");
+script_dependencie("find_service2.nasl");
 exit(0);
 }
 
@@ -43,29 +43,5 @@ exit(0);
 # The code starts here
 #
 
-include("misc_func.inc");
-
-#port =  get_kb_item("Services/FsSniffer");
-port = get_kb_item("Services/unknown");
-
-if (!port) exit(0);
-if (known_service(port: port)) exit(0);
-
-soc = open_sock_tcp(port);
-if(!soc) exit(0);
-
-r = recv(socket:soc, min:1, length:30);
-if(!r) exit(0);
-
-if("Control Password:" >< r) 
-{
- if("RemoteNC Control Password:" >< r)
- {
-  if(!get_kb_item("Services/RemoteNC"))
-  {
-   set_kb_item(name:"Services/RemoteNC", value:port);
-   exit(0);
-  }
- }
- security_hole(port);
-}
+port =  get_kb_item("Services/RemoteNC");
+if(port)security_hole(port);

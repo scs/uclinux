@@ -16,7 +16,7 @@
 if(description)
 {
  script_id(11776);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.5 $");
 
  name["english"] = "Carello detection";
 
@@ -31,7 +31,7 @@ to run arbitrary commands on your server.
 *** not checked, so this might be a false alert
 
 Solution : Upgrade to the latest version if necessary
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -54,6 +54,13 @@ Risk factor : Serious";
 # Please note that it is possible to test this vulnerability, but
 # I suspect that Carello is not widely used, and I am lazy :-)
 # 
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("Carello.dll");
-if (port) security_warning(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"Carello.dll", port:port);
+if (res) security_warning(port);

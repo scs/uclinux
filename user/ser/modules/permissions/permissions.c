@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: permissions.c,v 1.3 2003/04/28 14:45:02 tirpi Exp $
  *
  * PERMISSIONS module
  *

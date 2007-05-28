@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: t_ring.c,v 1.3 2005/03/23 09:56:21 gert Exp $
  *
  * test program for mgetty "ring.c"
  *
@@ -7,10 +7,7 @@
  * table driven: 
  *   <input string> <# rings> <dist-ring#> <caller id>
  *
- * $Log$
- * Revision 1.1  2006/08/05 07:31:16  vapier
- * import from upstream uClinux
- *
+ * $Log: t_ring.c,v $
  * Revision 1.3  2005/03/23 09:56:21  gert
  * add test for <DLE>P (handset on-hook)
  *

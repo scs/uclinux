@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: html_quote.c,v 1.4.2.1 2005/02/15 00:27:33 hno Exp $
  * 
  * DEBUG:
  * AUTHOR: Robert Collins
@@ -109,15 +109,6 @@ html_quote(const char *string)
 		escape = htmlstandardentities[i].quote;
 		break;
 	    }
-	}
-	/* Encode control chars just to be on the safe side, and make
-	 * sure all 8-bit characters are encoded to protect from buggy
-	 * clients
-	 */
-	if (!escape && (ch <= 0x1F || ch >= 0x7f) && ch != '\n' && ch != '\r' && ch != '\t') {
-	    static char dec_encoded[7];
-	    snprintf(dec_encoded, sizeof dec_encoded, "&#%3d;", (int) ch);
-	    escape = dec_encoded;
 	}
 	if (escape) {
 	    /* Ok, An escaped form was found above. Use it */

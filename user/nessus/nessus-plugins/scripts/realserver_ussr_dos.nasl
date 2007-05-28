@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10377);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1128);
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CVE-2000-0272");
  
  name["english"] = "RealServer denial of Service";
@@ -54,7 +54,7 @@ Facteur de risque : Moyen";
 function report(count, port)
 {
  if(count)
-   security_hole(port);
+   security_warning(port);
  exit(0);
 } 
 

@@ -1,14 +1,17 @@
-all: build
+
+all: build/build
 	$(MAKE) -C build
 
-build: Makefile
+build/build: Makefile
 	rm -rf build
 	mkdir build
-	(cd build; CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" RANLIB=$(RANLIB) ../configure --host=$(CROSS_COMPILE:-=))
+	(cd build; sh ../configure $(CONFIGURE_OPTS))
+	touch build/build
+
+clean:
+	rm -rf build
 
 romfs:
 	$(ROMFSINST) etc /etc
 	$(ROMFSINST) -e CONFIG_USER_RADVD_RADVD build/radvd /bin/radvd
 	$(ROMFSINST) -e CONFIG_USER_RADVD_RADVD build/radvdump /bin/radvdump
-clean:
-	rm -rf build

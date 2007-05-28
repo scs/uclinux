@@ -5,30 +5,32 @@
 if(description)
 {
  script_id(11830);
- script_version ("$Revision: 1.3 $");
- script_cve_id("CAN-2003-0661");
+ script_version ("$Revision: 1.9 $");
+
+ script_cve_id("CVE-2003-0661");
  script_bugtraq_id(8532);
+ script_xref(name:"OSVDB", value:"2507");
  
  name["english"] = "NetBIOS Name Service Reply Information Leakage";
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host is running a version of the NetBT name
-service which suffers from a memory disclosure problem.
+The remote host is running a version of the NetBT name service which
+suffers from a memory disclosure problem. 
 
 An attacker may send a special packet to the remote NetBT name
-service, and the reply will contain random arbitrary data from 
-the remote host memory. This arbitrary data may be a fragment from
-the web page the remote user is viewing, or something more serious
-like a POP password or anything else.
+service, and the reply will contain random arbitrary data from the
+remote host memory.  This arbitrary data may be a fragment from the
+web page the remote user is viewing, or something more serious like a
+POP password or anything else. 
 
-An attacker may use this flaw to continuously 'poll' the content
-of the memory of the remote host and might be able to obtain sensitive
-information.
+An attacker may use this flaw to continuously 'poll' the content of
+the memory of the remote host and might be able to obtain sensitive
+information. 
 
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms03-034.asp
-Risk Factor : Medium";
+Solution : See http://www.microsoft.com/technet/security/bulletin/ms03-034.mspx
+Risk factor : Medium";
 
 
  script_description(english:desc["english"]);
@@ -38,9 +40,11 @@ Risk Factor : Medium";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
+ script_copyright(english:"This script is Copyright (C) 2003-2006 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
+ script_dependencie("netbios_name_get.nasl");
+ script_require_keys("SMB/NetBIOS/137");
  exit(0);
 }
 

@@ -1,23 +1,37 @@
 #
-# Copyright Tenable Security (C) 2003
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(11821);
  script_bugtraq_id(8439);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "Dropbear SSH server format string vulnerability";
  script_name(english:name["english"]);
  
- desc["english"] = "There is a format string vulnerability in all versions
-of the Dropbear SSH server up to and including version 0.34. An attacker
-may use this flaw to execute arbitrary code on the SSH server.
+ desc["english"] = "
+Synopsis :
 
-Solution: Upgrade to the latest version of the Dropbear SSH server.
+It is possible to execute arbitrary code on the remote host.
 
-Risk factor : High";
+Description :
+
+The remote host is runnning Dropbear SSH.
+
+There is a format string vulnerability in all versions of the Dropbear SSH 
+server up to and including version 0.34. An attacker may use this flaw to 
+execute arbitrary code on the remote host.
+
+Solution : 
+
+Upgrade to the latest version of the Dropbear SSH server.
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -26,11 +40,11 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Tenable Security");
+ script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "General";
  script_family(english:family["english"]);
  script_require_ports("Services/ssh", 22);
- script_dependencies("find_service.nes");
+ script_dependencies("ssh_detect.nasl");
  exit(0);
 }
 
@@ -38,27 +52,14 @@ Risk factor : High";
 # The script code starts here
 #
 
- port = get_kb_item("Services/ssh");
- if (!port) port = 22;
+include("backport.inc");
+port = get_kb_item("Services/ssh");
+if (!port) port = 22;
 
- key = string("ssh/banner/", port);
- banner = get_kb_item(key);
- 
- if (!banner)
- {
-     if (get_port_state(port))
-     {
-         soctcp22 = open_sock_tcp(22);
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
 
-         if (soctcp22)
-         { 
-             banner = recv_line(socket:soctcp22, length:1024);
-             close(soctcp22);
-         }
-     }
- }
-
-banner = tolower(banner);
+banner = tolower(get_backport_banner(banner:banner));
 
 if("dropbear" >< banner)
 {

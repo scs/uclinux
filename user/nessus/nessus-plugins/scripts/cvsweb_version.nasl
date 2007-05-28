@@ -1,66 +1,46 @@
 #
-# This script was written by Noam Rathaus <noamr@securiteam.com>
-#
-# See the Nessus Scripts License for details
-#
-# Changes by rd :
-# - script id
-# - french desc.
-# - more verbose report
-# - hole -> warning
+# (C) Tenable Network Security
 # 
+
+desc["english"] = "
+Synopsis :
+
+The remote web server host the 'cvsweb' CGI
+
+Description :
+
+CVSweb is a web interface for a CVS repository. It allows
+users to browse through the history of the source code of
+a given project.
+
+If you environement contains sensitive source code, the access
+to this CGI should be password protected.
+
+Risk factor :
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
 
 
 
 if(description)
 {
  script_id(10402);
- script_version ("$Revision: 1.14 $");
- 
- name["english"] = "CVSWeb detection";
- name["francais"] = "Detection de CVSWeb";
- script_name(english:name["english"], francais:name["francais"]);
- 
- 
-desc["english"] = "
-CVSWeb is used by hosts to share programming source 
-code. Some web sites are misconfigured and allow access
-to their sensitive source code without any password protection. 
-This plugin tries to detect the presence of a CVSWeb CGI and
-when it finds it, it tries to obtain its version.
+ script_version ("$Revision: 1.17 $");
 
-Risk factor : Low
-Solution : Password protect the CGI if unauthorized access isn't wanted";
+ name["english"] = "CVSweb detection";
+ script_name(english:name["english"]);
+ script_description(english:desc["english"]);
 
-
-
-desc["francais"] = "
-CVSWeb est utilisé pour partager le code source de certains
-programmes par le web. Plusieurs sites web sont mal configurés
-et permettent à n'importe qui d'avoir accès à ce code source,
-sans demander de mot de passe.
-Ce plugin determines la présence de cvsweb et essaye d'en obtenir
-la version
-
-Facteur de risque : Faible
-Solution : protégez par mot de passe the CGI si les accès anonymes ne sont
-pas autorisés";
- script_description(english:desc["english"], francais:desc["francais"]);
- 
- summary["english"] = "Checks if CVSWeb is present and gets its version";
- 
+ summary["english"] = "Determines whether cvsweb.cgi is installed on the remote host";
  script_summary(english:summary["english"]);
- 
  script_category(ACT_GATHER_INFO);
-  
- script_copyright(english:"This script is Copyright (C) 2000 SecuriTeam",
-		francais:"Ce script est Copyright (C) 2000 SecuriTeam");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"],
- 		francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_family(english:family["english"]);
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -71,34 +51,22 @@ pas autorisés";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80 );
+if ( ! port ) exit(0);
 
-foreach dir (cgi_dirs())
+foreach dir ( cgi_dirs() )
 {
- req = string(dir, "/cvsweb.cgi/");
- req = http_get(item:req, port:port);
- result = http_keepalive_send_recv(port:port, data:req);
- if( result == NULL ) exit(0);
- if("CVSweb $Revision:" >< result)
-  {
-   result = strstr(result, string("CVSweb $Revision: "));
-   result = result - strstr(result, string(" $ -->\n"));
-   result = result - "CVSweb $Revision: ";
-   name = string("www/", port, "/cvsweb/version");
-   set_kb_item(name:name, value:result);
-   result = string(
-"\nThe 'cvsweb' cgi is installed.\n",   
-"cvsweb is used to browse the content of a CVS repository\n",
-"It can be used by an intruder to obtain the source of your\n",
-"programs if you keep them secret.\n\n",
-"The installed version of this CGI is : ",  result, "\n\n",
-"Solution : Restrict the access to this CGI using password protection,\n",
-"or disable it if you do not use it\n",
-"Risk factor : Low");
+ req = http_get(item:dir + '/cvsweb.cgi/', port:port);
+ res = http_keepalive_send_recv(port:port, data:req);
+ if ( ! res ) exit(0);
 
-   security_warning(port:port, data: result);
-   exit(0);
-  } 
+ generator = egrep(pattern:'<meta name="generator" content=', string:res);
+ if ( ! generator ) exit(0);
+ if ( "CVSweb" >< generator )
+ {
+   version = ereg_replace(pattern:'.*content="(.*)".*', string:generator, replace:"\1");
+   report = desc["english"] + '\n\nPlugin output:\n\nCVSweb version : ' + version;
+   set_kb_item(name:"www/" + port + "/cvsweb/version", value:version);
+   security_note(port:port, data:report);
+ }
 }

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10060);
- script_version ("$Revision: 1.16 $");
- script_cve_id("CAN-1999-1178");
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-1178");
  name["english"] = "Dumpenv";
  name["francais"] = "Dumpenv";
  script_name(english:name["english"], francais:name["francais"]);
@@ -47,7 +47,7 @@ Facteur de risque : Faible";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -55,7 +55,14 @@ Facteur de risque : Faible";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
 
 cgi = "dumpenv.pl";
-port = is_cgi_installed(cgi);
-if(port)security_warning(port);
+res = is_cgi_installed_ka(item:cgi, port:port);
+if( res )security_warning(port);

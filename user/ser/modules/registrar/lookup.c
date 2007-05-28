@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: lookup.c,v 1.16.2.1.4.1 2004/07/21 09:28:31 janakj Exp $
  *
  * Lookup contacts in usrloc
  *

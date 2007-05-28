@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11369);
- script_cve_id("CVE-2000-0283", "CVE-2000-1193");
  script_bugtraq_id(1106, 4642);
- script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-2000-0283", "CVE-2000-1193");
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "irix performance copilot";
 

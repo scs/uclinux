@@ -12,7 +12,7 @@ if(description)
 {
  script_id(11700);
 
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.5 $");
  name["english"] = "ImageFolio Default Password";
  script_name(english:name["english"]);
  
@@ -28,7 +28,7 @@ In addition to this, the CGI admin.cgi has a bug which may allow
 an attacker to delete arbitrary files owned by the remote web server.
 
 Solution : Change the administrator password
-Risk Factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -44,6 +44,7 @@ Risk Factor : Serious";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -73,11 +74,11 @@ function check(req)
  return(0);
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
 
 
-foreach dir (make_list("", cgi_dirs()))
+
+foreach dir (cgi_dirs())
 {
  check(req:dir + "/admin/admin.cgi");
  exit(0);

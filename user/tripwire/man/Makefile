@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.8 1994/07/25 16:04:37 gkim Exp $
 #
 # Makefile for man pages
 

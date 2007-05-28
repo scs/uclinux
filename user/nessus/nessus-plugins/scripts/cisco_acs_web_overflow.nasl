@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(11556);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7413);
- script_cve_id("CAN-2003-0210");
+ script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2003-0210");
  
  name["english"] = "CISCO Secure ACS Management Interface Login Overflow";
  script_name(english:name["english"]);
@@ -38,7 +38,7 @@ Solution : Cisco has already released a patch for this problem";
  script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi");
  family["english"] = "CISCO";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www",2002);
  exit(0);
 }
@@ -56,7 +56,7 @@ foreach port (ports)
 {
  if(http_is_dead(port:port) == 0 )
  {
- if(is_cgi_installed(port:port, item:"/login.exe"))
+ if(is_cgi_installed_ka(port:port, item:"/login.exe"))
   {
   req = string("/login.exe?user=", crap(400), "&reply=any&id=1");
   req = http_get(item:req, port:port);

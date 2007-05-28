@@ -8,14 +8,15 @@
 if (description)
 {
  script_id(11912);
- script_cve_id("CAN-2003-0853", "CAN-2003-0854");
+ script_bugtraq_id(8875);
+ script_cve_id("CVE-2003-0853", "CVE-2003-0854");
  if (defined_func("script_xref"))
  {
    script_xref(name: "CONECTIVA", value: "CLA-2003:768");
    script_xref(name: "zone-h", value: "3299");
  }
 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.6 $");
  name["english"] = "wu-ftpd ls -W memory exhaustion";
  script_name(english: name["english"]);
 
@@ -59,9 +60,9 @@ if (! pass) pass = "nessus@example.com";
 soc = open_sock_tcp(port);
 if (!soc) exit(0);
 
-if (! ftp_log_in(socket:soc, user: user, pass: pass)) exit(0);
+if (! ftp_authenticate(socket:soc, user: user, pass: pass)) exit(0);
 
-port2 = ftp_get_pasv_port(socket:soc);
+port2 = ftp_pasv(socket:soc);
 if (!port2)
 {
   ftp_close(socket: soc);
@@ -74,7 +75,7 @@ if (!soc2 || safe_checks())
 {
   send(socket: soc, data: 'LIST -ABCDEFGHIJKLMNOPQRSTUV\r\n');
   r1 = ftp_recv_line(socket:soc);
-  if (ereg(string: r1, pattern: "invalid option|usage:", icase: 1))
+  if (egrep(string: r1, pattern: "invalid option|usage:", icase: 1))
     security_hole(port);
  if(soc2)close(soc2);
  ftp_close(socket: soc);
@@ -97,14 +98,14 @@ if (! alive)
   exit(0);
 }
 
-if (ereg(string: r2, pattern: "exhausted|failed", icase: 1))
+if (egrep(string: r2, pattern: "exhausted|failed", icase: 1))
 {
   security_hole(port);
   exit(0);
 }
 
 soc = open_sock_tcp(port);
-if (! soc || ! ftp_log_in(socket:soc, user: user, pass: pass))
+if (! soc || ! ftp_authenticate(socket:soc, user: user, pass: pass))
   security_hole(port);
 if (soc) ftp_close(socket: soc);
 

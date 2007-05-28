@@ -1,7 +1,7 @@
 /*
  * mangler module
  *
- * $Id$
+ * $Id: common.h,v 1.3 2003/04/16 10:42:29 gabriel Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

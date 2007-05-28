@@ -33,7 +33,7 @@
 #endif
 
 
-#ifdef ENABLE_RESPONSE
+#if defined(ENABLE_RESPONSE) && !defined(ENABLE_RESPONSE2)
 #include <libnet.h>
 
 #include "decode.h"
@@ -435,7 +435,7 @@ int SendICMP_UNREACH(int code, u_long saddr, u_long daddr, Packet * p)
 #ifdef DEBUG
     DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "firing ICMP response packet\n"););
     PrintNetData(stdout, icmp_pkt, sz);
-    ClearDumpBuf();
+    //ClearDumpBuf();
 #endif
     if(libnet_write_ip(nd, icmp_pkt, sz) < sz)
     {
@@ -468,7 +468,7 @@ int SendTCPRST(u_long saddr, u_long daddr, u_short sport, u_short dport,
     
     DEBUG_WRAP(
 	       PrintNetData(stdout, tcp_pkt, sz);
-	       ClearDumpBuf();
+	       //ClearDumpBuf();
 	       DebugMessage(DEBUG_PLUGIN, "firing response packet\n");
 	       DebugMessage(DEBUG_PLUGIN,
                    "0x%lX:%u -> 0x%lX:%d (seq: 0x%lX  ack: 0x%lX)\n",
@@ -483,4 +483,4 @@ int SendTCPRST(u_long saddr, u_long daddr, u_short sport, u_short dport,
     return 0;
 }
 
-#endif
+#endif /* ENABLE_RESPONSE && !ENABLE_RESPONSE2 */

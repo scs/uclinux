@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10804);
-script_cve_id("CAN-2001-0913");
- script_version ("$Revision: 1.6 $");
+script_cve_id("CVE-2001-0913");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "rwhois format string attack (2)";
  script_name(english:name["english"]);

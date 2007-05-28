@@ -1,11 +1,8 @@
-/* $Id$
+/* $Id: V253ugly.c,v 1.1 2005/03/13 18:15:40 gert Exp $
  *
  * V253ugly.c - workaround modem "type" for V.253 modems that can't do AT+IFC
  *
- * $Log$
- * Revision 1.1  2006/08/05 07:32:44  vapier
- * import from upstream uClinux
- *
+ * $Log: V253ugly.c,v $
  * Revision 1.1  2005/03/13 18:15:40  gert
  * Some V.253 modems refuse AT+IFC=... to set flow control -> this modem
  * "driver" works around it by cloning all of V.253 except flow control

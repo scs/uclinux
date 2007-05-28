@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 
-/*   $Log$
- *   Revision 1.2  2005/07/25 04:03:15  magicyang
- *   New user folder check in
- *
+/*   $Log: mawk.h,v $
  *   Revision 1.10  1996/08/25 19:31:04  mike
  *   Added work-around for solaris strtod overflow bug.
  *

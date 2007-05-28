@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10478);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1532);
- script_cve_id("CAN-2000-0760");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2000-0760");
 
  name["english"] = "Tomcat's snoop servlet gives too much information";
  name["francais"] = "Le servlet snoop de Tomcat donne trop d'informations";
@@ -75,10 +75,11 @@ Facteur de risque : Faible";
 #
 
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if(!port)port = 8080;
+port = get_http_port(default:8080);
+if(!port)exit(0);
 
 if(!get_port_state(port))exit(0);
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 
 soc = http_open_socket(port);
 if(soc)

@@ -11,7 +11,7 @@ In order for snort_inline to work properly, you must download and compile
 the iptables code to include "make install-devel" (www.iptables.org).  
 This will install the libipq library that allows snort_inline to interface 
 with iptables.  Also, you must build and install LibNet, which is available
-from www.packetfactory.net. 
+from www.packetfactory.net.
 
 The snort_inline FAQ can be found at http://snort-inline.com/FAQ.html.
 

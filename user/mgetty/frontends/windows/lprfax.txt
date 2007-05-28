@@ -12,4 +12,4 @@ ftp://alpha.greenie.net/pub/mgetty/windows/ (file names "lprfax*").
 
 Gert Doering, April 2001
 
-$Id$
+$Id: lprfax.txt,v 1.1 2001/04/16 09:04:17 gert Exp $

@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tw.h,v 3.21 2000/07/04 19:45:02 christos Exp $ */
 /*
  * tw.h: TwENEX functions headers
  */

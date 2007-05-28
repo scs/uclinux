@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: vm_fifo.c,v 1.7 2003/09/28 17:11:49 rco Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

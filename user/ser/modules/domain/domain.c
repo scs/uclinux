@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: domain.c,v 1.13 2003/04/28 22:05:33 janakj Exp $
  *
  * Domain table related functions
  *

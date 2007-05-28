@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: reg_mod.c,v 1.14.4.3.2.2 2004/07/21 09:28:31 janakj Exp $
  *
  * Registrar module interface
  *

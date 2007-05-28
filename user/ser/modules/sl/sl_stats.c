@@ -1,6 +1,6 @@
 /*
  *
- * $Id$
+ * $Id: sl_stats.c,v 1.9 2003/06/29 20:20:06 jiri Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

@@ -1,6 +1,4 @@
 /*
- * udev_utils.c - generic stuff used by udev
- *
  * Copyright (C) 2004-2005 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -14,7 +12,7 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -28,6 +26,9 @@
 #include <ctype.h>
 #include <dirent.h>
 #include <syslog.h>
+#include <pwd.h>
+#include <grp.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
 
 #include "udev.h"
@@ -161,3 +162,40 @@ int add_matching_files(struct list_head *name_list, const char *dirname, const c
 	closedir(dir);
 	return 0;
 }
+
+uid_t lookup_user(const char *user)
+{
+	struct passwd *pw;
+	uid_t uid = 0;
+
+	errno = 0;
+	pw = getpwnam(user);
+	if (pw == NULL) {
+		if (errno == 0 || errno == ENOENT || errno == ESRCH)
+			err("specified user unknown '%s'", user);
+		else
+			err("error resolving user '%s': %s", user, strerror(errno));
+	} else
+		uid = pw->pw_uid;
+
+	return uid;
+}
+
+extern gid_t lookup_group(const char *group)
+{
+	struct group *gr;
+	gid_t gid = 0;
+
+	errno = 0;
+	gr = getgrnam(group);
+	if (gr == NULL) {
+		if (errno == 0 || errno == ENOENT || errno == ESRCH)
+			err("specified group unknown '%s'", group);
+		else
+			err("error resolving group '%s': %s", group, strerror(errno));
+	} else
+		gid = gr->gr_gid;
+
+	return gid;
+}
+

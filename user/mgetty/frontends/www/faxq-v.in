@@ -4,12 +4,9 @@
 # 
 # Copyright 1998 Simone Demmel simone@greenie.net
 #
-# CVS: $Id$
+# CVS: $Id: faxq-v.in,v 1.7 1998/11/20 15:06:35 gert Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:29:48  vapier
-# import from upstream uClinux
-#
+# $Log: faxq-v.in,v $
 # Revision 1.7  1998/11/20 15:06:35  gert
 # fix HTML syntax in error messages
 #

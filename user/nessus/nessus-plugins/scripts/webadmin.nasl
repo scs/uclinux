@@ -16,11 +16,11 @@
 if(description)
 {
  script_id(11771);
- script_version ("$Revision: 1.2 $");
+ script_bugtraq_id(7438, 7439, 8024);
+ script_cve_id("CVE-2003-0471");
+ script_version ("$Revision: 1.9 $");
 
- name["english"] = "WebAdmin detection";
-
- script_name(english:name["english"]);
+ script_name(english: "webadmin.dll detection");
  
  desc["english"] = "
 webadmin.dll was found on your web server. 
@@ -35,7 +35,7 @@ Old versions of this CGI suffered from numerous problems:
 *** not checked, so this might be a false alert
 
 Solution : Upgrade to the latest version if necessary
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -56,6 +56,12 @@ Risk factor : Serious";
 }
 
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("webadmin.dll");
-if (port) security_warning(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(port:port, item:"webadmin.dll");
+if (res) security_warning(port);

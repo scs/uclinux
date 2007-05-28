@@ -1,4 +1,4 @@
-#ident "@(#)getdisk.c $Id$ Copyright (c) 1994 Elegant Communications Inc."
+#ident "@(#)getdisk.c $Id: getdisk.c,v 4.4 2004/11/08 20:10:27 gert Exp $ Copyright (c) 1994 Elegant Communications Inc."
 
 /*
 

@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10319);
- script_version ("$Revision: 1.25 $");
+ script_version ("$Revision: 1.27 $");
  script_cve_id("CVE-1999-0880");
  
  name["english"] = "wu-ftpd SITE NEWER vulnerability";
@@ -86,7 +86,7 @@ banner = get_ftp_banner(port: port);
 if((!login) || safe_checks())
 {
  if(egrep(pattern:".*wu-((1\..*)|(2\.[0-5])).*",
- 	 string:banner))security_hole(port);
+ 	 string:banner))security_warning(port);
   exit(0);
 }
 
@@ -97,12 +97,12 @@ if((!login) || safe_checks())
 soc = open_sock_tcp(port);
 if(soc)
 {
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
  
   # We are in
  
-  port2 = ftp_get_pasv_port(socket:soc);
+  port2 = ftp_pasv(socket:soc);
   soc2 = open_sock_tcp(port2, transport:get_port_transport(port));
   if(soc2)
   {

@@ -4,7 +4,7 @@
  * pvftowav converts from the pvf (portable voice format) format to the
  * Windows-Format .wav.
  *
- * $Id$
+ * $Id: pvftowav.c,v 1.4 1998/09/09 21:07:55 gert Exp $
  *
  */
 

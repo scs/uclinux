@@ -1,6 +1,6 @@
-Snort Version 2.0.0
+Snort Version 2.6.0
 
-by Martin Roesch (roesch@sourcefire.com)
+by Martin Roesch and The Snort Team (http://www.snort.org/team.html)
 
 Distribution Site:
 http://www.snort.org
@@ -8,7 +8,8 @@ http://www.snort.org
 ******************************************************************************
 COPYRIGHT
 
-Copyright (C)1998-2003 Martin Roesch
+Copyright (C)2001-2006 Sourcefire Inc.
+Copyright (C)1998-2001 Martin Roesch
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -32,29 +33,24 @@ and is copyrighted by the University of California Regents.
 
 DESCRIPTION
 
-Snort is an open source network intrusion detection system, capable  of  
-performing  real-time traffic analysis and packet logging on IP networks.  
-It  can  perform  protocol analysis and content searching/matching in order to
-detect a variety of attacks and  probes, such as buffer overflows, stealth port
-scans, CGI attacks, SMB probes, OS fingerprinting attempts, and much more.  
-Snort uses a flexible rules language to describe traffic that it should collect
-or pass, as well as a detection engine  that  utilizes a modular plugin
-architecture.  Snort has a real- time alerting capability as well, 
-incorporating  alerting mechanisms  for  syslog,  user  specified  files, or a
-UNIX socket.
+Snort is an open source network intrusion detection and prevention system.  It
+is capable of performing real-time traffic analysis, alerting, blocking and 
+packet logging on IP networks.  It utilizes a combination of protocol analysis 
+and pattern matchingin order to detect a anomalies, misuse and attacks.  
+Snort uses a flexible rules language to describe activity that can be considered
+malicious or anomalous as well as an analysis engine that incorporates a 
+modular plugin architecture.  Snort is capable of detecting and responding in
+real-time, sending alerts, performing session sniping, logging packets, or
+dropping sessions/packets when deployed in-line.
 
-Snort  has  three  primary  functional modes.   It  can  be  used as a straight
-packet sniffer like tcpdump(1), a  packet  logger (useful  for network traffic
-debugging, etc), or as a full blown network intrusion detection system.
+Snort has three primary functional modes.  It can be used as a packet sniffer 
+like tcpdump(1), a packet logger (useful for network traffic
+debugging, etc), or as a full blown network intrusion detection and prevention
+system.
 
-Snort logs packets to many formats, including tcpdump(1) binary format or 
-Snort's decoded ASCII format to a hierarchical set of directories that are 
-named based on the IP address of the remote host.
-
-Plugins allow the detection and reporting subsystems to be extended.  Available 
-plugins include database or XML logging, small fragment detection, portscan 
-detection, and HTTP URI normalization, IP defragmentation, TCP stream 
-reassembly and statistical anomaly detection.  
+Please read the snort_manual.pdf file that should be included with this 
+distribution for full documentation on the program as well as a guide to 
+getting started.
 
 
 ******************************************************************************
@@ -73,7 +69,11 @@ Options:
             IP's, and ports to the file.  None turns off alerting.
             There is experimental support for UnixSock alerts 
             that allow alerting to a separate process.  Use the 
-            "unsock" argument to activate this feature.
+            "unsock" argument to activate this feature.  There's also
+            the "cmg" option that prints out the full packet dump
+            with the alert information.  The "console" option prints
+            "fast" mode alerts to stdout, great for testing new rules
+            and debugging preprocessor anomaly detectors.
 
     -b	    Log packets in tcpdump format.  All packets are logged
             in their native binary state to a tcpdump formatted 
@@ -83,18 +83,26 @@ Options:
             converters.  Snort can keep up pretty well with 100Mbps
             networks in "-b" mode.
 
-    -c <cf>	Use configuration file <cf>.  This is the rules file
-            which tells the system what to log, alert on, or pass!
+    -B <mask> Obfuscate IP addresses in alerts and packet dumps using 
+            the provided CIDR mask as a substitution for the destination
+            IP addresses in events.
+
+    -c <cf>	Use configuration file <cf>.  This is puts Snort into IDS mode
+            and it reads the runtime configuration from <cf>.
 
     -C      Dump the ASCII characters in packet payloads only, no
-            hex dump
+            hex dump.
 
-    -d      Dump the application layer data
+    -d      Dump the application layer data.
 
     -D      Run Snort in daemon mode.  Alerts are sent to
             /var/log/snort/alert unless otherwise specified.
 
     -e      Display/log the layer 2 packet header data.
+
+    -E      *WIN32 ONLY* Log alerts to the Windows Event Log.
+
+    -f      Activate PCAP line buffering.
 
     -F <bpf> Read BPF filters from file <bpf>.  Handy for those of
             you running Snort as a SHADOW replacement or with a
@@ -105,8 +113,8 @@ Options:
             it's initialization phase has completed as a security
             measure.
 
-    -G      Ghetto backwards compatibility switch, prints cross reference info
-            in the 1.7 format.  Available modes are basic and url. 
+    -G <id> Set a base event_id value for event generation, useful for
+            unified logging and alerting primarily.
 
     -h <hn>	Set the "home network" to <hn>, which is a class C IP 
             address something like 192.168.1.0 or whatever.  If you
@@ -120,6 +128,9 @@ Options:
 
     -I      Add the interface name to alert printouts (first interface only)
 
+    -J <port> When running in in-line mode on a system with divert sockets
+            this switch will select which <port> to read packets from.
+
     -k <checksum mode>
             Set <checksum mode> to all, noip, notcp, noudp, noicmp, or none.
             Setting this switch modifies the checksum verification subsystem of
@@ -131,6 +142,15 @@ Options:
             improve performance by reducing the amount of time required to 
             inspect a packet.
 
+    -K <logging mode>
+            Set the packet output mode for logging.  There are three modes
+            available, pcap, ascii and none.  Pcap mode is the default, if
+            you don't specify a logging mode pcap is used now.  Pcap format
+            is the same as the -b switch, tcpdump format.  Ascii format is
+            the old default, it logs in the text-based "directories and files"<             format.  Be careful using ascii mode on uncontrolled networks, it
+            can exhaust your filesystem's inodes.  None mode turns off packet
+            logging.
+
     -l <ld> Log packets to directory <ld>.  Sets up a hierarchical
             directory structure with the log directory as the base
             starting directory, and the IP address of the remote
@@ -141,17 +161,13 @@ Options:
           
     -L <fn> Set the binary output file's filename to <fn>.            
 
+    -M      Log messages to syslog when running in non-daemon mode.
+            Has no impact on logging of alerts.
+
     -m <mask> Set the umask for all of Snort's output files to the indicated 
             mask.
 
-    -M <wkstn>  Send WinPopup messages to the list of workstations
-            contained in the <wkstn> file.  This option requires
-            Samba to be resident and in the path of the machine
-            running Snort.  The workstation file is simple: each
-            line of the file contains the SMB name of the box to
-            send the message to (no \\'s needed).
-
-    -n <num> Exit after processing <num> packets.
+    -n <cnt> Exit after processing <cnt> packets.
 
     -N      Turn off logging.  Alerts still function normally.
 
@@ -179,12 +195,13 @@ Options:
 
     -q	    Quiet. Don't show banner and status report.			
 
-    -r <tf>	Read the tcpdump-generated file <tf>.  This will cause
-            Snort to read and process the file fed to it.  This is
-            useful if, for instance, you've got a bunch of Shadow
-            files that you want to process for content, or even if
-            you've got a bunch of reassembled packet fragments
-            which have been written into a tcpdump formatted file.
+    -Q      When running in-line, read packets from iptables/IPQ (on Linux).
+
+    -r <tf>	Read packets from the pcap formatted file <tf>.  This will cause 
+            Snort to read and process the file fed to it as if the file was the
+            network.  This is essentially the same as tcpdump's readback mode.
+
+    -R <name> Add a custom sufffix to the snort pidfile.
 
     -s      Log alert messages to the syslog.  On Linux boxen, they
 	        will appear in /var/log/secure, /var/log/messages on
@@ -224,20 +241,73 @@ Options:
 
     -V      Show the version number and exit.
 
+    -w      If running on a 802.11 network, show management frames.
+
+    -W      *WIN32 ONLY* Enumerate the network interfaces available.
+
     -X      Dump the raw packet data starting at the link layer.
 
     -y      Turn on the year field in packet timestamps.
 
-    -z      Set the assurance mode for Snort alerts.  If the argument is set
-            to "all", all alerts come out of Snort as normal.  If it is set to
-            "est" and the stream4 preprocessor is performing stateful 
-            inspection (i.e. it's default mode), alerts will only be generated
-            for TCP packets that are part of an established session, greatly
-            reducing the noise generated by tools like stick and making Snort
-            more useful in general.
+    -Z <path> Set the perfmon path/filename to <path>.
 
     -?      Show the usage summary and exit.
 
+Longname options and their corresponding single char version
+    --logid <0xid>                 Same as -G
+
+    --perfmon-file <file>          Same as -Z
+
+    --pid-path <path>              Specify the path for the Snort PID file
+
+    --snaplen <snap>               Same as -P
+
+    --help                         Same as -?
+
+    --dynamic-engine-lib <file>
+            Load a dynamic detection engine specified by <file>.
+
+    --dynamic-detection-lib <file>
+            Load a dynamic rules library specified by <file>.
+
+    --dynamic-detection-lib-dir <path>
+            Load all dynamic rules libraries from directory specified
+            by <path>.
+
+    --dump-dynamic-rules <path>
+            Creates stub rule files of all loaded rules libraries
+            specified by <path>.  Required to be done prior to
+            runing snort to detect those rules.  Generated rules stub
+            files must be 'include'ed in snort.conf.
+
+    --dynamic-preprocessor-lib <file>
+            Load a dynamic preprocessor library specified by <file>.
+
+    --dynamic-preprocessor-lib-dir <path>
+            Load all dynamic preprocessor libraries from directory
+            specified by <path>.
+
+    --dump-dynamic-preproc-genmsg <path>
+            Creates gen-msg.map files of all loaded preprocessor
+            libraries in <path>.
+
+    --alert-before-pass
+            Process alert, drop, sdrop, or reject before pass.
+            Default is pass before alert, drop, etc.
+
+    --treat-drop-as-alert
+            Converts drop, sdrop, and reject rules into alert rules
+            during startup.
+
+    --process-all-events
+            Process all triggered events in group order, per Rule Ordering
+            configuration.  Default stops after first group.
+
+    --pid-path <path>
+            Specify the path for Snort's PID file.
+
+    --create-pidfile
+            Create PID file, even when not in Daemon mode.
 
 [*][FILTERS]:
 
@@ -275,54 +345,7 @@ you don't have this file in your distribution of Snort, you can get it from
 www.snort.org.
 -------------------------------------------------------------------------
 
-[*][RUN MODES]
-
-Snort has three primary run-time modes: sniffer, packet logger, and network
-intrusion detection.
-
-Sniffer Mode: When in this mode, Snort reads and decodes all packets from 
-the network and dumps them to the stdout.  To put Snort into straight sniffing
-mode, use the "-v" verbose switch.  This will dump the packet headers only.
-You can see the headers + the packet payloads by specifying the "-v" and "-d"
-switch.  To print a dump of the raw bytes in the entire packet, specify the 
-"-X" switch.  If you specify the "-X" switch, the -d switch is overridden.  You
-can filter the traffic that shows up in this mode by using BPF filters.
-
-Packet Logger Mode: This mode logs the packets to the disk in their decoded
-ASCII format.  This mode is activated merely by specifying a directory to log
-packets to with the "-l" switch.  This will log packets into the specified 
-logging directory in a hierarchy of directories based upon the IP addresses of
-the packets on the wire.  To log the packets in terms of the network being 
-monitored (i.e. the directories created under the logging directory are the
-IP addresses of the remote/non-home hosts) use the "-h" switch.  To log the 
-packets in their raw binary format to the disk, use the "-b" switch.  Logging
-the packets in this format will allow them to be run through other tools like 
-Ethereal, tcpdump, etc.  Packet logger mode can be mixed with sniffer mode 
-switches with no ill effects, however logging performance may be impacted by 
-the slowness of the terminal.
-
-Intrusion Detection Mode: Snort enters IDS mode when a configuration file is 
-specified with the "-c" switch.  Output formats, rules, preprocessor 
-configuration, etc are all specified in the configuration file.  Logger mode
-is essentially disabled when in IDS mode, but that's ok because you specify
-which packets you want to log when in IDS mode.  See the rule document (above) 
-for how to write your own rules.  When an alert rule goes off the alert data is
-logged to the alerting mechanism (be default a file called "alert" in the 
-logging directory) in addition to being logged to the logging mechanism.  The
-default logging directory is /var/log/snort, which can be changed using the 
-"-l" switch.   
-
-You can use something like "rt" or just "tail -f" it to give a running display
-of system alerts.  Alerts can also be sent to syslog (and monitored with
-something like swatch).  There are a variety of other alerting and logging 
-mechanisms available, check out the snort.conf file for information on enabling
-them.
-
-Note that the system requires the use of the "-l" flag to redirect rules based
-logging to a specific directory.  If you don't specify a place for it to go, it
-defaults to /var/log/snort.
-
-Please read the USAGE file or the snort_manual.pdf for more info.
+Please read the USAGE file or the snort_manual.pdf for more info!
 
 ******************************************************************************
 /* $Id$ */

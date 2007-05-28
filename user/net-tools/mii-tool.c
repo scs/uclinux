@@ -379,13 +379,14 @@ static void watch_one_xcvr(int skfd, char *ifname, int index)
 /*--------------------------------------------------------------------*/
 
 const char *usage =
-"usage: %s [-VvRrwl] [-A media,... | -F media] [interface ...]\n\
+"usage: %s [-VvRrwl] [-A media,... | -F media] [-p phyaddr] [interface ...]\n\
        -V, --version               display version information\n\
        -v, --verbose               more verbose output\n\
        -R, --reset                 reset MII to poweron state\n\
        -r, --restart               restart autonegotiation\n\
        -w, --watch                 monitor for link status changes\n\
        -l, --log                   with -w, write events to syslog\n\
+       -p, --phy=phyaddr           use PHY at address\n\
        -A, --advertise=media,...   advertise only specified media\n\
        -F, --force=media           force specified media technology\n\
 media: 100baseT4, 100baseTx-FD, 100baseTx-HD, 10baseT-FD, 10baseT-HD,\n\

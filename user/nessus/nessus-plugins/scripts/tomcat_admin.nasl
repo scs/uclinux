@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10477);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1548);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2000-0672");
  name["english"] = "Tomcat's /admin is world readable";
  name["francais"] = "/admin de Tomcat est en lecture libre";
@@ -24,7 +24,7 @@ on this server.
 
 Solution : restrict access to /admin or remove this
 context, and do not run TomCat as root.
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -40,7 +40,7 @@ sur ce serveur.
 Solution : restreignez l'accès à /admin ou
 retirez completement ce contexte et ne
 faites pas tourner tomcat en tant que root.
-Facteur de risque : Serieux";
+Facteur de risque : Elevé";
 
 
  script_description(english:desc["english"], francais:desc["francais"]);
@@ -68,24 +68,17 @@ Facteur de risque : Serieux";
 # The script code starts here
 #
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8080;
-
+port = get_http_port(default:8080);
 if(!get_port_state(port))exit(0);
 
-soc = http_open_socket(port);
-if(soc)
-{
- req = http_get(item:"/admin/contextAdmin/contextAdmin.html", port:port);
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
- if(ereg(pattern:"HTTP/[0-9].[0-9] 200 ", string: r))
+req = http_get(item:"/admin/contextAdmin/contextAdmin.html", port:port);
+r   = http_keepalive_send_recv(port:port, data:req);
+if(ereg(pattern:"HTTP/[0-9].[0-9] 200 ", string: r))
  {
   if("Servlet-Engine: Tomcat" >< r)
   {
    security_hole(port);
   }
- }
 }

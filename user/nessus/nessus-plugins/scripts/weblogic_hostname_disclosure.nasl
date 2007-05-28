@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(11606);
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(7257);
+ script_version ("$Revision: 1.6 $");
  name["english"] = "WebLogic Server hostname disclosure";
  
  script_name(english:name["english"]);
@@ -19,7 +19,7 @@ An attacker may use this information to better prepare
 other attacks against this host.
 
 Solution : None
-Risk Factor : Low";
+Risk factor : Low";
 
  script_description(english:desc["english"]);
  
@@ -42,9 +42,10 @@ Risk Factor : Low";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 
 soc = open_sock_tcp(port);
 if(!soc)exit(0);
@@ -61,6 +62,7 @@ if("WebLogic" >< r)
  		     replace:"\1",
 		     string:loc);
  
+ if ( name == loc ) exit(0);
  if(get_host_name() == name)exit(0);
  if(get_host_ip() == name)exit(0);
  
@@ -74,6 +76,6 @@ An attacker may use this information to better prepare
 other attacks against this host.
 
 Solution : None
-Risk Factor : Low";	      
+Risk factor : Low";	      
 security_warning(port:port, data:report);
 }

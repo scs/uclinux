@@ -28,7 +28,7 @@
 #define _PERF_FLOW_H
 
 #define SF_MAX_PKT_LEN 4500
-#define SF_MAX_PORT 1024
+#define SF_MAX_PORT (64*1024)
 
 typedef struct _portflow {
 
@@ -68,7 +68,8 @@ typedef struct _sfflow {
     UINT64    portUdpTotal;
 
     UINT64    typeIcmpTotal;
-        
+
+    int       maxPortToTrack;
 }  SFFLOW;
 
 typedef struct _sfflow_stats {

@@ -1,6 +1,6 @@
 # (C) Copyright 2001,2002, Martin Roesch, Brian Caswell, et al.
 #    All rights reserved.
-# $Id$
+# $Id: shellcode.rules,v 1.14 2002/08/18 20:28:43 cazz Exp $
 # ---------------
 # SHELLCODE RULES
 # ---------------

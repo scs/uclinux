@@ -8,8 +8,8 @@ if(description)
 {
  script_id(11570);
  script_bugtraq_id(6053);
- script_cve_id("CAN-2002-1539");
- script_version ("$Revision: 1.1 $");
+ script_cve_id("CVE-2002-1539");
+ script_version ("$Revision: 1.4 $");
  
  
  name["english"] = "MDaemon DELE DoS";
@@ -30,7 +30,7 @@ To exploit this flaw, a valid POP account is needed.
 *** to issue this warning.
 
 Solution : upgrade to MDaemon 6.5.0
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"], francais:desc["francais"]);
@@ -57,16 +57,10 @@ Risk Factor : High";
 #
 
 
-
+include("pop3_func.inc");
 port = get_kb_item("Services/pop3");
 if(!port)port = 110;
-if(get_port_state(port))
-{
- soc = open_sock_tcp(port);
- if(!soc)exit(0);
- banner  = recv_line(socket:soc, length:4096);
- close(soc);
- 
- if(ereg(pattern:".* POP MDaemon ([0-5]\.|6\.[0-4]\.)", string:banner))
+banner  = get_pop3_banner( port : port );
+if ( ! banner ) exit(0);
+if(ereg(pattern:"POP MDaemon ([0-5]\.|6\.[0-4]\.)", string:banner))
  	security_hole(port);
-}

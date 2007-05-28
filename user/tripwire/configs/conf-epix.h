@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-epix.h,v 1.2 1993/08/19 05:26:55 genek Exp $ */
 
 /*
  * conf-umips.h

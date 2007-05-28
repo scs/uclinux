@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10228);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-1999-0626");
  
  name["english"] = "rusersd service";
@@ -15,16 +15,11 @@ if(description)
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The rusersd RPC service is running. 
-It provides an attacker interesting
-information such as how often the
-system is being used, the names of
-the users, and so on.
+The rusersd RPC service is running.  It provides an attacker interesting
+information such as how often the system is being used, the names of
+the users, and more.
 	
-It usually not a good idea to leave this
-service open.
-
-
+It usually not a good idea to leave this service open.
 Risk factor : Low";
 
 
@@ -64,6 +59,10 @@ Facteur de risque : Faible";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 1 ) exit(0);
+
 
 
 

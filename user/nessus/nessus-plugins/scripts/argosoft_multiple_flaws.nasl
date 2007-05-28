@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(11659);
- script_version("$Revision: 1.1 $");
- script_bugtraq_id(7608, 7610, 5906, 5395, 5144);
+ script_bugtraq_id(5144, 5395, 5906, 7608, 7610);
+ script_version("$Revision: 1.5 $");
  
  name["english"] = "ArGoSoft Mail Server multiple flaws";
  script_name(english:name["english"]);
@@ -24,7 +24,7 @@ and even to read arbitrary files on that server.
 *** this alert.
 
 Solution : Upgrade to ArGoSoft 1.8.3.5 or newer
-Risk Factor : High";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -50,12 +50,11 @@ include("http_keepalive.inc");
 
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
- req = http_get(item:"/", port:port);
- res = http_keepalive_send_recv(port:port, data:req);
+ res = http_get_cache(item:"/", port:port);
  if( res == NULL ) exit(0);
  if((vers = egrep(pattern:".*ArGoSoft Mail Server.*Version", string:res)))
  {

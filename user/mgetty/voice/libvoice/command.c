@@ -3,7 +3,7 @@
  *
  * Execute the given command and wait for an answer.
  *
- * $Id$
+ * $Id: command.c,v 1.4 1998/09/09 21:07:27 gert Exp $
  *
  */
 

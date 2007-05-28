@@ -103,7 +103,7 @@ struct clock_ops *ur;
 #define LASTDATE "/var/lib/lastdate"
 
 #else
-#define ADJPATH "/etc/config/adjtime"
+#define ADJPATH "/var/run/adjtime"
 #define LASTDATE "/var/log/lastdate"
 #endif
 

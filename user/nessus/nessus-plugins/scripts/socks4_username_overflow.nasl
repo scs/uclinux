@@ -20,7 +20,8 @@
 if(description)
 {
  script_id(11164);
- script_version ("$Revision: 1.5 $");
+ script_bugtraq_id(5147);
+ script_version ("$Revision: 1.6 $");
  name["english"] = "SOCKS4 username overflow";
  script_name(english:name["english"]);
  

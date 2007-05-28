@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11550);
  script_bugtraq_id(7401, 7404, 7405);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.8 $");
  
  script_name(english:"OpenBB SQL injection");
  desc["english"] = "
@@ -39,6 +39,7 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -50,12 +51,13 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
-foreach d (make_list( "/openbb", "", cgi_dirs()))
+foreach d (make_list( "/openbb", cgi_dirs()))
 {
  req = http_get(item:string(d, "/index.php?CID='"), port:port);
  res = http_keepalive_send_recv(port:port, data:req);

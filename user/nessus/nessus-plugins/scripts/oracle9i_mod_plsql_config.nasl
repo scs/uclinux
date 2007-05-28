@@ -5,17 +5,18 @@
 if(description)
 {
  script_id(11452);
- script_version("$Revision: 1.1 $");
- 
+ script_version("$Revision: 1.6 $");
+
+ script_cve_id("CVE-2002-0561");
  script_bugtraq_id(4292);
- script_cve_id("CAN-2002-0561");
- 
+ script_xref(name:"IAVA", value:"2002-t-0006");
+ script_xref(name:"OSVDB", value:"9472");
+
  name["english"] = "Oracle 9iAS web admin";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-
 Oracle 9i Application Server uses Apache as it's web
 server with an Apache module for PL/SQL support.
 
@@ -39,9 +40,8 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 7777);
  script_require_keys("www/OracleApache");

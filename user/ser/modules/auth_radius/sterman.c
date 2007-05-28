@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: sterman.c,v 1.7.6.1 2004/07/18 22:56:23 sobomax Exp $
  *
  * Digest Authentication - Radius support
  *

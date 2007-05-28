@@ -336,4 +336,4 @@ int adduser_main(int argc, char **argv)
 	return (i);
 }
 
-/* $Id$ */
+/* $Id: adduser.c,v 1.8 2004/05/27 13:47:29 gerg Exp $ */

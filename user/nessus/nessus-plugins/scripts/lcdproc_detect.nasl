@@ -1,39 +1,53 @@
 #
-# This script was written by Noam Rathaus <noamr@securiteam.com>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
+ 
+ desc["english"] = "
+Synopsis :
+
+A LCDproc server is listening on the remote host.
+
+Description :
+
+LCDproc is a client/server suite which contains drivers for
+LCD devices.
+
+The remote service can be used to display messages on the LCD
+display attached to the remote host.
+
+Solution : 
+
+If you do not use the client-server abilities of this service,
+filter incoming traffic to this port or configure the remote daemon
+to not listen on the network interface.
+
+See also : 
+
+http://lcdproc.omnipotent.net/
+
+Risk factor :
+
+None";
 
 if(description)
 {
  script_id(10379);
- script_version ("$Revision: 1.4 $");
- name["english"] = "LCDproc server detection";
+ script_version ("$Revision: 1.6 $");
+ name["english"] = "LCDproc Detection";
  script_name(english:name["english"]);
- 
- desc["english"] = "LCDproc (http://lcdproc.omnipotent.net) is a 
-system that is used to display system information and other data 
-on an LCD display (or any supported display device, including curses 
-or text)
- 
-The LCDproc version 4.0 and above uses a client-server protocol, allowing 
-anyone with access to the LCDproc server to modify the displayed content.
 
-Risk factor : Low
-Solution: Disable access to this service from outside by disabling 
- access to TCP port 13666 (default port used)";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Find the presence of LCDproc";
+ summary["english"] = "Detects the LCDproc service";
  
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
-  script_copyright(english:"This script is Copyright (C) 2000 SecuriTeam");
- family["english"] = "Misc.";
- script_family(english:family["english"]);
+  script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security"); 
+ script_family(english:"Service detection");
  script_dependencie("find_service.nes");
   script_require_ports("Services/lcdproc", 13666);
  exit(0);
@@ -44,32 +58,20 @@ Solution: Disable access to this service from outside by disabling
 #
 
 port = get_kb_item("Services/lcdproc");
-if(!port)port = 13666;
+if( ! port )port = 13666;
+if ( ! get_port_state(port) ) exit(0);
 
-if(get_port_state(port))
-{
-  req = string("hello");
-  soc = open_sock_tcp(port);
-  if(soc)
-  {
-   send(socket:soc, data:req);
-   result = recv(socket:soc, length:4096);
-   
-   if("connect LCDproc" >< result)
-   {
-    resultrecv = strstr(result, "connect LCDproc ");
-    resultsub = strstr(resultrecv, string("lcd "));
-    resultrecv = resultrecv - resultsub;
-    resultrecv = resultrecv - "connect LCDproc ";
-    resultrecv = resultrecv - "lcd ";
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+send(socket:soc, data:'hello\r\n');
+r = recv_line(socket:soc, length:4096);
+if ( ! r ) exit(0);
+r = chomp(r);
 
-    banner = "LCDproc version: ";
-    banner = banner + resultrecv;
-    banner = banner + "\n";
-
-    security_warning(port:port, data:banner);
-    exit(0);
-   }
-  }
-}
-
+if ( r =~ "LCDproc [0-9.]* " )
+ {
+  version = ereg_replace(pattern:".*LCDproc ([0-9.]*) .*", string:r, replace:"\1");
+  report = desc["english"] + '\n\nPlugin output :\n\nLCDproc version : ' + version;
+  security_note(port:port, data:report);
+  set_kb_item(name:"lcdproc/version", value:version);
+ }

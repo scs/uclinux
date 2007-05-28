@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: db_res.c,v 1.14 2003/09/15 22:34:49 janakj Exp $ 
  *
  * MySQL module result related functions
  *

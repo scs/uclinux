@@ -263,16 +263,16 @@ xml_info (int be, FILE* fd, int indent)
 
  if (t)
  {
-  xml_fprintf (fd, 2, "<info>\n");
+  xml_fprintf (fd, indent, "<info>\n");
    xml_info_nessusd(be, fd, indent+1, t);
    xml_info_host(be, fd, indent+1, t);
    xml_info_date(be, fd, indent+1, t);
-  xml_fprintf (fd, 2, "</info>\n\n");
+  xml_fprintf (fd, indent, "</info>\n");
  } else {
   fprintf (stderr, "xml_output: No SERVER_INFO found.\n");
-  xml_fprintf (fd, 2, "<info>\n");
+  xml_fprintf (fd, indent, "<info>\n");
    xml_fprintf (fd, indent+1, "<!-- no version information found -->");
-  xml_fprintf (fd, 2, "</info>\n\n");
+  xml_fprintf (fd, indent, "</info>\n");
  }
 } /* xml_info */
 
@@ -287,7 +287,7 @@ xml_config_scanners (FILE* fd, int indent, struct arglist* t)
         efree(&esc_name);
 	t = t->next;
   }
-  xml_fprintf (fd, indent, "</scanners>\n\n");
+  xml_fprintf (fd, indent, "</scanners>\n");
 } /* xml_config_scanners */
 
 static void
@@ -295,7 +295,7 @@ xml_config_global_pref (FILE* fd, int indent, char *name, char *value)
 {
   char* esc_name = escape_string(name);
   char* esc_value = escape_string(value);
-  xml_fprintf (fd, indent+1, 
+  xml_fprintf (fd, indent, 
    "<pref name=\"%s\" value=\"%s\" />\n", esc_name, esc_value);
   efree(&esc_name);
   efree(&esc_value);
@@ -304,7 +304,7 @@ xml_config_global_pref (FILE* fd, int indent, char *name, char *value)
 static void
 xml_config_global (FILE* fd, int indent, struct arglist* t)
 {
-  xml_fprintf (fd, indent, "<global> ");
+  xml_fprintf (fd, indent, "<global>\n");
   while( t->next != NULL )
   {
     if (t->type == ARG_STRING) {
@@ -314,7 +314,7 @@ xml_config_global (FILE* fd, int indent, struct arglist* t)
     }
     t = t->next;
   } /* while */
-  fprintf (fd, "</global>\n");
+  xml_fprintf (fd, indent, "</global>\n");
 } /* xml_config_global */
 
 static void
@@ -340,7 +340,7 @@ xml_config_plugins (FILE* fd, int indent, struct arglist* t)
      xml_setting (fd, indent+1, t->name, (t->value?"yes":"no"));
    t = t->next;
   }
-  xml_fprintf (fd, indent, "</plugins>\n\n");
+  xml_fprintf (fd, indent, "</plugins>\n");
 } /* xml_config_server */
 
 static void
@@ -358,7 +358,7 @@ xml_config_server (FILE* fd, int indent, struct arglist* t)
   }
    t = t->next;
   }
-  xml_fprintf (fd, indent, "</server>\n\n");
+  xml_fprintf (fd, indent, "</server>\n");
 } /* xml_config_server */
 
 static void
@@ -392,7 +392,7 @@ xml_config (FILE* fd, int indent)
    xml_config_plugins(fd, indent+1, t);
   }
 
-  xml_fprintf (fd, indent, "</config>\n\n");
+  xml_fprintf (fd, indent, "</config>\n");
 }
 
 static void 
@@ -409,7 +409,7 @@ xml_plugins_plugin (FILE* fd, int indent, struct arglist * u)
      xml_fprintf_element (fd, indent+1, "risk",  getrisk((char*)arg_get_value (u, "DESCRIPTION")));
      xml_fprintf_element (fd, indent+1, "summary", arg_get_value (u, "SUMMARY"));
      xml_fprintf_element (fd, indent+1, "copyright", (char *) arg_get_value (u, "COPYRIGHT"));
-     xml_fprintf (fd, indent, "</plugin>\n\n");
+     xml_fprintf (fd, indent, "</plugin>\n");
 } /* xml_plugins_plugin */
 
 static void 
@@ -418,6 +418,23 @@ xml_plugins (FILE* fd, int indent)
  struct arglist * t;
 
  xml_fprintf (fd, indent, "<plugins>\n");
+
+  t = Scanners;
+  if (t && t->type == ARG_ARGLIST)
+  {
+  while (t->next)
+  {
+     struct arglist * u = t->value;
+     if (arg_get_value (u, "ENABLED"))
+     {
+      xml_plugins_plugin(fd, indent+1, u);
+     }
+
+    t = t->next;
+    }
+  }
+  else
+   xml_fprintf (fd, indent+1, "<error txt=\"No scanners list.\"/>\n");
 
   t = Plugins;
   if (t && t->type == ARG_ARGLIST)
@@ -436,7 +453,7 @@ xml_plugins (FILE* fd, int indent)
   else
    xml_fprintf (fd, indent+1, "<error txt=\"No plugins list.\"/>\n");
 
-  xml_fprintf (fd, indent, "</plugins>\n\n");
+  xml_fprintf (fd, indent, "</plugins>\n");
 }
 
 
@@ -454,7 +471,7 @@ getrisk (char * str)
  }
  else
  {
-  return strcpy (bck, "WARNING: no 'Risk Factor' found !");
+  return strcpy (bck, "Unknown");
  }
 }
 
@@ -691,7 +708,7 @@ xml_results ( FILE* fd, int indent, int be)
   q = subset_next(q);
  }
 
- xml_fprintf (fd, indent, "</results>\n\n");
+ xml_fprintf (fd, indent, "</results>\n");
  subset_free(sq);
 } /* xml_results */
 

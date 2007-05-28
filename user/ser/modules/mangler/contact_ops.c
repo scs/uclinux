@@ -1,7 +1,7 @@
 /*
  * mangler module
  *
- * $Id$
+ * $Id: contact_ops.c,v 1.11.4.1 2004/07/02 15:32:55 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

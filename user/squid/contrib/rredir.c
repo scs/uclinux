@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: rredir.c,v 1.4 2001/01/07 10:57:13 hno Exp $ */
 
 /*
  * From:    richard@hekkihek.hacom.nl (Richard Huveneers)

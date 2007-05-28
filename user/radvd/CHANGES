@@ -1,4 +1,4 @@
-$Id$
+$Id: CHANGES,v 1.21 2002/10/28 16:53:49 psavola Exp $
 
 10/28/2002	Release 0.7.2:
 		 - add support for VLANs (from USAGI)

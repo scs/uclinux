@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-convex.h,v 1.2 1993/08/19 05:26:53 genek Exp $ */
 
 /*
  * conf-convex.h

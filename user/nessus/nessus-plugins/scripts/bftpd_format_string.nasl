@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(10568);
- script_version ("$Revision: 1.15 $");
+ script_version ("$Revision: 1.22 $");
  
  
  name["english"] = "bftpd format string vulnerability";
@@ -33,7 +33,7 @@ Solution : Upgrade your bftpd server to version 1.0.13
 
 Reference : http://online.securityfocus.com/archive/1/149216
 
-Risk factor : Serious";
+Risk factor : High";
                  
                  
 desc["francais"] = "
@@ -59,8 +59,7 @@ Facteur de risque : Sérieux";
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
                   francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
                   
- script_dependencie("find_service.nes", "ftp_anonymous.nasl",
- 		    "ftp_write_dirs.nes" );
+ script_dependencie("find_service.nes", "ftp_anonymous.nasl", "ftp_writeable_directories.nasl" );
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -73,7 +72,6 @@ include("ftp_func.inc");
 
 login = get_kb_item("ftp/login");
 pass  = get_kb_item("ftp/password");
-
 dir   = get_kb_item("ftp/writeable_dir");
 
 
@@ -90,7 +88,7 @@ if(soc)
 {
  if(login && dir && safe_checks() == 0 )
  {
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
   # We are in
   c = string("CWD ", dir, "\r\n");
@@ -99,7 +97,7 @@ if(soc)
   c = string("MKD Nessus_test\r\n");
   send(socket:soc, data:c);
   r = ftp_recv_line(socket:soc);
-  if(ereg(pattern:"^(257|451)", string:r))
+  if(egrep(pattern:"^(257|451)", string:r))
   {
   c = string("CWD Nessus_test\r\n");
   send(socket:soc, data:c);
@@ -108,8 +106,9 @@ if(soc)
   c = string("MKD %p%p%p%p\r\n");
   send(socket:soc, data:c);
   r = ftp_recv_line(socket:soc);
-  port2 = ftp_get_pasv_port(socket:soc);
+  port2 = ftp_pasv(socket:soc);
   soc2 = open_sock_tcp(port2, transport:get_port_transport(port));
+  if ( ! soc2 ) exit(0);
   
   c = string("NLST\r\n");
   send(socket:soc, data:c);
@@ -118,11 +117,10 @@ if(soc)
   	  string:r))security_hole(port);
   close(soc2);	  
   ftp_close(socket:soc);
- ;
   
   soc = open_sock_tcp(port);
   if(!soc)exit(0);
-  ftp_log_in(socket:soc, user:login, pass:pass);
+  ftp_authenticate(socket:soc, user:login, pass:pass);
   send(socket:soc, data:string("CWD ", dir, "/Nessus_test\r\n"));
   b = ftp_recv_line(socket:soc);
   send(socket:soc, data:string("RMD %p%p%p%p\r\n"));
@@ -137,11 +135,13 @@ if(soc)
    else {
     	close(soc);
 	soc = open_sock_tcp(port);
+	if ( ! soc ) exit(0);
 	}
  }
   else {
   	close(soc);
 	soc = open_sock_tcp(port);
+	if ( ! soc ) exit(0);
 	}
  }
   r = ftp_recv_line(socket:soc);

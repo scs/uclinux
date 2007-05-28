@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2002 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,26 +14,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
- *
  * Plugins Loader
  *
  */
  
 #include <includes.h>
 
-#ifdef NESSUSNT
-#include "wstuff.h"
-#endif
 
 #include "utils.h"
 #include "pluginload.h"
@@ -50,7 +36,7 @@ struct files {
 	};
 	
 
-#define MAX_FILES 3299
+#define MAX_FILES 5731
 
 
 struct files ** files_init()
@@ -123,25 +109,30 @@ void files_close(struct files ** files)
  * plugins that are in folder <folder>
  */
 struct arglist * 
-plugins_init(preferences)
+plugins_init(preferences, be_quiet)
  struct arglist * preferences;
+ int be_quiet;
 {
- return plugins_reload(preferences, emalloc(sizeof(struct arglist)));
+
+ 
+ return plugins_reload(preferences, emalloc(sizeof(struct arglist)), be_quiet);
 }
 
 
 
 static struct arglist * 
-plugins_reload_from_dir(preferences, plugins, folder)
+plugins_reload_from_dir(preferences, plugins, folder, be_quiet)
  struct arglist * preferences;
  struct arglist * plugins;
  char * folder;
+ int be_quiet;
 {
   DIR * dir;
   struct dirent * dp;
   struct files ** files;
   char * name;
   int idx = 0;
+  int n = 0, total = 0, num_files = 0;
   
   if( plugin_classes == NULL){
    pl_class_t ** cl_pptr = &plugin_classes;
@@ -191,7 +182,10 @@ plugins_reload_from_dir(preferences, plugins, folder)
   while( (dp = readdir(dir)) != NULL )
   {
    if(dp->d_name[0] != '.')
+	{
    	files_add(files, dp->d_name);
+	num_files ++;
+	}
   }
   
   rewinddir(dir);
@@ -200,11 +194,26 @@ plugins_reload_from_dir(preferences, plugins, folder)
   /*
    * Add the the plugins
    */
+
+  if ( be_quiet == 0 ) {
+	printf("Loading the Nessus plugins...");
+	fflush(stdout);
+	}
   while((name = files_walk(files, &idx)) != NULL) {
 	int len = strlen(name);
 	pl_class_t * cl_ptr = plugin_classes;
 	
 
+	n ++;
+	total ++;
+	if ( n > 50 && be_quiet == 0 )
+	{
+	  n = 0;
+	  printf("\rLoading the plugins... %d (out of %d)", total, num_files);
+	  fflush(stdout);
+	}
+	  
+	  
 	if(preferences_log_plugins_at_load(preferences))
 	 log_write("Loading %s\n", name);
 	while(cl_ptr) {
@@ -224,17 +233,21 @@ plugins_reload_from_dir(preferences, plugins, folder)
     
   files_close(files);  
 
+  if ( be_quiet == 0 )
+	  printf("\rAll plugins loaded                                   \n");
+   
  
   return plugins;
 }
 
 
 struct arglist *
-plugins_reload(preferences, plugins)
+plugins_reload(preferences, plugins, be_quiet)
  struct arglist * preferences;
  struct arglist * plugins;
+ int be_quiet;
 {
- return plugins_reload_from_dir(preferences, plugins, arg_get_value(preferences, "plugins_folder"));
+ return plugins_reload_from_dir(preferences, plugins, arg_get_value(preferences, "plugins_folder"), be_quiet);
 }
 
 struct arglist *
@@ -248,7 +261,7 @@ plugins_reload_user(globals, preferences, plugins)
  struct arglist * ret;
  sprintf(plugdir, "%s/plugins", home);
  efree(&home);
- ret = plugins_reload_from_dir(preferences, plugins, plugdir);
+ ret = plugins_reload_from_dir(preferences, plugins, plugdir, 1);
  efree(&plugdir);
  return ret;
 }
@@ -256,29 +269,16 @@ plugins_reload_user(globals, preferences, plugins)
 void 
 plugin_set_socket(struct arglist * plugin, int soc)
 {
- struct arglist * v, *t = plugin;
-
-  v = t->value;
-  if(v != NULL)
-        {
-     	if(arg_get_value(v, "SOCKET") != NULL)
-	 arg_set_value(v, "SOCKET", sizeof(int), (void*)soc);
-	else
-     	 arg_add_value(v, "SOCKET", ARG_INT, sizeof(int), (void *)soc);
-	}
+ if(arg_get_value(plugin, "SOCKET") != NULL)
+  arg_set_value(plugin, "SOCKET", sizeof(int), (void*)soc);
+ else
+  arg_add_value(plugin, "SOCKET", ARG_INT, sizeof(int), (void *)soc);
 }
 
 int
 plugin_get_socket(struct arglist * plugin)
 {
- struct arglist * v, * t = plugin;
- 
- v = t->value;
- if(v != NULL)
- {
-  return (int)arg_get_value(v, "SOCKET");
- }
- return -1;
+  return (int)arg_get_value(plugin, "SOCKET");
 }
 
 
@@ -330,7 +330,7 @@ plugins_set_socket(struct arglist * plugins, int soc)
   t = plugins;
   while(t && t->next)
     {
-     plugin_set_socket(t, soc);
+     plugin_set_socket(t->value, soc);
      t = t->next;
     }
 }

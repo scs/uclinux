@@ -7,8 +7,8 @@
 if (description)
 {
  script_id(10132);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CAN-1999-0660");
+ script_version ("$Revision: 1.11 $");
+ script_cve_id("CVE-1999-0660");
  name["english"] = "Kuang2 the Virus";
  name["francais"] = "Kuang2 le Virus";
  script_name(english:name["english"], francais:name["francais"]);

@@ -7,15 +7,14 @@
 if(description)
 {
  script_id(10227);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-0624");
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-1999-0624");
  name["english"] = "rstatd service";
  name["francais"] = "Service rstatd";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The rstatd RPC service is running. 
-It provides an attacker interesting
+The rstatd RPC service is running.  It provides an attacker interesting
 information such as :
 
 	- the CPU usage
@@ -23,10 +22,7 @@ information such as :
 	- its network usage
 	- and more
 	
-Usually, it is not a good idea to let this
-service open
-
-
+Letting this service run is not recommended.
 Risk factor : Low";
 
 
@@ -70,6 +66,10 @@ Facteur de risque : Faible";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 1 ) exit(0);
+
 
 
 RPC_PROG = 100001;

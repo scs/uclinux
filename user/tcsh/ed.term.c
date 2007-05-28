@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/ed.term.c,v 1.25 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.term.c: Low level terminal interface
  */
@@ -37,7 +37,7 @@
 #include "sh.h"
 #ifndef WINNT_NATIVE
 
-RCSID("$Id$")
+RCSID("$Id: ed.term.c,v 1.25 2000/11/11 23:03:34 christos Exp $")
 
 #include "ed.h"
 #include "ed.term.h"

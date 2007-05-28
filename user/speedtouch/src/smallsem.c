@@ -34,7 +34,7 @@
 *  int sem_V(int)                 "V" operation on the semaphore (release the resource)
 *  int sem_destroy(int)           destroys the semaphore from the system
 *
-*  $Id$
+*  $Id: smallsem.c,v 1.2 2001/11/07 19:45:26 edgomez Exp $
 */
 
 

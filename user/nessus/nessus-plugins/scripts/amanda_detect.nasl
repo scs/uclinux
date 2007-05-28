@@ -6,7 +6,7 @@
 
 if(description) {
     script_id(10462);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.11 $");
  
     name["english"] = "Amanda client version";
     script_name(english:name["english"]);
@@ -25,7 +25,7 @@ Risk factor : Low";
     script_category(ACT_GATHER_INFO);
  
     script_copyright(english:"This script is Copyright (C) 2000 Paul J. Ewing Jr.");
-    family["english"] = "General";
+    family["english"] = "Service detection";
     script_family(english:family["english"]);
     exit(0);
 }
@@ -33,14 +33,17 @@ Risk factor : Low";
 #
 # The script code starts here
 #
+include("misc_func.inc");
 
-function get_version(soc, port)
+function get_version(soc, port, timeout)
 {
-    req = string("Amanda 2.3 REQ HANDLE 000-65637373 SEQ 954568800\n")
-	+ string("SERVICE nessus_scan\n");
+  local_var result, temp, version, data;
 
-    send(socket:soc, data:req);
-    result = recv(socket:soc, length:2048);
+    if ( ! isnull(timeout) )
+     result = recv(socket:soc, length:2048, timeout:timeout);
+   else
+     result = recv(socket:soc, length:2048);
+
     if (result) {
         if (egrep(pattern:"^[^ ]+ [0-9]+\.[0-9]+", string:result)) {
 	    temp = strstr(result, " ");
@@ -49,25 +52,17 @@ function get_version(soc, port)
             version = result - temp;
             data = string("Amanda version: ", version);
             security_note(port:port, data:data, protocol:"udp");
+            register_service(port:port, ipproto: "udp", proto:"amanda");
             set_kb_item(name:"Amanda/running", value:TRUE);
 	}
     }
 }
 
-if(get_udp_port_state(10080))
-{
- socudp10080 = open_sock_udp(10080);
- if (socudp10080) {
-    get_version(soc:socudp10080, port:10080);
-    close(socudp10080);
- }
-}
+req = 'Amanda 2.3 REQ HANDLE 000-65637373 SEQ 954568800\nSERVICE ' + rand_str(length:8) + '\n';
+soc1 = open_sock_udp(10080);
+send(socket:soc1, data:req);
+soc2 = open_sock_udp(10081);
+send(socket:soc2, data:req);
 
-if(get_udp_port_state(10081))
-{
- socudp10081 = open_sock_udp(10081);
- if (socudp10081) {
-    get_version(soc:socudp10081, port:10081);
-    close(socudp10081);
- }
-}
+get_version(soc:soc1, port:10080, timeout:NULL);
+get_version(soc:soc2, port:10081, timeout:1);

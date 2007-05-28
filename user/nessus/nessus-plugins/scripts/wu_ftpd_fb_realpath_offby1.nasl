@@ -13,8 +13,11 @@ if(description)
 {
  script_id(11811);
  script_bugtraq_id(8315);
- script_cve_id("CAN-2003-0466");
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2003-0466");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:245-01");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:032");
+
+ script_version ("$Revision: 1.7 $");
 
  
  name["english"] = "wu-ftpd fb_realpath() off-by-one overflow";
@@ -37,7 +40,7 @@ An attacker may exploit this flaw to obtain a shell on this host.
 Solution : Upgrade to Wu-FTPd 2.6.3 when available or apply the
 patches available at http://www.wu-ftpd.org
 
-Risk Factor : High";
+Risk factor : High";
 		
  script_description(english:desc["english"]);
 		    

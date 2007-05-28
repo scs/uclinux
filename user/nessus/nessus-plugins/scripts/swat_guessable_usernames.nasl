@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10590);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CVE-2000-0938");
  
  
@@ -40,8 +40,8 @@ Risk factor : Low";
  family["english"] = "General";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
- script_require_ports("Services/swat", 901);
+ script_dependencie("swat_detect.nasl");
+ script_require_ports("Services/swat");
  exit(0);
 }
 
@@ -52,7 +52,8 @@ Risk factor : Low";
 include("http_func.inc");
 
 port = get_kb_item("Services/swat");
-if(!port)port = 901;
+if(!port) exit(0);
+
 if (get_port_state(port))
 {
  soctcp901 = http_open_socket(port);

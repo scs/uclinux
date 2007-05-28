@@ -24,7 +24,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-#	$Id$
+#	$Id: syscallent.sh,v 1.1.1.1 1999/02/19 00:23:26 wichert Exp $
 
 cat $* |
 	sed -n 's/^#[ 	]*define[ 	][ 	]*__NR_\([^ 	]*\)[ 	]*[^0-9]*\([0-9]*\).*$/\1 \2/p' |

@@ -10,8 +10,8 @@ if(description)
  
  script_id(11378);
  script_bugtraq_id(7052);
- script_cve_id("CAN-2003-0150");
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2003-0150");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "MySQL mysqld Privilege Escalation Vulnerability";
  script_name(english:name["english"]);
  
@@ -55,8 +55,8 @@ include("misc_func.inc");
 
 port = get_kb_item("Services/mysql");
 if(!port)port = 3306;
-ver=get_mysql_version(port);
-if(ver==NULL) exit(0);
+ver=get_mysql_version(port:port);
+if (isnull(ver)) exit(0);
 
-if(ereg(pattern:"3\.(([0-9]\..*)|(1[0-9]\..*)|(2(([0-2]\..*)|3\.(([0-9]$)|([0-4][0-9])|(5[0-5])))))",
+if(ereg(pattern:"^3\.(([0-9]\..*)|(1[0-9]\..*)|(2(([0-2]\..*)|3\.(([0-9]$)|([0-4][0-9])|(5[0-5])))))",
 	string:ver))security_hole(port);

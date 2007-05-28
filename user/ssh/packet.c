@@ -37,7 +37,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: packet.c,v 1.110 2003/09/19 09:02:02 markus Exp $");
+RCSID("$OpenBSD: packet.c,v 1.120 2005/10/30 08:52:17 djm Exp $");
 
 #include "openbsd-compat/sys-queue.h"
 
@@ -116,6 +116,12 @@ static int initialized = 0;
 /* Set to true if the connection is interactive. */
 static int interactive_mode = 0;
 
+/* Set to true if we are the server side. */
+static int server_side = 0;
+
+/* Set to true if we are authenticated. */
+static int after_authentication = 0;
+
 /* Session key information for Encryption and MAC */
 Newkeys *newkeys[MODE_MAX];
 static struct packet_state {
@@ -154,8 +160,10 @@ packet_set_connection(int fd_in, int fd_out)
 		fatal("packet_set_connection: cannot load cipher 'none'");
 	connection_in = fd_in;
 	connection_out = fd_out;
-	cipher_init(&send_context, none, "", 0, NULL, 0, CIPHER_ENCRYPT);
-	cipher_init(&receive_context, none, "", 0, NULL, 0, CIPHER_DECRYPT);
+	cipher_init(&send_context, none, (const u_char *)"",
+	    0, NULL, 0, CIPHER_ENCRYPT);
+	cipher_init(&receive_context, none, (const u_char *)"",
+	    0, NULL, 0, CIPHER_DECRYPT);
 	newkeys[MODE_IN] = newkeys[MODE_OUT] = NULL;
 	if (!initialized) {
 		initialized = 1;
@@ -165,8 +173,6 @@ packet_set_connection(int fd_in, int fd_out)
 		buffer_init(&incoming_packet);
 		TAILQ_INIT(&outgoing);
 	}
-	/* Kludge: arrange the close function to be called from fatal(). */
-	fatal_add_cleanup((void (*) (void *)) packet_close, NULL);
 }
 
 /* Returns 1 if remote host is connected via socket, 0 if not. */
@@ -306,7 +312,7 @@ packet_connection_is_ipv4(void)
 	if (to.ss_family == AF_INET)
 		return 1;
 #ifdef IPV4_IN_IPV6
-	if (to.ss_family == AF_INET6 && 
+	if (to.ss_family == AF_INET6 &&
 	    IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)&to)->sin6_addr))
 		return 1;
 #endif
@@ -319,13 +325,10 @@ void
 packet_set_nonblocking(void)
 {
 	/* Set the socket into non-blocking mode. */
-	if (fcntl(connection_in, F_SETFL, O_NONBLOCK) < 0)
-		error("fcntl O_NONBLOCK: %.100s", strerror(errno));
+	set_nonblock(connection_in);
 
-	if (connection_out != connection_in) {
-		if (fcntl(connection_out, F_SETFL, O_NONBLOCK) < 0)
-			error("fcntl O_NONBLOCK: %.100s", strerror(errno));
-	}
+	if (connection_out != connection_in)
+		set_nonblock(connection_out);
 }
 
 /* Returns the socket used for reading. */
@@ -510,7 +513,7 @@ packet_send1(void)
 	u_char buf[8], *cp;
 	int i, padding, len;
 	u_int checksum;
-	u_int32_t rand = 0;
+	u_int32_t rnd = 0;
 
 	/*
 	 * If using packet compression, compress the payload of the outgoing
@@ -536,9 +539,9 @@ packet_send1(void)
 		cp = buffer_ptr(&outgoing_packet);
 		for (i = 0; i < padding; i++) {
 			if (i % 4 == 0)
-				rand = arc4random();
-			cp[7 - i] = rand & 0xff;
-			rand >>= 8;
+				rnd = arc4random();
+			cp[7 - i] = rnd & 0xff;
+			rnd >>= 8;
 		}
 	}
 	buffer_consume(&outgoing_packet, 8 - padding);
@@ -569,7 +572,7 @@ packet_send1(void)
 	buffer_clear(&outgoing_packet);
 
 	/*
-	 * Note that the packet is now only buffered in output.  It won\'t be
+	 * Note that the packet is now only buffered in output.  It won't be
 	 * actually sent until packet_write_wait or packet_write_poll is
 	 * called.
 	 */
@@ -583,18 +586,18 @@ set_newkeys(int mode)
 	Comp *comp;
 	CipherContext *cc;
 	u_int64_t *max_blocks;
-	int encrypt;
+	int crypt_type;
 
 	debug2("set_newkeys: mode %d", mode);
 
 	if (mode == MODE_OUT) {
 		cc = &send_context;
-		encrypt = CIPHER_ENCRYPT;
+		crypt_type = CIPHER_ENCRYPT;
 		p_send.packets = p_send.blocks = 0;
 		max_blocks = &max_blocks_out;
 	} else {
 		cc = &receive_context;
-		encrypt = CIPHER_DECRYPT;
+		crypt_type = CIPHER_DECRYPT;
 		p_read.packets = p_read.blocks = 0;
 		max_blocks = &max_blocks_in;
 	}
@@ -623,11 +626,13 @@ set_newkeys(int mode)
 		mac->enabled = 1;
 	DBG(debug("cipher_init_context: %d", mode));
 	cipher_init(cc, enc->cipher, enc->key, enc->key_len,
-	    enc->iv, enc->block_size, encrypt);
+	    enc->iv, enc->block_size, crypt_type);
 	/* Deleting the keys does not gain extra security */
 	/* memset(enc->iv,  0, enc->block_size);
 	   memset(enc->key, 0, enc->key_len); */
-	if (comp->type != 0 && comp->enabled == 0) {
+	if ((comp->type == COMP_ZLIB ||
+	    (comp->type == COMP_DELAYED && after_authentication)) &&
+	    comp->enabled == 0) {
 		packet_init_compression();
 		if (mode == MODE_OUT)
 			buffer_compress_init_send(6);
@@ -648,6 +653,35 @@ set_newkeys(int mode)
 }
 
 /*
+ * Delayed compression for SSH2 is enabled after authentication:
+ * This happans on the server side after a SSH2_MSG_USERAUTH_SUCCESS is sent,
+ * and on the client side after a SSH2_MSG_USERAUTH_SUCCESS is received.
+ */
+static void
+packet_enable_delayed_compress(void)
+{
+	Comp *comp = NULL;
+	int mode;
+
+	/*
+	 * Remember that we are past the authentication step, so rekeying
+	 * with COMP_DELAYED will turn on compression immediately.
+	 */
+	after_authentication = 1;
+	for (mode = 0; mode < MODE_MAX; mode++) {
+		comp = &newkeys[mode]->comp;
+		if (comp && !comp->enabled && comp->type == COMP_DELAYED) {
+			packet_init_compression();
+			if (mode == MODE_OUT)
+				buffer_compress_init_send(6);
+			else
+				buffer_compress_init_recv();
+			comp->enabled = 1;
+		}
+	}
+}
+
+/*
  * Finalize packet in SSH2 format (compress, mac, encrypt, enqueue)
  */
 static void
@@ -657,7 +691,7 @@ packet_send2_wrapped(void)
 	u_char padlen, pad;
 	u_int packet_length = 0;
 	u_int i, len;
-	u_int32_t rand = 0;
+	u_int32_t rnd = 0;
 	Enc *enc   = NULL;
 	Mac *mac   = NULL;
 	Comp *comp = NULL;
@@ -716,9 +750,9 @@ packet_send2_wrapped(void)
 		/* random padding */
 		for (i = 0; i < padlen; i++) {
 			if (i % 4 == 0)
-				rand = arc4random();
-			cp[i] = rand & 0xff;
-			rand >>= 8;
+				rnd = arc4random();
+			cp[i] = rnd & 0xff;
+			rnd >>= 8;
 		}
 	} else {
 		/* clear padding */
@@ -760,6 +794,8 @@ packet_send2_wrapped(void)
 
 	if (type == SSH2_MSG_NEWKEYS)
 		set_newkeys(MODE_OUT);
+	else if (type == SSH2_MSG_USERAUTH_SUCCESS && server_side)
+		packet_enable_delayed_compress();
 }
 
 static void
@@ -870,7 +906,7 @@ packet_read_seqnr(u_int32_t *seqnr_p)
 		len = read(connection_in, buf, sizeof(buf));
 		if (len == 0) {
 			logit("Connection closed by %.200s", get_remote_ipaddr());
-			fatal_cleanup();
+			cleanup_exit(255);
 		}
 		if (len < 0)
 			fatal("Read from socket failed: %.100s", strerror(errno));
@@ -984,6 +1020,8 @@ packet_read_poll1(void)
 		    buffer_len(&compression_buffer));
 	}
 	type = buffer_get_char(&incoming_packet);
+	if (type < SSH_MSG_MIN || type > SSH_MSG_MAX)
+		packet_disconnect("Invalid ssh1 packet type: %d", type);
 	return type;
 }
 
@@ -993,7 +1031,7 @@ packet_read_poll2(u_int32_t *seqnr_p)
 	static u_int packet_length = 0;
 	u_int padlen, need;
 	u_char *macbuf, *cp, type;
-	int maclen, block_size;
+	u_int maclen, block_size;
 	Enc *enc   = NULL;
 	Mac *mac   = NULL;
 	Comp *comp = NULL;
@@ -1096,8 +1134,12 @@ packet_read_poll2(u_int32_t *seqnr_p)
 	 * return length of payload (without type field)
 	 */
 	type = buffer_get_char(&incoming_packet);
+	if (type < SSH2_MSG_MIN || type >= SSH2_MSG_LOCAL_MIN)
+		packet_disconnect("Invalid ssh2 packet type: %d", type);
 	if (type == SSH2_MSG_NEWKEYS)
 		set_newkeys(MODE_IN);
+	else if (type == SSH2_MSG_USERAUTH_SUCCESS && !server_side)
+		packet_enable_delayed_compress();
 #ifdef PACKET_DEBUG
 	fprintf(stderr, "read/plain[%d]:\r\n", type);
 	buffer_dump(&incoming_packet);
@@ -1136,7 +1178,7 @@ packet_read_poll_seqnr(u_int32_t *seqnr_p)
 				logit("Received disconnect from %s: %u: %.400s",
 				    get_remote_ipaddr(), reason, msg);
 				xfree(msg);
-				fatal_cleanup();
+				cleanup_exit(255);
 				break;
 			case SSH2_MSG_UNIMPLEMENTED:
 				seqnr = packet_get_int();
@@ -1161,7 +1203,7 @@ packet_read_poll_seqnr(u_int32_t *seqnr_p)
 				msg = packet_get_string(NULL);
 				logit("Received disconnect from %s: %.400s",
 				    get_remote_ipaddr(), msg);
-				fatal_cleanup();
+				cleanup_exit(255);
 				xfree(msg);
 				break;
 			default:
@@ -1228,9 +1270,9 @@ packet_get_bignum2(BIGNUM * value)
 }
 
 void *
-packet_get_raw(int *length_ptr)
+packet_get_raw(u_int *length_ptr)
 {
-	int bytes = buffer_len(&incoming_packet);
+	u_int bytes = buffer_len(&incoming_packet);
 
 	if (length_ptr != NULL)
 		*length_ptr = bytes;
@@ -1268,7 +1310,6 @@ packet_get_string(u_int *length_ptr)
 void
 packet_send_debug(const char *fmt,...)
 {
-	extern int vsnprintf();
 	char buf[1024];
 	va_list args;
 
@@ -1302,7 +1343,6 @@ packet_send_debug(const char *fmt,...)
 void
 packet_disconnect(const char *fmt,...)
 {
-	extern int vsnprintf();
 	char buf[1024];
 	va_list args;
 	static int disconnecting = 0;
@@ -1340,8 +1380,7 @@ packet_disconnect(const char *fmt,...)
 
 	/* Close the connection. */
 	packet_close();
-
-	fatal_cleanup();
+	cleanup_exit(255);
 }
 
 /* Checks if there is any buffered output, and tries to write some of the output. */
@@ -1408,10 +1447,10 @@ packet_not_very_much_data_to_write(void)
 }
 
 
-#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
 static void
 packet_set_tos(int interactive)
 {
+#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
 	int tos = interactive ? IPTOS_LOWDELAY : IPTOS_THROUGHPUT;
 
 	if (!packet_connection_is_on_socket() ||
@@ -1421,8 +1460,8 @@ packet_set_tos(int interactive)
 	    sizeof(tos)) < 0)
 		error("setsockopt IP_TOS %d: %.100s:",
 		    tos, strerror(errno));
-}
 #endif
+}
 
 /* Informs that the current session is interactive.  Sets IP flags for that. */
 
@@ -1443,10 +1482,7 @@ packet_set_interactive(int interactive)
 		return;
 	if (interactive)
 		set_nodelay(connection_in);
-#if defined(IP_TOS) && !defined(IP_TOS_IS_BROKEN)
 	packet_set_tos(interactive);
-#endif
-
 }
 
 /* Returns true if the current connection is interactive. */
@@ -1457,7 +1493,7 @@ packet_is_interactive(void)
 	return interactive_mode;
 }
 
-u_int
+int
 packet_set_maxsize(u_int s)
 {
 	static int called = 0;
@@ -1498,20 +1534,20 @@ packet_add_padding(u_char pad)
 void
 packet_send_ignore(int nbytes)
 {
-	u_int32_t rand = 0;
+	u_int32_t rnd = 0;
 	int i;
 
 	packet_start(compat20 ? SSH2_MSG_IGNORE : SSH_MSG_IGNORE);
 	packet_put_int(nbytes);
 	for (i = 0; i < nbytes; i++) {
 		if (i % 4 == 0)
-			rand = arc4random();
-		packet_put_char(rand & 0xff);
-		rand >>= 8;
+			rnd = arc4random();
+		packet_put_char(rnd & 0xff);
+		rnd >>= 8;
 	}
 }
 
-#define MAX_PACKETS	(1<<31)
+#define MAX_PACKETS	(1U<<31)
 int
 packet_need_rekeying(void)
 {
@@ -1528,4 +1564,16 @@ void
 packet_set_rekey_limit(u_int32_t bytes)
 {
 	rekey_limit = bytes;
+}
+
+void
+packet_set_server(void)
+{
+	server_side = 1;
+}
+
+void
+packet_set_authenticated(void)
+{
+	after_authentication = 1;
 }

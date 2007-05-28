@@ -7,8 +7,10 @@
 if(description)
 {
  script_id(11642);
- script_cve_id("CAN-2003-0725");
- script_version ("$Revision: 1.2 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0018");
+ script_bugtraq_id(8476);
+ script_cve_id("CVE-2003-0725");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "Helix RealServer Buffer Overrun";
  script_name(english:name["english"]);
@@ -62,6 +64,6 @@ Risk factor : High";
       security_hole(port);
      }
    }
-  }
   close(soc);
+  }
  }

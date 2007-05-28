@@ -120,18 +120,43 @@ int UpdateTCPFlowStats(SFFLOW *sfFlow, int sport, int dport, int len )
     /*
     ** Track how much data on each port, and hihg<-> high port data
     */
-    if( sport < SF_MAX_PORT )
+    /*
+    if( sport < sfFlow->maxPortToTrack )
     {
         sfFlow->portTcpSrc  [ sport ]+= len;
+    }
    
-    }else if( dport < SF_MAX_PORT ){
-    
+    if( dport < sfFlow->maxPortToTrack )
+    {
         sfFlow->portTcpDst  [ dport ]+= len;
+    }
     
-    }else{
-
+    if( sport > 1023 && dport > 1023 )
+    {
         sfFlow->portTcpHigh += len;
     }
+    */
+    if( sport <  1024 && dport > 1023 ) //sfFlow->maxPortToTrack )
+    {
+        sfFlow->portTcpSrc  [ sport ]+= len;
+    }
+    else if( dport < 1024 && sport > 1023 ) //sfFlow->maxPortToTrack )
+    {
+        sfFlow->portTcpDst  [ dport ]+= len;
+    }
+    else if( sport < 1023 && dport < 1023 )
+    {
+        sfFlow->portTcpSrc  [ sport ]+= len;
+        sfFlow->portTcpDst  [ dport ]+= len;
+    }
+    else if( sport > 1023 && dport > 1023 )
+    {
+        sfFlow->portTcpSrc  [ sport ]+= len;
+        sfFlow->portTcpDst  [ dport ]+= len;
+        
+        sfFlow->portTcpHigh += len;
+    }
+
 
     sfFlow->portTcpTotal += len;
 
@@ -151,16 +176,24 @@ int UpdateUDPFlowStats(SFFLOW *sfFlow, int sport, int dport, int len )
     /*
      * Track how much data on each port, and hihg<-> high port data
      */
-    if( sport < SF_MAX_PORT )
+    if( sport <  1024 && dport > 1023 ) //sfFlow->maxPortToTrack )
     {
         sfFlow->portUdpSrc  [ sport ]+= len;
-   
-    }else if( dport < SF_MAX_PORT ){
-    
+    }
+    else if( dport < 1024 && sport > 1023 ) //sfFlow->maxPortToTrack )
+    {
         sfFlow->portUdpDst  [ dport ]+= len;
-    
-    }else{
-
+    }
+    else if( sport < 1023 && dport < 1023 )
+    {
+        sfFlow->portUdpSrc  [ sport ]+= len;
+        sfFlow->portUdpDst  [ dport ]+= len;
+    }
+    else if( sport > 1023 && dport > 1023 )
+    {
+        sfFlow->portUdpSrc  [ sport ]+= len;
+        sfFlow->portUdpDst  [ dport ]+= len;
+        
         sfFlow->portUdpHigh += len;
     }
 
@@ -274,7 +307,7 @@ int ProcessFlowStats(SFFLOW *sfFlow)
     **  Calculate TCP port distribution by src, dst and
     **  total percentage.
     */
-    for(i=0;i<SF_MAX_PORT;i++)
+    for(i=0;i<sfFlow->maxPortToTrack;i++)
     {
         tot = sfFlow->portTcpSrc[i]+sfFlow->portTcpDst[i];
         if(!tot)
@@ -315,7 +348,7 @@ int ProcessFlowStats(SFFLOW *sfFlow)
     **  Calculate UDP port processing based on src, dst and
     **  total distributions.
     */
-    for(i=0;i<SF_MAX_PORT;i++)
+    for(i=0;i<sfFlow->maxPortToTrack;i++)
     {
         tot = sfFlow->portUdpSrc[i]+sfFlow->portUdpDst[i];
         if(!tot)
@@ -413,7 +446,8 @@ int DisplayFlowStats(SFFLOW_STATS *sfFlowStats)
     LogMessage(    "--------------\n"); 
     for(i=0;i<SF_MAX_PORT;i++)
     {
-        if(sfFlowStats->portflowTCP.totperc[i])
+        if(sfFlowStats->portflowTCP.totperc[i] && 
+           sfFlowStats->portflowTCP.dport_rate[i]  )
         {
             LogMessage("Port[%d] %.2f%% of Total, Src: %6.2f%% Dst: %6.2f%%\n",
                         i, sfFlowStats->portflowTCP.totperc[i],
@@ -432,7 +466,8 @@ int DisplayFlowStats(SFFLOW_STATS *sfFlowStats)
     LogMessage(    "--------------\n"); 
     for(i=0;i<SF_MAX_PORT;i++)
     {
-        if(sfFlowStats->portflowUDP.totperc[i])
+        if(sfFlowStats->portflowUDP.totperc[i] && 
+           sfFlowStats->portflowUDP.dport_rate[i]  )
         {
             LogMessage("Port[%d] %.2f%% of Total, Src: %6.2f%% Dst: %6.2f%%\n",
                         i, sfFlowStats->portflowUDP.totperc[i],

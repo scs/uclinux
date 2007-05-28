@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10523);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1737);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2000-0900");
  
  name["english"] = "thttpd ssi file retrieval";
@@ -27,7 +27,7 @@ will return /etc/passwd.
 
 Solution: upgrade to version 2.20 of thttpd.
 
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -42,6 +42,7 @@ Risk factor : Serious";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -53,8 +54,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

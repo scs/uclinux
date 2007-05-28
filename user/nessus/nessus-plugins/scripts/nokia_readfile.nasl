@@ -18,7 +18,7 @@
 if(description)
 {
  script_id(11549); 
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "readfile.tcl";
  script_name(english:name["english"]);
@@ -29,7 +29,7 @@ to read arbitrary files on the remote host with the privileges of the HTTP
 daemon (typically 'nobody').
 
 Solution : None at this time, contact your vendor for a patch
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -48,8 +48,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 if(!get_port_state(port))exit(0);

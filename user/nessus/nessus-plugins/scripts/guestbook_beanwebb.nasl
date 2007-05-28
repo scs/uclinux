@@ -12,8 +12,8 @@
 if(description)
 {
  script_id(11500);
- script_version ("$Revision: 1.4 $");
- script_bugtraq_id(7232, 7231);
+ script_bugtraq_id(7231, 7232);
+ script_version ("$Revision: 1.10 $");
 
 
  name["english"] = "Beanwebb's guestbook";
@@ -50,11 +50,12 @@ Risk factor : Low";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -66,30 +67,22 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
 
 
-gdir = make_list(cgi_dirs());
-
-dirs = make_list("", "/guestbook");
-foreach d (gdir)
-{
-  dirs = make_list(dirs, string(d, "/guestbook"), d);
-}
-
-
-foreach dir (dirs)
+foreach dir (cgi_dirs())
 {
  req = http_get(item:string(dir, "/admin.php"), port:port);
  res = http_keepalive_send_recv(port:port, data:req);
 
  if( res == NULL ) exit(0);
 
- if(egrep(pattern:".*post.*admin\.php.*", string:res, icase:TRUE) &&  "Guestbook Admin" >< res)
+ if("Guestbook Admin" >< res && egrep(pattern:"post.*admin\.php", string:res, icase:TRUE) )
  	{
 	security_warning(port);
 	exit(0);

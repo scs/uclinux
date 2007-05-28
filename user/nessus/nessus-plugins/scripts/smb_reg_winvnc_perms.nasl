@@ -1,80 +1,58 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# See the Nessus Scripts License for details
+# This script is released under Tenable Plugins License
 #
 
 if(description)
 {
  script_id(10553);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1961);
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-2000-1164");
 
  name["english"] = "SMB Registry : permissions of WinVNC's key";
- name["francais"] = "Vérification des permissions de la clé de la registry WinVNC";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+Local users can connect to the system remotely.
+
+Description :
 
 The registry key HKLM\Software\ORL\WinVNC3
 is writeable and/or readable by users who are not in the admin group.
 
-This key contains the VNC password of this host, as well
-as other configuration setup.
+This key contains the VNC password of this host, as well as other 
+configuration setup.
 
-As this program allows remote access to this computer with
-the privileges of the currently logged on users, you should
-fix this problem.
+As this program allows remote access to this computer with the privileges
+of the currently logged on users, you should fix this problem.
 
+Solution :
 
-Solution : use regedt32 and set the permissions of this
-key to :
+Use regedt32 and set the permissions of this key to :
 
-	- admin group  : Full Control
-	- system       : Full Control
-	- everyone     : No access
+- admin group  : Full Control
+- system       : Full Control
+- everyone     : No access
 	
-Risk factor : High";
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:L/AC:H/Au:NR/C:N/A:N/I:N/B:N)";
 
 
- desc["francais"] = "
- 
-La clé HKLM\Software\ORL\WinVNC3
-de la base de registre peut etre accédée en écriture et/ou lecture
-par des utilisateurs n'étant pas membres du groupe admin.
-
-Cette clé contient le mot de passe du serveur VNC de cette
-machine, ainsi que d'autres paramètres.
-
-Comme ce programme permet d'accéder à distance à cette machine
-avec les privilèges de l'utilisateur de la console, vous
-devriez fixer ce problème.
-
-Solution : utilisez regedt32 et changez les permissions
-de cette clé en :
-
-	- groupe admin  : control total
-	- sytem         : control total
-	- tout le monde : pas d'accès
-	
-	
-Facteur de risque : Elevé";
-
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines the access rights of a remote key";
- summary["francais"] = "Détermine les droits d'accès d'une clé distante";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
@@ -85,15 +63,47 @@ Facteur de risque : Elevé";
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
 
+access = get_kb_item("SMB/registry_access");
+if(!access)exit(0);
 
+port = get_kb_item("SMB/transport");
+if(!port)port = 139;
+
+name	= kb_smb_name(); 	if(!name)exit(0);
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
+
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
+
+hklm = RegConnectRegistry(hkey:HKEY_LOCAL_MACHINE);
+if ( isnull(hklm) )
+{
+ NetUseDel();
+ exit(0);
+}
 
 key = "Software\ORL\WinVNC3";
 
-val = registry_get_acl(key:key);
-if(!val)exit(0);
+key_h = RegOpenKey(handle:hklm, key:key, mode:MAXIMUM_ALLOWED | ACCESS_SYSTEM_SECURITY); 
+if(!isnull(key_h))
+{
+ rep = RegGetKeySecurity (handle:key_h, type: DACL_SECURITY_INFORMATION | SACL_SECURITY_INFORMATION | GROUP_SECURITY_INFORMATION | OWNER_SECURITY_INFORMATION);
+ if(!isnull(rep) && registry_key_writeable_by_non_admin(security_descriptor:rep))
+ {
+   security_note (port);
+ }
+ RegCloseKey (handle:key_h);
+}
 
-if(registry_key_writeable_by_non_admin(security_descriptor:val))
- security_hole(get_kb_item("SMB/transport"));
-
+RegCloseKey (handle:hklm);
+NetUseDel();

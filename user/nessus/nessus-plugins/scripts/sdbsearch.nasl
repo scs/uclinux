@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(10720); 
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-2001-1130");
  
  name["english"] = "sdbsearch.cgi";
@@ -22,7 +22,7 @@ the HTTP server.
 Solution : modify the script so that it filters
 the HTTP_REFERRER variable, or delete it.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -44,6 +44,7 @@ Risk factor : Serious";
  
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -51,8 +52,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

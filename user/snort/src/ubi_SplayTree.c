@@ -58,8 +58,8 @@ static char ModuleID[] = "ubi_SplayTree\n\
 /* ========================================================================== **
  * Private functions...
  */
-
-static void Rotate( ubi_btNodePtr p )
+/* This is no longer private */
+void Rotate( ubi_btNodePtr p )
   /* ------------------------------------------------------------------------ **
    * This function performs a single rotation, moving node *p up one level
    * in the tree.

@@ -20,9 +20,9 @@
 if(description)
 {
  script_id(11066);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2002-0436");
  script_bugtraq_id(4269);
+ script_version("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-0436");
 
  name["english"] = "SunSolve CD CGI user input validation";
  script_name(english:name["english"]);
@@ -50,15 +50,21 @@ Risk factor : High";
 }
 
 #
-port = get_kb_item("Services/www");
-if(!port) port = 8383;
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-if (is_cgi_installed(port: port, item:"/cd-cgi/sscd_suncourier.pl")) {
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:8383);
+
+if (is_cgi_installed_ka(port: port, item:"/cd-cgi/sscd_suncourier.pl")) {
 	security_warning(port);
 	exit(0);
 }
 
-if (is_cgi_installed(port: port, item:"sscd_suncourier.pl")) {
+if (is_cgi_installed_ka(port: port, item:"sscd_suncourier.pl")) {
 	security_warning(port);
 	exit(0);
 }

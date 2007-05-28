@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: fifo.h,v 1.2 2003/03/16 18:01:21 janakj Exp $
  *
  * Header file for domain fifo functions
  *

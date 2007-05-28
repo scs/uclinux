@@ -68,8 +68,6 @@ ExtFunc int open_sock_udp(struct arglist * , unsigned int );
 ExtFunc int open_sock_option(struct arglist * , unsigned int , int , int, int);
 ExtFunc int recv_line(int, char *, size_t);
 ExtFunc int nrecv(int, void*, int, int);
-ExtFunc int is_cgi_installed(struct arglist * , const char *);
-ExtFunc int is_cgi_installed_by_port(struct arglist * , const char *, int);
 ExtFunc int socket_close(int);
 
 /* Additional functions -- should not be used by the plugins */
@@ -86,6 +84,8 @@ ExtFunc void scanner_add_port(struct arglist*, int, char *);
 ExtFunc void auth_send(struct arglist *, char *);
 ExtFunc char * auth_gets(struct arglist *, char * , size_t);
 ExtFunc int ping_host(struct in_addr);
+
+ExtFunc unsigned short *getpts(char *, int *);
 
 /* 
  * Management of the arglists --should not be used directly by
@@ -232,7 +232,8 @@ ExtFunc char ** append_argv (char **argv, char *opt);
 ExtFunc void    destroy_argv (char **argv);
 ExtFunc void (*pty_logger(void(*)(const char *, ...)))(const char *, ...);
 
-ExtFunc FILE*	nessus_popen(const char*, const char**, pid_t*);
+ExtFunc FILE*	nessus_popen(const char*, char *const[], pid_t*);
+ExtFunc FILE*	nessus_popen4(const char*, char *const[], pid_t*, int);
 ExtFunc int	nessus_pclose(FILE*, pid_t);
 
 /* 
@@ -306,8 +307,11 @@ ExtFunc void * __hml_realloc(char*, int, void*, size_t);
 /* 
  * Inter Plugins Communication functions
  */
+ExtFunc struct kb_item ** plug_get_kb(struct arglist *);
 ExtFunc void plug_set_key(struct arglist *, char *, int, void *);
-ExtFunc void * plug_get_key(struct arglist *, char *);
+ExtFunc void plug_replace_key(struct arglist *, char *, int, void *);
+ExtFunc void * plug_get_key(struct arglist *, char *, int *);
+ExtFunc void * plug_get_fresh_key(struct arglist *, char *, int *);
 /*
  * FTP Functions
  */
@@ -341,7 +345,8 @@ ExtFunc int get_mac_addr(struct in_addr, char**);
 #define ACT_LAST		ACT_END
 #define ACT_FIRST		ACT_INIT
 
-#define ACT_END			9
+#define ACT_END			10
+#define ACT_FLOOD		9
 #define ACT_KILL_HOST		8
 #define ACT_DENIAL 		7
 #define ACT_DESTRUCTIVE_ATTACK 	6
@@ -354,6 +359,9 @@ ExtFunc int get_mac_addr(struct in_addr, char**);
 
 
 
+#define	LAUNCH_DISABLED 0
+#define LAUNCH_RUN	1
+#define LAUNCH_SILENT	2
 
 
 /*
@@ -383,6 +391,7 @@ ExtFunc int get_mac_addr(struct in_addr, char**);
 
 ExtFunc int    open_stream_connection(struct arglist *, unsigned int, int, int);
 ExtFunc int    open_stream_connection_unknown_encaps(struct arglist *, unsigned int, int, int *);
+ExtFunc int    open_stream_connection_unknown_encaps5(struct arglist *, unsigned int, int, int *, int *);
 ExtFunc int    open_stream_auto_encaps(struct arglist *, unsigned int, int);
 ExtFunc int    write_stream_connection (int, void * buf, int n);
 ExtFunc int    read_stream_connection (int, void *, int);
@@ -394,6 +403,10 @@ ExtFunc const char* get_encaps_through(int);
 
 ExtFunc int    stream_set_timeout(int, int);
 ExtFunc int    stream_set_options(int, int, int);
+
+ExtFunc int	stream_set_buffer(int, int);
+ExtFunc int	stream_get_buffer_sz (int);
+ExtFunc int	stream_get_err(int);
 
 #ifdef HAVE_SSL
 ExtFunc        X509*   stream_get_server_certificate(int);
@@ -426,6 +439,7 @@ ExtFunc int bpf_server();
 ExtFunc int bpf_open_live(char*, char*);
 ExtFunc u_char* bpf_next(int, int *);
 ExtFunc void bpf_close(int);
+ExtFunc int  bpf_datalink(int);
 
 void initsetproctitle(int argc, char *argv[], char *envp[]);
 #ifndef HAVE_SETPROCTITLE
@@ -438,12 +452,121 @@ ExtFunc struct in_addr socket_get_next_source_addr();
 ExtFunc int set_socket_source_addr(int, int);
 ExtFunc void socket_source_init(struct in_addr *);
 
-struct arglist * store_plugin(struct arglist *, char *, char *);
-struct arglist * store_load_plugin(char *, char *, char *, struct arglist*);
+struct arglist * store_plugin(struct arglist *,  char *);
+struct arglist * store_load_plugin(char *, char *,  struct arglist*);
 int		 store_init_sys(char *);
 int		 store_init_user(char *);
 
 
 int		nessus_init_svc();
+/*-----------------------------------------------------------------*/
+
+#define KB_TYPE_INT ARG_INT
+#define KB_TYPE_STR ARG_STRING
+
+struct kb_item {
+	char * name;
+ 	char type;
+	union {
+		char * v_str;
+		int v_int;
+	} v;
+	struct kb_item * next;
+};
+
+
+struct kb_item ** kb_new();
+
+
+struct kb_item * kb_item_get_single(struct kb_item **, char *, int );
+char * kb_item_get_str(struct kb_item **, char *);
+int    kb_item_get_int(struct kb_item **, char *);
+
+struct kb_item * kb_item_get_all(struct kb_item **, char *);
+struct kb_item * kb_item_get_pattern(struct kb_item **, char *);
+void   kb_item_get_all_free(struct kb_item *);
+
+
+int    kb_item_add_str(struct kb_item **, char *, char *);
+int    kb_item_set_str(struct kb_item **, char *, char *);
+int    kb_item_add_int(struct kb_item **, char *, int   );
+int    kb_item_set_int(struct kb_item **, char *, int   );
+
+struct arglist * plug_get_oldstyle_kb(struct arglist * );
+
+
+#define NEW_KB_MGMT
+
+
+
+/*-----------------------------------------------------------------*/
+
+struct http_msg {
+	int type;		/* Who should read this message  */
+	pid_t owner;		/* Process who sent that message */
+	unsigned short port;
+	int total_len;
+	int transport;
+	int data_len;
+	char data[1];
+	};
+	
+int http_share_exists(struct arglist *);	
+struct http_msg * http_share_mkmsg(int, int, int, char*);
+void http_share_freemsg(struct http_msg*);
+struct http_msg * http_share_send_recv_msg(struct arglist *, struct http_msg *);
+	
+	
+pid_t http_share_init(struct arglist *);
+int http_share_close(struct arglist *, pid_t);
+
+
+int os_send(int, void*, int, int);
+int os_recv(int, void*, int, int);
+
+
+#define INTERNAL_COMM_MSG_TYPE_CTRL	(1 << 16)
+#define INTERNAL_COMM_MSG_TYPE_KB	(1 << 17)
+#define INTERNAL_COMM_MSG_TYPE_DATA	(1 << 18)
+#define INTERNAL_COMM_MSG_SHARED_SOCKET (1 << 19)
+
+
+#define INTERNAL_COMM_KB_REPLACE	1
+#define INTERNAL_COMM_KB_GET		2
+#define INTERNAL_COMM_KB_SENDING_INT	4
+#define INTERNAL_COMM_KB_SENDING_STR	8
+#define INTERNAL_COMM_KB_ERROR	 	16	
+
+
+#define INTERNAL_COMM_CTRL_FINISHED	1
+#define INTERNAL_COMM_CTRL_ACK          2
+
+
+#define INTERNAL_COMM_SHARED_SOCKET_REGISTER	1
+#define INTERNAL_COMM_SHARED_SOCKET_ACQUIRE	2
+#define INTERNAL_COMM_SHARED_SOCKET_RELEASE	4
+#define INTERNAL_COMM_SHARED_SOCKET_DESTROY	8
+
+#define INTERNAL_COMM_SHARED_SOCKET_DORECVMSG	16
+#define INTERNAL_COMM_SHARED_SOCKET_BUSY 	32
+#define INTERNAL_COMM_SHARED_SOCKET_ERROR	64
+
+
+
+int internal_send(int, char *, int);
+int internal_recv(int, char **, int *, int *);
+int internal_finished(int);
+	
+int fd_is_stream(int);
+int stream_pending(int);
+
+int send_fd(int, int);
+int recv_fd(int);
+
+int shared_socket_register ( struct arglist *, int, char *);
+int shared_socket_acquire  ( struct arglist *, char * );
+int shared_socket_release  ( struct arglist *, char * );
+int shared_socket_destroy  ( struct arglist *, char * );
 
 #endif
+

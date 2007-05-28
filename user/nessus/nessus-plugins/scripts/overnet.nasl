@@ -6,6 +6,7 @@
 if(description)
 {
  script_id(11845);
+ script_version("$Revision$");
  name["english"] = "Overnet P2P check";
  script_name(english:name["english"]);
 

@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: decode.c,v 1.4 1998/09/09 21:06:43 gert Exp $ */
 
 #include <stdio.h>
 

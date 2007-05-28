@@ -78,11 +78,8 @@ Hi,
 #   options, since the corresponding modules are in this program.
 #
 ########################### RCS stamps ########################################
-# $Id$
-# $Log$
-# Revision 1.1  2006/08/05 07:26:54  vapier
-# import from upstream uClinux
-#
+# $Id: ttyenable,v 1.5 1994/05/21 14:49:50 root Exp root $
+# $Log: ttyenable,v $
 # Revision 1.5  1994/05/21  14:49:50  root
 # some cosmetics at error reporting
 #

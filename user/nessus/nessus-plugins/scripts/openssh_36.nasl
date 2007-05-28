@@ -8,9 +8,13 @@
 if(description)
 {
  script_id(11837);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0020");
  script_bugtraq_id(8628);
- script_cve_id("CAN-2003-0693", "CAN-2003-0695");
- script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2003-0682", "CVE-2003-0693", "CVE-2003-0695");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:279");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:039");
+
+ script_version ("$Revision: 1.20 $");
 
  
  name["english"] = "OpenSSH < 3.7.1";
@@ -58,7 +62,10 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ if ( ! defined_func("bn_random") )
+	script_dependencie("ssh_detect.nasl");
+ else
+ 	script_dependencie("ssh_detect.nasl", "ssh_get_info.nasl", "redhat-RHSA-2003-280.nasl", "redhat_fixes.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -67,47 +74,17 @@ Risk factor : High";
 # The script code starts here
 #
 
+include("backport.inc"); 
 
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+if ( get_kb_item("CVE-2003-0682") ) exit(0);
 
-
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    banner = tolower(banner);
-    close(soc);
-  }
-}
-
-if(!banner)exit(0);
-banner = tolower(banner);
-
-banner = banner - string("\r\n");
-banner = tolower(banner);
-if("openssh" >< banner)
-{
-#always exceptions FreeBSD patched it:(the DATE is important, not patch level)
-# see
-#HEAD                         OpenSSH_3.6.1p1 FreeBSD-20030916
-#RELENG_4                     OpenSSH_3.5p1 FreeBSD-20030916
-#RELENG_5_1                   OpenSSH_3.6.1p1 FreeBSD-20030916
-#RELENG_4_8                   OpenSSH_3.5p1 FreeBSD-20030916
-#RELENG_4_7                   OpenSSH_3.4p1 FreeBSD-20030916
-#RELENG_4_6                   OpenSSH_3.4p1 FreeBSD-20030916
-#RELENG_4_5                   OpenSSH_2.9 FreeBSD localisations 20030916
-#RELENG_4_4                   OpenSSH_2.3.0 FreeBSD localisations 20030916
-#RELENG_4_3                   OpenSSH_2.3.0 green@FreeBSD.org 20030916
-#sample banner: 4_8
-#SSH-2.0-OpenSSH_3.5p1 FreeBSD-20030201
- if(ereg(pattern:".*openssh.*freebsd.*(200309[0-9][0-9]|200[4-9].*)$", string:banner))exit(0);
- if(ereg(pattern:".*openssh[-_](([12]\..*)|(3\.[0-6].*)|(3\.7[^\.]*$))[^0-9]*", string:banner))
-	security_hole(port);
-}
+banner = get_kb_item("SSH/banner/" + port);
+if ( ! banner ) exit(0);
+banner = tolower(get_backport_banner(banner:banner));
+if(ereg(pattern:".*openssh[-_](([12]\..*)|(3\.[0-6].*)|(3\.7[^\.]*$))[^0-9]*", 
+	string:banner)) {
+		security_hole(port);
+	}

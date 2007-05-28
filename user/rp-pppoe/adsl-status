@@ -7,7 +7,7 @@
 #
 # Copyright (C) 2000 Roaring Penguin Software Inc.
 #
-# $Id$
+# $Id: adsl-status,v 1.1.1.1 2000/11/17 05:28:41 davidm Exp $
 #
 # This file may be distributed under the terms of the GNU General
 # Public License.
@@ -62,9 +62,7 @@ for i in $VARRUN/ppp*.pid ; do
 	PID=`cat $i`
 	if [ "$PID" = "$PPPD_PID" ] ; then
 	    IF=`basename $i .pid`
-	    # Busybox has no support for netstat -r	
-	    #netstat -rn | grep "${IF}\$" > /dev/null
-	    route -n | grep "${IF}\$" > /dev/null
+	    netstat -rn | grep "${IF}\$" > /dev/null
 	    # /sbin/ifconfig $IF | grep "UP.*POINTOPOINT" > /dev/null
 	    if [ "$?" != "0" ] ; then
 		echo "adsl-status: Link is attached to $IF, but $IF is down"

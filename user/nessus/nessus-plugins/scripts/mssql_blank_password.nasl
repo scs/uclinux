@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10673);
- script_cve_id("CAN-2000-1209");
- script_bugtraq_id(1281);
- script_version ("$Revision: 1.17 $");
+ script_bugtraq_id(1281, 4797);
+ script_cve_id("CVE-2000-1209");
+ script_version ("$Revision: 1.21 $");
  name["english"] = "Microsoft's SQL Blank Password";
  script_name(english:name["english"]);
  
@@ -48,10 +48,10 @@ Risk factor : High";
  script_category(ACT_ATTACK);
  
  script_copyright(english:"This script is Copyright (C) 2001 H D Moore");
- family["english"] = "Windows";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
  script_require_ports("Services/mssql", 1433); 
- script_dependencies("mssqlserver_detect.nasl");
+ script_dependencies("mssqlserver_detect.nasl", "sybase_detect.nasl");
  exit(0);
 }
 
@@ -157,6 +157,7 @@ function make_sql_login_pkt (username, password)
 
 
 port = get_kb_item("Services/mssql");
+if(!port)port = get_kb_item("Services/sybase");
 if(!port)port = 1433;
 
 found = 0;

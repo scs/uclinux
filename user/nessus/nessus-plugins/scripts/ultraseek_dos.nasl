@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10542);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1866);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-2000-1019");
  
  
@@ -25,7 +25,7 @@ An attacker may use this flaw to prevent this site from responding
 to valid client requests.
 
 Solution : Upgrade to UltraSeek 4.x
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -89,7 +89,7 @@ arguments.
 *** when testing without safe checks enabled.
 
 Solution : Upgrade to version 4.0
-Risk factor : Serious";
+Risk factor : High";
 
      security_hole(port:8765, data:alrt);
    }

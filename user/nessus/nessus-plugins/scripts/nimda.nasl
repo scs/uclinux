@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10767);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "Tests for Nimda Worm infected HTML files";
  name["francais"] = "Tests for Nimda Worm infected HTML files";
  script_name(english:name["english"], francais:name["francais"]);
@@ -33,7 +33,7 @@ apply ALL vendor patches and security updates before reconnecting
 server to the internet, as well as security settings discussed in 
 Additional Information section of Microsoft's web site at
 
-http://www.microsoft.com/technet/security/bulletin/ms01-044.asp
+http://www.microsoft.com/technet/security/bulletin/ms01-044.mspx
 
 Check ALL of your local Microsoft based workstations for infection.
 Note: this worm has already infected more than 500,000 computers
@@ -64,20 +64,13 @@ Risk factor : High";
 # Check for references to readme.eml in default HTML page..
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
- req = http_get(item:"/", port:port);
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
- if("readme.eml" >< r)	
+ r = http_get_cache(item:"/", port:port);
+ if(r && "readme.eml" >< r)	
  	security_hole(port);
- 
- }
 }

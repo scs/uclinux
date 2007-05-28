@@ -78,6 +78,9 @@
 #include "ubi_SplayTree.h"
 
 #include "snort.h"
+#include "snort_packet_header.h"
+
+#include "profiler.h"
 
 void Frag2Init(u_char *args);
 
@@ -93,12 +96,6 @@ void Frag2Init(u_char *args);
 
 #define FRAG2_TTL_LIMIT      5
 #define FRAG2_MIN_TTL        0
-
-#if defined (SOLARIS) || defined (SUNOS) || defined (__sparc__) || defined(__sparc64__) || defined (HPUX)
-#define SPARC_TWIDDLE       2
-#else
-#define SPARC_TWIDDLE       0
-#endif
 
 #define DATASIZE (ETHERNET_HEADER_LEN+65536)
 
@@ -180,8 +177,8 @@ typedef struct _CompletionData
 
 typedef struct _F2Emergency
 {
-    u_int32_t end_time;
-    int new_frag_count;
+    long end_time;
+    unsigned long new_frag_count;
     int status;
 } F2Emergency;
 
@@ -210,9 +207,15 @@ static Packet *defrag_pkt;
 
 F2Emergency f2_emergency;
 
+#ifdef PERF_PROFILING
+PreprocStats frag2PerfStats;
+PreprocStats frag2InsertPerfStats;
+PreprocStats frag2RebuildPerfStats;
+#endif
+
 /*  P R O T O T Y P E S  ********************************************/
 void ParseFrag2Args(u_char *);
-void Frag2Defrag(Packet *);
+void Frag2Defrag(Packet *, void *);
 FragTracker *GetFragTracker(Packet *);
 FragTracker *NewFragTracker(Packet *);
 int InsertFrag(Packet *, FragTracker *);
@@ -225,7 +228,6 @@ void ZapFrag(FragTracker *);
 void Frag2InitPkt();
 void Frag2CleanExit(int, void *);
 void Frag2Restart(int, void *);
-
 
 int Frag2SelfPreserve(struct _SPMemControl *spmc)
 {
@@ -286,9 +288,9 @@ static int Frag2CompareFunc(ubi_trItemPtr ItemPtr, ubi_trNodePtr NodePtr)
     nFt = (FragTracker *) NodePtr;
     iFt = (FragTracker *) ItemPtr;
 
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2,"NodePtr: sip: 0x%X  dip: 0x%X  ip: 0x%X  "
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG,"NodePtr: sip: 0x%X  dip: 0x%X  ip: 0x%X  "
                 "proto: 0x%X\n", nFt->sip, nFt->dip, nFt->id, nFt->protocol);
-           DebugMessage(DEBUG_FRAG2,"ItemPtr: sip: 0x%X  dip: 0x%X  ip: 0x%X  "
+           DebugMessage(DEBUG_FRAG,"ItemPtr: sip: 0x%X  dip: 0x%X  ip: 0x%X  "
                 "proto: 0x%X\n", iFt->sip, iFt->dip, iFt->id, iFt->protocol););
 
     if(nFt->sip < iFt->sip) return 1;
@@ -343,7 +345,7 @@ static void CompletionTraverse(ubi_trNodePtr NodePtr, void *complete)
     }    
     else if(frag->offset > next_offset)
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Holes in completion check... (%u > %u)\n",
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Holes in completion check... (%u > %u)\n",
                                 frag->offset, next_offset););
         comp->complete = 0;
     }
@@ -361,7 +363,7 @@ static void RebuildTraverse(ubi_trNodePtr NodePtr, void *buffer)
 
     frag = (Frag2Frag *)NodePtr;
 
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "frag offset: 0x%X  size: %lu  pointer: %p\n", 
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "frag offset: 0x%X  size: %lu  pointer: %p\n", 
                 (unsigned int) frag->offset, (unsigned long) frag->size,
                 (buf+frag->offset)););
 
@@ -373,7 +375,7 @@ static void RebuildTraverse(ubi_trNodePtr NodePtr, void *buffer)
     }
     else
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "frag2: pkt rebuild size violation\n"););
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "frag2: pkt rebuild size violation\n"););
         f2data.stop_traverse = 1;
     }
 
@@ -400,14 +402,16 @@ static void KillFrag(ubi_trNodePtr NodePtr)
 void SetupFrag2()
 {
     RegisterPreprocessor("frag2", Frag2Init);
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Preprocessor: frag2 is setup...\n"););
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Preprocessor: frag2 is setup...\n"););
 }
 
 
 void Frag2Init(u_char *args)
 {
+    LogMessage("WARNING: the frag2 preprocessor will be deprecated in "
+        "the next release of snort.  Please switch to using frag3.\n");
 
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Initializing frag2\n"););
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Initializing frag2\n"););
 
     f2data.last_prune_time = 0;
     f2data.frag2_alerts = 0;
@@ -442,9 +446,15 @@ void Frag2Init(u_char *args)
     
     Frag2InitPkt();
 
-    AddFuncToPreprocList(Frag2Defrag);
-    AddFuncToCleanExitList(Frag2CleanExit, NULL);
-    AddFuncToRestartList(Frag2Restart, NULL);
+    AddFuncToPreprocList(Frag2Defrag, PRIORITY_NETWORK, PP_FRAG2);
+    AddFuncToPreprocCleanExitList(Frag2CleanExit, NULL, PRIORITY_FIRST, PP_FRAG2);
+    AddFuncToPreprocRestartList(Frag2Restart, NULL, PRIORITY_FIRST, PP_FRAG2);
+
+#ifdef PERF_PROFILING
+    RegisterPreprocessorProfile("frag2", &frag2PerfStats, 0, &totalPerfStats);
+    RegisterPreprocessorProfile("frag2insert", &frag2InsertPerfStats, 1, &frag2PerfStats);
+    RegisterPreprocessorProfile("frag2rebuild", &frag2RebuildPerfStats, 1, &frag2PerfStats);
+#endif
 }
 
 
@@ -687,16 +697,12 @@ void ParseFrag2Args(u_char *args)
     }
 }
 
-void Frag2Defrag(Packet *p)
+void Frag2Defrag(Packet *p, void *context)
 {
     FragTracker *ft;
     static int alert_once_emerg   = 0;
     static int alert_once_suspend = 0;
-
-    if(!(p->preprocessors & PP_FRAG2))
-    {
-        return;
-    }
+    PROFILE_VARS;
 
     if(f2_emergency.status != OPS_NORMAL)
     {
@@ -725,7 +731,7 @@ void Frag2Defrag(Packet *p)
 
     if(p->csum_flags & CSE_IP)
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Discarding invalid IP checksum\n"););
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Discarding invalid IP checksum\n"););
         return;
     }
     
@@ -746,17 +752,18 @@ void Frag2Defrag(Packet *p)
 
     if(p->iph->ip_ttl < f2data.min_ttl)
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Got frag packet (mem use: %u frag "
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Got frag packet (mem use: %u frag "
                     "trackers: %d  p->pkt_flags: 0x%X)\n", f2data.frag_sp_data.mem_usage, 
                     ubi_trCount(FragRootPtr), p->packet_flags););
         return;
     }
 
+    PREPROC_PROFILE_START(frag2PerfStats);
 
     if (!f2data.last_prune_time)
         f2data.last_prune_time = p->pkth->ts.tv_sec;
 
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Got frag packet (mem use: %lu frag "
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Got frag packet (mem use: %lu frag "
                 "trackers: %d  p->pkt_flags: 0x%X)\n", f2data.frag_sp_data.mem_usage, 
                 ubi_trCount(FragRootPtr), p->packet_flags););
 
@@ -764,8 +771,8 @@ void Frag2Defrag(Packet *p)
 
     if(ft == NULL)
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Didn't find frag packet\n"););
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Adding New FragTracker...\n"););
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Didn't find frag packet\n"););
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Adding New FragTracker...\n"););
 
         /*
          * Much like keeping track of stream sessions, if someone
@@ -824,7 +831,7 @@ void Frag2Defrag(Packet *p)
 
         if(ft == NULL)
         {
-            DEBUG_WRAP(DebugMessage(DEBUG_FRAG2,
+            DEBUG_WRAP(DebugMessage(DEBUG_FRAG,
                         "Discarding fragment, Disabling Detection\n"););
 
             /*
@@ -835,6 +842,8 @@ void Frag2Defrag(Packet *p)
             DisableDetect(p);
         }
 
+        UpdateIPFragStats(&(sfPerf.sfBase), p->pkth->caplen);
+        PREPROC_PROFILE_END(frag2PerfStats);
         return;
     }
 
@@ -842,10 +851,11 @@ void Frag2Defrag(Packet *p)
     if(ft->alerted == 1)
     {
         /* one alert per fragment is good enough */
+        PREPROC_PROFILE_END(frag2PerfStats);
         return;
     }
 
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Found frag packet\n"););
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Found frag packet\n"););
 
     /* detect ttl based evasion techniques */
     if(f2data.ttl_limit) 
@@ -857,6 +867,7 @@ void Frag2Defrag(Packet *p)
                 1, 0, 5, FRAG2_TTL_EVASION_STR, 0);
 
             /* lets just go look at real events from now on. */
+            PREPROC_PROFILE_END(frag2PerfStats);
             return;
         }
     }
@@ -870,6 +881,7 @@ void Frag2Defrag(Packet *p)
                        p->frag_offset);
         }
         
+        PREPROC_PROFILE_END(frag2PerfStats);
         return;
     }
     else
@@ -889,6 +901,7 @@ void Frag2Defrag(Packet *p)
 
                 ft->alerted = 1;
                 DisableDetect(p);
+                PREPROC_PROFILE_END(frag2PerfStats);
                 return;
             }
             else if(f2data.frag2_alerts &&
@@ -900,29 +913,33 @@ void Frag2Defrag(Packet *p)
 
                 DisableDetect(p);
                 p->packet_flags |= PKT_FRAG_ALERTED;
+                PREPROC_PROFILE_END(frag2PerfStats);
                 return;
             }
 
             RebuildFrag(ft, p);
 
         } else {
-            DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Fragment not complete\n"););
+            DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Fragment not complete\n"););
         }
+
+        UpdateIPFragStats(&(sfPerf.sfBase), p->pkth->caplen);
     }
 
     if( (u_int32_t)(p->pkth->ts.tv_sec) > 
             (f2data.last_prune_time + f2data.frag_timeout))
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Prune time quanta for defrag code hit, "
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Prune time quanta for defrag code hit, "
                     "pruning frag tree...\n"););
         PruneFragCache(ft, p->pkth->ts.tv_sec, 0);
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2,  "Finished pruning, %lu frag trackers "
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG,  "Finished pruning, %lu frag trackers "
                     "active, %lu alloc faults\n", ubi_trCount(FragRootPtr),
                     (unsigned long) frag2_alloc_faults););
 
         f2data.last_prune_time = p->pkth->ts.tv_sec;
     }
 
+    PREPROC_PROFILE_END(frag2PerfStats);
     return;
 }
 
@@ -938,7 +955,7 @@ FragTracker *GetFragTracker(Packet *p)
 
     if(f2data.frag_sp_data.mem_usage == 0)
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "trCount says nodes exist but "
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "trCount says nodes exist but "
                                 "f2data.frag_sp_data.mem_usage = 0\n"););
         return NULL;
     }
@@ -949,7 +966,7 @@ FragTracker *GetFragTracker(Packet *p)
     ft.protocol = p->iph->ip_proto;
     
     returned = (FragTracker *) ubi_sptFind(FragRootPtr, (ubi_btItemPtr)&ft);
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "returning %p\n", returned););
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "returning %p\n", returned););
     
     return returned;
 }
@@ -1017,13 +1034,16 @@ int InsertFrag(Packet *p, FragTracker *ft)
     Frag2Frag *returned;
     Frag2Frag *newfrag;
     F2SPControl sp;
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(frag2InsertPerfStats);
 
     sfPerf.sfBase.iFragInserts++;
     
     if(ft->frag_bytes + p->dsize > 70000)
     {
         /* only allow a minimum of overlap in the fragment system */
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2,
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG,
                                 "Exiting out because of memusage %d, %d",
                                 ft->frag_bytes, p->dsize););
 
@@ -1032,6 +1052,7 @@ int InsertFrag(Packet *p, FragTracker *ft)
 
         DisableDetect(p);
         ft->alerted = 1;
+        PREPROC_PROFILE_END(frag2InsertPerfStats);
         return -1;
     }
 
@@ -1048,6 +1069,7 @@ int InsertFrag(Packet *p, FragTracker *ft)
 
                 p->packet_flags |= PKT_FRAG_ALERTED;
             }
+            PREPROC_PROFILE_END(frag2InsertPerfStats);
             return -1;
         }
         else
@@ -1059,7 +1081,7 @@ int InsertFrag(Packet *p, FragTracker *ft)
     {
         ft->frag_flags |= FRAG_GOT_LAST;
         ft->calculated_size = (p->frag_offset << 3) + p->dsize;
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Bytes: %d, Calculated size: %d\n",
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Bytes: %d, Calculated size: %d\n",
                                 ft->frag_bytes,
                                 ft->calculated_size););
         
@@ -1068,6 +1090,7 @@ int InsertFrag(Packet *p, FragTracker *ft)
             SnortEventqAdd(GENERATOR_SPP_FRAG2, FRAG2_OVERSIZE_FRAG,
                 1, 0, 5, FRAG2_OVERSIZE_FRAG_STR, 0);
 
+            PREPROC_PROFILE_END(frag2InsertPerfStats);
             return -1;
         }
         
@@ -1075,14 +1098,14 @@ int InsertFrag(Packet *p, FragTracker *ft)
 
     if(!(ft->frag_flags & FRAG_GOT_FIRST))
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "setting out of order!"););
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "setting out of order!"););
         ft->frag_flags |= FRAG_OUTOFORDER;
     }
 
     ft->last_frag_time = p->pkth->ts.tv_sec;
     ft->frag_pkts++;
     ft->frag_bytes += p->dsize;
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "ft->frag_bytes: %u %u!\n", ft->frag_bytes, f2data.frag_sp_data.mem_usage););
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "ft->frag_bytes: %u %u!\n", ft->frag_bytes, f2data.frag_sp_data.mem_usage););
     
 
     sp.ft = ft;
@@ -1122,6 +1145,7 @@ int InsertFrag(Packet *p, FragTracker *ft)
 
         f2data.frag_sp_data.mem_usage -= sizeof(Frag2Frag);
         free(newfrag);
+        PREPROC_PROFILE_END(frag2InsertPerfStats);
         return 0;
     }
 
@@ -1138,9 +1162,11 @@ int InsertFrag(Packet *p, FragTracker *ft)
         free(newfrag->data);
         f2data.frag_sp_data.mem_usage -= sizeof(Frag2Frag);
         free(newfrag);
+        PREPROC_PROFILE_END(frag2InsertPerfStats);
         return -1;
     }
 
+    PREPROC_PROFILE_END(frag2InsertPerfStats);
     return 0;
 }
 
@@ -1156,7 +1182,7 @@ int FragIsComplete(FragTracker *ft, CompletionData *compdata)
     {
         /* we probably put the frag together wrong. lets atleast tell
            people that */
-        DEBUG_WRAP(DebugMessage(DEBUG_FRAG2,
+        DEBUG_WRAP(DebugMessage(DEBUG_FRAG,
                                 "my frag is already rebuilt! %d\n",
                                 (ft->frag_flags & FRAG_OUTOFORDER)););
         compdata->outoforder = 1;
@@ -1183,13 +1209,16 @@ int FragIsComplete(FragTracker *ft, CompletionData *compdata)
 void RebuildFrag(FragTracker *ft, Packet *p)
 {
     u_int8_t *rebuild_ptr;
+    PROFILE_VARS;
 
     sfPerf.sfBase.iFragFlushes++;
 
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Rebuilding pkt [0x%X:%d  0x%X:%d]\n", 
+    PREPROC_PROFILE_START(frag2RebuildPerfStats);
+
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Rebuilding pkt [0x%X:%d  0x%X:%d]\n", 
                             p->iph->ip_src.s_addr, p->sp, p->iph->ip_dst.s_addr, p->dp);
-               DebugMessage(DEBUG_FRAG2, "Calculated size: %d\n", ft->calculated_size);
-               DebugMessage(DEBUG_FRAG2, "Frag Bytes: %d\n", ft->frag_bytes);
+               DebugMessage(DEBUG_FRAG, "Calculated size: %d\n", ft->calculated_size);
+               DebugMessage(DEBUG_FRAG, "Frag Bytes: %d\n", ft->frag_bytes);
                );
 
     if(ft->calculated_size > 65516)
@@ -1260,16 +1289,20 @@ void RebuildFrag(FragTracker *ft, Packet *p)
 
     pc.rebuilt_frags++;
 
+    /* Rebuild is complete */
+    PREPROC_PROFILE_END(frag2RebuildPerfStats);
+
 #ifdef DEBUG
-    ClearDumpBuf();
+    //ClearDumpBuf();
     //PrintNetData(stdout, defrag_pkt->pkt, defrag_pkt->pkth->caplen);
-    ClearDumpBuf();
+    //ClearDumpBuf();
 #endif
 
     /* process the packet through the detection engine */
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Processing rebuilt packet:\n"););
-    ProcessPacket(NULL, defrag_pkt->pkth, defrag_pkt->pkt);
-    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Done with rebuilt packet, marking rebuilt...\n"););
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Processing rebuilt packet:\n"););
+    UpdateIPReassStats(&(sfPerf.sfBase), defrag_pkt->pkth->caplen);
+    ProcessPacket(NULL, defrag_pkt->pkth, defrag_pkt->pkt, ft);
+    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Done with rebuilt packet, marking rebuilt...\n"););
 
     ft->frag_flags = ft->frag_flags | FRAG_REBUILT;
 
@@ -1328,7 +1361,7 @@ int PruneFragCache(FragTracker *cft, u_int32_t time, u_int32_t mustdie)
 
                 if (savft != cft && ubi_trCount(FragRootPtr) > 1)
                 {
-                    DEBUG_WRAP(DebugMessage(DEBUG_FRAG2, "Pruning stale fragment\n"););
+                    DEBUG_WRAP(DebugMessage(DEBUG_FRAG, "Pruning stale fragment\n"););
                     ZapFrag(savft);
                     pc.frag_timeout++;
                     pruned++;

@@ -2,11 +2,17 @@
 # This script was written by Felix Huber <huberfelix@webtopia.de>
 #
 # v. 1.00 (last update 24.09.02)
+#
+#
+# Changes by Tenable : removed un-necessary requests
+#
 
 if(description)
 {
  script_id(11176);
- script_version("$Revision: 1.8 $");
+ script_bugtraq_id(5786);
+ script_cve_id("CVE-2002-1148");
+ script_version("$Revision: 1.14 $");
  name["english"] = "Tomcat 4.x JSP Source Exposure";
  script_name(english:name["english"]);
 
@@ -16,13 +22,11 @@ earlier versions also) are vulnerable to source
 code exposure by using the default servlet
 org.apache.catalina.servlets.DefaultServlet.
 
-Solution:
-Upgrade to the last releases 4.0.5 and 4.1.12
-See
-http://jakarta.apache.org/builds/jakarta-tomcat-4.0/release/ 
+Solution: Upgrade to the last releases 4.0.5 and 4.1.12.
+See http://jakarta.apache.org/builds/jakarta-tomcat-4.0/release/ 
 for the last releases.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -38,7 +42,7 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes");
- script_dependencie("httpver.nasl", "webmirror.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -76,31 +80,22 @@ function check(sfx)
 
 
  
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
 
 
 
-dir[0] = "/";
-dir[1] = "/index.jsp";
-dir[2] = "/default.jsp";
-dir[3] = "/index.html";
-dir[4] = "/profile.jsp";
-dir[5] = "/sort.jsp";
-dir[6] = "/topic.jsp";
 
 files = get_kb_list(string("www/",port, "/content/extensions/jsp"));
 if(!isnull(files))
  {
   files = make_list(files);
-  dir[7] = files[0];
+  file = files[0];
  }
+else file = "/index.jsp";
 
- for (i = 0; dir[i] ; i = i + 1)
- {
-  check(sfx:dir[i]);
- }
+check(sfx:file);
  

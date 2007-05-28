@@ -49,17 +49,19 @@
 #ifndef _PERF_H
 #define _PERF_H
 
-#ifndef WIN32
+#define SFPERF_BASE         0x0001
+#define SFPERF_FLOW         0x0002
+#define SFPERF_EVENT        0x0004
+#define SFPERF_BASE_MAX     0x0008
+#define SFPERF_CONSOLE      0x0010
+#define SFPERF_FILE         0x0020
+#define SFPERF_PKTCNT       0x0040
+#define SFPERF_SUMMARY      0x0080
+#define SFPERF_FILECLOSE    0x0100
+
+#ifndef UINT64
 #define UINT64 unsigned long long
 #endif
-
-#define SFPERF_BASE     1
-#define SFPERF_FLOW     2
-#define SFPERF_EVENT    4
-#define SFPERF_BASE_MAX 8
-#define SFPERF_CONSOLE  16
-#define SFPERF_FILE     32
-#define SFPERF_PKTCNT   64 
 
 #include "perf-base.h"
 #include "perf-flow.h"
@@ -68,7 +70,7 @@
 typedef struct _SFPERF {
 
     int    iPerfFlags;
-    int    iPktCnt;
+    unsigned int    iPktCnt;
 
     int    sample_interval;
     int    sample_time;
@@ -87,7 +89,10 @@ int sfSetPerformanceSampleTime(SFPERF *sfPerf, int iSeconds);
 int sfSetPerformanceAccounting(SFPERF *sfPerf, int iReset);
 int sfSetPerformanceStatistics(SFPERF *sfPerf, int iFlag);
 int sfSetPerformanceStatisticsEx(SFPERF *sfPerf, int iFlag, void * param);
+int sfRotatePerformanceStatisticsFile(SFPERF *sfPerf);
 int sfPerformanceStats(SFPERF *sfPerf, unsigned char *pucPacket, int len,
                        int iRebuiltPkt);
+int sfProcessPerfStats(SFPERF *sfPerf);
+int CheckSampleInterval(time_t curr_time, SFPERF *sfPerf);
 
 #endif

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dbtext.c,v 1.7.2.1.2.1 2004/01/20 18:20:39 dcm Exp $
  *
  * DBText module interface
  *

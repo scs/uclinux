@@ -1,7 +1,7 @@
 /*
  * Sdp mangler module
  *
- * $Id$
+ * $Id: ip_helper.h,v 1.1 2003/04/07 16:53:24 gabriel Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

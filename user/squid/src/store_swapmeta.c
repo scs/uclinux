@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_swapmeta.c,v 1.17.2.1 2005/03/26 02:50:54 hno Exp $
  *
  * DEBUG: section 20    Storage Manager Swapfile Metadata
  * AUTHOR: Kostas Anagnostakis
@@ -73,7 +73,11 @@ storeSwapMetaBuild(StoreEntry * e)
     url = storeUrl(e);
     debug(20, 3) ("storeSwapMetaBuild: %s\n", url);
     T = storeSwapTLVAdd(STORE_META_KEY, e->hash.key, MD5_DIGEST_CHARS, T);
+#if SIZEOF_SQUID_FILE_SZ == SIZEOF_SIZE_T
     T = storeSwapTLVAdd(STORE_META_STD, &e->timestamp, STORE_HDR_METASIZE, T);
+#else
+    T = storeSwapTLVAdd(STORE_META_STD_LFS, &e->timestamp, STORE_HDR_METASIZE, T);
+#endif
     T = storeSwapTLVAdd(STORE_META_URL, url, strlen(url) + 1, T);
     vary = e->mem_obj->vary_headers;
     if (vary)
@@ -86,7 +90,7 @@ storeSwapMetaPack(tlv * tlv_list, int *length)
 {
     int buflen = 0;
     tlv *t;
-    off_t j = 0;
+    int j = 0;
     char *buf;
     assert(length != NULL);
     buflen++;			/* STORE_META_OK */
@@ -119,7 +123,7 @@ storeSwapMetaUnpack(const char *buf, int *hdr_len)
     char type;
     int length;
     int buflen;
-    off_t j = 0;
+    int j = 0;
     assert(buf != NULL);
     assert(hdr_len != NULL);
     if (buf[j++] != (char) STORE_META_OK)

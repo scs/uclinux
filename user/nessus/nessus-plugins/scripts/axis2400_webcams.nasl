@@ -21,10 +21,10 @@
 if(description)
 {
  script_id(11298);
- script_bugtraq_id(6987, 6980);
+ script_bugtraq_id(6980, 6987);
 
  
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "axis2400 webcams";
  script_name(english:name["english"]);
  
@@ -41,7 +41,7 @@ working properly or to gather information to make a better
 attack against the rest of your network.
 
 Solution : Contact your vendor for a patch
-Risk factor : Medium";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -54,7 +54,7 @@ Risk factor : Medium";
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("find_service.nes", "os_fingerprint.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -66,17 +66,12 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
+os = get_kb_item("Host/OS/icmp");
+if ( os && "Axis" >!< os ) exit(0);
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-
-if(!get_port_state(port))exit(0);
-
-
+port = get_http_port(default:80);
 req = http_get(item:"/support/messages", port:port);
 res = http_keepalive_send_recv(port:port, data:req);
 if( res == NULL ) exit(0);
-
-
 if(egrep(pattern:"(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) [0-9]*.*AxisProduct .*", string:res))
 	security_hole(port);

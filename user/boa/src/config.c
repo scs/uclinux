@@ -456,7 +456,7 @@ void read_config_files(void)
 		auth_add("/", "/etc/config/passwd");
 #endif /*ROOT_AUTH*/
 	}
-#ifdef OLD_CONFIG_PASSWORDS
+#ifdef CONFIG_USER_OLD_PASSWORDS
 	{	extern char auth_old_password[16];
 		char temps[256], *p;
 		FILE *fp;
@@ -484,7 +484,38 @@ void read_config_files(void)
 		}
 	}
 #endif
+  /* mime types are not parsed from file with embedded parser*/
+	{	char temps[256], *p;
+		FILE *fp;
 
+		fp = fopen(mime_types, "r");
+		if (fp != NULL) {
+			while (fgets(temps, 256, fp) != NULL) {
+			  /* process next line */
+			  if(temps[0] != '#') {
+			    if ((p = strchr(temps, '\n')) != NULL)
+			      *p = '\0'; /* null terminate line */
+			    if (((p = strchr(temps, ' ')) != NULL) ||
+				((p = strchr(temps, '\t')) != NULL)) {
+			      /* find *first* blank */
+			      for(p=temps;!isblank(*p);p++);
+
+			      *p++ = '\0';
+			      while(isblank(*p)) {
+				p++;
+			      };/* skip space */
+
+			      add_mime_type(p,temps);
+			    }
+			  }
+			}
+			fclose(fp);
+		} else {
+			fputs("Error opening MimeTypes=", stderr);
+			fputs(mime_types,stderr);
+			fputs("\n", stderr);
+		}
+	}
 #else /* EMBED */
 
 	yyin = fopen("boa.conf", "r");
@@ -516,4 +547,3 @@ void read_config_files(void)
 		exit(1);
 	}
 }
-

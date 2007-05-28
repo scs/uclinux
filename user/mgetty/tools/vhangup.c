@@ -1,4 +1,4 @@
-#ident "$Id$ Copyright (c) Gert Doering"
+#ident "$Id: vhangup.c,v 1.1 1999/01/04 21:47:36 gert Exp $ Copyright (c) Gert Doering"
 
 /* vhangup.c
  *
@@ -8,10 +8,7 @@
  *  - must be run as an external process, because mgetty does not have
  *    a controlling tty, and vhangup() can not operate on a file descriptor.
  *
- * $Log$
- * Revision 1.1  2006/08/05 07:31:28  vapier
- * import from upstream uClinux
- *
+ * $Log: vhangup.c,v $
  * Revision 1.1  1999/01/04 21:47:36  gert
  * add vhangup
  *

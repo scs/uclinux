@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(11486);
+ script_cve_id("CVE-2003-1095");
  script_bugtraq_id(7122, 7124, 7130, 7131);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.7 $");
  
  
  name["english"] = "WebLogic management servlet";
@@ -36,7 +37,7 @@ Solutions :
 - apply Service Pack 4 on WebLogic 6.1
 - apply Service Pack 2 on WebLogic 7.0 or 7.0.0.1
 
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -60,8 +61,8 @@ Risk factor : Serious";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 banner = get_http_banner(port:port);

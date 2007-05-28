@@ -19,9 +19,9 @@
 if(description)
 {
  script_id(11097);
- script_version ("$Revision: 1.7 $");
- script_cve_id("CAN-2001-1156");
  script_bugtraq_id(3409);
+ script_version ("$Revision: 1.11 $");
+ script_cve_id("CVE-2001-1156");
  
  name["english"] = "TypSoft FTP STOR/RETR DoS";
  script_name(english:name["english"]);
@@ -36,7 +36,7 @@ An attacker may use this flaw to make your server crash.
 
 Solution : upgrade your software or use another FTP service.
 
-Risk factor : Serious";
+Risk factor : High";
  
  script_description(english:desc["english"]);
  
@@ -75,7 +75,7 @@ if (!pass) pass = "test@nessus.com";
 soc = open_sock_tcp(port);
 if(! soc) exit(0);
 
-if (!ftp_log_in(socket:soc, user:login, pass:pass)) exit(0);
+if (!ftp_authenticate(socket:soc, user:login, pass:pass)) exit(0);
 
 #if(!r)exit(0);
 for (i=0; i<2;i=i+1)

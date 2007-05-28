@@ -9,8 +9,10 @@ if(description)
 {
      script_id(11889);
      script_bugtraq_id(8838);
-     script_cve_id("CAN-2003-0714");
-     script_version("$Revision: 1.3 $");
+     if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0031");
+     if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-a-0016");
+     script_cve_id("CVE-2003-0714");
+     script_version("$Revision: 1.11 $");
      name["english"] = "Exchange XEXCH50 Remote Buffer Overflow";
      script_name(english:name["english"]);
 
@@ -20,7 +22,7 @@ SMTP service that is vulnerable to a flaw in the XEXCH50 extended verb.
 This flaw can be used to completely crash Exchange 5.5 as well as execute
 arbitrary code on Exchange 2000. 
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/MS03-046.asp
+Solution : See http://www.microsoft.com/technet/security/bulletin/MS03-046.mspx
 Risk factor : High";
 
     script_description(english:desc["english"]);
@@ -38,7 +40,7 @@ Risk factor : High";
     family["francais"] = "Problèmes SMTP";
     script_family(english:family["english"], francais:family["francais"]);
     
-    script_dependencies("find_service.nes");
+    script_dependencies("smtpserver_detect.nasl");
     script_exclude_keys("SMTP/wrapped");
     script_require_ports("Services/smtp", 25);
     exit(0);
@@ -48,6 +50,8 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port) port = 25;
+
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(! get_port_state(port)) exit(0);
 

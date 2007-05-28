@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(10024);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-0660");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-t-0002");
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-1999-0660");
  name["english"] = "BackOrifice";
  name["francais"] = "BackOrifice";
  script_name(english:name["english"], francais:name["francais"]);
@@ -56,8 +57,8 @@ Facteur de risque : Elevé";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("nmap_osfingerprint.nes");
- 
+ script_dependencie("os_fingerprint.nasl");
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
@@ -65,10 +66,13 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 
-os = get_kb_item("Host/OS");
+include('global_settings.inc');
+
+if ( ! thorough_tests ) exit(0);
+os = get_kb_item("Host/OS/icmp");
 if(os)
 {
- if(!("Windows" >< os))exit(0);
+ if("Windows" >!< os)exit(0);
 }
 
 if(!(get_udp_port_state(31337)))exit(0);

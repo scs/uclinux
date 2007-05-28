@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: contact.h,v 1.5 2003/07/02 12:08:23 janakj Exp $
  *
  * Contact datatype
  *

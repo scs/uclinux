@@ -49,15 +49,14 @@ struct host
 #define SENSE_ALLOW -1
 #define SENSE_DENY 0
 
-#ifdef EMBED
-#define DEFAULT_AUTH_FILE "/etc/config/l2tp-secrets"
-#define DEFAULT_CONFIG_FILE "/etc/config/l2tpd.conf"
-#else
-#define DEFAULT_AUTH_FILE "/etc/l2tp/l2tp-secrets"
-#define DEFAULT_CONFIG_FILE "/etc/l2tp/l2tpd.conf"
+#ifndef DEFAULT_AUTH_FILE
+#define DEFAULT_AUTH_FILE "/etc/l2tpd/l2tp-secrets"
 #endif
-#define ALT_DEFAULT_AUTH_FILE "/etc/l2tpd/l2tp-secrets"
-#define ALT_DEFAULT_CONFIG_FILE "/etc/l2tpd/l2tpd.conf"
+#ifndef DEFAULT_CONFIG_FILE
+#define DEFAULT_CONFIG_FILE "/etc/l2tpd/l2tpd.conf"
+#endif
+#define ALT_DEFAULT_AUTH_FILE "/etc/l2tp/l2tp-secrets"
+#define ALT_DEFAULT_CONFIG_FILE "/etc/l2tp/l2tpd.conf"
 #define DEFAULT_PID_FILE "/var/run/l2tpd.pid"
 
 /* Definition of an LNS */
@@ -135,6 +134,7 @@ struct lac
 
 struct global
 {
+    unsigned int listenaddr;    /* IP address to bind to */ 
     int port;                   /* Port number to listen to */
     char authfile[STRLEN];      /* File containing authentication info */
     char altauthfile[STRLEN];   /* File containing authentication info */

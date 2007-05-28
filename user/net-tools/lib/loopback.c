@@ -1,7 +1,7 @@
 /*
  * lib/loopback.c     This file contains the general hardware types.
  *
- * Version:     $Id$
+ * Version:     $Id: loopback.c,v 1.7 1999/09/27 11:00:48 philip Exp $
  *
  * Author:      Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
  *              Copyright 1993 MicroWalt Corporation

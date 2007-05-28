@@ -2,7 +2,7 @@
  * lib/ax25_gr.c      This file contains an implementation of the "AX.25"
  *                      route print support functions.
  *
- * Version:     $Id$
+ * Version:     $Id: ax25_gr.c,v 1.4 1999/01/05 20:53:21 philip Exp $
  *
  * Author:      Bernd Eckenfels, <ecki@lina.inka.de>
  *              Copyright 1999 Bernd Eckenfels, Germany

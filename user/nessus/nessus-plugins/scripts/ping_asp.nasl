@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10968);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "ping.asp";
  script_name(english:name["english"]);
@@ -25,7 +25,7 @@ Solution : remove it.
 
 Reference : http://online.securityfocus.com/archive/82/275088
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Le CGI 'ping.asp' est installé. Certaines 
 versions permettent à un pirate de lancer un déni de service (ping flood)
@@ -35,7 +35,7 @@ dans le camp Adresse.
 
 Solution : supprimez le.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"], francais:desc["francais"]);
@@ -59,17 +59,23 @@ Risk factor : Serious";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port=80;
+if ( report_paranoia < 2 ) exit(0);
 
-if (is_cgi_installed(port:port, item:"ping.asp"))
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
+
+if (is_cgi_installed_ka(port:port, item:"ping.asp"))
 {
  security_hole(port);
  exit(0);
 }
 
-if (is_cgi_installed(port:port, item:"/ping.asp"))
+if (is_cgi_installed_ka(port:port, item:"/ping.asp"))
 {
  security_hole(port);
  exit(0);

@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11655);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "D-Link router overflow";
  
@@ -26,7 +26,7 @@ to crash the remote device by sending an overly long
 argument to the 'syslog.htm' page.
 
 Solution : None at this time. Filter incoming traffic to this port
-Risk Factor : High";
+Risk factor : High";
 		 
 	 	     
  script_description(english:desc["english"]);
@@ -39,7 +39,8 @@ Risk Factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security",
  		  francais:"Ce script est Copyright (C) 2002 Tenable Network Security");
 		  
- script_require_ports(80);
+ script_require_ports("Services/www", 80);
+ script_dependencies("http_version.nasl");
  exit(0);
 }
 
@@ -47,7 +48,7 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = 80;
+port = get_http_port(default:80);
 
 if(get_port_state(port))
 {

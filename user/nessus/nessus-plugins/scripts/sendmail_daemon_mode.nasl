@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11346);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CVE-1999-0130");
  script_bugtraq_id(716);
+ script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-1999-0130");
 
  name["english"] = "Sendmail 8.7.*/8.8.* local overflow";
  name["francais"] = "Dépassement de buffer local dans sendmail 8.7/8.8.*";

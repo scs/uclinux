@@ -8,9 +8,15 @@
 if(description)
 {
  script_id(11890);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2003-0717");
+ script_version("$Revision: 1.21 $");
+
+ script_cve_id("CVE-2003-0717");
  script_bugtraq_id(8826);
+ script_xref(name:"IAVA", value:"2003-A-0028");
+ script_xref(name:"IAVA", value:"2003-a-0017");
+ script_xref(name:"IAVA", value:"2003-b-0007");
+ script_xref(name:"OSVDB", value:"10936");
+
  
  name["english"] = "Buffer Overrun in Messenger Service (real test)";
  
@@ -25,7 +31,7 @@ Disabling the Messenger Service will prevent the possibility of attack.
 
 This plugin actually checked for the presence of this flaw.
 
-Solution : see http://www.microsoft.com/technet/security/bulletin/ms03-043.asp
+Solution : see http://www.microsoft.com/technet/security/bulletin/ms03-043.mspx
  
 Risk factor : High";
 
@@ -73,8 +79,9 @@ function dcom_recv(socket)
  return buf;
 }
 
-function check_win9xme()
+function check_win9xme(port)
 {
+	local_var chk, bindwinme, soc, rwinme, lenwinme, stubwinme, recv;
 	chk[3] = raw_string (0x02,0x00,0x01,0x00);
 
 	bindwinme = raw_string(
@@ -92,6 +99,7 @@ function check_win9xme()
             rwinme  = dcom_recv(socket:soc);
             if(!strlen(rwinme))exit(0);
 	    lenwinme = strlen(rwinme);
+ 	    if(lenwinme < 24 ) exit(0);
 	    stubwinme = substr(rwinme, lenwinme-24, lenwinme-21);
 	    if (debug)
 	    {
@@ -110,8 +118,9 @@ function check_win9xme()
 }
 
 
-function check_XP()
+function check_XP(port)
 {
+	local_var bindxp, req, soc, recv, len;
 	bindxp = raw_string( 
 	0x05, 0x00, 0x0b, 0x03, 0x10, 0x00, 0x00, 0x00,
 	0xcc, 0x00, 0x00, 0x00, 0x84, 0x67, 0xbe, 0x18,
@@ -195,8 +204,9 @@ function check_XP()
 	else exit(0);
 }
 
-function check_NT2K()
+function check_NT2K(port)
 {
+	local_var req, bindNT2K, soc, recv, len;
 	bindNT2K = raw_string( 
 	0x05,0x00,0x0B,0x03,0x10,0x00,0x00,0x00,0x48,0x00,
 	0x00,0x00,0x7F,0x00,0x00,0x00,0xD0,0x16,0xD0,0x16,0x00,0x00,0x00,0x00,0x01,0x00,
@@ -264,25 +274,33 @@ function check_NT2K()
 
 function check_winos()
 {
+	local_var port,soc;
+
 	port = 135;
 	if(!get_port_state(port))
 	{
 	 port = 593;
+	 if ( ! get_port_state(port) ) exit(0);
 	}
 	else
 	{
 	 soc = open_sock_tcp(port);
-	 if(!soc)port = 593;
+	 if(!soc)
+		{
+		  if ( ! get_port_state(593) ) exit(0);
+		  else port = 593;
+		}
 	 else close(soc);
 	}
 	
-	check_win9xme();
-	check_XP();
-	check_NT2K();
+	check_win9xme(port:port);
+	check_XP(port:port);
+	check_NT2K(port:port);
 }
 
 function check_rpc_serv()
 {
+ local_var seq1, seq2, sport, req, ip, myudp, filter, i, rep, code, data;
 seq1 = rand() % 256;
 seq2 = rand() % 256;
 
@@ -309,10 +327,11 @@ req = raw_string(0x04, 0x00, 0x28, 0x00, 0x10, 0x00,
 	
 ip = forge_ip_packet(ip_hl : 5, ip_v: 4,  ip_tos:0, ip_len:20, ip_id:rand(), ip_off:0, ip_ttl:64, ip_p:IPPROTO_UDP, ip_src:this_host());
 
+# The reply comes from a different port than port 135
 myudp = forge_udp_packet(ip:ip, uh_sport:sport, uh_dport:135, uh_ulen: 8 + strlen(req), data:req);
 filter = 'udp and dst port ' + sport + ' and src host ' + get_host_ip();
 
-for(i=0;i<5;i++)
+for(i=0;i<3;i++)
 {
  rep = send_packet(myudp, pcap_active:TRUE, pcap_filter:filter, pcap_timeout:1);
  if(rep)

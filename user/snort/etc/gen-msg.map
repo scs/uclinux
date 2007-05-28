@@ -1,9 +1,10 @@
 # $Id$
 # GENERATORS -> msg map
-# Format: generatorid || signatureid || MSG
+# Format: generatorid || alertid || MSG
 
 1 || 1 || snort general alert
 2 || 1 || tag: Tagged Packet
+3 || 1 || snort dynamic alert
 100 || 1 || spp_portscan: Portscan Detected
 100 || 2 || spp_portscan: Portscan Status
 100 || 3 || spp_portscan: Portscan Ended
@@ -20,10 +21,14 @@
 104 || 1 || spp_anomsensor: SPADE Anomaly Threshold Exceeded
 104 || 2 || spp_anomsensor: SPADE Anomaly Threshold Adjusted
 105 || 1 || spp_bo: Back Orifice Traffic Detected
+105 || 2 || spp_bo: Back Orifice Client Traffic Detected
+105 || 3 || spp_bo: Back Orifice Server Traffic Detected
+105 || 4 || spp_bo: Back Orifice Snort Buffer Attack
 106 || 1 || spp_rpc_decode: Fragmented RPC Records
 106 || 2 || spp_rpc_decode: Multiple Records in one packet
 106 || 3 || spp_rpc_decode: Large RPC Record Fragment
 106 || 4 || spp_rpc_decode: Incomplete RPC segment
+106 || 5 || spp_rpc_decode: Zero-length RPC Fragment
 110 || 1 || spp_unidecode: CGI NULL Attack
 110 || 2 || spp_unidecode: Directory Traversal
 110 || 3 || spp_unidecode: Unknown Mapping
@@ -48,6 +53,11 @@
 111 || 18 || spp_stream4: Multiple acked
 111 || 19 || spp_stream4: Shifting to Emegency Session Mode
 111 || 20 || spp_stream4: Shifting to Suspend Mode
+111 || 21 || spp_stream4: TCP Timestamp option has value of zero
+111 || 22 || spp_stream4: Too many overlapping TCP packets
+111 || 23 || spp_stream4: Packet in established TCP stream missing ACK
+111 || 24 || spp_stream4: Evasive FIN Packet
+111 || 25 || spp_stream4: SYN on established
 112 || 1 || spp_arpspoof: Directed ARP Request
 112 || 2 || spp_arpspoof: Etherframe ARP Mismatch SRC
 112 || 3 || spp_arpspoof: Etherframe ARP Mismatch DST
@@ -76,6 +86,7 @@
 116 || 3 || snort_decoder: WARNING: hlen < IP_HEADER_LEN!
 116 || 4 || snort_decoder: Bad IPv4 Options
 116 || 5 || snort_decoder: Truncated IPv4 Options
+116 || 6 || snort_decoder: WARNING: hlen > IP_HEADER_LEN!
 116 || 45 || snort_decoder: TCP packet len is smaller than 20 bytes!
 116 || 46 || snort_decoder: TCP Data Offset is less than 5!
 116 || 47 || snort_decoder: TCP Data Offset is longer than payload!
@@ -87,6 +98,7 @@
 116 || 95 || snort_decoder: Truncated UDP Header!
 116 || 96 || snort_decoder: Invalid UDP header, length field < 8
 116 || 97 || snort_decoder: Short UDP packet, length field > payload length
+116 || 98 || snort_decoder: Long UDP packet, length field < payload length
 116 || 105 || snort_decoder: ICMP Header Truncated!
 116 || 106 || snort_decoder: ICMP Timestamp Header Truncated!
 116 || 107 || snort_decoder: ICMP Address Header Truncated!
@@ -105,6 +117,16 @@
 116 || 141 || snort_decoder: WARNING: Bad Token Ring ETHLLC Header!
 116 || 142 || snort_decoder: WARNING: Bad Token Ring MRLEN Header!
 116 || 143 || snort_decoder: WARNING: Bad Token Ring MR Header!
+116 || 150 || snort_decoder: Bad Traffic Loopback IP!
+116 || 151 || snort_decoder: Bad Traffic Same Src/Dst IP!
+116 || 160 || snort_decoder: WARNING: GRE header length > payload length
+116 || 161 || snort_decoder: WARNING: Multiple GRE encapsulations in packet
+116 || 250 || snort_decoder: WARNING: ICMP Original IP Header Truncated!"
+116 || 251 || snort_decoder: WARNING: ICMP Original IP Header Not IPv4!"
+116 || 252 || snort_decoder: WARNING: ICMP Original Datagram Length < Original IP Header Length!"
+116 || 253 || snort_decoder: WARNING: ICMP Original IP Payload < 64 bits!"
+116 || 254 || snort_decoder: WARNING: ICMP Origianl IP Payload > 576 bytes!"
+116 || 255 || snort_decoder: WARNING: ICMP Original IP Fragmented and Offset Not 0!"
 117 || 1 || spp_portscan2: Portscan detected!
 118 || 1 || spp_conversation: Bad IP protocol!
 119 || 1 || http_inspect: ASCII ENCODING
@@ -157,5 +179,47 @@
 122 || 25 || portscan: ICMP Sweep
 122 || 26 || portscan: ICMP Filtered Sweep
 122 || 27 || portscan: Open Port
-124 || 1 || xlink2state: X-Link2State length greater than 1024
-
+123 || 1 || frag3: IP Options on fragmented packet
+123 || 2 || frag3: Teardrop attack
+123 || 3 || frag3: Short fragment, possible DoS attempt
+123 || 4 || frag3: Fragment packet ends after defragmented packet
+123 || 5 || frag3: Zero-byte fragment
+123 || 6 || frag3: Bad fragment size, packet size is negative
+123 || 7 || frag3: Bad fragment size, packet size is greater than 65536
+123 || 8 || frag3: Fragmentation overlap
+124 || 1 || smtp: Attempted command buffer overflow
+124 || 2 || smtp: Attempted data header buffer overflow
+124 || 3 || smtp: Attempted response buffer overflow
+124 || 4 || smtp: Attempted specific command buffer overflow
+124 || 5 || smtp: Unknown command
+124 || 6 || smtp: Illegal command
+125 || 1 || ftp_pp: Telnet command on FTP command channel
+125 || 2 || ftp_pp: Invalid FTP command
+125 || 3 || ftp_pp: FTP parameter length overflow
+125 || 4 || ftp_pp: FTP malformed parameter
+125 || 5 || ftp_pp: Possible string format attempt in FTP command/parameter
+125 || 6 || ftp_pp: FTP response length overflow
+125 || 7 || ftp_pp: FTP command channel encrypted
+125 || 8 || ftp_pp: FTP bounce attack
+125 || 9 || ftp_pp: Evasive Telnet command on FTP command channel
+126 || 1 || telnet_pp: Telnet consecutive AYT overflow
+126 || 2 || telnet_pp: Telnet data encrypted
+126 || 3 || telnet_pp: Subnegotiation Begin without matching Subnegotiation End
+128 || 1 || ssh: Gobbles exploit 
+128 || 2 || ssh: SSH1 CRC32 exploit 
+128 || 3 || ssh: Server version string overflow
+128 || 4 || ssh: Protocol mismatch
+128 || 5 || ssh: Bad message direction
+128 || 6 || ssh: Payload size incorrect for the given payload
+128 || 7 || ssh: Failed to detect SSH version string
+129 || 1 || stream5: SYN on established session
+129 || 2 || stream5: Data on SYN packet
+129 || 3 || stream5: Data sent on stream not accepting data
+129 || 4 || stream5: TCP Timestamp is outside of PAWs window
+129 || 5 || stream5: Bad segment, overlap adjusted size less than/equal 0
+129 || 6 || stream5: Window size (after scaling) larger than policy allows
+129 || 7 || stream5: Limit on number of overlapping TCP packets reached
+130 || 1 || dcerpc: Maximum memory usage reached
+131 || 1 || dns: Obsolete DNS RData Type
+131 || 2 || dns: Experimental DNS RData Type
+131 || 3 || dns: Client RData TXT Overflow

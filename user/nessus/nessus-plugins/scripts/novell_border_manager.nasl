@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10163);
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CVE-2000-0152");
  name["english"] = "Novell Border Manager";
  name["francais"] = "Novell Border Manager";
@@ -32,7 +32,7 @@ user of this station to work on it.
 Solution : contact Novell and ask for a patch or
 filter incoming TCP connections to port 2000
 
-Risk factor : Serious
+Risk factor : High
 Warning : if there is no error message whatsoever on this
 computer, then this is a false positive";
 
@@ -92,6 +92,8 @@ if(get_port_state(2000))
   msg = crap(data:"\r\n", length:20);
   send(socket:soc, data:msg);
   close(soc);
-  security_hole(2000); 
+  soc = open_sock_tcp(2000);
+  if ( ! soc ) security_hole(2000); 
+  else close(soc);
  }
 } 

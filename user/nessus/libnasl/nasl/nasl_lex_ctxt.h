@@ -36,6 +36,9 @@ typedef struct struct_lex_ctxt {
   tree_cell	*ret_val;	/* return value or exit flag */
   unsigned	fct_ctxt :1;	/* This is a function context */
   unsigned	break_flag : 1;	/* Break from loop */
+  unsigned	cont_flag : 1;	/* Next iteration in loop */
+  unsigned	authenticated:1;/* Authenticated script */
+  unsigned 	always_authenticated:1;
   struct arglist	*script_infos;
   int			recv_timeout;
   /* Named variables hash set + anonymous variables array */
@@ -80,6 +83,8 @@ char*		get_str_local_var_by_name(lex_ctxt*, const char*);
 
 int 		get_var_size_by_name(lex_ctxt*, const char*);
 int 		get_local_var_size_by_name(lex_ctxt*, const char*);
+int 		get_local_var_type_by_name(lex_ctxt *, const char *);
+
 
 int		get_var_size_by_num(lex_ctxt*, int);
 int	 	get_var_type_by_num(lex_ctxt*, int);

@@ -53,10 +53,10 @@ cmp_ns_svc(const void *v1,
 ExtFunc const char*
 nessus_get_svc_name(int port, const char* proto)
 {
-  static struct nessus_service		*svc_db_ptr[2];
+  static struct nessus_service		*svc_db_ptr[2] = { NULL, NULL };
   static int				nb_svc[2];
 
-  int			fd = -1, pagesz, len, idx;
+  int			fd = -1, len, idx;
   struct stat		st;
   struct nessus_service	*pns, kns;
   struct servent	*svc;
@@ -78,7 +78,10 @@ nessus_get_svc_name(int port, const char* proto)
 	      len = st.st_size;
 	      nb_svc[idx] = len / sizeof(struct nessus_service);
 	      if ((svc_db_ptr[idx] = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0))== MAP_FAILED )
+		{
 		perror("mmap");
+		svc_db_ptr[idx] = NULL;
+		}
 	    }
 	}
     }
@@ -125,8 +128,10 @@ ExtFunc unsigned short * get_tcp_svcs(int * num)
 	    {
 	      len = st.st_size;
 	      num_svc = len / sizeof(struct nessus_service);
-	      if ((ns = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0))== MAP_FAILED )
+	      if ((ns = mmap(NULL, len, PROT_READ, MAP_SHARED, fd, 0))== MAP_FAILED ) {
 		perror("mmap");
+		ns = NULL;
+	}
 	    }
 	}
 

@@ -18,10 +18,10 @@
 if(description)
 {
   script_id(11412);
-  script_version ("$Revision: 1.12 $");
- 
   script_bugtraq_id(7116);
-  script_cve_id("CAN-2003-0109");
+  script_version ("$Revision: 1.22 $");
+ 
+  script_cve_id("CVE-2003-0109");
   if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0005");
   name["english"] = "IIS : WebDAV Overflow (MS03-007)";
 
@@ -33,8 +33,8 @@ it receives a too long request.
 An attacker may use this flaw to execute arbitrary code within the 
 LocalSystem security context.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms03-007.asp
-Risk Factor : High";
+Solution : See http://www.microsoft.com/technet/security/bulletin/ms03-007.mspx
+Risk factor : High";
 
   
 
@@ -53,18 +53,22 @@ Risk Factor : High";
 
  script_family(english:family["english"], francais:family["francais"]);
 
- script_dependencie("find_service.nes", "http_version.nasl", "smb_nt_ms03-007.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "smb_hotfixes.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 include("http_func.inc");
+include("smb_hotfixes.inc");
 
 
+if ( hotfix_check_sp(win2k:4, xp:1, nt:7) == 0 ) exit(0);
+if ( hotfix_missing(name:"815021")  == 0 ) exit(0);
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
+banner = get_http_banner(port:port);
+if ( banner && "IIS" >!< banner ) exit(0);
 
 if(get_port_state(port))
 {
@@ -107,36 +111,6 @@ if(get_port_state(port))
    	}
 	else if(egrep(pattern:"HTTP/1\.[0-1] 500 ", string:r) &&
 		"(exception)" >< r){security_hole(port);}
-   	}
    }
-   else # Safe checks are enabled, we only check for the presence of WebDAV by
-        # sending an invalid request
-   {
-    if(get_kb_item("SMB/Hotfixes/Q815021"))exit(0);
-    soc = http_open_socket(port);
-    if(soc)
-    {	
- 	 req = http_get(item:"/", port:port);
-	 req = ereg_replace(pattern:"^GET ", string:req, replace:"SEARCH ");
-  	send(socket:soc, data:req);
- 	r = http_recv(socket:soc);
- 	http_close_socket(soc);
- 	if(egrep(pattern:"^HTTP/.* 411 ", string:r))
-	{
-		report = "
-The remote WebDAV server may be vulnerable to a buffer overflow when
-it receives a too long request.
-
-An attacker may use this flaw to execute arbitrary code within the 
-LocalSystem security context.
-
-*** As safe checks are enabled, Nessus did not actually test for this
-*** flaw, so this might be a false positive
-
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms03-007.asp
-Risk Factor : High";
-		security_hole(port:port, data:report);
-	}  
-    }
    }
 }

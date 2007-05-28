@@ -10,15 +10,13 @@
 if(description)
 {
  script_id(10524);
-script_cve_id("CVE-2000-0979");
  script_bugtraq_id(1780);
- script_version ("$Revision: 1.28 $");
+ script_cve_id("CVE-2000-0979");
+ script_version ("$Revision: 1.34 $");
  
  name["english"] = "SMB Windows9x password verification vulnerability";
- name["francais"] = "SMB Windows9x password verification vulnerability";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 A vulnerability exists in the password verification scheme utilized by Microsoft
@@ -26,36 +24,15 @@ Windows 9x SMB protocol implementation. This vulnerability will allow any
 user to access the Windows 9x file shared service with password protection.
 Potential attackers don't have to know the share password.
 
-See also : http://www.securiteam.com/windowsntfocus/Microsoft_Windows_9x_NETBIOS_password_verification_vulnerability.html
-
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-072.asp
+Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-072.mspx
 Risk factor : High";
 
- desc["francais"] = "
-Il y a une vulnérabilité dans l'implémentation de la méthode de vérification
-de mots de passes utilisé par Microsoft dans l'implémentation SMB de Windows9x.
-
-Cette vulnérabilité permet à n'importe qui d'acceder a des services partagés
-Windows9x normallement protégés par mot de passe. Des pirates n'ont pas
-besoin de connaitre celui-ci, il peuvent mener une attaque par force brute
-en 256 essais.
-
-Ce plugin essaye d'accéder aux shares distantes en utilisant un mot de passe
-de 1 byte.
-
-Cf: http://www.securiteam.com/windowsntfocus/Microsoft_Windows_9x_NETBIOS_password_verification_vulnerability.html
-
-Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-072.asp
-Facteur de risque : Elevé";
 
 
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Access a remote share by brute forcing its password";
- summary["francais"] = "Accède à une share en forcant son mot de passe";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
@@ -68,15 +45,20 @@ Facteur de risque : Elevé";
 		     "smb_login_as_users.nasl");
  script_require_keys("SMB/name", "SMB/login", "SMB/password");
  script_exclude_keys("SMB/WindowsVersion","SMB/samba"); # only for Win9x
- script_require_ports(139);
+ script_require_ports(139, 445);
  script_timeout(0);
  exit(0);
 }
 
 include("smb_nt.inc");
+include("global_settings.inc");
 
 samba = get_kb_item("SMB/samba");
 if(samba)exit(0);
+
+if ( report_paranoia < 2 || ! thorough_tests ) exit(0);
+
+
 
 port = kb_smb_transport();
 if(!port)port = 139;
@@ -98,7 +80,7 @@ function smb_tconx1(soc,name,uid, share, pass)
 		  0x00, 0x00, 0x00, 0x18, 0x01, 0x20, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x28, low, high,
-		  0x00, 0x00, 0x04, 0xFF, 0x00, 0x00, 0x00, 0x00,
+		  g_mlo, g_mhi, 0x04, 0xFF, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x01, 0x00, ulen, 0x00, pass, 0x5C, 0x5C) +
 	name + 
 	raw_string(0x5C) + share +raw_string(0x00) +
@@ -128,7 +110,7 @@ function readable_share(soc, uid, tid)
 		  0x00, 0x00, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x0F, 0x0F, 0x00, 0x00, 0x00, 0x0A,
+		  g_mlo, g_mhi, 0x0F, 0x0F, 0x00, 0x00, 0x00, 0x0A,
 		  0x00, 0x04, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x44,
 		  0x00, 0x00, 0x00, 0x53, 0x00, 0x01, 0x00, 0x01,
@@ -169,7 +151,7 @@ function writeable_share(soc, tid, uid)
 		  0x00, 0x00, 0x00, 0x18, 0x03, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x00, 0x0D, 0x00, 0x04, 0x5C) +
+		  g_mlo, g_mhi, 0x00, 0x0D, 0x00, 0x04, 0x5C) +
 		 "Nessus" + randstr + raw_string(0x00);
 
  send(socket:soc, data:req);
@@ -191,7 +173,7 @@ function writeable_share(soc, tid, uid)
 		  0x00, 0x00, 0x00, 0x18, 0x03, 0x00, 0x00, 0x00,
 		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x00, 0x0D, 0x00, 0x04, 0x5C) +
+		  g_mlo, g_mhi, 0x00, 0x0D, 0x00, 0x04, 0x5C) +
 		 "Nessus" + randstr + raw_string(0x00);
 
  send(socket:soc, data:req);

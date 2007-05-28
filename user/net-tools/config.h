@@ -19,6 +19,7 @@
  * internationalization on your system.
  * 
  */
+#include <linux/autoconf.h>
 #include <config/autoconf.h>
 
 #define I18N 0
@@ -30,7 +31,7 @@
  */
 #define HAVE_AFUNIX 1
 #define HAVE_AFINET 1
-#ifdef CONFIG_USER_IPV6
+#ifdef CONFIG_IPV6
 #define HAVE_AFINET6 1
 #else
 #define HAVE_AFINET6 0

@@ -13,8 +13,9 @@
 if(description)
 {
  script_id(11544);
- script_cve_id("CAN-2003-0218");
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2003-0218");
+ script_bugtraq_id(7202);
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "MonkeyWeb POST with too much data";
  script_name(english:name["english"]);
@@ -50,9 +51,13 @@ Solution : Upgrade your web server.";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(! port) port = 80;	# 2001 ?
+port = get_http_port(default:80);
+	# 2001 ?
 if(! get_port_state(port)) exit(0);
+
+
+banner = get_http_banner(port:port);
+if ( ! banner || "Monkey/" >!< banner ) exit(0);
 
 if (safe_checks())
 {
@@ -84,7 +89,7 @@ if (isnull(l) || max_index(l) == 0)
 else
 {
   # Let's take a random CGI.
-  n = random() % max_index(l);
+  n = rand() % max_index(l);
   script = ereg_replace(string: l[n], pattern: " - .*", replace: "");
   if (! script) script = "/";	# Just in case the KB is corrupted
 }

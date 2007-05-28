@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10387);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1154);
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-2000-0380"); 
  name["english"] = "cisco http DoS";
  name["francais"] = "Déni de service Cisco par http";
@@ -77,8 +77,10 @@ Facteur de risque : Elevé";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+if (http_is_dead(port:port)) exit(0);
+
 if(get_port_state(port))
 {
   soc = http_open_socket(port);

@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10293);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(818);
- script_cve_id("CAN-1999-1058");
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-1999-1058");
  
  name["english"] = "vftpd buffer overflow";
  name["francais"] = "Dépassement de buffer dans vftpd";
@@ -78,6 +78,7 @@ Facteur de risque : Moyen";
 # The script code starts here : 
 #
 
+include('ftp_func.inc');
 
 login = get_kb_item("ftp/login");
 pass  = get_kb_item("ftp/password");
@@ -98,14 +99,14 @@ if(soc)
  		       string:get_host_name(),
 		       replace:"\1");	
 		       
- if(ftp_log_in(socket:soc, user:"anonymous", pass:string("nessus@", domain)))
+ if(ftp_authenticate(socket:soc, user:"anonymous", pass:string("nessus@", domain)))
  {
   crp = crap(504);
   c = string("CWD ", crp, "\r\n");
   send(socket:soc, data:c) x 3;
   close(soc);
   soc2 = open_sock_tcp(port);
-  if(!soc2)security_hole(port);
+  if(!soc2)security_warning(port);
   else close(soc2);
  }
 }

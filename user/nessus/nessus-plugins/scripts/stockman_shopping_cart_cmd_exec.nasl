@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11569);
  script_bugtraq_id(7485);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.6 $");
 
  name["english"] = "StockMan Shopping Cart Command Execution";
 
@@ -26,7 +26,7 @@ card number.
 
 
 Solution : upgrade to StockMan Shopping Cart Version 7.9 or newer
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -45,6 +45,7 @@ Risk Factor : High";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -56,8 +57,8 @@ Risk Factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
@@ -76,9 +77,7 @@ function check(loc)
 }
 
 
-dirs = make_list(cgi_dirs(), "");
-
-foreach dir (dirs)
+foreach dir ( cgi_dirs() )
 {
  check(loc:dir);
 }

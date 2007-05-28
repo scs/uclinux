@@ -1,14 +1,13 @@
 #
-# This script was written by Renaud Deraison
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(11307);
- script_version("$Revision: 1.2 $");
- 
  script_bugtraq_id(4248);
+ script_version("$Revision: 1.9 $");
+ 
  script_cve_id("CVE-2002-0070");
  
  name["english"] = "Unchecked buffer in Windows Shell";
@@ -16,23 +15,26 @@ if(description)
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+A local user can elevate his privileges.
+
+Description :
+
 The Windows shell of the remote host has an unchecked buffer
 which can be exploited by a local attacker to run arbitrary code 
 on this host. 
 
-Affected Software: 
+Solution : 
 
-Microsoft Windows NT 4.0 
-Microsoft Windows NT 4.0 Server, Terminal Server Edition 
-Microsoft Windows 2000 
+Microsoft has released a set of patches for Windows NT and 2000 :
 
-Recommendation: Users using any of the affected
-products should install the patch immediately.
+http://www.microsoft.com/technet/security/bulletin/ms02-014.mspx
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-014.asp
+Risk factor : 
 
-Risk factor : Low";
+High / CVSS Base Score : 7 
+(AV:L/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -42,59 +44,23 @@ Risk factor : Low";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_full_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_access","SMB/WindowsVersion");
-		     
- script_exclude_keys("SMB/XP/ServicePack");
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_hotfixes.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
-
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-
-version = get_kb_item("SMB/WindowsVersion");
-
-if("4.0" >< version)
+if ( hotfix_check_sp(nt:7, win2k:3) <= 0 ) exit(0);
+if ( hotfix_check_sp(win2k:3) > 0 )
 {
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q313829";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
+ if ( hotfix_missing(name:"839645") == 0 ) exit(0);
 }
 
-
-if("5.0" >< version)
-{
-# fixed in Service Pack 3
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [3-9]"))exit(0);
- fullaccess = get_kb_item("SMB/registry_full_access");
-
- if(fullaccess)
- {
- key = "SOFTWARE\Microsoft\Updates\Windows 2000\SP3\Q313829";
- item = "Description";
- }
- else
- {
-   key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q313829";
-   item = "Comments";
- }
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
-}
+if ( hotfix_missing(name:"313829") > 0 && hotfix_missing(name:"841356") > 0 )
+	security_hole(get_kb_item("SMB/transport"));
 

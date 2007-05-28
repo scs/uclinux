@@ -8,7 +8,7 @@
 if(description)
 {
    script_id(10529);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.8 $");
    name["english"] = "Nortel Networks  passwordless router (user level)";
    script_name(english:name["english"]);
  
@@ -42,14 +42,16 @@ Risk factor : Medium";
 #
 # The script code starts here
 #
-
+include('telnet_func.inc');
 port = 23;
 if(get_port_state(port))
 {
+   buf = get_telnet_banner(port:port);
+   if ( ! buf  || "Bay Networks" >!< buf ) exit(0);
    soc = open_sock_tcp(port);
    if(soc)
    {
-      buf = telnet_init(soc);
+      buf = telnet_negotiate(socket:soc);
       if("Bay Networks" >< buf)
       {
          if ("Login:" >< buf)

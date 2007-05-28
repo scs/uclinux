@@ -13,8 +13,9 @@
 if(description)
 {
  script_id(10452);
- script_version ("$Revision: 1.21 $");
  script_bugtraq_id(1387, 2240, 726);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-a-0004");
+ script_version ("$Revision: 1.25 $");
  script_cve_id("CVE-2000-0573", "CVE-1999-0997");
  
  name["english"] = "wu-ftpd SITE EXEC vulnerability";
@@ -32,7 +33,7 @@ to gain root access.
 Solution : Upgrade your wu-ftpd server (<= 2.6.0 are vulnerable)
 or disable any access from untrusted users (especially anonymous).
 
-Risk factor : Serious";
+Risk factor : High";
                  
                  
 desc["francais"] = "
@@ -88,7 +89,7 @@ if(soc)
 {
  if(login)
  {
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
   # We are in
   c = string("SITE EXEC %p \r\n");

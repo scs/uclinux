@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10305);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-0200");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-1999-0200");
  
  name["english"] = "WFTP login check";
  name["francais"] = "Vérification de login de WFTP";
@@ -60,6 +60,7 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(get_port_state(port))
@@ -68,7 +69,7 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
-  if(ftp_log_in(socket:soc, user:"bogusbogus", pass:"soogjksjka"))
+  if(ftp_authenticate(socket:soc, user:"bogusbogus", pass:"soogjksjka"))
   {
    security_hole(port);
   }

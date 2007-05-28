@@ -8,14 +8,22 @@
 if(description)
 {
  script_id(10756);
- script_version ("$Revision: 1.7 $");
- script_bugtraq_id(3316);
+ script_version ("$Revision: 1.13 $");
+
+ script_bugtraq_id(3316, 3325);
+ script_xref(name:"OSVDB", value:"6694");
+
  name["english"] = "MacOS X Finder reveals contents of Apache Web directories";
  script_name(english:name["english"]);
  
- desc["english"] = "MacOS X creates a hidden file, '.DS_Store' in each directory that has been viewed with the 'Finder'. This file contains a list of the contents of the directory, giving an attacker information on the structure and contents of your website. 
+ desc["english"] = "
+MacOS X creates a hidden file, '.DS_Store' in each directory that has
+been viewed with the 'Finder'.  This file contains a list of the
+contents of the directory, giving an attacker information on the
+structure and contents of your website. 
 
-Solution: Use a <FilesMatch> directive in httpd.conf to forbid retrieval of this file:
+Solution: Use a <FilesMatch> directive in httpd.conf to forbid
+retrieval of this file:
 
 <FilesMatch '^\.[Dd][Ss]_[Ss]'>
 Order allow, deny
@@ -24,7 +32,8 @@ Deny from all
 
 and restart Apache.
 
-Risk factor : Medium / High (depending on the sensitivity of your web content)
+Risk factor : Medium 
+(possibly High depending on the sensitivity of your web content)
 
 References: 
 
@@ -54,19 +63,24 @@ www.macintouch.com/mosxreaderreports46.html
 # Could be improved to use the output of webmirror.nasl to create a list of folders to try... 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
  req = http_get(item:"/.DS_Store", port:port); # Check in web root
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
+ r = http_keepalive_send_recv(port:port, data:req);
  if("Bud1" >< r)
- 	security_hole(port);
- }
+	{
+ 	security_warning(port);
+	exit(0);
+	}
+ req = http_get(item:"/.FBCIndex", port:port); # Check in web root
+ r = http_keepalive_send_recv(port:port, data:req);
+ if("Bud2" >< r)
+	{
+ 	security_warning(port);
+	exit(0);
+	}
 }

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: common.c,v 1.13.4.1 2003/11/26 16:44:26 bogdan Exp $
  *
  * Digest Authentication Module
  *

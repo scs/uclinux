@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_via.h,v 1.9 2003/01/27 14:22:07 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

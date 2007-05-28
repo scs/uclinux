@@ -1,4 +1,4 @@
-# $Id$
+# $Id: radvd.spec,v 1.8 2002/10/28 16:50:15 psavola Exp $
 
 %define initdir /etc/rc.d/init.d
 #%(if test -d /etc/init.d/. ; then echo /etc/init.d ; else echo /etc/rc.d/init.d ; fi)

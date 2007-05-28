@@ -11,13 +11,13 @@ if(description)
 {
  script_id(11654);
  script_bugtraq_id(7658);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  
  script_name(english:"ShareMailPro Username Identification");
 	     
  script_description(english:"
 The remote ShareMail server issues a special error message
-when a user attempts to log in using a nonexistant POP
+when a user attempts to log in using a nonexistent POP
 account.
 
 An attacker may use this flaw to make a list of valid accounts
@@ -25,7 +25,7 @@ by looking at the error messages it receives at authentication
 time.
 
 Solution : None at this time
-Risk Factor : Low");
+Risk factor : Low");
  
  script_summary(english:"Checks for the pop login error");
 

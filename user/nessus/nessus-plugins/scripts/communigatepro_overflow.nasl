@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10048);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(860);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-1999-0865");
  name["english"] = "Communigate Pro overflow";
  name["francais"] = "Overflow de Communigate Pro";
@@ -92,7 +92,7 @@ to shut this service down.
 *** when testing without safe checks enabled.
 
 Solution : Upgrade to Communigate 3.2 or newer
-Risk factor : Serious";
+Risk factor : High";
 	   security_hole(port:8010, data:alrt);
 	  }
   }

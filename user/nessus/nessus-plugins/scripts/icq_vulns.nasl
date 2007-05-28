@@ -1,7 +1,5 @@
 #
-# This script was written by Renaud Deraison <rderaison@tenablesecurity.com>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 # Ref: 
 # Date: Mon, 05 May 2003 16:44:47 -0300
@@ -13,64 +11,96 @@
 if(description)
 {
  script_id(11572);
- script_version("$Revision: 1.1 $");
- script_cve_id("CAN-2003-0235", "CAN-2003-0236", "CAN-2003-0237", "CAN-2003-0238", "CAN-2003-0239");
- script_bugtraq_id(7461, 7462, 7463, 7464, 7465, 7466);
+ script_bugtraq_id( 132, 246, 929, 1307, 2664, 3226, 3813, 7461, 7462, 7463, 7464, 7465, 7466);
+ script_cve_id(
+   "CVE-1999-1418",
+   "CVE-1999-1440", 
+   "CVE-2000-0046",
+   "CVE-2000-0564",
+   "CVE-2000-0552",
+   "CVE-2001-0367",
+   "CVE-2002-0028",
+   "CVE-2001-1305",
+   "CVE-2003-0235", 
+   "CVE-2003-0236", 
+   "CVE-2003-0237",
+   "CVE-2003-0238",
+   "CVE-2003-0239"
+ );
+ 
+ script_version("$Revision: 1.7 $");
  name["english"] = "Multiple ICQ Vulnerabilities";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host is using ICQ - an instant messenging client utility.
+Synopsis :
 
-There are multiple flaws in all versions of ICQ which may allow an attacker
-to execute arbitrary code on this host.
+The remote Windows host contains a program that is affected by
+multiple flaws. 
 
-To exploit this flaw, an attacker would need to send a malformed e-mail 
-to the ICQ user, or have it download its mail on a rogue POP3 server.
+Description :
 
-Solution : None at this time
-Risk Factor : High";
+There are multiple flaws in versions of ICQ before 2003b, including
+some that may allow an attacker to execute arbitrary code on the
+remote host. 
 
+See also :
+
+http://www.coresecurity.com/common/showdoc.php?idx=315&idxseccion=10
+
+Solution : 
+
+Upgrade to ICQ 2003b or later.
+
+Risk factor : 
+
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
 
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Determines if ICQ is installed";
+ summary["english"] = "Checks version of ICQ installed";
 
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/domain","SMB/transport");
+ script_dependencies("icq_installed.nasl");
+ script_require_keys("SMB/ICQ/Version");
 
- script_require_ports(139, 445);
  exit(0);
 }
 
 
-include("smb_nt.inc");
+include("smb_func.inc");
 
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\CurrentVersion\Uninstall\ICQ", item:"DisplayName");
-if(rootfile)
-{
- security_note(get_kb_item("SMB/transport"));
- exit(0); 
+ver = get_kb_item("SMB/ICQ/Version");
+if (ver) {
+  iver = split(ver, sep:'.', keep:FALSE);
+  # Check whether it's an affected version.
+  #
+  # nb: 2003b == "5.5.6.3916"
+  if (
+    int(iver[0]) < 5 ||
+    (
+      int(iver[0]) == 5 &&
+      (
+        int(iver[1]) < 5 ||
+        (
+          int(iver[1]) == 5 &&
+          (
+            int(iver[2]) < 6 ||
+            (int(iver[2]) == 6 && int(iver[3]) < 3916)
+          )
+        )
+      )
+    )
+  ) security_warning(kb_smb_transport());
 }
-
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\CurrentVersion\Uninstall\ICQLite", item:"DisplayName");
-if(rootfile)
-{
- security_note(get_kb_item("SMB/transport"));
- exit(0); 
-}
-
-

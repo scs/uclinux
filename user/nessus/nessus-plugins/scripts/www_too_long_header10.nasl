@@ -15,11 +15,16 @@
 # Date: Mon, 2 Dec 2002 23:31:27 +0100
 # Reply-To: "at4r" <at4r@3wdesign.es>
 # 
+# From: "Matthew Murphy" <mattmurphy@kc.rr.com>
+# Subject: Multiple pServ Remote Buffer Overflow Vulnerabilities
+# To: "BugTraq" <bugtraq@securityfocus.com>
+# Date: Sun, 1 Dec 2002 12:15:52 -0600
+#
 
 if(description)
 {
  script_id(11127);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "HTTP 1.0 header overflow";
  script_name(english:name["english"]);
  
@@ -60,8 +65,8 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 if (http_is_dead(port: port)) exit(0);
 

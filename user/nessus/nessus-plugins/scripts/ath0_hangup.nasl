@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10020);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-1228");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-1999-1228");
  name["english"] = "+ + + ATH0 modem hangup";
  name["francais"] = "Décrochage du modem par la séquence + + + ATH0";
  
@@ -24,7 +24,7 @@ hangup and dial any phone number.
 Solution : add 'ATS2=255' in your modem
 init string.
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -39,7 +39,7 @@ de téléphone arbitraire.
 Solution : ajoutez 'ATS2=255'
 dans la chaine d'init du modem.
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  

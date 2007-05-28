@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: openbsd-compat.h,v 1.33 2005/12/31 05:33:37 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -46,6 +46,10 @@ char *basename(const char *path);
 
 #ifndef HAVE_BINDRESVPORT_SA
 int bindresvport_sa(int sd, struct sockaddr *sa);
+#endif
+
+#ifndef HAVE_CLOSEFROM
+void closefrom(int);
 #endif
 
 #ifndef HAVE_GETCWD
@@ -138,14 +142,31 @@ unsigned int arc4random(void);
 void arc4random_stir(void);
 #endif /* !HAVE_ARC4RANDOM */
 
+#ifndef HAVE_ASPRINTF
+int asprintf(char **, const char *, ...);
+#endif 
 
-
+#ifndef HAVE_OPENPTY
+int openpty(int *, int *, char *, struct termios *, struct winsize *);
+#endif /* HAVE_OPENPTY */
 
 /* #include <sys/types.h> XXX needed? For size_t */
 
 #ifndef HAVE_SNPRINTF
 int snprintf(char *, size_t, const char *, ...);
 #endif 
+
+#ifndef HAVE_STRTOLL
+long long strtoll(const char *, char **, int);
+#endif
+
+#ifndef HAVE_STRTONUM
+long long strtonum(const char *, long long, long long, const char **);
+#endif
+
+#ifndef HAVE_VASPRINTF
+int vasprintf(char **, const char *, va_list);
+#endif
 
 #ifndef HAVE_VSNPRINTF
 int vsnprintf(char *, size_t, const char *, va_list);
@@ -164,5 +185,7 @@ char *shadow_pw(struct passwd *pw);
 #include "bsd-cygwin_util.h"
 #include "port-irix.h"
 #include "port-aix.h"
+#include "port-uw.h"
+#include "port-tun.h"
 
 #endif /* _OPENBSD_COMPAT_H */

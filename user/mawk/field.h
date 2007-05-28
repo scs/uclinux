@@ -10,10 +10,7 @@ Mawk is distributed without warranty under the terms of
 the GNU General Public License, version 2, 1991.
 ********************************************/
 
-/* $Log$
- * Revision 1.2  2005/07/25 04:03:15  magicyang
- * New user folder check in
- *
+/* $Log: field.h,v $
  * Revision 1.2  1995/06/18  19:42:16  mike
  * Remove some redundant declarations and add some prototypes
  *

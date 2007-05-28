@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: rpid.h,v 1.2 2003/10/01 21:07:40 janakj Exp $
  *
  * Remote-Party-ID related functions
  *

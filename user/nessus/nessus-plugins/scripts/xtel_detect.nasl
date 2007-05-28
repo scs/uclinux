@@ -9,7 +9,8 @@
 if(description)
 {
   script_id(11121);
-  script_version ("$Revision: 1.3 $");
+#  script_cve_id("CVE-MAP-NOMATCH");
+  script_version ("$Revision: 1.6 $");
  
   script_name(english:"xtel detection", francais:"detection de xtel");
  
@@ -39,9 +40,7 @@ Risque : Aucun";
  
   script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi",
 		francais:"Ce script est Copyright (C) 2002 Michel Arboi");
-  family["english"] = "Misc.";
-  family["francais"] = "Divers";
-  script_family(english:family["english"], francais:family["francais"]);
+  script_family(english:"Service detection");
   script_dependencie("find_service.nes");
   script_require_ports("Services/unknown", 1313);
 
@@ -82,7 +81,7 @@ port=1313;
 #if (! port) port=1313;
 
 if (! get_port_state(port)) exit(0);
-if (known_service(port: port)) exit(0);
+if (! service_is_unknown(port: port)) exit(0);
 
 soc = open_sock_tcp(port);
 if (! soc) exit(0);

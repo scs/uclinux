@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: cache_manager.c,v 1.26 2001/02/23 20:59:50 hno Exp $
  *
  * DEBUG: section 16    Cache Manager Objects
  * AUTHOR: Duane Wessels

@@ -134,7 +134,7 @@ restore_session_cb(nul, clist)
    if(!strlen(expansion))strncpy(expansion, "none;", 5);
    expansion[strlen(expansion)-1]=0;
    
-   s = gtk_entry_get_text(GTK_ENTRY(arg_get_value(t, "TARGET")));
+   s = (char*)gtk_entry_get_text(GTK_ENTRY(arg_get_value(t, "TARGET")));
    hostname = target_translate(s); /* if the target is a file, then
    				      translate it */
    
@@ -178,7 +178,7 @@ restore_session_cb(nul, clist)
 	  GtkWidget * entry = arg_get_value(pref->value, "ENTRY");
 	  if(entry)
 	  {
-	  value = gtk_entry_get_text(GTK_ENTRY(entry));			      
+	  value = (char*)gtk_entry_get_text(GTK_ENTRY(entry));			      
 	  arg_set_value(pref->value, "value", strlen(value), 
 	 	       estrdup(value));
 	  }
@@ -264,7 +264,7 @@ restore_session_cb(nul, clist)
   
   
  gtkw = arg_get_value(t, "PORT_RANGE");
- s = emalloc(strlen(gtk_entry_get_text(GTK_ENTRY(gtkw)))+1);
+ s = emalloc(strlen((char*)gtk_entry_get_text(GTK_ENTRY(gtkw)))+1);
  strncpy(s, gtk_entry_get_text(GTK_ENTRY(gtkw)), 
  	strlen(gtk_entry_get_text(GTK_ENTRY(gtkw))));
  
@@ -299,7 +299,7 @@ restore_session_cb(nul, clist)
  
  
  gtkw = arg_get_value(t, "CGI_PATH");
- s = gtk_entry_get_text(GTK_ENTRY(gtkw));
+ s = (char*)gtk_entry_get_text(GTK_ENTRY(gtkw));
  s = emalloc(strlen(s)+1);
  strncpy(s, gtk_entry_get_text(GTK_ENTRY(gtkw)), 
   	strlen(gtk_entry_get_text(GTK_ENTRY(gtkw))));

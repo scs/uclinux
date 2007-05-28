@@ -51,10 +51,10 @@ typedef struct _sfxhash
   int             keysize; /* bytes in key, if <= 0 -> keys are strings */
   int             datasize;/* bytes in key, if == 0 -> user data */
   SFXHASH_NODE ** table;   /* array of node ptr's */
-  int             nrows;   /* # rows int the hash table use a prime number 211, 9871 */
+  unsigned        nrows;   /* # rows int the hash table use a prime number 211, 9871 */
   unsigned        count;   /* total # nodes in table */
   
-  int             crow;    // findfirst/next row in table
+  unsigned        crow;    // findfirst/next row in table
   SFXHASH_NODE  * cnode;   // findfirst/next node ptr
   int             splay;
 
@@ -80,21 +80,25 @@ typedef struct _sfxhash
 /*
 *   HASH PROTOTYPES
 */
+int             sfxhash_calcrows(int num);
 SFXHASH       * sfxhash_new( int nrows, int keysize, int datasize, int memcap, 
-							 int anr_flag, 
-							 int (*anrfunc)(void *key, void * data),
-							 int (*usrfunc)(void *key, void * data),
-							 int recycle_flag );
+                             int anr_flag, 
+                             int (*anrfunc)(void *key, void * data),
+                             int (*usrfunc)(void *key, void * data),
+                             int recycle_flag );
 
 void            sfxhash_delete( SFXHASH * h );
 
 int             sfxhash_add ( SFXHASH * h, void * key, void * data );
+SFXHASH_NODE * sfxhash_get_node( SFXHASH * t, void * key );
 int             sfxhash_remove( SFXHASH * h, void * key );
 unsigned        sfxhash_count( SFXHASH * h );
 unsigned        sfxhash_anr_count( SFXHASH * h );
 
 void          * sfxhash_mru( SFXHASH * t );
 void          * sfxhash_lru( SFXHASH * t );
+SFXHASH_NODE  * sfxhash_mru_node( SFXHASH * t );
+SFXHASH_NODE  * sfxhash_lru_node( SFXHASH * t );
 void          * sfxhash_find( SFXHASH * h, void * key );
 SFXHASH_NODE  * sfxhash_find_node( SFXHASH * t, void * key);
 
@@ -103,12 +107,14 @@ SFXHASH_NODE  * sfxhash_findnext ( SFXHASH * h );
 
 SFXHASH_NODE  * sfxhash_ghead( SFXHASH * h );
 SFXHASH_NODE  * sfxhash_gnext( SFXHASH_NODE * n );
+void sfxhash_gmovetofront( SFXHASH *t, SFXHASH_NODE * hnode );
 
 
 void            sfxhash_splaymode( SFXHASH * h, int mode );
 
 void          * sfxhash_alloc( SFXHASH * t, unsigned nbytes );
 void            sfxhash_free( SFXHASH * t, void * p );
+int             sfxhash_free_node(SFXHASH *t, SFXHASH_NODE *node);
 
 unsigned        sfxhash_maxdepth( SFXHASH * t );
 unsigned        sfxhash_overhead_bytes( SFXHASH * t );

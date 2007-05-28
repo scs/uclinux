@@ -4,7 +4,7 @@
  * Hacked by <Harlan.Stenn@pfcs.com>. Maybe will be merged
  * with the other Multitech driver.
  *
- * $Id$
+ * $Id: Multitech_5634ZPX.c,v 1.3 2005/03/13 17:27:46 gert Exp $
  *
  * Some functions can't be static because inherited by Multitech_5634ZPX_ISA.
  * Copied by md 2000/12/14

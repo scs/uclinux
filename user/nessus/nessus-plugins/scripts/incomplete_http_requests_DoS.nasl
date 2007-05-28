@@ -16,9 +16,10 @@
 if(description)
 {
  script_id(11825);
- script_version ("$Revision: 1.4 $");
- #script_cve_id();
+ script_cve_id("CVE-2002-1906");
  script_bugtraq_id(5962);
+ script_version ("$Revision: 1.10 $");
+ #script_cve_id();
  
  name["english"] = "Polycom ViaVideo denial of service";
  script_name(english:name["english"]);
@@ -30,7 +31,6 @@ requests are sent and the connections are kept open.
 Some servers (e.g. Polycom ViaVideo) even run an endless loop, 
 using much CPU on the machine. Nessus has no way to test this, 
 but you'd better check your machine.
-
 
 Solution : Contact your vendor for a patch
 Risk factor : High
@@ -62,17 +62,18 @@ Solution : Mettez à jour votre serveur web.";
 		francais:"Ce script est Copyright (C) 2003 Michel Arboi");
  family["english"] = "Denial of Service";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "httpver.nasl");
+ script_dependencie('http_version.nasl', 'httpver.nasl', 'www_multiple_get.nasl');
  script_require_ports("Services/www",80);
  exit(0);
 }
 
 #
 
+include('global_settings.inc');
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 
@@ -80,8 +81,21 @@ if(http_is_dead(port:port))exit(0);
 
 # 4 is enough for Polycom ViaVideo
 
+# Try to avoid FP on CISCO 7940 phone
+max = get_kb_item('www/multiple_get/'+port);
+if (max)
+{
+ imax = max * 2 / 3;
+ if (imax < 1)
+  imax = 1;
+ else if (imax > 5)
+  imax = 5;
+}
+else
+ imax = 5;
+
 n = 0;
-for (i = 0; i < 6; i++)
+for (i = 0; i < imax; i++)
 {
   soc[i] = http_open_socket(port);
   if(soc[i])
@@ -93,12 +107,12 @@ for (i = 0; i < 6; i++)
   }
 }
 
-##display(n, " connections were opened\n");
+debug_print(n, ' connections on ', imax, ' were opened\n');
 
 dead = 0;
 if(http_is_dead(port: port, retry:1)) dead ++;
 
-for (i = 0; i < 6; i++)
+for (i = 0; i < imax; i++)
   if (! isnull(soc[i]))
     http_close_socket(soc[i]);
 
@@ -119,5 +133,5 @@ Risk factor : Medium
 
 Solution : Upgrade your web server";
 
-  security_warning(port: port, data: report);
+  security_hole(port: port, data: report);
 }

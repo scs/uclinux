@@ -76,7 +76,7 @@ static int file_save_ok_callback(widget, filedialog)
  GtkWidget * widget;
  GtkWidget * filedialog;
 {
- char * fname = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filedialog));
+ char * fname = (char*)gtk_file_selection_get_filename(GTK_FILE_SELECTION(filedialog));
  int type;
  struct arglist * hosts = NULL;
  GtkWidget * menu    = gtk_object_get_data(GTK_OBJECT(filedialog), "menu");
@@ -362,7 +362,7 @@ dialog_close_setup(window)
    return;
   }		
   
-  dialog = gtk_window_new(GTK_WINDOW_DIALOG); 
+  dialog = gtk_window_new(WINDOW_DIALOG); 
   gtk_object_set_data(GTK_OBJECT(dialog), "report", window);
   gtk_object_set_data(GTK_OBJECT(window), "save_dialog", dialog);
   

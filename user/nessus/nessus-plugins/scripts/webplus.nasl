@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10367);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(1102);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-2000-0282");
  name["english"] = "TalentSoft Web+ Input Validation Bug Vulnerability";
  name["francais"] = "TalentSoft Web+ Input Validation Bug Vulnerability";
@@ -19,8 +19,10 @@ to view any file on the target computer by requesting :
 
 GET /cgi-bin/webplus?script=/../../../../etc/passwd
 
-Risk factor : Medium/High
-Solution : remove it";
+Solution : remove it
+
+Risk factor : Medium
+";
 
  desc["francais"] = "Le CGI 'webplus' permet à un 
 pirate de lire n'importe quel fichier sur la machine cible
@@ -49,6 +51,7 @@ Solution : Supprimez cette page";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
   script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -59,8 +62,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 
@@ -72,7 +75,7 @@ if(get_port_state(port))
   req = http_get(item:req, port:port);
   result = http_keepalive_send_recv(port:port, data:req);
   if( result == NULL ) exit(0);
-  if(egrep(pattern:".*root:.*:0:[01]:.*", string:result))security_hole(port);
+  if(egrep(pattern:".*root:.*:0:[01]:.*", string:result))security_warning(port);
   }
 }
 

@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: cachemgr.c,v 1.90.2.11 2005/04/26 04:04:30 hno Exp $
  *
  * DEBUG: section 0     CGI Cache Manager
  * AUTHOR: Duane Wessels
@@ -125,13 +125,21 @@
 #if HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif
+#if HAVE_FNMATCH_H
+#include <fnmatch.h>
+#endif
 
 #include <assert.h>
 
 #include "util.h"
 #include "snprintf.h"
 
+#ifndef DEFAULT_CACHEMGR_CONFIG
+#define DEFAULT_CACHEMGR_CONFIG "/etc/squid/cachemgr.conf"
+#endif
+
 typedef struct {
+    char *server;
     char *hostname;
     int port;
     char *action;
@@ -179,6 +187,8 @@ static void make_pub_auth(cachemgr_request * req);
 static void decode_pub_auth(cachemgr_request * req);
 static void reset_auth(cachemgr_request * req);
 static const char *make_auth_header(const cachemgr_request * req);
+
+static int check_target_acl(const char *hostname, int port);
 
 
 static const char *
@@ -230,10 +240,12 @@ print_trailer(void)
 static void
 auth_html(const char *host, int port, const char *user_name)
 {
+    FILE *fp;
+    int need_host = 1;
     if (!user_name)
 	user_name = "";
     if (!host || !strlen(host))
-	host = "localhost";
+	host = "";
     printf("Content-Type: text/html\r\n\r\n");
     printf("<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\" \"http://www.w3.org/TR/html4/loose.dtd\">\n");
     printf("<HTML><HEAD><TITLE>Cache Manager Interface</TITLE>\n");
@@ -244,10 +256,54 @@ auth_html(const char *host, int port, const char *user_name)
     printf("<HR noshade size=\"1px\">\n");
     printf("<FORM METHOD=\"POST\" ACTION=\"%s\">\n", script_name);
     printf("<TABLE BORDER=\"0\" CELLPADDING=\"10\" CELLSPACING=\"1\">\n");
-    printf("<TR><TH ALIGN=\"left\">Cache Host:</TH><TD><INPUT NAME=\"host\" ");
-    printf("size=\"30\" VALUE=\"%s\"></TD></TR>\n", host);
-    printf("<TR><TH ALIGN=\"left\">Cache Port:</TH><TD><INPUT NAME=\"port\" ");
-    printf("size=\"30\" VALUE=\"%d\"></TD></TR>\n", port);
+    fp = fopen("cachemgr.conf", "r");
+    if (fp == NULL)
+	fp = fopen(DEFAULT_CACHEMGR_CONFIG, "r");
+    if (fp != NULL) {
+	int servers = 0;
+	char config_line[BUFSIZ];
+	while (fgets(config_line, BUFSIZ, fp)) {
+	    char *server, *comment;
+	    strtok(config_line, "\r\n");
+	    if (config_line[0] == '#')
+		continue;
+	    if (config_line[0] == '\0')
+		continue;
+	    if ((server = strtok(config_line, " \t")) == NULL)
+		continue;
+	    if (strchr(server, '*') || strchr(server, '[') || strchr(server, '?')) {
+		need_host = -1;
+		continue;
+	    }
+	    comment = strtok(NULL, "");
+	    if (comment)
+		while (*comment == ' ' || *comment == '\t')
+		    comment++;
+	    if (!comment || !*comment)
+		comment = server;
+	    if (!servers) {
+		printf("<TR><TH ALIGN=\"left\">Cache Server:</TH><TD><SELECT NAME=\"server\">\n");
+	    }
+	    printf("<OPTION VALUE=\"%s\"%s>%s</OPTION>\n", server, (servers || *host) ? "" : " SELECTED", comment);
+	    servers++;
+	}
+	if (servers) {
+	    if (need_host == 1 && !*host)
+		need_host = 0;
+	    if (need_host)
+		printf("<OPTION VALUE=\"\"%s>Other</OPTION>\n", (*host) ? " SELECTED" : "");
+	    printf("</SELECT></TR>\n");
+	}
+	fclose(fp);
+    }
+    if (need_host) {
+	if (need_host == 1 && !*host)
+	    host = "localhost";
+	printf("<TR><TH ALIGN=\"left\">Cache Host:</TH><TD><INPUT NAME=\"host\" ");
+	printf("size=\"30\" VALUE=\"%s\"></TD></TR>\n", host);
+	printf("<TR><TH ALIGN=\"left\">Cache Port:</TH><TD><INPUT NAME=\"port\" ");
+	printf("size=\"30\" VALUE=\"%d\"></TD></TR>\n", port);
+    }
     printf("<TR><TH ALIGN=\"left\">Manager name:</TH><TD><INPUT NAME=\"user_name\" ");
     printf("size=\"30\" VALUE=\"%s\"></TD></TR>\n", user_name);
     printf("<TR><TH ALIGN=\"left\">Password:</TH><TD><INPUT TYPE=\"password\" NAME=\"passwd\" ");
@@ -530,9 +586,14 @@ process_request(cachemgr_request * req)
     if (req->action == NULL) {
 	req->action = xstrdup("");
     }
-    if (!strcmp(req->action, "authenticate")) {
+    if (strcmp(req->action, "authenticate") == 0) {
 	auth_html(req->hostname, req->port, req->user_name);
 	return 0;
+    }
+    if (!check_target_acl(req->hostname, req->port)) {
+	snprintf(buf, 1024, "target %s:%d not allowed in cachemgr.conf\n", req->hostname, req->port);
+	error_html(buf);
+	return 1;
     }
     if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
 	snprintf(buf, 1024, "socket: %s\n", xstrerror());
@@ -586,7 +647,6 @@ main(int argc, char *argv[])
     req = read_request();
     return process_request(req);
 }
-
 static char *
 read_post_request(void)
 {
@@ -606,7 +666,6 @@ read_post_request(void)
     buf[len] = '\0';
     return buf;
 }
-
 static char *
 read_get_request(void)
 {
@@ -615,7 +674,6 @@ read_get_request(void)
 	return NULL;
     return xstrdup(s);
 }
-
 static cachemgr_request *
 read_request(void)
 {
@@ -638,7 +696,11 @@ read_request(void)
 	if ((q = strchr(t, '=')) == NULL)
 	    continue;
 	*q++ = '\0';
-	if (0 == strcasecmp(t, "host") && strlen(q))
+	rfc1738_unescape(t);
+	rfc1738_unescape(q);
+	if (0 == strcasecmp(t, "server") && strlen(q))
+	    req->server = xstrdup(q);
+	else if (0 == strcasecmp(t, "host") && strlen(q))
 	    req->hostname = xstrdup(q);
 	else if (0 == strcasecmp(t, "port") && strlen(q))
 	    req->port = atoi(q);
@@ -650,6 +712,12 @@ read_request(void)
 	    req->pub_auth = xstrdup(q), decode_pub_auth(req);
 	else if (0 == strcasecmp(t, "operation"))
 	    req->action = xstrdup(q);
+    }
+    if (req->server && !req->hostname) {
+	char *p;
+	req->hostname = strtok(req->server, ":");
+	if ((p = strtok(NULL, ":")))
+	    req->port = atoi(p);
     }
     make_pub_auth(req);
     debug(1) fprintf(stderr, "cmgr: got req: host: '%s' port: %d uname: '%s' passwd: '%s' auth: '%s' oper: '%s'\n",
@@ -735,7 +803,7 @@ static const char *
 make_auth_header(const cachemgr_request * req)
 {
     static char buf[1024];
-    off_t l = 0;
+    int l = 0;
     const char *str64;
     if (!req->passwd)
 	return "";
@@ -750,4 +818,58 @@ make_auth_header(const cachemgr_request * req)
     l += snprintf(&buf[l], sizeof(buf) - l,
 	"Proxy-Authorization: Basic %s\r\n", str64);
     return buf;
+}
+
+static int
+check_target_acl(const char *hostname, int port)
+{
+    char config_line[BUFSIZ];
+    FILE *fp = NULL;
+    int ret = 0;
+    fp = fopen("cachemgr.conf", "r");
+    if (fp == NULL)
+	fp = fopen(DEFAULT_CACHEMGR_CONFIG, "r");
+    if (fp == NULL) {
+#ifdef CACHEMGR_HOSTNAME_DEFINED
+	if (strcmp(hostname, CACHEMGR_HOSTNAME) == 0 && port == CACHE_HTTP_PORT)
+	    return 1;
+#else
+	if (strcmp(hostname, "localhost") == 0)
+	    return 1;
+	if (strcmp(hostname, getfullhostname()) == 0)
+	    return 1;
+#endif
+	return 0;
+    }
+    while (fgets(config_line, BUFSIZ, fp)) {
+	char *token = NULL;
+	strtok(config_line, " \r\n\t");
+	if (config_line[0] == '#')
+	    continue;
+	if (config_line[0] == '\0')
+	    continue;
+	if ((token = strtok(config_line, ":")) == NULL)
+	    continue;
+#if HAVE_FNMATCH_H
+	if (fnmatch(token, hostname, 0) != 0)
+	    continue;
+#else
+	if (strcmp(token, hostname) != 0)
+	    continue;
+#endif
+	if ((token = strtok(NULL, ":")) != NULL) {
+	    int i;
+	    if (strcmp(token, "*") == 0);	/* Wildcard port specification */
+	    else if (strcasecmp(token, "any") == 0);	/* Wildcard port specification */
+	    else if (sscanf(token, "%d", &i) != 1)
+		continue;
+	    else if (i != port)
+		continue;
+	} else if (port != CACHE_HTTP_PORT)
+	    continue;
+	ret = 1;
+	break;
+    }
+    fclose(fp);
+    return ret;
 }

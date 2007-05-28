@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11669);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.8 $");
 
  name["english"] = "p-news Admin Access";
 
@@ -27,7 +27,7 @@ who has a 'Member' account to upgrade its privileges to administrator
 by supplying a malformed username.
 
 Solution : Delete this CGI
-Risk Factor : Medium";
+Risk factor : Medium";
 
 
 
@@ -47,6 +47,7 @@ Risk Factor : Medium";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -58,9 +59,10 @@ Risk Factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
 
@@ -72,13 +74,13 @@ function check(loc)
  if( r == NULL )exit(0);
  if(egrep(pattern:"<title>P-News ver. (0\.|1\.([0-9][^0-9]|1[0-7]))", string:r))
  {
- 	security_hole(port);
+ 	security_warning(port);
 	exit(0);
  }
 }
 
 
-dirs = make_list("", "/news", cgi_dirs());
+dirs = make_list("/news", cgi_dirs());
 
 
 foreach dir (dirs)

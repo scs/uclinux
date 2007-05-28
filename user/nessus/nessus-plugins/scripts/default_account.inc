@@ -1,20 +1,23 @@
 #
+# (C) Tenable Network Security
+#
+#
 # Default Account
 #
 # This file implements (or will implement) various ways of determining if
 # an account is valid
 #
 #
-# $Id: default_account.inc,v 1.3 2003/03/13 00:15:28 renaud Exp $
+# $Id: default_account.inc,v 1.15 2006/05/05 12:55:31 mikhail Exp $
 #
 
+include('telnet_func.inc');
+include('ssh_func.inc');
 
 
 #
 # Private functions
 # 
-
-
 
 function _check_telnet(port, login, password)
 {
@@ -22,56 +25,36 @@ function _check_telnet(port, login, password)
  soc = open_sock_tcp(port);
  if(!soc)return(0);
 
- res = telnet_init(soc);
- res = string(res, recv(socket:soc, length:4096, timeout:3));
- if("ogin" >!< res) 
- {
- close(soc);
- return(0);
- }
+ res = telnet_negotiate(socket:soc);
+ res += recv_until(socket:soc, pattern:"ogin:");
+ if ( ! res ) exit(0);
+
+ send(socket:soc, data:login + '\r\n');
+ if ( isnull(password) )
+  {
+   send(socket:soc, data:'id\r\n');
+   res = recv_until(socket:soc, pattern:"uid=");
+   close(soc);
+   if ( res ) return 1; 
+   else return 0;
+  }
 
 
-send(socket:soc, data:string(login, "\r\n"));
-res = recv_line(socket:soc, length:4096);
-if(isnull(password) && ("word:" >< res))
-{
- close(soc);
- return(0);
-}
-if(password)
-{
- send(socket:soc, data:string(password, "\r\n"));
- res = recv_line(socket:soc, length:4096);
-}
-
-send(socket:soc, data:string("id\r\n"));
-res = recv_line(socket:soc, length:4096);
-while(res)
- {
- if("ogin incorrect" >< res)
+ res = recv_until(socket:soc, pattern:"word:");
+ if ( res == NULL ) 
  {
   close(soc);
-  return(0);
+  return 0;
  }
 
+ send(socket:soc, data:password + '\r\n');
+ send(socket:soc, data:'id\r\n');
  
- if(egrep(pattern:"(uid=)|(Last login)", string:res))
- 	{
- 	close(soc);
- 	return(1);
-	}
-  
- if("ogin:" >< res)
- {
-  close(soc);
-  return(0);
- }
- 
- 	
- res = recv_line(socket:soc, length:4096);
- }
+ res = recv_until(socket:soc, pattern:"uid=");
  close(soc);
- return(0);
+ if ( res ) return 1;
+ else return 0;
+
 }
 
 #-------------------------------------------------------------------#
@@ -79,13 +62,35 @@ while(res)
 
 function check_account(login, password)
 {
- local_var port;
+ local_var port, ret, banner, soc, res;
  
+
+ if ( defined_func("bn_random") )
+ {
+  # Prefer login thru SSH rather than telnet
+  port = get_kb_item("Services/ssh");
+  if ( ! port ) port = 22;
+  banner = get_kb_item("SSH/banner/" + port);
+  # GoodTech SSH server does not respect SSH protocol ...
+  if (banner && ("cryptlib" >!< banner)) 
+  {
+   soc = open_sock_tcp(port);
+   if ( soc )
+   {
+   ret = ssh_login(socket:soc, login:login, password:password);
+   close(soc);
+   if ( ret == 0 ) return port;
+   #else return 0; 
+   }
+  }
+ }
+
  port = get_kb_item("Services/telnet");
  if(!port) port = 23;
  
  if(get_port_state(port))
  {
+  if ( isnull(password) ) password = "";
   res = _check_telnet(port:port, login:login, password:password);
   if(res)
    return(port);

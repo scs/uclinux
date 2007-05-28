@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: aug_sysdep.h,v 1.2 2003/08/20 14:17:57 andrei Exp $
  *
  * POSTGRES module, portions of this code were templated using
  * the mysql module, thus it's similarity.
@@ -39,13 +39,13 @@
 ** ________________________________________________________________________
 **
 **
-**                      $RCSfile$
-**                     $Revision$
+**                      $RCSfile: aug_sysdep.h,v $
+**                     $Revision: 1.2 $
 **
-**             Last change $Date$
-**           Last change $Author$
-**                        $State$
-**                       $Locker$
+**             Last change $Date: 2003/08/20 14:17:57 $
+**           Last change $Author: andrei $
+**                        $State: Exp $
+**                       $Locker:  $
 **
 **               Original author: Andrew Fullford
 **
@@ -324,7 +324,7 @@ typedef unsigned int augUInt32;
 */
 
 #ifndef AUG_CONFIGURATION
-error: os/cpu/compiler combination not configured in $Source$ $Revision$
+error: os/cpu/compiler combination not configured in $Source: /cvsroot/ser/sip_router/modules/postgres/aug_sysdep.h,v $ $Revision: 1.2 $
 #endif
 
 #endif /* AUG_SYSDEP_H */

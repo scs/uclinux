@@ -1,6 +1,4 @@
 /*
- * udev_utils_file.c - files operations
- *
  * Copyright (C) 2004-2005 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -14,7 +12,7 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -49,7 +47,7 @@ int create_path(const char *path)
 	pos[0] = '\0';
 
 	dbg("stat '%s'\n", p);
-	if (stat (p, &stats) == 0 && (stats.st_mode & S_IFMT) == S_IFDIR)
+	if (stat(p, &stats) == 0 && (stats.st_mode & S_IFMT) == S_IFDIR)
 		return 0;
 
 	if (create_path (p) != 0)

@@ -29,5 +29,5 @@ CONFIG_ISA=y
 else
 CONFIG_ISA=n
 endif
-CPPFLAGS=-I../include -I$(LINUX)/include
+CPPFLAGS=-I$(ROOTDIR)/$(LINUXDIR)/include -I../include
 

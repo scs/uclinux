@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: code.c,v 1.5 2003/09/29 21:32:43 gert Exp $ */
 
 #include  "config.h"
 

@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tw.comp.c,v 1.31 1998/10/25 15:10:49 christos Exp $ */
 /*
  * tw.comp.c: File completion builtin
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tw.comp.c,v 1.31 1998/10/25 15:10:49 christos Exp $")
 
 #include "tw.h"
 #include "ed.h"

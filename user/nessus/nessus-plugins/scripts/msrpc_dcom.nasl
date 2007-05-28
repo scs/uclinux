@@ -1,34 +1,40 @@
-##
 #
-# 
-# This script was written by KK Liu 
-# [LSD] Critical security vulnerability in Microsoft Operating Systems 
-# Check methods based on Eeye's MSRPC scanner 1.03
-# 
-# Updated 7/29/2003 - Now works for NT4
-# Updated 8/13/2003 - Now works for Win 95/98/ME
-#
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(11808);
- script_cve_id("CAN-2003-0352");
- if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0011");
  script_bugtraq_id(8205);
- script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2003-0352");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0011");
+ script_version ("$Revision: 1.22 $");
  
  name["english"] = "Microsoft RPC Interface Buffer Overrun (823980)";
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host is running a version of Windows which has a flaw in 
-its RPC interface which may allow an attacker to execute arbitrary code 
-and gain SYSTEM privileges.  There is at least one Worm which is 
-currently exploiting this vulnerability.  Namely, the MsBlaster worm.
- 
- Solution: see http://www.microsoft.com/technet/security/bulletin/MS03-026.asp 
- Risk factor : Serious";
+Synopsis :
+
+Arbitrary code can be executed on the remote host.
+
+Description :
+
+The remote version of Windows contains a flaw in the function 
+RemoteActivation() in its RPC interface which may allow an attacker to 
+execute arbitrary code on the remote host with the SYSTEM privileges.
+
+A series of worms (Blaster) are known to exploit this vulnerability in the 
+wild.
+
+Solution :
+
+http://www.microsoft.com/technet/security/bulletin/MS03-026.mspx 
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
  
  script_description(english:desc["english"]);
  
@@ -37,141 +43,95 @@ currently exploiting this vulnerability.  Namely, the MsBlaster worm.
  
  script_category(ACT_ATTACK);
  
- script_copyright(english:"This script is Copyright (C) 2003 KK LIU");
- family["english"] = "Gain root remotely";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows";
  script_family(english:family["english"]);
- script_dependencies("msrpc_dcom2.nasl");
- script_require_ports("Services/msrpc", 135, 593); 
+ script_dependencies("smb_nativelanman.nasl", "msrpc_dcom2.nasl");
+ script_require_ports(139, 445); 
  exit(0);
 }
 
-
-
-#
-# The script code starts here
-#
+include ('smb_func.inc');
 
 if(get_kb_item("SMB/KB824146"))exit(0);
-if(get_kb_item("SMB/KB824146_cant_be_verified"))exit(0);
+if(!get_kb_item("SMB/KB824146_launched"))exit(0);
 
-function dcom_recv(socket)
+function RemoteActivation ()
 {
- local_var buf, len;
- 
- buf = recv(socket:socket, length:9);
- if(strlen(buf) != 9)return NULL;
- 
- len = ord(buf[8]);
- buf += recv(socket:socket, length:len - 9);
- return buf;
-}
- 
+ local_var fid, data, rep, ret;
 
-debug = 0;
+ fid = bind_pipe (pipe:"\epmapper", uuid:"4d9f4ab8-7d1c-11cf-861e-0020af6e7c57", vers:0);
+ if (isnull (fid))
+   return 0;
 
-bindwinme = raw_string(
-0x05,0x00,0x0b,0x03,0x10,0x00,0x00,0x00,0x48,0x00,0x00,0x00,0x53,0x53,0x56,0x41,
-0xd0,0x16,0xd0,0x16,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x01,0x00,
-0xe6,0x73,0x0c,0xe6,0xf9,0x88,0xcf,0x11,0x9a,0xf1,0x00,0x20,0xaf,0x6e,0x72,0xf4,
-0x02,0x00,0x00,0x00,0x04,0x5d,0x88,0x8a,0xeb,0x1c,0xc9,0x11,0x9f,0xe8,0x08,0x00,
-0x2b,0x10,0x48,0x60,0x02,0x00,0x00,0x00
-);
+ data = # DCOM informations
+	raw_word (w:5) +
+        raw_word (w:6) +
+        raw_dword (d:1) +
+        raw_dword (d:0) +
+        encode_uuid (uuid:"54454e41-424c-454e-4554-574f524b5345") +
+	raw_dword (d:0) +
 
-bindstr = raw_string(
-0x05,0x00,0x0b,0x03,0x10,0x00,0x00,0x00,0x48,0x00,0x00,0x00,0x53,0x53,0x56,0x41,
-0xd0,0x16,0xd0,0x16,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x01,0x00,
-0xb8,0x4a,0x9f,0x4d,0x1c,0x7d,0xcf,0x11,0x86,0x1e,0x00,0x20,0xaf,0x6e,0x7c,0x57,
-0x00,0x00,0x00,0x00,0x04,0x5d,0x88,0x8a,0xeb,0x1c,0xc9,0x11,0x9f,0xe8,0x08,0x00,
-0x2b,0x10,0x48,0x60,0x02,0x00,0x00,0x00
-);
+	# CLSID
+	encode_uuid (uuid:"53454e5b-5553-5d53-5b4e-45535355535d") +
 
-request= raw_string(
-0x05,0x00,0x00,0x03,0x10,0x00,0x00,0x00,0xc6,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0xae,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x05,0x00,0x01,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x5b,0x4e,0x45,0x53,0x53,0x55,0x53,0x5d,0x5b,0x4e,0x45,0x53,
-0x53,0x55,0x53,0x5d,0x00,0x00,0x00,0x00,0x53,0x53,0x56,0x41,0x32,0x30,0x30,0x33,
-0x53,0x53,0x56,0x41,0x32,0x30,0x30,0x33,0x68,0x0f,0x0b,0x00,0x1e,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x1e,0x00,0x00,0x00,0x5c,0x00,0x5c,0x00,0x53,0x4f,0x43,0x00,
-0x00,0x00,0x00,0x00,0x63,0x00,0x24,0x00,0x5c,0x00,0x53,0x00,0x53,0x00,0x56,0x00,
-0x41,0x00,0x5f,0x00,0x32,0x00,0x30,0x00,0x30,0x00,0x33,0x00,0x5f,0x00,0x4e,0x00,
-0x45,0x00,0x53,0x00,0x53,0x00,0x45,0x00,0x53,0x00,0x2e,0x00,0x74,0x00,0x78,0x00,
-0x74,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x02,0x00,0x00,0x00,0x02,0x00,0x00,0x00,
-0x01,0x00,0x00,0x00,0xb8,0xeb,0x0b,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
-0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,
-0x01,0x00,0x00,0x00,0x07,0x00
-);
+	# ObjectName
+	class_parameter (ref_id:0x20004, name:"\\A"+raw_string(0)+"A\\AA") +
 
+	# NULL pointer
+	raw_dword (d:0) +
 
-chk[0] = raw_string (0x00,0x04,0x00,0x08); 
-chk[1] = raw_string (0x00,0x05,0x00,0x07);
-chk[2] = raw_string (0x00,0x00,0x20,0x00);
-chk[3] = raw_string (0x02,0x00,0x01,0x00);
+	# ClientImpLevel
+	raw_dword (d:0) +
+	# Modes
+	raw_dword (d:0) +
 
-report = "";
-port = 135;
-if(!get_port_state(port))
-{
- port = 593;
-}
-else
-{
- soc = open_sock_tcp(port);
- if(!soc)port = 593;
- else close(soc);
+	# interfaces (only 1)
+	raw_dword (d:1) + 
+	raw_dword (d:0x20008) +
+	raw_dword (d:1) +
+	encode_uuid (uuid:"00000000-0000-0000-0000-000000000000") +
+
+	# rest of data
+	raw_dword (d:0) +
+	raw_dword (d:0);
+
+ data = dce_rpc_pipe_request (fid:fid, code:0x00, data:data);
+ if (!data)
+   return 0;
+
+ rep = dce_rpc_parse_response (fid:fid, data:data);
+ if (!rep || (strlen(rep) != 68))
+   return 0;
+
+ ret = get_dword (blob:rep, pos:strlen(rep)-24);
+ if ((ret == 0x80080004) || (ret == 0x80070005))
+   return 0;
+
+ return 1;
 }
 
-if(get_port_state(port))
-{
-    soc = open_sock_tcp(port);
-	if(soc)
-	{
-	    send(socket:soc,data:bindwinme);
-            rwinme  = dcom_recv(socket:soc);
-            if(!strlen(rwinme))exit(0);
-	    lenwinme = strlen(rwinme);
-	    stubwinme = substr(rwinme, lenwinme-24, lenwinme-21);
-	    if (debug)
-	    {
-	    	display('len = ', lenwinme, '\n');
-		display('stub  = ', hexstr(stubwinme), '\n');
-		display('r = ', hexstr(rwinme), '\n');
-	    }
-	    if (stubwinme >< chk[3])
-	    {
-	    	if (debug) display("Windows 95/98/ME found secure!\n");
-		exit(0);
-            }
-	    close(soc);
-	}
-	soc = open_sock_tcp(port);
-	if(soc)
-	{
-	    send(socket:soc, data:bindstr);
-	    r  = dcom_recv(socket:soc);
-	    if(!strlen(r))exit(0);
-	    send(socket:soc, data:request);
-	    r  = dcom_recv(socket:soc);
-	    if(!strlen(r))
-	    {
-	    	exit(0);
-	    }
-	    close(soc);
-	    
-	    len = strlen(r);
-	    stub = substr(r, len-25, len-22);
-	    if (debug) 
-	    {
-	    	display('running second test\n');
-	    	display('len  = ', len, '\n');
-		display('r = ', hexstr(r), '\n');
-	    	display('stub = ', hexstr(stub),  '\n');
-	    }
-		if ((stub >!< chk[0]) && (stub >!< chk[1]) && (stub >!< chk[2]))
-		{
-	        if (debug) display("Warning: Vulnerable MSRPC host found!\n");
-		security_hole(port:port);
-		}
- 
-    }
-}
+os = get_kb_item ("Host/OS/smb") ;
+if (("Windows 5.1" >!< os) && ("Windows 5.0" >!< os) && ("Windows 5.2" >!< os) && ("Windows 4.0" >< os))
+  exit(0);
 
+port = get_kb_item("SMB/transport");
+if(!port)port = 445;
+
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+
+name	= kb_smb_name();
+
+session_init(socket:soc, hostname:name);
+
+r = NetUseAdd(share:"IPC$");
+if ( r == 1 )
+{
+ ret = RemoteActivation();
+ if (ret == 1)
+   security_hole (port:port);
+
+ NetUseDel();
+}

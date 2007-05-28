@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10139);
- script_version ("$Revision: 1.9 $");
- script_bugtraq_id(823);
- script_cve_id("CAN-1999-0844");
+ script_bugtraq_id(820, 823);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-1999-0844");
  name["english"] = "MDaemon Worldclient crash";
  name["francais"] = "Plantage de Worldclient de MDaemon";
  script_name(english:name["english"], francais:name["francais"]);
@@ -27,7 +27,7 @@ employees from reading their mails remotely.
 
 Solution : contact your vendor for a fix.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Il s'est avéré possible de faire

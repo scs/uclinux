@@ -11,7 +11,7 @@
 if(description)
 {
    script_id(11007);
-   script_version ("$Revision: 1.4 $");
+   script_version ("$Revision: 1.8 $");
    name["english"] = "ActiveState Perl directory traversal";
    script_name(english:name["english"]);
  
@@ -37,7 +37,6 @@ Risk factor : High";
    script_family(english:"CGI abuses");
    script_dependencie("find_service.nes", "http_version.nasl");
    script_require_ports("Services/www", 80);
-   script_require_keys("www/iis");
    exit(0);
 }
 
@@ -47,23 +46,21 @@ Risk factor : High";
 # 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 
 quote = raw_string(0x22);
 
 item = string("/.", quote, "./.", quote,  "./winnt/win.ini%20.pl");
 req = http_get(item:item, port:port);
-
-soc = http_open_socket(port);
-if(!soc)exit(0);
-
-send(socket:soc, data:req);
-r = http_recv(socket:soc);
-http_close_socket(soc);
+r = http_keepalive_send_recv(port:port, data:req);
 if("Semicolon seems to be missing at" >< r)
 {
  security_hole(port);

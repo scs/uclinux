@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: client_db.c,v 1.53.2.5 2005/03/26 02:50:52 hno Exp $
  *
  * DEBUG: section 0     Client Database
  * AUTHOR: Duane Wessels
@@ -39,6 +39,7 @@ static hash_table *client_table = NULL;
 static ClientInfo *clientdbAdd(struct in_addr addr);
 static FREE clientdbFreeItem;
 static void clientdbStartGC(void);
+static void clientdbScheduledGC(void *);
 
 static int max_clients = 32;
 static int cleanup_running = 0;
@@ -56,8 +57,10 @@ clientdbAdd(struct in_addr addr)
     c->addr = addr;
     hash_join(client_table, &c->hash);
     statCounter.client_http.clients++;
-    if ((statCounter.client_http.clients > max_clients) && !cleanup_running)
-	clientdbStartGC();
+    if ((statCounter.client_http.clients > max_clients) && !cleanup_running && cleanup_scheduled < 2) {
+	cleanup_scheduled++;
+	eventAdd("client_db garbage collector", clientdbScheduledGC, NULL, 90, 0);
+    } 
     return c;
 }
 
@@ -74,7 +77,7 @@ clientdbInit(void)
 }
 
 void
-clientdbUpdate(struct in_addr addr, log_type ltype, protocol_t p, size_t size)
+clientdbUpdate(struct in_addr addr, log_type ltype, protocol_t p, squid_off_t size)
 {
     char *key;
     ClientInfo *c;
@@ -280,9 +283,9 @@ clientdbGC(void *unused)
 	max_clients = statCounter.client_http.clients * 3 / 2;
 	if (!cleanup_scheduled) {
 	    cleanup_scheduled = 1;
-	    eventAdd("client_db garbage collector", clientdbScheduledGC, NULL, 6 * 3600, 0);
+	    eventAdd("client_db garbage collector", clientdbScheduledGC, NULL, 3 * 3600, 0);
 	}
-	debug(49, 1) ("clientdbGC: Removed %d entries\n", cleanup_removed);
+	debug(49, 2) ("clientdbGC: Removed %d entries\n", cleanup_removed);
     }
 }
 

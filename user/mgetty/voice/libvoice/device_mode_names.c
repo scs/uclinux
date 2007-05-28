@@ -4,7 +4,7 @@
  * delivers a printable name for the voice_devices chosen by 
  * the identifier device_number
  *
- * $Id$
+ * $Id: device_mode_names.c,v 1.1 2001/02/24 10:59:37 marcs Exp $
  *
  */
 

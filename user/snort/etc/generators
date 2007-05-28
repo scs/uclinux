@@ -35,3 +35,8 @@ conversation               118 # conversation
 reserved                   119 # TBA
 reserved                   120 # TBA
 snmp                       121 # Andrew Baker's newer SNMP decoder
+sfportscan                 122 # Dan Roelkers portscan
+frag3                      123 # Marty Roesch's ip frag reassembler
+smtp                       124 # SMTP decoder/normalizer
+ftp                        125 # FTP decoder
+telnet                     126 # telnet decoder/normalizer

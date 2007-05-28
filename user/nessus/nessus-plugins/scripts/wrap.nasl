@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10317);
- script_version ("$Revision: 1.18 $");
  script_bugtraq_id(373);
+ script_version ("$Revision: 1.25 $");
  script_cve_id("CVE-1999-0149");
  
  name["english"] = "wrap";
@@ -16,39 +16,33 @@ if(description)
  name["deutsch"] = "wrap";
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  
- desc["english"] = "The 'wrap' CGI is installed. This CGI allows
-anyone to get a listing for any directory with mode +755.
+ desc["english"] = "
+Synopsis :
 
+The remote web server contains a CGI script that is prone to
+information disclosure. 
 
-*** Note that all implementations of 'wrap' are not
-*** vulnerable. See the relevant CVE entry.
+Description :
+
+The 'wrap' CGI is installed.  This CGI allows anyone to get a listing
+for any directory with mode +755. 
+
+*** Note that all implementations of 'wrap' are not vulnerable.
+
+See also : 
+
+http://seclists.org/lists/bugtraq/1997/Apr/0076.html
    
-Solution : remove it from /cgi-bin.
+Solution : 
 
-Risk factor : Low/Medium";
+Remove this CGI script.
 
+Risk factor : 
 
- desc["francais"] = "Le cgi 'wrap' est installé. Celui-ci permet
-à n'importe qui d'obtenir un listing pour n'importe quel dossier
-de mode +755.
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
 
-
-*** Notez que toutes les implémentations de 'wrap'
-*** ne sont pas vulnérables. Consultez la bonne
-*** entrée CVE
-   
-Solution : retirez-le de /cgi-bin.
-
-Facteur de risque : Faible/Moyen";
-
- desc["deutsch"] = "Das CGI 'wrap' ist installiert. Dieses CGI ermöglicht
-jedem ein beliebiges Verzeichnis mit dem Modus +755 einzusehen.
-
-Lösung: Löschen aus dem Verzeichnis /cgi-bin
-
-Risikofaktor: Niedrig / Mittel";
-
- script_description(english:desc["english"], francais:desc["francais"], deutsch:desc["deutsch"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for the presence of /cgi-bin/wrap";
  summary["francais"] = "Vérifie la présence de /cgi-bin/wrap";
@@ -74,7 +68,13 @@ Risikofaktor: Niedrig / Mittel";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("wrap");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(port:port, item:"wrap");
+if(res)security_warning(port);
 

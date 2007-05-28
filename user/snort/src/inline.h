@@ -43,6 +43,8 @@ int InlineReplace();
 #endif
 
 int InlineMode();
-int InlineDrop();  /* call to drop current packet */
+int InlineModeSetPrivsAllowed();
+int InlineDrop(Packet *p);  /* call to drop current packet */
+int InlineWasPacketDropped();
 
 #endif /* __INLINE_H__ */

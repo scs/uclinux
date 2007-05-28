@@ -5,25 +5,21 @@
 #
 
  edesc= "
-The remote host answered to an ICMP_MASKREQ
-query and sent us its netmask <X>
+The remote host answered to an ICMP_MASKREQ query and sent us its 
+netmask <X>.
 
-An attacker can use this information to
-understand how your network is set up
-and how the routing is done. This may
-help him to bypass your filters.
+An attacker can use this information to understand how your network is set up
+and how the routing is done. This may help him to bypass your filters.
 
-Solution : reconfigure the remote host so
-that it does not answer to those requests.
-Set up filters that deny ICMP packets of
-type 17.
+Solution : reconfigure the remote host so that it does not answer to those 
+requests.  Set up filters that deny ICMP packets of type 17.
 
 Risk factor : Low";
 if(description)
 {
  script_id(10113);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CAN-1999-0524");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-0524");
  name["english"] = "icmp netmask request";
  name["francais"] = "requête icmp de masque de sous-réseau";
  
@@ -75,6 +71,8 @@ Facteur de risque : Faible";
 # The script code starts here
 #
 
+if ( islocalhost() ) exit(0);
+
 ip = forge_ip_packet(ip_hl:5, ip_v:4,   ip_off:0,
                      ip_id:9, ip_tos:0, ip_p : IPPROTO_ICMP,
                      ip_len : 20, ip_src : this_host(),
@@ -92,6 +90,7 @@ if(!isnull(r))
  type = get_icmp_element(icmp:r, element:"icmp_type");
  if(type == 18){
 	data = get_icmp_element(icmp:r, element:"data");
+	if ( strlen(data) != 4 ) exit(0);
 	mask = "";
 	for(i=0;i<4;i=i+1)
 	{
@@ -100,6 +99,7 @@ if(!isnull(r))
 	}
         mydesc = ereg_replace(pattern:"<X>", replace:string("(", mask, ")"), string:edesc);
 	security_warning(protocol:"icmp", port:0, data:mydesc); 
+	set_kb_item(name: 'icmp/mask_req', value: TRUE);
 	}
  exit(0);
 }

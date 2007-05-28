@@ -6,7 +6,7 @@
 /*#include <asm/param.h>*/
 
 /* get page info */
-#include <asm/page.h>
+#include <sys/user.h>
 
 char *wchan(unsigned long);
 char *find_func(unsigned long address);

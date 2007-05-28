@@ -20,7 +20,7 @@
 *  Author : Benoit Locher
 *  Date   : ??  
 *
-*  $Id$";
+*  $Id: smallsem.h,v 1.5 2003/08/08 21:22:24 rogler Exp $";
 */
 
 #ifndef __SMALLSEM_H__

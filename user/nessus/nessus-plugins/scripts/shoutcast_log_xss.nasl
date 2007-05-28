@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11624); 
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "SHOUTcast Server logfiles XSS";
  script_name(english:name["english"]);
@@ -48,19 +48,23 @@ Risk factor : Medium";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 include("misc_func.inc");
 
+req = 'GET /content/dsjkdjfljk.mp3 HTTP/1.0\r\n\r\n';
 ports = add_port_in_list(list:get_kb_list("Services/www"), port:8000);
 foreach port (ports)
 {
  if (get_port_state(port))
  {
-  banner = get_http_banner(port:port);
-  if(!banner)exit(0);
-  if ("SHOUTcast Distributed Network Audio Server" >< banner)
+  banner = http_keepalive_send_recv(port:port, data:req);
+  if ( banner != NULL )
+  {
+  if (egrep(pattern:"SHOUTcast Distributed Network Audio Server.*v(0\.|1\.[0-8]\.|1\.9\.[0-4][^0-9])", string:banner) )
   {
    security_warning(port);
    exit(0);
   } 
+  }
  }
 }

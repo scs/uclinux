@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10298);
- script_version ("$Revision: 1.17 $");
- script_cve_id("CAN-1999-0610");
- script_bugtraq_id(2281); 
+ script_bugtraq_id(2281);
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-0610");
  name["english"] = "Webcart misconfiguration";
  name["francais"] = "Mauvaise configuration de Webcart";
  script_name(english:name["english"], francais:name["francais"]);
@@ -80,11 +80,13 @@ Facteur de risque : Elevé";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
 
-if(http_is_dead(port:port))exit(0);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
 
 
 c[0] = "/webcart/orders/";

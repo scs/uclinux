@@ -1,5 +1,5 @@
 <html>
-<!-- $Id$ -->
+<!-- $Id: click_to_dial.php,v 1.2 2002/08/27 23:32:42 jku Rel $ -->
 <header>
 <title>
 Click-To-Dial

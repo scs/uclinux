@@ -1,16 +1,14 @@
 #
-# This script was written by Renaud Deraison 
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
 
 if(description)
 {
  script_id(11506);
- script_version("$Revision: 1.2 $");
- script_cve_id("CAN-2003-0168");
  script_bugtraq_id(7247);
+ script_version("$Revision: 1.7 $");
+ script_cve_id("CVE-2003-0168");
  
  
  name["english"] = "Quicktime player buffer overflow";
@@ -27,8 +25,8 @@ then be able to execute arbitrary code with the rights of the user
 visiting the page.
 	
 
-Solution : Upgrade to Quicktime Player 6.1
-Risk factor : Serious";
+Solution : Upgrade to Quicktime Player version 6.1 or later.
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -38,29 +36,16 @@ Risk factor : Serious";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2006 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_full_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_full_access","SMB/WindowsVersion");
+ script_dependencies("quicktime_installed.nasl");
+ script_require_keys("SMB/QuickTime/Version");
 
-
- script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
 
-
-key = "SOFTWARE\Apple Computer, Inc.\Quicktime";
-item = "Version";
-version = registry_get_dword(key:key, item:item);
-if(!version)exit(0);
-
-if(version < 0x06100000)security_hole(port);
+ver = get_kb_item("SMB/QuickTime/Version");
+if (ver && ver =~ "^([0-5]\.|6\.0\.)") security_hole(get_kb_item("SMB/transport"));

@@ -10,7 +10,7 @@
 if(description)
 {
   script_id(11125);
-  script_version ("$Revision: 1.5 $");
+  script_version ("$Revision: 1.6 $");
  
   script_name(english:"mldonkey www");
  
@@ -46,7 +46,7 @@ include("http_func.inc");
 include("misc_func.inc");
 
 
-ports = add_port_in_list(list:"Services/www", port:4080);
+ports = add_port_in_list(list:get_kb_list("Services/www"), port:4080);
 
 foreach port (ports)
 {

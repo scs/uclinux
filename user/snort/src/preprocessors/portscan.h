@@ -6,10 +6,9 @@
 #endif
 
 #include <time.h>
-
 #ifndef WIN32
-#include <sys/time.h>
-#endif
+    #include <sys/time.h>
+#endif /* !WIN32 */
 
 #include "ipobj.h"
 

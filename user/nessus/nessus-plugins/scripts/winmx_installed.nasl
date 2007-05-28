@@ -1,15 +1,14 @@
 #
-# This script was written by Xue Yong Zhi <xueyong@udel.edu>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(11430);
- # No bugtraq_id found;
+# script_cve_id("CVE-MAP-NOMATCH");
+
  
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.6 $");
 
  name["english"] = "WinMX is installed";
 
@@ -32,7 +31,7 @@ Risk factor : Low";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2005 Tenable Network Security");
  family["english"] = "Peer-To-Peer File Sharing";
  script_family(english:family["english"]);
  
@@ -46,12 +45,9 @@ Risk factor : Low";
 }
 
 
-include("smb_nt.inc");
+if ( ! get_kb_item("SMB/Registry/Enumerated") ) exit(1);
 
+key = "SMB/Registry/HKLM/SOFTWARE/Microsoft/Windows/CurrentVersion/Uninstall/WinMX/DisplayName";
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\CurrentVersion\Uninstall\WinMX", item:"DisplayName");
-if(rootfile)
-{
- security_note(get_kb_item("SMB/transport"));
-}
-
+if (get_kb_item (key))
+  security_note(get_kb_item("SMB/transport"));

@@ -1,16 +1,12 @@
 #
 # Copyright 2000 by Hendrik Scholz <hendrik@scholz.net> 
 #
-# See the Nessus Scripts License for details
-#
-# This script is based on the webserver detect script from SecuriTeam.
-# But this one uses an HTTP 1.0 request :-)
 #
 
 if(description)
 {
  script_id(10107);
- script_version ("$Revision: 1.47 $");
+ script_version ("$Revision: 1.58 $");
  
  name["english"] = "HTTP Server type and version";
  script_name(english:name["english"]);
@@ -23,7 +19,7 @@ Be sure to remove common logos like apache_pb.gif.
 With Apache, you can set the directive 'ServerTokens Prod' to limit
 the information emanating from the server in its response headers.
 
-Risk factor : Low";
+Risk factor : None";
 
  script_description(english:desc["english"]);
  
@@ -32,11 +28,11 @@ Risk factor : Low";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Securiteam / modified by H. Scholz");
+ script_copyright(english:"This script is Copyright (C) 2000 H. Scholz & Contributors");
  family["english"] = "General";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes", "http_login.nasl", "httpver.nasl", "no404.nasl");
+ script_dependencie("find_service.nes", "http_login.nasl", "httpver.nasl", "no404.nasl", "www_fingerprinting_hmap.nasl", "webmin.nasl", "embedded_web_server_detect.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -101,8 +97,8 @@ function get_domino_version()
 
 
 
- port = get_kb_item("Services/www");
- if (!port) port = 80;
+ port = get_http_port(default:80);
+
 
  if (get_port_state(port))
  {
@@ -112,7 +108,7 @@ function get_domino_version()
   {
    data = http_get(item:"/", port:port);
    resultsend = send(socket:soctcp80, data:data);
-   resultrecv = http_recv_headers(soctcp80);
+   resultrecv = http_recv_headers2(socket:soctcp80);
    if ("Server: " >< resultrecv)
    {
     svrline = egrep(pattern:"^(DAAP-)?Server:", string:resultrecv);
@@ -127,12 +123,18 @@ function get_domino_version()
         {
 	  report = report + svr2 + string("\n\nThe 'ServerTokens' directive is set to ProductOnly\n",
 	  				"however we could determine that the version of the remote\n",
-					"server by requesting a non-existant page.\n");
+					"server by requesting a non-existent page.\n");
 	  svrline = string("Server: ", svr2, "\r\n");
-	  set_kb_item(name:string("www/real_banner/", port), value:svrline);
+	  if ( defined_func("replace_kb_item") )
+	  	replace_kb_item(name:string("www/real_banner/", port), value:svrline);
+	  else
+	  	set_kb_item(name:string("www/real_banner/", port), value:svrline);
 	  if(!get_kb_item("www/banner/" + port))
 	  {
-	   set_kb_item(name:"www/banner/" + port, value:svrline);
+	   if ( defined_func("replace_kb_item") )
+	  	 replace_kb_item(name:"www/banner/" + port, value:svrline);
+	   else
+	  	 set_kb_item(name:"www/banner/" + port, value:svrline);
 	  }
        }
        else report = report + svr + string("\nand the 'ServerTokens' directive is ProductOnly\nApache does not permit to hide the server type.\n");
@@ -146,12 +148,18 @@ function get_domino_version()
 	if( svr2 != NULL )
 	{
 	 report = report + svr2 + string("\n\nThe product version is hidden but we could determine it by\n",
-	 				"requesting a non-existant .nsf file or connecting to port 25\n");
+	 				"requesting a non-existent .nsf file or connecting to port 25\n");
 	 svrline = string("Server: ", svr2, "\r\n");
-	 set_kb_item(name:string("www/real_banner/", port), value:svrline);				
+	 if ( defined_func("replace_kb_item") )
+	  	replace_kb_item(name:string("www/real_banner/", port), value:svrline);
+	 else
+	  	set_kb_item(name:string("www/real_banner/", port), value:svrline);
 	 if(!get_kb_item("www/banner/" + port))
 	  {
-	   set_kb_item(name:"www/banner/" + port, value:svrline);
+	   if ( defined_func("replace_kb_item") )
+	  	 replace_kb_item(name:"www/banner/" + port, value:svrline);
+	   else
+	  	 set_kb_item(name:"www/banner/" + port, value:svrline);
 	  }
 	}
 	 else report = report + svr;
@@ -160,11 +168,6 @@ function get_domino_version()
      else 
      {
      report = report + svr;
-     if("Microsoft-IIS/" >< svr){
-      report = report + string("\n", "Solution : You can use urlscan to change reported server for IIS.");
-     }else{
-      report = report + string("\n", "Solution : We recommend that you configure (if possible) your web server to return\n", "a bogus Server header in order to not leak information.\n");
-     }
      }
     }
     security_note(port:port, data:report);
@@ -387,10 +390,14 @@ function get_domino_version()
 	
      if(egrep(pattern:"^Server:.*theServer/.*", string:svrline))
        	set_kb_item(name:"www/theserver", value:TRUE);
+
+     if(egrep(pattern:"^Server:.*WWW File Share.*", string:svrline))
+        set_kb_item(name:"www/wwwfileshare", value:TRUE);
+ 
 	
    #  if(!egrep(pattern:"^Server:.*", string:svrline))
    #     set_kb_item(name:"www/none", value:TRUE);
    } 
-  }
   close(soctcp80);
+  }
  }

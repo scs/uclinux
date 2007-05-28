@@ -37,7 +37,7 @@ hg_resolv(hostname)
  in.s_addr = INADDR_NONE;
  ent = gethostbyname(hostname);
  if (ent) memcpy(&(in.s_addr), (char*)(ent->h_addr), ent->h_length);
-  return in;
+ return in;
 }
 
 /*
@@ -52,17 +52,23 @@ hg_get_name_from_ip(ip, hostname, sz)
  int sz;
 {
  struct hostent * he = NULL;
+ int i;
 
  he = gethostbyaddr((char *)&ip, sizeof(long), AF_INET);
 
  if( he != NULL )
- {
-  int len = strlen(he->h_name);
   strncpy(hostname, he->h_name, sz - 1);
- }
  else 
   strncpy(hostname, inet_ntoa(ip), sz - 1);
  
+ hostname[sz - 1] = '\0';
+ for ( i = 0 ; hostname[i] != '\0' ; i ++ )
+ {
+  if ( ! isalnum(hostname[i]) && 
+         hostname[i] != '.' && 
+         hostname[i] != '_' && 
+         hostname[i] != '-' ) hostname[i] = '?';
+ }
  return 0; /* We never fail */
 }
 

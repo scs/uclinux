@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10843);
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.8 $");
  name["english"] = "ASP.NET path disclosure";
 
  script_name(english:name["english"]);
@@ -36,25 +36,23 @@ Risk factor : Low";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
+ banner = get_http_banner(port:port);
+ if ( "Microsoft-IIS" >!< sig ) exit(0);
  req = http_get(item:string("/a%5c.aspx"), port:port);
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
+ r = http_keepalive_send_recv(port:port, data:req);
+ if ( ! r ) exit(0);
  if("Server Error" >< r)
  {
   r = strstr(r, "Invalid file name");
@@ -65,5 +63,4 @@ if(get_port_state(port))
 		    replace:"\1");
   if(ereg(string:path, pattern:"[A-Z]:\\.*", icase:TRUE))security_warning(port);
   }
- }
 }

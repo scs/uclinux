@@ -176,6 +176,7 @@ char *chat_file   = (char *) 0;
 char *phone_num   = (char *) 0;
 char *phone_num2  = (char *) 0;
 int timeout       = DEFAULT_CHAT_TIMEOUT;
+char *device 	  = 0;
 
 #ifdef ENABLE_NETWORK_SUPPORT
 
@@ -275,10 +276,11 @@ char *s;
 
 /*
  * chat [ -v ] [-T number] [-U number] [ -t timeout ] [ -f chat-file ] \
- * [ -r report-file ] \
+ * [ -r report-file ] [-d device] \
  *		[...[[expect[-say[-expect...]] say expect[-say[-expect]] ...]]]
  *
- *	Perform a UUCP-dialer-like chat script on stdin and stdout.
+ *	Perform a UUCP-dialer-like chat script on stdin and stdout
+ *	(or the given device if specified)
  */
 int
 main(argc, argv)
@@ -346,6 +348,13 @@ main(argc, argv)
 		usage();
 	    break;
 
+	case 'd':
+	    if ((arg = OPTARG(argc, argv)) != NULL)
+		device = arg;
+	    else
+		usage();
+	    break;
+
 	case 'r':
 	case 'R':
 	    arg = OPTARG (argc, argv);
@@ -382,6 +391,7 @@ main(argc, argv)
 	    break;
 	}
     }
+
 /*
  * Default the report file to the stderr location
  */
@@ -400,6 +410,16 @@ main(argc, argv)
 	    setlogmask(LOG_UPTO(LOG_WARNING));
 #endif
     }
+
+    if (device != 0) {
+	int fd = open(device, O_RDWR, S_IRUSR | S_IWUSR);
+	if (fd < 0) {
+	    usage();
+	}
+	dup2(fd, 0);
+	dup2(fd, 1);
+    }
+
 
     init();
     

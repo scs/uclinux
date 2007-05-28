@@ -15,8 +15,10 @@ if(description)
 {
 
 script_id(10949);
-script_version("$Revision: 1.7 $");
 script_bugtraq_id(2527);
+script_version("$Revision: 1.14 $");
+# script_cve_id("CVE-MAP-NOMATCH");
+# NOTE: no CVE id assigned (jfs, december 2003)
 
 name["english"]="BEA WebLogic Scripts Server scripts Source Disclosure (2)";
 name["francais"]="BEA WebLogic révèle les sources des scripts installés sur le serveur. (2)";
@@ -56,7 +58,7 @@ family["francais"]="Abus de CGI";
 script_family(english:family["english"], francais:family["francais"]);
  
 
-script_dependencie("find_service.nes", "no404.nasl", "webmirror.nasl");
+script_dependencie("find_service.nes", "http_version.nasl", "webmirror.nasl");
  
 script_require_ports("Services/www", 80);
 
@@ -85,20 +87,27 @@ if (signature >< response) return(1);
 return(0);
 }
 
-port=get_kb_item("Services/www");
-if(!port) port=80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port)) exit(0);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "WebLogic" >!< sig ) exit(0);
+
 
 # Try with a known jsp file
 
 files = get_kb_list(string("www/", port, "/content/extensions/jsp"));
-if(isnull(files))file = "/index.jsp";
+if(isnull(files)) {
+	if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
+	file = "/index.jsp";
+	}
 else
  {
  files = make_list(files);
  file = files[0];
  }
  
-if(check(req:string(file, "%00x"), port:port))security_hole(port);
+if(check(req:string(file, "%00x"), port:port))security_warning(port);
  

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sip_msg.h,v 1.14.6.1 2004/02/28 02:13:47 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -7,7 +7,13 @@
 if(description)
 {
  script_id(10853);
- script_version("$Revision: 1.6 $");
+ script_version("$Revision: 1.13 $");
+
+ script_cve_id("CVE-2002-0569");
+ script_bugtraq_id(4298);
+ script_xref(name:"IAVA", value:"2002-t-0006");
+ script_xref(name:"OSVDB", value:"710");
+
  name["english"] = "Oracle 9iAS mod_plsql cross site scripting";
  name["francais"] = "Oracle 9iAS mod_plsql cross site scripting";
  script_name(english:name["english"], francais:name["francais"]);
@@ -37,9 +43,8 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2002 Matt Moore",
 		francais:"Ce script est Copyright (C) 2002 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl", "cross_site_scripting.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/OracleApache");
@@ -50,8 +55,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)) exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
 

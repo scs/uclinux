@@ -11,7 +11,7 @@
 # This program may be distributed according to the terms of the GNU
 # General Public License, version 2 or (at your option) any later version.
 #
-# $Id$
+# $Id: Makefile,v 1.18 2003/09/30 00:24:05 steveb Exp $
 #***********************************************************************
 
 # Version is set ONLY IN THE MAKEFILE!  Don't delete this!
@@ -138,14 +138,6 @@ distro:
 romfs:
 	$(ROMFSINST) /bin/pppoe
 	$(ROMFSINST) -e CONFIG_USER_RP_PPPOE_PPPOE_SERVER /bin/pppoe-server
-	mkdir -p ${ROMFSDIR}/etc/ppp
-	$(ROMFSINST) pppoe.conf /etc/ppp/
-	sed -e 's/@PPPD@/\/bin\/pppd/g' -e 's/@sbindir@/\/bin/g' -e 's/@SETSID@//g' adsl-connect.in > ${ROMFSDIR}/bin/adsl-connect
-	sed 's/@sbindir@/\/bin/g' adsl-start.in > ${ROMFSDIR}/bin/adsl-start
-	$(ROMFSINST) adsl-stop.in /bin/adsl-stop
-	chmod 755 ${ROMFSDIR}/bin/adsl-*
-	$(ROMFSINST) /bin/adsl-status
-	ln -s -f ../bin ${ROMFSDIR}/usr/bin
 
 clean:
 	rm -f *.gdb *.elf *.o pppoe pppoe-sniff core *~

@@ -42,6 +42,9 @@
 
 tree_cell * nasl_open_sock_tcp(lex_ctxt *);
 tree_cell * nasl_open_sock_udp(lex_ctxt *);
+/* private func */
+tree_cell * nasl_open_sock_tcp_bufsz(lex_ctxt *, int);
+tree_cell * nasl_socket_get_error(lex_ctxt*);
 
 tree_cell * nasl_open_priv_sock_tcp(lex_ctxt *);
 tree_cell * nasl_open_priv_sock_udp(lex_ctxt *);
@@ -56,5 +59,6 @@ tree_cell * nasl_close_socket(lex_ctxt *);
 tree_cell * nasl_join_multicast_group(lex_ctxt *);
 tree_cell * nasl_leave_multicast_group(lex_ctxt *);
 
+tree_cell * nasl_get_source_port(lex_ctxt*);
 
 #endif

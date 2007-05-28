@@ -14,8 +14,8 @@
 if(description)
 {
  script_id(11467);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7160);
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "JWalk server traversal";
  name["francais"] = "JWalk server traversal";
@@ -54,24 +54,19 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(! get_port_state(port)) exit(0);
 
-qc=1;
-k = string("www/no404/", port);
-if (get_kb_item(k)) qc=0;
-
 i=0;
 r[i] = "/.%252e/.%252e/.%252e/.%252e/windows/win.ini";	i=i+1;
-r[i] = "/.%252e/.%252e/.%252e/.%252e/boot.ini";		i=i+1;
 r[i] = "/.%252e/.%252e/.%252e/.%252e/winnt/win.ini";	i=i+1;
 
 
 for (i=0; r[i]; i=i+1)
 {
-  if (check_win_dir_trav_ka(port: port, url: r[i], quickcheck: qc))
+  if (check_win_dir_trav_ka(port: port, url: r[i]))
   {
     security_hole(port);
     exit(0);

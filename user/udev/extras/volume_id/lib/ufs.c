@@ -168,7 +168,7 @@ struct ufs_super_block {
 #define UFS_MAGIC_FEA			0x00195612
 #define UFS_MAGIC_LFN			0x00095014
 
-int volume_id_probe_ufs(struct volume_id *id, uint64_t off)
+int volume_id_probe_ufs(struct volume_id *id, uint64_t off, uint64_t size)
 {
 	uint32_t magic;
 	int i;
@@ -205,6 +205,18 @@ int volume_id_probe_ufs(struct volume_id *id, uint64_t off)
 found:
 	volume_id_set_usage(id, VOLUME_ID_FILESYSTEM);
 	id->type = "ufs";
+	switch (magic) {
+	case UFS_MAGIC:
+		strcpy(id->type_version, "1");
+		break;
+	case UFS2_MAGIC:
+		strcpy(id->type_version, "2");
+		volume_id_set_label_raw(id, ufs->fs_u11.fs_u2.fs_volname, 32);
+		volume_id_set_label_string(id, ufs->fs_u11.fs_u2.fs_volname, 32);
+		break;
+	default:
+		break;
+	}
 
 	return 0;
 }

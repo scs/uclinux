@@ -7,7 +7,7 @@ if(description)
 {
  script_id(11612);
  script_bugtraq_id(7129);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
 
  
  name["english"] = "PXE server overflow";
@@ -25,7 +25,7 @@ to gain a root shell on this host.
 *** Nessus disabled this service to perform this security check
 
 Solution : Disable this service
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -47,6 +47,11 @@ Risk Factor : High";
 # If we don't get one, we crash the remote service and try again. If the results
 # differ, then there was a service.
 #
+
+include('global_settings.inc');
+
+
+if ( report_paranoia < 2 ) exit(0);
 
 
 function check(dport)

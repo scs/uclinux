@@ -19,130 +19,319 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-atm.c,v 1.38.2.3 2005/07/07 01:24:34 guy Exp $ (LBL)";
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-
-#if __STDC__
-struct mbuf;
-struct rtentry;
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-#include <net/if.h>
 
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcpip.h>
+#if !defined(EMBED) || defined(CONFIG_ATM) || defined(CONFIG_ATM_MODULE)
+
+#include <tcpdump-stdinc.h>
 
 #include <stdio.h>
 #include <pcap.h>
+#include <string.h>
 
 #include "interface.h"
+#include "extract.h"
 #include "addrtoname.h"
 #include "ethertype.h"
+#include "atm.h"
+#include "atmuni31.h"
+#include "llc.h"
+
+#include "ether.h"
+
+struct tok oam_celltype_values[] = {
+    { 0x1, "Fault Management" },
+    { 0x2, "Performance Management" },
+    { 0x8, "activate/deactivate" },
+    { 0xf, "System Management" },
+    { 0, NULL }
+};
+
+struct tok oam_fm_functype_values[] = {
+    { 0x0, "AIS" },
+    { 0x1, "RDI" },
+    { 0x4, "Continuity Check" },
+    { 0x8, "Loopback" },
+    { 0, NULL }
+};
+
+struct tok oam_pm_functype_values[] = {
+    { 0x0, "Forward Monitoring" },
+    { 0x1, "Backward Reporting" },
+    { 0x2, "Monitoring and Reporting" },
+    { 0, NULL }
+};
+
+struct tok oam_ad_functype_values[] = {
+    { 0x0, "Performance Monitoring" },
+    { 0x1, "Continuity Check" },
+    { 0, NULL }
+};
+
+static const struct tok *oam_functype_values[16] = {
+    NULL,
+    oam_fm_functype_values, /* 1 */
+    oam_pm_functype_values, /* 2 */
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    oam_ad_functype_values, /* 8 */
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+};
 
 /*
- * This is the top level routine of the printer.  'p' is the points
- * to the LLC/SNAP header of the packet, 'tvp' is the timestamp,
- * 'length' is the length of the packet off the wire, and 'caplen'
+ * Print an RFC 1483 LLC-encapsulated ATM frame.
+ */
+static void
+atm_llc_print(const u_char *p, int length, int caplen)
+{
+	u_short extracted_ethertype;
+
+	if (!llc_print(p, length, caplen, NULL, NULL,
+	    &extracted_ethertype)) {
+		/* ether_type not known, print raw packet */
+		if (extracted_ethertype) {
+			printf("(LLC %s) ",
+		etherproto_string(htons(extracted_ethertype)));
+		}
+		if (!suppress_default_print)
+			default_print(p, caplen);
+	}
+}
+
+/*
+ * Given a SAP value, generate the LLC header value for a UI packet
+ * with that SAP as the source and destination SAP.
+ */
+#define LLC_UI_HDR(sap)	((sap)<<16 | (sap<<8) | 0x03)
+
+/*
+ * This is the top level routine of the printer.  'p' points
+ * to the LLC/SNAP header of the packet, 'h->ts' is the timestamp,
+ * 'h->len' is the length of the packet off the wire, and 'h->caplen'
  * is the number of bytes actually captured.
  */
-void
-atm_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+u_int
+atm_if_print(const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int caplen = h->caplen;
 	u_int length = h->len;
-	u_short ethertype;
-
-	ts_print(&h->ts);
+	u_int32_t llchdr;
+	u_int hdrlen = 0;
 
 	if (caplen < 8) {
 		printf("[|atm]");
-		goto out;
+		return (caplen);
 	}
-	if (p[0] != 0xaa || p[1] != 0xaa || p[2] != 0x03) {
-		/*XXX assume 802.6 MAC header from fore driver */
+
+	/*
+	 * Extract the presumed LLC header into a variable, for quick
+	 * testing.
+	 * Then check for a header that's neither a header for a SNAP
+	 * packet nor an RFC 2684 routed NLPID-formatted PDU nor
+	 * an 802.2-but-no-SNAP IP packet.
+	 */
+	llchdr = EXTRACT_24BITS(p);
+	if (llchdr != LLC_UI_HDR(LLCSAP_SNAP) &&
+	    llchdr != LLC_UI_HDR(LLCSAP_ISONS) &&
+	    llchdr != LLC_UI_HDR(LLCSAP_IP)) {
+		/*
+		 * XXX - assume 802.6 MAC header from Fore driver.
+		 *
+		 * Unfortunately, the above list doesn't check for
+		 * all known SAPs, doesn't check for headers where
+		 * the source and destination SAP aren't the same,
+		 * and doesn't check for non-UI frames.  It also
+		 * runs the risk of an 802.6 MAC header that happens
+		 * to begin with one of those values being
+		 * incorrectly treated as an 802.2 header.
+		 *
+		 * So is that Fore driver still around?  And, if so,
+		 * is it still putting 802.6 MAC headers on ATM
+		 * packets?  If so, could it be changed to use a
+		 * new DLT_IEEE802_6 value if we added it?
+		 */
 		if (eflag)
-			printf("%04x%04x %04x%04x ",
-			       p[0] << 24 | p[1] << 16 | p[2] << 8 | p[3],
-			       p[4] << 24 | p[5] << 16 | p[6] << 8 | p[7],
-			       p[8] << 24 | p[9] << 16 | p[10] << 8 | p[11],
-			       p[12] << 24 | p[13] << 16 | p[14] << 8 | p[15]);
+			printf("%08x%08x %08x%08x ",
+			       EXTRACT_32BITS(p),
+			       EXTRACT_32BITS(p+4),
+			       EXTRACT_32BITS(p+8),
+			       EXTRACT_32BITS(p+12));
 		p += 20;
 		length -= 20;
 		caplen -= 20;
+		hdrlen += 20;
 	}
-	ethertype = p[6] << 8 | p[7];
-	if (eflag)
-		printf("%02x %02x %02x %02x-%02x-%02x %04x: ",
-		       p[0], p[1], p[2], /* dsap/ssap/ctrl */
-		       p[3], p[4], p[5], /* manufacturer's code */
-		       ethertype);
-
-	/*
-	 * Some printers want to get back at the ethernet addresses,
-	 * and/or check that they're not walking off the end of the packet.
-	 * Rather than pass them all the way down, we set these globals.
-	 */
-	packetp = p;
-	snapend = p + caplen;
-
-	length -= 8;
-	caplen -= 8;
-	p += 8;
-
-	switch (ethertype) {
-
-	case ETHERTYPE_IP:
-		ip_print(p, length);
-		break;
-
-		/*XXX this probably isn't right */
-	case ETHERTYPE_ARP:
-	case ETHERTYPE_REVARP:
-		arp_print(p, length, caplen);
-		break;
-#ifdef notyet
-	case ETHERTYPE_DN:
-		decnet_print(p, length, caplen);
-		break;
-
-	case ETHERTYPE_ATALK:
-		if (vflag)
-			fputs("et1 ", stdout);
-		atalk_print(p, length);
-		break;
-
-	case ETHERTYPE_AARP:
-		aarp_print(p, length);
-		break;
-
-	case ETHERTYPE_LAT:
-	case ETHERTYPE_MOPRC:
-	case ETHERTYPE_MOPDL:
-		/* default_print for now */
-#endif
-	default:
-		/* ether_type not known, print raw packet */
-		if (!eflag)
-			printf("%02x %02x %02x %02x-%02x-%02x %04x: ",
-			       p[0], p[1], p[2], /* dsap/ssap/ctrl */
-			       p[3], p[4], p[5], /* manufacturer's code */
-			       ethertype);
-		if (!xflag && !qflag)
-			default_print(p, caplen);
-	}
-	if (xflag)
-		default_print(p, caplen);
- out:
-	putchar('\n');
+	atm_llc_print(p, length, caplen);
+	return (hdrlen);
 }
+
+/*
+ * ATM signalling.
+ */
+static struct tok msgtype2str[] = {
+	{ CALL_PROCEED,		"Call_proceeding" },
+	{ CONNECT,		"Connect" },
+	{ CONNECT_ACK,		"Connect_ack" },
+	{ SETUP,		"Setup" },
+	{ RELEASE,		"Release" },
+	{ RELEASE_DONE,		"Release_complete" },
+	{ RESTART,		"Restart" },
+	{ RESTART_ACK,		"Restart_ack" },
+	{ STATUS,		"Status" },
+	{ STATUS_ENQ,		"Status_enquiry" },
+	{ ADD_PARTY,		"Add_party" },
+	{ ADD_PARTY_ACK,	"Add_party_ack" },
+	{ ADD_PARTY_REJ,	"Add_party_reject" },
+	{ DROP_PARTY,		"Drop_party" },
+	{ DROP_PARTY_ACK,	"Drop_party_ack" },
+	{ 0,			NULL }
+};
+
+static void
+sig_print(const u_char *p, int caplen)
+{
+	bpf_u_int32 call_ref;
+
+	if (caplen < PROTO_POS) {
+		printf("[|atm]");
+		return;
+	}
+	if (p[PROTO_POS] == Q2931) {
+		/*
+		 * protocol:Q.2931 for User to Network Interface 
+		 * (UNI 3.1) signalling
+		 */
+		printf("Q.2931");
+		if (caplen < MSG_TYPE_POS) {
+			printf(" [|atm]");
+			return;
+		}
+		printf(":%s ",
+		    tok2str(msgtype2str, "msgtype#%d", p[MSG_TYPE_POS]));
+
+		if (caplen < CALL_REF_POS+3) {
+			printf("[|atm]");
+			return;
+		}
+		call_ref = EXTRACT_24BITS(&p[CALL_REF_POS]);
+		printf("CALL_REF:0x%06x", call_ref);
+	} else {
+		/* SCCOP with some unknown protocol atop it */
+		printf("SSCOP, proto %d ", p[PROTO_POS]);
+	}
+}
+
+/*
+ * Print an ATM PDU (such as an AAL5 PDU).
+ */
+void
+atm_print(u_int vpi, u_int vci, u_int traftype, const u_char *p, u_int length,
+    u_int caplen)
+{
+	if (eflag)
+		printf("VPI:%u VCI:%u ", vpi, vci);
+
+	if (vpi == 0) {
+		switch (vci) {
+
+		case PPC:
+			sig_print(p, caplen);
+			return;
+
+		case BCC:
+			printf("broadcast sig: ");
+			return;
+
+		case OAMF4SC: /* fall through */
+		case OAMF4EC:
+                        oam_print(p, length, ATM_OAM_HEC);
+			return;
+
+		case METAC:
+			printf("meta: ");
+			return;
+
+#if !defined(EMBED)
+		case ILMIC:
+			printf("ilmi: ");
+			snmp_print(p, length);
+			return;
+#endif
+		}
+	}
+
+	switch (traftype) {
+
+	case ATM_LLC:
+	default:
+		/*
+		 * Assumes traffic is LLC if unknown.
+		 */
+		atm_llc_print(p, length, caplen);
+		break;
+
+	case ATM_LANE:
+		lane_print(p, length, caplen);
+		break;
+	}
+}
+
+int 
+oam_print (const u_char *p, u_int length, u_int hec) {
+
+    u_int16_t cell_header, cell_type, func_type,vpi,vci,payload,clp;
+
+    cell_header = EXTRACT_32BITS(p);
+    cell_type = ((*(p+4+hec))>>4) & 0x0f;
+    func_type = *(p+4+hec) & 0x0f;
+
+    vpi = (cell_header>>20)&0xff;
+    vci = (cell_header>>4)&0xffff;
+    payload = (cell_header>>1)&0x7;
+    clp = cell_header&0x1;
+
+    switch (vci) {
+    case OAMF4SC:
+        printf("OAM F4 (segment), ");
+            break;
+    case OAMF4EC:
+        printf("OAM F4 (end), ");
+        break;
+    default:
+        printf("OAM F5, ");
+        break;
+    }
+
+    if (eflag)
+        printf("vpi %u, vci %u, payload %u, clp %u, ",vpi,vci,payload,clp);
+
+    printf("cell-type %s (%u)",
+           tok2str(oam_celltype_values, "unknown", cell_type),
+           cell_type);
+
+    if (oam_functype_values[cell_type] == NULL)
+        printf(", func-type unknown (%u)", func_type);
+    else
+        printf(", func-type %s (%u)",
+               bittok2str(oam_functype_values[cell_type],"none",func_type),
+               func_type);
+
+    printf(", length %u",length);
+    return 1;
+}
+#endif

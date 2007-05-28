@@ -409,11 +409,13 @@ static int GetChar(HI_SESSION *Session, u_char *start,
                    URI_NORM_STATE *norm_state)
 {
     HTTPINSPECT_CONF *ServerConf = Session->server_conf;
-    int iNorm = (int)(**ptr);
+    int iNorm;
 
     if(!hi_util_in_bounds(start, end, *ptr))
         return END_OF_BUFFER;
 
+    iNorm = (int)(**ptr);
+    
     if(**ptr == '%' && ServerConf->ascii.on)
     {
         /*

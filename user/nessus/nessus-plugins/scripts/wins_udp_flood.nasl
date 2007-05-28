@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10315);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(298);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-1999-0288");
  name["english"] = "WINS UDP flood denial";
  name["francais"] = "WINS UDP flood denial";
@@ -28,7 +28,7 @@ your NT network.
 
 Solution : install NT SP5.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "

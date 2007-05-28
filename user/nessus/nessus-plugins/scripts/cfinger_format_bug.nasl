@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10652);
- script_cve_id("CAN-1999-0243", "CVE-1999-0708", "CAN-2001-0609");
- script_bugtraq_id(2576);
- script_version ("$Revision: 1.11 $");
+ script_bugtraq_id(2576, 651);
+ script_cve_id("CVE-1999-0243", "CVE-1999-0708", "CVE-2001-0609");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "cfingerd format string attack";
  script_name(english:name["english"]);
  

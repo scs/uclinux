@@ -5,7 +5,7 @@
  * interpolating the samples at the new rate. Input and output is in
  * the pvf (portable voice format) format.
  *
- * $Id$
+ * $Id: pvfspeed.c,v 1.5 1999/03/16 09:59:24 marcs Exp $
  *
  */
 

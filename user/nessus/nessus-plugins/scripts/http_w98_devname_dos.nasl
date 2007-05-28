@@ -13,46 +13,25 @@
 # AnalogX SimpleServer:WWW 1.08		CVE-2001-0386
 # Small HTTP server 2.03		CVE-2001-0493
 # acWEB HTTP server?
-# Xitami Web Server                     BID:2622, CAN-2001-0391
+# Xitami Web Server                     BID:2622, CVE-2001-0391
 # Jana Web Server                       BID:2704, CVE-2001-0558
-# Cyberstop Web Server                  BID:3929, CAN-2002-0200
+# Cyberstop Web Server                  BID:3929, CVE-2002-0200
 # General Windows MS-DOS Device         BID:1043, CVE-2000-0168
-# Apache < 2.0.44			CAN-2003-0016
-# Domino 5.0.7 and earlier		CAN-2001-0602, BID: 2575
-# Darwin Streaming Server v4.1.3e	CAN-2003-0421
-# Darwin Streaming Server v4.1.3f 	CAN-2003-0502
+# Apache < 2.0.44			CVE-2003-0016
+# Domino 5.0.7 and earlier		CVE-2001-0602, BID: 2575
+# Darwin Streaming Server v4.1.3e	CVE-2003-0421
+# Darwin Streaming Server v4.1.3f 	CVE-2003-0502
 #
 
-#############
-# References
-#############
- 
-#
-# Date: 25 Sep 2002 09:08:20 -0000
-# From:"DownBload" <downbload@hotmail.com>
-# To: bugtraq@securityfocus.com
-# Subject: IIL Advisory: Vulnerabilities in acWEB HTTP server
-#
-# To:	vulnwatch@vulnwatch.org
-# Date:	Tue, 22 Jul 2003 18:39:31 -0700
-# From:	advisory@rapid7.com
-# Subject: R7-0015: Multiple Vulnerabilities Apple QuickTime/Darwin Streaming Server
-#	
-# Date:	 Sun, 04 Aug 2002 12:25:31 -0400
-# From:	"Stan Bubrouski" <stan@ccs.neu.edu>
-# To:	bugtraq@securityfocus.com
-# To:	Advisory: Multiple 602Pro LAN SUITE 2002 Denial of Service Attacks
-#
 
 if(description)
 {
  script_id(10930);
- script_cve_id("CVE-2001-0386", "CVE-2001-0493", "CAN-2001-0391", 
- 	       "CVE-2001-0558", "CAN-2002-0200", "CVE-2000-0168",
-	       "CAN-2003-0016", "CAN-2001-0602");
+ script_bugtraq_id(1043, 2575, 2608, 2622, 2649, 2704, 3929, 6659, 6662);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0003");
+ if (NASL_LEVEL >= 2200 ) script_cve_id("CVE-2001-0386", "CVE-2001-0493", "CVE-2001-0391", "CVE-2001-0558", "CVE-2002-0200", "CVE-2000-0168", "CVE-2003-0016", "CVE-2001-0602");
 
- script_bugtraq_id(2622, 2704, 3929, 1043, 2575);
- script_version("$Revision: 1.18 $");
+ script_version("$Revision: 1.25 $");
  script_name(english:"HTTP Windows 98 MS/DOS device names DOS");
  
  desc["english"] = "
@@ -125,8 +104,8 @@ ext[i++] = ".bat";
 ext[i++] = "-";		# /../ prefix
 ext[i++] = "+";		# /aux/aux pattern
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 if (http_is_dead(port: port)) exit (0);
 

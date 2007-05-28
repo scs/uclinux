@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cache_snmp.h,v 1.26 2001/10/08 16:55:25 hno Exp $
  */
 
 #ifndef SQUID_CACHE_SNMP_H

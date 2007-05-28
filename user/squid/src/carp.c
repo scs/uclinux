@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: carp.c,v 1.15.2.3 2005/02/13 20:54:09 serassio Exp $
  *
  * DEBUG: section 39    Cache Array Routing Protocol
  * AUTHOR: Eric Stern
@@ -119,14 +119,14 @@ carpSelectParent(request_t * request)
     for (tp = Config.peers; tp; tp = tp->next) {
 	if (0.0 == tp->carp.load_factor)
 	    continue;
-	if (tp->tcp_up != PEER_TCP_MAGIC_COUNT)
+	if (!peerHTTPOkay(tp, request))
 	    continue;
 	assert(tp->type == PEER_PARENT);
 	combined_hash = (url_hash ^ tp->carp.hash);
 	combined_hash += combined_hash * 0x62531965;
 	combined_hash = ROTATE_LEFT(combined_hash, 21);
 	combined_hash = combined_hash * tp->carp.load_multiplier;
-	debug(39, 3) ("carpSelectParent: %s combined_hash %d\n",
+	debug(39, 3) ("carpSelectParent: %s combined_hash %ld\n",
 	    tp->host, combined_hash);
 	if ((combined_hash > high_score) && neighborUp(tp)) {
 	    p = tp;

@@ -35,11 +35,10 @@
 
 #include "includes.h"
 #include "openbsd-compat/sys-queue.h"
-RCSID("$OpenBSD: ssh-agent.c,v 1.112 2003/09/18 08:49:45 markus Exp $");
+RCSID("$OpenBSD: ssh-agent.c,v 1.124 2005/10/30 08:52:18 djm Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/md5.h>
-#include <openssl/engine.h>
 
 #include "ssh.h"
 #include "rsa.h"
@@ -51,11 +50,14 @@ RCSID("$OpenBSD: ssh-agent.c,v 1.112 2003/09/18 08:49:45 markus Exp $");
 #include "authfd.h"
 #include "compat.h"
 #include "log.h"
-#include "readpass.h"
 #include "misc.h"
 
 #ifdef SMARTCARD
 #include "scard.h"
+#endif
+
+#if defined(HAVE_SYS_PRCTL_H)
+#include <sys/prctl.h>	/* For prctl() and PR_SET_DUMPABLE */
 #endif
 
 typedef enum {
@@ -104,11 +106,7 @@ char socket_dir[1024];
 int locked = 0;
 char *lock_passwd = NULL;
 
-#ifdef HAVE___PROGNAME
 extern char *__progname;
-#else
-char *__progname;
-#endif
 
 /* Default lifetime (0 == forever) */
 static int lifetime = 0;
@@ -170,23 +168,15 @@ lookup_identity(Key *key, int version)
 static int
 confirm_key(Identity *id)
 {
-	char *p, prompt[1024];
+	char *p;
 	int ret = -1;
 
 	p = key_fingerprint(id->key, SSH_FP_MD5, SSH_FP_HEX);
-	snprintf(prompt, sizeof(prompt), "Allow use of key %s?\n"
-	    "Key fingerprint %s.", id->comment, p);
+	if (ask_permission("Allow use of key %s?\nKey fingerprint %s.",
+	    id->comment, p))
+		ret = 0;
 	xfree(p);
-	p = read_passphrase(prompt, RP_ALLOW_EOF);
-	if (p != NULL) {
-		/*
-		 * Accept empty responses and responses consisting 
-		 * of the word "yes" as affirmative.
-		 */
-		if (*p == '\0' || *p == '\n' || strcasecmp(p, "yes") == 0)
-			ret = 0;
-		xfree(p);
-	}
+
 	return (ret);
 }
 
@@ -365,7 +355,7 @@ process_remove_identity(SocketEntry *e, int version)
 		if (id != NULL) {
 			/*
 			 * We have this key.  Free the old key.  Since we
-			 * don\'t want to leave empty slots in the middle of
+			 * don't want to leave empty slots in the middle of
 			 * the array, we actually free the key there and move
 			 * all the entries between the empty slot and the end
 			 * of the array.
@@ -787,8 +777,7 @@ new_socket(sock_type type, int fd)
 {
 	u_int i, old_alloc, new_alloc;
 
-	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
-		error("fcntl O_NONBLOCK: %s", strerror(errno));
+	set_nonblock(fd);
 
 	if (fd > max_fd)
 		max_fd = fd;
@@ -819,7 +808,7 @@ new_socket(sock_type type, int fd)
 }
 
 static int
-prepare_select(fd_set **fdrp, fd_set **fdwp, int *fdl, int *nallocp)
+prepare_select(fd_set **fdrp, fd_set **fdwp, int *fdl, u_int *nallocp)
 {
 	u_int i, sz;
 	int n = 0;
@@ -950,7 +939,7 @@ after_select(fd_set *readset, fd_set *writeset)
 }
 
 static void
-cleanup_socket(void *p)
+cleanup_socket(void)
 {
 	if (socket_name[0])
 		unlink(socket_name);
@@ -958,17 +947,17 @@ cleanup_socket(void *p)
 		rmdir(socket_dir);
 }
 
-static void
+void
 cleanup_exit(int i)
 {
-	cleanup_socket(NULL);
-	exit(i);
+	cleanup_socket();
+	_exit(i);
 }
 
 static void
 cleanup_handler(int sig)
 {
-	cleanup_socket(NULL);
+	cleanup_socket();
 	_exit(2);
 }
 
@@ -1005,30 +994,33 @@ int
 main(int ac, char **av)
 {
 	int c_flag = 0, d_flag = 0, k_flag = 0, s_flag = 0;
-	int sock, fd,  ch, nalloc;
+	int sock, fd,  ch;
+	u_int nalloc;
 	char *shell, *format, *pidstr, *agentsocket = NULL;
 	fd_set *readsetp = NULL, *writesetp = NULL;
 	struct sockaddr_un sunaddr;
 #ifdef HAVE_SETRLIMIT
 	struct rlimit rlim;
 #endif
-#ifdef HAVE_CYGWIN
 	int prev_mask;
-#endif
 	extern int optind;
 	extern char *optarg;
 	pid_t pid;
 	char pidstrbuf[1 + 3 * sizeof pid];
 
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
+
 	/* drop */
 	setegid(getgid());
 	setgid(getgid());
 
-	SSLeay_add_all_algorithms();
+#if defined(HAVE_PRCTL) && defined(PR_SET_DUMPABLE)
+	/* Disable ptrace on Linux without sgid bit */
+	prctl(PR_SET_DUMPABLE, 0);
+#endif
 
-	/* Init available hardware crypto engines. */
-	ENGINE_load_builtin_engines();
-	ENGINE_register_all_complete();
+	SSLeay_add_all_algorithms();
 
 	__progname = ssh_get_progname(av[0]);
 	init_rng();
@@ -1105,7 +1097,7 @@ main(int ac, char **av)
 
 	if (agentsocket == NULL) {
 		/* Create private directory for agent socket */
-		strlcpy(socket_dir, "/tmp/ssh-XXXXXXXX", sizeof socket_dir);
+		strlcpy(socket_dir, "/tmp/ssh-XXXXXXXXXX", sizeof socket_dir);
 		if (mkdtemp(socket_dir) == NULL) {
 			perror("mkdtemp: private socket dir");
 			exit(1);
@@ -1125,25 +1117,21 @@ main(int ac, char **av)
 	sock = socket(AF_UNIX, SOCK_STREAM, 0);
 	if (sock < 0) {
 		perror("socket");
+		*socket_name = '\0'; /* Don't unlink any existing file */
 		cleanup_exit(1);
 	}
 	memset(&sunaddr, 0, sizeof(sunaddr));
 	sunaddr.sun_family = AF_UNIX;
 	strlcpy(sunaddr.sun_path, socket_name, sizeof(sunaddr.sun_path));
-#ifdef HAVE_CYGWIN
 	prev_mask = umask(0177);
-#endif
 	if (bind(sock, (struct sockaddr *) & sunaddr, sizeof(sunaddr)) < 0) {
 		perror("bind");
-#ifdef HAVE_CYGWIN
+		*socket_name = '\0'; /* Don't unlink any existing file */
 		umask(prev_mask);
-#endif
 		cleanup_exit(1);
 	}
-#ifdef HAVE_CYGWIN
 	umask(prev_mask);
-#endif
-	if (listen(sock, 128) < 0) {
+	if (listen(sock, SSH_LISTEN_BACKLOG) < 0) {
 		perror("listen");
 		cleanup_exit(1);
 	}
@@ -1214,7 +1202,6 @@ main(int ac, char **av)
 #endif
 
 skip:
-	fatal_add_cleanup(cleanup_socket, NULL);
 	new_socket(AUTH_SOCKET, sock);
 	if (ac > 0) {
 		mysignal(SIGALRM, check_parent_exists);

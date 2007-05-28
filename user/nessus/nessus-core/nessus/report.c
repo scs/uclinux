@@ -787,7 +787,7 @@ report_tests(hosts, interrupted_test)
  */
 void open_report(GtkWidget * dontcare, GtkWidget *nsr)
 {
-int be = backend_import_report(gtk_file_selection_get_filename(GTK_FILE_SELECTION(nsr)));
+int be = backend_import_report((char*)gtk_file_selection_get_filename(GTK_FILE_SELECTION(nsr)));
 if(be >= 0)report_tests_ng(be, 0);
 }
 
@@ -881,7 +881,7 @@ save_report(nul,filew)
 
     GtkWidget * filew;
 {
- char * fname = gtk_file_selection_get_filename(GTK_FILE_SELECTION(filew));
+ char * fname = (char*)gtk_file_selection_get_filename(GTK_FILE_SELECTION(filew));
  int type = (int)gtk_object_get_data(GTK_OBJECT(filew), "type");
  struct arglist * hosts = gtk_object_get_data(GTK_OBJECT(filew), "hosts");
  

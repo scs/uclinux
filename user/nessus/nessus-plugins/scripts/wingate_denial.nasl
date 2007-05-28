@@ -9,7 +9,7 @@ if(description)
 {
  script_id(10310);
 script_cve_id("CVE-1999-0290");
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.14 $");
 
  
  name["english"] = "Wingate denial of service";
@@ -100,7 +100,6 @@ for(i=0;i<5000;i=i+1)
  b = string("localhost\r\n");
  send(socket:soc, data:b);
  r = recv(socket:soc, length:1024);
- r = tolower(r);
  for(i=0;i<11;i=i+1)d = recv(socket:soc, length:1);
  r = recv(socket:soc, length:100);
  r = tolower(r);

@@ -8,13 +8,11 @@
 if(description)
 {
  script_id(10121);
- script_version ("$Revision: 1.14 $");
+ script_version ("$Revision: 1.18 $");
 
  name["english"] = "/scripts directory browsable";
- name["francais"] = "Dossier /scripts listable";
 
- script_name(english:name["english"],
-	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  # Description
  desc["english"] = "The /scripts directory is browsable.
@@ -26,54 +24,36 @@ Solution : Disable directory browsing using the IIS MMC.
 
 Risk factor : Medium";
 
- desc["francais"] = "Le répertoire /scripts est 
-listable. Cela permet à un pirate de chercher
-plus facilement et plus efficacement des 
-scripts potentiellements vulnérables, et de
-découvrir vos scripts maisons qui peuvent
-avoir des problèmes de sécurité.
-
-Solution : désactivez l'option de dossiers listables
-dans IIS.
-
-Facteur de risque : Moyen";
-
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
 
  # Summary
  summary["english"] = "Is /scripts/ listable ?";
- summary["francais"] = "/scripts/ est-il listable ?";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
 
  # Category
  script_category(ACT_GATHER_INFO);
 
  # Dependencie(s)
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  
  # Family
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"],
- 	       francais:family["francais"]);
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  
  # Copyright
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
- 		  francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison");
  
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 # The attack starts here
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+banner = get_http_banner(port:port);
+if ( "Microsoft-IIS" >!< banner ) exit(0);
 if(get_port_state(port))
 {
  data = http_get(item:"/scripts", port:port);

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10256);
- script_version ("$Revision: 1.19 $");
- script_cve_id("CAN-1999-0284");
+ script_version ("$Revision: 1.22 $");
+ script_cve_id("CVE-1999-0284");
  
  name["english"] = "SLMail MTA 'HELO' denial";
  name["francais"] = "Déni de service 'HELO' contre le MTA SLMail";
@@ -54,7 +54,7 @@ Facteur de risque : Elevé";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("find_service.nes", "smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped", "SMTP/postfix");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -68,6 +68,7 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(get_port_state(port))
 {
@@ -94,7 +95,7 @@ if(get_port_state(port))
    else s = NULL;
    if(!s)
    {
-    set_kb_item(item:string("SMTP/", port, "/helo_overflow"), value:TRUE);
+    set_kb_item(name:string("SMTP/", port, "/helo_overflow"), value:TRUE);
     security_hole(port);
    }
   }

@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10515);
- script_version ("$Revision: 1.14 $");
+ script_version ("$Revision: 1.15 $");
  
  name["english"] = "Too long authorization";
  name["francais"] = "autorisation trop longue";
@@ -65,8 +65,8 @@ Solution : Mettez à jour votre serveur web.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(! get_port_state(port)) exit(0);
 

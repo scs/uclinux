@@ -8,27 +8,47 @@
 if(description)
 {
  script_id(11653);
- script_version ("$Revision: 1.1 $");
- script_bugtraq_id(5563, 5565, 5509, 5504, 5510, 5514, 5515);
- script_cve_id("CAN-2002-1110", "CAN-2002-1111", "CAN-2002-1112", "CAN-2002-1113", "CAN-2002-1114");
+ script_version ("$Revision: 1.8 $");
+
+ script_bugtraq_id(5504, 5509, 5510, 5514, 5515, 5563, 5565);
+ script_cve_id("CVE-2002-1110", "CVE-2002-1111", "CVE-2002-1112", "CVE-2002-1113", "CVE-2002-1114", "CVE-2002-1115");
+ script_xref(name:"OSVDB", value:"4858");
 
  name["english"] = "Mantis Multiple Flaws";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host is running the Mantis bug tracker.
+Synopsis :
 
-The version of Mantis which is being used contains various
-flaws which may allow an atacker to view bugs it should not
-see, get a list of projects that should be hidden, and
-inject SQL commands.
+The remote web server contains a PHP application that is affected by
+several flaws. 
 
-Solution : Upgrade to Mantis 0.17.5 or newer
-Risk Factor : High"; 
+Description :
 
+According to its banner, the version of Mantis on the remote host
+contains various flaws that may allow an atacker to execute arbitrary
+commands, inject SQL commands, view bugs it should not see, and get a
+list of projects that should be hidden.
 
+See also :
 
+http://archives.neohapsis.com/archives/bugtraq/2002-08/0176.html
+http://archives.neohapsis.com/archives/bugtraq/2002-08/0177.html
+http://archives.neohapsis.com/archives/bugtraq/2002-08/0184.html
+http://archives.neohapsis.com/archives/bugtraq/2002-08/0186.html
+http://archives.neohapsis.com/archives/bugtraq/2002-08/0187.html
+http://archives.neohapsis.com/archives/bugtraq/2002-08/0253.html
+http://archives.neohapsis.com/archives/bugtraq/2002-08/0255.html
+
+Solution : 
+
+Upgrade to Mantis 0.17.5 or newer.
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -44,7 +64,7 @@ Risk Factor : High";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "mantis_detect.nasl");
+ script_dependencie("mantis_detect.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -54,13 +74,18 @@ Risk Factor : High";
 #
 
 include("http_func.inc");
-include("http_keepalive.inc");
 
+port = get_http_port(default:80);
+if (!get_port_state(port)) exit(0);
+if (!can_host_php(port:port)) exit(0);
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-vers = get_kb_item(string("www/", port, "/mantis/version"));
-if(!vers)exit(0);
-if(ereg(pattern:"0\.([0-9]\.|1[0-6]\.|17\.[0-4][^0-9])", string:vers))
+# Test an install.
+install = get_kb_item(string("www/", port, "/mantis"));
+if (isnull(install)) exit(0);
+matches = eregmatch(string:install, pattern:"^(.+) under (/.*)$");
+if (!isnull(matches)) {
+  ver = matches[1];
+
+  if(ereg(pattern:"^0\.([0-9]\.|1[0-6]\.|17\.[0-4][^0-9])", string:ver))
 	security_hole(port);
-	
+}	

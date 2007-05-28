@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10476);
- script_cve_id("CAN-2000-0623");
  script_bugtraq_id(1492);
- script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0623");
+ script_version ("$Revision: 1.18 $");
  
  
  name["english"] = "WebsitePro buffer overflow";
@@ -17,45 +17,45 @@ if(description)
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The remote web server is WebSitePro < 2.5
+Synopsis :
 
-There are buffer overflow vulnerabilities
-in all releases prior to version 2.5 of
-this server.
+The remote web server is affected by remote buffer overflows.
 
-Solution : Upgrade to WebSitePro 2.5 or newer
-Risk factor : Serious";
+Description :
+
+The remote web server is WebSitePro < 2.5.
+
+There are remotely-exploitable buffer overflow vulnerabilities in
+releases of WebSitePro prior to 2.5. 
+
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2000-07/0271.html
+
+Solution : 
+
+Upgrade to WebSitePro 2.5 or newer.
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
 
-
-
- desc["francais"] = "
-Le serveur web distant est WebSitePro < 2.5
-
-Il y a des dépassements de buffers dans toutes
-les releases antérieures à la version 2.5 de
-ce serveur.
-
-Solution : Mettez WebSitePro à jour en version 2.5 ou plus récent
-Facteur de risque : Sérieux";
-
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for WebSitePro";
- summary["francais"] = "Vérifie la présence de WebSitePro";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/websitepro");
  exit(0);
@@ -67,8 +67,8 @@ Facteur de risque : Sérieux";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 banner = get_http_banner(port:port);

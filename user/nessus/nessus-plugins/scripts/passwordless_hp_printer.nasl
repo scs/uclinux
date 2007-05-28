@@ -1,56 +1,44 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
+ desc["english"] = "
+Synopsis :
+
+The remote printer has no password set
+
+Description :
+
+
+The remote printer has no password set. This allows anyone 
+to change its IP or potentially to intercept print jobs sent
+to it.
+
+Solution : 
+
+Telnet to this printer and set a password.
+
+Risk factor :
+
+High / CVSS Base Score : 8 
+(AV:R/AC:L/Au:NR/C:P/A:C/I:P/B:N)";
 
 if(description)
 {
  script_id(10172);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-1061");
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-1061");
 
  name["english"] = "Passwordless HP LaserJet";
- name["francais"] = "HP Laserjet sans mot de passe";
- script_name(english:name["english"], francais:name["francais"]);
- 
- desc["english"] = "
-The remote printer has no
-password set. This allows anyone to change
-its IP, thus to generate problems on your
-network.
-
-Solution : telnet to this printer and
-set a password.
-
-Risk factor : Serious";
-
- desc["francais"] = "L'imprimante distante
-n'a pas de mot de passe. Cela permet à 
-n'importe qui de changer son IP, 
-générant ainsi des problèmes sur
-votre réseau.
-
-Solution : faites un telnet sur cette
-imprimante et mettez un mot de passe.
-
-Facteur de risque : Sérieux";
-
- script_description(english:desc["english"], francais:desc["francais"]);
- 
+ script_name(english:name["english"]);
+ script_description(english:desc["english"]);
  summary["english"] = "Notifies that the remote printer has no password";
- summary["francais"] = "Signale si l'imprimante distante n'a pas de mot de passe";
- script_summary(english:summary["english"], francais:summary["francais"]);
- 
+ script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
- 
- 
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 1999 - 2006 Tenable Network Security");
  family["english"] = "Misc.";
- family["francais"] = "Divers";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_family(english:family["english"]);
+ script_dependencie("telnetserver_detect_type_nd_version.nasl");
  script_require_ports(23);
  exit(0);
 }
@@ -59,14 +47,19 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 
+include('telnet_func.inc');
 passwordless = 0;
 port = 23;
+
+banner = get_telnet_banner(port:port);
+if ( "JetDirect" >!< banner ) exit(0);
+ 
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
  if(soc)
  {
-  buf = telnet_init(soc);
+  buf = telnet_negotiate(socket:soc);
   if("JetDirect" >< buf){
   	set_kb_item(name:"devices/hp_printer", value:TRUE);
   	buf += recv(socket:soc, length:1024);
@@ -82,19 +75,16 @@ if(get_port_state(port))
  	}
       }
    if ( passwordless ) {
-   	security_hole(port);
-	
-	
 # Send '/' to retrieve the current settings
         request = string ("/\r\n");
 	send(socket:soc, data:request);
 	info = recv(socket:soc, length: 1024);
 	if ( "JetDirect" >< info ) {
-		report = string ("It was possible to obtain the remote printer configuration:", info);
+		report = desc["english"] + '\n\nPlugin output :\n\nIt was possible to obtain the remote printer configuration : ' + info;
 	} else {
-		report = string ("The printer did not answer as expected when sending it '/':", info);
+		report = desc["english"];
         }
-	security_note(port:port, data:report);
+	security_hole(port:port, data:report);
   }
   close(soc);
  }

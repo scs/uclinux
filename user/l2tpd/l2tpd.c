@@ -21,9 +21,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <unistd.h>
-#ifdef EMBED
-#include <signal.h>
-#else
+#include <time.h>
 #if (__GLIBC__ < 2)
 # if defined(FREEBSD)
 #  include <sys/signal.h>
@@ -35,7 +33,6 @@
 #else
 # include <signal.h>
 #endif
-#endif
 #include <netdb.h>
 #include <string.h>
 #include <fcntl.h>
@@ -43,6 +40,9 @@
 #include <arpa/inet.h>
 #ifdef USE_KERNEL
 #include <sys/ioctl.h>
+#endif
+#ifndef USE_BSD_PTYS
+#include <pty.h>
 #endif
 #include "l2tp.h"
 
@@ -64,7 +64,8 @@ void init_tunnel_list (struct tunnel_list *t)
     t->calls = 0;
 }
 
-void show_status (int fd)
+/* Now sends to syslog instead - MvO */
+void show_status (void)
 {
     struct schedule_entry *se;
     struct tunnel *t;
@@ -73,15 +74,8 @@ void show_status (int fd)
     struct lac *tlac;
     struct host *h;
     int s = 0;
-    int fd2 = dup (fd);
-    FILE *f = fdopen (fd2, "a");
-    if (!f)
-    {
-        log (LOG_WARN, "show_status: fdopen() failed on fd %d\n", fd2);
-        return;
-    }
-    fprintf (f, "====== l2tpd statistics ========\n");
-    fprintf (f, " Scheduler entries:\n");
+    log (LOG_WARN, "====== l2tpd statistics ========\n");
+    log (LOG_WARN, " Scheduler entries:\n");
     se = events;
     while (se)
     {
@@ -91,33 +85,32 @@ void show_status (int fd)
         c = (struct call *) se->data;
         if (se->func == &hello)
         {
-            fprintf (f, "%d: HELLO to %d\n", s, t->tid);
+            log (LOG_WARN, "%d: HELLO to %d\n", s, t->tid);
         }
         else if (se->func == &magic_lac_dial)
         {
-            fprintf (f, "%d: Magic dial on %s\n", s, tlac->entname);
+            log (LOG_WARN, "%d: Magic dial on %s\n", s, tlac->entname);
         }
         else if (se->func == &send_zlb)
         {
-            fprintf (f, "%d: Send payload ZLB on call %d:%d\n", s,
+            log (LOG_WARN, "%d: Send payload ZLB on call %d:%d\n", s,
                      c->container->tid, c->cid);
         }
         else if (se->func == &dethrottle)
         {
-            fprintf (f, "%d: Dethrottle call %d:%d\n", s, c->container->tid,
+            log (LOG_WARN, "%d: Dethrottle call %d:%d\n", s, c->container->tid,
                      c->cid);
         }
         else
-            fprintf (f, "%d: Unknown event\n", s);
+            log (LOG_WARN, "%d: Unknown event\n", s);
         se = se->next;
     };
-    fprintf (f, "Total Events scheduled: %d\n", s);
-    fprintf (f, "Number of tunnels open: %d\n", tunnels.count);
-    fprintf (f, "Highest file descriptor: %d\n", fd2);
+    log (LOG_WARN, "Total Events scheduled: %d\n", s);
+    log (LOG_WARN, "Number of tunnels open: %d\n", tunnels.count);
     t = tunnels.head;
     while (t)
     {
-        fprintf (f, "Tunnel %s, ID = %d (local), %d (remote) to %s:%d\n"
+        log (LOG_WARN, "Tunnel %s, ID = %d (local), %d (remote) to %s:%d\n"
                  "   control_seq_num = %d, control_rec_seq_num = %d,\n"
                  "   cLr = %d\n",
                  (t->lac ? t->lac->entname : (t->lns ? t->lns->entname : "")),
@@ -127,7 +120,7 @@ void show_status (int fd)
         c = t->call_head;
         while (c)
         {
-            fprintf (f,
+            log (LOG_WARN, 
                      "Call %s, ID = %d (local), %d (remote), serno = %u,\n"
                      "      data_seq_num = %d, data_rec_seq_num = %d,\n"
                      "      pLr = %d, tx = %u bytes (%u), rx= %u bytes (%u)\n",
@@ -139,36 +132,34 @@ void show_status (int fd)
         }
         t = t->next;
     }
-    fprintf (f, "==========Config File===========\n");
+    log (LOG_WARN, "==========Config File===========\n");
     tlns = lnslist;
     while (tlns)
     {
-        fprintf (f, "LNS entry %s\n",
+        log (LOG_WARN, "LNS entry %s\n",
                  tlns->entname[0] ? tlns->entname : "(unnamed)");
         tlns = tlns->next;
     };
     tlac = laclist;
     while (tlac)
     {
-        fprintf (f, "LAC entry %s, LNS is/are:",
+        log (LOG_WARN, "LAC entry %s, LNS is/are:",
                  tlac->entname[0] ? tlac->entname : "(unnamed)");
         h = tlac->lns;
         if (h)
         {
             while (h)
             {
-                fprintf (f, " %s", h->hostname);
+                log (LOG_WARN, " %s", h->hostname);
                 h = h->next;
             }
         }
         else
-            fprintf (f, " [none]");
-        fprintf (f, "\n");
+            log (LOG_WARN, " [none]");
+        log (LOG_WARN, "\n");
         tlac = tlac->next;
     };
-    fprintf (f, "================================\n");
-    fclose (f);
-    close (fd2);
+    log (LOG_WARN, "================================\n");
 }
 
 void null_handler(int sig)
@@ -181,7 +172,7 @@ void null_handler(int sig)
 
 void status_handler (int sig)
 {
-    show_status (1);
+    show_status ();
 }
 
 void child_handler (int signal)
@@ -197,35 +188,53 @@ void child_handler (int signal)
     pid_t pid;
     int status;
     t = tunnels.head;
-    pid = waitpid (-1, &status, WNOHANG);
-    if (pid < 1)
+    /* Keep looping until all are cleared */
+    for(;;)
     {
-        /*
-         * Oh well, nobody there.  Maybe we reaped it
-         * somewhere else already
-         */
-        return;
-    }
-    while (t)
-    {
-        c = t->call_head;
-        while (c)
+        pid = waitpid (-1, &status, WNOHANG);
+        if (pid < 1)
         {
-            if (c->pppd == pid)
-            {
-                log (LOG_DEBUG, "%s : pppd died for call %d\n", __FUNCTION__,
-                     c->cid);
-                c->needclose = -1;
-                /* 
-                 * OK...pppd died, we can go ahead and close the pty for
-                 * it
-                 */
-                close (c->fd);
-                return;
-            }
-            c = c->next;
+            /*
+             * Oh well, nobody there.  Maybe we reaped it
+             * somewhere else already
+             */
+            return;
         }
-        t = t->next;
+        while (t)
+        {
+            c = t->call_head;
+            while (c)
+            {
+                if (c->pppd == pid)
+                {
+                    if ( WIFEXITED( status ) )
+                    {
+                        log (LOG_DEBUG, "%s : pppd exited for call %d with code %d\n", __FUNCTION__,
+                         c->cid, WEXITSTATUS( status ) );
+                    }
+                    else if( WIFSIGNALED( status ) )
+                    {
+                        log (LOG_DEBUG, "%s : pppd terminated for call %d by signal %d\n", __FUNCTION__,
+                         c->cid, WTERMSIG( status ) );
+                    }
+                    else
+                    {
+                        log (LOG_DEBUG, "%s : pppd exited for call %d for unknown reason\n", __FUNCTION__,
+                         c->cid );
+                    }
+                    c->needclose = -1;
+                    /* 
+                     * OK...pppd died, we can go ahead and close the pty for
+                     * it
+                     */
+                    close (c->fd);
+                    c->fd = -1;
+                    return;
+                }
+                c = c->next;
+            }
+            t = t->next;
+        }
     }
 }
 
@@ -268,7 +277,6 @@ void death_handler (int signal)
 
 int start_pppd (struct call *c, struct ppp_opts *opts)
 {
-    char a, b;
     char tty[80];
     char *stropt[80];
     struct ppp_opts *p;
@@ -322,6 +330,8 @@ int start_pppd (struct call *c, struct ppp_opts *opts)
     else
     {
 #endif
+#ifdef USE_BSD_PTYS
+        char a, b;
         if ((c->fd = getPtyMaster (&a, &b)) < 0)
         {
             log (LOG_WARN, "%s: unable to allocate pty, abandoning!\n",
@@ -341,7 +351,22 @@ int start_pppd (struct call *c, struct ppp_opts *opts)
         fd2 = open (tty, O_RDWR);
 		if (fd2 < 0)
 	    	log (LOG_WARN, "unable to open tty: %s ", tty);
+	stropt[pos++] = strdup(tty);	
+	stropt[pos] = NULL;
+#else
+		int pty_fd, tty_fd, fd_flags;
 
+		if (openpty(&pty_fd, &tty_fd, NULL, NULL, NULL) != 0)
+		{
+			log (LOG_WARN, "%s: unable to allocate pty/tty, abandoning!\n",
+				__FUNCTION__);
+			return -EINVAL;
+		}
+		fd_flags = fcntl(pty_fd, F_GETFL);
+		fcntl(pty_fd, F_SETFL, fd_flags | O_NONBLOCK);
+		c->fd = pty_fd;
+		fd2 = tty_fd;
+#endif
 #ifdef USE_KERNEL
     }
 #endif
@@ -411,6 +436,10 @@ int start_pppd (struct call *c, struct ppp_opts *opts)
         /* close the control pipe fd */
         close (control_fd);
 
+        if( c->dialing[0] )
+        {
+            setenv( "CALLER_ID", c->dialing, 1 );
+        }
         execv (PPPD, stropt);
         log (LOG_WARN, "%s: Exec of %s failed!\n", __FUNCTION__, PPPD);
 #ifndef __uClinux__
@@ -938,7 +967,7 @@ void do_control ()
                 lac_disconnect (tunl);
                 break;
             case 's':
-                show_status (1);
+                show_status ();
                 break;
             default:
                 log (LOG_DEBUG, "Unknown command %c\n",
@@ -1026,23 +1055,25 @@ void daemonize() {
     else if (pid)
         exit(0);
 
-    /* close(0); */   /* This is a hack to "fix" problems with the
-                         daemonization code...more work will be forthcoming 
-                         to do a proper fix for this */
-
+    close(0);
     close(1);
     close(2);
 #endif
 
     /* Read previous pid file. */
     if ((i = open(gconfig.pidfile,O_RDONLY)) > 0) {
-        l=read(i,buf,sizeof(buf)-1);
         if (i < 0) {
             log(LOG_LOG, "%s: Unable to read pid file [%s]\n",
                     __FUNCTION__, gconfig.pidfile);
+        } else
+        {
+            l=read(i,buf,sizeof(buf)-1);
+            if (l >= 0)
+            {
+                buf[l] = '\0';
+                pid = atoi(buf);
+            }
         }
-        buf[i] = '\0';
-        pid = atoi(buf);
 
         /* If the previous server process is not still running,
            write a new pid file immediately. */
@@ -1083,7 +1114,10 @@ void daemonize() {
 void init (int argc,char *argv[])
 {
     struct lac *lac;
+    struct in_addr listenaddr;
+
     init_args (argc,argv);
+    srand( time(NULL) );
     rand_source = 0;
     init_addr ();
     if (init_config ())
@@ -1121,10 +1155,10 @@ void init (int argc,char *argv[])
     log (LOG_LOG,
          "Written by Mark Spencer, Copyright (C) 1998, Adtran, Inc.\n");
     log (LOG_LOG, "Forked by Scott Balmos and David Stipp, (C) 2001\n");
-    log (LOG_LOG, "Inhereted by Jeff McAdams, (C) 2002\n");
-
-    log (LOG_LOG, "%s version %s on a %s, port %d\n", uts.sysname,
-         uts.release, uts.machine, gconfig.port);
+    log (LOG_LOG, "Inherited by Jeff McAdams, (C) 2002\n");
+    listenaddr.s_addr = gconfig.listenaddr;
+    log (LOG_LOG, "%s version %s on a %s, listening on IP address %s, port %d\n", uts.sysname,
+       uts.release, uts.machine, inet_ntoa(listenaddr), gconfig.port);
     lac = laclist;
     while (lac)
     {

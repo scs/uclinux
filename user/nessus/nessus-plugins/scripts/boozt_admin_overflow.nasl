@@ -21,8 +21,8 @@
 if(description)
 {
  script_id(11082);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(6281);
+ script_version ("$Revision: 1.11 $");
  name["english"] = "Boozt index.cgi overflow";
  script_name(english:name["english"]);
  
@@ -42,7 +42,7 @@ Risk factor : High";
  summary["english"] = "Buffer overflow in Boozt AdBanner index.cgi";
  script_summary(english:summary["english"]);
  
- script_category(ACT_ATTACK);
+ script_category(ACT_DESTRUCTIVE_ATTACK);
  
  script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi");
  family["english"] = "Gain root remotely";
@@ -93,8 +93,8 @@ function find_boozt(port)
 #######
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 bz = find_boozt(port: port); 
@@ -108,13 +108,11 @@ r = string(r, "\r\nContent-Length: 1030\r\n",
 
 soc = http_open_socket(port);
 if(! soc) exit(0);
-
 send(socket:soc, data: r);
-cod = recv_line(socket:soc, length:4096);
 r = http_recv(socket:soc);
 http_close_socket(soc);
 
-if (ereg(string: cod, pattern: "^HTTP/[0-9.]+ +5[0-9][0-9] "))
+if (ereg(string: r, pattern: "^HTTP/[0-9.]+ +5[0-9][0-9] "))
 {
   security_hole(port);
   exit(0);

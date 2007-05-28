@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10485);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(1535);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-2000-0737");
 
  name["english"] =  "Service Control Manager Named Pipe Impersonation patch";
@@ -24,7 +24,7 @@ problem has not been applied.
 This vulnerability allows a malicious user, who has the
 right to log on this host locally, to gain additional privileges.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-053.asp
+Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-053.mspx
 Risk factor : Medium";
 
 
@@ -36,7 +36,7 @@ Cette vulnérabilité permet à un utilisateur malicieux ayant
 le droit de se logguer sur ce serveur locallement d'obtenir
 plus de droits sur celui-ci.
 
-Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-053.asp
+Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-053.mspx
 Facteur de risque : Moyen";
 
 
@@ -51,40 +51,19 @@ Facteur de risque : Moyen";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl"
-		     );
- script_require_keys("SMB/name", "SMB/login", "SMB/password", "SMB/registry_access");
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_hotfixes.inc");
 
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
+if ( hotfix_check_sp(win2k:2) <= 0 ) exit(0);
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if ( hotfix_missing(name:"Q269523") > 0 ) 
+	security_warning(get_kb_item("SMB/transport"));
 
-version = get_kb_item("SMB/WindowsVersion");
-if(version == "5.0")
-{
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))
-	exit(0);
-	
-	
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q269523";
- item = "Comments";
- value = registry_get_sz(item:item, key:key);
- if(!value)security_hole(port);
-}

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10796);
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "scan for LaBrea tarpitted hosts";
  script_name(english:name["english"]);
 
@@ -34,6 +34,14 @@ Risk factor : None";
 }
 
 
+include('global_settings.inc');
+
+# Labrea only answers to TCP probes
+if (get_kb_item('/tmp/ping/ICMP') || get_kb_item('/tmp/ping/UDP'))
+{
+ debug_print('Host answered to ICMP or UDP probes - cannot be "tar pitted"\n');
+ exit(0);
+}
 
 src = this_host();
 dst = get_host_ip();
@@ -48,7 +56,7 @@ init_ip_id = 12;
 winsize = 100;
 flags = 0;
 
-
+debug_print(level: 2, 'sport=',sport, ' - dport=',dport,'\n');
 
 # send two ACKs with a single byte as data (probe window)
 # Labrea in persist mode will ACK the packet below after the initial

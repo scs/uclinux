@@ -17,19 +17,12 @@
 #include <string.h>
 #include <ctype.h>
 #include <fcntl.h>
+#include <syslog.h>
 #include "pptp_msg.h"
 #include "pptp_ctrl.h"
 #include "pptp_options.h"
 #include "vector.h"
-
-#ifdef EMBED
-#include <syslog.h>
-#define fprintf(x, a...) syslog(LOG_INFO, ##a)
-// #define fprintf(x, a...)
-#undef assert
-#define assert(x) \
-	if (!(x)) syslog(LOG_INFO,"%s,%d ***ASSERT*** - " #x "\n",__FILE__,__LINE__);else
-#endif
+#include "util.h"
 
 /* BECAUSE OF SIGNAL LIMITATIONS, EACH PROCESS CAN ONLY MANAGE ONE
  * CONNECTION.  SO THIS 'PPTP_CONN' STRUCTURE IS A BIT MISLEADING.
@@ -201,7 +194,7 @@ PPTP_CALL * pptp_call_open(PPTP_CONN * conn,
   if (!conn)
   	return(NULL);
   if (!conn->call) {
-	fprintf(stderr, "Connection is shutting down\n");
+	logmsg("Connection is shutting down");
   	return(NULL);
   }
 
@@ -211,7 +204,7 @@ PPTP_CALL * pptp_call_open(PPTP_CONN * conn,
   if ((cp = getenv("pptp_call_id")))
 	  scan_start = scan_end = atoi(cp);
   if (!vector_scan(conn->call, 0, PPTP_MAX_CHANNELS-1, &i)) {
-	fprintf(stderr, "No more calls allowed\n");
+	logmsg("No more calls allowed");
     return NULL;
   }
 
@@ -240,7 +233,7 @@ PPTP_CALL * pptp_call_open(PPTP_CONN * conn,
       vector_insert(conn->call, i, call);
       return call;
     } else { /* oops, unsuccessful. Deallocate. */
-	  fprintf(stderr, "Failed to send control packet\n");
+	  logmsg("Failed to send control packet");
       free(call);
       return NULL;
     }
@@ -302,7 +295,7 @@ void pptp_conn_close(PPTP_CONN * conn, u_int8_t close_reason) {
     pptp_call_close(conn, vector_get_Nth(conn->call, i));
     
   /* now close connection */
-  fprintf(stderr, "Closing PPTP connection\n");
+  logmsg("Closing PPTP connection");
   pptp_send_ctrl_packet(conn, &rqst, sizeof(rqst));
   pptp_reset_timer(); /* wait 60 seconds for reply */
   conn->conn_state = CONN_WAIT_STOP_REPLY;
@@ -328,7 +321,7 @@ void pptp_conn_destroy(PPTP_CONN * conn, int dispose) {
   }
   sigaction(SIGALRM, &global.old_sigaction, NULL);
   if (conn->inet_sock >= 0) {
-    fprintf(stderr, "closing %d (inet)\n", conn->inet_sock);
+    logmsg("closing %d (inet)", conn->inet_sock);
     close(conn->inet_sock);
     conn->inet_sock = -1;
   }
@@ -392,7 +385,7 @@ void pptp_write_some(PPTP_CONN * conn) {
     if (errno == EAGAIN || errno == EINTR) { 
       /* ignore */;
     } else { /* a real error */
-      fprintf(stderr,"write error: %s\n", strerror(errno));
+      logmsg("write error: %s", strerror(errno));
       pptp_conn_destroy(conn, 0); /* shut down fast. */
     }
     return;
@@ -411,7 +404,7 @@ void pptp_read_some(PPTP_CONN * conn) {
     char *new_buffer=realloc(conn->read_buffer, 
 			     sizeof(*(conn->read_buffer))*conn->read_alloc*2);
     if (new_buffer == NULL) {
-      fprintf(stderr,"Out of memory"); return;
+      logmsg("Out of memory"); return;
     }
     conn->read_alloc*=2;
     conn->read_buffer = new_buffer;
@@ -423,13 +416,13 @@ void pptp_read_some(PPTP_CONN * conn) {
     if (errno == EINTR || errno == EAGAIN)
       /* ignore */ ;
     else { /* a real error */
-      fprintf(stderr,"read error %d: %s", conn->inet_sock, strerror(errno));
+      logmsg("read error %d: %s", conn->inet_sock, strerror(errno));
       pptp_conn_destroy(conn, 0); /* shut down fast. */
     }
     return;
   }
   else if (retval == 0) {
-    fprintf(stderr,"Control connection closed by peer");
+    logmsg("Control connection closed by peer");
     pptp_conn_destroy(conn, 0); /* shut down fast. */
   }
   conn->read_size += retval;
@@ -458,7 +451,7 @@ int pptp_make_packet(PPTP_CONN * conn, void **buf, size_t *size) {
      * interoperability, we'll just log this and pretend it never happened.
      */
     if (ntoh16(header->reserved0)!=0) {
-      fprintf(stderr,"Protocol violation: header->reserved0(0x%x) != 0\n",
+      logmsg("Protocol violation: header->reserved0(0x%x) != 0",
   		ntoh16(header->reserved0));
     }
 
@@ -474,14 +467,14 @@ int pptp_make_packet(PPTP_CONN * conn, void **buf, size_t *size) {
     /* well, I guess we've got it. */
     *size= ntoh16(header->length);
     *buf = malloc(*size);
-    if (*buf == NULL) { fprintf(stderr,"Out of memory."); return 0; /* ack! */ }
+    if (*buf == NULL) { logmsg("Out of memory."); return 0; /* ack! */ }
     memcpy(*buf, conn->read_buffer, *size);
     /* Delete this packet from the read_buffer. */
     conn->read_size -= (bad_bytes + *size);
     memmove(conn->read_buffer, conn->read_buffer+bad_bytes+*size, 
 	    conn->read_size);
     if (bad_bytes > 0) 
-      fprintf(stderr,"%lu bad bytes thrown away.", (unsigned long) bad_bytes);
+      logmsg("%lu bad bytes thrown away.", (unsigned long) bad_bytes);
     return 1;
 
   throwitout:
@@ -492,20 +485,20 @@ flushbadbytes:
   conn->read_size -= bad_bytes;
   memmove(conn->read_buffer, conn->read_buffer+bad_bytes, conn->read_size);
   if (bad_bytes > 0) 
-    fprintf(stderr,"%lu bad bytes thrown away.", (unsigned long) bad_bytes);
+    logmsg("%lu bad bytes thrown away.", (unsigned long) bad_bytes);
   return 0;
 }
 int pptp_send_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
   // assert(conn && conn->call);
   if (!conn)
-  	return;
+  	return 0;
   assert(buffer);
   /* Shove this into the write buffer */
   if (conn->write_size + size > conn->write_alloc) { /* need more memory */
     char *new_buffer=realloc(conn->write_buffer, 
 			   sizeof(*(conn->write_buffer))*conn->write_alloc*2);
     if (new_buffer == NULL) {
-      fprintf(stderr,"Out of memory"); return 0;
+      logmsg("Out of memory"); return 0;
     }
     conn->write_alloc*=2;
     conn->write_buffer = new_buffer;
@@ -527,10 +520,10 @@ void pptp_dispatch_packet(PPTP_CONN * conn, void * buffer, size_t size) {
     break;
   case PPTP_MESSAGE_MANAGE:
     /* MANAGEMENT messages aren't even part of the spec right now. */
-    fprintf(stderr,"PPTP management message received, but not understood.");
+    logmsg("PPTP management message received, but not understood.");
     break;
   default:
-    fprintf(stderr,"Unknown PPTP control message type received: %u", 
+    logmsg("Unknown PPTP control message type received: %u", 
 	(unsigned) ntoh16(header->pptp_type));
     break;
   }
@@ -546,7 +539,7 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
   assert(ntoh16(header->pptp_type)==PPTP_MESSAGE_CONTROL);
 
   if (size < PPTP_CTRL_SIZE(ntoh16(header->ctrl_type))) {
-    fprintf(stderr,"Invalid packet received [type: %d; length: %d].\n",
+    logmsg("Invalid packet received [type: %d; length: %d].",
 	(int) ntoh16(header->ctrl_type), (int) size);
     return;
   }
@@ -573,7 +566,7 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
 	} else { /* same or greater version */
 	  if (pptp_send_ctrl_packet(conn, &reply, sizeof(reply))) {
 	    conn->conn_state=CONN_ESTABLISHED;
-	    fprintf(stderr,"server connection ESTABLISHED.");
+	    logmsg("server connection ESTABLISHED.");
 	    pptp_reset_timer();
 	  }
 	}
@@ -606,7 +599,7 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
 	memcpy(conn->vendor, packet->vendor, sizeof(conn->vendor));
 
 	pptp_reset_timer(); /* 60 seconds until keep-alive */
-	fprintf(stderr, "Client connection established.\n");
+	logmsg("Client connection established.");
 
 	if (conn->callback!=NULL) conn->callback(conn, CONN_OPEN_DONE);
       } /* else goto pptp_err_conn_close; */
@@ -690,18 +683,18 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
       PPTP_CALL * call;
       u_int16_t callid = ntoh16(packet->call_id_peer);
       if (!vector_search(conn->call, (int) callid, &call)) {
-	fprintf(stderr,"PPTP_OUT_CALL_RPLY received for non-existant call.");
+	logmsg("PPTP_OUT_CALL_RPLY received for non-existant call.");
 	break;
       }
       if (call->call_type!=PPTP_CALL_PNS) {
-	fprintf(stderr,"Ack!  How did this call_type get here?"); /* XXX? */
+	logmsg("Ack!  How did this call_type get here?"); /* XXX? */
 	break; 
       }
       if (call->state.pns == PNS_WAIT_REPLY) {
 	/* check for errors */
 	if (packet->result_code!=1) {
 	  /* An error.  Log it. */
-	  fprintf(stderr,"Error opening call. [callid %d]", (int) callid);
+	  logmsg("Error opening call. [callid %d]", (int) callid);
 	  call->state.pns = PNS_IDLE;
 	  if (call->callback!=NULL) call->callback(conn, call, CALL_OPEN_FAIL);
 	  pptp_call_destroy(conn, call);
@@ -712,7 +705,7 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
 	  call->speed        = ntoh32(packet->speed);
 	  pptp_reset_timer();
 	  if (call->callback!=NULL) call->callback(conn, call, CALL_OPEN_DONE);
-	  fprintf(stderr, "Outgoing call established.\n");
+	  logmsg("Outgoing call established.");
 	}
       }
       break;
@@ -734,7 +727,7 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
 	if (call->callback!=NULL) call->callback(conn, call, CALL_CLOSE_RQST);
 	pptp_send_ctrl_packet(conn, &reply, sizeof(reply));
 	pptp_call_destroy(conn, call);
-	fprintf(stderr,"Call closed (RQST) (call id %d)", (int) call->call_id);
+	logmsg("Call closed (RQST) (call id %d)", (int) call->call_id);
       }
       break;
     }
@@ -746,7 +739,7 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
 	PPTP_CALL * call;
 	vector_search(conn->call, ntoh16(packet->call_id), &call);
 	pptp_call_destroy(conn, call);
-	fprintf(stderr, "Call closed (NTFY) (call id %d)", (int) call->call_id);
+	logmsg("Call closed (NTFY) (call id %d)", (int) call->call_id);
       }
       /* XXX we could log call stats here XXX */
       break;
@@ -760,15 +753,15 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
       if (ntoh32(packet->send_accm)==0 && ntoh32(packet->recv_accm)==0)
 	break; /* this is what we expect. */
       /* log it, otherwise. */
-      fprintf(stderr,"PPTP_SET_LINK_INFO recieved from peer_callid %u",
+      logmsg("PPTP_SET_LINK_INFO recieved from peer_callid %u",
 	  (unsigned) ntoh16(packet->call_id_peer));
-      fprintf(stderr,"  send_accm is %08lX, recv_accm is %08lX",
+      logmsg("  send_accm is %08lX, recv_accm is %08lX",
 	  (unsigned long) ntoh32(packet->send_accm),
 	  (unsigned long) ntoh32(packet->recv_accm));
       break;
     }
   default:
-    fprintf(stderr,"Unrecognized Packet %d received.", 
+    logmsg("Unrecognized Packet %d received.", 
 	(int) ntoh16(((struct pptp_header *)buffer)->ctrl_type));
     /* goto pptp_err_conn_close; */
     break;
@@ -776,7 +769,7 @@ void pptp_dispatch_ctrl_packet(PPTP_CONN * conn, void * buffer, size_t size) {
   return;
 
 pptp_err_conn_close:
-  fprintf(stderr,"pptp_conn_close(%d)\n", (int) close_reason);
+  logmsg("pptp_conn_close(%d)", (int) close_reason);
   pptp_conn_close(conn, close_reason);
 }
 

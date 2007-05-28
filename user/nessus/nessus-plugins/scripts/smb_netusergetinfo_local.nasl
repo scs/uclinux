@@ -1,23 +1,32 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# See the Nessus Scripts License for details
+# This script is released under Tenable Plugins License
 #
 
 if(description)
 {
  script_id(10910);
- script_version("$Revision: 1.10 $");
+ script_version("$Revision: 1.16 $");
  name["english"] = "Obtains local user information";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-This script requests informations about each local NT user
-and stores it in the KB
-Risk factor : None";
+Synopsis :
 
+It is possible to retrieve local user information.
 
+Description :
+
+Using the supplied credentials it was possible to retrieve
+information for each local user.
+User information is stored in the KB for further checks.
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:L/AC:H/Au:R/C:N/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -29,7 +38,7 @@ Risk factor : None";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows : User management";
   
  script_family(english:family["english"]);
@@ -42,154 +51,72 @@ Risk factor : None";
  exit(0);
 }
 
-#---------------------------------------------------------#
-# hexstr() to raw_string() conversion			  #
-#---------------------------------------------------------#
+include("smb_func.inc");
 
-function hexsid_to_rawsid(s)
+# script compatibility
+function _ExtractTime(buffer)
 {
- local_var i, j, ret;
- 
- for(i=0;i<strlen(s);i+=2)
- {
-  if(ord(s[i]) >= ord("0") && ord(s[i]) <= ord("9"))
-  	j = int(s[i]);
-  else
-  	j = int((ord(s[i]) - ord("a")) + 10);
-
-  j *= 16;
-  if(ord(s[i+1]) >= ord("0") && ord(s[i+1]) <= ord("9"))
-  	j += int(s[i+1]);
-  else
-  	j += int((ord(s[i+1]) - ord("a")) + 10);
-  ret += raw_string(j);
- }
- return ret;
+ return(string(      hex(ord(buffer[7])), "-",
+                     hex(ord(buffer[6])), "-",
+                     hex(ord(buffer[5])), "-",
+                     hex(ord(buffer[4])), "-",
+                     hex(ord(buffer[3])), "-",
+                     hex(ord(buffer[2])), "-",
+                     hex(ord(buffer[1])), "-",
+                     hex(ord(buffer[0]))));
 }
 
+if ( get_kb_item("SMB/samba") ) exit(0);
 
-
-
-include("smb_nt.inc");
-
-port = kb_smb_transport();
+port = get_kb_item("SMB/transport");
 if(!port)port = 139;
-if(!get_port_state(port))exit(0);
 
+name	= kb_smb_name(); 	if(!name)exit(0);
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
 
+if ( ! get_port_state(port) ) exit(0);
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if ( ! soc ) exit(0);
 
-login = kb_smb_login();
-pass  = kb_smb_password();
-dom   = kb_smb_domain();
-
-
-# we need the SID of the host
-sidx = get_kb_item("SMB/host_sid_hex");
-if(!sidx)exit(0);
-
-
-# conversion string -> hex
-sid = hexsid_to_rawsid(s:sidx);
-
-
-
-
-
-
-
-if(!login)login = "";
-if(!pass) pass = "";
-if(!dom) dom = "";
-
-name = kb_smb_name();
-
-r = smb_session_request(soc:soc, remote:name);
-if(!r){
-	#display("smb_session_request failed\n");
-	exit(0);
-	}
-	
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);	
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:dom, prot:prot);
-if(!r){
-	#display("Session setup failed\n");
-	exit(0);
-	}
-
-uid = session_extract_uid(reply:r);
-
-#
-# Connect to the remote IPC and extract the TID
-# we are attributed
-#      
-r = smb_tconx(soc:soc, name:name, uid:uid, share:"IPC$");
-# extract our tree id
-tid = tconx_extract_tid(reply:r);
-
-
-#display("TID = ", tid, "\n");
-
-pipe = OpenPipeToSamr(	soc:soc, 
-		      	uid:uid, 
-		      	tid:tid);
-		      
-#display("PIPE = ", pipe, "\n");
-if(!pipe)exit(0);
-
-samrhdl = SamrConnect2(	soc:soc, 
-		       	uid:uid,
-		       	tid:tid, 
-		       	pipe:pipe, 
-		       	name:name
-		      );
-
-if(!samrhdl)exit(0);
-
-samrhdl =
-	SamrOpenDomain(	soc:soc, 
-			uid:uid, 
-			tid:tid, 
-			pipe:pipe, 
-			samrhdl:samrhdl,
-			sid:sid
-		       );		  
-if(!samrhdl)exit(0);
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
 
 count = 1;
 login = string(get_kb_item(string("SMB/LocalUsers/", count)));
 while(login)
 {
-rid = SamrLookupNames(  soc:soc, 
-			uid:uid, 
-			tid:tid, 
-			pipe:pipe, 
-			domhdl:samrhdl,
-			name:login
-		     );	
+ info = NetUserGetInfo (user:login);
 
+ if (!isnull (info))
+ {
+  name = string("SMB/LocalUsers/", count, "/Info/LogonTime");
+  set_kb_item(name:name, value:_ExtractTime(buffer:info[0]));
 
-usrhdl = SamrOpenUser(	soc:soc, 
-			uid:uid, 
-			tid:tid, 
-			pipe:pipe, 
-			samrhdl:samrhdl,
-	 		rid:rid
-		     );
-			
-if(usrhdl)
-{			
-r = SamrQueryUserInfo(	soc:soc, 
-	     	  	uid:uid,
-		  	tid:tid,
-		  	pipe:pipe,
-		  	usrhdl:usrhdl
-		  );
-		  
-if(r)_SamrDecodeUserInfo(info:r, count:count, type:"LocalUsers");
+  name = string("SMB/LocalUsers/", count, "/Info/LogoffTime");
+  set_kb_item(name:name, value:_ExtractTime(buffer:info[1]));
+
+  name = string("SMB/LocalUsers/", count, "/Info/KickoffTime");
+  set_kb_item(name:name, value:_ExtractTime(buffer:info[2]));
+
+  name = string("SMB/LocalUsers/", count, "/Info/PassLastSet");
+  set_kb_item(name:name, value:_ExtractTime(buffer:info[3]));
+
+  name = string("SMB/LocalUsers/", count, "/Info/PassCanChange");
+  set_kb_item(name:name, value:_ExtractTime(buffer:info[4]));
+
+  name = string("SMB/LocalUsers/", count, "/Info/PassMustChange");
+  set_kb_item(name:name, value:_ExtractTime(buffer:info[5]));
+
+  name = string("SMB/LocalUsers/", count, "/Info/ACB");
+  set_kb_item(name:name, value:int(info[6]));
+ }	     
+
+ count = count + 1;
+ login = string(get_kb_item(string("SMB/LocalUsers/", count)));
 }
-count = count + 1;
-login = string(get_kb_item(string("SMB/LocalUsers/", count)));
-}
+
+NetUseDel ();

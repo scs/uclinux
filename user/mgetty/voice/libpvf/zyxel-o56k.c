@@ -16,7 +16,7 @@
  *
  * Modified for use with vgetty, Const Kaplinsky <const@ce.cctpu.edu.ru>
  *
- * $Id$
+ * $Id: zyxel-o56k.c,v 1.1 2000/07/22 10:01:01 marcs Exp $
  *
  */
 

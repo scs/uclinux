@@ -9,7 +9,7 @@ if(description)
  script_id(10038);
  script_cve_id("CVE-1999-0259");
  
- script_version ("$Revision: 1.16 $");
+ script_version ("$Revision: 1.17 $");
  name["english"] = "Cfinger's search.**@host feature";
  name["francais"] = "Cfinger's search.**@host feature";
  script_name(english:name["english"], francais:name["francais"]);
@@ -28,7 +28,7 @@ This information can in turn be used by an attacker to set up
 a brute force login attack against this host.
 
 Solution : use another finger daemon or disable this service in /etc/inetd.conf
-Risk factor : Low/Medium";
+Risk factor : Low / Medium";
 
 
  script_description(english:desc["english"]);

@@ -51,7 +51,7 @@
 #include "config.h"
 #endif
 
-#ifdef ENABLE_RESPONSE
+#if defined(ENABLE_RESPONSE) || defined(ENABLE_REACT)
 
 #include <sys/types.h>
 #include <stdlib.h>
@@ -86,10 +86,15 @@ void ParseReact(char *, OptTreeNode *, ReactData *);
 int React(Packet *, RspFpList *);
 int SendTCP(u_long, u_long, u_short, u_short, int, int, u_char, const u_char *,
                     int);
+#if defined(ENABLE_REACT) && !defined(ENABLE_RESPONSE)
+void ReactRestart(int signal, void *data);
+#endif
 
-
-
+#if defined(ENABLE_RESPONSE) && !defined(ENABLE_REACT)
 extern int nd; /* raw socket */
+#elif defined(ENABLE_REACT) && !defined(ENABLE_RESPONSE)
+int nd = -1;   /* raw socket */
+#endif
 
 
 /****************************************************************************
@@ -131,8 +136,10 @@ void SetupReact(void)
 void ReactInit(char *data, OptTreeNode *otn, int protocol)
 {
     ReactData *idx;
-
     DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN,"In ReactInit()\n"););
+#if defined(ENABLE_REACT) && !defined(ENABLE_RESPONSE)
+    AddFuncToRestartList(ReactRestart, NULL);
+#endif
 
     if(protocol != IPPROTO_TCP)
     {
@@ -510,4 +517,15 @@ int SendTCP(u_long saddr, u_long daddr, u_short sport, u_short dport, int seq,
 
 }
 
-#endif
+#if defined(ENABLE_REACT) && !defined(ENABLE_RESPONSE)
+void ReactRestart(int signal, void *data)
+{
+    if (nd != -1)
+    {
+        libnet_close_raw_sock(nd);
+        nd = -1;
+    }
+    return;
+}
+#endif /* ENABLE_REACT && !ENABLE_RESPONSE */
+#endif /* ENABLE_RESPONSE || ENABLE_REACT */

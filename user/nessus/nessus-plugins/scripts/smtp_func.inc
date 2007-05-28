@@ -1,7 +1,7 @@
 # -*- Fundamental -*-
 #
 # (C) 2002 Michel Arboi <arboi@alussinan.org>
-# $Revision: 1.24 $
+# $Revision: 1.30 $
 
 function smtp_close(socket)
 {
@@ -71,12 +71,14 @@ function smtp_send_socket(socket, from, to, body)
 
 function smtp_send_port(port, from, to, body)
 {
-  local_var s, buff, ret;
+  local_var s, buff, ret, hostname;
   s = open_sock_tcp(port);
   if (! s) return (0);
 
   buff = recv_line(socket: s, length: 2048);
-  send(socket: s, data: string("HELO nessus\r\n"));
+  hostname = get_kb_item('smtp/'+ port + '/helo');
+  if (! hostname) hostname = 'nessus';
+  send(socket: s, data: strcat('HELO ', hostname, '\r\n'));
   buff = recv_line(socket: s, length: 2048);
   # We should test the code
   ret = smtp_send_socket(socket: s, from: from, to: to, body: body);
@@ -108,21 +110,34 @@ function get_smtp_banner(port)
   sb = string("smtp/banner/", port);
   banner = get_kb_item(sb);
   if(banner) return (banner);
+  if ( get_kb_item("smtp/" + port + "/broken") ) 
+	return NULL;
+
   if(! get_port_state(port)) return (0);
   soc = open_sock_tcp(port);
-  if (! soc) return (0);
+  if (! soc) {
+	set_kb_item(name:"smtp/" + port + "/broken", value:TRUE);
+	return NULL;
+	}
   banner =  smtp_recv_banner(socket: soc);
   close(soc);
-  if(! banner ) return(NULL);
+  if(! banner ) {
+	set_kb_item(name:"smtp/" + port + "/broken", value:TRUE);
+	return NULL;
+	}
+	
   
-  set_kb_item(name: sb, value: banner);
+  if ( defined_func("replace_kb_item") )
+  	replace_kb_item(name: sb, value: banner);
+  else
+  	set_kb_item(name: sb, value: banner);
   return(banner);
 }
 
 
-function smtp_recv_line(socket, code)
+function smtp_recv_line(socket, code, retry, last)
 {
- local_var ret, n, r, pattern;
+ local_var ret, n, r, pat;
  
  if (isnull(code))
    pat = "^[0-9][0-9][0-9]-";
@@ -130,8 +145,13 @@ function smtp_recv_line(socket, code)
    pat = strcat("^", code, "-");
 
  ret = "";
- n = 0;
  r = recv_line(socket:socket, length:4096);
+ #
+ n = 0;
+ while (! r && n ++ < retry)
+   r = recv_line(socket:socket, length:4096);
+ #
+ n = 0;
  ret = r;
  if(strlen(r) < 4) 
   return r;
@@ -140,9 +160,11 @@ function smtp_recv_line(socket, code)
  {
   n = n + 1;
   r = recv_line(socket:socket, length:4096);
+  if (strlen(r) == 0) break;
   if (n > 512)
    return NULL;
-  ret = string( ret, r);
+  if (last) ret = r;
+  else      ret = strcat(ret, r);
  }
  return ret;
 }

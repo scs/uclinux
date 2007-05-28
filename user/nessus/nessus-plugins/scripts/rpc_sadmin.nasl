@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(10229);
- script_version ("$Revision: 1.10 $");
- script_bugtraq_id(866, 8615);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-a-0011");
+ script_bugtraq_id(8615, 866);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-1999-0977");
  
  name["english"] = "sadmin service";
@@ -17,9 +18,9 @@ if(description)
  
  desc["english"] = "
 The sadmin RPC service is running. 
-There is a bug in Solaris versions of
-this service that allow an intruder to
-execute arbitrary commands on your system.
+There is a bug in Solaris versions of this service that allow an intruder to
+execute arbitrary commands on your system.  
+
 
 Solution : disable this service
 Risk factor : High";
@@ -52,7 +53,12 @@ Facteur de risque : Elevé";
  family["francais"] = "RPC";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("rpc_portmap.nasl");
- script_require_keys("rpc/portmap");
+ if ( ! defined_func("bn_random") ) 
+        script_dependencie("rpc_portmap.nasl");
+ else
+        script_dependencie("rpc_portmap.nasl", "solaris7_116456.nasl", "solaris7_x86_116457.nasl", "solaris8_116455.nasl", "solaris8_x86_116442.nasl", "solaris9_116453.nasl", "solaris9_x86_116454.nasl")
+;
+
  exit(0);
 }
 
@@ -62,7 +68,12 @@ Facteur de risque : Elevé";
 
 
 include("misc_func.inc");
+include("global_settings.inc");
 
+if ( report_paranoia < 2 ) exit(0);
+
+
+if ( get_kb_item("BID-8615") ) exit(0);
 
 RPC_PROG = 100232;
 tcp = 0;

@@ -12,10 +12,7 @@ the GNU General Public License, version 2, 1991.
 
 /* Microsoft C 6.0A under MSDOS */
 
-/*$Log$
- *Revision 1.2  2005/07/25 04:03:16  magicyang
- *New user folder check in
- *
+/*$Log: msc.h,v $
  *Revision 1.6  1996/07/28 21:46:16  mike
  *gnuish patch
  *

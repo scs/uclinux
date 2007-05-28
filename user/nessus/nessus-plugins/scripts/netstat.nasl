@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10157);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CAN-1999-0650");
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-1999-0650");
  name["english"] = "netstat";
  script_name(english:name["english"]);
  
@@ -44,6 +44,7 @@ inetd process";
 # The script code starts here
 #
 
+include("misc_func.inc");
 port = get_kb_item("Services/netstat");
 if(!port)port = 15;
 if(get_port_state(port))
@@ -53,7 +54,12 @@ if(get_port_state(port))
  {
   data = recv_line(socket:soc, length:1024);
   data_low = tolower(data);
-  if("active " >< data_low)security_warning(port);
+  if("active " >< data_low || "established" >< data_low || 
+     "time_wait" >< data_low || "close_wait" >< data_low)
+  {
+    security_warning(port);
+    register_service(port: port, proto: "Services/netstat");
+  }
   close(soc);
  }
 }

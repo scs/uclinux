@@ -207,9 +207,11 @@ int get_secret (char *us, char *them, char *secret, int size)
                  __FUNCTION__, u, t, s);
 #endif
             strncpy (secret, s, size);
+            fclose(f);
             return -1;
         }
     }
+    fclose(f);
     return 0;
 }
 

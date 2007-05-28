@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: list.h,v 1.5 1994/07/15 11:02:53 gkim Exp $ */
 
 /* #define LIST_HASHSZ	17011 */
 #define LIST_HASHSZ	6007		/* a more reasonable hash size */

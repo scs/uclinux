@@ -23,7 +23,7 @@ OBJS=tclAssem.o tclGet.o tclBasic.o tclGlob.o tclUtil.o panic.o tclCmdAH.o tclHa
 	tclXdbg.o tclXgen.o tclHistory.o tclmod.o
 
 # Defines the extensions to include from extension/...
-EXTENSIONS=syslog
+EXTENSIONS=syslog cgi
 ifdef CONFIG_LEDMAN
 EXTENSIONS += ledman
 endif
@@ -38,11 +38,10 @@ else
 OBJS += load_extensions.o
 endif
 
-CFLAGS += -I.
 ifdef CONFIG_USER_TINYTCL_DEBUGGER
 # If you want to add the debugger...
 OBJS += debugger/Dbg.o debugger/Dbg_cmd.o
-CFLAGS += -Idebugger -DDEBUGGER -DDEBUGGER_INIT=\"Dbg_lib.tcl\"
+CFLAGS += -I. -Idebugger -DDEBUGGER -DDEBUGGER_INIT=\"Dbg_lib.tcl\"
 endif
 
 TARGETS += $(LIBTCL)
@@ -50,7 +49,7 @@ ifdef UCLINUX_BUILD_USER
 TARGETS += $(EXE)
 endif
 
-all: $(TARGETS)
+all: $(TARGETS) build_extensions
 
 $(EXE): $(LIBTCL) tinytcl.o
 	$(PURIFY) $(CC) $(LDFLAGS) -o $@ tinytcl.o $(LIBTCL) $(LDLIBS$(LDLIBS_$@)) $(EXTRALIBS)
@@ -62,13 +61,13 @@ $(STATIC_LIBTCL): $(OBJS) build_extensions
 	$(AR) cr $@ $(OBJS)
 	-$(AR) r $@ extensions/*.o
 
-libtcl.so: $(OBJS) build_extensions
-	$(CC) -shared -o $@ $(SH_LDFLAGS) $(LDFLAGS) $(OBJS) $(SH_LDLIBS)
+libtcl.so: $(OBJS)
+	$(CC) -shared -o $@ $(SH_LDFLAGS) $(OBJS) $(SH_LDLIBS)
 
 # The dependency here is a bit overkill, but it's simple
-build_extensions: extensions/*/*
+build_extensions: $(LIBTCL) extensions/*/*
 	@for e in $(EXTENSIONS); do \
-		$(MAKE) -C extensions/$$e TCLDIR=../.. -$(MAKEFLAGS) || exit 1; \
+		$(MAKE) -C extensions/$$e TCLDIR=../.. || exit 1; \
 	done
 	touch build_extensions
 

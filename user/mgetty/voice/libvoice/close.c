@@ -3,7 +3,7 @@
  *
  * Close the voice device.
  *
- * $Id$
+ * $Id: close.c,v 1.4 1998/09/09 21:07:27 gert Exp $
  *
  */
 

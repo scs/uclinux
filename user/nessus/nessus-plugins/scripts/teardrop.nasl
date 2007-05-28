@@ -7,26 +7,21 @@
 if(description)
 {
  script_id(10279);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(124);
- script_cve_id("CAN-1999-0015");
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-1999-0015");
  
  name["english"] = "Teardrop";
  name["francais"] = "Teardrop";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "It was possible
-to make the remote server crash
-using the 'teardrop' attack. 
+ desc["english"] = "
+It was possible to make the remote server crash using the 'teardrop' attack. 
 
-An attacker may use this flaw to
-shut down this server, thus 
-preventing your network from
-working properly.
+An attacker may use this flaw to shut down this server, thus 
+preventing your network from working properly.
 
-Solution : contact your operating
-system vendor for a patch.
-
+Solution : contact your operating system vendor for a patch.
 Risk factor : High";
 
 
@@ -116,6 +111,7 @@ udp2 = 	forge_udp_packet(ip : ip,
 
 start_denial();
 send_packet(udp1,udp2, pcap_active:FALSE) x 500;	
+sleep(10);
 alive = end_denial();
 
 if(!alive){

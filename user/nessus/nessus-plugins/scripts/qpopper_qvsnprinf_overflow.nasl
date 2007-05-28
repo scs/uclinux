@@ -6,9 +6,11 @@
 if(description)
 {
  script_id(11376);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7058);
- script_cve_id("CAN-2003-0143");
+ script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-2003-0143");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:018");
+
  
  name["english"] = "qpopper Qvsnprintf buffer overflow";
  script_name(english:name["english"]);

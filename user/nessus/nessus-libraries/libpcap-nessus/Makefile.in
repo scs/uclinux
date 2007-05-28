@@ -17,7 +17,7 @@
 #  WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 #  MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 #
-# @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/Makefile.in,v 1.10 2003/04/04 08:42:09 renaud Exp $ (LBL)
+# @(#) $Header: /usr/local/cvs/nessus-libraries/libpcap-nessus/Makefile.in,v 1.11 2004/01/08 16:12:55 renaud Exp $ (LBL)
 #
 # Various configurable paths (remember to edit Makefile.in, not Makefile)
 #
@@ -118,8 +118,8 @@ install: install-$(BUILD_PCAP) install-incl
 install-:
 
 install-libpcap-nessus.la :
-	$(LIBTOOL) --mode install $(INSTALL) libpcap-nessus.la $(DESTDIR)${exec_prefix}/lib 
-	$(LIBTOOL) --finish $(DESTDIR)${exec_prefix}/lib
+	$(LIBTOOL) --mode install $(INSTALL) libpcap-nessus.la $(DESTDIR)${libdir}
+	$(LIBTOOL) --finish $(DESTDIR)${libdir}
 
 install-incl: force
 	test -d $(DESTDIR)${includedir}/nessus || \

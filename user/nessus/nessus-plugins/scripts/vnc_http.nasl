@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(10758);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.9 $");
+# script_cve_id("CVE-MAP-NOMATCH");
  name["english"] = "Check for VNC HTTP";
  name["francais"] = "Check for VNC HTPP";
  script_name(english:name["english"], francais:name["francais"]);
@@ -65,7 +66,7 @@ function probe(port)
  banner = get_http_banner(port:port);
  if(banner)
  {
-  if (("vncviewer.jar" >< banner) || ("vncviewer.class" >< banner))
+  if (egrep(pattern:"vncviewer\.(jar|class)", string:banner, icase:TRUE))
   {
    security_warning(port);
    set_kb_item(name:"www/vnc", value:TRUE);

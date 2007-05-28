@@ -12,10 +12,11 @@
 if(description)
 {
  script_id(11434);
+ script_cve_id("CVE-2003-1104");
  script_bugtraq_id(7154, 7157);
 
  
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.5 $");
  name["english"] = "IBM Tivoli Relay Overflow";
  
  script_name(english:name["english"]);

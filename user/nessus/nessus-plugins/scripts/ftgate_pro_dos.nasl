@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11579);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.4 $");
 
 
  name["english"] = "FTgate DoS";
@@ -29,7 +29,7 @@ An attacker may use this flaw to prevent this host from processing
 the mail it should process.
 
 Solution : Upgrade to FTgate Pro Mail Server v. 1.22 Hotfix 1330
-Risk Factor : Serious";
+Risk factor : High";
 
 
 
@@ -84,7 +84,7 @@ the mail it should process.
 *** might be a false positive
 
 Solution : Upgrade to FTgate Pro Mail Server v. 1.22 Hotfix 1330
-Risk Factor : Serious";
+Risk factor : High";
 
     security_hole(port:port, data:report);
     exit(0);

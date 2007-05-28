@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10261);
- script_version ("$Revision: 1.22 $");
- script_cve_id("CAN-1999-0163");
+ script_version ("$Revision: 1.26 $");
+ script_cve_id("CVE-1999-0163");
  name["english"] = "Sendmail mailing to programs";
  name["francais"] = "Sendmail envoye des mails aux programmes";
  script_name(english:name["english"],
@@ -73,7 +73,7 @@ Facteur de risque : Elevé";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl", "smtpserver_detect.nasl");
+ script_dependencie("sendmail_expn.nasl", "smtpserver_detect.nasl");
  script_exclude_keys("SMTP/wrapped", 
  		     "SMTP/microsoft_esmtp_5", 
 		     "SMTP/qmail", 
@@ -90,14 +90,16 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
  if(soc)
  {
  data = smtp_recv_banner(socket:soc);
- if("Sendmail" >!< data)exit(0);
- crp = string("HELO nessus.org\r\n");
+ if(!data || "Sendmail" >!< data)exit(0);
+ crp = string("HELO example.com\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:1024);
  crp = string("MAIL FROM: root@", get_host_name(), "\r\n");

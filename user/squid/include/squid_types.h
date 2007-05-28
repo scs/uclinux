@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: squid_types.h,v 1.3.2.1 2002/06/21 14:35:13 hno Exp $
  *
  * * * * * * * * Legal stuff * * * * * * *
  *

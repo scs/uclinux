@@ -10,8 +10,9 @@
 if(description)
 {
  script_id(10537);
- script_version ("$Revision: 1.31 $");
+ if ( defined_func("script_xref") ) script_xref(name:"IAVA", value:"2000-a-0005");
  script_bugtraq_id(1806);
+ script_version ("$Revision: 1.39 $");
  script_cve_id("CVE-2000-0884");
  name["english"] = "IIS directory traversal";
  script_name(english:name["english"]);
@@ -21,7 +22,7 @@ The remote IIS server allows anyone to execute arbitrary commands
 by adding a unicode representation for the slash character 
 in the requested path.
 
-Solution: See http://www.microsoft.com/technet/security/bulletin/ms00-078.asp
+Solution: See http://www.microsoft.com/technet/security/bulletin/ms00-078.mspx
 Risk factor : High";
 
  script_description(english:desc["english"]);
@@ -31,21 +32,20 @@ Risk factor : High";
  script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
  script_copyright(english:"This script is Copyright (C) 2001 H D Moore");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port))exit(0);
-if(http_is_dead(port:port))exit(0);
+port = get_http_port(default:80);
+banner = get_http_banner(port:port);
+if ( "IIS" >!< banner ) exit(0);
+
 
 dir[0] = "/scripts/";
 dir[1] = "/msadc/";

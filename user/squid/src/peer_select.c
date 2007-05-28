@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: peer_select.c,v 1.119 2001/11/17 11:08:55 hno Exp $
  *
  * DEBUG: section 44    Peer Selection Algorithm
  * AUTHOR: Duane Wessels

@@ -1,13 +1,12 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 #
 
 if(description)
 {
  script_id(11454);
+ script_version("$Revision$");
 
  name["english"] = "SMB log in with W32/Deloder passwords";
  
@@ -35,64 +34,38 @@ Risk factor : High";
  
  script_category(ACT_DESTRUCTIVE_ATTACK);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl", "smb_sid2user.nasl",
-		     "smb_sid2localuser.nasl",
- 		     "snmp_lanman_users.nasl");
+ script_dependencies("netbios_name_get.nasl", "smb_sid2user.nasl", "smb_sid2localuser.nasl", "snmp_lanman_users.nasl");
  script_require_keys("SMB/name");
  script_require_ports(139, 445);
  script_timeout(0);
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
+
+if ( get_kb_item("SMB/any_login") ) exit(0);
+
 port = kb_smb_transport();
-if(!port)port = 139;
+if ( ! get_port_state(port) ) exit(0);
 
 
-function log_in(login, pass, domain)
+function log_in(login, pass)
 {
-
+ local_var soc, r;
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
 
-  #
-  # Request the session
-  # 
-  r = smb_session_request(soc:soc,  remote:name);
- if(r)
-  {
-  #
-  # Negociate the protocol
-  #
-  prot = smb_neg_prot(soc:soc);
-  
-  if(prot)
-  {
-  r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-  close(soc);
-  if(r)return(TRUE);
-  else return(FALSE);
-  }
- }
- close(soc);
- return(FALSE);
+ session_init(socket:soc, hostname:kb_smb_name());
+ r = NetUseAdd(login:login, password:pass, domain:NULL, share:"IPC$");
+ NetUseDel();
+ if ( r == 1 ) return TRUE;
+ else
+  return(FALSE);
 }
-
-#----------------------------------------------------------------#
-# 			  main()                                 #
-#----------------------------------------------------------------#		
-
-
-name = kb_smb_name();
-if(!name)exit(0);
-
-if(!get_port_state(port))exit(0);
-
-dom = kb_smb_domain();
 
 login = string(get_kb_item("SMB/LocalUsers/0"));
 if(!login)login = "administrator";
@@ -119,7 +92,7 @@ passwords = make_list("", "0", "000000", "00000000", "007", "1",
 		      
 foreach p (passwords)
 {
- if(log_in(login:login, pass:p, domain:dom))
+ if(log_in(login:login, pass:p))
  {
   report = "
 The account '" + login + "'/'" + p + "' is valid. 

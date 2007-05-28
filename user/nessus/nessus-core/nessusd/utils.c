@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2003 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,26 +14,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  */
 
 
  
 #include <includes.h>
-#ifdef NESSUSNT
-#include "wstuff.h"
-#endif
-
 #include "log.h"
 #include "ntp.h"
 #include "auth.h"
@@ -224,7 +210,7 @@ get_active_plugins_number(plugins)
   if(plugins != NULL)
    while(plugins->next != NULL)
    {
-    if(plug_get_launch(plugins->value))num++;
+    if(plug_get_launch(plugins->value) != LAUNCH_DISABLED )num++;
     plugins = plugins->next;
    }
    
@@ -249,7 +235,14 @@ plugins_set_ntp_caps(plugins, caps)
   else 
    v = NULL;
   
-  if(v)arg_add_value(v, "NTP_CAPS", ARG_STRUCT, sizeof(*caps), caps);
+  if( v != NULL ){
+	struct ntp_caps * old = arg_get_value(v, "NTP_CAPS");
+	if ( old != NULL )
+		arg_set_value(v, "NTP_CAPS", sizeof(*caps), caps);
+	else
+		arg_add_value(v, "NTP_CAPS", ARG_STRUCT, sizeof(*caps), caps);
+	}
+
   plugins = plugins->next;
  }
 }
@@ -364,14 +357,16 @@ delete_pid_file()
 char*
 temp_file_name()
 {
- char* ret = emalloc(strlen(NESSUSD_STATEDIR)+strlen("tmp") + 40);
+ char* ret = emalloc(strlen(NESSUSD_STATEDIR)+ strlen("tmp/") + strlen("tmp") + 40);
  int fd = - 1;
  do {
  if(fd > 0){
  	if(close(fd) < 0)
 	 perror("close ");
 	}
- sprintf(ret, "%s/tmp.%d-%d", NESSUSD_STATEDIR, getpid(), rand()%1024);
+ sprintf(ret, "%s/tmp", NESSUSD_STATEDIR);
+ mkdir(ret, 0700);
+ sprintf(ret, "%s/tmp/tmp.%d-%d", NESSUSD_STATEDIR, getpid(), rand()%1024);
  fd = open(ret, O_RDONLY);
  } 
   while (fd >= 0);
@@ -402,6 +397,42 @@ process_alive(pid)
    
  return kill(pid, 0) == 0;
 }
+
+
+
+/*--------------------------------------------------------------------
+ Determines if a BSD socket is still connected. Returns 0 if the socket
+ is NOT connected, 1 otherwise
+ *--------------------------------------------------------------------*/
+int 
+is_socket_connected(soc)
+	int soc;
+{
+	fd_set  rd;
+	struct timeval tv;
+	int m;
+	int e;
+
+	FD_ZERO(&rd);
+	FD_SET(soc, &rd);
+	m = soc + 1;
+again:
+	tv.tv_sec = 2;
+	tv.tv_usec = 0;
+	e = select(m+1, &rd, NULL, NULL, &tv);
+	if ( e < 0 && errno == EINTR)goto again;
+	
+	if( e > 0 )
+	{
+		int len = data_left(soc);
+		if( len == 0 )
+			return 0;
+	}
+	return 1;
+}
+
+
+
 /*---------------------------------------------------------------------
 
 	Determines if the client is still connected
@@ -463,4 +494,15 @@ int set_linger(soc, linger)
  
  l.l_linger = linger;
  return setsockopt(soc, SOL_SOCKET, SO_LINGER, (void*)&l, sizeof(l));
+}
+
+
+void wait_for_children1()
+{
+ int e, n = 0;
+ do {
+ errno = 0;
+ e = waitpid(-1, NULL, WNOHANG);
+ n++;
+ } while ( (e > 0 || errno == EINTR) && n < 20 );
 }

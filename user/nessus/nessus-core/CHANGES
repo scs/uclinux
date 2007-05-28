@@ -1,7 +1,362 @@
 
 ChangeLog for nessus-core, nessus-libraries, nessus-plugins, libnasl
 
-$Id: CHANGES,v 1.305.2.8 2003/11/05 22:22:04 renaud Exp $
+$Id: CHANGES,v 1.313.2.22 2006/10/30 15:08:48 renaud Exp $
+
+
+2.2.9 :
+
+- nessus-mkcert-client :
+
+	- Make sure that the user calling nessus-mkcert-client is root
+
+- nessus-libraries :
+
+	- Fixed a bug in the PCAP handler which in turn should fix synscan.nes
+
+- nessus :
+
+	- Fixed a possible memory corruption issue when creating a list of plugins to launch
+	- Fixed a corruption of the .nessusrc files when receiving some plugin prefs ending by a space
+
+- nessus-fetch :
+
+	- Make sure that every request (including the proxy CONNECT request) is done with the user-specified user-agent.
+
+- nessus-plugins :
+	
+	- Fixed a banner encoding problem in nessus_tcp_scanner and find_service
+	- Fixed a possible deadlock in synscan
+
+- nessusd :
+	
+	- Avoid a deadlock when waiting for a sub process to die
+
+
+2.2.8 :
+
+- nessusd :
+
+  - Make sure that plugins of type ACT_INIT and ACT_SETTINGS are 
+    always enabled during a scan
+
+  - Display more error verbose error messages when it's impossible to 
+    load a .nes plugin
+
+  - Fixed a harmless memory reallocation problem which would truncate 
+    a very long preference name
+
+- nessus-libraries
+
+  - Fixed a possible memory corruption when forwarding data from a process
+    to another 
+
+- libnasl :
+
+ - 'a = b + c ++' would not work as expected
+ - fixed a memory allocation problem when split() is passed an argument of
+   the wrong type
+
+
+2.2.7 :
+
+. changes by Tenable Network Security :
+
+- nessus-libraries :
+
+   - Fixed a NULL pointer dereferencement in the BPF server 
+   - The 'service' functions now only deal with the services file provided 
+     with Nessus (instead of using a mix of /etc/services and others)
+
+- libnasl :
+
+   - Fixed off-by-one bugs in insstr() and str_replace() which would sometimes
+     prevent these two functions from properly dealing with the last character of a
+     string
+   - Fixed tcp_ping() which was too aggressive and may therefore sometimes miss
+     a live host
+   - Fixed a bug in send() which would not properly validate the value of the
+    'length' variable
+   - Now handle arrays of arrays
+   - Fixed open_priv_sock_tcp() which would report a successful connection when 
+     timing out
+
+- nessusd :
+
+   - Properly install the file 'nessus-services' in $prefix/var/nessus/
+   - Bigger buffer when receiving preferences from the client (to avoid a possible
+     truncation of the plugin list in the future)
+   - Fixed a bug in the preferences parser which would cause nessusd to die on startup when
+     processing a malformed preference file
+
+- nessus :
+   
+   - Fixed an unlikely but potential segmentation fault when viewing the report in the GUI
+   - Erase the credentials from memory after having used them (thanks to Sumiut Siddhart 
+     for noticing this)
+
+- plugins :
+
+   - nmap.nasl has been removed from the main distribution (to use nmap from Nessus, 
+     read <http://www.nessus.org/u?e56c945b>)
+
+  - Performance improvements to nessus_tcp_scanner
+
+  - Improved the file nessus-services 
+
+
+2.2.6 :
+
+. changes by Tenable Network Security :
+
+- Engine :
+
+ - New NASL function socket_get_error() which returns the last error which
+   occured on a socket (timeout, connection reset, etc...)
+ - Removed the C function http_recv_headers() in favor of 'http_recv_headers2()'
+   written in NASL
+ - If the computer clock is not set properly, load the plugins anyways
+ - Under certain circumstances, the plugins preferences may appear twice in the
+   Nessus GUI
+ - nessus-fetch is more reliable when used in a very low bandwidth environment
+ - nessusd has higher memory limits when running on a 64 bits CPU
+ - Use nasl_memmem() instead of memmem() to solve a possible segfault on
+   64 bits architectures (bug#1293)
+
+Plugins :
+
+ - The Windows Bulletin checks now check the version of the files on the remote
+   host (when possible) instead of looking at the registry
+ - It is now possible to disable CGI scanning entirely in Prefs->Global Settings
+ - Rewritten several key plugins (dcetest.nasl, netbios_name_get.nasl) to better
+   support the underlying protocol
+
+. changes by Michel Arboi :
+
+- nessus_tcp_scanner now performs multiple passes, for improved reliability.
+  It also is much quicker against BSD machines (which have a rate limitation
+  for the RST they send)
+
+
+
+2.2.5 :
+
+. changes by Renaud Deraison :
+
+- Faster scan startup speed (at the expense of a slightly bigger memory usage)
+- nessus-fetch now calls nessus-update-plugins upon registration
+- Fixed the use of an uninitialized buffer in the shared socket code
+- Fixed some uninitialized variables in nessus_tcp_scanner
+- Fixed several null pointer dereferencement in libnasl
+- New NASL function 'send_capture()'
+- Rotate nessusd.messages on startup if the file is too big
+
+. changes by Michel Arboi :
+
+- nessus_tcp_scanner now tracks down more statistics about the remote ports 
+  (filtered vs. closed)
+
+. changes by Beirne Kornarksi : 
+
+- Fixed bug#1224
+
+2.2.4 :
+
+. changes by Renaud Deraison :
+
+- Fixed a bug in nessusd when killing slow plugins, which may result
+  in a hang of the scan
+- Fixed a bug in find_services.nes which would prevent it from exiting
+  properly when receiving a SIGTERM message
+- Fixed a bug in libnessus/network.c which may result in incompletes
+  SSL reads
+- Fixed proxy support in nessus-fetch
+- Reduced CPU usage
+- Brand new SMB API
+- The nessus-fetch man page is now installed
+- Updated os_fingerprint.nasl with all the newest signatures
+
+. changes by Michel Arboi :
+
+- More gentle nessus_tcp_scanner
+
+2.2.3 :
+
+. changes by Renaud Deraison :
+
+- Added the 'silent dependencies' option (suggested by Nicolas Pouvesle)
+- Added a new 'Credentials' Tab to put SSH and SMB credentials
+- Removed some un-recommended options from the GUI (detached scan)
+- Fixed a NULL-ptr dereferencement in libnasl
+
+. changes by Michel Arboi :
+
+- Call setrlimit() without any limits when calling popen()
+
+. changes by Nicolas Pouvesle :
+
+- Replaced the functions in libnasl/nasl/smb_crypt.* by crypt_func.nasl
+
+2.2.2 :
+
+. changes by Renaud Deraison :
+
+- Fixed HTTPS-over-proxy in nessus-fetch
+- Fixed a build issue on Solaris in nessus-fetch
+- Fixed the detached scans
+
+2.2.1 :
+
+. changes by Renaud Deraison :
+
+- Turn on buffering for every TCP sockets to reduce the number of system calls
+(only HTTP-related sockets would have a buffered input)
+
+- Fixed bug#1065 which would make nessusd do an endless stream of calls
+to gethostbyname() when testing a non-existant host name 
+
+- Fixed a bug in the TCP socket buffering which would cause 
+read_stream_connection() to perform a short read under some circumstances
+
+- Added nessus-fetch(1), a utility which retrieves plugins from
+www.nessus.org.
+
+- Rewrote nessus-update-plugins to use nessus-fetch instead
+of wget/lynx/fetch/curl
+
+- Fixed bug#1076 (support for bash 3.0)
+
+. changes by Michel Arboi :
+
+- New TCP port scanner (nessus_tcp_portscan.nes)
+- Better Hydra integration through multiple nasl scripts
+
+2.2.0 :
+
+- Fixed a couple of memory leaks (thanks to Lance Uyehara)
+
+2.2.0RC1 :
+
+. changes by Renaud Deraison :
+
+- Fixed a bug in the client which would not make it 'remember' the scanner selection
+- Each plugin can have a bigger number of cross-references associated to it
+- Starting nessusd displays the current status of the plugins beeing loaded
+
+. changes by Boris Wolf :
+
+- Increased the buffer size on the client side to receive bigger reports
+
+2.1.3 :
+
+. changes by Renaud Deraison :
+
+- Shared sockets: NASL scripts can share a socket between each others, instead
+  of re-establishing the connection
+- New system calls in NASL - get_kb_fresh_item() and replace_kb_item()
+- The SSH checks now use a shared socket instead of re-logging into the
+  remote host 
+- The plugin selection in the client GUI is much faster
+
+
+2.1.2 :
+
+. changes by Renaud Deraison :
+
+- nessus-update-plugins makes sure that the plugin archive has been properly
+signed before uncompressing it
+
+. changes by Michel Arboi :
+
+- fixed a memory leak in NASL2
+- wrote nmap.nasl, snmpwalk_portscan.nasl and nikto.nasl to replace the
+  equivalent .nes plugins
+- fixed the pread() NASL function
+
+. changes by Nicolas Pouvesle :
+
+- Improved SSH compatibility with non-OpenSSH servers
+
+2.1.1 :
+
+. changes by Renaud Deraison :
+
+- Scripts can be cryptographically signed. A signed script gets access to
+more NASL functions
+
+- Restricted the access to the nasl functions pem_to_rsa(), pem_to_dsa(), 
+rsa_sign() and dsa_do_sign() to signed NASL scripts
+
+- The nasl functions pread() and find_in_path() are accessible to
+signed NASL scripts and allow the execution of local commands
+ 
+
+2.1.0 :
+
+. changes by Nicolas Pouvesle :
+
+- SSH implementation in NASL
+
+. changes by Renaud Deraison :
+
+- Added support for local security checks on remote hosts, over SSH
+  (support for FreeBSD, MacOS X, RHEL2.1 and RHEL3)
+
+- Wrote a clean internal API to let Nessus communicate with its sons
+
+- Re-wrote the KB API to use a hash table instead of a slow linked list and
+to support KB items of arbitrary length
+
+
+2.0.12 :
+
+. changes by Renaud Deraison (deraison@cvs.nessus.org)
+
+- Fixed a bug in ./configure which would sometimes assume that GTK is not 
+installed whereas it actually is
+- Fixed a race condition in nessus-adduser for users who do not configure
+their TMPDIR variable (thanks to Cyrille Barthelemy)
+- Fixed a bug in nessus-update-plugins which would not update the plugins 
+properly on all systems
+- Fixed the installer to compile Nessus with GTK support if gtk-config OR
+pkg-config is installed.
+
+
+2.0.11 : 
+
+. changes by Renaud Deraison (deraison@cvs.nessus.org)
+
+- Fixed Solaris portability issue introduced in 2.0.11
+- Fixed a bug in the HTML with graphs output which would make it
+  loop indefinitely
+- Proper GTK+2.x support (GTK+ 1.2 is still supported)
+- Fixed nessus-update-plugins for FreeBSD
+
+2.0.10 : [maintenance release only]
+
+. changes by Renaud Deraison (deraison@cvs.nessus.org)
+
+- Fixed MacOS X portability issues
+- Non-intrusive OS-fingerprinting (based on xprobe's techniques)
+- DNS fingerprinting
+- killall -1 nessusd does not restart the bpf server on BSD systems
+- longer connect() timeout for TCP sockets
+- Fixed hydra.nes
+
+. changes by Michel Arboi (mikhail@nessus.org)
+
+- WWW fingerprinting
+- partially fixed hydra.nes
+
+. changes by (galt@fiberpimp.net)
+
+- IP addresses are now sorted in EVERY reports 
+
+. changes by Laurent FACQ (facq@u-bordeaux.fr)
+
+- Automagically rewrite banners to handle distributions which do
+  backporting of security fixes (ie: Debian)
+
 
 2.0.9 :
 
@@ -28,23 +383,14 @@ $Id: CHANGES,v 1.305.2.8 2003/11/05 22:22:04 renaud Exp $
 - Minimize the number of pixmaps that need to be created in the Nessus 
   client by re-using them
 
-
 2.0.8 :
 
 . changes by Renaud Deraison (deraison@cvs.nessus.org)
 
 - Improved plugins dependencies
 - Improved some plugins performances
-- Better default values for nessusd.conf
+- Better default values for nessusd.conf and .nessusrc
 - Fixed insert_ip_options() which was broken
-- Fixed a bottleneck in the plugins process manager which would sometimes
-  not properly distribute the work among the plugins, thus resulting in
-  a slower test
-- Added the function script_xref() in NASL scripts
-- Multiple minor bugfixes
-- When connecting to SSL servers, Nessus now attempts to use SSLv2 by default
-  (instead of TLSv1), as the handshake takes less time
-- Do not use the libc's regexp implementation on RedHat 9 (might be broken)
 
 2.0.7 :
 
@@ -63,10 +409,6 @@ $Id: CHANGES,v 1.305.2.8 2003/11/05 22:22:04 renaud Exp $
 - Fixed a possible plugin corruption problem when the client overwrites
   existing plugins
 - Fixed various false positives and wording issues in several plugins
-
-. changes by Michel Arboi (arboi@alussinan.org)
-
-- Fixed Nmap support for the newest version of Nmap
 
 2.0.6 :
 

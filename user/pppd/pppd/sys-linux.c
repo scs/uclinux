@@ -1802,6 +1802,7 @@ int rtmetricfixup(int unit, u_int32_t hisaddr, u_int32_t metric)
 	if (ioctl(sock_fd, SIOCADDRT, &rt) < 0) {
 		warn("ioctl(SIOCADDRT): %m(%d)", errno);
 	}
+	return 1;
 }
 
 /********************************************************************
@@ -1880,6 +1881,7 @@ static int get_ether_addr (u_int32_t ipaddr,
 {
     struct ifreq *ifr, *ifend;
     u_int32_t ina, mask;
+    char *aliasp;
     struct ifreq ifreq;
     struct ifconf ifc;
     struct ifreq ifs[MAX_IFS];
@@ -1934,6 +1936,12 @@ static int get_ether_addr (u_int32_t ipaddr,
         return 0;
 
     strlcpy(name, ifreq.ifr_name, namelen);
+
+    /* trim off the :1 in eth0:1 */
+    aliasp = strchr(name, ':');
+    if (aliasp != 0)
+        *aliasp = 0;
+
     info("found interface %s for proxy arp", name);
 /*
  * Now get the hardware address.
@@ -2324,7 +2332,6 @@ void logwtmp (const char *line, const char *name, const char *host)
 #endif
 }
 
-#if 0
 /********************************************************************
  * Code for locking/unlocking the serial device.
  * This code is derived from chat.c.
@@ -2468,7 +2475,6 @@ void unlock(void)
 	lock_file = NULL;
     }
 }
-#endif
 
 /********************************************************************
  *

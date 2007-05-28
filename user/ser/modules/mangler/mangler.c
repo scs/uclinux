@@ -1,7 +1,7 @@
 /*
  * mangler module
  *
- * $Id$
+ * $Id: mangler.c,v 1.12 2003/09/25 09:14:23 dcm Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

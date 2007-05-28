@@ -1,4 +1,4 @@
-$ $Id$
+$ $Id: set20,v 1.1 2000/11/11 23:03:43 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Invalid key name `%S'\n

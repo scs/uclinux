@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: rerrno.c,v 1.2 2002/09/19 12:23:54 jku Rel $
  *
  * Registrar errno
  *

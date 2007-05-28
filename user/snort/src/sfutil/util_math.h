@@ -12,7 +12,16 @@
 #ifndef _UTIL_MATH_H
 #define _UTIL_MATH_H
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
+#ifndef UINT64
+#define UINT64 unsigned long long
+#endif
+
 double calc_percent(double amt, double total);
+double calc_percent64(UINT64 amt, UINT64 total);
 
 #endif /* _UTIL_MATH_H */
 

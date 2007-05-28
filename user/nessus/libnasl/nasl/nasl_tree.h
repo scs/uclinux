@@ -46,6 +46,7 @@ enum node_type {
   NODE_ARG,	/* val = name can be NULL, [0] = val, [1] = next arg */
   NODE_RETURN,	/* ret val */
   NODE_BREAK,
+  NODE_CONTINUE,
 
   NODE_ARRAY_EL,/* val = array name, [0] = index */
   NODE_AFF,	/* [0] = lvalue, [1] = rvalue */
@@ -103,10 +104,12 @@ enum node_type {
   CONST_DATA,			/* binary data / "pure" string */
   CONST_REGEX,			/* Compiled regex */
 
+  ARRAY_ELEM,			/* val = char index or NULL if integer,
+				 * [0] = value, [1] = next element */
   /* For exec only */
   REF_VAR,
   REF_ARRAY,
-  DYN_ARRAY
+  DYN_ARRAY  
 };
 
 typedef struct TC {
@@ -137,5 +140,8 @@ void		ref_cell(tree_cell*);
 void		deref_cell(tree_cell*);
 const char*	nasl_type_name(int);
 int		cell_type(const tree_cell*);
+
+char* 		dump_cell_val(const tree_cell* );
+
 
 #endif

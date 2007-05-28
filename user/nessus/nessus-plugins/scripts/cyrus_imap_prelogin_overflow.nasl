@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11196);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.2 $");
   
  name["english"] = "Cyrus IMAP pre-login buffer overrun";
  script_name(english:name["english"]);
@@ -68,15 +68,13 @@ if(!banner)
 }
 if(!banner) exit(0);
 
-#
-# The banner takes this format:
-# * OK foster Cyrus IMAP4 v2.0.9 server ready
-#
-# All versions up to and including 2.1.10 are affected
-#
-  
-re = "Cyrus IMAP4 v(1\.*|2\.0\.*|2\.1\.[1-9][^0-9]|2\.1\.10)[0-9]*$";
-if(ereg(pattern:re, string:banner))
+if (("Cyrus IMAP4" >< banner) && egrep (pattern:"^\* OK.*Cyrus IMAP4 v([0-9]+\.[0-9]+\.[0-9]+.*) server ready", string:banner))
 {
-  security_hole(port);
-}    
+  version = ereg_replace(pattern:".* v(.*) server.*", string:banner, replace:"\1");
+  set_kb_item (name:"imap/" + port + "/Cyrus", value:version);
+
+  if(egrep(pattern:"^(1\.*|2\.0\.*|2\.1\.[1-9][^0-9]|2\.1\.10)[0-9]*$", string:version))
+  {
+    security_hole(port);
+  }    
+} 

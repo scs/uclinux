@@ -7,8 +7,10 @@
 if(description)
 {
  script_id(10212);
- script_version ("$Revision: 1.13 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-a-0006");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-t-0014");
  script_bugtraq_id(235, 614);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-1999-0210", "CVE-1999-0704");
  name["english"] = "automountd service";
  name["francais"] = "Service automountd";
@@ -71,6 +73,9 @@ Facteur de risque : Elevé";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
 
 RPC_PROG = 100099;
 tcp = 0;

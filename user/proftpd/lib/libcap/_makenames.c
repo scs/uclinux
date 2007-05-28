@@ -63,10 +63,7 @@ int main(void)
 }
 
 /*
- * $Log$
- * Revision 1.1  2005/07/25 05:10:02  magicyang
- * New user folder check in
- *
+ * $Log: _makenames.c,v $
  * Revision 1.1  2003/01/03 02:16:17  jwm
  *
  * Turning mod_linuxprivs into a core module, mod_cap. This is by no means

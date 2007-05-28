@@ -28,11 +28,11 @@
  */
 ExtFunc
 int 
-comm_send_status(globals, hostname, action, current,max)
+comm_send_status(globals, hostname, action,curr,max)
   struct arglist * globals;
   char * hostname;
   char * action;
-  int current, max;
+  int curr, max;
 {
  struct arglist * prefs = arg_get_value(globals,"preferences");
  char * pref = arg_get_value(prefs, "ntp_short_status");
@@ -41,9 +41,8 @@ comm_send_status(globals, hostname, action, current,max)
  int soc = (int)arg_get_value(globals, "global_socket");
  char buffer[2048];
  int e, n = 0, l, ack;
- fd_set rd;
- struct timeval tv  = {10,0};
- int count = 0;
+ fd_set rd, wr;
+ struct timeval tv;
  
  
  if (soc < 0 || soc > 1024) 
@@ -62,38 +61,19 @@ comm_send_status(globals, hostname, action, current,max)
     {
     if(short_status)
       {
-      snprintf(buffer, sizeof(buffer), "s:%c:%s:%d:%d\n", action[0], hostname, current, max);
+      snprintf(buffer, sizeof(buffer), "s:%c:%s:%d:%d\n", action[0], hostname, curr, max);
       }
     else
      snprintf(buffer, sizeof(buffer),
 		"SERVER <|> STATUS <|> %s <|> %s <|> %d/%d <|> SERVER\n",
-		hostname, action, current, max);
+		hostname, action, curr, max);
     }
   else
    snprintf(buffer, sizeof(buffer), "SERVER <|> STAT <|> %s <|> %d/%d <|> SERVER\n",
-	      hostname, current, max);
+	      hostname, curr, max);
 	      
 	      
-  /*
-   * Send our data
-   */	      
-  l = strlen(buffer);
-  while ( n != l )
-  {
-   e = send(soc, buffer + n , l - n , 0);
-   if( e < 0 && errno == EINTR )
-   	continue;
-	
-   if ( e <= 0 )
-    return -1;
-   else
-    n += e;
-  }
-  
- do 
- { 
-  e = recv(soc, &ack, 1, 0);
- } while (e < 0 && errno == EINTR);
+ internal_send(soc, buffer, INTERNAL_COMM_MSG_TYPE_DATA);
  
  return 0;
 }
@@ -138,7 +118,17 @@ static char * last_expr = NULL;
 static int last_num;
 
  if(strcmp(origexpr, "default") == 0)
-	 return get_tcp_svcs(len);
+	 {
+	 if ( last_expr != NULL )
+	   efree(&last_expr);
+ 	 if ( last_ret != NULL )
+	  efree(&last_ret);
+  	 last_expr = estrdup(origexpr);
+  	 last_ret  = get_tcp_svcs(&last_num);
+	 if ( len != NULL )
+	 	*len = last_num;	
+	 return last_ret;
+	}
 
  expr = estrdup(origexpr);
  exlen = strlen(origexpr);
@@ -149,6 +139,7 @@ if( last_expr != NULL)
  if(strcmp(last_expr, expr) == 0)
   {
   if(len != NULL)*len = last_num;
+  efree(&mem);
   return last_ret;
  }
  else
@@ -190,7 +181,10 @@ while((p = strchr(expr,','))) {
     else if (q && !*(q+1)) end = 65535;
   }
   if(start  < 1)start = 1;
-  if(start > end)return(NULL); /* invalid spec */
+  if(start > end){
+	efree(&mem);
+	return NULL;
+	}
   for(j=start; j <= end; j++) 
     ports[i++] = j;
   expr = p + 1;
@@ -205,7 +199,10 @@ else {
   else if (q && !*(q+1)) end = 65535;
 }
 if(start < 1) start = 1;
-if (start > end) return(NULL);
+if (start > end) {
+	efree(&mem);
+	return NULL;
+	}
 for(j=start; j <= end; j++) 
   ports[i++] = j;
 ports[i++] = 0;

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: spo_alert_smb.h,v 1.7 2003/03/14 08:28:53 chris_reid Exp $ */
 /*
 ** Copyright (C) 1998-2002 Martin Roesch <roesch@sourcefire.com>
 ** Copyright (C) 2000,2001 Andrew R. Baker <andrewb@uab.edu>

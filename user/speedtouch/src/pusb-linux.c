@@ -19,7 +19,7 @@
 *  Author   : Benoit PAPILLAULT <benoit.papillault@free.fr>
 *  Creation : 29/05/2001
 *
-*  $Id$
+*  $Id: pusb-linux.c,v 1.12 2004/02/15 21:25:07 edgomez Exp $
 */
 
 #ifndef _PUSB_LINUX_C_

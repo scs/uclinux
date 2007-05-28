@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10635);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(2400);
- script_cve_id("CAN-2001-0270");
+ script_version ("$Revision: 1.11 $");
+ script_cve_id("CVE-2001-0270");
  name["english"] = "Marconi ASX DoS";
  name["francais"] = "Marconi ASX DoS";
  script_name(english:name["english"], francais:name["francais"]);

@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: dbase.c,v 1.18.4.3 2004/04/02 16:45:10 dcm Exp $ 
  *
  * MySQL module core functions
  *

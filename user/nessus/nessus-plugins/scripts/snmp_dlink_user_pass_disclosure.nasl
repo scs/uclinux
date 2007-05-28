@@ -14,8 +14,8 @@
 if(description)
 {
  script_id(11490);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7212);
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "D-Link DSL Broadband Modem";
  
@@ -43,6 +43,11 @@ Risk factor : High";
  exit(0);
 }
 
+
+include("global_settings.inc");
+
+exit(0); # Broken
+if ( ! experimental_scripts ) exit(0);
 
 #
 # Solaris comes with a badly configured snmpd which

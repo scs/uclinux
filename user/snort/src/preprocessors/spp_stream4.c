@@ -2,7 +2,7 @@
 
 /*
 ** Copyright (C) 1998-2002 Martin Roesch <roesch@sourcefire.com>
-** Copyright (C) 2003 Sourcefire, Inc.
+** Copyright (C) 2003-2005 Sourcefire, Inc.
 **
 ** This program is free software; you can redistribute it and/or modify
 ** it under the terms of the GNU General Public License as published by
@@ -33,22 +33,66 @@
  *
  */
 
+/*
+ * 04 Feb 2005: SAS Updated to handle favor_old and favor_new options.
+ *                  favor_new traverses the tree in the opposite
+ *                  direction and builds the stream using newer packets.
+ *                  Also added checks for:
+ *                  - PAWS (Timestamp option is set and 0) on an
+ *                  establiahed session and ACK in the packet.  Win32
+ *                  uses 0 Timestamp on Syn-only packets.
+ *                  - Checks for NULL TCP flags in established session.
+ *                  After the TWHS, all packets should have at least
+ *                  ACK, RST, or FIN.
+ *                  - Checks for overlaps (larger than an option
+ *                  specified overlap_limit) in the reassembled stream.
+ *                  When the overlap limit is reached, that side of the
+ *                  stream is flushed and an evasion alert is raised.  
+ *
+ * 08 Feb 2005: AJM Update ACK when server sends RST, which enables client
+ *                  stream to be reassembled upon flush.
+ *                  - Also enable client reassembly upon client RST.
+ *                  - Reset session alert count after flushing rebuilt packet.
+ *
+ * 28 Feb 2005: SAS Update to use hash table to Session storage.  Added new
+ *                  files snort_stream_session.{c,h} that contain the sfxhash
+ *                  interfaces.
+ *                  - Added max_sessions configuration option.  Impacts the
+ *                  meaning of memcap in that memcap now only relates to the
+ *                  memory consumed by stored packets, not memory for session
+ *                  structure.
+ *
+ * 07 Mar 2005: JRB/SAS Add user configurable flushpoints.  Added options:
+ *                  flush_behavior, flush_base, flush_seed, flush_range to
+ *                  stream4_reassemble preproc config.
+ *
+ * 31 Mar 2005: SAS Added server_inspect_limit option to limit the
+ *                  amount of data that goes through rules inspection on
+ *                  the server side.  The counter is reset when a client
+ *                  packet is seen (ie, a request).
+ */
+
 /*  I N C L U D E S  ************************************************/
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #ifndef DEBUG
-    #ifndef INLINE
-        #define INLINE inline
-    #endif
+#ifndef INLINE
+#ifdef inline
+#define INLINE inline
 #else
-    #ifdef INLINE
-        #undef INLINE
-    #endif
-    #define INLINE   
+#define INLINE
+#endif
+#endif
+#else
+#ifdef INLINE
+#undef INLINE
+#endif
+#define INLINE   
 #endif /* DEBUG */
 
+#define _STREAM4_INTERNAL_USAGE_ONLY_
 
 #include <sys/types.h>
 #include <stdlib.h>
@@ -80,12 +124,22 @@
 #include "detect.h"
 #include "perf.h"
 #include "timersub.h"
-#include "ubi_SplayTree.h"
 #include "snort.h"
 #include "stream.h"
+#include "spp_stream4.h"
 #include "snort_packet_header.h"
 #include "event_queue.h"
 #include "inline.h"
+
+#include "snort_stream4_session.h"
+#include "snort_stream4_udp.h"
+
+#include "stream_ignore.h"
+#include "stream_api.h"
+
+#include "flow.h" /* For flowbits, now handled by Stream API */
+
+#include "profiler.h"
 
 /*  D E F I N E S  **************************************************/
 
@@ -120,14 +174,11 @@
 #define ACTION_ALERT_NMAP_FINGERPRINT   0x00000100
 #define ACTION_INC_PORT                 0x00000200
 
-#define SERVER_PACKET   0
-#define CLIENT_PACKET   1
-
-#define FROM_SERVER     0
-#define FROM_CLIENT     1
-
 #define PRUNE_QUANTA    30              /* seconds to timeout a session */
 #define STREAM4_MEMORY_CAP     8388608  /* 8MB */
+#define STREAM4_MAX_SESSIONS   8192     /* 8k */
+#define STREAM4_CLEANUP   5             /* Cleanup 5 sessions at a time */
+#define STREAM4_CACHE_PERCENT 0.1       /* Or cleanup 0.1 % sessions at a time */
 #define STREAM4_TTL_LIMIT 5             /* default for TTL Limit */
 #define DEFAULT_STREAM_TRACKERS 256000  /* 256k sessions by default */
 
@@ -139,6 +190,10 @@
 
 #define REVERSE     0
 #define NO_REVERSE  1
+
+#define ENFORCE_STATE_NONE 0
+#define ENFORCE_STATE      1
+#define ENFORCE_STATE_DROP 2
 
 #define METHOD_FAVOR_NEW  0x01
 #define METHOD_FAVOR_OLD  0x02
@@ -166,16 +221,6 @@ extern char *file_name;
 extern int *file_line;
 #endif /* SNORT_20 */
 
-
-/* We must twiddle to align the offset the ethernet header and align
-   the IP header on solaris -- maybe this will work on HPUX too.
-*/
-#if defined (SOLARIS) || defined (SUNOS) || defined (__sparc__) || defined(__sparc64__) || defined (HPUX)
-#define SPARC_TWIDDLE       2
-#else
-#define SPARC_TWIDDLE       0
-#endif
-
 /* values for the smartbits detector/self perservation */
 #define SELF_PRES_THRESHOLD        50
 #define SELF_PRES_PERIOD           90
@@ -191,18 +236,34 @@ extern int *file_line;
 #define MAX_TRACKER_AMOUNT      (MAX_STREAM_SIZE + 4000)
 
 
-/* random array of flush points */
 
+/* Support dynamic flush points */
 #define FCOUNT 64
+#define STREAM4_FLUSH_BASE 512
+#define STREAM4_FLUSH_RANGE 1213
 
-static u_int8_t flush_points[FCOUNT] = { 128, 217, 189, 130, 240, 221, 134, 129,
-                                         250, 232, 141, 131, 144, 177, 201, 130,
-                                         230, 190, 177, 142, 130, 200, 173, 129,
-                                         250, 244, 174, 151, 201, 190, 180, 198,
-                                         220, 201, 142, 185, 219, 129, 194, 140,
-                                         145, 191, 197, 183, 199, 220, 231, 245,
-                                         233, 135, 143, 158, 174, 194, 200, 180,
-                                         201, 142, 153, 187, 173, 199, 143, 201 };
+#define FLUSH_BEHAVIOR_RANDOM -1
+#define FLUSH_BEHAVIOR_DEFAULT 0
+#define FLUSH_BEHAVIOR_LARGE 1
+
+/* Old flushpoints, for backward compat.  Use flush_behavior default */
+static u_int32_t old_flush_points[FCOUNT] = { 128, 217, 189, 130, 240, 221, 134, 129,
+                                               250, 232, 141, 131, 144, 177, 201, 130,
+                                               230, 190, 177, 142, 130, 200, 173, 129,
+                                               250, 244, 174, 151, 201, 190, 180, 198,
+                                               220, 201, 142, 185, 219, 129, 194, 140,
+                                               145, 191, 197, 183, 199, 220, 231, 245,
+                                               233, 135, 143, 158, 174, 194, 200, 180,
+                                               201, 142, 153, 187, 173, 199, 143, 201 };
+
+static u_int32_t new_flush_points[FCOUNT] = { 1280, 2176, 1895, 1303, 2402, 2211, 1340, 1298,
+                                              2500, 2320, 1413, 1313, 1444, 1776, 2015, 1305,
+                                              2130, 1190, 1377, 1492, 1380, 2100, 1373, 1029,
+                                              750, 444, 874, 551, 401, 390, 1801, 1898,
+                                              2260, 2601, 642, 485, 619, 929, 794, 340,
+                                              445, 1911, 497, 883, 399, 2201, 2431, 2145,
+                                              433, 735, 543, 658, 1174, 2042, 1200, 1800,
+                                              2015, 1142, 1530, 487, 673, 899, 743, 2101 };
 
 #ifdef DEBUG
 static char *state_names[] = { "CLOSED",
@@ -219,6 +280,13 @@ static char *state_names[] = { "CLOSED",
 #endif
 
 /*  D A T A   S T R U C T U R E S  **********************************/
+typedef struct _OverlapData
+{
+    u_int32_t seq_low;
+    u_int32_t seq_hi;
+
+} OverlapData;
+
 typedef struct _BuildData
 {
     Stream *stream;
@@ -258,13 +326,13 @@ typedef struct _StatsLogHeader
 
 typedef struct _S4Emergency
 {
-    u_int32_t end_time;
+    long end_time;
     char old_reassemble_client;
     char old_reassemble_server;
     char old_reassembly_alerts;
     int old_assurance_mode;
     char old_stateful_mode;
-    int new_session_count;
+    u_int32_t new_session_count;
     int status;
 } S4Emergency;
 
@@ -280,10 +348,6 @@ typedef Session *SessionPtr;
 
 StatsLog *stats_log;
 
-/* splay tree root data */
-static ubi_trRoot s_cache;
-static ubi_trRootPtr RootPtr = &s_cache;
-
 u_int32_t safe_alloc_faults;
 
 /* we keep a stream packet queued up and ready to go for reassembly */
@@ -291,7 +355,8 @@ Packet *stream_pkt;
 
 /*  G L O B A L S  **************************************************/
 
-extern int do_detect;
+extern int do_detect, do_detect_content;
+extern OptTreeNode *otn_tmp;
 
 /* external globals from rules.c */
 FILE *session_log;
@@ -302,47 +367,70 @@ u_int32_t ps_memory_usage;
 /* stream4 emergency mode counters... */
 S4Emergency s4_emergency;
 
+/* List of Dynamic flushpoints */
+u_int32_t flush_points[FCOUNT];
+
+#ifdef PERF_PROFILING
+PreprocStats stream4PerfStats;
+PreprocStats stream4InsertPerfStats;
+PreprocStats stream4BuildPerfStats;
+PreprocStats stream4NewSessPerfStats;
+PreprocStats stream4LUSessPerfStats;
+PreprocStats stream4StatePerfStats;
+PreprocStats stream4StateAsyncPerfStats;
+PreprocStats stream4ActionPerfStats;
+PreprocStats stream4ActionAsyncPerfStats;
+PreprocStats stream4PrunePerfStats;
+PreprocStats stream4FlushPerfStats;
+PreprocStats stream4ProcessRebuiltPerfStats;
+#endif
+
 /*  P R O T O T Y P E S  ********************************************/
 void *SafeAlloc(unsigned long, int, Session *);
 void ParseStream4Args(char *);
 void Stream4InitReassembler(u_char *);
-void ReassembleStream4(Packet *);
-Session *GetSession(Packet *);
+void Stream4InitExternalOptions(u_char *);
+void ReassembleStream4(Packet *, void *);
 Session *CreateNewSession(Packet *, u_int32_t, u_int32_t);
 void DropSession(Session *);
 void DeleteSession(Session *, u_int32_t);
-void DeleteSpd(ubi_trRootPtr);
+void DeleteSpd(StreamPacketData **);
 int GetDirection(Session *, Packet *);
+static int s4_shutdown = 0;
+void Stream4ShutdownFunction(int, void *);
 void Stream4CleanExitFunction(int, void *);
 void Stream4RestartFunction(int, void *);
 void PrintSessionCache();
 int CheckRst(Session *, int, u_int32_t, Packet *);
-int PruneSessionCache(u_int32_t, int, Session *);
-void StoreStreamPkt(Session *, Packet *, u_int32_t);
+int PruneSessionCache(u_int8_t, u_int32_t, int, Session *);
+void StoreStreamPkt2(Session *, Packet *, u_int32_t);
 void FlushStream(Stream *, Packet *, int);
 void InitStream4Pkt();
+void Stream4VerifyConfig(void);
 int BuildPacket(Stream *, u_int32_t, Packet *, int);
 int CheckPorts(u_int16_t, u_int16_t);
 void PortscanWatch(Session *, u_int32_t);
 void PortscanDeclare(Packet *);
-void AddNewTarget(ubi_trRootPtr, u_int32_t, u_int16_t, u_int8_t);
-void AddNewPort(ubi_trRootPtr, u_int16_t, u_int8_t);
 int LogStream(Stream *);
 void WriteSsnStats(BinStats *);
 void OpenStatsFile();
-static int RetransTooFast(struct timeval *old, struct timeval *new);
 void Stream4Init(u_char *);
 void PreprocFunction(Packet *);
 void PreprocRestartFunction(int);
 void PreprocCleanExitFunction(int);
 static INLINE int isBetween(u_int32_t low, u_int32_t high, u_int32_t cur);
 static INLINE int NotForStream4(Packet *p);
-static INLINE int SetFinSent(Packet *p, Session *ssn, int direction);
+static INLINE int SetFinSent(Session *ssn, int direction, u_int32_t pkt_seq, Packet *p);
 static INLINE int WithinSessionLimits(Packet *p, Stream *stream);
 
  /* helpers for dealing with session byte_counters */
 static INLINE void StreamSegmentSub(Stream *stream, u_int16_t sub);
 static INLINE void StreamSegmentAdd(Stream *stream, u_int16_t add);
+
+static StreamPacketData *RemoveSpd(Stream *s, StreamPacketData *spd);
+static void AddSpd(Stream *s, StreamPacketData *prev, StreamPacketData *new);
+static int DupSpd(Packet *p, Stream *s, StreamPacketData *left, StreamPacketData **retSpd);
+static StreamPacketData *SpdSeqExists(Stream *s, u_int32_t pkt_seq);
 
 /*
   Here is where we separate which functions will be called in the
@@ -350,7 +438,7 @@ static INLINE void StreamSegmentAdd(Stream *stream, u_int16_t add);
 
 */
    
-int UpdateState(Session *, Packet *, u_int32_t); 
+//int UpdateState(Session *, Packet *, u_int32_t); 
 int UpdateState2(Session *, Packet *, u_int32_t); 
 int UpdateStateAsync(Session *, Packet *, u_int32_t);
 
@@ -358,6 +446,98 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
                       u_int32_t pkt_seq, u_int32_t pkt_ack);
 static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction, 
                            u_int32_t pkt_seq, u_int32_t pkt_ack);
+
+/*
+ * Define the functions for the Stream API
+ */
+static int Stream4MidStreamDropAlert() { return s4data.ms_inline_alerts; }
+static void Stream4UpdateDirection(
+                    void * ssnptr,
+                    char dir,
+                    u_int32_t ip,
+                    u_int16_t port) { }
+static void SetIgnoreChannel(
+                    void * ssnptr,
+                    Packet *p,
+                    char dir,
+                    int32_t bytes,
+                    int response);
+static int Stream4IgnoreChannel(
+                    u_int32_t srcIP,
+                    u_int16_t srcPort,
+                    u_int32_t dstIP,
+                    u_int16_t dstPort,
+                    char protocol,
+                    char direction,
+                    char flags);
+static void Stream4ResumeInspection(
+                    void *ssnptr,
+                    char dir) { }
+static void Stream4DropTraffic(
+                    void *ssnptr,
+                    char dir);
+static void Stream4DropPacket(
+                    Packet *p);
+static void Stream4SetApplicationData(
+                    void *ssnptr,
+                    u_int32_t protocol,
+                    void *data,
+                    StreamAppDataFree free_func);
+static void *Stream4GetApplicationData(void *, u_int32_t);
+static u_int32_t Stream4SetSessionFlags(void *, u_int32_t);
+static u_int32_t Stream4GetSessionFlags(void *);
+static int AlertFlushStream(Packet *);
+static int ForceFlushStream(Packet *);
+static int Stream4AddSessionAlert(void *ssnptr,
+                                  Packet *p,
+                                  u_int32_t gid,
+                                  u_int32_t sid);
+static int Stream4CheckSessionAlert(void *ssnptr,
+                                  Packet *p,
+                                  u_int32_t gid,
+                                  u_int32_t sid);
+static char Stream4SetReassembly(void *ssnptr,
+                                   u_int8_t flush_policy,
+                                   char dir,
+                                   char flags);
+static char Stream4GetReassemblyDirection(void *ssnptr);
+static char Stream4GetReassemblyFlushPolicy(void *ssnptr, char dir);
+static char Stream4IsStreamSequenced(void *ssnptr, char dir);
+
+/* Not an API function but part of the Session alert tracking */
+void CleanSessionAlerts(Session *ssn, Packet *flushed_pkt);
+static int Stream4TraverseReassembly(
+                    Packet *p,
+                    PacketIterator callback,
+                    void *userdata);
+static StreamFlowData *Stream4GetFlowData(
+                    Packet *p);
+
+StreamAPI s4api = {
+    STREAM_API_VERSION4,
+    Stream4MidStreamDropAlert,
+    Stream4UpdateDirection, /* Not supporrted in Stream4 */
+    SetIgnoreChannel,
+    Stream4IgnoreChannel,
+    Stream4ResumeInspection, /* Not supported in Stream4 */
+    Stream4DropTraffic,
+    Stream4DropPacket,
+    Stream4SetApplicationData,
+    Stream4GetApplicationData,
+    Stream4SetSessionFlags,
+    Stream4GetSessionFlags,
+    AlertFlushStream,
+    ForceFlushStream,
+    Stream4TraverseReassembly,
+    Stream4AddSessionAlert,
+    Stream4CheckSessionAlert,
+    Stream4GetFlowData,
+    Stream4SetReassembly,
+    Stream4GetReassemblyDirection,
+    Stream4GetReassemblyFlushPolicy,
+    Stream4IsStreamSequenced
+            /* More to follow */
+};
 
 
 
@@ -378,82 +558,7 @@ static INLINE int isBetween(u_int32_t low, u_int32_t high, u_int32_t cur)
 }
 
 
-static int CompareFunc(ubi_trItemPtr ItemPtr, ubi_trNodePtr NodePtr)
-{
-    Session *nSession;
-    Session *iSession; 
-
-    nSession = ((Session *)NodePtr);
-    iSession = (Session *)ItemPtr;
-
-    if(nSession->server.ip < iSession->server.ip) return 1;
-    else if(nSession->server.ip > iSession->server.ip) return -1;
-
-    if(nSession->client.ip < iSession->client.ip) return 1;
-    else if(nSession->client.ip > iSession->client.ip) return -1;
-        
-    if(nSession->server.port < iSession->server.port) return 1;
-    else if(nSession->server.port > iSession->server.port) return -1;
-
-    if(nSession->client.port < iSession->client.port) return 1;
-    else if(nSession->client.port > iSession->client.port) return -1;
-
-    return 0;
-}
-
-
-/** 
- * Check to if retransmissions are occuring too quickly
- * 
- * @param old previous timeval
- * @param cur current timeval
- * 
- * @return 1 if the Retransmission is too quick, 0 if it's ok
- */
-static int RetransTooFast(struct timeval *old, struct timeval *cur)
-{
-    struct timeval diff;
-
-    TIMERSUB(cur, old, &diff);
-
-    /* require retransmissions wait atleast 1.1s */
-    if(diff.tv_sec > 1)
-        return 0;
-    else if(diff.tv_sec == 1 && diff.tv_usec > 100)
-        return 0;
-        
-    return 1;
-}
-
-static int DataCompareFunc(ubi_trItemPtr ItemPtr, ubi_trNodePtr NodePtr)
-{
-    StreamPacketData *nStream;
-    StreamPacketData *iStream; 
-
-    nStream = ((StreamPacketData *)NodePtr);
-    iStream = ((StreamPacketData *)ItemPtr);
-
-    if(nStream->seq_num < iStream->seq_num) return 1;
-    else if(nStream->seq_num > iStream->seq_num) return -1;
-
-    return 0;
-}
-
-static void KillSpd(ubi_trNodePtr NodePtr)
-{
-    StreamPacketData *tmp;
-
-    tmp = (StreamPacketData *)NodePtr;
-
-    stream4_memory_usage -= tmp->pkt_size;
-    free(tmp->pkt);
-
-    stream4_memory_usage -= sizeof(StreamPacketData);
-    free(tmp);
-}
-
-
-static void TraverseFunc(ubi_trNodePtr NodePtr, void *build_data)
+static void TraverseFunc(StreamPacketData *NodePtr, void *build_data)
 {
     Stream *s;
     StreamPacketData *spd;
@@ -512,6 +617,15 @@ static void TraverseFunc(ubi_trNodePtr NodePtr, void *build_data)
         /* figure out where in the original data payload to start copying */
         offset = s->base_seq - spd->seq_num;
 
+        if (offset < 0)
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Negative offset, not using "
+                        "old packet: Base: 0x%x Packet: 0x%x Offset: %d\n",
+                        s->base_seq, spd->seq_num, offset););
+            spd->chuck = SEG_FULL;
+            return;
+        }
+
         if(trunc_size < 65500 && trunc_size > 0)
         {
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Copying %d bytes into buffer, "
@@ -535,6 +649,16 @@ static void TraverseFunc(ubi_trNodePtr NodePtr, void *build_data)
             isBetween(s->base_seq, s->last_ack, (spd->seq_num + spd->payload_size)))
     {
         offset = spd->seq_num - s->base_seq;
+
+        if (offset < 0)
+        {
+            /* This shouldn't happen because of the bounds check above */
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Negative offset, not using "
+                        "old packet: Base: 0x%x Packet: 0x%x Offset: %d\n",
+                        s->base_seq, spd->seq_num, offset););
+            spd->chuck = SEG_FULL;
+            return;
+        }
 
         s->next_seq = spd->seq_num + spd->payload_size;
 
@@ -575,6 +699,16 @@ static void TraverseFunc(ubi_trNodePtr NodePtr, void *build_data)
                 );
 
         offset = spd->seq_num - s->base_seq;
+
+        if (offset < 0)
+        {
+            /* This shouldn't happen because of the bounds check above */
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Negative offset, not using "
+                        "old packet: Base: 0x%x Packet: 0x%x Offset: %d\n",
+                        s->base_seq, spd->seq_num, offset););
+            spd->chuck = SEG_FULL;
+            return;
+        }
 
         if(trunc_size < (65500-offset) && trunc_size > 0)
         {
@@ -629,14 +763,14 @@ void SegmentCleanTraverse(Stream *s)
     StreamPacketData *spd;
     StreamPacketData *foo;
 
-    spd = (StreamPacketData *) ubi_btFirst((ubi_btNodePtr)&s->data);
+    spd = s->seglist;
 
     while(spd != NULL)
     {
         if(spd->chuck == SEG_FULL || SEQ_GEQ(s->last_ack,(spd->seq_num+spd->payload_size)))
         {
             StreamPacketData *savspd = spd;
-            spd = (StreamPacketData *) ubi_btNext((ubi_btNodePtr)spd);
+            spd = spd->next;
 #ifdef DEBUG
             if(savspd->chuck == SEG_FULL)
             {
@@ -647,18 +781,26 @@ void SegmentCleanTraverse(Stream *s)
                 DebugMessage(DEBUG_STREAM, "[sct] tossing unused segment\n");
             }
 #endif /*DEBUG*/
-            foo = (StreamPacketData *) ubi_sptRemove(&s->data, 
-                    (ubi_btNodePtr) savspd);
+
+            /* Break out if we hit the packet where we stopped because
+             * of a gap.  The rest will be cleaned when we reassemble
+             * after the gap. */
+            if (s4data.seq_gap && (savspd->seq_num > s4data.stop_seq))
+                break;
+
+            foo = RemoveSpd(s, savspd);
             StreamSegmentSub(s, foo->payload_size);
 
             stream4_memory_usage -= foo->pkt_size;
-            free(foo->pkt);
+            free(foo->pktOrig);
             stream4_memory_usage -= sizeof(StreamPacketData);
             free(foo);
         }
         else
         {
-            spd = (StreamPacketData *) ubi_btNext((ubi_btNodePtr)spd);
+            /* We just break out of the loop here since the
+             * packets are stored in order */
+            break;
         }
     }
 }
@@ -666,7 +808,7 @@ void SegmentCleanTraverse(Stream *s)
 /* XXX: this will be removed as we clean up the modularization */
 void DirectLogTcpdump(struct pcap_pkthdr *, u_int8_t *);
 
-static void LogTraverse(ubi_trNodePtr NodePtr, void *foo)
+static void LogTraverse(StreamPacketData *NodePtr, void *foo)
 {
     StreamPacketData *spd;
 
@@ -674,8 +816,6 @@ static void LogTraverse(ubi_trNodePtr NodePtr, void *foo)
     /* XXX: modularization violation */
     DirectLogTcpdump((struct pcap_pkthdr *)&spd->pkth, spd->pkt); 
 }
-
-
 
 void *SafeAlloc(unsigned long size, int tv_sec, Session *ssn)
 {
@@ -688,10 +828,10 @@ void *SafeAlloc(unsigned long size, int tv_sec, Session *ssn)
     {
         pc.str_mem_faults++;
         sfPerf.sfBase.iStreamFaults++;
-        if(!PruneSessionCache((u_int32_t)tv_sec, 0, ssn))
+        if(!PruneSessionCache(IPPROTO_TCP, (u_int32_t)tv_sec, 0, ssn))
         {
             /* if we can't prune due to time, just nuke 5 random sessions */
-            PruneSessionCache(0, 5, ssn);            
+            PruneSessionCache(IPPROTO_TCP, 0, 5, ssn);            
         }
     }
 
@@ -724,6 +864,7 @@ void SetupStream4()
        the preproc list */
     RegisterPreprocessor("stream4", Stream4Init);
     RegisterPreprocessor("stream4_reassemble", Stream4InitReassembler);
+    RegisterPreprocessor("stream4_external", Stream4InitExternalOptions);
 
     DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  "Preprocessor: Stream4 is setup...\n"););
 }
@@ -743,9 +884,19 @@ void Stream4Init(u_char *args)
 {
     char logfile[STD_BUF];
 
+    if (stream_api == NULL)
+        stream_api = &s4api;
+    else
+        FatalError("Cannot use both Stream4 & Stream5 simultaneously\n");
+
     s4data.stream4_active = 1;
     pv.stateful = 1;
     s4data.memcap = STREAM4_MEMORY_CAP;
+    s4data.max_sessions = STREAM4_MAX_SESSIONS;
+#ifdef STREAM4_UDP
+    s4data.max_udp_sessions = STREAM4_MAX_SESSIONS;
+    s4data.udp_ignore_any = 0;
+#endif
 
     DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "log_dir is %s\n", pv.log_dir););
 
@@ -762,7 +913,7 @@ void Stream4Init(u_char *args)
    
     /* parse the argument list from the rules file */
     ParseStream4Args(args);
-
+    
     snprintf(logfile, STD_BUF, "%s/%s", pv.log_dir, "session.log");
     
     if(s4data.track_stats_flag)
@@ -778,21 +929,49 @@ void Stream4Init(u_char *args)
     
     stream_pkt = (Packet *) SafeAlloc(sizeof(Packet), 0, NULL);
 
-    InitStream4Pkt();
+    /* Need to do this later.  We have dynamic preprocessors
+     * and a dynamic preproc bit field that is set based on number of
+     * preprocessors */
+    //InitStream4Pkt();
 
     /* tell the rest of the program that we're stateful */
     snort_runtime.capabilities.stateful_inspection = 1;
-    
-    (void)ubi_trInitTree(RootPtr,       /* ptr to the tree head */
-                         CompareFunc,   /* comparison function */
-                         0);            /* don't allow overwrites/duplicates */
+   
+    InitSessionCache();
 
     DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  "Preprocessor: Stream4 Initialized\n"););
 
     /* Set the preprocessor function into the function list */
-    AddFuncToPreprocList(ReassembleStream4);
-    AddFuncToCleanExitList(Stream4CleanExitFunction, NULL);
-    AddFuncToRestartList(Stream4RestartFunction, NULL);    
+    AddFuncToPreprocList(ReassembleStream4, PRIORITY_TRANSPORT, PP_STREAM4);
+    AddFuncToPreprocShutdownList(Stream4ShutdownFunction, NULL, PRIORITY_FIRST, PP_STREAM4);
+    AddFuncToPreprocCleanExitList(Stream4CleanExitFunction, NULL, PRIORITY_FIRST, PP_STREAM4);
+    AddFuncToPreprocRestartList(Stream4RestartFunction, NULL, PRIORITY_FIRST, PP_STREAM4);    
+    AddFuncToConfigCheckList(Stream4VerifyConfig);
+
+#ifdef PERF_PROFILING
+    RegisterPreprocessorProfile("s4", &stream4PerfStats, 0, &totalPerfStats);
+    RegisterPreprocessorProfile("s4PktInsert", &stream4InsertPerfStats, 1, &stream4PerfStats);
+    RegisterPreprocessorProfile("s4NewSess", &stream4NewSessPerfStats, 1, &stream4PerfStats);
+    RegisterPreprocessorProfile("s4GetSess", &stream4LUSessPerfStats, 1, &stream4PerfStats);
+    RegisterPreprocessorProfile("s4State", &stream4StatePerfStats, 1, &stream4PerfStats);
+    RegisterPreprocessorProfile("s4StateAsync", &stream4StateAsyncPerfStats, 1, &stream4PerfStats);
+    RegisterPreprocessorProfile("s4StateAction", &stream4ActionPerfStats, 1, &stream4PerfStats);
+    RegisterPreprocessorProfile("s4Flush", &stream4FlushPerfStats, 1, &stream4PerfStats);
+    RegisterPreprocessorProfile("s4BuildPacket", &stream4BuildPerfStats, 2, &stream4FlushPerfStats);
+    RegisterPreprocessorProfile("s4ProcessRebuilt", &stream4ProcessRebuiltPerfStats, 2, &stream4FlushPerfStats);
+    RegisterPreprocessorProfile("s4StateActionAsync", &stream4ActionAsyncPerfStats, 1, &stream4PerfStats);
+    RegisterPreprocessorProfile("s4Prune", &stream4PrunePerfStats, 1, &stream4PerfStats);
+#endif
+}
+
+void Stream4VerifyConfig()
+{
+    /* Finish setup of reassembly packet */
+    InitStream4Pkt();
+
+#ifdef STREAM4_UDP
+    Stream4UdpConfigure();
+#endif
 }
 
 void DisplayStream4Config(void) 
@@ -804,6 +983,19 @@ void DisplayStream4Config(void)
                s4data.track_stats_flag ? "ACTIVE":"INACTIVE");
     LogMessage("    Session timeout: %d seconds\n", s4data.timeout);
     LogMessage("    Session memory cap: %lu bytes\n", (unsigned long)s4data.memcap);
+    LogMessage("    Session count max: %d sessions\n", (unsigned long)s4data.max_sessions);
+#ifdef STREAM4_UDP
+    LogMessage("    UDP Tracking Enabled: %s\n",
+                s4data.enable_udp_sessions ? "YES" : "NO");
+    if (s4data.enable_udp_sessions)
+    {
+        LogMessage("    UDP Session count max: %d sessions\n", (unsigned long)s4data.max_udp_sessions);
+        LogMessage("    UDP Ignore Traffic on port without port-specific rules: %s\n",
+                s4data.udp_ignore_any ? "YES" : "NO");
+    }
+#endif
+
+    LogMessage("    Session cleanup count: %d\n", s4data.cache_clean_sessions);
     LogMessage("    State alerts: %s\n", 
                s4data.state_alerts ? "ACTIVE":"INACTIVE");
     LogMessage("    Evasion alerts: %s\n", 
@@ -820,10 +1012,16 @@ void DisplayStream4Config(void)
     LogMessage("    Self preservation period: %d\n", s4data.sp_period);
     LogMessage("    Suspend threshold: %d\n", s4data.suspend_threshold);
     LogMessage("    Suspend period: %d\n", s4data.suspend_period);
-    LogMessage("    Enforce TCP State: %s\n",
-            s4data.enforce_state ? "ACTIVE" : "INACTIVE");
-    LogMessage("    Midstream Drop Alerts: %s\n\n",
+    LogMessage("    Enforce TCP State: %s %s\n",
+            s4data.enforce_state ? "ACTIVE" : "INACTIVE",
+            s4data.enforce_state & ENFORCE_STATE_DROP ? "and DROPPING" : " ");
+    LogMessage("    Midstream Drop Alerts: %s\n",
             s4data.ms_inline_alerts ? "ACTIVE" : "INACTIVE");
+    LogMessage("    Allow Blocking of TCP Sessions in Inline: %s\n",
+            s4data.allow_session_blocking ? "ACTIVE" : "INACTIVE");
+    if (s4data.server_inspect_limit > 0)
+        LogMessage("    Server Data Inspection Limit: %d\n", 
+                    s4data.server_inspect_limit);
 
 }
 
@@ -851,6 +1049,12 @@ void ParseStream4Args(char *args)
 
     s4data.timeout = PRUNE_QUANTA;
     s4data.memcap = STREAM4_MEMORY_CAP;
+    s4data.max_sessions = STREAM4_MAX_SESSIONS;
+#ifdef STREAM4_UDP
+    s4data.max_udp_sessions = STREAM4_MAX_SESSIONS;
+    s4data.enable_udp_sessions = 0;
+#endif
+    s4data.cache_clean_sessions = STREAM4_CLEANUP;
     s4data.stateful_inspection_flag = 1;
     s4data.state_alerts = 0;
     s4data.evasion_alerts = 1;
@@ -863,19 +1067,35 @@ void ParseStream4Args(char *args)
     s4data.asynchronous_link = 0;
     s4data.flush_data_diff_size = 500; 
     s4data.zero_flushed_packets = 0;
+    s4data.flush_on_alert = 0;
+    s4data.overlap_limit = -1;
+    s4data.server_inspect_limit = -1;
+    /* Default is to block session on inline drop */
+    s4data.allow_session_blocking = 1;
     
+    /* dynamic flush points */
+    s4data.flush_behavior = FLUSH_BEHAVIOR_DEFAULT;
+    s4data.flush_range = STREAM4_FLUSH_RANGE;
+    s4data.flush_base = STREAM4_FLUSH_BASE;
+    s4data.flush_seed = getpid() + time(NULL);
+
+#ifdef STREAM4_UDP
+    /* Ports on which to do UDP sessions.
+     * Derived from rules that have "flow" keyword
+     */
+    //s4data.udp_ports[x] = UDP_SESSION;
+#endif
+
     /* if no arguments, go ahead and return */
     if(args == NULL || args[0] == '\0')
     {
-        if(!pv.quiet_flag) {
-            DisplayStream4Config();
-        }
+        DisplayStream4Config();
         return;
     }
 
     i=0;
 
-    toks = mSplit(args, ",", 12, &num_toks, 0);
+    toks = mSplit(args, ",", 20, &num_toks, 0);
     
     while(i < num_toks)
     {
@@ -966,11 +1186,104 @@ void ParseStream4Args(char *args)
             }
             else
             {
-                LogMessage("WARNING %s(%d) => Bad memcap in config file, "
-                           "defaulting to %d bytes\n", file_name, file_line, 
-                           STREAM4_MEMORY_CAP);
+                FatalError("%s(%d) => Bad memcap in config file, %d\n",
+                           file_name, file_line);
+            }
+        }
+        else if(!strcasecmp(stoks[0], "max_sessions"))
+        {
+            if(isdigit((int)stoks[1][0]))
+            {
+                s4data.max_sessions = atoi(stoks[1]);
 
-                s4data.memcap = STREAM4_MEMORY_CAP;
+                if(s4data.max_sessions < 8192)
+                {
+                    LogMessage("WARNING %s(%d) => Ludicrous (<8k) max_sessions "
+                               "size, setting to default (%d sessions)\n", file_name, 
+                               file_line, STREAM4_MAX_SESSIONS);
+                    
+                    s4data.max_sessions = STREAM4_MAX_SESSIONS;
+                }
+            }
+            else
+            {
+                FatalError("%s(%d) => Bad max_sessions in config file, %d\n",
+                           file_name, file_line);
+            }
+        }
+#ifdef STREAM4_UDP
+        else if(!strcasecmp(stoks[0], "enable_udp_sessions"))
+        {
+            s4data.enable_udp_sessions = 1;
+        }
+        else if(!strcasecmp(stoks[0], "max_udp_sessions"))
+        {
+            if(isdigit((int)stoks[1][0]))
+            {
+                s4data.max_udp_sessions = atoi(stoks[1]);
+
+                if(s4data.max_udp_sessions < 8192)
+                {
+                    LogMessage("WARNING %s(%d) => Ludicrous (<8k) max_udp_sessions "
+                               "size, setting to default (%d sessions)\n", file_name, 
+                               file_line, STREAM4_MAX_SESSIONS);
+                    
+                    s4data.max_udp_sessions = STREAM4_MAX_SESSIONS;
+                }
+            }
+            else
+            {
+                FatalError("%s(%d) => Bad max_udp_sessions in config file, %d\n",
+                           file_name, file_line);
+            }
+        }
+#if 0
+        else if(!strcasecmp(stoks[0], "udp_ports"))
+        {
+            /* Unset the default ports */
+            bzero(&s4data.udp_ports, sizeof(s4data.udp_ports));
+            for (i=1;i<s_toks;i++)
+            {
+                char *endPtr;
+                unsigned int value = strtoul(stoks[i], &endPtr, 10);
+                u_int16_t port;
+
+                if ((endPtr == stoks[i]) || (value == 0) || (value > 65535))
+                {
+                    LogMessage("WARNING %s(%d) => Invalid UDP port specified, "
+                        "ignoring\n", file_name, file_line, stoks[i]);
+                    continue;
+                }
+
+                port = (u_int16_t)value;
+                s4data.udp_ports[port] |= UDP_SESSION | UDP_INSPECT;
+            }
+        }
+#endif
+        else if(!strcasecmp(stoks[0], "udp_ignore_any"))
+        {
+            s4data.udp_ignore_any = 1;
+        }
+#endif
+        else if(!strcasecmp(stoks[0], "cache_clean_sessions"))
+        {
+            if(isdigit((int)stoks[1][0]))
+            {
+                s4data.cache_clean_sessions = atoi(stoks[1]);
+                if (s4data.cache_clean_sessions < 1)
+                {
+                    LogMessage("WARNING %s(%d) => Zero Session Cache Cleanup, "
+                        "reverting to default of %d\n", 
+                        file_name, file_line, STREAM4_CLEANUP);
+
+                    s4data.cache_clean_sessions = STREAM4_CLEANUP;
+                }
+            }
+            else
+            {
+                FatalError("%s(%d) => Bad cache cleanup value in "
+                           "config file\n", file_name, file_line);
+
             }
         }
         else if(!strcasecmp(stoks[0], "ttl_limit"))
@@ -1063,7 +1376,14 @@ void ParseStream4Args(char *args)
         }
         else if(!strcasecmp(stoks[0], "enforce_state"))
         {
-            s4data.enforce_state = 1;
+            s4data.enforce_state |= ENFORCE_STATE;
+            if (s_toks > 1 && stoks[1])
+            {
+                if (!strcasecmp(stoks[1], "drop"))
+                {
+                    s4data.enforce_state |= ENFORCE_STATE_DROP;
+                }
+            }
         }
         else if(!strcasecmp(stoks[0], "midstream_drop_alerts"))
         {
@@ -1072,8 +1392,26 @@ void ParseStream4Args(char *args)
         else if(!strcasecmp(stoks[0], "state_protection"))
         {
             s4data.state_protection = 1;
-        } else {
-            LogMessage("WARNING %s(%d) => Unknown stream4: option: %s\n",
+        }
+        else if(!strcasecmp(stoks[0], "server_inspect_limit"))
+        {
+            if(isdigit((int)stoks[1][0]))
+            {
+                s4data.server_inspect_limit = atoi(stoks[1]);
+            }
+            else
+            {
+                FatalError("WARNING %s(%d) => Bad server_inspect_limit in "
+                           "config file\n", file_name, file_line);
+            }
+        }
+        else if(!strcasecmp(stoks[0], "disable_session_blocking"))
+        {
+            s4data.allow_session_blocking = 0;
+        }
+        else
+        {
+            FatalError("%s(%d) => Unknown stream4: option: %s\n",
                        file_name, file_line, stoks[0]);
         }
 
@@ -1084,20 +1422,238 @@ void ParseStream4Args(char *args)
 
     mSplitFree(&toks, num_toks);
 
-    if(!pv.quiet_flag)
-    {
-        DisplayStream4Config();
-    }
+    DisplayStream4Config();
 }
 
-
-void Stream4InitReassembler(u_char *args)
+void Stream4InitExternalOptions(u_char *args)
 {
     char **toks;
     int num_toks;
+    int i=0;
+    char *index;
+    int got_favor = 0;
+    int got_alert = 0;
+    int got_overlap_limit = 0;
+    int got_inspect_limit = 0;
+    int got_max_sessions = 0;
+    int got_zero_flushed = 0;
+    int got_enforce_state = 0;
+    int got_allow_session_blocking = 0;
+#ifdef STREAM4_UDP
+    int got_max_udp = 0;
+    int got_udp_enable = 0;
+    int got_udp_ignore_any = 0;
+#endif
+    char **stoks = NULL;
+    int s_toks;
+    toks = mSplit(args, ",", 12, &num_toks, 0);
+
+    if ((s4data.reassemble_client == 0) &&
+        (s4data.reassemble_server == 0))
+    {
+        FatalError("Please enable stream reassembly before specifying "
+                   "external options for Stream4\n");
+    }
+
+    while(i < num_toks)
+    {
+        index = toks[i];
+        while(isspace((int)*index)) index++;
+
+        stoks = mSplit(index, " ", 2, &s_toks, 0);
+
+        if(!strcasecmp(stoks[0], "favor_old"))
+        {
+            s4data.reassy_method = METHOD_FAVOR_OLD;
+            got_favor = 1;
+        }
+        else if(!strcasecmp(stoks[0], "favor_new"))
+        {
+            s4data.reassy_method = METHOD_FAVOR_NEW;
+            got_favor = 1;
+        }
+        else if(!strcasecmp(stoks[0], "flush_on_alert"))
+        {
+            s4data.flush_on_alert = 1;
+            got_alert = 1;
+        }
+        else if(!strcasecmp(stoks[0], "enforce_state"))
+        {
+            s4data.enforce_state |= ENFORCE_STATE;
+            if (s_toks > 1 && stoks[1])
+            {
+                if (!strcasecmp(stoks[1], "drop"))
+                {
+                    s4data.enforce_state |= ENFORCE_STATE_DROP;
+                }
+            }
+            got_enforce_state = 1;
+        }
+        else if(!strcasecmp(stoks[0], "overlap_limit"))
+        {
+            if ((s_toks == 2) && isdigit((int)stoks[1][0]))
+            {
+                s4data.overlap_limit = atoi(stoks[1]);
+            }
+            else
+            {
+                FatalError("WARNING %s(%d) => Bad cache cleanup value in "
+                           "config file\n", file_name, file_line);
+            }
+
+            got_overlap_limit = 1;
+        }
+        else if(!strcasecmp(stoks[0], "server_inspect_limit"))
+        {
+            if ((s_toks == 2) && isdigit((int)stoks[1][0]))
+            {
+                s4data.server_inspect_limit = atoi(stoks[1]);
+            }
+            else
+            {
+                FatalError("WARNING %s(%d) => Bad server_inspect_limit in "
+                           "config file\n", file_name, file_line);
+            }
+            got_inspect_limit = 1;
+        }
+        else if(!strcasecmp(stoks[0], "max_sessions"))
+        {
+            if(isdigit((int)stoks[1][0]))
+            {
+                s4data.max_sessions = atoi(stoks[1]);
+
+                if(s4data.max_sessions < 8192)
+                {
+                    LogMessage("WARNING %s(%d) => Ludicrous (<8k) max_sessions "
+                               "size, setting to default (%d sessions)\n", file_name, 
+                               file_line, STREAM4_MAX_SESSIONS);
+                    
+                    s4data.max_sessions = STREAM4_MAX_SESSIONS;
+                }
+            }
+            else
+            {
+                FatalError("%s(%d) => Bad max_sessions in config file, %d\n",
+                           file_name, file_line);
+            }
+            got_max_sessions = 1;
+        }
+        else if(!strcasecmp(index, "zero_flushed_packets"))
+        {
+            s4data.zero_flushed_packets = 1;
+            got_zero_flushed = 1;
+        }
+        else if(!strcasecmp(stoks[0], "disable_session_blocking"))
+        {
+            s4data.allow_session_blocking = 0;
+            got_allow_session_blocking = 1;
+        }
+#ifdef STREAM4_UDP
+        else if(!strcasecmp(stoks[0], "enable_udp_sessions"))
+        {
+            s4data.enable_udp_sessions = 1;
+            got_udp_enable = 1;
+        }
+        else if(!strcasecmp(stoks[0], "max_udp_sessions"))
+        {
+            if(isdigit((int)stoks[1][0]))
+            {
+                s4data.max_udp_sessions = atoi(stoks[1]);
+
+                if(s4data.max_udp_sessions < 8192)
+                {
+                    LogMessage("WARNING %s(%d) => Ludicrous (<8k) max_udp_sessions "
+                               "size, setting to default (%d sessions)\n", file_name, 
+                               file_line, STREAM4_MAX_SESSIONS);
+                    
+                    s4data.max_udp_sessions = STREAM4_MAX_SESSIONS;
+                    got_max_udp = 1;
+                }
+            }
+            else
+            {
+                FatalError("%s(%d) => Bad max_udp_sessions in config file, %d\n",
+                           file_name, file_line);
+            }
+        }
+        else if(!strcasecmp(stoks[0], "udp_ignore_any"))
+        {
+            s4data.udp_ignore_any = 1;
+            got_udp_ignore_any = 1;
+        }
+#endif
+        else
+        {
+            FatalError("%s(%d) => Bad stream4_external option "
+                       "specified: \"%s\"\n", file_name, file_line, toks[i]);
+        }
+        mSplitFree(&stoks, s_toks);
+        i++;
+    }
+    LogMessage("stream4_external config (overrides values from "
+               "stream4 & stream4_reassemble configs):\n");
+    if (got_favor)
+        LogMessage("    Reassembler Packet Preferance : %s\n", 
+                   s4data.reassy_method == METHOD_FAVOR_NEW ?
+                   "Favor New" : "Favor Old");
+    if (got_alert)
+        LogMessage("    Flush stream on alert: %s\n", 
+                   s4data.flush_on_alert ? "ACTIVE": "INACTIVE");
+
+    if (got_overlap_limit)
+        LogMessage("    Packet Sequence Overlap Limit: %d\n", 
+                   s4data.overlap_limit);
+
+    if (got_inspect_limit)
+        LogMessage("    Server Data Scan Threshold: %d\n", 
+                   s4data.server_inspect_limit);
+
+    if (got_max_sessions)
+        LogMessage("    Session count max: %d sessions\n", (unsigned long)s4data.max_sessions);
+
+    if (got_zero_flushed)
+        LogMessage("    Zero out flushed packets: %s\n", 
+               s4data.zero_flushed_packets ? "ACTIVE": "INACTIVE");
+
+    if (got_enforce_state)
+        LogMessage("    Enforce TCP State: %s\n",
+            s4data.enforce_state ? "ACTIVE" : "INACTIVE",
+            s4data.enforce_state & ENFORCE_STATE_DROP ? "and DROPPING" : " ");
+
+    if (got_allow_session_blocking)
+        LogMessage("    Allow Blocking of TCP Sessions in Inline: %s\n",
+            s4data.allow_session_blocking ? "ACTIVE" : "INACTIVE");
+
+#ifdef STREAM4_UDP
+    if (got_udp_enable)
+    {
+        LogMessage("    UDP Tracking Enabled: %s\n",
+                s4data.enable_udp_sessions ? "YES" : "NO");
+
+        if (got_max_udp)
+            LogMessage("    UDP Session count max: %d sessions\n",
+                    (unsigned long)s4data.max_udp_sessions);
+
+        if (got_udp_ignore_any)
+            LogMessage("    UDP Ignore Traffic on port without port-specific rules: %s\n",
+                s4data.udp_ignore_any ? "YES" : "NO");
+    }
+#endif
+    
+    mSplitFree(&toks, num_toks);
+}
+
+void Stream4InitReassembler(u_char *args)
+{
+    char buf[STD_BUF+1];
+    char **toks;
+    char **stoks;
+    int num_toks = 0;
+    int num_args;
     int i;
     int j = 0;
     char *index;
+    char *value;
 
     if(s4data.stream4_active == 0)
     {
@@ -1108,96 +1664,51 @@ void Stream4InitReassembler(u_char *args)
     s4data.reassembly_alerts = 1;
     s4data.reassemble_client = 1; 
     s4data.reassemble_server = 0;
+    s4data.flush_on_alert = 0;
     s4data.assemble_ports[21] = 1;
     s4data.assemble_ports[23] = 1;
     s4data.assemble_ports[25] = 1;
+    s4data.assemble_ports[42] = 1;
     s4data.assemble_ports[53] = 1;
     s4data.assemble_ports[80] = 1;
-    s4data.assemble_ports[143] = 1;
     s4data.assemble_ports[110] = 1;
     s4data.assemble_ports[111] = 1;
+    s4data.assemble_ports[135] = 1;
+    s4data.assemble_ports[136] = 1;
+    s4data.assemble_ports[137] = 1;
+    s4data.assemble_ports[139] = 1;
+    s4data.assemble_ports[143] = 1;
+    s4data.assemble_ports[445] = 1;
     s4data.assemble_ports[513] = 1;
     s4data.assemble_ports[1433] = 1;
+    s4data.assemble_ports[1521] = 1;
+    s4data.assemble_ports[3306] = 1;
     s4data.reassy_method = METHOD_FAVOR_OLD;
 
     /* setup for self preservaton... */
     s4data.emergency_ports[21] = 1;
     s4data.emergency_ports[23] = 1;
     s4data.emergency_ports[25] = 1;
+    s4data.emergency_ports[42] = 1;
     s4data.emergency_ports[53] = 1;
     s4data.emergency_ports[80] = 1;
-    s4data.emergency_ports[143] = 1;
     s4data.emergency_ports[110] = 1;
     s4data.emergency_ports[111] = 1;
+    s4data.emergency_ports[135] = 1;
+    s4data.emergency_ports[136] = 1;
+    s4data.emergency_ports[137] = 1;
+    s4data.emergency_ports[139] = 1;
+    s4data.emergency_ports[143] = 1;
+    s4data.emergency_ports[445] = 1;
     s4data.emergency_ports[513] = 1;
     s4data.emergency_ports[1433] = 1;
-    
-    if(args == NULL)
+    s4data.emergency_ports[1521] = 1;
+    s4data.emergency_ports[3306] = 1;
+   
+    if (args != NULL) 
     {
-        s4data.reassemble_server = 0;
-
-        if(!pv.quiet_flag)
-        {
-            char buf[STD_BUF+1];
-            LogMessage("Stream4_reassemble config:\n");
-            LogMessage("    Server reassembly: %s\n", 
-                    s4data.reassemble_server ? "ACTIVE": "INACTIVE");
-            LogMessage("    Client reassembly: %s\n", 
-                    s4data.reassemble_client ? "ACTIVE": "INACTIVE");
-            LogMessage("    Reassembler alerts: %s\n", 
-                       s4data.reassembly_alerts ? "ACTIVE": "INACTIVE");
-            LogMessage("    Zero out flushed packets: %s\n", 
-                       s4data.zero_flushed_packets ? "ACTIVE": "INACTIVE");
-            LogMessage("    flush_data_diff_size: %d\n", 
-                       s4data.flush_data_diff_size);
-
-            memset(buf, 0, STD_BUF+1);
-            snprintf(buf, STD_BUF, "    Ports: "); 
-
-            for(i=0;i<65536;i++)
-            {
-                if(s4data.assemble_ports[i])
-                {
-                    sfsnprintfappend(buf, STD_BUF, "%d ", i);
-                    j++;
-                }
-
-                if(j > 20)
-                { 
-                    LogMessage("%s...\n", buf);
-                    return;
-                }
-            }
-
-            LogMessage("%s\n", buf);
-            memset(buf, 0, STD_BUF+1);
-            snprintf(buf, STD_BUF, "    Emergency Ports: ");
-            j=0;
-
-            for(i=0;i<65536;i++)
-            {
-                if(s4data.emergency_ports[i])
-                {
-                    sfsnprintfappend(buf, STD_BUF, "%d ", i);
-                    j++;
-                }
-
-                if(j > 20)
-                { 
-                    LogMessage("%s...\n", buf);
-                    return;
-                }
-            }
-
-            LogMessage("%s\n", buf);
-        }
-        return;
+        toks = mSplit(args, ",", 12, &num_toks, 0);
     }
-    else
-    {
-    }
-
-    toks = mSplit(args, ",", 12, &num_toks, 0);
 
     i=0;
 
@@ -1232,6 +1743,113 @@ void Stream4InitReassembler(u_char *args)
         else if(!strncasecmp(index, "favor_new", 9))
         {
             s4data.reassy_method = METHOD_FAVOR_NEW;
+        }
+        else if(!strncasecmp(index, "flush_on_alert", 9))
+        {
+            s4data.flush_on_alert = 1;
+        }
+        else if(!strncasecmp(index, "overlap_limit", 9))
+        {
+            stoks = mSplit(index, " ", 2, &num_args, 0);
+            value = stoks[1];
+            if((num_args == 2) && (isdigit((int)value[0])))
+            {
+                s4data.overlap_limit = atoi(value);
+            }
+            else
+            {
+                FatalError("%s(%d) => Bad overlap_limit value in "
+                           "config file\n", file_name, file_line);
+            }
+            mSplitFree(&stoks, num_args);
+        }
+        else if(!strncasecmp(index, "flush_behavior", 14))
+        {
+            stoks = mSplit(index, " ", 2, &num_args, 0);
+            value = stoks[1];
+            if(num_args != 2)
+            {
+                FatalError("%s(%d) => Bad flush_behavior value in "
+                           "config file\n", file_name, file_line);
+            }
+            if (!strncasecmp(value, "default", 7))
+            {
+                s4data.flush_behavior = FLUSH_BEHAVIOR_DEFAULT;
+            }
+            else if (!strncasecmp(value, "random", 6))
+            {
+                s4data.flush_behavior = FLUSH_BEHAVIOR_RANDOM;
+            }
+            else if (!strncasecmp(value, "large_window", 12))
+            {
+                s4data.flush_behavior = FLUSH_BEHAVIOR_LARGE;
+            }
+            else
+            {
+                FatalError("%s(%d) => Invalid flush_behavior value (%s) in "
+                           "config file\n", file_name, file_line, value);
+            }
+
+            mSplitFree(&stoks, num_args);
+        }
+        else if(!strncasecmp(index, "flush_seed", 10))
+        {
+            stoks = mSplit(index, " ", 2, &num_args, 0);
+            value = stoks[1];
+            if((num_args == 2) && (isdigit((int)value[0])))
+            {
+                s4data.flush_seed = atoi(value) + time(NULL);
+            }
+            else
+            {
+                FatalError("%s(%d) => Unsupported flush_seed value in "
+                           "config file\n", file_name, file_line);
+            }
+            mSplitFree(&stoks, num_args);
+        }
+        else if(!strncasecmp(index, "flush_base", 10))
+        {
+            stoks = mSplit(index, " ", 2, &num_args, 0);
+            value = stoks[1];
+            if((num_args == 2) && (isdigit((int)value[0])))
+            {
+                s4data.flush_base = atoi(value);
+            }
+            else
+            {
+                FatalError("%s(%d) => Bad flush_base value in "
+                           "config file\n", file_name, file_line);
+            }
+            mSplitFree(&stoks, num_args);
+
+            if((s4data.flush_base < 1) || (s4data.flush_base > 32768))
+            {
+                FatalError("%s(%d) => Unsupported flush_base value (%d bytes) in "
+                           "config file\n", 
+                           file_name, file_line, s4data.flush_base);
+            }
+        }
+        else if(!strncasecmp(index, "flush_range", 11))
+        {
+            stoks = mSplit(index, " ", 2, &num_args, 0);
+            value = stoks[1];
+            if((num_args == 2) && (isdigit((int)value[0])))
+            {
+                s4data.flush_range = atoi(value);
+            }
+            else
+            {
+                FatalError("%s(%d) => Bad flush_range in config file\n",
+                           file_name, file_line);
+            }
+            mSplitFree(&stoks, num_args);
+
+            if((s4data.flush_range < 512) || (s4data.flush_range > 32767))
+            {
+                FatalError("%s(%d) => Unsupported flush_range value "
+                           "(%d bytes) in config file\n",
+                           file_name, file_line, s4data.flush_range);
+            }
         }
         else if(!strncasecmp(index, "ports", 5))
         {
@@ -1275,13 +1893,21 @@ void Stream4InitReassembler(u_char *args)
                     s4data.assemble_ports[21] = 1;
                     s4data.assemble_ports[23] = 1;
                     s4data.assemble_ports[25] = 1;
+                    s4data.assemble_ports[42] = 1;
                     s4data.assemble_ports[53] = 1;
                     s4data.assemble_ports[80] = 1;
-                    s4data.assemble_ports[143] = 1;
                     s4data.assemble_ports[110] = 1;
                     s4data.assemble_ports[111] = 1;
+                    s4data.assemble_ports[135] = 1;
+                    s4data.assemble_ports[136] = 1;
+                    s4data.assemble_ports[137] = 1;
+                    s4data.assemble_ports[139] = 1;
+                    s4data.assemble_ports[143] = 1;
+                    s4data.assemble_ports[445] = 1;
                     s4data.assemble_ports[513] = 1;
                     s4data.assemble_ports[1433] = 1;
+                    s4data.assemble_ports[1521] = 1;
+                    s4data.assemble_ports[3306] = 1;
                 }
 
                 j++;
@@ -1331,13 +1957,21 @@ void Stream4InitReassembler(u_char *args)
                     s4data.emergency_ports[21] = 1;
                     s4data.emergency_ports[23] = 1;
                     s4data.emergency_ports[25] = 1;
+                    s4data.emergency_ports[42] = 1;
                     s4data.emergency_ports[53] = 1;
                     s4data.emergency_ports[80] = 1;
-                    s4data.emergency_ports[143] = 1;
                     s4data.emergency_ports[110] = 1;
                     s4data.emergency_ports[111] = 1;
+                    s4data.emergency_ports[135] = 1;
+                    s4data.emergency_ports[136] = 1;
+                    s4data.emergency_ports[137] = 1;
+                    s4data.emergency_ports[139] = 1;
+                    s4data.emergency_ports[143] = 1;
+                    s4data.emergency_ports[445] = 1;
                     s4data.emergency_ports[513] = 1;
                     s4data.emergency_ports[1433] = 1;
+                    s4data.emergency_ports[1521] = 1;
+                    s4data.emergency_ports[3306] = 1;
                 }
 
                 j++;
@@ -1377,6 +2011,10 @@ void Stream4InitReassembler(u_char *args)
                            file_name, file_line);
             }
         }
+        else if(!strcasecmp(index, "large_packet_performance"))
+        {
+            s4data.large_packet_performance = 1;
+        }
         else
         {
             FatalError("%s(%d) => Bad stream4_reassemble option "
@@ -1386,64 +2024,192 @@ void Stream4InitReassembler(u_char *args)
         i++;
     }
 
-    mSplitFree(&toks, num_toks);
+    if (num_toks)
+        mSplitFree(&toks, num_toks);
 
-    if(!pv.quiet_flag)
+    /* Setup flushpoints, per config */
+    if ( s4data.flush_behavior == FLUSH_BEHAVIOR_LARGE )
     {
-        char buf[STD_BUF+1];
-        LogMessage("Stream4_reassemble config:\n");
-        LogMessage("    Server reassembly: %s\n", 
-                   s4data.reassemble_server ? "ACTIVE": "INACTIVE");
-        LogMessage("    Client reassembly: %s\n", 
-                   s4data.reassemble_client ? "ACTIVE": "INACTIVE");
-        LogMessage("    Reassembler alerts: %s\n", 
-                   s4data.reassembly_alerts ? "ACTIVE": "INACTIVE");
-        LogMessage("    Zero out flushed packets: %s\n", 
-                   s4data.zero_flushed_packets ? "ACTIVE": "INACTIVE");
-        LogMessage("    flush_data_diff_size: %d\n", 
-                   s4data.flush_data_diff_size);
-
-        memset(buf, 0, STD_BUF+1);
-        snprintf(buf, STD_BUF, "    Ports: ");       
-
-        for(i=0;i<65536;i++)
+        /* Default, larger static flushpoints */
+        int elm;
+        for( elm = 0; elm < FCOUNT; elm += 1 )
         {
-            if(s4data.assemble_ports[i])
-            {
-                sfsnprintfappend(buf, STD_BUF, "%d ", i);
-                j++;
-            }
+            flush_points[elm] = new_flush_points[elm];
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Setting new static "
+                      "flush value of (%d bytes) at index %d\n",
+                      flush_points[elm],elm););
 
-            if(j > 20)
-            { 
-                LogMessage("%s...\n", buf);
-                return;
-            }
         }
+        LogMessage("WARNING %s(%d) => flush_behavior set in "
+                   "config file, using new static flushpoints (%d)\n",
+                   file_name, file_line, s4data.flush_behavior);
 
-        LogMessage("%s\n", buf);
-        memset(buf, 0, STD_BUF+1);
-        snprintf(buf, STD_BUF, "    Emergency Ports: "); 
-        j=0;
-
-        for(i=0;i<65536;i++)
-        {
-            if(s4data.emergency_ports[i])
-            {
-                sfsnprintfappend(buf, STD_BUF, "%d ", i);
-                j++;
-            }
-
-            if(j > 20)
-            { 
-                LogMessage("%s...\n", buf);
-                return;
-            }
-        }
-
-        LogMessage("%s\n", buf);
     }
+    else if ( s4data.flush_behavior == FLUSH_BEHAVIOR_RANDOM )
+    {
+        /* set up random flush points */
+        int elm;
+        int rfp;
+        srand(s4data.flush_seed);
+        for( elm = 0; elm < FCOUNT; elm += 1 )
+        {
+            rfp = rand() % s4data.flush_range;
+            flush_points[elm] = rfp + s4data.flush_base;
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Setting random "
+                    "flush value of (%d bytes) at index %d\n",
+                    flush_points[elm],elm););
+        }
+    }
+    else
+    {
+        /* Use the old flushpoints -- default behavior */
+        int elm;
+        for( elm = 0; elm < FCOUNT; elm += 1 )
+        {
+            flush_points[elm] = old_flush_points[elm];
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Setting old static "
+                       "flush value of %d bytes) at index %d\n",
+                       flush_points[elm],elm););
+        }
+        LogMessage("WARNING %s(%d) => flush_behavior set in "
+                   "config file, using old static flushpoints (%d)\n",
+                   file_name, file_line, s4data.flush_behavior);
+    }
+
+    LogMessage("Stream4_reassemble config:\n");
+    LogMessage("    Server reassembly: %s\n", 
+               s4data.reassemble_server ? "ACTIVE": "INACTIVE");
+    LogMessage("    Client reassembly: %s\n", 
+               s4data.reassemble_client ? "ACTIVE": "INACTIVE");
+    LogMessage("    Reassembler alerts: %s\n", 
+               s4data.reassembly_alerts ? "ACTIVE": "INACTIVE");
+    LogMessage("    Zero out flushed packets: %s\n", 
+               s4data.zero_flushed_packets ? "ACTIVE": "INACTIVE");
+    LogMessage("    Flush stream on alert: %s\n", 
+               s4data.flush_on_alert ? "ACTIVE": "INACTIVE");
+    LogMessage("    flush_data_diff_size: %d\n", 
+               s4data.flush_data_diff_size);
+    LogMessage("    Reassembler Packet Preferance : %s\n", 
+               s4data.reassy_method == METHOD_FAVOR_NEW ?
+               "Favor New" : "Favor Old");
+    LogMessage("    Packet Sequence Overlap Limit: %d\n", 
+               s4data.overlap_limit);
+    LogMessage("    Flush behavior: %s\n", 
+               s4data.flush_behavior == FLUSH_BEHAVIOR_DEFAULT ? "Small (<255 bytes)":
+                (s4data.flush_behavior == FLUSH_BEHAVIOR_LARGE ? "Large (<2550 bytes)" :
+                "random"));
+    if (s4data.flush_behavior == FLUSH_BEHAVIOR_RANDOM)
+    {
+        LogMessage("    Flush base: %d\n", s4data.flush_base);
+        LogMessage("    Flush seed: %d\n", s4data.flush_seed);
+        LogMessage("    Flush range: %d\n", s4data.flush_range);
+    }
+
+    memset(buf, 0, STD_BUF+1);
+    snprintf(buf, STD_BUF, "    Ports: ");       
+
+    for(i=0;i<65536;i++)
+    {
+        if(s4data.assemble_ports[i])
+        {
+            sfsnprintfappend(buf, STD_BUF, "%d ", i);
+            j++;
+        }
+
+        if(j > 20)
+        { 
+            LogMessage("%s...\n", buf);
+            return;
+        }
+    }
+
+    LogMessage("%s\n", buf);
+    memset(buf, 0, STD_BUF+1);
+    snprintf(buf, STD_BUF, "    Emergency Ports: "); 
+    j=0;
+
+    for(i=0;i<65536;i++)
+    {
+        if(s4data.emergency_ports[i])
+        {
+            sfsnprintfappend(buf, STD_BUF, "%d ", i);
+            j++;
+        }
+
+        if(j > 20)
+        { 
+            LogMessage("%s...\n", buf);
+            return;
+        }
+    }
+
+    LogMessage("%s\n", buf);
+
+    return;
 }
+
+/**
+ * Check a FIN is valid within the window
+ *
+ * @param s stream to set the next_seq on 
+ * @param direction direction of the packet
+ * @param pkt_seq sequence number for the packet
+ * @param p packet to grab the session from
+ * 
+ * @return 0 if everything went ok
+ */
+static INLINE int CheckFin(Stream *s, int direction, u_int32_t pkt_seq, Packet *p)
+{
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "CheckFin() called for %s\n",
+                            direction ? "FROM_CLIENT":"FROM_SERVER"););
+
+    /* If not tracking state ignore it */
+    if( !s4data.stateful_inspection_flag )
+        return 0;
+
+    /*
+     *  We want to make sure the FIN has the next valid sequence that 
+     *  this side should be sending 
+     *  If the pkt_seq < next_seq it's essentially a duplicate 
+     *  sequence, and is probably going to be discarded, it certainly 
+     *  should be. Also, the base sequence includes the SYN sequence count.
+     *  If the packet seq is after the next seq than we should queue the 
+     *  packet for later, in case an out of order packet arrives. We 
+     *  should also honor the FIN-ACK requirements.
+     *
+     *  Ignoring a FIN implies we won't shutdown this session due to it.
+     *  
+     *  This is a standard TCP/IP stack 'in the window' check, but it's 
+     *  not always the way stacks handle FIN's:
+     *  
+     *  if(SEQ_LT(pkt_seq,s->base_seq+s->bytes_tracked) || 
+     *     SEQ_GEQ(pkt_seq,(s->last_ack+s->win_size))) 
+     *  
+     */
+    if(SEQ_LT(pkt_seq,s->base_seq+s->bytes_tracked) || 
+       SEQ_GEQ(pkt_seq,(s->last_ack+s->win_size))) 
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                    "Bad FIN packet, bad sequence!\n"
+                    "pkt seq: 0x%X   last_ack: 0x%X  win: 0x%X\n",
+                    pkt_seq, s->last_ack, s->win_size););
+
+        /* we should probably alert here */
+        if(s4data.evasion_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
+                    STREAM4_EVASIVE_FIN, /* SID */
+                    1,                      /* Rev */
+                    0,                      /* classification */
+                    3,                      /* priority (low) */
+                    STREAM4_EVASIVE_FIN_STR, /* msg string */
+                    0);
+        }
+        return 1;
+    }
+    return 0;
+}
+
 
 /** 
  * Set that this side of the session has sent a fin.
@@ -1451,26 +2217,46 @@ void Stream4InitReassembler(u_char *args)
  * This overloads the next_seq variable to also be used to tell how
  * far forward we can acknowledge data.
  * 
- * @param p packet to grab the session from
  * @param s stream to set the next_seq on 
+ * @param direction direction of the packet
+ * @param pkt_seq sequence number for the packet
+ * @param p packet to grab the session from
  * 
  * @return 0 if everything went ok
  */
-static INLINE int SetFinSent(Packet *p, Session *ssn, int direction)
+static INLINE int SetFinSent(Session *ssn, int direction, u_int32_t pkt_seq, Packet *p)
 {
     Stream *stream;
 
     DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "SetFinSet() called for %s\n",
                             direction ? "FROM_CLIENT":"FROM_SERVER"););
 
+    /* If not tracking state ignore it */
+    if( !s4data.stateful_inspection_flag )
+        return 0;
+
+    if(direction == FROM_SERVER)
+    {        
+        stream = &ssn->server;
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"--RST From Server!\n"););
+    }
+    else
+    {        
+        stream = &ssn->client;
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"--RST From Client!\n"););
+    }
+
+    if (CheckFin(stream, direction, pkt_seq, p))
+    {
+        return 0;
+    }
+
     if(direction == FROM_SERVER)
     {
-        stream = &ssn->server;
         ssn->session_flags |= SSNFLAG_SERVER_FIN;
     }
     else
     {
-        stream = &ssn->client;
         ssn->session_flags |= SSNFLAG_CLIENT_FIN;
     }
     
@@ -1490,13 +2276,11 @@ static INLINE int SetFinSent(Packet *p, Session *ssn, int direction)
  */
 static INLINE int NotForStream4(Packet *p)
 {
-    if(!(p->preprocessors & PP_STREAM4))
+    if(!p) 
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
-                    "p->preprocessors does not have STREAM4\n"););
         return 1;
     }
-
+    
     if(p->tcph == NULL)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "p->tcph is null, returning\n"););
@@ -1553,7 +2337,6 @@ static INLINE int NotForStream4(Packet *p)
     return 0;
 }
 
-
 /** 
  * Subtract from the byte counters for the stream session
  * 
@@ -1570,13 +2353,13 @@ static INLINE void StreamSegmentSub(Stream *stream, u_int16_t sub)
             stream4_memory_usage);
 #endif /* DEBUG_SEGMENTS */
 
-    if((stream->bytes_tracked - sub) > stream->bytes_tracked)
+    if((stream->bytes_tracked - (u_int32_t)sub) > stream->bytes_tracked)
     {
         stream->bytes_tracked = 0;
     }
     else
     {
-        stream->bytes_tracked -= sub;
+        stream->bytes_tracked -= (u_int32_t)sub;
     }
 
 }
@@ -1599,15 +2382,15 @@ static INLINE void StreamSegmentAdd(Stream *stream, u_int16_t add)
 #endif /* _DEBUG_SEGMENTS */
 
     /* don't allow us to overflow */
-    if((stream->bytes_tracked + add) < stream->bytes_tracked)
+    if((stream->bytes_tracked + (u_int32_t)add) < stream->bytes_tracked)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"[E] How'd we get this high?\n"););
         return;
     }
     else
     {
-        stream->bytes_tracked += add;
-        stream->bytes_sent += add;
+        stream->bytes_tracked += (u_int32_t)add;
+        stream->bytes_sent += (u_int32_t)add;
         stream->pkts_sent++;
     }
 
@@ -1652,7 +2435,6 @@ static INLINE int WithinSessionLimits(Packet *p, Stream *stream)
     return 1;
 }
 
-
 /**
  * Prune The state machine if we need to
  *
@@ -1668,6 +2450,7 @@ static INLINE int WithinSessionLimits(Packet *p, Stream *stream)
  */
 static INLINE void PruneCheck(Packet *p)
 {
+    PROFILE_VARS;
 
     if (!s4data.last_prune_time)
     {
@@ -1682,18 +2465,110 @@ static INLINE void PruneCheck(Packet *p)
 
         sfPerf.sfBase.iStreamTimeouts++;
 
-        PruneSessionCache(p->pkth->ts.tv_sec, 0, NULL);
+        PREPROC_PROFILE_START(stream4PrunePerfStats);
+
+        PruneSessionCache(IPPROTO_TCP, p->pkth->ts.tv_sec, 0, NULL);
+        PREPROC_PROFILE_END(stream4PrunePerfStats);
         s4data.last_prune_time = p->pkth->ts.tv_sec;
 
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Pruned for timeouts, %lu sessions "
                     "active, %lu bytes " "in use\n", 
-                    (unsigned long int) ubi_trCount(RootPtr), stream4_memory_usage);
+                    (unsigned long int) GetSessionCount(p), stream4_memory_usage);
                 DebugMessage(DEBUG_STREAM, "Stream4 memory cap hit %lu times\n", 
                     safe_alloc_faults););
     }
-
 }
 
+void enforceStateCheckNoSession(Packet *p)
+{
+        /*
+        **  We treat IDS and IPS mode differently, because in IDS mode
+        **  we are just monitoring so we pick up all legitimate traffic
+        **  connections, which in this case (thanks to linux) is any
+        **  flag combination (except RST) is valid as an initiator as
+        **  long as the SYN flag is included.
+        **
+        **  In InlineMode, we WILL enforce the correct flag combinations
+        **  or else we'll drop it.
+        */
+        if(!InlineMode())
+        {
+            if((p->tcph->th_flags & (TH_SYN|TH_RST)) != TH_SYN)
+            {
+                DisableDetect(p);
+
+                DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                        "No session, not a synner\n"););
+                return;
+            }
+        }
+        else
+        {
+            /*
+            **  We're in inline mode
+            */
+            if((p->tcph->th_flags & (TH_SYN|TH_ACK|TH_PUSH|TH_FIN|TH_RST)) 
+                    != TH_SYN)
+            {
+                DisableDetect(p);
+
+                if (s4data.enforce_state & ENFORCE_STATE_DROP)
+                {
+                    InlineDrop(p);
+            
+                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                        "No Session, not a synner, drop it\n"););
+                }
+                else
+                {
+                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                        "No Session, not a synner, pass it\n"););
+                }
+
+                return;
+            }
+        }
+}
+
+void enforceStateCheckSession(Session *ssn, Packet *p)
+{
+    /* If session isn't established... 
+     * session_flags don't include ESTABLISHED AND
+     * client and server states aren't set to ESTABLISHED
+     */
+    if (!(ssn->session_flags & SSNFLAG_ESTABLISHED) &&
+         (ssn->client.state < ESTABLISHED) &&
+         (ssn->server.state < ESTABLISHED))
+    {
+        /* ... and this isn't a SYN packet */
+        if (!(p->tcph->th_flags & TH_SYN))
+        {
+            DisableDetect(p);
+
+            if (InlineMode())
+            {
+                if (s4data.enforce_state & ENFORCE_STATE_DROP)
+                {
+                    InlineDrop(p);
+                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                        "Not established, not a synner, drop it\n"););
+                }
+                else
+                {
+                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                        "Not established, not a synner, pass it\n"););
+                }
+            }
+            else
+            {
+                DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                        "Not established, not a synner\n"););
+            }
+        }
+    }
+
+    return;
+}
 
 /*
  * Function: PreprocFunction(Packet *)
@@ -1707,9 +2582,9 @@ static INLINE void PruneCheck(Packet *p)
  *
  * Returns: void function
  */
-void ReassembleStream4(Packet *p)
+void ReassembleStream4(Packet *p, void *context)
 {
-    Session *ssn;
+    Session *ssn = NULL;
     int action;
     int reassemble = 0;
     u_int32_t pkt_seq;
@@ -1717,17 +2592,28 @@ void ReassembleStream4(Packet *p)
     int direction;
     static int alert_once_emerg   = 0;
     static int alert_once_suspend = 0;
+    char ignore;
 #ifdef DEBUG
     static int pcount = 0;
     char flagbuf[9];
+#endif
+    PROFILE_VARS;
 
+#ifdef DEBUG
     pcount++;
 
     DebugMessage(DEBUG_STREAM, "pcount stream packet %d\n",pcount);
 #endif
 
     if(NotForStream4(p))
+    {
+#ifdef STREAM4_UDP
+        /* Process this is if its a UDP Packet -- since we now want
+         * to handle those. */
+        Stream4ProcessUdp(p);
+#endif
         return;
+    } 
 
     pc.tcp_stream_pkts++;
 
@@ -1753,6 +2639,8 @@ void ReassembleStream4(Packet *p)
                 ntohl(p->tcph->th_seq), ntohl(p->tcph->th_ack));
             );
 
+    PREPROC_PROFILE_START(stream4PerfStats);
+
     pkt_seq = ntohl(p->tcph->th_seq);
     pkt_ack = ntohl(p->tcph->th_ack);
 
@@ -1769,44 +2657,11 @@ void ReassembleStream4(Packet *p)
     */
     if(!ssn && s4data.enforce_state)
     {
-        /*
-        **  We treat IDS and IPS mode differently, because in IDS mode
-        **  we are just monitoring so we pick up all legitimate traffic
-        **  connections, which in this case (thanks to linux) is any
-        **  flag combination (except RST) is valid as an initiator as
-        **  long as the SYN flag is included.
-        **
-        **  In InlineMode, we WILL enforce the correct flag combinations
-        **  or else we'll drop it.
-        */
-        if(!InlineMode())
+        enforceStateCheckNoSession(p);
+        if (do_detect_content == 0)
         {
-            if((p->tcph->th_flags & (TH_SYN|TH_RST)) != TH_SYN)
-            {
-                do_detect = 0;
-                p->preprocessors = 0;
-
-                return;
-            }
-        }
-        else
-        {
-            /*
-            **  We're in inline mode
-            */
-            if((p->tcph->th_flags & (TH_SYN|TH_ACK|TH_PUSH|TH_FIN|TH_RST)) 
-                    != TH_SYN)
-            {
-                do_detect = 0;
-                p->preprocessors = 0;
-
-                InlineDrop();
-            
-                DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
-                        "Lets drop this its not a synner\n"););
-
-                return;
-            }
+            PREPROC_PROFILE_END(stream4PerfStats);
+            return;
         }
     }
 
@@ -1923,6 +2778,7 @@ void ReassembleStream4(Packet *p)
                 DisableDetect(p);
             }
 
+            PREPROC_PROFILE_END(stream4PerfStats);
             return;
         }           
     }    
@@ -1932,8 +2788,54 @@ void ReassembleStream4(Packet *p)
             s4_emergency.new_session_count = 0;
     }
 
-
     p->ssnptr = ssn;
+
+    /* Check if stream is to be ignored per session flags */
+    if (ssn && ssn->ignore_flag )
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                "Nothing to do -- stream is set to be ignored.\n"););
+
+        if (ssn->need_to_flush)
+        {
+            FlushStream(&ssn->client, p, NO_REVERSE);
+            FlushStream(&ssn->server, p, NO_REVERSE);
+            ssn->need_to_flush = 0;
+        }
+
+        SetIgnoreChannel(NULL, p, SSN_DIR_BOTH, -1, 0);
+
+#ifdef DEBUG
+        {
+            /* Have to allocate & copy one of these since inet_ntoa
+             * clobbers the info from the previous call. */
+            struct in_addr tmpAddr;
+            char srcAddr[17];
+            tmpAddr.s_addr = p->iph->ip_src.s_addr;
+            strcpy(srcAddr, inet_ntoa(tmpAddr));
+            tmpAddr.s_addr = p->iph->ip_dst.s_addr;
+
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                   "Ignoring channel %s:%d --> %s:%d\n",
+                   srcAddr, p->sp,
+                   inet_ntoa(tmpAddr), p->dp););
+        }
+#endif
+        PREPROC_PROFILE_END(stream4PerfStats);
+        return;
+    }
+
+    /* Check if this packet is one of the "to be ignored" channels.
+     * If so, set flag, flush any data that may be buffered up on
+     * the connection, and bail. */
+    ignore = CheckIgnoreChannel(p);
+    if (ignore)
+    {
+        SetIgnoreChannel(ssn, p, ignore, -1, 0);
+
+        PREPROC_PROFILE_END(stream4PerfStats);
+        return;
+    }
 
     DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
                 "[i] Tracked Bytes: (client: %d, server: %d)\n",
@@ -1941,7 +2843,7 @@ void ReassembleStream4(Packet *p)
                 ssn->server.bytes_tracked););
 
     /* update the stream window size */
-    if((direction = GetDirection(ssn, p)) == SERVER_PACKET)
+    if((direction = GetDirection(ssn, p)) == FROM_SERVER)
     {
         p->packet_flags |= PKT_FROM_SERVER;
         ssn->client.win_size = ntohs(p->tcph->th_win);
@@ -1952,6 +2854,64 @@ void ReassembleStream4(Packet *p)
         p->packet_flags |= PKT_FROM_CLIENT;
         ssn->server.win_size = ntohs(p->tcph->th_win);
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  "client packet: %s\n", flagbuf););
+    }
+
+    /* Check if stream is to be dropped in this direction */
+    if (s4data.allow_session_blocking && ssn &&
+        ssn->drop_traffic && InlineMode())
+    {
+        if (ssn->drop_traffic & direction)
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                        "Blocking %s packet as session was blocked\n",
+                        direction & FROM_SERVER ? "server" : "client"););
+            DisableDetect(p);
+            /* Still want to add this number of bytes to totals */
+            SetPreprocBit(p, PP_PERFMONITOR);
+            InlineDrop(p);
+            return;
+        }
+    }
+
+    if (p->dsize > 0)
+    {
+        if ((p->packet_flags & PKT_FROM_SERVER) &&
+            (s4data.server_inspect_limit > 0))
+        {
+            /* Server packet, check if we should ignore the rest of the
+             * server data until we see a client packet again.
+             */
+
+            /* A configurable threshold */
+            if (ssn->server.bytes_inspected > s4data.server_inspect_limit)
+            {
+                p->bytes_to_inspect = -1;
+            }
+            else
+            {
+                if (p->dsize + ssn->server.bytes_inspected >
+                                s4data.server_inspect_limit)
+                {
+                    /* We've already inspected some portion of the
+                     * server stream and this packet puts us over the
+                     * threshold.  Only inspect the difference.
+                     */
+                    /* Can't simply change dsize, since other preprocs,
+                     * like change dsize based on their own configs
+                     * (like HttpInspect FlowDepth).  We don't want
+                     * to break that functionality.
+                     */
+        
+                    p->bytes_to_inspect = s4data.server_inspect_limit -
+                                           ssn->server.bytes_inspected;
+                }
+            }
+            ssn->server.bytes_inspected += p->dsize;
+        }
+        else
+        {
+            ssn->server.bytes_inspected = 0;
+        }
     }
 
     /* update the time for this session */
@@ -1967,21 +2927,75 @@ void ReassembleStream4(Packet *p)
         action = UpdateState2(ssn, p, pkt_seq);
     }
 
+    if (s4data.enforce_state)
+    {
+        /* If enforce state, don't inspect this packet */
+        enforceStateCheckSession(ssn, p);
+        if (do_detect_content == 0)
+        {
+            /* In fact, just delete the session entirely since its
+             * useless.  Performance hit now, saves time on the next
+             * packet for this pseudo-session.
+             */
+            DeleteSession(ssn, p->pkth->ts.tv_sec);
+            p->ssnptr = NULL;
+            PREPROC_PROFILE_END(stream4PerfStats);
+            return;
+        }
+    }
+
     /* if this packet has data, maybe we should store it */
     if(p->dsize && reassemble)
     {
-        StoreStreamPkt(ssn, p, pkt_seq);
+        StoreStreamPkt2(ssn, p, pkt_seq);
     }
     else
     {
         /* Since we're not storing the packet on this session, let's
          * decrement the bytes tracked */
-        if(direction == SERVER_PACKET)
+        if(direction == FROM_SERVER)
             StreamSegmentSub(&ssn->server, p->dsize);        
         else
             StreamSegmentSub(&ssn->client, p->dsize);
     }
 
+    if ((s4data.overlap_limit > 0) &&
+        (ssn->client.overlap_pkts > s4data.overlap_limit))
+    {
+        /* We reached the overlap limit.  Kill the session */
+        /* But flush it first */
+        action |= ACTION_FLUSH_CLIENT_STREAM;
+
+        if(s4data.evasion_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
+                STREAM4_OVERLAP_LIMIT, /* SID */
+                1,                      /* Rev */
+                0,                      /* classification */
+                3,                      /* priority (low) */
+                STREAM4_OVERLAP_LIMIT_STR, /* msg string */
+                0);
+        }
+    }
+
+    if ((s4data.overlap_limit > 0) &&
+        (ssn->server.overlap_pkts > s4data.overlap_limit))
+    {
+        /* We reached the overlap limit.  Kill the session */
+        /* But flush it first */
+        action |= ACTION_FLUSH_SERVER_STREAM;
+
+        if(s4data.evasion_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
+                STREAM4_OVERLAP_LIMIT, /* SID */
+                1,                      /* Rev */
+                0,                      /* classification */
+                3,                      /* priority (low) */
+                STREAM4_OVERLAP_LIMIT_STR, /* msg string */
+                0);
+        }
+    }
 
     /* 
      * resolve actions to be taken as indicated by state transitions or
@@ -1994,7 +3008,7 @@ void ReassembleStream4(Packet *p)
     else
     {
         TcpAction(ssn, p, action, direction, pkt_seq, pkt_ack);
-    }   
+    }
 
     /*
      * Kludge:  Sometime's we can drop a bad session
@@ -2079,12 +3093,12 @@ void ReassembleStream4(Packet *p)
         }
     }
 
-
     PrintSessionCache();
 
     /* see if we need to prune the session cache */
     PruneCheck(p);
 
+    PREPROC_PROFILE_END(stream4PerfStats);
     return;
 }
 
@@ -2173,7 +3187,85 @@ int INLINE EvalStateQueue(Stream *sptr, u_int8_t flags, u_int32_t ack)
     return 0;
 }
 
+int PurgeOnReSyn(Session *ssn, int direction, u_int32_t pkt_seq)
+{
+    Stream *s;
+    StreamPacketData *spd;
+    StreamPacketData *dump;
+    int num_removed = 0;
 
+    if(s4data.state_alerts)
+    {
+        SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
+                STREAM4_SYN_ON_ESTABLISHED, /* SID */
+                1,                      /* Rev */
+                0,                      /* classification */
+                3,                      /* priority (low) */
+                STREAM4_SYN_ON_ESTABLISHED_STR, /* msg string */
+                0);
+    }
+
+
+    /* select the right stream */
+    if(direction == FROM_CLIENT)
+    {
+        if(!ssn->reassemble_client)
+        {
+            return num_removed;
+        }
+
+        s = &ssn->client;
+    }
+    else
+    {
+        if(!ssn->reassemble_server)
+        {
+            return num_removed;
+        }
+
+        s = &ssn->server;
+    }
+
+    spd = s->seglist_tail;
+    while (spd)
+    {
+        if (SEQ_GEQ(spd->seq_num, pkt_seq))
+        {
+            /* Remove this one entirely */
+            dump = spd;
+            spd = spd->prev;
+            dump = RemoveSpd(s, dump);
+            stream4_memory_usage -= dump->pkt_size;
+            StreamSegmentSub(s, (u_int16_t)dump->pkt_size);
+            free(dump->pktOrig);
+            stream4_memory_usage -= sizeof(StreamPacketData);
+            free(dump);
+            num_removed++;
+            continue;
+        }
+
+        if (SEQ_GEQ(spd->seq_num + spd->payload_size, pkt_seq))
+        {
+            /* Trim this one accordingly */
+            u_int32_t overlap = pkt_seq - spd->seq_num;
+            spd->seq_num = pkt_seq;
+            spd->payload_size -= (u_int16_t)overlap;
+            spd->payload += overlap;
+            StreamSegmentSub(s, (u_int16_t)overlap);
+            break; /* Should be the last one since they're in order */
+        }
+
+        if (SEQ_LT(spd->seq_num, pkt_seq))
+        {
+            /* Beyond the seq that was ReSYN'd */
+            break;
+        }
+
+        spd = spd->prev;
+    }
+
+    return num_removed;
+}
 
 int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
 {
@@ -2181,20 +3273,15 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
     int retcode = 0;
     Stream *talker = NULL;
     Stream *listener = NULL;
-    DEBUG_WRAP(
-            char *t = NULL;
-            char *l = NULL;
-            );
+#ifdef DEBUG
+    char *t = NULL;
+    char *l = NULL;
+#endif
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(stream4StatePerfStats);
 
     direction = GetDirection(ssn, p);
-
-    if(p->tcph->th_flags & TH_FIN)
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
-                    "Marking that a fin was was sent %s\n",
-                    (direction ? "FROM_CLIENT" : "FROM_SERVER")););
-        SetFinSent(p, ssn, direction);
-    }
 
     if(direction == FROM_SERVER)
     {
@@ -2230,6 +3317,15 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
                     "   %s state: %s\n", l, state_names[listener->state]););
     }
 
+    if(p->tcph->th_flags & TH_FIN)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+                    "Marking that a fin was was sent %s\n",
+                    (direction ? "FROM_CLIENT" : "FROM_SERVER")););
+
+        SetFinSent(ssn, direction, pkt_seq, p);
+    }
+
     StreamSegmentAdd(talker, p->dsize); 
 
     if(talker->state == ESTABLISHED)
@@ -2242,6 +3338,10 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
         /* check to make sure the RST is in window */
         if(CheckRst(ssn, direction, pkt_seq, p))
         {
+            int action = ACTION_FLUSH_CLIENT_STREAM | 
+                         ACTION_FLUSH_SERVER_STREAM | 
+                         ACTION_DROP_SESSION; 
+            
             ssn->client.state = CLOSED;
             ssn->server.state = CLOSED;
 
@@ -2252,9 +3352,20 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
                     if(l) free(l);
                     if(t) free(t););
 
-            return ACTION_FLUSH_CLIENT_STREAM | 
-                ACTION_FLUSH_SERVER_STREAM | 
-                ACTION_DROP_SESSION;
+            if ( p->tcph->th_flags & TH_ACK )
+            {
+                if ( direction == FROM_SERVER )
+                {
+                    action |= ACTION_ACK_CLIENT_DATA;
+                }
+                else
+                {
+                    action |= ACTION_ACK_SERVER_DATA;
+                }
+            }
+
+            PREPROC_PROFILE_END(stream4StatePerfStats);
+            return action;
         }
     }
 
@@ -2322,6 +3433,16 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
             break;
 
         case ESTABLISHED:
+            if (p->tcph->th_flags & TH_SYN)
+            {
+                /* SYN on established... */
+                /* purge data that is stored beyond the seq+1 of this SYN packet.
+                 */
+                PurgeOnReSyn(ssn, direction, pkt_seq + 1);
+                talker->isn = pkt_seq;
+                talker->last_ack = ntohl(p->tcph->th_ack);
+                talker->base_seq = talker->last_ack;
+            }
             if(p->tcph->th_flags & TH_ACK)
             {
                 if(direction == FROM_CLIENT)
@@ -2332,10 +3453,13 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
 
             if((p->tcph->th_flags & TH_FIN) == TH_FIN)
             {
-                talker->state = FIN_WAIT_1;
-                DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,  
-                            "   %s Transition: FIN_WAIT_1\n", t););
-                QueueState(CLOSE_WAIT, listener, TH_ACK, pkt_seq, CHK_SEQ);
+                if (!CheckFin(talker, direction, pkt_seq, p))
+                {
+                    talker->state = FIN_WAIT_1;
+                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,  
+                                "   %s Transition: FIN_WAIT_1\n", t););
+                    QueueState(CLOSE_WAIT, listener, TH_ACK, pkt_seq, CHK_SEQ);
+                }
             }
 
             break;
@@ -2431,6 +3555,7 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
 
         case TIME_WAIT:
         case CLOSED:    
+            PREPROC_PROFILE_END(stream4StatePerfStats);
             return ACTION_FLUSH_CLIENT_STREAM | ACTION_DROP_SESSION;    
     }
 
@@ -2438,6 +3563,7 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
             if(l) free(l);
             if(t) free(t););
 
+    PREPROC_PROFILE_END(stream4StatePerfStats);
     return retcode;
 }
 
@@ -2453,6 +3579,9 @@ int UpdateState2(Session *ssn, Packet *p, u_int32_t pkt_seq)
 int UpdateStateAsync(Session *ssn, Packet *p, u_int32_t pkt_seq)
 {
     int direction;
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(stream4StateAsyncPerfStats);
 
     direction = GetDirection(ssn, p);
 
@@ -2479,8 +3608,10 @@ int UpdateStateAsync(Session *ssn, Packet *p, u_int32_t pkt_seq)
                         ssn->server.state = ESTABLISHED;
                         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  
                                     "   Server Transition: ESTABLISHED\n"););
+                        PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                         return ACTION_COMPLETE_TWH;
                     }
+                    PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                     return ACTION_NOTHING;
 
                 case ESTABLISHED:
@@ -2492,6 +3623,7 @@ int UpdateStateAsync(Session *ssn, Packet *p, u_int32_t pkt_seq)
                         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  
                                     "   Client Transition: FIN_WAIT_1\n"););
 
+                        PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                         return ACTION_FLUSH_SERVER_STREAM|ACTION_DROP_SESSION;
                     }
                     else if(p->tcph->th_flags & TH_RST)
@@ -2503,9 +3635,11 @@ int UpdateStateAsync(Session *ssn, Packet *p, u_int32_t pkt_seq)
                         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  
                                     "   Server Transition: CLOSED\n"););
 
+                        PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                         return ACTION_FLUSH_SERVER_STREAM | ACTION_DROP_SESSION;
                     }
 
+                    PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                     return ACTION_NOTHING;
             }
 
@@ -2527,6 +3661,7 @@ int UpdateStateAsync(Session *ssn, Packet *p, u_int32_t pkt_seq)
                         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  
                                     "   Client Transition: CLOSED -- RESET\n"););
 
+                        PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                         return ACTION_FLUSH_CLIENT_STREAM | ACTION_DROP_SESSION;
                     }
                     else if(p->tcph->th_flags & TH_ACK)
@@ -2536,10 +3671,11 @@ int UpdateStateAsync(Session *ssn, Packet *p, u_int32_t pkt_seq)
                         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  
                                     "   Client Transition: ESTABLISHED\n"););
 
+                        PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                         return ACTION_NOTHING;
                     }
 
-
+                    PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                     return ACTION_NOTHING;
 
 
@@ -2561,6 +3697,7 @@ int UpdateStateAsync(Session *ssn, Packet *p, u_int32_t pkt_seq)
                         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  
                                     "   Client Transition: CLOSEd\n"););
 
+                        PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                         return ACTION_FLUSH_CLIENT_STREAM|ACTION_DROP_SESSION;
                     }
                     else if(p->tcph->th_flags & TH_RST)
@@ -2572,31 +3709,70 @@ int UpdateStateAsync(Session *ssn, Packet *p, u_int32_t pkt_seq)
                         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  
                                     "   Client Transition: Closed\n"););
 
+                        PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
                         return ACTION_FLUSH_CLIENT_STREAM | ACTION_DROP_SESSION;
                     }
                     break;
             }
     }
 
+    PREPROC_PROFILE_END(stream4StateAsyncPerfStats);
     return ACTION_NOTHING;
 }
 
+void NewSessionSetReassemble(Session *ssn)
+{
+    /* These are set "backwards" -- if reassemble_client is set that means
+     * packets going FROM the client to the server port.  Similarly, if
+     * reassemble_server is set that means packets going FROM the server
+     * to the client port. */
+    int reassemble = 0;
+    switch (s4_emergency.status)
+    {
+    case OPS_NORMAL:
+        reassemble = s4data.assemble_ports[ssn->server.port] |
+                     s4data.assemble_ports[ssn->client.port];
+        break;
+    case OPS_SELF_PRESERVATION:
+        reassemble = s4data.emergency_ports[ssn->server.port] |
+                     s4data.emergency_ports[ssn->client.port];
+        break;
+    }
+    if (s4data.reassemble_client)
+        ssn->reassemble_client = reassemble;
+    else
+        ssn->reassemble_client = 0;
 
+    if (s4data.reassemble_server)
+        ssn->reassemble_server = reassemble;
+    else
+        ssn->reassemble_server = 0;
+}
 
 Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
 {
     Session *idx = NULL;
     static u_int8_t savedfpi; /* current flush point index */
     u_int8_t fpi;            /* flush point index */
+    PROFILE_VARS;
 
-
+    PREPROC_PROFILE_START(stream4NewSessPerfStats);
     /* assign a psuedo random flush point */
     savedfpi++;
     fpi = savedfpi % FCOUNT;    
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Using flush value of "
+                "(%d bytes) at index %d\n", flush_points[fpi],fpi););
+    /* This would be a lot better but could be a big performance hit
+     * since the flush point values should be fully random at this
+     * point it should be ok.
+    srand(savedfpi + p->pkth->ts.tv_sec);
+    fpi = rand() % FCOUNT;
+    */
 
     switch(p->tcph->th_flags)
     {
         case TH_RES1|TH_RES2|TH_SYN: /* possible ECN traffic */
+        case TH_RES1|TH_SYN: /* possible ECN traffic */
             if(p->iph->ip_tos == 0x02)
             {
                 /* it is ECN traffic */
@@ -2609,18 +3785,10 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "[A] initializing new session "
                         "(%d bytes)\n", sizeof(Session)););
 
-            idx = (Session *) SafeAlloc(sizeof(Session), p->pkth->ts.tv_sec,
-                    NULL);
+            idx = GetNewSession(p);
 
-            if(s4data.reassemble_server)
-                (void)ubi_trInitTree(&idx->server.data, /* ptr to the tree head */
-                                     DataCompareFunc, /* comparison function */
-                                     0);              /* don't allow overwrites */
-
-            if(s4data.reassemble_client)
-                (void)ubi_trInitTree(&idx->client.data, /* ptr to the tree head */
-                                     DataCompareFunc, /* comparison function */
-                                     0);              /* don't allow overwrites */
+            idx->client.seglist = idx->client.seglist_tail = NULL;
+            idx->server.seglist = idx->server.seglist_tail = NULL;
 
             idx->server.state = LISTEN;        
             idx->server.ip = p->iph->ip_dst.s_addr;
@@ -2643,6 +3811,7 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
             }
 
             idx->flush_point = flush_points[fpi];
+            NewSessionSetReassemble(idx);
             break;
 
         case TH_RES2|TH_SYN|TH_ACK:
@@ -2665,6 +3834,7 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
                     break;
                 }
 
+                PREPROC_PROFILE_END(stream4NewSessPerfStats);
                 return NULL;
             }
 
@@ -2674,18 +3844,10 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "[A] initializing new session "
                         "(%d bytes)\n", sizeof(Session)););
 
-            idx = (Session *) SafeAlloc(sizeof(Session), p->pkth->ts.tv_sec, 
-                    NULL);
+            idx = GetNewSession(p);
 
-            if(s4data.reassemble_server)
-                (void)ubi_trInitTree(&idx->server.data, /* ptr to the tree head */
-                                     DataCompareFunc, /* comparison function */
-                                     0);              /* don't allow overwrites */
-
-            if(s4data.reassemble_client)
-                (void)ubi_trInitTree(&idx->client.data, /* ptr to the tree head */
-                                     DataCompareFunc, /* comparison function */
-                                     0);              /* don't allow overwrites */
+            idx->client.seglist = idx->client.seglist_tail = NULL;
+            idx->server.seglist = idx->server.seglist_tail = NULL;
 
             idx->server.state = SYN_RCVD;
             idx->client.state = SYN_SENT;
@@ -2703,6 +3865,7 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
             idx->last_session_time = p->pkth->ts.tv_sec;
             idx->session_flags = SSNFLAG_SEEN_SERVER;
             idx->flush_point = flush_points[fpi];
+            NewSessionSetReassemble(idx);
             break;
 
         case TH_ACK: 
@@ -2726,39 +3889,50 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "[A] initializing new session "
                         "(%d bytes)\n", sizeof(Session)););
 
-            idx = (Session *) SafeAlloc(sizeof(Session), p->pkth->ts.tv_sec,
-                    NULL);
+            idx = GetNewSession(p);
 
-            if(s4data.reassemble_server)
-                (void)ubi_trInitTree(&idx->server.data, /* ptr to the tree head */
-                                     DataCompareFunc, /* comparison function */
-                                     0);              /* don't allow overwrites */
-
-            if(s4data.reassemble_client)
-                (void)ubi_trInitTree(&idx->client.data, /* ptr to the tree head */
-                                     DataCompareFunc, /* comparison function */
-                                     0);              /* don't allow overwrites */
+            idx->client.seglist = idx->client.seglist_tail = NULL;
+            idx->server.seglist = idx->server.seglist_tail = NULL;
 
             idx->server.state = ESTABLISHED;
             idx->client.state = ESTABLISHED;
 
-            idx->server.ip = p->iph->ip_dst.s_addr;
-            idx->server.port = p->dp;
-            idx->server.isn = pkt_ack-1;
-            idx->server.last_ack = pkt_ack;
-            idx->server.base_seq = idx->server.last_ack;
+            if ( p->dp <= p->sp )  /* guess this is a client packet */
+            {
+                idx->server.ip = p->iph->ip_dst.s_addr;
+                idx->server.port = p->dp;
+                idx->server.isn = pkt_ack-1;
+                idx->server.last_ack = pkt_ack;
+                idx->server.base_seq = idx->server.last_ack;
+                idx->server.win_size = ntohs(p->tcph->th_win);
 
-            idx->client.ip = p->iph->ip_src.s_addr;
-            idx->client.port = p->sp;
-            idx->client.isn = pkt_seq-1;
-            idx->client.last_ack = pkt_seq;
-            idx->client.base_seq = idx->client.last_ack;
-            idx->server.win_size = ntohs(p->tcph->th_win);
+                idx->client.ip = p->iph->ip_src.s_addr;
+                idx->client.port = p->sp;
+                idx->client.isn = pkt_seq-1;
+                idx->client.last_ack = pkt_seq;
+                idx->client.base_seq = idx->client.last_ack;
+                idx->session_flags = SSNFLAG_SEEN_CLIENT;
+            }
+            else  /*  sp > dp, guess this is a server packet */
+            {
+                idx->client.ip = p->iph->ip_dst.s_addr;
+                idx->client.port = p->dp;
+                idx->client.isn = pkt_ack-1;
+                idx->client.last_ack = pkt_ack;
+                idx->client.base_seq = idx->client.last_ack;
+                idx->client.win_size = ntohs(p->tcph->th_win);
 
+                idx->server.ip = p->iph->ip_src.s_addr;
+                idx->server.port = p->sp;
+                idx->server.isn = pkt_seq-1;
+                idx->server.last_ack = pkt_seq;
+                idx->server.base_seq = idx->server.last_ack;
+                idx->session_flags = SSNFLAG_SEEN_SERVER;
+            }
             idx->start_time = p->pkth->ts.tv_sec;
             idx->last_session_time = p->pkth->ts.tv_sec;
-            idx->session_flags = SSNFLAG_SEEN_CLIENT;
             idx->flush_point = flush_points[fpi];
+            NewSessionSetReassemble(idx);
             break;
 
         case TH_RES2|TH_SYN: /* nmap fingerprint packet */
@@ -2766,17 +3940,10 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
                         "(%d bytes)\n", sizeof(Session));
                     DebugMessage(DEBUG_STREAM,
                         "nmap fingerprint scan 2SYN packet!\n"););
-            idx = (Session *) SafeAlloc(sizeof(Session), p->pkth->ts.tv_sec, NULL);
+            idx = GetNewSession(p);
 
-            if(s4data.reassemble_server)
-                (void)ubi_trInitTree(&idx->server.data, /* ptr to the tree head */
-                                     DataCompareFunc, /* comparison function */
-                                     0);              /* don't allow overwrites */
-
-            if(s4data.reassemble_client)
-                (void)ubi_trInitTree(&idx->client.data, /* ptr to the tree head */
-                                     DataCompareFunc, /* comparison function */
-                                     0);              /* don't allow overwrites */
+            idx->client.seglist = idx->client.seglist_tail = NULL;
+            idx->server.seglist = idx->server.seglist_tail = NULL;
 
             idx->server.state = NMAP_FINGERPRINT_2S;
             idx->client.state = NMAP_FINGERPRINT_2S;
@@ -2795,6 +3962,7 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
 
             idx->session_flags = SSNFLAG_SEEN_CLIENT|SSNFLAG_NMAP;
             idx->flush_point = flush_points[fpi];
+            NewSessionSetReassemble(idx);
 
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"init nmap for sip: 0x%X sp: %d  "
                         "cip: 0x%X cp: %d\n", 
@@ -2925,30 +4093,16 @@ Session *CreateNewSession(Packet *p, u_int32_t pkt_seq, u_int32_t pkt_ack)
 
                 break;
             }
-
+            PREPROC_PROFILE_END(stream4NewSessPerfStats);
             return NULL;
     }
 
     if(idx)
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
-                    "Inserting session into session tree...\n"););
-
-        if(ubi_sptInsert(RootPtr,(ubi_btNodePtr)idx,(ubi_btNodePtr)idx, NULL)
-                == FALSE)
-        {
-            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
-                        "sptInsert failed, that's going to "
-                        "make life difficult\n"););
-
-            stream4_memory_usage -= sizeof(Session);
-            free(idx);
-            return NULL;
-        }
-
         pc.tcp_streams++;
     }
 
+    PREPROC_PROFILE_END(stream4NewSessPerfStats);
     return idx;
 }
 
@@ -2961,18 +4115,28 @@ void DeleteSession(Session *ssn, u_int32_t time)
     struct tm *lt;
     struct tm *et;
     Session *killme;
+    char tcp_ssn = 1;
 
-    RemoveStreamSession(&sfPerf.sfBase);
-    
     if(ssn == NULL)
         return;
+    
+#ifdef STREAM4_UDP
+    if (ssn->hashKey.proto == IPPROTO_UDP)
+    {
+        RemoveUDPSession(&sfPerf.sfBase);
+        tcp_ssn = 0;
+    }
+    else
+#endif
+    RemoveStreamSession(&sfPerf.sfBase);
     
     if(s4data.track_stats_flag == STATS_HUMAN_READABLE)
     {
         lt = localtime((time_t *) &ssn->start_time);
         s = (ssn->start_time + thiszone) % 86400;
 
-        fprintf(session_log, "[*] Session stats:\n   Start Time: ");
+        fprintf(session_log, "[*] %s Session stats:\n   Start Time: ",
+            tcp_ssn ? "TCP" : "UDP");
         fprintf(session_log, "%02d/%02d/%02d-%02d:%02d:%02d", lt->tm_mon+1,
                 lt->tm_mday, lt->tm_year - 100, s/3600, (s%3600)/60, s%60);
 
@@ -2983,23 +4147,26 @@ void DeleteSession(Session *ssn, u_int32_t time)
                 (s%3600)/60, s%60);
 
         foo.s_addr = ssn->server.ip;
-        fprintf(session_log, "   Server IP: %s  ", inet_ntoa(foo));
+        fprintf(session_log, "   %s IP: %s  ", 
+            tcp_ssn ? "Server" : "Responder", inet_ntoa(foo));
         fprintf(session_log, "port: %d  pkts: %u  bytes: %u\n", 
                 ssn->server.port, ssn->server.pkts_sent, 
                 ssn->server.bytes_sent);
         foo.s_addr = ssn->client.ip;
-        fprintf(session_log, "   Client IP: %s  ", inet_ntoa(foo));
+        fprintf(session_log, "   %s IP: %s  ", 
+            tcp_ssn ? "Client" : "Sender", inet_ntoa(foo));
         fprintf(session_log, "port: %d  pkts: %u  bytes: %u\n", 
                 ssn->client.port, ssn->client.pkts_sent, 
                 ssn->client.bytes_sent);
-
+        fflush(session_log);
     }
     else if(s4data.track_stats_flag == STATS_MACHINE_READABLE)
     {
         lt = localtime((time_t *) &ssn->start_time);
         s = (ssn->start_time + thiszone) % 86400;
 
-        fprintf(session_log, "[*] Session => Start: ");
+        fprintf(session_log, "[*] %s Session => Start: ",
+            tcp_ssn ? "TCP" : "UDP");
         fprintf(session_log, "%02d/%02d/%02d-%02d:%02d:%02d", lt->tm_mon+1,
                 lt->tm_mday, lt->tm_year - 100, s/3600, (s%3600)/60, s%60);
 
@@ -3010,15 +4177,18 @@ void DeleteSession(Session *ssn, u_int32_t time)
                 (s%3600)/60, s%60);
 
         foo.s_addr = ssn->server.ip;
-        fprintf(session_log, "[Server IP: %s  ", inet_ntoa(foo));
+        fprintf(session_log, "[%s IP: %s  ", 
+            tcp_ssn ? "Server" : "Responder", inet_ntoa(foo));
         fprintf(session_log, "port: %d  pkts: %u  bytes: %u]", 
                 ssn->server.port, ssn->server.pkts_sent, 
                 ssn->server.bytes_sent);
         foo.s_addr = ssn->client.ip;
-        fprintf(session_log, " [Client IP: %s  ", inet_ntoa(foo));
+        fprintf(session_log, " [%s IP: %s  ", 
+            tcp_ssn ? "Client" : "Sender", inet_ntoa(foo));
         fprintf(session_log, "port: %d  pkts: %u  bytes: %u]\n", 
                 ssn->client.port, ssn->client.pkts_sent, 
                 ssn->client.bytes_sent);
+        fflush(session_log);
     }
     else if(s4data.track_stats_flag == STATS_BINARY)
     {
@@ -3038,12 +4208,9 @@ void DeleteSession(Session *ssn, u_int32_t time)
         WriteSsnStats(&bs);
     }
 
-    if(ubi_trCount(RootPtr))
-    {
-        killme = (Session *) ubi_sptRemove(RootPtr, (ubi_btNodePtr) ssn);
+    killme = RemoveSession(ssn);
 
-        DropSession(killme);
-    }
+    DropSession(killme);
 }
 
 
@@ -3054,10 +4221,10 @@ void DeleteSession(Session *ssn, u_int32_t time)
  * Snort/IDS safe handling of TCP Resets
  *  
  * ignore rules
- * 	if stream tracking is off, ignore resets.
- * 	if stream reassembly is off in the direction of flow, ignore resets.
- * 	if the rst sequence is a duplicate sequence number, ignore it.
- * 	if the rst is on a flow where we have unack'd data, ignore it.
+ *      if stream tracking is off, ignore resets.
+ *      if stream reassembly is off in the direction of flow, ignore resets.
+ *      if the rst sequence is a duplicate sequence number, ignore it.
+ *      if the rst is on a flow where we have unack'd data, ignore it.
  *  if there is no ack with the reset, ignore it.
  *  if the sequence is > the next expected sequence but still within 
  *      the window , queue it, and ignore it for now.
@@ -3065,11 +4232,11 @@ void DeleteSession(Session *ssn, u_int32_t time)
  *      outstanding acks - ignore the reset.
  *      
  *  ignoring a reset does the following:
- * 	the session is not closed.
- * 	if the session is closed by the receiver of the reset, the session will 
- * 	time out.
- * 	if the session is not closed by the receiver, than data will continue to 
- * 	be tracked.
+ *      the session is not closed.
+ *      if the session is closed by the receiver of the reset, the session will 
+ *      time out.
+ *      if the session is not closed by the receiver, than data will continue to 
+ *      be tracked.
  * 
  * Includes Fix for bug 2161  
  * 9/2/2003
@@ -3090,18 +4257,12 @@ int CheckRst(Session *ssn, int direction, u_int32_t pkt_seq, Packet *p)
         return 0;
 
     if(direction == FROM_SERVER)
-    {
-        if( !s4data.reassemble_server ) 
-            return 0;
-
+    {        
         s = &ssn->server;
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"--RST From Server!\n"););
     }
     else
-    {
-        if( !s4data.reassemble_client ) 
-            return 0;
-
+    {        
         s = &ssn->client;
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"--RST From Client!\n"););
     }
@@ -3134,17 +4295,21 @@ int CheckRst(Session *ssn, int direction, u_int32_t pkt_seq, Packet *p)
      *  This is a standard TCP/IP stack 'in the window' check, but it's 
      *  not always the way stacks handle RST's:
      *  
-     *  if(SEQ_LT(pkt_seq,s->base_seq+s->bytes_sent) || 
+     *  if(SEQ_LT(pkt_seq,s->base_seq+s->bytes_tracked) || 
      *     SEQ_GEQ(pkt_seq,(s->last_ack+s->win_size))) 
      *  
      *  We use a tighter constraint...
+     *
+     *  Use bytes_tracked, which is the number of bytes currently queued
+     *  for reassembly.  Don't use bytes_sent, which is the number of bytes
+     *  seen on the session, including retransmissions, overlaps, etc.
      */
-    if( !SEQ_EQ(pkt_seq,s->base_seq+s->bytes_sent) )
+    if( !SEQ_EQ(pkt_seq,s->base_seq+s->bytes_tracked) )
     {
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
-                    "Bad RST packet, bad sequence or no ack, no cookie!\n");
-                DebugMessage(DEBUG_STREAM, "pkt seq: 0x%X   last_ack: 0x%X   "
-                    "win: 0x%X\n", pkt_seq, s->last_ack, s->win_size););
+                    "Bad RST packet, bad sequence or no ack, no cookie!\n"
+                    "pkt seq: 0x%X   last_ack: 0x%X   win: 0x%X\n",
+                    pkt_seq, s->last_ack, s->win_size););
 
         /* we should probably alert here */
         if(s4data.evasion_alerts)
@@ -3174,8 +4339,10 @@ int CheckRst(Session *ssn, int direction, u_int32_t pkt_seq, Packet *p)
      *
      * Shai Rubin <shai@cs.wisc.edu>
      */
-    if( ubi_sptFind(&s->data,(ubi_btItemPtr)(&spd)) && 
-            SEQ_LT(s->last_ack,s->base_seq+s->bytes_sent) )
+
+    /* Find this packet seq within the packet store */
+    if (SpdSeqExists(s, pkt_seq) &&
+            SEQ_LT(s->last_ack,s->base_seq+s->bytes_tracked) )
     {
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
                     "Ignoring a RST (2)...pkt_seq=%u\n",pkt_seq););
@@ -3188,18 +4355,100 @@ int CheckRst(Session *ssn, int direction, u_int32_t pkt_seq, Packet *p)
     return 1;
 }
 
+void PurgeFlushStream(Session *ssn, Stream *s)
+{
+    Packet p;
+    StreamPacketData *spd;
+    DecoderFlags decoder_flags;
 
+    if (!s4_shutdown)
+    {
+        /* Turn off decoder alerts since we're decoding stored
+         * packets that we already alerted on.
+         */
+        memcpy(&decoder_flags, &pv.decoder_flags, sizeof(DecoderFlags));
+        memset(&pv.decoder_flags, 0, sizeof(DecoderFlags));
+    }
 
+    if (s)
+    {
+        spd = s->seglist;
+        if (spd)
+        {
+            struct pcap_pkthdr pkth;
+            unsigned char *pktOrig, *pkt;
+
+            /* Uggh, hate to have do this, but we don't store the original
+             * packet data.  Eth, IP & TCP headers are required for
+             * rebuilding a stream.
+             */
+#ifdef GRE
+            /* Hack so rebuilt/reinserted packet isn't counted toward GRE total 
+             * Right now, this only works if the delivery protocol is IP
+             */
+            if (((IPHdr *)(spd->pktOrig + ETHERNET_HEADER_LEN))->ip_proto == IPPROTO_GRE)
+            {
+                pc.gre--;
+            }
+#endif
+            pc.tcp--;
+            memcpy(&pkth, &spd->pkth, sizeof(struct pcap_pkthdr));
+            pktOrig = pkt = malloc(pkth.caplen + SPARC_TWIDDLE);
+            memcpy(pktOrig, spd->pktOrig, pkth.caplen + SPARC_TWIDDLE);
+            pkt += SPARC_TWIDDLE;
+            (*grinder)(&p, (struct pcap_pkthdr *)&pkth, pkt);
+            p.ssnptr = ssn;
+            p.streamptr = s;
+            FlushStream(s, &p, NO_REVERSE);
+            free(pktOrig);
+        }
+    }
+    if (!s4_shutdown)
+    {
+        /* And turn decoder alerts back on (or whatever they were set to) */
+        memcpy(&pv.decoder_flags, &decoder_flags, sizeof(DecoderFlags));
+    }
+}
+
+void FlushDeletedStream(Session *ssn, Stream *s)
+{
+    if (s && ssn)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+           "Dropping session... reassembling before purge\n"););
+
+        PurgeFlushStream(ssn, s);
+    }
+}
 void DropSession(Session *ssn)
 {
+    Stream *s;
     DEBUG_WRAP(DebugMessage(DEBUG_STREAM,  "Dropping session %p\n", ssn););
 
     if(ssn == NULL)
         return;
-    
-    DeleteSpd((ubi_trRootPtr)&ssn->server.data);
 
-    DeleteSpd((ubi_trRootPtr)&ssn->client.data);
+    if (ssn->hashKey.proto == IPPROTO_TCP)
+    {
+        if (ssn->reassemble_server)
+        {
+            s = &ssn->server;
+            FlushDeletedStream(ssn, s);
+        }
+
+        if (ssn->reassemble_client)
+        {
+            s = &ssn->client;
+            FlushDeletedStream(ssn, s);
+        }
+
+        DeleteSpd(&ssn->server.seglist);
+        DeleteSpd(&ssn->client.seglist);
+        ssn->server.seglist_tail = NULL;
+        ssn->server.pkt_count = 0;
+        ssn->client.seglist_tail = NULL;
+        ssn->client.pkt_count = 0;
+    }
 
     if (ssn->preproc_free)
     {
@@ -3210,18 +4459,25 @@ void DropSession(Session *ssn)
 
     DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "[F] Freeing %d byte session\n", 
                             sizeof(Session)););
-    
-    stream4_memory_usage -= sizeof(Session);
-    free(ssn);
+   
 }
 
+void DeleteSpd(StreamPacketData **seglist)
+{
+    StreamPacketData *dump, *spd = *seglist;
+    while (spd)
+    {
+        dump = spd;
+        spd = spd->next;
 
+        stream4_memory_usage -= dump->pkt_size;
+        free(dump->pktOrig);
+        stream4_memory_usage -= sizeof(StreamPacketData);
+        free(dump);
+    }
 
-void DeleteSpd(ubi_trRootPtr Root)
-{    
-    (void)ubi_trKillTree(Root, KillSpd);
+    *seglist = NULL;
 }
-
 
 int GetDirection(Session *ssn, Packet *p)
 {
@@ -3242,56 +4498,23 @@ int GetDirection(Session *ssn, Packet *p)
     return FROM_SERVER;
 }
 
-
-Session *GetSession(Packet *p)
+void Stream4ShutdownFunction(int signal, void *foo)
 {
-    Session idx;
-    Session *returned;
-#ifdef DEBUG
-    char flagbuf[9];
-    CreateTCPFlagString(p, flagbuf);
-#endif
+    DecoderFlags decoder_flags;
 
-    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Trying to get session...\n"););
-    idx.server.ip = p->iph->ip_src.s_addr;
-    idx.client.ip = p->iph->ip_dst.s_addr;
-    idx.server.port = p->sp;
-    idx.client.port = p->dp;
+    /* Turn off decoder alerts since we're decoding stored
+     * packets that we already alerted on.
+     */
+    memcpy(&decoder_flags, &pv.decoder_flags, sizeof(DecoderFlags));
+    memset(&pv.decoder_flags, 0, sizeof(DecoderFlags));
+    s4_shutdown = 1;
 
-    DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"Looking for sip: 0x%X sp: %d  cip: "
-                "0x%X cp: %d flags: %s\n", idx.server.ip, idx.server.port, 
-                idx.client.ip, idx.client.port, flagbuf););
+    PurgeSessionCache();
 
-    returned = (Session *) ubi_sptFind(RootPtr, (ubi_btItemPtr)&idx);
-
-    if(returned == NULL)
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "GetSession forward didn't work, "
-                    "trying backwards...\n"););
-        idx.server.ip = p->iph->ip_dst.s_addr;
-        idx.client.ip = p->iph->ip_src.s_addr;
-        idx.server.port = p->dp;
-        idx.client.port = p->sp;
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"Looking for sip: 0x%X sp: %d  "
-                                "cip: 0x%X cp: %d flags: %s\n", idx.server.ip, 
-                                idx.server.port, idx.client.ip, idx.client.port,
-                                flagbuf););
-        returned = (Session *) ubi_sptFind(RootPtr, (ubi_btItemPtr)&idx);
-    }
-
-    if(returned == NULL)
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Unable to find session\n"););
-    }
-    else
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Found session\n"););
-    }
-
-    return returned;
-
+    /* And turn decoder alerts back on (or whatever they were set to) */
+    memcpy(&pv.decoder_flags, &decoder_flags, sizeof(DecoderFlags));
+    s4_shutdown = 0;
 }
-
 
 void Stream4CleanExitFunction(int signal, void *foo)
 {
@@ -3304,7 +4527,6 @@ void Stream4CleanExitFunction(int signal, void *foo)
                 fclose(stats_log->fp);
     }
 }
-
 
 
 void Stream4RestartFunction(int signal, void *foo)
@@ -3320,116 +4542,298 @@ void Stream4RestartFunction(int signal, void *foo)
 }
 
 
-
-void PrintSessionCache()
+static u_int32_t GetTcpTimestamp(Packet *p, u_int32_t *ts)
 {
-    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "%lu streams active, %u bytes in use\n", 
-                            ubi_trCount(RootPtr), stream4_memory_usage););
-    return;
+    u_int32_t i = 0;
+    
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+        "Getting timestamp...\n"););
+    while(i < p->tcp_option_count && i < 40)
+    {
+        if(p->tcp_options[i].code == TCPOPT_TIMESTAMP)
+        {
+            *ts = EXTRACT_32BITS(p->tcp_options[i].data);
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+                "Found timestamp %lu\n", *ts););
+            return 1;
+        }
+        
+        i++;
+    }
+    
+    *ts = 0;
+    
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+        "No timestamp...\n"););
+    
+    return 0;
 }
 
-
-
-int PruneSessionCache(u_int32_t thetime, int mustdie, Session *save_me)
+static INLINE int Stream4PktFastTrack(StreamPacketData *tail,
+        u_int32_t pkt_seq, u_int16_t size)
 {
-    Session *idx;
-    u_int32_t pruned = 0;
+    if (!tail)
+        return 1;
 
-    if(ubi_trCount(RootPtr) == 0)
-    {
-        return 0;
-    }
-
-    if(!mustdie)
-    {
-        idx = (Session *) ubi_btFirst((ubi_btNodePtr)RootPtr->root);
-
-        if(idx == NULL)
-        {
-            return 0;
-        }
-
-        do
-        {
-            if(idx == save_me)
-            {
-                idx = (Session *) ubi_btNext((ubi_btNodePtr)idx);
-                continue;
-            }
-
-            if((idx->last_session_time+s4data.timeout) < thetime)
-            {
-                Session *savidx = idx;
-
-                if(ubi_trCount(RootPtr) > 1)
-                {
-                    idx = (Session *) ubi_btNext((ubi_btNodePtr)idx);
-                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "pruning stale session\n"););
-                    DeleteSession(savidx, thetime);
-                    pruned++;
-                }
-                else
-                {
-                    DeleteSession(savidx, thetime);
-                    pruned++;
-                    return pruned;
-                }
-            }
-            else
-            {
-                if(idx != NULL && ubi_trCount(RootPtr))
-                {
-                    idx = (Session *) ubi_btNext((ubi_btNodePtr)idx);
-                }
-                else
-                {
-                    return pruned;
-                }
-            }
-        } while(idx != NULL);
-
-        return pruned;
-    }
-    else
-    {
-        while(mustdie-- &&  ubi_trCount(RootPtr) > 1)
-        {
-            idx = (Session *) ubi_btLeafNode((ubi_btNodePtr)RootPtr);
-            if(idx != save_me)
-                DeleteSession(idx, thetime);
-        }
-#ifdef DEBUG
-        if(mustdie) {
-            DebugMessage(DEBUG_STREAM, "Emptied out the stream cache"
-                         "completely mustdie: %d, memusage: %u\n",
-                         mustdie,
-                         stream4_memory_usage);
-        }
-#endif /* DEBUG */
-
-        return 0;
-    }
+    if (SEQ_EQ(pkt_seq, tail->seq_num + tail->payload_size))
+        return 1;
 
     return 0;
 }
 
-/* XXX this function should be reworked so that we don't alloc until
- * we've decided we're actually going to store the packet!
- */
-void StoreStreamPkt(Session *ssn, Packet *p, u_int32_t pkt_seq)
+static StreamPacketData *SpdSeqExists(Stream *s, u_int32_t pkt_seq)
+{
+    int32_t dist_head;
+    int32_t dist_tail;
+    StreamPacketData *spd;
+
+    if (!s->seglist)
+        return NULL;
+
+    dist_head = pkt_seq - s->seglist->seq_num;
+    dist_tail = pkt_seq - s->seglist_tail->seq_num;
+
+    if (dist_head <= dist_tail)
+    {
+        /* Start iterating at the head (left) */
+        for (spd = s->seglist; spd; spd = spd->next)
+        {
+            if (SEQ_EQ(spd->seq_num, pkt_seq))
+                return spd;
+
+            if (SEQ_GEQ(spd->seq_num, pkt_seq))
+                break;
+        }
+    }
+    else
+    {
+        /* Start iterating at the tail (right) */
+        for (spd = s->seglist_tail; spd; spd = spd->prev)
+        {
+            if (SEQ_EQ(spd->seq_num, pkt_seq))
+                return spd;
+
+            if (SEQ_LT(spd->seq_num, pkt_seq))
+                break;
+        }
+    }
+    return NULL;
+}
+
+static StreamPacketData *RemoveSpd(Stream *s, StreamPacketData *spd)
+{
+    if(s == NULL || spd == NULL)
+        return 0;
+
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+                "Dropping packet data at seq %X, len %d\n",
+                spd->seq_num, spd->payload_size););
+
+    if(spd->prev)
+        spd->prev->next = spd->next;
+    else
+        s->seglist = spd->next;
+
+    if(spd->next)
+        spd->next->prev = spd->prev;
+    else
+        s->seglist_tail = spd->prev;
+
+    s->pkt_count--;
+
+    return spd;
+}
+
+static void AddSpd(Stream *s, StreamPacketData *prev, StreamPacketData *new)
+{
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+                "Adding packet data at seq %X, len %d\n",
+                new->seq_num, new->payload_size););
+
+    if(prev)
+    {
+        new->next = prev->next;
+        new->prev = prev;
+        prev->next = new;
+        if (new->next)
+            new->next->prev = new;
+        else
+            s->seglist_tail = new;
+    }
+    else
+    {
+        new->next = s->seglist;
+        if(new->next)
+            new->next->prev = new;
+        else
+            s->seglist_tail = new;
+        s->seglist = new;
+    }
+    s->pkt_count++;
+
+#ifdef DEBUG
+    {
+        StreamPacketData *spd = s->seglist;
+        u_int32_t pkt_count = 0;
+        while (spd)
+        {
+            spd = spd->next;
+            pkt_count++;
+        }
+
+        if (pkt_count != s->pkt_count)
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Packet_count mismatch\n"););
+        }
+    }
+#endif
+    pc.queued_segs++;
+    return;
+}
+
+static int DupSpd(Packet *p, Stream *s, StreamPacketData *left, StreamPacketData **retSpd)
+{
+    StreamPacketData *spd = NULL;
+
+    /*
+     * get a new node
+     */
+    spd = (StreamPacketData *) SafeAlloc(sizeof(StreamPacketData),
+                                p->pkth->ts.tv_sec, (Session *)p->ssnptr);
+
+    spd->pktOrig = spd->pkt = (u_int8_t *) SafeAlloc(left->pkt_size,
+                                p->pkth->ts.tv_sec, (Session *)p->ssnptr);
+
+    memcpy(spd->pktOrig, left->pktOrig, left->pkth.caplen);
+    memcpy(&spd->pkth, &left->pkth, sizeof(SnortPktHeader));
+
+    spd->pkt_size = left->pkt_size;
+    spd->pkt += SPARC_TWIDDLE;
+    spd->data = spd->pkt + (left->data - left->pkt);
+
+    /*
+     * twiddle the values for overlaps
+     */
+    spd->payload = spd->data;
+    spd->payload_size = left->payload_size;
+    spd->seq_num = left->seq_num;
+    spd->cksum = left->cksum;
+
+    AddSpd(s, left, spd);
+                                                                
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+                 "added %d bytes on segment list @ seq: 0x%X, total %lu, "
+                 "%d segments queued\n", spd->payload_size, spd->seq_num,
+                 s->bytes_tracked, s->pkt_count););
+                                                                
+    *retSpd = spd;
+    return 0;
+}
+
+static int InsertPkt(Stream *s, Packet *p, int16_t len, u_int32_t slide,
+        u_int32_t trunc, u_int32_t seq, StreamPacketData *left,
+        StreamPacketData **retSpd)
+{
+    StreamPacketData *spd = NULL;
+    int32_t newSize = (int32_t)len - slide - trunc;
+    if (newSize <= 0)
+    {
+        /*
+         * zero size data because of trimming.  Don't
+         * insert it
+         */
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+                    "zero size TCP data after left & right trimming "
+                    "(len: %d slide: %d trunc: %d)\n",
+                    len, slide, trunc););
+#ifdef DEBUG_STREAM
+        {
+            StreamPacketData *idx = s->seglist;
+            unsigned long i = 0;
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+                "Dumping Stream Data, %d segments\n", s->pkt_count););
+            while (idx)
+            {
+                i++;
+                DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+                        "%d  ptr: %p  seq: 0x%X  size: %d nxt: %p prv: %p\n",
+                        i, idx, idx->seq_num, idx->payload_size,
+                        idx->next, idx->prev););
+                        
+                if(s->pkt_count < i)
+                    FatalError("Circular list, WTF?\n");
+                        
+                idx = idx->next;
+            }
+        }
+#endif
+        return -1;
+    }
+
+    spd = (StreamPacketData *) SafeAlloc(sizeof(StreamPacketData),
+                                    p->pkth->ts.tv_sec, (Session *)p->ssnptr);
+
+    spd->pktOrig = spd->pkt = (u_int8_t *) SafeAlloc(p->pkth->caplen + SPARC_TWIDDLE,
+                                    p->pkth->ts.tv_sec, (Session *)p->ssnptr);
+
+    spd->pkt += SPARC_TWIDDLE;
+    spd->pkt_size = p->pkth->caplen + SPARC_TWIDDLE;
+
+    memcpy(spd->pkt, p->pkt, p->pkth->caplen);
+    memcpy(&spd->pkth, p->pkth, sizeof(SnortPktHeader));
+
+    spd->data = spd->pkt + (p->data - p->pkt);
+
+    spd->payload = spd->data + slide;
+    spd->payload_size = (u_int16_t)newSize;
+    spd->seq_num = seq;
+    spd->cksum = p->tcph->th_sum;
+
+    AddSpd(s, left, spd);
+
+    p->packet_flags |= PKT_STREAM_INSERT;
+
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM_STATE,
+                "added %d bytes on segment list @ seq: 0x%X, total %lu, "
+                "%d segments queued\n", spd->payload_size, spd->seq_num,
+                s->bytes_tracked, s->pkt_count););
+
+    *retSpd = spd;
+    return 0;
+}
+
+void StoreStreamPkt2(Session *ssn, Packet *p, u_int32_t pkt_seq)
 {
     Stream *s;
-    StreamPacketData *spd;
-    StreamPacketData *returned;
-    StreamPacketData *foo;
+    StreamPacketData *spd = NULL;
+    StreamPacketData *left = NULL;
+    StreamPacketData *right = NULL;
+    StreamPacketData *dump = NULL;
+    u_int32_t seq = pkt_seq;
+    u_int32_t seq_end = pkt_seq + p->dsize;
+    u_int16_t len = p->dsize;
+    int trunc = 0;
+    int overlap = 0;
+    int slide = 0;
+    int ret = 0;
+    char done = 0;
+    char addthis = 1;
+    int32_t dist_head;
+    int32_t dist_tail;
 
-    int direction = GetDirection(ssn, p);
+    int direction;
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(stream4InsertPerfStats);
+
+    direction = GetDirection(ssn, p);
 
     /* select the right stream */
     if(direction == FROM_CLIENT)
     {
-        if(!s4data.reassemble_client)
+        if(!ssn->reassemble_client)
         {
+            PREPROC_PROFILE_END(stream4InsertPerfStats);
             return;
         }
 
@@ -3458,6 +4862,7 @@ void StoreStreamPkt(Session *ssn, Packet *p, u_int32_t pkt_seq)
                             3,                      /* priority (low) */
                             STREAM4_TTL_EVASION_STR, /* msg string */
                             0);
+                    PREPROC_PROFILE_END(stream4InsertPerfStats);
                     return;
                 }
             } 
@@ -3470,8 +4875,9 @@ void StoreStreamPkt(Session *ssn, Packet *p, u_int32_t pkt_seq)
     }
     else
     {
-        if(!s4data.reassemble_server)
+        if(!ssn->reassemble_server)
         {
+            PREPROC_PROFILE_END(stream4InsertPerfStats);
             return;
         }
 
@@ -3481,6 +4887,27 @@ void StoreStreamPkt(Session *ssn, Packet *p, u_int32_t pkt_seq)
                                 p->pkth->caplen););
     }
 
+    if ((p->tcph->th_flags == 0) &&
+        (ssn->session_flags & SSNFLAG_ESTABLISHED))
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"Dropping packet in established session "
+                    "(%d bytes) without TCP Flags\n", p->pkth->caplen););
+
+        if(s4data.evasion_alerts)
+        {
+            SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
+                    STREAM4_TCP_NO_ACK, /* SID */
+                    1,                      /* Rev */
+                    0,                      /* classification */
+                    3,                      /* priority (low) */
+                    STREAM4_TCP_NO_ACK_STR,/*msg string */
+                    0);
+        }
+
+        PREPROC_PROFILE_END(stream4InsertPerfStats);
+        return;
+    }
+
     /* check for retransmissions of data that's already been ack'd */
     if((pkt_seq < s->last_ack) && (s->last_ack > 0) && 
        (direction == FROM_CLIENT))
@@ -3488,7 +4915,7 @@ void StoreStreamPkt(Session *ssn, Packet *p, u_int32_t pkt_seq)
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"EVASIVE RETRANS: pkt seq: 0x%X "
                                 "stream->last_ack: 0x%X\n", pkt_seq, s->last_ack););
 
-        if(s4data.state_alerts)
+        if(s4data.evasion_alerts)
         {
             SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
                     STREAM4_EVASIVE_RETRANS, /* SID */
@@ -3499,6 +4926,7 @@ void StoreStreamPkt(Session *ssn, Packet *p, u_int32_t pkt_seq)
                     0);
         }
 
+        PREPROC_PROFILE_END(stream4InsertPerfStats);
         return;
     }
 
@@ -3525,306 +4953,414 @@ void StoreStreamPkt(Session *ssn, Packet *p, u_int32_t pkt_seq)
                     0);
         }
 
+        PREPROC_PROFILE_END(stream4InsertPerfStats);
         return;
     }
 
     if(!WithinSessionLimits(p, s))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "[S4] Not within session limits!\n"););
+        PREPROC_PROFILE_END(stream4InsertPerfStats);
         return;
     }
 
+    /* check for timestamp of 0, ACK set (not SYN) in packet, and session
+     * is established.  This should resolve problems with PAWs. */
+    {
+        u_int32_t timestamp;
+        if (GetTcpTimestamp(p, &timestamp) == 1)
+        {
+            if ((timestamp == 0) &&
+                (ssn->session_flags & SSNFLAG_ESTABLISHED) &&
+                ((p->tcph->th_flags & (TH_SYN|TH_ACK)) == TH_ACK))
+            {
+                DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                            "Not inserting packet with 0 timestamp\n"););
+
+                if(s4data.state_alerts)
+                {
+                    SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
+                            STREAM4_ZERO_TIMESTAMP, /* SID */
+                            1,                      /* Rev */
+                            0,                      /* classification */
+                            3,                      /* priority (low) */
+                            STREAM4_ZERO_TIMESTAMP_STR, /* msg string */
+                            0);
+                }
+
+                PREPROC_PROFILE_END(stream4InsertPerfStats);
+                return;
+            }
+        }
+    }
     
     /* prepare a place to put the data */
-    if(s->state >= ESTABLISHED)
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "[A] Allocating %d bytes for "
-                                "StreamPacketData\n", sizeof(StreamPacketData)););
-
-        spd = (StreamPacketData *) SafeAlloc(sizeof(StreamPacketData), 
-                                             p->pkth->ts.tv_sec, ssn);
-
-        spd->seq_num = pkt_seq;
-        spd->payload_size = p->dsize;
-        spd->cksum = p->tcph->th_sum;
-
-        /* attach the packet here */
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "[A] Allocating %u bytes for packet\n", 
-                                p->pkth->caplen););
-
-        spd->pkt = (u_int8_t *) SafeAlloc(p->pkth->caplen, p->pkth->ts.tv_sec, 
-                                          ssn);
-        spd->pkt_size = p->pkth->caplen;
-
-        /* copy the packet */
-        memcpy(spd->pkt, p->pkt, p->pkth->caplen);
-
-        /* copy the packet header */
-        memcpy(&spd->pkth, p->pkth, sizeof(SnortPktHeader));
-
-        /* set the pointer to the stored packet payload */
-        spd->payload = spd->pkt + (p->data - p->pkt);
-    }
-    else
+    if(s->state < ESTABLISHED)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "WARNING: Data on unestablished "
                     "session state: %d)!\n", s->state););
+        PREPROC_PROFILE_END(stream4InsertPerfStats);
         return;
     }
 
-    /* check for retransmissions */
-    returned = (StreamPacketData *) ubi_sptFind(&s->data, (ubi_btItemPtr)spd);
-
-    if(returned != NULL)
+    /* PERFORMANCE */
+    /* If packet is > 2x flush point and seglist is empty, don't insert */
+    if (s4data.large_packet_performance &&
+        !s->seglist && (p->dsize > (ssn->flush_point * 2)))
     {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
-                    "WARNING: returned packet not null\n"););
-        if(returned->payload_size == p->dsize)
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "WARNING: Data larger than "
+                    "twice flushpoint.  It would result in an immediate "
+                    "flush on receipt of the ACK.\n"
+                    "Not inserting for reassembly: seq: %d, size %d!\n"
+                    "This is a tradeoff of performance versus the remote "
+                    "possibility of catching an exploit that spans two or "
+                    "more consecuvitve large packets.\n",
+                    pkt_seq, p->dsize););
+        PREPROC_PROFILE_END(stream4InsertPerfStats);
+        return;
+    }
+
+    /* Note, Packet will be fast-tracked if list is empty */
+    if (Stream4PktFastTrack(s->seglist_tail, pkt_seq, len))
+    {
+        left = s->seglist_tail;
+        right = NULL;
+        ret = InsertPkt(s, p, len, 0 /* slide */, 0 /* trunc */,
+                pkt_seq, left /* tail */, &spd);
+
+        PREPROC_PROFILE_END(stream4InsertPerfStats);
+        return;
+    }
+
+    /* Find the right place for this guy. */
+    if (s->seglist && s->seglist_tail)
+    {
+        dist_head = pkt_seq - s->seglist->seq_num;
+        dist_tail = pkt_seq - s->seglist_tail->seq_num;
+    }
+    else
+    {
+        dist_head = dist_tail = 0;
+    }
+    if (dist_head <= dist_tail)
+    {
+        /* Start iterating at the head (left) */
+        for (spd = s->seglist; spd; spd = spd->next)
         {
-            /* check to see if the data has been ack'd */
-            if(s->last_ack < pkt_seq + p->dsize)
+            right = spd;
+            if (SEQ_GEQ(right->seq_num, pkt_seq))
+                break;
+
+            left = right;
+        }
+
+        if (spd == NULL)
+            right = NULL;
+
+    }
+    else
+    {
+        /* Start iterating at the tail (right) */
+        for (spd = s->seglist_tail; spd; spd = spd->prev)
+        {
+            left = spd;
+            if (SEQ_LT(left->seq_num, pkt_seq))
+                break;
+
+            right = left;
+        }
+
+        if (spd == NULL)
+            left = NULL;
+    }
+
+    if (left)
+    {
+        overlap = (int)(left->seq_num + (u_int32_t)left->payload_size - pkt_seq);
+
+        if (overlap > 0)
+        {
+            s->overlap_pkts++;
+            /* Left overlap */
+            if(s4data.evasion_alerts)
             {
-                /* retransmission of un-ack'd packet, chuck the old one 
-                 * and put in the new one
-                 * --------------------------------------------------
-                 * We have to be aware of two packets sent one right
-                 * after the other
-                 *
-                 * One packet sends us the data they want the remote
-                 * host to recieve, the next sends us the data they
-                 * want the IDS to incorrectly pick up.
-                 *
-                 * This gets us into the *nasty* problem of how to
-                 * detect differing data.
-                 *
-                 * Hopefully this doesn't occur too much in real life
-                 * because this check will make life slow in the
-                 * normal case.  Of course it will just be an extra
-                 * check on port 80 check for pattern matching which
-                 * already hurts us enough as is :-)
-                 *
-                 */
-
-                DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
-                            "Checking Packet Contents versus Packet Store\n"););
-
-                if(returned->cksum != p->tcph->th_sum)
-                {
-                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "TCP Checksums not equal\n"););
-
-
-                    stream4_memory_usage -= spd->pkt_size;
-                    free(spd->pkt);
-
-                    stream4_memory_usage -= sizeof(StreamPacketData);
-                    free(spd);
-
-                    if(s4data.evasion_alerts)
-                    {
-                        SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
-                                STREAM4_EVASIVE_RETRANS_DATA, /* SID */
-                                1,                      /* Rev */
-                                0,                      /* classification */
-                                3,                      /* priority (low) */
-                                STREAM4_EVASIVE_RETRANS_DATA_STR,/*msg string */
-                                0);
-                    }
-
-                    return;
-                } 
-                else 
-                {
-                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
-                                "TCP Checksums equal..."
-                                " returning; see comment in src\n"););
-                    /*
-                     * Possible Research chance:
-                     *
-                     *  How easy is it to fool IDSes with differening
-                     *  payloads that have the same checksums to the
-                     *  same IPs
-                     */
-
-                    stream4_memory_usage -= spd->pkt_size;
-                    free(spd->pkt);
-
-                    stream4_memory_usage -= sizeof(StreamPacketData);
-                    free(spd);
-
-                    return;
-                }
+                SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
+                        STREAM4_EVASIVE_RETRANS_DATA, /* SID */
+                        1,                      /* Rev */
+                        0,                      /* classification */
+                        3,                      /* priority (low) */
+                        STREAM4_EVASIVE_RETRANS_DATA_STR,/*msg string */
+                        0);
             }
-            else
+
+            switch (s4data.reassy_method )
             {
-                /* screw it, we already ack'd this data */
-                StreamSegmentSub(s, spd->payload_size);
+                case METHOD_FAVOR_OLD:
+                    seq += overlap;
+                    slide = overlap;
+                    if (SEQ_LEQ(seq_end, seq))
+                    {
+                        /* 
+                         * Nothing to do, new packet was wholly overlapped
+                         */
+                        PREPROC_PROFILE_END(stream4InsertPerfStats);
+                        return;
+                    }
+                    break;
+                case METHOD_FAVOR_NEW:
+                    /* True "new" policy */
+                    if ((left->seq_num < seq) && (left->seq_num + left->payload_size > (seq + len)))
+                    {
+                        /* New data is overlapped on both sides by existing
+                         * data.  Existing data needs to be split and the
+                         * new data inserted in the middle.
+                         *
+                         * Need to duplicate left.  Adjust that
+                         * seq_num by + (seq_num + len) and 
+                         * size by - (seqnum + len - left->seq_num)
+                         */
+                        ret = DupSpd(p, s, left, &right);
+                        if (ret)
+                        {
+                            PREPROC_PROFILE_END(stream4InsertPerfStats);
+                            return;
+                        }
+                        left->payload_size -= overlap;
+                        StreamSegmentSub(s, (u_int16_t)overlap);
+                    }
+                    else
+                    {
+                        left->payload_size -= overlap;
+                        StreamSegmentSub(s, (u_int16_t)overlap);
+                    }
+                    if (left->payload_size <= 0)
+                    {
+                        /* Left was wholly overlapped, blow it away */
+                        dump = left;
 
-                stream4_memory_usage -= spd->pkt_size;
-                free(spd->pkt);
+                        left = left->prev;
+                        dump = RemoveSpd(s, dump);
+                        stream4_memory_usage -= dump->pkt_size;
+                        free(dump->pktOrig);
+                        stream4_memory_usage -= sizeof(StreamPacketData);
+                        free(dump);
+                    }
+                    break;
+            }
 
-                stream4_memory_usage -= sizeof(StreamPacketData);
-                free(spd);
-
-                if(s4data.state_alerts)
-                {
-                    SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
-                            STREAM4_EVASIVE_RETRANS, /* SID */
-                            1,                      /* Rev */
-                            0,                      /* classification */
-                            3,                      /* priority (low) */
-                            STREAM4_EVASIVE_RETRANS_STR, /* msg string */
-                            0);
-                }
+            if (SEQ_LEQ(seq_end, seq))
+            {
+                PREPROC_PROFILE_END(stream4InsertPerfStats);
                 return;
             }
         }
-        else if(returned->payload_size < p->dsize)
+        else
         {
-            DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
-                        "Duplicate packet with forward overlap\n"););
+            /* No left overlap */
+        }
+    }
 
-            /* check to see if this one's been ack'd */
-            if(s->last_ack > pkt_seq + p->dsize)
+    while (right && !done && SEQ_LT(right->seq_num, seq_end))
+    {
+        trunc = 0;
+        overlap = (int)(seq_end - right->seq_num);
+
+        if (overlap < right->payload_size)
+        {
+            s->overlap_pkts++;
+
+            /* Partial right overlap */
+            switch(s4data.reassy_method)
             {
-                StreamSegmentSub(s, spd->payload_size);
+                case METHOD_FAVOR_NEW:
+                    right->seq_num += overlap;
+                    right->payload += overlap;
+                    right->payload_size -= overlap;
+                    StreamSegmentSub(s, (u_int16_t)overlap);
+                    if (right->payload_size <= 0)
+                    {
+                        /* Left was wholly overlapped, blow it away */
+                        dump = right;
 
-                /* screw it, we already ack'd this data */
-                stream4_memory_usage -= spd->pkt_size;
-                free(spd->pkt);
+                        right = right->next;
+                        dump = RemoveSpd(s, dump);
+                        stream4_memory_usage -= dump->pkt_size;
+                        free(dump->pktOrig);
+                        stream4_memory_usage -= sizeof(StreamPacketData);
+                        free(dump);
+                    }
+                    break;
+                case METHOD_FAVOR_OLD:
+                    trunc = overlap;
+                    break;
+            }
+            done = 1;
+        }
+        else
+        {
+            s->overlap_pkts++;
+            /* Whole right overlap */
 
-                stream4_memory_usage -= sizeof(StreamPacketData);
-                free(spd);
+            /* Look to see if this is a retransmit of the original */
+            if ((right->seq_num == seq) && (right->cksum == p->tcph->th_sum))
+            {
+                /* RETRANSMISSION.  */
+                /* Packet was analyized the first time.
+                 * No need to continue looking at it.
+                 */
+                DisableDetect(p);
 
+                /* Still want to add this number of bytes to totals */
+                SetPreprocBit(p, PP_PERFMONITOR);
+
+                if (InlineMode())
+                {
+                    /* We examined it previously. */
+                    if (right->blocked == 1)
+                    {
+                        /* It was previously blocked.  Block it again */
+                        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                            "Dropping retransmitted packet -- "
+                            "blocked previously\n"););
+                        InlineDrop(p);
+                    }
+                    else
+                    {
+                        /* It was previously not blocked.  Allow through */
+                        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                            "Allowing retransmitted packet -- "
+                            "not blocked previously\n"););
+                    }
+                }
+
+                PREPROC_PROFILE_END(stream4InsertPerfStats);
+                return;
+            }
+            else if ((right->seq_num == seq) &&
+                     (right->payload_size >= p->dsize))
+            {
                 if(s4data.evasion_alerts)
                 {
                     SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
-                            STREAM4_FORWARD_OVERLAP, /* SID */
+                            STREAM4_EVASIVE_RETRANS_DATA, /* SID */
                             1,                      /* Rev */
                             0,                      /* classification */
                             3,                      /* priority (low) */
-                            STREAM4_FORWARD_OVERLAP_STR, /* msg string */
+                            STREAM4_EVASIVE_RETRANS_DATA_STR,/*msg string */
                             0);
                 }
-
-                return;
             }
-            else
+
+            switch(s4data.reassy_method)
             {
-                DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
-                            "Replacing un-ack'd segment in Packet Store\n"););
-
-                foo = (StreamPacketData *) ubi_sptRemove(&s->data, 
-                        (ubi_btNodePtr) returned);                
-
-                StreamSegmentSub(s, foo->payload_size);
-
-
-                stream4_memory_usage -= foo->pkt_size;
-                free(foo->pkt);
-
-                stream4_memory_usage -= sizeof(StreamPacketData);
-                free(foo);
-            }
-        }
-        else if(returned->payload_size > p->dsize)
-        {
-            /* check to see if this one's been ack'd */
-            if(s->last_ack > pkt_seq + p->dsize)
-            {
-                StreamSegmentSub(s, spd->payload_size);
-
-                /* screw it, we already ack'd this data */
-                stream4_memory_usage -= spd->pkt_size;
-                free(spd->pkt);
-
-                stream4_memory_usage -= sizeof(StreamPacketData);
-                free(spd);
-
-                if(s4data.state_alerts)
-                {
-                    SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
-                            STREAM4_EVASIVE_RETRANS, /* SID */
-                            1,                      /* Rev */
-                            0,                      /* classification */
-                            3,                      /* priority (low) */
-                            STREAM4_EVASIVE_RETRANS_STR, /* msg string */
-                            0);
-                }
-                return;
-            }
-            else
-            {
-                /* Some tool will probably have the following scenario one day.
-                 * send a bunch of 1 byte packets that the remote host should 
-                 * see and start acking and then follow that up with one 
-                 * big packet
-                 *
-                 * To defeat this, we have to see if the contents of
-                 * the big packet match up with the ton of dinky packets...
-                 *
-                 * Instead of just going to look for every damn one of
-                 * the packets, lets just compare the timestamp of our
-                 * current packet versus the retransmitted one.
-                 *
-                 * We could probably detect all the fun retransmission
-                 * games this way.
-                 */
-                DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
-                            "Checking if we are retranmitting too fast\n"););
-
-                if(RetransTooFast(&returned->pkth.ts, 
-                            (struct timeval *) &p->pkth->ts))
-                {
-                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
-                                "Generating packets retranmissions "
-                                "faster than we should\n"););
-
-                    stream4_memory_usage -= spd->pkt_size;
-                    free(spd->pkt);
-
-                    stream4_memory_usage -= sizeof(StreamPacketData);
-                    free(spd);
-
-                    if(s4data.evasion_alerts)
+                case METHOD_FAVOR_OLD:
+                    if (right->seq_num == seq)
                     {
-                        SnortEventqAdd(GENERATOR_SPP_STREAM4, /* GID */
-                                STREAM4_EVASIVE_RETRANS_DATASPLIT, /* SID */
-                                1,                      /* Rev */
-                                0,                      /* classification */
-                                3,                      /* priority (low) */
-                                STREAM4_EVASIVE_RETRANS_DATASPLIT_STR, /* msg string */
-                                0);
+                        slide = (right->seq_num + right->payload_size - seq);
+                        seq += slide;
+                        left = right;
+                        right = right->next;
+
+                        if (right && (seq == right->seq_num))
+                        {
+                            /* same seq as next packet don't insert yet... keep
+                             * going.
+                             */
+                            continue;
+                        }
                     }
-                    return;
-                } 
-                else 
-                {
-                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
-                                "Replacing un-ack'd segment in Packet Store\n"););
+                    else
+                    {
+                        trunc += overlap;
+                    }
+                    if (seq_end - trunc <= seq)
+                    {
+                        PREPROC_PROFILE_END(stream4InsertPerfStats);
+                        return;
+                    }
 
-                    foo = (StreamPacketData *) ubi_sptRemove(&s->data, 
-                            (ubi_btNodePtr) returned);
+                    ret = InsertPkt(s, p, len, slide, trunc, seq, left, &spd);
+                    if (ret)
+                    {
+                        PREPROC_PROFILE_END(stream4InsertPerfStats);
+                        return;
+                    }
 
-                    stream4_memory_usage -= foo->pkt_size;
-                    free(foo->pkt);
+                    {
+                        u_int32_t curr_end = spd->seq_num + spd->payload_size;
 
+                        while (right &&
+                               (curr_end <= right->seq_num) &&
+                               (right->seq_num < seq_end))
+                        {
+                            curr_end = right->seq_num + right->payload_size;
+                            left = right;
+                            right = right->next;
+                        }
+
+                        if (right && (right->seq_num < seq_end))
+                        {
+                            /* Adjust seq to end of 'right' */
+                            seq = right->seq_num + right->payload_size;
+
+                            /* Not overlapping on the left any more */
+                            slide = 0;
+
+                            /* Set 'left' so the next insert goes after
+                             * the current 'right' */
+                            left = right;
+
+                            /* Reset trunc, in case the next one kicks us
+                             * out of the loop.  This packet will become
+                             * the rightmost entry so far.  Don't
+                             * truncate any further.
+                             */
+                            trunc = 0;
+
+                            if (right->next)
+                                continue;
+                        }
+
+                        if (curr_end < seq_end)
+                        {
+                            /* Insert this one into the proper sport,
+                             * and adjust offset to the right-most
+                             * endpoint so far.
+                             */
+                            slide = left->seq_num + left->payload_size - seq;
+                            seq = curr_end;
+                            trunc = 0;
+                        }
+                        else
+                        {
+                            addthis = 0;
+                        }
+                    }
+                    break;
+                case METHOD_FAVOR_NEW:
+                    dump = right;
+                    right = right->next;
+                    StreamSegmentSub(s, dump->payload_size);
+                    dump = RemoveSpd(s, dump);
+                    stream4_memory_usage -= dump->pkt_size;
+                    free(dump->pktOrig);
                     stream4_memory_usage -= sizeof(StreamPacketData);
-                    free(foo);
-                }
-
+                    free(dump);
+                    break;
             }
         }
     }
 
-    if(ubi_sptInsert(&s->data,(ubi_btNodePtr)spd,(ubi_btNodePtr)spd, NULL)
-       == FALSE)
+    if (addthis)
     {
-        LogMessage("sptInsert failed, that sucks\n");
-        return;
+        ret = InsertPkt(s, p, len, slide, trunc, seq, left, &spd);
+    }
+    else
+    {
+        /* Fully trunc'd right overlap */
     }
 
-    p->packet_flags |= PKT_STREAM_INSERT;
-
+    PREPROC_PROFILE_END(stream4InsertPerfStats);
     return;
 }
 
@@ -3833,79 +5369,210 @@ void StoreStreamPkt(Session *ssn, Packet *p, u_int32_t pkt_seq)
 void FlushStream(Stream *s, Packet *p, int direction)
 {
     int stream_size;
+    char gotevent = 0;
+    char build_pkt = 1;
+    char built_one = 0;
+    PROFILE_VARS;
 
-    int gotevent = 0;
+    PREPROC_PROFILE_START(stream4FlushPerfStats);
 
     sfPerf.sfBase.iStreamFlushes++;
 
     DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "FlushStream Entered:"
-                "last_ack(%u) base_seq(%u) trCount(%u)\ng",
-                s->last_ack, s->base_seq, ubi_trCount(&s->data)););
+                "last_ack(%u) base_seq(%u) pkt_count(%u)\ng",
+                s->last_ack, s->base_seq, s->pkt_count););
 
-    stream_size = s->last_ack - s->base_seq;
-
-    /* 
-     ** FINs consume one byte, but they have no data.
-     **
-     ** NOTE:
-     **   This already appears to be compensated for when we receive FINS,
-     **   and this causes an off-by-one bug when implemented.
-     */
-    /*if(s->state == FIN_WAIT_2 || s->state == TIME_WAIT) stream_size--;*/
-
-    if(stream_size >= MAX_STREAM_SIZE)
+    while (build_pkt && s->seglist)
     {
-#ifdef DEBUG        
-        DebugMessage(DEBUG_STREAM,
-                "stream_size(%u) > MAX_STREAM_SIZE(%u)\n",
-                stream_size, MAX_STREAM_SIZE);
+        stream_size = s->last_ack - s->base_seq;
 
-        DebugMessage(DEBUG_STREAM,
-                "Adjusting s->base_seq(%u) -> %u %u\n",
-                s->base_seq, s->last_ack - MAX_STREAM_SIZE,
-                s->last_ack - (MAX_STREAM_SIZE));
+        /* 
+         ** FINs consume one byte, but they have no data.
+         **
+         ** NOTE:
+         **   This already appears to be compensated for when we receive FINS,
+         **   and this causes an off-by-one bug when implemented.
+         */
+        /*if(s->state == FIN_WAIT_2 || s->state == TIME_WAIT) stream_size--;*/
+
+        if(stream_size >= MAX_STREAM_SIZE)
+        {
+#ifdef DEBUG        
+            DebugMessage(DEBUG_STREAM,
+                    "stream_size(%u) > MAX_STREAM_SIZE(%u)\n",
+                    stream_size, MAX_STREAM_SIZE);
+
+            DebugMessage(DEBUG_STREAM,
+                    "Adjusting s->base_seq(%u) -> %u %u\n",
+                    s->base_seq, s->last_ack - MAX_STREAM_SIZE,
+                    s->last_ack - (MAX_STREAM_SIZE));
 
 #endif /* DEBUG */
-        stream_size = MAX_STREAM_SIZE - 1;
-        s->base_seq = s->last_ack - stream_size;
-    }
-
-    if(stream_size > 0 && ubi_trCount(&s->data))
-    {
-        /* put the stream together into a packet or something */
-        if(BuildPacket(s, stream_size, p, direction))
-        {
-            DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"Passing large packet "
-                        "on 0 size stream cache\n"););
-            return;
+            stream_size = MAX_STREAM_SIZE - 1;
+            s->base_seq = s->last_ack - stream_size;
         }
 
-        /* If we aren't within session limits, we can try to build a
-         * packet and end up with no data */
-        if(stream_pkt->dsize > 0)
+        if(stream_size > 0 && s->seglist)
         {
-            gotevent = Preprocess(stream_pkt);
-
-            if(s4data.zero_flushed_packets)
-                bzero(stream_pkt->data, stream_pkt->dsize);
-
-            if(gotevent)
+            /* put the stream together into a packet or something */
+            if(BuildPacket(s, stream_size, p, direction))
             {
-                LogStream(s);
+                DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"Passing large packet "
+                        "on 0 size stream cache\n"););
+                build_pkt = 0;
+                stream_pkt->dsize = 0;
+            }
+
+            /* If we aren't within session limits, we can try to build a
+             * packet and end up with no data */
+            if(stream_pkt->dsize > 0)
+            {
+                int tmp_do_detect, tmp_do_detect_content;
+                PROFILE_VARS;
+                /* Calc ticks to process the rebuild packet */
+                PREPROC_PROFILE_START(stream4ProcessRebuiltPerfStats);
+
+                /* Save off do_detect flags and reset them after Preprocess
+                 * returns.  Since other preprocessors may turn off detection
+                 * for other things with the rebuilt packet, we don't want that
+                 * to affect this packet.
+                 */
+                tmp_do_detect = do_detect;
+                tmp_do_detect_content = do_detect_content;
+                gotevent = Preprocess(stream_pkt);
+                do_detect = tmp_do_detect;
+                do_detect_content = tmp_do_detect_content;
+                PREPROC_PROFILE_END(stream4ProcessRebuiltPerfStats);
+
+                if(s4data.zero_flushed_packets)
+                    bzero(stream_pkt->data, stream_pkt->dsize);
+
+                if ( p->ssnptr )
+                {
+                    /* Reset alert tracking after flushing rebuilt packet */
+                    Session *ssn = p->ssnptr;
+
+                    CleanSessionAlerts(ssn, stream_pkt);
+                }
+
+                if(gotevent)
+                {
+                    LogStream(s);
+                }
+
+                /* Built something, cleanup, try next seq */
+                SegmentCleanTraverse(s);
+                built_one = 1;
+                if (s4data.seq_gap)
+                {
+                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                                "Sequence Gap, SINGLE PACKET\n"););
+                    if (s->seglist)
+                    {
+                        s->base_seq = s->seglist->seq_num;
+                    }
+                    else
+                    {
+                        s->base_seq = s->last_ack;
+                    }
+                    if (s->seglist->chuck == SEG_PARTIAL)
+                    {
+                        /* only part of the 1st packet was used because it
+                         * extended beyond the current ack.  Stop here. */
+                        build_pkt = 0;
+                    }
+                    else
+                    {
+                        /* try to build the next reassembly after
+                         * the gap.  */
+                        build_pkt = 1;
+                    }
+                }
+                else
+                {
+                    /* No gap, we're done with this rebuild */
+                    build_pkt = 0;
+                }
+            }
+            else
+            {
+                /* Zero sized packet */
+                if (s4data.seq_gap)
+                {
+                    /* If zero sized packet is because of a gap,
+                     * clean out the single packet, move base_seq,
+                     * and try to build the next reassembly after gap.
+                     */
+                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                                "Sequence Gap, SINGLE PACKET\n"););
+                    SegmentCleanTraverse(s);
+                    if (s->seglist)
+                    {
+                        s->base_seq = s->seglist->seq_num;
+                    }
+                    else
+                    {
+                        s->base_seq = s->last_ack;
+                    }
+                    if (s->pkt_count > 1)
+                    {
+                        /* zero sized packet because of gap. */
+
+                        if (s->seglist->chuck == SEG_PARTIAL)
+                        {
+                            /* only part of the 1st packet was used because it
+                             * extended beyond the current ack.  Stop here. */
+                            build_pkt = 0;
+                        }
+                        else
+                        {
+                            /* try to build the next reassembly after
+                             * the gap.  */
+                            build_pkt = 1;
+                        }
+                    }
+                    else
+                    {
+                        /* No gap, zero sized packet (probably single),
+                         * we're done with this rebuild */
+                        build_pkt = 0;
+                    }
+                }
+                else
+                {
+                    DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                                "Sequence Gap, SINGLE PACKET\n"););
+                    SegmentCleanTraverse(s);
+                    /* No gap, zero sized packet (probably single),
+                     * we're done with this rebuild */
+                    build_pkt = 0;
+                }
             }
         }
+        else
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"Passing large packet on "
+                        "0 size stream cache\n"););
+            /* Nothing to do */
+            build_pkt = 0;
+        }
+    }
 
-        SegmentCleanTraverse(s);
+    if (built_one)
+    {
+        PREPROC_PROFILE_END(stream4FlushPerfStats);
         return;
     }
-    else
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM,"Passing large packet on "
-                    "0 size stream cache\n"););
-    }
 
+#if 0
     s->bytes_tracked = 0;
-    DeleteSpd(&s->data);
+    s->overlap_pkts = 0;
+    DeleteSpd(&s->seglist);
+    s->seglist_tail = NULL;
+    s->pkt_count = 0;
+#endif
+
+    PREPROC_PROFILE_END(stream4FlushPerfStats);
 }
 
 
@@ -3925,7 +5592,7 @@ void FlushStream(Stream *s, Packet *p, int direction)
  */
 int AlertFlushStream(Packet *p)
 {
-    Session *ssn = p->ssnptr;
+    Session *ssn;
     Stream *stream;
     int nodecount = 0;
 
@@ -3934,6 +5601,17 @@ int AlertFlushStream(Packet *p)
     if(NotForStream4(p))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Don't Flush a Rebuilt Stream\n"););
+        return 0;
+    }
+    
+    if (!p->ssnptr)
+        return 0;
+
+    ssn = p->ssnptr;
+
+    if(!s4data.flush_on_alert)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Don't Flush a Rebuilt Stream on Alert from indviidual packet\n"););
         return 0;
     }
 
@@ -3947,7 +5625,7 @@ int AlertFlushStream(Packet *p)
     {
         stream = &ssn->server;
 
-        if(s4data.reassemble_server)
+        if(ssn->reassemble_server)
         {
             FlushStream(stream, p, NO_REVERSE);
         }
@@ -3957,15 +5635,18 @@ int AlertFlushStream(Packet *p)
             **  We handle this part of deleting the stream, because
             **  FlushStream() didn't handle it for us.
             */
-            DeleteSpd(&stream->data);
+            DeleteSpd(&stream->seglist);
+            stream->seglist_tail = NULL;
+            stream->pkt_count = 0;
             stream->bytes_tracked = 0;
+            stream->overlap_pkts = 0;
         }
     }
     else
     {
         stream = &ssn->client;
 
-        if(s4data.reassemble_client)
+        if(ssn->reassemble_client)
         {
             FlushStream(stream, p, NO_REVERSE);
         }
@@ -3975,8 +5656,11 @@ int AlertFlushStream(Packet *p)
             **  We handle this part of deleting the stream, because
             **  FlushStream() didn't handle it for us.
             */
-            DeleteSpd(&stream->data);
+            DeleteSpd(&stream->seglist);
+            stream->seglist_tail = NULL;
+            stream->pkt_count = 0;
             stream->bytes_tracked = 0;
+            stream->overlap_pkts = 0;
         }
     }
 
@@ -3997,6 +5681,87 @@ int AlertFlushStream(Packet *p)
     return nodecount;
 }
 
+/**
+ * Force flusinging the client side of the TCP stream.
+ *
+ * This function is exported for the preprocessors.
+ *
+ * This routine takes a packet, logs out the stream packets ( so that
+ * we have original payloads around ), and then updates the stream
+ * tracking sequence numbers so that
+ * 
+ * @param p Packet to flush the stream reassembler on
+ * 
+ * @return the number of packets that have been flushed from the stream reassembler
+ */
+int ForceFlushStream(Packet *p)
+{
+    Session *ssn;
+    Stream *stream;
+    int nodecount = 0;
+    u_int32_t count;
+
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Flushing stream upon request!\n"););
+
+    if(NotForStream4(p))
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Don't Flush a Rebuilt Stream\n"););
+        return 0;
+    }
+
+    if (!p->ssnptr)
+        return 0;
+
+    ssn = p->ssnptr;
+
+    if(ssn == NULL)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Nothing to Flush!\n"););
+        return 0;
+    }
+
+    /* Always flushing the client side */
+    {
+        stream = &ssn->client;
+        count = stream->pkt_count;
+
+        if(ssn->reassemble_client)
+        {
+            if (p->packet_flags & PKT_FROM_SERVER)
+            {
+                FlushStream(stream, p, REVERSE);
+            }
+            else
+            {
+                FlushStream(stream, p, NO_REVERSE);
+            }
+        }
+        else
+        { 
+            /*
+            **  We handle this part of deleting the stream, because
+            **  FlushStream() didn't handle it for us.
+            */
+            DeleteSpd(&stream->seglist);
+            stream->seglist_tail = NULL;
+            stream->pkt_count = 0;
+            stream->bytes_tracked = 0;
+        }
+
+        if (stream->pkt_count != count)
+        {
+            /* Only update if we reassembled and removed packets */
+            ssn->client.base_seq = ssn->client.last_ack;
+        }
+    }
+
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "[AFS] Bytes Tracked: %u\n", 
+                stream->bytes_tracked););
+
+    return nodecount;
+}
+
+
 /** 
  * Log out the Stream if possible
  *
@@ -4011,17 +5776,26 @@ int AlertFlushStream(Packet *p)
 int LogStream(Stream *s)
 {
     int nodecount = 0;
-    
+   
     if((pv.log_bitmap & LOG_TCPDUMP) && s4data.log_flushed_streams)
     {
-        nodecount = ubi_trCount(&s->data);
-        (void)ubi_trTraverse(&s->data, LogTraverse, s);
+        nodecount = s->pkt_count;
+        {
+            StreamPacketData *spd = s->seglist;
+            while (spd)
+            {
+                if (spd->chuck == SEG_UNASSEMBLED)
+                    break;
+                LogTraverse(spd, NULL);
+                spd = spd->next;
+            }
+        }
     }
 
     return nodecount;
 }
 
-
+extern unsigned int num_preprocs;
 
 void InitStream4Pkt()
 {
@@ -4055,6 +5829,9 @@ void InitStream4Pkt()
 
     SET_TCP_OFFSET(stream_pkt->tcph,0x5);
     stream_pkt->tcph->th_flags = TH_PUSH|TH_ACK;
+
+    stream_pkt->preprocessor_bits = calloc(sizeof(BITOP), 1);
+    boInitBITOP(stream_pkt->preprocessor_bits, num_preprocs + 1);
 }
 
 
@@ -4072,18 +5849,220 @@ void InitStream4Pkt()
 int BuildPacket(Stream *s, u_int32_t stream_size, Packet *p, int direction)
 {
     BuildData bd;
-    int zero_size = 1500;
+    unsigned short zero_size = 1500;
     Session *ssn;
     u_int32_t ip_len; /* total length of the IP datagram */
+    u_int32_t last_seq = 0;
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(stream4BuildPerfStats);
+    s4data.stop_traverse = 0;
+    s4data.seq_gap = 0;
+
+    bd.stream = s;
+    bd.buf = stream_pkt->data;
+    bd.total_size = 0;
+
+    /* walk the packet tree (in order) and rebuild the app layer data */
+    {
+        StreamPacketData *spd = s->seglist;
+
+        /* If first packet in the queue isn't the base sequence,
+         * adjust the base so that we're starting at offset 0
+         * when the data is copied.
+         */
+        if (spd->seq_num != s->base_seq)
+        {
+            s->base_seq = spd->seq_num;
+        }
+        stream_pkt->tcph->th_seq = htonl(s->base_seq);
+
+        while (spd && !s4data.stop_traverse)
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                    "Adding to rebuilt packet seq %d, %d bytes, %s\n",
+                    (u_int32_t)spd->seq_num, spd->payload_size, spd->payload););
+            /* If this is the first packet and there is a gap or nothing
+             * following it, no point to reassembling the single packet. 
+             * We already analyzed the data with the original packet.  Just
+             * bail IF we're allowed to ignore single packets -- ignore
+             * single packets is not set on a ForceFlush, (via the StreamAPI
+             * called by preprocessors).  It is set as part of a regular
+             * flush, because of ACKd data beyond the flushpoint.
+            */
+            if (bd.total_size == 0 && (s->flags & IGNORE_SINGLE_PKTS))
+            {
+                if (spd->next)
+                {
+                    if ((spd->seq_num + spd->payload_size)
+                            != spd->next->seq_num)
+                    {
+                        /* PERFORMANCE */
+                        /* If the next packet isn't the one immediately
+                         * following, we have a missing packet.  Stop the
+                         * reassembly here and process what we've got. */
+                        if ((spd->seq_num + spd->payload_size)
+                                    != spd->next->seq_num)
+                        {
+                            s4data.seq_gap = 1;
+                            /* Set these to recalculate the size of the
+                             * Rebuilt packet */
+                            s4data.stop_traverse = 1;
+                            s4data.stop_seq = spd->seq_num + spd->payload_size;
+                            stream_pkt->dsize = 0;
+
+                            /* If this packet ends before the ACK we're
+                             * using, mark it as used.
+                             */
+                            if (s4data.stop_seq <= s->last_ack)
+                            {
+                                spd->chuck = SEG_FULL;
+                            }
+                            else if (spd->seq_num < s->last_ack)
+                            {
+                                spd->chuck = SEG_PARTIAL;
+                            }
+                            PREPROC_PROFILE_END(stream4BuildPerfStats);
+                            return 0;
+                        }
+                    }
+                }
+                else
+                {
+                    if (s->flags & FIRST_FLUSH_DONE)
+                    {
+                        /* PERFORMANCE */
+                        /* No next packet...  */
+                        s4data.seq_gap = 1;
+
+                        /* Set these to recalculate the size of the
+                         * Rebuilt packet */
+                        s4data.stop_traverse = 1;
+                        s4data.stop_seq = spd->seq_num + spd->payload_size;
+
+                        stream_pkt->dsize = 0;
+                        PREPROC_PROFILE_END(stream4BuildPerfStats);
+                        return 0;
+                    }
+                    else
+                    {
+                        s->flags |= FIRST_FLUSH_DONE;
+                    }
+                }
+            }
+
+            TraverseFunc(spd, &bd);
+            last_seq = spd->seq_num + spd->payload_size;
+            if (spd->next)
+            {
+                /* PERFORMANCE */
+                /* If the next packet isn't the one immediately
+                 * following, we have a missing packet.  Stop the
+                 * reassembly here and process what we've got. */
+                if ((spd->seq_num + spd->payload_size)
+                                != spd->next->seq_num)
+                {
+                    s4data.seq_gap = 1;
+
+                    /* Set these to recalculate the size of the
+                     * Rebuilt packet */
+                    s4data.stop_traverse = 1;
+                    s4data.stop_seq = spd->seq_num + spd->payload_size;
+                    break;
+                }
+            }
+            spd = spd->next;
+        }
+    }
+
+    /* Adjust the size of the rebuilt packet because of gaps */
+    if(bd.total_size < stream_size)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "bd.total_size(%u) < stream_size(%u):"
+                    "Incomplete segment -- packet loss or weird\n",
+                    bd.total_size, stream_size););
+
+        /* This is probably because we were past our session limits --
+           there's nothing of value in this packet */
+        if(bd.total_size == 0)
+        {
+            stream_pkt->dsize = 0;
+            PREPROC_PROFILE_END(stream4BuildPerfStats);
+            return -1;
+        }
+
+        if (bd.total_size == (last_seq - s->base_seq))
+        {
+            /* In this case... last_seq is the before we
+             * stopped because of a missing packet. */
+            stream_size = bd.total_size;
+
+            /*
+            **  Final sanity check for stream_size.  Make sure that the
+            **  stream_size is not bigger than our buffer.
+            */
+            if(stream_size >= MAX_STREAM_SIZE)
+            {
+                DEBUG_WRAP(DebugMessage(DEBUG_STREAM,
+                            "Truncating %d bytes from stream",
+                            stream_size - MAX_STREAM_SIZE););
+
+                stream_size = MAX_STREAM_SIZE - 1;
+            }
+        }
+    }
+    else if(bd.total_size > stream_size)
+    {
+        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "stream_size(%u) < bd.total_size(%u):"
+                    "Overlapping segments -- packet loss or weird\n",
+                    stream_size, bd.total_size););
+    }
+
+    /* This is set in TraverseFunc when we reach a point that we
+     * haven't ack'd to yet. Let's just go catch it next time.
+     */
+    if(s4data.stop_traverse && !s4data.seq_gap)
+    {
+        if(s4data.stop_seq < s->base_seq)
+        {
+            stream_size = s->base_seq - s4data.stop_seq;
+        }
+        else
+        {
+            stream_size = s4data.stop_seq - s->base_seq;
+        }
+
+        /*
+        **  Final sanity check for stream_size.  Make sure that the
+        **  stream_size is not bigger than our buffer.
+        */
+        if(stream_size >= MAX_STREAM_SIZE)
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Truncating %d bytes from stream",
+                        stream_size - MAX_STREAM_SIZE););
+
+            stream_size = MAX_STREAM_SIZE - 1;
+        }
+    }
+    else
+    {
+        //stream_pkt->dsize = (unsigned short)stream_size;
+    }
+
+    /* Setup the protocol header fields here.
+     * If we have no data to reassemble, it saves on a
+     * few instructions and memcpys
+     */
     ip_len = stream_size + IP_HEADER_LEN + TCP_HEADER_LEN;
 
-    stream_pkt->pkth->ts.tv_sec = p->pkth->ts.tv_sec;
-    stream_pkt->pkth->ts.tv_usec = p->pkth->ts.tv_usec;
+    stream_pkt->pkth->ts.tv_sec = s->seglist->pkth.ts.tv_sec;
+    stream_pkt->pkth->ts.tv_usec = s->seglist->pkth.ts.tv_usec;
 
     stream_pkt->pkth->caplen = ip_len + ETHERNET_HEADER_LEN;
     stream_pkt->pkth->len    = stream_pkt->pkth->caplen;
 
     stream_pkt->iph->ip_len = htons((u_short) ip_len);
+    stream_pkt->dsize = (unsigned short)stream_size;
 
     if(direction == REVERSE)
     {
@@ -4099,6 +6078,7 @@ int BuildPacket(Stream *s, u_int32_t stream_size, Packet *p, int direction)
         stream_pkt->iph->ip_dst.s_addr = p->iph->ip_src.s_addr;
         stream_pkt->sp = p->dp;
         stream_pkt->dp = p->sp;
+        stream_pkt->tcph->th_ack = p->tcph->th_seq;
     }
     else
     {
@@ -4114,82 +6094,11 @@ int BuildPacket(Stream *s, u_int32_t stream_size, Packet *p, int direction)
         stream_pkt->iph->ip_dst.s_addr = p->iph->ip_dst.s_addr;
         stream_pkt->sp = p->sp;
         stream_pkt->dp = p->dp;
+        stream_pkt->tcph->th_ack = p->tcph->th_ack;
     }
-
-    stream_pkt->tcph->th_seq = p->tcph->th_seq;
-    stream_pkt->tcph->th_ack = p->tcph->th_ack;
     stream_pkt->tcph->th_win = p->tcph->th_win;
 
-    s4data.stop_traverse = 0;
-
-    bd.stream = s;
-    bd.buf = stream_pkt->data;
-    bd.total_size = 0;
-
-    /* walk the packet tree (in order) and rebuild the app layer data */
-    (void)ubi_trTraverse(&s->data, TraverseFunc, &bd);
-
-    if(bd.total_size < stream_size)
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "bd.total_size(%u) < stream_size(%u):"
-                    "Incomplete segment -- packet loss or weird\n",
-                    bd.total_size, stream_size););
-
-        /* This is probably because we were past our session limits --
-           there's nothing of value in this packet */
-        if(bd.total_size == 0)
-        {
-            stream_pkt->dsize = 0;
-            return -1;
-        }
-    }
-    else if(bd.total_size > stream_size)
-    {
-        DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "stream_size(%u) < bd.total_size(%u):"
-                    "Overlapping segments -- packet loss or weird\n",
-                    stream_size, bd.total_size););
-    }
-
-    /* This is set in TraverseFunc when we reach a point that we
-     * haven't ack'd to yet. Let's just go catch it next time.
-     */
-    if(s4data.stop_traverse)
-    {
-        if(s4data.stop_seq < s->base_seq)
-        {
-            stream_size = s->base_seq - s4data.stop_seq;
-        }
-        else
-        {
-            stream_size = s4data.stop_seq - s->base_seq;
-        }
-
-        /*
-        **  Final sanity check for stream_size.  Make sure that the stream_size is
-        **  not bigger than our buffer.
-        */
-        if(stream_size >= MAX_STREAM_SIZE)
-        {
-            DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "Truncating %d bytes from stream",
-                        stream_size - MAX_STREAM_SIZE););
-
-            stream_size = MAX_STREAM_SIZE - 1;
-        }
-
-        ip_len = IP_HEADER_LEN + TCP_HEADER_LEN + stream_size;
-
-        stream_pkt->dsize = stream_size;
-
-        stream_pkt->pkth->caplen = ETHERNET_HEADER_LEN + ip_len;
-        stream_pkt->pkth->len = stream_pkt->pkth->caplen;
-
-        stream_pkt->iph->ip_len = htons( (u_short) ip_len );
-    }
-    else
-    {
-        stream_pkt->dsize = stream_size;
-    }
-
+    /* A few other maintenance items -- set some flags, no TCP options */
     s4data.stop_traverse = 0;
 
     stream_pkt->tcp_option_count = 0;
@@ -4232,15 +6141,18 @@ int BuildPacket(Stream *s, u_int32_t stream_size, Packet *p, int direction)
         DebugMessage(DEBUG_STREAM, "packet is from server!\n");
     }
 
-    ClearDumpBuf();
-    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    PrintIPPkt(stdout, IPPROTO_TCP, stream_pkt);
-    printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
-    ClearDumpBuf();
-    /*printf("Printing app buffer at %p, size %d\n", 
-      stream_pkt->data, stream_pkt->dsize);
-      PrintNetData(stdout, stream_pkt->data, stream_pkt->dsize);
-      ClearDumpBuf();*/
+    if (DEBUG_STREAM & GetDebugLevel())
+    {
+        //ClearDumpBuf();
+        printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+        PrintIPPkt(stdout, IPPROTO_TCP, stream_pkt);
+        printf("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n");
+        //ClearDumpBuf();
+        /*printf("Printing app buffer at %p, size %d\n", 
+          stream_pkt->data, stream_pkt->dsize);
+          PrintNetData(stdout, stream_pkt->data, stream_pkt->dsize);
+          ClearDumpBuf();*/
+    }
 #endif
 
     /* are we within our data loss limits? */
@@ -4252,13 +6164,14 @@ int BuildPacket(Stream *s, u_int32_t stream_size, Packet *p, int direction)
             /* stream_size is uint so can't be negative */
             if(stream_size && stream_size < zero_size)
             {
-                zero_size = stream_size;
+                zero_size = (unsigned short)stream_size;
             }
 
             if(zero_size > 0)
                 bzero(stream_pkt->data, zero_size);
         }
     }
+    PREPROC_PROFILE_END(stream4BuildPerfStats);
 
     return 0;
 }
@@ -4352,9 +6265,14 @@ void WriteSsnStats(BinStats *bs)
 static void TcpAction(Session *ssn, Packet *p, int action, int direction, 
                       u_int32_t pkt_seq, u_int32_t pkt_ack)
 {
+    u_int32_t count;
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(stream4ActionPerfStats);
     if(action == ACTION_NOTHING)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "returning -- action nothing\n"););
+        PREPROC_PROFILE_END(stream4ActionPerfStats);
         return;
     }
     else 
@@ -4452,6 +6370,7 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
 
                 DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
                             "WARNING: Data on SYN packet!\n"););
+                PREPROC_PROFILE_END(stream4ActionPerfStats);
                 return;
             }
         }
@@ -4503,23 +6422,32 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
                 Stream *s;
 
                 s = &ssn->client;
-
+                
+                count = s->pkt_count;
                 if((ssn->client.last_ack - ssn->client.base_seq) > ssn->flush_point 
-                        && ubi_trCount(&s->data) > 1)
+                        && (count > 1))
                 {
                     DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
                                 "Flushing Client packet buffer "
                                 "(%d bytes a: 0x%X b: 0x%X pkts: %d)\n",
                                 (ssn->client.last_ack - ssn->client.base_seq), 
                                 ssn->client.last_ack, ssn->client.base_seq,
-                                ubi_trCount(&s->data)););
+                                count););
 
-                    if(s4data.reassemble_client)
+                    if(ssn->reassemble_client)
                     {
+                        ssn->client.flags |= IGNORE_SINGLE_PKTS;
+                        PREPROC_PROFILE_TMPEND(stream4ActionPerfStats);
                         FlushStream(&ssn->client, p, REVERSE);
+                        PREPROC_PROFILE_TMPSTART(stream4ActionPerfStats);
+                        ssn->client.flags &= ~IGNORE_SINGLE_PKTS;
                     }
 
-                    ssn->client.base_seq = ssn->client.last_ack;
+                    if (s->pkt_count != count)
+                    {
+                        /* Only update if we reassembled and removed packets */
+                        ssn->client.base_seq = ssn->client.last_ack;
+                    }
                 } 
                 else 
                 {
@@ -4529,7 +6457,7 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
                                 (ssn->flush_point-
                                     (ssn->client.last_ack - ssn->client.base_seq)),
                                 (ssn->client.last_ack - ssn->client.base_seq),
-                                ubi_trCount(&ssn->client.data)););
+                                count););
                 }
             }
         }
@@ -4565,8 +6493,9 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
 
                 s = &ssn->server;
 
+                count = s->pkt_count;
                 if((ssn->server.last_ack - ssn->server.base_seq) > ssn->flush_point
-                        && ubi_trCount(&s->data) > 1)
+                        && (count > 1))
                 {
                     DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
                                 "Flushing Server packet buffer "
@@ -4574,12 +6503,20 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
                                 (ssn->server.last_ack - ssn->server.base_seq),
                                 ssn->server.last_ack, ssn->server.base_seq););
 
-                    if(s4data.reassemble_server)
+                    if(ssn->reassemble_server)
                     {
+                        ssn->server.flags |= IGNORE_SINGLE_PKTS;
+                        PREPROC_PROFILE_TMPEND(stream4ActionPerfStats);
                         FlushStream(&ssn->server, p, REVERSE);
+                        PREPROC_PROFILE_TMPSTART(stream4ActionPerfStats);
+                        ssn->server.flags &= ~IGNORE_SINGLE_PKTS;
                     }
 
-                    ssn->server.base_seq = ssn->server.last_ack;
+                    if (s->pkt_count != count)
+                    {
+                        /* Only update if we reassembled and removed packets */
+                        ssn->server.base_seq = ssn->server.last_ack;
+                    }
                 }
             }
         }
@@ -4593,24 +6530,31 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
                     3,                      /* priority (low) */
                     STREAM4_STEALTH_NMAP_FINGERPRINT_STR, /* msg string */
                     0);
+            PREPROC_PROFILE_END(stream4ActionPerfStats);
             return;
         }
 
         if(action & ACTION_FLUSH_SERVER_STREAM)
         {
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "flushing server stream, ending "
-                        "session: %d\n", s4data.reassemble_server););
+                        "session: %d\n", ssn->reassemble_server););
 
-            if(s4data.reassemble_server)
+            if(ssn->reassemble_server)
             {
+                PREPROC_PROFILE_TMPEND(stream4ActionPerfStats);
                 if(direction == FROM_SERVER)
                 {
+                    ssn->server.flags |= IGNORE_SINGLE_PKTS;
                     FlushStream(&ssn->server, p, NO_REVERSE);
+                    ssn->server.flags &= ~IGNORE_SINGLE_PKTS;
                 }
                 else
                 {
+                    ssn->server.flags |= IGNORE_SINGLE_PKTS;
                     FlushStream(&ssn->server, p, REVERSE);
+                    ssn->server.flags &= ~IGNORE_SINGLE_PKTS;
                 }
+                PREPROC_PROFILE_TMPSTART(stream4ActionPerfStats);
             }
 
             p->packet_flags |= PKT_STREAM_EST;
@@ -4621,16 +6565,22 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "flushing client stream, ending "
                         "session\n"););
 
-            if(s4data.reassemble_client)
+            if(ssn->reassemble_client)
             {
+                PREPROC_PROFILE_TMPEND(stream4ActionPerfStats);
                 if(direction == FROM_CLIENT)
                 {
+                    ssn->client.flags |= IGNORE_SINGLE_PKTS;
                     FlushStream(&ssn->client, p, NO_REVERSE);
+                    ssn->client.flags &= ~IGNORE_SINGLE_PKTS;
                 }
                 else
                 {
+                    ssn->client.flags |= IGNORE_SINGLE_PKTS;
                     FlushStream(&ssn->client, p, REVERSE);
+                    ssn->client.flags &= ~IGNORE_SINGLE_PKTS;
                 }
+                PREPROC_PROFILE_TMPSTART(stream4ActionPerfStats);
             }
 
             p->packet_flags |= PKT_STREAM_EST;
@@ -4643,11 +6593,17 @@ static void TcpAction(Session *ssn, Packet *p, int action, int direction,
             p->ssnptr = NULL;
         }
     }
+    PREPROC_PROFILE_END(stream4ActionPerfStats);
 }
 
 static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction, 
                            u_int32_t pkt_seq, u_int32_t pkt_ack)
 {
+    u_int32_t count;
+    PROFILE_VARS;
+
+    PREPROC_PROFILE_START(stream4ActionAsyncPerfStats);
+
     if(direction == FROM_CLIENT)
     {
         if(!ssn->client.isn)
@@ -4671,6 +6627,7 @@ static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction,
 
     if(action == ACTION_NOTHING)
     {
+        PREPROC_PROFILE_END(stream4ActionAsyncPerfStats);
         return;
     }
     else 
@@ -4746,6 +6703,7 @@ static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction,
 
                 DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
                             "WARNING: Data on SYN packet!\n"););
+                PREPROC_PROFILE_END(stream4ActionAsyncPerfStats);
                 return;
             }
         }
@@ -4784,23 +6742,31 @@ static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction,
             }
 
             s = &ssn->client;
-
+            count = s->pkt_count;
             if((ssn->client.last_ack - ssn->client.base_seq) > ssn->flush_point 
-                    && ubi_trCount(&s->data) > 1)
+                    && (count > 1))
             {
                 DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
                             "Flushing Client packet buffer "
                             "(%d bytes a: 0x%X b: 0x%X pkts: %d)\n",
                             (ssn->client.last_ack - ssn->client.base_seq), 
                             ssn->client.last_ack, ssn->client.base_seq,
-                            ubi_trCount(&s->data)););
+                            count););
 
-                if(s4data.reassemble_client)
+                if(ssn->reassemble_client)
                 {
+                    ssn->client.flags |= IGNORE_SINGLE_PKTS;
+                    PREPROC_PROFILE_TMPEND(stream4ActionAsyncPerfStats);
                     FlushStream(&ssn->client, p, REVERSE);
+                    PREPROC_PROFILE_TMPSTART(stream4ActionAsyncPerfStats);
+                    ssn->client.flags &= ~IGNORE_SINGLE_PKTS;
                 }
 
-                ssn->client.base_seq = ssn->client.last_ack;
+                if (s->pkt_count != count)
+                {
+                    /* Only update if we reassembled and removed packets */
+                    ssn->client.base_seq = ssn->client.last_ack;
+                }
             }
         }
 
@@ -4833,8 +6799,9 @@ static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction,
 
             s = &ssn->server;
 
+            count = s->pkt_count;
             if((ssn->server.last_ack - ssn->server.base_seq) > ssn->flush_point
-                    && ubi_trCount(&s->data) > 1)
+                    && (count > 1))
             {
                 DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
                             "Flushing Server packet buffer "
@@ -4842,12 +6809,20 @@ static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction,
                             (ssn->server.last_ack - ssn->server.base_seq),
                             ssn->server.last_ack, ssn->server.base_seq););
 
-                if(s4data.reassemble_server)
+                if(ssn->reassemble_server)
                 {
+                    ssn->server.flags |= IGNORE_SINGLE_PKTS;
+                    PREPROC_PROFILE_TMPEND(stream4ActionAsyncPerfStats);
                     FlushStream(&ssn->server, p, REVERSE);
+                    PREPROC_PROFILE_TMPSTART(stream4ActionAsyncPerfStats);
+                    ssn->server.flags &= ~IGNORE_SINGLE_PKTS;
                 }
 
-                ssn->server.base_seq = ssn->server.last_ack;
+                if (s->pkt_count != count)
+                {
+                    /* Only update if we reassembled and removed packets */
+                    ssn->server.base_seq = ssn->server.last_ack;
+                }
             }
         }
 
@@ -4860,24 +6835,31 @@ static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction,
                     3,                      /* priority (low) */
                     STREAM4_STEALTH_NMAP_FINGERPRINT_STR, /* msg string */
                     0);
+            PREPROC_PROFILE_END(stream4ActionAsyncPerfStats);
             return;
         }
 
         if(action & ACTION_FLUSH_SERVER_STREAM)
         {
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "flushing server stream, ending "
-                        "session: %d\n", s4data.reassemble_server););
+                        "session: %d\n", ssn->reassemble_server););
 
-            if(s4data.reassemble_server)
+            if(ssn->reassemble_server)
             {
+                PREPROC_PROFILE_TMPEND(stream4ActionAsyncPerfStats);
                 if(direction == FROM_SERVER)
                 {
+                    ssn->server.flags |= IGNORE_SINGLE_PKTS;
                     FlushStream(&ssn->server, p, NO_REVERSE);
+                    ssn->server.flags &= ~IGNORE_SINGLE_PKTS;
                 }
                 else
                 {
+                    ssn->server.flags |= IGNORE_SINGLE_PKTS;
                     FlushStream(&ssn->server, p, REVERSE);
+                    ssn->server.flags &= ~IGNORE_SINGLE_PKTS;
                 }
+                PREPROC_PROFILE_TMPSTART(stream4ActionAsyncPerfStats);
             }
         }
 
@@ -4886,16 +6868,22 @@ static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction,
             DEBUG_WRAP(DebugMessage(DEBUG_STREAM, "flushing client stream, ending "
                         "session\n"););
 
-            if(s4data.reassemble_client)
+            if(ssn->reassemble_client)
             {
+                PREPROC_PROFILE_TMPEND(stream4ActionAsyncPerfStats);
                 if(direction == FROM_CLIENT)
                 {
+                    ssn->client.flags |= IGNORE_SINGLE_PKTS;
                     FlushStream(&ssn->client, p, NO_REVERSE);
+                    ssn->client.flags &= ~IGNORE_SINGLE_PKTS;
                 }
                 else
                 {
+                    ssn->client.flags |= IGNORE_SINGLE_PKTS;
                     FlushStream(&ssn->client, p, REVERSE);
+                    ssn->client.flags &= ~IGNORE_SINGLE_PKTS;
                 }
+                PREPROC_PROFILE_TMPSTART(stream4ActionAsyncPerfStats);
             }
         }
 
@@ -4906,4 +6894,525 @@ static void TcpActionAsync(Session *ssn, Packet *p, int action, int direction,
             p->ssnptr = NULL;
         }
     }
+    PREPROC_PROFILE_END(stream4ActionAsyncPerfStats);
+}
+
+int Stream4IgnoreChannel(u_int32_t cliIP, u_int16_t cliPort,
+                  u_int32_t srvIP, u_int16_t srvPort,
+                  char protocol, char direction, char flags)
+{
+    return IgnoreChannel(cliIP, cliPort,
+                         srvIP, srvPort,
+                         protocol, direction,
+                         flags, s4data.timeout);
+}
+
+void SetIgnoreChannel(void *ssnptr, Packet *p, char direction,
+                int32_t bytes, int response_flag)
+{
+    Session *ssn = (Session *)ssnptr;
+
+    if (!p)
+        return;
+
+    if (ssn)
+    {
+        ssn->ignore_flag = 1;
+
+        if (ssn->hashKey.proto == IPPROTO_TCP)
+        {
+            /*
+             * Flush both sides of the stream in case there was anything
+             * buffered up... Should eliminate potential memory leak of
+             * the saved packets from earlier in the stream.
+             */
+            if (p->packet_flags & PKT_REBUILT_STREAM)
+            {
+                ssn->need_to_flush = 1;
+            }
+            else
+            {
+                FlushStream(&ssn->client, p, NO_REVERSE);
+                FlushStream(&ssn->server, p, NO_REVERSE);
+            }
+        }
+    }
+
+    DEBUG_WRAP(DebugMessage(DEBUG_STREAM, 
+            "stream to be ignored.\n"););
+
+    /*
+     * Don't want to mess up PortScan by "dropping"
+     * this packet.
+     *
+     * Also still want the perfmon to collect the stats.
+     *
+     * And don't want to do any detection with rules
+     */
+    DisableDetect(p);
+    SetPreprocBit(p, PP_SFPORTSCAN);
+    SetPreprocBit(p, PP_PERFMONITOR);
+    otn_tmp = NULL;
+}
+
+static u_int32_t Stream4GetSessionFlags(void *ssnptr)
+{
+    Session *ssn;
+
+    if(ssnptr)
+    {
+        ssn = (Session*)ssnptr;
+        return ssn->session_flags;
+    }
+    return 0;
+}
+
+static u_int32_t Stream4SetSessionFlags(void *ssnptr, u_int32_t flags)
+{
+    Session *ssn;
+    if(ssnptr)
+    {
+        ssn = (Session*)ssnptr;
+        ssn->session_flags |= flags;
+        return ssn->session_flags;
+    }
+
+    return 0;
+}
+
+static void * Stream4GetApplicationData(void *ssnptr, u_int32_t protocol)
+{
+    Session *ssn;
+
+    if(ssnptr)
+    {
+        ssn = (Session*)ssnptr;
+        if (ssn->preproc_proto == protocol)
+            return ssn->preproc_data;
+    }
+    return NULL;
+}
+
+static void Stream4SetApplicationData(void *ssnptr, 
+                                      u_int32_t protocol,
+                                      void *data,
+                                      StreamAppDataFree free_func)
+{
+    Session *ssn;
+    if(ssnptr)
+    {
+        ssn = (Session*) ssnptr;
+
+        /* Different protocol or different data pointer */
+        if ((ssn->preproc_proto != protocol) ||
+            (ssn->preproc_data != data))
+        {
+            if (ssn->preproc_free)
+            {
+                ssn->preproc_free(ssn->preproc_data);
+            }
+        }
+
+        ssn->preproc_proto = (char)protocol;
+        ssn->preproc_data = data;
+        ssn->preproc_free = free_func;
+    }
+}
+
+static int Stream4AddSessionAlert(void *ssnptr,
+                                  Packet *p,
+                                  u_int32_t gid,
+                                  u_int32_t sid)
+{
+    Session *ssn = (Session *)ssnptr;
+    Stream *stream = NULL;
+
+    if (!ssn)
+        return -1;
+
+    if (p->packet_flags & PKT_FROM_SERVER)
+    {
+        stream = &ssn->server;
+        /* If not reassembling on the server, don't bother */
+        if (!ssn->reassemble_server)
+            return -1;
+    }
+    else if (p->packet_flags & PKT_FROM_CLIENT)
+    {
+        stream = &ssn->client;
+
+        /* If not reassembling on the client, don't bother */
+        if (!ssn->reassemble_client)
+            return -1;
+    }
+    else
+    {
+        /* Directionless packet, can't do much */
+        return -1;
+    }
+
+    if (stream->alert_count >= MAX_SESSION_ALERTS)
+        return -1;
+
+    stream->alerts[stream->alert_count].gid = gid;
+    stream->alerts[stream->alert_count].sid = sid;
+    stream->alerts[stream->alert_count].seq = p->tcph->th_seq;
+    stream->alert_count++;
+
+    return 0;
+}
+
+void CleanSessionAlerts(Session *ssn, Packet *flushed_pkt)
+{
+    int i;
+    int new_count = 0;
+    Stream *stream;
+
+    if (flushed_pkt->packet_flags & PKT_FROM_SERVER)
+    {
+        stream = &ssn->server;
+    }
+    else if (flushed_pkt->packet_flags & PKT_FROM_CLIENT)
+    {
+        stream = &ssn->client;
+    }
+    else
+    {
+        /* Huh?  We didn't set that flag in the rebuilt packet? */
+        return;
+    }
+
+    for (i=0;i< stream->alert_count; i++)
+    {
+        u_int32_t alert_seq = ntohl(stream->alerts[i].seq);
+        u_int32_t flushed_seq = ntohl(flushed_pkt->tcph->th_seq);
+        if (alert_seq < flushed_seq + flushed_pkt->dsize)
+        {
+            /* Alert was covered by the flushed packet.  Zero it out. */
+            stream->alerts[i].sid = 0;
+            stream->alerts[i].gid = 0;
+            stream->alerts[i].seq = 0;
+        }
+        else
+        {
+            /* Alert was for a later packet -- still in the
+             * reassembly queue.  Keep it around. */
+            if (new_count != i)
+            {
+                /* Move this one to an earlier position. */
+                stream->alerts[new_count].sid = stream->alerts[i].sid;
+                stream->alerts[new_count].gid = stream->alerts[i].gid;
+                stream->alerts[new_count].seq = stream->alerts[i].seq;
+            }
+            new_count++;
+        }
+    }
+        
+    stream->alert_count = new_count;
+}
+
+static int Stream4CheckSessionAlert(void *ssnptr,
+                                  Packet *p,
+                                  u_int32_t gid,
+                                  u_int32_t sid)
+{
+    Session *ssn = (Session *)ssnptr;
+    Stream *stream;
+    int      i;
+
+    if (!ssn)
+        return 0;
+
+    /* If this is not a rebuilt packet, no need to check further */
+    if (!(p->packet_flags & PKT_REBUILT_STREAM))
+        return 0;
+
+    if (p->packet_flags & PKT_FROM_SERVER)
+    {
+        stream = &ssn->server;
+    }
+    else if (p->packet_flags & PKT_FROM_CLIENT)
+    {
+        stream = &ssn->client;
+    }
+    else
+    {
+        /* Directionless packet, can't do much */
+        return 0;
+    }
+
+    for ( i = 0; i < stream->alert_count; i++ )
+    {
+        /*  This is a rebuilt packet and if we've seen this alert before,
+         *  return that we have previously alerted on a non-rebuilt packet.
+         */
+        if ( stream->alerts[i].gid == gid &&
+             stream->alerts[i].sid == sid )
+        {
+            return -1;
+        }
+    }
+    return 0;
+}
+
+typedef struct _TraverseReassemblyData
+{
+    PacketIterator callback;
+    void *userdata;
+    int packets;
+} TraverseReassemblyData;
+
+static void TraverseReassembly(StreamPacketData *NodePtr, void *foo)
+{
+    StreamPacketData *spd = (StreamPacketData *) NodePtr;
+    TraverseReassemblyData *callbackData = (TraverseReassemblyData *)foo;
+
+    /* packets that are part of the currently reassembled stream
+     * should be marked with the chuck flag
+     */
+    if (spd->chuck != SEG_UNASSEMBLED)
+    {
+        callbackData->packets++;
+        callbackData->callback(&spd->pkth, spd->pkt, callbackData->userdata);
+    }
+}
+
+static int Stream4TraverseReassembly(Packet *p,
+                                    PacketIterator callback,
+                                    void *userdata)
+{
+    Stream *s;
+    TraverseReassemblyData callbackData;
+    callbackData.userdata = userdata;
+    callbackData.callback = callback;
+    callbackData.packets = 0;
+
+    if (p)
+    {
+        s = (Stream *)p->streamptr;
+        if (!s)
+        {
+            return 0;
+        }
+
+        {
+            StreamPacketData *spd = s->seglist;
+            while (spd)
+            {
+                if (spd->chuck == SEG_UNASSEMBLED)
+                {
+                    /* We hit a packet that hasn't been marked yet.
+                     * Since packets are stored in order, we've hit
+                     * all the ones that we need to include.  Done.
+                     */
+                    break;
+                }
+                TraverseReassembly(spd, &callbackData);
+                spd = spd->next;
+            }
+        }
+    }
+
+    return callbackData.packets;
+}
+
+static void Stream4DropTraffic(
+                    void *ssnptr,
+                    char dir)
+{
+    Session *ssn = (Session *)ssnptr;
+
+    if (!ssn)
+        return;
+
+    if (s4data.allow_session_blocking)
+    {
+#ifdef STREAM4_UDP
+        if (ssn->hashKey.proto == IPPROTO_TCP)
+#endif
+        {
+            ssn->drop_traffic |= dir; 
+        }
+    }
+
+    /* XXX: Eventually, this will issue TCP resets or ICMP unreach
+     * in each direction */
+}
+
+static void Stream4DropPacket(
+                    Packet *p)
+{
+    Stream *s;
+    Session *ssn;
+    u_int32_t pkt_seq;
+
+    /* Stream4 is not processing this... go away */
+    if(NotForStream4(p))
+        return;
+
+    /* Ignore rebuilt packets */
+    if (p->packet_flags & PKT_REBUILT_STREAM)
+        return;
+
+    /* No session?  Go away */
+    ssn = (Session *)p->ssnptr;
+    if (!ssn)
+        return;
+
+    pkt_seq = ntohl(p->tcph->th_seq);
+
+    if(p->packet_flags & PKT_FROM_SERVER)
+    {        
+        s = &ssn->server;
+    }
+    else
+    {        
+        s = &ssn->client;
+    }
+
+    /* If this packet was inserted into a reassembly queue */
+    if (p->packet_flags & PKT_STREAM_INSERT)
+    {
+        StreamPacketData *spd;
+        /* Find this packet seq within the packet store */
+        spd = SpdSeqExists(s, pkt_seq);
+        if (spd)
+        {
+            spd->blocked = 1;
+        }
+    }
+}
+
+/* Uses the Flow preprocessor... */
+static StreamFlowData *Stream4GetFlowData(Packet *p)
+{
+    FLOW *fp;
+    FLOWDATA *flowdata;
+
+    if (!p->flow)
+    {
+        return NULL;
+    }
+
+    fp = (FLOW *)p->flow;
+
+    flowdata = &(fp->data);
+
+    return (StreamFlowData *)flowdata;
+}
+
+static char Stream4GetReassemblyDirection(void *ssnptr)
+{
+    Session *ssn = (Session *)ssnptr;
+    int retDir = 0;
+
+    if (!ssn)
+        return 0;
+
+    retDir |= (ssn->reassemble_client ? SSN_DIR_CLIENT : 0);
+    retDir |= (ssn->reassemble_server ? SSN_DIR_SERVER : 0);
+
+    return retDir;
+}
+
+static char Stream4SetReassembly(void *ssnptr,
+                                   u_int8_t flush_policy,
+                                   char dir,
+                                   char flags)
+{
+    Session *ssn = (Session *)ssnptr;
+    /* Stream4 always uses STREAM_FLPOLICY_FOOTPRINT flush policy,
+     * so ignore the flush_policy parameter */
+
+    if (!ssn)
+        return 0;
+
+    if (flags & STREAM_FLPOLICY_SET_APPEND)
+    {
+        if (dir & SSN_DIR_CLIENT)
+            ssn->reassemble_client = 1;
+
+        if (dir & SSN_DIR_SERVER)
+            ssn->reassemble_server = 1;
+    }
+    else if (flags & STREAM_FLPOLICY_SET_ABSOLUTE)
+    {
+        if (dir & SSN_DIR_CLIENT)
+            ssn->reassemble_client = 1;
+        else
+        {
+            if (ssn->reassemble_client)
+            {
+                /* Flush what's there since we're turning it off */
+                PurgeFlushStream(ssn, &ssn->client);
+            }
+            ssn->reassemble_client = 0;
+        }
+
+        if (dir & SSN_DIR_SERVER)
+            ssn->reassemble_server = 1;
+        else
+        {
+            if (ssn->reassemble_server)
+            {
+                /* Flush what's there since we're turning it off */
+                PurgeFlushStream(ssn, &ssn->server);
+            }
+            ssn->reassemble_server = 0;
+        }
+    }
+
+    return Stream4GetReassemblyDirection(ssnptr);
+}
+
+static char Stream4GetReassemblyFlushPolicy(void *ssnptr, char dir)
+{
+    Session *ssn = (Session *)ssnptr;
+    if (!ssn)
+        return 0;
+
+    if (dir & SSN_DIR_CLIENT)
+    {
+        if (ssn->reassemble_client)
+        {
+            return STREAM_FLPOLICY_FOOTPRINT;
+        }
+        else
+        {
+            return STREAM_FLPOLICY_NONE;
+        }
+    }
+
+    if (dir & SSN_DIR_SERVER)
+    {
+        if (ssn->reassemble_server)
+        {
+            return STREAM_FLPOLICY_FOOTPRINT;
+        }
+        else
+        {
+            return STREAM_FLPOLICY_NONE;
+        }
+    }
+    return STREAM_FLPOLICY_NONE;
+}
+
+static char Stream4IsStreamSequenced(void *ssnptr, char dir)
+{
+    Session *ssn = (Session *)ssnptr;
+    if (!ssn)
+        return 0;
+
+    if (dir & SSN_DIR_CLIENT)
+    {
+        return !ssn->client.outoforder;
+    }
+
+    if (dir & SSN_DIR_SERVER)
+    {
+        return !ssn->server.outoforder;
+
+    }
+
+    return 0;
 }

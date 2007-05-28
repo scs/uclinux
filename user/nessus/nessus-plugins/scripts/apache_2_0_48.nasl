@@ -15,9 +15,9 @@
 if(description)
 {
  script_id(11853);
- script_version("$Revision: 1.5 $");
- script_cve_id("CVE-2002-0061", "CAN-2003-0789", "CAN-2003-0542");
  script_bugtraq_id(8926);
+ script_version("$Revision: 1.13 $");
+ script_cve_id("CVE-2002-0061", "CVE-2003-0789", "CVE-2003-0542");
  name["english"] = "Apache < 2.0.48";
 
  script_name(english:name["english"]);
@@ -33,7 +33,7 @@ To exploit this flaw, an attacker would need the ability to upload a rogue
 CGI script to this server and to have it executed by the Apache daemon (httpd).
 
 Solution : Upgrade to version 2.0.48 when it is available
-See also : http://nagoya.apache.org/bugzilla/show_bug.cgi?id=22030 
+See also : http://issues.apache.org/bugzilla/show_bug.cgi?id=22030 
 Risk factor : Low";
 
  script_description(english:desc["english"]);
@@ -45,10 +45,13 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "Misc.";
+ script_copyright(english:"This script is Copyright (C) 2003-2006 Tenable Network Security");
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ if ( ! defined_func("bn_random") )
+	script_dependencie("http_version.nasl");
+ else
+ 	script_dependencie("http_version.nasl", "redhat-RHSA-2004-015.nasl", "redhat-RHSA-2003-360.nasl");
  script_require_keys("www/apache");
  script_require_ports("Services/www", 80);
  exit(0);
@@ -58,13 +61,17 @@ Risk factor : Low";
 # The script code starts here
 #
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+if ( get_kb_item("CVE-2003-0542") ) exit(0);
+
+
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
-banner = get_http_banner(port: port);
+banner = get_backport_banner(banner:get_http_banner(port: port));
 if(!banner)exit(0);
  
 serv = strstr(banner, "Server");

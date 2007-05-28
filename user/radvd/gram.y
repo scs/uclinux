@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: gram.y,v 1.6 2002/01/02 11:01:11 psavola Exp $
  *
  *   Authors:
  *    Pedro Roque		<roque@di.fc.ul.pt>
@@ -28,6 +28,7 @@ extern int num_lines;
 extern char *yytext;
 extern int sock;
 
+static int read_pid_if(const char *pidfile, char *ifname);
 static void cleanup(void);
 static void yyerror(char *msg);
 
@@ -48,6 +49,7 @@ static void yyerror(char *msg);
 %token		T_PREFIX
 
 %token	<str>	STRING
+%token	<str>	FILEPATH
 %token	<num>	NUMBER
 %token	<snum>	SIGNEDNUMBER
 %token	<dec>	DECIMAL
@@ -86,6 +88,7 @@ static void yyerror(char *msg);
 %token		T_BAD_TOKEN
 
 %type	<str>	name
+%type	<str>	filepath
 %type	<pinfo> prefixdef prefixlist
 %type   <num>	number_or_infinity
 
@@ -291,7 +294,7 @@ prefixdef	: prefixhead '{' optional_prefixplist '}' ';'
 					prefix->enabled = 0;
 				} else
 				{
-					*((uint32_t *)(prefix->Prefix.s6_addr)) = htons(0x2002);
+					*((uint16_t *)(prefix->Prefix.s6_addr)) = htons(0x2002);
 					memcpy( prefix->Prefix.s6_addr + 2, &dst, sizeof( dst ) );
 				}
 			}
@@ -357,6 +360,16 @@ prefixparms	: T_AdvOnLink SWITCH ';'
 			strncpy(prefix->if6to4, $2, IFNAMSIZ-1);
 			prefix->if6to4[IFNAMSIZ-1] = '\0';
 		}
+		| T_Base6to4Interface filepath ';'
+		{
+			if (read_pid_if($2, prefix->if6to4)) {
+				dlog(LOG_DEBUG, 4, "using interface %s for 6to4", prefix->if6to4);
+			} else {
+				log(LOG_ERR, "file %s has no interface, disabling 6to4 prefix", $2);
+				prefix->enabled = 0;
+				prefix->if6to4[0] = '\0';
+			}
+		}
 		;
 
 number_or_infinity      : NUMBER
@@ -369,7 +382,45 @@ number_or_infinity      : NUMBER
                         }
                         ;
 
+filepath	: FILEPATH
+		{
+			/* check vality */
+			$$ = $1;
+		}
+		;
+
 %%
+
+static
+int read_pid_if(const char *pidfile, char *ifname)
+{
+	FILE *f = fopen(pidfile, "r");
+	char buf[16];
+	char *p;
+
+	if (!f)
+		return 0;
+
+	/* skip the pid */
+	if (!fgets(buf, sizeof(buf), f))
+		return 0;
+
+	/* read the interface */
+	if (!fgets(ifname, IFNAMSIZ, f))
+		return 0;
+
+	/* strip trailing whitespace */
+	p = ifname;
+	while (*p && !isspace(*p))
+		p++;
+	*p = '\0';
+
+	/* make sure it's not blank */
+	if (!*ifname)
+		return 0;
+
+	return 1;
+}
 
 static
 void cleanup(void)

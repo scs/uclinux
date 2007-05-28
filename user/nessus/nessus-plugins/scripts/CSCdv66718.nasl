@@ -11,8 +11,9 @@
 if(description)
 {
  script_id(11291);
- script_cve_id("CAN-2002-1092");
- script_version("$Revision: 1.3 $");
+ script_bugtraq_id(5613);
+ script_cve_id("CVE-2002-1092");
+ script_version("$Revision: 1.5 $");
 
 
  name["english"] = "CSCdv66718";

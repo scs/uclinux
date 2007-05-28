@@ -1,9 +1,9 @@
 $Id$
 
 README.build_rpms
-By JP Vossen & Dan Wittenberg <rpms@snort.org>
+By JP Vossen & Dan Wittenberg 
 
-Last Updated: 2004-07-16
+Last Updated: 2005-05-03
 
 
 How to build your own Snort RPMs--Introduction
@@ -23,14 +23,15 @@ Snort source code, compile it and build your own RPM very easily.
 RPM requires a SPEC file to provide details on how to compile and build
 the source code into an RPM package. The most difficult and time consuming
 part of building an RPM is writing a correct SPEC file. We've already done
-that for you (and it is heavily commented as well). The Snort.org SPEC
+that for you (and it is heavily commented as well). The snort.spec
 file can build the following packages, with or without flexible response
 (see README.flexresp for more details):
 
-	Snort Plain (required for all others)
-	Snort with MySQL
-	Snort with PostgreSQL
-	Snort with Oracle (EXPERIMENTAL)
+	plain		Snort (this package, required)
+	mysql		Snort with mysql (optional)
+	postgresql	Snort with postgresql (optional)
+	oracle		Snort with oracle (optional, not official)
+	inline		Snort with inline support (optional)
 
 
 Prerequisites
@@ -45,6 +46,7 @@ also need the following if you plan to build packages other than plain:
 	Snort with MySQL		MYSQL-devel, pcre-devel
 	Snort with PostgreSQL		postgresql-devel, pcre-devel
 	Snort with Oracle		Oracle libs in /opt/oracle, pcre-devel
+	Snort inline			iptables-devel, libnet
 
 If you plan to build flexresp, you also need libnet. Depending on which
 libnet RPM you install, you may get statically linked binaries. If you
@@ -82,6 +84,10 @@ rpmbuild Package Options
 		Add flexresp capability to whatever package(s) you are
 		building.
 
+	--with inline
+		Add inline capability to whatever package(s) you are
+		building. This will create its own inline package.
+
 	--with mysql
 		Builds a binary/package with support for MySQL.
 
@@ -90,10 +96,6 @@ rpmbuild Package Options
 
 	--with oracle
 		Builds a binary/package with support for Oracle.
-
- 	--with fedora
-		Builds the same binary packages as above, but will name
-		the resulting binary RPM's suitable for use with Fedora.
 
 See below for some examples.
 
@@ -126,7 +128,7 @@ $ ls -1 /usr/src/redhat/RPMS/i386/snort-*
 The "Official" Snort.org RPM build
 ==================================
 We build the official Snort.org RPMs with the generate-all-rpms script in
-the contribs/rpm directory.
+the rpm directory.
 
 In theory, anyone can build RPMs that are identical to the official
 Snort.org RPMS.  However, only the official RPMs will be signed by the
@@ -138,9 +140,7 @@ PLEASE verify your RPMs with this key before installing them.
 Distribution Specific Builds
 ============================
 The SPEC file contains code to build RPMS for specific Linux
-distributions, currently Fedora (fedora.redhat.com) and cAos
-(www.caosity.org). In the case of Fedora you will use '--with fedora' on
-the rpmbuild command line to build with Fedora's naming scheme. Since the
+distributions, currently cAos (www.caosity.org).  Since the
 cAos buildsystem is completely automated, no rpmbuild command line options
 are allowed, so the SPEC file looks for the '/usr/lib/rpm/caos' directory
 to see if it's running under cAos. This is not ideal as it will build all
@@ -182,8 +182,7 @@ possible. In particular, it has lots of comments.  So it may be useful to
 look it over, or you may just want to build the old fashioned way. In any
 case, there are three easy ways to get it.
 
-Get it from Snort's CVS:
-	http://cvs.snort.org/viewcvs.cgi/snort/contrib/rpm/snort.org.spec
+Get it from Snort's CVS (see reference section for URL).
 
 Get it from the tarball:
 	tar -xvzf /path/to/snort-x.x.x.tar.gz
@@ -198,13 +197,13 @@ Get it from the SRPM
 Building from Snort.org CVS Snapshots [2]
 =========================================
 
-Building from the "stable" snapshot should work as above. However,
-building from the "current" snapshot requires some manual intervention.
+Building from the CVS snapshot tarballs should work but requires some
+manual intervention.
 
 1. Cd to /tmp or someplace safe: cd /tmp
 2. Untar the source: tar -xvzf /path/to/snort-current.tar.gz
 3. Rename the resulting snort directory: mv snort snort-current
-4. Edit snort-current/contrib/rpm/snort.org.spec and change the line
+4. Edit snort-current/rpm/snort.spec and change the line
 	%define release {whatever}
 to
 	%define release 1
@@ -213,12 +212,25 @@ and
 to
 	Version: current
 5. Rename the original tarball: mv snort-current.tar.gz snort-current-orig.tar.gz
-6. Re-tar the file: tar -cvzf snort-current.tar.gz snort-current
-7. Build as usual: rpmbuild -ta snort-current.tar.gz
+6. Obtain the snort rules you wish to include in the RPM (see [3]). Untar
+   the file then move the rules and doc/sigantures directories into place in
+   the working directory. E.g. mv /tmp/rules /tmp/snort-current and
+   mv /tmp/doc/signatures /tmp/snort-current/doc.
+7. Re-tar the file: tar -cvzf snort-current.tar.gz snort-current
+8. Build as usual: rpmbuild -ta snort-current.tar.gz
 
 If you don't know how to do all of that, you probably want the regular
 compiled binary packages or the snort-stable snapshot.
 
+
+Building from Snort.org Anonymous CVS [4]
+==========================================
+
+Building from Snort.org Anonymous CVS is very similar to building from
+snapshot tarballs, except without the tarballs.
+
+If you don't know how to do all of that, you probably want the regular
+compiled binary packages or the snort-stable snapshot.
 
 
 References
@@ -227,19 +239,25 @@ References
 	http://www.starken.com/snort/index.html#libnet
 
 [1] Snort.org PGP/GPG key
-	http://www.snort.org/public-key.html
+	http://www.snort.org/public-key.txt
 
 [2] Snort.org CVS Snapshots
-	http://www.snort.org/dl/snapshots/
+	http://www.snort.org/pub-bin/snapshots.cgi
+
+[3] Snort Rules
+	http://www.snort.org/rules/
+
+[4] Got Source?
+	http://www.snort.org/got_source/source.html
 
 The latest Snort README.rpms
-	http://cvs.snort.org/viewcvs.cgi/snort/contrib/rpm/README.rpms
+	http://cvs.snort.org/viewcvs.cgi/snort/rpm/README.rpms
 
 The latest Snort README.build_rpms (this document)
-	http://cvs.snort.org/viewcvs.cgi/snort/contrib/rpm/README.build_rpms
+	http://cvs.snort.org/viewcvs.cgi/snort/rpm/README.build_rpms
 
 The official Snort.org RPM SPEC file:
-	http://cvs.snort.org/viewcvs.cgi/snort/contrib/rpm/snort.org.spec
+	http://cvs.snort.org/viewcvs.cgi/snort/rpm/snort.spec
 
 The RPM Homepage
 	http://www.rpm.org/

@@ -15,8 +15,8 @@ if(description)
 {
 
 script_id(11604);
-script_version("$Revision: 1.1 $");
 script_bugtraq_id(1517);
+script_version("$Revision: 1.6 $");
 script_cve_id("CVE-2000-0683");
 
 name["english"]="BEA WebLogic Scripts Server scripts Source Disclosure (3)";
@@ -56,8 +56,7 @@ family["francais"]="Abus de CGI";
 script_family(english:family["english"], francais:family["francais"]);
  
 
-script_dependencie("find_service.nes", "no404.nasl", "webmirror.nasl");
- 
+script_dependencie("find_service.nes", "http_version.nasl", "webmirror.nasl");
 script_require_ports("Services/www", 80);
 
 exit(0);
@@ -85,10 +84,15 @@ if (signature >< response) return(1);
 return(0);
 }
 
-port=get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
+
 
 if(!get_port_state(port)) exit(0);
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "WebLogic" >!< sig ) exit(0);
 
 # Try with a known jsp file
 
@@ -100,5 +104,5 @@ else
  file = files[0];
  }
  
-if(check(req:string("/*.shtml/", file), port:port))security_hole(port);
+if(check(req:string("/*.shtml/", file), port:port))security_warning(port);
  

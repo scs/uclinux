@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11713);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "Desktop Orbiter Remote Reboot";
  script_name(english:name["english"]);
 
@@ -18,7 +18,7 @@ it to reboot the remote host or take administrative control
 over it.
 
 Solution : Disable this service
-Risk Factor : High";
+Risk factor : High";
 
 
 
@@ -36,7 +36,7 @@ Risk Factor : High";
 
  family["english"] = "Denial of Service";
  script_family(english:family["english"]);
- script_dependencie("nmap_osfingerprint.nes", "find_service.nes", "desktop_orbiter_detect.nasl");
+ script_dependencie( "find_service.nes", "desktop_orbiter_detect.nasl");
  script_require_ports("Services/desktop-orbiter", 51051);
  exit(0);
 }

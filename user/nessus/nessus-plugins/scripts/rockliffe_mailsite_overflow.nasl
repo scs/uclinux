@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10421);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1244);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2000-0398");
  name["english"] = "Rockliffe's MailSite overflow";
  name["francais"] = "Dépassement de buffer dans MailSite de RockLiffe";
@@ -55,6 +55,7 @@ Facteur de risque : Elevé";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "www_too_long_url.nasl", "http_version.nasl");
  script_require_ports(90);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 

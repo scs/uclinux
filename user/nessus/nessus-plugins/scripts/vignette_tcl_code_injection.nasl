@@ -7,7 +7,7 @@ if(description)
  script_id(11749);
  script_bugtraq_id(7683, 7685, 7690, 7691, 7692);
  
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.5 $");
  
  name["english"] = "Vignette StoryServer TCL code injection";
  script_name(english:name["english"]);
@@ -46,8 +46,8 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
@@ -61,9 +61,9 @@ foreach dir (dirs)
  req = http_get(item:string(dir , "/"), port:port);
  res = http_keepalive_send_recv(port:port, data:req); 
  if( res == NULL ) exit(0);
- if("Vignette StoryServer" >< res) 
+ if("Vignette StoryServer v6" >< res) 
  {
-  if("Vignette StoryServer v6" >< res)security_hole(port);
+  security_hole(port);
  }
 }
 

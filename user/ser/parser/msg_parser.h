@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: msg_parser.h,v 1.37.2.1.2.2 2004/05/03 16:30:01 dcm Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

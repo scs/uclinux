@@ -36,7 +36,7 @@
  * From: @(#)state.c	5.10 (Berkeley) 3/22/91
  */
 char state_rcsid[] = 
-  "$Id$";
+  "$Id: state.c,v 1.3 2003/08/14 05:03:37 gerg Exp $";
 #endif
 
 #include "telnetd.h"

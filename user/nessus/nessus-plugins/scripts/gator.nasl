@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11883);
  
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Gator/GAIN Spyware Installed";
 
@@ -20,7 +20,8 @@ pop-up ad when users visit various Web sites. This software is not suitable
 for a business environment.
 
 Solution : Uninstall the software
-Risk factor : Moderate";
+
+Risk factor : Medium";
 
 
  script_description(english:desc["english"]);

@@ -6,8 +6,8 @@
 if(description)
 {
  script_id(11768);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7974);
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "proftpd mod_sql injection";
 
@@ -24,7 +24,7 @@ as any user.
 Solution : If the remote server is ProFTPd, upgrade to ProFTPD 1.2.10 when
 available, or switch the SQL backend to PostgreSQL.
 
-Risk Factor : High";
+Risk factor : High";
                  
                  
                      
@@ -59,6 +59,8 @@ soc = open_sock_tcp(port);
 if(!soc)exit(0);
 
 banner = ftp_recv_line(socket:soc);
+if ( ! egrep(pattern:"^220 ", string:banner) ) exit(0);
+
 if(!banner)exit(0);
 send(socket:soc, data:'USER "\r\n');
 r = recv_line(socket:soc, length:4096);

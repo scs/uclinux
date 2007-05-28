@@ -146,6 +146,7 @@ static int connect_pppoe_ses(void)
     err= session_connect ( ses );
 
     if(err < 0){
+	    if (!kill_link)
 		poe_error(ses,"Failed to negotiate PPPoE connection: %d - %m",
 				errno,errno);
 		return -1;

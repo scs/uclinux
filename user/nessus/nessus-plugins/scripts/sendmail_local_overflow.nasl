@@ -14,9 +14,9 @@
 if(description)
 {
  script_id(10729);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CVE-2001-0653");
  script_bugtraq_id(3163);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2001-0653");
  
  name["english"] = "Sendmail 8.11 local overflow";
  name["francais"] = "Dépassement de buffer local dans sendmail 8.11";
@@ -65,7 +65,7 @@ if(!port) port = 25;
 
 banner = get_smtp_banner(port:port);
 
-if(banner)
+if(banner && "Switch-" >!< banner )
 {
  if(egrep(pattern:".*sendmail.*8\.((11\.[0-5])|12.*beta([0-9][^0-9]|1[0-8]))/.*", string:banner, icase:TRUE))
  	security_hole(port);

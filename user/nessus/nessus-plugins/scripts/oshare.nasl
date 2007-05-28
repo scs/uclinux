@@ -11,24 +11,20 @@
 if(description)
 {
  script_id(10170);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CVE-1999-0357");
  name["english"] = "OShare";
  name["francais"] = "OShare";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-It was possible to crash the remote
-system using the 'oshare' attack.
+It was possible to crash the remote system using the 'oshare' attack.
 
-An attacker may use this problem
-to prevent your site from working
-properly.
+An attacker may use this problem to prevent your site from working
+properly.  
 
-Solution : contact your vendor for
-a patch.
-
-Risk factor : Serious";
+Solution : contact your vendor for a patch.
+Risk factor : High";
 
  desc["francais"] = "
 Il s'est avéré possible de tuer

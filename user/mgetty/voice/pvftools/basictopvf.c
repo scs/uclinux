@@ -6,7 +6,7 @@
  * denominator audio format", which is 8-bit ISDN uLaw (PCM) at
  * a sampling rate of 8000 Hz to the pvf (portable voice format) format.
  *
- * $Id$
+ * $Id: basictopvf.c,v 1.4 1998/09/09 21:07:43 gert Exp $
  *
  */
 

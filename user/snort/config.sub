@@ -122,6 +122,10 @@ case $maybe_os in
     os=-$maybe_os
     basic_machine=`echo $1 | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\1/'`
     ;;
+  linux*)
+    os=-linux
+    basic_machine=`echo $1 | sed 's/^\(.*\)-\([^-]*-[^-]*\)$/\1/'`
+    ;;
   *)
     basic_machine=`echo $1 | sed 's/-[^-]*$//'`
     if [ $basic_machine != $1 ]
@@ -262,6 +266,11 @@ case $basic_machine in
 		os=-none
 		;;
 	m88110 | m680[12346]0 | m683?2 | m68360 | m5200 | v70 | w65 | z8k)
+		;;
+
+	nios2 | nios2-* | nios2 | nios2-*)
+		basic_machine=nios2-altera
+		os=-linux
 		;;
 
 	# We use `pc' rather than `unknown'

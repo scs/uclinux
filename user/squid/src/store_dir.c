@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_dir.c,v 1.135.2.3 2005/03/26 02:50:54 hno Exp $
  *
  * DEBUG: section 47    Store Directory Routines
  * AUTHOR: Duane Wessels
@@ -45,7 +45,7 @@
 #include <sys/vfs.h>
 #endif
 
-static int storeDirValidSwapDirSize(int, ssize_t);
+static int storeDirValidSwapDirSize(int, squid_off_t);
 static STDIRSELECT storeDirSelectSwapDirRoundRobin;
 static STDIRSELECT storeDirSelectSwapDirLeastLoad;
 
@@ -106,7 +106,7 @@ storeCreateSwapDirectories(void)
  * ie any-sized-object swapdirs. This is a good thing.
  */
 static int
-storeDirValidSwapDirSize(int swapdir, ssize_t objsize)
+storeDirValidSwapDirSize(int swapdir, squid_off_t objsize)
 {
     /*
      * If the swapdir's max_obj_size is -1, then it definitely can
@@ -144,7 +144,7 @@ storeDirSelectSwapDirRoundRobin(const StoreEntry * e)
     int i;
     int load;
     SwapDir *sd;
-    ssize_t objsize = (ssize_t) objectLen(e);
+    squid_off_t objsize = objectLen(e);
     for (i = 0; i <= Config.cacheSwap.n_configured; i++) {
 	if (++dirn >= Config.cacheSwap.n_configured)
 	    dirn = 0;
@@ -181,9 +181,9 @@ storeDirSelectSwapDirRoundRobin(const StoreEntry * e)
 static int
 storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
 {
-    ssize_t objsize;
-    ssize_t most_free = 0, cur_free;
-    ssize_t least_objsize = -1;
+    squid_off_t objsize;
+    int most_free = 0, cur_free;
+    squid_off_t least_objsize = -1;
     int least_load = INT_MAX;
     int load;
     int dirn = -1;
@@ -191,7 +191,7 @@ storeDirSelectSwapDirLeastLoad(const StoreEntry * e)
     SwapDir *SD;
 
     /* Calculate the object size */
-    objsize = (ssize_t) objectLen(e);
+    objsize = objectLen(e);
     if (objsize != -1)
 	objsize += e->mem_obj->swap_hdr_sz;
     for (i = 0; i < Config.cacheSwap.n_configured; i++) {
@@ -270,7 +270,7 @@ storeDirSwapLog(const StoreEntry * e, int op)
 }
 
 void
-storeDirUpdateSwapSize(SwapDir * SD, size_t size, int sign)
+storeDirUpdateSwapSize(SwapDir * SD, squid_off_t size, int sign)
 {
     int blks = (size + SD->fs.blksize - 1) / SD->fs.blksize;
     int k = (blks * SD->fs.blksize >> 10) * sign;

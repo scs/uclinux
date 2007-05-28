@@ -6,12 +6,11 @@
 if(description)
 {
  script_id(10938);
- script_version("$Revision: 1.7 $");
  script_bugtraq_id(4335);
+ script_version("$Revision: 1.14 $");
  script_cve_id("CVE-2002-0061");
  name["english"] = "Apache Remote Command Execution via .bat files";
- name["francais"] = "Apache Remote Command Execution via .bat files";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 The Apache 2.0.x Win32 installation is shipped with a 
@@ -37,12 +36,10 @@ Risk factor : High";
  
  script_category(ACT_ATTACK);
  
- script_copyright(english:"This script is Copyright (C) 2002 Matt Moore",
-		francais:"Ce script est Copyright (C) 2002 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_copyright(english:"This script is Copyright (C) 2002 Matt Moore");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/apache");
  exit(0);
@@ -55,9 +52,14 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)){ exit(0); }
+
+if ( get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "Apache" >!< sig ) exit(0);
 
 soc = http_open_socket(port);
 if (!soc) exit(0);

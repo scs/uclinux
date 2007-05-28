@@ -12,8 +12,9 @@
 if(description)
 {
  script_id(10724);
- script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2001-1430");
  script_bugtraq_id(3017);
+ script_version ("$Revision: 1.14 $");
  name["english"] = "Cayman DSL router one char login";
  name["francais"] = "Login d'un char cayman";
  script_name(english:name["english"], francais:name["francais"]);
@@ -26,7 +27,7 @@ An intruder may connect to it and gather valuable
 information.
 
 Solution : Contact cayman (see http://cayman.com/security.html)
-Risk factor : Medium";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -42,8 +43,8 @@ Risk factor : Medium";
  family["english"] = "Misc.";
  family["francais"] = "Divers";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
- script_require_ports("Services/telnet", 23);
+ script_require_ports(23);
+ script_dependencies("os_fingerprint.nasl");
  exit(0);
 }
 
@@ -51,17 +52,25 @@ Risk factor : Medium";
 # The script code starts here
 #
 
-port = get_kb_item("Services/telnet");
-if(!port) port = 23;
+include('telnet_func.inc');
+include('global_settings.inc');
 
+
+os = get_kb_item("Host/OS/icmp");
+if ( ! os && ! thorough_tests ) exit(0);
+if ( "Cayman" >!< os ) exit(0);
+
+port = 23;
 login = raw_string(0x7D);
-
 if(get_port_state(port))
 {
+ banner = get_telnet_banner(port:port);
+ if ( ! banner || "login" >!< banner ) exit(0);
+
  soc = open_sock_tcp(port);
  if(soc)
  {
-  buf = telnet_init(soc);
+  buf = telnet_negotiate(socket:soc);
   if("login" >< buf)
   	{
 	 r = recv(socket:soc, length:2048);

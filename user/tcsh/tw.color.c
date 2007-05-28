@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tw.color.c,v 1.7 2000/06/11 02:14:16 kim Exp $ */
 /*
  * tw.color.c: builtin color ls-F
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tw.color.c,v 1.7 2000/06/11 02:14:16 kim Exp $")
 
 #include "tw.h"
 #include "ed.h"

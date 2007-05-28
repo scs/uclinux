@@ -42,15 +42,15 @@ volatile Command_par_t cmd;
 
 
     cmd.cmd = CMD_STOP;
-    ioctl(fd, CAN_IOCTL_COMMAND, &cmd);
+    ioctl(fd, COMMAND, &cmd);
 
     cfg.target = CONF_ACC; 
     cfg.val1   = newmask;
     cfg.val2   = newcode;
-    ioctl(fd, CAN_IOCTL_CONFIG, &cfg);
+    ioctl(fd, CONFIG, &cfg);
 
     cmd.cmd = CMD_START;
-    ioctl(fd, CAN_IOCTL_COMMAND, &cmd);
+    ioctl(fd, COMMAND, &cmd);
     return 0;
 }
 
@@ -65,14 +65,14 @@ volatile Command_par_t cmd;
 
 
     cmd.cmd = CMD_STOP;
-    ioctl(fd, CAN_IOCTL_COMMAND, &cmd);
+    ioctl(fd, COMMAND, &cmd);
 
     cfg.target = CONF_ACCC;
     cfg.val1   = newcode;
-    ioctl(fd, CAN_IOCTL_CONFIG, &cfg);
+    ioctl(fd, CONFIG, &cfg);
 
     cmd.cmd = CMD_START;
-    ioctl(fd, CAN_IOCTL_COMMAND, &cmd);
+    ioctl(fd, COMMAND, &cmd);
     return 0;
 }
 

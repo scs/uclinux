@@ -25,6 +25,6 @@
 
 /* list of function prototypes for this preprocessor */
 void SetupStream4();
-int AlertFlushStream(Packet *);
 
 #endif  /* __SPP_STREAM4_H__ */
+

@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: ETag.c,v 1.8 2001/01/12 00:37:13 wessels Exp $
  *
  * DEBUG: none          ETag parsing support
  * AUTHOR: Alex Rousskov

@@ -4,7 +4,7 @@
 # Created: 1993-05-16
 # Public domain
 
-# $Id$
+# $Id: mkinstalldirs,v 5.1 2002/11/05 16:56:57 rstory Exp $
 
 errstatus=0
 

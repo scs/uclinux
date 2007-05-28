@@ -12,9 +12,9 @@
 if(description)
 {
  script_id(10007);
- script_version ("$Revision: 1.20 $");
  script_bugtraq_id(167);
- script_cve_id("CAN-1999-0736");
+ script_version ("$Revision: 1.27 $");
+ script_cve_id("CVE-1999-0736");
  name["english"] = "ShowCode possible";
  name["francais"] = "ShowCode possible";
  name["deutsch"] = "ShowCode moeglich";
@@ -53,7 +53,7 @@ delete the entire /msadc/samples directory. If you must have the
 'showcode.asp' capability on a development server, the 'showcode.asp' file 
 should be modified to test for URLs with '..' in them and deny those requests.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -107,7 +107,7 @@ de showcode.asp, alors modifiez-le de telle sorte
 qu'il detecte des URLs ayant '..' et qu'il refuse
 ces requêtes.
 
-Facteur de risque : Serieux";
+Facteur de risque : Elevé";
 
  desc["deutsch"] = "
 Die Datei showcode.asp ist installiert unter
@@ -176,7 +176,7 @@ Risiko Faktor:	Ernst";
  family["deutsch"] = "CGI Sicherheitsluecken";
  script_family(english:family["english"], francais:family["francais"], deutsch:family["deutsch"]);
  
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -185,12 +185,14 @@ Risiko Faktor:	Ernst";
 # The script code starts here
 #
 include("http_func.inc");
+include("http_keepalive.inc");
+
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
 
 
-
- cgi = string("/msadc/Samples/SELECTOR/showcode.asp");
- port = is_cgi_installed(cgi);
- if(port)
+cgi = string("/msadc/Samples/SELECTOR/showcode.asp");
+if ( is_cgi_installed_ka(item:cgi, port:port) )
  {
   item = "/msadc/Samples/SELECTOR/showcode.asp?source=/msadc/Samples/../../../../../winnt/win.ini";
   req = http_get(item:item, port:port);

@@ -11,26 +11,43 @@
 if(description)
 {
  script_id(10593);
- script_version ("$Revision: 1.11 $");
- script_bugtraq_id(1985);
- name["english"] = "phorum's common.cgi";
- name["francais"] = "phorum's common.cgi";
+ script_bugtraq_id(1997);
+ script_version ("$Revision: 1.18 $");
+ name["english"] = "phorum's common.php";
+ name["francais"] = "phorum's common.php";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "The CGI script 'common.php', which
-comes with phorum, is installed. This CGI has
-a well known security flaw that lets an attacker read arbitrary
-files with the privileges of the http daemon (usually root or nobody).
+ desc["english"] = "
+Synopsis :
 
-Solution : remove it
-Risk factor : Serious";
+The remote web server contains a PHP script that suffers from an
+information disclosure flaw. 
 
+Description :
 
+The version of Phorum installed on the remote host lets an attacker
+read arbitrary files on the affected host with the privileges of the
+http daemon because it fails to filter input to the 'ForumLang'
+parameter of the 'support/common.php' script of directory traversal
+sequences. 
 
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2000-11/0338.html
+http://marc.theaimsgroup.com/?l=phorum-announce&m=97500921223488&w=2
+
+Solution : 
+
+Upgrade to Phorum 3.2.8 or later. 
+
+Risk factor : 
+
+Low / CVSS Base Score : 2
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
  script_description(english:desc["english"]);
  
- summary["english"] = "Checks for the presence of common.cgi";
- summary["francais"] = "Vérifie la présence de common.cgi";
+ summary["english"] = "Checks for the presence of Phorum's common.php";
+ summary["francais"] = "Vérifie la présence de common.php de Phorum";
  
  script_summary(english:summary["english"], francais:summary["francais"]);
  
@@ -42,7 +59,8 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("phorum_detect.nasl");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -54,6 +72,13 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
+
+port = get_http_port(default:80);
+if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
+
+
+
 function check(prefix)
 {
   req = http_get(item:string(prefix, "?f=0&ForumLang=../../../../../../../etc/passwd"),
@@ -62,19 +87,18 @@ function check(prefix)
   if( buf == NULL ) exit(0);
   
   if(egrep(pattern:".*root:.*:0:[01]:.*", string:buf)) {
-  	security_hole(port);
+  	security_note(port);
 	exit(0);
 	}
 }
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-if(!get_port_state(port))exit(0);
+# Test an install.
+install = get_kb_item(string("www/", port, "/phorum"));
+if (isnull(install)) exit(0);
+matches = eregmatch(string:install, pattern:"^(.+) under (/.*)$");
+if (!isnull(matches)) {
+  dir = matches[2];
 
-
-
-foreach dir (make_list("", cgi_dirs()))
-{
-check(prefix:string(dir, "/support/common.php"));
-check(prefix:string(dir, "/common.php"));
+  check(prefix:string(dir, "/support/common.php"));
+  check(prefix:string(dir, "/common.php"));
 }

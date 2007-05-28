@@ -22,9 +22,9 @@
 if(description)
 {
   script_id(11715);
-  script_bugtraq_id(3904);
-  script_cve_id("CAN-2002-0133");
-  script_version ("$Revision: 1.1 $");
+  script_bugtraq_id(3904, 3905);
+  script_cve_id("CVE-2002-0133");
+  script_version ("$Revision: 1.4 $");
   name["english"] = "Header overflow against HTTP proxy";
   script_name(english:name["english"]);
  
@@ -57,8 +57,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 8080;
+port = get_http_port(default:8080);
+if ( ! port ) exit(0);
 if(! get_port_state(port)) exit(0);
 if (http_is_dead(port: port)) exit(0);
 

@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10492);
- script_cve_id("CAN-2000-0071");
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(1065);
+ script_cve_id("CVE-2000-0071");
+ script_version ("$Revision: 1.23 $");
 
  name["english"] = "IIS IDA/IDQ Path Disclosure";
  script_name(english:name["english"]);
@@ -38,11 +38,10 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
 
  script_copyright(english:"This script is Copyright (C) 2000 Filipe Custodio");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -52,8 +51,13 @@ Risk factor : Low";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+
+sig = get_http_banner(port:port);
+if ( "IIS" >!< sig ) exit(0);
+
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
@@ -78,6 +82,7 @@ if(get_port_state(port))
    r = http_recv(socket:soc);
    http_close_socket(soc);
    str = egrep( pattern:"^<HTML>", string:r ) - "<HTML>";
+   str = tolower(str);
    if ( egrep(pattern:"[a-z]\:\\.*anything", string:str) )
       security_warning( port:port );
    }

@@ -1,4 +1,4 @@
-# $Id$
+# $Id: prototype,v 1.5.2.3.4.2 2004/07/27 00:24:50 andrei Exp $
 i pkginfo=pkginfo
 d none etc 0755 bin bin
 d none etc/ser 0755 bin bin

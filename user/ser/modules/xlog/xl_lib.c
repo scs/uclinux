@@ -1,5 +1,5 @@
 /**
- * $Id$
+ * $Id: xl_lib.c,v 1.5.4.1 2004/07/02 15:32:56 andrei Exp $
  *
  * XLOG module
  *

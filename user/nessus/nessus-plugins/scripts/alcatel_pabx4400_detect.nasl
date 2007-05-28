@@ -7,7 +7,7 @@
 if(description)
 {
    script_id(11019);
-   script_version ("$Revision: 1.1 $");
+   script_version ("$Revision: 1.3 $");
    name["english"] = "Alcatel PABX 4400 detection";
    script_name(english:name["english"]);
  
@@ -31,7 +31,7 @@ Risk factor : Low";
    script_category(ACT_GATHER_INFO);
    
    script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
-   script_family(english:"Misc.", francais:"Divers");
+   script_family(english:"Service detection");
    script_require_ports(2533);
  
    exit(0);
@@ -51,6 +51,7 @@ if(get_port_state(port))
  send(socket:soc, data:req);
  r = recv(socket:soc, length:2);
  close(soc);
+ if ( strlen(r) < 2 ) exit(0);
  r_lo = ord(r[0]);
  r_hi = ord(r[1]);
  if((r_lo == 0) && (r_hi == 1))security_note(port);

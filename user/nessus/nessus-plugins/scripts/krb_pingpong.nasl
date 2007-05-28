@@ -10,7 +10,7 @@ if(description)
 {
  script_id(10640);
  script_cve_id("CVE-1999-0103");
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.10 $");
  name["english"] = "Kerberos PingPong attack";
  name["francais"] = "Kerberos PingPong attack";
  script_name(english:name["english"], francais:name["francais"]);
@@ -54,6 +54,10 @@ crp = crap(25);
 if(soc)
 {
  send(socket:soc, data:crp);
- r = recv(socket:soc, length:5);
- if(r)security_warning(port:464, protocol:"udp");
+ r = recv(socket:soc, length:255);
+ if(r){
+	send(socket:soc, data:r);
+	r = recv(socket:soc, length:255);
+	if ( r ) security_warning(port:464, protocol:"udp");
+     }
 }

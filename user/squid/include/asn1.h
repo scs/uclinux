@@ -28,7 +28,7 @@
  * ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * 
- * $Id$
+ * $Id: asn1.h,v 1.12 2001/10/08 16:18:31 hno Exp $
  * 
  **********************************************************************/
 

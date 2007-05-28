@@ -1,4 +1,4 @@
-#ident "$Id$ Copyright (c) Gert Doering"
+#ident "$Id: class1lib.c,v 4.4 1998/01/22 07:28:49 gert Exp $ Copyright (c) Gert Doering"
 
 /* class1lib.c
  *

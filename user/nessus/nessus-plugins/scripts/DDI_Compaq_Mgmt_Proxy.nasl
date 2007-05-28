@@ -5,14 +5,15 @@
 if(description)
 {
  script_id(10963);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.9 $");
+ script_cve_id("CVE-2001-0374");
  name["english"] = "Compaq Web Based Management Agent Proxy Vulnerability";
  script_name(english:name["english"]);
 
  desc["english"] = "
  
 This host is running the Compaq Web Management 
-Agent. This service can be used as a HTTP 
+Agent. This service can be used as an HTTP 
 proxy. An attacker can use this to bypass 
 firewall rules or hide the source of web-based 
 attacks.
@@ -72,7 +73,7 @@ foreach port (ports)
         
         if ("Compaq WBEM Device Home" >< buf)
         {
-            security_hole(port:port);
+            security_warning(port:port);
         }
     }
 }

@@ -11,9 +11,10 @@
 if(description)
 {
  script_id(11391);
- script_version ("$Revision: 1.3 $");
- script_bugtraq_id(1425);
- script_cve_id("CAN-2000-0574");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-b-0004");
+ script_bugtraq_id(1425, 1438);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2000-0574");
  name["english"] = "BSD ftpd setproctitle() format string";
 
  script_name(english:name["english"]);
@@ -61,10 +62,10 @@ if(soc)
  if(!banner)exit(0);
  send(socket:soc, data:string("USER anonymous\r\n"));
  r = ftp_recv_line(socket:soc);
- if(!ereg(pattern:"^331", string:r))exit(0);
+ if(!egrep(pattern:"^331", string:r))exit(0);
  send(socket:soc, data:string("PASS %n%n%n%n%n%n%n\r\n"));
  r = ftp_recv_line(socket:soc);
- if(!r || !ereg(pattern:"^230",  string:r))exit(0);
+ if(!r || !egrep(pattern:"^230",  string:r))exit(0);
  send(socket:soc, data:string("HELP\r\n"));
  r = recv_line(socket:soc, length:4096);
  if(!r)security_hole(port);

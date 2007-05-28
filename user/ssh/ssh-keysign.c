@@ -22,12 +22,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keysign.c,v 1.13 2003/07/03 08:09:06 djm Exp $");
+RCSID("$OpenBSD: ssh-keysign.c,v 1.19 2005/09/13 23:40:07 djm Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
-#include <openssl/engine.h>
 
 #include "log.h"
 #include "key.h"
@@ -42,15 +41,12 @@ RCSID("$OpenBSD: ssh-keysign.c,v 1.13 2003/07/03 08:09:06 djm Exp $");
 #include "canohost.h"
 #include "pathnames.h"
 #include "readconf.h"
+#include "uidswap.h"
 
 /* XXX readconf.c needs these */
 uid_t original_real_uid;
 
-#ifdef HAVE___PROGNAME
 extern char *__progname;
-#else
-char *__progname;
-#endif
 
 static int
 valid_request(struct passwd *pw, char *host, Key **ret, u_char *data,
@@ -127,6 +123,7 @@ valid_request(struct passwd *pw, char *host, Key **ret, u_char *data,
 	/* end of message */
 	if (buffer_len(&b) != 0)
 		fail++;
+	buffer_free(&b);
 
 	debug3("valid_request: fail %d", fail);
 
@@ -151,11 +148,22 @@ main(int argc, char **argv)
 	u_int slen, dlen;
 	u_int32_t rnd[256];
 
+	/* Ensure that stdin and stdout are connected */
+	if ((fd = open(_PATH_DEVNULL, O_RDWR)) < 2)
+		exit(1);
+	/* Leave /dev/null fd iff it is attached to stderr */
+	if (fd > 2)
+		close(fd);
+
 	key_fd[0] = open(_PATH_HOST_RSA_KEY_FILE, O_RDONLY);
 	key_fd[1] = open(_PATH_HOST_DSA_KEY_FILE, O_RDONLY);
 
-	seteuid(getuid());
-	setuid(getuid());
+	original_real_uid = getuid();	/* XXX readconf.c needs this */
+	if ((pw = getpwuid(original_real_uid)) == NULL)
+		fatal("getpwuid failed");
+	pw = pwcopy(pw);
+
+	permanently_set_uid(pw);
 
 	init_rng();
 	seed_rng();
@@ -166,9 +174,8 @@ main(int argc, char **argv)
 #endif
 
 	/* verify that ssh-keysign is enabled by the admin */
-	original_real_uid = getuid();	/* XXX readconf.c needs this */
 	initialize_options(&options);
-	(void)read_config_file(_PATH_HOST_CONFIG_FILE, "", &options);
+	(void)read_config_file(_PATH_HOST_CONFIG_FILE, "", &options, 0);
 	fill_default_options(&options);
 	if (options.enable_ssh_keysign != 1)
 		fatal("ssh-keysign not enabled in %s",
@@ -177,16 +184,7 @@ main(int argc, char **argv)
 	if (key_fd[0] == -1 && key_fd[1] == -1)
 		fatal("could not open any host key");
 
-	if ((pw = getpwuid(getuid())) == NULL)
-		fatal("getpwuid failed");
-	pw = pwcopy(pw);
-
 	SSLeay_add_all_algorithms();
-
-	/* Init available hardware crypto engines. */
-	ENGINE_load_builtin_engines();
-	ENGINE_register_all_complete();
-
 	for (i = 0; i < 256; i++)
 		rnd[i] = arc4random();
 	RAND_seed(rnd, sizeof(rnd));
@@ -239,7 +237,8 @@ main(int argc, char **argv)
 	/* send reply */
 	buffer_clear(&b);
 	buffer_put_string(&b, signature, slen);
-	ssh_msg_send(STDOUT_FILENO, version, &b);
+	if (ssh_msg_send(STDOUT_FILENO, version, &b) == -1)
+		fatal("ssh_msg_send failed");
 
 	return (0);
 }

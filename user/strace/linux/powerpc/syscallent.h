@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: syscallent.h,v 1.7 2001/08/03 12:27:54 wichert Exp $
  */
 
 	{ 5,	0,	printargs,		"SYS_0"			}, /* 0 */

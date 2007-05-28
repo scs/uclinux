@@ -9,8 +9,8 @@ if(description)
 {
 
  script_id(11855);
- script_version ("$Revision: 1.2 $");
-# script_cve_id("CAN-2003-00002");
+ script_version ("$Revision: 1.3 $");
+# script_cve_id("CVE-2003-00002");
  name["english"] = "RemoteNC detection";
  script_name(english:name["english"]);
  

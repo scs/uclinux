@@ -59,12 +59,21 @@
 #include "mstring.h"
 #include "snort.h"
 
+#include "profiler.h"
+
 extern u_int8_t DecodeBuffer[DECODE_BLEN]; /* decode.c */
 
 /* define the telnet negotiation codes (TNC) that we're interested in */
 #define TNC_IAC  0xFF
-#define TNC_EAC  0xF7
 #define TNC_SB   0xFA
+#define TNC_GA   0xF9
+#define TNC_EAL  0xF8
+#define TNC_EAC  0xF7
+#define TNC_AO   0xF6
+#define TNC_AYT  0xF5
+#define TNC_IP   0xF4
+#define TNC_BRK  0xF3
+#define TNC_DM   0xF2
 #define TNC_NOP  0xF1
 #define TNC_SE   0xF0
 
@@ -72,13 +81,15 @@ extern u_int8_t DecodeBuffer[DECODE_BLEN]; /* decode.c */
 
 /* list of function prototypes for this preprocessor */
 extern void TelNegInit(u_char *);
-extern void NormalizeTelnet(Packet *);
+extern void NormalizeTelnet(Packet *, void *);
 static void SetTelnetPorts(char *portlist);
      
 /* array containing info about which ports we care about */
 static char TelnetDecodePorts[65536/8];
 
-
+#ifdef PERF_PROFILING
+PreprocStats telnetPerfStats;
+#endif
 
 /*
  * Function: SetupTelNeg()
@@ -116,10 +127,15 @@ void SetupTelNeg()
 void TelNegInit(u_char *args)
 {
     DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Preprocessor: TelNeg Initialized\n"););
+    LogMessage("WARNING: the telnet preprocessor will be deprecated in "
+        "the next release of snort.  Please switch to using ftptelnet.\n");
 
     SetTelnetPorts(args);
     /* Set the preprocessor function into the function list */
-    AddFuncToPreprocList(NormalizeTelnet);
+    AddFuncToPreprocList(NormalizeTelnet, PRIORITY_APPLICATION, PP_TELNET);
+#ifdef PERF_PROFILING
+    RegisterPreprocessorProfile("telnetneg", &telnetPerfStats, 0, &totalPerfStats);
+#endif
 }
 
 
@@ -136,19 +152,15 @@ void TelNegInit(u_char *args)
  * Returns: void function
  *
  */
-void NormalizeTelnet(Packet *p)
+void NormalizeTelnet(Packet *p, void *context)
 {
     char *read_ptr;
     char *start = (char *) DecodeBuffer; /* decode.c */
     char *write_ptr;
     char *end;
     int normalization_required = 0;
+    PROFILE_VARS;
 
-    if(!(p->preprocessors & PP_TELNEG))
-    {
-        return;
-    }
-    
     /* check for TCP traffic that's part of an established session */
     if(!PacketIsTCP(p))
     {
@@ -162,10 +174,14 @@ void NormalizeTelnet(Packet *p)
     }
 
     /* negotiation strings are at least 3 bytes long */
+    /* other telnet commands are handled in here, too, and
+     * They can be 2 bytes long -- ie, IAC NOP, IAC AYT, etc. */
     if(p->dsize < TNC_STD_LENGTH)
     {
         return;
     }
+
+    PREPROC_PROFILE_START(telnetPerfStats);
 
     /* setup the pointers */
     read_ptr = p->data;
@@ -187,6 +203,7 @@ void NormalizeTelnet(Packet *p)
     if(!normalization_required)
     {
         DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Nothing to process!\n"););
+        PREPROC_PROFILE_END(telnetPerfStats);
         return;
     }
 
@@ -227,7 +244,34 @@ void NormalizeTelnet(Packet *p)
                     write_ptr--;
                 }
                 break;
-            default:
+            case TNC_EAL:
+                /* todo: wind write_ptr back a line? */
+                read_ptr += 2;
+                break;
+            case TNC_SE:
+                /* Uh, what the heck is a subnegotiation-end
+                 * doing here without SB?.  Could generate an alert.
+                 * Will just normalize it out since we may have
+                 * processed the SB in a previous packet.
+                 */
+                read_ptr += 2;
+                break;
+            /* These are two bytes long */
+            case TNC_BRK:
+            case TNC_DM:
+            case TNC_IP:
+            case TNC_AO:
+            case TNC_AYT:
+            case TNC_GA:
+                read_ptr += 2;
+                break;
+            /* IAC IAC -- means the IAC character (0xff) should be
+             * in the data stream since it was escaped */
+            case TNC_IAC:
+                read_ptr++; /* skip past the first IAC */
+                *write_ptr++ = *read_ptr++;
+                break;
+            default: /* WILL, WON'T, DO, DON'T */
                 /* move the read ptr up 3 bytes */
                 read_ptr += TNC_STD_LENGTH;
             }                
@@ -242,6 +286,8 @@ void NormalizeTelnet(Packet *p)
             {
                 read_ptr++;
             } while((*read_ptr != (char) TNC_SE) && (read_ptr < end));
+            if (*read_ptr == (char)TNC_SE)
+                read_ptr++; /* Skip past the TNC_SE */
         }
         else
         {
@@ -262,6 +308,8 @@ void NormalizeTelnet(Packet *p)
                             "Converted buffer after telnet normalization:\n");
                PrintNetData(stdout, (char *) DecodeBuffer, p->alt_dsize););
     */
+    PREPROC_PROFILE_END(telnetPerfStats);
+    return;
 }
 
 /*

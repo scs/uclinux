@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10578);
- script_cve_id("CAN-2001-0029");
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(2099);
+ script_cve_id("CVE-2001-0029");
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "Oops buffer overflow";
  name["francais"] = "Dépassement de buffer dans Oops";
@@ -73,6 +73,15 @@ if(get_port_state(port))
  soc = http_open_socket(port);
  if(soc)
  {
+  req = http_get(item:string("http://", crap(12)), port:port);
+  send(socket:soc, data:req);
+  r = http_recv(socket:soc);
+  if ( ! r ) exit(0);
+  close(soc);
+
+  soc = http_open_socket(port);
+  if ( ! soc ) exit(0);
+
   req = http_get(item:string("http://", crap(1200)), port:port);
   send(socket:soc, data:req);
   r = http_recv(socket:soc); 

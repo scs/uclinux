@@ -19,7 +19,7 @@
 *  Author   : Benoit PAPILLAULT <benoit.papillault@free.fr>
 *  Creation : 29/05/2001
 *
-* $Id$
+* $Id: pusb.h,v 1.5 2004/02/15 21:25:07 edgomez Exp $
 */
 
 #ifndef PUSB_H

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10248);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CVE-1999-0096");
  
  name["english"] = "Sendmail 'decode' flaw";
@@ -95,6 +95,11 @@ if(get_port_state(port))
  if(soc)
  {
  data = smtp_recv_banner(socket:soc);
+ if (!data)
+ {
+  close(soc);
+  exit(0);
+ }
  crp = string("EXPN decode\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:1024);

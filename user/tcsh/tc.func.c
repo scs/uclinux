@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.func.c,v 3.94 2000/11/12 02:18:06 christos Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: tc.func.c,v 3.94 2000/11/12 02:18:06 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */

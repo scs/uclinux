@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10390);
- script_version ("$Revision: 1.10 $");
- script_cve_id("CAN-2000-0138");
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2000-0138");
  
  name["english"] = "mstream agent Detect";
  name["francais"] = "Detection d'un agent mstream";
@@ -67,10 +67,14 @@ Facteur de risque : Critique";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes");
- 
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
+
+include('global_settings.inc');
+if ( islocalhost() ) exit(0);
+if (!  thorough_tests ) exit(0);
 
 
 function detect(dport, sport)

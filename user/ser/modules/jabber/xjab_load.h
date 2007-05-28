@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xjab_load.h,v 1.1 2003/01/16 18:41:58 dcm Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10308);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.2 $");
 
  name["english"] = "cgibin() in the KB";
 
@@ -39,5 +39,9 @@ the function cgi_dirs() can work properly";
 
 
 dir = cgibin();
-set_kb_item(name:"/tmp/cgibin", value:dir);
+cgis = split(dir, sep:":", keep:FALSE);
+foreach dir (cgis)
+{
+ set_kb_item(name:"/tmp/cgibin", value:dir);
+}
 exit(0);

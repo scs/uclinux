@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.sig.h,v 3.22 2000/11/11 23:03:39 christos Exp $ */
 /*
  * tc.sig.h: Signal handling
  *

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: save.h,v 1.3 2003/03/21 20:36:24 janakj Exp $
  *
  * Functions that process REGISTER message 
  * and store data in usrloc

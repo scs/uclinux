@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10118);
- script_version ("$Revision: 1.18 $");
  script_bugtraq_id(192);
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-1999-0349");
  name["english"] = "IIS FTP server crash";
  name["francais"] = "Plantage du serveur FTP de IIS";
@@ -20,7 +20,7 @@ if(description)
   close all the active connections by issuing a too long NLST command 
   which will make the server crash. An attacker can use this flaw to 
   prevent people from downloading data from your FTP server.
-  Risk factor : Medium";
+  Risk factor : High";
 
  desc["francais"] = "Il est possible de forcer un serveur 
  FTP IIS à fermer l'ensemble des connections actives en executant
@@ -29,7 +29,7 @@ if(description)
   les gens de télécharger des données à partir de votre serveur
    FTP.
      
-  Facteur de risque: Moyen";
+  Facteur de risque: Elevé";
  script_description(english:desc["english"],
  		    francais:desc["francais"]);
  
@@ -58,6 +58,7 @@ if(description)
 #
 
 
+include('ftp_func.inc');
 login = get_kb_item("ftp/login");
 password = get_kb_item("ftp/password");
 
@@ -68,9 +69,9 @@ if(!get_port_state(port))exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
- if(ftp_log_in(socket:soc, user:login, pass:password))
+ if(ftp_authenticate(socket:soc, user:login, pass:password))
  {
-  port2 = ftp_get_pasv_port(socket:soc);
+  port2 = ftp_pasv(socket:soc);
   if(!port2)exit(0);
   soc2 = open_sock_tcp(port2, transport:get_port_transport(port));
   command = string("NLST ", crap(320), "\r\n");

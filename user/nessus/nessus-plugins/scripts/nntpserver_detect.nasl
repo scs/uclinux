@@ -1,38 +1,45 @@
 #
-# This script was written by Noam Rathaus <noamr@securiteam.com>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+ desc["english"] = "
+Synopsis :
+
+An NNTP server is listening on the remote port
+
+Description :
+
+The remote host is running a news server (NNTP).  Make sure
+that hosting such a server is authorized by your company 
+policy.
+
+Solution : 
+
+Disable this service if you do not use it.
+
+
+Risk factor : 
+
+None";
 
 if(description)
 {
  script_id(10159);
- script_version ("$Revision: 1.11 $");
- name["english"] = "News Server type and version";
+ script_version ("$Revision: 1.17 $");
+ name["english"] = "NNTP Server Detection";
  script_name(english:name["english"]);
  
- desc["english"] = "This detects the News Server's type and version by connecting to the server
-and processing the buffer received.
-This information gives potential attackers additional information about the
-system they are attacking. Versions and Types should be omitted
-where possible.
-
-Solution: Change the login banner to something generic
-
-Risk factor : Low";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "News Server type and version";
+ summary["english"] = "NNTP Server Detection";;
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 1999 SecuriTeam");
- family["english"] = "General";
- script_family(english:family["english"]);
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ script_family(english:"Service detection");
 
- script_dependencie("find_service.nes");
+ script_dependencie("find_service_3digits.nasl", "doublecheck_std_services.nasl");
  script_require_ports("Services/nntp", 119);
  
  exit(0);
@@ -41,21 +48,34 @@ Risk factor : Low";
 #
 # The script code starts here
 #
+include("ftp_func.inc");
+include("misc_func.inc");
 
 port = get_kb_item("Services/nntp");
-if (!port) port = 119;
+if ( ! port ) port = 119;
+if ( ! get_port_state(port) ) exit(0);
 
-if (get_port_state(port))
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+
+r = line = recv_line(socket:soc, length:4096);
+while ( r[3] == "-" )
 {
- soctcp119 = open_sock_tcp(port);
-
- if (soctcp119)
- {
-  resultrecv = recv_line(socket:soctcp119, length:1024);
-  if(!resultrecv)exit(0);
-  resultrecv = string("Remote NNTP server version : ", resultrecv);
-  security_note(port:port, data:resultrecv);
- }
-
- close(soctcp119);
+ r = recv_line(socket:soc, length:4096);
+ line += r;
 }
+
+
+if ( line =~ "^200" )
+	{
+	send(socket:soc, data:'authinfo user ' + rand_str(length:8) + '\r\n');
+	r = recv_line(socket:soc, length:255);
+	if ( r =~ "^381" ) {
+		report = desc["english"] + '\n\nPlugin output :\n\nRemote server banner :\n' + line;
+		security_note(port:port, data:report);
+		}
+	}
+close(soc);
+exit(0);
+
+

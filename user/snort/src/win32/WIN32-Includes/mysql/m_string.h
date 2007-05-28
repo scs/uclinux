@@ -1,19 +1,18 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
+/* Copyright (C) 2000 MySQL AB
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 /* There may be prolems include all of theese. Try to test in
    configure with ones are needed? */
@@ -31,6 +30,9 @@
 #if defined(HAVE_STRING_H)
 #include <string.h>
 #endif
+
+/* need by my_vsnprintf */
+#include <stdarg.h> 
 
 /* Correct some things for UNIXWARE7 */
 #ifdef HAVE_UNIXWARE7_THREADS
@@ -62,35 +64,40 @@
 #if !defined(HAVE_MEMCPY) && !defined(HAVE_MEMMOVE)
 # define memcpy(d, s, n)	bcopy ((s), (d), (n))
 # define memset(A,C,B)		bfill((A),(B),(C))
-# define memmove(d, s, n)	bmove ((s), (d), (n))
+# define memmove(d, s, n)	bmove ((d), (s), (n))
 #elif defined(HAVE_MEMMOVE)
 # define bmove(d, s, n)		memmove((d), (s), (n))
 #else
 # define memmove(d, s, n)	bmove((d), (s), (n)) /* our bmove */
 #endif
 
-#if defined(HAVE_STPCPY) && !defined(HAVE_mit_thread)
-#define strmov(A,B) stpcpy((A),(B))
-#endif
-
 /* Unixware 7 */
 #if !defined(HAVE_BFILL)
 # define bfill(A,B,C)           memset((A),(C),(B))
-# define bmove_allign(A,B,C)    memcpy((A),(B),(C))
+# define bmove_align(A,B,C)    memcpy((A),(B),(C))
 #endif
 
 #if !defined(HAVE_BCMP)
 # define bcopy(s, d, n)		memcpy((d), (s), (n))
 # define bcmp(A,B,C)		memcmp((A),(B),(C))
 # define bzero(A,B)		memset((A),0,(B))
-# define bmove_allign(A,B,C)    memcpy((A),(B),(C))
+# define bmove_align(A,B,C)    memcpy((A),(B),(C))
 #endif
 
-#ifdef	__cplusplus
+#if defined(__cplusplus) && !defined(OS2)
 extern "C" {
 #endif
 
-extern char NEAR _dig_vec[];		/* Declared in int2str() */
+#if defined(HAVE_STPCPY) && !defined(HAVE_mit_thread)
+#define strmov(A,B) stpcpy((A),(B))
+#ifndef stpcpy
+extern char *stpcpy(char *, const char *);	/* For AIX with gcc 2.95.3 */
+#endif
+#endif
+
+/* Declared in int2str() */
+extern char NEAR _dig_vec_upper[];
+extern char NEAR _dig_vec_lower[];
 
 #ifdef BAD_STRING_COMPILER
 #define strmov(A,B)  (memccpy(A,B,0,INT_MAX)-1)
@@ -106,16 +113,23 @@ extern char NEAR _dig_vec[];		/* Declared in int2str() */
 #endif
 
 #ifdef MSDOS
-#undef bmove_allign
-#define bmove512(A,B,C) bmove_allign(A,B,C)
-#define my_itoa(A,B,C) itoa(A,B,C)
-#define my_ltoa(A,B,C) ltoa(A,B,C)
-extern	void bmove_allign(gptr dst,const gptr src,uint len);
+#undef bmove_align
+#define bmove512(A,B,C) bmove_align(A,B,C)
+extern	void bmove_align(gptr dst,const gptr src,uint len);
 #endif
 
 #if (!defined(USE_BMOVE512) || defined(HAVE_purify)) && !defined(bmove512)
 #define bmove512(A,B,C) memcpy(A,B,C)
 #endif
+
+#ifdef HAVE_purify
+#define memcpy_overlap(A,B,C) \
+DBUG_ASSERT((A) <= (B) || ((B)+(C)) <= (A)); \
+bmove((byte*) (A),(byte*) (B),(size_t) (C));
+#else
+#define memcpy_overlap(A,B,C) memcpy((A), (B), (C))
+#endif /* HAVE_purify */
+
 
 	/* Prototypes for string functions */
 
@@ -129,10 +143,11 @@ extern	void bzero(gptr dst,uint len);
 
 #if !defined(bcmp) && !defined(HAVE_BCMP)
 extern	int bcmp(const char *s1,const char *s2,uint len);
+#endif
 #ifdef HAVE_purify
 extern	int my_bcmp(const char *s1,const char *s2,uint len);
+#undef bcmp
 #define bcmp(A,B,C) my_bcmp((A),(B),(C))
-#endif
 #endif
 
 #ifndef bmove512
@@ -140,7 +155,7 @@ extern	void bmove512(gptr dst,const gptr src,uint len);
 #endif
 
 #if !defined(HAVE_BMOVE) && !defined(bmove)
-extern	void bmove(gptr dst,const char *src,uint len);
+extern	void bmove(char *dst, const char *src,uint len);
 #endif
 
 extern	void bmove_upp(char *dst,const char *src,uint len);
@@ -148,7 +163,7 @@ extern	void bchange(char *dst,uint old_len,const char *src,
 		     uint new_len,uint tot_len);
 extern	void strappend(char *s,uint len,pchar fill);
 extern	char *strend(const char *s);
-extern char *strcend(const char *, pchar);
+extern  char *strcend(const char *, pchar);
 extern	char *strfield(char *src,int fields,int chars,int blanks,
 			   int tabch);
 extern	char *strfill(my_string s,uint len,pchar fill);
@@ -185,7 +200,7 @@ extern int strcmp(const char *, const char *);
 extern size_t strlen(const char *);
 #endif
 #endif
-#ifndef HAVE_STRNLEN 
+#ifndef HAVE_STRNLEN
 extern uint strnlen(const char *s, uint n);
 #endif
 
@@ -199,12 +214,9 @@ extern char *strstr(const char *, const char *);
 #endif
 extern int is_prefix(const char *, const char *);
 
-/* Conversion rutins */
-
-#ifdef USE_MY_ITOA
-extern char *my_itoa(int val,char *dst,int radix);
-extern char *my_ltoa(long val,char *dst,int radix);
-#endif
+/* Conversion routines */
+double my_strtod(const char *str, char **end, int *error);
+double my_atof(const char *nptr);
 
 extern char *llstr(longlong value,char *buff);
 #ifndef HAVE_STRTOUL
@@ -212,17 +224,22 @@ extern long strtol(const char *str, char **ptr, int base);
 extern ulong strtoul(const char *str, char **ptr, int base);
 #endif
 
-extern char *int2str(long val,char *dst,int radix);
+extern char *int2str(long val, char *dst, int radix, int upcase);
 extern char *int10_to_str(long val,char *dst,int radix);
 extern char *str2int(const char *src,int radix,long lower,long upper,
 			 long *val);
+longlong my_strtoll10(const char *nptr, char **endptr, int *error);
 #if SIZEOF_LONG == SIZEOF_LONG_LONG
-#define longlong2str(A,B,C) int2str((A),(B),(C))
+#define longlong2str(A,B,C) int2str((A),(B),(C),1)
 #define longlong10_to_str(A,B,C) int10_to_str((A),(B),(C))
+#undef strtoll
 #define strtoll(A,B,C) strtol((A),(B),(C))
 #define strtoull(A,B,C) strtoul((A),(B),(C))
 #ifndef HAVE_STRTOULL
 #define HAVE_STRTOULL
+#endif
+#ifndef HAVE_STRTOLL
+#define HAVE_STRTOLL
 #endif
 #else
 #ifdef HAVE_LONG_LONG
@@ -235,7 +252,13 @@ extern ulonglong strtoull(const char *str, char **ptr, int base);
 #endif
 #endif
 
-#ifdef	__cplusplus
+/* my_vsnprintf.c */
+
+extern int my_vsnprintf( char *str, size_t n,
+                                const char *format, va_list ap );
+extern int my_snprintf(char* to, size_t n, const char* fmt, ...);
+
+#if defined(__cplusplus) && !defined(OS2)
 }
 #endif
 #endif

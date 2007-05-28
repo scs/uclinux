@@ -1,7 +1,7 @@
 /*
 #-------------------------------------------------------------------------------
 #                                                                                                                         
-# $Id$     
+# $Id: netstat-nat.h,v 1.3 2002/09/08 20:23:48 mardan Exp $     
 #       
 #                                                                                                                  
 # Copyright (c) 2002 by D.Wijsman (mardan@tweegy.demon.nl). 

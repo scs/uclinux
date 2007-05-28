@@ -10,15 +10,15 @@
 if(description)
 {
  script_id(11393);
+ script_bugtraq_id(4542);
 
 
  name["english"] = "ColdFusion Path Disclosure";
  script_name(english:name["english"]);
 
 
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CVE-2002-0576");
- script_bugtraq_id(4542);
  desc["english"] = "
 It is possible to make the remote web server
 disclose the physical path to its web root by
@@ -54,7 +54,7 @@ Risk factor : Low";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -66,8 +66,8 @@ include("http_keepalive.inc");
 # The script code starts here
 #
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

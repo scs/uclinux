@@ -2,6 +2,7 @@
 # build using configure as best we can, should work for most targets
 # David McCullough <davidm@snapgear.com>
 #
+
 .PHONY: all
 all: build
 	$(MAKE) -C build
@@ -15,7 +16,7 @@ build: Makefile
 		export CC="$(CC) $(CFLAGS)"; \
 		export LDFLAGS="$(LDFLAGS)"; \
 		export LIBS="$(LDLIBS)"; \
-		../configure --host=$(CROSS_COMPILE:-=) --prefix= ; \
+		sh ../configure $(CONFIGURE_OPTS) --prefix= ; \
 	)
 
 .PHONY: romfs

@@ -28,11 +28,10 @@
 #define HASH_MAX 2713
 static int mkhash(const char * name)
 {
- int l = strlen(name);
  int h = 0;
  int i;
  
- for(i=0;i<l;i++)
+ for(i=0;name[i] != '\0';i++)
  {
   h = ((h * 128) + name[i]) % HASH_MAX;
  }
@@ -117,6 +116,8 @@ cache_add_name(name)
  nc->prev = NULL;
  nc->name = estrdup(name);
  nc->occurences = 1;
+ if ( cache[h].next != NULL )
+  cache[h].next->prev = nc;
  
  cache[h].next = nc;
  

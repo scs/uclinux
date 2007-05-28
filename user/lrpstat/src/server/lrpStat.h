@@ -1,6 +1,6 @@
-/* $Revision$ */
-/* $Author$ */
-/* $Header$ */
+/* $Revision: 1.4 $ */
+/* $Author: hejl $ */
+/* $Header: /home/cvs/lrpStat/src/server/lrpStat.h,v 1.4 2002/05/15 10:13:51 hejl Exp $ */
 
 /*
 Protocol format for protocol-version 1.20:

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-riscos.h,v 1.2 1993/08/19 05:27:03 genek Exp $ */
 
 /*
  * conf-riscos4.h (for SYSTYPE_BSD43)

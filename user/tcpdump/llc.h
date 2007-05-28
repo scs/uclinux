@@ -18,50 +18,19 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header$ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/llc.h,v 1.17.2.1 2005/04/26 07:27:16 guy Exp $ (LBL)
  */
 
 /*
- * This stuff should come from a system header file, but there's no
- * obviously portable way to do that and it's not really going
- * to change from system to system.
+ * Definitions for information in the LLC header.
  */
-
-/*
- * A somewhat abstracted view of the LLC header
- */
-
-struct llc {
-	u_char dsap;
-	u_char ssap;
-	union {
-		u_char u_ctl;
-		u_short is_ctl;
-		struct {
-			u_char snap_ui;
-			u_char snap_pi[5];
-		} snap;
-		struct {
-			u_char snap_ui;
-			u_char snap_orgcode[3];
-			u_char snap_ethertype[2];
-		} snap_ether;
-	} ctl;
-};
-
-#define	llcui		ctl.snap.snap_ui
-#define	llcpi		ctl.snap.snap_pi
-#define	orgcode		ctl.snap_ether.snap_orgcode
-#define	ethertype	ctl.snap_ether.snap_ethertype
-#define	llcis		ctl.is_ctl
-#define	llcu		ctl.u_ctl
 
 #define	LLC_U_FMT	3
 #define	LLC_GSAP	1
 #define LLC_S_FMT	1
 
 #define	LLC_U_POLL	0x10
-#define	LLC_IS_POLL	0x0001
+#define	LLC_IS_POLL	0x0100
 #define	LLC_XID_FI	0x81
 
 #define	LLC_U_CMD(u)	((u) & 0xef)
@@ -74,13 +43,13 @@ struct llc {
 #define	LLC_XID		0xaf
 #define	LLC_FRMR	0x87
 
-#define	LLC_S_CMD(is)	(((is) >> 10) & 0x03)
-#define	LLC_RR		0x0100
-#define	LLC_RNR		0x0500
-#define	LLC_REJ		0x0900
+#define	LLC_S_CMD(is)	(((is) >> 1) & 0x03)
+#define	LLC_RR		0x0001
+#define	LLC_RNR		0x0005
+#define	LLC_REJ		0x0009
 
-#define LLC_IS_NR(is)	(((is) >> 1) & 0x7f)
-#define LLC_I_NS(is)	(((is) >> 9) & 0x7f)
+#define LLC_IS_NR(is)	(((is) >> 9) & 0x7f)
+#define LLC_I_NS(is)	(((is) >> 1) & 0x7f)
 
 #ifndef LLCSAP_NULL
 #define	LLCSAP_NULL		0x00
@@ -88,10 +57,10 @@ struct llc {
 #ifndef LLCSAP_GLOBAL
 #define	LLCSAP_GLOBAL		0xff
 #endif
-#ifndef LLCSAP_8021B
+#ifndef LLCSAP_8021B_I
 #define	LLCSAP_8021B_I		0x02
 #endif
-#ifndef LLCSAP_8021B
+#ifndef LLCSAP_8021B_G
 #define	LLCSAP_8021B_G		0x03
 #endif
 #ifndef LLCSAP_IP
@@ -115,6 +84,32 @@ struct llc {
 #ifndef LLCSAP_SNAP
 #define	LLCSAP_SNAP		0xaa
 #endif
+#ifndef LLCSAP_IPX
+#define LLCSAP_IPX		0xe0
+#endif
+#ifndef LLCSAP_NETBEUI
+#define LLCSAP_NETBEUI		0xf0
+#endif
 #ifndef LLCSAP_ISONS
 #define	LLCSAP_ISONS		0xfe
 #endif
+
+/*
+ * PIDs for use with OUI_CISCO.
+ */
+#define	PID_CISCO_CDP		0x2000	/* Cisco Discovery Protocol */
+
+/*
+ * PIDs for use with OUI_RFC2684.
+ */
+#define PID_RFC2684_ETH_FCS	0x0001	/* Ethernet, with FCS */
+#define PID_RFC2684_ETH_NOFCS	0x0007	/* Ethernet, without FCS */
+#define PID_RFC2684_802_4_FCS	0x0002	/* 802.4, with FCS */
+#define PID_RFC2684_802_4_NOFCS	0x0008	/* 802.4, without FCS */
+#define PID_RFC2684_802_5_FCS	0x0003	/* 802.5, with FCS */
+#define PID_RFC2684_802_5_NOFCS	0x0009	/* 802.5, without FCS */
+#define PID_RFC2684_FDDI_FCS	0x0004	/* FDDI, with FCS */
+#define PID_RFC2684_FDDI_NOFCS	0x000a	/* FDDI, without FCS */
+#define PID_RFC2684_802_6_FCS	0x0005	/* 802.6, with FCS */
+#define PID_RFC2684_802_6_NOFCS	0x000b	/* 802.6, without FCS */
+#define PID_RFC2684_BPDU	0x000e	/* BPDUs */

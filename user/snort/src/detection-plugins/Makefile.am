@@ -16,6 +16,9 @@ sp_tcp_flag_check.h sp_tcp_flag_check.c sp_tcp_seq_check.c sp_tcp_seq_check.h  \
 sp_tcp_win_check.c sp_tcp_win_check.h sp_ttl_check.c sp_ttl_check.h            \
 sp_clientserver.c sp_clientserver.h sp_byte_check.c sp_byte_check.h            \
 sp_byte_jump.c sp_byte_jump.h sp_pcre.c sp_pcre.h sp_isdataat.c sp_isdataat.h  \
-sp_flowbits.c sp_flowbits.h sp_asn1.c sp_asn1.h
+sp_flowbits.c sp_flowbits.h sp_asn1.c sp_asn1.h sp_asn1_detect.c sp_asn1_detect.h \
+sp_respond2.c sp_respond2.h \
+sp_ftpbounce.c sp_ftpbounce.h \
+sp_urilen_check.c sp_urilen_check.h 
 
 INCLUDES = @INCLUDES@

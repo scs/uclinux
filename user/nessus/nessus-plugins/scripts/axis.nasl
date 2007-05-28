@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10023);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1025);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-2000-0191");
 
  name["english"] = "Bypass Axis Storpoint CD authentication";
@@ -23,7 +23,7 @@ configuration by requesting :
 	
 Solution : upgrade to the latest version available at
 	   http://www.se.axis.com/techsup/cdsrv/storpoint_cd/index.html
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -61,13 +61,16 @@ Facteur de risque : Elevé";
 #
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
 
 
 cgi_should_fail = "/config/html/cnf_gi.htm";
 cgi_should_succeed = "/cd/../config/html/cnf_gi.htm";
 
-port = get_kb_item("Services/www");
-if ( ! port ) port = 80;
+port = get_http_port(default:80);
+
 if ( ! get_port_state(port) ) exit(0);
 
 res = is_cgi_installed_ka(port:port, item:cgi_should_fail);

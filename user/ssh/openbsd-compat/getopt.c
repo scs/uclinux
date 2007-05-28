@@ -27,6 +27,8 @@
  * SUCH DAMAGE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/stdlib/getopt.c */
+
 #include "includes.h"
 #if !defined(HAVE_GETOPT) || !defined(HAVE_GETOPT_OPTRESET)
 

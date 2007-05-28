@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10653);
- script_version ("$Revision: 1.7 $");
  script_bugtraq_id(2564);
+ script_version ("$Revision: 1.9 $");
  name["english"] = "Solaris FTPd tells if a user exists";
  name["francais"] = "Solaris FTPd indique si un utilisateur existe";
  script_name(english:name["english"], francais:name["francais"]);
@@ -52,7 +52,7 @@ Risk factor : Low";
  family["english"] = "FTP";
  family["francais"] = "FTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("find_service_3digits.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }

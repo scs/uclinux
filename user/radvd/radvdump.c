@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: radvdump.c,v 1.7 2001/12/31 11:40:56 psavola Exp $
  *
  *   Authors:
  *    Lars Fenneberg		<lf@elemental.net>

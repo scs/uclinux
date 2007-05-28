@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10054);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(808);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-0165");
  name["english"] = "Delegate overflow";
  name["francais"] = "Dépassement de buffer dans DeleGate";
@@ -98,8 +98,13 @@ if(get_port_state(port))
    command = string("whois://a b 1 ", crap(4096), "\r\n\r\n");
    send(socket:soc2, data:command);
    buffer2 = recv_line(socket:soc2, length:4096);
-   if(!buffer2)security_hole(port); 
    close(soc2);
+   if(!buffer2)
+   {
+    soc2 = open_sock_tcp(port);
+    if (!soc2)
+      security_hole(port); 
+   }
   }
  }
 }

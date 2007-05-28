@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: utime.c,v 1.4 2002/09/19 12:23:55 jku Rel $
  *
  * Usrloc time related functions
  *

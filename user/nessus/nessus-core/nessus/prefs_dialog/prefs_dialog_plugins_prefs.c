@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1999, 2000 Renaud Deraison
+ * Copyright (C) 1999 - 2005 Renaud Deraison
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -38,12 +38,12 @@
 #include "prefs_dialog_plugins_prefs.h"
 
 
-static void pprefs_add_separator(struct arglist *, char *);
-static void pprefs_add_entry(struct arglist *, struct arglist *, char *);
-static void pprefs_add_password(struct arglist *, struct arglist *, char *);
-static void pprefs_add_file(struct arglist*, struct arglist*, char*);
-static void pprefs_add_checkbox(struct arglist *, struct arglist *, char *);
-static void pprefs_add_radio(struct arglist *, struct arglist *, char *);
+static void pprefs_add_separator(struct arglist *, char *, int);
+static void pprefs_add_entry(struct arglist *, struct arglist *, char *, int);
+static void pprefs_add_password(struct arglist *, struct arglist *, char *, int);
+static void pprefs_add_file(struct arglist*, struct arglist*, char*, int);
+static void pprefs_add_checkbox(struct arglist *, struct arglist *, char *, int);
+static void pprefs_add_radio(struct arglist *, struct arglist *, char *, int);
 void prefs_dialog_plugins_prefs_fill(struct arglist *, struct arglist *);
 
 
@@ -51,13 +51,20 @@ struct arglist *
 prefs_dialog_plugins_prefs()
 {
  struct arglist * ctrls = emalloc(sizeof(struct arglist));
- GtkWidget * frame;
- GtkWidget * s_window, * vbox;
+ GtkWidget * frame, * s_window, * vbox;
+ GtkWidget * cred_frame, * cred_s_window, * cred_vbox;
  
- frame = gtk_frame_new("Plugins preferences");
+ frame = gtk_frame_new("Advanced Plugins preferences");
  gtk_container_border_width(GTK_CONTAINER(frame), 10);
  gtk_widget_show(frame);
  arg_add_value(ctrls, "FRAME", ARG_PTR, -1, frame);
+
+ cred_frame = gtk_frame_new("Credentials");
+ gtk_container_border_width(GTK_CONTAINER(cred_frame), 10);
+ gtk_widget_show(cred_frame);
+ arg_add_value(ctrls, "FRAME_CREDENTIALS", ARG_PTR, -1, cred_frame);
+
+
  
  s_window = gtk_scrolled_window_new(NULL, NULL);
  gtk_container_border_width(GTK_CONTAINER(s_window), 10);
@@ -66,6 +73,14 @@ prefs_dialog_plugins_prefs()
 				GTK_POLICY_AUTOMATIC);
  gtk_container_add(GTK_CONTAINER(frame), s_window);
  gtk_widget_show(s_window);
+
+ cred_s_window = gtk_scrolled_window_new(NULL, NULL);
+ gtk_container_border_width(GTK_CONTAINER(cred_s_window), 10);
+ gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(cred_s_window),
+ 				GTK_POLICY_AUTOMATIC,
+				GTK_POLICY_AUTOMATIC);
+ gtk_container_add(GTK_CONTAINER(cred_frame), cred_s_window);
+ gtk_widget_show(cred_s_window);
  
  vbox = gtk_vbox_new(FALSE, FALSE);
 #if GTK_VERSION < 11
@@ -74,12 +89,42 @@ prefs_dialog_plugins_prefs()
  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(s_window), vbox);
 #endif
  gtk_widget_show(vbox);
+
+ cred_vbox = gtk_vbox_new(FALSE, FALSE);
+#if GTK_VERSION < 11
+ gtk_container_add(GTK_CONTAINER(cred_s_window), cred_vbox);
+#else
+ gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(cred_s_window), cred_vbox);
+#endif
+ gtk_widget_show(cred_vbox);
+
  arg_add_value(ctrls, "SCROLLED_WINDOW", ARG_PTR, -1, s_window);
- arg_add_value(ctrls, "VBOX", ARG_PTR, -1, vbox);
+ arg_add_value(ctrls, "VBOX", ARG_PTR, -1, cred_vbox);
+ arg_add_value(ctrls, "VBOX_CREDENTIALS", ARG_PTR, -1, vbox);
+ arg_add_value(ctrls, "SCROLLED_WINDOW_CREDENTIALS", ARG_PTR, -1, cred_s_window);
+
+
  arg_add_value(ctrls, "PLUGINS_NUM", ARG_INT, sizeof(int), (void*)0);
  arg_add_value(ctrls, "SCANNERS_NUM", ARG_INT, sizeof(int), (void*)0);
  return(ctrls);
 }				
+
+
+static int is_credentials(char * plugin_name, char * preference_name)
+{
+ if ( strcmp(plugin_name, "SSH settings") == 0 )
+	return 1;
+ else if ( strcmp(plugin_name, "Kerberos configuration") == 0 )
+	return 1;
+ else if ( strcmp(plugin_name, "Login configurations") == 0 ) 
+	{
+	 if ( preference_name == NULL ) return 0;
+	 if ( strncmp(preference_name, "SMB", 3) == 0 )
+		return 1;
+	}
+ return 0;
+}
+
 
 void
 prefs_dialog_plugins_prefs_fill(ctrls, plugins)
@@ -87,33 +132,42 @@ prefs_dialog_plugins_prefs_fill(ctrls, plugins)
  struct arglist * plugins;
 {
  struct arglist * plugs = plugins;
+ int credentials;
  while(plugs && plugs->next)
  {
   struct arglist * prefs;
+
   if((prefs = arg_get_value(plugs->value, "plugin_prefs")))
   {
-   pprefs_add_separator(ctrls, plugs->name);
-   while(prefs && prefs->next)
+   credentials = is_credentials(plugs->name, NULL); 
+   if ( credentials == 0 )
+	pprefs_add_separator(ctrls, plugs->name, 0);
+
+   while(prefs != NULL && prefs->next != NULL )
    {
      char * type, *value;
+     credentials = is_credentials(plugs->name, prefs->name);
      type  = arg_get_value(prefs->value, "type");
      value = arg_get_value(prefs->value, "value");
      if(type)
      {
       if(!strcmp(type, PREF_ENTRY))
-        pprefs_add_entry(ctrls, prefs, value);
+        pprefs_add_entry(ctrls, prefs, value, credentials);
       else if(!strcmp(type, PREF_PASSWORD))
-        pprefs_add_password(ctrls, prefs, value);
+        pprefs_add_password(ctrls, prefs, value, credentials);
       else if(!strcmp(type, PREF_RADIO))
-        pprefs_add_radio(ctrls, prefs, value);
+        pprefs_add_radio(ctrls, prefs, value, credentials);
       else if(!strcmp(type, PREF_CHECKBOX))
-     	pprefs_add_checkbox(ctrls, prefs, value);
+     	pprefs_add_checkbox(ctrls, prefs, value, credentials);
       else if(!strcmp(type, PREF_FILE))
-        pprefs_add_file(ctrls, prefs, value);
+        pprefs_add_file(ctrls, prefs, value, credentials);
      }
      prefs = prefs->next;
    }
-   pprefs_add_separator(ctrls, NULL);
+  
+   credentials = is_credentials(plugs->name, NULL); 
+   if ( credentials == 0 )
+   	pprefs_add_separator(ctrls, NULL, 0);
   }
   plugs = plugs->next;
  }
@@ -131,9 +185,9 @@ prefs_plugins_reset(ctrls, plugins, scanners)
 {
  struct arglist * prefs;
  struct arglist * s[2];
- GtkWidget * frame;
- GtkWidget * s_window;
- GtkWidget * vbox;
+ GtkWidget * frame, *cred_frame;
+ GtkWidget * s_window, *cred_s_window;
+ GtkWidget * vbox, *cred_vbox;
  int i;
  
 
@@ -145,6 +199,12 @@ prefs_plugins_reset(ctrls, plugins, scanners)
  s_window = arg_get_value(ctrls, "SCROLLED_WINDOW");
  gtk_widget_hide(s_window);
  gtk_container_remove(GTK_CONTAINER(frame), s_window);
+
+ cred_frame = arg_get_value(ctrls, "FRAME_CREDENTIALS");
+
+ cred_s_window = arg_get_value(ctrls, "SCROLLED_WINDOW_CREDENTIALS");
+ gtk_widget_hide(cred_s_window);
+ gtk_container_remove(GTK_CONTAINER(cred_frame), cred_s_window);
  
  s_window = gtk_scrolled_window_new(NULL, NULL);
  gtk_container_border_width(GTK_CONTAINER(s_window), 10);
@@ -153,6 +213,14 @@ prefs_plugins_reset(ctrls, plugins, scanners)
 				GTK_POLICY_AUTOMATIC);
  gtk_container_add(GTK_CONTAINER(frame), s_window);
  gtk_widget_show(s_window);
+
+ cred_s_window = gtk_scrolled_window_new(NULL, NULL);
+ gtk_container_border_width(GTK_CONTAINER(cred_s_window), 10);
+ gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(cred_s_window),
+ 				GTK_POLICY_AUTOMATIC,
+				GTK_POLICY_AUTOMATIC);
+ gtk_container_add(GTK_CONTAINER(cred_frame), cred_s_window);
+ gtk_widget_show(cred_s_window);
  
  vbox = gtk_vbox_new(FALSE, FALSE);
 #if GTK_VERSION < 11
@@ -161,8 +229,18 @@ prefs_plugins_reset(ctrls, plugins, scanners)
  gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(s_window), vbox);
 #endif
  gtk_widget_show(vbox);		
+
+ cred_vbox = gtk_vbox_new(FALSE, FALSE);
+#if GTK_VERSION < 11
+ gtk_container_add(GTK_CONTAINER(cred_s_window), cred_vbox);
+#else
+ gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(cred_s_window), cred_vbox);
+#endif
+ gtk_widget_show(cred_vbox);		
  arg_set_value(ctrls, "SCROLLED_WINDOW", -1, s_window);   
  arg_set_value(ctrls, "VBOX", -1, vbox);		  
+ arg_set_value(ctrls, "SCROLLED_WINDOW_CREDENTIALS", -1, cred_s_window);   
+ arg_set_value(ctrls, "VBOX_CREDENTIALS", -1, cred_vbox);		  
  arg_set_value(ctrls, "PLUGINS_NUM", sizeof(int), (void*)0);
  arg_set_value(ctrls, "SCANNERS_NUM", sizeof(int), (void*)0);
  for(i=0;i<2;i++)
@@ -193,7 +271,7 @@ prefs_plugins_reset(ctrls, plugins, scanners)
 /*
  * Redraw the plugins preferences
  */
-void 
+int
 prefs_plugins_prefs_redraw(bidon1, bidon2, ctrls)
   GtkWidget * bidon1;
   void * bidon2;
@@ -209,21 +287,23 @@ prefs_plugins_prefs_redraw(bidon1, bidon2, ctrls)
  arg_set_value(ctrls, "PLUGINS_NUM", sizeof(int), (void *)PluginsNum);
  arg_set_value(ctrls, "SCANNERS_NUM", sizeof(int), (void*)ScannersNum);
  }
+ return 0;
 }
 
 
 
 
 static void
- pprefs_add_separator(ctrls, name)
+ pprefs_add_separator(ctrls, name, credentials)
   struct arglist * ctrls;
   char * name;
+  int credentials;
 {
  GtkWidget * vbox, * label;
  GtkWidget * separator;
  char * str;
  int len;
- vbox = arg_get_value(ctrls, "VBOX");
+ vbox = arg_get_value(ctrls, credentials == 0 ? "VBOX":"VBOX_CREDENTIALS");
  if(name)
  {
   len  = strlen(name);
@@ -255,8 +335,7 @@ file_selected(GtkWidget * nul,
 {
   struct arglist * c;
  GtkWidget * entry;
- char * fname =
- gtk_file_selection_get_filename(GTK_FILE_SELECTION(filew));
+ char * fname = (char*) gtk_file_selection_get_filename(GTK_FILE_SELECTION(filew));
  gtk_widget_hide(filew);
  c = gtk_object_get_data(GTK_OBJECT(filew), "data");
  entry = arg_get_value(c, "ENTRY");
@@ -282,12 +361,13 @@ select_file(GtkWidget * b,
 
 
 static void
- pprefs_add_entry(ctrls, pref, value)
+ pprefs_add_entry(ctrls, pref, value, credentials)
   struct arglist * ctrls;
   struct arglist * pref;
   char * value;
+  int credentials;
 {
- GtkWidget * vbox = arg_get_value(ctrls, "VBOX");
+ GtkWidget * vbox = arg_get_value(ctrls, credentials == 0 ? "VBOX":"VBOX_CREDENTIALS");
  GtkWidget * entry, * text, * box;
  char * name = pref->name;
  char * fullname = arg_get_value(pref->value, "fullname");
@@ -323,16 +403,19 @@ static void
 
 
 static void
- pprefs_add_password(ctrls, pref, value)
+ pprefs_add_password(ctrls, pref, value, credentials)
   struct arglist * ctrls;
   struct arglist * pref;
   char * value;
+  int credentials;
 {
- GtkWidget * vbox = arg_get_value(ctrls, "VBOX");
+ GtkWidget * vbox = arg_get_value(ctrls, credentials == 0 ? "VBOX":"VBOX_CREDENTIALS");
  GtkWidget * entry, * text, * box;
  char * name = pref->name;
  char * fullname = arg_get_value(pref->value, "fullname");
  struct arglist * pprefs = arg_get_value(Prefs, "PLUGINS_PREFS");
+
+
  
  if(pprefs)
  {
@@ -364,12 +447,13 @@ static void
 }
 
 static void
- pprefs_add_file(ctrls, pref, value)
+ pprefs_add_file(ctrls, pref, value, credentials)
   struct arglist * ctrls;
   struct arglist * pref;
   char * value;
+  int credentials;
 {
- GtkWidget * vbox = arg_get_value(ctrls, "VBOX");
+ GtkWidget * vbox = arg_get_value(ctrls, credentials == 0 ? "VBOX":"VBOX_CREDENTIALS");
  GtkWidget * entry, * text, * box;
  GtkWidget * hbox, * button;
  char * name = pref->name;
@@ -418,12 +502,13 @@ static void
 
 
 static void
- pprefs_add_radio(ctrls, pref, value)
+ pprefs_add_radio(ctrls, pref, value, credentials)
   struct arglist * ctrls;
   struct arglist * pref;
   char * value;
+  int credentials;
 {
- GtkWidget * vbox = arg_get_value(ctrls, "VBOX");
+ GtkWidget * vbox = arg_get_value(ctrls, credentials == 0 ? "VBOX":"VBOX_CREDENTIALS");
  GtkWidget * orig;
  GtkWidget * button, * first_button;
  GtkWidget * label;
@@ -490,12 +575,13 @@ static void
 }
 
 static void
- pprefs_add_checkbox(ctrls, pref, value)
+ pprefs_add_checkbox(ctrls, pref, value, credentials)
   struct arglist * ctrls;
   struct arglist * pref;
   char * value;
+  int credentials;
 {
- GtkWidget * vbox = arg_get_value(ctrls, "VBOX");
+ GtkWidget * vbox = arg_get_value(ctrls, credentials == 0 ? "VBOX":"VBOX_CREDENTIALS");
  GtkWidget * box;
  GtkWidget * button;
  char * name = pref->name;

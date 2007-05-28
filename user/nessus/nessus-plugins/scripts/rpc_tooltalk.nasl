@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(10239);
- script_version ("$Revision: 1.19 $");
- script_bugtraq_id(122);
+ script_bugtraq_id(122, 641);
+ script_version ("$Revision: 1.24 $");
+ if(defined_func("script_xref"))script_xref(name:"CERT", value:"CA-98.11");
  script_cve_id("CVE-1999-0003","CVE-1999-0693");
  
  name["english"] = "tooltalk service";
@@ -17,42 +18,22 @@ if(description)
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The tooltalk RPC service is running.
-An possible implementation fault in the 
-ToolTalk object database server may allow an
-attacker to execute arbitrary commands as
-root.
+The tooltalk RPC service is running.  
 
-*** This warning may be a false 
-*** positive since the presence
-*** of this vulnerability is only accurately
-*** identified with local access.
+A possible implementation fault in the ToolTalk object database server may allow an
+attacker to execute arbitrary commands as root.
+
+*** This warning may be a false positive since the presence of this vulnerability is only 
+**** accurately identified with local access.
     
 Solution : Disable this service.
 See also : CERT Advisory CA-98.11
-
 Risk factor : High";
 
 
- desc["francais"] = "
-Le service RPC tooltalk tourne.
-Un problème d'implémentation
-dans le serveur de base de données
-d'objets Tooltalk peut permettre
-à un pirate d'executer des commandes
-arbitraires en tant que root.
-
-*** Cette alerte peut etre fausse
-*** puisque la présence du bug
-*** n'a pas été testée
-   
-Solution   : désactivez ce service.
-Voir aussi : CERT Advisory CA-98.11
-
-Facteur de risque : Elevé"; 
 
 
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks the presence of a RPC service";
  summary["francais"] = "Vérifie la présence d'un service RPC";
@@ -66,7 +47,10 @@ Facteur de risque : Elevé";
  family["english"] = "RPC"; 
  family["francais"] = "RPC";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("rpc_portmap.nasl", "nmap_osfingerprint.nes");
+ if ( ! defined_func("bn_random") ) 
+ 	script_dependencie("rpc_portmap.nasl", "os_fingerprint.nasl");
+ else
+ 	script_dependencie("rpc_portmap.nasl", "os_fingerprint.nasl", "solaris26_105802.nasl", "solaris26_x86_105803.nasl");
  script_require_keys("rpc/portmap");
  exit(0);
 }
@@ -75,6 +59,19 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 include("misc_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia == 0 ) exit(0);
+
+
+if ( get_kb_item("BID-122") ) exit(0);
+version = get_kb_item("Host/Solaris/Version");
+if ( version && ereg(pattern:"5\.[0-6][^0-9]", string:version) ) exit(0);
+else {
+	version = get_kb_item("Host/OS/icmp");
+	if ( version && ereg(pattern:"Solaris ([7-9]|1[0-9])", string:version) ) exit(0);
+}
+
 
 RPC_PROG = 100083;
 tcp = 0;
@@ -89,15 +86,10 @@ if(!port){
 if(port)
 {
  vulnerable = 0;
- os = get_kb_item("Host/OS");
+ os = get_kb_item("Host/OS/icmp");
  if(!os)vulnerable = 1;
  else
  {
-  # QueSO signatures are not handled (too hazardous)
-  if(ereg(pattern:"^\*.*", string:os))vulnerable = 1;
-  else
-  {
-   # Nmap
    if(ereg(pattern:"Solaris|HP-UX|IRIX|AIX", string:os))
    {
    if(ereg(pattern:"Solaris 2\.[0-6]", string:os))vulnerable = 1;
@@ -106,7 +98,6 @@ if(port)
    if(ereg(pattern:"IRIX (5\..*|6\.[0-4])", string:os))vulnerable = 1;
    }
    else vulnerable = 1; # We don't know
-  }
  }
 
  if(vulnerable)

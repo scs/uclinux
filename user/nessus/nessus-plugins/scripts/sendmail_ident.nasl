@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10278);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(2311);
+ script_version ("$Revision: 1.7 $");
  script_cve_id("CVE-1999-0204");
  
  name["english"] = "Sendmail 8.6.9 ident";
@@ -40,7 +40,7 @@ Risk factor : High";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("smtpserver_detect.nasl");
  script_require_ports("Services/smtp", 25);
  exit(0);
 }
@@ -56,9 +56,10 @@ if(!port) port = 25;
 
 banner = get_smtp_banner(port: port);
 
+# Note that we don't have any smtpscan signature for those servers
 if(banner)
 {
- if(egrep(pattern:".*Sendmail.*((8\.([0-5]\..*|6\.[0-9][^0-9])[^0-9])|SMI-([0-7]|8\.[0-6])).*",
+ if(egrep(pattern:".*Sendmail ((8\.([0-5]\..*|6\.[0-9][^0-9])[^0-9])|SMI-([0-7]|8\.[0-6])).*",
 	string:banner))
  	security_hole(port);
 }

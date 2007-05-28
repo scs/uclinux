@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: db_con.c,v 1.11 2003/03/03 20:45:45 janakj Exp $ 
  *
  * Database connection related functions
  *

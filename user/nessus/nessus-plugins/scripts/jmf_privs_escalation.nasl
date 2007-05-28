@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11635);
  
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.2 $");
 
  name["english"] = "Java Media Framework (JMF) Vulnerability";
 
@@ -45,23 +45,47 @@ Risk : Medium";
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
 
-include("smb_nt.inc");
+include("smb_func.inc");
 
+if ( ! get_kb_item("SMB/Registry/Enumerated") ) exit(1);
 
-version = registry_get_sz(key:"SOFTWARE\Sun Microsystems, Inc.\JMF", item:"LatestVersion");
-if(!version)
+port = kb_smb_transport();
+if ( ! get_port_state(port) ) exit(1);
+
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(1);
+
+session_init(socket:soc, hostname:kb_smb_name());
+
+r = NetUseAdd(login:kb_smb_login(), password:kb_smb_password(), domain:kb_smb_domain(), share:"IPC$");
+if ( r != 1 ) exit(1);
+
+hklm = RegConnectRegistry(hkey:HKEY_LOCAL_MACHINE);
+if ( isnull(hklm) )
 {
+ NetUseDel();
+ exit(1);
+}
+
+key_h = RegOpenKey(handle:hklm, key:"SOFTWARE\Sun Microsystems, Inc.\JMF", mode:MAXIMUM_ALLOWED);
+if ( isnull(key_h) )
+{
+ RegCloseKey(handle:hklm);
+ NetUseDel();
  exit(0);
 }
-else if(ereg(pattern:"2\.1\.1($|[a-d])$", string:version))security_warning(port);
+
+item = RegQueryValue(handle:key_h, item:"LatestVersion");
+RegCloseKey(handle:key_h);
+RegCloseKey(handle:hklm);
+NetUseDel();
+
+if ( isnull(item) ) exit(1);
+if(ereg(pattern:"^([0-1]\.|2\.0|2\.1\.0|2\.1\.1($|[a-d]))$", string:item[1]))security_warning(port);

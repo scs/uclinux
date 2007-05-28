@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(10207);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "Roxen counter module";
  script_name(english:name["english"]);
  
@@ -35,7 +35,7 @@ Risk factor : High";
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -44,10 +44,17 @@ Risk factor : High";
 # The script code starts here
 
 include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(get_port_state(port))
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+banner = get_http_banner(port:port);
+if ( ! banner || "Roxen" >!< banner ) exit(0);
+
+if(get_port_state(port) && ! get_kb_item("Services/www/" + port + "/embedded") )
 {
  name = string("www/no404/", port);
  no404 = tolower(get_kb_item(name));

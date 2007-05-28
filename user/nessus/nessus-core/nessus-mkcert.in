@@ -68,7 +68,7 @@ then
 #
 case `id 2>/dev/null` in 
 uid=0*) 
-    nessusd -g || {
+    $sbindir/nessusd -g || {
 	echo "Executing nessusd failed. Make sure your library loader is configured properly"
 	echo "and that nessusd is in your \$PATH"
 	exit 1
@@ -132,13 +132,12 @@ test -z "$RANDFLAG" -a -z "$RANDFILE" &&
 
 
 
-umask 066
+umask 077
 
 # Set environment
 BASEDIR=${TMPDIR-/tmp}/nessus-mkcert.$$
 mkdir $BASEDIR || exit 1
 
-trap "rm -rf $BASEDIR" 0
 
 CAKEY=$NESSUSPRIV/cakey.pem
 CACERT=$NESSUSPUB/cacert.pem
@@ -153,8 +152,6 @@ SRVCERT=$NESSUSPUB/servercert.pem
 #cln CLNREQ=$BASEDIR/clientreq.pem
 #cln CLNCERT=$BASEDIR/clientcert.pem
 
-##trap "rm -rf $BASEDIR" 0
-trap "echo BASEDIR=$BASEDIR" 0
 
 if [ -z "$QUIET" ];
 then
@@ -335,6 +332,22 @@ EOF
 sed 's/NSCERTTYPE/server/g' < $BASEDIR/std000.cnf > $BASEDIR/std.cnf
 sed 's/NSCERTTYPE/client/g' < $BASEDIR/std000.cnf > $BASEDIR/stdC.cnf
 hostname=`hostname`
+if [ -z "$hostname" ];
+then
+ echo "An error occured while trying to determine hostname !"
+ exit 1
+fi
+# The value for organizationalUnitName must be 64 chars or less;
+#   thus, hostname must be 36 chars or less. If it's too big,
+#   try removing domain.
+
+hostname_len=`echo $hostname| wc -c`
+
+if [ $hostname_len -gt 36 ];
+then
+  hostname=`echo $hostname | cut -d '.' -f 1`
+fi
+
 CAMAIL=ca@$hostname
 #cln CLNMAIL=nessus@$hostname
 SRVMAIL=nessusd@$hostname
@@ -391,7 +404,6 @@ openssl ca -config $BASEDIR/std.cnf -name NessusCA -batch -days $SRVCERT_LIFETIM
 
 ####
 
-trap 0
 
 chmod a+r $CACERT $SRVCERT #cln $CLNCERT
 

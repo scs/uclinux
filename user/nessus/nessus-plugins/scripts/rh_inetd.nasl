@@ -12,9 +12,9 @@
 if(description)
 {
    script_id(11006);
-   script_version ("$Revision: 1.6 $");
-   script_cve_id("CVE-2001-0309");
    script_bugtraq_id(2395);
+   script_version ("$Revision: 1.9 $");
+   script_cve_id("CVE-2001-0309");
    name["english"] = "RedHat 6.2 inetd";
    script_name(english:name["english"]);
  
@@ -42,7 +42,6 @@ Risk factor : Medium";
    script_family(english:"Misc.", francais:"Divers");
    script_require_ports(7,9,13,19,23,37);
    script_dependencies("find_service.nes");
-   #script_add_preference(name:"Testing method", type:"radio", value:"quick and dirty;real check (slow)");
    script_timeout(0);
    exit(0);
 }
@@ -52,16 +51,9 @@ Risk factor : Medium";
 # The code starts here
 # 
 include("telnet_func.inc");
+include("global_settings.inc");
 
-#opt  = script_get_preference("Testing method");
-opt = "quick and dirty";
-do_check = 0;
-if(opt == "quick and dirty;real check (slow)")opt = "quick and dirty";
-
-if(strlen(opt))
-{
-if("real check (slow)" >< opt)do_check = 1;
-}
+do_check = 0; #thorough_tests;
 
   ret[0] = 0;
   n = 0;

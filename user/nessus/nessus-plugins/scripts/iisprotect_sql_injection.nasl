@@ -12,7 +12,8 @@ if(description)
 {
  script_id(11662);
  script_bugtraq_id(7675);
- script_version("$Revision: 1.1 $");
+ script_cve_id("CVE-2000-0188");
+ script_version("$Revision: 1.5 $");
  
  name["english"] = "iiprotect sql injection";
  script_name(english:name["english"]);
@@ -27,7 +28,7 @@ interface to execute arbitrary commands through SQL injection
 on this host.
 
 Solution : Upgrade to the latest version of IISprotect
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -54,8 +55,8 @@ include("http_keepalive.inc");
 
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {

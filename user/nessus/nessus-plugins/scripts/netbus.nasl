@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10151);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-0660");
  script_bugtraq_id(7538);
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-1999-0660");
  name["english"] = "NetBus 1.x";
  name["francais"] = "NetBus 1.x";
  script_name(english:name["english"], francais:name["francais"]);

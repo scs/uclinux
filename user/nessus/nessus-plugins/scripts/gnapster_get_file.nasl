@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10408);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1186);
- script_cve_id("CAN-2000-0412");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0412");
  name["english"] = "Insecure Napster clone";
  name["francais"] = "Clone Napster non sur";
  script_name(english:name["english"],
@@ -50,7 +50,6 @@ Facteur de risque : Elevé";
  family["francais"] = "Accès aux fichiers distants";
  script_family(english:family["english"], francais:family["francais"]);
 
- script_dependencies("napster_detect.nasl");
  script_require_keys("Services/napster");
  script_require_ports("Services/napster", 6699);
  script_dependencies("find_service.nes");

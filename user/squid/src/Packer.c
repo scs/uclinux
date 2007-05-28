@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: Packer.c,v 1.13.2.1 2005/03/26 02:50:51 hno Exp $
  *
  * DEBUG: section 60    Packer: A uniform interface to store-like modules
  * AUTHOR: Alex Rousskov
@@ -93,7 +93,7 @@
 
 /* append()'s */
 static void (*const store_append) (StoreEntry *, const char *, int) = &storeAppend;
-static void (*const memBuf_append) (MemBuf *, const char *, mb_size_t) = &memBufAppend;
+static void (*const memBuf_append) (MemBuf *, const char *, int) = &memBufAppend;
 
 /* vprintf()'s */
 static void (*const store_vprintf) (StoreEntry *, const char *, va_list ap) = &storeAppendVPrintf;
@@ -109,7 +109,7 @@ packerToStoreInit(Packer * p, StoreEntry * e)
     assert(p && e);
     p->append = (append_f) store_append;
     p->vprintf = (vprintf_f) store_vprintf;
-    p->real_handler = e;
+    p->real_handle = e;
 }
 
 /* init with this to accumulate data in MemBuf */
@@ -119,7 +119,7 @@ packerToMemInit(Packer * p, MemBuf * mb)
     assert(p && mb);
     p->append = (append_f) memBuf_append;
     p->vprintf = (vprintf_f) memBuf_vprintf;
-    p->real_handler = mb;
+    p->real_handle = mb;
 }
 
 /* call this when you are done */
@@ -130,15 +130,15 @@ packerClean(Packer * p)
     /* it is not really necessary to do this, but, just in case... */
     p->append = NULL;
     p->vprintf = NULL;
-    p->real_handler = NULL;
+    p->real_handle = NULL;
 }
 
 void
 packerAppend(Packer * p, const char *buf, int sz)
 {
     assert(p);
-    assert(p->real_handler && p->append);
-    p->append(p->real_handler, buf, sz);
+    assert(p->real_handle && p->append);
+    p->append(p->real_handle, buf, sz);
 }
 
 #if STDC_HEADERS
@@ -161,7 +161,7 @@ packerPrintf(va_alist)
     fmt = va_arg(args, char *);
 #endif
     assert(p);
-    assert(p->real_handler && p->vprintf);
-    p->vprintf(p->real_handler, fmt, args);
+    assert(p->real_handle && p->vprintf);
+    p->vprintf(p->real_handle, fmt, args);
     va_end(args);
 }

@@ -8,14 +8,14 @@
 if(description)
 {
  script_id(10803);
-script_cve_id("CAN-2001-0868");
- script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-0868");
+ script_bugtraq_id(3577);
+ script_version ("$Revision: 1.15 $");
  name["english"] = "Redhat Stronghold File System Disclosure";
  script_name(english:name["english"]);
 
  desc["english"] = "
 Redhat Stronghold Secure Server File System Disclosure Vulnerability
-
 
 The problem:
 In Redhat Stronghold from versions 2.3 up to 3.0 a flaw exists that
@@ -37,9 +37,7 @@ of Stronghold.
 Vendor status:
 Patch was released (November 19, 2001)
 
-
 Risk factor : Medium";
-
 
  script_description(english:desc["english"]);
 
@@ -53,7 +51,7 @@ Risk factor : Medium";
  script_copyright(english:"This script is Copyright (C) 2001 Felix Huber");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie( "http_version.nasl");
  script_require_keys("www/apache");
  script_require_ports("Services/www", 80);
  exit(0);
@@ -63,32 +61,22 @@ Risk factor : Medium";
 # The script code starts here
 #
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  req = http_get(item:"/stronghold-info", port:port);
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
+ r   = http_keepalive_send_recv(port:port, data:req);
+ if (! r ) exit(0);
  if("Stronghold Server Information" >< r)
  {
-   security_hole(port);
+   security_warning(port);
    exit(0);
-  }
-
- soc = http_open_socket(port);
- if(soc)
-  {
-   req = http_get(item:"/stronghold-status", port:port);
-   send(socket:soc, data:req);
-   r = http_recv(socket:soc);
-   http_close_socket(soc);
-   if("Stronghold Server Status for" >< r)security_hole(port);
-  }
  }
+
+  req = http_get(item:"/stronghold-status", port:port);
+  r   = http_keepalive_send_recv(port:port, data:req);
+  if("Stronghold Server Status for" >< r)security_warning(port);
 }

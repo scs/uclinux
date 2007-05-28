@@ -1,215 +1,152 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
+
+ desc["english"] = "
+Synopsis :
+
+It is possible to access a network share.
+
+Description :
+
+The remote has one or many Windows shares that can be accessed
+through the Network with the given credentials.
+Depending on the share rights, it may allow an attacker to 
+read/write confidential data.
+
+Solution :
+
+To restrict access under Windows, open the explorer, do a right
+click on each shares, go to the 'sharing' tab, and click on 
+'permissions'
+
+Risk factor :
+
+None";
+
+
+ desc_hole["english"] = "
+Synopsis :
+
+It is possible to access a network share.
+
+Description :
+
+The remote has one or many Windows shares that can be accessed
+through the Network.
+Depending on the share rights, it may allow an attacker to 
+read/write confidential data.
+
+Solution :
+
+To restrict access under Windows, open the explorer, do a right
+click on each shares, go to the 'sharing' tab, and click on 
+'permissions'
+
+Risk factor :
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
+
 
 if(description)
 {
  script_id(10396);
- script_version ("$Revision: 1.44 $");
  script_bugtraq_id(8026);
- script_cve_id("CAN-1999-0519", "CAN-1999-0520");
+ script_version ("$Revision: 1.56 $");
+ script_cve_id("CVE-1999-0519", "CVE-1999-0520");
  name["english"] = "SMB shares access";
- name["francais"] = "Accès aux shares SMB";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
- desc["english"] = "
-This script checks if we can access various
-NetBios shares
-
-Risk factor : High";
-
- desc["francais"] = "
-Ce script se connect à l'hote distant
-et dresse la liste des shares accessible
-à distance";
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Gets the list of remote accessible shares";
- summary["francais"] = "Obtention de la liste des shares accessibles distantes";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
  script_dependencies("netbios_name_get.nasl",
  		     "smb_login.nasl", "smb_enum_shares.nasl",
-		     "smb_login_as_users.nasl");
+		     "smb_login_as_users.nasl", "smb_sid2user.nasl", 
+		     "smb_sid2localuser.nasl");
  script_require_keys("SMB/transport", "SMB/name", "SMB/login", "SMB/password");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = kb_smb_transport();
-if(!port) port = 139;
+include("smb_func.inc");
 
-#
-# Get the listing for \* using a TRANS2_FIND2_FIRST function
-#
-function readable_share(soc, uid, tid)
+
+function accessible_share (share)
 {
- tid_lo = tid % 256;
- tid_hi = tid / 256;
- 
- uid_lo = uid % 256;
- uid_hi = uid / 256;
- 
- req = raw_string(0x00, 0x00,
- 		  0x00, 0x53, 0xFF, 0x53, 0x4D, 0x42, 0x32, 0x00,
-		  0x00, 0x00, 0x00, 0x08, 0x01, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x0F, 0x0F, 0x00, 0x00, 0x00, 0x0A,
-		  0x00, 0x04, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x00, 0x44,
-		  0x00, 0x00, 0x00, 0x53, 0x00, 0x01, 0x00, 0x01,
-		  0x00, 0x12, 0x00, 0x00, 0x44, 0x20, 0x16, 0x00,
-		  0x00, 0x02, 0x0E, 0x00, 0x04, 0x01, 0x00, 0x00,
-		  0x00, 0x00, 0x5C, 0x2A, 0x00);
-		  
- send(socket:soc, data:req);
- r = smb_recv(socket:soc, length:4096);
- if(strlen(r) < 13)return("unknown error");
- if(ord(r[9]))
+ local_var ret, handle, readable, writeable, access, files;
+
+ ret = NetUseAdd (share:share);
+ if (ret == 1)
  {
-  if((ord(r[11]) == 5) && (ord(r[12])==0))
-   { 
-    return(FALSE);
-   }
-  else return("unknown error");
- }
- else return("OK");
-}
-	
-#
-# Create a directory on the remote host to determine if the
-# share is writeable or not
-#
+  # Open current directory in read mode
+  handle = CreateFile (file:"", desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_DIRECTORY,
+                       share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
+  if ( ! isnull (handle) )
+  {
+   readable = 1;
+   CloseFile (handle:handle);
+  }
+  else
+   readable = 0;
 
-function writeable_share(soc, tid, uid)
-{
- tid_lo = tid % 256;
- tid_hi = tid / 256;
- 
- uid_lo = uid % 256;
- uid_hi = uid / 256;
- 
+  # Open current directory in write mode
+  handle = CreateFile (file:"", desired_access:GENERIC_WRITE, file_attributes:FILE_ATTRIBUTE_DIRECTORY,
+                       share_mode:FILE_SHARE_READ | FILE_SHARE_WRITE, create_disposition:OPEN_EXISTING);
+  if ( ! isnull (handle) )
+  {
+   writeable = 1;
+   CloseFile (handle:handle);
+  }
+  else
+   writeable = 0;
 
- randstr = string(rand()%10, rand()%10, rand()%10, rand()%10);
- req = raw_string(0x00, 0x00,
- 		  0x00, 0x30, 0xFF, 0x53, 0x4D, 0x42, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x18, 0x03, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x00, 0x0D, 0x00, 0x04, 0x5C) +
-		 "Nessus" + randstr + raw_string(0x00);
-
- send(socket:soc, data:req);
- r = smb_recv(socket:soc, length:1024);
- 
- if(ord(r[9]))
- {
-  if((ord(r[11]) == 5) && (ord(r[12])==0))
-   { 
-    return(FALSE);
-   }
-  else return("unknown error");
- }
- else 
- {
- # The dir was created. We delete it before we return
- req = raw_string(0x00, 0x00,
- 		  0x00, 0x30, 0xFF, 0x53, 0x4D, 0x42, 0x01, 0x00,
-		  0x00, 0x00, 0x00, 0x18, 0x03, 0x00, 0x00, 0x00,
-		  0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		  0x00, 0x00, tid_lo, tid_hi, 0x00, 0x28, uid_lo, uid_hi,
-		  0x00, 0x00, 0x00, 0x0D, 0x00, 0x04, 0x5C) +
-		 "Nessus" + randstr + raw_string(0x00);
-
- send(socket:soc, data:req);
- r = smb_recv(socket:soc, length:8192);
- return("OK");
- }
-}
-		
-
-function accessible_share(share)
-{
- soc = open_sock_tcp(port);
- if(soc)
- {
- r = smb_session_request(soc:soc,  remote:name);
- if(!r)return(FALSE);
-
-  #
-  # Negociate the protocol
-  #
-  prot = smb_neg_prot(soc:soc);
-  if(!prot)exit(0);
-  #
-  # Set up our null session 
-  #
-  r = smb_session_setup(soc:soc, login:login, password:pass, domain:dom, prot:prot);
-  if(!r)return(FALSE);
-  # and extract our uid
-  uid = session_extract_uid(reply:r);
-
+  # Access mode -> string
   access = " - (";
-  c = 0;
-  r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-  if(r)
-  { 
-   tid = tconx_extract_tid(reply:r);
-   readable = readable_share(soc:soc, uid:uid, tid:tid);
-   if(readable){
-   	if(readable == "unknown error")access = access + "readable?";
-	else access = access + "readable";
-	c = c + 1;
-	}
-    
-   
-   
-    
-   writeable = writeable_share(soc:soc, uid:uid, tid:tid);
-   if(writeable){
-   	if(access)access = access + ", ";
-	c = c + 1;
-	if(writeable == "unknown error")access = access + "writeable?";
-	else access = access + "writeable";
-	}
-   
-   access = access + ")";
-   
-   if( readable )
+  if (readable == 1)
+    access += "readable";
+  if (writeable == 1)
+  {
+   if (readable == 1)
+     access += ",";
+    access += "writable";
+  }
+  access += ")";
+
+  if (readable == 1)
+  {
+   files = NULL;
+
+   handle = FindFirstFile (pattern:"\*");
+   while (!isnull(handle) && (strlen (files) < 1000))
    {
-    dirs = FindFirst2(socket:soc, uid:uid, tid:tid);
-    if(!isnull(dirs))
-    {
-    access += '\n  + Content of this share :\n';
-    foreach file (dirs)
-    {
-     access += '   - ' + file + '\n';
-    }
-    }
+    handle = FindNextFile (handle:handle);
+    if (!isnull(handle))
+      files += handle[1] + '\n';
    }
-   close(soc);
-   if(c)return(access);
-   else return(FALSE);
   }
-  else close(soc);
-  }
-  return(FALSE);
- }		
+
+  NetUseDel (close:FALSE);
+  
+  if ( ! isnull(files) )
+    access += '\n  + Content of this share :\n' + files;
+    
+  return access;
+ }
+
+ return FALSE;
+}
 
 
 #
@@ -217,11 +154,11 @@ function accessible_share(share)
 #		
 
 
+port = kb_smb_transport();
+if(!port) port = 139;
+
 name = kb_smb_name();
 if(!name)exit(0);
-
-
-
 
 login = kb_smb_login();
 pass =  kb_smb_password();
@@ -231,8 +168,17 @@ if(!pass)pass = "";
 
 dom = kb_smb_domain();
 
-
 if(!get_port_state(port))exit(0);
+
+soc = open_sock_tcp (port);
+if (!soc) exit (0);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:dom);
+if ( r != 1 ) 
+{
+ exit(1);
+}
 
 count = 1;
 
@@ -271,12 +217,17 @@ accs = "";
 
 foreach share (shares) 
 {
+ if (share != "IPC$")
+ {
   accs = accessible_share(share:share);
   if(accs)
   {
    vuln += string("- ", share, " ", accs, "\n");
   }
+ }
 }
+
+NetUseDel ();
 
 if(strlen(vuln) > 0)
  {
@@ -286,10 +237,35 @@ if(strlen(vuln) > 0)
   if(!strlen(login))t = "using a NULL session ";
   else t = string("as ", login);
   
+  hole = 1;
+  if ( login ) 
+  {
+   admin = get_kb_item("SMB/AdminName");
+   local = get_kb_item("SMB/LocalAdminName");
+   if ( (admin && admin >< login) || 
+         (local && local >< login ) ||
+         ("ADMIN$" >< vuln)) hole = 0;
+  }
+
   rep = string("The following shares can be accessed ", t, " :\n\n")
-   	+ vuln +
-	string("\n\nSolution : To restrict their access under WindowsNT, open the explorer, do a right click on each,\ngo to the 'sharing' tab, and click on 'permissions'\nRisk factor : High");
-  security_hole(port:port, data:rep);
+   	+ vuln;
+
+  if ( hole )
+  {
+   report = string (desc_hole["english"],
+		"\n\nPlugin output :\n\n",
+		rep);
+
+   security_hole(port:port, data:report);
+  }
+  else
+  {
+   report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		rep);
+
+   security_note(port:port, data:report);
+  }
  }
 
 if(get_kb_item("SMB/any_login"))exit(0);
@@ -300,4 +276,10 @@ login = string(get_kb_item(a));
 pass  = string(get_kb_item(b));
 count = count + 1;
 if(!strlen(login) && !strlen(pass))exit(0);
+soc = open_sock_tcp (port);
+if (!soc) exit (0);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:dom);
+if ( r != 1 ) exit(1);
 }

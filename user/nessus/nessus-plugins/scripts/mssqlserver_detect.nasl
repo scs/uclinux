@@ -12,20 +12,31 @@
 if(description)
 {
  script_id(10144);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-0652");
+ script_version ("$Revision: 1.24 $");
+ script_cve_id("CVE-1999-0652");
  name["english"] = "Microsoft SQL TCP/IP listener is running";
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synposis :
+
+A SQL server is running on the remote host.
+
+Description :
+
 Microsoft SQL server is running on this port.
 
 You should never let any unauthorized users establish
 connections to this service.
 
-Solution: Block this port from outside communication
+Solution:
 
-Risk factor : Medium";
+Block this port from outside communication
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -35,7 +46,7 @@ Risk factor : Medium";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2003 Nicolas Gregoire");
- family["english"] = "Windows";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "find_service2.nasl");
 
@@ -43,6 +54,7 @@ Risk factor : Medium";
 }
 
 include("misc_func.inc");
+include("global_settings.inc");
 
 #
 # The script code starts here
@@ -177,5 +189,11 @@ function check(port)
 }
 
 
-check(port:1433);
-check(port:get_kb_item("Services/unknown"));
+if ( thorough_tests )
+ port = get_unknown_svc(1433);
+else
+ port = 1433;
+
+if ( ! port || ! get_port_state(port) ) exit(0);
+
+check(port:port);

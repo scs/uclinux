@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: hash.h,v 1.3 2003/04/01 17:51:54 jih Exp $
  *
  * Header file for hash table functions
  *

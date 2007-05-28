@@ -7,7 +7,8 @@ if(description)
 {
  script_id(11857);
  script_bugtraq_id(6186);
- script_cve_id("CAN-2002-0029");
+ script_version("$Revision$");
+ script_cve_id("CVE-2002-0029");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0012");
  
  name["english"] = "BIND Buffer overflows in the DNS stub resolver library ";

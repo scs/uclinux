@@ -1,25 +1,39 @@
 #
-# This script was written by Michael Scheidell SECNAP Network Security
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
 
 if(description)
 {
  script_id(11231);
- script_cve_id("CAN-2003-0004");
- script_version("$Revision: 1.4 $");
+ script_bugtraq_id(6778);
+ script_cve_id("CVE-2003-0004");
+ script_version("$Revision: 1.12 $");
 
  name["english"] = "Unchecked Buffer in XP Redirector (Q810577)";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host is vulnerable to a flaw in the RPC redirector
-which can allow a local attacker to run code of its choice
-with the SYSTEM privileges.
+Synopsis :
 
-Solution : see http://www.microsoft.com/technet/security/bulletin/ms03-005.asp
-Risk factor : Medium";
+Arbitrary code can be executed on the remote host.
+
+Description :
+
+The remote version of Windows contains a buffer overflow in the Windows
+Redirector service which may allow an attacker to execute arbitrary code
+on the remote host with the SYSTEM privileges.
+
+Solution : 
+
+Microsoft has released a set of patches for Windows XP :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-005.mspx
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -29,45 +43,31 @@ Risk factor : Medium";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 SECNAP Network Security");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl",
-		     "smb_reg_service_pack_XP.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
- script_exclude_keys("SMB/samba","SMB/WinNT4/ServicePack",
-		     "SMB/Win2K/ServicePack");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(xp:2) <= 0 ) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-
-if(ereg(pattern:"([6-9]\.[0-9])|(5\.[2-9])", string:version))exit(0);
-
-if("5.1" >< version)
+if (is_accessible_share())
 {
- # fixed in XP service Pack 2
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
-
-
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q810577";
-item = "Comments";
-value = registry_get_sz(key:key, item:item);
-
-if(!value)security_warning(port);
-exit(0);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:1, file:"Mrxsmb.sys", version:"5.1.2600.1143", dir:"\system32\Drivers") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Mrxsmb.sys", version:"5.1.2600.106", dir:"\system32\Drivers") )
+   security_hole (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
+else if ( hotfix_missing(name:"810577") > 0 &&
+          hotfix_missing(name:"885835") > 0  )
+	security_hole(get_kb_item("SMB/transport"));

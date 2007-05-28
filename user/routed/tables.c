@@ -36,7 +36,7 @@
  * From: @(#)tables.c	8.1 (Berkeley) 6/5/93
  */
 char tables_rcsid[] = 
-  "$Id$";
+  "$Id: tables.c,v 1.12 1999/10/02 16:36:39 dholland Exp $";
 
 
 /*

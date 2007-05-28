@@ -4,7 +4,7 @@
  * This file contains the position of the configuration file and of
  * the logfiles. Change this for your installation.
  *
- * $Id$
+ * $Id: paths.h,v 1.4 1998/09/09 21:06:36 gert Exp $
  *
  */
 

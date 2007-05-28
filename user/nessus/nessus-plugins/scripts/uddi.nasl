@@ -8,7 +8,8 @@
 if(description)
 {
     script_id(11140);
-    script_version ("$Revision: 1.10 $");
+    script_version ("$Revision: 1.14 $");
+#   script_cve_id("CVE-MAP-NOMATCH");
     name["english"] = "UDDI detection";
     script_name(english:name["english"]);
     desc["english"] = "
@@ -16,7 +17,7 @@ The tested Web server seems to be friendly to UDDI requests.
 The server could be potentially offering web services
 under some other directory (we only tested the web root directory)
     
-Risk factor : Medium/Low";
+Risk factor : Low";
 
     script_description(english:desc["english"]);
     summary["english"] = "Find UDDI";
@@ -40,10 +41,11 @@ Risk factor : Medium/Low";
 include("uddi.inc");
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
+if(get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 mypath = "/";
 
 mymessage = create_uddi_xml(ktype:"UDDI_QUERY_FBUSINESS", path:mypath, key:"", name:"e");  #loop through ETAOIN?

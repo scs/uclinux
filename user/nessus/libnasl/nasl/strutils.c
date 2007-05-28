@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -15,28 +15,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
- *
  */
 #include <includes.h>
 
-#ifndef HAVE_STRNDUP_ALREADY
-char * strndup(char * str, int length)
+char * nasl_strndup(char * str, int length)
 {
  char * ret = emalloc(length + 1);
  bcopy(str, ret, length);
  return ret; 
 }
-#endif
 
 
 int str_match(const char* string, const char* pattern, int icase)
@@ -67,11 +54,10 @@ int str_match(const char* string, const char* pattern, int icase)
 
 
 
-#ifndef HAVE_MEMMEM
 /*
  * Slow replacement for memmem()
  */
-void * memmem(haystack, hl_len, needle, n_len)
+void * nasl_memmem(haystack, hl_len, needle, n_len)
  const void *  haystack;
  size_t hl_len;
  const void * needle;
@@ -80,6 +66,9 @@ void * memmem(haystack, hl_len, needle, n_len)
  char * hs = (char*)haystack;
  char * nd = (char*)needle;
  int i;
+
+ if ( hl_len < n_len )
+	return NULL;
 
  for(i=0;i<=hl_len-n_len;i++)
  {
@@ -94,6 +83,5 @@ void * memmem(haystack, hl_len, needle, n_len)
  }
  return(NULL);
 }
-#endif
 
 

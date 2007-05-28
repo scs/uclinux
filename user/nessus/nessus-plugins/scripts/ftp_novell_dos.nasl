@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(11614);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7072);
+ script_version ("$Revision: 1.4 $");
  name["english"] = "Novell FTP DoS";
  script_name(english:name["english"]);
  
@@ -20,7 +20,7 @@ An attacker may use this flaw to prevent this host to
 accomplish its job properly.
 
 Solution : See http://support.novell.com/cgi-bin/search/searchtid.cgi?/2965109.htm
-Risk Factor : Serious";
+Risk factor : High";
 
 
 

@@ -7,8 +7,8 @@
 if(description)
 {
  	script_id(10883);
-	script_version("$Revision: 1.10 $");
- script_bugtraq_id(4241);
+ 	script_bugtraq_id(4241);
+	script_version("$Revision: 1.15 $");
 	script_cve_id("CVE-2002-0083");
  	name["english"] = "OpenSSH Channel Code Off by 1";
 	script_name(english:name["english"]);
@@ -45,7 +45,7 @@ Risk factor : High";
 	family["english"] = "Gain root remotely";
  	script_family(english:family["english"]);
  	
-	script_dependencie("find_service.nes");
+	script_dependencie("ssh_detect.nasl");
  	script_require_ports("Services/ssh", 22);
  
  	exit(0);
@@ -56,46 +56,15 @@ Risk factor : High";
 # The script code starts here
 #
 
+include("backport.inc"); 
+
 port = get_kb_item("Services/ssh");
-if(!port)
-	port = 22;
-
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
-
-#
-# Check if a banner is already in the knowledge database
-#
-if(!banner)
-{
-  	if(get_port_state(port))
-  	{
-    		soc = open_sock_tcp(port);
-		if(!soc)exit(0);
-		banner = recv_line(socket:soc, length:1024);
-    		banner = tolower(banner);
-    
-    		close(soc);
-  	}
-}
-else banner = tolower(banner);
+if(!port) port = 22;
 
 
-#
-# If there is no banner, exit
-#
-if(!banner)
-	exit(0);
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
+banner = tolower(get_backport_banner(banner:banner));
 
-text = banner - string("\r\n");
-
-#
-# Grepping for the  banner
-#
-if("openssh" >< text)
-{
-	if(ereg(pattern:"ssh-.*-openssh[-_](2\..*|3\.0).*" , string:text, icase:TRUE)) 
-	{
+if(ereg(pattern:"ssh-.*-openssh[-_](2\..*|3\.0).*" , string:banner))
 		security_hole(port);
-	}
-}

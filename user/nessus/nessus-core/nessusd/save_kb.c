@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001  Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,16 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * save_kb :
  *  save the knowledge base about a remote host
@@ -164,29 +154,31 @@ map_file(file)
  struct stat st;
  char *ret;
  int i = 0;
+ int len;
  
  bzero(&st, sizeof(st));
  fstat(file, &st);
- if(!st.st_size)
+ len = (int)st.st_size;
+ if ( len == 0 )
  	return NULL;
 	
  lseek(file, 0, SEEK_SET);
- ret = emalloc(st.st_size + 1);
- while(i < st.st_size)
+ ret = emalloc(len + 1);
+ while(i < len )
  {
-  int e = read(file, ret + i, st.st_size - i);
+  int e = read(file, ret + i, len - i);
   if(e > 0)
   	i+=e;
    else
      {
-     	log_write("read(%d, buf, %ld) failed : %s\n", file, (long)st.st_size, strerror(errno));
+     	log_write("read(%d, buf, %d) failed : %s\n", file, len, strerror(errno));
 	efree(&ret);
-	lseek(file, st.st_size, SEEK_SET);
+	lseek(file, len, SEEK_SET);
 	return NULL;
      }
  }
  
- lseek(file, st.st_size, SEEK_SET);
+ lseek(file, len, SEEK_SET);
  return ret;
 }
  
@@ -198,16 +190,11 @@ save_kb_entry_present_already(globals, hostname, name, value)
  char * value;
 {
   char * buf;
-  harglst * kbs;
   int fd;
   char* req;
   int ret;
    
-  kbs = arg_get_value(globals, "save_kb");
-  if(!kbs)
-   return -1;
-  
-  fd = harg_get_int(kbs, hostname);
+  fd = (int)arg_get_value(globals, "save_kb");
   if(fd <= 0)
    return -1;
  
@@ -236,16 +223,11 @@ save_kb_rm_entry_value(globals, hostname, name, value)
 {
   char * buf;
   char * t;
-  harglst * kbs;
   int fd;
   char * req;
   
    
-  kbs = arg_get_value(globals, "save_kb");
-  if(!kbs)
-   return -1;
-  
-  fd = harg_get_int(kbs, hostname);
+  fd = (int)arg_get_value(globals, "save_kb");
   if(fd <= 0)
    return -1;
   
@@ -333,7 +315,6 @@ save_kb_write(globals, hostname, name, value, type)
  char * hostname, * name, * value;
  int type;
 {
- harglst * kbs;
  int fd;
  char * str;
  int e;
@@ -345,13 +326,7 @@ save_kb_write(globals, hostname, name, value, type)
     !value)
  	return -1;
 	
- kbs = arg_get_value(globals, "save_kb");
- if(!kbs)
-  {
-   return -1;
-  }
- 
- fd = harg_get_int(kbs, hostname);
+ fd = (int)arg_get_value(globals, "save_kb");
  if(fd <= 0)
   {
   log_write("user %s : Can not find KB fd for %s\n", (char*)arg_get_value(globals, "user"), hostname);
@@ -363,10 +338,13 @@ save_kb_write(globals, hostname, name, value, type)
   * Don't save temporary KB entries
   */
  if(!strncmp(name, "/tmp/", 4) ||
-    !strncmp(name, "/NIDS/", 6) ||
-    !strncmp(name, "/Settings/", 10))
+    !strncmp(name, "NIDS/", 5) ||
+    !strncmp(name, "Settings/", 9))
    	return 0;
 
+ /* Don't save sensitive information */
+ if (strncmp(name, "Secret/", 7) == 0)
+   return 0;
 
  /*
   * Avoid duplicates for these families
@@ -385,7 +363,7 @@ save_kb_write(globals, hostname, name, value, type)
    
  str = emalloc(strlen(name) + strlen(value) + 25);
  gettimeofday(&now, NULL);
- sprintf(str, "%ld %d %s=%s\n", now.tv_sec, type, name, value);
+ sprintf(str, "%ld %d %s=%s\n", (long)now.tv_sec, type, name, value);
  e = write(fd, str, strlen(str));
  if(e < 0)
  {
@@ -426,9 +404,9 @@ save_kb_new(globals, hostname)
  char * user = arg_get_value(globals, "user");
  int ret = 0;
  int f;
- harglst * kbs;
- 
- if(!hostname)return -1;
+
+ if( hostname == NULL )
+    return -1;
  dir = kb_dirname(globals);
  kb_mkdir(dir);
  efree(&dir);
@@ -454,17 +432,9 @@ save_kb_new(globals, hostname)
   file_lock(fname);
   log_write("user %s : new KB will be saved as %s", user, fname);
   if(arg_get_value(globals, "save_kb"))
-    kbs = arg_get_value(globals, "save_kb");
+    arg_set_value(globals, "save_kb", sizeof(int), (void*)f); 
   else
-   {
-    kbs = harg_create(2500);
-    arg_add_value(globals, "save_kb", ARG_PTR, -1, kbs);
-   }
-   
-  if(harg_get_int(kbs, hostname)>0)
-   harg_set_int(kbs, hostname, f);
-  else
-   harg_add_int(kbs, hostname, f);
+    arg_add_value(globals, "save_kb", ARG_INT, sizeof(int),(void*)f);
  }
  return 0;
 }
@@ -475,14 +445,9 @@ save_kb_close(globals, hostname)
  struct arglist * globals;
  char * hostname;
 {
- harglst * kbs = arg_get_value(globals, "save_kb");
- int fd;
+ int fd = (int)arg_get_value(globals, "save_kb");
  char* fname = kb_fname(globals, hostname);
- if(kbs)
- {
-  fd = harg_get_int(kbs, hostname);
-  if(fd > 0)close(fd);
- }
+ if(fd > 0)close(fd);
  file_unlock(fname);
  efree(&fname);
 }
@@ -652,7 +617,7 @@ failed1:
  * The KB entry 'Host/dead' is ignored, as well as all the 
  * entries starting by '/tmp/'
  */
-struct arglist * 
+struct kb_item ** 
 save_kb_load_kb(globals, hostname)
  struct arglist * globals;
  char * hostname;
@@ -660,9 +625,8 @@ save_kb_load_kb(globals, hostname)
  char * fname = kb_fname(globals, hostname);
  FILE * f;
  int fd;
- struct arglist * ret, * arg;
+ struct kb_item ** kb;
  char buf[4096];
- harglst * kbs;
  long max_age = save_kb_max_age(globals);
  
  if(file_locked(fname))
@@ -680,7 +644,7 @@ save_kb_load_kb(globals, hostname)
  bzero(buf, sizeof(buf));
  fgets(buf, sizeof(buf) - 1, f);
  
- ret = emalloc(sizeof(struct arglist));
+ kb  = kb_new();
  /*
   * Ignore the date
   */
@@ -728,29 +692,16 @@ save_kb_load_kb(globals, hostname)
    }
    else
    {
-    if((!strncmp(name, "Services/", 9)) && (arg_get_type(ret, name) > 0))
-    {
-     if(arg_get_type(ret, name)==ARG_ARGLIST)
-      arg = arg_get_value(ret, name);
-     else {
-      /* log_write("arglist for %s\n",name); */
-      arg = emalloc(sizeof(struct arglist));
-      arg_add_value(arg, name, arg_get_type(ret, name), -1, arg_get_value(ret, name));
-      arg_set_value(ret, name, -1, arg);
-      arg_set_type(ret, name, ARG_ARGLIST);
-     }
-    }
-    else arg = ret;
     if(type == ARG_STRING)
     {
      char * tmp = rmslashes(value);
-     arg_add_value(arg, name, ARG_STRING, strlen(tmp), tmp);
+     kb_item_add_str(kb, name, tmp);
+     efree(&tmp);
     }
-    else 
-     if(type == ARG_INT)
-      arg_add_value(arg, name, ARG_INT, sizeof(int), (void*)atoi(value));
+    else if(type == ARG_INT)
+      kb_item_add_int(kb, name, atoi(value));
    }
-  } 
+  }
   efree(&value);
   efree(&name);
   bzero(buf, sizeof(buf));
@@ -766,25 +717,12 @@ save_kb_load_kb(globals, hostname)
  {
   lseek(fd, 0, SEEK_END);
   if(arg_get_value(globals, "save_kb"))
-    kbs = arg_get_value(globals, "save_kb");
+     arg_set_value(globals, "save_kb", ARG_INT, (void*)fd);
   else
-   {
-    kbs = harg_create(25000);
-    arg_add_value(globals, "save_kb", ARG_PTR, -1, kbs);
-   }
-   
-  if(harg_get_int(kbs, hostname)>0)
-   {
-    int t = harg_get_int(kbs, hostname);
-    
-    close(t);
-    harg_set_int(kbs, hostname, fd);
-   }
-  else
-   harg_add_int(kbs, hostname, fd);
+    arg_add_value(globals, "save_kb", ARG_INT, sizeof(int), (void*)fd);
  }
  else log_write("user %s : ERROR - %s\n", (char*)arg_get_value(globals, "user"), strerror(errno));
- return ret;
+ return kb;
 }
 
 
@@ -891,6 +829,7 @@ int save_kb_replay_check(globals, type)
 	break;
   case ACT_DENIAL:
   case ACT_KILL_HOST:
+  case ACT_FLOOD:
   	name = "kb_dont_replay_denials";
 	break;
   /* ACT_SETTINGS and ACT_INIT should always be executed */

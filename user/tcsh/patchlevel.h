@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/patchlevel.h,v 3.126 2000/11/19 20:50:43 christos Exp $ */
 /*
  * patchlevel.h: Our life story.
  */

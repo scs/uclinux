@@ -33,7 +33,7 @@
  *	From: @(#)pathnames.h	5.3 (Berkeley) 6/1/90
  *	From: @(#)pathnames.h	8.1 (Berkeley) 6/5/93
  *	From: NetBSD: pathnames.h,v 1.6 1995/03/18 15:00:37 cgd Exp
- *	$Id$
+ *	$Id: pathnames.h,v 1.3 1999/08/01 19:19:16 dholland Exp $
  */
 
 #include <paths.h>

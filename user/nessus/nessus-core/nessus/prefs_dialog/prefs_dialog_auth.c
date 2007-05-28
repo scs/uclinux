@@ -178,8 +178,7 @@ struct arglist * prefs_dialog_auth(window)
   gtk_signal_connect /*_object*/(GTK_OBJECT (button), "clicked",
  			   (GtkSignalFunc)prefs_dialog_login_callback,
  			   (void *)ctrls);
-                           
-  gtk_widget_grab_default (button);
+
   gtk_widget_show(button);
   
   button = gtk_button_new_with_label(" Log out");
@@ -269,7 +268,7 @@ static int prefs_dialog_login_callback(w, ctrls)
  char * t;
  char * err;
 #ifdef USE_AF_INET
- t = gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls, "HOSTNAME")));
+ t = (char*)gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls, "HOSTNAME")));
  if((!t) ||(!strlen(t)))
  {
   show_warning("You must enter an hostname");
@@ -277,7 +276,7 @@ static int prefs_dialog_login_callback(w, ctrls)
  }
  hostname = emalloc(strlen(t)+1);
  strncpy(hostname, t, strlen(t));
- t = gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls, "PORT")));
+ t = (char*)gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls, "PORT")));
  if((!t) ||(!strlen(t)))
    {
      show_warning("You must enter a valid port number !");
@@ -290,7 +289,7 @@ static int prefs_dialog_login_callback(w, ctrls)
      return(1);
    }
 #endif
-  t = gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls, "USERNAME")));
+  t = (char*)gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls, "USERNAME")));
   if((!t) ||(!strlen(t)))
     {
       show_warning("You must enter a valid username");
@@ -299,7 +298,7 @@ static int prefs_dialog_login_callback(w, ctrls)
   username = emalloc(strlen(t)+1);
   strncpy(username, t, strlen(t));
   /*ENABLE_CRYPTO_LAYER*/
-  t = gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls, "PASSWORD")));
+  t = (char*)gtk_entry_get_text(GTK_ENTRY(arg_get_value(ctrls, "PASSWORD")));
   if((!t) ||(!strlen(t)))
     {
       show_warning("You must enter a valid password");

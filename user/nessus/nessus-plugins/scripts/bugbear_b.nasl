@@ -14,7 +14,7 @@
 if (description)
 {
  script_id(11707);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
 
  script_name(english:"Bugbear.B web backdoor");
  desc["english"] = "
@@ -34,7 +34,7 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  script_family(english:"Backdoors", francais:"Backdoors");
  script_copyright(english:"This script is Copyright (C) 2003 StrongHoldNet");
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 81);
  exit(0);
 }
@@ -42,11 +42,11 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 81;
+port = get_http_port(default:81);
+if(!port)exit(0);
 
 if(!get_port_state(port))exit(0);
-url = string(d, '/%NETHOOD%/');
+url = '/%NETHOOD%/';
 req = http_get(item:url, port:port);
 buf = http_keepalive_send_recv(port:port, data:req);
 if( buf == NULL ) exit(0);

@@ -9,8 +9,11 @@ if(description)
 {
  
  script_id(11916);  
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(8741);
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2003-0901");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:313-01");
+
  
 
  name["english"] = "PostgreSQL to_ascii() overflow";
@@ -37,9 +40,8 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Gain a shell remotely";
- family["francais"] = "Obtenir un shell à distance";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes");
  script_require_ports("Services/postgres", 5432);
  exit(0);
@@ -92,7 +94,7 @@ for(i=0;i<2;i=i+1)
      	break;
        }
      r = substr(r, 0, i - 1);
-     if(ereg(string:r, pattern:"PostgreSQL ([0-6]\.|7\.(3\.[0-4])|([0-2]\..*)).*")){
+     if(ereg(string:r, pattern:"PostgreSQL ([0-6]\.|7\.(3\.[0-3])|([0-2]\..*)).*")){
      	security_hole(port);
 	}
      }
@@ -105,6 +107,7 @@ soc = open_sock_tcp(port);
 if(!soc)exit(0);
 send(socket:soc, data:string("xx\r\n"));
 r = recv(socket:soc, length:6);
+if ( ! r ) exit(0);
 close(soc);
 if("EFATAL" >< r)
 {

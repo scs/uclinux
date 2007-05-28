@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10594);
- script_version ("$Revision: 1.9 $");
- script_cve_id("CVE-2001-0126");
  script_bugtraq_id(2295);
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2001-0126");
  name["english"] = "Oracle XSQL Stylesheet Vulnerability";
  name["francais"] = "Oracle XSQL Stylesheet Vulnerability";
  script_name(english:name["english"], francais:name["francais"]);
@@ -33,9 +33,8 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2000 Matt Moore",
 		francais:"Ce script est Copyright (C) 2000 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
@@ -45,20 +44,15 @@ Risk factor : High";
 # Check uses a default sample page supplied with the XSQL servlet. 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
  req = http_get(item:"/xsql/demo/airport/airport.xsql?xml-stylesheet=none", port:port);
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
+ r = http_keepalive_send_recv(port:port, data:req);
  if("cvsroot" >< r)	
  	security_hole(port);
 
- }
 }

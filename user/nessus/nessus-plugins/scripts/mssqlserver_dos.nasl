@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10145);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(817);
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CVE-1999-0999");
  name["english"] = "Microsoft's SQL TCP/IP denial of service";
  script_name(english:name["english"]);
@@ -22,7 +22,7 @@ being used by legitimate clients, thus threatening
 your business.
 
 Solution : filter incoming connections to port 1433
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -32,7 +32,7 @@ Risk factor : Serious";
  script_category(ACT_DENIAL);
  
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison");
- family["english"] = "Denial of Service";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
  script_require_ports("Services/mssql", 1433);
  script_dependencie("mssqlserver_detect.nasl");

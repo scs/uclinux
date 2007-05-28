@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.26 1994/07/25 15:40:54 gkim Exp $
 #
 # 	Tripwire build
 #

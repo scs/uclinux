@@ -1,24 +1,33 @@
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
 #
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
+
+ desc["english"] = "
+Synopsis :
+
+It is possible to retrieve users who can never changed their password
+using the supplied credentials.
+
+Description :
+
+Using the supplied credentials it was possible to extract the list of
+domain users who never changed their password.
+It is recommended to allow/force users to change their password for
+security reasons.
+
+Risk factor :
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
 
 if(description)
 {
  script_id(10898);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.7 $");
  name["english"] = "Users information : Never changed password";
 
  script_name(english:name["english"]);
  
- desc["english"] = "
-This script displays the names of the users that
-never changed their passwords.
-
-
-Risk factor : Serious";
-
-
 
  script_description(english:desc["english"]);
  
@@ -30,7 +39,7 @@ Risk factor : Serious";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows : User management";
  script_family(english:family["english"]);
  script_dependencies("smb_netusergetinfo.nasl");
@@ -60,9 +69,10 @@ while(login)
 
 if(logins)
 {
- rep = string("The following accounts have never changed their password :\n\n",
-  logins,
-  "\n\nTo minimize the risk of break-in, users should\n",
-  "change their password regularly");
- security_warning(port:port, data:rep);
+ report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		"The following users never changed their password :\n",
+		logins);
+
+ security_warning (port:0, data:report);
 }

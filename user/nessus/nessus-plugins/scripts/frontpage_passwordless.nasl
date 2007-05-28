@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11455);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.7 $");
 
  name["english"] = "Passwordless frontpage installation";
  script_name(english:name["english"]);
@@ -28,7 +28,7 @@ Risk factor : High";
  script_summary(english:summary["english"]);
  script_category(ACT_ATTACK);
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl");
  script_require_ports("Services/www", 80);
@@ -41,8 +41,8 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port=get_kb_item("Services/www");
-if(!port)port=80;
+port = get_http_port(default:80);
+
 
 dirs = get_kb_list(string("www/", port, "/content/directories"));
 if(!isnull(dirs))dirs = make_list("", dirs);
@@ -57,7 +57,7 @@ foreach dir (dirs)
  if("FPAuthorScriptUrl" ><  res)
  {
  str = egrep(pattern:"FPAuthorScriptUrl", string:res);
- auth = ereg_replace(pattern:'.*FPAuthorScriptUrl="(.*)"', string:str, replace:"\1");
+ auth = ereg_replace(pattern:'.*FPAuthorScriptUrl="([^"]*)".*', string:str, replace:"\1");
  content = "method=open+service%3a5%2e0%2e2%2e2623&service%5fname=" + str_replace(string:dir, find:"/", replace:"%2f");
  
  req = string("POST ", dir, "/", auth, " HTTP/1.1\r\n",
@@ -71,7 +71,7 @@ foreach dir (dirs)
 content);
 
  res = http_keepalive_send_recv(port:port, data:req);
- if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 .*", string:res) && "x-vermeer-rpc" >< res)unpassworded += dir + '\n';
+ if(egrep(pattern:"^HTTP/[0-9]\.[0-9] 200 .*", string:res) && "x-vermeer-rpc" >< res) { if ( dir == "") dir = "/"; unpassworded += dir + '\n'; }
  }
 }
 

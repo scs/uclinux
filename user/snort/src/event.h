@@ -46,6 +46,10 @@ typedef struct _Event
                                 * such as in the case of tagged packets...
                                 */
     struct timeval ref_time;   /* reference time for the event reference */
+
+    /* Don't add to this structure because this is the serialized data
+     * struct for unified logging.
+     */
 } Event;
 
 #if 0

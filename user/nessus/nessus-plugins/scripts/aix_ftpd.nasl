@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10009);
- script_version ("$Revision: 1.28 $");
  script_bugtraq_id(679);
+ script_version ("$Revision: 1.30 $");
  script_cve_id("CVE-1999-0789");
  name["english"] = "AIX FTPd buffer overflow";
  name["francais"] = "Dépassement de buffer dans ftpd d'AIX";
@@ -77,9 +77,13 @@ port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(!get_port_state(port))exit(0);
 
+banner = get_ftp_banner(port: port);
+if ( ! banner ) exit(0);
+
+if ( ! egrep(pattern:".*FTP server .Version 4\.*", string:banner) ) exit(0);
+
 if(safe_checks())
 {
- banner = get_ftp_banner(port: port);
  
  if(egrep(pattern:".*FTP server .Version 4\.3.*",
    	 string:banner)){

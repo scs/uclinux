@@ -1,6 +1,6 @@
 /*
  *
- * $Id$
+ * $Id: exec.c,v 1.9.6.1 2004/07/21 16:53:46 bogdan Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

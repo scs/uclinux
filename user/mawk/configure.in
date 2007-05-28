@@ -1,9 +1,6 @@
 dnl configure.in for mawk
 dnl
-dnl $Log$
-dnl Revision 1.2  2005/07/25 04:03:15  magicyang
-dnl New user folder check in
-dnl
+dnl $Log: configure.in,v $
 dnl Revision 1.13  1995/10/16  12:25:00  mike
 dnl configure cleanup
 dnl

@@ -1,40 +1,37 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(11029);
- script_version("$Revision: 1.8 $");
  script_bugtraq_id(4852);
+ script_version("$Revision: 1.14 $");
  script_cve_id("CVE-2002-0366");
  name["english"] = "Windows RAS overflow (Q318138)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+A local user can elevate his privileges.
+
+Description :
+
 An overflow in the RAS phonebook service allows a local user
 to execute code on the system with the privileges of LocalSystem.
 
-Impact of vulnerability: Elevation of Privilege 
+Solution : 
 
-Affected Software: 
+Microsoft has released a set of patches for Windows NT, 2000 and XP :
 
-Microsoft Windows NT 4.0 
-Microsoft Windows NT 4.0 Server, Terminal Server Edition 
-Microsoft Windows 2000 
-Microsoft Windows XP
+http://www.microsoft.com/technet/security/bulletin/ms02-029.mspx
 
-Recommendation: Users using any of the affected
-products should install the patch immediately.
+Risk factor : 
 
-Maximum Severity Rating: Critical (locally)
-
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-029.asp
-
-Risk factor : High";
+High / CVSS Base Score : 7 
+(AV:L/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -44,51 +41,32 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_access","SMB/WindowsVersion");
- script_exclude_keys("SMB/XP/ServicePack");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(nt:7, win2k:3, xp:1) <= 0 ) exit(0);
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
-
-version = get_kb_item("SMB/WindowsVersion");
-
-
-if(ereg(pattern:"([6-9]\.[0-9])|(5\.[2-9])", string:version))exit(0);
-
-
-if("5.0" >< version)
+if (is_accessible_share())
 {
-# fixed in Service Pack 3
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [3-9]"))exit(0);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:0, file:"Rasapi32.dll", version:"5.1.2600.28", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Rasapi32.dll", version:"5.0.2195.4983", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Rasapi32.dll", version:"4.0.1381.7140", dir:"\system32") )
+   security_note (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
+else if ( hotfix_missing(name:"Q318138") > 0 ) 
+	security_hole(get_kb_item("SMB/transport"));
 
-if("5.1" >< version)
-{
- # fixed in SP1
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [1-9]"))exit(0);
-}
-
-
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q318138";
-item = "Comments";
-value = registry_get_sz(key:key, item:item);
-if(!value)security_hole(port);

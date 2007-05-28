@@ -14,7 +14,7 @@
  *
  * This code contributed by Karl Lehenbauer and Mark Diekhans
  *
- * $Id$
+ * $Id: tclalloc.c,v 1.1.1.1 2001/04/29 20:35:23 karll Exp $
  *
  */
 

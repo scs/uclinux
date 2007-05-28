@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: case_prio.h,v 1.1 2003/08/05 11:13:01 bogdan Exp $ 
  *
  * Priority Header Field Name Parsing Macros
  *

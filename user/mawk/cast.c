@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 
-/*   $Log$
- *   Revision 1.2  2005/07/25 04:03:15  magicyang
- *   New user folder check in
- *
+/*   $Log: cast.c,v $
  *   Revision 1.6  1996/08/11 22:07:50  mike
  *   Fix small bozo in rt_error("overflow converting ...")
  *

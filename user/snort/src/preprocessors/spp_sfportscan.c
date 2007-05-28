@@ -1,5 +1,5 @@
 /*
-**  @file       spp_psng.c
+**  @file       spp_sfportscan.c
 **
 **  @author     Daniel Roelker <droelker@sourcefire.com>
 **
@@ -9,7 +9,7 @@
 **    - User Configuration:  The following is a list of parameters that can
 **      be configured through the user interface:
 **
-**      proto  { tcp udp icmp ip_proto all }
+**      proto  { tcp udp icmp ip all }
 **      scan_type { portscan portsweep decoy_portscan distributed_portscan all }
 **      sense_level { high }    # high, medium, low
 **      watch_ip { }            # list of IPs, CIDR blocks
@@ -19,12 +19,11 @@
 **      logfile { /tmp/ps.log } # file to log detailed portscan info
 */
 #include <sys/types.h>
-
 #ifndef WIN32
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#endif
+    #include <sys/socket.h>
+    #include <netinet/in.h>
+    #include <arpa/inet.h>
+#endif /* !WIN32 */
 
 #include "decode.h"
 #include "plugbase.h"
@@ -36,8 +35,11 @@
 #include "packet_time.h"
 #include "snort.h"
 #include "sfthreshold.h"
+#include "snort_packet_header.h"
 
 #include "portscan.h"
+
+#include "profiler.h"
 
 #define DELIMITERS " \t\n"
 #define TOKEN_ARG_BEGIN "{"
@@ -53,6 +55,12 @@ static int     g_print_tracker = 0;
 static u_char  g_logpath[256];
 static FILE   *g_logfile = NULL;
 static Packet *g_tmp_pkt;
+
+int g_include_midstream = 0;
+
+#ifdef PERF_PROFILING
+PreprocStats sfpsPerfStats;
+#endif
 
 /*
 **  NAME
@@ -74,20 +82,12 @@ static int PortscanPacketInit(void)
     const char mac_addr[] = "MACDAD";
     Packet *p;
 
-    p = (Packet *)calloc(1, sizeof(Packet));
-    if(!p)
-        return -1;
-
-    p->pkth = calloc(1, sizeof(struct pcap_pkthdr) + ETHERNET_HEADER_LEN + 2 +
-            IP_MAXPACKET);
-
-    if(!p->pkth)
-        return -1;
-
-    p->pkth = (struct pcap_pkthdr *)(((u_char *)p->pkth));
-
+    p = (Packet *)SnortAlloc(sizeof(Packet));
+    p->pkth = (struct pcap_pkthdr *)SnortAlloc(sizeof(struct pcap_pkthdr) +
+                    ETHERNET_HEADER_LEN + SPARC_TWIDDLE + IP_MAXPACKET);
+    
     /* Add 2 to align iph struct members on 4 byte boundaries - for sparc, etc */
-    p->pkt  = ((u_char *)p->pkth + sizeof(SnortPktHeader) + 2);
+    p->pkt  = ((u_char *)p->pkth + sizeof(SnortPktHeader) + SPARC_TWIDDLE);
     p->eh   = (EtherHdr *)p->pkt;
     p->iph  = (IPHdr *)(((u_char *)p->eh) + ETHERNET_HEADER_LEN);
     p->data = ((u_char *)p->iph) + sizeof(IPHdr);
@@ -102,6 +102,21 @@ static int PortscanPacketInit(void)
     g_tmp_pkt = p;
 
     return 0;
+}
+
+void PortscanCleanExitFunction(int signal, void *foo)
+{
+    free(g_tmp_pkt->pkth);
+    free(g_tmp_pkt);
+    g_tmp_pkt = NULL;
+}
+
+
+void PortscanRestartFunction(int signal, void *foo)
+{
+    free(g_tmp_pkt->pkth);
+    free(g_tmp_pkt);
+    g_tmp_pkt = NULL;
 }
 
 /*
@@ -290,6 +305,10 @@ static int GenerateOpenPortEvent(Packet *p, u_int32_t gen_id, u_int32_t sig_id,
         }
 
         CallLogFuncs(p,msg,NULL,&event);
+    } 
+    else 
+    {
+        return -1;
     }
 
     if(g_logfile)
@@ -351,7 +370,7 @@ static int MakePortscanPkt(PS_PKT *ps_pkt, PS_PROTO *proto, int proto_type,
     Packet *p;
     unsigned long  tmp_addr;
     unsigned int   hlen;
-    unsigned int  ip_size = 0; 
+    unsigned int   ip_size = 0; 
   
     if(!ps_pkt && proto_type != PS_PROTO_OPEN_PORT)
        return -1;
@@ -365,7 +384,12 @@ static int MakePortscanPkt(PS_PKT *ps_pkt, PS_PROTO *proto, int proto_type,
 
         hlen = IP_HLEN(p->iph)<<2;
 
-        memcpy(g_tmp_pkt->iph, p->iph, hlen);
+        if ( p->iph != g_tmp_pkt->iph )
+            /*
+             * it happen that ps_pkt->pkt can be the same
+             * as g_tmp_pkt. Avoid overlapping copy then.
+             */
+             memcpy(g_tmp_pkt->iph, p->iph, hlen);
 
         if(ps_pkt->reverse_pkt)
         {
@@ -408,7 +432,7 @@ static int MakePortscanPkt(PS_PKT *ps_pkt, PS_PROTO *proto, int proto_type,
     /*
     **  Let's finish up the IP header and checksum.
     */
-    g_tmp_pkt->iph->ip_len = htons(ip_size);
+    g_tmp_pkt->iph->ip_len = htons((short)ip_size);
     g_tmp_pkt->iph->ip_csum = 0;
     g_tmp_pkt->iph->ip_csum = 
         in_chksum_ip((u_short *)g_tmp_pkt->iph, (IP_HLEN(g_tmp_pkt->iph)<<2));
@@ -448,7 +472,7 @@ static int PortscanAlertTcp(Packet *p, PS_PROTO *proto, int proto_type)
            event_ref = GeneratePSSnortEvent(p,GENERATOR_PSNG,
                    PSNG_TCP_PORTSWEEP, 0, 0, 3, PSNG_TCP_PORTSWEEP_STR);
            portsweep = 1;
-
+           
            break;
 
         case PS_ALERT_DISTRIBUTED:
@@ -700,12 +724,15 @@ static int PortscanAlert(PS_PKT *ps_pkt, PS_PROTO *proto, int proto_type)
     return 0;
 }
 
-static void PortscanDetect(Packet *p)
+static void PortscanDetect(Packet *p, void *context)
 {
     PS_PKT ps_pkt;
+    PROFILE_VARS;
 
     if(!p || !p->iph || (p->packet_flags & PKT_REBUILT_STREAM))
         return;
+
+    PREPROC_PROFILE_START(sfpsPerfStats);
 
     memset(&ps_pkt, 0x00, sizeof(PS_PKT));
     ps_pkt.pkt = (void *)p;
@@ -726,6 +753,7 @@ static void PortscanDetect(Packet *p)
                 ps_pkt.proto);
     }
 
+    PREPROC_PROFILE_END(sfpsPerfStats);
     return;
 }
 
@@ -909,12 +937,44 @@ static void ParseMemcap(int *memcap)
     return;
 }
 
+static void PrintCIDRBLOCK(CIDRBLOCK *p)
+{
+    char ip_str[80], mask_str[80];
+    PORTRANGE *pr;
+
+    ip4_sprintx(ip_str, sizeof(ip_str), &p->ip);
+    ip4_sprintx(mask_str, sizeof(mask_str), &p->mask);
+
+    if(p->notflag)
+        LogMessage("        !%s / %s", ip_str, mask_str);
+    else
+        LogMessage("        %s / %s", ip_str, mask_str);
+
+    pr=(PORTRANGE*)sflist_first(&p->portset.port_list);
+    if ( pr && pr->port_lo != 0 )
+        LogMessage(":");
+    for( ; pr != 0;
+        pr=(PORTRANGE*)sflist_next(&p->portset.port_list) )
+    {
+        if ( pr->port_lo != 0 )
+        {
+            LogMessage("%d", pr->port_lo);
+            if ( pr->port_hi != pr->port_lo )
+            {
+                LogMessage("-%d", pr->port_hi);
+            }   
+            LogMessage(" ");
+        }
+    }
+    LogMessage("\n");
+
+}
+
 static void PrintPortscanConf(int detect_scans, int detect_scan_type,
         int sense_level, IPSET *scanner, IPSET *scanned, IPSET *watch,
         int memcap)
 {
     char buf[STD_BUF+1];
-    char ip_str[80], mask_str[80];
     int proto_cnt = 0;
     CIDRBLOCK *p;
 
@@ -964,13 +1024,7 @@ static void PrintPortscanConf(int detect_scans, int detect_scan_type,
             p;
             p = (CIDRBLOCK*)sflist_next(&scanner->cidr_list))
         {
-            ip4_sprintx(ip_str, sizeof(ip_str), &p->ip);
-            ip4_sprintx(mask_str, sizeof(mask_str), &p->mask);
-
-            if(p->notflag)
-                LogMessage("        !%s / %s\n", ip_str, mask_str);
-            else
-                LogMessage("        %s / %s\n", ip_str, mask_str);
+            PrintCIDRBLOCK(p);
         }
     }
 
@@ -981,13 +1035,7 @@ static void PrintPortscanConf(int detect_scans, int detect_scan_type,
             p;
             p = (CIDRBLOCK*)sflist_next(&scanned->cidr_list))
         {
-            ip4_sprintx(ip_str, sizeof(ip_str), &p->ip);
-            ip4_sprintx(mask_str, sizeof(mask_str), &p->mask);
-
-            if(p->notflag)
-                LogMessage("        !%s / %s\n", ip_str, mask_str);
-            else
-                LogMessage("        %s / %s\n", ip_str, mask_str);
+            PrintCIDRBLOCK(p);
         }
     }
 
@@ -998,13 +1046,7 @@ static void PrintPortscanConf(int detect_scans, int detect_scan_type,
             p;
             p = (CIDRBLOCK*)sflist_next(&watch->cidr_list))
         {
-            ip4_sprintx(ip_str, sizeof(ip_str), &p->ip);
-            ip4_sprintx(mask_str, sizeof(mask_str), &p->mask);
-
-            if(p->notflag)
-                LogMessage("        !%s / %s\n", ip_str, mask_str);
-            else
-                LogMessage("        %s / %s\n", ip_str, mask_str);
+            PrintCIDRBLOCK(p);
         }
     }
 
@@ -1128,6 +1170,19 @@ static void PortscanInit(u_char *args)
 
                 ParseLogFile(&g_logfile, g_logpath, sizeof(g_logpath));
             }
+            else if(!strcasecmp(pcTok, "include_midstream"))
+            {
+                /* Do not ignore packets in sessions picked up mid-stream */
+                g_include_midstream = 1;
+            }
+            else if(!strcasecmp(pcTok, "detect_ack_scans"))
+            {
+                /* 
+                 *  We will only see ack scan packets if we are looking at sessions that the
+                 *    have been flagged as being picked up mid-stream
+                 */
+                g_include_midstream = 1;
+            }
             else
             {
                 FatalErrorInvalidOption(pcTok);
@@ -1153,12 +1208,18 @@ static void PortscanInit(u_char *args)
                    "bug.\n");
     }
 
-    AddFuncToPreprocList(PortscanDetect);
+    AddFuncToPreprocList(PortscanDetect, PRIORITY_SCANNER, PP_SFPORTSCAN);
+    AddFuncToPreprocCleanExitList(PortscanCleanExitFunction, NULL, PRIORITY_SCANNER, PP_SFPORTSCAN);
+    AddFuncToPreprocRestartList(PortscanRestartFunction, NULL, PRIORITY_SCANNER, PP_SFPORTSCAN);    
 
     PrintPortscanConf(protos, scan_types, sense_level, ignore_scanners,
             ignore_scanned, watch_ip, memcap);
 
     PortscanPacketInit();
+
+#ifdef PERF_PROFILING
+    RegisterPreprocessorProfile("sfportscan", &sfpsPerfStats, 0, &totalPerfStats);
+#endif
 
     return;
 }

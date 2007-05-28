@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.4 1993/12/13 04:02:30 genek Exp $
 #
 # Makefile for crc32 wrapper
 #

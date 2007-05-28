@@ -6,8 +6,9 @@
 if (description)
 {
  script_id(11018);
- script_version("$Revision: 1.5 $");
+ script_cve_id("CVE-2002-1769");
  script_bugtraq_id(3998);
+ script_version("$Revision: 1.14 $");
  script_name(english:"MS Site Server Information Leak");
  desc["english"] = "
 The remote web server seems to leak information when some
@@ -31,9 +32,8 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  script_family(english:"CGI abuses");
  script_copyright(english:"(c) 2002 Renaud Deraison");
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -48,6 +48,16 @@ include("http_keepalive.inc");
 function make_request(port, file)
 {
  
+  req = string("GET ", file, " HTTP/1.1\r\n",
+  		"Host: ", get_host_name(), "\r\n",
+		"Authorization: Basic bmVzc3VzOm5lc3N1cw==\r\n\r\n");
+  
+  r = http_keepalive_send_recv(port:port, data:req);
+  if( r == NULL ) exit(0);
+  
+  if (ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 ", string:r))
+    exit(0);
+
   req = string("GET ", file, " HTTP/1.1\r\n",
   		"Host: ", get_host_name(), "\r\n",
 		"Authorization: Basic TERBUF9Bbm9ueW1vdXM6TGRhcFBhc3N3b3JkXzE=\r\n\r\n");
@@ -68,19 +78,19 @@ function make_request(port, file)
       	security_hole(port);
 	exit(0);
     }
-    close(soc);
   }
 }
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
 
 
 
-if(get_port_state(port))
+
+if ( get_kb_item("www/no404/" + port) ) exit(0);
+
+if( can_host_asp(port:port) )
 {
  make_request(port:port, file:"/SiteServer/Admin/knowledge/persmbr/vs.asp"); 
  make_request(port:port, file:"/SiteServer/Admin/knowledge/persmbr/VsTmPr.asp"); 
  make_request(port:port, file:"/SiteServer/Admin/knowledge/persmbr/VsLsLpRd.asp"); 
  make_request(port:port, file:"/SiteServer/Admin/knowledge/persmbr/VsPrAuoEd.asp"); 
 }
-

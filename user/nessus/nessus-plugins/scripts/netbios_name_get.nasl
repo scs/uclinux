@@ -1,36 +1,35 @@
 #
-# This script was written by Noam Rathaus <noamr@securiteam.com>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
-# Changes by rd :
-# - bug fix in the adaptater conversion
-# - export results in the KB
-#
-# rev 1.5 changes by ky :
-# - added full support for Win2k/WinXP/Win2k3
-# - added export of SMB/username KB
-#
-# rev 1.6 changes by KK :
-# - added export of SMB/messenger KB
+
+
+desc["english"] = "
+Synopsis :
+
+It is possible to obtain the network name of the remote host.
+
+Description :
+
+The remote host listens on udp port 137 and replies to NetBIOS nbtscan
+requests.  By sending a wildcard request it is possible to obtain the
+name of the remote system and the name of its domain. 
+
+Risk factor :
+
+None";
+
 
 if(description)
 {
  script_id(10150);
- script_version ("$Revision: 1.37 $");
- script_cve_id("CAN-1999-0621");
+ script_version ("$Revision: 1.56 $");
+
+ script_cve_id("CVE-1999-0621");
+ script_xref(name:"OSVDB", value:"13577");
  
  name["english"] = "Using NetBIOS to retrieve information from a Windows host";
  script_name(english:name["english"]);
  
- desc["english"] = "The NetBIOS port is open (UDP:137). A remote attacker may use this to gain
-access to sensitive information such as computer name, workgroup/domain
-name, currently logged on user name, etc.
-
-Solution: Block those ports from outside communication
-
-Risk factor : Medium";
-
  script_description(english:desc["english"]);
  
  summary["english"] = "Using NetBIOS to retrieve information from a Windows host";
@@ -38,314 +37,359 @@ Risk factor : Medium";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 1999 SecuriTeam");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  script_dependencies("cifs445.nasl");
  exit(0);
 }
 
-#
-# The script code starts here
-#
 
-function isprint(c)
+global_var wildcard, unique_desc, group_desc, nbname, nbgroup, messenger_count;
+
+nbname = nbgroup = NULL;
+messenger_count = 0;
+
+wildcard = "*" + raw_string (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
+
+unique_desc[0x00] = "Computer name";
+unique_desc[0x01] = "Messenger Service";
+unique_desc[0x03] = "Messenger Service";
+unique_desc[0x06] = "RAS Server Service";
+unique_desc[0x1B] = "Domain Master Browser";
+unique_desc[0x1D] = "Master Browser";
+unique_desc[0x1F] = "NetDDE Service";
+unique_desc[0x20] = "File Server Service";
+unique_desc[0x21] = "Ras Client Service";
+unique_desc[0x22] = "Microsoft Exchange Interchange";
+unique_desc[0x23] = "Microsoft Exchange Store";
+unique_desc[0x24] = "Microsoft Exchange Directory";
+unique_desc[0x2B] = "Lotus Notes Server Service";
+unique_desc[0x30] = "Modem Sharing Server Service";
+unique_desc[0x31] = "Modem Sharing Client Service";
+unique_desc[0x43] = "SMS Client Remote Control";
+unique_desc[0x44] = "SMS Administrators Remote Control Tool";
+unique_desc[0x45] = "SMS Clients Remote Chat";
+unique_desc[0x46] = "SMS Clients Remote Transfer";
+unique_desc[0x4C] = "DEC Pathworks TCPIP service on Windows NT";
+unique_desc[0x52] = "DEC Pathworks TCPIP service on Windows NT";
+unique_desc[0x87] = "Microsoft Exchange MTA";
+unique_desc[0x6A] = "Microsoft Exchange IMC";
+unique_desc[0xBE] = "Network Monitor Agent";
+unique_desc[0xBF] = "Network Monitor Application";
+
+group_desc[0x00] = "Workgroup / Domain name";
+group_desc[0x01] = "Master Browser";
+group_desc[0x1C] = "Domain Controllers";
+group_desc[0x1E] = "Browser Service Elections";
+group_desc[0x2F] = "Lotus Notes";
+group_desc[0x33] = "Lotus Notes";
+
+
+function raw_byte (b)
 {
- min = ord("!");
- max = ord("~");
- ordc = ord(c);
- if(ordc > max)return(FALSE);
- if(ordc < min)return(FALSE);
- return(TRUE);
+ return raw_string (b);
 }
 
-# do not test this bug locally
+function get_byte (blob, pos)
+{
+ return ord(blob[pos]);
+}
 
-NETBIOS_LEN = 50;
+function get_word (blob, pos)
+{
+ return (ord(blob[pos]) << 8) + ord(blob[pos+1]);
+}
 
+function get_dword (blob, pos)
+{
+ return (ord(blob[pos]) << 24) + (ord(blob[pos+1]) << 16) + (ord(blob[pos+2]) << 8) + ord(blob[pos+3]);
+}
 
-sendata = raw_string(
-rand()%255, rand()%255, 0x00, 0x00, 0x00,
-0x01, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x20, 0x43, 0x4B,
-0x41, 0x41, 0x41, 0x41, 0x41,
-0x41, 0x41, 0x41, 0x41, 0x41,
-0x41, 0x41, 0x41, 0x41, 0x41,
-0x41, 0x41, 0x41, 0x41, 0x41,
-0x41, 0x41, 0x41, 0x41, 0x41,
-0x41, 0x41, 0x41, 0x41, 0x41,
-0x00, 0x00, 0x21, 0x00, 0x01
-			);
+function netbios_encode(data,service)
+{
+ local_var tmpdata, ret, i, o, odiv, omod, c;
 
-hostname_found = 0;
-group_found = 0;
-messenger_found = 0;
-candidate = "";
+ ret = "";
+ tmpdata = data;
 
-if(!(get_udp_port_state(137))){
-	set_kb_item(name:"SMB/name", value:"*SMBSERVER");
-	exit(0);
-	}
-	
-dsport = 137;
-soc = open_sock_udp(137);
-send(socket:soc, data:sendata, length:NETBIOS_LEN);
-
-result = recv(socket:soc, length:4096);
-
-if (strlen(result) > 56)
-{  
- hole_answer = "";
-
- hole_data = result;
-
- location = 0;
- location = location + 56;
- 
- num_of_names = ord(hole_data[location]);
- if (num_of_names > 0)
+ while (strlen(tmpdata) < 16)
  {
-  hole_answer = string(hole_answer, "The following ",	num_of_names,
-	" NetBIOS names have been gathered :\n");
+   tmpdata += " ";
  }
 
- location = location + 1;
-
- for (name_count = 0; name_count < num_of_names; name_count = name_count + 1)
+ for(i=0;i<16;i++)
  {
-  name = "";
-  for (name_copy = 0; name_copy < 15; name_copy = name_copy + 1)
-  {
-   loc = location+name_copy+name_count*18;
-   if(isprint(c:hole_data[location+name_copy+name_count*18]))
-   {
-    name = string(name, hole_data[location+name_copy+name_count*18]);
-   }
-   else
-    name = string(name, " ");
-  }
-  loc = location+16+name_count*18;
- 
-   
-  # Win2k/WinXP sends 0xc4-196 and 0x44-68 as the loc name flags
-  if(hole_data[loc] == raw_string(68))
-  {
-   subloc = location+15+name_count*18;
-   if(ord(hole_data[subloc])==32)
-   {
-    if(!hostname_found && name)
-    {
-     set_kb_item(name:"SMB/name", value:name);
-     hostname_found = 1;
-    }
-   }
-   else if(ord(hole_data[subloc])==0)
-   {
-    candidate = name;
-    if(!("~" >< name))
-    {
-     if(!hostname_found && name)
-     {
-      set_kb_item(name:"SMB/name", value:name);
-      hostname_found = 1;
-     }
-    }
-   }
-   # Set the current logged in user based on the last entry
-   if (hole_data[subloc] == raw_string(3))
-   {
-    # Ugh, we can get multiple usernames with TS or Citrix
-    # Also, the entry is the same for the local workstation or user name
-    username = name;
-    name = name + " = This is the current logged in user or registered workstation name.";
-   }
-        
-   if(ord(hole_data[subloc]) == 27)
-   {
-    if(!group_found && name)
-    {
-     set_kb_item(name:"SMB/workgroup", value:name);
-     group_found = 1;
-    }
-   }
+   o = ord(tmpdata[i]);
+   odiv = o/16;
+   odiv = odiv + ord("A");
+   omod = o%16;
+   omod = omod + ord("A");
+   c = raw_string(odiv, omod);
 
-   if (hole_data[subloc] == raw_string(1))
-   {
-    name = name + " = Computer name that is registered for the messenger service on a computer that is a WINS client.";
-    messenger_found = 1;
-    messenger = name;
-   }
-   if (hole_data[subloc] == raw_string(190))
-   {
-    name = name + " = A unique name that is registered when the Network Monitor agent is started on the computer";
-   }
-   if (hole_data[subloc] == raw_string(31))
-   {
-    name = name + " = A unique name that is registered for Network dynamic data exchange (DDE) when the NetDDE service is started on the 
-computer.";
-   }
-   
-   
-  }
-
-  # Set the workgroup info on WinXP
-  if (hole_data[loc] == raw_string(196))
-  {
-   subloc = location+15+name_count*18;
-   
-   if (hole_data[subloc] == raw_string(0))  
-   {
-    if(!group_found && name)
-    {
-      set_kb_item(name:"SMB/workgroup", value:name);
-      group_found = 1;
-    }
-    name = name + " = Workgroup / Domain name";
-   }
-   if (hole_data[subloc] == raw_string(30))  
-   {
-    name = name + " = Workgroup / Domain name (part of the Browser elections)";
-   }
-   if (hole_data[subloc] == raw_string(27))  
-   {
-    name = name + " = Workgroup / Domain name (elected Master Browser)";
-   }
-   if (hole_data[subloc] == raw_string(28))  
-   {
-    name = name + " = Workgroup / Domain name (Domain Controller)";
-   }
-   if (hole_data[subloc] == raw_string(191))  
-   {
-    name = name + " = A group name that is registered when the Network Monitor agent is started on the computer.";
-   }
-  }
-
-  # WinNT sends 0x04-4 and 0x84-132 as the loc name flags
-  if (hole_data[loc] == raw_string(4))
-  {
-   subloc = location+15+name_count*18;
-
-   if (hole_data[subloc] == raw_string(0))
-   {
-    if(!hostname_found && name)
-    {
-     set_kb_item(name:"SMB/name", value:name);
-     hostname_found = 1;
-    }
-    name = name + " = This is the computer name registered for workstation services by a WINS client.";
-   }
-
-   # Set the current logged in user based on the last entry
-   if (hole_data[subloc] == raw_string(3))
-   {
-   {
-    # Ugh, we can get multiple usernames with TS or Citrix
-    username = name;
-    name = name + " = This is the current logged in user registered for this workstation.";
-   }
-   }
-
-   if (hole_data[subloc] == raw_string(1))
-   {
-    name = name + " = Computer name that is registered for the messenger service on a computer that is a WINS client.";
-    messenger_found = 1;
-    messenger = name;
-   }
-   if (hole_data[subloc] == raw_string(190))
-   {
-    name = name + " = A unique name that is registered when the Network Monitor agent is started on the computer";
-   }
-   if (hole_data[subloc] == raw_string(31))
-   {
-    name = name + " = A unique name that is registered for Network dynamic data exchange (DDE) when the NetDDE service is started on the 
-computer.";
-   }   
-   
-  }
-
-  loc = location+16+name_count*18;
-
- 
-  
-  # Set the workgroup info on WinNT  
-  if (hole_data[loc] == raw_string(132))
-  {
-   subloc = location+15+name_count*18;
-   
-   if (hole_data[subloc] == raw_string(0))  
-   {
-    if(!group_found && name)
-    {
-      set_kb_item(name:"SMB/workgroup", value:name);
-      group_found = 1;
-    }
-    name = name + " = Workgroup / Domain name";
-   }
-   if (hole_data[subloc] == raw_string(30))  
-   {
-    name = name + " = Workgroup / Domain name (part of the Browser elections)";
-   }
-   if (hole_data[subloc] == raw_string(27))  
-   {
-    name = name + " = Workgroup / Domain name (elected Master Browser)";
-   }
-   if (hole_data[subloc] == raw_string(28))  
-   {
-    name = name + " = Workgroup / Domain name (Domain Controller)";
-   }
-   if (hole_data[subloc] == raw_string(191))  
-   {
-    name = name + " = A group name that is registered when the Network Monitor agent is started on the computer.";
-   }
-   
-  }
-  
-
-  hole_answer = hole_answer + " " + name + string("\n");
+   ret = ret+c;
  }
 
- 
- location = location + num_of_names*18;
+ return raw_byte (b:strlen(ret)) + ret + raw_byte (b:service);
+}
 
- adapter_name = "";
- for (adapter_count = 0; adapter_count < 6; adapter_count = adapter_count + 1)
+function netbios_decode(name)
+{
+ local_var tmpdata, ret, i, o, odiv, omod, c;
+
+ ret = NULL;
+
+ for(i=0;i<32;i+=2)
  {
-  loc = location + adapter_count;
-  adapter_name = adapter_name + string(hex(ord(hole_data[loc])), " ");
+   ret += raw_string ( ((ord(name[i]) - ord("A")) * 16) + (ord(name[i+1]) - ord("A")) );
  }
- if(adapter_name == "0x00 0x00 0x00 0x00 0x00 0x00 ")
+ 
+ return ret;
+}
+
+function htons(n)
+{
+  return raw_string((n >>> 8) & 0xFF, n & 0xFF);
+}
+
+
+function parse_wildcard_response (rep, id)
+{
+ local_var r_id, flag, questions, answer, authority, additionnal, nbt_length, nbt_encoded, nbt_name;
+ local_var pos, service, type, class, ttl, dlen, data, num, names, i;
+
+ r_id = get_word (blob:rep, pos:0);
+ # if it is not our id we leave
+ if (r_id != id)
+   return NULL;
+
+ flag = get_word (blob:rep, pos:2);
+ # if the error code is != from 0 we leave
+ if (flag & 127)
+   return NULL;
+
+ questions = get_word (blob:rep, pos:4);
+ if (questions != 0)
+   return NULL;
+
+ answer = get_word (blob:rep, pos:6);
+ authority = get_word (blob:rep, pos:8);
+ additionnal = get_word (blob:rep, pos:10);
+
+ nbt_length = get_byte (blob:rep, pos:12);
+ if (strlen (rep) < 12 + nbt_length)
+   return NULL;
+
+ nbt_encoded = substr (rep, 13, 13+nbt_length-1);
+ nbt_name = netbios_decode (name:nbt_encoded);
+ if (nbt_name != wildcard)
+   return NULL;
+
+ pos = 13 + nbt_length;
+ service = get_byte (blob:rep, pos:pos);
+ pos++;
+
+ type = get_word (blob:rep, pos:pos);
+ if (type != 0x21)
+   return NULL;
+
+ class = get_word (blob:rep, pos:pos+2);
+ if (class != 1)
+   return NULL;
+
+ ttl = get_dword (blob:rep, pos:pos+4);
+ dlen = get_word (blob:rep, pos:pos+8);
+ pos = pos + 10;
+
+ if (strlen(rep) < pos + dlen)
+   return NULL; 
+
+ data = substr(rep, pos, pos+dlen-1);
+
+ num = get_byte (blob:data, pos:0);
+ if (strlen(data)-1 < num*18)
+   return NULL;
+
+ pos = 1;
+ names = make_list ();
+
+ for (i=0; i <num; i++)
  {
-   set_kb_item(name:"SMB/samba", value:TRUE);  
-   hole_answer = hole_answer + string("\n. This SMB server seems to be a SAMBA server (this is not a security
-risk, this is for your information). This can be told because this server 
-claims to have a null MAC address");
+  names[i] = substr(data, pos, pos+17);
+  pos += 18;
  }
+
+ # MAC address
+ names[i] = substr(data,pos,pos+5);
+
+ return names;
+}
+
+function netbios_wildcard_request (socket)
+{
+ local_var netbios_name, id, name_query_request, buf;
+
+ netbios_name = netbios_encode (data:wildcard, service:0x00);
+
+ id = rand() % 65535;
+
+ name_query_request = raw_string (
+	htons (n:id)          + # transaction ID
+	htons (n:0)           + # Flags (0 == query)
+	htons (n:1)           + # qdcount == 1
+	htons (n:0)           + # answer
+	htons (n:0)           + # authority
+	htons (n:0)           + # additionnal
+	netbios_name          + #
+        htons (n:0x21)        + # question type = NBSTAT
+	htons (n:1)             # question class = IN
+	);
+
+ send (socket:socket, data:name_query_request);
+ buf = recv (socket:socket, length:4096);
+
+ if (strlen(buf) < 50)
+   return NULL;
+
+ return parse_wildcard_response (rep:buf, id:id);
+}
+
+function parse_name (name)
+{
+ local_var tmp, ret;
+
+ tmp = substr (name, 0, 14);
+ tmp = ereg_replace(pattern:"([^ ]*) *$", string:tmp, replace:"\1");
+
+ # "\x01\x02__MSBROWSE__\x02"
+ if (hexstr(tmp) == "01025f5f4d5342524f5753455f5f02")
+   tmp = "__MSBROWSE__";
+
+ ret = make_list();
+ ret[0] = tmp;
+ ret[1] = ord(name[15]);
+ ret[2] = get_word (blob:name, pos:16);
+
+ return ret;
+}
+
+
+function get_description (name, number, flags)
+{
+ local_var desc;
+
+ # Group
+ if (flags & 0x8000)
+ {
+  desc = group_desc[number];
+  if (isnull(nbgroup) && !isnull(desc))
+  {
+   if (((number == 0x00) || (number == 0x1C)) && (!egrep(pattern:"^INet~", string:name)))
+     nbgroup = name;
+  }
+  if (!isnull(desc) && (number == 0x1C) && (egrep(pattern:"^INet~", string:name)))
+    desc += " (IIS)";
+ }
+ # Unique
  else
  {
-  hole_answer = hole_answer + string("The remote host has the following MAC address on its adapter :\n");
-  hole_answer = hole_answer + "   " + adapter_name;
+  if (number == 0x03)
+  {
+   if (messenger_count != 1)
+   {
+    desc = unique_desc[number];
+    messenger_count++;
+   }
+   else
+   {
+    desc = "Messenger Username";
+    set_kb_item (name:"SMB/messenger", value:name);
+   }
+  }
+  else
+  {
+   desc = unique_desc[number];
+   if (isnull(nbname) && !isnull(desc))
+   {
+    if (((number == 0x00) || (number == 0x20)) && (!egrep(pattern:"^IS~", string:name)))
+      nbname = name;
+   }
+   if (!isnull(desc) && (number == 0x00) && (egrep(pattern:"^IS~", string:name)))
+     desc += " (IIS)";
+  }
  }
- hole_answer = hole_answer + string("\n\nIf you do not want to allow everyone to find the NetBios name\nof your computer, you should filter incoming traffic to this port.\n\nRisk factor : Medium");
- security_warning(port:137, data:hole_answer, protocol:"udp");
+
+ if (strlen(desc) <= 0)
+   desc = "Unknown usage";
+
+ return desc;
 }
- if(!hostname_found)
-     {
-      if(candidate)
-      {
-      set_kb_item(name:"SMB/name", value:candidate);
-      hostname_found = 1;
-      }
-      else set_kb_item(name:"SMB/name", value:"*SMBSERVER");
-     }
 
- if (username)
-     {
-	set_kb_item(name:"SMB/username", value:username);
-     }
 
- if (messenger_found && messenger)
-     {
-	set_kb_item(name:"SMB/username", value:messenger);
-     }
+## Main code ##
 
-close(soc);
+port = 137;
+
+soc = open_sock_udp (port);
+if (soc)
+{
+ rep = netbios_wildcard_request (socket:soc);
+
+ if (!isnull(rep))
+ {
+  set_kb_item(name:"SMB/NetBIOS/137", value:TRUE);
+
+  report =   string("The following ", max_index(rep)-1, " NetBIOS names have been gathered :\n\n");
+
+  for (i=0; i<max_index(rep)-1; i++)
+  {
+   name = rep[i];
+   val = parse_name (name:name);
+   description = get_description (name:val[0], number:val[1], flags:val[2]);
+
+   report += string(" ", val[0], crap(data:" ", length:16 - strlen(val[0]))," = ",description,"\n");
+  }
+
+  mac = rep[max_index(rep)-1];
+
+ if(hexstr(mac) == "000000000000")
+ {
+   set_kb_item(name:"SMB/samba", value:TRUE);  
+   report += string("\nThis SMB server seems to be a SAMBA server (MAC address is NULL).");
+ }
+ else
+  {
+  macstr = strcat ( hexstr(mac[0]), ":",
+		hexstr(mac[1]), ":",
+		hexstr(mac[2]), ":",
+		hexstr(mac[3]), ":",
+		hexstr(mac[4]), ":",
+		hexstr(mac[5]) );
+  set_kb_item(name:"SMB/mac_addr", value:macstr);
+
+  report += string("\nThe remote host has the following MAC address on its adapter :\n   ", macstr);
+  }
+
+  report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		report);
+
+  security_note (port:port, data:report);
+ }
+}
+
+if (!isnull(nbname))
+{
+ set_kb_item(name:"SMB/name", value:nbname);
+ set_kb_item(name:"SMB/netbios_name", value:TRUE);
+}
+else
+{
+ set_kb_item(name:"SMB/name", value:get_host_ip());
+ set_kb_item(name:"SMB/netbios_name", value:FALSE);
+}
+
+if (!isnull(nbgroup))
+{
+ set_kb_item(name:"SMB/workgroup", value:nbgroup);
+}

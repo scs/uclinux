@@ -7,7 +7,7 @@
  *    - Something I do not like is that it looks like we use non
  *      reentrant functions in the signal handlers (log, etc).
  *
- * $Id$
+ * $Id: signal.c,v 1.8 1999/10/09 20:13:04 marcs Exp $
  *
  */
 

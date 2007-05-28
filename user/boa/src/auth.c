@@ -32,7 +32,7 @@
 #ifdef SHADOW_AUTH
 #include <shadow.h>
 #endif
-#ifdef OLD_CONFIG_PASSWORDS
+#ifdef CONFIG_USER_OLD_PASSWORDS
 #include <crypt_old.h>
 #endif
 #ifdef EMBED
@@ -57,7 +57,7 @@ struct _auth_dir_ {
 typedef struct _auth_dir_ auth_dir;
 
 static auth_dir *auth_hashtable [AUTH_HASHTABLE_SIZE];
-#ifdef OLD_CONFIG_PASSWORDS
+#ifdef CONFIG_USER_OLD_PASSWORDS
 char auth_old_password[16];
 #endif
 
@@ -274,7 +274,7 @@ int auth_check_userpass(char *user,char *pass,FILE *authfile)
 		if (strcmp(crypt(pass, pwp->pw_passwd), pwp->pw_passwd) == 0)
 			return 0;
 	} else 
-#ifdef OLD_CONFIG_PASSWORDS
+#ifdef CONFIG_USER_OLD_PASSWORDS
 	/* For backwards compatibility we allow the global root password to work too */
 	if ((auth_old_password[0] != '\0') && 
 			((*user == '\0') || (strcmp(user, "root") == 0))) {
@@ -284,7 +284,7 @@ int auth_check_userpass(char *user,char *pass,FILE *authfile)
 			return 0;
 		}
 	} else
-#endif	/* OLD_CONFIG_PASSWORDS */
+#endif	/* CONFIG_USER_OLD_PASSWORDS */
 		return 2;
 
 #endif	/* ! EMBED */

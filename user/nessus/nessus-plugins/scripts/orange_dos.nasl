@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10636);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CAN-2001-0647");
- script_bugtraq_id(2432);
+ script_bugtraq_id(20010227, 2432);
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-2001-0647");
  
  name["english"] = "Orange DoS";
  name["francais"] = "Orange DoS";
@@ -25,7 +25,7 @@ prevent this host from fulfilling
 its role
 
 Solution : contact your vendor for a patch
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Il s'est avéré
@@ -54,14 +54,16 @@ Facteur de risque : Sérieux";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencies("find_service.nes");
+ script_dependencies("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
 
+include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);

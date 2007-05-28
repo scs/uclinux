@@ -3,7 +3,7 @@
 #
 # This is the Makefile for libpvf.
 #
-# $Id$
+# $Id: Makefile,v 1.5 2000/07/22 10:01:01 marcs Exp $
 #
 
 PVFOBJS=au.o fft.o lib.o linear.o multitech.o rockwell.o usr.o voc.o wav.o \

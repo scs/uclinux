@@ -1,27 +1,37 @@
-
 # -*- sh -*-
 
 # $Id$
-MY_CFLAGS = -Iinclude -I.
+
+#
+# These flags are used for build native versions of the tools for the
+# host system so it can generate images etc
+#
+MY_CFLAGS = -I/usr/include -I.
 BUILD_CFLAGS += $(MY_CFLAGS)
 BUILD_CC = gcc
-CFLAGS += -D__USE_BSD -I$(ROOTDIR)/lib/zlib -I./include
-LDFLAGS += -L$(ROOTDIR)/lib/zlib
+CFLAGS += -D__USE_BSD -I.
 
-TARGETS = ftl_format flash_erase flash_eraseall nanddump doc_loadbios \
-	mkfs.jffs ftl_check mkfs.jffs2 flash_lock flash_unlock flash_info \
-	flash_otp_info flash_otp_dump mtd_debug flashcp nandwrite \
-	jffs2dump \
-	nftldump nftl_format docfdisk \
-	rfddump rfdformat \
-	#jffs2reader 
+TARGETS_$(CONFIG_USER_MTDUTILS_ERASE)		+= erase
+TARGETS_$(CONFIG_USER_MTDUTILS_ERASEALL)	+= eraseall
+TARGETS_$(CONFIG_USER_MTDUTILS_FTL_CHECK)	+= ftl_check
+TARGETS_$(CONFIG_USER_MTDUTILS_FTL_FORMAT)	+= ftl_format
+TARGETS_$(CONFIG_USER_MTDUTILS_NFTL_FORMAT)	+= nftl_format
+TARGETS_$(CONFIG_USER_MTDUTILS_NFTLDUMP)	+= nftldump
+TARGETS_$(CONFIG_USER_MTDUTILS_NANDDUMP)	+= nanddump
+TARGETS_$(CONFIG_USER_MTDUTILS_NANDTEST)	+= nandtest
+TARGETS_$(CONFIG_USER_MTDUTILS_NANDWRITE)	+= nandwrite
+TARGETS_$(CONFIG_USER_MTDUTILS_DOC_LOADBIOS)	+= doc_loadbios
+TARGETS_$(CONFIG_USER_MTDUTILS_DOC_LOADIPL)	+= doc_loadipl
+TARGETS_$(CONFIG_USER_MTDUTILS_MKFSJFFS)	+= mkfs.jffs
+TARGETS_$(CONFIG_USER_MTDUTILS_MKFSJFFS2)	+= mkfs.jffs2
 
-BUILD_TARGETS = $(patsubst %,build/%,$(TARGETS))
+# Host based builds needed for constructing host images
+TARGETS_$(CONFIG_JFFS_FS)			+= build/mkfs.jffs
+TARGETS_$(CONFIG_JFFS2_FS)			+= build/mkfs.jffs2
+
 
 SYMLINKS = 
-JFFS2_OBJS = crc32.o mkfs.jffs2.o compr_zlib.o compr_rtime.o compr.o
-ERASEALL_OBJS = crc32.o flash_eraseall.o
-DUMP_OBJS = crc32.o jffs2dump.o
+JFFS2_OBJS = crc32.o mkfs.jffs2.o compr_zlib.o compr_rtime.o
 
 ifeq ($(LINUXDIR),linux-2.2.x)
 SYMLINKS += compr_rubin.h compr_rubin.c compr.c histo_mips.h pushpull.h pushpull.c
@@ -29,23 +39,21 @@ JFFS2_OBJS += compr_rubin.o compr.o pushpull.o
 endif
 
 BUILD_JFFS2_OBJS = $(patsubst %,build/%,$(JFFS2_OBJS))
-BUILD_ERASEALL_OBJS = $(patsubst %,build/%,$(ERASEALL_OBJS))
-BUILD_DUMP_OBJS = $(patsubst %,build/%,$(DUMP_OBJS))
 
-
-all: build $(TARGETS) $(BUILD_TARGETS)
+all: build $(TARGETS_y)
 
 .PHONY:
 build:
 	[ -d build ] || mkdir build
 
 clean:
-	rm -f *.o *.gdb $(TARGETS) $(BUILD_TARGETS) $(SYMLINKS)
+	rm -f $(TARGETS_y) $(TARGETS_n) $(TARGETS_m) $(TARGETS_) $(SYMLINKS)
+	rm -f *.o *.gdb
 	rm -rf build
 
 romfs:
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASE        /bin/flash_erase
-	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASEALL     /bin/flash_eraseall
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASE        /bin/erase
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_ERASEALL     /bin/eraseall
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_FTL_CHECK    /bin/ftl_check
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_FTL_FORMAT   /bin/ftl_format
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_MKFSJFFS     /bin/mkfs.jffs
@@ -53,6 +61,7 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NFTLDUMP     /bin/nftldump
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NFTL_FORMAT  /bin/nftl_format
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NANDDUMP     /bin/nanddump
+	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NANDTEST     /bin/nandtest
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NANDWRITE    /bin/nandwrite
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_DOC_LOADBIOS /bin/doc_loadbios
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_DOC_LOADIPL  /bin/doc_loadipl
@@ -71,23 +80,35 @@ mkfs.jffs2: $(JFFS2_OBJS)
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(LDPATH) -lz $(LDLIBS)
 
 build/mkfs.jffs2: $(BUILD_JFFS2_OBJS)
-	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $^ -lz
+	$(BUILD_CC) -o $@ $^ -lz
 
-flash_eraseall: $(ERASEALL_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
-build/flash_eraseall: $(BUILD_ERASEALL_OBJS)
-	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $^ 
+doc_loadipl: doc_loadipl.o rsencode.o
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(LDPATH) $(LDLIBS)
 
-jffs2reader: jffs2reader.o
-	$(CC) $(LDFLAGS) -o $@ $^ -lz 
+build/doc_loadipl: build/doc_loadipl.o build/rsencode.o
+	$(BUILD_CC) -o $@ $^
 
-jffs2dump: $(DUMP_OBJS)
-	$(CC) $(LDFLAGS) -o $@ $^
-build/jffs2dump: $(BUILD_DUMP_OBJS)
-	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $^
+compr.o: compr.c
+	$(CC) $(CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
+
+build/compr.o: compr.c
+	$(BUILD_CC) $(BUILD_CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
+
+compr_zlib.o: compr_zlib.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+build/compr_zlib.o: compr_zlib.c
+	$(BUILD_CC) $(BUILD_CFLAGS) -Dprintk=printf -DKERN_NOTICE= -DKERN_WARNING= -c -o $@ $<
+
+jffs2reader: jffs2reader.c
+	$(CC) $(LDFLAGS) $(CFLAGS) jffs2reader.c -o jffs2reader $(LDPATH) -lz $(LDLIBS)
+
+build/jffs2reader: jffs2reader.c
+	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $< -lz
 
 build/%.o: %.c
 	$(BUILD_CC) $(BUILD_CFLAGS) -c -o $@ $<
 
 build/%: %.c
 	$(BUILD_CC) $(BUILD_CFLAGS) -o $@ $<
+

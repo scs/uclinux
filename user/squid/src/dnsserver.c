@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: dnsserver.c,v 1.59.2.1 2002/07/01 08:55:46 hno Exp $
  *
  * DEBUG: section 0     DNS Resolver
  * AUTHOR: Harvest Derived

@@ -7,7 +7,7 @@
 #
 # run as filter: cutbl <input | hp2hig3 >output, or so.
 #
-# RCS: $Id$
+# RCS: $Id: cutbl.in,v 1.1 1998/09/29 10:54:07 gert Exp $
 
 $empties=0;
 $blank="\n";

@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10631);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(2453);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2001-0151");
  name["english"] = "IIS propfind DoS";
  name["francais"] = "IIS propfind DoS";
@@ -25,8 +25,8 @@ It was possible to disable the remote IIS server
 by making a specially formed PROPFIND request.
 
 Solution : disable the WebDAV extensions, as well as the PROPFIND command
-http://www.microsoft.com/technet/security/bulletin/MS01-016.asp
-Risk factor : Serious";
+http://www.microsoft.com/technet/security/bulletin/MS01-016.mspx
+Risk factor : High";
 
 
  desc["francais"] = "
@@ -34,8 +34,8 @@ Il s'est avéré possible de désactiver le serveur IIS distant
 en donnant des arguments spéciaux à la commande PROPFIND.
 
 Solution : désactivez les options WebDAV et la command PROPFIND
-	   cf http://www.microsoft.com/technet/security/bulletin/MS01-016.asp
-Facteur de risque : Serieux";
+	   cf http://www.microsoft.com/technet/security/bulletin/MS01-016.mspx
+Facteur de risque : Elevé";
 
  script_description(english:desc["english"],
  		    francais:desc["francais"]);
@@ -50,7 +50,7 @@ Facteur de risque : Serieux";
  script_category(ACT_DENIAL);
 
  # Dependencie(s)
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  
  # Family
  family["english"] = "Denial of Service";
@@ -63,7 +63,6 @@ Facteur de risque : Serieux";
  		  francais:"Ce script est Copyright (C) 2001 Renaud Deraison");
  
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -102,8 +101,11 @@ function dos(port)
  } 
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 
 if(get_port_state(port))
 {

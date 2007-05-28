@@ -1,5 +1,5 @@
 /* Copyright 1998 by Andi Kleen. Subject to the GPL. */
-/* $Id$ */ 
+/* $Id: nstrcmp.c,v 1.2 1998/11/15 20:11:38 freitag Exp $ */ 
 #include <ctype.h>
 #include <stdlib.h>
 #include "util.h"

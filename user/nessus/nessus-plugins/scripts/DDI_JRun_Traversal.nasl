@@ -10,8 +10,9 @@
 if(description)
 {
     script_id(10997);
-    script_version ("$Revision: 1.8 $");
+    script_cve_id("CVE-2001-1544");
     script_bugtraq_id(3666);
+    script_version ("$Revision: 1.16 $");
     name["english"] = "JRun directory traversal";
     name["francais"] = "JRun directory traversal";
     script_name(english:name["english"], francais:name["francais"]);
@@ -43,7 +44,7 @@ Risk factor : High";
     family["english"] = "CGI abuses";
     family["francais"] = "Abus de CGI";
     script_family(english:family["english"], francais:family["francais"]);
-    script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+    script_dependencie("find_service.nes", "http_version.nasl");
     script_require_ports("Services/www", 8000);
     script_require_keys("www/jrun");
     exit(0);
@@ -54,12 +55,13 @@ Risk factor : High";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
 req_unx = "/../../../../../../../../etc/passwd"; 	pat_unx = "root:";
 req_win = "/..\..\..\..\..\..\..\..\winnt\win.ini"; 	pat_win = "[fonts]";
 
-port = get_kb_item("Services/www");
-if(!port)port = 8000;
+port = get_http_port(default:8000);
+if ( ! port ) exit(0);
 
 wkey = string("web/traversal/", port);
 
@@ -68,12 +70,9 @@ if (trav) exit(0);
 
 if(get_port_state(port))
 {
-    soc = http_open_socket(port);
-    if(!soc)exit(0);
     req = http_get(item:req_unx, port:port);      
-    send(socket:soc, data:req);
-    res = http_recv(socket:soc);
-    http_close_socket(soc);
+    res = http_keepalive_send_recv(data:req, port:port);
+    if ( res == NULL ) exit(0);
     
     if(pat_unx >< res)
     {
@@ -83,12 +82,9 @@ if(get_port_state(port))
         exit(0);
     }
     
-    soc = http_open_socket(port);
-    if(!soc)exit(0);
     req = http_get(item:req_win, port:port);      
-    send(socket:soc, data:req);
-    res = http_recv(socket:soc);
-    http_close_socket(soc);
+    res = http_keepalive_send_recv(port:port, data:req);
+    if ( res == NULL ) exit(0);
 
     if(pat_win >< res)
     {

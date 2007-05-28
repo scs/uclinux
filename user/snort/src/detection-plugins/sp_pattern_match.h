@@ -41,15 +41,17 @@ typedef struct _PatternMatchData
     int nocase;             /* Toggle case insensitity */
     int use_doe;            /* Use the doe_ptr for relative pattern searching */
     u_int pattern_size;     /* size of app layer pattern */
-#ifdef GIDS
     u_int replace_size;     /* size of app layter replace pattern */
     char *replace_buf;      /* app layer pattern to replace with */
-#endif /* GIDS */
     char *pattern_buf;      /* app layer pattern to match on */
     int (*search)(char *, int, struct _PatternMatchData *);  /* search function */
     int *skip_stride; /* B-M skip array */
     int *shift_stride; /* B-M shift array */
+    u_int pattern_max_jump_size; /* Maximum distance we can jump to search for
+                                  * this pattern again. */
     struct _PatternMatchData *next; /* ptr to next match struct */
+    OptFpList *fpl;         /* Pointer to the OTN FPList for this pattern */
+                            /* Needed to be able to set the isRelative flag */
 } PatternMatchData;
 
 void SetupPatternMatch(void);

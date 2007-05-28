@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: nathelper.c,v 1.17.2.1.2.9.2.5 2004/07/15 21:18:34 andrei Exp $
  *
  * Copyright (C) 2003 Porta Software Ltd
  *

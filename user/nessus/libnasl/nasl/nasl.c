@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2005 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -15,16 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  */
 #include <includes.h>
@@ -94,6 +84,7 @@ init(hostname, ip)
  arg_add_value(script_infos, "standalone", ARG_INT, sizeof(int), (void*)1);
  arg_add_value(prefs, "checks_read_timeout", ARG_STRING, 4, estrdup("5"));
  arg_add_value(script_infos, "preferences", ARG_ARGLIST, -1, prefs);
+ arg_add_value(script_infos, "key", ARG_PTR, -1, kb_new());
  
  if(safe_checks_only != 0)
    arg_add_value(prefs, "safe_checks", ARG_STRING, 3, estrdup("yes"));
@@ -107,15 +98,18 @@ init(hostname, ip)
 void
 usage()
 {
- printf("\nnasl -- Copyright (C) 1999 - 2003 Renaud Deraison <deraison@cvs.nessus.org>\n");
- printf("nasl -- Copyright (C) 2002 - 2003 Michel Arboi <arboi@alussinan.org>\n\n");
- printf("Usage : nasl [-vh] [-p] [ -t target ] [-T trace_file] script_file ...\n");
+ printf("nasl -- Copyright (C) 2002 - 2005 Tenable Network Security\n\n");
+ printf("Usage : nasl [-vh] [-p] [ -t target ] [-T trace_file] [-SX] script_file ...\n");
  printf("\t-h : shows this help screen\n");
-  printf("\t-p : parse only - do not execute the script\n");
+ printf("\t-p : parse only - do not execute the script\n");
+ printf("\t-D : run the 'description part' only\n");
+ printf("\t-L : 'lint' the script (extended checks)\n");
  printf("\t-t target : Execute the scripts against the target(s) host\n");
  printf("\t-T file : Trace actions into the file (or '-' for stderr)\n");
  printf("\t-s : specifies that the script should be run with 'safe checks' enabled\n");
  printf("\t-v : shows the version number\n");
+ printf("\t-S : sign the script\n");
+ printf("\t-X : Run the script in 'authenticated' mode\n");
 }
 
 extern FILE	*nasl_trace_fp;
@@ -136,14 +130,35 @@ int main(int argc, char ** argv)
  int start, n; 
  char hostname[1024];
  int	mode = 0;
- 
+ int	err = 0;
+
  /*--------------------------------------------
  	Command-line options
   ---------------------------------------------*/
   
- while((i = getopt(argc, argv, "hvt:k:T:sp"))!=EOF)
+ mode |= NASL_COMMAND_LINE;
+ while((i = getopt(argc, argv, "hvt:k:T:spS:XDL"))!=EOF)
   switch(i)
   {
+   case 'S' :
+	if ( optarg == NULL ) {
+		usage();
+		exit(1);
+		}
+
+	nessus_SSL_init(NULL);
+	generate_signed_script(optarg);
+	exit(0);
+	break;	
+   case 'X' :
+	mode |= NASL_ALWAYS_SIGNED;
+	break;
+   case 'D' :
+	mode |= NASL_EXEC_DESCR;
+	break;
+   case 'L' :
+	mode |= NASL_LINT;
+	break;
    case 't' :
    	if(optarg)target = strdup(optarg);
 	else {
@@ -167,6 +182,11 @@ int main(int argc, char ** argv)
 	     perror(optarg);
 	     exit(2);
 	   }
+#ifdef _IOLBF
+	 setvbuf(fp, NULL, _IOLBF, BUFSIZ);
+#else
+	 setlinebuf(fp);
+#endif
 	 nasl_trace_fp = fp;
        }
      break;
@@ -183,8 +203,7 @@ int main(int argc, char ** argv)
 	break;
  case 'v' :
  	printf("nasl %s\n\n", nasl_version());
-	printf("Copyright (C) 1999 - 2003 Renaud Deraison <deraison@cvs.nessus.org>\n");
-	printf("Copyright (C) 2002 - 2003 Michel Arboi <arboi@noos.fr>\n\n");
+	printf("Copyright (C) 2002 - 2004 Tenable Network Security\n\n");
 	printf("See the license for details\n\n\n");
 	exit(0);
 	break;
@@ -196,6 +215,7 @@ int main(int argc, char ** argv)
  }
  
  
+ nessus_SSL_init(NULL);
  if(!argv[optind])
  { 
   fprintf(stderr, "Error. No input file specified !\n");
@@ -203,7 +223,7 @@ int main(int argc, char ** argv)
  }
  
 #ifndef _CYGWIN_
- if(geteuid())
+ if(! (mode & (NASL_EXEC_PARSE_ONLY|NASL_LINT)) && geteuid())
  {
   fprintf(stderr, "** WARNING : packet forgery will not work\n");
   fprintf(stderr, "** as NASL is not running as root\n");
@@ -236,12 +256,17 @@ int main(int argc, char ** argv)
  n = start;
  while(argv[n])
   {
-  execute_nasl_script(script_infos, argv[n], mode);
+    if (execute_nasl_script(script_infos, argv[n], NULL, mode) < 0)
+      err ++;
   n++;
   }
  }
+
+ if (nasl_trace_fp != NULL) fflush(nasl_trace_fp);
+
 #ifndef __UCLIBC__
  hg_cleanup(hg_globals);
 #endif
- return(0);
+
+ return err;
 }

@@ -14,7 +14,10 @@
 if(description)
 {
  script_id(11596);
- script_version ("$Revision: 1.3 $");
+ script_bugtraq_id(7511, 7513, 7514, 7524, 7527, 7528);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2003-0266", "CVE-2003-0267", "CVE-2003-0268");
+
  name["english"] = "SLMail WebMail overflows";
  script_name(english:name["english"]);
  
@@ -27,7 +30,7 @@ on this host or read arbitrary files.
 
 
 Solution : Upgrade to the latest version of SLWebMail 3
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -43,6 +46,7 @@ Risk Factor : High";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -53,8 +57,8 @@ Risk Factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 no404 = get_kb_item(string("www/", port, "/no404"));
 if(no404)exit(0);

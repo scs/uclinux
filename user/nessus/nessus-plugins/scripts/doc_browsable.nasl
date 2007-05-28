@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(10056);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(318);
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0678");
  name["english"] = "/doc directory browsable ?";
  script_name(english:name["english"]);
@@ -41,7 +41,7 @@ Risk factor : High";
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -50,26 +50,20 @@ Risk factor : High";
 # The script code starts here
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  data = http_get(item:"/doc/", port:port);
- soc = http_open_socket(port);
- if(soc)
- {
-  send(socket:soc, data:data);
-  code = recv_line(socket:soc, length:1024);
-  buf = http_recv(socket:soc);
-  buf = tolower(buf);
-  must_see = "index of /doc";
+ buf = http_keepalive_send_recv(port:port, data:data);
+ buf = tolower(buf);
+ must_see = "index of /doc";
 
-  if((ereg(string:code, pattern:"^HTTP/[0-9]\.[0-9] 200 "))&&(must_see >< buf)){
+  if((ereg(string:buf, pattern:"^http/[0-9]\.[0-9] 200 "))&&(must_see >< buf)){
     	security_warning(port);
 	set_kb_item(name:"www/doc_browseable", value:TRUE);
   }
-  http_close_socket(soc);
- }
 }
 

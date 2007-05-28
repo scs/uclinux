@@ -20,27 +20,13 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <fcntl.h>
-#ifdef EMBED
-#include <syslog.h>
-#endif
 #include "pptp_callmgr.h"
 #include "pptp_msg.h"
 #include "pptp_gre.h"
 #include "version.h"
 #include "inststr.h"
 #include "pty.h"
-
-#ifdef EMBED
-#define	pptp_error(a...) syslog(LOG_INFO, ##a)
-#else
-#define	pptp_error(a...) ({ fprintf(stderr, ##a); fprintf(stderr, "\n"); })
-#endif
-
-#ifdef PPTPDEBUG
-#define pptp_debug(a...) pptp_error(##a)
-#else
-#define pptp_debug(a...)
-#endif
+#include "util.h"
 
 static char *call_id_str = NULL;
 
@@ -97,9 +83,7 @@ int main(int argc, char **argv, char **envp) {
   u_int16_t call_id, peer_call_id;
   char *cp;
   
-#ifdef EMBED
-  openlog(argv[0],LOG_PID,LOG_USER);
-#endif
+  openlog("pptp",LOG_PID,0);
 
   if (argc < 2)
     usage(argv[0]);
@@ -130,7 +114,7 @@ int main(int argc, char **argv, char **envp) {
    */
   gre_fd = socket(AF_INET, SOCK_RAW, PPTP_PROTO);
   if (gre_fd < 0) {
-	pptp_error("socket: %s\n", strerror(errno));
+	logmsg("socket: %s", strerror(errno));
     sleep(RESPAWN_DELAY);
 	exit(1);
   }
@@ -142,7 +126,7 @@ int main(int argc, char **argv, char **envp) {
 	callmgr_sock = open_callmgr(inetaddr, argc,argv,envp);
 	if(callmgr_sock < 0){
       close(gre_fd);
-	  pptp_error("Could not open connection to call manager - terminating");
+	  logmsg("Could not open connection to call manager - terminating");
 	  sleep(RESPAWN_DELAY);
 	  exit(1);
 	}
@@ -157,7 +141,7 @@ int main(int argc, char **argv, char **envp) {
 
   /* Step 3: Find an open pty/tty pair. */
   if (openpty(&pty_fd, &tty_fd, ttydev, NULL, NULL) == -1) {
-	pptp_error("Could not find free pty, %d.", errno);
+	logmsg("Could not find free pty, %d.", errno);
     close(gre_fd);
     close(callmgr_sock);
 	sleep(RESPAWN_DELAY);
@@ -168,7 +152,7 @@ int main(int argc, char **argv, char **envp) {
   if (cp)
 	  *cp = 'p';
   pptp_debug("got a free ttydev");
-  pptp_error("Using pty %s,%s", ptydev, ttydev);
+  logmsg("Using pty %s,%s", ptydev, ttydev);
   
   /* Step 4: fork and wait. */
   signal(SIGUSR1, do_nothing); /* don't die */
@@ -187,7 +171,7 @@ int main(int argc, char **argv, char **envp) {
 	close(pty_fd);
     launch_pppd(ttydev, argc-2, argv+2); /* launch pppd */
 	sleep(RESPAWN_DELAY);
-	exit(1); /* in case launch_pppd returns */
+	_exit(1); /* in case launch_pppd returns */
     break;
   default: /* parent */
     /*
@@ -199,7 +183,7 @@ int main(int argc, char **argv, char **envp) {
 	if (!signaled) {
 	  pause(); /* wait for the signal */
     }
-    pptp_error("Error %s", strerror(errno));
+    logmsg("Error %s", strerror(errno));
 #endif /*0*/
     break;
   }
@@ -252,22 +236,23 @@ struct in_addr get_ip_address(char *name) {
   retval.s_addr = 0;
   for (cp = name; cp && *cp; cp = np) {
 
-    if (np = strchr(cp, ','))
+    if ((np = strchr(cp, ',')) != 0) {
     	*np++ = '\0';
-    pptp_error("Trying host %s ...", cp);
+	}
+    logmsg("Trying host %s ...", cp);
     if (inet_aton(cp, &retval) == 0) {
       struct hostent *host = gethostbyname(cp);
       if (host==NULL) {
 	    if (h_errno == HOST_NOT_FOUND)
-	      pptp_error("gethostbyname: HOST NOT FOUND");
+	      logmsg("gethostbyname: HOST NOT FOUND");
 	    else if (h_errno == NO_ADDRESS)
-	      pptp_error("gethostbyname: NO IP ADDRESS");
+	      logmsg("gethostbyname: NO IP ADDRESS");
 	    else
-	      pptp_error("gethostbyname: name server error");
+	      logmsg("gethostbyname: name server error");
 	    continue;
       }
       if (host->h_addrtype != AF_INET) {
-	    pptp_error("Host has non-internet address");
+	    logmsg("Host has non-internet address");
 	    continue;
 	  }
       memcpy(&retval.s_addr, host->h_addr, sizeof(retval.s_addr));
@@ -282,7 +267,7 @@ struct in_addr get_ip_address(char *name) {
     dest.sin_addr   = retval;
     pptp_debug("socket");
     if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-      pptp_error("Cannot get socket: %s", strerror(errno));
+      logmsg("Cannot get socket: %s", strerror(errno));
       continue;
     }
     pptp_debug("Connect");
@@ -290,13 +275,13 @@ struct in_addr get_ip_address(char *name) {
     alarm(15);
     if (connect(s, (struct sockaddr *) &dest, sizeof(dest)) != -1) {
       alarm(0);
-      pptp_error("Connect succeeded");
+      logmsg("Connect succeeded");
       close(s);
       return(retval);
     }
     alarm(0);
 	close(s);
-    pptp_error("Connect failed: %s",strerror(errno));
+    logmsg("Connect failed: %s",strerror(errno));
   }
   retval.s_addr = 0;
   return retval;
@@ -310,7 +295,7 @@ int open_callmgr(struct in_addr inetaddr, int argc, char **argv, char **envp) {
 
   /* Open socket */
   if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0) {
-    pptp_error("Could not create unix domain socket: %s", strerror(errno));
+    logmsg("Could not create unix domain socket: %s", strerror(errno));
     return(-1);
   }
 
@@ -332,19 +317,19 @@ int open_callmgr(struct in_addr inetaddr, int argc, char **argv, char **envp) {
     else return fd;
   }
   close(fd);
-  pptp_error("Could not launch call manager after %d tries.", i);
+  logmsg("Could not launch call manager after %d tries.", i);
   return -1;   /* make gcc happy */
 }
 
 void launch_callmgr(struct in_addr inetaddr, int argc,char**argv,char**envp) {
   pid_t pid;
-  int status;
+  /*int status;*/
   const char *callmgr = PPTP_CALLMGR_BINARY;
 
   /* fork and launch call manager process */
   switch (pid=vfork()) {
   case -1: /* baaad */
-	pptp_error("callmgr vfork failed: %s", strerror(errno));
+	logmsg("callmgr vfork failed: %s", strerror(errno));
     break;
   case 0: /* child */
     { 
@@ -357,15 +342,15 @@ void launch_callmgr(struct in_addr inetaddr, int argc,char**argv,char**envp) {
       exit(callmgr_main(2, my_argv, envp));
 #endif
       execlp(callmgr, callmgr, inet_ntoa(inetaddr), NULL);
-      pptp_error("execlp() of call manager [%s] failed: %s", 
+      logmsg("execlp() of call manager [%s] failed: %s", 
 	      callmgr, strerror(errno));
-      exit(1); /* or we trash our parents stack */
+      _exit(1); /* or we trash our parents stack */
     }
   default: /* parent */
 #if 0 /* we don't care about status */
     waitpid(pid, &status, 0);
     if (status!=0)
-      pptp_error("Call manager exited with error %d", status);
+      logmsg("Call manager exited with error %d", status);
 #endif
     break;
   }

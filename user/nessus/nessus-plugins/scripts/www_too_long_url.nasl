@@ -29,6 +29,8 @@
 # version 2.5 
 # Polycomm ViaVideo Web component 2.2 & 3.0
 # GazTek HTTP Daemon v1.4-3
+# WebFS 1.20
+# UltraVNC <= 1.0.1
 # 
 ########################
 # References:
@@ -87,14 +89,27 @@
 # Subject: Pyramid Research Project - ghttpd security advisorie
 # From: pyramid-rp@hushmail.com
 #
+# Date: Tue Apr 04 2006 - 14:24:13 CDT
+# To: bugtraq@securityfocus.com
+# Subject: Buffer-overflow in Ultr@VNC 1.0.1 viewer and server
+# From: Luigi Auriemma (aluigiautistici.org)
+#
 ########################
 
 if(description)
 {
  script_id(10320);
- script_version ("$Revision: 1.44 $");
- script_bugtraq_id(2979, 6994, 7067, 7280);
- script_cve_id("CVE-2000-0002", "CVE-2000-0065", "CAN-2001-1250");
+ script_bugtraq_id(889, 1423, 2979, 6994, 7067, 7280, 8726, 17378);
+ script_version ("$Revision: 1.53 $");
+ script_cve_id(
+  "CVE-2000-0002",
+  "CVE-2000-0065",
+  "CVE-2000-0571",
+  "CVE-2001-1250",
+  "CVE-2003-0125",
+  "CVE-2003-0833",
+  "CVE-2006-1652"
+ );
  
  name["english"] = "Too long URL";
  name["francais"] = "URL trop longue";
@@ -139,8 +154,8 @@ Solution : Mettez à jour votre serveur web.";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
-  script_require_ports("Services/www",80);
+ script_dependencie('httpver.nasl', 'www_multiple_get.nasl');
+ script_require_ports("Services/www",80);
  exit(0);
 }
 
@@ -148,19 +163,33 @@ Solution : Mettez à jour votre serveur web.";
 # The script code starts here
 #
 
-
+include('global_settings.inc');
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 
 if(http_is_dead(port:port))exit(0);
 
+# Try to avoid FP on CISCO 7940 phone
+max = get_kb_item('www/multiple_get/'+port);
+if (max)
+{
+ imax = max * 2 / 3;
+ if (imax < 1)
+  imax = 1;
+ else if (imax > 5)
+  imax = 5;
+}
+else
+ imax = 5;
+debug_print('imax=',imax,'\n');
+
 # vWebServer and Small HTTP are vulnerable *if* the URL is requested 
 # a couple of times. Ref: VULN-DEV & BUGTRAQ (2001-09-29)
-for (i = 0; i < 5; i = i + 1)
+for (i = 0; i < imax; i = i + 1)
 {
  soc = http_open_socket(port);
  if(soc)

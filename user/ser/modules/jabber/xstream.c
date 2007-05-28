@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xstream.c,v 1.3 2003/06/02 15:42:21 dcm Exp $
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by

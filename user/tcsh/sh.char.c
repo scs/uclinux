@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.char.c,v 3.13 2000/06/11 02:14:13 kim Exp $ */
 /*
  * sh.char.c: Character classification tables
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: sh.char.c,v 3.13 2000/06/11 02:14:13 kim Exp $")
 
 #include "sh.char.h"
 

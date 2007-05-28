@@ -188,7 +188,6 @@ static void ip_check_options __P((void));
 static int  ip_demand_conf __P((int));
 static int  ip_active_pkt __P((u_char *, int));
 static void add_resolv __P((u_int32_t, u_int32_t));
-static void remove_resolv __P((u_int32_t, u_int32_t));
 
 struct protent ipcp_protent = {
     PPP_IPCP,
@@ -1624,9 +1623,6 @@ ipcp_down(f)
     ipcp_options *go = &ipcp_gotoptions[f->unit];
     IPCPDEBUG(("ipcp: down"));
 
-    /* remove the dns addresses incase we don't finish fast enough */
-    remove_resolv(go->dnsaddr[0], go->dnsaddr[1]);
-
     /* XXX a bit IPv4-centric here, we only need to get the stats
      * before the interface is marked down. */
     update_link_stats(f->unit);
@@ -1797,146 +1793,31 @@ add_resolv(peerdns1, peerdns2)
     u_int32_t peerdns1, peerdns2;
 {
     FILE *f;
-    int fd;
-    FILE *oldf;
-    struct stat buf;
-    char pathname[128];
-    char buffer[128];
+	char pathname[MAXPATHLEN];
 
-    syslog(LOG_INFO,"Adding resolv.conf for %s",ip_ntoa(peerdns1));
-    strcpy(pathname, _PATH_TEMP);
-    fd = mkstemp(pathname);
-    if(fd < 0) {
-        error("Unable to create temporary file");
-        return;
-    }
-    f = fdopen(fd,"w");
-            
+	/* Maybe create something like /var/run/ppp0.resolv */
+	slprintf(pathname, sizeof(pathname), _PATH_RESOLV, ifname);
+
+    f = fopen(pathname, "w");
     if (f == NULL) {
-	error("Failed to open %s: %m", pathname);
-        close(fd);
+	error("Failed to create %s: %m", pathname);
 	return;
     }
-    /* Put the first DNS address first */
-    if (peerdns1)
-	fprintf(f, resolv_nameserver, ip_ntoa(peerdns1));
 
-    oldf = fopen(_PATH_RESOLV,"r");
-    if(oldf != NULL) {
-        while(fgets(buffer, sizeof(buffer), oldf) != NULL) {
-            syslog(LOG_INFO, "read %s", buffer);
-            fputs(buffer,f);
-        }
-        fclose(oldf);
-        if(unlink(_PATH_RESOLV) < 0)
-            error("unable to remove old %s: %m",_PATH_RESOLV);
-    } else
-        error("Could not open %s : %m",_PATH_RESOLV);
+    if (peerdns1) {
+	syslog(LOG_INFO, "Adding resolv.conf for %s",ip_ntoa(peerdns1));
+	fprintf(f, "nameserver %s\n", ip_ntoa(peerdns1));
+    }
 
-    /* Put the second dns address last, that way
-       the other dns address will be searched if
-       the target is not in the first dns servers database
-    */
     if (peerdns2)
-	fprintf(f, resolv_nameserver, ip_ntoa(peerdns2));
+	fprintf(f, "nameserver %s\n", ip_ntoa(peerdns2));
 
     if (ferror(f))
-	error("Write failed to %s: %m", _PATH_RESOLV);
+	error("Write failed to %s: %m", pathname);
+
     fclose(f);
-    if(rename(pathname, _PATH_RESOLV) < 0)
-        error("Unable to rename %s to %s: %m", pathname, _PATH_RESOLV);
-    if (chmod(_PATH_RESOLV, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH) < 0)
-    	error("Unable to change permissions for %s to 666", _PATH_RESOLV);
-    
 }
-static void
-remove_resolv(peerdns1, peerdns2)
-    u_int32_t peerdns1, peerdns2;
-{
-    FILE *f;
-    int fd;
-    FILE *oldf;
-    struct stat buf;
-    char pathname[128];
-    char buffer[128];
-    size_t count;
-    char * dnsname1 = NULL;
-    char * dnsname2 = NULL;
 
-    
-
-    syslog(LOG_INFO,"Removing resolv.conf for %s",ip_ntoa(peerdns1));
-    strcpy(pathname, _PATH_TEMP);
-    fd = mkstemp(pathname);
-    if(fd < 0) {
-        error("Unable to create temporary file");
-        return;
-    }
-    f = fdopen(fd,"w");
-    if (f == NULL) {
-	error("Failed to open %s: %m", pathname);
-        close(fd);
-	return;
-    }
-    oldf = fopen(_PATH_RESOLV,"r");
-    if(oldf == NULL) {
-        fclose(f);
-        error("remove_resolv: %s not found : %m",_PATH_RESOLV);
-	if(unlink(pathname) < 0)
-            error("unable to remove old %s: %m",pathname);
-        return;
-    }
-
-    if(peerdns1) {
-        dnsname1 = (char *)malloc(128);
-        if(dnsname1)
-            sprintf(dnsname1,resolv_nameserver,ip_ntoa(peerdns1));
-    }
-
-    if(peerdns2) {
-        dnsname2 = (char *)malloc(128);
-        if(dnsname2)
-            sprintf(dnsname2,resolv_nameserver,ip_ntoa(peerdns2));
-    }
-
-    while(fgets(buffer, sizeof(buffer), oldf) != NULL) {
-        if(dnsname1 && !strcmp(buffer,dnsname1)) {
-            dbglog("removing %s", buffer);
-            free(dnsname1);
-            dnsname1 = NULL;
-            continue;
-        }
-        if(dnsname2 && !strcmp(buffer,dnsname2)) {
-            dbglog("removing %s", buffer);
-            free(dnsname2);
-            dnsname2 = NULL;
-            continue;
-        }
-        
-        fputs(buffer,f);
-    }
-    if(dnsname1) {
-        error("unable to remove %s",dnsname1);
-        free(dnsname1);
-    }
-    if(dnsname2) {
-        error("unable to remove %s", dnsname2);
-        free(dnsname2);
-    }
-    fclose(oldf);
-    
-    if(unlink(_PATH_RESOLV) < 0)
-        error("unable to remove old %s: %m",_PATH_RESOLV);
-
-    if (ferror(f))
-	error("Write failed to %s: %m", _PATH_RESOLV);
-    fclose(f);
-    if(rename(pathname, _PATH_RESOLV) < 0)
-        error("Unable to rename %s to %s: %m", pathname, _PATH_RESOLV);
-    if (chmod(_PATH_RESOLV, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH) < 0)
-    	error("Unable to change permissions for %s to 666", _PATH_RESOLV);
-
-}
 /*
  * ipcp_printpkt - print the contents of an IPCP packet.
  */

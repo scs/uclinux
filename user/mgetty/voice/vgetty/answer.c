@@ -1,7 +1,7 @@
 /*
  * answer.c
  *
- * $Id$
+ * $Id: answer.c,v 1.22 2002/12/15 19:43:35 gert Exp $
  *
  */
 

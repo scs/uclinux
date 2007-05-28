@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: enum.c,v 1.11.6.1 2004/04/27 22:08:37 jiri Exp $
  *
  * Enum and E164 related functions
  *

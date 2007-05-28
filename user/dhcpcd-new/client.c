@@ -48,9 +48,7 @@
 #include "pathnames.h"
 #include "confdefs.h"
 
-/* This is useless on blackfin and breaks with sanitized headers
-#include <linux/config.h>
-*/
+#include <linux/autoconf.h>
 #ifdef CONFIG_LEDMAN
 #include <linux/ledman.h>
 #endif

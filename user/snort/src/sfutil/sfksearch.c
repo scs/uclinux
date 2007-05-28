@@ -134,14 +134,22 @@ static KTRIEPATTERN * KTrieNewPattern(unsigned char * P, int n)
    /* Save as a nocase string */   
    p->P = (unsigned char*) KTRIE_MALLOC( n );
    if( !p->P ) 
+   {
+       free(p); 
        return 0;
+   }
 
    ConvertCaseEx( p->P, P, n );
 
    /* Save Case specific version */
    p->Pcase = (unsigned char*) KTRIE_MALLOC( n );
    if( !p->Pcase ) 
+   {
+       free(p->P); 
+       free(p); 
        return 0;
+   }
+
    memcpy( p->Pcase, P, n );
    
    p->n    = n;

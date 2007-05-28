@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: permissions.h,v 1.2 2003/09/03 17:13:57 andrei Exp $
  *
  * PERMISSIONS module
  *

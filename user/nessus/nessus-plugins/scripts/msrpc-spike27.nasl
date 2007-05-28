@@ -12,9 +12,10 @@
 
 if (description) {
   script_id(11159);
-  script_version("$Revision: 1.1 $");
-  # script_cve_id( none );
+  script_cve_id("CVE-2002-1561");
+  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0008");
   script_bugtraq_id(6005);
+  script_version("$Revision: 1.5 $");
  
   name["english"] = "MS RPC Services null pointer reference DoS";
   script_name(english:name["english"]);
@@ -242,4 +243,3 @@ while (countdown > 0) {
   countdown = countdown - 1;
   sleep(1);
 }
-

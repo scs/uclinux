@@ -15,9 +15,9 @@ req = string("!", raw_string(0x22),"#?%&/()=?");
 if(description)
 {
  script_id(10967);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CAN-2002-0876");
  script_bugtraq_id(4897);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2002-0876");
  name["english"] = "Shambala web server DoS";
  name["francais"] = "Déni de service contre le serveur web Shambala";
  script_name(english:name["english"], francais:name["francais"]);
@@ -47,8 +47,8 @@ if(description)
 ########
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
   if(http_is_dead(port:port))exit(0);
@@ -60,6 +60,6 @@ if(get_port_state(port))
   r = http_recv(socket:soc);
   http_close_socket(soc);
  
-  if(http_is_dead(port:port))security_hole(port);
+  if(http_is_dead(port:port))security_warning(port);
   }
 }

@@ -12,8 +12,8 @@ if(description)
 
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  script_id(10005);
- script_version ("$Revision: 1.16 $");
- script_cve_id("CAN-1999-0660");
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-1999-0660");
  desc["english"] = "NetSphere is installed. 
 
 This backdoor allows anyone to partially take 

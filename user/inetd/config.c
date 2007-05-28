@@ -22,19 +22,29 @@ ws(char **buf)
 {
   char *b = *buf;
   char *p;
+  char have_quote = 0;
 
   /* eat ws */
   while (*b &&
 	 (*b == ' '  ||
 	  *b == '\n' ||
 	  *b == '\t')) b++;
+
+  if (*b == '"') {
+	have_quote = 1;
+	b++;
+  }
+
   p = b;
 
   /* find the end */
   while (*p &&
-	 !(*p == ' '  ||
-	   *p == '\n' ||
-	   *p == '\t')) p++;
+	 !((!have_quote && (*p == ' '  || *p == '\t')) || 
+	  (have_quote && (*p == '"')) ||
+	  (*p == '\n'))) {
+	p++;
+  }
+
   *p = 0;
   *buf = p+1;
   return b;

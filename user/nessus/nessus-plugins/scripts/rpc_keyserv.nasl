@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10217);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "keyserv service";
  name["francais"] = "Service keyserv";
@@ -24,7 +24,7 @@ This service is necessary to exploit
 some holes in RPC services like
 yppupdated.
 
-Risk factor : Low/Medium";
+Risk factor : Low / Medium";
 
 
  desc["francais"] = "
@@ -67,6 +67,10 @@ Facteur de risque : Faible/Moyen";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 RPC_PROG = 100029;

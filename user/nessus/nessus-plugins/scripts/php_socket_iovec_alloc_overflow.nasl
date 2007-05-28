@@ -16,9 +16,9 @@ if(description)
 {
  script_id(11468);
  script_bugtraq_id(7187, 7197, 7198, 7199, 7210, 7256, 7259);
- script_cve_id("CAN-2003-0172");
+ script_cve_id("CVE-2003-0166");
 
- script_version("$Revision: 1.8 $");
+ script_version("$Revision: 1.14 $");
  name["english"] = "php socket_iovec_alloc() integer overflow";
  
 
@@ -69,26 +69,15 @@ Risk factor : Low";
 #
 
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(get_port_state(port))
-{
- banner = get_http_banner(port:port);
- if(!banner)exit(0);
- serv = strstr(banner, "Server");
- if(ereg(pattern:".*PHP/([1-3]\..*|4\.([0-2]\..*|3\.[0-1]))[^0-9]*", string:serv))
- {
+port = get_http_port(default:80);
+if ( ! port ) exit(0);
+
+banner = get_http_banner(port:port);
+if(!banner)exit(0);
+php = get_php_version(banner:banner);
+if ( ! php ) exit(0);
+
+if(ereg(pattern:"PHP/([1-3]\..*|4\.([0-2]\..*|3\.[0-1]))[^0-9]", string:php))
    security_warning(port);
-   exit(0);
- }
- else
- {
-   serv = strstr(banner, "X-Powered-By:");
-   if(ereg(pattern:".*PHP/([1-3]\..*|4\.([0-2]\..*|3\.[0-1]))[^0-9]*", string:serv))
-   {
-     security_warning(port);
-     exit(0);
-   }
- }
-}

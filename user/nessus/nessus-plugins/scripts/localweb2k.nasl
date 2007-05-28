@@ -5,9 +5,9 @@ if(description)
 
 {
 	script_id(11005);
- 	script_bugtraq_id( 2268, 4820, 7947 );
+	script_bugtraq_id(2268, 4820, 7947);
  	script_cve_id("CVE-2001-0189");
-	script_version("$Revision: 1.8 $");
+	script_version("$Revision: 1.11 $");
 	script_name(english:"LocalWeb2000 remote read");
 
     script_description(english:"
@@ -23,7 +23,7 @@ it receives malformed directory requests.
 
 Solution: Contact http://www.intranet-server.co.uk for an update.
 	
-Risk factor : Serious");
+Risk factor : High");
 
 	script_summary(english:"Checks for LocalWeb2000");
 
@@ -38,8 +38,8 @@ Risk factor : Serious");
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

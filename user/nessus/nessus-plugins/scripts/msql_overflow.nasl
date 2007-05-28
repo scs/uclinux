@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10143);
- script_version ("$Revision: 1.21 $");
  script_bugtraq_id(591);
+ script_version ("$Revision: 1.26 $");
  script_cve_id("CVE-1999-0753");
  name["english"] = "MSQL CGI overflow";
  name["francais"] = "Dépassement de buffer dans le CGI msql";
@@ -57,6 +57,7 @@ Facteur de risque : Elevé";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -67,8 +68,8 @@ Facteur de risque : Elevé";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
@@ -76,11 +77,23 @@ foreach dir (cgi_dirs())
 {
  if(!ereg(pattern:".*\.nsf/.*", string:dir))
  {
+ str = http_get(item:string(dir, "/w3-msql/"), port:port);	 
+ buf = http_keepalive_send_recv(port:port, data:str);
+ if(!buf)exit(0);
+ buf = tolower(buf);
+ if("internal server error" >< buf)
+   exit (0);
+
  str = http_get(item:string(dir, "/w3-msql/", crap(250)),
   		 port:port);	 
  buf = http_keepalive_send_recv(port:port, data:str);
  if(!buf)exit(0);
  buf = tolower(buf);
- if("internal server error" >< buf){security_hole(port);exit(0);}
+ if("internal server error" >< buf && 
+    !egrep(string: buf, pattern: "w3-msql.* not found"))
+ # egrep avoids false positive on Caucho Resin /servlet directory
+ {
+   security_hole(port);exit(0);
+ }
  }
 }

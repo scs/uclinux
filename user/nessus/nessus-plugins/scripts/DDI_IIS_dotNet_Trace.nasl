@@ -6,7 +6,7 @@
 if(description)
 {
     script_id(10993);
-    script_version ("$Revision: 1.4 $");
+    script_version ("$Revision: 1.8 $");
     name["english"] = "IIS ASP.NET Application Trace Enabled";
     script_name(english:name["english"]);
 
@@ -39,8 +39,8 @@ Risk factor : High
     family["francais"] = "Abus de CGI";
 
     script_family(english:family["english"], francais:family["francais"]);
-    script_dependencie("find_service.nes", "http_version.nasl");
-    script_require_keys("www/iis");
+    script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
+    script_require_ports("Services/www", 80);
     exit(0);
 }
 
@@ -50,19 +50,18 @@ Risk factor : High
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)){ exit(0); }
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 
-soc = http_open_socket(port);
-if (!soc) exit(0);
 
 req = http_get(item:"/trace.axd", port:port);
-send(socket:soc, data:req);
-res = http_recv(socket:soc);
+res = http_keepalive_send_recv(port:port, data:req);
 if ("Application Trace" >< res)
 {
     security_hole(port:port);
 }
-http_close_socket(soc);

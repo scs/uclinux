@@ -17,7 +17,9 @@
 if(description)
 {
  script_id(11173);
- script_version("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-2146");
+ script_bugtraq_id(5706);
+ script_version("$Revision: 1.12 $");
  
  name["english"] = "Savant cgitest.exe buffer overflow";
  script_name(english:name["english"]);
@@ -46,6 +48,7 @@ Solution : Upgrade your web server or remove this CGI.";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www",80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -54,8 +57,8 @@ Solution : Upgrade your web server or remove this CGI.";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 

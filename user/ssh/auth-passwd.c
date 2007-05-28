@@ -36,19 +36,33 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-passwd.c,v 1.29 2003/08/26 09:58:43 markus Exp $");
+RCSID("$OpenBSD: auth-passwd.c,v 1.34 2005/07/19 15:32:26 otto Exp $");
 
 #include "packet.h"
+#include "buffer.h"
 #include "log.h"
 #include "servconf.h"
 #include "auth.h"
-#ifdef WITH_AIXAUTHENTICATE
-# include "buffer.h"
-# include "canohost.h"
+#include "auth-options.h"
+
 extern Buffer loginmsg;
+extern ServerOptions options;
+
+#ifdef HAVE_LOGIN_CAP
+extern login_cap_t *lc;
 #endif
 
-extern ServerOptions options;
+
+#define DAY		(24L * 60 * 60) /* 1 day in seconds */
+#define TWO_WEEKS	(2L * 7 * DAY)	/* 2 weeks in seconds */
+
+void
+disable_forwarding(void)
+{
+	no_port_forwarding_flag = 1;
+	no_agent_forwarding_flag = 1;
+	no_x11_forwarding_flag = 1;
+}
 
 /*
  * Tries to authenticate the user using password.  Returns true if
@@ -58,30 +72,27 @@ int
 auth_password(Authctxt *authctxt, const char *password)
 {
 	struct passwd * pw = authctxt->pw;
-	int ok = authctxt->valid;
+	int result, ok = authctxt->valid;
+#if defined(USE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
+	static int expire_checked = 0;
+#endif
 
-	/* deny if no user. */
-	if (pw == NULL)
-		return 0;
 #ifndef HAVE_CYGWIN
-	if (pw && pw->pw_uid == 0 && options.permit_root_login != PERMIT_YES)
+	if (pw->pw_uid == 0 && options.permit_root_login != PERMIT_YES)
 		ok = 0;
 #endif
 	if (*password == '\0' && options.permit_empty_passwd == 0)
 		return 0;
 
-#if defined(HAVE_OSF_SIA)
-	return auth_sia_password(authctxt, password) && ok;
-#else
-# ifdef KRB5
+#ifdef KRB5
 	if (options.kerberos_authentication == 1) {
 		int ret = auth_krb5_password(authctxt, password);
 		if (ret == 1 || ret == 0)
 			return ret && ok;
 		/* Fall back to ordinary passwd authentication. */
 	}
-# endif
-# ifdef HAVE_CYGWIN
+#endif
+#ifdef HAVE_CYGWIN
 	if (is_winnt) {
 		HANDLE hToken = cygwin_logon_user(pw, password);
 
@@ -90,74 +101,105 @@ auth_password(Authctxt *authctxt, const char *password)
 		cygwin_set_impersonation_token(hToken);
 		return ok;
 	}
-# endif
-# ifdef WITH_AIXAUTHENTICATE
-	{
-		char *authmsg = NULL;
-		int reenter = 1;
-		int authsuccess = 0;
-
-		if (authenticate(pw->pw_name, password, &reenter,
-		    &authmsg) == 0 && ok) {
-			char *msg;
-			char *host = 
-			    (char *)get_canonical_hostname(options.use_dns);
-
-			authsuccess = 1;
-			aix_remove_embedded_newlines(authmsg);	
-
-			debug3("AIX/authenticate succeeded for user %s: %.100s",
-				pw->pw_name, authmsg);
-
-	        	/* No pty yet, so just label the line as "ssh" */
-			aix_setauthdb(authctxt->user);
-	        	if (loginsuccess(authctxt->user, host, "ssh", 
-			    &msg) == 0) {
-				if (msg != NULL) {
-					debug("%s: msg %s", __func__, msg);
-					buffer_append(&loginmsg, msg, 
-					    strlen(msg));
-					xfree(msg);
-				}
-			}
-		} else {
-			debug3("AIX/authenticate failed for user %s: %.100s",
-			    pw->pw_name, authmsg);
-		}
-
-		if (authmsg != NULL)
-			xfree(authmsg);
-
-		return authsuccess;
+#endif
+#ifdef USE_PAM
+	if (options.use_pam)
+		return (sshpam_auth_passwd(authctxt, password) && ok);
+#endif
+#if defined(USE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
+	if (!expire_checked) {
+		expire_checked = 1;
+		if (auth_shadow_pwexpired(authctxt))
+			authctxt->force_pwchange = 1;
 	}
-# endif
-# ifdef BSD_AUTH
-	if (auth_userokay(pw->pw_name, authctxt->style, "auth-ssh",
-	    (char *)password) == 0)
-		return 0;
-	else
-		return ok;
-# else
-	{
+#endif
+	result = sys_auth_passwd(authctxt, password);
+	if (authctxt->force_pwchange)
+		disable_forwarding();
+	return (result && ok);
+}
+
+#ifdef BSD_AUTH
+static void
+warn_expiry(Authctxt *authctxt, auth_session_t *as)
+{
+	char buf[256];
+	quad_t pwtimeleft, actimeleft, daysleft, pwwarntime, acwarntime;
+
+	pwwarntime = acwarntime = TWO_WEEKS;
+
+	pwtimeleft = auth_check_change(as);
+	actimeleft = auth_check_expire(as);
+#ifdef HAVE_LOGIN_CAP
+	if (authctxt->valid) {
+		pwwarntime = login_getcaptime(lc, "password-warn", TWO_WEEKS,
+		    TWO_WEEKS);
+		acwarntime = login_getcaptime(lc, "expire-warn", TWO_WEEKS,
+		    TWO_WEEKS);
+	}
+#endif
+	if (pwtimeleft != 0 && pwtimeleft < pwwarntime) {
+		daysleft = pwtimeleft / DAY + 1;
+		snprintf(buf, sizeof(buf),
+		    "Your password will expire in %lld day%s.\n",
+		    daysleft, daysleft == 1 ? "" : "s");
+		buffer_append(&loginmsg, buf, strlen(buf));
+	}
+	if (actimeleft != 0 && actimeleft < acwarntime) {
+		daysleft = actimeleft / DAY + 1;
+		snprintf(buf, sizeof(buf),
+		    "Your account will expire in %lld day%s.\n",
+		    daysleft, daysleft == 1 ? "" : "s");
+		buffer_append(&loginmsg, buf, strlen(buf));
+	}
+}
+
+int
+sys_auth_passwd(Authctxt *authctxt, const char *password)
+{
+	struct passwd *pw = authctxt->pw;
+	auth_session_t *as;
+	static int expire_checked = 0;
+
+	as = auth_usercheck(pw->pw_name, authctxt->style, "auth-ssh",
+	    (char *)password);
+	if (as == NULL)
+		return (0);
+	if (auth_getstate(as) & AUTH_PWEXPIRED) {
+		auth_close(as);
+		disable_forwarding();
+		authctxt->force_pwchange = 1;
+		return (1);
+	} else {
+		if (!expire_checked) {
+			expire_checked = 1;
+			warn_expiry(authctxt, as);
+		}
+		return (auth_close(as));
+	}
+}
+#elif !defined(CUSTOM_SYS_AUTH_PASSWD)
+int
+sys_auth_passwd(Authctxt *authctxt, const char *password)
+{
+	struct passwd *pw = authctxt->pw;
+	char *encrypted_password;
+
 	/* Just use the supplied fake password if authctxt is invalid */
 	char *pw_password = authctxt->valid ? shadow_pw(pw) : pw->pw_passwd;
 
 	/* Check for users with no password. */
 	if (strcmp(pw_password, "") == 0 && strcmp(password, "") == 0)
-		return ok;
-	else {
-		/* Encrypt the candidate password using the proper salt. */
-		char *encrypted_password = xcrypt(password,
-		    (pw_password[0] && pw_password[1]) ? pw_password : "xx");
+		return (1);
 
-		/*
-		 * Authentication is accepted if the encrypted passwords
-		 * are identical.
-		 */
-		return (strcmp(encrypted_password, pw_password) == 0) && ok;
-	}
+	/* Encrypt the candidate password using the proper salt. */
+	encrypted_password = xcrypt(password,
+	    (pw_password[0] && pw_password[1]) ? pw_password : "xx");
 
-	}
-# endif
-#endif /* !HAVE_OSF_SIA */
+	/*
+	 * Authentication is accepted if the encrypted passwords
+	 * are identical.
+	 */
+	return (strcmp(encrypted_password, pw_password) == 0);
 }
+#endif

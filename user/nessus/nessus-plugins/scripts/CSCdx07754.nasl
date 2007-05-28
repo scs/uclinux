@@ -11,7 +11,9 @@
 if(description)
 {
  script_id(11293);
- script_version("$Revision: 1.2 $");
+ script_bugtraq_id(5614, 5617);
+ script_version("$Revision: 1.5 $");
+ script_cve_id("CVE-2002-1100","CVE-2002-1098");
 
 
  name["english"] = "CSCdx07754, CSCdx24622, CSCdx24632";

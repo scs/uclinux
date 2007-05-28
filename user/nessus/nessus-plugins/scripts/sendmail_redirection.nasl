@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10250);
- script_version ("$Revision: 1.18 $");
+ script_version ("$Revision: 1.19 $");
  
  name["english"] = "Sendmail redirection check";
  name["francais"] = "Vérification de la redirection de sendmail";
@@ -15,27 +15,20 @@ if(description)
  	     francais:name["francais"]);
  
  desc["english"] = "
-The remote SMTP server is vulnerable to a redirection
-attack. That is, if a mail is sent to :
+The remote SMTP server is vulnerable to a redirection attack. That is, if a 
+mail is sent to :
 
 		user@hostname1@victim
 		
-Then the remote SMTP server (victim) will happily send the
-mail to :
+Then the remote SMTP server (victim) will happily send the mail to :
 		user@hostname1
 		
-Using this flaw, an attacker may route a message
-through your firewall, in order to exploit other
-SMTP servers that can not be reached from the
+Using this flaw, an attacker may route a message through your firewall, in 
+order to exploit other SMTP servers that can not be reached from the
 outside.
 
-*** THIS WARNING MAY BE A FALSE POSITIVE, SINCE
-    SOME SMTP SERVERS LIKE POSTFIX WILL NOT
-    COMPLAIN BUT DROP THIS MESSAGE ***
-    
-    
-Solution : if you are using sendmail, then at the top
-of ruleset 98, in /etc/sendmail.cf, insert :
+Solution : In sendmail.cf, at the top of ruleset 98, in /etc/sendmail.cf, 
+insert the following statement :
 R$*@$*@$*       $#error $@ 5.7.1 $: '551 Sorry, no redirections.'
 
 Risk factor : Low"; 
@@ -107,6 +100,7 @@ if(soc)
 {
   b = smtp_recv_banner(socket:soc);
   if(!b) exit(0);
+  if ( "Sendmail" >!< b )exit(0);
 
   domain = ereg_replace(pattern:"[^\.]*\.(.*)",
  		       string:get_host_name(),

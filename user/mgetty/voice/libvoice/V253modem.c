@@ -16,7 +16,7 @@
   Hint: Recorded voice files are in .ub format (refer to the sox manpage about this) except the header.
         So you can use this files with sox.
  *
- * $Id$
+ * $Id: V253modem.c,v 1.9 2005/03/13 17:27:46 gert Exp $
  *
  */
 

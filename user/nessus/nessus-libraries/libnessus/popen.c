@@ -18,15 +18,19 @@
  */
 
 #include <includes.h>
+#ifndef RLIM_INFINITY
+#define RLIM_INFINITY (1024*1024*1024)
+#endif
 
 FILE*
-nessus_popen(const char* cmd, const char** args, pid_t* ppid)
+nessus_popen4(const char* cmd, char *const args[], pid_t* ppid, int inice)
 {
-  int		fd, i, pipes[2];
+  int		fd, pipes[2];
   pid_t		son;
   FILE		*fp;
 
 #if DEBUG
+  int i;
   fprintf(stderr, "nessus_popen: running %s -", cmd);
   for (i = 0; args[i] != NULL; i ++)
     fprintf(stderr, " %s", args[i]);
@@ -73,10 +77,31 @@ nessus_popen(const char* cmd, const char** args, pid_t* ppid)
     }
   if (son == 0)
     {
+      struct rlimit	rl;
       int i;
       
-      
       /* Child process */
+
+      if (inice)
+	{
+	  errno = 0;
+	  /* Some systems returned the new nice value => it may be < 0 */
+	  if (nice(inice) < 0 && errno)
+	    perror("nice");
+	}
+      /* Memory usage: unlimited */
+      rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
+#ifdef RLIMIT_DATA
+      if (setrlimit(RLIMIT_DATA, &rl) < 0) perror("RLIMIT_DATA");
+#endif
+#ifdef RLIMIT_RSS
+      if (setrlimit(RLIMIT_RSS, &rl) < 0) perror("RLIMIT_RSS");
+#endif
+#ifdef RLIMIT_STACK
+      if (setrlimit(RLIMIT_STACK, &rl) < 0) perror("RLIMIT_STACK");
+#endif
+      /* We could probably limit the CPU time, but to which value? */
+
       if ((fd = open("/dev/null", O_RDONLY)) < 0)
 	{
 	  perror("/dev/null");
@@ -121,6 +146,12 @@ nessus_popen(const char* cmd, const char** args, pid_t* ppid)
 
   if (ppid != NULL) *ppid = son;
   return fp;      
+}
+
+FILE*
+nessus_popen(const char* cmd, char *const args[], pid_t* ppid)
+{
+  return nessus_popen4(cmd, args, ppid, 0);
 }
 
 int

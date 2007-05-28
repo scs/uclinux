@@ -125,7 +125,7 @@ The parameters you can use to configure the portscan module are:
 	tcp 
 	udp 
 	icmp 
-	ip_proto 
+	ip 
 	all 
 
 * scan_type { <scan_type> } 
@@ -160,23 +160,40 @@ The parameters you can use to configure the portscan module are:
   monitoring, but is very sensitive to active hosts. This most
   definitely will require the user to tune sfPortscan.
 
-* watch_ip { <ip1,ip2/cidr> }
+* watch_ip { <ip1|ip2/cidr[:[port1|port2-port3]]> }
 
-  Defines what IPs or networks to watch. IPs or networks not falling
-  into this range are ignored.
+  Defines which IPs, networks, and specific ports on those hosts to watch.
+  The list is a comma seperated list of IP addresses, IP address using CIDR
+  notation.  Optionally, ports are specified after the IP address/CIDR using
+  a colon and can be either a single port or a range denoted by a dash.
+  IPs or networks not falling into this range are ignored if this option
+  is used.
 
 * ignore_scanners { <ip_list> }
 
-  Ignores the source of scan alerts.
+  Ignores the source of scan alerts.  <ip_list> can be a comma
+  seperated list of IP addresses or IP addresses using CIDR notation.
 
 * ignore_scanned { <ip_list> }
 
-  Ignores the destination of scan alerts
+  Ignores the destination of scan alerts.  <ip_list> can be a comma
+  seperated list of IP addresses or IP addresses using CIDR notation.
 
 * logfile { <file> } 
   This option will output portscan events to the file specified. If
   <file> does not contain a leading slash, this file will be placed in
   the Snort config dir.
+
+* include_midstream
+  This option will include sessions picked up in midstream by the stream4
+  module.  This can lead to false alerts, especially under heavy load with
+  dropped packets; which is why the option is off by default.
+
+* detect_ack_scans
+  This option will include sessions picked up in midstream by the stream
+  module, which is necessary to detect ACK scans.  However, this can lead to
+  false alerts, especially under heavy load with dropped packets; which is why
+  the option is off by default.
 
 Example configuration:
 

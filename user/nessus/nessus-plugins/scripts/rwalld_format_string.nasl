@@ -7,25 +7,25 @@
 if(description)
 {
  script_id(10950);
- script_cve_id("CVE-2002-0573");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0009");
  script_bugtraq_id(4639);
- script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2002-0573");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "rpc.walld format string";
  script_name(english:name["english"]);
  
  desc["english"] = "
-The rpc.walld RPC service is running. 
-Some versions of this server allow an attacker to gain
-root access remotely, by consuming the resources of the 
-remote host then sending a specially formed packet with
-format strings to this host.
+The rpc.walld RPC service is running.  Some versions of this server allow an 
+attacker to gain root access remotely, by consuming the resources of the 
+remote host then sending a specially formed packet with format strings to this
+host.
 
-Solaris 2.5.1, 2.6, 7 and 8 are vulnerable to this
-issue. Other operating systems might be affected as well.
+Solaris 2.5.1, 2.6, 7, 8 and 9 are vulnerable to this issue. 
+Other operating systems might be affected as well.
 
-*** Nessus did not check for this vulnerability, 
-*** so this might be a false positive
+*** Nessus did not check for this vulnerability, so this might be a 
+*** false positive
 
 Solution : Deactivate this service.
 Risk factor : High";
@@ -46,7 +46,10 @@ Risk factor : High";
  family["english"] = "Gain root remotely"; 
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("rpc_portmap.nasl");
+ if ( ! defined_func("bn_random") )
+ 	script_dependencie("os_fingerprint.nasl", "rpc_portmap.nasl");
+ else
+ 	script_dependencie("os_fingerprint.nasl", "rpc_portmap.nasl", "solaris251_112891.nasl", "solaris251_x86_112892.nasl", "solaris26_112893.nasl", "solaris26_x86_112894.nasl", "solaris7_112899.nasl", "solaris7_x86_112900.nasl", "solaris8_112846.nasl", "solaris8_x86_112847.nasl", "solaris9_112875.nasl");
  script_require_keys("rpc/portmap");
  exit(0);
 }
@@ -56,6 +59,13 @@ Risk factor : High";
 #
 
 include("misc_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+if ( get_kb_item("BID-4639") ) exit(0);
+os =  get_kb_item("Host/OS/icmp");
+if ( os && egrep(pattern:"Sun Solaris 1[0-9]", string:os)) exit(0);
 
 
 #

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10181);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(2653);
- script_cve_id("CAN-2000-0074");
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-2000-0074");
  name["english"] = "PlusMail vulnerability";
  name["francais"] = "PlusMail vulnerability";
  script_name(english:name["english"], francais:name["francais"]);
@@ -22,7 +22,7 @@ file with the privileges of the http daemon
 
 Solution : remove it from /cgi-bin. No patch yet
 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -49,6 +49,13 @@ Risk factor : Serious";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("plusmail");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"plusmail", port:port);
+if(res)security_hole(port);

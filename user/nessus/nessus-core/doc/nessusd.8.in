@@ -1,9 +1,9 @@
-.TH NESSUSD 8 "February 2003" "The Nessus Project" "User Manuals"
+.TH NESSUSD 8 "February 2004" "The Nessus Project" "User Manuals"
 .SH NAME
 nessusd \- The server part of the Nessus Security Scanner
 .SH SYNOPSIS
 .BI "nessusd [\|-v\|] [\|-h\|]  [\|-c " config-file\| "] [\|-S " ip[,ip2,...]\| "] [\|-a " address\| 
-.BI "] [\|-p " port-number\| "] [\|-D\|] [\|-d\|]"
+.BI "] [\|-p " port-number\| "] [\|-D\|] [\|-d\|] [\|-R\|] [\|-P\|] [\|-q\|]"
 
 .SH DESCRIPTION
 The 
@@ -66,12 +66,20 @@ than listening on port 1241 (default).
 Make the server run in background (daemon mode)
 
 .TP 
+.B "-q, --quiet"
+Prevent the server from printing the loading status of the plugins at startup
+
+.TP 
 .B "-d, --dump-cfg"
 Make the server dumps its compilation options
 
 .TP 
 .B "-v, --version"
 Writes the version number and exits
+
+.TP
+.B "-R, --recompile"
+Compiles every .nasl plugin as a binary file and exits.
 
 .TP
 .B "-h, --help"
@@ -89,16 +97,9 @@ contains these options:
 Contains the location of the plugins folder. This is usually
 @NESSUSD_PLUGINS@, but you may change this.
 .IP logfile
-path to the logfile. You can enter 
-.I syslog
-if you want the nessusd messages to be logged via
-.B syslogd
-You may also enter
-.I stderr
+path to the logfile.
 if you want the nessusd logs to be written on stderr.
-.I Because nessusd is a sensitive program, you should keep your logs. So
-.I entering syslog is usually not a good idea and should be done only
-.I for debugging purposes
+.I Because nessusd is a sensitive program, you should keep your logs. 
 
 .IP max_hosts
 is maximum number of hosts to test at the same time which should be
@@ -115,7 +116,7 @@ so you need to find a balance between these two options. Note that launching too
 
 .IP be_nice
 If this option is set to 'yes', then each child forked by nessusd will
-nice(2) itself to a very low priority. This may speed up your scan as the main nessusd process will be able to continue to spew processes, and this garantees that nessusd does not deprives other important processes from their resources.
+nice(2) itself to a very low priority. This may speed up your scan as the main nessusd process will be able to continue to spew processes, and this guarantees that nessusd does not deprives other important processes from their resources.
 
 .IP log_whole_attack
 If this option is set to 'yes', nessusd will store the name, pid, date and target of each plugin launched. This is helpful for monitoring and debugging purpose, however this option might make nessusd fill your disk rather quickly. 
@@ -140,16 +141,16 @@ By default, nessusd does not trust the remote host banners. It means that it wil
 Number of seconds that the security checks will wait for when doing a recv(). You should increase this value if you are running nessusd across a slow network slink (testing a host via a dialup connection for instance)
 
 .IP non_simult_ports
-Some services (in particular SMB) do not appreciate multiple connections at the same time coming from the same host. This option allows you to prevent nessusd to make two connections on the same given ports at the same time. The syntax of this option is "port1[, port2....]". Note that you can use the KB notation of nessusd to designate a service formaly. Ex: "139, Services/www", will prevent nessusd from making two connections at the same time on port 139 and on every port which hosts a web server.
+Some services (in particular SMB) do not appreciate multiple connections at the same time coming from the same host. This option allows you to prevent nessusd to make two connections on the same given ports at the same time. The syntax of this option is "port1[, port2....]". Note that you can use the KB notation of nessusd to designate a service formally. Ex: "139, Services/www", will prevent nessusd from making two connections at the same time on port 139 and on every port which hosts a web server.
 
 .IP plugins_timeout
 This is the maximum lifetime, in seconds of a plugin. It may happen that some plugins are slow because of the way they are written or the way the remote server behaves. This option allows you to make sure your scan is never caught in an endless loop because of a non-finishing plugin.
 
 .IP safe_checks
-Most of the time, nessusd attempts to reproduce an exceptional condition to detemermine if the remote services are vulnerable to certain flaws. This includes the reproduction of buffer overflows or format strings, which may make the remote server crash. If you set this option to 'yes', nessusd will disable the plugins which have the potential to crash the remote services, and will at the same time make several checks rely on the banner of the service tested instead of its behavior towards a certain input. This reduces false positives and makes nessusd nicer towards your network, however this may make you miss important vulnerabilities (as a vulnerability affecting a given service may also affect another one).
+Most of the time, nessusd attempts to reproduce an exceptional condition to determine if the remote services are vulnerable to certain flaws. This includes the reproduction of buffer overflows or format strings, which may make the remote server crash. If you set this option to 'yes', nessusd will disable the plugins which have the potential to crash the remote services, and will at the same time make several checks rely on the banner of the service tested instead of its behavior towards a certain input. This reduces false positives and makes nessusd nicer towards your network, however this may make you miss important vulnerabilities (as a vulnerability affecting a given service may also affect another one).
 
 .IP auto_enable_dependencies
-Nessus plugins use the result of each other to execute their job. For instance, a plugin which logs into the remote SMB registry will need the results of the plugin which finds the SMB name of the remote host and the results of the plugin which attempts to log into the remote host. If you want to only select a subset of the plugins availaible, tracking the dependencies can quickly become tiresome. If you set this option to 'yes', nessusd will automatically enable the plugins that are depended on.
+Nessus plugins use the result of each other to execute their job. For instance, a plugin which logs into the remote SMB registry will need the results of the plugin which finds the SMB name of the remote host and the results of the plugin which attempts to log into the remote host. If you want to only select a subset of the plugins available, tracking the dependencies can quickly become tiresome. If you set this option to 'yes', nessusd will automatically enable the plugins that are depended on.
 
 .IP use_mac_addr
 Set this option to 'yes' if you are testing your local network and each local host has a dynamic IP address (affected by DHCP or BOOTP), and all the tested hosts will be referred to by their MAC address.
@@ -212,7 +213,7 @@ is one of
 or
 .I default
 
-In addition to this, the IP adress may be preceded by
+In addition to this, the IP address may be preceded by
 an exclamation mark (!) which means: \*(lqnot\*(rq
 There are three sources of rules:
 
@@ -263,29 +264,24 @@ default reject
 Bear in mind that Nessus can be quite network intensive. Even if the
 Nessus developers have taken every effor to avoid packet loss (including
 transparently resending UDP packets, waiting for data to be received
-in TCP connections, etc.) so bandwith use should always be closely monitored, 
-with current server hardware, bandwith is usually the bottleneck in 
+in TCP connections, etc.) so bandwidth use should always be closely monitored, 
+with current server hardware, bandwidth is usually the bottleneck in 
 a Nessus scan. It might not became too aparent in the final reports,
 scanners will still run, holes might be detected, but you will risk to
 run into \fIfalse negatives\fR (i.e. Nessus will not report a security
 hole that is present in a remote host)
 
 Users might need to tune Nessus configuration if running the server in
-low bandwith conditions (\fIlow\fR being 'less bandwith that the one your
+low bandwidth conditions (\fIlow\fR being 'less bandwidth that the one your
 hardware system can produce) or otherwise will get erratic results. There are
 several parameters that can be modified to reduce network load:
 
 .IP checks_read_timeout
 (Introduced in Nessus 0.99.4) The default value is set to 5 seconds, that can
-(should) be increased if network bandwith is low in the
+(should) be increased if network bandwidth is low in the
 nessus.conf or nessusrc configuration files. Notice that it is recommended
 to increase this this value, if you are running a test outside your LAN 
 (i.e. to Internet hosts through an Internet connection), to over 10 seconds.
-
-.IP max_threads
-The default value is set to 15 threads, reducing that in
-nessus.conf or nessusrc configuration files.
-will eat less bandwith and also improve performance.
 
 .IP max_hosts
 Number of hosts to test at the same time (this value is set by the Nessus
@@ -300,9 +296,9 @@ to be and it will also reduce network load and improve performance
 Notice that the Nessus server will spawn max_hosts * max_checks processes.
 
 Other options might be using the QoS features offered by your server
-operating system or your network to improve the bandwith use.
+operating system or your network to improve the bandwidth use.
 
-It is not easy to give a bandwith estimate for a Nessus run, you will
+It is not easy to give a bandwidth estimate for a Nessus run, you will
 probably need to make your own counts. However, assuming you test 65536 
 TCP ports. This will require at least a single packet per port that is 
 at least 40 bytes large. Add 14 bytes for the ethernet header and you 
@@ -316,7 +312,7 @@ Reducing the amount of tested part and such will reduce the amout of data
 to be transfered significantly.
 
 .SH SEE ALSO
-.BR nessus (1),\  nmap (1),\  nessus-adduser (8),\  nessus-rmuser (8),\  nessus-mkcert (8)
+.BR nessus (1),\  nessus-adduser (8),\  nessus-rmuser (8),\  nessus-mkcert (8)
 
 .SH MORE INFORMATION ABOUT THE NESSUS PROJECT
 

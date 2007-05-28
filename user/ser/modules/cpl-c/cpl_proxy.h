@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl_proxy.h,v 1.9.4.7 2004/05/30 10:32:47 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

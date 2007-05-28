@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(10103);
- script_version ("$Revision: 1.12 $");
+ script_bugtraq_id(2245);
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "HP LaserJet display hack";
  name["francais"] = "HP LaserJet display hack";

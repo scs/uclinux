@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: domain_mod.c,v 1.15 2003/10/08 21:49:29 janakj Exp $
  *
  * Domain module
  *

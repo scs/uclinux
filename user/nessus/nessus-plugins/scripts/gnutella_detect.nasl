@@ -9,14 +9,14 @@ desc["english"] = "
 We detected a Gnutella 'servent'.
 This file sharing software works in peer to peer mode.
 
-Risk factor : Low/None";
+Risk factor : Low";
 
 
 
 if(description)
 {
  script_id(10946);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.14 $");
 
  name["english"] = "Gnutella servent detection";
  script_name(english:name["english"]);
@@ -103,7 +103,4 @@ Risk factor : None";
 
 
 ports = add_port_in_list(list:get_kb_list("Services/www"), port:6346);
-foreach port (ports)
-{
-check(port:defp);
-}
+foreach port (ports) check(port:port);

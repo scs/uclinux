@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11577);
  script_bugtraq_id(7446);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  
  
  name["english"] = "MDaemon IMAP CREATE overflow";
@@ -30,7 +30,7 @@ To exploit this flaw, a valid IMAP account is needed.
 *** to issue this warning.
 
 Solution : upgrade to MDaemon 6.7.10 or newer
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"], francais:desc["francais"]);
@@ -56,16 +56,10 @@ Risk Factor : High";
 #
 
 
-
+include("imap_func.inc");
 port = get_kb_item("Services/imap");
 if(!port)port = 143;
-if(get_port_state(port))
-{
- soc = open_sock_tcp(port);
- if(!soc)exit(0);
- banner  = recv_line(socket:soc, length:4096);
- close(soc);
- 
- if(ereg(pattern:".* IMAP.* MDaemon ([0-5]\.|6\.([0-6]\.|7\.[0-9][^0-9]))", string:banner))
- 	security_hole(port);
-}
+
+banner  =  get_imap_banner ( port : port );
+if ( ! banner )exit(0);
+if(ereg(pattern:".* IMAP.* MDaemon ([0-5]\.|6\.([0-6]\.|7\.[0-9][^0-9]))", string:banner)) security_hole(port);

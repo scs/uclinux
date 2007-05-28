@@ -8,13 +8,12 @@
 if(description)
 {
  script_id(11239);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.10 $");
  #script_bugtraq_id(2979);
  #script_cve_id("CVE-2000-0002");
  
  name["english"] = "Hidden WWW server name";
- name["francais"] = "Nom du server WWW caché";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 It seems that your web server tries to hide its version 
@@ -26,29 +25,16 @@ Risk factor : None
 
 Solution : Fix your configuration.";
 
- desc["francais"] = "
-Il semble que votre serveur web essaie de dissimuler sa
-version ou son nom, ce qui est une bonne chose. Toutefois, 
-en envoyant une requête spéciale, Nessus a pu le découvrir.
-
-Facteur de risque : Aucun
-
-Solution : Réparez votre configuration.";
-
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Tries to discover the web server name";
- summary["francais"] = "Essaie de découvrir le nom du serveur web";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO); 
  
- script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi",
-		francais:"Ce script est Copyright (C) 2003 Michel Arboi");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes");
  script_require_ports("Services/www", "httpver.nasl", 80);
  exit(0);
@@ -58,18 +44,19 @@ Solution : Réparez votre configuration.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
+if (  get_kb_item("Services/www/" + port + "/embedded") ) exit(0);
 
 
 s = http_open_socket(port);
 if(! s) exit(0);
 
-r = http_head(port: port, item: "/");
+r = http_get(port: port, item: "/");
 send(socket: s, data: r);
 
-r = http_recv_headers(s);
+r = http_recv_headers2(socket:s);
 http_close_socket(s);
 
 # If anybody can get the server name, exit
@@ -88,7 +75,7 @@ for (i = 0; req[i]; i=i+1)
   if (s)
   {
     send(socket: s, data: req[i]);
-    r = http_recv_headers(s);
+    r = http_recv_headers2(socket:s);
     http_close_socket(s);
     if (strlen(r) && (s1 = egrep(string: r, pattern: srv)))
     {
@@ -107,7 +94,12 @@ Solution : Fix your configuration.";
       # We check before: creating a list is not a good idea
       sb = string("www/banner/", port);
       if (! get_kb_item(sb))
-        set_kb_item(name: sb, value: r);
+	{
+	 if ( defined_func("replace_kb_item") )
+        	replace_kb_item(name: sb, value: r);
+	  else
+        	set_kb_item(name: sb, value: r);
+	}
       else
       {
         sb = string("www/alt-banner/", port);

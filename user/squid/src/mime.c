@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: mime.c,v 1.102.2.5 2005/03/26 02:50:53 hno Exp $
  *
  * DEBUG: section 25    MIME Parsing
  * AUTHOR: Harvest Derived
@@ -118,7 +118,7 @@ size_t
 headersEnd(const char *mime, size_t l)
 {
     size_t e = 0;
-    int state = 0;
+    int state = 1;
     while (e < l && state < 3) {
 	switch (state) {
 	case 0:
@@ -134,9 +134,7 @@ headersEnd(const char *mime, size_t l)
 		state = 0;
 	    break;
 	case 2:
-	    if ('\r' == mime[e])	/* ignore repeated CR */
-		(void) 0;
-	    else if ('\n' == mime[e])
+	    if ('\n' == mime[e])
 		state = 3;
 	    else
 		state = 0;
@@ -444,7 +442,7 @@ mimeLoadIconFile(const char *icon)
     httpReplyReset(reply = e->mem_obj->reply);
     httpBuildVersion(&version, 1, 0);
     httpReplySetHeaders(reply, version, HTTP_OK, NULL,
-	type, (int) sb.st_size, sb.st_mtime, -1);
+	type, sb.st_size, sb.st_mtime, -1);
     reply->cache_control = httpHdrCcCreate();
     httpHdrCcSetMaxAge(reply->cache_control, 86400);
     httpHeaderPutCc(&reply->header, reply->cache_control);

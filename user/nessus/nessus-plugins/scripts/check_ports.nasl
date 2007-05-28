@@ -25,7 +25,7 @@
 if(description)
 {
  script_id(10919);
- script_version ("$Revision: 1.18 $");
+ script_version ("$Revision: 1.20 $");
 
  name["english"] = "Check open ports";
  name["francais"] = "Vérifie les ports ouverts";
@@ -67,12 +67,18 @@ if(isnull(ports))exit(0);
 at_least_one = 0;
 number_of_ports = 0;
 report = make_list();
+timeouts = 0;
 
 foreach port (keys(ports))
 {
    number_of_ports ++;
    port = int(port - "Ports/tcp/");
-   s = open_sock_tcp(port);
+   to = get_kb_item("/tmp/ConnectTimeout/TCP/"+port);
+   if (to)
+     timeouts++;
+   else
+   {
+   s = open_sock_tcp(port, transport:ENCAPS_IP);
    if (! s)
     {
     report[port] = 
@@ -84,6 +90,7 @@ foreach port (keys(ports))
     close(s);
     at_least_one ++;
     }
+   }
 }
 
 
@@ -101,7 +108,20 @@ else
  text = "
 Nessus cannot reach any of the previously open ports of the remote
 host at the end of its scan.
-
+";
+ if (timeouts > 0)
+ {
+   text = "
+** ";
+   if (timeouts == number_of_ports)
+    text += "All ports";
+   else
+    text = strcat(text, "Some of the ports (", timeouts, "/", number_of_ports, ")");
+   text += " were skipped by this check because some
+** scripts could not connect to them before the defined timeout
+";
+ }
+ text += "
 This might be an availability problem related which might be
 due to the following reasons :
 

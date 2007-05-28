@@ -18,8 +18,8 @@
 if(description)
 {
  script_id(11074);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(3438);
+ script_version ("$Revision: 1.9 $");
  
  name["english"] = "OfficeScan configuration file disclosure";
  name["francais"] = "OfficeScan révèle son fichier de configuration";
@@ -55,14 +55,22 @@ Risk factor : Low";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_require_ports("Services/www", 80);
- script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl");
+ script_dependencie("http_version.nasl");
  exit(0);
 }
 
 # The script code starts here
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("/officescan/hotdownload/ofscan.ini");
-if(port)
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(port:port, item:"/officescan/hotdownload/ofscan.ini");
+if(res)
 {
+ res = is_cgi_installed_ka(port:port, item:"/officescan/hotdownload/nessus.ini");
+ if ( res ) exit(0);
  security_hole(port);
 }

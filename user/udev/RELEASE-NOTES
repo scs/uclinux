@@ -1,3 +1,121 @@
+udev 100
+========
+Revert persistent-storage ata-serial '_' '-' replacement.
+
+udev 099
+========
+Bugfixes.
+
+Udevtrigger can now filter the list of devices to be triggered. Matches
+for subsystems or sysfs attributes can be specified.
+
+The entries in /dev/.udev/queue and /dev/.udev/failed have changed to
+zero-sized files to avoid pointing to /sys and confuse broken tools which
+scan the /dev directory. To retry failed events, udevtrigger --retry-failed
+should be used now.
+
+The rules and scripts to create udev rules for persistent network
+devices and optical drives are in the extras/rules_generator directory
+now. If you use something similar, please consider replacing your own
+version with this, to share the support effort. The rule_generator
+installs its own rules into /etc/udev/rules.d.
+
+The cdrom_id tool installs its own rule now in /etc/udev/rules.d, cause
+the rule_generator depends on cdrom_id to be called in an earlier rule.
+
+udev 098
+========
+Bugfixes.
+
+Renaming of some key names (the old names still work):
+BUS -> SUBSYSTEMS, ID -> KERNELS, SYSFS -> ATTRS, DRIVER -> DRIVERS.
+(The behavior of the key DRIVER will change soon in one of the next
+releases, to match only the event device, please switch to DRIVERS
+instead. If DRIVER is used, it will behave like DRIVERS, but an error
+is logged.
+With the new key names, we have a more consistent and simpler scheme.
+We can match the properties of the event device only, with: KERNEL,
+SUBSYSTEM, ATTR, DRIVER. Or include all the parent devices in the match,
+with: KERNELS, SUBSYSTEMS, ATTRS, DRIVERS. ID, BUS, SYSFS, DRIVER are no
+longer mentioned in the man page and should be switched in the rule
+files.
+
+ATTR{file}="value" can be used now, to write to a sysfs file of the
+event device. Instead of:
+  ..., SYSFS{type}=="0|7|14", RUN+="/bin/sh -c 'echo 60 > /sys$$DEVPATH/timeout'"
+we now can do:
+  ..., ATTR{type}=="0|7|14", ATTR{timeout}="60"
+
+All the PHYSDEV* keys are deprecated and will be removed from a
+future kernel:
+  PHYDEVPATH -    is the path of a parent device and should not be
+                  needed at all.
+  PHYSDEVBUS -    is just a SUBSYSTEM value of a parent, and can be
+                  matched with SUBSYSTEMS==
+  PHYSDEVDRIVER - for bus devices it is available as ENV{DRIVER}.
+                  Newer kernels will have DRIVER in the environment,
+                  for older kernels udev puts in. Class device will
+                  no longer carry this property of a parent and
+                  DRIVERS== can be used to match such a parent value.
+Note that ENV{DRIVER} is only available for a few bus devices, where
+the driver is already bound at device event time. On coldplug, the
+events for a lot devices are already bound to a driver, and they will have
+that value set. But on hotplug, at the time the kernel creates the device,
+it can't know what driver may claim the device after that, therefore
+in most cases it will be empty.
+
+Failed events should now be re-triggered with:
+   udevtrigger --retry-failed.
+Please switch to this command, so we keep the details of the /dev/.udev/failed/
+files private to the udev tools. We may need to switch the current symlink
+target, cause some obviously broken tools try to scan all files in /dev
+including /dev/.udev/, find the links to /sys and end up stat()'ing sysfs files
+million times. This takes ages on slow boxes.
+
+The udevinfo attribute walk (-a) now works with giving a device node
+name (-n) instead of a devpath (-p). The query now always works, also when
+no database file was created by udev.
+
+The built-in /etc/passwd /etc/group parser is removed, we always depend on
+getpwnam() and getgrnam() now. One of the next releases will depend on
+fnmatch() and may use getopt_long().
+
+udev 097
+========
+Bugfixes and small improvements.
+
+udev 096
+========
+Fix path_id for recent kernels.
+
+udev 095
+========
+%e is finally gone.
+
+Added support for swapping network interface names, by temporarily
+renaming the device and wait for the target name to become free.
+
+udev 094
+========
+The built-in MODALIAS key and substitution is removed.
+
+udev 093
+========
+The binary firmware helper is replaced by the usual simple
+shell script. Udevsend is removed from the tree.
+
+udev 092
+========
+Bugfix release.
+
+udev 091
+========
+Some more keys require the correct use of '==' and '=' depending
+on the kind of operation beeing an assignment or a match. Rules
+with invalid operations are skipped and logged to syslog. Please
+test with udevtest if the parsing of your rules throws errors and
+fix possibly broken rules.
+
 udev 090
 ========
 Provide "udevsettle" to wait for all current udev events to finish.

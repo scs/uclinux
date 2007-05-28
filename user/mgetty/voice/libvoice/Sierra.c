@@ -7,7 +7,7 @@
  * The Sierra driver is written and maintained by
  * Luke Bowker <puke@suburbia.net>.
  *
- * $Id$
+ * $Id: Sierra.c,v 1.8 2005/03/13 17:27:46 gert Exp $
  *
  */
 

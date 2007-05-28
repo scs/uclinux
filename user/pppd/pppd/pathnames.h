@@ -29,8 +29,7 @@
 #define _PATH_CONNERRS	"/var/log/connect-errors"
 #define _PATH_USEROPT	".ppprc"
 #define _PATH_PEERFILES	"/etc/config/peers/"
-#define _PATH_RESOLV	"/etc/config/resolv.conf"
-#define _PATH_TEMP      "/etc/config/resolv.XXXXXX"
+#define _PATH_RESOLV	_PATH_VARRUN "%s.resolv"
 #else
 #define _ROOT_PATH
 #ifndef _PATH_VARRUN
@@ -48,7 +47,6 @@
 #define _PATH_USEROPT	".ppprc"
 #define _PATH_PEERFILES	"/etc/ppp/peers/"
 #define _PATH_RESOLV	"/etc/ppp/resolv.conf"
-#define _PATH_TEMP      "/etc/ppp/resolv.XXXXXX"
 #endif
 
 #ifdef IPX_CHANGE

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10223);
- script_version ("$Revision: 1.19 $");
  script_bugtraq_id(205);
- script_cve_id("CAN-1999-0632", "CVE-1999-0189");
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-0632", "CVE-1999-0189");
  name["english"] = "RPC portmapper";
  name["francais"] = "RPC portmapper";
  script_name(english:name["english"], francais:name["francais"]);

@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(11373);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(1638);
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CVE-2000-0856");
  name["english"] = "SunFTP Buffer Overflow";
 
@@ -38,7 +38,7 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi",
  		  francais:"Ce script est Copyright (C) 2003 Xue Yong Zhi");
 
- script_dependencie("find_service.nes");;
+ script_dependencie("ftpserver_detect_type_nd_version.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }

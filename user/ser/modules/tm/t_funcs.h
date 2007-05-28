@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_funcs.h,v 1.55 2003/03/31 14:41:55 jiri Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

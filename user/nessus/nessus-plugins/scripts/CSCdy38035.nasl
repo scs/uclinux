@@ -11,7 +11,8 @@
 if(description)
 {
  script_id(11297);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.4 $");
+ script_cve_id("CVE-2002-1103");
 
 
  name["english"] = "CSCdy38035";
@@ -20,7 +21,10 @@ if(description)
 
  desc["english"] = "
 The remote VPN concentrator is subject to an ISAKMP
-package processing vulnerability
+package processing vulnerability. Malformed or a
+very large number of ISAKMP packets might cause a reload
+of the concentrator. The vulnerability is aggravated if debug
+is turned on.
 
 This vulnerability is documented as Cisco bug ID CSCdy38035
 

@@ -1,11 +1,12 @@
 #
-# This script was written by Renaud Deraison <rderaison@tenablesecurity.com>
+# (C) Tenable Network Security
+#
 
 
 if(description)
 {
  script_id(11567);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "CommunigatePro Hijacking";
  script_name(english:name["english"]);
  
@@ -28,7 +29,7 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Remote file access";
  script_family(english:family["english"]);
  script_dependencies("find_service.nes", "http_version.nasl", "no404.nasl");
@@ -40,8 +41,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 banner = get_http_banner(port:port);

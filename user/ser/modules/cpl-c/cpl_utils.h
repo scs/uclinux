@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl_utils.h,v 1.2 2003/09/03 17:42:10 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

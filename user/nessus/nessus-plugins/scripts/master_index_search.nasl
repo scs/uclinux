@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10562);
- script_cve_id("CVE-2000-0924");
  script_bugtraq_id(1772);
- script_version ("$Revision: 1.11 $");
+ script_cve_id("CVE-2000-0924");
+ script_version ("$Revision: 1.15 $");
 
  name["english"] = "Master Index directory traversal vulnerability";
  name["francais"] = "Master Index directory traversal vulnerability";
@@ -58,6 +58,7 @@ Facteur de risque : Elevé";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -67,8 +68,8 @@ Facteur de risque : Elevé";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
@@ -77,7 +78,7 @@ foreach dir (cgi_dirs())
  req = string(dir, "/search/search.cgi?keys=*&prc=any&catigory=../../../../../../../../../../../../etc");
  req = http_get(item:req, port:port);
  r = http_keepalive_send_recv(port:port, data:req);
- if("passwd" >< r){
+ if("passwd" >< r && "resolv.conf" >< r ){
  	security_hole(port);
 	exit(0);
 	}

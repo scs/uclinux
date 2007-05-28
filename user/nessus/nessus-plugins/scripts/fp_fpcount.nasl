@@ -9,14 +9,11 @@
 if(description)
 {
  script_id(11370);
- script_version ("$Revision: 1.1 $");
- script_cve_id("CAN-1999-1376");
+ script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-1999-1376");
 
  name["english"] = "fpcount.exe overflow";
- name["francais"] = "dépassement de buffer dans fpcount.exe";
-
- script_name(english:name["english"],
-	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  # Description
  desc["english"] = "
@@ -33,7 +30,6 @@ on this host.
 Solution : delete it
 Risk factor : High";
 
-
  script_description(english:desc["english"]);
 
  # Summary
@@ -47,14 +43,11 @@ Risk factor : High";
  script_dependencie("find_service.nes", "no404.nasl");
  
  # Family
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"],
- 	       francais:family["francais"]);
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  
  # Copyright
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
- 		  francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  
  script_require_ports("Services/www", 80);
  exit(0);
@@ -64,8 +57,8 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 req = http_get(item:"/_vti_bin/fpcount.exe", port:port);

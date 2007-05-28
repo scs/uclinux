@@ -46,6 +46,14 @@ tree_cell* nasl_keys(lex_ctxt*);
 tree_cell* nasl_max_index(lex_ctxt*);
 tree_cell* nasl_typeof(lex_ctxt*);
 tree_cell* nasl_defined_func(lex_ctxt*);
+tree_cell* nasl_func_named_args(lex_ctxt*);
+tree_cell* nasl_func_unnamed_args(lex_ctxt*);
+tree_cell* nasl_func_has_arg(lex_ctxt*);
 tree_cell* nasl_sort_array(lex_ctxt*);
+tree_cell* nasl_unixtime(lex_ctxt*);
+tree_cell* nasl_gettimeofday(lex_ctxt*);
+tree_cell* nasl_localtime(lex_ctxt*);
+tree_cell* nasl_mktime(lex_ctxt*);
+tree_cell* nasl_open_sock_kdc(lex_ctxt*);
 
 #endif

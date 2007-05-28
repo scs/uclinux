@@ -52,4 +52,4 @@ III. TODO (in no particular order)
 - make more parameters (e.g. ports range, max idle time etc.) to be
   adjustible via command line.
 
-$Id$
+$Id: README,v 1.1.1.1 2004/11/29 02:09:19 pchunt Exp $

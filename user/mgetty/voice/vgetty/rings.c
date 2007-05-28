@@ -16,7 +16,7 @@
  *
  * - Third, if the number of rings is less than 2 it is set to 2.
  *
- * $Id$
+ * $Id: rings.c,v 1.4 1998/09/09 21:08:09 gert Exp $
  *
  */
 

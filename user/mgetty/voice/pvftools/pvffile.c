@@ -3,7 +3,7 @@
  *
  * pvffile prints out some useful information about .pvf files.
  *
- * $Id$
+ * $Id: pvffile.c,v 1.5 1999/03/16 09:59:23 marcs Exp $
  *
  */
 

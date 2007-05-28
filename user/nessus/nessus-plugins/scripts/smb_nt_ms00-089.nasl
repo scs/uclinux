@@ -7,25 +7,35 @@
 if(description)
 {
  script_id(10555);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1973);
+ script_version ("$Revision: 1.18 $");
  
  name["english"] =  "Domain account lockout vulnerability";
- name["francais"] = "Domain account lockout vulnerability";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
-The hotfix for the 'domain account lockout' 
-problem has not been applied.
+Synopsis :
 
-This vulnerability allows a user to bypass the
-domain account lockout policy, and hence attempt
-to brute force a user account.
+A security update is missing on the remote host.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms00-089.asp
-Risk factor : Medium";
+Description :
+
+The hotfix for the 'domain account lockout' problem has
+not been applied.
+
+This vulnerability allows a user to bypass the domain 
+account lockout policy, and hence attempt to brute force
+a user account.
+
+Solution : 
+
+See http://www.microsoft.com/technet/security/bulletin/ms00-089.mspx
+
+Risk factor :
+
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
 
 
  desc["francais"] = "
@@ -37,7 +47,7 @@ politique de verrouillage des comptes du domaine, et
 par conséquent lui permet de tenter d'obtenir le
 mot de passe d'un compte par force brute.
 
-Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-089.asp
+Solution : cf http://www.microsoft.com/technet/security/bulletin/ms00-089.mspx
 Facteur de risque : Moyen";
 
 
@@ -52,40 +62,17 @@ Facteur de risque : Moyen";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl" 
-		     );
- script_require_keys("SMB/name", "SMB/login", "SMB/password",  "SMB/registry_access", "SMB/WindowsVersion");
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
-include("smb_nt.inc");
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+include("smb_hotfixes.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+if ( hotfix_check_sp(win2k:2) <= 0 ) exit(0);
+if ( hotfix_missing(name:"Q274372") > 0 ) 
+	security_warning(get_kb_item("SMB/transport"));
 
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
-
-version = get_kb_item("SMB/WindowsVersion");
-if(version == "5.0")
-{
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(sp)
- {
-  if(ereg(string:sp,
-   	  pattern:"^Service Pack [2-9]$"))exit(0);
- }
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q274372";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port); 
-}

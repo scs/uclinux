@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10535);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1786);
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CVE-2000-0967");
  name["english"] = "php log";
  name["francais"] = "log php";
@@ -65,7 +65,7 @@ Facteur de risque : Elevé";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -76,8 +76,8 @@ Facteur de risque : Elevé";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);

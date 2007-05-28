@@ -7,9 +7,10 @@
 if(description)
 {
  script_id(11051);
- script_version ("$Revision: 1.5 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0010");
  script_bugtraq_id(4936);
- script_cve_id("CAN-2002-0400");
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2002-0400");
  
  name["english"] = "BIND9 DoS";
  name["francais"] = "BIND9 DoS";
@@ -24,7 +25,7 @@ An attacker may use this flaw to prevent
 this service to work properly.
 
 Solution : upgrade to bind 9.2.1
-Risk factor : Medium";
+Risk factor : High";
 
 
 
@@ -54,13 +55,13 @@ Risk factor : Medium";
 vers = get_kb_item("bind/version");
 if(!vers)exit(0);
 
-if(ereg(string:vers, pattern:"9\.[01]\.*"))
+if(ereg(string:vers, pattern:"^9\.[01]\.*"))
 {
  security_hole(53);
  exit(0);
 }
 
-if(ereg(string:vers, pattern:"9\.2\.(0[^0-9]|1rc.*)"))
+if(ereg(string:vers, pattern:"^9\.2\.(0[^0-9]|1rc.*)"))
 {
  security_hole(53);
  exit(0);

@@ -14,7 +14,7 @@
  * Removed most stuff from this file, since the new IS-101 driver can be
  * used now. (Marc 04.01.1997)
  *
- * $Id$
+ * $Id: Rockwell.c,v 1.10 2005/03/13 17:27:46 gert Exp $
  *
  */
 

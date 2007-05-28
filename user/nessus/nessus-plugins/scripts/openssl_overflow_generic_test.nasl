@@ -4,31 +4,52 @@
 # Thanks to Solar Eclipse <solareclipse@phreedom.org>, who did most
 # of the work.
 #
-# Will incidentally cover CVE-2001-1141 and CAN-2000-0535 
+# Will incidentally cover CVE-2001-1141 and CVE-2000-0535 
 #  
 #
 
 if(description)
 {
  script_id(11060);
- script_cve_id("CAN-2002-0656", "CAN-2002-0655", "CAN-2002-0657", "CAN-2002-0659", "CVE-2001-1141");
- if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0009");
- script_version("$Revision: 1.18 $");
- script_bugtraq_id(5363);
+ script_bugtraq_id(3004, 4316, 5363);
+ script_cve_id("CVE-2002-0656", "CVE-2002-0655", "CVE-2002-0657", "CVE-2002-0659", "CVE-2001-1141");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-a-0004");
+ if( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2002:033");
+
+ script_version("$Revision: 1.28 $");
  
  name["english"] = "OpenSSL overflow (generic test)";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host seems to be using a version of OpenSSL which is
-older than 0.9.6e or 0.9.7-beta3
+Synopsis :
 
-This version is vulnerable to a buffer overflow which,
-may allow an attacker to obtain a shell on this host.
+The remote service uses a library which is vulnerable to a buffer overflow
+vulnerability.
 
-Solution : Upgrade to version 0.9.6e (0.9.7beta3) or newer
-Risk factor : High";
+Description :
+
+The remote service seems to be using a version of OpenSSL which is
+older than 0.9.6e or 0.9.7-beta3.
+
+This version is vulnerable to a buffer overflow which, may allow an 
+attacker to execute arbitrary commands on the remote host with the
+privileges of the application itself.
+
+
+Solution : 
+
+Upgrade to OpenSSL version 0.9.6e (0.9.7beta3) or newer :
+http://www.openssl.org
+
+If the remote service is Compaq Insight Manager, please visit
+http://h18023.www1.hp.com/support/files/server/us/download/15803.html
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
@@ -50,6 +71,9 @@ Risk factor : High";
  exit(0);
 }
 
+include("global_settings.inc");
+
+if ( safe_checks() && paranoia_level < 2 ) exit(0);
 
 #------------------------------ Consts ----------------------#
 client_hello = raw_string(
@@ -236,7 +260,7 @@ Risk factor : High";
 
 
 port = get_kb_item("Transport/SSL");
-if(!port)exit(0);
+if(!port) port = 443;
 if(!get_port_state(port))exit(0);
 soc = open_sock_tcp(port, transport:ENCAPS_IP);
 if(!soc)exit(0);
@@ -259,7 +283,9 @@ else
   send(socket:soc, data:client_hello);
   buf = recv(socket:soc, length:8192);
   if(!strlen(buf))exit(0);
-  send(socket:soc, data:big_poison);
+  n = send(socket:soc, data:big_poison);
+  if ( n != strlen(big_poison) ) exit(0);
+
   buf = recv(socket:soc, length:4096);
   close(soc);
   if(strlen(buf) == 0)security_hole(port);

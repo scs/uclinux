@@ -3,14 +3,21 @@
 **
 **  fpdetect.c
 **
-**  Copyright (C) 2002 Sourcefire,Inc
+**  Copyright (C) 2002-2005 Sourcefire,Inc
 **  Author(s):  Dan Roelker <droelker@sourcefire.com>
 **              Marc Norton <mnorton@sourcefire.com>
 **              Andrew R. Baker <andrewb@snort.org>
+**              Andrew J. Mullican <amullican@sourcefire.com>
+**              Steven Sturges <ssturges@sourcefire.com>
 **  NOTES
 **  5.15.02 - Initial Source Code. Norton/Roelker
 **  2002-12-06 - Modify event selection logic to fix broken custom rule types
 **               arbitrary rule type ordering (ARB)
+**  2005-02-08 - Track alerts per session so that they aren't double reported
+**               for rebuilt packets.  AJM.
+**  2005-02-17 - Track alerts per IP frag tracker so that they aren't double
+**               reported for rebuilt frags.  SAS (code similar to AJM's for
+**               per session tracking).
 **
 **
 **  This program is free software; you can redistribute it and/or modify
@@ -45,6 +52,8 @@
 #include "inline.h"
 
 #include "sp_pattern_match.h"
+#include "spp_frag3.h"
+#include "stream_api.h"
 
 /*
 **  This define is for the number of unique events
@@ -83,11 +92,12 @@ static FPDETECT *fpDetect;
 */
 extern PV          pv;  /* program vars (command line args) */
 extern int         active_dynamic_nodes;
-extern u_int32_t   event_id;
+extern u_int16_t   event_id;
 extern char        check_tags_flag;
 extern OptTreeNode *otn_tmp;
 extern u_int8_t    DecodeBuffer[DECODE_BLEN];
-
+extern OptTreeNode *current_otn;
+extern SNORT_EVENT_QUEUE g_event_queue;
 /*              
 **  MATCH_INFO
 **  The events that are matched get held in this structure,
@@ -139,12 +149,18 @@ static INLINE int fpEvalHeaderSW(PORT_GROUP *port_group, Packet *p,
         int check_ports);
 static int otnx_match (void* id, int index, void * data );               
 static INLINE int fpAddMatch( OTNX_MATCH_DATA *omd, OTNX *otnx, int pLen );
+static INLINE int fpAddSessionAlert(Packet *p, OTNX *otnx);
+static INLINE int fpSessionAlerted(Packet *p, OTNX *otnx);
         
 //static INLINE int fpLogEvent(RuleTreeNode *rtn, OptTreeNode *otn, Packet *p);
 
 extern u_int8_t *doe_ptr;
 
 static OTNX_MATCH_DATA omd;
+
+#ifdef PERF_PROFILING
+PreprocStats rulePerfStats;
+#endif
 
 /* initialize the global OTNX_MATCH_DATA variable */
 int OtnXMatchDataInitialize()
@@ -203,11 +219,33 @@ int fpLogEvent(RuleTreeNode *rtn, OptTreeNode *otn, Packet *p)
                 "   => Got rule match, rtn type = %d\n",
                 rtn->type););
 
+    if (otn->stateless)
+    {
+        /* Stateless rule, set the stateless bit */
+        p->packet_flags |= PKT_STATELESS;
+    }
+    else
+    {
+        /* Not stateless, clear the stateless bit if it was set
+         * from a previous rule.
+         */
+        p->packet_flags &= ~PKT_STATELESS;
+    }
+
     if(p->packet_flags & PKT_STREAM_UNEST_UNI &&
             pv.assurance_mode == ASSURE_EST &&
             (!(p->packet_flags & PKT_REBUILT_STREAM)) &&
             otn->stateless == 0)
     {
+        /*
+        **  If InlineMode is on, then we still want to drop packets
+        **  that are drop rules.  We just don't want to see the alert.
+        */
+        if(InlineMode())
+        {
+            if(rtn->type == RULE_DROP || rtn->type == RULE_SDROP)
+                InlineDrop(p);
+        }
         return 1;
     }
         
@@ -230,7 +268,7 @@ int fpLogEvent(RuleTreeNode *rtn, OptTreeNode *otn, Packet *p)
             if(InlineMode())
             {
                 if(rtn->type == RULE_DROP || rtn->type == RULE_SDROP)
-                    InlineDrop();
+                    InlineDrop(p);
             }
             
             return 1; /* Don't log it ! */
@@ -251,7 +289,7 @@ int fpLogEvent(RuleTreeNode *rtn, OptTreeNode *otn, Packet *p)
             if(InlineMode())
             {
                 if(rtn->type == RULE_DROP || rtn->type == RULE_SDROP)
-                    InlineDrop();
+                    InlineDrop(p);
             }
 
             return 1; /* Don't log it ! */
@@ -270,6 +308,7 @@ int fpLogEvent(RuleTreeNode *rtn, OptTreeNode *otn, Packet *p)
     **  This way we could support multiple events per packet.
     */
     otn_tmp = otn;
+    OTN_PROFILE_ALERT(otn);
 
     event_id++;
 
@@ -297,11 +336,11 @@ int fpLogEvent(RuleTreeNode *rtn, OptTreeNode *otn, Packet *p)
             LogAction(p, otn, &otn->event_data);
             break;
 
-#ifdef GIDS
         case RULE_DROP:
             DropAction(p, otn, &otn->event_data);
             break;
-				
+
+#ifdef GIDS
         case RULE_SDROP:
             SDropAction(p, otn, &otn->event_data);
             break;
@@ -318,6 +357,10 @@ int fpLogEvent(RuleTreeNode *rtn, OptTreeNode *otn, Packet *p)
     {
         check_tags_flag = 0;
     }
+
+    p->packet_flags &= ~PKT_INLINE_DROP;
+
+    otn_tmp = NULL;
 
     return 0;
 }
@@ -446,13 +489,13 @@ static INLINE int fpAddMatch(OTNX_MATCH_DATA *omd, OTNX *otnx, int pLen )
 */
 static INLINE int fpEvalOTN(OptTreeNode *List, Packet *p)
 {
-    Session *ssn;
+    PROFILE_VARS;
 
     if(List == NULL)
         return 0;
 
-    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, "   => Checking Option Node %d\n",
-			    List->chain_node_number););
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, "   => Checking SID %d\n",
+               List->sigInfo.id););
 
     if(List->type == RULE_DYNAMIC && !List->active_flag)
     {
@@ -483,8 +526,8 @@ static INLINE int fpEvalOTN(OptTreeNode *List, Packet *p)
                     case RULE_DROP:
                     case RULE_SDROP:
                         
-                        ssn = (Session *)p->ssnptr;
-                        if(ssn && !(ssn->session_flags & SSNFLAG_MIDSTREAM))
+                        if(stream_api && 
+			   !(stream_api->get_session_flags(p->ssnptr) & SSNFLAG_MIDSTREAM))
                         {
                             return 0;
                         }
@@ -513,11 +556,33 @@ static INLINE int fpEvalOTN(OptTreeNode *List, Packet *p)
         }
     }
 
+    OTN_PROFILE_START(List);
+
     if(!List->opt_func->OptTestFunc(p, List, List->opt_func))
     {
+#ifdef PERF_PROFILING
+        /* Handle the case where flowbits:noalert returns 0 to here
+         * but there was actually a match. */
+        if (List->noalerts)
+        {
+            OTN_PROFILE_END_MATCH(List);
+        }
+        else
+        {
+            OTN_PROFILE_END_NOMATCH(List);
+        }
+#endif
         return 0;
     }
+            
+    OTN_PROFILE_END_MATCH(List);
 
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, 
+             "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"););
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, "   => SID %d OTN Matched!\n",
+                List->sigInfo.id););
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, 
+            "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"););
     /* 
     ** Rule match actions are called from EvalHeader. 
     */
@@ -586,6 +651,12 @@ static INLINE int fpEvalRTN(RuleTreeNode *rtn, Packet *p, int check_ports)
         return 0;
     }
 
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, 
+             "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"););
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, "   => RTN %d Matched!\n",
+                rtn->head_node_number););
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, 
+            "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"););
     /*
     **  Return that there is a rule match and log the event outside
     **  of this routine.
@@ -673,6 +744,12 @@ static INLINE int fpEvalRTNSW(RuleTreeNode *rtn, OptTreeNode *otn, Packet *p, in
     */
     rule_match = fpEvalOTN(otn, p);
 
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, 
+             "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"););
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, "   => RTN %d Matched!\n",
+                rtn->head_node_number););
+    DEBUG_WRAP(DebugMessage(DEBUG_DETECT, 
+            "vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv\n"););
     return rule_match;
 }
 
@@ -708,13 +785,20 @@ static int otnx_match( void * id, int index, void * data)
 
     OTNX             *otnx   = (OTNX*)(rnNode->rnRuleData);
     PatternMatchData *pmd    = (PatternMatchData*)pmx->PatternMatchData;
+    PROFILE_VARS;
 
+    /* set up the current otn pointer for the exception handler */
+    current_otn = otnx->otn;
+
+    PREPROC_PROFILE_START(rulePerfStats);
     /*
     **  This is where we check the RULE_NODE ID for
     **  previous hits.
     */
     if(boIsBitSet(&(omd->pg->boRuleNodeID), rnNode->iRuleNodeID))
     {
+        current_otn = 0;
+        PREPROC_PROFILE_END(rulePerfStats);
         return 0;
     }
 
@@ -725,6 +809,10 @@ static int otnx_match( void * id, int index, void * data)
         */
         omd->pg->pgQEvents++;
         UpdateQEvents();
+
+        DEBUG_WRAP(DebugMessage(DEBUG_DETECT, 
+                "[**] SID %d added to event queue [**]\n", 
+                otnx->otn->sigInfo.id););
 
         fpAddMatch(omd, otnx, pmd->pattern_size );
     }
@@ -741,15 +829,102 @@ static int otnx_match( void * id, int index, void * data)
     **  Here is where we set the bit array for each RULE_NODE that
     **  we hit.
     */
-    if(boSetBit(&(omd->pg->boRuleNodeID), rnNode->iRuleNodeID))
+    if ( !otnx->otn->failedCheckBits )
     {
-        /*
-        **  There was an error, don't do anything right now.
-        */
-    }   
+        if(boSetBit(&(omd->pg->boRuleNodeID), rnNode->iRuleNodeID))
+        {
+            /*
+            **  There was an error, don't do anything right now.
+            */
+        }   
+    }
+    else
+    {
+        otnx->otn->failedCheckBits = 0;
+    }
+
+    PREPROC_PROFILE_END(rulePerfStats);
+
+    current_otn = 0;
 
     return 0;
 }
+
+static int sortOrderByPriority(const void *e1, const void *e2)
+{
+    OTNX *o1;
+    OTNX *o2;
+
+    if(!e1 || !e2)
+        return 0;
+
+    o1 = *(OTNX **)e1;
+    o2 = *(OTNX **)e2;
+
+    if( o1->otn->sigInfo.priority < o2->otn->sigInfo.priority )
+        return +1;
+
+    if( o1->otn->sigInfo.priority > o2->otn->sigInfo.priority )
+        return -1;
+
+    return 0;
+}
+
+static int sortOrderByContentLength(const void *e1, const void *e2)
+{
+    OTNX      *o1;
+    OTNX      *o2;
+
+    if(!e1 || !e2)
+        return 0;
+
+    o1 = *(OTNX **)e1;
+    o2 = *(OTNX **)e2;
+
+    if( !o1 || !o2 )
+        return 0;
+
+#ifdef XXXX
+    if(!e1->rule_info && e2->rule_info)
+    {
+        /*
+        **  incoming event is not a rule, keep
+        **  looking.
+        */
+        return -1;
+    }
+    else if(e1->rule_info && !e2->rule_info)
+    {
+        /*
+        **  incoming event is a rule, event in queue
+        **  is not.  Put incoming here.
+        */
+        return +1;
+    }
+    else if(!e1->rule_info && !e2->rule_info)
+    {
+        /*
+        **  Neither event is a rule.  Use incoming as
+        **  priority.  Last one in goes at the end to
+        **  preserve rule order.
+        */
+        return 0;
+    }
+#endif
+    /*
+    **  We already know that these pointers aren't NULL by
+    **  the previous logic.
+    */
+
+    if(o1->content_length < o2->content_length)
+        return +1;
+
+    if(o1->content_length > o2->content_length)
+        return -1;
+
+    return 0;
+}
+
 
 /*
 **
@@ -761,7 +936,7 @@ static int otnx_match( void * id, int index, void * data)
 **    to decide, if there hasn't already been a selection, to decide
 **    what event to select.  This function is different from 
 **    fpSelectEvent by the fact that fpSelectEvent only selects an
-**    event if it is the first priority setting (pass or alert).
+**    event if it is the first priority setting (drop/pass/alert...).
 **
 **    We also loop through the events we log, so that we don't log the
 **    same event twice.  This can happen with unique conflicts some
@@ -781,6 +956,41 @@ static int otnx_match( void * id, int index, void * data)
 **    precedence.  We now inspect both rule groups before doing a final
 **    event select.
 **
+**    NOTES
+**    Jan 2006 : marc norton
+**    Previously it was possible to not log all desired events, if for
+**    instance the rule order was alert->drop in inline mode we would
+**    alert but no drop.  The default ordering of 'drop alert pass log ...'
+**    normally handles this, however, it could happen.  Also, in the
+**    default ordering alerts on the same packet a drop was applied to
+**    did not get logged. To be more flexible and handle all manners of
+**    subjective rule ordering and logging desired by the whole farm we've
+**    changed things a bit.
+**
+**    Now, each actions event list is processed in order, based on the rule
+**    order.  We process all events up to the log limit specified via the
+**    'config event_queue: ...' as you might expect.  Pass rules are
+**    handled a bit differently. As soon as a pass rule based event is
+**    processed in the event queue, we stop processing any further events
+**    on the packet if the pass event is the 1st ordering that sees an
+**    event.  Otherwise if the ordering has it that pass rule events are
+**    processed after a drop or alert you will see the drops and alerts,
+**    and the pass event just causes us to stop processing any more events
+**    on the packet, but the packet does not pass.  Also, the --alert-on-drop
+**    flag causes any drop/sdrop/reject rules to be loaded as alert rules.
+**    The default has been to ignore them on parsing.
+**
+**    If this is less than clear, herese the $.02 version:
+**    default order -> pass drop alert log ( --alert-before-pass reverts
+**    to -> drop alert pass log ) the 1st action-type of events in the rule
+**    ordering to be seen gets logged by default the --flush-all-events
+**    flag will cause secondary and tertiary action-events to be logged.
+**    the -o flag is useless, but accepted, for now.
+**    the max_events and log fields are reduced to only needing the log
+**    events field. max_fields is harmless.
+**    ( drop rules may be honored as alerts in IDS mode (no -Q) by using
+**    the --alert-on-drop flag )
+**
 **  FORMAL INPUTS
 **    OTNX_MATCH_DATA * - omd to select event from.
 **    Packet *          - pointer to packet to log.
@@ -795,14 +1005,53 @@ static INLINE int fpFinalSelectEvent(OTNX_MATCH_DATA *o, Packet *p)
     int j;
     int k;
     OTNX *otnx;
+    int   tcnt=0;
 
-    for(i = 0; i < o->iMatchInfoArraySize; i++)
+    for( i = 0; i < o->iMatchInfoArraySize; i++ )
     {
+        /* bail if were not dumping events in all the action groups,
+         * and we've alresady got some events */
+        if( ( g_event_queue.process_all_events == 0 && pv.process_all_events == 0 ) && tcnt > 0 )
+            return 1;
+
         if(o->matchInfo[i].iMatchCount)
         {
+            /*
+             * We must always sort so if we que 8 and log 3 and they are
+             * all from the same action group we want them sorted so we get
+             * the highest 3 in priority, priority and lenght sort do NOT
+             * take precedence over 'alert drop pass ...' ordering.  If
+             * order is 'drop alert', and we log 3 for drop alertsdo not
+             * get logged.  IF order is 'alert drop', and we log 3 for
+             * alert, than no drops are logged.  So, there should be a
+             * built in drop/sdrop/reject comes before alert/pass/log as
+             * part of the natural ordering....Jan '06..
+             */
+            /* Sort the rules in this action group */
+            if(g_event_queue.order == SNORT_EVENTQ_PRIORITY)
+            {
+                qsort(o->matchInfo[i].MatchArray,o->matchInfo[i].iMatchCount,sizeof(void*),sortOrderByPriority);
+            }
+            else if(g_event_queue.order == SNORT_EVENTQ_CONTENT_LEN)
+            {
+                qsort(o->matchInfo[i].MatchArray,o->matchInfo[i].iMatchCount,sizeof(void*),sortOrderByContentLength);
+            }
+            else
+            {
+                FatalError("fpdetect: Order function for event queue is invalid.\n");
+            }
+
+            /* Process each event in the action (alert,drop,log,...) groups */
             for(j=0; j < o->matchInfo[i].iMatchCount; j++)
             {
                 otnx = o->matchInfo[i].MatchArray[j];
+
+                if( otnx && otnx->otn && (otnx->otn->type == RULE_PASS) )
+                {
+                    /* Already acted on rules, so just don't act on anymore */
+                    if( tcnt > 0 )
+                        return 1;
+                }
 
                 /*
                 **  Loop here so we don't log the same event
@@ -817,7 +1066,8 @@ static INLINE int fpFinalSelectEvent(OTNX_MATCH_DATA *o, Packet *p)
                     }
                 }
 
-                if(otnx && otnx->otn)
+                if( otnx && otnx->otn && !fpSessionAlerted(p, otnx) &&
+                   !fpFragAlerted(p, otnx))
                 {
                     /*
                     **  QueueEvent
@@ -829,15 +1079,103 @@ static INLINE int fpFinalSelectEvent(OTNX_MATCH_DATA *o, Packet *p)
                                    otnx->otn->sigInfo.priority,
                                    otnx->otn->sigInfo.message,
                                    (void *)otnx);
+                    tcnt++;
+                }
+                
+                if ( p->ssnptr )
+                {                     
+                    fpAddSessionAlert(p, otnx);
+                }
+
+                if ( p->fragtracker )
+                {
+                    fpAddFragAlert(p, otnx);
+                }
+
+                if( tcnt >= g_event_queue.log_events )
+                    return 1;
+
+                /* only log/count one pass */
+                if( otnx &&  otnx->otn && (otnx->otn->type == RULE_PASS) )
+                {
+                    p->packet_flags |= PKT_PASS_RULE;
+                    return 1;
                 }
             }
-
-            return 1;
         }
     }
 
     return 0;
 }
+
+/*
+**  
+**  NAME
+**    fpAddSessionAlert::
+**
+**  DESCRIPTION
+**    This function flags an alert per session.
+**
+**  FORMAL INPUTS
+**    Packet *     - the packet to inspect
+**    OTNX *       - the rule that generated the alert
+**
+**  FORMAL OUTPUTS
+**    int - 0 if not flagged
+**          1 if flagged
+**
+*/
+static INLINE int fpAddSessionAlert(Packet *p, OTNX *otnx)
+{
+    if ( !p->ssnptr )
+        return 0;
+
+    if ( !otnx )
+        return 0;
+
+    if ( !otnx->otn )
+        return 0;
+
+    /* Only track a certain number of alerts per session */
+    if (stream_api)
+        return !stream_api->add_session_alert(p->ssnptr, p,
+                                  otnx->otn->sigInfo.generator,
+                                  otnx->otn->sigInfo.id);
+    return 0;
+}
+
+/*
+**  
+**  NAME
+**    fpSessionAlerted::
+**
+**  DESCRIPTION
+**    This function indicates whether or not an alert has been generated previously
+**    in this session, but only if this is a rebuilt packet.
+**
+**  FORMAL INPUTS
+**    Packet *     - the packet to inspect
+**    OTNX *       - the rule that generated the alert
+**
+**  FORMAL OUTPUTS
+**    int - 0 if alert NOT previously generated
+**          1 if alert previously generated
+**
+*/
+static INLINE int fpSessionAlerted(Packet *p, OTNX *otnx)
+{
+    SigInfo *si = &otnx->otn->sigInfo;
+
+    if ( !stream_api )
+        return 0;
+
+    if (!stream_api->check_session_alerted(p->ssnptr, p, si->generator, si->id))
+        return 0;
+    else
+        return 1;
+
+}
+
 
 /*
 **  fpEvalHeader::
@@ -950,115 +1288,118 @@ static INLINE int fpEvalHeaderSW(PORT_GROUP *port_group, Packet *p, int check_po
     */
     //InitMatchInfo( &omd );
     
-    /*
-    **  PKT_STREAM_INSERT packets are being rebuilt and re-injected
-    **  through this detection engine.  So in order to avoid pattern
-    **  matching bytes twice, we wait until the PKT_STREAM_INSERT 
-    **  packets are rebuilt and injected through the detection engine.
-    **
-    **  PROBLEM:
-    **  If a stream gets stomped on before it gets re-injected, an attack
-    **  would be missed.  So before a connection gets stomped, we 
-    **  re-inject the stream we have.
-    */
-    if(fpDetect->inspect_stream_insert || 
-       !(p->packet_flags & PKT_STREAM_INSERT))
+    if (do_detect_content)
     {
         /*
-        **   Uri-Content Match
-        **   This check indicates that http_decode found
-        **   at least one uri
+        **  PKT_STREAM_INSERT packets are being rebuilt and re-injected
+        **  through this detection engine.  So in order to avoid pattern
+        **  matching bytes twice, we wait until the PKT_STREAM_INSERT 
+        **  packets are rebuilt and injected through the detection engine.
+        **
+        **  PROBLEM:
+        **  If a stream gets stomped on before it gets re-injected, an attack
+        **  would be missed.  So before a connection gets stomped, we 
+        **  re-inject the stream we have.
         */
-        if( p->uri_count > 0)
+        if(fpDetect->inspect_stream_insert || 
+           !(p->packet_flags & PKT_STREAM_INSERT))
         {
-            int i;
-            so = (void *)port_group->pgPatDataUri;
-	
-            if( so ) /* Do we have any URI rules ? */
+            /*
+            **   Uri-Content Match
+            **   This check indicates that http_decode found
+            **   at least one uri
+            */
+            if( p->uri_count > 0)
+            {
+                int i;
+                so = (void *)port_group->pgPatDataUri;
+    
+                if( so ) /* Do we have any URI rules ? */
+                {
+                    mpseSetRuleMask( so, &port_group->boRuleNodeID ); 
+    
+                    /*
+                    **  Process all of the packet's URIs
+                    */
+                    for( i=0; i<p->uri_count; i++)
+                    {
+                        if(UriBufs[i].uri == NULL)
+                            continue;
+    
+                        omd.pg = port_group;
+                        omd.p  = p;
+                        omd.check_ports= check_ports;
+    
+                        mpseSearch (so, UriBufs[i].uri, UriBufs[i].length, 
+                             otnx_match, &omd);
+                    }   
+                }
+            }
+    
+            /*
+            **  If this is a pipeline request don't do the no-content
+            **  rules since we already checked them during the
+            **  first URI inspection.
+            */
+            if(UriBufs[0].decode_flags & HTTPURI_PIPELINE_REQ)
+            {
+                boResetBITOP(&(port_group->boRuleNodeID));
+                return 0;
+            }
+    
+            /*
+            **  Decode Content Match
+            **  We check to see if the packet has been normalized into
+            **  the global (decode.c) DecodeBuffer.  Currently, only
+            **  telnet normalization writes to this buffer.  So, if
+            **  it is set, we do this the match against the normalized
+            **  buffer and we do the check against the original 
+            **  payload, in case any of the rules have the 
+            **  'rawbytes' option.
+            */
+            so = (void *)port_group->pgPatData;
+    
+            if((p->packet_flags & PKT_ALT_DECODE) && so && p->alt_dsize) 
             {
                 mpseSetRuleMask( so, &port_group->boRuleNodeID ); 
-
+    
+                omd.pg = port_group;
+                omd.p = p;
+                omd.check_ports= check_ports;
+    
+                mpseSearch ( so, DecodeBuffer, p->alt_dsize, 
+                        otnx_match, &omd );
+    
                 /*
-                **  Process all of the packet's URIs
-                */
-                for( i=0; i<p->uri_count; i++)
-                {
-                    if(UriBufs[i].uri == NULL)
-                        continue;
-
-                    omd.pg = port_group;
-                    omd.p  = p;
-                    omd.check_ports= check_ports;
-
-                    mpseSearch (so, UriBufs[i].uri, UriBufs[i].length, 
-                         otnx_match, &omd);
-                }   
+                 **  The reason that we reset the bitops is because
+                 **  an OTN might not be verified using the DecodeBuffer
+                 **  because of the 'rawbytes' option, while the next pass
+                 **  will need to validate that same rule in the case
+                 **  of rawbytes.
+                 */
+                boResetBITOP(&(port_group->boRuleNodeID));
             }
-        }
-
-        /*
-        **  If this is a pipeline request don't do the no-content
-        **  rules since we already checked them during the
-        **  first URI inspection.
-        */
-        if(UriBufs[0].decode_flags & HTTPURI_PIPELINE_REQ)
-        {
-            boResetBITOP(&(port_group->boRuleNodeID));
-            return 0;
-        }
-
-        /*
-        **  Decode Content Match
-        **  We check to see if the packet has been normalized into
-        **  the global (decode.c) DecodeBuffer.  Currently, only
-        **  telnet normalization writes to this buffer.  So, if
-        **  it is set, we do this the match against the normalized
-        **  buffer and we do the check against the original 
-        **  payload, in case any of the rules have the 
-        **  'rawbytes' option.
-        */
-        so = (void *)port_group->pgPatData;
-
-        if((p->packet_flags & PKT_ALT_DECODE) && so && p->alt_dsize) 
-        {
-            mpseSetRuleMask( so, &port_group->boRuleNodeID ); 
-
-            omd.pg = port_group;
-            omd.p = p;
-            omd.check_ports= check_ports;
-
-            mpseSearch ( so, DecodeBuffer, p->alt_dsize, 
-                    otnx_match, &omd );
-
+            
             /*
-             **  The reason that we reset the bitops is because
-             **  an OTN might not be verified using the DecodeBuffer
-             **  because of the 'rawbytes' option, while the next pass
-             **  will need to validate that same rule in the case
-             **  of rawbytes.
-             */
+            **  Content-Match - If no Uri-Content matches, than do a Content search
+            **
+            **  NOTE:
+            **    We may want to bail after the Content search if there
+            **    has been a successful match.
+            */
+            if( so && p->data && p->dsize) 
+            {
+                mpseSetRuleMask( so, &port_group->boRuleNodeID ); 
+    
+                omd.pg = port_group;
+                omd.p = p;
+                omd.check_ports= check_ports;
+    
+                mpseSearch ( so, p->data, p->dsize, otnx_match, &omd );
+            }
+    
             boResetBITOP(&(port_group->boRuleNodeID));
         }
-        
-        /*
-        **  Content-Match - If no Uri-Content matches, than do a Content search
-        **
-        **  NOTE:
-        **    We may want to bail after the Content search if there
-        **    has been a successful match.
-        */
-        if( so && p->data && p->dsize) 
-        {
-            mpseSetRuleMask( so, &port_group->boRuleNodeID ); 
-
-            omd.pg = port_group;
-            omd.p = p;
-            omd.check_ports= check_ports;
-
-            mpseSearch ( so, p->data, p->dsize, otnx_match, &omd );
-        }
-
-        boResetBITOP(&(port_group->boRuleNodeID));
     }
 
     /*

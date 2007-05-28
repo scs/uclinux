@@ -7,27 +7,39 @@
 if(description)
 {
   script_id(11195);
-  script_version ("$Revision: 1.3 $");
-  script_cve_id("CAN-2002-1357", "CAN-2002-1358", "CAN-2002-1359", "CAN-2002-1360");
+  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0001");
+  script_version ("$Revision: 1.8 $");
+  script_cve_id("CVE-2002-1357", "CVE-2002-1358", "CVE-2002-1359", "CVE-2002-1360");
 
   name["english"] = "SSH Multiple Vulns";
   script_name(english:name["english"]);
 
   desc["english"] = "
- According to its banner, the remote SSH server is vulnerable to one or 
- more of the following vulnerabilities:
+Synopsis :
 
-CAN-2002-1357 (incorrect length)
-CAN-2002-1358 (lists with empty elements/empty strings)
-CAN-2002-1359 (large packets and large fields)
-CAN-2002-1360 (string fields with zeros)
+It is possible to execute arbitrary code on the remote host
+
+Description :
+
+According to its banner, the remote SSH server is vulnerable to one or 
+more of the following vulnerabilities:
+
+- CVE-2002-1357 (incorrect length)
+- CVE-2002-1358 (lists with empty elements/empty strings)
+- CVE-2002-1359 (large packets and large fields)
+- CVE-2002-1360 (string fields with zeros)
 
 Some of these vulnerabilities may allow remote attackers to execute 
 arbitrary code with the privileges of the SSH process, usually root.
 
-Solution : Upgrade your SSH server to an unaffected version
+Solution : 
 
-Risk factor : High";
+Upgrade your SSH server to an unaffected version
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
   script_description(english:desc["english"]);
 
@@ -38,7 +50,7 @@ Risk factor : High";
   script_copyright(english:"This script is Copyright (C) 2002 Paul Johnston, Westpoint Ltd");
   script_family(english:"Gain root remotely");
   script_require_ports("Services/ssh", 22);
-  script_dependencie("find_service.nes");
+  script_dependencie("ssh_detect.nasl");
 
   exit(0);
 }
@@ -46,25 +58,16 @@ Risk factor : High";
 #
 # The script code starts here
 #
-
+include("backport.inc");
 port = get_kb_item("Services/ssh");
 if (!port) port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(soc)
-    { 
-      banner = recv_line(socket:soc, length:255);
-      close(soc);
-    }
-  }
-}
-if(!banner) exit(0);
+banner = get_kb_item("SSH/banner/" + port);
+if ( ! banner ) exit(0);
+
+
+banner = get_backport_banner(banner:banner);
+
 
 #
 # SSH-2.0-3.2.0 F-Secure SSH Windows NT Server

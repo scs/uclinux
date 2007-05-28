@@ -1,6 +1,6 @@
 #!/usr/local/bin/tkperl
 # 
-# $Header$
+# $Header: faxman.pl[2.5] Thu Apr  6 16:41:01 1995 klaus@gaston.m.ISAR.de saved $
 #
 # (C) Klaus Lichtenwalder, Munich, Germany, 1995, 
 #     klaus@gaston.m.isar.de, Lichtenwalder@ACM.org

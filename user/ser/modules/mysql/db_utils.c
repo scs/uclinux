@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: db_utils.c,v 1.11 2003/04/14 18:37:43 janakj Exp $ 
  *
  * MySQL module useful functions
  *

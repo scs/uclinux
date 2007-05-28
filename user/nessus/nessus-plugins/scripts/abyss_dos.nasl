@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11521);
  script_bugtraq_id(7287);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
  name["english"] = "Abyss httpd crash";
  script_name(english:name["english"]);
  
@@ -30,7 +30,7 @@ its job properly.
 Solution : If the remote web server is Abyss X1, then upgrade to 
 Abyss X1 v.1.1.4, otherwise inform your vendor of this flaw.
 
-Risk factor : Medium";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -52,8 +52,8 @@ Risk factor : Medium";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 if(http_is_dead(port:port))exit(0);

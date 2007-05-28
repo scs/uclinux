@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: db.h,v 1.6 2002/11/28 16:53:03 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

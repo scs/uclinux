@@ -3,7 +3,7 @@
  *
  * Here is the vgetty specific voice event handler.
  *
- * $Id$
+ * $Id: event.c,v 1.6 2001/01/14 14:47:09 marcs Exp $
  *
  */
 

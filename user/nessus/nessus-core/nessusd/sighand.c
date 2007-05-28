@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,16 +14,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * Signals handlers
  */
@@ -48,6 +38,7 @@
 #endif
 
 extern pid_t bpf_server_pid;
+extern pid_t nasl_server_pid;
 
 
 /* do not leave a zombie, hanging around if possible */
@@ -83,6 +74,9 @@ make_em_die
   if (getpgrp () != getpid()) return ;
   
    
+   if(nasl_server_pid != 0 && kill(nasl_server_pid, 0) >= 0 )
+       kill(nasl_server_pid, SIGTERM);
+ 
    if(bpf_server_pid != 0 && kill(bpf_server_pid, 0) >= 0)
    	kill(bpf_server_pid, SIGTERM);
 
@@ -130,19 +124,15 @@ void (*nessus_signal(int signum, void (*handler)(int)))(int)
   return saOld.sa_handler;
 }
 
-void sighand_pipe()
-{
-  log_write("connection closed by the client (SIGPIPE caught)\n");
-  shutdown (0,2);
-  close (0);
-  make_em_die (SIGTERM);
-  _EXIT(1);   
-}
 
 void sighand_chld()
 {
  int ret; 
- wait(&ret);
+ int e;
+ do {
+  errno = 0;
+  e = wait(&ret);
+ } while ( e < 0 && errno == EINTR );
 }
 
 void sighand_alarm()

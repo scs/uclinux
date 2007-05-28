@@ -1,4 +1,4 @@
-/* $OpenBSD: getrrsetbyname.c,v 1.7 2003/03/07 07:34:14 itojun Exp $ */
+/* $OpenBSD: getrrsetbyname.c,v 1.10 2005/03/30 02:58:28 tedu Exp $ */
 
 /*
  * Copyright (c) 2001 Jakob Schlyter. All rights reserved.
@@ -43,52 +43,26 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/net/getrrsetbyname.c */
+
 #include "includes.h"
 
-#if defined(DNS) && !defined(HAVE_GETRRSETBYNAME)
+#ifndef HAVE_GETRRSETBYNAME
 
 #include "getrrsetbyname.h"
 
-/* #include "thread_private.h" */
+#if defined(HAVE_DECL_H_ERRNO) && !HAVE_DECL_H_ERRNO
+extern int h_errno;
+#endif
 
-#define ANSWER_BUFFER_SIZE 1024*64
+/* We don't need multithread support here */
+#ifdef _THREAD_PRIVATE
+# undef _THREAD_PRIVATE
+#endif
+#define _THREAD_PRIVATE(a,b,c) (c)
+struct __res_state _res;
 
-struct dns_query {
-	char			*name;
-	u_int16_t		type;
-	u_int16_t		class;
-	struct dns_query	*next;
-};
-
-struct dns_rr {
-	char			*name;
-	u_int16_t		type;
-	u_int16_t		class;
-	u_int16_t		ttl;
-	u_int16_t		size;
-	void			*rdata;
-	struct dns_rr		*next;
-};
-
-struct dns_response {
-	HEADER			header;
-	struct dns_query	*query;
-	struct dns_rr		*answer;
-	struct dns_rr		*authority;
-	struct dns_rr		*additional;
-};
-
-static struct dns_response *parse_dns_response(const u_char *, int);
-static struct dns_query *parse_dns_qsection(const u_char *, int,
-    const u_char **, int);
-static struct dns_rr *parse_dns_rrsection(const u_char *, int, const u_char **,
-    int);
-
-static void free_dns_query(struct dns_query *);
-static void free_dns_rr(struct dns_rr *);
-static void free_dns_response(struct dns_response *);
-
-static int count_dns_rr(struct dns_rr *, u_int16_t, u_int16_t);
+/* Necessary functions and macros */
 
 /*
  * Inline versions of get/put short/long.  Pointer is advanced.
@@ -140,6 +114,8 @@ _getshort(msgp)
 	GETSHORT(u, msgp);
 	return (u);
 }
+#elif defined(HAVE_DECL__GETSHORT) && (HAVE_DECL__GETSHORT == 0)
+u_int16_t _getshort(register const u_char *);
 #endif
 
 #ifndef HAVE__GETLONG
@@ -152,17 +128,60 @@ _getlong(msgp)
 	GETLONG(u, msgp);
 	return (u);
 }
+#elif defined(HAVE_DECL__GETLONG) && (HAVE_DECL__GETLONG == 0)
+u_int32_t _getlong(register const u_char *);
 #endif
+
+/* ************** */
+
+#define ANSWER_BUFFER_SIZE 1024*64
+
+struct dns_query {
+	char			*name;
+	u_int16_t		type;
+	u_int16_t		class;
+	struct dns_query	*next;
+};
+
+struct dns_rr {
+	char			*name;
+	u_int16_t		type;
+	u_int16_t		class;
+	u_int16_t		ttl;
+	u_int16_t		size;
+	void			*rdata;
+	struct dns_rr		*next;
+};
+
+struct dns_response {
+	HEADER			header;
+	struct dns_query	*query;
+	struct dns_rr		*answer;
+	struct dns_rr		*authority;
+	struct dns_rr		*additional;
+};
+
+static struct dns_response *parse_dns_response(const u_char *, int);
+static struct dns_query *parse_dns_qsection(const u_char *, int,
+    const u_char **, int);
+static struct dns_rr *parse_dns_rrsection(const u_char *, int, const u_char **,
+    int);
+
+static void free_dns_query(struct dns_query *);
+static void free_dns_rr(struct dns_rr *);
+static void free_dns_response(struct dns_response *);
+
+static int count_dns_rr(struct dns_rr *, u_int16_t, u_int16_t);
 
 int
 getrrsetbyname(const char *hostname, unsigned int rdclass,
     unsigned int rdtype, unsigned int flags,
     struct rrsetinfo **res)
 {
-	struct __res_state *_resp = &_res;
+	struct __res_state *_resp = _THREAD_PRIVATE(_res, _res, &_res);
 	int result;
 	struct rrsetinfo *rrset = NULL;
-	struct dns_response *response;
+	struct dns_response *response = NULL;
 	struct dns_rr *rr;
 	struct rdatainfo *rdata;
 	int length;
@@ -250,13 +269,11 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 #endif
 
 	/* copy name from answer section */
-	length = strlen(response->answer->name);
-	rrset->rri_name = malloc(length + 1);
+	rrset->rri_name = strdup(response->answer->name);
 	if (rrset->rri_name == NULL) {
 		result = ERRSET_NOMEMORY;
 		goto fail;
 	}
-	strlcpy(rrset->rri_name, response->answer->name, length + 1);
 
 	/* count answers */
 	rrset->rri_nrdatas = count_dns_rr(response->answer, rrset->rri_rdclass,
@@ -304,6 +321,7 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 			memcpy(rdata->rdi_data, rr->rdata, rr->size);
 		}
 	}
+	free_dns_response(response);
 
 	*res = rrset;
 	return (ERRSET_SUCCESS);
@@ -311,6 +329,8 @@ getrrsetbyname(const char *hostname, unsigned int rdclass,
 fail:
 	if (rrset != NULL)
 		freerrset(rrset);
+	if (response != NULL)
+		free_dns_response(response);
 	return (result);
 }
 
@@ -460,7 +480,8 @@ parse_dns_qsection(const u_char *answer, int size, const u_char **cp, int count)
 }
 
 static struct dns_rr *
-parse_dns_rrsection(const u_char *answer, int size, const u_char **cp, int count)
+parse_dns_rrsection(const u_char *answer, int size, const u_char **cp,
+    int count)
 {
 	struct dns_rr *head, *curr, *prev;
 	int i, length;
@@ -575,4 +596,4 @@ count_dns_rr(struct dns_rr *p, u_int16_t class, u_int16_t type)
 	return (n);
 }
 
-#endif /* defined(DNS) && !defined(HAVE_GETRRSETBYNAME) */
+#endif /* !defined(HAVE_GETRRSETBYNAME) */

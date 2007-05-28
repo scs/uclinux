@@ -14,9 +14,9 @@
 if(description)
 {
  script_id(11068);
- script_version("$Revision: 1.7 $");
- script_cve_id("CVE-2002-0845");
  script_bugtraq_id(5433);
+ script_version("$Revision: 1.12 $");
+ script_cve_id("CVE-2002-0845");
  
  name["english"] = "iPlanet chunked encoding";
 
@@ -31,7 +31,7 @@ server process to execute arbitrary code.  This allows the potential
 intruder to gain access to this host.
 
 Solution: The vendor has released Sun ONE web server 4.1 service 
-pack 11 and 6.0 service patch 4 to fix this issue.  Please install the 
+pack 11 and 6.0 service pack 4 to fix this issue.  Please install the 
 latest service pack available from Sun's website at http://www.sun.com/
 
 Risk factor : High";
@@ -61,8 +61,8 @@ Risk factor : High";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {	
  req1 = string(		
@@ -79,8 +79,8 @@ if(get_port_state(port))
   soc = open_sock_tcp(port);
   if(soc)
   {
-   send(socket:soc, data:http_get(item:"/", port:80));
-   init = http_recv_headers(soc);
+   send(socket:soc, data:http_get(item:"/", port:port));
+   init = http_recv_headers2(socket:soc);
    close(soc);
 
    

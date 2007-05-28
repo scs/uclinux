@@ -7,26 +7,25 @@
 if(description)
 {
  script_id(10059);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CVE-2000-0023");
  script_bugtraq_id(881);
+ script_version ("$Revision: 1.22 $");
+ script_cve_id("CVE-2000-0023");
  name["english"] = "Domino HTTP Denial";
  name["francais"] = "Déni de service contre le serveur HTTP Domino";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "It was possible to perform
-a denial of service against the remote
+ desc["english"] = "
+It was possible to perform a denial of service against the remote
 HTTP server by sending it a long /cgi-bin relative URL. 
 
-This problem allows an attacker to prevent
-your Lotus Domino web server from handling requests.
+This problem allows an attacker to prevent your Lotus Domino web 
+server from handling requests.
 
-Solution : contact your vendor for a patch, or
-change your server. Consider changing cgi-bin mapping
-by something impossible to guess in server document of
-primary Notes NAB.
+Solution : contact your vendor for a patch, or change your server. 
+Consider changing cgi-bin mapping by something impossible to guess 
+in server document of primary Notes NAB.
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Il s'est avéré possible
 de créer un déni de service sur le serveur
@@ -43,12 +42,12 @@ patch, ou changez de serveur. Vous pouvez
 impossible à deviner en modifiant le document serveur
 du carnet d'adresses Notes.
 
-Facteur de risque : Serieux";
+Facteur de risque : Elevé";
 
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
- summary["english"] = "Crashes the Domini HTTP server";
+ summary["english"] = "Crashes the Domino HTTP server";
  summary["francais"] = "Fait planter le serveur HTTP Domino";
  script_summary(english:summary["english"], francais:summary["francais"]);
  
@@ -60,9 +59,9 @@ Facteur de risque : Serieux";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/domino");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -71,9 +70,14 @@ Facteur de risque : Serieux";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "Lotus Domino" >!< sig ) exit(0);
+
+banner = get_http_banner(port:port);
+if ("Lotus Domino" >!< banner ) exit(0);
 
 foreach dir (cgi_dirs())
 {

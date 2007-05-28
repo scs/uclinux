@@ -47,10 +47,6 @@
 #include "compat.h"
 #include "pptpmanager.h"
 
-#ifdef CONFIG_LEDMAN
-#include <linux/ledman.h>
-#endif
-
 /* command line arg variables */
 char *pppdoptstr = NULL;
 char *speedstr = NULL;
@@ -307,10 +303,6 @@ int main(int argc, char **argv)
 #endif
 	}
 
-#ifdef CONFIG_LEDMAN
-	/* turn the NETtel VPN LED on */
-	ledman_cmd(LEDMAN_CMD_ON, LEDMAN_VPN);
-#endif
 	/* after we have our final pid... */
 	log_pid();
 

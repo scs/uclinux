@@ -21,7 +21,9 @@ if(description)
 {
  script_id(11480);
  script_bugtraq_id(7176);
- script_version ("$Revision: 1.2 $");
+ #script_cve_id("CVE-MAP-NOMATCH");
+ # NOTE: no CVE id assigned (jfs, december 2003)
+ script_version ("$Revision: 1.5 $");
  
  name["english"] = "3com RAS 1500 configuration disclosure";
  script_name(english:name["english"]);
@@ -63,8 +65,8 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 req = http_get(item:"/user_settings.cfg", port:port);
 res = http_keepalive_send_recv(port:port, data:req);

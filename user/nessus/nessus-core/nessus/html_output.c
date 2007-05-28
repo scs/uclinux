@@ -99,7 +99,7 @@ print_data_with_links(file, str, plugin_id)
 {
  while(str != NULL && str[0] != '\0')
  {
-  if(strncmp(str, "http:", 5) == 0)
+  if(strncmp(str, "http:", 5) == 0 || strncmp(str, "https:", 6) == 0 )
   {
    char * e1, * e2;
    char tmp = 0;
@@ -133,7 +133,7 @@ print_data_with_links(file, str, plugin_id)
   str = extract_xref(file, str, "http://cgi.nessus.org/bid.php3?bid=");
   }
   else fputc(str[0], file);
-  str++;
+  if ( str != NULL ) str++;
  }
  
  fprintf(file, "Nessus ID : <a href=\"http://cgi.nessus.org/nessus_id.php3?id=%s\">%s</a>", plugin_id, plugin_id);
@@ -457,7 +457,7 @@ void summary_to_file(FILE *file, struct arglist *hosts)
  fprintf(file, "<HTML>\n");
  fprintf(file, " <HEAD>\n");
  fprintf(file, " <TITLE>Nessus Scan Report</TITLE>\n");
- fprintf(file, " <meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">\n");
+ fprintf(file, " <meta http-equiv=\"Content-Type\" content=\"text/html; charset=\"iso-8859-1\">\n");
  fprintf(file, " <style type=\"text/css\">\n");
  fprintf(file, " <!--\n");
  fprintf(file, "  BODY {\n\tBACKGROUND-COLOR: #ffffff\n }\n");

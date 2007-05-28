@@ -145,13 +145,13 @@ char *wavnames[] = {
 
 void usage(int rc)
 {
-	printf("usage: tone [-sqrwh?] [-f replay-freq] [wave-freq]\n\n"
+	printf("usage: tone [-?hsqrwe] [-f replay-freq] [wave-freq]\n\n"
 		"\t-h?\tthis help\n"
 		"\t-s\tsine wave output\n"
 		"\t-q\tsquare wave output\n"
 		"\t-r\tramp wave output\n"
 		"\t-w\tsawtooth wave output\n"
-		"\t-e\toutput Big Endian\n"
+		"\t-e\toutput big-endian data\n"
 		"\t-f\tfrequency of replay engine\n");
 	exit(rc);
 }
@@ -160,16 +160,15 @@ void usage(int rc)
 
 int main(int argc, char *argv[])
 {
-	int	ofd, i, c, size, endian, mag;
+	int	ofd, i, c, size, mag, endian;
 	int	replayfreq, wavefreq, wavetyp;
 
 	replayfreq = 48000;
-	mag = 255;
 	wavetyp = SINE;
 	wavefreq = 1000;
 	endian = AFMT_S16_LE;
 
-	while ((c = getopt(argc, argv, "?hsqrewf:m:")) >= 0) {
+	while ((c = getopt(argc, argv, "?hsqrwef:m:")) >= 0) {
 		switch (c) {
 		case 'f':
 			replayfreq = atoi(optarg);
@@ -181,7 +180,7 @@ int main(int argc, char *argv[])
 			break;
 		case 'm':
 			mag = atoi(optarg);
-			if ((mag < 0) || ( mag > 255)) {
+			if ((mag < 0) || ( mag > 256)) {
 				printf ("ERROR: invalid magintude %d, range "
 					"1 - 255\n", mag);
 				exit(1);
@@ -241,7 +240,7 @@ int main(int argc, char *argv[])
 
 	if (ioctl(ofd, SNDCTL_DSP_SAMPLESIZE, &endian) < 0) {
 		printf("ERROR: ioctl(SNDCTL_DSP_SAMPLESIZE,0x%x) failed, "
-			"errno=%d\n", errno, i);
+			"errno=%d\n", endian, errno);
 		exit(1);
 	}
 

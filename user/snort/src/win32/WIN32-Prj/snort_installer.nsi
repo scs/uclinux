@@ -1,16 +1,17 @@
 ; $Id$
 ;
-; NSIS Installation script for Snort 2.3 Win32
+; NSIS Installation script for Snort 2.6.1 Win32
 ; Written by Chris Reid <chris.reid@codecraftconsultants.com>
+; Updated by Steven Sturges <ssturges@sourcefire.com>
 ;
-; This script will create a Win32 installer for Snort 2.3 (Win32 only).
+; This script will create a Win32 installer for Snort 2.6.1 (Win32 only).
 ; For more information about NSIS, see their homepage:
 ;     http://nsis.sourceforge.net/
 ;
-; Note that this NSIS script is designed for NSIS version 2.02.
+; Note that this NSIS script is designed for NSIS version 2.09.
 ;
 
-Name "Snort 2.3"
+Name "Snort 2.6.1.1"
 
 CRCCheck On
 
@@ -22,7 +23,7 @@ CRCCheck On
 ;Configuration
 
   ;General
-  OutFile "Snort_23_Installer.exe"  ; The name of the installer executable
+  OutFile "Snort_261_Installer.exe"  ; The name of the installer executable
 
   ;Folder selection page
   InstallDir "C:\Snort"
@@ -52,6 +53,7 @@ CRCCheck On
 
   ;Description
   LangString DESC_Snort   ${LANG_ENGLISH} "Install snort, configuration files, and rules."
+  LangString DESC_Dynamic ${LANG_ENGLISH} "Install dynamic preprocessor and dynamic engine modules."
   LangString DESC_Doc     ${LANG_ENGLISH} "Install snort documentation."
   LangString DESC_Schemas ${LANG_ENGLISH} "Copy database schemas."
   
@@ -99,9 +101,13 @@ Function .onInstSuccess
   StrCpy $0 "Snort has successfully been installed.$\r$\n"
   StrCpy $0 "$0$\r$\n"
   StrCpy $0 "$0$\r$\n"
-  StrCpy $0 "$0Snort also requires WinPcap 3.0 to be installed on this machine.$\r$\n"
+  StrCpy $0 "$0Snort also requires WinPcap 3.1 to be installed on this machine.$\r$\n"
   StrCpy $0 "$0WinPcap can be downloaded from:$\r$\n"
-  StrCpy $0 "$0    http://winpcap.polito.it/ $\r$\n"
+  StrCpy $0 "$0    http://www.winpcap.org/ $\r$\n"
+  StrCpy $0 "$0$\r$\n"
+  StrCpy $0 "$0$\r$\n"
+  StrCpy $0 "$0It would also be wise to tighten the security on the Snort installation$\r$\n"
+  StrCpy $0 "$0directory to prevent any malicious modification of the Snort executable.$\r$\n"
   StrCpy $0 "$0$\r$\n"
   StrCpy $0 "$0$\r$\n"
   StrCpy $0 "$0Next, you must manually edit the 'snort.conf' file to$\r$\n"
@@ -146,7 +152,6 @@ Section "Snort" Snort
   File ".\LibnetNT.dll"
   File ".\pcre.dll"
   
-
   CreateDirectory "$INSTDIR\etc"
   SetOutPath "$INSTDIR\etc"
   File "..\..\..\etc\*.conf"
@@ -155,7 +160,8 @@ Section "Snort" Snort
 
   CreateDirectory "$INSTDIR\rules"
   SetOutPath "$INSTDIR\rules"
-  File /r "..\..\..\rules\*.rules"
+  ;Rules are no longer part of the distribution
+  ;File /r "..\..\..\rules\*.rules"
 
   CreateDirectory "$INSTDIR\log"
 
@@ -195,6 +201,21 @@ Section "Snort" Snort
   WriteUninstaller "$INSTDIR\Uninstall.exe"
 SectionEnd
 
+Section "Dynamic Modules" Dynamic
+  CreateDirectory "$INSTDIR\lib"
+  CreateDirectory "$INSTDIR\lib\snort_dynamicpreprocessor"
+  SetOutPath "$INSTDIR\lib\snort_dynamicpreprocessor"
+  File "..\..\dynamic-preprocessors\ftptelnet\Release\sf_ftptelnet.dll"
+  File "..\..\dynamic-preprocessors\smtp\Release\sf_smtp.dll"
+  File "..\..\dynamic-preprocessors\ssh\Release\sf_ssh.dll"
+  File "..\..\dynamic-preprocessors\dcerpc\Release\sf_dcerpc.dll"
+  File "..\..\dynamic-preprocessors\dns\Release\sf_dns.dll"
+
+  CreateDirectory "$INSTDIR\lib\snort_dynamicengine"
+  SetOutPath "$INSTDIR\lib\snort_dynamicengine"
+  File ".\SF_Engine_Release\sf_engine.dll"
+SectionEnd
+
 Section "Documentation" Doc
   CreateDirectory "$INSTDIR\doc"
   SetOutPath "$INSTDIR\doc"
@@ -206,7 +227,8 @@ Section "Documentation" Doc
 
   CreateDirectory "$INSTDIR\doc\signatures"
   SetOutPath "$INSTDIR\doc\signatures"
-  File "..\..\..\doc\signatures\*.*"
+  ;Rules are no longer part of the distribution
+  ;File "..\..\..\doc\signatures\*.*"
 
   CreateDirectory "$INSTDIR\contrib"
   SetOutPath "$INSTDIR\contrib"
@@ -231,6 +253,7 @@ SectionEnd
 
 !insertmacro MUI_FUNCTION_DESCRIPTION_BEGIN
   !insertmacro MUI_DESCRIPTION_TEXT ${Snort}   $(DESC_Snort)
+  !insertmacro MUI_DESCRIPTION_TEXT ${Dynamic} $(DESC_Dynamic)
   !insertmacro MUI_DESCRIPTION_TEXT ${Doc}     $(DESC_Doc)
   !insertmacro MUI_DESCRIPTION_TEXT ${Schemas} $(DESC_Schemas)
 !insertmacro MUI_FUNCTION_DESCRIPTION_END

@@ -7,29 +7,24 @@
 if(description)
 {
  script_id(10242);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "yppasswd service";
  name["francais"] = "Service yppasswd";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The yppasswd RPC service is running. 
-If you do not use this service, then
-disable it as it may become a security
-threat in the future, if a vulnerability
+The yppasswd RPC service is running.  If you do not use this service, then
+disable it as it may become a security threat in the future, if a vulnerability
 is discovered.
 
 Risk factor : Low";
 
 
  desc["francais"] = "
-Le service RPC yppasswd tourne.
-Si vous ne l'utilisez pas, alors
-désactivez-le puisqu'il risque de
-devenir un jour une faille de 
-sécurité si une vulnerabilité 
-est trouvée.
+Le service RPC yppasswd tourne.  Si vous ne l'utilisez pas, alors
+désactivez-le puisqu'il risque de devenir un jour une faille de 
+sécurité si une vulnerabilité est trouvée.
 
 Facteur de risque : Faible";
 
@@ -58,6 +53,9 @@ Facteur de risque : Faible";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
 
 
 
@@ -71,6 +69,6 @@ if(!port){
 
 if(port)
 {
- if(tcp)security_warning(port);
- else security_warning(port, protocol:"udp");
+ if(tcp)security_note(port);
+ else security_note(port, protocol:"udp");
 }

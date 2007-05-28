@@ -12,6 +12,7 @@
 # CFLAGS          = @CFLAGS@
 # LDFLAGS         = @LDFLAGS@
 LIBS            = @LIBS@
+VPATH			= @srcdir@
 
 INSTALL         = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
@@ -25,22 +26,7 @@ prefix          = @prefix@
 #   THE DEFAULT TARGETS
 # ------------------------------------------------
 
-all: config smtpclient smtpclient.1
-
-# ------------------------------------------------
-#   THE CONFIGURATION SUPPORT
-# ------------------------------------------------
-
-config: configure config.h.in
-
-configure: configure.in 
-	rm -f configure
-	autoconf configure.in >configure
-	chmod 770 configure
-
-config.h.in: configure.in
-	rm -f config.h.in
-	autoheader configure.in >config.h.in
+all: smtpclient smtpclient.1
 
 # ------------------------------------------------
 #   THE RELEASE STUFF
@@ -106,18 +92,6 @@ fixperm:
 
 smtpclient: smtpclient_main.o smtpclient_getopt.o smtpclient_errno.o smtpclient_vers.o 
 	$(CC) $(LDFLAGS) -o $@ smtpclient_main.o smtpclient_getopt.o smtpclient_errno.o smtpclient_vers.o $(LIBS) $(LDLIBS)
-
-smtpclient_main.o: smtpclient_main.c
-	$(CC) $(CFLAGS) -o smtpclient_main.o -c smtpclient_main.c
-
-smtpclient_getopt.o: smtpclient_getopt.c
-	$(CC) $(CFLAGS) -o smtpclient_getopt.o -c smtpclient_getopt.c
-
-smtpclient_errno.o: smtpclient_errno.c
-	$(CC) $(CFLAGS) -o smtpclient_errno.o -c smtpclient_errno.c
-
-smtpclient_vers.o: smtpclient_vers.c
-	$(CC) $(CFLAGS) -o smtpclient_vers.o -c smtpclient_vers.c
 
 # ------------------------------------------------
 #   THE DOCUMENTATION

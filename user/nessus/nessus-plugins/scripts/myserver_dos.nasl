@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(11770);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(6359, 7770, 7917, 8010, 8120);
+ script_version ("$Revision: 1.7 $");
 
  
  name["english"] = "myServer DoS";
@@ -19,7 +19,7 @@ There are flaws in this software which may allow an attacker
 to disable this service remotely.
 
 Solution : Upgrade to the latest version or use another web server
-Risk Factor : Medium";
+Risk factor : Medium";
 
 
 
@@ -46,8 +46,8 @@ Risk Factor : Medium";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 banner = get_http_banner(port:port);

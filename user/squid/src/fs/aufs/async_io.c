@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: async_io.c,v 1.10.2.9 2005/04/25 16:27:03 serassio Exp $
  *
  * DEBUG: section 32    Asynchronous Disk I/O
  * AUTHOR: Pete Bentley <pete@demon.net>
@@ -79,15 +79,6 @@ static dlink_list used_list;
 static int initialised = 0;
 static OBJH aioStats;
 static MemPool *squidaio_ctrl_pool;
-static void aioFDWasClosed(int fd);
-
-static void
-aioFDWasClosed(int fd)
-{
-    if (fd_table[fd].flags.closing)
-	fd_close(fd);
-}
-
 
 void
 aioInit(void)
@@ -103,6 +94,7 @@ aioInit(void)
 void
 aioDone(void)
 {
+    squidaio_shutdown();
     memPoolDestroy(squidaio_ctrl_pool);
     initialised = 0;
 }
@@ -185,7 +177,7 @@ aioCancel(int fd)
 
 
 void
-aioWrite(int fd, int offset, char *bufp, int len, AIOCB * callback, void *callback_data, FREE * free_func)
+aioWrite(int fd, off_t offset, char *bufp, int len, AIOCB * callback, void *callback_data, FREE * free_func)
 {
     squidaio_ctrl_t *ctrlp;
     int seekmode;
@@ -213,7 +205,7 @@ aioWrite(int fd, int offset, char *bufp, int len, AIOCB * callback, void *callba
 
 
 void
-aioRead(int fd, int offset, int len, AIOCB * callback, void *callback_data)
+aioRead(int fd, off_t offset, int len, AIOCB * callback, void *callback_data)
 {
     squidaio_ctrl_t *ctrlp;
     int seekmode;
@@ -336,8 +328,6 @@ aioCheckCallbacks(SwapDir * SD)
 	/* free temporary read buffer */
 	if (ctrlp->operation == _AIO_READ)
 	    squidaio_xfree(ctrlp->bufp, ctrlp->len);
-	if (ctrlp->operation == _AIO_CLOSE)
-	    aioFDWasClosed(ctrlp->fd);
 	memPoolFree(squidaio_ctrl_pool, ctrlp);
     }
     return retval;
@@ -357,6 +347,7 @@ aioStats(StoreEntry * sentry)
     storeAppendPrintf(sentry, "unlink\t%d\n", squidaio_counts.unlink);
     storeAppendPrintf(sentry, "check_callback\t%d\n", squidaio_counts.check_callback);
     storeAppendPrintf(sentry, "queue\t%d\n", squidaio_get_queue_len());
+    squidaio_stats(sentry);
 }
 
 /* Flush all pending I/O */

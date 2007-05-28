@@ -437,13 +437,13 @@ int mContainsSubstr(char *buf, int b_len, char *pat, int p_len)
 int *make_skip(char *ptrn, int plen)
 {
     int *skip = (int *) malloc(256 * sizeof(int));
-    int *sptr = &skip[256];
+    int  i;
 
     if (skip == NULL)
         FatalPrintError("malloc");
 
-    while(sptr-- != skip)
-        *sptr = plen + 1;
+    for ( i = 0; i < 256; i++ )
+        skip[i] = plen + 1;
 
     while(plen != 0)
         skip[(unsigned char) *ptrn++] = plen--;

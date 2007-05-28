@@ -7,9 +7,10 @@
 if(description)
 {
  script_id(10134);
- script_version ("$Revision: 1.20 $");
  script_bugtraq_id(2247);
- script_cve_id("CAN-1999-0431");
+ script_version ("$Revision: 1.24 $");
+ script_cve_id("CVE-1999-0431");
+ script_xref(name:"OSVDB", value:"5941");
  name["english"] = "Linux 2.1.89 - 2.2.3 : 0 length fragment bug";
  name["francais"] = "Linux 2.1.89 - 2.2.3 : 0 length fragment bug";
  script_name(english:name["english"], francais:name["francais"]);
@@ -63,6 +64,10 @@ Facteur de risque : Elevé";
 #
 
 
+include('global_settings.inc');
+
+if ( ! thorough_tests ) exit(0);
+
 start_denial();
 
 # source port
@@ -90,7 +95,8 @@ udp3 = forge_udp_packet(ip:ip, uh_sport:s,uh_dport:d,uh_ulen:56);
 # don't read the host answers
 send_packet(udp1,udp2, udp3, pcap_active:FALSE) x 1000;
 
-sleep(5);
+sleep(30);
+
 alive = end_denial();
 
 if(!alive){

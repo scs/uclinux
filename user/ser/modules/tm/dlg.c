@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dlg.c,v 1.13.4.2 2004/04/25 20:36:32 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

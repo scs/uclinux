@@ -95,6 +95,10 @@ void ParseRuleTypeDeclaration(FILE*, char *);
 /*void ParseClassificationConfig(char *); */
 char *ReadLine(FILE *);
 int checkKeyowrd(char *);
+void SetRuleStates();
+#ifdef DYNAMIC_PLUGIN
+void ConfigureDynamicPreprocessors();
+#endif
 
 #endif /* __PARSER_H__ */
 

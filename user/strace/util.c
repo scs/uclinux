@@ -30,7 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: util.c,v 1.25 2001/07/10 13:48:44 hughesj Exp $
  */
 
 #include "defs.h"
@@ -1185,6 +1185,47 @@ struct tcb *tcp;
 		}
 		tcp->flags |= TCB_BPTSET;
 	}
+#elif defined(ARM)
+	struct pt_regs regs;
+
+#define ARM_LOOP	0xeafffffe
+
+	if (tcp->flags & TCB_BPTSET) {
+		fprintf(stderr, "PANIC: TCB already set in pid %u\n", tcp->pid);
+		return -1;
+	}
+
+	if (ptrace(PTRACE_GETREGS, tcp->pid, 0, &regs) < 0) {
+		perror("setbpt: ptrace(PTRACE_GETREGS, ...)");
+		return -1;
+	}
+
+	/*
+	 * Again, we only support 32-bit CPUs
+	 */
+	tcp->baddr = regs.ARM_pc;
+
+	if (debug)
+		fprintf(stderr, "[%d] setting bpt at %lx\n", tcp->pid, tcp->baddr);
+
+	if (regs.ARM_cpsr & 0x20) {
+		fprintf(stderr, "PANIC: can't handle thumb mode\n");
+		return -1;
+	} else {
+		errno = 0;
+		tcp->inst[0] = ptrace(PTRACE_PEEKTEXT, tcp->pid, (char *)tcp->baddr, 0);
+		if (errno) {
+			perror("setbpt: ptrace(PTRACE_PEEKTEXT, ...)");
+			return -1;
+		}
+
+		ptrace(PTRACE_POKETEXT, tcp->pid, (char *)tcp->baddr, ARM_LOOP);
+		if (errno) {
+			perror("setbpt: ptrace(PTRACE_POKETEXT, ...)");
+			return -1;
+		}
+		tcp->flags |= TCB_BPTSET;
+	}
 #else /* !IA64 */
 
 #if defined (I386)
@@ -1195,8 +1236,6 @@ struct tcb *tcp;
 #define LOOP	0xc3ffffff
 #elif defined (POWERPC)
 #define LOOP	0x0000feeb
-#elif defined(ARM)
-#define LOOP	0xEAFFFFFE
 #elif defined(MIPS)
 #define LOOP	0x1000ffff
 #elif defined(S390)
@@ -1224,8 +1263,6 @@ struct tcb *tcp;
 	if (upeek(tcp->pid, 4*PT_PC, &tcp->baddr) < 0)
 	  return -1;
 #elif defined (ALPHA)
-	return -1;
-#elif defined (ARM)
 	return -1;
 #elif defined (MIPS)
 	return -1;		/* FIXME: I do not know what i do - Flo */
@@ -1337,6 +1374,22 @@ struct tcb *tcp;
 
 #ifdef SPARC
 	/* Again, we borrow the SunOS breakpoint code. */
+	if (!(tcp->flags & TCB_BPTSET)) {
+		fprintf(stderr, "PANIC: TCB not set in pid %u\n", tcp->pid);
+		return -1;
+	}
+	errno = 0;
+	ptrace(PTRACE_POKETEXT, tcp->pid, (char *) tcp->baddr, tcp->inst[0]);
+	if(errno) {
+		perror("clearbtp: ptrace(PTRACE_POKETEXT, ...)");
+		return -1;
+	}
+	tcp->flags &= ~TCB_BPTSET;
+#elif defined(ARM)
+	/*
+	 * Gratuitously copied from SPARC.  Replace the breakpoint
+	 * instruction with the original instruction we saved earlier.
+	 */
 	if (!(tcp->flags & TCB_BPTSET)) {
 		fprintf(stderr, "PANIC: TCB not set in pid %u\n", tcp->pid);
 		return -1;

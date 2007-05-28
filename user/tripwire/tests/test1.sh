@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id$ 
+# $Id: test1.sh,v 1.12 1993/12/15 17:03:45 genek Exp $ 
 
 HOSTNAME=hostname
 # check to see if we ran from top-level makefile!

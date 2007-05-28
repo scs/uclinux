@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(11086);
- script_cve_id("CAN-2001-0713");
  script_bugtraq_id(3377);
- script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-2001-0713");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Sendmail custom configuration file";
  name["francais"] = "Fichier de configuration spécifique de sendmail";
@@ -76,7 +76,7 @@ port = get_kb_item("Services/smtp");
 if(!port) port = 25;
 
 banner = get_smtp_banner(port: port);
-if(! banner) exit(0);
+if(! banner || "Switch-" >< banner ) exit(0);
 
 if(egrep(pattern:".*Sendmail.*8\.12\.0.*", string:banner))
  	security_hole(port);

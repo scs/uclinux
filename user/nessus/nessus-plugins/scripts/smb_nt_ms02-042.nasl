@@ -1,37 +1,40 @@
 #
-# This script was written by Michael Scheidell SECNAP Network Security
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(11091);
- script_version("$Revision: 1.13 $");
  script_bugtraq_id(5480);
+ script_version("$Revision: 1.19 $");
  script_cve_id("CVE-2002-0720");
- name["english"] = "Windows Network Manager Privilege Elevation (Q326886)";
+ name["english"] = "Flaw in Network Connection Manager Could Enable Privilege Elevation (Q326886)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-A flaw in the Windows 2000 Network Connection Manager
-could enable privilege elevation.
+Synopsis :
 
-Impact of vulnerability: Elevation of Privilege 
+A local user can elevate his privileges.
 
-Affected Software: 
+Description :
 
-Microsoft Windows 2000 
+The remote host contains a flaw in the Network Connection Manager
+which may allow a local user to elevate his privileges.
+To exploit this vulnerability a user need to send a specially crafted
+code to the Network Manager handle to execute arbitrary code with the
+privileges of the SYSTEM.
 
-Recommendation: Users using any of the affected
-products should install the patch immediately.
+Solution : 
 
-Maximum Severity Rating: Critical
+Microsoft has released a set of patches for Windows 2000 :
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-042.asp
+http://www.microsoft.com/technet/security/bulletin/ms02-042.mspx
 
-Risk factor : High";
+Risk factor : 
+
+Medium / CVSS Base Score : 5 
+(AV:R/AC:L/Au:NR/C:N/A:C/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
@@ -41,39 +44,30 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 SECNAP Nework Security, LLC");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_access","SMB/WindowsVersion");
- script_exclude_keys("SMB/XP/ServicePack","SMB/WinNT4/ServicePack");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
+if ( hotfix_check_sp(win2k:4) <= 0 ) exit(0);
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-
-version = get_kb_item("SMB/WindowsVersion");
-
-# only win2k.
-if("5.0" >< version)
+if (is_accessible_share())
 {
-# fixed in Service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q326886";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
+ if ( hotfix_is_vulnerable (os:"5.0", file:"Netman.dll", version:"5.0.2195.5974", dir:"\system32") )
+   security_note (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
+else if ( hotfix_missing(name:"Q326886") > 0 )
+	security_hole(get_kb_item("SMB/transport"));
+

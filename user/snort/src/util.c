@@ -27,6 +27,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/wait.h>
 #endif /* !WIN32 */
 #include <stdarg.h>
 #include <syslog.h>
@@ -53,6 +54,7 @@
 #include "util.h"
 #include "parser.h"
 #include "inline.h"
+#include "build.h"
 
 #ifdef WIN32
 #include "win32/WIN32-Code/name.h"
@@ -63,6 +65,33 @@
 #else
 #define PATH_MAX_UTIL 1024
 #endif /* PATH_MAX */
+
+#ifdef TIMESTATS
+/* used for processing run time and packets per second stats */
+extern long start_time;
+extern float prev_pkts;
+
+/* variable definition for packets types received in the last hour */
+static unsigned long dhs_tcp = 0L;          /* TCP */
+static unsigned long dhs_udp = 0L;          /* UDP */
+static unsigned long dhs_icmp = 0L;         /* ICMP */
+static unsigned long dhs_arp = 0L;          /* ARP */
+static unsigned long dhs_ipx = 0L;          /* IPX */
+static unsigned long dhs_eapol = 0L;        /* EAPOL */
+static unsigned long dhs_ipv6 = 0L;         /* IPv6 */
+static unsigned long dhs_ethloopback = 0L;  /* LOOPBACK */
+static unsigned long dhs_other = 0L;        /* OTHER */
+static unsigned long dhs_frags = 0L;        /* FRAGS */
+static unsigned long dhs_discards = 0L;     /* DISCARDS */
+#endif
+
+#ifdef NAME_MAX
+#define NAME_MAX_UTIL NAME_MAX
+#else
+#define NAME_MAX_UTIL 256
+#endif /* NAME_MAX */
+
+#define FILE_MAX_UTIL  (PATH_MAX_UTIL + NAME_MAX_UTIL)
 
 
 /*
@@ -200,6 +229,38 @@ void GenObfuscationMask(char *netdata)
 
 /****************************************************************************
  *
+ * Function  : DefineAllIfaceVars()
+ * Purpose   : Find all up interfaces and define iface_ADDRESS vars for them
+ * Arguments : none
+ * Returns   : void function
+ *
+ ****************************************************************************/
+void DefineAllIfaceVars()
+{
+    char errbuf[PCAP_ERRBUF_SIZE];
+    pcap_if_t *alldevs;
+    bpf_u_int32 net, netmask;
+
+    if (pcap_findalldevs(&alldevs, errbuf) == -1)
+        return;
+
+    while (alldevs != NULL)
+    {
+        if (pcap_lookupnet(alldevs->name, &net, &netmask, errbuf) == 0)
+        {
+            DefineIfaceVar(PRINT_INTERFACE(alldevs->name),
+                           (u_char *)&net, 
+                           (u_char *)&netmask);
+        }
+
+        alldevs = alldevs->next;
+    }
+
+    pcap_freealldevs(alldevs);
+}
+
+/****************************************************************************
+ *
  * Function  : DefineIfaceVar()
  * Purpose   : Assign network address and network mast to IFACE_ADDR_VARNAME
  *             variable.
@@ -239,12 +300,12 @@ float CalcPct(float cnt, float total)
 {
     float pct;
 
-    if(cnt > 0.0)
+    if(cnt > 0.0f && total > 0.0f)
         pct = cnt / total;
     else
-        return 0.0;
+        return 0.0f;
 
-    pct *= 100.0;
+    pct *= 100.0f;
 
     return pct;
 }
@@ -263,13 +324,27 @@ float CalcPct(float cnt, float total)
  ****************************************************************************/
 int DisplayBanner()
 {
+    char * info;
+
+    info = getenv("HOSTTYPE");
+    if( !info )
+    {
+        info="";
+    }
+
     fprintf(stderr, "\n"
         "   ,,_     -*> Snort! <*-\n"
-        "  o\"  )~   Version %s (Build %s)\n"
+        "  o\"  )~   Version %s (Build %s) %s %s\n"
         "   ''''    By Martin Roesch & The Snort Team: http://www.snort.org/team.html\n"
-        "           (C) Copyright 1998-2004 Sourcefire Inc., et al.\n"   
+        "           (C) Copyright 1998-2006 Sourcefire Inc., et al.\n"   
         "\n"
-        , VERSION, BUILD);
+        , VERSION, BUILD, 
+#ifdef GIDS
+	"inline", 
+#else
+	"",
+#endif
+	info);
 
     return 0;
 }
@@ -533,7 +608,7 @@ void InitNetmasks()
 
 void PrintError(char *str)
 {
-    if(pv.daemon_flag)
+    if(pv.daemon_flag || pv.logtosyslog_flag)
         syslog(LOG_CONS | LOG_DAEMON | LOG_ERR, "%s:%m", str);
     else
         perror(str);
@@ -557,7 +632,7 @@ void ErrorMessage(const char *format,...)
 
     va_start(ap, format);
 
-    if(pv.daemon_flag)
+    if(pv.daemon_flag || pv.logtosyslog_flag)
     {
         vsnprintf(buf, STD_BUF, format, ap);
         syslog(LOG_CONS | LOG_DAEMON | LOG_ERR, "%s", buf);
@@ -584,12 +659,12 @@ void LogMessage(const char *format,...)
     char buf[STD_BUF+1];
     va_list ap;
 
-    if(pv.quiet_flag && !pv.daemon_flag)
+    if(pv.quiet_flag && !pv.daemon_flag && !pv.logtosyslog_flag)
         return;
 
     va_start(ap, format);
 
-    if(pv.daemon_flag)
+    if(pv.daemon_flag || pv.logtosyslog_flag)
     {
         vsnprintf(buf, STD_BUF, format, ap);
         syslog(LOG_DAEMON | LOG_NOTICE, "%s", buf);
@@ -666,7 +741,7 @@ void FatalError(const char *format,...)
 
     vsnprintf(buf, STD_BUF, format, ap);
 
-    if(pv.daemon_flag)
+    if(pv.daemon_flag || pv.logtosyslog_flag)
     {
         syslog(LOG_CONS | LOG_DAEMON | LOG_ERR, "FATAL ERROR: %s", buf);
     }
@@ -699,10 +774,12 @@ void FatalPrintError(char *msg)
  * Returns: void function
  *
  ****************************************************************************/
+static FILE *pid_lockfile = NULL;
+static FILE *pid_file = NULL;
 void CreatePidFile(char *intf)
 {
-    FILE *pid_file;
     struct stat pt;
+    int pid = (int) getpid();
 #ifdef WIN32
     char dir[STD_BUF + 1];
 #endif
@@ -713,65 +790,121 @@ void CreatePidFile(char *intf)
         {
             LogMessage("Checking PID path...\n");
         }
+
+        do
+        {
+            if (strlen(pv.pid_path) != 0)
+            {
+                stat(pv.pid_path, &pt);
+
+                if(!S_ISDIR(pt.st_mode) || access(pv.pid_path, W_OK) == -1)
+                {
+                    LogMessage("WARNING: %s is invalid, trying "
+                        "/var/run...\n", pv.pid_path);
+                    memset(pv.pid_path, '\0', STD_BUF);
+                }
+                else
+                {
+                    LogMessage("PID path stat checked out ok, "
+                            "PID path set to %s\n", pv.pid_path);
+                    break; /* path is okay, continue to next step */
+                }
+            }
+
 #ifndef _PATH_VARRUN
 #ifndef WIN32
-        strlcpy(_PATH_VARRUN, "/var/run/", 10);
+            strlcpy(_PATH_VARRUN, "/var/run/", 10);
 #else
-        if (GetCurrentDirectory(sizeof (dir)-1, dir))
-            strncpy (_PATH_VARRUN, dir, sizeof(dir)-1);
+            if (GetCurrentDirectory(sizeof (dir)-1, dir))
+                strncpy (_PATH_VARRUN, dir, sizeof(dir)-1);
 #endif  /* WIN32 */
 #else
-        if(!pv.quiet_flag)
-        {
-            LogMessage("PATH_VARRUN is set to %s on this operating system\n", 
-                    _PATH_VARRUN);
-        }
+            if(!pv.quiet_flag)
+            {
+                LogMessage("PATH_VARRUN is set to %s on this operating "
+                        "system\n", _PATH_VARRUN);
+            }
 #endif  /* _PATH_VARRUN */
 
-        stat(_PATH_VARRUN, &pt);
+            stat(_PATH_VARRUN, &pt);
 
-        if(!S_ISDIR(pt.st_mode) || access(_PATH_VARRUN, W_OK) == -1)
-        {
-            LogMessage("WARNING: _PATH_VARRUN is invalid, trying "
-                    "/var/log...\n");
-            strncpy(pv.pid_path, "/var/log/", strlen("/var/log/"));
-            stat(pv.pid_path, &pt);
-
-            if(!S_ISDIR(pt.st_mode) || access(pv.pid_path, W_OK) == -1)
+            if(!S_ISDIR(pt.st_mode) || access(_PATH_VARRUN, W_OK) == -1)
             {
-                LogMessage("WARNING: %s is invalid, logging Snort "
-                        "PID path to log directory (%s)\n", pv.pid_path,
-                        pv.log_dir);
-                snprintf(pv.pid_path, STD_BUF, "%s/", pv.log_dir);
+                LogMessage("WARNING: _PATH_VARRUN is invalid, trying "
+                        "/var/log...\n");
+                strncpy(pv.pid_path, "/var/log/", strlen("/var/log/"));
+                stat(pv.pid_path, &pt);
+
+                if(!S_ISDIR(pt.st_mode) || access(pv.pid_path, W_OK) == -1)
+                {
+                    LogMessage("WARNING: %s is invalid, logging Snort "
+                            "PID path to log directory (%s)\n", pv.pid_path,
+                            pv.log_dir);
+                    CheckLogDir();
+                    snprintf(pv.pid_path, STD_BUF, "%s/", pv.log_dir);
+                    break; /* default path (log dir) is okay, continue to
+                              next step */
+                }
             }
-        }
-        else
-        {
-            LogMessage("PID path stat checked out ok, PID path set to %s\n", _PATH_VARRUN);
-            strlcpy(pv.pid_path, _PATH_VARRUN, STD_BUF);
-        }
+            else
+            {
+                LogMessage("PID path stat checked out ok, "
+                        "PID path set to %s\n", _PATH_VARRUN);
+                strlcpy(pv.pid_path, _PATH_VARRUN, STD_BUF);
+                break; /* path is okay, continue to next step */
+            }
+            break; /* something went astray.  pv.pid_path should be
+                    * empty. */
+        } while (1);
     }
 
-    if(intf == NULL || pv.pid_path == NULL)
+    if(intf == NULL || strlen(pv.pid_path) == 0)
     {
         /* pv.pid_path should have some value by now
-         *          * so let us just be sane.
-         *                   */
+         * so let us just be sane.
+         */
         FatalError("CreatePidFile() failed to lookup interface or pid_path is unknown!\n");
     }
 
     snprintf(pv.pid_filename, STD_BUF,  "%s/snort_%s%s.pid", pv.pid_path, intf,
             pv.pidfile_suffix);
 
+#ifndef WIN32
+    if (!pv.nolock_pid_file)
+    {
+        char pid_lockfilename[STD_BUF+1];
+        int lock_fd;
+
+        /* First, lock the PID file */
+        snprintf(pid_lockfilename, STD_BUF, "%s.lck", pv.pid_filename);
+        pid_lockfile = fopen(pid_lockfilename, "w");
+
+        if (pid_lockfile)
+        {
+            struct flock lock;
+            lock_fd = fileno(pid_lockfile);
+
+            lock.l_type = F_WRLCK;
+            lock.l_whence = SEEK_SET;
+            lock.l_start = 0;
+            lock.l_len = 0;
+
+            if (fcntl(lock_fd, F_SETLK, &lock) == -1)
+            {
+                ClosePidFile();
+                FatalError("Failed to Lock PID File \"%s\" for PID \"%d\"\n", pv.pid_filename, pid);
+            }
+        }
+    }
+#endif
+    /* Okay, were able to lock PID file, now open and write PID */
     pid_file = fopen(pv.pid_filename, "w");
 
     if(pid_file)
     {
-        int pid = (int) getpid();
-
         LogMessage("Writing PID \"%d\" to file \"%s\"\n", pid, pv.pid_filename);
         fprintf(pid_file, "%d\n", pid);
-        fclose(pid_file);
+        fflush(pid_file);
     }
     else
     {
@@ -780,6 +913,30 @@ void CreatePidFile(char *intf)
     }
 }
 
+/****************************************************************************
+ *
+ * Function: ClosePidFile(char *)
+ *
+ * Purpose:  Releases lock on a PID file
+ *
+ * Arguments: None
+ *
+ * Returns: void function
+ *
+ ****************************************************************************/
+void ClosePidFile()
+{
+    if (pid_file)
+    {
+        fclose(pid_file);
+        pid_file = NULL;
+    }
+    if (pid_lockfile)
+    {
+        fclose(pid_lockfile);
+        pid_lockfile = NULL;
+    }
+}
 
 /****************************************************************************
  *
@@ -798,7 +955,7 @@ void SetUidGid(void)
 
     if(groupname != NULL)
     {
-        if(InlineMode())
+        if(!InlineModeSetPrivsAllowed())
         {
             ErrorMessage("Cannot set uid and gid when running Snort in "
                 "inline mode.\n");
@@ -813,7 +970,7 @@ void SetUidGid(void)
     }
     if(username != NULL)
     {
-        if(InlineMode())
+        if(!InlineModeSetPrivsAllowed())
         {
             ErrorMessage("Cannot set uid and gid when running Snort in "
                 "inline mode.\n");
@@ -838,15 +995,235 @@ void SetUidGid(void)
     return;
 }
 
+#ifdef TIMESTATS
+/* Print out a message once an hour */
+void DropHourlyStats(int trap)
+{
+   struct pcap_stat ps;      /* structure to hold packet statistics */
+
+   const int secs_per_min = 60;             /* 60 seconds in a minute */
+   const int secs_per_hr  = 3600;           /* 3600 seconds in a hour */
+   const float percent_scale = 100.0;       /* used to scale percentages */
+
+   unsigned int dhs_ppm = 0, dhs_pps = 0;
+   unsigned int curr_pkts = 0;
+   unsigned int curr_drop_pkts = 0;
+
+   /* added for more statistical data */
+   unsigned long curr_tcp = 0, curr_udp = 0, curr_icmp = 0;
+   unsigned long curr_arp = 0, curr_ipx = 0, curr_eapol = 0;
+   unsigned long curr_ipv6 = 0, curr_ethloopback = 0, curr_other = 0;
+   unsigned long curr_frags = 0, curr_discards = 0, curr_total = 0;
+   float percent_packets = 0.0;
+
+   if (pcap_stats(pd, &ps))  /* get some packet statistics */
+   {
+      pcap_perror(pd, "pcap_stats");  /* an error has happened */
+   }
+   else                      /* prepare to figure out hourly stats */
+   {
+      /* static variable definitions for timestats function */
+
+      static unsigned int prev_pkts;      /* used to remember the number of  */
+      static unsigned int prev_drop_pkts; /* packets processed from the last */
+                                          /* time this function was called   */
+
+      curr_pkts = ps.ps_recv - prev_pkts;
+      curr_drop_pkts = ps.ps_drop - prev_drop_pkts;
+
+      /* save current receive values for next pass through function */
+      /* Since console or file I/O is slow, save current received   */
+      /* packet values right after calculations above for increased */
+      /* accuracy...                                                */
+
+      prev_pkts = ps.ps_recv;       /* save current number of packets for use */
+      prev_drop_pkts = ps.ps_drop;  /* next time this function is called... */
+
+      /* calculate received packets by type */
+
+      curr_tcp = pc.tcp - dhs_tcp;
+      curr_udp = pc.udp - dhs_udp;
+      curr_icmp = pc.icmp - dhs_icmp;
+      curr_arp = pc.arp - dhs_arp;
+      curr_ipx = pc.ipx - dhs_ipx;
+      curr_eapol = pc.eapol - dhs_eapol;
+      curr_ipv6 = pc.ipv6 - dhs_ipv6;
+      curr_ethloopback = pc.ethloopback - dhs_ethloopback;
+      curr_other = pc.other - dhs_other;
+      curr_frags = pc.frags - dhs_frags;
+      curr_discards = pc.discards - dhs_discards;
+
+      curr_total = curr_tcp + curr_udp + curr_icmp + curr_arp + curr_ipx;
+      curr_total = curr_total + curr_eapol + curr_ipv6 + curr_ethloopback;
+      curr_total = curr_total + curr_other + curr_frags + curr_discards;
+
+      /* save current received packet by type values for next pass */
+      /* through function.  Also, since I/O is slow, save current  */
+      /* values right after calculations above for increased       */
+      /* accuracy...                                               */
+
+      dhs_tcp = pc.tcp;
+      dhs_udp = pc.udp;
+      dhs_icmp = pc.icmp;
+      dhs_arp = pc.arp;
+      dhs_ipx = pc.ipx;
+      dhs_eapol = pc.eapol;
+      dhs_ipv6 = pc.ipv6;
+      dhs_ethloopback = pc.ethloopback;
+      dhs_other = pc.other;
+      dhs_frags = pc.frags;
+      dhs_discards = pc.discards;
+
+      /* prepare packet type per hour routine */
+
+      LogMessage("\n");
+      LogMessage("Hourly Statistics Report\n");
+      LogMessage("\n");
+
+      dhs_ppm = curr_pkts / secs_per_min; /* how many packets per minute? */
+      dhs_pps = curr_pkts / secs_per_hr;  /* how many packets per second? */
+
+      LogMessage("Packet analysis time averages:\n");
+      LogMessage("\n");
+      LogMessage("    Packets Received per hour is: %10u\n", curr_pkts);
+      LogMessage("  Packets Received per minute is: %10u\n", dhs_ppm);
+      LogMessage("  Packets Received per second is: %10u\n", dhs_pps);
+      LogMessage("Packets Dropped in the last hour: %10u\n", curr_drop_pkts);
+      LogMessage("\n");
+      LogMessage("Packet Breakdown by Protocol:\n");
+      LogMessage("\n");
+
+      percent_packets = (float)curr_tcp / (float)curr_total * percent_scale;
+      LogMessage("    TCP: %10u (%.3f%%)\n", curr_tcp, percent_packets);
+      percent_packets = (float)curr_udp / (float)curr_total * percent_scale;
+      LogMessage("    UDP: %10u (%.3f%%)\n", curr_udp, percent_packets);
+      percent_packets = (float)curr_icmp / (float)curr_total * percent_scale;
+      LogMessage("   ICMP: %10u (%.3f%%)\n", curr_icmp, percent_packets);
+      percent_packets = (float)curr_arp / (float)curr_total * percent_scale;
+      LogMessage("    ARP: %10u (%.3f%%)\n", curr_arp, percent_packets);
+      percent_packets = (float)curr_eapol / (float)curr_total * percent_scale;
+      LogMessage("  EAPOL: %10u (%.3f%%)\n", curr_eapol, percent_packets);
+      percent_packets = (float)curr_ipv6 / (float)curr_total * percent_scale;
+      LogMessage("   IPv6: %10u (%.3f%%)\n", curr_ipv6, percent_packets);
+      percent_packets = (float)curr_ethloopback / (float)curr_total * percent_scale;
+      LogMessage("ETHLOOP: %10u (%.3f%%)\n", curr_ethloopback, percent_packets);
+      percent_packets = (float)curr_ipx / (float)curr_total * percent_scale;
+      LogMessage("    IPX: %10u (%.3f%%)\n", curr_ipx, percent_packets);
+      percent_packets = (float)curr_frags / (float)curr_total * percent_scale;
+      LogMessage("   FRAG: %10u (%.3f%%)\n", curr_frags, percent_packets);
+      percent_packets = (float)curr_other / (float)curr_total * percent_scale;
+      LogMessage("  OTHER: %10u (%.3f%%)\n", curr_other, percent_packets);
+      percent_packets = (float)curr_discards / (float)curr_total * percent_scale;
+      LogMessage("DISCARD: %10u (%.3f%%)\n", curr_discards, percent_packets);
+      LogMessage("\n");
+
+   }  /* end if pcap_stats(ps, &ps) */
+   
+   alarm(secs_per_hr);   /* reset the alarm to go off in a hour */
+
+}
+
+/* print out stats on how long snort ran */
+void TimeStats(struct pcap_stat *ps)
+{
+
+/*
+ *  variable definitions for improved statistics handling
+ *
+ *  end_time = time which snort finished running (unix epoch)
+ *  total_secs = total amount of time snort ran
+ *  int_total_secs = used to eliminate casts from this function (temp. var)
+ *  SECONDS_PER_DAY = the number of seconds in a day, 86400 (not counting leap seconds)
+ *  SECONDS_PER_HOUR = the number of seconds in a hour, 3600
+ *  SECONDS_PER_MIN = the number of seconds in a minute, 60
+ *  days = number of days snort ran
+ *  hrs  = number of hrs snort ran
+ *  mins = number of minutes snort ran
+ *  secs = number of seconds snort ran
+ *
+ *  ival = temp. variable for integer/modulus math
+ *  ppd  = packets per day processed
+ *  pph  = packets per hour processed
+ *  ppm  = packets per minute processed
+ *  pps  = packets per second processed
+ *
+ *  hflag = used to flag when hrs = zero, but days > 0
+ *  mflag = used to flag when min = zero, but hrs > 0
+ *
+ */
+
+    long end_time = 0L, total_secs = 0L;
+
+    const int SECONDS_PER_DAY = 86400; /* number of seconds in a day  */
+    const int SECONDS_PER_HOUR = 3600; /* number of seconds in a hour */
+    const int SECONDS_PER_MIN = 60;    /* number of seconds in a minute */
+
+    int days = 0, hrs = 0, mins = 0, secs = 0, ival = 0;
+    int pps = 0, ppm = 0, pph = 0, ppd = 0;
+    int int_total_secs = 0;
+
+    int hflag = 0, mflag = 0;
+
+    end_time = time(&end_time);         /* grab epoch for end time value (in seconds) */
+    total_secs = end_time - start_time; /* total_secs is how many seconds snort ran for */
+
+    ival = total_secs;                  /* convert total_secs from type 'long' to type 'int' */
+    int_total_secs = ival;              /* used for cast elimination */
+
+    days = ival / SECONDS_PER_DAY;      /* 86400 is number of seconds in a day */
+    ival = ival % SECONDS_PER_DAY;      /* grab remainder to process hours */
+    hrs  = ival / SECONDS_PER_HOUR;     /* 3600 is number of seconds in a(n) hour */
+    ival = ival % SECONDS_PER_HOUR;     /* grab remainder to process minutes */
+    mins = ival / SECONDS_PER_MIN;      /* 60 is number of seconds in a minute */
+    secs = ival % SECONDS_PER_MIN;      /* grab remainder to process seconds */
+
+    if (total_secs)
+        pps = (ps->ps_recv / int_total_secs);  /* packets per second is received pkts divided by */
+    else                                        /* total number of seconds (cast as type 'int') */
+        pps = ps->ps_recv;                      /* guard against division by zero */
+
+    LogMessage("Snort ran for %d Days %d Hours %d Minutes %d Seconds\n", days, hrs, mins, secs);
+
+    if (days + hrs + mins + secs > 0) {
+        LogMessage("Packet analysis time averages:\n\n");
+    }
+
+    if (days > 0) {
+        ppd = (ps->ps_recv / (int_total_secs / SECONDS_PER_DAY));
+        LogMessage("Snort Analyzed %d Packets Per Day\n", ppd);
+        hflag = 1;
+    }
+
+    if (hrs > 0 || hflag == 1) {
+        pph = (ps->ps_recv / (int_total_secs / SECONDS_PER_HOUR));
+        LogMessage("Snort Analyzed %d Packets Per Hour\n", pph);
+        mflag = 1;
+    }
+
+    if (mins > 0 || mflag == 1) {
+        ppm = (ps->ps_recv / (int_total_secs / SECONDS_PER_MIN));
+        LogMessage("Snort Analyzed %d Packets Per Minute\n", ppm);
+    }
+
+    LogMessage("Snort Analyzed %d Packets Per Second\n", pps);
+    LogMessage(" \n");
+
+}
+#endif /* TIMESTATS */
+
 /* need int parameter here because of function declaration of signal(2) */
 void DropStats(int iParamIgnored)
 {
     struct pcap_stat ps;
+    static u_int32_t prev_ps = 0;
+    u_int32_t ps_total = prev_ps;
     float drop = 0.0;
     float recv = 0.0;
 
+#ifndef TIMESTATS
     if(pv.quiet_flag)
         return;
+#endif
 
     puts("\n\n===============================================================================\n");
 
@@ -856,7 +1233,6 @@ void DropStats(int iParamIgnored)
      */
     if(pv.readmode_flag || InlineMode())
     {
-
         /* this wildass line adjusts for the fragment reassembly packet injector */
         recv = (float) (pc.tcp
                 + pc.udp 
@@ -865,8 +1241,10 @@ void DropStats(int iParamIgnored)
                 + pc.ipx
                 + pc.eapol
                 + pc.ipv6
+                + pc.ethloopback
                 + pc.other
                 + pc.discards
+                + pc.frags
                 + pc.rebuild_element
                 - pc.rebuilt_frags
                 - pc.frag_timeout);
@@ -875,22 +1253,43 @@ void DropStats(int iParamIgnored)
     }
     else
     {
-        /* collect the packet stats */
-        if(pcap_stats(pd, &ps))
+        if (!pd)
         {
-            pcap_perror(pd, "pcap_stats");
+            LogMessage("Snort received 0 packets\n");
         }
         else
         {
-            recv = (float) ps.ps_recv;
-            drop = (float) ps.ps_drop;
+            /* collect the packet stats */
+            if(pcap_stats(pd, &ps))
+            {
+                pcap_perror(pd, "pcap_stats");
+            }
+            else
+            {
+                //recv = (float) ps.ps_recv;
+                recv = (float) pc.total + pc.rebuilt_frags;
+                drop = (float) ps.ps_drop;
+                ps_total += ps.ps_recv;
 
-            LogMessage("Snort received %u packets\n", ps.ps_recv);
-            LogMessage("    Analyzed: %u(%.3f%%)\n", ps.ps_recv - ps.ps_drop, 
-                    ps.ps_recv?CalcPct((float)(ps.ps_recv-ps.ps_drop), 
-                        (float) ps.ps_recv):0);
-            LogMessage("    Dropped: %u(%.3f%%)\n", ps.ps_drop, 
-                    ps.ps_recv?CalcPct((float)ps.ps_drop, (float) ps.ps_recv):0);
+#ifdef TIMESTATS
+                {
+                    int oldQFlag = pv.quiet_flag;
+                    pv.quiet_flag = 0;
+                    TimeStats(&ps);     /* how long did snort run? */
+                    pv.quiet_flag = oldQFlag;
+                }
+#endif
+
+                LogMessage("Snort received %u packets\n", ps.ps_recv);
+                LogMessage("    Analyzed: %u(%.3f%%)\n", pc.total,
+                        ps_total?CalcPct((float)(pc.total), 
+                        (float) ps_total):0);
+                LogMessage("    Dropped: %u(%.3f%%)\n", ps.ps_drop, 
+                        ps.ps_recv?CalcPct((float)ps.ps_drop, (float) ps.ps_recv):0);
+                LogMessage("    Outstanding: %u(%.3f%%)\n", ps_total - ps.ps_drop - pc.total,
+                        ps_total?CalcPct((float)(ps_total-ps.ps_drop - pc.total), 
+                        (float) ps_total):0);
+            }
         }
     }
 
@@ -913,8 +1312,17 @@ void DropStats(int iParamIgnored)
             pc.eapol, CalcPct((float) pc.eapol, recv));
     LogMessage("   IPv6: %-10lu (%.3f%%)\n", 
             pc.ipv6, CalcPct((float) pc.ipv6, recv));
+    LogMessage("ETHLOOP: %-10lu (%.3f%%)\n", 
+            pc.ethloopback, CalcPct((float) pc.ethloopback, recv));
     LogMessage("    IPX: %-10lu (%.3f%%)\n", 
             pc.ipx, CalcPct((float) pc.ipx, recv));
+#ifdef GRE
+    LogMessage("    GRE: %-10lu (%.3f%%)\n", 
+            pc.gre, CalcPct((float) pc.gre, recv));
+#endif
+    LogMessage("   FRAG: %-10lu (%.3f%%)%-*s\n", 
+            pc.frags, CalcPct((float) pc.frags, recv),  
+            CalcPct((float)pc.udp,recv + drop)<10?10:9, " ");
     LogMessage("  OTHER: %-10lu (%.3f%%)\n", 
             pc.other, CalcPct((float) pc.other, recv));
     LogMessage("DISCARD: %-10lu (%.3f%%)\n", 
@@ -975,6 +1383,7 @@ void DropStats(int iParamIgnored)
         LogMessage("    Stream Trackers: %-10lu\n", pc.tcp_streams);
         LogMessage("    Stream flushes: %-10lu\n", pc.rebuilt_tcp);
         LogMessage("    Segments used: %-10lu\n", pc.rebuilt_segs);
+        LogMessage("    Segments Queued: %-10lu\n", pc.queued_segs);
         LogMessage("    Stream4 Memory Faults: %-10lu\n", 
                 pc.str_mem_faults);
     }
@@ -982,9 +1391,10 @@ void DropStats(int iParamIgnored)
     LogMessage("=============================================="
             "=================================\n");
 
+    prev_ps = ps_total;
+    
     return;
 }
-
 
 /****************************************************************************
  *
@@ -1141,6 +1551,16 @@ void CheckLogDir(void)
     }
 }
 
+/* Signal handler for child process signaling the parent
+ * that is is ready */
+static int parent_wait = 1;
+static void SigChildReadyHandler(int signal)
+{
+#ifdef DEBUG
+    LogMessage("Received Signal from Child\n");
+#endif
+    parent_wait = 0;
+}
 
 /****************************************************************************
  *
@@ -1156,22 +1576,74 @@ void CheckLogDir(void)
 void GoDaemon(void)
 {
 #ifndef WIN32
+    int exit_val = 0;
     pid_t fs;
 
     LogMessage("Initializing daemon mode\n");
 
+    if (pv.daemon_restart_flag)
+        return;
+
+    /* Don't daemonize if we've already daemonized and
+     * received a SIGHUP. */
     if(getppid() != 1)
     {
+        /* Register signal handler that parent can trap signal */
+        signal(SIGNAL_SNORT_CHILD_READY, SigChildReadyHandler);
+        if (errno != 0) errno=0;
+
+        /* now fork the child */
         fs = fork();
 
         if(fs > 0)
-            exit(0);                /* parent */
+        {
+            /* Parent */
+
+            /* Don't exit quite yet.  Wait for the child
+             * to signal that is there and created the PID
+             * file.
+             */
+            while (parent_wait)
+            {
+                /* Continue waiting until receiving signal from child */
+                int status;
+                if (waitpid(fs, &status, WNOHANG) == fs)
+                {
+                    /* If the child is gone, parent should go away, too */
+                    if (WIFEXITED(status))
+                    {
+                        LogMessage("Child exited unexpectedly\n");
+                        exit_val = -1;
+                        break;
+                    }
+                    if (WIFSIGNALED(status))
+                    {
+                        LogMessage("Child terminated unexpectedly\n");
+                        exit_val = -2;
+                        break;
+                    }
+                }
+
+#ifdef DEBUG
+                LogMessage("Parent waiting for child...\n");
+#endif
+
+                sleep(1);
+            }
+
+            LogMessage("Daemon parent exiting\n");
+
+            exit(exit_val);                /* parent */
+        }
 
         if(fs < 0)
         {
+            /* Daemonizing failed... */
             perror("fork");
             exit(1);
         }
+
+        /* Child */
         setsid();
     }
     /* redirect stdin/stdout/stderr to /dev/null */
@@ -1191,6 +1663,25 @@ void GoDaemon(void)
     return;
 }
 
+/* Signal the parent that child is ready */
+void SignalWaitingParent(void)
+{
+#ifndef WIN32
+    pid_t parentpid = getppid();
+#ifdef DEBUG
+    LogMessage("Signaling parent %d from child %d\n", parentpid, getpid());
+#endif
+
+    if (kill(parentpid, SIGNAL_SNORT_CHILD_READY))
+    {
+        LogMessage("Daemon initialized, failed to signal parent pid: %d, failure: %d, %s\n", parentpid, errno, strerror(errno));
+    }
+    else
+    {
+        LogMessage("Daemon initialized, signaled parent pid: %d\n", parentpid);
+    }
+#endif
+}
 
 /* This function has been moved into mstring.c, since that
 *  is where the allocation actually occurs.  It has been

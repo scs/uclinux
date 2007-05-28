@@ -9,7 +9,7 @@ if(description)
 {
  script_id(10311);
 script_cve_id("CVE-1999-0494");
- script_version ("$Revision: 1.15 $");
+ script_version ("$Revision: 1.16 $");
 
  
  name["english"] = "Wingate POP3 USER overflow";
@@ -90,7 +90,7 @@ if(soc)
  close(soc);
 
  soc2 = open_sock_tcp(port);
- if(!soc2)security_hole(port);
+ if(!soc2)security_warning(port);
  else close(soc2);
 }
 }

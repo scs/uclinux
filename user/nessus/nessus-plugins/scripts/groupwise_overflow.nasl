@@ -11,8 +11,8 @@
 if(description)
 {
  script_id(10097);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(972);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-0146");
  name["english"] = "GroupWise buffer overflow";
  name["francais"] = "Dépassement de buffer dans GroupWise";
@@ -68,8 +68,8 @@ include("http_func.inc");
 too_long = get_kb_item("www/too_long_url_crash");
 if(too_long)exit(0);
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)) exit(0);
 
 if(http_is_dead(port:port))exit(0);

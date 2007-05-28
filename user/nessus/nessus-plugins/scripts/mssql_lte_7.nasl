@@ -4,9 +4,9 @@
 if(description)
 {
  script_id(11870);
- script_version("$Revision: 1.2 $");
- script_cve_id("CAN-2000-0199");
  script_bugtraq_id(1055);
+ script_version("$Revision: 1.5 $");
+ script_cve_id("CVE-2000-0199");
  name["english"] = "Microsoft's SQL version less than or equal to 7";
  script_name(english:name["english"]);
  
@@ -35,7 +35,7 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO); 
  
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "Windows";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
  script_require_ports(1433, "Services/mssql");
  script_dependencie("mssqlserver_detect.nasl", "mssql_version.nasl"); 

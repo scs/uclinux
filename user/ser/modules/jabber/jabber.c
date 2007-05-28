@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: jabber.c,v 1.50 2003/08/05 11:14:28 bogdan Exp $
  *
  * XJAB module
  *

@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2002 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,22 +14,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
- *
- * $Id: nessusd.c,v 1.223 2003/07/04 20:55:55 renaud Exp $
+ * $Id: nessusd.c,v 1.236.2.7 2006/10/16 17:55:54 renaud Exp $
  */
 
 #include <includes.h>
 #include <harglists.h>
+#include <nasl.h>
 
 #ifdef USE_AF_UNIX
 #undef NESSUS_ON_SSL
@@ -42,11 +32,6 @@
 int deny_severity = LOG_WARNING;
 int allow_severity = LOG_NOTICE;
 
-#endif
-
-
-#ifdef NESSUSNT
-#include "wstuff.h"
 #endif
 
 
@@ -65,6 +50,7 @@ int allow_severity = LOG_NOTICE;
 #include "ntp_11.h"
 #include "utils.h"
 #include "corevers.h"
+#include "pluginscheduler.h"
 #include "pluginlaunch.h"
 #include "hosts_gatherer.h"
 
@@ -86,7 +72,8 @@ int g_max_hosts = 15;
 int g_max_checks  = 10;
 struct arglist * g_options = NULL;
 
-int bpf_server_pid;
+pid_t bpf_server_pid;
+pid_t nasl_server_pid;
 
 int g_iana_socket;
 struct arglist * g_plugins;
@@ -102,9 +89,10 @@ static int restart = 0;
  * Functions prototypes
  */
 static void main_loop();
-static int init_nessusd (struct arglist *, int, int);
+static int init_nessusd (struct arglist *, int, int, int);
 static int init_network(int, int *, struct in_addr);
 static void server_thread (struct arglist *);
+
 
 
 
@@ -245,7 +233,11 @@ start_daemon_mode
   fflush(stdout);
   fflush(stderr);
 
-    if ((fd = open (s, O_WRONLY|O_CREAT|O_APPEND, 0600)) < 0) {
+    if ((fd = open (s, O_WRONLY|O_CREAT|O_APPEND
+#ifdef O_LARGEFILE
+	| O_LARGEFILE
+#endif
+	, 0600)) < 0) {
       log_write ("Cannot create a new dumpfile %s (%s)-- aborting\n",
 		 s, strerror (errno));
       exit (2);
@@ -259,7 +251,6 @@ start_daemon_mode
     setvbuf(stdout, NULL, _IOLBF, 0);
     setvbuf(stderr, NULL, _IOLBF, 0);
 #endif
-    log_write ("Redirecting debugging output to %s\n", s);  
 }
 
 
@@ -365,7 +356,7 @@ if(preferences_benice(prefs))nice(10);
 #if 1
  /* To let some time to attach a debugger to the child process */
  {
-   char	* p = getenv("W");
+   char	* p = getenv("NESSUS_WAIT_AFTER_FORK");
    int	x = p == NULL ? 0 : atoi(p);
    if (x > 0)
      fprintf(stderr, "server_thread is starting. Sleeping %d s. PID = %d\n",
@@ -593,6 +584,7 @@ main_loop()
 {
 #ifdef NESSUS_ON_SSL
   char		*cert, *key, *passwd, *ca_file, *s, *ssl_ver;
+  char		*ssl_cipher_list;
   int		verify_mode;
 #endif
   char *old_addr = 0, *asciiaddr = 0;
@@ -665,6 +657,26 @@ main_loop()
       if (SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL) < 0)
 	sslerror("SSL_CTX_set_options(SSL_OP_ALL)");
 
+#define NOEXP_CIPHER_LIST "EDH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:DES-CBC3-SHA:DES-CBC3-MD5:DHE-DSS-RC4-SHA:IDEA-CBC-SHA:RC4-SHA:RC4-MD5:IDEA-CBC-MD5:RC2-CBC-MD5:RC4-MD5:RC4-64-MD5:EDH-RSA-DES-CBC-SHA:EDH-DSS-DES-CBC-SHA:DES-CBC-SHA:DES-CBC-MD5"
+#define STRONG_CIPHER_LIST "EDH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:DES-CBC3-SHA:DES-CBC3-MD5:DHE-DSS-RC4-SHA:IDEA-CBC-SHA:RC4-SHA:RC4-MD5:IDEA-CBC-MD5:RC2-CBC-MD5:RC4-MD5"
+#define EDH_CIPHER_LIST "EDH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:DHE-DSS-RC4-SHA"
+      ssl_cipher_list = preferences_get_string(g_preferences, "ssl_cipher_list");
+      if (ssl_cipher_list != NULL && *ssl_cipher_list != '\0' )
+	{
+	  /* Three pre-defined values - Otherwise, we are suppose 
+	   * to enter a cipher list*/
+	  if (strcmp(ssl_cipher_list, "noexp") == 0)
+	    ssl_cipher_list = NOEXP_CIPHER_LIST;
+	  else if (strcmp(ssl_cipher_list, "strong") == 0)
+	    ssl_cipher_list = STRONG_CIPHER_LIST;
+	  /* Can anybody make EDH work? */
+	  else if (strcmp(ssl_cipher_list, "edh") == 0)
+	    ssl_cipher_list = EDH_CIPHER_LIST;
+
+	  if (! SSL_CTX_set_cipher_list(ssl_ctx, ssl_cipher_list))
+	    sslerror("SSL_CTX_set_cipher_list");
+	}
+
       ca_file = preferences_get_string(g_preferences, "ca_file");
       if(ca_file == NULL)
 	{
@@ -734,7 +746,7 @@ main_loop()
 #endif /* NESSUS_ON_SSL */
 
 
-  log_write("nessusd %s started\n", NESSUS_VERSION);
+  log_write("nessusd %s started\n", NESSUS_FULL_VERSION);
   for(;;)
     {
       int soc;
@@ -753,7 +765,6 @@ main_loop()
       
       if(restart != 0) restart_nessusd(); 
 
-      wait_for_children();
       /* prevent from an io table overflow attack against nessus */
       if (asciiaddr != 0) {
 	time_t now = time (0);
@@ -823,21 +834,11 @@ main_loop()
 
       
    
-#ifdef USE_FORK_THREADS
       my_plugins = g_plugins;
-#else      
-      my_plugins = emalloc(sizeof(struct arglist));
-      arg_dup(my_plugins, g_plugins);
-#endif    
       arg_add_value(globals, "plugins", ARG_ARGLIST, -1, my_plugins);
       
      
-#ifdef USE_FORK_THREADS     
       my_preferences = g_preferences;
-#else      
-      my_preferences = emalloc(sizeof(struct arglist));
-      arg_dup(my_preferences, g_preferences);
-#endif      
       arg_add_value(globals, "preferences", ARG_ARGLIST, -1, my_preferences);
           
       my_rules = /*rules_dup*/(g_rules);
@@ -863,9 +864,7 @@ main_loop()
 	sleep (2);
       }
       close(soc);
-#ifdef USE_FORK_THREADS
       arg_free(globals);
-#endif    
     }
 }
 
@@ -960,13 +959,13 @@ init_network(port, sock, addr)
  * Initialize everything
  */
 static int 
-init_nessusd (options, first_pass, stop_early)
+init_nessusd (options, first_pass, stop_early, be_quiet)
      struct arglist * options;    
      int first_pass;
      int stop_early; /* 1: do some initialization, 2: no initialization */
-
+     int be_quiet;
 {
-  int  isck;
+  int  isck = -1;
   struct arglist * plugins = NULL;
   struct arglist * preferences = NULL;
   struct nessus_rules * rules = NULL;
@@ -998,9 +997,20 @@ init_nessusd (options, first_pass, stop_early)
 #ifdef DEBUG_RULES
   rules_dump(rules);
 #endif
+
+
   if ( stop_early == 0 ) {
+   char * dir;
+
+   dir = arg_get_value(preferences, "plugins_folder");
+
     store_init_sys(arg_get_value(preferences, "plugins_folder"));
-    plugins = plugins_init(preferences);
+    plugins = plugins_init(preferences, be_quiet);
+
+#ifdef ENABLE_PLUGIN_SERVER
+    if ( recompile_all != 0 ) exit(0); /* Done */
+#endif
+
 
     if( first_pass != 0 )init_network(iana_port, &isck, *addr);
   }
@@ -1032,7 +1042,7 @@ display_help
 {
 #ifdef USE_AF_INET
   printf("nessusd, version %s\n", NESSUS_VERSION);
-  printf("\nusage : nessusd [-vcphdDLC] [-a address] [ -S <ip[,ip,...]> ]\n\n");
+  printf("\nusage : nessusd [-vcphdDLCR] [-a address] [ -S <ip[,ip,...]> ]\n\n");
 #else
   printf("\nusage : nessusd [-vchdD]\n\n");
 #endif /*def USE_AF_INET */
@@ -1047,6 +1057,7 @@ display_help
   printf("\t\t\t (default : %s)\n", NESSUSD_CONF);
   printf("\tD              : runs in daemon mode\n");
   printf("\td              : dumps the nessusd compilation options\n");
+  printf("\tq              : quiet (do not issue any message to stdout)\n");
 }
 
 
@@ -1063,6 +1074,8 @@ main(int argc, char * argv[], char * envp[])
   struct arglist * options = emalloc(sizeof(struct arglist));
   int print_specs = 0;
   int i;
+  int be_quiet = 0;
+  int flag = 0;
  
  if(argc > 64)
 	{
@@ -1073,7 +1086,14 @@ main(int argc, char * argv[], char * envp[])
  bzero(orig_argv, sizeof(orig_argv));
  for(i=0;i<argc;i++)
  {
+	if ( strcmp(argv[i], "-q") == 0 ||
+	     strcmp(argv[i], "--quiet") == 0 ) flag ++;
 	orig_argv[i] = estrdup(argv[i]);
+ }
+
+ if ( flag == 0 )
+ {
+	orig_argv[argc] = estrdup("-q");
  }
 
  initsetproctitle(argc, argv, envp);
@@ -1143,15 +1163,19 @@ you have deleted older versions of libnasl from your system\n",
       {"config-file",    required_argument, 0, 'c'}, 
       {"gen-config",           no_argument, 0, 'g'}, 
       {"src-ip",	 required_argument, 0, 'S'},
+      {"quiet",	 	no_argument, 0, 'q'},
       {0, 0, 0, 0}
     };
 
     if ((i = getopt_long 
-	 (argc, argv, "Dhvgc:dsa:p:S:", 
+	 (argc, argv, "Dhvgc:dsa:p:S:RPq", 
 	  long_options, &option_index)) == EOF) break;
     else
       switch(i)
 	{
+	case 'q' :
+	  be_quiet = 1;
+	  break;
         case 'g' :
 	  exit_early  = 1; /* allow cipher initalization */
           break;
@@ -1194,7 +1218,7 @@ you have deleted older versions of libnasl from your system\n",
 	  break;
 
 	case 'v' :
-	  print_error("nessusd (%s) %s for %s\n(C) 1998 - 2003 Renaud Deraison <deraison@nessus.org>\n\n", 
+	  print_error("nessusd (%s) %s for %s\n(C) 1998 - 2006 Tenable Network Security, Inc.\n\n", 
 		 PROGNAME,NESSUS_VERSION, NESS_OS_NAME);
 	  DO_EXIT(0);
 	  break;
@@ -1213,26 +1237,6 @@ you have deleted older versions of libnasl from your system\n",
            printf("This is Nessus %s for %s %s\n", NESSUS_VERSION, NESS_OS_NAME, NESS_OS_VERSION);
            printf("compiled with %s\n", NESS_COMPILER);
            printf("Current setup :\n");
-	  
-#ifdef ENABLE_SAVE_TESTS
-           printf("\tExperimental session-saving    : enabled\n");
-#else
-           printf("\tExperimental session-saving    : disabled\n");
-#endif
-
-#ifdef ENABLE_SAVE_KB
-	   printf("\tExperimental KB saving         : enabled\n");
-#else
-	   printf("\tExperimental KB saving         : disabled\n");
-#endif	   	   
-	  
-           printf("\tThread manager                 : ");
-#ifdef USE_PTHREADS
-	   printf("pthreads\n");
-#else
-	   printf("fork\n");
-#endif
-
 	   printf("\tnasl                           : %s\n", nasl_version());
 	   printf("\tlibnessus                      : %s\n", nessuslib_version());
 
@@ -1287,7 +1291,7 @@ you have deleted older versions of libnasl from your system\n",
   arg_add_value(options, "config_file", ARG_STRING, strlen(config_file), config_file);
   arg_add_value(options, "addr", ARG_PTR, -1, &addr);
   
-  init_nessusd (options, 1, exit_early /* stop early ? */);
+  init_nessusd (options, 1, exit_early, be_quiet);
   g_options = options;
   g_iana_socket = (int)arg_get_value(options, "isck");
   g_plugins = arg_get_value(options, "plugins");

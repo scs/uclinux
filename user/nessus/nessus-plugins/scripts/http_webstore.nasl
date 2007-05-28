@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10532);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CVE-2000-1005");
  script_bugtraq_id(1774);
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-2000-1005");
  
  
  name["english"] = "eXtropia Web Store remote file retrieval";
@@ -28,7 +28,7 @@ will return /etc/passwd.
 
 Solution: None available at this time
 
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -44,6 +44,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -54,8 +55,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())

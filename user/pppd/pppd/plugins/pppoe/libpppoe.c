@@ -13,6 +13,10 @@
 #include "pppoe.h"
 #include "pppd.h"
 
+#define MAX_WAIT_SECONDS	64
+
+extern int kill_link;
+
 int disc_sock=-1;
 int ses_sock=-1;
 
@@ -263,6 +267,13 @@ int send_disc(struct session *ses, struct pppoe_packet *p)
     int got_srv_name = 0;
     int got_ac_name = 0;
 
+    /* No tags are required for a PADT, just the session number. */
+    if (p->hdr->code == PADT_CODE) {
+	    got_host_uniq = 1;
+	    got_srv_name = 1;
+	    got_ac_name = 1;
+    }
+
     for (i = 0; i < MAX_TAGS; i++) {
 	if (!p->tags[i])
 	    continue;
@@ -287,6 +298,14 @@ int send_disc(struct session *ses, struct pppoe_packet *p)
     memcpy(ph, p->hdr, sizeof(struct pppoe_hdr));
     ph->length = __constant_htons(0);
 
+    if( !got_srv_name ){
+	data_len += sizeof(struct pppoe_tag);
+	tag = next_tag(ph);
+	tag->tag_type = PTT_SRV_NAME;
+	tag->tag_len = 0;
+	add_tag(ph, tag);
+    }
+
     /* if no HOST_UNIQ tags --- add one with process id */
     if (!got_host_uniq){
 	data_len += (sizeof(struct pppoe_tag) +
@@ -298,14 +317,6 @@ int send_disc(struct session *ses, struct pppoe_packet *p)
 	       &ses,
 	       sizeof(struct session *));
 
-	add_tag(ph, tag);
-    }
-
-    if( !got_srv_name ){
-	data_len += sizeof(struct pppoe_tag);
-	tag = next_tag(ph);
-	tag->tag_type = PTT_SRV_NAME;
-	tag->tag_len = 0;
 	add_tag(ph, tag);
     }
 
@@ -462,7 +473,8 @@ int session_connect(struct session *ses)
     struct pppoe_packet *p_out=NULL;
     struct pppoe_packet rcv_packet;
     int ret;
-
+    int bad_sid = -1;
+    int bad_cnt = 0;
 
     if(ses->init_disc){
 	ret = (*ses->init_disc)(ses, NULL, &p_out);
@@ -486,6 +498,9 @@ int session_connect(struct session *ses)
 		if(ses->retransmits>=0){
 			tv.tv_sec = 1 << ses->retransmits;
 			tv.tv_usec = 0;
+
+			tv.tv_sec = tv.tv_sec <= MAX_WAIT_SECONDS ? tv.tv_sec : MAX_WAIT_SECONDS;
+
 			ret = select(MAX(disc_sock, ses_sock) + 1, &in, NULL, NULL, &tv);
 			++ses->retransmits;
 		}else{
@@ -521,6 +536,8 @@ int session_connect(struct session *ses)
 		   bad packets and the like... */
 		if( ret < 0 && errno != EINTR){
 			poe_info(ses, "couldn't rcv packet");
+			return -1;
+		} else if (kill_link) {
 			return -1;
 		}
 
@@ -582,13 +599,16 @@ int session_connect(struct session *ses)
 		case PADT_CODE:
 		{
 			if( rcv_packet.hdr->sid != ses->sp.sa_addr.pppoe.sid ){
-			--ses->retransmits;
+			if (ses->retransmits > 0) {
+				--ses->retransmits;
+			}
 			if (p_out) {
 				poe_dbglog(ses, "Received PADT, sending discovery %P", p_out);
 				send_disc(ses,p_out);
 			}
 			continue;
 			}
+
 			if(ses->rcv_padt){
 			ret = (*ses->rcv_padt)(ses,&rcv_packet,&p_out);
 
@@ -604,7 +624,32 @@ int session_connect(struct session *ses)
 		case 0:      /* Receiving normal session frames */
 		{ 
 			poe_info(ses, "Already in data stream, received %P", &rcv_packet);
+
 			if (ses->pppoe_kill) {
+				/*
+				 * Hua-Wei DSLAMs send one session packet before the PADS,
+				 * in violation of the RFC.  If we respond to this with a
+				 * PADT, we terminate our own session and can't connect.
+				 *
+				 * To work around this problem, relax our killing while we
+				 * are waiting for our PADS, and only send a PADT if we
+				 * see three or more session packets arrive consecutively
+				 * with the same SID.
+				 */
+				if (ses->state == PADS_CODE) {
+					if (bad_sid != rcv_packet.hdr->sid) {
+						bad_sid = rcv_packet.hdr->sid;
+						bad_cnt = 0;
+					}
+					if (++bad_cnt <= 3) {
+						if (ses->retransmits > 0)
+							--ses->retransmits;
+						continue;
+					}
+				}
+				bad_sid = -1;
+				bad_cnt = 0;
+
 				poe_info(ses, "Sending PADT");
 				memcpy(&ses->remote,&rcv_packet.addr,
 					sizeof(struct sockaddr_ll));
@@ -613,7 +658,10 @@ int session_connect(struct session *ses)
 				if (session_disconnect(ses) != -1) {
 					/* PADT successful, re-init for discovery */
 					(*ses->init_disc)(ses, NULL, &p_out);
-					--ses->retransmits;
+
+					if (ses->retransmits > 0) {
+						--ses->retransmits;
+					}
 					continue;
 				}
 			}

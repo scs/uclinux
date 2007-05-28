@@ -1,4 +1,4 @@
-/* @(#) $Header$ (LBL) */
+/* @(#) $Header: /cvs/sw/new-wave/user/traceroute/lbl/gnuc.h,v 1.1.1.1 1999/11/22 03:48:06 christ Exp $ (LBL) */
 
 /* Define __P() macro, if necessary */
 #ifndef __P

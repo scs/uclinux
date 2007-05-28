@@ -35,7 +35,7 @@
  * From: @(#)tftp.c	5.10 (Berkeley) 3/1/91
  */
 char tftp_rcsid[] = 
-  "$Id$";
+  "$Id: tftp.c,v 1.6 1996/08/29 22:25:27 dholland Exp $";
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
 

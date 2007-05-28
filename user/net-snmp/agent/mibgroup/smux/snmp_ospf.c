@@ -1,5 +1,5 @@
 /*
- * $Id$ 
+ * $Id: snmp_ospf.c,v 5.0 2002/04/20 07:30:06 hardaker Exp $ 
  */
 
 /*

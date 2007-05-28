@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: mdefines.h,v 1.6 2002/10/16 14:12:42 dcm Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

@@ -8,7 +8,8 @@
 if(description)
 {
  script_id(10995);
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.6 $");
+ script_cve_id("CVE-1999-0508");
 
  name["english"] = "Sun JavaServer Default Admin Password";
  script_name(english:name["english"]);
@@ -40,7 +41,7 @@ Risk factor : High
  family["english"] = "General";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 9090);
  exit(0);
 }
@@ -61,6 +62,8 @@ ports = add_port_in_list(list:get_kb_list("Services/www"), port:9090);
 
 foreach port (ports)
 {
+    if ( ! get_kb_item("Services/www/" + port + "/embedded") )
+    {
     soc = http_open_socket(port);
     if (soc)
     {
@@ -73,4 +76,5 @@ foreach port (ports)
             security_hole(port:port);
         }
     }
+  }
 }

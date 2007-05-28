@@ -15,8 +15,8 @@ if(description)
 {
  script_id(10733);
  script_bugtraq_id(2579);
- script_cve_id("CAN-2001-0432");
- script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-0432");
+ script_version ("$Revision: 1.14 $");
 
 #Name used in the client window.
 
@@ -71,7 +71,7 @@ family["francais"]="Abus de CGI";
 script_family(english:family["english"], francais:family["francais"]);
 
 
-script_dependencie("find_service.nes");
+script_dependencie("http_version.nasl");
 
 
 #optimization, stop here if either no web service was found by find_service.nes plugin or no port 80 was open.
@@ -89,20 +89,17 @@ exit(0);
 
 
 include("http_func.inc");
+include("http_keepalive.inc");
 #search web port in knowledge database
 
-port=get_kb_item("Services/www");
-if(!port) port=80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
 
-soc = http_open_socket(port);
-if(!soc)exit(0);
-
 request = http_get(item:"/interscan/cgi-bin/FtpSave.dll?I'm%20Here", port:port);
-send(socket:soc, data:request);
-receive = http_recv(socket:soc);
+receive = http_keepalive_send_recv(port:port, data:request);
 
 signature = "These settings have been saved";
 

@@ -4,7 +4,7 @@
  * Read input from the voice modem device until (timeout * 0.1 seconds)
  * have passed without a new character arrived.
  *
- * $Id$
+ * $Id: flush.c,v 1.4 1998/09/09 21:07:31 gert Exp $
  *
  */
 

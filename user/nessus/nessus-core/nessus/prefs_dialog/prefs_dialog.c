@@ -95,11 +95,7 @@ prefs_dialog_setup(widget, preferences)
 /*
  * We draw the window ....
  */
-#if GTK_VERSION >= 20
- window = gtk_dialog_new();
-#else 
  window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-#endif 
  gtk_signal_connect(GTK_OBJECT(window), "delete_event",
                      (GtkSignalFunc)close_display,NULL);
                      
@@ -110,13 +106,9 @@ prefs_dialog_setup(widget, preferences)
  /*
   * We put a vbox in it...
   */
-#if GTK_VERSION < 20  
  box = gtk_vbox_new(FALSE, 10);
  gtk_container_add(GTK_CONTAINER(window), box);
  gtk_widget_show(box);
-#else
- box = GTK_DIALOG(window)->vbox; 
-#endif 
 /* 
  * We set up the notebook
  */
@@ -170,16 +162,16 @@ prefs_dialog_setup(widget, preferences)
                                         
  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, label);
  
- 
- label = gtk_label_new("Prefs.");
- frame = arg_get_value(prefs_plugins_prefs, "FRAME");
+ label = gtk_label_new("Credentials");
+ frame = arg_get_value(prefs_plugins_prefs, "FRAME_CREDENTIALS");
  gtk_widget_show(frame);
  gtk_signal_connect(GTK_OBJECT(frame), "expose_event", 
  		   GTK_SIGNAL_FUNC(prefs_plugins_prefs_redraw),
 		   prefs_plugins_prefs);
  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, label);
+ 
  	
- label = gtk_label_new("Scan options");
+ label = gtk_label_new("Scan Options");
  frame = arg_get_value(prefs_scan, "FRAME");
  gtk_widget_show(frame);
  gtk_signal_connect(GTK_OBJECT(frame), "expose_event",
@@ -189,7 +181,7 @@ prefs_dialog_setup(widget, preferences)
  
  
 
- label = gtk_label_new("Target selection");
+ label = gtk_label_new("Target");
  frame = arg_get_value(prefs_target, "FRAME");
  gtk_widget_show(frame);
  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, label);
@@ -197,6 +189,15 @@ prefs_dialog_setup(widget, preferences)
  label = gtk_label_new("User");
  frame = arg_get_value(prefs_user, "FRAME");
  gtk_widget_show(frame);
+ gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, label);
+
+
+ label = gtk_label_new("Prefs.");
+ frame = arg_get_value(prefs_plugins_prefs, "FRAME");
+ gtk_widget_show(frame);
+ gtk_signal_connect(GTK_OBJECT(frame), "expose_event", 
+ 		   GTK_SIGNAL_FUNC(prefs_plugins_prefs_redraw),
+		   prefs_plugins_prefs);
  gtk_notebook_append_page(GTK_NOTEBOOK(notebook), frame, label);
 
 #ifdef ENABLE_SAVE_KB
@@ -271,6 +272,22 @@ void prefs_dialog_set_defaults(ctrls, preferences)
       char * s = strdup(v ? "yes":"no");
       arg_set_type(serv, "auto_enable_dependencies", ARG_STRING);
       arg_set_value(serv, "auto_enable_dependencies", strlen(s), s);
+      v = s;
+  } 
+  if(v && !strcmp(v, "yes"))
+  	GTK_TOGGLE_BUTTON(gtkw)->active = TRUE;
+  else
+  	GTK_TOGGLE_BUTTON(gtkw)->active = FALSE;
+ }
+ gtkw = arg_get_value(t, "SILENT_DEPS");
+ if(gtkw)
+ {
+  v = arg_get_value(serv, "silent_dependencies");
+  if(arg_get_type(serv, "silent_dependencies") == ARG_INT)
+  {
+      char * s = strdup(v ? "yes":"no");
+      arg_set_type(serv, "silent_dependencies", ARG_STRING);
+      arg_set_value(serv, "silent_dependencies", strlen(s), s);
       v = s;
   } 
   if(v && !strcmp(v, "yes"))
@@ -412,6 +429,7 @@ void prefs_dialog_set_defaults(ctrls, preferences)
   else gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(gtkw), 0);
  
   
+#if 0
 #ifdef ENABLE_SAVE_KB
 
   /*
@@ -467,6 +485,7 @@ void prefs_dialog_set_defaults(ctrls, preferences)
    gtk_entry_set_text(GTK_ENTRY(gtkw), v);
   }
 #endif  
+#endif
  
  
   v = arg_get_value(serv, "port_range");
@@ -581,6 +600,8 @@ static void prefs_dialog_set_tooltips(ctrls)
  w = arg_get_value(t, "ENABLE_DEPS_AT_RUNTIME");
  gtk_tooltips_set_tip(tooltips, w, HLP_ENABLE_DEPS_AT_RUNTIME,"");
  
+ w = arg_get_value(t, "SILENT_DEPS");
+ gtk_tooltips_set_tip(tooltips, w, HLP_SILENT_DEPS,"");
  t = arg_get_value(ctrls, "AUTH") ;
 #ifdef USE_AF_INET
  w = arg_get_value(t, "HOSTNAME");
@@ -667,6 +688,19 @@ int prefs_dialog_ok(w, ctrls)
    arg_add_value(serv, "auto_enable_dependencies", ARG_STRING, strlen(s), s);
   }
  
+ 
+ gtkw = arg_get_value(t, "SILENT_DEPS");
+ if(gtkw)
+ {
+   char * s;
+   if(GTK_TOGGLE_BUTTON(gtkw)->active)s = estrdup("yes");
+   else s = estrdup("no");
+  
+   if(arg_get_value(serv, "silent_dependencies"))
+   arg_set_value(serv, "silent_dependencies", strlen(s), s);
+  else
+   arg_add_value(serv, "silent_dependencies", ARG_STRING, strlen(s), s);
+  }
  
   
   
@@ -863,6 +897,7 @@ int prefs_dialog_ok(w, ctrls)
   
   
   
+#if 0 
 #ifdef ENABLE_SAVE_KB
    gtkw = arg_get_value(t, "DETACHED_SCAN");
    if(GTK_TOGGLE_BUTTON(gtkw)->active){
@@ -879,7 +914,7 @@ int prefs_dialog_ok(w, ctrls)
     arg_add_value(serv, "detached_scan", ARG_STRING, strlen(s), s);  
   
    gtkw = arg_get_value(t, "EMAIL_ADDR");
-   s = (char*)gtk_entry_get_text(GTK_ENTRY(gtkw));
+   s = estrdup(gtk_entry_get_text(GTK_ENTRY(gtkw)));
    arg_set_value(serv, "detached_scan_email_address", strlen(s), s);
    
    
@@ -903,6 +938,7 @@ int prefs_dialog_ok(w, ctrls)
     arg_add_value(serv, "delay_between_scan_loops", ARG_STRING, strlen(s), s); 
     
 #endif     
+#endif
  gtkw = arg_get_value(t, "PORT_RANGE");
  s = emalloc(strlen(gtk_entry_get_text(GTK_ENTRY(gtkw)))+1);
  strncpy(s, gtk_entry_get_text(GTK_ENTRY(gtkw)), 

@@ -1,7 +1,7 @@
 # Makefile for the "tools" subtree
 # of mgetty+sendfax
 #
-# RCS: $Id$
+# RCS: $Id: Makefile,v 1.7 2004/11/24 15:24:25 gert Exp $
 #
 
 CC=gcc

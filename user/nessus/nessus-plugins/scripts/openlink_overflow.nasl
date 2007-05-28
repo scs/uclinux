@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10169);
- script_version ("$Revision: 1.16 $");
+ script_version ("$Revision: 1.18 $");
  script_cve_id("CVE-1999-0943");
  name["english"] = "OpenLink web config buffer overflow";
  name["francais"] = "Dépassement de buffer dans la config web de OpenLink";
@@ -48,6 +48,7 @@ Facteur de risque : Elevé";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "httpver.nasl");
  script_require_ports(8000);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -77,7 +78,7 @@ if(get_port_state(port))
  } 
  else exit(0);
  
- foreach dir (cgi_dir())
+ foreach dir (cgi_dirs())
  {
  soc2 = http_open_socket(port);
  if(soc2)

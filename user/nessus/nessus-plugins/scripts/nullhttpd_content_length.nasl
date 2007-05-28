@@ -21,7 +21,7 @@
 if(description)
 {
  script_id(11183);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.6 $");
  
  name["english"] = "HTTP negative Content-Length buffer overflow";
  script_name(english:name["english"]);
@@ -58,8 +58,8 @@ Solution : Upgrade your web server";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 if(http_is_dead(port:port))exit(0);

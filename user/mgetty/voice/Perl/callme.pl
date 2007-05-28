@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# $Id$
+# $Id: callme.pl,v 1.1 1998/09/09 21:48:54 gert Exp $
 #
 # This script dials a given number and then re-plays the message.
 # Use "vm shell -S /usr/bin/perl callme.pl number message.rmd"

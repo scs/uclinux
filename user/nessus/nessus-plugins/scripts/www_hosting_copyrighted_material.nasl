@@ -5,7 +5,8 @@
 if(description)
 {
  script_id(11778);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.9 $");
+# script_cve_id("CVE-MAP-NOMATCH");
  name["english"] = "Web Server hosting copyrighted material";
  script_name(english:name["english"]);
 
@@ -43,16 +44,16 @@ include("http_keepalive.inc");
 
 function check(port, sfx)
 {
- list = get_kb_item(string("www/", port, "/content/extensions/", sfx));
- if(isnull(list))return NULL;
+ list = get_kb_list(string("www/", port, "/content/extensions/", sfx));
+ if(isnull(list))return make_list();
  else list = make_list(list);
  return list;
 }
 
 
  
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
@@ -68,6 +69,8 @@ files = make_list(files, check(port:port, sfx:"mpeg"));
 files = make_list(files, check(port:port, sfx:"MPEG"));
 files = make_list(files, check(port:port, sfx:"ogg"));
 files = make_list(files, check(port:port, sfx:"OGG"));
+files = make_list(files, check(port:port, sfx:"wma"));
+files = make_list(files, check(port:port, sfx:"WMA"));
 
 report = NULL;
 

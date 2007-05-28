@@ -7,9 +7,10 @@
 
 if (description) {
    script_id(10828);
+   if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0014");
+   script_bugtraq_id(3681);
    script_cve_id("CVE-2001-0797");
-   script_version("$Revision: 1.11 $");
- script_bugtraq_id(3681);
+   script_version("$Revision: 1.13 $");
   name["english"] = "SysV /bin/login buffer overflow (rlogin)";
   script_name(english:name["english"]);
  

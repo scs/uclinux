@@ -5,7 +5,7 @@ if(description)
 {
  script_id(11609);
  script_bugtraq_id(7192);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.4 $");
  name["english"] = "mod_survey ENV tags SQL injection";
  script_name(english:name["english"]);
 
@@ -34,7 +34,7 @@ Risk factor : High";
 
 
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "httpver.nasl", "no404.nasl", "webmirror.nasl");
  script_require_ports("Services/www", 80);
@@ -52,8 +52,8 @@ include("http_keepalive.inc");
 
 
  
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

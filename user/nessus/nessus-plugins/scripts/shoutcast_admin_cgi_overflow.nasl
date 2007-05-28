@@ -20,11 +20,11 @@
 if(description)
 {
   script_id(11719);
-  
   script_bugtraq_id(3934);
-  script_cve_id("CAN-2002-0199");
   
-  script_version ("$Revision: 1.3 $");
+  script_cve_id("CVE-2002-0199");
+  
+  script_version ("$Revision: 1.14 $");
   name["english"] = "admin.cgi overflow";
   script_name(english:name["english"]);
  
@@ -36,21 +36,21 @@ working, or worse, execute arbitrary code on your system.
 
 Solution : upgrade Shoutcast to the latest version.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
   script_description(english:desc["english"]);
  
   summary["english"] = "Overflows admin.cgi";
   script_summary(english:summary["english"]);
-  script_category(ACT_MIXED_ATTACK);
+  script_category(ACT_DENIAL);
  
  
   script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi");
   family["english"] = "CGI abuses";
   family["francais"] = "Abus de CGI";
   script_family(english:family["english"], francais:family["francais"]);
-  script_dependencie("find_service.nes", "no404.nasl");
+  script_dependencie("http_version.nasl");
   script_require_ports("Services/www", 8888);
   # Shoutcast is often on a high port
   exit(0);
@@ -61,31 +61,11 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 include("misc_func.inc");
-if (safe_checks())
-{
-  port = is_cgi_installed("admin.cgi");
-  if (port)
-  {
-    report = "
-admin.cgi was detected on this server. 
-Shoutcast server installs a version that is vulnerable to
-a buffer overflow.
 
-** Note that Nessus did not try to exploit the flaw,
-** so this might be a false alert.
-
-Solution : upgrade Shoutcast to the latest version.
-Risk factor : Serious";
-    security_hole(port: port, data: report);
-  }
-  exit(0);
-}
-
-
-ports = add_port_in_list(list:get_kb_item("Services/www"), port:8888);
+ports = add_port_in_list(list:get_kb_list("Services/www"), port:8888);
 foreach port (ports)
 {
- if( get_port_state(port) && !http_is_dead(port:port))
+ if( get_port_state(port)  && !get_kb_item("Services/www/" + port + "/embedded") && !http_is_dead(port:port, retry:0))
  {
   url = string("/admin.cgi?pass=", crap(length:4096, data:"\"));
   req = http_get(item: url, port:port);

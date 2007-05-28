@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: h_table.h,v 1.71.6.2.2.1 2004/07/21 13:41:53 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -1,26 +1,32 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
-#
-# XXXXX BROKEN
+# This script is released under Tenable Plugins License
 #
 
 if(description)
 {
  script_id(10893);
- script_version("$Revision: 1.9 $");
+ script_version("$Revision: 1.12 $");
  name["english"] = "Obtains the lists of users aliases";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-This script requests the list of groups each user belongs
-to and stores it in the KB
-Risk factor : None";
+Synopsis :
 
+It is possible to retrieve users aliases.
 
+Description :
+
+Using the supplied credentials it was possible to retrieve the
+list of groups each user belong to.
+Aliases are stored in the KB for further checks.
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:L/AC:H/Au:R/C:N/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -32,8 +38,8 @@ Risk factor : None";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
-family["english"] = "Windows : User management";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : User management";
  script_family(english:family["english"]);
  script_dependencies("netbios_name_get.nasl",
  		     "smb_login.nasl", 
@@ -44,179 +50,42 @@ family["english"] = "Windows : User management";
  exit(0);
 }
 
+#deprecated
+exit(0);
 
-exit(0); # XXXXX broken at this time
+include("smb_func.inc");
 
-include("smb_nt.inc");
-
-port = kb_smb_transport();
+port = get_kb_item("SMB/transport");
 if(!port)port = 139;
-if(!get_port_state(port))exit(0);
 
+name	= kb_smb_name(); 	if(!name)exit(0);
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
 
+if ( ! get_port_state(port) ) exit(0);
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if ( ! soc ) exit(0);
 
-login = kb_smb_login();
-pass  = kb_smb_password();
-domain = kb_smb_domain();
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
 
-
-if(!login)login = "";
-if(!pass) pass  = "";
-if(!domain) domain = "";
-
-name = kb_smb_name();
-
-r = smb_session_request(soc:soc, remote:name);
-if(!r){
-	#display("smb_session_request failed\n");
-	exit(0);
-	}
-	
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);
-
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r){
-	#display("Session setup failed\n");
-	exit(0);
-	}
-
-uid = session_extract_uid(reply:r);
-
-#
-# Connect to the remote IPC and extract the TID
-# we are attributed
-#      
-r = smb_tconx(soc:soc, name:name, uid:uid, share:"IPC$");
-# extract our tree id
-tid = tconx_extract_tid(reply:r);
-
-if(!tid)exit(0);
-
-#display("TID = ", tid, "\n");
-
-pipe = OpenPipeToSamr(	soc:soc, 
-		      	uid:uid, 
-		      	tid:tid);
-		      
-#display("PIPE = ", pipe, "\n");
-
-samrhdl = SamrConnect2(	soc:soc, 
-		       	uid:uid,
-		       	tid:tid, 
-		       	pipe:pipe, 
-		       	name:name
-		      );
-
-
-dom = _SamrEnumDomains(	soc:soc, 
-		      	uid:uid, 
-		      	tid:tid, 
-		      	pipe:pipe, 
-		      	samrhdl:samrhdl
-		      );
-
-
-
-sid = SamrDom2Sid(	soc:soc, 
-                  	uid:uid, 
-		  	tid:tid, 
-		  	pipe:pipe, 
-		  	samrhdl:samrhdl, 
-		  	dom:dom
-		 );
-
-
-
-
-g_domhdl =
-	SamrOpenDomain(	soc:soc, 
-			uid:uid, 
-			tid:tid, 
-			pipe:pipe, 
-			samrhdl:samrhdl,
-			sid:sid
-		       );		  
-
-
-bihdl = SamrOpenBuiltin(soc:soc,
-			uid:uid,
-			tid:tid,
-			pipe:pipe,
-			samrhdl:samrhdl
-			);
-	
-		
 count = 1;
 login = string(get_kb_item(string("SMB/Users/", count)));
 while(login)
 {
-rid = SamrLookupNames(  soc:soc, 
-			uid:uid, 
-			tid:tid, 
-			pipe:pipe, 
-			domhdl:g_domhdl,
-			name:login
-		     );	
+ groups = NetUserGetLocalGroups (user:login);
 
-if(!rid)
-{
- rid = SamrLookupNames(  soc:soc, 
-			uid:uid, 
-			tid:tid, 
-			pipe:pipe, 
-			domhdl:bihdl,
-			name:login
-		     );	
-}
-
-
-
-usrhdl = SamrOpenUser(	soc:soc, 
-			uid:uid, 
-			tid:tid, 
-			pipe:pipe, 
-			samrhdl:g_domhdl,
-			sid:sid,
-	 		rid:rid
-		     );
-if(!usrhdl)
-{
- #display("Hu ho. Using bihdl\n");
- 
- usrhdl = SamrOpenUser(	soc:soc, 
-			uid:uid, 
-			tid:tid, 
-			pipe:pipe, 
-			samhdl:bihdl,
-			sid:sid,
-	 		rid:rid
-		     );
-		     
-		     
-}			
-
-		     
-
-rids = SamrQueryUserAliases(soc:soc, 
-	     	  	uid:uid,
-		  	tid:tid,
-		  	pipe:pipe,
-		  	usrhdl:bihdl, 
-			sid:sid,
-			rid:rid);	
-			
- 
-if(rids)
+ foreach group (groups)
  {
   name = string("SMB/Users/", count, "/LocalGroups");
-  set_kb_item(name:name, value:rids);
-  #display(rids);
+  set_kb_item(name:name, value:group);
  }	     
 
  count = count + 1;
  login = string(get_kb_item(string("SMB/Users/", count)));
-}		 
-		  
+}
+
+NetUseDel ();

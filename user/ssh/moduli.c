@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.1 2003/07/28 09:49:56 djm Exp $ */
+/* $OpenBSD: moduli.c,v 1.12 2005/07/17 07:17:55 djm Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -38,89 +38,96 @@
  */
 
 #include "includes.h"
-#include "moduli.h"
 #include "xmalloc.h"
 #include "log.h"
 
 #include <openssl/bn.h>
-
-
-/*
- * Debugging defines 
- */
-
-/* define DEBUG_LARGE 1 */
-/* define DEBUG_SMALL 1 */
-/* define DEBUG_TEST  1 */
 
 /*
  * File output defines
  */
 
 /* need line long enough for largest moduli plus headers */
-#define QLINESIZE               (100+8192)
+#define QLINESIZE		(100+8192)
 
 /* Type: decimal.
  * Specifies the internal structure of the prime modulus.
  */
-#define QTYPE_UNKNOWN           (0)
-#define QTYPE_UNSTRUCTURED      (1)
-#define QTYPE_SAFE              (2)
-#define QTYPE_SCHNOOR           (3)
-#define QTYPE_SOPHIE_GERMAINE   (4)
-#define QTYPE_STRONG            (5)
+#define QTYPE_UNKNOWN		(0)
+#define QTYPE_UNSTRUCTURED	(1)
+#define QTYPE_SAFE		(2)
+#define QTYPE_SCHNORR		(3)
+#define QTYPE_SOPHIE_GERMAIN	(4)
+#define QTYPE_STRONG		(5)
 
 /* Tests: decimal (bit field).
  * Specifies the methods used in checking for primality.
  * Usually, more than one test is used.
  */
-#define QTEST_UNTESTED          (0x00)
-#define QTEST_COMPOSITE         (0x01)
-#define QTEST_SIEVE             (0x02)
-#define QTEST_MILLER_RABIN      (0x04)
-#define QTEST_JACOBI            (0x08)
-#define QTEST_ELLIPTIC          (0x10)
+#define QTEST_UNTESTED		(0x00)
+#define QTEST_COMPOSITE		(0x01)
+#define QTEST_SIEVE		(0x02)
+#define QTEST_MILLER_RABIN	(0x04)
+#define QTEST_JACOBI		(0x08)
+#define QTEST_ELLIPTIC		(0x10)
 
-/* Size: decimal.
+/*
+ * Size: decimal.
  * Specifies the number of the most significant bit (0 to M).
- ** WARNING: internally, usually 1 to N.
+ * WARNING: internally, usually 1 to N.
  */
-#define QSIZE_MINIMUM           (511)
+#define QSIZE_MINIMUM		(511)
 
 /*
  * Prime sieving defines
  */
 
 /* Constant: assuming 8 bit bytes and 32 bit words */
-#define SHIFT_BIT       (3)
-#define SHIFT_BYTE      (2)
-#define SHIFT_WORD      (SHIFT_BIT+SHIFT_BYTE)
-#define SHIFT_MEGABYTE  (20)
-#define SHIFT_MEGAWORD  (SHIFT_MEGABYTE-SHIFT_BYTE)
+#define SHIFT_BIT	(3)
+#define SHIFT_BYTE	(2)
+#define SHIFT_WORD	(SHIFT_BIT+SHIFT_BYTE)
+#define SHIFT_MEGABYTE	(20)
+#define SHIFT_MEGAWORD	(SHIFT_MEGABYTE-SHIFT_BYTE)
+
+/*
+ * Using virtual memory can cause thrashing.  This should be the largest
+ * number that is supported without a large amount of disk activity --
+ * that would increase the run time from hours to days or weeks!
+ */
+#define LARGE_MINIMUM	(8UL)	/* megabytes */
+
+/*
+ * Do not increase this number beyond the unsigned integer bit size.
+ * Due to a multiple of 4, it must be LESS than 128 (yielding 2**30 bits).
+ */
+#define LARGE_MAXIMUM	(127UL)	/* megabytes */
 
 /*
  * Constant: when used with 32-bit integers, the largest sieve prime
  * has to be less than 2**32.
  */
-#define SMALL_MAXIMUM   (0xffffffffUL)
+#define SMALL_MAXIMUM	(0xffffffffUL)
 
 /* Constant: can sieve all primes less than 2**32, as 65537**2 > 2**32-1. */
-#define TINY_NUMBER     (1UL<<16)
+#define TINY_NUMBER	(1UL<<16)
 
 /* Ensure enough bit space for testing 2*q. */
-#define TEST_MAXIMUM    (1UL<<16)
-#define TEST_MINIMUM    (QSIZE_MINIMUM + 1)
-/* real TEST_MINIMUM    (1UL << (SHIFT_WORD - TEST_POWER)) */
-#define TEST_POWER      (3)	/* 2**n, n < SHIFT_WORD */
+#define TEST_MAXIMUM	(1UL<<16)
+#define TEST_MINIMUM	(QSIZE_MINIMUM + 1)
+/* real TEST_MINIMUM	(1UL << (SHIFT_WORD - TEST_POWER)) */
+#define TEST_POWER	(3)	/* 2**n, n < SHIFT_WORD */
 
 /* bit operations on 32-bit words */
-#define BIT_CLEAR(a,n)  ((a)[(n)>>SHIFT_WORD] &= ~(1L << ((n) & 31)))
-#define BIT_SET(a,n)    ((a)[(n)>>SHIFT_WORD] |= (1L << ((n) & 31)))
-#define BIT_TEST(a,n)   ((a)[(n)>>SHIFT_WORD] & (1L << ((n) & 31)))
+#define BIT_CLEAR(a,n)	((a)[(n)>>SHIFT_WORD] &= ~(1L << ((n) & 31)))
+#define BIT_SET(a,n)	((a)[(n)>>SHIFT_WORD] |= (1L << ((n) & 31)))
+#define BIT_TEST(a,n)	((a)[(n)>>SHIFT_WORD] & (1L << ((n) & 31)))
 
 /*
  * Prime testing defines
  */
+
+/* Minimum number of primality tests to perform */
+#define TRIAL_MINIMUM	(4)
 
 /*
  * Sieving data (XXX - move to struct)
@@ -137,6 +144,8 @@ static u_int32_t *LargeSieve, largewords, largetries, largenumbers;
 static u_int32_t largebits, largememory;	/* megabytes */
 static BIGNUM *largebase;
 
+int gen_candidates(FILE *, u_int32_t, u_int32_t, BIGNUM *);
+int prime_test(FILE *, FILE *, u_int32_t, u_int32_t);
 
 /*
  * print moduli out in consistent form,
@@ -151,7 +160,7 @@ qfileout(FILE * ofile, u_int32_t otype, u_int32_t otests, u_int32_t otries,
 
 	time(&time_now);
 	gtm = gmtime(&time_now);
-	
+
 	res = fprintf(ofile, "%04d%02d%02d%02d%02d%02d %u %u %u %u %x ",
 	    gtm->tm_year + 1900, gtm->tm_mon + 1, gtm->tm_mday,
 	    gtm->tm_hour, gtm->tm_min, gtm->tm_sec,
@@ -178,7 +187,7 @@ sieve_large(u_int32_t s)
 {
 	u_int32_t r, u;
 
-	debug2("sieve_large %u", s);
+	debug3("sieve_large %u", s);
 	largetries++;
 	/* r = largebase mod s */
 	r = BN_mod_word(largebase, s);
@@ -227,26 +236,34 @@ sieve_large(u_int32_t s)
 }
 
 /*
- * list candidates for Sophie-Germaine primes (where q = (p-1)/2)
+ * list candidates for Sophie-Germain primes (where q = (p-1)/2)
  * to standard output.
  * The list is checked against small known primes (less than 2**30).
  */
 int
-gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
+gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 {
 	BIGNUM *q;
 	u_int32_t j, r, s, t;
 	u_int32_t smallwords = TINY_NUMBER >> 6;
 	u_int32_t tinywords = TINY_NUMBER >> 6;
 	time_t time_start, time_stop;
-	int i, ret = 0;
+	u_int32_t i;
+	int ret = 0;
 
 	largememory = memory;
 
+	if (memory != 0 &&
+	    (memory < LARGE_MINIMUM || memory > LARGE_MAXIMUM)) {
+		error("Invalid memory amount (min %ld, max %ld)",
+		    LARGE_MINIMUM, LARGE_MAXIMUM);
+		return (-1);
+	}
+
 	/*
-         * Set power to the length in bits of the prime to be generated.
-         * This is changed to 1 less than the desired safe prime moduli p.
-         */
+	 * Set power to the length in bits of the prime to be generated.
+	 * This is changed to 1 less than the desired safe prime moduli p.
+	 */
 	if (power > TEST_MAXIMUM) {
 		error("Too many bits: %u > %lu", power, TEST_MAXIMUM);
 		return (-1);
@@ -257,16 +274,16 @@ gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
 	power--; /* decrement before squaring */
 
 	/*
-         * The density of ordinary primes is on the order of 1/bits, so the
-         * density of safe primes should be about (1/bits)**2. Set test range
-         * to something well above bits**2 to be reasonably sure (but not
-         * guaranteed) of catching at least one safe prime.
+	 * The density of ordinary primes is on the order of 1/bits, so the
+	 * density of safe primes should be about (1/bits)**2. Set test range
+	 * to something well above bits**2 to be reasonably sure (but not
+	 * guaranteed) of catching at least one safe prime.
 	 */
 	largewords = ((power * power) >> (SHIFT_WORD - TEST_POWER));
 
 	/*
-         * Need idea of how much memory is available. We don't have to use all
-         * of it.
+	 * Need idea of how much memory is available. We don't have to use all
+	 * of it.
 	 */
 	if (largememory > LARGE_MAXIMUM) {
 		logit("Limited memory: %u MB; limit %lu MB",
@@ -315,8 +332,8 @@ gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
 	q = BN_new();
 
 	/*
-         * Generate random starting point for subprime search, or use
-         * specified parameter.
+	 * Generate random starting point for subprime search, or use
+	 * specified parameter.
 	 */
 	largebase = BN_new();
 	if (start == NULL)
@@ -329,13 +346,13 @@ gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
 
 	time(&time_start);
 
-	logit("%.24s Sieve next %u plus %u-bit", ctime(&time_start), 
+	logit("%.24s Sieve next %u plus %u-bit", ctime(&time_start),
 	    largenumbers, power);
 	debug2("start point: 0x%s", BN_bn2hex(largebase));
 
 	/*
-         * TinySieve
-         */
+	 * TinySieve
+	 */
 	for (i = 0; i < tinybits; i++) {
 		if (BIT_TEST(TinySieve, i))
 			continue; /* 2*i+3 is composite */
@@ -351,12 +368,12 @@ gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
 	}
 
 	/*
-         * Start the small block search at the next possible prime. To avoid
-         * fencepost errors, the last pass is skipped.
-         */
+	 * Start the small block search at the next possible prime. To avoid
+	 * fencepost errors, the last pass is skipped.
+	 */
 	for (smallbase = TINY_NUMBER + 3;
-	     smallbase < (SMALL_MAXIMUM - TINY_NUMBER);
-	     smallbase += TINY_NUMBER) {
+	    smallbase < (SMALL_MAXIMUM - TINY_NUMBER);
+	    smallbase += TINY_NUMBER) {
 		for (i = 0; i < tinybits; i++) {
 			if (BIT_TEST(TinySieve, i))
 				continue; /* 2*i+3 is composite */
@@ -386,8 +403,8 @@ gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
 		}
 
 		/*
-                 * SmallSieve
-                 */
+		 * SmallSieve
+		 */
 		for (i = 0; i < smallbits; i++) {
 			if (BIT_TEST(SmallSieve, i))
 				continue; /* 2*i+smallbase is composite */
@@ -411,7 +428,7 @@ gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
 		debug2("test q = largebase+%u", 2 * j);
 		BN_set_word(q, 2 * j);
 		BN_add(q, q, largebase);
-		if (qfileout(out, QTYPE_SOPHIE_GERMAINE, QTEST_SIEVE,
+		if (qfileout(out, QTYPE_SOPHIE_GERMAIN, QTEST_SIEVE,
 		    largetries, (power - 1) /* MSB */, (0), q) == -1) {
 			ret = -1;
 			break;
@@ -438,8 +455,7 @@ gen_candidates(FILE *out, int memory, int power, BIGNUM *start)
  * The result is a list of so-call "safe" primes
  */
 int
-prime_test(FILE *in, FILE *out, u_int32_t trials, 
-    u_int32_t generator_wanted)
+prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 {
 	BIGNUM *q, *p, *a;
 	BN_CTX *ctx;
@@ -448,6 +464,11 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 	u_int32_t generator_known, in_tests, in_tries, in_type, in_size;
 	time_t time_start, time_stop;
 	int res;
+
+	if (trials < TRIAL_MINIMUM) {
+		error("Minimum primality trials is %d", TRIAL_MINIMUM);
+		return (-1);
+	}
 
 	time(&time_start);
 
@@ -483,6 +504,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 			debug2("%10u: known composite", count_in);
 			continue;
 		}
+
 		/* tries */
 		in_tries = strtoul(cp, &cp, 10);
 
@@ -497,8 +519,8 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 
 		/* modulus (hex) */
 		switch (in_type) {
-		case QTYPE_SOPHIE_GERMAINE:
-			debug2("%10u: (%u) Sophie-Germaine", count_in, in_type);
+		case QTYPE_SOPHIE_GERMAIN:
+			debug2("%10u: (%u) Sophie-Germain", count_in, in_type);
 			a = q;
 			BN_hex2bn(&a, cp);
 			/* p = 2*q + 1 */
@@ -507,12 +529,19 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 			in_size += 1;
 			generator_known = 0;
 			break;
-		default:
+		case QTYPE_UNSTRUCTURED:
+		case QTYPE_SAFE:
+		case QTYPE_SCHNORR:
+		case QTYPE_STRONG:
+		case QTYPE_UNKNOWN:
 			debug2("%10u: (%u)", count_in, in_type);
 			a = p;
 			BN_hex2bn(&a, cp);
 			/* q = (p-1) / 2 */
 			BN_rshift(q, p, 1);
+			break;
+		default:
+			debug2("Unknown prime type");
 			break;
 		}
 
@@ -520,7 +549,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 		 * due to earlier inconsistencies in interpretation, check
 		 * the proposed bit size.
 		 */
-		if (BN_num_bits(p) != (in_size + 1)) {
+		if ((u_int32_t)BN_num_bits(p) != (in_size + 1)) {
 			debug2("%10u: bit size %u mismatch", count_in, in_size);
 			continue;
 		}
@@ -533,6 +562,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 			in_tries += trials;
 		else
 			in_tries = trials;
+
 		/*
 		 * guess unknown generator
 		 */
@@ -544,9 +574,8 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 			else {
 				u_int32_t r = BN_mod_word(p, 10);
 
-				if (r == 3 || r == 7) {
+				if (r == 3 || r == 7)
 					generator_known = 5;
-				}
 			}
 		}
 		/*
@@ -559,30 +588,39 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 			continue;
 		}
 
+		/*
+		 * Primes with no known generator are useless for DH, so
+		 * skip those.
+		 */
+		if (generator_known == 0) {
+			debug2("%10u: no known generator", count_in);
+			continue;
+		}
+
 		count_possible++;
 
 		/*
-		 * The (1/4)^N performance bound on Miller-Rabin is 
-		 * extremely pessimistic, so don't spend a lot of time 
-		 * really verifying that q is prime until after we know 
-		 * that p is also prime. A single pass will weed out the 
+		 * The (1/4)^N performance bound on Miller-Rabin is
+		 * extremely pessimistic, so don't spend a lot of time
+		 * really verifying that q is prime until after we know
+		 * that p is also prime. A single pass will weed out the
 		 * vast majority of composite q's.
 		 */
 		if (BN_is_prime(q, 1, NULL, ctx, NULL) <= 0) {
-			debug2("%10u: q failed first possible prime test",
+			debug("%10u: q failed first possible prime test",
 			    count_in);
 			continue;
 		}
-	
+
 		/*
-		 * q is possibly prime, so go ahead and really make sure 
-		 * that p is prime. If it is, then we can go back and do 
-		 * the same for q. If p is composite, chances are that 
+		 * q is possibly prime, so go ahead and really make sure
+		 * that p is prime. If it is, then we can go back and do
+		 * the same for q. If p is composite, chances are that
 		 * will show up on the first Rabin-Miller iteration so it
 		 * doesn't hurt to specify a high iteration count.
 		 */
 		if (!BN_is_prime(p, trials, NULL, ctx, NULL)) {
-			debug2("%10u: p is not prime", count_in);
+			debug("%10u: p is not prime", count_in);
 			continue;
 		}
 		debug("%10u: p is almost certainly prime", count_in);
@@ -594,7 +632,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 		}
 		debug("%10u: q is almost certainly prime", count_in);
 
-		if (qfileout(out, QTYPE_SAFE, (in_tests | QTEST_MILLER_RABIN), 
+		if (qfileout(out, QTYPE_SAFE, (in_tests | QTEST_MILLER_RABIN),
 		    in_tries, in_size, generator_known, p)) {
 			res = -1;
 			break;
@@ -610,7 +648,7 @@ prime_test(FILE *in, FILE *out, u_int32_t trials,
 	BN_CTX_free(ctx);
 
 	logit("%.24s Found %u safe primes of %u candidates in %ld seconds",
-	    ctime(&time_stop), count_out, count_possible, 
+	    ctime(&time_stop), count_out, count_possible,
 	    (long) (time_stop - time_start));
 
 	return (res);

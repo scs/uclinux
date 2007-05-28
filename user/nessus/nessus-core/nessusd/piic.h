@@ -25,16 +25,5 @@
 #ifndef NESSUSD_PIIC_H
 #define NESSUSD_PIIC_H
 
-void piic_parse(struct arglist*, struct arglist *, int, char *);
-void piic_arglist(struct arglist *, int, char *);
-char * key_missing(struct arglist *, struct arglist *);
-char * key_present(struct arglist *, struct arglist *);
-struct arglist * get_required_keys(struct arglist *);
-struct arglist * get_excluded_keys(struct arglist *);
-struct arglist * get_required_ports(struct arglist *);
-struct arglist * get_required_udp_ports(struct arglist *);
-int get_closed_ports(struct arglist *, struct arglist *, struct arglist *);
-int get_closed_udp_ports(struct arglist *, struct arglist *, struct arglist *);
-int piic_read_socket(struct arglist*, struct arglist *, int);
-int common_required_ports(struct arglist*, struct arglist *);
+void kb_parse(int, struct arglist*, struct kb_item **, char *, int);
 #endif

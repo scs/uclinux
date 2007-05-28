@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1994/07/15 11:03:07 gkim Exp $
 #
 # Makefile for crc32 wrapper
 #

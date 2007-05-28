@@ -7,18 +7,19 @@
 #
 # BID xref by Erik Anderson <eanders@carmichaelsecurity.com>
 # 
-# Other CVEs: CAN-2002-0729, CAN-2002-0650
+# Other CVEs: CVE-2002-0729, CVE-2002-0650
 #
 if(description)
 {
  script_id(11214);
- script_cve_id("CAN-2002-1137", "CAN-2002-1138", 
- 	       "CAN-2002-0649", "CVE-2002-0650", 
-	       "CAN-2002-1145", "CAN-2002-0644",
-	       "CAN-2002-0645", "CAN-2002-0721");
+ script_bugtraq_id(5309, 5310, 5311, 5312, 5481, 5483, 5877, 5980);
+ script_cve_id("CVE-2002-1137", "CVE-2002-1138", 
+ 	       "CVE-2002-0649", "CVE-2002-0650", 
+	       "CVE-2002-1145", "CVE-2002-0644",
+	       "CVE-2002-0645", "CVE-2002-0721");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0001");
- script_bugtraq_id(5310, 5311);
- script_version ("$Revision: 1.18 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-B-0004");
+ script_version ("$Revision: 1.26 $");
  name["english"] = "Microsoft's SQL Overflows";
  script_name(english:name["english"]);
  
@@ -28,7 +29,7 @@ be exploited by an attacker to gain SYSTEM access on that host.
 
 Note that a worm (sapphire) is exploiting this vulnerability in the wild.
 
-Solution : http://www.microsoft.com/technet/security/bulletin/ms02-061.asp
+Solution : http://www.microsoft.com/technet/security/bulletin/ms02-061.mspx
 Risk factor : High";
 
 
@@ -40,8 +41,10 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ family["english"] = "Databases";
+ script_dependencies("mssql_ping.nasl");
  script_family(english:family["english"]);
+ script_require_keys("MSSQL/UDP/Ping");
  exit(0);
 }
 

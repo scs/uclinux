@@ -5,8 +5,9 @@
 if (description)
 {
  script_id(11634);
+ script_cve_id("CVE-2003-0292");
  script_bugtraq_id(7596);
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.3 $");
  script_name(english:"Proxy Web Server Cross Site Scripting");
  desc["english"] = "
 The remote proxy (or web server) seems to be vulnerable to the Cross Site 
@@ -61,7 +62,7 @@ if(get_port_state(port))
     confirmtext = string("<SCRIPT>alert('Vulnerable')</SCRIPT>"); 
     req = http_get(item:url, port:port);
     send(socket:soc, data:req);
-    head = http_recv_headers(soc);
+    head = http_recv_headers2(socket:soc);
     r = http_recv(socket:soc);
     http_close_socket(soc);
 

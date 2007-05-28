@@ -7,16 +7,30 @@
 if(description)
 {
   script_id(11908);
-  script_version ("$Revision: 1.4 $");
+  script_version ("$Revision: 1.8 $");
 
   name["english"] = "EGP detection";
   script_name(english:name["english"]);
  
   desc["english"] = "
-This machine is running EGP. This routing protocol is obsolete and 
-should not be used any more.
+Synopsis :
 
-Risk factor : Low";
+The remote IP stack answers to an obsolete protocol.
+
+Description :
+
+The remote host is running EGP, an obsolete routing protocol.
+
+If possible, this IP protocol should be disabled.
+
+Solution :
+
+If this protocol is not needed, disable it or filter incoming traffic going
+to IP protocol #8
+
+Risk factor : 
+
+None";
 
   script_description(english:desc["english"]);
  
@@ -24,16 +38,15 @@ Risk factor : Low";
   script_summary(english:summary["english"]);
   script_category(ACT_GATHER_INFO); 
   script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi");
-  family["english"] = "Misc.";
-  family["francais"] = "Divers";
-  script_family(english:family["english"], francais:family["francais"]);
+  script_family(english:"Service detection");
   exit(0);
 }
 
 
 ##include("dump.inc");
+include('global_settings.inc');
 include("network_func.inc");
-if (islocalhost()) exit(0);	# false positive
+if (islocalhost() || ! thorough_checks) exit(0);
 
 s = this_host();
 v = eregmatch(pattern: "^([0-9]+)\.([0-9]+)\.([0-9]+)\.([0-9])+$", string: s);
@@ -61,7 +74,11 @@ egp = forge_ip_packet(ip_v: 4, ip_hl: 5, ip_tos: 0, ip_p: 8, ip_ttl: 64,
 			ip_off: 0, ip_src: this_host(),	data: r2);
 
 f = "ip proto 8 and src " + get_host_ip();
-r = send_packet(egp, pcap_active: TRUE, pcap_filter: f);
+for ( i = 0 ; i < 3 ; i ++ )
+{
+ r = send_packet(egp, pcap_active: TRUE, pcap_filter: f, pcap_timeout:1);
+ if ( r ) break;
+}
 if ( r == NULL ) exit(0);
 
 hl = ord(r[0]) & 0xF; hl *= 4;

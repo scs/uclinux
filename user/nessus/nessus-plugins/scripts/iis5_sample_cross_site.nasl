@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10572);
- script_version("$Revision: 1.4 $");
+ script_version("$Revision: 1.10 $");
  name["english"] = "IIS 5.0 Sample App vulnerable to cross-site scripting attack";
  name["francais"] = "IIS 5.0 Sample App vulnerable to cross-site scripting attack";
  script_name(english:name["english"], francais:name["francais"]);
@@ -42,17 +42,25 @@ Risk factor : Low";
  
  script_copyright(english:"This script is Copyright (C) 2000 Matt Moore",
 		francais:"Ce script est Copyright (C) 2000 Matt Moore");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 # Check starts here
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("/iissamples/sdk/asp/interaction/Form_JScript.asp");
-if(port)security_warning(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
+
+res = is_cgi_installed_ka(item:"/iissamples/sdk/asp/interaction/Form_JScript.asp", port:port);
+if( res )security_warning(port);
 

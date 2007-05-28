@@ -35,7 +35,7 @@
 #ifndef WIN32
 #include <endian.h>
 #else
-#include <winsock.h>
+#include <winsock2.h>
 #ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN 1234
 #define BIG_ENDIAN 4321

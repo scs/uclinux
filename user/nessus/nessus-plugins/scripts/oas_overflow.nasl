@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10654);
- script_cve_id("CAN-2001-0419");
  script_bugtraq_id(2569);
- script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2001-0419");
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "Oracle Application Server Overflow";
  script_name(english:name["english"]);
@@ -47,9 +47,8 @@ Solution : Mettez à jour votre serveur web.";
  
  script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2001 Renaud Deraison");
- family["english"] = "Gain root remotely";
- family["francais"] = "Passer root à distance";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "www_too_long_url.nasl");
  script_exclude_keys("www/too_long_url_crash");
   script_require_ports("Services/www",80);
@@ -62,8 +61,8 @@ Solution : Mettez à jour votre serveur web.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 if(http_is_dead(port:port))exit(0);
@@ -76,9 +75,8 @@ send(socket:soc, data:req);
 r = http_recv(socket:soc);
 http_close_socket(soc);
 
-if(!r){
-	security_hole(port);
-      }
-
-
-
+soc = http_open_socket(port);
+if (!soc)
+  security_hole(port);
+else
+  http_close_socket(soc);

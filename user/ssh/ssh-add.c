@@ -35,10 +35,9 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-add.c,v 1.68 2003/06/16 10:22:45 markus Exp $");
+RCSID("$OpenBSD: ssh-add.c,v 1.74 2005/11/12 18:37:59 deraadt Exp $");
 
 #include <openssl/evp.h>
-#include <openssl/engine.h>
 
 #include "ssh.h"
 #include "rsa.h"
@@ -48,14 +47,7 @@ RCSID("$OpenBSD: ssh-add.c,v 1.68 2003/06/16 10:22:45 markus Exp $");
 #include "authfd.h"
 #include "authfile.h"
 #include "pathnames.h"
-#include "readpass.h"
 #include "misc.h"
-
-#ifdef HAVE___PROGNAME
-extern char *__progname;
-#else
-char *__progname;
-#endif
 
 /* argv0 */
 extern char *__progname;
@@ -153,7 +145,7 @@ add_file(AuthenticationConnection *ac, const char *filename)
 		/* clear passphrase since it did not work */
 		clear_pass();
 		snprintf(msg, sizeof msg, "Enter passphrase for %.200s: ",
-		   comment);
+		    comment);
 		for (;;) {
 			pass = read_passphrase(msg, RP_ALLOW_STDIN);
 			if (strcmp(pass, "") == 0) {
@@ -170,14 +162,14 @@ add_file(AuthenticationConnection *ac, const char *filename)
 		}
 	}
 
- 	if (ssh_add_identity_constrained(ac, private, comment, lifetime,
- 	    confirm)) {
+	if (ssh_add_identity_constrained(ac, private, comment, lifetime,
+	    confirm)) {
 		fprintf(stderr, "Identity added: %s (%s)\n", filename, comment);
 		ret = 0;
 		if (lifetime != 0)
 			fprintf(stderr,
 			    "Lifetime set to %d seconds\n", lifetime);
- 		if (confirm != 0)
+		if (confirm != 0)
 			fprintf(stderr,
 			    "The user has to confirm each use of the key\n");
 	} else if (ssh_add_identity(ac, private, comment)) {
@@ -320,20 +312,20 @@ main(int argc, char **argv)
 	char *sc_reader_id = NULL;
 	int i, ch, deleting = 0, ret = 0;
 
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
+
 	__progname = ssh_get_progname(argv[0]);
 	init_rng();
 	seed_rng();
 
 	SSLeay_add_all_algorithms();
 
-	/* Init available hardware crypto engines. */
-	ENGINE_load_builtin_engines();
-	ENGINE_register_all_complete();
-
 	/* At first, get a connection to the authentication agent. */
 	ac = ssh_get_authentication_connection();
 	if (ac == NULL) {
-		fprintf(stderr, "Could not open a connection to your authentication agent.\n");
+		fprintf(stderr,
+		    "Could not open a connection to your authentication agent.\n");
 		exit(2);
 	}
 	while ((ch = getopt(argc, argv, "lLcdDxXe:s:t:")) != -1) {
@@ -401,7 +393,7 @@ main(int argc, char **argv)
 			goto done;
 		}
 
-		for(i = 0; default_files[i]; i++) {
+		for (i = 0; default_files[i]; i++) {
 			snprintf(buf, sizeof(buf), "%s/%s", pw->pw_dir,
 			    default_files[i]);
 			if (stat(buf, &st) < 0)
@@ -414,7 +406,7 @@ main(int argc, char **argv)
 		if (count == 0)
 			ret = 1;
 	} else {
-		for(i = 0; i < argc; i++) {
+		for (i = 0; i < argc; i++) {
 			if (do_file(ac, deleting, argv[i]) == -1)
 				ret = 1;
 		}

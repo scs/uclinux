@@ -11,9 +11,10 @@
 if(description)
 {
  script_id(11209);
- script_cve_id("CAN-2003-0016");
-
- script_version("$Revision: 1.2 $");
+ script_cve_id("CVE-2003-0016");
+ script_bugtraq_id(6659);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0003");
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "Apache < 2.0.44 DOS device name";
 
@@ -60,12 +61,13 @@ Risk factor : High";
 # The script code starts here
 #
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
-banner = get_http_banner(port: port);
+banner = get_backport_banner(banner:get_http_banner(port: port));
 if(!banner)exit(0);
  
 serv = strstr(banner, "Server");

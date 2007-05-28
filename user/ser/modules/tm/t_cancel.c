@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_cancel.c,v 1.8.6.1 2004/02/11 02:43:26 jiri Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

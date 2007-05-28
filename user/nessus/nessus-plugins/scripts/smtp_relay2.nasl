@@ -19,7 +19,7 @@
 if(description)
 {
  script_id(11852);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "Mail relaying (thorough test)";
  script_name(english:name["english"]);
  
@@ -28,7 +28,7 @@ The remote SMTP server is insufficiently protected against relaying
 This means that spammers might be able to use your mail server 
 to send their mails to the world.
 
-Risk factor : Low/Medium
+Risk factor : Low / Medium
 
 Solution : upgrade your software or improve the configuration so that 
 your SMTP server cannot be used as a relay any more.";
@@ -44,7 +44,7 @@ your SMTP server cannot be used as a relay any more.";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl",
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl",
 	"smtp_relay.nasl", "smtp_settings.nasl");
  script_exclude_keys("SMTP/wrapped", "SMTP/qmail", "SMTP/spam");
  script_require_ports("Services/smtp", 25);
@@ -55,12 +55,16 @@ your SMTP server cannot be used as a relay any more.";
 
 include("smtp_func.inc");
 include("misc_func.inc");
+include("network_func.inc");
 
 # can't perform this test on localhost
 if(islocalhost())exit(0);
 
+if (is_private_addr()) exit(0);
+
 port = get_kb_item("Services/smtp");
 if (!port) port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 if (! get_port_state(port)) exit(0);
 
 # No use to try "advanced" tests if it is a wide open relay
@@ -178,5 +182,5 @@ Nessus was able to relay mails by sending those sequences:
 
 Solution : upgrade your software or improve the configuration so that
 	your SMTP server cannot be used as a relay any more.");
-  security_hole(port: port, data: report);
+  security_warning(port: port, data: report);
 }

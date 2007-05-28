@@ -1,7 +1,7 @@
 /*
  * Presence Agent, XPIDF document support
  *
- * $Id$
+ * $Id: xpidf.h,v 1.1.4.1 2003/11/11 14:32:27 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

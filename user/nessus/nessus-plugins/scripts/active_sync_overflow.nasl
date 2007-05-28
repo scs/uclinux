@@ -17,7 +17,7 @@ if(description)
  script_id(11435);
  script_bugtraq_id(7150);
  
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "ActiveSync packet overflow";
  
  script_name(english:name["english"]);
@@ -51,6 +51,9 @@ Risk factor : High";
 }
 
 
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
 
 port = 5679;
 if(get_port_state(port))

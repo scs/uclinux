@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(10260);
- script_version ("$Revision: 1.27 $");
- script_cve_id("CAN-1999-0098");
+ script_version ("$Revision: 1.33 $");
+ script_cve_id("CVE-1999-0098", "CVE-1999-1015", "CVE-1999-1504");
+ script_bugtraq_id(61, 62);
  name["english"] = "HELO overflow";
  name["francais"] = "Dépassement de HELO";
  script_name(english:name["english"],
@@ -64,7 +65,7 @@ contactez votre vendeur.";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl", "smtpserver_detect.nasl");
+ script_dependencie("find_service.nes", "sendmail_expn.nasl", "smtpserver_detect.nasl", "smtpscan.nasl");
  script_exclude_keys("SMTP/wrapped", 
  		     "SMTP/qmail", 
 		     "SMTP/microsoft_esmtp_5",
@@ -85,11 +86,16 @@ include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
 
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
+sig = get_kb_item(string("smtp/", port, "/real_banner"));
+if ( sig && "Sendmail" >!< sig ) exit(0);
+banner = get_smtp_banner(port:port);
+if("Sendmail" >!< banner) exit(0);
+
 
 if(safe_checks())
 {
- banner = get_smtp_banner(port:port);
-  
   if("Sendmail" >< banner)
   {
    version = ereg_replace(string:banner,
@@ -127,6 +133,11 @@ if(get_port_state(port))
  if(soc)
  {
  data = smtp_recv_banner(socket:soc);
+ if (!data)
+ {
+  close(soc);
+  exit(0);
+ }
  crp = string("HELO ", crap(1030), "\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:4);

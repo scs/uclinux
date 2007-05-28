@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(10522);
- script_version ("$Revision: 1.12 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-t-0005");
  script_bugtraq_id(1712);
+ script_version ("$Revision: 1.14 $");
  script_cve_id("CVE-2000-0917");
  
  name["english"] = "LPRng malformed input";

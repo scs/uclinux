@@ -16,7 +16,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Id$
+ * $Id: tclBasic.c,v 1.1.1.1 2001/04/29 20:34:23 karll Exp $
  *
  */
 

@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 
-/* $Log$
- * Revision 1.2  2005/07/25 04:03:15  magicyang
- * New user folder check in
- *
+/* $Log: memory.c,v $
  * Revision 1.2  1993/07/17  13:23:08  mike
  * indent and general code cleanup
  *

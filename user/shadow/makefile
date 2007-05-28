@@ -15,11 +15,13 @@ EXECPTH := build/src
 endif
 
 # Have to specify the correct paths to various files
+ifdef CONFIG_USER_FLATFSD_FLATFSD
 CFLAGS += -DPASSWD_FILE='"/etc/config/passwd"'
 CFLAGS += -DGROUP_FILE='"/etc/config/group"'
 CFLAGS += -DSHADOW_FILE='"/etc/config/shadow"'
 CFLAGS += -DSGROUP_FILE='"/etc/config/gshadow"'
 CFLAGS += -DLOGINDEFS='"/etc/config/login.defs"'
+endif
 
 all: build/build
 	$(MAKE) -C build

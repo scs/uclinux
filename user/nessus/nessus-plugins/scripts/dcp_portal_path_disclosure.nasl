@@ -11,9 +11,9 @@
 if (description)
 {
  script_id(11477);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(4113);
- script_cve_id("CAN-2002-0282");
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-0282");
  
  script_name(english:"DCP-Portal Path Disclosure");
  desc["english"] = "
@@ -28,24 +28,25 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  script_family(english:"CGI abuses", francais:"Abus de CGI");
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
+if ( ! can_host_php(port:port) ) exit(0);
 
-dir = make_list(cgi_dirs(), "");
 		
 
 
-foreach d (dir)
+foreach d (cgi_dirs())
 {
  url = string(d, "/add_user.php");
  req = http_get(item:url, port:port);

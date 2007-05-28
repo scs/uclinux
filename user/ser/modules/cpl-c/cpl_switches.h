@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl_switches.h,v 1.10 2003/09/04 15:07:58 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

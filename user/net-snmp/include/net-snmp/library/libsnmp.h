@@ -31,7 +31,7 @@ extern          "C" {
  * ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * 
- * $Id$
+ * $Id: libsnmp.h,v 5.0 2002/04/20 07:30:12 hardaker Exp $
  * 
  **********************************************************************/
 

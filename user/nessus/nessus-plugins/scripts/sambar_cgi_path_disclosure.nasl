@@ -15,7 +15,7 @@
 
 if(description)
 {
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.5 $");
  script_id(11775);
  script_name(english:"Sambar CGIs path disclosure");
  
@@ -41,6 +41,7 @@ Risk factor : Low";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencies("find_service.nes", "http_version.nasl", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_keys("www/sambar");
  exit(0);
 }
@@ -50,8 +51,8 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(! port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 if (http_is_dead(port: port)) exit(0);
@@ -68,7 +69,7 @@ foreach dir (dirs)
     req = http_get(port: port, item: strcat(dir, "/", fil));
     r = http_keepalive_send_recv(port:port, data: req);
     p = strcat("SCRIPT_FILENAME:*", fil);
-    if (match(string: r, pattern: p) || r =~ 'DOCUMENT_ROOT:[ \t]*[A-Z]\\\\')
+    if (r && (match(string: r, pattern: p) || r =~ 'DOCUMENT_ROOT:[ \t]*[A-Z]\\\\'))
     {
       security_warning(port);
       exit(0);

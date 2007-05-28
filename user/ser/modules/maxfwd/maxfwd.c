@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: maxfwd.c,v 1.18 2003/05/26 15:24:45 andrei Exp $
  *
  * MAXFWD module
  *

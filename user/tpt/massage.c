@@ -1,5 +1,5 @@
 /*
- * $Header$
+ * $Header: /cvs/sw/new-wave/user/tpt/massage.c,v 1.1 2002/02/14 23:04:55 pauli Exp $
  */
 
 #include <stdio.h>

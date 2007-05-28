@@ -7,7 +7,7 @@ if(description)
 {
  script_id(10942);
  script_bugtraq_id(7276);
- script_version("$Revision: 1.6 $");
+ script_version("$Revision: 1.7 $");
  name["english"] = "Check for a Citrix server";
  script_name(english:name["english"]);
 
@@ -50,6 +50,7 @@ Risk factor : Low";
  script_copyright(english:"This script is Copyright (C) 2002 John Lampe...j_lampe@bellsouth.net");
  family["english"] = "Useless services";
  script_family(english:family["english"]);
+ script_require_ports(1494);
  exit(0);
 }
 

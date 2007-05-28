@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10254);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-0231");
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-1999-0231");
  
  name["english"] = "SLMail denial of service";
  name["francais"] = "Déni de service contre SLMail";
@@ -26,7 +26,7 @@ and receiving emails.
 
 Solution : Update your MTA, or change it.
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "Il a été possible de créer
 un déni de service contre le serveur SMTP
@@ -57,7 +57,7 @@ Facteur de risque : Sérieux";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("find_service.nes", "smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -70,6 +70,7 @@ Facteur de risque : Sérieux";
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);

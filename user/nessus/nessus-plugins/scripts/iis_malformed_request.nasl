@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(10119);
- script_version ("$Revision: 1.18 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1996-t-0006");
  script_bugtraq_id(579);
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CVE-1999-0867");
  name["english"] = "NT IIS Malformed HTTP Request Header DoS Vulnerability";
  name["francais"] = "Vulnérabilité de IIS : en-têtes de requêtes mal formées";
@@ -34,7 +35,7 @@ This flaw allows an attacker to shut down your
 webserver, thus preventing legitimate users from
 connecting to your web server.
 
-Solution : See http://www.microsoft.com/technet/security/bulletins/ms99-029.asp
+Solution : See http://www.microsoft.com/technet/security/bulletin/ms99-029.mspx
 if you are using IIS. Or else, contact the vendor of
 your web server and notify it of this flaw.
 
@@ -78,7 +79,7 @@ Id Bugtraq : 579";
  script_category(ACT_DENIAL);	# ACT_FLOOD?
 
  # Dependencie(s)
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  
  # Family
  family["english"] = "Denial of Service";
@@ -91,14 +92,15 @@ Id Bugtraq : 579";
  		  francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
  
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
 # The attack starts here
- 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+include("http_func.inc"); 
+port = get_http_port(default:80);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 if(get_port_state(port))
 {
  data = string("GET / HTTP/1.1\r\n");

@@ -3,7 +3,7 @@
  *
  * autodetect the modemtype we are connected to.
  *
- * $Id$
+ * $Id: detect.c,v 1.44 2005/04/10 21:20:25 gert Exp $
  *
  */
 

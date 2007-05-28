@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-osx-ucb.h,v 1.2 1993/08/19 05:27:02 genek Exp $ */
 
 /*
  * conf-osx-ucb.h

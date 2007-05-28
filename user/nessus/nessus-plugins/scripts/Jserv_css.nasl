@@ -7,21 +7,32 @@
 if(description)
 {
  script_id(10957);
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "JServ Cross Site Scripting";
  name["francais"] = "JServ Cross Site Scripting";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "Older versions of JServ (including the version 
- shipped with Oracle9i App Server v1.0.2) are vulnerable to a 
- cross site scripting attack using a request for a non-existent 
- .JSP file.
+ desc["english"] = "
+Synopsis :
 
-Solution: Upgrade to the latest version of JServ available at 
-java.apache.org. Also consider switching from JServ to TomCat, 
-since JServ is no longer maintained.
+The remote web server is vulnerable to a cross-site scripting issue.
 
-Risk factor : Medium";
+Description :
+
+Older versions of JServ (including the version shipped with Oracle9i App 
+Server v1.0.2) are vulnerable to a cross site scripting attack using a 
+request for a non-existent .JSP file.
+
+Solution : 
+
+Upgrade to the latest version of JServ available at http://java.apache.org. 
+Also consider switching from JServ to TomCat, since JServ is no longer 
+maintained.
+
+Risk factor :
+
+Low / CVSS Base Score : 3 
+(AV:R/AC:H/Au:NR/C:P/A:N/I:N/B:C)";
 
  script_description(english:desc["english"]);
  
@@ -33,10 +44,11 @@ Risk factor : Medium";
  
  script_copyright(english:"This script is Copyright (C) 2002 Matt Moore",
 		francais:"Ce script est Copyright (C) 2002 Matt Moore");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "cross_site_scripting.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "cross_site_scripting.nasl");
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -45,9 +57,13 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_kb_item(string("www/", port, "/generic_xss")))exit(0);
+
+
+banner = get_http_banner(port:port);
+if ( ! banner || "JServ" >!< banner ) exit(0);
 
 if(get_port_state(port))
 { 

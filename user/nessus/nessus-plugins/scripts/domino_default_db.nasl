@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10629);
- script_version ("$Revision: 1.22 $");
- script_bugtraq_id(881);
- script_cve_id("CAN-2000-0021", "CAN-2002-0664");
+ script_bugtraq_id(5101, 881);
+ script_version ("$Revision: 1.32 $");
+ script_cve_id("CVE-2000-0021", "CVE-2002-0664");
 
  name["english"] = "Lotus Domino administration databases";
  script_name(english:name["english"]);
@@ -30,7 +30,8 @@ A Guide to Developing Secure Domino Applications' (december 1999)
 http://www.lotus.com/developers/devbase.nsf/articles/doc1999112200
 
 Solution: verify all the ACLs for these databases and remove those not needed
-Risk factor : Medium/Serious";
+
+Risk factor : Medium";
 # This really could be high if, for example some 
 # sensitive data, but same databases do not give
 # much information. Make separate tests for each?
@@ -44,16 +45,13 @@ Risk factor : Medium/Serious";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2001 Javier Fernández-Sanguino Peña",
-		francais:"Ce script est Copyright (C) 2001 Javier Fernández-Sanguino Peña");
+ script_copyright(english:"This script is Copyright (C) 2001 Javier Fernández-Sanguino Peña");
 # Maybe instead of CGI abuses this family should be called HTTP server abuses
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
 # This should also depend on finding a Lotus Domino server
- script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/domino");
  exit(0);
 }
 
@@ -67,6 +65,7 @@ auth = NULL;
 
 function test_cgi(port, db, output)
 {
+ local_var ok;
  ok = is_cgi_installed_ka(port:port, item:db);
  if(ok)
   {
@@ -75,12 +74,13 @@ function test_cgi(port, db, output)
 	r = http_keepalive_send_recv(port:port, data:req);
 	
 	if("Please identify yourself" >!< r &&
-	   'type="password"' >!< r)
+	   'type="password"' >!< r && 
+	   "<TITLE>Server Login</TITLE>" >!< r)
 		{
 		report = string(report, ". ", db, " this must be considered a security risk since ", output,"\n");
 		set_kb_item(name:string("www/domino/", port, "/db"), value:db);
 		}
-	auth += ". " + db + '\n';
+	else auth += ". " + db + '\n';
   }
  return(0);
 }
@@ -88,8 +88,11 @@ function test_cgi(port, db, output)
  
 report = "";
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+sig = get_http_banner(port:port);
+if ( sig && "Lotus Domino" >!< sig ) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
@@ -189,7 +192,7 @@ if(get_port_state(port))
  if(report)
   {
   report = string("We found the following domino databases :\n", report);
-  security_hole(port:port, data:report);
+  security_warning(port:port, data:report);
   }
 
   if(auth)

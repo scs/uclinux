@@ -4,7 +4,7 @@
  * This is the main header file for vgetty, vm and the pvf tools.
  * It includes other header files and defines some global variables.
  *
- * $Id$
+ * $Id: voice.h,v 1.14 2005/03/13 17:27:42 gert Exp $
  *
  */
 

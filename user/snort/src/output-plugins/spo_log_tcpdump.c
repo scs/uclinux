@@ -66,6 +66,9 @@
 
 #include "snort.h"
 
+/* For the traversal of reassembled packets */
+#include "stream_api.h"
+
 typedef struct _LogTcpdumpData
 {
     char *filename;
@@ -78,6 +81,7 @@ typedef struct _LogTcpdumpData
 void LogTcpdumpInit(u_char *);
 LogTcpdumpData *ParseTcpdumpArgs(char *);
 void LogTcpdump(Packet *, char *, void *, Event *);
+void TcpdumpInitLogFileFinalize(int unused, void *arg);
 void TcpdumpInitLogFile(LogTcpdumpData *);
 void SpoLogTcpdumpCleanExitFunc(int, void *);
 void SpoLogTcpdumpRestartFunc(int, void *);
@@ -139,7 +143,8 @@ void LogTcpdumpInit(u_char *args)
     data = ParseTcpdumpArgs(args);
     log_tcpdump_ptr = data;
 
-    TcpdumpInitLogFile(data);
+    //TcpdumpInitLogFile(data);
+    AddFuncToPostConfigList(TcpdumpInitLogFileFinalize, data);
 
     pv.log_bitmap |= LOG_TCPDUMP;
 
@@ -168,7 +173,7 @@ LogTcpdumpData *ParseTcpdumpArgs(char *args)
 {
     LogTcpdumpData *data;
 
-    data = (LogTcpdumpData *) calloc(1, sizeof(LogTcpdumpData));
+    data = (LogTcpdumpData *) SnortAlloc(sizeof(LogTcpdumpData));
 
     DEBUG_WRAP(DebugMessage(DEBUG_INIT,"Args: %s<>\n", args););
 
@@ -183,6 +188,11 @@ LogTcpdumpData *ParseTcpdumpArgs(char *args)
     else
     {
         data->filename = strdup("snort.log");
+    }
+
+    if (!data->filename)
+    {
+        FatalError("Unable to allocate memory for tcpdump log filename\n");
     }
 
     return data;
@@ -237,28 +247,26 @@ void LogTcpdumpSingle(Packet *p, char *msg, void *arg, Event *event)
     }
 }
 
+int LogTcpdumpStreamCallback(SnortPktHeader *pkth, u_int8_t *packet_data,
+        void *userdata)
+{
+    LogTcpdumpData *data = (LogTcpdumpData *)userdata;
+
+    pcap_dump((u_char *)data->dumpd, 
+              (struct pcap_pkthdr *) pkth, 
+              (u_char *) packet_data);
+
+    return 0;
+}
 
 void LogTcpdumpStream(Packet *p, char *msg, void *arg, Event *event)
 {
     LogTcpdumpData *data = (LogTcpdumpData *)arg;
-    Stream *s = NULL;
-    StreamPacketData *spd;
 
     data->log_written = 1;
 
-    s = (Stream *) p->streamptr;
-
-    for(spd = (StreamPacketData *)ubi_btFirst((ubi_btNodePtr)&s->data);
-        spd;
-        spd = (StreamPacketData*)ubi_btNext((ubi_btNodePtr)spd))
-    {
-        if(spd->chuck != SEG_UNASSEMBLED)
-        {
-            pcap_dump((u_char *)data->dumpd, 
-                      (struct pcap_pkthdr *) &spd->pkth, 
-                      (u_char *) spd->pkt);
-        }
-    }
+    if (stream_api)
+        stream_api->traverse_reassembled(p, LogTcpdumpStreamCallback, data);
 
     if(!pv.line_buffer_flag)
     { 
@@ -271,6 +279,10 @@ void LogTcpdumpStream(Packet *p, char *msg, void *arg, Event *event)
     }
 }
 
+void TcpdumpInitLogFileFinalize(int unused, void *arg)
+{
+    TcpdumpInitLogFile((LogTcpdumpData *)arg);
+}
 
 /*
  * Function: TcpdumpInitLogFile()
@@ -307,18 +319,21 @@ void TcpdumpInitLogFile(LogTcpdumpData *data)
 
     DEBUG_WRAP(DebugMessage(DEBUG_LOG, "Opening %s\n", logdir););
 
-    data->dumpd = pcap_dump_open(pd,logdir);
-    if(data->dumpd == NULL)
+    if(!pv.test_mode_flag)
     {
-        FatalError("log_tcpdump TcpdumpInitLogFile(): %s\n", strerror(errno));
-    }
+        data->dumpd = pcap_dump_open(pd,logdir);
+        if(data->dumpd == NULL)
+        {
+            FatalError("log_tcpdump TcpdumpInitLogFile(): %s\n", strerror(errno));
+        }
 
-    /* keep a copy of the filename for later reference */
-    if(data->filename != NULL)
-    {
-        bzero( data->filename, strlen(data->filename) );
-        free(data->filename);
-        data->filename = strdup(logdir);
+        /* keep a copy of the filename for later reference */
+        if(data->filename != NULL)
+        {
+            bzero( data->filename, strlen(data->filename) );
+            free(data->filename);
+            data->filename = strdup(logdir);
+        }
     }
 
     return;

@@ -7,7 +7,8 @@
 if(description)
 {
     script_id(10778);
- script_version ("$Revision: 1.11 $");
+    script_version ("$Revision: 1.16 $");
+    script_cve_id("CVE-1999-0508");
     name["english"] = "Unprotected SiteScope Service";
     script_name(english:name["english"]);
 
@@ -23,7 +24,7 @@ for this service. Depending on where this server is located,
 you may want to restrict access by IP address in addition to 
 username.
 
-Risk factor : Medium/High";
+Risk factor : High";
 
 
     script_description(english:desc["english"]);
@@ -41,23 +42,22 @@ Risk factor : Medium/High";
     family["english"] = "CGI abuses";
     family["francais"] = "Abus de CGI";
     script_family(english:family["english"], francais:family["francais"]);
-    script_dependencie("find_service.nes");
+    script_dependencie("find_service.nes", "http_version.nasl");
     script_require_ports("Services/www", 8888);
     
     exit(0);
 }
 
 include("http_func.inc");
+include("http_keepalive.inc");
 include("misc_func.inc");
 
 function sendrequest (request, port)
 {
-    soc = http_open_socket(port);
-    if(!soc)exit(0);
-    send(socket:soc, data:req);
-    reply = http_recv(socket:soc);
-    http_close_socket(soc);
-    return(reply);
+    
+    reply = http_keepalive_send_recv(port: port, data:request);
+    if ( reply == NULL ) exit(0);
+    else return reply;
 }
 
 #

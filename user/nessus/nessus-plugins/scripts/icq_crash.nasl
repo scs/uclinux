@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10347);
- script_cve_id("CAN-2000-0564");
  script_bugtraq_id(1463);
- script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2000-0564");
+ script_version ("$Revision: 1.13 $");
  
  
  name["english"] = "ICQ Denial of Service attack";
@@ -69,8 +69,8 @@ Facteur de risque : Moyen";
 #
 
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if (get_port_state(port))
 {

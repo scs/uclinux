@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10220);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1372);
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-2000-0508");
  name["english"] = "nlockmgr service";
  name["francais"] = "Service nlockmgr";
@@ -16,10 +16,9 @@ if(description)
  
  desc["english"] = "
 The nlockmgr RPC service is running. 
-If you do not use this service, then
-disable it as it may become a security
-threat in the future, if a vulnerability
-is discovered.
+
+If you do not use this service, then disable it as it may become a security
+threat in the future, if a vulnerability is discovered.
 
 Risk factor : Low";
 
@@ -59,6 +58,10 @@ Facteur de risque : Faible";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 

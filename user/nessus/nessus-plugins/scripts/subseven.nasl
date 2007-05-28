@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10409);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-0660");
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-1999-0660");
  name["english"] = "SubSeven";
  name["francais"] = "SubSeven";
  script_name(english:name["english"], francais:name["francais"]);
@@ -57,7 +57,7 @@ Facteur de risque : Elevé";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("nmap_osfingerprint.nes", "find_service.nes");
+ script_dependencie("find_service2.nasl");
 
  
  exit(0);
@@ -67,28 +67,6 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 
-os = get_kb_item("Host/OS");
-if(os)
-{
- if(!("Windows" >< os))exit(0);
-}
 
-include("misc_func.inc");
-
-port = get_kb_item("Services/unknown");
-# make sure that port != 0
-if (!port) exit(0);
-if (known_service(port: port)) exit(0);
-
-if(!get_port_state(port)) exit(0);
-
-soc = open_sock_tcp(port);
-if(!soc) exit(0);
-
-r = recv_line(socket:soc, length:2048);
-if(!r) exit(0);
-
-if(ereg(pattern:"^connected\. .*, version:.*$", string:r))
-{
- security_hole(port);
-}
+port = get_kb_item("Services/subseven");
+if (port) security_hole(port);

@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -15,22 +15,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
- *
  */
  /*
   * This file contains all the misc. functions found in NASL
   */
-#include <includes.h>
+#include "includes.h"
 
 #include "nasl_tree.h"
 #include "nasl_global_ctxt.h"
@@ -116,7 +105,7 @@ tree_cell * nasl_ftp_get_pasv_address(lex_ctxt * lexic)
 
  retc = alloc_tree_cell(0, NULL);
  retc->type = CONST_INT;
- retc->x.i_val = htons(addr.sin_port);
+ retc->x.i_val = ntohs(addr.sin_port);
  return retc;
 }
 
@@ -132,6 +121,7 @@ tree_cell * nasl_telnet_init(lex_ctxt * lexic)
 #define option buffer[2]
  tree_cell * retc;
  int n = 0, n2;
+ int lm = 0;
 
  if(soc <= 0 )
  {
@@ -149,6 +139,13 @@ tree_cell * nasl_telnet_init(lex_ctxt * lexic)
   if((code == 251)||(code == 252))code = 254; /* WILL , WONT -> DON'T */
   else if((code == 253)||(code == 254))code = 252; /* DO,DONT -> WONT */
   write_stream_connection(soc, buffer,3);
+  if ( lm == 0 )
+  {
+   code = 253;
+   option = 0x22;
+   write_stream_connection(soc, buffer,3);
+   lm ++;
+  }
   opts++;
   if (opts>100) break;
  }
@@ -171,7 +168,7 @@ tree_cell * nasl_telnet_init(lex_ctxt * lexic)
    n += n2;
  retc = alloc_typed_cell(CONST_DATA);
  retc->size = n;
- retc->x.str_val = strndup(buffer, n);
+ retc->x.str_val = nasl_strndup((char*)buffer, n);
 #undef iac
 #undef data
 #undef option
@@ -474,7 +471,7 @@ nasl_keys(lex_ctxt* lexic)
 		if (vn->u.var_type != VAR2_UNDEF)
 		  {
 		    myvar.var_type = VAR2_STRING;
-		    myvar.v.v_str.s_val = vn->var_name;
+		    myvar.v.v_str.s_val = (unsigned char*)vn->var_name;
 		    myvar.v.v_str.s_siz = strlen(vn->var_name);
 		    add_var_to_list(a2, i ++, &myvar);
 		  }
@@ -569,6 +566,125 @@ nasl_defined_func(lex_ctxt* lexic)
   return retc;
 }
 
+tree_cell*
+nasl_func_named_args(lex_ctxt* lexic)
+{
+  nasl_func	*f; 
+  char		*s;
+  int		i;
+  tree_cell	*retc;
+  nasl_array	*a;
+  anon_nasl_var	v;
+
+  s = get_str_var_by_num(lexic, 0);
+  if (s == NULL)
+    {
+      nasl_perror(lexic, "func_named_args: missing parameter\n");
+      return NULL;
+    }
+
+  f = get_func_ref_by_name(lexic, s);
+  if (f == NULL)
+    {
+      nasl_perror(lexic, "func_named_args: unknown function \"%s\"\n", s);
+      return NULL;
+    }
+
+  retc = alloc_typed_cell(DYN_ARRAY);
+  retc->x.ref_val = a = emalloc(sizeof(nasl_array));
+
+  memset(&v, 0, sizeof(v));
+  v.var_type = VAR2_STRING;
+
+  for (i = 0; i < f->nb_named_args; i ++)
+    {
+      v.v.v_str.s_val = (unsigned char*)f->args_names[i];
+      v.v.v_str.s_siz = strlen(f->args_names[i]);
+      if (add_var_to_list(a, i, &v) < 0)
+	nasl_perror(lexic, "func_named_args: add_var_to_list failed (internal error)\n");
+    }
+
+  return retc;
+}
+
+tree_cell*
+nasl_func_unnamed_args(lex_ctxt* lexic)
+{
+  nasl_func	*f; 
+  char		*s;
+  tree_cell	*retc;
+
+  s = get_str_var_by_num(lexic, 0);
+  if (s == NULL)
+    {
+      nasl_perror(lexic, "func_unnamed_args: missing parameter\n");
+      return NULL;
+    }
+
+  f = get_func_ref_by_name(lexic, s);
+  if (f == NULL)
+    {
+      nasl_perror(lexic, "func_unnamed_args: unknown function \"%s\"\n", s);
+      return NULL;
+    }
+
+  retc = alloc_typed_cell(CONST_INT);
+  retc->x.i_val = f->nb_unnamed_args;
+  return retc;
+}
+
+
+tree_cell*
+nasl_func_has_arg(lex_ctxt* lexic)
+{
+  nasl_func	*f; 
+  char		*s;
+  int		vt, i, flag = 0;
+  tree_cell	*retc;
+
+
+  s = get_str_var_by_num(lexic, 0);
+  if (s == NULL)
+    {
+      nasl_perror(lexic, "func_has_arg: missing parameter\n");
+      return NULL;
+    }
+
+  f = get_func_ref_by_name(lexic, s);
+  if (f == NULL)
+    {
+      nasl_perror(lexic, "func_args: unknown function \"%s\"\n", s);
+      return NULL;
+    }
+
+  vt = get_var_type_by_num(lexic, 1);
+  switch(vt)
+    {
+    case VAR2_INT:
+      i = get_int_var_by_num(lexic, 1, -1);
+      if (i >= 0 &&  i < f->nb_unnamed_args)
+	flag = 1;
+      break;
+
+    case VAR2_STRING:
+    case VAR2_DATA:
+      s = get_str_var_by_num(lexic, 1);
+      for (i = 0; i < f->nb_named_args && ! flag; i ++)
+	if (strcmp(s, f->args_names[i]) == 0)
+	  flag = 1;
+      break;
+
+    default:
+      nasl_perror(lexic, "func_has_arg: string or integer expected as 2nd parameter\n");
+      return NULL;
+    }
+
+  retc = alloc_typed_cell(CONST_INT);
+  retc->x.i_val = flag;
+  return retc;
+}
+
+
 /* Sorts an array */
 
 static lex_ctxt	*mylexic = NULL;
@@ -603,5 +719,158 @@ nasl_sort_array(lex_ctxt* lexic)
       qsort(a->num_elt, a->max_idx, sizeof(a->num_elt[0]), var_cmp);
     }
   mylexic = NULL;
+  return retc;
+}
+
+tree_cell*
+nasl_unixtime(lex_ctxt* lexic)
+{
+  tree_cell	*retc;
+
+  retc = alloc_typed_cell(CONST_INT);
+  retc->x.i_val = time(NULL);
+  return retc;
+}
+
+tree_cell*
+nasl_gettimeofday(lex_ctxt* lexic)
+{
+  tree_cell		*retc;
+  struct timeval	t;
+  char			str[64];
+
+  if (gettimeofday(&t, NULL) < 0)
+    {
+      nasl_perror(lexic, "gettimeofday: %s\n",  strerror(errno));
+      return NULL;
+    }
+  sprintf(str, "%u.%06u", t.tv_sec, t.tv_usec);
+  retc = alloc_typed_cell(CONST_DATA);
+  retc->size = strlen(str);
+  retc->x.str_val = emalloc(retc->size);
+  strcpy(retc->x.str_val, str);
+  return retc;
+}
+
+tree_cell*
+nasl_localtime(lex_ctxt* lexic)
+{
+  tree_cell		*retc;
+  struct tm		*ptm;
+  time_t		tictac;
+  int			utc;
+  nasl_array		*a;
+  anon_nasl_var		v;
+
+
+  tictac = get_int_var_by_num(lexic, 0, 0);
+  if (tictac == 0)
+    tictac = time(NULL);
+  utc = get_int_local_var_by_name(lexic, "utc", 0);
+  
+  if (utc)
+    ptm = gmtime(&tictac);
+  else
+    ptm = localtime(&tictac);
+
+  if (ptm == NULL)
+    {
+      nasl_perror(lexic, "localtime(%d,utc=%d): %s\n", tictac, utc, strerror(errno));
+      return NULL;
+    }
+
+  retc = alloc_typed_cell(DYN_ARRAY);
+  retc->x.ref_val = a = emalloc(sizeof(nasl_array));
+  memset(&v, 0, sizeof(v));
+  v.var_type = VAR2_INT;
+
+  v.v.v_int = ptm->tm_sec; add_var_to_array(a, "sec", &v); /* seconds */
+  v.v.v_int = ptm->tm_min; add_var_to_array(a, "min", &v); /* minutes */
+  v.v.v_int = ptm->tm_hour; add_var_to_array(a, "hour", &v); /* hours */
+  v.v.v_int = ptm->tm_mday; add_var_to_array(a, "mday", &v); /* day of the month */
+  v.v.v_int = ptm->tm_mon+1; add_var_to_array(a, "mon", &v); /* month */
+  v.v.v_int = ptm->tm_year+1900; add_var_to_array(a, "year", &v); /* year */
+  v.v.v_int = ptm->tm_wday; add_var_to_array(a, "wday", &v); /* day of the week */
+  v.v.v_int = ptm->tm_yday+1; add_var_to_array(a, "yday", &v); /* day in the year */
+  v.v.v_int = ptm->tm_isdst; add_var_to_array(a, "isdst", &v); /* daylight saving time */
+
+  return retc;
+}
+
+
+tree_cell*
+nasl_mktime(lex_ctxt* lexic)
+{
+  struct tm	tm;
+  tree_cell	*retc;
+  time_t	tictac;
+
+  tm.tm_sec = get_int_local_var_by_name(lexic, "sec", 0); /* seconds */
+  tm.tm_min = get_int_local_var_by_name(lexic, "min", 0); /* minutes */
+  tm.tm_hour = get_int_local_var_by_name(lexic, "hour", 0); /* hours */
+  tm.tm_mday = get_int_local_var_by_name(lexic, "mday", 0); /* day of the month */
+  tm.tm_mon = get_int_local_var_by_name(lexic, "mon", 1); /* month */
+  tm.tm_mon -= 1;
+  tm.tm_year = get_int_local_var_by_name(lexic, "year", 0); /* year */
+  if (tm.tm_year >= 1900) tm.tm_year -= 1900;    
+  tm.tm_isdst = get_int_local_var_by_name(lexic, "isdst", -1); /* daylight saving time */
+  errno = 0;
+  tictac = mktime(&tm);
+  if (tictac == (time_t)(-1))
+    {
+      nasl_perror(lexic, "mktime(sec=%02d min=%02d hour=%02d mday=%02d mon=%02d year=%04d isdst=%d): %s\n", 
+		  tm.tm_sec, tm.tm_min, tm.tm_hour, tm.tm_mday, 
+		  tm.tm_mon+1, tm.tm_year+1900, tm.tm_isdst,
+		  errno ? strerror(errno): "invalid value?");
+      return NULL;
+    }
+  retc = alloc_typed_cell(CONST_INT);
+  retc->x.i_val = tictac;
+  return retc;
+}
+
+
+tree_cell*
+nasl_open_sock_kdc(lex_ctxt* lexic)
+{
+  tree_cell		*retc;
+  struct timeval	t;
+  int                   timeout = 30;
+  int                   port = 88;
+  char                  *hostname = NULL; /* Domain name for windows */
+  int                   tcp = 0;
+  int                   ret;
+  struct arglist        *script_infos, *prefs;
+  char                  *_port = NULL, *_tcp = NULL;
+  char * val;
+  int type;
+
+
+
+  script_infos = lexic->script_infos;
+
+  hostname = plug_get_key(script_infos, "Secret/kdc_hostname", &type);
+  if ( ! hostname || type != KB_TYPE_STR )
+	return NULL;
+  
+  port = (int)plug_get_key(script_infos, "Secret/kdc_port", &type);
+  if ( port <= 0 || type != KB_TYPE_INT )
+	return NULL;
+
+
+  tcp = (int)plug_get_key(script_infos, "Secret/kdc_use_tcp", &type);
+  if ( tcp < 0 || type != KB_TYPE_INT )
+	tcp = 0;
+
+  if (tcp == 0)
+    ret = open_sock_opt_hn(hostname, port, SOCK_DGRAM, IPPROTO_UDP, timeout);
+  else
+    ret = open_sock_opt_hn(hostname, port, SOCK_STREAM, IPPROTO_TCP, timeout);
+
+  if (ret < 0)
+    return NULL;
+
+  retc = alloc_typed_cell(CONST_INT);
+  retc->x.i_val = ret;
   return retc;
 }

@@ -4,7 +4,7 @@
  * Hacked by <Harlan.Stenn@pfcs.com>. Maybe will be merged
  * with the other Multitech driver.
  *
- * $Id$
+ * $Id: Multitech_5634.c,v 1.6 2005/03/13 17:27:46 gert Exp $
  *
  */
 

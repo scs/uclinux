@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: authfd.c,v 1.61 2003/06/28 16:23:06 deraadt Exp $");
+RCSID("$OpenBSD: authfd.c,v 1.66 2005/06/17 02:44:32 djm Exp $");
 
 #include <openssl/evp.h>
 
@@ -114,7 +114,7 @@ ssh_get_authentication_socket(void)
 static int
 ssh_request_reply(AuthenticationConnection *auth, Buffer *request, Buffer *reply)
 {
-	int l, len;
+	u_int l, len;
 	char buf[1024];
 
 	/* Get the length of the message, and format it in the buffer. */
@@ -132,22 +132,15 @@ ssh_request_reply(AuthenticationConnection *auth, Buffer *request, Buffer *reply
 	 * Wait for response from the agent.  First read the length of the
 	 * response packet.
 	 */
-	len = 4;
-	while (len > 0) {
-		l = read(auth->fd, buf + 4 - len, len);
-		if (l == -1 && (errno == EAGAIN || errno == EINTR))
-			continue;
-		if (l <= 0) {
-			error("Error reading response length from authentication socket.");
-			return 0;
-		}
-		len -= l;
+	if (atomicio(read, auth->fd, buf, 4) != 4) {
+	    error("Error reading response length from authentication socket.");
+	    return 0;
 	}
 
 	/* Extract the length, and check it for sanity. */
 	len = GET_32BIT(buf);
 	if (len > 256 * 1024)
-		fatal("Authentication response too long: %d", len);
+		fatal("Authentication response too long: %u", len);
 
 	/* Read the rest of the response in to the buffer. */
 	buffer_clear(reply);
@@ -155,10 +148,7 @@ ssh_request_reply(AuthenticationConnection *auth, Buffer *request, Buffer *reply
 		l = len;
 		if (l > sizeof(buf))
 			l = sizeof(buf);
-		l = read(auth->fd, buf, l);
-		if (l == -1 && (errno == EAGAIN || errno == EINTR))
-			continue;
-		if (l <= 0) {
+		if (atomicio(read, auth->fd, buf, l) != l) {
 			error("Error reading response from authentication socket.");
 			return 0;
 		}
@@ -292,7 +282,7 @@ ssh_get_num_identities(AuthenticationConnection *auth, int version)
 
 	/* Get the number of entries in the response and check it for sanity. */
 	auth->howmany = buffer_get_int(&auth->identities);
-	if (auth->howmany > 1024)
+	if ((u_int)auth->howmany > 1024)
 		fatal("Too many identities in authentication reply: %d",
 		    auth->howmany);
 
@@ -311,6 +301,7 @@ ssh_get_first_identity(AuthenticationConnection *auth, char **comment, int versi
 Key *
 ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int version)
 {
+	int keybits;
 	u_int bits;
 	u_char *blob;
 	u_int blen;
@@ -331,7 +322,8 @@ ssh_get_next_identity(AuthenticationConnection *auth, char **comment, int versio
 		buffer_get_bignum(&auth->identities, key->rsa->e);
 		buffer_get_bignum(&auth->identities, key->rsa->n);
 		*comment = buffer_get_string(&auth->identities, NULL);
-		if (bits != BN_num_bits(key->rsa->n))
+		keybits = BN_num_bits(key->rsa->n);
+		if (keybits < 0 || bits != (u_int)keybits)
 			logit("Warning: identity keysize mismatch: actual %d, announced %u",
 			    BN_num_bits(key->rsa->n), bits);
 		break;
@@ -589,7 +581,7 @@ ssh_remove_identity(AuthenticationConnection *auth, Key *key)
 }
 
 int
-ssh_update_card(AuthenticationConnection *auth, int add, 
+ssh_update_card(AuthenticationConnection *auth, int add,
     const char *reader_id, const char *pin, u_int life, u_int confirm)
 {
 	Buffer msg;
@@ -606,7 +598,7 @@ ssh_update_card(AuthenticationConnection *auth, int add,
 	buffer_put_char(&msg, type);
 	buffer_put_cstring(&msg, reader_id);
 	buffer_put_cstring(&msg, pin);
-	
+
 	if (constrained) {
 		if (life != 0) {
 			buffer_put_char(&msg, SSH_AGENT_CONSTRAIN_LIFETIME);

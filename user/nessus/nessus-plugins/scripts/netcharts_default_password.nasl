@@ -7,7 +7,7 @@
 if(description)
 {
 	script_id(11600);
-	script_version("$Revision: 1.1 $");
+	script_version("$Revision: 1.3 $");
 	name["english"] = "NetCharts Server Default Password";
 	script_name(english:name["english"]);
 	desc["english"] = "
@@ -28,7 +28,7 @@ Risk factor : High";
 	script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
 	family["english"] = "General";
 	script_family(english:family["english"]);
-	script_dependencie("find_service.nes");
+	script_dependencie("http_version.nasl");
 	script_require_ports("Services/www", 8001);
 	exit(0);
 }
@@ -41,19 +41,10 @@ include("http_func.inc");
 include("http_keepalive.inc");
 include("misc_func.inc");
 
-ports = add_port_in_list(list:get_kb_list("Services/www"), port:8001);
+port = get_http_port(default:8001);
+if ( ! port ) exit(0);
 
-foreach port (ports)
-{
-if(get_port_state(port))
- {
-
-    # HTTP auth = "Admin:Admin"
-    req = string("GET /Admin/index.jsp HTTP/1.1\r\nHost: ", get_host_name(), "\r\n", "Authorization: Basic QWRtaW46QWRtaW4=\r\n\r\n");
-    res = http_keepalive_send_recv(port:port, data:req);
-    if(res != NULL && "NetCharts Server" >< res)
-    {
-    	    security_hole(port);
-    }
- }
-}
+# HTTP auth = "Admin:Admin"
+req = string("GET /Admin/index.jsp HTTP/1.1\r\nHost: ", get_host_name(), "\r\n", "Authorization: Basic QWRtaW46QWRtaW4=\r\n\r\n");
+res = http_keepalive_send_recv(port:port, data:req);
+if(res != NULL && egrep(pattern:"HTTP.* 200 .*", string:res) && "NetCharts Server" >< res) security_hole(port);

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(11154);
- script_version ("$Revision: 1.16 $");
- 
+ script_version ("$Revision: 1.22 $");
+# script_cve_id("CVE-MAP-NOMATCH"); 
  name["english"] = "Unknown services banners";
  name["francais"] = "Bannières des services inconnus";
  script_name(english:name["english"], francais:name["francais"]);
@@ -53,7 +53,7 @@ Facteur de risque : Aucun";
    "dcetest.nasl",
    "dns_server.nasl",
    "echo.nasl",
-   "find_service.nes",
+   "find_service1.nasl",
    "find_service2.nasl",
    "mldonkey_telnet.nasl",
    "mssqlserver_detect.nasl",
@@ -64,9 +64,20 @@ Facteur de risque : Aucun";
    "rpc_portmap.nasl",
    "rpcinfo.nasl",
    "rsh.nasl",
+   "rtsp_detect.nasl",
    "telnet.nasl",
    "xtel_detect.nasl",
    "xtelw_detect.nasl");
+   if (NASL_LEVEL >= 3000)
+   {
+    script_dependencies (
+    "veritas_agent_detect.nasl",
+    "veritas_netbackup_vmd_detect.nasl",
+    "veritas_netbackup_detect.nasl",
+    "hp_openview_ovalarmsrv.nasl",
+    "hp_openview_ovtopmd.nasl",
+    "hp_openview_ovuispmd.nasl");
+   }
  script_require_ports("Services/unknown");
  exit(0);
 }
@@ -75,22 +86,22 @@ Facteur de risque : Aucun";
 include("misc_func.inc");
 include("dump.inc");
 
-port = get_kb_item("Services/unknown");
+port = get_unknown_svc();
 if (! port) exit(0);
 if (! get_port_state(port)) exit(0);
-if (known_service(port: port)) exit(0);
 if (port == 139) exit(0);	# Avoid silly messages
+if (! service_is_unknown(port: port)) exit(0);
 
-banner = get_unknown_banner(port: port, dontfetch: 1);
-
+a = get_unknown_banner2(port: port, dontfetch: 1);
+if (isnull(a)) exit(0);
+banner = a[0]; type = a[1];
 if (!banner) exit(0);
 
 h = hexdump(ddata: banner);
 if( strlen(banner) >= 3 )
 {
-m = string("An unknown server is running on this port.\n",
-  "If you know what it is, please send this banner to the Nessus team:\n",
-  h);
-security_note(port: port, data: m);
+ m = strcat('An unknown server is running on this port.\nIf you know what it is, please send this banner to the Nessus team:\nType=',
+ type, '\n', h);
+ security_note(port: port, data: m);
 }
 

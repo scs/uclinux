@@ -14,9 +14,10 @@
 if(description)
 {
  script_id(11420);
- script_version ("$Revision: 1.4 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0007");
  script_bugtraq_id(7123);
- script_cve_id("CAN-2003-0028");
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2003-0028");
  
  name["english"] = "Sun portmap xdrmem_getbytes() overflow";
  script_name(english:name["english"]);
@@ -64,7 +65,7 @@ include("nfs_func.inc");
 
 
 
-function portmap_alive()
+function portmap_alive(portmap)
 { 
  local_var	broken, req, soc, r, port;
  local_var	a, b, c, d, p_a, p_b, p_c, p_d, pt_a, pt_b, pt_c, pt_d;
@@ -167,5 +168,5 @@ send(socket:soc, data:req);
 r = recv(socket:soc, length:4096);
 close(soc);
 
-alive = portmap_alive();
+alive = portmap_alive(portmap:port);
 if(!alive)security_hole(port);

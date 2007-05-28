@@ -1,6 +1,6 @@
 README for tkvoice
 Marc SCHAEFER <schaefer@alphanet.ch>
-$Id$
+$Id: README,v 1.7 2002/04/09 20:34:17 gert Exp $
 
 tkvoice is a Tcl/Tk frontend to vgetty. Its advantage over competitors
 such as kvoice is the desktop independance, and possibly much more.

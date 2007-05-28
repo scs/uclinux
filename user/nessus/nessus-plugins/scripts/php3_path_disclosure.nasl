@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(10670);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.11 $");
  name["english"] = "PHP3 Physical Path Disclosure Vulnerability";
  name["francais"] = "PHP3 Physical Path Disclosure Vulnerability";
  script_name(english:name["english"], francais:name["francais"]);
@@ -46,7 +46,7 @@ Risk factor : Low";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -56,10 +56,11 @@ Risk factor : Low";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
+ if ( ! can_host_php(port:port) ) exit(0);
  req = http_get(item:"/nosuchfile-10303-10310.php3", port:port);
  soc = http_open_socket(port);
  if(soc)

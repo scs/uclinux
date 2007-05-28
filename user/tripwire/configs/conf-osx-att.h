@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-osx-att.h,v 1.2 1993/08/19 05:27:00 genek Exp $ */
 
 /*
  * conf-osx-att.h

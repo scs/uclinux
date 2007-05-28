@@ -43,12 +43,13 @@
 
 #ifndef BPF_MAJOR_VERSION
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /* BSD style release date */
 #define BPF_RELEASE 199606
+
+#ifdef WIN32 
+#include <gnuc.h>
+#include <winsock2.h>
+#endif
 
 typedef	int bpf_int32;
 typedef	u_int bpf_u_int32;
@@ -184,7 +185,7 @@ struct bpf_hdr {
 #define DLT_PRONET	4	/* Proteon ProNET Token Ring */
 #define DLT_CHAOS	5	/* Chaos */
 #define DLT_IEEE802	6	/* IEEE 802 Networks */
-#define DLT_ARCNET	7	/* ARCNET, with BSD-style header */
+#define DLT_ARCNET	7	/* ARCNET */
 #define DLT_SLIP	8	/* Serial Line IP */
 #define DLT_PPP		9	/* Point-to-point Protocol */
 #define DLT_FDDI	10	/* FDDI */
@@ -211,31 +212,17 @@ struct bpf_hdr {
  * continue to compile - even though they won't correctly read
  * files of these types.
  */
-#ifdef __NetBSD__
-#ifndef DLT_SLIP_BSDOS
-#define DLT_SLIP_BSDOS	13	/* BSD/OS Serial Line IP */
-#define DLT_PPP_BSDOS	14	/* BSD/OS Point-to-point Protocol */
-#endif
-#else
 #define DLT_SLIP_BSDOS	15	/* BSD/OS Serial Line IP */
 #define DLT_PPP_BSDOS	16	/* BSD/OS Point-to-point Protocol */
-#endif
 
 #define DLT_ATM_CLIP	19	/* Linux Classical-IP over ATM */
 
 /*
- * These values are defined by NetBSD; other platforms should refrain from
- * using them for other purposes, so that NetBSD savefiles with link
- * types of 50 or 51 can be read as this type on all platforms.
+ * This value is defined by NetBSD; other platforms should refrain from
+ * using it for other purposes, so that NetBSD savefiles with a link
+ * type of 50 can be read as this type on all platforms.
  */
 #define DLT_PPP_SERIAL	50	/* PPP over serial with HDLC encapsulation */
-#define DLT_PPP_ETHER	51	/* PPP over Ethernet */
-
-/*
- * Values between 100 and 103 are used in capture file headers as
- * link-layer types corresponding to DLT_ types that differ
- * between platforms; don't use those values for new DLT_ new types.
- */
 
 /*
  * This value was defined by libpcap 0.5; platforms that have defined
@@ -254,22 +241,23 @@ struct bpf_hdr {
 #define DLT_C_HDLC	104	/* Cisco HDLC */
 #define DLT_CHDLC	DLT_C_HDLC
 
+/*
+ * Reserved for future use.
+ * Do not pick other numerical value for these unless you have also
+ * picked up the tcpdump.org top-of-CVS-tree version of "savefile.c",
+ * which will arrange that capture files for these DLT_ types have
+ * the same "network" value on all platforms, regardless of what
+ * value is chosen for their DLT_ type (thus allowing captures made
+ * on one platform to be read on other platforms, even if the two
+ * platforms don't use the same numerical values for all DLT_ types).
+ */
 #define DLT_IEEE802_11	105	/* IEEE 802.11 wireless */
 
 /*
- * 106 is reserved for Linux Classical IP over ATM; it's like DLT_RAW,
- * except when it isn't.  (I.e., sometimes it's just raw IP, and
- * sometimes it isn't.)  We currently handle it as DLT_LINUX_SLL,
- * so that we don't have to worry about the link-layer header.)
+ * Values between 106 and 107 are used in capture file headers as
+ * link-layer types corresponding to DLT_ types that might differ
+ * between platforms; don't use those values for new DLT_ new types.
  */
-
-/*
- * Frame Relay; BSD/OS has a DLT_FR with a value of 11, but that collides
- * with other values.
- * DLT_FR and DLT_FRELAY packets start with the Q.922 Frame Relay header
- * (DLCI, etc.).
- */
-#define DLT_FRELAY	107
 
 /*
  * OpenBSD DLT_LOOP, for loopback devices; it's like DLT_NULL, except
@@ -278,135 +266,20 @@ struct bpf_hdr {
  * OpenBSD defines it as 12, but that collides with DLT_RAW, so we
  * define it as 108 here.  If OpenBSD picks up this file, it should
  * define DLT_LOOP as 12 in its version, as per the comment above -
- * and should not use 108 as a DLT_ value.
+ * and should not use 108 for any purpose.
  */
 #define DLT_LOOP	108
 
 /*
  * Values between 109 and 112 are used in capture file headers as
  * link-layer types corresponding to DLT_ types that might differ
- * between platforms; don't use those values for new DLT_ types
- * other than the corresponding DLT_ types.
+ * between platforms; don't use those values for new DLT_ new types.
  */
 
 /*
  * This is for Linux cooked sockets.
  */
 #define DLT_LINUX_SLL	113
-
-/*
- * Apple LocalTalk hardware.
- */
-#define DLT_LTALK	114
-
-/*
- * Acorn Econet.
- */
-#define DLT_ECONET	115
-
-/*
- * Reserved for use with OpenBSD ipfilter.
- */
-#define DLT_IPFILTER	116
-
-/*
- * Reserved for use in capture-file headers as a link-layer type
- * corresponding to OpenBSD DLT_PFLOG; DLT_PFLOG is 17 in OpenBSD,
- * but that's DLT_LANE8023 in SuSE 6.3, so we can't use 17 for it
- * in capture-file headers.
- */
-#define DLT_PFLOG	117
-
-/*
- * Registered for Cisco-internal use.
- */
-#define DLT_CISCO_IOS	118
-
-/*
- * Reserved for 802.11 cards using the Prism II chips, with a link-layer
- * header including Prism monitor mode information plus an 802.11
- * header.
- */
-#define DLT_PRISM_HEADER	119
-
-/*
- * Reserved for Aironet 802.11 cards, with an Aironet link-layer header
- * (see Doug Ambrisko's FreeBSD patches).
- */
-#define DLT_AIRONET_HEADER	120
-
-/*
- * Reserved for Siemens HiPath HDLC.
- */
-#define DLT_HHDLC		121
-
-/*
- * This is for RFC 2625 IP-over-Fibre Channel.
- *
- * This is not for use with raw Fibre Channel, where the link-layer
- * header starts with a Fibre Channel frame header; it's for IP-over-FC,
- * where the link-layer header starts with an RFC 2625 Network_Header
- * field.
- */
-#define DLT_IP_OVER_FC		122
-
-/*
- * This is for Full Frontal ATM on Solaris with SunATM, with a
- * pseudo-header followed by an AALn PDU.
- *
- * There may be other forms of Full Frontal ATM on other OSes,
- * with different pseudo-headers.
- *
- * If ATM software returns a pseudo-header with VPI/VCI information
- * (and, ideally, packet type information, e.g. signalling, ILMI,
- * LANE, LLC-multiplexed traffic, etc.), it should not use
- * DLT_ATM_RFC1483, but should get a new DLT_ value, so tcpdump
- * and the like don't have to infer the presence or absence of a
- * pseudo-header and the form of the pseudo-header.
- */
-#define DLT_SUNATM		123	/* Solaris+SunATM */
-
-/* 
- * Reserved as per request from Kent Dahlgren <kent@praesum.com>
- * for private use.
- */
-#define DLT_RIO                 124     /* RapidIO */
-#define DLT_PCI_EXP             125     /* PCI Express */
-#define DLT_AURORA              126     /* Xilinx Aurora link layer */
-
-/*
- * For future use with 802.11 captures - defined by AbsoluteValue
- * Systems to store a number of bits of link-layer information:
- *
- *	http://www.shaftnet.org/~pizza/software/capturefrm.txt
- *
- * but could and arguably should also be used by non-AVS Linux
- * 802.11 drivers and BSD drivers; that may happen in the future.
- */
-#define DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
-
-/*
- * Reserved for the TZSP encapsulation, as per request from
- * Chris Waters <chris.waters@networkchemistry.com>
- * TZSP is a generic encapsulation for any other link type,
- * which includes a means to include meta-information
- * with the packet, e.g. signal strength and channel
- * for 802.11 packets.
- */
-#define DLT_TZSP                128     /* Tazmen Sniffer Protocol */
-
-/*
- * BSD's ARCNET headers have the source host, destination host,
- * and type at the beginning of the packet; that's what's handed
- * up to userland via BPF.
- *
- * Linux's ARCNET headers, however, have a 2-byte offset field
- * between the host IDs and the type; that's what's handed up
- * to userland via PF_PACKET sockets.
- *
- * We therefore have to have separate DLT_ values for them.
- */
-#define DLT_ARCNET_LINUX	129	/* ARCNET */
 
 /*
  * The instruction encodings.
@@ -497,7 +370,7 @@ extern void bpfattach();
 extern void bpfilterattach();
 # endif /* __STDC__ */
 #endif /* BSD && (_KERNEL || KERNEL) */
-#if __STDC__ || defined(__cplusplus)
+#if __STDC__
 extern int bpf_validate(struct bpf_insn *, int);
 extern u_int bpf_filter(struct bpf_insn *, u_char *, u_int, u_int);
 #else
@@ -509,9 +382,5 @@ extern u_int bpf_filter();
  * Number of scratch memory words (for BPF_LD|BPF_MEM and BPF_ST).
  */
 #define BPF_MEMWORDS 16
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

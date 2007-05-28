@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10581);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1314);
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-2000-0538");
  name["english"] = "Cold Fusion Administration Page Overflow";
  name["francais"] = "Cold Fusion Administration Page Overflow";
@@ -26,7 +26,7 @@ Solution: Use HTTP basic authentication to restrict access to this page or
 remove it entirely if remote administration is not a requirement. 
 A patch should be available from allaire - www.allaire.com..
 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -53,22 +53,17 @@ Risk factor : Serious";
 # Check starts here
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
  # CFIDE will work with CF Linux also
  req = http_get(item:"/CFIDE/administrator/index.cfm",
  		port:port);
- soc = http_open_socket(port);
- if(soc)
- {
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
- http_close_socket(soc);
- if("PasswordProvided" >< r)	
+ r = http_keepalive_send_recv(port:port, data:req);
+ if("PasswordProvided" >< r && "cf50" >!< r)	
  	security_hole(port);
 
- }
 }

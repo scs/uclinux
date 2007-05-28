@@ -84,7 +84,7 @@ IMPORTANT:
 The 'yes/no' argument does not specify whether the configuration option 
 itself is on or off, only the alerting functionality.
 
-* profile [all/apache/iis] *
+* profile [all/apache/iis/iis4/iis5_0] *
 Users can configure HttpInspect by using pre-defined HTTP server
 profiles.  Profiles must be specified as the first server option and
 cannot be combined with any other options except:
@@ -101,7 +101,7 @@ Example:
 
 preprocessor http_inspect_server: server 1.1.1.1 profile all ports { 80 3128 }
  
-There are three profiles available:
+There are five profiles available:
   - all: The "all" profile is meant to normalize the URI using most of the
   	     common tricks available.  We alert on the more serious forms of 
 	     evasions.  This is a great profile for detecting all the types of	
@@ -114,8 +114,14 @@ There are three profiles available:
 	     tabs as whitespace 
 
   - iis: The "iis" profile mimics IIS servers.  So that means we use IIS
-  	     unicode codemaps for each server, %u encoding, bare-byte encoding,
-	     double decoding, backslashes, etc.
+  	     unicode codemaps for each server, %u encoding, bare-byte encoding, 
+         backslashes, etc.
+
+  - iis4, iis5.0: In IIS 4.0 and 5.0, there was a double decoding 
+        vulnerability.  These two profiles are identical to IIS, except
+        they will alert by default if a URL has a double encoding.  Double
+        decode is not supported in IIS 5.1 and beyond, so it's disabled in 
+        Snort.
 
 Profiles are not required by http_inspect.
  
@@ -148,10 +154,12 @@ either the HTTP header, or the content that is likely to be in the first
 hundred or so bytes of non-header data.  Headers are usually under 300 bytes
 long, but your mileage may vary.
 
-This value can be set from 0 to 1460, with a value of 0 inspecting all HTTP
-server payloads (note that this will likely slow down IDS performance).  Values
-above 0 tell http_inspect the number of bytes to inspect in the first packet
-of the server response.
+This value can be set from -1 to 1460. A value of -1 causes Snort 
+to ignore all server side traffic for ports defined in "ports."
+Inversely, a value of 0 causes Snort to inspect all HTTP server
+payloads defined in "ports" (note that this will likely slow down IDS
+performance).  Values above 0 tell Snort the number of bytes to
+inspect in the first packet of the server response.
 
 * ascii [yes/no] *
 The ASCII decode option tells us whether to decode encoded ASCII chars, a.k.a
@@ -211,15 +219,15 @@ utf-8 decoding to enforce correct decoding.  To alert on utf-8 decoding, the
 user must enable also enable 'utf_8 yes'. 
 
 * double_decode [yes/no] *
-The double_decode option is once again IIS specific and emulates IIS 
-functionality.  How this works is that IIS does two passes through the request 
-URI, doing decodes in each one.  In the first pass, it seems that all types of 
-IIS encoding is done: UTF-8 unicode, ASCII, bare byte, and %u.  In the second
-pass the following encodings are done:  ASCII, bare byte, and %u.  We leave out
-UTF-8 because I think how this works is that the % encoded UTF-8 is decoded to
-the unicode byte in the first pass, and then UTF-8 decoded in the second stage.
-Anyway, this is really complex and adds tons of different encodings for one
-char.  When double_decode is enabled, so is ascii to enforce correct decoding.
+The double_decode option is specific to IIS 4.0 and 5.0. The versions of IIS 
+do two passes through the request URI, doing decodes in each one.  In the 
+first pass, it seems that all types of  IIS encoding is done: UTF-8 unicode,
+ASCII, bare byte, and %u.  In the second pass the following encodings are 
+done:  ASCII, bare byte, and %u.  We leave out UTF-8 because I think how 
+this works is that the % encoded UTF-8 is decoded to the unicode byte in the 
+first pass, and then UTF-8 decoded in the second stage. Anyway, this is really
+complex and adds tons of different encodings for one char.  When double_decode
+is enabled, so is ascii to enforce correct decoding.
 
 * non_rfc_char { [byte] [0x00] . . . } *
 This option lets users receive an alert if certain non-RFC chars are used in
@@ -247,10 +255,19 @@ alert, then specify "yes", otherwise "no".  This alert may give false positives
 since some web sites refer to files using directory traversals.
 
 * apache_whitespace [yes/no] *
-This option deals with non-RFC standard of tab for a space delimiter.  Apache
-uses this, so if the emulated web server is Apache you need to enable this
-option.  Alerts on this option may be interesting, but may also be false
-positive prone.
+This option deals with non-RFC standard of tab or carriage return for a space
+delimiter, as well as any characters defined with the "whitespace_chars" option.
+Apache accepts these characters as whitespace, so if the emulated web server is
+Apache you need to enable this option.  Alerts on this option may be interesting,
+but may also be false positive prone.
+
+* whitespace_chars { [byte] [0x00 . . . } *
+This option lets users define characters that will be accepted as whitespace
+before and after a URI (e.g. GET<whitespace>/index.html<whitespace>HTTP/1.0).
+The default values are 0x09, 0x0B, 0x0C and 0x0D.  The characters defined with
+this option are in addition to the default values.  As an example, if a user
+wants to add the backspace char 0x08, this option should look like:
+whitespace_chars { 0x08 }.
 
 * iis_delimiter [yes/no] *
 I originally started out with \n being IIS specific, but Apache takes this
@@ -324,6 +341,12 @@ stay within the web server directory structure.  It only alerts when the
 directory traversals go past the web server root directory, which
 is associated with certain web attacks.
 
+* tab_uri_delimiter *
+Both Apache and newer versions of IIS accept tabs as delimiters. However, 
+this option is deprecated and has been replaced by, and is enabled by default
+with, the whitespace_chars option.  For more details on its use, see the 
+whitespace_chars section above. 
+
 -- Profile Breakout --
 There are three profiles that users can select.  Only the configuration 
 that are listed under the profiles are turned on.  If there is no mention 
@@ -333,7 +356,7 @@ configuration.
 * Apache *
 
 flow_depth 300
-non_strict URL parsing
+non_strict URL parsing is set
 chunk encoding (alert on chunks larger than 500000 bytes)
 ascii decoding is on (alert off)
 multiple slash (alert off)
@@ -345,6 +368,24 @@ utf_8 encoding (alert off)
 * IIS *
 
 flow_depth 300
+non_strict URL parsing is set
+chunk encoding (alert on chunks larger than 500000 bytes)
+iis_unicode_map is set to the codepoint map in the global configuration
+ascii decoding (alert off)
+multiple slash (alert off)
+directory normalization (alert off)
+webroot (alert on)
+%u decoding (alert on)
+bare byte decoding (alert on)
+iis unicode codepoints (alert on)
+iis backslash (alert off)
+iis delimiter (alert off)
+apache whitespace (alert off)
+
+* IIS4 and IIS5_0 *
+
+flow_depth 300
+non_strict URL parsing is set
 chunk encoding (alert on chunks larger than 500000 bytes)
 iis_unicode_map is set to the codepoint map in the global configuration
 ascii decoding (alert off)
@@ -358,11 +399,11 @@ iis unicode codepoints (alert on)
 iis backslash (alert off)
 iis delimiter (alert off)
 apache whitespace (alert off)
-non_strict URL parsing
 
 * All * 
 
 flow_depth 300
+non_strict URL parsing is set
 chunk encoding (alert on chunks larger than 500000 bytes)
 iis_unicode_map is set to the codepoint map in the global configuration
 ascii decoding is on (alert off)
@@ -376,12 +417,12 @@ iis unicode codepoints (alert on)
 iis backslash (alert off)
 iis delimiter (alert off)
 webroot (alert on)
-non_strict URL parsing
 
 The following lists the defaults:
 
 Port 80
 flow_depth 300
+non_strict URL parsing is set
 chunk encoding (alert on chunks larger than 500000 bytes)
 ascii decoding is on (alert off)
 utf_8 encoding (alert off)
@@ -390,7 +431,6 @@ directory normalization (alert off)
 webroot (alert on)
 apache whitespace (alert off)
 iis delimiter (alert off)
-non_strict URL parsing
 
 -- Writing uricontent rules --
 The uricontent parameter in the snort rule language searches the NORMALIZED

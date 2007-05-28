@@ -3,7 +3,7 @@
  *
  * This file contains the Digi International RAS specific hardware stuff.
  *
- * $Id$
+ * $Id: Digi_RAS.c,v 1.5 2005/03/13 17:27:45 gert Exp $
  *
  */
 

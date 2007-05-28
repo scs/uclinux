@@ -15,7 +15,9 @@
 if(description)
 {
  script_id(11165);
- script_version ("$Revision: 1.2 $");
+ script_bugtraq_id(6038);
+ 
+ script_version ("$Revision: 1.7 $");
  name["english"] = "vpasswd.cgi";
  script_name(english:name["english"]);
  
@@ -28,7 +30,7 @@ a cracker to execute any command on your system.
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -53,6 +55,14 @@ Risk factor : Serious";
 }
 
 # The script code starts here
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("vpasswd.cgi");
-if(port)security_warning(port);
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"vpasswd.cgi", port:port);
+if(res)security_warning(port);

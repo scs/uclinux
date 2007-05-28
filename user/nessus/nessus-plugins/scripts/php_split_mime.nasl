@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10867);
- script_cve_id("CVE-2002-0081");
  script_bugtraq_id(4183);
- script_version("$Revision: 1.14 $");
+ script_cve_id("CVE-2002-0081");
+ script_version("$Revision: 1.22 $");
  
  name["english"] = "php POST file uploads";
 
@@ -38,7 +38,7 @@ Risk factor : High";
  
  script_summary(english:summary["english"], francais:summary["francais"]);
  
- script_category(ACT_MIXED_ATTACK);
+ script_category(ACT_DENIAL);
  
  
  script_copyright(english:"This script is Copyright (C) 2002 Thomas Reinke",
@@ -46,7 +46,7 @@ Risk factor : High";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "webmirror.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl", "webmirror.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -56,12 +56,21 @@ Risk factor : High";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+banner = get_http_banner(port:port);
+if(!banner)exit(0);
+php = get_php_version(banner:banner);
+if ( ! php ) exit(0);
+
+if(http_is_dead(port:port))exit(0);
+
 if(get_port_state(port))
 {
-
+ if ( ! can_host_php(port:port) ) exit(0);
 
  if(!safe_checks())
  {
@@ -73,7 +82,7 @@ if(get_port_state(port))
 	file = files[0];
 	}
   
-  if(is_cgi_installed(item:file, port:port))
+  if(is_cgi_installed_ka(item:file, port:port))
   {
    boundary1 = string("-NESSUS!");
    boundary2 = string("--NESSUS!");
@@ -101,31 +110,7 @@ if(get_port_state(port))
   
   r = http_recv(socket:soc);
   http_close_socket(soc);
-  if(!r)security_hole(port);
-  exit(0);
+  if(http_is_dead(port: port)) { security_hole(port); }
   }
- }
-
-
- #
- # Fall back on pattern matching
- #
-
- banner = get_http_banner(port:port);
- if(!banner)exit(0);
-
- serv = strstr(banner, "Server");
- if(ereg(pattern:".*PHP/((3.*)|(4\.0.*)|(4\.1\.[01].*))", string:serv))
- {
-   security_hole(port);
- }
- else
- {
-
-   serv = strstr(banner, "X-Powered-By:");
-   if(ereg(pattern:".*PHP/((3.*)|(4\.0.*)|(4\.1\.[01].*))", string:serv))
-   {
-     security_hole(port);
-   }
  }
 }

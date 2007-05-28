@@ -18,6 +18,7 @@ typedef struct s_SNORT_EVENT_QUEUE
     int max_events;
     int log_events;
     int order;
+    int process_all_events;
 
 } SNORT_EVENT_QUEUE;
 

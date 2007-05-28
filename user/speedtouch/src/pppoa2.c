@@ -21,7 +21,7 @@
 *
 *  This program is designed to work under pppd, with the option "pty".
 *
-*  $Id$
+*  $Id: pppoa2.c,v 1.33 2004/05/24 19:22:05 papillau Exp $
 */
 
 #ifndef _PPPOA2_C_

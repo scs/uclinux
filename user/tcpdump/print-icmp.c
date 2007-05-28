@@ -20,30 +20,15 @@
  */
 
 #ifndef lint
-static const char rcsid[] =
-    "@(#) $Header$ (LBL)";
+static const char rcsid[] _U_ =
+    "@(#) $Header: /tcpdump/master/tcpdump/print-icmp.c,v 1.81.2.2 2005/07/01 16:13:37 hannes Exp $ (LBL)";
 #endif
 
-#include <sys/param.h>
-#include <sys/time.h>
-#include <sys/socket.h>
-
-#if __STDC__
-struct mbuf;
-struct rtentry;
+#ifdef HAVE_CONFIG_H
+#include "config.h"
 #endif
-#include <net/if.h>
 
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/ip_var.h>
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <netinet/tcp.h>
-#include <netinet/tcpip.h>
+#include <tcpdump-stdinc.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -52,6 +37,143 @@ struct rtentry;
 #include "addrtoname.h"
 #include "extract.h"			/* must come after interface.h */
 
+#include "ip.h"
+#include "udp.h"
+#include "ipproto.h"
+#include "mpls.h"
+
+/*
+ * Interface Control Message Protocol Definitions.
+ * Per RFC 792, September 1981.
+ */
+
+/*
+ * Structure of an icmp header.
+ */
+struct icmp {
+	u_int8_t  icmp_type;		/* type of message, see below */
+	u_int8_t  icmp_code;		/* type sub code */
+	u_int16_t icmp_cksum;		/* ones complement cksum of struct */
+	union {
+		u_int8_t ih_pptr;			/* ICMP_PARAMPROB */
+		struct in_addr ih_gwaddr;	/* ICMP_REDIRECT */
+		struct ih_idseq {
+			u_int16_t icd_id;
+			u_int16_t icd_seq;
+		} ih_idseq;
+		u_int32_t ih_void;
+
+		/* ICMP_UNREACH_NEEDFRAG -- Path MTU Discovery (RFC1191) */
+		struct ih_pmtu {
+			u_int16_t ipm_void;
+			u_int16_t ipm_nextmtu;
+		} ih_pmtu;
+	} icmp_hun;
+#define	icmp_pptr	icmp_hun.ih_pptr
+#define	icmp_gwaddr	icmp_hun.ih_gwaddr
+#define	icmp_id		icmp_hun.ih_idseq.icd_id
+#define	icmp_seq	icmp_hun.ih_idseq.icd_seq
+#define	icmp_void	icmp_hun.ih_void
+#define	icmp_pmvoid	icmp_hun.ih_pmtu.ipm_void
+#define	icmp_nextmtu	icmp_hun.ih_pmtu.ipm_nextmtu
+	union {
+		struct id_ts {
+			u_int32_t its_otime;
+			u_int32_t its_rtime;
+			u_int32_t its_ttime;
+		} id_ts;
+		struct id_ip  {
+			struct ip idi_ip;
+			/* options and then 64 bits of data */
+		} id_ip;
+                struct mpls_ext {
+                    u_int8_t legacy_header[128]; /* extension header starts 128 bytes after ICMP header */
+                    u_int8_t version_res[2];
+                    u_int8_t checksum[2];
+                    u_int8_t data[1];
+                } mpls_ext;
+		u_int32_t id_mask;
+		u_int8_t id_data[1];
+	} icmp_dun;
+#define	icmp_otime	icmp_dun.id_ts.its_otime
+#define	icmp_rtime	icmp_dun.id_ts.its_rtime
+#define	icmp_ttime	icmp_dun.id_ts.its_ttime
+#define	icmp_ip		icmp_dun.id_ip.idi_ip
+#define	icmp_mask	icmp_dun.id_mask
+#define	icmp_data	icmp_dun.id_data
+#define	icmp_mpls_ext_version	icmp_dun.mpls_ext.version_res
+#define	icmp_mpls_ext_checksum	icmp_dun.mpls_ext.checksum
+#define	icmp_mpls_ext_data	icmp_dun.mpls_ext.data
+};
+
+#define ICMP_MPLS_EXT_EXTRACT_VERSION(x) (((x)&0xf0)>>4) 
+#define ICMP_MPLS_EXT_VERSION 2
+
+/*
+ * Lower bounds on packet lengths for various types.
+ * For the error advice packets must first insure that the
+ * packet is large enought to contain the returned ip header.
+ * Only then can we do the check to see if 64 bits of packet
+ * data have been returned, since we need to check the returned
+ * ip header length.
+ */
+#define	ICMP_MINLEN	8				/* abs minimum */
+#define ICMP_EXTD_MINLEN (156 - sizeof (struct ip))     /* draft-bonica-icmp-mpls-02 */
+#define	ICMP_TSLEN	(8 + 3 * sizeof (u_int32_t))	/* timestamp */
+#define	ICMP_MASKLEN	12				/* address mask */
+#define	ICMP_ADVLENMIN	(8 + sizeof (struct ip) + 8)	/* min */
+#define	ICMP_ADVLEN(p)	(8 + (IP_HL(&(p)->icmp_ip) << 2) + 8)
+	/* N.B.: must separately check that ip_hl >= 5 */
+
+/*
+ * Definition of type and code field values.
+ */
+#define	ICMP_ECHOREPLY		0		/* echo reply */
+#define	ICMP_UNREACH		3		/* dest unreachable, codes: */
+#define		ICMP_UNREACH_NET	0		/* bad net */
+#define		ICMP_UNREACH_HOST	1		/* bad host */
+#define		ICMP_UNREACH_PROTOCOL	2		/* bad protocol */
+#define		ICMP_UNREACH_PORT	3		/* bad port */
+#define		ICMP_UNREACH_NEEDFRAG	4		/* IP_DF caused drop */
+#define		ICMP_UNREACH_SRCFAIL	5		/* src route failed */
+#define		ICMP_UNREACH_NET_UNKNOWN 6		/* unknown net */
+#define		ICMP_UNREACH_HOST_UNKNOWN 7		/* unknown host */
+#define		ICMP_UNREACH_ISOLATED	8		/* src host isolated */
+#define		ICMP_UNREACH_NET_PROHIB	9		/* prohibited access */
+#define		ICMP_UNREACH_HOST_PROHIB 10		/* ditto */
+#define		ICMP_UNREACH_TOSNET	11		/* bad tos for net */
+#define		ICMP_UNREACH_TOSHOST	12		/* bad tos for host */
+#define	ICMP_SOURCEQUENCH	4		/* packet lost, slow down */
+#define	ICMP_REDIRECT		5		/* shorter route, codes: */
+#define		ICMP_REDIRECT_NET	0		/* for network */
+#define		ICMP_REDIRECT_HOST	1		/* for host */
+#define		ICMP_REDIRECT_TOSNET	2		/* for tos and net */
+#define		ICMP_REDIRECT_TOSHOST	3		/* for tos and host */
+#define	ICMP_ECHO		8		/* echo service */
+#define	ICMP_ROUTERADVERT	9		/* router advertisement */
+#define	ICMP_ROUTERSOLICIT	10		/* router solicitation */
+#define	ICMP_TIMXCEED		11		/* time exceeded, code: */
+#define		ICMP_TIMXCEED_INTRANS	0		/* ttl==0 in transit */
+#define		ICMP_TIMXCEED_REASS	1		/* ttl==0 in reass */
+#define	ICMP_PARAMPROB		12		/* ip header bad */
+#define		ICMP_PARAMPROB_OPTABSENT 1		/* req. opt. absent */
+#define	ICMP_TSTAMP		13		/* timestamp request */
+#define	ICMP_TSTAMPREPLY	14		/* timestamp reply */
+#define	ICMP_IREQ		15		/* information request */
+#define	ICMP_IREQREPLY		16		/* information reply */
+#define	ICMP_MASKREQ		17		/* address mask request */
+#define	ICMP_MASKREPLY		18		/* address mask reply */
+
+#define	ICMP_MAXTYPE		18
+
+#define	ICMP_INFOTYPE(type) \
+	((type) == ICMP_ECHOREPLY || (type) == ICMP_ECHO || \
+	(type) == ICMP_ROUTERADVERT || (type) == ICMP_ROUTERSOLICIT || \
+	(type) == ICMP_TSTAMP || (type) == ICMP_TSTAMPREPLY || \
+	(type) == ICMP_IREQ || (type) == ICMP_IREQREPLY || \
+	(type) == ICMP_MASKREQ || (type) == ICMP_MASKREPLY)
+#define	ICMP_MPLS_EXT_TYPE(type) \
+	((type) == ICMP_UNREACH || (type) == ICMP_TIMXCEED)
 /* rfc1700 */
 #ifndef ICMP_UNREACH_NET_UNKNOWN
 #define ICMP_UNREACH_NET_UNKNOWN	6	/* destination net unknown */
@@ -84,14 +206,6 @@ struct rtentry;
 #endif
 #ifndef ICMP_UNREACH_PRECEDENCE_CUTOFF
 #define ICMP_UNREACH_PRECEDENCE_CUTOFF	15	/* precedence cutoff */
-#endif
-
-/* rfc1256 */
-#ifndef ICMP_ROUTERADVERT
-#define ICMP_ROUTERADVERT		9	/* router advertisement */
-#endif
-#ifndef ICMP_ROUTERSOLICIT
-#define ICMP_ROUTERSOLICIT		10	/* router solicitation */
 #endif
 
 /* Most of the icmp types */
@@ -140,21 +254,21 @@ static struct tok type2str[] = {
 	{ ICMP_REDIRECT_NET,		"redirect %s to net %s" },
 	{ ICMP_REDIRECT_HOST,		"redirect %s to host %s" },
 	{ ICMP_REDIRECT_TOSNET,		"redirect-tos %s to net %s" },
-	{ ICMP_REDIRECT_TOSHOST,	"redirect-tos %s to net %s" },
+	{ ICMP_REDIRECT_TOSHOST,	"redirect-tos %s to host %s" },
 	{ 0,				NULL }
 };
 
 /* rfc1191 */
 struct mtu_discovery {
-	short unused;
-	short nexthopmtu;
+	u_int16_t unused;
+	u_int16_t nexthopmtu;
 };
 
 /* rfc1256 */
 struct ih_rdiscovery {
-	u_char ird_addrnum;
-	u_char ird_addrsiz;
-	u_short ird_lifetime;
+	u_int8_t ird_addrnum;
+	u_int8_t ird_addrsiz;
+	u_int16_t ird_lifetime;
 };
 
 struct id_rdiscovery {
@@ -162,28 +276,68 @@ struct id_rdiscovery {
 	u_int32_t ird_pref;
 };
 
+/* draft-bonica-icmp-mpls-02 */
+struct icmp_mpls_ext_object_header_t {
+    u_int8_t length[2];
+    u_int8_t class_num;
+    u_int8_t ctype;
+};
+
+static const struct tok icmp_mpls_ext_obj_values[] = {
+    { 1, "MPLS Stack Entry" },
+    { 2, "Extended Payload" },
+    { 0, NULL}
+};
+
+/* prototypes */
+const char *icmp_tstamp_print(u_int);
+
+/* print the milliseconds since midnight UTC */
+const char *
+icmp_tstamp_print(u_int tstamp) {
+    u_int msec,sec,min,hrs;
+
+    static char buf[64];
+
+    msec = tstamp % 1000;
+    sec = tstamp / 1000;
+    min = sec / 60; sec -= min * 60;
+    hrs = min / 60; min -= hrs * 60;
+    snprintf(buf, sizeof(buf), "%02u:%02u:%02u.%03u",hrs,min,sec,msec);
+    return buf;
+}
+ 
 void
-icmp_print(register const u_char *bp, register const u_char *bp2)
+icmp_print(const u_char *bp, u_int plen, const u_char *bp2, int fragmented)
 {
-	register char *cp;
-	register const struct icmp *dp;
-	register const struct ip *ip;
-	register const char *str, *fmt;
-	register const struct ip *oip;
-	register const struct udphdr *ouh;
-	register u_int hlen, dport, mtu;
-	char buf[256];
+	char *cp;
+	const struct icmp *dp;
+	const struct ip *ip;
+	const char *str, *fmt;
+	const struct ip *oip;
+	const struct udphdr *ouh;
+        const u_int8_t *obj_tptr;
+        u_int32_t raw_label;
+	const struct icmp_mpls_ext_object_header_t *icmp_mpls_ext_object_header;
+	u_int hlen, dport, mtu, obj_tlen, obj_class_num, obj_ctype;
+	char buf[MAXHOSTNAMELEN + 100];
 
 	dp = (struct icmp *)bp;
 	ip = (struct ip *)bp2;
 	str = buf;
 
-        (void)printf("%s > %s: ",
-		ipaddr_string(&ip->ip_src),
-		ipaddr_string(&ip->ip_dst));
-
 	TCHECK(dp->icmp_code);
 	switch (dp->icmp_type) {
+
+	case ICMP_ECHO:
+	case ICMP_ECHOREPLY:
+		TCHECK(dp->icmp_seq);
+		(void)snprintf(buf, sizeof(buf), "echo %s, id %u, seq %u",
+                               dp->icmp_type == ICMP_ECHO ?
+                               "request" : "reply",
+                               EXTRACT_16BITS(&dp->icmp_id),
+                               EXTRACT_16BITS(&dp->icmp_seq));
+		break;
 
 	case ICMP_UNREACH:
 		TCHECK(dp->icmp_ip.ip_dst);
@@ -191,35 +345,37 @@ icmp_print(register const u_char *bp, register const u_char *bp2)
 
 		case ICMP_UNREACH_PROTOCOL:
 			TCHECK(dp->icmp_ip.ip_p);
-			(void)sprintf(buf, "%s protocol %d unreachable",
-				       ipaddr_string(&dp->icmp_ip.ip_dst),
-				       dp->icmp_ip.ip_p);
+			(void)snprintf(buf, sizeof(buf),
+			    "%s protocol %d unreachable",
+			    ipaddr_string(&dp->icmp_ip.ip_dst),
+			    dp->icmp_ip.ip_p);
 			break;
 
 		case ICMP_UNREACH_PORT:
 			TCHECK(dp->icmp_ip.ip_p);
 			oip = &dp->icmp_ip;
-			hlen = oip->ip_hl * 4;
+			hlen = IP_HL(oip) * 4;
 			ouh = (struct udphdr *)(((u_char *)oip) + hlen);
-			dport = ntohs(ouh->uh_dport);
+			TCHECK(ouh->uh_dport);
+			dport = EXTRACT_16BITS(&ouh->uh_dport);
 			switch (oip->ip_p) {
 
 			case IPPROTO_TCP:
-				(void)sprintf(buf,
+				(void)snprintf(buf, sizeof(buf),
 					"%s tcp port %s unreachable",
 					ipaddr_string(&oip->ip_dst),
 					tcpport_string(dport));
 				break;
 
 			case IPPROTO_UDP:
-				(void)sprintf(buf,
+				(void)snprintf(buf, sizeof(buf),
 					"%s udp port %s unreachable",
 					ipaddr_string(&oip->ip_dst),
 					udpport_string(dport));
 				break;
 
 			default:
-				(void)sprintf(buf,
+				(void)snprintf(buf, sizeof(buf),
 					"%s protocol %d port %d unreachable",
 					ipaddr_string(&oip->ip_dst),
 					oip->ip_p, dport);
@@ -228,26 +384,26 @@ icmp_print(register const u_char *bp, register const u_char *bp2)
 			break;
 
 		case ICMP_UNREACH_NEEDFRAG:
-			{
+		    {
 			register const struct mtu_discovery *mp;
-
 			mp = (struct mtu_discovery *)&dp->icmp_void;
-                        mtu = EXTRACT_16BITS(&mp->nexthopmtu);
-                        if (mtu)
-			    (void)sprintf(buf,
-				"%s unreachable - need to frag (mtu %d)",
-				ipaddr_string(&dp->icmp_ip.ip_dst), mtu);
-                        else
-			    (void)sprintf(buf,
-				"%s unreachable - need to frag",
-				ipaddr_string(&dp->icmp_ip.ip_dst));
+			mtu = EXTRACT_16BITS(&mp->nexthopmtu);
+			if (mtu) {
+				(void)snprintf(buf, sizeof(buf),
+				    "%s unreachable - need to frag (mtu %d)",
+				    ipaddr_string(&dp->icmp_ip.ip_dst), mtu);
+			} else {
+				(void)snprintf(buf, sizeof(buf),
+				    "%s unreachable - need to frag",
+				    ipaddr_string(&dp->icmp_ip.ip_dst));
 			}
+		    }
 			break;
 
 		default:
 			fmt = tok2str(unreach2str, "#%d %%s unreachable",
 			    dp->icmp_code);
-			(void)sprintf(buf, fmt,
+			(void)snprintf(buf, sizeof(buf), fmt,
 			    ipaddr_string(&dp->icmp_ip.ip_dst));
 			break;
 		}
@@ -257,55 +413,60 @@ icmp_print(register const u_char *bp, register const u_char *bp2)
 		TCHECK(dp->icmp_ip.ip_dst);
 		fmt = tok2str(type2str, "redirect-#%d %%s to net %%s",
 		    dp->icmp_code);
-		(void)sprintf(buf, fmt,
+		(void)snprintf(buf, sizeof(buf), fmt,
 		    ipaddr_string(&dp->icmp_ip.ip_dst),
 		    ipaddr_string(&dp->icmp_gwaddr));
 		break;
 
 	case ICMP_ROUTERADVERT:
-		{
+	    {
 		register const struct ih_rdiscovery *ihp;
 		register const struct id_rdiscovery *idp;
 		u_int lifetime, num, size;
 
-		(void)strcpy(buf, "router advertisement");
+		(void)snprintf(buf, sizeof(buf), "router advertisement");
 		cp = buf + strlen(buf);
 
 		ihp = (struct ih_rdiscovery *)&dp->icmp_void;
 		TCHECK(*ihp);
-		(void)strcpy(cp, " lifetime ");
+		(void)strncpy(cp, " lifetime ", sizeof(buf) - (cp - buf));
 		cp = buf + strlen(buf);
 		lifetime = EXTRACT_16BITS(&ihp->ird_lifetime);
-		if (lifetime < 60)
-			(void)sprintf(cp, "%u", lifetime);
-		else if (lifetime < 60 * 60)
-			(void)sprintf(cp, "%u:%02u",
+		if (lifetime < 60) {
+			(void)snprintf(cp, sizeof(buf) - (cp - buf), "%u",
+			    lifetime);
+		} else if (lifetime < 60 * 60) {
+			(void)snprintf(cp, sizeof(buf) - (cp - buf), "%u:%02u",
 			    lifetime / 60, lifetime % 60);
-		else
-			(void)sprintf(cp, "%u:%02u:%02u",
+		} else {
+			(void)snprintf(cp, sizeof(buf) - (cp - buf),
+			    "%u:%02u:%02u",
 			    lifetime / 3600,
 			    (lifetime % 3600) / 60,
 			    lifetime % 60);
+		}
 		cp = buf + strlen(buf);
 
 		num = ihp->ird_addrnum;
-		(void)sprintf(cp, " %d:", num);
+		(void)snprintf(cp, sizeof(buf) - (cp - buf), " %d:", num);
 		cp = buf + strlen(buf);
 
 		size = ihp->ird_addrsiz;
 		if (size != 2) {
-			(void)sprintf(cp, " [size %d]", size);
+			(void)snprintf(cp, sizeof(buf) - (cp - buf),
+			    " [size %d]", size);
 			break;
 		}
 		idp = (struct id_rdiscovery *)&dp->icmp_data;
 		while (num-- > 0) {
 			TCHECK(*idp);
-			(void)sprintf(cp, " {%s %u}",
+			(void)snprintf(cp, sizeof(buf) - (cp - buf), " {%s %u}",
 			    ipaddr_string(&idp->ird_addr),
 			    EXTRACT_32BITS(&idp->ird_pref));
 			cp = buf + strlen(buf);
+			++idp;
 		}
-		}
+	    }
 		break;
 
 	case ICMP_TIMXCEED:
@@ -321,33 +482,150 @@ icmp_print(register const u_char *bp, register const u_char *bp2)
 			break;
 
 		default:
-			(void)sprintf(buf, "time exceeded-#%d", dp->icmp_code);
+			(void)snprintf(buf, sizeof(buf), "time exceeded-#%d",
+			    dp->icmp_code);
 			break;
 		}
 		break;
 
 	case ICMP_PARAMPROB:
 		if (dp->icmp_code)
-			(void)sprintf(buf, "parameter problem - code %d",
-					dp->icmp_code);
+			(void)snprintf(buf, sizeof(buf),
+			    "parameter problem - code %d", dp->icmp_code);
 		else {
 			TCHECK(dp->icmp_pptr);
-			(void)sprintf(buf, "parameter problem - octet %d",
-					dp->icmp_pptr);
+			(void)snprintf(buf, sizeof(buf),
+			    "parameter problem - octet %d", dp->icmp_pptr);
 		}
 		break;
 
 	case ICMP_MASKREPLY:
 		TCHECK(dp->icmp_mask);
-		(void)sprintf(buf, "address mask is 0x%08x",
-		    (u_int32_t)ntohl(dp->icmp_mask));
+		(void)snprintf(buf, sizeof(buf), "address mask is 0x%08x",
+		    EXTRACT_32BITS(&dp->icmp_mask));
 		break;
+
+	case ICMP_TSTAMP:
+		TCHECK(dp->icmp_seq);
+		(void)snprintf(buf, sizeof(buf),
+		    "time stamp query id %u seq %u",
+		    EXTRACT_16BITS(&dp->icmp_id),
+		    EXTRACT_16BITS(&dp->icmp_seq));
+		break;
+
+	case ICMP_TSTAMPREPLY:
+		TCHECK(dp->icmp_ttime);
+		(void)snprintf(buf, sizeof(buf),
+		    "time stamp reply id %u seq %u: org %s",
+                               EXTRACT_16BITS(&dp->icmp_id),
+                               EXTRACT_16BITS(&dp->icmp_seq),
+                               icmp_tstamp_print(EXTRACT_32BITS(&dp->icmp_otime)));
+
+                (void)snprintf(buf+strlen(buf),sizeof(buf)-strlen(buf),", recv %s",
+                         icmp_tstamp_print(EXTRACT_32BITS(&dp->icmp_rtime)));
+                (void)snprintf(buf+strlen(buf),sizeof(buf)-strlen(buf),", xmit %s",
+                         icmp_tstamp_print(EXTRACT_32BITS(&dp->icmp_ttime)));
+                break;
 
 	default:
 		str = tok2str(icmp2str, "type-#%d", dp->icmp_type);
 		break;
 	}
-        (void)printf("icmp: %s", str);
+	(void)printf("ICMP %s, length %u", str, plen);
+	if (vflag && !fragmented) { /* don't attempt checksumming if this is a frag */
+		u_int16_t sum, icmp_sum;
+		if (TTEST2(*bp, plen)) {
+			sum = in_cksum((u_short*)dp, plen, 0);
+			if (sum != 0) {
+				icmp_sum = EXTRACT_16BITS(&dp->icmp_cksum);
+				(void)printf(" (wrong icmp cksum %x (->%x)!)",
+					     icmp_sum,
+					     in_cksum_shouldbe(icmp_sum, sum));
+			}
+		}
+	}
+	if (vflag >= 1 && !ICMP_INFOTYPE(dp->icmp_type)) {
+		bp += 8;
+		(void)printf("\n\t");
+		ip = (struct ip *)bp;
+		snaplen = snapend - bp;
+		ip_print(gndo, bp, EXTRACT_16BITS(&ip->ip_len));
+	}
+
+        if (vflag >= 1 && plen > ICMP_EXTD_MINLEN && ICMP_MPLS_EXT_TYPE(dp->icmp_type)) {
+
+            TCHECK(*(dp->icmp_mpls_ext_version));
+            printf("\n\tMPLS extension v%u",ICMP_MPLS_EXT_EXTRACT_VERSION(*(dp->icmp_mpls_ext_version)));
+            
+            /*
+             * Sanity checking of the header.
+             */
+            if (ICMP_MPLS_EXT_EXTRACT_VERSION(*(dp->icmp_mpls_ext_version)) != ICMP_MPLS_EXT_VERSION) {
+                printf(" packet not supported");
+                return;
+            }
+
+            hlen = plen - ICMP_EXTD_MINLEN;
+            TCHECK2(*(dp->icmp_mpls_ext_checksum), 2);
+            printf(", checksum 0x%04x (unverified), length %u", /* FIXME */
+                   EXTRACT_16BITS(dp->icmp_mpls_ext_checksum),
+                   hlen);
+
+            hlen -= 4; /* subtract common header size */
+            obj_tptr = (u_int8_t *)dp->icmp_mpls_ext_data;
+
+            while (hlen > sizeof(struct icmp_mpls_ext_object_header_t)) {
+
+                icmp_mpls_ext_object_header = (struct icmp_mpls_ext_object_header_t *)obj_tptr;
+                TCHECK(*icmp_mpls_ext_object_header);
+                obj_tlen = EXTRACT_16BITS(icmp_mpls_ext_object_header->length);
+                obj_class_num = icmp_mpls_ext_object_header->class_num;
+                obj_ctype = icmp_mpls_ext_object_header->ctype;
+                obj_tptr += sizeof(struct icmp_mpls_ext_object_header_t);
+
+                printf("\n\t  %s Object (%u), Class-Type: %u, length %u",
+                       tok2str(icmp_mpls_ext_obj_values,"unknown",obj_class_num),
+                       obj_class_num,
+                       obj_ctype,
+                       obj_tlen);
+
+                hlen-=sizeof(struct icmp_mpls_ext_object_header_t); /* length field includes tlv header */
+                if (obj_tlen < sizeof(struct icmp_mpls_ext_object_header_t))
+                    break;
+                obj_tlen-=sizeof(struct icmp_mpls_ext_object_header_t);
+
+                switch (obj_class_num) {
+                case 1:
+                    switch(obj_ctype) {
+                    case 1:
+                        TCHECK2(*obj_tptr, 4);
+                        raw_label = EXTRACT_32BITS(obj_tptr);
+                        printf("\n\t    label %u, exp %u", MPLS_LABEL(raw_label), MPLS_EXP(raw_label));
+                        if (MPLS_STACK(raw_label))
+                            printf(", [S]");
+                        printf(", ttl %u", MPLS_TTL(raw_label));
+                        break;
+                    default:
+                        print_unknown_data(obj_tptr, "\n\t    ", obj_tlen);
+                    }
+                    break;
+
+               /*
+                *  FIXME those are the defined objects that lack a decoder
+                *  you are welcome to contribute code ;-)
+                */
+                case 2:
+                default:
+                    print_unknown_data(obj_tptr, "\n\t    ", obj_tlen);
+                    break;
+                }
+                if (hlen < obj_tlen)
+                    break;
+                hlen -= obj_tlen;
+                obj_tptr += obj_tlen;
+            }
+        }
+
 	return;
 trunc:
 	fputs("[|icmp]", stdout);

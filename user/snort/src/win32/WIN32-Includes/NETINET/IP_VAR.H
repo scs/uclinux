@@ -37,7 +37,7 @@
 #include <endian.h>
 #else
 typedef char *	caddr_t;
-#include <winsock.h>
+#include <winsock2.h>
 #ifndef LITTLE_ENDIAN
 #define LITTLE_ENDIAN 1234
 #define BIG_ENDIAN 4321

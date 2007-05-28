@@ -1,46 +1,40 @@
 #
-# This script was written by Michael Scheidell SECNAP Network Security
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-# re-release, microsoft patched the patch, new qnumber, registry, etc
 
 if(description)
 {
  script_id(11178);
- script_version("$Revision: 1.3 $");
- script_cve_id("CAN-2002-1214");
+ script_bugtraq_id(5807, 6067);
+ script_version("$Revision: 1.15 $");
+ script_cve_id("CVE-2002-1214");
 
  name["english"] = "Unchecked Buffer in PPTP Implementation Could Enable DOS Attacks (Q329834)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-Hotfix to fix Unchecked Buffer in PPTP Implementation 
- (Q329834) is not installed.
+Synopsis :
 
-A security vulnerability results in the Windows 2000 and 
-Windows XP implementations because of an unchecked buffer
-in a section of code that processes the control data used
-to establish, maintain and tear down PPTP connections. By
-delivering specially malformed PPTP control data to an
-affected server, an attacker could corrupt kernel memory
-and cause the system to fail, disrupting any work in progress
-on the system. 
+It is possible to crash the remote system.
 
-Impact of vulnerability: Denial of service
-Maximum Severity Rating: Critical 
+Description :
 
-Recommendation: Administrators should install the patch immediately. 
+The remote version of Windows contains a flaw in his PPTP implementation.
+If the remote host is configured to act as a PPTP server, a remote 
+attacker can send a specially crafted packet to corrupt the kernel
+memory and crash the remote system.
 
-Affected Software: 
+Solution : 
 
-Microsoft Windows 2000 
-Microsoft Windows XP 
+Microsoft has released a set of patches for Windows XP and 2000 :
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-063.asp
+http://www.microsoft.com/technet/security/bulletin/ms02-063.mspx
 
-Risk factor : High";
+Risk factor :
+
+Medium / CVSS Base Score : 5 
+(AV:R/AC:L/Au:NR/C:N/A:C/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
@@ -50,51 +44,33 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 SECNAP Network Security, LLC");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_XP.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
- script_exclude_keys("SMB/WinNT4/ServicePack");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
+
+if ( hotfix_check_sp(win2k:4, xp:2) <= 0 ) exit(0);
 
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-
-version = get_kb_item("SMB/WindowsVersion");
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\Hotfix\Q329834";
-item = "Comments";
-
-if("5.0" >< version)
+if (is_accessible_share())
 {
-# fixed in Service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
-}
+ if ( hotfix_is_vulnerable (os:"5.1", sp:1, file:"Raspptp.sys", version:"5.1.2600.1129", dir:"\system32\drivers") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Raspptp.sys", version:"5.1.2600.101", dir:"\system32\drivers") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Raspptp.sys", version:"5.0.2195.6076", dir:"\system32\drivers") )
+   security_warning (get_kb_item("SMB/transport"));
  
-if("5.1" >< version)
-{
-# fixed in SP 2
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
+ hotfix_check_fversion_end();
+ exit (0);
 }
-
+else if ( hotfix_missing(name:"Q329834") > 0 )
+  security_warning(get_kb_item("SMB/transport"));
 

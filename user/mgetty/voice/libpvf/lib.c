@@ -3,7 +3,7 @@
  *
  * Contains some basic functions for reading and writing files
  *
- * $Id$
+ * $Id: lib.c,v 1.4 1998/09/09 21:07:00 gert Exp $
  *
  */
 

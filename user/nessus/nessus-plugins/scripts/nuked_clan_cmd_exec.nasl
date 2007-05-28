@@ -17,8 +17,9 @@
 if(description)
 {
  script_id(11282);
- script_bugtraq_id(6916, 6917, 6697, 6699, 6700); 
- script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-2003-1238");
+ script_bugtraq_id(6697, 6699, 6700, 6916, 6917);
+ script_version ("$Revision: 1.14 $");
 
  name["english"] = "Nuked-Klan function execution";
 
@@ -35,7 +36,7 @@ In addition to this problem, this service is vulnerable to
 various cross site scripting attacks.
 
 Solution : contact the author for a patch
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -51,11 +52,12 @@ Risk factor : Serious";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -65,28 +67,34 @@ Risk factor : Serious";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
-
-
-
+if(!can_host_php(port:port))exit(0);
 
 function check(loc, module)
 {
- req = http_get(item:string(loc, "/index.php?file=", module, "&op=phpinfo"),
- 		port:port);	
+ local_var	url, req, r, h;
+
+ if (! loc && report_paranoia < 2) return;	# Might generate a FP
+
+ url = strcat(loc, "/index.php?file=", module, "&op=phpinfo");
+ req = http_get(item: url, port:port);	
  r = http_keepalive_send_recv(port:port, data:req);
- if( r == NULL )exit(0);
+ if (isnull(r)) exit(0);
  if("allow_call_time_pass_reference" >< r){
  	security_hole(port);
+	if (get_port_transport(port) > NESSUS_ENCAPS_IP) h = 'https';
+	else h = 'http';
+	log_print('Vulnerable Nuke clan found at ', h, '://', get_host_ip(), ':', port, url, '\n');
 	exit(0);
   }
 }
 
 
-dirs = make_list("", "/nuked-clan", "/clan-nic", "/klan", "/clan", cgi_dirs());
+dirs = make_list("/nuked-clan", "/clan-nic", "/klan", "/clan", cgi_dirs());
 
 
 foreach dir (dirs)

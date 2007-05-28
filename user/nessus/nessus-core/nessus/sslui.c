@@ -223,7 +223,8 @@ paranoid.\n";
   printf("%s", question);
   ret = 0;
   }
-  while(scanf("%d", &ret) == 0);
+  while( (ret = (getc(stdin) - '0')) != 1 && ret != 2 && ret != 3 );
+
   if(ret >= 1 && ret <= 3)
    {
    return ret;

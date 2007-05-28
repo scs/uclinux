@@ -1,7 +1,7 @@
 /*
  * Route & Record-Route module, loose routing support
  *
- * $Id$
+ * $Id: loose.h,v 1.2 2003/04/03 16:39:30 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

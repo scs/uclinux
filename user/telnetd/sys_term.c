@@ -36,7 +36,7 @@
  * From: @(#)sys_term.c	5.16 (Berkeley) 3/22/91
  */
 char st_rcsid[] = 
-  "$Id$";
+  "$Id: sys_term.c,v 1.8 2004/12/06 22:35:28 davidm Exp $";
 #endif
 
 #include "telnetd.h"

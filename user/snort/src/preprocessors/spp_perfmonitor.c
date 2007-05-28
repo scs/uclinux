@@ -36,12 +36,20 @@
 #include "snort.h"
 #include "perf.h"
 
+#include "profiler.h"
+
 /*
 *  Protype these forward references, and don't clutter up the name space
 */
 static void PerfMonitorInit(u_char *args);
 static void ParsePerfMonitorArgs(char *args);
-static void ProcessPerfMonitor(Packet *p);
+static void ProcessPerfMonitor(Packet *p, void *);
+void PerfMonitorCleanExit(int, void *);
+void PerfMonitorRestart(int, void *);
+
+#ifdef PERF_PROFILING
+PreprocStats perfmonStats;
+#endif
 
 /*
  * Function: SetupPerfMonitor()
@@ -83,7 +91,23 @@ static void PerfMonitorInit(u_char *args)
     ParsePerfMonitorArgs((char*)args);
 
     /* Set the preprocessor function into the function list */
-    AddFuncToPreprocList(ProcessPerfMonitor);
+    AddFuncToPreprocList(ProcessPerfMonitor, PRIORITY_SCANNER, PP_PERFMONITOR);
+
+#ifdef PERF_PROFILING
+    RegisterPreprocessorProfile("perfmon", &perfmonStats, 0, &totalPerfStats);
+#endif
+}
+
+/*
+   Perf file -  specified on the command line 
+*/
+static char perf_file[1025]={""};
+void SetPerfmonitorFile( char * s )
+{
+   if( strlen(s) < sizeof(perf_file)-1 )
+   {
+      strcpy(perf_file,s);
+   }
 }
 
 /*
@@ -106,10 +130,11 @@ static void ParsePerfMonitorArgs( char *args)
 {
     char **Tokens=NULL;
     int   iTokenNum=0;
-    int   i, iTime=60, iFlow=0, iEvents=0, iMaxPerfStats=0;
+    int   i, iTime=60, iFlow=0, iFlowMaxPort=1023, iEvents=0, iMaxPerfStats=0;
     int   iFile=0, iSnortFile=0, iConsole=0, iPkts=10000, iReset=0;
-    char  file[1024];
-    char  snortfile[1024];
+    int   iStatsExit=0;
+    char  file[1025];
+    char  snortfile[1025];
     int   iRet;
     char  *pcEnd;
 
@@ -134,7 +159,17 @@ static void ParsePerfMonitorArgs( char *args)
             if(iTime <= 0 || *pcEnd)
                 FatalError("%s(%d) => Invalid Time.  The value must be a "
                            "positive integer number.\n", file_name, file_line);
-	 
+        }
+        else if( strcmp( Tokens[i],"flow-ports")==0 )
+        {
+              i++;
+              if( (i< iTokenNum) && Tokens[i] )
+                  iFlowMaxPort= atoi(Tokens[i]);
+              
+              if( iFlowMaxPort > SF_MAX_PORT )
+                  iFlowMaxPort = SF_MAX_PORT;
+
+              iFlow=1;
         }
         else if( strcmp( Tokens[i],"flow")==0 )
         {
@@ -147,13 +182,13 @@ static void ParsePerfMonitorArgs( char *args)
             iFlow = 1;
         }       
         else if( strcmp( Tokens[i],"accumulate")==0)
-	{
-		iReset=0;
-	}
+        {
+            iReset=0;
+        }
         else if( strcmp( Tokens[i],"reset")==0 )
-	{
-		iReset=1;
-	}
+        {
+            iReset=1;
+        }
         else if( strcmp( Tokens[i],"events")==0 )
         {
             /*
@@ -225,7 +260,12 @@ static void ParsePerfMonitorArgs( char *args)
             }
 
             iPkts = atoi(Tokens[++i]);
-	        if( iPkts < 0 ) iPkts = 1000;
+            if( iPkts < 0 )
+                iPkts = 1000;
+        }
+        else if (!strcmp(Tokens[i], "atexitonly"))
+        {
+            iStatsExit = 1;
         }
         else
         {
@@ -247,7 +287,11 @@ static void ParsePerfMonitorArgs( char *args)
     
     sfSetPerformanceAccounting( &sfPerf, iReset );
     
-    if( iFlow  ) sfSetPerformanceStatistics( &sfPerf, SFPERF_FLOW );
+    if( iFlow  )
+    {
+        sfSetPerformanceStatistics( &sfPerf, SFPERF_FLOW );
+        sfPerf.sfFlow.maxPortToTrack = iFlowMaxPort;
+    }
     
     if( iEvents) sfSetPerformanceStatistics( &sfPerf, SFPERF_EVENT );
 
@@ -255,32 +299,44 @@ static void ParsePerfMonitorArgs( char *args)
      
     if( iConsole ) sfSetPerformanceStatistics( &sfPerf, SFPERF_CONSOLE );
 
-  
-    
-    if( !(iFile && iSnortFile) ) 
-    {
-        if(iFile)
-        {
-            if( sfSetPerformanceStatisticsEx( &sfPerf, SFPERF_FILE, file ) )
-            {
-                FatalError("Cannot open performance log file '%s'\n",file);
-            }
-        }
-        else if(iSnortFile)
-        {
-            if( sfSetPerformanceStatisticsEx(&sfPerf, SFPERF_FILE, snortfile) )
-            {
-                FatalError("Cannot open performance log file '%s'\n",snortfile);
-            }
-        }
-    }
-    else
+    if( iFile && iSnortFile )
     {
         FatalError("%s(%d)=> Cannot log to both 'file' and 'snortfile'.\n",
                    file_name, file_line);
     }
     
-    if( iPkts ) sfSetPerformanceStatisticsEx( &sfPerf, SFPERF_PKTCNT, &iPkts );
+    if( iFile || iSnortFile || strlen(perf_file) ) 
+    {
+        /* use command line override if applicable */
+        if( strlen(perf_file) )
+        {
+            iFile=1;
+            if( sfSetPerformanceStatisticsEx( &sfPerf, SFPERF_FILE, perf_file ) )
+            {
+                FatalError("Cannot open performance log file '%s'\n",perf_file);
+            }
+        }
+        else
+        {
+            if(iFile)
+            {
+                if( sfSetPerformanceStatisticsEx( &sfPerf, SFPERF_FILE, file ) )
+                {
+                    FatalError("Cannot open performance log file '%s'\n",file);
+                }
+            }
+            else if(iSnortFile)
+            {
+                if( sfSetPerformanceStatisticsEx(&sfPerf, SFPERF_FILE, snortfile) )
+                {
+                    FatalError("Cannot open performance log file '%s'\n",snortfile);
+                }
+            }
+        }
+    }
+    
+    if( iPkts) sfSetPerformanceStatisticsEx( &sfPerf, SFPERF_PKTCNT, &iPkts );
+    if( iStatsExit) sfSetPerformanceStatisticsEx( &sfPerf, SFPERF_SUMMARY, &iStatsExit );
 
     LogMessage("PerfMonitor config:\n");
     LogMessage("    Time:           %d seconds\n", iTime);
@@ -294,7 +350,17 @@ static void ParsePerfMonitorArgs( char *args)
     LogMessage("    SnortFile Mode: %s\n", 
             iSnortFile ? snortfile : "INACTIVE");
     LogMessage("    Packet Count:   %d\n", iPkts);
-    
+    LogMessage("    Dump Summary:   %s\n", sfPerf.iPerfFlags & SFPERF_SUMMARY ?
+        "Yes" : "No");
+
+    AddFuncToPreprocCleanExitList(PerfMonitorCleanExit, NULL, PRIORITY_LAST, PP_PERFMONITOR);
+    AddFuncToPreprocRestartList(PerfMonitorRestart, NULL, PRIORITY_LAST, PP_PERFMONITOR);
+
+    if (sfPerf.iPerfFlags & SFPERF_SUMMARY)
+    {
+        CheckSampleInterval(time(NULL), &sfPerf);
+    }
+   
     return;
 }
 
@@ -312,11 +378,37 @@ static void ParsePerfMonitorArgs( char *args)
  * Returns: void function
  *
  */
-static void ProcessPerfMonitor(Packet *p)
+static void ProcessPerfMonitor(Packet *p, void *context)
 {
+    static  int first=1;
+    PROFILE_VARS;
+
+    if( first )
+    {
+        extern pcap_t * pd;
+        struct pcap_stat pcapStats;
+        if(pd) pcap_stats(pd,&pcapStats);
+        first=0;
+        sfPerf.sfBase.pkt_stats.pkts_recv = pcapStats.ps_recv;
+        sfPerf.sfBase.pkt_stats.pkts_drop = pcapStats.ps_drop;
+    }
+
+    if(p == NULL) 
+    {
+        return;
+    }
+
+
+    PREPROC_PROFILE_START(perfmonStats);
     /*
     *  Performance Statistics  
     */
+    if (pv.rotate_perf_file)
+    {
+        sfRotatePerformanceStatisticsFile(&sfPerf);
+        pv.rotate_perf_file = 0;
+    }
+
     if(sfPerf.sample_interval > 0)
     {
         if(p->pkth)
@@ -343,7 +435,7 @@ static void ProcessPerfMonitor(Packet *p)
     /*
     *  TCP Flow Perf
     */
-    if(sfPerf.iPerfFlags & SFPERF_FLOW)
+    if(p->pkth && (sfPerf.iPerfFlags & SFPERF_FLOW))
    {
         /*
         **  TCP Flow Stats
@@ -365,5 +457,34 @@ static void ProcessPerfMonitor(Packet *p)
             UpdateICMPFlowStatsEx(p->icmph->type, p->pkth->caplen);
     }
 
+    PREPROC_PROFILE_END(perfmonStats);
     return;
 }
+
+/**
+ * CleanExit func required by preprocessors
+ */
+void PerfMonitorCleanExit(int signal, void *foo)
+{
+    if (sfPerf.iPerfFlags & SFPERF_SUMMARY)
+    {
+        sfProcessPerfStats(&sfPerf);
+    }
+
+    /* Close the performance stats file */
+    sfSetPerformanceStatisticsEx(&sfPerf, SFPERF_FILECLOSE, NULL);
+
+    return;
+}
+
+/**
+ * Restart func required by preprocessors
+ */
+void PerfMonitorRestart(int signal, void *foo)
+{
+    /* Close the performance stats file */
+    sfSetPerformanceStatisticsEx(&sfPerf, SFPERF_FILECLOSE, NULL);
+
+    return;
+}
+

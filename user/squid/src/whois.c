@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: whois.c,v 1.16 2001/04/14 00:03:24 hno Exp $
  *
  * DEBUG: section 75    WHOIS protocol
  * AUTHOR: Duane Wessels, Kostas Anagnostakis

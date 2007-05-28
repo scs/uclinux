@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: api.c,v 1.5.6.4 2004/04/28 13:51:15 janakj Exp $
  *
  * Digest Authentication Module
  *

@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -15,17 +15,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
- *
  */
 #include <includes.h>
 
@@ -37,6 +26,8 @@
 #include "exec.h"
 
 #include "nasl_debug.h"
+
+
 
 static int
 hash_str(const char* s)
@@ -111,6 +102,10 @@ insert_nasl_func(lex_ctxt* lexic, const char* fname, tree_cell* decl_node)
       pf->block = decl_node->link[1];
       ref_cell(pf->block);
     }
+  /* Allow variable number of arguments for user defined functions */
+  if (decl_node != NULL)
+    pf->nb_unnamed_args = 9999;
+
   pf->next_func = lexic->functions[h];
   lexic->functions[h] = pf;
   return pf;
@@ -160,7 +155,7 @@ nasl_func_call(lex_ctxt* lexic, const nasl_func* f, tree_cell* arg_list)
   return FAKE_CELL;
 #else
   int		nb_u = 0, nb_n = 0, nb_a = 0;
-  tree_cell	*pc = NULL, *pc2 = NULL, *pc22 = NULL, *retc = NULL;
+  tree_cell	*pc = NULL, *pc2 = NULL, *retc = NULL;
   lex_ctxt	*lexic2 = NULL;
   char		*trace_buf = NULL;
   int		trace_buf_len = 0, tn;
@@ -173,6 +168,7 @@ nasl_func_call(lex_ctxt* lexic, const nasl_func* f, tree_cell* arg_list)
   /* 1. Create a new context */
   lexic2 = init_empty_lex_ctxt();
   lexic2->script_infos = lexic->script_infos;
+  lexic2->authenticated = lexic->authenticated;
   lexic2->recv_timeout = lexic->recv_timeout;
   lexic2->fct_ctxt = 1;
 
@@ -192,11 +188,7 @@ nasl_func_call(lex_ctxt* lexic, const nasl_func* f, tree_cell* arg_list)
 	else
 	  {
 	    size_t num = f->nb_named_args;
-	    if (lfind(&pc->x.str_val, f->args_names, &num,
-		      sizeof(char*), stringcompare) == NULL)
-	      nasl_perror(lexic, "No such arg '%s' for function '%s' - ignored\n",
-		      pc->x.str_val, f->func_name);
-	    else
+	    if (lfind(&pc->x.str_val, f->args_names, &num, sizeof(char*), stringcompare) != NULL)
 	      nb_n ++;
 	  }
   
@@ -371,8 +363,6 @@ free_func(nasl_func* f)
 void
 free_func_chain(nasl_func* f)
 {
-  int	i;
-
   if (f == NULL)
     return;
   free_func_chain(f->next_func);

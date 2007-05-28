@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10689);
- script_version ("$Revision: 1.7 $");
- script_cve_id("CVE-2001-0252");
  script_bugtraq_id(2282);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-0252");
  
  name["english"] = "Netscape Enterprise '../' buffer overflow";
 
@@ -22,7 +22,7 @@ a too long request with dots (ie: ../../../../ 1000 times)
 An attacker may use this flaw to disable the remote server
 
 Solution : http://www.iplanet.com/support/iws-alert/index.html
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -52,8 +52,8 @@ Risk factor : Serious";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  if(http_is_dead(port:port))exit(0);

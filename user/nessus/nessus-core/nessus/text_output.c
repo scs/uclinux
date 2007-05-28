@@ -71,7 +71,8 @@ void printf_formatted_text(FILE * file, char * text, int width, char * prefix)
  {
   /* go to the end and rewind until we find a space */
   char * t = text + width - pl;	
-  while((t[0]!=' ') && (t[0]!='\n'))
+  if ( t >= (text + length) ) t = NULL;
+  while(t != NULL && (t[0]!=' ') && (t[0]!='\n'))
   {
    t--;
    if(t == text)

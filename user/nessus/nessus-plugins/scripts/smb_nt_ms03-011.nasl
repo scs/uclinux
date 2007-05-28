@@ -1,19 +1,25 @@
 #
-# written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
 
 
 if(description)
 {
  script_id(11528);
- script_version ("$Revision: 1.3 $");
- script_cve_id("CAN-2003-0111");
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2003-0111");
  
  name["english"] = "Flaw in Microsoft VM (816093)";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+Arbitrary code can be executed on the remote host through the VM.
+
+Description :
+
 The remote host is running a Microsoft VM machine which has a bug
 in its bytecode verifier which may allow a remote attacker to execute
 arbitrary code on this host, with the privileges of the user running the VM.
@@ -22,9 +28,16 @@ To exploit this vulnerability, an attacker would need to send a malformed
 applet to a user on this host, and have him execute it. The malicious
 applet would then be able to execute code outside the sandbox of the VM.
 
+Solution : 
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms03-011.asp
-Risk factor : High";
+Microsoft has released a set of patches for the Windows VM :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-011.mspx
+
+Risk factor :
+
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -34,109 +47,55 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2003 - 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys( "SMB/WindowsVersion", "SMB/registry_access");
  script_require_ports(139, 445);
  exit(0);
 }
 
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+
+rootfile = hotfix_get_systemroot();
+if ( ! rootfile ) exit(1);
+
+share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
+file =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\System32\Jview.exe", string:rootfile);
 
 
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\Windows NT\CurrentVersion", item:"SystemRoot");
-if(!rootfile)
-{
- exit(0);
-}
-else
-{
- share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
- file =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\System32\Jview.exe", string:rootfile);
-}
-
-
-
-name 	=  kb_smb_name();
-login	=  kb_smb_login();
-pass  	=  kb_smb_password();
-domain 	=  kb_smb_domain();
 port    =  kb_smb_transport();
-if(!port) port = 139;
-
-
-
-if(!get_port_state(port))exit(0);
-
+if(!get_port_state(port))exit(1);
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if(!soc)exit(1);
 
+session_init(socket:soc, hostname:kb_smb_name());
+r = NetUseAdd(login:kb_smb_login(), password:kb_smb_password(), domain:kb_smb_domain(), share:share);
+if ( r != 1 ) exit(1);
 
-
-r = smb_session_request(soc:soc, remote:name);
-if(!r)exit(0);
-
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);
-
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r)exit(0);
-
-uid = session_extract_uid(reply:r);
-
-
-
-r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-tid = tconx_extract_tid(reply:r);
-if(!tid)exit(0);
-
-fid = OpenAndX(socket:soc, uid:uid, tid:tid, file:file);
-if(!fid)exit(0);
-
-fsize = smb_get_file_size(socket:soc, uid:uid, tid:tid, fid:fid);
-
-
-
-off = fsize - 16384;
-data = ReadAndX(socket:soc, uid:uid, tid:tid, count:16384, off:off);
-data = str_replace(find:raw_string(0), replace:"", string:data);
-
-version = strstr(data, "ProductVersion");
-if(!version)exit(0);
-
-v = "";
-
-for(i=strlen("ProductVersion");i<strlen(version);i++)
+handle =  CreateFile (file:file, desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_NORMAL, share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
+if ( ! isnull(handle) )
 {
- if((ord(version[i]) < ord("0") ||
-    ord(version[i]) > ord("9")) && 
-    version[i] != ".")break;
- else 
-   v += version[i];
-}
-
-
-if(strlen(v))
-{
- # Fixed in >5.0.3809
- 
- vers = split(v, sep:".");
- 
- 
- if(int(vers[0]) > 5)exit(0);
- 
- if(int(vers[0]) < 4)security_hole(port);
+ v = GetFileVersion(handle:handle);
+ CloseFile(handle:handle);
+ if ( ! isnull(v) )
+ {
+  # Fixed in 5.0.3.3810 or newer
+  if ( v[0] < 5 || (v[0] == 5 && v[1] == 0 && ( v[2] < 3 || ( v[2] == 3 && v[3] < 3810 ) ) ) )
+	security_warning ( port );
+  else
+	set_kb_item(name:"KB816093", value:TRUE);
+ } 
  else 
  {
-  if(int(vers[1]) == 0 && int(vers[2]) <= 3809)security_hole(port);
+  NetUseDel();
+  exit(1);
  }
 }
+
+NetUseDel();

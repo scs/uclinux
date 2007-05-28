@@ -16,9 +16,9 @@
 if(description)
 {
   script_id(11093);
-  script_version("$Revision: 1.5 $");
-  script_cve_id("CAN-2001-1109");
-  script_bugtraq_id(3333);
+  script_bugtraq_id(3331, 3333);
+  script_version("$Revision: 1.8 $");
+  script_cve_id("CVE-2001-1109");
  name["english"] = "EFTP installation directory disclosure ";
  name["francais"] = "EFTP révèle le répertoire d'installation";
  
@@ -91,7 +91,7 @@ if(! get_port_state(port)) exit(0);
 soc = open_sock_tcp(port);
 if(! soc) exit(0);
 
-if( ftp_log_in(socket:soc, user:login, pass:pass))
+if( ftp_authenticate(socket:soc, user:login, pass:pass))
 {
   for (i = 0; i < 2; i=i+1)
   {

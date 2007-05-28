@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: seruser.sgml,v 1.34 2003/06/03 02:43:24 jiri Exp $ -->
 <!-- DOCTYPE Book SYSTEM "/usr/share/sgml/docbook/dtd-4.2/docbook.dtd" [ -->
 <!DOCTYPE Book PUBLIC "-//OASIS//DTD DocBook V4.1//EN" [ 
 
@@ -107,7 +107,7 @@
 	    This documentation is continuously updated. For the latest  
 	    version visit our site at 
 	    <ulink url="http://www.iptel.org/ser/">http://www.iptel.org/ser</ulink>.
-	    $Revision$.
+	    $Revision: 1.34 $.
 	</releaseinfo>
     </bookinfo>
 

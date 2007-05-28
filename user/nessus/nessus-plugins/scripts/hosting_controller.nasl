@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11745);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2002-0466");
  script_bugtraq_id(3808);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2002-0466");
  
  name["english"] = "Hosting Controller vulnerable ASP pages";
  name["francais"] = "Hosting Controller vulnerable ASP pages";
@@ -28,7 +28,7 @@ for more information.
 
 Solution : remove or update the software.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -47,6 +47,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -57,9 +58,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
 
 flag = 0;
 directory = "";

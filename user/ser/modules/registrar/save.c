@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: save.c,v 1.22.6.1 2004/07/21 10:34:45 sobomax Exp $
  *
  * Process REGISTER request and send reply
  *

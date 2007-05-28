@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# $Id$
+# $Id: faxview.th,v 1.1 1998/08/31 20:25:37 gert Exp $
 # Program for handling gziped and tarred g3 files
 #
 # use together with "new_fax.th"

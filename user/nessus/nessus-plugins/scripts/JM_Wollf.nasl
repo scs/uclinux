@@ -7,8 +7,8 @@ if(description)
 {
 
  script_id(11881);
- script_version ("$Revision: 1.1 $");
-# script_cve_id("CAN-2003-00002");
+ script_version ("$Revision: 1.5 $");
+# script_cve_id("CVE-2003-00002");
  name["english"] = "Wollf backdoor detection";
  script_name(english:name["english"]);
  
@@ -35,7 +35,7 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 J.Mlødzianøwski");
  family["english"] = "Backdoors";
  script_family(english:family["english"]);
- script_dependencie("nmap_osfingerprint.nes", "find_service.nes");
+ script_dependencie("find_service2.nasl");
  exit(0);
 }
 
@@ -44,25 +44,6 @@ Risk factor : High";
 # The code starts here:
 #
 
-include("misc_func.inc");
+port = get_kb_item("Services/wollf");
+if ( port ) security_hole(port);
 
-port = get_kb_item("Services/unknown");
-if(!port)port = 7614;
-
-if(known_service(port:port))exit(0);
-
-
-# Default Port of Wollf (7614)
- if (get_port_state(port))
-{
- soc = open_sock_tcp(port);
- if(soc)
-{
- #r = recv(socket:soc, length:1024);
- s = string("pass\r\n");
- send(socket:soc, data:s);
- r = recv(socket:soc, length:1024);
- close(soc);
- if ( "Invalid password!!!" >< r ) security_hole(port);
- }
-}

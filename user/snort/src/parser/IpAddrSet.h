@@ -37,9 +37,12 @@ typedef struct _IpAddrSet
 /* flags */
 #define EXCEPT_IP   0x01
 
-void IpAddrSetPrint(IpAddrSet *);
+void IpAddrSetPrint(char *prefix, IpAddrSet *);
 void IpAddrSetDestroy(IpAddrSet *);
 IpAddrSet *IpAddrSetCopy(IpAddrSet *);
+IpAddrSet *IpAddrSetCreate();
+IpAddrSet *IpAddrSetParse(char *);
+int IpAddrSetContains(IpAddrSet *, struct in_addr);
 
 
 /* XXX legacy support function */

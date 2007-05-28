@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11270);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.2 $");
  name["english"] = "SMTP too long line";
  script_name(english:name["english"]);
  
@@ -34,7 +34,7 @@ it is not possible to do it remotely
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
 
- script_dependencie("find_service.nes", "smtp_settings.nasl", "smtp_relay.nasl");
+ script_dependencie("smtpserver_detect.nasl", "smtp_settings.nasl", "smtp_relay.nasl");
  script_require_ports("Services/smtp", 25);
  script_exclude_keys("SMTP/spam", "SMTP/wrapped");
 
@@ -53,6 +53,7 @@ toaddr = smtp_to_header();
 
 port = get_kb_item("Services/smtp");
 if (!port) port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(!get_port_state(port))exit(0);
 

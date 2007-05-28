@@ -18,7 +18,7 @@ char SMTPclient_WhatID[] =
 
 /* a RCS ident(1) id string */
 char SMTPclient_RCSIdentID[] =
-    "$Id$";
+    "$Id: SMTPclient 1.0.0 22-10-1997 $";
 
 /* a WWW id string */
 char SMTPclient_WebID[] =

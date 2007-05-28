@@ -32,7 +32,7 @@
  *
  *	From: @(#)interface.h	5.6 (Berkeley) 6/1/90
  *	From: @(#)interface.h	8.1 (Berkeley) 6/5/93
- *	$Id$
+ *	$Id: interface.h,v 1.7 1997/04/05 22:26:22 dholland Exp $
  */
 
 /*

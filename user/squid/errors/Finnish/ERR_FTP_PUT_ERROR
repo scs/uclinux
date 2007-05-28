@@ -3,11 +3,11 @@
 <TITLE>VIRHE: FTP-l&auml;hetys ep&auml;onnistui</TITLE>
 <STYLE type="text/css"><!--BODY{background-color:#ffffff;font-family:verdana,sans-serif}PRE{font-family:sans-serif}--></STYLE>
 </HEAD><BODY>
-<H1>ERROR</H1>
+<H1>VIRHE</H1>
 <H2>FTP PUT/l&auml;hetys ep&auml;onnistui</H2>
 <HR noshade size="1px">
 <P>
-Yritett&auml;ess&auml; l&auml;hett&auml;&auml; seuraavaa URL-osoitetta:
+Yritett&auml;ess&auml; l&auml;hett&auml;&auml; seuraavaa osoitetta:
 <A HREF="%U">%U</A>
 <P>
 Squid l&auml;hetti seuraavan FTP-komennon:
@@ -24,4 +24,4 @@ T&auml;m&auml; tarkoittaa, ett&auml;
 Tarkista polku, oikeudet sek&auml; levytila ja kokeile uudelleen.
 </PRE>
 </P>
-
+<P>V&auml;lityspalvelintasi yll&auml;pit&auml;&auml; <A HREF="mailto:%w">%w</A>.

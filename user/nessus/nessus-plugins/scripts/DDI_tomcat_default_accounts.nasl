@@ -7,7 +7,8 @@
 if (description)
 {
    script_id(11204);
-   script_version("$Revision: 1.4 $");
+   script_version("$Revision: 1.10 $");
+   script_cve_id("CVE-1999-0508");
    name["english"] = "Apache Tomcat Default Accounts";
    script_name(english:name["english"]);
 
@@ -36,7 +37,7 @@ Risk factor : High";
     script_copyright( english:"This script is Copyright (C) 2003 Digital Defense Inc.",
                       francais:"Ce script est Copyright (C) 2003 Digital Defense Inc.");
 
-    family["english"] = "General";
+    family["english"] = "Web Servers";
 
     script_family(english:family["english"]);
     script_dependencie("find_service.nes", "http_version.nasl");
@@ -49,8 +50,11 @@ Risk factor : High";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8080;
+port = get_http_port(default:8080);
+if ( ! port ) exit(0);
+
+banner = get_http_banner(port:port);
+if ( "Tomcat" >!< banner ) exit(0);
 
 #assert on init
 flag=1;
@@ -65,9 +69,8 @@ auth[5]=string("cm9sZTE6cm9sZTEK\r\n\r\n");		real_auth[5]=string("role1:role1");
 auth[6]=string("cm9sZTpjaGFuZ2V0aGlzCg==\r\n\r\n");	real_auth[6]=string("role:changethis");
 auth[7]=string("cm9vdDpjaGFuZ2V0aGlzCg==\r\n\r\n");	real_auth[7]=string("root:changethis");
 auth[8]=string("dG9tY2F0OmNoYW5nZXRoaXMK\r\n\r\n");	real_auth[8]=string("tomcat:changethis");
+auth[9]=string("eGFtcHA6eGFtcHA=\r\n\r\n");		real_auth[9]=string("xampp:xampp");
 
-#sizeof(users)-1; more convinient way?
-num=8;
 
 #basereq string
 basereq = http_get(item:"/admin/contextAdmin/contextList.jsp", port:port);

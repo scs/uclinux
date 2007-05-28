@@ -4,7 +4,7 @@
  * Defines the event_data structure for information exchange between
  * the hardware specific parts and the generic code.
  *
- * $Id$
+ * $Id: event.h,v 1.4 1998/09/09 21:06:34 gert Exp $
  *
  */
 

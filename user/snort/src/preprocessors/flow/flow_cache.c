@@ -25,7 +25,7 @@
  * memory management. flow_hash.c contains the hashing keys 
  * 
  */
-
+#define FLOW_PERF_FIX
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -36,6 +36,7 @@
 #include "flow_cache.h"
 #include "flow_callback.h"
 #include "flow_hash.h"
+#include "bitop_funcs.h"
 
 /* helper functions */
 static int flowcache_anrfree( void *key, void *data);
@@ -68,7 +69,7 @@ int flowcache_init(FLOWCACHE *flowcachep, unsigned int rows,
         return FLOW_ENULL;
     }
 
-    if(memcap <= (datasize + sizeof(FLOW) + sizeof(SFXHASH_NODE)))
+    if(memcap <= (int)(datasize + sizeof(FLOW) + sizeof(SFXHASH_NODE)))
     {
         /* come on man, you gotta give me enough memory to store 1. */
         return FLOW_EINVALID;
@@ -203,7 +204,12 @@ int init_flowdata(FLOWCACHE *fcp, FLOW *flowp)
 int flowcache_newflow(FLOWCACHE *flowcachep, FLOWKEY *keyp, FLOW **flowpp)
 {
     static int run_once = 1;
+#ifdef FLOW_PERF_FIX
+    FLOW *newflow = NULL;
+    SFXHASH_NODE *new_node = NULL;
+#else
     static FLOW zeroflow;
+#endif
     static FLOWKEY searchkey;
     int ret;
     
@@ -218,13 +224,38 @@ int flowcache_newflow(FLOWCACHE *flowcachep, FLOWKEY *keyp, FLOW **flowpp)
     {
         /* all the time that we're running this, we're actually going
            to be filling in the key, and having zero'd out counters */ 
+#ifndef FLOW_PERF_FIX
         memset(&zeroflow, 0, sizeof(FLOW));
+#endif
         memset(&searchkey, 0, sizeof(FLOWKEY));        
         run_once = 0;
     }
 
     flowkey_normalize(&searchkey, keyp);
+   
+#ifdef FLOW_PERF_FIX
+    /* This just eliminates a memcpy. */
+    /* Since we're using auto node recovery, we should get a node back
+     * here that has a data pointer. */
+    /* flow_init resets the internal key & stats to zero. */
+    new_node = sfxhash_get_node(flowcachep->ipv4_table, &searchkey);
+    if (new_node && new_node->data)
+    {
+        newflow = new_node->data;
     
+        if(flow_init(newflow, keyp->protocol,
+                     keyp->init_address, keyp->init_port,
+                     keyp->resp_address, keyp->resp_port))
+        {
+            return FLOW_ENULL;
+        }
+        ret = SFXHASH_OK;
+    }
+    else
+    {
+        ret = SFXHASH_NOMEM;
+    }
+#else
     if(flow_init(&zeroflow, keyp->protocol,
                  keyp->init_address, keyp->init_port,
                  keyp->resp_address, keyp->resp_port))
@@ -233,6 +264,7 @@ int flowcache_newflow(FLOWCACHE *flowcachep, FLOWKEY *keyp, FLOW **flowpp)
     }
 
     ret = sfxhash_add(flowcachep->ipv4_table, &searchkey, &zeroflow);
+#endif
 
     switch(ret)
     {
@@ -266,7 +298,7 @@ int flowcache_newflow(FLOWCACHE *flowcachep, FLOWKEY *keyp, FLOW **flowpp)
  * @param flowcachep flow cache to operate on
  * @param flowp where to put the flow
  * 
- * @return FLOW_SUCCESS on sucess
+ * @return FLOW_SUCCESS on success
  */
 static INLINE int flowcache_mru(FLOWCACHE *flowcachep, FLOW **flowpp)
 {
@@ -287,7 +319,7 @@ static INLINE int flowcache_mru(FLOWCACHE *flowcachep, FLOW **flowpp)
  * @param flowcachep flow cache to operate on
  * @param flowp where to put the flow
  * 
- * @return FLOW_SUCCESS on sucess
+ * @return FLOW_SUCCESS on success
  */
 static INLINE int flowcache_lru(FLOWCACHE *flowcachep, FLOW **flowpp)
 {
@@ -383,7 +415,7 @@ const char *flowcache_pname(FLOW_POSITION position)
 
     if(position < FLOW_NEW || position >= FLOW_MAX)
     {
-        return position_names[5];
+        return position_names[4];
     }
 
     return position_names[position];
@@ -520,7 +552,7 @@ void flowcache_stats(FILE *stream, FLOWCACHE *flowcachep)
     }
 
     flow_printf(",----[ FLOWCACHE STATS ]----------\n");
-    flow_printf("Memcap: %u Overhead Bytes %u used(%%%lf)/blocks (%u/%u) Overhead blocks: %u Could Hold: (%u)\n",
+    flow_printf("Memcap: %u Overhead Bytes %u used(%%%lf)/blocks (%u/%u)\nOverhead blocks: %u Could Hold: (%u)\n",
                 flowcachep->ipv4_table->mc.memcap,
                 flowcache_overhead_bytes(flowcachep),
                 calc_percent(flowcachep->ipv4_table->mc.memused,
@@ -530,7 +562,7 @@ void flowcache_stats(FILE *stream, FLOWCACHE *flowcachep)
                 flowcache_overhead_blocks(flowcachep),
                 could_hold);
     
-    flow_printf("IPV4 count: %u frees: %u low_time: %u, high_time: %u,"
+    flow_printf("IPV4 count: %u frees: %u\nlow_time: %u, high_time: %u,"
                 " diff: %dh:%02d:%02ds\n",
                 sfxhash_count(flowcachep->ipv4_table),
                 sfxhash_anr_count(flowcachep->ipv4_table),
@@ -539,15 +571,15 @@ void flowcache_stats(FILE *stream, FLOWCACHE *flowcachep)
                 diff_hours,diff_min,diff_sec);
     
 
-    flow_printf("    finds: %llu reversed: %llu(%%%lf) \n    find_sucess: %llu "
-                "find_fail: %llu percent_success: (%%%lf) new_flows: %llu\n",
+    flow_printf("    finds: %llu reversed: %llu(%%%lf) \n    find_success: %llu "
+                "find_fail: %llu\npercent_success: (%%%lf) new_flows: %llu\n",
                 flowcachep->total.find_ops,
                 flowcachep->total.reversed_ops,
-                calc_percent(flowcachep->total.reversed_ops,
+                calc_percent64(flowcachep->total.reversed_ops,
                              flowcachep->total.find_ops),
                 flowcachep->total.find_success,
                 flowcachep->total.find_fail,
-                calc_percent(flowcachep->total.find_success,
+                calc_percent64(flowcachep->total.find_success,
                              flowcachep->total.find_ops),
                 flowcachep->total.new_flows);
     
@@ -555,18 +587,23 @@ void flowcache_stats(FILE *stream, FLOWCACHE *flowcachep)
     {
         if(flowcachep->per_proto[i].find_ops > 0)
         {
-            flow_printf(" Protocol: %d (%%%lf) finds: %llu  reversed: %llu(%%%lf) \n  find_sucess: %llu "
-                        "find_fail: %llu percent_success: (%%%lf) new_flows: %llu\n",
+            flow_printf(" Protocol: %d (%%%lf)\n"
+                        "   finds: %llu\n"
+                        "   reversed: %llu(%%%lf)\n"
+                        "   find_success: %llu\n"
+                        "   find_fail: %llu\n"
+                        "   percent_success: (%%%lf)\n"
+                        "   new_flows: %llu\n",
                         i,
-                        calc_percent(flowcachep->per_proto[i].find_ops,
+                        calc_percent64(flowcachep->per_proto[i].find_ops,
                                      flowcachep->total.find_ops),
                         flowcachep->per_proto[i].find_ops,
                         flowcachep->per_proto[i].reversed_ops,
-                        calc_percent(flowcachep->per_proto[i].reversed_ops,
+                        calc_percent64(flowcachep->per_proto[i].reversed_ops,
                                      flowcachep->per_proto[i].find_ops),
                         flowcachep->per_proto[i].find_success,
                         flowcachep->per_proto[i].find_fail,
-                        calc_percent(flowcachep->per_proto[i].find_success,
+                        calc_percent64(flowcachep->per_proto[i].find_success,
                                      flowcachep->per_proto[i].find_ops),
                         flowcachep->per_proto[i].new_flows);
         }

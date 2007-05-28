@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10644);
- script_cve_id("CVE-2001-0593");
  script_bugtraq_id(2512);
- script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2001-0593");
+ script_version ("$Revision: 1.19 $");
  name["english"] = "anacondaclip CGI vulnerability";
  name["francais"] = "anacondaclip";
  script_name(english:name["english"], francais:name["francais"]);
@@ -23,7 +23,7 @@ root or nobody).
 Solution : Remove the 'anacondaclip' script from your web server's CGI 
 directory (typically cgi-bin/).
 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -44,6 +44,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -54,8 +55,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

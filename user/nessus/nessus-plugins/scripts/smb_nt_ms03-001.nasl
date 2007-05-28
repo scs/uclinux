@@ -1,20 +1,26 @@
 #
-# This script was written by Renaud Deraison
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
 
 if(description)
 {
  script_id(11212);
- script_cve_id("CAN-2003-0003");
+ script_bugtraq_id(6666);
+ script_cve_id("CVE-2003-0003");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0007");
- script_version("$Revision: 1.6 $");
+ script_version("$Revision: 1.13 $");
 
  name["english"] = "Unchecked buffer in Locate Service";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+Arbitrary code can be executed on the remote host.
+
+Description :
+
 The Microsoft Locate service is a name server that maps logical
 names to network-specific names.
 
@@ -22,21 +28,16 @@ There is a security vulnerability in this server which allows
 an attacker to execute arbitrary code in it by sending a specially
 crafted packet to it.
 
-Maximum Severity Rating: Critical 
+Solution : 
 
-Recommendation: Administrators should install the patch immediately. 
+Microsoft has released a set of patches for Windows NT, 2000 and XP :
 
-Affected Software: 
+http://www.microsoft.com/technet/security/bulletin/ms03-001.mspx
 
-Microsoft Windows NT 4.0
-Microsoft Windows NT 4.0, Terminal Server Edition
-Microsoft Windows 2000
-Microsoft Windows XP
+Risk factor :
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms03-001.asp
-
-Risk factor : High";
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -46,62 +47,38 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_XP.nasl",
+ script_dependencies("smb_hotfixes.nasl",
 		     "smb_enum_services.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
- script_exclude_keys("SMB/samba");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
-if(!get_port_state(port))exit(0);
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if  ( hotfix_check_sp(nt:7, win2k:4, xp:2) <= 0 ) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-
-if("5.0" >< version)
+if (is_accessible_share())
 {
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:1, file:"Locator.exe", version:"5.1.2600.1147", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Locator.exe", version:"5.1.2600.108", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Locator.exe", version:"5.0.2195.6136", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Locator.exe", version:"4.0.1381.7202", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Locator.exe", version:"4.0.1381.33534", min_version:"4.0.1381.33000", dir:"\system32") )
+   security_hole (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
-
-if("5.1" >< version)
-{
- # fixed in XP service Pack 2
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
-}
-
-
-if(ereg(pattern:"(([6-9]\..*)|(5\.[2-9]))", string:version))exit(0);
-
-
-# The service is not running.
-svcs = get_kb_item("SMB/svcs");
-if(svcs)
-{
- if(!("[RpcLocator]" >< svcs))exit(0); 
-}
-
-
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q810833";
-item = "Comments";
-value = registry_get_sz(key:key, item:item);
-
-
-
-if(!value)security_hole(port);
-exit(0);
+else if  ( hotfix_missing(name:"Q810833") > 0 )
+	{ 
+	 svcs = get_kb_item("SMB/svcs");
+ 	 if(svcs && "[RpcLocator]" >!< svcs)exit(0); 
+	 security_hole(get_kb_item("SMB/transport"));
+	}

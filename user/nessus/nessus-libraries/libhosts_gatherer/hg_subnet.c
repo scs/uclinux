@@ -92,6 +92,8 @@ cidr_get_last_ip(start, netmask)
  
  if(netmask != 31)
   ret.s_addr-=2; /* skip the broadcast */
+ else
+  ret.s_addr-=1; /* skip the broadcast */
  
  ret.s_addr = htonl(ret.s_addr);
  return(ret);

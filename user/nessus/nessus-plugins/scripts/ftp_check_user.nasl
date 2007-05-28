@@ -7,25 +7,22 @@
 if(description)
 {
  script_id(10082);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.13 $");
  name["english"] = "FTPd tells if a user exists";
  name["francais"] = "FTPd indique si un utilisateur existe";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-It is possible to determine the existence of a 
-user on the remote system by issuing the command 
-CWD ~<username>, like :
+It is possible to determine the existence of a user on the remote 
+system by issuing the command CWD ~<username>, like :
 
 	CWD ~root
 	
-An attacker may use this to determine the existence of
-known to be vulnerable accounts (like guest) or to
-determine which system you are running.
+An attacker may use this to determine the existence of known to be 
+vulnerable accounts (like guest) or to determine which system you 
+are running.
 
-Solution : inform your vendor, and ask for a patch, or
-           change your FTP server
-	   
+Solution : inform your vendor, and ask for a patch, or change your FTP server
 Risk factor : Low";
  
 
@@ -71,7 +68,7 @@ Facteur de risque : Faible.";
 #
 # The script code starts here
 #
-
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(!get_port_state(port))exit(0);
@@ -81,7 +78,8 @@ anon = get_kb_item("ftp/anonymous");
 if(anon)
 {
  soc = open_sock_tcp(port);
- if(ftp_log_in(socket:soc, user:"anonymous",pass:"nessus@"))
+ if ( ! soc ) exit(0);
+ if(ftp_authenticate(socket:soc, user:"anonymous",pass:"nessus@"))
  {
   data = string("CWD ~root\r\n");
   send(socket:soc, data:data);

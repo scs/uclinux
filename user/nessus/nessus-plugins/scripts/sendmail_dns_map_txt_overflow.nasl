@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11232);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CVE-2002-0906");
  script_bugtraq_id(5122);
+ script_version ("$Revision: 1.11 $");
+ script_cve_id("CVE-2002-0906");
  
  name["english"] = "Sendmail DNS Map TXT record overflow";
  script_name(english:name["english"]);
@@ -59,8 +59,8 @@ if(!port) port = 25;
 
 banner = get_smtp_banner(port:port);
 
-if(banner)
+if(banner && "Switch-" >!< banner )
 {
- if(egrep(pattern:".*sendmail.*(SMI-.*|8\.(([0-9]|1[0-1])\..*|12\.[0-4][^0-9])|[0-7]\.[0-9]*\.[0-9]*)/", string:banner, icase:TRUE))
+ if(egrep(pattern:".*sendmail +(SMI-.*|8\.([0-9]\.|10\.|11\.[0-6][^0-9]|12\.[0-4][^0-9])|[0-7]\.[0-9]*\.[0-9]*)", string:banner, icase:TRUE))
  	security_hole(port);
 }

@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,25 +14,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * Preferences  -- maps the content of the nessusd.conf file to memory
  *
  */
  
 #include <includes.h>
-#ifdef NESSUSNT
-#include "wstuff.h"
-#endif /* defined(NESSUSNT) */
 #include "comm.h"
 #include "preferences.h"
 #include "log.h"
@@ -69,7 +56,7 @@ int preferences_new(char * name)
   int f;
 
   if((f = open(name, O_CREAT | O_RDWR | O_EXCL, 0660))<0){
-    perror("prefrences_new():open ");
+    perror("preferences_new():open ");
     return(-1);
   }
 
@@ -86,10 +73,11 @@ int preferences_new(char * name)
  fprintf(fd, "# Niceness. If set to 'yes', nessusd will renice itself to 10.\n");
  fprintf(fd, "be_nice = no\n\n");
 
- fprintf(fd, "# Log file (or 'syslog') : \n");
+
+ fprintf(fd, "# Log file : \n");
  fprintf(fd, "logfile = %s\n\n", NESSUSD_MESSAGES);
- fprintf(fd, "# Shall we log every details of the attack ?\n");
- fprintf(fd, "log_whole_attack = yes\n\n");
+ fprintf(fd, "# Shall we log every details of the attack ? (disk intensive)\n");
+ fprintf(fd, "log_whole_attack = no\n\n");
  fprintf(fd, "# Log the name of the plugins that are loaded by the server ?\n");
  fprintf(fd, "log_plugins_name_at_load = no\n\n");
  fprintf(fd, "# Dump file for debugging output, use `-' for stdout\n");
@@ -104,7 +92,7 @@ int preferences_new(char * name)
  fprintf(fd, "# 'default' means that Nessus will scan ports found in its\n");
  fprintf(fd, "# services file.\n");
  fprintf(fd, "port_range = default\n\n");
- fprintf(fd, "# Optimize the test (recommanded) : \n");
+ fprintf(fd, "# Optimize the test (recommended) : \n");
  fprintf(fd, "optimize_test = yes\n\n");
  fprintf(fd, "# Language of the plugins :\n");
  fprintf(fd, "language = %s\n\n", NESSUSD_LANGUAGE);
@@ -120,7 +108,9 @@ int preferences_new(char * name)
  fprintf(fd, "\n\n# Safe checks rely on banner grabbing :\n");
  fprintf(fd, "safe_checks = yes\n");
  fprintf(fd, "\n\n# Automatically activate the plugins that are depended on\n");
- fprintf(fd, "auto_enable_dependencies = no\n");
+ fprintf(fd, "auto_enable_dependencies = yes\n");
+ fprintf(fd, "\n\n# Do not echo data from plugins which have been automatically enabled\n");
+ fprintf(fd, "silent_dependencies = yes\n");
  fprintf(fd, "\n\n# Designate hosts by MAC address, not IP address (useful for DHCP networks)\n");
  fprintf(fd, "use_mac_addr = no\n");
  
@@ -152,9 +142,11 @@ int preferences_new(char * name)
  fprintf(fd, "# (10.0.0.1, then 10.0.0.2, 10.0.0.3 and so on..) but will attempt to\n");
  fprintf(fd, "# slice the workload throughout the whole network (ie: it will scan\n");
  fprintf(fd, "# 10.0.0.1, then 10.0.0.127, then 10.0.0.2, then 10.0.0.128 and so on...\n");
- fprintf(fd, "slice_network_addresses = no\n");
- fprintf(fd, "#end.\n");
+ fprintf(fd, "slice_network_addresses = no\n\n");
  
+ fprintf(fd, "# Should consider all the NASL scripts as being signed ? (unsafe if set to 'yes')\n");
+ fprintf(fd, "nasl_no_signature_check = no\n\n");
+ fprintf(fd, "#end.\n");
  
   fclose(fd);
   close(f);
@@ -212,12 +204,15 @@ int preferences_process(filename,prefs)
 	   
 	   buffer[sizeof(buffer) - 1] = '\0';
 	   len = strlen(buffer);
+	   if ( len == 0 ) continue;
 	   
 	   if(buffer[len-1]=='\n')
 	    {
 	     buffer[len-1]=0;
 	     len --;
 	    }
+
+	    if ( len <= 0 ) continue;
 	   
 	    if(buffer[0]=='#')continue;
 	    opt = buffer;
@@ -225,26 +220,29 @@ int preferences_process(filename,prefs)
 	    if( t == NULL )continue;
 	    else {
 	      t[0]=0;
-	      t+=sizeof(char);
-	      while(t[0]==' ')t+=sizeof(char);
+	      t++;
+	      while(t[0]==' ')t++;
 	      len = strlen(opt);
-	      while(opt[len-1]==' ')
+	      while(len > 0 && opt[len-1]==' ')
 	      {
 	       opt[len-1]= '\0';
 	       len --;
 	      }
+	      if ( len <= 0 ) continue;
 	      
 	      len = strlen(t);
-	      while(t[len-1]==' ')
+	      while(len > 0 && t[len-1]==' ')
 	      {
 	       t[len-1]= '\0';
 	       len --;
 	      }
-	      
+
+	      if ( len <= 0 ) continue;
+	      len = strlen(t);
 	      value = emalloc(len + 1);
 	      strncpy(value, t, len);
 	      arg_add_value(prefs, opt, ARG_STRING, strlen(value), value);
-#ifdef DEBUGMORE
+#if DEBUGMORE
 	      printf("%s = %s\n", opt, value);
 #endif
 	    }
@@ -281,9 +279,6 @@ int preferences_get_host_expansion(preferences)
  if(strstr(pref, "nfs"))ret = ret | HG_NFS;
  if(strstr(pref, "ip"))ret = ret |  HG_SUBNET;
  }
- 
- pref = arg_get_value(preferences, "ping_hosts");
- if(pref && strstr(pref, "yes"))ret = ret | HG_PING;
  
  pref = arg_get_value(preferences, "reverse_lookup");
  if(pref && strstr(pref, "yes"))ret = ret | HG_REVLOOKUP;
@@ -717,6 +712,35 @@ preferences_upload_suffixes(preferences, fname)
  efree(&delme);
  return 0;
 }
+
+
+int
+preferences_nasl_no_signature_check(preferences)
+ struct arglist * preferences;
+{
+ static int yes = -1;
+ char * pref;
+ 
+ if(!preferences)
+  {
+   yes = -1;
+   return -1;
+  }
+  
+  
+ if(yes >= 0)
+  return yes;
+  
+  
+ pref = arg_get_value(preferences, "nasl_no_signature_check");
+ if(pref && !strcmp(pref, "yes"))
+   yes = 1;
+ else
+   yes = 0;
+
+ return yes;
+}
+
 int
 preferences_detached_scan(preferences)
  struct arglist * preferences;
@@ -878,6 +902,32 @@ preferences_detached_scan_email(preferences)
 }
 
 
+int
+preferences_silent_dependencies(preferences)
+ struct arglist * preferences;
+{
+ static int yes = -1;
+ char * pref;
+ 
+ if(!preferences)
+  {
+   yes = -1;
+   return -1;
+  }
+  
+  
+ if(yes >= 0)
+  return yes;
+  
+  
+ pref = arg_get_value(preferences, "silent_dependencies");
+ if(pref && !strcmp(pref, "yes"))
+   yes = 1;
+ else
+   yes = 0;
+
+ return yes;
+}
 
 
 #ifdef NESSUS_ON_SSL
@@ -919,4 +969,5 @@ preferences_reset_cache()
  preferences_delay_between_scans(NULL);
  preferences_detached_scan(NULL);
  preferences_detached_scan_email(NULL);
+ preferences_silent_dependencies(NULL);
 }

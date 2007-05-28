@@ -24,12 +24,12 @@ inststr(int argc, char **argv, char **environ, char *src)
         ptr = argv[0] + strlen(argv[0]);
         for (count = 1; count < argc; count++) {
             if (argv[count] == ptr + 1)
-                ptr += strlen(++ptr);
+                ptr += strlen(ptr + 1);
         }
         if (environ[0] == ptr + 1) {
             for (count = 0; environ[count]; count++)
                 if (environ[count] == ptr + 1)
-                    ptr += strlen(++ptr);
+                    ptr += strlen(ptr + 1);
         }
         count = 0;
         for (ptr2 = argv[0]; ptr2 <= ptr; ptr2++) {

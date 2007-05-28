@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10646);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.12 $");
 
  name["english"] = "Lion worm";
  name["francais"] = "Lion worm";
@@ -38,14 +38,18 @@ Risk factor : Critical";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("nmap_osfingerprint.nes");
  script_require_ports(60008, 33567, 33568);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 #
 # The script code starts here
 #
+
+include('global_settings.inc');
+
+if ( ! thorough_tests ) exit(0);
 
 function check_shell(port)
 {

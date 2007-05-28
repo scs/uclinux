@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11474);
  script_bugtraq_id(7166);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "NetGear ProSafe VPN Login DoS";
 
@@ -46,8 +46,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(! get_port_state(port)) exit(0);
 
@@ -55,7 +55,6 @@ soc = http_open_socket(port);
 if(soc)
   {
    if (http_is_dead(port: port))exit(0);
-   soc = http_open_socket(port);
    req = http_get(item:"/", port:port);
    req = req - string("\r\n\r\n");
    

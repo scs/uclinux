@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(11603);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7323);
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "MacOS X Directory Service DoS";
  script_name(english:name["english"]);
@@ -18,7 +18,7 @@ It was possible to disable the remote service (probably MacOS X's
 directory service) by making multiple connections to this port.
 
 Solution : Uprade to MacOS X 10.2.5 or newer
-Risk Factor : Low";
+Risk factor : Low";
 
  script_description(english:desc["english"]);
  

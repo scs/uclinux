@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.init.c,v 3.48 1999/02/11 16:18:36 christos Exp $ */
 /*
  * sh.init.c: Function and signal tables
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: sh.init.c,v 3.48 1999/02/11 16:18:36 christos Exp $")
 
 #include "ed.h"
 #include "tw.h"

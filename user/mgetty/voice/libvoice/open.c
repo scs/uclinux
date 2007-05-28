@@ -4,7 +4,7 @@
  * Try all available voice devices and open the first one that
  * suceeds and initialize it.
  *
- * $Id$
+ * $Id: open.c,v 1.7 2002/02/25 12:19:57 gert Exp $
  *
  */
 

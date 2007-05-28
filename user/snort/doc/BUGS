@@ -1,9 +1,8 @@
-Security Related bug reports ( evasions/overflows/etc. ) should be
-sent to roesch@snort.org and Jeremy Hewlett <jh@sourcefire.com>.  
+Security Related bug reports (evasions, overflows, etc) should be sent to 
+bugs@snort.org and Marty Roesch <roesch@snort.org>.
 
-Bug reports should be sent to roesch@snort.org and cc'd to
-snort-devel@lists.sourceforge.net (Snort Developers mailing list) and
-Jeremy Hewlett <jh@sourcefire.com>.
+Bug reports should be sent to bugs@snort.org and cc'd to
+snort-devel@lists.sourceforge.net (Snort Developers mailing list).
 
 Please include the following information with your report:
 

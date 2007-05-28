@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10734);
- script_version ("$Revision: 1.18 $");
  script_bugtraq_id(3215);
+ script_version ("$Revision: 1.24 $");
  script_cve_id("CVE-2001-0659");
  
  name["english"] =  "IrDA access violation patch";
@@ -17,17 +17,31 @@ if(description)
  	     
  
  desc["english"] = "
-The hotfix for the 'IrDA access violation patch'
-problem has not been applied.
+Synopsis :
+
+It is possible to remotely shutdown the server
+
+Description :
+
+The hotfix for the 'IrDA access violation patch' problem 
+has not been applied.
 
 This vulnerability can allow an attacker who is physically
 near the W2K host to shut it down using a remote control.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms01-046.asp
-Or POST SP2 Security Rollup:
+Solution :
+
+http://www.microsoft.com/technet/security/bulletin/ms01-046.mspx
+
+See also :
+
+POST SP2 Security Rollup:
 http://www.microsoft.com/windows2000/downloads/critical/q311401/default.asp
 
-Risk factor : Serious";
+Risk factor :
+
+Medium / CVSS Base Score : 5 
+(AV:R/AC:L/Au:NR/C:N/A:C/I:N/B:A)";
 
 
 
@@ -41,49 +55,18 @@ Risk factor : Serious";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password", "SMB/registry_access",
- 		     "SMB/WindowsVersion");
- script_exclude_keys("SMB/XP/ServicePack","SMB/WinNT4/ServicePack");
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
-include("smb_nt.inc");
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+include("smb_hotfixes.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+if ( hotfix_check_sp(win2k:3) <= 0 ) exit(0);
+if ( hotfix_missing(name:"SP2SRP1") > 0 &&
+     hotfix_missing(name:"Q252795") > 0 )
+	security_warning(get_kb_item("SMB/transport"));
 
-
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
-
-version = get_kb_item("SMB/WindowsVersion");
-if(version == "5.0")
-{
- # check for Win2k post SP2 SRP first.
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\SP2SRP1";
- item = "Comments";
- value = string(registry_get_sz(key:key, item:item));
- if(value)exit(0);
- # then for service pack 3.
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [3-9]"))exit(0);
-
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q252795";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)
- {
- security_hole(port);
- exit(0);
- }
-}

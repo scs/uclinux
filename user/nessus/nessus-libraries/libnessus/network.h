@@ -23,6 +23,7 @@
 int recv_line(int, char  *, size_t);
 int    open_stream_connection(struct arglist *, unsigned int, int, int);
 int    open_stream_connection_unknown_encaps(struct arglist *, unsigned int, int, int *);
+int    open_stream_connection_unknown_encaps5(struct arglist *, unsigned int, int, int *, int*);
 int    open_stream_auto_encaps(struct arglist *, unsigned int, int);
 int    write_stream_connection (int, void * buf, int n);
 int    read_stream_connection (int, void * buf, int);

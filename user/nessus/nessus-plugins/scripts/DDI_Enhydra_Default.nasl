@@ -7,7 +7,8 @@
 if(description)
 {
  script_id(11202);
- script_version("$Revision: 1.2 $");
+ script_version("$Revision: 1.6 $");
+ script_cve_id("CVE-1999-0508");
 
  name["english"] = "Enhydra Multiserver Default Password";
  script_name(english:name["english"]);
@@ -34,7 +35,7 @@ Risk factor : High";
  family["english"] = "General";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 8001);
  exit(0);
 }
@@ -43,24 +44,21 @@ Risk factor : High";
 # The script code starts here
 #
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if (!port) port = 8001;
+include("http_keepalive.inc");
+port = get_http_port(default:8001);
+if ( ! port ) exit(0);
+
+banner = get_http_banner(port:port);
+if ( ! banner || "Enhydra" >!< banner ) exit(0);
 
 if(get_port_state(port))
  {
-  soc = open_sock_tcp(port);
-  if (soc)
-  {
-    req = http_get(item:"/Admin.po?proceed=yes", port:port);
-    req = req - string("\r\n\r\n");
-    req = string(req, "\r\nAuthorization: Basic YWRtaW46ZW5oeWRyYQ==\r\n\r\n");
-    send(socket:soc, data:req);
-    buf = http_recv(socket:soc);
-    close(soc);
-    
-    if("Enhydra Multiserver Administration" >< buf)
+   req = http_get(item:"/Admin.po?proceed=yes", port:port);
+   req = req - string("\r\n\r\n");
+   req = string(req, "\r\nAuthorization: Basic YWRtaW46ZW5oeWRyYQ==\r\n\r\n");
+   buf = http_keepalive_send_recv(port:port, data:req);
+  if("Enhydra Multiserver Administration" >< buf)
     {
         security_hole(port);
     }   
-  }
- }
+}

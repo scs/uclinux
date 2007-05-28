@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: ssl.c,v 1.118.2.11 2005/04/18 00:54:30 hno Exp $
  *
  * DEBUG: section 26    Secure Sockets Layer Proxy
  * AUTHOR: Duane Wessels
@@ -46,7 +46,7 @@ typedef struct {
 	int len;
 	char *buf;
     } client, server;
-    size_t *size_ptr;		/* pointer to size in an ConnStateData for logging */
+    squid_off_t *size_ptr;	/* pointer to size in an ConnStateData for logging */
     int *status_ptr;		/* pointer to status for logging */
 #if DELAY_POOLS
     delay_id delay_id;
@@ -75,6 +75,18 @@ static DEFER sslDeferServerRead;
 #endif
 
 static void
+sslAbort(SslStateData * sslState)
+{
+    debug(26, 3) ("sslAbort: FD %d/%d\n", sslState->client.fd, sslState->server.fd);
+    cbdataLock(sslState);
+    if (sslState->client.fd > -1)
+	comm_close(sslState->client.fd);
+    if (sslState->server.fd > -1)
+	comm_close(sslState->server.fd);
+    cbdataUnlock(sslState);
+}
+
+static void
 sslServerClosed(int fd, void *data)
 {
     SslStateData *sslState = data;
@@ -92,9 +104,7 @@ sslClientClosed(int fd, void *data)
     debug(26, 3) ("sslClientClosed: FD %d\n", fd);
     assert(fd == sslState->client.fd);
     sslState->client.fd = -1;
-    if (sslState->server.fd != -1)
-	comm_close(sslState->server.fd);
-    else
+    if (sslState->server.fd == -1)
 	sslStateFree(sslState);
 }
 
@@ -152,7 +162,7 @@ sslSetSelect(SslStateData * sslState)
 		sslState,
 		Config.Timeout.read);
 	}
-    } else if (sslState->client.len == 0) {
+    } else if (sslState->client.len == 0 && sslState->server.fd > -1) {
 	comm_close(sslState->server.fd);
     }
     if (!sslState->connected) {
@@ -183,9 +193,7 @@ sslSetSelect(SslStateData * sslState)
 		sslState,
 		Config.Timeout.read);
 	}
-    } else if (sslState->client.fd == -1) {
-	/* client already closed, nothing more to do */
-    } else if (sslState->server.len == 0) {
+    } else if (sslState->server.len == 0 && sslState->client.fd > -1) {
 	comm_close(sslState->client.fd);
     }
 }
@@ -262,7 +270,7 @@ sslReadClient(int fd, void *data)
 	debug(50, level) ("sslReadClient: FD %d: read failure: %s\n",
 	    fd, xstrerror());
 	if (!ignoreErrno(errno))
-	    comm_close(fd);
+	    sslAbort(sslState);
     } else if (len == 0) {
 	comm_close(fd);
     }
@@ -289,6 +297,12 @@ sslWriteServer(int fd, void *data)
 	fd_bytes(fd, len, FD_WRITE);
 	kb_incr(&statCounter.server.all.kbytes_out, len);
 	kb_incr(&statCounter.server.other.kbytes_out, len);
+	/* increment total object size */
+	if (sslState->size_ptr && sslState->client.fd != -1)
+#if SIZEOF_SQUID_OFF_T <= 4
+	    if (*sslState->size_ptr < 0x7FFF0000)
+#endif
+		*sslState->size_ptr += len;
 	assert(len <= sslState->client.len);
 	sslState->client.len -= len;
 	if (sslState->client.len > 0) {
@@ -303,7 +317,7 @@ sslWriteServer(int fd, void *data)
 	debug(50, ignoreErrno(errno) ? 3 : 1)
 	    ("sslWriteServer: FD %d: write failure: %s.\n", fd, xstrerror());
 	if (!ignoreErrno(errno))
-	    comm_close(fd);
+	    sslAbort(sslState);
     }
     if (cbdataValid(sslState))
 	sslSetSelect(sslState);
@@ -331,7 +345,7 @@ sslWriteClient(int fd, void *data)
 	sslState->server.len -= len;
 	/* increment total object size */
 	if (sslState->size_ptr)
-#if SIZEOF_SIZE_T == 4
+#if SIZEOF_SQUID_OFF_T <= 4
 	    if (*sslState->size_ptr < 0x7FFF0000)
 #endif
 		*sslState->size_ptr += len;
@@ -347,7 +361,7 @@ sslWriteClient(int fd, void *data)
 	debug(50, ignoreErrno(errno) ? 3 : 1)
 	    ("sslWriteClient: FD %d: write failure: %s.\n", fd, xstrerror());
 	if (!ignoreErrno(errno))
-	    comm_close(fd);
+	    sslAbort(sslState);
     }
     if (cbdataValid(sslState))
 	sslSetSelect(sslState);
@@ -359,7 +373,7 @@ sslTimeout(int fd, void *data)
 {
     SslStateData *sslState = data;
     debug(26, 3) ("sslTimeout: FD %d\n", fd);
-    comm_close(sslState->client.fd);
+    sslAbort(sslState);
 }
 
 static void
@@ -383,7 +397,7 @@ sslErrorComplete(int fdnotused, void *data, size_t sizenotused)
 
 
 static void
-sslConnectDone(int fdnotused, int status, void *data)
+sslConnectDone(int fd, int status, void *data)
 {
     SslStateData *sslState = data;
     request_t *request = sslState->request;
@@ -399,6 +413,7 @@ sslConnectDone(int fdnotused, int status, void *data)
 	    sslState->host);
     if (status == COMM_ERR_DNS) {
 	debug(26, 4) ("sslConnect: Unknown host: %s\n", sslState->host);
+	comm_close(fd);
 	err = errorCon(ERR_DNS_FAIL, HTTP_NOT_FOUND);
 	*sslState->status_ptr = HTTP_NOT_FOUND;
 	err->request = requestLink(request);
@@ -407,6 +422,7 @@ sslConnectDone(int fdnotused, int status, void *data)
 	err->callback_data = sslState;
 	errorSend(sslState->client.fd, err);
     } else if (status != COMM_OK) {
+	comm_close(fd);
 	err = errorCon(ERR_CONNECT_FAIL, HTTP_SERVICE_UNAVAILABLE);
 	*sslState->status_ptr = HTTP_SERVICE_UNAVAILABLE;
 	err->xerrno = errno;
@@ -461,7 +477,7 @@ sslConnectTimeout(int fd, void *data)
 
 CBDATA_TYPE(SslStateData);
 void
-sslStart(clientHttpRequest * http, size_t * size_ptr, int *status_ptr)
+sslStart(clientHttpRequest * http, squid_off_t * size_ptr, int *status_ptr)
 {
     /* Create state structure. */
     SslStateData *sslState = NULL;

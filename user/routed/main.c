@@ -40,7 +40,7 @@ char copyright[] =
  * From: @(#)main.c	8.1 (Berkeley) 6/5/93
  */
 char main_rcsid[] = 
-  "$Id$";
+  "$Id: main.c,v 1.14 1999/10/02 16:43:56 dholland Exp $";
 
 #include "version.h"
 

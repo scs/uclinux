@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: redirect.c,v 1.88.2.3 2003/12/14 13:40:47 hno Exp $
  *
  * DEBUG: section 61    Redirector
  * AUTHOR: Duane Wessels

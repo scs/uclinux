@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl_db.c,v 1.9.4.1 2003/11/28 13:21:07 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

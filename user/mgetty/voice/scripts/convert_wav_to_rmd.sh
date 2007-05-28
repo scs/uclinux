@@ -1,6 +1,6 @@
 #! /bin/sh
 # Convert from WAV to RMD format, including stereo.
-# $Id$
+# $Id: convert_wav_to_rmd.sh,v 1.2 2000/07/22 09:57:46 marcs Exp $
 
 # NOTES
 #    - This is no longer required since vgetty 0.9.11. Now vgetty

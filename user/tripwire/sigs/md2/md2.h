@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: md2.h,v 1.2 1993/08/19 05:27:54 genek Exp $ */
 
 /* MD2.H - header file for MD2C.C
  */

@@ -1,26 +1,22 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# See the Nessus Scripts License for details
+# This script is released under Tenable Plugins License
 #
 
 if(description)
 {
  script_id(11011);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.19 $");
  
- name["english"] = "SMB on port 445";
+ name["english"] = "SMB Detection";
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote port 445 is open while port 139 is not. 
+This script detects wether port 445 and 139 are open and
+if they are running SMB servers.
 
-Port 445 is used for 'Netbios-less' communication between
-two Windows 2000 hosts. An attacker may use it to obtain
-and access shares, gain a list of usernames and so on...
-
-Solution : filter incoming traffic to this port
-Risk factor : Medium";
+Risk factor : None";
 
 
 
@@ -33,7 +29,7 @@ Risk factor : Medium";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
 
  family["english"] = "Windows";
 
@@ -47,8 +43,7 @@ Risk factor : Medium";
 # The script code starts here
 #
 
-include("smb_nt.inc");
-include("misc_func.inc");
+include("smb_func.inc");
 
 flag = 0;
 
@@ -56,10 +51,12 @@ if(get_port_state(445))
 {
  soc = open_sock_tcp(445);
  if(soc){
- r = smb_neg_prot(soc:soc);
+ session_init(socket:soc);
+ ret = smb_negotiate_protocol ();
  close(soc);
- if(r){
- 	register_service(port:445, proto:"cifs");
+ if(ret){
+	set_kb_item(name:"Services/cifs", value:445);
+	set_kb_item(name:"Known/tcp/445", value:"cifs");
 	security_note(port:445, data:"A CIFS server is running on this port");
 	set_kb_item(name:"SMB/transport", value:445);
 	flag = 1;
@@ -72,19 +69,17 @@ if(get_port_state(139))
 {
   soc = open_sock_tcp(139);
   if(soc){
-	nb_remote = netbios_name(orig:string("Nessus", rand()));
- 	nb_local  = netbios_redirector_name();
- 	session_request = raw_string(0x81, 0x00, 0x00, 0x44) + 
-		  raw_string(0x20) + 
-		  nb_remote +
-		  raw_string(0x00, 0x20)    + 
-		  nb_local  + 
-		  raw_string(0x00);
-	send(socket:soc, data:session_request);
-	r = recv(socket:soc, length:4);
-	close(soc);
-	if(r && (ord(r[0]) == 0x82 || ord(r[0]) == 0x83)) {
-		register_service(port:139, proto:"smb");
+          session_init (socket:soc);
+          called_name = netbios_name (orig:string("Nessus", rand()));
+          calling_name = netbios_name (orig:NULL);
+
+          data = called_name + raw_byte (b:0) +
+                 calling_name + raw_byte (b:0);
+          r = netbios_sendrecv (type:0x81, data:data);
+          close(soc);
+          if(r && (ord(r[0]) == 0x82 || ord(r[0]) == 0x83)) {
+		set_kb_item(name:"Services/smb", value:139);
+		set_kb_item(name:"Known/tcp/139", value:"smb");
 		security_note(port:139, data:"An SMB server is running on this port");	
     		if(!flag)set_kb_item(name:"SMB/transport", value:139);
 		}

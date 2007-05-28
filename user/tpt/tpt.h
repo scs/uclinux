@@ -4,7 +4,7 @@
  * Andrew Morton <andrewm@uow.edu.au>
  * http://www.uow.edu.au/~andrewm/linux/
  *
- * $Header$
+ * $Header: /cvs/sw/new-wave/user/tpt/tpt.h,v 1.1 2002/02/14 23:04:55 pauli Exp $
  */
 
 #ifndef _TPT_H_

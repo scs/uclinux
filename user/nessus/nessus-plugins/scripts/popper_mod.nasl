@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11334);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(4412);
- script_cve_id("CVE-2002-0513", "CAN-2002-0513");
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-0513");
  
  name["english"] = "popper_mod";
 
@@ -43,6 +43,7 @@ Risk factor : High";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl");
   script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -54,13 +55,13 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 foreach dir (make_list(cgi_dirs(), "/mail"))
 {
- req = http_get(item:string(d, "/admin/"), port:port);
+ req = http_get(item:"/admin/", port:port);
  result = http_keepalive_send_recv(port:port, data:req);
  if(result == NULL) exit(0);
  

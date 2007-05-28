@@ -14,7 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 #include "includes.h"
-RCSID("$OpenBSD: ssh-rsa.c,v 1.30 2003/06/18 11:28:11 markus Exp $");
+RCSID("$OpenBSD: ssh-rsa.c,v 1.32 2005/06/17 02:44:33 djm Exp $");
 
 #include <openssl/evp.h>
 #include <openssl/err.h>
@@ -31,8 +31,8 @@ static int openssh_RSA_verify(int, u_char *, u_int, u_char *, u_int, RSA *);
 
 /* RSASSA-PKCS1-v1_5 (PKCS #1 v2.0 signature) with SHA1 */
 int
-ssh_rsa_sign(Key *key, u_char **sigp, u_int *lenp,
-    u_char *data, u_int datalen)
+ssh_rsa_sign(const Key *key, u_char **sigp, u_int *lenp,
+    const u_char *data, u_int datalen)
 {
 	const EVP_MD *evp_md;
 	EVP_MD_CTX md;
@@ -96,8 +96,8 @@ ssh_rsa_sign(Key *key, u_char **sigp, u_int *lenp,
 }
 
 int
-ssh_rsa_verify(Key *key, u_char *signature, u_int signaturelen,
-    u_char *data, u_int datalen)
+ssh_rsa_verify(const Key *key, const u_char *signature, u_int signaturelen,
+    const u_char *data, u_int datalen)
 {
 	Buffer b;
 	const EVP_MD *evp_md;
@@ -238,7 +238,7 @@ openssh_RSA_verify(int type, u_char *hash, u_int hashlen,
 		    ERR_error_string(ERR_get_error(), NULL));
 		goto done;
 	}
-	if (len != hlen + oidlen) {
+	if (len < 0 || (u_int)len != hlen + oidlen) {
 		error("bad decrypted len: %d != %d + %d", len, hlen, oidlen);
 		goto done;
 	}

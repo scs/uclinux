@@ -4,11 +4,12 @@ dnl ##  Copyright (c) Ralf S. Engelschall, <rse@engelschall.com>
 dnl ##
 
 AC_PREREQ(2.10)dnl
-AC_REVISION($Revision$)
+AC_REVISION($Revision: 1.12$)
 echo "Configuring for SMTPclient `./etc/newvers -l c -D smtpclient_vers.c`"
 
-AC_CONFIG_AUX_DIR(etc)
 AC_INIT(README)
+AC_CONFIG_AUX_DIR(etc)
+AC_CANONICAL_SYSTEM
 AC_CONFIG_HEADER(config.h)
 AC_PREFIX_DEFAULT(/usr/local)
 

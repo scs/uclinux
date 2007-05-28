@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(11674);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(7726);
+ script_version ("$Revision: 1.7 $");
  name["english"] = "BaSoMail SMTP Command HELO overflow";
  script_name(english:name["english"]);
  
@@ -22,7 +22,7 @@ This problem may allow an attacker to shut down
 your SMTP server.
 
 Solution : Upgrade the SMTP server software
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Le serveur SMTP distant se plante lorsqu'on lui
@@ -49,7 +49,7 @@ Facteur de risque : Sérieux";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -60,6 +60,8 @@ Facteur de risque : Sérieux";
 include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);

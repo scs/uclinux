@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id$
+# $Id: postrm,v 1.2 2003/06/30 15:48:44 andrei Exp $
 # postrm script for ser-0.8.7
 #
 # see: dh_installdeb(1)

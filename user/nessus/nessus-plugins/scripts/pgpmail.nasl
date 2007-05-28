@@ -20,8 +20,9 @@
 if(description)
 {
  script_id(11070);
- script_version ("$Revision: 1.3 $");
- script_cve_id("CAN-2001-0937");
+ script_bugtraq_id(3605);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2001-0937");
  
  name["english"] = "PGPMail.pl detection";
  script_name(english:name["english"]);
@@ -54,13 +55,19 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl", "httpver.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
 
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("PGPMail.pl");
-if(port) security_warning(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(port:port, item:"PGPMail.pl");
+if(res) security_warning(port);
 

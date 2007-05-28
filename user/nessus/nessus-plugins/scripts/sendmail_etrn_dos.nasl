@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(11350);
- script_version ("$Revision: 1.2 $");
+ script_bugtraq_id(904);
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CVE-1999-1109");
- #NO bugtraq_id
 
  name["english"] = "Sendmail ETRN command DOS";
  script_name(english:name["english"]);
@@ -63,5 +63,5 @@ if(banner)
 {
  #looking for Sendmail 8.10.0 and previous
  if(egrep(pattern:".*sendmail[^0-9]*(SMI-)?8\.([0-9]|[0-9]\.[0-9]+|10\.0)/.*", string:banner, icase:TRUE))
- 	security_hole(port);
+ 	security_warning(port);
 }

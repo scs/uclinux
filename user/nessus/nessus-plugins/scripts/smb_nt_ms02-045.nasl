@@ -1,31 +1,39 @@
 #
-# This script was written by Renaud Deraison
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(11300);
- script_version("$Revision: 1.4 $");
- script_cve_id("CAN-2002-0724");
  script_bugtraq_id(5556);
+ script_version("$Revision: 1.11 $");
+ script_cve_id("CVE-2002-0724");
  
  name["english"] = "Unchecked buffer in Network Share Provider (Q326830)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+It is possible to crash the remote host.
+
+Description :
+
 The remote host is vulnerable to a denial of service attack,
 which could allow an attacker to crash it by sending a specially
 crafted SMB (Server Message Block) request to it.
 
-Impact of vulnerability: Denial of Service / Elevation of Privilege 
+Solution : 
 
-Maximum Severity Rating: Moderate
+Microsoft has released a set of patches for Windows NT, 2000 and XP :
 
-Solution :  http://www.microsoft.com/technet/security/bulletin/ms02-045.asp
+http://www.microsoft.com/technet/security/bulletin/ms02-045.mspx
 
-Risk factor : High";
+Risk factor : 
+
+Medium / CVSS Base Score : 5 
+(AV:R/AC:L/Au:NR/C:N/A:C/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
@@ -35,56 +43,34 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_XP.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_access","SMB/WindowsVersion");
-
- script_exclude_keys("SMB/XP/ServicePack");
- 
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
+
+if ( hotfix_check_sp(nt:7, win2k:4, xp:1) <= 0 ) exit(0);
 
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
-
-version = get_kb_item("SMB/WindowsVersion");
-
-if("5.0" >< version)
+if (is_accessible_share())
 {
-# fixed in Service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:0, file:"Xartsrv.dll", version:"5.1.2600.50", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Xartsrv.dll", version:"5.0.2195.5971", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Xartsrv.dll", version:"4.0.1381.7181", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Xartsrv.dll", version:"4.0.1381.33538", min_version:"4.0.1381.33000", dir:"\system32") )
+   security_note (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
+else if ( hotfix_missing(name:"Q326830") > 0 )  
+	security_note(get_kb_item("SMB/transport"));
 
-if("5.1" >< version)
-{
-# fixed in Service Pack 1
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [1-9]"))exit(0);
-}
-
-# Win2003 and newer not vulnerable
-if(ereg(pattern:"([6-9]\.[0-9])|(5\.[2-9])", string:version))exit(0);
-
-
-
-
-
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q326830";
-item = "Comments";
-value = registry_get_sz(key:key, item:item);
-if(!value)security_hole(port);

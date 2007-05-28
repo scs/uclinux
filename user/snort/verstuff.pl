@@ -51,13 +51,13 @@ while(<MANUAL>) {
 }
 system("mv -f $prefix/doc/snort_manual.tex.new $prefix/doc/snort_manual.tex");
 
-open(MANUAL, "<$prefix/rpm/snort.org.spec");
-open(MANUALNEW, ">$prefix/rpm/snort.org.spec.new");
+open(MANUAL, "<$prefix/rpm/snort.spec");
+open(MANUALNEW, ">$prefix/rpm/snort.spec.new");
 while(<MANUAL>) {
     s/^Version: .*$/Version: $version/;
     print MANUALNEW $_;
 }
-system("mv -f $prefix/rpm/snort.org.spec.new $prefix/rpm/snort.org.spec");
+system("mv -f $prefix/rpm/snort.spec.new $prefix/rpm/snort.spec");
 
 open (CONF, "<$prefix/etc/snort.conf");
 open (CONFNEW,">$prefix/etc/snort.conf.new");

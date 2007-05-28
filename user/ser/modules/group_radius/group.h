@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: group.h,v 1.2 2003/03/12 19:46:54 janakj Exp $
  *
  * Group membership checking over Radius
  *

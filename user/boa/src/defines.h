@@ -23,8 +23,6 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-#include <linux/config.h>
-
 /***** Change this, or use -c on the command line to specify it *****/
 
 #ifndef SERVER_ROOT
@@ -89,7 +87,7 @@
 #define REQUEST_TIMEOUT				60
 
 #define CGI_MIME_TYPE    "application/x-httpd-cgi"
-#ifdef CONFIG_UCLINUX
+#ifdef __uClinux__
 #define DEFAULT_PATH     "/bin:/usr/bin"
 #else
 #define DEFAULT_PATH     "/bin:/usr/bin:/sbin:/usr/sbin"

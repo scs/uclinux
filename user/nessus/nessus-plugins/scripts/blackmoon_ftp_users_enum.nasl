@@ -10,13 +10,13 @@
 if(description)
 {
  script_id(11648);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  
  script_name(english:"BlackMoon FTP user disclosure");
 	     
  script_description(english:"
 The remote FTP server issues a special error message
-when a user attempts to log in using a nonexistant
+when a user attempts to log in using a nonexistent
 account.
 
 An attacker may use this flaw to make a list of valid accounts
@@ -24,7 +24,7 @@ by looking at the error messages it receives at authentication
 time.
 
 Solution : None at this time
-Risk Factor : Low");
+Risk factor : Low");
  
  script_summary(english:"Checks for the ftp login error message");
 

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ntlmauth.h,v 1.8.2.2 2005/02/20 19:07:45 hno Exp $
  *
  * * * * * * * * Legal stuff * * * * * * *
  *
@@ -180,7 +180,7 @@ typedef struct _ntlm_authenticate {
 } ntlm_authenticate;
 
 const char *ntlm_make_challenge(char *domain, char *domain_controller,
-    char *challenge_nonce, int challenge_nonce_len);
+    unsigned char *challenge_nonce, int challenge_nonce_len);
 lstring ntlm_fetch_string(char *packet, int32_t length, strhdr * str);
 void ntlm_add_to_payload(char *payload, int *payload_length,
     strhdr * hdr, char *toadd,

@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: external_acl.c,v 1.1.2.34 2005/03/30 22:46:41 hno Exp $
  *
  * DEBUG: section 82    External ACL
  * AUTHOR: Henrik Nordstrom, MARA Systems AB
@@ -231,7 +231,7 @@ parse_externalAclHelper(external_acl ** list)
 	    if (member) {
 		/* Split in header and member */
 		*member++ = '\0';
-		if (!isalnum(*member))
+		if (!xisalnum(*member))
 		    format->separator = *member++;
 		else
 		    format->separator = ',';
@@ -836,6 +836,13 @@ externalAclLookup(aclCheck_t * ch, void *acl_data, EAH * callback, void *callbac
     external_acl_cache_add(def, key, -1, NULL, NULL);
     dlinkAdd(state, &state->list, &def->queue);
     memBufClean(&buf);
+}
+
+int
+externalAclRequiresAuth(void *acl_data)
+{
+    external_acl_data *acl = acl_data;
+    return acl->def->require_auth;
 }
 
 static void

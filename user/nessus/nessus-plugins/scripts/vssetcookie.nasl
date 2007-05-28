@@ -7,16 +7,16 @@
 if(description)
 {
  script_id(11731);
- script_version ("$Revision: 1.1 $");
- script_cve_id("CAN-2002-0236");
  script_bugtraq_id(3784);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-0236");
  
  
  name["english"] = "VsSetCookie.exe vulnerability";
  name["francais"] = "VsSetCookie.exe vulnerability";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "The VsSetCookie.exe exists on this webserver.  
+ desc["english"] = "The file VsSetCookie.exe exists on this webserver.  
 Some versions of this file are vulnerable to remote exploit.
 
 Solution : remove it from /cgi-bin.
@@ -29,7 +29,7 @@ With a correctly guessed User Name, you will gain full access to the CGI.
 *** this might be a false positive
 
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -46,8 +46,9 @@ Risk factor : Serious";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -57,9 +58,13 @@ Risk factor : Serious";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 flag = 0;

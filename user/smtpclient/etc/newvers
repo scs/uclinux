@@ -243,7 +243,7 @@ char @PROGNAME@_WhatID[] =
 
 /* a RCS ident(1) id string */
 char @PROGNAME@_RCSIdentID[] =
-    "$Id$";
+    "$Id: @PROGNAME@ @VERSION@.@REVISION@@BPTYPE@@BPLEVEL@ @DAY@-@MONTH@-@YEAR@ $";
 
 /* a WWW id string */
 char @PROGNAME@_WebID[] =
@@ -279,7 +279,7 @@ $@PROGNAME@_WhatID =
 
 # a RCS ident(1) id string
 $@PROGNAME@_RCSIdentID =
-    "\$Id$";
+    "\$Id: @PROGNAME@ @VERSION@.@REVISION@@BPTYPE@@BPLEVEL@ @DAY@-@MONTH@-@YEAR@ \$";
 
 # a WWW id string
 $@PROGNAME@_WebID =

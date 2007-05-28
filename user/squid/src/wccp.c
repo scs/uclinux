@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: wccp.c,v 1.19.2.10 2005/02/20 19:07:45 hno Exp $
  *
  * DEBUG: section 80    WCCP Support
  * AUTHOR: Glenn Chisholm
@@ -38,7 +38,6 @@
 
 #define WCCP_PORT 2048
 #define WCCP_REVISION 0
-#define WCCP_RESPONSE_SIZE 12448
 #define WCCP_ACTIVE_CACHES 32
 #define WCCP_HASH_SIZE 32
 #define WCCP_BUCKETS 256
@@ -83,7 +82,8 @@ static int theInWccpConnection = -1;
 static int theOutWccpConnection = -1;
 static struct wccp_here_i_am_t wccp_here_i_am;
 static struct wccp_i_see_you_t wccp_i_see_you;
-static int change;
+static int last_change;
+static int last_id;
 static int last_assign_buckets_change;
 static int number_caches;
 static struct in_addr local_ip;
@@ -109,8 +109,10 @@ wccpInit(void)
     wccp_here_i_am.type = htonl(WCCP_HERE_I_AM);
     wccp_here_i_am.version = htonl(Config.Wccp.version);
     wccp_here_i_am.revision = htonl(WCCP_REVISION);
-    change = 0;
+    last_change = 0;
+    last_id = 0;
     last_assign_buckets_change = 0;
+    number_caches = 0;
     if (Config.Wccp.router.s_addr != any_addr.s_addr)
 	if (!eventFind(wccpHereIam, NULL))
 	    eventAdd("wccpHereIam", wccpHereIam, NULL, 5.0, 1);
@@ -121,7 +123,7 @@ wccpConnectionOpen(void)
 {
     u_short port = WCCP_PORT;
     struct sockaddr_in router, local;
-    int local_len, router_len;
+    socklen_t local_len, router_len;
     debug(80, 5) ("wccpConnectionOpen: Called\n");
     if (Config.Wccp.router.s_addr == any_addr.s_addr) {
 	debug(1, 1) ("WCCP Disabled.\n");
@@ -225,7 +227,7 @@ wccpHandleUdp(int sock, void *not_used)
 
     len = recvfrom(sock,
 	(void *) &wccp_i_see_you,
-	WCCP_RESPONSE_SIZE,
+	sizeof(wccp_i_see_you),
 	0,
 	(struct sockaddr *) &from,
 	&from_len);
@@ -245,7 +247,13 @@ wccpHandleUdp(int sock, void *not_used)
 	return;
     if (ntohl(wccp_i_see_you.type) != WCCP_I_SEE_YOU)
 	return;
-    if ((0 == change) && (number_caches == ntohl(wccp_i_see_you.number))) {
+    if (ntohl(wccp_i_see_you.number) > WCCP_ACTIVE_CACHES || ntohl(wccp_i_see_you.number) < 0) {
+	debug(80, 1) ("Ignoring WCCP_I_SEE_YOU from %s with number of caches set to %d\n",
+	    inet_ntoa(from.sin_addr), (int) ntohl(wccp_i_see_you.number));
+	return;
+    }
+    last_id = wccp_i_see_you.id;
+    if ((0 == last_change) && (number_caches == ntohl(wccp_i_see_you.number))) {
 	if (last_assign_buckets_change == wccp_i_see_you.change) {
 	    /*
 	     * After a WCCP_ASSIGN_BUCKET message, the router should
@@ -257,14 +265,14 @@ wccpHandleUdp(int sock, void *not_used)
 	     */
 	    (void) 0;
 	} else {
-	    change = wccp_i_see_you.change;
+	    last_change = wccp_i_see_you.change;
 	    return;
 	}
     }
-    if (change != wccp_i_see_you.change) {
-	change = wccp_i_see_you.change;
+    if (last_change != wccp_i_see_you.change) {
+	last_change = wccp_i_see_you.change;
 	if (wccpLowestIP() && wccp_i_see_you.number) {
-	    last_assign_buckets_change = change;
+	    last_assign_buckets_change = last_change;
 	    wccpAssignBuckets();
 	}
     }
@@ -274,11 +282,18 @@ static int
 wccpLowestIP(void)
 {
     int loop;
+    int found = 0;
+    /*
+     * We sanity checked wccp_i_see_you.number back in wccpHandleUdp()
+     */
     for (loop = 0; loop < ntohl(wccp_i_see_you.number); loop++) {
+	assert(loop < WCCP_ACTIVE_CACHES);
 	if (wccp_i_see_you.wccp_cache_entry[loop].ip_addr.s_addr < local_ip.s_addr)
 	    return 0;
+	if (wccp_i_see_you.wccp_cache_entry[loop].ip_addr.s_addr == local_ip.s_addr)
+	    found = 1;
     }
-    return 1;
+    return found;
 }
 
 static void
@@ -286,7 +301,7 @@ wccpHereIam(void *voidnotused)
 {
     debug(80, 6) ("wccpHereIam: Called\n");
 
-    wccp_here_i_am.id = wccp_i_see_you.id;
+    wccp_here_i_am.id = last_id;
     send(theOutWccpConnection,
 	&wccp_here_i_am,
 	sizeof(wccp_here_i_am),
@@ -311,8 +326,8 @@ wccpAssignBuckets(void)
 
     debug(80, 6) ("wccpAssignBuckets: Called\n");
     number_caches = ntohl(wccp_i_see_you.number);
-    if (number_caches > WCCP_ACTIVE_CACHES)
-	number_caches = WCCP_ACTIVE_CACHES;
+    assert(number_caches > 0);
+    assert(number_caches <= WCCP_ACTIVE_CACHES);
     wab_len = sizeof(struct wccp_assign_bucket_t);
     cache_len = WCCP_CACHE_LEN * number_caches;
 
@@ -348,7 +363,7 @@ wccpAssignBuckets(void)
 	buf,
 	wab_len + WCCP_BUCKETS + cache_len,
 	0);
-    change = 0;
+    last_change = 0;
     xfree(buf);
 }
 

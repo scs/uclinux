@@ -4,15 +4,17 @@ OBJS = plugutils.o system.o network.o resolve.o arglists.o ftp_funcs.o \
 	scanners_utils.o pcap.o hlst.o  harglists.o \
         getopt.o getopt1.o www_funcs.o diff.o ids_send.o rand.o popen.o \
 	bpf_share.o rand.o popen.o services.o services1.o \
-	proctitle.o store.o snprintf.o 
+	proctitle.o store.o snprintf.o kb.o share_fd.o
+	
 LO_OBJS = plugutils.lo system.lo network.lo resolve.lo arglists.lo \
 	ftp_funcs.lo scanners_utils.lo pcap.lo hlst.lo  harglists.lo \
 	getopt.lo getopt1.lo www_funcs.lo diff.lo ids_send.lo \
 	rand.lo popen.lo bpf_share.lo services.lo services1.lo \
-	proctitle.lo store.lo snprintf.lo
+	proctitle.lo store.lo snprintf.lo kb.lo share_fd.lo
 
 # += does not work with non-GNU make ...
 # CFLAGS+=-I../$(CIPHER_SUBDIR)
+CFLAGS+=-g
 INCLUDE = ${include} 
 CIPHER = -I../$(CIPHER_SUBDIR)
 
@@ -31,6 +33,9 @@ plugutils.o : plugutils.c
 resolve.o : resolve.c resolve.h
 	$(LIBTOOL) $(CC)  $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -c resolve.c
 
+share_fd.o : share_fd.c 
+	$(LIBTOOL) $(CC)  $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -c share_fd.c
+
 system.o : system.c system.h
 	$(LIBTOOL) $(CC) $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -c system.c 
 
@@ -47,6 +52,7 @@ ftp_funcs.o : ftp_funcs.c ftp_funcs.h
 	$(LIBTOOL) $(CC) $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -c ftp_funcs.c
 www_funcs.o : www_funcs.c 
 	$(LIBTOOL) $(CC) $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -c www_funcs.c
+	
 pcap.o : pcap.c
 	$(LIBTOOL) $(CC) $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -c pcap.c
 
@@ -87,6 +93,10 @@ store.o: store.c
 	$(LIBTOOL) $(CC) $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -DNESSUS_STATE_DIR=\"$(localstatedir)\" -c store.c
 	
 	
+kb.o: kb.c
+	$(LIBTOOL) $(CC) $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -c kb.c
+
+
 snprintf.o : snprintf.c
 	$(LIBTOOL) $(CC) $(CIPHER) $(DEFS) $(INCLUDE) $(CFLAGS) -c snprintf.c	
 libnessus.la: $(OBJS)

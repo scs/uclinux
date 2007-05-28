@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10072);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-0198");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-1999-0198");
  name["english"] = "Finger dot at host feature";
  script_name(english:name["english"]);
  
@@ -65,7 +65,7 @@ if(get_port_state(port))
   
   buf = string(".\r\n");
   send(socket:soc, data:buf);
-  data = recv(socket:soc, length:2048);
+  data = recv(socket:soc, length:65535);
   close(soc);
   if(strlen(data)<100)exit(0);
   data_low = tolower(data);
@@ -73,7 +73,25 @@ if(get_port_state(port))
   if(data_low && (!("such user" >< data_low)) && 
      (!("doesn't exist" >< data_low)) && (!("???" >< data_low))
      && (!("welcome to" >< data_low))){
-     		security_warning(port);
+     report = "
+There is a bug in the remote finger service which, when triggered, allows
+a user to force the remote finger daemon to  display the list of the accounts 
+that have never been used, by issuing the request :
+
+		finger .@target
+		
+This list will help an attacker to guess the operating system type. It will 
+also tell him which accounts have never been used, which will often make him 
+focus his attacks on these accounts.
+
+Here is the list of accounts we could obtain : 
+" + data + "
+
+Solution : disable the finger service in /etc/inetd.conf and restart the inetd
+process, or upgrade your finger service.
+
+Risk factor : Medium";
+     		security_warning(port:port, data:report);
 		set_kb_item(name:"finger/.@host", value:TRUE);
 		}
 

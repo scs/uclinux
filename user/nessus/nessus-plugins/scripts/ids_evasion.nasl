@@ -12,10 +12,12 @@
 # See the Nessus Scripts License for details
 #
 
+if ( NASL_LEVEL >= 3000 ) exit(0);
+
 if(description)
 {
  script_id(10889);
- script_version ("$Revision: 1.21 $");
+ script_version ("$Revision: 1.23 $");
 
  name["english"] = "NIDS evasion";
  name["francais"] = "Anti NIDS (détecteur d'intrusions)";
@@ -99,6 +101,10 @@ if(pref == "none;split;injection;short ttl")exit(0);
 if(pref == "split")
 {
  set_kb_item(name:"NIDS/TCP/split", value:"yes");
+
+  if (! get_kb_item("/Settings/Whisker/NIDS"))
+    set_kb_item(name:"/Settings/Whisker/NIDS", value: "9");
+
 w="TCP split NIDS evasion function is enabled. Some tests might
 run slowly and you may get some false negative results";
  security_note(port:0, protocol:"tcp", data:w);

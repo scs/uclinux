@@ -1,6 +1,6 @@
 #!/bin/sh 
 #
-# $Id$
+# $Id: geo_split.sh,v 1.2 2003/04/24 19:22:25 jiri Exp $
 #
 # utility for displaying geographical break-down of usrloc population
 # it takes functional netgeo support for ser (currently, an

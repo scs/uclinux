@@ -142,10 +142,20 @@ void AlertFast(Packet *p, char *msg, void *arg, Event *event)
     /* dump the timestamp */
     fwrite(timestamp, strlen(timestamp), 1, data->file);
 
+    if( p->packet_flags& PKT_INLINE_DROP ) fputs(" [Drop]",data->file);
 
     if(msg != NULL)
     {
+#ifdef MARK_TAGGED
+        char c=' ';
+        if (p->packet_flags & PKT_REBUILT_STREAM)
+            c = 'R';
+        else if (p->packet_flags & PKT_REBUILT_FRAG)
+            c = 'F';
+        fprintf(data->file, " [**] %c ", c);
+#else
         fwrite(" [**] ", 6, 1, data->file);
+#endif
 
         if(event != NULL)
         {
@@ -174,8 +184,6 @@ void AlertFast(Packet *p, char *msg, void *arg, Event *event)
         PrintPriorityData(data->file, 0);
 
         fprintf(data->file, "{%s} ", protocol_names[p->iph->ip_proto]);
-
-
 
         if(p->frag_flag)
         {
@@ -243,13 +251,13 @@ SpoAlertFastData *ParseAlertFastArgs(char *args)
 
     data = (SpoAlertFastData *)SnortAlloc(sizeof(SpoAlertFastData));
 
-    DEBUG_WRAP(DebugMessage(DEBUG_LOG, "ParseAlertFastArgs: %s\n", args););
-
     if(args == NULL)
     {
         data->file = OpenAlertFile(NULL);
         return data;
     }
+
+    DEBUG_WRAP(DebugMessage(DEBUG_LOG, "ParseAlertFastArgs: %s\n", args););
 
     toks = mSplit(args, " ", 2, &num_toks, 0);
     if(strcasecmp("stdout", toks[0]) == 0)

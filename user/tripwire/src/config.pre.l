@@ -1,5 +1,5 @@
 %{
-/* $Id$ */
+/* $Id: config.pre.l,v 1.13 1994/07/25 15:40:55 gkim Exp $ */
 
 /*
  * config.pre.l

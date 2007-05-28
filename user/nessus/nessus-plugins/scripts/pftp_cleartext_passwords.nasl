@@ -1,13 +1,11 @@
 #
 # (C) Tenable Network Security
 #
-# ref: http://www.securiteam.com/windowsntfocus/5OP100AA0G.html
-#
 
 if(description)
 {
  script_id(11693);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.5 $");
  
  
  name["english"] = "PFTP clear-text passwords";
@@ -23,7 +21,7 @@ An attacker with a full access to this host may use this flaw
 to gain access to other FTP servers used by the same users.
 
 Solution : None
-Risk Factor : Low";
+Risk factor : Low";
 
  script_description(english:desc["english"]);
  
@@ -37,25 +35,19 @@ Risk Factor : Low";
  family["english"] = "Windows";
  script_family(english:family["english"]);
  script_require_ports(139, 445);
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/domain","SMB/transport");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
-include("smb_nt.inc");
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\Windows\CurrentVersion", item:"ProgramFilesDir");
-if(!rootfile)
-{
- exit(0);
-}
-else
-{
- share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
- db =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\PFTP\PFTPUSERS3.USR", string:rootfile);
-}
+include("smb_func.inc");
+include("smb_hotfixes.inc");
 
+rootfile = hotfix_get_programfilesdir();
+if ( ! rootfile ) exit(1);
+
+share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
+db =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\PFTP\PFTPUSERS3.USR", string:rootfile);
 
 
 
@@ -64,40 +56,24 @@ login	=  kb_smb_login();
 pass  	=  kb_smb_password(); 
 domain 	=  kb_smb_domain();
 port    =  kb_smb_transport();
-if(!port) port = 139;
-
-
-
-if(!get_port_state(port))exit(0);
-
+if(!get_port_state(port))exit(1);
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if(!soc)exit(1);
 
 
+session_init(socket:soc, hostname:name);
 
-r = smb_session_request(soc:soc, remote:name);
-if(!r)exit(0);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:share);
+if ( r != 1 ) exit(1);
 
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);
+handle = CreateFile (file:db, desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_NORMAL, share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
 
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r)exit(0);
-
-uid = session_extract_uid(reply:r);
-
-
-
-r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-tid = tconx_extract_tid(reply:r);
-if(!tid)exit(0);
-
-
-fid = OpenAndX(socket:soc, uid:uid, tid:tid, file:db);
-if(fid)
+if ( ! isnull(handle) )
 {
  security_warning(port);
- exit(0);
+ CloseFile(handle:handle);
 }
+
+NetUseDel();
 
 

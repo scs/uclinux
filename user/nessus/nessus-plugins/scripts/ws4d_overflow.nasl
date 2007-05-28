@@ -1,12 +1,13 @@
 #
-# This script was written by Renaud Deraison <rderaison@tenablesecurity.com>
+# (C) Tenable Network Security
+#
 
 
 if(description)
 {
  script_id(11560);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(7479);
+ script_version ("$Revision: 1.6 $");
  name["english"] = "WebServer 4D GET Buffer Overflow";
  script_name(english:name["english"]);
  
@@ -28,7 +29,7 @@ Risk factor : High";
  
  script_category(ACT_MIXED_ATTACK);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Denial of Service";
  script_family(english:family["english"]);
  script_dependencies("find_service.nes", "http_version.nasl", "no404.nasl");
@@ -40,14 +41,15 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
+banner = get_http_banner(port:port);
+if(!banner)exit(0);
+if ( "Web_Server_4D" >!< banner ) exit(0);
 
 if( safe_checks() )
 {
- banner = get_http_banner(port:port);
- if(!banner)exit(0);
  if(egrep(pattern:"^Server: Web_Server_4D/([0-2]\..*|3\.([0-5]|6\.0))[^0-9]", string:banner))security_hole(port);
  exit(0);
 }

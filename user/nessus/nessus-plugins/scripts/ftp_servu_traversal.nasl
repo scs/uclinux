@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10565);
- script_cve_id("CVE-2001-0054");
  script_bugtraq_id(2052);
- script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-2001-0054");
+ script_version ("$Revision: 1.23 $");
  
  name["english"] = "Serv-U Directory traversal";
  name["francais"] = "Traversement de dossier Serv-U";
@@ -83,7 +83,7 @@ if (! pass) pass="test@nessus.com";
 
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
- if(ftp_log_in(socket:soc, user:login,pass:pass))
+ if(ftp_authenticate(socket:soc, user:login,pass:pass))
  {
   
   for(i=0;i<2;i=i+1)
@@ -95,9 +95,9 @@ if (! pass) pass="test@nessus.com";
   
   if(a[0]==a[1])exit(0);
 
-  if((ereg(pattern:".*to /..", string:a[0])) ||
-     (ereg(pattern:".*to /[a-z]:/", string:a[1], icase:TRUE)) ||
-     (ereg(pattern:"^550 /[a-z]:/.*", string:a[1], icase:TRUE)))
+  if((egrep(pattern:".*to /..", string:a[0])) ||
+     (egrep(pattern:".*to /[a-z]:/", string:a[1], icase:TRUE)) ||
+     (egrep(pattern:"^550 /[a-z]:/.*", string:a[1], icase:TRUE)))
     	security_hole(port);
 
   exit(0);   

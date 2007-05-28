@@ -7,7 +7,7 @@ nasl.tmpl: nasl.tmpl.in configure
 	$(SHELL) configure $(CONFIGURE_ARGS)
 	touch $@
 
-install ::
+install: all
 	cd nasl && ${MAKE} install
 	test -d $(DESTDIR)${includedir}/nessus || $(INSTALL_DIR) -m 755 $(DESTDIR)${includedir}/nessus
 	$(INSTALL) -c -m 0444 include/nasl.h $(DESTDIR)${includedir}/nessus
@@ -16,6 +16,9 @@ install ::
 	test -d $(DESTDIR)${mandir}/man1 || $(INSTALL_DIR) -m 755 $(DESTDIR)${mandir}/man1
 	$(INSTALL) -c -m 0644 doc/nasl-config.1 $(DESTDIR)${mandir}/man1
 	$(INSTALL) -c -m 0644 doc/nasl.1 $(DESTDIR)${mandir}/man1
+	$(INSTALL) -c -m 0644 doc/nasl-config.1 $(DESTDIR)${mandir}/man1
+	test -d $(DESTDIR)${localstatedir}/nessus || $(INSTALL_DIR) -m 755 $(DESTDIR)${localstatedir}/nessus
+	$(INSTALL) -c -m 0644 doc/nessus_org.pem $(DESTDIR)${localstatedir}/nessus/nessus_org.pem
 
 
 	@echo

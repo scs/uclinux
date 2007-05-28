@@ -9,7 +9,7 @@ if(description)
 {
  script_id(11564);
  script_bugtraq_id(7471);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.6 $");
 
 
  name["english"] = "Coppermine Gallery SQL injection";
@@ -44,7 +44,7 @@ Risk factor : Medium";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl");
+ script_dependencie("coppermine_gallery_detect.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -57,27 +57,18 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
 
-gdir = make_list(cgi_dirs());
-dirs = make_list("", "/gallery");
-foreach d (gdir)
+kb = get_kb_list("www/" + port + "/coppermine_photo_gallery");
+if ( isnull(kb) ) exit(0);
+
+foreach k ( kb )
 {
-  dirs = make_list(dirs, string(d, "/gallery"), d);
-}
-
-
-  foreach dir (dirs)
-  {
-   req = http_get(item:string(dir, "/db_input.php"), port:port);
-   res = http_keepalive_send_recv(port:port, data:req);
-   if( res == NULL ) exit(0);
-   if(egrep(pattern:"Coppermine Photo Gallery.* v1\.(0.*|1 (devel|Beta [12]))", string:res, icase:TRUE))
+ version = split(k, sep:" under ", keep:0);
+ if ( ereg(pattern:"^v?(0\.|1\.(0\.|1 (devel|Beta [12]([^0-9]|$))))", string:version[0], icase:TRUE) )
  	{
 	security_warning(port);
 	exit(0);
 	}
-  }
+}
 

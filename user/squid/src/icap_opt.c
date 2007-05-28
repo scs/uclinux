@@ -292,13 +292,14 @@ icapOptReadReply(int fd, void *data)
 	debug(81, 3) ("icapOptReadReply: FD %d: connection closed\n", fd);
 	i->buf[i->offset] = '\0';	/* for string functions */
 	debug(81, 3) ("icapOptReadReply: unreachable=0, service=%s\n", s->uri);
-	s->unreachable = 0;
 	if (icapOptParseReply(s, i) && s->options_ttl > 0) {
 	    debug(81, 3) ("icapOptReadReply: OPTIONS request successful. scheduling again in %d seconds\n", s->options_ttl);
+	    s->unreachable = 0;
 	    eventAdd("icapOptStart", icapOptStart, s, s->options_ttl, 1);
 	} else {
 	    /* use a default ttl */
 	    debug(81, 3) ("icapOptReadReply: OPTIONS request not successful. scheduling again in %d seconds\n", Config.icapcfg.check_interval);
+	    s->unreachable = 1;
 	    eventAdd("icapOptStart", icapOptStart, s, Config.icapcfg.check_interval, 1);
 	}
 	icapOptDataFree(i);
@@ -446,8 +447,8 @@ icapOptParseEntry(icap_service * s, const char *blk_start, const char *blk_end)
 static int
 icapOptParseReply(icap_service * s, IcapOptData * i)
 {
-    LOCAL_ARRAY(char, tmpbuf, SQUID_TCP_SO_RCVBUF);
-    float ver;
+    int version_major, version_minor;
+    const char *str_status;
     int status;
     const char *buf = i->buf;
     const char *parse_start;
@@ -455,12 +456,13 @@ icapOptParseReply(icap_service * s, IcapOptData * i)
     const char *blk_start;
     const char *blk_end;
 
-    if (sscanf(buf, "ICAP/%f %d %s\r", &ver, &status, tmpbuf) < 3
-	|| ver <= 0.0) {
-	debug(81, 2) ("icapOptParseReply: bad status line <%s>\n", buf);
+    if ((status =
+            icapParseStatusLine(i->buf, i->offset,
+                &version_major, &version_minor, &str_status)) < 0) {
+	debug(81, 2) ("icapOptParseReply: bad status line <%s>\n", i->buf);
 	return 0;
     }
-    debug(81, 3) ("icapOptParseReply: got reply: <ICAP/%1.1f %d %s>\n", ver, status, tmpbuf);
+    debug(81, 3) ("icapOptParseReply: got reply: <ICAP/%d.%d %d %s>\n", version_major, version_minor, status, str_status);
 
     if (status != 200) {
 	debug(81, 3) ("icapOptParseReply: status = %d != 200\n", status);
@@ -485,6 +487,7 @@ icapOptParseReply(icap_service * s, IcapOptData * i)
     if (!icapIsolateLine(&parse_start, &blk_start, &blk_end)) {
 	debug(81, 3) ("icapOptParseReply: failure in isolating status line\n");
 	return 0;
+
     }
     /* now we might start real parsing */
     while (icapIsolateLine(&parse_start, &blk_start, &blk_end)) {

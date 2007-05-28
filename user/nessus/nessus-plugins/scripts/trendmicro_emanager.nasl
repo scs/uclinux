@@ -7,17 +7,17 @@
 if(description)
 {
  script_id(11747);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2001-0958");
  script_bugtraq_id(3327);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-0958");
  
  
- name["english"] = "TrendMicro Emanager software check";
- name["francais"] = "TrendMicro Emanager software check";
+ name["english"] = "Trend Micro Emanager software check";
+ name["francais"] = "Trend Micro Emanager software check";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The TrendMicro Emanager software resides on this server.
+The Trend Micro Emanager software resides on this server.
 Some versions of this software have vulnerable dlls.  If vulnerable, 
 remote exploit is possible.  For more info, visit:
 http://www.securityfocus.com/bid/3327
@@ -28,7 +28,7 @@ Risk factor : Medium";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Check for certain TrendMicro dlls";
+ summary["english"] = "Check for certain Trend Micro dlls";
  
  script_summary(english:summary["english"]);
  
@@ -42,6 +42,7 @@ Risk factor : Medium";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -51,9 +52,13 @@ Risk factor : Medium";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 flag = flag2 = 0;

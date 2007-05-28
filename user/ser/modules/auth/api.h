@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: api.h,v 1.3.6.1 2004/04/27 21:21:52 jiri Exp $
  *
  * Digest Authentication Module
  *

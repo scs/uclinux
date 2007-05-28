@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: xjab_base.c,v 1.6 2003/06/05 17:13:26 dcm Exp $
  *
  * eXtended JABber module - Jabber connections pool
  *

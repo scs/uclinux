@@ -1,29 +1,43 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(10693);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(2348);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-2001-0016");
  
- name["english"] =  "NTLMSSP Privilege Escalation";
+ name["english"] =  "NTLMSSP Privilege Escalation (Q280119)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-The hotfix for the 'NTLMSSP Privilege Escalation'
-problem has not been applied.
+Synopsis :
 
-This vulnerability allows a malicious user, who has the
-right to log on this host locally, to gain additional privileges.
+A bug in the remote operating system allows a local user to elevate his 
+privileges.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms01-008.asp
-Risk factor : Medium";
+Description :
+
+The hotfix for the 'NTLMSSP Privilege Escalation' problem has not been 
+applied.  This hotfix corrects a problem in Windows NT which may allow a 
+local process to execute code with the privileges of the NTLMSSP service
+provider.
+
+This vulnerability allows a malicious user, who has the right to log on this 
+host locally, to gain additional privileges.
+
+Solution : 
+
+http://www.microsoft.com/technet/security/bulletin/ms01-008.mspx
+
+
+Risk factor :
+
+High / CVSS Base Score : 7 
+(AV:L/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
 
 
@@ -36,38 +50,18 @@ Risk factor : Medium";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl", "smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl"
-		     );
- script_require_keys("SMB/name", "SMB/login", "SMB/password", "SMB/registry_access");
- script_require_ports(139, 445);
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  exit(0);
 }
 
-include("smb_nt.inc");
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+include("smb_hotfixes.inc");
 
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
-#---------------------------------------------------------------------#
-# Here is our main()                                                  #
-#---------------------------------------------------------------------#
-
-version = get_kb_item("SMB/WindowsVersion");
-if(version == "4.0") ## &&(sp< 7?)
-{
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q299444";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(value)exit(0);
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q280119";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
-}
+if ( hotfix_check_sp(nt:7) <= 0 ) exit(0);
+if ( hotfix_missing(name:"Q299444") > 0 && hotfix_missing(name:"Q280119") > 0 )
+	security_warning(get_kb_item("SMB/transport"));
 

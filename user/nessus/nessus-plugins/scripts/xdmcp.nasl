@@ -6,23 +6,26 @@
 if(description)
 {
  script_id(10891);
- script_version("$Revision: 1.3 $");
+#script_cve_id("CVE-MAP-NOMATCH");
+ script_version("$Revision: 1.6 $");
  name["english"] = "X Display Manager Control Protocol (XDMCP)";
  script_name(english:name["english"]);
  
  desc["english"] = "
 The remote host is running XDMCP.
 
-This protocol is used to provide X display connections for 
-X terminals. XDMCP is completely insecure, since the traffic and
-passwords are not encrypted. 
+This protocol is used to provide X display connections for X terminals. 
+XDMCP is completely insecure, since the traffic and passwords are not 
+encrypted. 
 
-An attacker may use this flaw to capture all the keystrokes of
-the users using this host through their X terminal, including
-passwords.
+An attacker may use this flaw to capture all the keystrokes of the users 
+using this host through their X terminal, including passwords.
 
-Risk factor : Medium
-Solution : Disable XDMCP";
+Also XDMCP is an additional login mechanism that you may not have been 
+aware was enabled, or may not be monitoring failed logins on.
+
+Solution : Disable XDMCP
+Risk factor : Medium";
 
  script_description(english:desc["english"]);
  

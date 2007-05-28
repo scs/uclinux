@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: parse_hname2.h,v 1.6 2002/11/18 19:08:16 janakj Exp $ 
  *
  * Fast 32-bit Header Field Name Parser
  *

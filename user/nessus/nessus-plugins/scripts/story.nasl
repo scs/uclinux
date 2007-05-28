@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10817);
- script_version("$Revision: 1.12 $");
  script_bugtraq_id(3028);
+ script_version("$Revision: 1.18 $");
  script_cve_id("CVE-2001-0804");
  name["english"] = "Interactive Story Directory Traversal Vulnerability";
  script_name(english:name["english"]);
@@ -22,7 +22,7 @@ An attacker may use this flaw to read arbitrary files on
 this server.
 
 Solution: Upgrade story.pl to the latest version (1.4 or later).
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
 
@@ -37,6 +37,7 @@ Risk factor : Serious";
 
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -46,6 +47,7 @@ Risk factor : Serious";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include('global_settings.inc');
 
 function check(url)
 {
@@ -60,6 +62,8 @@ function check(url)
     exit(0);
    }
   
+ if ( thorough_tests )
+ {
   req = string(url, "?next=about");
   req = http_get(item:req, port:port);
   buf = http_keepalive_send_recv(port:port, data:req);
@@ -69,14 +73,15 @@ function check(url)
     security_hole(port:port);
     exit(0);
    }
+ }
 }
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
-foreach dir (make_list("", cgi_dirs()))
+foreach dir ( cgi_dirs() )
 {
 check(url:string(dir, "/story.pl"));
 #check(url:string(dir, "/story/story.pl"));

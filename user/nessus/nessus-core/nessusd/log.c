@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2002 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,16 +14,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * Log.c -- manages the logfile of Nessus
  *
@@ -33,84 +23,44 @@
 
 #include <includes.h>
 #include <stdarg.h>
-#ifndef _CYGWIN_
-#include <syslog.h>
-#endif
-
-#ifdef NESSUSNT
-#include <time.h>
-#include "wstuff.h"
-#endif
 #include "comm.h"
 #include "utils.h"
 #include "log.h"
 #include "corevers.h"
 
 
-#ifdef _CYGWIN_
-static char *log_ident = 0;
-static int log_sock = -1;
-static int my_openlog(const char *ident, int ignored, int ignored2) {
-	struct sockaddr_in sa;
-
-	log_ident = strdup(ident);
-	log_sock = socket(AF_INET, SOCK_DGRAM, 0);
-	if(log_sock < 0)
-		return;
-	sa.sin_family = AF_INET;
-	sa.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	sa.sin_port = htons(514);
-	if(connect(log_sock, (struct sockaddr *) &sa, sizeof(sa)) < 0) {
-		perror("connect");
-		shutdown(log_sock, 2);
-		close(log_sock);
-		log_sock = -1;
-	}
-}
-static void my_closelog() {
-	if(log_ident) {
-		free(log_ident);
-		log_ident = 0;
-	}
-	if(log_sock >= 0) {
-		shutdown(log_sock, 2);
-		close(log_sock);
-		log_sock = -1;
-	}
-}
-
-static int my_syslog(int priority, char *fmt, ...) {
-  va_list param;
-  char disp[4096];
-  char * tmp;
-  va_start(param, fmt);
-  vsnprintf(disp, sizeof(disp),fmt, param);
-
-  while((tmp=(char*)strchr(disp, '\n')))tmp[0]=' ';
-  if(disp[strlen(disp)-1]=='\n')disp[strlen(disp)-1]=0;
-  if(log_sock >= 0)
-  {
-   char timestr[255];
-   time_t t;
-   FILE *log = fdopen(log_sock, "w");
-   
-   t = time(NULL);
-   tmp = ctime(&t);
-   
-   strncpy(timestr, tmp, sizeof(timestr) - 1);
-   timestr[sizeof(timestr) -  1 ] = '\0';
-   timestr[strlen(timestr) - 1] = '\0'; /* chop(timestr) */
-   fprintf(log, "[%s][%d] %s\n", timestr, getpid(), disp);
-  }
-  va_end(param);  
-}
-#define openlog		my_openlog
-#define syslog		my_syslog
-#define closelog	my_closelog
-#define LOG_DAEMON	(3 << 3)
-#define LOG_NOTICE	5
-#endif
 static FILE * log;
+
+#define MAX_LOG_SIZE_MEGS 500 /* 500 Megs */
+
+void rotate_log_file(const char * filename)
+{
+ char path[1024];
+ int  i = 0;
+ struct stat st;
+
+ if ( stat(filename, &st) == 0 )
+ {
+  if ( st.st_size < 1024*1024*MAX_LOG_SIZE_MEGS)
+	return;
+ }
+ else return; /* Could not stat the log file */
+
+
+ log_close();
+
+ for ( i = 0 ; i < 1024 ; i ++ )
+ {
+  int e;
+  snprintf(path, sizeof(path), "%s.%d", filename, i);
+  e = stat(path, &st);
+  if ( e < 0 && errno == ENOENT ) break;
+ }
+
+ if ( i == 1024 ) return; /* ?? */
+
+ rename(filename, path);
+}
 
 
 /* 
@@ -120,17 +70,18 @@ void
 log_init(filename)
   const char * filename;
 {
+  rotate_log_file(filename);
   if((!filename)||(!strcmp(filename, "stderr"))){
   	log = stderr;
 	dup2(2, 3);
 	}
-  else if(!strcmp(filename, "syslog")){
-  	openlog("nessusd", 0, LOG_DAEMON);
-	log = NULL;
-	}
   else
     {
-      int fd = open(filename, O_WRONLY|O_CREAT|O_APPEND, 0644);
+      int fd = open(filename, O_WRONLY|O_CREAT|O_APPEND
+#ifdef O_LARGEFILE
+	| O_LARGEFILE
+#endif
+	, 0644);
       if(fd < 0)
       {
        perror("log_init():open ");
@@ -171,7 +122,6 @@ void log_close()
   fclose(log);
   log = NULL;
  }
- else closelog();
 }
  
 
@@ -208,6 +158,5 @@ log_write(const char * str, ...)
    timestr[strlen(timestr) - 1 ] = '\0';
    fprintf(log, "[%s][%d] %s\n", timestr, getpid(), disp);
   }
-  else syslog(LOG_NOTICE, "%s", disp);
 }
 

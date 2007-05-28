@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_funcs.c,v 1.163.4.1 2004/05/12 09:40:05 bogdan Exp $
  *
  * transaction maintenance functions
  *

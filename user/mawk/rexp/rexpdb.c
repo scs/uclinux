@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 
-/*$Log$
- *Revision 1.2  2005/07/25 04:03:16  magicyang
- *New user folder check in
- *
+/*$Log: rexpdb.c,v $
  * Revision 1.2  1993/07/23  13:21:51  mike
  * cleanup rexp code
  *

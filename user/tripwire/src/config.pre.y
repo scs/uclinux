@@ -17,7 +17,7 @@
 %token ESCCHAR
 
 %{
-/* $Id$ */
+/* $Id: config.pre.y,v 1.23 1994/08/04 03:44:32 gkim Exp $ */
 
 /*
  * config.y

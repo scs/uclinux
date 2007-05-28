@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_content.c,v 1.9.2.1 2003/11/12 18:11:20 andrei Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

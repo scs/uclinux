@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10165);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CVE-1999-0045");
  script_bugtraq_id(686);
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-1999-0045");
  
  
  name["english"] = "nph-test-cgi";
@@ -23,7 +23,7 @@ on the remote host.
 
 Solution : remove it from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'nph-test-cgi' est installé. Celui-ci possède
@@ -51,7 +51,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -59,7 +59,9 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
-
+include("http_func.inc");
+include("http_keepalive.inc");
+port = get_http_port(default:80);
 cgi = "nph-test-cgi";
-port = is_cgi_installed(cgi);
-if(port)security_warning(port);
+res = is_cgi_installed_ka(item:cgi, port:port);
+if(res)security_warning(port);

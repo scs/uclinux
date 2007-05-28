@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: defaults.h,v 1.6 2001/12/28 07:38:44 psavola Exp $
  *
  *   Authors:
  *    Lars Fenneberg		<lf@elemental.net>	 

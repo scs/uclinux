@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ntlm.h,v 1.1.2.1 2002/06/28 14:46:21 squidadm Exp $
  *
  * AUTHOR: Andrew Doran <ad@interlude.eu.org>
  *

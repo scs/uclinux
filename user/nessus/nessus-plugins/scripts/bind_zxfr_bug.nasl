@@ -7,10 +7,10 @@
 if(description)
 {
  script_id(10549);
- script_cve_id("CVE-2000-0887");
  script_bugtraq_id(1923);
- script_version ("$Revision: 1.6 $");
- 
+ script_cve_id("CVE-2000-0887");
+ script_version ("$Revision: 1.9 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-b-0008"); 
  
  name["english"] = "BIND vulnerable to ZXFR bug";
  name["francais"] = "BIND vulnerable au bug ZXFR";
@@ -61,4 +61,4 @@ Facteur de risque : Elevé";
 vers = get_kb_item("bind/version");
 if(!vers)exit(0);
 if(ereg(string:vers,
-	 pattern:"8\.2\.2(\-P[1-6])*$"))security_hole(53);
+	 pattern:"^8\.2\.2(\-P[1-6])*$"))security_hole(53);

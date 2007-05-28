@@ -8,21 +8,22 @@
 if(description)
 {
  script_id(10081);
- script_version ("$Revision: 1.19 $");
+ script_version ("$Revision: 1.25 $");
  script_cve_id("CVE-1999-0017");
+ script_bugtraq_id(126);
  script_name(english:"FTP bounce check",
  	     francais:"Test FTP bounce");
  
-  script_description(english:"It is possible to force the FTP server
-to connect to third parties hosts, by using the PORT command. 
-This problem allows intruders to use your network resources to
-scan other hosts, making them think the attack comes from your
-network, or it can even allow them to go through your firewall.
-   
-Solution : Upgrade to the latest version of your FTP server, 
-or use another FTP server.
+  script_description(english:"
+It is possible to force the FTP server to connect to third parties hosts by using 
+the PORT command. 
 
-Risk factor : Medium/High",
+This problem allows intruders to use your network resources to scan other hosts, making 
+them think the attack comes from your network, or it can even allow them to go through 
+your firewall.
+   
+Solution : Upgrade to the latest version of your FTP server, or use another FTP server.
+Risk factor : Medium",
  
   francais:"Il est possible de forcer le serveur FTP à se connecter 
 à des machines tierces, en utilisant la commande PORT. Ce problème 
@@ -32,7 +33,7 @@ de chez vous, ou bien même de passer au travers de votre firewall.
   
 Solution : Mettez à jour votre serveur FTP, ou utilisez-en un autre.
 
-Facteur de risque : Moyen/Elevé");
+Facteur de risque : Moyen");
   
 
  script_summary(english:"Checks if the remote ftp server can be bounced",
@@ -45,7 +46,7 @@ Facteur de risque : Moyen/Elevé");
  
 
  script_family(english:"FTP"); 
- script_dependencie("ftp_anonymous.nasl", "find_service.nes");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl", "ftp_anonymous.nasl", "ftp_kibuv_worm.nasl");
  script_require_keys("ftp/login");
  script_require_ports("Services/ftp", 21);
  script_exclude_keys("ftp/ncftpd");
@@ -56,10 +57,12 @@ Facteur de risque : Moyen/Elevé");
 # The script code starts here :
 #
 
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(!get_port_state(port))exit(0);
 
+if (get_kb_item('ftp/'+port+'/backdoor')) exit(0);
 
 login = get_kb_item("ftp/login");
 password = get_kb_item("ftp/password");
@@ -70,7 +73,7 @@ if(login)
  soc = open_sock_tcp(port);
  if(soc)
  {
- if(ftp_log_in(socket:soc, user:login, pass:password))
+ if(ftp_authenticate(socket:soc, user:login, pass:password))
  {
   ip = get_host_ip();
   last = ereg_replace(string:ip,
@@ -85,7 +88,7 @@ if(login)
   command = string("PORT ", ip, ",42,42\r\n");
   send(socket:soc, data:command);
   code = recv(socket:soc, length:4);
-  if(code == "200 ")security_hole(port);
+  if(code == "200 ")security_warning(port);
  }
  close(soc);
  }

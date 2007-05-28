@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(10415);
- script_version ("$Revision: 1.15 $");
+ script_version ("$Revision: 1.16 $");
  
  name["english"] = "Sambar sendmail /session/sendmail";
  script_name(english:name["english"]);
@@ -46,6 +46,6 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if( is_cgi_installed_ka(port:port, item:"/session/sendmail") ) security_warning(port);

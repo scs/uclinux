@@ -1,7 +1,7 @@
 /*
  * Presence Agent, domain support
  *
- * $Id$
+ * $Id: pdomain.h,v 1.4 2003/04/30 17:49:29 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

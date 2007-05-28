@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ut.h,v 1.12 2003/07/07 20:53:21 andrei Exp $
  *
  * utilities
  *

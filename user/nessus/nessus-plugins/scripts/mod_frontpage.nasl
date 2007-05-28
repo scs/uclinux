@@ -23,11 +23,11 @@
 if(description)
 {
  script_id(11303);
- 
- script_cve_id("CAN-2002-0427");
  script_bugtraq_id(4251);
  
- script_version("$Revision: 1.1 $");
+ script_cve_id("CVE-2002-0427");
+ 
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "mod_frontpage installed";
 
@@ -61,9 +61,9 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/apache");
  exit(0);
@@ -73,10 +73,13 @@ Risk factor : High";
 # The script code starts here
 #
 
+include('global_settings.inc');
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+if ( report_paranoia < 1 ) exit(0);
+
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);

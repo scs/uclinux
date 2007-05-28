@@ -10,9 +10,9 @@
 if(description)
 {
  script_id(10752);
- script_version ("$Revision: 1.8 $");
- script_bugtraq_id(3253);
- script_cve_id("CAN-2001-1379");
+ script_bugtraq_id(3251, 3253);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2001-1379");
 
  name["english"] = "Apache Auth Module SQL Insertion Attack";
 
@@ -36,7 +36,7 @@ Solution: Upgrade the module";
  script_copyright(english:"This script is Copyright (c) 2001 Matt Moore",
                   francais:"Ce script est Copyright (c) 2001 Matt Moore");
  
- family["english"] = "General";
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
 
  script_dependencie("find_service.nes", "http_version.nasl");
@@ -51,8 +51,8 @@ Solution: Upgrade the module";
 
 include("http_func.inc");
 
- port = get_kb_item("Services/www");
- if (!port) port = 80;
+ port = get_http_port(default:80);
+
 
  banner = get_http_banner(port: port);
  

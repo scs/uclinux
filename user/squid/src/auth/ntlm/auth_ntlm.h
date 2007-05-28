@@ -85,8 +85,4 @@ typedef struct _ntlm_helper_state_t ntlm_helper_state_t;
 typedef struct _auth_ntlm_config auth_ntlm_config;
 typedef struct _ntlm_challenge_hash_pointer ntlm_challenge_hash_pointer;
 
-extern MemPool *ntlm_helper_state_pool;
-extern MemPool *ntlm_user_pool;
-extern MemPool *ntlm_request_pool;
-
 #endif

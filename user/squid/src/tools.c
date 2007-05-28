@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: tools.c,v 1.213.2.15 2005/04/22 20:45:12 hno Exp $
  *
  * DEBUG: section 21    Misc Functions
  * AUTHOR: Harvest Derived
@@ -132,18 +132,18 @@ dumpMallocStats(void)
 	return;
     mp = mallinfo();
     fprintf(debug_log, "Memory usage for %s via mallinfo():\n", appname);
-    fprintf(debug_log, "\ttotal space in arena:  %6d KB\n",
-	mp.arena >> 10);
-    fprintf(debug_log, "\tOrdinary blocks:       %6d KB %6d blks\n",
-	mp.uordblks >> 10, mp.ordblks);
-    fprintf(debug_log, "\tSmall blocks:          %6d KB %6d blks\n",
-	mp.usmblks >> 10, mp.smblks);
-    fprintf(debug_log, "\tHolding blocks:        %6d KB %6d blks\n",
-	mp.hblkhd >> 10, mp.hblks);
-    fprintf(debug_log, "\tFree Small blocks:     %6d KB\n",
-	mp.fsmblks >> 10);
-    fprintf(debug_log, "\tFree Ordinary blocks:  %6d KB\n",
-	mp.fordblks >> 10);
+    fprintf(debug_log, "\ttotal space in arena:  %6ld KB\n",
+	(long int) mp.arena >> 10);
+    fprintf(debug_log, "\tOrdinary blocks:       %6ld KB %6ld blks\n",
+	(long int) mp.uordblks >> 10, (long int) mp.ordblks);
+    fprintf(debug_log, "\tSmall blocks:          %6ld KB %6ld blks\n",
+	(long int) mp.usmblks >> 10, (long int) mp.smblks);
+    fprintf(debug_log, "\tHolding blocks:        %6ld KB %6ld blks\n",
+	(long int) mp.hblkhd >> 10, (long int) mp.hblks);
+    fprintf(debug_log, "\tFree Small blocks:     %6ld KB\n",
+	(long int) mp.fsmblks >> 10);
+    fprintf(debug_log, "\tFree Ordinary blocks:  %6ld KB\n",
+	(long int) mp.fordblks >> 10);
     t = mp.uordblks + mp.usmblks + mp.hblkhd;
     fprintf(debug_log, "\tTotal in use:          %6d KB %d%%\n",
 	t >> 10, percent(t, mp.arena));
@@ -341,8 +341,10 @@ fatal_common(const char *message)
     fprintf(debug_log, "Squid Cache (Version %s): Terminated abnormally.\n",
 	version_string);
     fflush(debug_log);
-    PrintRusage();
-    dumpMallocStats();
+    if (!shutting_down) {
+	PrintRusage();
+	dumpMallocStats();
+    }
 }
 
 /* fatal */
@@ -357,9 +359,13 @@ fatal(const char *message)
 	storeDirWriteCleanLogs(0);
     fatal_common(message);
     if (shutting_down)
-	exit(0);
+	exit(1);
     else
+#if CONFIG_SNAPGEAR
+	exit(-1);
+#else
 	abort();
+#endif
 }
 
 /* printf-style interface for fatal */
@@ -615,12 +621,19 @@ readPidFile(void)
 {
     FILE *pid_fp = NULL;
     const char *f = Config.pidFilename;
+    char *chroot_f = NULL;
     pid_t pid = -1;
     int i;
 
     if (f == NULL || !strcmp(Config.pidFilename, "none")) {
 	fprintf(stderr, "%s: ERROR: No pid file name defined\n", appname);
 	exit(1);
+    }
+    if (Config.chroot_dir && geteuid() == 0) {
+	int len = strlen(Config.chroot_dir) + 1 + strlen(f) + 1;
+	chroot_f = xmalloc(len);
+	snprintf(chroot_f, len, "%s/%s", Config.chroot_dir, f);
+	f = chroot_f;
     }
     pid_fp = fopen(f, "r");
     if (pid_fp != NULL) {
@@ -635,6 +648,7 @@ readPidFile(void)
 	    exit(1);
 	}
     }
+    safe_free(chroot_f);
     return pid;
 }
 
@@ -839,7 +853,7 @@ dlinkDelete(dlink_node * m, dlink_list * list)
 }
 
 void
-kb_incr(kb_t * k, size_t v)
+kb_incr(kb_t * k, squid_off_t v)
 {
     k->bytes += v;
     k->kb += (k->bytes >> 10);
@@ -937,6 +951,9 @@ int
 xrename(const char *from, const char *to)
 {
     debug(21, 2) ("xrename: renaming %s to %s\n", from, to);
+#if defined(_SQUID_OS2_) || defined(_SQUID_CYGWIN_) || defined(_SQUID_MSWIN_)
+    remove(to);
+#endif
     if (0 == rename(from, to))
 	return 0;
     debug(21, errno == ENOENT ? 2 : 1) ("xrename: Cannot rename %s to %s: %s\n",

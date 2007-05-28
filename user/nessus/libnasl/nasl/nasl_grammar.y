@@ -1,7 +1,9 @@
+%pure_parser
+%expect 1
 %{
 /* Nessus Attack Scripting Language version 2
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Michel Arboi and Renaud Deraison
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -15,18 +17,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
- *
  */
 
 #define YYPARSE_PARAM parm
@@ -36,6 +26,10 @@
 #include "includes.h"
 #include "nasl_tree.h"
 #include "nasl_global_ctxt.h"
+#include "nasl_func.h"
+#include "nasl_var.h"
+#include "nasl_lex_ctxt.h"
+#include "nasl_debug.h"
 
 static void naslerror(const char *);
 #define YYERROR_VERBOSE
@@ -44,11 +38,13 @@ static void naslerror(const char *);
 %union {
   int		num;
   char		*str;
+  struct asciiz {
+    char	*val;
+    int		len;
+  } data;
   tree_cell	*node;
 }
 
-%pure_parser
-%expect 1
 
 %token IF
 %token ELSE
@@ -67,6 +63,7 @@ static void naslerror(const char *);
 %token FOREACH
 %token WHILE
 %token BREAK
+%token CONTINUE
 %token FUNCTION
 %token RETURN
 %token INCLUDE
@@ -89,9 +86,10 @@ static void naslerror(const char *);
 %token R_USHIFT_EQ
 %token RE_MATCH
 %token RE_NOMATCH
+%token ARROW
 
 %token <str> IDENT
-%token <str> STRING1
+%token <data> STRING1
 %token <str> STRING2
 
 %token <num> INTEGER
@@ -104,8 +102,9 @@ static void naslerror(const char *);
 %type <node> aff rep ret expr aff_func array_index array_elem lvalue var
 %type <node> ipaddr post_pre_incr
 %type <node> inc loc glob
+%type <node> atom const_array list_array_data array_data simple_array_data
 
-%type <str>  identifier string
+%type <str>  identifier string var_name
 
 /* Priority of all operators */
 %right '=' PLUS_EQ MINUS_EQ MULT_EQ DIV_EQ MODULO_EQ L_SHIFT_EQ R_SHIFT_EQ R_USHIFT_EQ
@@ -122,6 +121,7 @@ static void naslerror(const char *);
 %nonassoc UMINUS BIT_NOT
 %right EXPO
 %nonassoc PLUS_PLUS MINUS_MINUS
+%nonassoc ARROW
 
 %start	tiptop
 
@@ -190,6 +190,10 @@ simple_instr : aff | post_pre_incr | rep
 	| BREAK {
 	  $$ = alloc_tree_cell(LNB, NULL);
 	  $$->type =  NODE_BREAK;
+	}
+	| CONTINUE {
+	  $$ = alloc_tree_cell(LNB, NULL);
+	  $$->type =  NODE_CONTINUE;
 	}
 	| /* nop */ { $$ = NULL; };
 
@@ -267,7 +271,7 @@ rep: func_call REP expr
 	  $$->link[1] = $3;
 	} ;
 
-string : STRING1 | STRING2 ;
+string : STRING1 { $$ = $1.val; } | STRING2 ;
 
 /* include */
 inc: INCLUDE '(' string ')'
@@ -275,6 +279,7 @@ inc: INCLUDE '(' string ')'
 	  naslctxt	subctx;
 	  int		x;
 
+ 	  subctx.always_authenticated = ((naslctxt*)parm)->always_authenticated;
 	  x = init_nasl_ctx(&subctx, $3);
 	  $$ = NULL;
 	  if (x >= 0)
@@ -287,7 +292,16 @@ inc: INCLUDE '(' string ')'
 		nasl_perror(NULL, "%s: Parse error at or near line %d\n",
 			$3, subctx.line_nb);
 	      efree(&subctx.buffer);
-	      fclose(subctx.fp); subctx.fp = NULL;
+	      fclose(subctx.fp); 
+	      subctx.fp = NULL;
+	      /* If we are an authenticated script and the script we include is *NOT* authenticated,
+   		 then we lose our authentication status */
+	      if ( ((naslctxt*)parm)->always_authenticated == 0 &&
+	          ((naslctxt*)parm)->authenticated != 0 && subctx.authenticated == 0 )
+			{
+			((naslctxt*)parm)->authenticated = 0;
+			nasl_perror(NULL, "Including %s which is not authenticated - losing our authenticated status\n", $3);
+			}
 	    }
 	  efree(& $3);
 	} ;
@@ -385,19 +399,41 @@ expr: '(' expr ')' { $$ = $2; }
 	| expr NEQ expr { $$ = alloc_expr_cell(LNB, COMP_NE, $1, $3); }
 	| expr SUPEQ expr { $$ = alloc_expr_cell(LNB, COMP_GE, $1, $3); }
 	| expr INFEQ expr { $$ = alloc_expr_cell(LNB, COMP_LE, $1, $3); }
-	| INTEGER { $$ = alloc_tree_cell(LNB, NULL); $$->x.i_val = $1; $$->type = CONST_INT; }
+	| var | aff | ipaddr | atom | const_array ;
+
+
+const_array:	'[' list_array_data ']' { $$ = make_array_from_elems($2); } ;
+
+list_array_data: array_data { $$ = $1; }
+	| array_data ',' list_array_data {
+		$1->link[1] = $3; $$ = $1;
+	};
+
+array_data: simple_array_data { 
+	  $$ = alloc_typed_cell(ARRAY_ELEM); 
+	  $$->link[0] = $1;
+	} | string ARROW simple_array_data {
+	  $$ = alloc_typed_cell(ARRAY_ELEM);
+	  $$->link[0] = $3;
+	  $$->x.str_val = $1;
+	} ;
+
+atom:	INTEGER {  $$ = alloc_typed_cell(CONST_INT); $$->x.i_val = $1; }
 	| STRING2 { 
-	  $$ = alloc_tree_cell(LNB, NULL); $$->x.str_val = $1;
-	  $$->type = CONST_STR; $$->size = strlen($1);
+	  $$ = alloc_typed_cell(CONST_STR); $$->x.str_val = $1;
+	  $$->size = strlen($1);
 	}
 	| STRING1 { 
-	  $$ = alloc_tree_cell(LNB, NULL); $$->x.str_val = $1;
-	  $$->type = CONST_DATA; $$->size = strlen($1);
-	}
-	| var | aff | ipaddr;
+	  $$ = alloc_typed_cell(CONST_DATA); $$->x.str_val = $1.val;
+	  $$->size = $1.len;
+	} ;
 
-var:	identifier { $$ = alloc_tree_cell(LNB, $1); $$->type = NODE_VAR; }
+simple_array_data: atom;
+
+var:	var_name { $$ = alloc_tree_cell(LNB, $1); $$->type = NODE_VAR; }
 	| array_elem | func_call;
+
+var_name: identifier;
 
 ipaddr: INTEGER '.' INTEGER '.' INTEGER '.' INTEGER 
 	{
@@ -439,6 +475,8 @@ naslerror(const char *s)
 int
 init_nasl_ctx(naslctxt* pc, const char* name)
 {
+  char line[1024];
+  char full_name[MAXPATHLEN];
 #ifdef MULTIPLE_INCLUDE_DIRS
   static const char* inc_dirs[] = { ".", "/tmp" }; /* TBD */
 #endif
@@ -446,6 +484,7 @@ init_nasl_ctx(naslctxt* pc, const char* name)
   pc->tree = NULL;
   pc->buffer = emalloc(80);
   pc->maxlen = 80;
+  pc->authenticated = 0;
 
 #ifdef MULTIPLE_INCLUDE_DIRS
   if (name[0] == '/')		/* absolute path */
@@ -457,24 +496,55 @@ init_nasl_ctx(naslctxt* pc, const char* name)
 	  perror(name);
 	  return -1;
 	}
-      return 0;
+      strncpy(full_name, name, sizeof(full_name) - 1);
+      goto authenticate;
     }
 #ifdef MULTIPLE_INCLUDE_DIRS
   else
     {
-      char	full_name[MAXPATHLEN];
       int	i;
 
       for (i = 0; i < sizeof(inc_dirs) / sizeof(*inc_dirs); i ++)
 	{
 	  snprintf(full_name, sizeof(full_name),  "%s/%s", inc_dirs[i], name);
 	  if ((pc->fp = fopen(full_name, "r")) != NULL)
-	    return 0;
+	    goto authenticate;
 	  perror(full_name);
 	}
       return -1;
     }
 #endif
+
+authenticate:
+ if ( pc->always_authenticated )
+	pc->authenticated = 1;
+ else 
+ {
+ fgets(line, sizeof(line) - 1, pc->fp);
+ line[sizeof(line) - 1] = '\0';
+ if ( strncmp(line, "#TRUSTED", strlen("#TRUSTED") ) == 0 )
+ {
+  int sig;
+  full_name[sizeof(full_name) - 1] = '\0';
+  sig = verify_script_signature(full_name);
+  if ( sig == 0 ) 
+	pc->authenticated = 1;
+  else
+	pc->authenticated = 0;
+ 
+  if ( sig > 0  ) 
+	{
+	  fprintf(stderr, "%s: bad signature. Will not execute this script\n", full_name);
+	  fclose(pc->fp);
+	  pc->fp = NULL;
+	  return -1;
+	}
+   else if ( sig < 0 )
+	  fprintf(stderr, "%s: Could not verify the signature - this script will be run in non-authenticated mode\n", full_name);
+ }
+ rewind(pc->fp);
+ }
+ return 0;
 }
 
 void
@@ -552,10 +622,14 @@ mylex(lvalp, parm)
 {
   char		*p;
   naslctxt	*ctx = parm;
-  FILE		*fp = ctx->fp;
-  int		c, st = ST_START, len, maxlen, r;
+  FILE		*fp;
+  int		c, st = ST_START, len, r;
   int		x, i;
 
+  if ( parm == NULL )
+	return -1;
+
+  fp = ctx->fp;
   p = ctx->buffer;
   len = 0;
 
@@ -660,12 +734,10 @@ mylex(lvalp, parm)
 		case '"':
 		  *p ++ = '"'; len ++;
 		  break;
-#if 0
 	  /* Not yet, as we do not return the length of the string */
 		case '0':
 		  *p++ = '\0'; len++;
 		  break;
-#endif
 		case '\'':
 		  *p++ = '\''; len++;
 		  break;
@@ -769,6 +841,7 @@ mylex(lvalp, parm)
 
 	case ST_OCT:
 	  if (c >= '0')
+	    {
 	    if (c <= '7')
 	      {
 		*p++ = c;
@@ -782,6 +855,7 @@ mylex(lvalp, parm)
 		st = ST_DEC;
 		break;
 	      }
+	    }
 	  ungetc(c, fp);
 	  if (c ==  '\n')
 	    ctx->line_nb --;
@@ -950,6 +1024,8 @@ mylex(lvalp, parm)
 	    return EQ;
 	  else if (c == '~')
 	    return RE_MATCH;
+	  else if (c == '>')
+	    return ARROW;
 	  ungetc(c, fp);
 	  if (c ==  '\n')
 	    ctx->line_nb --;
@@ -1039,7 +1115,9 @@ mylex(lvalp, parm)
       
     case ST_STRING1:
       r = STRING1;
-      lvalp->str = estrdup(ctx->buffer);
+      lvalp->data.val = emalloc(len+2);
+      memcpy(lvalp->data.val, ctx->buffer, len+1);
+      lvalp->data.len = len;
       return r;
       
     case ST_IDENT:
@@ -1067,6 +1145,8 @@ mylex(lvalp, parm)
 	r = INCLUDE;
       else if (strcmp(ctx->buffer, "break") == 0)
 	r = BREAK;
+      else if (strcmp(ctx->buffer, "continue") == 0)
+	r = CONTINUE;
       else if (strcmp(ctx->buffer, "local_var") == 0)
 	r = LOCAL;
       else if (strcmp(ctx->buffer, "global_var") == 0)
@@ -1122,10 +1202,10 @@ nasllex(lvalp, parm)
      YYSTYPE *lvalp;
      void	*parm;
 {
-  naslctxt	*ctx = parm;
 
   int	x = mylex(lvalp, parm);
 #if 0
+  naslctxt	*ctx = parm;
   if (isprint(x))
     fprintf(stderr, "Line %d\t: '%c'\n", ctx->line_nb, x);
   else

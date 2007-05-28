@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10540);
- script_version ("$Revision: 1.10 $");
+ script_version ("$Revision: 1.17 $");
  name["english"] = "NSM format strings vulnerability";
  name["francais"] = "NSM format strings vulnerability";
  script_name(english:name["english"],
@@ -66,6 +66,8 @@ Facteur de risque : Elevé";
 
 
 
+include("http_func.inc");
+include("telnet_func.inc");
 #
 # This script attempts to reproduce the described problem via
 # telnet, ftp and http. I did not write three scripts because all these
@@ -84,9 +86,8 @@ Facteur de risque : Elevé";
 
 
 port = 80;
-if(get_port_state(port))
+if(get_port_state(port) && ! get_kb_item("Services/www/" + port + "/broken") )
 {
- include("http_func.inc");
  soc = http_open_socket(port);
  if(soc)
  {
@@ -103,6 +104,8 @@ if(get_port_state(port))
   if(r)	
   {
    soc = http_open_socket(port);
+   if ( soc ) 
+   {
    #
    # Then we log in as 'nessus%s%s%s%s%s%s:pass'
    #
@@ -112,6 +115,7 @@ if(get_port_state(port))
    r = http_recv(socket:soc);
    http_close_socket(soc);
    if(!r)security_hole(port);
+   }
   }
  }
 }
@@ -136,6 +140,8 @@ if(soc)
    if(r)
     {
      soc = open_sock_tcp(port);
+     if ( soc ) 
+     {
      r = recv_line(socket:soc, length:4096);
      req = string("USER %s%n%s%n%s%n\r\n");
      send(socket:soc, data:req);
@@ -145,6 +151,7 @@ if(soc)
      	security_hole(port);
 	exit(0);
      }
+    }
    }
   }
  }
@@ -159,7 +166,7 @@ if(get_port_state(port))
  soc = open_sock_tcp(port);
  if(soc)
  {
- b = telnet_init(soc);
+ b = telnet_negotiate(socket:soc);
  b = string(b,recv(socket:soc, length:2048, timeout:2));
  if("proxy" >< b)
  {
@@ -170,11 +177,14 @@ if(get_port_state(port))
    if(r)
    {
      soc = open_sock_tcp(port);
+     if ( soc )
+     {
      req = string("nessus%s%n%s%n%s%n\r\n");
      send(socket:soc, data:req);
      r = recv_line(socket:soc, length:1024);
      close(soc);
      if(!r)security_hole(port);
+     }
    }
   }
  }

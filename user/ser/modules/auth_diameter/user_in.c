@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: user_in.c,v 1.1.2.1.2.1 2004/07/02 15:32:55 andrei Exp $
  *
  * Digest Authentication - Diameter support
  *

@@ -8,10 +8,10 @@
 if(description)
 {
  script_id(11725);
- script_version ("$Revision: 1.3 $");
- script_cve_id("CAN-1999-1030");
  script_bugtraq_id(267);
-
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-1999-1030");
+ if (defined_func("script_xref")) script_xref(name:"OSVDB", value:"9826");
 
  name["english"] = "counter.exe vulnerability";
  name["francais"] = "Counter.exe vulnerability";
@@ -28,7 +28,7 @@ Solution : remove it from the cgi-bin or scripts directory.
 
 More info can be found at: http://www.securityfocus.com/bid/267
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -47,6 +47,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -57,8 +58,8 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 directory = "";
@@ -85,12 +86,6 @@ foreach dir (cgi_dirs())
       r = http_recv(socket:soc2);
       if (!r) security_hole(port);
       if (egrep (pattern:".*Access Violation.*", string:r) ) security_hole(port);
-    }
-    else
-    {
-      mymsg = string("The file counter.exe seems to be present on the server\n");
-      mymsg = mymsg + string("As safe_checks were enabled, this may be a false positive\n");
-      security_hole(port:port, data:mymsg);
     }
 	}
 }

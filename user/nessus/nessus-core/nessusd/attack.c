@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2003 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,16 +14,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * Attack.c : 
  *  launch the plugins, and manages the multithreading 
@@ -44,12 +34,13 @@
 #include "ntp.h"
 #include "ntp_11.h"
 #include "pluginload.h"
-#include "pluginlaunch.h"
-#include "plugs_req.h"
 #include "save_tests.h"
 #include "save_kb.h"
 #include "detached.h"
+
 #include "pluginscheduler.h"
+#include "pluginlaunch.h"
+#include "plugs_req.h"
 #include "hosts.h"
 
 #define ERR_HOST_DEAD -1
@@ -95,7 +86,7 @@ static void
 attack_sigterm()
 {
  hosts_stop_all();
- wait_for_children();
+ wait_for_children1();
 }
 
 
@@ -171,71 +162,71 @@ attack_user_name(globals)
 
 
 static int
-launch_plugin(globals, plugins, hostname, cur_plug, num_plugs, hostinfos, key, new_kb)
+launch_plugin(globals, sched, plugin, hostname, cur_plug, num_plugs, hostinfos, kb, new_kb)
  struct arglist * globals;
- struct arglist * plugins;
+ plugins_scheduler_t * sched;
+ struct scheduler_plugin * plugin;
  char * hostname;
  int *cur_plug, num_plugs;
  struct arglist * hostinfos;
- struct arglist * key;
+ struct kb_item ** kb;
  int new_kb;
 {
   struct arglist * preferences = arg_get_value(globals,"preferences");
-  struct arglist * args = plugins->value;
-  char * name;
+  struct arglist * args = plugin->arglist->value;
+  char name[1024];
   int optimize = preferences_optimize_test(preferences);
-  int category = plug_get_category(args);
+  int category = plugin->category;
+  static int last_status = 0;
       
-  name = estrdup(plug_get_path(args));
-  if(plug_get_launch(args) || 
+  strncpy(name, plug_get_path(args), sizeof(name) - 1);
+  name[sizeof(name) - 1 ] = '\0';
+
+  if(plug_get_launch(args) != LAUNCH_DISABLED || 
      category == ACT_INIT ||
     (category == ACT_SETTINGS)) /* can we launch it ? */
   {
    char * error;
    
-   pl_class_t * cl_ptr = arg_get_value(plugins->value, "PLUGIN_CLASS");
+   pl_class_t * cl_ptr = arg_get_value(args, "PLUGIN_CLASS");
    
   
   if(preferences_safe_checks_enabled(preferences) && 
   	(category == ACT_DESTRUCTIVE_ATTACK ||
 	 category == ACT_KILL_HOST ||
+	 category == ACT_FLOOD ||
 	 category == ACT_DENIAL))
 	 	{
 		if(preferences_log_whole_attack(preferences))
 		  log_write("user %s : Not launching %s against %s %s (this is not an error)\n",
 	       			attack_user_name(globals),
-				plugins->name, 
+				plugin->arglist->name, 
 				hostname, 
 				"because safe checks are enabled");
-		plugin_set_running_state(plugins->value, PLUGIN_STATUS_DONE);
-		efree(&name);		
+		plugin_set_running_state(sched, plugin, PLUGIN_STATUS_DONE);
 		return 0;
 		}
-		
-   if ( comm_send_status(globals, hostname, "attack", (*cur_plug)++, num_plugs) < 0 )
+
+   (*cur_plug) ++;
+   if ( ( *cur_plug * 100 ) / num_plugs  >= last_status )
    {
-    /* Could not send our status back to our father -> exit */
-    pluginlaunch_stop();
-    return ERR_HOST_DEAD;
+    last_status = (*cur_plug * 100 ) / num_plugs  + 2;
+    if ( comm_send_status(globals, hostname, "attack", *cur_plug, num_plugs) < 0 )
+    {
+     /* Could not send our status back to our father -> exit */
+     pluginlaunch_stop();
+     return ERR_HOST_DEAD;
+    }
    }
 
 
     if(save_kb(globals))
     {
-     int id = plug_get_id(plugins->value);
+     int id = plug_get_id(args);
      char asc_id[30];
 	 
-     
-     /*
-      * Does our user want a differential scan only ?
-      */
-      if(diff_scan(globals))
-        diff_scan_enable(plugins->value);
-	 
-	 
-	 			     
-	 snprintf(asc_id, sizeof(asc_id), "Launched/%d", id);
-	 if(arg_get_value(key, asc_id) &&
+     snprintf(asc_id, sizeof(asc_id), "Launched/%d", id);
+     if(kb_item_get_int(kb, asc_id) > 0 &&
 	    !save_kb_replay_check(globals, category))
 	  {
 	   /* 
@@ -245,40 +236,38 @@ launch_plugin(globals, plugins, hostname, cur_plug, num_plugs, hostinfos, key, n
 	   if(preferences_log_whole_attack(preferences))
 	    log_write("user %s : Not launching %s against %s %s (this is not an error)\n",
 	       			attack_user_name(globals),
-				plugins->name, 
+				plugin->arglist->name, 
 				hostname, 
 				"because it has already been launched in the past");
-	   plugin_set_running_state(plugins->value, PLUGIN_STATUS_DONE);			
+	   plugin_set_running_state(sched, plugin, PLUGIN_STATUS_DONE);			
 	   return 0;
 	  }
 	  else {
-	  	arg_addset_value(key, asc_id, ARG_INT, sizeof(int), (void*)1);
+                kb_item_add_int(kb, asc_id, 1);
 		save_kb_write_int(globals, hostname, asc_id,  1);
 		}
        }	     
 	
 	
-	
 	 
-	 if(!optimize || 
-	   !(error = requirements_plugin(key, plugins, preferences)))
+	 if(!optimize || !(error = requirements_plugin(kb, plugin, preferences)))
 	 {
 	  int pid;
 	
 	 /*
 	  * Start the plugin
 	  */
-	 pid = plugin_launch(globals, plugins, hostinfos, preferences, key, name, cl_ptr);
+	 pid = plugin_launch(globals,sched, plugin, hostinfos, preferences, kb, name, cl_ptr);
 	 if(pid  < 0)	
 	 	{
-		plugin_set_running_state(plugins->value, PLUGIN_STATUS_UNRUN);
+		plugin_set_running_state(sched, plugin, PLUGIN_STATUS_UNRUN);
 		return ERR_CANT_FORK;
 		}
 		 
 	 if(preferences_log_whole_attack(preferences))
 	 	log_write("user %s : launching %s against %s [%d]\n", 
 	 				attack_user_name(globals),
-					plugins->name, 
+					plugin->arglist->name, 
 					hostname,
 					pid);
 					
@@ -286,41 +275,39 @@ launch_plugin(globals, plugins, hostname, cur_plug, num_plugs, hostinfos, key, n
 	 /*
 	  * Stop the test if the host is 'dead'
 	  */	 
-        if(arg_get_value(key, "Host/dead") ||
-	   arg_get_value(key, "Host/ping_failed"))
+        if(kb_item_get_int(kb, "Host/dead") > 0 ||
+	   kb_item_get_int(kb, "Host/ping_failed") > 0)
 	{
 	  log_write("user %s : The remote host (%s) is dead\n",
 	  				attack_user_name(globals),
 	  				hostname);
 	  pluginlaunch_stop();		
 	  if(new_kb)save_kb_close(globals, hostname);	
-	  if(arg_get_value(key, "Host/ping_failed") != NULL)
+	  if(kb_item_get_int(kb, "Host/ping_failed") > 0)
 	  {
 	   save_kb_restore_backup(globals, hostname);
 	  }
 	  
-	  efree(&name);
-	  plugin_set_running_state(plugins->value, PLUGIN_STATUS_DONE);				
+	  plugin_set_running_state(sched, plugin, PLUGIN_STATUS_DONE);				
 	  return ERR_HOST_DEAD;
 	}
        }
        
        else /* requirements_plugin() failed */
 	  {
-	   plugin_set_running_state(plugins->value, PLUGIN_STATUS_DONE);
+	   plugin_set_running_state(sched, plugin, PLUGIN_STATUS_DONE);
 	   if(preferences_log_whole_attack(preferences))
 	    log_write("user %s : Not launching %s against %s %s (this is not an error)\n",
 	       			attack_user_name(globals),
-				plugins->name, 
+				plugin->arglist->name, 
 				hostname, 
 				error);
 	
 	  }
       } /* if(plugins->launch) */
       else    
-       plugin_set_running_state(plugins->value, PLUGIN_STATUS_DONE);
+       plugin_set_running_state(sched, plugin, PLUGIN_STATUS_DONE);
        
-      efree(&name); 
       return 0;
 }
 
@@ -330,11 +317,7 @@ launch_plugin(globals, plugins, hostname, cur_plug, num_plugs, hostinfos, key, n
 
 ----------------------------------------------------------*/	
 static void 
-attack_host      (globals, 
-		  hostinfos, 
-		  hostname,  
-		  sched)
-     
+attack_host      (globals, hostinfos, hostname,  sched) 
      
      struct arglist * globals;
      struct arglist * hostinfos;
@@ -348,61 +331,49 @@ attack_host      (globals,
   int num_plugs = 0;
   int cur_plug = 1;
   
-  struct arglist * key;
+  struct kb_item ** kb;
   int new_kb = 0;
   int kb_restored = 0;
  int forks_retry = 0;
  struct arglist * plugins = arg_get_value(globals, "plugins");
- 
+ struct arglist * tmp;
  
   setproctitle("testing %s", (char*)arg_get_value(hostinfos, "NAME"));
   
   if(save_kb(globals))
   {
-   if(
-      save_kb_exists(globals, hostname) &&
-      save_kb_pref_restore(globals)
-      )
-   {
-    save_kb_backup(globals, hostname);
-    key = save_kb_load_kb(globals, hostname);
-    /*
-     * XXXX
-     * - Mark the KB as restored
-     *
-     * - Should send a warning telling that no port scan has
-     *   been fully performed this time
-     */
-    kb_restored = 1; 
-  }
-  else 
-  {
-   save_kb_new(globals, hostname);
-   key = emalloc(sizeof(struct arglist));
-   new_kb = 1;
-   }
-  
-  /* XXX */
+   if( save_kb_exists(globals, hostname) != 0 && 
+       save_kb_pref_restore(globals) != 0 )
+     {
+      save_kb_backup(globals, hostname);
+      kb = save_kb_load_kb(globals, hostname);
+      kb_restored = 1; 
+     }
+   else 
+    {
+     save_kb_new(globals, hostname);
+     kb = kb_new();
+     new_kb = 1;
+    }
+
   arg_add_value(globals, "CURRENTLY_TESTED_HOST", ARG_STRING, strlen(hostname), hostname);
  }
- else key = emalloc(sizeof(struct arglist));
-  
-  
-  
+ else kb = kb_new();
   
 
-  num_plugs = get_active_plugins_number(plugins);
-
+ num_plugs = get_active_plugins_number(plugins);
   
+  tmp = emalloc(sizeof(struct arglist));
+  arg_add_value(tmp, "HOSTNAME", ARG_ARGLIST, -1, hostinfos);
   
-  
+    
   /* launch the plugins */
   pluginlaunch_init(globals);
- 
+  
    
    for(;;)
    {
-    struct arglist * plugin;
+    struct scheduler_plugin * plugin;
     pid_t parent;
     
     /*
@@ -420,15 +391,7 @@ attack_host      (globals,
     { 
       int e;
  again:        
-      if((e = launch_plugin(
-      		    globals, 
-      		    plugin, 
-		    hostname, 
-		    &cur_plug, 
-		    num_plugs, 
-		    hostinfos, 
-		    key, 
-		    new_kb))  < 0)
+      if((e = launch_plugin( globals, sched, plugin, hostname, &cur_plug, num_plugs, hostinfos, kb, new_kb))  < 0)
 		    {
 		     /*
 		      * Remote host died
@@ -440,7 +403,7 @@ attack_host      (globals,
 		      if(forks_retry < MAX_FORK_RETRIES)
 		      {
 		       forks_retry++;
-		       log_write("fork() failed - sleeping %d seconds", forks_retry);
+		       log_write("fork() failed - sleeping %d seconds (%s)", forks_retry, strerror(errno));
 		       fork_sleep(forks_retry);
 		       goto again;
 		      }
@@ -455,7 +418,8 @@ attack_host      (globals,
      else pluginlaunch_wait_for_free_process();
     }
   pluginlaunch_wait();
-host_died:  
+host_died: 
+  arg_free(tmp); 
   pluginlaunch_stop();
   plugins_scheduler_free(sched);
   if(new_kb)save_kb_close(globals, hostname);
@@ -483,15 +447,17 @@ attack_start(args)
  int thread_socket = args->thread_socket;
  int soc;
  struct timeval then, now;
- plugins_scheduler_t * sched = args->sched;
+ plugins_scheduler_t sched = args->sched;
  int i;
 
 
- for(i=4;i<1024;i++)
+ thread_socket = dup2(thread_socket, 4);
+ for(i=5;i<getdtablesize();i++)
  {
-  if(i != thread_socket)close(i);
+  close(i);
  }
- 
+
+
  gettimeofday(&then, NULL);
 
 
@@ -522,7 +488,7 @@ attack_start(args)
   plugins_set_socket(plugs, soc);
   ntp_1x_timestamp_host_scan_starts(globals, hostname);
   attack_host(globals, hostinfos, hostname, sched);
-  if(preferences_ntp_show_end(preferences))ntp_11_show_end(globals, hostname);
+  if(preferences_ntp_show_end(preferences))ntp_11_show_end(globals, hostname, 1);
   ntp_1x_timestamp_host_scan_ends(globals, hostname);
   gettimeofday(&now, NULL);
   if(now.tv_usec < then.tv_usec)
@@ -532,8 +498,8 @@ attack_start(args)
   }
   log_write("Finished testing %s. Time : %ld.%.2ld secs\n",
   		hostname,
-  		now.tv_sec - then.tv_sec,
-		(now.tv_usec - then.tv_usec) / 10000);
+  		(long)(now.tv_sec - then.tv_sec),
+		(long)((now.tv_usec - then.tv_usec) / 10000));
   shutdown(soc, 2);		
   close(soc);
 }
@@ -574,13 +540,16 @@ attack_network(globals)
   int  save_session= 0;  
   int continuous   = 0;
   int detached     = 0;
-  hargwalk *  hw;
-  harglst * files;
-  char * key;
   int return_code = 0;
   char * port_range;
   plugins_scheduler_t sched;
   int fork_retries = 0;
+  harglst * files;
+  hargwalk * hw;
+  char * key;
+  struct timeval then, now;
+
+  gettimeofday(&then, NULL);
 
   host_ip.s_addr = 0;
   preferences    = arg_get_value(globals, "preferences");
@@ -664,14 +633,14 @@ start_attack_network:
    unsigned short * ports;
    ports = (unsigned short*)getpts(port_range, NULL);
    if( ports == NULL){
-   	auth_printf(globals, "SERVER <|> ERROR <|> Invalid port range <|> SERVER\n");
+   	auth_printf(globals, "SERVER <|> ERROR <|> E001 - Invalid port range <|> SERVER\n");
 	return -1; 
 	}
   }
   /*
    * Initialization of the attack
    */
-  sched  = plugins_scheduler_init(plugins,  preferences_autoload_dependencies(preferences) ); 
+  sched  = plugins_scheduler_init(plugins,  preferences_autoload_dependencies(preferences), preferences_silent_dependencies(preferences) ); 
   
   
   hg_flags = preferences_get_host_expansion(preferences);
@@ -784,6 +753,7 @@ start_attack_network:
 	int s;
 	char * MAC = NULL;
 	int mac_err = -1;
+
 	
 	
 	if(preferences_use_mac_addr(preferences) &&
@@ -882,7 +852,7 @@ scan_stop:
      char * banner = emalloc(4001);
      int length = 0;
 
-     sprintf(banner, "SERVER <|> ERROR <|> These hosts could not be tested because you are not allowed to do so :;");
+     sprintf(banner, "SERVER <|> ERROR <|> E002 - These hosts could not be tested because you are not allowed to do so :;");
      length = strlen(banner);
 
      while(rejected_hosts->next && (length < (4000-3)))
@@ -930,11 +900,15 @@ stop:
   
   if(continuous){
   	sleep(preferences_delay_between_scans(preferences));
-	plugins = plugins_reload(preferences, plugins);
+	plugins = plugins_reload(preferences, plugins, 1);
 	arg_set_value(globals, "plugins", -1, plugins);
   	goto start_attack_network;
 	}
   else if(detached)detached_end_session(globals);	
+
+
+  gettimeofday(&now, NULL);
+  log_write("Total time to scan all hosts : %ld seconds\n", now.tv_sec - then.tv_sec);
   
   return return_code;
 }

@@ -7,7 +7,7 @@
 '\" the suitability of this material for any purpose.  It is
 '\" provided "as is" without express or implied warranty.
 '\" 
-'\" $Id$
+'\" $Id: Tcl.n,v 1.1.1.1 2001/04/29 20:36:17 karll Exp $
 '
 .TH Tcl n
 .LO 1

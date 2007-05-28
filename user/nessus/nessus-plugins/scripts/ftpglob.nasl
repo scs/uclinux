@@ -9,9 +9,10 @@ bracket = raw_string(0x7B);
 if (description)
 {
  	script_id(10821);
-	script_cve_id("CAN-2001-0249", "CVE-2001-0550");
-        script_bugtraq_id(2550, 3581);
-  	script_version("$Revision: 1.18 $");
+    	if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-b-0004");
+ 	script_bugtraq_id(2550, 3581);
+	script_cve_id("CVE-2001-0249", "CVE-2001-0550");
+  	script_version("$Revision: 1.25 $");
  	name["english"] = "FTPD glob Heap Corruption";
 	script_name(english: name["english"]);
 
@@ -37,7 +38,10 @@ Risk factor : High";
 
  	script_copyright(english: "Copyright (C) 2001 E*Maze");
 
- 	script_dependencie("find_service.nes", "ftp_anonymous.nasl", "nmap_osfingerprint.nes");
+ 	script_dependencie("find_service.nes", "ftp_anonymous.nasl", "os_fingerprint.nasl");
+	if ( defined_func("bn_random") ) 
+	script_dependencie("solaris251_103603.nasl", "solaris251_x86_103604.nasl", "solaris26_106301.nasl", "solaris26_x86_106302.nasl", "solaris7_110646.nasl", "solaris7_x86_110647.nasl", "solaris8_111606.nasl", "solaris8_x86_111607.nasl");
+
  	script_require_ports("Services/ftp", 21);
 
  	exit(0);
@@ -49,6 +53,9 @@ Risk factor : High";
 #
 
 include("ftp_func.inc");
+include("global_settings.inc");
+
+if ( get_kb_item("BID-2550") ) exit(0);
 
 port = get_kb_item("Services/ftp");
 if (!port)
@@ -56,6 +63,8 @@ if (!port)
 
 if (!get_port_state(port))
 	exit(0);
+
+if ( report_paranoia < 1 ) exit(0);
 
 
 
@@ -71,7 +80,7 @@ if (login)
 	if (!soc)
 		exit(0);
 
-	if (ftp_log_in(socket:soc, user:login, pass:password))
+	if (ftp_authenticate(socket:soc, user:login, pass:password))
 	{
  		c = string("CWD ~", bracket, "\r\n");
      		d = string("CWD ~*", bracket, "\r\n");
@@ -172,7 +181,7 @@ if (login)
 
 
 
-os = get_kb_item("Host/OS");
+os = get_kb_item("Host/OS/icmp");
 if(os)
 {
  if(egrep(pattern:".*FreeBSD (4\.[5-9]|5\..*).*", string:os))exit(0);
@@ -197,6 +206,12 @@ if (!banner)
 # wu-ftpd 2.6.1-20 is not vulnerable
 if(egrep(pattern:".*wu-2\.6\.1-[2-9][0-9].*", string:banner))exit(0);
 
+
+if ( "PHNE_27765" >< banner ||
+     "PHNE_29461" >< banner ||
+     "PHNE_30432" >< banner ||
+     "PHNE_31931" >< banner ||
+     "PHNE_30990" >< banner ) exit(0);
 
 if (
 	egrep(pattern: 

@@ -13,7 +13,7 @@
  * software for any purpose.  It is provided "as is" without
  * express or implied warranty.
  *
- * $Id$
+ * $Id: tclGlob.c,v 1.1.1.1 2001/04/29 20:34:49 karll Exp $
  */
 
 #include "tclInt.h"

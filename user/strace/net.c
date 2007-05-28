@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: net.c,v 1.24 2001/07/10 13:48:44 hughesj Exp $
  */
 
 #include "defs.h"
@@ -56,6 +56,7 @@
 #if defined(__GLIBC__) && !defined(__UCLIBC__) && (__GLIBC__ >= 2) && (__GLIBC__ + __GLIBC_MINOR__ >= 3)
 #  include <netipx/ipx.h>
 #else
+#  include <linux/types.h>
 #  include <linux/ipx.h>
 #endif
 #endif /* LINUX */

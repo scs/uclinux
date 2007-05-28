@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(10340);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1036);
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-2000-0192");
  
  name["english"] = "rpm_query CGI";
@@ -68,5 +68,12 @@ Facteur de risque : Faible";
 #
 # The script code starts here
 
-port = is_cgi_installed("rpm_query");
-if(port)security_warning(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"rpm_query", port:port);
+if(res)security_warning(port);

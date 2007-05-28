@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10510);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(1677);
+ script_version ("$Revision: 1.12 $");
  script_cve_id("CVE-2000-0871");
  
  name["english"] = "EFTP carriage return DoS";
@@ -27,7 +27,7 @@ Solution : if you are using eftp, then change your ftp
 server, if you are not, then contact
 your vendor for a fix.
 
-Risk factor : Serious";
+Risk factor : High";
  
 
 

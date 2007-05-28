@@ -7,7 +7,7 @@
 if(description)
 {
   script_id(11872);
-  script_version ("$Revision: 1.3 $");
+  script_version ("$Revision: 1.6 $");
 # script_bugtraq_id();
 # script_cve_id("");
 
@@ -47,6 +47,10 @@ Risk factor : High";
 #
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 
 flag = 0;
@@ -67,8 +71,8 @@ The following ODBC tools were found on the server:");
 
 
 
-port = get_kb_item("Services/www");
-if(!port)port=80;
+port = get_http_port(default:80);
+
 if(get_port_state(port)) {
 
    fl[0] = "/scripts/tools/getdrvrs.exe";
@@ -84,7 +88,7 @@ if(get_port_state(port)) {
    }
     if (flag > 0) {
 	warning += string("Solution : Remove the specified ODBC tools from the /scripts/tools directory.\n");
-        warning += string("Risk Factor : High");
+        warning += string("Risk factor : High");
         security_hole(port:port, data:warning);
         } else {
           exit(0);

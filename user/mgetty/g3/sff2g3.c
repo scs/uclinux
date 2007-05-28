@@ -1,4 +1,4 @@
-#ident "$Id$ Copyright (C) 1994 Gert Doering"
+#ident "$Id: sff2g3.c,v 1.4 2004/07/16 20:30:16 gert Exp $ Copyright (C) 1994 Gert Doering"
 
 /* sff2g3
  *
@@ -12,10 +12,7 @@
  * reference documentation: http://www.capi.org/
  * see also: http://sfftools.sourceforge.net/
  *
- * $Log$
- * Revision 1.1  2006/08/05 07:30:05  vapier
- * import from upstream uClinux
- *
+ * $Log: sff2g3.c,v $
  * Revision 1.4  2004/07/16 20:30:16  gert
  * work on debugging output (verbose>1)
  * handle "0xff 0x00" tagged lines correctly (input error -> blank line)

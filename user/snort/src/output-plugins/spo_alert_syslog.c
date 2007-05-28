@@ -124,6 +124,9 @@ void AlertSyslogInit(u_char *args)
     /* parse the argument list from the rules file */
     data = ParseSyslogArgs(args);
 
+    if (pv.daemon_flag)
+        data->options |= LOG_PID;
+
     openlog("snort", data->options, data->facility);
 
     DEBUG_WRAP(DebugMessage(DEBUG_INIT,"Linking syslog alert function to call list...\n"););

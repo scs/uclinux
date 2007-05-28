@@ -14,10 +14,11 @@
 
 if (description) {
    script_id(10827);
+   if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0014");
+   script_bugtraq_id(3681, 7481);
    script_cve_id("CVE-2001-0797");
    if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0004");
-   script_version("$Revision: 1.10 $");
- script_bugtraq_id(3681, 7481);
+   script_version("$Revision: 1.13 $");
   name["english"] = "SysV /bin/login buffer overflow (telnet)";
   script_name(english:name["english"]);
  
@@ -48,6 +49,7 @@ Risk factor : High";
 }
 
 
+include('telnet_func.inc');
 port = get_kb_item("Services/telnet");
 if(!port) port = 23;
 if(!get_port_state(port))exit(0);
@@ -57,7 +59,7 @@ function login(env)
 soc = open_sock_tcp(port);
 if(soc)
 {
- buffer = telnet_init(soc);
+ buffer = telnet_negotiate(socket:soc);
  send(socket:soc, data:string("nessus ", env, "\r\n"));
  r = recv(socket:soc, length:4096);
  close(soc);

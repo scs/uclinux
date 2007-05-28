@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: gsm_option.c,v 1.4 1998/09/09 21:06:48 gert Exp $ */
 
 #include "private.h"
 

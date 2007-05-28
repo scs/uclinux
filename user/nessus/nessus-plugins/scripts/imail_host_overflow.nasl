@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(10496);
- script_version ("$Revision: 1.7 $");
- script_cve_id("CVE-2000-0825");
  script_bugtraq_id(2011);
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2000-0825");
  
  name["english"] = "Imail Host: overflow";
  name["francais"] = "Imail Host: overflow";
@@ -90,8 +90,8 @@ if(!(check_port(port:port)))
  port = 8383;
  if(!(check_port(port:port)))
  {
-  port = get_kb_item("Services/www");
-  if(!port) port = 80;
+  port = get_http_port(default:80);
+
  }
 }
 

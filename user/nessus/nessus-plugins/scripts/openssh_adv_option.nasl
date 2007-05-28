@@ -11,8 +11,8 @@
 if(description)
 {
  script_id(10771);
- script_version ("$Revision: 1.13 $");
  script_bugtraq_id(3369);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-2001-0816");
  
  name["english"] = "OpenSSH 2.5.x -> 2.9.x adv.option";
@@ -52,7 +52,7 @@ Risk factor : Medium";
  family["english"] = "Gain a shell remotely";
  family["francais"] = "Obtenir un shell à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("ssh_detect.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -62,31 +62,15 @@ Risk factor : Medium";
 #
 
 
+include("backport.inc"); 
+
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
 
-
-
-
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    banner = tolower(banner);
-    close(soc);
-  }
-}
-
-if(!banner)exit(0);
-
-
-banner = tolower(banner);
+banner = tolower(get_backport_banner(banner:banner));
 
 if(ereg(pattern:".*openssh[-_]2\.(([5-8]\..*)|(9\.[0-8])).*",
 	string:banner))

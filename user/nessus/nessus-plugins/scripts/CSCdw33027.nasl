@@ -9,10 +9,12 @@
 if(description)
 {
  script_id(11381);
- script_cve_id("CVE-2002-1024");
  script_bugtraq_id(5114);
+ script_cve_id("CVE-2002-1024");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-A-0013");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-b-0006");
 
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.7 $");
 
  name["english"] = "CSCdw33027";
 
@@ -24,7 +26,7 @@ It is possible to make the remote IOS crash when sending
 it malformed SSH packets.
 
 Solution : See http://www.cisco.com/warp/public/707/SSH-scanning.shtml
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

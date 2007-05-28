@@ -1,4 +1,4 @@
-.\" $OpenBSD: sftp.1,v 1.45 2003/09/02 18:50:06 jmc Exp $
+.\" $OpenBSD: sftp.1,v 1.63 2006/01/20 00:14:55 dtucker Exp $
 .\"
 .\" Copyright (c) 2001 Damien Miller.  All rights reserved.
 .\"
@@ -31,15 +31,15 @@
 .Sh SYNOPSIS
 .Nm sftp
 .Bk -words
-.Op Fl vC1
-.Op Fl b Ar batchfile
-.Op Fl o Ar ssh_option
-.Op Fl s Ar subsystem | sftp_server
+.Op Fl 1Cv
 .Op Fl B Ar buffer_size
+.Op Fl b Ar batchfile
 .Op Fl F Ar ssh_config
-.Op Fl P Ar sftp_server path
+.Op Fl o Ar ssh_option
+.Op Fl P Ar sftp_server_path
 .Op Fl R Ar num_requests
 .Op Fl S Ar program
+.Op Fl s Ar subsystem | sftp_server
 .Ar host
 .Ek
 .Nm sftp
@@ -71,12 +71,14 @@ The second usage format will retrieve files automatically if a non-interactive
 authentication method is used; otherwise it will do so after
 successful interactive authentication.
 .Pp
-The third usage format allows the sftp client to start in a remote directory.
+The third usage format allows
+.Nm
+to start in a remote directory.
 .Pp
 The final usage format allows for automated sessions using the
 .Fl b
 option.
-In such cases, it is usually necessary to configure public key authentication
+In such cases, it is necessary to configure non-interactive authentication
 to obviate the need to enter a password at connection time (see
 .Xr sshd 8
 and
@@ -84,6 +86,15 @@ and
 for details).
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl 1
+Specify the use of protocol version 1.
+.It Fl B Ar buffer_size
+Specify the size of the buffer that
+.Nm
+uses when transferring files.
+Larger buffers require fewer round trips at the cost of higher
+memory consumption.
+The default is 32768 bytes.
 .It Fl b Ar batchfile
 Batch mode reads a series of commands from an input
 .Ar batchfile
@@ -91,6 +102,11 @@ instead of
 .Em stdin .
 Since it lacks user interaction it should be used in conjunction with
 non-interactive authentication.
+A
+.Ar batchfile
+of
+.Sq \-
+may be used to indicate standard input.
 .Nm
 will abort if any of the following
 commands fail:
@@ -101,9 +117,19 @@ and
 .Ic lmkdir .
 Termination on error can be suppressed on a command by command basis by
 prefixing the command with a
-.Sq Ic \-
+.Sq \-
 character (for example,
 .Ic -rm /tmp/blah* ) .
+.It Fl C
+Enables compression (via ssh's
+.Fl C
+flag).
+.It Fl F Ar ssh_config
+Specifies an alternative
+per-user configuration file for
+.Xr ssh 1 .
+This option is directly passed to
+.Xr ssh 1 .
 .It Fl o Ar ssh_option
 Can be used to pass options to
 .Nm ssh
@@ -115,38 +141,63 @@ for which there is no separate
 command-line flag.
 For example, to specify an alternate port use:
 .Ic sftp -oPort=24 .
-.It Fl s Ar subsystem | sftp_server
-Specifies the SSH2 subsystem or the path for an sftp server
-on the remote host.
-A path is useful for using
-.Nm
-over protocol version 1, or when the remote
-.Xr sshd 8
-does not have an sftp subsystem configured.
-.It Fl v
-Raise logging level.
-This option is also passed to ssh.
-.It Fl B Ar buffer_size
-Specify the size of the buffer that
-.Nm
-uses when transferring files.
-Larger buffers require fewer round trips at the cost of higher
-memory consumption.
-The default is 32768 bytes.
-.It Fl C
-Enables compression (via ssh's
-.Fl C
-flag).
-.It Fl F Ar ssh_config
-Specifies an alternative
-per-user configuration file for
-.Xr ssh 1 .
-This option is directly passed to
-.Xr ssh 1 .
-.It Fl P Ar sftp_server path
+For full details of the options listed below, and their possible values, see
+.Xr ssh_config 5 .
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It AddressFamily
+.It BatchMode
+.It BindAddress
+.It ChallengeResponseAuthentication
+.It CheckHostIP
+.It Cipher
+.It Ciphers
+.It Compression
+.It CompressionLevel
+.It ConnectionAttempts
+.It ConnectTimeout
+.It ControlMaster
+.It ControlPath
+.It GlobalKnownHostsFile
+.It GSSAPIAuthentication
+.It GSSAPIDelegateCredentials
+.It HashKnownHosts
+.It Host
+.It HostbasedAuthentication
+.It HostKeyAlgorithms
+.It HostKeyAlias
+.It HostName
+.It IdentityFile
+.It IdentitiesOnly
+.It KbdInteractiveDevices
+.It LogLevel
+.It MACs
+.It NoHostAuthenticationForLocalhost
+.It NumberOfPasswordPrompts
+.It PasswordAuthentication
+.It Port
+.It PreferredAuthentications
+.It Protocol
+.It ProxyCommand
+.It PubkeyAuthentication
+.It RekeyLimit
+.It RhostsRSAAuthentication
+.It RSAAuthentication
+.It SendEnv
+.It ServerAliveInterval
+.It ServerAliveCountMax
+.It SmartcardDevice
+.It StrictHostKeyChecking
+.It TCPKeepAlive
+.It UsePrivilegedPort
+.It User
+.It UserKnownHostsFile
+.It VerifyHostKeyDNS
+.El
+.It Fl P Ar sftp_server_path
 Connect directly to a local sftp server
 (rather than via
-.Xr ssh 1 )
+.Xr ssh 1 ) .
 This option may be useful in debugging the client and server.
 .It Fl R Ar num_requests
 Specify how many requests may be outstanding at any one time.
@@ -160,16 +211,29 @@ to use for the encrypted connection.
 The program must understand
 .Xr ssh 1
 options.
-.It Fl 1
-Specify the use of protocol version 1.
+.It Fl s Ar subsystem | sftp_server
+Specifies the SSH2 subsystem or the path for an sftp server
+on the remote host.
+A path is useful for using
+.Nm
+over protocol version 1, or when the remote
+.Xr sshd 8
+does not have an sftp subsystem configured.
+.It Fl v
+Raise logging level.
+This option is also passed to ssh.
 .El
 .Sh INTERACTIVE COMMANDS
 Once in interactive mode,
 .Nm
 understands a set of commands similar to those of
 .Xr ftp 1 .
-Commands are case insensitive and pathnames may be enclosed in quotes if they
-contain spaces.
+Commands are case insensitive.
+Pathnames that contain spaces must be enclosed in quotes.
+Any special characters contained within pathnames that are recognized by
+.Xr glob 3
+must be escaped with backslashes
+.Pq Sq \e .
 .Bl -tag -width Ds
 .It Ic bye
 Quit
@@ -177,14 +241,15 @@ Quit
 .It Ic cd Ar path
 Change remote directory to
 .Ar path .
-.It Ic lcd Ar path
-Change local directory to
-.Ar path .
 .It Ic chgrp Ar grp Ar path
 Change group of file
 .Ar path
 to
 .Ar grp .
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .Ar grp
 must be a numeric GID.
 .It Ic chmod Ar mode Ar path
@@ -192,18 +257,26 @@ Change permissions of file
 .Ar path
 to
 .Ar mode .
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .It Ic chown Ar own Ar path
 Change owner of file
 .Ar path
 to
 .Ar own .
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .Ar own
 must be a numeric UID.
 .It Ic exit
 Quit
 .Nm sftp .
 .It Xo Ic get
-.Op Ar flags
+.Op Fl P
 .Ar remote-path
 .Op Ar local-path
 .Xc
@@ -213,18 +286,38 @@ and store it on the local machine.
 If the local
 path name is not specified, it is given the same name it has on the
 remote machine.
+.Ar remote-path
+may contain
+.Xr glob 3
+characters and may match multiple files.
+If it does and
+.Ar local-path
+is specified, then
+.Ar local-path
+must specify a directory.
 If the
 .Fl P
-flag is specified, then the file's full permission and access time are
+flag is specified, then full file permissions and access times are
 copied too.
 .It Ic help
 Display help text.
+.It Ic lcd Ar path
+Change local directory to
+.Ar path .
 .It Ic lls Op Ar ls-options Op Ar path
 Display local directory listing of either
 .Ar path
 or current directory if
 .Ar path
 is not specified.
+.Ar ls-options
+may contain any flags supported by the local system's
+.Xr ls 1
+command.
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
 .It Ic lmkdir Ar path
 Create local directory specified by
 .Ar path .
@@ -236,18 +329,44 @@ to
 .It Ic lpwd
 Print local working directory.
 .It Xo Ic ls
-.Op Ar flags
+.Op Fl 1aflnrSt
 .Op Ar path
 .Xc
-Display remote directory listing of either
+Display a remote directory listing of either
 .Ar path
-or current directory if
+or the current directory if
 .Ar path
 is not specified.
-If the
-.Fl l
-flag is specified, then display additional details including permissions
+.Ar path
+may contain
+.Xr glob 3
+characters and may match multiple files.
+.Pp
+The following flags are recognized and alter the behaviour of
+.Ic ls
+accordingly:
+.Bl -tag -width Ds
+.It Fl 1
+Produce single columnar output.
+.It Fl a
+List files beginning with a dot
+.Pq Sq \&. .
+.It Fl f
+Do not sort the listing.
+The default sort order is lexicographical.
+.It Fl l
+Display additional details including permissions
 and ownership information.
+.It Fl n
+Produce a long listing with user and group information presented
+numerically.
+.It Fl r
+Reverse the sort order of the listing.
+.It Fl S
+Sort the listing by file size.
+.It Fl t
+Sort the listing by last modification time.
+.El
 .It Ic lumask Ar umask
 Set local umask to
 .Ar umask .
@@ -257,7 +376,7 @@ Create remote directory specified by
 .It Ic progress
 Toggle display of progress meter.
 .It Xo Ic put
-.Op Ar flags
+.Op Fl P
 .Ar local-path
 .Op Ar remote-path
 .Xc
@@ -266,6 +385,15 @@ Upload
 and store it on the remote machine.
 If the remote path name is not specified, it is given the same name it has
 on the local machine.
+.Ar local-path
+may contain
+.Xr glob 3
+characters and may match multiple files.
+If it does and
+.Ar remote-path
+is specified, then
+.Ar remote-path
+must specify a directory.
 If the
 .Fl P
 flag is specified, then the file's full permission and access time are
@@ -280,11 +408,11 @@ Rename remote file from
 .Ar oldpath
 to
 .Ar newpath .
-.It Ic rmdir Ar path
-Remove remote directory specified by
-.Ar path .
 .It Ic rm Ar path
 Delete remote file specified by
+.Ar path .
+.It Ic rmdir Ar path
+Remove remote directory specified by
 .Ar path .
 .It Ic symlink Ar oldpath Ar newpath
 Create a symbolic link from
@@ -305,10 +433,13 @@ Escape to local shell.
 Synonym for help.
 .El
 .Sh SEE ALSO
+.Xr ftp 1 ,
+.Xr ls 1 ,
 .Xr scp 1 ,
 .Xr ssh 1 ,
 .Xr ssh-add 1 ,
 .Xr ssh-keygen 1 ,
+.Xr glob 3 ,
 .Xr ssh_config 5 ,
 .Xr sftp-server 8 ,
 .Xr sshd 8

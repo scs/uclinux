@@ -46,7 +46,7 @@
 if(description)
 {
   script_id(11822);
-  script_version ("$Revision: 1.10 $");
+  script_version ("$Revision: 1.20 $");
 
   name["english"] = "RIP detection";
   script_name(english:name["english"]);
@@ -63,14 +63,14 @@ Risk factor : Low";
   script_summary(english:summary["english"]);
   script_category(ACT_GATHER_INFO); 
   script_copyright(english:"This script is Copyright (C) 2003 Michel Arboi");
-  family["english"] = "Misc.";
-  family["francais"] = "Divers";
-  script_family(english:family["english"], francais:family["francais"]);
+  script_family(english:"Service detection");
   exit(0);
 }
 
 ##include("dump.inc");
+include('global_settings.inc');
 include("network_func.inc");
+include("misc_func.inc");
 
 function rip_test(port, priv)
 {
@@ -79,7 +79,7 @@ function rip_test(port, priv)
 if (priv)
   soc = open_priv_sock_udp(dport:port, sport:port);
 else
-soc = open_sock_udp(port);
+  soc = open_sock_udp(port);
 
 if (!soc) return(0);
 
@@ -94,10 +94,10 @@ for (v = 2; v >= 1 && strlen(r) == 0; v --)
 		0, 0, 0, 0,
 		0, 0, 0, 16);
   send(socket: soc, data: req);
-  r = recv(socket:soc, length: 512);
   ##dump(ddata: r, dtitle: "routed");
 }
-  close(soc);
+r = recv(socket:soc, length: 512, timeout:3);
+close(soc);
 
 l = strlen(r);
 if (l < 4 || ord(r[0]) != 2) return(0);	# Not a RIP answer
@@ -132,7 +132,7 @@ for (i = 4; i < l; i += 20)
     }
 
     if (metric == 16)
-      report += ' at infinity\n';
+      report += ' at infinity';
     else if (metric <= 1)
       report = strcat(report, ' at ', metric, ' hop');
     else
@@ -152,11 +152,12 @@ for (i = 4; i < l; i += 20)
 }
 
 if (n > 0)
-  report += 'This information on your network topology may help a cracker\n\nRisk factor : Low';
+  report += 'This information on your network topology may help an attacker \n\nRisk factor : Low';
 else
-  report += '\nRisk factor: none';
+  report += '\nRisk factor: None';
 
 security_note(port: port, data: report, protocol: "udp");
+register_service(port: port, ipproto: "udp", proto: "rip");
 
 # Remember that a machine may have to route packets even if it only 
 # has one interface!
@@ -170,9 +171,9 @@ Solution: disable the RIP agent and use an "EGP" routing protocol
 Risk factor: High');
 else
   if (ver == 1)
-    security_hole(port: port, protocol: "udp", data: 
+    security_warning(port: port, protocol: "udp", data: 
 'RIP-1 does not implement authentication. 
-A cracker may feed your machine with bogus routes and
+An attacker may feed your machine with bogus routes and
 hijack network connections.
 
 Solution : disable the RIP agent if you don\'t use it, or use
@@ -183,7 +184,7 @@ Risk factor : Medium');
       security_note(port: port, protocol: "udp", data: 
 'RIP-2 allows authentication but Nessus has no fully reliable way 
 to check if it was properly implemented. 
-If not, a cracker may feed your machine with bogus routes and
+If not, an attacker may feed your machine with bogus routes and
 hijack network connections.
 
 Solution : implement RIP-2 authentication if necessary or 
@@ -199,7 +200,7 @@ if (rip_test(port: port, priv: 0)) exit(0);
 if (rip_test(port: port, priv: 1))
 {
   security_note(port: port, protocol: "udp", data: "
-This RIP agent is broken: it only answers to request where the source
+This RIP agent is broken: it only answers to requests where the source
 port is set to 520.
 This is not RFC compliant, but does not have security consequences.
 

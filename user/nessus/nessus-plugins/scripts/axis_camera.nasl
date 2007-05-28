@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10502);
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "Axis Camera Default Password";
  script_name(english:name["english"]);
@@ -39,12 +39,17 @@ Risk factor : Low";
  family["francais"] = "Divers";
  script_family(english:family["english"], francais:family["francais"]);
  script_require_ports(23);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 #
 # The script code starts here
 #
+
+include('telnet_func.inc');
+include('global_settings.inc');
+if ( ! thorough_tests )exit(0);
 
 port = 23;
 if (get_port_state(port))
@@ -53,7 +58,7 @@ if (get_port_state(port))
 
  if (soc)
  {
-   banner = telnet_init(soc);
+   banner = telnet_negotiate(socket:soc);
    req = string("root\r\n");
    send(socket:soc, data:req);
    recv(socket:soc, length:1000);

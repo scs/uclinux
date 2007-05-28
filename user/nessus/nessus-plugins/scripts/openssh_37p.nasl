@@ -6,14 +6,15 @@
 # From: Damien Miller <djm@cvs.openbsd.org>
 # To: openssh-unix-announce@mindrot.org
 # Subject: Multiple PAM vulnerabilities in portable OpenSSH
-# also covers CAN-2001-1380
+# also covers CVE-2001-1380
 
 if(description)
 {
  script_id(11848);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0020");
  script_bugtraq_id(8677);
- script_cve_id("CAN-2003-0786", "CAN-2003-0787");
- script_version ("$Revision: 1.5 $");
+ script_cve_id("CVE-2003-0786", "CVE-2003-0787");
+ script_version ("$Revision: 1.11 $");
 
  
  name["english"] = "Portable SSH OpenSSH < 3.7.1p2";
@@ -46,7 +47,7 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("ssh_detect.nasl", "os_fingerprint.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -56,31 +57,27 @@ Risk factor : High";
 #
 
 
+include("backport.inc"); 
+include("global_settings.inc");
+
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+if ( report_paranoia < 2 ) exit(0);
 
-
-if(!banner)
+# Windows not affected
+os = get_kb_item("Host/OS/icmp");
+if ( os )
 {
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    banner = tolower(banner);
-    close(soc);
-  }
+ if ( "Linux" >!< os &&
+      "SCO" >!< os ) exit(0);
 }
 
-if(!banner)exit(0);
-banner = tolower(banner);
 
-banner = banner - string("\r\n");
-banner = tolower(banner);
-if("openssh" >< banner)
-{
- if(ereg(pattern:".*openssh[-_]3\.7(\.1)?p1", string:banner))security_hole(port);	
-}
+
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
+
+banner = tolower(get_backport_banner(banner:banner));
+if(ereg(pattern:".*openssh[-_]3\.7(\.1)?p1", string:banner))
+	security_hole(port);	

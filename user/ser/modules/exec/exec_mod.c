@@ -1,7 +1,7 @@
 /*
  * execution module
  *
- * $Id$
+ * $Id: exec_mod.c,v 1.10 2003/06/20 14:23:25 jiri Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

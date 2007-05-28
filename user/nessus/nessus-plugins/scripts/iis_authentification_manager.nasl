@@ -10,13 +10,12 @@
 if(description)
 {
  script_id(10371);
- script_version ("$Revision: 1.17 $");
- script_bugtraq_id(2110);
- script_cve_id("CVE-1999-0407", "CAN-2002-0421");
+ script_bugtraq_id(2110, 4236);
+ script_version ("$Revision: 1.23 $");
+ script_cve_id("CVE-1999-0407", "CVE-2002-0421");
 
  name["english"] = "/iisadmpwd/aexp2.htr";
- name["francais"] = "/iisadmpwd/aexp2.htr";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 The file /iisadmpwd/aexp2.htr is present.
@@ -28,39 +27,23 @@ A valid user may also use it to change his password
 on a locked account.
 
 Solution : Delete the file
-Risk factor : Serious";
+Risk factor : High";
 
 
- desc["francais"] = "
-Le fichier /iisadmpwd/aexp2.htr est présent.
-
-Ce fichier peut etre utilisé par des pirates
-pour obtenir des mots de passes valides par
-force brute.
-Un utilisateur valide peut aussi l'utiliser 
-pour changer le mot de passe d'un compte verrouillé.
-
-Solution : effacez-le
-Facteur de risque : Sérieux";
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines whether /iisadmpwd/aexp2.htr is present";
- summary["francais"] = "Determines si /iisadmpwd/aexp2.htr est présent";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -85,8 +68,10 @@ function test_cgi(port, cgi, output)
  
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 if(get_port_state(port))
 {
   test_cgi(port:port, 

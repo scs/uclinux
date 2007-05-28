@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: common.c,v 1.13.6.1 2004/04/27 21:21:52 jiri Exp $
  *
  * Common stuff
  *

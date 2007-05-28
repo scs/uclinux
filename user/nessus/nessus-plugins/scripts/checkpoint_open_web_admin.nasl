@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11518);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.4 $");
  name["english"] = "Checkpoint Firewall open Web adminstration";
  script_name(english:name["english"]);
  
@@ -37,16 +37,16 @@ Risk factor : Medium";
  script_copyright(english:"This script is Copyright (C) 2003 Matthew North");
  family["english"] = "Firewalls";
  script_family(english:family["english"]);
- 
+ script_dependencies("http_version.nasl");
+ script_require_ports("Services/www", 80);
  exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = 80;
-res = http_keepalive_send_recv(port:port, data:http_get(item:"/", port:port));
-
+port = get_http_port(default:80);
+res = http_get_cache(port:port, item:"/");
 if (res != NULL ) {
     if("ConfigToolPassword" >< res) {
            security_warning(port);

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_fline.c,v 1.7 2003/04/26 20:28:46 jiri Exp $
  * 
  * sip first line parsing automaton
  * 

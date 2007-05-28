@@ -7,15 +7,17 @@
 if(description)
 {
  script_id(10156);
- script_version ("$Revision: 1.17 $");
- script_bugtraq_id(481);
+ script_version ("$Revision: 1.22 $");
+
  script_cve_id("CVE-1999-0239");
+ script_bugtraq_id(481);
+ script_xref(name:"OSVDB", value:"122");
+
  name["english"] = "Netscape FastTrack 'get'";
- name["francais"] = "Netscape FastTrack 'get'";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "When the remote web server is
-issued with a lower-cased 'get' request it will return
+issued a request with a lower-case 'get', it will return
 a directory listing even if a default page such as index.html is 
 present. 
 
@@ -33,39 +35,16 @@ Solution : Upgrade your server to the latest version.
 
 Risk factor : Medium";
 
-
- desc["francais"] = "Le serveur web distant
-renvoie le listing du contenu d'un dossier
-plutot que le contenu du fichier index.html
-situé dans ce dossier lorsqu'on lui envoie
-une commande 'get' en minuscules.
-Exemple :
-		get / HTTP/1.0
-
-Renverra la liste des fichiers contenus dans
-le repertoire racine distant.
-
-Ce problème permet à un pirate de découvrir
-des fichiers cachés sur votre serveur.
-
-Solution : Mettez à jour votre serveur web.
-
-Facteur de risque : Moyen";
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "'get / ' gives a directory listing";
- summary["francais"] = "'get / ' donne un listing du dossier";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
- 
+
+ script_summary(english:summary["english"]); 
  script_category(ACT_GATHER_INFO);
  
- 
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "httpver.nasl", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/netscape-fasttrack");
@@ -94,14 +73,14 @@ function check(pattern, port)
  if ( res == NULL ) exit(0);
  res = tolower(res);
  if(bad >< res){
- 	security_hole(port);
+ 	security_warning(port);
 	exit(0);
   }
 }
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 req = http_get(item:"/", port:port);

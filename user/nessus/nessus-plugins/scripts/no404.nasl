@@ -9,39 +9,39 @@
 if(description)
 {
  script_id(10386);
- script_version ("$Revision: 1.50 $");
+ script_version ("$Revision: 1.72 $");
 
  name["english"] = "No 404 check";
- name["francais"] = "No 404 check";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
-The remote  web servers is [mis]configured in that it
-does not return '404 Not Found' error codes when
-a non-existent file is requested, perhaps returning
-a site map or search page instead.
+Synopsis :
 
-Nessus enabled some counter measures for that, however
-they might be insufficient. If a great number of security
-holes are produced for this port, they might not all be accurate";
+Remote web server does not reply with 404 error code.
 
+Description :
 
+The remote web server is configured in that it does not return '404 Not Found' 
+error codes when a non-existent file is requested, perhaps returning a site 
+map, search page or authentication page instead.
+
+Nessus enabled some counter measures for that, however they might be 
+insufficient. If a great number of security holes are produced for this port, 
+they might not all be accurate.
+
+Risk factor :
+
+None";
 
  script_description(english:desc["english"]);
  
  summary["english"] = "Checks if the remote webserver issues 404 errors";
- summary["francais"] = "Vérifie que le serveur web distant sort des erreurs 404";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
- 
+ script_summary(english:summary["english"]); 
  script_category(ACT_GATHER_INFO);
  
- 
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2000 RD / H D Moore");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "httpver.nasl", "http_login.nasl", "webmirror.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
@@ -52,7 +52,9 @@ holes are produced for this port, they might not all be accurate";
 #
 
 include("http_func.inc");
+include("global_settings.inc");
 include("http_keepalive.inc");
+include("misc_func.inc");
 
 function check(url, port)
 {
@@ -64,13 +66,12 @@ function check(url, port)
 
 function find_err_msg(buffer)
 {
-    cmsg = 0;
     for (cmsg = 0; errmsg[cmsg]; cmsg = cmsg + 1)
     {
         cpat = errmsg[cmsg];
         if (egrep(pattern:cpat, string:buffer, icase:TRUE))
         {
-            #if (debug) display("'",cpat, "' found in '", buffer, "'\n");
+            if (debug_level) display("no404 - '",cpat, "' found in '", buffer, "'\n");
             return(cpat);
         }
     }
@@ -81,71 +82,139 @@ function find_err_msg(buffer)
 # build list of test urls
 
 basename="404";
-while ("404" >< basename) basename=string("/NessusTest", rand());
+while ("404" >< basename) basename= "/" + rand_str(length:12);
 
-badurl[0] = string(basename, ".html");
-badurl[1] = string(basename, ".cgi");
-badurl[2] = string(basename, ".sh");
-badurl[3] = string(basename, ".pl");
-badurl[4] = string(basename, ".inc");
-badurl[5] = string(basename, ".shtml");
-badurl[6] = string(basename, ".asp");
-badurl[7] = string(basename, ".php");
-badurl[8] = string(basename, ".php3");
-badurl[9] = string(basename, ".cfm");
+i = 0;
+badurl[i++] = string(basename, ".html");
+badurl[i++] = string(basename, ".cgi");
+badurl[i++] = string(basename, ".sh");
+badurl[i++] = string(basename, ".pl");
+badurl[i++] = string(basename, ".inc");
+badurl[i++] = string(basename, ".shtml");
+badurl[i++] = string(basename, ".asp");
+badurl[i++] = string(basename, ".php");
+badurl[i++] = string(basename, ".php3");
+badurl[i++] = string(basename, ".cfm");
 
-badurl[10] = string("/cgi-bin", basename, ".html");
-badurl[11] = string("/cgi-bin", basename, ".cgi");
-badurl[12] = string("/cgi-bin", basename, ".sh");
-badurl[13] = string("/cgi-bin", basename, ".pl");
-badurl[14] = string("/cgi-bin", basename, ".inc");
-badurl[15] = string("/cgi-bin", basename, ".shtml");
-badurl[16] = string("/cgi-bin", basename, ".php");
-badurl[17] = string("/cgi-bin", basename, ".php3");
-badurl[18] = string("/cgi-bin", basename, ".cfm");
+badurl[i++] = string("/cgi-bin", basename, ".html");
+badurl[i++] = string("/cgi-bin", basename, ".cgi");
+badurl[i++] = string("/cgi-bin", basename, ".sh");
+badurl[i++] = string("/cgi-bin", basename, ".pl");
+badurl[i++] = string("/cgi-bin", basename, ".inc");
+badurl[i++] = string("/cgi-bin", basename, ".shtml");
+badurl[i++] = string("/cgi-bin", basename, ".php");
+badurl[i++] = string("/cgi-bin", basename, ".php3");
+badurl[i++] = string("/cgi-bin", basename, ".cfm");
 
-errmsg[0] = "not found";
-errmsg[1] = "404";
-errmsg[2] = "error has occurred";
-errmsg[3] = "FireWall-1 message";
-errmsg[4] = "Reload acp_userinfo database";
-errmsg[5] = "IMail Server Web Messaging";
-errmsg[6] = "HP Web JetAdmin";
-errmsg[7] = "Error processing SSI file";
-errmsg[8] = "ExtendNet DX Configuration";
-errmsg[9] = "Unable to complete your request due to added security features";
-errmsg[10] = "Client Authentication Remote Service</font>";
-errmsg[11] = "Bad Request";
-errmsg[12] = "Webmin server";
-errmsg[13] = "Management Console";	
-errmsg[14] = "TYPE=password";	# As in "<input type=password>"
-errmsg[15] = "The userid or password that was specified is not valid.";  # Tivoli server administrator   
-errmsg[16] = "Access Failed";
-errmsg[17] = "Please identify yourself:";
-errmsg[18] = "forcelogon.htm";
-errmsg[19] = "encountered an error while publishing this resource";
-errmsg[20] = "No web site is configured at this address";
-errmsg[21] = 'name=qt id="search" size=40 value=" "';
-errmsg[22] = "PHP Fatal error:  Unable to open";
+i = 0;
+errmsg[i++] = "not found";
+errmsg[i++] = "404";
+errmsg[i++] = "error has occurred";
+errmsg[i++] = "FireWall-1 message";
+errmsg[i++] = "Reload acp_userinfo database";
+errmsg[i++] = "IMail Server Web Messaging";
+errmsg[i++] = "HP Web JetAdmin";
+errmsg[i++] = "Error processing SSI file";
+errmsg[i++] = "ExtendNet DX Configuration";
+errmsg[i++] = "Unable to complete your request due to added security features";
+errmsg[i++] = "Client Authentication Remote Service</font>";
+errmsg[i++] = "Bad Request";
+errmsg[i++] = "<form action=/session_login.cgi";	# webmin
+errmsg[i++] = "Webmin server";
+errmsg[i++] = "Management Console";	
+errmsg[i++] = "TYPE=password";	# As in "<input type=password>"
+errmsg[i++] = "The userid or password that was specified is not valid.";  # Tivoli server administrator   
+errmsg[i++] = "Access Failed";
+errmsg[i++] = "Please identify yourself:";
+errmsg[i++] = "forcelogon.htm";
+errmsg[i++] = "encountered an error while publishing this resource";
+errmsg[i++] = "No web site is configured at this address";
+errmsg[i++] = 'name=qt id="search" size=40 value=" "';
+errmsg[i++] = "PHP Fatal error:  Unable to open";
+errmsg[i++] = "RSA SecurID User Name Request";
+errmsg[i++] = "Error Occurred While Processing Request";
+errmsg[i++] = "Web access denied";
+errmsg[i++] = "Error Page";
+errmsg[i++] = "The page you requested doesn't exist";
+errmsg[i++] = "TYPE='password'";
+errmsg[i++] = 'TYPE="password"';
+errmsg[i++] = "This version of Compaq's management software has added";
 
-debug = 0;
+function my_exit()
+{
+ local_var now;
+ now = unixtime(); 
+ if ( now - then > 60 && ! thorough_tests )
+ {
+  report = "
+The remote web server is very slow - it took " + int(now - then) + " seconds to
+execute the plugin no404.nasl (it usually only takes a few seconds).
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+In order to keep the scan total time to a reasonable amount, the remote web server
+has not been tested.
+
+If you want to test the remote server, either fix it to have it reply to Nessus's requests
+in a reasonable amount of time, or set the global option 'Thorough tests' to 'yes'";
+
+  security_note(port:port, data:report);
+  set_kb_item(name:"Services/www/" + port + "/broken", value:TRUE);
+ }
+ exit(0);
+}
+
+
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+
+found = string("www/no404/", port);
+
+then = unixtime();
 
 for (c = 0; badurl[c]; c = c + 1)
 {
     url = badurl[c];
     
-    if(debug) display("Checking URL ", url, "\n");
+    if(debug_level) display("no404 - Checking URL ", url, " on port ", port, "\n");
     ret = check(url:url, port:port);
   
     if (!(ret == 0))
     {
 
+	# WebMin's miniserv and CompaqDiag behave strangely
+	if ( egrep(pattern:"^Server: MiniServ/", string:ret) )
+	{
+	  set_kb_item(name:found, value:"HTTP");
+          security_note(port);
+	  exit(0);
+	}
+
+	# MailEnable-HTTP does not handle connections fast enough
+	if ( egrep(pattern:"^Server: MailEnable-HTTP/", string:ret) )
+	{
+	  set_kb_item(name:found, value:"HTTP");
+	  set_kb_item(name:"Services/www/" + port + "/broken", value:TRUE);
+          security_note(port);
+	  exit(0);
+	}
+
+	if ( egrep(pattern:"^Server: CompaqHTTPServer/", string:ret) )
+	{
+	  set_kb_item(name:found, value:"HTTP");
+	  set_kb_item(name:"Services/www/" + port + "/broken", value:TRUE);
+          security_note(port);
+	  exit(0);
+	}
+
+	# This is not a web server
+	if ( egrep(pattern:"^DAAP-Server: ", string:ret) )
+	{
+	  set_kb_item(name:"Services/www/" + port + "/broken", value:TRUE);
+          security_note(port);
+	  exit(0);
+	}
+
         raw_http_line = egrep(pattern:"^HTTP/", string:ret);
-	found = string("www/no404/", port);
         # check for a 200 OK
         if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 ", string:raw_http_line))
         {
@@ -157,8 +226,8 @@ for (c = 0; badurl[c]; c = c + 1)
                 set_kb_item(name:found, value:string(not_found));
                 security_note(port);
                 
-                if(debug) display("200: Using string: ", not_found, "\n");
-                exit(0);              
+                if(debug_level) display("no404 - 200: Using string: ", not_found, "\n");
+                my_exit();              
              } else {
                 
                 # try to match the title
@@ -168,10 +237,10 @@ for (c = 0; badurl[c]; c = c + 1)
                     title = ereg_replace(string:title, pattern:".*<title>(.*)</title>.*", replace:"\1", icase:TRUE);
                     if (title)
                     {
-                        if(debug) display("using string from title: ", title, "\n");
+                        if(debug_level) display("no404 - using string from title tag: ", title, "\n");
                         set_kb_item(name:found, value:title);
                         security_note(port);
-                        exit(0);
+                        my_exit();
                     }
                 }
                 
@@ -182,30 +251,29 @@ for (c = 0; badurl[c]; c = c + 1)
                     body = ereg_replace(string:body, pattern:"<body(.*)>", replace:"\1", icase:TRUE);
                     if (body)
                     {
-                        if(debug) display("using string from body: ", body, "\n");
+                        if(debug_level) display("no404 - using string from body tag: ", body, "\n");
                         set_kb_item(name:found, value:body);
                         security_note(port);
-                        exit(0);
+                        my_exit();
                     }
                 }
                 
                 # get mad and give up
-                if(debug)display("argh! could not find something to match against.\n");
-                if(debug)display("[response]", ret, "\n");
+                if(debug_level)display("no404 - argh! could not find something to match against.\n");
+                if(debug_level)display("no404 - [response]", ret, "\n");
 		msg = "
 This web server is [mis]configured in that it
 does not return '404 Not Found' error codes when
 a non-existent file is requested, perhaps returning
-a site map or search page or authentication page instead.
+a site map, search page or authentication page instead.
 
 Unfortunately, we were unable to find a way to recognize this page,
 so some CGI-related checks have been disabled.
 
 To work around this issue, please contact the Nessus team.";
 		security_note(port: port, data: msg);
-		found = string("www/no404/", port);
 		set_kb_item(name:found, value:"HTTP");
-                exit(0);
+                my_exit();
                 
              }
         }
@@ -213,20 +281,24 @@ To work around this issue, please contact the Nessus team.";
         # check for a 302 Moved Temporarily or 301 Move Permanently
         if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 30[12] ", string:raw_http_line))
         {
-             # put the location field as no404 msg
-             found = string("www/no404/", port);
-	     loc = egrep(string: ret, pattern: "^Location:");
-             set_kb_item(name:found, value:loc);
-             
-             security_note(port);
-             if(debug) display("302: Using ", raw_http_line, "\n");
-             exit(0);                 
+		msg = "
+This web server is [mis]configured in that it does not return '404 Not Found' 
+error codes when a non-existent file is requested, perhaps returning
+a site map, search page or authentication page instead.
+
+CGI scanning will be disabled for this host.
+
+To work around this issue, please contact the Nessus team.";
+		security_note(port: port, data: msg);
+		set_kb_item(name:found, value:"HTTP");
+                my_exit();
         }
         
     } else {
-        if(debug) display("An error occurred when trying to request: ", url, "\n");
+        if(debug_level) display("no404 - An error occurred when trying to request: ", url, "\n");
     }
 }
 
+my_exit();
 
 

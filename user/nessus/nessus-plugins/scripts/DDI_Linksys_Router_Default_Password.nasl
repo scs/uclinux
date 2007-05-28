@@ -8,7 +8,8 @@
 if(description)
 {
 	script_id(10999);
-	script_version("$Revision: 1.3 $");
+	script_version("$Revision: 1.6 $");
+	script_cve_id("CVE-1999-0508");
 	name["english"] = "Linksys Router Default Password";
 	script_name(english:name["english"]);
 	desc["english"] = "
@@ -40,8 +41,8 @@ Risk factor : High";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if (!get_port_state(port))port = 8080;
 
 if(get_port_state(port))

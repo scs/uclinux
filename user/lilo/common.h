@@ -17,7 +17,10 @@ source directory.
 #ifndef LILO_ASM
 #include <sys/stat.h>
 #include <asm/types.h>
-#include <linux/genhd.h>
+
+#ifndef PAGE_SIZE
+# define PAGE_SIZE 4096U
+#endif
 
 #include "lilo.h"
 
@@ -37,7 +40,7 @@ source directory.
 						sa_head:	.blkb	1
 ;*/    unsigned char num_sect; /* AL
 						sa_num_sect:	.blkb	1
-;*/} SECTOR_ADDR; /*
+;*/} __attribute__((packed)) SECTOR_ADDR; /*
 						sa_size:
 							endb
 
@@ -108,7 +111,7 @@ source directory.
 						par1_keytab:	.blkb	sa_size
 ;*/    SECTOR_ADDR secondary; /* sectors of the second stage loader
 						par1_secondary:	.blkb	sa_size
-;*/} BOOT_PARAMS_1; /* first stage boot loader 
+;*/} __attribute__((packed)) BOOT_PARAMS_1; /* first stage boot loader 
 								.align	4
 						par1_size:
 							endb

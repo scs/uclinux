@@ -5,8 +5,9 @@
 if(description)
 {
  script_id(10659);
- script_version ("$Revision: 1.13 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0003");
  script_bugtraq_id(2417);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-2001-0236");
  
  name["english"] = "snmpXdmid overflow";
@@ -42,11 +43,15 @@ Risk factor : High";
 }
 
 include("misc_func.inc");
+include("global_settings.inc");
+
+
 port = get_rpc_port(program:100249, protocol:IPPROTO_TCP);
 if(port)
 {
   if(safe_checks())
   {
+   if ( report_paranoia == 0 ) exit(0);
   data = " 
 The remote RPC service 100249 (snmpXdmid) may be vulnerable
 to a heap overflow which allows any user to obtain a root

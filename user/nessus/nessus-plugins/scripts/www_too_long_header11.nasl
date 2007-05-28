@@ -16,12 +16,18 @@
 #    <ntbugtraq@listserv.ntbugtraq.com>
 # Date: Mon, 17 Feb 2003 16:19:20 -0800
 #
+# From: "Matthew Murphy" <mattmurphy@kc.rr.com>
+# Subject: Multiple pServ Remote Buffer Overflow Vulnerabilities
+# To: "BugTraq" <bugtraq@securityfocus.com>
+# Date: Sun, 1 Dec 2002 12:15:52 -0600
+#
 
 
 if(description)
 {
  script_id(11129);
- script_version ("$Revision: 1.11 $");
+ script_bugtraq_id(6951);
+ script_version ("$Revision: 1.14 $");
  name["english"] = "HTTP 1.1 header overflow";
  script_name(english:name["english"]);
  
@@ -64,8 +70,8 @@ Risk factor : High";
 include("http_func.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 if (http_is_dead(port: port)) exit(0);
 

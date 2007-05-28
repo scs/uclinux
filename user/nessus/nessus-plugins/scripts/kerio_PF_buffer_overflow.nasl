@@ -21,8 +21,9 @@
 if (description)
 {
   script_id(11575);
-  script_version ("$Revision: 1.3 $");
+  script_cve_id("CVE-2003-0220");
   script_bugtraq_id(7180);
+  script_version ("$Revision: 1.6 $");
  
  name["english"] = "Kerio personal Firewall buffer overflow";
  script_name(english:name["english"]);

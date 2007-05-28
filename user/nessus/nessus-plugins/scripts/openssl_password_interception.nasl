@@ -8,9 +8,13 @@
 if(description)
 {
  script_id(11267);
- script_version("$Revision: 1.8 $");
+ script_version("$Revision: 1.24 $");
+
+ script_cve_id("CVE-2003-0078", "CVE-2003-0131", "CVE-2003-0147");
  script_bugtraq_id(6884, 7148);
- script_cve_id("CAN-2003-0078", "CAN-2003-0131", "CVE-1999-0428");
+ script_xref(name:"OSVDB", value:"3945");
+ script_xref(name:"RHSA", value:"RHSA-2003:101-01");
+ script_xref(name:"SuSE", value:"SUSE-SA:2003:024");
  
  name["english"] = "OpenSSL password interception";
 
@@ -54,8 +58,10 @@ Risk factor : Medium";
  family["english"] = "Misc.";
  family["francais"] = "Divers";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
- script_require_ports("Services/www", 80);
+ script_dependencie("find_service.nes", "http_version.nasl");
+ if ( defined_func("bn_random") )
+  script_dependencie("mandrake_MDKSA-2003-020.nasl", "redhat-RHSA-2003-063.nasl", "suse_SA_2003_011.nasl");
+ script_require_ports("Services/www", 443);
  exit(0);
 }
 
@@ -67,22 +73,13 @@ Risk factor : Medium";
 include("http_func.inc");
 include("misc_func.inc");
 
+if ( get_kb_item("CVE-2003-0078") ) exit(0);
+
 ports = add_port_in_list(list:get_kb_list("Services/www"), port:443);
 
 foreach port (ports)
 {
  banner = get_http_banner(port:port);
- if(banner)
-  {
-  serv = strstr(banner, "Server");
-
-  if(ereg(pattern:".*OpenSSL/0\.9\.([0-5][^0-9]|6[^a-z]|6[a-i]).*", string:serv))
-  {
-  security_warning(port);
-  }
-  else if(ereg(pattern:".*OpenSSL/0\.9\.7(-beta.*|a| .*)", string:serv))
-  {
-   security_warning(port);
-  }
- }
+ if ( ! banner ) exit(0);
+ if(egrep(pattern:"^Server.*OpenSSL/0\.9\.([0-5][^0-9]|6[^a-z]|6[a-i])", string:banner) || egrep(pattern:"^Server.*OpenSSL/0\.9\.7(-beta|a| )", string:banner)) security_warning(port);
 }

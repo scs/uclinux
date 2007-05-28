@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sip_msg.c,v 1.75.4.5 2004/02/28 02:13:47 bogdan Exp $
  * 
  * cloning a message into shared memory (TM keeps a snapshot
  * of messages in memory); note that many operations, which

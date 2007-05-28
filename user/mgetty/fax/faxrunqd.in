@@ -9,13 +9,10 @@
 #
 # initial version: Feb 17, 1997
 #
-my $rcs_id='RCS: $Id$';
+my $rcs_id='RCS: $Id: faxrunqd.in,v 1.70 2005/02/17 13:52:33 gert Exp $';
 #
 # Change Log:
-# $Log$
-# Revision 1.1  2006/08/05 07:27:14  vapier
-# import from upstream uClinux
-#
+# $Log: faxrunqd.in,v $
 # Revision 1.70  2005/02/17 13:52:33  gert
 # do full "queue readdir()" only once per 180 seconds now, but use "stat(.)" to
 # detect modifications to spool directory (checked every 10 seconds) -> for

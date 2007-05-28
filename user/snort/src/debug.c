@@ -54,13 +54,13 @@ int GetDebugLevel (void)
     static int debug_level = 0;
 
     if(debug_init) {
-	return debug_level;
+        return debug_level;
     }
 
     if (getenv(DEBUG_VARIABLE))
         debug_level = atoi(getenv(DEBUG_VARIABLE));
     else
-	debug_level = 0;
+        debug_level = 0;
 
     debug_init = 1;
     return debug_level;
@@ -95,5 +95,9 @@ void DebugMessageFunc(int level, char *fmt, ...)
     }
 
     va_end(ap);
+}
+#else
+void DebugMessageFunc(int level, char *fmt, ...)
+{
 }
 #endif /* DEBUG */

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10466);
-script_cve_id("CAN-2000-0648");
  script_bugtraq_id(1456);
- script_version ("$Revision: 1.15 $");
+script_cve_id("CVE-2000-0648");
+ script_version ("$Revision: 1.20 $");
  
  name["english"] = "WFTP RNTO DoS";
  name["francais"] = "Déni de service WFTP par la commande RNTO";
@@ -27,7 +27,7 @@ Solution : if you are using wftp, then upgrade to
 version 2.41 RC11, if you are not, then contact
 your vendor for a fix.
 
-Risk factor : Serious";
+Risk factor : High";
  
 
 
@@ -93,7 +93,7 @@ from publishing anything using FTP.
 Solution : Make sure you are running WFTP 2.41 RC11
 or newer 
 
-Risk factor : Serious";
+Risk factor : High";
  security_hole(port:port, data:desc);
  }
  exit(0);
@@ -107,12 +107,13 @@ Risk factor : Serious";
  {
   if(login)
   {
-  if(ftp_log_in(socket:soc, user:login, pass:pass))
+  if(ftp_authenticate(socket:soc, user:login, pass:pass))
    {
     req = string("RNTO x\r\n");
     send(socket:soc, data:req);
     ftp_close(socket:soc);
     soc2 = open_sock_tcp(port);
+    if ( ! soc2 ) exit(0);
     r = ftp_recv_line(socket:soc2);
     ftp_close(socket: soc2);
     if(!r)security_hole(port);
@@ -122,6 +123,7 @@ Risk factor : Serious";
     {
      close(soc);
      soc = open_sock_tcp(port);
+     if (! soc ) exit(0);
     }   
   }
   
@@ -135,7 +137,7 @@ Risk factor : Serious";
  "log into this server.\n",
  "Make sure you are running WFTPd 2.41 RC11 or an attacker with a login\n",
  "and a password may shut down this server\n",
- "Risk factor : Serious");
+ "Risk factor : High");
   security_hole(port:port, data:data);
   }
  }

@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10363);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1814);
- script_cve_id("CAN-1999-0253"); 
+ script_version ("$Revision: 1.18 $");
+ script_cve_id("CVE-1999-0253"); 
  name["english"] = "ASP source using %2e trick";
  name["francais"] = "Sources des fichiers ASP en utilisant le %2e";
  script_name(english:name["english"], francais:name["francais"]);
@@ -26,7 +26,7 @@ as logins and passwords.
 
 Solution :  install all the latest Microsoft Security Patches
 	
-Risk factor : Serious";
+Risk factor : High";
 	
  desc["francais"] = "
 Il est possible d'obtenir le code source des fichiers
@@ -56,9 +56,8 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "webmirror.nasl", "http_version.nasl");
+ script_dependencie("find_service.nes", "webmirror.nasl", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -67,26 +66,23 @@ Facteur de risque : Sérieux";
 #
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
 function check(file)
 {
-soc = http_open_socket(port);
- if(soc)
- {
   req = http_get(item:string(file, "%2e"), port:port);
-  send(socket:soc, data:req);
-  r = http_recv(socket:soc);
-  http_close_socket(soc);
+  r = http_keepalive_send_recv(port:port, data:req);
+  if ( ! r ) exit(0);
   if("Content-Type: application/octet-stream" >< r){
   	security_hole(port);
 	return(1);
 	}
- }
  return(0);
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
 if(get_port_state(port))
 {
  if(check(file:"/default.asp"))exit(0);

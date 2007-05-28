@@ -11,9 +11,9 @@
 if(description)
 {
  script_id(10190);
- script_version ("$Revision: 1.21 $");
  script_bugtraq_id(612);
- script_cve_id("CAN-1999-0911");
+ script_version ("$Revision: 1.26 $");
+ script_cve_id("CVE-1999-0911");
  name["english"] = "ProFTPd buffer overflow";
  name["francais"] = "Dépassement de buffer ProFTPd";
  
@@ -68,8 +68,7 @@ Facteur de risque : Elevé";
  script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
  		  francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
 		  
- script_dependencie("find_service.nes", "ftp_write_dirs.nes",
- 		    "wu_ftpd_overflow.nasl");
+ script_dependencie("find_service.nes", "ftp_writeable_directories.nasl", "wu_ftpd_overflow.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -98,7 +97,7 @@ if(!get_port_state(port))exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
   c = string("CWD ", wri, "\r\n");
   send(socket:soc, data:c);
@@ -110,7 +109,7 @@ if(soc)
   {
   send(socket:soc, data:mkd);
   b = ftp_recv_line(socket:soc);
-  if(!ereg(pattern:"^257 .*", string:b))
+  if(!egrep(pattern:"^257 .*", string:b))
   {
    i = 9;
   }
@@ -119,7 +118,7 @@ if(soc)
    num_dirs = num_dirs + 1;
    send(socket:soc,data:cwd);
    b = ftp_recv_line(socket:soc);
-   if(!ereg(pattern:"^250 .*", string:b))
+   if(!egrep(pattern:"^250 .*", string:b))
     {
      i = 9;
     }
@@ -127,7 +126,7 @@ if(soc)
   }
   
   
-  port2 = ftp_get_pasv_port(socket:soc);
+  port2 = ftp_pasv(socket:soc);
   soc2 = open_sock_tcp(port2);
   if(soc2)
   {
@@ -151,7 +150,7 @@ if(soc)
   
   soc = open_sock_tcp(port);
   if(!soc)exit(0);
-  ftp_log_in(socket:soc, user:login, pass:pass);
+  ftp_authenticate(socket:soc, user:login, pass:pass);
   for(i=0;i<num_dirs;i=i+1)
   {
    send(socket:soc, data:string("CWD ", crap(100), "\r\n"));

@@ -7,9 +7,12 @@
 if(description)
 {
  script_id(11499);
- script_cve_id("CAN-2003-0161");
  script_bugtraq_id(7230);
- script_version("$Revision: 1.8 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-b-0003");
+ script_cve_id("CVE-2003-0161");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:120-01");
+ script_version("$Revision: 1.14 $");
+
  
  name["english"] = "Sendmail buffer overflow due to type conversion";
  script_name(english:name["english"]);
@@ -27,7 +30,7 @@ http://www.sendmail.org/patchps.html
 
 NOTE: manual patches do not change the version numbers.
 Vendors who have released patched versions of sendmail
-may still falsely show vulnerabilty.
+may still falsely show vulnerability.
 
 *** Nessus reports this vulnerability using only
 *** the banner of the remote SMTP server. Therefore,
@@ -46,7 +49,11 @@ Risk factor : High";
  
  family["english"] = "SMTP problems";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "smtpserver_detect.nasl");
+ if ( ! defined_func("bn_random") )
+	script_dependencie("smtpserver_detect.nasl", "os_fingerprint.nasl");
+ else
+ 	script_dependencie("smtpserver_detect.nasl", "os_fingerprint.nasl", "solaris7_107684.nasl", "solaris7_x86_107685.nasl", "solaris8_110615.nasl", "solaris8_x86_110616.nasl", "solaris9_113575.nasl", "solaris9_x86_114137.nasl");
+
  script_require_ports("Services/smtp", 25);
  script_require_keys("SMTP/sendmail");
  exit(0);
@@ -57,6 +64,8 @@ Risk factor : High";
 #
 
 include("smtp_func.inc");
+
+if ( get_kb_item("BID-8641") ) exit(0);
 
 port = get_kb_item("Services/smtp");
 if(!port) port = 25;

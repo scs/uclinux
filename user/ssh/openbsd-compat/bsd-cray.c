@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: bsd-cray.c,v 1.14 2005/02/02 06:10:11 dtucker Exp $
  *
  * bsd-cray.c
  *
@@ -59,6 +59,28 @@
 #include <ia.h>
 #include <urm.h>
 #include "ssh.h"
+
+#include "includes.h"
+#include "sys/types.h"
+
+#ifndef HAVE_STRUCT_SOCKADDR_STORAGE
+# define      _SS_MAXSIZE     128     /* Implementation specific max size */
+# define       _SS_PADSIZE     (_SS_MAXSIZE - sizeof (struct sockaddr))
+
+# define ss_family ss_sa.sa_family
+#endif /* !HAVE_STRUCT_SOCKADDR_STORAGE */
+
+#ifndef IN6_IS_ADDR_LOOPBACK
+# define IN6_IS_ADDR_LOOPBACK(a) \
+	(((u_int32_t *) (a))[0] == 0 && ((u_int32_t *) (a))[1] == 0 && \
+	 ((u_int32_t *) (a))[2] == 0 && ((u_int32_t *) (a))[3] == htonl (1))
+#endif /* !IN6_IS_ADDR_LOOPBACK */
+
+#ifndef AF_INET6
+/* Define it to something that should never appear */
+#define AF_INET6 AF_MAX
+#endif
+
 #include "log.h"
 #include "servconf.h"
 #include "bsd-cray.h"
@@ -149,7 +171,7 @@ cray_access_denied(char *username)
  * record_failed_login: generic "login failed" interface function
  */
 void
-record_failed_login(const char *user, const char *ttyname)
+record_failed_login(const char *user, const char *hostname, const char *ttyname)
 {
 	cray_login_failure((char *)user, IA_UDBERR);
 }
@@ -182,7 +204,7 @@ cray_setup (uid_t uid, char *username, const char *command)
 	/* passwd stuff for ia_user */
 	passwd_t pwdacm, pwddialup, pwdudb, pwdwal, pwddce;
 	ia_user_ret_t uret;		/* stuff returned from ia_user */
-	ia_user_t usent			/* ia_user main structure */
+	ia_user_t usent;		/* ia_user main structure */
 	int ia_rcode;			/* ia_user return code */
 	ia_failure_t fsent;		/* ia_failure structure */
 	ia_failure_ret_t fret;		/* ia_failure return stuff */
@@ -501,54 +523,54 @@ cray_setup (uid_t uid, char *username, const char *command)
 					break;
 				default:
 					valid_acct = nam2acid(acct_name);
-					if (valid_acct == -1) {
+					if (valid_acct == -1) 
 						printf(
 						    "Account id not found for"
 						    " account name \"%s\"\n\n",
 						    acct_name);
 					break;
+				}
+				/*
+				 * If an account was given, search the user's
+				 * acids array to verify they can use this account.
+				 */
+				if ((valid_acct != -1) &&
+				    !(ue.ue_permbits & PERMBITS_ACCTID)) {
+					for (i = 0; i < MAXVIDS; i++) {
+						if (ue.ue_acids[i] == -1)
+							break;
+						if (valid_acct == ue.ue_acids[i])
+							break;
 					}
-					/*
-					 * If an account was given, search the user's
-					 * acids array to verify they can use this account.
-					 */
-					if ((valid_acct != -1) &&
-					    !(ue.ue_permbits & PERMBITS_ACCTID)) {
-						for (i = 0; i < MAXVIDS; i++) {
-							if (ue.ue_acids[i] == -1)
-								break;
-							if (valid_acct == ue.ue_acids[i])
-								break;
-						}
-						if (i == MAXVIDS ||
-						    ue.ue_acids[i] == -1) {
-							fprintf(stderr, "Cannot set"
-							    " account name to "
-							    "\"%s\", permission "
-							    "denied\n\n", acct_name);
-							valid_acct = -1;
-						}
+					if (i == MAXVIDS ||
+					    ue.ue_acids[i] == -1) {
+						fprintf(stderr, "Cannot set"
+						    " account name to "
+						    "\"%s\", permission "
+						    "denied\n\n", acct_name);
+						valid_acct = -1;
 					}
 				}
-			} else {
-				/*
-				 * The client isn't connected to a terminal and can't
-				 * respond to an acid prompt.  Use default acid.
-				 */
-				debug("cray_setup: ttyname false case, %.100s",
-				    ttyname);
-				valid_acct = ue.ue_acids[0];
 			}
 		} else {
 			/*
-			 * The user doesn't have the askacid permbit set or
-			 * only has one valid account to use.
+			 * The client isn't connected to a terminal and can't
+			 * respond to an acid prompt.  Use default acid.
 			 */
+			debug("cray_setup: ttyname false case, %.100s",
+			    ttyname);
 			valid_acct = ue.ue_acids[0];
 		}
-		if (acctid(0, valid_acct) < 0) {
-			printf ("Bad account id: %d\n", valid_acct);
-			exit(1);
+	} else {
+		/*
+		 * The user doesn't have the askacid permbit set or
+		 * only has one valid account to use.
+		 */
+		valid_acct = ue.ue_acids[0];
+	}
+	if (acctid(0, valid_acct) < 0) {
+		printf ("Bad account id: %d\n", valid_acct);
+		exit(1);
 	}
 
 	/* 
@@ -778,4 +800,17 @@ cray_set_tmpdir(struct utmp *ut)
 	ut->ut_jid = jid;
 	strncpy(ut->ut_tpath, cray_tmpdir, TPATHSIZ);
 }
-#endif
+#endif /* UNICOS */
+
+#ifdef _UNICOSMP
+#include <pwd.h>
+/*
+ * Set job id and create tmpdir directory.
+ */
+void
+cray_init_job(struct passwd *pw)
+{
+	initrm_silent(pw->pw_uid);
+	return;
+}
+#endif /* _UNICOSMP */

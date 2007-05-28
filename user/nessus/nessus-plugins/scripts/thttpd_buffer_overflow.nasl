@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10285);
- script_version ("$Revision: 1.21 $");
  script_bugtraq_id(1248);
+ script_version ("$Revision: 1.23 $");
  script_cve_id("CVE-2000-0359");
  
  name["english"] = "thttpd 2.04 buffer overflow";
@@ -70,8 +70,8 @@ Facteur de risque : Elevé.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(safe_checks())
 {

@@ -5,8 +5,8 @@
 if(description)
 {
  script_id(11813);
- script_version ("$Revision: 1.3 $");
- script_bugtraq_id(8298);
+ script_bugtraq_id(1160, 8298);
+ script_version ("$Revision: 1.6 $");
  script_cve_id("CVE-2000-0344");
  name["english"] = "Linux 2.4 NFSv3 DoS";
  script_name(english:name["english"], francais:name["francais"]);
@@ -22,7 +22,7 @@ An attacker may exploit this flaw to prevent this host from working
 correctly.
 
 Solution : Upgrade to the latest version of Linux 2.4, or do not use knfsd.
-Risk Factor : High";
+Risk factor : High";
 
 
 
@@ -81,7 +81,9 @@ function dos(soc)
 
 start_denial();
 port = get_rpc_port(program:100003, protocol:IPPROTO_UDP);
+if ( ! port ) exit(0);
 soc = open_priv_sock_udp(dport:port);
+if ( ! soc ) exit(0);
 result = dos(soc:soc);
 if(!result)
 { 

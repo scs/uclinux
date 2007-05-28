@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10158);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-0620");
+ script_version ("$Revision: 1.14 $");
+ script_cve_id("CVE-1999-0620");
  name["english"] = "NIS server";
  name["francais"] = "Serveur NIS";
  script_name(english:name["english"], francais:name["francais"]);

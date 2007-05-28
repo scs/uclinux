@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: t_lookup.h,v 1.10.6.3 2004/02/11 02:43:26 jiri Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

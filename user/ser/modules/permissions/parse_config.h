@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_config.h,v 1.1 2003/03/18 07:58:14 tirpi Exp $
  *
  * PERMISSIONS module
  *

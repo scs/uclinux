@@ -9,7 +9,7 @@
 * This program may be distributed according to the terms of the GNU
 * General Public License, version 2 or (at your option) any later version.
 *
-* $Id$
+* $Id: pppoe.h,v 1.1.1.1 2000/11/17 05:28:42 davidm Exp $
 *
 ***********************************************************************/
 

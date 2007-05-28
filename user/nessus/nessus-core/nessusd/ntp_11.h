@@ -22,7 +22,7 @@
 #define NTP_STOP_WHOLE_TEST 2
 
 int ntp_11_parse_input(struct arglist *, char *);
-void ntp_11_show_end(struct arglist *, char *);
+void ntp_11_show_end(struct arglist *, char *, int);
 
 
 

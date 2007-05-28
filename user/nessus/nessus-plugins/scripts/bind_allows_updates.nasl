@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11320);
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.4 $");
  
  name["english"] = "The remote BIND has dynamic updates enabled";
  
@@ -44,6 +44,9 @@ Risk factor : Low";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  family["english"] = "General";
  script_family(english:family["english"]);
+ script_require_keys("DNS/udp/53");
+ script_dependencies("dns_server.nasl");
+
 
  exit(0);
 }

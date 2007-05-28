@@ -16,24 +16,38 @@ if(description)
 {
  script_id(11618);
  script_bugtraq_id(7487);
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "Remote host replies to SYN+FIN";
  
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host does not discard TCP SYN packets which
-have the FIN flag set.
+Synopsis :
 
-Depending on the kind of firewall you are using, an
-attacker may use this flaw to bypass its rules.
+It may be possible to bypass firewall rules
 
-See also : http://archives.neohapsis.com/archives/bugtraq/2002-10/0266.html
-           http://www.kb.cert.org/vuls/id/464113
+Description :
+
+The remote host does not discard TCP SYN packets which have
+the FIN flag set.
+
+Depending on the kind of firewall you are using, an attacker
+may use this flaw to bypass its rules.
+
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2002-10/0266.html
+http://www.kb.cert.org/vuls/id/464113
 	   
-Solution : Contact your vendor for a patch
-Risk factor : Medium";
+Solution :
+
+Contact your vendor for a patch
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
 
 
 
@@ -58,6 +72,9 @@ Risk factor : Medium";
 #
 
 # do not test this bug locally
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
 
 if(islocalhost())exit(0);
 
@@ -82,7 +99,7 @@ for(i=0;i<5;i++)
  if(r)
  {
   # We specified a pcap filter which only returns SYN|ACK....
-  security_warning(0);
+  security_note(0);
   exit(0);
  }
 }

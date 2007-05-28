@@ -23,8 +23,9 @@ if(description)
 {
  script_id(11283);
  script_bugtraq_id(6895);
+ script_cve_id("CVE-2003-0100");
 
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "CSCdp58462";
 
@@ -43,7 +44,7 @@ This vulnerability is documented as Cisco Bug ID CSCdp58462.
 
 Solution : 
 http://www.cisco.com/warp/public/707/cisco-sn-20030221-ospf.shtml
-Risk Factor : Critical
+Risk factor : Critical
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

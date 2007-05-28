@@ -13,8 +13,8 @@
 if(description)
 {
  script_id(11035);
- script_version("$Revision: 1.11 $");
  script_bugtraq_id(5006);
+ script_version("$Revision: 1.14 $");
  script_cve_id("CVE-2002-0968");
  script_name(english:"AnalogX SimpleServer:WWW  DoS");
  
@@ -66,8 +66,8 @@ Facteur de risque : Élevé";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port)) exit(0);
 
 banner = get_http_banner(port: port);
@@ -75,7 +75,7 @@ if (! banner) exit(0);
 
 if (safe_checks())
 {
-  if (egrep(pattern:"^Server: *SimpleServer:WWW/1.[01]", string:banner))
+  if (egrep(pattern:"^Server: *SimpleServer:WWW/1.[01]([^0-9]|$)", string:banner))
   {
     security_hole(port: port, data:"According ot its version number, 
 it should be possible to kill your remote SimpleServer web server 

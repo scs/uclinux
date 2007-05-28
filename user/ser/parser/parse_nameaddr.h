@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: parse_nameaddr.h,v 1.3 2003/04/10 12:38:18 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

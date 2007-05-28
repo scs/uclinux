@@ -7,10 +7,10 @@
 if(description)
 {
 	script_id(11206);
-	script_version("$Revision: 1.2 $");
+	script_bugtraq_id(2444);
+	script_version("$Revision: 1.5 $");
 	
 	script_cve_id("CVE-2001-0295");
-	script_bugtraq_id(2444);
 	
 	name["english"] = "War FTP Daemon Directory Traversal";
 	script_name(english:name["english"]);
@@ -35,7 +35,7 @@ Risk factor: Low";
 	script_copyright(english:"This script is Copyright (C) 2003 Digital Defense, Inc.");
 	family["english"] = "FTP";
 	script_family(english:family["english"]);
-	script_dependencies("find_service.nes");
+	script_dependencies("find_service_3digits.nasl");
 	script_require_ports("Services/ftp", 21);
 	exit(0);
 }
@@ -51,7 +51,7 @@ if(get_port_state(port))
 	r = get_ftp_banner(port:port);
 	if(!r)exit(0);
 
-	if(("WAR-FTPD 1.67-05" >< r) || ("WAR-FTPD 1.67-04" >< r))
+	if( (egrep(pattern:"WAR-FTPD 1\.(6[0-5]|[0-5].*)",string:r)) || ("WAR-FTPD 1.67-04" >< r) )
 	{
 		security_hole(port);
 	}

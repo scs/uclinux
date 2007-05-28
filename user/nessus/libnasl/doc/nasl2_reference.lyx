@@ -29,18 +29,18 @@
 The NASL2 reference manual
 \layout Date
 
-2002-02-06
+$Date$
 \layout Author
 
 
-\begin_inset LatexCommand \url[Michel Arboi]{<arboi@alussinan.org>}
+\begin_inset LatexCommand \htmlurl[Michel Arboi]{<mikhail@nessus.org>}
 
 \end_inset 
 
 
 \layout Abstract
 
-This is the NASL2 reference manual.
+This is the NASL2 reference manual ($Revision$).
  It describes the language syntax and the internal functions.
 \layout Abstract
 
@@ -49,7 +49,7 @@ If you want tips on how to write a security test in NASL, read
 The Nessus Attack Scripting Language Reference Guide
 \emph default 
  by 
-\begin_inset LatexCommand \url[Renaud Deraison]{<deraison@nessus.org>}
+\begin_inset LatexCommand \htmlurl[Renaud Deraison]{<deraison@nessus.org>}
 
 \end_inset 
 
@@ -162,22 +162,22 @@ Most NASL2 scripts cannot run under NASL1.
 And a few NASL1 scripts cannot run under NASL2 (but fixing them is easy).
 \layout Itemize
 
-NASL2 user-defined functions can handle array.
+NASL2 user-defined functions can handle arrays.
 \layout Subsection
 
 Copyright
 \layout Standard
 
-This document is (C) Michel Arboi.
+This document was written by Michel Arboi and is (C) Tenable Security.
  Permission is granted to reproduce this document as long as you do not
- modify it (and leave this copyright in place, of course).
+ modify it (and leave this notice in place, of course).
 \layout Subsection
 
 Comments
 \layout Standard
 
 Please send comments to 
-\begin_inset LatexCommand \url[Michel Arboi]{<arboi@alussinan.org>}
+\begin_inset LatexCommand \htmlurl[Michel Arboi]{<mikhail@nessus.org>}
 
 \end_inset 
 
@@ -407,7 +407,7 @@ instr instr_list
 \layout List
 \labelwidthstring 00.00.0000
 
-instr simple_instr\SpecialChar ~
+instr s_instr\SpecialChar ~
  
 \series bold 
 ;
@@ -422,7 +422,7 @@ loop
 \layout List
 \labelwidthstring 00.00.0000
 
-simple_instr aff
+s_instr aff
 \newline 
 post_pre_incr
 \newline 
@@ -441,6 +441,12 @@ glob
 
 \newline 
 break
+\series default 
+
+\newline 
+
+\series bold 
+continue
 \series default 
 
 \newline 
@@ -852,6 +858,8 @@ var
 \newline 
 aff
 \newline 
+cst_array
+\newline 
 ipaddr
 \layout List
 \labelwidthstring 00.00.0000
@@ -1078,6 +1086,8 @@ expr
 
 var identifier 
 \newline 
+num_arg
+\newline 
 array_elem 
 \newline 
 func_call
@@ -1116,6 +1126,50 @@ integer
 \layout List
 \labelwidthstring 00.00.0000
 
+num_arg $
+\noun on 
+integer
+\newline 
+$*
+\layout List
+\labelwidthstring 00.00.0000
+
+cst_array 
+\series bold 
+[
+\series default 
+ l_array 
+\series bold 
+]
+\layout List
+\labelwidthstring 00.00.0000
+
+l_array array_data
+\newline 
+array_data 
+\series bold 
+,
+\series default 
+ l_array
+\layout List
+\labelwidthstring 00.00.0000
+
+array_data atom
+\newline 
+string 
+\series bold 
+=>
+\series default 
+ atom
+\layout List
+\labelwidthstring 00.00.0000
+
+atom integer
+\newline 
+string
+\layout List
+\labelwidthstring 00.00.0000
+
 loc 
 \series bold 
 local_var
@@ -1146,6 +1200,37 @@ integer
 0x
 \series default 
  followed by a sequence of hexadecimal digits.
+\layout List
+\labelwidthstring 00.00.0000
+
+
+\noun on 
+identifier
+\noun default 
+ is any sequence of letters (uppercase or lowercase) or digits, starting
+ with a letter.
+ The underscore sign is treated as a letter.
+ Note that 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\series bold 
+x
+\series default 
+
+\begin_inset Quotes erd
+\end_inset 
+
+ is not exactly an identifier because it is the 
+\begin_inset Quotes eld
+\end_inset 
+
+repeat
+\begin_inset Quotes erd
+\end_inset 
+
+ operator, but can be used for function or variables names.
 \layout List
 \labelwidthstring 00.00.0000
 
@@ -1221,7 +1306,7 @@ impure
 
 
 \begin_inset Foot
-collapsed true
+collapsed false
 
 \layout Standard
 
@@ -1338,11 +1423,20 @@ collapsed true
 
 Much less than in C, but I don't think we need the octal representation,
  wide chars, etc.
- Note that the way the parser is written, we could not accept 
+ Note that the parser did not accept 
 \series bold 
 
 \backslash 
 0
+\series default 
+ in older NASL2 versions; and 
+\series bold 
+
+\backslash 
+x00
+\series default 
+ truncated the string before the nul character.
+ This has been fixed.
 \layout Standard
 
 So...
@@ -1411,13 +1505,6 @@ B
 \end_inset 
 
 , because its ASCII code is 0x42 (66 in hex).
- Do not enter 
-\series bold 
-
-\backslash 
-x00
-\series default 
- unless you really want to break the parser.
  
 \end_inset 
 
@@ -1450,12 +1537,12 @@ Elements are numbered from 0, just like in C.
 
  or strings
 \begin_inset Foot
-collapsed true
+collapsed false
 
 \layout Standard
 
 Like the Perl hashes.
- Hashes have a big inconvenient: they destroy the order of the data their
+ Hashes have a big inconvenient: they destroy the order of the data they
  store.
 \end_inset 
 
@@ -1540,12 +1627,42 @@ Strings are TRUE
 
 \end_inset 
 
- if not empty.
- So 
+ if not empty and not 
 \series bold 
 "0"
 \series default 
- is TRUE (it is false in Perl or in NASL1).
+.
+ This is the same behaviour as Perl or NASL1.
+\series bold 
+
+\newline 
+WARNING! 
+\series default 
+Previous versions of this manual were wrong and said that 
+\series bold 
+"0"
+\series default 
+ was TRUE.
+ We might switch to this more consistent semantics.
+ To be sure of the results, it is better to test 
+\begin_inset Quotes eld
+\end_inset 
+
+strlen(s)\SpecialChar ~
+>\SpecialChar ~
+0
+\begin_inset Quotes erd
+\end_inset 
+
+ if non empty string should be TRUE, or 
+\begin_inset Quotes eld
+\end_inset 
+
+int(s)
+\begin_inset Quotes erd
+\end_inset 
+
+ if the string should be interpreted as an integer.
 \layout Itemize
 
 Although it does not really make sense, arrays are always TRUE
@@ -1580,7 +1697,7 @@ NULL and the array operator
 Reading an array element from a NULL value will immediately convert it into
  an array.
  An empty array of course, but no more an undefined variable.
- Changing this means big modifications in the NASL interpretor.
+ Changing this means big modifications in the NASL interpreter.
  For example:
 \layout LyX-Code
 
@@ -1680,7 +1797,7 @@ texttt{=}
 
 
 \series default 
- is the affectation operator.
+ is the assignment operator.
 \begin_deeper 
 \layout Itemize
 
@@ -1913,7 +2030,7 @@ texttt{+}
 
 \end_inset 
 
- is the addition.
+ is the addition operator.
  
 \layout Itemize
 
@@ -1932,7 +2049,7 @@ texttt{-}
 
 \end_inset 
 
- is the subtraction.
+ is the subtraction operator.
 \layout Itemize
 
 
@@ -1950,7 +2067,7 @@ texttt{*}
 
 \end_inset 
 
- is the multiplication.
+ is the multiplication operator.
 \layout Itemize
 
 
@@ -1968,7 +2085,7 @@ texttt{/}
 
 \end_inset 
 
- is the integer division.
+ is the integer division operator.
  Please note that:
 \begin_deeper 
 \layout Itemize
@@ -2021,9 +2138,9 @@ texttt{**}
 
 \end_inset 
 
- is the power function
+ is the exponentiation or power function
 \begin_inset Foot
-collapsed true
+collapsed false
 
 \layout Standard
 
@@ -2526,7 +2643,7 @@ string don't match
 \newline 
 
 \begin_inset ERT
-status Collapsed
+status Open
 
 \layout Standard
 
@@ -2591,7 +2708,7 @@ ereg
 \newline 
 
 \begin_inset ERT
-status Collapsed
+status Open
 
 \layout Standard
 
@@ -2603,7 +2720,7 @@ texttt{s~=
 
  is equivalent to 
 \begin_inset ERT
-status Collapsed
+status Open
 
 \layout Standard
 
@@ -4323,6 +4440,36 @@ Currently, it exits from the current function or the script.
 \layout Itemize
 
 
+\begin_inset ERT
+status Collapsed
+
+\layout Standard
+
+\backslash 
+texttt{continue}
+\end_inset 
+
+
+\begin_inset LatexCommand \index{continue}
+
+\end_inset 
+
+
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+WARNING! This operator was introduced in Nessus 2.1.x; Nessus 2.0.x.
+ cannot parse the script.
+\end_inset 
+
+ jumps to the next step of the loop.
+\newline 
+If you are not inside a loop, the behavior is undefined.
+\layout Itemize
+
+
 \series bold 
 
 \begin_inset ERT
@@ -4471,10 +4618,160 @@ name (argname1, argname2) { block; }
 \layout Standard
 
 Note that the argument list may be empty, but if it is not, user-defined
- function parameters must be named.
-\layout Subsection
+ function parameters must be named
+\begin_inset Foot
+collapsed true
 
-An example
+\layout Standard
+
+Unnamed arguments were introduced in NASL2.1.
+ 
+\end_inset 
+
+.
+ Unnamed arguments may be used without being declared.
+\layout Subsubsection
+
+Retrieving function arguments
+\layout Standard
+
+Inside a NASL function, named arguments are just accessed as any local variable.
+ Unnamed arguments
+\begin_inset LatexCommand \index{unnamed function arguments}
+
+\end_inset 
+
+ are implemented through the special array 
+\series bold 
+_FCT_ANON_ARGS
+\series default 
+
+\begin_inset LatexCommand \index{\_FCT\_ANON\_ARGS}
+
+\end_inset 
+
+
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+Shell-like special variables 
+\series bold 
+$1
+\series default 
+
+\begin_inset LatexCommand \index{\$1}
+
+\end_inset 
+
+, 
+\series bold 
+$2
+\series default 
+
+\begin_inset LatexCommand \index{\$2}
+
+\end_inset 
+
+...
+ or the 
+\series bold 
+$*
+\series default 
+
+\begin_inset LatexCommand \index{\$*}
+
+\end_inset 
+
+ array were introduced in 
+\series bold 
+NASL_LEVEL
+\series default 
+ 2160, but they broke the compatibility with older interpretors: the scripts
+ could not be parsed.
+ So those 
+\begin_inset Quotes eld
+\end_inset 
+
+dollar arguments
+\begin_inset Quotes erd
+\end_inset 
+
+ were removed in 
+\series bold 
+NASL_LEVEL
+\series default 
+ 2190, because 
+\series bold 
+_FCT_ANON_ARGS
+\series default 
+ was a more flexible solution.
+ Actually, the special array 
+\series bold 
+__FCT_ANON_ARGS
+\begin_inset LatexCommand \index{\_\_FCT\_ANON\_ARGS}
+
+\end_inset 
+
+
+\series default 
+ (with two leading unscores!) was introduced in 2180 level, but it was subtly
+ flawed.
+ It was renamed when the bug was fixed so that nobody uses it.
+ 
+\end_inset 
+
+.
+ This variable will be 
+\series bold 
+NULL
+\series default 
+ in interpretors below 
+\series bold 
+NASL_LEVEL
+\series default 
+ 2190.
+ You may put this at the start of scripts that need this function:
+\layout LyX-Code
+
+if (NASL_LEVEL < 2190) exit(0); #
+\series bold 
+ 
+\series default 
+_FCT_ANON_ARGS is not implemented
+\layout Enumerate
+
+Writing to _FCT_ANON_ARGS is undefined.
+ Currently, the memory is wasted but the value cannot be read back.
+ 
+\layout Enumerate
+
+Using _FCT_ANON_ARGS to try to read named arguments is bad too.
+ Currently, there is a protection and a 
+\series bold 
+NULL
+\series default 
+ value is returned.
+\layout Enumerate
+
+As only one-dimension arrays are implement in NASL2, only atomic arguments
+ can be accessed this way.
+ Array arguments have to be 
+\begin_inset Quotes eld
+\end_inset 
+
+named
+\begin_inset Quotes erd
+\end_inset 
+
+.
+\layout Subsubsection
+
+Calling functions
+\layout Standard
+
+Here is an example with named arguments:
 \layout LyX-Code
 
 function fact(x)
@@ -4501,6 +4798,76 @@ function fact(x)
 display("3 ! = ", fact(x: 3), "
 \backslash 
 n");
+\layout Standard
+
+And the same with unnamed arguments:
+\layout LyX-Code
+
+function fact()
+\layout LyX-Code
+
+{
+\layout LyX-Code
+
+  local_var i, f;
+\layout LyX-Code
+
+  f = 1;
+\layout LyX-Code
+
+  for (i = 1; i <= _FCT_ANON_ARGS[0]; i ++) f *= i;
+\layout LyX-Code
+
+  return f;
+\layout LyX-Code
+
+}
+\layout LyX-Code
+
+display("3 ! = ", fact(3), "
+\backslash 
+n");
+\layout Standard
+
+And another, mixing the two flavours:
+\layout LyX-Code
+
+function fact(prompt)
+\layout LyX-Code
+
+{
+\layout LyX-Code
+
+  local_var i, f;
+\layout LyX-Code
+
+  f = 1;
+\layout LyX-Code
+
+  for (i = 1; i <= _FCT_ANON_ARGS[0]; i ++)
+\layout LyX-Code
+
+  {
+\layout LyX-Code
+
+    f *= i;
+\layout LyX-Code
+
+    display(prompt, i, '! = ', f, '
+\backslash 
+n');
+\layout LyX-Code
+
+  }
+\layout LyX-Code
+
+  return f;
+\layout LyX-Code
+
+}
+\layout LyX-Code
+
+n = fact(3, prompt: '> ');
 \layout Standard
 
 
@@ -4694,6 +5061,21 @@ ACT_KILL_HOST
 \series default 
 : the plugin tries to crash the target host or disable it (e.g.
  saturate the CPU, kill some vital service...).
+\layout Itemize
+
+
+\series bold 
+ACT_FLOOD
+\series default 
+
+\begin_inset LatexCommand \index{ACT\_FLOOD}
+
+\end_inset 
+
+: the plugin tries to crash the target host or disable it by flooding it
+ with incorrect packets or requests.
+ It may saturate the network or kill some routing, switching or filtering
+ device on the way.
 \end_deeper 
 \layout Itemize
 
@@ -5025,6 +5407,64 @@ NULL
 
  is the undefined value.
 \end_deeper 
+\layout Itemize
+
+Nessusd glue
+\begin_deeper 
+\layout Itemize
+
+
+\series bold 
+description
+\series default 
+
+\begin_inset LatexCommand \index{description}
+
+\end_inset 
+
+ is set to 
+\series bold 
+1
+\series default 
+ when 
+\series bold 
+nessusd
+\series default 
+ parses the script the first time (to get its name, description, summary,
+ etc.), then to 
+\series bold 
+0
+\series default 
+ when it is run.
+\layout Itemize
+
+
+\series bold 
+COMMAND_LINE
+\series default 
+
+\begin_inset LatexCommand \index{COMMAND\_LINE}
+
+\end_inset 
+
+ is set to 
+\series bold 
+0
+\series default 
+ when the script is run by 
+\series bold 
+nessusd
+\series default 
+ or to 
+\series bold 
+1
+\series default 
+ when it is run by the 
+\series bold 
+nasl
+\series default 
+ standalone interpretor.
+\end_deeper 
 \layout Subsection
 
 Built-in functions 
@@ -5144,6 +5584,38 @@ services = get_kb_list("Services/*");
 \layout LyX-Code
 
 services = get_kb_list("*");
+\layout Itemize
+
+
+\series bold 
+replace_kb_item
+\series default 
+
+\begin_inset LatexCommand \index{replace\_kb\_item}
+
+\end_inset 
+
+ adds a new entry in the KB or replace the old value.
+\newline 
+It takes two named string arguments: 
+\series bold 
+name
+\series default 
+ and 
+\series bold 
+value
+\series default 
+.
+\newline 
+Entering an item several times does not create a list, it just overwrites
+ the old value.
+\newline 
+As this function is not defined in all Nessus version, it is safer to check
+ that it is defined before calling it or use the 
+\series bold 
+replace_or_set_kb_item
+\series default 
+ NASL function.
 \layout Subsubsection
 
 Report functions
@@ -5784,17 +6256,11 @@ script_dependencie
 
 
 \series default 
- sets the lists of scripts that should be run before this one (if 
-\begin_inset Quotes eld
-\end_inset 
-
-optimize mode
-\begin_inset Quotes erd
-\end_inset 
-
- is on).
-\newline 
-It takes any number of unnamed string arguments.
+ is the same function as 
+\series bold 
+script_dependencies
+\series default 
+ (too many typos?).
 \layout Itemize
 
 
@@ -5806,11 +6272,17 @@ script_dependencies
 
 
 \series default 
- is the same function as 
-\series bold 
-script_dependencie
-\series default 
- (too many typos?).
+ sets the lists of scripts that should be run before this one (if 
+\begin_inset Quotes eld
+\end_inset 
+
+optimize mode
+\begin_inset Quotes erd
+\end_inset 
+
+ is on).
+\newline 
+It takes any number of unnamed string arguments.
 \layout Itemize
 
 
@@ -5949,7 +6421,7 @@ There is no standardized family, but you should avoid inventing too many
 \newline 
 
 \begin_inset  Tabular
-<lyxtabular version="3" rows="24" columns="2">
+<lyxtabular version="3" rows="36" columns="2">
 <features>
 <column alignment="center" valignment="top" leftline="true" width="0pt">
 <column alignment="center" valignment="top" leftline="true" rightline="true" width="0pt">
@@ -5995,6 +6467,23 @@ Backdoors
 
 \layout Standard
 
+Brute force attacks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
 
 \family roman 
 \series medium 
@@ -6022,6 +6511,41 @@ CGI abuses
 \noun off 
 \color none
 Abus de CGI
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+
+\family roman 
+\series medium 
+\shape up 
+\size normal 
+\emph off 
+\bar no 
+\noun off 
+\color none
+CGI abuses
+\family default 
+\series default 
+\shape default 
+\size default 
+\emph default 
+\bar default 
+\noun default 
+\color default
+: XSS
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
 \end_inset 
 </cell>
 </row>
@@ -6416,6 +6940,23 @@ Configuration
 
 \layout Standard
 
+Service detection
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
 
 \family roman 
 \series medium 
@@ -6461,33 +7002,6 @@ SNMP
 \layout Standard
 
 SNMP
-\end_inset 
-</cell>
-</row>
-<row topline="true">
-<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
-\begin_inset Text
-
-\layout Standard
-
-Untested
-\end_inset 
-</cell>
-<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
-\begin_inset Text
-
-\layout Standard
-
-
-\family roman 
-\series medium 
-\shape up 
-\size normal 
-\emph off 
-\bar no 
-\noun off 
-\color none
-Untested
 \end_inset 
 </cell>
 </row>
@@ -6553,6 +7067,185 @@ Windows : User management
 \end_inset 
 </cell>
 </row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+AIX Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+Debian Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+Fedora Local Security Checks
+\family roman 
+\series medium 
+\shape up 
+\size normal 
+\emph off 
+\bar no 
+\noun off 
+\color none
+CGI
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+FreeBSD Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+Gentoo Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+MacOS X Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+Mandrake Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+Red Hat Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+Solaris Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
+<row topline="true" bottomline="true">
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+SuSE Local Security Checks
+\end_inset 
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\layout Standard
+
+\end_inset 
+</cell>
+</row>
 </lyxtabular>
 
 \end_inset 
@@ -6578,6 +7271,74 @@ Note that it might returns an empty string if you are running the script
 
 
 \series bold 
+script_get_preference_file_content
+\begin_inset LatexCommand \index{script\_get\_preference\_file\_content}
+
+\end_inset 
+
+
+\series default 
+ reads an 
+\begin_inset Quotes eld
+\end_inset 
+
+file
+\begin_inset Quotes erd
+\end_inset 
+
+ option.
+ It takes an unnamed string argument.
+ It retuns the content of the file, which is transmited from the Nessus
+ client to the server.
+\newline 
+Note: 
+\series bold 
+script_get_preference_file_content
+\series default 
+ and 
+\series bold 
+script_get_preference_file_location
+\series default 
+ are restricted to 
+\begin_inset Quotes eld
+\end_inset 
+
+trusted
+\begin_inset Quotes erd
+\end_inset 
+
+ plugins.
+\layout Itemize
+
+
+\series bold 
+script_get_preference_file_location
+\begin_inset LatexCommand \index{script\_get\_preference\_file\_location}
+
+\end_inset 
+
+
+\series default 
+ reads an option.
+ It takes an unnamed string argument.
+ It only makes sense if the preference type is 
+\begin_inset Quotes eld
+\end_inset 
+
+file
+\begin_inset Quotes erd
+\end_inset 
+
+; it retuns the path of the local copy of the file.
+ 
+\series bold 
+script_get_preference
+\series default 
+ would return the path of the file on the client machine, which is not useful.
+\layout Itemize
+
+
+\series bold 
 script_id
 \begin_inset LatexCommand \index{script\_id}
 
@@ -6587,7 +7348,7 @@ script_id
 \series default 
  sets the script number
 \begin_inset Foot
-collapsed false
+collapsed true
 
 \layout Standard
 
@@ -6749,6 +7510,16 @@ Services/DNS
 \end_inset 
 
  to returns a value different from 53.
+ Unless you installed 
+\series bold 
+amap
+\series default 
+ from 
+\begin_inset LatexCommand \htmlurl[www.thc.org]{http://www.thc.org/}
+
+\end_inset 
+
+and run the UDP service identification.
 \end_inset 
 
 .
@@ -6821,6 +7592,10 @@ script_timeout
 It takes an unnamed integer argument.
  If it is 
 \series bold 
+0
+\series default 
+ or 
+\series bold 
 (-1)
 \series default 
 , the timeout is infinite.
@@ -6864,6 +7639,42 @@ $Revision
 \end_inset 
 
 .
+\layout Subsubsection
+
+Other 
+\begin_inset Quotes eld
+\end_inset 
+
+glue
+\begin_inset Quotes erd
+\end_inset 
+
+ functions
+\layout Itemize
+
+
+\series bold 
+get_preference
+\begin_inset LatexCommand \index{get\_preference}
+
+\end_inset 
+
+
+\series default 
+ takes an unnamed string argument and returns the 
+\begin_inset Quotes eld
+\end_inset 
+
+preference
+\begin_inset Quotes erd
+\end_inset 
+
+ value.
+ This function is necessary to retrieve some server options.
+ For example:
+\layout LyX-Code
+
+p = get_preference('port_range');    # returns something like 1-65535
 \layout Subsubsection
 
 Network functions
@@ -7058,6 +7869,19 @@ get_port_state
 
 
 \series bold 
+get_source_port
+\begin_inset LatexCommand \index{get\_source\_port}
+
+\end_inset 
+
+
+\series default 
+ takes an unnamed integer (opn TCP socket) and returns the source port (i.e.
+ on the Nessus server side).
+\layout Itemize
+
+
+\series bold 
 get_tcp_port_state
 \begin_inset LatexCommand \index{get\_tcp\_port\_state}
 
@@ -7092,6 +7916,11 @@ get_port_state
 
 \series bold 
 islocalhost
+\begin_inset LatexCommand \index{islocalhost}
+
+\end_inset 
+
+
 \series default 
  takes no argument and returns TRUE if the target host is the same as the
  attacking host, FALSE otherwise.
@@ -7100,9 +7929,51 @@ islocalhost
 
 \series bold 
 islocalnet
+\begin_inset LatexCommand \index{islocalnet}
+
+\end_inset 
+
+
 \series default 
  takes no argument and returns TRUE if the target host is on the same network
  as the attacking host, FALSE otherwise.
+\layout Itemize
+
+
+\series bold 
+join_multicast_group
+\begin_inset LatexCommand \index{join\_multicast\_group}
+
+\end_inset 
+
+
+\series default 
+ takes an string argument (an IP multicast address) and returns TRUE if
+ it could join the multicast group.
+ If the group was already joined, the function joins increments an internal
+ counter.
+\layout Itemize
+
+
+\series bold 
+leave_multicast_group
+\begin_inset LatexCommand \index{leave\_multicast\_group}
+
+\end_inset 
+
+
+\series default 
+ takes an string argument (an IP multicast address).
+\newline 
+Note that if 
+\series bold 
+join_multicast_group
+\series default 
+ was called several times, each call to 
+\series bold 
+leave_multicast_cast
+\series default 
+ only decrements a counter; the group is left when it reaches 0.
 \layout Itemize
 
 
@@ -7205,6 +8076,15 @@ In NASL, there is no way you can open connections to some specific host.
 It takes an unnamed integer argument (the port number) and two optional
  named integer arguments:
 \begin_deeper 
+\layout Itemize
+
+
+\series bold 
+bufsz
+\series default 
+, if you want to bufferize IO (this is disabled by default).
+\newline 
+This parameter has been added after Nessus 2.0.10.
 \layout Itemize
 
 
@@ -7855,6 +8735,21 @@ string
 
 
 \series bold 
+multiline
+\series default 
+, which is FALSE by default (string is truncated at the first 
+\begin_inset Quotes eld
+\end_inset 
+
+end of line
+\begin_inset Quotes erd
+\end_inset 
+
+), and can be set to TRUE for multiline search.
+\layout Itemize
+
+
+\series bold 
 pattern
 \series default 
  (standard extended POSIX regex, no PCRE for the moment!),
@@ -8291,7 +9186,9 @@ collapsed false
 
 \layout Standard
 
-And that's where you can enter a null character into a string in NASL!
+That's the only way to enter a null character into a string in older version
+ of NASL2.
+ Remember this if you want to be portable on old Nessus versions.
 \end_inset 
 
 .
@@ -8633,11 +9530,15 @@ sub strings
 \end_inset 
 
 .
- It takes an unnamed parameter (the input string) and an optional 
+ It takes an unnamed parameter (the input string), an optional 
 \series bold 
 sep
 \series default 
- string argument; it returns the array.
+ string argument and an optional 
+\series bold 
+keep
+\series default 
+ integer argument; it returns the array.
  
 \newline 
 If 
@@ -8659,8 +9560,24 @@ CR LF
 \series default 
 .
 \newline 
-Note that the separator (whatever it is) will be included in the sub-strings
- or lines.
+By default
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+The keep argument appeared in Nessus 2.0.2; older versions of the NASL library
+ do not recognize it.
+\end_inset 
+
+, the separator (whatever it is) will be included in the sub-strings or
+ lines, unless 
+\series bold 
+keep
+\series default 
+ is set top 
+\series bold 
+0
 \layout Itemize
 
 
@@ -8892,11 +9809,11 @@ http_open_socket
 \end_inset 
 
  opens a socket to the given port.
- Currently, this functions is identical to 
+ Until Nessus 2.0.10, this functions is identical to 
 \series bold 
 open_sock_tcp
 \series default 
- but this may change in the future.
+; afterwards, it sets a 64K buffer for IO.
 \layout Itemize
 
 
@@ -10192,6 +11109,21 @@ Miscellaneous functions
 
 
 \series bold 
+cvsdate2unixtime
+\series default 
+
+\begin_inset LatexCommand \index{cvsdate2unixtime}
+
+\end_inset 
+
+ takes one named string argument (date) and returns the number of seconds
+ since 1970.
+ The argument is supposed to be a date field automatically generated by
+ CVS; the purpose of this function is to detect out of date plugins.
+\layout Itemize
+
+
+\series bold 
 defined_func
 \begin_inset LatexCommand \index{defined\_func}
 
@@ -10219,6 +11151,103 @@ dump_ctxt
 
 
 \series bold 
+func_has_arg
+\begin_inset LatexCommand \index{func\_has\_arg}
+
+\end_inset 
+
+
+\series default 
+ takes a first string arguments (the function name) and a second string
+ or integer argument (the argument name or number).
+ It returns TRUE if the function accepts this argument, FALSE otherwise.
+\layout Itemize
+
+
+\series bold 
+func_named_args
+\begin_inset LatexCommand \index{func\_named\_args}
+
+\end_inset 
+
+
+\series default 
+ takes one unnamed string argument (the function name) and returns an array
+ of all named arguments.
+\layout Itemize
+
+
+\series bold 
+func_unnamed_args
+\begin_inset LatexCommand \index{func\_unnamed\_args}
+
+\end_inset 
+
+
+\series default 
+ takes one unnamed string argument (the function name) and returns the number
+ of unnamed arguments.
+\layout Itemize
+
+
+\series bold 
+gettimeofday
+\series default 
+
+\begin_inset LatexCommand \index{gettimeofday}
+
+\end_inset 
+
+ takes no argument and returns the number of seconds and microseconds since
+ January 1
+\begin_inset Formula $^{\textrm{st}}$
+\end_inset 
+
+ 1970.
+ The return value is a character string formated like a floating point number:
+ the seconds are on the left of the decimal point and the microseconds on
+ the right, on six digits.
+ For example: 
+\series bold 
+
+\begin_inset Quotes eld
+\end_inset 
+
+1067352015.030757
+\begin_inset Quotes erd
+\end_inset 
+
+
+\series default 
+ means 
+\series bold 
+1067352015
+\series default 
+ seconds and 
+\series bold 
+30757
+\series default 
+ microseconds.
+\newline 
+The string manipulation functions can be used to extract the two numbers
+\series bold 
+.
+ 
+\series default 
+e.g.
+ 
+\series bold 
+v\SpecialChar ~
+=\SpecialChar ~
+split(value, \SpecialChar ~
+sep:'.');
+\series default 
+ would convert it into an array of two elements.
+ 
+\layout Itemize
+
+
+\series bold 
 isnull
 \begin_inset LatexCommand \index{isnull}
 
@@ -10238,6 +11267,107 @@ NULL
 ) will not give the same result as 
 \series bold 
 isnull(x)
+\layout Itemize
+
+
+\series bold 
+localtime
+\series default 
+
+\begin_inset LatexCommand \index{localtime}
+
+\end_inset 
+
+ takes one integer unnamed argument (a 
+\begin_inset Quotes eld
+\end_inset 
+
+Unix time
+\begin_inset Quotes erd
+\end_inset 
+
+ = number of seconds since 1970-01-01) and one boolean named argument 
+\series bold 
+utc
+\series default 
+.
+ Both can be ommited: by default, the time is the current time and 
+\series bold 
+utc
+\series default 
+ is 
+\series bold 
+FALSE
+\series default 
+.
+ The function returns an array that contains those keys
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+The values are slightly different from the structure returned by 
+\begin_inset Quotes eld
+\end_inset 
+
+localtime
+\begin_inset Quotes erd
+\end_inset 
+
+ or 
+\begin_inset Quotes eld
+\end_inset 
+
+gmtime
+\begin_inset Quotes erd
+\end_inset 
+
+.
+ Some counts start at 1 instead of 0.
+ I find this more intuitive.
+\end_inset 
+
+:
+\layout List
+\labelwidthstring 00.00.0000
+
+sec The number of seconds after the minute, normally in the range 0 to 59,
+ but can be up to 61 to allow for leap seconds.
+\layout List
+\labelwidthstring 00.00.0000
+
+min The number of minutes after the hour, in the range 0 to 59.
+\layout List
+\labelwidthstring 00.00.0000
+
+hour The number of hours past midnight, in the range 0 to 23.
+\layout List
+\labelwidthstring 00.00.0000
+
+mday The day of the month, in the range 1 to 31.
+\layout List
+\labelwidthstring 00.00.0000
+
+mon The number of the month, in the range 1 to 12.
+\layout List
+\labelwidthstring 00.00.0000
+
+year The year (4 digits).
+\layout List
+\labelwidthstring 00.00.0000
+
+wday The number of days since Sunday, in the range 0 to 6.
+\layout List
+\labelwidthstring 00.00.0000
+
+yday The current day in the year, in the range 1 to 366.
+\layout List
+\labelwidthstring 00.00.0000
+
+isdst A flag that indicates whether daylight saving time is in effect at
+ the time described.
+ The value is positive if daylight saving time is in effect, zero if it
+ is not, and negative if the information is not available.
 \layout Itemize
 
 
@@ -10388,6 +11518,117 @@ _index(w)] = value;}
 \end_inset 
 
 
+\layout Itemize
+
+
+\series bold 
+mktime
+\begin_inset LatexCommand \index{mktime}
+
+\end_inset 
+
+
+\series default 
+(sec, min, hour, mday, mon, year, isdst) takes seven integer named arguments
+ and returns the 
+\begin_inset Quotes eld
+\end_inset 
+
+Unix time
+\begin_inset Quotes erd
+\end_inset 
+
+ (= number of seconds since 1970-01-01) as an integer, or 
+\series bold 
+NULL
+\series default 
+ if some values are invalid.
+ The arguments have the same meaning as the keys used in 
+\series bold 
+localtime
+\series default 
+ (see above), but there are no 
+\series bold 
+wday
+\series default 
+ or 
+\series bold 
+yday
+\series default 
+ arguments.
+ 
+\newline 
+Default values are zero for all arguments, which is invalid for 
+\series bold 
+year
+\series default 
+, but not for 
+\series bold 
+mon
+\series default 
+ or 
+\series bold 
+mday
+\series default 
+: C mktime normalizes the date
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+See 
+\begin_inset Quotes eld
+\end_inset 
+
+man 3 mktime
+\begin_inset Quotes erd
+\end_inset 
+
+.
+ 40 October => 9 November.
+\end_inset 
+
+.
+\newline 
+
+\series bold 
+year
+\series default 
+ can be on 4 digits or 2 digits; in this case, 
+\series bold 
+1900
+\series default 
+ is added to the value before processing.
+ 
+\series bold 
+104
+\series default 
+ means 
+\series bold 
+2004
+\series default 
+.
+\layout Itemize
+
+
+\series bold 
+replace_or_set_kb_item
+\series default 
+
+\begin_inset LatexCommand \index{replace\_or\_set\_kb\_item}
+
+\end_inset 
+
+ calls 
+\series bold 
+replace_kb_item
+\series default 
+ if this function exists, 
+\series bold 
+set_kb_item
+\series default 
+ otherwise.
+ It takes too named arguments (name & value).
 \layout Itemize
 
 
@@ -10565,6 +11806,452 @@ usleep
 
 \series default 
  takes one unnamed integer argument and waits for this number of microseconds.
+\layout Itemize
+
+
+\series bold 
+unixtime
+\begin_inset LatexCommand \index{unixtime}
+
+\end_inset 
+
+
+\series default 
+ returns the current Unix time, i.e.
+ the number of seconds since January 1
+\begin_inset Formula $^{\textrm{st}}$
+\end_inset 
+
+ 1970.
+\layout Subsubsection
+
+
+\begin_inset Quotes eld
+\end_inset 
+
+unsafe
+\begin_inset Quotes erd
+\end_inset 
+
+ functions
+\layout Standard
+
+The following functions are only allowed in 
+\begin_inset Quotes eld
+\end_inset 
+
+trusted
+\begin_inset Quotes erd
+\end_inset 
+
+ signed scripts
+\begin_inset Foot
+collapsed false
+
+\layout Standard
+
+The command line interpretor trusts the script if the option -X is given.
+ And the Nessus server trusts any script if 
+\series bold 
+nasl_no_signature_check
+\series default 
+ is set to 
+\series bold 
+yes
+\series default 
+ in 
+\series bold 
+nessusd.conf
+\end_inset 
+
+.
+ If they could run anywhere, a user could upload a script and run arbitrary
+ root code or perform a denial of service aginst the Nessus server.
+\layout Itemize
+
+
+\series bold 
+find_in_path
+\begin_inset LatexCommand \index{find\_in\_path}
+
+\end_inset 
+
+
+\series default 
+ searches a command in 
+\series bold 
+$PATH
+\series default 
+ and returns 
+\series bold 
+TRUE
+\series default 
+ if found, or 
+\series bold 
+FALSE
+\series default 
+ if not.
+ It takes one string argument (the command name).
+\layout Itemize
+
+
+\series bold 
+pread
+\begin_inset LatexCommand \index{pread}
+
+\end_inset 
+
+
+\series default 
+ launches a process, reads its whole output and returns it as a string.
+ The arguments are:
+\begin_deeper 
+\layout Itemize
+
+
+\series bold 
+cmd
+\series default 
+ is the name of the program that will be run.
+ If it is not an absolute path, the program will be searched in 
+\series bold 
+$PATH
+\series default 
+.
+\layout Itemize
+
+
+\series bold 
+argv
+\series default 
+ is an array of strings.
+ Each string is an argument.
+ Note that 
+\series bold 
+argv[0]
+\series default 
+ is the name of the program (which may be different from 
+\series bold 
+cmd
+\series default 
+, but will be equal in most cases).
+\layout Itemize
+
+
+\series bold 
+cd
+\series default 
+ is a boolean, 
+\series bold 
+FALSE
+\series default 
+ by default.
+ If 
+\series bold 
+TRUE
+\series default 
+, Nessus changes its current directory to the directory where the command
+ was found.
+\layout Itemize
+
+
+\series bold 
+nice
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+This argument appeared in version 2.1.2.
+\end_inset 
+
+
+\series default 
+ is an integer which changes the son process priority.
+ You want to set it to a positive value if you launch CPU hog commands.
+\end_deeper 
+\layout Itemize
+
+
+\series bold 
+file_close
+\begin_inset LatexCommand \index{file\_close}
+
+\end_inset 
+
+
+\series default 
+ takes a file descriptor (unnamed integer argument), closes it and returns
+ 
+\series bold 
+0
+\series default 
+ or 
+\series bold 
+NULL
+\series default 
+ if there was a problem.
+ 
+\layout Itemize
+
+
+\series bold 
+file_open
+\begin_inset LatexCommand \index{file\_open}
+
+\end_inset 
+
+
+\series default 
+ takes two named string arguments and returns a file descriptor (integer):
+\begin_deeper 
+\layout Itemize
+
+
+\series bold 
+mode
+\series default 
+ is a string: 
+\begin_inset Quotes eld
+\end_inset 
+
+r
+\begin_inset Quotes erd
+\end_inset 
+
+ or 
+\begin_inset Quotes eld
+\end_inset 
+
+w
+\begin_inset Quotes erd
+\end_inset 
+
+.
+\layout Itemize
+
+
+\series bold 
+name
+\series default 
+ is the file name.
+\end_deeper 
+\layout Itemize
+
+
+\series bold 
+file_read
+\begin_inset LatexCommand \index{file\_read}
+
+\end_inset 
+
+
+\series default 
+ takes two named integer arguments and returns the data:
+\begin_deeper 
+\layout Itemize
+
+
+\series bold 
+fp
+\series default 
+ is the file descriptor.
+\layout Itemize
+
+
+\series bold 
+length
+\series default 
+ is the desired data length.
+\end_deeper 
+\layout Itemize
+
+
+\series bold 
+file_seek
+\begin_inset LatexCommand \index{file\_seek}
+
+\end_inset 
+
+
+\series default 
+ takes two named integer arguments and seeks into the file.
+ It returns NULL if there was an error or 0 if it worked.
+\begin_deeper 
+\layout Itemize
+
+
+\series bold 
+fp
+\series default 
+ is the file descriptor.
+\layout Itemize
+
+
+\series bold 
+offset
+\series default 
+ is the desired absolute offset (= position from the begining of the file).
+\end_deeper 
+\layout Itemize
+
+
+\series bold 
+file_stat
+\begin_inset LatexCommand \index{file\_stat}
+
+\end_inset 
+
+
+\series default 
+ takes a file name (unnamed string argument) and returns the file size or
+ 
+\series bold 
+NULL
+\series default 
+ if there was a problem (unexisting file, for example).
+\layout Itemize
+
+
+\series bold 
+file_write
+\begin_inset LatexCommand \index{file\_write}
+
+\end_inset 
+
+
+\series default 
+ takes two arguments and returns the number of bytes that were written.
+\begin_deeper 
+\layout Itemize
+
+
+\series bold 
+fp
+\series default 
+ is the file descriptor (integer).
+\layout Itemize
+
+
+\series bold 
+data
+\series default 
+ is the buffer (string).
+\end_deeper 
+\layout Itemize
+
+
+\series bold 
+fread
+\series default 
+
+\begin_inset LatexCommand \index{fread}
+
+\end_inset 
+
+
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+This function appeared in Nessus 2.1.2.
+ Previous versions can emulte it with something like: 
+\family typewriter 
+x\SpecialChar ~
+=\SpecialChar ~
+pread(cmd:\SpecialChar ~
+"/bin/cat",\SpecialChar ~
+argv:\SpecialChar ~
+make_list("cat",\SpecialChar ~
+ file_name));
+\end_inset 
+
+ reads a file on the Nessus server.
+ It takes one unnamed string argument (the file name) and returns the whole
+ file content in a string variable or 
+\series bold 
+NULL
+\series default 
+ if an error occured.
+\layout Itemize
+
+
+\series bold 
+fwrite
+\series default 
+
+\begin_inset LatexCommand \index{fwrite}
+
+\end_inset 
+
+ writes a file on the Nessus server.
+ It takes two named string argument (the file name) and returns the number
+ of written byte or 
+\series bold 
+NULL
+\series default 
+ if an error occured.
+\begin_deeper 
+\layout Itemize
+
+
+\series bold 
+data
+\series default 
+ is the data that will be written to the file.
+\layout Itemize
+
+
+\series bold 
+file
+\series default 
+ is the file name.
+\end_deeper 
+\layout Itemize
+
+
+\series bold 
+get_tmp_dir
+\begin_inset LatexCommand \index{get\_tmp\_dir}
+
+\end_inset 
+
+
+\series default 
+ returns a temporary directory name including the trailing slash.
+\layout Itemize
+
+
+\series bold 
+unlink
+\series default 
+
+\begin_inset LatexCommand \index{unlink}
+
+\end_inset 
+
+
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+This function appeared in Nessus 2.1.2.
+ Previous versions can emulte it with something like: 
+\family typewriter 
+x\SpecialChar ~
+=\SpecialChar ~
+pread(cmd:\SpecialChar ~
+"/bin/rm",\SpecialChar ~
+argv:\SpecialChar ~
+make_list("rm",\SpecialChar ~
+ file_name));
+\end_inset 
+
+ removes a file on the Nessus server.
+ It takes one unnamed string argument (the file name) and does not return
+ any value.
 \layout Subsection
 
 NASL library
@@ -10702,6 +12389,76 @@ character is different from
 
 .
  Useful to skip a long login banner.
+\layout Subsubsection
+
+global_settings.inc
+\layout Standard
+
+This file is the companion of 
+\series bold 
+global_settings.nasl
+\series default 
+.
+ Any script that needs to access those settings should include it.
+ It defines one function:
+\layout Itemize
+
+
+\series bold 
+debug_print
+\series default 
+(level,...)
+\newline 
+TBD
+\layout Standard
+
+several global variables: [TBD]
+\layout Itemize
+
+
+\series bold 
+debug_level
+\layout Itemize
+
+
+\series bold 
+experimental_scripts
+\layout Itemize
+
+
+\series bold 
+log_verbosity
+\layout Itemize
+
+
+\series bold 
+report_paranoia
+\layout Itemize
+
+
+\series bold 
+report_verbosity
+\layout Itemize
+
+
+\series bold 
+thorough_tests
+\layout Itemize
+
+
+\series bold 
+all_addr_private
+\series default 
+ and 
+\series bold 
+all_addr_public
+\series default 
+ are not supposed to be used directly.
+ They modify the behaviour of the 
+\series bold 
+is_private_addr
+\series default 
+ function.
 \layout Subsubsection
 
 http_func.inc
@@ -10969,6 +12726,36 @@ If no HTTP port is found,
 the script exits
 \emph default 
 .
+\layout Itemize
+
+
+\series bold 
+http_40
+\series default 
+x
+\begin_inset LatexCommand \index{http\_404}
+
+\end_inset 
+
+(port,code)
+\newline 
+returns 
+\series bold 
+TRUE
+\series default 
+ if the HTTP answer 
+\begin_inset Quotes eld
+\end_inset 
+
+code
+\begin_inset Quotes erd
+\end_inset 
+
+ is between 400 and 409 or something identified by no404.nasl; 
+\series bold 
+FALSE
+\series default 
+ otherwise.
 \layout Itemize
 
 
@@ -11250,7 +13037,7 @@ http_keepalive.inc
 
 Nessus 2.0.1 and newer support HTTP keep-alive connections, which avoid to
  re-open a socket for each request.
- This saves bandwidth and CPU cycles (especially on hosts using SSL).
+ This saves bandwidth and CPU cycles, especially through SSL/TLS.
  At this time, only the requests made from within the same plugin can be
  kept alive, however sharing one socket among multiple plugins could be
  done in the future.
@@ -11348,7 +13135,7 @@ register_service
 
 \end_inset 
 
-(port, proto)
+(port, proto,ipproto)
 \newline 
 
 \begin_inset Quotes eld
@@ -11462,6 +13249,21 @@ xtelw
 .
  
 \newline 
+By default, 
+\series bold 
+ipproto
+\series default 
+ is 
+\series bold 
+tcp
+\series default 
+; 
+\series bold 
+udp
+\series default 
+ was introduced in Nessus 2.1.2 and is used by experimental scripts only,
+ at this tome.
+\newline 
 In practice, this function defines two items in the KB:
 \begin_deeper 
 \layout Itemize
@@ -11469,6 +13271,12 @@ In practice, this function defines two items in the KB:
 
 \series bold 
 Known/tcp/
+\series default 
+port = proto
+\newline 
+or 
+\series bold 
+Known/udp/
 \series default 
 port = proto
 \layout Itemize
@@ -11479,110 +13287,26 @@ Services/
 \series default 
 proto = port
 \newline 
+or 
+\series bold 
+Services/udp/
+\series default 
+proto = port
+\newline 
 This may create a list if several servers are known on differents ports.
 \end_deeper 
 \layout Itemize
 
 
 \series bold 
-known_service
+get_service_banner_line
 \series default 
 
-\begin_inset LatexCommand \index{known\_service}
-
-\end_inset 
-
-(port)
-\newline 
-returns TRUE if the service is known on the port, FALSE otherwise.
- Note that if the service was 
-\begin_inset Quotes eld
-\end_inset 
-
-registered
-\begin_inset Quotes erd
-\end_inset 
-
- several times, 
-\series bold 
-known_service
-\series default 
- may fork.
- So the right way to use this function is to exit if it returns TRUE.
- For example:
-\layout LyX-Code
-
-port = get_kb_item("Services/unknown");
-\layout LyX-Code
-
-# This was set by find_service.nes but another plugin
-\layout LyX-Code
-
-# may have identified the service.
- So:
-\layout LyX-Code
-
-if (known_service(port: port)) exit(0);
-\layout Itemize
-
-
-\series bold 
-get_unknown_banner
-\series default 
-
-\begin_inset LatexCommand \index{get\_unknown\_banner}
-
-\end_inset 
-
-(port, dontfetch)
-\newline 
-reads 
-\series bold 
-unknown/banner/
-\series default 
-port from the KB.
- If a value is found, it is returned.
- If no value is found and 
-\series bold 
-dontfetch
-\series default 
- is set, the function returns NULL.
- Otherwise the function connects to the port, tries to read a banner, stores
- it in the KB and returns it.
-\layout Itemize
-
-
-\series bold 
-set_unknown_banner
-\series default 
-
-\begin_inset LatexCommand \index{set\_unknown\_banner}
-
-\end_inset 
-
-(port, banner)
-\newline 
-sets 
-\series bold 
-unknown/banner/
-\series default 
-port to 
-\series bold 
-banner
-\series default 
- in the KB.
-\layout Itemize
-
-
-\series bold 
-get_service_banner
-\series default 
-_line
 \begin_inset LatexCommand \index{get\_service\_banner\_line}
 
 \end_inset 
 
-(service, port)
+(service, port,ipproto)
 \newline 
 reads 
 \series bold 
@@ -11607,6 +13331,28 @@ but does not store it in the KB.
 
 \newline 
 Note that this function may fork.
+\newline 
+By default, 
+\series bold 
+ipproto
+\series default 
+ = 
+\series bold 
+tcp
+\layout Itemize
+
+
+\series bold 
+get_port_for_service
+\series default 
+
+\begin_inset LatexCommand \index{get\_port\_for\_service}
+
+\end_inset 
+
+(default, ipproto, proto)
+\newline 
+Not yet used.
 \layout Itemize
 
 
@@ -11637,6 +13383,227 @@ protocol
 0
 \series default 
 .
+\layout Itemize
+
+
+\series bold 
+get_unknown_banner
+\series default 
+
+\begin_inset LatexCommand \index{get\_unknown\_banner}
+
+\end_inset 
+
+(port, dontfetch, ipproto)
+\newline 
+reads 
+\series bold 
+unknown/banner/
+\series default 
+port from the KB.
+ If a value is found, it is returned.
+ If no value is found and 
+\series bold 
+dontfetch
+\series default 
+ is set, the function returns NULL.
+ Otherwise the function connects to the port, tries to read a banner, stores
+ it in the KB and returns it.
+\newline 
+By default, 
+\series bold 
+ipproto
+\series default 
+ = 
+\series bold 
+tcp
+\layout Itemize
+
+
+\series bold 
+known_service
+\series default 
+
+\begin_inset LatexCommand \index{known\_service}
+
+\end_inset 
+
+(port,iproto)
+\newline 
+returns the service name
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+
+\series bold 
+proto 
+\series default 
+parameter for 
+\series bold 
+register_service
+\end_inset 
+
+ if
+\series bold 
+ 
+\series default 
+the service is known on the port, 
+\series bold 
+NULL
+\series default 
+ otherwise.
+ Note that if the service was 
+\begin_inset Quotes eld
+\end_inset 
+
+registered
+\begin_inset Quotes erd
+\end_inset 
+
+ several times, 
+\series bold 
+known_service
+\series default 
+ may fork.
+ So the best way to use this function is to exit if it returns a defined
+ value.
+ For example:
+\layout LyX-Code
+
+port = get_kb_item("Services/unknown");
+\layout LyX-Code
+
+# This was set by find_service.nes but another plugin
+\layout LyX-Code
+
+# may have identified the service.
+ So:
+\layout LyX-Code
+
+if (known_service(port: port)) exit(0);
+\layout Itemize
+
+
+\series bold 
+set_unknown_banner
+\series default 
+
+\begin_inset LatexCommand \index{set\_unknown\_banner}
+
+\end_inset 
+
+(port, banner, ipproto)
+\newline 
+sets 
+\series bold 
+unknown/banner/
+\series default 
+port to 
+\series bold 
+banner
+\series default 
+ in the KB.
+\newline 
+By default, 
+\series bold 
+ipproto
+\series default 
+ = 
+\series bold 
+tcp
+\layout Itemize
+
+
+\series bold 
+service_is_unknown
+\begin_inset LatexCommand \index{service\_is\_unknown}
+
+\end_inset 
+
+
+\series default 
+(port,ipproto)
+\newline 
+returns 
+\series bold 
+TRUE
+\series default 
+ if the service was 
+\begin_inset Quotes eld
+\end_inset 
+
+registered
+\begin_inset Quotes erd
+\end_inset 
+
+ (see above) or 
+\series bold 
+FALSE
+\series default 
+ otherwise.
+ This function does not fork!
+\newline 
+
+\series bold 
+ipproto
+\series default 
+ is 
+\series bold 
+tcp
+\series default 
+ by default.
+\layout Itemize
+
+
+\series bold 
+verify_service
+\series default 
+
+\begin_inset LatexCommand \index{verify\_service}
+
+\end_inset 
+
+(port, ipproto, proto)
+\newline 
+returns 
+\series bold 
+TRUE
+\series default 
+ if the given service (
+\begin_inset Quotes eld
+\end_inset 
+
+
+\series bold 
+proto
+\series default 
+
+\begin_inset Quotes erd
+\end_inset 
+
+) was identified on the 
+\series bold 
+port
+\series default 
+ (by default TCP, UDP if 
+\series bold 
+ipproto=
+\begin_inset Quotes erd
+\end_inset 
+
+udp
+\begin_inset Quotes erd
+\end_inset 
+
+
+\series default 
+), 
+\series bold 
+FALSE
+\series default 
+ otherwise.
 \layout Subsubsection
 
 nfs_func.inc
@@ -12991,8 +14958,20 @@ context
 \series bold 
 nasl_exec
 \series default 
- calls itself again and again.
- 
+ calls itself again and again
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+Although there are much quicker ways to interprete a language, walking along
+ the syntax tree is simple.
+ We know that we could run 10 times faster or even more by implementing
+ a code generator and a Virtual Machine, but we do not need it yet.
+ Maybe there will be a NASL3.
+\end_inset 
+
+.
 \layout Subsubsection
 
 Memory management
@@ -13504,7 +15483,71 @@ dangling else
 \begin_inset Quotes erd
 \end_inset 
 
- ambiguity.
+ ambiguity
+\begin_inset Foot
+collapsed true
+
+\layout Standard
+
+In the construction 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\family typewriter 
+if\SpecialChar ~
+(T1)\SpecialChar ~
+if\SpecialChar ~
+(T2)\SpecialChar ~
+I1;\SpecialChar ~
+else\SpecialChar ~
+I2;
+\family default 
+
+\begin_inset Quotes erd
+\end_inset 
+
+ the 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\family typewriter 
+else
+\family default 
+
+\begin_inset Quotes erd
+\end_inset 
+
+ can be attached to the first or the second 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\family typewriter 
+if
+\family default 
+
+\begin_inset Quotes erd
+\end_inset 
+
+.
+ All modern parsers attach it the second (= nearest) 
+\begin_inset Quotes eld
+\end_inset 
+
+
+\family typewriter 
+if
+\family default 
+
+\begin_inset Quotes erd
+\end_inset 
+
+.
+\end_inset 
+
+.
  That's why there is an 
 \begin_inset Quotes eld
 \end_inset 
@@ -13531,6 +15574,9 @@ One last time: if you have never studied language theory and theoretical
 \layout Subsubsection
 
 Adding a new operator in the grammar
+\layout Standard
+
+You will have to modify the lexical analyzer to recognize the token.
 \layout Subsubsection
 
 Adding a new type to the grammar

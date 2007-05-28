@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-sunos-4.0.h,v 1.2 1993/08/19 05:27:04 genek Exp $ */
 
 /*
  * conf-sunos-4.0.h  (SunOS versions prior to 4.1)

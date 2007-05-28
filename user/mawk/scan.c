@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 
-/* $Log$
- * Revision 1.2  2005/07/25 04:03:15  magicyang
- * New user folder check in
- *
+/* $Log: scan.c,v $
  * Revision 1.8  1996/07/28 21:47:05  mike
  * gnuish patch
  *

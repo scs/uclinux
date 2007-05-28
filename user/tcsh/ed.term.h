@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/ed.term.h,v 1.13 1996/09/24 16:57:20 christos Exp $ */
 /*
  * ed.term.h: Local terminal header
  */

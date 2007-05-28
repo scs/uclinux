@@ -11,8 +11,9 @@
 if(description)
 {
  script_id(11045);
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2002-1974");
  script_bugtraq_id(5200);
+ script_version ("$Revision: 1.7 $");
 
  script_name(english:"Passwordless Zaurus FTP server");
 	     
@@ -25,8 +26,7 @@ including (but not limited to) your address book, personal files
 and list of appointements. In addition to this, an attacker may
 modify these files.
 
-Solution: None at this time. Unplug your Zaurus from the network
-
+Solution: None at this time. Unplug your Zaurus from the network.
 Risk factor : High");
 
  script_summary(english:"Logs into the remote Zaurus FTP server");
@@ -42,6 +42,7 @@ Risk factor : High");
 # The script code starts here : 
 #
 
+include('ftp_func.inc');
 port = 4242;
 if(!port)port = 21;
 
@@ -50,12 +51,10 @@ if(!state)exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
- r = ftp_log_in(socket:soc, user:"root", pass:"");
+ r = ftp_authenticate(socket:soc, user:"root", pass:"");
  if(r)
  {
   security_hole(port);
  }
  close(soc);
 }
-
-

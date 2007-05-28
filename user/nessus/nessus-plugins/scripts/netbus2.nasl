@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10152);
- script_version ("$Revision: 1.17 $");
- script_cve_id("CAN-1999-0660");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-0660");
  
  name["english"] = "NetBus 2.x";
  name["francais"] = "NetBus 2.x";
@@ -57,7 +57,7 @@ Facteur de risque : Elevé";
  family["english"] = "Backdoors";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("nmap_osfingerprint.nes");
+ script_dependencie("os_fingerprint.nasl");
  script_require_ports(20034);
  exit(0);
 }
@@ -66,10 +66,10 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 
-os = get_kb_item("Host/OS");
+os = get_kb_item("Host/OS/icmp");
 if(os)
 {
- if(!("Windows" >< os))exit(0);
+ if("Windows" >!< os)exit(0);
 }
 
 #

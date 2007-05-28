@@ -5,7 +5,7 @@
  * tools. All of these values can be changed by the configuration
  * file.
  *
- * $Id$
+ * $Id: default.h,v 1.9 2005/03/13 17:27:42 gert Exp $
  *
  */
 

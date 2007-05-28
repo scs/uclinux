@@ -1,25 +1,38 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
+ desc["english"] = "
+Synopsis :
+
+The model of the remote CISCO router can be obtained by SNMP.
+
+Description :
+
+It is possible to determine the model of the remote CISCO system
+by sending SNMP requests with the OID 1.3.6.1.4.1.9.1.
+
+An attacker may use this information to gain more knowledge about
+the remote host.
+
+Solution : 
+
+Disable the SNMP service on the remote host if you do not use it,
+or filter incoming UDP packets going to this port.
+
+Risk factor : 
+
+Low";
 
 if(description)
 {
  script_id(10969);
- script_version ("$Revision: 1.6 $");
+ script_version ("$Revision: 1.11 $");
  
  name["english"] = "Obtain Cisco type via SNMP";
  
  script_name(english:name["english"]);
  
- desc["english"] = "
-This script uses SNMP to obtain the type of the remote
-CISCO router
-
-Risk factor : Low";
-
  script_description(english:desc["english"]);
  
  summary["english"] = "Enumerates Cisco model via SNMP";
@@ -27,102 +40,29 @@ Risk factor : Low";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "SNMP";
  script_family(english:family["english"]);
  
- script_dependencie("snmp_default_communities.nasl",
- 		     "snmp_sysDesc.nasl");
- script_require_keys("SNMP/community");
+ script_dependencie("snmp_sysDesc.nasl");
+ script_require_keys("SNMP/community","SNMP/OID");
  exit(0);
 }
 
-os = get_kb_item("SNMP/sysDesc");
-if(!os)exit(0);
-if(!ereg(pattern:".*IOS.*Version.*", string:os))exit(0);
+include ("snmp_func.inc");
 
-#
-# Solaris comes with a badly configured snmpd which
-# always reply with the same value. We make sure the answers
-# we receive are not in the list of default values usually
-# answered...
-#
-function valid_snmp_value(value)
-{
- if("/var/snmp/snmpdx.st" >< value)return(0);
- if("/etc/snmp/conf" >< value)return(0);
- if( (strlen(value) == 1) && (ord(value[0]) < 32) )return(0);
- return(1);
-}
+oid = get_kb_item("SNMP/OID");
+if (!oid)
+  exit (0);
 
-#--------------------------------------------------------------------#
-# Forges an SNMP GET packet                                          #
-#--------------------------------------------------------------------#
+if (!is_valid_snmp_product(manufacturer:"1.3.6.1.4.1.9.1", oid:oid))
+  exit (0);
 
-
-function get(community)
-{
- len = strlen(community);
- len = len % 256;
- _r = raw_string(0x02, 0x01, 0x00, 0x04, len) +
- 	community + 
-      raw_string(0xA0, 0x1C, 0x02, 0x04, 0x74, 0xD9, 0x0C, 0x2C, 0x02,
-      		0x01, 0x00, 0x02, 0x01, 0x00, 0x30, 0x0E, 0x30,
-		0x0C, 0x06, 0x08, 0x2B, 0x06, 0x01, 0x02, 0x01,
-		0x01, 0x02, 0x00, 0x05, 0x00);
- tot_len = strlen(_r);
- tot_len = tot_len % 256;
- res = raw_string(0x30, tot_len) + _r;
- return(res);
-}
-
-
-function decode(community, pkt)
-{
- skip = strlen(community);
- skip = skip + 44;
- if(strlen(pkt) < skip)
-  return(0);
- else
- {
- tot_len = strlen(pkt);
- tot_len = tot_len - skip;
- val = 0;
-
- 
- for(i=0;i<tot_len;i=i+1)
- {
-  val = val * 128;
-  v   = ord(pkt[skip+i]);
-  if(v > 0x80)
-  {
-   v = v - 0x80;
-  }
-  val = val + v;
- }
- return(val);
- }
-}
-
-community = get_kb_item("SNMP/community");
-if(!community)exit(0);
+type = ereg_replace (pattern:"^1\.3\.6\.1\.4\.1\.9\.1\.([0-9]+)$", replace:"\1", string:oid);
+type = int(type);
 
 port = get_kb_item("SNMP/port");
-if(!port) port = 161;
-
-
-res = "";
-
-soc = open_sock_udp(port);
-
-req = get(community:community);
-
-send(socket:soc, data:req);
-r = recv(socket:soc, length:1025);
-if(strlen(r) < 48)exit(0);
-
-type = decode(pkt:r, community:community);
-
+if(!port)port = 161;
 
 cisco[1] = "ciscoGatewayServer";
 cisco[2] = "ciscoTerminalServer";
@@ -170,12 +110,14 @@ cisco[43] = "cisco1020";
 cisco[44] = "cisco1004";
 cisco[45] = "cisco7507";
 cisco[46] = "cisco7513";
+cisco[47] = "cisco7506";
 cisco[48] = "cisco7505";
 cisco[49] = "cisco1005";
 cisco[50] = "cisco4700";
 cisco[51] = "ciscoPro1003";
 cisco[52] = "ciscoPro1004";
 cisco[53] = "ciscoPro1005";
+cisco[54] = "ciscoPro1020";
 cisco[55] = "ciscoPro2500PCE";
 cisco[56] = "ciscoPro2501";
 cisco[57] = "ciscoPro2503";
@@ -186,6 +128,7 @@ cisco[61] = "ciscoPro2511";
 cisco[62] = "ciscoPro2514";
 cisco[63] = "ciscoPro2516";
 cisco[64] = "ciscoPro2519";
+cisco[65] = "ciscoPro2521";
 cisco[66] = "ciscoPro4500";
 cisco[67] = "cisco2517";
 cisco[68] = "cisco2518";
@@ -202,8 +145,18 @@ cisco[78] = "ciscoPro753";
 cisco[81] = "cisco751";
 cisco[82] = "cisco752";
 cisco[83] = "cisco753";
+cisco[84] = "ciscoPro741";
+cisco[85] = "ciscoPro742";
+cisco[86] = "ciscoPro743";
+cisco[87] = "ciscoPro744";
+cisco[88] = "ciscoPro761";
+cisco[89] = "ciscoPro762";
 cisco[92] = "ciscoPro765";
 cisco[93] = "ciscoPro766";
+cisco[94] = "cisco741";
+cisco[95] = "cisco742";
+cisco[96] = "cisco743";
+cisco[97] = "cisco744";
 cisco[98] = "cisco761";
 cisco[99] = "cisco762";
 cisco[102] = "cisco765";
@@ -215,6 +168,8 @@ cisco[107] = "ciscoLS1010";
 cisco[108] = "cisco7206";
 cisco[109] = "ciscoAS5200";
 cisco[110] = "cisco3640";
+cisco[111] = "ciscoCatalyst3500";
+cisco[112] = "ciscoWSX3011";
 cisco[113] = "cisco1601";
 cisco[114] = "cisco1602";
 cisco[115] = "cisco1603";
@@ -224,6 +179,8 @@ cisco[118] = "ciscoPro1602";
 cisco[119] = "ciscoPro1603";
 cisco[120] = "ciscoPro1604";
 cisco[122] = "cisco3620";
+cisco[123] = "ciscoPro3620";
+cisco[124] = "ciscoPro3640";
 cisco[125] = "cisco7204";
 cisco[126] = "cisco771";
 cisco[127] = "cisco772";
@@ -390,23 +347,28 @@ cisco[300] = "cat4232L3";
 cisco[301] = "catalyst6kMsfc2";
 cisco[302] = "cisco7750Mrp200";
 cisco[303] = "cisco7750Ssp80";
+cisco[304] = "ciscoMGX8230";
+cisco[305] = "ciscoMGX8250";
 cisco[306] = "ciscoCVA122";
 cisco[307] = "ciscoCVA124";
-cisco[308] = "ciscoAS5850";
+cisco[308] = "ciscoAs5850";
 cisco[310] = "cat6509Sp";
 cisco[311] = "ciscoMGX8240";
 cisco[312] = "cat4840gL3";
 cisco[313] = "ciscoAS5350";
 cisco[314] = "cisco7750";
+cisco[315] = "ciscoMGX8950";
 cisco[316] = "ciscoUBR925";
 cisco[317] = "ciscoUBR10012";
 cisco[318] = "catalyst4kGateway";
 cisco[319] = "cisco2650";
 cisco[320] = "cisco2651";
 cisco[321] = "cisco826QuadV";
+cisco[322] = "cisco826";
 cisco[323] = "catalyst295012";
 cisco[324] = "catalyst295024";
 cisco[325] = "catalyst295024C";
+cisco[326] = "cisco1751";
 cisco[329] = "cisco626";
 cisco[330] = "cisco627";
 cisco[331] = "cisco633";
@@ -423,7 +385,9 @@ cisco[341] = "cisco3662Dc";
 cisco[342] = "cisco3662AcCo";
 cisco[343] = "cisco3662DcCo";
 cisco[344] = "ciscoUBR7111";
+cisco[345] = "ciscoUBR7111E";
 cisco[346] = "ciscoUBR7114";
+cisco[347] = "ciscoUBR7114E";
 cisco[348] = "cisco12010";
 cisco[349] = "cisco8110";
 cisco[351] = "ciscoUBR905";
@@ -432,6 +396,7 @@ cisco[354] = "ciscoSOHO76";
 cisco[355] = "cisco7150Dualfe";
 cisco[356] = "cisco7150Octt1";
 cisco[357] = "cisco7150Dualt3";
+cisco[358] = "ciscoOlympus";
 cisco[359] = "catalyst2950t24";
 cisco[360] = "ciscoVPS1110";
 cisco[361] = "ciscoContentEngine";
@@ -442,13 +407,19 @@ cisco[365] = "ciscoDPA7630";
 cisco[366] = "catalyst355024";
 cisco[367] = "catalyst355048";
 cisco[368] = "catalyst355012T";
+cisco[369] = "catalyst2924LREXL";
+cisco[370] = "catalyst2912LREXL";
 cisco[371] = "ciscoCVA122E";
 cisco[372] = "ciscoCVA124E";
 cisco[373] = "ciscoURM";
 cisco[374] = "ciscoURM2FE";
 cisco[375] = "ciscoURM2FE2V";
+cisco[376] = "cisco7401VXR";
 cisco[379] = "ciscoCAP340";
+cisco[380] = "ciscoCAP350";
 cisco[381] = "ciscoDPA7610";
+cisco[382] = "cisco828";
+cisco[384] = "cisco806";
 cisco[385] = "cisco12416";
 cisco[386] = "cat2948gL3Dc";
 cisco[387] = "cat4908gL3Dc";
@@ -462,19 +433,29 @@ cisco[394] = "cisco12410";
 cisco[395] = "cisco811";
 cisco[396] = "cisco813";
 cisco[397] = "cisco10720";
+cisco[398] = "ciscoMWR1900";
 cisco[399] = "cisco4224";
+cisco[400] = "ciscoWSC6513";
+cisco[401] = "cisco7603";
+cisco[402] = "cisco7606";
 cisco[403] = "cisco7401ASR";
-cisco[405] = "ciscoHSE1105";
+cisco[404] = "ciscoVG248";
+cisco[405] = "ciscoHSE";
 cisco[406] = "ciscoONS15540ESP";
+cisco[407] = "ciscoSN5420";
 cisco[409] = "ciscoCe507";
 cisco[410] = "ciscoCe560";
 cisco[411] = "ciscoCe590";
 cisco[412] = "ciscoCe7320";
+cisco[413] = "cisco2691";
+cisco[414] = "cisco3725";
+cisco[416] = "cisco1760";
 cisco[417] = "ciscoPIXFirewall501";
 cisco[418] = "cisco2610M";
 cisco[419] = "cisco2611M";
 cisco[423] = "cisco12404";
 cisco[424] = "cisco9004";
+cisco[425] = "cisco3631Co";
 cisco[427] = "catalyst295012G";
 cisco[428] = "catalyst295024G";
 cisco[429] = "catalyst295048G";
@@ -483,14 +464,29 @@ cisco[431] = "catalyst355012G";
 cisco[432] = "ciscoCE507AV";
 cisco[433] = "ciscoCE560AV";
 cisco[434] = "ciscoIE2105";
+cisco[435] = "ciscoMGX8850Pxm1E";
+cisco[436] = "cisco3745";
+cisco[437] = "cisco10005";
+cisco[438] = "cisco10008";
 cisco[439] = "cisco7304";
+cisco[440] = "ciscoRpmXf";
+cisco[444] = "cisco1721";
+cisco[446] = "cisco827H";
+cisco[448] = "cat4006";
+cisco[449] = "ciscoWSC6503";
 cisco[450] = "ciscoPIXFirewall506E";
 cisco[451] = "ciscoPIXFirewall515E";
 cisco[452] = "cat355024Dc";
+cisco[453] = "cat355024Mmf";
 cisco[454] = "ciscoCE2636";
 cisco[455] = "ciscoDwCE";
+cisco[456] = "cisco7750Mrp300";
 cisco[457] = "ciscoRPMPR";
+cisco[458] = "cisco14MGX8830Pxm1E";
+cisco[459] = "ciscoWlse";
 cisco[464] = "cisco6400UAC";
+cisco[474] = "ciscoAIRAP1200";
+cisco[475] = "ciscoSN5428";
 cisco[466] = "cisco2610XM";
 cisco[467] = "cisco2611XM";
 cisco[468] = "cisco2620XM";
@@ -498,28 +494,153 @@ cisco[469] = "cisco2621XM";
 cisco[470] = "cisco2650XM";
 cisco[471] = "cisco2651XM";
 cisco[472] = "catalyst295024GDC";
+cisco[476] = "cisco7301";
+cisco[479] = "cisco3250";
+cisco[480] = "catalyst295024SX";
 cisco[481] = "ciscoONS15540ESPx";
+cisco[482] = "catalyst295024LRESt";
+cisco[483] = "catalyst29508LRESt";
+cisco[484] = "catalyst295024LREG";
+cisco[485] = "catalyst355024PWR";
 cisco[486] = "ciscoCDM4630";
 cisco[487] = "ciscoCDM4650";
+cisco[488] = "catalyst2955T12";
+cisco[489] = "catalyst2955C12";
 cisco[490] = "ciscoCE508";
 cisco[491] = "ciscoCE565";
 cisco[492] = "ciscoCE7325";
+cisco[493] = "ciscoONS15454";
+cisco[494] = "ciscoONS15327";
+cisco[495] = "cisco837";
+cisco[496] = "ciscoSOHO97";
+cisco[497] = "cisco831";
+cisco[498] = "ciscoSOHO91";
+cisco[499] = "cisco836";
+cisco[500] = "ciscoSOHO96";
+cisco[501] = "cat4507";
+cisco[502] = "cat4506";
+cisco[503] = "cat4503";
 cisco[504] = "ciscoCE7305";
 cisco[505] = "ciscoCE510";
 cisco[507] = "ciscoAIRAP1100";
+cisco[508] = "catalyst2955S12";
+cisco[509] = "cisco7609";
+cisco[511] = "catalyst375024";
+cisco[512] = "catalyst375048";
+cisco[513] = "catalyst375024TS";
+cisco[514] = "catalyst375024T";
+cisco[516] = "catalyst37xxStack";
 cisco[517] = "ciscoGSS";
 cisco[518] = "ciscoPrimaryGSSM";
 cisco[519] = "ciscoStandbyGSSM";
+cisco[520] = "ciscoMWR1941DC";
 cisco[521] = "ciscoDSC9216K9";
 cisco[522] = "cat6500FirewallSm";
 cisco[524] = "ciscoCSM";
 cisco[525] = "ciscoAIRAP1210";
+cisco[527] = "catalyst297024";
+cisco[528] = "cisco7613";
+cisco[530] = "catalyst3750Ge12Sfp";
 cisco[531] = "ciscoCR4430";
 cisco[532] = "ciscoCR4450";
 cisco[533] = "ciscoAIRBR1410";
-
-
-
+cisco[534] = "ciscoWSC6509neba";
+cisco[537] = "catalyst4510";
+cisco[538] = "cisco1711";
+cisco[539] = "cisco1712";
+cisco[540] = "catalyst29408TT";
+cisco[542] = "catalyst29408TF";
+cisco[543] = "cisco3825";
+cisco[544] = "cisco3845";
+cisco[545] = "cisco2430Iad24Fxs";
+cisco[546] = "cisco2431Iad8Fxs";
+cisco[547] = "cisco2431Iad16Fxs";
+cisco[548] = "cisco2431Iad1T1E1";
+cisco[549] = "cisco2432Iad24Fxs";
+cisco[550] = "cisco1701ADSLBRI";
+cisco[551] = "catalyst2950St24LRE997";
+cisco[552] = "ciscoAirAp350IOS";
+cisco[553] = "cisco3220";
+cisco[554] = "cat6500SslSm";
+cisco[555] = "ciscoSIMSE";
+cisco[556] = "ciscoESSE";
+cisco[557] = "catalyst6kSup720";
+cisco[559] = "catalyst295048T";
+cisco[560] = "catalyst295048SX";
+cisco[561] = "catalyst297024TS";
+cisco[562] = "ciscoNmNam";
+cisco[563] = "catalyst356024PS";
+cisco[564] = "catalyst356048PS";
+cisco[565] = "ciscoAIRBR1300";
+cisco[573] = "catalyst6kGateway";
+cisco[574] = "catalyst375024ME";
+cisco[575] = "catalyst4000NAM";
+cisco[576] = "cisco2811";
+cisco[577] = "cisco2821";
+cisco[578] = "cisco2851";
+cisco[590] = "cisco12006";
+cisco[591] = "catalyst3750G16TD";
+cisco[592] = "ciscoIGESM";
+cisco[593] = "ciscoCCM";
+cisco[595] = "ciscoCe511K9";
+cisco[596] = "ciscoCe566K9";
+cisco[598] = "ciscoMGX8880";
+cisco[599] = "ciscoWsSvcWLAN1K9";
+cisco[600] = "ciscoCe7306K9";
+cisco[601] = "ciscoCe7326K9";
+cisco[606] = "ciscoBMGX8830Pxm45";
+cisco[607] = "ciscoBMGX8830Pxm1E";
+cisco[608] = "ciscoBMGX8850Pxm45";
+cisco[609] = "ciscoBMGX8850Pxm1E";
+cisco[611] = "ciscoNetworkRegistrar";
+cisco[612] = "ciscoCe501K9";
+cisco[618] = "ciscoAIRAP1130";
+cisco[619] = "cisco2801";
+cisco[620] = "cisco1841";
+cisco[621] = "ciscoWsSvcMWAM1";
+cisco[622] = "ciscoNMCUE";
+cisco[623] = "ciscoAIMCUE";
+cisco[625] = "cisco371098HP001";
+cisco[626] = "catalyst4948";
+cisco[630] = "ciscoWLSE1130";
+cisco[631] = "ciscoWLSE1030";
+cisco[632] = "ciscoHSE1140";
+cisco[645] = "ciscoIDS4210";
+cisco[646] = "ciscoIDS4215";
+cisco[647] = "ciscoIDS4235";
+cisco[648] = "ciscoIPS4240";
+cisco[649] = "ciscoIDS4250";
+cisco[650] = "ciscoIDS4250SX";
+cisco[651] = "ciscoIDS4250XL";
+cisco[652] = "ciscoIPS4255";
+cisco[653] = "ciscoIDSIDSM2";
+cisco[654] = "ciscoIDSNMCIDS";
+cisco[655] = "ciscoIPSSSM20";
+cisco[661] = "ciscoFE6326K9";
+cisco[662] = "ciscoIPSSSM10";
+cisco[663] = "ciscoNme16Es1Ge";
+cisco[664] = "ciscoNmeX24Es1Ge";
+cisco[665] = "ciscoNmeXd24Es2St";
+cisco[666] = "ciscoNmeXd48Es2Ge";
+cisco[668] = "ciscoAs5400XM";
+cisco[679] = "ciscoAs5350XM";
+cisco[680] = "ciscoFe7326K9";
+cisco[681] = "ciscoFe511K9";
+cisco[682] = "ciscoSCEDispatcher";
+cisco[683] = "ciscoSCE1000";
+cisco[684] = "ciscoSCE2000";
+cisco[686] = "ciscoDSC9120CLK9";
+cisco[687] = "ciscoFe611K9";
+cisco[693] = "ciscoICM";
+cisco[706] = "catalyst6kMsfc2a";
+cisco[708] = "ciscoCe611K9";
+cisco[709] = "ciscoWLSEs20";
+cisco[710] = "ciscoMPX";
+cisco[711] = "ciscoNMCUEEC";
+cisco[712] = "ciscoWLSE1132";
+cisco[713] = "ciscoME6340ACA";
+cisco[714] = "ciscoME6340DCA";
+cisco[715] = "ciscoME6340DCB";
 
 
 if(!cisco[type])
@@ -535,11 +656,9 @@ set_kb_item(name:"CISCO/model", value:item);
 
 if(!(item == "unknown"))
 {
-rep = 
-string("Using SNMP, we could determine the model of the remote Cisco device:\n",
-	item);
+ report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		item);
 
-security_note(port:port,
-		protocol:"udp",
-		data:rep);
+ security_note(port:port, data:report, protocol:"udp");
 }

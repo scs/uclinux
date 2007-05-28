@@ -1,13 +1,6 @@
 #
 # (C) Tenable Network Security
 #
-# Ref:
-# From: SecuriTeam <support@securiteam.com>
-# To: list@securiteam.com
-# X-Mailer: Beyond Security Mailer
-# Date: 28 Jul 2003 18:02:20 +0200
-# Subject: [UNIX] Remotely Exploitable Overflow In mod_mylo For Apache
-#
 # The overflow occurs *after* the server replied to us, so it can only
 # be detected using the banner of the server
 #
@@ -15,8 +8,9 @@
 if(description)
 {
  script_id(11809);
+ script_cve_id("CVE-2003-0651");
  script_bugtraq_id(8287);
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.7 $");
  
  name["english"] = "mod_mylo overflow";
 
@@ -56,8 +50,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);

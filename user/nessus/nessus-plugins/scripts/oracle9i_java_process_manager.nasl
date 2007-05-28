@@ -11,22 +11,34 @@
 if(description)
 {
  script_id(10851);
- script_version("$Revision: 1.6 $");
- script_cve_id("CAN-2002-0563");
  script_bugtraq_id(4293);
+ script_version("$Revision: 1.11 $");
+ script_cve_id("CVE-2002-0563");
  name["english"] = "Oracle 9iAS Java Process Manager";
  name["francais"] = "Oracle 9iAS Java Process Manager";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-In a default installation of Oracle 9iAS, it is possible to access the 
-Java Process Manager anonymously. Access to this page should be restricted.
+Synopsis :
 
+It is possible to obtain the list of Java processes running on the
+remote host anonymously, as well as to start and stop them.
 
-Solution: 
+Description :
+
+The remote host is an Oracle 9iAS server. By default, accessing
+the location /oprocmgr-status via HTTP lets an attacker obtain
+the list of processes running on the remote host, and even to
+to start or stop them.
+
+Solution : 
+
 Restrict access to /oprocmgr-status in httpd.conf
 
-Risk factor : High";
+Risk factor :
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -38,9 +50,8 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2002 Matt Moore",
 		francais:"Ce script est Copyright (C) 2002 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/OracleApache");
@@ -51,8 +62,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 { 

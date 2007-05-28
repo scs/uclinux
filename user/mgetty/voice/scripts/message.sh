@@ -7,7 +7,7 @@
 # $2 - filename of the message to play (must be a .rmd file, that
 #      can be played on the modem used for dialout)
 #
-# $Id$
+# $Id: message.sh,v 1.5 1999/12/04 15:07:34 marcs Exp $
 #
 #
 # Define the function to receive an answer from the voice library

@@ -1,21 +1,19 @@
-/* Nessuslib -- the Nessus Library
- * Copyright (C) 1998 Renaud Deraison
+/* Copyright (C) 1998 - 2003 Renaud Deraison
+ * Portions (C)  2002 - 2003 Michel Arboi
  *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Library General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2,
+ * as published by the Free Software Foundation
  *
- * This library is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * Library General Public License for more details.
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- * You should have received a copy of the GNU Library General Public
- * License along with this library; if not, write to the Free
- * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * handy FTP functions
  */
 
 #define EXPORTING
@@ -96,6 +94,7 @@ build_encode_URL(data, method, path, name, httpver)
 #define URL_CODE_UTF8BAD	4
   int		url_encoding;
   char		gizmo[32];
+  struct kb_item ** kb = plug_get_kb(data);
 
   /* 
    * basically, we need to store the path, a slash, and the name 
@@ -124,7 +123,7 @@ build_encode_URL(data, method, path, name, httpver)
 
   start_with_slash = (*ret == '/');
 
-  s = plug_get_key(data, "NIDS/HTTP/CGIpm_param");
+  s = kb_item_get_str(kb, "NIDS/HTTP/CGIpm_param");
   cgipm_param = (s != NULL && strcmp(s, "yes") == 0);
   if (cgipm_param)
     {
@@ -148,7 +147,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
     }
 
-  s = plug_get_key(data, "NIDS/HTTP/self_ref_dir");
+  s = kb_item_get_str(kb, "NIDS/HTTP/self_ref_dir");
   self_ref_dir = (s != NULL && strcmp(s, "yes") == 0);
   if (self_ref_dir)
     {
@@ -173,7 +172,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
     }
 
-  s = plug_get_key(data, "NIDS/HTTP/reverse_traversal");
+  s = kb_item_get_str(kb, "NIDS/HTTP/reverse_traversal");
   reverse_traversal = (s == NULL ? 0 : atoi(s));
 
   if (reverse_traversal > 0)
@@ -203,7 +202,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
     }
 
-  s = plug_get_key(data, "NIDS/HTTP/premature_request_ending");
+  s = kb_item_get_str(kb, "NIDS/HTTP/premature_request_ending");
   prem_req_end = (s != NULL && strcmp(s, "yes") == 0);
   if (prem_req_end)
     {
@@ -224,7 +223,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
     }
   
-  s = plug_get_key(data, "NIDS/HTTP/param_hiding");
+  s = kb_item_get_str(kb, "NIDS/HTTP/param_hiding");
   param_hiding = (s != NULL && strcmp(s, "yes") == 0);
   if (param_hiding)
     {
@@ -244,7 +243,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
     }
 
-  s = plug_get_key(data, "NIDS/HTTP/double_slash");
+  s = kb_item_get_str(kb, "NIDS/HTTP/double_slash");
   double_slash = (s != NULL && strcmp(s, "yes") == 0);
   if (double_slash)
     {
@@ -270,7 +269,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
     }
 
-  s = plug_get_key(data, "NIDS/HTTP/dos_win_syntax");
+  s = kb_item_get_str(kb, "NIDS/HTTP/dos_win_syntax");
   dos_win_syntax = (s != NULL && strcmp(s, "yes") == 0);
   if (dos_win_syntax)
     {
@@ -285,7 +284,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
     }
 
-  s = plug_get_key(data, "NIDS/HTTP/URL_encoding");
+  s = kb_item_get_str(kb, "NIDS/HTTP/URL_encoding");
   url_encoding = URL_CODE_NONE;
   if (s != NULL)
   {
@@ -380,7 +379,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
     }
 
-  abs_URI_type = plug_get_key(data, "NIDS/HTTP/absolute_URI/type");
+  abs_URI_type = kb_item_get_str(kb, "NIDS/HTTP/absolute_URI/type");
   if (start_with_slash && 
       abs_URI_type != NULL && strcmp(abs_URI_type, "none") != 0)
     {
@@ -389,7 +388,7 @@ build_encode_URL(data, method, path, name, httpver)
 #endif
       char	h[MAXHOSTNAMELEN];
 
-      abs_URI_host = plug_get_key(data, "NIDS/HTTP/absolute_URI/host");
+      abs_URI_host = kb_item_get_str(kb, "NIDS/HTTP/absolute_URI/host");
       h[0] = '\0';
       if (abs_URI_host != NULL)
       {
@@ -436,7 +435,7 @@ build_encode_URL(data, method, path, name, httpver)
     }
 
 
-  s = plug_get_key(data, "NIDS/HTTP/null_method");
+  s = kb_item_get_str(kb, "NIDS/HTTP/null_method");
   null_method = (s != NULL && strcmp(s, "yes") == 0);
   if (null_method)
     {
@@ -450,11 +449,11 @@ build_encode_URL(data, method, path, name, httpver)
 
   l += strlen(method) + 1;
 
-  s = plug_get_key(data, "NIDS/HTTP/http09");
+  s = kb_item_get_str(kb, "NIDS/HTTP/http09");
   http09 = (s != NULL && strcmp(s, "yes") == 0);
   if (! http09)
     {
-      s = plug_get_key(data, "NIDS/HTTP/protocol_string");
+      s = kb_item_get_str(kb, "NIDS/HTTP/protocol_string");
       if (s != NULL && *s != '\0')
 	{
 	  httpver = s;
@@ -466,7 +465,7 @@ build_encode_URL(data, method, path, name, httpver)
     }
 	
 
-  s = plug_get_key(data, "NIDS/HTTP/tab_separator");
+  s = kb_item_get_str(kb, "NIDS/HTTP/tab_separator");
   tab_sep = (s != NULL && strcmp(s, "yes") == 0);
   sep_c = (tab_sep ? '\t' : ' ');
 
@@ -496,11 +495,12 @@ http11_get_head(port, data, path, name, method)
  char * url = build_encode_URL(data, method, path, name, "HTTP/1.1"); 
  char * ret;
  char * auth_string, tmp[32];
+ struct kb_item ** kb = plug_get_kb(data);
 
  snprintf(tmp, sizeof(tmp), "/tmp/http/auth/%d", port);
- auth_string = plug_get_key(data, tmp);
+ auth_string = kb_item_get_str(kb, tmp);
  if (auth_string == NULL)
-   auth_string = plug_get_key(data, "http/auth");
+   auth_string = kb_item_get_str(kb, "http/auth");
 
  ret = emalloc(strlen(hostname) + strlen(url) + (auth_string ? strlen(auth_string):0) + 1024);
  sprintf(ret, "%s\r\n\
@@ -552,11 +552,12 @@ http10_get_head(port, data, path, name, method)
  char * url = build_encode_URL(data, method, path, name, "HTTP/1.0"); 
  char * ret;
  char * auth_string, tmp[32];
+ struct kb_item ** kb = plug_get_kb(data);
 
  snprintf(tmp, sizeof(tmp), "/tmp/http/auth/%d", port);
- auth_string = plug_get_key(data, tmp);
+ auth_string = kb_item_get_str(kb, tmp);
  if (auth_string == NULL)
-   auth_string = plug_get_key(data, "http/auth");
+   auth_string = kb_item_get_str(kb, "http/auth");
  
  ret = emalloc(strlen(url) + 1024 + (auth_string ? strlen(auth_string) : 0));
  
@@ -624,323 +625,14 @@ httpver(data, port)
  int port;
 {
  char req[255];
- char * value;
+ int value;
  bzero(req, sizeof(req));
  snprintf(req, sizeof(req), "http/%d", port);
- value = plug_get_key(data, req);
- if(value != NULL  && strcmp(value, "10") == 0 )
-  return 10;
+ value = kb_item_get_int(plug_get_kb(data), req);
+ if ( value <= 0 )
+    return 11;
  else
-  return 11;
+    return value;
 }
 
 
-static char * 
-ne_strcasestr(char* haystack, char *needle)
-{
- int len_h = strlen(haystack);
- int len_needle = strlen(needle);
- 
- while(len_h >= len_needle)
- {
-  if(!strncasecmp(haystack, needle, len_needle))
-   return haystack;
-  else
-  {
-   len_h --;
-   haystack++;
-  }
- }
- return NULL;
-}
-
-
-ExtFunc int 
-is_cgi_installed_by_port(data, cgi_name, port)
- struct arglist * data;
- const char * cgi_name;
- int port;
-{
-  char * command = NULL;
-  char * no404 = NULL;
-  int soc=-1;
-  short i=0;
-  struct arglist * kb, * cgi_dirs = NULL;
-  struct arglist * preferences = arg_get_value(data, "preferences");
-  char * cgi_path = preferences ? arg_get_value(preferences, "cgi_path"):NULL;
-  char buff[4096];
-  char * cur_path;
-  char * line = NULL, *t;
-  int finished = 0;
-  int n = 0;
-  char ref[30];
-  int http_ver = httpver(data, port);
-  /* NIDS evasion options - other options are handled by build_encode_URL() */
-  char	*s;
-  int	use_head_method;
-
-
-  kb = (struct arglist*)arg_get_value(data, "key");
-  if ( kb != NULL )
-  {
-   int type;
-   type = arg_get_type(kb, "/tmp/cgibin");
-   if(type == ARG_ARGLIST)
-   	{
-   	cgi_dirs = (struct arglist*)arg_get_value(kb, "/tmp/cgibin");
-	cgi_path = NULL;
-	}
-   else
-   	cgi_path = arg_get_value(kb, "/tmp/cgibin");
-  }
-
-  if( cgi_dirs == NULL && (cgi_path == NULL || cgi_path[0] == '\0' ))cgi_path = "/cgi-bin:/scripts";
-  
-  
-
-  s = plug_get_key(data, "NIDS/HTTP/head");
-  use_head_method = (s != NULL && strcmp(s, "yes") == 0);
-  
-  snprintf(ref, sizeof(ref), "www/no404/%d", port);
-  no404 = plug_get_key(data, ref);
-  if(no404)
-  {
-    char	*p, *q;
-
-    /* strip CR/LF at end of string */
-    for (p = no404, q = NULL; *p != '\0'; p ++)
-      if (*p != '\n' && *p != '\r')
-	q = NULL;
-      else
-	if (q == NULL)
-	  q = p;
-    if (q != NULL)
-      *q = '\0';
-#ifdef DEBUG
-    fprintf(stderr, "is_cgi_installed_by_port: port=%d url=%s, no404=%s\n", 
-	    port, cgi_name, no404);
-#endif
-  }
-  
-  
-  
- 
-
-  if( cgi_name == NULL )
-  		return(0);
-				
-  if( cgi_path != NULL )
-  	{
-  	cgi_path = estrdup(cgi_path);		
-	cur_path = cgi_path;
-	}
-	
-  if(host_get_port_state(data, port) == 0 )
-	{
-  	efree(&cgi_path);
-  	return(0);
-	}
-	
-  
- 
-  
-  /*
-   * Open a connection to the remote host
-   */
-  while( finished == 0 )
-  {
-  soc = open_stream_auto_encaps(data, port, 5);
-  if(soc <0){
-	efree(&command);
-	efree(&cgi_path);
-	efree(&line);
-	return(0); /* couldn't open a connection */
-	}
-  efree(&command);
-  if(cgi_name[0]!='/')
-    	{
-	  char * t;
-	  
-	  if( cgi_path != NULL )
-	  	{
-	 		t = strchr(cur_path, ':');
-	  		if(t != NULL )t[0] = '\0';
-		}
-	   else 
-	   	{
-	   	cur_path = cgi_dirs->value;
-		}
-		
-	  if (use_head_method)
-	    command = http_head(port, data, http_ver, cur_path, cgi_name);
-	  else
-	    command = http_get(port, data, http_ver, cur_path, cgi_name);
-	    
-	  if( cgi_path != NULL )
-	  {
-	    if(t != NULL)cur_path = t+sizeof(char);
-	    else  finished++;
-	  }
-	  else
-	  {
-	   cgi_dirs = cgi_dirs->next;
-	   if(cgi_dirs->value == NULL ) finished ++;
-	  }
-	    
-	}
-  else {
-	if (use_head_method)
-	  command = http_head(port, data, http_ver, NULL, cgi_name);
-	else
-	  command = http_get(port, data, http_ver, NULL, cgi_name);
-  	finished++;
-  }
-
-
-  write_stream_connection(soc, command, strlen(command));
-  n = read_stream_connection(soc, buff, sizeof(buff) - 1);
-  buff[sizeof(buff) - 1] = '\0';
-  close_stream_connection(soc);
-  t = strchr(buff, '\n');
-  if(t)
-   {
-    t[0]='\0';
-    efree(&line);
-    line = estrdup(buff);
-    t[0]='\n';
-   }
-   else line = strdup(buff);
-   
-  if(strstr(line, " 200 ")){
-  		if(!no404)
-	 	{
-  		i=1; /* No error */
-		break;
-		}
-		else
-		{
-		 if(ne_strcasestr(buff, no404))
-		 {
-		  /*  
-		   *  we find the content of no404 in
-		   *  what we received, then this page
-		   *  does not exist
-		   */
-		 	i = 0;
-			break;
-		 }
-		 else 
-		  {
-#if 0
-		    fprintf(stderr, "%s (no404) not found in buffer\n", no404);
-#endif
-		  	i = 1;
-			break;
-		  }
-		}	       
-	}
-  else if(strstr(line, " 301 ") ||
-          strstr(line, " 302 ")){
-  	/* 
-	 * Redirection
-	 */
-  	char * redir_loc = strstr(buff, "Location: ");
-	char * end;
-	if(!redir_loc)redir_loc = strstr(buff, "location: ");
-	if(!redir_loc){
-		/* Error */
-		i = 0;
-		break;
-		}
-	if (no404 != NULL && strncasecmp(no404, "Location:", 9) == 0)
-	  if (strncasecmp(no404, redir_loc, strlen(no404)) == 0)
-	    {
-	      /* Redirection to error page */
-	      i = 0;
-	      break;
-	    }
-	redir_loc = strchr(redir_loc, ' ');
-	redir_loc+=sizeof(char);
-	end = redir_loc;
-	while(isprint(end[0]))end++;
-	end[0]=0;
-	
-	/*
-	 * redir_loc now equals 'http://blah/location' or
-	 * /location
-	 */
-	if(redir_loc[0]=='/')
-	{
-	 i = is_cgi_installed_by_port(data, redir_loc, port);
-	 break;
-	}
-	else {
-	 /*
-	  * http://blah/loc
-	  *
-	  * We ensure that 'blah' is the correct host
-	  *
-	  */
-	  if(!strncmp(redir_loc, "http://", strlen("http://")))
-	  {
-	   struct in_addr addr;
-	   struct in_addr * host;
-	   redir_loc += strlen("http://")*sizeof(char);
-	   end = strchr(redir_loc, '/');
-	   if(end)end[0]=0;
-	   addr = nn_resolve(redir_loc);
-	   host = plug_get_host_ip(data);
-	   if(host)
-	   {
-	    if(host->s_addr != addr.s_addr)
-	     {
-	      i = 0;
-	      break;
-	     }
-	    }
-	   if(end)end[0] = '/';
-	   else {
-	   	i = 0;
-		break;
-		}
-	    i =  is_cgi_installed_by_port(data, end, port);
-	    break;
-	  }
-	 i = 0;
-	 break;
-	}
-     }
-  else i=0; /* Error */
-  }
-  efree(&command);
-  if ( cgi_path != NULL )  efree(&cgi_path);
-  efree(&line);
-#if DEBUG
-  if (i)
-    fprintf(stderr, "is_cgi_installed_by_port: port=%d cgi=%s/%s found!\n",
-	    port, cur_path, cgi_name);
-#endif
-
-  return(i);
-}
-
-ExtFunc int 
-is_cgi_installed(data, cgi_name)
- struct arglist * data;
- const char * cgi_name;
-{
- char * asc_port = plug_get_key(data, "Services/www");
- int port;
- 
-
- if( asc_port == NULL )
- 	port = 80;
- else 
- 	port = atoi(asc_port);
-
- 
- if( is_cgi_installed_by_port(data, cgi_name, port) != 0 )
-  return port;
- else
-  return 0;
-}

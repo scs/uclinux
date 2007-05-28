@@ -1,27 +1,32 @@
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
 #
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
+
+ desc["english"] = "
+Synopsis :
+
+It is possible to retrieve users who never logged in using the supplied
+credentials.
+
+Description :
+
+Using the supplied credentials it was possible to extract the list of
+domain users who never logged into the remote host.
+It is recommended to delete useless accounts.
+
+Risk factor :
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
+
 
 if(description)
 {
  script_id(10899);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.7 $");
  name["english"] = "Users information : User has never logged in";
 
  script_name(english:name["english"]);
- 
- desc["english"] = "
-This script displays the names of the users that
-have never logged in.
-
-
-Unused accounts are very helpful to attackers.
-
-Solution : delete those unused accounts
-Risk factor : Medium";
-
-
 
  script_description(english:desc["english"]);
  
@@ -65,10 +70,10 @@ while(login)
 
 if(logins)
 {
- rep = string("The following accounts have never logged in :\n\n",
-  logins,
-  "\n\nUnused accounts are very helpful to hacker\n",
-  "Solution : suppress these accounts\n",
-  "Risk factor : Medium");
- security_warning(port:port, data:rep);
+ report = string (desc["english"],
+		"\n\nPlugin output :\n\n",
+		"The following users never logged in :\n",
+		logins);
+
+ security_warning (port:0, data:report);
 }

@@ -29,9 +29,6 @@ NULL=
 NULL=nul
 !ENDIF 
 
-CPP=cl.exe
-RSC=rc.exe
-
 !IF  "$(CFG)" == "snort - Win32 MySQL Debug"
 
 OUTDIR=.\snort___Win32_MySQL_Debug
@@ -190,6 +187,8 @@ CLEAN :
 	-@erase "$(INTDIR)\snort.sbr"
 	-@erase "$(INTDIR)\snort_httpinspect.obj"
 	-@erase "$(INTDIR)\snort_httpinspect.sbr"
+	-@erase "$(INTDIR)\snort_stream4_session.obj"
+	-@erase "$(INTDIR)\snort_stream4_session.sbr"
 	-@erase "$(INTDIR)\snprintf.obj"
 	-@erase "$(INTDIR)\snprintf.sbr"
 	-@erase "$(INTDIR)\sp_asn1.obj"
@@ -204,6 +203,8 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_dsize_check.sbr"
 	-@erase "$(INTDIR)\sp_flowbits.obj"
 	-@erase "$(INTDIR)\sp_flowbits.sbr"
+	-@erase "$(INTDIR)\sp_ftpbounce.obj"
+	-@erase "$(INTDIR)\sp_ftpbounce.sbr"
 	-@erase "$(INTDIR)\sp_icmp_code_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_code_check.sbr"
 	-@erase "$(INTDIR)\sp_icmp_id_check.obj"
@@ -252,6 +253,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spo_alert_fast.sbr"
 	-@erase "$(INTDIR)\spo_alert_full.obj"
 	-@erase "$(INTDIR)\spo_alert_full.sbr"
+	-@erase "$(INTDIR)\spo_alert_prelude.obj"
+	-@erase "$(INTDIR)\spo_alert_prelude.sbr"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.obj"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.sbr"
 	-@erase "$(INTDIR)\spo_alert_syslog.obj"
@@ -280,6 +283,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_flow.sbr"
 	-@erase "$(INTDIR)\spp_frag2.obj"
 	-@erase "$(INTDIR)\spp_frag2.sbr"
+	-@erase "$(INTDIR)\spp_frag3.obj"
+	-@erase "$(INTDIR)\spp_frag3.sbr"
 	-@erase "$(INTDIR)\spp_httpinspect.obj"
 	-@erase "$(INTDIR)\spp_httpinspect.sbr"
 	-@erase "$(INTDIR)\spp_perfmonitor.obj"
@@ -296,6 +301,10 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_stream4.sbr"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.obj"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.sbr"
+	-@erase "$(INTDIR)\spp_xlink2state.obj"
+	-@erase "$(INTDIR)\spp_xlink2state.sbr"
+	-@erase "$(INTDIR)\str_search.obj"
+	-@erase "$(INTDIR)\str_search.sbr"
 	-@erase "$(INTDIR)\strlcatu.obj"
 	-@erase "$(INTDIR)\strlcatu.sbr"
 	-@erase "$(INTDIR)\strlcpyu.obj"
@@ -324,6 +333,8 @@ CLEAN :
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(INTDIR)\win32_service.obj"
 	-@erase "$(INTDIR)\win32_service.sbr"
+	-@erase "$(INTDIR)\xlink2state.obj"
+	-@erase "$(INTDIR)\xlink2state.sbr"
 	-@erase "$(OUTDIR)\snort.bsc"
 	-@erase "$(OUTDIR)\snort.exe"
 	-@erase "$(OUTDIR)\snort.ilk"
@@ -335,7 +346,40 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /FR"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP=cl.exe
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /FR"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+RSC=rc.exe
 RSC_PROJ=/l 0x409 /fo"$(INTDIR)\name.res" /d "_DEBUG" 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\snort.bsc" 
@@ -346,6 +390,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sp_clientserver.sbr" \
 	"$(INTDIR)\sp_dsize_check.sbr" \
 	"$(INTDIR)\sp_flowbits.sbr" \
+	"$(INTDIR)\sp_ftpbounce.sbr" \
 	"$(INTDIR)\sp_icmp_code_check.sbr" \
 	"$(INTDIR)\sp_icmp_id_check.sbr" \
 	"$(INTDIR)\sp_icmp_seq_check.sbr" \
@@ -370,6 +415,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sp_ttl_check.sbr" \
 	"$(INTDIR)\spo_alert_fast.sbr" \
 	"$(INTDIR)\spo_alert_full.sbr" \
+	"$(INTDIR)\spo_alert_prelude.sbr" \
 	"$(INTDIR)\spo_alert_sf_socket.sbr" \
 	"$(INTDIR)\spo_alert_syslog.sbr" \
 	"$(INTDIR)\spo_alert_unixsock.sbr" \
@@ -414,11 +460,13 @@ BSC32_SBRS= \
 	"$(INTDIR)\portscan.sbr" \
 	"$(INTDIR)\sfprocpidstats.sbr" \
 	"$(INTDIR)\snort_httpinspect.sbr" \
+	"$(INTDIR)\snort_stream4_session.sbr" \
 	"$(INTDIR)\spp_arpspoof.sbr" \
 	"$(INTDIR)\spp_bo.sbr" \
 	"$(INTDIR)\spp_conversation.sbr" \
 	"$(INTDIR)\spp_flow.sbr" \
 	"$(INTDIR)\spp_frag2.sbr" \
+	"$(INTDIR)\spp_frag3.sbr" \
 	"$(INTDIR)\spp_httpinspect.sbr" \
 	"$(INTDIR)\spp_perfmonitor.sbr" \
 	"$(INTDIR)\spp_portscan.sbr" \
@@ -427,6 +475,9 @@ BSC32_SBRS= \
 	"$(INTDIR)\spp_sfportscan.sbr" \
 	"$(INTDIR)\spp_stream4.sbr" \
 	"$(INTDIR)\spp_telnet_negotiation.sbr" \
+	"$(INTDIR)\spp_xlink2state.sbr" \
+	"$(INTDIR)\str_search.sbr" \
+	"$(INTDIR)\xlink2state.sbr" \
 	"$(INTDIR)\acsmx.sbr" \
 	"$(INTDIR)\acsmx2.sbr" \
 	"$(INTDIR)\asn1.sbr" \
@@ -439,6 +490,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sfksearch.sbr" \
 	"$(INTDIR)\sflsq.sbr" \
 	"$(INTDIR)\sfmemcap.sbr" \
+	"$(INTDIR)\sfsnprintfappend.sbr" \
 	"$(INTDIR)\sfthd.sbr" \
 	"$(INTDIR)\sfxhash.sbr" \
 	"$(INTDIR)\util_math.sbr" \
@@ -477,8 +529,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\misc.sbr" \
 	"$(INTDIR)\strtok_r.sbr" \
 	"$(INTDIR)\syslog.sbr" \
-	"$(INTDIR)\win32_service.sbr" \
-	"$(INTDIR)\sfsnprintfappend.sbr"
+	"$(INTDIR)\win32_service.sbr"
 
 "$(OUTDIR)\snort.bsc" : "$(OUTDIR)" $(BSC32_SBRS)
     $(BSC32) @<<
@@ -494,6 +545,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_clientserver.obj" \
 	"$(INTDIR)\sp_dsize_check.obj" \
 	"$(INTDIR)\sp_flowbits.obj" \
+	"$(INTDIR)\sp_ftpbounce.obj" \
 	"$(INTDIR)\sp_icmp_code_check.obj" \
 	"$(INTDIR)\sp_icmp_id_check.obj" \
 	"$(INTDIR)\sp_icmp_seq_check.obj" \
@@ -518,6 +570,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_ttl_check.obj" \
 	"$(INTDIR)\spo_alert_fast.obj" \
 	"$(INTDIR)\spo_alert_full.obj" \
+	"$(INTDIR)\spo_alert_prelude.obj" \
 	"$(INTDIR)\spo_alert_sf_socket.obj" \
 	"$(INTDIR)\spo_alert_syslog.obj" \
 	"$(INTDIR)\spo_alert_unixsock.obj" \
@@ -562,11 +615,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\portscan.obj" \
 	"$(INTDIR)\sfprocpidstats.obj" \
 	"$(INTDIR)\snort_httpinspect.obj" \
+	"$(INTDIR)\snort_stream4_session.obj" \
 	"$(INTDIR)\spp_arpspoof.obj" \
 	"$(INTDIR)\spp_bo.obj" \
 	"$(INTDIR)\spp_conversation.obj" \
 	"$(INTDIR)\spp_flow.obj" \
 	"$(INTDIR)\spp_frag2.obj" \
+	"$(INTDIR)\spp_frag3.obj" \
 	"$(INTDIR)\spp_httpinspect.obj" \
 	"$(INTDIR)\spp_perfmonitor.obj" \
 	"$(INTDIR)\spp_portscan.obj" \
@@ -575,6 +630,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\spp_sfportscan.obj" \
 	"$(INTDIR)\spp_stream4.obj" \
 	"$(INTDIR)\spp_telnet_negotiation.obj" \
+	"$(INTDIR)\spp_xlink2state.obj" \
+	"$(INTDIR)\str_search.obj" \
+	"$(INTDIR)\xlink2state.obj" \
 	"$(INTDIR)\acsmx.obj" \
 	"$(INTDIR)\acsmx2.obj" \
 	"$(INTDIR)\asn1.obj" \
@@ -587,6 +645,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sfksearch.obj" \
 	"$(INTDIR)\sflsq.obj" \
 	"$(INTDIR)\sfmemcap.obj" \
+	"$(INTDIR)\sfsnprintfappend.obj" \
 	"$(INTDIR)\sfthd.obj" \
 	"$(INTDIR)\sfxhash.obj" \
 	"$(INTDIR)\util_math.obj" \
@@ -626,8 +685,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\strtok_r.obj" \
 	"$(INTDIR)\syslog.obj" \
 	"$(INTDIR)\win32_service.obj" \
-	"..\WIN32-Code\name.res" \
-	"$(INTDIR)\sfsnprintfappend.obj"
+	"..\WIN32-Code\name.res"
 
 "$(OUTDIR)\snort.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -719,6 +777,7 @@ CLEAN :
 	-@erase "$(INTDIR)\signature.obj"
 	-@erase "$(INTDIR)\snort.obj"
 	-@erase "$(INTDIR)\snort_httpinspect.obj"
+	-@erase "$(INTDIR)\snort_stream4_session.obj"
 	-@erase "$(INTDIR)\snprintf.obj"
 	-@erase "$(INTDIR)\sp_asn1.obj"
 	-@erase "$(INTDIR)\sp_byte_check.obj"
@@ -726,6 +785,7 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_clientserver.obj"
 	-@erase "$(INTDIR)\sp_dsize_check.obj"
 	-@erase "$(INTDIR)\sp_flowbits.obj"
+	-@erase "$(INTDIR)\sp_ftpbounce.obj"
 	-@erase "$(INTDIR)\sp_icmp_code_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_id_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_seq_check.obj"
@@ -750,6 +810,7 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_ttl_check.obj"
 	-@erase "$(INTDIR)\spo_alert_fast.obj"
 	-@erase "$(INTDIR)\spo_alert_full.obj"
+	-@erase "$(INTDIR)\spo_alert_prelude.obj"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.obj"
 	-@erase "$(INTDIR)\spo_alert_syslog.obj"
 	-@erase "$(INTDIR)\spo_alert_unixsock.obj"
@@ -764,6 +825,7 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_conversation.obj"
 	-@erase "$(INTDIR)\spp_flow.obj"
 	-@erase "$(INTDIR)\spp_frag2.obj"
+	-@erase "$(INTDIR)\spp_frag3.obj"
 	-@erase "$(INTDIR)\spp_httpinspect.obj"
 	-@erase "$(INTDIR)\spp_perfmonitor.obj"
 	-@erase "$(INTDIR)\spp_portscan.obj"
@@ -772,6 +834,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_sfportscan.obj"
 	-@erase "$(INTDIR)\spp_stream4.obj"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.obj"
+	-@erase "$(INTDIR)\spp_xlink2state.obj"
+	-@erase "$(INTDIR)\str_search.obj"
 	-@erase "$(INTDIR)\strlcatu.obj"
 	-@erase "$(INTDIR)\strlcpyu.obj"
 	-@erase "$(INTDIR)\strtok_r.obj"
@@ -786,6 +850,7 @@ CLEAN :
 	-@erase "$(INTDIR)\util_str.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\win32_service.obj"
+	-@erase "$(INTDIR)\xlink2state.obj"
 	-@erase "$(OUTDIR)\snort.exe"
 	-@erase "..\WIN32-Code\MSG00001.BIN"
 	-@erase "..\WIN32-Code\name.h"
@@ -794,7 +859,40 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP=cl.exe
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+RSC=rc.exe
 RSC_PROJ=/l 0x409 /fo"$(INTDIR)\name.res" /d "NDEBUG" 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\snort.bsc" 
@@ -809,6 +907,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_clientserver.obj" \
 	"$(INTDIR)\sp_dsize_check.obj" \
 	"$(INTDIR)\sp_flowbits.obj" \
+	"$(INTDIR)\sp_ftpbounce.obj" \
 	"$(INTDIR)\sp_icmp_code_check.obj" \
 	"$(INTDIR)\sp_icmp_id_check.obj" \
 	"$(INTDIR)\sp_icmp_seq_check.obj" \
@@ -833,6 +932,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_ttl_check.obj" \
 	"$(INTDIR)\spo_alert_fast.obj" \
 	"$(INTDIR)\spo_alert_full.obj" \
+	"$(INTDIR)\spo_alert_prelude.obj" \
 	"$(INTDIR)\spo_alert_sf_socket.obj" \
 	"$(INTDIR)\spo_alert_syslog.obj" \
 	"$(INTDIR)\spo_alert_unixsock.obj" \
@@ -877,11 +977,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\portscan.obj" \
 	"$(INTDIR)\sfprocpidstats.obj" \
 	"$(INTDIR)\snort_httpinspect.obj" \
+	"$(INTDIR)\snort_stream4_session.obj" \
 	"$(INTDIR)\spp_arpspoof.obj" \
 	"$(INTDIR)\spp_bo.obj" \
 	"$(INTDIR)\spp_conversation.obj" \
 	"$(INTDIR)\spp_flow.obj" \
 	"$(INTDIR)\spp_frag2.obj" \
+	"$(INTDIR)\spp_frag3.obj" \
 	"$(INTDIR)\spp_httpinspect.obj" \
 	"$(INTDIR)\spp_perfmonitor.obj" \
 	"$(INTDIR)\spp_portscan.obj" \
@@ -890,6 +992,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\spp_sfportscan.obj" \
 	"$(INTDIR)\spp_stream4.obj" \
 	"$(INTDIR)\spp_telnet_negotiation.obj" \
+	"$(INTDIR)\spp_xlink2state.obj" \
+	"$(INTDIR)\str_search.obj" \
+	"$(INTDIR)\xlink2state.obj" \
 	"$(INTDIR)\acsmx.obj" \
 	"$(INTDIR)\acsmx2.obj" \
 	"$(INTDIR)\asn1.obj" \
@@ -902,6 +1007,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sfksearch.obj" \
 	"$(INTDIR)\sflsq.obj" \
 	"$(INTDIR)\sfmemcap.obj" \
+	"$(INTDIR)\sfsnprintfappend.obj" \
 	"$(INTDIR)\sfthd.obj" \
 	"$(INTDIR)\sfxhash.obj" \
 	"$(INTDIR)\util_math.obj" \
@@ -941,8 +1047,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\strtok_r.obj" \
 	"$(INTDIR)\syslog.obj" \
 	"$(INTDIR)\win32_service.obj" \
-	"..\WIN32-Code\name.res" \
-	"$(INTDIR)\sfsnprintfappend.obj"
+	"..\WIN32-Code\name.res"
 
 "$(OUTDIR)\snort.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -1107,6 +1212,8 @@ CLEAN :
 	-@erase "$(INTDIR)\snort.sbr"
 	-@erase "$(INTDIR)\snort_httpinspect.obj"
 	-@erase "$(INTDIR)\snort_httpinspect.sbr"
+	-@erase "$(INTDIR)\snort_stream4_session.obj"
+	-@erase "$(INTDIR)\snort_stream4_session.sbr"
 	-@erase "$(INTDIR)\snprintf.obj"
 	-@erase "$(INTDIR)\snprintf.sbr"
 	-@erase "$(INTDIR)\sp_asn1.obj"
@@ -1121,6 +1228,8 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_dsize_check.sbr"
 	-@erase "$(INTDIR)\sp_flowbits.obj"
 	-@erase "$(INTDIR)\sp_flowbits.sbr"
+	-@erase "$(INTDIR)\sp_ftpbounce.obj"
+	-@erase "$(INTDIR)\sp_ftpbounce.sbr"
 	-@erase "$(INTDIR)\sp_icmp_code_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_code_check.sbr"
 	-@erase "$(INTDIR)\sp_icmp_id_check.obj"
@@ -1169,6 +1278,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spo_alert_fast.sbr"
 	-@erase "$(INTDIR)\spo_alert_full.obj"
 	-@erase "$(INTDIR)\spo_alert_full.sbr"
+	-@erase "$(INTDIR)\spo_alert_prelude.obj"
+	-@erase "$(INTDIR)\spo_alert_prelude.sbr"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.obj"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.sbr"
 	-@erase "$(INTDIR)\spo_alert_syslog.obj"
@@ -1197,6 +1308,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_flow.sbr"
 	-@erase "$(INTDIR)\spp_frag2.obj"
 	-@erase "$(INTDIR)\spp_frag2.sbr"
+	-@erase "$(INTDIR)\spp_frag3.obj"
+	-@erase "$(INTDIR)\spp_frag3.sbr"
 	-@erase "$(INTDIR)\spp_httpinspect.obj"
 	-@erase "$(INTDIR)\spp_httpinspect.sbr"
 	-@erase "$(INTDIR)\spp_perfmonitor.obj"
@@ -1213,6 +1326,10 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_stream4.sbr"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.obj"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.sbr"
+	-@erase "$(INTDIR)\spp_xlink2state.obj"
+	-@erase "$(INTDIR)\spp_xlink2state.sbr"
+	-@erase "$(INTDIR)\str_search.obj"
+	-@erase "$(INTDIR)\str_search.sbr"
 	-@erase "$(INTDIR)\strlcatu.obj"
 	-@erase "$(INTDIR)\strlcatu.sbr"
 	-@erase "$(INTDIR)\strlcpyu.obj"
@@ -1241,6 +1358,8 @@ CLEAN :
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(INTDIR)\win32_service.obj"
 	-@erase "$(INTDIR)\win32_service.sbr"
+	-@erase "$(INTDIR)\xlink2state.obj"
+	-@erase "$(INTDIR)\xlink2state.sbr"
 	-@erase "$(OUTDIR)\snort.bsc"
 	-@erase "$(OUTDIR)\snort.exe"
 	-@erase "$(OUTDIR)\snort.ilk"
@@ -1252,7 +1371,40 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_MSSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fr"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX"snort.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP=cl.exe
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_MSSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fr"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX"snort.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+RSC=rc.exe
 RSC_PROJ=/l 0x409 /fo"$(INTDIR)\name.res" /d "_DEBUG" 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\snort.bsc" 
@@ -1263,6 +1415,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sp_clientserver.sbr" \
 	"$(INTDIR)\sp_dsize_check.sbr" \
 	"$(INTDIR)\sp_flowbits.sbr" \
+	"$(INTDIR)\sp_ftpbounce.sbr" \
 	"$(INTDIR)\sp_icmp_code_check.sbr" \
 	"$(INTDIR)\sp_icmp_id_check.sbr" \
 	"$(INTDIR)\sp_icmp_seq_check.sbr" \
@@ -1287,6 +1440,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sp_ttl_check.sbr" \
 	"$(INTDIR)\spo_alert_fast.sbr" \
 	"$(INTDIR)\spo_alert_full.sbr" \
+	"$(INTDIR)\spo_alert_prelude.sbr" \
 	"$(INTDIR)\spo_alert_sf_socket.sbr" \
 	"$(INTDIR)\spo_alert_syslog.sbr" \
 	"$(INTDIR)\spo_alert_unixsock.sbr" \
@@ -1331,11 +1485,13 @@ BSC32_SBRS= \
 	"$(INTDIR)\portscan.sbr" \
 	"$(INTDIR)\sfprocpidstats.sbr" \
 	"$(INTDIR)\snort_httpinspect.sbr" \
+	"$(INTDIR)\snort_stream4_session.sbr" \
 	"$(INTDIR)\spp_arpspoof.sbr" \
 	"$(INTDIR)\spp_bo.sbr" \
 	"$(INTDIR)\spp_conversation.sbr" \
 	"$(INTDIR)\spp_flow.sbr" \
 	"$(INTDIR)\spp_frag2.sbr" \
+	"$(INTDIR)\spp_frag3.sbr" \
 	"$(INTDIR)\spp_httpinspect.sbr" \
 	"$(INTDIR)\spp_perfmonitor.sbr" \
 	"$(INTDIR)\spp_portscan.sbr" \
@@ -1344,6 +1500,9 @@ BSC32_SBRS= \
 	"$(INTDIR)\spp_sfportscan.sbr" \
 	"$(INTDIR)\spp_stream4.sbr" \
 	"$(INTDIR)\spp_telnet_negotiation.sbr" \
+	"$(INTDIR)\spp_xlink2state.sbr" \
+	"$(INTDIR)\str_search.sbr" \
+	"$(INTDIR)\xlink2state.sbr" \
 	"$(INTDIR)\acsmx.sbr" \
 	"$(INTDIR)\acsmx2.sbr" \
 	"$(INTDIR)\asn1.sbr" \
@@ -1356,6 +1515,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sfksearch.sbr" \
 	"$(INTDIR)\sflsq.sbr" \
 	"$(INTDIR)\sfmemcap.sbr" \
+	"$(INTDIR)\sfsnprintfappend.sbr" \
 	"$(INTDIR)\sfthd.sbr" \
 	"$(INTDIR)\sfxhash.sbr" \
 	"$(INTDIR)\util_math.sbr" \
@@ -1394,8 +1554,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\misc.sbr" \
 	"$(INTDIR)\strtok_r.sbr" \
 	"$(INTDIR)\syslog.sbr" \
-	"$(INTDIR)\win32_service.sbr" \
-	"$(INTDIR)\sfsnprintfappend.sbr"
+	"$(INTDIR)\win32_service.sbr"
 
 "$(OUTDIR)\snort.bsc" : "$(OUTDIR)" $(BSC32_SBRS)
     $(BSC32) @<<
@@ -1411,6 +1570,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_clientserver.obj" \
 	"$(INTDIR)\sp_dsize_check.obj" \
 	"$(INTDIR)\sp_flowbits.obj" \
+	"$(INTDIR)\sp_ftpbounce.obj" \
 	"$(INTDIR)\sp_icmp_code_check.obj" \
 	"$(INTDIR)\sp_icmp_id_check.obj" \
 	"$(INTDIR)\sp_icmp_seq_check.obj" \
@@ -1435,6 +1595,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_ttl_check.obj" \
 	"$(INTDIR)\spo_alert_fast.obj" \
 	"$(INTDIR)\spo_alert_full.obj" \
+	"$(INTDIR)\spo_alert_prelude.obj" \
 	"$(INTDIR)\spo_alert_sf_socket.obj" \
 	"$(INTDIR)\spo_alert_syslog.obj" \
 	"$(INTDIR)\spo_alert_unixsock.obj" \
@@ -1479,11 +1640,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\portscan.obj" \
 	"$(INTDIR)\sfprocpidstats.obj" \
 	"$(INTDIR)\snort_httpinspect.obj" \
+	"$(INTDIR)\snort_stream4_session.obj" \
 	"$(INTDIR)\spp_arpspoof.obj" \
 	"$(INTDIR)\spp_bo.obj" \
 	"$(INTDIR)\spp_conversation.obj" \
 	"$(INTDIR)\spp_flow.obj" \
 	"$(INTDIR)\spp_frag2.obj" \
+	"$(INTDIR)\spp_frag3.obj" \
 	"$(INTDIR)\spp_httpinspect.obj" \
 	"$(INTDIR)\spp_perfmonitor.obj" \
 	"$(INTDIR)\spp_portscan.obj" \
@@ -1492,6 +1655,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\spp_sfportscan.obj" \
 	"$(INTDIR)\spp_stream4.obj" \
 	"$(INTDIR)\spp_telnet_negotiation.obj" \
+	"$(INTDIR)\spp_xlink2state.obj" \
+	"$(INTDIR)\str_search.obj" \
+	"$(INTDIR)\xlink2state.obj" \
 	"$(INTDIR)\acsmx.obj" \
 	"$(INTDIR)\acsmx2.obj" \
 	"$(INTDIR)\asn1.obj" \
@@ -1504,6 +1670,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sfksearch.obj" \
 	"$(INTDIR)\sflsq.obj" \
 	"$(INTDIR)\sfmemcap.obj" \
+	"$(INTDIR)\sfsnprintfappend.obj" \
 	"$(INTDIR)\sfthd.obj" \
 	"$(INTDIR)\sfxhash.obj" \
 	"$(INTDIR)\util_math.obj" \
@@ -1543,8 +1710,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\strtok_r.obj" \
 	"$(INTDIR)\syslog.obj" \
 	"$(INTDIR)\win32_service.obj" \
-	"..\WIN32-Code\name.res" \
-	"$(INTDIR)\sfsnprintfappend.obj"
+	"..\WIN32-Code\name.res"
 
 "$(OUTDIR)\snort.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -1636,6 +1802,7 @@ CLEAN :
 	-@erase "$(INTDIR)\signature.obj"
 	-@erase "$(INTDIR)\snort.obj"
 	-@erase "$(INTDIR)\snort_httpinspect.obj"
+	-@erase "$(INTDIR)\snort_stream4_session.obj"
 	-@erase "$(INTDIR)\snprintf.obj"
 	-@erase "$(INTDIR)\sp_asn1.obj"
 	-@erase "$(INTDIR)\sp_byte_check.obj"
@@ -1643,6 +1810,7 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_clientserver.obj"
 	-@erase "$(INTDIR)\sp_dsize_check.obj"
 	-@erase "$(INTDIR)\sp_flowbits.obj"
+	-@erase "$(INTDIR)\sp_ftpbounce.obj"
 	-@erase "$(INTDIR)\sp_icmp_code_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_id_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_seq_check.obj"
@@ -1667,6 +1835,7 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_ttl_check.obj"
 	-@erase "$(INTDIR)\spo_alert_fast.obj"
 	-@erase "$(INTDIR)\spo_alert_full.obj"
+	-@erase "$(INTDIR)\spo_alert_prelude.obj"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.obj"
 	-@erase "$(INTDIR)\spo_alert_syslog.obj"
 	-@erase "$(INTDIR)\spo_alert_unixsock.obj"
@@ -1681,6 +1850,7 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_conversation.obj"
 	-@erase "$(INTDIR)\spp_flow.obj"
 	-@erase "$(INTDIR)\spp_frag2.obj"
+	-@erase "$(INTDIR)\spp_frag3.obj"
 	-@erase "$(INTDIR)\spp_httpinspect.obj"
 	-@erase "$(INTDIR)\spp_perfmonitor.obj"
 	-@erase "$(INTDIR)\spp_portscan.obj"
@@ -1689,6 +1859,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_sfportscan.obj"
 	-@erase "$(INTDIR)\spp_stream4.obj"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.obj"
+	-@erase "$(INTDIR)\spp_xlink2state.obj"
+	-@erase "$(INTDIR)\str_search.obj"
 	-@erase "$(INTDIR)\strlcatu.obj"
 	-@erase "$(INTDIR)\strlcpyu.obj"
 	-@erase "$(INTDIR)\strtok_r.obj"
@@ -1703,6 +1875,7 @@ CLEAN :
 	-@erase "$(INTDIR)\util_str.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\win32_service.obj"
+	-@erase "$(INTDIR)\xlink2state.obj"
 	-@erase "$(OUTDIR)\snort.exe"
 	-@erase "..\WIN32-Code\MSG00001.BIN"
 	-@erase "..\WIN32-Code\name.h"
@@ -1711,7 +1884,40 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MSSQL" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX"snort.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP=cl.exe
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MSSQL" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX"snort.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+RSC=rc.exe
 RSC_PROJ=/l 0x409 /fo"$(INTDIR)\name.res" /d "NDEBUG" 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\snort.bsc" 
@@ -1726,6 +1932,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_clientserver.obj" \
 	"$(INTDIR)\sp_dsize_check.obj" \
 	"$(INTDIR)\sp_flowbits.obj" \
+	"$(INTDIR)\sp_ftpbounce.obj" \
 	"$(INTDIR)\sp_icmp_code_check.obj" \
 	"$(INTDIR)\sp_icmp_id_check.obj" \
 	"$(INTDIR)\sp_icmp_seq_check.obj" \
@@ -1750,6 +1957,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_ttl_check.obj" \
 	"$(INTDIR)\spo_alert_fast.obj" \
 	"$(INTDIR)\spo_alert_full.obj" \
+	"$(INTDIR)\spo_alert_prelude.obj" \
 	"$(INTDIR)\spo_alert_sf_socket.obj" \
 	"$(INTDIR)\spo_alert_syslog.obj" \
 	"$(INTDIR)\spo_alert_unixsock.obj" \
@@ -1794,11 +2002,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\portscan.obj" \
 	"$(INTDIR)\sfprocpidstats.obj" \
 	"$(INTDIR)\snort_httpinspect.obj" \
+	"$(INTDIR)\snort_stream4_session.obj" \
 	"$(INTDIR)\spp_arpspoof.obj" \
 	"$(INTDIR)\spp_bo.obj" \
 	"$(INTDIR)\spp_conversation.obj" \
 	"$(INTDIR)\spp_flow.obj" \
 	"$(INTDIR)\spp_frag2.obj" \
+	"$(INTDIR)\spp_frag3.obj" \
 	"$(INTDIR)\spp_httpinspect.obj" \
 	"$(INTDIR)\spp_perfmonitor.obj" \
 	"$(INTDIR)\spp_portscan.obj" \
@@ -1807,6 +2017,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\spp_sfportscan.obj" \
 	"$(INTDIR)\spp_stream4.obj" \
 	"$(INTDIR)\spp_telnet_negotiation.obj" \
+	"$(INTDIR)\spp_xlink2state.obj" \
+	"$(INTDIR)\str_search.obj" \
+	"$(INTDIR)\xlink2state.obj" \
 	"$(INTDIR)\acsmx.obj" \
 	"$(INTDIR)\acsmx2.obj" \
 	"$(INTDIR)\asn1.obj" \
@@ -1819,6 +2032,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sfksearch.obj" \
 	"$(INTDIR)\sflsq.obj" \
 	"$(INTDIR)\sfmemcap.obj" \
+	"$(INTDIR)\sfsnprintfappend.obj" \
 	"$(INTDIR)\sfthd.obj" \
 	"$(INTDIR)\sfxhash.obj" \
 	"$(INTDIR)\util_math.obj" \
@@ -1858,8 +2072,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\strtok_r.obj" \
 	"$(INTDIR)\syslog.obj" \
 	"$(INTDIR)\win32_service.obj" \
-	"..\WIN32-Code\name.res" \
-	"$(INTDIR)\sfsnprintfappend.obj"
+	"..\WIN32-Code\name.res"
 
 "$(OUTDIR)\snort.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -2024,6 +2237,8 @@ CLEAN :
 	-@erase "$(INTDIR)\snort.sbr"
 	-@erase "$(INTDIR)\snort_httpinspect.obj"
 	-@erase "$(INTDIR)\snort_httpinspect.sbr"
+	-@erase "$(INTDIR)\snort_stream4_session.obj"
+	-@erase "$(INTDIR)\snort_stream4_session.sbr"
 	-@erase "$(INTDIR)\snprintf.obj"
 	-@erase "$(INTDIR)\snprintf.sbr"
 	-@erase "$(INTDIR)\sp_asn1.obj"
@@ -2038,6 +2253,8 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_dsize_check.sbr"
 	-@erase "$(INTDIR)\sp_flowbits.obj"
 	-@erase "$(INTDIR)\sp_flowbits.sbr"
+	-@erase "$(INTDIR)\sp_ftpbounce.obj"
+	-@erase "$(INTDIR)\sp_ftpbounce.sbr"
 	-@erase "$(INTDIR)\sp_icmp_code_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_code_check.sbr"
 	-@erase "$(INTDIR)\sp_icmp_id_check.obj"
@@ -2086,6 +2303,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spo_alert_fast.sbr"
 	-@erase "$(INTDIR)\spo_alert_full.obj"
 	-@erase "$(INTDIR)\spo_alert_full.sbr"
+	-@erase "$(INTDIR)\spo_alert_prelude.obj"
+	-@erase "$(INTDIR)\spo_alert_prelude.sbr"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.obj"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.sbr"
 	-@erase "$(INTDIR)\spo_alert_syslog.obj"
@@ -2114,6 +2333,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_flow.sbr"
 	-@erase "$(INTDIR)\spp_frag2.obj"
 	-@erase "$(INTDIR)\spp_frag2.sbr"
+	-@erase "$(INTDIR)\spp_frag3.obj"
+	-@erase "$(INTDIR)\spp_frag3.sbr"
 	-@erase "$(INTDIR)\spp_httpinspect.obj"
 	-@erase "$(INTDIR)\spp_httpinspect.sbr"
 	-@erase "$(INTDIR)\spp_perfmonitor.obj"
@@ -2130,6 +2351,10 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_stream4.sbr"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.obj"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.sbr"
+	-@erase "$(INTDIR)\spp_xlink2state.obj"
+	-@erase "$(INTDIR)\spp_xlink2state.sbr"
+	-@erase "$(INTDIR)\str_search.obj"
+	-@erase "$(INTDIR)\str_search.sbr"
 	-@erase "$(INTDIR)\strlcatu.obj"
 	-@erase "$(INTDIR)\strlcatu.sbr"
 	-@erase "$(INTDIR)\strlcpyu.obj"
@@ -2158,6 +2383,8 @@ CLEAN :
 	-@erase "$(INTDIR)\vc60.pdb"
 	-@erase "$(INTDIR)\win32_service.obj"
 	-@erase "$(INTDIR)\win32_service.sbr"
+	-@erase "$(INTDIR)\xlink2state.obj"
+	-@erase "$(INTDIR)\xlink2state.sbr"
 	-@erase "$(OUTDIR)\snort.bsc"
 	-@erase "$(OUTDIR)\snort.exe"
 	-@erase "$(OUTDIR)\snort.ilk"
@@ -2169,7 +2396,40 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /I "D:\oracle\ora92\oci\include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_ORACLE" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fr"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX"snort.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+CPP=cl.exe
+CPP_PROJ=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "D:\oracle\ora92\oci\include" /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_ORACLE" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fr"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX"snort.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+RSC=rc.exe
 RSC_PROJ=/l 0x409 /fo"$(INTDIR)\name.res" /d "_DEBUG" 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\snort.bsc" 
@@ -2180,6 +2440,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sp_clientserver.sbr" \
 	"$(INTDIR)\sp_dsize_check.sbr" \
 	"$(INTDIR)\sp_flowbits.sbr" \
+	"$(INTDIR)\sp_ftpbounce.sbr" \
 	"$(INTDIR)\sp_icmp_code_check.sbr" \
 	"$(INTDIR)\sp_icmp_id_check.sbr" \
 	"$(INTDIR)\sp_icmp_seq_check.sbr" \
@@ -2204,6 +2465,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sp_ttl_check.sbr" \
 	"$(INTDIR)\spo_alert_fast.sbr" \
 	"$(INTDIR)\spo_alert_full.sbr" \
+	"$(INTDIR)\spo_alert_prelude.sbr" \
 	"$(INTDIR)\spo_alert_sf_socket.sbr" \
 	"$(INTDIR)\spo_alert_syslog.sbr" \
 	"$(INTDIR)\spo_alert_unixsock.sbr" \
@@ -2248,11 +2510,13 @@ BSC32_SBRS= \
 	"$(INTDIR)\portscan.sbr" \
 	"$(INTDIR)\sfprocpidstats.sbr" \
 	"$(INTDIR)\snort_httpinspect.sbr" \
+	"$(INTDIR)\snort_stream4_session.sbr" \
 	"$(INTDIR)\spp_arpspoof.sbr" \
 	"$(INTDIR)\spp_bo.sbr" \
 	"$(INTDIR)\spp_conversation.sbr" \
 	"$(INTDIR)\spp_flow.sbr" \
 	"$(INTDIR)\spp_frag2.sbr" \
+	"$(INTDIR)\spp_frag3.sbr" \
 	"$(INTDIR)\spp_httpinspect.sbr" \
 	"$(INTDIR)\spp_perfmonitor.sbr" \
 	"$(INTDIR)\spp_portscan.sbr" \
@@ -2261,6 +2525,9 @@ BSC32_SBRS= \
 	"$(INTDIR)\spp_sfportscan.sbr" \
 	"$(INTDIR)\spp_stream4.sbr" \
 	"$(INTDIR)\spp_telnet_negotiation.sbr" \
+	"$(INTDIR)\spp_xlink2state.sbr" \
+	"$(INTDIR)\str_search.sbr" \
+	"$(INTDIR)\xlink2state.sbr" \
 	"$(INTDIR)\acsmx.sbr" \
 	"$(INTDIR)\acsmx2.sbr" \
 	"$(INTDIR)\asn1.sbr" \
@@ -2273,6 +2540,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\sfksearch.sbr" \
 	"$(INTDIR)\sflsq.sbr" \
 	"$(INTDIR)\sfmemcap.sbr" \
+	"$(INTDIR)\sfsnprintfappend.sbr" \
 	"$(INTDIR)\sfthd.sbr" \
 	"$(INTDIR)\sfxhash.sbr" \
 	"$(INTDIR)\util_math.sbr" \
@@ -2311,8 +2579,7 @@ BSC32_SBRS= \
 	"$(INTDIR)\misc.sbr" \
 	"$(INTDIR)\strtok_r.sbr" \
 	"$(INTDIR)\syslog.sbr" \
-	"$(INTDIR)\win32_service.sbr" \
-	"$(INTDIR)\sfsnprintfappend.sbr"
+	"$(INTDIR)\win32_service.sbr"
 
 "$(OUTDIR)\snort.bsc" : "$(OUTDIR)" $(BSC32_SBRS)
     $(BSC32) @<<
@@ -2328,6 +2595,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_clientserver.obj" \
 	"$(INTDIR)\sp_dsize_check.obj" \
 	"$(INTDIR)\sp_flowbits.obj" \
+	"$(INTDIR)\sp_ftpbounce.obj" \
 	"$(INTDIR)\sp_icmp_code_check.obj" \
 	"$(INTDIR)\sp_icmp_id_check.obj" \
 	"$(INTDIR)\sp_icmp_seq_check.obj" \
@@ -2352,6 +2620,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_ttl_check.obj" \
 	"$(INTDIR)\spo_alert_fast.obj" \
 	"$(INTDIR)\spo_alert_full.obj" \
+	"$(INTDIR)\spo_alert_prelude.obj" \
 	"$(INTDIR)\spo_alert_sf_socket.obj" \
 	"$(INTDIR)\spo_alert_syslog.obj" \
 	"$(INTDIR)\spo_alert_unixsock.obj" \
@@ -2396,11 +2665,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\portscan.obj" \
 	"$(INTDIR)\sfprocpidstats.obj" \
 	"$(INTDIR)\snort_httpinspect.obj" \
+	"$(INTDIR)\snort_stream4_session.obj" \
 	"$(INTDIR)\spp_arpspoof.obj" \
 	"$(INTDIR)\spp_bo.obj" \
 	"$(INTDIR)\spp_conversation.obj" \
 	"$(INTDIR)\spp_flow.obj" \
 	"$(INTDIR)\spp_frag2.obj" \
+	"$(INTDIR)\spp_frag3.obj" \
 	"$(INTDIR)\spp_httpinspect.obj" \
 	"$(INTDIR)\spp_perfmonitor.obj" \
 	"$(INTDIR)\spp_portscan.obj" \
@@ -2409,6 +2680,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\spp_sfportscan.obj" \
 	"$(INTDIR)\spp_stream4.obj" \
 	"$(INTDIR)\spp_telnet_negotiation.obj" \
+	"$(INTDIR)\spp_xlink2state.obj" \
+	"$(INTDIR)\str_search.obj" \
+	"$(INTDIR)\xlink2state.obj" \
 	"$(INTDIR)\acsmx.obj" \
 	"$(INTDIR)\acsmx2.obj" \
 	"$(INTDIR)\asn1.obj" \
@@ -2421,6 +2695,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sfksearch.obj" \
 	"$(INTDIR)\sflsq.obj" \
 	"$(INTDIR)\sfmemcap.obj" \
+	"$(INTDIR)\sfsnprintfappend.obj" \
 	"$(INTDIR)\sfthd.obj" \
 	"$(INTDIR)\sfxhash.obj" \
 	"$(INTDIR)\util_math.obj" \
@@ -2460,8 +2735,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\strtok_r.obj" \
 	"$(INTDIR)\syslog.obj" \
 	"$(INTDIR)\win32_service.obj" \
-	"..\WIN32-Code\name.res" \
-	"$(INTDIR)\sfsnprintfappend.obj"
+	"..\WIN32-Code\name.res"
 
 "$(OUTDIR)\snort.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -2553,6 +2827,7 @@ CLEAN :
 	-@erase "$(INTDIR)\signature.obj"
 	-@erase "$(INTDIR)\snort.obj"
 	-@erase "$(INTDIR)\snort_httpinspect.obj"
+	-@erase "$(INTDIR)\snort_stream4_session.obj"
 	-@erase "$(INTDIR)\snprintf.obj"
 	-@erase "$(INTDIR)\sp_asn1.obj"
 	-@erase "$(INTDIR)\sp_byte_check.obj"
@@ -2560,6 +2835,7 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_clientserver.obj"
 	-@erase "$(INTDIR)\sp_dsize_check.obj"
 	-@erase "$(INTDIR)\sp_flowbits.obj"
+	-@erase "$(INTDIR)\sp_ftpbounce.obj"
 	-@erase "$(INTDIR)\sp_icmp_code_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_id_check.obj"
 	-@erase "$(INTDIR)\sp_icmp_seq_check.obj"
@@ -2584,6 +2860,7 @@ CLEAN :
 	-@erase "$(INTDIR)\sp_ttl_check.obj"
 	-@erase "$(INTDIR)\spo_alert_fast.obj"
 	-@erase "$(INTDIR)\spo_alert_full.obj"
+	-@erase "$(INTDIR)\spo_alert_prelude.obj"
 	-@erase "$(INTDIR)\spo_alert_sf_socket.obj"
 	-@erase "$(INTDIR)\spo_alert_syslog.obj"
 	-@erase "$(INTDIR)\spo_alert_unixsock.obj"
@@ -2598,6 +2875,7 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_conversation.obj"
 	-@erase "$(INTDIR)\spp_flow.obj"
 	-@erase "$(INTDIR)\spp_frag2.obj"
+	-@erase "$(INTDIR)\spp_frag3.obj"
 	-@erase "$(INTDIR)\spp_httpinspect.obj"
 	-@erase "$(INTDIR)\spp_perfmonitor.obj"
 	-@erase "$(INTDIR)\spp_portscan.obj"
@@ -2606,6 +2884,8 @@ CLEAN :
 	-@erase "$(INTDIR)\spp_sfportscan.obj"
 	-@erase "$(INTDIR)\spp_stream4.obj"
 	-@erase "$(INTDIR)\spp_telnet_negotiation.obj"
+	-@erase "$(INTDIR)\spp_xlink2state.obj"
+	-@erase "$(INTDIR)\str_search.obj"
 	-@erase "$(INTDIR)\strlcatu.obj"
 	-@erase "$(INTDIR)\strlcpyu.obj"
 	-@erase "$(INTDIR)\strtok_r.obj"
@@ -2620,6 +2900,7 @@ CLEAN :
 	-@erase "$(INTDIR)\util_str.obj"
 	-@erase "$(INTDIR)\vc60.idb"
 	-@erase "$(INTDIR)\win32_service.obj"
+	-@erase "$(INTDIR)\xlink2state.obj"
 	-@erase "$(OUTDIR)\snort.exe"
 	-@erase "..\WIN32-Code\MSG00001.BIN"
 	-@erase "..\WIN32-Code\name.h"
@@ -2628,7 +2909,40 @@ CLEAN :
 "$(OUTDIR)" :
     if not exist "$(OUTDIR)/$(NULL)" mkdir "$(OUTDIR)"
 
-CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /I "D:\oracle\ora92\oci\include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_ORACLE" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX"snort.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+CPP=cl.exe
+CPP_PROJ=/nologo /MT /W3 /GX /O2 /I "D:\oracle\ora92\oci\include" /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_ORACLE" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX"snort.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
+
+.c{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.c{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cpp{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+.cxx{$(INTDIR)}.sbr::
+   $(CPP) @<<
+   $(CPP_PROJ) $< 
+<<
+
+RSC=rc.exe
 RSC_PROJ=/l 0x409 /fo"$(INTDIR)\name.res" /d "NDEBUG" 
 BSC32=bscmake.exe
 BSC32_FLAGS=/nologo /o"$(OUTDIR)\snort.bsc" 
@@ -2643,6 +2957,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_clientserver.obj" \
 	"$(INTDIR)\sp_dsize_check.obj" \
 	"$(INTDIR)\sp_flowbits.obj" \
+	"$(INTDIR)\sp_ftpbounce.obj" \
 	"$(INTDIR)\sp_icmp_code_check.obj" \
 	"$(INTDIR)\sp_icmp_id_check.obj" \
 	"$(INTDIR)\sp_icmp_seq_check.obj" \
@@ -2667,6 +2982,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sp_ttl_check.obj" \
 	"$(INTDIR)\spo_alert_fast.obj" \
 	"$(INTDIR)\spo_alert_full.obj" \
+	"$(INTDIR)\spo_alert_prelude.obj" \
 	"$(INTDIR)\spo_alert_sf_socket.obj" \
 	"$(INTDIR)\spo_alert_syslog.obj" \
 	"$(INTDIR)\spo_alert_unixsock.obj" \
@@ -2711,11 +3027,13 @@ LINK32_OBJS= \
 	"$(INTDIR)\portscan.obj" \
 	"$(INTDIR)\sfprocpidstats.obj" \
 	"$(INTDIR)\snort_httpinspect.obj" \
+	"$(INTDIR)\snort_stream4_session.obj" \
 	"$(INTDIR)\spp_arpspoof.obj" \
 	"$(INTDIR)\spp_bo.obj" \
 	"$(INTDIR)\spp_conversation.obj" \
 	"$(INTDIR)\spp_flow.obj" \
 	"$(INTDIR)\spp_frag2.obj" \
+	"$(INTDIR)\spp_frag3.obj" \
 	"$(INTDIR)\spp_httpinspect.obj" \
 	"$(INTDIR)\spp_perfmonitor.obj" \
 	"$(INTDIR)\spp_portscan.obj" \
@@ -2724,6 +3042,9 @@ LINK32_OBJS= \
 	"$(INTDIR)\spp_sfportscan.obj" \
 	"$(INTDIR)\spp_stream4.obj" \
 	"$(INTDIR)\spp_telnet_negotiation.obj" \
+	"$(INTDIR)\spp_xlink2state.obj" \
+	"$(INTDIR)\str_search.obj" \
+	"$(INTDIR)\xlink2state.obj" \
 	"$(INTDIR)\acsmx.obj" \
 	"$(INTDIR)\acsmx2.obj" \
 	"$(INTDIR)\asn1.obj" \
@@ -2736,6 +3057,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\sfksearch.obj" \
 	"$(INTDIR)\sflsq.obj" \
 	"$(INTDIR)\sfmemcap.obj" \
+	"$(INTDIR)\sfsnprintfappend.obj" \
 	"$(INTDIR)\sfthd.obj" \
 	"$(INTDIR)\sfxhash.obj" \
 	"$(INTDIR)\util_math.obj" \
@@ -2775,8 +3097,7 @@ LINK32_OBJS= \
 	"$(INTDIR)\strtok_r.obj" \
 	"$(INTDIR)\syslog.obj" \
 	"$(INTDIR)\win32_service.obj" \
-	"..\WIN32-Code\name.res" \
-	"$(INTDIR)\sfsnprintfappend.obj"
+	"..\WIN32-Code\name.res"
 
 "$(OUTDIR)\snort.exe" : "$(OUTDIR)" $(DEF_FILE) $(LINK32_OBJS)
     $(LINK32) @<<
@@ -2784,36 +3105,6 @@ LINK32_OBJS= \
 <<
 
 !ENDIF 
-
-.c{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.obj::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.c{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cpp{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
-
-.cxx{$(INTDIR)}.sbr::
-   $(CPP) @<<
-   $(CPP_PROJ) $< 
-<<
 
 
 !IF "$(NO_EXTERNAL_DEPS)" != "1"
@@ -3097,6 +3388,52 @@ SOURCE="..\..\detection-plugins\sp_flowbits.c"
 
 
 "$(INTDIR)\sp_flowbits.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE="..\..\detection-plugins\sp_ftpbounce.c"
+
+!IF  "$(CFG)" == "snort - Win32 MySQL Debug"
+
+
+"$(INTDIR)\sp_ftpbounce.obj"	"$(INTDIR)\sp_ftpbounce.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 MySQL Release"
+
+
+"$(INTDIR)\sp_ftpbounce.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Debug"
+
+
+"$(INTDIR)\sp_ftpbounce.obj"	"$(INTDIR)\sp_ftpbounce.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Release"
+
+
+"$(INTDIR)\sp_ftpbounce.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Debug"
+
+
+"$(INTDIR)\sp_ftpbounce.obj"	"$(INTDIR)\sp_ftpbounce.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
+
+
+"$(INTDIR)\sp_ftpbounce.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -4201,6 +4538,52 @@ SOURCE="..\..\output-plugins\spo_alert_full.c"
 
 
 "$(INTDIR)\spo_alert_full.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE="..\..\output-plugins\spo_alert_prelude.c"
+
+!IF  "$(CFG)" == "snort - Win32 MySQL Debug"
+
+
+"$(INTDIR)\spo_alert_prelude.obj"	"$(INTDIR)\spo_alert_prelude.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 MySQL Release"
+
+
+"$(INTDIR)\spo_alert_prelude.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Debug"
+
+
+"$(INTDIR)\spo_alert_prelude.obj"	"$(INTDIR)\spo_alert_prelude.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Release"
+
+
+"$(INTDIR)\spo_alert_prelude.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Debug"
+
+
+"$(INTDIR)\spo_alert_prelude.obj"	"$(INTDIR)\spo_alert_prelude.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
+
+
+"$(INTDIR)\spo_alert_prelude.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -6230,6 +6613,52 @@ SOURCE=..\..\preprocessors\snort_httpinspect.c
 
 !ENDIF 
 
+SOURCE=..\..\preprocessors\snort_stream4_session.c
+
+!IF  "$(CFG)" == "snort - Win32 MySQL Debug"
+
+
+"$(INTDIR)\snort_stream4_session.obj"	"$(INTDIR)\snort_stream4_session.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 MySQL Release"
+
+
+"$(INTDIR)\snort_stream4_session.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Debug"
+
+
+"$(INTDIR)\snort_stream4_session.obj"	"$(INTDIR)\snort_stream4_session.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Release"
+
+
+"$(INTDIR)\snort_stream4_session.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Debug"
+
+
+"$(INTDIR)\snort_stream4_session.obj"	"$(INTDIR)\snort_stream4_session.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
+
+
+"$(INTDIR)\snort_stream4_session.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
 SOURCE=..\..\preprocessors\spp_arpspoof.c
 
 !IF  "$(CFG)" == "snort - Win32 MySQL Debug"
@@ -6455,6 +6884,52 @@ SOURCE=..\..\preprocessors\spp_frag2.c
 
 
 "$(INTDIR)\spp_frag2.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\..\preprocessors\spp_frag3.c
+
+!IF  "$(CFG)" == "snort - Win32 MySQL Debug"
+
+
+"$(INTDIR)\spp_frag3.obj"	"$(INTDIR)\spp_frag3.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 MySQL Release"
+
+
+"$(INTDIR)\spp_frag3.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Debug"
+
+
+"$(INTDIR)\spp_frag3.obj"	"$(INTDIR)\spp_frag3.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Release"
+
+
+"$(INTDIR)\spp_frag3.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Debug"
+
+
+"$(INTDIR)\spp_frag3.obj"	"$(INTDIR)\spp_frag3.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
+
+
+"$(INTDIR)\spp_frag3.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -6823,6 +7298,144 @@ SOURCE=..\..\preprocessors\spp_telnet_negotiation.c
 
 
 "$(INTDIR)\spp_telnet_negotiation.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\..\preprocessors\spp_xlink2state.c
+
+!IF  "$(CFG)" == "snort - Win32 MySQL Debug"
+
+
+"$(INTDIR)\spp_xlink2state.obj"	"$(INTDIR)\spp_xlink2state.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 MySQL Release"
+
+
+"$(INTDIR)\spp_xlink2state.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Debug"
+
+
+"$(INTDIR)\spp_xlink2state.obj"	"$(INTDIR)\spp_xlink2state.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Release"
+
+
+"$(INTDIR)\spp_xlink2state.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Debug"
+
+
+"$(INTDIR)\spp_xlink2state.obj"	"$(INTDIR)\spp_xlink2state.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
+
+
+"$(INTDIR)\spp_xlink2state.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\..\preprocessors\str_search.c
+
+!IF  "$(CFG)" == "snort - Win32 MySQL Debug"
+
+
+"$(INTDIR)\str_search.obj"	"$(INTDIR)\str_search.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 MySQL Release"
+
+
+"$(INTDIR)\str_search.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Debug"
+
+
+"$(INTDIR)\str_search.obj"	"$(INTDIR)\str_search.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Release"
+
+
+"$(INTDIR)\str_search.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Debug"
+
+
+"$(INTDIR)\str_search.obj"	"$(INTDIR)\str_search.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
+
+
+"$(INTDIR)\str_search.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ENDIF 
+
+SOURCE=..\..\preprocessors\xlink2state.c
+
+!IF  "$(CFG)" == "snort - Win32 MySQL Debug"
+
+
+"$(INTDIR)\xlink2state.obj"	"$(INTDIR)\xlink2state.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 MySQL Release"
+
+
+"$(INTDIR)\xlink2state.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Debug"
+
+
+"$(INTDIR)\xlink2state.obj"	"$(INTDIR)\xlink2state.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Release"
+
+
+"$(INTDIR)\xlink2state.obj" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Debug"
+
+
+"$(INTDIR)\xlink2state.obj"	"$(INTDIR)\xlink2state.sbr" : $(SOURCE) "$(INTDIR)"
+	$(CPP) $(CPP_PROJ) $(SOURCE)
+
+
+!ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
+
+
+"$(INTDIR)\xlink2state.obj" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -7660,44 +8273,62 @@ SOURCE=..\..\byte_extract.c
 
 !IF  "$(CFG)" == "snort - Win32 MySQL Debug"
 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /FR"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 
 "$(INTDIR)\byte_extract.obj"	"$(INTDIR)\byte_extract.sbr" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
 
 
 !ELSEIF  "$(CFG)" == "snort - Win32 MySQL Release"
 
+CPP_SWITCHES=/nologo /MT /W3 /GX /O2 /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 
 "$(INTDIR)\byte_extract.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
 
 
 !ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Debug"
 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MYSQL" /D "ENABLE_MSSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fr"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX"snort.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 
 "$(INTDIR)\byte_extract.obj"	"$(INTDIR)\byte_extract.sbr" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
 
 
 !ELSEIF  "$(CFG)" == "snort - Win32 SQLServer Release"
 
+CPP_SWITCHES=/nologo /MT /W3 /GX /O2 /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_MSSQL" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX"snort.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 
 "$(INTDIR)\byte_extract.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
 
 
 !ELSEIF  "$(CFG)" == "snort - Win32 Oracle Debug"
 
+CPP_SWITCHES=/nologo /MTd /W3 /Gm /GX /ZI /Od /I "D:\oracle\ora92\oci\include" /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "_DEBUG" /D "DEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_ORACLE" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fr"$(INTDIR)\\" /Fp"$(INTDIR)\snort.pch" /YX"snort.h" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /GZ /c 
 
 "$(INTDIR)\byte_extract.obj"	"$(INTDIR)\byte_extract.sbr" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
 
 
 !ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
 
+CPP_SWITCHES=/nologo /MT /W3 /GX /O2 /I "D:\oracle\ora92\oci\include" /I "..\..\.." /I "..\.." /I "..\..\sfutil" /I "..\Win32-Includes" /I "..\Win32-Includes\WinPCAP" /I "..\Win32-Includes\mysql" /I "..\Win32-Includes\libnet" /I "..\..\output-plugins" /I "..\..\detection-plugins" /I "..\..\preprocessors" /I "..\..\preprocessors\flow" /I "..\..\preprocessors\portscan" /I "..\..\preprocessors\flow\int-snort" /I "..\..\preprocessors\HttpInspect\Include" /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /D __BEGIN_DECLS="" /D __END_DECLS="" /D "HAVE_CONFIG_H" /D "ENABLE_ORACLE" /D "ENABLE_MYSQL" /D "ENABLE_ODBC" /D "ENABLE_RESPONSE" /D "ENABLE_WIN32_SERVICE" /Fp"$(INTDIR)\snort.pch" /YX"snort.pch" /Fo"$(INTDIR)\\" /Fd"$(INTDIR)\\" /FD /c 
 
 "$(INTDIR)\byte_extract.obj" : $(SOURCE) "$(INTDIR)"
-	$(CPP) $(CPP_PROJ) $(SOURCE)
+	$(CPP) @<<
+  $(CPP_SWITCHES) $(SOURCE)
+<<
 
 
 !ENDIF 
@@ -8903,7 +9534,7 @@ SOURCE=..\..\util.c
 !IF  "$(CFG)" == "snort - Win32 MySQL Debug"
 
 
-"$(INTDIR)\util.obj"	"$(INTDIR)\util.sbr" : $(SOURCE) "$(INTDIR)" "..\WIN32-Code\name.h"
+"$(INTDIR)\util.obj"	"$(INTDIR)\util.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -8938,7 +9569,7 @@ SOURCE=..\..\util.c
 !ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
 
 
-"$(INTDIR)\util.obj" : $(SOURCE) "$(INTDIR)"
+"$(INTDIR)\util.obj" : $(SOURCE) "$(INTDIR)" "..\WIN32-Code\name.h"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -9273,7 +9904,7 @@ SOURCE="..\WIN32-Code\syslog.c"
 !IF  "$(CFG)" == "snort - Win32 MySQL Debug"
 
 
-"$(INTDIR)\syslog.obj"	"$(INTDIR)\syslog.sbr" : $(SOURCE) "$(INTDIR)" "..\WIN32-Code\name.h"
+"$(INTDIR)\syslog.obj"	"$(INTDIR)\syslog.sbr" : $(SOURCE) "$(INTDIR)"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 
@@ -9308,7 +9939,7 @@ SOURCE="..\WIN32-Code\syslog.c"
 !ELSEIF  "$(CFG)" == "snort - Win32 Oracle Release"
 
 
-"$(INTDIR)\syslog.obj" : $(SOURCE) "$(INTDIR)"
+"$(INTDIR)\syslog.obj" : $(SOURCE) "$(INTDIR)" "..\WIN32-Code\name.h"
 	$(CPP) $(CPP_PROJ) $(SOURCE)
 
 

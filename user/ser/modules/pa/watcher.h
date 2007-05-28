@@ -1,7 +1,7 @@
 /*
  * Presence Agent, watcher structure and related functions
  *
- * $Id$
+ * $Id: watcher.h,v 1.4.4.1 2003/11/11 14:32:27 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

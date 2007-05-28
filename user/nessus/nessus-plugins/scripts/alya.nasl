@@ -4,7 +4,7 @@
 if(description)
 {
  script_id(11118); 
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.7 $");
  name["english"] = "alya.cgi";
  script_name(english:name["english"]);
  
@@ -12,7 +12,7 @@ if(description)
 alya.cgi is a cgi backdoor distributed with 
 multiple rootkits.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -34,6 +34,12 @@ Risk factor : Serious";
  exit(0);
 }
 
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("alya.cgi");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(port:port, item:"alya.cgi");
+if( res )security_hole(port);

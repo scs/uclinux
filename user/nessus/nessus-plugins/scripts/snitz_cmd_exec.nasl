@@ -5,7 +5,7 @@
 if (description)
 {
  script_id(11621);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.6 $");
 
  script_name(english:"Snitz Forums Cmd execution");
  desc["english"] = "
@@ -25,6 +25,7 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -34,6 +35,7 @@ include("http_keepalive.inc");
 
 function mkreq(path)
 {
+ data = "Refer=&Email=test%27example.org&Email2=&HideMail=0&ICQ=&YAHOO=&AIM=&Homepage=&Link1=&Link2=&Name=test&Password=test&Password-d=&Country=&Sig=&MEMBER_ID=&Submit1=Submit";
  req = string("POST ", path, "/register.asp?mode=DoIt HTTP/1.1\r
 Host: ", get_host_name(), "\r
 User-Agent: Mozilla/5.0 (X11; U; Linux i386; en-US; rv:1.3)\r
@@ -43,25 +45,26 @@ Accept-Encoding: gzip,deflate,compress;q=0.9\r
 Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7\r
 Referer: http:/", get_host_name(), path, "/register.asp\r
 Content-Type: application/x-www-form-urlencoded\r
-Content-Length: 167\r
-\r
-Refer=&Email=test%27example.org&Email2=&HideMail=0&ICQ=&YAHOO=&AIM=&Homepage=&Link1=&Link2=&Name=test&Password=test&Password-d=&Country=&Sig=&MEMBER_ID=&Submit1=Submit");
+Content-Length: ", strlen(data), "\r\n\r\n", data);
  return req;
 }
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_asp(port:port))exit(0);
 
 
-dir = make_list("/forum", cgi_dirs(), "");
 		
 
 
-foreach d (dir)
+foreach d ( cgi_dirs() )
 {
+ if ( is_cgi_installed_ka(item:d + "/register.asp", port:port) )
+ {
  req = mkreq(path:d);
  res = http_keepalive_send_recv(port:port, data:req);
  if( res == NULL ) exit(0);
  if("HTTP/1.1 500" >< res && "Microsoft OLE DB Provider for SQL Server" >< res){ security_hole(port); exit(0); }
+ }
 }

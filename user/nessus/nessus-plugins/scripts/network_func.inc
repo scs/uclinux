@@ -1,12 +1,18 @@
 # -*- Fundamental -*-
 #
 # (C) 2002 Michel Arboi <arboi@alussinan.org>
-# $Revision: 1.3 $
+# $Revision: 1.8 $
 
 # test if address is on a LAN, reserved or not routable address
 
+# This disturbs nasl -L, unfortunately
+# if (! GLOBAL_SETTINGS_INC) include('global_settings.inc');
+ 
 function is_private_addr(addr)
 {
+  if (all_addr_private) return 1;
+  if (all_addr_public) return 1;
+
   local_var	a;
   if (! addr)
     a = get_host_ip();
@@ -53,7 +59,7 @@ function test_udp_port(port, data, retries)
     r = send_packet(udp, pcap_timeout:1, pcap_active: TRUE, pcap_filter: f);
     if (r)
       if (ord(r[9]) == 17)	# udp
-        return 1;
+        return 2;
       else
       {
         ##dump(ddata: r, dtitle: "sniffed");
@@ -81,7 +87,7 @@ function ip_checksum(data)
   sum = 0;
   for (i = 0; i < n - 1; i += 2)
   {
-    sum = sum + ord(data[i]) + 256 * ord(data[i+1]);
+    sum = sum + ord(data[i]) * 256 + ord(data[i+1]);
   }
   if (i < n)
     sum += ord(data[i]);
@@ -120,7 +126,7 @@ function htonl(n)
   local_var	i, j, s;
 
   j = n;	# We do not want to modify a global variable, just in case.
-  for (i = 0; j < 4; j ++)
+  for (i = 0; i < 4; i ++)
   {
     s[i] = j & 0xFF;
     j >>>= 8;
@@ -133,3 +139,12 @@ function htons(n)
   return raw_string((n >>> 8) & 0xFF, n & 0xFF);
 }
 
+function ntohl(n)
+{
+ if (strlen(n) != 4)
+ {
+  display('ntohl: invalid parameter\n');
+  return;
+ }
+ return (ord(n[0]) << 24) | (ord(n[1]) << 16) | (ord(n[2]) << 8) | ord(n[3]);
+}

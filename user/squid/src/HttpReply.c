@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: HttpReply.c,v 1.49.2.5 2005/03/26 02:50:51 hno Exp $
  *
  * DEBUG: section 58    HTTP Reply (Response)
  * AUTHOR: Alex Rousskov
@@ -135,7 +135,7 @@ httpReplyAbsorb(HttpReply * rep, HttpReply * new_rep)
  * returns true on success.
  */
 int
-httpReplyParse(HttpReply * rep, const char *buf, ssize_t end)
+httpReplyParse(HttpReply * rep, const char *buf, size_t end)
 {
     /*
      * this extra buffer/copy will be eliminated when headers become
@@ -143,16 +143,17 @@ httpReplyParse(HttpReply * rep, const char *buf, ssize_t end)
      * becuase somebody may feed a non NULL-terminated buffer to
      * us.
      */
-    char *headers = memAllocate(MEM_4K_BUF);
+    MemBuf mb = MemBufNull;
     int success;
-    size_t s = XMIN(end + 1, 4096);
     /* reset current state, because we are not used in incremental fashion */
     httpReplyReset(rep);
     /* put a string terminator.  s is how many bytes to touch in
      * 'buf' including the terminating NULL. */
-    xstrncpy(headers, buf, s);
-    success = httpReplyParseStep(rep, headers, 0);
-    memFree(headers, MEM_4K_BUF);
+    memBufDefInit(&mb);
+    memBufAppend(&mb, buf, end);
+    memBufAppend(&mb, "\0", 1);
+    success = httpReplyParseStep(rep, mb.buf, 0);
+    memBufClean(&mb);
     return success == 1;
 }
 
@@ -193,9 +194,10 @@ httpReplySwapOut(const HttpReply * rep, StoreEntry * e)
     packerClean(&p);
 }
 
+#if UNUSED_CODE
 MemBuf
 httpPackedReply(http_version_t ver, http_status status, const char *ctype,
-    int clen, time_t lmt, time_t expires)
+    squid_off_t clen, time_t lmt, time_t expires)
 {
     HttpReply *rep = httpReplyCreate();
     MemBuf mb;
@@ -204,6 +206,7 @@ httpPackedReply(http_version_t ver, http_status status, const char *ctype,
     httpReplyDestroy(rep);
     return mb;
 }
+#endif
 
 MemBuf
 httpPacked304Reply(const HttpReply * rep)
@@ -229,7 +232,7 @@ httpPacked304Reply(const HttpReply * rep)
 
 void
 httpReplySetHeaders(HttpReply * reply, http_version_t ver, http_status status, const char *reason,
-    const char *ctype, int clen, time_t lmt, time_t expires)
+    const char *ctype, squid_off_t clen, time_t lmt, time_t expires)
 {
     HttpHeader *hdr;
     assert(reply);
@@ -244,7 +247,7 @@ httpReplySetHeaders(HttpReply * reply, http_version_t ver, http_status status, c
     } else
 	reply->content_type = StringNull;
     if (clen >= 0)
-	httpHeaderPutInt(hdr, HDR_CONTENT_LENGTH, clen);
+	httpHeaderPutSize(hdr, HDR_CONTENT_LENGTH, clen);
     if (expires >= 0)
 	httpHeaderPutTime(hdr, HDR_EXPIRES, expires);
     if (lmt > 0)		/* this used to be lmt != 0 @?@ */
@@ -266,7 +269,7 @@ httpRedirectReply(HttpReply * reply, http_status status, const char *loc)
     hdr = &reply->header;
     httpHeaderPutStr(hdr, HDR_SERVER, full_appname_string);
     httpHeaderPutTime(hdr, HDR_DATE, squid_curtime);
-    httpHeaderPutInt(hdr, HDR_CONTENT_LENGTH, 0);
+    httpHeaderPutSize(hdr, HDR_CONTENT_LENGTH, 0);
     httpHeaderPutStr(hdr, HDR_LOCATION, loc);
     reply->date = squid_curtime;
     reply->content_length = 0;
@@ -341,7 +344,7 @@ httpReplyHdrCacheInit(HttpReply * rep)
 {
     const HttpHeader *hdr = &rep->header;
     const char *str;
-    rep->content_length = httpHeaderGetInt(hdr, HDR_CONTENT_LENGTH);
+    rep->content_length = httpHeaderGetSize(hdr, HDR_CONTENT_LENGTH);
     rep->date = httpHeaderGetTime(hdr, HDR_DATE);
     rep->last_modified = httpHeaderGetTime(hdr, HDR_LAST_MODIFIED);
     str = httpHeaderGetStr(hdr, HDR_CONTENT_TYPE);
@@ -448,10 +451,12 @@ httpReplyIsolateStart(const char **parse_start, const char **blk_start, const ch
 /*
  * Returns the body size of a HTTP response
  */
-int
-httpReplyBodySize(method_t method, HttpReply * reply)
+squid_off_t
+httpReplyBodySize(method_t method, const HttpReply * reply)
 {
-    if (METHOD_HEAD == method)
+    if (reply->sline.version.major < 1)
+	return -1;
+    else if (METHOD_HEAD == method)
 	return 0;
     else if (reply->sline.status == HTTP_OK)
 	(void) 0;		/* common case, continue */

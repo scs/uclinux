@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: access_log.c,v 1.72.2.8 2005/03/29 23:13:11 hno Exp $
  *
  * DEBUG: section 46    Access Log
  * AUTHOR: Duane Wessels
@@ -245,14 +245,14 @@ accessLogSquid(AccessLogEntry * al)
 	client = inet_ntoa(al->cache.caddr);
     user = accessLogFormatName(al->cache.authuser ?
 	al->cache.authuser : al->cache.rfc931);
-    logfilePrintf(logfile, "%9d.%03d %6d %s %s/%03d %lu %s %s %s %s%s/%s %s",
-	(int) current_time.tv_sec,
+    logfilePrintf(logfile, "%9ld.%03d %6d %s %s/%03d %" PRINTF_OFF_T " %s %s %s %s%s/%s %s",
+	(long int) current_time.tv_sec,
 	(int) current_time.tv_usec / 1000,
 	al->cache.msec,
 	client,
 	log_tags[al->cache.code],
 	al->http.code,
-	(unsigned long) al->cache.size,
+	al->cache.size,
 	al->private.method_str,
 	al->url,
 	user && *user ? user : dash_str,
@@ -274,7 +274,7 @@ accessLogCommon(AccessLogEntry * al)
 	client = inet_ntoa(al->cache.caddr);
     user1 = accessLogFormatName(al->cache.authuser);
     user2 = accessLogFormatName(al->cache.rfc931);
-    logfilePrintf(logfile, "%s %s %s [%s] \"%s %s HTTP/%d.%d\" %d %ld %s:%s",
+    logfilePrintf(logfile, "%s %s %s [%s] \"%s %s HTTP/%d.%d\" %d %" PRINTF_OFF_T " %s:%s",
 	client,
 	user2 ? user2 : dash_str,
 	user1 ? user1 : dash_str,
@@ -283,7 +283,7 @@ accessLogCommon(AccessLogEntry * al)
 	al->url,
 	al->http.version.major, al->http.version.minor,
 	al->http.code,
-	(long int) al->cache.size,
+	al->cache.size,
 	log_tags[al->cache.code],
 	hier_strings[al->hier.code]);
     safe_free(user1);

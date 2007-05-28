@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: short_term.c,v 1.4 1998/09/09 21:06:54 gert Exp $ */
 
 #include <stdio.h>
 #include <assert.h>

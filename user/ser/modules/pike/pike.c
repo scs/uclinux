@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pike.c,v 1.18.6.3 2004/05/26 19:15:18 bogdan Exp $
  *
  * PIKE module
  *

@@ -22,9 +22,19 @@
 if(description)
 {
  script_id(11714);
- script_bugtraq_id(4261);
+ script_bugtraq_id(3341, 4035, 4261, 5054, 8075);
+ # Note: the way the test is made will lead to detecting some
+ # path disclosure issues which might be checked by other plugins 
+ # (like #11226: Oracle9i jsp error). I have reviewed the reported
+ # "path disclosure" errors from bugtraq and the following list
+ # includes bugs which will be triggered by the NASL script. Some
+ # other "path disclosure" bugs in webservers might not be triggered
+ # since they might depend on some specific condition (execution
+ # of a cgi, options..)
+ # jfs - December 2003
+ script_cve_id("CVE-2003-0456","CVE-2001-1372");
  
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.9 $");
  name["english"] = "Non-Existant Page Physical Path Disclosure Vulnerability";
 
  script_name(english:name["english"]);
@@ -64,8 +74,8 @@ include("http_keepalive.inc");
 ext = make_list(".", "/", ".html", ".htm", ".jsp", ".asp", ".shtm", ".shtml",
 		".php", ".php3", ".php4", ".cfm");
 
-port = get_kb_item("Services/www");
-if(! port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 foreach e (ext)

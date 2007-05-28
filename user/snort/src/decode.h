@@ -36,13 +36,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <net/if.h>
-#endif /* !WIN32 */
-#if defined(WIN32) && !defined(IFNAMSIZ)
+#else /* !WIN32 */
+#include <netinet/in_systm.h>
 #include "libnet/IPExport.h"
+#ifndef IFNAMSIZ
 #define IFNAMESIZ MAX_ADAPTER_NAME
-#endif /* WIN#@ && !IFNAMSIZ */
+#endif /* !IFNAMSIZ */
+#endif /* !WIN32 */
 //#include "ubi_SplayTree.h"
-#include "stream.h"
 #include "bitop.h"
 
 
@@ -57,6 +58,7 @@
 #define ETHERNET_TYPE_PPPoE_DISC      0x8863 /* discovery stage */
 #define ETHERNET_TYPE_PPPoE_SESS      0x8864 /* session stage */
 #define ETHERNET_TYPE_8021Q           0x8100
+#define ETHERNET_TYPE_LOOP            0x9000
 
 #define ETH_DSAP_SNA                  0x08    /* SNA */
 #define ETH_SSAP_SNA                  0x00    /* SNA */
@@ -70,7 +72,7 @@
 
 #define ETHERNET_HEADER_LEN             14
 #define ETHERNET_MAX_LEN_ENCAP          1518    /* 802.3 (+LLC) or ether II ? */
-#define PPPOE_HEADER_LEN                20
+#define PPPOE_HEADER_LEN                20    /* ETHERNET_HEADER_LEN + 6 */
 #define MINIMAL_TOKENRING_HEADER_LEN    22
 #define MINIMAL_IEEE80211_HEADER_LEN    10    /* Ack frames and others */
 #define IEEE802_11_DATA_HDR_LEN         24    /* Header for data packets */
@@ -176,16 +178,25 @@ struct ppp_header {
 /* NULL aka LoopBack interfaces */
 #define NULL_HDRLEN             4
 
+/* enc interface */
+struct enc_header {
+    u_int32_t af;
+    u_int32_t spi;
+    u_int32_t flags;
+};
+#define ENC_HEADER_LEN          12
+
 /* otherwise defined in /usr/include/ppp_defs.h */
 #define IP_HEADER_LEN           20
 #define TCP_HEADER_LEN          20
 #define UDP_HEADER_LEN          8
 #define ICMP_HEADER_LEN         4
 
+#define IP_OPTMAX               40
 #define TCP_OPTLENMAX           40 /* (((2^4) - 1) * 4  - TCP_HEADER_LEN) */
 
 #ifndef IP_MAXPACKET
-#define	IP_MAXPACKET	65535		/* maximum packet size */
+#define IP_MAXPACKET    65535        /* maximum packet size */
 #endif /* IP_MAXPACKET */
 
 #define TH_FIN  0x01
@@ -550,6 +561,9 @@ struct ppp_header {
                                              (only set when we must look at an alernative buffer)
                                          */
 #define PKT_STREAM_TWH       0x00001000
+#define PKT_IGNORE_PORT      0x00002000  /* this packet should be ignored, based on port */
+#define PKT_PASS_RULE        0x00004000  /* this packet has matched a pass rule */
+#define PKT_STATELESS        0x10000000  /* Packet has matched a stateless rule */
 #define PKT_INLINE_DROP      0x20000000
 #define PKT_OBFUSCATED       0x40000000  /* this packet has been obfuscated */
 #define PKT_LOGGED           0x80000000  /* this packet has been logged */
@@ -688,12 +702,12 @@ typedef struct _SLLHdr {
 } SLLHdr;
 
 
-/* OpenBSD pf firewall pflog0 header
+/* Old OpenBSD pf firewall pflog0 header
  * (information from pf source in kernel)
  * the rule, reason, and action codes tell why the firewall dropped it -fleck
  */
 
-typedef struct _Pflog_hdr
+typedef struct _OldPflog_hdr
 {
     u_int32_t af;
     char intf[IFNAMSIZ];
@@ -701,10 +715,30 @@ typedef struct _Pflog_hdr
     u_short reason;
     u_short action;
     u_short dir;
+} OldPflogHdr;
+
+#define OLDPFLOG_HDRLEN    sizeof(struct _OldPflog_hdr)
+
+/* OpenBSD pf firewall pflog0 header
+ * (information from pf source in kernel)
+ * the rule, reason, and action codes tell why the firewall dropped it -fleck
+ */
+
+typedef struct _Pflog_hdr
+{
+        int8_t          length;
+        sa_family_t     af;
+        u_int8_t        action;
+        u_int8_t        reason;
+        char            ifname[IFNAMSIZ];
+        char            ruleset[16];
+        u_int32_t       rulenr;
+        u_int32_t       subrulenr;
+        u_int8_t        dir;
+        u_int8_t        pad[3];
 } PflogHdr;
 
 #define PFLOG_HDRLEN    sizeof(struct _Pflog_hdr)
-
 
 /*
  * ssl_pkttype values.
@@ -730,8 +764,8 @@ typedef struct _Pflog_hdr
 #endif
 
 #define VTH_PRIORITY(vh)  ((ntohs((vh)->vth_pri_cfi_vlan) & 0xe000) >> 13)
-#define VTH_CFI(vh)	  ((ntohs((vh)->vth_pri_cfi_vlan & 0x0100) >> 12))
-#define VTH_VLAN(vh)	  ((ntohs((vh)->vth_pri_cfi_vlan) & 0x0FFF))
+#define VTH_CFI(vh)       ((ntohs((vh)->vth_pri_cfi_vlan) & 0x0100) >> 12)
+#define VTH_VLAN(vh)      ((ntohs((vh)->vth_pri_cfi_vlan) & 0x0FFF))
 
 typedef struct _VlanTagHdr
 {
@@ -757,6 +791,14 @@ typedef struct _EthLlcOther
     u_int16_t proto_id;
 } EthLlcOther;
 
+/* We must twiddle to align the offset the ethernet header and align
+ * the IP header on solaris -- maybe this will work on HPUX too.
+ */
+#if defined (SOLARIS) || defined (SUNOS) || defined (__sparc__) || defined(__sparc64__) || defined (HPUX)
+#define SPARC_TWIDDLE       2
+#else
+#define SPARC_TWIDDLE       0
+#endif
 
 /* 
  * Ethernet header
@@ -796,12 +838,12 @@ typedef struct _WifiHdr
 #endif
 
 /* tcpdump shows us the way to cross platform compatibility */
-#define IP_VER(iph)	(((iph)->ip_verhl & 0xf0) >> 4)
-#define IP_HLEN(iph)	((iph)->ip_verhl & 0x0f)
+#define IP_VER(iph)    (((iph)->ip_verhl & 0xf0) >> 4)
+#define IP_HLEN(iph)   ((iph)->ip_verhl & 0x0f)
 
 /* we need to change them as well as get them */
-#define SET_IP_VER(iph, value)  ((iph)->ip_verhl = (((iph)->ip_verhl & 0x0f) | (value << 4)))
-#define SET_IP_HLEN(iph, value)  ((iph)->ip_verhl = (((iph)->ip_verhl & 0xf0) | (value & 0x0f)))
+#define SET_IP_VER(iph, value)  ((iph)->ip_verhl = (unsigned char)(((iph)->ip_verhl & 0x0f) | (value << 4)))
+#define SET_IP_HLEN(iph, value)  ((iph)->ip_verhl = (unsigned char)(((iph)->ip_verhl & 0xf0) | (value & 0x0f)))
 
 typedef struct _IPHdr
 {
@@ -832,13 +874,39 @@ typedef struct _IPHdr
 #endif
 
 
+#ifdef GRE
+
+#define GRE_TYPE_TRANS_BRIDGING 0x6558
+#define GRE_HEADER_LEN 4
+#define GRE_CHECKSUM_LEN 2
+#define GRE_OFFSET_LEN 2
+#define GRE_KEY_LEN 4
+#define GRE_SEQNO_LEN 4
+#define GRE_SRE_HEADER_LEN 4
+#define GRE_CHECKSUM_FLAG 0x80
+#define GRE_ROUTING_FLAG  0x40
+#define GRE_KEY_FLAG      0x20
+#define GRE_SEQNO_FLAG    0x10
+#define GRE_SSR_FLAG      0x08   /* strict source route */
+
+typedef struct _GREHdr {
+    u_int8_t flags;
+    u_int8_t version;
+    u_int16_t ether_type;
+} GREHdr;
+
+#endif
+
+
 /* more macros for TCP offset */
-#define TCP_OFFSET(tcph)	(((tcph)->th_offx2 & 0xf0) >> 4)
-#define TCP_X2(tcph)	((tcph)->th_offx2 & 0x0f)
+#define TCP_OFFSET(tcph)        (((tcph)->th_offx2 & 0xf0) >> 4)
+#define TCP_X2(tcph)            ((tcph)->th_offx2 & 0x0f)
+
+#define TCP_ISFLAGSET(tcph, flags) (((tcph)->th_flags & (flags)) == (flags))
 
 /* we need to change them as well as get them */
-#define SET_TCP_OFFSET(tcph, value)  ((tcph)->th_offx2 = (((tcph)->th_offx2 & 0x0f) | (value << 4)))
-#define SET_TCP_X2(tcph, value)  ((tcph)->th_offx2 = (((tcph)->th_offx2 & 0xf0) | (value & 0x0f)))
+#define SET_TCP_OFFSET(tcph, value)  ((tcph)->th_offx2 = (unsigned char)(((tcph)->th_offx2 & 0x0f) | (value << 4)))
+#define SET_TCP_X2(tcph, value)  ((tcph)->th_offx2 = (unsigned char)(((tcph)->th_offx2 & 0xf0) | (value & 0x0f)))
 
 typedef struct _TCPHdr
 {
@@ -846,7 +914,7 @@ typedef struct _TCPHdr
     u_int16_t th_dport;     /* destination port */
     u_int32_t th_seq;       /* sequence number */
     u_int32_t th_ack;       /* acknowledgement number */
-    u_int8_t th_offx2;     /* offset and reserved */
+    u_int8_t th_offx2;      /* offset and reserved */
     u_int8_t th_flags;
     u_int16_t th_win;       /* window */
     u_int16_t th_sum;       /* checksum */
@@ -954,13 +1022,6 @@ typedef struct _ICMPHdr
 }        ICMPHdr;
 
 
-typedef struct _echoext
-{
-    u_int16_t id;
-    u_int16_t seqno;
-
-}        echoext;
-
 typedef struct _ARPHdr
 {
     u_int16_t ar_hrd;       /* format of hardware address   */
@@ -1064,6 +1125,8 @@ typedef struct _Packet
 
     PflogHdr *pfh;              /* OpenBSD pflog interface header */
 
+    OldPflogHdr *opfh;          /* Old OpenBSD pflog interface header */
+
     EtherHdr *eh;               /* standard TCP/IP/Ethernet/ARP headers */
     VlanTagHdr *vh;
     EthLlc   *ehllc;
@@ -1078,6 +1141,8 @@ typedef struct _Packet
     u_int8_t *eaptype;
     EapolKey *eapolk;
 
+    PPPoEHdr *pppoeh;        /* Encapsulated PPP of Ether header */
+
     IPHdr *iph, *orig_iph;   /* and orig. headers for ICMP_*_UNREACH family */
     u_int32_t ip_options_len;
     u_int8_t *ip_options_data;
@@ -1089,7 +1154,9 @@ typedef struct _Packet
     UDPHdr *udph, *orig_udph;
     ICMPHdr *icmph, *orig_icmph;
 
-    echoext *ext;           /* ICMP echo extension struct */
+#ifdef GRE
+    GREHdr *greh;
+#endif
 
     u_int8_t *data;         /* packet payload pointer */
     u_int16_t dsize;        /* packet payload size */
@@ -1112,10 +1179,11 @@ typedef struct _Packet
     u_int8_t uri_count;     /* number of URIs in this packet */
 
     void *ssnptr;           /* for tcp session tracking info... */
+    void *fragtracker;      /* for ip fragmentation tracking info... */
     void *flow;             /* for flow info */
     void *streamptr;        /* for tcp pkt dump */
     
-    Options ip_options[40]; /* ip options decode structure */
+    Options ip_options[IP_OPTMAX]; /* ip options decode structure */
     u_int32_t ip_option_count;  /* number of options in this packet */
     u_char ip_lastopt_bad;  /* flag to indicate that option decoding was
                                halted due to a bad option */
@@ -1126,7 +1194,9 @@ typedef struct _Packet
 
     u_int8_t csum_flags;        /* checksum flags */
     u_int32_t packet_flags;     /* special flags for the packet */
-    int preprocessors;          /* flags for preprocessors to check */
+    u_int32_t bytes_to_inspect; /* Number of bytes to check against rules */
+
+    BITOP *preprocessor_bits;  /* flags for preprocessors to check */
 } Packet;
 
 typedef struct s_pseudoheader
@@ -1144,6 +1214,8 @@ typedef struct s_pseudoheader
 typedef struct _DecoderFlags
 {
     char decode_alerts;   /* if decode.c alerts are going to be enabled */
+    char oversized_alert;   /* alert if garbage after tcp/udp payload */
+    char oversized_drop;   /* alert if garbage after tcp/udp payload */
     char drop_alerts;     /* drop alerts from decoder */
     char tcpopt_experiment;  /* TcpOptions Decoder */
     char drop_tcpopt_experiment; /* Drop alerts from TcpOptions Decoder */
@@ -1178,20 +1250,28 @@ void DecodeI4LRawIPPkt(Packet *, struct pcap_pkthdr *, u_int8_t *);
 void DecodeI4LCiscoIPPkt(Packet *, struct pcap_pkthdr *, u_int8_t *);
 void DecodeChdlcPkt(Packet *, struct pcap_pkthdr *, u_int8_t *);
 void DecodePflog(Packet *, struct pcap_pkthdr *, u_int8_t *);
+void DecodeOldPflog(Packet *, struct pcap_pkthdr *, u_int8_t *);
 void DecodeIP(u_int8_t *, const u_int32_t, Packet *);
 void DecodeARP(u_int8_t *, u_int32_t, Packet *);
 void DecodeEapol(u_int8_t *, u_int32_t, Packet *);
 void DecodeEapolKey(u_int8_t *, u_int32_t, Packet *);
 void DecodeIPV6(u_int8_t *, u_int32_t);
 void DecodeIPX(u_int8_t *, u_int32_t);
+void DecodeEthLoopback(u_int8_t *, u_int32_t);
 void DecodeTCP(u_int8_t *, const u_int32_t, Packet *);
 void DecodeUDP(u_int8_t *, const u_int32_t, Packet *);
 void DecodeEAP(u_int8_t *, const u_int32_t, Packet *);
 void DecodeICMP(u_int8_t *, const u_int32_t, Packet *);
+void DecodeICMPEmbeddedIP(u_int8_t *, const u_int32_t, Packet *);
 void DecodeIPOptions(u_int8_t *, u_int32_t, Packet *);
 void DecodeTCPOptions(u_int8_t *, u_int32_t, Packet *);
 void DecodeIPOptions(u_int8_t *, u_int32_t, Packet *);
 void DecodePPPoEPkt(Packet *, struct pcap_pkthdr *, u_int8_t *);
+void DecodeEncPkt(Packet *, struct pcap_pkthdr *, u_int8_t *);
+#ifdef GRE
+void DecodeGRE(u_int8_t *, const u_int32_t, Packet *);
+void DecodeTransBridging(u_int8_t *, const u_int32_t, Packet *);
+#endif
 #ifdef GIDS
 #ifndef IPFW
 void DecodeIptablesPkt(Packet *, struct pcap_pkthdr *, u_int8_t *);

@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,26 +15,12 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * Users manager
  *
  */
  
 #include <includes.h>
-#ifdef NESSUSNT
-#include "wstuff.h"
-#endif
-
 #include "log.h"
 #include "users.h"
 #include "rules.h"
@@ -187,12 +173,14 @@ check_user(char * user, char * password, char * dname)
 #endif
 
   /* Should we change this for certificate authentication? */
-  if(!password || password[0] == '\0')
+  if( password == NULL || 
+      password[0] == '\0' )
    return BAD_LOGIN_ATTEMPT;
 
-  if(strstr(user, ".."))
+  if( strstr(user, "..") != NULL ||
+       strchr(user, '/') != NULL )
    return BAD_LOGIN_ATTEMPT;
-    
+  
   if (dname != NULL && *dname != '\0')
     {
       snprintf(fname, sizeof(fname), "%s/%s/auth/dname", NESSUSD_LOGINS, user);
@@ -202,17 +190,15 @@ check_user(char * user, char * password, char * dname)
 	{
 	  char	dnameref[512], *p;
 
-	  if (fgets(dnameref, sizeof(dnameref), f) != NULL)
+	  while (check_pass && fgets(dnameref, sizeof(dnameref) - 1, f) != NULL)
 	    {
 	      if ((p = strchr(dnameref, '\n')) != NULL)
 		*p = '\0';
 	      if (strcmp(dname, dnameref) == 0)
 		check_pass = 0;
-	      else
-		fprintf(stderr, "check_user: Bad DN for user %s\nGiven DN=%s\nKnown DN=%s\n", user, dname, dnameref);
 	    }
-	  else
-	    perror("fgets");
+          if(check_pass)
+	    log_write("check_user: Bad DN for user %s\nGiven DN=%s\nLast tried DN=%s\n", user, dname, dnameref);
 	  (void) fclose(f);
 	}
     }
@@ -227,7 +213,7 @@ check_user(char * user, char * password, char * dname)
      {
        char	seed[512], h1[MD5_DIGEST_LENGTH], h2[MD5_DIGEST_LENGTH];
        char	h16[MD5_DIGEST_LENGTH*2+1];
-       int	i, x;
+       int	i, x, n;
 
        /*
 	* file contains one or two string: 
@@ -254,11 +240,18 @@ check_user(char * user, char * password, char * dname)
 	   }
 	 else
 	   h1[i] = x;
-       for (p = seed; *p != '\0' && *p != '\n' && *p != '\r'; p ++)
+           
+       n = sizeof (seed) - 1;
+       
+       for (p = seed; *p != '\0' && *p != '\n' && *p != '\r'; p ++, n -- )
 	 ;
-       strcpy(p, password);
+         
+       if ( n < strlen(password) )
+            return BAD_LOGIN_ATTEMPT;
+            
+       strncpy(p, password, n);
 
-       MD5(seed, strlen(seed), h2);
+       MD5((unsigned char*)seed, strlen(seed), (unsigned char*)h2);
        if (memcmp(h1, h2, MD5_DIGEST_LENGTH) != 0)
 	 {
 	   return BAD_LOGIN_ATTEMPT;
@@ -271,10 +264,10 @@ check_user(char * user, char * password, char * dname)
      return BAD_LOGIN_ATTEMPT;
    
    bzero(orig, sizeof(orig));
-   fgets(orig, 254, f);
+   fgets(orig, sizeof ( orig ) - 1, f);
    fclose(f);
-   orig[strlen(orig)-1]='\0';
-   if(strcmp(password, orig))
+   if ( orig[0] != '\0' )orig[ strlen(orig) - 1 ]= '\0';
+   if(strcmp(password, orig) != 0)
    	return BAD_LOGIN_ATTEMPT;
      }
   }
@@ -282,9 +275,9 @@ check_user(char * user, char * password, char * dname)
  snprintf(fname, sizeof(fname), "%s/%s/auth/rules", NESSUSD_LOGINS, user);
  if ((f = fopen(fname, "r")) == NULL)
    perror(fname);
- if(!f) {
-  return BAD_LOGIN_ATTEMPT;
- }
+
+ if ( f == NULL ) return BAD_LOGIN_ATTEMPT;
+ 
   
  buf = emalloc(1024);
  ret = emalloc(sizeof(*ret));
@@ -293,7 +286,7 @@ check_user(char * user, char * password, char * dname)
  fclose(f);
  efree(&buf);
  
- return(ret);
+ return ret;
 }
  
  

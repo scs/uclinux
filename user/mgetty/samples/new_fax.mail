@@ -6,10 +6,7 @@
 #
 # gert@greenie.muc.de
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:30:47  vapier
-# import from upstream uClinux
-#
+# $Log: new_fax.mail,v $
 # Revision 1.2  2000/07/16 21:18:08  gert
 # add .gz to file names, for automatic unziping
 #

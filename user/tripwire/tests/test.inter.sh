@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id$
+# $Id: test.inter.sh,v 1.10 1994/02/22 07:46:19 gkim Exp $
 #
 #	Rigorous Tripwire functionality test suite
 #

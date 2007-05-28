@@ -19,7 +19,7 @@
 *  Author : Edouard Gomez (ed.gomez@free.fr)
 *  Creation : 08/08/2001
 *
-* $Id$
+* $Id: pppoa3.h,v 1.5 2003/08/06 01:37:46 rogler Exp $
 */
 
 #ifndef _PPPOA3_H_

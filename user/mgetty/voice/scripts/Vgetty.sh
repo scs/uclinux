@@ -6,7 +6,7 @@
 #
 # Derived from:
 # 
-# $Id$
+# $Id: Vgetty.sh,v 1.1 2000/06/11 16:01:44 marcs Exp $
 #
 # Copyright (c) 1998 Jan "Yenya" Kasprzak <kas@fi.muni.cz>. All rights
 # reserved. This package is free software; you can redistribute it and/or

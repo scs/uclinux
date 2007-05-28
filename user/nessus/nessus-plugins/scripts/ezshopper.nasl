@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10065);
- script_version ("$Revision: 1.21 $");
  script_bugtraq_id(1014);
- script_cve_id("CAN-2000-0187");
+ script_version ("$Revision: 1.25 $");
+ script_cve_id("CVE-2000-0187");
  
  name["english"] = "EZShopper 3.0";
  name["francais"] = "EZShopper 3.0";
@@ -67,6 +67,7 @@ Facteur de risque : Elevé";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -77,8 +78,8 @@ Facteur de risque : Elevé";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

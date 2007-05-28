@@ -1,4 +1,4 @@
-/*
+/* 
  * nftldump.c: Dumping the content of NFTL partitions on a "Physical Disk"
  *
  *
@@ -23,8 +23,6 @@
  *	2. test, test, and test !!!
  */
 
-#define _XOPEN_SOURCE 500 /* For pread */
-
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -33,11 +31,12 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
-
 #include <sys/ioctl.h>
 #include <asm/types.h>
-#include <mtd/mtd-user.h>
-#include <mtd/nftl-user.h>
+#include "mtd/mtd-user.h"
+#include "mtd/nftl-user.h"
+
+extern ssize_t pread();
 
 static struct NFTLMediaHeader MedHead[2];
 static mtd_info_t meminfo;
@@ -87,7 +86,7 @@ static unsigned short nextEUN(unsigned short curEUN)
 	return UCItable[curEUN][0].a.ReplUnitNum;
 }
 
-static unsigned int find_media_headers(void)
+static unsigned int find_media_headers()
 {
 	int i;
 	static unsigned long ofs = 0;
@@ -135,12 +134,12 @@ static unsigned int find_media_headers(void)
 	return NumMedHeads;
 }
 
-static void dump_erase_units(void)
+static void dump_erase_units()
 {
 	int i, j;
 	unsigned long ofs;
 
-	for (i = MedHead[0].FirstPhysicalEUN; i < MedHead[0].FirstPhysicalEUN +
+	for (i = MedHead[0].FirstPhysicalEUN; i < MedHead[0].FirstPhysicalEUN + 
 		     MedHead[0].NumEraseUnits; i++) {
 		/* For each Erase Unit */
 		ofs = i * meminfo.erasesize;
@@ -193,13 +192,13 @@ static void dump_erase_units(void)
 		if (UCItable[i][0].a.VirtUnitNum == 0xffff)
 			printf("Unit %d is free\n", i);
 		else
-			printf("Unit %d is in chain %d and %s a replacement\n", i,
+			printf("Unit %d is in chain %d and %s a replacement\n", i, 
 			       UCItable[i][0].a.VirtUnitNum & 0x7fff,
 			       UCItable[i][0].a.VirtUnitNum & 0x8000 ? "is" : "is not");
 	}
 }
 
-static void dump_virtual_units(void)
+static void dump_virtual_units()
 {
 	int i, j;
 	char readbuf[512];
@@ -259,7 +258,7 @@ static void dump_virtual_units(void)
 
 				write(ofd, readbuf, 512);
 			}
-
+	
 		}
 	}
 }

@@ -55,5 +55,8 @@ char * preferences_detached_scan_email(struct arglist *);
 
 void  preferences_reset_cache();
 int   preferences_user_is_admin(struct arglist* , struct arglist *);
+int   preferences_silent_dependencies(struct arglist*);
+
+int  preferences_nasl_no_signature_check(struct arglist * );
 
 #endif

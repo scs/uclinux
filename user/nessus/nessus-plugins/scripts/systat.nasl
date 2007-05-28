@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10275);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.13 $");
  script_cve_id("CVE-1999-0103");
  
  name["english"] = "Systat";
@@ -63,7 +63,7 @@ if(get_port_state(port))
  if(soc)
  {
   data = recv_line(socket:soc, length:1024);
-  if("PID" >< data )security_warning(port);
+  if("pid" >< tolower(data) )security_warning(port);
   close(soc);
  }
 }

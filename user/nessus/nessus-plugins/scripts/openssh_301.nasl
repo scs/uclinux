@@ -16,8 +16,8 @@
 if(description)
 {
  script_id(10802);
- script_version ("$Revision: 1.11 $");
- script_bugtraq_id(3560, 4560, 4241);
+ script_bugtraq_id(3560, 4241, 4560);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-2002-0083");
  
  name["english"] = "OpenSSH < 3.0.1";
@@ -36,7 +36,8 @@ believed to be unexploitable.
 *** Kerberos V
 
 Solution : Upgrade to OpenSSH 3.0.1
-Risk factor : Low (if you are not using Kerberos) or High (if kerberos is enabled)";
+
+Risk factor : Low (if you are not using Kerberos) / High (if kerberos is enabled)";
 	
 	
 
@@ -54,7 +55,7 @@ Risk factor : Low (if you are not using Kerberos) or High (if kerberos is enable
  family["english"] = "Gain a shell remotely";
  family["francais"] = "Obtenir un shell à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("ssh_detect.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -63,32 +64,16 @@ Risk factor : Low (if you are not using Kerberos) or High (if kerberos is enable
 # The script code starts here
 #
 
+include("backport.inc"); 
 
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
 
+banner = tolower(get_backport_banner(banner:banner));
 
-if(!banner)
-{
-  if(get_port_state(port))
-  {
-    soc = open_sock_tcp(port);
-    if(!soc)exit(0);
-    banner = recv_line(socket:soc, length:1024);
-    banner = tolower(banner);
-    close(soc);
-  }
-}
-
-if(!banner)exit(0);
-banner = tolower(banner);
-
-banner = banner - string("\r\n");
-
-banner = tolower(banner);
 if("openssh" >< banner)
 {
  if(ereg(pattern:".*openssh[-_]((1\..*)|(2\..*)|(3\.0[^\.]))[^0-9]*", string:banner))

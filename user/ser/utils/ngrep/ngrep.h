@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ngrep.h,v 1.3 2002/09/19 12:25:23 jku Rel $
  *
  * Copyright (c) 2001  Jordan Ritter <jpr5@darkridge.com>
  *

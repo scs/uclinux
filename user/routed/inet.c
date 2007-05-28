@@ -36,7 +36,7 @@
  * From: @(#)inet.c	8.2 (Berkeley) 8/14/93
  */
 char inet_rcsid[] = 
-  "$Id$";
+  "$Id: inet.c,v 1.5 1997/04/05 22:26:22 dholland Exp $";
 
 
 /*

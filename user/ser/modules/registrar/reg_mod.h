@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: reg_mod.h,v 1.6.4.2.2.1 2004/07/11 08:34:41 andrei Exp $ 
  *
  * registrar module interface
  *

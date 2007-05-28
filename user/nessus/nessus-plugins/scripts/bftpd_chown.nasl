@@ -1,16 +1,14 @@
 #
-# This script was written by Renaud Deraison <deraison@nessus.org>
-# 
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
 
 if(description)
 {
  script_id(10579);
- script_version ("$Revision: 1.17 $");
- script_cve_id("CAN-2001-0065", "CVE-2000-0943");
  script_bugtraq_id(2120);
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-2001-0065", "CVE-2000-0943");
  
  name["english"] = "bftpd chown overflow";
  name["francais"] = "bftpd chown overflow";
@@ -52,11 +50,9 @@ Facteur de risque : High";
  script_family(english:"FTP", francais:"FTP");
 
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-                  francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) Tenable Network Security");
                   
- script_dependencie("find_service.nes", "ftp_anonymous.nasl",
- 		    "ftp_write_dirs.nes" );
+ script_dependencie("find_service.nes", "ftp_anonymous.nasl", "ftp_writeable_directories.nasl" );
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -86,7 +82,7 @@ if(login)
  if(!get_port_state(port))exit(0);
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
   req = string("SITE CHOWN AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA A");
   req = req + string("\r\n");

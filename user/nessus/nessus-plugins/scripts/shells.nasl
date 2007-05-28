@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10252);
- script_version ("$Revision: 1.18 $");
- script_cve_id("CAN-1999-0509");
+ script_version ("$Revision: 1.23 $");
+ script_cve_id("CVE-1999-0509");
  
  name["english"] = "Shells in /cgi-bin";
  name["francais"] = "Shells dans /cgi-bin";
@@ -26,7 +26,7 @@ http daemon (usually root or nobody).
 
 Solution : Remove all the shells from /cgi-bin.
 
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Le serveur web distant à l'un des shells suivants installé
@@ -58,6 +58,7 @@ Facteur de risque : sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -67,9 +68,13 @@ Facteur de risque : sérieux";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 

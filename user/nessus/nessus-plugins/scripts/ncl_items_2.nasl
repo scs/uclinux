@@ -10,9 +10,9 @@
 if(description)
 {
  script_id(10665);
- script_version ("$Revision: 1.7 $");
  script_bugtraq_id(2659);
- script_cve_id("CAN-2001-0484");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2001-0484");
  name["english"] = "tektronix's _ncl_items.shtml";
  name["francais"] = "tektronix's _ncl_items.shtml";
  script_name(english:name["english"], francais:name["francais"]);
@@ -60,16 +60,28 @@ Risk factor : Low";
 # The script code starts here
 #
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 i = "/_ncl_items.shtml?SUBJECT=1";
-if (is_cgi_installed(port: port, item: i))
+if (is_cgi_installed_ka(port: port, item: i))
 {
-	security_warning(port);
-	exit(0);
+	if ( ! is_cgi_installed_ka(port: port, item: "/nessus"+rand()+".shtml?SUBJECT=1") )
+	{
+		security_warning(port);
+		exit(0);
+	}
 }
 
-if (is_cgi_installed(port: port, item: "/_ncl_subjects.shtml"))
-	security_warning(port);
+if (is_cgi_installed_ka(port: port, item: "/_ncl_subjects.shtml"))
+{
+	if ( ! is_cgi_installed_ka(port: port, item: "/nessus"+rand()+".shtml?SUBJECT=1") ) security_warning(port);
+}

@@ -41,7 +41,7 @@
 #define DEBUG_PATTERN_MATCH   0x00004000  /* 16384 */
 #define DEBUG_DETECT          0x00008000  /* 32768 */
 #define DEBUG_CONVERSATION    0x00010000  /* 65536 */
-#define DEBUG_FRAG2           0x00020000  /* 131072 */
+#define DEBUG_FRAG            0x00020000  /* 131072 */
 #define DEBUG_HTTP_DECODE     0x00040000  /* 262144 */
 #define DEBUG_PORTSCAN2       0x00080000  /* 524288 / (+ conv2 ) 589824 */
 #define DEBUG_RPC             0x00100000  /* 1048576 */
@@ -49,6 +49,12 @@
 #define DEBUG_HTTPINSPECT     0x00400000  /* 4194304 */
 #define DEBUG_STREAM_STATE    0x00800000  /* 8388608 */
 #define DEBUG_ASN1            0x01000000  /* 16777216 */
+#define DEBUG_FTPTELNET       0x02000000  /* 33554432 */
+#define DEBUG_SMTP            0x04000000  /* 67108864 */
+#define DEBUG_DCERPC          0x08000000  /* 134217728 */
+#define DEBUG_DNS             0x10000000  /* 268435456 */
+
+void DebugMessageFunc(int , char *, ...);
 
 #ifdef DEBUG
 
@@ -56,8 +62,6 @@
     extern int DebugMessageLine;
 
     #define    DebugMessage    DebugMessageFile = __FILE__; DebugMessageLine = __LINE__; DebugMessageFunc
-
-    void DebugMessageFunc(int , char *, ...);
 
     int GetDebugLevel (void);
     int DebugThis(int level);

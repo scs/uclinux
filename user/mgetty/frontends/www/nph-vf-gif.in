@@ -4,12 +4,9 @@
 # 
 # Copyright 1998 Simone Demmel simone@greenie.net
 #
-# RCS: $Id$
+# RCS: $Id: nph-vf-gif.in,v 1.10 2004/11/17 14:08:11 gert Exp $
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:29:48  vapier
-# import from upstream uClinux
-#
+# $Log: nph-vf-gif.in,v $
 # Revision 1.10  2004/11/17 14:08:11  gert
 # predeclare variables (use vars)
 #

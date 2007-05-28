@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: group_mod.c,v 1.10 2003/04/27 18:17:24 jiri Exp $ 
  *
  * Group membership - module interface
  *

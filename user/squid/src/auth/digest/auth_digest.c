@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: auth_digest.c,v 1.10.2.14 2005/04/22 20:29:31 hno Exp $
  *
  * DEBUG: section 29    Authenticator
  * AUTHOR: Robert Collins
@@ -720,6 +720,8 @@ authenticateDigestAuthenticateUser(auth_user_request_t * auth_user_request, requ
 		RequestMethodStr[METHOD_GET], digest_request->uri, HA2, Response);
 	    if (strcasecmp(digest_request->response, Response)) {
 		digest_request->flags.credentials_ok = 3;
+		safe_free(auth_user_request->message);
+		auth_user_request->message = xstrdup("Incorrect password");
 		return;
 	    } else {
 		const char *useragent = httpHeaderGetStr(&request->header, HDR_USER_AGENT);
@@ -737,6 +739,8 @@ authenticateDigestAuthenticateUser(auth_user_request_t * auth_user_request, requ
 	    }
 	} else {
 	    digest_request->flags.credentials_ok = 3;
+	    safe_free(auth_user_request->message);
+	    auth_user_request->message = xstrdup("Incorrect password");
 	    return;
 	}
     }
@@ -746,6 +750,8 @@ authenticateDigestAuthenticateUser(auth_user_request_t * auth_user_request, requ
 	    digest_user->username);
 	digest_request->flags.nonce_stale = 1;
 	digest_request->flags.credentials_ok = 3;
+	safe_free(auth_user_request->message);
+	auth_user_request->message = xstrdup("Stale nonce");
 	return;
     }
     /* password was checked and did match */
@@ -892,7 +898,7 @@ authenticateDigestHandleReply(void *data, char *reply)
     debug(29, 9) ("authenticateDigestHandleReply: {%s}\n", reply ? reply : "<NULL>");
     if (reply) {
 	if ((t = strchr(reply, ' ')))
-	    *t = '\0';
+	    *t++ = '\0';
 	if (*reply == '\0' || *reply == '\n')
 	    reply = NULL;
     }
@@ -901,9 +907,12 @@ authenticateDigestHandleReply(void *data, char *reply)
     assert(auth_user_request->scheme_data != NULL);
     digest_request = auth_user_request->scheme_data;
     digest_user = auth_user_request->auth_user->scheme_data;
-    if (reply && (strncasecmp(reply, "ERR", 3) == 0))
+    if (reply && (strncasecmp(reply, "ERR", 3) == 0)) {
 	digest_request->flags.credentials_ok = 3;
-    else if (reply) {
+	safe_free(auth_user_request->message);
+	if (t && *t)
+	    auth_user_request->message = xstrdup(t);
+    } else if (reply) {
 	CvtBin(reply, digest_user->HA1);
 	digest_user->HA1created = 1;
     }

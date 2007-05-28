@@ -3,7 +3,7 @@
 #
 # GPL...
 #
-# SMTP is defined by RFC 821. Messages are defined by RFC 822
+# SMTP is defined by RFC 2821. Messages are defined by RFC 2822
 #
 # Script audit and contributions from Carmichael Security <http://www.carmichaelsecurity.com>
 #      Erik Anderson <eanders@carmichaelsecurity.com>
@@ -134,8 +134,8 @@
 if(description)
 {
  script_id(11036);
- script_version ("$Revision: 1.8 $");
  script_bugtraq_id(3027);
+ script_version ("$Revision: 1.12 $");
  name["english"] = "SMTP antivirus scanner DoS";
  script_name(english:name["english"]);
  
@@ -197,8 +197,13 @@ s = open_sock_tcp(port);
 if (!s) exit(0);
 
 buff = smtp_recv_banner(socket:s);
+if (!buff)
+{
+  close(s);
+  exit(0);
+}
 
-send(socket: s, data: string("HELO nessus\r\n"));
+send(socket: s, data: string("HELO example.com\r\n"));
 buff = recv_line(socket:s, length:2048);
 
 # MIME attachment

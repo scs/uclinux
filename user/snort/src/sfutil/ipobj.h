@@ -38,7 +38,7 @@ enum {
 typedef struct {
 
   int family;
-  unsigned char ip[1];
+  unsigned char ip[IPV6_LEN];
 
 }IPADDRESS ;
 
@@ -58,15 +58,25 @@ typedef struct {
 }IPADDRESS6 ;
 
 typedef struct {
+   unsigned port_lo;
+   unsigned port_hi;
+}PORTRANGE;
+
+typedef struct {
+   SF_LIST port_list;
+}PORTSET;
+
+typedef struct {
    unsigned mask;
    unsigned ip;
+   PORTSET  portset;
    int      notflag;
 }CIDRBLOCK;
-
 
 typedef struct {
    unsigned short mask[8];
    unsigned short ip[8];
+   PORTSET        portset;
    int            notflag;
 }CIDRBLOCK6;
 
@@ -131,16 +141,13 @@ IPSET * ipset_new     ( int family );
 IPSET * ipset_copy    ( IPSET * ipset );
 int     ipset_family  ( IPSET * ipset );
 void    ipset_free    ( IPSET * ipset );
-int     ipset_add     ( IPSET * ipset, void *ip, void *mask, int notflag,int family );
-int     ipset_contains( IPSET * ipset, void * ip, int family );
+int     ipset_add     ( IPSET * ipset, void * ip, void * mask, void * port, int notflag, int family );
+int     ipset_contains( IPSET * ipset, void * ip, void * port, int family );
 int     ipset_print   ( IPSET * ipset );
 
 
 /* helper functions -- all the sets work in host order   
 */
-int      ip4_parse(char * ipstr, int network_order, int * not_flag,
-                   unsigned * host, unsigned * mask);
-
 int      ip4_setparse(IPSET * ipset, char *ipstr);
 
 #endif

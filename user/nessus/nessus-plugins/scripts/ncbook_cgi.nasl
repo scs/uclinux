@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10721);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(3178);
- script_cve_id("CAN-2001-1114");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2001-1114");
  
  
  name["english"] = "ncbook/book.cgi";
@@ -22,7 +22,7 @@ commands with the privileges of the http daemon (usually root or nobody).
 
 Solution : remove it from /cgi-bin
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'book.cgi' est installé. Celui-ci possède
@@ -52,6 +52,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -77,8 +78,8 @@ if(egrep(pattern:".*root:.*:0:[01]:.*", string:r))
   }
 }
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 
 if(!get_port_state(port))exit(0);

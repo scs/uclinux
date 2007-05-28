@@ -21,16 +21,16 @@ You should ensure that the proper physical and logical controls exist
 around the AP.  A misconfigured access point may allow an attacker to
 gain access to an internal network without being physically present on 
 the premises.  If the access point is using an 'off-the-shelf' configuration
-(such as 802.11b with 40 or 104 bit WEP encryption), the data being passed
-through the access point may be vulnerable to hijacking or sniffing. 
+(such as 40 or 104 bit WEP encryption), the data being passed through the 
+access point may be vulnerable to hijacking or sniffing. 
 
-Risk factor : Medium/Low";
+Risk factor : Low";
 
 
 if(description)
 {
  script_id(11026);
- script_version ("$Revision: 1.30 $");
+ script_version ("$Revision: 1.47 $");
 
  name["english"] = "Access Point detection";
  script_name(english:name["english"]);
@@ -50,7 +50,7 @@ analysis of SNMP information present";
  script_copyright(english:"This script is Copyright (C) 2002 John Lampe / Ron Gula / Stan Scalsky (Tenable Network Security)");
  family["english"] = "General";
  script_family(english:family["english"]);
- script_dependencie("snmp_sysDesc.nasl", "nmap_osfingerprint.nes");
+ script_dependencie("snmp_sysDesc.nasl", "http_version.nasl");
  exit(0);
 }
 
@@ -60,49 +60,63 @@ analysis of SNMP information present";
 
 include("http_func.inc");
 
-# list of NMAP tcp fingerprints which indicate a WAP
+# list of NMAP tcp fingerprints which indicate a WAP (broken)
+# current list as of nmap-3.50
 
 tcpfinger[1] = "2Wire Home Portal 100 residential gateway";
 tcpfinger[2] = "Aironet AP4800E";
 tcpfinger[3] = "Apple Airport Extreme Base Station";
-tcpfinger[4] = "Cisco 360 Access Point";
-tcpfinger[5] = "Cisco 1200 access point";
-tcpfinger[6] = "D-Link 704P Boradband Gateway or DI-713P WAP";
-tcpfinger[7] = "D-Link DI-713P Wireless Gateway";
-tcpfinger[8] = "D-Link DRC-1000AP or 3com Access Point 2000";
-tcpfinger[9] = "D-Link DWL-5000AP";
-tcpfinger[10] = "Fiberline WL-1200R1";
-tcpfinger[11] = "Linksys WET-11";
-tcpfinger[12] = "Linksys BEFW11S4 WAP or BEFSR41 router";
-tcpfinger[13] = "Linksys WAP11 Wireless AP";
-tcpfinger[14] = "Linksys WAP11 or D-Link DWL-900+";
-tcpfinger[15] = "Netgear FM144P";
-tcpfinger[16] = "Netgear MR314";
-tcpfinger[17] = "Netgear MR814";
-tcpfinger[18] = "Planet WAP 1950 Wireless Access Point";
-tcpfinger[19] = "SMC Barricade or D-Link DL-707 Wireless Broadband Router";
-tcpfinger[20] = "SMC Barricade Wireless Broadband Router";
-tcpfinger[21] = "SMC Barricade DSL Router/Modem/Wireless AP";
-tcpfinger[22] = "SMC Barricade Router";
-tcpfinger[23] = "US Robotics USR8022 broadband wireless router";
-tcpfinger[24] = "US Robotics broadband router";
-tcpfinger[25] = "ZoomAir IG-4165 wireless gateway";
+tcpfinger[4] = "BenQ Wireless Lan Router";
+tcpfinger[5] = "Cisco 360 Access Point";
+tcpfinger[6] = "Cisco 1200 access point";
+tcpfinger[7] = "Cisco Aironet WAP";
+tcpfinger[8] = "Cisco AP1220";
+tcpfinger[9] = "Datavoice 3Com WAP";
+tcpfinger[10] = "D-Link 704P Broadband Gateway or DI-713P WAP";
+tcpfinger[11] = "D-Link DI-713P Wireless Gateway";
+tcpfinger[12] = "D-Link DI-series, Sitecom BHS WAP";
+tcpfinger[13] = "D-Link DRC-1000AP or 3com Access Point 2000";
+tcpfinger[14] = "D-Link DWL-5000AP";
+tcpfinger[15] = "D-Link, SMC, Tonze, or US Robotics wireless broadband router";
+tcpfinger[16] = "Fiberline WL-1200R1";
+tcpfinger[17] = "Linksys WET-11";
+tcpfinger[18] = "Linksys BEFW11S4 WAP or BEFSR41 router";
+tcpfinger[19] = "Linksys WAP11 Wireless AP";
+tcpfinger[20] = "Linksys WAP11 or D-Link DWL-900+";
+tcpfinger[21] = "Linksys, D-Link, or Planet WAP";
+tcpfinger[22] = "Netgear DG824M WAP";
+tcpfinger[23] = "Netgear FM144P";
+tcpfinger[24] = "Netgear MR314";
+tcpfinger[25] = "Netgear MR814";
+tcpfinger[26] = "Panasonic network camera or SMC WAP";
+tcpfinger[27] = "Planet WAP 1950 Wireless Access Point";
+tcpfinger[28] = "SMC Barricade or D-Link DL-707 Wireless Broadband Router";
+tcpfinger[29] = "SMC Barricade Wireless Broadband Router";
+tcpfinger[30] = "SMC Barricade DSL Router/Modem/Wireless AP";
+tcpfinger[31] = "SMC Barricade Router";
+tcpfinger[32] = "Symbol/Spectrum24 wireless AP";
+tcpfinger[33] = "US Robotics USR8022 broadband wireless router";
+tcpfinger[34] = "US Robotics broadband router";
+tcpfinger[35] = "Zcomax Wireless Access Point";
+tcpfinger[36] = "ZoomAir IG-4165 wireless gateway";
 
 # Wireless Bridges
-tcpfinger[26] = "Aironet 630-2400";
-tcpfinger[27] = "Aironet Wireless Bridge";
-tcpfinger[28] = "ARLAN BR2000E V5.0E Radio Bridge";
-tcpfinger[29] = "Cisco AIR-WGB340";
-tcpfinger[30] = "Cisco WGB350 802.11b WorkGroup Bridge";
-tcpfinger[31] = "Linksys WET-11 wireless ethernet bridge";
-tcpfinger[32] = "Proxim Stratum MP wireless bridge";
+tcpfinger[37] = "Aironet 630-2400";
+tcpfinger[38] = "Aironet Wireless Bridge";
+tcpfinger[39] = "ARLAN BR2000E V5.0E Radio Bridge";
+tcpfinger[40] = "BreezeCOM BreezeACCESS wireless bridge";
+tcpfinger[41] = "Cisco AIR-WGB340";
+tcpfinger[42] = "Cisco WGB350";
+tcpfinger[43] = "Linksys WET-11 wireless ethernet bridge";
+tcpfinger[44] = "Linksys WGA54G";
+tcpfinger[45] = "Proxim Stratum MP wireless bridge";
 
 # This one will cause lots of false positives since the full signature is:
 #  Embedded device: HP Switch, Copper Mountain DSL Concentrator, Compaq 
 #  Remote Insight Lights-Out remote console card, 3Com NBX 25 phone 
 #  system or Home Wireless Gateway, or TrueTime NTP clock
 
-tcpfinger[33] = "3Com NBX 25 phone system or Home Wireless Gateway";
+tcpfinger[46] = "3Com NBX 25 phone system or Home Wireless Gateway";
 
 
 pre = "The remote host is a Wireless Access Point (";
@@ -111,11 +125,11 @@ warning = string(").\n\nYou should ensure that the proper physical and logical
 controls exist around the AP.  A misconfigured access point may allow an
 attacker to gain access to an internal network without being physically
 present on the premises.  If the access point is using an 'off-the-shelf'
-configuration (such as 802.11b with 40 or 104 bit WEP encryption), the
-data being passed through the access point may be vulnerable to hijacking
+configuration (such as 40 or 104 bit WEP encryption), the data being 
+passed through the access point may be vulnerable to hijacking
 or sniffing.
 
-Risk factor : Medium/Low");
+Risk factor : Low");
 
 os = get_kb_item("Host/OS");
 if( os )
@@ -129,37 +143,115 @@ if( os )
 }
 
 # try to find APs via web management interface
-port = 80;
+port = get_http_port(default:80);
 
 sigs = make_list(
 # "WLAN",    # SMC, risky
  "SetExpress.shm",   #cisco 350
- "D-Link DI-",
+ "D-Link DI-1750",
+ "D-Link DI-824",
+ "D-Link DI-784",
+ "D-Link DI-774",
+ "D-Link DI-764",
+ "D-Link DI-754",
+ "D-Link DI-714",
+ "D-Link DI-713",
+ "D-Link DI-624",
+ "DI-624+",
+ "D-Link DI-614",
+ "D-Link DI-524",
+ "D-Link DI-514",
+ "D-Link DSA-3100",
  "Cisco AP340",
  "Cisco AP350",
  "Linksys WAP",
  'Linksys WRT',
  "Linksys BEFW",
  "Linksys WPG",
+ "Linksys WRV",
  "SOHO Version",
  'realm="BUFFALO WBR-G54"',
  'WWW-Authenticate: Basic realm="R2 Wireless Access Platform"',
- 'realm="MR814"',
- 'realm="FM114P"',
- 'realm="MA101"',
- 'realm="MR314"',
- 'realm="ME102"',
- 'realm="DG824M"',
- 'realm="PS111W"',
- 'realm="CG814M"',
- 'realm="FVM318"',
- 'realm="ME103"',
- 'realm="HE102"',
- 'realm="HR314"',
- 'realm="WG602"',
- 'realm="WGR614"',
- "BCM430"		# Broadcom chips (?)
+ 'realm="MR814',
+ 'realm="FM114P',
+ 'realm="MA101',
+ 'realm="MR314',
+ 'realm="ME102',
+ 'realm="DG824M',
+ 'realm="DG834G',
+ 'realm="PS111W',
+ 'realm="CG814M',
+ 'realm="FVM318',
+ 'realm="ME103',
+ 'realm="HE102',
+ 'realm="HR314',
+ 'realm="Ral-WAP3"',    # Linksys WRT-54G Wireless-G Router, from Jeff Mercer
+ 'realm="WG101',
+ 'realm="WG302',
+ 'realm="WG602',
+ 'realm="WGR614',
+ 'realm="FWAG114',
+ 'realm="FM114P',
+ 'realm="WKPC',
+ 'realm="WCG',
+ 'realm="WET',
+ 'realm="BEFW',
+ 'realm="WAP11',
+ 'realm="WAP51',
+ 'realm="WAP54',
+ 'realm="WAP55',
+ 'realm="WRT54',
+ 'realm="WRT55',
+ 'realm="WRT300',
+ 'realm="WRV200',
+ 'realm="WRTSL',
+ "BCM430",		# Broadcom chips (?)
+ "OfficePortal 1800HW",
+ "HomePortal 180HW",
+ "Portal 1000HG",
+ "Portal 1000HW",
+ "Portal 1000SW",
+ "Portal 1700HG",
+ "Portal 1700HW",
+ "Portal 1700SG",
+ "HomePortal 180HG",
+ "HomePortal 2000",
+ "Wireless 11a/b/g Access Point",
+ "AT-WA1004G",
+ "AT-WA7500",
+ "AT-WL2411",
+ "RTW020",
+ "RTA040W",
+ "RTW010",
+ "The setup wizard will help you to configure the Wireless",
+ 'realm="Access-Product',
+ "USR8054",
+ "WGR614",
+ "WGR624",
+ "Linksys WET11",
+ "wireless/wireless_tab1.jpg",
+ "wireless/use_as_access_point",
+ "Gateway 11G Router",
+ "Gateway 11B Router",
+ "MN-500",
+ "MN-700",
+ "MN-510",
+ "SBG900",
+ "SBG1000",
+ "WA840G",
+ "WL1200-AB",
+ "WL5400AP",
+ # jwlampe@nessus.org adds on 5.19.2006
+ "LANCOM Wireless L-11",
+ "LANCOM L-54g Wireless",
+ "LANCOM L-54ag Wireless",
+ "Linksys BEFW11",
+ "Server: DCS-",
+ "Cisco WGB350",
+ "Wi-LAN AWE"
  );
+
+
 
 if(get_port_state(port))
 {
@@ -170,7 +262,7 @@ if(get_port_state(port))
   http_close_socket(soc);
   if (answer) {
     foreach sig (sigs) {
-          if ((egrep(pattern:sig, string:answer))) {
+          if ( sig >< answer ) { 
               security_warning(port:0, data:pre+sig+warning);
               exit(0);
           }
@@ -185,6 +277,11 @@ port = 21;
 ftppos[0] = "Cisco BR500";
 ftppos[1] = "WLAN AP";
 ftppos[2]= "ireless";
+ # jwlampe@nessus.org adds on 5.19.2006
+ftppos[3] = "DCS-5300G";
+ftppos[4] = "DCS-5300W";
+ftppos[5] = "DCS-6620G";
+
 
 if(get_port_state(port))
 {
@@ -194,7 +291,8 @@ if (soc) {
   close(soc);
   if (r) {
       for (i=0; ftppos[i]; i = i + 1) {
-          if ((egrep(pattern:ftppos[i], string:r))) {
+          if ( ftppos[i] >< r ) 
+	  {
                security_warning(port:0, data:pre+ftppos[i]+warning);
                exit(0);
           }
@@ -202,6 +300,73 @@ if (soc) {
   }
  }
 }
+
+
+
+
+# try to find APs via telnet
+port = 23;
+telnetpos[0] = "DCS-3220G telnet daemon";
+telnetpos[1] = "DCS-5300G Telnet Daemon";
+telnetpos[2] = "DCS-5300W Telnet Daemon";
+telnetpos[3] = "DCS-6620G telnet daemon";
+telnetpos[4] = "ink Corp. Access Point";
+telnetpos[5] = "WLSE";
+telnetpos[6] = "Cisco BR500E";
+telnetpos[7] = "Cisco WGB350";
+telnetpos[8] = "Wi-LAN AWE";
+telnetpos[9] = "Lucent Access Point";
+telnetpos[10]= "Wireless DSL Ethernet Switch";
+telnetpos[11]= "LANCOM 1811 Wireless DSL";
+telnetpos[12]= "LANCOM Wireless";
+telnetpos[13] = "LANCOM L-54";
+telnetpos[14] = "ADSL Wireless Router";
+telnetpos[15] = "Motorola Broadband Wireless";
+telnetpos[16] = "Trango Broadband Wireless";
+telnetpos[17] = "Wi-LAN Hopper";
+telnetpos[18] = "WANFleX Access Control";
+telnetpos[19] = "Access Point Console";
+telnetpos[20] = "Samsung SWL-3300AP";
+telnetpos[21] = "Samsung SWL-4000";
+telnetpos[22] = "Samsung SWL-6100";
+telnetpos[23] = "FortiWiFi-";
+telnetpos[24] = "WLAN Access Point login";
+telnetpos[25] = "Wireless AP Manager Console";
+telnetpos[26] = "Wireless Ethernet Adapter";
+telnetpos[27] = "Avaya-Wireless-AP";
+telnetpos[28] = "ORiNOCO-AP-";
+telnetpos[29] = "WAP-";
+telnetpos[30] = "USR5450";
+telnetpos[31] = "Raylink Access Point";
+telnetpos[32] = "Access Point Configuration";
+telnetpos[33] = "Aircess -";
+telnetpos[34] = "Netro Airstar shell";
+telnetpos[35] = "Proxim AP Configuration";
+telnetpos[36] = "AXXCELERA BROADBAND WIRELESS";
+
+
+if ( get_port_state(port) )
+{
+soc = open_sock_tcp(port);
+if (soc) 
+{
+  r = recv_line(socket:soc, length:512);
+  close(soc);
+  if (r) 
+  {
+      for (i=0; telnetpos[i]; i = i + 1) 
+      {
+          if ( telnetpos[i] >< r ) 
+          {
+               security_warning(port:0, data:pre+telnetpos[i]+warning);
+               exit(0);
+          }
+      }
+  }
+ }
+}
+
+
 
 # try to find APs via snmp port (rely on them leaving public community string)
 

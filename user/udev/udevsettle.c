@@ -1,6 +1,4 @@
 /*
- * udevsettle.c
- *
  * Copyright (C) 2006 Kay Sievers <kay@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -14,7 +12,7 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -36,7 +34,6 @@
 #define DEFAULT_TIMEOUT			180
 #define LOOP_PER_SECOND			20
 
-static const char *udev_log_str;
 
 #ifdef USE_LOG
 void log_message(int priority, const char *format, ...)
@@ -69,28 +66,30 @@ int main(int argc, char *argv[], char *envp[])
 	logging_init("udevsettle");
 	udev_config_init();
 	dbg("version %s", UDEV_VERSION);
-
-	udev_log_str = getenv("UDEV_LOG");
+	sysfs_init();
 
 	for (i = 1 ; i < argc; i++) {
 		char *arg = argv[i];
 
 		if (strncmp(arg, "--timeout=", 10) == 0) {
 			char *str = &arg[10];
+			int seconds;
 
-			timeout = atoi(str);
+			seconds = atoi(str);
+			if (seconds > 0)
+				timeout = seconds;
+			else
+				fprintf(stderr, "invalid timeout value\n");
 			dbg("timeout=%i", timeout);
-			if (timeout <= 0) {
-				fprintf(stderr, "Invalid timeout value.\n");
-				goto exit;
-			}
-		} else {
-			fprintf(stderr, "Usage: udevsettle [--timeout=<seconds>]\n");
+		} else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
+			printf("Usage: udevsettle [--help] [--timeout=<seconds>]\n");
 			goto exit;
+		} else {
+			fprintf(stderr, "unrecognized option '%s'\n", arg);
+			err("unrecognized option '%s'\n", arg);
 		}
 	}
 
-	sysfs_init();
 	strlcpy(queuename, udev_root, sizeof(queuename));
 	strlcat(queuename, "/" EVENT_QUEUE_DIR, sizeof(queuename));
 

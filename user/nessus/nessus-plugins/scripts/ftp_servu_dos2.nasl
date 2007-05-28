@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(10488);
+ script_bugtraq_id(1543);
  script_cve_id("CVE-2000-0837");
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.14 $");
  
  
  name["english"] = "FTP Serv-U 2.5e DoS";
@@ -30,7 +31,7 @@ Solution : if you are using FTP Serv-U, upgrade to
 version 2.5f. If you are not, then contact your vendor
 for a patch
 
-Risk factor : Serious";
+Risk factor : High";
 		 
 		 
 desc["francais"] = "

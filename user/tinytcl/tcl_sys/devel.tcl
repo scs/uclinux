@@ -2,7 +2,7 @@
 # This is development code for working with the handheld.
 #
 #
-# $Id$
+# $Id: devel.tcl,v 1.1.1.1 2001/04/29 20:36:22 karll Exp $
 #
 
 #

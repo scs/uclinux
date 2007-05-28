@@ -10,22 +10,35 @@
 # See the Nessus Scripts License for details
 #
 
+ desc["english"] = "
+Synopsis :
+
+The remote host is running a remote display software (VNC).
+
+Description :
+
+The remote server is running VNC, a software which permits a console
+to be displayed remotely.  This allows users to control the host
+remotely. 
+
+Solution : 
+
+Make sure the use of this software is done in accordance with your
+corporate security policy and filter incoming traffic to this port. 
+
+Risk factor : 
+
+None";
+
 if(description)
 {
  script_id(10342);
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.15 $");
+# script_cve_id("CVE-MAP-NOMATCH");
  name["english"] = "Check for VNC";
  name["francais"] = "Check for VNC";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "
-The remote server is running VNC.
-VNC permits a console to be displayed remotely.
-
-Solution: Disable VNC access from the network by 
-using a firewall, or stop VNC service if not needed.
-
-Risk factor : Medium";
 
 
 
@@ -52,10 +65,8 @@ francais:summary["francais"]);
  
  script_copyright(english:"This script is Copyright (C) 2000 Patrick Naubert",
                 francais:"Ce script est Copyright (C) 2000 Patrick Naubert");
- family["english"] = "Backdoors";
- family["francais"] = "Backdoors";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_family(english: "Service detection");
+ script_dependencie("find_service1.nasl");
  script_require_ports("Services/vnc", 5900, 5901, 5902);
  exit(0);
 }
@@ -66,21 +77,15 @@ francais:summary["francais"]);
 
 function probe(port)
 {
- if(get_port_state(port))
- {
-  soc = open_sock_tcp(port);
-  if(soc)
-  {
-   r = recv(socket:soc, length:1024);
-   version = egrep(pattern:"^RFB 00[0-9]\.00[0-9]$",string:r);
-   if(version)
+ # if (! get_port_state(port)) return 0;
+ r = get_kb_item("FindService/tcp/" + port + "/spontaneous");
+ if ( ! r ) return 0;
+ version = egrep(pattern:"^RFB 00[0-9]\.00[0-9]",string:r);
+ if(version)
    {
-      security_warning(port);
-      security_warning(port:port, data:string("Version of VNC Protocol is: ",version));
+      report = desc["english"] + '\n\nPlugin output :\nThe version of the VNC protocol is : ' + version;
+      security_note(port:port, data:report);
    }
-   close(soc);
-  }
- }
 }
 
 port = get_kb_item("Services/vnc");

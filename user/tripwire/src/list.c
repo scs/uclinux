@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: list.c,v 1.14 1994/07/17 01:13:53 gkim Exp $";
 #endif
 
 /*

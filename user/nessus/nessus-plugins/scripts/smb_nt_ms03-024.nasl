@@ -1,33 +1,40 @@
 #
-# This script was written by Renaud Deraison 
-#
-# See the Nessus Scripts License for details
-#
-#
-#
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(11787);
- script_version("$Revision: 1.3 $");
  script_bugtraq_id(8152);
- script_cve_id("CAN-2003-0345");
+ script_version("$Revision: 1.23 $");
+ script_cve_id("CVE-2003-0345");
  
  name["english"] = "SMB Request Handler Buffer Overflow";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+Arbitrary code can be executed on the remote host.
+
+Description :
+
 The remote host is vulnerable to a flaw in its SMB stack which may allow
-an unauthenticated attacker to corrupt the memory of this host. This
+an authenticated attacker to corrupt the memory of this host. This
 may result in execution of arbitrary code on this host, or an attacker
 may disable this host remotely.
 
-Solution : see http://www.microsoft.com/technet/security/bulletin/ms03-024.asp
- 
+Solution : 
 
-Risk factor : Serious";
+Microsoft has released a set of patches for Windows NT, 2000, XP :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-024.mspx
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -37,69 +44,36 @@ Risk factor : Serious";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_full_access.nasl",
-		     "smb_reg_service_pack_XP.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_full_access","SMB/WindowsVersion");
- script_exclude_keys("SMB/Win2003/ServicePack");
-
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
+if ( hotfix_check_sp(xp:2, win2k:5) > 0 && hotfix_missing(name:"896422") == 0 ) exit(0);
 
-access = get_kb_item("SMB/registry_full_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(nt:7, win2k:4, xp:2) <= 0 ) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-
-
-
-
-if(ereg(pattern:"(5\.[2-9]|[6-9]\.[0-9])", string:version))exit(0);
-
-#
-# Never fixed in 4.0
-#
-if("4.0" >< version)
+if (is_accessible_share())
 {
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q817606";
- item = "Description";
- value = registry_get_sz(key:key, item:item);
- if(!value){
- 	security_hole(port);
-	}
- exit(0);
-}
-
-
-if("5.0" >< version)
-{
-# fixed in Service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
- key = "SOFTWARE\Microsoft\Windows 2000\SP4\Q817606";
-}
-
-if("5.1" >< version)
-{
- # fixed in XP service Pack 2
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
- key = "SOFTWARE\Microsoft\Windows XP\SP2\Q817606";
-}
-
-value = registry_get_sz(key:key, item:item);
-if(!value)security_hole(port);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:1, file:"Srv.sys", version:"5.1.2600.1193", dir:"\system32\Drivers") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Srv.sys", version:"5.1.2600.112", dir:"\system32\Drivers") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Srv.sys", version:"5.0.2195.6699", dir:"\system32\Drivers") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Srv.sys", version:"4.0.1381.7214", dir:"\system32\Drivers") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Srv.sys", version:"4.0.1381.33547", min_version:"4.0.1381.33000", dir:"\system32\Drivers") )
+   security_hole (get_kb_item("SMB/transport"));
  
+ hotfix_check_fversion_end();
+ exit (0);
+}
+else if ( hotfix_missing(name:"Q817606") > 0 )
+	security_hole(get_kb_item("SMB/transport"));
+

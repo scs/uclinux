@@ -50,9 +50,15 @@ echo $Xn "Login to remove : $Xc"
 read login
 }
 
-test -d "$localstatedir/nessus/users/$login" &&
-{
- rm -rf "$localstatedir/nessus/users/$login"
-}
+test -z "$login" && {
+	echo "No login entered"
+	exit 1
+	}
 
-echo "user removed."
+if [ -d "$localstatedir/nessus/users/$login" ];
+then
+ rm -rf "$localstatedir/nessus/users/$login"
+ echo "user removed."
+else
+ echo "This user does not exist"
+fi

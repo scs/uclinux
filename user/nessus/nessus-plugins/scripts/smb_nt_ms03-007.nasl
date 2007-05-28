@@ -1,89 +1,86 @@
 #
-# This script was written by Trevor Hemsley, by using smb_nt_ms03-005.nasl
-# from Michael Scheidell as a template.
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
 
 if(description)
 {
  script_id(11413);
- script_cve_id("CAN-2003-0109");
- if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0005");
  script_bugtraq_id(7116);
+ script_version("$Revision$");
+ script_cve_id("CVE-2003-0109");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0005");
 
  name["english"] = "Unchecked Buffer in ntdll.dll (Q815021)";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host is vulnerable to a flaw in ntdll.dll
-which may allow an attacker to gain system privileges,
-by exploiting it thru, for instance, WebDAV in IIS5.0
-(other services could be exploited, locally and/or remotely)
+Synopsis :
 
-Note : On Win2000, this advisory is superceded by MS03-013
+Arbitrary code can be executed on the remote host.
 
-Solution : see http://www.microsoft.com/technet/security/bulletin/ms03-007.asp
-Risk factor : High";
+Description :
+
+The remote version of Windows contains a buffer overflow in the Windows
+kernel which may allow an attacker to execute arbitrary code on the remote
+host with the SYSTEM privileges.
+
+For example this vulnerability can be exploited through the WebDAV component
+of IIS 5.0.
+
+A public code is available to exploit this flaw.
+
+Solution : 
+
+Microsoft has released a set of patches for Windows NT, 2000 and XP :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-007.mspx
+
+Risk factor :
+
+Critical / CVSS Base Score : 10 
+(AV:R/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "Checks for MS Hotfix Q815021 non-intrusively";
+ summary["english"] = "Checks for MS Hotfix Q815021";
 
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Trevor Hemsley");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
- script_exclude_keys("SMB/samba","SMB/WinNT4/ServicePack",
-		     "SMB/XP/ServicePack");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(nt:7, xp:2, win2k:4) <= 0 ) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-if("5.0" >< version)
+if (is_accessible_share())
 {
- # fixed in 2000 service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))
- {
-	set_kb_item(name:"SMB/Hotfixes/Q815021", value:TRUE);
-	exit(0);  
- }
+ if ( hotfix_is_vulnerable (os:"5.1", sp:1, file:"Ntdll.dll", version:"5.1.2600.1217", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Ntdll.dll", version:"5.1.2600.114", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Ntdll.dll", version:"5.0.2195.6685", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Ntdll.dll", version:"4.0.1381.7212", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Ntdll.dll", version:"4.0.1381.33546", min_version:"4.0.1381.33000", dir:"\system32") )
+   security_hole (get_kb_item("SMB/transport"));
  
- # fixed in winwk ms03-013
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q811493";
- item = "Comments";
-
- value = registry_get_sz(key:key, item:item);
- if(value)
- {
-  set_kb_item(name:"SMB/Hotfixes/Q815021", value:TRUE);
-  exit(0);
- }
-
- 
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q815021";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
-
- if(!value)security_hole(port);
- else set_kb_item(name:"SMB/Hotfixes/Q815021", value:TRUE);
+ hotfix_check_fversion_end();
+ exit (0);
+}
+else if ( hotfix_missing(name:"Q811493") > 0 &&
+          hotfix_missing(name:"Q815021") > 0 &&
+          hotfix_missing(name:"840987") > 0 )
+{
+ if ( hotfix_check_sp(xp:2) > 0 && hotfix_missing(name:"890859") <= 0 ) exit(0);
+	security_hole(get_kb_item("SMB/transport"));
 }

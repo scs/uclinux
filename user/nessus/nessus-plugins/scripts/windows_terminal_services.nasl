@@ -13,16 +13,19 @@
 if(description)
 {
  script_id(10940);
- script_version ("$Revision: 1.8 $");
- script_bugtraq_id(7258);
- script_cve_id("CAN-2001-0540");
+ script_bugtraq_id(3099, 7258);
+ script_version ("$Revision: 1.15 $");
 
  name["english"] = "Windows Terminal Service Enabled";
 
  script_name(english:name["english"]);
 
     desc["english"] = "
+Synopsis :
+
 The Terminal Services are enabled on the remote host.
+
+Description :
 
 Terminal Services allow a Windows user to remotely obtain
 a graphical login (and therefore act as a local user on the
@@ -30,18 +33,24 @@ remote host).
 
 If an attacker gains a valid login and password, he may
 be able to use this service to gain further access
-on the remote host.
-
+on the remote host. An attacker may also use this service
+to mount a dictionary attack against the remote host to try
+to log in remotely.
 
 Note that RDP (the Remote Desktop Protocol) is vulnerable
 to Man-in-the-middle attacks, making it easy for attackers to
 steal the credentials of legitimates users by impersonating the
 Windows server.
 
-Solution : Disable the Terminal Services if you do not use them, and
+Solution :
+
+Disable the Terminal Services if you do not use them, and
 do not allow this service to run across the internet
 
-Risk factor : Medium";
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -76,7 +85,7 @@ if(get_port_state(port))
    if(!r)exit(0);
 
    if(ord(r[0]) == 0x03) {
-     security_warning(port);
+     security_note(port);
      register_service(port:port, proto:"msrdp");
    }
    close(soc);

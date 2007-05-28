@@ -67,6 +67,8 @@
 #include "generators.h"
 #include "event_queue.h"
 
+#include "profiler.h"
+
 extern char *file_name;
 extern int file_line;
 extern int do_detect;
@@ -93,11 +95,15 @@ typedef struct _RpcDecodeData
 static RpcDecodeData rpcpreprocdata; /* Configuration Set */
 static char RpcDecodePorts[65536/8];
 
+#ifdef PERF_PROFILING
+PreprocStats rpcdecodePerfStats;
+#endif
+
 void RpcDecodeInit(u_char *);
 void RpcDecodeInitIgnore(u_char *);
-void PreprocRpcDecode(Packet *);
+void PreprocRpcDecode(Packet *, void *);
 void SetRpcPorts(char *);
-int ConvertRPC(u_int8_t *, u_int16_t *);
+int ConvertRPC(Packet *);
 
 /*
  * Function: SetupRpcDecode()
@@ -147,7 +153,11 @@ void RpcDecodeInit(u_char *args)
     SetRpcPorts(args);
 
     /* Set the preprocessor function into the function list */
-    AddFuncToPreprocList(PreprocRpcDecode);
+    AddFuncToPreprocList(PreprocRpcDecode, PRIORITY_APPLICATION, PP_RPCDECODE);
+
+#ifdef PREF_PROFILING
+    RegisterPreprocessorProfile("rpcdecode", &rpcdecodePerfStats, 0, &totalPerfStats);
+#endif
 }
 
 /*
@@ -262,9 +272,10 @@ void SetRpcPorts(char *portlist)
  * Returns: void function
  *
  */
-void PreprocRpcDecode(Packet *p)
+void PreprocRpcDecode(Packet *p, void *context)
 {
     int ret = 0; /* return code for ConvertRPC */
+    PROFILE_VARS;
     
     DEBUG_WRAP(DebugMessage(DEBUG_RPC,"rpc decoder init on %d bytes\n", p->dsize););
 
@@ -290,7 +301,9 @@ void PreprocRpcDecode(Packet *p)
         return;
     }
 
-    ret = ConvertRPC(p->data, &p->dsize);
+    PREPROC_PROFILE_START(rpcdecodePerfStats);
+
+    ret = ConvertRPC(p);
     DEBUG_WRAP(DebugMessage(DEBUG_RPC,"Got ret: %d from ConvertRPC\n", ret););
     
     if(ret != 0)
@@ -325,9 +338,17 @@ void PreprocRpcDecode(Packet *p)
                         1, RPC_CLASS, 3, RPC_INCOMPLETE_SEGMENT_STR, 0);
             }
             break;
+        case RPC_ZERO_LENGTH_FRAGMENT:
+            if(rpcpreprocdata.alert_multi)
+            {
+                SnortEventqAdd(GENERATOR_SPP_RPC_DECODE, RPC_ZERO_LENGTH_FRAGMENT, 
+                        1, RPC_CLASS, 3, RPC_ZERO_LENGTH_FRAGMENT_STR, 0);
+            }
+            break;
         }
     }
     
+    PREPROC_PROFILE_END(rpcdecodePerfStats);
     return;    
 }
 
@@ -371,8 +392,10 @@ void PreprocRpcDecode(Packet *p)
  *        }
  */
 
-int ConvertRPC(u_int8_t *data, u_int16_t *size)
+int ConvertRPC(Packet *p)
 {
+    u_int8_t *data = p->data;   /* packet data */
+    u_int16_t *size = &(p->dsize); /* size of packet data */
     u_int8_t *rpc;       /* this is where the converted data will be written */
     u_int8_t *index;     /* this is the index pointer to walk thru the data */
     u_int8_t *end;       /* points to the end of the payload for loop control */
@@ -411,13 +434,18 @@ int ConvertRPC(u_int8_t *data, u_int16_t *size)
         /* on match, normalize the data */
         DEBUG_WRAP(DebugMessage(DEBUG_RPC, "Found Last Fragment: %u!\n",fraghdr););
 
-        if(length + 4 != psize)
+        if((length + 4 != psize) && !(p->packet_flags & PKT_REBUILT_STREAM))
         {
             DEBUG_WRAP(DebugMessage(DEBUG_RPC, "It's not the only thing in this buffer!"
                                     " length: %d psize: %d!\n", length, psize););            
             return RPC_MULTIPLE_RECORD;
         }
-        
+        else if ( length == 0 )
+        {
+            DEBUG_WRAP(DebugMessage(DEBUG_RPC, "Zero-length RPC fragment detected."
+                                    " length: %d psize: %d.\n", length, psize););            
+            return RPC_ZERO_LENGTH_FRAGMENT;
+        }
         return 0;
     }
     else if(rpcpreprocdata.alert_fragments)

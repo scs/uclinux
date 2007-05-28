@@ -7,20 +7,13 @@
 #      Erik Anderson <eanders@carmichaelsecurity.com>
 #      Added BugtraqID and CAN
 #
-# References:
-# From: "Matthew Murphy" <mattmurphy@kc.rr.com>
-# To: full-disclosure@lists.netsys.com, 
-#  "SecurITeam News" <news@securiteam.com>, bugtraq@securityfocus.com
-# Subject: Three BadBlue Vulnerabilities
-# Date: Fri, 12 Jul 2002 19:50:16 -0500
-#
 
 if(description)
 {
  script_id(11062);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CAN-2002-1023");
  script_bugtraq_id(5187);
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2002-1023");
  name["english"] = "BadBlue invalid GET DoS";
  script_name(english:name["english"]);
  
@@ -57,9 +50,11 @@ include("http_func.inc");
 r1 = string("GET HTTP/1.0\r\n\r\n");
 r2 = string("GET  HTTP/1.0\r\n\r\n");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
+
+if(http_is_dead(port: port)) exit (0);
 
 soc = http_open_socket(port);
 if(! soc) exit(0);

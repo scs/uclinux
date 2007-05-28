@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: uudecode.c,v 1.9 1998/09/23 17:16:13 wessels Exp $
  */
 
 #include "config.h"

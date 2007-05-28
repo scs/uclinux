@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: wais.c,v 1.138 2001/10/24 08:19:09 hno Exp $
  *
  * DEBUG: section 24    WAIS Relay
  * AUTHOR: Harvest Derived

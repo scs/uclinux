@@ -4,7 +4,6 @@ LIBS =  `$(NASLCONFIG) --libs` `$(NESSUSCONFIG) --libs`  \
 	$(W_STATIC)  $(W_DYNAMIC) \
 	$(DL_LIB)  \
 	$(COMPAT_LIB) $(LIBWRAP)
-
 NESSUS_INCLUDE=`sh ./cflags` 
 OBJS = auth.o \
        attack.o \
@@ -24,7 +23,6 @@ OBJS = auth.o \
        pluginload.o \
        nasl_plugins.o \
        nes_plugins.o \
-       perl_plugins.o \
        plugs_req.o \
        nessusd.o \
        save_tests.o \
@@ -36,9 +34,10 @@ OBJS = auth.o \
        md5.o \
        plugs_hash.o \
        pluginupload.o \
-       pluginscheduler.o
+       pluginscheduler.o \
+       shared_socket.o 
 
-all : ${make_bindir}/nessusd
+all : ${make_bindir}/nessusd ${make_bindir}/nessus-check-signature
 
 cflags : ../nessus.tmpl
 	@echo "$(NESSUS_CFLAGS) ${include} $(DEFS) $(NESSUS_DEFS)"  | sed 's/\"/\\\"/g' > cflags.tmp
@@ -49,8 +48,18 @@ ${make_bindir}/nessusd : nessusd
 	test -d ${make_bindir} || mkdir ${make_bindir}
 	cp nessusd ${make_bindir}/nessusd
 
+${make_bindir}/nessus-check-signature: nessus-check-signature
+	test -d ${make_bindir} || mkdir ${make_bindir}
+	cp nessus-check-signature ${make_bindir}/nessus-check-signature
+
 nessusd : cflags $(OBJS)
 	$(CC) $(LDFLAGS) $(NESSUS_INCLUDE) $(OBJS)  -o nessusd $(LIBS)
+
+nessus-check-signature : cflags nessus-check-signature.o
+	$(CC) $(LDFLAGS) $(NESSUS_INCLUDE) nessus-check-signature.o  -o nessus-check-signature $(LIBS)
+
+nessus-check-signature.o: nessus-check-signature.c
+	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c nessus-check-signature.c 
 
 users.o : cflags users.c users.h
 	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c users.c 
@@ -106,9 +115,6 @@ nasl_plugins.o : cflags nasl_plugins.c
 nes_plugins.o : cflags nes_plugins.c
 	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c nes_plugins.c 
 
-perl_plugins.o : cflags perl_plugins.c
-	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c perl_plugins.c 
-
 plugs_req.o : cflags plugs_req.c
 	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c plugs_req.c 
 
@@ -123,7 +129,7 @@ detached.o : cflags detached.c detached.h
 
 pluginlaunch.o : cflags pluginlaunch.c
 	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c pluginlaunch.c
-	
+
 locks.o : cflags locks.c 
 	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c locks.c
 
@@ -140,13 +146,15 @@ plugs_hash.o : cflags plugs_hash.c
 
 pluginupload.o : cflags pluginupload.c
 	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c pluginupload.c
-	
+
 pluginscheduler.o : cflags pluginscheduler.c
 	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c pluginscheduler.c
 
 hosts.o : cflags hosts.c
 	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c hosts.c
-	
+
+shared_socket.o : cflags shared_socket.c
+	$(CC) $(CFLAGS) $(NESSUS_INCLUDE) -c shared_socket.c
 clean :
-	rm -f *.o nessusd *~ cflags
+	rm -f *.o nessusd nessus-check-signature *~ cflags
 

@@ -19,8 +19,10 @@ if(description)
 {
  script_id(11481);
  script_bugtraq_id(7448);
- script_cve_id("CAN-2003-0084");
- script_version("$Revision: 1.4 $");
+ script_cve_id("CVE-2003-0084");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:113-01");
+
+ script_version("$Revision: 1.9 $");
  
  name["english"] = "mod_auth_any command execution";
 
@@ -67,10 +69,15 @@ Risk factor : High";
 #
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
+port = get_http_port(default:80);
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+if ( report_paranoia < 2 )
+{
+ banner = get_http_banner(port:port);
+ if ( ! banner || "Apache" >!< banner ) exit(0);
+}
 
 pages = get_kb_list(string("www/", port, "/content/auth_required"));
 if(isnull(pages)) exit(0);
@@ -84,6 +91,7 @@ foreach file (pages)
  
  res = http_keepalive_send_recv(port:port, data:req);
  if(res == NULL) exit(0);
+ if (debug_level > 0) display("---- mod_auth_any ----\n1st req on port ", port, "\n", res, "\n------------\n");
  
  if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 40[13] .*", string:res))
  { 
@@ -94,6 +102,7 @@ foreach file (pages)
   if(res == NULL) exit(0);
   if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 .*", string:res))
   {
+   if (debug_level > 0) display("---- mod_auth_any ----\n2nd req on port ", port, "\n", res, "\n------------\n");
    security_hole(port);
    exit(0);
   }

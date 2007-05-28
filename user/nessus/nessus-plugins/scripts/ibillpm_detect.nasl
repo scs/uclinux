@@ -14,8 +14,9 @@
 if(description)
 {
  script_id(11083);
+ script_cve_id("CVE-2001-0839");
  script_bugtraq_id(3476);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.8 $");
   
  name["english"] = "ibillpm.pl";
  script_name(english:name["english"]);
@@ -57,10 +58,14 @@ Risk factor : Low";
 }
 
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("ibillpm.pl");
-if(port)security_warning(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res = is_cgi_installed_ka(item:"ibillpm.pl", port:port);
+if(res)security_warning(port);
 # Note: we could try to access it. If we get a 403 the site is safe.
-
-
-

@@ -130,7 +130,7 @@ ExtFunc int ftp_get_pasv_address(int soc, struct sockaddr_in * addr)
  if( s == NULL )
  	return 1;
 	
- s[0] = 0;
+ s[0] = '\0';
  
  l[0] = (unsigned char)atoi(t);
  s++;

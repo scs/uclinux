@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10361);
- script_version ("$Revision: 1.19 $");
  script_bugtraq_id(1089);
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-2000-0278");
  
  name["english"] = "SalesLogix Eviewer WebApp crash";
@@ -68,10 +68,11 @@ Facteur de risque : Elevé";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
+ if ( http_is_dead(port:port) ) exit(0);
  req = http_get(item:"/scripts/slxweb.dll/admin?command=shutdown",
  	        port:port);
  soc = http_open_socket(port);
@@ -82,7 +83,7 @@ if(get_port_state(port))
  http_close_socket(soc);
 
  alive = end_denial();
- if(!alive){
+ if(!alive && http_is_dead(port:port)){
   		security_hole(port);
 		set_kb_item(name:"Host/dead", value:TRUE);
 		}

@@ -36,7 +36,7 @@
  * From: @(#)trace.c	8.1 (Berkeley) 6/5/93
  */
 char trace_rcsid[] = 
-  "$Id$";
+  "$Id: trace.c,v 1.14 1999/09/29 01:47:36 netbug Exp $";
 
 
 /*

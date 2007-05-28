@@ -66,6 +66,7 @@ nbe_to_backend(filename)
 
 
 
+extern int F_quiet_mode;
 
 /*
  * XXXX
@@ -83,24 +84,32 @@ backend_to_nbe(be, filename)
  off_t tot = 0;
  char buf[4096];
  struct stat stat;
+ int len;
  
  
  if(strcmp(filename, "-") == 0)
   fd = 1; /* stdout */
  else
-  fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0600);
-  
+   if (F_quiet_mode)
+     fd = open(filename, O_RDWR|O_CREAT|O_TRUNC, 0600);
+   else
+     fd = open(filename, O_RDWR|O_CREAT|O_EXCL, 0600);
+
  if(fd < 0)
  {
-  perror(filename);
-  show_error("Could not write the report");
-  return -1;
+   char	err[1024];
+   int	e = errno;
+   perror(filename);
+   snprintf(err, sizeof(err), "%s: %s", filename, strerror(e));
+   show_error(err);
+   return -1;
  }
 
  
  lseek(befd, 0, SEEK_SET);
  fstat(befd, &stat);
- while(tot < stat.st_size)
+ len = (int)stat.st_size;
+ while(tot < len)
  {
   int e;
   bzero(buf, sizeof(buf));

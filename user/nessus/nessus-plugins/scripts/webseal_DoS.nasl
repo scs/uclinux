@@ -20,9 +20,9 @@
 if(description)
 {
  script_id(11089);
- script_version ("$Revision: 1.7 $");
- script_cve_id("CAN-2001-1191");
  script_bugtraq_id(3685);
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-2001-1191");
  
  name["english"] = "Webseal denial of service";
  name["francais"] = "Déni de service contre Webseal";
@@ -75,10 +75,10 @@ Facteur de risque : Elevé";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
 
 if (! get_port_state(port)) exit(0);
+if (! can_host_asp(port:port)) exit(0);
 
 if (http_is_dead(port: port)) exit(0);
 
@@ -98,13 +98,9 @@ for (i=0; i<4;i=i+1)
  http_close_socket(soc);
  
  soc = http_open_socket(port);
- if(!soc)
- 	{
- 	security_hole(port);
-	exit(0);
-	}
+ if(!soc) break;
 }
-
-
+# We must close the socket, VNC limits the number of parallel connections
+if (soc) http_close_socket(soc);
 
 if (http_is_dead(port: port)) { security_hole(port); }

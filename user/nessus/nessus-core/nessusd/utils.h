@@ -55,6 +55,9 @@ int common(struct arglist*, struct arglist*);
 
 int process_alive(pid_t);
 int is_client_present(int);
+int is_socket_connected(int);
 int data_left(int);
 int set_linger(int, int);
+
+void wait_for_children1();
 #endif

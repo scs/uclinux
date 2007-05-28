@@ -21,7 +21,7 @@
  * Test of sc_encrypt and sc_decrypt.                           SUCCESSes: 1.
  */
 
-static char    *rcsid = "$Id$";    /* */
+static char    *rcsid = "$Id: scapitest.c,v 5.0 2002/04/20 07:30:22 hardaker Exp $";    /* */
 
 
 #include <net-snmp/net-snmp-config.h>

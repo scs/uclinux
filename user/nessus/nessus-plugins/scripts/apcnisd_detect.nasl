@@ -1,24 +1,37 @@
 #
-# This script was written by Renaud Deraison
+# (C) Tenable Network Security
 #
-# GPL
 #
+
+  desc["english"] = "
+Synopsis :
+
+apcnisd, a daemon to manager a APC batter backup unit, is listening
+on the remote port.
+
+Description :
+
+apcnisd is listening on this port.  This software is used to remotely 
+manage APC battery backup units. Access to this port should be restricted
+to authorized hosts only, as a flaw or a lack of authentication in this
+service may allow an attacker to turn off the devices plugged into the
+remote APC.
+
+Solution :
+
+Filter incoming traffic to this port.
+
+Risk factor :
+
+None";
 
 if(description)
 {
   script_id(11483);
-  script_version ("$Revision: 1.2 $");
+  script_version ("$Revision: 1.7 $");
  
   script_name(english:"apcnisd detection");
  
-  desc["english"] = "
-apcnisd is running on this port. 
-This software is used to remotely manage APC 
-battery backup units
-
-You should not let everyone connect to this port
-
-Risk factor : Low";
 
   script_description(english:desc["english"]);
  
@@ -27,8 +40,8 @@ Risk factor : Low";
  
   script_category(ACT_GATHER_INFO);
  
-  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
-  family["english"] = "General";
+  script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+  family["english"] = "Service detection";
   script_family(english:family["english"]);
   script_dependencie("find_service.nes", "find_service2.nasl");
   script_require_ports("Services/unknown", 7000);
@@ -37,12 +50,18 @@ Risk factor : Low";
 }
 
 include ("misc_func.inc");
+include ("global_settings.inc");
 
-port = get_kb_item("Services/unknown");
-if (! port) port = 7000;
+if ( thorough_tests )
+{
+ port = get_unknown_svc(7000);
+ if (! port) exit(0);
+}
+else port = 7000;
+
 if (! get_port_state(port)) exit(0);
 
-if (known_service(port: port)) exit(0);
+if (! service_is_unknown(port: port)) exit(0);
 
 soc = open_sock_tcp(port);
 if (! soc) exit(0);
@@ -53,17 +72,7 @@ send(socket:soc, data:req);
 r = recv(socket:soc, length:4096);
 if("APC" >< r && "MODEL" >< r)
 {
- report = '
-apcnisd is running on this port. 
-This software is used to remotely manage APC 
-battery backup units.
-
-Here is the information we could get about the 
-unit connected to this host : \n' + r + "
-
-You should not let everyone connect to this port
-
-Risk factor : Low";
+ report = desc["english"] + '\n\nPlugin output :\n' + r;
  register_service(port:port, proto:"apcnisd");
  security_note(port:port, data:report);
  exit(0);

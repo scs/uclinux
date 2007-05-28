@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10325);
- script_version ("$Revision: 1.18 $");
  script_bugtraq_id(791);
- script_cve_id("CAN-1999-1511");
+ script_version ("$Revision: 1.25 $");
+ script_cve_id("CVE-1999-1511");
  
  name["english"] = "Xtramail pop3 overflow";
  name["francais"] = "Divers dépassement de buffers dans Xtramail pop3";
@@ -78,7 +78,9 @@ if(safe_checks())
  		soc = open_sock_tcp(port);
                 if(!soc)exit(0);
 		banner = recv_line(socket:soc, length:4096);
+		if ( ! banner ) exit(0);
 		close(soc);
+		if (substr(banner,0,2) != '+OK') exit(0);	# Not a POP3 server!
 	    }
  if(banner)
  {
@@ -125,8 +127,16 @@ if(get_port_state(port))
   c = string("PASS ", crap(2000), "\r\n");
   send(socket:soc, data:c);
   d = recv_line(socket:soc, length:1024, timeout:15);
-  if(!d)security_hole(port);
+  close(soc);
+
+  soc = open_sock_tcp(port);
+  if(soc)
+  {
+   r = recv_line(socket:soc, length:4096);
+   if(!r)security_hole(port);
+  }
+  else
+    security_hole(port);
  }
- close(soc);
 }
 

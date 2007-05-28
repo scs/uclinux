@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11687);
  script_bugtraq_id(7776);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.4 $");
  
  desc["english"] = "
 The remote FTP server is vulnerable to a format string attack
@@ -54,7 +54,9 @@ soc = open_sock_tcp(port);
 if (! soc) exit(0);
 
 r = ftp_recv_line(socket:soc);
-send(socket:soc, data:'USER %x\r\n');
+if ( "Crob FTP" >!< r ) exit(0);
+
+send(socket:soc, data:'USER %d\r\n');
 r = ftp_recv_line(socket:soc);
-if(egrep(pattern:"^331.* for [0-9a-z]", string:r))security_hole(port);
+if(egrep(pattern:"^331.* for [0-9]+", string:r))security_hole(port);
 ftp_close(socket:soc);

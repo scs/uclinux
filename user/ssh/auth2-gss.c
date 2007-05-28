@@ -1,4 +1,4 @@
-/*	$OpenBSD: auth2-gss.c,v 1.3 2003/09/01 20:44:54 markus Exp $	*/
+/*	$OpenBSD: auth2-gss.c,v 1.12 2005/10/13 22:24:31 stevesk Exp $	*/
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -34,7 +34,6 @@
 #include "log.h"
 #include "dispatch.h"
 #include "servconf.h"
-#include "compat.h"
 #include "packet.h"
 #include "monitor_wrap.h"
 
@@ -43,24 +42,25 @@
 extern ServerOptions options;
 
 static void input_gssapi_token(int type, u_int32_t plen, void *ctxt);
+static void input_gssapi_mic(int type, u_int32_t plen, void *ctxt);
 static void input_gssapi_exchange_complete(int type, u_int32_t plen, void *ctxt);
 static void input_gssapi_errtok(int, u_int32_t, void *);
 
 /*
  * We only support those mechanisms that we know about (ie ones that we know
- * how to check local user kuserok and the like
+ * how to check local user kuserok and the like)
  */
 static int
 userauth_gssapi(Authctxt *authctxt)
 {
-	gss_OID_desc oid = {0, NULL};
+	gss_OID_desc goid = {0, NULL};
 	Gssctxt *ctxt = NULL;
 	int mechs;
 	gss_OID_set supported;
 	int present;
 	OM_uint32 ms;
 	u_int len;
-	char *doid = NULL;
+	u_char *doid = NULL;
 
 	if (!authctxt->valid || authctxt->user == NULL)
 		return (0);
@@ -78,17 +78,18 @@ userauth_gssapi(Authctxt *authctxt)
 		if (doid)
 			xfree(doid);
 
+		present = 0;
 		doid = packet_get_string(&len);
 
-		if (doid[0] != SSH_GSS_OIDTYPE || doid[1] != len-2) {
-			logit("Mechanism OID received using the old encoding form");
-			oid.elements = doid;
-			oid.length = len;
+		if (len > 2 && doid[0] == SSH_GSS_OIDTYPE &&
+		    doid[1] == len - 2) {
+			goid.elements = doid + 2;
+			goid.length   = len - 2;
+			gss_test_oid_set_member(&ms, &goid, supported,
+			    &present);
 		} else {
-			oid.elements = doid + 2;
-			oid.length   = len - 2;
+			logit("Badly formed OID received");
 		}
-		gss_test_oid_set_member(&ms, &oid, supported, &present);
 	} while (mechs > 0 && !present);
 
 	gss_release_oid_set(&ms, &supported);
@@ -98,16 +99,16 @@ userauth_gssapi(Authctxt *authctxt)
 		return (0);
 	}
 
-	if (GSS_ERROR(PRIVSEP(ssh_gssapi_server_ctx(&ctxt, &oid)))) {
+	if (GSS_ERROR(PRIVSEP(ssh_gssapi_server_ctx(&ctxt, &goid)))) {
 		xfree(doid);
 		return (0);
 	}
 
-	authctxt->methoddata=(void *)ctxt;
+	authctxt->methoddata = (void *)ctxt;
 
 	packet_start(SSH2_MSG_USERAUTH_GSSAPI_RESPONSE);
 
-	/* Return OID in same format as we received it*/
+	/* Return the OID that we received */
 	packet_put_string(doid, len);
 
 	packet_send();
@@ -127,7 +128,7 @@ input_gssapi_token(int type, u_int32_t plen, void *ctxt)
 	Gssctxt *gssctxt;
 	gss_buffer_desc send_tok = GSS_C_EMPTY_BUFFER;
 	gss_buffer_desc recv_tok;
-	OM_uint32 maj_status, min_status;
+	OM_uint32 maj_status, min_status, flags;
 	u_int len;
 
 	if (authctxt == NULL || (authctxt->methoddata == NULL && !use_privsep))
@@ -140,7 +141,7 @@ input_gssapi_token(int type, u_int32_t plen, void *ctxt)
 	packet_check_eom();
 
 	maj_status = PRIVSEP(ssh_gssapi_accept_ctx(gssctxt, &recv_tok,
-	    &send_tok, NULL));
+	    &send_tok, &flags));
 
 	xfree(recv_tok.value);
 
@@ -152,7 +153,7 @@ input_gssapi_token(int type, u_int32_t plen, void *ctxt)
 		}
 		authctxt->postponed = 0;
 		dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
-		userauth_finish(authctxt, 0, "gssapi");
+		userauth_finish(authctxt, 0, "gssapi-with-mic");
 	} else {
 		if (send_tok.length != 0) {
 			packet_start(SSH2_MSG_USERAUTH_GSSAPI_TOKEN);
@@ -161,8 +162,13 @@ input_gssapi_token(int type, u_int32_t plen, void *ctxt)
 		}
 		if (maj_status == GSS_S_COMPLETE) {
 			dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
-			dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE,
-				     &input_gssapi_exchange_complete);
+			if (flags & GSS_C_INTEG_FLAG)
+				dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_MIC,
+				    &input_gssapi_mic);
+			else
+				dispatch_set(
+				    SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE,
+				    &input_gssapi_exchange_complete);
 		}
 	}
 
@@ -222,9 +228,8 @@ input_gssapi_exchange_complete(int type, u_int32_t plen, void *ctxt)
 	gssctxt = authctxt->methoddata;
 
 	/*
-	 * We don't need to check the status, because the stored credentials
-	 * which userok uses are only populated once the context init step
-	 * has returned complete.
+	 * We don't need to check the status, because we're only enabled in
+	 * the dispatcher once the exchange is complete
 	 */
 
 	packet_check_eom();
@@ -234,12 +239,53 @@ input_gssapi_exchange_complete(int type, u_int32_t plen, void *ctxt)
 	authctxt->postponed = 0;
 	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
 	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_ERRTOK, NULL);
+	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_MIC, NULL);
 	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE, NULL);
-	userauth_finish(authctxt, authenticated, "gssapi");
+	userauth_finish(authctxt, authenticated, "gssapi-with-mic");
+}
+
+static void
+input_gssapi_mic(int type, u_int32_t plen, void *ctxt)
+{
+	Authctxt *authctxt = ctxt;
+	Gssctxt *gssctxt;
+	int authenticated = 0;
+	Buffer b;
+	gss_buffer_desc mic, gssbuf;
+	u_int len;
+
+	if (authctxt == NULL || (authctxt->methoddata == NULL && !use_privsep))
+		fatal("No authentication or GSSAPI context");
+
+	gssctxt = authctxt->methoddata;
+
+	mic.value = packet_get_string(&len);
+	mic.length = len;
+
+	ssh_gssapi_buildmic(&b, authctxt->user, authctxt->service,
+	    "gssapi-with-mic");
+
+	gssbuf.value = buffer_ptr(&b);
+	gssbuf.length = buffer_len(&b);
+
+	if (!GSS_ERROR(PRIVSEP(ssh_gssapi_checkmic(gssctxt, &gssbuf, &mic))))
+		authenticated = PRIVSEP(ssh_gssapi_userok(authctxt->user));
+	else
+		logit("GSSAPI MIC check failed");
+
+	buffer_free(&b);
+	xfree(mic.value);
+
+	authctxt->postponed = 0;
+	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
+	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_ERRTOK, NULL);
+	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_MIC, NULL);
+	dispatch_set(SSH2_MSG_USERAUTH_GSSAPI_EXCHANGE_COMPLETE, NULL);
+	userauth_finish(authctxt, authenticated, "gssapi-with-mic");
 }
 
 Authmethod method_gssapi = {
-	"gssapi",
+	"gssapi-with-mic",
 	userauth_gssapi,
 	&options.gss_authentication
 };

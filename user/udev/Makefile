@@ -1,6 +1,5 @@
-# Makefile for udev
 #
-# Copyright (C) 2003,2004 Greg Kroah-Hartman <greg@kroah.com>
+# Copyright (C) 2003-2004 Greg Kroah-Hartman <greg@kroah.com>
 # Copyright (C) 2004-2006 Kay Sievers <kay.sievers@vrfy.org>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -14,10 +13,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+# 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #
 
-VERSION = 090
+VERSION = 100
 
 # set this to make use of syslog
 USE_LOG = true
@@ -32,9 +31,6 @@ USE_GCOV = false
 
 # include Security-Enhanced Linux support
 USE_SELINUX = false
-
-# comile with klibc instead of glibc
-USE_KLIBC = false
 
 # set this to create statically linked binaries
 USE_STATIC = false
@@ -51,7 +47,6 @@ PROGRAMS = \
 	udevd				\
 	udevtrigger			\
 	udevsettle			\
-	udevsend			\
 	udevcontrol			\
 	udevmonitor			\
 	udevinfo			\
@@ -60,9 +55,10 @@ PROGRAMS = \
 
 HEADERS = \
 	udev.h				\
+	udevd.h				\
 	udev_rules.h			\
 	logging.h			\
-	udev_libc_wrapper.h		\
+	udev_sysdeps.h			\
 	udev_selinux.h			\
 	list.h
 
@@ -78,7 +74,7 @@ UDEV_OBJS = \
 	udev_utils_string.o		\
 	udev_utils_file.o		\
 	udev_utils_run.o		\
-	udev_libc_wrapper.o
+	udev_sysdeps.o
 LIBUDEV = libudev.a
 
 MAN_PAGES = \
@@ -87,7 +83,6 @@ MAN_PAGES = \
 	udevd.8				\
 	udevtrigger.8			\
 	udevsettle.8			\
-	udevsend.8			\
 	udevtest.8			\
 	udevinfo.8			\
 	udevstart.8
@@ -95,14 +90,14 @@ MAN_PAGES = \
 GEN_HEADERS = \
 	udev_version.h
 
-prefix =
+prefix ?=
 etcdir =	${prefix}/etc
 sbindir =	${prefix}/sbin
 usrbindir =	${prefix}/usr/bin
 usrsbindir =	${prefix}/usr/sbin
 libudevdir =	${prefix}/lib/udev
 mandir =	${prefix}/usr/share/man
-configdir =	${etcdir}/udev
+configdir =	${etcdir}
 udevdir =	/dev
 DESTDIR =
 
@@ -112,19 +107,19 @@ INSTALL_DATA = ${INSTALL} -m 644
 INSTALL_SCRIPT = ${INSTALL_PROGRAM}
 PWD = $(shell pwd)
 
-CROSS_COMPILE =
-CC = $(CROSS_COMPILE)gcc
-LD = $(CROSS_COMPILE)gcc
-AR = $(CROSS_COMPILE)ar
-RANLIB = $(CROSS_COMPILE)ranlib
+# CROSS_COMPILE ?=
+CC ?= $(CROSS_COMPILE)gcc
+LD ?= $(CROSS_COMPILE)gcc
+AR ?= $(CROSS_COMPILE)ar
+RANLIB ?= $(CROSS_COMPILE)ranlib
 
-CFLAGS		= -g -Wall -pipe -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64
+CFLAGS		+= -g -Wall -pipe -D_GNU_SOURCE
 WARNINGS	= -Wstrict-prototypes -Wsign-compare -Wshadow \
 		  -Wchar-subscripts -Wmissing-declarations -Wnested-externs \
 		  -Wpointer-arith -Wcast-align -Wsign-compare -Wmissing-prototypes
 CFLAGS		+= $(WARNINGS)
 
-LDFLAGS = -Wl,-warn-common
+#LDFLAGS = -Wl,-warn-common
 
 OPTFLAGS = -Os
 CFLAGS += $(OPTFLAGS)
@@ -141,12 +136,6 @@ endif
 ifeq ($(strip $(USE_GCOV)),true)
 	CFLAGS += -fprofile-arcs -ftest-coverage
 	LDFLAGS += -fprofile-arcs
-endif
-
-ifeq ($(strip $(USE_KLIBC)),true)
-	KLCC		= /usr/bin/$(CROSS_COMPILE)klcc
-	CC		= $(KLCC)
-	LD		= $(KLCC)
 endif
 
 ifeq ($(strip $(USE_SELINUX)),true)
@@ -194,8 +183,8 @@ all: $(PROGRAMS) $(MAN_PAGES)
 
 # "Static Pattern Rule" to build all programs
 $(PROGRAMS): %: $(HEADERS) $(GEN_HEADERS) $(LIBUDEV) %.o
-	$(E) "  LD      " $@
-	$(Q) $(LD) $(LDFLAGS) $@.o -o $@ $(LIBUDEV) $(LIB_OBJS)
+	$(E) "  CC      " $@
+	$(Q) $(CC) $(LDFLAGS) $@.o -o $@ $(LIBUDEV) $(LIB_OBJS)
 
 $(LIBUDEV): $(HEADERS) $(GEN_HEADERS) $(UDEV_OBJS)
 	$(Q) rm -f $@
@@ -210,7 +199,7 @@ udev_version.h:
 	$(Q) echo \#define UDEV_VERSION		\"$(VERSION)\" >> $@
 	$(Q) echo \#define UDEV_ROOT		\"$(udevdir)\" >> $@
 	$(Q) echo \#define UDEV_CONFIG_FILE	\"$(configdir)/udev.conf\" >> $@
-	$(Q) echo \#define UDEV_RULES_FILE	\"$(configdir)/rules.d\" >> $@
+	$(Q) echo \#define UDEV_RULES_FILE	\"$(configdir)/config\" >> $@
 
 # man pages
 %.8 %.7: %.xml
@@ -368,3 +357,14 @@ udev_gcov.txt: $(wildcard *.gcda) $(wildcard *.gcno)
 		echo >> $@; \
 	done; \
 	echo "view $@ for the result"
+
+romfs:
+	$(ROMFSINST) /sbin/udevd
+	$(ROMFSINST) /sbin/udevtrigger
+	$(ROMFSINST) /sbin/udevsettle
+	$(ROMFSINST) /sbin/udevcontrol
+	$(ROMFSINST) /sbin/udevmonitor
+	$(ROMFSINST) /sbin/udevinfo
+	$(ROMFSINST) /sbin/udevtest
+	$(ROMFSINST) /sbin/udevstart
+	$(ROMFSINST) etc/udev/udev.conf /etc/udev.conf

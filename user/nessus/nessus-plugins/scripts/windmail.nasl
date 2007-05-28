@@ -7,60 +7,44 @@
 if(description)
 {
  script_id(10365);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1073);
- script_cve_id("CAN-2000-0242"); 
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-2000-0242"); 
  name["english"] = "Windmail.exe allows any user to execute arbitrary commands";
  name["francais"] = "Windmail.exe allows any user to execute arbitrary comands";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "The 'windmail.exe' CGI is installed. 
+ desc["english"] = "
+Synopsis :
+
+The remote web server contains a CGI script that is prone to arbitrary
+command execution. 
+
+Description :
+
+The remote host may be running WindMail as a CGI application.  In this
+mode, some versions of the 'windmail.exe' script allow an attacker to
+execute arbitrary commands on the remote server. 
+
+See also : 
+
+http://seclists.org/lists/bugtraq/2000/Mar/0322.html
+
+Solution : 
+
+Remove the CGI script.
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
+
+
+ script_description(english:desc["english"]);
  
-Some versions of this CGI script have a security flaw that lets 
-an attacker execute arbitrary commands on the remote server.
-
-To test this, make the following request :
-
-GET /cgi-bin/windmail.exe?-n%20c:\boot.ini%20you@youraddress.com
-
-(replace you@youraddress.com by your real email address). 
-
-If you receive the content of the file boot.ini,
-then your server is vulnerable.
-
-Solution : remove it from /cgi-bin. See www.geocel.com
-           for a new version.
-
-Risk factor : Serious";
-
-
- desc["francais"] = "Le cgi 'windmail.exe' est installé. Celui-ci possède
-un problème de sécurité qui permet à n'importe qui de faire
-executer des commandes arbitraires au daemon http.
-
-Pour déterminer si vous etes vulnérable, alors faites
-la requete :
-
-GET /cgi-bin/windmail.exe?-n%20c:\boot.ini%20you@youraddress.com
-
-(remplacez you@youraddress.com par votre vraie adresse email).
-
-Si vous recevez le contenu du fichier boot.ini, alors vous
-etes vulnérable.
-
-
-Solution : retirez-le de /cgi-bin. Allez sur www.geocel.com pour
-           obtenir une nouvelle version.
-
-Facteur de risque : Sérieux";
-
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ summary["english"] = "Checks for the presence of windmail.exe";
  
- summary["english"] = "Checks for the presence of /cgi-bin/windmail.exe";
- summary["francais"] = "Vérifie la présence de /cgi-bin/windmail.exe";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
@@ -70,7 +54,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -79,6 +63,17 @@ Facteur de risque : Sérieux";
 # The script code starts here
 #
 
-port = is_cgi_installed("windmail.exe");
-if(port)security_hole(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
+if ( report_paranoia < 2 ) exit(0);
+
+
+
+port = get_http_port(default:80);
+banner = get_http_banner(port:port);
+if ( ! banner || "Server: Microsoft/IIS" >!< banner ) exit(0);
+
+res = is_cgi_installed_ka(item:"windmail.exe", port:port);
+if(res)security_hole(port);

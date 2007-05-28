@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11040);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "HTTP TRACE";
  name["francais"] = "TRACE HTTP";
@@ -51,8 +51,8 @@ Risque: aucun";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if (!get_port_state(port)) exit(0);
 
 soc = open_sock_tcp(port);
@@ -60,7 +60,7 @@ if (!soc) exit(0);
 
 req = http_get(port: port, item: "/");
 send(socket: soc, data: req);
-heads = http_recv_headers(soc);
+heads = http_recv_headers2(socket:soc);
 via = egrep(pattern: "^Via: ", string: heads);
 trace="";
 if (via)
@@ -119,7 +119,7 @@ for (i=0; i<99;i=i+1)
 	"\r\n\r\n");
 
     send(socket: soc, data: req);
-    buf = http_recv_headers(soc);
+    buf = http_recv_headers2(socket:soc);
     #
     via = egrep(pattern: "^Via: ", string: buf);
     if (via)

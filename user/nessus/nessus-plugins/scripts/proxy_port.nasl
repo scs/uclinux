@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(10193);
- script_version ("$Revision: 1.18 $");
+ script_version ("$Revision: 1.19 $");
  
  name["english"] = "Usable remote proxy on any port";
  name["francais"] = "Proxy distant utilisable sur n'importe quel port";
@@ -94,7 +94,7 @@ if(usable_proxy)
     # Some stupid servers reply with a 200- code 
     # to say that an error occured...
     #
-    headers = http_recv_headers(soc);
+    headers = http_recv_headers2(socket:soc);
     error1 = http_recv_body(socket:soc, headers:headers, length:0);
     http_close_socket(soc);
     
@@ -111,7 +111,7 @@ if(usable_proxy)
     else {
      if("200" >< buffer)
      {
-      headers = http_recv_headers(soc);
+      headers = http_recv_headers2(socket:soc);
      error2 = http_recv_body(socket:soc, headers:headers, length:0);
      http_close_socket(soc);
      if(error1 == error2)exit(0);

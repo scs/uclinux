@@ -6,8 +6,8 @@
 if(description)
 {
  script_id(11094);
- script_version ("$Revision: 1.5 $");
- script_cve_id("CAN-2001-1021");
+ script_version ("$Revision: 1.9 $");
+ script_cve_id("CVE-2001-1021");
  name["english"] = "WS FTP overflows";
  
  script_name(english:name["english"]);
@@ -54,7 +54,6 @@ Facteur de risque : Elevé";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "ftp_anonymous.nasl",
  		    "ftpserver_detect_type_nd_version.nasl");
- script_require_keys("ftp/login");
  script_require_ports("Services/ftp", 21);
  
  exit(0);
@@ -68,7 +67,7 @@ port = get_kb_item("Services/ftp");
 if(!port) port = 21;
 if (! get_port_state(port)) exit(0);
 
-if (safe_checks())
+if (safe_checks() || ! get_kb_item("ftp/login"))
 {
   m = "According to its version number, your remote WS_FTP server
 is vulnerable to a buffer overflow against any command.
@@ -84,7 +83,7 @@ Solution : upgrade to the latest version your FTP server.
 
 Risk factor : High";
 
-  banner = get_ftp_banner(port);
+  banner = get_ftp_banner(port:port);
 
   if (egrep(pattern:"WS_FTP Server 2\.0\.[0-2]", string: banner))
 	security_hole(port: port, data: m);
@@ -99,7 +98,7 @@ if (! password) password = "test@nessus.org";
 
 soc = open_sock_tcp(port);
 if(! soc) exit(0);
-if(! ftp_log_in(socket:soc, user:login, pass:password))
+if(! ftp_authenticate(socket:soc, user:login, pass:password))
 {
   ftp_close(socket: soc);
   exit(0);
@@ -128,7 +127,7 @@ for (i=0; i<11; i=i+1)
  
   soc = open_sock_tcp(port);
   if (! soc) { security_hole(port); exit(0); }
-  ftp_log_in(socket:soc, user:login, pass:password);
+  ftp_authenticate(socket:soc, user:login, pass:password);
 }
 
 ftp_close(socket: soc);

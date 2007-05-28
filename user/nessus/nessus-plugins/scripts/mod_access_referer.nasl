@@ -13,8 +13,9 @@
 if(description)
 {
  script_id(11543); 
+ script_cve_id("CVE-2003-1054");
  script_bugtraq_id(7375);
- script_version("$Revision: 1.6 $");
+ script_version("$Revision: 1.11 $");
 
  name["english"] = "mod_access_referer 1.0.2 NULL pointer dereference";
  script_name(english:name["english"]);
@@ -42,6 +43,7 @@ Risk factor : Medium";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  script_require_keys("www/apache");
  exit(0);
 }
@@ -49,8 +51,8 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 
 if(!get_port_state(port))exit(0);
@@ -72,7 +74,7 @@ function check(req)
   r = http_recv(socket:soc);
   if ( "HTTP">< r ) return(0);
   
-  security_hole(port);
+  security_warning(port);
   exit(0);
 }
 

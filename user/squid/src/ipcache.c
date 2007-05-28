@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: ipcache.c,v 1.236.2.6 2005/02/13 05:53:56 hno Exp $
  *
  * DEBUG: section 14    IP Cache
  * AUTHOR: Harvest Derived
@@ -338,6 +338,10 @@ ipcacheParse(ipcache_entry * i, rfc1035_rr * answers, int nr, const char *error_
 	    continue;
 	if (answers[k].class != RFC1035_CLASS_IN)
 	    continue;
+	if (answers[k].rdlength != 4) {
+	    debug(14, 1) ("ipcacheParse: Invalid IP address in response to '%s'\n", name);
+	    continue;
+	}
 	na++;
     }
     if (na == 0) {
@@ -353,9 +357,10 @@ ipcacheParse(ipcache_entry * i, rfc1035_rr * answers, int nr, const char *error_
 	    continue;
 	if (answers[k].class != RFC1035_CLASS_IN)
 	    continue;
+	if (answers[k].rdlength != 4)
+	    continue;
 	if (ttl == 0 || ttl > answers[k].ttl)
 	    ttl = answers[k].ttl;
-	assert(answers[k].rdlength == 4);
 	xmemcpy(&i->addrs.in_addrs[j++], answers[k].rdata, 4);
 	debug(14, 3) ("ipcacheParse: #%d %s\n",
 	    j - 1,

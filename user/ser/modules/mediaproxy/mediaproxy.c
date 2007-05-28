@@ -1,4 +1,4 @@
-/* $Id$
+/* $Id: mediaproxy.c,v 1.2 2004/11/24 01:33:21 pchunt Exp $
  *
  * Copyright (C) 2004 Dan Pascu
  *

@@ -5,7 +5,7 @@
 #
 
 #
-# This script checks for CAN-2002-1368, but incidentally covers
+# This script checks for CVE-2002-1368, but incidentally covers
 # all the issues listed, as they were all corrected in the
 # same package
 #
@@ -13,10 +13,13 @@
 if(description)
 {
  script_id(11199);
- script_version("$Revision: 1.3 $");
- script_cve_id("CAN-2002-1383", "CAN-2002-1366", "CAN-2002-1367", 
- 	       "CAN-2002-1368", "CAN-2002-1384", "CAN-2002-1369",
-	       "CAN-2002-1372");
+ script_bugtraq_id(6475);
+ script_version("$Revision: 1.9 $");
+ script_cve_id("CVE-2002-1383", "CVE-2002-1384", "CVE-2002-1366", 
+               "CVE-2002-1367", "CVE-2002-1368", "CVE-2002-1369",
+	       "CVE-2002-1372");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:002");
+
 	       
 	       
  
@@ -44,7 +47,7 @@ Risk factor : High";
  family["english"] = "Gain a shell remotely";
  family["francais"] = "Obtenir un shell à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "httpver.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www",631);
  script_require_keys("www/cups");
  exit(0);

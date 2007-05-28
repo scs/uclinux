@@ -29,7 +29,7 @@
 #  14  peer file missing
 # 255  script not configured
 #
-# $Id$
+# $Id: speedtouch.sh,v 1.7 2004/02/17 21:45:14 edgomez Exp $
 
 # Includes function def
 if [ -f /etc/debian_version ] ; then

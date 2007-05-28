@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_uri.h,v 1.6 2003/04/04 03:21:59 jiri Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

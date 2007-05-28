@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: HttpRequest.c,v 1.30.2.2 2004/10/07 17:01:13 hno Exp $
  *
  * DEBUG: section 73    HTTP Request
  * AUTHOR: Duane Wessels
@@ -55,8 +55,8 @@ void
 requestDestroy(request_t * req)
 {
     assert(req);
-    if (req->body_connection)
-	clientAbortBody(req);
+    if (req->body_reader)
+	requestAbortBody(req);
     if (req->auth_user_request)
 	authenticateAuthUserRequestUnlock(req->auth_user_request);
     safe_free(req->canonical);
@@ -157,4 +157,42 @@ httpRequestHdrAllowed(const HttpHeaderEntry * e, String * strConn)
     if (strConn && strListIsMember(strConn, strBuf(e->name), ','))
 	return 0;
     return 1;
+}
+
+/*
+ * Read request body contents
+ */
+void
+requestReadBody(request_t * request, char *buf, size_t size, CBCB * callback, void *cbdata)
+{
+    if (request->body_reader) {
+	if (cbdataValid(request->body_reader_data)) {
+	    request->body_reader(request, buf, size, callback, cbdata);
+	} else {
+	    debug(73, 1) ("requestReadBody: Aborted\n");
+	    request->body_reader = NULL;
+	    cbdataUnlock(request->body_reader_data);
+	    request->body_reader_data = NULL;
+	    callback(buf, 0, cbdata);   /* Signal end of body */
+	}
+    } else {
+	callback(buf, 0, cbdata);       /* Signal end of body */
+    }
+}
+
+void
+requestAbortBody(request_t * request)
+{
+    if (!request)
+	return;
+    if (request->body_reader) {
+	if (cbdataValid(request->body_reader_data)) {
+	    request->body_reader(request, NULL, -1, NULL, NULL);
+	} else {
+	    debug(73, 2) ("requestAbortBody: Aborted\n");
+	    request->body_reader = NULL;
+	    cbdataUnlock(request->body_reader_data);
+	    request->body_reader_data = NULL;
+	}
+    }
 }

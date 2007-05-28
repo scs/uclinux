@@ -8,7 +8,8 @@
 if(description)
 {
  script_id(11515);
- script_version ("$Revision: 1.1 $");
+ script_bugtraq_id(7277);
+ script_version ("$Revision: 1.4 $");
 
 
 
@@ -47,6 +48,7 @@ Risk factor : Low";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -58,8 +60,8 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 

@@ -4,6 +4,10 @@
 /*
  * Nessus system includes 
  */
+#if defined(LINUX)
+/* Bug 1388: to get memmem() prototype */
+#define _GNU_SOURCE
+#endif
 #include <config.h>
 
 #ifndef HAVE_MEMCPY
@@ -22,7 +26,9 @@
 #define bcopy(x,y,z) memcpy(y,x,z)
 #endif
 
-
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
 
 
 #ifndef WINDOWSNT

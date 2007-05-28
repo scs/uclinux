@@ -7,8 +7,9 @@
 if(description)
 {
 	script_id(11207);
+	script_bugtraq_id(10078);
 	script_cve_id("CVE-1999-0256");
-	script_version("$Revision: 1.2 $");
+	script_version("$Revision: 1.5 $");
 	
 	name["english"] = "War FTP Daemon USER/PASS Overflow";
 	script_name(english:name["english"]);
@@ -31,7 +32,7 @@ Risk factor : High";
 	script_copyright(english:"This script is Copyright (C) 2003 Digital Defense, Inc.");
 	family["english"] = "FTP";
 	script_family(english:family["english"]);
-	script_dependencies("find_service.nes");
+	script_dependencies("ftpserver_detect_type_nd_version.nasl");
 	script_require_ports("Services/ftp", 21);
 	exit(0);
 }

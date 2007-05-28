@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_hname.c,v 1.2 2002/09/19 12:23:55 jku Rel $
  *
  * header name parsing automaton:
 

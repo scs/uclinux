@@ -1,49 +1,45 @@
 #
-# This script was written by Michael Scheidell SECNAP Network Security
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
 
 if(description)
 {
  script_id(11177);
- script_version("$Revision: 1.5 $");
- script_cve_id("CAN-2002-1257","CAN-2002-1258","CAN-2002-1183","CAN-2002-0862");
+ script_bugtraq_id(6371, 6372);
+ script_version("$Revision: 1.18 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-b-0002");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-b-0008");
+ script_cve_id("CVE-2002-1257","CVE-2002-1258","CVE-2002-1183","CVE-2002-0862");
 
  name["english"] = "Flaw in Microsoft VM Could Allow Code Execution (810030)";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-Hotfix to fix Flaw in Microsoft VM
-could Allow Code Execution (810030)
+Synopsis :
 
-Impact of vulnerability: Three vulnerabilities, the most
-serious of which could enable an attacker to gain complete
-control over a user's system. 
+Arbitrary code can be executed on the remote host through the VM.
 
-Maximum Severity Rating: Critical 
+Description :
 
-Recommendation: Administrators should install the patch immediately. 
+The remote host is running a Microsoft VM machine which has a bug
+in its bytecode verifier which may allow a remote attacker to execute
+arbitrary code on this host, with the privileges of the SYSTEM.
 
-Affected Software: 
+To exploit this vulnerability, an attacker would need to send a malformed
+applet to a user on this host, and have him execute it. The malicious
+applet would then be able to execute code outside the sandbox of the VM.
 
-Versions of the Microsoft virtual machine (Microsoft VM) are
-identified by build numbers, which can be determined using the
-JVIEW tool as discussed in the FAQ. All builds of the Microsoft
-VM up to and including build 5.0.3805 are affected by these
-vulnerabilities. 
+Solution : 
 
-Supersedes :
+Microsoft has released a set of patches for Windows NT, 2000 and XP :
 
-http://www.microsoft.com/technet/security/bulletin/ms02-052.asp
+http://www.microsoft.com/technet/security/bulletin/ms02-052.mspx
 
-See :
-http://www.microsoft.com/technet/security/bulletin/ms02-069.asp
+Risk factor :
 
-Also Note: Requires full registry access (Administrator)
-to run the test.
-
-Risk factor : High";
+High / CVSS Base Score : 8 
+(AV:R/AC:H/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -53,70 +49,27 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 SECNAP Network Security, LLC");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_full_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_XP.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
- script_exclude_keys("SMB/samba");
+ script_dependencies("smb_hotfixes.nasl"); 
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_hotfixes.inc");
 
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(nt:7, xp:2, win2k:4) <= 0 ) exit(0);
 
-# will be in Win2k SP4 (i think)
-# on win2k, its put into the presp4 directory
+version = get_kb_item ("SMB/Registry/HKLM/SOFTWARE/Microsoft/Active Setup/Installed Components/{08B0E5C0-4FCB-11CF-AAA5-00401C608500}/Version");
+if (!version) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-if(!version)exit(0);
-
-# Fixed in Win2003 or newer
-if(ereg(pattern:"([6-9]\.[0-9])|(5\.[2-9])", string:version))exit(0);
-
-
-if("5.0" >< version)
+v = split(version, sep:",", keep:FALSE);
+if ( int(v[0]) < 5 ||
+     ( int(v[0]) == 5 && int(v[1]) == 0 && int(v[2]) < 3807) )
 {
-# fixed in Service Pack 4
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [4-9]"))exit(0);
- key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q810030";
- item = "Comments";
- value = registry_get_sz(key:key, item:item);
- if(!value)security_hole(port);
- exit(0);
+ if ( hotfix_missing(name:"810030") > 0 )
+   security_hole(get_kb_item("SMB/transport"));
 }
-
-if("5.1" >< version)
-{
- # fixed in XP service Pack 2
- sp = get_kb_item("SMB/XP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
-}
-# lets double check:
- access = get_kb_item("SMB/registry_full_access");
- #can't double check, lets just mark it
- if(!access)exit(0);
-
-key = "SOFTWARE\Microsoft\Active Setup\Installed Components\{08B0E5C0-4FCB-11CF-AAA5-00401C608500}";
-item = "Version";
-
-# should be "5,00,3807,0";
- value = registry_get_sz(key:key, item:item);
-if(!("3809" >< value))
-{
-   security_hole(port);
-}
-

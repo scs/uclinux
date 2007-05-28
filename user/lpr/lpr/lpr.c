@@ -96,6 +96,8 @@ static const char *person;	/* user name */
 static int	 qflag;		/* q job, but don't exec daemon */
 static int	 rflag;		/* remove files upon completion */	
 static int	 sflag;		/* symbolic link flag */
+static int   kflag;     /* relinK rather than copy files into spool,
+						   -k implies -r */
 static int	 tfd;		/* control file descriptor */
 static char	*tfname;	/* tmp copy of cf before linking */
 static char	*title;		/* pr'ing title */
@@ -155,7 +157,7 @@ main(int argc, char **argv)
 	openlog("lpr", 0, LOG_LPR);
 
 	while ((ch = getopt(argc, argv,
-	    ":#:1:2:3:4:C:J:P:T:U:cdfghi::lmnpqrstvw:")) != -1) {
+	    ":#:1:2:3:4:C:J:P:T:U:cdfghi::klmnpqrstvw:")) != -1) {
 		switch (ch) {
 
 		case '#':		/* n copies */
@@ -234,6 +236,11 @@ main(int argc, char **argv)
 
 		case 's':		/* try to link files */
 			sflag++;
+			break;
+
+		case 'k':		/* try to relink files */
+			kflag++;
+			rflag++;
 			break;
 
 		case 'w':		/* versatec page width */
@@ -346,8 +353,18 @@ main(int argc, char **argv)
 			nact++;
 			continue;
 		}
-		if (sflag)
-			warnx("%s: not linked, copying instead", arg);
+		if (kflag && rename(arg, dfname) == 0) {
+			if (format == 'p')
+				card('T', title ? title : arg);
+			for (i = 0; i < ncopies; i++)
+				card(format, &dfname[inchar-2]);
+			card('U', &dfname[inchar-2]);
+			card('N', arg);
+			nact++;
+			continue;
+		}
+		if (kflag || sflag)
+			syslog(LOG_WARNING, "%s: not %slinked, copying instead", arg, kflag ? "re" : "");
 		if ((i = safe_open(arg, O_RDONLY, 0)) < 0)
 			warn("%s", arg);
 		else {

@@ -15,12 +15,12 @@
 if(description)
 {
  script_id(10932);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CVE-2002-0071");
  script_bugtraq_id(4474);
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2002-0071");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-A-0002");
  name["english"] = "IIS .HTR ISAPI filter applied";
- name["francais"] = "IIS .HTR ISAPI filter applied";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 The IIS server appears to have the .HTR ISAPI filter mapped.
@@ -55,14 +55,11 @@ Risk factor : High"; # until a better check is written :(
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2002 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
+ script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -70,9 +67,12 @@ Risk factor : High"; # until a better check is written :(
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(get_port_state(port))
+port = get_http_port(default:80);
+
+banner = get_http_banner(port:port);
+if ( "Microsoft-IIS" >!< banner ) exit(0);
+
+if(get_port_state(port) && ! get_kb_item("Services/www/" + port + "/embedded") )
 { 
  req = string("GET /NULL.htr HTTP/1.1\r\n",
 		"Host: ", get_host_name(), "\r\n\r\n");
@@ -82,7 +82,7 @@ if(get_port_state(port))
  {
  i = 0;
  send(socket:soc, data:req);
- r = http_recv_headers(soc);
+ r = http_recv_headers2(socket:soc);
  body = http_recv_body(socket:soc, headers:r);
  http_close_socket(soc);
  lookfor = "<html>Error: The requested file could not be found. </html>";

@@ -5,7 +5,7 @@
  * follow the IS-101 interim standard for voice modems. Since the commands
  * are set in the modem structure, it should be quite generic.
  *
- * $Id$
+ * $Id: IS_101.c,v 1.17 2005/03/13 17:27:45 gert Exp $
  *
  */
 

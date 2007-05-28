@@ -1,77 +1,82 @@
 #
-# Copyright 2000 by Noam Rathaus <noamr@securiteam.com>
-#
-# See the Nessus Scripts License for details
-#
+# (C) Tenable Network Security
 #
 
-if(description)
-{
- script_id(10717); 
-script_cve_id("CAN-2001-1304");
- script_version ("$Revision: 1.6 $");
- 
- name["english"] = "SHOUTcast Server DoS detector vulnerability";
- script_name(english:name["english"]);
- 
- desc["english"] = "This detects SHOUTcast Server's version. If the version equals 
-1.8.2 it is vulnerable to a denial of service attack.
 
-Solution: Upgrade to the latest version of SHOUTcast Server.
+if (description) {
+  script_id(10717);
+  script_version("$Revision: 1.12 $");
 
-Risk factor : Medium
+  script_cve_id("CVE-2001-1304");
+  if (defined_func("script_xref")) {
+    script_xref(name:"OSVDB", value:"595");
+  }
 
-Additional information:
-http://www.securiteam.com/exploits/5YP031555Q.html
-";
-
- script_description(english:desc["english"]);
+  name["english"] = "SHOUTcast Server User-Agent / Host Header Denial of Service Vulnerability";
+  script_name(english:name["english"]);
  
- summary["english"] = "SHOUTcast Server DoS detector vulnerability";
- script_summary(english:summary["english"]);
- 
- script_category(ACT_GATHER_INFO);
- 
- script_copyright(english:"This script is Copyright (C) 2001 SecuriTeam");
- family["english"] = "General";
- script_family(english:family["english"]);
+  desc["english"] = "
+Synopsis :
 
- script_dependencie("find_service.nes");
- script_require_ports("Services/www", 8000);
- exit(0);
+The remote host is running a SHOUTcast server that is prone to denial of
+service attacks. 
+
+Description :
+
+The remote host is running SHOUTcast Server, a streaming media server
+from Nullsoft.
+
+According to its banner, the installed version of SHOUTcast server will
+reportedly crash when it receives several HTTP requests with overly long
+User-Agent and/or Host request headers.  It is not known whether this
+issue can be exploited to execute arbitrary code. 
+
+See also : 
+
+http://archives.neohapsis.com/archives/bugtraq/2001-08/0048.html
+
+Solution : 
+
+Unknown at this time.
+
+Risk factor :
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:N/A:P/I:N/B:A)";
+  script_description(english:desc["english"]);
+ 
+  summary["english"] = "Checks for User-Agent / Host header denial of service vulnerability in SHOUTcast Server";
+  script_summary(english:summary["english"]);
+ 
+  script_category(ACT_GATHER_INFO);
+  script_family(english:"General");
+
+  script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+
+  script_dependencie("http_version.nasl");
+  script_require_ports("Services/www", 8000);
+
+  exit(0);
 }
 
-#
-# The script code starts here
-#
 
 include("http_func.inc");
+include("http_keepalive.inc");
+include("misc_func.inc");
 
- port = get_kb_item("Services/www");
- if (!port) port = 8000;
 
- if (get_port_state(port))
- {
-   banner = get_http_banner(port:port);
-   if(!banner)exit(0);
-   if ("SHOUTcast Distributed Network Audio Server" >< banner)
-   {
-    resultrecv = banner;
-    resultrecv = strstr(resultrecv, "SHOUTcast Distributed Network Audio Server/");
-    resultsub = strstr(resultrecv, string("<BR>"));
-    resultrecv = resultrecv - resultsub;
-    resultrecv = resultrecv - "SHOUTcast Distributed Network Audio Server/";
-    resultrecv = resultrecv - "<BR>";
-    report = string("The remote SHOUTcast server version is :\n");
-    report = report + resultrecv;
-    if ("1.8.2" >< resultrecv)
-    {
-     report = report + string("\n\nThis version of SHOUTcast is supposedly vulnerable to a denial of service attack. Upgrade your SHOUTcast server.\n");
-     security_hole(port:port, data:report);
+# Loop through various ports and request an invalid stream to get the server's version number.
+ports = add_port_in_list(list:get_kb_list("Services/www"), port:8000);
+foreach port (ports) {
+  if (get_port_state(port)) {
+    req = http_get(item:"/stream/0", port:port);
+    res = http_keepalive_send_recv(port:port, data:req, bodyonly:FALSE);
+    if (res == NULL) exit(0);
+
+    # There's a problem if the version is 1.8.2 or lower.
+    if (egrep(pattern:"SHOUTcast Distributed Network Audio Server.*v(0\..*|1\.([0-7]\..*|8\.[0-2]))[^0-9]", string:res)) {
+      security_warning(port);
+      exit(0);
     }
-    else
-    {
-     security_note(port:port, data:report);
-    }
-   } 
- }
+  }
+}

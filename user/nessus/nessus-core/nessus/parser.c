@@ -307,19 +307,27 @@ parse_server_message(message, backend, humanmsg)
   	parse_host_add_data(backend, t, MSG_NOTE);
   	break;
   case MSG_STAT :
-  	strncpy(humanmsg, buf+strlen(message_type), strlen(buf+strlen(message_type)));
+	{
+	int tl = strlen(message_type);
+	int l = strlen(buf + tl);
+  	strncpy(humanmsg, buf+tl, l);
+	humanmsg[l] = '\0';
   	return(MSG_STAT);
   	break;
+	}
   case MSG_FINISHED :
         {
 	 if(!F_quiet_mode)
 	 {
 	 char * v = strstr(t, " <|> SERVER");
+         int t_len;
 	 if(v)v[0]=0;
 	 else return 0;
 	 v = strstr(t, " <|> ");
 	 if(v)t = v+strlen(" <|> ");
-	 strncpy(humanmsg, t, strlen(t));
+	 t_len = strlen(t);
+	 strncpy(humanmsg, t, t_len);
+         humanmsg[t_len] = '\0';
 	 return MSG_FINISHED;
 	 }
 	break;	
@@ -332,8 +340,11 @@ parse_server_message(message, backend, humanmsg)
   case MSG_PLUGINS_ORDER :
         {
         char * t = strstr(buf, " <|> SERVER");
+	int tl = strlen(message_type);
+	int l  = strlen(buf + tl);
         if(t)t[0]=0;
-        strncpy(humanmsg, buf+strlen(message_type)+5, strlen(buf+strlen(message_type)));
+        strncpy(humanmsg, buf+tl+5, l);
+	humanmsg[l] = '\0';
         return(MSG_PLUGINS_ORDER);
         }
         break;

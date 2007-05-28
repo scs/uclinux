@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/tc.os.h,v 3.86 2000/11/11 23:03:39 christos Exp $ */
 /*
  * tc.os.h: Shell os dependent defines
  */

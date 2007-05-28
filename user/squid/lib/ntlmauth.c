@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ntlmauth.c,v 1.5.2.4 2005/02/20 19:07:45 hno Exp $
  *
  * * * * * * * * Legal stuff * * * * * * *
  *
@@ -123,7 +123,7 @@ ntlm_add_to_payload(char *payload, int *payload_length,
  */
 const char *
 ntlm_make_challenge(char *domain, char *domain_controller,
-    char *challenge_nonce, int challenge_nonce_len)
+    unsigned char *challenge_nonce, int challenge_nonce_len)
 {
     ntlm_challenge ch;
     int pl = 0;

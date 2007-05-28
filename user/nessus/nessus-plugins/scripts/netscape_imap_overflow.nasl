@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10580);
- script_version ("$Revision: 1.8 $");
- script_cve_id("CVE-2000-0961");
  script_bugtraq_id(1721);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2000-0961");
  
  
  
@@ -28,7 +28,7 @@ shell. A way to reproduce the overflow is to issue the command :
 	
 
 Solution : upgrade your imap server or use another one
-Risk factor : Serious";
+Risk factor : High";
 
  desc["francais"] = "
 Il y a un dépassement de buffer dans le serveur imap

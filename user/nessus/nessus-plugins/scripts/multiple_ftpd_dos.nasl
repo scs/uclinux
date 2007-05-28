@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10822);
- script_version("$Revision: 1.5 $");
  script_bugtraq_id(2698);
+ script_version("$Revision: 1.8 $");
  
  name["english"] = "Multiple WarFTPd DoS";
  name["francais"] = "Dos WarFTPd multiple";
@@ -38,7 +38,7 @@ Risk factor : Medium";
  
  script_summary(english:"Checks if the version of the remote warftpd",
                 francais:"Détermine la version du warftpd distant");
- script_category(ACT_ATTACK);
+ script_category(ACT_GATHER_INFO);
  script_family(english:"FTP", francais:"FTP");
 
  
@@ -63,5 +63,5 @@ if(! get_port_state(port)) exit(0);
 banner = get_ftp_banner(port: port);
 
  if(("WarFTPd 1.71" >< banner))
-   security_hole(port);
+   security_warning(port);
 

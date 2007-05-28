@@ -25,6 +25,36 @@
 #include "hg_utils.h"
 #include "hg_filter.h"
 #include "hg_dns_axfr.h"
+
+
+int hg_test_syntax(char * hostname, int flags)
+{
+ struct hg_globals * globals = malloc(sizeof(struct hg_globals));
+ int err;
+ 
+ hostname = strdup(hostname);
+ bzero(globals, sizeof(struct hg_globals));
+ globals->flags = flags;
+ globals->host_list = malloc(sizeof(struct hg_host));
+ bzero(globals->host_list, sizeof(struct hg_host));
+ 
+ globals->tested = malloc(sizeof(struct hg_host));
+ bzero(globals->tested, sizeof(struct hg_host));
+ 
+ globals->input = strdup(hostname);
+ globals->marker = globals->input;
+ 
+ globals->distribute = 0;
+
+ 
+ err = hg_add_comma_delimited_hosts(globals, 0);
+ free(hostname);
+ hg_cleanup(globals);
+ return err;
+}
+
+
+
 struct hg_globals * 
 hg_init(hostname, flags)
  char * hostname;
@@ -47,7 +77,7 @@ hg_init(hostname, flags)
  globals->distribute = 0;
 
  
- hg_add_comma_delimited_hosts(globals);
+ hg_add_comma_delimited_hosts(globals, 256);
  free(hostname);
  return(globals);
 }
@@ -111,7 +141,7 @@ again:
  {
   if(globals->marker != NULL)
   	{
-  	hg_add_comma_delimited_hosts(globals);
+  	hg_add_comma_delimited_hosts(globals, 0);
 	return hg_next_host(globals, ip, hostname, sz);
 	}
   else return -1;
@@ -152,7 +182,6 @@ again:
    }
    else
    {
-    char * ret;
     if(globals->flags & HG_REVLOOKUP)
       hg_get_name_from_ip(host->addr, hostname, sz);
     else

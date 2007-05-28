@@ -6,7 +6,8 @@
 
 if(description)
 {
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.4 $");
+#script_cve_id("CVE-MAP-NOMATCH");
  script_id(11585);
  script_name(english:"Sambar Transmits Passwords in PlainText");
  
@@ -47,8 +48,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 valid = NULL;

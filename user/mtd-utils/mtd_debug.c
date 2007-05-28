@@ -39,7 +39,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <mtd/mtd-user.h>
+#include "mtd/mtd-user.h"
 
 /*
  * MEMGETINFO
@@ -103,14 +103,16 @@ void printsize (u_int32_t x)
 
 int flash_to_file (int fd,u_int32_t offset,size_t len,const char *filename)
 {
-   u_int8_t *buf = NULL;
+   u_int8_t *buf;
    int outfd,err;
-   int size = len * sizeof (u_int8_t);
-   int n = len;
-
    if (offset != lseek (fd,offset,SEEK_SET))
 	 {
 		perror ("lseek()");
+		goto err0;
+	 }
+   if ((buf = (u_int8_t *) malloc (len * sizeof (u_int8_t))) == NULL)
+	 {
+		perror ("malloc()");
 		goto err0;
 	 }
    outfd = creat (filename,O_WRONLY);
@@ -119,46 +121,24 @@ int flash_to_file (int fd,u_int32_t offset,size_t len,const char *filename)
 		perror ("creat()");
 		goto err1;
 	 }
-
-retry:
-   if ((buf = (u_int8_t *) malloc (size)) == NULL)
-	 {
-#define BUF_SIZE	(64 * 1024 * sizeof (u_int8_t))
-		fprintf (stderr, "%s: malloc(%#x)\n", __FUNCTION__, size);
-		if (size != BUF_SIZE) {
-			size = BUF_SIZE;
-			fprintf (stderr, "%s: trying buffer size %#x\n", __FUNCTION__, size);
-			goto retry;
-		}
-		perror ("malloc()");
-		goto err0;
-	 }
- do {
-   if (n <= size)
-	   size = n;
-   err = read (fd,buf,size);
+   err = read (fd,buf,len);
    if (err < 0)
 	 {
-		fprintf (stderr, "%s: read, size %#x, n %#x\n", __FUNCTION__, size, n);
 		perror ("read()");
 		goto err2;
 	 }
-   err = write (outfd,buf,size);
+   err = write (outfd,buf,len);
    if (err < 0)
 	 {
-		fprintf (stderr, "%s: write, size %#x, n %#x\n", __FUNCTION__, size, n);
 		perror ("write()");
 		goto err2;
 	 }
-   if (err != size)
+   if (err != len)
 	 {
-		fprintf (stderr,"Couldn't copy entire buffer to %s. (%d/%d bytes copied)\n",filename,err,size);
+		fprintf (stderr,"Couldn't copy entire buffer to %s. (%d/%d bytes copied)\n",filename,err,len);
 		goto err2;
 	 }
-   n -= size;
-   } while (n > 0);
 
-   if (buf != NULL)
    free (buf);
    close (outfd);
    printf ("Copied %d bytes from address 0x%.8x in flash to %s\n",len,offset,filename);
@@ -167,7 +147,6 @@ retry:
    err2:
    close (outfd);
    err1:
-   if (buf != NULL)
    free (buf);
    err0:
    return (1);
@@ -175,59 +154,40 @@ retry:
 
 int file_to_flash (int fd,u_int32_t offset,u_int32_t len,const char *filename)
 {
-   u_int8_t *buf = NULL;
+   u_int8_t *buf;
    FILE *fp;
    int err;
-   int size = len * sizeof (u_int8_t);
-   int n = len;
-
    if (offset != lseek (fd,offset,SEEK_SET))
 	 {
 		perror ("lseek()");
 		return (1);
 	 }
+   if ((buf = (u_int8_t *) malloc (len * sizeof (u_int8_t))) == NULL)
+	 {
+		perror ("malloc()");
+		return (1);
+	 }
    if ((fp = fopen (filename,"r")) == NULL)
 	 {
 		perror ("fopen()");
+		free (buf);
 		return (1);
 	 }
-retry:
-   if ((buf = (u_int8_t *) malloc (size)) == NULL)
+   if (fread (buf,len,1,fp) != 1 || ferror (fp))
 	 {
-		fprintf (stderr, "%s: malloc(%#x) failed\n", __FUNCTION__, size);
-		if (size != BUF_SIZE) {
-			size = BUF_SIZE;
-			fprintf (stderr, "%s: trying buffer size %#x\n", __FUNCTION__, size);
-			goto retry;
-		}
-		perror ("malloc()");
-		fclose (fp);
-		return (1);
-	 }
- do {
-   if (n <= size)
-	   size = n;
-   if (fread (buf,size,1,fp) != 1 || ferror (fp))
-	 {
-		fprintf (stderr, "%s: fread, size %#x, n %#x\n", __FUNCTION__, size, n);
 		perror ("fread()");
 		free (buf);
 		fclose (fp);
 		return (1);
 	 }
-   err = write (fd,buf,size);
+   err = write (fd,buf,len);
    if (err < 0)
 	 {
-		fprintf (stderr, "%s: write, size %#x, n %#x\n", __FUNCTION__, size, n);
 		perror ("write()");
 		free (buf);
 		fclose (fp);
 		return (1);
 	 }
-   n -= size;
-} while (n > 0);
-
-   if (buf != NULL)
    free (buf);
    fclose (fp);
    printf ("Copied %d bytes from %s to address 0x%.8x in flash\n",len,filename,offset);
@@ -272,6 +232,15 @@ int showinfo (int fd)
 	  case MTD_NANDFLASH:
 		printf ("MTD_NANDFLASH");
 		break;
+	  case MTD_PEROM:
+		printf ("MTD_PEROM");
+		break;
+	  case MTD_OTHER:
+		printf ("MTD_OTHER");
+		break;
+	  case MTD_UNKNOWN:
+		printf ("MTD_UNKNOWN");
+		break;
 	  default:
 		printf ("(unknown type - new MTD API maybe?)");
 	 }
@@ -289,7 +258,7 @@ int showinfo (int fd)
 	 printf ("MTD_WRITEABLE");
    else
 	 {
-		int first = 1;
+		int i,first = 1;
 		static struct
 		  {
 			 const char *name;
@@ -298,6 +267,11 @@ int showinfo (int fd)
 		  {
 			 { "MTD_CLEAR_BITS", MTD_CLEAR_BITS },
 			 { "MTD_SET_BITS", MTD_SET_BITS },
+			 { "MTD_ERASEABLE", MTD_ERASEABLE },
+			 { "MTD_WRITEB_WRITEABLE", MTD_WRITEB_WRITEABLE },
+			 { "MTD_VOLATILE", MTD_VOLATILE },
+			 { "MTD_XIP", MTD_XIP },
+			 { "MTD_OOB", MTD_OOB },
 			 { "MTD_ECC", MTD_ECC },
 			 { NULL, -1 }
 		  };
@@ -383,7 +357,6 @@ int main (int argc,char *argv[])
 {
    const char *progname;
    int err = 0,fd,option = OPT_INFO;
-   int open_flag;
    (progname = strrchr (argv[0],'/')) ? progname++ : (progname = argv[0]);
 
    /* parse command-line options */
@@ -399,8 +372,7 @@ int main (int argc,char *argv[])
 	 showusage (progname);
 
    /* open device */
-   open_flag = (option==OPT_INFO || option==OPT_READ) ? O_RDONLY : O_RDWR;
-   if ((fd = open (argv[2],O_SYNC | open_flag)) < 0)
+   if ((fd = open (argv[2],O_SYNC | O_RDWR)) < 0)
 	 {
 		perror ("open()");
 		exit (1);
@@ -412,13 +384,13 @@ int main (int argc,char *argv[])
 		showinfo (fd);
 		break;
 	  case OPT_READ:
-		err = flash_to_file (fd,strtol (argv[3],NULL,0),strtol (argv[4],NULL,0),argv[5]);
+		err = flash_to_file (fd,atol (argv[3]),atol (argv[4]),argv[5]);
 		break;
 	  case OPT_WRITE:
-		err = file_to_flash (fd,strtol (argv[3],NULL,0),strtol (argv[4],NULL,0),argv[5]);
+		err = file_to_flash (fd,atol (argv[3]),atol (argv[4]),argv[5]);
 		break;
 	  case OPT_ERASE:
-		err = erase_flash (fd,strtol (argv[3],NULL,0),strtol (argv[4],NULL,0));
+		err = erase_flash (fd,atol (argv[3]),atol (argv[4]));
 		break;
 	 }
 

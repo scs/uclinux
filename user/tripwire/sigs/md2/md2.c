@@ -1,5 +1,5 @@
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: md2.c,v 1.3 1994/07/15 11:03:21 gkim Exp $";
 #endif
 
 /* MD2C.C - RSA Data Security, Inc., MD2 message-digest algorithm

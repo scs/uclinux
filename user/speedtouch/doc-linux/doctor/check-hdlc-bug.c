@@ -26,7 +26,7 @@
 
 /* for ident(1) command */
 static const char id[] =
-	"@(#) $Id$";
+	"@(#) $Id: check-hdlc-bug.c,v 1.1 2002/02/21 20:47:23 papillau Exp $";
 
 int get_master_slave_ptmx(int *master, int *slave)
 {

@@ -4,7 +4,7 @@
  * details.  THERE IS ABSOLUTELY NO WARRANTY FOR THIS SOFTWARE.
  */
 
-/* $Id$ */
+/* $Id: add.c,v 1.4 1998/09/09 21:06:42 gert Exp $ */
 
 /*
  *  See private.h for the more commonly used macro versions.

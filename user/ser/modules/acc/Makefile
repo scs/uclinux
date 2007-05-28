@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.14.2.1.4.1 2004/07/18 22:56:23 sobomax Exp $
 #
 # acc module makefile
 #

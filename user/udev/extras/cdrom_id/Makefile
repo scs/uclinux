@@ -18,7 +18,7 @@ usrbindir =	${prefix}/usr/bin
 usrsbindir =	${prefix}/usr/sbin
 libudevdir =	${prefix}/lib/udev
 mandir =	${prefix}/usr/share/man
-configdir =	${etcdir}/udev/
+configdir =	${etcdir}/udev
 
 INSTALL = /usr/bin/install -c
 INSTALL_PROGRAM = ${INSTALL}
@@ -50,15 +50,17 @@ clean:
 
 install-bin: all
 	$(INSTALL_PROGRAM) -D $(PROG) $(DESTDIR)$(libudevdir)/$(PROG)
+	$(INSTALL_DATA) -D 60-cdrom_id.rules $(DESTDIR)$(configdir)/rules.d/60-cdrom_id.rules
 .PHONY: install-bin
 
 uninstall-bin:
 	- rm $(DESTDIR)$(libudevdir)/$(PROG)
+	- rm $(DESTDIR)$(configdir)/rules.d/60-cdrom_id.rules
 .PHONY: uninstall-bin
 
 install-man:
 	$(INSTALL_DATA) -D $(PROG).8 $(DESTDIR)$(mandir)/man8/$(PROG).8
-.PHONY: uninstall-man
+.PHONY: install-man
 
 uninstall-man:
 	-rm -f $(DESTDIR)$(mandir)/man8/$(PROG).8

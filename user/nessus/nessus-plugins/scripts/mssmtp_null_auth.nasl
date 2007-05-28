@@ -7,11 +7,11 @@
 if(description)
 {
  script_id(11308);
- 
- script_cve_id("CVE-2002-0054");
  script_bugtraq_id(4205);
  
- script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-2002-0054");
+ 
+ script_version ("$Revision: 1.10 $");
  name["english"] = "MS SMTP Authorization bypass";
 
  script_name(english:name["english"]);
@@ -24,7 +24,7 @@ An attacker may use this flaw to use your SMTP server as a
 spam relay.
 
 
-Solution : http://www.microsoft.com/technet/security/bulletin/MS02-011.asp
+Solution : http://www.microsoft.com/technet/security/bulletin/MS02-011.mspx
 Risk factor : Medium";
 
 
@@ -42,7 +42,7 @@ Risk factor : Medium";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("smtpserver_detect.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -57,12 +57,15 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
  data = smtp_recv_banner(socket:soc); 
- crp = string("HELO nessus.org\r\n");
+ if ( ! data ||  "Microsoft" >!< data  ) exit(0);
+ crp = string("HELO example.com\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:1024);
  if(!(ereg(pattern:"^250 .*", string:data)))exit(0);

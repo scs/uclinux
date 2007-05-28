@@ -1,7 +1,7 @@
 /*
  * Presence Agent, reply building
  *
- * $Id$
+ * $Id: reply.c,v 1.6.2.1.2.1 2003/11/26 16:44:27 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

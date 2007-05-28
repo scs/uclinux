@@ -10,7 +10,7 @@
 if(description)
 {
  script_id(11033);
- script_version ("$Revision: 1.19 $");
+ script_version ("$Revision: 1.26 $");
  name["english"] = "Misc information on News server";
  script_name(english:name["english"]);
  
@@ -33,7 +33,7 @@ Risk factor : Low";
  family["english"] = "General";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("find_service_3digits.nasl", "doublecheck_std_services.nasl");
  script_require_ports("Services/nntp", 119);
 
  #
@@ -52,81 +52,9 @@ Risk factor : Low";
 # The script code starts here
 #
 
-function nntp_auth(socket, username, password)
-{
- if (!username) return (0);
-
- send(socket:socket, data: string("AUTHINFO USER ", username, "\r\n"));
- buff = recv_line(socket:socket, length:2048);
- send(socket:socket, data: string("AUTHINFO PASS ", password, "\r\n"));
- buff = recv_line(socket:socket, length:2048);
- if ("502 " >< buff) { 
- # display(string("Bad username/password for NNTP server"));
-  return (0);
- }
- return (1);
-}
-
-function nntp_connect(port, username, password)
-{
-  s = open_sock_tcp(port);
-  if (s) { 
-   buff = recv_line(socket: s, length: 2048);
-   nntp_auth(socket: s, username: username, password: password); 
-  }
-  return (s);
-}
-
-function nntp_post(socket, message)
-{
-  if (! socket) { return (0); }
-  send(socket: socket, data:string("POST\r\n"));
-  buff = recv_line(socket:s, length: 2048);
-
-  # 340 = Go ahead; 440 = posting prohibited
-  if ("340 " >< buff) {
-    send(socket: socket, data: message);
-    buff = recv_line(socket: socket, length: 2048);
-    if ("240 " >< buff) { return (1); }
-    if (ereg(pattern: "^4[34][0-9] +.*unwanted distribution .*local", 
-             string: buff, icase:1) &&
-        ereg(pattern: "Distribution: +local", string: message)) {
-      security_note(port: port, 
-data: "The server rejected the message. Try again without 'local distribution' 
-if you don't mind leaking information outside");
-    }
-  }
- return (0);
-}
-
-function nntp_article(id, timeout, port, username, password)
-{
-  for (t=0; t < timeout; t=t+5)
-  {
-    sleep(5);
-    s = nntp_connect(port:port, username: username, password: password);
-    if (s) {
-      send(socket:s, data: string("ARTICLE ", id, "\r\n"));
-      buff = recv_line(socket: s, length: 2048);
-      send(socket:s, data: string("QUIT\r\n"));
-      close(s);
-      # display(string("Article > ", buff));
-      # WARNING! If the header X-Nessus is removed, change this line!
-      if (ereg(pattern:"^220 .*X-Nessus:", string: buff)) { return (buff); }
-    }
-  }
-  return (0);
-}
-
-function nntp_make_id(str)
-{
- # Not RFC 822 compliant - we should use a full domain name
- # We do not check "str", but it should not contain '@' or '>'
- id=string("<", str, ".", rand(), "@", this_host(), ".NESSUS>");
- return(id);
-}
-
-#
+include('global_settings.inc');
+include('network_func.inc');
+include('nntp_func.inc');
 
 user = get_kb_item("nntp/login");
 pass = get_kb_item("nntp/password");
@@ -139,27 +67,30 @@ local_distrib = script_get_preference("Local distribution");
 if (! local_distrib) local_distrib = "yes";
 x_no_archive = script_get_preference("No archive");
 if (!x_no_archive) x_no_archive = "no";
+set_kb_item(name: "nntp/local_distrib", value: local_distrib);
+set_kb_item(name: "nntp/x_no_archive", value: x_no_archive);
+
 
 # WARNING! If the header X-Nessus is removed, change nntp_article function!
-more_headers = string(
-	"User-Agent: Nessus Security Scanner 2.0\r\n",
-	"Organization: Nessus Kabale\r\n",
-	"X-Nessus: Nessus can be found at http://www.nessus.org/\r\n",
-	"X-Abuse-1: The machine at ", get_host_ip(),
-	" was scanned from ", this_host(), "\r\n",
+more_headers = strcat(
+	'User-Agent: Nessus Security Scanner 2.2\r\n',
+	'Organization: Nessus Kabale\r\n',
+	'X-Nessus: Nessus can be found at http://www.nessus.org/\r\n',
+	'X-Abuse-1: The machine at ', get_host_ip(),
+	' was scanned from ', this_host(), '\r\n',
 	"X-Abuse-2: If you [", get_host_ip(), 
 	"] are not currently running a security audit, please complain to them [",  
 	this_host(),
-	"], not to the Nessus team\r\n",
-	"X-Abuse-3: fields Path and NNTP-Posting-Host may give you more reliable information\r\n",
-	"X-Abuse-4: Do not answer to the From address, it may be phony and you may blacklist your mail server\r\n",
-	"X-NNTP-Posting-Host: ", this_host(), "\r\n"	);
+	'], not to the Nessus team\r\n',
+	'X-Abuse-3: fields Path and NNTP-Posting-Host may give you more reliable information\r\n',
+	'X-Abuse-4: Do not answer to the From address, it may be phony and you may blacklist your mail server\r\n',
+	'X-NNTP-Posting-Host: ', this_host(), '\r\n'	);
 
 if ("yes" >< local_distrib) { more_headers += 'Distribution: local\r\n';}
 if ("yes" >< x_no_archive) { more_headers += 'X-No-Archive: yes\r\n';}
 
 # tictac = time();
-# if (tictac) more_headers = string(more_headers, "Date: ", tictac, "\r\n");
+# if (tictac) more_headers = strcat(more_headers, "Date: ", tictac, '\r\n');
 
 port = get_kb_item("Services/nntp");
 if (!port) port = 119;
@@ -177,8 +108,11 @@ nolist=0;
 
 if ("200 " >< buff) { ready=1; posting=1;}
 if ("201 " >< buff) { ready=1;}
+set_kb_item(name: "nntp/"+port+"/posting", value: posting);
+set_kb_item(name: "nntp/"+port+"/ready", value: ready);
+
 if (! ready) {
- # Not a NNTP server?
+ # Not an NNTP server?
  close(s);
  exit(0);
 }
@@ -188,10 +122,15 @@ notice = "";
 # Does it need authentication before any command?
 
 ng="NoSuchGroup" + string(rand());
-send(socket: s, data: string("LIST ACTIVE ", ng, "\r\n"));
+send(socket: s, data: strcat('LIST ACTIVE ', ng, '\r\n'));
 buff = recv_line(socket:s, length:2048);
 
 if ("480 " >< buff) { noauth = 0; }
+
+while (buff && buff != '.\r\n')
+ buff = recv_line(socket:s, length:2048);
+
+set_kb_item(name: "nntp/"+port+"/noauth", value: noauth);
 
 authenticated = nntp_auth(socket:s, username: user, password: pass);
 
@@ -218,7 +157,7 @@ if (! posting) {
 
 # No use to go on if we are unable to authenticate 
 if (! authenticated && ! noauth) {
- send(socket:s, data:string("QUIT\r\n"));
+ send(socket:s, data: 'QUIT\r\n');
  close(s);
  if (notice)
   security_note(port:port, data:notice);
@@ -227,7 +166,7 @@ if (! authenticated && ! noauth) {
 
 # Let's count the groups! (this is slow)
 
-send(socket:s, data: string("LIST ACTIVE\r\n"));
+send(socket:s, data: 'LIST ACTIVE\r\n');
 buff = recv_line(socket:s, length: 2048);
 
 if (! ereg(pattern:"^2[0-9][0-9] ", string:buff)) { nolist=1; }
@@ -242,7 +181,7 @@ talkNB=0; humanitiesNB=0;
 if (!nolist) {
  buff = recv_line(socket:s, length: 2048);
  n = 0;
- while (buff && ! ereg(pattern:"^\.[\r\n]+", string: buff))
+ while (buff && ! ereg(pattern: '^\\.[\r\n]+$', string: buff))
  {
   if (ereg(pattern:"^alt\.", string: buff)) { altNB=altNB+1; }
   if (ereg(pattern:"^rec\.", string: buff)) { recNB=recNB+1; }
@@ -290,32 +229,45 @@ if (!nolist) {
 
 if (nbg > 1) more_headers += 'Followup-To: alt.test\r\n';
 
+if ("yes" >< local_distrib && is_private_addr()) 
+ local_warning= 'This message should not appear on a public news server.\r\n';
+else
+ local_warning = '\r\n';
+
 # Try to post a message
 
 msgid = nntp_make_id(str: "post");
 # display(string("testNGlist=", testNGlist, "\n"));
 
-msg = string(
-	"Newsgroups: ", testNGlist, "\r\n",
-	"Subject: Nessus post test ", rand(), " (ignore)\r\n",
-	"From: ", fromaddr, "\r\n",
-	"Message-ID: ", msgid, "\r\n",
+msg = strcat(
+	"Newsgroups: ", testNGlist, '\r\n',
+	"Subject: Nessus post test ", rand(), ' (ignore)\r\n',
+	"From: ", fromaddr, '\r\n',
+	"Message-ID: ", msgid, '\r\n',
 	more_headers,
-	"Content-Type: text/plain; charset: us-ascii\r\n",
-	"Lines: 1\r\n",
-	"\r\n",
-	"Test message (post). Please ignore.\r\n",
-	".\r\n");	
+	'Content-Type: text/plain; charset: us-ascii\r\n',
+	'Lines: 2\r\n',
+	'\r\n',
+	'Test message (post). Please ignore.\r\n', 
+	local_warning, '.\r\n');
 
 posted = nntp_post(socket: s, message: msg);
+if (posted == -1)
+security_note(port: port, 
+data: "The server rejected the message. Try again without 'local distribution' 
+if you don't mind leaking information outside");
 
-send(socket:s, data:string("QUIT\r\n"));
+
+send(socket:s, data: 'QUIT\r\n');
 close(s);
 
 #
 
 sent = 0;
 if (nntp_article(id: msgid, timeout: 10, port: port, username: user, password:pass)) { sent = 1; posted=1; i=9999; }
+
+# Remember that this might be (-1)
+set_kb_item(name: "nntp/"+port+"/posted", value: posted);
 
 if (posted && ! posting) {
  notice=notice+"Although this server says it does not allow posting, we could send a message";
@@ -340,23 +292,23 @@ if (! sent) {
 supid = nntp_make_id(str: "super");
 posted = 0; sent = 0; superseded = 0;
 
-sup = string(
-	"Supersedes: ", msgid, "\r\n",
-	"Newsgroups: ", testNGlist, "\r\n",
-	"Subject: Nessus supersede test ", rand(), " (ignore)\r\n",
-	"From: ", fromaddr, "\r\n",
-	"Message-ID: ", supid, "\r\n",
+sup = strcat(
+	"Supersedes: ", msgid, '\r\n',
+	"Newsgroups: ", testNGlist, '\r\n',
+	"Subject: Nessus supersede test ", rand(), ' (ignore)\r\n',
+	"From: ", fromaddr, '\r\n',
+	"Message-ID: ", supid, '\r\n',
 	more_headers,
-	"Content-Type: text/plain; charset: us-ascii\r\n",
-	"Lines: 1\r\n",
-	"\r\n",
-	"Test message (supersede). Please ignore.\r\n",
-	".\r\n");	
+	'Content-Type: text/plain; charset: us-ascii\r\n',
+	'Lines: 2\r\n',
+	'\r\n',
+	'Test message (supersede). Please ignore.\r\n', 
+	local_warning, '.\r\n');
 
 s = nntp_connect(port:port, username: user, password: pass);
 if (s) {
  posted = nntp_post(socket: s, message: sup);
- send(socket:s, data: string("QUIT\r\n"));
+ send(socket:s, data: 'QUIT\r\n');
  close(s);
 }
 
@@ -372,29 +324,31 @@ if (!superseded && posted)
 if (!superseded && !posted)
   notice += 'We were unable to Supersede our test article\n';
 
+set_kb_item(name: "nntp/"+port+"/supersed", value: superseded);
+
 # Test cancel
 
 if (superseded) { msgid = supid; }
 
 canid = nntp_make_id(str:"cancel");
 
-can = string(
-	"Newsgroups: ", testNGlist, "\r\n",
-	"Subject: cmsg cancel ", msgid, "\r\n",
-	"From: ", fromaddr, "\r\n",
-	"Message-ID: ", canid, "\r\n",
-	"Control: cancel ", msgid, "\r\n", 
+can = strcat(
+	"Newsgroups: ", testNGlist, '\r\n',
+	"Subject: cmsg cancel ", msgid, '\r\n',
+	"From: ", fromaddr, '\r\n',
+	"Message-ID: ", canid, '\r\n',
+	"Control: cancel ", msgid, '\r\n', 
 	more_headers,
-	"Content-Type: text/plain; charset: us-ascii\r\n",
-	"Lines: 1\r\n",
-	"\r\n",
-	"Test message (cancel). Please ignore.\r\n",
-	".\r\n");	
+	'Content-Type: text/plain; charset: us-ascii\r\n',
+	'Lines: 2\r\n',
+	'\r\n',
+	'Test message (cancel). Please ignore.\r\n',
+	local_warning, '.\r\n');	
 
 s = nntp_connect(port:port, username: user, password: pass);
 if (s) {
  posted = nntp_post(socket: s, message: can);
- send(socket:s, data: string("QUIT\r\n"));
+ send(socket:s, data: 'QUIT\r\n');
  close(s);
 }
 
@@ -403,6 +357,7 @@ if (! nntp_article(id: msgid, timeout: 10, username: user, password:pass)) { can
 
 if (! cancel)
   notice += 'We were unable to Cancel our test article\n';
+set_kb_item(name: "nntp/"+port+"/cancel", value: cancel);
 
 if (notice)
   security_note(port: port, data: notice);

@@ -7,15 +7,16 @@
 if(description)
 {
   script_id(11424);
-  script_version ("$Revision: 1.3 $");
- 
-  
+  script_version ("$Revision: 1.8 $");
   name["english"] = "WebDAV enabled";
+  script_name(english:name["english"]);
  
+ desc["english"] = "
+Synopsis :
 
-  script_name(english:name["english"], francais:name["francais"]);
-  desc["english"] = "
 The remote server is running with WebDAV enabled. 
+
+Description :
 
 WebDAV is an industry standard extension to the HTTP specification.
 It adds a capability for authorized users to remotely add and manage
@@ -23,19 +24,23 @@ the content of a web server.
 
 If you do not use this extension, you should disable it.
 
-Solution : If you use IIS, refer to Microsoft KB article Q241520
-Risk factor : Medium";
+Solution :
+
+http://support.microsoft.com/default.aspx?kbid=241520
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
 
 
  script_description(english:desc["english"]);
 
  summary["english"] = "Checks the presence of WebDAV";
- summary["francais"] = "Vérifie la présence de WebDAV";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
 
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
-     	 	  francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
 
  family["english"] = "General";
 
@@ -49,8 +54,8 @@ Risk factor : Medium";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {
@@ -59,11 +64,11 @@ if(get_port_state(port))
   {
   req = string("OPTIONS * HTTP/1.0\r\n\r\n") ;
   send(socket:soc, data:req);
-  r = http_recv_headers(soc);
+  r = http_recv_headers2(socket:soc);
   close(soc);
   if(egrep(pattern:"^DAV: ", string:r))
    {
-    security_warning(port);
+    security_note(port);
    }
   }
 }

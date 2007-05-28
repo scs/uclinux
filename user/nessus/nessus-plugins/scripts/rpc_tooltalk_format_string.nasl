@@ -7,9 +7,12 @@
 if(description)
 {
  script_id(10787);
- script_cve_id("CAN-2002-0677", "CVE-2001-0717", "CVE-2002-0679");
- script_bugtraq_id(3382);
- script_version ("$Revision: 1.16 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-a-0011");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-b-0005");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0012");
+ script_bugtraq_id(3382, 5082);
+ script_cve_id("CVE-2002-0677", "CVE-2001-0717", "CVE-2002-0679");
+ script_version ("$Revision: 1.25 $");
  
  name["english"] = "tooltalk format string";
 
@@ -52,7 +55,10 @@ Risk factor : High";
  family["english"] = "RPC"; 
  family["francais"] = "RPC";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("rpc_portmap.nasl");
+ if ( ! defined_func("bn_random") )
+ 	script_dependencie("rpc_portmap.nasl", "os_fingerprint.nasl");
+ else
+ 	script_dependencie("rpc_portmap.nasl", "os_fingerprint.nasl", "solaris251_104489.nasl", "solaris251_x86_105496.nasl", "solaris26_105802.nasl", "solaris26_x86_105803.nasl", "solaris7_107893.nasl", "solaris7_x86_107894.nasl", "solaris8_110286.nasl", "solaris8_x86_110287.nasl");
  script_require_keys("rpc/portmap");
  exit(0);
 }
@@ -63,6 +69,19 @@ Risk factor : High";
 
 
 include("misc_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia == 0 ) exit(0);
+
+
+if ( get_kb_item("BID-3382") ) exit(0);
+version = get_kb_item("Host/Solaris/Version");
+if ( version  && ereg(pattern:"^5\.(9|1[0-9])", string:version)) exit(0);
+else {
+ version = get_kb_item("Host/OS/icmp");
+ if ( version && ereg(pattern:"Solaris (9|10)", string:version)) exit(0);
+}
+
 
 
 RPC_PROG = 100083;
@@ -75,6 +94,6 @@ if(!port){
 
 if(port)
 {
- if(tcp)security_hole(port);
- else security_hole(port, protocol:"udp");
+ if(tcp)security_warning(port);
+ else security_warning(port, protocol:"udp");
 }

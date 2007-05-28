@@ -7,9 +7,10 @@
 if(description)
 {
  script_id(10951);
- script_version ("$Revision: 1.12 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0008");
  script_bugtraq_id(4631);
- script_cve_id("CAN-2002-0084", "CVE-2002-0033");
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-2002-0084");
  
  name["english"] = "cachefsd overflow";
  script_name(english:name["english"]);
@@ -71,6 +72,10 @@ Risk factor : High";
 #
 
 include("misc_func.inc");
+include("global_settings.inc");
+
+if ( report_paranoia == 0 ) exit(0);
+
 
 #
 # This is kinda lame but there's no way (yet) to remotely determine if

@@ -16,7 +16,8 @@
 if(description)
 {
  script_id(11865);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.4 $");
+#script_cve_id("CVE-MAP-NOMATCH");
  name["english"] = "SOCKS server detection";
  script_name(english:name["english"]);
  
@@ -182,7 +183,7 @@ foreach port (ports)
   if(port != prev_port)
   {
     prev_port = port;
-    if (get_port_state(port) && service_is_unknown(port: port))
+    if (get_port_state(port) && service_is_unknown(port: port) && port != 135 && port != 139 && port != 445 )
       test_socks(port: port);
   }
 

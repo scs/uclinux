@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
 <HTML><HEAD>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2">
+<META HTTP-EQUIV="Content-Type" CONTENT="text/html; charset=iso-8859-2">
 <TITLE>CHYBA: Pristup ke cache serveru zamítnut</TITLE>
 <STYLE type="text/css"><!--BODY{background-color:#ffffff;font-family:verdana,sans-serif}PRE{font-family:sans-serif}--></STYLE>
 </HEAD>
@@ -31,6 +31,6 @@ je povolen až po autorizaci.
 Pro úspěšnou autorizaci potřebujete prohlížeče NETSCAPE 2.0 a vyšší,
 Microsoft Internet Explorer 3.0 nebo prohlížeč podporující protokol
 HTTP/1.1. V případě problému se prosím obraťte na <A HREF="mailto:%w">cache
-administratora</a> nebo si změňte  
+administratora</a> nebo si změňte
 <A HREF="http://%h/cgi-bin/chpasswd.cgi">heslo</a>.
 </P>

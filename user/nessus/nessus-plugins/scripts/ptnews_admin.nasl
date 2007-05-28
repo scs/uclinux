@@ -6,7 +6,7 @@ if (description)
 {
  script_id(11589);
  script_bugtraq_id(7394);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.5 $");
 
  script_name(english:"PT News Unauthorized Administrative Access");
  desc["english"] = "
@@ -28,23 +28,22 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  script_family(english:"CGI abuses", francais:"Abus de CGI");
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
-
-
+port = get_http_port(default:80);
 
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port))exit(0);
 
 
-dirs = make_list("/ptnews", cgi_dirs(), "");
+dirs = make_list("/ptnews", cgi_dirs());
 		
 
 foreach d (dirs)

@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: device-bsd44.c,v 1.11 2002/07/02 06:49:20 psavola Exp $
  *
  *   Authors:
  *    Craig Metz		<cmetz@inner.net>

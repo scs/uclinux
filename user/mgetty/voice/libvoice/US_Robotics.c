@@ -24,7 +24,7 @@
  * A very good US Robotics technical reference manual is available
  * at: http://www.alliancedatacom.com/us-robotics-manuals.htm (not a typo).
  *
- * $Id$
+ * $Id: US_Robotics.c,v 1.19 2005/03/13 17:27:46 gert Exp $
  *
  */
 

@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(10085);
- script_version ("$Revision: 1.19 $");
  script_bugtraq_id(271);
+ script_version ("$Revision: 1.22 $");
  script_cve_id("CVE-1999-0079");
  script_name(english:"Ftp PASV denial of service",
  	     francais:"Déni de service via la commande ftp PASV");
@@ -49,6 +49,10 @@ Facteur de risque : Moyen");
 # The script code starts here :
 #
 
+include('ftp_func.inc');
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 if(!get_port_state(port))exit(0);
@@ -61,10 +65,10 @@ if(!login)exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
-if(ftp_log_in(socket:soc, user:login, pass:password))
+if(ftp_authenticate(socket:soc, user:login, pass:password))
 {
- port1 = ftp_get_pasv_port(socket:soc);
- for(i=0;i<40;i=i+1)port2 = ftp_get_pasv_port(socket:soc);
+ port1 = ftp_pasv(socket:soc);
+ for(i=0;i<40;i=i+1)port2 = ftp_pasv(socket:soc);
  if(port1 == port2){
 	close(soc);
 	exit(0);

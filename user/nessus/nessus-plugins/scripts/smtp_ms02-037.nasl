@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(11053);
- script_version("$Revision: 1.6 $");
  script_bugtraq_id(5306);
+ script_version("$Revision: 1.8 $");
  script_cve_id("CVE-2002-0698");
  name["english"] = "IMC SMTP EHLO Buffer Overrun";
  script_name(english:name["english"]);
@@ -27,7 +27,7 @@ which runs as Exchange5.5 Service Account.
    for or attempt an actual overflow.
 
 Solution : see
-http://www.microsoft.com/technet/security/bulletin/MS02-037.asp
+http://www.microsoft.com/technet/security/bulletin/MS02-037.mspx
 
 Risk factor : Medium";
 

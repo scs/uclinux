@@ -101,7 +101,7 @@ single ports, such as \"1-8000\"; or more complex sets, such as \"21,23,25,1024-
 Put \"-1\" for no portscan, or put \"default\" to scan default ports in the Nessus services file."
 
 #define HLP_UNSCANNED_CLOSED "To save scanning time, you may ask Nessus to declare \
-ports it did not scan as closed. This will result in an incomplete audit \
+TCP ports it did not scan as closed. This will result in an incomplete audit \
 but it will reduce scanning time and prevent nessusd from sending packets \
 to ports you did not specify. \
 If this option is disabled, then Nessus will consider ports whose state it does not know as open"
@@ -187,4 +187,7 @@ what has changed between the new scan and the last one"
 #define HLP_ENABLE_DEPS_AT_RUNTIME "If you enable this option, then nessusd \
 will enable the plugins that are depended on by the set of plugins you \
 selected. "
+#define HLP_SILENT_DEPS "If you enable this option, then nessusd \
+will not report data coming from the plugins that you did not specifically \
+enable. "
 #endif

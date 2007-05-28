@@ -14,6 +14,9 @@
 #include <ctype.h>
 #include <sys/types.h>
 #include <arpa/inet.h>
+#include <sys/stat.h>
+#include <linux/major.h>
+#include <linux/kdev_t.h>
 
 #include <pppd.h>
 #include <fsm.h>
@@ -65,6 +68,9 @@ static u_long nas_port_type = -1;
 static bool radius_allow_any_ip = 0;
 static bool radius_allow_server_ip = 0;
 static u_int32_t radius_remote_ip_addr = 0;
+
+/* We calculate this on each auth, using nas_port_number if that is set */
+static u_long nas_real_port_number = -1;
 
 static int radius_get_server(char**);
 static int radius_nas_ip_address(char**);
@@ -153,6 +159,8 @@ radius_nas_ip_address(char **argv)
 static int
 radius_check(void)
 {
+	struct stat st;
+	int major;
 	char *tty;
 
 	if (!use_radius)
@@ -162,19 +170,37 @@ radius_check(void)
 		return 0;
 
 	/* Determine reasonable defaults for unspecified options */
-	tty = devnam;
-	if (strncmp(tty, "/dev/", 5) == 0)
-		tty += 5;
 	if (nas_port_type == -1) {
-		if (strncmp(tty, "ttyp", 4) == 0)
+		if (using_pty)
 			nas_port_type = PW_NAS_PORT_VIRTUAL;
-		else
+		else if (sync_serial)
+			nas_port_type = PW_NAS_PORT_SYNC;
+		else {
 			nas_port_type = PW_NAS_PORT_ASYNC;
+
+			/* Check if stdin is a pty */
+			if (fstat(0, &st) == 0) {
+				major = MAJOR(st.st_rdev);
+				if (major == PTY_SLAVE_MAJOR || (major >= UNIX98_PTY_SLAVE_MAJOR && major < UNIX98_PTY_SLAVE_MAJOR + UNIX98_PTY_MAJOR_COUNT))
+					nas_port_type = PW_NAS_PORT_VIRTUAL;
+			}
+		}
 	}
-	while (isalpha(*tty))
-		tty++;
-	if (nas_port_number == -1 && isdigit(*tty))
-		nas_port_number = atoi(tty);
+
+	/* Default to the supplied option */
+	nas_real_port_number = nas_port_number;
+
+	if (nas_real_port_number == -1) {
+		if (nas_port_type == PW_NAS_PORT_VIRTUAL)
+			nas_real_port_number = ifunit;
+		else {
+			tty = devnam;
+			while (*tty && !isdigit(*tty))
+				tty++;
+			if (*tty)
+				nas_real_port_number = atoi(tty);
+		}
+	}
 
 	return 1;
 }
@@ -245,10 +271,10 @@ radius_auth(struct radius_attrib **attriblist, chap_state *cstate)
 		}
 	}
 
-	if (nas_port_number != -1) {
+	if (nas_real_port_number != -1) {
 		if (!radius_add_attrib(
 				attriblist, PW_VENDOR_NONE, PW_NAS_PORT_ID,
-				nas_port_number, NULL, 0)) {
+				nas_real_port_number, NULL, 0)) {
 			return 0;
 		}
 	}
@@ -835,10 +861,10 @@ radius_common_account_attrib(struct radius_attrib **attriblist)
 			return 0;
 	}
 
-	if (nas_port_number != -1) {
+	if (nas_real_port_number != -1) {
 		if (!radius_add_attrib(
 				attriblist, PW_VENDOR_NONE, PW_NAS_PORT_ID,
-				nas_port_number, NULL, 0))
+				nas_real_port_number, NULL, 0))
 			return 0;
 	}
 	

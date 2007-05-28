@@ -7,10 +7,10 @@
 if(description)
 {
  script_id(11438);
- script_version ("$Revision: 1.4 $");
- 
  script_bugtraq_id(6721);
- script_cve_id("CAN-2003-0042");
+ script_version ("$Revision: 1.9 $");
+ 
+ script_cve_id("CVE-2003-0042");
  
  name["english"] = "Apache Tomcat Directory Listing and File disclosure";
  script_name(english:name["english"]);
@@ -50,17 +50,19 @@ Risk factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
-req = http_get(item:"/", port:port);
-res = http_keepalive_send_recv(port:port, data:req);
+res = http_get_cache(item:"/", port:port);
 if( res == NULL ) exit(0);
 
 if(("Index of /" >< res)||("Directory Listing" >< res))exit(0);
 
-req = http_get(item:string("/", raw_string(0), ".jsp"), port:port);
+req = str_replace(string:http_get(item:"/<REPLACEME>.jsp", port:port),
+	          find:"<REPLACEME>",
+		  replace:raw_string(0));
+
 res = http_keepalive_send_recv(port:port, data:req);
 
 if ( res == NULL ) exit(0);

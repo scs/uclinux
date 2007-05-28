@@ -19,8 +19,6 @@ source directory.
 #include <errno.h>
 #include <sys/stat.h>
 
-#include <asm/page.h>
-
 #include "config.h"
 #include "common.h"
 #include "lilo.h"

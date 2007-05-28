@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 #
-# $Id$
+# $Id: Makefile.am,v 1.5.2.7 2003/12/01 10:12:28 hno Exp $
 #
 
 errordir = $(datadir)/errors
@@ -93,3 +93,12 @@ dist-hook:
 	  fi; \
 	done
 
+romfs:
+	[ -d $(ROMFSDIR)/etc/errors ] || mkdir $(ROMFSDIR)/etc/errors
+	for l in $(INSTALL_LANGUAGES); do					\
+		[ -d $(ROMFSDIR)/etc/errors/$$l ] ||				\
+			mkdir $(ROMFSDIR)/etc/errors/$$l ;			\
+		for f in $(srcdir)/$$l/ERR_*; do				\
+			$(ROMFSINST) -p 644 $$f /etc/errors/$$l/`basename $$f`;	\
+		done;								\
+	done

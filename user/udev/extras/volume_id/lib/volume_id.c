@@ -21,7 +21,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <errno.h>
 #include <ctype.h>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -41,6 +40,9 @@ int volume_id_probe_raid(struct volume_id *id, uint64_t off, uint64_t size)
 {
 	if (id == NULL)
 		return -EINVAL;
+
+	info("probing at offset 0x%llx, size 0x%llx",
+	    (unsigned long long) off, (unsigned long long) size);
 
 	/* probe for raid first, because fs probes may be successful on raid members */
 	if (size) {
@@ -67,15 +69,21 @@ int volume_id_probe_raid(struct volume_id *id, uint64_t off, uint64_t size)
 
 		if (volume_id_probe_highpoint_45x_raid(id, off, size) == 0)
 			goto found;
+
+		if (volume_id_probe_adaptec_raid(id, off, size) == 0)
+			goto found;
+
+		if (volume_id_probe_jmicron_raid(id, off, size) == 0)
+			goto found;
 	}
 
-	if (volume_id_probe_lvm1(id, off) == 0)
+	if (volume_id_probe_lvm1(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_lvm2(id, off) == 0)
+	if (volume_id_probe_lvm2(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_highpoint_37x_raid(id, off) == 0)
+	if (volume_id_probe_highpoint_37x_raid(id, off, size) == 0)
 		goto found;
 
 	return -1;
@@ -91,71 +99,82 @@ int volume_id_probe_filesystem(struct volume_id *id, uint64_t off, uint64_t size
 	if (id == NULL)
 		return -EINVAL;
 
-	if (volume_id_probe_luks(id, off) == 0)
-		goto found;
+	info("probing at offset 0x%llx, size 0x%llx",
+	    (unsigned long long) off, (unsigned long long) size);
 
-	/* signature in the first block, only small buffer needed */
-	if (volume_id_probe_vfat(id, off) == 0)
-		goto found;
-
-	if (volume_id_probe_xfs(id, off) == 0)
+	if (volume_id_probe_vfat(id, off, size) == 0)
 		goto found;
 
 	/* fill buffer with maximum */
 	volume_id_get_buffer(id, 0, SB_BUFFER_SIZE);
 
-	if (volume_id_probe_linux_swap(id, off) == 0)
+	if (volume_id_probe_linux_swap(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_ext(id, off) == 0)
+	if (volume_id_probe_luks(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_reiserfs(id, off) == 0)
+	if (volume_id_probe_xfs(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_jfs(id, off) == 0)
+	if (volume_id_probe_ext(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_udf(id, off) == 0)
+	if (volume_id_probe_reiserfs(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_iso9660(id, off) == 0)
+	if (volume_id_probe_jfs(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_hfs_hfsplus(id, off) == 0)
+	if (volume_id_probe_udf(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_ufs(id, off) == 0)
+	if (volume_id_probe_iso9660(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_ntfs(id, off)  == 0)
+	if (volume_id_probe_hfs_hfsplus(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_cramfs(id, off) == 0)
+	if (volume_id_probe_ufs(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_romfs(id, off) == 0)
+	if (volume_id_probe_ntfs(id, off, size)  == 0)
 		goto found;
 
-	if (volume_id_probe_hpfs(id, off) == 0)
+	if (volume_id_probe_cramfs(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_sysv(id, off) == 0)
+	if (volume_id_probe_romfs(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_minix(id, off) == 0)
+	if (volume_id_probe_hpfs(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_ocfs1(id, off) == 0)
+	if (volume_id_probe_sysv(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_ocfs2(id, off) == 0)
+	if (volume_id_probe_minix(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_vxfs(id, off) == 0)
+	if (volume_id_probe_ocfs1(id, off, size) == 0)
 		goto found;
 
-	if (volume_id_probe_squashfs(id, off) == 0)
+	if (volume_id_probe_ocfs2(id, off, size) == 0)
+		goto found;
+
+	if (volume_id_probe_vxfs(id, off, size) == 0)
+		goto found;
+
+	if (volume_id_probe_squashfs(id, off, size) == 0)
+		goto found;
+
+	if (volume_id_probe_netware(id, off, size) == 0)
+		goto found;
+
+	if (volume_id_probe_gfs(id, off, size) == 0)
+		goto found;
+
+	if (volume_id_probe_gfs2(id, off, size) == 0)
 		goto found;
 
 	return -1;

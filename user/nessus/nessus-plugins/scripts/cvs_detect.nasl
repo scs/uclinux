@@ -1,40 +1,45 @@
 #
-# This script was written by Noam Rathaus <noamr@securiteam.com>
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(10051);
- script_version ("$Revision: 1.9 $");
- name["english"] = "A CVS pserver is running";
+ script_version ("$Revision: 1.13 $");
+ name["english"] = "CVS pserver detection";
  script_name(english:name["english"]);
  
- desc["english"] = "A CVS (Concurrent Versions System) server is installed, and it is configured
-to have its own password file, or use that
-of the system. This service starts as a daemon, listening on port
-TCP:port.
-Knowing that a CVS server is present on the system gives attackers
-additional information about the system, such as that this is a
-UNIX based system, and maybe a starting point for further attacks.
+ desc["english"] = "
+Synopsis :
 
-Solution: Block those ports from outside communication
+A CVS pserver is listening on the remote port
 
-Risk factor : Low";
+Description :
+
+CVS (Concurrent Versions System) is an open source versioning system.
+A cvs server can be accessed either using third party tools (ie: rsh
+or ssh), or via the 'pserver' protocol, which is unencrypted.
+
+Solution :
+
+Use cvs on top of RSH or SSH if possible
+
+Risk factor : 
+
+None";
+
 
  script_description(english:desc["english"]);
  
- summary["english"] = "A CVS pserver is running";
+ summary["english"] = "Detects a CVS pserver";
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 1999 SecuriTeam");
- family["english"] = "General";
- script_family(english:family["english"]);
- script_require_ports("Services/cvspserver", port);
- script_dependencies("find_service.nes");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ script_family(english:"Service detection");
+ script_require_ports("Services/cvspserver", 2401);
+ script_dependencies("find_service1.nasl");
  exit(0);
 }
 
@@ -43,23 +48,16 @@ Risk factor : Low";
 #
 port = get_kb_item("Services/cvspserver");
 if(!port)port = 2401;
-
-if(get_port_state(port))
-{
- soc = open_sock_tcp(port);
-
- if (soc)
- {
-  senddata = string("\r\n\r\n");
-  send(socket:soc, data:senddata);
-
-  recvdata = recv_line(socket:soc, length:1000);
-  if ("cvs" >< recvdata)
-  {
-    security_warning(port);
-  }
- }
-
- close(soc);
-
-}
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+req = string("BEGIN AUTH REQUEST\n",
+	"/\n",
+	"\n",
+	"A\n",
+	"END AUTH REQUEST\n");
+send(socket:soc, data:req);
+r = recv_line(socket:soc, length:4096);
+close(soc);
+if("repository" >< r || "I HATE" >< r)
+	security_note(port);

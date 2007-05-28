@@ -1,31 +1,43 @@
-# This script was written by Jeff Adams <jeffrey.adams@hqda.army.mil>
-# This script is Copyright (C) 2003 Jeff Adams
+#
+# (C) Tenable Network Security
+#
 
 if(description)
 {
  script_id(11886);
- script_version("$Revision: 1.1 $");
- script_cve_id("CAN-2003-0660");
+ script_bugtraq_id(8830);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-B-0006");
+ script_version("$Revision: 1.14 $");
+ script_cve_id("CVE-2003-0660");
  
  name["english"] = "Vulnerability in Authenticode Verification Could Allow Remote Code Execution (823182)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-There is a vulnerability in Authenticode that, under certain low memory 
-conditions, could allow an ActiveX control to download and install without 
-presenting the user with an approval dialog. To exploit this vulnerability, 
-an attacker could host a malicious Web Site designed to exploit this 
-vulnerability. If an attacker then persuaded a user to visit that site an 
-ActiveX control could be installed and executed on the user's system. 
-Alternatively, an attacker could create a specially formed HTML e-mail and i
-send it to the user. 
+Synopsis :
 
-Exploiting the vulnerability would grant the attacker with the same privileges 
-as the user.
+Arbitrary code can be executed on the remote host through web client.
 
-Solution : see http://www.microsoft.com/technet/security/bulletin/ms03-041.asp
-Risk factor : High";
+Description :
+
+The remote host contains a version of the Authenticode Verification module
+which is vulnerable to a security flaw which may allow an attacker to execute
+arbitrary code on the remote host by constructing a malicious web page and
+entice a victim to visit this web page.
+An attacker may also be able to exploit the vulnerability by sending a malicious
+HTML email.
+
+Solution : 
+
+Microsoft has released a set of patches for Windows NT, 2000, XP and 2003 :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-041.mspx
+
+Risk factor :
+
+High / CVSS Base Score : 8 
+(AV:R/AC:H/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -35,68 +47,33 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Jeff Adams");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
-  script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_full_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_XP.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_full_access","SMB/WindowsVersion");
- script_exclude_keys("SMB/Win2003/ServicePack");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-access = get_kb_item("SMB/registry_full_access");
-if(!access)exit(0);
+if ( hotfix_check_sp(nt:7, win2k:5, xp:2, win2003:1) <= 0 ) exit(0);
 
-version = get_kb_item("SMB/WindowsVersion");
-
-
-if("5.0" >< version)
+if (is_accessible_share())
 {
- key = "SOFTWARE\Microsoft\Updates\Windows 2000\SP5\KB823182";
- item = "Description";
-
-# Will be fixed in Service Pack 5
- sp = get_kb_item("SMB/Win2K/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [5-9]"))exit(0);
-  
- value = registry_get_sz(item:item, key:key);
- if(!value)security_hole(port);
-}
-
-if("5.1" >< version)
-{
- key = "SOFTWARE\Microsoft\Updates\Windows XP\SP2\KB823182";
- item = "Description";
-
-# Will be fixed in Service Pack 2
- sp = get_kb_item("SMB/WinXP/ServicePack");
- if(ereg(string:sp, pattern:"Service Pack [2-9]"))exit(0);
+ if ( hotfix_is_vulnerable (os:"5.2", sp:0, file:"Cryptui.dll", version:"5.131.3790.67", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:1, file:"Cryptui.dll", version:"5.131.2600.1243", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.1", sp:0, file:"Cryptui.dll", version:"5.131.2600.117", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Cryptui.dll", version:"5.131.2195.6758", dir:"\system32") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Cryptui.dll", version:"5.131.1878.14", dir:"\system32") )
+   security_warning (get_kb_item("SMB/transport"));
  
- value = registry_get_sz(item:item, key:key);
- if(!value)security_hole(port);
+ hotfix_check_fversion_end();
+ exit (0);
 }
+else if ( hotfix_missing(name:"KB823182") > 0 )
+	security_hole(get_kb_item("SMB/transport"));
 
-
-if("5.2" >< version)
-{
-  key = "SOFTWARE\Microsoft\Updates\Windows Server 2003\SP1\KB823182";
- item = "Description";
-
-# Will be fixed in Service Pack 1
- sp = get_kb_item("SMB/Win2003/ServicePack");
- if(sp)exit(0);
- 
- value = registry_get_sz(item:item, key:key);
- if(!value)security_hole(port);
-}

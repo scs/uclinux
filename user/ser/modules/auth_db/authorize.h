@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: authorize.h,v 1.1 2003/03/06 15:39:33 janakj Exp $
  *
  * Digest Authentication - Database support
  *

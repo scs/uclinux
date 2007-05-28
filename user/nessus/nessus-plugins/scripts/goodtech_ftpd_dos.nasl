@@ -7,33 +7,42 @@
 if(description)
 {
  script_id(10690);
- script_cve_id("CAN-2001-0188");
  script_bugtraq_id(2270);
+ script_cve_id("CVE-2001-0188");
  
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "GoodTech ftpd DoS";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-It was possible to disable the remote FTP server
-by connecting to it about 3000 times, with
-one connection at a time.
+Synopsis : 
 
-If the remote server is running from within [x]inetd, this
-is a feature and the FTP server should automatically be back
-in a couple of minutes.
+The remote ftp server is prone to denial of service attacks.
 
-An attacker may use this flaw to prevent this
-service from working properly.
+Description :
 
-Solution : If the remote server is GoodTech ftpd server,
-download the newest version from http://www.goodtechsys.com.
-BID : 2270
-Risk factor : Serious";
+The remote host appears to be running GoodTech FTP Server for Windows. 
 
+It was possible to disable the remote FTP server by connecting to it
+about 3000 separate times.  If the remote server is running from
+within [x]inetd, this is a feature and the FTP server should
+automatically be back in a couple of minutes.  An attacker may use
+this flaw to prevent this service from working properly. 
 
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2001-01/0350.html
+
+Solution : 
+
+Upgrade to a version of GoodTech FTP server later than 3.0.1.2.1.0. 
+
+Risk factor : 
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:N/A:P/I:N/B:A)";
 
  script_description(english:desc["english"]);
  
@@ -67,6 +76,9 @@ if(get_port_state(port))
   soc = open_sock_tcp(port);
   if(!soc)exit(0);
   close(soc);
+
+  r = recv_line(socket:soc, length:4096);
+  if ( "GoodTech" >!< r ) exit(0);
   
   for(i=0;i<3000;i=i+1)
   {
@@ -74,7 +86,7 @@ if(get_port_state(port))
    if(!soc)
    {
     i = 3001;
-    security_hole(port);
+    security_warning(port);
     exit(0);
    }
    close(soc);

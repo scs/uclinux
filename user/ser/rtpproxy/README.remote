@@ -20,4 +20,4 @@ you should be using other means to secure RTP Proxy, such as firewall or
 even better a VPN between machine runing RTP Proxy and machine wich
 runs a software that controls it.
 
-$Id$
+$Id: README.remote,v 1.1.1.1 2004/11/29 02:09:19 pchunt Exp $

@@ -8,10 +8,10 @@ if(description)
 {
  name["english"] = "PCCS-Mysql User/Password Exposure";
  
- script_bugtraq_id(1557);
  script_name(english:name["english"]);
  script_id(10783);
- script_version ("$Revision: 1.5 $");
+ script_bugtraq_id(1557);
+ script_version ("$Revision: 1.9 $");
  script_cve_id("CVE-2000-0707");
  
  desc["english"] = "
@@ -47,5 +47,12 @@ Risk factor : High";
 #
 # The script code starts here
 #
-port = is_cgi_installed("/pccsmysqladm/incs/dbconnect.inc");
-if(port)security_hole(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(port:port, item:"/pccsmysqladm/incs/dbconnect.inc");
+if( res )security_hole(port);

@@ -11,11 +11,10 @@
 if(description)
 {
  script_id(10372);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.16 $");
 
  name["english"] = "/scripts/repost.asp";
- name["francais"] = "/script/repost.asp";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 The file /scripts/repost.asp is present.
@@ -26,38 +25,23 @@ been configured properly.
 Solution : Create /users and make sure that the anonymous internet account is
 only given read access to it.
 See also : http://online.securityfocus.com/archive/82/84565
-Risk factor : Serious";
+Risk factor : High";
 
-
- desc["francais"] = "
-Le fichier /scripts/repost.asp est présent.
-
-Ce fichier permet à n'importe qui d'uploader
-des fichiers dans /users.
-
-
-Solution : créez /users et assurez-vous que le compte
-	   internet anonyme n'y a accès qu'en lecture seule
-Facteur de risque : Sérieux";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
  summary["english"] = "Determines whether /scripts/repost.asp is present";
- summary["francais"] = "Determines si /scripts/repost.asp est présent";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -85,12 +69,7 @@ function test_cgi(port, cgi, output)
  
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(get_port_state(port))
-{
-  test_cgi(port:port, 
- 	  cgi:"/scripts/repost.asp",
-	  output:"Here is your upload status");	  
-}
-	  
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
+test_cgi(port:port, cgi:"/scripts/repost.asp", output:"Here is your upload status");	  

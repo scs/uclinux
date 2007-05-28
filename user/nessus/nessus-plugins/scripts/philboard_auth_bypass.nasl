@@ -8,7 +8,7 @@ if(description)
 {
  script_id(11675);
  script_bugtraq_id(7739);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.8 $");
  
  name["english"] = "Philboard philboard_admin.ASP Authentication Bypass";
  script_name(english:name["english"]);
@@ -20,7 +20,7 @@ to gain unauthorized administrative access or to download the
 database of the remote server.
 
 Solution : Upgrade to the latest version of this Software 
-Risk Factor : Serious";
+Risk factor : High";
  script_description(english:desc["english"]);
  
  summary["english"] = "Try to bypass Philboard philboard_admin.ASP Authentication";
@@ -37,6 +37,7 @@ francais:"Ce script est Copyright (C) 2003 Tenable Network Security");
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -45,14 +46,14 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
 
 
-dirs = make_list( "", "/philboard", "/board", "/forum", cgi_dirs());
+dirs = make_list( "/philboard", "/board", "/forum", cgi_dirs());
 
 foreach dir (dirs)
 {

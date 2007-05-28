@@ -1,4 +1,4 @@
-$ $Id$
+$ $Id: set17,v 1.1 2000/11/11 23:03:43 christos Exp $
 $ sh.proc.c
 $set 17 
 1 BUG: waiting for background job!\n

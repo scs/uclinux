@@ -69,6 +69,7 @@ void GenHomenet(char *);
 void InitNetmasks();
 void InitBinFrag();
 void GoDaemon();
+void SignalWaitingParent();
 void CheckLogDir();
 char *read_infile(char *);
 void InitProtoNames();
@@ -79,6 +80,7 @@ void LogMessage(const char *, ...);
 void FatalError(const char *, ...);
 void FatalPrintError(char *);
 void CreatePidFile(char *);
+void ClosePidFile();
 void SetUidGid(void);
 void SetChroot(char *, char **);
 void DropStats(int);
@@ -88,5 +90,11 @@ void *SnortAlloc(unsigned long);
 char *CurrentWorkingDir(void);
 char *GetAbsolutePath(char *dir);
 char *StripPrefixDir(char *prefix, char *dir);
+void DefineAllIfaceVars();
+void DefineIfaceVar(char *,u_char *, u_char *);
+#ifdef TIMESTATS
+void DropHourlyStats(int trap);
+#endif
+
 
 #endif /*__UTIL_H__*/

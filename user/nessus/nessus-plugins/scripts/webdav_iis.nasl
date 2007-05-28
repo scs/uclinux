@@ -7,13 +7,12 @@
 if(description)
 {
   script_id(10526);
- script_version ("$Revision: 1.7 $");
- script_bugtraq_id(1756);
+  script_bugtraq_id(1756);
+ script_version ("$Revision: 1.11 $");
   script_cve_id("CVE-2000-0951");
   name["english"] = "IIS : Directory listing through WebDAV";
-  name["francais"] = "IIS : Listing du contenu d'un repertoire avec WebDAV";
 
-  script_name(english:name["english"], francais:name["francais"]);
+  script_name(english:name["english"]);
   desc["english"] = "
 It is possible to retrieve the listing of the remote 
 directories accessible via HTTP, rather than their index.html, 
@@ -28,44 +27,28 @@ Solution : disable the Index Server service, or
 see http://www.microsoft.com/technet/support/kb.asp?ID=272079
 Risk factor : Low";
 
-  desc["francais"] = "
-Il est possible d'obtenir la liste du contenu des repertoires
-distants accessibles par HTTP, plutot que leur fichier index.html,
-en utilisant le serveyr de services d'indexage (Index Server).
-
- Ce problème permet à un pirate d'obtenir plus d'informations
-sur la machine attaquée, ainsi que de découvrir la présence de
-fichiers HTML cachés.
-
-Solution : désactivez le serveur de services d'indexage, ou lisez
-http://www.microsoft.com/technet/support/kb.asp?ID=272079
-
-Facteur de risque : Faible";
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
 
  summary["english"] = "Checks the presence of the Index Server service";
- summary["francais"] = "Vérifie la présence du serveur d'indexage";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  script_category(ACT_GATHER_INFO);
 
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-     	 	  francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
 
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
 
- script_family(english:family["english"], francais:family["francais"]);
-
- script_dependencie("find_service.nes");
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
+sig = get_kb_item("www/hmap/" + port + "/description");
+if ( sig && "IIS" >!< sig ) exit(0);
 
 if(get_port_state(port))
 {

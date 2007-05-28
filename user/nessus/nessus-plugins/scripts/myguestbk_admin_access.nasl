@@ -19,7 +19,7 @@ if(description)
 {
  script_id(11489);
  script_bugtraq_id(7213);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.8 $");
 
  name["english"] = "myguestbk admin access";
 
@@ -52,11 +52,12 @@ Risk factor : Low";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -68,15 +69,15 @@ Risk factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
-if(!get_port_state(port))exit(0);
+port = get_http_port(default:80);
+
+if ( ! can_host_asp(port:port) ) exit(0);
 
 
 
 
 
-dirs = make_list(cgi_dirs(), "", "/myguestbk");
+dirs = make_list(cgi_dirs(), "/myguestbk");
 
 
 

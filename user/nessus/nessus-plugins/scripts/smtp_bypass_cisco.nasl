@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10520);
-script_cve_id("CVE-2000-1022");
  script_bugtraq_id(1698);
- script_version ("$Revision: 1.10 $");
+script_cve_id("CVE-2000-1022");
+ script_version ("$Revision: 1.14 $");
  name["english"] = "PIX's smtp content filtering";
  name["francais"] = "filtre de contenu smtp PIX";
  script_name(english:name["english"],
@@ -59,7 +59,7 @@ Facteur de risque : Moyen";
  family["english"] = "Firewalls";
  family["francais"] = "Firewalls";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("find_service.nes", "smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped", "SMTP/qmail", "SMTP/postfix");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -72,13 +72,15 @@ Facteur de risque : Moyen";
 include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
  if(soc)
  {
  data = smtp_recv_banner(socket:soc);
- if(ereg(string:data, pattern:"^220.*"))
+ if(data && ereg(string:data, pattern:"^220.*"))
  {
    cmd = string("HELP\r\n");
    send(socket:soc, data:cmd);
@@ -90,7 +92,7 @@ if(get_port_state(port))
      r = recv_line(socket:soc, length:1024);
      cmd = string("HELP\r\n");
      r = recv_line(socket:soc, length:1024);
-     if(ereg(string:r, pattern:"^214.*"))security_hole(port);
+     if(ereg(string:r, pattern:"^214.*"))security_warning(port);
    }	
  }
  close(soc);

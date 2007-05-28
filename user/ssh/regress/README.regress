@@ -22,20 +22,31 @@ Environment variables.
 
 SUDO: path to sudo command, if desired. Note that some systems (notably
 	systems using PAM) require sudo to execute some tests.
-TEST_SSH_TRACE: set yo "yes" for verbose output from tests 
+TEST_SSH_TRACE: set to "yes" for verbose output from tests 
 TEST_SSH_QUIET: set to "yes" to suppress non-fatal output.
 TEST_SSH_x: path to "ssh" command under test, where x=SSH,SSHD,SSHAGENT,SSHADD
 	SSHKEYGEN,SSHKEYSCAN,SFTP,SFTPSERVER
 OBJ: used by test scripts to access build dir.
+TEST_SHELL: shell used for running the test scripts.
+TEST_SSH_PORT: TCP port to be used for the listening tests.
+TEST_SSH_SSH_CONFOTPS: Configuration directives to be added to ssh_config
+	before running each test.
+TEST_SSH_SSHD_CONFOTPS: Configuration directives to be added to sshd_config
+	before running each test.
 
 
 Individual tests.
 
-You can invoke test-exec.sh directly if you set up the path to find the
-binaries under test and the test scripts themselves, for example:
+You can run an individual test from the top-level Makefile, eg:
+$ make tests LTESTS=agent-timeout
+
+If you need to manipulate the environment more you can invoke test-exec.sh
+directly if you set up the path to find the binaries under test and the
+test scripts themselves, for example:
 
 $ cd regress
-$ PATH=`pwd`/..:$PATH:. sh test-exec.sh `pwd` agent-timeout.sh
+$ PATH=`pwd`/..:$PATH:. TEST_SHELL=/bin/sh sh test-exec.sh `pwd` \
+    agent-timeout.sh
 ok agent timeout test
 
 
@@ -82,5 +93,16 @@ Failed tests can be difficult to diagnose. Suggestions:
 
 Known Issues.
 
+- If your build requires ssh-rand-helper regress tests will fail
+  unless ssh-rand-helper is in pre-installed (the path to
+  ssh-rand-helper is hard coded).
 
-$Id$
+- Similarly, if you do not have "scp" in your system's $PATH then the
+  multiplex scp tests will fail (since the system's shell startup scripts
+  will determine where the shell started by sshd will look for scp).
+
+- Recent GNU coreutils deprecate "head -[n]": this will cause the yes-head
+  test to fail.  The old behaviour can be restored by setting (and
+  exporting) _POSIX2_VERSION=199209 before running the tests.
+
+$Id: README.regress,v 1.10 2005/10/03 10:14:18 dtucker Exp $

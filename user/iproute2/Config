@@ -1,18 +1,6 @@
-ifdef CONFIG_NET_SCH_DSMARK
-TC_CONFIG_DIFFSERV=y
-else
-ifdef CONFIG_NET_SCH_GRED
-TC_CONFIG_DIFFSERV=y
-else
-ifdef CONFIG_NET_SCH_INGRESS
-TC_CONFIG_DIFFSERV=y
-else
-ifdef CONFIG_NET_CLS_TCINDEX
-TC_CONFIG_DIFFSERV=y
-else
-TC_CONFIG_DIFFSERV=n
-endif
-endif
-endif
-endif
-TC_CONFIG_ATM=n
+KERNEL_DIR = $(ROOTDIR)/$(LINUXDIR)
+-include $(KERNEL_DIR)/.config
+lower=$(shell echo $(1) | tr [:upper:] [:lower:])
+upper=$(shell echo $(1) | tr [:lower:] [:upper:])
+TEST_CONFIG_VAL=$(patsubst $(3)_%,%,$(filter $(3)_%,$(foreach i,$(1),$(CONFIG_$(2)_$(i))_$(i))))
+TEST_CONFIG=$(call TEST_CONFIG_VAL,$(1),$(2),y) $(call TEST_CONFIG_VAL,$(1),$(2),m)

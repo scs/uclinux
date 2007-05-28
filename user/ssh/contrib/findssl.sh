@@ -1,5 +1,7 @@
 #!/bin/sh
 #
+# $Id: findssl.sh,v 1.3 2004/12/13 07:08:33 dtucker Exp $
+#
 # findssl.sh
 #	Search for all instances of OpenSSL headers and libraries
 #	and print their versions.
@@ -9,24 +11,25 @@
 #	Written by Darren Tucker (dtucker at zip dot com dot au)
 #	This file is placed in the public domain.
 #
-# $Id$
+#	Release history:
 #	2002-07-27: Initial release.
 #	2002-08-04: Added public domain notice.
 #	2003-06-24: Incorporated readme, set library paths. First cvs version.
+#	2004-12-13: Add traps to cleanup temp files, from Amarendra Godbole.
 #
-# "OpenSSL headers do not match your library" are usually caused by 
+# "OpenSSL headers do not match your library" are usually caused by
 # OpenSSH's configure picking up an older version of OpenSSL headers
 # or libraries.  You can use the following # procedure to help identify
 # the cause.
-# 
+#
 # The  output  of  configure  will  tell you the versions of the OpenSSL
 # headers and libraries that were picked up, for example:
-# 
+#
 # checking OpenSSL header version... 90604f (OpenSSL 0.9.6d 9 May 2002)
 # checking OpenSSL library version... 90602f (OpenSSL 0.9.6b [engine] 9 Jul 2001)
 # checking whether OpenSSL's headers match the library... no
 # configure: error: Your OpenSSL headers do not match your library
-# 
+#
 # Now run findssl.sh. This should identify the headers and libraries
 # present  and  their  versions.  You  should  be  able  to identify the
 # libraries  and headers used and adjust your CFLAGS or remove incorrect
@@ -37,7 +40,7 @@
 # Searching for OpenSSL header files.
 # 0x0090604fL /usr/include/openssl/opensslv.h
 # 0x0090604fL /usr/local/ssl/include/openssl/opensslv.h
-# 
+#
 # Searching for OpenSSL shared library files.
 # 0x0090602fL /lib/libcrypto.so.0.9.6b
 # 0x0090602fL /lib/libcrypto.so.2
@@ -46,11 +49,11 @@
 # 0x0090581fL /usr/lib/libcrypto.so.0.9.5a
 # 0x0090600fL /usr/lib/libcrypto.so.0.9.6
 # 0x0090600fL /usr/lib/libcrypto.so.1
-# 
+#
 # Searching for OpenSSL static library files.
 # 0x0090602fL /usr/lib/libcrypto.a
 # 0x0090604fL /usr/local/ssl/lib/libcrypto.a
-# 
+#
 # In  this  example, I gave configure no extra flags, so it's picking up
 # the  OpenSSL header from /usr/include/openssl (90604f) and the library
 # from /usr/lib/ (90602f).
@@ -62,6 +65,11 @@
 #
 CC=gcc
 STATIC=-static
+
+#
+# Cleanup on interrupt
+#
+trap 'rm -f conftest.c' INT HUP TERM
 
 #
 # Set up conftest C source

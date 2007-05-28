@@ -8,7 +8,7 @@
  * the received voice messages. Otherwise vgetty leaves the voice mode
  * and tries a data or fax connection.
  *
- * $Id$
+ * $Id: button.c,v 1.4 1998/09/09 21:08:06 gert Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 /**
- * $Id$
+ * $Id: xlog.c,v 1.5 2003/10/12 13:07:40 ramona Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

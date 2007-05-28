@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: case_allo.h,v 1.4 2002/11/18 19:08:16 janakj Exp $ 
  *
  * Allow Header Field Name Parsing Macros
  *

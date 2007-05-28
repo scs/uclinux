@@ -2,35 +2,45 @@
 # This script was written by Renaud Deraison <deraison@cvs.nessus.org>
 #
 # See the Nessus Scripts License for details
-#
-# Ref: 
-# From: "drG4njubas" <drG4nj@mail.ru>
-# To: <bugtraq@securityfocus.com>
-# Subject: Web Wiz Site News realease v3.06 administration access.
-# Date: Mon, 14 Apr 2003 17:19:03 +0400
 
 
 if(description)
 {
  script_id(11533);
- script_version ("$Revision: 1.2 $");
+ script_bugtraq_id(7341, 11004);
+ script_version ("$Revision: 1.9 $");
  
- name["english"] = "Web Wiz Site News database disclosure";
+ name["english"] = "Web Wiz Site News / Compulsize Media CNU5 database disclosure";
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote server is running Web Wiz Site News, a set of .asp
-scripts to manage a news web site.
+Synopsis :
 
-This release comes with a news.mdb database, usually located
-under /news/ which contains sensitive information, such as the
-news site administrator password or URLs to several news stories.
+The remote web server contains an ASP application that is affected by an
+information disclosure vulnerability. 
 
-An attacker may use this flaw to gain unauthorized access to the 
-remote news site and potentially edit it.
+Description :
 
-Solution : Prevent the download of .mdb files from your website.
-Risk factor : High";
+The remote server is running Web Wiz Site News or Compulsive Media CNU5,
+a set of ASP scripts to manage a news web site. 
+
+This release comes with a 'news.mdb' database which contains sensitive
+information, such as the unencrypted news site administrator password
+and URLs to several news stories.  An attacker may use this flaw to
+gain unauthorized access to the affected application. 
+
+See also :
+
+http://archives.neohapsis.com/archives/bugtraq/2003-04/0188.html
+
+Solution : 
+
+Prevent the download of .mdb files from your website.
+
+Risk factor : 
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -45,34 +55,35 @@ Risk factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
 
+include("global_settings.inc");
 include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+if (!get_port_state(port)) exit(0);
+if (!can_host_asp(port:port)) exit(0);
 
-if(!get_port_state(port))exit(0);
 
+if (thorough_tests) dirs = make_list("/news", cgi_dirs());
+else dirs = make_list(cgi_dirs());
 
-dirs = make_list(cgi_dirs(), "");
-
-foreach d (dirs)
+foreach d ( dirs )
 {
- req = http_get(item:string(d, "/news/news.mdb"), port:port);
- res = http_keepalive_send_recv(port:port, data:req);
- 
+ req = http_get(item:string(d, "/news.mdb"), port:port);
+ res = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
  if ( res == NULL ) exit(0);
  
  if("Standard Jet DB" >< res)
 	{
- 	 security_warning(port);
+ 	 security_note(port);
 	 exit(0);
 	 }
 }

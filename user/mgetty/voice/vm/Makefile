@@ -3,7 +3,7 @@
 #
 # This is the Makefile for libvoice.
 #
-# $Id$
+# $Id: Makefile,v 1.4 1998/09/09 21:08:10 gert Exp $
 #
 
 VMOBJS=main.o event.o usage.o

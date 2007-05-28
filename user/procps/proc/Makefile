@@ -33,7 +33,7 @@ HDR        =  $(sort $(wildcard *.h) $(filter %.h,$(RCSFILES)))
 OBJ        =  $(SRC:.c=.o)
 SONAME     =  lib$(NAME).so.$(LIBVERSION)
 
-ifeq ($(SHARED),1)
+ifdef SHARED
 CFLAGS += -fpic
 all: lib$(NAME).a $(SONAME)
 else
@@ -62,7 +62,7 @@ install: all
 	if ! [ -d $(HDRDIR) ] ; then mkdir $(HDRDIR) ; fi
 	$(INSTALL) $(HDROWN) $(HDR) $(TOPDIR)/include/$(NAME)
 	$(INSTALL) $(LIBOWN) lib$(NAME).a $(LIBDIR)
-ifeq ($(SHARED),1)
+ifdef SHARED
 	$(INSTALL) $(LIBOWN) $(SONAME) $(SHLIBDIR)
 	ln -sf $(SHLIBDIR)/$(SONAME) $(SHLIBDIR)/lib$(NAME).so
 	ldconfig

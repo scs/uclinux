@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(11339);
- script_version ("$Revision: 1.2 $");
  script_bugtraq_id(1742);
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CVE-2000-0992");
  
  name["english"] = "scp File Create/Overwrite";
@@ -38,7 +38,7 @@ Risk factor : Medium";
 		francais:"Ce script est Copyright (C) 2003 Xue Yong Zhi");
  family["english"] = "Gain a shell remotely";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes");
+ script_dependencie("ssh_detect.nasl");
  script_require_ports("Services/ssh", 22);
  exit(0);
 }
@@ -46,25 +46,17 @@ Risk factor : Medium";
 #
 # The script code starts here
 #
+include("backport.inc");
 
 port = get_kb_item("Services/ssh");
 if(!port)port = 22;
 
-key = string("ssh/banner/", port);
-banner = get_kb_item(key);
+banner = get_kb_item("SSH/banner/" + port );
+if ( ! banner ) exit(0);
 
-if(!banner)
-{
- if(!get_port_state(port))exit(0);
- soc = open_sock_tcp(port);
- if(!soc)exit(0);
- banner = recv_line(socket:soc, length:4096);
- close(soc);
-}
-
-banner = tolower(banner);
+banner = get_backport_banner(banner:banner);
 
 #Looking for OpenSSH product version number 1.2 and 1.2.3	
-if(ereg(pattern:".*openssh[-_](1\.2($|\.3|[^0-9])).*",string:banner))security_warning(port);
+if(ereg(pattern:".*openssh[-_](1\.2($|\.3|[^0-9])).*",string:banner, icase:TRUE))security_warning(port);
 
-if(ereg(pattern:".*ssh-.*-1\.2\.(1[0-4]|2[0-7])[^0-9]", string:banner))security_warning(port);
+if(ereg(pattern:".*ssh-.*-1\.2\.(1[0-4]|2[0-7])[^0-9]", string:banner, icase:TRUE))security_warning(port);

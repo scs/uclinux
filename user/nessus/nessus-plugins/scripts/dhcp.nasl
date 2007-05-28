@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10663);
- script_version ("$Revision: 1.8 $");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "DHCP server info gathering";
  name["francais"] = "Obtention d'informations auprès de DHCP";
@@ -125,6 +125,10 @@ len = strlen(opts);
 #
 #
 
+
+mac = raw_string(0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
+
+
 # (we choose a random request id)
 a = rand() % 255;
 b = rand() % 255;
@@ -136,8 +140,8 @@ req = raw_string(
 	0x01, 0x01, 0x06, 0x00, a,    b,    c,    d,
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF,
-	0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0x00, 0x00,
+	0x00, 0x00, 0x00, 0x00, 0x00, 0x00) + mac + 
+	raw_string( 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -176,6 +180,7 @@ req = raw_string(
 	
 len = strlen(req);
 addr = this_host();
+
 ip = forge_ip_packet(
 		ip_v    : 4,
 		ip_hl   : 5,
@@ -205,12 +210,13 @@ udp = forge_udp_packet(
 filter = string("udp and src host ", get_host_ip(), " and src port ", 67,
 		" and dst port ", 68);
 		
-rep = send_packet(udp, pcap_active:TRUE, pcap_filter:filter);		
+rep = send_packet(udp, pcap_active:TRUE, pcap_filter:filter, pcap_timeout:3);		
 if(rep)
 {
 #
 # Woowoo. We received something back.
 #
+set_kb_item(name:"DHCP/Running", value:TRUE);
 data = get_udp_element(element:"data", udp:rep);
 if(strlen(data) < 14)exit(0);
 my_ip = extract_ip(data:data, index:14);

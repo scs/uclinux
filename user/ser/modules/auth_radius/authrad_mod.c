@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: authrad_mod.c,v 1.12.6.1 2004/07/18 22:56:23 sobomax Exp $ 
  *
  * Digest Authentication - Radius support
  *

@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: ssl_support.c,v 1.5.2.3 2003/12/11 07:53:11 wessels Exp $
  *
  * AUTHOR: Benno Rice
  * DEBUG: section 83    SSL accelerator support

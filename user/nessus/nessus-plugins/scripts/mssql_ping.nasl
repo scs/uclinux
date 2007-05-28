@@ -1,19 +1,38 @@
+ desc["english"] = "
+Synopsis :
+
+It is possible to determine remote SQL server version
+
+Description :
+
+Microsoft SQL server has a function wherein remote users can
+query the database server for the version that is being run.
+The query takes place over the same UDP port which handles the
+mapping of multiple SQL server instances on the same machine.
+
+CAVEAT: It is important to note that, after Version 8.00.194,
+Microsoft decided not to update this function.  This means that
+the data returned by the SQL ping is inaccurate for newer releases
+of SQL Server.
+
+Solution :
+
+filter incoming traffic to this port
+
+Risk factor :
+
+None / CVSS Base Score : 0 
+(AV:R/AC:L/Au:NR/C:N/A:N/I:N/B:N)";
+
+
 
 if(description)
 {
  script_id(10674);
- script_version ("$Revision: 1.15 $");
+ script_version ("$Revision: 1.19 $");
  name["english"] = "Microsoft's SQL UDP Info Query";
  script_name(english:name["english"]);
  
- desc["english"] = "
-The plugin sends a SQL 'ping' request to retrieve
-information about the remote MS SQL database (if any)
-
-Risk factor : Low
-Solution : filter incoming traffic to this port";
-
-
  script_description(english:desc["english"]);
  
  summary["english"] = "Microsoft's SQL UDP Info Query";
@@ -22,7 +41,7 @@ Solution : filter incoming traffic to this port";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2001 H D Moore");
- family["english"] = "Windows";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
  exit(0);
 }
@@ -51,22 +70,22 @@ if(soc)
 {
 	send(socket:soc, data:req);
 	r  = recv(socket:soc, length:4096);
-	if(!r)exit(0);
-        r = strstr(r, "Server");
 	close(soc);
+	if(!r)exit(0);
+	set_kb_item(name:"MSSQL/UDP/Ping", value:TRUE);
+        r = strstr(r, "Server");
+        r = str_replace(find:";", replace:" ", string:r);
 	if(r)
 	{
-	        report = string("Microsoft SQL server has a function wherein remote users can \n");
-                report += string("query the database server for the version that is being run.\n");
-                report += string("The query takes place over the same UDP port which handles the \n");
-                report += string("mapping of multiple SQL server instances on the same machine.\n\n");
-                report += string("CAVEAT: It is important to note that, after Version 8.00.194, Microsoft\n");
-                report += string("decided not to update this function.  This means that the data \n");
-                report += string("returned by the SQL ping is inaccurate for newer releases of SQL Server\n\n");
  		report += string("Nessus sent an MS SQL 'ping' request. The results were : \n", r, "\n\n");
                 report += string("If you are not running multiple instances of Microsoft SQL Server\n");
                 report += string("on the same machine, It is suggested you filter incoming traffic to this port");
-		security_warning(port:1434, protocol:"udp", data:report);
+
+		 report = string (desc["english"],
+				"\n\nPlugin output :\n\n",
+				report);
+
+		security_note(port:1434, protocol:"udp", data:report);
 		set_kb_item(name:"mssql/udp/1434", value:TRUE);
 	}
 }

@@ -33,13 +33,14 @@
 #include "event.h"
 /*  P R O T O T Y P E S  ******************************************************/
 extern int do_detect;
+extern int do_detect_content;
 
 /* rule match action functions */
 int PassAction();
 int ActivateAction(Packet *, OptTreeNode *, Event *);
 int AlertAction(Packet *, OptTreeNode *, Event *);
-#ifdef GIDS
 int DropAction(Packet *, OptTreeNode *, Event *);
+#ifdef GIDS
 int SDropAction(Packet *, OptTreeNode *, Event *);
 int RejectAction(Packet *, OptTreeNode *, Event *);
 #endif /* GIDS */
@@ -56,10 +57,17 @@ int EvalOpts(OptTreeNode *, Packet *);
 void TriggerResponses(Packet *, OptTreeNode *);
 int CheckAddrPort(IpAddrSet *, u_short, u_short, Packet *, u_int32_t, int);
 
+#include "bitop_funcs.h"
 static inline void DisableDetect(Packet *p)
 {
-    p->preprocessors = 0;
-    do_detect = 0;
+    boResetBITOP(p->preprocessor_bits);
+    do_detect_content = 0;
+}
+
+static inline void DisableAllDetect(Packet *p)
+{
+    boResetBITOP(p->preprocessor_bits);
+    do_detect = do_detect_content = 0;
 }
 
 /* detection modules */

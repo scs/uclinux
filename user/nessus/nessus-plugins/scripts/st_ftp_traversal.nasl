@@ -8,7 +8,8 @@ if(description)
 {
  script_id(11677);
  script_bugtraq_id(7674);
- script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-2003-0392");
+ script_version ("$Revision: 1.8 $");
 
  name["english"] = "ST FTP traversal";
 
@@ -48,14 +49,14 @@ include("ftp_func.inc");
 
 function dir()
 {
- p = ftp_get_pasv_port(socket:soc);
+ p = ftp_pasv(socket:soc);
  if(!p)exit(0);
  soc2 = open_sock_tcp(p, transport:get_port_transport(port));
  if(!soc2)return(0);
  ls = string("LIST .\r\n");
  send(socket:soc, data:ls);
  r = ftp_recv_line(socket:soc);
- if(ereg(pattern:"^150 ", string:r))
+ if(egrep(pattern:"^150 ", string:r))
  {
   result = ftp_recv_listing(socket:soc2);
   close(soc2);
@@ -78,7 +79,7 @@ if(soc)
 {
  login = get_kb_item("ftp/login");
  pass = get_kb_item("ftp/password");
- if(ftp_log_in(socket:soc, user:login, pass:pass))
+ if(ftp_authenticate(socket:soc, user:login, pass:pass))
  {
  send(socket:soc, data:string("CWD /\r\n"));
  r = ftp_recv_line(socket:soc);

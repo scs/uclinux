@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.proc.c,v 3.71 2000/11/11 23:03:37 christos Exp $ */
 /*
  * sh.proc.c: Job manipulations
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: sh.proc.c,v 3.71 2000/11/11 23:03:37 christos Exp $")
 
 #include "ed.h"
 #include "tc.h"

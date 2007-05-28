@@ -12,10 +12,7 @@
 #include <linux/unistd.h>
 
 /*
- * $Log$
- * Revision 1.1  2005/07/25 05:10:02  magicyang
- * New user folder check in
- *
+ * $Log: cap_sys.c,v $
  * Revision 1.2  2005/01/25 19:30:55  castaglia
  *
  * Bug#2503 - Bundled libcap library does not compile on IA64 machine.

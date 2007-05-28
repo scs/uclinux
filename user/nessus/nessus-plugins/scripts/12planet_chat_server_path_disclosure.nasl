@@ -10,7 +10,9 @@ if(description)
 {
  script_id(11592);
  script_bugtraq_id(7355);
- script_version ("$Revision: 1.1 $");
+ # script_cve_id("CVE-MAP-NOMATCH");
+ # NOTE: no CVE id assigned (jfs, december 2003)
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "12Planet Chat Server Path Disclosure";
  script_name(english:name["english"]);

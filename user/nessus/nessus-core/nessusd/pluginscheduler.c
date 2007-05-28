@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2003 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,16 +14,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * pluginscheduler.c : 
  *  Tells nessusd which plugin should be executed now
@@ -35,42 +25,41 @@
 #include "pluginscheduler.h"
 #include "pluginload.h"
 #include "pluginlaunch.h"
+#include "preferences.h"
+#include "log.h"
 
 
-#define HASH_MAX 2713
+#define HASH_MAX 9973
 
 
+/*-----------------------------------------------------------------------------*/
 
-int plugin_get_running_state(struct arglist * plugin)
+int plugin_get_running_state(struct scheduler_plugin * plugin)
 {
- return (int)arg_get_value(plugin, "RUNNING_STATE");
+ return plugin->running_state;
 }
 
-void plugin_set_running_state(struct arglist * plugin, int state)
+void plugin_set_running_state(plugins_scheduler_t shed, struct scheduler_plugin * plugin, int state)
 {
  if(plugin == NULL)
   return;
-  
- if(arg_get_value(plugin, "RUNNING_STATE") != NULL)
-  arg_set_value(plugin, "RUNNING_STATE", sizeof(state), (void*)state);
- else 
-  arg_add_value(plugin, "RUNNING_STATE", ARG_INT, sizeof(state), (void*)state);
+
+ plugin->running_state = state;
 }
 
 /*-----------------------------------------------------------------------------*/
 
 
-static int mkhash(char * name)
+static unsigned int mkhash(char * name)
 {
-  int l = strlen(name);
   int i;
-  int h = 0;
+  unsigned int h = 0;
   
-  for(i=0;i<l;i++)
-   h = ((h * 128) + name[i]) % HASH_MAX;
+  for(i=0; name[i] != '\0' ;i++)
+   h += name[i]; 
    
  
-  return h < 0 ? -h:h;
+  return h % HASH_MAX;
 }
 
 /*------------------------------------------------------------------------------*/
@@ -97,7 +86,7 @@ cache_get_name(name)
  char * name;
 {
  struct name_cache * nc;
- int h;
+ unsigned int h;
  
  if(cache_inited == 0)cache_init();
  
@@ -123,7 +112,7 @@ cache_add_name(name)
  char * name;
 {
  struct name_cache * nc;
- int h;
+ unsigned int h;
  
  if(name == NULL)
   return NULL;
@@ -137,6 +126,9 @@ cache_add_name(name)
  nc->occurences = 1;
  nc->next = cache[h].next;
  nc->prev = NULL;
+ if ( cache[h].next != NULL )
+  cache[h].next->prev = nc;
+
  cache[h].next = nc;
  
  return nc;
@@ -172,7 +164,7 @@ cache_dec(name)
  nc->occurences --;
  if( nc->occurences == 0 )
   {
-    int h = mkhash(name);
+    unsigned int h = mkhash(name);
     efree(&nc->name);
 
     if( nc->next != NULL)
@@ -182,8 +174,11 @@ cache_dec(name)
      nc->prev->next = nc->next;
     else
      cache[h].next = nc->next;
+
+    efree(&nc);
   }
 }
+
 
 
 /*---------------------------------------------------------------------------*
@@ -218,6 +213,9 @@ static void hash_link_destroy(struct hash * h)
   }
   efree(&h->dependencies);
  }
+
+ efree(&h->dependencies_ptr);
+ efree(&h->plugin);
  
  if( h->ports != NULL )
  {
@@ -243,18 +241,20 @@ static void hash_destroy(struct hash * h)
 }
 
 
-static int hash_add(struct hash * h, char * name, struct arglist * plugin)
+static int hash_add(struct hash * h, char * name, struct scheduler_plugin * plugin)
 {
  struct hash * l = emalloc(sizeof(struct hash));
- int idx = mkhash(name);
- struct arglist * deps = plug_get_deps(plugin->value);
- struct arglist * ports = plug_get_required_ports(plugin->value);
+ unsigned int idx = mkhash(name);
+ struct arglist * deps = plug_get_deps(plugin->arglist->value);
+ struct arglist * ports = plug_get_required_ports(plugin->arglist->value);
  int num_deps = 0;
  
  l->plugin = plugin;
+ l->plugin->parent_hash = l;
  l->name   = name;
  l->next = h[idx].next;
  h[idx].next = l;
+ l->dependencies_ptr = NULL;
  
  if( deps == NULL )
   l->dependencies = NULL;
@@ -275,7 +275,9 @@ static int hash_add(struct hash * h, char * name, struct arglist * plugin)
    l->num_deps ++;
    al = al->next;
   }
+#if 0
   arg_free_all(deps);
+#endif
  }
  
  if( ports == NULL )
@@ -298,16 +300,16 @@ static int hash_add(struct hash * h, char * name, struct arglist * plugin)
     l->ports[i++] = cache_inc(al->name);
     al = al->next;
    }
-   arg_free_all(ports);
   }
  return 0;
 }
 
 
 
+
 static struct hash * _hash_get(struct hash * h, char * name)
 {
- int idx = mkhash(name);
+ unsigned int idx = mkhash(name);
  struct hash * l = h[idx].next;
  while(l != NULL)
  {
@@ -319,68 +321,37 @@ static struct hash * _hash_get(struct hash * h, char * name)
  return NULL;
 }
 
-static struct arglist * hash_get(struct hash * h, char * name)
+
+static struct hash ** hash_get_deps_ptr(struct hash * h, char * name)
 {
  struct hash * l = _hash_get(h, name);
- if(  l == NULL )
-  return NULL;
- else
-  return l->plugin;
-}
-
-static char ** hash_get_ports(struct hash * h, char * name)
-{
- struct hash * l = _hash_get(h, name);
- if( l == NULL)
-  return NULL;
- else
-  return l->ports;
-}
-
-
-static char ** hash_get_deps(struct hash * h, char * name)
-{
- struct hash * l = _hash_get(h, name);
- char ** deps;
- int i;
  
  if( l == NULL )
   return NULL;
  
- if( l->dependencies == NULL )
+ if( l->dependencies_ptr == NULL )
   return NULL;
  
- /*
-  * Check if any of the dependencies have run already, and remove them
-  */
- i = 0;
- deps = l->dependencies;
- 
-#if 0
- while ( deps[i] != NULL )
- {
-  p = hash_get(h, deps[i]);
-  if(p == NULL)
-  	fprintf(stderr, "hash_get_deps(): Error - can't find plugin\n");
-  else 
-  	{
-	 int state = plugin_get_running_state(p->value);
-	 if(state == PLUGIN_STATUS_DONE || state ==  PLUGIN_STATUS_DONE_AND_CLEANED)
-	 {
-	  l->num_deps --;
-	  cache_dec(deps[i]);
-	  deps[i] = NULL;
-	  if(l->num_deps > 0)
-	  	memmove(&(deps[i]), &(deps[i+1]), ( l->num_deps - i ) * sizeof(char*));
-	  i--;
-	 }
-	}
-  i ++;	
- }
-#endif 
- return deps;
+ return l->dependencies_ptr;
 }
 
+static void hash_fill_deps(struct hash * h, struct hash * l )
+{
+ int i, j = 0;
+ if ( l->num_deps != 0 )
+ {
+  l->dependencies_ptr = emalloc((1 + l->num_deps) * sizeof(struct hash*));
+  for ( i = 0 ; l->dependencies[i] ; i ++ )
+	{
+	struct hash * d = _hash_get(h, l->dependencies[i]);
+	if ( d != NULL )
+	 l->dependencies_ptr[j++] = d;
+        else
+          log_write("%s depends on %s which could not be found\n", l->plugin->arglist->name, l->dependencies[i]);
+	}
+   l->dependencies_ptr[j] = NULL;
+  }
+}
 
 /*----------------------------------------------------------------------*/
 
@@ -405,9 +376,9 @@ struct plist * pl_get(struct plist * list, char * name)
 
 
 
-void scheduler_mark_running_ports(plugins_scheduler_t sched, struct arglist * plugin)
+void scheduler_mark_running_ports(plugins_scheduler_t sched, struct scheduler_plugin * plugin)
 {
- char ** ports = hash_get_ports(sched->hash, plugin->name);
+ char ** ports = plugin->parent_hash->ports;
  int i;
  
  if( ports == NULL )
@@ -433,12 +404,13 @@ void scheduler_mark_running_ports(plugins_scheduler_t sched, struct arglist * pl
  } 
 }
 
-void scheduler_rm_running_ports(plugins_scheduler_t sched, struct arglist * plugin)
+void scheduler_rm_running_ports(plugins_scheduler_t sched, struct scheduler_plugin * plugin)
 {
- char ** ports = hash_get_ports(sched->hash, plugin->name);
+ char ** ports; 
  int i;
 
  
+ ports = plugin->parent_hash->ports;
 
  
  if( ports == NULL )
@@ -470,14 +442,16 @@ void scheduler_rm_running_ports(plugins_scheduler_t sched, struct arglist * plug
 }
 
 
+#if DISABLED_AND_BROKEN
+
 /*
  * Returns the 'score' of the plugin, which means the number of
  * plugins that are already hammering the port this plugin will
  * hammer too
  */
-int scheduler_plugin_score(plugins_scheduler_t sched, struct arglist * plugin)
+int scheduler_plugin_score(plugins_scheduler_t sched, struct scheduler_plugin * plugin)
 {
- char ** ports = hash_get_ports(sched->hash, plugin->name);
+ char ** ports = hash_get_ports(sched->hash, plugin->arglist->name);
  int i;
  int score = 0;
  
@@ -510,38 +484,38 @@ void scheduler_plugin_best_score(plugins_scheduler_t sched, int *bscore, struct 
 }
 
 
+#endif
 
 
 
 
-struct arglist * plugin_next_unrun_dependencie(plugins_scheduler_t sched, char ** dependencies)
+struct scheduler_plugin * plugin_next_unrun_dependencie(plugins_scheduler_t sched, struct hash ** dependencies_ptr, int already_in_dependencie)
 {
- struct hash * h = sched->hash;
  int flag = 0;
  int counter = 0;
  int i;
  
- if(dependencies == NULL)
+ if(dependencies_ptr == NULL)
   return NULL;
   
- for(i=0;dependencies[i] != NULL;i++)
+ for(i=0;dependencies_ptr[i] != NULL;i++)
   {
-   struct arglist * plugin = hash_get(h, dependencies[i]);
+   struct scheduler_plugin * plugin = dependencies_ptr[i]->plugin;
    if(plugin != NULL)
    {
-    int state = plugin_get_running_state(plugin->value);
+    int state = plugin_get_running_state(plugin);
     switch(state)
     {
      case PLUGIN_STATUS_UNRUN :
      	{
-	char ** deps = hash_get_deps(h, plugin->name);
-	struct arglist * ret;
+	struct hash ** deps_ptr = dependencies_ptr[i]->dependencies_ptr;
+	struct scheduler_plugin * ret;
 	counter ++;
-	if(deps == NULL)
+	if(deps_ptr == NULL)
 	  return plugin;	
 	else
 	 {
-	 ret = plugin_next_unrun_dependencie(sched, deps);
+	 ret = plugin_next_unrun_dependencie(sched, deps_ptr, 1);
 	 if(ret == NULL)
 		return plugin;
 	 else 
@@ -554,15 +528,14 @@ struct arglist * plugin_next_unrun_dependencie(plugins_scheduler_t sched, char *
      	flag++;
 	break;
      case PLUGIN_STATUS_DONE:
-     	scheduler_rm_running_ports(sched, plugin);
-	plugin_set_running_state(plugin->value, PLUGIN_STATUS_DONE_AND_CLEANED);
+ 	scheduler_rm_running_ports(sched, plugin);	
+	plugin_set_running_state(sched, plugin, PLUGIN_STATUS_DONE_AND_CLEANED);
 	break;
      case PLUGIN_STATUS_DONE_AND_CLEANED:
      	break;
     }
    }
   }
-  else fprintf(stderr, "%s could not be found\n", dependencies[i]);
  }
   
   if(flag == 0)
@@ -576,37 +549,44 @@ struct arglist * plugin_next_unrun_dependencie(plugins_scheduler_t sched, char *
 /*
  * Enables a plugin and its dependencies
  */
-static void enable_plugin_and_dependencies(plugins_scheduler_t shed, struct arglist * plugin, char * name)
+static void enable_plugin_and_dependencies(plugins_scheduler_t shed, struct arglist * plugin, char * name, int silent)
 {
- char ** deps;
+ struct hash ** deps_ptr;
  int i;
+ int status;
  
- deps = hash_get_deps(shed->hash, name);
+ if ( plugin == NULL ) return;
 
- plug_set_launch(plugin, 1);
- 
- if(deps != NULL)
+ deps_ptr = hash_get_deps_ptr(shed->hash, name);
+
+ status = plug_get_launch(plugin);
+ if ( status == LAUNCH_DISABLED )
  {
-   for(i=0;deps[i] != NULL;i++)
+  if ( silent == 0 )
+   plug_set_launch(plugin, LAUNCH_RUN);
+  else
+   plug_set_launch(plugin, LAUNCH_SILENT);
+ }
+ 
+ if(deps_ptr != NULL)
+ {
+   for(i=0;deps_ptr[i] != NULL;i++)
     {
-     struct arglist * p;
-     p = hash_get(shed->hash, deps[i]);
-     if( p != NULL )
-       enable_plugin_and_dependencies(shed, p->value, p->name);
-     else
-       fprintf(stderr, "'%s' depends on '%s' which could not be found\n", name, deps[i]);
-     
+     struct scheduler_plugin * p;
+     p = deps_ptr[i]->plugin;
+     if ( p != NULL && p->arglist != NULL ) enable_plugin_and_dependencies(shed, p->arglist->value, p->arglist->name, silent);
     }
  }
 }
 
 /*---------------------------------------------------------------------------*/
 
-plugins_scheduler_t plugins_scheduler_init(struct arglist * plugins, int autoload)
+plugins_scheduler_t plugins_scheduler_init(struct arglist * plugins, int autoload, int silent_dependencies)
 {
  plugins_scheduler_t ret = emalloc(sizeof(*ret));
  struct arglist * arg;
  int i;
+ struct hash * l;
  
  
  
@@ -622,32 +602,53 @@ plugins_scheduler_t plugins_scheduler_init(struct arglist * plugins, int autoloa
   arg = plugins;
   while(arg->next != NULL)
   {
+  struct scheduler_plugin * scheduler_plugin;
   struct list * dup;
-  struct arglist * args = arg->value;
-  int category =  plug_get_category(args);
+  int category =  plug_get_category(arg->value);
   
+  scheduler_plugin = emalloc ( sizeof(struct scheduler_plugin) ) ;
+  scheduler_plugin->arglist  = arg;
+  scheduler_plugin->running_state  = PLUGIN_STATUS_UNRUN;
+  scheduler_plugin->category = plug_get_category(arg->value);
+  scheduler_plugin->timeout  = plug_get_timeout(arg->value);
+
+  scheduler_plugin->required_ports = plug_get_required_ports(arg->value);
+  scheduler_plugin->required_udp_ports = plug_get_required_udp_ports(arg->value);
+  scheduler_plugin->required_keys = plug_get_required_keys(arg->value);
+  scheduler_plugin->excluded_keys = plug_get_excluded_keys(arg->value);
+ 
+
   if(category > ACT_LAST)category = ACT_LAST;
   dup = emalloc(sizeof(struct list));
-  dup->name = arg->name;
-  dup->plugin = arg;
+  dup->name = scheduler_plugin->arglist->name;
+  dup->plugin = scheduler_plugin;
   dup->prev = NULL;
   dup->next = ret->list[category];
   if(ret->list[category] != NULL)
    ret->list[category]->prev = dup;
   ret->list[category] = dup;
-  hash_add(ret->hash, arg->name, arg);
-  plugin_set_running_state(arg->value, PLUGIN_STATUS_UNRUN);
+
+  hash_add(ret->hash, arg->name, scheduler_plugin);
   arg = arg->next;
   }
  
+ 
+ for ( i = 0 ; i < HASH_MAX ; i ++ )
+ {
+  l = &ret->hash[i];
+  while ( l != NULL ){
+	 hash_fill_deps(ret->hash, l);
+	 l = l->next;
+	}
+ }
  
  if(autoload != 0)
  {
  arg = plugins;
  while(arg->next != NULL)
   {
-   if(plug_get_launch(arg->value) != 0)
-   	enable_plugin_and_dependencies(ret, arg->value, arg->name);
+   if(plug_get_launch(arg->value) != LAUNCH_DISABLED)
+   	enable_plugin_and_dependencies(ret, arg->value, arg->name, silent_dependencies);
    arg = arg->next;
   }
  }
@@ -659,7 +660,9 @@ plugins_scheduler_t plugins_scheduler_init(struct arglist * plugins, int autoloa
   struct list * l = ret->list[i];
   while (l != NULL )
   {
-   if(plug_get_launch(l->plugin->value) == 0)
+   if(plug_get_launch(l->plugin->arglist->value) == LAUNCH_DISABLED && 
+      plug_get_category(l->plugin->arglist->value) != ACT_INIT &&
+      plug_get_category(l->plugin->arglist->value) != ACT_SETTINGS )
    {
     struct list * old = l->next;
 
@@ -669,11 +672,11 @@ plugins_scheduler_t plugins_scheduler_init(struct arglist * plugins, int autoloa
       ret->list[i] = l->next;
 	  
 	 
-	 if(l->next != NULL)
+     if(l->next != NULL)
 	  l->next->prev = l->prev;
 
-	efree(&l);
-	l = old;
+        efree(&l);
+        l = old;
 	continue;
     }
     l = l->next;
@@ -685,7 +688,7 @@ plugins_scheduler_t plugins_scheduler_init(struct arglist * plugins, int autoloa
 
 
 
-struct arglist * plugins_scheduler_next(plugins_scheduler_t h)
+struct scheduler_plugin * plugins_scheduler_next(plugins_scheduler_t h)
 {
  
  struct list * l;
@@ -701,11 +704,12 @@ struct arglist * plugins_scheduler_next(plugins_scheduler_t h)
  l = h->list[category];
  
  /*
-  * Scanners (and DoS) must not be run in parrallel
+  * Scanners (and DoS) must not be run in parallel
   */
 
  if((category == ACT_SCANNER) ||
     (category == ACT_KILL_HOST) ||
+    (category == ACT_FLOOD) ||
     (category == ACT_DENIAL))
     pluginlaunch_disable_parrallel_checks();
  else
@@ -716,58 +720,40 @@ struct arglist * plugins_scheduler_next(plugins_scheduler_t h)
  {
    int state;
   
-  state = plugin_get_running_state(l->plugin->value);
+  state = plugin_get_running_state(l->plugin);
  
   
   switch(state)
   {
    case PLUGIN_STATUS_UNRUN:
     {
-    char ** deps = hash_get_deps(h->hash, l->plugin->name);
+    struct hash ** deps_ptr = l->plugin->parent_hash->dependencies_ptr;
     
-    if(deps != NULL)
+    if(deps_ptr != NULL)
     {
-     struct arglist * p = plugin_next_unrun_dependencie(h, deps);
+     struct scheduler_plugin * p = plugin_next_unrun_dependencie(h, deps_ptr, 0);
      
      switch((int)p)
      {
       case (int)NULL :
       	scheduler_mark_running_ports(h, l->plugin);
-        plugin_set_running_state(l->plugin->value, PLUGIN_STATUS_RUNNING);
+        plugin_set_running_state(h, l->plugin, PLUGIN_STATUS_RUNNING);
         return l->plugin;
 
 	 break;
      case (int)PLUG_RUNNING:
         {
-	int cat;
-     		/* One of the dependencie is still running */
-	cat = plug_get_category(l->plugin->value);
-	if(cat < running_category)
-		running_category = cat;
+     	/* One of the dependencie is still running  -  we write down its category */
+	if(l->plugin->category < running_category)
+		running_category = l->plugin->category;
      	flag ++;
 	}
 	break;
      default:
         { 
-	 /* Launch a dependencie */
-	
-	 
-	 /* Ack - the plugin we depend on is not of the same category - we recast the current
-	  * plugin to another (greater) category 
-	  */
-#if 0	  
-		   int c;
-
-	 if((c = plug_get_category(p->value)) != category)
-	 {
-	  struct arglist * args = l->plugin->value;
-	  arg_set_value(args, "CATEGORY", sizeof(int), (void*)c); /* XXXXXXX */
-	  l = l->next;
-	  continue;
-	 }
-#endif	 
+	 /* Launch a dependencie  - don't pay attention to the type */
 	scheduler_mark_running_ports(h, p);
-        plugin_set_running_state(p->value, PLUGIN_STATUS_RUNNING);
+        plugin_set_running_state(h, p, PLUGIN_STATUS_RUNNING);
 	return p;
        }
     }
@@ -775,23 +761,22 @@ struct arglist * plugins_scheduler_next(plugins_scheduler_t h)
     else /* No dependencies */
      {
         scheduler_mark_running_ports(h, l->plugin);
-        plugin_set_running_state(l->plugin->value, PLUGIN_STATUS_RUNNING);
+        plugin_set_running_state(h, l->plugin, PLUGIN_STATUS_RUNNING);
         return l->plugin;
      }
    }
     break;
   case PLUGIN_STATUS_RUNNING:
         {
-	int cat = plug_get_category(l->plugin->value);
-	if(cat < running_category)
-		running_category = cat;
+	if(l->plugin->category < running_category)
+		running_category = l->plugin->category;
   	flag ++;
 	}
 	break;
 
   case PLUGIN_STATUS_DONE :
   	scheduler_rm_running_ports(h, l->plugin);
-	plugin_set_running_state(l->plugin->value, PLUGIN_STATUS_DONE_AND_CLEANED);
+	plugin_set_running_state(h, l->plugin, PLUGIN_STATUS_DONE_AND_CLEANED);
 	/* no break - we remove it right away */
   case PLUGIN_STATUS_DONE_AND_CLEANED:
   	{
@@ -815,10 +800,12 @@ struct arglist * plugins_scheduler_next(plugins_scheduler_t h)
     }
   l = l->next; 
   }
+
   
   /* Could not find anything */
   if((category == ACT_SCANNER ||
-     category == ACT_INIT) && flag != 0)
+     category == ACT_INIT || 
+     category == ACT_SETTINGS) && flag != 0)
      {
       pluginlaunch_wait_for_free_process();
       flag = 0;
@@ -826,10 +813,13 @@ struct arglist * plugins_scheduler_next(plugins_scheduler_t h)
      }
      
    if(category + 1 >= ACT_DENIAL && flag && running_category < ACT_DENIAL)
+	{ 
    	return PLUG_RUNNING;  
+	}
  }
  
-   return flag == 0 ? NULL : PLUG_RUNNING; 
+
+ return flag != 0 ? PLUG_RUNNING : NULL;
 }
 
 
@@ -852,3 +842,6 @@ void plugins_scheduler_free(plugins_scheduler_t sched)
  	list_destroy(sched->list[i]);	
  efree(&sched);
 }
+
+
+

@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(11876);
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2003-1227");
  script_bugtraq_id(8814);
+ script_version ("$Revision: 1.11 $");
  name["english"] = "gallery code injection (2)";
 
  script_name(english:name["english"]);
@@ -22,7 +23,7 @@ An attacker may use this flaw to inject arbitrary code in the remote
 host and gain a shell with the privileges of the web server.
 
 Solution : Upgrade to Gallery 1.4pl2 or 1.4.1 or newer
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -42,6 +43,7 @@ Risk factor : Serious";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -52,17 +54,17 @@ Risk factor : Serious";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
-if(http_is_dead(port:port))exit(0);
+if(! can_host_php(port:port) ) exit(0);
 
 function check(url)
 {
 req = http_get(item:string(url, "/setup/index.php?GALLERY_BASEDIR=http://xxxxxxxx/"),
  		port:port);
-r = http_keepalive_send_recv(port:port, data:req);
+r = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
 if ( r == NULL ) exit(0);
  if(egrep(pattern:"http://xxxxxxxx//?util.php", string:r))
  	{
@@ -72,8 +74,5 @@ if ( r == NULL ) exit(0);
  
 }
 
-check(url:"");
 foreach dir (cgi_dirs())
-{
  check(url:dir);
-}

@@ -16,8 +16,11 @@
 if(description)
 {
  script_id(11113);
- script_version ("$Revision: 1.4 $");
+ script_cve_id("CVE-2002-2196");
  script_bugtraq_id(5587);
+ script_version ("$Revision: 1.8 $");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2002:045");
+
 
  name["english"] = "Samba Buffer Overflow";
 
@@ -25,7 +28,7 @@ if(description)
  
  desc["english"] = "
 The remote Samba server, according to its version number,
-may be vulnerable to a possible buffer overflow
+is vulnerable to a possible buffer overflow.
 
 The implications of this vulnerability are not clear at this
 time.

@@ -3,17 +3,15 @@
 #
 
 EXEC = horch
-OBJS = horch.o linux.o filter.o version.o socklib.o
-
-VPATH=filter:socklib
+OBJS = horch.o linux.o filter.o version.o
 
 # Used release tag for this software version
 VERSION=2
 REL=6
 RELEASE=HORCH_$(VERSION)_$(REL)
 
-CFLAGS += -I. -I ../../linux-2.6.x/drivers/char/can4linux
-CFLAGS += -Wall -DTARGET_LINUX_BF -DLINUX_BF
+CFLAGS += -I. -I ../../linux-2.4.x/drivers/char/can4linux
+CFLAGS += -Wall
 
 all: $(EXEC)
 
@@ -23,7 +21,7 @@ $(EXEC): $(OBJS)
 
 
 clean:
-	rm -f $(EXEC) *.elf *.gdb *.o 
+	rm -f $(EXEC) *.elf *.gdb *.o
 
 romfs:
 	$(ROMFSINST) /bin/horch

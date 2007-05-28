@@ -15,10 +15,7 @@ The port of mawk to V7 is the work of
 Carl Mascott (cmascott@world.std.com)
 */
 
-/*$Log$
- *Revision 1.2  2005/07/25 04:03:16  magicyang
- *New user folder check in
- *
+/*$Log: V7.h,v $
  * Revision 1.1.1.1  1993/07/03  18:58:32  mike
  * move source to cvs
  *

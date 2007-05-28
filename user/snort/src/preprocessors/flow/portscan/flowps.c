@@ -804,7 +804,7 @@ int flowps_sliding_winadj(PS_SCORE *pscp, time_t current_time,
         else
         {
             pscp->start = current_time;
-            adjustment = diff_SE + (diff_SE * scale);
+            adjustment = diff_SE + (diff_SE * ((int) scale));
             
             if((adjustment + pscp->ends) > pscp->ends)
             {
@@ -897,7 +897,7 @@ int flowps_is_ignored_ipv4(PS_TRACKER *pstp, u_int32_t *sip, u_int32_t *dip)
             host_sip = ntohl(*sip);
 
             if(ipset_contains(pstp->config.src_ignore_ipv4,
-                              &host_sip, IPV4_FAMILY))
+                              &host_sip, NULL, IPV4_FAMILY))
             {
                 return FLOW_SUCCESS;
             }
@@ -908,7 +908,7 @@ int flowps_is_ignored_ipv4(PS_TRACKER *pstp, u_int32_t *sip, u_int32_t *dip)
             host_dip = ntohl(*dip);
 
             if(ipset_contains(pstp->config.dst_ignore_ipv4,
-                              &host_dip, IPV4_FAMILY))
+                              &host_dip, NULL, IPV4_FAMILY))
             {
                 return FLOW_SUCCESS;
             }

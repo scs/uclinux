@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10262);
- script_version ("$Revision: 1.28 $");
- script_bugtraq_id(8196); # qmail-smtpd-auth
- script_cve_id("CAN-1999-0512", "CAN-2002-1278", "CAN-2003-0285");
+ script_bugtraq_id(6118, 7580, 8196);
+ script_version ("$Revision: 1.38 $");
+ script_cve_id("CVE-1999-0512", "CVE-2002-1278", "CVE-2003-0285");
  name["english"] = "Mail relaying";
  name["francais"] = "Relais de mail";
  script_name(english:name["english"],
@@ -20,7 +20,7 @@ if(description)
 it allows spammers to use your mail server to send their mails to
 the world, thus wasting your network bandwidth.
 
-Risk factor : Low/Medium
+Risk factor : Low / Medium
 
 Solution : configure your SMTP server so that it can't be used as a relay
            any more.";
@@ -34,7 +34,7 @@ entier, gachant ainsi votre bande passante.
 Facteur de risque : Faible/Moyen
 
 Solution : Reconfigurez votre serveur SMTP afin qu'il ne puisse plus etre
-utilisé comme relay.";
+utilisé comme relais.";
 
 
  script_description(english:desc["english"],
@@ -54,7 +54,7 @@ utilisé comme relay.";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl",
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl",
 		"smtp_settings.nasl");
  script_exclude_keys("SMTP/wrapped", "SMTP/qmail");
  script_require_ports("Services/smtp", 25);
@@ -64,15 +64,22 @@ utilisé comme relay.";
 #
 # The script code starts here
 #
-
+include('global_settings.inc');
+include('network_func.inc');
 include("smtp_func.inc");
 
+if (is_private_addr()) exit(0);
 
 function smtp_test_relay(tryauth)
 {
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
  data = smtp_recv_banner(socket:soc);
+ if (!data) 
+ {
+  close(soc);
+  exit(0);
+ }
  domain = get_kb_item("Settings/third_party_domain");
  
  crp = string("HELO ", domain, "\r\n");
@@ -125,6 +132,7 @@ port = get_kb_item("Services/smtp");
 if(!port)port = 25;
 if(get_port_state(port))
 {
+  if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
   smtp_test_relay(tryauth: 0);
   smtp_test_relay(tryauth: 1);
 }

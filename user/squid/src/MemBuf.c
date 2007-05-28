@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: MemBuf.c,v 1.28.2.4 2005/03/26 02:50:51 hno Exp $
  *
  * DEBUG: section 59    auto-growing Memory Buffer with printf
  * AUTHOR: Alex Rousskov
@@ -192,7 +192,7 @@ memBufIsNull(MemBuf * mb)
 
 /* calls memcpy, appends exactly size bytes, extends buffer if needed */
 void
-memBufAppend(MemBuf * mb, const char *buf, mb_size_t sz)
+memBufAppend(MemBuf * mb, const char *buf, int sz)
 {
     assert(mb && buf && sz >= 0);
     assert(mb->buf);

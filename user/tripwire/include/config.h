@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: config.h,v 1.5 1994/07/15 11:02:52 gkim Exp $ */
 
 /*
  * config.h

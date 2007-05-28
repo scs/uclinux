@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10249);
- script_version ("$Revision: 1.29 $");
- script_cve_id("CAN-1999-0531");
+ script_version ("$Revision: 1.35 $");
+ script_cve_id("CVE-1999-0531");
  
  name["english"] = "EXPN and VRFY commands";
  name["francais"] = "Commandes EXPN et VRFY";
@@ -92,22 +92,23 @@ include("smtp_func.inc");
 port = 25;
 if(!get_port_state(port))exit(0);
 
-if(get_kb_item("SMTP/wrapped"))exit(0);
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
  soc = open_sock_tcp(port);
  if(soc)
  {
   b = smtp_recv_banner(socket:soc);
-  s = string("HELO nessus.org\r\n");
+  if ( ! b ) exit(0);
+  s = string("HELO example.com\r\n");
   send(socket:soc, data:s);
-  r = recv_line(socket:soc, length:1024);
+  r = smtp_recv_line(socket:soc);
 
   s = string("EXPN root\r\n");
   send(socket:soc, data:s);
-  r = recv_line(socket:soc, length:1024);
+  r = smtp_recv_line(socket:soc);
   
   
-  if(ereg(string:r, pattern:"^(250|550) .*$"))
+  if(ereg(string:r, pattern:"^(250|550)(-| ).*$"))
   {
 # exim hack
     if(!ereg(string:r, pattern:"^550 EXPN not available.*$") &&
@@ -121,12 +122,12 @@ if(get_kb_item("SMTP/wrapped"))exit(0);
   else {
 	s = string("VRFY root\r\n");
 	send(socket:soc, data:s);
-	r = recv_line(socket:soc, length:1024);
-	if(ereg(string:r, pattern:"^(250|550) .*$"))
+	r = smtp_recv_line(socket:soc);
+	if(ereg(string:r, pattern:"^(250|550)(-| ).*$"))
 	       {
 	        send(socket:soc, data:string("VRFY random", rand(), "\r\n"));
-		r = recv_line(socket:soc, length:4096);
-		if(ereg(string:r, pattern:"^(250|550) .*$"))exit(0);
+		r = smtp_recv_line(socket:soc);
+		if(ereg(string:r, pattern:"^(250|550)(-| ).*$"))exit(0);
 		security_warning(port);
 		set_kb_item(name:"SMTP/vrfy",value:TRUE);
 		}

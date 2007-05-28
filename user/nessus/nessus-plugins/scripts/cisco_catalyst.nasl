@@ -13,8 +13,8 @@
 if(description)
 {
  script_id(10545);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1846);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-2000-0945");
 
  name["english"] = "Cisco Catalyst Web Execution";
@@ -72,9 +72,12 @@ Facteu de risque : Elevé";
 include("http_func.inc");
 
 
-port = 80;
+port = get_http_port(default:80);
 if(get_port_state(port))
 {
+ banner = get_http_banner(port:port);
+ if ( "cisco-IOS" >!< banner ) exit(0);
+
  soc = http_open_socket(port);
  if(soc)
  {

@@ -20,10 +20,9 @@
 
 #ifndef __SP_REACT_H__
 #define __SP_REACT_H__
-
-#ifdef ENABLE_RESPONSE
+#if defined(ENABLE_RESPONSE) || defined(ENABLE_REACT)
 
 void SetupReact(void);
 
-#endif  /* ENABLE_RESPONSE */
+#endif  /* ENABLE_RESPONSE || ENABLE_REACT */
 #endif  /* __SP_REACT_H__ */

@@ -4750,6 +4750,7 @@ nasl_regcomp (preg, pattern, cflags)
       RE_SYNTAX_POSIX_EXTENDED : RE_SYNTAX_POSIX_BASIC;
 
   /* regex_compile will allocate the space for the compiled pattern.  */
+  preg->orig   = strdup(pattern);
   preg->buffer = 0;
   preg->allocated = 0;
   
@@ -4922,10 +4923,21 @@ nasl_regerror (errcode, preg, errbuf, errbuf_size)
 
 /* Free dynamically allocated space used by PREG.  */
 
+char *
+nasl_regorig(preg)
+    regex_t *preg;
+{
+ return preg->orig;
+}
+
+
 void
 nasl_regfree (preg)
     regex_t *preg;
 {
+  if ( preg->orig != NULL )
+     free (preg->orig);
+
   if (preg->buffer != NULL)
     free (preg->buffer);
   preg->buffer = NULL;

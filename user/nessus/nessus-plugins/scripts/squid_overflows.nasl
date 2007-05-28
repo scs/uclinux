@@ -7,9 +7,12 @@
 if(description)
 {
  script_id(10923);
-script_cve_id("CVE-2002-0068");
+
  script_bugtraq_id(4148);
- script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2002-0068");
+ script_xref(name:"OSVDB", value:"5378");
+
+ script_version ("$Revision: 1.12 $");
  name["english"] = "Squid overflows";
 
  script_name(english:name["english"]);
@@ -22,7 +25,7 @@ is vulnerable to various buffer overflows.
 An attacker may use these to gain a shell on this system.
 
 
-Solution : upgrade to squid 2.4.STABLE6 or newer
+Solution : upgrade to squid 2.4.STABLE7 or newer
 Risk factor : High";
 
  
@@ -61,12 +64,7 @@ if(!port)
 
 if(get_port_state(port))
 {
- soc = open_sock_tcp(port);
- if(soc)
- {
-  req = http_get(item:"/", port:port);
-  res = http_keepalive_send_recv(data:req, port:port);
-  if(egrep(pattern:"Squid/2\.([0-3]|4\.STABLE[0-6])", string:res))
+  res = http_get_cache(item:"/", port:port);
+  if(egrep(pattern:"Squid/2\.([0-3]\.|4\.STABLE[0-6]([^0-9]|$))", string:res))
       security_hole(port);
- }
 }

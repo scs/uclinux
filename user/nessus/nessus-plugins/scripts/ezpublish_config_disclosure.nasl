@@ -12,8 +12,8 @@
 if (description)
 {
  script_id(11538);
- script_bugtraq_id(7349, 7347);
- script_version ("$Revision: 1.3 $");
+ script_bugtraq_id(7347, 7349);
+ script_version ("$Revision: 1.7 $");
 
  script_name(english:"ezPublish config disclosure");
  desc["english"] = "
@@ -33,18 +33,19 @@ Risk factor : Medium";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 
-dir = make_list(cgi_dirs(), "");
+dir = make_list(cgi_dirs());
 		
 
 

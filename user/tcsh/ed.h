@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/ed.h,v 3.30 2000/11/11 23:03:34 christos Exp $ */
 /*
  * ed.h: Editor declarations and globals
  */

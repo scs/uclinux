@@ -1,4 +1,4 @@
-$Id$
+$Id: README,v 1.1 1998/09/09 21:48:49 gert Exp $
 
 The Modem::Vgetty module is a Perl interface to the vgetty program,
 which can be used for communication with the voice modems. Vgetty

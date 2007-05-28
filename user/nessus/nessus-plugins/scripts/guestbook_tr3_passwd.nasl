@@ -13,8 +13,8 @@
 if(description)
 {
  script_id(11436);
- script_version ("$Revision: 1.3 $");
  script_bugtraq_id(7167);
+ script_version ("$Revision: 1.6 $");
 
 
  name["english"] = "guestbook tr3 password storage";
@@ -48,6 +48,7 @@ Risk factor : Low";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -61,8 +62,8 @@ include("http_keepalive.inc");
 
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 if(get_kb_item(string("www/no404/", port)))exit(0);

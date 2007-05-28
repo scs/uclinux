@@ -10,8 +10,8 @@
 if (description)
 {
  script_id(11623);
- script_cve_id("CAN-2003-0272");
- script_version ("$Revision: 1.3 $");
+ script_cve_id("CVE-2003-0272");
+ script_version ("$Revision: 1.8 $");
 
  script_name(english:"miniPortail Cookie Admin Access");
  desc["english"] = "
@@ -34,8 +34,9 @@ Risk factor : High";
  script_category(ACT_ATTACK);
  script_family(english:"CGI abuses", francais:"Abus de CGI");
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -54,16 +55,13 @@ function mkreq(path, cookie)
  return req;
 }
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_php(port:port)) exit(0);
 
 
-dir = make_list("", cgi_dirs());
-		
-
-
-foreach d (dir)
+foreach d (cgi_dirs())
 {
  req = mkreq(path:d, cookie:1);
  res = http_keepalive_send_recv(port:port, data:req);

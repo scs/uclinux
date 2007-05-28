@@ -175,4 +175,4 @@ int addgroup_main(int argc, char **argv)
 	return addgroup(GROUP_FILE, group, gid);
 }
 
-/* $Id$ */
+/* $Id: addgroup.c,v 1.6 2004/05/27 13:47:29 gerg Exp $ */

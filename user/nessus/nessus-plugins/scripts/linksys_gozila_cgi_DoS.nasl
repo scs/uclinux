@@ -14,7 +14,7 @@
 if(description)
 {
   script_id(11773);
-  script_version ("$Revision: 1.1 $");
+  script_version ("$Revision: 1.3 $");
  
   name["english"] = "Linksys Gozila CGI denial of service";
   script_name(english:name["english"]);
@@ -45,8 +45,8 @@ Risk factor : Medium";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 soc = open_sock_tcp(port);
@@ -58,4 +58,4 @@ r = http_recv(socket: soc);
 http_close_socket(soc);
 
 alive = end_denial();
-if (! alive) security_hole(port);
+if (! alive) security_warning(port);

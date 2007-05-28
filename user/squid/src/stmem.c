@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: stmem.c,v 1.70.2.3 2005/03/26 02:50:53 hno Exp $
  *
  * DEBUG: section 19    Store Memory Primitives
  * AUTHOR: Harvest Derived
@@ -36,26 +36,39 @@
 #include "squid.h"
 
 void
+stmemNodeFree(void *buf)
+{
+    mem_node *p = (mem_node *) buf;
+    if (!p->uses)
+	memFree(p, MEM_MEM_NODE);
+    else
+	p->uses--;
+}
+
+char *
+stmemNodeGet(mem_node * p)
+{
+    p->uses++;
+    return p->data;
+}
+
+void
 stmemFree(mem_hdr * mem)
 {
     mem_node *p;
     while ((p = mem->head)) {
 	mem->head = p->next;
 	store_mem_size -= SM_PAGE_SIZE;
-	if (p) {
-	    memFree(p, MEM_MEM_NODE);
-	    p = NULL;
-	}
+	stmemNodeFree(p);
     }
     mem->head = mem->tail = NULL;
     mem->origin_offset = 0;
 }
 
-int
-stmemFreeDataUpto(mem_hdr * mem, int target_offset)
+squid_off_t
+stmemFreeDataUpto(mem_hdr * mem, squid_off_t target_offset)
 {
-    int current_offset = mem->origin_offset;
-    mem_node *lastp;
+    squid_off_t current_offset = mem->origin_offset;
     mem_node *p = mem->head;
     while (p && ((current_offset + p->len) <= target_offset)) {
 	if (p == mem->tail) {
@@ -64,14 +77,11 @@ stmemFreeDataUpto(mem_hdr * mem, int target_offset)
 	    mem->origin_offset = current_offset;
 	    return current_offset;
 	} else {
-	    lastp = p;
+	    mem_node *lastp = p;
 	    p = p->next;
 	    current_offset += lastp->len;
 	    store_mem_size -= SM_PAGE_SIZE;
-	    if (lastp) {
-		memFree(lastp, MEM_MEM_NODE);
-		lastp = NULL;
-	    }
+	    stmemNodeFree(lastp);
 	}
     }
     mem->head = p;
@@ -125,15 +135,15 @@ stmemAppend(mem_hdr * mem, const char *data, int len)
 }
 
 ssize_t
-stmemCopy(const mem_hdr * mem, off_t offset, char *buf, size_t size)
+stmemCopy(const mem_hdr * mem, squid_off_t offset, char *buf, size_t size)
 {
     mem_node *p = mem->head;
-    off_t t_off = mem->origin_offset;
+    squid_off_t t_off = mem->origin_offset;
     size_t bytes_to_go = size;
     char *ptr_to_buf = NULL;
     int bytes_from_this_packet = 0;
     int bytes_into_this_packet = 0;
-    debug(19, 6) ("memCopy: offset %ld: size %d\n", (long int) offset, (int) size);
+    debug(19, 6) ("memCopy: offset %" PRINTF_OFF_T ": size %d\n", offset, (int) size);
     if (p == NULL)
 	return 0;
     assert(size > 0);

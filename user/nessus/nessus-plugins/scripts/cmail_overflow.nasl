@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10047);
- script_cve_id("CAN-1999-1521");
  script_bugtraq_id(633);
- script_version ("$Revision: 1.23 $");
+ script_cve_id("CVE-1999-1521");
+ script_version ("$Revision: 1.27 $");
  
  name["english"] = "CMail's MAIL FROM overflow";
  name["francais"] = "Dépassement de buffer dans CMail suite à la commande MAIL FROM";
@@ -86,7 +86,7 @@ Facteur de risque : Elevé";
 include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
-
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(safe_checks())
 {
@@ -125,7 +125,7 @@ if(get_port_state(port))
  if(soc)
  {
  data = smtp_recv_banner(socket:soc);
- crp = string("HELO nessus.org\r\n");
+ crp = string("HELO example.com\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:1024);
  if("250 " >< data)

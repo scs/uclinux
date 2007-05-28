@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_key_md5.c,v 1.26 2001/04/14 00:25:19 hno Exp $
  *
  * DEBUG: section 20    Storage Manager MD5 Cache Keys
  * AUTHOR: Duane Wessels

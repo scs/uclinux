@@ -19,7 +19,9 @@
 if(description)
 {
  script_id(11167);
- script_version ("$Revision: 1.9 $");
+ script_bugtraq_id(5967);
+ script_cve_id("CVE-2002-1212");
+ script_version ("$Revision: 1.13 $");
  
  name["english"] = "Webserver4everyone too long URL";
  name["francais"] = "URL trop longue dans Webserver4everyone";
@@ -69,8 +71,8 @@ Solution : Mettez à jour votre serveur web.";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 if(safe_checks())

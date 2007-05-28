@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(11565);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.7 $");
  name["english"] = ".forward in FTP root";
  script_name(english:name["english"]);
  
@@ -15,7 +15,7 @@ if(description)
 This script determines if the remote anonymous FTP
 server has a .forward file set.
 
-Risk Factor : Low";
+Risk factor : Low";
 
 
  script_description(english:desc["english"]);
@@ -29,7 +29,7 @@ Risk Factor : Low";
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
  family["english"] = "FTP";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "ftp_anonymous.nasl");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl", "ftp_anonymous.nasl", "ftp_kibuv_worm.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -42,6 +42,8 @@ include("ftp_func.inc");
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 
+if (get_kb_item('ftp/'+port+'/backdoor')) exit(0);
+
 if(get_port_state(port))
 {
 login = "anonymous";
@@ -52,12 +54,12 @@ if(login)
 {
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
- if(ftp_log_in(socket:soc, user:login,pass:password))
+ if(ftp_authenticate(socket:soc, user:login,pass:password))
  {
   data = string("CWD /\r\n");
   send(socket:soc, data:data);
   a = recv_line(socket:soc, length:1024);
-  pasv = ftp_get_pasv_port(socket:soc); 
+  pasv = ftp_pasv(socket:soc); 
   soc2 = open_sock_tcp(pasv);
   data = string("RETR .forward\r\n");
   send(socket:soc, data:data);

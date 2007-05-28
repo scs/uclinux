@@ -36,7 +36,7 @@
  * static char sccsid[] = "from: @(#)getopt.c   8.2 (Berkeley) 4/2/94"; 
  */
 static char    *rcsid =
-    "$Id$";
+    "$Id: getopt.c,v 5.0 2002/04/20 07:30:20 hardaker Exp $";
 #endif                          /* LIBC_SCCS and not lint */
 
 #include <stdio.h>

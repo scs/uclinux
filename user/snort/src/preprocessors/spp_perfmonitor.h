@@ -26,3 +26,4 @@
 */
 
 void SetupPerfMonitor();
+void SetPerfmonitorFile(char*);

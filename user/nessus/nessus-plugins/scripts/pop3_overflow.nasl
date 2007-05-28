@@ -17,9 +17,9 @@
 if(description)
 {
  script_id(10184);
- script_version ("$Revision: 1.25 $");
- script_cve_id("CAN-2002-0799", "CVE-1999-0822");
- script_bugtraq_id(789, 790, 830, 894, 942, 1965, 2781, 2811, 4055, 4295, 4614);
+ script_bugtraq_id(2781, 2811, 4055, 4295, 4614, 4789, 790, 830, 894, 942);
+ script_version ("$Revision: 1.31 $");
+ script_cve_id("CVE-2002-0799", "CVE-1999-0822");
  
  name["english"] = "Various pop3 overflows";
  script_name(english:name["english"]);
@@ -74,7 +74,9 @@ if(get_port_state(port))
  if(soc)
  {
   d = recv_line(socket:soc, length:1024);
-  if(!d){close(soc);exit(0);}
+  if (!d || d !~ '^\\+OK') { close(soc); exit(0); }	# Not a POP3 server
+  if ( egrep(pattern:"Qpopper.*4", string:d) ) exit(0);
+
   c = string("AUTH ", crap(2048), "\r\n");
   send(socket:soc, data:c);
   d = recv_line(socket:soc, length:1024);

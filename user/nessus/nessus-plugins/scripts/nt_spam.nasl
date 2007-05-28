@@ -7,7 +7,7 @@
 if(description)
 {
  script_id(10167);
- script_version ("$Revision: 1.27 $");
+ script_version ("$Revision: 1.29 $");
  script_cve_id("CVE-1999-0819");
  name["english"] = "NTMail3 spam feature";
  name["francais"] = "NTMail3 spam feature";
@@ -62,11 +62,17 @@ Solution : reconfigure this server properly";
 #
 
 include("smtp_func.inc");
+include("network_func.inc");
 
 if(islocalhost())exit(0);
+if (is_private_addr()) exit(0);
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+
+# Don't give the information twice
+if (get_kb_item("SMTP/" + port + "/spam")) exit(0);
+
 if(get_port_state(port))
 {
  domain = get_kb_item("Settings/third_party_domain");

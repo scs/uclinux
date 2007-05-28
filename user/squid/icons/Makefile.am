@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile.am,v 1.5.2.3 2003/05/21 08:40:47 hno Exp $
 #
 
 ICON1	=	anthony-binhex.gif
@@ -49,4 +49,9 @@ update-icons.shar:
 	shar $(ICON1) $(ICON2) > $@
 
 ## DEFAULT_ICON_DIR        = $(sysconfdir)/icons
+
+romfs:
+	[ -d "$(ROMFSDIR)/etc/icons" ] || mkdir $(ROMFSDIR)/etc/icons
+	for i in $(ICON1) $(ICON2); do $(ROMFSINST) -p 644 $(srcdir)/$$i /etc/icons/$$i; done
+
 

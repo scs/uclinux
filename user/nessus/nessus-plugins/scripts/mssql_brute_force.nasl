@@ -22,7 +22,7 @@
 if(description)
 {
  script_id(10862);
- script_version ("$Revision: 1.12 $");
+ script_version ("$Revision: 1.17 $");
  name["english"] = "Microsoft's SQL Server Brute Force";
  script_name(english:name["english"]);
  
@@ -45,10 +45,10 @@ if(description)
  script_category(ACT_ATTACK);
  
  script_copyright(english:"This script is Copyright (C) 2001 H D Moore");
- family["english"] = "Windows";
+ family["english"] = "Databases";
  script_family(english:family["english"]);
  script_require_ports("Services/mssql", 1433); 
- script_dependencie("mssqlserver_detect.nasl");
+ script_dependencie("mssqlserver_detect.nasl", "sybase_detect.nasl");
  exit(0);
 }
 
@@ -119,19 +119,23 @@ pkt_lang = raw_string(
 
 function sql_recv(socket)
 {
- head = recv(socket:soc, length:4, min:4);
+ local_var head, len_hi, len_lo, len, body;
+
+ head = recv(socket:socket, length:4, min:4);
  if(strlen(head) < 4) return NULL;
  
  len_hi = 256 * ord(head[2]);
  len_lo = ord(head[3]);
  
  len = len_hi + len_lo;
- body = recv(socket:soc, length:len);
+ body = recv(socket:socket, length:len);
  return(string(head, body));
 }
 
 function make_sql_login_pkt (username, password)
 {
+    local_var ulen, plen, upad, ppad, ubuf, pbuf, nul, ublen, pblen, sql_packet;
+
     ulen = strlen(username);
     plen = strlen(password);
     
@@ -164,8 +168,7 @@ function make_sql_login_pkt (username, password)
 
     sql_packet = string(pkt_hdr,ubuf,ublen,pbuf,pblen,pkt_pt2,pblen,pbuf,pkt_pt3);
 
-    # returning this as a string is NOT working!
-    return(sql_packet);
+    return sql_packet;
 }
 
 
@@ -181,9 +184,17 @@ user[6]="admin";    pass[6]="admin";
 user[7]="probe";    pass[7]="probe";
 user[8]="probe";    pass[8]="password";
 
+user[9]="sql";      pass[9]="sql";
+user[10]="sa";      pass[10]="sql";
+
+
 report = "";
 port = get_kb_item("Services/mssql");
-if(!port)port = 1433;
+if(!port) port = get_kb_item("Services/sybase");
+if(!port) port = 1433;
+
+
+
 
 found = 0;
 if(get_port_state(port))

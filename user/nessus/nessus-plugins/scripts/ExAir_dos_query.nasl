@@ -8,12 +8,12 @@ if(description)
 {
  name["english"] = "IIS possible DoS using ExAir's query";
  name["francais"] = "Déni de service possible de IIS en utilisant query de ExAir";
- script_bugtraq_id(193);
  name["deutsch"] = "Moeglicher IIS DoS-Angriff mittels ExAir's query";
   
  script_name(english:name["english"], francais:name["francais"], deutsch:name["deutsch"]);
  script_id(10003);
- script_version ("$Revision: 1.20 $");
+ script_bugtraq_id(193);
+ script_version ("$Revision: 1.28 $");
  script_cve_id("CVE-1999-0449");
  
  desc["english"] = "
@@ -23,7 +23,7 @@ thus preventing it from answering legitimate client requests.
 
 Solution : Delete the 'ExAir' sample IIS site.
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "IIS est livré avec un site de démonstration : 'ExAir'.
@@ -31,7 +31,7 @@ Hélas, une des ses pages, /iissamples/exair/search/query.asp, peut
 etre utilisée pour bloquer IIS, l'empechant ainsi de répondre aux
 connections de clients légitimes.
 
-Facteur de risque : Moyen.
+Facteur de risque : Elevé. 
 
 Solution : Supprimez le site de démonstration 'ExAir'";
 
@@ -40,7 +40,7 @@ Ungluecklicherweise kann durch Aufruf einer der Seiten, naemlich
 	/iissamples/exair/search/query.asp
 der komplette IIS aufgehaengt werden.
 
-Risiko Fakrot: 	Mittel
+Risiko Fakrot:  Hoch	
 
 Loesung:	Loeschen Sie die 'ExAir' Beispiel IIS-Site.";
 
@@ -66,7 +66,6 @@ Loesung:	Loeschen Sie die 'ExAir' Beispiel IIS-Site.";
  
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -74,8 +73,18 @@ Loesung:	Loeschen Sie die 'ExAir' Beispiel IIS-Site.";
 # The script code starts here
 #
 
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
 
 cgi = "/iissamples/exair/search/query.asp";
-port = is_cgi_installed(cgi);
-if(port)security_hole(port);
+res = is_cgi_installed_ka(item:cgi, port:port);
+if( res )security_hole(port);
 

@@ -1,9 +1,9 @@
 $Id$
 
 README.rpms
-By JP Vossen & Dan Wittenberg <rpms@snort.org>
+By JP Vossen & Dan Wittenberg 
 
-Last Updated: 2004-07-16
+Last Updated: 2005-05-05
 
 
 "Official" Snort.org RPM Documentation
@@ -17,7 +17,6 @@ Thanks to JP Vossen (http://www.jpsdomain.org/security/snort.html) who was
 originally guilted into taking over RPM upkeep <g>, and to Daniel
 Wittenberg (http://www.starken.com/) who graciously volunteered to help
 and to provide a build host. The RPMs are now being co-maintained by them.
-Send e-mail to rpms@snort.org with any comments or questions.
 
 
 Improvements
@@ -40,6 +39,9 @@ Use this command to view the most current change log before you install
 the latest package:
 	rpm -q --changelog -p snort-x.x.x-x.i386.rpm | less
 
+
+Beginning around Snort 2.3.0 the RPM files moved out of the contrib
+directory, which went away.
 
 Beginning with Snort 2.0.2, the official RPMs include the following
 changes:
@@ -80,27 +82,21 @@ you're reading.
 Supported Distributions
 =======================
 The rpmbuild -ta method and new SPEC file have been tested and are known
-to work on Red Hat 7.3, 8.0, 9, and 2.9.5AS Beta (Taroon).  Some basic build
+to work on Red Hat 7.3, 8.0, 9, RHEL-3 (Taroon), Fedora Core [1-3].  Some basic build
 tests have been done on SuSE 8.1 and 8.2 (which use rpm version 3).
 
 They should also work on any distribution that supports RPM and have rpm v4
-or better. Please submit problems, comments and patches to rpms@snort.org.
-
-Support for Fedora (fedora.redhat.com) naming convention RPMs is included.
-cAos (www.caosity.org) RPMs are also supported so you should be able to
-install and maintain Snort via yum and the cAos mirrors without any
-additional effort.
+or better. 
 
 
 References
 ==========
 [0] The latest Snort README.build_rpms
-	http://cvs.snort.org/viewcvs.cgi/snort/contrib/rpm/README.build_rpms
+	http://cvs.snort.org/viewcvs.cgi/snort/rpm/README.build_rpms
 
 [1] The official Snort.org RPM SPEC file:
-	http://cvs.snort.org/viewcvs.cgi/snort/contrib/rpm/snort.org.spec
+	http://cvs.snort.org/viewcvs.cgi/snort/rpm/snort.spec
 
 The latest Snort README.rpms
-	http://cvs.snort.org/viewcvs.cgi/snort/contrib/rpm/README.rpms
-
+	http://cvs.snort.org/viewcvs.cgi/snort/rpm/README.rpms
 

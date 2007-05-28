@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10014);
- script_version ("$Revision: 1.20 $");
  script_bugtraq_id(770);
- script_cve_id("CAN-1999-0885");
+ script_version ("$Revision: 1.25 $");
+ script_cve_id("CVE-1999-0885");
  name["english"] = "tst.bat CGI vulnerability";
  name["francais"] = "tst.bat";
  script_name(english:name["english"], francais:name["francais"]);
@@ -21,7 +21,7 @@ if(description)
 Solution : Remove the 'tst.bat' script from your web server's CGI
 directory (typically cgi-bin/).
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'tst.bat' est installé. Celui-ci possède
@@ -50,6 +50,7 @@ Facteur de risque : Sérieux";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -60,8 +61,8 @@ Facteur de risque : Sérieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 function check(req, exp)

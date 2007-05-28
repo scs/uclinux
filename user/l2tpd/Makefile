@@ -55,7 +55,9 @@ OSFLAGS= -DLINUX
 
 FFLAGS= -DIP_ALLOCATION
 
-CFLAGS+= $(DFLAGS) -O2 -fno-builtin -Wall -DSANITY $(OSFLAGS) $(FFLAGS)
+CFLAGS+= $(DFLAGS) -O2 -fno-builtin -Wall -DSANITY $(OSFLAGS) $(FFLAGS) \
+	-DDEFAULT_AUTH_FILE=\"/etc/config/l2tp-secrets\" \
+	-DDEFAULT_CONFIG_FILE=\"/etc/config/l2tpd.conf\" -DPPPD=\"/bin/pppd\"
 HDRS=l2tp.h avp.h misc.h control.h call.h scheduler.h file.h aaa.h md5.h
 OBJS=l2tpd.o pty.o misc.o control.o avp.o call.o network.o avpsend.o scheduler.o file.o aaa.o md5.o
 #LIBS= $(OSLIB) # -lefence # efence for malloc checking
@@ -67,7 +69,7 @@ clean:
 	rm -f $(OBJS) $(EXEC)
 
 $(EXEC): $(OBJS) $(HDRS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBUTIL)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)

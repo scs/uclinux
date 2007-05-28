@@ -1,43 +1,92 @@
-# -*- Fundamental -*-
 #
-# (C) 2002 Georges Dagousset <georges.dagousset@orange.fr>
-# $Revision: 1.4 $
+# (C) Tenable Network Security
+# 
+#
+# An earlier iteration of this file was written by George Dagousset (2002)
+#
+# This include file is released under the terms of the GPLv2
+#
 
 
-
-function hexdump(ddata)
+function line2string (line, linenumber)
 {
- _z = "";
- __dmaxline = strlen(ddata) / 16;
- for (__dline = 0; __dline <= __dmaxline; __dline = __dline + 1) {
-  _z = string(_z, hex(__dline*16),":") -"0x";
-  for (__dcol = 0; __dcol < 16; __dcol = __dcol + 1) {
-   if (!__dcol % 4) _z = _z + " ";
-   if (__dcol + __dline * 16 < strlen(ddata))
-    _z = string(_z, hex(ord(ddata[__dcol + __dline * 16]))," ")-"0x";
-   else
-    _z = _z + "   ";
-  }
-  _z = _z + "   ";
-  for (__dcol = 0; __dcol < 16; __dcol = __dcol + 1) {
-   if (__dcol + __dline * 16 < strlen(ddata)) {
-    if(ord(ddata[__dcol + __dline * 16]) >= 32)
-     _z = _z + ddata[__dcol + __dline * 16];
-    else
-     _z = _z + ".";
-   }
-   else
-    _z = _z + "   ";
-  }
-  _z = string(_z, "\n");
- }
- _z = string(_z, "\n");
- return (_z);
+ local_var tmp, pos;
+
+ line = line*16;
+ tmp = raw_string (
+	(line >> 24) & 0xFF,
+	(line >> 16) & 0xFF,
+	(line >> 8) & 0xFF,
+	(line ) & 0xFF
+	);
+
+ if (linenumber < 256)
+   pos = 3;
+ else if (linenumber < 65536)
+   pos = 2;
+ else if (linenumber < 16777216)
+   pos = 1;
+ else
+   pos = 0;
+
+ return string ("0x", toupper(hexstr(substr (tmp, pos, 3))), ": ");
 }
 
-function dump(ddata,dtitle)
+
+function isprint (c)
 {
- if(dtitle)display(":::",dtitle,"\n");
- display(hexdump(ddata: ddata));
+ if ( (ord(c) >= 0x20) && (ord(c) <= 0x7E) )
+   return TRUE;
+
+ return FALSE;
+}
+
+
+function hexdump (ddata)
+{
+ local_var tmp, i, j, line, linenumber, len, data, c;
+
+ len = strlen (ddata);
+ linenumber = len / 16;
+
+ for (i = 0; i <= linenumber; i++)
+ {
+  line = line2string (line:i, linenumber:len);
+  data = "";
+
+  for (j = 0; j < 16; j++)
+  {
+   if ( (i*16+j) < len )
+   {
+    line += string (" ", toupper (hexstr(ddata[i*16+j])) );
+
+    c = ddata[i*16+j];
+
+    if (isprint (c:c))
+      data += c;
+    else
+      data += ".";
+   }
+   else
+   {
+    line += "   ";
+    data += " ";
+   }
+  }
+
+  tmp += string (line, "    ", data, "\n");
+ }
+
+ return tmp;
+}
+ 
+
+function dump( dtitle, ddata )
+{
+ if( ! isnull( dtitle ) )
+	display('---[ ' + dtitle + ' ]---\n' );
+
+
+ display(hexdump(ddata:ddata));
 }
 

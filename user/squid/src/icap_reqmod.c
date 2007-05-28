@@ -44,13 +44,16 @@ int clientCheckContentLength(request_t * r);
 void clientProcessRequest(clientHttpRequest *);
 int clientCachable(clientHttpRequest *);
 int clientHierarchical(clientHttpRequest *);
-
+void clientReadBody(request_t * request, char *buf, size_t size,
+    CBCB * callback, void *cbdata);
+static void icapReqModPassHttpBody(IcapStateData * icap, char *buf, size_t size,
+    CBCB * callback, void *cbdata);
 
 static PF icapReqModReadHttpHdrs;
 static PF icapReqModReadHttpBody;
 static CWCB icapReqModSendBodyChunk;
 static CBCB icapReqModBodyHandler;
-static CB icapReqModPassHttpBody;
+static BODY_HANDLER icapReqModBodyReader;
 static STRCB icapReqModMemBufAppend;
 
 #define EXPECTED_ICAP_HEADER_LEN 256
@@ -108,6 +111,7 @@ icapReqModCreateClientState(IcapStateData * icap, request_t * request)
     http->conn->in.buf = NULL;
     http->conn->log_addr = icap->reqmod.log_addr;
     http->conn->chr = http;
+    http->icap_reqmod = NULL;
     comm_add_close_handler(http->conn->fd, connStateFree, http->conn);
     return http;
 }
@@ -129,7 +133,7 @@ icapReqModInterpretHttpRequest(IcapStateData * icap, request_t * request)
     /*
      * bits from clientReadRequest
      */
-    request->content_length = httpHeaderGetInt(&request->header,
+    request->content_length = httpHeaderGetSize(&request->header,
 	HDR_CONTENT_LENGTH);
     if (!urlCheckRequest(request) ||
 	httpHeaderHas(&request->header, HDR_TRANSFER_ENCODING)) {
@@ -137,7 +141,8 @@ icapReqModInterpretHttpRequest(IcapStateData * icap, request_t * request)
 	err = errorCon(ERR_UNSUP_REQ, HTTP_NOT_IMPLEMENTED);
 	err->request = requestLink(request);
 	request->flags.proxy_keepalive = 0;
-	http->entry = clientCreateStoreEntry(http, request->method, null_request_flags);
+	http->entry =
+	    clientCreateStoreEntry(http, request->method, null_request_flags);
 	errorAppendEntry(http->entry, err);
 	return;
     }
@@ -145,15 +150,19 @@ icapReqModInterpretHttpRequest(IcapStateData * icap, request_t * request)
 	ErrorState *err;
 	err = errorCon(ERR_INVALID_REQ, HTTP_LENGTH_REQUIRED);
 	err->request = requestLink(request);
-	http->entry = clientCreateStoreEntry(http, request->method, null_request_flags);
+	http->entry =
+	    clientCreateStoreEntry(http, request->method, null_request_flags);
 	errorAppendEntry(http->entry, err);
 	return;
     }
     /* Do we expect a request-body? */
     if (request->content_length > 0) {
 	debug(81, 5) ("handing request bodies in ICAP REQMOD\n");
-	request->body_reader = icapReqModPassHttpBody;
+	if (request->body_reader_data)
+        	cbdataUnlock(request->body_reader_data);
+	request->body_reader = icapReqModBodyReader;
 	request->body_reader_data = icap;	/* XXX cbdataLock? */
+	cbdataLock(icap);                      /*Yes sure .....*/
 	memBufDefInit(&icap->reqmod.http_entity.buf);
     }
     if (clientCachable(http))
@@ -188,8 +197,7 @@ icapEntryError(IcapStateData * icap, err_type et, http_status hs, int xerrno)
     if (NULL == http)
 	return;
     http->entry = clientCreateStoreEntry(http,
-	icap->request->method,
-	null_request_flags);
+	icap->request->method, null_request_flags);
     err = errorCon(et, hs);
     err->xerrno = xerrno;
     err->request = requestLink(icap->request);
@@ -231,7 +239,8 @@ icapReqModParseHttpRequest(IcapStateData * icap)
     }
     method = urlParseMethod(mstr);
     if (method == METHOD_NONE) {
-	debug(81, 1) ("icapReqModParseHttpRequest: Unsupported method '%s'\n", mstr);
+	debug(81, 1) ("icapReqModParseHttpRequest: Unsupported method '%s'\n",
+	    mstr);
 	icapReqModParseHttpError(icap, "error:unsupported-request-method");
 	xfree(inbuf);
 	return;
@@ -270,7 +279,8 @@ icapReqModParseHttpRequest(IcapStateData * icap)
 	xfree(inbuf);
 	return;
     }
-    debug(81, 6) ("icapReqModParseHttpRequest: Client HTTP version %d.%d.\n", http_ver.major, http_ver.minor);
+    debug(81, 6) ("icapReqModParseHttpRequest: Client HTTP version %d.%d.\n",
+	http_ver.major, http_ver.minor);
 
     headers = strtok(NULL, null_string);
     hdrlen = inbuf + reqlen - headers;
@@ -289,7 +299,9 @@ icapReqModParseHttpRequest(IcapStateData * icap)
 	xfree(inbuf);
 	return;
     }
-    debug(81, 3) ("icapReqModParseHttpRequest: successfully parsed the HTTP request\n");
+    debug(81,
+	3)
+	("icapReqModParseHttpRequest: successfully parsed the HTTP request\n");
     request->http_ver = http_ver;
     request->client_addr = icap->request->client_addr;
     request->my_addr = icap->request->my_addr;
@@ -323,8 +335,7 @@ icapReqModHandoffRespMod(IcapStateData * icap)
     assert(icap->request);
 
     http->entry = clientCreateStoreEntry(http,
-	icap->request->method,
-	icap->request->flags);
+	icap->request->method, icap->request->flags);
     icap->respmod.entry = http->entry;
     storeLockObject(icap->respmod.entry);
 
@@ -350,7 +361,8 @@ icapReqModKeepAliveOrClose(IcapStateData * icap)
     if (fd < 0)
 	return;
     if (!icap->flags.keep_alive) {
-	debug(81, 3) ("%s:%d keep_alive not set, closing\n", __FILE__, __LINE__);
+	debug(81, 3) ("%s:%d keep_alive not set, closing\n", __FILE__,
+	    __LINE__);
 	comm_close(fd);
 	return;
     }
@@ -359,13 +371,15 @@ icapReqModKeepAliveOrClose(IcapStateData * icap)
 	debug(81, 3) ("%s:%d no message body\n", __FILE__, __LINE__);
 	if (1 != icap->reqmod.hdr_state) {
 	    /* didn't get to end of HTTP headers */
-	    debug(81, 3) ("%s:%d didnt find end of headers, closing\n", __FILE__, __LINE__);
+	    debug(81, 3) ("%s:%d didnt find end of headers, closing\n",
+		__FILE__, __LINE__);
 	    comm_close(fd);
 	    return;
 	}
-    } else if (icap->reqmod.http_entity.bytes_read != icap->request->content_length) {
-	debug(81, 3) ("%s:%d bytes_read (%d) != content_length (%d)\n", __FILE__, __LINE__,
-	    icap->reqmod.http_entity.bytes_read,
+    } else if (icap->reqmod.http_entity.bytes_read !=
+	icap->request->content_length) {
+	debug(81, 3) ("%s:%d bytes_read (%" PRINTF_OFF_T ") != content_length (%" PRINTF_OFF_T ")\n",
+	    __FILE__, __LINE__, icap->reqmod.http_entity.bytes_read,
 	    icap->request->content_length);
 	/* an error */
 	comm_close(fd);
@@ -376,7 +390,7 @@ icapReqModKeepAliveOrClose(IcapStateData * icap)
     commSetTimeout(fd, -1, NULL, NULL);
     commSetSelect(fd, COMM_SELECT_READ, NULL, NULL, 0);
     comm_remove_close_handler(fd, icapStateFree, icap);
-    pconnPush(fd, fd_table[fd].pconn_name, fd_table[fd].remote_port);
+    pconnPush(fd, icap->current_service->hostname, icap->current_service->port);
     icap->icap_fd = -1;
     icapStateFree(-1, icap);
 }
@@ -419,7 +433,8 @@ icapReqModReadHttpHdrs(int fd, void *data)
 	icap->http_header_bytes_read_so_far += rl;
 	if (rl != needed) {
 	    /* still more header data to read */
-	    commSetSelect(fd, COMM_SELECT_READ, icapReqModReadHttpHdrs, icap, 0);
+	    commSetSelect(fd, COMM_SELECT_READ, icapReqModReadHttpHdrs, icap,
+		0);
 	    return;
 	}
 	icap->reqmod.hdr_state = 1;
@@ -430,7 +445,7 @@ icapReqModReadHttpHdrs(int fd, void *data)
     if (-1 == icap->reqmod.client_fd) {
 	/* we detected that the original client_side went away */
 	icapReqModKeepAliveOrClose(icap);
-    } else if (icap->request->body_reader) {
+    } else if (icap->enc.req_body > -1) {
 	icap->chunk_size = 0;
 	memBufDefInit(&icap->chunk_buf);
 	commSetSelect(fd, COMM_SELECT_READ, icapReqModReadHttpBody, icap, 0);
@@ -449,14 +464,14 @@ static void
 icapReqModReadIcapPart(int fd, void *data)
 {
     IcapStateData *icap = data;
-    LOCAL_ARRAY(char, tmpbuf, SQUID_TCP_SO_RCVBUF);
+    int version_major, version_minor;
+    const char *str_status;
     int x;
     const char *start;
     const char *end;
     int status;
     int isIcap = 0;
     int directResponse = 0;
-    float ver;
 
     debug(81, 5) ("icapReqModReadIcapPart: FD %d httpState = %p\n", fd, data);
     statCounter.syscalls.sock.reads++;
@@ -465,7 +480,8 @@ icapReqModReadIcapPart(int fd, void *data)
     if (x < 0) {
 	/* Did not find a proper ICAP response */
 	debug(81, 3) ("ICAP : Error path!\n");
-	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR, errno);
+	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR,
+	    errno);
 	comm_close(fd);
 	return;
     }
@@ -482,28 +498,30 @@ icapReqModReadIcapPart(int fd, void *data)
      */
     assert(icap->icap_hdr.size);
     debug(81, 3) ("Read icap header : <%s>\n", icap->icap_hdr.buf);
-    ver = -999.999;		/* initalize the version to a bogus number. I
-				 * think that we should parse it using 2
-				 * integers and a %d.%d scanf format - Basile
-				 * june 2002 */
-    if (sscanf(icap->icap_hdr.buf, "ICAP/%f %d %s\r", &ver, &status, tmpbuf) < 3
-	|| ver <= 0.0) {
+    if ((status =
+	    icapParseStatusLine(icap->icap_hdr.buf, icap->icap_hdr.size,
+		&version_major, &version_minor, &str_status)) < 0) {
 	debug(81, 1) ("BAD ICAP status line <%s>\n", icap->icap_hdr.buf);
 	/* is this correct in case of ICAP protocol error? */
-	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR, errno);
+	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR,
+	    errno);
 	comm_close(fd);
 	return;
     };
-    if (400 == status ){
-       debug(81,3) ("Bad request sent to server (%s)\n",icap->reqmod.uri);
-       comm_close(fd);
-       return;
+    if (200 != status) {
+	debug(81, 1) ("Unsupported status '%d' from ICAP server\n", status);
+	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR,
+	    errno);
+	comm_close(fd);
+	return;
     }
     icapSetKeepAlive(icap, icap->icap_hdr.buf);
     if (icapFindHeader(icap->icap_hdr.buf, "Encapsulated:", &start, &end)) {
 	icapParseEncapsulated(icap, start, end);
     } else {
-	debug(81, 1) ("WARNING: icapReqModReadIcapPart() did not find 'Encapsulated' header\n");
+	debug(81,
+	    1)
+	    ("WARNING: icapReqModReadIcapPart() did not find 'Encapsulated' header\n");
     }
     if (icap->enc.res_hdr > -1)
 	directResponse = 1;
@@ -511,11 +529,15 @@ icapReqModReadIcapPart(int fd, void *data)
 	directResponse = 1;
     else
 	directResponse = 0;
-    debug(81, 3) ("icapReqModReadIcapPart: directResponse=%d\n", directResponse);
+    debug(81, 3) ("icapReqModReadIcapPart: directResponse=%d\n",
+	directResponse);
 
     /* Check whether it is a direct reply - if so over to http part */
     if (directResponse) {
-	debug(81, 3) ("icapReqModReadIcapPart: FD %d, processing HTTP response for REQMOD!\n", fd);
+	debug(81,
+	    3)
+	    ("icapReqModReadIcapPart: FD %d, processing HTTP response for REQMOD!\n",
+	    fd);
 	/* got the reply, no need to come here again */
 	icap->flags.wait_for_reply = 0;
 	icap->flags.got_reply = 1;
@@ -548,9 +570,11 @@ icapSendReqModDone(int fd, char *bufnotused, size_t size, int errflag,
     if (errflag == COMM_ERR_CLOSING)
 	return;
     if (errflag) {
-	debug(81, 3) ("icapSendReqModDone: unreachable=1, service=%s\n", icap->current_service->uri);
+	debug(81, 3) ("icapSendReqModDone: unreachable=1, service=%s\n",
+	    icap->current_service->uri);
 	icapOptSetUnreachable(icap->current_service);
-	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR, errno);
+	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR,
+	    errno);
 	comm_close(fd);
 	return;
     }
@@ -592,9 +616,9 @@ icapSendReqMod(int fd, int status, void *data)
     if (COMM_OK != status) {
 	debug(81, 1) ("Could not connect to ICAP server %s:%d: %s\n",
 	    icap->current_service->hostname,
-	    icap->current_service->port,
-	    xstrerror());
-	debug(81, 3) ("icapSendReqMod: unreachable=1, service=%s\n", icap->current_service->uri);
+	    icap->current_service->port, xstrerror());
+	debug(81, 3) ("icapSendReqMod: unreachable=1, service=%s\n",
+	    icap->current_service->uri);
 	icapOptSetUnreachable(icap->current_service);
 	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_SERVICE_UNAVAILABLE, errno);
 	comm_close(fd);
@@ -610,8 +634,7 @@ icapSendReqMod(int fd, int status, void *data)
     memBufPrintf(&mb_hdr, "%s %s HTTP/%d.%d\r\n",
 	RequestMethodStr[icap->request->method],
 	icap->reqmod.uri,
-	icap->request->http_ver.major,
-	icap->request->http_ver.minor);
+	icap->request->http_ver.major, icap->request->http_ver.minor);
     packerToMemInit(&p, &mb_hdr);
     httpHeaderPackInto(&icap->request->header, &p);
     packerClean(&p);
@@ -630,17 +653,23 @@ icapSendReqMod(int fd, int status, void *data)
     memBufAppend(&mb, crlf, 2);
     if (Config.icapcfg.send_client_ip || service->flags.need_x_client_ip)
 	memBufPrintf(&mb, "X-Client-IP: %s\r\n", client_addr);
-    if ((Config.icapcfg.send_auth_user || service->flags.need_x_authenticated_user)
-	 && (icap->request->auth_user_request != NULL))
+    if ((Config.icapcfg.send_auth_user
+	    || service->flags.need_x_authenticated_user)
+	&& (icap->request->auth_user_request != NULL))
 	icapAddAuthUserHeader(&mb, icap->request->auth_user_request);
-    icap->flags.keep_alive = 1;
-    if (!icap->flags.keep_alive)
+    if(service->keep_alive){
+	icap->flags.keep_alive = 1;
+    }
+    else{
+	icap->flags.keep_alive=0;
 	memBufAppend(&mb, "Connection: close\r\n", 19);
+    }
     memBufAppend(&mb, crlf, 2);
     memBufAppend(&mb, mb_hdr.buf, mb_hdr.size);
     memBufClean(&mb_hdr);
 
-    debug(81, 5) ("icapSendReqMod: FD %d writing {%s}\n", icap->icap_fd, mb.buf);
+    debug(81, 5) ("icapSendReqMod: FD %d writing {%s}\n", icap->icap_fd,
+	mb.buf);
     comm_write_mbuf(icap_fd, mb, theCallback, icap);
 }
 
@@ -651,7 +680,8 @@ icapSendReqMod(int fd, int status, void *data)
  * structure and request a TCP connection to the server.
  */
 IcapStateData *
-icapReqModStart(icap_service_t type, const char *uri, request_t * request, int fd, struct timeval start, struct in_addr log_addr, void *cookie)
+icapReqModStart(icap_service_t type, const char *uri, request_t * request,
+    int fd, struct timeval start, struct in_addr log_addr, void *cookie)
 {
     IcapStateData *icap = NULL;
     icap_service *service = NULL;
@@ -675,10 +705,14 @@ icapReqModStart(icap_service_t type, const char *uri, request_t * request, int f
 
     if (service->unreachable) {
 	if (service->bypass) {
-	    debug(81, 5) ("icapReqModStart: BYPASS because service unreachable: %s\n", service->uri);
+	    debug(81,
+		5) ("icapReqModStart: BYPASS because service unreachable: %s\n",
+		service->uri);
 	    return NULL;
 	} else {
-	    debug(81, 5) ("icapReqModStart: ERROR  because service unreachable: %s\n", service->uri);
+	    debug(81,
+		5) ("icapReqModStart: ERROR  because service unreachable: %s\n",
+		service->uri);
 	    return (IcapStateData *) - 1;
 	}
     }
@@ -714,7 +748,8 @@ icapReqModStart(icap_service_t type, const char *uri, request_t * request, int f
  * get another chunk of the body from client_side.
  */
 static void
-icapReqModSendBodyChunk(int fd, char *bufnotused, size_t size, int errflag, void *data)
+icapReqModSendBodyChunk(int fd, char *bufnotused, size_t size, int errflag,
+    void *data)
 {
     IcapStateData *icap = data;
     debug(81, 3) ("icapReqModSendBodyChunk: FD %d wrote %d errflag %d.\n",
@@ -722,15 +757,13 @@ icapReqModSendBodyChunk(int fd, char *bufnotused, size_t size, int errflag, void
     if (errflag == COMM_ERR_CLOSING)
 	return;
     if (errflag) {
-	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR, errno);
+	icapEntryError(icap, ERR_ICAP_FAILURE, HTTP_INTERNAL_SERVER_ERROR,
+	    errno);
 	comm_close(fd);
 	return;
     }
     clientReadBody(icap->request,
-	memAllocate(MEM_8K_BUF),
-	8192,
-	icapReqModBodyHandler,
-	icap);
+	memAllocate(MEM_8K_BUF), 8192, icapReqModBodyHandler, icap);
 }
 
 /*
@@ -779,8 +812,7 @@ icapReqModReadHttpBody(int fd, void *data)
     len = memBufRead(fd, &icap->chunk_buf);
     debug(81, 3) ("icapReqModReadHttpBody: read returns %d\n", len);
     if (len < 0) {
-	debug(81, 3) ("icapReqModReadHttpBody: FD %d %s\n",
-	    fd, xstrerror());
+	debug(81, 3) ("icapReqModReadHttpBody: FD %d %s\n", fd, xstrerror());
 	if (!ignoreErrno(errno))
 	    icap->flags.reqmod_http_entity_eof = 1;
     } else if (0 == len) {
@@ -801,8 +833,10 @@ icapReqModReadHttpBody(int fd, void *data)
     /*
      * Notify the other side if it is waiting for data from us
      */
-    debug(81, 3) ("%s:%d http_entity.callback=%p\n", __FILE__, __LINE__, icap->reqmod.http_entity.callback);
-    debug(81, 3) ("%s:%d http_entity.buf.size=%d\n", __FILE__, __LINE__, icap->reqmod.http_entity.buf.size);
+    debug(81, 3) ("%s:%d http_entity.callback=%p\n", __FILE__, __LINE__,
+	icap->reqmod.http_entity.callback);
+    debug(81, 3) ("%s:%d http_entity.buf.size=%d\n", __FILE__, __LINE__,
+	icap->reqmod.http_entity.buf.size);
     if (icap->reqmod.http_entity.callback && icap->reqmod.http_entity.buf.size) {
 	icapReqModPassHttpBody(icap,
 	    icap->reqmod.http_entity.callback_buf,
@@ -811,6 +845,7 @@ icapReqModReadHttpBody(int fd, void *data)
 	    icap->reqmod.http_entity.callback_data);
 	icap->reqmod.http_entity.callback = NULL;
 	cbdataUnlock(icap->reqmod.http_entity.callback_data);
+
     }
 }
 
@@ -822,13 +857,23 @@ icapReqModReadHttpBody(int fd, void *data)
  * body that were stored in the http_entity.buf MemBuf.
  */
 static void
-icapReqModPassHttpBody(void *data, char *buf, size_t size, CBCB * callback, void *cbdata)
+icapReqModPassHttpBody(IcapStateData * icap, char *buf, size_t size,
+    CBCB * callback, void *cbdata)
 {
-    IcapStateData *icap = data;
     debug(81, 3) ("icapReqModPassHttpBody: called\n");
+    if (!buf) {
+	debug(81, 1) ("icapReqModPassHttpBody: FD %d called with %p, %d, %p (request aborted)\n",
+	    icap->icap_fd, buf, (int) size, cbdata);
+	comm_close(icap->icap_fd);
+	return;
+    }
     if (!cbdataValid(cbdata)) {
-	debug(81, 1) ("icapReqModPassHttpBody: FD %d callback data invalid, closing\n", icap->icap_fd);
-	icapReqModKeepAliveOrClose(icap);
+	debug(81,
+	    1)
+	    ("icapReqModPassHttpBody: FD %d callback data invalid, closing\n",
+	    icap->icap_fd);
+	comm_close(icap->icap_fd);	/*It is better to be sure that the connection will be  closed..... */
+	/*icapReqModKeepAliveOrClose(icap); */
 	return;
     }
     debug(81, 3) ("icapReqModPassHttpBody: entity buf size = %d\n",
@@ -866,6 +911,19 @@ icapReqModPassHttpBody(void *data, char *buf, size_t size, CBCB * callback, void
     icap->reqmod.http_entity.callback_buf = buf;
     icap->reqmod.http_entity.callback_bufsize = size;
     cbdataLock(icap->reqmod.http_entity.callback_data);
+}
+
+/*
+ * Body reader handler for use with request->body_reader function
+ * Simple a wrapper for icapReqModPassHttpBody function
+ */
+
+static void
+icapReqModBodyReader(request_t * request, char *buf, size_t size,
+    CBCB * callback, void *cbdata)
+{
+    IcapStateData *icap = request->body_reader_data;
+    icapReqModPassHttpBody(icap, buf, size, callback, cbdata);
 }
 
 /*

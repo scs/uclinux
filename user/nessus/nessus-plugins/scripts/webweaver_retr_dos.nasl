@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(11584);
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(7425);
+ script_version ("$Revision: 1.3 $");
  
  name["english"] = "webweaver FTP DoS";
  script_name(english:name["english"], francais:name["francais"]);
@@ -23,7 +23,7 @@ An attacker may use this flaw to prevent this FTP server from
 executing properly.
 
 Solution : None at this time
-Risk Factor : High";
+Risk factor : High";
 
 
 
@@ -81,7 +81,7 @@ executing properly.
 *** for this flaw and this might be a false positive
 
 Solution : None at this time
-Risk Factor : High";
+Risk factor : High";
 
   security_hole(port:port, data:report);
   exit(0);

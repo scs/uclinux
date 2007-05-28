@@ -7,12 +7,13 @@
 if(description)
 {
  script_id(10369);
- script_version ("$Revision: 1.29 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-t-0002");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-t-0003");
  script_bugtraq_id(1109);
+ script_version ("$Revision: 1.38 $");
  script_cve_id("CVE-2000-0260");
  name["english"] = "Microsoft Frontpage dvwssr.dll backdoor";
- name["francais"] = "Backdoor dans dvwssr.dll de Microsoft Frontpage"; 
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 The dll '/_vti_bin/_vti_aut/dvwssr.dll' seems to be present.
@@ -29,41 +30,19 @@ Solution : delete /_vti_bin/_vti_aut/dvwssr.dll
 Risk factor : High
 See also : http://www.wiretrip.net/rfp/p/doc.asp?id=45&iface=1";
 
-
- desc["francais"] = "
-La dll '/_vti_bin/_vti_aut/dvwssr.dll' semble etre présente.
-
-Cette dll contient un bug permettant toute
-personne ayant un compte d'édition web sur ce système
-de modifier les pages des autres utilisateurs.
-
-De plus cette dll peut etre soumise à un dépassement de buffer
-qui permet à n'importe qui d'executer des commandes arbitraires
-sur ce système et/ou de désactiver IIS.
-
-
-Solution : Effacez ce fichier
-Facteur de risque : Elevé
-Voir aussi : http://www.wiretrip.net/rfp/p/doc.asp?id=45&iface=1";
-
-
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for the presence of  /_vti_bin/_vti_aut/dvwssr.dll";
- summary["francais"] = "Vérifie la présence de  /_vti_bin/_vti_aut/dvwssr.dll";
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl", "www_fingerprinting_hmap.nasl");
  script_require_ports("Services/www", 80);
- script_require_keys("www/iis");
  exit(0);
 }
 
@@ -73,14 +52,14 @@ Voir aussi : http://www.wiretrip.net/rfp/p/doc.asp?id=45&iface=1";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
+banner = get_http_banner(port:port);
+if ( ! banner ) exit(0);
+if ( ! egrep(pattern:"^Server: .*IIS/[34]", string:banner ) ) exit(0);
+
 if(get_port_state(port))
 {
- banner = get_http_banner(port:port); 
- if ( ! banner ) exit(0);
- if ( !egrep(pattern:"~Server:.*IIS.*", string:banner) ) exit(0);
-
  soc = http_open_socket(port);
  if(soc)
  {
@@ -116,11 +95,12 @@ if(get_port_state(port))
   
   if("WWW-Authenticate:" >< r)exit(0);
   
+  is200 = ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 ", string:code);
+
   if(("HTTP/1.1 401 Access Denied" >< code) ||
-      (strlen(r) == 0)  ||  
-      (ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 ", string:code)))
+      (strlen(r) == 0)  || is200 )  
   {
-   if(egrep(pattern:"^HTTP.*200.*OK", string:code))
+  if ( is200 )
    {
     no404 = tolower(get_kb_item(string("www/no404/",  port)));
     if(no404)

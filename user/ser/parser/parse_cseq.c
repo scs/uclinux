@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: parse_cseq.c,v 1.5 2003/02/28 14:12:26 jiri Exp $ 
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

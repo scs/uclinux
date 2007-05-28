@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-aix.h,v 1.2 1993/08/19 05:26:50 genek Exp $ */
 
 /*
  * conf-aix.h

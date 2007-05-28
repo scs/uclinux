@@ -7,7 +7,7 @@
 
 if(description)
 {
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.5 $");
  script_id(11493);
  script_name(english:"Sambar Default Accounts");
  
@@ -19,7 +19,8 @@ This script makes sure that all these accounts have a password
 set.
 
 Solution : Set a password for each account
-Risk factor : Medium/High";
+
+Risk factor : Medium / High";
 
  script_description(english:desc["english"]);
  
@@ -43,8 +44,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 valid = NULL;
@@ -73,7 +74,7 @@ res = http_keepalive_send_recv(port:port, data:req);
 if (res == NULL ) exit(0);
 #display(res);
 
-if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 404", string:res))exit(0);
+if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 404 ", string:res))exit(0);
 
 
 if("Sambar Server Document Manager" >< res)

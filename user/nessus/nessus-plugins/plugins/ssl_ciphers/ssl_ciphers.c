@@ -11,11 +11,10 @@
 
 #ifndef ssl_get_cipher_by_char
 #define ssl_get_cipher_by_char(ssl,ptr) \
-	((ssl)->method->get_cipher_by_char(ptr))
+	((ssl)->method->get_cipher_by_char((unsigned char*)ptr))
 #endif
 
-#define EN_NAME "SSL ciphers"
-#define FR_NAME "Chiffres SSL"
+#define EN_NAME "SSL Certificate"
 
 /*
 #define EN_DESC "\
@@ -26,12 +25,11 @@ self signed certificates or certificates signed by unknown\n\
 CAs."
 */
 #define EN_DESC "\
-This plugin connects to a SSL server, and\n\
-checks its certificate and the available (shared) SSLv2 ciphers.\n\
-Weak (export version) ciphers are reported."
+This plugin connects to a SSL server, and displays its certificate.\n"
+
 
 #define COPYRIGHT "(C) 2002 Michel Arboi"
-#define SUMMARY "checks the server certificate and available SSLv2 ciphers"
+#define SUMMARY "Displays the server certificate"
 
 
 PlugExport int plugin_init(desc)
@@ -41,9 +39,8 @@ PlugExport int plugin_init(desc)
   return -1;
 #else
   plug_set_id(desc, 10863);
-  plug_set_version(desc, "$Revision: 1.9 $");
+  plug_set_version(desc, "$Revision: 1.15 $");
  
-  plug_set_name(desc, FR_NAME, "francais");
   plug_set_name(desc, EN_NAME, NULL);
   
   plug_set_description(desc, EN_DESC, NULL);
@@ -55,6 +52,33 @@ PlugExport int plugin_init(desc)
   return 0;
 #endif
 }
+
+
+static int report_cat(char ** report, int * report_sz, char * msg)
+{
+ if ( *report == NULL )
+ {
+   *report_sz = 1024;
+   *report = emalloc ( *report_sz );
+ }
+
+ if ( strlen(*report) + strlen(msg) + 1 >= *report_sz )
+ {
+  int new_sz = *report_sz;
+  while ( strlen(*report) + strlen(msg) + 1 > new_sz )
+  {
+	new_sz *= 2;
+  }
+  *report_sz = new_sz;
+  *report = erealloc(*report, *report_sz);
+ }
+
+ strcat(*report, msg);
+
+ if ( msg[strlen(msg) - 1] != '\n' )
+	strcat(*report, "\n");
+}
+
 
 
 PlugExport 
@@ -76,12 +100,26 @@ int plugin_run(env)
   BIO			*b;
   BUF_MEM		*bptr;
   int			rejected[3];
-    
-  
+  char 			* report = NULL;
+  int			report_sz = 0;
+  int 			warning = 0;
+#ifdef NEW_KB_MGMT
+  int type;
+
+  p = plug_get_key(env, "Transport/SSL", &type);
+  if ( p == NULL ) 
+	return 0;
+
+  if ( type == KB_TYPE_STR )
+	port = atoi(p);
+  else
+	port = (int)p;
+#else  
   p  = plug_get_key(env, "Transport/SSL");
   if (p == NULL)
     return 0;
   port = atoi(p);
+#endif
 
   trp0 = plug_get_port_transport(env, port);
   trp0_name = (char*)get_encaps_name(trp0);
@@ -120,116 +158,15 @@ int plugin_run(env)
 			  trp_name);
 		  for (p = msg; *p != '\0'; p ++) /*NOP*/ ;
 		  strncpy(p, bptr->data, bptr->length);
-		  post_note(env, port, msg);
+		  report_cat(&report, &report_sz, msg);
 		  efree(&msg);
 		}
 	      BIO_free(b);
 	      cert_printed ++;
 	    }
 	}
+  }
 
-      if (trp != NESSUS_ENCAPS_SSLv2)
-	continue;
-
-#define HEREIS	"Here is the list of available SSLv2 ciphers:\n"
-      strncpy(buf, HEREIS, sizeof(buf) - 1);
-      buf[sizeof(buf) - 1] = '\0';
-      pbuf = buf + sizeof(HEREIS) - 1;
-
-      if ((pbuf = SSL_get_shared_ciphers(ssl, pbuf, sizeof(buf))) == NULL)
-	continue;
-
-      for (q = pbuf, p = pbuf; ; p ++)
-	if (*p == ':' || *p == '\0')
-	  {
-	    int		eol = (*p == '\0');
-
-	    nCiphers ++;
-	    *p = '\0';
-	    
-	    c = ssl_get_cipher_by_char(ssl, q);
-	    bits = 999;
-	    if (c != NULL)
-	      SSL_CIPHER_get_bits(c, &bits);
-
-	    if (bits == 0)
-	      null ++;
-	    else
-	      /* 
-	       * OpenSSL returns the number of secret bits of the algorithm, 
-	       * but does not say how many of them are fixed or known.
-	       * So we have to check if the algorithm is "export grade"
-	       */
-	      if (strncmp(q, "EXP", 3) == 0)
-		weak ++;
-	      else if (bits < 56) /* arbitrary limit 1. You may disagree */
-		weak ++;
-	      else if (bits < 90) /* arbitrary limit 2. Same remark */
-		medium ++;
-	      else
-		strong ++;
-
-	    q = p + 1;
-	    if (eol)
-	      break;
-	    *p = '\n';
-	  }
-      post_note(env, port, buf);
-      
-      if (null >= nCiphers)
-	{
-	  snprintf(rep, sizeof(rep), "\
-The %s server only accepts \"null\" ciphers, which do not protect the\
-confidentiality of your data.\n\
-\n\
-Solution: re-configure or upgrade your server software.",
-		  trp_name);
-	  post_hole(env, port, rep);
-	}
-      else
-	{
-	  if (null > 0)
-	    {
-	      snprintf(rep, sizeof(rep), "\
-The %s server accepts %d \"null\" ciphers which do *not*\n\
-protect the confidentiality of your data\n\
-You should disable them, as they may be chosen by a badly\n\
-configured client software.\
-\n\
-Solution: re-configure or upgrade your server software.",
-		      trp_name, null);
-	      post_hole(env, port, rep);
-	    }
-
-	  if (strong == 0)
-	    {
-	      snprintf(rep, sizeof(rep), "\
-The %s server does not accept strong \"US grade\" ciphers\n\
-with 112 or 128 bit long secret keys\n\
-Nessus only counted %d weak \"export class\" and %d medium strength ciphers.\n\
-Those ciphers only offer a limited protection against a brute force attack.\n\
-\n\
-Solution: update your server certificate and/or\n\
-upgrade your SSL library or server software.",
-		      trp_name, weak, medium);
-	      post_hole(env, port, rep);
-	    }
-	  else if (weak > 0 || medium > 0)
-	    {
-	      snprintf(rep, sizeof(rep), "\
-The %s server offers %d strong ciphers, but also\n\
-%d medium strength and %d weak \"export class\" ciphers.\n\
-The weak/medium ciphers may be chosen by an export-grade\n\
-or badly configured client software. They only offer a \n\
-limited protection against a brute force attack\n\
-\n\
-Solution: disable those ciphers and upgrade your client\n\
-software if necessary",
-		      trp_name, strong, medium, weak);
-	      post_info(env, port, rep);
-	    }
-	}
-    }
 
   
   prep = rep;
@@ -257,10 +194,17 @@ software if necessary",
       }
   
   if (*rep != '\0')
-    post_note(env, port, rep);
+    report_cat(&report, &report_sz, rep);
 
   if (cnx >= 0)
     close_stream_connection(cnx);
+
+  if ( report_sz != 0 && report != NULL && report[0] != '\0' )
+	{
+	 if ( warning != 0 ) post_hole(env,port, report);
+	 else post_note(env, port, report);
+	}
+
   return 0;
 #endif
 }

@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10691);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(2285);
- script_cve_id("CAN-2001-0250");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-2001-0250");
  
  name["english"] = "Netscape Enterprise INDEX request problem";
 
@@ -25,7 +25,7 @@ structure of your website, or to discover supposedly hidden
 files.
 
 Solution : disable web publishing or INDEX requests 
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -55,8 +55,8 @@ Risk factor : Serious";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
   soc = open_sock_tcp(port);

@@ -4,8 +4,8 @@
 if(description)
 {
  script_id(11758);
- script_version ("$Revision: 1.1 $");
  script_bugtraq_id(7535);
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "eLDAPo cleartext passwords";
  script_name(english:name["english"]);
@@ -21,7 +21,7 @@ contained to gain credentials on a third party server.
 
 
 Solution : Upgrade to eLDAPo 1.18 or newer
-Risk Factor : Medium";
+Risk factor : Medium";
 
 
  script_description(english:desc["english"]);
@@ -38,6 +38,7 @@ Risk Factor : Medium";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -46,15 +47,15 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
 
+if ( ! can_host_php(port:port) ) exit(0);
 
-dirs = make_list("/xxx", "", cgi_dirs());
 
-foreach d (dirs)
+foreach d (cgi_dirs())
 {
  req = http_get(item:d+"/listing.php", port:port);
  res = http_keepalive_send_recv(port:port, data:req);

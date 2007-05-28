@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11111);
- script_version ("$Revision: 1.13 $");
+ script_version ("$Revision: 1.16 $");
  name["english"] = "rpcinfo -p";
  name["francais"] = "rpcinfo -p";
  script_name(english:name["english"], francais:name["francais"]);
@@ -123,6 +123,15 @@ nispasswd	100303	rpc.nispasswdd
 ufsd		100233	ufsd
 pcnfsd		150001	pcnfs
 amd		300019  amq
+# Legato NetWorker
+nsrd		390103	nsr	 # NetWorker service
+nsrmmd		390104	nsrmm	 # NetWorker media mupltiplexor daemon
+nsrindexd	390105	nsrindex # NetWorker file index daemon
+nsrmmdbd	390107	nsrmmdb  # NetWorker media management database daemon
+nsrjb		390110	nsrjbd	 # NetWorker jukebox-control service
+nsrexec		390113	nsrexecd # NetWorker client execution service
+nsrnotd		390400		 # NetWorker notary service
+#
 sgi_fam		391002	fam
 netinfobind	200100001
 bwnfsd		545580417
@@ -280,8 +289,11 @@ while (vf)
       report_tcp[port] += m + '\n';
       #security_note(port: port, data: m);
       # Remember service
-      if (name) register_service(port: port, proto: string("RPC/", name));
-      else      register_service(port: port, proto: string("RPC/", program));
+      if ( port <= 65535 && port > 0 )
+      {
+       if (name) register_service(port: port, proto: string("RPC/", name));
+       else      register_service(port: port, proto: string("RPC/", program));
+      }
     }
     if (proto == 17) report_udp[port] += m + '\n'; 
     i=i+1;
@@ -290,12 +302,12 @@ while (vf)
 
 foreach port (keys(report_tcp))
 { 
- security_note(port:port, data:report_tcp[port]);
+ if ( port > 0 && port <= 65535 ) security_note(port:port, data:report_tcp[port]);
 }
 
 foreach port (keys(report_udp))
 { 
- security_note(port:port, data:report_udp[port], proto:"udp");
+ if ( port > 0 && port <= 65535 ) security_note(port:port, data:report_udp[port], proto:"udp");
 }
 
 

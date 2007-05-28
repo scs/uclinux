@@ -1,6 +1,6 @@
 /*
  *
- * $Id$
+ * $Id: t_stats.h,v 1.8 2003/05/20 16:53:16 andrei Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

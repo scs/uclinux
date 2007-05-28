@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: pike_fifo.h,v 1.2 2004/11/24 01:33:20 pchunt Exp $
  *
  * PIKE module
  *

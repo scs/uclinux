@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: grouprad_mod.c,v 1.6.8.1 2004/07/18 22:56:24 sobomax Exp $ 
  *
  * Group membership - module interface
  *

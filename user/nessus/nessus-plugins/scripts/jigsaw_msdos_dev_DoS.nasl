@@ -16,9 +16,9 @@
 if(description)
 {
  script_id(11047);
- script_version("$Revision: 1.7 $");
- script_cve_id("CAN-2002-1052");
- script_bugtraq_id(5258);
+ script_bugtraq_id(5251, 5258);
+ script_version("$Revision: 1.12 $");
+ script_cve_id("CVE-2002-1052");
  name["english"] = "Jigsaw webserver MS/DOS device DoS";
  name["francais"] = "Déni de service 'dev MS/DOS' contre Jigsaw";
  script_name(english:name["english"], francais:name["francais"]);
@@ -32,7 +32,7 @@ service crash continuously.
 
 Solution: upgrade your software
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "Il a été possible de tuer le serveur web 
@@ -44,7 +44,7 @@ continuellement ce service.
 
 Solution: mettez à jour votre logiciel
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  
@@ -73,10 +73,11 @@ include("http_func.inc");
 
 
 
-port = get_kb_item("Services/www");
-if (!port) port=80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
+if (http_is_dead(port: port)) exit(0);
 
 
 soc = http_open_socket(port);

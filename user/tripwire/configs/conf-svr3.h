@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-svr3.h,v 1.2 1993/08/19 05:27:06 genek Exp $ */
 
 /*
  * conf-svr3.h

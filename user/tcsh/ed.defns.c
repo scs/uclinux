@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/ed.defns.c,v 3.36 2000/11/11 23:03:33 christos Exp $ */
 /*
  * ed.defns.c: Editor function definitions and initialization
  */
@@ -36,7 +36,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id$")
+RCSID("$Id: ed.defns.c,v 3.36 2000/11/11 23:03:33 christos Exp $")
 
 #include "ed.h"
 

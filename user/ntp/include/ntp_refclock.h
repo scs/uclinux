@@ -65,7 +65,6 @@ struct clktype {
 	const char *clocktype;	/* long description */
 	const char *abbrev;	/* short description */
 };
-extern struct clktype clktypes[];
 
 /*
  * Configuration flag values

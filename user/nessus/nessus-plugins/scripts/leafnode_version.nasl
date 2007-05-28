@@ -3,41 +3,26 @@
 #
 # GPL...
 #
-# References:
-# From: support@securiteam.com
-# Subject: [NEWS] Vulnerabilities in Leafnode
-# To: list@securiteam.com
-# Date: 5 Jan 2003 10:54:19 +0200
-#
-# Date:	 Thu, 4 Sep 2003 03:19:04 +0200
-# From:	"Matthias Andree" <matthias.andree@gmx.de>
-# To:	leafnode-announce@lists.sourceforge.net, bugtraq@securityfocus.com, 
-#         vulnwatch@vulnwatch.org
-# Subject: leafnode 1.9.3 - 1.9.41 security announcement SA-2003-01
-#
 
 if(description)
 {
  script_id(11517);
+ script_cve_id("CVE-2002-1661");
  script_bugtraq_id(6490);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.11 $");
 
  name["english"] = "Leafnode denials of service";
  script_name(english:name["english"]);
- 
+ # Generic description is not used in security_hole calls
  desc["english"] = "
 According to its version number that Nessus read in the banner, 
-your Leafnode NNTP server is vulnerable to a denial of service:
-it may go into an infinite loop with 100% CPU use when an article 
-that has been crossposted to several groups, one of which is the 
-prefix of another, and when this article is then requested by its 
-Message-ID.
+your Leafnode NNTP server is vulnerable to a denial of service.
 
 ** Note that Nessus did not check the actual flaw and
 ** relied upon the banner, so this may be a false positive.
 
 Risk factor : Medium
-Solution: upgrade it to 1.9.42 or later";
+Solution: upgrade it to 1.9.48 or later";
 
  script_description(english:desc["english"]);
  
@@ -50,7 +35,7 @@ Solution: upgrade it to 1.9.42 or later";
  family["english"] = "General";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes");
+ script_dependencie("nntpserver_detect.nasl");
  script_require_ports("Services/nntp", 119);
 
  exit(0);
@@ -78,8 +63,23 @@ if (! b)
 if ("Leafnode" >< b)
 {
   if (ereg(string: b, pattern: "version +1\.9\.2[0-9]"))
-    security_hole(port);
-  else if (ereg(string: b, pattern: "version +1\.9\.([3-9]|[1-3][0-9]|4[01])[^0-9]"))
+  {
+    report = "
+According to its version number that Nessus read in the banner, 
+your Leafnode NNTP server is vulnerable to a denial of service:
+it may go into an infinite loop with 100% CPU use when an article 
+that has been crossposted to several groups, one of which is the 
+prefix of another, and when this article is then requested by its 
+Message-ID.
+
+** Note that Nessus did not check the actual flaw and
+** relied upon the banner, so this may be a false positive.
+
+Risk factor : Medium
+Solution: upgrade it to 1.9.48 or later";
+    security_warning(port: port, data: report);
+  }
+  else if (ereg(string: b, pattern: "version +1\.9\.([3-9]|[1-3][0-9]|4[0-7])[^0-9]"))
   {
     report="
 According to its version number that Nessus read in the banner, 
@@ -91,8 +91,8 @@ never come.
 ** relied upon the banner, so this may be a false positive.
 
 Risk factor : Low
-Solution: upgrade it to 1.9.42 or later";
-     security_hole(port: port, data: report);
+Solution: upgrade it to 1.9.48 or later";
+     security_warning(port: port, data: report);
   }
 
   # Better double check this old version, although this is not strictly
@@ -109,7 +109,7 @@ spool under certain circumstances.
 ** relied upon the banner, so this may be a false positive.
 
 Risk factor : Medium
-Solution: upgrade it to 1.9.30 or later";
-     security_hole(port: port, data: report);
+Solution: upgrade it to 1.9.48 or later";
+     security_warning(port: port, data: report);
   }
 }

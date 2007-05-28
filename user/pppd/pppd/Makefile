@@ -13,6 +13,11 @@ ifeq ($(CONFIG_USER_FLATFSD_FLATFSD),y)
   CFLAGS += -DPATH_ETC_CONFIG
 endif
 
+ifeq ($(CONFIG_USER_PPPD_WITH_PAM),y)
+  CFLAGS += -DUSE_PAM
+  EXTRALIBS += -lpam $(LIBCRYPT) -ldl
+endif
+
 MPPE=$(CONFIG_USER_PPPD_WITH_MPPE)
 #DYNAMIC=y
 #CBCP_SUPPORT=y
@@ -63,10 +68,6 @@ endif
 
 ifeq ($(LIBCDIR),glibc/build)
 EXTRALIBS += -lutil
-endif
-ifeq ($(LIBCDIR),uClibc)
-EXTRALIBS += -lutil
-CFLAGS += -D__UC_LIBC__
 endif
 
 all:

@@ -1,4 +1,4 @@
-/*	$OpenBSD: readconf.h,v 1.55 2003/09/01 18:15:50 markus Exp $	*/
+/*	$OpenBSD: readconf.h,v 1.68 2005/12/06 22:38:27 reyk Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -21,15 +21,19 @@
 /* Data structure for representing a forwarding request. */
 
 typedef struct {
-	u_short	  port;		/* Port to forward. */
-	char	 *host;		/* Host to connect. */
-	u_short	  host_port;	/* Port to connect on host. */
+	char	 *listen_host;		/* Host (address) to listen on. */
+	u_short	  listen_port;		/* Port to forward. */
+	char	 *connect_host;		/* Host to connect. */
+	u_short	  connect_port;		/* Port to connect on connect_host. */
 }       Forward;
 /* Data structure for representing option data. */
+
+#define MAX_SEND_ENV	256
 
 typedef struct {
 	int     forward_agent;	/* Forward authentication agent. */
 	int     forward_x11;	/* Forward X11 display. */
+	int     forward_x11_trusted;	/* Trust Forward X11 display. */
 	char   *xauth_location;	/* Location for xauth program */
 	int     gateway_ports;	/* Allow remote connects to forwarded ports. */
 	int     use_privileged_port;	/* Don't use privileged port if false. */
@@ -52,7 +56,7 @@ typedef struct {
 	int     compression;	/* Compress packets in both directions. */
 	int     compression_level;	/* Compression level 1 (fast) to 9
 					 * (best). */
-	int     keepalives;	/* Set SO_KEEPALIVE. */
+	int     tcp_keep_alive;	/* Set SO_KEEPALIVE. */
 	LogLevel log_level;	/* Level for logging. */
 
 	int     port;		/* Port to connect. */
@@ -60,7 +64,7 @@ typedef struct {
 	int     connection_attempts;	/* Max attempts (seconds) before
 					 * giving up */
 	int     connection_timeout;	/* Max time (seconds) before
-				 	 * aborting connection attempt */
+					 * aborting connection attempt */
 	int     number_of_password_prompts;	/* Max number of password
 						 * prompts. */
 	int     cipher;		/* Cipher to use. */
@@ -99,17 +103,42 @@ typedef struct {
 	int	enable_ssh_keysign;
 	int	rekey_limit;
 	int	no_host_authentication_for_localhost;
+	int	identities_only;
+	int	server_alive_interval;
+	int	server_alive_count_max;
+
+	int     num_send_env;
+	char   *send_env[MAX_SEND_ENV];
+
+	char	*control_path;
+	int	control_master;
+
+	int	hash_known_hosts;
+
+	int	tun_open;	/* tun(4) */
+	int     tun_local;	/* force tun device (optional) */
+	int     tun_remote;	/* force tun device (optional) */
+
+	char	*local_command;
+	int	permit_local_command;
+
 }       Options;
 
+#define SSHCTL_MASTER_NO	0
+#define SSHCTL_MASTER_YES	1
+#define SSHCTL_MASTER_AUTO	2
+#define SSHCTL_MASTER_ASK	3
+#define SSHCTL_MASTER_AUTO_ASK	4
 
 void     initialize_options(Options *);
 void     fill_default_options(Options *);
-int	 read_config_file(const char *, const char *, Options *);
+int	 read_config_file(const char *, const char *, Options *, int);
+int	 parse_forward(Forward *, const char *);
 
 int
 process_config_line(Options *, const char *, char *, const char *, int, int *);
 
-void	 add_local_forward(Options *, u_short, const char *, u_short);
-void	 add_remote_forward(Options *, u_short, const char *, u_short);
+void	 add_local_forward(Options *, const Forward *);
+void	 add_remote_forward(Options *, const Forward *);
 
 #endif				/* READCONF_H */

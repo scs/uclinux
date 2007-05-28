@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(11463);
- script_version ("$Revision: 1.2 $");
- script_bugtraq_id(6501, 6502, 6257, 5844, 5842, 4964);
- script_cve_id("CAN-2003-0012", "CAN-2003-0013", "CAN-2002-1198", "CAN-2002-1197", "CAN-2002-1196");
+ script_bugtraq_id(4964, 5842, 5843, 5844, 6257, 6501, 6502);
+ script_version ("$Revision: 1.8 $");
+ script_cve_id("CVE-2003-0012", "CVE-2003-0013", "CVE-2002-1198", "CVE-2002-1197", "CVE-2002-1196");
  
 
  name["english"] = "Bugzilla Multiple Flaws";
@@ -24,7 +24,7 @@ version number, is vulnerable to various flaws that may let
 an attacker execute arbitrary commands on this host
 
 Solution : Upgrade to 2.14.5, 2.16.2 or 2.17.3
-Risk factor : Serious";
+Risk factor : High";
 
 
 
@@ -55,8 +55,8 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 version = get_kb_item(string("www/", port, "/bugzilla/version"));

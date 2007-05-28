@@ -12,7 +12,10 @@
 if(description)
 {
  script_id(10986);
- script_version("$Revision: 1.4 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-t-0008");
+ script_bugtraq_id(3064);
+ script_version("$Revision: 1.7 $");
+ script_cve_id("CVE-2001-0554");
 
  name["english"] = "CSCdw19195";
 

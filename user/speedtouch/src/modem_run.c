@@ -27,7 +27,7 @@
 *  If you try to download the microcode twice, you will get tons of
 *  timeout errors.
 *
-*  $Id$
+*  $Id: modem_run.c,v 1.44 2004/06/03 23:29:27 papillau Exp $
 */
 
 #ifndef _MODEM_RUN_C_

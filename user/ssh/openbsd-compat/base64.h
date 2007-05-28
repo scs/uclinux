@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: base64.h,v 1.6 2003/08/29 16:59:52 mouring Exp $ */
 
 /*
  * Copyright (c) 1996 by Internet Software Consortium.

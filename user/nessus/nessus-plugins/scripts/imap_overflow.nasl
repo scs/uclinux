@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10125);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(130);
+ script_version ("$Revision: 1.17 $");
  script_cve_id("CVE-1999-0005");
  name["english"] = "Imap buffer overflow";
  name["francais"] = "Dépassement de buffer dans imap";
@@ -81,10 +81,16 @@ if(get_port_state(port))
 	
   send(socket:soc, data:data);
   buf = recv_line(socket:soc, length:1024);
-  if(!buf){
-  	security_hole(port);
-	set_kb_item(name:"imap/overflow", value:TRUE);
+  if(!buf)
+  {
+	close (soc);
+	soc = open_sock_tcp(port);
+        if (!soc)
+	{
+	  	security_hole(port);
+		set_kb_item(name:"imap/overflow", value:TRUE);
 	}
+  }
   close(soc);
  }
 }

@@ -7,8 +7,8 @@
 if(description)
 {
   script_id(10424);
- script_version ("$Revision: 1.9 $");
- script_bugtraq_id(1253);
+  script_bugtraq_id(1253);
+ script_version ("$Revision: 1.10 $");
   script_cve_id("CVE-2000-0448");
   name["english"] = "NAI Management Agent leaks info";
   script_name(english:name["english"]);

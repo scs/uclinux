@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10754);
- script_cve_id("CAN-1999-0508");
- script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-1999-0508");
+ script_version ("$Revision: 1.10 $");
  
  
  name["english"] = "Cisco password not set";
@@ -46,6 +46,7 @@ Risk factor : High";
 }
 
 
+include('telnet_func.inc');
 
 function test_cisco(password, port)
 {
@@ -53,7 +54,7 @@ function test_cisco(password, port)
 
  if(soc)
  {
-  r = telnet_init(soc);
+  r = telnet_negotiate(socket:soc);
   r = recv(socket:soc, length:4096);
   send(socket:soc, data:string(password, "\r\n"));
   r = recv(socket:soc, length:4096);
@@ -68,6 +69,9 @@ function test_cisco(password, port)
 port = get_kb_item("Services/telnet");
 if(!port)port = 23;
 if(!get_port_state(port))exit(0);
+
+banner = get_telnet_banner(port:port);
+if ( ! banner || "User Access Verification" >!< banner ) exit(0);
 
 
 test_cisco(password:"", port:port);

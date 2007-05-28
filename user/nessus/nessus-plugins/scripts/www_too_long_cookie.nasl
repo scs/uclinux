@@ -13,7 +13,8 @@
 if(description)
 {
  script_id(11077);
- script_version ("$Revision: 1.11 $");
+ script_cve_id("CVE-1999-0071");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "HTTP Cookie overflow";
  script_name(english:name["english"]);
  
@@ -54,8 +55,8 @@ Risk factor : High";
 
 include ("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 if (http_is_dead(port: port)) exit(0);
 
@@ -66,7 +67,7 @@ if(! soc) exit(0);
 # Slightly modified :-)
 r = http_get(item:"/", port: port);
 send(socket:soc, data: r);
-h = http_recv_headers(soc);
+h = http_recv_headers2(socket:soc);
 r = http_recv_body(socket: soc, headers:h);
 close(soc);
 

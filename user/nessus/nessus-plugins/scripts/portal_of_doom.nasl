@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10186);
- script_version ("$Revision: 1.16 $");
- script_cve_id("CAN-1999-0660");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-0660");
  name["english"] = "Portal of Doom";
  name["francais"] = "Portal of Doom";
  script_name(english:name["english"], francais:name["francais"]);
@@ -75,13 +75,16 @@ Facteur de risque : Elevé.";
  family["francais"] = "Backdoors";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes");
- 
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 #
 # The script code starts here
 #
+
+include('global_settings.inc');
+if ( ! thorough_tests ) exit(0);
 
 port = 10167;
 if(get_udp_port_state(port))

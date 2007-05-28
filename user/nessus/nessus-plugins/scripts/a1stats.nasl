@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10669);
- script_cve_id("CAN-2001-0561");
  script_bugtraq_id(2705);
- script_version("$Revision: 1.13 $");
+ script_cve_id("CVE-2001-0561");
+ script_version("$Revision: 1.19 $");
  
  name["english"] = "A1Stats Traversal";
  name["francais"] = "A1Stats";
@@ -23,7 +23,7 @@ GET /cgi-bin/a1disp*.cgi?/../../../../etc/passwd
 
 Solution : Delete the 'a1disp.cgi' script.
 
-Risk factor : Medium/High";
+Risk factor : High";
 
  desc["francais"] = "Le CGI 'a1disp' permet à un 
 pirate de lire n'importe quel fichier sur la machine cible
@@ -31,7 +31,7 @@ au travers de la commande :
 
 GET /cgi-bin/a1disp*.cgi?/../../../../etc/passwd
 
-Facteur de risque : Moyen/Elevé
+Facteur de risque : Elevé
 
 Solution : Supprimez cette page";
 
@@ -52,6 +52,7 @@ Solution : Supprimez cette page";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "http_version.nasl");
   script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -70,8 +71,8 @@ function check(str)
   return(0);
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {

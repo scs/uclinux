@@ -33,6 +33,9 @@
 #include "hi_norm.h"
 #include "snort_httpinspect.h"
 
+#include "snort.h"
+#include "profiler.h"
+
 /*
 **  Defines for preprocessor initialization
 */
@@ -64,6 +67,12 @@ extern HttpUri UriBufs[URI_COUNT];
 */
 HTTPINSPECT_GLOBAL_CONF GlobalConf;
 
+#ifdef PERF_PROFILING
+PreprocStats hiPerfStats;
+PreprocStats hiDetectPerfStats;
+int hiDetectCalled = 0;
+#endif
+
 /*
 **  NAME
 **    HttpInspect::
@@ -81,8 +90,10 @@ HTTPINSPECT_GLOBAL_CONF GlobalConf;
 **
 **  @return void
 */
-static void HttpInspect(Packet *p)
+static void HttpInspect(Packet *p, void *context)
 {
+    PROFILE_VARS;
+
     /*
     **  IMPORTANT:
     **  This is where we initialize any variables that can impact other
@@ -103,8 +114,7 @@ static void HttpInspect(Packet *p)
         return;
     }
 
-    if(!(p->preprocessors & PP_HTTPINSPECT))
-        return;
+    PREPROC_PROFILE_START(hiPerfStats);
 
     /*
     **  Pass in the configuration and the packet.
@@ -113,6 +123,25 @@ static void HttpInspect(Packet *p)
 
     p->uri_count = 0;
     UriBufs[0].decode_flags = 0;
+
+    /* XXX:
+     * NOTE: this includes the HTTPInspect directly
+     * calling the detection engine - 
+     * to get the true HTTPInspect only stats, have another
+     * var inside SnortHttpInspect that tracks the time
+     * spent in Detect().
+     * Subtract the ticks from this if iCallDetect == 0
+     */
+    PREPROC_PROFILE_END(hiPerfStats);
+#ifdef PERF_PROFILING
+    if (hiDetectCalled)
+    {
+        hiPerfStats.ticks -= hiDetectPerfStats.ticks;
+        /* And Reset ticks to 0 */
+        hiDetectPerfStats.ticks = 0;
+        hiDetectCalled = 0;
+    }
+#endif
 
     return;
 }
@@ -243,7 +272,7 @@ static void HttpInspectInit(u_char *args)
         /*
         **  Add HttpInspect into the preprocessor list
         */
-        AddFuncToPreprocList(HttpInspect);
+        AddFuncToPreprocList(HttpInspect, PRIORITY_APPLICATION, PP_HTTPINSPECT);
 
         /*
         **  Remember to add any cleanup functions into the appropriate
@@ -251,6 +280,10 @@ static void HttpInspectInit(u_char *args)
         */
 
         siFirstConfig = 0;
+
+#ifdef PERF_PROFILING
+        RegisterPreprocessorProfile("httpinspect", &hiPerfStats, 0, &totalPerfStats);
+#endif
     }
     
     return;
@@ -278,6 +311,7 @@ void SetupHttpInspect()
 {
     RegisterPreprocessor(GLOBAL_KEYWORD, HttpInspectInit);
     RegisterPreprocessor(SERVER_KEYWORD, HttpInspectInit);
+    AddFuncToConfigCheckList(HttpInspectCheckConfig);
 
     DEBUG_WRAP(DebugMessage(DEBUG_HTTPINSPECT, "Preprocessor: HttpInspect is "
                 "setup . . .\n"););

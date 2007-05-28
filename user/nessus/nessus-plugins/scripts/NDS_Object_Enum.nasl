@@ -23,27 +23,41 @@
 # See if "Security equal to admin" can be enumerated.
 #
 
+ desc["english"] = "
+Synopsis :
+
+Remote directory server leaks information.
+
+Description :
+
+This host is a Novell Netware (eDirectory) server, and has browse
+rights on the PUBLIC object.  
+
+It is possible to enumerate all NDS objects, including users, with 
+crafted queries.  An attacker can use this to gain information about
+this host.
+
+Solution : 
+
+The NDS object PUBLIC should not have Browse rights the tree should
+be restricted to authenticated users only.  
+
+Removing Browse rights from the object will fix this issue. If this
+is an external system it is recommended that access 
+to port 524 be blocked from the Internet.
+
+Risk factor :
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
+
+
 if(description)
 {
  script_id(10988);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.7 $");
  name["english"] = "Netware NDS Object Enumeration";
  script_name(english:name["english"]);
- 
- desc["english"] = "This host is a Novell Netware 
-server, and has browse rights on the PUBLIC object.  
-It is possible to enumerate all NDS objects, including 
-users, with crafted queries.  An attacker can use 
-this to gain information about this host.
-
-Solution: The NDS object PUBLIC should not have Browse 
-rights; the tree should be restricted to 
-authenticated users only.  Removing Browse rights 
-from the object will fix this issue.  If this is 
-an external system it is recommended that access 
-to port 524 be blocked from the Internet.
-
-Risk factor : Low";
  
  script_description(english:desc["english"]);
  
@@ -274,8 +288,18 @@ if(get_port_state(port))
 			{
 				if(strlen(report_users) > 0)
 					report = string(report, "NDS Users: ", report_users);
+
+report = 
+"It was possible to gather the following information about the 
+remote host : 
+
+" + report;
+				 report = string (desc["english"],
+					"\n\nPlugin output :\n\n",
+					report);
+
 				
-				security_warning(port:port, data:report);
+				security_note(port:port, data:report);
 			}
 		}
 		

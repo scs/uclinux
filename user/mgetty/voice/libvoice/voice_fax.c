@@ -2,7 +2,7 @@
  * This file is only temporarily needed until the fax part and the voice
  * part are better integrated
  *
- * $Id$
+ * $Id: voice_fax.c,v 1.6 2001/12/17 22:32:01 gert Exp $
  *
  */
 

@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: helper.c,v 1.34.2.18 2005/03/26 02:50:53 hno Exp $
  *
  * DEBUG: section 84    Helper process maintenance
  * AUTHOR: Harvest Derived?
@@ -100,9 +100,9 @@ helperOpenServers(helper * hlp)
 	    continue;
 	}
 	hlp->n_running++;
+	hlp->n_active++;
 	srv = cbdataAlloc(helper_server);
 	srv->pid = x;
-	srv->flags.alive = 1;
 	srv->index = k;
 	srv->rfd = rfd;
 	srv->wfd = wfd;
@@ -125,6 +125,7 @@ helperOpenServers(helper * hlp)
 	if (wfd != rfd)
 	    commSetNonBlocking(wfd);
 	comm_add_close_handler(rfd, helperServerFree, srv);
+	commSetSelect(srv->rfd, COMM_SELECT_READ, helperHandleRead, srv, 0);
     }
     hlp->last_restart = squid_curtime;
     safe_free(shortname);
@@ -178,9 +179,9 @@ helperStatefulOpenServers(statefulhelper * hlp)
 	    continue;
 	}
 	hlp->n_running++;
+	hlp->n_active++;
 	srv = cbdataAlloc(helper_stateful_server);
 	srv->pid = x;
-	srv->flags.alive = 1;
 	srv->flags.reserved = 0;
 	srv->stats.submits = 0;
 	srv->index = k;
@@ -207,6 +208,7 @@ helperStatefulOpenServers(statefulhelper * hlp)
 	if (wfd != rfd)
 	    commSetNonBlocking(wfd);
 	comm_add_close_handler(rfd, helperStatefulServerFree, srv);
+	commSetSelect(srv->rfd, COMM_SELECT_READ, helperStatefulHandleRead, srv, 0);
     }
     hlp->last_restart = squid_curtime;
     safe_free(shortname);
@@ -363,17 +365,16 @@ helperStats(StoreEntry * sentry, helper * hlp)
 	srv = link->data;
 	tt = 0.001 * tvSubMsec(srv->dispatch_time,
 	    srv->flags.busy ? current_time : srv->answer_time);
-	storeAppendPrintf(sentry, "%7d\t%7d\t%7d\t%11d\t%c%c%c%c\t%7.3f\t%7d\t%s\n",
+	storeAppendPrintf(sentry, "%7d\t%7d\t%7d\t%11d\t%c%c%c\t%7.3f\t%7d\t%s\n",
 	    srv->index + 1,
 	    srv->rfd,
 	    srv->pid,
 	    srv->stats.uses,
-	    srv->flags.alive ? 'A' : ' ',
 	    srv->flags.busy ? 'B' : ' ',
 	    srv->flags.closing ? 'C' : ' ',
 	    srv->flags.shutdown ? 'S' : ' ',
 	    tt < 0.0 ? 0.0 : tt,
-	    (int) srv->offset,
+	    srv->offset,
 	    srv->request ? log_quote(srv->request->buf) : "(none)");
     }
     storeAppendPrintf(sentry, "\nFlags key:\n\n");
@@ -412,18 +413,17 @@ helperStatefulStats(StoreEntry * sentry, statefulhelper * hlp)
     for (link = hlp->servers.head; link; link = link->next) {
 	srv = link->data;
 	tt = 0.001 * tvSubMsec(srv->dispatch_time, current_time);
-	storeAppendPrintf(sentry, "%7d\t%7d\t%7d\t%11d\t%c%c%c%c%c\t%7.3f\t%7d\t%s\n",
+	storeAppendPrintf(sentry, "%7d\t%7d\t%7d\t%11d\t%c%c%c%c\t%7.3f\t%7d\t%s\n",
 	    srv->index + 1,
 	    srv->rfd,
 	    srv->pid,
 	    srv->stats.uses,
-	    srv->flags.alive ? 'A' : ' ',
 	    srv->flags.busy ? 'B' : ' ',
 	    srv->flags.closing ? 'C' : ' ',
 	    srv->flags.reserved ? 'R' : ' ',
 	    srv->flags.shutdown ? 'S' : ' ',
 	    tt < 0.0 ? 0.0 : tt,
-	    (int) srv->offset,
+	    srv->offset,
 	    srv->request ? log_quote(srv->request->buf) : "(none)");
     }
     storeAppendPrintf(sentry, "\nFlags key:\n\n");
@@ -444,19 +444,21 @@ helperShutdown(helper * hlp)
 	helper_server *srv;
 	srv = link->data;
 	link = link->next;
-	if (!srv->flags.alive) {
-	    debug(84, 3) ("helperShutdown: %s #%d is NOT ALIVE.\n",
+	if (srv->flags.shutdown) {
+	    debug(84, 3) ("helperShutdown: %s #%d is already shut down\n",
 		hlp->id_name, srv->index + 1);
 	    continue;
 	}
+	hlp->n_active--;
+	assert(hlp->n_active >= 0);
 	srv->flags.shutdown = 1;	/* request it to shut itself down */
-	if (srv->flags.busy) {
-	    debug(84, 3) ("helperShutdown: %s #%d is BUSY.\n",
-		hlp->id_name, srv->index + 1);
-	    continue;
-	}
 	if (srv->flags.closing) {
 	    debug(84, 3) ("helperShutdown: %s #%d is CLOSING.\n",
+		hlp->id_name, srv->index + 1);
+	    continue;
+	}
+	if (srv->flags.busy) {
+	    debug(84, 3) ("helperShutdown: %s #%d is BUSY.\n",
 		hlp->id_name, srv->index + 1);
 	    continue;
 	}
@@ -476,11 +478,13 @@ helperStatefulShutdown(statefulhelper * hlp)
     while (link) {
 	srv = link->data;
 	link = link->next;
-	if (!srv->flags.alive) {
-	    debug(84, 3) ("helperStatefulShutdown: %s #%d is NOT ALIVE.\n",
+	if (srv->flags.shutdown) {
+	    debug(84, 3) ("helperStatefulShutdown: %s #%d is already shut down.\n",
 		hlp->id_name, srv->index + 1);
 	    continue;
 	}
+	hlp->n_active--;
+	assert(hlp->n_active >= 0);
 	srv->flags.shutdown = 1;	/* request it to shut itself down */
 	if (srv->flags.busy) {
 	    debug(84, 3) ("helperStatefulShutdown: %s #%d is BUSY.\n",
@@ -576,10 +580,12 @@ helperServerFree(int fd, void *data)
     hlp->n_running--;
     assert(hlp->n_running >= 0);
     if (!srv->flags.shutdown) {
+	hlp->n_active--;
+	assert(hlp->n_active >= 0);
 	debug(84, 0) ("WARNING: %s #%d (FD %d) exited\n",
 	    hlp->id_name, srv->index + 1, fd);
-	if (hlp->n_running <= hlp->n_to_start / 2) {
-	    debug(80, 0) ("Too few %s processes are running", hlp->id_name);
+	if (hlp->n_active <= hlp->n_to_start / 2) {
+	    debug(80, 0) ("Too few %s processes are running\n", hlp->id_name);
 	    if (hlp->last_restart > squid_curtime - 30)
 		fatalf("The %s helpers are crashing too rapidly, need help!\n", hlp->id_name);
 	    debug(80, 0) ("Starting new helpers\n");
@@ -614,10 +620,12 @@ helperStatefulServerFree(int fd, void *data)
     hlp->n_running--;
     assert(hlp->n_running >= 0);
     if (!srv->flags.shutdown) {
+	hlp->n_active--;
+	assert(hlp->n_active >= 0);
 	debug(84, 0) ("WARNING: %s #%d (FD %d) exited\n",
 	    hlp->id_name, srv->index + 1, fd);
-	if (hlp->n_running <= hlp->n_to_start / 2) {
-	    debug(80, 0) ("Too few %s processes are running", hlp->id_name);
+	if (hlp->n_active <= hlp->n_to_start / 2) {
+	    debug(80, 0) ("Too few %s processes are running\n", hlp->id_name);
 	    if (hlp->last_restart > squid_curtime - 30)
 		fatalf("The %s helpers are crashing too rapidly, need help!\n", hlp->id_name);
 	    debug(80, 0) ("Starting new helpers\n");
@@ -652,6 +660,7 @@ helperHandleRead(int fd, void *data)
 	comm_close(fd);
 	return;
     }
+    commSetSelect(srv->rfd, COMM_SELECT_READ, helperHandleRead, srv, 0);
     srv->offset += len;
     srv->buf[srv->offset] = '\0';
     r = srv->request;
@@ -676,10 +685,14 @@ helperHandleRead(int fd, void *data)
 	if (cbdataValid(r->data))
 	    r->callback(r->data, srv->buf);
 	helperRequestFree(r);
-	if (!srv->flags.shutdown)
+	if (!srv->flags.shutdown) {
 	    helperKickQueue(hlp);
-    } else {
-	commSetSelect(srv->rfd, COMM_SELECT_READ, helperHandleRead, srv, 0);
+	} else if (!srv->flags.closing) {
+	    int wfd = srv->wfd;
+	    srv->flags.closing = 1;
+	    srv->wfd = -1;
+	    comm_close(wfd);
+	}
     }
 }
 
@@ -704,6 +717,7 @@ helperStatefulHandleRead(int fd, void *data)
 	comm_close(fd);
 	return;
     }
+    commSetSelect(srv->rfd, COMM_SELECT_READ, helperStatefulHandleRead, srv, 0);
     srv->offset += len;
     srv->buf[srv->offset] = '\0';
     r = srv->request;
@@ -730,8 +744,6 @@ helperStatefulHandleRead(int fd, void *data)
 	    debug(84, 1) ("StatefulHandleRead: no callback data registered\n");
 	}
 	helperStatefulRequestFree(r);
-    } else {
-	commSetSelect(srv->rfd, COMM_SELECT_READ, helperStatefulHandleRead, srv, 0);
     }
 }
 
@@ -822,7 +834,7 @@ GetFirstAvailable(helper * hlp)
 	srv = n->data;
 	if (srv->flags.busy)
 	    continue;
-	if (!srv->flags.alive)
+	if (srv->flags.shutdown)
 	    continue;
 	return srv;
     }
@@ -843,7 +855,7 @@ StatefulGetFirstAvailable(statefulhelper * hlp)
 	    continue;
 	if (srv->flags.reserved)
 	    continue;
-	if (!srv->flags.alive)
+	if (srv->flags.shutdown)
 	    continue;
 	if ((hlp->IsAvailable != NULL) && (srv->data != NULL) && !(hlp->IsAvailable(srv->data)))
 	    continue;
@@ -873,10 +885,6 @@ helperDispatch(helper_server * srv, helper_request * r)
 	NULL,			/* Handler */
 	NULL,			/* Handler-data */
 	NULL);			/* free */
-    commSetSelect(srv->rfd,
-	COMM_SELECT_READ,
-	helperHandleRead,
-	srv, 0);
     debug(84, 5) ("helperDispatch: Request sent to %s #%d, %d bytes\n",
 	hlp->id_name, srv->index + 1, (int) strlen(r->buf));
     srv->stats.uses++;
@@ -911,10 +919,6 @@ helperStatefulDispatch(helper_stateful_server * srv, helper_stateful_request * r
 	NULL,			/* Handler */
 	NULL,			/* Handler-data */
 	NULL);			/* free */
-    commSetSelect(srv->rfd,
-	COMM_SELECT_READ,
-	helperStatefulHandleRead,
-	srv, 0);
     debug(84, 5) ("helperStatefulDispatch: Request sent to %s #%d, %d bytes\n",
 	hlp->id_name, srv->index + 1, (int) strlen(r->buf));
     srv->stats.uses++;

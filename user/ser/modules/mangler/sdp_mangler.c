@@ -1,7 +1,7 @@
 /*
  * mangler module
  *
- * $Id$
+ * $Id: sdp_mangler.c,v 1.7.4.2 2004/07/02 15:32:55 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

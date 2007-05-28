@@ -1,5 +1,5 @@
 /* 
- * $Id$ 
+ * $Id: case_from.h,v 1.4 2002/11/18 19:08:16 janakj Exp $ 
  *
  * From Header Field Name Parsing Macros
  *

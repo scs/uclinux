@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10454);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(1403);
- script_cve_id("CAN-2000-0589");
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-2000-0589");
  name["english"] = "sawmill password";
  name["francais"] = "sawmill password";
  script_name(english:name["english"], francais:name["francais"]);
@@ -42,7 +42,8 @@ Ce script lit le mot de passe sawmill distant et le déchiffre";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "sawmill.nasl", "http_version.nasl");
  script_require_keys("Sawmill/readline");
- script_require_ports(8987);
+ script_require_ports("Services/www", 80, 8987);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -57,8 +58,8 @@ method = get_kb_item("Sawmill/method");
 if(method == "cgi")
 {
  cgi = 1;
- port = get_kb_item("Services/www");
- if(!port) port = 80;
+ port = get_http_port(default:80);
+
 }
 else
 {
@@ -119,7 +120,7 @@ foreach dir (cgi_dirs())
 		  "used by this software. An attacker can use this password to reconfigure\n",
 		  "your sawmill daemon.\n\n",
 		  "Solution : upgrade\n",
-		  "Risk factor : Serious");
+		  "Risk factor : High");
  security_hole(port:port, data:report);		  
   
  }

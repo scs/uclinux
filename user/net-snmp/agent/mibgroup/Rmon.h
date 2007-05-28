@@ -19,10 +19,7 @@
  ******************************************************************/
 
 /*
- * $Log$
- * Revision 1.2  2005/07/25 04:44:34  magicyang
- * New user folder check in
- *
+ * $Log: Rmon.h,v $
  * Revision 5.0  2002/04/20 07:30:00  hardaker
  * cvs file version number change
  *

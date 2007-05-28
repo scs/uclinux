@@ -12,7 +12,7 @@ function udp_ping_pong(port, data, answer)
 {
   local_var	s, r1, r2;
 
-  if (! get_udp_port_state(port)) return 0;
+  if (!port || ! get_udp_port_state(port)) return 0;
 
   if (! answer)  # or isnull(answer)?
   {

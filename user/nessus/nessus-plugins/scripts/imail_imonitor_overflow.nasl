@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10124);
- script_version ("$Revision: 1.17 $");
  script_bugtraq_id(502, 504, 506, 914);
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-1999-1046", "CVE-2000-0056");
  name["english"] = "Imail's imonitor buffer overflow";
  name["francais"] = "Dépassement de buffer dans imonitor de imail";
@@ -72,7 +72,7 @@ if( safe_checks())
  banner = get_http_banner(port:port);
  if( banner == NULL ) exit(0);
 
- if(egrep(pattern:"^Server: IMail_Monitor/([0-5]\.|6\.[01][^0-9])", string:banneer))
+ if(egrep(pattern:"^Server: IMail_Monitor/([0-5]\.|6\.[01][^0-9])", string:banner))
 	security_hole(port);
  exit(0);
 }

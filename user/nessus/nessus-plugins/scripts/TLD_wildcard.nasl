@@ -22,20 +22,39 @@
 ####
 #
 # I also found that:
-# .PW redirects to wfb.dnsvr.com = 216.98.141.250 or 65.125.231.178
+# .PW	216.98.141.250 65.125.231.178
+# .PW	69.20.61.189 (new redirection)
 # .TD   146.101.245.154
 # 
+# .IO	194.205.62.102
+# .TK	217.115.203.20	62.129.131.34
+#       62.129.131.38 81.29.204.106 195.20.32.104 209.172.59.193 217.119.57.19
+# .TD	www.nic.td.	62.23.61.4
+# .MP	202.128.12.162 66.135.225.102 (new redirection?)
+# .PW	 69.20.61.189  (new redirection?)
+# .CX	203.119.12.43  (new redirection?)
+# .NU   62.4.64.119 69.25.75.72 212.181.91.6
+# .CD	64.94.29.64
+# .PH	203.167.64.64	(new redirection)
+# .SH	216.117.170.115 (new)
+# .ST	195.178.186.40
+# .TM	216.117.170.115 (new)
+# .VG	64.94.29.14
+# .WS	64.70.19.33 (new)
+
 
 if(description)
 {
  script_id(11840);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.6 $");
  name["english"] = "Exclude toplevel domain wildcard host";
  script_name(english:name["english"]);
 
  desc["english"] = "
 The host you were trying to scan is blacklisted: its address is known to
-be returned by a wildcard on some top level domains.
+be returned by a wildcard on some top level domains, or it's the nessus.org
+web server.
+
 You probably mistyped its name.
 
 Risk factor : None";
@@ -73,6 +92,63 @@ excluded["216.35.187.246"] = 1;
 excluded["216.98.141.250"] = 1;
 excluded["65.125.231.178"] = 1;
 excluded["146.101.245.154"] = 1;
+#
+excluded["194.205.62.102"] = 1;
+excluded["202.128.12.162"] = 1;
+excluded["217.115.203.20"] = 1;
+excluded["62.129.131.34"]  = 1;
+excluded["62.23.61.4"] = 1;
+excluded["69.20.61.189"] = 1;
+excluded["203.119.12.43"] = 1;
+excluded["206.241.31.20"] = 1;
+excluded["206.241.31.21"] = 1;
+excluded["206.241.31.22"] = 1;
+excluded["206.241.31.23"] = 1;
+excluded["206.241.31.24"] = 1;
+excluded["206.241.31.25"] = 1;
+excluded["206.241.31.26"] = 1;
+excluded["206.241.31.27"] = 1;
+excluded["206.241.31.28"] = 1;
+excluded["66.240.11.100"] = 1;
+excluded["66.240.11.101"] = 1;
+excluded["66.240.11.102"] = 1;
+excluded["66.240.11.103"] = 1;
+excluded["66.240.11.104"] = 1;
+excluded["66.240.11.105"] = 1;
+excluded["66.240.11.106"] = 1;
+excluded["66.240.11.107"] = 1;
+excluded["66.240.11.108"] = 1;
+excluded["66.240.11.109"] = 1;
+excluded["66.240.11.110"] = 1;
+excluded["63.105.37.100"] = 1;
+excluded["63.105.37.101"] = 1;
+excluded["63.105.37.102"] = 1;
+excluded["63.105.37.103"] = 1;
+excluded["63.105.37.104"] = 1;
+excluded["63.105.37.105"] = 1;
+excluded["63.105.37.106"] = 1;
+excluded["63.105.37.107"] = 1;
+excluded["63.105.37.108"] = 1;
+excluded["63.105.37.109"] = 1;
+excluded["63.105.37.110"] = 1;
+#
+excluded["64.94.29.64"] = 1;
+excluded["66.135.225.102"] = 1;
+excluded["62.4.64.119"] = 1;
+excluded["69.25.75.72"] = 1;
+excluded["212.181.91.6"] = 1;
+excluded["203.167.64.64"] = 1;
+excluded["69.20.61.189"] = 1;
+excluded["216.117.170.115"] = 1;
+excluded["195.178.186.40"] = 1;
+excluded["62.129.131.38"] = 1;
+excluded["81.29.204.106"] = 1;
+excluded["195.20.32.104"] = 1;
+excluded["209.172.59.193"] = 1;
+excluded["217.119.57.19"] = 1;
+excluded["216.117.170.115"] = 1;
+excluded["64.94.29.14"] = 1;
+excluded["64.70.19.33"] = 1;
 
 
 target = get_host_ip();

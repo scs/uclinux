@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11651);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "Batalla Naval Overflow";
  
@@ -29,7 +29,7 @@ this service is running with.
 An attacker may exploit this flaw to gain a shell on this host.
 
 Solution : None at this time
-Risk Factor : High";
+Risk factor : High";
 		 
 	 	     
  script_description(english:desc["english"],
@@ -43,16 +43,17 @@ Risk Factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security",
  		  francais:"Ce script est Copyright (C) 2002 Tenable Network Security");
 		  
- script_require_ports("Services/unknown", 1995);
+ script_require_ports("Services/gnome_batalla", 1995);
+ script_dependencie("find_service2.nasl");
  exit(0);
 }
 
 include("misc_func.inc");
 
-port = get_kb_item("Services/unknown");
-if(port && known_service(port:port))exit(0);
+port = get_kb_item("Services/gnome_batalla");
 if(!port)port = 1995;
 
+if ( ! get_port_state(port) ) exit(0);
 
 soc = open_sock_tcp(port);
 if(!soc)exit(0);
@@ -61,7 +62,6 @@ r = recv_line(socket:soc, length:4096);
 close(soc);
 
 if("Gnome Batalla" >!< r)exit(0);
-else { register_service(proto:"batalla_server", port:port); } 
 
 if(safe_checks())
 {

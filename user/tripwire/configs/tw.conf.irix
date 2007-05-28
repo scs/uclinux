@@ -21,7 +21,7 @@ the important files for an Irix 4.0.x installation, although
 no guarantees for people with different software packages installed
 than I have. 
 --------------------------------------------------------------------
-# $Id$
+# $Id: tw.conf.irix,v 1.1 1994/08/04 03:44:17 gkim Exp $
 #
 # tripwire.config
 # Generic version for IRIX 4.x

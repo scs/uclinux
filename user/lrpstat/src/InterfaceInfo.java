@@ -16,9 +16,9 @@
 // Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
 
-// $Revision$
-// $Author$
-// $Header$
+// $Revision: 1.13 $
+// $Author: hejl $
+// $Header: /home/cvs/lrpStat/src/InterfaceInfo.java,v 1.13 2002/03/12 22:19:13 hejl Exp $
 
 /**
  * Class that stores the information received from the host about a specific network device

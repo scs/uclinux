@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10527);
- script_version ("$Revision: 1.7 $");
- script_cve_id("CVE-2000-0920");
  script_bugtraq_id(1770);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2000-0920");
  
  
  name["english"] = "Boa file retrieval";
@@ -28,7 +28,7 @@ will return /etc/passwd.
 Solution: upgrade to a later version of the
 server found at http://www.boa.org
 
-Risk factor : Serious";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -52,8 +52,8 @@ Risk factor : Serious";
 #
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
  soc = http_open_socket(port);

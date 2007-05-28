@@ -11,22 +11,36 @@ if(description)
 {
  script_id(11690);
  script_bugtraq_id(7764);
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.3 $");
  
  name["english"] = "JBoss source disclosure";
  script_name(english:name["english"]);
  
  desc["english"] = "
-It is possible to make the remote web server disclose the source
-code of its JSP pages by appending a NULL character to the name
-of the JSP files requested (ie: foo.jsp%00).
+Synopsis :
 
-An attacker may use this flaw to get the source code of your CGIs
-and possibly obtain passwords and other relevant information about
-this host.
+The remote web server is vulnerable to information disclosure attacks.
 
-Solution : None at this time
-Risk Factor : Serious";
+Description :
+
+It is possible to make the remote web server disclose the source code of
+its JSP pages by appending a NULL character to the name of the JSP files
+requested (eg, 'foo.jsp%00').  An attacker may use this flaw to get the
+source code of scripts on the remote host and possibly obtain passwords
+and other sensitive information.
+
+See also :
+
+http://www.securityfocus.com/archive/1/323430
+
+Solution : 
+
+None at this time
+
+Risk factor : 
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
 
  script_description(english:desc["english"]);
  

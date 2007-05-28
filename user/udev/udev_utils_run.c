@@ -1,6 +1,4 @@
 /*
- * udev_utils_run.c - execute programs from udev and read its output
- *
  * Copyright (C) 2004-2005 Kay Sievers <kay.sievers@vrfy.org>
  *
  *	This program is free software; you can redistribute it and/or modify it
@@ -14,7 +12,7 @@
  * 
  *	You should have received a copy of the GNU General Public License along
  *	with this program; if not, write to the Free Software Foundation, Inc.,
- *	675 Mass Ave, Cambridge, MA 02139, USA.
+ *	51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  */
 
@@ -151,10 +149,14 @@ int run_program(const char *command, const char *subsystem,
 			close(devnull);
 		} else
 			err("open /dev/null failed: %s", strerror(errno));
-		if (outpipe[WRITE_END] > 0)
+		if (outpipe[WRITE_END] > 0) {
 			dup2(outpipe[WRITE_END], STDOUT_FILENO);
-		if (errpipe[WRITE_END] > 0)
+			close(outpipe[WRITE_END]);
+		}
+		if (errpipe[WRITE_END] > 0) {
 			dup2(errpipe[WRITE_END], STDERR_FILENO);
+			close(errpipe[WRITE_END]);
+		}
 		execv(argv[0], argv);
 
 		/* we should never reach this */

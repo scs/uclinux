@@ -3,7 +3,7 @@
 # faxspool - sample script how to spool fax input data to a spool
 #            directory, creating jobs to be run by faxrunq
 #
-# sccsid: $Id$ (c) Gert Doering
+# sccsid: $Id: faxspool.in,v 4.31 2005/02/24 16:28:26 gert Exp $ (c) Gert Doering
 #
 # syntax: faxspool [flags] <phone-number> <job(s)>
 #
@@ -25,10 +25,7 @@
 # 15.9.93: use g3cat to concatenate header and page (GD)
 #  3.10.93: use "hp2hig3" for hp-pcl4-files (cl)
 # 19.10.93: phone directories (caz)
-# $Log$
-# Revision 1.1  2006/08/05 07:27:14  vapier
-# import from upstream uClinux
-#
+# $Log: faxspool.in,v $
 # Revision 4.31  2005/02/24 16:28:26  gert
 # fix whole user/USER mess
 #   - drop $USER.  $user is only used for fax header substitution now.

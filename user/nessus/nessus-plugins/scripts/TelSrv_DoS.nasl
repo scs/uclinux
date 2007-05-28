@@ -10,9 +10,9 @@
 
 if(description) {
     script_id(10474);
- script_version ("$Revision: 1.11 $");
+    script_bugtraq_id(1478);
+ script_version ("$Revision: 1.14 $");
     script_cve_id("CVE-2000-0665");
- script_bugtraq_id(1478);
     name["english"] = "GAMSoft TelSrv 1.4/1.5 Overflow";
     script_name(english:name["english"]);
 
@@ -25,7 +25,7 @@ from administering this host remotely.
 
 Solution : Contact your vendor for a patch.
 
-Risk factor : Medium";
+Risk factor : High";
 
      desc["francais"] = "
 Il est possible de faire planter le serveur telnet
@@ -34,7 +34,7 @@ distant en utilisant un nom de login de 4550 charactères.
 Un pirate peut utiliser ce problème pour vous empecher
 d'administrer ce serveur à distance.
 
-Facteur de risque : Moyen
+Facteur de risque : Elevé 
 Solution : contactez votre vendeur et demandez un patch";
 
 
@@ -54,6 +54,7 @@ Solution : contactez votre vendeur et demandez un patch";
     script_require_ports("Services/telnet", 23);
     exit(0);
 }
+include('telnet_func.inc');
 port = get_kb_item("Services/telnet");
 if(!port)port = 23;
 if(!get_port_state(port))exit(0);
@@ -61,7 +62,7 @@ if(!get_port_state(port))exit(0);
 soc = open_sock_tcp(port);
 if(soc)
 {
-  r = telnet_init(soc);
+  r = telnet_negotiate(socket:soc);
   r2 = recv(socket:soc, length:4096);
   r = r + r2;
   if(r)
@@ -77,7 +78,7 @@ if(soc)
   soc2 = open_sock_tcp(port);
   if(!soc2)security_hole(port);
   else {
-        r = telnet_init(soc2);
+        r = telnet_negotiate(socket:soc2);
 	r2 = recv(socket:soc2, length:4096);
 	r = r + r2;
         close(soc2);

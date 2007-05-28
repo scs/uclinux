@@ -187,7 +187,7 @@ ExtFunc
 char * plug_get_path(desc)
  struct arglist * desc;
 {
- return store_fetch_path(desc);
+ return _plug_get_path(desc);
 }
 
 
@@ -410,7 +410,7 @@ ExtFunc
 struct arglist * plug_get_required_keys(desc)
  struct arglist * desc;
 {
- return store_fetch_required_keys(desc);
+ return _plug_get_required_keys(desc);
 }
 
 
@@ -444,7 +444,7 @@ ExtFunc
 struct arglist * plug_get_excluded_keys(desc)
  struct arglist * desc;
 {
- return store_fetch_excluded_keys(desc);
+ return _plug_get_excluded_keys(desc);
 }
 
 ExtFunc 
@@ -478,7 +478,7 @@ ExtFunc
 struct arglist * plug_get_required_ports(desc)
  struct arglist * desc;
 {
- return store_fetch_required_ports(desc);
+ return _plug_get_required_ports(desc);
 }
 
 
@@ -513,7 +513,7 @@ ExtFunc
 struct arglist * plug_get_required_udp_ports(desc)
  struct arglist * desc;
 {
- return store_fetch_required_udp_ports(desc);
+ return _plug_get_required_udp_ports(desc);
 }
  
 
@@ -535,6 +535,8 @@ void plug_set_dep(desc, depname)
  }
 }
 
+
+
 ExtFunc
 struct arglist * _plug_get_deps(desc)
  struct arglist * desc;
@@ -547,7 +549,10 @@ ExtFunc
 struct arglist * plug_get_deps(desc)
  struct arglist * desc;
 {
+ return _plug_get_deps(desc);
+#if 0
  return store_fetch_dependencies(desc);
+#endif
 }
 
 ExtFunc
@@ -555,8 +560,7 @@ void plug_set_timeout(desc, timeout)
  struct arglist * desc; 
  int timeout;
 {
-    arg_add_value(desc, "TIMEOUT", ARG_INT,
-    			sizeof(int), (void *)timeout);
+    arg_add_value(desc, "TIMEOUT", ARG_INT, sizeof(int), (void *)timeout);
 }
 
 
@@ -572,7 +576,10 @@ ExtFunc
 int plug_get_timeout(desc)
  struct arglist * desc;
 {
+ return _plug_get_timeout(desc);
+#if 0
  return store_fetch_timeout(desc);
+#endif
 }
 
 		
@@ -635,7 +642,8 @@ ExtFunc
 char * plug_get_name(desc)
  struct arglist * desc;
 {
- return store_fetch_name(desc);
+ return _plug_get_name(desc);
+ /*return store_fetch_name(desc);*/
 }
 
 
@@ -814,12 +822,7 @@ void host_add_port_proto(args, portnum, state, proto)
  char port_s[255];
  
  snprintf(port_s, sizeof(port_s), "Ports/%s/%d", proto, portnum);
- if(!plug_get_key(args, port_s))
- {
-  plug_set_key(args, port_s, ARG_INT, (void*)1);
-  snprintf(port_s, sizeof(port_s), "/tmp/Ports/%s/%d", proto, portnum);
-  plug_set_key(args, port_s, ARG_INT, (void*)1);
- }
+ plug_set_key(args, port_s, ARG_INT, (void*)1);
 }
 
 
@@ -868,7 +871,7 @@ unscanned_ports_as_closed(prefs)
            
 ExtFunc
 int kb_get_port_state_proto(kb, prefs, portnum, proto)
- struct arglist * kb;
+ struct kb_item ** kb;
  struct arglist * prefs;
  int portnum;
  char * proto;
@@ -883,11 +886,11 @@ int kb_get_port_state_proto(kb, prefs, portnum, proto)
   
  /* Check that we actually scanned the port */
  
- if(!strcmp(proto, "tcp") && arg_get_value(kb, "Host/scanned") == NULL){
+ if(!strcmp(proto, "tcp") && kb_item_get_int(kb, "Host/scanned") <= 0){
 	return unscanned_ports_as_closed(prefs);
 	}
 
- else if(!strcmp(proto, "udp") && arg_get_value(kb, "Host/udp_scanned") == NULL)
+ else if(!strcmp(proto, "udp") && kb_item_get_int(kb, "Host/udp_scanned") <= 0)
        {
         return 1;
       }
@@ -906,10 +909,10 @@ int kb_get_port_state_proto(kb, prefs, portnum, proto)
  /* Ok, we scanned it. What is its state ? */
  
  snprintf(port_s, sizeof(port_s), "Ports/%s/%d", proto, portnum);
- if(arg_get_value(kb, port_s) == NULL)
-  return 0;
- else
-  return 1;
+ if(kb_item_get_int(kb, port_s) > 0 )
+    return 1;
+  else
+   return 0;
 }
 
 ExtFunc
@@ -918,7 +921,7 @@ int host_get_port_state_proto(plugdata, portnum, proto)
  int portnum;
  char * proto;
 { 
- struct arglist * kb = arg_get_value(plugdata, "key");
+ struct kb_item ** kb = plug_get_kb(plugdata);
  struct arglist * prefs = arg_get_value(plugdata, "preferences");
  
  return kb_get_port_state_proto(kb, prefs, portnum, proto);
@@ -981,17 +984,7 @@ mark_successful_plugin(desc)
 
  bzero(data, sizeof(data));
  snprintf(data, sizeof(data), "Success/%d", id);
- if( plug_get_key(desc, data) == NULL )
-  plug_set_key(desc, data, ARG_INT, (void*)1);
- 
- 
- /*
-  * KB entries starting by /tmp/ are not saved
-  */
- snprintf(data, sizeof(data), "/tmp/Success/%d", id);
- if(!plug_get_key(desc, data))
-  plug_set_key(desc, data, ARG_INT, (void*)1);
-  
+ plug_set_key(desc, data, ARG_INT,(void*)1);
 }
 
 static void
@@ -1001,58 +994,15 @@ mark_post(desc, action, content)
  char * content;
 {
  char entry_name[255];
- int num_post = (int)arg_get_value(desc, "NUM_POST");
  
-#ifdef DEBUG_DIFF_SCAN
- printf("===>MARK_POST\n");
-#endif
-
  if(strlen(action) > (sizeof(entry_name) - 20))
   return;
   
- snprintf(entry_name, sizeof(entry_name), "SentData/%d/%s/%d", plug_get_id(desc), action, num_post);
+ snprintf(entry_name, sizeof(entry_name), "SentData/%d/%s", plug_get_id(desc), action);
  plug_set_key(desc, entry_name, ARG_STRING, content);
 }
 
-static int
-post_sent_already(desc, action, content)
- struct arglist * desc;
- char * action;
- char * content;
-{
- char * trunc_name = emalloc(strlen(action) + 50);
- int num_post = (int)arg_get_value(desc, "NUM_POST");
- struct arglist * key = (struct arglist *)arg_get_value(desc, "key");
  
- snprintf(trunc_name, strlen(action) + 50, "SentData/%d/%s/%d", plug_get_id(desc), action,num_post);
- while(key && key->next)
- {
-#ifdef DEBUG_DIFF_SCAN
-  printf("%s & %s\n", trunc_name, key->name);
-#endif  
-  if(!strcmp(trunc_name, key->name))
-  {
-#ifdef DEBUG_DIFF_SCAN
-   printf("Compare %s and %s\n", trunc_name, key->name);
-#endif   
-   if(banner_diff(content, key->value))
-   {
-#ifdef DEBUG_DIFF_SCAN
-    printf("DIFF\n");
-#endif   
-    efree(&trunc_name);
-    return 0;
-   }
-   else return 1;
-  }
-  key = key->next;
- }
- efree(&trunc_name);
- return 0;
-}
- 
-
-
  
 /* Pluto 24.6.00: reduced to one, and left the orig in place */
 void 
@@ -1075,24 +1025,12 @@ proto_post_wrapped(desc, port, proto, action, what)
  char * xref;
  int do_send = 1;
  int i;
- int num_post = (int)arg_get_value(desc, "NUM_POST");
+ char ack;
+ int n = 0, e, l;
+  
+    
+ if( action == NULL )action = plug_get_description(desc);
  
- if(!num_post)
- {
-  arg_add_value(desc, "NUM_POST", ARG_INT, sizeof(int), (void*)1);
-  num_post = 1;
- }
- else
- {
-  arg_set_value(desc, "NUM_POST", sizeof(int), (void*)++num_post);
- }
- 
- 
- 
- if(!action)
- {
-  action = plug_get_description(desc);
- }
  
  cve = plug_get_cve_id(desc);
  bid = plug_get_bugtraq_id(desc);
@@ -1160,7 +1098,7 @@ proto_post_wrapped(desc, port, proto, action, what)
  buffer = emalloc( 1024 + len );
  if(caps->ntp_11) {
    char idbuffer[32];
-   char	*svc_name = (char*)nessus_get_svc_name(port, proto);
+   const char	*svc_name = nessus_get_svc_name(port, proto);
    if (caps->scan_ids) { 
      if (plug_get_id(desc) == 0) {
        *idbuffer = '\0';
@@ -1192,45 +1130,10 @@ proto_post_wrapped(desc, port, proto, action, what)
  }
  
  
- /*
-  * XXX only send data to the client if the option
-  * DIFF_SCAN is not set (or if the plugin used to
-  * not be successful [that is, if there is no Success/<id>
-  * key in the KB]).
-  */
- if(arg_get_value(desc, "DIFF_SCAN"))
- {
-#ifdef DEBUG_DIFF_SCAN  
-  fprintf(stderr, "** DIFF_SCAN enabled\n");
-#endif  
-  
-  if(!post_sent_already(desc, what, action))
- 	 {
-	  mark_post(desc, what, action);
- 	 }
-  else do_send = 0;
- }
-  else
-    mark_post(desc, what, action);
 
- 
- if(do_send != 0)
- {
-  char ack;
-  int n = 0, e, l;
-  
-  soc = (int)arg_get_value(desc, "SOCKET");
-  l = strlen(buffer);
-  while (n != l)
-  {
-   e = send(soc, buffer + n, l - n, 0);
-   if(e <= 0)
-    break;
-   else
-    n += e;
-  }
-  recv(soc, &ack, 1, 0);
- }
+mark_post(desc, what, action); 
+soc = (int)arg_get_value(desc, "SOCKET");
+internal_send(soc, buffer, INTERNAL_COMM_MSG_TYPE_DATA);
  
  /*
   * Mark in the KB that the plugin was sucessful
@@ -1391,7 +1294,9 @@ void _add_plugin_preference(prefs, p_name, name, type, defaul)
 
  pref = emalloc(strlen(p_name)+10+strlen(type)+strlen(cname));
  sprintf(pref, "%s[%s]:%s", p_name, type, cname);
- arg_add_value(prefs, pref, ARG_STRING, strlen(defaul), estrdup(defaul));
+ if ( arg_get_value(prefs, pref) == NULL )
+  arg_add_value(prefs, pref, ARG_STRING, strlen(defaul), estrdup(defaul));
+
  efree(&cname);
  efree(&pref);
 }
@@ -1492,54 +1397,125 @@ get_plugin_preference_fname(desc, filename)
 }
 
 
-ExtFunc
-void plug_set_key(args, name, type, value)
+void * plug_get_fresh_key(args, name, type)
+ struct arglist * args;
+ char * name;
+ int * type;
+{
+ struct arglist * globals = arg_get_value(args, "globals");
+ int soc = (int)arg_get_value(globals, "global_socket");
+ int e;
+ char * buf = NULL;
+ int bufsz = 0;
+ int msg;
+ 
+ if ( name == NULL || type == NULL ) return NULL;
+ *type = -1;
+
+ e = internal_send(soc, name, INTERNAL_COMM_MSG_TYPE_KB|INTERNAL_COMM_KB_GET);
+ if(e < 0){
+        fprintf(stderr, "[%d] plug_get_fresh_key:internal_send(%d): %s\n",getpid(), soc,name, strerror(errno));
+	goto err;
+	}
+
+ internal_recv(soc, &buf, &bufsz, &msg); 
+ if ( ( msg & INTERNAL_COMM_MSG_TYPE_KB ) == 0  )
+ {
+        fprintf(stderr, "[%d] plug_get_fresh_key:internal_send(%d): Unexpected message %d",getpid(), soc, msg);
+	goto err;
+ }
+
+ if ( msg & INTERNAL_COMM_KB_ERROR ) return NULL;
+ if ( msg & INTERNAL_COMM_KB_SENDING_STR )
+ {
+  char * ret = estrdup(buf);
+  *type = ARG_STRING;
+  efree(&buf);
+  return ret;
+ } 
+ else if ( msg & INTERNAL_COMM_KB_SENDING_INT )
+ {
+  int ret;
+  *type = ARG_INT;
+  ret = atoi(buf);
+  efree(&buf);
+  return (void*)ret;
+ }
+err:
+ if ( buf != NULL )efree(&buf);
+ return NULL; 
+} 
+
+static void plug_set_replace_key(args, name, type, value, replace)
  struct arglist * args;
  char * name;
  int type;
  void * value;
+ int replace;
 {
- int pip = (int)arg_get_value(args, "pipe");
+ struct kb_item ** kb = plug_get_kb(args);
+ struct arglist * globals = arg_get_value(args, "globals");
+ int soc = (int)arg_get_value(globals, "global_socket");
  char * str = NULL;
+ int msg;
+ 
+ 
 #ifdef DEBUG
  printf("set key %s -> %d\n", name, value);
 #endif 
  
- if(!name || !value)return;
+ if( name == NULL || value == NULL )return;
+ 
  switch(type)
  {
   case ARG_STRING :
+   kb_item_add_str(kb, name, value);
    value = addslashes(value);
    str = emalloc(strlen(name)+strlen(value)+10);
    sprintf(str, "%d %s=%s;\n", ARG_STRING, name, (char *)value);
    efree(&value);
    break;
   case ARG_INT :
+   kb_item_add_int(kb, name, (int)value);
    str = emalloc(strlen(name)+20);
-   sprintf(str, "%d %s=%d;\n", ARG_STRING, name, (int)value);
+   sprintf(str, "%d %s=%d;\n", ARG_INT, name, (int)value);
    break;
  }
  if(str)
  {
-   int len = strlen(str);
-   int sent = 0;
-   
-   while(sent < len)
-   {
-    int e;
-    e = send(pip, str+sent, len-sent, 0);
-    if(e <= 0){
-        fprintf(stderr, "[%d] plug_set_key:send(%d)['%s'](%d out of %d): %s\n",getpid(), pip,str, sent, len, strerror(errno));
-	break;
+   int e;
+   if ( replace != 0 )
+    msg = INTERNAL_COMM_MSG_TYPE_KB|INTERNAL_COMM_KB_REPLACE;
+   else
+    msg = INTERNAL_COMM_MSG_TYPE_KB;
+
+   e = internal_send(soc, str, msg);
+    if(e < 0){
+        fprintf(stderr, "[%d] plug_set_key:internal_send(%d)['%s']: %s\n",getpid(), soc,str, strerror(errno));
 	}
-    sent+=e;
-   }
    efree(&str);
   }
 } 
 
 
+ExtFunc void plug_set_key(args, name, type, value)
+ struct arglist * args;
+ char * name;
+ int type;
+ void * value;
+{
+ plug_set_replace_key(args, name, type, value, 0);
+}
 
+
+ExtFunc void plug_replace_key(args, name, type, value)
+ struct arglist * args;
+ char * name;
+ int type;
+ void * value;
+{
+ plug_set_replace_key(args, name, type, value, 1);
+}
 ExtFunc void
 scanner_add_port(args, port, proto)
  struct arglist * args;
@@ -1548,8 +1524,8 @@ scanner_add_port(args, port, proto)
 {
  ntp_caps* caps = arg_get_value(args, "NTP_CAPS");
  char * buf;
- char *svc_name = (char*)nessus_get_svc_name(port, proto);
- char * hn = (char*)plug_get_hostname(args);
+ const char *svc_name = nessus_get_svc_name(port, proto);
+ const char * hn = plug_get_hostname(args);
  int len;
  int soc;
  struct arglist * globs;
@@ -1570,7 +1546,7 @@ scanner_add_port(args, port, proto)
  {
    char port_s[255];
    snprintf(port_s, sizeof(port_s), "Ports/%s/%d", proto, port);
-   if(plug_get_key(args, port_s))do_send = 0;
+   if(kb_item_get_int(plug_get_kb(args), port_s) > 0) do_send = 0;
  }
 
 
@@ -1590,17 +1566,18 @@ scanner_add_port(args, port, proto)
    
  if(do_send)
  {
- soc = (int)arg_get_value(args, "SOCKET");
- globs = emalloc(sizeof(struct arglist));
- arg_add_value(globs, "global_socket", ARG_INT, sizeof(int), (void *)soc);
- arg_add_value(globs, "confirm", ARG_INT, sizeof(int), (void*)confirm);
- 
- auth_send(globs, buf);
- arg_free(globs);
+  soc = (int)arg_get_value(args, "SOCKET");
+  internal_send(soc, buf, INTERNAL_COMM_MSG_TYPE_DATA);
  }
  efree(&buf);
 }
 
+
+
+struct kb_item ** plug_get_kb(struct arglist * args)
+{
+ return (struct kb_item**)arg_get_value(args, "key");
+} 
 
 /*
  * plug_get_key() may fork(). We use this signal handler to kill
@@ -1665,104 +1642,208 @@ sig_chld( void(*fcn)(int) )
 
 
 void * 
-plug_get_key(args, name)
+plug_get_key(args, name, type)
  struct arglist * args;
  char * name;
+ int * type;
 {
- struct arglist * key = (struct arglist *)arg_get_value(args, "key");
- int type;
+ struct kb_item ** kb = plug_get_kb(args);
+ struct kb_item * res = NULL;
+ int sockpair[2];
+ int upstream = 0;
+ char * buf = NULL;
+ int bufsz = 0;
  
  
+ if ( type != NULL )
+	*type = -1;
  
- if(!key)return(NULL);
  
- type = arg_get_type(key, name);
- if(type >= 0)
+ if( kb == NULL )
+    return NULL;
+
+ res = kb_item_get_all(kb, name);
+ 
+ if ( res == NULL ) 
+    return NULL;
+
+ if ( res->next == NULL ) /* No fork - good */
  {
-  if(type == ARG_STRING)
-     {
-      return arg_get_value(key, name);
-     }
-   else if(type == ARG_INT)
-    return arg_get_value(key,name);
-  else if(type == ARG_ARGLIST)
-  {
-   struct arglist * value = arg_get_value(key, name);
-   sig_chld(plug_get_key_sigchld);
-   while(value && value->next)
-   {
-     int pid;  
-     if(!(pid = fork()))
-     {
-     /* so that different plugins do not use the same seed */  
-     srand48(getpid() + getppid() + time(NULL));
+  void * ret;
+  if(res->type == KB_TYPE_INT)
+    {
+    if( type != NULL ) *type = ARG_INT;
+    ret   = (void*)res->v.v_int;
+    }
+  else
+    {
+    if(type != NULL)*type = ARG_STRING;
+    ret   = (void*)res->v.v_str;
+    } 
+  kb_item_get_all_free(res);
+  return ret;
+ }
  
-     sig_term(_exit);
-     sig_alarm(_exit);
-     alarm(120);
-     arg_set_value(key, name, -1, value->value);
-     arg_set_type(key, name, value->type);
-     return value->value;
-     }
-    else
-     {
-      if(pid < 0)
+ 
+ /* More than  one value - we will fork() then */
+ sig_chld(plug_get_key_sigchld);
+ while( res != NULL )
+ {
+  pid_t pid;
+  socketpair(AF_UNIX, SOCK_STREAM, 0, sockpair);
+  if ( (pid = fork()) == 0 )
+  {
+   int tictac = 0;
+   int old, soc;
+   struct arglist * globals, * preferences = NULL;
+  
+   close(sockpair[0]);  
+   globals = arg_get_value(args, "globals");  
+   old = (int)arg_get_value(globals, "global_socket");
+   close(old);
+   soc = dup2(sockpair[1], 4);
+   close(sockpair[1]);
+   arg_set_value(globals, "global_socket", sizeof(int), (void*)soc);
+   arg_set_value(args, "SOCKET", sizeof(int), (void*)soc);
+
+   if ( globals != NULL ) preferences = arg_get_value(globals, "preferences");
+   if ( preferences != NULL )
+   { 
+    char * to = arg_get_value(preferences, "plugins_timeout");
+    if ( to != NULL )  tictac = atoi(to);
+   }
+
+   srand48(getpid() + getppid() + time(NULL));
+ 
+   sig_term(_exit);
+   sig_alarm(_exit);
+   alarm(120);
+
+
+   if ( res->type == KB_TYPE_INT )
+   {
+    int old_value = res->v.v_int;
+     kb_item_rm_all(kb, name); 
+     kb_item_add_int(kb, name, old_value);
+    if ( type != NULL )*type = ARG_INT;
+    return (void*)old_value;
+   }
+   else
+   {
+    char * old_value = estrdup(res->v.v_str);
+    kb_item_rm_all(kb, name); 
+    kb_item_add_str(kb, name, old_value);
+    if ( type != NULL ) *type = ARG_STRING;
+    efree(&old_value);
+    return kb_item_get_str(kb, name);
+   }
+  }
+  else if(pid < 0)
       {
        fprintf(stderr, "nessus-libraries:libnessus:plugutils.c:plug_get_key(): fork() failed : %s", strerror(errno));	      
        return NULL;
       }
-      else
+  else
       {
       int e;
       int status;
+      struct arglist * globals, * preferences = NULL;
+  
+      globals = arg_get_value(args, "globals");  
+      upstream = (int)arg_get_value(globals, "global_socket");
+      close(sockpair[1]);
       _plug_get_key_son = pid;
       sig_term(plug_get_key_sighand_term);
       for(;;)
       {
-      e = waitpid(pid,&status, 0);
-      if( e < 0 && errno == EINTR)
-         continue; 
-      else
-        if(e < 0 || WIFEXITED(status) != 0 || WIFSIGNALED(status) != 0)
-		break;
+      fd_set rd;
+      struct timeval tv;
+      int type;
+      do {
+      tv.tv_sec = 0;
+      tv.tv_usec = 100000;
+      FD_ZERO(&rd);
+      FD_SET(sockpair[0], &rd);
+      e = select ( sockpair[0] + 1, &rd, NULL, NULL, &tv);
+      } while ( e < 0 && errno == EINTR );
+      
+      if ( e > 0 )
+      {
+       e = internal_recv(sockpair[0], &buf, &bufsz, &type);
+       if (e < 0 || ( type & INTERNAL_COMM_MSG_TYPE_CTRL ) )
+	{
+         e = waitpid(pid,&status,WNOHANG);
+         _plug_get_key_son = 0;
+         close(sockpair[0]);
+         sig_term(_exit);
+	 break;
+	}
+       else internal_send(upstream, buf, type);
       }
-      _plug_get_key_son = 0;
-      sig_term(_exit);
-      }
-    }
-    value = value->next;
+     }
+     }
+   res = res->next;
    }
+   internal_send(upstream, NULL, INTERNAL_COMM_MSG_TYPE_CTRL | INTERNAL_COMM_CTRL_FINISHED);
    exit(0);
-  }
- }
- return NULL;
 }
 
-ExtFunc unsigned int 
+/*
+ * Don't always return the first open port, otherwise
+ * we might get bitten by OSes doing active SYN flood
+ * countermeasures. Also, avoid returning 80 and 21 as
+ * open ports, as many transparent proxies are acting for these...
+ */
+ExtFunc unsigned int
 plug_get_host_open_port(struct arglist * desc)
 {
- struct arglist * h = arg_get_value(desc, "key");
- char * str = "Ports/tcp/";
+ struct kb_item ** kb = plug_get_kb(desc);
  char * t;
  int port = 0;
+ struct kb_item * res, *k;
+ int open21 = 0, open80 = 0;
+#define MAX_CANDIDATES 16
+ u_short candidates[MAX_CANDIDATES];
+ int num_candidates = 0;
  
- while(h && h->next)
- {
-  if((strlen(h->name) > strlen(str)) && 
-     !strncmp(h->name, str, strlen(str))){
-     	t = h->name + strlen(str);
-	port = atoi(t);
-	/* 
-	 * Transparent proxies may run on these ports, so
-	 * we try to avoid them
-	 */
-	if((port != 21) && (port != 80))break;
-	}
-  h = h->next;	
- }
+ k = res = kb_item_get_pattern(kb, "Ports/tcp/*");
+ if ( res == NULL ) 
+    return 0;
+ else 
+    {
+     int ret;
+     char * s;
  
- return(port);
+     for(;;)
+     {
+      s = res->name + sizeof("Ports/tcp/") - 1;
+      ret = atoi(s);
+      if ( ret == 21 ) open21 = 1;
+      else if ( ret == 80 ) open80 = 1;
+      else  {
+                candidates[num_candidates++] = ret;
+                if ( num_candidates >= MAX_CANDIDATES ) break;
+	    }
+      res = res->next;
+      if ( res == NULL ) break;
+     }
+
+     kb_item_get_all_free(k);
+     if ( num_candidates != 0 )
+       return candidates[lrand48() % num_candidates];
+     else  
+          if (open21) return 21;
+     else  
+          if (open80) return 80;
+     else  
+          return 0;
+    }
+
+ /* Not reachable */
+ return 0;
 }
+
+
        
  
 /*
@@ -1775,10 +1856,10 @@ void plug_set_port_transport(args, port, tr)
      struct arglist * args;
      int		port, tr;
 {
-  static char	s[256];
+  char	s[256];
 
   snprintf(s, sizeof(s), "Transports/TCP/%d", port);
-  plug_set_key(args, s, ARG_INT, (void*) tr);
+  plug_set_key(args, s, ARG_INT, (void*)tr);
 }
 
 ExtFunc
@@ -1786,19 +1867,16 @@ int plug_get_port_transport(args, port)
      struct arglist * args;
      int		port;
 {
-  static char	s[256];
-  char * trp;
-  snprintf(s, sizeof(s), "Transports/TCP/%d", port);
+  char	s[256];
+  int trp;
   
-  trp = plug_get_key(args, s);
-  if(trp)
-   return atoi(trp);
-  else
-   return NESSUS_ENCAPS_IP;
-   /* 
-    * Change the above to '0' to make ultra-smart
-    * SSL negotation which may crash stuff
-    */
+  snprintf(s, sizeof(s), "Transports/TCP/%d", port);
+  trp = kb_item_get_int(plug_get_kb(args), s);
+  if (trp >= 0)
+    return trp;
+  else 
+    return NESSUS_ENCAPS_IP; /* Change this to 0 for ultra smart SSL negotiation, at the expense
+                                of possibly breaking stuff */
 }
 
 ExtFunc
@@ -1816,16 +1894,9 @@ plug_set_ssl_item(args, item, itemfname)
  char * item;
  char * itemfname;
 {
- static char s[256];
- struct arglist * key = (struct arglist*)arg_get_value(args, "key");
+ char s[256];
  snprintf(s, sizeof(s), "SSL/%s", item);
  plug_set_key(args, s, ARG_STRING, itemfname);
-
- /*
-  * Ugly hack - the KB is not updated before the next plugin call, 
-  * so we manually add this key
-  */
- arg_add_value(key, s, ARG_STRING, strlen(itemfname), estrdup(itemfname));
 }
 
 ExtFunc void
@@ -1893,7 +1964,7 @@ find_in_path(name, safe)
   /* Proposed by Devin Kowatch 
      If it's already an absolute path take it as is */
   if (name[0] == '/' && access(name, X_OK) == 0)
-    return name;
+    return name;	/* Invalid: we should remove everything after the last / */
 #endif
 
   if (buf == NULL)		/* Should we use a standard PATH here? */
@@ -1920,15 +1991,20 @@ find_in_path(name, safe)
       sprintf(p2, "/%s", name);
       if (access(cmd, X_OK) == 0)
 	{
-	  *p2 = '\0';
+	  struct stat	st;
+	  if (stat(cmd, &st) < 0)
+	    perror(cmd);
+	  else if (S_ISREG(st.st_mode))
+	    {
+	      *p2 = '\0';
 #if 0
-	  fprintf(stderr, "find_in_path: %s found in %s\n", name, cmd);
+	      fprintf(stderr, "find_in_path: %s found in %s\n", name, cmd);
 #endif
-	  return cmd;
+	      return cmd;
+	    }
 	}
 #if 0
-      else
-	fprintf(stderr, "find_in_path: No %s\n", cmd);
+	  fprintf(stderr, "find_in_path: No %s\n", cmd);
 #endif
     }
   return NULL;
@@ -1939,4 +2015,81 @@ is_shell_command_present(name)
  char * name;
 {
   return find_in_path(name, 0) != NULL;
+}
+
+
+
+ExtFunc int shared_socket_register ( struct arglist * args, int fd, char * name )
+{
+ int soc; 
+ int type;
+ unsigned int opt_len = sizeof(type);
+ int e;  
+ soc = (int)arg_get_value(args, "SOCKET");
+ if ( fd_is_stream(fd) )
+  fd = nessus_get_socket_from_connection(fd);
+
+
+ e = getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &opt_len);
+ if ( e < 0 )
+ {
+  fprintf(stderr, "shared_socket_register(): Not a socket! - %s\n", strerror(errno));
+  return -1;
+ }
+
+ internal_send(soc, name, INTERNAL_COMM_MSG_SHARED_SOCKET|INTERNAL_COMM_SHARED_SOCKET_REGISTER);
+ internal_send(soc, NULL, INTERNAL_COMM_MSG_SHARED_SOCKET|INTERNAL_COMM_SHARED_SOCKET_DORECVMSG);
+ send_fd(soc, fd);
+ return 0;
+}
+
+ExtFunc int shared_socket_acquire ( struct arglist * args, char * name )
+{
+ int soc; 
+ char * buf = NULL;
+ int bufsz = 0;
+ int msg;
+
+ soc = (int)arg_get_value(args, "SOCKET");
+
+ /* Wait forever until SHARED_SOCKET_ACQUIRE is true */
+ for ( ;; )
+ {
+ if ( internal_send(soc, name, INTERNAL_COMM_MSG_SHARED_SOCKET|INTERNAL_COMM_SHARED_SOCKET_ACQUIRE) < 0 ) break;
+ if ( internal_recv(soc, &buf, &bufsz, &msg) < 0 ) break;
+ if ( ( msg & INTERNAL_COMM_MSG_SHARED_SOCKET) == 0 )
+	{
+	 fprintf(stderr, "[%d] shared_socket_acquire(): unexpected message - %d\n", getpid(), msg);
+	 return -1;
+	}
+  if ( msg & INTERNAL_COMM_SHARED_SOCKET_ERROR )
+	 return -1;
+  else if ( msg & INTERNAL_COMM_SHARED_SOCKET_BUSY )
+	 sleep(1);
+  else if ( msg & INTERNAL_COMM_SHARED_SOCKET_DORECVMSG )
+  {
+   int fd = recv_fd(soc);
+   return fd;
+  }
+ }
+
+ /* Unreachable */
+ return -1;
+}
+ 
+
+ExtFunc int shared_socket_release ( struct arglist * args, char * name )
+{
+ int soc; 
+
+ soc = (int)arg_get_value(args, "SOCKET");
+ return internal_send(soc, name, INTERNAL_COMM_MSG_SHARED_SOCKET|INTERNAL_COMM_SHARED_SOCKET_RELEASE);
+}
+
+ExtFunc int shared_socket_destroy ( struct arglist * args, char * name )
+{
+ int soc; 
+
+ soc = (int)arg_get_value(args, "SOCKET");
+ return internal_send(soc, name, INTERNAL_COMM_MSG_SHARED_SOCKET|INTERNAL_COMM_SHARED_SOCKET_DESTROY);
 }

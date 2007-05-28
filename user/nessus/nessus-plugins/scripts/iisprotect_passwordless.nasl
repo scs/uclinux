@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11661);
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.4 $");
  
  name["english"] = "Unpassworded iiprotect administrative interface";
  script_name(english:name["english"]);
@@ -23,7 +23,7 @@ password protected. As a result, an attacker may perform administrative
 tasks without any authentication.
 
 Solution : Set a password for this page
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -50,8 +50,9 @@ include("http_keepalive.inc");
 
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( ! can_host_asp(port:port) ) exit(0);
+
 
 if(get_port_state(port))
 {

@@ -6,7 +6,7 @@
  * A first version was written by Russell King <rmk@ecs.soton.ac.uk>,
  * based on the ZyXEL 2864 driver.
  *
- * $Id$
+ * $Id: Multitech_2834.c,v 1.9 2005/03/13 17:27:46 gert Exp $
  *
  */
 

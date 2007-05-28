@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: nhelpr_funcs.c,v 1.3.4.1.2.3.2.1 2004/07/13 12:23:53 andrei Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

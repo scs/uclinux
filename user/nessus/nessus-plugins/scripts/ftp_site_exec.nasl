@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10090);
- script_version ("$Revision: 1.19 $");
  script_bugtraq_id(2241);
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-1999-0080",
  	 	"CVE-1999-0955"  # If vulnerable to the flaw above, it's 
 				 # automatically vulnerable to this one
@@ -73,6 +73,7 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
 
@@ -86,7 +87,7 @@ if(login)
 {
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
- if(ftp_log_in(socket:soc, user:login,pass:password))
+ if(ftp_authenticate(socket:soc, user:login,pass:password))
  {
  data = string("SITE exec /bin/sh -c /bin/id\n");
  send(socket:soc, data:data);

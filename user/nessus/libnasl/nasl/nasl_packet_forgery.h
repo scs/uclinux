@@ -60,4 +60,5 @@ tree_cell * nasl_tcp_ping(lex_ctxt *);
 
 tree_cell * nasl_send_packet(lex_ctxt *);
 tree_cell * nasl_pcap_next(lex_ctxt *);
+tree_cell * nasl_send_capture(lex_ctxt *);
 #endif

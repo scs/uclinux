@@ -22,7 +22,7 @@
 *  This file contains all needed instructions to "boot" a Speedtouch USB
 *  rev 1, 2 or 3 (but not 4). It's ARM code.
 *
-*  $Id$
+*  $Id: boot.v123.S,v 1.1 2004/02/15 14:48:05 edgomez Exp $
 */
 
 /* The free code is obtained assembling this file, relocating it at base

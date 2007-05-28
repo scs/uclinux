@@ -6,9 +6,9 @@
 if(description)
 {
  script_id(11096);
- script_version ("$Revision: 1.7 $");
  script_bugtraq_id(3901);
- script_cve_id("CAN-2002-0134");
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2002-0134");
  name["english"] = "Avirt gateway insecure telnet proxy";
  script_name(english:name["english"]);
  
@@ -55,7 +55,7 @@ Facteur de risque : Elevé";
 #
 # The script code starts here
 #
-
+include('telnet_func.inc');
 port = get_kb_item("Services/telnet");
 if(!port)port = 23;
 if (!get_port_state(port))  exit(0);
@@ -63,7 +63,7 @@ if (!get_port_state(port))  exit(0);
 soc = open_sock_tcp(port);
 if (!soc) exit(0);
 
-banner = telnet_init(soc);
+banner = telnet_negotiate(socket:soc);
 cmd = string("dos\r\n");
 send(socket:soc, data:cmd);
 res = recv(socket: soc, length: 512);

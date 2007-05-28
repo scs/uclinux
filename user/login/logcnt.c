@@ -12,22 +12,6 @@
 extern void access__attempted(const int denied, const char *const user);
 #else
 void access__attempted(const int denied, const char *const user) {
-#ifdef CONFIG_USER_FLATFSD_FLATFSD
-	void killProcess(const char *const pidfile, const int signo) {
-		pid_t pid = 0;
-		FILE *in;
-
-		if((in = fopen(pidfile, "r")) == NULL)
-			return;
-		if (fscanf(in, "%d", &pid) != 1) {
-			fclose(in);
-			return;
-		}
-		fclose(in);
-		if (pid)
-			kill(pid, signo);
-	}
-#endif
 	void set_count(const char *const user, const int count) {
 		FILE *f, *fnew;
 		char buf[50];
@@ -83,8 +67,9 @@ void access__attempted(const int denied, const char *const user) {
 		if (n >= max) {
 			system("/bin/logd message access attempt overrun!");
 			syslog(LOG_EMERG, "access attempt overrun!");
-#if CONFIG_USER_FLASHW_FLASHW
-			system("/bin/flashw GARBAGE /dev/flash/config");
+#if CONFIG_USER_FLATFSD_FLATFSD
+			if (system("exec flatfsd -i") != -1)
+				sleep(60); /* we should reboot while ehile, but just in case */
 #endif
 			system("/bin/reboot");
 		} else
@@ -131,7 +116,7 @@ bcom:		bump_count("*");
 		set_count("*", 0);
 	}
 #ifdef CONFIG_USER_FLATFSD_FLATFSD
-	killProcess("/var/run/flatfsd.pid", SIGUSR1);
+	system("exec flatfsd -s");
 #endif
 }
 #endif

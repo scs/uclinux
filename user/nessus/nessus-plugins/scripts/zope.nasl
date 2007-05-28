@@ -7,57 +7,48 @@
 if(description)
 {
  script_id(10447);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1354);
+ script_version ("$Revision: 1.16 $");
  script_cve_id("CVE-2000-0483");
  
  name["english"] = "Zope DocumentTemplate package problem";
- name["francais"] = "Problème dans le package DocumentTemplate de Zope";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The remote web server is Zope < 2.1.7
+Synopsis :
 
-There is a security problem in all releases
-prior to version 2.1.7 which can allow the
-contents of DTMLDocuments or DTMLMethods
-to be changed without forcing proper user
-authentication.
+The remote web server contains an application server that fails to
+protect stored content and code from modification by remote users. 
 
-Solution : Upgrade to Zope 2.1.7
-Risk factor : Serious";
+Description :
 
+The remote web server is Zope < 2.1.7.  There is a security problem in
+these versions that can allow the contents of DTMLDocuments or
+DTMLMethods to be changed without forcing proper user authentication. 
 
+See also : 
 
+http://mail.zope.org/pipermail/zope/2000-June/111952.html
+http://www.zope.org/Products/Zope/Hotfix_06_16_2000/security_alert
 
- desc["francais"] = "
-Le serveur web distant est Zope < 2.1.7
+Solution : 
 
-Il y a un problème de sécurité affectant toutes
-les releases de Zope inférieures à la version 2.1.7
-qui permet de changer le contenu de DTMLDocuments
-or DMTLMethods sans forcer l'utilisateur a se logguer
-correctement.
+Upgrade to Zope 2.1.7 or later.
 
-Solution : Mettez Zope à jour en version 2.1.7
-Facteur de risque : Sérieux";
+Risk factor : 
 
-
- script_description(english:desc["english"], francais:desc["francais"]);
+High / CVSS Base Score : 7 
+(AV:R/AC:L/Au:NR/C:P/A:P/I:P/B:N)";
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for Zope";
- summary["francais"] = "Vérifie la présence de Zope";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
- 
+ script_summary(english:summary["english"]); 
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2000 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/zope");
@@ -69,8 +60,8 @@ Facteur de risque : Sérieux";
 #
 
 include("http_func.inc");
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 banner = get_http_banner(port:port);

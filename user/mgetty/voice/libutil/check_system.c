@@ -4,7 +4,7 @@
  * Check, that the system we are running on has proper bit sizes and
  * does proper handling of right bit shift operations
  *
- * $Id$
+ * $Id: check_system.c,v 1.4 1998/09/09 21:07:09 gert Exp $
  *
  */
 

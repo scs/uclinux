@@ -40,11 +40,10 @@
 #include "util.h" 
 #include "parser.h"  /* why does parser.h define Add functions.. */
 #include "plugin_enum.h"
-#ifdef GIDS
 #include "checksum.h"
 #include "inline.h"
-#endif /* GIDS */
 
+#define MAX_PATTERN_SIZE 2048
 
 static void PayloadSearchInit(char *, OptTreeNode *, int);
 static void PayloadSearchListInit(char *, OptTreeNode *, int);
@@ -61,12 +60,10 @@ static void PayloadSearchRegex(char *, OptTreeNode *, int);
 static void PayloadSearchDistance(char *, OptTreeNode *, int);
 static void PayloadSearchWithin(char *, OptTreeNode *, int);
 static void PayloadSearchRawbytes(char *, OptTreeNode *, int);
-#ifdef GIDS
 static void PayloadReplaceInit(char *, OptTreeNode *, int);
 static PatternMatchData * ParseReplacePattern(char *, OptTreeNode *);
 int PayloadReplace(Packet *, struct _OptTreeNode *, OptFpList *, int
                          depth);
-#endif /* GIDS */
 static int uniSearchReal(char *data, int dlen, PatternMatchData *pmd, int nocase);
 
 static PatternMatchData * NewNode(OptTreeNode *, int);
@@ -76,12 +73,10 @@ int list_file_line;     /* current line being processed in the list file */
 int lastType = PLUGIN_PATTERN_MATCH;
 u_int8_t *doe_ptr;
 
-#ifdef GIDS
 int detect_depth;       /* depth to the first char of the match */
-#endif /* GIDS */
 
 extern HttpUri UriBufs[URI_COUNT]; /* the set of buffers that we are using to match against
-				      set in decode.c */
+                      set in decode.c */
 extern u_int8_t DecodeBuffer[DECODE_BLEN];
 
 extern char *file_name;
@@ -100,15 +95,12 @@ void SetupPatternMatch()
     RegisterPlugin("uricontent", PayloadSearchUri);
     RegisterPlugin("distance", PayloadSearchDistance);
     RegisterPlugin("within", PayloadSearchWithin);
-#ifdef GIDS
     RegisterPlugin("replace", PayloadReplaceInit);
-#endif /* GIDS */
 
     DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
                 "Plugin: PatternMatch Initialized!\n"););
 }
 
-#ifdef GIDS
 void PayloadReplaceInit(char *data, OptTreeNode * otn, int protocol)
 {
     PatternMatchData *idx;
@@ -129,7 +121,7 @@ void PayloadReplaceInit(char *data, OptTreeNode * otn, int protocol)
     test_idx = ParseReplacePattern(data, otn);
 #ifdef DEBUG
     printf("idx (%p) pattern_size (%d) replace_size (%d)\n", test_idx, 
-		    test_idx->pattern_size, test_idx->replace_size);
+            test_idx->pattern_size, test_idx->replace_size);
 #endif
     if (test_idx && test_idx->pattern_size != test_idx->replace_size)
     {
@@ -151,7 +143,7 @@ void PayloadReplaceInit(char *data, OptTreeNode * otn, int protocol)
 
 PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
 {
-    unsigned char tmp_buf[2048];
+    unsigned char tmp_buf[MAX_PATTERN_SIZE];
 
     /* got enough ptrs for you? */
     char *start_ptr;
@@ -171,7 +163,7 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
     PatternMatchData *ds_idx;
 
     /* clear out the temp buffer */
-    bzero(tmp_buf, 2048);
+    bzero(tmp_buf, MAX_PATTERN_SIZE);
 
     while(isspace((int)*rule))
         rule++;
@@ -186,7 +178,7 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
 
     if(start_ptr == NULL)
     {
-        FatalError("ERROR %s Line %d => Content data needs to be "
+        FatalError("ERROR %s Line %d => Replace data needs to be "
                    "enclosed in quotation marks (\")!\n",
                    file_name, file_line);
     }
@@ -199,7 +191,7 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
 
     if(end_ptr == NULL)
     {
-        FatalError("ERROR %s Line %d => Content data needs to be enclosed "
+        FatalError("ERROR %s Line %d => Replace data needs to be enclosed "
                    "in quotation marks (\")!\n", file_name, file_line);
     }
 
@@ -229,33 +221,41 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
     /* BEGIN BAD JUJU..... */
     while(idx < end_ptr)
     {
+        if (dummy_size >= MAX_PATTERN_SIZE-1)
+        {
+            /* Have more data to parse and pattern is about to go beyond end of buffer */
+            FatalError("ParsePattern() dummy "
+                    "buffer overflow, make a smaller "
+                    "pattern please! (Max size = %d)\n", MAX_PATTERN_SIZE-1);
+        }
+
         DEBUG_WRAP(DebugMessage(DEBUG_PARSER, "processing char: %c\n", *idx););
 
         switch(*idx)
         {
             case '|':
-		    
+            
                 DEBUG_WRAP(DebugMessage(DEBUG_PARSER, "Got bar... "););
-		
+        
                 if(!literal)
                 {
-			
+            
                     DEBUG_WRAP(DebugMessage(DEBUG_PARSER,
-					    "not in literal mode... "););
-		    
+                        "not in literal mode... "););
+            
                     if(!hexmode)
                     {
                         DEBUG_WRAP(DebugMessage(DEBUG_PARSER, 
-						"Entering hexmode\n"););
+                        "Entering hexmode\n"););
 
                         hexmode = 1;
                     }
                     else
                     {
-			    
+                
                         DEBUG_WRAP(DebugMessage(DEBUG_PARSER, 
-						"Exiting hexmode\n"););
-			
+                        "Exiting hexmode\n"););
+            
                         hexmode = 0;
                         pending = 0;
                     }
@@ -267,7 +267,7 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
                 {
 
                     DEBUG_WRAP(DebugMessage(DEBUG_PARSER, 
-					    "literal set, Clearing\n"););
+                        "literal set, Clearing\n"););
 
                     literal = 0;
                     tmp_buf[dummy_size] = start_ptr[cnt];
@@ -277,21 +277,21 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
                 break;
 
             case '\\':
-		
+        
                 DEBUG_WRAP(DebugMessage(DEBUG_PARSER, "Got literal char... "););
 
                 if(!literal)
                 {
                     DEBUG_WRAP(DebugMessage(DEBUG_PARSER, 
-					    "Setting literal\n"););
-		    
+                        "Setting literal\n"););
+            
                     literal = 1;
                 }
                 else
                 {
                     DEBUG_WRAP(DebugMessage(DEBUG_PARSER, 
-					    "Clearing literal\n"););
-		    
+                        "Clearing literal\n"););
+            
                     tmp_buf[dummy_size] = start_ptr[cnt];
                     literal = 0;
                     dummy_size++;
@@ -328,7 +328,7 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
                             {
                                 FatalError("ERROR => ParsePattern() dummy "
                                            "buffer overflow, make a smaller "
-                                           "pattern please! (Max size = 2048)\n");
+                                           "pattern please! (Max size = %d)\n", MAX_PATTERN_SIZE-1);
                             }
                         }
                     }
@@ -370,10 +370,10 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
                         {
                             tmp_buf[dummy_size] = start_ptr[cnt];
                             dummy_size++;
-			    
+                
                             DEBUG_WRAP(DebugMessage(DEBUG_PARSER, 
-						    "Clearing literal\n"););
-			    
+                            "Clearing literal\n"););
+                
                             literal = 0;
                         }
                         else
@@ -385,7 +385,7 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
                     }
                 }
 
-                break;				
+                break;
 
         } /* end switch */
 
@@ -399,11 +399,11 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
 
     if (literal) {
         FatalError("%s(%d)=> backslash escape is not "
-		   "completed\n", file_name, file_line);
+           "completed\n", file_name, file_line);
     }
     if (hexmode) {
         FatalError("%s(%d)=> hexmode is not "
-		   "completed\n", file_name, file_line);
+           "completed\n", file_name, file_line);
     }
     ds_idx = (PatternMatchData *) otn->ds_list[PLUGIN_PATTERN_MATCH];
 
@@ -423,8 +423,8 @@ PatternMatchData * ParseReplacePattern(char *rule, OptTreeNode * otn)
     ds_idx->replace_size = dummy_size;
 
     DEBUG_WRAP(DebugMessage(DEBUG_PARSER, 
-			    "ds_idx (%p) replace_size(%d) replace_buf(%s)\n", ds_idx,
-			    ds_idx->replace_size, ds_idx->replace_buf););
+                "ds_idx (%p) replace_size(%d) replace_buf(%s)\n", ds_idx,
+                ds_idx->replace_size, ds_idx->replace_buf););
 
     return ds_idx;
 }
@@ -451,9 +451,12 @@ int PayloadReplace(Packet *p, struct _OptTreeNode *otn,
     if (depth >= 0)
     {
         //memcpy(p->data+depth, idx->replace_buf, strlen(idx->replace_buf));
-	SafeMemcpy( (p->data + depth), idx->replace_buf, strlen(idx->replace_buf), 
+        SafeMemcpy( (p->data + depth), idx->replace_buf, strlen(idx->replace_buf), 
         p->data, (p->data + p->dsize + 1) );
+
+#ifdef GIDS
         InlineReplace();
+#endif
 
         /* calculate new checksum */
         p->iph->ip_csum=0;
@@ -484,25 +487,21 @@ int PayloadReplace(Packet *p, struct _OptTreeNode *otn,
             p->udph->uh_chk = in_chksum_udp((u_short *)&ph,
                                             (u_short *)(p->udph), ip_len);
         }
-	else if (p->icmph)
+        else if (p->icmph)
         {
             p->icmph->csum = 0;
-	    ph.sip = (u_int32_t)(p->iph->ip_src.s_addr);
-	    ph.dip = (u_int32_t)(p->iph->ip_dst.s_addr);
-	    ph.zero = 0;
-	    ph.protocol = p->iph->ip_proto;
-	    ph.len = htons((u_short)ip_len);
-	    p->icmph->csum = in_chksum_icmp((u_int16_t *)(p->icmph), ip_len);
-							    
+            ph.sip = (u_int32_t)(p->iph->ip_src.s_addr);
+            ph.dip = (u_int32_t)(p->iph->ip_dst.s_addr);
+            ph.zero = 0;
+            ph.protocol = p->iph->ip_proto;
+            ph.len = htons((u_short)ip_len);
+            p->icmph->csum = in_chksum_icmp((u_int16_t *)(p->icmph), ip_len);
         }
     }
 
     return 1;
-
 }
 
-#endif /* GIDS */
-			
 static inline int computeDepth(int dlen, PatternMatchData * pmd) 
 {
     /* do some tests to make sure we stay in bounds */
@@ -633,6 +632,10 @@ static int uniSearchCI(char *data, int dlen, PatternMatchData *pmd)
  *        against offset + depth before function entry (not distance/within)
  * pmd = pointer to pattern match data struct
  * nocase = 0 means case sensitve, 1 means case insensitive
+ *
+ * return  1 for found
+ * return  0 for not found
+ * return -1 for error (search out of bounds)
  */       
 static int uniSearchReal(char *data, int dlen, PatternMatchData *pmd, int nocase)
 {
@@ -709,7 +712,7 @@ static int uniSearchReal(char *data, int dlen, PatternMatchData *pmd, int nocase
                                 "returning because base_ptr"
                                 " is out of bounds start_ptr: %p end: %p base: %p\n",
                                 start_ptr, end_ptr, base_ptr););
-        return 0;
+        return -1;
     }
 
     if(depth < 0)
@@ -717,7 +720,7 @@ static int uniSearchReal(char *data, int dlen, PatternMatchData *pmd, int nocase
         DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH,
                                 "returning because depth is negative (%d)\n",
                                 depth););
-        return 0;        
+        return -1;        
     }
 
     if(depth > dlen)
@@ -737,7 +740,7 @@ static int uniSearchReal(char *data, int dlen, PatternMatchData *pmd, int nocase
         depth = pmd->depth;
     }
     
-    /* make sure we and in range */
+    /* make sure we end in range */
     if(!inBounds(start_ptr, end_ptr, base_ptr + depth - 1))
     {
         DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH,
@@ -791,8 +794,10 @@ static int uniSearchReal(char *data, int dlen, PatternMatchData *pmd, int nocase
 
 static void make_precomp(PatternMatchData * idx)
 {
-    free(idx->skip_stride);
-    free(idx->shift_stride);
+    if(idx->skip_stride)
+       free(idx->skip_stride);
+    if(idx->shift_stride)
+       free(idx->shift_stride);
 
     idx->skip_stride = make_skip(idx->pattern_buf, idx->pattern_size);
 
@@ -832,7 +837,6 @@ void PayloadSearchListInit(char *data, OptTreeNode * otn, int protocol)
     /* read the content keywords from the list file */
     ParseContentListFile(sptr, otn, protocol);
 
-
     /* link the plugin function in to the current OTN */
     AddOptFuncToList(CheckORPatternMatch, otn);
 
@@ -859,6 +863,10 @@ void PayloadSearchInit(char *data, OptTreeNode * otn, int protocol)
     fpl = AddOptFuncToList(CheckANDPatternMatch, otn);
 
     fpl->context = pmd;
+    pmd->fpl = fpl;
+
+    if(pmd->use_doe == 1)
+        fpl->isRelative = 1;
 
     DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
                 "OTN function PatternMatch Added to rule!\n"););
@@ -889,6 +897,10 @@ void PayloadSearchUri(char *data, OptTreeNode * otn, int protocol)
     fpl = AddOptFuncToList(CheckUriPatternMatch, otn);
 
     fpl->context = pmd;
+    pmd->fpl = fpl;
+
+    if(pmd->use_doe == 1)
+        fpl->isRelative = 1;
 
     DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
                 "OTN function PatternMatch Added to rule!\n"););
@@ -977,7 +989,7 @@ void PayloadSearchDepth(char *data, OptTreeNode * otn, int protocol)
     }
 
     /* check to make sure that this the depth allows this rule to fire */
-    if(idx->depth != 0 && idx->depth < idx->pattern_size)
+    if(idx->depth != 0 && idx->depth < (int)idx->pattern_size)
     {
         FatalError("%s(%d) => The depth(%d) is less than the size of the content(%u)!\n",
                    file_name, file_line, idx->depth, idx->pattern_size);
@@ -1000,7 +1012,7 @@ void PayloadSearchNocase(char *data, OptTreeNode * otn, int protocol)
     if(idx == NULL)
     {
         FatalError("(%s)%d => Please place \"content\" rules before"
-		   " depth, nocase or offset modifiers.\n", file_name, file_line);
+           " depth, nocase or offset modifiers.\n", file_name, file_line);
     }
     while(idx->next != NULL)
         idx = idx->next;
@@ -1088,6 +1100,11 @@ void PayloadSearchDistance(char *data, OptTreeNode *otn, int protocol)
         FatalError("%s Line %d => Unable to initialize doe_ptr\n",
                    file_name, file_line);
     }
+
+    if (idx->use_doe)
+    {
+        idx->fpl->isRelative = 1;
+    }
     
     return;
 }
@@ -1138,6 +1155,11 @@ void PayloadSearchWithin(char *data, OptTreeNode *otn, int protocol)
                    file_name, file_line);
     }
 
+    if (idx->use_doe)
+    {
+        idx->fpl->isRelative = 1;
+    }
+    
     return;
 }
 
@@ -1249,6 +1271,40 @@ int SetUseDoePtr(OptTreeNode * otn)
 }
 
 
+/****************************************************************************
+ *
+ * Function: GetMaxJumpSize(char *, int)
+ *
+ * Purpose: Find the maximum number of characters we can jump ahead
+ *          from the current offset when checking for this pattern again.
+ *
+ * Arguments: data => the pattern string
+ *            data_len => length of pattern string
+ *
+ * Returns: int => number of bytes before pattern repeats within itself
+ *
+ ***************************************************************************/
+static unsigned int GetMaxJumpSize(char *data, int data_len)
+{
+    int i, j;
+    
+    j = 0;
+    for ( i = 1; i < data_len; i++ )
+    {
+        if ( data[j] != data[i] )
+        {
+            j = 0;
+            continue;
+        }
+        if ( i == (data_len - 1) )
+        {
+            return (data_len - j - 1);
+        }
+        j++;
+    }
+    return data_len;
+}
+
 
 /****************************************************************************
  *
@@ -1264,7 +1320,7 @@ int SetUseDoePtr(OptTreeNode * otn)
  ***************************************************************************/
 static void ParsePattern(char *rule, OptTreeNode * otn, int type)
 {
-    unsigned char tmp_buf[2048];
+    unsigned char tmp_buf[MAX_PATTERN_SIZE];
 
     /* got enough ptrs for you? */
     char *start_ptr;
@@ -1272,6 +1328,7 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
     char *idx;
     char *dummy_idx;
     char *dummy_end;
+    char *tmp;
     char hex_buf[3];
     u_int dummy_size = 0;
     int size;
@@ -1284,13 +1341,13 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
     PatternMatchData *ds_idx;
 
     /* clear out the temp buffer */
-    bzero(tmp_buf, 2048);
+    bzero(tmp_buf, MAX_PATTERN_SIZE);
 
     if(rule == NULL)
     {
         FatalError("%s(%d) => ParsePattern Got Null "
-		   "enclosed in quotation marks (\")!\n", 
-		   file_name, file_line);
+           "enclosed in quotation marks (\")!\n", 
+           file_name, file_line);
     }
 
     while(isspace((int)*rule))
@@ -1307,8 +1364,8 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
     if(start_ptr == NULL)
     {
         FatalError("%s(%d) => Content data needs to be "
-		   "enclosed in quotation marks (\")!\n", 
-		   file_name, file_line);
+           "enclosed in quotation marks (\")!\n", 
+           file_name, file_line);
     }
 
     /* move the start up from the beggining quotes */
@@ -1325,6 +1382,19 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
 
     /* Move the null termination up a bit more */
     *end_ptr = '\0';
+
+    /* Is there anything other than whitespace after the trailing
+     * double quote? */
+    tmp = end_ptr + 1;
+    while (*tmp != '\0' && isspace ((int)*tmp))
+        tmp++;
+
+    if (strlen (tmp) > 0)
+    {
+        FatalError("%s(%d) => Bad data (possibly due to missing semicolon) "
+                   "after trailing double quote.",
+                   file_name, file_line, end_ptr + 1);
+    }
 
     /* how big is it?? */
     size = end_ptr - start_ptr;
@@ -1349,6 +1419,14 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
     /* BEGIN BAD JUJU..... */
     while(idx < end_ptr)
     {
+        if (dummy_size >= MAX_PATTERN_SIZE-1)
+        {
+            /* Have more data to parse and pattern is about to go beyond end of buffer */
+            FatalError("ParsePattern() dummy "
+                    "buffer overflow, make a smaller "
+                    "pattern please! (Max size = %d)\n", MAX_PATTERN_SIZE-1);
+        }
+
         DEBUG_WRAP(DebugMessage(DEBUG_PARSER, "processing char: %c\n", *idx););
         switch(*idx)
         {
@@ -1399,6 +1477,15 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
 
                 if(!literal)
                 {
+                    /* Make sure the next char makes this a valid
+                     * escape sequence.
+                     */
+                    if (idx [1] != '\0' && strchr ("\\\":;", idx [1]) == NULL)
+                    {
+                        FatalError("%s(%d) => bad escape sequence starting "
+                                   "with \"%s\". ", file_name, file_line, idx);
+                    }
+
                     DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, "Setting literal\n"););
 
                     literal = 1;
@@ -1448,7 +1535,7 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
                             {
                                 FatalError("ParsePattern() dummy "
                                         "buffer overflow, make a smaller "
-                                        "pattern please! (Max size = 2048)\n");
+                                        "pattern please! (Max size = %d)\n", MAX_PATTERN_SIZE-1);
                             }
                         }
                     }
@@ -1516,11 +1603,11 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
 
     if (literal) {
         FatalError("%s(%d)=> backslash escape is not "
-		   "completed\n", file_name, file_line);
+           "completed\n", file_name, file_line);
     }
     if (hexmode) {
         FatalError("%s(%d)=> hexmode is not "
-		   "completed\n", file_name, file_line);
+           "completed\n", file_name, file_line);
     }
 
     ds_idx = (PatternMatchData *) otn->ds_list[type];
@@ -1542,11 +1629,13 @@ static void ParsePattern(char *rule, OptTreeNode * otn, int type)
     make_precomp(ds_idx);
     ds_idx->exception_flag = exception_flag;
 
+    ds_idx->pattern_max_jump_size = GetMaxJumpSize(ds_idx->pattern_buf, ds_idx->pattern_size);
+
     return;
 }
 
 static int CheckORPatternMatch(Packet * p, struct _OptTreeNode * otn_idx, 
-			       OptFpList * fp_list)
+                   OptFpList * fp_list)
 {
     int found = 0;
     int dsize;
@@ -1602,7 +1691,7 @@ static int CheckORPatternMatch(Packet * p, struct _OptTreeNode * otn_idx,
         if(found)
         {
             DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, "Pattern Match "
-				    "successful: %s!\n", idx->pattern_buf););
+                    "successful: %s!\n", idx->pattern_buf););
 
             return fp_list->next->OptTestFunc(p, otn_idx, fp_list->next);
 
@@ -1628,19 +1717,21 @@ static int CheckORPatternMatch(Packet * p, struct _OptTreeNode * otn_idx,
 }
 
 static int CheckANDPatternMatch(Packet *p, struct _OptTreeNode *otn_idx, 
-				OptFpList *fp_list)
+                OptFpList *fp_list)
 {
     int found = 0;
     int next_found;
     int dsize;
     char *dp;
-    u_int8_t *tmp_doe;
+    int origUseDoe;
+    char *tmp_doe, *orig_doe, *start_doe;
 
     PatternMatchData *idx;
 
     DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, "CheckPatternANDMatch: "););
 
     idx = fp_list->context;
+    origUseDoe = idx->use_doe;
 
     if((p->packet_flags & PKT_ALT_DECODE) && (idx->rawbytes == 0))
     {
@@ -1657,20 +1748,41 @@ static int CheckANDPatternMatch(Packet *p, struct _OptTreeNode *otn_idx,
 
     /* this now takes care of all the special cases where we'd run
      * over the buffer */
+    orig_doe = doe_ptr;
+#ifndef NO_FOUND_ERROR
+    found = idx->search(dp, dsize, idx);
+    if ( found == -1 )
+    {
+        /* On error, mark as not found.  This is necessary to handle !content
+           cases.  In that case, a search that is outside the given buffer will
+           return 0, and !0 is 1, so a !content out of bounds will return true,
+           which is not what we want.  */
+        found = 0;
+    }
+    else
+    {
+        found = found ^ idx->exception_flag;
+    }
+#else
+    /* Original code.  Does not account for searching outside the buffer. */
     found = (idx->search(dp, dsize, idx) ^ idx->exception_flag);
+#endif
 
-#ifdef GIDS
-    if (found && idx->replace_buf)
+    if (InlineMode() && found && idx->replace_buf)
     {
         //fix the packet buffer to have the new string
+        detect_depth = (char *)doe_ptr - idx->pattern_size - dp;
         PayloadReplace(p, otn_idx, fp_list, detect_depth);
     }
-#endif /* GIDS */
 
     while (found)
     {
         /* save where we last did the pattern match */
         tmp_doe = doe_ptr;
+
+        /* save start doe as beginning of this pattern + non-repeating length*/
+        start_doe = doe_ptr - idx->pattern_size + idx->pattern_max_jump_size;
+
         DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, "Pattern Match successful!\n"););      
         DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, "Check next functions!\n"););
 
@@ -1687,22 +1799,86 @@ static int CheckANDPatternMatch(Packet *p, struct _OptTreeNode *otn_idx,
         }
         else if(tmp_doe != NULL)
         {
-            int new_dsize = dsize-((char*)tmp_doe-dp);
+            int new_dsize = dsize-(start_doe-dp);
+
+            /* if the next option isn't relative and it failed, we're done */
+            if (fp_list->next->isRelative == 0)
+                return 0;
 
             if(new_dsize <= 0 || new_dsize > dsize)
             {
                 DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
-                                        "The new dsize is less than <= 0 or > the the original dsize;returning false\n"););      
+                                        "The new dsize is less than <= 0 or > "
+                                        "the the original dsize;returning "
+                                        "false\n"););
+                idx->use_doe = origUseDoe;
                 return 0;
             }
-            
+
+            if (orig_doe)
+            {
+                /* relative to a previously found pattern */
+                if (((idx->distance != 0) && (start_doe - orig_doe > idx->distance)) ||
+                    ((idx->offset != 0) && (start_doe - orig_doe > idx->offset)) )
+                {
+                    DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
+                                            "The next starting point to search "
+                                            "from is beyond the original "
+                                            "distance;returning false\n"););
+                    idx->use_doe = origUseDoe;
+                    return 0;
+                }
+
+                if (((idx->within != 0) &&
+                     (start_doe - orig_doe + idx->pattern_size > (unsigned int)idx->within)) ||
+                    ((idx->depth != 0) &&
+                     (start_doe - orig_doe + idx->pattern_size > (unsigned int)idx->depth)) )
+                {
+                    DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
+                                            "The next starting point to search "
+                                            "from is beyond the original "
+                                            "within;returning false\n"););
+                    idx->use_doe = origUseDoe;
+                    return 0;
+                }
+            }
+            else
+            {
+                /* relative to beginning of data */
+                if (((idx->distance != 0) && (start_doe - dp > idx->distance)) ||
+                    ((idx->offset != 0) && (start_doe - dp > idx->offset)) )
+                {
+                    DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
+                                            "The next starting point to search "
+                                            "from is beyond the original "
+                                            "distance;returning false\n"););
+                    idx->use_doe = origUseDoe;
+                    return 0;
+                }
+
+                if (((idx->within != 0) &&
+                     (start_doe - dp + idx->pattern_size > (unsigned int)idx->within)) ||
+                    ((idx->depth != 0) &&
+                     (start_doe - dp + idx->pattern_size > (unsigned int)idx->depth)) )
+                {
+                    DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
+                                            "The next starting point to search "
+                                            "from is beyond the original "
+                                            "within;returning false\n"););
+                    idx->use_doe = origUseDoe;
+                    return 0;
+                }
+            }
+
             DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
                                     "At least ONE of the next functions does to match!\n"););      
             DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
                                     "Start search again from a next point!\n"););
 
             /* Start the search again from the last set of contents, with a new depth and dsize */
-            found = (idx->search(tmp_doe, new_dsize,idx) ^ idx->exception_flag);
+            doe_ptr = start_doe;
+            idx->use_doe = 1;
+            found = (idx->search(start_doe, new_dsize,idx) ^ idx->exception_flag);
             
             /*
             **  If we haven't updated doe since we set it at the beginning
@@ -1710,21 +1886,24 @@ static int CheckANDPatternMatch(Packet *p, struct _OptTreeNode *otn_idx,
             **  same search previously, and have nothing else to gain from
             **  doing the same search again.
             */
-            if(tmp_doe == doe_ptr)
+            if(start_doe == (char *)doe_ptr)
             {
+                idx->use_doe = origUseDoe;
                 return 0;
             }
         }
         else
-	{
+        {
             DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
                                     "Returning 0 because tmp_doe is NULL\n"););
             
+            idx->use_doe = origUseDoe;
             return 0;
-	}
-	    
+        }
+        
     }
     
+    idx->use_doe = origUseDoe;
     DEBUG_WRAP(DebugMessage(DEBUG_PLUGIN, "Pattern match failed\n"););
     return 0;
 }
@@ -1734,7 +1913,7 @@ static int CheckANDPatternMatch(Packet *p, struct _OptTreeNode *otn_idx,
 /************************************************************************/
 
 static int CheckUriPatternMatch(Packet *p, struct _OptTreeNode *otn_idx, 
-				OptFpList *fp_list)
+                OptFpList *fp_list)
 {
     int found = 0;
     int i;
@@ -1800,7 +1979,7 @@ static int CheckUriPatternMatch(Packet *p, struct _OptTreeNode *otn_idx,
  *
  * Arguments:otn => rule including the list
  *           file => list file filename
- *	     protocol => protocol
+ *           protocol => protocol
  *
  * Returns: void function
  *
@@ -1834,13 +2013,13 @@ static void ParseContentListFile(char *file, OptTreeNode * otn, int protocol)
         list_file_line++;
 
         DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, "Got line %d: %s", 
-				list_file_line, buf););
+                list_file_line, buf););
 
         /* if it's not a comment or a <CR>, send it to the parser */
         if((buf[0] != '#') && (buf[0] != 0x0a) && (buf[0] != ';'))
         {
             DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, 
-				    "Adding content keyword: %s", buf););
+                    "Adding content keyword: %s", buf););
 
             frazes_count++;
             strip(buf);
@@ -1850,8 +2029,8 @@ static void ParseContentListFile(char *file, OptTreeNode * otn, int protocol)
             /* check and add content keyword */
             ParsePattern(buf, otn, PLUGIN_PATTERN_MATCH_OR);
 
-            DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, "Content keyword %s\" added!\n", 
-				    buf););
+            DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH,
+                        "Content keyword %s\" added!\n", buf););
         }
     }
 #ifdef DEBUG
@@ -1867,7 +2046,7 @@ static void ParseContentListFile(char *file, OptTreeNode * otn, int protocol)
         while(idx != NULL)
         {
             DEBUG_WRAP(DebugMessage(DEBUG_PATTERN_MATCH, "Pattern = %s\n", 
-				    idx->pattern_buf););
+                    idx->pattern_buf););
             idx = idx->next;
         }
     }

@@ -5,9 +5,9 @@
 if(description)
 {
  script_id(11695);
- script_cve_id("CAN-2003-0276");
+ script_cve_id("CVE-2003-0276");
 
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.6 $");
  
  name["english"] = "Pi3Web Webserver v2.0 Denial of Service";
 
@@ -52,18 +52,16 @@ Risk factor : High";
 include ("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
 
+
+banner = get_http_banner(port:port);
+if ( "Pi3Web/" >!< banner ) exit(0);
 
 if(safe_checks())
 {
-	banner = get_http_banner(port:port);
-	if(banner)
-	{
- 	if(egrep(pattern:"^Server: Pi3Web/2\.0\.([01]|2 *beta *[01])", string:banner))
+ 	if(egrep(pattern:"^Server: Pi3Web/2\.0\.([01]|2 *beta *[01])([^0-9]|$)", string:banner))
        		security_hole(port);
-	}
 }
 else
 {

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10173);
- script_version ("$Revision: 1.13 $");
- script_cve_id("CAN-1999-0509");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-0509");
  name["english"] = "perl interpreter can be launched as a CGI";
  name["francais"] = "l'interpreteur perl peut etre lancé comme un CGI";
  script_name(english:name["english"], francais:name["francais"]);
@@ -19,7 +19,7 @@ http server privileges (usually root or nobody).
 
 Solution : remove it from /cgi-bin
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le cgi 'perl' est installé et peut etre
@@ -54,7 +54,14 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("perl?-v");
-if(!port)port = is_cgi_installed("perl.exe?-v");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:80);
+if (port && (is_cgi_installed_ka(item:"perl?-v", port:port) || 
+             is_cgi_installed_ka(item:"perl.exe?-v", port:port)))
+  security_hole(port);

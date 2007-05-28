@@ -37,6 +37,7 @@
 #include "util.h"
 #include "generators.h"
 #include "log.h"
+#include "snort.h"
 
 #include "ubi_SplayTree.h"
 
@@ -58,13 +59,14 @@
 #define TAG_HOST_SRC  3
 #define TAG_HOST_DST  4
 
-#define TAG_METRIC_SECONDS  1
-#define TAG_METRIC_PACKETS  2
-#define TAG_METRIC_BYTES    4
+#define TAG_METRIC_SECONDS    0x1
+#define TAG_METRIC_PACKETS    0x2
+#define TAG_METRIC_BYTES      0x4
+#define TAG_METRIC_UNLIMITED  0x8
 
 #define MAX_TAG_NODES   256
 
-/* by default we'll set a 10 minute timeout if we see no activity 
+/* by default we'll set a 5 minute timeout if we see no activity 
  * on a tag with a 'count' metric so that we prune dead sessions 
  * periodically since we're not doing TCP state tracking
  */
@@ -100,6 +102,10 @@ typedef struct _TagNode
     int packets;
     int bytes;
 
+    /* counters of number of packets tagged and max to
+     * prevent Eventing DOS */
+    int pkt_count;
+
     /* packets/seconds selector */
     int metric;
 
@@ -110,7 +116,7 @@ typedef struct _TagNode
     u_int32_t last_access;
 
     /* event id number for correlation with trigger events */
-    u_int32_t event_id;
+    u_int16_t event_id;
     struct timeval event_time;
 
     /* for later expansion... */
@@ -137,9 +143,9 @@ extern int file_line;
 static void *TagAlloc(unsigned long);
 static int PruneTagCache(u_int32_t, int);
 static int PruneTime(ubi_trRootPtr, u_int32_t);
-static void TagSession(Packet *, TagData *, u_int32_t, u_int32_t);
-static void TagHost(Packet *, TagData *, u_int32_t, u_int32_t);
-static void AddTagNode(Packet *, TagData *, int, u_int32_t, u_int32_t);
+static void TagSession(Packet *, TagData *, u_int32_t, u_int16_t);
+static void TagHost(Packet *, TagData *, u_int32_t, u_int16_t);
+static void AddTagNode(Packet *, TagData *, int, u_int32_t, u_int16_t);
 static INLINE void SwapTag(TagNode *);
 
 
@@ -313,10 +319,11 @@ void InitTag()
     (void)ubi_trInitTree(host_tag_cache_ptr, /* ptr to the tree head */
                          TagCompareHost,     /* comparison function */
                          0);            /* don't allow overwrites/duplicates */
+
 }
 
 
-static void TagSession(Packet *p, TagData *tag, u_int32_t time, u_int32_t event_id)
+static void TagSession(Packet *p, TagData *tag, u_int32_t time, u_int16_t event_id)
 {
     DEBUG_WRAP(DebugMessage(DEBUG_FLOW, "TAGGING SESSION\n"););
 
@@ -324,7 +331,7 @@ static void TagSession(Packet *p, TagData *tag, u_int32_t time, u_int32_t event_
 }
 
 
-static void TagHost(Packet *p, TagData *tag, u_int32_t time, u_int32_t event_id)
+static void TagHost(Packet *p, TagData *tag, u_int32_t time, u_int16_t event_id)
 {
     int mode; 
 
@@ -347,7 +354,7 @@ static void TagHost(Packet *p, TagData *tag, u_int32_t time, u_int32_t event_id)
 }
 
 static void AddTagNode(Packet *p, TagData *tag, int mode, u_int32_t now, 
-                u_int32_t event_id)
+                u_int16_t event_id)
 {
     TagNode *idx;  /* index pointer */
     TagNode *returned;
@@ -368,6 +375,7 @@ static void AddTagNode(Packet *p, TagData *tag, int mode, u_int32_t now,
     idx->event_time.tv_sec = p->pkth->ts.tv_sec;
     idx->event_time.tv_usec = p->pkth->ts.tv_usec;
     idx->mode = mode;
+    idx->pkt_count = 0;
     
     if(idx->metric & TAG_METRIC_SECONDS)
     {
@@ -458,6 +466,7 @@ int CheckTagList(Packet *p, Event *event)
     TagNode idx;
     TagNode *returned = NULL;
     ubi_trRootPtr taglist = NULL;
+    char create_event = 1;
 
     /* check for active tags */
     if(!ubi_trCount(host_tag_cache_ptr) && !ubi_trCount(ssn_tag_cache_ptr))
@@ -551,6 +560,12 @@ int CheckTagList(Packet *p, Event *event)
         {
             /* decrement the packet count */
             returned->packets--;
+
+            if (returned->packets < 0)
+            {
+                returned->packets = 0;
+                create_event = 0;
+            }
         }
 
         if(returned->metric & TAG_METRIC_BYTES)
@@ -563,12 +578,32 @@ int CheckTagList(Packet *p, Event *event)
             }
         }
 
-        /* set the event info */
-        SetEvent(event, GENERATOR_TAG, TAG_LOG_PKT, 1, 1, 1, 
-                returned->event_id);
-        /* set event reference details */
-        event->ref_time.tv_sec = returned->event_time.tv_sec;
-        event->ref_time.tv_usec = returned->event_time.tv_usec;
+        returned->pkt_count++;
+
+        /* Check whether or not to actually log an event.
+         * This is used to prevent a poorly written tag rule
+         * from DOSing a backend event processors on high
+         * bandwidth sensors. */
+        if (!(returned->metric & (TAG_METRIC_PACKETS|TAG_METRIC_UNLIMITED)))
+        {
+            /* Use the global max. */
+            /* If its non-0, check count for this tag node */
+            if (pv.tagged_packet_limit &&
+                returned->pkt_count > pv.tagged_packet_limit)
+            {
+                create_event = 0;
+            }
+        }
+
+        if (create_event)
+        {
+            /* set the event info */
+            SetEvent(event, GENERATOR_TAG, TAG_LOG_PKT, 1, 1, 1, 
+                    returned->event_id);
+            /* set event reference details */
+            event->ref_time.tv_sec = returned->event_time.tv_sec;
+            event->ref_time.tv_usec = returned->event_time.tv_usec;
+        }
         
         if(returned->bytes == 0 && returned->packets == 0 && 
                 returned->seconds == 0)
@@ -591,7 +626,7 @@ int CheckTagList(Packet *p, Event *event)
         last_prune_time = p->pkth->ts.tv_sec;
     }
 
-    if(returned != NULL)
+    if((returned != NULL) && (create_event))
     {
         return 1;
     }
@@ -691,7 +726,7 @@ static int PruneTime(ubi_trRootPtr tree, u_int32_t thetime)
     return pruned;
 }
 
-void SetTags(Packet *p, OptTreeNode *otn, u_int32_t event_id)
+void SetTags(Packet *p, OptTreeNode *otn, u_int16_t event_id)
 {
    DEBUG_WRAP(DebugMessage(DEBUG_FLOW, "Setting tags\n"););
 
@@ -780,8 +815,18 @@ void ParseTag(char *args, OptTreeNode *otn)
         }
         else if (!strncasecmp(arg, "packets", 7))
         {
-            metric |= TAG_METRIC_PACKETS;
-            packets = count;
+            if (count)
+            {
+                metric |= TAG_METRIC_PACKETS;
+                packets = count;
+            }
+            else
+            {
+                metric |= TAG_METRIC_UNLIMITED;
+                /* Set count in case 'packets' is the last
+                 * option parsed since 0 is a valid value now */
+                count = -1;
+            }
         }
         else if(!strncasecmp(arg, "bytes", 5))
         {
@@ -817,5 +862,12 @@ void ParseTag(char *args, OptTreeNode *otn)
         otn->tag->tag_direction = direction;
     }
 
+    if ((metric & TAG_METRIC_UNLIMITED) &&
+        !(metric & (TAG_METRIC_BYTES|TAG_METRIC_SECONDS)))
+    {
+        FatalError("%s(%d) Invalid Tag options. 'packets' parameter '0' but\n"
+                "neither seconds or bytes specified: %s\n",
+                file_name, file_line, arg);
+    }
     return;
 }

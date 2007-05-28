@@ -14,9 +14,10 @@
 
 if (description) {
    script_id(10709);
-   script_version ("$Revision: 1.15 $");
+   if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2001-t-0008");
+   script_bugtraq_id(3064);
+   script_version ("$Revision: 1.19 $");
    script_cve_id("CVE-2001-0554");
-  script_bugtraq_id(3064) ;
  
   name["english"] = "TESO in.telnetd buffer overflow";
   script_name(english:name["english"]);
@@ -46,8 +47,7 @@ Risk factor : High";
   script_family(english:family["english"]);
 
   # Must run AFTER ms_telnet_overflow-004.nasl
-  script_dependencie("find_service.nes", "ms_telnet_overflow.nasl",
-  		      "nmap_osfingerprint.nes");
+  script_dependencie("find_service.nes", "ms_telnet_overflow.nasl");
 
   script_require_ports("Services/telnet", 23);
   exit(0);
@@ -56,7 +56,7 @@ Risk factor : High";
 #
 # The script code starts here.
 #
-
+include('telnet_func.inc');
 
 iac_ayt = raw_string(0xff, 0xf6);
 iac_ao  = raw_string(0xff, 0xf5);
@@ -128,7 +128,7 @@ function attack(port, negotiate) {
   if (!soc) return (0);
   if (negotiate)
     # standard negotiation
-    r = telnet_init(soc);
+    r = telnet_negotiate(socket:soc);
   else {
     # wierd BSD magic, is is necessary?
     send(socket:soc, data:iac_will_naol);

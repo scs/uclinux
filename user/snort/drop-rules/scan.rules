@@ -1,6 +1,6 @@
 # (C) Copyright 2001,2002, Martin Roesch, Brian Caswell, et al.
 #    All rights reserved.
-# $Id$
+# $Id: scan.rules,v 1.16.2.1 2002/11/17 04:40:09 cazz Exp $
 #-----------
 # SCAN RULES
 #-----------
@@ -17,7 +17,7 @@ drop tcp $HONEYNET any -> $EXTERNAL_NET 113 (msg:"SCAN ident version request"; f
 drop tcp $HONEYNET any -> $EXTERNAL_NET 80 (msg:"SCAN cybercop os probe"; flags: SF12; dsize: 0; reference:arachnids,146; classtype:attempted-recon; sid:619; rev:1;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET 3128 (msg:"SCAN Squid Proxy attempt"; flags:S; classtype:attempted-recon; sid:618; rev:2;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET 1080 (msg:"SCAN SOCKS Proxy attempt"; flags:S; reference:url,help.undernet.org/proxyscan/; classtype:attempted-recon; sid:615; rev:3;)
-drop tcp $HONEYNET any -> $EXTERNAL_NET 8080 (msg:"SCAN Proxy \(8080\) attempt"; flags:S; classtype:attempted-recon; sid:620; rev:2;)
+# drop tcp $HONEYNET any -> $EXTERNAL_NET 8080 (msg:"SCAN Proxy \(8080\) attempt"; flags:S; classtype:attempted-recon; sid:620; rev:2;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET any (msg:"SCAN FIN"; flags: F; reference:arachnids,27; classtype:attempted-recon; sid:621; rev:1;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET any (msg:"SCAN ipEye SYN scan"; flags:S; seq:1958810375; reference:arachnids,236; classtype:attempted-recon; sid:622; rev:2;)
 drop tcp $HONEYNET any -> $EXTERNAL_NET any (msg:"SCAN NULL";flags:0; seq:0; ack:0; reference:arachnids,4; classtype:attempted-recon; sid:623; rev:1;)

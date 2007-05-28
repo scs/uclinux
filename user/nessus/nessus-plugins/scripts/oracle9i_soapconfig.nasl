@@ -8,9 +8,13 @@
 if(description)
 {
  script_id(11224);
- script_version("$Revision: 1.2 $");
- script_cve_id("CAN-2002-0568");
+ script_version("$Revision: 1.10 $");
+
+ script_cve_id("CVE-2002-0568");
  script_bugtraq_id(4290);
+ script_xref(name:"IAVA", value:"2002-t-0006");
+ script_xref(name:"OSVDB", value:"3411");
+
  name["english"] = "Oracle 9iAS SOAP configuration file retrieval";
  script_name(english:name["english"]);
  
@@ -49,9 +53,8 @@ Risk factor : Medium";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2003 Javier Fernandez-Sanguino");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/OracleApache");
@@ -63,8 +66,8 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 { 
@@ -77,9 +80,9 @@ if(get_port_state(port))
 
  for(i = 0; config[i] ; i = i+1 ) {
      req = http_get(item:config[i], port:port);
-     r = http_keepalive_send_recv(port:port, data:req);
+     r = http_keepalive_send_recv(port:port, data:req, bodyonly:1);
      if(r == NULL) exit(0);
      if ( "SOAP configuration file" >< r )
-	      security_hole(port, data:string("The SOAP configuration file ",config[i]," can be accessed directly."));
+	      security_warning(port, data:string("The SOAP configuration file ",config[i]," can be accessed directly :\n" + r));
  } # of the for loop
 }

@@ -21,10 +21,7 @@
  * Update 22 may 1994, better EOF handling by transmission errors chel. Added
  * -skiprows for long faxes.
  * 
- * $Log$
- * Revision 1.1  2006/08/05 07:26:54  vapier
- * import from upstream uClinux
- *
+ * $Log: g3toxwd.c,v $
  * Revision 1.2  2003/10/03 11:36:03  gert
  * fix some return types and prototypes (Debian/ABA)
  *

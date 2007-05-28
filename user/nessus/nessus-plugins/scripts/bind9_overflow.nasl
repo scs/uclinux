@@ -12,8 +12,9 @@
 if(description)
 {
  script_id(11318);
- script_cve_id("CAN-2002-0684");
- script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2002-0684");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-B-0001");
+ script_version ("$Revision: 1.9 $");
 
  
  name["english"] = "BIND 9 overflow";
@@ -61,13 +62,13 @@ Risk factor : High";
 vers = get_kb_item("bind/version");
 if(!vers)exit(0);
 
-if(ereg(string:vers, pattern:"9\.[01]\.*"))
+if(ereg(string:vers, pattern:"^9\.[01]\.*"))
 {
  security_hole(53);
  exit(0);
 }
 
-if(ereg(string:vers, pattern:"9\.2\.([0-1][^0-9]*|2rc.*)$"))
+if(ereg(string:vers, pattern:"^9\.2\.([0-1][^0-9]*|2rc.*)$"))
 {
  security_hole(53);
  exit(0);

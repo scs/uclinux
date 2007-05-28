@@ -19,7 +19,6 @@ vconfig.h: Makefile
 
 $(VCONFIG): $(VLAN_OBJS)
 	$(CC) $(LDFLAGS) -o $@ $(VLAN_OBJS) $(LDLIBS$(LDLIBS_$@))
-	$(STRIP) $@
 
 
 $(ALL_OBJS): %.o: %.c %.h

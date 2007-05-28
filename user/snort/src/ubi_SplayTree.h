@@ -95,6 +95,20 @@ ubi_trBool ubi_sptInsert( ubi_btRootPtr  RootPtr,
    * ------------------------------------------------------------------------ **
    */
 
+void Rotate( ubi_btNodePtr p );
+  /* ------------------------------------------------------------------------ **
+   * This function performs a single rotation, moving node *p up one level
+   * in the tree.
+   * 
+   * Input:    p - a pointer to an ubi_btNode in a tree.
+   *
+   * Output:   None.
+   * 
+   * Notes:    This implements a single rotation in either direction (left
+   *            or right).  This is the basic building block of all splay
+   *            tree rotations.
+   * ------------------------------------------------------------------------ **   */
+
 ubi_btNodePtr ubi_sptRemove( ubi_btRootPtr RootPtr, ubi_btNodePtr DeadNode );
   /* ------------------------------------------------------------------------ **
    * This function removes the indicated node from the tree.

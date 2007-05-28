@@ -24,7 +24,7 @@
  * ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
  * SOFTWARE.
  * 
- * $Id$
+ * $Id: snmp_error.h,v 1.4 2001/10/17 19:05:37 hno Exp $
  * 
  **********************************************************************/
 

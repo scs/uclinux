@@ -55,7 +55,7 @@ static loff_t llseek( int fd, loff_t offset, int whence )
 static int _llseek(uint fd, ulong hi, ulong lo,
 		  loff_t *res, uint wh)
 {
-    return syscall(__NR__llseek, fd, hi, lo, res, wh);
+    return syscall(__NR__llseek, fd, hi, log, res, wh);
 }
 
 static loff_t llseek( int fd, loff_t offset, int whence )

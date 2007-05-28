@@ -5,7 +5,7 @@
 if (description)
 {
  script_id(11657);
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.4 $");
 
  script_name(english:"Synchrologic User account information disclosure");
  desc["english"] = "
@@ -20,7 +20,7 @@ wish to tighten the access to the aggregate.asp page.
 The server allows anonymous users to look at Top Network user IDs
 Example : http://IP_ADDRESS/en/admin/aggregate.asp
 
-Risk Factor : Low";
+Risk factor : Low";
 
 
 
@@ -38,9 +38,10 @@ Risk Factor : Low";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
+if(!can_host_asp(port:port))exit(0);
 
 req = http_get(item:"/en/admin/aggregate.asp", port:port);
 res = http_keepalive_send_recv(port:port, data:req);

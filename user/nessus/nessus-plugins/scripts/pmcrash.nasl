@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10182);
- script_version ("$Revision: 1.14 $");
  script_bugtraq_id(2225);
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-1999-0218");
  name["english"] = "Livingston Portmaster crash";
  name["francais"] = "Crash de Livingston Portmaster";

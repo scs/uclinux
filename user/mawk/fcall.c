@@ -11,10 +11,7 @@ the GNU General Public License, version 2, 1991.
 ********************************************/
 
 
-/*$Log$
- *Revision 1.2  2005/07/25 04:03:15  magicyang
- *New user folder check in
- *
+/*$Log: fcall.c,v $
  * Revision 1.7  1995/08/27  15:46:47  mike
  * change some errmsgs to compile_errors
  *

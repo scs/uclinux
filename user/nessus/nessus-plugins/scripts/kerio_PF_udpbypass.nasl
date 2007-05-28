@@ -1,9 +1,5 @@
-# This script was written by Renaud Deraison <rderaison@tenablesecurity.com>
 #
-# GNU Public Licence
-#
-# References:
-#  http://www.securiteam.com/securitynews/5FP0N1P9PI.html
+# (C) Tenable Network Security
 #
 #
 # Problem: This check is prone to false negatives (if the remote FW
@@ -15,8 +11,10 @@
 if (description)
 {
   script_id(11580);
-  script_version ("$Revision: 1.3 $");
-  script_bugtraq_id(7436);
+  script_cve_id("CVE-2004-1473");
+  script_bugtraq_id(7436, 11237);
+  script_xref(name:"OSVDB", value:"10205");
+  script_version ("$Revision: 1.13 $");
  
  name["english"] = "UDP packets with source port of 53 bypass firewall rules";
  script_name(english:name["english"]);
@@ -29,7 +27,7 @@ An attacker may use this flaw to inject UDP packets to the remote
 hosts, in spite of the presence of a firewall.
 
 Solution : Review your firewall rules policy
-Risk Factor : High";
+Risk factor : High";
 
 
   script_description(english:desc["english"]);
@@ -38,12 +36,17 @@ Risk Factor : High";
   script_summary(english:summary["english"]);
  
   script_category(ACT_ATTACK); 
-  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
   family["english"] = "Firewalls";
   script_family(english:family["english"]);
   exit(0);
 }
 
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+if ( islocalhost() ) exit(0);
 
 function check(sport)
 {
@@ -69,7 +72,7 @@ function check(sport)
 	
   filter = string("src host ", get_host_ip(), " and dst host ", this_host(),
  " and icmp and (icmp[0] == 3  and icmp[28:2]==", sport, ")");
-  for(i=0;i<6;i++)
+  for(i=0;i<3;i++)
   	{
   	res = send_packet(udppacket, pcap_active:TRUE, pcap_filter:filter, pcap_timeout:1);
 	if(!isnull(res))return(1);

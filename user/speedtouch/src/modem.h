@@ -19,7 +19,7 @@
 *  Author   : Benoit PAPILLAULT <benoit.papillault@free.fr>
 *  Creation : 05/03/2001
 *
-* $Id$
+* $Id: modem.h,v 1.4 2001/11/07 20:25:52 edgomez Exp $
 */
 
 #ifndef _MODEM_H_

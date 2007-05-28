@@ -9,10 +9,10 @@
 if(description)
 {
  script_id(11379);
- script_cve_id("CAN-2002-1222");
  script_bugtraq_id(6823);
+ script_cve_id("CVE-2002-1222");
 
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "CSCdx92043";
 
@@ -29,7 +29,7 @@ bug ID CSCdx92043
 
 Solution : Upgrade your version of IOS
 See also : http://www.securityfocus.com/archive/1/311336
-Risk Factor : High
+Risk factor : High
 
 *** As Nessus solely relied on the banner of the remote host
 *** this might be a false positive

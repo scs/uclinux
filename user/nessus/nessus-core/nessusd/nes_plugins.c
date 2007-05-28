@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1999 - 2003 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,16 +14,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  *
- * In addition, as a special exception, Renaud Deraison
- * gives permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  * Old style nessus plugins, implemented as shared libraries.
  *
@@ -151,15 +141,11 @@ nes_plugin_add(folder, name, plugins, preferences)
  char fullname[PATH_MAX+1];
  struct arglist * prev_plugin = NULL;
  struct arglist * args = NULL;
- char * md5;
  
  
  snprintf(fullname, sizeof(fullname), "%s/%s", folder, name);
  
- md5 = file_hash(fullname);
-  
- 
- args = store_load_plugin(folder, name, md5, preferences);
+ args = store_load_plugin(folder, name, preferences);
  if( args == NULL )
  {
   if((ptr = LOAD_LIBRARY(fullname))== NULL){
@@ -178,7 +164,8 @@ nes_plugin_add(folder, name, plugins, preferences)
 	if(e >= 0)
 	{  
 	 plug_set_path(args, fullname);
-	 args =  store_plugin(args, name, md5); 
+	 store_plugin(args, name); 
+ 	 args = store_load_plugin(folder, name, preferences);
 	}
 	else
 	{
@@ -195,7 +182,7 @@ nes_plugin_add(folder, name, plugins, preferences)
   if( args != NULL )
   {
    prev_plugin = arg_get_value(plugins, name);
-   plug_set_launch(args, 0);
+   plug_set_launch(args, LAUNCH_DISABLED);
    if( prev_plugin == NULL )
           arg_add_value(plugins, name, ARG_ARGLIST, -1, args);
     else
@@ -204,20 +191,18 @@ nes_plugin_add(folder, name, plugins, preferences)
           arg_set_value(plugins, name, -1, args);
          }
   }
-   efree(&md5);
    return args;
 }
 
 
 int
-nes_plugin_launch(globals, plugin, hostinfos, preferences, kb, name, soc)
+nes_plugin_launch(globals, plugin, hostinfos, preferences, kb, name)
 	struct arglist * globals;
 	struct arglist * plugin;
 	struct arglist * hostinfos;
 	struct arglist * preferences;
-	struct arglist * kb; /* knowledge base */
+	struct kb_item ** kb; /* knowledge base */
 	char * name;
-	int soc;
 {
  nthread_t module;
  plugin_run_t func = NULL;
@@ -227,7 +212,10 @@ nes_plugin_launch(globals, plugin, hostinfos, preferences, kb, name, soc)
  
  ptr = LOAD_LIBRARY(name);
  if( ptr == NULL)
+	{
+    	log_write("Couldn't load %s - %s\n", name, LIB_LAST_ERROR());
  	return -1;
+	}
 	
 	
  func = (plugin_run_t)LOAD_FUNCTION(ptr, "plugin_run");
@@ -246,8 +234,7 @@ nes_plugin_launch(globals, plugin, hostinfos, preferences, kb, name, soc)
  arg_add_value(plugin, "func", ARG_PTR, -1, func);
  arg_add_value(plugin, "name", ARG_STRING, strlen(name), name);
  arg_set_value(plugin, "preferences", -1, preferences);
- arg_add_value(plugin, "pipe", ARG_INT, sizeof(int), (void*)soc);
- arg_add_value(plugin, "key", ARG_ARGLIST, -1, kb);
+ arg_add_value(plugin, "key", ARG_PTR, -1, kb);
  module = create_process((process_func_t)nes_thread, plugin);
  CLOSE_LIBRARY(ptr);
  return module;
@@ -256,58 +243,35 @@ nes_plugin_launch(globals, plugin, hostinfos, preferences, kb, name, soc)
 static int nes_thread(args)
  struct arglist * args;
 {
- int soc = (int)arg_get_value(args, "pipe");
- int soc2 = (int)arg_get_value(args, "SOCKET");
+ int soc = (int)arg_get_value(args, "SOCKET");
  struct arglist * globals = arg_get_value(args, "globals");
  int i;
  plugin_run_t func;
+ int e;
 
  if(preferences_benice(NULL))nice(-5);
 
 
+ soc = dup2(soc, 4);
+ if ( soc < 0 )
+ { 
+  log_write("dup2() failed ! Can't launch socket!\n");
+ }
  /* XXX ugly hack */
- arg_set_value(globals, "global_socket", sizeof(int), (void*)soc2);
- for(i=4;i<256;i++)
+ 
+ arg_set_value(globals, "global_socket", sizeof(int), (void*)soc);
+ arg_set_value(args, "SOCKET", sizeof(int), (void*)soc);
+ for(i=5;i<getdtablesize();i++)
  {
-  if( ( i != soc )  && (i != soc2 ) )
     close(i);
  }
  
- #ifdef RLIMIT_RSS
- {
- struct rlimit rlim;
- getrlimit(RLIMIT_RSS, &rlim);
- rlim.rlim_cur = 1024*1024*40;
- rlim.rlim_max = 1024*1024*40;
- setrlimit(RLIMIT_RSS, &rlim);
- }
-#endif
-
-#ifdef RLIMIT_AS
- {
- struct rlimit rlim;
- getrlimit(RLIMIT_AS, &rlim);
- rlim.rlim_cur = 1024*1024*40;
- rlim.rlim_max = 1024*1024*40;
- setrlimit(RLIMIT_AS, &rlim);
- }
-#endif
-
-#ifdef RLIMIT_DATA
- {
- struct rlimit rlim;
- getrlimit(RLIMIT_DATA, &rlim);
- rlim.rlim_cur = 1024*1024*40;
- rlim.rlim_max = 1024*1024*40;
- setrlimit(RLIMIT_DATA, &rlim);
- }
-#endif
-
-
  setproctitle("testing %s (%s)", (char*)arg_get_value(arg_get_value(args, "HOSTNAME"), "NAME"), (char*)arg_get_value(args, "name"));
  func = arg_get_value(args, "func");
  signal(SIGTERM, _exit);
- return func(args);
+ e = func(args);
+ internal_send(soc, NULL, INTERNAL_COMM_MSG_TYPE_CTRL | INTERNAL_COMM_CTRL_FINISHED);
+ return e;
 }
 
 pl_class_t nes_plugin_class = {

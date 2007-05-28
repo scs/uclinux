@@ -1,10 +1,7 @@
 :
 
 # Rmon Alarms/Events testing script
-# $Log$
-# Revision 1.2  2005/07/25 04:44:34  magicyang
-# New user folder check in
-#
+# $Log: test_alarm.sh,v $
 # Revision 5.0  2002/04/20 07:30:01  hardaker
 # cvs file version number change
 #

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: uac.c,v 1.41.4.2 2004/02/11 04:12:59 jiri Exp $
  *
  * simple UAC for things such as SUBSCRIBE or SMS gateway;
  * no authentication and other UAC features -- just send

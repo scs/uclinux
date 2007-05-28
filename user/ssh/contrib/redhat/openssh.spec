@@ -1,4 +1,4 @@
-%define ver 3.7.1p2
+%define ver 4.3p2
 %define rel 1
 
 # OpenSSH privilege separation requires a user & group ID
@@ -33,6 +33,11 @@
 # rpm -ba|--rebuild --define 'skip_xxx 1'
 %{?skip_x11_askpass:%define no_x11_askpass 1}
 %{?skip_gnome_askpass:%define no_gnome_askpass 1}
+
+# Add option to build without GTK2 for older platforms with only GTK+.
+# RedHat <= 7.2 and Red Hat Advanced Server 2.1 are examples.
+# rpm -ba|--rebuild --define 'no_gtk2 1'
+%{?no_gtk2:%define gtk2 0}
 
 # Is this a build for RHL 6.x or earlier?
 %{?build_6x:%define build6x 1}
@@ -69,7 +74,7 @@ Release: %{rel}
 %endif
 URL: http://www.openssh.com/portable.html
 Source0: ftp://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-%{version}.tar.gz
-Source1: http://www.pobox.com/~jmknoble/software/x11-ssh-askpass/x11-ssh-askpass-%{aversion}.tar.gz
+Source1: http://www.jmknoble.net/software/x11-ssh-askpass/x11-ssh-askpass-%{aversion}.tar.gz
 License: BSD
 Group: Applications/Internet
 BuildRoot: %{_tmppath}/%{name}-%{version}-buildroot
@@ -176,6 +181,11 @@ environment.
 CFLAGS="$RPM_OPT_FLAGS -Os"; export CFLAGS
 %endif
 
+%if %{kerberos5}
+K5DIR=`rpm -ql krb5-devel | grep include/krb5.h | sed 's,\/include\/krb5.h,,'`
+echo K5DIR=$K5DIR
+%endif
+
 %configure \
 	--sysconfdir=%{_sysconfdir}/ssh \
 	--libexecdir=%{_libexecdir}/openssh \
@@ -185,16 +195,17 @@ CFLAGS="$RPM_OPT_FLAGS -Os"; export CFLAGS
 	--with-default-path=/usr/local/bin:/bin:/usr/bin \
 	--with-superuser-path=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin \
 	--with-privsep-path=%{_var}/empty/sshd \
+	--with-md5-passwords \
 %if %{scard}
 	--with-smartcard \
 %endif
 %if %{rescue}
-	--without-pam --with-md5-passwords \
+	--without-pam \
 %else
 	--with-pam \
 %endif
 %if %{kerberos5}
-         --with-kerberos5=/usr/kerberos \
+	 --with-kerberos5=$K5DIR \
 %endif
 
 
@@ -392,7 +403,7 @@ fi
 
 %changelog
 * Mon Jun 2 2003 Damien Miller <djm@mindrot.org>
-- Remove noip6 option. This may be controlled at run-time in client config 
+- Remove noip6 option. This may be controlled at run-time in client config
   file using new AddressFamily directive
 
 * Mon May 12 2003 Damien Miller <djm@mindrot.org>
@@ -552,7 +563,7 @@ fi
 
 * Sun Apr  8 2001 Preston Brown <pbrown@redhat.com>
 - remove explicit openssl requirement, fixes builddistro issue
-- make initscript stop() function wait until sshd really dead to avoid 
+- make initscript stop() function wait until sshd really dead to avoid
   races in condrestart
 
 * Mon Apr  2 2001 Nalin Dahyabhai <nalin@redhat.com>

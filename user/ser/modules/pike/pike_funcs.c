@@ -1,5 +1,5 @@
 /* 
- * $Id$
+ * $Id: pike_funcs.c,v 1.16.6.2.2.1 2004/07/14 20:58:58 andrei Exp $
  *
  *
  * Copyright (C) 2001-2003 Fhg Fokus

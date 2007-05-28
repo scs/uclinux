@@ -12,7 +12,7 @@
 if(description)
 {
  script_id(11182);
- script_version ("$Revision: 1.11 $");
+ script_version ("$Revision: 1.15 $");
   
  name["english"] = "DB4Web directory traversal";
  script_name(english:name["english"]);
@@ -64,8 +64,8 @@ Facteur de risque : Elevé";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (! port) port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 cgis = get_kb_list("www/" + port + "/cgis");
@@ -84,8 +84,14 @@ foreach cgi (cgis)
     # Windows
     end = strstr(cgi, "/db4web_c.exe/");
     dir = cgi - end;
-    u = strcat(dir, "/db4web_c.exe/c%3A%5Cboot.ini");
-    if (check_win_dir_trav_ka(port: port, url: u, quickcheck: qc))
+    u = strcat(dir, "/db4web_c.exe/c%3A%5Cwindows%5Cwin.ini");
+    if (check_win_dir_trav_ka(port: port, url: u))
+    {
+      security_hole(port);
+      exit(0);
+    }
+    u = strcat(dir, "/db4web_c.exe/c%3A%5Cwinnt%5Cwin.ini");
+    if (check_win_dir_trav_ka(port: port, url: u))
     {
       security_hole(port);
       exit(0);
@@ -110,17 +116,3 @@ foreach cgi (cgis)
   }
 }
 
-if (n == 0 && (
-	is_cgi_installed(port: port, item: "/db4web_c.exe") ||
-	is_cgi_installed(port: port, item: "/db4web_c") ) )
-{
-  m = "DB4Web is installed on this server.
-Some versions are vulnerable to a web directory traversal but
-Nessus had no mean to check this flaw.
-
-Solution : Check the version and upgrade your software if necessary
-
-Risk factor : High";
-
-  security_warning(port: port, data: m);
-}

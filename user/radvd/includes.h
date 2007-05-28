@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: includes.h,v 1.12 2002/06/15 10:25:04 psavola Exp $
  *
  *   Authors:
  *    Lars Fenneberg		<lf@elemental.net>	 
@@ -30,6 +30,7 @@
 #include <netdb.h>
 #include <pwd.h>
 #include <grp.h>
+#include <ctype.h>
 
 #include <sys/types.h>
 #ifdef HAVE_INTTYPES_H

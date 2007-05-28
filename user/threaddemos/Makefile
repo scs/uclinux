@@ -8,7 +8,7 @@ MTDM_OBJS=mtdm.o
 BCDM_OBJS=bcdm.o
 
 TARGETS=$(THDM_TARGET) $(MTDM_TARGET) $(BCDM_TARGET)
-#FLTFLAGS  += -v
+FLTFLAGS  += -v
 
 # .c.o:
 # 	$(CC) $(CFLAGS) -o $@ -c $<
@@ -31,4 +31,4 @@ romfs:
 	$(ROMFSINST) /bin/$(MTDM_TARGET)
 	$(ROMFSINST) /bin/$(THDM_TARGET)
 	$(ROMFSINST) /bin/$(BCDM_TARGET)
-
+	

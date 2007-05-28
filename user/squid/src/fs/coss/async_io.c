@@ -11,7 +11,7 @@
  * supports are read/write, and since COSS works on a single file
  * per storedir it should work just fine.
  *
- * $Id$
+ * $Id: async_io.c,v 1.7.2.7 2005/03/26 23:40:21 hno Exp $
  */
 
 #include "squid.h"
@@ -197,7 +197,7 @@ a_file_callback(async_queue_t * q)
 		type = aqe->aq_e_type;
 
 		/* Free slot */
-		bzero(aqe, sizeof(async_queue_entry_t));
+		memset(aqe, 0, sizeof(async_queue_entry_t));
 		aqe->aq_e_state = AQ_ENTRY_FREE;
 		q->aq_numpending--;
 

@@ -4,7 +4,7 @@
  * Executes the shell script given as the argument. If the argument is
  * empty, commands are read from standard input.
  *
- * $Id$
+ * $Id: shell.c,v 1.18 2002/02/19 10:25:23 gert Exp $
  *
  */
 

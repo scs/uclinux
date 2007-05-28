@@ -13,8 +13,9 @@
 if(description)
 {
  script_id(11620);
- script_cve_id("CAN-2003-0270");
- script_version ("$Revision: 1.2 $");
+ script_bugtraq_id(7554);
+ script_cve_id("CVE-2003-0270");
+ script_version ("$Revision: 1.4 $");
  
  name["english"] = "Airport Administrative Port";
  script_name(english:name["english"]);

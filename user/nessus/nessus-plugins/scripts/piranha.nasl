@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10381);
- script_version ("$Revision: 1.9 $");
  script_bugtraq_id(1148);
- script_cve_id("CAN-2000-0248");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0248");
  name["english"] = "Piranha's RH6.2 default password";
  name["francais"] = "Mot de passe par défaut de pirhana sur RedHat 6.2";
  script_name(english:name["english"], francais:name["francais"]);
@@ -59,7 +59,7 @@ Facteur de risque : Elevé";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -87,11 +87,12 @@ function test_hole(auth, port)
 
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 if(get_port_state(port))
 {
+    if ( ! can_host_php(port:port) ) exit(0);
     test_hole(auth:"cGlyYW5oYTpx", port:port);
     test_hole(auth:"cGlyYW5oYTpwaXJhbmhh", port:port);
 }

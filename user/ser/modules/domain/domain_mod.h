@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: domain_mod.h,v 1.6 2003/04/01 17:51:54 jih Exp $
  *
  * Domain module headers
  *

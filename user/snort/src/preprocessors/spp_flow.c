@@ -47,6 +47,8 @@
 #include "flow/flow_print.h"
 #include "flow/portscan/flowps_snort.h"
 
+#include "profiler.h"
+
 #define DEFAULT_MEMCAP (1024 * 1024 * 10)
 #define DEFAULT_ROWS   (1024 * 4)
 #define DEFAULT_STAT_INTERVAL 0
@@ -65,7 +67,7 @@ static SPPFLOW_CONFIG s_config;
 
 static int FlowParseArgs(SPPFLOW_CONFIG *config, char *args);
 static INLINE int FlowPacket(Packet *p);
-static void FlowPreprocessor(Packet *p);
+static void FlowPreprocessor(Packet *p, void *);
 static void FlowInit(u_char *args);
 static void FlowCleanExit(int signal, void *data);
 static void FlowRestart(int signal, void *data);
@@ -76,6 +78,10 @@ static void DisplayFlowConfig(void);
 
 static int s_debug = 0;
 unsigned int giFlowbitSize = 64;
+
+#ifdef PERF_PROFILING
+PreprocStats flowPerfStats;
+#endif
 
 /** 
  * Add the Flow Preprocessor to the list of things that snort can
@@ -153,9 +159,13 @@ static void FlowInit(u_char *args)
 
     s_flow_running = 1;
     
-    AddFuncToPreprocList(FlowPreprocessor);
-    AddFuncToCleanExitList(FlowCleanExit, NULL);
-    AddFuncToRestartList(FlowRestart, NULL);
+    AddFuncToPreprocList(FlowPreprocessor, PRIORITY_NETWORK, PP_FLOW);
+    AddFuncToPreprocCleanExitList(FlowCleanExit, NULL, PRIORITY_LAST, PP_FLOW);
+    AddFuncToPreprocRestartList(FlowRestart, NULL, PRIORITY_LAST, PP_FLOW);
+
+#ifdef PERF_PROFILING
+    RegisterPreprocessorProfile("flow", &flowPerfStats, 0, &totalPerfStats);
+#endif
 }
 
 static void FlowRestart(int signal, void *data)
@@ -182,7 +192,7 @@ static void FlowCleanExit(int signal, void *data)
  * 
  * @param p packet to process
  */
-static void FlowPreprocessor(Packet *p)
+static void FlowPreprocessor(Packet *p, void *context)
 {
     int flow_class; /**< addressing scheme to use */
     int direction; /**< which way does the flow go */
@@ -191,11 +201,14 @@ static void FlowPreprocessor(Packet *p)
     FLOW *fp;
     FLOWCACHE *fcache = &s_fcache;
     FLOWPACKET *pkt = (FLOWPACKET *) p;
+    PROFILE_VARS;
         
     if(!FlowPacket(p))
     {
         return;
     }
+
+    PREPROC_PROFILE_START(flowPerfStats);
     
     /* first find the addressing schema */
     if(flow_classifier(pkt, &flow_class) != FLOW_SUCCESS)
@@ -210,11 +223,13 @@ static void FlowPreprocessor(Packet *p)
         if(flowkey_make(&search_key, pkt) != FLOW_SUCCESS)
         {
             ErrorMessage("Unable to make a search key\n");
+            PREPROC_PROFILE_END(flowPerfStats);
             return;
         }
         break;
     default:
         ErrorMessage("Unknown Flow Type: %d\n", flow_class);
+        PREPROC_PROFILE_END(flowPerfStats);
         return;
     }
 
@@ -230,6 +245,7 @@ static void FlowPreprocessor(Packet *p)
         if(p->packet_flags & PKT_REBUILT_STREAM)
         {
             p->flow = fp;
+            PREPROC_PROFILE_END(flowPerfStats);
             return;
         }
 
@@ -249,6 +265,7 @@ static void FlowPreprocessor(Packet *p)
         */
         if(p->packet_flags & PKT_REBUILT_STREAM)
         {
+            PREPROC_PROFILE_END(flowPerfStats);
             return;
         }
 
@@ -276,6 +293,7 @@ static void FlowPreprocessor(Packet *p)
 
     p->flow = fp;
 
+    PREPROC_PROFILE_END(flowPerfStats);
 }
 
 /** 
@@ -285,14 +303,16 @@ static void FlowPreprocessor(Packet *p)
  * 
  * @param p packet
  * 
- * @return 0 on sucess
+ * @return 0 on success
  */
 int CheckFlowShutdown(Packet *p)
 {
     FLOWCACHE *fcache = &s_fcache;
-
     FLOW *flowp = (FLOW *) p->flow;
-    
+    PROFILE_VARS;
+   
+    /* Use TMPSTART to not add to 'checks' */
+    PREPROC_PROFILE_TMPSTART(flowPerfStats);
     if(flowp != NULL)
     {
         if(flow_checkflag(flowp, FLOW_CLOSEME))
@@ -303,6 +323,7 @@ int CheckFlowShutdown(Packet *p)
             if(flowcache_releaseflow(fcache, &flowp) != FLOW_SUCCESS)
             {
                 flow_printf("Can't release flow %p\n", p->flow);
+                PREPROC_PROFILE_TMPEND(flowPerfStats);
                 return FLOW_BADJUJU;
             }
         }
@@ -310,6 +331,7 @@ int CheckFlowShutdown(Packet *p)
 
     p->flow = NULL;
 
+    PREPROC_PROFILE_TMPEND(flowPerfStats);
     return FLOW_SUCCESS;
 }
 
@@ -346,7 +368,7 @@ static int FlowParseArgs(SPPFLOW_CONFIG *config, char *args)
 
         if(!value)
         {
-            FatalError("%s(%d) key %s has no value", file_name, file_line); 
+            FatalError("%s(%d) key %s has no value\n", file_name, file_line, key); 
         }
 
         FlowParseOption(config, file_name, file_line, key, value);                

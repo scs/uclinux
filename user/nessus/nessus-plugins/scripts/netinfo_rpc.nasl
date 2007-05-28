@@ -5,7 +5,7 @@
 if(description)
 {
  script_id(11899);
- script_version("$Revision: 1.1 $");
+ script_version("$Revision: 1.3 $");
  
  name["english"] = "nibindd is running";
  
@@ -17,7 +17,7 @@ in which case it connects to it to extract the list of NetInfo
 domains the remote host is serving
 
 Solution : Filter incoming traffic to this port
-Risk Factor : Medium";
+Risk factor : Medium";
 
 
  script_description(english:desc["english"]);
@@ -188,7 +188,7 @@ of the domain.
 
 Solution : filter incoming traffic to this port. If the remote host is not a
 NetInfo server, kill the 'nibindd' service.
-Risk Factor : Medium";
+Risk factor : Medium";
 
  security_warning(port:rpcport, data:report);
 }

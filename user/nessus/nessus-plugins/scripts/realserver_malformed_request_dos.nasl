@@ -7,8 +7,8 @@
 if(description)
 {
   script_id(10461);
- script_version ("$Revision: 1.11 $");
- script_bugtraq_id(1288);
+  script_bugtraq_id(1288);
+ script_version ("$Revision: 1.12 $");
   script_cve_id("CVE-2000-0474");
   script_name(english:"Check for RealServer DoS");
   desc["english"] = "

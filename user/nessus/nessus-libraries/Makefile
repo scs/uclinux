@@ -35,7 +35,7 @@ pcap-make :
 
 pcap-install:
 	test -d $(DESTDIR)${prefix} || ${INSTALL_DIR} -m 755 $(DESTDIR)${prefix}
-	test -d $(DESTDIR)${prefix}/lib || ${INSTALL_DIR} -m 755 $(DESTDIR)${prefix}/lib
+	test -d $(DESTDIR)${libdir} || ${INSTALL_DIR} -m 755 $(DESTDIR)${libdir}
 	-cd libpcap-nessus && ${MAKE} install
 
 pcap-clean :

@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10360);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1818);
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-1999-0191");
 
  name["english"] = "newdsn.exe check";
@@ -63,7 +63,14 @@ Facteur de risque : Elevé";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
 
 cgi = "/scripts/tools/newdsn.exe";
-port = is_cgi_installed(cgi);
-if(port)security_hole(port);
+res = is_cgi_installed_ka(item:cgi, port:port);
+if(res)security_hole(port);

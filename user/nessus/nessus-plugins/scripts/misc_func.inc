@@ -1,26 +1,44 @@
 # -*- Fundamental -*-
 #
 # (C) 2002 Michel Arboi <arboi@alussinan.org>
-# $Revision: 1.32 $
+# (C) Tenable Network Security
+# $Revision: 1.70 $
 
-function register_service(port, proto)
+function replace_or_set_kb_item(name, value)
+{
+ if (defined_func("replace_kb_item"))
+  replace_kb_item(name: name, value: value);
+ else
+  set_kb_item(name: name, value: value);
+}
+
+function register_service(port, proto, ipproto)
 {
   local_var	k;
-  if(known_service(port:port))
-   return(0);
+  if (! ipproto) ipproto = "tcp";
+  if (! service_is_unknown(port:port, ipproto: ipproto))
+  {
+    if (debug_level) display(get_host_ip(), ": service is already known on port ", ipproto, ":", port, "\n");
+    #return(0);
+  }
    
-  k = string("Known/tcp/", port);
-  set_kb_item(name: k, value: proto);
-  k = string("Services/", proto);
-  set_kb_item(name: k, value: port);
-  #display("register_service: port=", port, ", proto=", proto, "\n");
+  if ( ipproto != "unknown" )
+  {
+   k = strcat("Known/", ipproto, "/", port);
+   replace_or_set_kb_item(name: k, value: proto);
+   if (ipproto == "tcp") k = strcat("Services/", proto);
+   else k = strcat("Services/", ipproto, "/", proto);
+   set_kb_item(name: k, value: port);
+  }
+   if (debug_level) display(get_host_ip(), ": register_service: port=", port, ", proto=", proto, "\n");
 }
 
 # This function may fork!
-function known_service(port)
+function known_service(port, ipproto)
 {
   local_var	k, p;
-  k = string("Known/tcp/", port);
+  if (! ipproto) ipproto = "tcp";
+  k = strcat("Known/", ipproto, "/", port);
   p = get_kb_item(k);
   #if (p) { display("Known service on port ", port, "\n"); }
   #else { display("Unknown service on port ", port, "\n"); }
@@ -28,17 +46,47 @@ function known_service(port)
 }
 
 # This function does not fork!
-function service_is_unknown(port)
+function service_is_unknown(port, ipproto)
 {
   local_var	k, p;
-  k = string("Known/tcp/", port);
+  if (! ipproto) ipproto = "tcp";
+  k = strcat("Known/", ipproto, "/", port);
   p = get_kb_list(k);
-  #if (p) { display("Known service on port ", port, "\n"); }
-  #else { display("Unknown service on port ", port, "\n"); }
-  return isnull(p);
+  if (isnull(p)) return TRUE;
+  foreach k (p)
+    if (k != "unknown")	# fool proof
+      return FALSE;
+  return TRUE;
 }
 
+function verify_service(port, ipproto, proto)
+{
+  local_var	k, p;
+  # Remember: no KB yet in command line mode!
+  if (! ipproto) ipproto = "tcp";
+  k = strcat("Known/", ipproto, "/", port);
+  p = get_kb_list(k);
+  foreach k (p)
+    if (k == proto)
+      return TRUE;
+  return FALSE;
+}
 
+# This function may fork
+function get_port_for_service(default, ipproto, proto)
+{
+  local_var	k, p;
+  # Remember: no KB yet in command line mode!
+  if (! ipproto) ipproto = "tcp";
+  if (ipproto == "tcp") k = strcat("Services/", proto);
+  else k = strcat("Services/", ipproto, "/", proto);
+  p = get_kb_item(k);
+  if (p) return p;
+  k = strcat("Known/", ipproto, "/", default);
+  p = get_kb_item(k);
+  if (p == proto) return default;
+  exit(0);
+}
 
 function set_mysql_version(port, version)
 {
@@ -49,45 +97,68 @@ function set_mysql_version(port, version)
 
 function get_mysql_version(port)
 {
-  local_var	sb, vers, soc, result, MySQL_version, end_found;
+  local_var sb;
   sb = string("mysql/version/", port);
-  vers = get_kb_item(sb);
-  if (vers) return(vers);
-  else { # Get it on the fly.
-    soc = open_sock_tcp(port);
-    if(!soc) return(NULL);
-    result = recv(socket:soc, length:1000);
-    close(soc);
-    if(strlen(result) < 6)return(NULL);
-    if("is not allowed" >< result)return(NULL);
-    if("is blocked" >< result) return(NULL);
-    MySQL_version = "";
-    if ((result[1] == raw_string(0x00)) && (result[2] == raw_string(0x00)) &&
-       (result[3] == raw_string(0x00)) && ((ord(result[4]) > 8) && (ord(result[4]) < 12))){
-      end_found = FALSE;
-      for (i = 0; end_found == FALSE ; i = i + 1) {
-        if (result[5+i] == raw_string(0x00)) {
-          end_found = TRUE;
-        } else {
-          MySQL_version = string(MySQL_version, result[5+i]);
-        }
-      }
-      set_mysql_version(port:port, version:MySQL_version);
-      return(MySQL_version);
-    }
-  }
-  return(NULL);
+  return  get_kb_item(sb);
 }
 
-function get_unknown_banner(port, dontfetch)
+function get_unknown_banner2(port, ipproto, dontfetch)
 {
-  local_var	sb, banner, soc, req;
-  sb = string("unknown/banner/", port);
-  banner = get_kb_item(sb);
-  if (banner) return(banner);
+  local_var	sb, sbH, banner, soc, req, tcp, p, bannerHex;
+  local_var	type;
 
+  if (port < 1 || port > 65535)
+  {
+   display('get_unknown_banner2: invalid port ', port, '\n');
+   return;
+  }
+  if (! ipproto) ipproto = "tcp";
+  if ( ipproto == "tcp" )
+	tcp = 1;
+  else
+	tcp = 0;
+
+  # This comes from find_service
+  if (tcp)
+  {
+   sb  = strcat("unknown/banner/", port);
+   sbH = strcat("unknown/bannerHex/", port);
+  }
+  else
+  {
+   sb  = strcat("unknown/banner/", ipproto, "/", port);
+   sbH = strcat("unknown/bannerHex/", ipproto, "/", port);
+  }
+  banner = get_kb_item(sbH);
+  if (banner) return make_list(hex2raw(s: banner), '?');
+  banner = get_kb_item(banner);
+  if (banner) return make_list(banner, '?');
+
+  # This comes from nessus_tcp_scanner
+  banner = get_kb_item("BannerHex/"+port);
+  if (banner) return make_list(hex2raw(s: banner), 'spontaneous');
+  banner = get_kb_item("Banner/"+port);
+  if (banner) return make_list(banner, 'spontaneous');
+                                                                                
+  banner = get_kb_item("Amap/"+ipproto+"/"+port+"/FullBanner");
+  if (banner) return make_list(banner, 'amap');
+
+  foreach p (make_list("spontaneous", "get_http", "help"))
+  {
+    banner = get_kb_item("FindService/"+ipproto+"/"+port+"/"+p);
+    bannerHex = get_kb_item("FindService/"+ipproto+"/"+port+"/"+p+"Hex");
+    if ( banner && bannerHex )  
+    {
+    if (strlen(bannerHex) > 2 * strlen(banner))
+     return make_list(hex2raw(s: bannerHex), p);
+    else
+     return make_list(banner, p);
+    }
+  }
   if (dontfetch) return(NULL);
   if (! get_port_state(port)) return (NULL);
+  if (! tcp) return (NULL);
+
   soc = open_sock_tcp(port);
   if(!soc) return (NULL);
   # I don't think that it makes sense to send an HTTP request
@@ -95,32 +166,68 @@ function get_unknown_banner(port, dontfetch)
   #send(socket:soc, data:req);
   banner = recv(socket:soc, length:2048);
   close(soc);
-  if (banner) set_kb_item(name: sb, value: banner);
-  return(banner);
+  if (banner)
+  {
+    replace_or_set_kb_item(name: sb, value: banner);
+    if ('\0' >< sb)
+     replace_or_set_kb_item(name: sbH, value: hexstr(banner));
+
+   return make_list(banner, 'spontaneous');
+  }
+  else return NULL;
 }
 
-function set_unknown_banner(port, banner)
+function get_unknown_banner(port, ipproto, dontfetch)
+{
+ local_var	a;
+ a = get_unknown_banner2(port:port, ipproto:ipproto, dontfetch:dontfetch);
+ if (isnull(a)) return;
+ return a[0];
+}
+
+function set_unknown_banner(port, banner, ipproto)
 {
   local_var	sb;
-  sb = string("unknown/banner/", port);
+  if (! ipproto || ipproto == 'tcp')
+    sb = string("unknown/banner/", port);
+  else
+    sb = strcat('unknown/banner/', ipproto, '/', port);
   set_kb_item(name: sb, value: banner);
+  if ('\0' >< banner)
+  {
+    if (! ipproto || ipproto == 'tcp')
+      sb = string("unknown/bannerHex/", port);
+    else
+      sb = strcat('unknown/bannerHex/', ipproto, '/', port);
+    set_kb_item(name: sb, value: hexstr(banner));
+  }
 }
 
 #
 # Get the banner for a given service
 # You must also specify a default port, in case this is not in the kb
 #
-function get_service_banner_line(service, port)
+function get_service_banner_line(service, port, ipproto)
 {
-  local_var	banner, soc, key, gport;
-  gport = get_kb_item(string("Services/", service));
+  local_var	banner, soc, key, gport, tcp;
+  tcp = !ipproto || ipproto == 'tcp';
+  if (tcp)
+   gport = get_kb_item(strcat("Services/", service));
+  else
+   gport = get_kb_item(strcat("Services/", ipproto, "/", service));
   if(!gport) gport = port;
 
-  key = string(service, "/banner/", gport);
+  if (tcp) 
+   key = strcat(service, "/banner/", gport);
+  else
+   key = strcat(service, "/banner/", ipproto, "/", gport);
+
   banner = get_kb_item(key);
   
   if(!banner)
   {
+    if (! tcp) return;
+
     if(get_port_state(gport))
     {
       soc = open_sock_tcp(gport);
@@ -129,7 +236,8 @@ function get_service_banner_line(service, port)
 	banner = recv_line(socket:soc, length:2048);
 	close(soc);
       }
-    }  
+    }
+#   if (banner) set_kb_item(name: key, value: banner);
   }
   
   return(banner);
@@ -262,3 +370,237 @@ function add_port_in_list(list, port)
  return make_list(list, port);
 }
 
+# hex2raw was written by Renaud
+
+function hex2raw(s)
+{
+ local_var i, j, ret, l;
+
+ s = chomp(s);	# remove trailing blanks, CR, LF...
+ l = strlen(s);
+ if (l % 2) {
+	display("hex2raw: odd string: ", s, "\n");
+	l --;
+	}
+ s = tolower(s);
+ for(i=0;i<l;i+=2)
+ {
+  if(ord(s[i]) >= ord("0") && ord(s[i]) <= ord("9"))
+        j = int(s[i]);
+  else
+        j = int((ord(s[i]) - ord("a")) + 10);
+
+  j *= 16;
+  if(ord(s[i+1]) >= ord("0") && ord(s[i+1]) <= ord("9"))
+        j += int(s[i+1]);
+  else
+        j += int((ord(s[i+1]) - ord("a")) + 10);
+  ret += raw_string(j);
+ }
+ return ret;
+}
+
+function report_service(port, svc, banner)
+{
+ local_var	k, name, a;
+
+ svc = tolower(svc);
+ if (! isnull(banner))
+ {
+  k = strcat(svc, "/banner/", port);
+  set_kb_item(name: k, value: banner);
+ }
+ register_service(port: port, proto: svc);
+ if (svc == 'www') name = 'web server';
+ else if (svc == 'proxy') name = 'web proxy';
+ else if (svc == 'hylafax-ftp' || svc == 'hylafax') name = 'HylaFAX server';
+ else if (svc == 'agobot.fo') name = 'Agobot.fo backdoor';
+ else if (svc == 'unknown_irc_bot') name = 'IRC bot';
+ else if (svc == 'auth') name = 'identd';
+ else name = toupper(svc) +' server';
+ a = tolower(name[0]);
+ if (a == 'a' || a == 'e' || a == 'i' || a == 'o') a = 'An ';
+ else a = 'A ';
+ security_note(port: port, data: a + name + ' is running on this port');
+}
+
+
+
+
+
+function base64_decode(str)
+{
+ local_var len, i, j, k, ret, base64, b64, a,b,c,o;
+ len = strlen(str);
+ ret = "";
+
+ base64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+ for (i = 0; i < 256; i++)
+   b64[i] = 0;
+ for (i = 0; i < strlen(base64); i++)
+   b64[ord(base64[i])] = i;
+
+ for(j=0;j<len;j+=4)
+ {
+   for (i = 0; i < 4; i++)
+   {
+    c = ord(str[j+i]);
+    a[i] = c;
+    b[i] = b64[c];
+   }
+ 
+   o[0] = (b[0] << 2) | (b[1] >> 4);
+   o[1] = (b[1] << 4) | (b[2] >> 2);
+   o[2] = (b[2] << 6) | b[3];
+   if (a[2] == ord('='))
+     i = 1;
+   else if (a[3] == ord('='))
+     i = 2;
+   else
+     i = 3;
+   for(k=0;k<i;k++)
+      ret += raw_string(int(o[k]) & 255);
+   
+   if (i < 3) 
+     break;
+ }
+
+ return ret;
+}
+
+__base64_code = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+function base64_code(c)
+{
+ return(__base64_code[c]);
+}
+
+function pow2(x)
+{
+ local_var __ret;
+
+ __ret = 1;
+ while(x)
+  {
+  __ret = __ret * 2;
+  x = x  - 1;
+  }
+ return(__ret);
+}
+
+function base64(str)
+{
+ local_var len, i, ret, char_count, _bits, val, cnt, mul;
+
+ len = strlen(str);
+ i = 0;
+ ret = "";
+ char_count = 0;
+ _bits = 0;
+ while(i < len)
+ {
+  _bits = _bits + ord(str[i]);
+  char_count = char_count + 1;
+  if(char_count == 3)
+  {
+    val = _bits / 262144;
+    ret = string(ret, base64_code(c:val));
+    val = _bits / 4096;
+    val = val & 0x3F;
+    ret = string(ret, base64_code(c:val));
+    val = _bits / 64;
+    val = val & 0x3F;
+    ret = string(ret, base64_code(c:val));
+    val = _bits & 0x3F;
+    ret = string(ret, base64_code(c:val));
+    char_count = 0;
+    _bits = 0;
+ }
+ else {
+       _bits = _bits * 256;
+       }
+ i = i + 1;
+ }
+
+
+ if(!(char_count == 0))
+ {
+  cnt = char_count * 8;
+  mul = 16;
+  mul = mul - cnt;
+  mul = pow2(x:mul);
+  _bits = _bits * mul;
+  val = _bits / 262144;
+  ret = string(ret, base64_code(c:val));
+  val = _bits / 4096;
+  val = val & 0x3F;
+  ret = string(ret, base64_code(c:val));
+ if(char_count == 1)
+ { 
+  ret = string(ret, "==");
+ }
+ else
+ {
+   val = _bits / 64;
+   val = val & 0x3F;
+   ret = string(ret, base64_code(c:val), "=");
+  }
+ }
+ return(ret);
+}
+
+
+# This function converts a string representing a decimal number to 
+# to hexadecimal; eg, dec2hex(1098757090) == "417db3e2".
+#
+# Args:
+#   o num, decimal number.
+#
+# Return:
+#   hex number represented as a raw string.
+#
+# updated: 16-Nov-2004, George A. Theall
+#
+function dec2hex(num) {
+  local_var digits, hex, rem;
+  hex = "";
+
+  num = int(num);
+  while (num > 0) {
+    rem = num % 256;
+    hex = raw_string(rem, hex);
+    num = num / 256;
+    if (num > 0 && num < 255) {
+      hex = raw_string(num, hex);
+      num = 0;
+    }
+  }
+  if (!hex) hex = raw_string(0x00);
+
+  return hex;
+}
+
+# Convert a Date CVS field to Unix time 
+# Michel Arboi
+
+function cvsdate2unixtime(date)
+{
+  local_var v, u;
+  if (! defined_func("mktime")) return NULL;	# We could write it in NASL...
+  v = eregmatch(string: date, pattern: ".Date: ([0-9]+)/([01][0-9])/([0-3][0-9]) ([0-2][0-9]):([0-6][0-9]):([0-6][0-9]) \$");
+  if (isnull(v)) return;
+  u = mktime(year: v[1], mon: v[2], mday: v[3], hour: v[3], min: v[5], sec: v[6]);
+  return u;
+}
+
+
+function get_unknown_svc()
+{
+ local_var p;
+ 
+ p = get_kb_item("Services/unknown");
+ if ( ! p ) return _FCT_ANON_ARGS[0];
+ if ( p == 135 || p == 139 || p == 445 ) return 0;
+ if ( ! service_is_unknown(port:p)) return 0;
+ return p;
+}

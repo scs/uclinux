@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10508);
- script_version ("$Revision: 1.5 $");
+ script_version ("$Revision: 1.7 $");
  
  
  name["english"] = "PFTP login check";
@@ -58,7 +58,8 @@ Facteur de risque : Elevé";
  family["english"] = "FTP";
  family["francais"] = "FTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "DDI_FTP_Any_User_Login.nasl");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl", 
+	"ftp_kibuv_worm.nasl", "DDI_FTP_Any_User_Login.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -66,16 +67,20 @@ Facteur de risque : Elevé";
 #
 # The script code starts here
 #
-
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
+
+if (get_kb_item('ftp/'+port+'/backdoor')) exit(0);
+
 if(get_port_state(port))
 {
-  if(get_kb_item("ftp/" + port + "/AnyUser"))exit(0);
+ if (get_kb_item("ftp/" + port + "/AnyUser") || get_kb_item('ftp/'+port+'/backdoor')) exit(0);
+
  soc = open_sock_tcp(port);
  if(soc)
  {
-  if(ftp_log_in(socket:soc, user:" ", pass:" "))
+  if(ftp_authenticate(socket:soc, user:" ", pass:" "))
   {
    security_hole(port);
    set_kb_item(name:"ftp/pftp_login_problem", value:TRUE);

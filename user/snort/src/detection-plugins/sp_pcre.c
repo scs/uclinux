@@ -40,6 +40,8 @@
 
 #include <pcre.h>
 
+extern int g_nopcre;
+
 typedef struct _PcreData
 {
     pcre *re;           /* compiled regex */
@@ -99,6 +101,9 @@ void SnortPcreInit(char *data, OptTreeNode *otn, int protocol)
      * individually
      */
     fpl->context = (void *) pcre_data;
+
+    if (pcre_data->options & SNORT_PCRE_RELATIVE)
+        fpl->isRelative = 1;
 
     return;
 }
@@ -262,7 +267,7 @@ static int pcre_search(const PcreData *pcre_data,
     int ovector[SNORT_PCRE_OVECTOR_SIZE];
     int matched;
     int result;
-    
+  
     if(pcre_data == NULL
        || buf == NULL
        || len <= 0
@@ -330,6 +335,10 @@ int SnortPcre(Packet *p, struct _OptTreeNode *otn, OptFpList *fp_list)
 
     DEBUG_WRAP(char *hexbuf;);
 
+    //short circuit this for testing pcre performance impact
+    if( g_nopcre )
+        return 0;
+    
     /* get my data */
     pcre_data =(PcreData *) fp_list->context;
 
@@ -427,6 +436,10 @@ int SnortPcre(Packet *p, struct _OptTreeNode *otn, OptFpList *fp_list)
 
             return 1;
         }
+
+        /* if the next option isn't relative and it failed, we're done */
+        if (fp_list->next->isRelative == 0)
+            return 0;
 
         /* the other OTNs search's were not successful so we need to keep searching */
         if(search_offset <= 0 || length < search_offset)

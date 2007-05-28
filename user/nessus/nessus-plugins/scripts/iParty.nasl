@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(10111);
- script_cve_id("CAN-1999-1566");
- script_version ("$Revision: 1.12 $");
+ script_bugtraq_id(6844);
+ script_cve_id("CVE-1999-1566");
+ script_version ("$Revision: 1.15 $");
  name["english"] = "iParty";
  name["francais"] = "iParty";
  script_name(english:name["english"], francais:name["francais"]);
@@ -18,7 +19,7 @@ The iParty server listens on port 6004 for client requests. If someone
 connects to it and sends a large amount of ASCII 255 chars, the server
 will close itself and disconnect all the current users.
 
-Risk factor : Low/Medium
+Risk factor : Low / Medium
 
 Solution : Upgrade";
 

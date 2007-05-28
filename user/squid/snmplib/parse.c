@@ -540,7 +540,7 @@ get_token(register FILE *fp, register char *token)
 		return get_token(fp, token);
 	    }
 	    for (cp = token; *cp; cp++)
-		if (!isdigit(*cp))
+		if (!xisdigit(*cp))
 		    return LABEL;
 	    return NUMBER;
 	} else {

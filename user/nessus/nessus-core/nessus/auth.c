@@ -88,7 +88,7 @@ int auth_login(user,password)
 void network_printf(char * data, ...)
 {
   va_list param;
-  int r, s = 16384;
+  int r, s = 65535;
   char * buffer = emalloc(s);
   int len, n = 0;
   signal(SIGPIPE, sighand_pipe);
@@ -97,9 +97,9 @@ void network_printf(char * data, ...)
  
   for(;;)
   {
-   r = vsnprintf(buffer, s, data, param);
+   r = vsnprintf(buffer, s - 1, data, param);
    if(r >= 0 && r < s)break;
-   s = r > s ? r + 1 : s * 2;
+   s = r > s ? r + 2 : s * 2;
    buffer = erealloc(buffer, s);
   }
   len = strlen(buffer);

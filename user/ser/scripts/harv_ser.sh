@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: harv_ser.sh,v 1.39 2003/08/13 20:53:04 jiri Exp $
 #
 # tool for post-processesing captured SIP messages 
 #

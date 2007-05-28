@@ -8,7 +8,7 @@
 if(description)
 {
  script_id(11238);
- script_version ("$Revision: 1.9 $");
+ script_version ("$Revision: 1.14 $");
  
  name["english"] = "Anti Nessus defenses";
  name["francais"] = "Défenses anti Nessus";
@@ -20,8 +20,7 @@ from Nessus. It is probably protected by a reverse proxy.
 
 Risk factor : None
 
-Solution : change your configuration 
-           if you want accurate audit results";
+Solution : change your configuration if you want accurate audit results";
 
  desc["francais"] = "
 Il semble que votre serveur web rejette les requêtes
@@ -55,14 +54,15 @@ Solution : Modifiez votre configuration
 
 #
 
-exit(0); # broken
+include("global_settings.inc");
+if (! experimental_scripts) exit(0); # Still broken?
 
 include("http_func.inc");
-include("http_keepalive.inc");
+##include("http_keepalive.inc");
 include("misc_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if (! get_port_state(port)) exit(0);
 
 no404 = get_kb_item(string("www/no404/", port));
@@ -91,7 +91,7 @@ Solution : change your configuration
 u = string("/NessusTest", rand(), ".html");
 r = http_get(port: port, item: u);
 
-c1 = http_keepalive_send_recv(port:port, data:r);
+c1 = http_send_recv(port:port, data:r);
 if( c1 == NULL ) exit(0);
 x1 = ereg_replace(pattern:"^HTTP/[0-9]\.[0-9] ([0-9][0-9][0-9]) .*$",
 		string:c1, replace: "\1");
@@ -100,7 +100,7 @@ if (c1 == x1) x1 = "";
 u = string("/", rand_str(), ".html");
 r = http_get(port: port, item: u);
 
-c2 = http_keepalive_send_recv(port:port, data:r);
+c2 = http_send_recv(port:port, data:r);
 if(c2 == NULL)exit(0);
 x2 = ereg_replace(pattern:"^HTTP/[0-9]\.[0-9] ([0-9][0-9][0-9]) .*$",
 		string:c2, replace: "\1");
@@ -117,8 +117,9 @@ if (x1 != x2)
 
 
 r = http_get(port: port, item: "/");
-c1 = http_keepalive_send_recv(port:port, data:r);
+c1 = http_send_recv(port:port, data:r);
 if(c1 == NULL)exit(0);
+# Extract the HTTP code
 c1 = egrep(pattern:"^HTTP/[0-9]\.[0-9] [0-9]* .*", string:c1);
 x1 = ereg_replace(pattern:"^HTTP/[0-9]\.[0-9] ([0-9][0-9][0-9]) .*$",
 		string:c1, replace: "\1");
@@ -130,8 +131,10 @@ ua = '\nUser-Agent: Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.0)\r\n';
 r2 = ereg_replace(string: r, pattern: '\nUser-Agent:[^\r]*Nessus[^\r]*\r\n', replace: ua);
 if (r == r2) exit(0);	# Cannot test
 
-c2 = http_keepalive_send_recv(port:port, data:r2);
+c2 = http_send_recv(port:port, data:r2);
 if(c2 == NULL)exit(0);
+# Extract the HTTP code
+c2 = egrep(pattern:"^HTTP/[0-9]\.[0-9] [0-9]* .*", string:c2);
 x2 = ereg_replace(pattern:"^HTTP/[0-9]\.[0-9] ([0-9][0-9][0-9]) .*$",
 		string:c2, replace: "\1");
 if (c2 == x2) x2 = "";

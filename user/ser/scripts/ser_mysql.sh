@@ -1,6 +1,6 @@
 #!/bin/sh 
 #
-# $Id$
+# $Id: ser_mysql.sh,v 1.44.4.1.2.2 2004/07/27 08:29:35 andrei Exp $
 #
 # Script for adding and dropping ser MySql tables
 # 

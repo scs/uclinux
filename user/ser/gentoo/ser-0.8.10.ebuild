@@ -1,6 +1,6 @@
 # Copyright 1999-2002 Gentoo Technologies, Inc.
 # Distributed under the terms of the GNU General Public License v2
-# $Id$
+# $Id: ser-0.8.10.ebuild,v 1.2 2002/11/14 03:45:48 calrissian Exp $
 
 DESCRIPTION="SIP Express Router"
 

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_expires.c,v 1.5 2003/04/26 20:28:46 jiri Exp $
  *
  * Expires header field body parser
  *

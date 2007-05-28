@@ -1,5 +1,5 @@
 /*
- *   $Id$
+ *   $Id: device-common.c,v 1.3 2002/01/02 11:01:11 psavola Exp $
  *
  *   Authors:
  *    Lars Fenneberg		<lf@elemental.net>	 

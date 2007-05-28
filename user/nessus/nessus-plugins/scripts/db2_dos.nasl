@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10871);
- script_version("$Revision: 1.5 $");
  script_bugtraq_id(3010);
- script_cve_id("CAN-2001-1143");
+ script_version("$Revision: 1.8 $");
+ script_cve_id("CVE-2001-1143");
  name["english"] = "DB2 DOS";
  name["francais"] = "Déni de service contre DB2";
  script_name(english:name["english"], francais:name["francais"]);
@@ -25,7 +25,7 @@ from working properly.
 
 Solution: upgrade your software
 
-Risk factor : Medium";
+Risk factor : High";
 
 
  desc["francais"] = "Il a été possible de
@@ -40,7 +40,7 @@ correctement.
 
 Solution: mettez à jour votre logiciel
 
-Facteur de risque : Moyen";
+Facteur de risque : Elevé";
 
  script_description(english:desc["english"], francais:desc["francais"]);
  

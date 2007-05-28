@@ -220,7 +220,8 @@ int hi_ui_parse_iis_unicode_map(int **iis_unicode_map, char *filename,
 
     *iis_unicode_map = (int *)xmalloc(sizeof(int) * 65536);
     if(*iis_unicode_map == NULL)
-    {
+    {   
+        fclose(fFile);
         return HI_MEM_ALLOC_FAIL;
     }
 
@@ -232,14 +233,17 @@ int hi_ui_parse_iis_unicode_map(int **iis_unicode_map, char *filename,
     if((iRet = FindCodePage(fFile, iCodePage)))
     {
         //printf("** Did not find codepage\n");
+        fclose(fFile);
         return iRet;
     }
 
     if((iRet = MapCodePoints(fFile, *iis_unicode_map)))
     {
         //printf("** Error while parsing codepage.\n");
+        fclose(fFile);
         return iRet;
     }
 
+    fclose(fFile);
     return HI_SUCCESS;
 }

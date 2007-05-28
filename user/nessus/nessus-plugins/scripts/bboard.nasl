@@ -7,9 +7,9 @@
 if(description)
 {
  script_id(10507);
- script_version ("$Revision: 1.6 $");
  script_bugtraq_id(1459);
- script_cve_id("CAN-2000-0629");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2000-0629");
  name["english"] = "Sun's Java Web Server remote command execution";
  name["francais"] = "Sun's Java Web Server remote command execution";
  script_name(english:name["english"], francais:name["francais"]);
@@ -21,7 +21,7 @@ commands with the privileges of the http daemon (root or nobody).
 
 Solution : remove it.
 
-Risk factor : Serious";
+Risk factor : High";
 
 
  desc["francais"] = "Le servlet 'bboard' est installé dans
@@ -50,7 +50,7 @@ Facteur de risque : Sérieux";
  family["english"] = "CGI abuses";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -58,7 +58,16 @@ Facteur de risque : Sérieux";
 #
 # The script code starts here
 #
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = is_cgi_installed("/servlet/sunexamples.BBoardServlet");
-if(port)security_hole(port);
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+res = is_cgi_installed_ka(item:"/servlet/nessus." + rand(), port:port);
+if ( res ) exit(0);
+
+res = is_cgi_installed_ka(item:"/servlet/sunexamples.BBoardServlet", port:port);
+if( res )security_hole(port);
 

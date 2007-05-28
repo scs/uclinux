@@ -12,7 +12,8 @@
 if(description)
 {
  script_id(10316);
- script_version ("$Revision: 1.10 $");
+#  script_cve_id("CVE-MAP-NOMATCH");
+ script_version ("$Revision: 1.12 $");
  
  name["english"] = "WinSATAN";
  name["francais"] = "WinSATAN";
@@ -79,12 +80,13 @@ Facteur de risque : Elevé.";
 #
 # The script code starts here
 #
+include('ftp_func.inc');
 if(get_port_state(999))
 {
 soc = open_sock_tcp(999);
 if(soc)
 {
- if(ftp_log_in(socket:soc, user:"uyhw6377w", pass:"bhw32qw"))security_hole(999);
+ if(ftp_authenticate(socket:soc, user:"uyhw6377w", pass:"bhw32qw"))security_hole(999);
  close(soc);
 }
 }

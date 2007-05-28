@@ -229,7 +229,6 @@ trace("aix_format_parse called\n");
     if(c)         goto initial;
     return "Improper AIX field descriptor.";
   looks_ok:
-    if (0) {};
   }
 
   /*** sanity check passed ***/

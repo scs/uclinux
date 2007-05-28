@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $Id$ 
+# $Id: test0.sh,v 1.5 1993/12/12 01:39:09 genek Exp $ 
 
 SIGGEN=$1
 TESTDIR=$2

@@ -7,10 +7,12 @@
 if (description)
 {
  script_id(11540);
- script_version ("$Revision: 1.3 $");
- script_name(english:"PPTP overflow");
  script_bugtraq_id(7316);
- script_cve_id("CAN-2003-0213");
+ script_version ("$Revision: 1.10 $");
+ script_name(english:"PPTP overflow");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:029");
+
+ script_cve_id("CVE-2003-0213");
  desc["english"] = "
 The remote PPTP server has remote buffer overflow vulnerability. 
 The problem occurs due to insufficient sanity checks when referencing 
@@ -30,7 +32,7 @@ Risk factor : High";
  script_summary(english:"Determine if a remote PPTP server has remote buffer overflow vulnerability");
  script_category(ACT_ATTACK);
  script_family(english:"Gain root remotely");
- script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi");
+ script_copyright(english:"This script is Copyright (C) 2003 Xue Yong Zhi & Tenable Network Security");
  script_dependencie("pptp_detect.nasl");
  script_require_ports("Services/pptp",1723);
  exit(0);
@@ -38,66 +40,48 @@ Risk factor : High";
 
 
 
-buffer = 
-raw_string(0x00, 0x9C) +
-# Length
 
-raw_string(0x00, 0x01) +
-# Control packet
 
-raw_string(0x1A, 0x2B, 0x3C, 0x4D) +
-# Magic Cookie
+include("misc_func.inc");
+include("byte_func.inc");
 
-raw_string(0x00, 0x01) +
-# Control Message = Start Session Request
+port = get_kb_item("Services/pptp");
+if ( !port) exit(0);
 
-raw_string(0x00, 0x00) +
-# Reserved word 1
+set_byte_order(BYTE_ORDER_BIG_ENDIAN);
 
-raw_string(0x01, 0x00) +
-# Protocol version = 256
+pptp_head =	mkword(1) +			# Message Type
+        	mkdword(0x1a2b3c4d) +		# Cookie
+ 		mkword(1) +			# Control type (Start-Control-Connection-Request)
+		mkword(0) +			# Reserved
+		mkword(0x0100) +		# Protocol Version (1.0)
+  		mkword(0) +			# Reserved
+		mkdword(1) +			# Framing Capabilities
+		mkdword(1) +			# Bearer capabilities
+		mkword(0);			# Maximum channels
+pptp_vendor = mkword(NASL_LEVEL) +		# Firmware revision 
+	      mkpad(64) +			# Hostname 
+	      mkpad(64);			# Vendor
 
-raw_string(0x00) +
-# Reserved byte 1
 
-raw_string(0x00) +
-# Reserved byte 2
+buffer = mkword(strlen(pptp_head) + strlen(pptp_vendor) + 2) + pptp_head + pptp_vendor;
 
-raw_string(0x00, 0x00, 0x00, 0x01) +
-# Framing Capability Summary (Can do async PPP)
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+send(socket:soc, data:buffer);
+r = recv(socket:soc, length:2);
+if ( ! r || strlen(r) != 2 ) exit(0);
+l = getword(blob:r, pos:0); 
+r += recv(socket:soc, length:l - 2, min:l - 2);
+if ( strlen(r) != l ) exit(0);
+if ( strlen(r) < strlen(pptp_head) + strlen(pptp_vendor) ) exit(0);
 
-raw_string(0x00, 0x00, 0x00, 0x01) +	
-# Bearer Capability Summary (Can do analog calls)
+cookie = getdword(blob:r, pos:4);
+if ( cookie != 0x1a2b3c4d ) exit(0);
 
-raw_string(0x00, 0x00) +
-# Max Channels
 
-raw_string(0x08, 0x70) +
-# Frimware Revision = 2160
-
-raw_string(
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00) +
-# Hostname
-
-raw_string(
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-0x00, 0x00, 0x00, 0x00);
-# Vendor string
-
-port = 1723;
-if (get_port_state(port))
-{
- soc = open_sock_tcp(1723);
- if (soc)
+soc = open_sock_tcp(port);
+if (soc)
  {
   send(socket:soc, data:buffer);
   rec_buffer = recv(socket:soc, length:156);
@@ -115,11 +99,13 @@ if (get_port_state(port))
 	 {
   	send(socket:soc, data:buffer);
 
- 	 # Patched pptp server will return RST(will not read bad data), 
+        # Patched pptp server will return RST(will not read bad data), 
   	# unpatched will return FIN(read all the bad data and be overflowed).
  
-  	filter = string("tcp and src host ", get_host_ip(), " and dst host ",
-  	this_host(), " and src port ", port, " and tcp[13:1]&1!=0 " );
+	if ( defined_func("get_source_port") )
+  	filter = string("tcp and src host ", get_host_ip(), " and dst host ", this_host(), " and src port ", port, " and dst port ", get_source_port(soc), " and tcp[13:1]&1!=0 " );
+	else
+  	filter = string("tcp and src host ", get_host_ip(), " and dst host ", this_host(), " and src port ", port, " and tcp[13:1]&1!=0 " ); 
 
 	  for(i=0;i<5;i++) {
    		 r = pcap_next(pcap_filter:filter, timeout:2);
@@ -127,5 +113,4 @@ if (get_port_state(port))
                 }
          }
     }
-  }
 }

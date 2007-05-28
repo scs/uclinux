@@ -7,7 +7,7 @@ if(description)
 {
  script_id(11613);
  script_bugtraq_id(7159);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.5 $");
 
  
  name["english"] = "CP syslog overflow";
@@ -24,7 +24,7 @@ too much data to it.
 *** Nessus disabled this service to perform this security check
 
 Solution : Upgrade to NG FP3 HF2
-Risk Factor : Medium";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -45,6 +45,9 @@ Risk Factor : Medium";
 # If we don't get one, we crash the remote service and try again. If the results
 # differ, then there was a service.
 #
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
 
 sport = rand() % 65000 + 1024;
 

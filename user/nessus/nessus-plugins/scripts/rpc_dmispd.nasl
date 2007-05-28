@@ -8,8 +8,9 @@
 if(description)
 {
  script_id(11405);
- script_version ("$Revision: 1.4 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0015");
  script_bugtraq_id(5356);
+ script_version ("$Revision: 1.8 $");
  script_cve_id("CVE-2002-0391");
 
  name["english"] = "dmisd service";
@@ -60,6 +61,11 @@ Risk factor : High";
 
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
+
 
 
 RPC_PROG = 300598;

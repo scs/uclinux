@@ -9,14 +9,18 @@
 if(description)
 {
  script_id(10043);
- script_version ("$Revision: 1.18 $");
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-1999-0103"); 
  name["english"] = "Chargen";
  name["francais"] = "Chargen";
  script_name(english:name["english"], francais:name["francais"]);
 
     desc["english"] = "
+Synopsis :
+
 The remote host is running a 'chargen' service.
+
+Description :
 
 When contacted, chargen responds with some random characters (something
 like all the characters in the alphabet in a row). When contacted via UDP, it 
@@ -49,8 +53,10 @@ Solution :
    
 To restart the service.
 
- 
-Risk factor : Low";
+Risk factor :
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:N/A:P/I:N/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -88,8 +94,8 @@ if(get_port_state(19))
  soc = open_sock_tcp(19);
  if(soc)
   {
-    a = recv(socket:soc, length:1024);
-    if(strlen(a) > 1000)security_warning(19);
+    a = recv(socket:soc, length:255, min:255);
+    if(strlen(a) > 255)security_note(19);
     close(soc);
   }
  }
@@ -102,7 +108,7 @@ if(get_udp_port_state(19))
  data = string("\r\n");
  send(socket:udpsoc, data:data);
  b = recv(socket:udpsoc, length:1024);
- if(strlen(b) > 300)security_warning(port:19,protocol:"udp");
+ if(strlen(b) > 255)security_note(port:19,protocol:"udp");
  
  close(udpsoc);
 }

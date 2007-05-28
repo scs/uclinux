@@ -10,12 +10,15 @@
 # Date: Mon, 11 Nov 2002 13:55:04 +0530
 # Subject: Buffer Overflow in iSMTP Gateway
 #
+# http://www.securityfocus.com/bid/153
+# SLMail 3.0.2421 Buffer Overflow 'Mail From' Vulnerability
+#
 
 if(description)
 {
  script_id(10419);
- script_version ("$Revision: 1.14 $");
- script_bugtraq_id(1229);
+ script_bugtraq_id(1229, 153);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-2000-0452");
  
  name["english"] = "Lotus MAIL FROM overflow";
@@ -77,7 +80,7 @@ Facteur de risque : Elevé";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -91,13 +94,16 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
  if(soc)
  {
  data = smtp_recv_banner(socket:soc);
- crp = string("HELO nessus.org\r\n");
+ if ( ! data ) exit(0);
+ crp = string("HELO example.com\r\n");
  send(socket:soc, data:crp);
  data = recv_line(socket:soc, length:1024);
  if("250 " >< data)

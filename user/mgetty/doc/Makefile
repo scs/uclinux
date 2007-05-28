@@ -1,6 +1,6 @@
 # doc/Makefile
 #
-# SCCS: $Id$ Copyright (C) 1994 Gert Doering
+# SCCS: $Id: Makefile,v 4.3 2005/02/27 12:09:53 gert Exp $ Copyright (C) 1994 Gert Doering
 #
 
 NROFF=nroff

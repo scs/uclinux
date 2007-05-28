@@ -99,7 +99,8 @@ preferences_get_filename()
   char * ret;
   struct passwd * pwd;
   
-  home = getenv("HOME");
+  home = getenv("NESSUSHOME");
+  if ( home == NULL ) home = getenv("HOME");
   if(home)
   {
    ret = emalloc(strlen(home)+strlen("/.nessusrc")+1);
@@ -127,7 +128,8 @@ preferences_get_altname(ext)
   struct passwd * pwd;
   int	l = (ext == NULL) ? 0 : strlen(ext) + 1;
   
-  home = getenv("HOME");
+  home = getenv("NESSUSHOME");
+  if ( home == NULL ) home = getenv("HOME");
   if(home == NULL)
     {
       pwd = getpwuid(getuid());
@@ -164,7 +166,6 @@ static int preferences_new()
   fprintf(f, "trusted_ca = %s/cacert.pem\n", NESSUSD_CA);
   fprintf(f, "begin(SCANNER_SET)\n");
   fprintf(f, "10180 = yes\n");
-  fprintf(f, "10277 = no\n");
   fprintf(f, "10278 = no\n");
   fprintf(f, "10331 = no\n");
   fprintf(f, "10335 = yes\n");
@@ -172,14 +173,18 @@ static int preferences_new()
   fprintf(f, "10336 = no\n");
   fprintf(f, "10796 = no\n");
   fprintf(f, "11219 = no\n");
+  fprintf(f, "14259 = no\n");
+  fprintf(f, "14272 = no\n");
+  fprintf(f, "14274 = no\n");
+  fprintf(f, "14663 = no\n");
   fprintf(f, "end(SCANNER_SET)\n\n");
 
-#if 0
+
   fprintf(f, "begin(SERVER_PREFS)\n");
   fprintf(f, " max_hosts = 20\n");
   fprintf(f, " max_checks = 4\n");
   fprintf(f, "end(SERVER_PREFS)\n");
-#endif
+
 
   fclose(f);
   chmod(fn, 0600);
@@ -294,14 +299,17 @@ prefs_buffer_parse(buffer, arglist)
  opt = buffer;
  /* remove the spaces before the pref name */
  if(opt[0]==' ' && opt[0])opt+=sizeof(char);
- if((t = strrchr(buffer, '=')))
+ if((t = strchr(buffer, '=')))
  {
   t[0]=0;
   t+=sizeof(char);
   while(t[0]==' ' && t[0])t+=sizeof(char);
   if(!t[0])return(1);
   /* remove the spaces after the pref name */
-  while(opt[strlen(opt)-1]==' ')opt[strlen(opt)-1]=0;
+  if ( strchr(buffer, '[') == NULL && strchr(buffer, ']') == NULL )
+    while(opt[strlen(opt)-1]==' ')opt[strlen(opt)-1]=0;
+  else
+    if ( opt[strlen(opt)-1]==' ') opt[strlen(opt)-1]=0;
   
   /* char to int conversion if necessary */
   if(!strcmp(t, "yes"))val = 1;
@@ -436,6 +444,8 @@ pluginset_apply(plugins, name)
     printf("%s is unknown to us\n", plugins->name);
     if(c && (!strcmp(c, "denial")||
 	     ! strcmp(c, "kill_host") ||
+	     ! strcmp(c, "flood") ||
+	     ! strcmp(c, "scanner") ||
     	     !strcmp(c, "destructive_attack")))plug_set_launch(plugins->value, 0);
     else plug_set_launch(plugins->value, 1);
     ret++;
@@ -445,59 +455,114 @@ pluginset_apply(plugins, name)
   return ret;
  }
  
+
+#define MAGIC 8197
+struct hash {
+	int name;
+	struct arglist * v;
+	struct hash * next;
+};
+
+static struct arglist * hash_get ( struct hash ** hash, int id )
+{
+ int idx = id % MAGIC;
+ struct hash * h = hash[idx];
+ while ( h != NULL ) 
+ {
+  if ( h->name == id ) return h->v;
+  h = h->next;
+ }
+ return NULL;
+}
+
+
+
 void
 pluginset_reload(plugins, scanners)
  struct arglist * plugins;
  struct arglist * scanners;
 {
   struct arglist * t = arg_get_value(Prefs, "PLUGIN_SET");
+  static struct hash ** p_hash = NULL, ** s_hash = NULL;
+  int flag = 0;
+
   
-  plugins = Plugins;
-  scanners = Scanners;
   if(!t){
    t = emalloc(sizeof(struct arglist));
    new_pluginset(t, plugins);
    arg_add_value(Prefs, "PLUGIN_SET", ARG_ARGLIST, -1, t);
    }
- while(plugins && plugins->next)
+
+ if ( p_hash == NULL )
  {
-  int flag = 0;
-  
-  t = arg_get_value(Prefs, "PLUGIN_SET");
-  if(t)while(!flag && t && t->next)
+ p_hash  = emalloc ( MAGIC * sizeof(struct hash*));
+ while ( t->next != NULL )
   {
-   if(!strcmp(plugin_asc_id(plugins->value), t->name))
-   {
-    t->value = (void *)plug_get_launch(plugins->value);
-    flag = 1;
-   }
+  struct hash * h; 
+  int id = atoi(t->name);
+  int idx = id % MAGIC;
+
+  h = emalloc(sizeof(struct hash));
+  h->name = id;
+  h->v = t;
+  h->next =  p_hash[idx];
+  p_hash[idx] = h;
   t = t->next;
+  if ( ( t == NULL || t->next == NULL )  && flag == 0 )
+	{
+	t = arg_get_value(Prefs, "SCANNER_SET");
+	if ( t == NULL ) break;
+	flag ++;
+	}
   }
+ }
+  
+if ( plugins != NULL ) 
+ while( plugins->next != NULL )
+ {
+  int p_id = (int)arg_get_value(plugins->value, "ID");
+  struct arglist * al = hash_get(p_hash, p_id);
+  if ( al != NULL )
+	al->value = (void*)plug_get_launch(plugins->value);
   plugins = plugins->next;
  }
+  
  
  t = arg_get_value(Prefs, "SCANNER_SET");
- if(!t){
+ if( t == NULL ){
    t = emalloc(sizeof(struct arglist));
    new_pluginset(t, scanners);
    arg_add_value(Prefs, "SCANNER_SET", ARG_ARGLIST, -1, t);
    }
- while(scanners && scanners->next)
+ if ( s_hash == NULL )
  {
-  int flag = 0;
-  
-  t = arg_get_value(Prefs, "SCANNER_SET");
-  if(t)while(!flag && t && t->next)
+ s_hash  = emalloc ( MAGIC * sizeof(struct hash*));
+ while ( t->next != NULL )
   {
-   if(!strcmp(plugin_asc_id(scanners->value),t->name))
-   {
-    t->value = (void *)plug_get_launch(scanners->value);
-    flag = 1;
-   }
+  struct hash * h; 
+  int id = atoi(t->name);
+  int idx = id % MAGIC;
+
+  h = emalloc(sizeof(struct hash));
+  h->name = id;
+  h->v = t;
+  h->next =  s_hash[idx];
+  s_hash[idx] = h;
   t = t->next;
   }
-  scanners = scanners->next;
  }
+
+ if ( scanners != NULL )
+   while( scanners->next != NULL )
+ {
+  int p_id = (int)arg_get_value(scanners->value, "ID");
+  struct arglist * al = hash_get(p_hash, p_id);
+  if ( al != NULL )
+	al->value = (void*)plug_get_launch(scanners->value);
+  scanners =  scanners->next;
+ }
+
+
 }
 
 

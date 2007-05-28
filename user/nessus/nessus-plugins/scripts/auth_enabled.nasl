@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10021);
- script_version ("$Revision: 1.18 $");
- script_cve_id("CAN-1999-0629");
+ script_version ("$Revision: 1.20 $");
+ script_cve_id("CVE-1999-0629");
  name["english"] = "Identd enabled";
  name["francais"] = "Identd activé";
  script_name(english:name["english"], francais:name["francais"]);
@@ -65,7 +65,7 @@ if(get_port_state(port))
   seek = "ERROR";
   if(seek >< buf)
   {
-   security_warning(port);
+   security_note(port);
    register_service(port:port, proto:"auth");
   }
   close(soc);

@@ -11,8 +11,8 @@
 if(description)
 {
  script_id(10141);
- script_version ("$Revision: 1.15 $");
  script_bugtraq_id(110);
+ script_version ("$Revision: 1.17 $");
 
  name["english"] = "MetaInfo servers";
  name["francais"] = "MetaInfo servers";
@@ -66,6 +66,9 @@ Facteur de risque : Elevé";
 # The script code starts here
 #
 include("http_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
 
 port = 5000;
 if(get_port_state(port))

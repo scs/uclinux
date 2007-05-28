@@ -12,13 +12,22 @@
 if(description)
 {
  script_id(11042);
- script_version("$Revision: 1.8 $");
  script_bugtraq_id(5194);
+ script_version("$Revision: 1.16 $");
  name["english"] = "Apache Tomcat DOS Device Name XSS";
  name["francais"] = "Apache Tomcat DOS Device Name XSS";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "Apache Tomcat is the servlet container that is used in the official Reference 
+ desc["english"] = "
+Synopsis :
+
+The remote Apache Tomcat web server is vulnerable to a cross site scripting 
+issue.
+
+
+Description :
+
+Apache Tomcat is the servlet container that is used in the official Reference 
 Implementation for the Java Servlet and JavaServer Pages technologies.
 
 By making requests for DOS Device names it is possible to cause
@@ -30,17 +39,18 @@ tomcat-server/COM2.IMG%20src='Javascript:alert(document.domain)'
 
 The exception also reveals the physical path of the Tomcat installation.
 
-Solution: 
+Solution : 
 
 Upgrade to Apache Tomcat v4.1.3 beta or later.
 
-References: 
+See also : 
 
-www.westpoint.ltd.uk/advisories/wp-02-0008.txt (DOS Device XSS)
-http://www.securiteam.com/windowsntfocus/5KP0L007FI.html (DOS device name
-physical path disclosure).
+http://www.westpoint.ltd.uk/advisories/wp-02-0008.txt
 
-Risk factor : Low";
+Risk factor : 
+
+Low / CVSS Base Score : 3
+(AV:R/AC:H/Au:NR/C:P/A:N/I:N/B:C)";
 
  script_description(english:desc["english"]);
  
@@ -52,11 +62,11 @@ Risk factor : Low";
  
  script_copyright(english:"This script is Copyright (C) 2002 Matt Moore",
 		francais:"Ce script est Copyright (C) 2002 Matt Moore");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl", "cross_site_scripting.nasl");
- script_require_ports("Services/www", 80, 8080);
+ script_dependencie("http_version.nasl", "cross_site_scripting.nasl");
+ script_require_ports("Services/www", 8080);
  script_require_keys("www/apache");
  exit(0);
 }
@@ -65,10 +75,14 @@ Risk factor : Low";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8080;
-if(!get_port_state(port)) exit(0);
+port = get_http_port(default:8080);
+if(!port || !get_port_state(port)) exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
+
+
+banner = get_http_banner(port:port);
+
+if (!egrep(pattern:"^Server: .*Tomcat/([0-3]\.|4\.0|4\.1\.[0-2][^0-9])", string:banner) ) exit(0);
 
 req = http_get(item:"/COM2.<IMG%20SRC='JavaScript:alert(document.domain)'>", port:port);
 soc = http_open_socket(port);
@@ -77,8 +91,10 @@ if(soc)
  send(socket:soc, data:req);
  r = http_recv(socket:soc);
  http_close_socket(soc);
- confirmed = string("alert(document.domain)"); 
+ confirmed = string("JavaScript:alert(document.domain)"); 
  confirmed_too = string("java.io.FileNotFoundException");
  if ((confirmed >< r) && (confirmed_too >< r)) 	
- 	security_hole(port);
+	{
+ 		security_note(port);
+	}
 }

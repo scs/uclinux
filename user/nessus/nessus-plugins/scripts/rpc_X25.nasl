@@ -7,25 +7,21 @@
 if(description)
 {
  script_id(10209);
- script_version ("$Revision: 1.9 $");
- script_cve_id("CAN-1999-0648");
+ script_version ("$Revision: 1.12 $");
+ script_cve_id("CVE-1999-0648");
  name["english"] = "X25 service";
  name["francais"] = "Service X25";
  script_name(english:name["english"], francais:name["francais"]);
  
  desc["english"] = "
-The X25 RPC service is running. 
-This service may allow an intruder
-to connect via an X25 gateway rather
-than by TCP/IP. In addition to that,
-it may become a security threat
-if a security vulnerability is
+The X25 RPC service is running.  This service may allow an intruder
+to connect via an X25 gateway rather than by TCP/IP. In addition to that,
+it may become a security threat if a security vulnerability is
 found.
 
-If you do not use this service,
-then disable it. 
+If you do not use this service, then disable it. 
 
-Risk factor : Low/Medium";
+Risk factor : Low / Medium";
 
 
  desc["francais"] = "
@@ -63,6 +59,10 @@ Facteur de risque : Faible";
 #
 
 include("misc_func.inc");
+include('global_settings.inc');
+
+if ( report_paranoia < 2 ) exit(0);
+
 
 RPC_PROG = 100022;
 tcp = 0;

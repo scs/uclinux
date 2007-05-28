@@ -1,39 +1,39 @@
 #
-# This script was written by Michael Scheidell <scheidell at secnap.net>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
 if(description)
 {
  script_id(10944);
- script_version("$Revision: 1.8 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2002-t-0007");
  script_bugtraq_id(4426);
+ script_version("$Revision: 1.15 $");
  script_cve_id("CVE-2002-0151");
  name["english"] = "MUP overlong request kernel overflow Patch (Q311967)";
  
  script_name(english:name["english"]);
  
  desc["english"] = "
-Buffer overflow in Multiple UNC Provider (MUP) in Microsoft
-Windows operating systems allows local users to cause a
-denial of service or possibly gain SYSTEM privileges via a
-long UNC request. 
+Synopsis :
 
-Affected Software: 
+A local user can elevate his privileges.
 
-Microsoft Windows NT 4.0 Workstation 
-Microsoft Windows NT 4.0 Server 
-Microsoft Windows NT 4.0 Server, Enterprise Edition 
-Microsoft Windows NT 4 Terminal Server Edition 
-Microsoft Windows 2000 Professional 
-Microsoft Windows 2000 Server 
-Microsoft Windows 2000 Advanced Server 
-Microsoft Windows XP Professional 
+Description :
 
-See
-http://www.microsoft.com/technet/security/bulletin/ms02-017.asp
+The remote version of Windows contains a flaw in Multiple UNC Provider
+(MUP) service which may allow a local user to execute arbitrary code
+on the remote host with the SYSTEM privileges.
 
-Risk factor : Medium";
+Solution : 
+
+Microsoft has released a set of patches for Windows NT, 2000 and XP :
+
+http://www.microsoft.com/technet/security/bulletin/ms02-017.mspx
+
+Risk factor : 
+
+High / CVSS Base Score : 7 
+(AV:L/AC:L/Au:NR/C:C/A:C/I:C/B:N)";
 
  script_description(english:desc["english"]);
  
@@ -43,48 +43,33 @@ Risk factor : Medium";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2002 Michael Scheidell");
- family["english"] = "Windows";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl",
-		     "smb_reg_service_pack.nasl",
-		     "smb_reg_service_pack_W2K.nasl");
-
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/registry_access","SMB/WindowsVersion");
- script_exclude_keys("SMB/XP/ServicePack");
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
-include("smb_nt.inc");
-port = get_kb_item("SMB/transport");
-if(!port)port = 139;
-access = get_kb_item("SMB/registry_access");
-if(!access)exit(0);
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+include("smb_hotfixes_fcheck.inc");
 
-version = string(get_kb_item("SMB/WindowsVersion"));
-if(!version)exit(0);
-if(ereg(pattern:"([6-9]\.[0-9])|(5\.[2-9])", string:version))exit(0);
+if ( hotfix_check_sp(nt:7, win2k:3, xp:1) <= 0 ) exit(0); 
 
-if(version == "5.0")
+if (is_accessible_share())
 {
-# fixed in Win2k Service Pack 3
-  sp = get_kb_item("SMB/Win2K/ServicePack");
-  if(ereg(string:sp, pattern:"Service Pack [3-9]"))exit(0);
+ if ( hotfix_is_vulnerable (os:"5.1", sp:0, file:"Mup.sys", version:"5.1.2600.19", dir:"\system32\drivers") ||
+      hotfix_is_vulnerable (os:"5.0", file:"Mup.sys", version:"5.0.2195.5080", dir:"\system32\drivers") ||
+      hotfix_is_vulnerable (os:"4.0", file:"Mup.sys", version:"4.0.1381.7125", dir:"\system32\drivers") )
+   security_hole (get_kb_item("SMB/transport"));
+ 
+ hotfix_check_fversion_end();
+ exit (0);
 }
+else if ( hotfix_missing(name:"Q312895") > 0 &&
+          hotfix_missing(name:"Q311967") > 0 ) 
+	security_hole(get_kb_item("SMB/transport"));
 
-if(version == "5.1")
-{
-# fixed in XP SP1
-  sp = get_kb_item("SMB/XP/ServicePack");
-  if(sp)exit(0);
-}
-
-#default to winnt (version == 4.0)
-key = "SOFTWARE\Microsoft\Windows NT\CurrentVersion\HotFix\Q312895";
-item = "Comments";
-value = registry_get_sz(key:key, item:item);
-if(!value)security_warning(port);

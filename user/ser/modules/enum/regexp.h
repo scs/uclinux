@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: regexp.h,v 1.1 2003/05/05 14:27:33 jih Exp $
  *
  * Regular expression definitions
  *

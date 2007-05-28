@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: store_digest.c,v 1.51.2.1 2005/01/31 01:49:42 hno Exp $
  *
  * DEBUG: section 71    Store Digest Manager
  * AUTHOR: Alex Rousskov
@@ -387,6 +387,7 @@ storeDigestRewriteResume(void)
 	(long int) e->mem_obj->reply->expires, (int) (e->mem_obj->reply->expires - squid_curtime));
     storeBuffer(e);
     httpReplySwapOut(e->mem_obj->reply, e);
+    e->mem_obj->reply->hdr_sz = e->mem_obj->inmem_hi;
     storeDigestCBlockSwapOut(e);
     storeBufferFlush(e);
     eventAdd("storeDigestSwapOutStep", storeDigestSwapOutStep, sd_state.rewrite_lock, 0.0, 1);

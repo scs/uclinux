@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(10849);
- script_version("$Revision: 1.7 $");
+ script_version("$Revision: 1.9 $");
  name["english"] = "Oracle 9iAS DAD Admin interface";
  name["francais"] = "Oracle 9iAS DAD Admin interface";
  script_name(english:name["english"], francais:name["francais"]);
@@ -39,9 +39,8 @@ Risk factor : High";
  
  script_copyright(english:"This script is Copyright (C) 2002 Matt Moore",
 		francais:"Ce script est Copyright (C) 2002 Matt Moore");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/OracleApache");
@@ -52,8 +51,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 { 
 # Make a request for the Admin_ interface.

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: group.c,v 1.5.6.2 2004/07/22 22:40:22 andrei Exp $
  *
  * Group membership checking over Radius
  *

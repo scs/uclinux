@@ -1,12 +1,15 @@
-.TH NASL 1 "February 2003" "Nessus Project" "Nessus Attack Scripting Language"
+.TH NASL 1 "May 2006" "Nessus Project" "Nessus Attack Scripting Language"
 .SH NAME
 nasl \- Nessus Attack Scripting Language
 .SH SYNOPSIS
 .B nasl
-.I <[-vh] [-T tracefile] [-s] [-t target]> files...
+.I <[-vh] [-T tracefile] [-s] [-t target] [-sX] > files...
 .SH DESCRIPTION
 .BR nasl
-executes a set of NASL scripts.
+executes a set of NASL scripts against a given target host. It can 
+also be used to determine if a NASL script has any syntax errors by running
+it in parse (\fB-p\fR) or lint (\fB-L\fR) mode.
+
 
 .SH OPTIONS
 .TP
@@ -29,13 +32,29 @@ Sets the return value of safe_checks() to 1. (See the nessusd manual to know
 what the safe checks are)
 
 .TP
+.B \-D
+Only run the description part of the script.
+ 
+.TP
+.B \-L
+.BI Lint 
+the script  (run extended checks).
+
+.TP
+.B \-X
+Run the script in 
+.BI authenticated
+mode. For more information see the nasl reference manual
+
+.TP
 .B \-h
 Show help
 .TP
 .B \-v
 Show the version of NASL.
 .SH SEE ALSO
-.BR http://www.nessus.org/doc/nasl.html,
+.BR The\ NASL2\ reference\ manual,
+.BR http://www.nessus.org/nasl2ref.pdf,
 .BR nessus (1),
 .BR nessusd (8).
 .SH HISTORY

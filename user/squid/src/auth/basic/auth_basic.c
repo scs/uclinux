@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: auth_basic.c,v 1.14.2.10 2005/04/22 20:29:31 hno Exp $
  *
  * DEBUG: section 29    Authenticator
  * AUTHOR: Duane Wessels
@@ -270,7 +270,7 @@ authenticateBasicHandleReply(void *data, char *reply)
     debug(29, 9) ("authenticateBasicHandleReply: {%s}\n", reply ? reply : "<NULL>");
     if (reply) {
 	if ((t = strchr(reply, ' ')))
-	    *t = '\0';
+	    *t++ = '\0';
 	if (*reply == '\0')
 	    reply = NULL;
     }
@@ -280,8 +280,12 @@ authenticateBasicHandleReply(void *data, char *reply)
     basic_auth = auth_user->scheme_data;
     if (reply && (strncasecmp(reply, "OK", 2) == 0))
 	basic_auth->flags.credentials_ok = 1;
-    else
+    else {
 	basic_auth->flags.credentials_ok = 3;
+	safe_free(r->auth_user_request->message);
+	if (t && *t)
+	    r->auth_user_request->message = xstrdup(t);
+    }
     basic_auth->credentials_checkedtime = squid_curtime;
     valid = cbdataValid(r->data);
     if (valid)
@@ -442,10 +446,14 @@ authenticateBasicDecodeAuth(auth_user_request_t * auth_user_request, const char 
      * Don't allow NL or CR in the credentials.
      * Oezguer Kesim <oec@codeblau.de>
      */
-    strtok(cleartext, "\r\n");
     debug(29, 9) ("authenticateBasicDecodeAuth: cleartext = '%s'\n", cleartext);
-    local_basic.username = xstrndup(cleartext, USER_IDENT_SZ);
-    xfree(cleartext);
+    if (strcspn(cleartext, "\r\n") != strlen(cleartext)) {
+	debug(29, 1) ("authenticateBasicDecodeAuth: bad characters in authorization header '%s'\n",
+	    proxy_auth);
+	xfree(cleartext);
+	return;
+    }
+    local_basic.username = cleartext;
     if ((cleartext = strchr(local_basic.username, ':')) != NULL)
 	*(cleartext)++ = '\0';
     local_basic.passwd = cleartext;

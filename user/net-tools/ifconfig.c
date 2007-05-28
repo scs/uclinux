@@ -3,7 +3,7 @@
  *              that either displays or sets the characteristics of
  *              one or more of the system's networking interfaces.
  *
- * Version:     $Id$
+ * Version:     $Id: ifconfig.c,v 1.50 2001/04/13 18:25:18 pb Exp $
  *
  * Author:      Fred N. van Kempen, <waltje@uwalt.nl.mugnet.org>
  *              and others.  Copyright 1993 MicroWalt Corporation
@@ -308,24 +308,6 @@ int main(int argc, char **argv)
 	exit(err < 0);
     }
 
-	/* setup the vlan if required */
-	if (if_name_is_vlan(ifr.ifr_name)) {
-		struct interface *i;
-		if ((i = lookup_interface(ifr.ifr_name)) == NULL) {
-			fprintf (stderr, "Couldn't lookup interfaces\n");
-			exit(1);
-		}
-		if (do_if_fetch(i) < 0) {
-			int err;
-			printf("Creating new vlan\n");
-			err = setup_vlan(ifr.ifr_name);
-			if (err < 0) {
-				fprintf(stderr, "Cannot init required vlan %s - %d\n",
-					ifr.ifr_name, err);
-				exit(err < 0);
-			}
-		}
-	}
 
     /* The next argument is either an address family name, or an option. */
     if ((ap = get_aftype(*spp)) != NULL)
@@ -1133,107 +1115,3 @@ static int set_ifstate(char *parent, unsigned long ip,
 }
 
 
-/* vlan code added By Matthew Natalier - matthewn@snapgear.com */
-int if_name_is_vlan(char *name)
-{
-	char *tmp = name + 3;
-	char *tmp2;
-	int index = 0;
-	int vlan_num = 0;
-
-	if (!name) 
-		return 0;
-
-	if (strncmp(name,"eth", 3) != 0) 
-		return 0;
-
-	if (*tmp == '\0') 
-		return 0;
-
-	if (!isdigit(*tmp)) 
-		return 0;
-
-	index = strtol(tmp, &tmp2, 10);
-
-	if (*tmp2 != '.') 
-		return 0;
-
-	tmp2++;
-
-	if (!isdigit(*tmp2)) 
-		return 0;
-
-	vlan_num = strtol(tmp2, &tmp, 10);
-
-	if (*tmp != '\0')
-		return 0;
-
-	return 1;
-}
-
-
-int setup_vlan(char *name)
-{
-	char *index;
-	char *eth;
-	char *cpy;
-	char *state;
-	char *argv[5];
-	int argc = 0;
-	int pid;
-	int status;
-
-	cpy = strdup(name);
-
-	if (!cpy) {
-		return -1;
-	}
-
-	eth = strtok_r(cpy, ".", &state);
-
-	if (!eth) {
-		return -1;
-	}
-
-	index = strtok_r(NULL, ".", &state);
-
-	if (!index) {
-		return -1;
-	}
-
-	bzero(argv, sizeof(argv));
-
-	argv[argc++] = "vconfig";
-	argv[argc++] = "add";
-	argv[argc++] = eth;
-	argv[argc++] = index;
-	argv[argc] = NULL;
-
-#ifdef __uClinux__
-	if ((pid = vfork()) == 0) {
-#else
-	if ((pid = fork()) == 0) {
-#endif
-		if (execvp(argv[0], argv) < 0) {
-#ifdef __uClinux__
-			_exit(1);
-#else
-			exit(1);
-#endif
-		}
-	} else if (pid < 0) {
-		fprintf(stderr, "Couldn't fork\n");
-		exit(1);
-	}
-
-	if (waitpid(pid, &status, 0) < 0) {
-		fprintf(stderr, "Error waiting for vconfig - %m\n");
-		return -1;
-	}
-
-	if (WEXITSTATUS(status) != 0) {
-		return -1;
-	}
-
-	return 0;
-}

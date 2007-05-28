@@ -2,7 +2,7 @@
 '\" Copyright (c) 1999 Victor B. Wagner
 '\"
 '\" 
-'\" RCS: @(#) $Id$
+'\" RCS: @(#) $Id: syslog.n,v 1.1 2004/03/25 01:58:34 steveb Exp $
 '\" 
 '\" The definitions below are for supplemental macros used in Tcl/Tk
 '\" manual entries.
@@ -65,7 +65,7 @@
 '\" .UL arg1 arg2
 '\"     Print arg1 underlined, then print arg2 normally.
 '\"
-'\" RCS: @(#) $Id$
+'\" RCS: @(#) $Id: syslog.n,v 1.1 2004/03/25 01:58:34 steveb Exp $
 '\"
 '\"     # Set up traps and other miscellaneous stuff for Tcl/Tk man pages.
 .if t .wh -1.3i ^B

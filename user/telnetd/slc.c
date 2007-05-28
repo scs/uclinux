@@ -36,7 +36,7 @@
  * From: @(#)slc.c	5.7 (Berkeley) 3/1/91
  */
 char slc_rcsid[] = 
-  "$Id$";
+  "$Id: slc.c,v 1.2 2003/07/21 03:11:25 davidm Exp $";
 #endif
 
 #include "telnetd.h"

@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: conf-unicos.h,v 1.2 1993/08/19 05:27:09 genek Exp $ */
 
 /*
  * conf-unicos.h

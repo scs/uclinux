@@ -1,7 +1,7 @@
 /*
  * Record-Route & Route module interface
  *
- * $Id$
+ * $Id: rr_mod.h,v 1.7 2003/07/15 10:05:23 dcm Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -95,7 +95,7 @@ char * target_file_to_list(filename)
    efree (&text);
    return 0;
  }
- len = sb.st_size;
+ len = (int)sb.st_size;
  ret = emalloc (len) ;
  offs =   0 ;
  left = len ;
@@ -126,7 +126,13 @@ char * target_file_to_list(filename)
  /*
   * trailing garbage
   */
- while(ret[strlen(ret)-1]==','){ret[strlen(ret)-1]='\0';}
+ 
+ len = strlen(ret);
+ while(len > 0 && ( ret[len-1]==',' || ret[len-1] == ' ' ) )
+ {
+   ret[len-1]='\0'; 
+   len--; 
+ }
  return(ret);
 }
 
@@ -156,7 +162,7 @@ read_target_file(bidon, gtkw)
  GtkWidget * bidon;
  GtkWidget * gtkw;
 {
- char * filename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(gtkw));
+ char * filename = (char*)gtk_file_selection_get_filename(GTK_FILE_SELECTION(gtkw));
  char * ret = target_file_name(filename);
  target_file_apply(ret);
  efree(&ret);

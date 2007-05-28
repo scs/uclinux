@@ -14,7 +14,7 @@
 if(description)
 {
  script_id(11272);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.6 $");
 
  name["english"] = "ISMail overflow";
 
@@ -60,6 +60,7 @@ include("smtp_func.inc");
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
 if(!get_port_state(port))exit(0);
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 soc = open_sock_tcp(port);
 if(!soc)exit(0);
@@ -70,7 +71,7 @@ r = smtp_recv_line(socket:soc);
 # The typo is _normal_, this is how we recognize ISMail
 if("502 Command not implmented" >< r)
 {
-send(socket:soc, data:string("HELO nessus.org\r\n"));
+send(socket:soc, data:string("HELO example.com\r\n"));
 r = smtp_recv_line(socket:soc);
 
 # This is not a buffer overflow. I doubt anything would crash on that.

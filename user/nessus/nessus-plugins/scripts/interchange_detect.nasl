@@ -23,14 +23,14 @@
 if(description)
 {
  script_id(11128);
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(5453);
+ script_version ("$Revision: 1.8 $");
 
  name["english"] = "redhat Interchange";
  script_name(english:name["english"]);
 
  desc["english"] = "
-It seems that 'Redhat Interchange' ecommerce and dynamic 
+It seems that 'Red Hat Interchange' ecommerce and dynamic 
 content management application is running in 'Inet' mode 
 on this port.
 
@@ -53,10 +53,9 @@ Risk factor : None / Medium";
  script_category(ACT_GATHER_INFO);
 
  script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi");
- family["english"] = "General";
- script_family(english:family["english"]);
+ script_family(english:"Service detection");
 
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 7786);
  exit(0);
 }
@@ -64,18 +63,17 @@ Risk factor : None / Medium";
 ####
 
 include("misc_func.inc");
+include("http_func.inc");
 
-ports = add_port_in_list(list:get_kb_list("Services/www"), port:port);
+port = get_http_port(default:7786);
+if ( ! port ) exit(0);
 
-foreach port (ports)
-{
- soc = open_sock_tcp(port);
- if (! soc) exit(0);
+soc = open_sock_tcp(port);
+if (! soc) exit(0);
 
- send(socket: soc, data: string("NESSUS / HTTP/1.0\r\n\r\n"));
- r = recv(socket: soc, length: 1024);
- close(soc);
+send(socket: soc, data: string("NESSUS / HTTP/1.0\r\n\r\n"));
+r = recv(socket: soc, length: 1024);
+close(soc);
 
- if ("/ not a Interchange catalog or help file" >< r) security_warning(port);
-}
+if ("/ not a Interchange catalog or help file" >< r) security_warning(port);
 

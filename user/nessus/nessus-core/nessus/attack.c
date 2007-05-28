@@ -80,9 +80,9 @@ restore_attack(session_name, preferences)
    * Set up the plugin list, according to the
    * Nessus Transfer Protocol version 1.1
    */
-  plug_list = emalloc(num_plug*50+1+num_scanners*50+1);
+  plug_list = emalloc(num_plug*20+1+num_scanners*20+1);
   setup_plug_list(Plugins, Scanners, plug_list);
-  if(!strlen(plug_list))sprintf(plug_list, "0");
+  if(plug_list[0] == '\0' ) sprintf(plug_list, "0");
   
   serv_prefs = arg_get_value(preferences, "SERVER_PREFS");
   if(arg_get_value(serv_prefs, "plugin_set"))
@@ -147,9 +147,9 @@ attack_host(hostname, preferences)
    * Set up the plugin list, according to the
    * Nessus Transfer Protocol version 1.1
    */
-  plug_list = emalloc(num_plug*50+1+num_scanners*50+1);
+  plug_list = emalloc(num_plug*20+1+num_scanners*20+1);
   setup_plug_list(Plugins, Scanners, plug_list);
-  if(!strlen(plug_list))sprintf(plug_list, "0");
+  if(plug_list[0] == '\0')sprintf(plug_list, "0");
   
   serv_prefs = arg_get_value(preferences, "SERVER_PREFS");
   if(arg_get_value(serv_prefs, "plugin_set"))
@@ -210,25 +210,23 @@ setup_plug_list(plugs, scanners, plug_list)
 {
  struct arglist * w = NULL;
  int i = 0;
+ char * s = plug_list;
  
  for(i=0;i<2;i++)
  {
-  if(!w)w = plugs;
-  else {
-  	w = scanners;
-	}
+  if( w == NULL )w = plugs;
+  else w = scanners;
+
   
 while(w && w->next)
  {
-  char * sp;
+  char sp[16];
     
   if(plug_get_launch(w->value))
     {
-     sp = emalloc(9);
-     sprintf(sp, "%d", (int)arg_get_value(w->value, "ID"));
-     strcat(plug_list, sp);
-     efree(&sp);
-     strcat(plug_list, ";");
+     snprintf(sp, sizeof(sp), "%d;", (int)arg_get_value(w->value, "ID"));
+     memcpy(plug_list, sp, strlen(sp) + 1);
+     plug_list += strlen(sp);
     }
     w = w->next;
   }

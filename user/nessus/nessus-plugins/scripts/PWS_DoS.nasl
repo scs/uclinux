@@ -22,8 +22,8 @@
 if(description)
 {
  script_id(11085);
- script_version ("$Revision: 1.10 $");
- script_bugtraq_id(84, 2715);
+ script_bugtraq_id(2715, 84);
+ script_version ("$Revision: 1.12 $");
  name["english"] = "Personal Web Sharing overflow ";
  script_name(english:name["english"]);
  
@@ -59,8 +59,8 @@ include("http_func.inc");
 
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 if (http_is_dead(port: port)) exit(0);

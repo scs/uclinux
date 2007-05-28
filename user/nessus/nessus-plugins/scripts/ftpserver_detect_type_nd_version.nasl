@@ -1,38 +1,42 @@
 #
-# This script was written by Noam Rathaus <noamr@securiteam.com>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
+
+
+ desc["english"] = "
+Synopsis :
+
+An FTP server is listening on this port
+
+Description :
+
+It is possible to obtain the banner of the remote FTP server
+by connecting to the remote port.
+
+Risk factor : 
+
+None";
 
 if(description)
 {
  script_id(10092);
- script_version ("$Revision: 1.21 $");
- name["english"] = "FTP Server type and version";
+ script_version ("$Revision: 1.26 $");
+ name["english"] = "FTP Server Detection";
  script_name(english:name["english"]);
  
- desc["english"] = "This detects the FTP Server type and version by connecting to the server and
-processing the buffer received.
-The login banner gives potential attackers additional information about the
-system they are attacking. Versions and Types should be omitted
-where possible.
-
-Solution: Change the login banner to something generic.
-
-Risk factor : Low";
 
  script_description(english:desc["english"]);
  
- summary["english"] = "FTP Server type and version";
+ summary["english"] = "Connects to port 21";
  script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 1999 SecuriTeam");
- family["english"] = "General";
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
+ family["english"] = "Service detection";
  script_family(english:family["english"]);
  script_require_ports("Services/ftp", 21);
- script_dependencies("find_service.nes");
+ script_dependencies("find_service_3digits.nasl", "doublecheck_std_services.nasl");
  exit(0);
 }
 
@@ -54,6 +58,7 @@ if(banner)
  if(egrep(pattern:".*heck Point Firewall-1 Secure FTP.*", string:banner))set_kb_item(name:"ftp/fw1ftpd", value:TRUE);
  if(egrep(pattern:".*Version wu-.*", string:banner))set_kb_item(name:"ftp/wuftpd", value:TRUE);
  if(egrep(pattern:".*xWorks.*", string:banner))set_kb_item(name:"ftp/vxftpd", value:TRUE);
- data = string("Remote FTP server banner :\n", banner);
- security_note(port:port, data:data);
+
+ report = desc["english"] + '\n\nPlugin output :\n\nThe remote FTP banner is :\n' + banner;
+ security_note(port:port, data:report);
 }

@@ -19,7 +19,7 @@
  * host to target system which causes a few problems!
  */
 struct header {
-	unsigned long magic;
+	unsigned int magic;
 	unsigned char md5[MD5_DIGEST_LENGTH];
 	unsigned char aeskey[AESKEYSIZE];
 	unsigned char flags;

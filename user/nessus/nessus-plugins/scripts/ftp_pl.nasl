@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10467);
- script_version ("$Revision: 1.12 $");
  script_bugtraq_id(1471);
+ script_version ("$Revision: 1.20 $");
  script_cve_id("CVE-2000-0674");
  name["english"] = "ftp.pl shows the listing of any dir";
  name["francais"] = "ftp.pl montre le contenu de tout répertoire";
@@ -58,6 +58,7 @@ Facteur de risque : Moyen";
  script_family(english:family["english"], francais:family["francais"]);
  script_dependencie("find_service.nes", "no404.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -67,9 +68,11 @@ Facteur de risque : Moyen";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( get_kb_item("www/" + port + "/no404") ) exit(0);
+
 
 if(!get_port_state(port))exit(0);
 
@@ -78,6 +81,11 @@ foreach dir (cgi_dirs())
  req = string(dir, "/ftp/ftp.pl?dir=../../../../../../etc");
  req = http_get(item:req, port:port);
  r = http_keepalive_send_recv(port:port, data:req);
- if( r == NULL ) exit(0);
- if("passwd" >< r)security_hole(port);
+ if (isnull(r)) exit(0);
+ if("Samba Web Administration Tool" >!< r &&
+    "passwd" >< r && r !~ "^HTTP/1\.[01] +4[0-9][0-9] ")
+ {
+   if (debug_level > 0) display("---- ftp.pl on ", get_host_ip(), ":", port, " ----\n", req, "\n--------\n", r, "\n------------\n");
+   security_warning(port);
+ }
 }

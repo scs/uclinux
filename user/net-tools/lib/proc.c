@@ -1,5 +1,5 @@
 /* Tolerant /proc file parser. Copyright 1998 Andi Kleen */
-/* $Id$ */ 
+/* $Id: proc.c,v 1.4 1999/01/05 20:54:00 philip Exp $ */ 
 /* Fixme: cannot currently cope with removed fields */ 
 
 #include <string.h>

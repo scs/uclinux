@@ -105,12 +105,18 @@ idle_socket(struct arglist * ctrls)
 {
   fd_set rd;
   struct timeval tv = {0,100};
-  int n, soc;
+  int n, soc = -1;
   if(GlobalSocket < 0)
     {
       fprintf(stderr, "idle_socket: GlobalSocket=%d\n", GlobalSocket);
       return FALSE;
     }
+
+  if ( stream_pending(GlobalSocket) > 0 )
+  {
+    monitor_input_callback(ctrls, soc /* ? Not used */, 0);
+    return TRUE;
+  }
   soc = nessus_get_socket_from_connection(GlobalSocket);
   if((soc < 0) || (soc >= FD_SETSIZE))
   {
@@ -144,6 +150,13 @@ monitor_dialog_setup(victim, restore)
   int tag;
   int backend = backend_init(NULL);
 
+  /* Could not create a backend */
+  if( backend < 0 )
+  {
+    gtk_widget_show(arg_get_value(MainDialog, "WINDOW"));
+    return;
+  }
+  
 
   arg_add_value(ctrls, "MONITOR_BACKEND", ARG_INT, -1, (void*)backend);
   
@@ -282,9 +295,9 @@ monitor_list_update(ctrls,msg, short_status)
     
    gmax = max;
    gcurrent = atoi(current);
-   f = (gcurrent/gmax);
-   if(f>1)f=1;
-   if(f<0.0)f=0.0;
+   f = (gfloat)(gcurrent/gmax);
+   if(f >= 1.0)f = 0.99;
+   else if(f <= 0)f = 0;
    gtk_progress_bar_update (GTK_PROGRESS_BAR(progress_bar), f);
 
    flag = 1;
@@ -417,7 +430,7 @@ monitor_add_host(ctrls,hostname,port)
  gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
  gtk_widget_show(label);
  
- label = gtk_label_new("Attack : ");
+ label = gtk_label_new("Checks : ");
  gtk_box_pack_start(GTK_BOX(box), label, FALSE, FALSE, 0);
  gtk_widget_show(label);
  
@@ -507,7 +520,7 @@ monitor_stop_whole_test(w, ctrls)
   */
  while(type != MSG_BYE)
  {
-  bzero(buf, sizeof(buf));
+  buf[sizeof(buf) - 1] = '\0';
   network_gets_raw(buf, sizeof(buf) - 1);
    if( buf[0] == '\0') {
   	break;
@@ -538,11 +551,19 @@ monitor_input_callback(ctrls, fd, condition)
     int condition;
 {
   int finished = 0;
-  char buf [32678];
-  char * msg;
+  static char * buf = NULL;
+  static int    bufsz = 0;
+  static char * msg  = NULL;
   int n, type = -1;
   int interrupted = 0;
-  network_gets_raw(buf, 32678);
+
+  if ( buf == NULL )
+  {
+   bufsz = 1024 * 1024;
+   buf   = emalloc( bufsz );
+   msg   = emalloc( bufsz );
+  }
+  network_gets_raw( buf, bufsz );
   if ((n = strlen (buf)) && buf [n-1] == '\n') buf [n-1] = '\0';
 
   if( buf[0] == '\0') {
@@ -553,7 +574,7 @@ monitor_input_callback(ctrls, fd, condition)
 	}
         else return;
        }	
-  msg  = emalloc(strlen(buf)+1);
+
   type = parse_server_message(buf, (int)arg_get_value(ctrls, "MONITOR_BACKEND"), msg);
  
   switch(type)
@@ -575,8 +596,8 @@ monitor_input_callback(ctrls, fd, condition)
 		monitor_remove_host(ctrls, msg);
 		break;	
   }
-  bzero(buf, sizeof(buf));
-  efree(&msg);
+  buf[0] = '\0';
+  msg[0] = '\0';
   
   if(finished)
     {

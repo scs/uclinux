@@ -17,9 +17,12 @@
 if(description)
 {
  script_id(11081);
- script_version ("$Revision: 1.11 $");
- script_bugtraq_id(3443);
+ script_version ("$Revision: 1.15 $");
+
  script_cve_id("CVE-2001-0836");
+ script_bugtraq_id(3443);
+ script_xref(name:"OSVDB", value:"5534");
+
  name["english"] = "Oracle9iAS too long URL";
  name["francais"] = "URL trop longue contre Oracle9iAS";
  script_name(english:name["english"], francais:name["francais"]);
@@ -43,12 +46,10 @@ Solution : Upgrade your server.";
  
  script_copyright(english:"This script is Copyright (C) 2002 Michel Arboi",
 		francais:"Ce script est Copyright (C) 2002 Michel Arboi");
- family["english"] = "Gain root remotely";
- family["francais"] = "Passer root à distance";
- script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
+ script_dependencie("find_service.nes", "http_version.nasl");
  script_require_ports("Services/www", 1100, 4000, 4001, 4002);
- script_exclude_keys("www/iis");
  exit(0);
 }
 

@@ -48,7 +48,6 @@
 #define NO_ATTACK "Do not execute attack plugins that have already been executed"
 #define NO_DENIAL "Do not execute DoS plugins that have already been executed"
 
-#define DIFF_SCAN "Only show differences with the previous scan"
 
 static void set_state(c, name, value)
  struct arglist * c;
@@ -81,7 +80,6 @@ kb_enable_cb(a, ctrls)
   set_state(ctrls, "NO_INFO", FALSE);
   set_state(ctrls, "NO_ATTACK", FALSE);
   set_state(ctrls, "NO_DENIAL", FALSE);
-  set_state(ctrls, "DIFF_SCAN", FALSE);
  }
  else
  {
@@ -89,7 +87,6 @@ kb_enable_cb(a, ctrls)
   set_state(ctrls, "NO_INFO", value);
   set_state(ctrls, "NO_ATTACK", value);
   set_state(ctrls, "NO_DENIAL", value);
-  set_state(ctrls, "DIFF_SCAN", value);
  }
  set_state(ctrls, "RESTORE_KB", value);
  set_state(ctrls, "MAX_AGE", value);
@@ -105,7 +102,7 @@ kb_restore_cb(a, ctrls)
  set_state(ctrls, "NO_INFO", value);
  set_state(ctrls, "NO_ATTACK", value);
  set_state(ctrls, "NO_DENIAL", value);
- set_state(ctrls, "DIFF_SCAN", value);
+
 }
 
 static void 
@@ -192,9 +189,7 @@ prefs_dialog_kb_set_prefs(ctrls, gprefs)
  			pref_set(prefs, "kb_dont_replay_denials"));  	
 			
 
- w = arg_get_value(ctrls, "DIFF_SCAN");
- gtk_toggle_button_set_state(GTK_TOGGLE_BUTTON(w),
- 			pref_set(prefs, "diff_scan"));
+
 			
 						
  w = arg_get_value(ctrls, "MAX_AGE");
@@ -273,13 +268,7 @@ prefs_dialog_kb_get_prefs(ctrls)
   arg_addset_value(prefs, "kb_dont_replay_denials", "no"); 
   
  
- bt = arg_get_value(ctrls, "DIFF_SCAN");
- if(GTK_TOGGLE_BUTTON(bt) -> active)
-  arg_addset_value(prefs, "diff_scan", "yes");
- else
-  arg_addset_value(prefs, "diff_scan", "no");
-  
-  
+   
  bt = arg_get_value(ctrls, "MAX_AGE");
  arg_addset_value(prefs, "kb_max_age", gtk_entry_get_text(GTK_ENTRY(bt)));
  
@@ -377,13 +366,7 @@ struct arglist * prefs_dialog_kb()
  gtk_box_pack_start(GTK_BOX(sbox), button, TRUE, TRUE, 5);
  gtk_widget_show(button);
  arg_add_value(ctrls, "NO_DENIAL", ARG_PTR, -1, button);
- 
- button = gtk_check_button_new_with_label(DIFF_SCAN);
- gtk_tooltips_set_tip(tooltips, button, HLP_DIFF_SCAN, "");
- gtk_box_pack_start(GTK_BOX(sbox), button, TRUE, TRUE, 5);
- gtk_widget_show(button);
- arg_add_value(ctrls, "DIFF_SCAN", ARG_PTR, -1, button);
- 
+  
  
  sbox = gtk_hbox_new(TRUE, TRUE);
  gtk_box_pack_start(GTK_BOX(box), sbox, TRUE, TRUE, 5);

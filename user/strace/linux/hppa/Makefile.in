@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile.in,v 1.1 2001/03/27 12:17:17 wichert Exp $
 #
 
 srcdir = @srcdir@

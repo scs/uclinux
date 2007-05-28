@@ -43,11 +43,11 @@
 if(description)
 {
  script_id(10662);
- script_version("$Revision: 1.79 $");
+ # script_cve_id("CVE-MAP-NOMATCH");
+ script_version("$Revision: 1.104 $");
  
  name["english"] = "Web mirroring";
- name["francais"] = "Web mirroring";
- script_name(english:name["english"], francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 This script makes a mirror of the remote web site(s)
@@ -64,20 +64,25 @@ Risk factor : None";
  script_description(english:desc["english"]);
  
  summary["english"] = "Performs a quick web mirror";
- summary["francais"] = "Effectue un miroir rapide de site web";
- 
- script_summary(english:summary["english"], francais:summary["francais"]);
- 
+ script_summary(english:summary["english"]); 
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2001 - 2003 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2001 - 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2001 - 2003 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "httpver.nasl", "DDI_Directory_Scanner.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
+ # There was a memory leak that made webmirror eat much memory
+ # It is now fixed but there was no NASL_LEVEL defined for it. However,
+ # we know that NASL_LEVEL was increased to 2181 _after_ the fix
+ # Better than nothing...
+ if (NASL_LEVEL >= 2181)
+ script_add_preference(name:"Number of pages to mirror : ",
+ 			type:"entry",
+			value:"200");
+ else
  script_add_preference(name:"Number of pages to mirror : ",
  			type:"entry",
 			value:"20");
@@ -89,21 +94,28 @@ Risk factor : None";
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
+#------------------------------------------------------------------------#
+
+global_var start_page, max_pages, dirs, num_cgi_dirs, max_cgi_dirs;
+global_var debug, port, URLs, URLs_hash, ID_WebServer, Apache, iPlanet;
+global_var CGIs, Misc, Dirs, CGI_Dirs_List, URLs_30x_hash, URLs_auth_hash, Code404;
+global_var misc_report, cnt, RootPasswordProtected, coffeecup, guardian;
+global_var URL, page, report, foo;
 
 #-------------------------------------------------------------------------#
+
 
 function my_http_recv(socket)
 {
   local_var	h, b, l;
  
-  h = http_recv_headers(socket);
+  h = http_recv_headers2(socket:socket);
   if(!h)return(NULL);
   
-  if("Content-Type" >< h)
-  {
-   if(!egrep(pattern:"^Content-Type: text/(xml|html)", string:h))return(h);
-  }
+  if("Content-Type" >< h && !egrep(pattern:"^Content-Type: text/(xml|html)", string:h))return(h);
+  
   
   b = http_recv_body(socket: socket, headers: h, length:0);
   return (string(h, "\r\n", b));
@@ -117,10 +129,10 @@ function my_http_keepalive_recv()
 
   killme = 0;
   length = -1;
-  headers = http_recv_headers(__ka_socket);
-  if(strlen(headers) == 0)headers = http_recv_headers(__ka_socket);
+  headers = http_recv_headers2(socket:__ka_socket);
+  if(strlen(headers) == 0)headers = http_recv_headers2(socket:__ka_socket);
   
-  if(ereg(pattern:"^HEAD.*HTTP/.*", string:__ka_last_request))
+  if(substr(__ka_last_request, 0, 3) == "HEAD"  )
    {
    # HEAD does not return a body
    return(headers);
@@ -144,19 +156,19 @@ function my_http_keepalive_recv()
   
  
 
- if((length < 0) && (egrep(pattern:"transfer-encoding: chunked", string:headers, icase:TRUE)))
+ if((length < 0) && (egrep(pattern:"^transfer-encoding: chunked", string:headers, icase:TRUE)))
  {
    while(1)
    {
    tmp = recv_line(socket:__ka_socket, length:4096);
    length = hex2dec(xvalue:tmp);
-   if(length > 1024*1024*10)
+   if(length > 512*1024)
    	{
-   	length = 1024*1024;
+   	length = 512*1024;
 	killme = 1;
 	}
    body  = string(body, recv(socket:__ka_socket, length:length+2, min:length+2));
-   if(strlen(body) > 1024*1024*10)killme = 1;
+   if(strlen(body) > 512*1024)killme = 1;
    
    if(length == 0 || killme){
    	http_keepalive_check_connection(headers:headers);
@@ -168,8 +180,7 @@ function my_http_keepalive_recv()
 
  if(length >= 0)
  {
-   # Don't receive more than 10MB
-   if(length > 1024*1024*10)length = 1024*1024;
+   if(length > 512*1024)length = 512*1024;
    
    body = recv(socket:__ka_socket, length:length, min:length);
  }
@@ -243,10 +254,12 @@ function my_http_keepalive_send_recv(port, data)
 function add_cgi_dir(dir)
 {
  local_var d, dirs, req, res;
+
+ if ( num_cgi_dirs >= max_cgi_dirs ) return 0;
  
  req = http_get(item:string(dir, "/non-existant-", rand()), port:port);
  req = my_http_keepalive_send_recv(port:port, data:req);
- if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 404 ", string:req))
+ if(ereg(pattern:"^HTTP/.\.. 404 ", string:req))
  {
   dirs = cgi_dirs();
   foreach d (dirs)
@@ -256,9 +269,10 @@ function add_cgi_dir(dir)
  
   if(isnull(CGI_Dirs_List[dir]))
   {
-   display(CGI_Dirs_List[dir], "\n");
+   if ( debug >= 1 ) display("Adding ", dir, " as a CGI directory (num#", num_cgi_dirs, "/", max_cgi_dirs, ")\n");
    set_kb_item(name:"/tmp/cgibin", value:dir);
    CGI_Dirs_List[dir] = 1;
+   num_cgi_dirs ++;
   }
  }
 }
@@ -288,9 +302,13 @@ function add_auth(url)
 
 #--------------------------------------------------------------------------#
 
+num_url = 0;
+
 function add_url(url)
 {
  local_var ext, dir;
+  
+ if ( num_url > 100 ) return 0;
  
  if(debug > 5)display("**** ADD URL ", url, "\n");
  if(isnull(URLs_hash[url]))
@@ -304,7 +322,7 @@ function add_url(url)
 			
 			
   ext = ereg_replace(pattern:".*\.([^\.]*)$", string:url, replace:"\1");
-  if(strlen(ext) && ext[0] != "/")
+  if(strlen(ext) && ext[0] != "/" && strlen(ext) < 5 )
   {
    set_kb_item(name:string("www/", port, "/content/extensions/", ext), value:url);
   }
@@ -378,11 +396,7 @@ function add_cgi(cgi, args)
  {
   CGIs[cgi] = args;
   mydir = dir(url:cgi);
-  if(!CGIsDirs[mydir])
-  {
-   CGIsDirs[mydir] = 1;
-   add_cgi_dir(dir:mydir);
-  }
+  add_cgi_dir(dir:mydir);
  }
  else {
     tmp = cgi2hash(cgi:CGIs[cgi]);
@@ -433,6 +447,12 @@ function remove_cgi_arguments(url)
  {
   if(idx > 1)cgi = substr(url, 0, idx - 1);
   else cgi = ".";
+  
+  #
+  # Avoid Apache's directories indexes
+  #
+  if ( strlen(cgi) > 0 && cgi[strlen(cgi) - 1] == "/" && 
+	ereg(pattern:"[DMNS]=[AD]", string:substr(url, idx + 1, strlen(url) - 1))) return NULL;
   cgi_args = split(substr(url, idx + 1, strlen(url) - 1), sep:"&");
   foreach arg (make_list(cgi_args)) 
   {
@@ -531,6 +551,7 @@ function canonical_url(url, current)
   i = 0;
   num_dots = 0;
  
+  while ( url[0] == " ") url = url - " ";
   while(i < strlen(url) - 2 && url[i] == "." && url[i+1] == "." && url[i+2] == "/")
   {
    num_dots ++;
@@ -551,7 +572,7 @@ function canonical_url(url, current)
  
 
  if(url[0] != "/")
- 	return remove_cgi_arguments(string("/", url));
+ 	return remove_cgi_arguments(url:string("/", url));
  else
  	return remove_cgi_arguments(url:url);
  }
@@ -567,8 +588,8 @@ function my_http_get(item, port)
 {
  local_var ret, accept, idx;
  
- ret = http_get(item:page, port:port);
- accept = egrep(string:ret, pattern:"^Accept:.*");
+ ret = http_get(item:item, port:port);
+ accept = egrep(string:ret, pattern:"^Accept:");
  ret = ret - accept;
  idx = stridx(ret, string("\r\n\r\n"));
 
@@ -589,7 +610,7 @@ function extract_location(data)
  
  loc = loc - string("\r\n");
  loc = ereg_replace(string:loc, 
-                              pattern:"Location: (.*)$",
+                              pattern:"^Location: (.*)$",
                               replace:"\1");
  
  
@@ -608,26 +629,27 @@ function extract_location(data)
 
 function retr( port, page )
 {
- local_var req, resp, q;
+ local_var req, resp, q, code, harray;
  
  if( debug )display("*** RETR ", page, "\n");
   
  req = my_http_get(item:page, port:port);
  resp = my_http_keepalive_send_recv(port:port, data:req);
+ harray = headers_split(h:resp);
  if( resp == NULL ) exit(0); # No web server
+ if ( strlen(resp) < 12 ) return NULL;
+ code = int(substr(resp, 9, 11));
  
- if(!match(pattern:"HTTP* 200 *", string:resp))
+ if(code != 200 )
  {
-  if(match(pattern:"HTTP* 401 *", string:resp) ||
-     match(pattern:"HTTP* 403 *", string:resp))
+  if(code == 401 || code == 403 )
      {
       add_auth(url:page);
       return NULL;
      }
-  if(match(pattern:"HTTP* 301 *", string:resp) ||
-     match(pattern:"HTTP* 302 *", string:resp))
+  if(code == 301 || code == 302 )
   { 
-   q = egrep(pattern:"^Location:.*", string:resp);
+   q = harray["location"];
    add_30x(url:page);
    
    # Don't echo back what we added ourselves...
@@ -637,10 +659,15 @@ function retr( port, page )
   }
  }
  
- if(egrep(pattern:"^Server:.*Apache.*", string:resp))Apache ++;
- else if(egrep(pattern:"^Server:.*Netscape.*", string:resp))iPlanet ++;
+ if ( ! ID_WebServer )
+ {
+ if ( "Apache" >< harray["server"] ) Apache ++;
+ else if ( "Netscape" >< harray["server"] ) iPlanet ++;
+ ID_WebServer ++;
+ }
  
- if(!egrep(pattern:"^Content-Type: text/(xml|html).*", string:resp))
+ 
+ if(harray["content-type"] && !ereg(pattern:"text/(xml|html)", string:harray["content-type"]))
  	return NULL;
  else 
  	{
@@ -659,7 +686,9 @@ function retr( port, page )
 function token_split(content)
 {
  local_var i, j, k, str;
- local_var ret, len;
+ local_var ret, len, num;
+ 
+ num = 0;
  
  ret = make_list();
  len = strlen(content);
@@ -678,7 +707,7 @@ function token_split(content)
    str = "";
    i ++;
    
-   while(content[i] == " ")i ++;
+   while(i < len && content[i] == " ")i ++;
    
    for(j = i; j < len ; j++)
    {
@@ -692,10 +721,12 @@ function token_split(content)
       j = k;
     }
     else if(content[j] == '>')
-    {
-     if(ereg(pattern:"^(a|area|frame|meta|iframe|link|img|form|/form|input|button|textarea|select)( .*|$)", string:str, icase:TRUE))
+    {        
+     if(ereg(pattern:"^(a|area|frame|meta|iframe|link|img|form|/form|input|button|textarea|select|applet)( .*|$)", string:str, icase:TRUE))
      	{
+        num ++;
      	ret = make_list(ret, str);
+        if ( num > 50 ) return ret; # Too many items
 	}
      break;
     }
@@ -715,7 +746,7 @@ function token_parse(token)
  local_var ret, i, j, len, current_word, word_index, current_value, char;
  
  
- ret = make_list();
+ ret = make_array();
  len = strlen(token);
  current_word = "";
  word_index = 0;
@@ -774,7 +805,11 @@ function token_parse(token)
     word_index ++;
   }
   else {
-  	if(i < len)current_word = current_word + token[i];
+        # Filter out non-ascii text 
+  	if(i < len && ord(token[i]) < 0x7e && ord(token[i]) > 0x21 )current_word = current_word + token[i];
+
+	# Too long token
+	if ( strlen(current_word) > 64 ) return ret;
 	}
  }
  
@@ -785,6 +820,34 @@ function token_parse(token)
 
 #-------------------------------------------------------------------------#
 
+function parse_java(elements) 
+{
+    local_var archive, code, codebase;
+
+    archive = elements["archive"];
+    code = elements["code"];
+    codebase = elements["codebase"];
+
+    if (codebase) 
+    {
+         if (archive)
+            set_kb_item(name:string("www/", port, "/java_classfile"), value:string(codebase,"/",archive));
+         if (code)
+             set_kb_item(name:string("www/", port, "/java_classfile"), value:string(codebase,"/",code));
+    } 
+    else 
+    {
+         if (archive)
+            set_kb_item(name:string("www/", port, "/java_classfile"), value:archive);
+         if (code)
+            set_kb_item(name:string("www/", port, "/java_classfile"), value:code);
+    }
+}
+
+
+
+
+
 
 
 function parse_javascript(elements, current)
@@ -793,7 +856,7 @@ function parse_javascript(elements, current)
   
   if(debug > 15)display("*** JAVASCRIPT\n");
   
-  pat = string(".*window\\.open\\('([^',", raw_string(0x29), "]*)'.*\\)*");
+  pat = string("window\\.open\\('([^',", raw_string(0x29), "]*)'.*\\)*");
   url = ereg_replace(pattern:pat,
   		     string:elements["onclick"],
 		     replace:"\1",
@@ -902,8 +965,7 @@ function parse_form(elements, current)
 function pre_parse(data, src_page)
 {
     local_var php_path, fp_save, data2;
-		
-   		
+
     if ("Index of /" >< data)
     {
     	    if(!Misc[src_page])
@@ -932,7 +994,8 @@ function pre_parse(data, src_page)
     if(!data2)data2 = strstr(data, "Warning");
     
     data2 = strstr(data2, "in <b>");
-    
+    if ( data2 ) 
+    {
     php_path = ereg_replace(pattern:"in <b>([^<]*)</b>.*", string:data2, replace:"\1");
     if (php_path != data2)
     {
@@ -943,6 +1006,7 @@ function pre_parse(data, src_page)
         }
      }
     }
+   }
     
    
     data2 = strstr(data, "unescape");
@@ -969,7 +1033,7 @@ function pre_parse(data, src_page)
 
     if("SaveResults" >< data)
     { 
-    fp_save = ereg_replace(pattern:string("(.*SaveResults.*U-File=)", quote, "(.*)", quote, ".*"), string:data, replace:"\2");
+    fp_save = ereg_replace(pattern:'(.*SaveResults.*U-File=)"(.*)".*"', string:data, replace:"\2");
     if (fp_save != data)
      {
         if (!Misc[src_page])
@@ -986,14 +1050,13 @@ function pre_parse(data, src_page)
 function parse_main(current, data)
 {
  local_var tokens, elements, cgi, form_cgis, form_cgis_level, args, store_cgi;
+ local_var argz, token;
  
  form_cgis = make_list();
  form_cgis_level = 0;
  argz = NULL;
  store_cgi = 0;
-  
  tokens = token_split(content: data);
- 
  foreach token (tokens)
  {
    elements = token_parse(token:token);
@@ -1002,6 +1065,9 @@ function parse_main(current, data)
     
     if(elements["onclick"])
     	parse_javascript(elements:elements, current:current);
+
+    if ( elements["nasl_token_type"] == "applet")
+        parse_java(elements:elements);
 	
     if(elements["nasl_token_type"] == "a" 	  || 
        elements["nasl_token_type"] == "link" 	  ||
@@ -1053,21 +1119,33 @@ function parse_main(current, data)
 
 
 
+
 start_page = script_get_preference("Start page : ");
 if(isnull(start_page) || start_page == "")start_page = "/";
 
 
 max_pages = int(script_get_preference( "Number of pages to mirror : " ));
-if(max_pages <= 0)max_pages = 30;
+if(max_pages <= 0)
+  if (COMMAND_LINE)
+   max_pages = 9999;
+  else
+   max_pages = 30;
 
 dirs = get_kb_list(string("www/", port, "/content/directories"));
 
 
 
+num_cgi_dirs = 0;
+if ( thorough_tests ) 
+	max_cgi_dirs = 1024;
+else 
+	max_cgi_dirs = 4;
+
+
 debug = 0;
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 URLs = make_list(start_page);
@@ -1075,6 +1153,7 @@ if(dirs) URLs = make_list(start_page, dirs);
 URLs_hash[start_page] = 0;
 
 
+ID_WebServer = 0;
 Apache = 0;
 iPlanet = 0;
 
@@ -1103,11 +1182,13 @@ foreach URL (URLs)
  if(!URLs_hash[URL])
  {
  	page = retr(port:port, page:URL);
-	cnt ++;
-	pre_parse(src_page:URL, data:page);
-	parse_main(data:page, current:URL);
- 	URLs_hash[URL] = 1;
-	if(cnt >= max_pages)break;
+	if (!isnull(page)) {
+	  cnt ++;
+	  pre_parse(src_page:URL, data:page);
+	  parse_main(data:page, current:URL);
+ 	  URLs_hash[URL] = 1;
+	  if(cnt >= max_pages)break;
+	}
  }
 }
 
@@ -1140,6 +1221,8 @@ foreach foo (keys(CGIs))
  	report = string("The following CGI have been discovered :\n\nSyntax : cginame (arguments [default value])\n\n", foo, " (", args, ")\n");
  else
  	report = string(report, foo, " (", args, ")\n");
+
+ if ( strlen(report) > 40000 ) break;
 }
 
 if(misc_report)

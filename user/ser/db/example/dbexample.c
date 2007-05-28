@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: dbexample.c,v 1.9 2003/09/15 22:34:28 janakj Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

@@ -8,7 +8,7 @@ if(description)
  script_id(11784);
  script_bugtraq_id(8062, 8064);
 
- script_version ("$Revision: 1.1 $");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "Abyss httpd overflow";
  script_name(english:name["english"]);
  
@@ -18,7 +18,7 @@ which may be exploited by an attacker to execute arbitrary code on
 this host.
 
 Solution : Upgrade to Abyss 1.1.6 or newer
-Risk Factor : High";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -40,8 +40,8 @@ Risk Factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(! get_port_state(port)) exit(0);
 
 #

@@ -8,15 +8,7 @@
 # GPL
 #
 # Status: untested
-#
-# References: 
-#
-# Date:  Mon, 17 Jul 2000 22:25:37 +0200
-# From: "Marc Ruef" <marc.ruef@computec.ch>
-# To: submissions@packetstormsecurity.org, news@securiteam.com, 
-#   bugtraq@securityfocus.com, ivan.schmid@astalavista.ch, jp@antionline.com
-# Subject: Trend Micro Officescan Denial of Service
-#
+##
 # http://online.securityfocus.com/bid/1013
 #
 # TBD:
@@ -27,9 +19,9 @@
 if(description)
 {
  script_id(11059);
- script_version("$Revision: 1.9 $");
- script_cve_id("CAN-2000-0203");
  script_bugtraq_id(1013);
+ script_version("$Revision: 1.14 $");
+ script_cve_id("CVE-2000-0203");
  script_name(english:"Trend Micro OfficeScan Denial of service");
  
  desc["english"] = "
@@ -74,6 +66,8 @@ include("misc_func.inc");
 
 function check(port)
 {
+ if (http_is_dead(port: port)) return (0);
+
  soc = http_open_socket(port);
  if(!soc)return(0);
 
@@ -82,13 +76,13 @@ function check(port)
  http_close_socket(soc);
 
  soc = http_open_socket(port);
- if(!soc) { security_hole(port); return(0); }
+ if(!soc) { security_warning(port); return(0); }
 
  send(socket:soc, data: attack2);
  r = http_recv(socket:soc);
  http_close_socket(soc);
 
- if (http_is_dead(port: port)) security_hole(port);
+ if (http_is_dead(port: port)) security_warning(port);
 }
 
 

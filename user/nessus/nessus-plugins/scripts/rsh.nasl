@@ -7,54 +7,54 @@
 if(description)
 {
  script_id(10245);
- script_version ("$Revision: 1.15 $");
- script_cve_id("CAN-1999-0651");
+ script_version ("$Revision: 1.19 $");
+ script_cve_id("CVE-1999-0651");
 
- name["english"] = "rsh";
- name["francais"] = "rsh";
- script_name(english:name["english"], francais:name["francais"]);
+ name["english"] = "Rsh Server Detection";
+ script_name(english:name["english"]);
  
- desc["english"] = "The rsh service is running.
-This service is dangerous in the sense that
-it is not ciphered - that is, everyone can sniff
-the data that passes between the rsh client
-and the rsh server. This includes logins
+ desc["english"] = "
+Synopsis :
+
+The rsh service is running.
+
+Description :
+
+The remote host is running the 'rsh' service.  This service is dangerous in 
+the sense that it is not ciphered - that is, everyone can sniff the data 
+that passes between the rsh client and the rsh server. This includes logins 
 and passwords.
+
+Also, it may allow poorly authenticated logins without passwords. If the 
+host is vulnerable to TCP sequence number guessing (from any network)
+or IP spoofing (including ARP hijacking on a local network) then it may 
+be possible to bypass authentication.
+
+Finally, rsh is an easy way to turn file-write access into full logins 
+through the .rhosts or rhosts.equiv files. 
 
 You should disable this service and use ssh instead.
 
-Solution : Comment out the 'rsh' line in /etc/inetd.conf.
+Solution : 
 
-Risk factor : Low";
+Comment out the 'rsh' line in /etc/inetd.conf
 
+Risk factor :
 
- desc["francais"] = "Le service rsh tourne.
-Ce service est dangereux dans le sens où la communication
-entre le serveur et le client n'est pas chiffrée, 
-ce qui permet à n'importe qui de sniffer les données
-qui passent entre le client et le serveur - ce qui
-inclut les noms d'utilisateurs et leur mot de passe.
-
-Vous devriez désactiver ce service et utiliser
-ssh à la place.
-
-Solution : désactivez ce service dans /etc/inetd.conf.
-
-Facteur de risque : Faible";
+Low / CVSS Base Score : 2 
+(AV:R/AC:H/Au:R/C:P/A:N/I:N/B:C)";
 
 
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for the presence of rsh";
- summary["francais"] = "Vérifie la présence du service rsh";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 1999 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Useless services";
  family["francais"] = "Services inutiles";
  script_family(english:family["english"], francais:family["francais"]);

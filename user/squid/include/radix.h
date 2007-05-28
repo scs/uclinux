@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: radix.h,v 1.12 2001/11/13 19:24:34 hno Exp $
  */
 
 #ifndef SQUID_RADIX_H

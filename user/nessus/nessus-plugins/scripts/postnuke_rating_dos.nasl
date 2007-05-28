@@ -9,6 +9,7 @@ if (description)
 {
  script_id(11676);
  script_bugtraq_id(7702);
+ script_version("$Revision$"); 
  script_name(english:"Post-Nuke Rating System Denial Of Service");
  desc["english"] = "
 The remote host is running post-nuke. PostNuke Phoenix 0.721,
@@ -21,26 +22,19 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  script_family(english:"CGI abuses", francais:"Abus de CGI");
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("postnuke_detect.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
-include("http_func.inc");
-include("http_keepalive.inc");
-port = get_kb_item("Services/www");
-if(!port)port = 80;
-if(!get_port_state(port))exit(0);
 
-foreach dir (make_list("", "/post-nuke", "/pn", cgi_dirs()))
-{
- req = http_get(item:string(dir, "/index.php"), port:port);
- #display(req);
- res = http_keepalive_send_recv(port:port, data:req);
- if(res == NULL ) exit(0);
- if('Post-Nuke' >< res)
- {
-  vers = egrep(pattern:".*GENERATOR.*Post-Nuke", string:res);
-  if(ereg(pattern:".*Post-Nuke 0\.([0-6]\.|7\.([0-1]\.|2\.[0-3]))", string:vers)) { security_warning(port); exit(0); }
- }
- exit(0);
-}
+
+include("http_func.inc");
+port = get_http_port(default:80);
+
+kb = get_kb_item("www/" + port + "/postnuke" );
+if ( ! kb ) exit(0);
+stuff = eregmatch(pattern:"(.*) under (.*)", string:kb );
+version = stuff[1];
+
+if(ereg(pattern:"^0\.([0-6]\.|7\.([0-1]\.|2\.[0-3]))", string:version)) 
+	security_warning(port);

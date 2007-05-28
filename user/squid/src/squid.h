@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: squid.h,v 1.216.2.8 2005/03/26 02:50:53 hno Exp $
  *
  * AUTHOR: Duane Wessels
  *
@@ -38,13 +38,13 @@
 #include "config.h"
 
 /*
- * experimental defines for ICAP; apparently this Squid-Icap *requires*
- * ICAP_CHUNKED : Basile Starynkevitch, june 14th 2002
+ * experimental defines for ICAP
  */
-
 #ifdef HS_FEAT_ICAP
-#define ICAP_CHUNKED 1
+#define ICAP_PREVIEW 1
+#define SUPPORT_ICAP_204 0
 #endif
+
 /*
  * On some systems, FD_SETSIZE is set to something lower than the
  * actual number of files which can be opened.  IRIX is one case,
@@ -428,6 +428,10 @@ struct rusage {
 #include "snprintf.h"
 #endif
 
+#if !HAVE_INITGROUPS
+#include "initgroups.h"
+#endif
+
 #define XMIN(x,y) ((x)<(y)? (x) : (y))
 #define XMAX(a,b) ((a)>(b)? (a) : (b))
 
@@ -485,6 +489,12 @@ struct rusage {
 #define FD_READ_METHOD(fd, buf, len) (*fd_table[fd].read_method)(fd, buf, len)
 #define FD_WRITE_METHOD(fd, buf, len) (*fd_table[fd].write_method)(fd, buf, len)
 
-#define abort() exit(1)
+/*
+ * Trap attempts to build large file cache support without support for
+ * large objects
+ */
+#if LARGE_CACHE_FILES && SIZEOF_SQUID_OFF_T <= 4
+#error Your platform does not support large integers. Can not build with --enable-large-cache-files
+#endif
 
 #endif /* SQUID_H */

@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cpl_loader.h,v 1.2.4.1 2003/11/28 13:21:07 bogdan Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

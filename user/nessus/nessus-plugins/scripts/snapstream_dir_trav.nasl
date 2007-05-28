@@ -18,9 +18,9 @@
 if(description)
 {
  script_id(11079);
- script_version ("$Revision: 1.6 $");
- script_cve_id("CVE-2001-1108");
  script_bugtraq_id(3100);
+ script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-1108");
  
  name["english"] = "Snapstream PVS web directory traversal";
  script_name(english:name["english"]);
@@ -53,13 +53,18 @@ Risk factor : High";
  exit(0);
 }
 
-#
+# FP + other Directory Traversal scripts do the same thing
+exit (0);
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 8129;
+if ( report_paranoia < 2 ) exit(0);
+
+
+port = get_http_port(default:8129);
+if(!port) exit(0);
 
 if(!get_port_state(port)) exit(0);
 

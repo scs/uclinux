@@ -3,7 +3,7 @@
 #
 # This is the Makefile for libutil.
 #
-# $Id$
+# $Id: Makefile,v 1.5 1999/06/27 14:29:00 marcs Exp $
 #
 
 UTILOBJS=check_system.o config.o no_modem.o make_path.o strsep.o variables.o \

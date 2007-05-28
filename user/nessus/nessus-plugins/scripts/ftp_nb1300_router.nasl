@@ -15,7 +15,7 @@ if(description)
 {
  script_id(11539);
  script_bugtraq_id(7359);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.5 $");
  script_name(english:"NB1300 router default FTP account");
 	     
 
@@ -39,7 +39,8 @@ script_summary(english:"Checks for admin/password");
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
  		  francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
  
- script_dependencie("find_service.nes", "DDI_FTP_Any_User_Login.nasl");
+ script_dependencie("ftpserver_detect_type_nd_version.nasl", 
+	"ftp_kibuv_worm.nasl", "DDI_FTP_Any_User_Login.nasl");
  script_require_ports("Services/ftp", 21);
  exit(0);
 }
@@ -47,16 +48,17 @@ script_summary(english:"Checks for admin/password");
 #
 # The script code starts here : 
 #
-
+include('ftp_func.inc');
 port = get_kb_item("Services/ftp");
 if(!port)port = 21;
+
 if(get_port_state(port))
 {
- if(get_kb_item("ftp/" + port + "/AnyUser"))exit(0);
+ if (get_kb_item("ftp/" + port + "/AnyUser") || get_kb_item('ftp/'+port+'/backdoor')) exit(0);
 
  soc = open_sock_tcp(port);
  if(soc)
  {
-  if(ftp_log_in(socket:soc, user:"admin", pass:"password"))security_hole(port);
+  if(ftp_authenticate(socket:soc, user:"admin", pass:"password"))security_hole(port);
  }
 }

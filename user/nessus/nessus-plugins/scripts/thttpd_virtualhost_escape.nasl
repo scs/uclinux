@@ -7,8 +7,10 @@
 if(description)
 {
  script_id(11576);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-2002-1562");
+ script_version ("$Revision: 1.8 $");
+ script_bugtraq_id(8924, 8906);
+ script_cve_id("CVE-2002-1562", "CVE-2003-0899");
+ if ( defined_func("script_xref") ) script_xref(name:"SuSE", value:"SUSE-SA:2003:044");
  
  name["english"] = "thttpd directory traversal thru Host:";
  script_name(english:name["english"]);
@@ -18,7 +20,7 @@ The remote HTTP server allows anyone to browse the files on the remote
 host by sending HTTP requests with a Host: field set to '../../'.
 
 Solution : Upgrade to thttpd 2.23 or newer
-Risk Factor : High";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -34,7 +36,7 @@ Risk Factor : High";
  family["english"] = "Remote file access";
  family["francais"] = "Accès aux fichiers distants";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -46,8 +48,8 @@ Risk Factor : High";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
   req = string("GET / HTTP/1.1\r\n",

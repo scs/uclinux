@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: ident.c,v 1.58 2001/04/14 00:03:23 hno Exp $
  *
  * DEBUG: section 30    Ident (RFC 931)
  * AUTHOR: Duane Wessels

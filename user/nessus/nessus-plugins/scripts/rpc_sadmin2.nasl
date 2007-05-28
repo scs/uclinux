@@ -8,9 +8,10 @@
 if(description)
 {
  script_id(11841);
- script_version ("$Revision: 1.3 $");
  script_bugtraq_id(8615);
- script_cve_id("CAN-2003-0722");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0013");
+ script_version ("$Revision: 1.11 $");
+ script_cve_id("CVE-2003-0722");
  
  name["english"] = "sadmind command execution";
  script_name(english:name["english"]);
@@ -21,7 +22,7 @@ to misuse this service to execute arbitrary commands on this host
 as root.
 
 Solution : Disable this service as Sun does not intend to provide a patch
-Risk Factor : High";
+Risk factor : High";
 
 
 
@@ -37,7 +38,11 @@ Risk Factor : High";
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
  family["english"] = "Gain root remotely";
  script_family(english:family["english"]);
- script_dependencie("rpc_portmap.nasl");
+ if ( ! defined_func("bn_random") ) 
+	script_dependencie("rpc_portmap.nasl");
+ else
+	script_dependencie("rpc_portmap.nasl", "solaris7_116456.nasl", "solaris7_x86_116457.nasl", "solaris8_116455.nasl", "solaris8_x86_116442.nasl", "solaris9_116453.nasl", "solaris9_x86_116454.nasl");
+
  script_require_keys("rpc/portmap");
  exit(0);
 }
@@ -50,28 +55,8 @@ Risk Factor : High";
 include("misc_func.inc");
 include("nfs_func.inc"); # RPC functions
 
-function hex2raw(s)
-{
- local_var i, j, ret;
- 
- for(i=0;i<strlen(s);i+=2)
- {
-  if(ord(s[i]) >= ord("0") && ord(s[i]) <= ord("9"))
-  	j = int(s[i]);
-  else
-  	j = int((ord(s[i]) - ord("a")) + 10);
 
-  j *= 16;
-  if(ord(s[i+1]) >= ord("0") && ord(s[i+1]) <= ord("9"))
-  	j += int(s[i+1]);
-  else
-  	j += int((ord(s[i+1]) - ord("a")) + 10);
-  ret += raw_string(j);
- }
- return ret;
-}
-
-include("dump.inc");
+if ( get_kb_item("BID-8615") ) exit(0);
 
 
 RPC_PROG = 100232;

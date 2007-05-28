@@ -54,8 +54,7 @@
 
 \newpage
 
-Suggestions for enhancements of this document are always welcome.  Please
-email them to the \htmladdnormallink{Snort-Users}{mailto:snort-users@lists.sourceforge.net} mailing list. 
+Suggestions for enhancements of this document are always welcome.  Please email them to the \htmladdnormallink{Snort-Users}{mailto:snort-users@lists.sourceforge.net} mailing list. 
 
 Many people have contributed to this FAQ:
 \begin{center}
@@ -155,12 +154,16 @@ TCP/IP Illustrated, Volume 1 The Protocols        & W. Richard Stevens & Addison
 \hline
 Intrusion Detection                               & Rebecca G. Bace    & MacMillan Technical Publishing & 1578701856 \\
 \hline
+The Tao of Network Security Monitoring: Beyond Intrusion Detection & Richard Bejtlich & Addison-Wesley & 0321246772 \\
+\hline
+Snort 2.1 Intrusion Detection, Second Edition & Brian Caswell \& Jay Beale & Syngress Publishing & 1931836043 \\
+\hline
 \end{tabular}
 
 	
 \subsection{Does Snort handle IP defragmentation?}
 
-Yes, use {\tt preprocessor frag2}.
+Yes, use {\tt preprocessor frag3}.
 
 \subsection{Does Snort perform TCP stream reassembly?}
 
@@ -316,7 +319,7 @@ You can also find Snort in most BSD ports' trees.
 
 Run Snort in sniffer mode and make sure it can see the packets.  
 
-\begin{verbatim}snort -dv{\end{verbatim}
+\begin{verbatim}snort -dv\end{verbatim}
 
 Then run it with the HOME\_NET set appropriately for the network
 you're defending in your rules file.  A default rules file comes with the
@@ -340,7 +343,7 @@ with inode creation on filesystems.
 
 For people doing real IDS work, use something like (-A fast -b) to
 combine fast alert mode with tcpdump binary log files or use the
-unified format coupled with barnyard.
+unified format coupled with Barnyard.
 
 \subsection{Where are my log files located?  What are they named?}
 
@@ -1130,16 +1133,6 @@ Reassemble ports: 21 23 25 53 80 143 110 111 513
 Reassembly alerts: ACTIVE 
 \end{verbatim}
 
-There is a new command line switch that is used in concert with the
-stream4 code, ``-z''.  The -z switch can take one of two arguments: ``est''
-and ``all''.  The ``all'' argument is the default if you don't specify
-anything and tells Snort to alert normally.  If the -z switch is
-specified with the ``est'' argument, Snort will only alert (for TCP
-traffic) on streams that have been established via a three way handshake
-or streams where cooperative bidirectional activity has been observed
-(i.e. where some traffic went one way and something other than a RST or
-FIN was seen going back to the originator).  With ``-z est'' turned on,
-Snort completely ignores TCP-based stick/snot ``attacks''.
 
 \subsection{Where does one obtain new/modifed rules? How do you merge them in?}
 
@@ -1475,12 +1468,16 @@ from `-s' to send syslog alerts to. You can find the patch at:
 
     \htmladdnormallink{http://www.snort.org/dl/contrib/patches/win32syslog/}{http://www.snort.org/dl/contrib/patches/win32syslog/}
 
-\subsection{How do I build this ACID thing?}
+\subsection{How do I get Snort and ACID working?}
 
-Read carefully through all the docs for each package. Getting ACID to work is a
+Acid has been unmaintained for quite some time. Use BASE instead (see below).
+
+\subsection{How do I build this BASE thing?}
+
+Read carefully through all the docs for each package. Getting BASE to work is a
 lot of work, since it depends on many packages. You need a working Apache, a
-working PHP, a working GD (and the many libraries GD depends on), the ADODB
-package, and Phplot. This is a lot of stuff to configure.
+working PHP, a working GD (and the many libraries GD depends on) and the ADODB
+package. This is a lot of stuff to configure.
 
 A typical sequence to get this all working on Solaris 8: Use some binary
 packages from a trusted Sun freeware site (sunfreeware.com). The most problems
@@ -1509,18 +1506,12 @@ but you can just use the ``withs'').
 Basically, you need to work from the bottom up. So you need to obtain/compile
 any libraries that GD needs and install them, and any libraries/packages those
 packages need. Then once you get GD compiled properly and installed, compile
-PHP. Then make a PHP script that calls phpinfo() (this is referenced in the
-ACID install) and carefully examine the page produced. Once satisfied PHP is
-working, then the 'foundation' is ready for the other stuff. Install PHplot and
-run a few of the tests. If they succeed, then install ADODB and ACID, tweak the
-config files, and it should all work. (heh, heh)
+PHP. Then make a PHP script that calls phpinfo() and carefully examine the page
+produced. Once satisfied PHP is working, then the 'foundation' is ready for the
+other stuff. If they succeed, then install ADODB and BASE, tweak the config
+files, and it should all work. (heh, heh)
 
-Also make sure you read the ACID FAQ on the web site. There's some stuff not in
-the ACID install guide that should probably be there. Namely the fact that the
-PHP ``register\_globals'' option must be turned on in the php.ini file (it's off
-in the default PHP configurations).
-
-ACID FAQ: \htmladdnormallink{http://www.andrew.cmu.edu/~rdanyliw/snort/acid\_faq.html}{http://www.andrew.cmu.edu/~rdanyliw/snort/acid_faq.html}
+BASE website: \htmladdnormallink{http://base.secureideas.net/}{http://base.secureideas.net/}
 
 \section{Rules and Alerts}
 
@@ -1750,36 +1741,13 @@ subject to  the same false positives with cookies and SSL. Having the packet
 dumps is the  only way to tell for sure if you have a real attack on your
 hands, but this  is true for any content-based alert.
 
-\subsection{Why do certain alerts seem to have `unknown' IPs in ACID?  }
+\subsection{Why do certain alerts seem to have `unknown' IPs in BASE?  }
 
-The Snort database plug-in only logs packet information into the database
-when an alert is triggered by a rule (signature). Therefore, since alerts
-generated by pre-preprocessors such as portscan and mini-fragment have no
-corresponding rules, no packet information is logged beyond an entry
-indicating their occurance. As a consequence, ACID cannot display any
-packet-level (e.g. IP address) information for these alerts. 
+See the BASE FAQ at \htmladdnormallink{http://base.secureideas.net/faq.php}{http://base.secureideas.net/faq.php}
 
-For these particular alerts, certain statistics may show zero unique IP
-addresses, list the IP address as 'unknown', and will not list any packet
-information when decoding the alert. 
+\subsection{Can priorities be assigned to alerts using BASE?  }
 
-\subsection{Can priorities be assigned to alerts using ACID?  }
-
-The quick answer to this question is no. ACID is at the mercy of the
-underlying database, since Snort doesn't assign priorities, ACID does not
-have priorities. Nevertheless, there are several work-arounds: 
-
-\begin{itemize}
-\item It is possible to enforce priorities of sort at the database level by
-writing alerts of different severity to separate databases. For example,
-critical alerts such as buffer overflows can be written to one database,
-while scan alerts can be written to another. Then load two different versions
-of ACID, each pointing to a different instance of the database. 
-
-\item With manual intervention Alert Groups (AG) can be used to assign priority.
-Essentially, this strategy entails creating an AG for each severity level and
-manually moving the alerts as they arrive into the appropriate group. 
-\end{itemize}
+See the BASE FAQ at \htmladdnormallink{http://base.secureideas.net/faq.php}{http://base.secureideas.net/faq.php}
 
 \subsection{What about `SMB Name Wildcard' alerts? }
 
@@ -1983,19 +1951,36 @@ a failure to send the alert to the database, and it stops sending alerts. It is
 also aware when the database can accept connections again and will start
 sending the alerts again.
 
+\subsection{Are there other output systems for Snort besides ``Barnyard''?\label{spoolers}}
+
+FLoP (Fast Logging Project) and Mudpit are two other programs that can be used.
+
+FLoP adds a patch to Snort that creates an output plugin that writes alerts to
+a Unix domain socket instead of a file. These alerts (which are stored in memory)
+are then sent to a central server where they are then written to a database.
+Advantages are that database requests are made locally rather than over
+the wire and files don't need to be stored on the sensor. 
+
+    \htmladdnormallink{http://www.geschke-online.de/FLoP/}{http://www.geschke-online.de/FLoP/}
+
+Mudpit is similar to Barnyard in that it uses Snort's unified output. It however 
+has the ability to process both alert and log files in parallel, choosing one
+that contains more information on a particular event.
+
+    \htmladdnormallink{http://farm9.org/Mudpit/}{http://farm9.org/Mudpit/}
+
 \subsection{How do I process those Snort logs into reports?}
 \begin{enumerate}
-\item  Barnyard 5.1 can be used to process unified output files into a number of
+\item  Barnyard \myref{barnyard} can be used to process unified output files into a number of
     formats, including output to a database for further analysis.
 \item  SnortSnarf, a tool for producing HTML out of snort alerts for navigating
     through these alerts.
 
-        \htmladdnormallink{http://www.silicondefense.com/snortsnarf/}{http://www.silicondefense.com/snortsnarf/}
+%        \htmladdnormallink{http://www.silicondefense.com/snortsnarf/}{http://www.silicondefense.com/snortsnarf/}
 
-\item  If you want to set up logging to a database you could try ACID. Some
-    documentation describing the current ACID functionality includes:
+\item  If you want to set up logging to a database you could try BASE:
 
-        \htmladdnormallink{http://www.cert.org/kb/acid/}{http://www.cert.org/kb/acid/}
+        \htmladdnormallink{http://base.secureideas.net/}{http://base.secureideas.net/}
 
 \item  You can manipulate the unified output files directly without a separate
     database and browse/correlate them with Cerebus:
@@ -2127,9 +2112,9 @@ IP address range. (HOME\_NET=192.168.0.0/16)
 
 \subsection{Is it possible with snort to add a ipfilter/ipfw rule to a firewall? }
 
-Yes, with additional software in the contrib directory.  But this
-can be dangerous and is not recommended unless you know what you're
-doing.
+Yes, with additional software from the contrib section at
+\htmladdnormallink{http://www.snort.org}{http://www.snort.org}.  This can be dangerous and is not recommended
+unless you know what you're doing.
 
 \begin{itemize}
 \item SnortSam
@@ -2137,7 +2122,7 @@ doing.
 
 \item You also might wat to look at inline-snort at:
 	\htmladdnormallink{http://www.snort.org/dl/contrib/patches/snort-inline}{http://www.snort.org/dl/contrib/patches/snort-inline}
-\item Guardian is available and is part of the contrib directory in the tarball distribution.
+\item Guardian is available and is part of the contrib section at \htmladdnormallink{http://www.snort.org}{http://www.snort.org}.
 
 Guardian is a perl script which uses Snort to detect attacks,
 and then uses IPchains to deny any further attacks. The Guardian webpage can be found at:
@@ -2281,11 +2266,6 @@ You can get a win32 port of dsniff at:
 
     \htmladdnormallink{http://www.datanerds.net/~mike/dsniff.html}{http://www.datanerds.net/~mike/dsniff.html}
 
-\subsection{How can I move data from the snort db to snort\_archive db like ACID does?}
-
-Use the perl script snort\_archdb.pl found in the contrib dir of the Snort
-distribution (snort\_archdb-90a.tar.gz).
-
 \subsection{What are some resources that I can use to understand more about source
 addresses logged and where they are coming from?}
 
@@ -2350,6 +2330,8 @@ If you are using unified logging, you can use Barnyard \myref{barnyard} or the u
 
     \htmladdnormallink{http://dragos.com/logtopcap.c}{http://dragos.com/logtopcap.c}
 
+You can also use the \texttt{getpacket} program from the FLoP project \myref{spoolers}
+
 You can then get additional decoding of the packet contents by analyzing these
 pcap files with either:
 \begin{itemize}
@@ -2411,42 +2393,13 @@ This is an internal diagnostic message when the defragmentation
 preprocessor runs into its ~32MB hard allocation space limit.
 Tell Dragos about it $<$dr@kyx.net$>$.
 
-\subsection{My ACID db connection times-out when performing long operations (e.g.
+\subsection{My BASE db connection times-out when performing long operations (e.g.
 deleting a large number of alerts).}
 
 PHP has an internal variable set to limit the length an script can execute. It
 is used to prevent poorly written code from executing indefinitely. In order to
 modify the time-out value, examine the 'max\_execution\_time' variable found in
 the 'php.ini' configuration file.
-
-\subsection{Why does ACID keep changing my sensor number and how do I keep it
-consistent?}
-
->From the code in op\_acid\_db.c:
-\begin{verbatim}
-  * []/* if sensor id ==
-     0, then we attempt attempt to determine it dynamically */ if(data->
-    sensor_id == 0) 
-
-    { 
-
-        data->sensor_id = AcidDbGetSensorId(data); 
-
-    }
-\end{verbatim}
-
-And AcidDbGetSensorId does the following:
-\begin{verbatim}
-  * []"SELECT sid FROM sensor WHERE hostname='%s' AND interface='%s' " 
-
-    "AND filter='%s' AND detail='%u' AND encoding='0'", pv.hostname, 
-
-    pv.interface, pv.filter, op_data->detail)
-\end{verbatim}
-
-If it gets a sensor back, it uses that sensor\_id, if not, it inserts the new
-sensor. So from the code, to keep it consistent, don't change the hostname /
-interface / filter and detail.
 
 \subsection{Why does snort report ``Packet loss statistics are unavailable under Linux?''}
 
@@ -2561,9 +2514,9 @@ Try this script to archive the files:
     main.com
     \end{verbatim}
 
-\subsection{Why does the `error deleting alert' message occur when attempting to delete an alert with ACID?  }
+\subsection{Why does the `error deleting alert' message occur when attempting to delete an alert with BASE?  }
 
-Most likely the DB user configure in ACID does not have sufficient
+Most likely the DB user configure in BASE does not have sufficient
 privileges. In addition to those privileges granted to log the alerts into
 the database (INSERT, SELECT), DELETE is also required. 
 
@@ -2571,7 +2524,7 @@ This permission related issue can be confirmed by manually inserting a row
 into the database, then trying to delete it. 
 
 \begin{enumerate}
-\item Log into MySQL with the same credentials (i.e. username, password) as you use in ACID:
+\item Log into MySQL with the same credentials (i.e. username, password) as you use in BASE:
 	\begin{verbatim}
 	mysql -u -p
 	\end{verbatim}
@@ -2589,19 +2542,17 @@ into the database, then trying to delete it.
 
 If you were not able to delete, this confirms that this is a permission
 problem. Re-login to mysql as root, and issue a GRANT command (giving the
-DELETE permission) to the ACID DB user: 
+DELETE permission) to the BASE DB user: 
 
-\begin{verbatim}GRANT DELETE on snort.* to acid@localhost\end{verbatim}
+\begin{verbatim}GRANT DELETE on snort.* to base@localhost\end{verbatim}
 
-(this assumes that my alert database is 'snort', username is 'acid', and
+(this assumes that my alert database is 'snort', username is 'base', and
 logging from the 'localhost') 
 
 \end{enumerate}
-\subsection{ACID appears to be broken in Lynx }
+\subsection{BASE appears to be broken in Lynx }
 
-This is a known issue. Lynx mangles some of the form arguments appended to
-the URL. It's resolution is being investigated, but use Netscape, Opera, or
-IE in the mean time. 
+See the BASE FAQ at \htmladdnormallink{http://base.secureideas.net/faq.php}{http://base.secureideas.net/faq.php}
 
 \subsection{I am getting `snort [pid] uses obsolete (PF\_INET, SOCK\_PACKET)' warnings. What's wrong?}
 
@@ -2634,7 +2585,7 @@ There are a number of problems that may be causing Snort to fail to log to a
 database.  You should check these:
 \begin{enumerate}
 \item You did not set up the database plugin in your configuration file.
-\item  You are using an older database schema, and should update it by running the create scripts from the /contrib directory of the source tarball.
+\item  You are using an older database schema, and should update it by running the create scripts from the ./schemas directory of the source tarball.
 \item You are using a command line option that overrides what you have in your configuration file.  This is most often -A or -s.  NOTE: If you wish to log to syslog as well, specify so in your configuration file rather then the command line.
 \item There is a problem with your database configuration itself.  Make sure the user you specify has the correct permissions, or that the database is even up and running.
 \end{enumerate}
@@ -2882,121 +2833,6 @@ see if new includes or vars have been added, or at least be aware you should
 consult it if things do not work as expected. This is generally the case if you
 get messages indicating that something is undefined in a rule.
 
-\subsection{How do I speed up ACID and MySQL?}
-
-(ACID FAQ B-10)
-Two MySQL optimizations for you to check from the ACID faq:
-
-    \htmladdnormallink{http://www.andrew.cmu.edu/~rdanyliw/snort/acid\_faq.html}{http://www.andrew.cmu.edu/~rdanyliw/snort/acid_faq.html}
-\begin{itemize}
-\item Compact the tables
-
-    After numerous delete operations, `holes' will occur in the native files
-    used to store the tables decreasing the speed of the all queries. The
-    following shell script will examine all the MySQL tables and compact them.
-      \begin{verbatim}
-     []for table in `echo show tables$|$mysql snort$|$tail +2` 
-        do 
-           echo optimize table $table|mysql snort 
-        done
-	\end{verbatim}
-\item Creating indexes
-
-    Some of the required indexes are not created in initial MySQL creation
-    script. The following indexes can be added to significantly improve
-    performance:
-\begin{verbatim}
-        tcphdr.tcp_sport
-
-        tcphdr.tcp_dport
-
-        acid_ag_alert.ag_sid + acid_ag_alert.ag_cid
-\end{verbatim}
-    MySQL can be fast - you just need to have the proper indexing set up. If
-    you need a good MySQL reference, pick up a copy of Paul DuBois' book, which
-    is currently the bible for MySQL. O'Reilly also recently released a
-    reference by Monty and the MySQL AB team.
-
-    The way to check if the indices are already there are with the SHOW INDEX
-    command. For instance, to check the tcphdr table, you would run:
-    \begin{verbatim}
-      + []mysql> show index from tcphdr;
-
-        +----+------+------+-------+-------+------+-------+-----+----+-----+
-
-        | Table  | Non_unique | Key_name  | Seq_in_index | Column_name |
-        Collation  | Cardinality | Sub_part | Packed | Comment |
-
-        +----+------+------+-------+-------+------+-------+-----+----+-----+
-
-        | tcphdr |          0 | PRIMARY   |            1 | sid         |
-                 A |        NULL |     NULL | NULL   |         |
-
-        | tcphdr |          0 | PRIMARY   |            2 | cid         |
-                 A |     2543146 |     NULL | NULL   |         |
-
-        | tcphdr |          1 | tcp_sport |            1 | tcp_sport   |
-                 A |        NULL |     NULL | NULL   |         |
-
-        | tcphdr |          1 | tcp_dport |            1 | tcp_dport   |
-                 A |        NULL |     NULL | NULL   |         |
-
-        | tcphdr |          1 | tcp_flags |            1 | tcp_flags   |
-                 A |        NULL |     NULL | NULL   |         |
-
-        +----+------+------+-------+-------+------+-------+-----+----+-----+
-
-        5 rows in set (0.00 sec)
-\end{verbatim}
-    You can see that in this case, the tcphdr.tcp\_sport index is in line 3, and
-    the tcphdr.tcp\_dport is in line 4.
-
-    If you need to create the index, you can run:
-    \begin{verbatim}
-      + []CREATE INDEX idx_tcp_sport ON tcphdr(tcp_sport);
-      \end{verbatim}
-    To create a compound index, you would do this:
-    \begin{verbatim}
-      + []CREATE INDEX idx_cpd_sid_cid ON acid_ag_alert(ag_sid,ag_cid);
-     \end{verbatim}
-    If you want to take a closer look at the table structures, you can use the
-    DESCRIBE command, and pass it the table name:
-    \begin{verbatim}
-      + []       mysql> DESCRIBE tcphdr;
-
-               +------+-----------+---+---+-----+----+
-               | Field     | Type                 | Null | Key | Default |
-         Extra |
-               +------+-----------+---+---+-----+----+
-               | sid       | int(10) unsigned     |      | PRI | 0       |
-               |
-               | cid       | int(10) unsigned     |      | PRI | 0       |
-               |
-               | tcp_sport | smallint(5) unsigned |      | MUL | 0       |
-               |
-               | tcp_dport | smallint(5) unsigned |      | MUL | 0       |
-               |
-               | tcp_seq   | int(10) unsigned     | YES  |     | NULL    |
-               |
-               | tcp_ack   | int(10) unsigned     | YES  |     | NULL    |
-               |
-               | tcp_off   | tinyint(3) unsigned  | YES  |     | NULL    |
-               |
-               | tcp_res   | tinyint(3) unsigned  | YES  |     | NULL    |
-               |
-               | tcp_flags | tinyint(3) unsigned  |      | MUL | 0       |
-               |
-               | tcp_win   | smallint(5) unsigned | YES  |     | NULL    |
-               |
-               | tcp_csum  | smallint(5) unsigned | YES  |     | NULL    |
-               |
-               | tcp_urp   | smallint(5) unsigned | YES  |     | NULL    |
-               |
-               +------+-----------+---+---+-----+----+
-               12 rows in set (0.02 sec)
-	     \end{verbatim}
-	     \end{itemize}
-
 \subsection{Why am I seeing so many ``SMTP RCPT TO overflow'' alerts ?}
 
 That rule looks for a TCP frame going to your SMTP server which contains more
@@ -3046,7 +2882,31 @@ snort.conf.
 \begin{verbatim}
     snort -c /usr/local/etc/snort.conf
 \end{verbatim}
-   
+
+\subsection{Snort fails to respond to a kill signal on Linux.  Why?}
+
+In Snort 2.6, a change was made to switch from performing the Snort
+shutdown function within the signal handlers.  This was done to remove
+reentrant code from the signal handlers, and the vulnerabilities that
+entailed.  The signal handler now simply sets a flag and returns.
+
+Snort now uses pcap\_dispatch() with a read timeout value.  So, when a
+signal is received when snort is waiting for packets, the signal handler
+sets the flag and goes back to waiting for a packet.  If the timeout
+is then reached, pcap\_dispatch() returns and Snort sees it received a
+signal to exit and exits cleanly.
+
+Per the pcap(3) man page, ``Not all platforms support a read timeout;
+on platforms that don't, the read timeout is ignored.''  Linux is one
+of the systems where this is not currently supported.
+
+Snort does receive the signal, but until a packet arrives, it does
+not get the chance to exit cleanly.  There have been a number of
+patches created to implement the timeout on linux, and one example
+can be found here.
+
+\htmladdnormallink{http://www.ethereal.com/lists/ethereal-dev/199812/msg00019.html}{http://www.ethereal.com/lists/ethereal-dev/199812/msg00019.html}
+
 \section{Development}   
   
 

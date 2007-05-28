@@ -1,133 +1,61 @@
-2005-04-22 - Snort 2.3.3 Released
+2006-11-22 - Snort 2.6.1.1 Released
+[*] Improvements
+    * Fixed problem with snort using high CPU and potentially reprocessing
+      the same TCP reassembled packets at session end or TCP ACK of only
+      part of a packet.
 
-* Fixed sfPortscan Open Ports not getting suppressed.
+2006-11-16 - Snort 2.6.1 Released
+[*] New Additions
+    * Support for UDP "session" tracking to Stream4.  Enable via
+      --enable-stream4udp option to configure script.  This allows
+      the use of flow option with UDP rules.  Includes tracking
+      of stats for UDP sessions.  A session is created for rules that
+      use the flow or flowbits keywords.  Also provided the ability to
+      ignore UDP any any -> any any rules as a performance improvement.
 
-* Added new mini-preprocessor to catch the X-Link2State vulnerability.
-  See Snort manual for details.
+    * Stream5 (for Beta testing) as replacement for Stream4
+      and Flow preprocessors.  See README.stream for details.
 
-2005-03-10 - Snort 2.3.2 Released
+    * Allow blocking of entire session in inline mode via stream API.
+      All subsequent packets on that session are blocked.
 
-* Removed end-of-line parser fix in favor of completely reworking
-  this at the next parser overhaul.
+    * Dynamic DCE/RPC protocol normalizer and defragmentation
+      module.  See README.dcerpc for details.
 
-2005-03-09 - Snort 2.3.1 Released
+    * SSH (for Beta testing) protocol analyzer.  See README.ssh for
+      details.
 
-* Fixed issue where the number of flowbits were too small. Thanks Marc
-  Norton for the fix.
+    * Support for GRE encapsulated protocol (experimental).  Enable via
+      --enable-gre option to configure script.
+    
+    * Aruba networks output plugin (experimental).  See README.ARUBA for
+      details.  Enable via --enable-aruba option to configure script.
 
-* Fixed parsing of comments at end of line in config file.  In
-  snort.conf, anything that follows a # on a line is considered a
-  comment. Thanks Steve Sturges for the fix.
+    * Smaller memory footprint pattern mattcher using Aho-Corasick,
+      using NFA.  Use 'config detection: search-method ac-bnfa' to 
+      enable.  This will become the default pattern matcher in future
+      releases.  Wu-Manhber has been deprecated (mwm).
 
-* Fixed alignment issue causing sfPortscan to crash on Solaris/HPUX.
-  Thanks Andy Mullican for the fix. Thanks Senthil Prabu.S and
-  Jonathan Miner for working with us on this.
+[*] Improvements
 
-2005-01-25 - Snort 2.3.0 Final Released
+    * Added parameter to dynamicengine to allow specification of
+      directory instead of implicit file.  This will load all engine shared
+      libraries within the specified directory.  Can also use
+      --dynamic-engine-lib-dir command-line option.  Fix handling of
+      loading multiple instances of the same dynamic library (engine,
+      detection, or preprocessor).
 
-* Fixed issue with sfPortscan reporting incorrect IP datagram length.
-  Thanks Jon Hart for the test case and finding the bug, and Marc Norton
-  for resolving the issue.
+    * Updates to HTTP inspect to handle different versions of IIS with
+      the related iis profiles.  See README.httpinspect for details.
 
-* Threshold/Suppression now prints properly when logging to syslog.
-  Thanks Sekure for pointing out the problem. Thanks Steve Sturges for
-  working on the fix.
+    * Cleaned up inline initialization to better handle test mode.
 
-* Threshold memcap argument now correctly handles non-integer input.
-  Thanks nnposter for the patch.
+    * Updates to interface dependent variable definitions.
 
-* Fixed issue reported by Allan Jensen, where on MacOS X, ppp links were
-  not decoded properly. Thanks Dan Roelker for the fix.
+    * Added stats for packets not yet processed -- those that are still in
+      the buffer used by pcap.
 
-* Snort manual and FAQ are updated for 2.3. Thanks Jen Harvey for your
-  work on putting it all together. 
+    * Fixed issue with fewer alerts being generated when snort is compiled
+      with gcc 4.x by using no-strict-aliasing flag.
 
-2004-12-15 - Snort 2.3.0 RC2 Released
-
-* Small performance improvement to arpspoof and also fixed a problem
-  where the list of configured IP/MAC entries would contain only one
-  entry and leaked memory (Jeff Nathan).
-
-* Fixed a problem affecting MacOS X where linking may fail with
-  non-standard libraries when global symbols are encountered multiple
-  times (Jeff Nathan).
-
-* Ignore RST|ACK midstream pickup case so we don't get an evasive TCP
-  alerts.  Thanks for the report, Sekure. Thanks Dan Roelker for the fix.
-
-* Moved CheckLogDir() to after parsing snort.conf (for IDS mode) so the 
-  logdir config will work if the default or command-line logdir does not
-  exist on the system. Thanks Dan Roelker.
-
-* Fixed bug when setting the doe_ptr on a successful pcre match.
-  It is now set relative to base_ptr. Thanks Steve Sturges for the
-  fix.
-
-* Added from_beginning and multiplier options for byte_jump.
-  from_beginning skips bytes from the beginning of the content,
-  instead of from the location immediately following the number
-  of bytes to skip.  multiplier takes a numeric argument, and
-  skips x times that number of bytes. Thanks again to Steve Sturges.
-
-* In "fast" output, now log only actual packet contents when UDP
-  data length is greater than actual data length. Thanks Brian
-  Caswell for spotting this, and Andrew Mullican for working on the fix.
-
-* Please check the ChangeLog for further details.  
-
-2004-11-18 - Snort 2.3.0 RC1 Released
-
-* Added IPS functionality from Snort-Inline.  A big thanks to the
-  Snort-Inline guys (Jed Haile, Rob McMillen, William Metcalf, and Victor
-  Julien).  Also, Thanks Dan Roelker for doing the integrating of
-  Snort-Inline into the official Snort project.  
-
-* Added new portscan detector.  The design and implementation was headed
-  up by Dan Roelker, and included Marc Norton and Jeremy Hewlett.  
-
-* Numerous changes for better 64bit Snort support from Jeremy Hewlett and
-  Marc Norton.  Additionally, an --enable-64bit-gcc option was added to
-  configure.  However, there are still some memory alignment issues to
-  work out before 64bit mode is fully functional, patches are welcomed.
-  Thanks Chris Baker for doing 64bit testing.  
-
-* Added not_established keyword to the flow detection option.  This allows
-  snort to do dynamic firewall rulesets.  Experimental for now.  
-
-* Added an enforce_state keyword to stream4 so we won't pick up midstream
-  sessions.  This works well for asynchronous links and also for
-  just monitoring legitimate traffic.  
-
-* Relocated ./contrib files to http://www.snort.org/dl/contrib as many
-  are not maintained by Sourcefire and are out of date. The rpm and
-  schema files have been relocated in their respective 'rpm' and 'schemas'
-  directories under the snort parent directory.
-
-* perfmonitor config line can now be configured with "accumulate" or
-  "reset."  Thanks Marc Norton for the feature, and Barry Basselgia for
-  pointing out the issue.  Thanks Scott Dexter and Andreas Ostling for
-  doing some initial testing.  
-
-* Fixed 64-bit bug in sfmemcap.c found and tested by Ryan Matteson
-  and Clay McClure.  Thanks guys.  
-
-* Fixed reference times to match log time for first packet, for an event
-  generated by a reassembled packet.  Incremented event ID to give
-  unique ID for each packet.  Also made unified logging compatible with
-  Windows.  Thanks Andrew Mullican for the fix.  
-
-* Fixed linux perfmonitoring stats for the 2.6 kernel.  Thanks to
-  everyone that reported this bug.  Thanks Dan Roelker for the fix.  
-
-* Get thresholding/suppression to work for alerts that do not
-  contain an ip header (primarily decode alerts).  Thanks
-  Brian Caswell.  
-
-* Fix conditions where snort would log double web alerts that
-  contained only content options (no uricontents).  Thanks to kawa for
-  finding and reporting this bug.  
-
-* Fix suppression/thresholding bug for non-rule alerts.  Thanks to
-  Alex Butcher for reporting it to us.  
-
-* Many other bug fixes, please check the ChangeLog for details.  
+    * Require each rule to have a unique sid/gid pair.

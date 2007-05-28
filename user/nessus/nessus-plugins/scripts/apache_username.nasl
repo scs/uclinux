@@ -1,61 +1,57 @@
 #
-# Copyright 2001 by Noam Rathaus <noamr@securiteam.com>
-#
-# See the Nessus Scripts License for details
-#
+# (C) Tenable Network Security
 #
 
 if(description)
 {
  script_id(10766); 
- script_cve_id("CAN-2001-1013");
  script_bugtraq_id(3335);
- script_version ("$Revision: 1.10 $");
+ script_cve_id("CVE-2001-1013");
+ script_version ("$Revision: 1.17 $");
 
- name["english"] = "Apache UserDir Sensitive Information Disclosure";
+ name["english"] = "Apache Remote Username Enumeration Vulnerability";
  script_name(english:name["english"]);
 
- desc["english"] = "An information leak occurs on Apache based web servers 
-whenever the UserDir module is enabled. The vulnerability allows an external 
-attacker to enumerate existing accounts by requesting access to their home 
-directory and monitoring the response.
+ desc["english"] = "
+Synopsis :
 
+The remote Apache server can be used to guess the presence of a given user
+name on the remote host.
 
-Solution: 
-1) Disable this feature by changing 'UserDir public_html' (or whatever) to 
-'UserDir  disabled'.
+Description :
 
-Or
+When configured with the 'UserDir' option, requests to URLs containing a tilde
+followed by a username will redirect the user to a given subdirectory in the
+user home.
 
-2) Use a RedirectMatch rewrite rule under Apache -- this works even if there 
-is no such  entry in the password file, e.g.:
-RedirectMatch ^/~(.*)$ http://my-target-webserver.somewhere.org/$1
+For instance, by default, requesting /~root/ displays the HTML contents from
+/root/public_html/.
 
-Or
+If the username requested does not exist, then Apache will reply with a 
+different error code. Therefore, an attacker may exploit this vulnerability
+to guess the presence of a given user name on the remote host.
 
-3) Add into httpd.conf:
-ErrorDocument 404 http://localhost/sample.html
-ErrorDocument 403 http://localhost/sample.html
-(NOTE: You need to use a FQDN inside the URL for it to work properly).
+Solution : 
 
-Additional Information:
-http://www.securiteam.com/unixfocus/5WP0C1F5FI.html
+In httpd.conf, set the 'UserDir' to 'disabled'.
 
+Risk factor :
 
-Risk factor : Low";
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
 
  script_description(english:desc["english"]);
 
- summary["english"] = "Apache UserDir Sensitive Information Disclosure";
+ summary["english"] = "Checks for the error codes returned by Apache when requesting a non-existant user name";
  script_summary(english:summary["english"]);
 
  script_category(ACT_GATHER_INFO);
 
- script_copyright(english:"This script is Copyright (C) 2001 SecuriTeam");
- family["english"] = "Misc.";
+ script_copyright(english:"This script is Copyright (C) 2005 Teanble Network Security");
+ family["english"] = "Web Servers";
  script_family(english:family["english"]);
 
- script_dependencie("find_service.nes", "http_version.nasl");
+ script_dependencie("http_version.nasl");
  script_require_keys("www/apache");
  script_require_ports("Services/www", 80);
  exit(0);
@@ -64,39 +60,31 @@ Risk factor : Low";
 #
 # The script code starts here
 #
-
+include("misc_func.inc");
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if (!port) port = 80;
-
+#port = get_http_port(default:80);
+port = 80;
 if (! get_port_state(port)) exit(0);
+if ( get_kb_item("Services/www/" + port + "/embedded" ) ) exit(0);
 
-soc = http_open_socket(port);
-if(! soc) exit(0);
+banner = get_http_banner(port:port);
+if ( ! banner ) exit(0);
+if ( ! egrep(pattern:"Server: .*Apache", string:banner) ) exit(0);
 
+req = http_get(item:"/~root", port:port);
+res = http_keepalive_send_recv(port:port, data:req);
+if ( ! res ) exit(0);
+array = split(res);
+code = array[0];
+if ( ! code ) exit(0);
 
-soc = http_open_socket(port);
-if (soc)
-{
- req = http_head(item:"/~root", port:port);
- send(socket:soc, data:req);
- buf_valid = recv_line(socket:soc, length:1000);
- http_close_socket(soc);
-}
+req = http_get(item:"/~" + rand_str(length:8), port:port);
+res = http_keepalive_send_recv(port:port, data:req);
+if ( ! res ) exit(0);
+array = split(res);
+code2 = array[0];
+if ( ! code2 ) exit(0);
 
-soc = http_open_socket(port);
-if (soc)
-{
- req = http_head(item:"/~anna_foo_fighter", port:port);
- send(socket:soc, data:req);
- buf_invalid = recv_line(socket:soc, length:1000);
- http_close_socket(soc);
-}
-
-if (("403 Forbidden" >< buf_valid) && ("404 Not Found" >< buf_invalid))
-{
- security_note(port);
-}
-
-
+if ( code2 != code ) security_note(port);

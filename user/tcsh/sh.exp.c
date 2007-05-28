@@ -1,4 +1,4 @@
-/* $Header$ */
+/* $Header: /src/pub/tcsh/sh.exp.c,v 3.38 1998/11/24 18:17:32 christos Exp $ */
 /*
  * sh.exp.c: Expression evaluations
  */
@@ -38,7 +38,7 @@
 
 #include <time.h>
 
-RCSID("$Id$")
+RCSID("$Id: sh.exp.c,v 3.38 1998/11/24 18:17:32 christos Exp $")
 
 /*
  * C shell

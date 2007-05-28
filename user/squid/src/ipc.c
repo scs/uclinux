@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: ipc.c,v 1.7 2001/10/18 20:52:11 squidadm Exp $
  *
  * DEBUG: section 54    Interprocess Communication
  * AUTHOR: Duane Wessels

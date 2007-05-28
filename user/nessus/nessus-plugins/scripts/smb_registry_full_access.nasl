@@ -1,19 +1,17 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# This script was written by Tenable Network Security
 #
-# See the Nessus Scripts License for details
+# This script is released under Tenable Plugins License
 #
 
 if(description)
 {
  script_id(10428);
- script_version ("$Revision: 1.26 $");
+ script_version ("$Revision: 1.29 $");
  
  name["english"] = "SMB fully accessible registry";
- name["francais"] = "Base de registres completement accessible par SMB";
  
- script_name(english:name["english"],
- 	     francais:name["francais"]);
+ script_name(english:name["english"]);
  
  desc["english"] = "
 
@@ -29,30 +27,14 @@ login name and password.
 Risk factor : None";
 
 
-
- desc["francais"] = "
-Nessus ne peut pas acceder complètement à la base
-de registres, parceque cela nécéssite d'etre loggué
-en tant qu'administrateur.
-
-Si vous voulez que Nessus teste les permissions / les valeurs
-des clés sensibles de la base de registres, alors nous
-recommandons que vous remplissiez les options 'SMB Login'
-dans la sections 'Prefs.' du client avec le login
-de l'administrateur, ainsi que son mot de passe.";
-
-
- script_description(english:desc["english"],
- 		    francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Determines whether the remote registry is fully accessible";
- summary["francais"] = "Détermine si la base de registres distante est completement accessible";
- script_summary(english:summary["english"],
- 		francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2000 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
@@ -63,47 +45,76 @@ de l'administrateur, ainsi que son mot de passe.";
  exit(0);
 }
 
-
-include("smb_nt.inc");
-
-port = kb_smb_transport();
-if(!port)port = 139;
-if(!get_port_state(port))exit(0);
-
-y = kb_smb_name();
-if(!y)exit(0);
-
-login = kb_smb_login();
-if(!login)exit(0);
-
-
-soc = open_sock_tcp(port);
-if(!soc)exit(0);
-close(soc);
-
-
+include("smb_func.inc");
 
 access = get_kb_item("SMB/registry_access");
-if(!access)security_note(port);
+if(!access)exit(0);
 
+
+#---------------------------------------------------------------------#
+# Here is our main()                                                  #
+#---------------------------------------------------------------------#
+
+name	= kb_smb_name(); 	if(!name)exit(0);
+login	= kb_smb_login(); 
+pass	= kb_smb_password(); 	
+domain  = kb_smb_domain(); 	
+port	= kb_smb_transport();
+
+if ( ! get_port_state(port) ) exit(0);
+soc = open_sock_tcp(port);
+if ( ! soc ) exit(0);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:"IPC$");
+if ( r != 1 ) exit(0);
+
+hklm = RegConnectRegistry(hkey:HKEY_LOCAL_MACHINE);
+if ( isnull(hklm) ) 
+{
+ NetUseDel();
+ exit(0);
+}
+
+full = 0;
 
 key = "SOFTWARE\Microsoft\Internet Explorer\Version Vector";
 item = "IE";
 
-value = registry_get_sz(key:key, item:item);
-if(value)
+key_h = RegOpenKey(handle:hklm, key:key, mode:MAXIMUM_ALLOWED);
+if ( ! isnull(key_h) )
 {
- set_kb_item(name:"SMB/registry_full_access", value:TRUE);
- exit(0);
+ value = RegQueryValue(handle:key_h, item:item);
+ if (!isnull (value))
+ {
+  full = 1;
+  set_kb_item(name:"SMB/registry_full_access", value:TRUE);
+ }
+
+ RegCloseKey (handle:key_h);
 }
-else {
-	key = "SOFTWARE\Microsoft\Internet Explorer";
-	item = "IVer";
-	value = registry_get_sz(key:key, item:item);
-	if(value)
-	{
- 		set_kb_item(name:"SMB/registry_full_access", value:TRUE);
- 		exit(0);
-	}
-	security_note(port);
-     }
+
+if (full == 0)
+{
+ key = "SOFTWARE\Microsoft\Internet Explorer";
+ item = "IVer";
+
+ key_h = RegOpenKey(handle:hklm, key:key, mode:MAXIMUM_ALLOWED);
+ if ( ! isnull(key_h) )
+ {
+  value = RegQueryValue(handle:key_h, item:item);
+  if (!isnull (value))
+  {
+   full = 1;
+   set_kb_item(name:"SMB/registry_full_access", value:TRUE);
+  }
+
+  RegCloseKey (handle:key_h);
+ }
+}
+
+RegCloseKey(handle:hklm);
+NetUseDel();
+
+if (full == 0)
+  security_note (port);

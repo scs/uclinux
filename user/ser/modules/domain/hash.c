@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: hash.c,v 1.6 2003/04/28 22:05:33 janakj Exp $
  *
  * Hash functions for cached domain table
  *

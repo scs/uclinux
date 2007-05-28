@@ -14,9 +14,9 @@ if(description)
 {
  script_id(11507);
  script_bugtraq_id(7254, 7255);
- script_cve_id("CAN-2003-0132");
+ script_cve_id("CVE-2003-0132");
 
- script_version("$Revision: 1.8 $");
+ script_version("$Revision: 1.14 $");
  
  name["english"] = "Apache < 2.0.45";
 
@@ -39,7 +39,7 @@ the log files)
 
 Solution : Upgrade to version 2.0.45
 See also : http://www.apache.org/dist/httpd/CHANGES_2.0
-Risk factor : Medium";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -52,9 +52,8 @@ Risk factor : Medium";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Misc.";
- family["francais"] = "Divers";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  script_require_keys("www/apache");
  script_require_ports("Services/www", 80);
@@ -65,24 +64,28 @@ Risk factor : Medium";
 # The script code starts here
 #
 include("http_func.inc");
+include("backport.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(get_port_state(port))
 {
-banner = get_http_banner(port: port);
+banner = get_backport_banner(banner:get_http_banner(port: port));
 if(!banner)exit(0);
  
 serv = strstr(banner, "Server");
-if(safe_checks())
+if( safe_checks() )
 {
 if(ereg(pattern:"^Server:.*Apache(-AdvancedExtranetServer)?/2\.0\.([0-9][^0-9]|[0-3][0-9]|4[0-4])", string:serv))
  {
-   security_warning(port);
+   security_hole(port);
  }
 }
-else if(egrep(pattern:"Apache(-AdvancedExtranetServer)?/2", string:serv))
+else if(egrep(pattern:"Apache(-AdvancedExtranetServer)/2", string:serv))
 {
+ if ( egrep(pattern:"Apache(-AdvancedExtranetServer)?/([3-9]\.|2\.([1-9]|0\.([5-9][0-9]|4[6-9])))", string:serv) ) exit(0);
+
+
  soc = open_sock_tcp(port);
  for(i=0;i<101;i++)
  {

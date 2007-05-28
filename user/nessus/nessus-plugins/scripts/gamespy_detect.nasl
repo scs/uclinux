@@ -12,7 +12,7 @@ if(description)
 {
  script_id(11211);
  script_bugtraq_id(6636);
- script_version ("$Revision: 1.3 $");
+ script_version ("$Revision: 1.7 $");
  
  name["english"] = "GameSpy detection";
 
@@ -53,12 +53,15 @@ See also: http://www.pivx.com/kristovich/adv/mk001/";
  family["english"] = "Useless services";
  family["francais"] = "Services inutiles";
  script_family(english:family["english"], francais:family["francais"]);
+ script_require_keys("Settings/ThoroughTests");
  exit(0);
 }
 
 # There's <official port> to bind a gamespy server to, and
 # scanning all the UDP ports would take too much time. We try
 # a list of common ports instead.
+include('global_settings.inc');
+if ( ! thorough_tests ) exit(0);
 
 port[0] = 7777;
 port[1] = 8888;
@@ -84,6 +87,7 @@ port[18] = 0;
 for(i=0;port[i];i=i+1)
 {
 soc = open_sock_udp(port[i]);
+if ( ! soc ) exit(0);
 send(socket:soc, data:string("\\players\\rules\\status\\packets\\"));
 r = recv(socket:soc, length:4096, timeout:2);
 if(strlen(r) > 0)
@@ -91,8 +95,10 @@ if(strlen(r) > 0)
  if(("disconnect" >< r) ||
     (strlen(r) == 4 && ord(r[0]) == 0x00 && ord(r[1]) == 0x40))
     	{
+	set_kb_item(name:"Services/udp/gamespy", value:port);
 	security_note(port[i]);
 	exit(0);
 	}
  }
+ close(soc);
 }

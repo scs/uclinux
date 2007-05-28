@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10501);
- script_version ("$Revision: 1.5 $");
- script_cve_id("CAN-2000-0138");
+ script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-2000-0138");
  
  name["english"] = "Trinity v3 Detect";
  name["francais"] = "Detection de Trinity v3";

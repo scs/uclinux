@@ -109,6 +109,7 @@ family_enable(family, plugins, enable)
 		 if(category && (
 				!strcmp(category, "denial") ||
 				!strcmp(category, "kill_host") ||
+				!strcmp(category, "flood") ||
 				!strcmp(category, "destructive_attack")
 				)
 		   )

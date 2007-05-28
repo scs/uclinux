@@ -12,8 +12,9 @@
 if(description)
 {
  script_id(10116);
- script_version ("$Revision: 1.28 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"1999-a-0007");
  script_bugtraq_id(307);
+ script_version ("$Revision: 1.35 $");
  script_cve_id("CVE-1999-0874");
  name["english"] = "IIS buffer overflow";
  name["francais"] = "Dépassement de buffer dans IIS";
@@ -24,7 +25,7 @@ It might be possible to make the remote IIS server execute
 arbitrary code by sending it a too long url ending in .htr.
 
 
-Solution : see http://www.microsoft.com/technet/security/bulletin/ms99-019.asp
+Solution : see http://www.microsoft.com/technet/security/bulletin/ms99-019.mspx
 Risk factor : High";
 
  
@@ -43,10 +44,9 @@ Risk factor : High";
  family["english"] = "Gain root remotely";
  family["francais"] = "Passer root à distance";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "www_too_long_url.nasl",
- 		    "http_version.nasl");
+ script_dependencie("find_service.nes", "www_too_long_url.nasl", "http_version.nasl", "www_fingerprinting_hmap.nasl");
+
  script_exclude_keys("www/too_long_url_crash");
- script_require_keys("www/iis");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -57,8 +57,12 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
+banner = get_kb_item("www/hmap/" + port + "/description");
+if (! banner) banner = get_http_banner(port:port);
+if ( "IIS" >!< banner ) exit(0);
+
 if(get_port_state(port))
 {
  

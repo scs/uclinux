@@ -36,7 +36,7 @@
  * From: @(#)global.c	5.2 (Berkeley) 6/1/90
  */
 char global_rcsid[] = 
-  "$Id$";
+  "$Id: global.c,v 1.2 2003/07/21 03:11:25 davidm Exp $";
 #endif
 
 /*

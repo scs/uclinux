@@ -13,44 +13,50 @@ if(description)
 {
  script_id(11508);
  script_bugtraq_id(7356);
- script_version ("$Revision: 1.4 $");
+ script_version ("$Revision: 1.11 $");
 
- 
  name["english"] = "Xoops XSS";
-
  script_name(english:name["english"]);
- 
+
  desc["english"] = "
-The remote host is running the Xoops CGI suite.
+Synopsis :
 
-There is a cross site scripting issue in this suite
-which may allow an attacker to steal your users cookies.
+The remote web server contains a PHP script that is prone to cross-
+site scripting attacks. 
 
-The flaw lies in the cgi glossaire-aff.php.
+Description :
 
-You are advised to remove this CGI.
+There is a cross site scripting issue in the version of Xoops
+installed on the remote host that may allow an attacker to steal your
+users cookies. The flaw lies in 'glossaire-aff.php'.
 
-Solution : None at this time
-Risk factor : Medium";
+See also :
 
+http://marc.theaimsgroup.com/?l=bugtraq&m=104931621609932&w=2
 
+Solution : 
 
+Unknown at this time.
 
+Risk factor : 
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:L/Au:NR/C:P/A:N/I:N/B:N)";
  script_description(english:desc["english"]);
- 
+
  summary["english"] = "Checks for Xoops";
- 
+
  script_summary(english:summary["english"]);
- 
+
  script_category(ACT_ATTACK);
- 
- 
+
+
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "CGI abuses";
+ family["english"] = "CGI abuses : XSS";
  family["francais"] = "Abus de CGI";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "http_version.nasl", "cross_site_scripting.nasl");
+ script_dependencie("xoops_detect.nasl", "cross_site_scripting.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -60,19 +66,25 @@ Risk factor : Medium";
 include("http_func.inc");
 include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
+if(!can_host_php(port:port))exit(0);
 
-foreach d (make_list( "", cgi_dirs()))
-{
+# Test an install.
+install = get_kb_item(string("www/", port, "/xoops"));
+if (isnull(install)) exit(0);
+matches = eregmatch(string:install, pattern:"^(.+) under (/.*)$");
+if (!isnull(matches)) {
+ d = matches[2];
+
  req = http_get(item:string(d, "/modules/glossaire/glossaire-aff.php?lettre=<script>foo</script>"), port:port);
- res = http_keepalive_send_recv(port:port, data:req);
+ res = http_keepalive_send_recv(port:port, data:req, bodyonly:1);
  if( res == NULL ) exit(0);
- if(ereg(pattern:"^HTTP/[0-9]\.[0-9] 200 ", string:res) &&
-    egrep(pattern:"<script>foo</script>", string:res)){
- 	security_warning(port);
+
+ if(egrep(pattern:"<script>foo</script>", string:res)){
+ 	security_note(port);
 	exit(0);
  }
 }

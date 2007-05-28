@@ -8,8 +8,8 @@
 if(description)
 {
  script_id(11367);
- script_version ("$Revision: 1.2 $");
- script_cve_id("CAN-1999-0636");
+ script_version ("$Revision: 1.6 $");
+ script_cve_id("CVE-1999-0636");
  name["english"] = "Discard port open";
  name["francais"] = "Port 'discard' ouvert";
  script_name(english:name["english"], francais:name["francais"]);
@@ -72,7 +72,7 @@ Risk factor : Low";
 include("misc_func.inc");
 
 port = 9; # Discard is not supposed to run on any other port.
-if(known_service(port)) { exit(0); }
+if(! service_is_unknown(port:port)) { exit(0); }
 
 # We send between 17 and 210 bytes of random data.
 # If the service is still listening without any output, we assume
@@ -96,8 +96,8 @@ function check_discard(soc) {
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
- if(check_discard(soc)) {
-   security_warning(port);
+ if(check_discard(soc:soc)) {
+   security_note(port);
    register_service(port:port,proto:"discard");
    if(soc)
     close(soc);

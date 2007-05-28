@@ -37,7 +37,7 @@
 
 /* Debugging stuff */
 extern char *myname;
-static char *__foo;
+static const char *__foo;
 extern pid_t mypid;
 extern char debug_enabled;
 
@@ -48,7 +48,7 @@ extern char debug_enabled;
 #endif
 
 #if defined(__GNUC__) || defined(__ICC)    /* this is really a gcc-ism */
-#define warn(X...)  fprintf(stderr,"%s[%d](%s:%d): ", myname, mypid, \
+#define warn(X...)  fprintf(stderr,"%s[%ld](%s:%d): ", myname, (long)mypid, \
                     ((__foo=strrchr(__FILE__,'/'))==NULL?__FILE__:__foo+1),\
                     __LINE__);\
                     fprintf(stderr,X)

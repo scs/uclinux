@@ -12,9 +12,9 @@
 if(description)
 {
  script_id(11027);
- script_version("$Revision: 1.8 $");
- script_cve_id("CAN-2002-0934");
  script_bugtraq_id(4983);
+ script_version("$Revision: 1.15 $");
+ script_cve_id("CVE-2002-0934");
  name["english"] = "AlienForm CGI script";
  script_name(english:name["english"]);
  
@@ -28,8 +28,9 @@ alienform.cgi
 For more details, please see:
 http://online.securityfocus.com/archive/1/276248/2002-06-08/2002-06-14/0
 
-Risk factor : Medium/High
-Solution : Disable AlienForm";
+Solution : Disable AlienForm
+Risk factor : High
+";
 
 
  script_description(english:desc["english"]);
@@ -44,8 +45,9 @@ Solution : Disable AlienForm";
 
  family["english"] = "CGI abuses";
  script_family(english:family["english"]);
- script_dependencie("find_service.nes", "no404.nasl");
+ script_dependencie("http_version.nasl");
  script_require_ports("Services/www", 80);
+ script_exclude_keys("Settings/disable_cgi_scanning");
  exit(0);
 }
 
@@ -58,17 +60,10 @@ include("http_keepalive.inc");
 
 
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 
 if(!get_port_state(port))exit(0);
-
-if(http_is_dead(port:port))exit(0);
-
-
-http_keepalive_enabled(port:port);
-
-
 
 foreach dir (cgi_dirs())
 {

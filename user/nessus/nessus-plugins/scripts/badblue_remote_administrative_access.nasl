@@ -13,7 +13,7 @@ if(description)
 {
  script_id(11554);
  script_bugtraq_id(7387);
- script_version ("$Revision: 1.2 $");
+ script_version ("$Revision: 1.3 $");
  name["english"] = "BadBlue Administrative Actions Vulnerability";
  script_name(english:name["english"]);
  
@@ -42,8 +42,8 @@ Risk factor : High";
 
 include("http_func.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 banner = get_http_banner(port:port);

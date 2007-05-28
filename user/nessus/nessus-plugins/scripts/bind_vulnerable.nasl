@@ -7,8 +7,9 @@
 if(description)
 {
  script_id(10029);
- script_version ("$Revision: 1.14 $");
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2000-b-0001");
  script_bugtraq_id(788);
+ script_version ("$Revision: 1.19 $");
  script_cve_id("CVE-1999-0833", "CVE-1999-0837", "CVE-1999-0848", "CVE-1999-0849");
  
  name["english"] = "BIND vulnerable";
@@ -70,12 +71,12 @@ if(!vers)exit(0);
 
 if(vers[0] == "4") 
 { 
- if(ereg(string:vers, pattern:"4\.([0-8]\..*|9\.[0-6][^0-9]*)"))
+ if(ereg(string:vers, pattern:"^4\.([0-8]\..*|9\.[0-6]([^0-9]|$))"))
  {
-  security_warning(port:53, data:bind4_warning);
+  security_hole(port:53, data:bind4_warning);
   exit(0);
  }
 }
 else
-   if(ereg(string:vers, pattern:"8\.([01]\..*|2\.([01].*|2-P[0-2]))"))
+   if(ereg(string:vers, pattern:"^8\.([01]\..*|2\.([01].*|2-P[0-2]))"))
      	security_hole(53);

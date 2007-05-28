@@ -1,8 +1,6 @@
 #
 #
-# This script was written by Renaud Deraison
-#
-# See the Nessus Scripts License for details
+# (C) Tenable Network Security
 #
 # Ref: http://www.macromedia.com/v1/handlers/index.cfm?ID=23821
 #
@@ -14,24 +12,40 @@ if(description)
 {
  script_id(11323);
  script_bugtraq_id(7005);
-
- script_version("$Revision: 1.9 $");
+ script_version("$Revision: 1.14 $");
 
  name["english"] = "Security issues in the remote version of FlashPlayer";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
-The remote host has an old version of the Flash Player plugin installed.
+Synopsis :
+
+The remote Windows host has a browser plugin that is prone to buffer
+overflow attacks. 
+
+Description :
+
+The remote host has an old version of the Flash Player plugin
+installed. 
 
 An attacker may use this flaw to construct a malicious web site which
 with a badly formed flash animation which will cause a buffer overflow
 on this host, and allow him to execute arbitrary code with the
-privileges of the user running internet explorer.
+privileges of the user running Internet Explorer. 
 
-Solution : Upgrade to version 6.0.79.0 or newer.
-See also : http://www.macromedia.com/v1/handlers/index.cfm?ID=23821
-Risk factor : High";
+See also : 
+
+http://www.macromedia.com/v1/handlers/index.cfm?ID=23821
+
+Solution : 
+
+Upgrade to version 6.0.79.0 or newer.
+
+Risk factor : 
+
+Medium / CVSS Base Score : 6 
+(AV:R/AC:H/Au:NR/C:P/A:P/I:P/B:N)";
 
 
  script_description(english:desc["english"]);
@@ -42,35 +56,27 @@ Risk factor : High";
  
  script_category(ACT_GATHER_INFO);
  
- script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 2003 - 2005 Tenable Network Security");
  family["english"] = "Windows";
  script_family(english:family["english"]);
  
- script_dependencies("netbios_name_get.nasl",
- 		     "smb_login.nasl","smb_registry_access.nasl");
- script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
-		     "SMB/registry_access");
-
+ script_dependencies("smb_hotfixes.nasl");
+ script_require_keys("SMB/Registry/Enumerated");
  script_require_ports(139, 445);
  exit(0);
 }
 
 
-include("smb_nt.inc");
+
+include("smb_func.inc");
+include("smb_hotfixes.inc");
 
 
+rootfile = hotfix_get_systemroot();
+if(!rootfile) exit(1);
+share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
+file =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1", string:rootfile);
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\Windows NT\CurrentVersion", item:"SystemRoot");
-if(!rootfile)
-{
- exit(0);
-}
-else
-{
- share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
- file =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1", string:rootfile);
-}
 
 
 name 	= kb_smb_name();
@@ -78,65 +84,40 @@ login	= kb_smb_login();
 pass  	= kb_smb_password();
 domain 	= kb_smb_domain();
 port    = kb_smb_transport();
-if(!port) port = 139;
-
-
 
 if(!get_port_state(port))exit(0);
-
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if(!soc)exit(1);
+
+session_init(socket:soc, hostname:name);
+r = NetUseAdd(login:login, password:pass, domain:domain, share:share);
+if ( r != 1 ) exit(1);
 
 
-r = smb_session_request(soc:soc, remote:name);
-if(!r)exit(0);
-
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);
-
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r)exit(0);
-
-uid = session_extract_uid(reply:r);
+# per Josh Zlatin-Amishav, when Flash 8 is installed, the new installation 
+# does not remove the old Flash.ocx file.
 
 
-
-r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-tid = tconx_extract_tid(reply:r);
-if(!tid)exit(0);
-
-fid = OpenAndX(socket:soc, uid:uid, tid:tid, file:string(file, "\\System32\\Macromed\\Flash\\Flash.ocx"));
-if(!fid)fid = OpenAndX(socket:soc, uid:uid, tid:tid, file:string(file, "\\System32\\Macromed\\Flash\\SWFlash.ocx"));
-
-off = 0;
-resp = ReadAndX(socket:soc, uid:uid, tid:tid, fid:fid, count:16384, off:off);
-data = resp;
-while(strlen(resp) >= 16383)
+foreach f ( make_list("Flash9.ocx", "Flash8b.ocx", "Flash8a.ocx", "Flash8.ocx", "Flash.ocx", "SWFlash.ocx") )
 {
- off += 16384;
- resp = ReadAndX(socket:soc, uid:uid, tid:tid, fid:fid, count:16384, off:off);
- data += resp;
- if(strlen(data) > 1024*1024)break;
+
+handle = CreateFile (file:string(file, "\\System32\\Macromed\\Flash\\", f ),
+                     desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_NORMAL,
+                     share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
+if ( ! isnull(handle) ) break;
 }
 
-
-
-vers = strstr(data, "$version");
-if(!vers){
-	exit(0); # No version string ?
-	}
-
-
-version = "";
-for(i=12;i<50;i++)
-{ 
- if(ord(vers[i]) == 0)break;
- version = strcat(version, vers[i]);
-}
-
-if(ereg(pattern:"WIN .*", string:version))
+if( ! isnull(handle) )
 {
- set_kb_item(name:"MacromediaFlash/version", value:version);
+ version = GetFileVersion(handle:handle);
+ CloseFile(handle:handle);
+
+ if ( !isnull(version) )
+ {
+ v = string(version[0], ".", version[1], ".", version[2], ".", version[3]);
+ set_kb_item(name:"MacromediaFlash/version", value:v);
+ if ( version[0] < 6 || (version[0] == 6 && version[1] == 0 && version[2] <= 78) ) security_warning(port);
+ }
 }
 
-if(ereg(pattern:"WIN (([0-5],.*)|(6,0,([0-6][0-9]?,|7[0-8],))).*", string:version))security_hole(port);
+NetUseDel();

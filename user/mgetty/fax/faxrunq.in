@@ -11,12 +11,9 @@
 # For heavy-duty usage (multiple lines, many 100 faxes per day), check
 # out faxrunqd.
 #
-# RCS: $Id$ Copyright (C) 1994 Gert Doering
+# RCS: $Id: faxrunq.in,v 4.18 2005/02/27 11:57:31 gert Exp $ Copyright (C) 1994 Gert Doering
 #
-# $Log$
-# Revision 1.1  2006/08/05 07:27:14  vapier
-# import from upstream uClinux
-#
+# $Log: faxrunq.in,v $
 # Revision 4.18  2005/02/27 11:57:31  gert
 # get "trap off" handling from mksed/sedscript
 #

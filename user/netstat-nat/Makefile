@@ -1,6 +1,6 @@
 #-------------------------------------------------------------------------------
 #
-# $Id$ 
+# $Id: Makefile,v 1.3 2002/09/12 19:32:12 mardan Exp $ 
 #
 #
 # Copyright (c) 2002 by D.Wijsman (mardan@tweegy.demon.nl). 

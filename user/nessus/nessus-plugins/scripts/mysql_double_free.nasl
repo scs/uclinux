@@ -10,9 +10,11 @@
 if(description)
 {
  script_id(11299);  
- script_version ("$Revision: 1.4 $");
  script_bugtraq_id(6718);
- script_cve_id("CAN-2003-0073");
+ script_version ("$Revision: 1.13 $");
+ script_cve_id("CVE-2003-0073", "CVE-2003-0150");
+ if ( defined_func("script_xref") ) script_xref(name:"RHSA", value:"RHSA-2003:093-01");
+
  
  name["english"] = "MySQL double free()";
  script_name(english:name["english"], francais:name["francais"]);
@@ -45,9 +47,8 @@ Solution : Upgrade to the latest version of MySQL 3.23.55 or newer";
  
  script_copyright(english:"This script is Copyright (C) 2003 Renaud Deraison",
 		francais:"Ce script est Copyright (C) 2003 Renaud Deraison");
- family["english"] = "Gain a shell remotely";
- family["francais"] = "Obtenir un shell à distance";
- script_family(english:family["english"], francais:family["francais"]);
+ family["english"] = "Databases";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "mysql_version.nasl");
  script_require_ports("Services/mysql", 3306);
  exit(0);
@@ -62,8 +63,7 @@ include("misc_func.inc");
 port = get_kb_item("Services/mysql");
 if(!port)port = 3306;
 
-ver=get_mysql_version(port);
-if(ver==NULL) exit(0);
-if(ereg(pattern:"3\.(([0-9]\..*|(1[0-9]\..*)|(2[0-2]\..*))|23\.([0-4][0-9]|5[0-4])[^0-9])",
-  	  string:r))security_warning(port);	  
+ver=get_mysql_version(port:port);
+if (isnull(ver)) exit(0);
+if(ereg(pattern:"^3\.(([0-9]\..*|(1[0-9]\..*)|(2[0-2]\..*))|23\.([0-4][0-9]|5[0-4])[^0-9])", string:ver))security_warning(port);	  
 

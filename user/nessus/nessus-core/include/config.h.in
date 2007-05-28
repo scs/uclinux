@@ -350,8 +350,8 @@
 /*
  * Experimental features 
  */
-#undef ENABLE_SAVE_TESTS
-#undef ENABLE_SAVE_KB
+#define ENABLE_SAVE_TESTS 1
+#define ENABLE_SAVE_KB 1
 /* 
  * Local Variables:
  * mode: c

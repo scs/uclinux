@@ -1,30 +1,45 @@
 #
 # (C) Tenable Network Security
 #
-# Ref: http://www.microsoft.com/technet/security/bulletin/ms03-037.asp
+# Ref: http://www.microsoft.com/technet/security/bulletin/ms03-037.mspx
 
 if(description)
 {
  script_id(11832);
+ if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-t-0021");
  script_bugtraq_id(8534);
- script_cve_id("CAN-2003-0347");
+ script_cve_id("CVE-2003-0347");
  
  
- script_version("$Revision: 1.3 $");
+ script_version("$Revision: 1.14 $");
 
  name["english"] = "Visual Basic for Application Overflow";
 
  script_name(english:name["english"]);
  
  desc["english"] = "
+Synopsis :
+
+Arbitrary code can be executed on the remote host through VBA.
+
+Description :
+
 The remote host is running a version of Microsoft Visual Basic for Applications
 which is vulnerable to a buffer overflow when handling malformed documents.
 
 An attacker may exploit this flaw to execute arbitrary code on this host, by
 sending a malformed file to a user of the remote host.
 
-Solution : See http://www.microsoft.com/technet/security/bulletin/ms03-037.asp
-Risk factor : High";
+Solution : 
+
+Microsoft has released a set of patches for Office :
+
+http://www.microsoft.com/technet/security/bulletin/ms03-037.mspx
+
+Risk factor :
+
+High / CVSS Base Score : 8 
+(AV:R/AC:H/Au:NR/C:C/A:C/I:C/B:N)";
 
 
 
@@ -37,13 +52,12 @@ Risk factor : High";
  script_category(ACT_GATHER_INFO);
  
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- family["english"] = "Windows";
+ family["english"] = "Windows : Microsoft Bulletins";
  script_family(english:family["english"]);
  
  script_dependencies("netbios_name_get.nasl",
  		     "smb_login.nasl","smb_registry_access.nasl");
  script_require_keys("SMB/name", "SMB/login", "SMB/password",
-		     "SMB/WindowsVersion",
 		     "SMB/registry_access");
 
  script_require_ports(139, 445);
@@ -51,109 +65,70 @@ Risk factor : High";
 }
 
 
-include("smb_nt.inc");
+include("smb_func.inc");
+include("smb_hotfixes.inc");
+
+
+common = hotfix_get_commonfilesdir();
+if ( ! common ) exit(1);
 
 
 
-rootfile = registry_get_sz(key:"SOFTWARE\Microsoft\Windows\CurrentVersion", item:"CommonFilesDir");
-if(!rootfile)
-{
- exit(0);
-}
-else
-{
- share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:rootfile);
- vbe6 =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\Microsoft Shared\VBA\VBA6\vbe6.dll", string:rootfile);
- vbe =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\Microsoft Shared\VBA\vbe.dll", string:rootfile);
-}
+#VBA 5 - C:\Program Files\Common Files\Microsoft Shared\VBA\vbe.dll = 5.0.78.15
+#VBA 6- C:\Program Files\Common Files\Microsoft Shared\VBA\VBA6\vbe6.dll = 6.4.99.69
+share = ereg_replace(pattern:"([A-Z]):.*", replace:"\1$", string:common);
+vba5 =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\Microsoft Shared\VBA\vbe.dll", string:common);
+vba6 =  ereg_replace(pattern:"[A-Z]:(.*)", replace:"\1\Microsoft Shared\VBA\VBA6\vbe6.dll", string:common);
 
-
-
-
-function get_ver(filename)
-{
-name 	=  kb_smb_name();
-login	=  kb_smb_login();
-pass  	=  kb_smb_password();
-domain 	=  kb_smb_domain();
-port    =  kb_smb_transport();
-if(!port) port = 139;
-
-
-
-if(!get_port_state(port))exit(0);
+port = kb_smb_transport();
+if ( ! port ) exit(1);
 
 soc = open_sock_tcp(port);
-if(!soc)exit(0);
+if ( ! soc ) exit(1);
 
+session_init(socket:soc, hostname:kb_smb_name());
+r = NetUseAdd(login:kb_smb_login(), password:kb_smb_password(), domain:kb_smb_domain(), share:share);
+if ( r != 1 ) exit(1);
 
+handle = CreateFile (file:vba5, desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_NORMAL, share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
 
-r = smb_session_request(soc:soc, remote:name);
-if(!r)exit(0);
-
-prot = smb_neg_prot(soc:soc);
-if(!prot)exit(0);
-
-r = smb_session_setup(soc:soc, login:login, password:pass, domain:domain, prot:prot);
-if(!r)exit(0);
-
-uid = session_extract_uid(reply:r);
-
-
-
-r = smb_tconx(soc:soc, name:name, uid:uid, share:share);
-tid = tconx_extract_tid(reply:r);
-if(!tid)exit(0);
-
-fid = OpenAndX(socket:soc, uid:uid, tid:tid, file:filename);
-if(!fid)return NULL;
-else
+if ( ! isnull(handle) )
 {
-fsize = smb_get_file_size(socket:soc, uid:uid, tid:tid, fid:fid);
-if(fsize > 300000)max = 300000;
-else max = fsize;
-for(i=16384;i<max;i+=16384)
-{
-off = fsize - i;
-data = ReadAndX(socket:soc, uid:uid, tid:tid, fid:fid, count:16384, off:off);
-data = str_replace(find:raw_string(0), replace:"", string:data);
-
-version = strstr(data, "ProductVersion");
-if(version)break;
+ v = GetFileVersion(handle:handle);
+ CloseFile(handle:handle);
+ if ( ! isnull(v) ) 
+ {
+  if ( v[0] == 5 && v[1] == 0 && ( v[2] < 78  || ( v[2] == 78 && v[3] < 15 ) ) )
+	{
+	security_hole(kb_smb_transport());
+	NetUseDel();
+	exit(0);
+	}
+ }
 }
-if(!version)exit(0);
 
-v = "";
 
-for(i=strlen("ProductVersion");i<strlen(version);i++)
+handle = CreateFile (file:vba6, desired_access:GENERIC_READ, file_attributes:FILE_ATTRIBUTE_NORMAL, share_mode:FILE_SHARE_READ, create_disposition:OPEN_EXISTING);
+
+if ( ! isnull(handle) )
 {
- if((ord(version[i]) < ord("0") ||
-    ord(version[i]) > ord("9")) && 
-    version[i] != ".")break;
+ v = GetFileVersion(handle:handle);
+ CloseFile(handle:handle);
+ if ( ! isnull(v) ) 
+ {
+ if ( v[0] == 6 && ( v[1] < 4 || ( v[1] == 4 && v[2] < 99 ) || ( v[1] == 4 && v[2] == 99 && v[3] < 69 ) ) )
+	{
+	security_hole(kb_smb_transport());
+	NetUseDel();
+	exit(0);
+	}
+ }
  else 
-   v += version[i];
+ {
+  NetUseDel();
+  exit(1);
  }
- }
- return v;
 }
 
 
-
-a = get_ver(filename:vbe);
-if(a)
-{
- # Fixed in 5.0.78.15
- if(egrep(pattern:"^([0-4]\.|5\.0\.([0-9]\.|[0-6].*|7[0-7]|78\.([0-9]$|1[0-4])))", string:a))
- 	{ security_hole(kb_smb_transport()); exit(0); }
-}
-
-a = get_ver(filename:vbe6);
-if(a)
-{
- # Fixed in 6.4.99.69
- if(egrep(pattern:"^([0-5]\.|6\.(0?[0-3]\.|4\.([0-9]\.|[0-8][0-9]\.|9[0-8]\.|99\.([0-9]$|[0-5][0-9]|6[0-8]))))",
- 	  string:a))
-	  {
-	   security_hole(kb_smb_transport()); exit(0);
-	  }
-}
+NetUseDel();

@@ -13,9 +13,9 @@
 if(description)
 {
  script_id(11814);
- script_version ("$Revision: 1.5 $");
  script_bugtraq_id(8182);
- script_cve_id("CAN-2003-0581");
+ script_version ("$Revision: 1.7 $");
+ script_cve_id("CVE-2003-0581");
  
  name["english"] = "xfstt possible code execution";
  

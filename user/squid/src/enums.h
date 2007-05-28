@@ -1,6 +1,6 @@
 
 /*
- * $Id$
+ * $Id: enums.h,v 1.203.2.15 2005/03/26 02:50:52 hno Exp $
  *
  *
  * SQUID Web Proxy Cache          http://www.squid-cache.org/
@@ -94,6 +94,7 @@ typedef enum {
     ERR_TOO_BIG,
     TCP_RESET,
     ERR_ICAP_FAILURE,
+    ERR_INVALID_RESP,
     ERR_MAX
 } err_type;
 
@@ -274,7 +275,8 @@ typedef enum {
     ftPCc,
     ftPContRange,
     ftPRange,
-    ftDate_1123_or_ETag
+    ftDate_1123_or_ETag,
+    ftSize
 } field_type;
 
 /* possible owners of http header */
@@ -487,7 +489,8 @@ typedef enum {
     HTTP_GATEWAY_TIMEOUT = 504,
     HTTP_HTTP_VERSION_NOT_SUPPORTED = 505,
     HTTP_INSUFFICIENT_STORAGE = 507,	/* RFC2518 section 10.6 */
-    HTTP_INVALID_HEADER = 600	/* Squid header parsing error */
+    HTTP_INVALID_HEADER = 600,	/* Squid header parsing error */
+    HTTP_HEADER_TOO_LARGE = 601		/* Header too large to process */
 } http_status;
 
 /*
@@ -631,6 +634,7 @@ enum {
     STORE_META_HITMETERING,	/* reserved for hit metering */
     STORE_META_VALID,
     STORE_META_VARY_HEADERS,	/* Stores Vary request headers */
+    STORE_META_STD_LFS,		/* standard metadata in lfs format */
     STORE_META_END
 };
 
@@ -646,6 +650,7 @@ typedef enum {
     SWAP_LOG_NOP,
     SWAP_LOG_ADD,
     SWAP_LOG_DEL,
+    SWAP_LOG_VERSION,
     SWAP_LOG_MAX
 } swap_log_op;
 

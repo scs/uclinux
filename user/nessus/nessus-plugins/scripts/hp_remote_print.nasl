@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10104);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CAN-1999-1062");
+ script_version ("$Revision: 1.15 $");
+ script_cve_id("CVE-1999-1062");
  
  name["english"] = "HP LaserJet direct print";
  name["francais"] = "Impression directe HP LaserJet";

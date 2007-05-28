@@ -155,8 +155,10 @@ update: 	all installbin installdata
 mostlyclean:
 		rm -f *.o DEADJOE config.new *~ *.orig lib/*.o
 
+GDBPROGS := $(PROGS:%=%.gdb)
+
 clean: mostlyclean
-		rm -f $(PROGS) *.gdb version.h
+		rm -f $(PROGS) $(GDBPROGS)
 		@for i in $(SUBDIRS); do (cd $$i && $(MAKE) clean) ; done
 		@cd po && $(MAKE) clean
 

@@ -7,6 +7,7 @@ if (description)
 {
  script_id(11743);
  script_bugtraq_id(7898, 7901);
+ script_version("$Revision$");
 
  script_name(english:"Post-Nuke Multiple XSS");
  desc["english"] = "
@@ -24,7 +25,7 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  script_family(english:"CGI abuses", francais:"Abus de CGI");
  script_copyright(english:"This script is Copyright (C) 2003 Tenable Network Security");
- script_dependencie("find_service.nes", "no404.nasl", "cross_site_scripting.nasl");
+ script_dependencie("postnuke_detect.nasl", "cross_site_scripting.nasl");
  script_require_ports("Services/www", 80);
  exit(0);
 }
@@ -34,21 +35,21 @@ include("http_func.inc");
 include("http_keepalive.inc");
 
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 if(get_kb_item(string("www/", port, "/generic_xss"))) exit(0);
+if(!can_host_php(port:port))exit(0);
 
-foreach dir (make_list("", "/post-nuke", "/pn", cgi_dirs()))
-{
- req = http_get(item:string(dir, "/modules.php?op=modload&name=FAQ&file=index&myfaq=yes&id_cat=1&categories=%3cimg%20src=javascript:foo;%3E&parent_id=0"),
- 		port:port);
- res = http_keepalive_send_recv(port:port, data:req);
- if(res == NULL ) exit(0);
+kb = get_kb_item("www/" + port + "/postnuke" );
+if ( ! kb ) exit(0);
+stuff = eregmatch(pattern:"(.*) under (.*)", string:kb );
+dir = stuff[2];
+
+
+req = http_get(item:string(dir, "/modules.php?op=modload&name=FAQ&file=index&myfaq=yes&id_cat=1&categories=%3cimg%20src=javascript:foo;%3E&parent_id=0"), port:port);
+res = http_keepalive_send_recv(port:port, data:req, bodyonly:1);
+if(res == NULL ) exit(0);
  
- if("<img src=javascript:foo;>" >< res)
- {
+if("<img src=javascript:foo;>" >< res)
     	security_warning(port);
-	exit(0);
- }
-}

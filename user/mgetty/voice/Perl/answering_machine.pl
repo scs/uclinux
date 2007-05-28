@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# $Id$
+# $Id: answering_machine.pl,v 1.1 1998/09/09 21:48:52 gert Exp $
 #
 # A simple answering machine. See the Modem::Vgetty man page for the
 # discussion of this source code.

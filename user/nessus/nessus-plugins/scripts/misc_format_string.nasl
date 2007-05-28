@@ -20,7 +20,7 @@
 if(description)
 {
  script_id(11133);
- script_version ("$Revision: 1.7 $");
+ script_version ("$Revision: 1.10 $");
  
  name["english"] = "Generic format string";
  name["francais"] = "Attaque 'format string' générique";
@@ -69,7 +69,9 @@ Facteur de risque : Elevé";
 
 #
 
-port = get_kb_item("Services/unknown");
+include('misc_func.inc');
+
+port = get_unknown_svc();
 if (! port) exit(0);
 
 
@@ -90,7 +92,7 @@ if (egrep(pattern:"[0-9a-fA-F]{4}", string: r1)) flag = 0;
 soc = open_sock_tcp(port);
 if (! soc) exit(0);
 send(socket: soc, 
-	data: crap(data:"%04x%x%s%p%n%d%o%u%c%h%l%q%j%z%Z%t%i%e%g%f%a%C%S%04x%%x%%s%%p%%n%%d%%o%%u%%c%%h%%l%%q%%j%%z%%Z%%t%%i%%e%%g%%f%%a%%C%%S%%04x",
+	data: crap(data:"%#0123456x%04x%x%s%p%n%d%o%u%c%h%l%q%j%z%Z%t%i%e%g%f%a%C%S%04x%%#0123456x%%x%%s%%p%%n%%d%%o%%u%%c%%h%%l%%q%%j%%z%%Z%%t%%i%%e%%g%%f%%a%%C%%S%%04x",
 		length:256) );
 r2 = recv(socket: soc, length: 256, min:1);
 close(soc);

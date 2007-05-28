@@ -8,9 +8,9 @@
 if(description)
 {
  script_id(10888);
- script_cve_id("CVE-2002-0082");
  script_bugtraq_id(4189);
- script_version("$Revision: 1.12 $");
+ script_cve_id("CVE-2002-0082");
+ script_version("$Revision: 1.16 $");
  
  name["english"] = "mod_ssl overflow";
 
@@ -33,21 +33,18 @@ to obtain a shell on this host.
 Solution : Upgrade to version 2.8.7 or newer
 Risk factor : High";
 
- script_description(english:desc["english"], francais:desc["francais"]);
+ script_description(english:desc["english"]);
  
  summary["english"] = "Checks for version of mod_ssl";
- summary["francais"] = "Vérifie la version de mod_ssl";
  
- script_summary(english:summary["english"], francais:summary["francais"]);
+ script_summary(english:summary["english"]);
  
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison",
-		francais:"Ce script est Copyright (C) 2002 Renaud Deraison");
- family["english"] = "CGI abuses";
- family["francais"] = "Abus de CGI";
- script_family(english:family["english"], francais:family["francais"]);
+ script_copyright(english:"This script is Copyright (C) 2002 Renaud Deraison");
+ family["english"] = "Web Servers";
+ script_family(english:family["english"]);
  script_dependencie("find_service.nes", "no404.nasl", "http_version.nasl");
  script_require_ports("Services/www", 80);
  script_require_keys("www/apache");
@@ -58,15 +55,18 @@ Risk factor : High";
 # The script code starts here
 #
 include("http_func.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+if ( report_paranoia < 2 ) exit(0);
+
 if(get_port_state(port))
 {
  banner = get_http_banner(port:port);
  if(!banner)exit(0);
 
  serv = strstr(banner, "Server");
+ if("Apache/" >!< serv ) exit(0);
  if("Apache/2" >< serv) exit(0);
  if("Apache-AdvancedExtranetServer/2" >< serv)exit(0);
 

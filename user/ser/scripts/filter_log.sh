@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $Id$
+# $Id: filter_log.sh,v 1.2 2003/08/13 20:53:04 jiri Exp $
 #
 # tool for filtering SIP messages from log by a RegExp
 #

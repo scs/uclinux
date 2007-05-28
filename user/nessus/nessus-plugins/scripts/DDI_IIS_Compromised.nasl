@@ -6,7 +6,7 @@
 if(description)
 {
     script_id(11003);
-    script_version ("$Revision: 1.23 $");
+    script_version ("$Revision: 1.33 $");
     name["english"] = "IIS Possible Compromise";
     name["francais"] = "IIS Possible Compromise";
     script_name(english:name["english"], francais:name["francais"]);
@@ -38,9 +38,8 @@ Risk factor : High
     family["english"] = "Backdoors";
     family["francais"] = "Backdoors";
     script_family(english:family["english"], francais:family["francais"]);
-    script_dependencie("webmirror.nasl", "http_version.nasl");
-    script_require_keys("www/iis");
-    script_dependencies("find_service.nes", "http_version.nasl", "no404.nasl", "DDI_Directory_Scanner.nasl");
+    script_dependencies("find_service.nes", "http_version.nasl", "DDI_Directory_Scanner.nasl", "webmirror.nasl", "www_fingerprinting_hmap.nasl");
+    script_require_ports("Services/www", 80);
     exit(0);
 }
 
@@ -50,12 +49,18 @@ Risk factor : High
 
 include("http_func.inc");
 include("http_keepalive.inc");
+include("global_settings.inc");
 
-port = get_kb_item("Services/www");
-if(!port) port = 80;
+if ( ! thorough_tests ) exit(0);
 
-if(!get_port_state(port))exit(0);
-if(http_is_dead(port:port))exit(0);
+port = get_http_port(default:80);
+
+
+if(!port || !get_port_state(port))exit(0);
+banner = get_http_banner(port:port);
+if ( "IIS" >!< banner ) exit(0);
+ 
+
 
 
 function check(url, arg, pat)
@@ -69,7 +74,7 @@ function check(url, arg, pat)
     r = http_keepalive_send_recv(port:port, data:str);
     if(r == NULL)exit(0);
     # cache files that dont exist
-    if(ereg(pattern:"HTTP/1\.[01] 40[34]", string:r))
+    if(ereg(pattern:"HTTP/1\.[01] 40[34] ", string:r))
     {
     	add_cache(url:url);
     	return(FALSE);
@@ -91,7 +96,7 @@ function headcheck(req)
     str = http_head(item:req, port:port);
     r = http_keepalive_send_recv(port:port, data:str);
     if(r == NULL)exit(0);
-    if(ereg(pattern:"^HTTP/1\.[01] (2|502)", string:r))
+    if(ereg(pattern:"^HTTP/1\.[01] (2|502) ", string:r))
 	{
             if (debug) display("HEAD FOUND: ", req, "\n");
             return(TRUE);
@@ -138,7 +143,7 @@ function iisecheck(req)
             return(TRUE);
         } else {
             r2 = http_recv(socket:soc);
-            if ( ereg(pattern:"HTTP/1\.[01] 40[34]", string:r) ||
+            if ( ereg(pattern:"HTTP/1\.[01] 40[34] ", string:r) ||
                  egrep(pattern:"module could not be found", string:r2) )
             {
                 add_cache(url:req);
@@ -161,6 +166,8 @@ function initialize_dirs ()
 {
    local_var dirs, d, tmp;
    
+   if ( ! thorough_tests ) return 0;
+
    tmp = get_kb_list(string("www/", port, "/content/directories"));
    if(!isnull(tmp))dirs = make_list(tmp);
    else dirs = make_list();
@@ -563,7 +570,7 @@ reports["nc.exe"]        = "One or more copies of the 'netcat.exe' tool were fou
 reports["iiscrack.dll"]  = "One or more copies of the 'iiscrack.dll' exploit were found, it is used to gain SYSTEM privileges on a web server already compromised through another method.";
 reports["ftp.exe"]       = "One or more copies of the Windows command line FTP utility were found, it is often left in the web root as part of an automated attack.";
 reports["pwdump.exe"]    = "One or more copies of 'pwdump' were found,it is used to dump the encrypted password hashes from a Windows server.";
-reports["cmd.asp"]       = "One or more copies of the 'cmd.asp' script were found, this ASP script can be used to exectute commands over the web, on IIS 4.0 it executes with SYSTEM privileges.";
+reports["cmd.asp"]       = "One or more copies of the 'cmd.asp' script were found, this ASP script can be used to execute commands over the web, on IIS 4.0 it executes with SYSTEM privileges.";
 reports["upload.asp"]    = "One or more copies of the 'upload.asp' script were found, this ASP script can be used to upload files to the server over the web, often used by crackers when the target is firewalled.";
 reports["cmd.jsp"]       = "One or more copies of the 'jsp.cmd' script were found, this JSP script can be used to execute commands over the web.";
 reports["radmin"]        = "One more DLL files were found which indicate the presence of the 'Remote Administrator' tool. This tool is used to gain remote access to a compromised server.";

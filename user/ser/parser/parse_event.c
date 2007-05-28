@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: parse_event.c,v 1.4 2003/04/26 20:28:46 jiri Exp $
  *
  * Event header field body parser.
  * The parser was written for Presence Agent module only.

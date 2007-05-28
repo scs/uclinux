@@ -16,9 +16,9 @@
 if(description)
 {
  script_id(10560);
-script_cve_id("CVE-1999-0746");
  script_bugtraq_id(587);
- script_version ("$Revision: 1.9 $");
+script_cve_id("CVE-1999-0746");
+ script_version ("$Revision: 1.11 $");
 
  
  name["english"] = "SuSE's identd overflow";
@@ -65,7 +65,7 @@ Facteur de risque : Faible";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes");
+ script_dependencie("find_service1.nasl");
  script_require_ports("Services/auth", 113);
  exit(0);
 }

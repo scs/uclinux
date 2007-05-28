@@ -156,19 +156,19 @@ static int propagate_ct_flow(struct ulogd_pluginstance *upi,
 		ret[4].flags |= ULOGD_RETF_VALID;
 		break;
 	case IPPROTO_ICMP:
-		ret[7].u.value.ui8 = ct->tuple[dir].l4src.icmp.code;
+		ret[7].u.value.ui8 = ct->tuple[dir].l4dst.icmp.code;
 		ret[7].flags |= ULOGD_RETF_VALID;
-		ret[8].u.value.ui8 = ct->tuple[dir].l4src.icmp.type;
+		ret[8].u.value.ui8 = ct->tuple[dir].l4dst.icmp.type;
 		ret[8].flags |= ULOGD_RETF_VALID;
 		break;
 	}
 
 	if ((dir == NFCT_DIR_ORIGINAL && flags & NFCT_COUNTERS_ORIG) ||
 	    (dir == NFCT_DIR_REPLY && flags & NFCT_COUNTERS_RPLY)) {
-		ret[5].u.value.ui64 = ct->counters[dir].bytes;
+		ret[5].u.value.ui32 = ct->counters[dir].bytes;
 		ret[5].flags |= ULOGD_RETF_VALID;
 
-		ret[6].u.value.ui64 = ct->counters[dir].packets;
+		ret[6].u.value.ui32 = ct->counters[dir].packets;
 		ret[6].flags |= ULOGD_RETF_VALID;
 	}
 

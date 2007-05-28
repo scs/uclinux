@@ -1,5 +1,5 @@
 /* Nessus
- * Copyright (C) 1998 - 2001 Renaud Deraison
+ * Copyright (C) 1998 - 2006 Tenable Network Security, Inc. 
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -351,6 +351,7 @@ connect_to_nessusd(hostname, port, login, pass)
   static SSL_METHOD	*ssl_mt = NULL;
   SSL		*ssl = NULL;
   char		*cert, *key, *client_ca, *trusted_ca, *ssl_ver;
+  char		*ssl_cipher_list;
   STACK_OF(X509_NAME)	*cert_names;
 #endif
   int soc, soc2;
@@ -391,11 +392,15 @@ connect_to_nessusd(hostname, port, login, pass)
   
   if(soc<0)
   	{
+  	static char err_msg[1024];
   	struct in_addr a = nn_resolve(hostname);
 	if(a.s_addr == INADDR_NONE) 
 		return("Host not found !");
   	else
-  		return("Could not open a connection to the remote host");
+		{
+		snprintf(err_msg, sizeof(err_msg), "Could not open a connection to %s\n", hostname);
+  		return err_msg;
+		}
   	}
 	
   opt = 1;	
@@ -467,12 +472,28 @@ Please launch nessus-mkrand(1) first !");
       if (SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL) < 0)
 	sslerror("SSL_CTX_set_options(SSL_OP_ALL)");
 
+#define NOEXP_CIPHER_LIST "EDH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:DES-CBC3-SHA:DES-CBC3-MD5:DHE-DSS-RC4-SHA:IDEA-CBC-SHA:RC4-SHA:RC4-MD5:IDEA-CBC-MD5:RC2-CBC-MD5:RC4-MD5:RC4-64-MD5:EDH-RSA-DES-CBC-SHA:EDH-DSS-DES-CBC-SHA:DES-CBC-SHA:DES-CBC-MD5"
+#define STRONG_CIPHER_LIST "EDH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:DES-CBC3-SHA:DES-CBC3-MD5:DHE-DSS-RC4-SHA:IDEA-CBC-SHA:RC4-SHA:RC4-MD5:IDEA-CBC-MD5:RC2-CBC-MD5:RC4-MD5"
+#define EDH_CIPHER_LIST "EDH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:DHE-DSS-RC4-SHA"
+      ssl_cipher_list = arg_get_value(Prefs, "ssl_cipher_list");
+      if (ssl_cipher_list != NULL && *ssl_cipher_list != '\0' )
+	{
+	  if (strcmp(ssl_cipher_list, "noexp") == 0)
+	    ssl_cipher_list = NOEXP_CIPHER_LIST;
+	  else if (strcmp(ssl_cipher_list, "strong") == 0)
+	    ssl_cipher_list = STRONG_CIPHER_LIST;
+	  else if (strcmp(ssl_cipher_list, "edh") == 0)
+	    ssl_cipher_list = EDH_CIPHER_LIST;
+	  
+	  if (! SSL_CTX_set_cipher_list(ssl_ctx, ssl_cipher_list))
+	    sslerror("SSL_CTX_set_cipher_list");
+	}
+
       if ((ssl = SSL_new(ssl_ctx)) == NULL)
 	{
 	  sslerror("SSL_new");
 	  return "SSL_error";
 	}
-
       cert = arg_get_value(Prefs, "cert_file");
       key = arg_get_value(Prefs, "key_file");
       client_ca = arg_get_value(Prefs, "client_ca");
@@ -532,6 +553,14 @@ Please launch nessus-mkrand(1) first !");
 	  return "SSL error";
 	}
 
+#if DEBUG_SSL > 1
+      {
+	char	*p = SSL_get_cipher(ssl);
+	if (p != NULL) 
+	  fprintf(stderr, "SSL_get_cipher = %s\n", p);
+      }
+#endif
+
 #ifdef CLN_AUTH_SRV
       if (DontCheckServerCert == 0 && (paranoia_level == 1 || paranoia_level == 3))
 	{
@@ -564,6 +593,7 @@ Please launch nessus-mkrand(1) first !");
       shutdown(soc, 2);
       return "Could not register the connection";
     }
+  stream_set_buffer(soc2, 1024 * 1024);
   soc = soc2;
   
 #else 
@@ -571,6 +601,7 @@ Please launch nessus-mkrand(1) first !");
    {
     return "Could not register the connection";
    }
+  stream_set_buffer(soc2, 1024 * 1024);
    soc = soc2;
 #endif 
   GlobalSocket = soc;
@@ -664,7 +695,7 @@ display_help
   (char *pname)
 {
   
- printf("%s, version %s\n", pname, NESSUS_VERSION);
+ printf("%s, version %s\n", pname, NESSUS_FULL_VERSION);
 #ifdef USE_AF_INET
  printf("\nCommon options :\n %s [-vnh] [-c .rcfile] [-V] [-T <format>]",pname);
  printf("\nBatch-mode scan:\n %s -q [-pPS] <host> <port> <user> <pass> <targets-file> <result-file>",pname);
@@ -908,7 +939,7 @@ you have deleted older versions nessus libraries from your system\n",
       	 opt_V++;
 	 break;
     case 'v' :
-    	printf("nessus (%s) %s for %s\n\n(C) 1998 - 2002 Renaud Deraison <deraison@nessus.org>\n", 
+    	printf("nessus (%s) %s for %s\n\n(C) 1998 - 2006 Tenable Network Security, Inc.\n", 
     			PROGNAME,NESSUS_VERSION, NESS_OS_NAME);
 #ifdef NESSUS_ON_SSL
 	printf("\tSSL used for client - server communication\n");
@@ -961,6 +992,7 @@ you have deleted older versions nessus libraries from your system\n",
  if(opt_i || opt_o)
  {
   int be;
+  preferences_init(&Prefs);
   if(!(opt_i && opt_o))
    {
     display_help("nessus");
@@ -1053,7 +1085,6 @@ you have deleted older versions nessus libraries from your system\n",
      {
       signal(SIGINT, sighand_exit);
       signal(SIGQUIT, sighand_exit);
-      signal(SIGKILL, sighand_exit);
       signal(SIGTERM, sighand_exit);
       
       F_quiet_mode = 1;

@@ -9,9 +9,9 @@
 if(description)
 {
  script_id(10818);
- script_version("$Revision: 1.9 $");
  script_bugtraq_id(3599);
- script_cve_id("CAN-2001-0871");
+ script_version("$Revision: 1.13 $");
+ script_cve_id("CVE-2001-0871");
  name["english"] = "Alchemy Eye HTTP Command Execution";
  script_name(english:name["english"]);
  
@@ -46,28 +46,22 @@ Risk factor : High");
 }
 
 include("http_func.inc");
+include("http_keepalive.inc");
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 if(!get_port_state(port))exit(0);
 
 function check(req)
 {
- soc = http_open_socket(port);
- if(soc)
- {
  req = http_get(item:req, port:port);
- send(socket:soc, data:req);
- r = http_recv(socket:soc);
-
- http_close_socket(soc);
+ r = http_keepalive_send_recv(port:port, data:req);
+ if ( r == NULL ) exit(0);
  pat = "ACCOUNTS | COMPUTER"; 
-
  if(pat >< r) {
    	security_hole(port:port);
-	return(1);
+	exit(0);
  	}
- }
  return(0);
 }
 
@@ -78,7 +72,7 @@ dir[2] = "";
 for(d=0;dir[d];d=d+1)
 {
 	url = string("/cgi-bin", dir[d], "/../../../../../../../../WINNT/system32/net.exe");
-	if(check(req:url))exit(0);
+	check(req:url);
 }
 
 

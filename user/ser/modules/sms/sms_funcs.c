@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: sms_funcs.c,v 1.60.4.1 2004/07/02 16:00:33 andrei Exp $
  *
  * Copyright (C) 2001-2003 Fhg Fokus
  *

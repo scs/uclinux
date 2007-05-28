@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10703);
- script_version ("$Revision: 1.16 $");
  script_bugtraq_id(2988);
+ script_version ("$Revision: 1.21 $");
  script_cve_id("CVE-2001-0504");
  name["english"] = "SMTP Authentication Error";
  name["francais"] = "SMTP Authentication Error";
@@ -27,7 +27,7 @@ authenticate and use the remote SMTP server.
 An attacker may use this flaw to use this SMTP server
 as a spam relay.
 
-Solution : see http://www.microsoft.com/technet/security/bulletin/MS01-037.asp.
+Solution : see http://www.microsoft.com/technet/security/bulletin/MS01-037.mspx.
 
 Risk factor : High";
 
@@ -48,7 +48,7 @@ Risk factor : High";
  family["english"] = "SMTP problems";
  family["francais"] = "Problèmes SMTP";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped", "SMTP/qmail", "SMTP/postfix");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -62,14 +62,16 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
+
 if(get_port_state(port))
 {
  soc = open_sock_tcp(port);
  if(!soc)exit(0);
  data = smtp_recv_banner(socket:soc);
- if(!egrep(pattern:"^220.*", string:data))exit(0);
+ if(!data || !egrep(pattern:"^220.*", string:data))exit(0);
 
- cmd = string("HELO nessus.org\r\n");
+ cmd = string("HELO example.com\r\n");
  send(socket:soc, data:cmd);
  data = recv_line(socket:soc, length:1024);
  cmd = string("AUTH GSSAPI\r\n");

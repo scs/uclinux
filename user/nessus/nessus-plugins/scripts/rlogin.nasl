@@ -1,36 +1,47 @@
 #
-# This script was written by Renaud Deraison <deraison@cvs.nessus.org>
+# (C) Tenable Network Security
 #
-# See the Nessus Scripts License for details
-#
-#T
 
 if(description)
 {
  script_id(10205);
- script_version ("$Revision: 1.14 $");
- script_cve_id("CAN-1999-0651");
- name["english"] = "rlogin";
- name["francais"] = "rlogin";
- script_name(english:name["english"], francais:name["francais"]);
+ script_version ("$Revision: 1.16 $");
+ script_cve_id("CVE-1999-0651");
+ name["english"] = "Rlogin Server Detection";
+ script_name(english:name["english"]);
+ 
  
  desc["english"] = "
-The remote host is running the 'rlogin' service, a remote login
-daemon which allows people to log in this host and obtain an
-interactive shell.
+Synopsis :
 
-This service is dangerous in the sense thatit is not ciphered - that is, 
-everyone can sniff the data that passes between the rlogin client
-and the rlogin server, which includes logins and passwords as well
-as the commands executed by the remote host.
+The rlogin service is listening on the remote port.
 
-You should disable this service and use openssh instead (www.openssh.com)
+Description :
 
+The remote host is running the 'rlogin' service.  This service is dangerous in 
+the sense that it is not ciphered - that is, everyone can sniff the data that 
+passes between the rlogin client and the rloginserver. This includes logins 
+and passwords.
 
-Solution : Comment out the 'login' line in /etc/inetd.conf and restart the 
-inetd process.
+Also, it may allow poorly authenticated logins without passwords. If the 
+host is vulnerable to TCP sequence number guessing (from any network)
+or IP spoofing (including ARP hijacking on a local network) then it may 
+be possible to bypass authentication.
 
-Risk factor : Low";
+Finally, rlogin is an easy way to turn file-write access into full logins 
+through the .rhosts or rhosts.equiv files. 
+
+You should disable this service and use ssh instead.
+
+Solution : 
+
+Comment out the 'login' line in /etc/inetd.conf
+
+Risk factor :
+
+Low / CVSS Base Score : 2 
+(AV:R/AC:H/Au:R/C:P/A:N/I:N/B:C)";
+
 
 
 
@@ -43,7 +54,7 @@ Risk factor : Low";
  script_category(ACT_GATHER_INFO);
  
  
- script_copyright(english:"This script is Copyright (C) 1999 Renaud Deraison");
+ script_copyright(english:"This script is Copyright (C) 1999 - 2006 Tenable Network Security");
  family["english"] = "Useless services";
  script_family(english:family["english"]);
  script_dependencie("find_service.nes");

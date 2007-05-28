@@ -7,25 +7,21 @@
 if(description)
 {
  script_id(10162);
- script_version ("$Revision: 1.17 $");
- script_cve_id("CAN-1999-0284");
+ script_version ("$Revision: 1.21 $");
+ script_cve_id("CVE-1999-0284");
  name["english"] = "Notes MTA denial";
  name["francais"] = "Déni de service contre le MTA de Notes";
  script_name(english:name["english"], francais:name["francais"]);
  
- desc["english"] = "It was possible to perform
-a denial of service against the remote
-SMTP server by sending it two HELO
-commands followed by a too long argument.
+ desc["english"] = "
+It was possible to perform a denial of service against the remote
+SMTP server by sending it two HELO commands followed by a too long argument.
 
 
-This problem allows an attacker to prevent
-your SMTP server from sending or receiving emails,
-thus preventing you from working
-properly.
+This problem allows an attacker to prevent your SMTP server from sending or 
+receiving emails, thus preventing you from working properly.
 
-Solution : contact your vendor for a patch, or
-change your MTA.
+Solution : contact your vendor for a patch, or change your MTA.
 
 Risk factor : Medium";
 
@@ -61,7 +57,7 @@ Facteur de risque : Moyen";
  family["english"] = "Denial of Service";
  family["francais"] = "Déni de service";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("find_service.nes", "sendmail_expn.nasl");
+ script_dependencie("smtpserver_detect.nasl", "sendmail_expn.nasl");
  script_exclude_keys("SMTP/wrapped");
  script_require_ports("Services/smtp", 25);
  exit(0);
@@ -75,6 +71,7 @@ include("smtp_func.inc");
 
 port = get_kb_item("Services/smtp");
 if(!port)port = 25;
+if (get_kb_item('SMTP/'+port+'/broken')) exit(0);
 
 if(get_port_state(port))
 {
@@ -82,7 +79,7 @@ if(get_port_state(port))
  if(soc)
  {
   s = smtp_recv_banner(socket:soc);
-  if(!("220 " >< s)){
+  if("220 " >!< s){
   	close(soc);
 	exit(0);
 	}
@@ -91,6 +88,7 @@ if(get_port_state(port))
   d = string("HELO ", z, "\r\n");
   send(socket:soc, data:c);
   s = recv_line(socket:soc, length:1024);
+  if ( ! s ) exit(0);
   send(socket:soc, data:d);
   close(soc);
   
@@ -103,7 +101,7 @@ if(get_port_state(port))
  	close(soc2);
        }
   
-  if(flaw)security_hole(port);
+  if(flaw)security_warning(port);
   }
  }
 	

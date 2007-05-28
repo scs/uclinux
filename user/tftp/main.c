@@ -39,7 +39,7 @@ char copyright[] =
  * From: @(#)main.c	5.10 (Berkeley) 3/1/91
  */
 char main_rcsid[] = 
-  "$Id$";
+  "$Id: main.c,v 1.9 1996/11/25 18:42:46 dholland Exp $";
 
 /* Many bug fixes are from Jim Guyton <guyton@rand-unix> */
 
@@ -193,7 +193,7 @@ setpeer(int argc, char *argv[])
 	if (argc < 2) {
 		strcpy(line, "Connect ");
 		printf("(to) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof(line) - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -318,7 +318,7 @@ put(int argc, char *argv[])
 	if (argc < 2) {
 		strcpy(line, "send ");
 		printf("(file) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof(line) - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -414,7 +414,7 @@ get(int argc, char *argv[])
 	if (argc < 2) {
 		strcpy(line, "get ");
 		printf("(files) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof(line) - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -497,7 +497,7 @@ setrexmt(int argc, char *argv[])
 	if (argc < 2) {
 		strcpy(line, "Rexmt-timeout ");
 		printf("(value) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof(line) - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -521,7 +521,7 @@ settimeout(int argc, char *argv[])
 	if (argc < 2) {
 		strcpy(line, "Maximum-timeout ");
 		printf("(value) ");
-		gets(&line[strlen(line)]);
+		fgets(&line[strlen(line)], sizeof(line) - strlen(line), stdin);
 		makeargv();
 		argc = margc;
 		argv = margv;
@@ -593,7 +593,7 @@ command(int top)
 		putchar('\n');
 	for (;;) {
 		printf("%s> ", prompt);
-		if (gets(line) == 0) {
+		if (fgets(&line[strlen(line)], sizeof(line), stdin) == 0) {
 			if (feof(stdin)) {
 				quit(0, NULL);
 			} else {

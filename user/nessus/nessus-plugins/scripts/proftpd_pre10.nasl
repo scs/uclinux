@@ -9,8 +9,8 @@
 if(description)
 {
  script_id(10464);
- script_version ("$Revision: 1.10 $");
  script_bugtraq_id(2242);
+ script_version ("$Revision: 1.11 $");
  script_cve_id("CVE-1999-0368");
  
  name["english"] = "proftpd 1.2.0preN check";

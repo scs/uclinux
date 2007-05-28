@@ -1,6 +1,6 @@
 /* Nessus Attack Scripting Language 
  *
- * Copyright (C) 2002 - 2003 Michel Arboi and Renaud Deraison
+ * Copyright (C) 2002 - 2004 Tenable Network Security
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2,
@@ -14,17 +14,6 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * In addition, as a special exception, Renaud Deraison and Michel Arboi
- * give permission to link the code of this program with any
- * version of the OpenSSL library which is distributed under a
- * license identical to that listed in the included COPYING.OpenSSL
- * file, and distribute linked combinations including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * this file, you may extend this exception to your version of the
- * file, but you are not obligated to do so.  If you do not wish to
- * do so, delete this exception statement from your version.
  *
  */
  
@@ -41,6 +30,7 @@
   
 /*--------------------------------------------------------------------------*/
 #include <includes.h>
+#include "nasl.h"
 
 #include "nasl_tree.h"
 #include "nasl_global_ctxt.h"
@@ -54,7 +44,42 @@
 #include "nasl_packet_forgery.h"
 #include "nasl_debug.h"
 
+#ifndef EADDRNOTAVAIL
+#define EADDRNOTAVAIL EADDRINUSE
+#endif
 /*----------------------- Private functions ---------------------------*/
+
+static int unblock_socket(int soc)
+{
+  int   flags =  fcntl(soc, F_GETFL, 0);
+  if (flags < 0)
+    {
+      perror("fcntl(F_GETFL)");
+      return -1;
+    }
+  if (fcntl(soc, F_SETFL, O_NONBLOCK | flags) < 0)
+    {
+      perror("fcntl(F_SETFL,O_NONBLOCK)");
+      return -1;
+    }
+  return 0;
+}
+
+static int block_socket(int soc)
+{
+  int   flags =  fcntl(soc, F_GETFL, 0);
+  if (flags < 0)
+    {
+      perror("fcntl(F_GETFL)");
+      return -1;
+    }
+  if (fcntl(soc, F_SETFL, (~O_NONBLOCK) & flags) < 0)
+    {
+      perror("fcntl(F_SETFL,~O_NONBLOCK)");
+      return -1;
+    }
+  return 0;
+}
 
 
 /*
@@ -122,14 +147,9 @@ static void rm_udp_data(struct arglist * script_infos, int soc)
 /*-------------------------------------------------------------------*/
 
 
-static void
-connect_alarm_handler()
-{
- return;
-}
 
 
-static tree_cell * nasl_open_private_socket(lex_ctxt * lexic, int proto)
+static tree_cell * nasl_open_privileged_socket(lex_ctxt * lexic, int proto)
 {
  struct arglist * script_infos = lexic->script_infos;
  int sport, current_sport = -1;
@@ -140,19 +160,24 @@ static tree_cell * nasl_open_private_socket(lex_ctxt * lexic, int proto)
  struct in_addr * p;
  int to = get_int_local_var_by_name(lexic, "timeout", lexic->recv_timeout);
  tree_cell * retc;
+ struct timeval tv;
+ fd_set rd;
+ int opt;
+ unsigned int opt_sz;
  
  
  
  sport = get_int_local_var_by_name(lexic, "sport", -1);
  dport = get_int_local_var_by_name(lexic, "dport", -1);
- if(dport < 0)
+ if(dport <= 0)
    {
      nasl_perror(lexic, "open_private_socket: missing or undefined parameter dport!\n");
      return NULL;
    }
  
- if(sport < 0)
-  current_sport = 1023;
+ if(sport < 0) current_sport = 1023;
+
+
 restart: 
  bzero(&addr, sizeof(addr));
  if(proto == IPPROTO_TCP)
@@ -170,28 +195,19 @@ restart:
 	 return NULL;
 
 tryagain :
- e =  set_socket_source_addr(sock, sport > 0 ? sport : current_sport);
+ if ( current_sport < 128 && sport < 0 ) return NULL;
+ e =  set_socket_source_addr(sock, sport > 0 ? sport : current_sport--);
  
  /*
-  * try to bind on another priv port
+  * bind() failed - try again on a lower port
   */
  if(e < 0)
  {
-  if(sport > 0)
-  {
-   close(sock);
-   return NULL;
-  }
-  else
-  {
-   current_sport --;
-   if(current_sport == 0)
-   {
-    close(sock);
+  close ( sock );
+  if(sport > 0) 
     return NULL;
-   }
-   else goto tryagain;
-  }
+   else 
+     goto tryagain;
  }
  
 
@@ -204,73 +220,106 @@ tryagain :
  daddr.sin_addr = *p;
  daddr.sin_port = htons(dport);
  daddr.sin_family = AF_INET;
- 
- if(to > 0)
- {
-  signal(SIGALRM, connect_alarm_handler);
-  alarm(to);
- }
+
+ unblock_socket(sock);
  e = connect(sock, (struct sockaddr*)&daddr, sizeof(daddr));
- if(to > 0)
+ if ( e < 0 )
  {
-  signal(SIGALRM, SIG_IGN);
-  alarm(0);
+   if ( errno == EADDRINUSE || errno == EADDRNOTAVAIL )
+   {
+     close(sock);
+     if ( sport < 0 ) 
+          goto restart;
+     else  
+          return NULL;
+   }
+   else if ( errno != EINPROGRESS )
+   { 
+     close(sock);
+     return NULL;
+   }
+ }
+
+  do {
+  tv.tv_sec = to;
+  tv.tv_usec = 0;
+  FD_ZERO(&rd);
+  FD_SET(sock, &rd);
+  e = select(sock + 1, NULL, &rd, NULL, to > 0 ? &tv:NULL);
+  } while ( e < 0 && errno == EINTR );
+
+ if ( e <= 0 ) 
+ {
+   close ( sock );
+   return FAKE_CELL;
+ }
+
+ block_socket(sock);
+ opt_sz = sizeof(opt);
+
+ if ( getsockopt(sock, SOL_SOCKET, SO_ERROR, &opt, &opt_sz) < 0 )
+ {
+  fprintf(stderr, "[%d] open_priv_sock()->getsockopt() failed : %s\n", getpid(), strerror(errno));
+  close(sock);
+  return NULL;
  }
  
- if(e < 0)
+
+ switch ( opt )
  {
-  if((errno == EADDRINUSE) && sport < 0)
-  {
-   close(sock);
-   current_sport --;
-   goto restart;
-  }
-  /* perror("connect "); */
-  close(sock);
-  return NULL; /* Could not establish a connection */
+   case EADDRINUSE:
+   case EADDRNOTAVAIL:
+     close ( sock );
+     if ( sport < 0 )
+ 	 goto restart;
+      else 
+         return FAKE_CELL;
+
+   case 0:
+	break;
+   default:
+       close ( sock );
+       return FAKE_CELL;
+       break;
  }
- else
- {
-  if(proto == IPPROTO_TCP)
-  {
+ 
+ if(proto == IPPROTO_TCP)
    sock = nessus_register_connection(sock, NULL);
-  }
+
   retc = alloc_tree_cell(0, NULL);
   retc->type = CONST_INT;
   retc->x.i_val = sock < 0 ? 0 : sock;
   return retc;
- }
 }
 
 
 tree_cell * nasl_open_priv_sock_tcp(lex_ctxt * lexic)
 {
- return nasl_open_private_socket(lexic, IPPROTO_TCP);
+ return nasl_open_privileged_socket(lexic, IPPROTO_TCP);
 }
 
 tree_cell * nasl_open_priv_sock_udp(lex_ctxt * lexic)
 {
- return nasl_open_private_socket(lexic, IPPROTO_UDP);
+ return nasl_open_privileged_socket(lexic, IPPROTO_UDP);
 }
  
 
 /*--------------------------------------------------------------------------*/
 
-
-tree_cell * nasl_open_sock_tcp(lex_ctxt * lexic)
+tree_cell * nasl_open_sock_tcp_bufsz(lex_ctxt * lexic, int bufsz)
 {
  int soc = -1;
  struct arglist *  script_infos = lexic->script_infos;
- int to;
- int transport = -1;
+ int	to, port, transport = -1;
  tree_cell * retc;
- int port;
 
- to = get_int_local_var_by_name(lexic, "timeout", lexic->recv_timeout);
+ to = get_int_local_var_by_name(lexic, "timeout", lexic->recv_timeout*2);
  if(to < 0)
- 	to = 5;
+ 	to = 10;
 	
  transport = get_int_local_var_by_name(lexic, "transport", -1);
+ if (bufsz < 0)
+   bufsz = get_int_local_var_by_name(lexic, "bufsz", 0);
   
  port = get_int_var_by_num(lexic, 0, -1);
  if(port < 0)
@@ -280,6 +329,11 @@ tree_cell * nasl_open_sock_tcp(lex_ctxt * lexic)
    soc =  open_stream_auto_encaps(script_infos, port, to);
  else
    soc  = open_stream_connection(script_infos, port, transport, to);
+ if (bufsz > 0 && soc >= 0 )
+ {
+   if (stream_set_buffer(soc, bufsz) < 0)
+     nasl_perror(lexic, "stream_set_buffer: soc=%d,bufsz=%d\n", soc, bufsz);
+ }
 
   retc = alloc_tree_cell(0, NULL);
   retc->type = CONST_INT;
@@ -288,6 +342,10 @@ tree_cell * nasl_open_sock_tcp(lex_ctxt * lexic)
   return retc;
 }
 
+tree_cell * nasl_open_sock_tcp(lex_ctxt * lexic)
+{
+  return nasl_open_sock_tcp_bufsz(lexic, -1);
+}
 
 /*
  * Opening a UDP socket is a little more tricky, since
@@ -309,6 +367,7 @@ tree_cell * nasl_open_sock_udp(lex_ctxt * lexic)
 	 return NULL;
    
  ia = plug_get_host_ip(script_infos);
+ if ( ia == NULL ) return NULL;
  bzero(&soca, sizeof(soca));
  soca.sin_addr.s_addr = ia->s_addr;
  soca.sin_port = htons(port);
@@ -339,19 +398,24 @@ tree_cell * nasl_recv(lex_ctxt * lexic)
  struct timeval tv;
  int new_len = 0;
  tree_cell * retc;
- int type = -1, opt_len = sizeof(type);
+ int type = -1;
+ unsigned int opt_len = sizeof(type);
  int e;
  
 
- if(len < 0 || soc <= 0)
+ if(len <= 0 || soc <= 0)
 	 return NULL;
 
 
  tv.tv_sec = to;
  tv.tv_usec = 0; 
 
+
  data = emalloc(len);
- e = getsockopt(soc, SOL_SOCKET, SO_TYPE, &type, &opt_len);
+ if ( !fd_is_stream(soc) )
+ 	e = getsockopt(soc, SOL_SOCKET, SO_TYPE, &type, &opt_len);
+  else
+	e = -1;
  
  if(e == 0 && type == SOCK_DGRAM)
  {
@@ -412,7 +476,7 @@ tree_cell * nasl_recv(lex_ctxt * lexic)
  {
   retc = alloc_tree_cell(0, NULL);
   retc->type = CONST_DATA;
-  retc->x.str_val = strndup(data, new_len);
+  retc->x.str_val = nasl_strndup(data, new_len);
   retc->size = new_len;
   efree(&data);
   return retc;
@@ -444,6 +508,13 @@ tree_cell * nasl_recv_line(lex_ctxt * lexic)
 
  if (timeout >= 0)	/* sycalls are much more expensive than simple tests */
    t1 = time(NULL);
+
+ if ( fd_is_stream(soc) != 0 )
+ {
+  int bufsz = stream_get_buffer_sz ( soc );
+  if ( bufsz <= 0 )
+	stream_set_buffer(soc, len + 1 );
+ }
 
  data = emalloc(len+1);
  for(;;)
@@ -479,7 +550,7 @@ tree_cell * nasl_recv_line(lex_ctxt * lexic)
  retc = alloc_tree_cell(0, NULL);
  retc->type = CONST_DATA;
  retc->size = new_len;
- retc->x.str_val = strndup(data, new_len);
+ retc->x.str_val = nasl_strndup(data, new_len);
 
  efree(&data);
 
@@ -494,9 +565,11 @@ tree_cell * nasl_send(lex_ctxt * lexic)
  char * data = get_str_local_var_by_name(lexic, "data");
  int option = get_int_local_var_by_name(lexic, "option", 0);
  int length = get_int_local_var_by_name(lexic, "length", 0);
+ int data_length = get_var_size_by_name(lexic, "data");
  int n;
  tree_cell * retc;
- int type, type_len = sizeof(type);
+ int type;
+ unsigned int type_len = sizeof(type);
 
  
  if(soc <= 0 || data == NULL)
@@ -506,11 +579,12 @@ tree_cell * nasl_send(lex_ctxt * lexic)
 	return NULL;
  }
 
- if( length == 0 )
-	length = get_var_size_by_name(lexic, "data");
+ if( length <= 0 || length > data_length )
+	length = data_length;
  
  
- if(getsockopt(soc, SOL_SOCKET, SO_TYPE, &type, &type_len) == 0 &&
+ if(!fd_is_stream(soc) && 
+    getsockopt(soc, SOL_SOCKET, SO_TYPE, &type, &type_len) == 0 &&
     type == SOCK_DGRAM)
  {
 		n = send(soc, data, length, option);
@@ -534,23 +608,35 @@ tree_cell * nasl_close_socket(lex_ctxt * lexic)
 {
  int soc;
  int type;
- int opt_len = sizeof(type);
+ unsigned int opt_len = sizeof(type);
  int e;
  
  soc = get_int_var_by_num(lexic, 0, -1);
- if(soc <= 0)
+ if(soc <= 4)
+	{
+ 	 nasl_perror(lexic, "close(): invalid argument\n");
 	 return NULL;
+ 	}
+
+ if ( fd_is_stream(soc) )
+  return close_stream_connection(soc) < 0 ? NULL:FAKE_CELL;
  
  e = getsockopt(soc, SOL_SOCKET, SO_TYPE, &type, &opt_len);
- if(e == 0 && type == SOCK_DGRAM)
+ if(e == 0 )
  {
-  rm_udp_data(lexic->script_infos, soc);
+  if (type == SOCK_DGRAM)
+  {
+   rm_udp_data(lexic->script_infos, soc);
+   return FAKE_CELL;
+  }
   close(soc);
   return FAKE_CELL;
  }
+ else nasl_perror(lexic, "close(): invalid argument\n");
 
- return close_stream_connection(soc) < 0 ? NULL : FAKE_CELL;
+ return NULL;
 }
+
 
 static struct jmg {
   struct in_addr	in;
@@ -611,7 +697,7 @@ nasl_join_multicast_group(lex_ctxt *lexic)
 
       if (j < 0)
 	{
-	  p = realloc(jmg_desc, sizeof(*jmg_desc) * (jmg_max + 1));
+	  p = erealloc(jmg_desc, sizeof(*jmg_desc) * (jmg_max + 1));
 	  if (p == NULL)
 	    {
 	      nasl_perror(lexic, "join_multicast_group: realloc failed\n");
@@ -635,7 +721,6 @@ nasl_join_multicast_group(lex_ctxt *lexic)
 tree_cell*
 nasl_leave_multicast_group(lex_ctxt *lexic)
 {
-  tree_cell	*retc = NULL;
   char		*a;
   struct in_addr	ia;
   int		i;
@@ -662,4 +747,89 @@ nasl_leave_multicast_group(lex_ctxt *lexic)
 
   nasl_perror(lexic, "leave_multicast_group: never joined group %s\n", a);
   return NULL;
+}
+
+tree_cell*
+nasl_get_source_port(lex_ctxt* lexic)
+{
+  struct sockaddr_in	ia;
+  int		i, s, fd;
+  unsigned  int	l;
+  tree_cell	*retc;
+  int         type;
+  unsigned int type_len = sizeof(type);
+
+  s = get_int_var_by_num(lexic, 0, -1);
+  if (s < 0)
+    {
+      nasl_perror(lexic, "get_source_port: missing socket parameter\n");
+      return NULL;
+    }
+  if(!fd_is_stream(s) && getsockopt(s, SOL_SOCKET, SO_TYPE, &type, &type_len) == 0 && type == SOCK_DGRAM)
+       fd = s;
+   else
+       fd = nessus_get_socket_from_connection(s);
+ 
+
+  if (fd < 0)
+    {
+      nasl_perror(lexic, "get_source_port: invalid socket parameter %d\n", s);
+      return NULL;
+    }
+  l = sizeof(ia);
+  if (getsockname(fd, (struct sockaddr*)&ia, &l) < 0)
+    {
+      nasl_perror(lexic, "get_source_port: getsockname(%d): %s\n", fd, strerror(errno));
+      return NULL;
+    }
+  retc = alloc_typed_cell(CONST_INT);
+  retc->x.i_val = ntohs(ia.sin_port);
+  return retc;  
+}
+
+
+
+tree_cell*
+nasl_socket_get_error(lex_ctxt* lexic)
+{
+  int soc = get_int_var_by_num(lexic, 0, -1);
+  tree_cell * retc;
+  int err;
+
+  if ( soc < 0 || ! fd_is_stream(soc) )
+	return NULL;
+
+  err = stream_get_err(soc);
+  retc = alloc_typed_cell(CONST_INT);
+  
+  switch ( err )
+  {
+    case 0 :
+	retc->x.i_val = NASL_ERR_NOERR;
+	break;
+    case ETIMEDOUT:
+	retc->x.i_val = NASL_ERR_ETIMEDOUT;
+	break;
+    case EBADF:
+    case EPIPE:
+#ifdef ECONNRESET
+    case ECONNRESET:
+#endif
+#ifdef ENOTSOCK
+    case ENOTSOCK:
+#endif
+	 retc->x.i_val = NASL_ERR_ECONNRESET;
+         break;
+
+    case ENETUNREACH:
+    case EHOSTUNREACH:
+	 retc->x.i_val = NASL_ERR_EUNREACH;
+         break;
+
+default:
+	fprintf(stderr, "Unknown error %d %s\n", err, strerror(err));
+  }
+
+
+ return retc;
 }

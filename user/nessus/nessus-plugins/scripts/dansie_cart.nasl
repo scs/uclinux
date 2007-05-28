@@ -7,8 +7,8 @@
 if(description)
 {
  script_id(10368);
- script_version ("$Revision: 1.11 $");
  script_bugtraq_id(1115);
+ script_version ("$Revision: 1.15 $");
  script_cve_id("CVE-2000-0252");
 
  
@@ -52,7 +52,15 @@ Risk factor : High";
 # The script code starts here
 #
 
-port = is_cgi_installed("/cart/cart.cgi");
-if(port)security_hole(port);
+include("http_func.inc");
+include("http_keepalive.inc");
+include("global_settings.inc");
+
+if ( report_paranoia < 2 ) exit(0);
+
+port = get_http_port(default:80);
+
+res  = is_cgi_installed_ka(item:"/cart/cart.cgi", port:port);
+if( res )security_hole(port);
 
 

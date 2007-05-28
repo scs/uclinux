@@ -12,7 +12,7 @@ if(description)
 {
  script_id(11663);
  script_bugtraq_id(7661);
- script_version("$Revision: 1.5 $");
+ script_version("$Revision: 1.9 $");
  
  name["english"] = "iiprotect bypass";
  script_name(english:name["english"]);
@@ -25,7 +25,7 @@ There is a bug in the remote version of iisprotect which may allow
 an attacker to bypass protection by hex-encoding the requested URLs.
 
 Solution : Upgrade to iisprotect 2.2
-Risk Factor : High";
+Risk factor : High";
 
 
  script_description(english:desc["english"]);
@@ -67,13 +67,13 @@ function check(loc)
  req = http_get(item:loc, port:port);
  res = http_keepalive_send_recv(port:port, data:req);
  if( res == NULL ) exit(0);
- if(ereg(pattern:"HTTP/[0-9]\.[0-9] (40[13]|30[0-9])", string:res))return 300;
- else if(ereg(pattern:"HTTP/[0-9]\.[0-9] 200", string:res))return 200;
+ if(ereg(pattern:"HTTP/[0-9]\.[0-9] (40[13]|30[0-9]) ", string:res))return 300;
+ else if(ereg(pattern:"HTTP/[0-9]\.[0-9] 200 ", string:res))return 200;
  else return -1;
 }
 
-port = get_kb_item("Services/www");
-if(!port)port = 80;
+port = get_http_port(default:80);
+
 
 dirs = get_kb_list(string("www/", port, "/content/auth_required"));
 if(!isnull(dirs))dirs = make_list(dirs, "/iisprotect/sample/protected");
@@ -85,10 +85,30 @@ if(get_port_state(port))
  {
   if( check(loc:dir) == 300 )
   {
+   origdir = dir;
    dir = encode(dir:dir);
    if( dir && check(loc:dir) == 200 )
    {
-    security_hole(port);
+report = "
+The remote host seems to be running iisprotect, an IIS add-on to protect the
+pages served by this server.
+
+There is a bug in the remote server which may allow an attacker to
+obtain access to otherwise protected pages by hex-encoding the URLs.
+
+For instance, the url :
+
+	" + origdir + " 
+
+is protected (code 30x) but the URL :
+
+	" + dir + "
+
+is does not ask for a password (code 200).
+
+Solution : Upgrade to iisprotect 2.2 or contact your vendor for a patch
+Risk factor : High";
+    security_hole(port:port, data:report);
     exit(0);
     }
   }

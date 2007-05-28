@@ -3,7 +3,7 @@
  *              that maintains the kernel's RARP cache.  It is derived
  *              from Fred N. van Kempen's arp command.
  *
- * Version:	$Id$
+ * Version:	$Id: rarp.c,v 1.6 2001/04/08 17:05:05 pb Exp $
  *
  * Usage:       rarp -d hostname                      Delete entry
  *              rarp -s hostname ethernet_address     Add entry

@@ -11,7 +11,8 @@
 if(description)
 {
  script_id(11353);
- script_version ("$Revision: 1.2 $");
+ script_bugtraq_id(32);
+ script_version ("$Revision: 1.5 $");
  script_cve_id("CVE-1999-0167");
  
  name["english"] = "NFS fsirand";
@@ -23,7 +24,7 @@ the NFS filehandles, and therefore allow them to mount
 the remote filesystems without the proper authorizations
 
 Solution : See http://www.cert.org/advisories/CA-1991-21.html
-Risk Factor : High";
+Risk factor : High";
 
  script_description(english:desc["english"]);
  
@@ -38,8 +39,8 @@ Risk Factor : High";
  family["english"] = "Remote file access";
  family["francais"] = "Accès aux fichiers distants";
  script_family(english:family["english"], francais:family["francais"]);
- script_dependencie("rpc_portmap.nasl", "nmap_osfingerprint.nes");
- script_require_keys("rpc/portmap", "Host/OS");
+ script_dependencie("rpc_portmap.nasl", "os_fingerprint.nasl");
+ script_require_keys("rpc/portmap", "Host/OS/icmp");
  exit(0);
 }
 
@@ -48,7 +49,7 @@ Risk Factor : High";
 
 include("misc_func.inc");
 
-os = get_kb_item("Host/OS");
+os = get_kb_item("Host/OS/icmp");
 if(!os) exit(0);
 if("SunOS 4" >!< os) exit(0);
 
