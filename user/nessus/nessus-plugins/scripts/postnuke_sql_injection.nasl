@@ -7,7 +7,7 @@ if (description)
 {
  script_id(11744);
  script_bugtraq_id(7697);
- script_version("$Revision$");
+ script_version("$Revision: 1.9 $");
 
  script_name(english:"Post-Nuke SQL injection");
  desc["english"] = "

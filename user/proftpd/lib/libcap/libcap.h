@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: libcap.h,v 1.2 2003/05/15 00:49:13 castaglia Exp $
  *
  * Copyright (c) 1997 Andrew G Morgan <morgan@linux.kernel.org>
  *

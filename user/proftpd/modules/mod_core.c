@@ -25,7 +25,7 @@
  */
 
 /* Core FTPD module
- * $Id$
+ * $Id: mod_core.c,v 1.268 2004/12/30 22:51:40 castaglia Exp $
  */
 
 #include "conf.h"

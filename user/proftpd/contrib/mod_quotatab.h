@@ -29,7 +29,7 @@
  * ftp://pooh.urbanrage.com/pub/c/.  This module, however, has been written
  * from scratch to implement quotas in a different way.
  *
- * $Id$
+ * $Id: mod_quotatab.h,v 1.6 2004/12/16 22:55:46 castaglia Exp $
  */
 
 #ifndef MOD_QUOTATAB_H

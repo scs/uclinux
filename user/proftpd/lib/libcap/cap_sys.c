@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: cap_sys.c,v 1.2 2005/01/25 19:30:55 castaglia Exp $
  *
  * Copyright (c) 1997-8 Andrew G. Morgan   <morgan@linux.kernel.org>
  *

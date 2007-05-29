@@ -3,7 +3,7 @@
  *
  * PPTP Control Message packet reading, formatting and writing.
  *
- * $Id$
+ * $Id: ctrlpacket.c,v 1.7 2006/10/02 01:13:46 cpascoe Exp $
  */
 
 #ifdef HAVE_CONFIG_H

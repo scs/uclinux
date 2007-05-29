@@ -23,7 +23,7 @@
  */
 
 /* Table API implementation
- * $Id$
+ * $Id: table.c,v 1.4 2004/11/11 02:44:05 castaglia Exp $
  */
 
 #include "conf.h"

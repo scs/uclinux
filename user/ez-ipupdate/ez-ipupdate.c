@@ -713,7 +713,7 @@ void print_usage( void )
 
 void print_version( void )
 {
-  fprintf(stdout, "%s: - %s - $Id: ez-ipupdate.c 5323 2007-05-26 22:07:28Z vapier $\n", program_name, VERSION);
+  fprintf(stdout, "%s: - %s - $Id: ez-ipupdate.c,v 1.48 2001/07/17 00:49:41 amackay Exp $\n", program_name, VERSION);
 }
 
 void print_credits( void )

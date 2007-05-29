@@ -24,7 +24,7 @@
 
 /*
  * POSIX ACL checking code (aka POSIX.1e hell)
- * $Id$
+ * $Id: mod_facl.c,v 1.1 2005/02/26 17:28:58 castaglia Exp $
  */
 
 #include "conf.h"

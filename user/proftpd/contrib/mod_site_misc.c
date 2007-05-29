@@ -22,7 +22,7 @@
  * distribute the resulting executable, without including the source code for
  * OpenSSL in the source distribution.
  *
- * $Id$
+ * $Id: mod_site_misc.c,v 1.1 2004/02/27 18:41:55 castaglia Exp $
  */
 
 #include "conf.h"

@@ -27,7 +27,7 @@
 /*
  * Configuration structure, server, command and associated prototypes.
  *
- * $Id$
+ * $Id: dirtree.h,v 1.59 2005/02/26 17:28:58 castaglia Exp $
  */
 
 #ifndef PR_DIRTREE_H

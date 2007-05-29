@@ -31,7 +31,7 @@
   
   The files are opened in the current dir.
   
-  $Id$
+  $Id: checkfs.c,v 1.7 2001/06/21 23:04:17 dwmw2 Exp $
   $Log: checkfs.c,v $
   Revision 1.7  2001/06/21 23:04:17  dwmw2
   Initial import to MTD CVS

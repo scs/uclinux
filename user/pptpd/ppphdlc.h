@@ -3,7 +3,7 @@
  *
  * Copied from C. S. Ananians ppp_fcs.h
  *
- * $Id$
+ * $Id: ppphdlc.h,v 1.1.1.1 1999/11/22 03:48:02 christ Exp $
  */
 
 #ifndef _PPTPD_PPPHDLC_H

@@ -1,7 +1,7 @@
 /* util.c ....... error message utilities.
  *                C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: util.c,v 1.1 2000/07/19 06:40:32 matthewr Exp $
  */
 
 #include <stdio.h>

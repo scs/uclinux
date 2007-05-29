@@ -1,4 +1,4 @@
-# $Id$
+# $Id: proftpd.spec,v 1.36 2005/03/26 21:10:53 castaglia Exp $
 
 # You can specify additional modules on the RPM build line by specifying
 # flags like:

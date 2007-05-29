@@ -4,7 +4,7 @@
  * This file contains some tuneable parameters, most of which can be overriden
  * at run-time (note, MAX_CONNECTIONS can't!).
  *
- * $Id$
+ * $Id: defaults.h,v 1.3 2004/10/07 06:00:47 toby Exp $
  */
 
 #ifndef _PPTPD_DEFAULTS_H

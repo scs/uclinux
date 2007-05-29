@@ -3,7 +3,7 @@
  *
  * Functions to handle the GRE en/decapsulation
  *
- * $Id$
+ * $Id: pptpgre.h,v 1.1.1.1 1999/11/22 03:48:02 christ Exp $
  */
 
 #ifndef _PPTPD_PPTPGRE_H

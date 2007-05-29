@@ -27,7 +27,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id$
+ * $Id: deflate.c,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
  */
 
 #ifdef AIX4

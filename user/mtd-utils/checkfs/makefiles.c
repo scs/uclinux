@@ -11,7 +11,7 @@
  * See the Licence for the specific language governing rights and
  * limitations under the Licence.
 
- * $Id$
+ * $Id: makefiles.c,v 1.1 2001/06/21 23:07:56 dwmw2 Exp $
  
 This program creates MAX_NUM_FILES files (file00001, file00002 etc) and
 fills them with random numbers till they are a random length. Then it checksums

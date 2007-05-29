@@ -44,7 +44,7 @@
  *      *) Made it show symlink targets
  *  -Erik, 13 September 2001
  *
- * $Id$
+ * $Id: jffs2reader.c,v 1.4 2001/09/13 22:47:51 andersen Exp $
 */
 
 

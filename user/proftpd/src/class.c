@@ -23,7 +23,7 @@
  */
 
 /* Class routines
- * $Id$
+ * $Id: class.c,v 1.5 2004/06/30 02:42:13 castaglia Exp $
  */
 
 #include "conf.h"

@@ -81,7 +81,7 @@
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #if !defined(lint)
-static char sccsid[] = "$Revision$ ($Date$)";
+static char sccsid[] = "$Revision: 1.1.1.1 $ ($Date: 1999/11/22 03:47:52 $)";
 #endif /* not lint*/
 
 #define KERNEL 1

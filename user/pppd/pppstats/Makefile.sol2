@@ -1,6 +1,6 @@
 #
 # pppstats Makefile for SVR4 systems
-# $Id$
+# $Id: Makefile.sol2,v 1.1.1.1 1999/11/22 03:47:56 christ Exp $
 #
 
 include ../svr4/Makedefs

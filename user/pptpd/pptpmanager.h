@@ -3,7 +3,7 @@
  *
  * Manager function prototype.
  *
- * $Id$
+ * $Id: pptpmanager.h,v 1.2 2002/03/08 03:09:43 davidm Exp $
  */
 
 #ifndef _PPTPD_PPTPSERVER_H

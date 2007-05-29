@@ -1,7 +1,7 @@
 #
 # Makefile for STREAMS modules for SVR4.
 #
-# $Id$
+# $Id: Makefile.svr4,v 1.1.1.1 1999/11/22 03:47:56 christ Exp $
 #
 
 COPTS = -O

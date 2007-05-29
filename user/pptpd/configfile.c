@@ -4,7 +4,7 @@
  * Methods for accessing the PPTPD config file and searching for
  * PPTPD keywords.
  *
- * $Id$
+ * $Id: configfile.c,v 1.2 2001/01/09 00:00:34 davidm Exp $
  */
 
 #ifdef HAVE_CONFIG_H

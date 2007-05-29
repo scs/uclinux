@@ -21,7 +21,7 @@
 # format, or AuthGroupFile, in group(5) format.  The idea is somewhat similar
 # to Apache's htpasswd program.
 #
-#  $Id$
+#  $Id: ftpasswd,v 1.10 2004/10/07 21:17:58 castaglia Exp $
 #
 # ---------------------------------------------------------------------------
 

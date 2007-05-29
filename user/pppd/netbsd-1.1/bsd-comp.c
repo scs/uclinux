@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: bsd-comp.c,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $	*/
 
 /* Because this code is derived from the 4.3BSD compress source:
  *

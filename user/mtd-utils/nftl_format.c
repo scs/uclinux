@@ -2,7 +2,7 @@
  * nftl_format.c: Creating a NFTL/INFTL partition on an MTD device
  *
  *
- * $Id$
+ * $Id: nftl_format.c,v 1.18 2002/04/26 23:37:48 russ Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -252,7 +252,7 @@ int main(int argc, char **argv)
 	char *mtddevice, *nftl = "NFTL";
 	int c, do_inftl = 0, do_bbt = 0, do_check = 0, do_fail = 0;
 
-	printf("$Id$\n");
+	printf("$Id: nftl_format.c,v 1.18 2002/04/26 23:37:48 russ Exp $\n");
 
 	pname = basename(argv[0]);
 	if (pname && (strcmp("inftl_format", pname) == 0)) {

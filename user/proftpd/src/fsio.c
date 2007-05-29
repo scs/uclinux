@@ -25,7 +25,7 @@
  */
 
 /* ProFTPD virtual/modular file-system support
- * $Id$
+ * $Id: fsio.c,v 1.41 2005/02/26 17:55:01 castaglia Exp $
  */
 
 #include "conf.h"

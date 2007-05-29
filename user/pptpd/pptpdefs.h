@@ -3,7 +3,7 @@
  *
  * PPTP structs and defines
  *
- * $Id$
+ * $Id: pptpdefs.h,v 1.2 2001/11/12 00:06:06 pauli Exp $
  */
 
 #ifndef _PPTPD_PPTPDEFS_H

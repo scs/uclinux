@@ -43,7 +43,7 @@
 #ifndef EMBED
 #ifndef lint
 static char copyright[] =
-"$Id$ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: confpars.c,v 1.5 2005/05/23 08:15:53 philipc Exp $ Copyright (c) 1995, 1996 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 #endif
 

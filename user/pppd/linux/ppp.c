@@ -45,7 +45,7 @@
 
 #define PPP_MAX_RCV_QLEN	32	/* max # frames we queue up for pppd */
 
-/* $Id$ */
+/* $Id: ppp.c,v 1.1.1.1 1999/11/22 03:47:53 christ Exp $ */
 
 #include <linux/version.h>
 #include <linux/config.h>

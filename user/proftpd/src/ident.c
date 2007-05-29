@@ -25,7 +25,7 @@
 
 /*
  * Ident (RFC1413) protocol support
- * $Id$
+ * $Id: ident.c,v 1.21 2004/10/30 20:45:52 castaglia Exp $
  */
 
 #include "conf.h"

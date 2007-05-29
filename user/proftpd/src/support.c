@@ -27,7 +27,7 @@
 /* Various basic support routines for ProFTPD, used by all modules
  * and not specific to one or another.
  *
- * $Id$
+ * $Id: support.c,v 1.77 2005/03/18 18:25:55 castaglia Exp $
  */
 
 #include "conf.h"

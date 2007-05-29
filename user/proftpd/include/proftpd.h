@@ -25,7 +25,7 @@
  */
 
 /* General options
- * $Id$
+ * $Id: proftpd.h,v 1.53 2005/02/26 17:28:58 castaglia Exp $
  */
 
 #ifndef PR_PROFTPD_H

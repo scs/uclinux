@@ -26,7 +26,7 @@
 
 /* ProFTPD internal implemenation of syslog(3) routines
  *
- * $Id$
+ * $Id: pr-syslog.h,v 1.4 2003/07/25 01:21:58 jwm Exp $
  */
 
 #include "conf.h"

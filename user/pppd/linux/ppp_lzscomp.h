@@ -1,5 +1,5 @@
 /*
- * $Id$
+ * $Id: ppp_lzscomp.h,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
  *
  * Header for isdn_lzscomp.c
  * Concentrated here to not mess up half a dozen kernel headers with code

@@ -4,7 +4,7 @@
  * Written by Abraham vd Merwe <abraham@2d3d.co.za>
  * All rights reserved.
  *
- * $Id$
+ * $Id: mtd_debug.c,v 1.1 2001/06/18 10:47:25 abz Exp $
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions

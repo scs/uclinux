@@ -24,7 +24,7 @@
 
 /* Controls API routines
  *
- * $Id$
+ * $Id: ctrls.c,v 1.10 2004/11/02 18:18:59 castaglia Exp $
  */
 
 #include "conf.h"

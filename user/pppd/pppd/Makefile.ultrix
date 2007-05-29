@@ -1,6 +1,6 @@
 #
 # pppd makefile for Ultrix
-# $Id$
+# $Id: Makefile.ultrix,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
 #
 
 BINDIR = /usr/local/etc

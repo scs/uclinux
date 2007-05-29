@@ -40,7 +40,7 @@
  * Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *    - Initial distribution.
  *
- *	$Id$
+ *	$Id: pppcompress.c,v 1.1.1.1 1999/11/22 03:47:53 christ Exp $
  */
   
 #include <sys/types.h>

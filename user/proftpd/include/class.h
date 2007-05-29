@@ -23,7 +23,7 @@
  */
 
 /* Class definitions
- * $Id$
+ * $Id: class.h,v 1.3 2004/05/03 17:25:23 castaglia Exp $
  */
 
 #ifndef PR_CLASS_H

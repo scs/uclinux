@@ -27,7 +27,7 @@
 /* Memory allocation/anti-leak system.  Yes, this *IS* stolen from Apache
  * also.  What can I say?  It makes sense, and it's safe (more overhead
  * though)
- * $Id$
+ * $Id: pool.h,v 1.18 2004/01/09 04:23:15 castaglia Exp $
  */
 
 #ifndef PR_POOL_H

@@ -26,7 +26,7 @@
 
 /*
  * Data connection management functions
- * $Id$
+ * $Id: data.c,v 1.86 2005/04/10 23:19:48 castaglia Exp $
  */
 
 #include "conf.h"

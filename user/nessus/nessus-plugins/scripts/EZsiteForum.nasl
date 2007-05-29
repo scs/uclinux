@@ -11,7 +11,7 @@
 if(description)
 {
  script_id(11833);
- script_version("$Revision$");
+ script_version("$Revision: 1.8 $");
  name["english"] = "EZsite Forum Discloses Passwords to Remote Users";
  script_name(english:name["english"]);
  # script_cve_id("CVE-MAP-NOMATCH");

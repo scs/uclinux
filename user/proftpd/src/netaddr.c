@@ -23,7 +23,7 @@
  */
 
 /* Network address routines
- * $Id$
+ * $Id: netaddr.c,v 1.45 2004/11/02 18:18:59 castaglia Exp $
  */
 
 #include "conf.h"

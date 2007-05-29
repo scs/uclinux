@@ -25,7 +25,7 @@
  */
 
 /* Unix authentication module for ProFTPD
- * $Id$
+ * $Id: mod_auth_unix.c,v 1.22 2005/04/04 20:41:00 castaglia Exp $
  */
 
 #include "conf.h"

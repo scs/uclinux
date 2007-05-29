@@ -26,7 +26,7 @@
 
 /* ProFTPD virtual/modular filesystem support.
  *
- * $Id$
+ * $Id: fsio.h,v 1.11 2005/02/26 17:28:58 castaglia Exp $
  */
 
 #ifndef PR_FSIO_H

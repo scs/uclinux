@@ -2,7 +2,7 @@
  *                efficiently.
  *                C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: vector.c,v 1.2 2000/07/24 23:18:27 matthewn Exp $
  */
 
 #include <stdlib.h>

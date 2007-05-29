@@ -13,7 +13,7 @@
  *               NOTE: This is very likely to be highly non-portable.
  *               C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: pty.h,v 1.3 2004/06/21 03:07:24 davidm Exp $
  */
 
 /* Hmm.  PTYs can be anywhere.... */

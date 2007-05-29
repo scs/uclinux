@@ -26,7 +26,7 @@
  * This is mod_ifsession, contrib software for proftpd 1.2 and above.
  * For more information contact TJ Saunders <tj@castaglia.org>.
  *
- * $Id$
+ * $Id: mod_ifsession.c,v 1.18 2004/12/17 18:24:57 castaglia Exp $
  */
 
 #include "conf.h"

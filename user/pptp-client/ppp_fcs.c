@@ -15,7 +15,7 @@
  *
  *  [9]   LeVan, J., "A Fast CRC", Byte, November 1987.
  *
- * $Id$
+ * $Id: ppp_fcs.c,v 1.2 2000/07/24 23:18:27 matthewn Exp $
  */
 
 #include <sys/types.h>

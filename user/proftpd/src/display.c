@@ -24,7 +24,7 @@
 
 /*
  * Display of files
- * $Id$
+ * $Id: display.c,v 1.5 2004/12/04 07:39:44 castaglia Exp $
  */
 
 #include "conf.h"

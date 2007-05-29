@@ -20,7 +20,7 @@
  *
  *
  *  Revision History:
- *  $Id$
+ *  $Id: JitterTest.c,v 1.12 2001/08/10 19:23:11 vipin Exp $
  *  $Log: JitterTest.c,v $
  *  Revision 1.12  2001/08/10 19:23:11  vipin
  *  Ready to be released under GPL! Added proper headers etc.
@@ -162,7 +162,7 @@ enum timerActions
 
 /************************** Module Variables **************************/
 /* version identifier (value supplied by CVS)*/
-static const char Version[] = "$Id$";
+static const char Version[] = "$Id: JitterTest.c,v 1.12 2001/08/10 19:23:11 vipin Exp $";
 
 static char OutFileName[MAX_FILE_NAME_LEN+1];  /* output file name            */
 static char LogFile[MAX_FILE_NAME_LEN+1] = "/dev/console"; /* default */

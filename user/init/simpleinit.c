@@ -95,7 +95,7 @@ extern void spawn(int);
 extern void hup_handler();
 extern void reload_inittab();
 extern void read_inittab(void);
-extern void read_initfile(const char *);
+static int  read_initfile(const char *);
 extern void tstp_handler();
 extern void int_handler();
 extern void sigint_processing();
@@ -222,7 +222,10 @@ static int do_command(const char *path, const char *filename, int dowait)
 #endif
 		char *env[3];
 
+		/* Use /dev/null for stdin */
 		close(0);
+		open("/dev/null", O_RDONLY);
+
 		argv[0] = (char *)path;
 		argv[1] = (char *)filename;
 		argv[2] = NULL;
@@ -295,7 +298,7 @@ static int do_rc(void)
 	return(0);
 }
 
-void respawn_children() {
+void respawn_children(int signo) {
 	int i, delta = -1;
 	time_t now;
 	alarm(0);
@@ -304,7 +307,11 @@ void respawn_children() {
 		if(inittab[i].pid < 0) {	/* Start jobs */
 			if(stopped)
 				inittab[i].pid = -1;
-			else
+			/*
+			** Do not spawn child from signal handler !
+			** SIGALRM would be blocked for the child
+			*/
+			else if (signo == 0)
 				spawn(i);
 		}
 		/* Check for naughty jobs */
@@ -378,6 +385,7 @@ int main(int argc, char *argv[])
 		have_console = 1;
 		make_ascii_tty();
 	} else if (fstat(1, &st) == -1 && errno == EBADF) {
+		/* No stdout, so send everything to /dev/null */
 		close(0); close(1); close(2);
 		open("/dev/null", O_RDWR);
 		dup(0);
@@ -421,10 +429,8 @@ int main(int argc, char *argv[])
 #if LINUX_VERSION_CODE < 0x020100
 	for(i = 0; i < getdtablesize(); i++) close(i);
 #else
-	i = 0;
-	if (have_console)
-		i = 3;
-	for(; i < getdtablesize(); i++) close(i);
+	/* Always leave 0, 1, and 2 connected (to /dev/null) for the child process */
+	for(i = 3; i < getdtablesize(); i++) close(i);
 #endif
 
 	for (;;) {
@@ -436,7 +442,7 @@ int main(int argc, char *argv[])
 			sigint_processing();
 		}
 
-		respawn_children();
+		respawn_children(0);
 
 		if (reload) {
 			reload = 0;
@@ -535,7 +541,8 @@ void spawn(int i)
 	it = inittab + i;
 
 	t = time(NULL);
-	if (it->nextrun > t)			/* Check for held process */
+	/* Check for held process */
+	if ((unsigned long)(it->nextrun - t - 1) < maxdelay)
 		return;
 	if (it->lastrun + testtime > t) {	/* Respawning quickly */
 		if (it->xcnt < 0xff)
@@ -586,9 +593,11 @@ void spawn(int i)
 		
 		setsid();
 
-		// for(j = have_console ? 1 : 0; j < getdtablesize(); j++)
-		for(j = 0; j < getdtablesize(); j++)
+		/* Close everything other than 0, 1 and 2 */
+		for(j = 3; j < getdtablesize(); j++) {
 			close(j);
+		}
+		/* Now set up 0, 1 and 2 */
 		make_console(it->tty);
 
 		strcpy(term, "TERM=");
@@ -605,8 +614,8 @@ void spawn(int i)
 #endif
 
 		prog = it->toks[0];
-		if (it->toks[0][0] == '-')
-			++prog;
+		if (*prog == '-' && *(prog+1))
+			prog++;
 		execve(prog, it->toks, env);
 		strcpy(buf, it->toks[0]);
 		strcat(buf, " exec failed\n");
@@ -618,6 +627,7 @@ void spawn(int i)
 static void init_itab(struct initline *p) {
 	bzero(p, sizeof(struct initline));
 	p->pid = -1;
+	p->nextrun = time(NULL);
 }
 
 static void clear_itab(struct initline *p) {
@@ -627,8 +637,7 @@ static void clear_itab(struct initline *p) {
 		free(p->fullline);
 	if (p->toks)
 		free(p->toks);
-	bzero(p, sizeof(struct initline));
-	p->pid = -1;
+	init_itab(p);
 }
 
 void read_inittab(void)
@@ -660,11 +669,23 @@ void read_inittab(void)
 	}
 #endif
 
-	read_initfile(_PATH_INITTAB);
+	i = 0;
+	if (read_initfile(_PATH_INITTAB) == 0)
+		i++;
 
 #ifdef CONFIG_USER_FLATFSD_FLATFSD
-	read_initfile(_PATH_CONFIGTAB);
+	if (read_initfile(_PATH_CONFIGTAB) == 0)
+		i++;
 #endif
+
+	if (i == 0) {
+		err("Failed to open " _PATH_INITTAB
+#ifdef CONFIG_USER_FLATFSD_FLATFSD
+				" or " _PATH_CONFIGTAB
+#endif
+				"."
+				);
+	}
 
 #ifdef CONFIG_USER_INIT_CONF
 	load_init_conf();
@@ -688,7 +709,8 @@ void read_inittab(void)
 		_exit(1);
 }
 
-void read_initfile(const char *initfile)
+static int
+read_initfile(const char *initfile)
 {
 	struct initline *p;
 	FILE *f;
@@ -707,10 +729,8 @@ void read_initfile(const char *initfile)
 			
 	i = numcmd;
 
-	if(!(f = fopen(initfile, "r"))) {
-		err("cannot open inittab\n");
-		return;
-	}
+	if (!(f = fopen(initfile, "r")))
+		return 1;
 
 	while(!feof(f)) {
 		if (i+2 == inittab_size) {
@@ -794,6 +814,7 @@ void read_initfile(const char *initfile)
 	fclose(f);
 
 	numcmd = i;
+	return 0;
 }
 
 void hup_handler()
@@ -1009,42 +1030,38 @@ void make_ascii_tty(void)
 
 void make_console(const char *tty)
 {
-	int j;
 	char devname[32];
 
 	close(0); close(1); close(2);
-	if (!tty || !*tty) {
-		if (open("/dev/null", O_RDWR|O_NONBLOCK) >= 0)
-			dup(0), dup(0);
-		return;
-	}
 
+	if (tty && *tty) {
 #if LINUX_VERSION_CODE < 0x020100
-/*
- *	until we get proper console support under 2.0
- */
-	if (strcmp(tty, "console") == 0) {
-		strcpy(devname, console_device);
-	} else
+	    /*
+	     *	until we get proper console support under 2.0
+	     */
+	    if (strcmp(tty, "console") == 0) {
+		    strcpy(devname, console_device);
+	    }
+	    else
 #endif
-	{
-		strcpy(devname, "/dev/");
-		strcat(devname, tty);
-	}
+	    {
+		    strcpy(devname, "/dev/");
+		    strcat(devname, tty);
+	    }
 
-#if 1 // DAVIDM_FIXME
-	if (open(devname, O_RDWR|O_NONBLOCK) == -1) {
-#ifdef DEBUGGING
-		printf("console '%s' open failed: %d\n", devname, errno);
-#endif
+	    /* Try to open the specified console */
+	    if (open(devname, O_RDWR|O_NONBLOCK) >= 0) {
+		fcntl(0, F_SETFL, 0);
+		dup(0); 
+		dup(0);
+		make_ascii_tty();
+		ioctl(0, TIOCSCTTY, (char*)0);
 		return;
+	    }
 	}
-#endif
 
-	fcntl(0, F_SETFL, 0);
-	dup(0); 
+	/* No go, so send to /dev/null */
+	open("/dev/null", O_RDWR|O_NONBLOCK);
 	dup(0);
-	make_ascii_tty();
-	j = ioctl(0, TIOCSCTTY, (char*)0);
+	dup(0);
 }
-

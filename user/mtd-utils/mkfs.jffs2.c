@@ -18,7 +18,7 @@
  *  -Erik, Septermber 2001
  */
 
-/* $Id$ */
+/* $Id: mkfs.jffs2.c,v 1.20 2002/02/08 00:51:52 dwmw2 Exp $ */
 
 //#define DMALLOC
 //#define mkfs_debug_msg	error_msg
@@ -1165,7 +1165,7 @@ static char *helptext =
 	"  -v, --version          Display version information\n\n";
 
 
-static char *revtext = "$Revision$";
+static char *revtext = "$Revision: 1.20 $";
 
 int main(int argc, char **argv)
 {

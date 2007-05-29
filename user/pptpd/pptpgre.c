@@ -4,7 +4,7 @@
  * originally by C. S. Ananian
  * Modified for PoPToP
  *
- * $Id$
+ * $Id: pptpgre.c,v 1.9 2004/02/19 03:23:45 davidm Exp $
  */
 
 #ifdef HAVE_CONFIG_H

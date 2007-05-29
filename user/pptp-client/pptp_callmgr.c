@@ -2,7 +2,7 @@
  *                    Handles TCP port 1723 protocol.
  *                    C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: pptp_callmgr.c,v 1.16 2006/06/22 06:30:30 steveb Exp $
  */
 #include <signal.h>
 #include <sys/time.h>

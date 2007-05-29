@@ -26,7 +26,7 @@
 
 /* Data transfer module for ProFTPD
  *
- * $Id$
+ * $Id: mod_xfer.c,v 1.182 2004/12/12 00:14:42 castaglia Exp $
  */
 
 #include "conf.h"

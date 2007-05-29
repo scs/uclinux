@@ -3,7 +3,7 @@
  *
  * Manages the PoPToP sessions.
  *
- * $Id$
+ * $Id: pptpmanager.c,v 1.11 2002/08/27 03:28:24 philipc Exp $
  */
 
 #ifdef HAVE_CONFIG_H

@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile.linux,v 1.1.1.1 1999/11/22 03:47:53 christ Exp $
 
 CDEF1=	-DTERMIOS			# Use the termios structure
 CDEF2=	-DSIGTYPE=void			# Standard definition

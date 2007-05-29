@@ -28,7 +28,7 @@
   It is suitable for plotting, as the data is written as
   COL1=UsedSpace COL2=Jitter
 
-  $Id$
+  $Id: plotJittervsFill.c,v 1.5 2001/08/10 19:23:11 vipin Exp $
   $Log: plotJittervsFill.c,v $
   Revision 1.5  2001/08/10 19:23:11  vipin
   Ready to be released under GPL! Added proper headers etc.
@@ -59,7 +59,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-static char Version_string[] = "$Id$";
+static char Version_string[] = "$Id: plotJittervsFill.c,v 1.5 2001/08/10 19:23:11 vipin Exp $";
 static char LogFile[250] = "InputLogFile.log";
 
 static int JitterThreshold_ms = 1000;

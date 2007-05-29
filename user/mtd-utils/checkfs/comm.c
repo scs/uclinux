@@ -9,7 +9,7 @@
 
   (including none or non serial mode at all)
 
-  $Id$
+  $Id: comm.c,v 1.2 2001/06/21 23:07:18 dwmw2 Exp $
   $Log: comm.c,v $
   Revision 1.2  2001/06/21 23:07:18  dwmw2
   Initial import to MTD CVS

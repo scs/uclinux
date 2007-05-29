@@ -23,7 +23,7 @@
  * the resulting executable, without including the source code for OpenSSL in
  * the source distribution.
  *
- * $Id$
+ * $Id: mod_sql.c,v 1.90 2004/12/23 19:55:32 castaglia Exp $
  */
 
 #include "conf.h"

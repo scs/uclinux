@@ -3,7 +3,7 @@
  *
  *  Copyright (C) 2000 Steven J. Hill (sjhill@cotw.com)
  *
- * $Id$
+ * $Id: nandwrite.c,v 1.3 2001/03/07 09:34:19 ollie Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

@@ -1,6 +1,6 @@
 # ppp top level makefile for NeXT systems
 #
-# $Id$
+# $Id: Makefile.top,v 1.1.1.1 1999/11/22 03:47:52 christ Exp $
 #
 
 # Change the values of ARCHFLAGS to include the 

@@ -1,7 +1,7 @@
 #
 # Dummy Makefile for OSF/1
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
 #
 
 KOBJ = if_ppp.o ppp_comp.o ppp_init.o vjcompress.o bsd-comp.o deflate.o\

@@ -32,7 +32,7 @@
 
 /*
  * sample module for ProFTPD
- * $Id$
+ * $Id: mod_sample.c,v 1.9 2004/09/05 22:01:39 castaglia Exp $
  */
 
 #include "conf.h"

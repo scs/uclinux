@@ -23,7 +23,7 @@
  * the resulting executable, without including the source code for OpenSSL in
  * the source distribution.
  *
- * $Id$
+ * $Id: mod_sql_postgres.c,v 1.26 2004/12/16 18:17:42 castaglia Exp $
  */
 
 /*

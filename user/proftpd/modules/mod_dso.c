@@ -25,7 +25,7 @@
  * This is mod_dso, contrib software for proftpd 1.2.x.
  * For more information contact TJ Saunders <tj@castaglia.org>.
  *
- * $Id$
+ * $Id: mod_dso.c,v 1.9 2004/12/17 21:56:00 castaglia Exp $
  */
 
 #include "conf.h"

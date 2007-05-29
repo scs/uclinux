@@ -24,7 +24,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id$
+ * $Id: if_ppp.c,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
  */
 
 /*

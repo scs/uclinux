@@ -24,7 +24,7 @@
 
 /*
  * Configuration parser
- * $Id$
+ * $Id: parser.c,v 1.3 2004/10/31 22:26:18 castaglia Exp $
  */
 
 #include "conf.h"

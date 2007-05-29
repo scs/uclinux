@@ -5,7 +5,7 @@
  *
  * Originally from C. S. Ananian's pptpclient
  *
- * $Id$
+ * $Id: inststr.c,v 1.1.1.1 1999/11/22 03:48:02 christ Exp $
  */
 
 #ifdef HAVE_CONFIG_H

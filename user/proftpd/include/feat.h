@@ -23,7 +23,7 @@
  */
 
 /* Feature list management
- * $Id$
+ * $Id: feat.h,v 1.3 2003/03/09 02:07:00 castaglia Exp $
  */
 
 #ifndef PR_FEAT_H

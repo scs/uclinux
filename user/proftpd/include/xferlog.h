@@ -24,7 +24,7 @@
 
 /* TransferLog routines
  *
- * $Id$
+ * $Id: xferlog.h,v 1.1 2003/11/09 22:19:45 castaglia Exp $
  */
 
 #ifndef PR_XFERLOG_H

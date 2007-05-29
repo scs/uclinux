@@ -23,7 +23,7 @@
  */
 
 /* Management of child objects
- * $Id$
+ * $Id: child.h,v 1.2 2004/04/30 19:01:29 castaglia Exp $
  */
 
 #ifndef PR_CHILD_H

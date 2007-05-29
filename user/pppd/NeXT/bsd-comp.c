@@ -49,7 +49,7 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * $Id$
+ * $Id: bsd-comp.c,v 1.1.1.1 1999/11/22 03:47:52 christ Exp $
  */
 
 #include <sys/types.h>

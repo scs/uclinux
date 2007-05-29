@@ -26,7 +26,7 @@ None";
 
 if (description) {
   script_id(11846);
-  script_version("$Revision$");
+  script_version("$Revision: 1.8 $");
 
   script_name(english:"Detects Shareaza");
   script_summary(english:"Checks for Shareaza"); 

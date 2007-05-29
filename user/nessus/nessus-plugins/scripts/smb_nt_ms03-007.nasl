@@ -6,7 +6,7 @@ if(description)
 {
  script_id(11413);
  script_bugtraq_id(7116);
- script_version("$Revision$");
+ script_version("$Revision: 1.19 $");
  script_cve_id("CVE-2003-0109");
  if(defined_func("script_xref"))script_xref(name:"IAVA", value:"2003-A-0005");
 

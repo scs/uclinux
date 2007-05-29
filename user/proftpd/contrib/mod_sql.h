@@ -23,7 +23,7 @@
  * the resulting executable, without including the source code for OpenSSL in
  * the source distribution.
  *
- * $Id$
+ * $Id: mod_sql.h,v 1.6 2004/09/26 18:09:11 castaglia Exp $
  */
 
 #ifndef MOD_SQL_H

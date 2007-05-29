@@ -36,7 +36,7 @@
  *	- Initial distribution.
  *
  *	From: 	slcompress.h	7.4	90/06/28
- *	$Id$
+ *	$Id: pppcompress.h,v 1.1.1.1 1999/11/22 03:47:53 christ Exp $
  */
 
 #ifndef _NET_PPPCOMPRESS_H_

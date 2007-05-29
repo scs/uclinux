@@ -3,7 +3,7 @@
 # Reconfigure the beast, rebuilding dependencies and updating version numbers
 # as appropriate.
 #
-# $Id$
+# $Id: reconf,v 1.1.1.1 1999/11/22 03:48:02 christ Exp $
 
 if test -f config.h
 then

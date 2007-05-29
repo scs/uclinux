@@ -4,7 +4,7 @@
  *  Copyright (C) 2000 David Woodhouse (dwmw2@infradead.org)
  *                     Steven J. Hill (sjhill@cotw.com)
  *
- * $Id$
+ * $Id: nanddump.c,v 1.11 2001/06/11 17:00:50 dwmw2 Exp $
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

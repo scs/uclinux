@@ -3,7 +3,7 @@
  *
  * Dummy autoconf results for uClinux target.
  *
- * $Id$
+ * $Id: config.embed.h,v 1.7 2004/06/21 03:07:24 davidm Exp $
  */
 
 #include <features.h> /* for __UC_LIBC__ */

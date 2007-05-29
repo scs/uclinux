@@ -23,7 +23,7 @@
  */
 
 /* Event management code
- * $Id$
+ * $Id: event.c,v 1.11 2004/12/16 03:01:21 castaglia Exp $
  */
 
 #include "conf.h"

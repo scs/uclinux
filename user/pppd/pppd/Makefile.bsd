@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile.bsd,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
 
 BINDIR?= /usr/sbin
 # -D_BITYPES is for FreeBSD, which doesn't define anything to

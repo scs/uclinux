@@ -1,5 +1,5 @@
 /*	$NetBSD: if_ppp.c,v 1.46 1998/08/02 15:09:50 sommerfe Exp $	*/
-/*	$Id$ 	*/
+/*	$Id: if_ppp.c,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $ 	*/
 
 /*
  * if_ppp.c - Point-to-Point Protocol (PPP) Asynchronous driver.

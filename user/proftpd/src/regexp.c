@@ -26,7 +26,7 @@
 
 /*
  * Regex management code
- * $Id$
+ * $Id: regexp.c,v 1.13 2004/09/05 00:38:14 castaglia Exp $
  */
 
 #include "conf.h"

@@ -25,7 +25,7 @@
  */
 
 /* Generic configuration and standard header file includes.
- * $Id$
+ * $Id: conf.h,v 1.60 2005/02/26 17:28:57 castaglia Exp $
  */
 
 #ifndef PR_CONF_H

@@ -4,7 +4,7 @@
  * Grabs any command line argument and procecesses any further options in
  * the pptpd config file, before throwing over to pptpmanager.c.
  *
- * $Id$
+ * $Id: pptpd.c,v 1.14 2005/06/08 04:43:53 philipc Exp $
  */
 
 #ifdef HAVE_CONFIG_H

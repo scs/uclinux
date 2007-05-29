@@ -13,7 +13,7 @@
 # config: /etc/proftpd.conf
 #
 # By: Osman Elliyasa <osman@Cable.EU.org>
-# $Id$
+# $Id: proftpd.init.d,v 1.7 2002/12/07 21:50:27 jwm Exp $
 
 # Source function library.
 . /etc/rc.d/init.d/functions

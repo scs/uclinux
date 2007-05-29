@@ -1,7 +1,7 @@
 #
 # Makefile for NeXT OS 3.2
 #
-# $Id$
+# $Id: Makefile,v 1.1.1.1 1999/11/22 03:47:52 christ Exp $
 #
 
 #ARCHFLAGS = -arch i386 -arch m68k

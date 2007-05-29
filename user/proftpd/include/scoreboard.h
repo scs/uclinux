@@ -24,7 +24,7 @@
 
 /* Scoreboard routines.
  *
- * $Id$
+ * $Id: scoreboard.h,v 1.13 2004/11/02 18:18:58 castaglia Exp $
  */
 
 #ifndef PR_SCOREBOARD_H

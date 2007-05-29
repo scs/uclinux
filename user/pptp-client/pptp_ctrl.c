@@ -1,7 +1,7 @@
 /* pptp_ctrl.c ... handle PPTP control connection.
  *                 C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: pptp_ctrl.c,v 1.10 2006/04/13 05:19:06 steveb Exp $
  */
 
 #include <stdio.h>

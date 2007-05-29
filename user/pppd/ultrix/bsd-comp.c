@@ -40,7 +40,7 @@
 /*
  * This version is for use with mbufs on Ultrix systems.
  *
- * $Id$
+ * $Id: bsd-comp.c,v 1.1.1.1 1999/11/22 03:47:56 christ Exp $
  */
 
 #include "../h/param.h"

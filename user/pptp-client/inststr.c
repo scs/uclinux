@@ -1,7 +1,7 @@
 /* inststr.c ... stolen from bdupdate.c, which stole it from perl 4.
  *               Theft by C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: inststr.c,v 1.3 2006/04/13 05:19:06 steveb Exp $
  */
 
 #include <string.h>

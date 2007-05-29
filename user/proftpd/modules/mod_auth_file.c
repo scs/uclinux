@@ -23,7 +23,7 @@
  * distribute the resulting executable, without including the source code for
  * OpenSSL in the source distribution.
  *
- * $Id$
+ * $Id: mod_auth_file.c,v 1.24 2004/09/26 21:12:19 castaglia Exp $
  */
 
 #include "conf.h"

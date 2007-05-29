@@ -6,7 +6,7 @@
 if(description)
 {
  script_id(11454);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 
  name["english"] = "SMB log in with W32/Deloder passwords";
  

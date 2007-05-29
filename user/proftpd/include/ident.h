@@ -23,7 +23,7 @@
  * with OpenSSL, and distribute the resulting executable, without including
  * the source code for OpenSSL in the source distribution.
  *
- * $Id$
+ * $Id: ident.h,v 1.9 2003/02/12 08:49:14 castaglia Exp $
  */
 
 #ifndef PR_IDENT_H

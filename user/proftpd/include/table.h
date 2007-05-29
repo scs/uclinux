@@ -23,7 +23,7 @@
  */
 
 /* Table management
- * $Id$
+ * $Id: table.h,v 1.3 2004/11/11 02:44:04 castaglia Exp $
  */
 
 #ifndef PR_TABLE_H

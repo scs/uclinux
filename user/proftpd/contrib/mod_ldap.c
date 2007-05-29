@@ -47,7 +47,7 @@
  *                                                   LDAPDefaultAuthScheme
  *
  *
- * $Id$
+ * $Id: mod_ldap.c,v 1.38 2005/03/11 20:44:11 jwm Exp $
  * $Libraries: -lldap -llber$
  */
 

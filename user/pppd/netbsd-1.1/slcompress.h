@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: slcompress.h,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $	*/
 
 /*
  * Copyright (c) 1989, 1993

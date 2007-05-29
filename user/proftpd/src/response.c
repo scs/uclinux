@@ -23,7 +23,7 @@
  */
 
 /* Command response routines
- * $Id$
+ * $Id: response.c,v 1.4 2003/06/03 16:25:23 castaglia Exp $
  */
 
 #include "conf.h"

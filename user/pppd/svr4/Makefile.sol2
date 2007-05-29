@@ -1,7 +1,7 @@
 #
 # Makefile for STREAMS modules for Solaris 2.
 #
-# $Id$
+# $Id: Makefile.sol2,v 1.1.1.1 1999/11/22 03:47:56 christ Exp $
 #
 
 include Makedefs

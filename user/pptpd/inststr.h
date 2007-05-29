@@ -4,7 +4,7 @@
  * Change process title
  * From code by C. S. Ananian
  *
- * $Id$
+ * $Id: inststr.h,v 1.1.1.1 1999/11/22 03:48:02 christ Exp $
  */
 
 #ifndef _PPTPD_INSTSTR_H

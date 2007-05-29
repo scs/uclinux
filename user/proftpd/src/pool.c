@@ -26,7 +26,7 @@
 
 /*
  * Resource allocation code
- * $Id$
+ * $Id: pool.c,v 1.43 2005/03/08 17:06:39 castaglia Exp $
  */
 
 #include "conf.h"

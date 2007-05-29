@@ -25,7 +25,7 @@
  */
 
 /* ProFTPD logging support.
- * $Id$
+ * $Id: log.c,v 1.71 2004/11/02 18:18:59 castaglia Exp $
  */
 
 #include "conf.h"

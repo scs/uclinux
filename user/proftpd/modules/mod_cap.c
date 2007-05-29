@@ -31,7 +31,7 @@
  * -- DO NOT MODIFY THE TWO LINES BELOW --
  * $Libraries: -Llib/libcap -lcap$
  * $Directories: lib/libcap$
- * $Id$
+ * $Id: mod_cap.c,v 1.13 2004/05/30 21:50:58 castaglia Exp $
  */
 
 #include <stdio.h>

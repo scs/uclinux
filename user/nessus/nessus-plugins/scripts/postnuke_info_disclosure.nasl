@@ -8,7 +8,7 @@
 if (description)
 {
  script_id(11482);
- script_version("$Revision$");
+ script_version("$Revision: 1.7 $");
  script_name(english:"Post-Nuke information disclosure");
  desc["english"] = "
 The remote host is running post-nuke. It is possible to use it

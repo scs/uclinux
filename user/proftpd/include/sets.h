@@ -24,7 +24,7 @@
  * the source code for OpenSSL in the source distribution.
  */
 
-/* $Id$
+/* $Id: sets.h,v 1.8 2004/04/29 03:35:38 castaglia Exp $
  */
 
 #ifndef PR_SETS_H

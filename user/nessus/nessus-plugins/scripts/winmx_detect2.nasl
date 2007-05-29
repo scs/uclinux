@@ -9,7 +9,7 @@
 if(description)
 {
  script_id(11847);
- script_version("$Revision$");
+ script_version("$Revision: 1.4 $");
 #  script_cve_id("CVE-MAP-NOMATCH");
  name["english"] = "WinMX P2P check";
  script_name(english:name["english"]);

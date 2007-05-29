@@ -1,6 +1,6 @@
 # -*- sh -*-
 
-# $Id$
+# $Id: Makefile,v 1.20 2001/09/05 00:18:11 andersen Exp $
 
 #
 # These flags are used for build native versions of the tools for the

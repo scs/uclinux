@@ -1,7 +1,7 @@
 /*  pptp.h:  packet structures and magic constants for the PPTP protocol 
  *           C. Scott Ananian <cananian@alumni.princeton.edu>            
  *
- * $Id$
+ * $Id: pptp_msg.h,v 1.2 2000/07/24 23:18:27 matthewn Exp $
  */
 
 #ifndef INC_PPTP_H

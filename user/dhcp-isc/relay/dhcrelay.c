@@ -43,7 +43,7 @@
 #ifndef EMBED
 #ifndef lint
 static char ocopyright [] =
-"$Id$ Copyright (c) 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: dhcrelay.c,v 1.6 2004/09/01 09:36:10 philipc Exp $ Copyright (c) 1997, 1998, 1999 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 #endif
 

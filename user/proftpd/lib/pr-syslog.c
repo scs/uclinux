@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  */
 
-/* $Id$
+/* $Id: pr-syslog.c,v 1.16 2004/05/24 21:35:35 castaglia Exp $
  */
 
 #include "conf.h"

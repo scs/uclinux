@@ -4,7 +4,7 @@
                      LES RISQUES LIÉS À NESSUS
 ------------------------------------------------------------------------
 
-Dernière modification: $Date$
+Dernière modification: $Date: 2005/03/18 00:32:55 $
 
 0. Copyright
 

@@ -22,7 +22,7 @@
  * the resulting executable, without including the source code for OpenSSL in
  * the source distribution.
  *
- * $Id$
+ * $Id: mod_sql_mysql.c,v 1.38 2005/02/25 02:01:24 castaglia Exp $
  */
 
 /*

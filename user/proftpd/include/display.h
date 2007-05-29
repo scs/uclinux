@@ -23,7 +23,7 @@
  */
 
 /* Display of files
- * $Id$
+ * $Id: display.h,v 1.1 2004/10/31 18:53:05 castaglia Exp $
  */
 
 #ifndef PR_DISPLAY_H

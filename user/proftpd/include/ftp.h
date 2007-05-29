@@ -26,7 +26,7 @@
 
 /* FTP commands and responses (may not all be implemented)
  *
- * $Id$
+ * $Id: ftp.h,v 1.11 2004/10/30 20:44:41 castaglia Exp $
  */
 
 #ifndef PR_FTP_H

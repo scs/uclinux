@@ -24,7 +24,7 @@
 
 /*
  * HELP management code
- * $Id$
+ * $Id: help.c,v 1.1 2004/02/17 02:16:00 castaglia Exp $
  */
 
 #include "conf.h"

@@ -26,7 +26,7 @@
 /* Shows who is online via proftpd, in a manner similar to top.  Uses the
  * scoreboard files.
  *
- * $Id$
+ * $Id: ftptop.c,v 1.31 2004/11/02 18:18:59 castaglia Exp $
  */
 
 #define FTPTOP_VERSION "ftptop/0.9"

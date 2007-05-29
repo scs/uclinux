@@ -23,7 +23,7 @@
  */
 
 /* Variables API definition
- * $Id$
+ * $Id: var.h,v 1.2 2004/11/01 17:12:27 castaglia Exp $
  */
 
 #ifndef PR_VAR_H

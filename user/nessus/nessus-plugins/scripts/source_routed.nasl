@@ -13,7 +13,7 @@
 if(description)
 {
  script_id(11834);
- script_version("$Revision$");
+ script_version("$Revision: 1.18 $");
  
  name["english"] = "Source routed packets";
  script_name(english:name["english"]);

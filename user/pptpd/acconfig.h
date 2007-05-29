@@ -3,7 +3,7 @@
  *
  * Additional autoconf defines for this program.
  *
- * $Id$
+ * $Id: acconfig.h,v 1.1.1.1 1999/11/22 03:48:02 christ Exp $
  */
 
 /* Use BSD User land PPP? */

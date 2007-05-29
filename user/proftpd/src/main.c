@@ -26,7 +26,7 @@
 
 /*
  * House initialization and main program loop
- * $Id$
+ * $Id: main.c,v 1.271 2005/02/26 17:28:58 castaglia Exp $
  */
 
 #include "conf.h"

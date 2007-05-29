@@ -27,7 +27,7 @@
  * This is mod_ctrls, contrib software for proftpd 1.2 and above.
  * For more information contact TJ Saunders <tj@castaglia.org>.
  *
- * $Id$
+ * $Id: mod_ctrls.c,v 1.23 2004/12/12 05:59:27 castaglia Exp $
  */
 
 #include "conf.h"

@@ -25,7 +25,7 @@
  */
 
 /* Inet support functions, many wrappers for netdb functions
- * $Id$
+ * $Id: inet.c,v 1.93 2005/03/05 17:33:29 castaglia Exp $
  */
 
 #include "conf.h"

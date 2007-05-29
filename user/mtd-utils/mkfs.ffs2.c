@@ -1,5 +1,5 @@
 // Description
-// $Id$
+// $Id: mkfs.ffs2.c,v 1.3 2001/03/11 11:44:42 dwmw2 Exp $
 /* ######################################################################
 
    Microsoft Flash File System 2 

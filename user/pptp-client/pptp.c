@@ -2,7 +2,7 @@
  *            the pppd from the command line.
  *            C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: pptp.c,v 1.20 2006/04/13 05:19:06 steveb Exp $
  */
 
 #include <sys/types.h>

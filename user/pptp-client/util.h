@@ -1,7 +1,7 @@
 /* util.h ....... error message utilities.
  *                C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: util.h,v 1.3 2006/04/13 10:33:34 steveb Exp $
  */
 
 #ifndef INC_UTIL_H

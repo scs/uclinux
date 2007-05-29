@@ -1,6 +1,6 @@
 /* -*- mode: c; c-basic-offset: 1 -*-
 
- * $Id$
+ * $Id: ppp_lzscomp.c,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
  *
  * PPP link compression code for Stac LZS support
  * Initially just a RFC1974 decompressor is provided
@@ -29,7 +29,7 @@
 #endif
 
 static const char
-  rcsid[] = "$Id$";
+  rcsid[] = "$Id: ppp_lzscomp.c,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $";
 
 /* Wow. No wonder this needs so long to compile. This include list
  * is a shameless rip from other compressor code. Hopefully no (C)

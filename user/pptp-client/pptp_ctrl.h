@@ -1,7 +1,7 @@
 /* pptp_ctrl.h ... handle PPTP control connection.
  *                 C. Scott Ananian <cananian@alumni.princeton.edu>
  *
- * $Id$
+ * $Id: pptp_ctrl.h,v 1.5 2001/10/29 05:51:07 davidm Exp $
  */
 
 #ifndef INC_PPTP_CTRL_H

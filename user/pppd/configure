@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id$
+# $Id: configure,v 1.1.1.1 1999/11/22 03:47:52 christ Exp $
 
 if [ -d /NextApps ]; then
   system="NeXTStep"

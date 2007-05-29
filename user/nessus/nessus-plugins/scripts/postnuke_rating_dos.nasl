@@ -9,7 +9,7 @@ if (description)
 {
  script_id(11676);
  script_bugtraq_id(7702);
- script_version("$Revision$"); 
+ script_version("$Revision: 1.11 $"); 
  script_name(english:"Post-Nuke Rating System Denial Of Service");
  desc["english"] = "
 The remote host is running post-nuke. PostNuke Phoenix 0.721,

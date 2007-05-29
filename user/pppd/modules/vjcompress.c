@@ -29,7 +29,7 @@
  * This version is used under SunOS 4.x, Digital UNIX, AIX 4.x,
  * and SVR4 systems including Solaris 2.
  *
- * $Id$
+ * $Id: vjcompress.c,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
  */
 
 #include <sys/types.h>

@@ -3,7 +3,7 @@
  *
  * Functions to parse and send pptp control packets.
  *
- * $Id$
+ * $Id: ctrlpacket.h,v 1.1.1.1 1999/11/22 03:48:02 christ Exp $
  */
 
 #ifndef _PPTPD_CTRLPACKET_H

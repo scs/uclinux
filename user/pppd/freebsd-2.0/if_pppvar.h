@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: if_pppvar.h,v 1.1.1.1 1999/11/22 03:47:53 christ Exp $	*/
 /*
  * if_pppvar.h - private structures and declarations for PPP.
  *

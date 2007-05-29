@@ -25,7 +25,7 @@
 
 /*
  * Timer system, based on alarm() and SIGALRM
- * $Id$
+ * $Id: timers.c,v 1.24 2004/11/20 22:35:46 castaglia Exp $
  */
 
 #include "conf.h"

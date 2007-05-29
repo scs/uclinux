@@ -26,7 +26,7 @@
 
 /*
  * Authentication module for ProFTPD
- * $Id$
+ * $Id: mod_auth.c,v 1.203 2005/03/17 07:12:17 castaglia Exp $
  */
 
 #include "conf.h"

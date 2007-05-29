@@ -25,7 +25,7 @@
  * OBLIGATION TO PROVIDE MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS,
  * OR MODIFICATIONS.
  *
- * $Id$
+ * $Id: deflate.c,v 1.1.1.1 1999/11/22 03:47:55 christ Exp $
  */
 
 #include <sys/types.h>

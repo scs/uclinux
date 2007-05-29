@@ -25,7 +25,7 @@
  */
 
 /* Directory listing module for ProFTPD.
- * $Id$
+ * $Id: mod_ls.c,v 1.125 2005/03/16 16:16:44 castaglia Exp $
  */
 
 #include "conf.h"

@@ -31,7 +31,7 @@
  *   Copyright (C) 1985, 86, 87, 88, 89, 91, 92, 93, 1994, 1995, 1997
  *     Free Software Foundation, Inc.
  * 
- * $Id$
+ * $Id: mod_load.c.in,v 1.3 2005/01/06 23:39:59 castaglia Exp $
  * $Libraries: @MODULE_LIBS@ $
  */
 

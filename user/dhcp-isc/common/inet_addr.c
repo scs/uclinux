@@ -44,7 +44,7 @@ static char rcsid[] = "\0" //"$NetBSD: inet_addr.c,v 1.6 1996/02/02 15:22:23 mrg
 #ifndef lint
 #ifndef EMBED
 static char copyright[] =
-"$Id$ Copyright (c) 1983, 1990, 1993 The Regents of the University of California.  All rights reserved.\n";
+"$Id: inet_addr.c,v 1.3 2002/02/19 02:03:13 pauli Exp $ Copyright (c) 1983, 1990, 1993 The Regents of the University of California.  All rights reserved.\n";
 #endif /*!EMBED*/
 #endif /* not lint */
 

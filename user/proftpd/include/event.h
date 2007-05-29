@@ -23,7 +23,7 @@
  */
 
 /* Event management
- * $Id$
+ * $Id: event.h,v 1.4 2004/12/16 03:01:21 castaglia Exp $
  */
 
 #ifndef PR_EVENT_H

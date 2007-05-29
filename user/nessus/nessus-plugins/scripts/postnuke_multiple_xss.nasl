@@ -7,7 +7,7 @@ if (description)
 {
  script_id(11743);
  script_bugtraq_id(7898, 7901);
- script_version("$Revision$");
+ script_version("$Revision: 1.13 $");
 
  script_name(english:"Post-Nuke Multiple XSS");
  desc["english"] = "

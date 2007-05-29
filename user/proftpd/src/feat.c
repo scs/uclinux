@@ -24,7 +24,7 @@
 
 /*
  * Feature management code
- * $Id$
+ * $Id: feat.c,v 1.6 2003/11/01 07:11:07 castaglia Exp $
  */
 
 #include "conf.h"

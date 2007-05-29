@@ -2,7 +2,7 @@
 # pppd makefile for NeXT
 #
 # $Orignial: Makefile.ultrix,v 1.4 1994/09/01 00:40:40 paulus Exp $
-# $Id$
+# $Id: Makefile.NeXT,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
 #
 
 ARCHFLAGS = 

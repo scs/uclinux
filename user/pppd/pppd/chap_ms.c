@@ -40,7 +40,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: chap_ms.c,v 1.3 2002/08/28 06:19:47 philipc Exp $";
 #endif
 
 #ifdef CHAPMS

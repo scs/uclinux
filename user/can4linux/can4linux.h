@@ -43,8 +43,8 @@
 /**
 * \file can.h
 * \author Heinz-Jürgen Oertel, port GmbH
-* $Revision$
-* $Date$
+* $Revision: 1.2 $
+* $Date: 2006/06/13 05:58:13 $
 *
 * can4linux interface definitions
 *

@@ -1,6 +1,6 @@
 #
 # Makefile for pppd under SunOS 4.
-# $Id$
+# $Id: Makefile.sunos4,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $
 #
 
 include ../sunos4/Makedefs

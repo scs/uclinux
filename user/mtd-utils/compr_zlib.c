@@ -31,7 +31,7 @@
  * provisions above, a recipient may use your version of this file
  * under either the RHEPL or the GPL.
  *
- * $Id$
+ * $Id: compr_zlib.c,v 1.6 2001/04/18 15:04:00 dwmw2 Exp $
  *
  */
 

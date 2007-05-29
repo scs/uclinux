@@ -25,7 +25,7 @@
 
 /*
  * "SITE" commands module for ProFTPD
- * $Id$
+ * $Id: mod_site.c,v 1.44 2004/12/12 05:59:27 castaglia Exp $
  */
 
 #include "conf.h"

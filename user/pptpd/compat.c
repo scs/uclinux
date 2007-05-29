@@ -3,7 +3,7 @@
  *
  * Compatibility functions for different OSes
  *
- * $Id$
+ * $Id: compat.c,v 1.2 2002/08/07 21:26:24 davidm Exp $
  */
 
 #if HAVE_CONFIG_H

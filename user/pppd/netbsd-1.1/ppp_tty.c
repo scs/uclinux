@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: ppp_tty.c,v 1.1.1.1 1999/11/22 03:47:54 christ Exp $	*/
 
 /*
  * ppp_tty.c - Point-to-Point Protocol (PPP) driver for asynchronous

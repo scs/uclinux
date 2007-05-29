@@ -17,7 +17,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
 #ifndef lint
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: utils.c,v 1.3 2002/06/04 03:33:09 davidm Exp $";
 #endif
 
 #include <stdio.h>

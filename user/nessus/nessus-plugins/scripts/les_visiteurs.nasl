@@ -9,7 +9,7 @@ if(description)
  if (defined_func("script_xref")) {
    script_xref(name:"OSVDB", value:"3586");
  }
- script_version("$Revision$");
+ script_version("$Revision: 1.10 $");
  name["english"] = "'Les Visiteurs' script injection";
  script_name(english:name["english"]);
 
