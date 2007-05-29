@@ -842,6 +842,7 @@ if [ "$CONFIG_USER_BZIP2_BZIP2" = "y" ]; then
 	define_bool CONFIG_LIB_LIBBZ2 y
 fi
 bool 'cal'			CONFIG_USER_CAL_CAL
+bool 'can4linux examples'	CONFIG_USER_CAN_EXAMPLES
 bool 'chat'			CONFIG_USER_CHAT_CHAT
 if [ "$CONFIG_USER_CHAT_CHAT" = "y" ]; then
 	bool '  chat network/telnet support' CONFIG_USER_CHAT_CHAT_NETWORK
@@ -871,6 +872,7 @@ bool 'gdbreplay (old)'		CONFIG_USER_GDBSERVER_GDBREPLAY
 bool 'gdbserver (old)'		CONFIG_USER_GDBSERVER_GDBSERVER
 bool 'grep'			CONFIG_USER_GREP_GREP
 bool 'hd'			CONFIG_USER_HD_HD
+bool 'horch'			CONFIG_USER_CAN_HORCH
 bool 'lcd'			CONFIG_USER_LCD_LCD
 bool 'ledcon'			CONFIG_USER_LEDCON_LEDCON
 bool 'lha'			CONFIG_USER_LHA_LHA
