@@ -19,7 +19,6 @@
  * internationalization on your system.
  * 
  */
-#include <linux/autoconf.h>
 #include <config/autoconf.h>
 
 #define I18N 0
