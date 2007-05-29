@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile.am 4086 2006-09-29 20:12:51Z vapier $
 #
 # Top-level "Makefile.am" for libupnp
 #

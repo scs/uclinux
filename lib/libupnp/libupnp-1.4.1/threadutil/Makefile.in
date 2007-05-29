@@ -14,9 +14,9 @@
 
 @SET_MAKE@
 
-# $Id$
+# $Id: Makefile.in 4086 2006-09-29 20:12:51Z vapier $
 #
-# "Makefile.am" for "libupnp/ixml"
+# "Makefile.am" for "libupnp/threadutil"
 #
 # (C) Copyright 2005 Rémi Turboult <r3mi@users.sourceforge.net>
 #
@@ -44,10 +44,9 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-@ENABLE_DEBUG_TRUE@am__append_1 = -DDEBUG
-@ENABLE_DEBUG_FALSE@am__append_2 = -DNDEBUG
-check_PROGRAMS = test_document$(EXEEXT)
-subdir = ixml
+@ENABLE_DEBUG_TRUE@am__append_1 = -DDEBUG -DSTATS
+@ENABLE_DEBUG_FALSE@am__append_2 = -DNO_DEBUG -DNDEBUG
+subdir = threadutil
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in \
 	$(upnpinclude_HEADERS)
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
@@ -71,16 +70,11 @@ am__strip_dir = `echo $$p | sed -e 's|^.*/||'`;
 am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(upnpincludedir)"
 libLTLIBRARIES_INSTALL = $(INSTALL)
 LTLIBRARIES = $(lib_LTLIBRARIES)
-libixml_la_LIBADD =
+libthreadutil_la_LIBADD =
 am__dirstamp = $(am__leading_dot)dirstamp
-am_libixml_la_OBJECTS = src/ixml.lo src/node.lo src/ixmlparser.lo \
-	src/ixmlmembuf.lo src/nodeList.lo src/element.lo src/attr.lo \
-	src/document.lo src/namedNodeMap.lo
-libixml_la_OBJECTS = $(am_libixml_la_OBJECTS)
-am_test_document_OBJECTS = test/test_document.$(OBJEXT)
-test_document_OBJECTS = $(am_test_document_OBJECTS)
-test_document_LDADD = $(LDADD)
-test_document_DEPENDENCIES = libixml.la
+am_libthreadutil_la_OBJECTS = src/FreeList.lo src/LinkedList.lo \
+	src/ThreadPool.lo src/TimerThread.lo src/iasnprintf.lo
+libthreadutil_la_OBJECTS = $(am_libthreadutil_la_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir) -I$(top_builddir) -I$(top_builddir)/upnp/inc
 depcomp = $(SHELL) $(top_srcdir)/config.aux/depcomp
 am__depfiles_maybe = depfiles
@@ -92,19 +86,12 @@ LTCOMPILE = $(LIBTOOL) --tag=CC --mode=compile $(CC) $(DEFS) \
 CCLD = $(CC)
 LINK = $(LIBTOOL) --tag=CC --mode=link $(CCLD) $(AM_CFLAGS) $(CFLAGS) \
 	$(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(libixml_la_SOURCES) $(test_document_SOURCES)
-DIST_SOURCES = $(libixml_la_SOURCES) $(test_document_SOURCES)
-RECURSIVE_TARGETS = all-recursive check-recursive dvi-recursive \
-	html-recursive info-recursive install-data-recursive \
-	install-exec-recursive install-info-recursive \
-	install-recursive installcheck-recursive installdirs-recursive \
-	pdf-recursive ps-recursive uninstall-info-recursive \
-	uninstall-recursive
+SOURCES = $(libthreadutil_la_SOURCES)
+DIST_SOURCES = $(libthreadutil_la_SOURCES)
 upnpincludeHEADERS_INSTALL = $(INSTALL_HEADER)
 HEADERS = $(upnpinclude_HEADERS)
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = $(SUBDIRS)
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 ACLOCAL = @ACLOCAL@
 AMDEP_FALSE = @AMDEP_FALSE@
@@ -224,28 +211,23 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
-SUBDIRS = doc
 AM_CPPFLAGS = -I$(srcdir)/inc -I$(srcdir)/src/inc $(am__append_1) \
 	$(am__append_2)
-AM_CFLAGS = 
-LDADD = libixml.la
-lib_LTLIBRARIES = libixml.la
-libixml_la_LDFLAGS = -version-info $(LT_VERSION_IXML) \
-			  -export-symbols-regex '^ixml.*'
-
-libixml_la_SOURCES = \
-			src/ixml.c src/node.c src/ixmlparser.c \
-			src/ixmlmembuf.c src/nodeList.c \
-			src/element.c src/attr.c src/document.c \
-			src/namedNodeMap.c \
-			src/inc/ixmlmembuf.h src/inc/ixmlparser.h
+AM_CFLAGS = $(PTHREAD_CFLAGS)
+lib_LTLIBRARIES = libthreadutil.la
+libthreadutil_la_LDFLAGS = -version-info $(LT_VERSION_THREADUTIL)
+libthreadutil_la_SOURCES = \
+			src/FreeList.c src/LinkedList.c \
+			src/ThreadPool.c src/TimerThread.c \
+			src/iasnprintf.c
 
 upnpincludedir = $(includedir)/upnp
-upnpinclude_HEADERS = inc/ixml.h 
-TESTS = test/test_document.sh
-test_document_SOURCES = test/test_document.c
-EXTRA_DIST = test/test_document.sh test/testdata
-all: all-recursive
+upnpinclude_HEADERS = \
+			inc/FreeList.h inc/LinkedList.h \
+			inc/ThreadPool.h inc/TimerThread.h \
+			inc/iasnprintf.h inc/ithread.h
+
+all: all-am
 
 .SUFFIXES:
 .SUFFIXES: .c .lo .o .obj
@@ -258,9 +240,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  ixml/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  threadutil/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign  ixml/Makefile
+	  $(AUTOMAKE) --foreign  threadutil/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -311,71 +293,35 @@ src/$(am__dirstamp):
 src/$(DEPDIR)/$(am__dirstamp):
 	@$(mkdir_p) src/$(DEPDIR)
 	@: > src/$(DEPDIR)/$(am__dirstamp)
-src/ixml.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/node.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/ixmlparser.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/ixmlmembuf.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/nodeList.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/element.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/attr.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/document.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-src/namedNodeMap.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
-libixml.la: $(libixml_la_OBJECTS) $(libixml_la_DEPENDENCIES) 
-	$(LINK) -rpath $(libdir) $(libixml_la_LDFLAGS) $(libixml_la_OBJECTS) $(libixml_la_LIBADD) $(LIBS)
-
-clean-checkPROGRAMS:
-	@list='$(check_PROGRAMS)'; for p in $$list; do \
-	  f=`echo $$p|sed 's/$(EXEEXT)$$//'`; \
-	  echo " rm -f $$p $$f"; \
-	  rm -f $$p $$f ; \
-	done
-test/$(am__dirstamp):
-	@$(mkdir_p) test
-	@: > test/$(am__dirstamp)
-test/$(DEPDIR)/$(am__dirstamp):
-	@$(mkdir_p) test/$(DEPDIR)
-	@: > test/$(DEPDIR)/$(am__dirstamp)
-test/test_document.$(OBJEXT): test/$(am__dirstamp) \
-	test/$(DEPDIR)/$(am__dirstamp)
-test_document$(EXEEXT): $(test_document_OBJECTS) $(test_document_DEPENDENCIES) 
-	@rm -f test_document$(EXEEXT)
-	$(LINK) $(test_document_LDFLAGS) $(test_document_OBJECTS) $(test_document_LDADD) $(LIBS)
+src/FreeList.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/LinkedList.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/ThreadPool.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/TimerThread.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+src/iasnprintf.lo: src/$(am__dirstamp) src/$(DEPDIR)/$(am__dirstamp)
+libthreadutil.la: $(libthreadutil_la_OBJECTS) $(libthreadutil_la_DEPENDENCIES) 
+	$(LINK) -rpath $(libdir) $(libthreadutil_la_LDFLAGS) $(libthreadutil_la_OBJECTS) $(libthreadutil_la_LIBADD) $(LIBS)
 
 mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
-	-rm -f src/attr.$(OBJEXT)
-	-rm -f src/attr.lo
-	-rm -f src/document.$(OBJEXT)
-	-rm -f src/document.lo
-	-rm -f src/element.$(OBJEXT)
-	-rm -f src/element.lo
-	-rm -f src/ixml.$(OBJEXT)
-	-rm -f src/ixml.lo
-	-rm -f src/ixmlmembuf.$(OBJEXT)
-	-rm -f src/ixmlmembuf.lo
-	-rm -f src/ixmlparser.$(OBJEXT)
-	-rm -f src/ixmlparser.lo
-	-rm -f src/namedNodeMap.$(OBJEXT)
-	-rm -f src/namedNodeMap.lo
-	-rm -f src/node.$(OBJEXT)
-	-rm -f src/node.lo
-	-rm -f src/nodeList.$(OBJEXT)
-	-rm -f src/nodeList.lo
-	-rm -f test/test_document.$(OBJEXT)
+	-rm -f src/FreeList.$(OBJEXT)
+	-rm -f src/FreeList.lo
+	-rm -f src/LinkedList.$(OBJEXT)
+	-rm -f src/LinkedList.lo
+	-rm -f src/ThreadPool.$(OBJEXT)
+	-rm -f src/ThreadPool.lo
+	-rm -f src/TimerThread.$(OBJEXT)
+	-rm -f src/TimerThread.lo
+	-rm -f src/iasnprintf.$(OBJEXT)
+	-rm -f src/iasnprintf.lo
 
 distclean-compile:
 	-rm -f *.tab.c
 
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/attr.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/document.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/element.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ixml.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ixmlmembuf.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ixmlparser.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/namedNodeMap.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/node.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/nodeList.Plo@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@test/$(DEPDIR)/test_document.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/FreeList.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/LinkedList.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/ThreadPool.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/TimerThread.Plo@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@src/$(DEPDIR)/iasnprintf.Plo@am__quote@
 
 .c.o:
 @am__fastdepCC_TRUE@	depbase=`echo $@ | sed 's|[^/]*$$|$(DEPDIR)/&|;s|\.o$$||'`; \
@@ -429,77 +375,6 @@ uninstall-upnpincludeHEADERS:
 	  rm -f "$(DESTDIR)$(upnpincludedir)/$$f"; \
 	done
 
-# This directory's subdirectories are mostly independent; you can cd
-# into them and run `make' without going through this Makefile.
-# To change the values of `make' variables: instead of editing Makefiles,
-# (1) if the variable is set in `config.status', edit `config.status'
-#     (which will cause the Makefiles to be regenerated when you run `make');
-# (2) otherwise, pass the desired values on the `make' command line.
-$(RECURSIVE_TARGETS):
-	@failcom='exit 1'; \
-	for f in x $$MAKEFLAGS; do \
-	  case $$f in \
-	    *=* | --[!k]*);; \
-	    *k*) failcom='fail=yes';; \
-	  esac; \
-	done; \
-	dot_seen=no; \
-	target=`echo $@ | sed s/-recursive//`; \
-	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  echo "Making $$target in $$subdir"; \
-	  if test "$$subdir" = "."; then \
-	    dot_seen=yes; \
-	    local_target="$$target-am"; \
-	  else \
-	    local_target="$$target"; \
-	  fi; \
-	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
-	  || eval $$failcom; \
-	done; \
-	if test "$$dot_seen" = "no"; then \
-	  $(MAKE) $(AM_MAKEFLAGS) "$$target-am" || exit 1; \
-	fi; test -z "$$fail"
-
-mostlyclean-recursive clean-recursive distclean-recursive \
-maintainer-clean-recursive:
-	@failcom='exit 1'; \
-	for f in x $$MAKEFLAGS; do \
-	  case $$f in \
-	    *=* | --[!k]*);; \
-	    *k*) failcom='fail=yes';; \
-	  esac; \
-	done; \
-	dot_seen=no; \
-	case "$@" in \
-	  distclean-* | maintainer-clean-*) list='$(DIST_SUBDIRS)' ;; \
-	  *) list='$(SUBDIRS)' ;; \
-	esac; \
-	rev=''; for subdir in $$list; do \
-	  if test "$$subdir" = "."; then :; else \
-	    rev="$$subdir $$rev"; \
-	  fi; \
-	done; \
-	rev="$$rev ."; \
-	target=`echo $@ | sed s/-recursive//`; \
-	for subdir in $$rev; do \
-	  echo "Making $$target in $$subdir"; \
-	  if test "$$subdir" = "."; then \
-	    local_target="$$target-am"; \
-	  else \
-	    local_target="$$target"; \
-	  fi; \
-	  (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) $$local_target) \
-	  || eval $$failcom; \
-	done && test -z "$$fail"
-tags-recursive:
-	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  test "$$subdir" = . || (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) tags); \
-	done
-ctags-recursive:
-	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  test "$$subdir" = . || (cd $$subdir && $(MAKE) $(AM_MAKEFLAGS) ctags); \
-	done
-
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
 	unique=`for i in $$list; do \
@@ -510,23 +385,10 @@ ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	mkid -fID $$unique
 tags: TAGS
 
-TAGS: tags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+TAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
-	if ($(ETAGS) --etags-include --version) >/dev/null 2>&1; then \
-	  include_option=--etags-include; \
-	  empty_fix=.; \
-	else \
-	  include_option=--include; \
-	  empty_fix=; \
-	fi; \
-	list='$(SUBDIRS)'; for subdir in $$list; do \
-	  if test "$$subdir" = .; then :; else \
-	    test ! -f $$subdir/TAGS || \
-	      tags="$$tags $$include_option=$$here/$$subdir/TAGS"; \
-	  fi; \
-	done; \
 	list='$(SOURCES) $(HEADERS)  $(LISP) $(TAGS_FILES)'; \
 	unique=`for i in $$list; do \
 	    if test -f "$$i"; then echo $$i; else echo $(srcdir)/$$i; fi; \
@@ -539,7 +401,7 @@ TAGS: tags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 	    $$tags $$unique; \
 	fi
 ctags: CTAGS
-CTAGS: ctags-recursive $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
+CTAGS:  $(HEADERS) $(SOURCES)  $(TAGS_DEPENDENCIES) \
 		$(TAGS_FILES) $(LISP)
 	tags=; \
 	here=`pwd`; \
@@ -561,81 +423,8 @@ GTAGS:
 distclean-tags:
 	-rm -f TAGS ID GTAGS GRTAGS GSYMS GPATH tags
 
-check-TESTS: $(TESTS)
-	@failed=0; all=0; xfail=0; xpass=0; skip=0; \
-	srcdir=$(srcdir); export srcdir; \
-	list='$(TESTS)'; \
-	if test -n "$$list"; then \
-	  for tst in $$list; do \
-	    if test -f ./$$tst; then dir=./; \
-	    elif test -f $$tst; then dir=; \
-	    else dir="$(srcdir)/"; fi; \
-	    if $(TESTS_ENVIRONMENT) $${dir}$$tst; then \
-	      all=`expr $$all + 1`; \
-	      case " $(XFAIL_TESTS) " in \
-	      *" $$tst "*) \
-		xpass=`expr $$xpass + 1`; \
-		failed=`expr $$failed + 1`; \
-		echo "XPASS: $$tst"; \
-	      ;; \
-	      *) \
-		echo "PASS: $$tst"; \
-	      ;; \
-	      esac; \
-	    elif test $$? -ne 77; then \
-	      all=`expr $$all + 1`; \
-	      case " $(XFAIL_TESTS) " in \
-	      *" $$tst "*) \
-		xfail=`expr $$xfail + 1`; \
-		echo "XFAIL: $$tst"; \
-	      ;; \
-	      *) \
-		failed=`expr $$failed + 1`; \
-		echo "FAIL: $$tst"; \
-	      ;; \
-	      esac; \
-	    else \
-	      skip=`expr $$skip + 1`; \
-	      echo "SKIP: $$tst"; \
-	    fi; \
-	  done; \
-	  if test "$$failed" -eq 0; then \
-	    if test "$$xfail" -eq 0; then \
-	      banner="All $$all tests passed"; \
-	    else \
-	      banner="All $$all tests behaved as expected ($$xfail expected failures)"; \
-	    fi; \
-	  else \
-	    if test "$$xpass" -eq 0; then \
-	      banner="$$failed of $$all tests failed"; \
-	    else \
-	      banner="$$failed of $$all tests did not behave as expected ($$xpass unexpected passes)"; \
-	    fi; \
-	  fi; \
-	  dashes="$$banner"; \
-	  skipped=""; \
-	  if test "$$skip" -ne 0; then \
-	    skipped="($$skip tests were not run)"; \
-	    test `echo "$$skipped" | wc -c` -le `echo "$$banner" | wc -c` || \
-	      dashes="$$skipped"; \
-	  fi; \
-	  report=""; \
-	  if test "$$failed" -ne 0 && test -n "$(PACKAGE_BUGREPORT)"; then \
-	    report="Please report to $(PACKAGE_BUGREPORT)"; \
-	    test `echo "$$report" | wc -c` -le `echo "$$banner" | wc -c` || \
-	      dashes="$$report"; \
-	  fi; \
-	  dashes=`echo "$$dashes" | sed s/./=/g`; \
-	  echo "$$dashes"; \
-	  echo "$$banner"; \
-	  test -z "$$skipped" || echo "$$skipped"; \
-	  test -z "$$report" || echo "$$report"; \
-	  echo "$$dashes"; \
-	  test "$$failed" -eq 0; \
-	else :; fi
-
 distdir: $(DISTFILES)
-	$(mkdir_p) $(distdir)/inc $(distdir)/test
+	$(mkdir_p) $(distdir)/inc
 	@srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`; \
 	topsrcdirstrip=`echo "$(top_srcdir)" | sed 's|.|.|g'`; \
 	list='$(DISTFILES)'; for file in $$list; do \
@@ -662,43 +451,22 @@ distdir: $(DISTFILES)
 	    || exit 1; \
 	  fi; \
 	done
-	list='$(DIST_SUBDIRS)'; for subdir in $$list; do \
-	  if test "$$subdir" = .; then :; else \
-	    test -d "$(distdir)/$$subdir" \
-	    || $(mkdir_p) "$(distdir)/$$subdir" \
-	    || exit 1; \
-	    distdir=`$(am__cd) $(distdir) && pwd`; \
-	    top_distdir=`$(am__cd) $(top_distdir) && pwd`; \
-	    (cd $$subdir && \
-	      $(MAKE) $(AM_MAKEFLAGS) \
-	        top_distdir="$$top_distdir" \
-	        distdir="$$distdir/$$subdir" \
-	        distdir) \
-	      || exit 1; \
-	  fi; \
-	done
-	$(MAKE) $(AM_MAKEFLAGS) \
-	  top_distdir="$(top_distdir)" distdir="$(distdir)" \
-	  dist-hook
 check-am: all-am
-	$(MAKE) $(AM_MAKEFLAGS) $(check_PROGRAMS)
-	$(MAKE) $(AM_MAKEFLAGS) check-TESTS
-check: check-recursive
+check: check-am
 all-am: Makefile $(LTLIBRARIES) $(HEADERS)
-installdirs: installdirs-recursive
-installdirs-am:
+installdirs:
 	for dir in "$(DESTDIR)$(libdir)" "$(DESTDIR)$(upnpincludedir)"; do \
 	  test -z "$$dir" || $(mkdir_p) "$$dir"; \
 	done
-install: install-recursive
-install-exec: install-exec-recursive
-install-data: install-data-recursive
-uninstall: uninstall-recursive
+install: install-am
+install-exec: install-exec-am
+install-data: install-data-am
+uninstall: uninstall-am
 
 install-am: all-am
 	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
 
-installcheck: installcheck-recursive
+installcheck: installcheck-am
 install-strip:
 	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
 	  install_sh_PROGRAM="$(INSTALL_STRIP_PROGRAM)" INSTALL_STRIP_FLAG=-s \
@@ -712,30 +480,28 @@ distclean-generic:
 	-test -z "$(CONFIG_CLEAN_FILES)" || rm -f $(CONFIG_CLEAN_FILES)
 	-rm -f src/$(DEPDIR)/$(am__dirstamp)
 	-rm -f src/$(am__dirstamp)
-	-rm -f test/$(DEPDIR)/$(am__dirstamp)
-	-rm -f test/$(am__dirstamp)
 
 maintainer-clean-generic:
 	@echo "This command is intended for maintainers to use"
 	@echo "it deletes files that may require special tools to rebuild."
-clean: clean-recursive
+clean: clean-am
 
-clean-am: clean-checkPROGRAMS clean-generic clean-libLTLIBRARIES \
-	clean-libtool clean-local mostlyclean-am
+clean-am: clean-generic clean-libLTLIBRARIES clean-libtool \
+	mostlyclean-am
 
-distclean: distclean-recursive
-	-rm -rf src/$(DEPDIR) test/$(DEPDIR)
+distclean: distclean-am
+	-rm -rf src/$(DEPDIR)
 	-rm -f Makefile
 distclean-am: clean-am distclean-compile distclean-generic \
 	distclean-libtool distclean-tags
 
-dvi: dvi-recursive
+dvi: dvi-am
 
 dvi-am:
 
-html: html-recursive
+html: html-am
 
-info: info-recursive
+info: info-am
 
 info-am:
 
@@ -743,58 +509,47 @@ install-data-am: install-upnpincludeHEADERS
 
 install-exec-am: install-libLTLIBRARIES
 
-install-info: install-info-recursive
+install-info: install-info-am
 
 install-man:
 
 installcheck-am:
 
-maintainer-clean: maintainer-clean-recursive
-	-rm -rf src/$(DEPDIR) test/$(DEPDIR)
+maintainer-clean: maintainer-clean-am
+	-rm -rf src/$(DEPDIR)
 	-rm -f Makefile
 maintainer-clean-am: distclean-am maintainer-clean-generic
 
-mostlyclean: mostlyclean-recursive
+mostlyclean: mostlyclean-am
 
 mostlyclean-am: mostlyclean-compile mostlyclean-generic \
 	mostlyclean-libtool
 
-pdf: pdf-recursive
+pdf: pdf-am
 
 pdf-am:
 
-ps: ps-recursive
+ps: ps-am
 
 ps-am:
 
 uninstall-am: uninstall-info-am uninstall-libLTLIBRARIES \
 	uninstall-upnpincludeHEADERS
 
-uninstall-info: uninstall-info-recursive
-
-.PHONY: $(RECURSIVE_TARGETS) CTAGS GTAGS all all-am check check-TESTS \
-	check-am clean clean-checkPROGRAMS clean-generic \
-	clean-libLTLIBRARIES clean-libtool clean-local clean-recursive \
-	ctags ctags-recursive dist-hook distclean distclean-compile \
-	distclean-generic distclean-libtool distclean-recursive \
+.PHONY: CTAGS GTAGS all all-am check check-am clean clean-generic \
+	clean-libLTLIBRARIES clean-libtool ctags distclean \
+	distclean-compile distclean-generic distclean-libtool \
 	distclean-tags distdir dvi dvi-am html html-am info info-am \
 	install install-am install-data install-data-am install-exec \
 	install-exec-am install-info install-info-am \
 	install-libLTLIBRARIES install-man install-strip \
 	install-upnpincludeHEADERS installcheck installcheck-am \
-	installdirs installdirs-am maintainer-clean \
-	maintainer-clean-generic maintainer-clean-recursive \
+	installdirs maintainer-clean maintainer-clean-generic \
 	mostlyclean mostlyclean-compile mostlyclean-generic \
-	mostlyclean-libtool mostlyclean-recursive pdf pdf-am ps ps-am \
-	tags tags-recursive uninstall uninstall-am uninstall-info-am \
-	uninstall-libLTLIBRARIES uninstall-upnpincludeHEADERS
+	mostlyclean-libtool pdf pdf-am ps ps-am tags uninstall \
+	uninstall-am uninstall-info-am uninstall-libLTLIBRARIES \
+	uninstall-upnpincludeHEADERS
 
-
-dist-hook:
-	rm -rf `find $(distdir)/test/testdata/ -type f \! -name '*ml' -print`
-
-clean-local:
-	@if [ -d bin ] ; then  rm -rf bin ; fi
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

@@ -14,9 +14,9 @@
 
 @SET_MAKE@
 
-# $Id$
+# $Id: Makefile.in 4086 2006-09-29 20:12:51Z vapier $
 #
-# "Makefile.am" for "libunp/upnp/doc" 
+# "Makefile.am" for "libunp/ixml/doc" 
 #
 # (C) Copyright 2005 Rémi Turboult <r3mi@users.sourceforge.net>
 #
@@ -72,7 +72,7 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = @build@
 host_triplet = @host@
-subdir = upnp/doc
+subdir = ixml/doc
 DIST_COMMON = $(srcdir)/Makefile.am $(srcdir)/Makefile.in
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/acx_pthread.m4 \
@@ -207,9 +207,7 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
-EXTRA_DIST = callback.dxx docxx.sty intro.dxx \
-			  license.dxx upnpsdk.dxx
-
+EXTRA_DIST = docxx.sty intro.dxx ixml.dxx license.dxx
 all: all-am
 
 .SUFFIXES:
@@ -222,9 +220,9 @@ $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	      exit 1;; \
 	  esac; \
 	done; \
-	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  upnp/doc/Makefile'; \
+	echo ' cd $(top_srcdir) && $(AUTOMAKE) --foreign  ixml/doc/Makefile'; \
 	cd $(top_srcdir) && \
-	  $(AUTOMAKE) --foreign  upnp/doc/Makefile
+	  $(AUTOMAKE) --foreign  ixml/doc/Makefile
 .PRECIOUS: Makefile
 Makefile: $(srcdir)/Makefile.in $(top_builddir)/config.status
 	@case '$?' in \
@@ -375,19 +373,17 @@ uninstall-am: uninstall-info-am
 
 html-local:
 	@if [ -d html ]; then rm -rf html; fi
-	@doc++ -nd -S -w -j -d html $(srcdir)/upnpsdk.dxx
+	@doc++ -nd -S -w -j -d html $(srcdir)/ixml.dxx
 
 pdf-local:
-	@doc++ -nd -S -w -j -t --package a4wide -o upnpsdk.tex \
-		$(srcdir)/upnpsdk.dxx
-	@-pdflatex "\scrollmode\input upnpsdk.tex" > latex.log
-	@-pdflatex "\scrollmode\input upnpsdk.tex" >> latex.log
-	@-pdflatex "\scrollmode\input upnpsdk.tex" >> latex.log
+	@doc++ -nd -S -w -j -t --package a4wide -o ixml.tex $(srcdir)/ixml.dxx
+	@-pdflatex "\scrollmode\input ixml.tex" > pdflatex.log
+	@-pdflatex "\scrollmode\input ixml.tex" >> pdflatex.log
+	@-pdflatex "\scrollmode\input ixml.tex" >> pdflatex.log
 
 clean-local:
 	-rm -rf html
-	-rm -f upnpsdk.tex upnpsdk.dvi upnpsdk.ps upnpsdk.log upnpsdk.aux 
-	-rm -f latex.log
+	-rm -f ixml.tex pdflatex.log ixml.log ixml.aux
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

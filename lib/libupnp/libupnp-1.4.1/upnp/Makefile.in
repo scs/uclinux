@@ -14,7 +14,7 @@
 
 @SET_MAKE@
 
-# $Id$
+# $Id: Makefile.in 4086 2006-09-29 20:12:51Z vapier $
 #
 # "Makefile.am" for "libupnp/upnp"
 #

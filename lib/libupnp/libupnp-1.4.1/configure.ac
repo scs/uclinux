@@ -1,5 +1,5 @@
 # -*- Autoconf -*-
-# $Id$
+# $Id: configure.ac 4086 2006-09-29 20:12:51Z vapier $
 #
 # Top-level configure.ac file for libupnp
 #
@@ -43,7 +43,7 @@ AM_INIT_AUTOMAKE([1.8 -Wall foreign subdir-objects])
 #
 AC_CONFIG_HEADERS([autoconfig.h upnp/inc/upnpconfig.h])
 
-AC_REVISION([$Revision$])
+AC_REVISION([$Revision: 4086 $])
 
 upnpmaj=`echo "$PACKAGE_VERSION" | sed 's/\..*//' `
 upnpmin=[`echo "$PACKAGE_VERSION" | sed 's/^[^.]\.// ; s/[^0-9].*$//' `]

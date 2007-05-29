@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile.am 4086 2006-09-29 20:12:51Z vapier $
 #
 # "Makefile.am" for "libupnp/ixml"
 #

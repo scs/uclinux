@@ -11,7 +11,7 @@ dnl $1 = flag name e.g. [debug]
 dnl $2 = default value, shall be m4 constant, either [yes] or [no]
 dnl $3 = help string (default value is appended) e.g. [compile debugging code]
 dnl
-dnl @version $Id$
+dnl @version $Id: rt_bool_arg_enable.m4 4086 2006-09-29 20:12:51Z vapier $
 dnl @author Rémi Turboult <r3mi@users.sourceforge.net>
 dnl @license GPLWithACException
 dnl

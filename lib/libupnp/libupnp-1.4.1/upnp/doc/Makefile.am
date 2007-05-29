@@ -1,6 +1,6 @@
-# $Id$
+# $Id: Makefile.am 4086 2006-09-29 20:12:51Z vapier $
 #
-# "Makefile.am" for "libunp/ixml/doc" 
+# "Makefile.am" for "libunp/upnp/doc" 
 #
 # (C) Copyright 2005 Rémi Turboult <r3mi@users.sourceforge.net>
 #
@@ -35,19 +35,24 @@
 #
 ##########################################################################
 
-EXTRA_DIST= docxx.sty intro.dxx ixml.dxx license.dxx
+EXTRA_DIST		= callback.dxx docxx.sty intro.dxx \
+			  license.dxx upnpsdk.dxx
 
 html-local:
 	@if [ -d html ]; then rm -rf html; fi
-	@doc++ -nd -S -w -j -d html $(srcdir)/ixml.dxx
+	@doc++ -nd -S -w -j -d html $(srcdir)/upnpsdk.dxx
 
 pdf-local:
-	@doc++ -nd -S -w -j -t --package a4wide -o ixml.tex $(srcdir)/ixml.dxx
-	@-pdflatex "\scrollmode\input ixml.tex" > pdflatex.log
-	@-pdflatex "\scrollmode\input ixml.tex" >> pdflatex.log
-	@-pdflatex "\scrollmode\input ixml.tex" >> pdflatex.log
+	@doc++ -nd -S -w -j -t --package a4wide -o upnpsdk.tex \
+		$(srcdir)/upnpsdk.dxx
+	@-pdflatex "\scrollmode\input upnpsdk.tex" > latex.log
+	@-pdflatex "\scrollmode\input upnpsdk.tex" >> latex.log
+	@-pdflatex "\scrollmode\input upnpsdk.tex" >> latex.log
 
 clean-local:
 	-rm -rf html
-	-rm -f ixml.tex pdflatex.log ixml.log ixml.aux
+	-rm -f upnpsdk.tex upnpsdk.dvi upnpsdk.ps upnpsdk.log upnpsdk.aux 
+	-rm -f latex.log
+
+
 
