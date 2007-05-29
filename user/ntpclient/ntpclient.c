@@ -128,7 +128,7 @@ int get_current_freq(void)
 #ifdef linux
 	struct timex txc;
 	txc.modes=0;
-	if (__adjtimex(&txc) < 0) {
+	if (adjtimex(&txc) < 0) {
 		perror("adjtimex"); exit(1);
 	}
 	return txc.freq;
@@ -145,7 +145,7 @@ int set_freq(int new_freq)
 	struct timex txc;
 	txc.modes = ADJ_FREQUENCY;
 	txc.freq = new_freq;
-	if (__adjtimex(&txc) < 0) {
+	if (adjtimex(&txc) < 0) {
 		perror("adjtimex"); exit(1);
 	}
 	return txc.freq;
@@ -369,7 +369,8 @@ void primary_loop(int usd, int num_probes, int interval, int goodness)
 {
 	fd_set fds;
 	struct sockaddr sa_xmit;
-	int i, pack_len, sa_xmit_len, probes_sent, error;
+	int i, pack_len, probes_sent, error;
+	socklen_t sa_xmit_len;
 	struct timeval to;
 	struct ntptime udp_arrival_ntp;
 
