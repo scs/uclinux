@@ -48,7 +48,6 @@
 #include "pathnames.h"
 #include "confdefs.h"
 
-#include <linux/autoconf.h>
 #ifdef CONFIG_LEDMAN
 #include <linux/ledman.h>
 #endif
