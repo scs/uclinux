@@ -1,4 +1,4 @@
-VER = libupnp-1.4.1
+VER = libupnp-1.4.6
 
 CONF_OPTS = --enable-samples
 
