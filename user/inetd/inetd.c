@@ -40,7 +40,6 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
-#include <linux/autoconf.h>
 #include <config/autoconf.h>
 
 extern char **environ;
