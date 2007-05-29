@@ -19,10 +19,10 @@ default: nbench
 # You should leave -static in the CFLAGS so that your sysinfo can be
 # compiled into the executable.
 
-CC = gcc
+#CC = gcc
 
 # generic options for gcc
-CFLAGS = -s -static -Wall -O3
+#CFLAGS = -s -static -Wall -O3
 
 # if your gcc lets you do it, then try this one
 #CFLAGS = -s -static -Wall -O3 -fomit-frame-pointer -funroll-loops
@@ -110,31 +110,24 @@ hardware.o: hardware.c hardware.h Makefile
 	$(CC) $(MACHINE) $(DEFINES) $(CFLAGS)\
 		-c hardware.c
 
-nbench0.o: nbench0.h nbench0.c nmglobal.h pointer.h hardware.h\
+nbench0.o: nbench0.h nbench0.c nmglobal.h hardware.h\
 	   Makefile sysinfo.c sysinfoc.c
 	$(CC) $(MACHINE) $(DEFINES) $(CFLAGS)\
 		-c nbench0.c
 
-emfloat.o: emfloat.h emfloat.c nmglobal.h pointer.h Makefile
+emfloat.o: emfloat.h emfloat.c nmglobal.h Makefile
 	$(CC) $(MACHINE) $(DEFINES) $(CFLAGS)\
 		-c emfloat.c
-
-pointer.h: pointer Makefile
-	$(CC) $(MACHINE) $(DEFINES) $(CFLAGS)\
-		-o pointer pointer.c
-	rm -f pointer.h
-	if [ "4" = `./pointer` ] ; then touch pointer.h ;\
-	else echo "#define LONG64" >pointer.h ; fi
 
 misc.o: misc.h misc.c Makefile
 	$(CC) $(MACHINE) $(DEFINES) $(CFLAGS)\
 		-c misc.c
 
-nbench1.o: nbench1.h nbench1.c wordcat.h nmglobal.h pointer.h Makefile
+nbench1.o: nbench1.h nbench1.c wordcat.h nmglobal.h Makefile
 	$(CC) $(MACHINE) $(DEFINES) $(CFLAGS)\
 		-c nbench1.c
 
-sysspec.o: sysspec.h sysspec.c nmglobal.h pointer.h Makefile
+sysspec.o: sysspec.h sysspec.c nmglobal.h Makefile
 	$(CC) $(MACHINE) $(DEFINES) $(CFLAGS)\
 		-c sysspec.c
 
@@ -147,7 +140,12 @@ nbench: emfloat.o misc.o nbench0.o nbench1.o sysspec.o hardware.o
 
 clean:
 	- /bin/rm -f *.o *~ \#* core a.out hello sysinfo.c sysinfoc.c \
-		 bug pointer pointer.h debugbit.dat
+		 bug debugbit.dat
 
 mrproper: clean
 	- /bin/rm -f nbench
+
+romfs:
+	$(ROMFSINST) /bin/nbench
+	$(ROMFSINST) /bin/NNET.DAT
+	$(ROMFSINST) /bin/COM.DAT

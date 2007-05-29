@@ -54,6 +54,7 @@
 #include "nmglobal.h"
 #include "nbench0.h"
 #include "hardware.h"
+#include "pointer.h"
 
 /*************
 **** main ****
@@ -75,6 +76,18 @@ double lx_fpindex;      /* Linux floating-point index */
 double intindex;        /* Integer index */
 double fpindex;         /* Floating-point index */
 ulong bnumrun;          /* # of runs */
+
+#ifdef LONG64
+if ((int)sizeof(long) == 4 ) {
+	printf("Sorry - I'm confused - compiled as 64 bit, but things look like 32\n");
+	exit(1);
+}
+#else
+if ((int)sizeof(long) == 8 ) {
+	printf("Sorry - I'm confused - compiled as 32 bit, but things look like 64\n");
+	exit(1);
+}
+#endif
 
 #ifdef MAC
         MaxApplZone();
