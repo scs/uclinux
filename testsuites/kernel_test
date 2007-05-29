@@ -417,7 +417,7 @@ do
   ########################## TEST VIDEO #########################################################
   if [ ${AUTO_RUN_STATUS[$(( n + 9 ))]} -eq 1  ] ; then
   
-  echo  "Testing audio adv7171..."
+  echo  "Testing video adv7171..."
   
   rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uclinux-dist/ 
@@ -425,7 +425,7 @@ do
   cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
   cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
-  
+
   cd $KERNEL_SCRIPTS/video
   ./build_video_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
@@ -449,7 +449,7 @@ do
 
   if [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
   
-  echo  "Testing audio adv7393..."
+  echo  "Testing video adv7393..."
   
   rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uclinux-dist/ 
@@ -457,7 +457,8 @@ do
   cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
   cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
-  cd $KERNEL_SCRIPTS/audio 
+
+  cd $KERNEL_SCRIPTS/video
   ./build_video_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./adv7393_test.exp >/dev/null  2>&1
