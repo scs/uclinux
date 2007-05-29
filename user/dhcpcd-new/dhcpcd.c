@@ -33,7 +33,6 @@
 #include "client.h"
 #include "signals.h"
 
-#include <linux/autoconf.h>
 #ifdef CONFIG_LEDMAN
 #include <linux/ledman.h>
 #endif
