@@ -310,7 +310,6 @@ struct demux_sys_t
     es_out_id_t  *p_es_audio;
 };
 
-
 /*****************************************************************************
  * Open: opens v4l device
  *****************************************************************************
@@ -950,9 +949,11 @@ static int OpenVideoDev( demux_t *p_demux, char *psz_device )
     if( ioctl( i_fd, VIDIOSFPS, &p_sys->i_fps ) < 0 )
     {    
         p_sys->i_sw_fps_reduction = 1;
-    } else
+    } 
+    else
+    {	
     	p_sys->i_sw_fps_reduction = 0;
- 
+    }
  
     if( p_sys->i_tuner >= vid_channel.tuners )
     {
