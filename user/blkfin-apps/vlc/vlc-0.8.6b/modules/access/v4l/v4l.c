@@ -207,6 +207,10 @@ static block_t *GrabVideo( demux_t * );
 
 #define MJPEG_BUFFER_SIZE (256*1024)
 
+#ifndef VIDIOSFPS
+#define VIDIOSFPS		_IOW('v',BASE_VIDIOCPRIVATE+20, int)			/* Set fps */
+#endif
+
 struct quicktime_mjpeg_app1
 {
     uint32_t    i_reserved;             /* set to 0 */
@@ -274,6 +278,9 @@ struct demux_sys_t
     int i_colour;
     int i_contrast;
 
+    int i_fps;
+    int i_sw_fps_reduction;
+
     float f_fps;            /* <= 0.0 mean to grab at full rate */
     mtime_t i_video_pts;    /* only used when f_fps > 0 */
 
@@ -302,6 +309,7 @@ struct demux_sys_t
     block_t      *p_block_audio;
     es_out_id_t  *p_es_audio;
 };
+
 
 /*****************************************************************************
  * Open: opens v4l device
@@ -937,6 +945,15 @@ static int OpenVideoDev( demux_t *p_demux, char *psz_device )
              vid_channel.name, vid_channel.channel, vid_channel.tuners,
              vid_channel.flags, vid_channel.type, vid_channel.norm );
 
+    p_sys->i_fps = (unsigned int)p_sys->f_fps;
+
+    if( ioctl( i_fd, VIDIOSFPS, &p_sys->i_fps ) < 0 )
+    {    
+        p_sys->i_sw_fps_reduction = 1;
+    } else
+    	p_sys->i_sw_fps_reduction = 0;
+ 
+ 
     if( p_sys->i_tuner >= vid_channel.tuners )
     {
         msg_Dbg( p_demux, "invalid tuner, falling back on tuner 0" );
@@ -1569,7 +1586,7 @@ static block_t *GrabVideo( demux_t *p_demux )
     uint8_t     *p_frame;
     block_t     *p_block;
 
-    if( p_sys->f_fps >= 0.1 && p_sys->i_video_pts > 0 )
+    if( p_sys->i_sw_fps_reduction && p_sys->f_fps >= 0.1 && p_sys->i_video_pts > 0 )
     {
         mtime_t i_dur = (mtime_t)((double)1000000 / (double)p_sys->f_fps);
 
