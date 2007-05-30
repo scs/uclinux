@@ -235,7 +235,7 @@ AM_CFLAGS =
 LDADD = libixml.la
 lib_LTLIBRARIES = libixml.la
 libixml_la_LDFLAGS = -version-info $(LT_VERSION_IXML) \
-			  -export-symbols-regex '^ixml.*'
+			  -export-symbols-regex '^_ixml.*'
 
 libixml_la_SOURCES = \
 			src/ixml.c src/node.c src/ixmlparser.c \

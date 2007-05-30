@@ -8257,7 +8257,7 @@ echo $ECHO_N "checking whether the $compiler linker ($LD) supports shared librar
   module_cmds=
   module_expsym_cmds=
   always_export_symbols=no
-  export_symbols_cmds='$NM $libobjs $convenience | $global_symbol_pipe | $SED '\''s/.* //'\'' | sort | uniq > $export_symbols'
+  export_symbols_cmds='$NM $libobjs $convenience | $global_symbol_pipe | $SED '\''s/[^ ]* \(_[^ ]*\) .*/\1/'\'' | sort | uniq > $export_symbols'
   # include_expsyms should be a list of space-separated symbols to be *always*
   # included in the symbol list
   include_expsyms=

@@ -34,7 +34,7 @@ lib_LTLIBRARIES		= libupnp.la
 
 libupnp_la_CPPFLAGS	= $(AM_CPPFLAGS) -I$(srcdir)/src/inc 
 libupnp_la_LDFLAGS	= -version-info $(LT_VERSION_UPNP) \
-			  -export-symbols-regex '^Upnp.*' \
+			  -export-symbols-regex '^_Upnp.*' \
 			  $(top_builddir)/threadutil/libthreadutil.la \
 			  $(top_builddir)/ixml/libixml.la
 
