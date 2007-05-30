@@ -241,7 +241,7 @@ start_child(struct stService *p, int fd, int tcp, int ipv6, int local_port, unio
       dup2(fd, 0);
     if (fd != 1)
       dup2(fd, 1);
-#if 0
+#if 1
     /* Don't redirect stderr to stdout */
     if (fd != 2)
       dup2(fd, 2);
