@@ -1,3 +1,5 @@
+dir_3_$(CONFIG_LIB_AVAHI)            += avahi
+dir_3_$(CONFIG_LIB_AVAHI_FORCE)      += avahi
 dir_3_$(CONFIG_LIB_DMALLOC)          += dmalloc
 dir_3_$(CONFIG_LIB_DMALLOC_FORCE)    += dmalloc
 dir_3_$(CONFIG_LIB_POPT)             += popt

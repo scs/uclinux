@@ -1,0 +1,14 @@
+this is a problem in acx_pthread.m4 which is not avahi-specific
+
+it's also been sent upstream
+
+--- avahi-0.6.19/configure
++++ avahi-0.6.19/configure
+@@ -20338,6 +20338,7 @@
+    check_inconsistencies=yes
+    case "${host_cpu}-${host_os}" in
+      *-darwin*) check_inconsistencies=no ;;
++     *-uclinux*) check_inconsistencies=no ;;
+    esac
+    if test x"$GCC" != xyes -o "x$check_inconsistencies" != xyes ; then
+       { echo "$as_me:$LINENO: result: no" >&5
