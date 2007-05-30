@@ -33,6 +33,7 @@ fi
 for module in $(cat ./modules.list)
 do
 	[ ! -f ${module}.ko.map ] || continue
+	echo finding module $module
 	file=`find ${kernel} -name ${module}.ko`
 	if [ -z ${file} ] ; then
         	file=`echo ${module} | sed 's/_/-/g'`
@@ -42,7 +43,10 @@ do
 	if [ -z ${file} ] ; then
 		echo "Could not find ${module}.ko"
 	else
-		bfin-uclinux-nm -n ${file} | grep " [tT] " > ${module}.ko.map
+		for section in $(bfin-uclinux-objdump -d $file  | grep Disassembl | awk '{print $NF}' | sed s/://)
+		do
+  			(bfin-uclinux-objdump -d $file  | sed -n "/section ${section}/,/Disassembly of section/ p" | grep ">:" | sed s/\>:// | sed s/\<// ) > ${module}.ko${section}.map
+		done
 	fi
 done
 
@@ -52,6 +56,7 @@ do
 	if [ "$app" = "busybox" ] ; then
 		app="busybox_unstripped"
 	fi
+	echo finding application $app
 	files=`find -L ${user} ${libs} -type f -name ${app}`
 	for file in ${files}
 	do

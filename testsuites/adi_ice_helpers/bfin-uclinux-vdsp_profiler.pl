@@ -54,23 +54,25 @@ sub lookup
 {
 
 	my $sym = hex($_[0]);
+	my $index= $_[1];
 	my $rval = {};
 
-	warn "  lookup: $_[0]/$sym\n" if $debug;
+	printf("  lookup: 0x%08x : %s\n", $sym, $index) if $debug;
 
-	foreach $i (0 .. ($#symsort - 1))
+	foreach $i ($index .. ($#symsort - 1))
 	{
 		if ($sym >= $symsort[$i] && $sym <  $symsort[$i+1] ) {
 			$rval->{"addr"}   = sprintf("%x", $symsort[$i]);
 			$rval->{"offset"} = $sym - $symsort[$i];
-			warn("  found: " . $rval->{"addr"} . "/$symsort[$i]\n") if $debug;
+			$rval->{"index"} = $i;
+			printf("  found: %i :  addr:%s  sym:%x\n", $i, $rval->{"addr"} ,$symsort[$i]) if $debug;
 			return $rval;
 		}
 	}
-
-#	warn "returning last!\n";
 	$rval->{"addr"}   = sprintf("%08x", $symsort[$#symsort]);
 	$rval->{"offset"} = $sym - $symsort[$#symsort];
+	$rval->{"index"} = 0;
+
 	return $rval;
 }
 
@@ -104,7 +106,160 @@ while(<M>) {
 }
 close(M);
 
-# 001f8000-001fa7a4 r-xs 00000000 1f:00 211        /bin/init
+# need to sort it, to put the reset of the module info in... 
+@symsort = sort { $a <=> $b } map(hex, keys %symtab);
+
+if (0) {
+
+        foreach $i (0 .. ($#symsort )) {
+              printf("0x%08x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
+        }
+}
+
+open(M, "modules.list") || die "$0: can't modules.list file!\n";
+while(<M>) {
+	chomp;
+	@tmp = split;
+	if ($#tmp !=0 ) {
+		 warn "bad line in modules.list\n";
+		next;
+	}
+
+#	$files=$tmp[0]."\.map$";
+#	opendir(DIR, ".");
+#	@files = grep(/$files/,readdir(DIR));
+#	closedir(DIR);
+#
+#foreach $file (@files) {
+#   print "$file\n";
+#}
+#	exit;
+	{
+	
+		my $file = "$tmp[0].ko.text.map";
+		printf("Loading extra symbols from %s\n", $file);
+		my $sym = "Kernel\\[".$tmp[0]."\\]:";
+		$j = 0;
+		$i = 0;
+		$k = 0;
+		my $offset = 0;
+		if ( ! -e $file) {
+			warn "Can't find file $file\n";
+			next;
+		}
+START_OVER:
+		printf("Finding %s in symsort\n",$sym) if $debug;
+		foreach $j ($i .. ($#symsort )) {
+			if ($symtab{sprintf("%x",($symsort[$j]))} =~ m/$sym/) {
+				$i = $j;
+				last;
+			}
+		}
+		if ( $i == 0 ) {
+			warn "Can't find module $tmp[0] in System map\n";
+			next;
+		} 
+		printf ("Found at %i : 0x%08x : %s\n",$i, $symsort[$i], $symtab{sprintf("%x",($symsort[$i]))}) if $debug;
+		$i++;
+$debug=0;
+SEARCH:
+		open(N, $file) || die " can't open kernel module $file: $!\n";
+		while (<N>) {
+			chomp;
+				@tmp1 = split;
+			if ( $#tmp1 != 1 ) {
+				warn "bad line in $file";
+				next;
+			} else {
+				$symbol="^".$sym.$tmp1[1]."\$";
+				$j=$i-1;
+				printf("Looking for %s\n", $symbol) if $debug;
+				printf("Comparing at %i %s  %s\n",$j, $symbol, $symtab{sprintf("%x",($symsort[$j]))}) if $debug;
+				while ( ( ! ($symtab{sprintf("%x",($symsort[$j]))} =~ m/$symbol/)) && 
+					($symtab{sprintf("%x",($symsort[$j]))} =~ /$sym/) && 
+					($j <= $#symsort)) {
+					printf(" skipping %i %s  %s\n",$j, $symbol, $symtab{sprintf("%x",($symsort[$j]))}) if $debug;
+					$j++;
+				}
+				if ($j >= $#symsort) {
+					printf("exceeded limit\n") if $debug;
+					close(N);
+					last;
+				}
+				$symexact="^".$sym.$tmp1[1]."\$";
+				if (! ($symtab{sprintf("%x",($symsort[$j]))} =~ m/$symexact/)) {
+					printf ("if %s != %s\n",$symexact, $symtab{sprintf("%x",($symsort[$j]))}) if $debug;
+					if ( ! $offset ) {
+						$k++;
+						printf("skipping no offset yet %i - %s\n", $k, $symtab{sprintf("%x",($symsort[$j]))}) if $debug;
+						next;
+					} else {
+						if ( ! $symtab{sprintf("%x",$offset+(hex $tmp1[0]))} ) {
+							printf("Need to add - 0x%08x : %s\n",$offset+(hex $tmp1[0]), "Kernel[".$tmp[0]."]:".$tmp1[1]) if $debug;
+							$symtab{sprintf("%x",$offset+(hex $tmp1[0]))}="Kernel[".$tmp[0]."]:".$tmp1[1];
+						} else {
+							if ( $symtab{sprintf("%x",$offset+(hex $tmp1[0]))} =~ m/$symexact/) {
+								printf("Error - already symbol %s at (0x%08x + 0x%08x) %s | 0x%08x : tried to add %s\n",
+									$symtab{sprintf("%x",$offset+(hex $tmp1[0]))},
+									$offset, hex $tmp1[0],
+									sprintf("0x%08x",($offset+(hex $tmp1[0]))),
+									$offset+(hex $tmp1[0]), "Kernel[".$tmp[0]."]:".$tmp1[1]);
+							}
+						}
+						next;
+					}
+				} else {
+					printf ("if '%s' == '%s'\n",$symexact, $symtab{sprintf("%x",($symsort[$j]))}) if $debug;
+					if ( ($offset) && ($offset+(hex $tmp1[0]) != $symsort[$j] )) {
+						printf("Error - Addresses don't match 0x%08x != 0x%08x\n", $offset+(hex $tmp1[0]), $symsort[$j] );
+					}
+				}
+	
+				if ($offset ) {
+					printf("Found %s (0x%x) : %s (0x%08x)\n","Kernel[".$tmp[0]."]:".$tmp1[1], hex $tmp1[0],
+					 $symtab{sprintf("%x",($symsort[$j]))}, $symsort[$j]) if $debug;
+					if (  $symsort[$j] != $offset + hex($tmp1[0])) {
+						printf("Not at same address\n");
+					}
+					next;
+				} else {
+					$offset = (hex sprintf("%x",($symsort[$j]))) - (hex $tmp1[0]);
+					printf("Offset for %s = 0x%08x\n", $file, $offset) if $debug;
+					close(N);
+					goto SEARCH;
+				}
+			}
+		}
+		close (N);
+		printf("Done - Offset = 0x%08x\n", $offset) if $debug;
+		if ( ! $offset ) {
+			printf ("Never found any - %s %i\n", $file, $i) if $debug;
+			$i++;
+			foreach $j ($i .. ($#symsort )) {
+				if ($symtab{sprintf("%x",($symsort[$j]))} =~ /$sym/) {
+					$i = $j;
+					last;
+				}
+			}
+			printf("done %i %i %s\n",$i, $j, $symtab{sprintf("%x",($symsort[$i]))}) if $debug;
+	
+			
+			if ( $i >= $#symsort ) {
+				printf("Skipping %s - could not find it in kernel symbols\n", $tmp[0]);
+				next;
+			}
+			goto SEARCH
+		}
+	}
+}
+close (M);
+
+if (0) {
+	@symsort = sort { $a <=> $b } map(hex, keys %symtab);
+        foreach $i (0 .. ($#symsort )) {
+              printf("%x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
+        }
+}
 
 open(M, $umap) || die "$0: can't open user.map file '$umap': $!\n";
 while(<M>) {
@@ -130,6 +285,7 @@ while(<M>) {
 
 	$symtab{$tmp1[0]} = $tmp2[$#tmp2];
 	printf("%x    %s:__begin\n",$base , $tmp2[$#tmp2]) if $debug;
+	$l1_offset=0;
 	if ( -e $file ) {
 		open(N, $file) || die " can't open app.map file $file: $!\n";
 		$symtab{$tmp1[0]} = $tmp2[$#tmp2].":__plt";
@@ -138,8 +294,71 @@ while(<M>) {
 			if ( $#tmp3 == 2 ) {
 				$tmp3[0] =~ s/^0+//g;
 				$tmp3[0] = hex $tmp3[0];
-				printf("%x    %s:%s\n",$base+$tmp3[0] , $tmp2[$#tmp2] , $tmp3[2]) if $debug;
-				$symtab{sprintf("%x",$base+$tmp3[0])} =  $tmp2[$#tmp2].":".$tmp3[2];
+				if ($tmp3[2] =~ m/^L|LE|LS\$/ ) {
+					next;
+				}
+				if ( $tmp3[0] < 0xffa00000 ) {
+					printf("%x    %s:%s\n",$base+$tmp3[0] , $tmp2[$#tmp2] , $tmp3[2]) if $debug;
+					$symtab{sprintf("%x",$base+$tmp3[0])} =  $tmp2[$#tmp2].":".$tmp3[2];
+				} else {
+					if ( ! $l1_offset) {
+						$application="^".$tmp2[$#tmp2]."\$";
+						printf("Finding L1 for %s\n", $tmp2[$#tmp2]);
+						open (P, "./pid.list") || die "$0 can't open pid.list";
+						while(<P>) {
+							chomp;
+							@tmp4=split;
+							if ($#tmp4 != 1) {
+								warn "bad line in pid.list";
+								next;
+							}
+							if ( $tmp4[0] =~ m/$application/ ) {
+								printf("%s %i\n", $tmp4[0], $tmp4[1]);
+								open (Q, "./l1_sram.list") || die "$0 can't open ./l1_sram.list";
+								while(<Q>) {
+									chomp;
+									@tmp5=split;
+									if ($#tmp5 != 4) {
+										warn "bad line in l1_sram.list\n";
+										next;
+									}
+									if ( $tmp5[3] == $tmp4[1] && (! $l1_offset)) {
+										$l1_offset=hex $tmp5[0];
+										printf("found 0x%08x as offset\n", $l1_offset);
+										last;
+									}
+								}
+								close (Q);
+								last;
+							}
+						}
+						close (P);
+						if ( ! $l1_offset) {
+							open (Q, "./l1_sram.list") || die "$0 can't open ./l1_sram.list";
+							while(<Q>) {
+								chomp;
+								@tmp5=split;
+								if ($#tmp5 != 4) {
+									warn "bad line in l1_sram.list\n";
+									next;
+								}
+								if ( ! $l1_offset && $tmp5[3]) {
+									$l1_offset=hex $tmp5[0];
+								} else {
+									if ( $tmp5[3] ) {
+										die "I can't tell where things are mapped in L1 - sorry\n";
+									}
+								}
+							}
+							close (Q);
+						}
+						if ( ! $l1_offset) {
+							die "I could not find an L1 offset\n";
+						}
+					}
+					printf("0x%08x  0x%08x  %s:%s\n",$tmp3[0] , ($tmp3[0] - 0xffa00000) + $l1_offset , $tmp2[$#tmp2] , $tmp3[2]) if $debug ;
+					$symtab{sprintf("%x",($tmp3[0] - 0xffa00000) + $l1_offset )} =  $tmp2[$#tmp2].":".$tmp3[2];
+				}
 			}
 		}
 		close (N);
@@ -148,13 +367,22 @@ while(<M>) {
 			warn "Can't find $file\n";
 		}
 	}
+
 	if ( ! $symtab{sprintf("%x",(hex $tmp1[1]) )} ) {
-		$symtab{sprintf("%x",(hex $tmp1[1]) )} = "Unknown_Mapping";
+		$symtab{sprintf("%x",(hex $tmp1[1]) )} = "Unknown_Mapping : end of $tmp2[$#tmp2]";
 	}
 	printf("%x    %s:__end\n",$end , $tmp2[$#tmp2]) if $debug;
 
 }
 close(M);
+
+if ( ! $symtab{sprintf("%x", 0xffffffff )}) {
+	$symtab{sprintf("%x", 0xffffffff )} = "End of memory";
+}
+
+if ( ! $symtab{sprintf("%x", 0x0 )}) {
+        $symtab{sprintf("%x", 0x0 )} = "Start of memory";
+}
 
 @symsort = sort { $a <=> $b } map(hex, keys %symtab);
 
@@ -168,11 +396,18 @@ close(M);
 # printf "$a -> $l -> $s+0x%x\n", $r->{"offset"};
 # exit;
 
+if (0) {
+
+        foreach $i (0 .. ($#symsort )) {
+              printf("0x%08x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
+        }
+}
 
 open(T, $trace) || die "$0: can't open trace file '$trace': $!\n";
 my $last="";
 my $last_addr=0;
 my $num=0;
+my $last_index=0;
 while(<T>)
 {
 	#
@@ -186,15 +421,17 @@ while(<T>)
 		s,^\s+|\s+$,,g;		# strip leading and trailing spaces
 		@addrs = split /\s+/;	# match addrs split(/\t/,$item); 
 
-		if ( (hex $addrs[0]) < $last_addr) {
-			warn "$addrs[0] gt $last_addr \n";
+		if ( (oct $addrs[0]) < $last_addr) {
+		        $foo = oct $addrs[0];
+			warn "$addrs[0] $foo is greater than $last_addr \n";
 			die "Trace $trace is not sorted\n";
 		} else {
-			$last_addr= hex $addrs[0];
+			$last_addr= oct $addrs[0];
 		}
 
-		my $r = lookup $addrs[0];
-		my $s = sprintf("%08x",hex $r->{"addr"}) . " ". $symtab{$r->{"addr"}};
+		my $r = lookup($addrs[0], $last_index);
+		$last_index=$r->{"index"} - 1;
+		my $s = sprintf(" %08x", (hex $r->{"addr"})) . " ". $symtab{$r->{"addr"}};
 
 		if ( $last eq $s ) {
 			$num = $num + $addrs[1];
