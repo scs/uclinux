@@ -27,6 +27,7 @@ clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/$$l /usr/lib/$$l
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libavahi-common.so.3 /usr/lib/libavahi-common.so.3
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libavahi-core.so.5 /usr/lib/libavahi-core.so.5
 
 .PHONY: all clean romfs
