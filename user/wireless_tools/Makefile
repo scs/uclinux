@@ -89,7 +89,11 @@ endif
 XCFLAGS=$(CFLAGS) $(WARN) $(HEADERS) $(WEXT_FLAG) $(WELIB_FLAG) $(KERNEL_INCLUDES)
 PICFLAG=-fPIC
 
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 all:: $(STATIC) $(DYNAMIC) $(PROGS)
+else
+all:: $(STATIC) $(PROGS)
+endif
 
 %: %.o
 	$(CC) $(LDFLAGS) $(XCFLAGS) -o $@ $^ $(LIBS) $(LDLIBS$(LDLIBS_$@))
