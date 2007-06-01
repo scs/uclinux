@@ -28,6 +28,10 @@
 #include <linux/videodev.h>
 #include <time.h>
 
+#ifndef VIDIOSFPS
+#define VIDIOSFPS		_IOW('v',BASE_VIDIOCPRIVATE+20, int)			/* Set fps */
+#endif
+
 typedef struct {
     int fd;
     int frame_format; /* see VIDEO_PALETTE_xxx */
@@ -35,6 +39,7 @@ typedef struct {
     int width, height;
     int frame_rate;
     int frame_rate_base;
+    int sw_fps_reduction;
     int64_t time_frame;
     int frame_size;
     struct video_capability video_cap;
@@ -75,7 +80,7 @@ static int grab_read_header(AVFormatContext *s1, AVFormatParameters *ap)
 {
     VideoData *s = s1->priv_data;
     AVStream *st;
-    int width, height;
+    int width, height, fps;
     int video_fd, frame_size;
     int ret, frame_rate, frame_rate_base;
     int desired_palette, desired_depth;
@@ -182,6 +187,17 @@ static int grab_read_header(AVFormatContext *s1, AVFormatParameters *ap)
         }
         if (j >= vformat_num)
             goto fail1;
+    }
+
+
+    fps = s->frame_rate / s->frame_rate_base;
+
+    if( ioctl( video_fd, VIDIOSFPS, &fps ) < 0 ) {    
+    	
+	s->sw_fps_reduction = 1;
+    } 
+    else {	
+	s->sw_fps_reduction = 0;
     }
 
     ret = ioctl(video_fd,VIDIOCGMBUF,&s->gb_buffers);
@@ -328,9 +344,11 @@ static int grab_read_packet(AVFormatContext *s1, AVPacket *pkt)
             }
             break;
         }
-        ts.tv_sec = delay / 1000000;
-        ts.tv_nsec = (delay % 1000000) * 1000;
-        nanosleep(&ts, NULL);
+        if(s->sw_fps_reduction) {
+	        ts.tv_sec = delay / 1000000;
+	        ts.tv_nsec = (delay % 1000000) * 1000;
+	        nanosleep(&ts, NULL);
+	}
     }
 
     if (av_new_packet(pkt, s->frame_size) < 0)
