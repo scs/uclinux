@@ -162,6 +162,25 @@ while 1 {
      }
 }
 
+incr case_num
+set timeout 15
+
+send -s  "./ptest\r"
+while 1 {
+   expect {
+     -re "PASS" {
+         send_log "Run ptest finished.\n"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+         }
+     }
+}
+
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
