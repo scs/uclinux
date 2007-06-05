@@ -33,7 +33,11 @@ while 1 {
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
              send "y\r"
       }
-             
+
+            -re "Use Landscape 320x240 instead of Portrait 240x320.*\\\[././.]" {
+             send "y\r"
+      }
+
        "\\\(*) \\\[*]" {
              sleep .01
 	     send "\r"
@@ -68,9 +72,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
-
-
-
-
-
- 
