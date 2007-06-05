@@ -1,4 +1,4 @@
-VER = speex-svn-old
+VER = speex-svn-13013
 
 CONF_OPTS = \
 	--without-ogg \
