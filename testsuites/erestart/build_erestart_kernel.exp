@@ -33,7 +33,11 @@ while 1 {
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
              send "y\r"
       }
-             
+
+           -re "erestart test.*CONFIG_USER_BLACKFIN_ERESTART_TEST.*\\\[.*]" {
+             send -s "y\r"
+      }
+      
        "\\\(*) \\\[*]" {
              sleep .01
 	     send "\r"
