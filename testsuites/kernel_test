@@ -584,6 +584,7 @@ do
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.tftlcd.landscape
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.tftlcd.landscape
   cp $KERNEL_SCRIPTS/tftlcd/build_tftlcd_landscape_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_test_log.landscape 
 
   sleep 300
 
@@ -610,6 +611,7 @@ do
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.tftlcd.portrait
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.tftlcd.portrait
   cp $KERNEL_SCRIPTS/tftlcd/build_tftlcd_portrait_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_test_log.portrait
 
   sleep 300
 
