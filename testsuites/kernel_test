@@ -275,12 +275,23 @@ do
   
   echo  "Start testing ${AUTO_TESTCASE[$i]}..."
 
+  if [ ${AUTO_TESTCASE[$i]} != "serial" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "ethernet" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "nfs" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "module" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "msh" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "dpm" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "pound" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "cfcard" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "sram_alloc" ] &&
+     [ ${AUTO_TESTCASE[$i]} != "timer" ] ; then
   rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
   cd $KERNEL_PATH/uclinux-dist/ 
   cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
   cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
   cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
+  fi
   
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
   cd $KERNEL_SCRIPTS/jffs2
