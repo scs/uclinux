@@ -15,6 +15,7 @@ bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
 bool 'Build libipod'		CONFIG_LIB_LIBIPOD_FORCE
 bool 'Build libmad'		CONFIG_LIB_LIBMAD_FORCE
 bool 'Build libmpeg2'		CONFIG_LIB_LIBMPEG2_FORCE
+bool 'Build libSDL'		CONFIG_LIB_LIBSDL_FORCE
 bool 'Build libtool'		CONFIG_LIB_LIBTOOL_FORCE
 bool 'Build libusb'		CONFIG_LIB_LIBUSB_FORCE
 bool 'Build mpfr'		CONFIG_LIB_MPFR_FORCE
