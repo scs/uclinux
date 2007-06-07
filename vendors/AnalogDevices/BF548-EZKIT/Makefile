@@ -88,7 +88,7 @@ ifneq ($(CONFIG_CRAMFS),)
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
 endif
 ifneq ($(CONFIG_EXT2_FS),)
-	bfin-uclinux-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
+	bfin-uclinux-genext2fs -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
 	$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
