@@ -67,7 +67,7 @@ image::
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/vmlinux
-	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/vmlinux
+	$(STRIP) -g $(IMAGEDIR)/vmlinux
 	set -e ; \
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
 		$(MKFS_JFFS2) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
@@ -82,14 +82,14 @@ ifneq ($(CONFIG_YAFFS_FS),)
 	fi
 endif
 ifneq ($(CONFIG_CRAMFS),)
-	bfin-uclinux-mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
-		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).cramfs \
+	$(CROSS_COMPILE)mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
+	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
 endif
 ifneq ($(CONFIG_EXT2_FS),)
-	bfin-uclinux-genext2fs -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
-	$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).ext2 \
+	$(CROSS_COMPILE)genext2fs -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
+	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
 endif
@@ -98,7 +98,7 @@ ifneq ($(CONFIG_ROMFS_FS),)
 	if which genromfs >/dev/null 2>&1; then \
 		$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
 		genromfs -f $(ROMFSIMG).romfs -d $(ROMFSDIR); \
-		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).romfs \
+		$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).romfs \
 			--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 			--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).romfs ; \
 		rm -rf $(ROMFSDIR)/dev/*; \
@@ -114,7 +114,7 @@ ifeq ($(CONFIG_MTD_UCLINUX),y)
 	for FS in cramfs ext2 romfs ; \
 	do \
 		if [ -f "$(IMAGE).$$FS" ] ; then \
-			$(CROSS_COMPILE)objcopy -O binary -S $(IMAGE).$$FS $(IMAGE).bin; \
+			$(OBJCOPY) -O binary -S $(IMAGE).$$FS $(IMAGE).bin; \
 			gzip -f9 $(IMAGE).bin; \
 			$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
 				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(ENTRY) -n "uClinux Kernel and $$FS" \
