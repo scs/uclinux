@@ -22,7 +22,7 @@ build-host/Makefile:
 	rm -rf build-host ; \
 	mkdir build-host ; \
 	cd build-host ; \
-	unset CC LD CFLAGS LDFLAGS CPPFLAGS ; \
+	unset AR CC LD RANLIB CFLAGS LDFLAGS CPPFLAGS ; \
 	../configure
 
 	# work around broken libtom makefiles
