@@ -1,4 +1,5 @@
 #!/usr/bin/expect
+#Set chip select to 1 or change chip select parameter in file stamp.c. Refer to doc about touchscreen
 #After build image, boot up system and run "event_test /dev/input/event0"
 
 source ../kernel_config.exp

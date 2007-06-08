@@ -124,9 +124,9 @@ fi
  
    n=50
  
-   AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [29]="malloc_perf"  [30]="sram_alloc"   [31]="i2ctwi"  [32]="" [33]="sport"  [34]="erestart" [$(( n + 1 ))]="timer" [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"   [[$(( n + 5 ))]="tftlcd"  $(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb" [$(( n + 9 ))]="video_adv7171"  [$(( n + 10 ))]="video_adv7393" )
+   AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [29]="malloc_perf"  [30]="sram_alloc"   [31]="i2ctwi"  [32]="" [33]="sport"  [34]="erestart" [$(( n + 1 ))]="timer" [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"   [[$(( n + 5 ))]="audio_ad1981b"  $(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb" [$(( n + 9 ))]="video_adv7171"  [$(( n + 10 ))]="video_adv7393" [[$(( n + 11 ))]="tftlcd" )
 
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1" [29]="1"  [30]="1"   [31]="0"  [32]="0"  [33]="0"  [34]="1" [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="0"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1"  [$(( n + 8 ))]="0" [$(( n + 9 ))]="0" [$(( n + 10 ))]="0" )
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1" [29]="1"  [30]="1"   [31]="0"  [32]="0"  [33]="0"  [34]="1" [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="0"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1"  [$(( n + 8 ))]="0" [$(( n + 9 ))]="0" [$(( n + 10 ))]="0" [$(( n + 11 ))]="0" )
 
    MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio" [16]="touchscreen"   [$(( n + 1 ))]="serial_uart1"  )
    
@@ -158,6 +158,8 @@ if [ $BOARD_CONFIG = "BF537-STAMP-ADV7393" ] ; then
    BOARD_TYPE=BF537-STAMP
    
    AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[31]="1"; AUTO_RUN_STATUS[$(( n + 10 ))]="1"
+##add 1981b test here
+   AUTO_RUN_STATUS[$(( n + 5 ))]="1"
 
 fi
 
@@ -166,7 +168,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-AD(73311)" ] ; then
 
    BOARD_TYPE=BF537-STAMP
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[31]="1"; AUTO_RUN_STATUS[33]="1"; AUTO_RUN_STATUS[$(( n + 4 ))]="1"; AUTO_RUN_STATUS[$(( n + 5 ))]="1"
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[31]="1"; AUTO_RUN_STATUS[33]="1"; AUTO_RUN_STATUS[$(( n + 4 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"
 
 fi
 
@@ -527,7 +529,8 @@ do
   fi
 
   fi
-  
+
+
   if [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
   
   echo  "Testing audio ad73311..."
@@ -553,6 +556,42 @@ do
   
   sleep 300
 
+
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+
+  fi
+
+
+  if [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
+  
+  echo  "Testing audio ad1981b..."
+  
+  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
+  cd $KERNEL_PATH/uclinux-dist/ 
+  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
+  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
+  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+  
+  cd $KERNEL_SCRIPTS/audio
+  ./build_ad1981b_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
+  sleep 30
+  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  sleep 30
+  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1981b
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad1981b
+  cp $KERNEL_SCRIPTS/audio/build_ad1981b_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1981b
+  cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1981b
+    
+  sleep 300
+
  
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
@@ -565,7 +604,7 @@ do
   #############################################################################################
   ###################################### TEST TFTLCD###########################################
   
-  if [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
+  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] ; then
 
   echo  "Testing tftlcd landscape..."
 
