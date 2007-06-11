@@ -220,7 +220,8 @@ static void prepare_h263(EncState *s){
 
 static void prepare_mpeg4(EncState *s){
 	AVCodecContext *c=&s->av_context;
-	c->flags|=CODEC_FLAG_LOW_DELAY;	/*don't use b frames ?*/
+	/* newer ffmpeg don't like this option? */
+	//c->flags|=CODEC_FLAG_LOW_DELAY;	/*don't use b frames ?*/
 	c->flags|=CODEC_FLAG_AC_PRED;
 }
 
@@ -261,7 +262,7 @@ static void enc_preprocess(MSFilter *f){
 		ms_error("avcodec_open() failed: %i",error);
 		return;
 	}
-	ms_debug("image format is %i.",s->av_context.pix_fmt);
+	ms_message("image format is %i.",s->av_context.pix_fmt);
 	ms_message("qmin=%i qmax=%i",s->av_context.qmin,s->av_context.qmax);
 }
 
@@ -372,12 +373,27 @@ static void split_and_send(MSFilter *f, EncState *s, mblk_t *frame){
 	generate_packets(f,s,frame, timestamp,lastpsc,frame->b_wptr,TRUE);
 }
 
+long get_cur_ms()
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return (tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
+
+long frame_num = 0;
+long last_ms = 0;
 static void process_frame(MSFilter *f, mblk_t *inm){
 	EncState *s=(EncState*)f->data;
 	AVFrame pict;
 	AVCodecContext *c=&s->av_context;
 	int error;
 	
+	frame_num++;
+	if ((frame_num % 5) == 0) {
+		ms_message("%ld ms since last 5 frames, frame_num: %ld", 
+				(get_cur_ms() - last_ms), frame_num);
+		last_ms=get_cur_ms();
+	}
 	mblk_t *comp_buf=s->comp_buf;
 	int comp_buf_sz=comp_buf->b_datap->db_lim-comp_buf->b_datap->db_base;
 	/* convert image if necessary */
@@ -399,6 +415,7 @@ static void process_frame(MSFilter *f, mblk_t *inm){
 static void enc_process(MSFilter *f){
 	mblk_t *inm;
 	EncState *s=(EncState*)f->data;
+	
 	if (s->av_context.codec==NULL) {
 		ms_queue_flush(f->inputs[0]);
 		return;

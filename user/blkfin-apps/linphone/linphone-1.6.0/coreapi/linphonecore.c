@@ -1230,9 +1230,11 @@ void linphone_core_start_media_streams(LinphoneCore *lc, LinphoneCall *call){
 			if (video_params->remoteport>0){
 				/* adjust rtp jitter compensation. It must be at least the latency of the sound card */
 				jitt_comp=MAX(lc->sound_conf.latency,lc->rtp_conf.audio_jitt_comp);
-				lc->videostream=video_stream_start(call->profile,video_params->localport,
-									video_params->remoteaddr,video_params->remoteport,
-									video_params->pt,jitt_comp, lc->video_conf.device);
+				/* start send only video stream */
+				lc->videostream=video_stream_send_only_start_new(call->profile,
+						video_params->localport, video_params->remoteaddr,
+						video_params->remoteport, video_params->pt, jitt_comp,
+						lc->video_conf.device);
 				video_stream_set_rtcp_information(lc->videostream, cname,tool);
 			}
 		}
@@ -1252,7 +1254,7 @@ void linphone_core_stop_media_streams(LinphoneCore *lc){
 	}
 #ifdef VIDEO_ENABLED
 	if (lc->videostream!=NULL){
-		video_stream_stop(lc->videostream);
+		video_stream_send_only_stop(lc->videostream);
 		lc->videostream=NULL;
 	}
 	if (linphone_core_video_preview_enabled(lc)){
@@ -1662,7 +1664,8 @@ void linphone_core_enable_video(LinphoneCore *lc, bool_t val){
 		ms_warning("This version of linphone was built without video support.");
 #endif
 	lc->video_conf.enabled=val;
-	lc->video_conf.show_local=val;
+	/* always disable local display */
+	lc->video_conf.show_local=0;
 	/* need to re-apply network bandwidth settings*/
 	linphone_core_set_download_bandwidth(lc,
 		linphone_core_get_download_bandwidth(lc));

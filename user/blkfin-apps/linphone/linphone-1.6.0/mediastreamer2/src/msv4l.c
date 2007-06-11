@@ -319,8 +319,9 @@ static int v4l_start(MSFilter *f, void *arg)
 #ifdef HAVE_LINUX_VIDEODEV2_H
 		if (v4lv2_configure(s)<0) {/*might not be V4LV2 */
 #else
-		{
+		if (1){
 #endif
+			struct video_capability vidcap;
 			err=v4l_configure(s);
 			if (err<0) 
 			{
@@ -330,6 +331,10 @@ static int v4l_start(MSFilter *f, void *arg)
 				return -1;
 			}
 			reuse_fd=TRUE;
+
+			err=ioctl(s->fd, VIDIOCGCAP, &vidcap);
+			if (err==0)
+			    ms_message("MSV4l: Webcam is %s.", vidcap.name);
 		}else{
 			ms_message("Device is a video4linux V2 one.");
 			s->v4lv2=TRUE;
@@ -349,11 +354,11 @@ static void v4l_start_capture(V4lState *s){
 static int v4l_stop(MSFilter *f, void *arg){
 	V4lState *s=(V4lState*)f->data;
 	if (s->fd>=0){
-		ms_message("v4l fd %i closed",s->fd);
 		if (!reuse_fd){
 			if (close(s->fd)<0){
 				ms_warning("MSV4l: Could not close(): %s",strerror(errno));
 			}
+			ms_message("v4l fd %i closed",s->fd);
 		}
 		s->fd=-1;
 		s->frame_count=-1;
@@ -413,24 +418,27 @@ static int v4l_do_mmap(V4lState *s){
 	}
 	s->mmapdbuf=mmap(NULL,s->msize,PROT_READ,MAP_SHARED,s->fd,0);
 	if (s->mmapdbuf==(void*)-1) {
-		ms_error("Could not mmap: %s",strerror(errno));
-		s->mmapdbuf=NULL;
-		return -1;
-	}else {
-		/* initialize the mediastreamer buffers */
-		ms_message("Using %i-frames mmap'd buffer at %p, len %i",
-			s->frame_max, s->mmapdbuf,s->msize);
-		for(i=0;i<s->frame_max;i++){
-			mblk_t *buf=esballoc((uint8_t*)s->mmapdbuf+vmbuf.offsets[i],vmbuf.offsets[1],0,NULL);
-			/* adjust to real size of picture*/
-			if (s->pix_fmt==MS_RGB24)
-				buf->b_wptr+=s->vsize.width*s->vsize.height*3;
-			else 
-				buf->b_wptr+=(s->vsize.width*s->vsize.height*3)/2;
-			s->frames[i]=buf;
+		/* for non-mmu arch */
+		s->mmapdbuf=mmap(NULL,s->msize,PROT_READ,MAP_PRIVATE,s->fd,0);
+		if (s->mmapdbuf==(void*)-1) {
+			ms_error("Could not mmap: %s",strerror(errno));
+			s->mmapdbuf=NULL;
+			return -1;
 		}
-		s->frame_ind=0;
 	}
+	/* initialize the mediastreamer buffers */
+	ms_message("Using %i-frames mmap'd buffer at %p, len %i",
+		s->frame_max, s->mmapdbuf,s->msize);
+	for(i=0;i<s->frame_max;i++){
+		mblk_t *buf=esballoc((uint8_t*)s->mmapdbuf+vmbuf.offsets[i],vmbuf.offsets[1],0,NULL);
+		/* adjust to real size of picture*/
+		if (s->pix_fmt==MS_RGB24)
+			buf->b_wptr+=s->vsize.width*s->vsize.height*3;
+		else 
+			buf->b_wptr+=(s->vsize.width*s->vsize.height*3)/2;
+		s->frames[i]=buf;
+	}
+	s->frame_ind=0;
 	return 0;
 }
 
@@ -531,8 +539,13 @@ static int v4l_configure(V4lState *s)
 		if (try_format(s->fd, &pict,VIDEO_PALETTE_RGB24,24)){
 			ms_message("Driver supports RGB24, using that format.");
 			s->pix_fmt=MS_RGB24;
-		}else{
-			ms_fatal("Unsupported video pixel format.");
+		}else {
+			if (try_format(s->fd, &pict,VIDEO_PALETTE_YUV422, 16)){
+				ms_message("Driver supports YUV422, using that format.");
+				s->pix_fmt=MS_YUYV;
+			}else {
+				ms_fatal("Unsupported video pixel format.");
+			}
 		}
 	}
 	if (!try_size(s,s->vsize)) {
@@ -558,6 +571,8 @@ int ms_to_v4l_pix_fmt(MSPixFmt p){
 				return VIDEO_PALETTE_YUV420P;
 		case MS_RGB24:
 				return VIDEO_PALETTE_RGB24;
+		case MS_YUYV:
+				return VIDEO_PALETTE_YUV422;
 		default:
 			ms_fatal("unsupported pix fmt");
 			return -1;
@@ -648,7 +663,7 @@ static mblk_t * v4l_grab_image_mmap(V4lState *s){
 			ms_warning("v4l_grab_image_mmap: error in VIDIOCSYNC: %s.",strerror(errno));	
 			return NULL;
 		}
-		/*g_message("got frame %i",syncframe);*/
+		//ms_message("got frame %i",syncframe);
 	}else {
 		return NULL;
 	}
@@ -815,6 +830,8 @@ static void *v4l_thread(void *ptr){
 			putq(&s->rq,dupmsg(m));
 			ms_mutex_unlock(&s->mutex);
 		}
+		/* sleep for 10ms, do not consume all CPU */
+		usleep(10000);
 	}
 	v4l_do_munmap(s);
 	ms_message("v4l_thread exited.");

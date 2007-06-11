@@ -28596,7 +28596,7 @@ fi
 
 if test "$GCC$strictness" = "yesyes" ; then
 	STRICT_OPTIONS="-Wall -Wp,-D_FORTIFY_SOURCE=2"
-	STRICT_OPTIONS="$STRICT_OPTIONS -Werror"
+	#STRICT_OPTIONS="$STRICT_OPTIONS -Werror"
 	CFLAGS="$CFLAGS -fno-strict-aliasing"
 fi
 

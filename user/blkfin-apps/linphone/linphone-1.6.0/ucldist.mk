@@ -1,16 +1,17 @@
 DESTDIR=$(TEMPDIR)
 CFLAGS += -fno-strict-aliasing -ffast-math -mfast-fp 
-CFLAGS += -I$(STAGEDIR)/usr/local/include
-LDFLAGS += -L$(STAGEDIR)/usr/local/lib
+CFLAGS += -I$(STAGEDIR)/usr/local/include -I$(STAGEDIR)/usr/include 
+LDFLAGS += -L$(STAGEDIR)/usr/local/lib -L$(STAGEDIR)/usr/lib 
 LINPHONE_FLAGS+=--enable-portaudio=no
 LINPHONE_FLAGS+=--enable-gnome_ui=no
-LINPHONE_FLAGS+=--disable-video
+#LINPHONE_FLAGS+=--disable-video
 LINPHONE_FLAGS+=--disable-manual
 LINPHONE_FLAGS+=--disable-shared
 LINPHONE_FLAGS+=--enable-static
 LINPHONE_FLAGS+=--disable-glib
 LINPHONE_FLAGS+=--enable-ipv6=no
 LINPHONE_FLAGS+=--with-osip=$(TEMPDIR)
+LINPHONE_FLAGS+=--with-sdl=$(STAGEDIR)/usr
 LINPHONE_FLAGS+=PKG_CONFIG_PATH=$(TEMPDIR)/lib/pkgconfig:$(STAGEDIR)/usr/lib/pkgconfig
 
 all: build/Makefile

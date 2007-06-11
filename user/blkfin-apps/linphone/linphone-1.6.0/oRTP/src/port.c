@@ -124,6 +124,18 @@ int __ortp_thread_join(ortp_thread_t thread, void **ptr){
 	}
 	return err;
 }
+int __ortp_thread_create(pthread_t * thread, pthread_attr_t *attr, void* (*routine)(void *), void * arg)
+{
+	pthread_attr_t my_attr;
+	
+	pthread_attr_init(&my_attr);
+	if (attr)
+		memcpy (&my_attr, attr, sizeof(my_attr));
+	pthread_attr_setstacksize(&my_attr, 65536);
+	return pthread_create(thread, &my_attr, routine, arg);
+}
+
+
 #endif
 #if	defined(_WIN32) || defined(_WIN32_WCE)
 

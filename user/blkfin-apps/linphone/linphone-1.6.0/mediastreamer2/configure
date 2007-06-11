@@ -20058,9 +20058,9 @@ if test x$ac_cv_c_bigendian = xyes ; then
 	CFLAGS="$CFLAGS -D_BIGENDIAN "
 fi
 
-if test $GCC = yes && test $wall_werror = yes;  then
-	CFLAGS="$CFLAGS -Werror "
-fi
+#if test $GCC = yes && test $wall_werror = yes;  then
+#	CFLAGS="$CFLAGS -Werror "
+#fi
 
 case $OS in
   darwin*)

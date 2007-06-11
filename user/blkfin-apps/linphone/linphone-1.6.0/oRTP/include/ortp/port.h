@@ -77,7 +77,9 @@ typedef pthread_cond_t ortp_cond_t;
 
 int __ortp_thread_join(ortp_thread_t thread, void **ptr);
 
-#define ortp_thread_create	pthread_create
+int __ortp_thread_create(pthread_t *thread, pthread_attr_t *attr, void * (*routine)(void*), void *arg); 
+
+#define ortp_thread_create 	__ortp_thread_create
 #define ortp_thread_join	__ortp_thread_join
 #define ortp_thread_exit	pthread_exit
 #define ortp_mutex_init		pthread_mutex_init
