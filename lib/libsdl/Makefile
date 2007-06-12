@@ -6,9 +6,13 @@ CONF_OPTS = \
 	--disable-pth \
 	--disable-pthreads \
 	--disable-threads \
+	--disable-video-directfb \
 	--disable-video-x11
 
+# upstream's install targets lack dependencies on the things
+# they install, so just decouple build/install steps
 all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER)
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 
 build-$(VER)/Makefile:
