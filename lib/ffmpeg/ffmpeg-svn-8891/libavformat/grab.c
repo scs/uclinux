@@ -63,13 +63,14 @@ struct {
     int depth;
     enum PixelFormat pix_fmt;
 } video_formats [] = {
-    {.palette = VIDEO_PALETTE_YUV420P, .depth = 12, .pix_fmt = PIX_FMT_YUV420P},
-    {.palette = VIDEO_PALETTE_YUV422, .depth = 16,  .pix_fmt = PIX_FMT_YUYV422},
-    {.palette = VIDEO_PALETTE_RGB24, .depth = 24,  .pix_fmt = PIX_FMT_BGR24}, /* NOTE: v4l uses BGR24, not RGB24 ! */
-    {.palette = VIDEO_PALETTE_RGB565, .depth = 16, .pix_fmt = PIX_FMT_BGR565},
-    {.palette = VIDEO_PALETTE_GREY, .depth = 8,   .pix_fmt = PIX_FMT_GRAY8},
-    {.palette = VIDEO_PALETTE_UYVY, .depth = 16, .pix_fmt = PIX_FMT_UYVY422},
-    {.palette = VIDEO_PALETTE_YUYV, .depth = 16, .pix_fmt = PIX_FMT_YUYV422},
+    {.palette = VIDEO_PALETTE_YUV420P, .depth = 12, .pix_fmt = PIX_FMT_YUV420P },
+    {.palette = VIDEO_PALETTE_YUV422,  .depth = 16, .pix_fmt = PIX_FMT_YUYV422 },
+    {.palette = VIDEO_PALETTE_UYVY,    .depth = 16, .pix_fmt = PIX_FMT_UYVY422 },
+    {.palette = VIDEO_PALETTE_YUYV,    .depth = 16, .pix_fmt = PIX_FMT_YUYV422 },
+    /* NOTE: v4l uses BGR24, not RGB24 */
+    {.palette = VIDEO_PALETTE_RGB24,   .depth = 24, .pix_fmt = PIX_FMT_BGR24   },
+    {.palette = VIDEO_PALETTE_RGB565,  .depth = 16, .pix_fmt = PIX_FMT_BGR565  },
+    {.palette = VIDEO_PALETTE_GREY,    .depth = 8,  .pix_fmt = PIX_FMT_GRAY8   },
 };
 
 static int aiw_init(VideoData *s);
@@ -137,15 +138,12 @@ static int grab_read_header(AVFormatContext *s1, AVFormatParameters *ap)
 
     desired_palette = -1;
     desired_depth = -1;
-    if (ap->pix_fmt == PIX_FMT_YUV420P) {
-        desired_palette = VIDEO_PALETTE_YUV420P;
-        desired_depth = 12;
-    } else if (ap->pix_fmt == PIX_FMT_YUYV422) {
-        desired_palette = VIDEO_PALETTE_YUV422;
-        desired_depth = 16;
-    } else if (ap->pix_fmt == PIX_FMT_BGR24) {
-        desired_palette = VIDEO_PALETTE_RGB24;
-        desired_depth = 24;
+    for (j = 0; j < vformat_num; j++) {
+        if (ap->pix_fmt == video_formats[j].pix_fmt) {
+            desired_palette = video_formats[j].palette;
+            desired_depth = video_formats[j].depth;
+            break;
+        }
     }
 
     /* set tv standard */
@@ -178,7 +176,7 @@ static int grab_read_header(AVFormatContext *s1, AVFormatParameters *ap)
     /* try to choose a suitable video format */
     pict.palette = desired_palette;
     pict.depth= desired_depth;
-    if (desired_palette == -1) {
+    if (desired_palette == -1 || (ret = ioctl(video_fd, VIDIOCSPICT, &pict)) < 0) {
         for (j = 0; j < vformat_num; j++) {
             pict.palette = video_formats[j].palette;
             pict.depth = video_formats[j].depth;
@@ -267,7 +265,7 @@ static int grab_read_header(AVFormatContext *s1, AVFormatParameters *ap)
         s->frame_format = s->gb_buf.format;
         s->use_mmap = 1;
     }
-    
+
     for (j = 0; j < vformat_num; j++) {
         if (s->frame_format == video_formats[j].palette) {
             frame_size = width * height * video_formats[j].depth / 8;
@@ -277,8 +275,8 @@ static int grab_read_header(AVFormatContext *s1, AVFormatParameters *ap)
     }
 
     if (j >= vformat_num)
-        goto fail;   
-	    
+        goto fail;
+
     s->fd = video_fd;
     s->frame_size = frame_size;
 
