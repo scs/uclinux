@@ -12,6 +12,8 @@ step "Apply kgdb patch."
 cd $uclinux_path/linux-2.6.x
 exec patch -p1 < ../bfin_patch/kgdb_patch/kgdb_bfin_linux-2.6.x.patch
 
+exec patch -p1 < ../bfin_patch/kgdb_patch/kgdb_bfin_linux-2.6.x_test.patch
+
 step "Change config file in /vender folder."
 
 cd $uclinux_path
