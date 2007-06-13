@@ -1,12 +1,6 @@
 .EXPORT_ALL_VARIABLES:
-############################################################################
-#
-# Vendor specific settings
-#
 
-ifndef CONSOLE_BAUD_RATE
-CONSOLE_BAUD_RATE = 57600
-endif
+include $(ROOTDIR)/vendors/config/common/config.arch
 
 ############################################################################
 #
@@ -16,56 +10,41 @@ endif
 # First settings we always want for all builds
 #
 
-# ARCH = kernel,  TARGET_ARCH = uClibc
+MACHINE = bfin      # this is for uClibc
+ARCH    = blackfin  # this is for the kernel
+ENDIAN  = little
 
-MACHINE        = bfin
-ARCH           = blackfin
-ENDIAN         = little
-
-UCLINUX_BUILD_SET = 0		# have we set a special config below
-
-# Pull in common definitions
-include $(ROOTDIR)/vendors/config/common/config.arch
-
-ifndef DISABLE_SHARED_LIBS
-  ifeq ($(CONFIG_FMT_USE_SHARED_FLAT),y)
-	BUILD_SHARED = 1
-  endif
-
-  ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	BUILD_FDPIC_ELF = 1
-	CROSS_COMPILE = bfin-linux-uclibc-
-	CONFIGURE_HOST = bfin-linux-uclibc
-  else	
-	CROSS_COMPILE  = bfin-uclinux-
-	CONFIGURE_HOST = bfin-uclinux
-  endif
-
-  ifeq ($(CONFIG_FMT_USE_SEP_DATA),y)
-	BUILD_SEP_DATA = 1
-  endif
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+CONFIGURE_HOST       := bfin-linux-uclibc
+else
+CONFIGURE_HOST       := bfin-uclinux
 endif
-
-CROSS          = $(CROSS_COMPILE)
-KERNEL_CROSS_COMPILE = bfin-uclinux-
-
-CONFIG_UCLINUX=y
+CROSS_COMPILE        := $(CONFIGURE_HOST)-
+CROSS                := $(CROSS_COMPILE)
+KERNEL_CROSS_COMPILE := bfin-uclinux-
 
 CC        = $(CROSS_COMPILE)gcc
 AS        = $(CROSS_COMPILE)as
 CXX       = $(CROSS_COMPILE)g++
 AR        = $(CROSS_COMPILE)ar
 LD        = $(CROSS_COMPILE)ld
+NM        = $(CROSS_COMPILE)nm
 OBJCOPY   = $(CROSS_COMPILE)objcopy
+OBJDUMP   = $(CROSS_COMPILE)objdump
 RANLIB    = $(CROSS_COMPILE)ranlib
 ELF2FLT   = $(CROSS_COMPILE)elf2flt
 STRIPTOOL = $(CROSS_COMPILE)strip
 STRIP     = $(STRIPTOOL)
 CC_FOR_BUILD = gcc
 
-UCLINUX_BUILD_SET = 0		# have we set a special config below
+MKIMAGE   = $(CROSS_COMPILE)mkimage
+MKCRAMFS  = $(CROSS_COMPILE)mkcramfs
 
-# These can be used by configure.
+############################################################################
+#
+# Settings for configure / autotools
+#
+
 CONFIGURE_BUILD := $(shell sh $(ROOTDIR)/tools/config.guess)
 CONFIGURE_OPTS  := \
 	--host=$(CONFIGURE_HOST) \
@@ -77,126 +56,63 @@ CONFIGURE_OPTS  := \
 	--infodir=/usr/share/info \
 	--localstatedir=/var/lib
 
-############################################################################
-#
-# General purpose lib building rules,  uClibc.config uses these when
-# possible
-#
-
-ifdef UCLINUX_BUILD_LIB
-  ifdef CONFIG_LIB_DEBUG
-	CFLAGS  :=  -O0 -g
-	STRIPTOOL = echo
-	STRIP     = $(STRIPTOOL)
-  else
-	CFLAGS  :=  -O2
-  endif
-	CFLAGS  += -pipe
-	CFLAGS  += -Wall
-	CFLAGS  += $(VENDOR_CFLAGS) -DEMBED
-  ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
-	CFLAGS  += -mstack-check-l1
-  endif
-  ifdef BUILD_SHARED
-	CFLAGS  += -fpic -mid-shared-library 
-  endif
-  ifdef BUILD_FDPIC_ELF
-	CFLAGS += -mfdpic
-	LDFLAGS += -mfdpic
-  endif
-  ifdef BUILD_SEP_DATA
-	CFLAGS += -msep-data
-	LDFLAGS += -msep-data
-  endif
-
-	# don't want all the CFLAGS for uClibc/Config
-	ARCH_CFLAGS := $(CPUFLAGS) $(CFLAGS)
-	CFLAGS  += -D__uClinux__
-
-	CXXFLAGS = $(CFLAGS) $(INCCXX) -fno-exceptions
-
-	UCLINUX_BUILD_SET=1
-endif
-
-############################################################################
-#
-# Settings for building user apps
-#
-
-ifdef UCLINUX_BUILD_USER
-
-	GCC_DIR = $(shell $(CC) -v 2>&1|grep specs|sed -e 's/.* \(.*\)specs/\1\./')
-
-  ifdef BUILD_SHARED
-	FLAT_LIBC     := $(shell $(CC) -mid-shared-library -print-file-name=libc.gdb)
-	LIBC	      = -Wl,-R,$(FLAT_LIBC)
-  else
-	LIBC          = $(SLIBC)
-  endif
-
-  ifdef CONFIG_USER_DEBUG
-	CFLAGS  :=  -O0 -g
-  else
-	CFLAGS  := -O2
-  endif
-	CFLAGS  += -Wall -D__uClinux__ -DEMBED
-  ifdef CONFIG_BLACKFIN_CHECK_STACKFLOW
-	CFLAGS  += -mstack-check-l1
-  endif
-
-  ifdef BUILD_SHARED
-	CFLAGS  += -fpic -mid-shared-library -mshared-library-id=0
-  endif
-  ifdef BUILD_FDPIC_ELF
-	CFLAGS += -mfdpic
-	LDFLAGS = -mfdpic
-  else
-	LDFLAGS = -Wl,-elf2flt
-  ifdef BUILD_SEP_DATA
-	CFLAGS += -msep-data
-	LDFLAGS += -msep-data
-  endif
-  endif
-	CXXFLAGS := $(CFLAGS) $(INCCXX) -fno-exceptions
-	CFLAGS  += -I$(ROOTDIR)
-
-	LDLIBS   = $(LDPATH)
-
-	CXXLIBS  = $(LIBSTDCPP) $(LIBIBERTY) $(LIBC) $(LIBGCC)
-  ifdef BUILD_SHARED
-	LDFLAGS += -Wl,-shared-lib-id,0 -mid-shared-library
-  	LDFLAGS += $(LDPATH)
-	LDLIBS         = $(LIBC)
-	LDLIBS_static  = $(SLIBC)
-  endif	
-
-	FLTFLAGS :=
-	export FLTFLAGS
-
-	# for anyone still using it
-	CONVERT = /bin/true
-
-	UCLINUX_BUILD_SET=1
-endif
-
-############################################################################
-#
-# fall through,  do other config options perhaps
-#
-
-ifeq ($(UCLINUX_BUILD_SET),1)
-	EXTRA_CFLAGS := $(CPUFLAGS)
-
-	CXXLIBS = $(LIBSTDCPP) $(CXXSUP)
-endif
-
-############################################################################
-#
 # help out autotools a bit and force some tests that would otherwise
 # fail because they rely on RUN tests rather than COMPILE
-#
 
 export ac_cv_func_malloc_0_nonnull  = yes
 export ac_cv_func_realloc_0_nonnull = yes
 
+
 ############################################################################
+#
+# Set up all our fun CFLAGS/CPPFLAGS/LDFLAGS.  Normalize our
+# settings so we don't differentiate between user and lib.
+#
+
+ifneq ($(UCLINUX_BUILD_USER)$(UCLINUX_BUILD_LIB),)
+
+CFLAGS-y   := -pipe -Wall
+CXXFLAGS-y := -pipe -Wall
+CPPFLAGS-y := -DEMBED -D__uClinux__ -I$(ROOTDIR)
+LDFLAGS-y  := 
+FLTFLAGS-y := 
+
+CONFIG_ALL_DEBUG := n
+ifdef CONFIG_LIB_DEBUG
+	CONFIG_ALL_DEBUG := y
+endif
+ifdef CONFIG_USER_DEBUG
+	CONFIG_ALL_DEBUG := y
+endif
+
+ifeq ($(CONFIG_ALL_DEBUG),y)
+	CFLAGS-y  +=  -O0 -g
+	STRIPTOOL := echo
+	STRIP     := $(STRIPTOOL)
+else
+	CFLAGS-y  +=  -O2
+endif
+
+CFLAGS-$(CONFIG_BLACKFIN_CHECK_STACKFLOW) += -mstack-check-l1
+
+LDFLAGS-$(CONFIG_FMT_USE_FLAT) += -Wl,-elf2flt
+
+CFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -msep-data
+LDFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -msep-data
+
+CFLAGS-$(CONFIG_FMT_USE_FDPIC_ELF) += -mfdpic
+LDFLAGS-$(CONFIG_FMT_USE_FDPIC_ELF) += -mfdpic
+
+CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -fpic -mid-shared-library
+LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-shared-lib-id,0 -mid-shared-library
+ifdef UCLINUX_BUILD_USER
+CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mshared-library-id=0
+endif
+
+CFLAGS   := $(CFLAGS-y)   $(VENDOR_CFLAGS)
+CXXFLAGS := $(CXXFLAGS-y) $(VENDOR_CXXFLAGS)
+CPPFLAGS := $(CPPFLAGS-y) $(VENDOR_CPPFLAGS)
+LDFLAGS  := $(LDFLAGS-y)  $(VENDOR_LDFLAGS)
+FLTFLAGS := $(FLTFLAGS-y) $(VENDOR_FLTFLAGS)
+
+endif
