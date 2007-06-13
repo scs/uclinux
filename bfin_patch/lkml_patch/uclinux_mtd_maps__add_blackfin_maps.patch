@@ -1,0 +1,103 @@
+uclinux mtd maps: add blackfin maps
+
+Cc: Greg Ungerer <gerg@snapgear.com>
+
+From: Bryan Wu <bryan.wu@analog.com>
+
+diff --git a/drivers/mtd/maps/uclinux.c b/drivers/mtd/maps/uclinux.c
+index 14ffb1a..8866f59 100644
+--- a/drivers/mtd/maps/uclinux.c
++++ b/drivers/mtd/maps/uclinux.c
+@@ -5,7 +5,7 @@
+  *
+  *	(C) Copyright 2002, Greg Ungerer (gerg@snapgear.com)
+  *
+- * 	$Id: uclinux.c,v 1.12 2005/11/07 11:14:29 gleixner Exp $
++ * 	$Id: uclinux.c 2399 2006-11-03 05:32:46Z magicyang $
+  */
+ 
+ /****************************************************************************/
+@@ -15,6 +15,7 @@
+ #include <linux/init.h>
+ #include <linux/kernel.h>
+ #include <linux/fs.h>
++#include <linux/romfs_fs.h>
+ #include <linux/major.h>
+ #include <linux/mtd/mtd.h>
+ #include <linux/mtd/map.h>
+@@ -50,16 +53,46 @@ int uclinux_point(struct mtd_info *mtd, loff_t from, size_t len,
+ 
+ /****************************************************************************/
+ 
++extern unsigned long memory_mtd_start;
++
+ int __init uclinux_mtd_init(void)
+ {
+ 	struct mtd_info *mtd;
+ 	struct map_info *mapp;
++	char name[20];
++#ifdef CONFIG_BFIN
++	unsigned long addr = (unsigned long) memory_mtd_start;
++#else
+ 	extern char _ebss;
+ 	unsigned long addr = (unsigned long) &_ebss;
++#endif
+ 
+ 	mapp = &uclinux_ram_map;
+ 	mapp->phys = addr;
+ 	mapp->size = PAGE_ALIGN(ntohl(*((unsigned long *)(addr + 8))));
++
++#if defined(CONFIG_EXT2_FS) || defined(CONFIG_EXT3_FS)
++	if (*((unsigned short *)(addr + 0x438)) == 0xEF53 ) {
++		sprintf(name, "EXT2 ");
++		mapp->size = *((unsigned long *)(addr + 0x404)) * 1024;
++	}
++#endif
++
++#if defined(CONFIG_CRAMFS)
++	if (*((unsigned long *)(addr)) ==  0x28cd3d45 ) {
++		sprintf(name, "cramfs ");
++		mapp->size = *((unsigned long *)(addr + 0x4)) ;
++	}
++#endif
++#if defined(CONFIG_ROMFS_FS)
++	if (((unsigned long *)addr)[0] == ROMSB_WORD0
++	    && ((unsigned long *)addr)[1] == ROMSB_WORD1) {
++		sprintf (name, "romfs ");
++		mapp->size = be32_to_cpu(((unsigned long *)addr)[2]);
++	}
++#endif
++
++
+ 	mapp->bankwidth = 4;
+ 
+ 	printk("uclinux[mtd]: RAM probe address=0x%x size=0x%x\n",
+@@ -84,9 +117,14 @@ int __init uclinux_mtd_init(void)
+ 	mtd->owner = THIS_MODULE;
+ 	mtd->point = uclinux_point;
+ 	mtd->priv = mapp;
+-
++	++mtd->usecount;
++	
+ 	uclinux_ram_mtdinfo = mtd;
+-	add_mtd_partitions(mtd, uclinux_romfs, NUM_PARTITIONS);
++#ifdef CONFIG_MTD_PARTITIONS
++        add_mtd_partitions(mtd, uclinux_romfs, NUM_PARTITIONS);
++#else
++	add_mtd_device(mtd);
++#endif
+ 
+ 	return(0);
+ }
+@@ -96,7 +134,11 @@ int __init uclinux_mtd_init(void)
+ void __exit uclinux_mtd_cleanup(void)
+ {
+ 	if (uclinux_ram_mtdinfo) {
++#ifdef CONFIG_MTD_PARTITIONS
+ 		del_mtd_partitions(uclinux_ram_mtdinfo);
++#else
++	        del_mtd_device(uclinux_ram_mtdinfo);
++#endif
+ 		map_destroy(uclinux_ram_mtdinfo);
+ 		uclinux_ram_mtdinfo = NULL;
+ 	}
