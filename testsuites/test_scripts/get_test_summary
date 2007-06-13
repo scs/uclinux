@@ -1,0 +1,51 @@
+#!/bin/bash 
+THIS_LOG=$1
+i=0
+cd $THIS_LOG
+
+if [ ! -d test_summary ] ; then
+  mkdir test_summary
+fi
+
+# check with build kernel log to see if kernel is built out
+
+ls build*kernel_log*  > test_summary/all_build_log_list
+
+grep -r "Leaving directory.*uclinux-dist\/vendors\/AnalogDevices" -m 10 -A 3 build*kernel_log* | grep "STEP .* Copy" | sed 's/\-/ /'| awk '{print$1}'| uniq > test_summary/build_kernel_pass_log
+
+echo -e "\n######The following build kernel fails:#######\n" > test_summary/summary
+comm -3  test_summary/all_build_log_list  test_summary/build_kernel_pass_log > test_summary/build_kernel_fail_log
+cat test_summary/build_kernel_fail_log  >> test_summary/summary
+
+rm -f test_summary/all_build_log_list
+rm -f test_summary/build_kernel_pass_log
+
+# check with test log to see if test result is given out
+
+ls *log* | grep -v build.*log | grep -v ftp_test_log | grep -v telnet_test_log | grep -v flash_images_log | grep -v spi_flash_images_log | grep -v kernel_test_log | grep -v .*detailed.* | grep -v .*summary.* > test_summary/all_test_log_list
+
+grep -r "T[Ee][Ss][Tt] .*\.\.\.\[[PF]A[SI][SL]]" -m 1 *log* --binary-files=text | sed 's/:/ /'| awk '{print $1}' > test_summary/test_log_with_result
+
+comm -3 test_summary/all_test_log_list test_summary/test_log_with_result > test_summary/test_log_without_result
+
+grep "T[Ee][Ss][Tt] .*\.\.\.\[PASS]" *log* --binary-files=text |  sed 's/.*log:/ /' | sed 's/\..*\[PASS\]/ /g' > test_summary/pass_summary
+grep "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" *log* --binary-files=text |  sed 's/.*log:/ /' | sed 's/\..*\[FAIL\]/ /g' > test_summary/fail_summary
+cat test_summary/test_log_without_result >> test_summary/fail_summary
+
+rm -f test_summary/all_test_log_list
+rm -f test_summary/test_log_with_result
+rm -f test_summary/test_log_without_result
+
+
+num=`cat test_summary/pass_summary | wc -l`
+echo -e "\n############ Pass Num is: $num.#############\n" >> test_summary/summary
+cat test_summary/pass_summary   >> test_summary/summary
+
+num=`cat test_summary/fail_summary | wc -l`
+echo -e "\n############ Fail Num is: $num.#############\n" >> test_summary/summary
+cat test_summary/fail_summary  >> test_summary/summary
+
+rm -f summary
+ln -s `pwd`/test_summary/summary summary
+
+

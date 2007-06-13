@@ -292,9 +292,10 @@ do
   cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
   cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
   cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
-  rm -rf romfs/ images/
   fi
   
+  rm -rf romfs/ images/
+
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
   cd $KERNEL_SCRIPTS/jffs2
   elif [ ${AUTO_TESTCASE[$i]} == "ethernet_in_buffer" ] ; then

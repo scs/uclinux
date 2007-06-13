@@ -8,7 +8,7 @@ do
 test_pid=`ps aux | grep .exp | head -1 | awk '{print $2}'`
 test_command=`ps aux | grep .exp | head -1 | awk '{print $11}'`
 
-if test "$test_command" && [ $test_command == 'grep' ] ; then
+if [ "$test_pid" != "" ] && test "$test_command" && [ "$test_command" == 'grep' ] ; then
 
  # echo "No test script is running." 
  sleep 1200 
@@ -18,11 +18,22 @@ else
  sleep 3600
 
  test_name=`ps -p $test_pid | tail -1 | awk '{print $4}'`
- if [ $test_name != 'CMD' ] ; then
+ if [ "$test_name" != 'CMD' ] ; then
    echo "`date`. Process: $test_name, ID: $test_pid to be killed."
    kill -9 $test_pid
  fi
 
 fi
 
+
+kernel_test_pid=`ps aux | grep -w kernel_test | head -1 | awk '{print $2}'`
+kernel_test_command=`ps aux | grep -w kernel_test | head -1 | awk '{print $11}'`
+
+if [ "$kernel_test_pid" != "" ] && test "$kernel_test_command" && [ "$kernel_test_command" == 'grep' ] ; then
+
+kill -9 $$
+
+fi
+
 done
+

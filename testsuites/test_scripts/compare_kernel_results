@@ -1,0 +1,124 @@
+#!/bin/sh
+
+# exits with 0 if there is nothing of interest
+# exits with 1 if there is something interesting
+# exits with 2 if an error occurred
+
+# Give two .sum files to compare them
+
+
+if [ "$2" = "" ]; then
+	echo "Usage: $0 lastrun/test_summary thisrun/test_summary" >&2
+	exit 2
+fi
+
+if [ ! -d $1 ] || [ ! -d $2 ] ; then
+        echo "$1 or $2 doesn't exist!"
+        exit 2
+fi
+
+exit_status=0
+tmp1=/tmp/testing.$$a
+tmp2=/tmp/testing.$$b
+
+
+FILE=build_kernel_fail_log
+
+if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
+
+   cat $1/$FILE | sort > $tmp1
+   
+   cat $2/$FILE | sort | comm -13 $tmp1 - > $tmp2
+   
+   grep -s . $tmp2 >/dev/null
+   if [ $? = 0 ]; then
+   	echo "Building kernel that now fail, but passed before:"
+   	echo " "
+   	cat $tmp2
+           echo  " "
+   	exit_status=1
+   fi
+   
+   cat $2/$FILE | sort | comm -23 $tmp1 - > $tmp2
+   
+   grep -s . $tmp2 >/dev/null
+   if [ $? = 0 ]; then
+           echo "Building kernel that now works, but failed before:"
+           echo  " "
+           cat $tmp2
+           echo  " "
+   fi
+else
+ [ -s $1/$FILE ] || { echo "Empty file: $1/$FILE ." && echo "No compare for $FILE .";} 
+ [ -s $2/$FILE ] || { echo "Empty file: $2/$FILE ." && exit_status=1;}
+fi
+
+FILE=fail_summary
+
+if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
+
+   cat $1/$FILE | sort > $tmp1
+   
+   cat $2/$FILE | sort | comm -13 $tmp1 - > $tmp2
+   
+   grep -s . $tmp2 >/dev/null
+   if [ $? = 0 ]; then
+           echo "Tests that now fail, but pass before:"
+           echo  " "
+           cat $tmp2
+           echo  " "
+           exit_status=1
+   fi
+   
+   cat $1/$FILE | sort > $tmp1
+   
+   cat $2/$FILE | sort | comm -23 $tmp1 - > $tmp2
+   
+   grep -s . $tmp2 >/dev/null
+   if [ $? = 0 ]; then
+           echo "Tests that are newly fixed:"
+           echo  " "
+           cat $tmp2
+           echo  " "
+   fi
+
+else
+ [ -s $1/$FILE ] || { echo "Empty file: $1/$FILE ." && echo "No compare for $FILE .";}
+ [ -s $2/$FILE ] || { echo "Empty file: $2/$FILE ." && exit_status=1;} 
+fi
+
+FILE=pass_summary
+
+if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
+
+   cat $1/$FILE | sort > $tmp1
+   
+   cat $2/$FILE | sort | comm -13 $tmp1 - > $tmp2
+   
+   grep -s . $tmp2 >/dev/null
+   if [ $? = 0 ]; then
+           echo "New pass tests:"
+           echo  " "
+           cat $tmp2
+           echo  " "
+           exit_status=1
+   fi
+   
+   cat $1/$FILE | sort > $tmp1
+   
+   cat $2/$FILE | sort | comm -23 $tmp1 - > $tmp2
+   
+   grep -s . $tmp2 >/dev/null
+   if [ $? = 0 ]; then
+           echo "Pass tests that are disappearing:"
+           echo  " "
+           cat $tmp2
+           echo  " "
+   fi
+
+else
+ [ -s $1/$FILE ] || { echo "Empty file: $1/$FILE ." && echo "No compare for $FILE .";}
+ [ -s $2/$FILE ] || { echo "Empty file: $2/$FILE ." && exit_status=1;}
+fi
+#echo $exit_status
+exit $exit_status

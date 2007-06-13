@@ -1,0 +1,72 @@
+#!/bin/sh
+
+USER=/home/test/work/cruise
+CHECKOUT=$USER/checkouts
+UCLINUX_DIST_SCRIPTS=$USER/test_scripts/uclinux-dist
+LASTRUN=lastrun
+THISRUN=thisrun
+
+BOARD_CONFIG=BF533-STAMP-STD
+CPU=BF533
+UCLINUX_DIST_PATH=$USER/checkouts/uclinux-dist
+BINARY_FORMAT=flat
+ALLOCATOR=slab\(p2\)
+ICACHE=on
+DCACHE=on
+POLICY=write_through
+UART_MODE=dma
+LOG_DIR="$USER/test_scripts/uclinux-dist/logs"
+
+if [ ! -d $USER/test_scripts/uclinux-dist ] ; then
+ mkdir $USER/test_scripts/uclinux-dist
+fi
+
+  ## build and run the tests
+  TIMESTAMP=`date +%Y_%b_%d_%H_%M`
+  THIS_LOG=$LOG_DIR/$TIMESTAMP
+  mkdir -p $THIS_LOG
+
+  cd $LOG_DIR
+  rm -rf $THISRUN
+  ln -s $THIS_LOG $THISRUN
+
+#  cp  $UCLINUX_DIST_PATH/testsuites/kernel_test $UCLINUX_DIST_SCRIPTS
+   cp  $UCLINUX_DIST_SCRIPTS/kernel_config.exp $UCLINUX_DIST_PATH/testsuites/
+ 
+  cd $UCLINUX_DIST_SCRIPTS
+  ./test_runtime_control & 
+  ###### ./kernel_test BF533-STAMP-STD bf533 0.0 /home/test/checkouts/uclinux-dist flat slab\(p2\) on on write_through dma
+  ######  THIS_LOG
+  ./kernel_test  $BOARD_CONFIG $CPU 0.0 $UCLINUX_DIST_PATH  $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $THIS_LOG > kernel_test_log \
+  2>&1
+ 
+  cd $UCLINUX_DIST_PATH 
+  rm -rf testsuites/*/*log  testsuites/*log  romfs/ images/
+  cp $UCLINUX_DIST_SCRIPTS/kernel_test_log $THIS_LOG
+ 
+  echo "Here is the difference between lastrun and thisrun test results: "
+  echo  " "
+
+  cd $UCLINUX_DIST_SCRIPTS
+  $UCLINUX_DIST_SCRIPTS/get_test_summary $THIS_LOG
+  
+  $UCLINUX_DIST_SCRIPTS/compare_kernel_results $LOG_DIR/lastrun/test_summary  $LOG_DIR/thisrun/test_summary 
+  if [ $? = 0 ] ; then
+  echo  "success" > $LOG_DIR/thisrun/test_summary/test_results
+  else
+  echo  "failed" > $LOG_DIR/thisrun/test_summary/test_results
+  fi
+  
+  echo  " "
+  echo "#########Test Summary #############"
+  echo  " "
+  cat $LOG_DIR/thisrun/test_summary/summary
+  echo  " "
+  echo "#########Test Log #################"
+  echo  " "
+  cat $UCLINUX_DIST_SCRIPTS/kernel_test_log
+
+  cd $LOG_DIR
+  rm -rf $LASTRUN
+  ln -s $THIS_LOG $LASTRUN
+
