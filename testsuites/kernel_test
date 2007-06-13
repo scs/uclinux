@@ -793,6 +793,8 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
   cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
   cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
+  cd $KERNEL_PATH/uclinux-dist/user/busybox
+  make clean
   
     cd $KERNEL_SCRIPTS/ltp
     echo "change dir to $KERNEL_SCRIPTS/ltp"
