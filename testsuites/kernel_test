@@ -9,24 +9,24 @@
 
  ############### Set up the testing environment. Edit the following variables to suit your situation. ###################
  
- USER=/home/test
+ USER=/home/test/work/cruise
  BOARD_CONFIG=BF537-STAMP-STD
  CPU=BF537
  REVISION=0.2
- KERNEL_PATH=$USER/checkouts/kernel
+ UCLINUX_DIST_PATH=$USER/checkouts/uclinux-dist
  BINARY_FORMAT=flat
  ALLOCATOR=slab\(p2\)
  ICACHE=on
- DCACHE=off
+ DCACHE=on
  POLICY=write_through
  UART_MODE=dma
- THIS_LOG="$USER/test_scripts/kernel/logs/all_""$BOARD_CONFIG""(""$REVISION"")""_""$BINARY_FORMAT""_""$ALLOCATOR""_icache(""$ICACHE"")_""dcache(""$DCACHE"",""$POLICY"")_UART(""$UART_MODE"")""/THIS_LOG"
+ THIS_LOG="$USER/test_scripts/uclinux-dist/logs"
  
  
  ########################################### Please don't edit anything below this line.###################################
 
 if [ $# -lt 1 ] ; then
-  echo "Please input BOARD_CONFIG [ CPU REVISION KERNEL_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
+  echo "Please input BOARD_CONFIG [ CPU REVISION UCLINUX_DIST_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
   echo
   echo "The BOARD_CONFIG :  BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
   echo "The CPU :           BF533, BF537, BF561,etc."
@@ -36,7 +36,7 @@ if [ $# -lt 1 ] ; then
   echo "The ICACHE,DCACHE : on, off."
   echo "The POLICY :        write_through, write_back."
   echo "The UART_MODE :     dma, pio."
-  echo "For example:./kernel_test BF537-STAMP-STD BF537 /home/test/checkouts/kernel flat slab\(p2\) on on write_through dma /home/test/test_scripts/kernel/logs/all_BF537_flat_slab(p2)_icache(on)_dcache(on,write_through)_UART(dma)/THIS_LOG."
+  echo "For example:./kernel_test BF537-STAMP-STD BF537 /home/test/work/cruise/checkouts/uclinux-dist flat slab\(p2\) on on write_through dma /home/test/work/cruise/test_scripts/uclinux-dist/logs."
   exit
 fi
 
@@ -56,14 +56,13 @@ if [ $# -gt 2 ] ; then
 fi
 
   if [ $# -gt 3 ] ; then 
-  KERNEL_PATH=$4
-  echo "##### KERNEL_PATH: $KERNEL_PATH."  
+  UCLINUX_DIST_PATH=$4
+  echo "##### UCLINUX_DIST_PATH: $UCLINUX_DIST_PATH."  
 fi
 
-  KERNEL_PATH_BAK="$KERNEL_PATH""_bak"  
-  KERNEL_SOURCE=$KERNEL_PATH/uclinux-dist
-  KERNEL_SOURCE_BAK=$KERNEL_PATH_BAK/uclinux-dist  
-  KERNEL_SCRIPTS=$KERNEL_SOURCE/testsuites  
+  UCLINUX_DIST_PATH_BAK="$UCLINUX_DIST_PATH"".bak"  
+  UCLINUX_DIST_SCRIPTS=$USER/test_scripts
+  UCLINUX_DIST_TESTSUITES=$UCLINUX_DIST_PATH/testsuites  
   
 if [ $# -gt 4 ] ; then
   BINARY_FORMAT=$5  
@@ -100,15 +99,13 @@ if [ $# -gt 11 ] ; then
 fi
 
 
-###### See if kernel has been checked out.##################################################
+###### See if uclinux-dist has been checked out.##################################################
  
-if [ ! -d $KERNEL_PATH_BAK ] ; then
-  echo  "##### No kernel source in $KERNEL_PATH_BAK."
-  exit
+if [ -d $UCLINUX_DIST_PATH_BAK ] ; then
+  rm -rf $UCLINUX_DIST_PATH_BAK
 fi
-if [ ! -d $KERNEL_PATH ] ; then
-  mkdir -p $KERNEL_PATH
-  echo  "##### Testing is doing against the kernel source in $KERNEL_PATH."
+if [ ! -d $UCLINUX_DIST_PATH ] ; then
+  exit 2
 fi
 
 if [ ! -d $THIS_LOG ] ; then
@@ -123,13 +120,14 @@ fi
    BUILD_POLICY=1
  
    n=50
- 
-   AUTO_TESTCASE=(  [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [29]="malloc_perf"  [30]="sram_alloc"   [31]="i2ctwi"  [32]="" [33]="sport"  [34]="erestart" [$(( n + 1 ))]="timer" [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"   [[$(( n + 5 ))]="audio_ad1981b"  $(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb" [$(( n + 9 ))]="video_adv7171"  [$(( n + 10 ))]="video_adv7393" [[$(( n + 11 ))]="tftlcd" )
+
+
+   AUTO_TESTCASE=( [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [29]="malloc_perf"  [30]="sram_alloc"   [31]="i2ctwi"  [32]=""  [33]="sport"   [34]="erestart"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"   [$(( n + 5 ))]="audio_ad1981b"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb"  [$(( n + 9 ))]="video_adv7171"  [$(( n + 10 ))]="video_adv7393"  [$(( n + 11 ))]="tftlcd" )
 
    AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1" [29]="1"  [30]="1"   [31]="0"  [32]="0"  [33]="0"  [34]="1" [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="0"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1"  [$(( n + 8 ))]="0" [$(( n + 9 ))]="0" [$(( n + 10 ))]="0" [$(( n + 11 ))]="0" )
 
    MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]="pbx"  [13]="linphone"  [14]="sport_uart"  [15]="netaudio" [16]="touchscreen"   [$(( n + 1 ))]="serial_uart1"  )
-   
+
    MANUAL_RUN_STATUS=( [0]="1"    [1]="1"     [2]="1"    [3]="1"    [4]="1"  [5]="1"  [6]="1"  [7]="1" [8]="1"  [9]="1"  [10]="1"   [11]="1"  [12]="1"  [13]="1"  [14]="1"  [15]="1" [16]="1"   [$(( n + 1 ))]="0"  )
 
 
@@ -158,8 +156,9 @@ if [ $BOARD_CONFIG = "BF537-STAMP-ADV7393" ] ; then
    BOARD_TYPE=BF537-STAMP
    
    AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[31]="1"; AUTO_RUN_STATUS[$(( n + 10 ))]="1"
-##add 1981b test here
+   ##add 1981b test here
    AUTO_RUN_STATUS[$(( n + 5 ))]="1"
+
 
 fi
 
@@ -168,7 +167,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-AD(73311)" ] ; then
 
    BOARD_TYPE=BF537-STAMP
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[31]="1"; AUTO_RUN_STATUS[33]="1"; AUTO_RUN_STATUS[$(( n + 4 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[31]="1"; AUTO_RUN_STATUS[33]="1"; AUTO_RUN_STATUS[$(( n + 4 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"      
 
 fi
 
@@ -214,35 +213,30 @@ fi
 #########################   Build and run the tests     #######################################
 
 export PATH=/opt/uClinux/bfin-uclinux/bin:/opt/uClinux/bfin-elf/bin:/opt/uClinux/bfin-linux-uclibc/bin:$PATH
-echo "##### The Toolchain is:" 
 /opt/uClinux/bfin-uclinux/bin/bfin-uclinux-gcc -v
 echo 
 
-cd  $KERNEL_SOURCE_BAK/testsuites
+cd  $UCLINUX_DIST_TESTSUITES
 chmod +x *.exp  */*.exp
-cp  $KERNEL_SOURCE_BAK/testsuites/test_scripts/decide_all_standard  $USER/test_scripts/kernel
-cp  $KERNEL_SOURCE_BAK/testsuites/test_scripts/test_runtime_control  $USER/test_scripts/kernel
-cp  $USER/test_scripts/kernel/reset_board $KERNEL_SOURCE_BAK/testsuites/
-cp  $USER/test_scripts/kernel/reset_board $KERNEL_SOURCE_BAK/testsuites/ltp
+cp  $UCLINUX_DIST_TESTSUITES/test_scripts/compare_kernel_results  $UCLINUX_DIST_SCRIPTS/uclinux-dist 
+cp  $UCLINUX_DIST_TESTSUITES/test_scripts/get_test_summary  $UCLINUX_DIST_SCRIPTS/uclinux-dist 
+#cp  $UCLINUX_DIST_TESTSUITES/test_scripts/test_runtime_control  $UCLINUX_DIST_SCRIPTS/uclinux-dist
+cp  $UCLINUX_DIST_SCRIPTS/uclinux-dist/reset_board $UCLINUX_DIST_TESTSUITES
+cp  $UCLINUX_DIST_SCRIPTS/uclinux-dist/reset_board $UCLINUX_DIST_TESTSUITES/ltp
 
   #############################################################################################
-  ############################ BUILD POLICY KERNEL ############################################
+  ############################ BUILD POLICY UCLINUX_DIST ############################################
 if [ $BUILD_POLICY -eq 1  ] ; then
-  echo  "Running build policy kernel... "
+  echo  "Running build policy in uclinux-dist... "
   
-  rm -rf $KERNEL_PATH
-  echo  "mv kernel source "
-  mv $KERNEL_PATH_BAK $KERNEL_PATH
-     
-  echo  "start building policy kernel..."
-  cd $KERNEL_SCRIPTS/policy
-  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $REVISION $KERNEL_SOURCE $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE  >/dev/null  2>&1
+  cd $UCLINUX_DIST_TESTSUITES/policy
+  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $REVISION $UCLINUX_DIST_PATH $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE  >/dev/null  2>&1
     
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.policy
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.policy
-  cp $KERNEL_SCRIPTS/policy/build_policy_kernel_log  $THIS_LOG
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.policy
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.policy
+  cp $UCLINUX_DIST_TESTSUITES/policy/build_policy_kernel_log  $THIS_LOG
   
-  if [ ! -f $KERNEL_SOURCE/images/linux ] ; then
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ] ; then
   echo  "Linux image fails to be generated.Error!"
   tail -50  ./build_policy_kernel_log
   exit
@@ -251,19 +245,14 @@ if [ $BUILD_POLICY -eq 1  ] ; then
   sleep 30
   
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
   
-  echo  "mv kernel source back to KERNEL_PATH_BAK."
-  mv $KERNEL_PATH $KERNEL_PATH_BAK 
-  mkdir -p $KERNEL_PATH
+  echo  "cp uclinux-dist source to UCLINUX_DIST_PATH_BAK."
+  cp -a $UCLINUX_DIST_PATH $UCLINUX_DIST_PATH_BAK 
   
-  echo  "cp kernel source to KERNEL_PATH."
-  cd $KERNEL_PATH/
-  cp -a  $KERNEL_PATH_BAK/*  .
-    
   sleep 10
 fi
   
@@ -287,27 +276,29 @@ do
      [ ${AUTO_TESTCASE[$i]} != "cfcard" ] &&
      [ ${AUTO_TESTCASE[$i]} != "sram_alloc" ] &&
      [ ${AUTO_TESTCASE[$i]} != "timer" ] ; then
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+
   fi
-  
+
   rm -rf romfs/ images/
 
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
-  cd $KERNEL_SCRIPTS/jffs2
+  cd $UCLINUX_DIST_TESTSUITES/jffs2
   elif [ ${AUTO_TESTCASE[$i]} == "ethernet_in_buffer" ] ; then
-  cd $KERNEL_SCRIPTS/ethernet
+  cd $UCLINUX_DIST_TESTSUITES/ethernet
   elif [ ${AUTO_TESTCASE[$i]} == "ide_cdrom" ] ; then
-  cd $KERNEL_SCRIPTS/ide
+  cd $UCLINUX_DIST_TESTSUITES/ide
   else
-  cd $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}    
+  cd $UCLINUX_DIST_TESTSUITES/${AUTO_TESTCASE[$i]}    
   fi
   
   ./build_${AUTO_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  if [ ! -f $KERNEL_SOURCE/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
   then
         echo "$0:   Error, failed."
 	tail -50 ./build_${AUTO_TESTCASE[$i]}_kernel_log
@@ -326,51 +317,51 @@ do
   
   fi
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.${AUTO_TESTCASE[$i]}
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.${AUTO_TESTCASE[$i]}  
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.${AUTO_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.${AUTO_TESTCASE[$i]}  
   
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
-  cp $KERNEL_SCRIPTS/jffs2/*_log  $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/jffs2/*_log  $THIS_LOG
   elif [ ${AUTO_TESTCASE[$i]} == "ethernet_in_buffer" ] ; then
-  cp $KERNEL_SCRIPTS/ethernet/*_log  $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/ethernet/*_log  $THIS_LOG
   elif [ ${AUTO_TESTCASE[$i]} == "ide_cdrom" ] ; then
-  cp $KERNEL_SCRIPTS/ide/*_log  $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/ide/*_log  $THIS_LOG
   else
-  cp $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}/*_log  $THIS_LOG   
+  cp $UCLINUX_DIST_TESTSUITES/${AUTO_TESTCASE[$i]}/*_log  $THIS_LOG   
   fi
     
   if [ ${AUTO_TESTCASE[$i]} == "cfcard" ] || [ ${AUTO_TESTCASE[$i]} == "ide_cdrom" ] ; then
-  cp $KERNEL_SOURCE/images/uImage  $THIS_LOG/uImage.${AUTO_TESTCASE[$i]}
-  cp $KERNEL_SOURCE/images/rootfs.ext2  $THIS_LOG/rootfs.ext2.${AUTO_TESTCASE[$i]}  
+  cp $UCLINUX_DIST_PATH/images/uImage  $THIS_LOG/uImage.${AUTO_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/images/rootfs.ext2  $THIS_LOG/rootfs.ext2.${AUTO_TESTCASE[$i]}  
   fi
    
   if [ ${AUTO_TESTCASE[$i]} == "jffs2" ] ; then
-  cp $KERNEL_SOURCE/images/vmImage  $THIS_LOG/vmImage.${AUTO_TESTCASE[$i]}
-  cp $KERNEL_SOURCE/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}  
+  cp $UCLINUX_DIST_PATH/images/vmImage  $THIS_LOG/vmImage.${AUTO_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}  
   
-  cd $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}
+  cd $UCLINUX_DIST_TESTSUITES/${AUTO_TESTCASE[$i]}
   sleep 30
   ./boot_kernel_only_uimage_test.exp  >/dev/null  2>&1
-  cp $KERNEL_SCRIPTS/${AUTO_TESTCASE[$i]}/boot_kernel_only_uimage_test_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/${AUTO_TESTCASE[$i]}/boot_kernel_only_uimage_test_log $THIS_LOG
 
   fi
  
   if [ ${AUTO_TESTCASE[$i]} == "jffs2_fs" ] ; then
-  cp $KERNEL_SOURCE/images/vmImage  $THIS_LOG/vmImage.${AUTO_TESTCASE[$i]}
-  cp $KERNEL_SOURCE/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/images/vmImage  $THIS_LOG/vmImage.${AUTO_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}
   fi
  
   if [ ${AUTO_TESTCASE[$i]} == "msh" ] ; then
-  rm -rf $KERNEL_PATH/uclinux-dist/user/busybox
-  cd $KERNEL_PATH/uclinux-dist/user 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/user/busybox  .
+  rm -rf $UCLINUX_DIST_PATH/user/busybox
+  cd $UCLINUX_DIST_PATH/user 
+  cp -a  $UCLINUX_DIST_PATH_BAK/user/busybox  .
   fi
   
   echo  "End testing ${AUTO_TESTCASE[$i]}..."
   sleep 10
   
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi 
@@ -384,42 +375,42 @@ do
  if [ ${AUTO_RUN_STATUS[$(( n + 1 ))]} -eq 1  ] ; then
   echo  "Testing timer..."
 
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/ 
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config 
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
   
 
-  cd $KERNEL_SCRIPTS/timer
+  cd $UCLINUX_DIST_TESTSUITES/timer
   ./build_timer_kernel.exp $BOARD_TYPE  100  >/dev/null  2>&1
   sleep 30
   ./timer_tick_test.exp 100 >/dev/null  2>&1
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer100 
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.timer100
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.timer100 
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.timer100
   
   ./build_timer_kernel.exp $BOARD_TYPE  250  >/dev/null  2>&1
   sleep 30
   ./timer_tick_test.exp 250 >/dev/null  2>&1
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer250
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.timer250
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.timer250
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.timer250
     
   ./build_timer_kernel.exp $BOARD_TYPE  1000  >/dev/null  2>&1
   sleep 30
   ./timer_tick_test.exp 1000 >/dev/null  2>&1
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.timer1000
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.timer1000
-  cp $KERNEL_SCRIPTS/timer/*_log $THIS_LOG
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.timer1000
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.timer1000
+  cp $UCLINUX_DIST_TESTSUITES/timer/*_log $THIS_LOG
   
   sleep 30
 
  
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
@@ -431,29 +422,29 @@ do
   ########################## TEST VIDEO #########################################################
   if [ ${AUTO_RUN_STATUS[$(( n + 9 ))]} -eq 1  ] ; then
   
-  echo  "Testing video adv7171..."
+  echo  "Testing audio adv7171..."
   
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
-
-  cd $KERNEL_SCRIPTS/video
+ 
+  cd $UCLINUX_DIST_TESTSUITES/video
   ./build_video_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./adv7171_test.exp >/dev/null  2>&1
 
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.adv7171
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.adv7171
-  cp $KERNEL_SCRIPTS/video/build_video_kernel_log $THIS_LOG/
-  cp $KERNEL_SCRIPTS/video/adv7171_test_log $THIS_LOG/video_adv7171_test_log
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.adv7171
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.adv7171
+  cp $UCLINUX_DIST_TESTSUITES/video/build_video_kernel_log $THIS_LOG/
+  cp $UCLINUX_DIST_TESTSUITES/video/adv7171_test_log $THIS_LOG/video_adv7171_test_log
 
   sleep 300
  
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
@@ -463,139 +454,29 @@ do
 
   if [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
   
-  echo  "Testing video adv7393..."
-  
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
-  rm -rf romfs/ images/
+  echo  "Testing audio adv7393..."
 
-  cd $KERNEL_SCRIPTS/video
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+ 
+  cd $UCLINUX_DIST_TESTSUITES/audio 
   ./build_video_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./adv7393_test.exp >/dev/null  2>&1
 
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.adv7393
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.adv7393
-  cp $KERNEL_SCRIPTS/video/build_video_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/video/adv7393_test_log $THIS_LOG/video_adv7393_test_log
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.adv7393
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.adv7393
+  cp $UCLINUX_DIST_TESTSUITES/video/build_video_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/video/adv7393_test_log $THIS_LOG/video_adv7393_test_log
 
   sleep 300
  
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1 
-   sleep 10
-  fi
-
-  fi
-
-
-  #############################################################################################
-  ########################## TEST AUDIO #########################################################
-  
-  if [ ${AUTO_RUN_STATUS[$(( n + 3 ))]} -eq 1  ] ; then
-  
-  echo  "Testing audio ad1836..."
-  
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
-  rm -rf romfs/ images/
-  
-  cd $KERNEL_SCRIPTS/audio
-  ./build_ad1836_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  sleep 30
-  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1836   
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad1836
-  cp $KERNEL_SCRIPTS/audio/build_ad1836_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1836
-  cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1836
-    
-  sleep 300
-
- 
-  if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1 
-   sleep 10
-  fi
-
-  fi
-
-
-  if [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
-  
-  echo  "Testing audio ad73311..."
-  
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
-   rm -rf romfs/ images/
-   cd $KERNEL_SCRIPTS/audio 
-  ./build_ad73311_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  sleep 30
-  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad73311
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad73311
-  cp $KERNEL_SCRIPTS/audio/build_ad73311_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad73311 
-  cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad73311
-  
-  sleep 300
-
-
-  if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1 
-   sleep 10
-  fi
-
-  fi
-
-
-  if [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
-  
-  echo  "Testing audio ad1981b..."
-  
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
-  rm -rf romfs/ images/
-  
-  cd $KERNEL_SCRIPTS/audio
-  ./build_ad1981b_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  sleep 30
-  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1981b
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad1981b
-  cp $KERNEL_SCRIPTS/audio/build_ad1981b_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1981b
-  cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1981b
-    
-  sleep 300
-
- 
-  if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
@@ -604,15 +485,15 @@ do
 
   #############################################################################################
   ###################################### TEST TFTLCD###########################################
-  
+
   if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] ; then
 
   echo  "Testing tftlcd landscape..."
 
   rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
+  cd $KERNEL_PATH/uclinux-dist/
   cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
+  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config
   cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
@@ -624,22 +505,22 @@ do
   cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.tftlcd.landscape
   cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.tftlcd.landscape
   cp $KERNEL_SCRIPTS/tftlcd/build_tftlcd_landscape_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_test_log.landscape 
+  cp $KERNEL_SCRIPTS/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_test_log.landscape
 
   sleep 300
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
-   ./reset_board.exp  >/dev/null  2>&1 
+   ./reset_board.exp  >/dev/null  2>&1
    sleep 10
   fi
 
   echo  "Testing tftlcd portrait..."
 
   rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
+  cd $KERNEL_PATH/uclinux-dist/
   cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
+  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config
   cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
@@ -657,28 +538,135 @@ do
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1
+   sleep 10
+  fi
+
+  fi
+
+  #############################################################################################
+  ########################## TEST AUDIO #########################################################
+  
+  if [ ${AUTO_RUN_STATUS[$(( n + 3 ))]} -eq 1  ] ; then
+  
+  echo  "Testing audio ad1836..."
+  
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+
+  cd $UCLINUX_DIST_TESTSUITES/audio
+  ./build_ad1836_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
+  sleep 30
+  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  sleep 30
+  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad1836   
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad1836
+  cp $UCLINUX_DIST_TESTSUITES/audio/build_ad1836_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1836
+  cp $UCLINUX_DIST_TESTSUITES/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1836
+    
+  sleep 300
+
+ 
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $UCLINUX_DIST_TESTSUITES
+   ./reset_board.exp  >/dev/null  2>&1 
+   sleep 10
+  fi
+
+  fi
+  
+  if [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
+  
+  echo  "Testing audio ad73311..."
+ 
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+   
+  cd $UCLINUX_DIST_TESTSUITES/audio 
+  ./build_ad73311_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
+  sleep 30
+  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  sleep 30
+  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad73311
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad73311
+  cp $UCLINUX_DIST_TESTSUITES/audio/build_ad73311_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad73311 
+  cp $UCLINUX_DIST_TESTSUITES/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad73311
+  
+  sleep 300
+
+ 
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
 
   fi
 
+  if [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
 
-   #############################################################################################
-  ################# TEST BOOT KERNEL AND MOUNT JFFS2 FS FROM SPI FLASH ########################
-
-  if [ ${AUTO_RUN_STATUS[$(( n + 6 ))]} -eq 1  ] ; then
-  echo  "Testing boot kernel and mount jffs2 file system from SPI flash ..."
- # Please set the chip selection to the 3rd one on both bf533 and bf537 board.
+  echo  "Testing audio ad1981b..."
 
   rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
+  cd $KERNEL_PATH/uclinux-dist/
   cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
+  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config
   cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
-  
-  cd $KERNEL_SCRIPTS/snormtd
+
+  cd $KERNEL_SCRIPTS/audio
+  ./build_ad1981b_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
+  sleep 30
+  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  sleep 30
+  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+
+  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1981b
+  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad1981b
+  cp $KERNEL_SCRIPTS/audio/build_ad1981b_kernel_log $THIS_LOG
+  cp $KERNEL_SCRIPTS/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1981b
+  cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1981b
+
+  sleep 300
+
+
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $KERNEL_SCRIPTS
+   ./reset_board.exp  >/dev/null  2>&1
+   sleep 10
+  fi
+
+  fi
+
+   #############################################################################################
+  ################# TEST BOOT UCLINUX_DIST AND MOUNT JFFS2 FS FROM SPI FLASH ########################
+
+  if [ ${AUTO_RUN_STATUS[$(( n + 6 ))]} -eq 1  ] ; then
+  echo  "Testing boot uclinux-dist and mount jffs2 file system from SPI flash ..."
+ # Please set the chip selection to the 3rd one on both bf533 and bf537 board.
+
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+ 
+  cd $UCLINUX_DIST_TESTSUITES/snormtd
   ./build_snormtd_kernel.exp $BOARD_TYPE   >/dev/null  2>&1
   sleep 30
   ./spi_flash_images.exp >/dev/null  2>&1
@@ -686,34 +674,34 @@ do
   ./snormtd_reboot_test.exp >/dev/null  2>&1
   sleep 30
 
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.snormtd
-  cp $KERNEL_SCRIPTS/snormtd/build_snormtd_kernel_log $THIS_LOG
-  cp $KERNEL_SOURCE/images/vmImage $THIS_LOG/vmImage.snormtd
-  cp $KERNEL_SOURCE/images/rootfs.jffs2 $THIS_LOG/rootfs.jffs2.snormtd
-  cp $KERNEL_SCRIPTS/snormtd/spi_flash_images_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/snormtd/snormtd_reboot_test_log $THIS_LOG
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.snormtd
+  cp $UCLINUX_DIST_TESTSUITES/snormtd/build_snormtd_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_PATH/images/vmImage $THIS_LOG/vmImage.snormtd
+  cp $UCLINUX_DIST_PATH/images/rootfs.jffs2 $THIS_LOG/rootfs.jffs2.snormtd
+  cp $UCLINUX_DIST_TESTSUITES/snormtd/spi_flash_images_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/snormtd/snormtd_reboot_test_log $THIS_LOG
 
     
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
 
-  cd $KERNEL_SCRIPTS/snormtd
+  cd $UCLINUX_DIST_TESTSUITES/snormtd
   ./build_snormtd_mount_kernel.exp $BOARD_TYPE   >/dev/null  2>&1
   sleep 30
   ./snormtd_test.exp >/dev/null  2>&1
 
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.snormtd_mount
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.snormtd_mount  
-  cp $KERNEL_SCRIPTS/snormtd/build_snormtd_mount_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/snormtd/snormtd_test_log $THIS_LOG  
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.snormtd_mount
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.snormtd_mount  
+  cp $UCLINUX_DIST_TESTSUITES/snormtd/build_snormtd_mount_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/snormtd/snormtd_test_log $THIS_LOG  
   
   sleep 30
  
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
@@ -726,54 +714,53 @@ do
   
   if [ ${AUTO_RUN_STATUS[$(( n + 7 ))]} -eq 1  ] ; then
   echo  "Testing dpmc..."
-  
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
   
-  cd $KERNEL_SCRIPTS/dpmc
+  cd $UCLINUX_DIST_TESTSUITES/dpmc
   ./build_dpmc_kernel.exp $BOARD_TYPE >/dev/null  2>&1  
   sleep 30
   ./dpmc_test.exp 200000000 80000000 850 >/dev/null  2>&1
    
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
   
-  cd $KERNEL_SCRIPTS/dpmc
+  cd $UCLINUX_DIST_TESTSUITES/dpmc
   sleep 30
   ./dpmc_test.exp 300000000 100000000 1000 >/dev/null  2>&1
     
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
   
-  cd $KERNEL_SCRIPTS/dpmc
+  cd $UCLINUX_DIST_TESTSUITES/dpmc
   sleep 30
   ./dpmc_test.exp 500000000 100000000 1200 >/dev/null  2>&1
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.dpmc
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.dpmc
-  cp $KERNEL_SCRIPTS/dpmc/build_dpmc_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/dpmc/dpmc_test_log $THIS_LOG
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.dpmc
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.dpmc
+  cp $UCLINUX_DIST_TESTSUITES/dpmc/build_dpmc_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/dpmc/dpmc_test_log $THIS_LOG
   
   sleep 30 
  
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
 
   fi
-
 
 
 #############################################################################################
@@ -787,31 +774,33 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
 
   for i in 0 1 2 3 4 5
   do
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
+ 
   cd $KERNEL_PATH/uclinux-dist/user/busybox
   make clean
-  
-    cd $KERNEL_SCRIPTS/ltp
-    echo "change dir to $KERNEL_SCRIPTS/ltp"
 
-    ./build_ltp_kernel.exp $BOARD_TYPE $KERNEL_SOURCE ${ltp_args[i]}> /dev/null 2>&1
+    cd $UCLINUX_DIST_TESTSUITES/ltp
+    echo "change dir to $UCLINUX_DIST_TESTSUITES/ltp"
+
+    ./build_ltp_kernel.exp $BOARD_TYPE $UCLINUX_DIST_PATH ${ltp_args[i]}> /dev/null 2>&1
   if [ $? == 1 ] ; then
-    echo "ltp build kernel failed for ${ltp_suf[i]}"
-    cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG/build_ltp_kernel_log_${ltp_suf[i]}
+    echo "ltp build uclinux-dist failed for ${ltp_suf[i]}"
+    cp $UCLINUX_DIST_TESTSUITES/ltp/build_ltp_kernel_log $THIS_LOG/build_ltp_kernel_log_${ltp_suf[i]}
     echo "ltp copy build_ltp_kernel_log done"
   else	
-    # do if build kernel succeed
+    # do if build uclinux-dist succeed
     echo "build_ltp_kernel.exp done"
     sleep 30
     ./ltp_auto_test.exp /dev/ttyS0 2 > /dev/null 2>&1
     echo "ltp_auto_test.exp done"
-    ./ltp_compare_results_all.sh config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new >> ltp_test_log
-    ./ltp_decide_standard.pl config/summary.base $KERNEL_SCRIPTS/ltp/test/logs/summary.new
+    ./ltp_compare_results_all.sh config/summary.base $UCLINUX_DIST_TESTSUITES/ltp/test/logs/summary.new >> ltp_test_log
+    ./ltp_decide_standard.pl config/summary.base $UCLINUX_DIST_TESTSUITES/ltp/test/logs/summary.new
     if [ $? == 1 ] ; then
       echo "ltp test fail"
       echo "LTP Test ............[FAIL]" >> ltp_test_log
@@ -820,28 +809,28 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
       echo "LTP Test ............[FAIL]" >> ltp_test_log
     fi
   
-    cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ltp_${ltp_suf[i]}
+    cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ltp_${ltp_suf[i]}
     echo "ltp copy linux.ltp done"
-    cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ltp_${ltp_suf[i]}
+    cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ltp_${ltp_suf[i]}
     echo "ltp copy config.ltp done"
-    cp $KERNEL_SCRIPTS/ltp/build_ltp_kernel_log $THIS_LOG/build_ltp_kernel_log_${ltp_suf[i]}
+    cp $UCLINUX_DIST_TESTSUITES/ltp/build_ltp_kernel_log $THIS_LOG/build_ltp_kernel_log_${ltp_suf[i]}
     echo "ltp copy build_ltp_kernel_log done"
-    cp $KERNEL_SCRIPTS/ltp/test/logs/summary.new $THIS_LOG/ltp-summary_test_log_${ltp_suf[i]}
+    cp $UCLINUX_DIST_TESTSUITES/ltp/test/logs/summary.new $THIS_LOG/ltp-summary_test_log_${ltp_suf[i]}
     echo "ltp copy summary done"
-    cp $KERNEL_SCRIPTS/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log_${ltp_suf[i]}
+    cp $UCLINUX_DIST_TESTSUITES/ltp/test/logs/detailed.new $THIS_LOG/ltp-detailed_test_log_${ltp_suf[i]}
     echo "ltp copy detailed done"
-    cp $KERNEL_SCRIPTS/ltp/build_ltp_log $THIS_LOG/build_ltp_log_${ltp_suf[i]}
-    cp $KERNEL_SCRIPTS/ltp/ltp_test_log $THIS_LOG/ltp_test_log_${ltp_suf[i]}
+    cp $UCLINUX_DIST_TESTSUITES/ltp/build_ltp_log $THIS_LOG/build_ltp_log_${ltp_suf[i]}
+    cp $UCLINUX_DIST_TESTSUITES/ltp/ltp_test_log $THIS_LOG/ltp_test_log_${ltp_suf[i]}
     echo "copy log files done"
    
     sleep 30    
    
     if [ $RESET_BOARD -eq 1  ] ; then
-     cd $KERNEL_SCRIPTS
+     cd $UCLINUX_DIST_TESTSUITES
      ./reset_board.exp   >/dev/null  2>&1       
      sleep 10
     fi
-    # end, do if build kernel succeed
+    # end, do if build uclinux-dist succeed
   fi
 
 done
@@ -855,28 +844,28 @@ fi
  if [ ${AUTO_RUN_STATUS[$(( n + 8 ))]} -eq 1  ] ; then
   echo  "Testing coreb..."
 
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
-  cd $KERNEL_SCRIPTS/coreb
+  cd $UCLINUX_DIST_TESTSUITES/coreb
   ./build_coreb_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./coreb_test.exp >/dev/null  2>&1
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.coreb 
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.coreb
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.coreb 
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.coreb
   
-  cp $KERNEL_SCRIPTS/coreb/build_coreb_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/coreb/coreb_test_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/coreb/build_coreb_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/coreb/coreb_test_log $THIS_LOG
   
   sleep 30
  
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
   fi
@@ -893,19 +882,19 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   
   echo  "Start testing ${MANUAL_TESTCASE[$i]}..."
 
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
   
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
-  cd $KERNEL_SCRIPTS/spiadc
+  cd $UCLINUX_DIST_TESTSUITES/spiadc
   elif [ ${MANUAL_TESTCASE[$i]} == "sport_uart" ] ; then
-  cd $KERNEL_SCRIPTS/serial
+  cd $UCLINUX_DIST_TESTSUITES/serial
   else
-  cd $KERNEL_SCRIPTS/${MANUAL_TESTCASE[$i]}    
+  cd $UCLINUX_DIST_TESTSUITES/${MANUAL_TESTCASE[$i]}    
   fi
   
   if [ ${MANUAL_TESTCASE[$i]} == "i2ctwi" ] ; then
@@ -916,21 +905,21 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   ./build_${MANUAL_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1  
   fi
 
-  if [ ! -f $KERNEL_SOURCE/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
   then
         echo "$0:       Error, failed."
 	tail -50 ./build_${MANUAL_TESTCASE[$i]}_kernel_log
   fi
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.${MANUAL_TESTCASE[$i]}
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.${MANUAL_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.${MANUAL_TESTCASE[$i]}
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.${MANUAL_TESTCASE[$i]}
   
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
-  cp $KERNEL_SCRIPTS/spiadc/*_log  $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/spiadc/*_log  $THIS_LOG
   elif [ ${MANUAL_TESTCASE[$i]} == "sport_uart" ] ; then
-  cp $KERNEL_SCRIPTS/serial/*_log  $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/serial/*_log  $THIS_LOG
   else
-  cp $KERNEL_SCRIPTS/${MANUAL_TESTCASE[$i]}/*_log  $THIS_LOG   
+  cp $UCLINUX_DIST_TESTSUITES/${MANUAL_TESTCASE[$i]}/*_log  $THIS_LOG   
   fi
     
   echo  "End testing ${MANUAL_TESTCASE[$i]}..."
@@ -944,32 +933,32 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   
   if [ ${MANUAL_RUN_STATUS[$(( n + 1 ))]} -eq 1  ] ; then
   echo  "Testing serial on uart1..."
-       
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/ 
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config 
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
   
-  cd  $KERNEL_SCRIPTS/serial
+  cd  $UCLINUX_DIST_TESTSUITES/serial
   ./build_serial_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./serial_uart1_test.exp /dev/ttyS1 >/dev/null  2>&1
   
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.serial_uart1
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.serial_uart1
-  cp $KERNEL_SCRIPTS/serial/build_serial_kernel_log  $THIS_LOG
-  cp $KERNEL_SCRIPTS/serial/serial_uart1_test_log $THIS_LOG/
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.serial_uart1
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.serial_uart1
+  cp $UCLINUX_DIST_TESTSUITES/serial/build_serial_kernel_log  $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/serial/serial_uart1_test_log $THIS_LOG/
   
   sleep 30
     
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1 
    sleep 10
    
  fi
  fi
 
-echo  "Testing Done."
+ echo  "Testing Done."

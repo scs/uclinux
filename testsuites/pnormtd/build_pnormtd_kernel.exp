@@ -133,7 +133,7 @@ while 1 {
 
        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
              
-             send -s "y\r"
+             send -s "\r"
       }
       
        -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
