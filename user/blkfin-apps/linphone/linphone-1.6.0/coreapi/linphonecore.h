@@ -105,6 +105,7 @@ typedef struct video_config{
 	char *device;
 	bool_t enabled;
 	bool_t show_local;
+	bool_t display;
 }video_config_t;
 
 typedef struct ui_config
@@ -576,7 +577,7 @@ void linphone_core_notify_all_friends(LinphoneCore *lc, LinphoneOnlineStatus os)
 MSList * linphone_core_get_call_logs(LinphoneCore *lc);
 
 /* video support */
-void linphone_core_enable_video(LinphoneCore *lc, bool_t val);
+void linphone_core_enable_video(LinphoneCore *lc, bool_t val, bool_t display_enabled);
 bool_t linphone_core_video_enabled(LinphoneCore *lc);
 
 /*play/record support: use files instead of soundcard*/

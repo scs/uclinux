@@ -392,10 +392,14 @@ typedef struct VideoOut
 
 static void video_out_init(MSFilter  *f){
 	VideoOut *obj=ms_new(VideoOut,1);
-	obj->size.width = MS_VIDEO_SIZE_CIF_W;
-	obj->size.height = MS_VIDEO_SIZE_CIF_H;
-	obj->local_size.width = MS_VIDEO_SIZE_CIF_W;
-	obj->local_size.height = MS_VIDEO_SIZE_CIF_H;
+	//obj->size.width = MS_VIDEO_SIZE_CIF_W;
+	//obj->size.height = MS_VIDEO_SIZE_CIF_H;
+	//obj->local_size.width = MS_VIDEO_SIZE_CIF_W;
+	//obj->local_size.height = MS_VIDEO_SIZE_CIF_H;
+	obj->size.width = MS_VIDEO_SIZE_QVGA_W;
+	obj->size.height = MS_VIDEO_SIZE_QVGA_H;
+	obj->local_size.width = MS_VIDEO_SIZE_QVGA_W;
+	obj->local_size.height = MS_VIDEO_SIZE_QVGA_H;
 	obj->lsize_init=FALSE;
 	obj->scale_factor=SCALE_FACTOR;
 	obj->smallb=NULL;

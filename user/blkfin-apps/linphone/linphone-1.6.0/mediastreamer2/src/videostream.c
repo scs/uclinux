@@ -343,6 +343,82 @@ VideoStream * video_stream_send_only_start(RtpProfile *profile, int locport, con
 	return stream;
 }
 
+
+VideoStream *
+video_stream_recv_only_start (RtpProfile *profile, int locport, const char *remip, int remport,int payload, int jitt_comp,  const char *device)
+{
+	VideoStream *stream = ms_new0 (VideoStream, 1);
+	PayloadType *pt;
+	MSPixFmt format;
+	MSVideoSize vsize=MS_VIDEO_SIZE_CIF;
+	float fps=15;
+
+	pt=rtp_profile_get_payload(profile,payload);
+	if (pt==NULL){
+		video_stream_free(stream);
+		ms_error("videostream.c: undefined payload type.");
+		return NULL;
+	}
+	stream->session=create_duplex_rtpsession(profile,locport,remip,remport,payload,jitt_comp);
+	rtp_session_enable_adaptive_jitter_compensation(stream->session,TRUE);
+	rtp_session_signal_connect(stream->session,"payload_type_changed",
+			(RtpCallback)payload_type_changed,(unsigned long)stream);
+
+	/* creates rtp filters to recv streams */
+	rtp_session_set_recv_buf_size(stream->session,MAX_RTP_SIZE);
+	stream->rtprecv = ms_filter_new (MS_RTP_RECV_ID);
+	ms_filter_call_method(stream->rtprecv,MS_RTP_RECV_SET_SESSION,stream->session);
+
+	/* creates the filters */
+	stream->sizeconv = ms_filter_new(MS_SIZE_CONV_ID);
+	stream->output=ms_filter_new(MS_VIDEO_OUT_ID);
+	stream->decoder=ms_filter_create_decoder(pt->mime_type);
+	if (stream->decoder==NULL){
+		/* big problem: we have not a registered codec for this payload...*/
+		ms_error("videostream.c: No codecs available for payload %i:%s.",payload,pt->mime_type);
+		video_stream_free(stream);
+		return NULL;
+	}
+
+	/*force the decoder to output YUV420P */
+	format=MS_YUV420P;
+	ms_filter_call_method(stream->decoder,MS_FILTER_SET_PIX_FMT,&format);
+	/*ask the size-converter to always output QVGA */
+	vsize=MS_VIDEO_SIZE_QVGA;
+	ms_message("Setting output vsize=%ix%i",vsize.width,vsize.height);
+	ms_filter_call_method(stream->sizeconv,MS_FILTER_SET_PIX_FMT,&format);
+	ms_filter_call_method(stream->sizeconv,MS_FILTER_SET_VIDEO_SIZE,&vsize);
+	ms_filter_call_method(stream->output,MS_FILTER_SET_PIX_FMT,&format);
+
+	if (pt->recv_fmtp!=NULL) {
+		ms_message("pt->recv_fmtp: %s", pt->recv_fmtp);
+		ms_filter_call_method(stream->decoder,MS_FILTER_SET_FMTP,(void*)pt->recv_fmtp);
+	}
+
+	/* and then connect all */
+	ms_filter_link (stream->rtprecv, 0, stream->decoder, 0);
+	ms_filter_link (stream->decoder,0 , stream->sizeconv, 0);
+	ms_filter_link (stream->sizeconv, 0, stream->output, 0);
+
+	/* create the ticker */
+	stream->ticker = ms_ticker_new(); 
+	/* attach it the graph */
+	ms_ticker_attach (stream->ticker, stream->rtprecv);
+	return stream;
+}
+
+void
+video_stream_recv_only_stop (VideoStream * stream)
+{
+	ms_ticker_detach(stream->ticker, stream->rtprecv);
+	rtp_stats_display(rtp_session_get_stats(stream->session),"Video session's RTP statistics");
+	ms_filter_unlink(stream->rtprecv, 0, stream->decoder, 0);
+	ms_filter_unlink(stream->decoder,0,stream->sizeconv,0);
+	ms_filter_unlink(stream->sizeconv,0,stream->output,0);
+	video_stream_free (stream);
+}
+
+
 VideoStream * video_stream_send_only_start_new(RtpProfile *profile, int locport, const char *remip, int remport, int payload, const char *device)
 {
 	VideoStream *stream = ms_new0 (VideoStream, 1);

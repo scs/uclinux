@@ -108,6 +108,7 @@ static char last_in_history[256];
 static bool_t auto_answer=FALSE;
 static bool_t answer_call=FALSE;
 static bool_t video_enabled=FALSE;
+static bool_t display_enabled=FALSE;
 LPC_AUTH_STACK auth_stack;
 static int trace_level = 0;
 static char *logfile_name = NULL;
@@ -355,7 +356,7 @@ linphonec_init(int argc, char **argv)
 	 */
 	linphone_core_init (&linphonec, &linphonec_vtable, configfile_name,
 			    NULL);
-	linphone_core_enable_video(&linphonec,video_enabled);
+	linphone_core_enable_video(&linphonec,video_enabled,display_enabled);
 	if (!video_enabled) printf("Warning: video is disabled in linphonec. Run with -V option to enable it.\n");
 	/*
 	 * Initialize readline
@@ -719,6 +720,11 @@ linphonec_parse_cmdline(int argc, char **argv)
 		else if (strncmp ("-V", argv[arg_num], 2) == 0)
                 {
                         video_enabled = TRUE;
+                }
+		else if (strncmp ("-D", argv[arg_num], 2) == 0)
+                {
+                        video_enabled = TRUE; //enable video by default
+                        display_enabled = TRUE;
                 }
 		else if ((strncmp ("-v", argv[arg_num], 2) == 0)
 			 ||
