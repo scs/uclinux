@@ -491,54 +491,54 @@ do
 
   echo  "Testing tftlcd landscape..."
 
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
-  cd $KERNEL_SCRIPTS/tftlcd
+  cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_landscape_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./tftlcd_test.exp >/dev/null  2>&1
 
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.tftlcd.landscape
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.tftlcd.landscape
-  cp $KERNEL_SCRIPTS/tftlcd/build_tftlcd_landscape_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_test_log.landscape
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.landscape
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.landscape
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_landscape_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_test_log.landscape
 
   sleep 300
 
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1
    sleep 10
   fi
 
   echo  "Testing tftlcd portrait..."
 
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
-  cd $KERNEL_SCRIPTS/tftlcd
+  cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_portrait_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./tftlcd_test.exp >/dev/null  2>&1
 
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.tftlcd.portrait
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.tftlcd.portrait
-  cp $KERNEL_SCRIPTS/tftlcd/build_tftlcd_portrait_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_test_log.portrait
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.portrait
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.portrait
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_portrait_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_test_log.portrait
 
   sleep 300
 
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1
    sleep 10
   fi
@@ -622,31 +622,31 @@ do
 
   echo  "Testing audio ad1981b..."
 
-  rm -rf $KERNEL_PATH/uclinux-dist/linux-2.6.x
-  cd $KERNEL_PATH/uclinux-dist/
-  cp -a  $KERNEL_PATH_BAK/uclinux-dist/linux-2.6.x  .
-  cp $KERNEL_PATH_BAK/uclinux-dist/config/.config config
-  cp $KERNEL_PATH_BAK/uclinux-dist/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
-  cd $KERNEL_SCRIPTS/audio
+  cd $UCLINUX_DIST_TESTSUITES/audio
   ./build_ad1981b_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
   sleep 30
   ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
 
-  cp $KERNEL_SOURCE/images/linux $THIS_LOG/linux.ad1981b
-  cp $KERNEL_SOURCE/linux-2.6.x/.config $THIS_LOG/config.ad1981b
-  cp $KERNEL_SCRIPTS/audio/build_ad1981b_kernel_log $THIS_LOG
-  cp $KERNEL_SCRIPTS/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1981b
-  cp $KERNEL_SCRIPTS/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1981b
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad1981b
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad1981b
+  cp $UCLINUX_DIST_TESTSUITES/audio/build_ad1981b_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1981b
+  cp $UCLINUX_DIST_TESTSUITES/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1981b
 
   sleep 300
 
 
   if [ $RESET_BOARD -eq 1  ] ; then
-   cd $KERNEL_SCRIPTS
+   cd $UCLINUX_DIST_TESTSUITES
    ./reset_board.exp  >/dev/null  2>&1
    sleep 10
   fi
@@ -783,7 +783,7 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
   cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
  
-  cd $KERNEL_PATH/uclinux-dist/user/busybox
+  cd $UCLINUX_DIST_PATH/user/busybox
   make clean
 
     cd $UCLINUX_DIST_TESTSUITES/ltp
@@ -833,6 +833,9 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
     fi
     # end, do if build uclinux-dist succeed
   fi
+
+  cd $UCLINUX_DIST_PATH/user/busybox
+  make clean
 
 done
 
