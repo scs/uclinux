@@ -136,10 +136,10 @@ ifeq ($(CONFIG_BLK_DEV_INITRD),y)
 #
 	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
 
-	( /bin/bash $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) ; \
-	  awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) ; \
-	  echo "slink /init /sbin/init 0755 0 0" ; \
-	) | $(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio - > $(IMAGEDIR)/rootfs.initramfs
+	/bin/bash $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) > $(IMAGEDIR)/rootfs.initramfs.contents
+	awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) >> $(IMAGEDIR)/rootfs.initramfs.contents
+	echo "slink /init /sbin/init 0755 0 0" >> $(IMAGEDIR)/rootfs.initramfs.contents
+	$(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio $(IMAGEDIR)/rootfs.initramfs.contents > $(IMAGEDIR)/rootfs.initramfs
 	cp $(IMAGEDIR)/rootfs.initramfs $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
 
 # first one set with the rootfs uncompressed (since u-boot images do compression)
