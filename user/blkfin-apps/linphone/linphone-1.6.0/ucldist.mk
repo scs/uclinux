@@ -1,10 +1,10 @@
 DESTDIR=$(TEMPDIR)
 CFLAGS += -fno-strict-aliasing -ffast-math -mfast-fp 
-CFLAGS += -I$(STAGEDIR)/usr/local/include -I$(STAGEDIR)/usr/include 
-LDFLAGS += -L$(STAGEDIR)/usr/local/lib -L$(STAGEDIR)/usr/lib 
 LINPHONE_FLAGS+=--enable-portaudio=no
 LINPHONE_FLAGS+=--enable-gnome_ui=no
-#LINPHONE_FLAGS+=--disable-video
+ifeq ($(CONFIG_LIB_LIBSDL)$(CONFIG_LIB_LIBSDL_FORCE),)
+LINPHONE_FLAGS+=--disable-video
+endif
 LINPHONE_FLAGS+=--disable-manual
 LINPHONE_FLAGS+=--disable-shared
 LINPHONE_FLAGS+=--enable-static
@@ -23,11 +23,9 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	../configure \
-		--host=$(CONFIGURE_HOST) \
-		--prefix=/usr \
-		$(LINPHONE_FLAGS) \
-		LIBS="$(LDLIBS)"
+	../configure $(CONFIGURE_OPTS) $(LINPHONE_FLAGS)
 
 clean:
 	rm -rf build
+
+.PHONY: all clean
