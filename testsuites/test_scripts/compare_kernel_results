@@ -18,6 +18,7 @@ if [ ! -d $1 ] || [ ! -d $2 ] ; then
 fi
 
 exit_status=0
+diff_status=0
 tmp1=/tmp/testing.$$a
 tmp2=/tmp/testing.$$b
 
@@ -35,8 +36,9 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
    	echo "Building kernel that now fail, but passed before:"
    	echo " "
    	cat $tmp2
-           echo  " "
+        echo  " "
    	exit_status=1
+        diff_status=1
    fi
    
    cat $2/$FILE | sort | comm -23 $tmp1 - > $tmp2
@@ -47,6 +49,7 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
            echo  " "
            cat $tmp2
            echo  " "
+           diff_status=1
    fi
 else
  [ -s $1/$FILE ] || { echo "Empty file: $1/$FILE ." && echo "No compare for $FILE .";} 
@@ -68,6 +71,7 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
            cat $tmp2
            echo  " "
            exit_status=1
+           diff_status=1
    fi
    
    cat $1/$FILE | sort > $tmp1
@@ -80,6 +84,7 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
            echo  " "
            cat $tmp2
            echo  " "
+           diff_status=1
    fi
 
 else
@@ -102,6 +107,7 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
            cat $tmp2
            echo  " "
            exit_status=1
+           diff_status=1
    fi
    
    cat $1/$FILE | sort > $tmp1
@@ -114,11 +120,17 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
            echo  " "
            cat $tmp2
            echo  " "
+           diff_status=1
    fi
 
 else
  [ -s $1/$FILE ] || { echo "Empty file: $1/$FILE ." && echo "No compare for $FILE .";}
  [ -s $2/$FILE ] || { echo "Empty file: $2/$FILE ." && exit_status=1;}
 fi
+
+if [ $diff_status = 0 ] ; then
+echo "No difference in test results."
+fi
+
 #echo $exit_status
 exit $exit_status

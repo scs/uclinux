@@ -793,7 +793,7 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
   rm -rf romfs/ images/
  
   cd $UCLINUX_DIST_PATH/user/busybox
-  make clean
+  make clean  > /dev/null 2>&1
 
     cd $UCLINUX_DIST_TESTSUITES/ltp
     echo "change dir to $UCLINUX_DIST_TESTSUITES/ltp"
@@ -844,7 +844,7 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
   fi
 
   cd $UCLINUX_DIST_PATH/user/busybox
-  make clean
+  make clean  > /dev/null 2>&1
 
 done
 

@@ -16,6 +16,7 @@ DCACHE=on
 POLICY=write_through
 UART_MODE=dma
 LOG_DIR="$USER/test_scripts/uclinux-dist/logs"
+IPADDR=10.99.22.50
 
 if [ ! -d $USER/test_scripts/uclinux-dist ] ; then
  mkdir $USER/test_scripts/uclinux-dist
@@ -30,8 +31,10 @@ fi
   rm -rf $THISRUN
   ln -s $THIS_LOG $THISRUN
 
-#  cp  $UCLINUX_DIST_PATH/testsuites/kernel_test $UCLINUX_DIST_SCRIPTS
-   cp  $UCLINUX_DIST_SCRIPTS/kernel_config.exp $UCLINUX_DIST_PATH/testsuites/
+  echo "Testing on $IPADDR with $BOARD_CONFIG ($CPU) $BINARY_FORMAT $ALLOCATOR ICACHE($ICACHE) DCACHE($DCACHE) $POLICY $UART_MODE "
+
+  cp  $UCLINUX_DIST_PATH/testsuites/kernel_test $UCLINUX_DIST_SCRIPTS
+# cp  $UCLINUX_DIST_SCRIPTS/kernel_config.exp $UCLINUX_DIST_PATH/testsuites/
  
   cd $UCLINUX_DIST_SCRIPTS
   ./test_runtime_control & 

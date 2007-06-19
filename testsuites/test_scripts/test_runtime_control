@@ -18,7 +18,7 @@ else
  sleep 3600
 
  test_name=`ps -p $test_pid | tail -1 | awk '{print $4}'`
- if [ "$test_name" != 'CMD' ] ; then
+ if [ "$test_pid" != "" ] && [ "$test_name" != 'CMD' ] ; then
    echo "`date`. Process: $test_name, ID: $test_pid to be killed."
    kill -9 $test_pid
  fi
