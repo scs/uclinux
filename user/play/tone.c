@@ -163,6 +163,7 @@ int main(int argc, char *argv[])
 	int	ofd, i, c, size, mag, endian;
 	int	replayfreq, wavefreq, wavetyp;
 
+	mag = 100;
 	replayfreq = 48000;
 	wavetyp = SINE;
 	wavefreq = 1000;
