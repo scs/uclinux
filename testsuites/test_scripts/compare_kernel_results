@@ -53,7 +53,7 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
    fi
 else
  [ -s $1/$FILE ] || { echo "Empty file: $1/$FILE ." && echo "No compare for $FILE .";} 
- [ -s $2/$FILE ] || { echo "Empty file: $2/$FILE ." && exit_status=1;}
+ [ -s $2/$FILE ] || { echo "Empty file: $2/$FILE .";}
 fi
 
 FILE=fail_summary
@@ -89,7 +89,7 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
 
 else
  [ -s $1/$FILE ] || { echo "Empty file: $1/$FILE ." && echo "No compare for $FILE .";}
- [ -s $2/$FILE ] || { echo "Empty file: $2/$FILE ." && exit_status=1;} 
+ [ -s $2/$FILE ] || { echo "Empty file: $2/$FILE .";} 
 fi
 
 FILE=pass_summary
