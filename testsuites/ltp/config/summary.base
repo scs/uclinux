@@ -4,8 +4,8 @@ test started Mar-01-2007-11:52pm
 Test Results
 =====================================
   Total Tests        :  702
-  Passed Tests       :  555
-  Failed Tests       :  5
+  Passed Tests       :  557
+  Failed Tests       :  3
   Broken Tests       :  3
   Warning Tests      :  0
   Crashing Tests     :  1
@@ -15,10 +15,8 @@ Test Results
 Failed Tests List
 =====================================
   -  fcntl14
-  -  fcntl15
   -  semctl01
   -  setrlimit01
-  -  shmctl01
 
 Broken Tests List
 =====================================
@@ -142,6 +140,7 @@ Passed Tests List
   -  fcntl11
   -  fcntl12
   -  fcntl13
+  -  fcntl15
   -  fcntl18
   -  fcntl19
   -  fcntl20
@@ -490,6 +489,7 @@ Passed Tests List
   -  shmat01
   -  shmat02
   -  shmat03
+  -  shmctl01
   -  shmctl02
   -  shmctl03
   -  shmctl04
