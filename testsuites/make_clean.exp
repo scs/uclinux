@@ -1,0 +1,21 @@
+#!/usr/bin/expect
+
+cd $uclinux_path
+spawn make clean
+set timeout 1200
+set bfin_make_clean_status failure
+while 1 {
+      expect {
+             "Entering directory" { }
+             "Leaving directory" { set bfin_make_clean_status success }
+             "Error" {set bfin_make_clean_status failure }
+             "/bin/sh" { }
+             eof { break }
+      }
+}
+
+if { $bfin_make_clean_status == "failure" } {
+      puts "ERROR: Error somewhere during make clean"
+
+}
+
