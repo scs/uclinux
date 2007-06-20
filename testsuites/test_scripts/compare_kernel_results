@@ -106,7 +106,6 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
            echo  " "
            cat $tmp2
            echo  " "
-           exit_status=1
            diff_status=1
    fi
    
@@ -120,6 +119,7 @@ if [ -s $1/$FILE ] && [ -s $2/$FILE ] ;then
            echo  " "
            cat $tmp2
            echo  " "
+           exit_status=1
            diff_status=1
    fi
 
