@@ -1,4 +1,4 @@
-#!/usr/bin/expect --
+#!/usr/bin/expect
 
 #
 # Build Kernel for NP2 test
@@ -7,7 +7,6 @@ source ../kernel_config.exp
 source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
-
 
 cd $uclinux_path/testsuites
 
@@ -40,6 +39,7 @@ while 1 {
       }
 
       "\\\(*) \\\[*]" {
+	 sleep .01
          send "\r"
       }
 
@@ -51,6 +51,7 @@ while 1 {
          puts "End of configuration"
          break
       }
+
       timeout {
          puts "\n\nFATAL ERROR: config prompt timeout in make config"
       }
@@ -69,7 +70,5 @@ step "Copy linux"
 
 source   copy_image.exp
 
+send_user "Ending $argv0\n"
 log_file
-
-send_user "\nKernel building for LTP test finishes!\n"
-exit 0

@@ -32,4 +32,5 @@ int main ()
         }
 
         free (j);
+	printf("mkfragment success\n");
 }
