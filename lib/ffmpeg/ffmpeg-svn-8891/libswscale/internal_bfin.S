@@ -96,7 +96,7 @@
 
 #define mL1 .l1.text
 #define mL3 .text
-#define MEM mL1
+#define MEM mL3
 
 #define DEFUN(fname,where,interface) \
         .section where;              \
@@ -476,56 +476,58 @@ DEFUN(uyvytoyv12, mL3,  (const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8
 
         r1 = [fp + ARG_srcStride];
         r2 = r0 + r1;
-        r1 += -16;
+        r1 += -8;  // i0,i1 is pre read need to correct
         m0 = r1;
 
         i0 = r0;  // uyvy_T even
         i1 = r2;  // uyvy_B odd
 
-        r2 = [fp + ARG_chromStride];
-        m1 = r2;
 
         p2 = [fp + ARG_lumStride];
         p1 = p0 + p2;  // Y bot odd
-        p2 += -4;
 
         p5 = [fp + ARG_width];
         p4 = [fp + ARG_height];
+	r0 = p5;
         p4 = p4 >> 1;
         p5 = p5 >> 2;
 
-        r6.l = w[i2--];  r6.l = w[i2];
-        r6.h = w[i3--];  r6.h = w[i3];
+        r2 = [fp + ARG_chromStride];
+	r0 = r0 >> 1;
+	r2 = r2 - r0;
+        m1 = r2;
+
         /*   I0,I1 - src input line pointers
          *   p0,p1 - luma output line pointers
          *   I2    - dstU
          *   I3    - dstV
          */
 
-        lsetup (0f, 1f) lc0 = p4;
-
-0:        lsetup (2f, 3f) lc1 = p5;
-            r0 = [i0++] || r2 = [i1++];
-            r1 = [i0++] || r3 = [i1++];
-2:          r4 = byteop1p(r1:0, r3:2)     ||   w[i2++] = r6.l;
-            r5 = byteop1p(r1:0, r3:2) (r) ||   w[i3++] = r6.h;
-            r0 = r0 >> 8(v);
+        lsetup (0f, 1f) lc1 = p4;   // H/2
+0:        r0 = [i0++] || r2 = [i1++];
+          r1 = [i0++] || r3 = [i1++];
+          r4 = byteop1p(r1:0, r3:2);
+          r5 = byteop1p(r1:0, r3:2) (r);
+          lsetup (2f, 3f) lc0 = p5; // W/4
+2:          r0 = r0 >> 8(v);
             r1 = r1 >> 8(v);
             r2 = r2 >> 8(v);
             r3 = r3 >> 8(v);
             r0 = bytepack(r0, r1);
-            r2 = bytepack(r2, r3)         ||  [p0++] = r0;
-            r6 = pack(r5.l, r4.l)         ||  [p1++] = r2;
-            r7 = pack(r5.h, r4.h)         ||  r0 = [i0++]   || r2 = [i1++];
-3:          r6 = bytepack(r6, r7)         ||  r1 = [i0++]   || r3 = [i1++];
+            r2 = bytepack(r2, r3)         ||  [p0++] = r0;    // yyyy
+            r6 = pack(r5.l, r4.l)         ||  [p1++] = r2;    // yyyy
+            r7 = pack(r5.h, r4.h)         ||  r0 = [i0++] || r2 = [i1++];
+            r6 = bytepack(r6, r7)         ||  r1 = [i0++] || r3 = [i1++];
+            r4 = byteop1p(r1:0, r3:2)     ||  w[i2++] = r6.l; // uu
+3:          r5 = byteop1p(r1:0, r3:2) (r) ||  w[i3++] = r6.h; // vv
+
 
           i0 += m0;
           i1 += m0;
+	  i2 += m1;
+	  i3 += m1;
           p0 = p0 + p2;
 1:        p1 = p1 + p2;
-
-        w[i2++] = r6.l;
-        w[i3++] = r6.h;
 
         (r7:4,p5:4) = [sp++];
         unlink;
