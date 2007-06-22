@@ -1,5 +1,7 @@
 #!/usr/bin/expect
 
+set file_name $argv0
+
 cd $uclinux_path
 set timeout 300
 spawn make config
@@ -12,7 +14,16 @@ while 1 {
              send "$board_type\r"
       }
 
+       -re "Default all settings.*lose changes.*CONFIG_DEFAULTS_OVERRIDE.*\\\[.*]" {
+                if { $file_name == "./build_policy_kernel.exp" } {
+                        send "y\r"
+                } else {
+                        send "\r"
+                }
+      }
+
       "\\\(*) \\\[*]" {
+             sleep .01
              send "\r"
       }
 
@@ -31,3 +42,4 @@ while 1 {
       }
    }
 }
+
