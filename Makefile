@@ -50,6 +50,7 @@ LINUX_CONFIG  = $(ROOTDIR)/$(LINUXDIR)/.config
 CONFIG_CONFIG = $(ROOTDIR)/config/.config
 MODULES_CONFIG = $(ROOTDIR)/modules/.config
 -include $(CONFIG_CONFIG)
+-include $(LINUX_CONFIG)
 
 CONFIG_SHELL := $(shell if [ -x "$$BASH" ]; then echo $$BASH; \
 	  else if [ -x /bin/bash ]; then echo /bin/bash; \
@@ -279,7 +280,7 @@ romfs.post:
 romfs.shared.libs:
 	set -e; \
 	if egrep "^CONFIG_INSTALL_ELF_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
-		t=`bfin-linux-uclibc-gcc -print-file-name=libc.a`; \
+		t=`bfin-linux-uclibc-gcc $(CPUFLAGS) -print-file-name=libc.a`; \
 		t=`dirname $$t`/../..; \
 		for i in $$t/lib/*so*; do \
 			bn=`basename $$i`; \
@@ -301,7 +302,7 @@ romfs.shared.libs:
 	fi
 	set -e; \
 	if egrep "^CONFIG_INSTALL_FLAT_SHARED_LIBS=y" $(CONFIG_CONFIG) > /dev/null; then \
-		t=`$(CC) -mid-shared-library -print-file-name=libc`; \
+		t=`bfin-uclinux-gcc $(CPUFLAGS) -mid-shared-library -print-file-name=libc`; \
 		if [ -f $$t -a ! -h $$t ] ; then \
 			$(ROMFSINST) -p 755 $$t /lib/lib1.so; \
 		fi; \
