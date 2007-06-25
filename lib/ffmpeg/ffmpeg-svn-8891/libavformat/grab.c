@@ -296,14 +296,22 @@ static int grab_read_header(AVFormatContext *s1, AVFormatParameters *ap)
     return AVERROR_IO;
 }
 
-static int v4l_mm_read_picture(VideoData *s, uint8_t *buf)
+static int v4l_mm_read_picture(VideoData *s, AVPacket *pkt)
 {
     uint8_t *ptr;
+    uint8_t *buf = pkt->data;
 
     while (ioctl(s->fd, VIDIOCSYNC, &s->gb_frame) < 0 &&
            (errno == EAGAIN || errno == EINTR));
 
     ptr = s->video_buf + s->gb_buffers.offsets[s->gb_frame];
+    if (s->gb_buffers.frames > 1) {
+        av_free (pkt->data);
+        pkt->destruct= av_destruct_packet_nofree;
+        pkt->data = ptr;
+        pkt->size = s->frame_size;
+    }
+    else
     memcpy(buf, ptr, s->frame_size);
 
     /* Setup to capture the next frame */
@@ -358,7 +366,7 @@ static int grab_read_packet(AVFormatContext *s1, AVPacket *pkt)
     if (s->aiw_enabled) {
         return aiw_read_picture(s, pkt->data);
     } else if (s->use_mmap) {
-        return v4l_mm_read_picture(s, pkt->data);
+        return v4l_mm_read_picture(s, pkt);
     } else {
         if (read(s->fd, pkt->data, pkt->size) != pkt->size)
             return AVERROR_IO;
