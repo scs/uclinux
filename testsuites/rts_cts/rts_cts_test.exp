@@ -1,0 +1,89 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp 
+
+step "Start testing."
+
+set timeout 5
+
+send "cd /bin\r" 
+while 1 {
+   expect {
+      "bin" {         
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+      }
+   }
+}
+
+set case_num 0
+incr case_num
+
+set timeout 5
+
+send -s  "./rtscts_test\r" 
+while 1 {
+   expect {
+      "*" {         
+                case_fail $case_num
+	        exit
+      }
+
+      timeout {
+                case_pass $case_num
+                break
+         }
+     }
+}
+
+incr case_num
+
+send -s  "cat /proc/kallsyms\r"
+while 1 {
+   expect {
+      "*" {
+           puts "Please switch SW4.3 to off." 
+                   expect {
+     			 "*" {
+                		case_fail $case_num
+               			exit
+      			     }
+
+                         timeout {
+                                case_pass $case_num
+                                break
+                                }
+                           }
+								
+          }
+
+      timeout {
+                case_fail $case_num
+                break
+         }
+     }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
+

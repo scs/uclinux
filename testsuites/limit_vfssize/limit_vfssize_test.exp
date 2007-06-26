@@ -1,0 +1,117 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Starting test."
+set timeout 8
+
+set limit_ratio 10
+
+set case_num 0
+incr case_num
+                       
+expect "root:~>"
+send -s "cat /proc/meminfo\r"
+while 1 {
+expect {
+-re "MemTotal: +(\[0-9]+) kB" {
+        set MemTotal $expect_out(1,string)
+        case_pass $case_num
+	break
+}
+
+timeout {
+        case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+expect "root:~>"
+send -s "echo $limit_ratio > /proc/sys/vm/pagecache_ratio\r"
+while 1 {
+expect {
+       "root:~>" {
+        case_pass $case_num
+        break
+}
+
+timeout {
+        case_fail $case_num
+        exit
+        }
+}
+}
+
+set MemTotal_Limit [ expr $MemTotal * [ expr $limit_ratio + 3 ] / 100 ]
+
+puts "MemTotal_Limit is $MemTotal_Limit ."
+send_log "MemTotal_Limit is $MemTotal_Limit ."
+
+incr case_num
+
+cd $uclinux_path
+
+set timeout 100
+spawn rcp images/rootfs.yaffs2  root@$targetip:/
+while 1 {
+   expect {
+
+      "*connect*" {
+         send_log "\nCopy large file to target board error.\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nCopy large file to target board done\n"
+         break
+      }
+
+      timeout {
+         send_log "\nCopy large file to target board timeout\n"
+         break
+      }
+   }
+}
+
+
+set spawn_id $kermit_spawn_id
+
+send -s "cat /proc/meminfo\r"
+while 1 {
+expect {
+-re "Cached: +(\[0-9]+) kB" {
+        set Cached $expect_out(1,string)
+        case_pass $case_num
+        break
+}
+
+timeout {
+        case_fail $case_num
+        exit
+        }
+}
+}
+
+if { $Cached < $MemTotal_Limit } {
+   send_log "\n"
+   send_log "\n$TITLE ............\[PASS\]\n"
+} else {
+   send_log "\n"
+   case_fail $case_num
+}
+
+send_user "Ending $argv0\n"
+log_file
+ 
+
