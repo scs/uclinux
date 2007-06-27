@@ -161,10 +161,10 @@ while 1 {
                        send  "\r"
       }
 
-           -re "build with stack overflow checking.*CONFIG_BLACKFIN_CHECK_STACKFLOW.*\\\[.*]" {
-
-                      send -s "Y\r"
-      }
+#           -re "build with stack overflow checking.*CONFIG_BLACKFIN_CHECK_STACKFLOW.*\\\[.*]" {
+#
+#                      send -s "Y\r"
+#      }
  
            -re "Enable ICACHE.*BLKFIN_CACHE.*\\\[.*]" {
 		if { $icache == "on" } {
