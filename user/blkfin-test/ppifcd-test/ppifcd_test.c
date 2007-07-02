@@ -412,7 +412,7 @@ int main(int argc, char *argv[])
 
 		gettimeofday(&o, NULL);
 
-		read(fd, buffer + sizeof(bmphead), 1234);
+		read(fd, buffer + sizeof(bmphead), HEIGHT * WIDTH);
 
 		gettimeofday(&t, NULL);
 
