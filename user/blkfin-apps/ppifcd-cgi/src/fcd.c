@@ -347,7 +347,7 @@ void capture(int form_method, char **getvars, char **postvars)
 #endif
 
 	/* Read	the	raw	image data from	the	PPI	*/
-		read(fd,buffer+sizeof(bmphead),1234);
+		read(fd,buffer+sizeof(bmphead), HEIGHT * WIDTH);
 
 	/* Close PPI */
 	close(fd);
