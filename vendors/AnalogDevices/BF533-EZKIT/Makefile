@@ -128,13 +128,15 @@ ifeq ($(CONFIG_MTD_UCLINUX),y)
 	rm -f $(IMAGEDIR)/vmImage
 
 else
+
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
+
 ifeq ($(CONFIG_BLK_DEV_INITRD),y)
 
 #
 # make an initramfs image
 #  Note: need to override some vars from userland env
 #
-	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/vmImage
 
 	/bin/bash $(ROOTDIR)/$(LINUXDIR)/scripts/gen_initramfs_list.sh -u squash -g squash $(ROMFSDIR) > $(IMAGEDIR)/rootfs.initramfs.contents
 	awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) >> $(IMAGEDIR)/rootfs.initramfs.contents
