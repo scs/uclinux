@@ -334,7 +334,153 @@ proc recover {} {
    return -1
 }
 
+#
+#  This procedure forces to reboot kernel.
+#  Return value:
+#     1 == reboot the kernel
+#     -1 == not able to reboot
+#
+proc force_reboot {} {
+    global timeout
+    global ipaddr
+    global LTP_SCRIPT_DIR
 
+    report "!!!! force rebooting"
+    set MAX_ATTEMPTS  2
+    set fail_count 0
+    set state_variable 0
+
+    for {set failcount 0} {$failcount<3} {incr failcount} {
+
+        reset_board
+        set timeout 180
+        set state_variable 0
+
+        while 1 {
+            expect {
+
+                "Kernel panic" {
+                    set state_variable 1
+                    break
+                }
+
+                -re "Sash command shell" {
+                    set state_variable 2
+                    break
+                }
+
+                "root:~>" {
+                    set state_variable 2
+                    send "\r"
+                    break
+                }
+
+                timeout {
+                    break
+                }
+            }
+        }
+
+#
+# Using a state variable for all of this helps
+# when we need to expand the functionality.
+#
+        if { $state_variable == 2 } {
+            set timeout 3
+                expect {
+                    "> " {
+                        set state_variable 3
+                    }
+                }
+        }
+
+        if { $state_variable == 3 } {
+            send "cd /bin\r"
+            set timeout 1
+            while 1 {
+                expect {
+
+                    "No such file or directory" {
+                        report "!!!! error change dir"
+                    }
+
+                    "/bin> " {
+                        report "!!!! changed to test directory"
+                        set state_variable 4
+                        break
+                    }
+
+                    timeout {
+                        report "!!!! cannot change to test dir"
+                        break
+                    }
+                }
+            }
+        }
+
+        if { $state_variable == 4 } {
+            send "export PATH=\$PATH:/bin\r"
+            expect "/bin>"
+            send "export TMP=/tmp\r"
+            expect "/bin>"
+            send "echo \$PATH\r"
+            expect "/bin>"
+            send -s "chmod 777 /tmp\r"
+            send -s "ifconfig eth0 $ipaddr up\r"
+            expect "/bin>"
+            catch {exec rcp $LTP_SCRIPT_DIR/config/passwd root@$ipaddr:/etc}
+            catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc}
+            catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
+            catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
+            catch {exec rcp $LTP_TESTCASES_DIR/sig_rev root@$ipaddr:/.}
+            catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
+            catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
+            set timeout 4
+            set flag 0
+
+            while 1 {
+                expect {
+
+                    "No such file or directory" { 
+                        set flag 1
+                    }
+
+                    "bin> " {
+                        if { $flag==0} {
+                            report "!!!! executed chmod 777 /tmp"
+                            send -s "ls -l /\r"
+
+                            while 1 {
+                                expect {
+                                    "tmp" {
+                                        break
+                                    }
+
+                                    timeout {
+                                        report "timeout during chmod 777 /tmp"
+                                        break
+                                    }
+                                }
+                            }
+                            return 1
+                        } else {
+                            report "!!!! problem with chmod 777 /tmp"
+                            return 1
+                        }
+                    }
+
+                    timeout {
+                        report "!!!! timeout during chmod 777 /tmp"
+                        break
+                    }
+                }
+            }
+        }
+    }
+
+    report "!!!! Not able to reboot"
+    return -1
+}
 
 
 #
@@ -692,6 +838,11 @@ proc run_LTP_test { filename command torun mode} {
       step "Test NA on uClinux"
       return $result_flag
    }
+
+   if { $filename == "munlock01" } {
+       force_reboot
+   }
+
    set old_timeout $timeout
    set result_flag $LTP_NOT_RUN
    set timeout 10
@@ -941,6 +1092,10 @@ proc run_LTP_test { filename command torun mode} {
 
    send "rm -f /bin/$filename\r"
    step "remove testcase done"
+
+   if { $filename == "munlock01" } {
+       force_reboot
+   }
 
   # Check if system is alive
    set timeout 5
