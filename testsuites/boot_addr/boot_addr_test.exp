@@ -1,0 +1,61 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp 
+
+step "Start testing."
+
+set timeout 5
+
+set case_num 0
+incr case_num
+
+set timeout 500
+
+send -s  "dmesg\r" 
+while 1 {
+   expect {
+
+       -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+)-(0x\[0-9a-fA-F]+)\[\r\n]" {
+            set map_text $expect_out(1,string)
+                case_pass $case_num
+                break
+         }
+
+      timeout {
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+incr case_num
+
+send_log "\nmap_text  $map_text\n"
+send_user "\nmap_text  $map_text\n"
+if {$map_text == 0x00002000 } {
+   send_log "\n"
+   case_pass $case_num
+} else {
+   send_log "\n"
+   case_fail $case_num
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
+
