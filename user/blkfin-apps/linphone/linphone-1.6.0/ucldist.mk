@@ -2,7 +2,7 @@ DESTDIR=$(TEMPDIR)
 CFLAGS += -fno-strict-aliasing -ffast-math -mfast-fp 
 LINPHONE_FLAGS+=--enable-portaudio=no
 LINPHONE_FLAGS+=--enable-gnome_ui=no
-ifeq ($(CONFIG_LIB_LIBSDL)$(CONFIG_LIB_LIBSDL_FORCE),)
+ifeq ($(CONFIG_USER_BFIN_LINPHONE_VIDEO),)
 LINPHONE_FLAGS+=--disable-video
 endif
 LINPHONE_FLAGS+=--disable-manual

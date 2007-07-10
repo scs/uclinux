@@ -167,6 +167,12 @@ if [ "$CONFIG_USER_BLACKFIN_LINPHONE" = "y" ]; then
 	define_bool CONFIG_LIB_SPEEX y
 	define_bool CONFIG_LIB_READLINE y
 	define_bool CONFIG_LIB_NCURSES y
+	define_bool CONFIG_LIB_ALSA_LIB_FORCE y
+        bool '   Enable video'     CONFIG_USER_BFIN_LINPHONE_VIDEO
+	if [ "$CONFIG_USER_BFIN_LINPHONE_VIDEO" = "y" ]; then
+		define_bool CONFIG_LIB_LIBSDL_FORCE y
+		define_bool CONFIG_LIB_FFMPEG_FORCE y
+	fi
 fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
