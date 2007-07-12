@@ -8,7 +8,7 @@ all: build/build
 build/build: makefile
 	rm -rf build
 	mkdir build
-	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
+	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS) --with-ldopts="$(LDFLAGS)")
 	touch build/build
 
 clean:
