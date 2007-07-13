@@ -140,6 +140,11 @@ while 1 {
 		break
 	}
 
+        -re "Input/output error" {
+                case_fail $case_num
+                exit
+        }
+
 	timeout {
                 case_fail $case_num
 		exit
@@ -222,6 +227,7 @@ while 1 {
      }
 }
 
+expect ">"
 puts "Writing YAFFS......\n"
 
 incr case_num
