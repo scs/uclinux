@@ -142,6 +142,7 @@ proc recover {} {
    global password
    global ipaddr
    global LTP_SCRIPT_DIR
+   global LTP_TESTCASES_DIR
 
    set MAX_ATTEMPTS  2
 
@@ -344,6 +345,8 @@ proc force_reboot {} {
     global timeout
     global ipaddr
     global LTP_SCRIPT_DIR
+    global LTP_TESTCASES_DIR
+
 
     report "!!!! force rebooting"
     set MAX_ATTEMPTS  2
@@ -862,7 +865,7 @@ proc run_LTP_test { filename command torun mode} {
    if { $filename == "execve02" || $filename == "execve05" } {
       catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
    }
-   if { $filename == "lchown02" || $filename == "readlink04" } {
+   if { $filename == "lchown02" } {
       catch {exec rcp $LTP_TESTCASES_DIR/create_link root@$ipaddr:/bin}
    }
    if { $filename == "link01" || $filename == "open01A" } {
@@ -1048,7 +1051,7 @@ proc run_LTP_test { filename command torun mode} {
    if { $filename == "execve02" || $filename == "execve05" } {
       send "rm -f /bin/test3\r"
    }
-   if { $filename == "lchown02" || $filename == "readlink04" } {
+   if { $filename == "lchown02" } {
       send "rm -f /bin/create_link\r"
    }
    if { $filename == "link01" || $filename == "open01A" } {
