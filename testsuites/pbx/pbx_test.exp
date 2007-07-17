@@ -1,0 +1,145 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+set TEST_PASS pass
+set TEST_FAIL fail
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+send_log "*********************************\r"
+send_log "Start $TITLE\r"
+send_log "*********************************\r"
+set timeout 120
+set case_num 0
+
+incr case_num
+send "dmesg\r" 
+while 1 {
+   expect {
+     -re "Module 0: Installed.*Module 1: Installed.*Module 2: Installed.*Module 3: Installed" {
+                case_pass $case_num
+		break
+      }
+
+      "DID YOU REMEMBER TO PLUG IN THE HD POWER CABLE" {
+                send_log "Please plug the right power cable.\n"
+                send_user "Please plug the right power cable.\n" 
+                case_fail $case_num
+                exit
+      }
+
+      "ProSLIC not loaded" {
+                case_fail $case_num
+                exit
+      }
+
+      "DAA not found" {
+                case_fail $case_num
+                exit
+      }
+
+      timeout {
+                case_fail $case_num
+                exit      
+      }
+     }
+}
+
+
+
+incr case_num
+send "ztcfg\r" 
+while 1 {
+   expect {
+      "Registered tone zone 0" {
+                case_pass $case_num
+		break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit      
+         }
+     }
+}
+
+
+incr case_num
+send "cd /usr/var\r" 
+while 1 {
+   expect {
+      ">" {
+                case_pass $case_num
+		break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit      
+         }
+     }
+}
+
+incr case_num
+send "cp spool/ /var -r \r"
+while 1 {
+   expect {
+      ">" {
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+incr case_num
+send "cp * /var -r\r"
+while 1 {
+   expect {
+      ">" {
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+
+incr case_num
+send "asterisk -vvvc\r"
+while 1 {
+   expect {
+      ">" {
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+
+send_log "                  \n"
+send_log "\n$TITLE ............\[PASS\]\n"
+                                     
+send_user "Ending $argv0\n"
+log_file
+ 
+
+
