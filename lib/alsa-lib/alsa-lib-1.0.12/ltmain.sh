@@ -2761,7 +2761,11 @@ EOF
 	      fi
 	    else
 	      # We cannot seem to hardcode it, guess we'll fake it.
-	      add_dir="-L$libdir"
+	      if test -z "$inst_prefix_dir"; then
+		add_dir="-L$libdir"
+	      else
+		add_dir=""
+	      fi
 	      # Try looking first in the location we're being installed to.
 	      if test -n "$inst_prefix_dir"; then
 		case $libdir in
