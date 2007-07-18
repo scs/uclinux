@@ -142,23 +142,27 @@ ifeq ($(CONFIG_BLK_DEV_INITRD),y)
 	awk -f dev-table-to-cpio.awk $(DEVICE_TABLE) >> $(IMAGEDIR)/rootfs.initramfs.contents
 	echo "slink /init /sbin/init 0755 0 0" >> $(IMAGEDIR)/rootfs.initramfs.contents
 	$(ROOTDIR)/$(LINUXDIR)/usr/gen_init_cpio $(IMAGEDIR)/rootfs.initramfs.contents > $(IMAGEDIR)/rootfs.initramfs
-	cp $(IMAGEDIR)/rootfs.initramfs $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
-
-# first one set with the rootfs uncompressed (since u-boot images do compression)
-	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
-	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(ROOTDIR)/$(LINUXDIR)
-	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/uImage.initramfs
-	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGEDIR)/linux.initramfs
-	ln -sf uImage.initramfs $(IMAGEDIR)/uImage
-
-# then another set with the rootfs compressed (to work with uncompressed kernel)
 	gzip -c -9 $(IMAGEDIR)/rootfs.initramfs > $(IMAGEDIR)/rootfs.initramfs.gz
+
+# first one set with the rootfs compressed (to work with uncompressed kernel)
 	cp $(IMAGEDIR)/rootfs.initramfs.gz $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
 	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
 	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(ROOTDIR)/$(LINUXDIR)
 	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/uImage.initramfs.gz
+	cp $(ROOTDIR)/$(LINUXDIR)/System.map $(IMAGEDIR)/System.map.initramfs.gz
 	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGEDIR)/linux.initramfs.gz
 	ln -sf linux.initramfs.gz $(IMAGEDIR)/linux
+
+# then one set with the rootfs uncompressed (since u-boot images do compression)
+# we want to do this step last since it will leave the kernel dir in a state
+# that properly reflects the default uImage
+	cp $(IMAGEDIR)/rootfs.initramfs $(ROOTDIR)/$(LINUXDIR)/usr/initramfs_data.cpio.gz
+	CPPFLAGS="" CFLAGS="" LDFLAGS="" \
+	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(ROOTDIR)/$(LINUXDIR)
+	cp $(LINUXBOOTDIR)/vmImage $(IMAGEDIR)/uImage.initramfs
+	cp $(ROOTDIR)/$(LINUXDIR)/System.map $(IMAGEDIR)/System.map.initramfs
+	cp $(ROOTDIR)/$(LINUXDIR)/vmlinux $(IMAGEDIR)/linux.initramfs
+	ln -sf uImage.initramfs $(IMAGEDIR)/uImage
 
 endif
 endif
