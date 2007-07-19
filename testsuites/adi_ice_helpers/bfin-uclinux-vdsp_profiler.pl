@@ -46,10 +46,8 @@ my @symsort;
 my $symtab;
 my $mem = {};
 
-#
-#  Could make this a lot faster with a binary search..
-#  (but who cares..  I have lots of GHz in my Pentium!)
-#
+# Since we have a sorted trace input, this lookup returns the index of the found
+# address, and that is where we start looking next time
 sub lookup
 {
 
@@ -85,7 +83,7 @@ while(<M>) {
 	}
 	$tmp[0] =~ s/^0+//g;
 
-	if ( !  $symtab{$tmp[0]} ) {
+	if ( (! $symtab{$tmp[0]}) ) {
 		if ($tmp[3] ) {
 			$symtab{$tmp[0]} = "Kernel".$tmp[3].":".$tmp[2];
 		} else {
@@ -93,11 +91,11 @@ while(<M>) {
 		}
 	}
 
-	if ($tmp[2] eq "__start" ) {
+	if ($tmp[2] eq "__text" ) {
 		$mem->{"kernel_start"} = hex $tmp[0];
 	}
 
-	if ($tmp[2] eq "__end" ) {
+	if ($tmp[2] eq "__einittext" ) {
 		$mem->{"kernel_end"} = hex $tmp[0];
 	}
 
@@ -110,10 +108,9 @@ close(M);
 @symsort = sort { $a <=> $b } map(hex, keys %symtab);
 
 if (0) {
-
-        foreach $i (0 .. ($#symsort )) {
-              printf("0x%08x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
-        }
+	foreach $i (0 .. ($#symsort )) {
+		printf("0x%08x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
+	}
 }
 
 open(M, "modules.list") || die "$0: can't modules.list file!\n";
@@ -121,7 +118,7 @@ while(<M>) {
 	chomp;
 	@tmp = split;
 	if ($#tmp !=0 ) {
-		 warn "bad line in modules.list\n";
+		warn "bad line in modules.list\n";
 		next;
 	}
 
@@ -135,9 +132,8 @@ while(<M>) {
 #}
 #	exit;
 	{
-	
 		my $file = "$tmp[0].ko.text.map";
-		printf("Loading extra symbols from %s\n", $file);
+		warn("Loading symbols from $file\n");
 		my $sym = "Kernel\\[".$tmp[0]."\\]:";
 		$j = 0;
 		$i = 0;
@@ -158,7 +154,7 @@ START_OVER:
 		if ( $i == 0 ) {
 			warn "Can't find module $tmp[0] in System map\n";
 			next;
-		} 
+		}
 		printf ("Found at %i : 0x%08x : %s\n",$i, $symsort[$i], $symtab{sprintf("%x",($symsort[$i]))}) if $debug;
 		$i++;
 $debug=0;
@@ -175,8 +171,8 @@ SEARCH:
 				$j=$i-1;
 				printf("Looking for %s\n", $symbol) if $debug;
 				printf("Comparing at %i %s  %s\n",$j, $symbol, $symtab{sprintf("%x",($symsort[$j]))}) if $debug;
-				while ( ( ! ($symtab{sprintf("%x",($symsort[$j]))} =~ m/$symbol/)) && 
-					($symtab{sprintf("%x",($symsort[$j]))} =~ /$sym/) && 
+				while ( ( ! ($symtab{sprintf("%x",($symsort[$j]))} =~ m/$symbol/)) &&
+					($symtab{sprintf("%x",($symsort[$j]))} =~ /$sym/) &&
 					($j <= $#symsort)) {
 					printf(" skipping %i %s  %s\n",$j, $symbol, $symtab{sprintf("%x",($symsort[$j]))}) if $debug;
 					$j++;
@@ -214,10 +210,10 @@ SEARCH:
 						printf("Error - Addresses don't match 0x%08x != 0x%08x\n", $offset+(hex $tmp1[0]), $symsort[$j] );
 					}
 				}
-	
+
 				if ($offset ) {
 					printf("Found %s (0x%x) : %s (0x%08x)\n","Kernel[".$tmp[0]."]:".$tmp1[1], hex $tmp1[0],
-					 $symtab{sprintf("%x",($symsort[$j]))}, $symsort[$j]) if $debug;
+						$symtab{sprintf("%x",($symsort[$j]))}, $symsort[$j]) if $debug;
 					if (  $symsort[$j] != $offset + hex($tmp1[0])) {
 						printf("Not at same address\n");
 					}
@@ -242,8 +238,7 @@ SEARCH:
 				}
 			}
 			printf("done %i %i %s\n",$i, $j, $symtab{sprintf("%x",($symsort[$i]))}) if $debug;
-	
-			
+
 			if ( $i >= $#symsort ) {
 				printf("Skipping %s - could not find it in kernel symbols\n", $tmp[0]);
 				next;
@@ -256,9 +251,9 @@ close (M);
 
 if (0) {
 	@symsort = sort { $a <=> $b } map(hex, keys %symtab);
-        foreach $i (0 .. ($#symsort )) {
-              printf("%x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
-        }
+	foreach $i (0 .. ($#symsort )) {
+		printf("%x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
+	}
 }
 
 open(M, $umap) || die "$0: can't open user.map file '$umap': $!\n";
@@ -287,6 +282,8 @@ while(<M>) {
 	printf("%x    %s:__begin\n",$base , $tmp2[$#tmp2]) if $debug;
 	$l1_offset=0;
 	if ( -e $file ) {
+		warn("Loading symbols from $file\n");
+		my $L1_start = 0;
 		open(N, $file) || die " can't open app.map file $file: $!\n";
 		$symtab{$tmp1[0]} = $tmp2[$#tmp2].":__plt";
 		while(<N>) {
@@ -297,13 +294,16 @@ while(<M>) {
 				if ($tmp3[2] =~ m/^L|LE|LS\$/ ) {
 					next;
 				}
+				if (!($tmp3[2] =~ m/^_/ )) {
+					next;
+				}
 				if ( $tmp3[0] < 0xffa00000 ) {
 					printf("%x    %s:%s\n",$base+$tmp3[0] , $tmp2[$#tmp2] , $tmp3[2]) if $debug;
 					$symtab{sprintf("%x",$base+$tmp3[0])} =  $tmp2[$#tmp2].":".$tmp3[2];
 				} else {
 					if ( ! $l1_offset) {
 						$application="^".$tmp2[$#tmp2]."\$";
-						printf("Finding L1 for %s\n", $tmp2[$#tmp2]);
+						warn("Finding L1 for $tmp2[$#tmp2]\n");
 						open (P, "./pid.list") || die "$0 can't open pid.list";
 						while(<P>) {
 							chomp;
@@ -357,7 +357,7 @@ while(<M>) {
 						}
 					}
 					printf("0x%08x  0x%08x  %s:%s\n",$tmp3[0] , ($tmp3[0] - 0xffa00000) + $l1_offset , $tmp2[$#tmp2] , $tmp3[2]) if $debug ;
-					$symtab{sprintf("%x",($tmp3[0] - 0xffa00000) + $l1_offset )} =  $tmp2[$#tmp2].":".$tmp3[2];
+					$symtab{sprintf("%x",($tmp3[0] - 0xffa00000) + $l1_offset )} =  $tmp2[$#tmp2].":".$tmp3[2] ;
 				}
 			}
 		}
@@ -377,11 +377,11 @@ while(<M>) {
 close(M);
 
 if ( ! $symtab{sprintf("%x", 0xffffffff )}) {
-	$symtab{sprintf("%x", 0xffffffff )} = "End of memory";
+	$symtab{sprintf("%x", 0xffffffff )} = "End_of_memory";
 }
 
 if ( ! $symtab{sprintf("%x", 0x0 )}) {
-        $symtab{sprintf("%x", 0x0 )} = "Start of memory";
+	$symtab{sprintf("%x", 0x0 )} = "Start_of_memory";
 }
 
 @symsort = sort { $a <=> $b } map(hex, keys %symtab);
@@ -397,11 +397,23 @@ if ( ! $symtab{sprintf("%x", 0x0 )}) {
 # exit;
 
 if (0) {
-
-        foreach $i (0 .. ($#symsort )) {
-              printf("0x%08x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
-        }
+	foreach $i (0 .. ($#symsort )) {
+		printf("0x%08x %s\n", $symsort[$i] , $symtab{sprintf("%x",($symsort[$i]))});
+	}
 }
+
+open(T, $trace) || die "$0: can't open trace file '$trace': $!\n";
+my $sum=0;
+while(<T>)
+{
+	if ( /PC\[/ ) {
+		chomp;
+		@addrs = split /\s+/;
+		$sum += $addrs[1];
+	}
+}
+close(T);
+warn "Total number of samples = $sum\n";
 
 open(T, $trace) || die "$0: can't open trace file '$trace': $!\n";
 my $last="";
@@ -422,7 +434,7 @@ while(<T>)
 		@addrs = split /\s+/;	# match addrs split(/\t/,$item); 
 
 		if ( (oct $addrs[0]) < $last_addr) {
-		        $foo = oct $addrs[0];
+			$foo = oct $addrs[0];
 			warn "$addrs[0] $foo is greater than $last_addr \n";
 			die "Trace $trace is not sorted\n";
 		} else {
@@ -440,7 +452,7 @@ while(<T>)
 			}
 		} else {
 			if ($num) {
-				printf("%08i $last\n",$num);
+				printf("%08i (%2.2f%%) $last\n", $num, ($num/$sum)*100);
 			}
 			$num = $addrs[1];
 			$last = $s;
@@ -456,4 +468,4 @@ while(<T>)
 	}
 }
 close(T);
-printf("%08i $last\n",$num);
+printf("%08i (%2.2f%%) $last\n",$num, ($num/$sum)*100);
