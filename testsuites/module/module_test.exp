@@ -28,7 +28,7 @@ if { $board_type == "BF537-STAMP" } {
 			send -s "modprobe bfin_mac\r"
 			while 1 {
 			expect {
-			-re ".* registered" {
+			-re "Blackfin BF53.* on-chip Ethernet MAC driver" {
                 case_pass $case_num
 				puts "\nmodule insert success.\n"
 				break
