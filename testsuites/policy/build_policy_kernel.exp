@@ -165,6 +165,12 @@ while 1 {
 #
 #                      send -s "Y\r"
 #      }
+
+
+          -re "Trace user apps.*turn off hwtrace in kernel.*DEBUG_BFIN_NO_KERN_HWTRACE.*\\\[.*]" {
+
+                       send  "y\r"
+      }
  
            -re "Enable ICACHE.*BLKFIN_CACHE.*\\\[.*]" {
 		if { $icache == "on" } {
