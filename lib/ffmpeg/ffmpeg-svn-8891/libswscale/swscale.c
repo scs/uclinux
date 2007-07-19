@@ -2188,6 +2188,10 @@ SwsContext *sws_getContext(int srcW, int srcH, int srcFormat, int dstW, int dstH
         {
             c->swScale= gray16swap;
         }
+#ifdef ARCH_BFIN
+        if (flags & SWS_CPU_CAPS_BFIN)
+            ff_bfin_get_unscaled_swscale (c);
+#endif
 
         if (c->swScale){
             if (flags&SWS_PRINT_INFO)
