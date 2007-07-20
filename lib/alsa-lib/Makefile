@@ -1,3 +1,12 @@
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),)
+$(warning )
+$(warning )
+$(warning alsa-lib only works with FDPIC, please change your build settings from FLAT to FDPIC)
+$(warning )
+$(warning )
+$(error )
+endif
+
 VER = alsa-lib-1.0.12
 
 all: build-$(VER)/Makefile
