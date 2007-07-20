@@ -1,3 +1,5 @@
+FLTFLAGS=-s 20000
+
 all: build/Makefile
 	$(MAKE) -C build
 
