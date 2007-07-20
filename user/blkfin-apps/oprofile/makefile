@@ -1,3 +1,4 @@
+FLTFLAGS=-s 32000
 CFLAGS += -I$(ROOTDIR)/lib/popt
 CXXFLAGS += -I$(ROOTDIR)/lib/popt -fexceptions
 LDFLAGS += -L$(ROOTDIR)/lib/popt/build/.libs
