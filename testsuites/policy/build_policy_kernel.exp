@@ -70,20 +70,31 @@ while 1 {
             }
       }   
 
-        -re "Silicon Rev.*BF_REV.*BF_REV.*choice.*\\\[.*]" {
-            if { $revision == "0.2" } {
-                       send "1\r"
-            } elseif { $revision == "0.3" } {
-                       send "2\r"
-            } elseif { $revision == "0.4" } {
-                       send "3\r"
-            } elseif { $revision == "0.5" } {
-                       send "4\r"
-       	    } elseif { $revision == "0.0" } {
-                       send "\r"
-            }
-
-      }
+	-re "Silicon Rev.*BF_REV.*BF_REV.*choice.*\\\[.*]" {
+		if { $cpu == "BF533" || $cpu == "BF561" } {
+			if { $revision == "0.3" } {
+				send "1\r"
+			} elseif { $revision == "0.4" } {
+				send "2\r"
+			} elseif { $revision == "0.5" } {
+				send "3\r"
+			} elseif { $revision == "0.0" } {
+				send "\r"
+			}
+		} else {
+			if { $revision == "0.2" } {
+				send "1\r"
+			} elseif { $revision == "0.3" } {
+				send "2\r"
+			} elseif { $revision == "0.4" } {
+				send "3\r"
+			} elseif { $revision == "0.5" } {
+				send "4\r"
+			} elseif { $revision == "0.0" } {
+				send "\r"
+			}
+		}
+	}
 
       
            -re "Use full SLAB allocator.*SLAB.*\\\[.*]" {
@@ -241,9 +252,5 @@ step "Copy linux"
 
 source   copy_image.exp
  
-
 send_user "Ending $argv0\n"
 log_file
- 
-
-
