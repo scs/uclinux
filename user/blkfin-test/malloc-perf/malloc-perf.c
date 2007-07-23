@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
         if ( i < 128 ) k = 4;
   }
 
-  if(first_ave * 2 < ave)
+  if ((ave/128 > 100) && (first_ave * 2 < ave))
 	printf("TEST FAIL\n");
   else
 	printf("TEST PASS\n");
