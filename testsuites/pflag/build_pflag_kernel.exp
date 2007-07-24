@@ -5,7 +5,7 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-set set_config_file 1
+set set_config_file 0
 
 cd $uclinux_path/testsuites
 
@@ -32,15 +32,15 @@ sleep 3
          }
       }
       sleep 1
-      send "/CONFIG_BF533_PFLAGS\[ =]\r"
-      expect "CONFIG_BF533_PFLAGS\[ =]"
+      send "/CONFIG_BF5xx_PFLAGS\[ =]\r"
+      expect "CONFIG_BF5xx_PFLAGS\[ =]"
       send "d\r"
       sleep .5
       expect ":"
       send "i\r"
       sleep .5
-      send "CONFIG_BF533_PFLAGS=y\r"      
-      send ".\r"      
+      send "CONFIG_BF5xx_PFLAGS=y\r"      
+      send ".\r"
       expect ":"
       sleep .5
       
@@ -91,6 +91,7 @@ while 1 {
       }
 
       "\\\(*) \\\[*]" {
+             sleep .01
              send "\r"
       }
 
@@ -136,20 +137,20 @@ while 1 {
       }
 
 
-           -re "Blackfin BF53x Programmable Flags Driver.*BF533_PFLAGS.*\\\[.*]" {
-             send "y"
-             send "\r"
-             
+           -re "Blackfin BF53x Programmable Flags Driver.*BF5xx_PFLAGS.*\\\[.*]" {
+             send "y\r"
       }
 
            -re "PFLAGS test program.*CONFIG_USER_BLACKFIN_PFLAGS.*\\\[.*]" {
              send "y\r"
-             
       }
 
+           -re "Obsolet /proc/drivers/pflags entry.*CONFIG_BF5xx_PFLAGS_PROC.*" {
+               send "y\r"
+      }
 
        "\\\(*) \\\[*]" {
-            
+             sleep .01
              send "\r"
       }
    
@@ -184,6 +185,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-
