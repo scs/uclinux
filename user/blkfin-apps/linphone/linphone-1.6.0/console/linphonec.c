@@ -495,7 +495,8 @@ usage: linphonec [-c file] [-s sipaddr] [-a] [-V] [-d level ] [-l logfile]\n\
   -l  logfile          specify the log file for your SIP phone\n\
   -s  sipaddress       specify the sip call to do at startup\n\
   -a                   enable auto answering for incoming calls\n\
-  -V                   enable video (disabled by default)\n\
+  -V                   enable video capture (disabled by default)\n\
+  -D                   enable video display (disabled by default)\n\
   -v or --version      display version and exits.\n");
 
   	exit(exit_status);
