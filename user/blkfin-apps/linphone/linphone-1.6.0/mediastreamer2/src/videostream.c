@@ -419,7 +419,7 @@ video_stream_recv_only_stop (VideoStream * stream)
 }
 
 
-VideoStream * video_stream_send_only_start_new(RtpProfile *profile, int locport, const char *remip, int remport, int payload, const char *device)
+VideoStream * video_stream_send_only_start_new(RtpProfile *profile, int locport, const char *remip, int remport, int payload, int jitt_comp, const char *device)
 {
 	VideoStream *stream = ms_new0 (VideoStream, 1);
 	PayloadType *pt;
@@ -433,8 +433,8 @@ VideoStream * video_stream_send_only_start_new(RtpProfile *profile, int locport,
 		ms_error("videostream.c: undefined payload type.");
 		return NULL;
 	}
-	stream->session=create_duplex_rtpsession(profile,locport,remip,remport,payload,60);
-	/*rtp_session_enable_adaptive_jitter_compensation(stream->session,FALSE);*/
+	stream->session=create_duplex_rtpsession(profile,locport,remip,remport,payload,jitt_comp);
+	rtp_session_enable_adaptive_jitter_compensation(stream->session, TRUE);
 	
 	/* creates rtp filter to send streams (remote part) */
 	rtp_session_set_recv_buf_size(stream->session,MAX_RTP_SIZE);
