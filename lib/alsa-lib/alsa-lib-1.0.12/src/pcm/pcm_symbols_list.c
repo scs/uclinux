@@ -23,3 +23,4 @@
 &_snd_module_pcm_softvol,
 &_snd_module_pcm_extplug,
 &_snd_module_pcm_ioplug,
+&_snd_module_pcm_mmap_emul,
