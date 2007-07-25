@@ -1,4 +1,4 @@
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),)
+ifeq ($(MAKECMDGOALS)$(CONFIG_FMT_USE_FDPIC_ELF),)
 $(warning )
 $(warning )
 $(warning alsa-lib only works with FDPIC, please change your build settings from FLAT to FDPIC)
