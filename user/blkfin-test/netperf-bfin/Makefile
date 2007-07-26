@@ -48,6 +48,7 @@ AWK = gawk
 CCDEPMODE = depmode=gcc3
 # CFLAGS = -g -O2
 CPP = bfin-uclinux-gcc -E
+FLTFLAGS=-s 20000
 CPPFLAGS = 
 CYGPATH_W = echo
 DEFS = -DHAVE_CONFIG_H
