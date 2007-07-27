@@ -811,13 +811,13 @@ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
     ./ltp_auto_test.exp /dev/ttyS0 2 > /dev/null 2>&1
     echo "ltp_auto_test.exp done"
     ./ltp_compare_results_all.sh config/summary.base $UCLINUX_DIST_TESTSUITES/ltp/test/logs/summary.new >> ltp_test_log
-    ./ltp_decide_standard.pl config/summary.base $UCLINUX_DIST_TESTSUITES/ltp/test/logs/summary.new
+    #./ltp_decide_standard.pl config/summary.base $UCLINUX_DIST_TESTSUITES/ltp/test/logs/summary.new
     if [ $? == 1 ] ; then
       echo "ltp test fail"
       echo "LTP Test ............[FAIL]" >> ltp_test_log
     else
       echo "ltp test pass"
-      echo "LTP Test ............[FAIL]" >> ltp_test_log
+      echo "LTP Test ............[PASS]" >> ltp_test_log
     fi
   
     cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ltp_${ltp_suf[i]}

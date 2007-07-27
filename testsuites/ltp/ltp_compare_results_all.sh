@@ -3,17 +3,20 @@
 BEFORE=$1
 NOW=$2
 
+fail=1
+pass=0
+result=$pass
 
 tmp2=/tmp/tmp.diff
 
 if [ ! -e $BEFORE ] ; then
   echo "$BEFORE is not existing"
-  exit
+  exit $fail
 fi
 
 if [ ! -e $NOW ] ; then
   echo "$NOW is not existing"
-  exit
+  exit $fail
 fi
 
 
@@ -34,6 +37,7 @@ if [ $? = 0 ]; then
         echo
         cat $tmp2
         echo
+	result=$fail
 fi
     
 num_before=`grep -nr "Failed Tests" $BEFORE | head -1 | awk '{print $5}'`
@@ -68,6 +72,7 @@ if [ $? = 0 ]; then
         echo
         cat $tmp2
         echo
+	result=$fail
 fi
 
   comm -23 /tmp/tmp.before /tmp/tmp.now > $tmp2
@@ -92,6 +97,7 @@ if [ $? = 0 ]; then
         echo
         cat $tmp2
         echo
+	result=$fail
 fi
 
   comm -23 /tmp/tmp.before /tmp/tmp.now > $tmp2
@@ -103,6 +109,4 @@ if [ $? = 0 ]; then
         echo
 fi
 
-
-
-
+exit $result
