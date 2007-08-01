@@ -4,14 +4,15 @@ mount -t ramfs ramfs /var
 mount -t sysfs sysfs /sys
 mount -t devpts devpts /dev/pts
 [ -d /proc/bus/usb ] && mount -t usbfs usbfs /proc/bus/usb
+[ -d /sys/kernel/debug ] && mount -t debugfs debugfs /sys/kernel/debug
+[ -d /proc/sys/fs/binfmt_misc ] && mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+[ -d /sys/kernel/security ] && mount -t securityfs securityfs /sys/kernel/security
+grep -qs nfsd /proc/filesystems && mount -t nfsd nfsd /proc/fs/nfsd
 if [ -e /bin/mdev ] ; then
 	echo /bin/mdev 2>/dev/null > /proc/sys/kernel/hotplug
 	/bin/mdev -s 2> /dev/null
 fi
-mkdir /var/tmp
-mkdir /var/log
-mkdir /var/run
-mkdir /var/lock
+mkdir /var/tmp /var/log /var/run /var/lock
 #dhcpcd &
 #ifconfig eth0 10.100.4.251 up
 ifconfig lo 127.0.0.1
