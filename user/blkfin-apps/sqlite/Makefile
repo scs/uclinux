@@ -1,7 +1,7 @@
 VER = sqlite-3.2.6
 
 all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER) install DESTDIR=$$PWD/DESTDIR-$(VER)
+	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 
 build-$(VER)/Makefile:
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
@@ -23,7 +23,7 @@ clean:
 	rm -rf build-$(VER) DESTDIR-$(VER)
 
 romfs:
-	$(ROMFSINST) DESTDIR-$(VER)/usr/bin/sqlite3 /bin/sqlite3
-	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF DESTDIR-$(VER)/usr/lib/libsqlite3.so.0 /lib/
+	$(ROMFSINST) $(STAGEDIR)/usr/bin/sqlite3 /bin/sqlite3
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libsqlite3.so.0 /lib/
 
 .PHONY: all clean romfs
