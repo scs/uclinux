@@ -9,6 +9,8 @@ CFLAGS+=-DZAPTEL_CONFIG=\"$(CONFIG_FILE)\"
 KDIR=$(ROOTDIR)/linux-2.6.x
 PWD=$(shell pwd)
 
+FLTFLAGS=-s 32000
+
 all: apps
 	
 

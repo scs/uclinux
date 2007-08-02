@@ -1,3 +1,5 @@
+FLTFLAGS=-s 32000
+
 all: Makefile
 	$(MAKE) -f Makefile
 

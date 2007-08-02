@@ -79,7 +79,7 @@ int main()
 	short ibuf[512];
 	short obuf[512];
 	short pred[512];
-	fd = open("/dev/zap/1", O_RDWR);
+	fd = open("/dev/zap/zap1", O_RDWR);
 	if (fd < 0) {
 		fprintf(stderr, "open: %s\n", strerror(errno));
 		exit(1);

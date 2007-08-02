@@ -21,7 +21,7 @@ int main(int argc, char *argv[])
 	int res;
 	fd_set fds;
 	struct timeval orig, now;
-	fd = open("/dev/zap/timer", O_RDWR);
+	fd = open("/dev/zap/zaptimer", O_RDWR);
 	if (fd < 0) {
 		fprintf(stderr, "Unable to open timer: %s\n", strerror(errno));
 		exit(1);

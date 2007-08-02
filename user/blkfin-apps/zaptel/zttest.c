@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 	char buf[8192];
 	float score;
 	struct timeval start, now;
-	fd = open("/dev/zap/pseudo", O_RDWR);
+	fd = open("/dev/zap/zappseudo", O_RDWR);
 	if (fd < 0) {
 		fprintf(stderr, "Unable to open zap interface: %s\n", strerror(errno));
 		exit(1);

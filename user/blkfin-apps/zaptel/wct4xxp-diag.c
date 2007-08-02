@@ -379,7 +379,7 @@ int main(int argc, char *argv[])
 	if (*(argv[1]) == '/')
 		strncpy(fn, argv[1], sizeof(fn) - 1);
 	else
-		snprintf(fn, sizeof(fn), "/dev/zap/%d", atoi(argv[1]));
+		snprintf(fn, sizeof(fn), "/dev/zap/zap%d", atoi(argv[1]));
 	fd = open(fn, O_RDWR);
 	if (fd <0) {
 		fprintf(stderr, "Unable to open '%s': %s\n", fn, strerror(errno));

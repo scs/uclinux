@@ -247,7 +247,7 @@ LIBS+= -L$(ROOTDIR)/lib/speex/build/libspeex/.libs/
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/zaptel 
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/asterisk/editline 
 
-
+FLTFLAGS=-s 32000
 
 INSTALL=install
 
