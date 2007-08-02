@@ -47,11 +47,11 @@ while 1 {
          send "y\r"
       }
 
-      -re "Load CIS updates from userspace \\\(EXPERIMENTAL\\\) \\\(PCMCIA_LOAD_CIS\\\).*\\\[./././.]" {
+      -re "Load CIS updates from userspace \\\(EXPERIMENTAL\\\) \\\(PCMCIA_LOAD_CIS\\\).*\\\[././.]" {
          send "y\r"
       }
 
-      -re "PCMCIA control ioctl \\\(obsolete\\\) \\\(PCMCIA_IOCTL\\\).*\\\[./././.]" {
+      -re "PCMCIA control ioctl \\\(obsolete\\\) \\\(PCMCIA_IOCTL\\\).*\\\[././.]" {
          send "y\r"
       }
 
@@ -111,8 +111,7 @@ while 1 {
          send "y\r"
       }
       
-      -re "Bluez lib and utils.*CONFIG_USER_BLUEZ.*\\\[.*].*" {
-
+      -re "Bluez-utils \\\(CONFIG_USER_BLUEZ\\\).*\\\[.*]" {
 	send "y\r"
 	}
       
