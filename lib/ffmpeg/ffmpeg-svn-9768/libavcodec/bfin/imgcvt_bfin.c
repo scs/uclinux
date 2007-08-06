@@ -21,6 +21,8 @@ static void uyvy2yuv420p (AVPicture *dst, const AVPicture *src, int width, int h
 }
 
 void ff_bfin_img_convert_init (ConvertEntry *convert_table) {
-    convert_table[PIX_FMT_NB*(PIX_FMT_YUYV422)+PIX_FMT_YUV420P].convert = yuyv2yuv420p;
-    convert_table[PIX_FMT_NB*(PIX_FMT_UYVY422)+PIX_FMT_YUV420P].convert = uyvy2yuv420p;
+    if (convert_table) {
+        convert_table[PIX_FMT_NB*(PIX_FMT_YUYV422)+PIX_FMT_YUV420P].convert = yuyv2yuv420p;
+        convert_table[PIX_FMT_NB*(PIX_FMT_UYVY422)+PIX_FMT_YUV420P].convert = uyvy2yuv420p;
+    }
 }

@@ -283,6 +283,9 @@ void dsputil_init_bfin( DSPContext* c, AVCodecContext *avctx )
     c->idct               = ff_bfin_idct;
     c->idct_add           = bfin_idct_add;
     c->idct_put           = bfin_idct_put;
+
+    ff_bfin_img_convert_init (0);
+
 }
 
 
