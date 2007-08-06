@@ -2309,6 +2309,9 @@ int img_convert(AVPicture *dst, int dst_pix_fmt,
     if (!inited) {
         inited = 1;
         img_convert_init();
+#ifdef ARCH_BFIN
+        ff_bfin_img_convert_init (convert_table);
+#endif
     }
 
     dst_width = src_width;
