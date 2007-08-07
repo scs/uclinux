@@ -31,11 +31,6 @@ CONFIG_INSTALL_FLAT_SHARED_LIBS
 CONFIG_BLACKFIN_CHECK_STACKFLOW
   Build all libraries and applicaions with -fstack-limit-symbol=_stack_start.
 
-CONFIG_LIB_LIBBFDSP
-  libbfdsp is Blackfin DSP Library. It implements DSP funtions 
-  and Math funtions, making use of GCC arch dependent built-in 
-  funtions specially designed for Blackfin DSP instructions.
-
 CONFIG_USER_INETUTILS_RCP
   RCP utility. Part of the InetUtils package.
   Approx. binary size: 49.5k

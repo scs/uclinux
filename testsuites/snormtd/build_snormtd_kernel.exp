@@ -182,10 +182,6 @@ while 1 {
              send -s "N\r"
       }
       
-      	  -re "Build libbfdsp.*CONFIG_LIB_LIBBFDSP.*\\\[.*]" {
-             send -s "N\r"
-      }
-     
           -re "boa-new.*CONFIG_USER_BOA_SRC_BOA_NEW.*\\\[.*]" {
              send -s "N\r"
       }

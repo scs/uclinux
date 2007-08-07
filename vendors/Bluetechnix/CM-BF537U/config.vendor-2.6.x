@@ -92,7 +92,6 @@ CONFIG_USER_VERSION_VERSION=y
 # CONFIG_LIB_LIBMAD_FORCE is not set
 # CONFIG_LIB_LIBID3TAG_FORCE is not set
 # CONFIG_LIB_BLUEZ_FORCE is not set
-# CONFIG_LIB_LIBBFDSP is not set
 
 #
 # Library Configuration

@@ -17,7 +17,6 @@ dir_3_$(CONFIG_LIB_LIBAO_FORCE)      += libao
 dir_3_$(CONFIG_LIB_LIBAO)            += libao
 dir_3_$(CONFIG_LIB_LIBAUDIO_FORCE)   += libaudio
 dir_3_$(CONFIG_LIB_LIBAUDIO)         += libaudio
-dir_3_$(CONFIG_LIB_LIBBFDSP)         += libbfdsp
 dir_3_$(CONFIG_LIB_LIBICONV_FORCE)   += libiconv
 dir_3_$(CONFIG_LIB_LIBICONV)         += libiconv
 dir_3_$(CONFIG_LIB_LIBID3TAG_FORCE)  += libid3tag
