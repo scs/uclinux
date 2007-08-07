@@ -13,38 +13,38 @@ source  make_default_config.exp
 
 # Following make specific configuration for this case.
 
-send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
+#send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
 
-cd $uclinux_path/linux-2.6.x
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
+#cd $uclinux_path/linux-2.6.x
+#sleep 3
+# set timeout 2
+#      spawn ex .config
+#      expect {
+#         "Entering Ex mode*Normal mode." { }
 
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_BFIN_KERNEL_CLOCK is not set\r"
-      expect "CONFIG_BFIN_KERNEL_CLOCK is not set"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_BFIN_KERNEL_CLOCK=y\r"
-      send "CONFIG_VCO_MULT=20\r"
-      send "CONFIG_CCLK_DIV=1\r"
-      send "CONFIG_SCLK_DIV=8\r"
-      send ".\r"
-      expect ":"
-      sleep .5    
+#         "already exists!" {
+#            send "e\r"
+#            sleep 1
+#         }
+#      }
+#      sleep 1
+#      send "/CONFIG_BFIN_KERNEL_CLOCK is not set\r"
+#      expect "CONFIG_BFIN_KERNEL_CLOCK is not set"
+#      send "d\r"
+#      sleep .5
+#      expect ":"
+#      send "i\r"
+#      sleep .5
+#      send "CONFIG_BFIN_KERNEL_CLOCK=y\r"
+#      send "CONFIG_VCO_MULT=20\r"
+#      send "CONFIG_CCLK_DIV=1\r"
+#      send "CONFIG_SCLK_DIV=8\r"
+#      send ".\r"
+#      expect ":"
+#      sleep .5    
       
-      send "wq\r"
-      expect eof
+#      send "wq\r"
+#      expect eof
       
       
 cd $uclinux_path
@@ -68,7 +68,22 @@ while 1 {
              send "y\r"
       }
 
-              
+           -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[././.]" {
+             send "Y\r"
+      }
+
+           -re "VCO Multiplier \\\(VCO_MULT\\\) \\\[.*]" {
+             send "20\r"
+      }
+
+           -re "Core Clock Divider.*choice\\\[1-4\\\?]\\\:" {
+             send "1\r"
+      }
+
+           -re "System Clock Divider \\\(SCLK_DIV\\\) \\\[.*]" {
+             send "8\r"
+      }
+
           -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
              send -s "0xFFC3\r"
       }
