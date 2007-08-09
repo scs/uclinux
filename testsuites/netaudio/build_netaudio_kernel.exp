@@ -62,11 +62,15 @@ while 1 {
          send "y\r"
       }
 
-      -re "smbmount \\\(CONFIG_USER_SMBMOUNT_SMBMOUNT\\\) \\\[././.]" {
+      -re "samba \\\(CONFIG_USER_SAMBA\\\) \\\[././.]" {
          send "y\r"
       }
 
-      -re "smbumount \\\(CONFIG_USER_SMBMOUNT_SMBUMOUNT\\\) \\\[././.]" {
+      -re "smbmount \\\(CONFIG_USER_SAMBA_SMBMOUNT\\\) \\\[././.]" {
+         send "y\r"
+      }
+
+      -re "smbumount \\\(CONFIG_USER_SAMBA_SMBUMOUNT\\\) \\\[././.]" {
          send "y\r"
       }
 
