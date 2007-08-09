@@ -842,7 +842,7 @@ proc run_LTP_test { filename command torun mode} {
       return $result_flag
    }
 
-   if { $filename == "munlock01" } {
+   if { $filename == "munlock01" || $filename == "semget05"} {
        force_reboot
    }
 
@@ -1096,7 +1096,7 @@ proc run_LTP_test { filename command torun mode} {
    send "rm -f /bin/$filename\r"
    step "remove testcase done"
 
-   if { $filename == "munlock01" } {
+   if { $filename == "munlock01" || $filename == "semget05"} {
        force_reboot
    }
 
