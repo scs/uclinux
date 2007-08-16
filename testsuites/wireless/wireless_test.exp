@@ -13,7 +13,7 @@ if { $argc < 1} {
    puts "Usage:  $argv0 ping_ipaddr"
    puts ""
    exit
-#}
+}
 set ping_ipaddr             [lindex $argv 0]
 
 step "Spawn kermit"
@@ -26,23 +26,61 @@ set case_num 0
 step "Start testing."
 
 incr case_num
-step "Set key"
+set timeout 10
+step "Load orinoco_cs Module"
+send -s "modprobe orinoco_cs\r"
+while 1 {
+    expect {
+        -re "Using.*Using.*Using.*orinoco_cs.*>" {
+            send_user "modprobe finish\n"
+            break
+        }
+        -re "request for exclusive IRQ could not be fulfilled.*driver needs updating to supported shared IRQ lines.*>" {
+            send_user "pcmcia message, harmless, ignore\n"
+            break
+        }
+        timeout {
+            send_user "\nmodprobe orinoco_cs timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 20
+send -s "dmesg\r"
+while 1 {
+    expect {
+        -re "eth1.*orinoco_cs at 0.0, irq 54, io 0x\[0-9a-f].*>" {
+            send_user "Load orinoco_cs Module successfully\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "\nLoad orinoco_cs Module failed\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+step "Set key in hex digits"
 set timeout 2
-send "iwconfig eth1 essid dlink key s:12345\r"
+send "iwconfig eth1 essid linksys-uclinux key 1234567890\r"
 while 1 {
    expect {
       "root:~>" {
-         send_log "\nSet key done\n"
+         send_user "\nSet key done\n"
          case_pass $case_num
          break
       }
       timeout {
-         send_log "\nSet key timeout\n"
+         send_user "\nSet key timeout\n"
          case_fail $case_num
       }
    }
 }
 
+incr case_num
 step "dhcpcd eth1"
 set timeout 30
 send "dhcpcd eth1 &\r"
@@ -50,33 +88,33 @@ while 1 {
    expect {
 
       -re ".*Connected" {
-         send_log "\nNetwork is connected\n"
+         send_user "\nNetwork is connected\n"
          case_pass $case_num
          break
       }
 
       timeout {
-         send_log "\nStart dhcpcd timeout\n"
+         send_user "\nStart dhcpcd timeout\n"
          case_fail $case_num
       }
    }
 }
 
 step "iwconfig"
+incr case_num
 set timeout 2
 send "iwconfig\r"
 sleep 2
 while 1 {
    expect {
 
-      -re ".*802\.11.*" {
-         send_log "\niwconfig done\n"
+      -re ".*802\.11.*>" {
          send_user "\niwconfig done\n"
          break
       }
 
-      -re ".* ESSID:\"\".*" {
-         send_log "\nNot reached WLAN\n"
+      -re ".* ESSID:\"\".*>" {
+         send_user "\nNot reached WLAN\n"
          case_fail $case_num
       }
       timeout {
@@ -86,33 +124,32 @@ while 1 {
 }
 
 sleep 10
-send_log "\nWaiting for network up\n"
 send_user "\nWaiting for network up\n"
 
 step "ifconfig"
 set timeout 10
 
-send "ifconfig eth1 192.168.1.2\r"
-while 1 {
-   expect {
-      -re "root:~>" {
-         send_log "\nSet IP address done\n"
-         case_pass $case_num
-         break
-      }
+#send "ifconfig eth1 192.168.1.2\r"
+#while 1 {
+#   expect {
+#      -re "root:~>" {
+#         send_log "\nSet IP address done\n"
+#         case_pass $case_num
+#         break
+#      }
 
-      timeout {
-         send_log "\nifconfig timeout\n"
-         case_fail $case_num
-      }
-   }
-}
-
+#      timeout {
+#         send_log "\nifconfig timeout\n"
+#         case_fail $case_num
+#      }
+#   }
+#}
+incr case_num
 send "ifconfig eth1\r"
 while 1 {
    expect {
-      -re "inet addr:\[0-9].*" {
-         send_log "\nGet ipaddr for wireless link\n"
+      -re "inet addr:\[0-9].*>" {
+         send_user "\nGet ipaddr for wireless link\n"
          case_pass $case_num
          break
       }
@@ -125,18 +162,19 @@ while 1 {
 }
 
 step "begin test"
+incr case_num
 send "ping $ping_ipaddr\r"
-sleep 1
+sleep 5
 send "\03\r"
 while 1 {
    expect {
-      -re ".* 0% packet loss.*" {
-         send_log "\nping remote host\n"
+      -re ".* 0% packet loss.*>" {
+         send_user "\nping remote host: pass\n"
          case_pass $case_num
          break
       }
       timeout {
-         send_log "\nping fail\n"
+         send_user "\nping fail\n"
          case_fail $case_num
       }
    }

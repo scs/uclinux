@@ -84,6 +84,26 @@ while 1 {
              send "8\r"
       }
 
+          -re "PCCard \\\(PCMCIA/CardBus\\\) support.*PCCARD.*\\\[./././.]" {
+             send "y\r"
+      }
+
+          -re "16-bit PCMCIA support.*PCMCIA.*\\\[./././.]" {
+             send "y\r"
+      }
+
+          -re "Load CIS updates from userspace.*PCMCIA_LOAD_CIS.*\\\[././.]" {
+             send "y\r"
+      }
+
+          -re "PCMCIA control ioctl.*PCMCIA_IOCTL.*\\\[././.]" {
+             send "y\r"
+      }
+
+          -re "Blackfin CompactFlash PCMCIA Driver.*BFIN_CFPCMCIA.*\\\[./././.]" {
+             send "y\r"
+      }
+
           -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
              send -s "0xFFC3\r"
       }
@@ -91,14 +111,18 @@ while 1 {
        -re "Wireless LAN drivers.*non-hamradio.*Wireless Extensions.*NET_RADIO.*\\\[.*]" {
              send "Y\r"
       }
-  
+
       -re "Hermes chipset 802.11b support.*Orinoco.Prism2.Symbol.*HERMES.*\\\[.*]" {
-             send "Y\r"
+             send "m\r"
       }
 
-      -re "Blackfin WLAN card support.*WLAN_BLACKFIN.*\\\[.*]" {
-             send "Y\r"
+      -re "Hermes PCMCIA card support.*PCMCIA_HERMES.*\\\[.*]" {
+             send "m\r"
       }
+
+#      -re "Blackfin WLAN card support.*WLAN_BLACKFIN.*\\\[.*]" {
+#             send "Y\r"
+#      }
       
         -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
              send "y\r"
@@ -128,6 +152,7 @@ while 1 {
       }
 
        "\\\(*) \\\[*]" {
+         sleep .01
 	     send "\r"
       }
 
@@ -202,6 +227,3 @@ source   copy_image.exp
  
 send_user "Ending $argv0\n"
 log_file
- 
-
-
