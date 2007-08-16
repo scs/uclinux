@@ -5,109 +5,11 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-set set_config_file 1
-
 cd $uclinux_path/testsuites
 step "Make default config."
 source  make_default_config.exp
 
 step "Make config."
-
-if { $set_config_file == 1 } {
-
-send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
-
-cd $uclinux_path/linux-2.6.x
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_BLACKFIN_RTC\[ =]\r"
-      expect "CONFIG_BLACKFIN_RTC\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_BLACKFIN_RTC=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5
-      
-      send "wq\r"
-      expect eof
-
-send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
-
-cd $uclinux_path/config
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_USER_BLACKFIN_RTC\[ =]\r"
-      expect "CONFIG_USER_BLACKFIN_RTC\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_USER_BLACKFIN_RTC=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5   
-       
-      send "wq\r"
-      expect eof
-      
-      
-cd $uclinux_path
-set timeout 300
-spawn make config
-
-while 1 {
-   expect {
-
-       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-            
-             send "$board_type\r"
-      }
-
-      "\\\(*) \\\[*]" {
-             send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
-
-      eof {
-             puts "End of configuration"
-             break
-      }
-      timeout {
-             puts "\n\nFATAL ERROR: config prompt timeout in make config"
-	     break
-
-      }
-   }
-}
-} else {
 
 cd $uclinux_path
 set timeout 300
@@ -131,18 +33,24 @@ while 1 {
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
              send "y\r"
       }
-           
-           -re "Blackfin Real Time Clock Support.*BLACKFIN_RTC.*\\\[.*]" {
+
+          -re "RTC class.*RTC_CLASS.*\\\[.*]" {
+
+             send -s "Y\r"
+      }
+ 
+           -re "Blackfin On-Chip RTC.*RTC_DRV_BFIN.*\\\[.*]" {
             
              send -s "Y\r"
       }
       
            -re "RTC test program.*CONFIG_USER_BLACKFIN_RTC.*\\\[.*]" {
-             send -s "y\r"
+         
+            send -s "Y\r"
       }
       
        "\\\(*) \\\[*]" {
-	     
+              sleep .01	     
               send "\r"
       }
 
@@ -160,7 +68,6 @@ while 1 {
            
       }
    }
-}
 }
 
 cd $uclinux_path/testsuites
