@@ -1,16 +1,15 @@
-# Makefile for src.fdpic
+CROSS := bfin-linux-uclibc-
+CC = $(CROSS)gcc
+AS = $(CC)
+AR = $(CROSS)ar
+
+CFLAGS   += -Wall
+CPPFLAGS += -DFLAG533 -DNOTIMER
+ASFLAGS  += $(CFLAGS) $(CPPFLAGS) -DFDPIC
+ARFLAGS  := rc
 
 LIBG729AB = libg729ab.a
 LIBG729AB_SO = libg729ab.so
-
-COMPILER = bfin-linux-uclibc-gcc
-ARCHIVER = bfin-linux-uclibc-ar 
-ASM = $(COMPILER) -c  -DFDPIC
-
-UCLINUX_OPTS = -Wall 
-TARGET_OPTS = -DFLAG533 -DNOTIMER
-
-ASM_OPTS = $(UCLINUX_OPTS) $(TARGET_OPTS) 
 
 LIBG729AB_SRC = \
 	acelp_code_a.asm \
@@ -70,34 +69,24 @@ FLAT_SRC = \
 	qua_gain.asm \
 	tab_dtx.asm 
 
-
 LIBG729AB_OBJS = $(LIBG729AB_SRC:.asm=.o)
-
-#suffix rules
 
 .SUFFIXES:
 .SUFFIXES: .asm .o
 
 .asm.o:
-	@echo "Assembling $<"
-	$(ASM) $(ASM_OPTS) -x assembler-with-cpp -o $@ $<
+	$(AS) $(ASFLAGS) -x assembler-with-cpp -c -o $@ $^
+%.a:
+	$(AR) $(ARFLAGS) $@ $^
 
 all: $(LIBG729AB) $(LIBG729AB_SO) 
-
-# static pattern rule to convert FLAT to FDPIC
 
 $(FLAT_SRC): %.asm: ../src.orig/%.asm globals.txt
 	../script/flat2fdpic.pl $< $@
 
-# build static and shared LIBS
-
 $(LIBG729AB): $(LIBG729AB_OBJS)
-	@echo "Linking $(LIBG729AB) static lib"
-	$(ARCHIVER) r $(LIBG729AB) $(LIBG729AB_OBJS)
 
 $(LIBG729AB_SO): $(LIBG729AB_OBJS)
-	@echo "Linking $(LIBG729AB) shared lib"
-
 	# partially link into one object file
 	bfin-linux-uclibc-ld -r -o partial.o $(LIBG729AB_OBJS)
 
@@ -106,22 +95,17 @@ $(LIBG729AB_SO): $(LIBG729AB_OBJS)
 	# the G729 asm (the asm uses the same registers as the 
 	# PLT code)
 	bfin-linux-uclibc-objcopy \
-	-G _G729AB_ENC_PROCESS \
-	-G _G729AB_ENC_RESET \
-	-G _G729AB_DEC_PROCESS \
-	-G _G729AB_DEC_RESET \
-	partial.o partial_local.o
+		-G _G729AB_ENC_PROCESS \
+		-G _G729AB_ENC_RESET \
+		-G _G729AB_DEC_PROCESS \
+		-G _G729AB_DEC_RESET \
+		partial.o partial_local.o
 
 	# finally, create the .so
-	$(COMPILER) -shared -o $(LIBG729AB_SO) partial_local.o \
-	-Wl,-sep-code -Wl,-code-in-l1 -Wl,-z,now -Wl,-data-in-l1
-
+	$(CC) -shared -o $(LIBG729AB_SO) partial_local.o \
+		-Wl,-sep-code -Wl,-code-in-l1 -Wl,-z,now -Wl,-data-in-l1
 
 clean:
-	rm -f *.o
-	rm -f $(LIBG729AB) $(LIBG729AB_SO)
- 
+	rm -f *.o $(LIBG729AB) $(LIBG729AB_SO)
 
-
-
-
+.PHONY: all clean

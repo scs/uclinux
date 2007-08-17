@@ -1,16 +1,14 @@
-# Makefile for src.simgot
+CROSS := bfin-uclinux-
+CC = $(CROSS)gcc
+AS = $(CC)
+AR = $(CROSS)ar
+
+CFLAGS   += -Wall
+CPPFLAGS += -DFLAG533 -DNOTIMER
+ASFLAGS  += $(CFLAGS) $(CPPFLAGS)
+ARFLAGS  := rc
 
 LIBG729AB = libg729ab.a
-
-COMPILER = bfin-uclinux-gcc
-ASM = $(COMPILER) -c
-ARCHIVER = bfin-uclinux-ar 
-
-UCLINUX_OPTS = -Wall 
-TARGET_OPTS = -DFLAG533 -DNOTIMER
-
-ASM_OPTS = $(UCLINUX_OPTS) $(TARGET_OPTS) 
-
 LIBG729AB_SRC = \
 	acelp_code_a.asm \
 	dtx.asm \
@@ -69,35 +67,24 @@ FLAT_SRC = \
 	qua_gain.asm \
 	tab_dtx.asm 
 
-
 LIBG729AB_OBJS = $(LIBG729AB_SRC:.asm=.o)
-
-#suffix rules
 
 .SUFFIXES:
 .SUFFIXES: .asm .o
 
 .asm.o:
-	@echo "Assembling $<"
-	$(ASM) $(ASM_OPTS) -x assembler-with-cpp -o $@ $<
+	$(AS) $(ASFLAGS) -x assembler-with-cpp -c -o $@ $^
+%.a:
+	$(AR) $(ARFLAGS) $@ $^
 
 all: $(LIBG729AB) 
-
-# static pattern rule to convert FLAT to simulated GOT asm
 
 $(FLAT_SRC): %.asm: ../src.orig/%.asm globals.txt
 	../script/flat2fdpic.pl $< $@ --simgot=simgot.c
 
-
 $(LIBG729AB): $(LIBG729AB_OBJS)
-	@echo "Linking $(LIBG729AB)"
-	$(ARCHIVER) r $(LIBG729AB) $(LIBG729AB_OBJS)
 
 clean:
-	rm -f *.o
-	rm -f $(LIBG729AB)
- 
+	rm -f *.o $(LIBG729AB)
 
-
-
-
+.PHONY: all clean

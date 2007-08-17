@@ -1,16 +1,14 @@
+CROSS := bfin-uclinux-
+CC = $(CROSS)gcc
+AS = $(CC)
+AR = $(CROSS)ar
 
+CFLAGS   += -Wall
+CPPFLAGS += -DFLAG533 -DNOTIMER
+ASFLAGS  += $(CFLAGS) $(CPPFLAGS)
+ARFLAGS  := rc
 
 LIBG729AB = libg729ab.a
-
-COMPILER = bfin-uclinux-gcc
-ASM = $(COMPILER) -c
-ARCHIVER = bfin-uclinux-ar 
-
-UCLINUX_OPTS = -Wall 
-TARGET_OPTS = -DFLAG533 -DNOTIMER
-
-ASM_OPTS = $(UCLINUX_OPTS) $(TARGET_OPTS) 
-
 LIBG729AB_SRC = \
 	acelp_code_a.asm \
 	dtx.asm \
@@ -39,29 +37,21 @@ LIBG729AB_SRC = \
 	lspdec.asm \
 	qua_gain.asm \
 	tab_dtx.asm 
-
 LIBG729AB_OBJS = $(LIBG729AB_SRC:.asm=.o)
 
-#suffix rules
+all: $(LIBG729AB) 
 
 .SUFFIXES:
 .SUFFIXES: .asm .o
 
 .asm.o:
-	@echo "Assembling $<"
-	$(ASM) $(ASM_OPTS) -x assembler-with-cpp -o $@ $<
-
-all: $(LIBG729AB) 
+	$(AS) $(ASFLAGS) -x assembler-with-cpp -c -o $@ $^
+%.a:
+	$(AR) $(ARFLAGS) $@ $^
 
 $(LIBG729AB): $(LIBG729AB_OBJS)
-	@echo "Linking $(LIBG729AB)"
-	$(ARCHIVER) r $(LIBG729AB) $(LIBG729AB_OBJS)
 
 clean:
-	rm -f *.o
-	rm -f $(LIBG729AB)
- 
+	rm -f *.o $(LIBG729AB)
 
-
-
-
+.PHONY: all clean

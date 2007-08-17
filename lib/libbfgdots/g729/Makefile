@@ -1,6 +1,8 @@
 # Makefile for Blackfin uClinux port of G729A(B)
 # David Rowe 15 October June 2006
 
+SUBDIRS = src.orig src.simgot src.fdpic test
+
 PROJ=g729ab
 VERSION=0.1
 
@@ -14,15 +16,13 @@ IPADDR = 10.99.22.116
 TEST_PROG = g729ab_test g729ab_testsimgot g729ab_testfdpic g729ab_testfdpic_so
 
 all:
-	cd test; make;
+	$(MAKE) -C test
 
-clean:
-	make -C src.orig clean
-	make -C src.simgot clean
-	make -C src.fdpic clean
-	make -C test clean
-	find . -name "*~" | xargs rm -f
-	find . -name "*.s" | xargs rm -f
+DIRS_CLEAN := $(patsubst %,%_clean,$(SUBDIRS))
+clean: $(DIRS_CLEAN)
+	find . '(' -name '*~' -o -name '*.s' ')' | xargs rm -f
+%_clean:
+	$(MAKE) -C $(patsubst %_clean,%,$@) clean
 
 install: all
 	[ ! -d $(DESTDIR)/usr/lib ] && mkdir -p $(DESTDIR)/usr/lib
@@ -50,7 +50,7 @@ dist:
 	@echo "Tar ball created in ../"
 	ls -lh ../$(PROJ)-$(VERSION).tar.gz
 
-test: all
+check test: all
 	if [ $(IPADDR) ]; then \
 		echo "Please give ip addr of test machine" \
 		exit 1; \
@@ -63,5 +63,5 @@ test: all
 		rcp test/$$file root@$(IPADDR):/var; \
 		rsh -lroot $(IPADDR) /var/quick.sh /var/$$file; \
 	done
-		
-		
+
+.PHONY: all check clean install test
