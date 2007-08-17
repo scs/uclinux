@@ -1,0 +1,3 @@
+# List of globals to convert to FDPIC conventions.
+# This file is generated manually
+_data
