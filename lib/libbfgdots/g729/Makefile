@@ -25,14 +25,14 @@ clean: $(DIRS_CLEAN)
 	$(MAKE) -C $(patsubst %_clean,%,$@) clean
 
 install: all
-	[ ! -d $(DESTDIR)/usr/lib ] && mkdir -p $(DESTDIR)/usr/lib
-	[ ! -d $(DESTDIR)/usr/include ] && mkdir -p $(DESTDIR)/usr/include
-	ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-		cp -f src.fdpic/libg729ab.a $(DESTDIR)/usr/lib 
-		cp -f src.fdpic/libg729ab.so $(DESTDIR)/usr/lib
-	else
-		cp -f src.orig/libg729ab.a $(DESTDIR)/usr/lib
-	endif	
+	[ -d $(DESTDIR)/usr/lib ] || mkdir -p $(DESTDIR)/usr/lib
+	[ -d $(DESTDIR)/usr/include ] || mkdir -p $(DESTDIR)/usr/include
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	cp -f src.fdpic/libg729ab.a $(DESTDIR)/usr/lib 
+	cp -f src.fdpic/libg729ab.so $(DESTDIR)/usr/lib
+else
+	cp -f src.orig/libg729ab.a $(DESTDIR)/usr/lib
+endif	
 	cp -f include/g729ab_codec.h $(DESTDIR)/usr/include
 
 dist:
