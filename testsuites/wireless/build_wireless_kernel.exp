@@ -108,8 +108,12 @@ while 1 {
              send -s "0xFFC3\r"
       }
 
-       -re "Wireless LAN drivers.*non-hamradio.*Wireless Extensions.*NET_RADIO.*\\\[.*]" {
-             send "Y\r"
+#       -re "Wireless LAN drivers.*non-hamradio.*Wireless Extensions.*NET_RADIO.*\\\[.*]" {
+#             send "Y\r"
+#      }
+
+      -re "Wireless LAN.*IEEE 802.11.*WLAN_80211.*\\\[.*]" {
+             send "y\r"
       }
 
       -re "Hermes chipset 802.11b support.*Orinoco.Prism2.Symbol.*HERMES.*\\\[.*]" {
