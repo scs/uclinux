@@ -1,3 +1,6 @@
+ifeq ($(origin CC),default)
+CC := bfin-uclinux-gcc
+endif
 MAKEARCH_KERNEL ?= $(MAKE) ARCH=blackfin CROSS_COMPILE=bfin-uclinux-
 ROOTDIR  ?= $(PWD)/../../../
 LINUXDIR ?= linux-2.6.x
