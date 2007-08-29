@@ -1,8 +1,8 @@
 /* simple CAN application example 
  * 
- * open CAN and test the read(2) call
- * An calling option  decides if the CAN device is opened for
- * blocking or nonblocking read.
+ * open CAN and test the write(2) call
+ * An calling option  decides if the CAN device is opend for
+ * blocking or nonblocking write.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -16,11 +16,11 @@
 
 #include <can4linux.h>
 
-#define STDDEV "can0"
-#define COMMANDNAME "receive"
-#define VERSION "1.2"
+#define STDDEV "can1"
+#define VERSION "1.1"
 
-#define RXBUFFERSIZE 100
+/* #define TXBUFFERSIZE 256 */
+#define TXBUFFERSIZE 100
 
 #ifndef TRUE
 # define TRUE  1
@@ -31,20 +31,21 @@ int sleeptime            = 1000;	/* standard sleep time */
 int debug                = FALSE;
 int baud		 = -1;		/* dont change baud rate */
 int blocking		 = TRUE;	/* open() mode */
+long mcount		 = 100;		/* Number of messages to send */
 
 /* ----------------------------------------------------------------------- */
 
 void usage(char *s)
 {
 static char *usage_text  = "\
- Open CAN device and display read messages\n\
- Default device is /dev/can0. \n\
+ Open CAN device and send CAN messages\n\
+ Default device is /dev/can1. \n\
 Options:\n\
 -d   - debug On\n\
        swich on additional debugging\n\
+-T c - send max c number messages\n\
 -b baudrate (Standard uses value of /proc/sys/Can/baud)\n\
 -n   - non-blocking mode (default blocking)\n\
--s sleep sleep in ms between read() calls in non-blocking mode\n\
 -V   version\n\
 \n\
 ";
@@ -53,6 +54,7 @@ Options:\n\
 }
 
 
+/* -s sleep sleep in ms between write() calls in non-blocking mode\n\ */
 
 /***********************************************************************
 *
@@ -97,20 +99,20 @@ volatile Command_par_t cmd;
 int main(int argc,char **argv)
 {
 int fd;
-int got;
+int i, sent;
 int c;
 char *pname;
 extern char *optarg;
 extern int optind;
+long count;
 
-canmsg_t rx[RXBUFFERSIZE];
+canmsg_t tx[TXBUFFERSIZE];
 char device[50];
-int messages_to_read = 1;
 
     pname = *argv;
 
     /* parse command line */
-    while ((c = getopt(argc, argv, "b:dhs:nV")) != EOF) {
+    while ((c = getopt(argc, argv, "b:dhs:nT:V")) != EOF) {
 	switch (c) {
 	    case 'b':
 		baud = atoi(optarg);
@@ -123,14 +125,14 @@ int messages_to_read = 1;
 		break;
 	    case 'n':
 		blocking = FALSE;
-		messages_to_read = RXBUFFERSIZE;
 		break;
+	    case 'T':
+	    	mcount = atol(optarg);
+	    	break;
 	    case 'V':
 		printf("%s %s\n", argv[0], " V " VERSION ", " __DATE__ );
 		exit(0);
 		break;
-
-		/* not used, devicename is parameter */ 
 	    case 'D':
 		if (
 		    /* path ist starting with '.' or '/', use it as it is */
@@ -172,6 +174,8 @@ int messages_to_read = 1;
 	printf("%s %s\n", argv[0], " V " VERSION ", " __DATE__ );
 	printf("(c) 1996-2006 port GmbH\n");
 	printf(" using canmsg_t with %d bytes\n", sizeof(canmsg_t));
+	printf(" max count %ld messages, %d with each write()\n",
+			mcount, TXBUFFERSIZE);
 	printf(" CAN device %s opened in %sblocking mode\n",
 		device, blocking ? "" : "non-");
 
@@ -181,13 +185,12 @@ int messages_to_read = 1;
     
     if(blocking == TRUE) {
 	/* fd = open(device, O_RDWR); */
-	fd = open(device, O_RDONLY);
+	fd = open(device, O_RDWR);
     } else {
-	fd = open(device, O_RDONLY | O_NONBLOCK);
+	fd = open(device, O_RDWR | O_NONBLOCK);
     }
     if( fd < 0 ) {
 	fprintf(stderr,"Error opening CAN device %s\n", device);
-	perror("open");
 	exit(1);
     }
     if (baud > 0) {
@@ -197,35 +200,31 @@ int messages_to_read = 1;
 	set_bitrate(fd, baud);
     }
 
-    /* printf("waiting for msg at %s\n", device); */
+    /* Initialize transmit messages */
+    for(i = 0; i < TXBUFFERSIZE; i++) {
+        sprintf( tx[i].data, "msg %4d", i);
+        tx[i].flags = 0;  
+        tx[i].length = strlen(tx[i].data);  
+        tx[i].id= i;
+    }
 
+    count = 0;
+
+    /* send messages, don't care about non-blocking mode */
     while(1) {
-      got=read(fd, &rx, messages_to_read);
-      if( got > 0) {
-        int i;
-        int j;
-        for(i = 0; i < got; i++) {
-	    printf("Received with ret=%d: %12lu.%06lu id=%ld\n",
-		    got, 
-		    rx[i].timestamp.tv_sec,
-		    rx[i].timestamp.tv_usec,
-		    rx[i].id);
 
-	    printf("\tlen=%d msg=", rx[i].length);
-	    for(j = 0; j < rx[i].length; j++) {
-		printf(" %02x", rx[i].data[j]);
-	    }
-	    printf(" flags=0x%02x\n", rx[i].flags );
-	    fflush(stdout);
+	*(long *)&tx[0].data = count;
+	sent = write(fd, &tx, TXBUFFERSIZE );
+	if(sent <= 0) {
+	    printf("sent %d;", sent); fflush(stdout);
+	    perror("sent");
 	}
-      } else {
-	printf("Received with ret=%d\n", got);
-	fflush(stdout);
-      }
-      if(blocking == FALSE) {
-	  /* wait some time before doing the next read() */
-	  usleep(sleeptime);
-      }
+	count += sent;
+
+	if (count >= mcount) {
+		/* finished, but sleep to guarantee empty tx buffers */ 
+		sleep(1); exit(0);
+	}
     }
 
     close(fd);
