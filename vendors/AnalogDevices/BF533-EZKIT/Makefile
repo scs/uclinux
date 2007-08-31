@@ -172,4 +172,4 @@ clean::
 
 .PHONY: all clean image romfs
 
--include Makefile.local
+include ../vendor.mak
