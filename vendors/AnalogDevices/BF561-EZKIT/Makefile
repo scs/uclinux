@@ -23,6 +23,8 @@ ROMFS_DIRS = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp home/
 
 all::
 
+romfs.post:: romfs.shared.libs
+
 romfs::
 	mkdir -p $(ROMFSDIR)
 	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS)
