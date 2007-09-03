@@ -166,7 +166,7 @@ sleep 3
       expect ":"
       send "i\r"
       
-      send "HOSTIP=10.100.4.174\r"
+      send "HOSTIP=$serverip\r"
       
       send ".\r"
       expect :
