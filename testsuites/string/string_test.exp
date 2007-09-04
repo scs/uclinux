@@ -1,0 +1,49 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+sleep 5
+
+set case_num 0
+
+step "Start String testing"
+
+incr case_num
+set timeout 500
+send "insmod /lib/modules/string_test.ko\r"
+
+while 1 {
+   expect {
+      -re "PASS" {
+         case_pass $case_num
+         break
+      }
+
+     -re "FAIL" {
+         case_fail $case_num
+         break
+      }
+
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
+all_pass
+
+send_user "Ending $argv0\n"
+
+log_file
