@@ -1,39 +1,24 @@
 /*
  * File:         string_test.c
- * Based on:
- * Author:
- *
- * Created:
+ * Based on:     glibc's libc/string/tester.c
  * Description:  Test cases for string operations in kernel space
  *
- * Modified:
- *               Copyright 2004-2006 Analog Devices Inc.
+ * Copyright (C) 1995-2001, 2003, 2005 Free Software Foundation, Inc.
+ * Copyright 2007 Analog Devices Inc.
  *
- * Bugs:         Enter bugs at http://blackfin.uclinux.org/
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation; either version 2 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, see the file COPYING, or write
- * to the Free Software Foundation, Inc.,
- * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+ * Licensed under the GPL-2 or later
  */
 
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 
+#define printf(...) printk(KERN_DEBUG __VA_ARGS__)
+static unsigned int verbose = 0;
 
-#define STREQ(a, b)     (strcmp((a), (b)) == 0)
+#define	STREQ(a, b)	(strcmp((a), (b)) == 0)
 
-const char *it = "<UNSET>";     /* Routine name for message routines. */
+const char *it = "<UNSET>";	/* Routine name for message routines. */
 size_t errors = 0;
 
 /* Complain if condition is not true.  */
@@ -42,12 +27,13 @@ check (int thing, int number)
 {
   if (!thing)
     {
-      printk("%s flunked test %d\n", it, number);
+      printf("%s flunked test %d\n", it, number);
       ++errors;
     }
-   else {
-      printk("%s  test %d ok\n", it, number);
-     }
+   else if (verbose)
+    {
+      printf("%s test %d ok\n", it, number);
+    }
 }
 
 /* Complain if first two args don't strcmp as equal.  */
@@ -65,102 +51,96 @@ static void
 test_strcmp (void)
 {
   it = "strcmp";
-  check (strcmp ("", "") == 0, 1);              /* Trivial case. */
-  check (strcmp ("a", "a") == 0, 2);            /* Identity. */
-  check (strcmp ("abc", "abc") == 0, 3);        /* Multicharacter. */
-  check (strcmp ("abc", "abcd") < 0, 4);        /* Length mismatches. */
+  check (strcmp ("", "") == 0, 1);		/* Trivial case. */
+  check (strcmp ("a", "a") == 0, 2);		/* Identity. */
+  check (strcmp ("abc", "abc") == 0, 3);	/* Multicharacter. */
+  check (strcmp ("abc", "abcd") < 0, 4);	/* Length mismatches. */
   check (strcmp ("abcd", "abc") > 0, 5);
-  check (strcmp ("abcd", "abce") < 0, 6);       /* Honest miscompares. */
+  check (strcmp ("abcd", "abce") < 0, 6);	/* Honest miscompares. */
   check (strcmp ("abce", "abcd") > 0, 7);
-  check (strcmp ("a\203", "a") > 0, 8);         /* Tricky if char signed. */
+  check (strcmp ("a\203", "a") > 0, 8);		/* Tricky if char signed. */
   check (strcmp ("a\203", "a\003") > 0, 9);
- {
+
+  {
     char buf1[0x40], buf2[0x40];
     int i, j;
     for (i=0; i < 0x10; i++)
       for (j = 0; j < 0x10; j++)
-        {
-          int k;
-          for (k = 0; k < 0x3f; k++)
-            {
-              buf1[k] = '0' ^ (k & 4);
-              buf2[k] = '4' ^ (k & 4);
-            }
-          buf1[i] = buf1[0x3f] = 0;
-          buf2[j] = buf2[0x3f] = 0;
-          for (k = 0; k < 0xf; k++)
-            {
-              int cnum = 0x10+0x10*k+0x100*j+0x1000*i;
-              printk("1ww buf1 %c , buf2 %c \n",*buf1, *buf2 );
-              printk("2ww buf1 %s , buf2 %s \n", buf1, buf2 );
-              check (strcmp (buf1+i,buf2+j) == 0, cnum);
-              buf1[i+k] = 'A' + i + k;
-              buf1[i+k+1] = 0;
-              printk("1rr buf1+i %c , buf2+j %c \n",*(buf1+i), *(buf2+j) );
-              printk("2rr buf1+i %s , buf2+j %s \n", buf1+i, buf2+j );
-
-              check (strcmp (buf1+i,buf2+j) > 0, cnum+1);
-              check (strcmp (buf2+j,buf1+i) < 0, cnum+2);
-              buf2[j+k] = 'B' + i + k;
-              buf2[j+k+1] = 0;
-              check (strcmp (buf1+i,buf2+j) < 0, cnum+3);
-              check (strcmp (buf2+j,buf1+i) > 0, cnum+4);
-              buf2[j+k] = 'A' + i + k;
-              buf1[i] = 'A' + i + 0x80;
-              check (strcmp (buf1+i,buf2+j) > 0, cnum+5);
-              check (strcmp (buf2+j,buf1+i) < 0, cnum+6);
-              buf1[i] = 'A' + i;
-            }
-        }
+	{
+	  int k;
+	  for (k = 0; k < 0x3f; k++)
+	    {
+	      buf1[k] = '0' ^ (k & 4);
+	      buf2[k] = '4' ^ (k & 4);
+	    }
+	  buf1[i] = buf1[0x3f] = 0;
+	  buf2[j] = buf2[0x3f] = 0;
+	  for (k = 0; k < 0xf; k++)
+	    {
+	      int cnum = 0x10+0x10*k+0x100*j+0x1000*i;
+	      printf("1ww buf1 %c , buf2 %c \n",*buf1, *buf2 );
+	      printf("2ww buf1 %s , buf2 %s \n", buf1, buf2 );
+	      check (strcmp (buf1+i,buf2+j) == 0, cnum);
+	      buf1[i+k] = 'A' + i + k;
+	      buf1[i+k+1] = 0;
+	      printf("1rr buf1+i %c , buf2+j %c \n",*(buf1+i), *(buf2+j) );
+	      printf("2rr buf1+i %s , buf2+j %s \n", buf1+i, buf2+j );
+	      check (strcmp (buf1+i,buf2+j) > 0, cnum+1);
+	      check (strcmp (buf2+j,buf1+i) < 0, cnum+2);
+	      buf2[j+k] = 'B' + i + k;
+	      buf2[j+k+1] = 0;
+	      check (strcmp (buf1+i,buf2+j) < 0, cnum+3);
+	      check (strcmp (buf2+j,buf1+i) > 0, cnum+4);
+	      buf2[j+k] = 'A' + i + k;
+	      buf1[i] = 'A' + i + 0x80;
+	      check (strcmp (buf1+i,buf2+j) > 0, cnum+5);
+	      check (strcmp (buf2+j,buf1+i) < 0, cnum+6);
+	      buf1[i] = 'A' + i;
+	    }
+	}
   }
-
 }
 
-
 #define SIMPLE_COPY(fn, n, str, ntest) \
-  do {                                                                        \
-    int __n;                                                                  \
-    char *cp;                                                                 \
-    for (__n = 0; __n < (int) sizeof (one); ++__n)                            \
-      one[__n] = 'Z';                                                         \
-    fn (one, str);                                                            \
-    for (cp = one, __n = 0; __n < n; ++__n, ++cp)                             \
-      check (*cp == '0' + (n % 10), ntest);                                  \
-      check (*cp == '\0', ntest);                                               \
+  do {									      \
+    int __n;								      \
+    char *cp;								      \
+    for (__n = 0; __n < (int) sizeof (one); ++__n)			      \
+      one[__n] = 'Z';							      \
+    fn (one, str);							      \
+    for (cp = one, __n = 0; __n < n; ++__n, ++cp)			      \
+      check (*cp == '0' + (n % 10), ntest);				      \
+    check (*cp == '\0', ntest);						      \
   } while (0)
 
 static void
 test_strcpy (void)
 {
   int i;
-  char *aa;
   it = "strcpy";
-     aa = strcpy (one, "abcd");
-    printk(" %x  test  ok\n",one );
-    printk(" %x  test  ok\n",aa );
-  check (aa == one, 1); /* Returned value. */
-  equal (one, "abcd", 2);               /* Basic test. */
+  check (strcpy (one, "abcd") == one, 1); /* Returned value. */
+  equal (one, "abcd", 2);		/* Basic test. */
 
   (void) strcpy (one, "x");
-  equal (one, "x", 3);                  /* Writeover. */
-  equal (one+2, "cd", 4);               /* Wrote too much? */
-
+  equal (one, "x", 3);			/* Writeover. */
+  equal (one+2, "cd", 4);		/* Wrote too much? */
 
   (void) strcpy (two, "hi there");
   (void) strcpy (one, two);
-  equal (one, "hi there", 5);           /* Basic test encore. */
-  equal (two, "hi there", 6);           /* Stomped on source? */
+  equal (one, "hi there", 5);		/* Basic test encore. */
+  equal (two, "hi there", 6);		/* Stomped on source? */
 
   (void) strcpy (one, "");
-  equal (one, "", 7);                   /* Boundary condition. */
+  equal (one, "", 7);			/* Boundary condition. */
 
   for (i = 0; i < 16; i++)
     {
-      (void) strcpy (one + i, "hi there");      /* Unaligned destination. */
+      (void) strcpy (one + i, "hi there");	/* Unaligned destination. */
       equal (one + i, "hi there", 8 + (i * 2));
-      (void) strcpy (two, one + i);             /* Unaligned source. */
+      (void) strcpy (two, one + i);		/* Unaligned source. */
       equal (two, "hi there", 9 + (i * 2));
     }
+
   SIMPLE_COPY(strcpy, 0, "", 41);
   SIMPLE_COPY(strcpy, 1, "1", 42);
   SIMPLE_COPY(strcpy, 2, "22", 43);
@@ -442,14 +422,15 @@ test_memset (void)
 }
 
 
-static int test_init(void)
+static int __init test_init (void)
 {
- int status;
+  int status;
 
   /* Test strcmp first because we use it to test other things.  */
-  test_strcpy ();
-
 //  test_strcmp ();
+
+  /* Test strcpy next because we need it to set up other tests.  */
+  test_strcpy ();
 
   /* strncmp.  */
   test_strncmp ();
@@ -475,23 +456,27 @@ static int test_init(void)
   if (errors == 0)
     {
       status = 0;
-      printk("TEST PASS.");
+      printf("TEST PASS.\n");
     }
   else
     {
       status = 1;
-      printk("%Zd errors.TEST FAIL\n", errors);
+      printf("%Zd errors.\n", errors);
+      printf("TEST FAIL.\n");
     }
 
   return status;
-
 }
 
-static void test_exit(void)
+static __exit void test_exit(void)
 {
 }
 
 module_init(test_init);
 module_exit(test_exit);
 
+MODULE_DESCRIPTION("Test suite for string functions");
 MODULE_LICENSE("GPL");
+
+module_param(verbose, uint, 0);
+MODULE_PARM_DESC(verbose, "Output info about all tests as they run, default=1");
