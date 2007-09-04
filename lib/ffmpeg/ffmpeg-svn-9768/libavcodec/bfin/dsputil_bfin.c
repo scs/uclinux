@@ -205,6 +205,17 @@ static int bfin_pix_abs8_xy2 (void *c, uint8_t *blk1, uint8_t *blk2, int line_si
 }
 
 
+static int bfin_vsad_intra16 (void *c, uint8_t *blk1, uint8_t *dummy, int stride, int h)
+{
+    return ff_bfin_z_sad16x16 (blk1,blk1+stride,stride<<1,stride<<1,h);
+}
+
+static int bfin_vsad (void *c, uint8_t *blk1, uint8_t *blk2, int stride, int h)
+{
+    return ff_bfin_z_sad16x16 (blk1,blk1+stride,stride<<1,stride<<1,h)
+        + ff_bfin_z_sad16x16 (blk2,blk2+stride,stride<<1,stride<<1,h);
+}
+
 /*
   decoder optimization
   start on 2/11 100 frames of 352x240@25 compiled with no optimization -g debugging
@@ -229,6 +240,9 @@ void dsputil_init_bfin( DSPContext* c, AVCodecContext *avctx )
 
     c->sad[0]             = bfin_pix_abs16;
     c->sad[1]             = bfin_pix_abs8;
+
+    c->vsad[0]            = bfin_vsad;
+    c->vsad[4]            = bfin_vsad_intra16;
 
     /* TODO [0] 16  [1] 8 */
     c->pix_abs[0][0] = bfin_pix_abs16;
