@@ -51,7 +51,18 @@ while 1 {
              send "4\r"
       }
 
-   
+          -re "can4linux support, the car bus and industrial fieldbus.*CAN4LINUX.*\\\[.*]" {
+             send "y\r"
+      }
+
+          -re "Analog Devices BlackFin CAN Controller.*CAN_BLACKFIN.*\\\[.*]" {
+             send "y\r"
+      }
+
+          -re "can4linux examples.*CONFIG_USER_CAN_EXAMPLES.*\\\[.*]" {
+             send "y\r"
+      }
+
        "\\\(*) \\\[*]" {
              sleep .01
 	     send "\r"
@@ -86,6 +97,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-
