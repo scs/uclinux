@@ -32,6 +32,7 @@ dir_$(CONFIG_USER_BLACKFIN_MALLOCPERF)      += malloc-perf
 dir_$(CONFIG_USER_BLACKFIN_SRAMALLOC_TEST)  += sram-alloc-test
 dir_$(CONFIG_USER_BLACKFIN_ERESTART_TEST)   += erestart_test
 dir_$(CONFIG_CAMERA_TEST)                   += camera_test
+dir_$(CONFIG_STRING_TEST)                   += string_test
 
 all romfs:
 	for i in $(dir_y)   ; do $(MAKE) -C $$i $@ || exit $$? ; done
