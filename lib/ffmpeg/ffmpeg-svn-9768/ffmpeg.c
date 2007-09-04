@@ -3090,9 +3090,9 @@ static void opt_output_file(const char *filename)
     oc->loop_output = loop_output;
 
     for(i=0; i<opt_name_count; i++){
-        const AVOption *opt;
+        const AVOption *opt = 0;
         double d = av_get_double(avformat_opts, opt_names[i], &opt);
-        if(d==d && (opt->flags&AV_OPT_FLAG_ENCODING_PARAM))
+        if(opt && (opt->flags&AV_OPT_FLAG_ENCODING_PARAM))
             av_set_double(oc, opt_names[i], d);
     }
 
