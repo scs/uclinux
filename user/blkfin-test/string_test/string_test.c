@@ -1,5 +1,5 @@
 /*
- * File:         arch/blackfin/kernel/string_test.c
+ * File:         string_test.c
  * Based on:
  * Author:
  *
@@ -113,51 +113,6 @@ test_strcmp (void)
             }
         }
   }
-/*
-  {
-    char buf1[0x10], buf2[0x10];
-    int i, j;
-
-    for (i=0; i < 0x10; i++)
-      for (j = 0; j < 0x10; j++)
-        {
-          int k;
-          for (k = 0; k < 0xf; k++)
-            {
-              buf1[k] = '0' ^ (k & 4);
-              
-              buf2[k] = '4' ^ (k & 4);
-              printk("buf1[%d] %x , buf2[%d] %x \n",k, buf1[k], k, buf2[k]);
-            }
-          buf1[0] = '0';
-          buf2[0] = '0';
-              printk("0ww 444444444 %c ,  %c 55555555 \n", buf1[0], buf2[0] );
-          for (k = 0; k < 0xf; k++)
-            {
-              int cnum = 0x10+0x10*k+0x100*j+0x1000*i;
-
-              printk("1ww buf1 %c , buf2 %c \n",*buf1, *buf2 );
-              printk("2ww buf1 %s , buf2 %s \n", buf1, buf2 );
-              printk("3ww buf1 %x , buf2 %x \n", buf1, buf2 );
-              check (strcmp (buf1,buf2) == 0, cnum);
-              buf1[i+k] = 'A' + i + k;
-              buf1[i+k+1] = '0';
-              printk("4ww buf1 %s  \n", buf1 );
-              check (strcmp (buf1+i,buf2+j) > 0, cnum+1);
-              printk("buf1+%d %c , buf2+%d %c \n",i, buf1+i,j, buf2+j );
-              check (strcmp (buf2+j,buf1+i) < 0, cnum+2);
-              buf2[j+k] = 'B' + i + k;
-              buf2[j+k+1] = 0;
-              check (strcmp (buf1+i,buf2+j) < 0, cnum+3);
-              check (strcmp (buf2+j,buf1+i) > 0, cnum+4);
-              buf2[j+k] = 'A' + i + k;
-              buf1[i] = 'A' + i + 0x80;
-              check (strcmp (buf1+i,buf2+j) > 0, cnum+5);
-              check (strcmp (buf2+j,buf1+i) < 0, cnum+6);
-              buf1[i] = 'A' + i;
-            }
-        }
-  }*/
 
 }
 
@@ -232,6 +187,71 @@ test_strcpy (void)
 }
 
 static void
+test_strncmp (void)
+{
+  /* First test as strcmp with big counts, then test count code.  */
+  it = "strncmp";
+  check (strncmp ("", "", 99) == 0, 1); /* Trivial case. */
+  check (strncmp ("a", "a", 99) == 0, 2);       /* Identity. */
+  check (strncmp ("abc", "abc", 99) == 0, 3);   /* Multicharacter. */
+  check (strncmp ("abc", "abcd", 99) < 0, 4);   /* Length unequal. */
+  check (strncmp ("abcd", "abc", 99) > 0, 5);
+  check (strncmp ("abcd", "abce", 99) < 0, 6);  /* Honestly unequal. */
+  check (strncmp ("abce", "abcd", 99) > 0, 7);
+  check (strncmp ("a\203", "a", 2) > 0, 8);     /* Tricky if '\203' < 0 */
+  check (strncmp ("a\203", "a\003", 2) > 0, 9);
+  check (strncmp ("abce", "abcd", 3) == 0, 10); /* Count limited. */
+  check (strncmp ("abce", "abc", 3) == 0, 11);  /* Count == length. */
+  check (strncmp ("abcd", "abce", 4) < 0, 12);  /* Nudging limit. */
+  check (strncmp ("abc", "def", 0) == 0, 13);   /* Zero count. */
+  check (strncmp ("abc", "", (size_t)-1) > 0, 14);      /* set sign bit in count */
+  check (strncmp ("abc", "abc", (size_t)-2) == 0, 15);
+}
+
+static void
+test_strncpy (void)
+{
+  /* Testing is a bit different because of odd semantics.  */
+  it = "strncpy";
+  check (strncpy (one, "abc", 4) == one, 1);    /* Returned value. */
+  equal (one, "abc", 2);                        /* Did the copy go right? */
+
+  (void) strcpy (one, "abcdefgh");
+  (void) strncpy (one, "xyz", 2);
+  equal (one, "xycdefgh", 3);                   /* Copy cut by count. */
+
+  (void) strcpy (one, "abcdefgh");
+  (void) strncpy (one, "xyz", 3);               /* Copy cut just before NUL. */
+  equal (one, "xyzdefgh", 4);
+
+  (void) strcpy (one, "abcdefgh");
+  (void) strncpy (one, "xyz", 4);               /* Copy just includes NUL. */
+  equal (one, "xyz", 5);
+  equal (one+4, "efgh", 6);                     /* Wrote too much? */
+
+  (void) strcpy (one, "abcdefgh");
+  (void) strncpy (one, "xyz", 5);               /* Copy includes padding. */
+  equal (one, "xyz", 7);
+  equal (one+4, "", 8);
+  equal (one+5, "fgh", 9);
+
+  (void) strcpy (one, "abc");
+  (void) strncpy (one, "xyz", 0);               /* Zero-length copy. */
+  equal (one, "abc", 10);
+
+  (void) strncpy (one, "", 2);          /* Zero-length source. */
+  equal (one, "", 11);
+  equal (one+1, "", 12);
+  equal (one+2, "c", 13);
+
+  (void) strcpy (one, "hi there");
+  (void) strncpy (two, one, 9);
+  equal (two, "hi there", 14);          /* Just paranoia. */
+  equal (one, "hi there", 15);          /* Stomped on source? */
+}
+
+
+static void
 test_memcpy (void)
 {
   int i;
@@ -268,6 +288,159 @@ test_memcpy (void)
     }
 }
 
+static void
+test_memchr (void)
+{
+  it = "memchr";
+  check(memchr("abcd", 'z', 4) == NULL, 1);     /* Not found. */
+  (void) strcpy(one, "abcd");
+  check(memchr(one, 'c', 4) == one+2, 2);       /* Basic test. */
+  check(memchr(one, ~0xff|'c', 4) == one+2, 2); /* ignore highorder bits. */
+  check(memchr(one, 'd', 4) == one+3, 3);       /* End of string. */
+  check(memchr(one, 'a', 4) == one, 4); /* Beginning. */
+  check(memchr(one, '\0', 5) == one+4, 5);      /* Finding NUL. */
+  (void) strcpy(one, "ababa");
+  check(memchr(one, 'b', 5) == one+1, 6);       /* Finding first. */
+  check(memchr(one, 'b', 0) == NULL, 7);        /* Zero count. */
+  check(memchr(one, 'a', 1) == one, 8); /* Singleton case. */
+  (void) strcpy(one, "a\203b");
+  check(memchr(one, 0203, 3) == one+1, 9);      /* Unsignedness. */
+
+  /* now test all possible alignment and length combinations to catch
+     bugs due to unrolled loops (assuming unrolling is limited to no
+     more than 128 byte chunks: */
+  {
+    char buf[128 + sizeof(long)];
+    long align, len, i, pos;
+
+    for (align = 0; align < (long) sizeof(long); ++align) {
+      for (len = 0; len < (long) (sizeof(buf) - align); ++len) {
+        for (i = 0; i < len; ++i) {
+          buf[align + i] = 'x';         /* don't depend on memset... */
+        }
+        for (pos = 0; pos < len; ++pos) {
+#if 0
+          printf("align %d, len %d, pos %d\n", align, len, pos);
+#endif
+          check(memchr(buf + align, 'x', len) == buf + align + pos, 10);
+          check(memchr(buf + align, 'x', pos) == NULL, 11);
+          buf[align + pos] = '-';
+        }
+      }
+    }
+  }
+}
+
+static void
+test_memcmp (void)
+{
+  it = "memcmp";
+  check(memcmp("a", "a", 1) == 0, 1);           /* Identity. */
+  check(memcmp("abc", "abc", 3) == 0, 2);       /* Multicharacter. */
+  check(memcmp("abcd", "abce", 4) < 0, 3);      /* Honestly unequal. */
+  check(memcmp("abce", "abcd", 4) > 0, 4);
+  check(memcmp("alph", "beta", 4) < 0, 5);
+  check(memcmp("a\203", "a\003", 2) > 0, 6);
+  check(memcmp("abce", "abcd", 3) == 0, 7);     /* Count limited. */
+  check(memcmp("abc", "def", 0) == 0, 8);       /* Zero count. */
+}
+
+static void
+test_memmove (void)
+{
+  it = "memmove";
+  check(memmove(one, "abc", 4) == one, 1);      /* Returned value. */
+  equal(one, "abc", 2);                 /* Did the copy go right? */
+
+  (void) strcpy(one, "abcdefgh");
+  (void) memmove(one+1, "xyz", 2);
+  equal(one, "axydefgh", 3);            /* Basic test. */
+
+  (void) strcpy(one, "abc");
+  (void) memmove(one, "xyz", 0);
+  equal(one, "abc", 4);                 /* Zero-length copy. */
+
+  (void) strcpy(one, "hi there");
+  (void) strcpy(two, "foo");
+  (void) memmove(two, one, 9);
+  equal(two, "hi there", 5);            /* Just paranoia. */
+  equal(one, "hi there", 6);            /* Stomped on source? */
+
+  (void) strcpy(one, "abcdefgh");
+  (void) memmove(one+1, one, 9);
+  equal(one, "aabcdefgh", 7);           /* Overlap, right-to-left. */
+
+  (void) strcpy(one, "abcdefgh");
+  (void) memmove(one+1, one+2, 7);
+  equal(one, "acdefgh", 8);             /* Overlap, left-to-right. */
+
+  (void) strcpy(one, "abcdefgh");
+  (void) memmove(one, one, 9);
+  equal(one, "abcdefgh", 9);            /* 100% overlap. */
+}
+
+static void
+test_memset (void)
+{
+  int i;
+
+  it = "memset";
+  (void) strcpy(one, "abcdefgh");
+  check(memset(one+1, 'x', 3) == one+1, 1);     /* Return value. */
+  equal(one, "axxxefgh", 2);            /* Basic test. */
+
+  (void) memset(one+2, 'y', 0);
+  equal(one, "axxxefgh", 3);            /* Zero-length set. */
+
+  (void) memset(one+5, 0, 1);
+  equal(one, "axxxe", 4);                       /* Zero fill. */
+  equal(one+6, "gh", 5);                        /* And the leftover. */
+
+  (void) memset(one+2, 010045, 1);
+  equal(one, "ax\045xe", 6);            /* Unsigned char convert. */
+
+  /* Non-8bit fill character.  */
+  memset (one, 0x101, sizeof (one));
+  for (i = 0; i < (int) sizeof (one); ++i)
+    check (one[i] == '\01', 7);
+
+  /* Test for more complex versions of memset, for all alignments and
+     lengths up to 256. This test takes a little while, perhaps it should
+     be made weaker?  */
+  {
+    char data[512];
+    int j;
+    int k;
+    int c;
+
+    for (i = 0; i < 512; i++)
+      data[i] = 'x';
+    for (c = 0; c <= 'y'; c += 'y')  /* check for memset(,0,) and
+                                        memset(,'y',) */
+      for (j = 0; j < 256; j++)
+        for (i = 0; i < 256; i++)
+          {
+            memset (data + i, c, j);
+            for (k = 0; k < i; k++)
+              if (data[k] != 'x')
+                goto fail;
+            for (k = i; k < i+j; k++)
+              {
+                if (data[k] != c)
+                  goto fail;
+                data[k] = 'x';
+              }
+            for (k = i+j; k < 512; k++)
+              if (data[k] != 'x')
+                goto fail;
+            continue;
+
+          fail:
+            check (0, 8 + i + j * 256 + (c != 0) * 256 * 256);
+          }
+  }
+}
+
 
 static int test_init(void)
 {
@@ -277,7 +450,38 @@ static int test_init(void)
   test_strcpy ();
 
 //  test_strcmp ();
-    test_memcpy();
+
+  /* strncmp.  */
+  test_strncmp ();
+
+  /* strncpy.  */
+  test_strncpy ();
+
+  /* memcmp.  */
+  test_memcmp ();
+
+  /* memchr.  */
+  test_memchr ();
+
+  /* memcpy - need not work for overlap.  */
+  test_memcpy ();
+
+  /* memmove - must work on overlap.  */
+  test_memmove ();
+
+  /* memset.  */
+  test_memset ();
+
+  if (errors == 0)
+    {
+      status = 0;
+      printk("TEST PASS.");
+    }
+  else
+    {
+      status = 1;
+      printk("%Zd errors.TEST FAIL\n", errors);
+    }
 
   return status;
 
@@ -285,7 +489,6 @@ static int test_init(void)
 
 static void test_exit(void)
 {
-//	printk(KERN_INFO "Dual core test module removed: testarg = [%d]\n", *testarg);
 }
 
 module_init(test_init);
