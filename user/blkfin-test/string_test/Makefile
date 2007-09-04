@@ -4,7 +4,7 @@ LINUXDIR ?= linux-2.6.x
 
 obj-m := string_test.o
 
-CFLAGS += -Wall
+CFLAGS += -Wall -fno-builtin
 
 all: module
 
