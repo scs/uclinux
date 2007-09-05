@@ -26,11 +26,23 @@ while 1 {
          send "$board_type\r"
       }
 
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
+      }
+
       -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
          send "y\r"
       }
 
+      -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+          send "m\r"
+      }
+
       -re "MicroWindows \\\(CONFIG_USER_MICROWIN\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Optimize.*CONFIG_USER_MICROWIN_OPTIMIZE.*\\\[.*]" {
          send "y\r"
       }
 
@@ -42,15 +54,23 @@ while 1 {
          send "y\r"
       }
 
-      -re "Screeen PixType.*\\\[CONFIG_USER_MICROWIN_MWPF_TRUECOLOR0888\\\].*" {
-         send "Packed-8bit-Palette\r"
-      }
-
       -re "MicrowinDemo \\\(CONFIG_USER_MICROWIN_MICROWINDEMO\\\).*\\\[././.]" {
          send "y\r"
       }
 
       -re "NanoXDemo \\\(CONFIG_USER_MICROWIN_NANOXDEMO\\\).*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "NanoWM.*CONFIG_USER_MICROWIN_NANOWM.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "Screen PixType.*Packed.*\\\[.*]" {
+          send "Packed-8bit-Palette\r"
+      }
+
+      -re "Have File IO.*\\\[.*]" {
          send "y\r"
       }
 
@@ -74,11 +94,20 @@ while 1 {
          send "y\r"
       }
 
+      -re "NXclock.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "NXkbd.*\\\[.*]" {
+         send "y\r"
+      }
+
       -re "VIDEO test program \\\(CONFIG_USER_BLACKFIN_VIDEOTEST\\\).*\\\[././.]" {
          send "y\r"
       }
 
       "\\\(*) \\\[*]" {
+         sleep .01
          send "\r"
       }
 

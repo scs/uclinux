@@ -1,0 +1,159 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+set case_num 0
+sleep 5
+send "\r"
+
+set timeout 10
+incr case_num
+send "modprobe bf537-lq035\r"
+while 1 {
+    expect {
+        "FrameBuffer initializing*Done.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "install lcd module timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send -s "nano-X &\r"
+while 1 {
+    expect {
+        -re "\[0-9]" {
+            expect ">"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "nano-X timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "nanowm &\r"
+while 1 {
+    expect {
+        -re "\[0-9]" {
+            expect ">"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "nanowm timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "nxclock\r"
+set timeout 30
+send_user "Have you seen a clock on LCD screen?\nIf true, type y; if false, type n:"
+while 1 {
+    expect_user {
+        -re "\[nN]" {
+            send_user "\nnxclock failed, test fail\n"
+            case_fail $case_num
+        }
+        -re "\[yY]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "nxclock timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+        -re "nano-X: client closed socket" {
+            send "\n"
+            expect "root:~>"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "terminate nxclock timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "nxkbd\r"
+set timeout 30
+send_user "Have you seen a keyboard on LCD screen?\nIf true, type y; if false, type n:\n"
+while 1 {
+    expect_user {
+        -re "\[nN]" {
+            send_user "nxkbd failed, test fail\n"
+            case_fail $case_num
+        }
+        -re "\[yY]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "nxkbd timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+        -re "nano-X: client closed socket" {
+            send "\n"
+            expect "root:~>"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "terminate nxclock timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
