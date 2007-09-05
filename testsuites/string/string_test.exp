@@ -21,7 +21,41 @@ set case_num 0
 step "Start String testing"
 
 incr case_num
-set timeout 500
+set timeout 50
+
+send "cd /proc/sys/kernel\r"
+while 1 {
+   expect {
+      ">" {
+         case_pass $case_num
+         break
+      }
+
+      timeout {
+         case_fail $case_num
+         exit
+         }
+     }
+}
+
+incr case_num
+send "echo 8 > printk\r"
+while 1 {
+   expect {
+     -re ">" {
+
+         case_pass $case_num
+         break
+      }
+
+      timeout {
+         case_fail $case_num
+         exit
+         }
+     }
+}
+
+incr case_num
 send "insmod /lib/modules/string_test.ko\r"
 
 while 1 {
