@@ -78,13 +78,9 @@ test_strcmp (void)
 	  for (k = 0; k < 0xf; k++)
 	    {
 	      int cnum = 0x10+0x10*k+0x100*j+0x1000*i;
-	      printf("1ww buf1 %c , buf2 %c \n",*buf1, *buf2 );
-	      printf("2ww buf1 %s , buf2 %s \n", buf1, buf2 );
 	      check (strcmp (buf1+i,buf2+j) == 0, cnum);
 	      buf1[i+k] = 'A' + i + k;
 	      buf1[i+k+1] = 0;
-	      printf("1rr buf1+i %c , buf2+j %c \n",*(buf1+i), *(buf2+j) );
-	      printf("2rr buf1+i %s , buf2+j %s \n", buf1+i, buf2+j );
 	      check (strcmp (buf1+i,buf2+j) > 0, cnum+1);
 	      check (strcmp (buf2+j,buf1+i) < 0, cnum+2);
 	      buf2[j+k] = 'B' + i + k;
@@ -427,7 +423,7 @@ static int __init test_init (void)
   int status;
 
   /* Test strcmp first because we use it to test other things.  */
-//  test_strcmp ();
+  test_strcmp ();
 
   /* Test strcpy next because we need it to set up other tests.  */
   test_strcpy ();
