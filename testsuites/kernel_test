@@ -309,7 +309,7 @@ do
   fi
   
   ./build_${AUTO_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ] && [ ${AUTO_TESTCASE[$i]} != "gpio" ]
   then
         echo "$0:   Error, failed."
 	tail -50 ./build_${AUTO_TESTCASE[$i]}_kernel_log
