@@ -1,6 +1,7 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
+source  ../board_info.exp
 
 log_file [log_file_name "$argv0"]
 
@@ -20,26 +21,29 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 set case_num 0
-incr case_num
 
 sleep 5
 send "\r"
 
-send "modprobe bf537-lq035\r"
-while 1 {
-   expect {
-      "FrameBuffer initializing*Done" {
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
+set timeout 10
+incr case_num
+if { $board_type == "BF548-EZKIT" } {
+    send "modprobe bf54x-lq043\r"
+} elseif { $board_type == "BF537-STAMP" } {
+    send "modprobe bf537-lq035\r"
 }
-expect ">"
+while 1 {
+    expect {
+        "FrameBuffer initializing.*>" {
+            case_pass $case_num
+            break
+        }
+
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
 set timeout 15
 incr case_num
@@ -49,7 +53,6 @@ while 1 {
    expect {
      -re "\[a-zA-Z0-9]" {
          case_fail $case_num
-         exit
       }
 
       timeout {
@@ -61,42 +64,43 @@ while 1 {
      }
 }
 
-
+set timeout 5
 incr case_num
-send "rmmod bf537-lq035\r"
-expect "\r"
-while 1 {
-   expect {
-     -re "Unregister LCD driver" {         
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
+if { $board_type == "BF548-EZKIT" } {
+    send "rmmod bf54x-lq043\r"
+} elseif { $board_type == "BF537-STAMP" } {
+    send "rmmod bf537-lq035\r"
 }
+while 1 {
+    expect {
+        -re "Unregister LCD driver.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
 incr case_num
 send "lsmod\r" 
 while 1 {
-   expect {
-     -re ">" {         
-         case_pass $case_num
-         break
-      }
+    expect {
+        -re ">" {         
+            case_pass $case_num
+            break
+        }
 
-     "bf537-lq035" {
-         case_fail $case_num
-         exit
-         }
+        "lq0.*>" {
+            case_fail $case_num
+        }
 
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 send_log "\n"
@@ -105,4 +109,3 @@ send_log "\n$TITLE ............\[PASS\]\n"
 send_user "Ending $argv0\n"
 
 log_file
-

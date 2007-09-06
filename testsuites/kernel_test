@@ -515,7 +515,7 @@ do
   cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_landscape_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
-  ./tftlcd_test.exp >/dev/null  2>&1
+  ./tftlcd_test.exp $BOARD_TYPE >/dev/null  2>&1
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.landscape
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.landscape
@@ -542,7 +542,7 @@ do
   cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_portrait_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
-  ./tftlcd_test.exp >/dev/null  2>&1
+  ./tftlcd_test.exp $BOARD_TYPE >/dev/null  2>&1
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.portrait
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.portrait

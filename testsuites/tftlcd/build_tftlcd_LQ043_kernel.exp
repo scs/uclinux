@@ -43,7 +43,7 @@ while 1 {
       }
 
             -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[./././.]" {
-             send "y\r"
+             send "m\r"
       }
 
             -re "VIDEO test program.*CONFIG_USER_BLACKFIN_VIDEOTEST.*\\\[././.]" {
