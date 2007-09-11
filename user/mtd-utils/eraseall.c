@@ -63,6 +63,9 @@ int main( int argc,char *argv[] )
    }
 
    erase.length = meminfo.erasesize;
+   erase.start = 0;
+   ioctl( fd, MEMLOCK, &erase);
+
    for (erase.start = 0; erase.start < meminfo.size;
 	erase.start += meminfo.erasesize) {
        
@@ -73,12 +76,19 @@ int main( int argc,char *argv[] )
        }
        fflush( stdout );
 	
+       if(ioctl( fd, MEMUNLOCK, &erase) != 0) {
+	       fprintf( stderr, "\n%s: %s: MTD Unlock failure: %s\n", exe_name, 
+			mtd_device, strerror( errno) );
+               continue;
+       }
+
        if(ioctl( fd, MEMERASE, &erase) != 0)
        {
 	       fprintf( stderr, "\n%s: %s: MTD Erase failure: %s\n", exe_name, 
 			mtd_device, strerror( errno) );
-	       //exit( 1 );
        }
+
+       ioctl( fd, MEMLOCK, &erase);
    }
    if( !quiet ) {
        printf( "\rErased %ld Kibyte @ %lx -- 100%% complete.       \n",
