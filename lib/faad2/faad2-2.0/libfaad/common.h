@@ -57,6 +57,9 @@ extern "C" {
 #define FIXED_POINT
 #endif
 
+#ifdef __BFIN__
+#define FIXED_POINT
+#endif
 
 #define ERROR_RESILIENCE
 
