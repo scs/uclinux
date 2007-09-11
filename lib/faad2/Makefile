@@ -1,16 +1,18 @@
-all: build/Makefile
-	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
+VER = faad2-2.0
 
-build/Makefile:
-	find . -type f -print0 | xargs -0 touch -r configure
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
+
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
-	rm -rf build ; \
-	mkdir build ; \
-	cd build ; \
-	../configure $(CONFIGURE_OPTS)
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure $(CONFIGURE_OPTS)
 
 clean:
-	rm -rf build
+	rm -rf build*
 
 romfs:
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libfaad.so.0 /lib/
