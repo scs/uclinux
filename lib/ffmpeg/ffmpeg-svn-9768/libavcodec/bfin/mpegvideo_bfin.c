@@ -33,7 +33,8 @@ static int dct_quantize_bfin (MpegEncContext *s,
                               DCTELEM *block, int n,
                               int qscale, int *overflow)
 {
-    int last_non_zero, q, start_i;
+    int last_non_zero, start_i;
+    short q;
     const short *qmat;
     short *bias;
     const uint8_t *scantable= s->intra_scantable.scantable;
