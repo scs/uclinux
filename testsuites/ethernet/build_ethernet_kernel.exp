@@ -6,49 +6,12 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 source ../ifconfig_ethaddr.exp
 
-set set_config_file 1
-
 cd $uclinux_path/testsuites
 
 step "Make config."
 
 source  make_default_config.exp
 
-# Following make specific configuration for this case.
-
-if { $set_config_file == 1 } {
-
-send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
-
-cd $uclinux_path/config
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_USER_NETPERF_TEST\[ =]\r"
-      expect "CONFIG_USER_NETPERF_TEST\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_USER_NETPERF_TEST=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5   
-       
-      send "wq\r"
-      expect eof
-      
-      
 cd $uclinux_path
 set timeout 300
 spawn make config
@@ -80,7 +43,6 @@ while 1 {
       }
    }
 }
-} else {
 
 cd $uclinux_path
 set timeout 300
@@ -109,7 +71,7 @@ while 1 {
 	
           -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
              
-             send -s "y\r"
+             send -s "Y\r"
       }
 
 
@@ -131,7 +93,6 @@ while 1 {
              break        
       }
    }
-}
 }
 
 cd $uclinux_path/testsuites

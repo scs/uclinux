@@ -4,8 +4,6 @@ source ../kernel_config.exp
 source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
-set set_config_file 1
-
 
 cd $uclinux_path/testsuites
 
@@ -13,96 +11,6 @@ step "Make config."
 
 source  make_default_config.exp
 
-# Following make specific configuration for this case.
-
-if { $set_config_file == 1 } {
-
-
-send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
-
-cd $uclinux_path/linux-2.6.x
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_BFIN_MAC_USE_L1\[ =]\r"
-      expect "CONFIG_BFIN_MAC_USE_L1\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "# CONFIG_BFIN_MAC_USE_L1 is not set\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-      
-      send "/CONFIG_BFIN_TX_DESC_NUM\[ =]\r"
-      expect "CONFIG_BFIN_TX_DESC_NUM\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_BFIN_TX_DESC_NUM=100\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-      
-      send "/CONFIG_BFIN_RX_DESC_NUM\[ =]\r"
-      expect "CONFIG_BFIN_RX_DESC_NUM\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_BFIN_RX_DESC_NUM=500\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-
-      send "wq\r"
-      expect eof
-
-send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
-
-cd $uclinux_path/config
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_USER_NETPERF_TEST\[ =]\r"
-      expect "CONFIG_USER_NETPERF_TEST\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_USER_NETPERF_TEST=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5   
-       
-      send "wq\r"
-      expect eof
-      
-      
 cd $uclinux_path
 set timeout 300
 spawn make config
@@ -134,7 +42,6 @@ while 1 {
       }
    }
 }
-} else {
 
 cd $uclinux_path
 set timeout 300
@@ -162,7 +69,7 @@ while 1 {
        
           -re "Use L1 memory for rx/tx packets.*BFIN_MAC_USE_L1.*\\\[.*]" {
              
-             send -s "n\r"
+             send -s "N\r"
       }
       
           -re "Number of transmit buffer packets.*BFIN_TX_DESC_NUM.*\\\[.*]" {
@@ -176,12 +83,12 @@ while 1 {
       }
           -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
              
-             send -s "y\r"
+             send -s "Y\r"
       }
 
 
        "\\\(*) \\\[*]" {
-             sleep .001
+             sleep .1
 	     send "\r"
       }
 
@@ -200,7 +107,7 @@ while 1 {
       }
    }
 }
-}
+
 cd $uclinux_path/testsuites
 
 step "Make"

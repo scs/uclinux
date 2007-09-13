@@ -5,115 +5,12 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-set set_config_file 0
-
 cd $uclinux_path/testsuites
 
 step "Make config."
 
 source  make_default_config.exp
 
-# Following make specific configuration for this case.
-
-if { $set_config_file == 1 } {
-
-send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
-
-cd $uclinux_path/linux-2.6.x
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_SPI_ADC_BF533\[ =]\r"
-      expect "CONFIG_SPI_ADC_BF533\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_SPI_ADC_BF533=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5
-      
-      send "wq\r"
-      expect eof
-
-send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
-
-cd $uclinux_path/config
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_LIB_ZLIB_FORCE\[ =]\r"
-      expect "CONFIG_LIB_ZLIB_FORCE\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_LIB_ZLIB_FORCE=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5   
-      
-      send "/CONFIG_LIB_LIBPNG_FORCE\[ =]\r"
-      expect "CONFIG_LIB_LIBPNG_FORCE\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_LIB_LIBPNG_FORCE=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5   
-       
-      send "/CONFIG_USER_NDSO\[ =]\r"
-      expect "CONFIG_USER_NDSO\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "# CONFIG_USER_NDSO is not set\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5   
-      
-      send "/CONFIG_USER_AWG\[ =]\r"
-      expect "CONFIG_USER_AWG\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_USER_AWG=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5   
-      
-      send "wq\r"
-      expect eof
-      
-      
 cd $uclinux_path
 set timeout 300
 spawn make config
@@ -145,7 +42,6 @@ while 1 {
       }
    }
 }
-} else {
 
 cd $uclinux_path
 set timeout 300
@@ -171,29 +67,28 @@ while 1 {
              send "y\r"
       }
 
-       -re "Blackfin BF53x ADSP SPI ADC support.*SPI_ADC_BF533.*\\\[.*]" {
+           -re "Blackfin BF53x ADSP SPI ADC support.*SPI_ADC_BF533.*\\\[.*]" {
              send "Y\r"
       }
 
-        -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
+           -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
              send "Y\r"
       }
 
-       -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
+           -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
              send "Y\r"
       }
 
-
-        -re "Networked Software Defined Storage Oscilloscope.*CONFIG_USER_NDSO.*\\\[.*]" {
+           -re "Networked Software Defined Storage Oscilloscope.*CONFIG_USER_NDSO.*\\\[.*]" {
              send "N\r"
       }
  	
-	-re "Networked Arbitrary Waveform Genertor.*CONFIG_USER_AWG.*\\\[.*]" {
+	   -re "Networked Arbitrary Waveform Genertor.*CONFIG_USER_AWG.*\\\[.*]" {
              send "Y\r"
       }
 
-       "\\\(*) \\\[*]" {
-             sleep .02
+          "\\\(*) \\\[*]" {
+             sleep .01
              send "\r"
       }
 
@@ -211,7 +106,6 @@ while 1 {
 	     break
           }
    }
-}
 }
 
 cd $uclinux_path/testsuites
