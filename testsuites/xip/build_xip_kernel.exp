@@ -8,8 +8,6 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-set set_config_file 1
-
 cd $uclinux_path/testsuites
 step "Make default config."
 source  make_default_config.exp
@@ -98,31 +96,17 @@ while 1 {
    }
 }
 
-step "Make"
+cd $uclinux_path/testsuites
 
-cd $uclinux_path
-spawn make
-set timeout 1200
-set bfin_make_status failure
-while 1 {
-   expect {
-      "Entering directory" { }
-      "Leaving directory" { set bfin_make_status success }
-      "Error" {set bfin_make_status failure }
-      "/bin/sh" { }
-      eof { break }
-   }
-}
+step "Make kernel"
 
-if { $bfin_make_status == "failure" } {
-   puts "ERROR: Error somewhere during make"
-}    
-     
-step "Copy linux"
-  
-set timeout 8
-cd $uclinux_path
-exec cp images/linux.romfs /tftpboot
+source   make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux image"
+
+source   copy_image.exp
 
 send_user "Ending $argv0\n"
 
