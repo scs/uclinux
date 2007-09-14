@@ -3188,7 +3188,8 @@ static char *rexecve(char *c, char **v, char **envp)
 		case ENOEXEC:
 			*v = e.linep;
 			tp = *--v;
-			*v = e.linep;
+			*v = DEFAULT_SHELL;
+			DBGPRINTF3(("REXECVE: trying %s\n", DEFAULT_SHELL));
 			execve(DEFAULT_SHELL, v, envp);
 			*v = tp;
 			return "no Shell";
