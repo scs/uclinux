@@ -9,14 +9,14 @@ diff -Naur -x CVS /home/aubrey/commit/kernel/uClinux-dist/linux-2.6.x/drivers/ch
 +#include <linux/module.h>
 +MODULE_LICENSE("Dual BSD/GPL");
 +
-+int a __attribute((section(".l1.data"))) = 1;
++int a __attribute__((l1_data));
 +int b __attribute((section(".l1.bss")));
 +
-+int c __attribute((section(".l1.data.B"))) = 2;
++int c __attribute__((l1_data_B));
 +int d __attribute((section(".l1.bss.B")));
 +
 +
-+void l1_code_test(void)__attribute((section(".l1.text")));
++void l1_code_test(void)__attribute__((l1_text));
 +
 +void l1_code_test(void)
 +{
