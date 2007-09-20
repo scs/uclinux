@@ -1700,7 +1700,7 @@ if [ "$CONFIG_USER_MICROWIN" = "y" ]; then
 	comment 'Applications'
 	bool 'NanoWM'       CONFIG_USER_MICROWIN_NANOWM
 	comment 'Settings'
-	choice 'Screeen PixType' "Packed-8bit-Palette CONFIG_USER_MICROWIN_MWPF_PALETTE \
+	choice 'Screen PixType' "Packed-8bit-Palette CONFIG_USER_MICROWIN_MWPF_PALETTE \
 				Packed-32bit-8/8/8 CONFIG_USER_MICROWIN_MWPF_TRUECOLOR0888 \
 				Packed-24bit-8/8/8 CONFIG_USER_MICROWIN_MWPF_TRUECOLOR888 \
 				Packed-16bit-5/6/5 CONFIG_USER_MICROWIN_MWPF_TRUECOLOR565 \
