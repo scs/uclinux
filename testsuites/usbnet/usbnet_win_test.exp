@@ -2,7 +2,7 @@
 
 #
 # This usbnet test script is for BF561-EZKIT and BF537-STAMP boards
-# A auto test case with Linux PC
+# A manual test case with Windows PC
 #
 
 source  ../kernel_config.exp
@@ -77,12 +77,13 @@ while 1 {
     }
 }
 
-puts "**For the first time to run this case, unplug USB cable first**\r"
-puts "Connect the board to Linux Host PC with a USB cable!\r"
+puts "**Before the first time to run this case, driver is installed on Windows host PC**\r"
+puts "Connect the board to Windows Host PC with a USB cable!\r"
+incr case_num
 set timeout 60
 while 1 {
     expect {
-        -re "usb0: high speed config #1: 100 mA, Ethernet Gadget, using CDC Ethernet" {
+        -re "usb0: high speed config #2: 100 mA, Ethernet Gadget, using RNDIS" {
             break
         }
         timeout {
@@ -90,76 +91,23 @@ while 1 {
         }
     }
 }
-
-#config Linux host pc
-spawn /bin/bash
-set shell_spawn_id $spawn_id
-
-incr case_num
-set timeout 10
-send "ifconfig -a\r"
-while 1 {
-    expect {
-        -re "usb0.*#" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "ifconfig usb0 $hostip\r"
-while 1 {
-    expect {
-        -re "#" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 20
-send "ping $boardip -c $count\r"
-while 1 {
-    expect {
-        -re "$count packets transmitted, $count received, 0% packet loss.*#" {
-            send_user "Ping from Linux host pc to board pass!\r"
-            case_pass $case_num
-            break
-        }
-        timeout {
-            send_user "Ping from Linux host pc to board failed!\r"
-            case_fail $case_num
-        }
-    }
-}
-
-set spawn_id $kermit_spawn_id
 
 incr case_num
 set timeout 20
 send "ping $hostip -c $count\r"
 while 1 {
     expect {
-        -re "$count packets transmitted, $count packets received, 0% packet loss.*root:~>" {
-            send_user "Ping from board to host pc pass!\r"
+         -re "$count packets transmitted, $count packets received, 0% packet loss.*root:~>" {
             case_pass $case_num
             break
         }
         timeout {
-            send_user "Ping from board to host pc failed!\r"
             case_fail $case_num
         }
     }
 }
+
+puts "\nTry to ping from Windows host PC to the board $boardip!\n"
 
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n" 

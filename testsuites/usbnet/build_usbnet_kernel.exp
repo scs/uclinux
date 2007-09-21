@@ -1,100 +1,93 @@
 #!/usr/bin/expect --
 
 #
-# Build Kernel for USB network test
+# Build Kernel for USB network test of PLX NET2272
 #
-
-source ../kernel_config.exp
+source  ../kernel_config.exp
 source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
 cd $uclinux_path/testsuites
-
-step "Make config."
-  
+step "Make default config."
 source  make_default_config.exp
-  
-# Following make specific configuration for this case.
+
+step "Make config"
 
 cd $uclinux_path
 set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+            send "$board_type\r"
+        }
 
-      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
-         send "$board_type\r"
-      }
+        -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Support for Host-side USB.*USB.*\\\[.*]" {
+            send "n\r"
+        }
 
-      -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
-         send "0xAAC2\r"
-      }
+        -re "Support for USB Gadgets.*USB_GADGET.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Support for Host-side USB.*USB.*\\\[./././.]" {
-         send "y\r"
-      }
+#        -re "USB Peripheral Controller.*PLX NET2272.*choice\\\[.]:" {
+#            send "1\r"
+#        }
 
-      -re "ISP1362 HCD support.*USB_ISP1362_HCD.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "USB Gadget Drivers \\\[.*]" {
+            send "y\r"
+        }
 
-      -re "GPIO for Interrupt.*USB_ISP1362_BFIN_GPIO.*\\\[.]" {
-         send "3\r"
-      }
+        -re "USB Gadget Drivers.*Ethernet Gadget.*choice\\\[.*]:" {
+            send "2\r"
+        }
 
-      -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "RNDIS support.*USB_ETH_RNDIS.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "PF pin for Interrupt.*USB_SL811_BFIN_GPIO.*\\\[.]" {
-         send "4\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      -re "USB RTL8150 based ethernet device support.*EXPERIMENTAL.*USB_RTL8150.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      "\\\(*) \\\[*]" {
-         send "\r"
-      }
+        eof {
+            puts "End of configuration"
+            break
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
-
-      eof {
-         puts "End of configuration"
-         break
-      }
-
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
 
-step "Make"
+step "Make kernel"
 
 source  make_kernel.exp
 
 cd $uclinux_path/testsuites
 
-step "Copy linux"
+step "Copy linux image"
 
 source   copy_image.exp
-  
-log_file
 
-send_user "\nKernel building for usb net test finishes!\n"
+send_user "Ending $argv0\n"
+
+log_file
