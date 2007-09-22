@@ -1,3 +1,7 @@
+2007-09-21  Mike Frysinger  <vapier@gentoo.org>
+
+	* server.c (main): Check status after start_inferior.
+
 2007-06-12  Mike Frysinger  <vapier@gentoo.org>
 
 	* linux-low.c (linux_create_inferior): Change execv to execvp.

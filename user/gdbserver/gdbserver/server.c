@@ -563,6 +563,15 @@ main (int argc, char *argv[])
       /* Wait till we are at first instruction in program.  */
       signal = start_inferior (&argv[2], &status);
 
+      /* start_inferior() returns an integer, but the wait
+       * function returns an unsigned char.  in the case of
+       * of an error, the wait returns -1 which means 255.  */
+      if (status == 'W' || status == 'X')
+	{
+	  fprintf (stderr, "Aborting server; child exited with %i\n", signal);
+	  exit (signal);
+	}
+
       /* We are now stopped at the first instruction of the target process */
     }
   else
