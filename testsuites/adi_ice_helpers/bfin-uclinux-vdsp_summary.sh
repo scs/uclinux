@@ -15,16 +15,18 @@ do
   sum_percent=`echo "scale=2; $sum_fig * 100 / $total" | bc`
   j=`echo "scale=2; length($sum_fig * 100 / $total)" | bc`
   i=`echo "x=l($sum_fig)/l(10); scale =0 ; $tab - x/1 " | bc -l`
-  for (( ; i >= 1 ; i=i-1 ))
+  while [ $i -gt 0 ]
   do
+    i=`expr $i - 1`
     echo -n " "
   done
   echo -n "$sum_fig ("
-  if [ "$sum_percent" == "0" ] ; then
+  if [ "${sum_percent}" = "0" ] ; then
     echo -n "  .00%) "
   else
-    for (( ; j <= 3 ; j=j+1 ))
+    while [ $j -lt 4 ]
     do
+      j=`expr $j + 1`
       echo -n " "
     done
     echo -n "$sum_percent%) "

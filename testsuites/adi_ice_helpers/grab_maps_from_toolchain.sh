@@ -14,5 +14,8 @@ libc=$($gcc -print-file-name=libc.a)
 path="${libc%/*}/../../lib"
 
 for l in ${path}/*so* ; do
-	${prefix}-nm $l | grep -e " [tT] " | grep -v " t L.L" | sed -e 's:^00000000::' > ${l##*/}.map
+	echo -n "getting maps from "
+	(echo $l | awk -F / '{print $NF}')
+	${prefix}-nm $l | grep -e " [tT] " | grep -v " t L.L" | sed -e 's:^00000000::' > ./maps/${l##*/}.map
+	${prefix}-objdump -d $l > ./dis/${l##*/}.dis
 done

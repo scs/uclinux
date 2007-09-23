@@ -22,7 +22,7 @@
 
 sub Usage
 {
-	die "$0: [-v] [-h] call-trace.txt system.map user.map\n  -v = verbose output\n  -h = help (This message)\n  For more info check http://docs.blackfin.uclinux.org/doku.php?id=statistical_profiling\n";
+	die "$0: [-v] [-h] call-trace.txt system.list user.list\n  -v = verbose output\n  -h = help (This message)\n  For more info check http://docs.blackfin.uclinux.org/doku.php?id=statistical_profiling\n";
 }
 
 Usage() if $#ARGV < 2;
@@ -74,12 +74,12 @@ sub lookup
 	return $rval;
 }
 
-open(M, $smap) || die "$0: can't open System.map file '$smap': $!\n";
+open(M, $smap) || die "$0: can't open System.list file '$smap': $!\n";
 while(<M>) {
 	chomp;
 	@tmp = split;
 	if ($tmp[0] !~ /^[0-9a-fA-F]+$/) {
-		warn "bad line in system.map: $#tmp $_\n";
+		warn "bad line in system.list: $#tmp $_\n";
 	}
 	$tmp[0] =~ s/^0+//g;
 
@@ -132,7 +132,7 @@ while(<M>) {
 #}
 #	exit;
 	{
-		my $file = "$tmp[0].ko.text.map";
+		my $file = "./maps/$tmp[0].ko.text.map";
 		warn("Loading symbols from $file\n");
 		my $sym = "Kernel\\[".$tmp[0]."\\]:";
 		$j = 0;
@@ -276,7 +276,7 @@ while(<M>) {
 	my $end = hex $tmp1[1] ;
 
 	@tmp2 = split (/\//, $tmp[5]);
-	my $file = "$tmp2[$#tmp2].map";
+	my $file = "./maps/$tmp2[$#tmp2].map";
 
 	$symtab{$tmp1[0]} = $tmp2[$#tmp2];
 	printf("%x    %s:__begin\n",$base , $tmp2[$#tmp2]) if $debug;
