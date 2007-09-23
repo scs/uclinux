@@ -355,7 +355,7 @@ int learned;            /* flag--if TRUE, network has learned all patterns */
 ** The Neural Net test requires an input data file.
 ** The name is specified here.
 */
-char *inpath="NNET.DAT";
+char *inpath="/bin/NNET.DAT";
 
 /*
 ** PROTOTYPES
