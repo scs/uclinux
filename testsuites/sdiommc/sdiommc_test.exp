@@ -1,0 +1,540 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+if { $argc < 2} {
+    puts "Please input size of the first partition, in units of Megabytes. Eg: 256M\r"
+    puts "And input test file size. Eg: 5 means 5MB\r"
+    exit
+}
+set NUM_CYLINDER +[lindex $argv 0]
+set FILE_SIZE [lindex $argv 1]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "start TEST - Format entire MMC/SD and create DOS FS"
+set case_num 0
+set test_flag 0
+sleep 2
+
+send "mkdir /mnt/mmc\r"
+send "mkdir /mnt/mmc1\r"
+send "mkdir /mnt/mmc2\r"
+expect "root:~>"
+
+incr case_num
+set timeout 10
+send "mkdosfs /dev/mmcblk0\r"
+while 1 {
+   expect {
+      -re "No such .*>" {
+         send_user "No mmcblk0 device, test fail\n"
+         case_fail $case_num
+      }
+      -re "mkdosfs.*>" {
+         send_user "mkdosfs done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "mkdosfs timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "mount -t msdos /dev/mmcblk0 /mnt/mmc\r"
+while 1 {
+   expect {
+      -re "mount.*failed.*>" {
+         send_user "mount DOS FS fail, test fail\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_user "mount dos fs done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "mount DOS FS timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 60
+send "time dd if=/dev/zero of=/mnt/mmc/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
+while 1 {
+   expect {
+      -re "records in.*records out.*real.*user.*sys.*>" {
+         break
+      }
+      timeout {
+         send_user "Generate a $FILE_SIZE MB file timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+set timeout 5
+send "ls /mnt/mmc\r"
+while 1 {
+   expect {
+      -re "$FILE_SIZE.bin" {
+         send_user "Generate a $FILE_SIZE MB file done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "List $FILE_SIZE MB file timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 20
+send "umount /mnt/mmc\r"
+while 1 {
+   expect {
+      -re "cannot umount.*>" {
+         send_user "umount DOS FS fail, test fail\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_user "umount DOS FS done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "umount DOS FS timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+step "Create 2 partitions in MMC/SD"
+set timeout 10
+send "fdisk /dev/mmcblk0\r"
+expect -re "Command.*:"
+send "n\r"
+expect -re "primary partition.*"
+send "p\r"
+expect -re "Partition number.*"
+send "1\r"
+expect -re "First cylinder.*"
+send "\r"
+expect -re "Last cylinder.*"
+send "$NUM_CYLINDER\r"
+expect -re "Command.*"
+send "n\r"
+expect -re "primary partition.*"
+send "p\r"
+expect -re "Partition number.*"
+send "2\r"
+expect -re "First cylinder.*"
+send "\r"
+expect -re "Last cylinder.*"
+send "\r"
+expect -re "Command.*"
+send "w\r"
+expect -re "root:~>"
+
+set timeout 10
+send "fdisk /dev/mmcblk0\r"
+expect -re "Command.*:"
+send "t\r"
+expect -re "Partition number.*"
+send "2\r"
+expect -re "Hex code.*:"
+send "6\r"
+expect -re "Changed system type.*:"
+send "w\r"
+expect -re "root:~>"
+
+step "TEST - Test with the two partitions"
+incr case_num
+set timeout 120
+send "mke2fs /dev/mmcblk0p1\r"
+while 1 { 
+   expect {
+      -re "mke2fs.*Writing.*>" {
+         send_user "mke2fs done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "mke2fs timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "mount -t ext2 /dev/mmcblk0p1 /mnt/mmc1\r"
+while 1 {
+   expect {
+      -re "mount.*failed.*>" {
+         send_user "mount EXT2 FS fail, test fail\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_user "mount EXT2 FS done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "mount EXT2 FS timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "mkdosfs /dev/mmcblk0p2\r"
+while 1 {
+   expect {
+      -re "No such .*>" {
+         send_user "No mmcblk0p2 device, test fail\n"
+         case_fail $case_num
+      }
+      -re "mkdosfs.*>" {
+         send_user "mkdosfs done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "mkdosfs timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "mount -t msdos /dev/mmcblk0p2 /mnt/mmc2\r"
+while 1 {
+   expect {
+      -re "mount.*failed.*>" {
+         send_user "mount DOS FS fail, test fail\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_user "mount DOS FS done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "mount DOS FS timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 60
+send "time dd if=/dev/zero of=/mnt/mmc1/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
+while 1 {
+   expect {
+      -re "records in.*records out.*real.*user.*sys.*>" {
+         break
+      }
+      timeout {
+         send_user "Generate a $FILE_SIZE MB file in mmc1 timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 60
+send "time dd if=/dev/zero of=/mnt/mmc2/$FILE_SIZE.bin bs=1M count=$FILE_SIZE\r"
+while 1 {
+   expect {
+      -re "records in.*records out.*real.*user.*sys.*>" {
+         break
+      }
+      timeout {
+         send_user "Generate a $FILE_SIZE MB file in mmc2 timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "rm /mnt/mmc2/$FILE_SIZE.bin\r"
+while 1 {
+   expect {
+      -re "rm:.*>" {
+         send_user "rm fail, test fail\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_user "rm done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "rm timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 10
+send "umount /mnt/mmc1\r"
+while 1 {
+   expect {
+      -re "cannot umount.*>" {
+         send_user "umount /mnt/mmc1 fail, test fail\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_user "umount /mnt/mmc1 done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "umount /mnt/mmc1 timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 10
+send "umount /mnt/mmc2\r"
+while 1 {
+   expect {
+      -re "cannot umount.*>" {
+         send_user "umount /mnt/mmc2 fail, test fail\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_user "umount /mnt/mmc2 done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "umount /mnt/mmc2 timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+
+step "TEST - Use MMC/SD as root FS"
+
+incr case_num
+set timeout 5
+send "mkdir /mnt/rootfs\r"
+expect -re "root:~>"
+send "mount -o sync /dev/mmcblk0p1 /mnt/rootfs\r"
+expect -re "root:~>"
+send "ifconfig eth0 $targetip up\r"
+expect -re "root:~>"
+sleep 5
+exec rcp runcp.sh $targetip:/.
+sleep 1
+set timeout 900
+send "./runcp.sh\r"
+while 1 {
+   expect {
+      -re "copy rootfs done.*>" {
+         send_user "finish to copy rootfs to mmc card\n"
+         case_pass $case_num
+         break
+      }
+      eof {
+         break
+      }
+      timeout {
+         send_user "copy rootfs to mmc card timeout\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 20
+send "umount /mnt/rootfs\r"
+while 1 {
+   expect {
+      -re "cannot umount.*>" {
+         send_user "umount /mnt/rootfs fail, test fail\n"
+         case_fail $case_num
+      }
+      -re "root:~>" {
+         send_user "umount /mnt/rootfs done, test pass\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "umount /mnt/rootfs timeout, test fail\n"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+send "reboot\r"
+set timeout 60
+while 1 {
+   expect {
+
+      "Hit any key " {
+         send "\r"
+         break
+      }
+
+      timeout {
+         send_user "failed reset attemp\n"
+         case_fail $case_num
+      }
+   }
+}
+
+expect ">"
+send -s "setenv mmcargs setenv bootargs root=B301 rw\r"
+expect ">"
+send -s "setenv mmcboot \'tftpboot 0x1000000 vmlinux; run mmcargs; run addip; bootelf\'\r"
+expect ">"
+send -s "save\r"
+while 1 {
+   expect {
+      ">" {
+         send_user "save!!!\n"
+         break
+      }
+      timeout {
+         send_user "save timeout!!!\n"
+         case_fail $case_num
+      }
+   }
+}
+
+set timeout 180
+send -s "run mmcboot\r"
+while 1 {
+   expect {
+
+      -re "Kernel panic" {
+         send_user "kernel panic detected..."
+         case_fail $case_num
+      }
+
+      -re "Sash command shell.*/> " {
+         send_user "successful boot attempt"
+         case_pass $case_num
+         break
+      }
+
+      "root:~> " {
+         send_user "successful boot attempt"
+         case_pass $case_num
+         break
+      }
+
+      -re "Linux version (.*) " {
+         set linux_version $expect_out(1,string)
+      }
+
+      # Look for gcc version N.N[.N[.N]]
+      -re "gcc version (\[0-9](\.\[0-9]+)+)" {
+         set gcc_version [lindex $expect_out(0,string) 2]
+      }
+
+      # Look for text followed by 1 or more spaces or tabs
+      # followed by = followed by 1 or more spaces or tabs
+      # followed by (0xNNNNNN-0xNNNNNN)
+      -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_text $expect_out(1,string)
+      }
+
+      -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_data $expect_out(1,string)
+      }
+
+      -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_bss $expect_out(1,string)
+      }
+
+      -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_rootfs $expect_out(1,string)
+      }
+
+      # Note that here we're looking for zero or 1 space. Doh!
+      -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+         set map_stack $expect_out(1,string)
+      }
+
+      -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
+         # set instruction_cache_boot_flag $CACHE_ENABLED
+      }
+
+      -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
+         # set instruction_cache_boot_flag $CACHE_DISABLED
+      }
+
+      -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
+         # set data_cache_boot_flag $CACHE_ENABLED
+      }
+
+      -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
+         #set data_cache_boot_flag $CACHE_DISABLED
+      }
+
+      timeout {
+         send_user "failed boot attempt"
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 20
+send "dmesg\r"
+while 1 {
+   expect {
+      -re "VFS\\\: Mounted root \\\(ext2 filesystem\\\).*>" {
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+set timeout 5
+send "ls /\r"
+while 1 {
+   expect {
+      -re "runcp\\\.sh.*>" {
+         send_user "successfully mount MMC/SD as the root filesystem\r"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
+all_pass
+
+send_user "Ending $argv0\n"
+
+log_file

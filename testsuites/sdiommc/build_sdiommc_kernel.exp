@@ -1,0 +1,139 @@
+#!/usr/bin/expect --
+
+#
+# Build Kernel for SDIO MMC/SD test
+#
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+set HAVE_KERNEL_ONLY_IMAGE 1
+
+cd $uclinux_path/testsuites
+
+step "Make config."
+ 
+source  make_default_config.exp
+ 
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+#tee "Begin the interactive process of configuration"
+while 1 {
+   expect {
+
+      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
+
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "MMC/SD card support.*MMC.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "MMC block device driver.*MMC_BLOCK.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "Blackfin Secure Digital Host support.*SDH_BFIN.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "Blackfin on-chip NAND Flash Controller driver.*MTD_NAND_BF5XX.*\\\[.*]" {
+         send "n\r"
+      }
+
+      -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "VFAT \\\(Windows-95\\\) fs support.*VFAT_FS.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[.*]" {
+         send "850\r"
+      }
+
+      -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "Codepage 850.*Europe.*NLS_CODEPAGE_850.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "fdisk.*CONFIG_USER_FDISK_FDISK.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "e2fsck.*CONFIG_USER_E2FSPROGS_E2FSCK_E2FSCK.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "mke2fs.*CONFIG_USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "badblocks.*CONFIG_USER_E2FSPROGS_MISC_BADBLOCKS.*\\\[.*]" {
+         send "y\r"
+      }
+
+      -re "mkdosfs.*CONFIG_USER_DOSFSTOOLS_MKDOSFS.*\\\[.*]" {
+         send "y\r"
+      }
+
+      "\\\(*) \\\[*]" {
+         sleep .01
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+
+log_file
