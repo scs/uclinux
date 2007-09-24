@@ -38,14 +38,16 @@ while 1 {
       }
 
           
-       -re "Compiled-in Kernel Boot Parameter.*BOOTPARAM.*\\\[.*]" {
+            -re "Compiled-in Kernel Boot Parameter.*BOOTPARAM.*\\\[.*]" {
             
              send -s "N\r"
       }
-  
+ 
+            -re "Initial RAM filesystem and RAM disk.*initramfs/initrd.*support.*BLK_DEV_INITRD.*\\\[.*]" {
+                        send "N\r"
+      }
       
-      
-        -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
+          -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
              
              send -s "Y\r"
       }
@@ -139,7 +141,7 @@ while 1 {
 
         -re "Blackfin BF5xx Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
              
-             if { $board_type == "BF561-EZKIT" } {
+             if { $board_type == "BF561-EZKIT" || $board_type == "BF548-EZKIT"  } {
                 send -s "n\r"
              } else {
                 send -s "Y\r"

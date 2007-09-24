@@ -51,11 +51,7 @@ while 1 {
 
 
 set timeout 5
-if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-send -s "bootm 0x20020000\r"
-} elseif { $board_type == "BF561-EZKIT" } {
-send -s "bootm 0x20040000\r"
-}
+send -s "bootm $kernel_start_addr\r"
 while 1 {
    expect {
       "Linux version" {

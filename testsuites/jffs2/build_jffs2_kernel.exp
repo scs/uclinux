@@ -140,7 +140,7 @@ while 1 {
 
         -re "Blackfin BF5xx Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
              
-             if { $board_type == "BF561-EZKIT" } {
+             if { $board_type == "BF561-EZKIT" || $board_type == "BF548-EZKIT" } {
                 send -s "n\r"
              } else {
                 send -s "Y\r"

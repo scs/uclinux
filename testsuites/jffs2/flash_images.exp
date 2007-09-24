@@ -14,14 +14,24 @@ source ../spawn_kermit.exp
 step "Reset the uboot."
 source ../reset_to_uboot.exp
 
+if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+
 set bootargs  $bootargs_param1
+
+} elseif { $board_type == "BF561-EZKIT" } {
+
+set bootargs  $bootargs_param1
+
+} elseif { $board_type == "BF548-EZKIT" } {
+
+set bootargs  $bootargs_param6
+}
+
 send -s "set bootargs $bootargs\r"
 expect   ">" 
 send "save\r"
 expect   ">" 
 
-if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-
 step "Flash images."
 
 set timeout 1200   
@@ -49,7 +59,7 @@ expect {
     
   
 set timeout 80
-send -s "protect off 0x20020000 0x200fffff\r"
+send -s "protect off $kernel_start_addr $kernel_end_addr\r"
 while 1 {
 		expect {
 
@@ -73,7 +83,7 @@ while 1 {
 	
 set timeout 240	    
 	
-	send -s "erase 0x20020000 0x200fffff\r"
+	send -s "erase $kernel_start_addr $kernel_end_addr\r"
 	while 1 {
 	expect {
 	
@@ -92,7 +102,7 @@ set timeout 240
 	
 	set timeout 500
 	
-	send -s "cp.b 0x1000000 0x20020000 0x$image_size\r"
+	send -s "cp.b 0x1000000 $kernel_start_addr  0x$image_size\r"
 	while 1 {
 	expect {
 	
@@ -138,7 +148,7 @@ timeout {
 }
 
 set timeout 80
-send -s "protect off 0x20100000 0x203effff\r"
+send -s "protect off $rootfs_start_addr $rootfs_end_addr\r"
 while 1 {
 		expect {
 
@@ -162,7 +172,7 @@ while 1 {
 
 set timeout 240	
 		
-send -s "erase 0x20100000 0x203effff\r"
+send -s "erase $rootfs_start_addr $rootfs_end_addr\r"
 	while 1 {
 	expect {
 	
@@ -181,210 +191,7 @@ send -s "erase 0x20100000 0x203effff\r"
 	
 set timeout 500
 
-send -s "cp.b 0x1000000 0x20100000 0x$image_size\r"
-while 1 {
-expect {
-
-	"done" {
-		send_user " cp success\n"
-		break
-	}
-	
-
-	
-	timeout {
-	send_user "ERROR:  cp failed\n"
-	
-	break
-	}
-}
-}
-
-expect ">"
-send -s "reset\r"
-	while 1 {
-	expect {
-
-	"Hit any key " {
-	send "\3"
-	
-	}
-
-	">" {
-	send_user "successful reset attempt\n"
-	
-	break
-	}
-
-	timeout {
-	send_user "failed reset attempt\n"
-	
-	break
-	}
-}
-}
-} elseif { $board_type == "BF561-EZKIT" } {
-
-step "Flash images."
-
-set timeout 1200   
-send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
-while 1 {
-expect {
-		
-	"done" {
-	set tftp_flag SUCCESS
-	}
-
-	-re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
-
-	set image_size $expect_out(1,string)
-	send_user "Image size is $image_size\n"
-	break
-	}
-	
-	timeout {
-	send_user "ERROR: Uboot locked up during tftp\n"		
-	break
-	}
-}
-}
-    
-  
-set timeout 80
-send -s "protect off 0x20040000 0x201fffff\r"
-while 1 {
-		expect {
-
-		"Un-Protected" {
-				
-				send_user "  unprotect success\n"
-			}
-	
-		">" {
-				break
-			}
-	
-		timeout {
-				send_user "ERROR:  unprotect failed\n"
-				
-				break
-			}
-		}
-	}
-	
-	
-set timeout 240	    
-	
-	send -s "erase 0x20040000 0x201fffff\r"
-	while 1 {
-	expect {
-	
-		"Erased" {
-			send_user " erase success\n"
-			break
-		}
-				
-		timeout {
-		send_user "ERROR:  erase failed\n"
-		
-		break
-		}
-	}
-	}
-	
-	set timeout 500
-	
-	send -s "cp.b 0x1000000 0x20040000 0x$image_size\r"
-	while 1 {
-	expect {
-	
-		"done" {
-			send_user " cp success\n"
-			break
-		}
-		
-				
-		timeout {
-		send_user "ERROR:  cp failed\n"
-		
-		break
-		}
-	}
-	}
-	
-############################################################################################################	
-	
-expect ">"
-send -s "tftp 0x1000000 $jffs2_rootfs_image\r"
-while 1 {
-expect {
-
-"done" {
-	set tftp_flag SUCCESS
-
-}
-
--re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
-
-	set image_size $expect_out(1,string)
-	send_user "Image size is $image_size\n"
-	break
-}
-
-timeout {
-	send_user "ERROR: Uboot locked up during tftp\n"
-	
-	break
-}
-}
-}
-
-set timeout 80
-send -s "protect off 0x20200000 0x207fffff\r"
-while 1 {
-		expect {
-
-		"Un-Protected" {
-				
-				send_user "  unprotect success\n"
-			}
-	
-		">" {
-				break
-			}
-	
-		timeout {
-				send_user "ERROR:  unprotect failed\n"
-				
-				break
-			}
-		}
-	}
-	
-
-set timeout 240	
-		
-send -s "erase 0x20200000 0x207fffff\r"
-	while 1 {
-	expect {
-	
-		"Erased" {
-			send_user " erase success\n"
-			break
-		}
-				
-		timeout {
-		send_user "ERROR:  erase failed\n"
-		
-		break
-		}
-	}
-	}
-	
-set timeout 500
-
-send -s "cp.b 0x1000000 0x20200000 0x$image_size\r"
+send -s "cp.b 0x1000000 $rootfs_start_addr 0x$image_size\r"
 while 1 {
 expect {
 
@@ -427,6 +234,5 @@ send -s "reset\r"
 }
 }
 
-}
 log_file
 	
