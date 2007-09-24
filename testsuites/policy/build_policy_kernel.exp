@@ -220,6 +220,11 @@ while 1 {
 		}
       }
 
+           -re "Early printk.*EARLY_PRINTK.*\\\[.*]" {
+
+                        send "Y\r"
+      }
+
        "\\\(*) \\\[*]" {
 	    sleep .01 
 	     send "\r"
