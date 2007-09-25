@@ -10,6 +10,26 @@ puts "Please input: board_type."
 exit
 }
 
+if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+set kernel_start_addr 0x20020000
+set kernel_end_addr  0x200fffff
+set rootfs_start_addr 0x20100000
+set rootfs_end_addr 0x203effff
+
+} elseif { $board_type == "BF561-EZKIT" } {
+
+set kernel_start_addr 0x20040000
+set kernel_end_addr 0x201fffff
+set rootfs_start_addr 0x20200000
+set rootfs_end_addr 0x207fffff
+
+} elseif { $board_type == "BF548-EZKIT" } {
+set kernel_start_addr 0x20040000
+set kernel_end_addr 0x201fffff
+set rootfs_start_addr 0x20200000
+set rootfs_end_addr 0x203fffff
+}
+
 if { $board_type == "BF537-STAMP" } {
   set  cpu       BF537
 } elseif { $board_type == "BF533-STAMP" } {
