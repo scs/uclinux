@@ -13,15 +13,15 @@ step "Reboot the kernel."
 
 if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
 
-set bootargs  $bootargs_param1
+set bootargs  $bootargs_param2
 
 } elseif { $board_type == "BF561-EZKIT" } {
 
-set bootargs  $bootargs_param1
+set bootargs  $bootargs_param2
 
 } elseif { $board_type == "BF548-EZKIT" } {
 
-set bootargs  $bootargs_param6
+set bootargs  $bootargs_param7
 }
 
 source ../reboot_kernel.exp

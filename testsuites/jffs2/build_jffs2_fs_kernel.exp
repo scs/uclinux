@@ -150,7 +150,7 @@ while 1 {
  
        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
              
-             send -s "N\r"
+             send -s "Y\r"
       }
       
        -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
@@ -159,7 +159,7 @@ while 1 {
       }
      
          -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
-             send -s "M\r"
+             send -s "Y\r"
       }
 
          -re "Support for frame buffer devices.*FB.*\\\[.*]" {
@@ -243,7 +243,17 @@ while 1 {
       	  -re "jpegview.*CONFIG_USER_JPEGVIEW.*\\\[.*]" {
              send -s "N\r"
       }
-           
+
+          -re "Install ELF shared libraries.*CONFIG_INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
+
+                       send  "N\r"
+      }
+
+           -re "Install FLAT shared libraries.*CONFIG_INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
+
+                       send  "N\r"
+      }
+   
        "\\\(*) \\\[*]" {
              sleep .001
 	     send  "\r"

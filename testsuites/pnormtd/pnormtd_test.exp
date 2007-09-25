@@ -10,7 +10,6 @@ step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
-#set bootargs  $bootargs_param2
 source ../reboot_kernel.exp
 
 set TEST_PASS               "pass"
