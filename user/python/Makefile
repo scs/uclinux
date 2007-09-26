@@ -19,7 +19,7 @@ build-cross/Makefile:
 	rm -rf build-cross ; \
 	mkdir build-cross ; \
 	cd build-cross ; \
-	OPT="-O1" CFLAGS="" LDFLAGS="" CC="" AR="" RANLIB="" \
+	OPT="-O1" CFLAGS="" CPPFLAGS="" LDFLAGS="" CC="" AR="" RANLIB="" \
 	../configure \
 		--with-cxx=no
 
