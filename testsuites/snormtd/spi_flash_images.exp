@@ -1,6 +1,7 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
+source  ../board_info.exp
 
 log_file [log_file_name "$argv0"]
 
@@ -17,18 +18,24 @@ source ../reset_to_uboot.exp
 set TEST_PASS pass
 set TEST_FAIL fail
 
-send -s "set bootargs root=/dev/mtdblock2 rw rootfstype=jffs2 \r"
+if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+
+set bootargs 		 $bootargs_param1
+}  elseif { $board_type == "BF548-EZKIT" } {
+
+set bootargs 		 $bootargs_param8
+}
+send -s "set bootargs $bootargs\r" 
 expect ">"
 send -s "save\r"
 expect ">"
 
 ###########################################################################################################
-
 set case_num 0
 
 incr case_num
   
-send -s "mw.b 0x1000000 0xff 0x6fffff\r"
+send -s "mw.b 0x1000000 0xff $spi_rootfs_size \r"
 
 while 1 {
 set timeout 500
@@ -47,7 +54,7 @@ expect {
 }
 }
 
-send -s "eeprom write 0x1000000 0x100000 0x6fffff\r"
+send -s "eeprom write 0x1000000 $spi_rootfs_start_addr $spi_rootfs_size\r"
 
 while 1 {
 set timeout 500
@@ -68,7 +75,7 @@ expect {
 
 
 ##########################################################################################################
-   	    
+
 set timeout 120
 
 send -s "tftp 0x1000000 $compressed_kernel_only_image\r"
@@ -89,9 +96,12 @@ expect {
 	}
 }
 }
+expect ">"  
+ 
 
-expect ">"   
-send -s "eeprom write 0x1000000 0x20000 0x$image_size\r"
+if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+
+send -s "eeprom write 0x1000000 $spi_kernel_start_addr 0x$image_size\r"
 
 while 1 {
 	set timeout 500
@@ -111,7 +121,7 @@ while 1 {
     }
   
 expect ">"   
-send -s "eeprom read 0x2000000 0x20000 0x$image_size\r"
+send -s "eeprom read 0x2000000 $spi_kernel_start_addr 0x$image_size\r"
 
 while 1 {
 	set timeout 500
@@ -131,6 +141,13 @@ while 1 {
     }
 
 expect ">"
+
+} elseif { $board_type == "BF548-EZKIT" } {
+
+send -s "cp.b 0x1000000 0x2000000 0x$image_size\r"
+
+expect ">"
+}
 send -s "cmp.b 0x1000000 0x2000000 0x$image_size\r"
 
 while 1 {
@@ -173,7 +190,7 @@ expect {
 }
 
 expect ">"   
-send -s "eeprom write 0x1000000 0x100000 0x$image_size\r"
+send -s "eeprom write 0x1000000 $spi_rootfs_start_addr 0x$image_size\r"
 
 while 1 {
 	set timeout 500
@@ -197,7 +214,6 @@ while 1 {
 expect ">"
 
 send -s "bootm 0x2000000\r"
-
 while 1 {
 	set timeout 35
 	expect {

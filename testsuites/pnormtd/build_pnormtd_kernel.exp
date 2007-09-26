@@ -80,7 +80,7 @@ while 1 {
       }
 
          -re "Detect flash chips by Common Flash Interface.*CFI.*probe.*MTD_CFI.*\\\[.*]" {
-            if { $board_type == "BF561-EZKIT" } {
+            if { $board_type == "BF561-EZKIT" || $board_type == "BF548-EZKIT" } {
                        send "Y\r"
             } else {
                        send "N\r"
@@ -102,6 +102,16 @@ while 1 {
                        send "N\r"
             }
       }
+
+       -re "Support for Intel/Sharp flash chips.*MTD_CFI_INTELEXT.*\\\[.*]" {
+
+             if { $board_type == "BF548-EZKIT" } {
+                send -s "Y\r"
+             } else {
+                send -s "N\r"
+             }
+      }
+
          -re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
 
              send -s "Y\r"
@@ -134,6 +144,15 @@ while 1 {
             } else {
                        send "N\r"
             }
+      }
+
+       -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
+
+             if { $board_type == "BF548-EZKIT" } {
+                send -s "Y\r"
+             } else {
+                send -s "N\r"
+             }
       }
 
        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {

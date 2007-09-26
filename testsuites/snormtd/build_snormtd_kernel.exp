@@ -218,7 +218,17 @@ while 1 {
              send -s "N\r"
       }
            
-      
+         -re "Install ELF shared libraries.*CONFIG_INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
+
+                       send  "N\r"
+      }
+
+           -re "Install FLAT shared libraries.*CONFIG_INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
+
+                       send  "N\r"
+      }
+     
+ 
        "\\\(*) \\\[*]" {
              sleep .001
 	     send  "\r"
