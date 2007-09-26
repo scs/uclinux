@@ -288,7 +288,7 @@ image:
 
 .PHONY: release
 release:
-	make -C release release
+	$(MAKE) -C release release
 
 %_fullrelease:
 	@echo "This target no longer works"
@@ -392,28 +392,28 @@ distclean: mrproper
 	if [ "`grep -s CONFIG_VENDOR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_VENDOR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
 	   [ "`grep -s CONFIG_LINUXDIR .config | awk -F= '{print $$2}'`" = "`grep -s CONFIG_LINUXDIR vendors/$(@:_config=)/config.device | awk -F= '{print $$2}'`" ] && \
 	   [ "`grep -s -e 'TARGET_.*=y' ./uClibc/.config`" = "`grep -s -e 'TARGET_.*=y' vendors/$(@:_config=)/config.uClibc`" ] ; then \
-		make -s -C linux-2.6.x distclean ; \
+		$(MAKE) -s -C linux-2.6.x distclean ; \
 	else \
-		make -s distclean ; \
+		$(MAKE) -s distclean ; \
 	fi
 	cp vendors/$(@:_config=)/config.device .config
 	chmod u+x config/setconfig
 	yes "" | config/setconfig defaults
 	config/setconfig final
-	make dep
+	$(MAKE) dep
 
 %_default:
 	@if [ ! -f "vendors/$(@:_default=)/config.device" ]; then \
 		echo "vendors/$(@:_default=)/config.device must exist first"; \
 		exit 1; \
 	 fi
-	-make clean > /dev/null 2>&1
+	-$(MAKE) clean > /dev/null 2>&1
 	cp vendors/$(@:_default=)/config.device .config
 	chmod u+x config/setconfig
 	yes "" | config/setconfig defaults
 	config/setconfig final
-	make dep
-	make
+	$(MAKE) dep
+	$(MAKE)
 
 config_error:
 	@echo "*************************************************"
