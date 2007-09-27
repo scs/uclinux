@@ -24,29 +24,29 @@ incr case_num
 expect "root:~>"
 send -s "cat /proc/meminfo\r"
 while 1 {
-expect {
--re "MemTotal: +(\[0-9]+) kB" {
-        set MemTotal $expect_out(1,string)
-        case_pass $case_num
-	break
+    expect {
+        -re "MemTotal: +(\[0-9]+) kB" {
+            set MemTotal $expect_out(1,string)
+            case_pass $case_num
+            break
+        }
+
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
-timeout {
-        case_fail $case_num
-	exit
-	}
-}
-}
-
-if { $MemTotal < $MemTotal_HIGH &&  $MemTotal > $MemTotal_LOW } {
-   send_log "\n"
-   send_log "\n$TITLE ............\[PASS\]\n"
+incr case_num
+if { $MemTotal < $MemTotal_HIGH  &&  $MemTotal > $MemTotal_LOW } {
+    case_pass $case_num
 } else {
-   send_log "\n"
-   case_fail $case_num
+    case_fail $case_num
 }
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
 
 send_user "Ending $argv0\n"
-log_file
- 
 
+log_file

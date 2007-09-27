@@ -309,9 +309,9 @@ do
   fi
   
   ./build_${AUTO_TESTCASE[$i]}_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  if [ ! -f $UCLINUX_DIST_PATH/images/linux ] && [ ${AUTO_TESTCASE[$i]} != "gpio" ] && [ ${AUTO_TESTCASE[$i]} != "jffs2" ]
+  if ([ ! -f $UCLINUX_DIST_PATH/images/linux ] && [ ${AUTO_TESTCASE[$i]} != "gpio" ] && [ ${AUTO_TESTCASE[$i]} != "jffs2" ]) || ([ ${AUTO_TESTCASE[$i]} == "xip" ] && [ ! -f $UCLINUX_DIST_PATH/images/linux.romfs ])
   then
-        echo "$0:   Error, failed."
+	echo "$0:   Error, failed."
 	tail -50 ./build_${AUTO_TESTCASE[$i]}_kernel_log
   else
  	sleep 30
