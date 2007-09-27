@@ -1,0 +1,112 @@
+#!/usr/bin/expect --
+
+#
+# Build Kernel for power test
+#
+
+source  ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+step "Make default config."
+source  make_default_config.exp
+
+step "Make config"
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+    expect {
+        -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+            send "$board_type\r"
+        }
+
+        -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+            send "y\r"
+        }
+
+        -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+            send "y\r"
+        }
+
+#Power Management
+        -re "Power Management support \\\(PM\\\) \\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Select PM Wakeup Event Source.*Cause Wakeup Event by GPIO.*PM_WAKEUP_BY_GPIO.*choice\\\[.*]:" {
+            send "2\r"
+        }
+
+        -re "Wakeup GPIO number.*PM_WAKEUP_GPIO_NUMBER.*\\\[.*]" {
+            #2 is for PB1; sw5.1 set to OFF; sw5.2~5.4 set to ON
+            send "2\r"
+        }
+
+#Video Output. At present ethernet, two LCDs and ADV7393 support standby mode. ADI7171 not supported yet
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "SHARP LQ035 TFT LCD on uClinux.*BF537 STAMP.*FB_BF537_LQ035.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "Blackfin ADI7171 video encoder on uClinux.*FB_BFIN_7171.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "Blackfin ADV7393 Video encoder on uClinux.*FB_BFIN_7393.*\\\[.*]" {
+            send "m\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make kernel"
+
+source   make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux image"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+
+log_file

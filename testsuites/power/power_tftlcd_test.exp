@@ -1,0 +1,266 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+proc test_standby {} {
+    global case_num
+    global targetip
+    global serverip
+
+    set timeout 30
+    incr case_num
+    send "echo 'standby' > /sys/power/state\r"
+    while 1 {
+        expect {
+            -re "Stopping tasks.*done.*Suspending console.*Restarting tasks.*done" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+
+    set timeout 5
+    incr case_num
+    send "ifconfig\r"
+    while 1 {
+        expect {
+            -re "eth0.*$targetip.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "set ip $targetip failed\r"
+                case_fail $case_num
+            }
+        }
+    }
+
+    set timeout 20
+    send "ping $serverip -c 5\r"
+    while 1 {
+        expect {
+            -re "5 packets transmitted, 5 packets received, 0% packet loss.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "ping $serverip failed\r"
+                case_fail $case_num
+            }
+        }
+    }
+
+    set timeout 15
+    incr case_num
+    send "video_test \r"
+    expect "\r"
+    while 1 {
+        expect {
+            -re "\[a-zA-Z0-9]" {
+                case_fail $case_num
+            }
+            timeout {
+                case_pass $case_num
+                break
+            }
+        }
+    }
+
+    set timeout 15
+    incr case_num
+    send -s "\3"
+    while 1 {
+        expect {
+            "root:~>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+
+step "Start testing"
+set case_num 0
+set Total_Count 5
+sleep 5
+send "\r"
+
+set timeout 5
+send "ifconfig eth0 $targetip\r"
+while 1 {
+    expect {
+        -re "..root:~>" {
+            break
+        }
+        timeout {
+            send_user "set ip $targetip failed\r"
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 5
+send "\r"
+set timeout 20
+send "ping $serverip -c 5\r"
+while 1 {
+    expect {
+        -re "5 packets transmitted, 5 packets received, 0% packet loss.*>" {
+            break
+        }
+        timeout {
+            send_user "ping $serverip failed\r"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+if { $board_type == "BF548-EZKIT" } {
+    send "modprobe bf54x-lq043\r"
+} elseif { $board_type == "BF537-STAMP" } {
+    send "modprobe bf537-lq035\r"
+}
+while 1 {
+    expect {
+        "FrameBuffer initializing.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 15
+incr case_num
+send "video_test \r"
+expect "\r"
+while 1 {
+    expect {
+        -re "\[a-zA-Z0-9]" {
+            case_fail $case_num
+        }
+        timeout {
+            case_pass $case_num
+            break
+        }
+    }
+}
+
+set timeout 15
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+        "root:~>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "cat /proc/mounts\r"
+while 1 {
+    expect {
+        -re "sysfs /sys sysfs rw 0 0.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "ls /sys/power\r"
+while 1 {
+    expect {
+        -re "state.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+for {set count 1} {$count <= $Total_Count} {incr count} {
+    test_standby
+    send_user "\nStandby test round $count pass\n\n"
+}
+
+set timeout 5
+incr case_num
+if { $board_type == "BF548-EZKIT" } {
+    send "rmmod bf54x-lq043\r"
+} elseif { $board_type == "BF537-STAMP" } {
+    send "rmmod bf537-lq035\r"
+}
+while 1 {
+    expect {
+        -re "Unregister LCD driver.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "lsmod\r" 
+while 1 {
+    expect {
+        -re ">" {         
+            case_pass $case_num
+            break
+        }
+        "lq0.*>" {
+            case_fail $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
