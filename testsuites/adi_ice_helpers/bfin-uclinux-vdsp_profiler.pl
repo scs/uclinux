@@ -22,7 +22,7 @@
 
 sub Usage
 {
-	die "$0: [-v] [-h] call-trace.txt system.list user.list\n  -v = verbose output\n  -h = help (This message)\n  For more info check http://docs.blackfin.uclinux.org/doku.php?id=statistical_profiling\n";
+	die "$0: [-v] [-h] [-d] call-trace.txt system.list user.list\n  -v = verbose output\n  -d = disassemble results\n  -h = help (This message)\n  For more info check http://docs.blackfin.uclinux.org/doku.php?id=statistical_profiling\n";
 }
 
 Usage() if $#ARGV < 2;
@@ -31,7 +31,7 @@ use vars qw/ %opt /;
 
 use Getopt::Std;
 
-my $opt_string = 'hv';
+my $opt_string = 'dhv';
 getopts( "$opt_string", \%opt ) or Usage();
 
 Usage() if $opt{h};
@@ -50,7 +50,6 @@ my $mem = {};
 # address, and that is where we start looking next time
 sub lookup
 {
-
 	my $sym = hex($_[0]);
 	my $index= $_[1];
 	my $rval = {};
@@ -63,6 +62,11 @@ sub lookup
 			$rval->{"addr"}   = sprintf("%x", $symsort[$i]);
 			$rval->{"offset"} = $sym - $symsort[$i];
 			$rval->{"index"} = $i;
+			if ($symsort[$i+1]) {
+				$rval->{"len"} = $symsort[$i+1] - $symsort[$i];
+			} else {
+				$rval->{"len"} = "?";
+			}
 			printf("  found: %i :  addr:%s  sym:%x\n", $i, $rval->{"addr"} ,$symsort[$i]) if $debug;
 			return $rval;
 		}
@@ -72,6 +76,203 @@ sub lookup
 	$rval->{"index"} = 0;
 
 	return $rval;
+}
+
+my $last_file=0;
+my $last_file_name="";
+my $last_loc=0;
+my $last_funct="";
+
+# print out the disassembly information, if we are given it
+sub dis
+{
+	my $dis_file = $_[0];
+	my $dis_to = ($_[1]);
+	my $dis_from = ($_[2]);
+	my $found=0;
+
+	if( ! $opt{d}) {
+		return sprintf("\n") if ($dis_to == $dis_from);
+		return sprintf("");
+	}
+
+	if ( $dis_from > $dis_to && $dis_to) {
+		die "function arguments ( $dis_from -> $dis_to) are backwards\n";
+	}
+
+	if ($dis_file eq "Start_of_memory") {
+		if ($dis_from == $dis_to) {
+			return sprintf("UNKNOWN OPCODE\n");
+		} else {
+			return sprintf("");
+		}
+	}
+
+	if ($dis_from + 2 == $dis_to) {
+		return sprintf("");
+	}
+
+	my ($file, $funct) = split(/\:/, $dis_file);
+	if ($funct eq "__plt") {
+		if ($dis_from == $dis_to) {
+			return sprintf("__plt section filled out at runtime\n");
+		} else {
+			return sprintf("");
+		}
+	}
+
+	$F = $last_file;
+	#printf("searching for $dis_file $dis_from -> $dis_to\n");
+
+	if ($last_file_name eq $file) {
+		#printf("set to $last_loc\n");
+		seek(F, $last_loc, 0);
+		if ($last_funct ne $funct) {
+			my $old_loc=0;
+			while (<F>) {
+				$old_loc = $last_loc;
+				$last_loc = tell F;
+				next unless /<$funct>:/;
+				last;
+			}
+			if ( eof ) {
+				# crap - need to find things by address
+				$found=0;
+			} else {
+				$found=1;
+				$last_loc = $old_loc;
+				#printf("found in old file at $last_loc\n");
+			}
+		} else {
+			$found=1;
+			$_ = <F>;
+		}
+	} else {
+		if ($F) {
+			close(F);
+		}
+
+		$last_file_name = $file;
+
+		if ($file eq "Kernel") {
+			$file="vmlinux";
+		}
+		if (substr($file,0,7) eq "Kernel[") {
+			$file = substr($file, 7, length($file)-8);
+		}
+
+		#printf("searching for $dis_file $funct in $file lines $dis_from -> $dis_to\n");
+
+		# find the file in the dis directory
+		opendir(DIR,"./dis") or die "Can't open the ./dis directory: $!\n";
+		@files = readdir(DIR) or die "Unable to read current dir:$!\n";
+		closedir(DIR);
+
+		@names = grep(/^$file/, @files);
+		die "Can't find file $file for $last_file_name\n" if (! @names);
+
+		foreach $name (@names) {
+			open(F,"./dis/".$name) || die "$0: can't open $name\n";
+			my $old_loc=0;
+			while (<F>) {
+				$old_loc = $last_loc;
+				$last_loc = tell F;
+				next unless /<$funct>:/;
+				last;
+			}
+			if ( eof ) {
+				close(F);
+				$found = 0;
+			} else {
+				$found=1;
+				$last_loc = $old_loc;
+				#printf("Found funct in new file - $last_loc\n");
+				last;
+			}
+		}
+		$last_file = $F;
+	}
+
+	if (! $found ){
+		return sprintf("missing\n");
+		# some symbols are not the same as the one that objdump produces, so lets try to find it by address
+
+	}
+
+	$last_funct = $funct;
+
+	#printf("position = %i '$_'\n", tell F);
+
+	chomp;
+	s,^\s+|\s+$,,g;         # strip leading and trailing spaces
+	@opcode = split /\s+/;  # match addrs split(/\t/,$item);
+	$opcode[0] =~ s,:,,g;
+	$opcode[0] =~ s,^\s+|\s+$,,g;
+	$base_addr = hex $opcode[0];
+	#printf("tell = %i '$_'\n", tell F);
+
+	my $count = 0;
+	while (<F>) {
+		chomp;
+		s,\.\.\.,,g;            # get rid of lines of "..."
+		s,^\s+|\s+$,,g;         # strip leading and trailing spaces
+		if (!$_) {
+			next;		# skip blanks
+		}
+		@opcode = split /\t/;  # match addrs split(/\t/,$item);
+		$opcode[0] =~ s,:,,g;
+		$opcode[0] =~ s,^\s+|\s+$,,g;
+		#printf("%x %x %x $_\n", $dis_from, $base_addr, hex $opcode[0]);
+		if (! $opcode[0]) {
+			printf("Could not decode opcode $opcode : line $_\n");
+			next;
+		}
+		if ( ($dis_from + $base_addr) == (hex $opcode[0])) {
+			last;
+		}
+		if ( ($dis_from + $base_addr) < (hex $opcode[0])) {
+			$last_loc = 0;
+			$last_funct = "";
+			return sprintf("busted\n");
+			#warn "$dis_from $base_addr $opcode[0]\n";
+			#die "logic in search is screwed up\n";
+		}
+	}
+	#printf("%x %x %x\n", $base_addr, $dis_from, hex $opcode[0]);
+	if ($dis_from == $dis_to) {
+		#close(F);
+		return sprintf(" $opcode[0] $opcode[2] \n" );
+	} else {
+		# we need to skip the current instruction, and not print the last.
+		#printf("searching for $dis_file $funct in $file lines $dis_to -> $dis_from\n");
+		while (<F>) {
+			chomp;
+			s,\.\.\.,,g;            # get rid of lines of "..."
+			s,^\s+|\s+$,,g;         # strip leading and trailing spaces
+			if ( !$_ ) {
+				last;
+			}
+			@opcode = split /\t/;  # match addrs split(/\t/,$item);
+			$opcode[0] =~ s,:,,g;
+			$opcode[0] =~ s,^\s+|\s+$,,g;
+
+			#printf("$opcode[0] %x %x %x\n", hex $opcode[0], $base_addr, $dis_to);
+			if (! $opcode[0]) {
+				last;
+			}
+			if (((hex $opcode[0]) - $base_addr) == $dis_to) {
+				last;
+			}
+			# parrallel instructions are broken over 2 lines, don't print blanks
+			if ($opcode[2]) {
+				 printf("                        $opcode[0] (0x%3x):  $opcode[2]\n", (hex $opcode[0]) - $base_addr);
+			}
+		}
+		#close(F);
+		return sprintf(""); #$file $funct from %x to %x\n", $dis_from, $dis_to);
+	}
+
+
 }
 
 open(M, $smap) || die "$0: can't open System.list file '$smap': $!\n";
@@ -298,8 +499,11 @@ while(<M>) {
 					next;
 				}
 				if ( $tmp3[0] < 0xffa00000 ) {
-					printf("%x    %s:%s\n",$base+$tmp3[0] , $tmp2[$#tmp2] , $tmp3[2]) if $debug;
-					$symtab{sprintf("%x",$base+$tmp3[0])} =  $tmp2[$#tmp2].":".$tmp3[2];
+					# if it is a weak symbol, and it is already loaded, skip it
+					if ( ! (($tmp3[1] eq "w" || $tmp3[1] eq "W" ) && $symtab{sprintf("%x",$base+$tmp3[0])} )) {
+						printf("%x    %s:%s\n",$base+$tmp3[0] , $tmp2[$#tmp2] , $tmp3[2]) if $debug;
+						$symtab{sprintf("%x",$base+$tmp3[0])} =  $tmp2[$#tmp2].":".$tmp3[2];
+					}
 				} else {
 					if ( ! $l1_offset) {
 						$application="^".$tmp2[$#tmp2]."\$";
@@ -404,28 +608,50 @@ if (0) {
 
 open(T, $trace) || die "$0: can't open trace file '$trace': $!\n";
 my $sum=0;
+my $last_addr=0;
 while(<T>)
 {
 	if ( /PC\[/ ) {
 		chomp;
 		@addrs = split /\s+/;
 		$sum += $addrs[1];
+		if (oct $addrs[0] < $last_addr ) {
+			die "Trace $trace is not sorted\n";
+		} else {
+			$last_addr=oct $addrs[0];
+		}
 	}
 }
 close(T);
 warn "Total number of samples = $sum\n";
 
 open(T, $trace) || die "$0: can't open trace file '$trace': $!\n";
+
 my $last="";
-my $last_addr=0;
 my $num=0;
 my $last_index=0;
+my $old_index=0;
+my $file_offset = 0;
+my $last_file_offset = 0;
+my $foo = 0;
+my $print = 0;
+my $function ="";
+my $position = 0;
+my $r=lookup(0,$last_index);
+my $disassemble_from=0;
+my $disassemble_to=0;
+#$debug = 1;
 while(<T>)
 {
+
+#$foo++;
+#if ($foo > 00 ) {
+#seek( T, 0, 2);
+#}
+
 	#
 	#  line starting with non-blank terminates sections
 	#
-
 	if ( /PC\[/ ) {
 		chomp;
 		s,PC\[,,g;			# strip 
@@ -433,30 +659,70 @@ while(<T>)
 		s,^\s+|\s+$,,g;		# strip leading and trailing spaces
 		@addrs = split /\s+/;	# match addrs split(/\t/,$item); 
 
-		if ( (oct $addrs[0]) < $last_addr) {
-			$foo = oct $addrs[0];
-			warn "$addrs[0] $foo is greater than $last_addr \n";
-			die "Trace $trace is not sorted\n";
-		} else {
-			$last_addr= oct $addrs[0];
+		my $old_function=$r;
+
+		$r = lookup($addrs[0], $last_index);
+
+		if ($r->{"index"}) {
+			$old_index=$last_index;
+			$last_index=$r->{"index"} - 1;
 		}
 
-		my $r = lookup($addrs[0], $last_index);
-		$last_index=$r->{"index"} - 1;
 		my $s = sprintf(" %08x", (hex $r->{"addr"})) . " ". $symtab{$r->{"addr"}};
-
-		if ( $last eq $s ) {
-			$num = $num + $addrs[1];
-			if ( $opt{v} ) {
-				printf("  %06i %s %s + %s\n", $addrs[1], sprintf("%08x",hex $addrs[0]), $symtab{$r->{"addr"}}, sprintf("0x%x",$r->{"offset"}));
-			}
-		} else {
-			if ($num) {
-				printf("%08i (%2.2f%%) $last\n", $num, ($num/$sum)*100);
-			}
-			$num = $addrs[1];
+		if (! $last) {
 			$last = $s;
 		}
+		if (! $function) {
+			$function = $s;
+		}
+		if (! $reset_index) {
+			$reset_index = $last_index;
+		}
+
+			#printf("line in  %s %8i $last $s %i $position\n", sprintf("%08x",hex $addrs[0]), $addrs[1], tell T ) if 1;
+			#printf("  %06i %s %s + %s %i $file_offset $last_file_offset $last $s\n", $addrs[1], sprintf("%08x",hex $addrs[0]), $symtab{$r->{"addr"}}, sprintf("0x%x",$r->{"offset"}), tell T);
+			if ($last eq $s){
+				if (! $print) {
+					$num = $num + $addrs[1];
+				}
+			} else {
+				if (! $print) {
+					$print = 1;
+					seek(T, $file_offset, 0);
+					$last_index=$old_index;
+					#warn ("$file_offset $addrs[0]\n");
+				} else {
+					$print = 0;
+					$file_offset = $position;
+					#$last_index=$old_index;
+					$last=$s;
+					$num = $addrs[1];
+					#printf("back\n");
+					if ($opt{v} && $disassemble_from){
+						printf("%s", dis($symtab{$old_function->{"addr"}}, 0, $old_function->{"offset"}));
+					}
+
+				}
+			}
+			if ($print) {
+				if ($last eq $s) {
+					if ($opt{v}){
+						if ( $r->{"offset"} ) {
+							printf("%s", dis($symtab{$r->{"addr"}}, $r->{"offset"}, $disassemble_from));
+						}
+						my $a = substr(sprintf("   %02.02f%%", ($addrs[1]/$num)*100), -7);
+						printf("  %8i (%s)  %s (0x%03x): %s", $addrs[1], $a, sprintf("%8x",hex $addrs[0]), $r->{"offset"}, dis($symtab{$r->{"addr"}},$r->{"offset"}, $r->{"offset"}));
+					$disassemble_from = $r->{"offset"};
+				}
+			} else {
+				my $a = substr(sprintf("   %02.02f%%", ($num/$sum)*100), -7);
+				printf("\n") if ($opt{v});
+				my @b = split(/\s+/, $last);
+				printf("  %08i (%s) 0x%s (%i) %s\n", $num, $a, $b[1], $old_function->{"len"}, $b[2]);
+				$disassemble_from=0;
+			}
+		}
+
 		printf("  $s\t$addrs[1]\n") if $debug;
 	} else {
 		if ( $num ) {
@@ -466,6 +732,9 @@ while(<T>)
 		}
 		print;
 	}
+	$position = tell T;
 }
+
 close(T);
-printf("%08i (%2.2f%%) $last\n",$num, ($num/$sum)*100);
+my $a = substr(sprintf("   %02.02f%%", ($num/$sum)*100), -7);
+printf("  %08i (%s) $last\n",$num, $a);

@@ -92,8 +92,13 @@ do
 		if [ "$app" = "busybox_unstripped" ] ; then
 			app="busybox"
 		fi
-		bfin-uclinux-nm -n ${file} | grep " [tT] " > ${out_maps}/${app}.map
+		bfin-uclinux-nm -n ${file} | grep " [wWtT] " | grep "^[0-9a-f]" | sort -k 2 > ${out_maps}/${app}.map
 		bfin-uclinux-objdump -d ${file} > ${out_dis}/${app}.dis
+	        foo=`egrep \<\.plt\>: ${out_dis}/${app}.dis`
+		if [ -n "$foo" ] ; then
+			echo $foo | sed 's/ / t __/' | sed 's/[.<>:]//g' >> ${out_maps}/${app}.map
+		fi
+
 	done
 	if [ ! -f ${out_maps}/${app}.map ] ; then
 		echo Could not find unstripped version of ${app}
