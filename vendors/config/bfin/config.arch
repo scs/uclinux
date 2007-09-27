@@ -124,10 +124,13 @@ ifdef UCLINUX_BUILD_LIB
 CFLAGS-$(CONFIG_FMT_USE_FDPIC_ELF) += -fpic
 endif
 
-CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -fpic -mid-shared-library
+CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mid-shared-library
 LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-elf2flt -Wl,-shared-lib-id,0 -mid-shared-library
 ifdef UCLINUX_BUILD_USER
 CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mshared-library-id=0
+FLAT_LIBC     := $(shell $(CC) -mid-shared-library -print-file-name=libc.gdb)
+LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-R,$(FLAT_LIBC)
+
 endif
 
 CFLAGS   := $(CFLAGS-y)   $(VENDOR_CFLAGS)	$(CPUFLAGS)
