@@ -684,9 +684,9 @@ do
   cd $UCLINUX_DIST_TESTSUITES/snormtd
   ./build_snormtd_kernel.exp $BOARD_TYPE   >/dev/null  2>&1
   sleep 30
-  ./spi_flash_images.exp >/dev/null  2>&1
+  ./spi_flash_images.exp $BOARD_TYPE >/dev/null  2>&1
   sleep 30
-  ./snormtd_reboot_test.exp >/dev/null  2>&1
+  ./snormtd_reboot_test.exp $BOARD_TYPE >/dev/null  2>&1
   sleep 30
 
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.snormtd
@@ -706,7 +706,7 @@ do
   cd $UCLINUX_DIST_TESTSUITES/snormtd
   ./build_snormtd_mount_kernel.exp $BOARD_TYPE   >/dev/null  2>&1
   sleep 30
-  ./snormtd_test.exp >/dev/null  2>&1
+  ./snormtd_test.exp $BOARD_TYPE >/dev/null  2>&1
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.snormtd_mount
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.snormtd_mount  
