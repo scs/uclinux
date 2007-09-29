@@ -30,6 +30,7 @@ set compressed_kernel_only_image  vmImage
 
 set kernel_and_ext2_image   linux.ext2
 set kernel_and_cramfs_image linux.cramfs
+set kernel_and_romfs_image  linux.romfs
 
 set compressed_kernel_and_ext2_image   uImage.ext2
 set compressed_kernel_and_cramfs_image uImage.cramfs  
@@ -40,6 +41,7 @@ set yaffs_rootfs_image   rootfs.yaffs
 set yaffs2_rootfs_image  rootfs.yaffs2
 set HAVE_JFFS2_IMAGE     0
 set HAVE_KERNEL_ONLY_IMAGE     0
+set HAVE_ROMFS_IMAGE     0
 
 set bootargs_param0      "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,57600" 
 set bootargs_param1      "root=/dev/mtdblock2 rw rootfstype=jffs2 earlyprintk=serial,uart0,57600"
