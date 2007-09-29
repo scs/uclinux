@@ -610,7 +610,7 @@ diff -urN linux-2.6.x.old/kernel/Makefile linux-2.6.x/kernel/Makefile
 diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 --- linux-2.6.x.old/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
 +++ linux-2.6.x/kernel/kgdb.c	2007-09-27 13:43:54.000000000 +0800
-@@ -0,0 +1,1519 @@
+@@ -0,0 +1,1512 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -1994,22 +1994,15 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +	if (!kgdb_initialized) {
 +		kgdb_entry();
 +		if (!kgdb_initialized) {
-+#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
-+			kgdb_print(KERN_CRIT "KGDB cannot initialize, cannot "
-+					"perform a breakpoint.\n\t");
-+#else
 +			printk(KERN_CRIT "KGDB cannot initialize, cannot "
 +					"perform a breakpoint.\n");
-+#endif
 +			return;
-+		} else
-+#ifdef CONFIG_KGDB_BLACKFIN_SHAREDUART
-+			kgdb_print(KERN_CRIT "Waiting for connection from remote "
-+					"gdb...\n\t");
-+#else
++#if defined(CONFIG_KGDB_WAIT_IN_BOOT) || !defined(CONFIG_KGDB_UART)
++		} else {
 +			printk(KERN_CRIT "Waiting for connection from remote "
 +					"gdb...\n");
 +#endif
++		}
 +	}
 +	atomic_set(&kgdb_setting_breakpoint, 1);
 +	wmb();
