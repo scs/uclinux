@@ -1,0 +1,20 @@
+#!/usr/bin/expect
+
+set ipaddr          "10.100.4.50"
+
+set app_path        "/home/test/work/cruise/test_app"
+
+set qt_ver          "3.3.5"
+set qt_dir          "$app_path/qt"
+set qt_name         "qt-embedded-free-$qt_ver"
+set qt_tarball      "$qt_name.tar.bz2"
+set qt_patch        "bfin_patch/qt_embedded_patch/qt-embedded-free-bfin-3.3.5.patch"
+set qt_lib          "libqte-mt.so.3.3.5"
+set QT_PATH         "$qt_dir/$qt_name"
+
+set konq_ver        "0.2-20060121"
+set konq_dir        "$app_path/konqueror"
+set konq_name       "konqueror3-embedded-$konq_ver"
+set konq_tarball    "$konq_name.tar.bz2"
+set konq_patch      "bfin_patch/konqueror3_embedded_patch/konqueror3-embedded-bfin-0.2.patch"
+set KON_PATH        "$konq_dir/$konq_name"

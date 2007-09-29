@@ -1,0 +1,121 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+source  ../board_info.exp
+source  ./config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+if { $argc == 2 } {
+    set build_opt [lindex $argv 1]
+    send_user "\n#### Blackfin build Option is $build_opt\n"
+} else {
+    puts "Please input board type and build option:"
+    puts "1: Static FLAT; 2: FDPIC"
+    exit
+}
+
+if { $build_opt == 1 } {
+    set build_type FLAT
+} elseif { $build_opt == 2 } {
+    set build_type FDPIC
+} else {
+    send_user "Build Option setting error\n"
+    exit
+}
+
+append TITLE " ($build_type)"
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+set case_num 0
+
+sleep 2
+send "\r"
+expect ">"
+
+incr case_num
+set timeout 30
+send "dmesg|grep \"USB Mouse\"\r"
+while 1 {
+    expect {
+        -re "\[0-9a-zA-Z]..root:~>" {
+            send_user "USB Mouse is found\n"
+            case_pass $case_num
+            break
+        }
+        -re "..root:~>" {
+            send_user "USB Mouse is not found\n"
+            case_fail $case_num
+        }
+        timeout {
+            send_user "Look for USB Mouse timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+if { $board_type == "BF548-EZKIT" } {
+    send "modprobe bf54x-lq043\r"
+} elseif { $board_type == "BF537-STAMP" } {
+    send "modprobe bf537-lq035\r"
+} else {
+    send_user "Wrong board_type $board_type\r"
+    case_fail $case_num
+}
+while 1 {
+    expect {
+        "FrameBuffer initializing.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send "export QTDIR=/usr/local/qt-embedded/\r"
+expect "root:~>"
+
+incr case_num
+set timeout 30
+send "./drawlines -qws\r"
+sleep 1
+while 1 {
+    expect {
+        -re "Creating mouse: Auto" {
+            sleep 20
+            send -s "\3"
+            expect ">"
+            case_pass $case_num
+            break
+        }
+        -re "root:~>" {
+            case_fail $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file

@@ -1,0 +1,94 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+source  config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+if { $argc == 1 } {
+    set build_opt [lindex $argv 0]
+    send_user "\n#### Blackfin build Option is $build_opt\n"
+} else {
+    puts "Please input build option:"
+    puts "1: Static FLAT; 2: FDPIC"
+    exit
+}
+
+if { $build_opt == 1 } {
+    set build_type FLAT
+} elseif { $build_opt == 2 } {
+    set build_type FDPIC
+} else {
+    send_user "Build Option setting error\n"
+    exit
+}
+
+step "Start building konqueror..."
+set case_num 0
+
+#remove previous resource and generate a new one
+cd $konq_dir
+exec rm -fr $konq_name
+exec tar xvfj $konq_tarball
+
+#set environment parametre and patch resource
+set KON_WORK_PATH "$KON_PATH.$build_type"
+set QT_WORK_PATH  "$QT_PATH.$build_type"
+
+spawn /bin/bash
+send "cd $KON_PATH\r"
+expect "$konq_ver #"
+send "patch -p1 < $uclinux_path/$konq_patch\r"
+expect "$konq_ver #"
+
+incr case_num
+set timeout 600
+if { $build_opt == 1 } {
+    send "./configure --host bfin-uclinux --disable-debug --disable-shared --enable-static --enable-qt-embedded --enable-embedded --disable-dlopen --with-qt-dir=$QT_WORK_PATH -without-ssl --disable-rpath --disable-printing --disable-pcre LDFLAGS=\"-static -Wl,-elf2flt\" CFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CXXFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CPPFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" --with-extra-libs=$uclinux_path/staging/usr/lib/ --with-extra-includes=$uclinux_path/staging/usr/include\r"
+} elseif { $build_opt == 2 } {
+    send "./configure --host bfin-linux-uclibc --disable-debug --enable-shared --disable-static --enable-qt-embedded --enable-embedded --with-qt-dir=$QT_WORK_PATH -without-ssl --disable-rpath --disable-printing  --disable-pcre LDFLAGS=\"-mfdpic\" CFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CXXFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CPPFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" --with-extra-libs=$uclinux_path/staging/usr/lib/ --with-extra-includes=$uclinux_path/staging/usr/include\r"
+}
+while 1 {
+    expect {
+        -re "error:.*$konq_ver #" {
+            send_user "Error somewhere in configuration\n"
+            case_fail $case_num
+        }
+        -re "$konq_ver #" {
+            send_user "Configure success\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Configure timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 2400
+set bfin_make_status failure
+send "make\r"
+while 1 {
+    expect {
+        "Leaving directory" { set bfin_make_status success }
+        "Error" {set bfin_make_status failure }
+        "$konq_ver #" { break }
+    }
+}
+if { $bfin_make_status == "failure" } {
+    puts "ERROR: Error somewhere during make"
+    exit
+} else {
+    send_user "Build konqueror finish\n"
+    case_pass $case_num
+}
+
+send "rm -fr $KON_WORK_PATH\r"
+expect "$konq_ver #"
+send "cp -fr $KON_PATH $KON_WORK_PATH\r"
+expect "$konq_ver #"
+
+send_user "Ending $argv0\n"
+log_file
