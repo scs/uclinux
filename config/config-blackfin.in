@@ -3,6 +3,7 @@ comment "Blackfin build Options"
 
 choice 'Binary format' \
 	"FLAT          CONFIG_FMT_USE_FLAT \
+	 Sep-Data      CONFIG_FMT_USE_SEP_DATA \
 	 Shared-FLAT   CONFIG_FMT_USE_SHARED_FLAT \
 	 FDPIC         CONFIG_FMT_USE_FDPIC_ELF \
 	" FLAT
