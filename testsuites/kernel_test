@@ -799,8 +799,6 @@ do
     ./power_adv7171_test.exp >/dev/null  2>&1
   elif [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
     ./power_adv7393_test.exp >/dev/null  2>&1
-  elif [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] ; then
-    ./power_tftlcd_test.exp $BOARD_TYPE >/dev/null  2>&1
   else
     ./power_ethernet_test.exp >/dev/null  2>&1
   fi
