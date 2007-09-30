@@ -1,11 +1,12 @@
 diff -urN linux-2.6.x/arch/blackfin/kernel/Makefile linux-2.6.x.kgdb/arch/blackfin/kernel/Makefile
 --- linux-2.6.x/arch/blackfin/kernel/Makefile	2007-06-12 12:17:19.000000000 +0800
 +++ linux-2.6.x.kgdb/arch/blackfin/kernel/Makefile	2007-06-12 12:09:40.000000000 +0800
-@@ -13,3 +13,4 @@
+@@ -13,4 +13,5 @@
  obj-$(CONFIG_BFIN_DMA_5XX)           += bfin_dma_5xx.o
  obj-$(CONFIG_DUAL_CORE_TEST_MODULE)  += dualcore_test.o
  obj-$(CONFIG_KGDB)                   += kgdb.o
 +obj-$(CONFIG_KGDB)                   += kgdb_test.o
+ obj-$(CONFIG_EARLY_PRINTK)           += early_printk.o
 diff -urN linux-2.6.x/arch/blackfin/kernel/kgdb_test.c linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb_test.c
 --- linux-2.6.x/arch/blackfin/kernel/kgdb_test.c	1970-01-01 08:00:00.000000000 +0800
 +++ linux-2.6.x.kgdb/arch/blackfin/kernel/kgdb_test.c	2007-06-12 12:09:40.000000000 +0800
