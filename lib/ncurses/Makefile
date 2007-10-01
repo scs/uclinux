@@ -43,7 +43,7 @@ romfs:
 
 	set -e ; \
 	for x in $(NCURSES_DEMOS) ; do \
-		$(ROMFSINST) -e CONFIG_USER_NCURSES_TESTS build/test/$$x /bin/ncurses-demo-$$x ; \
+		$(ROMFSINST) -e CONFIG_USER_NCURSES_TESTS build-$(VER)/test/$$x /bin/ncurses-demo-$$x ; \
 	done
 
 .PHONY: all clean romfs
