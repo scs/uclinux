@@ -364,6 +364,14 @@ distclean: mrproper
 	-$(MAKEARCH_KERNEL) -C $(LINUXDIR) distclean
 	-rm -f user/tinylogin/applet_source_list user/tinylogin/config.h
 
+bugreport:
+	rm -f ./bugreport.tgz ./toolchain_vers ./host_vers
+	$(HOSTCC) -v 2> ./host_vers
+	$(CROSS_COMPILE)gcc -v 2> ./toolchain_vers
+	tar -czf bugreport.tgz .config linux-2.6.x/.config config/.config toolchain_vers host_vers
+	rm -f ./toolchain_vers ./host_vers
+	echo -e "Please attach the file 'bugreport.tgz' to a bug report at\n http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemAdd&tracker_id=141"
+
 %_only:
 	@case "$(@)" in \
 	*/*) d=`expr $(@) : '\([^/]*\)/.*'`; \
