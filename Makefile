@@ -358,7 +358,7 @@ real_clean mrproper: clean
 	rm -rf romfs staging config.in config.arch config.tk images
 	rm -f modules/config.tk
 	rm -rf .config .config.old .oldconfig autoconf.h
-	rm -f tools/*-pkg-config
+	find ./tools/ -name "*-pkg-config" -type l | xargs rm -f
 
 distclean: mrproper
 	-$(MAKEARCH_KERNEL) -C $(LINUXDIR) distclean
