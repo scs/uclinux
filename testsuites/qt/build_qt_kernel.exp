@@ -141,7 +141,7 @@ while 1 {
 #            send "54\r"
 #        }
 
-        -re "USB Human Interface Device \\\(full HID\\\) support.*CONFIG_USB_HID.*\\\[.*]" {
+        -re "USB Human Interface Device \\\(full HID\\\) support.*USB_HID.*\\\[.*]" {
             send "y\r"
         }
 
@@ -186,7 +186,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "Binary format.*FLAT, Shared-FLAT, FDPIC.*\\\[.*]" {
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             send "$build_type\r"
         }
 

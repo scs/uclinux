@@ -75,7 +75,7 @@ while 1 {
          send "y\r"
       }
 
-      -re "Binary format \\\(FLAT, Shared-FLAT, FDPIC\\\).*\\\[.*]" {
+      -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
          send "Shared-FLAT\r"
       }
 

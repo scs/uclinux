@@ -150,8 +150,8 @@ while 1 {
                        send  "Y\r"
             }	
       }
-    
-          -re "Binary format.*FLAT, Shared-FLAT, FDPIC.*\\\[.*]" {
+
+          -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             if { $binary_format == "flat" } {
                        send  "FLAT\r"
             } elseif { $binary_format == "elf" } {
