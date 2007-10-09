@@ -31,3 +31,4 @@ bool 'Build readline'		CONFIG_LIB_READLINE_FORCE
 bool 'Build speex'		CONFIG_LIB_SPEEX_FORCE
 bool 'Build tremor'		CONFIG_LIB_TREMOR_FORCE
 bool 'Build tslib'		CONFIG_LIB_TSLIB
+bool 'Build Crypto++ Lib'       CONFIG_LIB_CRYPTOPP

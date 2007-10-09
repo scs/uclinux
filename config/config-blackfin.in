@@ -61,6 +61,10 @@ bool    'sram_alloc/sram_free test' 	CONFIG_USER_BLACKFIN_SRAMALLOC_TEST
 bool    'erestart test' 	        CONFIG_USER_BLACKFIN_ERESTART_TEST
 bool    'camera test'                   CONFIG_CAMERA_TEST
 bool    'string test'                   CONFIG_STRING_TEST
+bool    'Crypto++ Lib Test program'     CONFIG_USER_CRYPTOPP_LIB_EXAMPLES
+if [ "$CONFIG_USER_CRYPTOPP_LIB_EXAMPLES" = "y" ] ; then
+	define_bool CONFIG_LIB_CRYPTOPP y
+fi
 if [ "$CONFIG_USER_UPNP_SAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_LIBUPNP y
 fi

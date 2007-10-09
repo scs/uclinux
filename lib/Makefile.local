@@ -49,3 +49,4 @@ dir_3_$(CONFIG_LIB_TREMOR_FORCE)     += tremor
 dir_3_$(CONFIG_LIB_TREMOR)           += tremor
 dir_3_$(CONFIG_LIB_TSLIB_FORCE)      += tslib-1.0
 dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
+dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
