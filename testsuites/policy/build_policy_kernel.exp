@@ -97,27 +97,31 @@ while 1 {
 	}
 
       
-           -re "Use full SLAB allocator.*SLAB.*\\\[.*]" {
+           -re "Choose SLAB allocator.*SLAB.*SLUB.*SLOB.*choice.*\\\[.*]" {
 	    if { $allocator == "slab\(p2\)" } {
-                       send "Y\r"		       
+                       send "1\r"		       
+            } elseif { $allocator == "slab\(np2\)" } {
+                       send "1\r"
+            } elseif { $allocator == "slob\(p2\)" } {
+                       send "3\r"
+            } elseif { $allocator == "slob\(np2\)" } {
+                       send "3\r"
+            } elseif { $allocator == "slub\(p2\)" } {
+                       send "2\r"
+            } elseif { $allocator == "slub\(np2\)" } {
+                       send "2\r"
+            }
+      }
+      
+           -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
+ 	    if { $allocator == "slab\(p2\)" } {
+                       send "N\r"
             } elseif { $allocator == "slab\(np2\)" } {
                        send "Y\r"
             } elseif { $allocator == "slob\(p2\)" } {
                        send "N\r"
             } elseif { $allocator == "slob\(np2\)" } {
-                       send "N\r"
-            }
-      }
-      
-           -re "Page frame management algorithm.*Buddy system algorithm.*Non-power of 2 algorithm.*choice.*\\\[.*]" {
- 	    if { $allocator == "slab\(p2\)" } {
-                       send "1\r"
-            } elseif { $allocator == "slab\(np2\)" } {
-                       send "2\r"
-            } elseif { $allocator == "slob\(p2\)" } {
-                       send "1\r"
-            } elseif { $allocator == "slob\(np2\)" } {
-                       send "2\r"
+                       send "Y\r"
             }
       }
             
@@ -151,12 +155,11 @@ while 1 {
             }	
       }
 
-          -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+          -re "Binary format.*FLAT.*Sep-Data.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             if { $binary_format == "flat" } {
                        send  "FLAT\r"
             } elseif { $binary_format == "elf" } {
                        send  "FDPIC\r"
-                       sleep 1 
             } elseif { $binary_format == "shared-flat" } {
                        send  "Shared-FLAT\r"
             }
@@ -183,7 +186,7 @@ while 1 {
 #                       send  "y\r"
 #      }
  
-           -re "Enable ICACHE.*BLKFIN_CACHE.*\\\[.*]" {
+           -re "Enable ICACHE.*BFIN_ICACHE.*\\\[.*]" {
 		if { $icache == "on" } {
 			send "Y\r"
 		} elseif { $icache == "off" } {
@@ -191,7 +194,7 @@ while 1 {
 		}
          }
       
-	   -re "Enable DCACHE.*BLKFIN_DCACHE.*\\\[.*]" {
+	   -re "Enable DCACHE.*BFIN_DCACHE.*\\\[.*]" {
 		if { $dcache == "on" } {
 			send "Y\r"
 		} elseif { $dcache == "off" } {
@@ -199,7 +202,7 @@ while 1 {
 		}
          }
 	 
-           -re "Policy.*Write back.*BLKFIN_WB.*Write through.*BLKFIN_WT.*choice.*\\\[.*]" {
+           -re "Policy.*Write back.*BFIN_WB.*Write through.*BFIN_WT.*choice.*\\\[.*]" {
 		if { $policy == "write_through" } {
 			send "2\r"
 		} elseif { $policy == "write_back" } {
@@ -212,7 +215,7 @@ while 1 {
 			send "Y\r"		
       }
       
-           -re "Mode.*Blackfin UART DMA mode.*SERIAL_BFIN_DMA.*Blackfin UART PIO mode.*SERIAL_BFIN_PIO.*choice\\\[.*]" {
+           -re "UART Mode.*DMA mode.*SERIAL_BFIN_DMA.*PIO mode.*SERIAL_BFIN_PIO.*choice\\\[.*]" {
 		if { $uart_mode == "dma" } {
 			send "1\r"
 		} elseif { $uart_mode == "pio" } {
