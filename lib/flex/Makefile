@@ -8,7 +8,11 @@ build/Makefile: Makefile
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	../configure $(CONFIGURE_OPTS)
+	../configure \
+		--host=$(CONFIGURE_HOST) \
+		--build=$(CONFIGURE_BUILD) \
+		--prefix=/usr
+# this is an old configure script which means $(CONFIGURE_OPTS) wont work
 
 romfs:
 
