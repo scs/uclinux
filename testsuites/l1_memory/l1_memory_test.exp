@@ -14,12 +14,12 @@ source ../reboot_kernel.exp
 step "Start testing."
 
 set case_num 0
-
 incr case_num
 
-set timeout 30
-
+sleep 5
+send "\r"
 expect "root:~>"
+
 send "modprobe hello\r" 
 while 1 {   
          expect {
@@ -88,6 +88,3 @@ send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

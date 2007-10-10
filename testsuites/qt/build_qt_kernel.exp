@@ -237,7 +237,6 @@ if { $build_opt == 2 } {
 cd $uclinux_path/testsuites
 source  make_kernel.exp
 
-step "Change back config file in /vender folder."
 cd $uclinux_path
 exec mv vendors/AnalogDevices/$board_type/Makefile.bak vendors/AnalogDevices/$board_type/Makefile
 
