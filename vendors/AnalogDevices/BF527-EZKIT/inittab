@@ -1,0 +1,10 @@
+# inittab for uClinux
+# Format:
+# ttyline:termcap-entry:getty-command
+#inet:ttyS0:/bin/inetd
+#httpd:unknown:/bin/httpd
+#sh:unknown:/bin/sh
+#ttyS0::respawn:-/bin/sh
+#sh:console:respawn:/bin/sh
+#console::askfirst:-/bin/sh
+
