@@ -45,28 +45,34 @@ while 1 {
       }
       
         -re "CPU.*BF531.*BF532.*BF533.*BF534.*BF536.*BF537.*BF561.*choice.*\\\[.*]" {
- 	    if { $cpu == "BF531" } {
+ 	    if { $cpu == "BF522" } {
                        send "1\r"
-            } elseif { $cpu == "BF532" } {
+            } elseif { $cpu == "BF525" } {
                        send "2\r"
-            } elseif { $cpu == "BF533" } {
+            } elseif { $cpu == "BF527" } {
                        send "3\r"
-            } elseif { $cpu == "BF534" } {
+            } elseif { $cpu == "BF531" } {
                        send "4\r"
-            } elseif { $cpu == "BF536" } {
+            } elseif { $cpu == "BF532" } {
                        send "5\r"
-            } elseif { $cpu == "BF537" } {
+            } elseif { $cpu == "BF533" } {
                        send "6\r"
-            } elseif { $cpu == "BF542" } {
+            } elseif { $cpu == "BF534" } {
                        send "7\r"
-            } elseif { $cpu == "BF544" } {
+            } elseif { $cpu == "BF536" } {
                        send "8\r"
-            } elseif { $cpu == "BF548" } {
+            } elseif { $cpu == "BF537" } {
                        send "9\r"
-            } elseif { $cpu == "BF549" } {
+            } elseif { $cpu == "BF542" } {
                        send "10\r"
-            } elseif { $cpu == "BF561" } {
+            } elseif { $cpu == "BF544" } {
                        send "11\r"
+            } elseif { $cpu == "BF548" } {
+                       send "12\r"
+            } elseif { $cpu == "BF549" } {
+                       send "13\r"
+            } elseif { $cpu == "BF561" } {
+                       send "14\r"
             }
       }   
 
@@ -230,7 +236,7 @@ while 1 {
 
        "\\\(*) \\\[*]" {
 	    sleep .01 
-	     send "\r"
+	    send "\r"
       }
 
       -re "\[cC]hoice\\\[.*]:" {
