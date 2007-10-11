@@ -15,53 +15,52 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp
 
 sleep 5
+send "\r"
+expect "root:~>"
 
 step "Start DLL testing"
 
 set case_num 0
-set timeout 2
-
 incr case_num
+
+set timeout 10
 step "Clean src directory\n"
 spawn make clean -C src
 while 1 {
-   expect {
+    expect {
+        "\[eE]rror*" {
+            case_fail $case_num
+        }
 
-      "*error*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nClean src/.\n"
+            break
+        }
 
-      eof {
-         send_log "\nClean src/.\n"
-         send_user "\nClean src/. \n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 step "Build test program\n"
+set timeout 10
 spawn make -C src
 while 1 {
-   expect {
+    expect {
+        "\[eE]rror*" {
+            case_fail $case_num
+        }
 
-      "*error*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nBuild test program done\n"
+            break
+        }
 
-      eof {
-         send_log "\nBuild test program done\n"
-         send_user "\nBuild test program done\n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 set spawn_id $kermit_spawn_id
@@ -69,97 +68,89 @@ set spawn_id $kermit_spawn_id
 send "ifconfig eth0 $targetip up\r"
 set timeout 60
 while 1 {
-   expect {
-      -re "~> " {
-         send "\r"
-         break
-      }
-      timeout {
-         case_fail $case_num
-      }
-   }
+    expect {
+        -re "~>" {
+            send "\r"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
-#sleep 15
 
 set timeout 100
 step "Copy testcase to target board\n"
 spawn rcp src/libhelloworld.so root@$targetip:/lib/.
 while 1 {
-   expect {
+    expect {
+        "*connect*" {
+            case_fail $case_num
+        }
 
-      "*connect*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nCopy libhelloworld.so to target board done\n"
+            break
+        }
 
-      eof {
-         send_log "\nCopy libhelloworld.so to target board done\n"
-         send_user "\nCopy libhelloworld.so to target board done\n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 spawn rcp src/test_dll root@$targetip:/.
 while 1 {
-   expect {
+    expect {
+        "*connect*" {
+            case_fail $case_num
+        }
 
-      "*connect*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nCopy test_dll to target board done\n"
+            break
+        }
 
-      eof {
-         send_log "\nCopy test_dll to target board done\n"
-         send_user "\nCopy test_dll to target board done\n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 set spawn_id $kermit_spawn_id
-set timeout 2
+set timeout 5
 set testres    0
 send "./test_dll\r"
 while 1 {
-   expect {
+    expect {
+        "hello" {
+            send_user "\nTest get hello\n"
+            incr testres
+            if { $testres == 2 } {
+                case_pass $case_num
+                break
+            }
+        }
 
-      "hello" {
-         send_log "\nTest get hello\n"
-         send_user "\nTest get hello\n"
-         incr testres
-         if { $testres == 2 } {
-            case_pass $case_num
+        "get 2" {
+            send_user "\nTest get correct return value\n"
+            incr testres
+            if { $testres == 2 } {
+                case_pass $case_num
+                break
+            }
+        }
+        timeout {
+            send_user "\ntest timeout\n"
             break
-         }
-      }
-
-      "get 2" {
-         send_log "\nTest get correct return value\n"
-         send_user "\nTest get correct return value\n"
-         incr testres
-         if { $testres == 2 } {
-            case_pass $case_num
-            break
-         }
-      }
-      timeout {
-         send_user "\ntest timeout\n"
-         break
-      }
-   }
+        }
+    }
 }
 
 if { $testres == 2 } {
-   all_pass
+    all_pass
 } else {
-   case_fail $case_num
+    case_fail $case_num
 }
 
 send_user "Ending $argv0\n"
