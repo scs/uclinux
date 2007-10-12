@@ -50,6 +50,9 @@ romfs::
 	$(ROMFSINST) /etc/tuxsit_small.gif
 	$(ROMFSINST) /etc/modprobe.conf
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
+ifeq ($(CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG),y)
+	gzip -9c $(ROOTDIR)/config/.config > $(ROMFSDIR)/root/uclinux-config.gz
+endif
 
 BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | awk '/.bss/ {print "0x"$$4}')
 BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | awk '/.bss/ {print "0x"$$3}')

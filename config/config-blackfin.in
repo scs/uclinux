@@ -21,6 +21,8 @@ fi
 
 bool 'build with stack overflow checking'	CONFIG_BLACKFIN_CHECK_STACKFLOW
 
+bool 'install uClinux-dist .config into /root'	CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG
+
 endmenu
 
 
