@@ -28,8 +28,9 @@ int main(int argc, char *argv[]) {
 	
 	if (argc < 2) {
 
-		printf("%s release %s, build %s\n", n.sysname, n.release, n.version);
-		printf("%s release %s, build %s\n", TOOLCHAIN_NAME, TOOLCHAIN_RELEASE, TOOLCHAIN_VERSION);
+		printf("kernel:    %s release %s, build %s\n", n.sysname, n.release, n.version);
+		printf("toolchain: %s release %s\n", TOOLCHAIN_FILENAME, TOOLCHAIN_COMPILER);
+		printf("user-dist: release %s, build %s\n", USER_DIST_VERSION, TOOLCHAIN_VERSION);
 		
 		exit(0);
 	}

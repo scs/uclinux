@@ -40,13 +40,21 @@ compile.h: $(CONFIGURATION) version.h newversion
 	  echo \#define TOOLCHAIN_COMPILE_DOMAIN ; \
 	fi >> .ver
 	@echo \#define TOOLCHAIN_COMPILER \"`$(CC) -v 2>&1 | tail -1`\" >> .ver
+	@echo \#define TOOLCHAIN_FILENAME \"$(CC)\" >> .ver
 	@mv -f .ver $@
+
+USER_DIST_VERSION = $(shell \
+	test -d $(ROOTDIR)/.svn \
+		&& (echo -n svn- ; svn info $(ROOTDIR) | sed -n '/^Last Changed Rev/s|^.*: ||p') \
+		|| grep '^Version:' $(ROOTDIR)/release_notes | awk '{print $$NF}' \
+)
 
 version.h: ./Makefile id.mk
 	@echo \#define TOOLCHAIN_BANNER \"$(BANNER)\" > .ver
 	@echo \#define TOOLCHAIN_NAME \"$(TOOLCHAIN)\" >> .ver
 	@echo \#define TOOLCHAIN_RELEASE \"$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)\" >> .ver
 	@echo \#define TOOLCHAIN_VERSION_CODE `expr $(VERSION) \\* 65536 + $(PATCHLEVEL) \\* 256 + $(SUBLEVEL)` >> .ver
+	@echo \#define USER_DIST_VERSION \"$(USER_DIST_VERSION)\" >> .ver
 	@mv -f .ver $@
 
 version.o: version.c compile.h
