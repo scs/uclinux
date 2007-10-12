@@ -118,6 +118,7 @@ if [ "$CONFIG_USER_ALSA_UTILS" = "y" ]; then
 fi
 bool    'FFmpeg and FFserver'           CONFIG_USER_FFMPEG_APPS
 if [ "$CONFIG_USER_FFMPEG_APPS" = "y" ]; then
+	define_bool CONFIG_LIB_ZLIB y
 	define_bool CONFIG_LIB_FFMPEG y
 fi
 bool    'MPlayer and mencode'           CONFIG_USER_MPLAYER
@@ -141,7 +142,7 @@ if [ "$CONFIG_USER_BLACKFIN_ASTERISK" = "y" ]; then
 	define_bool CONFIG_LIB_SPEEX	y
 	define_bool CONFIG_LIB_BFIN_GSM		y
 	define_bool CONFIG_USER_ZAPTEL		y
-	define_bool CONFIG_LIB_NCURSES_FORCE	y
+	define_bool CONFIG_LIB_NCURSES	y
 fi
 bool    'usbutils (lsusb)'              CONFIG_USER_USBUTILS
 if [ "$CONFIG_USER_USBUTILS" = "y" ]; then
@@ -174,11 +175,11 @@ if [ "$CONFIG_USER_BLACKFIN_LINPHONE" = "y" ]; then
 	define_bool CONFIG_LIB_SPEEX y
 	define_bool CONFIG_LIB_READLINE y
 	define_bool CONFIG_LIB_NCURSES y
-	define_bool CONFIG_LIB_ALSA_LIB_FORCE y
+	define_bool CONFIG_LIB_ALSA_LIB y
         bool '   Enable video'     CONFIG_USER_BFIN_LINPHONE_VIDEO
 	if [ "$CONFIG_USER_BFIN_LINPHONE_VIDEO" = "y" ]; then
-		define_bool CONFIG_LIB_LIBSDL_FORCE y
-		define_bool CONFIG_LIB_FFMPEG_FORCE y
+		define_bool CONFIG_LIB_LIBSDL y
+		define_bool CONFIG_LIB_FFMPEG y
 	fi
 fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
