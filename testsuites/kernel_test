@@ -156,7 +156,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-ADV7393" ] ; then
 
    BOARD_TYPE=BF537-STAMP
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[$(( n + 10 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="1"
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[$(( n + 10 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="1"
    ##add 1981b test here
    AUTO_RUN_STATUS[$(( n + 5 ))]="1"
 
@@ -573,6 +573,9 @@ do
   cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
+  cd $UCLINUX_DIST_PATH/
+  make clean  > /dev/null 2>&1
+
   cd $UCLINUX_DIST_TESTSUITES/audio
   ./build_ad1836_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
@@ -585,7 +588,10 @@ do
   cp $UCLINUX_DIST_TESTSUITES/audio/build_ad1836_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1836
   cp $UCLINUX_DIST_TESTSUITES/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1836
-    
+
+  cd $UCLINUX_DIST_PATH/
+  make clean  > /dev/null 2>&1
+
   sleep 300
 
  
@@ -607,7 +613,10 @@ do
   cp $UCLINUX_DIST_PATH_BAK/config/.config config
   cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
-   
+
+  cd $UCLINUX_DIST_PATH/
+  make clean  > /dev/null 2>&1
+
   cd $UCLINUX_DIST_TESTSUITES/audio 
   ./build_ad73311_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
@@ -620,7 +629,10 @@ do
   cp $UCLINUX_DIST_TESTSUITES/audio/build_ad73311_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad73311 
   cp $UCLINUX_DIST_TESTSUITES/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad73311
-  
+
+  cd $UCLINUX_DIST_PATH/
+  make clean  > /dev/null 2>&1
+ 
   sleep 300
 
  
@@ -643,6 +655,9 @@ do
   cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
+  cd $UCLINUX_DIST_PATH/
+  make clean  > /dev/null 2>&1
+
   cd $UCLINUX_DIST_TESTSUITES/audio
   ./build_ad1981b_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
@@ -655,6 +670,9 @@ do
   cp $UCLINUX_DIST_TESTSUITES/audio/build_ad1981b_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1981b
   cp $UCLINUX_DIST_TESTSUITES/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1981b
+
+  cd $UCLINUX_DIST_PATH/
+  make clean  > /dev/null 2>&1
 
   sleep 300
 
@@ -1016,12 +1034,7 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   cp $UCLINUX_DIST_PATH_BAK/config/.config config
   cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
-
-  if [ ${MANUAL_TESTCASE[$i]} == "linphone" ] ; then
-  cd $UCLINUX_DIST_PATH/
-  make clean  > /dev/null 2>&1
-  fi
-
+  
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
   cd $UCLINUX_DIST_TESTSUITES/spiadc
   elif [ ${MANUAL_TESTCASE[$i]} == "sport_uart" ] ; then
@@ -1029,7 +1042,7 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   else
   cd $UCLINUX_DIST_TESTSUITES/${MANUAL_TESTCASE[$i]}    
   fi
-
+  
   if [ ${MANUAL_TESTCASE[$i]} == "i2ctwi" ] ; then
   ./build_${MANUAL_TESTCASE[$i]}_keyboard_kernel.exp $BOARD_TYPE  >/dev/null  2>&1 
   sleep 5
@@ -1054,12 +1067,7 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   else
   cp $UCLINUX_DIST_TESTSUITES/${MANUAL_TESTCASE[$i]}/*_log  $THIS_LOG   
   fi
-
-  if [ ${MANUAL_TESTCASE[$i]} == "linphone" ] ; then
-  cd $UCLINUX_DIST_PATH/
-  make clean  > /dev/null 2>&1
-  fi
-
+    
   echo  "End testing ${MANUAL_TESTCASE[$i]}..."
   fi
   done

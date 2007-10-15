@@ -77,6 +77,14 @@ while 1 {
 			send "N\r"
 		}
 
+                -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+			send "FDPIC\r"
+                }
+
+                -re "ALSA utils.*CONFIG_USER_ALSA_UTILS.*\\\[.*]" {
+			send "y\r"
+                }
+
 		-re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
 			send "Y\r"
 		}
