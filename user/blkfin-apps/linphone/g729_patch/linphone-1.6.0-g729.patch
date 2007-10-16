@@ -1,0 +1,316 @@
+diff -Nur linphone-1.6.0/mediastreamer2/configure.ac linphone-1.6.0.new/mediastreamer2/configure.ac
+--- linphone-1.6.0/mediastreamer2/configure.ac	2007-10-15 18:04:17.000000000 +0800
++++ linphone-1.6.0.new/mediastreamer2/configure.ac	2007-10-15 18:27:47.000000000 +0800
+@@ -281,6 +281,8 @@
+ 	   build_gsm=yes
+ 	fi
+ fi
++G729_LIBS="-lg729ab"
++AC_SUBST(G729_LIBS)
+ 
+ build_resample=false
+ AC_CHECK_LIB(resample,resample_open,[LIBS="$LIBS -lresample"; build_resample=yes])
+diff -Nur linphone-1.6.0/mediastreamer2/include/mediastreamer2/allfilters.h linphone-1.6.0.new/mediastreamer2/include/mediastreamer2/allfilters.h
+--- linphone-1.6.0/mediastreamer2/include/mediastreamer2/allfilters.h	2007-10-15 18:04:10.000000000 +0800
++++ linphone-1.6.0.new/mediastreamer2/include/mediastreamer2/allfilters.h	2007-10-15 18:25:02.000000000 +0800
+@@ -45,6 +45,8 @@
+ 	MS_SPEEX_DEC_ID,
+ 	MS_GSM_ENC_ID,
+ 	MS_GSM_DEC_ID,
++	MS_G729_ENC_ID,
++	MS_G729_DEC_ID,
+ 	MS_V4L_ID,
+ 	MS_SDL_OUT_ID,
+ 	MS_H263_ENC_ID,
+diff -Nur linphone-1.6.0/mediastreamer2/src/g729.c linphone-1.6.0.new/mediastreamer2/src/g729.c
+--- linphone-1.6.0/mediastreamer2/src/g729.c	1970-01-01 08:00:00.000000000 +0800
++++ linphone-1.6.0.new/mediastreamer2/src/g729.c	2007-10-15 18:28:42.000000000 +0800
+@@ -0,0 +1,268 @@
++/*
++mediastreamer2 library - modular sound and video processing and streaming
++Copyright (C) 2006  Simon MORLAT (simon.morlat@linphone.org)
++
++enable linphone to using ADI's libbfgdots g729 lib. 
++
++This program is free software; you can redistribute it and/or
++modify it under the terms of the GNU General Public License
++as published by the Free Software Foundation; either version 2
++of the License, or (at your option) any later version.
++
++This program is distributed in the hope that it will be useful,
++but WITHOUT ANY WARRANTY; without even the implied warranty of
++MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++GNU General Public License for more details.
++
++You should have received a copy of the GNU General Public License
++along with this program; if not, write to the Free Software
++Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
++*/
++
++
++/**
++ * bitstream format of libbfgdots - g729a/g729ab lib
++ * 
++ * using 0x6b21 as SYNC word for each frame
++ *   [SYNCWORD][BIT_NUM][bits]
++ * 
++ * Packed mode:
++ * 
++ * - g729a:
++ *   [0x6b21][0x0050][80-bit]
++ *
++ * - g729ab:
++ *   three kinds of frames
++ *   -- BIT_NUM = 0x0050
++ *   -- BIT_NUM = 0x0010
++ *   -- BIT_NUM = 0x0000
++ *
++ * Unpacked mode:
++ *   each bit is encoded using a 16-bit word:
++ *   - 0x007F for 0
++ *   - 0x0081 for 1
++ */
++
++#include "mediastreamer2/msfilter.h"
++
++#include <g729ab_codec.h>
++
++#define FMT_PACKED 0
++#define FMT_UNPACKED 1
++
++typedef struct EncState{
++	G729_EncObj state;
++	uint32_t ts;
++	int enc_vad;
++	int fmt_packed;
++	MSBufferizer *bufferizer; /* a queue */
++} EncState;
++
++/* return g729ab encoded data bits number, NOT including 4-byte header */
++static int g729ab_get_frame_len(short *frame)
++{
++	short header = 0, len = 0;
++
++	if (frame) 
++		header = *frame++;
++	else
++		return -1;
++	if (header == 0x6b21) {
++    		/* Get length */
++		if (frame) {
++			len = *frame;
++			return len;
++		} else
++			return -1;
++	} else {
++		ms_error("g729ab_get_frame_len(): wrong header: 0x%hx\n", header);
++		return -1;
++	}
++
++	return -1;
++}
++
++static void enc_init(MSFilter *f){
++	EncState *s=ms_new(EncState, 1); /* alloc EncState object, count = 1 */
++	memset(s, 0 , sizeof(*s));
++	
++	g729ab_enc_process = G729AB_ENC_PROCESS; /* function pointers: special for FDPIC g729 lib */
++	G729AB_ENC_RESET(&s->state);
++	
++	G729AB_ENC_CONFIG(&s->state, G729_ENC_OUTPUTFORMAT, FMT_PACKED); /* packed */ 
++	//G729AB_ENC_CONFIG(&s->state, G729_ENC_OUTPUTFORMAT, FMT_UNPACKED); /* unpacked */ 
++	
++	G729AB_ENC_CONFIG(&s->state, G729_ENC_VAD, 1 ); /* g729ab */
++	//G729AB_ENC_CONFIG(&s->state, G729_ENC_VAD, 0 ); /* g729a */
++	
++	s->enc_vad = 1;
++	s->fmt_packed = 1;
++	s->ts=0;
++	s->bufferizer=ms_bufferizer_new();
++	f->data=s;
++}
++
++static void enc_uninit(MSFilter *f){
++	EncState *s=(EncState*)f->data;
++	ms_bufferizer_destroy(s->bufferizer);
++	ms_free(s);
++}
++
++static void enc_process(MSFilter *f){
++	EncState *s=(EncState*)f->data;
++	mblk_t *im;
++	int16_t	ibuf[80] __attribute__ ((aligned (4)));
++	int obuf_len_byte = 0;
++	int bit_len = 0;
++
++	while((im=ms_queue_get(f->inputs[0]))!=NULL){
++		ms_bufferizer_put(s->bufferizer,im);
++	}
++
++	if (s->fmt_packed == 1) 
++		obuf_len_byte = 14; /* 4 byte header and 80-bit data */
++	else if (s->fmt_packed == 0)
++		obuf_len_byte = 164; /* 4 byte header and 80 16-bit data */
++
++	while(ms_bufferizer_read(s->bufferizer,(uint8_t*)ibuf,sizeof(ibuf))==sizeof(ibuf)) {
++		mblk_t *om=allocb(obuf_len_byte,0); 
++		memset(om->b_wptr, 0 , obuf_len_byte);
++	
++		G729AB_ENC(&s->state, (short *)ibuf, (short *)om->b_wptr);
++		
++		if (s->enc_vad == 1) {
++			/* g729ab */
++			bit_len = g729ab_get_frame_len((short *)om->b_wptr);
++			if (bit_len == -1) {
++				ms_error("g729ab: enc_process: encoding error");
++				return;
++			}
++		} else if (s->enc_vad == 0 ) {
++			/* g729a */
++			bit_len = 80;
++		}
++			
++		if (s->fmt_packed)
++			obuf_len_byte = (bit_len & 0x7) ? ((bit_len >> 3) + 5) : 
++						((bit_len >> 3) + 4); /* 4-byte header */
++		else
++			obuf_len_byte = 4 + bit_len * 2;
++	
++		om->b_wptr += obuf_len_byte;
++		//ms_message("g729_enc: message size: %d, obuf_len_byte: %d", 
++		//	msgdsize(om), obuf_len_byte);
++
++		mblk_set_timestamp_info(om,s->ts);
++		ms_queue_put(f->outputs[0],om); /* one frame per packet */
++		s->ts+=sizeof(ibuf)/2;
++	}
++}
++
++#ifdef _MSC_VER
++
++MSFilterDesc ms_g729_enc_desc={
++	MS_G729_ENC_ID,
++	"MSG729Enc",
++	"The G729a(b) codec",
++	MS_FILTER_ENCODER,
++	"g729",
++	1,
++	1,
++	enc_init,
++	NULL,
++	enc_process,
++	NULL,
++	enc_uninit,
++	NULL
++};
++
++#else
++
++MSFilterDesc ms_g729_enc_desc={
++	.id=MS_G729_ENC_ID,
++	.name="MSG729Enc",
++	.text="The G729a(b) codec",
++	.category=MS_FILTER_ENCODER,
++	.enc_fmt="g729",
++	.ninputs=1,
++	.noutputs=1,
++	.init=enc_init,
++	.process=enc_process,
++	.uninit=enc_uninit,
++};
++
++#endif
++
++typedef G729_DecObj DecState;
++static void dec_init(MSFilter *f){
++	DecState *s = ms_new(DecState, 1);
++	g729ab_dec_process = G729AB_DEC_PROCESS;
++	G729AB_DEC_RESET(s);
++	G729AB_DEC_CONFIG(s, G729_DEC_INPUTFORMAT, FMT_PACKED); /* packed */
++	//G729AB_DEC_CONFIG(s, G729_DEC_INPUTFORMAT, FMT_UNPACKED); /* unpacked */
++	f->data= s;
++}
++
++static void dec_uninit(MSFilter *f){
++	DecState *s=(DecState*)f->data;
++	ms_free(s);
++}
++
++static void dec_process(MSFilter *f){
++	DecState *s=(DecState*)f->data;
++	mblk_t *im;
++	mblk_t *om;
++
++	//int i = 0;
++	//char * ibuf = NULL;
++	while((im=ms_queue_get(f->inputs[0]))!=NULL){
++		//ms_message("g729_dec: message size: %d", msgdsize(im));
++		//ibuf = im->b_rptr;
++		//for (i = 0; i < msgdsize(im); i++)
++		//	ms_message("g729_dec: %hhx", ibuf[i]);	
++		/* suppose to get one frame */
++		om=allocb(160,0); /* 80 * 2 */
++		G729AB_DEC(s, (short *)im->b_rptr, (short *)om->b_wptr);
++		om->b_wptr += 160;
++		ms_queue_put(f->outputs[0],om);
++		freemsg(im);
++	}
++}
++
++#ifdef _MSC_VER
++
++MSFilterDesc ms_g729_dec_desc={
++	MS_G729_DEC_ID,
++	"MSG729Dec",
++	"The G729 codec",
++	MS_FILTER_DECODER,
++	"g729",
++	1,
++	1,
++	dec_init,
++	NULL,
++	dec_process,
++	NULL,
++	dec_uninit,
++	NULL
++};
++
++#else
++
++MSFilterDesc ms_g729_dec_desc={
++	.id=MS_G729_DEC_ID,
++	.name="MSG729Dec",
++	.text="The G729 codec",
++	.category=MS_FILTER_DECODER,
++	.enc_fmt="g729",
++	.ninputs=1,
++	.noutputs=1,
++	.init=dec_init,
++	.process=dec_process,
++	.uninit=dec_uninit
++};
++
++#endif
++
++MS_FILTER_DESC_EXPORT(ms_g729_dec_desc)
++MS_FILTER_DESC_EXPORT(ms_g729_enc_desc)
+diff -Nur linphone-1.6.0/mediastreamer2/src/Makefile.am linphone-1.6.0.new/mediastreamer2/src/Makefile.am
+--- linphone-1.6.0/mediastreamer2/src/Makefile.am	2007-10-15 18:04:12.000000000 +0800
++++ linphone-1.6.0.new/mediastreamer2/src/Makefile.am	2007-10-15 18:25:51.000000000 +0800
+@@ -75,6 +75,8 @@
+ libmediastreamer_la_SOURCES+=gsm.c
+ endif
+ 
++libmediastreamer_la_SOURCES+=g729.c
++
+ alldescs.h:	Makefile.am $(libmediastreamer_la_SOURCES)
+ 	builddir=`pwd` && cd $(srcdir) && \
+ 	awk 'BEGIN { FS="[()]" ; }; /^\t*MS_FILTER_DESC_EXPORT/{ printf("%s\n", $$2) } '  > $$builddir/filterdescs.txt $(libmediastreamer_la_SOURCES) && \
+@@ -88,6 +90,7 @@
+ 				$(ARTS_LIBS) \
+ 				$(SPEEX_LIBS) \
+ 				$(GSM_LIBS) \
++				$(G729_LIBS) \
+ 				$(THEORA_LIBS)
+ 
+ libmediastreamer_la_LDFLAGS=-rdynamic
