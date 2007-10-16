@@ -16,6 +16,7 @@ $(VER)/config.mak:
 		--prefix=/usr \
 		--confdir=/etc \
 		--mandir=/usr/share/man \
+		--enable-fbdev \
 		--disable-mp3lib
 
 clean:
