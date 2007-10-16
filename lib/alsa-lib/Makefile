@@ -9,7 +9,10 @@ endif
 
 VER = alsa-lib-1.0.12
 
+# we need to separate the build/install steps as the
+# install commands do not do proper dependency checking
 all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER)
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 
 build-$(VER)/Makefile:
