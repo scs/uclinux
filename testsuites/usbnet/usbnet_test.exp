@@ -14,7 +14,6 @@ set TITLE [title "$argv0"]
 step "Spawn kermit"
 source ../spawn_kermit.exp
 
-
 step "Reboot the kernel."
 # To add following line here to indicate that if the bootargs is different,
 # it could be set here. If the bootargs value is 0, it needn't be stated,
@@ -28,7 +27,7 @@ set count 5
 set boardip 192.168.7.1
 set hostip 192.168.7.2
 
-sleep 2
+sleep 5
 send "\r"
 expect ">"
 
@@ -94,6 +93,35 @@ while 1 {
 #config Linux host pc
 spawn /bin/bash
 set shell_spawn_id $spawn_id
+
+
+incr case_num
+set timeout 30
+send "su -\r"
+while 1 {
+    expect {
+        -re "\[Pp]assword:" {break}
+        timeout {
+            send_user "su timeout\n"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 60
+send "$password\r"
+while 1 {
+    expect {
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "su and login timeout\n"
+            case_fail $case_num
+        }
+    }
+}
 
 incr case_num
 set timeout 10
