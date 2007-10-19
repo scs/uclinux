@@ -19,377 +19,269 @@ send_log "*********************************\r"
 send_log "Start $TITLE\r"
 send_log "*********************************\r"
 
+proc oss_rec2_play2 {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
+    global case_num
+
+    if { $channel_1 == "Mono" } {
+        set channel_type_1 ""
+    } else {
+        set channel_type_1 "-S"
+    }
+
+    if { $channel_2 == "Mono" } {
+        set channel_type_2 ""
+    } else {
+        set channel_type_2 "-S"
+    }
+
+    incr case_num
+    set timeout 15 
+    send -s "vrec -w $channel_type_1 -b $format_1 -s $rate_1 -t 5 wav1; vrec -w $channel_type_2 -b $format_2 -s $rate_2 -t 5 wav2\n"
+    expect {
+        -re "$channel_1.*$channel_2 \.\.\.\r\nroot:~>" {}
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    send -s "vplay wav1&\n"
+    expect {
+        "$channel_1 \.\.\.\r\n" {
+            send "\n"
+            expect ">"
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    sleep 1 
+    send -s "vplay wav2\n"
+    expect {
+        "$channel_2 \.\.\.\r\nroot:~>" {
+            case_pass $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+proc oss_play_rec2play {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
+    global case_num
+
+    if { $channel_1 == "Mono" } {
+        set channel_type_1 ""
+    } else {
+        set channel_type_1 "-S"
+    }
+
+    if { $channel_2 == "Mono" } {
+        set channel_type_2 ""
+    } else {
+        set channel_type_2 "-S"
+    }
+
+    incr case_num
+    set timeout 10
+    send -s "vrec -w $channel_type_1 -b $format_1 -s $rate_1 -t 5 wav1\n"
+    expect {
+        -re "$channel_1 \.\.\.\r\nroot:~>" {}
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    send -s "vplay wav1&\n"
+    expect {
+        "$channel_1 \.\.\.\r\n" {
+            send "\n"
+            expect ">"
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    sleep 1 
+    send -s "vrec -w $channel_type_2 -b $format_2 -s $rate_2 -t 5 | vplay\n"
+    expect {
+        "$channel_2 \.\.\.\r\nroot:~>" {
+            case_pass $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+proc alsa_rec2_play2 {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
+    global case_num
+
+    if { $channel_1 == "Mono" } {
+        set channel_num_1 "1"
+    } else {
+        set channel_num_1 "2"
+    }
+
+    if { $channel_2 == "Mono" } {
+        set channel_num_2 "1"
+    } else {
+        set channel_num_2 "2"
+    }
+
+    incr case_num
+    set timeout 15
+    send -s "arecord -t wav -c $channel_num_1 -f $format_1 -r $rate_1 -d 5 wav1; arecord -t wav -c $channel_num_2 -f $format_2 -r $rate_2 -d 5 wav2\n"
+    expect {
+        -re "$channel_1.*$channel_2\r\nroot:~>" {}
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    send -s "aplay wav1&\n"
+    expect {
+        "$channel_1\r\n" {
+            send "\n"
+            expect ">"
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    sleep 1 
+    send -s "aplay wav2\n"
+    expect {
+        "$channel_2\r\nroot:~>" {
+            case_pass $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+proc alsa_play_rec2play {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
+    global case_num
+
+    if { $channel_1 == "Mono" } {
+        set channel_num_1 "1"
+    } else {
+        set channel_num_1 "2"
+    }
+
+    if { $channel_2 == "Mono" } {
+        set channel_num_2 "1"
+    } else {
+        set channel_num_2 "2"
+    }
+
+    incr case_num
+    set timeout 10
+    send -s "arecord -t wav -c $channel_num_1 -f $format_1 -r $rate_1 -d 5 wav1\n"
+    expect {
+        -re "$channel_1\r\nroot:~>" {}
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    send -s "aplay wav1&\n"
+    expect {
+        "$channel_1\r\n" {
+            send "\n"
+            expect ">"
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    sleep 1 
+    send -s "arecord -t wav -c $channel_num_2 -f $format_2 -r $rate_2 -d 5 | aplay\n"
+    expect {
+        "$channel_2\r\nroot:~>" {
+            case_pass $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
 spawn plaympeg -l audiotest.mp3
 set plaympeg_id $spawn_id
-
 set spawn_id $kermit_spawn_id 
-
 set case_num 0
-
 send_log "\nPlease listen to the earphone or amplifier.\n\n"
 
 sleep 3
 
 set timeout 4
-send "cd /var\n"
+send "\n"
 expect	"> "
 
 while 1 {
-   set timeout 15 
-   incr case_num
-   send -s "vrec -w -S -b 8 -s 44100 -t 6 a; vrec -w -S -b 16 -s 8000 -t 6 b\n"
-   expect "> "
-   send -s "vplay a&\n"
-   expect { 
-   	"> " {}
-	timeout {
-		exit
-	    }
-	}
-   sleep 1 
-   send -s "vplay b\n"
-   expect {
-	"> " {
+    oss_rec2_play2  8 Stereo 44100   16 Stereo  8000
+    oss_rec2_play2 16 Stereo 44100    8 Stereo  8000
+    oss_rec2_play2  8   Mono  8000   16 Stereo  8000
+    oss_rec2_play2 16   Mono  8000    8 Stereo  8000
+    oss_rec2_play2  8   Mono 44100   16 Stereo 44100
+    oss_rec2_play2 16   Mono 44100    8 Stereo 44100
+    oss_rec2_play2  8   Mono 44100   16   Mono  8000
+    oss_rec2_play2 16   Mono 44100    8   Mono  8000
 
-		send_log "\nCase $case_num ...DONE\n"
-	}
-	
+    oss_play_rec2play 16   Mono 44100    8   Mono  8000
+    oss_play_rec2play  8   Mono  8000   16 Stereo  8000
+    oss_play_rec2play  8   Mono 44100   16 Stereo 44100
+    oss_play_rec2play  8   Mono 44100   16   Mono  8000
 
-         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -S -b 16 -s 44100 -t 6 a; vrec -w -S -b 8 -s 8000 -t 6 b\n"
-   expect "> "
-   send -s "vplay a&\n"
-   expect { 
-   	"> " {}
-	timeout {
-		exit
-	    }
-	}
-   sleep 1 
-   send -s "vplay b\n"
-   expect {
-	"> " {
-
-		send_log "\nCase $case_num ...DONE\n"
-	}
-	
-
-         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 8 -s 8000 -t 6 a; vrec -w -S -b 16 -s 8000 -t 6 b\n"
-   expect "> "
-   send -s "vplay a&\n"
-   expect { 
-   	"> " {}
-	timeout {
-		exit
-	    }
-	}
-   sleep 1 
-   send -s "vplay b\n"
-   expect {
-	"> " {
-
-		send_log "\nCase $case_num ...DONE\n"
-	}
-	
-
-         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 16 -s 8000 -t 6 a; vrec -w -S -b 8 -s 8000 -t 6 b\n"
-   expect "> "
-   send -s "vplay a&\n"
-   expect { 
-   	"> " {}
-	timeout {
-		exit
-	    }
-	}
-   sleep 1 
-   send -s "vplay b\n"
-   expect {
-	"> " {
-
-		send_log "\nCase $case_num ...DONE\n"
-	}
-	
-
-         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 8 -s 44100 -t 6 a; vrec -w -S -b 16 -s 44100 -t 6 b\n"
-   expect "> "
-   send -s "vplay a&\n"
-   expect { 
-   	"> " {}
-	timeout {
-		exit
-	    }
-	}
-   sleep 1 
-   send -s "vplay b\n"
-   expect {
-	"> " {
-
-		send_log "\nCase $case_num ...DONE\n"
-	}
-	
-
-         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 16 -s 44100 -t 6 a; vrec -w -S -b 8 -s 44100 -t 6 b\n"
-   expect "> "
-   send -s "vplay a&\n"
-   expect { 
-   	"> " {}
-	timeout {
-		exit
-	    }
-	}
-   sleep 1 
-   send -s "vplay b\n"
-   expect {
-	"> " {
-
-		send_log "\nCase $case_num ...DONE\n"
-	}
-	
-
-         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 8 -s 44100 -t 6 a; vrec -w -b 16 -s 8000 -t 6 b\n"
-   expect "> "
-   send -s "vplay a&\n"
-   expect { 
-   	"> " {}
-	timeout {
-		exit
-	    }
-	}
-   sleep 1 
-   send -s "vplay b\n"
-   expect {
-	"> " {
-
-		send_log "\nCase $case_num ...DONE\n"
-	}
-	
-
-         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 16 -s 44100 -t 6 a; vrec -w -b 8 -s 8000 -t 6 b\n"
-   expect "> "
-   send -s "vplay a&\n"
-   expect { 
-   	"> " {}
-	timeout {
-		exit
-	    }
-	}
-   sleep 1 
-   send -s "vplay b\n"
-   expect {
-	"> " {
-
-		send_log "\nCase $case_num ...DONE\n"
-	}
-	
-
-         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   set timeout 10
-   incr case_num
-   send -s "vrec -w -b 16 -s 44100 -t 6 a\n"
-   expect { 
-   	"> " {}
-   	    timeout {
-	    }
-   }
-   send -s "vplay a &\n"
-   expect { 
-   	"> " {}
-	timeout {
-	}
-   }
-
-   sleep 1 
-   send -s "vrec -w -b 8 -s 8000 -t 6 | vplay\n"
-   expect {
-	"> " {
-		send_log "\nCase $case_num ...DONE\n"
-	}
+    sleep 5
+    expect {
+        "Input/output error" {
+            case_fail $case_num
+        }
         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
+            send_user "ALSA lib test finished\n"
+            break
+        }
+    }
+}
 
-   incr case_num
-   send -s "vrec -w -b 8 -s 8000 -t 6 a\n"
-   expect { 
-   	"> " {}
-   	    timeout {
-	    }
-   }
-   send -s "vplay a &\n"
-   expect { 
-   	"> " {}
-	timeout {
-	}
-   }
+while 1 {
+    alsa_rec2_play2     U8 Stereo 44100   S16_LE Stereo  8000
+    alsa_rec2_play2 S16_LE Stereo 44100       U8 Stereo  8000
+    alsa_rec2_play2     U8   Mono  8000   S16_LE Stereo  8000
+    alsa_rec2_play2 S16_LE   Mono  8000       U8 Stereo  8000
+    alsa_rec2_play2     U8   Mono 44100   S16_LE Stereo 44100
+    alsa_rec2_play2 S16_LE   Mono 44100       U8 Stereo 44100
+    alsa_rec2_play2     U8   Mono 44100   S16_LE   Mono  8000
+    alsa_rec2_play2 S16_LE   Mono 44100       U8   Mono  8000
 
-   sleep 1 
-   send -s "vrec -w -S -b 16 -s 8000 -t 6 | vplay\n"
-   expect {
-	"> " {
-		send_log "\nCase $case_num ...DONE\n"
-	}
+    alsa_play_rec2play S16_LE   Mono 44100       U8   Mono  8000
+    alsa_play_rec2play     U8   Mono  8000   S16_LE Stereo  8000
+    alsa_play_rec2play     U8   Mono 44100   S16_LE Stereo 44100
+    alsa_play_rec2play     U8   Mono 44100   S16_LE   Mono  8000 
+
+    sleep 5
+    expect {
+        "Input/output error" {
+            case_fail $case_num
+        }
         timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 8 -s 44100 -t 6 a\n"
-   expect { 
-   	"> " {}
-   	    timeout {
-	    }
-   }
-   send -s "vplay a &\n"
-   expect { 
-   	"> " {}
-	timeout {
-	}
-   }
-
-   sleep 1 
-   send -s "vrec -w -S -b 16 -s 44100 -t 6 | vplay\n"
-   expect {
-	"> " {
-		send_log "\nCase $case_num ...DONE\n"
-	}
-        timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 8 -s 44100 -t 6 a\n"
-   expect { 
-   	"> " {}
-   	    timeout {
-	    }
-   }
-   send -s "vplay a &\n"
-   expect { 
-   	"> " {}
-	timeout {
-	}
-   }
-
-   sleep 1 
-   send -s "vrec -w -b 16 -s 8000 -t 6 | vplay\n"
-   expect {
-	"> " {
-		send_log "\nCase $case_num ...DONE\n"
-	}
-        timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-   incr case_num
-   send -s "vrec -w -b 16 -s 44100 -t 6 a\n"
-   expect { 
-   	"> " {}
-   	    timeout {
-	    }
-   }
-   send -s "vplay a &\n"
-   expect { 
-   	"> " {}
-	timeout {
-	}
-   }
-
-   sleep 1 
-   send -s "vrec -w -b 8 -s 8000 -t 6 | vplay\n"
-   expect {
-	"> " {
-		send_log "\nCase $case_num ...DONE\n"
-	}
-        timeout {
-                case_fail $case_num
-		exit
-         }
-   }
-
-
-   sleep 5
-   expect {
-	"Input/output error" {
-                case_fail $case_num
-		exit
-	}
-	
-	timeout {
-		send_log "Finished\n"
-		break;
-
-	}
-   }
-
+            send_user "OSS lib test finished\n"
+            break
+        }
+    }
 }
 
 set spawn_id $plaympeg_id
 send "\3"
 sleep 1
 
-send_log "\n$TITLE ............DONE\n"
+send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 log_file
- 

@@ -638,14 +638,11 @@ do
   ./build_ad73311_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  sleep 30
-  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  
+
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad73311
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad73311
   cp $UCLINUX_DIST_TESTSUITES/audio/build_ad73311_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad73311 
-  cp $UCLINUX_DIST_TESTSUITES/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad73311
 
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
@@ -679,14 +676,11 @@ do
   ./build_ad1981b_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
   ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  sleep 30
-  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad1981b
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad1981b
   cp $UCLINUX_DIST_TESTSUITES/audio/build_ad1981b_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_audio_test_log.ad1981b
-  cp $UCLINUX_DIST_TESTSUITES/audio/two_channel_audio_test_log $THIS_LOG/two_channel_audio_test_log.ad1981b
 
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
