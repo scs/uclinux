@@ -24,6 +24,7 @@ $0: [options] [src] dst
     -A pattern  : only append text if pattern doesn't exist in file
     -l link     : dst is a hard link to 'link'.
     -s sym-link : dst is a sym-link to 'sym-link'.
+    -M          : install kernel module into dst subdir of module dir
 
     if "src" is not provided,  basename is run on dst to determine the
     source in the current directory.
@@ -149,13 +150,15 @@ mdir=
 src=
 dst=
 strip=1
+kernmod=
 
-while getopts 'dSve:o:A:p:a:l:s:' opt "$@"
+while getopts 'dSMve:o:A:p:a:l:s:' opt "$@"
 do
 	case "$opt" in
 	v) v="1";                           ;;
 	d) mdir="1";                        ;;
 	S) strip=;							;;
+	M) kernmod="1";                     ;;
 	o) option="$OPTARG";                ;;
 	e) eval option=\"\$$OPTARG\";       ;;
 	p) perm="$OPTARG";                  ;;
@@ -202,6 +205,14 @@ case $# in
 	usage
 	;;
 esac
+
+if [ -n "$kernmod" ]; then
+	strip=
+	kerndir=${ROOTDIR}/${LINUXDIR}
+	# could prob take from UTS headers as well ...
+	kernver=$(cat ${kerndir}/include/config/kernel.release)
+	dst="/lib/modules/${kernver}/${dst}"
+fi
 
 if [ "$mdir" -a ! -d "`dirname ${ROMFSDIR}${dst}`/." ]
 then
