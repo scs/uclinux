@@ -89,6 +89,12 @@ step "Copy linux image"
 source   copy_image.exp  
 
 
+cd $uclinux_path/testsuites
+
+step "Make clean."
+
+source  make_clean.exp
+
 send_user "Ending $argv0\n"
 log_file
  
