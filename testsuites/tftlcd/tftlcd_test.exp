@@ -34,7 +34,7 @@ if { $board_type == "BF548-EZKIT" } {
 }
 while 1 {
     expect {
-        "FrameBuffer initializing.*>" {
+        "FrameBuffer initializing.*Done.*>" {
             case_pass $case_num
             break
         }
