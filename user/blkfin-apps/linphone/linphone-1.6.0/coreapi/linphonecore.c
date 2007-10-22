@@ -394,7 +394,7 @@ void rtp_config_read(LinphoneCore *lc)
 	if (port==0) port=9078;
 	linphone_core_set_video_port(lc,port);
 	
-	jitt_comp=lp_config_get_int(lc->config,"rtp","audio_jitt_comp",60);
+	jitt_comp=lp_config_get_int(lc->config,"rtp","audio_jitt_comp",0);
 	linphone_core_set_audio_jittcomp(lc,jitt_comp);		
 	jitt_comp=lp_config_get_int(lc->config,"rtp","video_jitt_comp",60);
 }
