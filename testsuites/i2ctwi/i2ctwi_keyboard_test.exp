@@ -1,26 +1,260 @@
 #!/usr/bin/expect
+log_file i2ctwi_keyboard_test_log
+send_user "Starting i2ctwi_keyboard_test.exp\n"
 
-source  ../kernel_config.exp
+set user /home/test
+set uclinux_path $user/checkouts/kernel/uClinux-dist
+set dxe_filename linux
+set ttydev /dev/ttyS0
+set send_slow {1 0.1}
+set password "blackfin"
 
-log_file [log_file_name "$argv0"]
+proc step { message } {
 
-send_user "Starting $argv0\n"
+  global step_sequence_number
 
-set TITLE [title "$argv0"]
+  puts "\n*******************************************************************"
+  puts "STEP $step_sequence_number: $message\n\n"
+  send_log "\n************** STEP $step_sequence_number: $message\n\n"
+  incr step_sequence_number
+}
 
-step "Spawn kermit"
-source ../spawn_kermit.exp
+set step_sequence_number    1
 
-step "Reboot the kernel."
-# To add following line here to indicate that if the bootargs is different,
-# it could be set here. If the bootargs value is 0, it needn't be stated,
-# for it is the default value.
-# set bootargs  $bootargs_param0
-source ../reboot_kernel.exp
+step "Start kermit"
 
-step "Start testing."
-set case_num 0
-incr case_num
+#step "Start up kermit on port $ttydev"
+# Now set up the kermit parameters.
+#  I want these all contained in this file to make it easier for users.
+#  This just builds up a list of commands which are sent to kermit.
+#
+set kparams     [list "set line $ttydev\r"]
+lappend kparams "set speed 57600\r"
+lappend kparams "set carrier-watch off\r"
+lappend kparams "set handshake none\r"
+lappend kparams "set flow-control none\r"
+lappend kparams "robust\r"
+lappend kparams "set file type bin\r"
+lappend kparams "set file name lit\r"
+lappend kparams "set rec pack 1000\r"
+lappend kparams "set send pack 1000\r"
+lappend kparams "set window 5\r"
+lappend kparams "set escape 255\r"
+set nkparams [llength $kparams]
+
+set timeout 5
+spawn kermit
+# We need to save the id because resetting the board will overwrite it.
+set kermit_spawn_id $spawn_id
+
+while 1 {
+	expect {
+	        "Type ?" { }
+		"ermit>" { break }
+		"not found" {
+                   report "ERROR: Failed to start up kermit"
+                   all_done
+		}
+		timeout {
+                   report "ERROR: Time out starting up kermit"
+                   all_done
+		}
+	}
+}
+
+for {set i 0} {$i < $nkparams} {incr i} {
+   send [lindex $kparams $i]
+
+   while 1 {
+      expect {
+         "ermit>" { break }
+
+         "\\?\[A-Z]" {
+            puts "ERROR: Failed to set up kermit parameters"
+          #  all_done
+         }
+
+         timeout {
+            puts "ERROR: Time out setting up kermit parameters"
+           # all_done
+         }
+      }
+   }
+}
+
+send "connect\r"
+while 1 {
+   expect {
+      "ype the escape character*" {
+         break
+      }
+
+      timeout {
+         puts "\nERROR: Can't connect to serial port\n"
+         exit
+      }
+   }
+}
+step "Restart the board."
+
+send_user "Try to figure out if we are in u-boot or the kernel"
+set where_are_we 0
+send "version\r"
+set timeout 20
+expect {
+
+    "U-Boot" {
+	send_user "We are in u-boot\n"
+	set where_are_we "uboot"
+    }
+
+    "Linux" {
+	send_user "We are in the kernel\n"
+	set where_are_we "kernel"
+    }
+
+    timeout {
+	send_user "Can't tell if we are in u-boot or the kernel\n"
+    }
+}
+
+if { $where_are_we == "uboot" } {
+    set timeout 50
+    expect ">"
+    send_user "sending reset\n"
+    send "reset\r"
+} else {
+    if { $where_are_we == "kernel" } {
+	set timeout 60
+	expect ">"
+	send_user "sending reboot\n"
+	send "reboot\r"
+    } else {
+	# If we don't know where we are, hit control-C and enter
+	set timeout 10
+	expect "*"
+	expect "*"
+	send_user "sending control-C\n"
+	send "\3"
+	sleep 1
+	send "\r"
+    }
+}
+
+ while 1 {
+       expect {
+         "Hit any key " {
+	     send "\r"
+	     break
+         }
+
+	
+         timeout {
+	     send_user "failed reset attempt\n"
+             break
+         }
+      }
+   }
+	
+expect ">"
+send -s "set bootargs root=/dev/mtdblock0 rw\r"
+expect ">" 
+send -s "save\r"
+expect ">"
+
+send -s "tftpboot 0x1000000 linux\r" 
+while 1 {
+   expect {
+      "#" {
+         expect ">"
+         break
+      }
+
+      timeout {
+            puts "Fail tftp. "
+          #  recover
+            break
+         }
+     }
+} 
+send -s "boote\r" 
+
+ set timeout 180
+   while 1 {
+      expect {
+
+         -re "Kernel panic" {
+            report "kernel panic detected... trying to recover from it"
+         #   recover
+            break
+         }
+
+         -re "Sash command shell.*/> " {
+            puts "successful boot attempt"
+          #  incr successful_boots
+            break
+         }
+	 
+	  "root:~> " {
+            puts "successful boot attempt"
+          #  incr successful_boots
+            break
+         }
+
+         -re "Linux version (.*) " {
+            set linux_version $expect_out(1,string)
+         }
+
+         # Look for gcc version N.N[.N[.N]]
+         -re "gcc version (\[0-9](\.\[0-9]+)+)" {
+            set gcc_version [lindex $expect_out(0,string) 2]
+         }
+
+         # Look for text followed by 1 or more spaces or tabs
+         # followed by = followed by 1 or more spaces or tabs
+         # followed by (0xNNNNNN-0xNNNNNN)
+         -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_text $expect_out(1,string)
+         }
+
+         -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_data $expect_out(1,string)
+         }
+
+         -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_bss $expect_out(1,string)
+         }
+         -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_rootfs $expect_out(1,string)
+         }
+
+         # Note that here we're looking for zero or 1 space. Doh!
+         -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_stack $expect_out(1,string)
+         }
+
+         -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
+           # set instruction_cache_boot_flag $CACHE_ENABLED
+         }
+
+         -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
+           # set instruction_cache_boot_flag $CACHE_DISABLED
+         }
+
+         -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
+           # set data_cache_boot_flag $CACHE_ENABLED
+         }
+
+         -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
+            #set data_cache_boot_flag $CACHE_DISABLED
+         }
+
+         timeout {
+            puts "failed boot attempt"
+            break
+         }
+      }
+   }
 
 sleep 5
 send "\r"
@@ -34,78 +268,64 @@ while 1 {
    expect {
       "Using" {
          expect ">"
-         case_pass $case_num
          break
       }
 
       timeout {
-         case_fail $case_num
-         exit
+            break
          }
      }
 }
-incr case_num
 send "lsmod\r"
 while 1 {
    expect {
       "twi_keypad" {
          puts "insert module success."
-         case_pass $case_num
          break
       }
 
       timeout {
-         case_fail $case_num
-         exit
+            break
          }
      }
 }
 
 
-incr case_num
 send "twikeypad_test -r\r" 
 while 1 {
    expect {
      -re "TWI .* Test Application" {         
-         case_pass $case_num
          break
       }
 
       timeout {
-         case_fail $case_num
-         exit
+            break
          }
      }
 }
 
-incr case_num
 puts "\nPlease input any character followed by 'D'."
 while 1 {
    expect {
      -re "Entry was" {
-         case_pass $case_num
          break
       }
 
       timeout {
-         case_fail $case_num
-         exit
+            break
          }
      }
 }
 
-incr case_num
 puts "\nPlease input another character followed by 'D'."
 while 1 {
    expect {
      -re "Entry was" {
-         case_pass $case_num
          break
       }
 
       timeout {
-         case_fail $case_num
-         exit
+            break
          }
      }
 }
@@ -118,49 +338,41 @@ while 1 {
       }
 
       timeout {
-         case_fail $case_num
-         exit
+            break
          }
      }
 }
 
 
-incr case_num
 send "rmmod twi_keypad\r" 
 while 1 {
    expect {
      -re ">" {         
-         case_pass $case_num
          break
       }
 
       timeout {
-         case_fail $case_num
-         exit
+            break
          }
      }
 }
 
-incr case_num
 send "lsmod\r" 
 while 1 {
    expect {
      -re ">" {         
-         case_pass $case_num
          break
       }
 
       timeout {
-         case_fail $case_num
-         exit
+            break
          }
      }
 }
 
-send_log "\n"
-send_log "\n$TITLE ............\[PASS\]\n" 
-
-send_user "Ending $argv0\n"
-
 log_file
+ 
+
+send_user "Ending i2ctwi_keyboard_test.exp\n"
+
 

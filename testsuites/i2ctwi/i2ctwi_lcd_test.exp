@@ -32,7 +32,7 @@ set flag 0
 send "modprobe bfin_twi_lcd\r"
 while 1 {
    expect {
-      "Using" {
+      "TWI" {
          case_pass $case_num
          break
       }
@@ -166,7 +166,7 @@ incr case_num
 send "twilcd_test -p 0 \"Hello World! \"\r"
 while 1 {
    expect {
-     -re "Usage.*>" {
+     "Message" {
          case_pass $case_num
          break
       }
@@ -183,7 +183,7 @@ sleep 5
 send "twilcd_test -p 0 \"\`date\`\"\r" 
 while 1 {
    expect {
-     -re "Usage.*>" {         
+     "Message" {
          case_pass $case_num
          break
       }
