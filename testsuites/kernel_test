@@ -385,6 +385,11 @@ do
   cp -a  $UCLINUX_DIST_PATH_BAK/user/busybox  .
   fi
 
+  if [ ${AUTO_TESTCASE[$i]} == "shared_flat" ] ; then
+  cd $UCLINUX_DIST_PATH/ 
+  make clean > /dev/null 2>&1
+  fi
+
   if [ ${AUTO_TESTCASE[$i]} == "xip" ] ; then
   cp $UCLINUX_DIST_PATH/images/linux.romfs $THIS_LOG/linux.romfs.${AUTO_TESTCASE[$i]}
   fi 
