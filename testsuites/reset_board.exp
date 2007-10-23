@@ -143,15 +143,14 @@ set timeout 50
         expect {
             "Hit any key" {
              send "\r"
+             break
+
             }
 
             "2" {
              send "\r"
-            }
-
-            ">" {
              break
-	    }
+            }
 
             timeout {
              send_user "u-boot miss the hit any key prompt\n"
@@ -161,6 +160,7 @@ set timeout 50
     }
 
 
+expect ">"
 send -s "\r"
 expect ">"
 
