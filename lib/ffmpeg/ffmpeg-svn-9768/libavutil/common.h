@@ -137,6 +137,13 @@ static inline int mid_pred(int a, int b, int c)
         :"r"(b), "r"(c)
     );
     return i;
+#elif defined(ARCH_BFIN)
+    int x,y;
+    x = FFMAX(a,b);
+    y = FFMIN(a,b);
+    a = FFMIN(x,c);
+    b = FFMAX(a,y);
+    return b;
 #elif 0
     int t= (a-b)&((a-b)>>31);
     a-=t;
