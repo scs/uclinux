@@ -129,7 +129,7 @@ fi
 
    MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]=""  [13]="linphone"  [14]="sport_uart"  [15]="netaudio" [16]="touchscreen" [17]="microwin" [$(( n + 1 ))]="serial_uart1" [$(( n + 2 ))]="konqueror" )
 
-   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"     [2]="1"    [3]="1"    [4]="1"  [5]="1"  [6]="1"  [7]="1" [8]="1"  [9]="1"  [10]="1"   [11]="1"  [12]="1"  [13]="1"  [14]="1"  [15]="1" [16]="1" [17]="1"  [$(( n + 1 ))]="0" [$(( n + 2 ))]="0" )
+   MANUAL_RUN_STATUS=( [0]="1"    [1]="1"     [2]="1"    [3]="1"    [4]="1"  [5]="1"  [6]="1"  [7]="1" [8]="1"  [9]="1"  [10]="1"   [11]="1"  [12]="1"  [13]="0"  [14]="1"  [15]="1" [16]="1" [17]="1"  [$(( n + 1 ))]="0" [$(( n + 2 ))]="0" )
 
 
 #################################    BOARD CONFIG DEFINITION    ###################################################### 
@@ -138,7 +138,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    
    BOARD_TYPE=BF537-STAMP
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[26]="1"; AUTO_RUN_STATUS[$(( n + 3 ))]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"; MANUAL_RUN_STATUS[13]="0"     
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[26]="1"; AUTO_RUN_STATUS[$(( n + 3 ))]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"     
 
 fi
 
@@ -187,7 +187,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-CF" ] ; then
 
    BOARD_TYPE=BF537-STAMP
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[10]="0"; AUTO_RUN_STATUS[11]="0"; AUTO_RUN_STATUS[12]="0"; AUTO_RUN_STATUS[23]="1"; AUTO_RUN_STATUS[24]="1"; AUTO_RUN_STATUS[25]="1" ; MANUAL_RUN_STATUS[13]="0"      
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[10]="0"; AUTO_RUN_STATUS[11]="0"; AUTO_RUN_STATUS[12]="0"; AUTO_RUN_STATUS[23]="1"; AUTO_RUN_STATUS[24]="1"; AUTO_RUN_STATUS[25]="1"       
 fi
 
 
@@ -234,7 +234,7 @@ fi
 
 if [ $BINARY_FORMAT = "elf" ] ; then
 
-   AUTO_RUN_STATUS[47]="0";
+   AUTO_RUN_STATUS[47]="0"; MANUAL_RUN_STATUS[13]="1"
 fi
 
 
