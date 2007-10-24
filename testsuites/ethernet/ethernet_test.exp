@@ -57,7 +57,7 @@ expect sh_prompt
 send -s "sudo ./netserver_x86 \r"
 while 1 {
    expect {
-      "Password:" {
+      -re "\[Pp\]assword:" {
          send -s "$password\r" 
          expect "Starting netserver"
          break
@@ -114,7 +114,7 @@ set timeout 3
 send -s "sudo pkill netserver_x86 \r"
 while 1 {
    expect {
-      "Password:" {
+     -re "\[Pp\]assword:" {
 	send -s "$password\r" 
         expect sh_prompt
          break
