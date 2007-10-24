@@ -684,9 +684,13 @@ time_t t;
 		return buf;
 	}
 	tmp = localtime(&t);
-	sprintf(buf, "%02d/%02d/%02d-%02d:%02d:%02d",
-		tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday,
-		tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
+	if (tmp == NULL)
+		snprintf(buf, sizeof buf, "%lu",
+			(unsigned long) t);
+	else
+		sprintf(buf, "%02d/%02d/%02d-%02d:%02d:%02d",
+			tmp->tm_year + 1900, tmp->tm_mon + 1, tmp->tm_mday,
+			tmp->tm_hour, tmp->tm_min, tmp->tm_sec);
 	return buf;
 }
 
