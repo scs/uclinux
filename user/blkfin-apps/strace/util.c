@@ -669,6 +669,8 @@ int len;
 char *laddr;
 {
 #ifdef BFIN
+	if (!addr)
+		return -1;
 	memcpy (laddr, (void *)addr, len);
 #else
 #ifdef LINUX
