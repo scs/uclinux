@@ -1,0 +1,124 @@
+#!/usr/bin/expect --
+
+# Build Kernel for USB host test
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+
+step "Make config."
+source  make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+    expect {
+        -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+            send "$board_type\r"
+        }
+
+        -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+            send "y\r"
+        }
+
+        -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+            send "y\r"
+        }
+
+        -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
+            send "0x88C0\r"
+        }
+
+        -re "SCSI device support \\\(SCSI\\\).*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "SCSI disk support.*BLK_DEV_SD.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Support for Host-side USB.*USB.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "ISP1760 HCD support.*USB_ISP1760_HCD.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "USB Mass Storage support.*USB_STORAGE.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[.*]" {
+            send "437\r"
+        }
+
+        -re "Default iocharset for FAT \\\(FAT_DEFAULT_IOCHARSET\\\).*\\\[.*]" {
+            send "iso8859-1\r"
+        }
+
+        -re "Default NLS Option \\\(NLS_DEFAULT\\\).*\\\[.*]" {
+            send "iso8859-1\r"
+        }
+
+        -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
+            send "y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file

@@ -13,15 +13,15 @@ step "Spawn kermit"
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
-
 source ../reboot_kernel.exp 
 
 set case_num 0
+incr case_num
 
 step "Start testing."
 
-incr case_num
 sleep 10
+set timeout 10
 send "\r"
 while 1 {
    expect {
