@@ -136,8 +136,32 @@ void eXosip_get_localip_for(char *address_to_reach,char **loc){
 	}
 	freeaddrinfo(res0);
 	if (sock==-1){
-		eXosip_trace(OSIP_WARNING,("Could not find interface to reach %s\n",address_to_reach));
-		return;
+		struct if_nameindex *ret = if_nameindex();
+		if (ret)
+			sock = socket(eXosip.ip_family, SOCK_DGRAM, IPPROTO_IP);
+		if (sock != -1) {
+			struct ifreq ifr;
+			size_t i;
+			for (i = 0; ret[i].if_name; ++i)
+				if (strcmp(ret[i].if_name, "lo"))
+					strcpy(ifr.ifr_name, ret[i].if_name);
+			if (ioctl(sock, SIOCGIFADDR, &ifr) ||
+			    !inet_ntop(eXosip.ip_family, &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr, *loc, MAXHOSTNAMELEN))
+			{
+				close(sock);
+				sock = -1;
+			}
+			if_freenameindex(ret);
+			if (sock != -1) {
+				eXosip_trace(OSIP_INFO1,("Outgoing interface to reach %s is %s.\n",address_to_reach,*loc));
+				close(sock);
+				return;
+			}
+		}
+		if (sock == -1) {
+			eXosip_trace(OSIP_WARNING,("Could not find interface to reach %s\n",address_to_reach));
+			return;
+		}
 	}
 	res0=NULL;
 	res=NULL;
