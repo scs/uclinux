@@ -17,7 +17,6 @@ set TEST_FAIL               "fail"
 
 set case_num 0
 
-if { $board_type == "BF537-STAMP" } {
 
 step "Mount modules"
 
@@ -39,6 +38,8 @@ while 1 {
     }
 }
 expect ">"
+
+if { $board_type == "BF537-STAMP" } {
 
 incr case_num
 set timeout 5
@@ -110,7 +111,7 @@ send -s "cat /proc/mtd \r"
 while 1 {
     expect {
 
-	"mtd1" {
+	"mtd$nand_rootfs_num" {
 		set mtd_temp_result $TEST_PASS
                 case_pass $case_num
 	}
@@ -134,7 +135,7 @@ incr case_num
 step "Erase MTD "
 set mtd_temp_result $TEST_FAIL
 set timeout 180
-send -s "eraseall /dev/mtd1\r"
+send -s "eraseall /dev/mtd$nand_rootfs_num\r"
 while 1 {
     expect {
 	
@@ -165,7 +166,7 @@ incr case_num
 step "Reading MTD "	
 set mtd_temp_result $TEST_FAIL
 set timeout 60
-send -s "mount -t yaffs2 /dev/mtdblock1 /mnt\n"
+send -s "mount -t yaffs2 /dev/mtdblock$nand_rootfs_num /mnt\n"
 while 1 {
     expect {
                                                                                                                                                              
