@@ -1,0 +1,77 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+set runs_number 1000
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated, 
+# for it is the default value.
+# set bootargs 	$bootargs_param0   
+source ../reboot_kernel.exp 
+
+step "Start testing."
+
+set timeout 5
+
+send "cd bin\r" 
+while 1 {
+   expect {
+      "bin*>" {         
+         break
+      }
+
+      timeout { 
+                case_fail $case_num
+	exit
+      }
+   }
+}
+
+set case_num 0
+
+set timeout 1000
+
+incr case_num
+send -s  "./whetstone $runs_number\r" 
+while 1 {
+   expect {
+     -re "Duration: +(\[0-9]+) sec" {
+            set duration $expect_out(1,string)    
+      }
+
+     -re "Double Precision Whetstones: +(\[0-9.]+) MIPS" {
+            set double_precision  $expect_out(1,string)    
+      }
+
+      "bin*>" {         
+            case_pass $case_num
+            puts "Duration is $duration sec."
+            puts "Double Precision Whetstones is $double_precision MIPS ."
+            break
+      }
+
+      timeout {
+            case_fail $case_num
+	    exit
+         }
+     }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
+
