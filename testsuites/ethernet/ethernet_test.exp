@@ -196,7 +196,7 @@ while 1 {
         }
         send -s "root\r"
         expect {
-                "Password:" { }
+                -re "\[Pp\]assword:" { }
                 timeout { send_user "Failed first return\n"
                         break }
         }

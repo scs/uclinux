@@ -20,83 +20,84 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 set case_num 0
-incr case_num
+set timeout 20
 
 sleep 5
 send "\r"
+expect ">"
 
+incr case_num
 send "modprobe bfin_ad7171fb\r"
 while 1 {
-   expect {
-      "bfin_ad7171_fb: initializing*fb memory address : 0x*" {
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
+    expect {
+        -re "bfin_ad7171_fb: initializing.*fb memory address : 0x.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
-expect ">"
 
 set timeout 15
 incr case_num
-send "video_test \r"
-expect "\r"
+send "video_test\r"
 while 1 {
-   expect {
-     -re "\[a-zA-Z0-9]" {
-         case_fail $case_num
-         exit
-      }
-
-      timeout {
-         send -s "\3"
-         expect ">"
-         case_pass $case_num
-         break
-         }
-     }
+    expect {
+        -re "\r\n\[a-zA-Z0-9]" {
+            case_fail $case_num
+        }
+        timeout {
+            case_pass $case_num
+            break
+        }
+    }
 }
 
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+        "root:~>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
 incr case_num
 send "rmmod bfin_ad7171fb\r"
 expect "\r"
 while 1 {
-   expect {
-     -re ">" {
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
+    expect {
+        -re ">" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 incr case_num
 send "lsmod\r" 
 while 1 {
-   expect {
-     -re ">" {
-         case_pass $case_num
-         break
-      }
-
-     "bfin_ad7171fb" {
-         case_fail $case_num
-         exit
-         }
-
-      timeout {
-         case_fail $case_num
-         exit
-         }
-     }
+    expect {
+        -re ">" {
+            case_pass $case_num
+            break
+        }
+        "bfin_ad7171fb" {
+            case_fail $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 send_log "\n"

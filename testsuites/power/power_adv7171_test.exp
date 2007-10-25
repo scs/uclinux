@@ -68,11 +68,10 @@ proc test_standby {} {
 
     set timeout 15
     incr case_num
-    send "video_test \r"
-    expect "\r"
+    send "video_test\r"
     while 1 {
         expect {
-            -re "\[a-zA-Z0-9]" {
+            -re "\r\n\[a-zA-Z0-9]" {
                 case_fail $case_num
             }
             timeout {
@@ -141,7 +140,6 @@ send "modprobe bfin_ad7171fb\r"
 while 1 {
     expect {
         -re "bfin_ad7171_fb: initializing.*fb memory address : 0x.*>" {
-            case_pass $case_num
             break
         }
         timeout {
@@ -150,14 +148,25 @@ while 1 {
         }
     }
 }
+send "lsmod\r" 
+while 1 {
+    expect {
+        -re "bfin_ad7171fb.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
 set timeout 15
 incr case_num
-send "video_test \r"
-expect "\r"
+send "video_test\r"
 while 1 {
     expect {
-        -re "\[a-zA-Z0-9]" {
+        -re "\r\n\[a-zA-Z0-9]" {
             case_fail $case_num
         }
         timeout {

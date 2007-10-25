@@ -69,11 +69,10 @@ proc test_standby {} {
 
     set timeout 15
     incr case_num
-    send "video_test \r"
-    expect "\r"
+    send "video_test\r"
     while 1 {
         expect {
-            -re "\[a-zA-Z0-9]" {
+            -re "\r\n\[a-zA-Z0-9]" {
                 case_fail $case_num
             }
             timeout {
@@ -157,11 +156,10 @@ while 1 {
 
 set timeout 15
 incr case_num
-send "video_test \r"
-expect "\r"
+send "video_test\r"
 while 1 {
     expect {
-        -re "\[a-zA-Z0-9]" {
+        -re "\r\n\[a-zA-Z0-9]" {
             case_fail $case_num
         }
         timeout {

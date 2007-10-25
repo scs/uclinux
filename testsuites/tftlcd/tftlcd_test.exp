@@ -22,10 +22,11 @@ source ../reboot_kernel.exp
 step "Start testing."
 set case_num 0
 
+set timeout 10
 sleep 5
 send "\r"
+expect ">"
 
-set timeout 10
 incr case_num
 if { $board_type == "BF548-EZKIT" } {
     send "modprobe bf54x-lq043\r"
@@ -38,7 +39,6 @@ while 1 {
             case_pass $case_num
             break
         }
-
         timeout {
             case_fail $case_num
         }
@@ -47,21 +47,31 @@ while 1 {
 
 set timeout 15
 incr case_num
-send "video_test \r"
-expect "\r"
+send "video_test\r"
 while 1 {
-   expect {
-     -re "\[a-zA-Z0-9]" {
-         case_fail $case_num
-      }
+    expect {
+        -re "\r\n\[a-zA-Z0-9]" {
+            case_fail $case_num
+        }
+        timeout {
+            case_pass $case_num
+            break
+        }
+    }
+}
 
-      timeout {
-         send -s "\3"
-         expect ">"
-         case_pass $case_num
-         break
-         }
-     }
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+        "root:~>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 set timeout 5
@@ -92,11 +102,9 @@ while 1 {
             case_pass $case_num
             break
         }
-
         "lq0.*>" {
             case_fail $case_num
         }
-
         timeout {
             case_fail $case_num
         }

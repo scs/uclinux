@@ -17,16 +17,17 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 set case_num 0
+set timeout 20
 
 sleep 5
 send "\r"
+expect ">"
 
-set timeout 20
 incr case_num
 send "modprobe i2c-bfin-twi\r"
 while 1 {
     expect {
-        -re "Blackfin I2C TWI driver.*>" {
+        -re "i2c-bfin-twi.*I2C TWI.*regs_base.*>" {
             case_pass $case_num
             break
         }
@@ -53,11 +54,10 @@ while 1 {
 
 set timeout 15
 incr case_num
-send "video_test \r"
-expect "\r"
+send "video_test\r"
 while 1 {
     expect {
-        -re "\[a-zA-Z0-9]" {
+        -re "\r\n\[a-zA-Z0-9]" {
             case_fail $case_num
         }
         timeout {
@@ -67,7 +67,7 @@ while 1 {
     }
 }
 
-set timeout 15
+set timeout 10
 incr case_num
 send -s "\3"
 while 1 {
@@ -87,7 +87,7 @@ incr case_num
 send "rmmod bfin_adv7393fb\r"
 while 1 {
     expect {
-        -re "..root:~>" {
+        -re "root:~>" {
             case_pass $case_num
             break
         }
