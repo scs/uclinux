@@ -1,4 +1,4 @@
-VER = libpng-1.2.18
+VER = libpng-1.2.22
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
