@@ -51,7 +51,7 @@ set bootargs_param3      "root=/dev/mtdblock0 rw mem=32M max_mem=64M"
 set bootargs_param4      "root=/dev/mtdblock1 rw rootfstype=yaffs2"
 set bootargs_param5      "mtdparts=physmap-flash.0:256k(uboot)ro,1792k(kernel),-(rootfs) earlyprintk=serial,uart0,57600"
 set bootargs_param6      "mtdparts=physmap-flash.0:256k(uboot)ro,1792k(kernel),-(rootfs) root=/dev/mtdblock2 rw rootfstype=jffs2 earlyprintk=serial,uart0,57600"
-set bootargs_param7      "mtdparts=physmap-flash.0:256k(uboot)ro,1792k(kernel),-(rootfs) root=/dev/mtdblock3 rw rootfstype=jffs2 earlyprintk=serial,uart0,57600"
+set bootargs_param7      "mtdparts=physmap-flash.0:256k(uboot)ro,1792k(kernel),-(rootfs) root=/dev/mtdblock2 rw rootfstype=jffs2 earlyprintk=serial,uart0,57600"
 set bootargs_param8      "root=/dev/mtdblock4 rw rootfstype=jffs2 earlyprintk=serial,uart0,57600"
 set bootargs 		 $bootargs_param0
 

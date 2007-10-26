@@ -26,6 +26,7 @@ source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 send -s "set bootargs $bootargs\r"
+expect ">"
 source ../reboot_kernel.exp
 
 set TEST_PASS               "pass"
