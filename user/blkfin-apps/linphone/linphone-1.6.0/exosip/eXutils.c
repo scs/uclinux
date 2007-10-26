@@ -142,14 +142,17 @@ void eXosip_get_localip_for(char *address_to_reach,char **loc){
 		if (sock != -1) {
 			struct ifreq ifr;
 			size_t i;
-			for (i = 0; ret[i].if_name; ++i)
-				if (strcmp(ret[i].if_name, "lo"))
-					strcpy(ifr.ifr_name, ret[i].if_name);
-			if (ioctl(sock, SIOCGIFADDR, &ifr) ||
-			    !inet_ntop(eXosip.ip_family, &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr, *loc, MAXHOSTNAMELEN))
-			{
-				close(sock);
-				sock = -1;
+			for (i = 0; ret[i].if_name; ++i) {
+				if (!strcmp(ret[i].if_name, "lo"))
+					continue;
+				strcpy(ifr.ifr_name, ret[i].if_name);
+				if (ioctl(sock, SIOCGIFADDR, &ifr))
+					continue;
+				if (!inet_ntop(eXosip.ip_family, &((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr, *loc, MAXHOSTNAMELEN)) {
+					close(sock);
+					sock = -1;
+				}
+				break;
 			}
 			if_freenameindex(ret);
 			if (sock != -1) {
