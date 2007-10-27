@@ -1,4 +1,4 @@
-VER = SDL-1.2.11
+VER = SDL-1.2.12
 
 CONF_OPTS = \
 	--disable-arts \
