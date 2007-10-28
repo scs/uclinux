@@ -1,0 +1,105 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<HTML>
+  <HEAD>
+    <TITLE>LIRC - Linux Infrared Remote Control</TITLE>
+    <LINK REL=stylesheet TYPE="text/css" HREF="../lirc.css">
+    <LINK REL="shortcut icon" HREF="../favicon.ico">
+    <META NAME="description" CONTENT="LIRC - Linux Infra-red Remote Control">
+    <META NAME="keywords" CONTENT="linux, kernel module, remote control, animax, multimedia">
+  </HEAD>
+  
+  <BODY BACKGROUND="../images/marb18.jpg"
+    BGCOLOR="#FFFFFF" TEXT="#000000" ALINK="#8080FF">
+    <TABLE WIDTH="100%" BORDER="0" CELLSPACING="0" CELLPADDING="0">
+      <TR>
+	<TD CLASS="menu" WIDTH="100%" HEIGHT="150">
+	  <IMG SRC="../images/diode.gif" ALT=""
+	    WIDTH="300" HEIGHT="150" BORDER="0" HSPACE="20"
+	    VSPACE="0" ALIGN="LEFT"> 
+	  <IMG SRC="../images/lirc.gif" ALT=""
+	    WIDTH="300" HEIGHT="150" BORDER="0" HSPACE="20"
+	    VSPACE="0" ALIGN="RIGHT">
+	</TD>
+      </TR>
+      <TR>
+	<TD WIDTH="100%">&#160;<BR>
+	  <TABLE WIDTH="100%" BORDER="0" CELLSPACING="0" CELLPADDING="0">
+	    <TR>
+	      <TD WIDTH="15%">&#160;<BR></TD>
+	      <TD WIDTH="70%" ALIGN="LEFT" VALIGN="TOP">&#160;<BR>
+
+<!-- Text ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+
+<H1>IREXEC</H1>
+<HR>
+
+<A NAME="lbAB">&nbsp;</A>
+<H2>NAME</H2>
+
+irexec - run programs with one button press
+<A NAME="lbAC">&nbsp;</A>
+<H2>SYNOPSIS</H2>
+
+<B>irexec</B>
+
+[<I>options</I>] [<I>config_file</I>]
+<A NAME="lbAD">&nbsp;</A>
+<H2>DESCRIPTION</H2>
+
+This program lets you execute arbitrary commands on an IR signal decoded
+by lircd, the LIRC daemon. You can give irexec a command line parameter
+which has to be a name of a valid config file. If no command line
+parameters are given irexec reads the default config file which is
+usually ~/.lircrc.
+<P>
+If irexec executes a program it will wait until this program terminates.
+So append a '&amp;' to the command string if you don't want that.
+<P>
+The config string consists of the command to be run.
+<DL COMPACT>
+<DT><B>-h</B> <B>--help</B><DD>
+display usage summary
+<DT><B>-v</B> <B>--version</B><DD>
+display version
+<DT><B>-d</B> <B>--daemon</B><DD>
+run in background
+<DT><B>-n</B> <B>--name</B><DD>
+use this program name
+</DL>
+<A NAME="lbAE">&nbsp;</A>
+<H2>OPTIONS</H2>
+
+If you add the --daemon option irexec will fork to
+background. That way you can easily start irexec from an init script. In
+this case you should specify a config file on the command line as irexec
+won't be able to find your home directory. Potential uses are shutting
+down the computer, starting a dial-up connection etc.
+<A NAME="lbAF">&nbsp;</A>
+<H2>NOTE</H2>
+
+If you start irexec, it reads your ~/.lircrc and reacts only on
+prog= entries that point to irexec. If you have included more than one
+program in your .lircrc, then start all these programs, they react
+itself only to their according entries in .lircrc.
+<A NAME="lbAG">&nbsp;</A>
+
+<!-- +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+
+		<BR><BR>
+		<CENTER>[<A HREF="http://www.lirc.org/">LIRC homepage</A>]<BR>
+		  <I>The LIRC Manual, last update: 17-Jan-2007</I></CENTER>
+		<BR><BR>
+	      </TD>
+	      <TD WIDTH="15%">&#160;<BR></TD>
+	    </TR>
+	  </TABLE>
+	</TD>
+      </TR>
+      <TR>
+	<TD CLASS="menu" WIDTH="100%">&#160;<BR>
+	</TD>
+      </TR>
+    </TABLE>
+  </BODY>
+</HTML>

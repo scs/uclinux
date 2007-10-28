@@ -1,0 +1,5 @@
+This is my todo-list for lirc_it87:
+
+1. enabling/using shared IRQ
+2. init/drop IRQ-usage in lirc_open/lirc_close
+

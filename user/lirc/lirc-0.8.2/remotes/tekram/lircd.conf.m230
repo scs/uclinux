@@ -1,0 +1,48 @@
+#
+# This is for the remote that Tekram bundles with its M230 card (Mach64)
+# Commands from the remote are hardware-decoded
+#
+# contributed by Froenchenko Leonid <lfroen@galileo.co.il>
+#
+# brand:             Tekram M230 (ATI Mach64)
+# supported devices: This remote control comes with TV Tuner cards from
+#                    Tekram based on ATI 264VT (btt829)
+#
+
+begin remote
+  name  M230
+  bits  8
+      begin codes
+	0		0x00
+	1		0x01
+	2		0x02
+	3		0x03
+	4		0x04
+	5		0x05
+	6		0x06
+	7		0x07
+	8		0x08
+	9		0x09
+	RECALL		0x0A
+	ENTER		0x17
+	POWER		0x1C
+	SOURCE		0x15
+	PC_VID		0x12
+	STILL		0x11
+	TTX		0x0F
+	FAV		0x13
+	MUTE		0x10
+	VOL_UP		0x1A
+	VOL_DN		0x1E
+	CH_UP		0x1B
+	CH_DN		0x1F
+	PLAY		0x0D
+	STOP		0x0E
+	REW		0x1D
+	FFW		0x19
+	ADD_ER		0x16
+	FUNC		0x14
+ 	F_PLUS		0x18
+	F_MINUS		0x0C
+     end codes
+end remote

@@ -1,0 +1,86 @@
+# Made by Leandro Lucarella <luca@lugmen.org.ar>
+#
+# brand:             Leadtek
+# model:             RM-0007 (bundeled with WinView 601TV card)
+#
+# Based on Winfast TV200:
+# 		modified by CB
+#
+# 		contributed by Erik Christiansson, aka Sci
+# 		www.alphafish.com
+# 		erik@alphafish.com
+#
+# 		modifications based on the config files from 
+# 		Juan Toledo <toledo@users.sourceforge.net> and 
+# 		Markus Lischka <mlischka@users.sourceforge.net>
+#
+# With some modification based on a patch for WinView 601 made by
+# Juan FC. <juan@kili.com.ar>
+#
+# Only CH_UP, CH_DOWN, VOL_UP and VOL_DOWN will repeat. This seems to
+# be a hardware limitation.
+#
+
+begin remote
+
+  name            RM-0007
+  bits            16
+  flags           SPACE_ENC|CONST_LENGTH
+  eps             40
+  aeps            100
+
+  header          9000  4500
+  one           629  1617
+  zero          629   495
+  ptrail        632
+  repeat          9000  2250
+  pre_data_bits   16
+  pre_data        0xC03F
+  gap             108000
+  toggle_bit      0
+
+  frequency    38000
+  duty_cycle   33
+
+      begin codes
+# 1st row of buttons
+          POWER                    0x00000000000000FF
+          MENU                     0x000000000000807F
+          FM                       0x00000000000040BF
+          PC/TV                    0x000000000000C03F
+# volume/channel
+          VOL_UP                   0x00000000000020DF
+          VOL_DOWN                 0x00000000000010EF
+          CH_UP                    0x00000000000030CF
+          CH_DOWN                  0x00000000000008F7
+# numbers pad
+          1                        0x000000000000A05F
+          2                        0x000000000000609F
+          3                        0x000000000000E01F
+          4                        0x000000000000906F
+          5                        0x00000000000050AF
+          6                        0x000000000000D02F
+          7                        0x000000000000B04F
+          8                        0x000000000000708F
+          9                        0x000000000000F00F
+          RETURN                   0x0000000000008877
+          0                        0x00000000000048B7
+          DISPLAY                  0x000000000000C837
+# unknown icon buttons
+          HELP                     0x00000000000038C7
+          SCAN                     0x000000000000A857
+          OSD                      0x0000000000006897
+          OPTIONS                  0x000000000000E817
+# labeled buttons
+          MUTE                     0x00000000000028D7
+          MTS                      0x000000000000D827
+          VIDEO                    0x0000000000007887
+          CC                       0x000000000000F807
+# color dots buttons
+          RED                      0x00000000000018E7
+          GREEN                    0x0000000000009867
+          YELLOW                   0x00000000000058A7
+          BLUE                     0x000000000000B847
+      end codes
+
+end remote

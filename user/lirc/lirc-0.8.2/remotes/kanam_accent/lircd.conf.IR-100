@@ -1,0 +1,77 @@
+#
+# Contributed by
+# - Leandro Dardini <ldardini@tiscali.it>
+# - Niccolo Rigacci <niccolo@rigacci.org>
+#
+# brand: Kanam (now Aristec) Accent
+# model no. of remote control: IR-100 Serial Remote Control
+# devices being controlled by this remote: IR-100
+#
+# To be used with the "accent" LIRC driver.
+#
+# Serial port: 1200, 8N1
+# Gap between normal keypress:  188500 us
+# Gap between repeated keypress: 56022 us
+#
+
+begin remote
+
+  name  Kanam_Accent_IR-100
+  bits           32
+  eps            30
+  aeps          100
+
+  pre_data_bits   24
+  pre_data       0x904642
+  post_data_bits  8
+  post_data      0x0
+  gap          188500
+
+
+      begin codes
+          power                    0x62260942
+          eject                    0x62662409
+          1                        0x62662209
+          2                        0x22642209
+          3                        0x62641142
+          4                        0x62644209
+          5                        0x22624209
+          6                        0x62629142
+          7                        0x62628942
+          8                        0x22646409
+          9                        0x62646609
+          0                        0x22464226
+          win_key                  0x62664226
+          menu_key                 0x62660942
+          vol-                     0x22896642
+          vol+                     0x62622609
+          esc                      0x22662609
+          up                       0x22916642
+          close                    0x22994642
+          left                     0x22994242
+          ent                      0x22892642
+          right                    0x22914642
+          prev                     0x62996242
+          down                     0x22192699
+          next                     0x22660942
+          mute                     0x22622409
+          step                     0x62994C42
+          play                     0x22246426
+          stop                     0x6246894C
+          winamp                   0x62426409
+          mediaplayer              0x22664409
+          hdtv                     0x22992642
+          cdplayer                 0x62664609
+          windvd                   0x62992299
+          powerdvd                 0x62912242
+          internet                 0x62264626
+          email                    0x22998C99
+          b1                       0x22264426
+          b2                       0x22426209
+          b3                       0x62896442
+          b4                       0x22096642
+      end codes
+
+end remote
+
+

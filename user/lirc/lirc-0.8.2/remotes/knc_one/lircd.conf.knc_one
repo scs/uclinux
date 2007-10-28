@@ -1,0 +1,62 @@
+#
+# this config file was automatically generated
+# using lirc-0.6.3 on Tue Apr 10 18:39:55 2001
+#
+# contributed by Ulrich Mueller <ulrich.mueller42@web.de>
+#
+# brand:             KNC ONE
+# model:             TV Station (-/SE/PRO/RDS)
+#
+# brand:             Anubis
+# model:             Typhoon TView Tuner (-/Stereo/RDS)
+#
+
+begin remote
+
+  name  lircd.conf
+  bits            8
+  eps            30
+  aeps          100
+
+  one             0     0
+  zero            0     0
+  gap          199992
+  toggle_bit      0
+
+
+      begin codes
+          TV/FM                    0x000000000000001C
+          OK                       0x0000000000000015
+          F1                       0x000000000000000B
+          POWER                    0x0000000000000012
+          AV/TV                    0x0000000000000011
+          TELETEXT                 0x000000000000000F
+          FULLSCREEN               0x0000000000000013
+          MUTE                     0x0000000000000010
+          1                        0x0000000000000001
+          2                        0x0000000000000002
+          3                        0x0000000000000003
+          4                        0x0000000000000004
+          5                        0x0000000000000005
+          6                        0x0000000000000006
+          7                        0x0000000000000007
+          8                        0x0000000000000008
+          9                        0x0000000000000009
+          0                        0x0000000000000000
+          CH+                      0x000000000000001A
+          CH-                      0x000000000000001E
+          VOL+                     0x000000000000001B
+          VOL-                     0x000000000000001F
+          SNAPSHOT                 0x000000000000000A
+          100+                     0x0000000000000017
+          RECORD                   0x000000000000000D
+          PAUSE                    0x000000000000000E
+          PLAY                     0x000000000000001D
+          STOP                     0x0000000000000019
+          MENU                     0x0000000000000016
+          ESC                      0x0000000000000014
+          -                        0x0000000000000018
+          +                        0x000000000000000C
+      end codes
+
+end remote

@@ -1,0 +1,116 @@
+#
+#
+# contributed by P_awe_L pablozrudnika@wp.pl
+#
+# brand:             PC MAK/MINIMAK LASER/MINIMAK
+# model:             Value Infrared Remote Control
+# supported devices: PC MAK receiver
+#
+
+begin remote
+
+  name  PC_MAK
+  bits           8
+  flags SPACE_ENC|CONST_LENGTH
+  eps           15
+  aeps          100
+
+  one             0   833
+  zero          833     0
+  pre_data_bits   8
+  pre_data       0xAA
+  gap           100000
+  repeat_bit      0
+
+      begin codes
+          HOME                     0x0000000000000001
+          ARROW_UP                 0x0000000000000002
+          PG_UP                    0x0000000000000003
+          ARROW_LEFT               0x0000000000000004
+          ENTER                    0x0000000000000005
+          ARROW_RIGHT              0x0000000000000006
+          END                      0x0000000000000007
+          ARROW_DOWN               0x0000000000000008
+          PG_DN                    0x0000000000000009
+          SPACE                    0x000000000000000A
+          TAB                      0x000000000000000B
+          ESC                      0x000000000000000C
+          ALT                      0x000000000000000D
+          PLAYLIST                 0x000000000000000E
+          LOAD                     0x000000000000000F
+          MOUSE_N                  0x0000000000000010
+          MOUSE_NE                 0x0000000000000011
+          MOUSE_E                  0x0000000000000012
+          MOUSE_SE                 0x0000000000000013
+          MOUSE_S                  0x0000000000000014
+          MOUSE_SW                 0x0000000000000015
+          MOUSE_W                  0x0000000000000016
+          MOUSE_NW                 0x0000000000000017
+          FULLSCREEN               0x0000000000000018
+          BUTTONL_DOWN             0x0000000000000019
+          BUTTONR_DOWN             0x000000000000001A
+          POWER                    0x000000000000001B
+          A                        0x000000000000001C
+          B                        0x000000000000001D
+          C                        0x000000000000001E
+          D                        0x000000000000001F
+          VOL_DOWN                 0x0000000000000020
+          MUTE                     0x0000000000000021
+          VOL_UP                   0x0000000000000022
+          PLAY                     0x0000000000000024
+    	  PREV                     0x0000000000000026
+          PAUSE                    0x0000000000000027
+          NEXT                     0x0000000000000028
+          SKIP_BACK                0x0000000000000029
+          STOP                     0x000000000000002A
+          SKIP_FORW                0x000000000000002B
+          1                        0x0000000000000041
+          2                        0x0000000000000042
+          3                        0x0000000000000043
+          4                        0x0000000000000044
+          5                        0x0000000000000045
+          6                        0x0000000000000046
+          7                        0x0000000000000047
+          8                        0x0000000000000048
+          9                        0x0000000000000049
+          0                        0x000000000000004A
+          sTAB                     0x000000000000004B
+          sESC                     0x000000000000004C
+          sALT                     0x000000000000004D
+          sPLAYLIST                0x000000000000004E
+          TXT                      0x000000000000004F
+          sMOUSE_N                 0x0000000000000050
+          sMOUSE_NE                0x0000000000000051
+          sMOUSE_E                 0x0000000000000052
+          sMOUSE_SE                0x0000000000000053
+          sMOUSE_S                 0x0000000000000054
+          sMOUSE_SW                0x0000000000000055
+          sMOUSE_W                 0x0000000000000056
+          sMOUSE_NW                0x0000000000000057
+          sOK                      0x0000000000000058
+          BUTTONL_UP               0x0000000000000059
+          BUTTONR_UP               0x000000000000005A
+          EXIT                     0x000000000000005B
+          E                        0x000000000000005C
+          F                        0x000000000000005D
+          G                        0x000000000000005E
+          H                        0x000000000000005F
+          sVOL_DOWN                0x0000000000000060
+          sMUTE                    0x0000000000000061
+          sVOL_UP                  0x0000000000000062
+          sPLAY                    0x0000000000000064
+          sPREV                    0x0000000000000066
+          sPAUSE                   0x0000000000000067
+          sNEXT                    0x0000000000000068
+          ZOOM-                    0x0000000000000069
+          HELP                     0x000000000000006A
+          ZOOM+                    0x000000000000006B
+          MM_PLAY                  0x000000000000002F
+          MM_PREV                  0x0000000000000030
+          MM_NEXT                  0x0000000000000031
+          MM_PAUSE                 0x000000000000005F
+          MM_BACK                  0x0000000000000075
+	  MM_FORW                  0x0000000000000079
+      end codes
+
+end remote

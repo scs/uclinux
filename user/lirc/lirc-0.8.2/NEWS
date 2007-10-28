@@ -1,0 +1,380 @@
+0.8.2: 06/09/07
+  * added support for TechnoTrend USB IR receiver (Stefan Macher)
+  * automatic release event generation in lircd
+  * added support for Apple Mac mini USB IR Receiver (Stephen Williams)
+  * added support for ADSTech USBX-707 USB IR Blaster (Jelle Foks)
+  * periodically try to reopen lirc device if reading fails (probably
+    because USB device has been removed)
+  * added support for Creative USB IR Receiver (SB0540) (Benjamin Drung)
+  * lirc_mceusb2 supports setting carrier frequency
+  * added support for Asus DH remote (Brice DUBOST, Bernhard Frauendienst)
+  * fixed show-stopper bug in RC-6 transmit code
+  * added support for Kanam Accent (Niccolo Rigacci)
+  * added support for SoundGraph iMON 2.4G DT & LT (Morten Bogeskov)
+
+0.8.1: 01/07/07
+  * added support for USB-UIRT
+  * added transmitter support for new version of Windows Media Center
+    transceiver (Daniel Melander)
+  * added support for Iguanaworks USB IR Transceiver (Joseph Dunn)
+
+0.8.0: 01/21/06
+  * added support for Actisys Act220L(+) (Jan Roemisch)
+  * added support for Linksys NSLU2 (Matthias Goebl)
+  * added new program lircrcd:
+    lircrcd reads the .lircrc config file and synchronises the mode
+    that the LIRC clients using this config file (irexec, irxevent,
+    etc.) are in. Using lircrcd has to be explicitly enabled in the
+    config file by adding the following line at the beginning of the
+    file: "#! lircrcd"
+  * the special driver option "any" has been replaced by two new
+    options: "all" and "userspace"
+  * bug fixes when transmitting codes with small gap values:
+    NO_HEAD_REP and RC5 work correctly again 
+
+0.7.2: 08/14/05
+  * added support for new version of Windows Media Center Remotes
+   (Martin Blatter, Eric Moors)
+  * added support for InnovationOne's COMMANDIR USB Transceiver (Evelyn Yeung,
+    Matt Bodkin)
+  * added support for Asus Digimatrix (Andrew Calkin)
+  * bug fixes for Streamzap driver:
+    - device stops responding in some situations
+    - one pulse was dropped from output in certain situations
+  * added support for Sound Blaster Extigy/Audigy 2 NX (Clemens Ladisch)
+  * added support for Remotec Multimedia PC Remote BW6130 (Maik Freudenberg)
+
+0.7.1: 04/17/05
+  * added support for iMON-PAD and iMON-RSC models (Venky Raju)
+  * added support for DViCO USB Remote (William Uther)
+  * added support for Adaptec AVC-2410 capture card (Trev Jackson)
+  * slight change to decode algorithm:
+    decoding was very unreliable since release 0.6.6 for Motorola
+    protocol which is mostly used by Grundig remotes
+  * added support for Winfast PVR2000 TV card (Thomas Reitmayr)
+  * added support for Streamzap PC remote
+  * added support for Soundgraph iMON MultiMedian IR/VFD (Venky Raju)
+  * added support for X10 MouseRemote RF Receiver (Geoffrey Hausheer)
+  * added support for Hauppauge PVR150 (Per Jönsson)
+  * 2.2.x kernels are no longer supported
+  * added support for AOpen XC Cube EA65, EA65-II (Max Krasnyansky)
+  * added IGNORE directive to lircmd (Steven Mueller)
+
+0.7.0: 11/07/04
+  * added userspace USB driver for ATI remotes (Michael Gold)
+  * added support for Igor Cesko's USB IR receiver (Jan Hochstein)
+  * added support for ELMAK PCMAK (Pawel Nowak)
+  * added support for Sasem OnAir Remocon-V (Oliver Stabel)
+  * if no .lircrc file is found in the user's home directory,
+    /etc/lircrc is used
+  * replaced get_key interface with more flexible add_to_buf method
+  * added support for Windows Media Center Remotes (Dan Conti)
+  * fine-tuning of lirc_sir driver available with threshold parameter:
+    the default has been changed from 2 to 3 which should generate 
+    correct signal values for more remotes
+  * added support for alternative IR receiver circuit connected to
+    soundcard input using ALSA (Andrew Zabolotny)
+  * added include command to .lircrc config file (Ingo van Lil)
+  * added support for Prolink Pixelview PV-BT878P+ (Rev.4C,8E)
+  * added support for UIRT2 (Mikael Magnusson)
+  * added support for Home Electronics Tira USB device (Gregory McLean)
+  * added support for Linux input layer (Oliver Endriss, Jack Thomasson)
+  * enabled lircd to optinally (compile time setting) decode buttons
+    that are not included in the config file
+  * added delay directive to .lircrc config file (Tobias Blomberg)
+  * added support for ATI RF Remote Wonder (Paul Miller)
+  * added support for I-O Data GV-BCTV5/PCI TV card (Jens C. Rasmussen)
+  * added support for Creative iNFRA CDROM (Leonid Froenchenko)
+  * added support for Creative BreakOut-Box (Stefan Jahn)
+  * added support for Igor Cesko's receiver variation
+  * added support for Ericsson mobile phone via Bluetooth (Vadim Shliakhov)
+  * added support for X10 MP3 Anywhere RF receiver (Shawn Nycz)
+  * added support for Creative LiveDrive (Stephen Beahm)
+  * added command line options to lircd that allow running multiple
+    instances of the daemon (Kir Kostuchenko)
+  * added support for IR receiver connected to soundcard input,
+    most parts now compile on Mac OS X/Darwin (Matthias Ringwald)
+  * fixed show-stopper bug in RC-6 transmit code
+  * added support for Jetway TV/Capture JW-TV878-FBK, Kworld KW-TV878RF cards
+  * added support for Leadtek WinView 601 TV card
+  * renamed rc tool to irsend due to name clash with another rc program
+  * added support for AverMedia VDOMATE
+  * added support for Flyvideo 98FM (LR50Q) / Typhoon TView TV/FM Tuner
+  * added support for Asus TV-Box (Stefan Jahn)
+
+0.6.6: 10/06/02
+  * added rc tool for sending IR commands (previously included in xrc package)
+  * bugfix for Winfast TV2000 card
+  * added SIR support for Actisys Act200L dongle (Karl Bongers)
+  * added UDP network driver for use with the IPC@Chip (Jim Paris)
+  * added support for hardware connected to soundcard input (Pavel Machek)
+  * added support for Tekram M230 Mach64 (Froenchenko Leonid)
+
+0.6.5: 01/26/02
+  * added support for IntelliMouse to lircmd
+  * added support for ITE IT8712/IT8705 CIR port (Hans-Günter Lütke Uphues)
+  * added support for Prolink PV-BT878P+9B card (Arkadiusz Miskiewicz)
+  * added support for Hauppauge DVB-s card
+  * more transmit bug fixes
+
+0.6.4: 08/15/01
+  * fixed bug in home-brew transmitter code (Steve Davies)
+  * fixed bug in Irdeo transmit code
+  * added support for FlyVideo II TV card (Alexios Chouchoulas)
+  * added support for Compaq iPAQ 
+  * added support for FlyVideo 98/FM TV card
+  * added support for Winfast TV2000 (Juan Toledo)
+  * added support for BT878 version of BestBuy Easy TV card (Miguel Angel)
+  * added support for KNC ONE TV cards (Ulrich Mueller)
+
+0.6.3: 03/10/01
+  * added support for Silitek SM-1000 receiver (Krister Wicksell Eriksson)
+  * added TCP/IP network support (Bryan Clingman)
+  * changed behaviour of the repeat setting in .lircrc.
+    Now the 1st,(n+1)th, (2n+1)th codes are forwarded to the
+    application. I wonder why it ever was anything else...
+  * added support for BestBuy EasyTV (Miguel A. Alvarez
+    <maacruz@navegalia.com>)
+  * added support for ProVideo PV951 (Bogdan Gaspar)
+  * added support for Creative Infra receiver (PC-DVD remote, Stephen White)
+  * major changes to the SIR driver, if you used this driver before
+    you may have to generate new config files for your remotes
+  * Tekram Irmate 210 support (receiving only, EXPERIMENTAL)
+    range is really lousy (<10 cm) for some remotes, works best with
+    RECS80 remotes due to the short pulses this protocol uses
+  * Fly98 TV is now supported by the lirc_gpio module
+  * renamed lirc_gpio_p module to lirc_gpio
+  * added support for Technisat MediaFocus I
+  * changes to transmit code in lirc_serial (read update hints for details)
+  * added support for Pixelview PlayTV (bt878) card
+  * moved lirc_haup to lirc_i2c
+  * added support for Chronos Video Shuttle II TV card (Tonu Raitviir)
+  * added startup_mode flag to .lircrc config file (Bruno Coudoin)
+
+0.6.2: 09/10/00
+  * added support for IRdeo (www.pofahl.de/irdeo.htm). Many thanks to
+    Hans-Hermann Redenius for contributing a device.
+  * Konrad Riedel has added support for CARACA (caraca.sourceforge.net)
+  * added min_repeat option to lircd.conf
+    Some remotes (e.g. Sony) send the IR codes several times if you
+    press a button even though you don't hold the button down. This
+    new option tells lircd how often it should send a code
+    additionally to the first code. In order to send the code three
+    times altogether you have to set min_repeat to 2.
+
+0.6.1: 07/21/00
+  * added support for PCTV (pro) receiver by Pinnacle Systems (Bart Alewijnse)
+  * lircd now can be configured to use syslogd for log output
+    Thanks to Rainer Clasen for the suggestion.
+  * irexec has a --daemon option to easily start it from an init script
+    Thanks to Eric Crahen for the suggestion.
+  * added RC-MM support
+  * added RC-6 support
+  * added support for Slink-e by Nirvis Systems (Max Spring)
+  * added duty_cycle option to lircd.conf
+  * hardware is only initialized if clients have connected to lircd
+    That way modules don't have to be loaded until they are really
+    needed. Thanks to Gilles Chanteperdrix for suggestion and patches.
+  * added support for the following TV cards:
+    Hauppauge, AVerMedia, Fly Video 98, Pixelview PlayTV pro
+  * added hardware abstraction layer for TV cards (Artur Lipowski
+    <lipowski@comarch.pl>)
+
+0.6.0: 04/02/00
+  * SMP support for serial port driver
+  * Milan Pikula has provided a driver for the SIR (serial infrared)
+    mode of IrDA ports available in many notebooks
+  * lirc_client is now a library
+  * irxevent: new keyword:
+     xy_Key <x_position> <y_position> [modifiers-]<key> <windowname>
+  * finally added support of shift-encoded remotes to irrecord
+  * got rid of lirmand, you no longer need it!
+    if you update from lirc-0.5.4 you might want to modify the value
+    of gap in your config file to make repeats work (or just record
+    everything again)
+  * added new feature to .lircrc config file:
+    a program with name 'progname' will startup in mode 'progname' if
+    such a mode is defined
+  * now works on Alphas
+  * added very simple noise filter to serial port driver
+  * added TOGGLE_ACTIVATE directive to lircmd
+  * renamed examples to contrib, added Debian 2.1 Slink init script
+  * cleaned up lircmd.c
+  * fixed bug in lirc_nextir()
+  * implemented extended C escape codes in .lircrc
+  * added IMPS/2 protocol to lircmd
+  * fixed signal bug in lircd, lircmd
+  * cleaned up parallel port driver: works great
+  * reversed order of ChangeLog and renamed to NEWS
+  * deleted all those nice new 0.5.4 Makefiles...
+    we now do automake and autoconf (Tom Wheeley)
+  * fixed memory leak in read_config()
+  * read_config(): parser recognizes garbage at the end of valid lines
+  * irrecord.c: 'begin','end' and names beginning with '#' are not allowed
+    as button name
+  * changed decoding code as last bit of pulse encoded remotes (e.g. SONY)
+    can be significant
+  * irrecord.c: small fix to make NO_HEAD_REP work
+  * started to add support for TV cards
+  * parport support for parallel port driver in 2.2.x kernels
+    As I don't plan to upgrade my Linux box to 2.2.x very soon this code
+    will stay untested until then.
+  * lircd accepts some list commands, an example will be implemented in
+    the next version of xrc; lircd sends a 'SIGHUP' string to all clients
+    on SIGHUP
+  * added new flag to support remote controls that also send a header
+    before repeat codes
+
+
+0.5.4: 02/26/99
+  * fixed misbehaviour when header and repeat code is equal
+  * added new flag to support AIWA remote controls correctly
+  * parser is more pedantic regarding numbers
+  * fixed a bug parsing flags
+  * LONG_IR_CODE is now default
+    There are more remote controls that send >32 bits than I thought.
+  * fixed some bugs in sending code
+  * minor changes to decoding code, I hope that everything else is still
+    working
+  * record now can convert config files in raw mode into normal config
+    files
+    These config files are much smaller and consume less memory.
+    This is still experimental and will only work for space encoded remote
+    controls.
+  * added repeat_gap to support AnimaX remote controls correctly (only
+    sending is affected)
+  * As there have been some changes to the decoding code, I have added some
+    code to simulate any remote control as long as I have a config file
+    for it.
+    So now I am quite sure that everything is still working with the
+    already known remote controls because I now can test it. :-)
+  * merged the device driver with Ben Pfaff's driver
+  * some things done by me (Karsten Scheibler)
+    - added documentation
+    - rewrite of the Makefiles to make installation somewhat easier
+    - new directory structure
+  * fixed a nasty bug in serial port device driver
+  * fixed sense autodetection problem in serial device driver (thanks
+    to Eric Lammerts for the patch)
+  * changed the name of record program to irrecord to avoid name conflicts
+  * fixed another bug in serial port device driver, we must autodetect
+    sense before requesting the IRQ
+  * documentation-update
+  * fixed (I hope) problem with irq_handler in the serial port device driver
+  * changes to the serial port device driver to support the Animax remote
+    control correctly 
+  * added xmode2 and irxevent-0.4.2 to the tools directory (thanks to
+    Heinrich Langos)
+
+
+0.5.3: 11/23/98
+  * changed type of ir_code to unsigned long for faster decoding on
+    32-bit architectures. Change the define in the Makefile to get the
+    old setting.
+  * removed some inlines to reduce code size
+  * changed config file format for all application programs
+    The most important new features are:
+    - one config file for all lirc applications possible
+      You can still have different config files.
+    - toggle buttons possible
+    - button sequences are supported
+    - different modes available for e.g. cd, mpg, tv, etc.
+  * new program: smode2
+
+
+0.5.2: 10/20/98
+  * This version has been done by Pablo d'Angelo and me (Chistoph)
+  * (changed by pablo) changed the config-files format for every application
+    in the apps directory.
+    You can specify the remote within the config files. '*' are allowed as 
+    wildcards for button and remote now. (beware: the config file is parsed 
+    from bottom to top, in case you use button='*')
+  * added ACTIVATE direcitve to lircmd config file
+    There is an example config file in contrib/lircmd.conf now.
+  * added some Philips remote controls (thanks to Per-Henrik Persson)
+  * shift encoded remote contols now work!
+  * Pablo has added config file support to lircd
+    The old header files still can be used for compatibility.
+    As the header files and the format of the config files might change in
+    further versions (yes, it has changed again in this version) you are only
+    on the safe side if you send me header/config files for your remote
+    controls that are not already part of this package.
+  * both lircd and lircmd will re-read their config files an SIGHUP
+  * added support for "raw mode" remote controls to lircd
+    The IR signals are not decoded. Instead the output of the device driver
+    is just recorded and kind of pattern matching is being done to
+    recognize a IR signal.
+    There is a new program in apps:
+    record will create a lircd config file for your remote control in raw mode
+    This also will work with remote contorls that do not use a known
+    protocol for sending IR signals. There might be some limitations on this
+    I am not aware of at the moment, but the only problem I can think of now
+    are remote controls that use a repeat bit.
+    You can still record the IR signals twice for each state of the repeat bit.
+    This will give you good enough results, but this is not an elegant
+    solution.
+
+
+0.5.1: 09/05/98
+  * configureable mouse daemon
+  * minor bugfixes
+
+
+0.5.0: 09/02/98
+  * this is a complete rewrite of the daemon done by me (Christoph)
+  * cleaned up the whole package
+  * removed mouse stuff from daemon, somebody has to write a configureable
+    mouse daemon...
+  * the daemon has been rewritten in plain C,
+    this should be much better to read
+  * there is support for sending again
+    you can download the software for sending via lirc from my homepage
+    at http://fsinfo.cs.uni-sb.de/~columbus/lirc
+  * the data structures for remotes have changed,
+    adding new remotes should be much easier now
+    at this time there is only support for my remote control
+    further remote controls will be added if they are confirmed to work 
+    with the new header files
+  * by default the daemon writes into a logfile in /var/log/lircd
+  * added irxevent for sending events to X application
+    from Heinrich Langos (heinrich@null.net)
+
+
+0.4.1: 06/05/98
+  * The structures for the different remotes have been moved into their own
+    header files, in the directory remotes.  The file remotes.h controls
+    which ones get compiled in.
+  * An additional remote (panasonic) thanks to Tommy Thorn
+  * Some updates to the docs
+  * Somes changes to make shift encoded remotes work better.  They still
+    don't work right.  I don't have one of these remotes, so there isn't
+    much I can do.
+
+
+0.4: 02/25/98
+  * Not official, done by me (Trent)
+  * new mode in kernel driver, easier to use and more stable
+  * Use UNIX domain socket rather than TCP socket for daemon
+  * decoding is more robust
+  * support for Packard Bell remotes, their repeat codes, and mouse control
+  * support for my JVC and Pioneeer remotes
+  * easier config file format, use names like MUTE, POWER instead of hex codes
+  * new program irexec, run programs when you press buttons.
+  * misc other fixes/changes
+  * no transmitting stuff....
+
+
+0.3: 07/21/96
+  * some support for transmitting
+  * cleaned up ir_remote
+  * readir replaced by record
+
+
+0.2: 05/15/96
+  * remote recognition more flexible 
+    for most remotes you only need to fill in a data table now
+    see ir_remote.h and ir_remote.cc
+
+
+0.1: 05/13/96
+  * first release

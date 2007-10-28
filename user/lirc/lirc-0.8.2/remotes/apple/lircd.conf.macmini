@@ -1,0 +1,36 @@
+#
+# this config file was automatically generated
+# using lirc-0.8.2-CVS(macmini) on Sat Apr 28 21:44:03 2007
+#
+# contributed by Stephen Williams
+#
+# brand:                       Apple
+# model no. of remote control: A1156
+# devices being controlled by this remote: Mac mini
+#
+
+begin remote
+
+  name  Apple_A1156
+  bits            8
+  eps            30
+  aeps          100
+
+  one             0     0
+  zero            0     0
+  pre_data_bits   24
+  pre_data       0x87EEFB
+  gap          211995
+
+      begin codes
+          1                        0x09
+          2                        0x06
+          3                        0x0A
+          4                        0x0C
+          5                        0x05
+          6                        0x03
+      end codes
+
+end remote
+
+

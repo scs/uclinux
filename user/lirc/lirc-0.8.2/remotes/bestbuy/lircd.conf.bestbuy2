@@ -1,0 +1,59 @@
+#
+# this config file was automatically generated
+# using lirc-0.6.3(bestbuy2) on Mon Apr 16 19:31:28 2001
+#
+# contributed by Miguel Angel Alvarez <maacruz@navegalia.com>
+#
+# brand:             BESTBUY
+# model:             EASY TV (BT878)
+# supported devices: 
+#
+
+begin remote
+
+  name  BESTBUY
+  bits            7
+  eps            30
+  aeps          100
+
+  one             0     0
+  zero            0     0
+  pre_data_bits   1
+  pre_data       0x0
+  gap          199981
+  toggle_bit      0
+
+
+      begin codes
+          TV/FM                    0x0000000000000043
+          SCAN                     0x0000000000000047
+          ZOOM                     0x000000000000005C
+          POWER                    0x000000000000005E
+          1                        0x0000000000000041
+          2                        0x000000000000004B
+          3                        0x000000000000005B
+          VOL+                     0x000000000000005F
+          4                        0x0000000000000045
+          5                        0x0000000000000049
+          6                        0x0000000000000055
+          VOL-                     0x0000000000000057
+          7                        0x0000000000000046
+          8                        0x000000000000004A
+          9                        0x0000000000000052
+          CH+                      0x0000000000000056
+          0                        0x0000000000000042
+          LOOP                     0x0000000000000053
+          +100                     0x0000000000000050
+          CH-                      0x0000000000000054
+          SOURCE                   0x0000000000000040
+          MUTE                     0x0000000000000058
+          -                        0x0000000000000044
+          FUNCTION                 0x000000000000004E
+          +                        0x000000000000004C
+          RESET                    0x000000000000004D
+          FREEZE                   0x000000000000004F
+      end codes
+
+end remote
+
+

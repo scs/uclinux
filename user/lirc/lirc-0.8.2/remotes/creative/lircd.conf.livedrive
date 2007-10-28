@@ -1,0 +1,143 @@
+#
+# contributed by Andrew de Quincey
+#
+# brand:                       rm1000w
+# model no. of remote control: 
+# devices being controlled by this remote:
+#
+
+begin remote
+
+  name  rm1000w
+  flags SPACE_ENC|CONST_LENGTH
+  bits           16
+  eps            30
+  aeps          100
+
+  header          9000 4500
+  one             563  1687
+  zero            563  562
+  pre_data_bits   16
+  pre_data       0x8322
+  gap          108000
+  toggle_bit      0
+
+  repeat          9000 2250
+  
+  frequency    38000
+  duty_cycle   33
+
+
+      begin codes
+          1                        0x0000000000008B74
+          2                        0x0000000000008F70
+          3                        0x000000000000906F
+          4                        0x0000000000008A75
+          5                        0x000000000000847B
+          6                        0x0000000000007887
+          7                        0x0000000000008976
+          8                        0x000000000000837C
+          9                        0x0000000000007788
+          0                        0x000000000000807F
+          stop                     0x000000000000857A
+          play                     0x0000000000007986
+          pause                    0x0000000000007986
+          slow                     0x0000000000007D82
+          step                     0x0000000000007E81
+          prev                     0x0000000000007F80
+          next                     0x0000000000007A85
+          mute                     0x0000000000006E91
+          vol-                     0x000000000000639C
+          vol+                     0x000000000000629D
+          eax                      0x0000000000008C73
+          options                  0x000000000000827D
+          display                  0x0000000000007689
+          return                   0x0000000000008E71
+          start                    0x0000000000008877
+          close                    0x0000000000007C83
+          up                       0x0000000000007B84
+          down                     0x0000000000008D72
+          left                     0x0000000000008778
+          right                    0x000000000000758A
+          ok                       0x000000000000817E
+	  power                    0x000000000000619e
+	  cmss                     0x000000000000718e
+	  record                   0x000000000000738c
+	  
+      end codes
+
+end remote
+
+#
+# contributed by Stefan Brüns
+#
+# brand: Creative Audigy 2 ZS Platinum LiveDrive
+# model no. of remote control:
+# devices being controlled by this remote:
+#
+
+
+begin remote
+
+
+  name  LiveDrive
+  flags SPACE_ENC|CONST_LENGTH
+  bits           16
+  eps            30
+  aeps          100
+
+
+  header          9000 4500
+  one             563  1687
+  zero            563  562
+  pre_data_bits   16
+  pre_data       0x8000
+  gap          108000
+  toggle_bit      0
+
+
+  repeat          9000 2250
+
+
+  frequency    38000
+  duty_cycle   33
+
+
+
+
+      begin codes
+          mute                     0x0000000000000040
+          vol+                     0x0000000000008080
+          vol-                     0x0000000000008082
+          cmss                     0x0000000000000080
+      end codes
+end remote
+
+begin remote
+
+  name  LiveDrive_Headphone
+  bits           16
+  flags SPACE_ENC|CONST_LENGTH
+  eps            30
+  aeps          100
+
+  header       9000  4500
+  one           563  1687
+  zero          563   562
+  repeat       9000  2250
+  pre_data_bits   16
+  pre_data       0x8000
+  gap          108000
+  toggle_bit      0
+
+  frequency    38000
+  duty_cycle   33
+
+      begin codes
+          Headphone_out            0x4000
+          Headphone_in             0x4080
+      end codes
+
+end remote
+
+

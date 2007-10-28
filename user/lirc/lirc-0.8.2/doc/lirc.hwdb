@@ -1,0 +1,136 @@
+# LIRC - Hardware DataBase
+#
+# This file lists all the remote controls supported by LIRC
+# in a parseable form.
+#
+# The format is:
+#
+# [remote controls type]
+# description;driver;lirc driver;HW_DEFAULT;lircd_conf;
+#
+#
+Home-brew (16x50 UART compatible serial port);serial;lirc_dev lirc_serial;hw_default;;
+Home-brew (parallel port);parallel;lirc_dev lirc_parallel;hw_default;;
+Network (UDP);udp;none;hw_udp;;
+
+[Home-brew (soundcard input)]
+Simple IR diode (EXPERIMENTAL);dsp;none;hw_dsp;;
+IR receiver IC connected to audio input (EXPERIMENTAL);audio;none;hw_audio;;
+IR receiver IC connected to audio input using ALSA (EXPERIMENTAL);audio_alsa;none;hw_audio_alsa;;
+
+[Other (MIDI, Bluetooth, etc.)]
+AOpen XC Cube EA65, EA65-II;ea65;none;hw_ea65;ea65/lircd.conf.ea65;
+Creative LiveDrive midi;livedrive_midi;none;hw_livedrive_midi;creative/lircd.conf.livedrive;
+Creative LiveDrive sequencer;livedrive_seq;none;hw_livedrive_seq;creative/lircd.conf.livedrive;
+Creative iNFRA CDROM;creative_infracd;none;hw_creative_infracd;creative/lircd.conf.infracd;
+Ericsson mobile phone via Bluetooth;bte;none;hw_bte;ericsson/lircd.conf.bte;
+Linux input layer (/dev/input/eventX);devinput;none;hw_devinput;<A HREF="http://linux.bytesex.org/v4l2/faq.html#lircd">generic config file for Linux input layer</A>;
+
+[Other serial port devices]
+Anir Multimedia Magic;animax;lirc_dev lirc_serial;hw_default;animax/lircd.conf.animax;
+CARACA;caraca;none;hw_caraca;caraca/lircd.conf.caraca;
+Creative Infra Receiver/CIMR100;creative;none;hw_creative;creative/lircd.conf.creative;
+IRdeo;irdeo;lirc_dev lirc_serial;hw_default;;
+IRdeo Remote;irdeo_remote;lirc_dev lirc_serial;hw_default;;
+Irman / UIR;irman;none;hw_irman;;
+Kanam Accent;accent;none;hw_accent;kanam_accent/lircd.conf.IR-100;
+Linksys NSLU2 (CTS2+GreenLED);nslu2;lirc_dev lirc_serial;hw_default;;
+Logitech/AST;logitech;none;hw_logitech;logitech/lircd.conf.logitech;
+PCMAK serial receiver;pcmak;none;hw_pcmak;pcmak/lircd.conf.pcmak;
+Miro PCTV receiver;pctv;none;hw_pinsys;pinnacle_systems/lircd.conf.pctv;
+Packard Bell receiver;packard_bell;lirc_dev lirc_serial;hw_default;packard_bell/lircd.conf.packard_bell;
+Pinnacle Systems PCTV (pro) receiver;pctv;none;hw_pinsys;pinnacle_systems/lircd.conf.pctv;
+Pinnacle Systems PCTV Sat receiver;pctv;none;hw_pinsys;pinnacle_systems/lircd.conf.pctv;
+PixelView RemoteMaster RC2000/RC3000;remotemaster;none;hw_pixelview;pixelview/lircd.conf.remotemaster;
+REALmagic (bundled with Hollywood Plus DVD card);realmagic;none;hw_pixelview;sigma_designs/lircd.conf.realmagic;
+Slink-e (receive only);slinke;none;hw_slinke;;
+Silitek SM-1000;silitek;none;hw_silitek;silitek/lircd.conf.silitek;
+Tekram Irmate 210 (16x50 UART compatible serial port);tekram;lirc_dev lirc_sir;hw_default;;
+UIRT2 (receive only, UIR mode);uirt2;none;hw_uirt2;;
+UIRT2 (receive and transmit);uirt2_raw;none;hw_uirt2_raw;;
+X10 MouseRemote RF Receiver (Serial);mouseremote;none;hw_mouseremote;x10/lircd.conf.mouseremote;
+X10 MouseRemote RF Receiver (PS/2);mouseremote_ps2;none;hw_mouseremote_ps2;x10/lircd.conf.mouseremote;
+X10 MP3 Anywhere RF Receiver;mp3anywhere;none;hw_mp3anywhere;x10/lircd.conf.mp3anywhere;
+
+[TV card]
+Adaptec AVC-2410;adaptec;lirc_dev lirc_i2c;hw_default;adaptec/lircd.conf.AVC-2410;
+Askey Magic TView CPH03x (card=1);cph03x;lirc_dev lirc_gpio;hw_default;cph03x/lircd.conf.cph03x;
+Askey/Typhoon/Anubis Magic TView CPH051/061 (bt878) (card=24);cph06x;lirc_dev lirc_gpio;hw_default;cph03x/lircd.conf.cph03x;
+Asus TV-Box;tvbox;lirc_dev lirc_i2c;hw_default;asus/lircd.conf.asus;
+AverMedia TV card (TVCapture, TVPhone) (card=6);avermedia;lirc_dev lirc_gpio;hw_default;avermedia/lircd.conf.avermedia;
+AverMedia TV card (TVCapture98, TVPhone98) (card=13/41);avermedia98;lirc_dev lirc_gpio;hw_default;avermedia/lircd.conf.avermedia98;
+AverMedia TV card (VDOMATE) (use card=13);avermedia_vdomate;lirc_dev lirc_gpio;hw_default;avermedia/lircd.conf.vdomate;
+BestBuy Easy TV (BT848) (card=55);bestbuy;lirc_dev lirc_gpio;hw_default;bestbuy/lircd.conf.bestbuy;
+BestBuy Easy TV (BT878) (card=62);bestbuy2;lirc_dev lirc_gpio;hw_default;bestbuy/lircd.conf.bestbuy2;
+Chronos Video Shuttle II (card=35);chronos;lirc_dev lirc_gpio;hw_default;chronos/lircd.conf.chronos;
+Creative BreakOut-Box;breakoutbox;lirc_dev lirc_i2c;hw_default;creative/lircd.conf.breakoutbox;
+Dynalink Magic TView (card=48);cph03x;lirc_dev lirc_gpio;hw_default;cph03x/lircd.conf.cph03x;
+FlyVideo II (card=8);flyvideo;lirc_dev lirc_gpio;hw_default;life-view/lircd.conf.flyvideo;
+FlyVideo 98 (card=30);flyvideo;lirc_dev lirc_gpio;hw_default;life-view/lircd.conf.flyvideo;
+FlyVideo 98/FM /2000S (card=56);flyvideo;lirc_dev lirc_gpio;hw_default;life-view/lircd.conf.flyvideo;
+Flyvideo 98FM (LR50Q) / Typhoon TView TV/FM Tuner (card=36);flyvideo;lirc_dev lirc_gpio;hw_default;life-view/lircd.conf.flyvideo;
+Hauppauge TV card;hauppauge;lirc_dev lirc_i2c;hw_default;hauppauge/lircd.conf.hauppauge;
+Hauppauge DVB-s card (ver. 2.1);hauppauge_dvb;lirc_dev;hw_default;hauppauge/lircd.conf.hauppauge;
+Hercules Smart TV Stereo (card=100);hercules_smarttv_stereo;lirc_dev lirc_i2c;hw_default;hercules/lircd.conf.smarttv_stereo;
+I-O Data Co. GV-BCTV5/PCI (card=81);gvbctv5pci;lirc_dev lirc_gpio;hw_default;iodata/lircd.conf.gvbctv5pci;
+Jetway TV/Capture JW-TV878-FBK, Kworld KW-TV878RF (card=78);kworld;lirc_dev lirc_gpio;hw_default;kworld/lircd.conf.kworld;
+KNC ONE TV Station (-/SE/PRO/RDS);knc_one;lirc_dev lirc_i2c;hw_default;knc_one/lircd.conf.knc_one;
+Lenco MXTV-9578 CP (card=50);pixelview_pak;lirc_dev lirc_gpio;hw_default;pixelview/lircd.conf.playtv_pro;
+Miro PCTV serial port receiver;pctv;none;hw_pinsys;pinnacle_systems/lircd.conf.pctv;
+Phoebe Tv Master + FM (card=22);cph06x;lirc_dev lirc_gpio;hw_default;cph03x/lircd.conf.cph03x;
+Pinnacle Systems PCTV Sat receiver;pctv;none;hw_pinsys;pinnacle_systems/lircd.conf.pctv;
+Pixelview PlayTV MPEG2;pixelview_pro;lirc_dev lirc_gpio;hw_default;pixelview/lircd.conf.playtv_pro;
+PixelView PlayTV PAK (card=50);pixelview_pak;lirc_dev lirc_gpio;hw_default;pixelview/lircd.conf.playtv_pro;
+Pixelview PlayTV pro (card=37);pixelview_pro;lirc_dev lirc_gpio;hw_default;pixelview/lircd.conf.playtv_pro;
+Prolink Pixelview PV-BT878P+ (Rev.4C,8E, card=70);pixelview_pro;lirc_dev lirc_gpio;hw_default;pixelview/lircd.conf.playtv_pro;
+Prolink PV-BT878P+4E (card=50);pixelview_pak;lirc_dev lirc_gpio;hw_default;pixelview/lircd.conf.playtv_pro;
+ProVideo PV951 (card=42);provideo;lirc_dev lirc_i2c;hw_default;provideo/lircd.conf.pv951;
+Technisat MediaFocus I;mediafocusI;none;hw_default;technisat/lircd.conf.mediafocusI;
+Tekram M230 Mach64 (and others bt829 based);tekram_bt829;lirc_dev lirc_bt829;hw_default;tekram/lircd.conf.m230;
+TriTan Technology TView95 CPH03x (card=1);cph03x;lirc_dev lirc_gpio;hw_default;cph03x/lircd.conf.cph03x;
+TView99 CPH063 (card=38);cph06x;lirc_dev lirc_gpio;hw_default;cph03x/lircd.conf.cph03x;
+Typhoon TView RDS / FM Stereo (card=53);knc_one;lirc_dev lirc_i2c;hw_default;knc_one/lircd.conf.knc_one;
+Winfast PVR2000 (Linux kernel >=2.6.11 required);leadtek_pvr2000;lirc_dev lirc_i2c;hw_default;leadtek/lircd.conf.PVR2000;
+Winfast TV2000/XP (card=34);leadtek_0010;lirc_dev lirc_gpio;hw_default;leadtek/lircd.conf.RM-0010;
+WinView 601 (card=17);leadtek_0007;lirc_dev lirc_gpio;hw_default;leadtek/lircd.conf.RM-0007;
+
+[IrDA hardware]
+SIR IrDA (built-in IR ports);sir;lirc_dev lirc_sir;hw_default;;
+Tekram Irmate 210 (16x50 UART compatible serial port);tekram;lirc_dev lirc_sir;hw_default;;
+ITE IT8712/IT8705 CIR port;it87;lirc_dev lirc_it87;hw_default;;
+Asus Digimatrix IT87xx CIR port;digimatrix;lirc_dev lirc_it87;hw_default;asus/lircd.conf.digimatrix;
+Actisys Act200L SIR driver support;act200l;lirc_dev lirc_sir;hw_default;;
+Actisys Act220L(+) SIR driver support;act220l;lirc_dev lirc_sir;hw_default;;
+
+[PDAs]
+HP iPAQ;sa1100;lirc_dev lirc_sir;hw_default;;
+Sharp Zaurus;sa1100;lirc_dev lirc_sir;hw_default;;
+
+[USB devices]
+ADSTech USBX-707 USB IR Blaster;usbx;none;hw_usbx;adstech/lircd.conf.usbx-707;
+Apple Mac mini USB IR Receiver;macmini;none;hw_macmini;apple/lircd.conf.macmini;
+Asus DH USB Remote;asusdh;none;hw_asusdh;asus/lircd.conf.asusdh;
+ATI/NVidia/X10 I & II RF Remote;atiusb;lirc_dev lirc_atiusb;hw_default;atiusb/lircd.conf.atiusb;
+ATI/NVidia/X10 RF Remote (userspace);atilibusb;none;hw_atilibusb;atiusb/lircd.conf.atilibusb;
+Creative USB IR Receiver (SB0540);sb0540;none;hw_sb0540;creative/lircd.conf.alsa_usb;
+COMMANDIR USB Transceiver;cmdir;lirc_dev lirc_cmdir;hw_default;;
+Dign HV5 HTPC IR/VFD Module;sasem;lirc_dev lirc_sasem;hw_default;sasem/lircd.conf.sasem;
+DViCO USB Remote;dvico;none;hw_dvico;dvico/lircd.conf.fusionHDTV;
+Home Electronics Tira USB device;tira;none;hw_tira;;
+Igor Cesko's USB IR Receiver;igorplugusb;lirc_dev lirc_igorplugusb;hw_default;;
+Iguanaworks USB IR Transceiver;iguanaIR;none;hw_iguanaIR;;
+PCMAK USB receiver;pcmak_usb;none;hw_pcmak;pcmak/lircd.conf.pcmak;
+Remotec Multimedia PC Remote BW6130;bw6130;none;hw_bw6130;remotec/lircd.conf.BW6130;
+Sasem OnAir Remocon-V;sasem;lirc_dev lirc_sasem;hw_default;sasem/lircd.conf.sasem;
+Sound Blaster Extigy USB sound card (exaudio);exaudio;none;hw_default;;
+Sound Blaster Extigy/Audigy 2 NX (ALSA snd-usb-audio);alsa_usb;none;hw_alsa_usb;creative/lircd.conf.alsa_usb;
+Soundgraph iMON 2.4G DT & LT;imon_24g;lirc_dev lirc_imon;hw_default;imon/lircd.conf.imon-2.4g;
+Soundgraph iMON MultiMedian IR/VFD;imon;lirc_dev lirc_imon;hw_default;imon/lircd.conf.imon;
+Soundgraph iMON Knob;imon_knob;lirc_dev lirc_imon;hw_default;imon/lircd.conf.imon-knob;
+Soundgraph iMON PAD IR/VFD;imon_pad;lirc_dev lirc_imon;hw_default;imon/lircd.conf.imon-pad;
+Soundgraph iMON RSC;imon_rsc;lirc_dev lirc_imon;hw_default;imon/lircd.conf.imon-rsc;
+Streamzap PC Remote;streamzap;lirc_dev lirc_streamzap;hw_default;streamzap/lircd.conf.streamzap;
+TechnoTrend USB IR receiver;ttusbir;lirc_dev lirc_ttusbir;hw_default;;
+USB-UIRT;usb_uirt_raw;none;hw_usb_uirt_raw;;
+Windows Media Center Remotes (old version, MicroSoft USB ID);mceusb;lirc_dev lirc_mceusb;hw_default;mceusb/lircd.conf.mceusb;
+Windows Media Center Remotes (new version, Philips et al.);mceusb2;lirc_dev lirc_mceusb2;hw_default;mceusb/lircd.conf.mceusb;

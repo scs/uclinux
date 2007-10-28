@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<HTML>
+  <HEAD>
+    <TITLE>LIRC - Linux Infrared Remote Control</TITLE>
+    <LINK REL=stylesheet TYPE="text/css" HREF="../lirc.css">
+    <LINK REL="shortcut icon" HREF="../favicon.ico">
+    <META NAME="description" CONTENT="LIRC - Linux Infra-red Remote Control">
+    <META NAME="keywords" CONTENT="linux, kernel module, remote control, animax, multimedia">
+  </HEAD>
+  
+  <BODY BACKGROUND="../images/marb18.jpg"
+    BGCOLOR="#FFFFFF" TEXT="#000000" ALINK="#8080FF">
+    <TABLE WIDTH="100%" BORDER="0" CELLSPACING="0" CELLPADDING="0">
+      <TR>
+	<TD CLASS="menu" WIDTH="100%" HEIGHT="150">
+	  <IMG SRC="../images/diode.gif" ALT=""
+	    WIDTH="300" HEIGHT="150" BORDER="0" HSPACE="20"
+	    VSPACE="0" ALIGN="LEFT"> 
+	  <IMG SRC="../images/lirc.gif" ALT=""
+	    WIDTH="300" HEIGHT="150" BORDER="0" HSPACE="20"
+	    VSPACE="0" ALIGN="RIGHT">
+	</TD>
+      </TR>
+      <TR>
+	<TD WIDTH="100%">&#160;<BR>
+	  <TABLE WIDTH="100%" BORDER="0" CELLSPACING="0" CELLPADDING="0">
+	    <TR>
+	      <TD WIDTH="15%">&#160;<BR></TD>
+	      <TD WIDTH="70%" ALIGN="LEFT" VALIGN="TOP">&#160;<BR>
+
+<!-- Text ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+
+    <A NAME="welcome"></A><HR>
+    <H1 ALIGN="CENTER">Welcome to the LIRC 0.8.2 Manual</H1>
+    <HR WIDTH="70%">
+    
+    <P>
+      This manual will guide you through the installation and configuration
+      of LIRC. Setting up LIRC currently is not an easy task. So please take
+      some time to read this documentation carefully. If you don't
+      understand a part of this manual or if you think there is something
+      important missing you should complain.
+    </P>
+    
+    <OL>
+      <LI>
+	<B><A HREF="install.html">Installation instructions</A></B><BR>
+	<BR>
+	<UL TYPE="disc">
+	  <LI><A HREF="install.html#dependencies">Dependencies</A> - what other programs you need to use LIRC</LI>
+	  <LI><A HREF="install.html#hardware">Overview of supported hardware</A></LI>
+	  <LI><A HREF="table.html">Detailed list of supported hardware</A></LI>
+	  <LI><A HREF="install.html#compiling">Compiling</A></LI>
+	  <LI><A HREF="install.html#installing">Installing</A></LI>
+	  <LI><A HREF="install.html#testing">Testing your hardware &amp; 
+	      configuration</A></LI>
+	  <LI><A HREF="install.html#sending">Sending infrared signals</A></LI>
+	  <LI><A HREF="install.html#uninstall">Uninstalling</A></LI>
+	  <LI><A HREF="install.html#updating054">Updating from lirc-0.5.4</A></LI>
+	  <LI><A HREF="install.html#updating062">Updating from lirc-0.6.2</A></LI>
+	  <LI><A HREF="install.html#updating063">Updating from lirc-0.6.3</A></LI>
+	  <LI><A HREF="install.html#updating064">Updating from lirc-0.6.4</A></LI>
+	  <LI><A HREF="install.html#updating065">Updating from lirc-0.6.5</A></LI>
+	  <LI><A HREF="install.html#updating066">Updating from lirc-0.6.6</A></LI>
+	  <LI><A HREF="install.html#updating07x">Updating from lirc-0.7.x</A></LI>
+	  <LI><A HREF="install.html#updating081">Updating from lirc-0.8.1</A></LI>
+	</UL>
+	<BR>
+      </LI>
+      <LI>
+	<B><A HREF="configure.html">Configuring LIRC</A></B><BR>
+	<BR>
+	<UL TYPE="disc">
+	  <LI><A HREF="configure.html#lircd.conf">Configuring lircd</A> (lircd - the LIRC daemon)</LI>
+	  <LI><A HREF="configure.html#lircd.conf_format">lircd.conf file format</A></LI>
+	  <LI><A HREF="configure.html#multiple">Using multiple different devices simultaneously</A></LI>
+	  <LI><A HREF="configure.html#lircmd.conf">Configuring lircmd</A> (lircmd - the LIRC mouse daemon)</LI>
+	  <LI><A HREF="configure.html#lircmd.conf_format">lircmd.conf file format</A></LI>
+	  <LI><A HREF="configure.html#lircmd.conf_format">Configuring LIRC tools</A></LI>
+	  <LI><A HREF="configure.html#lircrc_format">.lircrc file format</A></LI>
+	</UL>
+	<BR>
+      </LI>
+      
+      <LI>
+	<B><A HREF="programs.html">Description of programs (purpose, command line arguments, etc.)</A></B><BR>
+	<BR>
+	<UL TYPE="disc">
+	  <LI><A HREF="lircd.html">lircd</A></LI>
+	  <LI><A HREF="lircmd.html">lircmd</A></LI>
+	  <LI><A HREF="lircrcd.html">lircrcd</A></LI>
+	  <LI><A HREF="irexec.html">irexec</A></LI>
+	  <LI><A HREF="ircat.html">ircat</A></LI>
+	  <LI><A HREF="irpty.html">irpty</A></LI>
+	  <LI><A HREF="irxevent.html">irxevent</A></LI>
+	  <LI><A HREF="irrecord.html">irrecord</A></LI>
+	  <LI><A HREF="irw.html">irw</A></LI>
+	  <LI><A HREF="mode2.html">mode2</A></LI>
+	  <LI><A HREF="smode2.html">smode2</A></LI>
+	  <LI><A HREF="xmode2.html">xmode2</A></LI>
+	  <LI><A HREF="irsend.html">irsend</A></LI>
+	</UL>
+	<BR>
+      </LI>
+      
+      <LI>
+	<B><A HREF="technical.html">Technical</A></B><BR>
+	<BR>
+	<UL TYPE="disc">
+	  <LI><A HREF="technical.html#overview">How everything works</A></LI>
+	  <LI><A HREF="technical.html#lirc_dev">Writing TV card drivers
+	      using lirc_dev</A></LI>
+	  <LI><A HREF="technical.html#applications">Writing applications for LIRC</A>
+	    <UL>
+	      <LI><A HREF="technical.html#library">The lirc_client library</A></LI>
+	      <LI><A HREF="technical.html#lircrcd">lircrcd protocol</A></LI>
+	    </UL>
+	  </LI>
+	  <LI><A HREF="technical.html#packagers">Note for packagers</A></LI>
+    <LI><A HREF="technical.html#config">Note for configuration application developers</A></LI>
+	  <LI><A HREF="technical.html#bugs">Known bugs</A></LI>
+	</UL>
+	<BR>
+      </LI>
+
+      <LI>
+	<B><A HREF="help.html">Getting additional information</A></B><BR>
+	<BR>
+	<UL TYPE="disc">
+	  <LI><A HREF="help.html#faq">FAQ, mailing list and mailing list
+	      archive</A></LI>
+	  <LI><A HREF="help.html#bugs">Reporting bugs</A></LI>
+	  <LI><A HREF="help.html#new_remote">Adding new remote controls</A></LI>
+	</UL>
+	<BR>
+      </LI>
+    </OL>
+    
+    Copyright (C) 1999-2002 Christoph Bartelmus (<A 
+      HREF="mailto:lirc@bartelmus.de">lirc@bartelmus.de</A>)<BR>
+    Copyright (C) 1999 Karsten Scheibler (<A 
+      HREF="mailto:karsten.scheibler@bigfoot.de">karsten.scheibler@bigfoot.de</A>)
+
+<!-- +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ -->
+
+		<BR><BR>
+		<CENTER>[<A HREF="http://www.lirc.org/">LIRC homepage</A>]<BR>
+		  <I>The LIRC Manual, last update: 17-Jan-2007</I></CENTER>
+		<BR><BR>
+	      </TD>
+	      <TD WIDTH="15%">&#160;<BR></TD>
+	    </TR>
+	  </TABLE>
+	</TD>
+      </TR>
+      <TR>
+	<TD CLASS="menu" WIDTH="100%">&#160;<BR>
+	</TD>
+      </TR>
+    </TABLE>
+  </BODY>
+</HTML>

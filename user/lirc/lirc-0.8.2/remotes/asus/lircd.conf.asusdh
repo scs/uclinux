@@ -1,0 +1,30 @@
+#
+# contributed by Bernhard Frauendienst <lirc|nospam.obeliks.de>
+# 
+# brand:	     Asus
+# model:	     Asus DH Deluxe IR
+#
+
+begin remote
+
+  name		AsusDH
+  bits		32
+  pre_data_bits	32
+  pre_data	0xFF000000
+  post_data_bits  0
+
+	begin codes
+	  POWER			0x01
+	  QUICK_POWER		0x02
+	  NOISE_OFF		0x03
+	  WIFI			0x04
+	  AP_LAUNCH		0x05
+	  MAXIMIZE		0x06
+	  PLUS			0x07
+	  REV			0x08
+	  PLAY/PAUSE		0x09
+	  FWD			0x0A
+	  MINUS			0x0B
+        end codes
+
+end remote

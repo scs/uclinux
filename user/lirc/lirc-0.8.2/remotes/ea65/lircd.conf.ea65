@@ -1,0 +1,73 @@
+#
+#  Config file for AOpen XC Cube EA65, EA65-II
+#  Max Krasnyanskiy <maxk@qualcomm.com>
+#
+
+begin remote
+  name  EA65
+  bits  24
+  eps   10
+  aeps  100
+
+  gap           960000
+  toggle_bit    0
+
+  begin codes
+	tv/pvr      0x0014814c
+        photo       0x0017810e
+        htpc        0x0011811b
+        dvd/vcd     0x00128100
+        cd/mp3      0x00138152
+        fm          0x00158111
+        video       0x0016810f
+
+        1           0x0041810b
+        2           0x00428115
+        3           0x00438112
+        4           0x00448141
+        5           0x00458119
+        6           0x00468116
+        7           0x00478150
+        8           0x0048811a
+        9           0x00498155
+        *           0x00328156
+        0           0x00408158
+        #           0x0030814d
+        
+        menu        0x00188104
+        exit        0x001d8154
+        enter       0x001e8101
+        up          0x00198159
+        down        0x001a811c
+        left        0x001c8102
+        right       0x001b815d
+
+ 	vol+        0x00298103
+ 	vol-        0x002a814e
+ 	ch+         0x002c8113
+ 	ch-         0x002d8117
+ 	mute        0x00288105
+ 	tune+       0x002e8144
+ 	tune-       0x002f8148
+ 	mem         0x00318145
+ 	scan        0x00278151
+
+ 	display     0x0034811f
+ 	eject       0x0035815c
+ 	rwnd        0x00228118
+ 	ffwd        0x00218110
+ 	rec         0x002b810a
+ 	repeate     0x0038815a
+ 	prev        0x00238107
+ 	next        0x00248114
+ 	time/shift  0x00338108
+ 	stop        0x0020811d
+ 	play/pause  0x001f8109
+
+        play-pause  0x0080811d
+        stop-eject  0x00238107
+        mode-       0x00ff1080
+        mode+       0x00ff1180
+  end codes
+end remote
+

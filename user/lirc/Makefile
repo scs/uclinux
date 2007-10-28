@@ -1,22 +1,35 @@
+VER = lirc-0.8.2
 
-.EXPORT_ALL_VARIABLES:
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER)
+	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
 
-CFLAGS += -DHAVE_CONFIG_H
-DIRS = daemons tools
-
-all:
-	for i in $(DIRS) ; do make -C $$i ; done
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+	set -e ; \
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure \
+		$(CONFIGURE_OPTS) \
+		--localstatedir=/var \
+		--enable-sandboxed \
+		--with-kerneldir=$(ROOTDIR)/$(LINUXDIR) \
+		--with-moduledir=/lib/modules/lirc \
+		--without-x \
+		--disable-daemonize \
+		--with-driver=dev \
+		--enable-debug
 
 clean:
-	-for i in $(DIRS) ; do make -C $$i clean ; done
+	rm -rf build-*
 
+BINS  = ircat irexec irpty irrecord irsend irw lircrcd mode2
+SBINS = lircd lircmd
 romfs:
-	$(ROMFSINST) daemons/lircd    /bin/lircd
-	$(ROMFSINST) daemons/irrecord /bin/irrecord
-	$(ROMFSINST) daemons/lircmd   /bin/lircmd
-	$(ROMFSINST) tools/irexec     /bin/irexec
-	$(ROMFSINST) tools/irw        /bin/irw
-	$(ROMFSINST) tools/mode2      /bin/mode2
-	touch $(ROMFSDIR)/dev/@lirc,c,61,0
+	for b in $(BINS) ; do $(ROMFSINST) -d $(STAGEDIR)/usr/bin/$$b /usr/bin/$$b || exit $$? ; done
+	for b in $(SBINS) ; do $(ROMFSINST) -d $(STAGEDIR)/usr/sbin/$$b /usr/sbin/$$b || exit $$? ; done
+	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/liblirc_client.so.0 /lib/liblirc_client.so.0
+	$(ROMFSINST) -d -M $(STAGEDIR)/lib/modules/lirc/lirc_dev.ko lirc/lirc_dev.ko
 
-
+.PHONY: all clean romfs

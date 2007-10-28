@@ -1,0 +1,55 @@
+#
+# contributed by Juergen Jaeschke <jaeschke.privat@gmx.de>
+#
+# brand:	     Creative
+# model:	     Creative BreakOut-Box Remote Control
+#
+
+begin remote
+
+  name		Creative_BreakOut-Box_IR
+  bits		8
+  eps		30
+  aeps		100
+  one           0     0
+  zero          0     0
+  gap           199984
+  toggle_bit	0
+
+      begin codes
+          DVD/CD                   0x0000000000000001
+          DVR/TV                   0x0000000000000000
+          MENU                     0x0000000000000003
+          LANG                     0x0000000000000005
+          PLAYLIST                 0x0000000000000011
+          BACKWARD                 0x000000000000000A
+          PLAY                     0x0000000000000008
+          FORWARD                  0x000000000000000F
+          LAST                     0x0000000000000002
+          STOP                     0x0000000000000007
+          NEXT                     0x0000000000000006
+          MUTE                     0x0000000000000014
+          STEP                     0x0000000000000009
+          UP                       0x000000000000000C
+          LEFT                     0x000000000000000B
+          RIGHT                    0x000000000000000D
+          DOWN                     0x000000000000000E
+          VOL+                     0x0000000000000012
+          VOL-                     0x0000000000000015
+          OK                       0x0000000000000011
+          ANGLE+                   0x0000000000000010
+          ANGLE-                   0x0000000000000013
+          REC                      0x0000000000000004
+          1                        0x0000000000000016
+          2                        0x0000000000000017
+          3                        0x0000000000000018
+          4                        0x0000000000000019
+          5                        0x000000000000001A
+          6                        0x000000000000001B
+          7                        0x000000000000001C
+          8                        0x000000000000001D
+          9                        0x000000000000001E
+          0                        0x000000000000001F
+      end codes
+
+end remote

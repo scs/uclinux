@@ -1,0 +1,87 @@
+#
+# this config file was automatically generated
+# using lirc-0.8.1(default) on Sun Apr 29 14:48:54 2007
+#
+# contributed by Joshua Watt
+#
+# brand: ATI
+# model no. of remote control: 5000024400
+# devices being controlled by this remote:
+#	ATI Remote Wonder II
+#
+#	Full use of all buttons except the
+#	Aux 1-4, ATI, and PC buttons
+#
+#	Mouse Pad works as well
+#
+#	use atilibusb driver
+
+begin remote
+
+  name  ATI_Remote_Wonder_II
+  bits           24
+  eps            30
+  aeps          100
+
+  one             0     0
+  zero            0     0
+  gap          203970
+  toggle_bit      0
+
+
+      begin codes
+          stop                     0x000231
+          pause                    0x000230
+          fforward                 0x000228
+          rec                      0x000237
+          rewind                   0x000229
+          play                     0x00022C
+          d                        0x00027B
+          c                        0x00027A
+          e                        0x00027C
+          f                        0x00027D
+          right                    0x00025B
+          left                     0x00025A
+          up                       0x000258
+          down                     0x000259
+          ok                       0x00025C
+          info                     0x0002F9
+          timer                    0x000296
+          menu                     0x000254
+          check                    0x000282
+          0                        0x000200
+          1                        0x000201
+          2                        0x000202
+          3                        0x000203
+          4                        0x000204
+          5                        0x000205
+          6                        0x000206
+          7                        0x000207
+          8                        0x000208
+          9                        0x000209
+          volup                    0x000210
+          voldown                  0x000211
+          mute                     0x00020D
+          chup                     0x000220
+          chdown                   0x000221
+          mouse_up                 0x0001FF
+          mouse_down               0x0002FF
+          mouse_left               0x0020FF
+          mouse_right              0x0010FF
+          mouse_up_right           0x0011FF
+          mouse_down_right         0x0012FF
+          mouse_up_left            0x0021FF
+          mouse_down_left          0x0022FF
+          right_click              0x0002AA
+          left_click               0x0002A9
+          hand                     0x0002D0
+          shrink_resize            0x0002D5
+          ?                        0x0002BE
+          dvd                      0x000238
+          tv                       0x000239
+          a                        0x000278
+          b                        0x000279
+          power                    0x00020C
+      end codes
+
+end remote

@@ -1,0 +1,61 @@
+#
+# this config file was automatically generated
+# using WinLIRC 0.6.4 (LIRC 0.6.1pre3) on Sun Oct 06 07:28:36 2002
+#
+# contributed by 
+#
+# brand:             AVerMedia
+# model:             
+# supported devices: VDOMATE (ID 0x3001461)
+#
+
+begin remote
+
+  name  hanircd
+  bits           32
+  flags SPACE_ENC|CONST_LENGTH
+  eps            30
+  aeps          100
+
+  header       9086  4425
+  one           625  1624
+  zero          625   500
+  ptrail        624
+  repeat       9087  2185
+  gap          107977
+  toggle_bit      0
+
+
+      begin codes
+          power                    0x0000000040BF00FF
+          one                      0x0000000040BFA05F
+          two                      0x0000000040BF609F
+          three                    0x0000000040BFE01F
+          four                     0x0000000040BF906F
+          five                     0x0000000040BF50AF
+          six                      0x0000000040BFD02F
+          seven                    0x0000000040BFB04F
+          eight                    0x0000000040BF708F
+          nine                     0x0000000040BFF00F
+          zero                     0x0000000040BF8877
+          video                    0x0000000040BF20DF
+          fullscreen               0x0000000040BF30CF
+          display                  0x0000000040BF48B7
+          color                    0x0000000040BFC837
+          loop                     0x0000000040BF08F7
+          coloup                   0x0000000040BF6897
+          colordn                  0x0000000040BFE817
+          preview                  0x0000000040BF28D7
+          autoscan                 0x0000000040BF9867
+          freeze                   0x0000000040BF58A7
+          capture                  0x0000000040BFD827
+          mute                     0x0000000040BF18E7
+          volumeup                 0x0000000040BF7887
+          volumedown               0x0000000040BFF807
+          chnldown                 0x00000000C03F40BF
+          chnlup                   0x00000000C03FC03F
+      end codes
+
+end remote
+
+

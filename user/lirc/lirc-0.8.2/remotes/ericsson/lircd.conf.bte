@@ -1,0 +1,53 @@
+#
+#
+# contributed by Vadim Shliakhov <svadim@nm.ru>
+#
+# brand:  Ericsson
+# model:  Mobile Phone over Bluetooth (BTE)   
+#
+# supported devices: 
+#	      Ericsson t520m, t630
+#
+
+begin remote
+
+    name    bte 
+    bits    16
+
+    begin codes
+        0               0x0030
+        1               0x0031
+        2               0x0032
+        3               0x0033
+        4               0x0034
+        5               0x0035
+        6               0x0036
+        7               0x0037
+        8               0x0038
+        9               0x0039
+        STAR            0x002a  # '*'
+        HASH            0x0023  # '#'
+        UP              0x005e  # '^'
+        DOWN            0x0076  # 'v'
+        LEFT            0x003c  # '<'
+        RIGHT           0x003e  # '>'
+        CANCEL          0x0063  # 'c'
+        VOL_UP          0x0075  # 'u'
+        VOL_DOWN        0x0064  # 'd'
+
+# t520m
+        NO              0x0065  # 'e'
+        YES             0x0073  # 's'
+        OPTION          0x004c  # 'L'
+        MEMO            0x0047  # 'G' - hides dialog widget!
+
+# t630
+        F_LEFT          0x005b  # '['
+        F_RIGHT         0x005d  # ']'  - triggers 'e'
+        J_CLICK         0x3a4a  # ':J' - triggers 'e'
+        RETURN          0x3a52  # ':R' - triggers 'e'
+        CAMERA          0x3a43  # ':C'
+        WAP             0x3a4f  # ':O'
+
+      end codes
+end remote

@@ -1,0 +1,4479 @@
+2007-06-09  lirc  <lirc@eyepod>
+
+	* doc/Makefile.am:
+	create dummy lirc.hwdb to stisfy make (real file will be created on release)
+
+	* doc/.cvsignore: lirc.hwdb
+
+	* doc/Makefile.am: rule to build lirc.hwdb
+
+	* configure.in, doc/html-source/index.html, setup.sh, ANNOUNCE, NEWS:
+	0.8.2 release
+
+2007-06-08  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: another config
+
+	* doc/Makefile.am: added lirc.hwdb to distribution
+
+2007-06-07  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: added Toshiba X10 remote
+
+2007-05-27  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.8.2pre3 snapshot release
+
+2007-05-26  uzuul  <uzuul@eyepod>
+
+	* doc/html-source/technical.html, doc/html-source/index.html:
+	document lirc.hwdb for packagers and developers
+
+	* doc/release-html.sh:
+	allow the generation of the lirc.hwdb at compile time
+
+	* doc/table.sh: remove one more bashism
+
+2007-05-26  lirc  <lirc@eyepod>
+
+	* autogen.sh, configure.in:
+	setup.sh hook does not work with autoconf 2.61 anymore
+
+	* drivers/Makefile.am, drivers/lirc_ttusbir/.cvsignore, drivers/lirc_ttusbir/Makefile.am, drivers/lirc_ttusbir/lirc_ttusbir.c, NEWS, configure.in, setup.data:
+	added support for TechnoTrend USB IR receiver (Stefan Macher)
+
+	* doc/html-source/configure.html: hint for adding new remote controls
+
+	* daemons/irrecord.c: prevent compiler warning
+
+2007-05-14  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	fixed transmitter mask for Topspeed mce transmitter
+
+2007-05-11  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: debug sense toggling issue
+
+2007-05-06  lirc  <lirc@eyepod>
+
+	* daemons/release.c, daemons/release.h:
+	automatic release event generation in lircd
+
+	* doc/table.sh: generate hardware database in CSV format (Loïc Dardant)
+
+	* NEWS, acconfig.h, daemons/Makefile.am, daemons/ir_remote.c, daemons/ir_remote.h, daemons/ir_remote_types.h, daemons/lircd.c, daemons/lircd.h, doc/man-source/lircd.inc:
+	automatic release event generation in lircd
+
+2007-05-05  lirc  <lirc@eyepod>
+
+	* TODO: more todos
+
+	* configure.in, remotes/atiusb/lircd.conf.atilibusb:
+	added atilibusb config file
+
+	* configure.in, daemons/hw-types.c, daemons/hw_hiddev.c, remotes/apple/lircd.conf.macmini, setup.data, NEWS:
+	added support for Apple Mac mini USB IR Receiver (Stephen Williams)
+
+2007-05-04  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: initialize timestamp on resume
+
+	* drivers/lirc_serial/lirc_serial.c: improved sense auto-detection
+
+2007-04-29  lirc  <lirc@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_sir/lirc_sir.c, drivers/lirc_streamzap/lirc_streamzap.c:
+	irq handlers changed in 2.6.19
+
+2007-04-26  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: interrupt handler in 2.6.19
+
+	* drivers/lirc_serial/lirc_serial.c: use __init and __exit
+
+2007-04-25  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	fixed compile error of last commit with kernel >= 2.6.18
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0.8.2pre2 snapshot release
+
+2007-04-23  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_usbx.c, daemons/hw_usbx.h, daemons/serial.c, remotes/adstech/lircd.conf.usbx-707, setup.data:
+	added support for ADSTech USBX-707 USB IR Blaster (Jelle Foks)
+
+2007-04-22  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	platform driver model beginning with 2.6.18 (Andrei Tanas)
+
+	* drivers/lirc_dev/lirc_dev.h: lirc_buffer_clear
+
+2007-04-21  lirc  <lirc@eyepod>
+
+	* doc/table.sh: removed bashism
+
+	* daemons/hw_pinsys.c: fixed repeats
+
+2007-04-14  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c, drivers/lirc.h: new LIRC_NOTIFY_DECODE ioctl
+
+2007-04-08  lirc  <lirc@eyepod>
+
+	* NEWS, daemons/hw_default.c, daemons/hw_hiddev.c, daemons/lircd.c, daemons/lircd.h:
+	periodically try to reopen lirc device if reading fails
+
+	* configure.in: tuxbox config entry
+
+	* daemons/hw-types.c, daemons/hw_hiddev.c, NEWS, configure.in, setup.data:
+	added support for Creative USB IR Receiver (SB0540) (Benjamin Drung)
+
+2007-04-06  lirc  <lirc@eyepod>
+
+	* tools/irsend.c: support for --address and --count switches
+
+	* remotes/creative/lircd.conf.alsa_usb: dummy gap
+
+2007-04-04  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, doc/html-source/install.html:
+	lircd.conf.pctv changed in 0.8.2, not 0.8.1
+
+2007-04-03  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added Microsoft MCE Infrared Transceiver id
+
+2007-03-31  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c: fixed toggle bit mask messages
+
+2007-03-30  lirc  <lirc@eyepod>
+
+	* tools/irxevent.c: compile with gcc 2.95.4
+
+2007-03-24  lirc  <lirc@eyepod>
+
+	* daemons/hardware.h, daemons/hw_default.c, daemons/hw_default.h, daemons/lircd.c:
+	changed interface of ioctl_func
+
+	* tools/lirc_client.c: fixed crash in lirc_setmode when resetting mode
+
+2007-03-22  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	support for Philips Infrared Transciever - HP branded
+
+2007-03-18  lirc  <lirc@eyepod>
+
+	* drivers/lirc_imon/lirc_imon.c, remotes/imon/lircd.conf.imon-2.4g, remotes/imon/lircd.conf.imon-2.4g-lt, doc/html-source/imon-24g.html, doc/release-html.sh, doc/table.sh, NEWS, configure.in, setup.data:
+	support for SoundGraph iMON 2.4G DT
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c, NEWS:
+	support for setting carrier frequency
+
+2007-03-17  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.8.2pre1 snapshot release
+
+2007-03-14  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html: supported hardware list
+
+	* doc/html-source/audio-alsa.html: irrecord
+
+2007-03-11  lirc  <lirc@eyepod>
+
+	* tools/irxevent.c: added daemon option
+
+	* tools/irxevent.c: added X error handler
+
+	* tools/irxevent.c: make local variables and functions static
+
+2007-03-10  lirc  <lirc@eyepod>
+
+	* daemons/config_file.c, daemons/receive.c:
+	increased minimum timeout when waiting for new data (this will give more reliable repeat detection);
+	sort remote configs by bit count to prevent impact on decoding performance
+
+	* daemons/hw_devinput.c: fixed compile error
+
+	* daemons/config_file.c, daemons/ir_remote.c, daemons/ir_remote.h, daemons/irrecord.c, daemons/receive.c, daemons/transmit.c:
+	bit_count function
+
+	* daemons/hw_creative.c, doc/html-source/index.html, doc/html-source/install.html, remotes/creative/lircd.conf.creative:
+	previous config file was bogus: updated config file with correct values
+
+	* daemons/ir_remote_types.h: use correct type for toggle_bit_mask_state
+
+	* remotes/atiusb/lircd.conf.atiusb: added AR Remote Control MCE config,
+	converted other config files to use new toggle_bit_mask feature
+
+	* daemons/irrecord.c: adjusted directions
+
+	* daemons/irrecord.c: prevent detection of bogus repeats
+
+2007-03-08  lirc  <lirc@eyepod>
+
+	* TODO:
+	replaced toggle_bit by toggle_bit_mask to better support ATI Remote Wonder type RF remotes
+
+2007-03-06  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	another Q-Sonic Master Remote PC / TV config
+
+2007-02-28  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, daemons/hw-types.c, daemons/hw_hiddev.c, remotes/asus/lircd.conf.asusdh, setup.data:
+	added support for Asus DH remote (Brice DUBOST, Bernhard Frauendienst)
+
+2007-02-27  lirc  <lirc@eyepod>
+
+	* daemons/hw_devinput.c: EV_SYN was previously called EV_RST
+
+2007-02-22  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added support for LG eHome Infrared Transceiver (Nils Winkler)
+
+2007-02-20  lirc  <lirc@eyepod>
+
+	* daemons/config_file.c, daemons/dump_config.c, daemons/ir_remote.c, daemons/ir_remote.h, daemons/ir_remote_types.h, daemons/irrecord.c, daemons/lircd.c, daemons/transmit.c:
+	replaced toggle_bit by toggle_bit_mask to better support ATI Remote Wonder type RF remotes
+
+	* daemons/config_file.c: added more sanity checks for config file
+
+	* remotes/asus/lircd.conf.asus, remotes/creative/lircd.conf.breakoutbox:
+	corrected name
+
+	* daemons/config_file.c: warning about missing gap value
+
+2007-02-19  lirc  <lirc@eyepod>
+
+	* daemons/hw_creative.c: support arbitrary NEC protocol remotes
+
+2007-02-18  lirc  <lirc@eyepod>
+
+	* remotes/imon/lircd.conf.imon-rsc: added gap
+
+	* daemons/ir_remote.h:
+	expect should work even when eps and aeps are set to 0
+
+	* daemons/transmit.c:
+	fixed transmit of toggle_mask when pre_data or post_data are used
+
+	* daemons/ir_remote.c: fixed resetting of current code
+
+2007-02-16  lirc  <lirc@eyepod>
+
+	* NEWS, daemons/transmit.c:
+	fixed show-stopper bug in RC-6 transmit code
+
+2007-02-13  lirc  <lirc@eyepod>
+
+	* drivers/lirc_streamzap/lirc_streamzap.c, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_bt829/lirc_bt829.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_mceusb/lirc_mceusb.c:
+	backwards compatibility
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, drivers/lirc_streamzap/lirc_streamzap.c, drivers/lirc_cmdir/lirc_cmdir.c, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_i2c/lirc_i2c.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_mceusb2/lirc_mceusb2.c, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_bt829/lirc_bt829.c:
+	add link to device in sysfs (Paul Bender)
+
+	* daemons/hw-types.c, NEWS, configure.in, daemons/Makefile.am, daemons/hw_accent.c, daemons/hw_accent.h, remotes/kanam_accent/lircd.conf.IR-100, setup.data:
+	added support for Kanam Accent (Niccolo Rigacci)
+
+2007-02-12  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, drivers/lirc_imon/lirc_imon.c, remotes/imon/lircd.conf.imon-2.4g-lt, setup.data:
+	support for SoundGraph iMON 2.4G LT (Morten Bogeskov)
+
+2007-02-07  lirc  <lirc@eyepod>
+
+	* doc/man-source/irsend.inc: fixed syntax errors
+
+2007-01-30  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c: SET_TRANSMITTERS 0 is not a valid command
+
+2007-01-25  lirc  <lirc@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_parallel/lirc_parallel.h:
+	support multiple indendent transmitters
+
+2007-01-24  lirc  <lirc@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: fixed merge error
+
+2007-01-23  lirc  <lirc@eyepod>
+
+	* setup.data: removed obsolete note about I2C layer
+
+2007-01-22  lirc  <lirc@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	Xbox support (Michael Wojciechowski, Vassilis Virvilis)
+
+2007-01-17  lirc  <lirc@eyepod>
+
+	* drivers/Makefile.common:
+	don't try to create device node if /dev/lirc already exists in some form
+
+	* doc/html-source/foot.html, doc/html-source/index.html, doc/html-source/install.html, remotes/pinnacle_systems/lircd.conf.pctv, daemons/hw_pinsys.c:
+	enable 3 bytes code for better reliability
+
+2007-01-16  lirc  <lirc@eyepod>
+
+	* acinclude.m4:
+	Resolving a sandbox violation when compiling lirc inside a sandbox (Daniel Drake, Matthias Schwarzott)
+
+	* drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_mceusb2/lirc_mceusb2.c, drivers/lirc_streamzap/lirc_streamzap.c:
+	SLAB_ATOMIC seems to be obsolete, use GFP_ATOMIC instead
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added another SMK receiver ID (Jens Hoffmann)
+
+	* TODO, daemons/ir_remote.c, daemons/ir_remote_types.h, daemons/lircd.c, daemons/transmit.c:
+	proper decoding for Pioneer protocol with multiple codes,
+	implemented transmission of Pioneer protocol with multiple codes
+
+	* drivers/lirc.h, tools/irpty.c: compile on NetBSD
+
+	* daemons/irrecord.c:
+	prevent usage of --force parameter together with template file
+
+	* setup.sh: don't require bash
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	working on 0.8.2
+
+2007-01-07  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, NEWS, configure.in, setup.sh, ANNOUNCE:
+	0.8.1 release
+
+2007-01-02  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h: pre 2.6.11 kernels did not use __bitwise attribute
+
+2006-12-30  lirc  <lirc@eyepod>
+
+	* doc/html-source/install.html, configure.in:
+	link to Technisat MediaFocus I changed
+
+2006-12-29  lirc  <lirc@eyepod>
+
+	* remotes/imon/lircd.conf.imon-knob: fixed KnobVolUp code
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0.8.1pre5 snapshot release
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.8.1pre4 snapshot release
+
+	* drivers/kcompat.h, drivers/lirc_dev/lirc_dev.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_sasem/lirc_sasem.c:
+	fixed crash on 2.4 kernels with devfs
+
+2006-12-27  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	nslu2: replaced direct port-access by cleaner gpio_line_set()
+
+2006-12-19  lirc  <lirc@eyepod>
+
+	* remotes/leadtek/lircd.conf.PVR2000: updated version
+
+2006-12-12  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	added Medion OR24E RF MCE Remote Control
+
+2006-12-11  lirc  <lirc@eyepod>
+
+	* tools/irpty.c, tools/irxevent.c: fixed progname
+
+	* daemons/hw_devinput.c: ignore EV_SYN
+
+2006-12-07  lirc  <lirc@eyepod>
+
+	* daemons/hw_uirt2_raw.c: fixed repeat detection
+
+2006-12-03  lirc  <lirc@eyepod>
+
+	* daemons/hw_uirt2_raw.c: added descriptive error message
+
+	* daemons/hw_uirt2_raw.c: use default value if frequency is not given
+
+2006-12-01  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c: usecs_to_jiffies
+
+	* drivers/kcompat.h, drivers/lirc_streamzap/lirc_streamzap.c:
+	pm_message_t
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	transmit gap when first pulse is available
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added support for FIC eHome Infrared Transceiver
+
+	* daemons/hw_uirt2_raw.c: fold repeated signal sequences
+
+2006-11-28  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added support for Itron ione Libra Q-11
+
+	* remotes/imon/lircd.conf.imon-pad: corrected name
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.8.1pre3 snapshot release
+
+2006-11-22  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, daemons/hw-types.c, daemons/hw_uirt2_common.c, daemons/hw_uirt2_common.h, daemons/hw_uirt2_raw.c, daemons/serial.c, daemons/serial.h, setup.data:
+	added support for USB-UIRT
+
+2006-11-16  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	the very first signal should be a long space
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	fix transmitter mask setting for SMK transceiver
+
+2006-11-15  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added support for Ricavision internal Infrared Transceiver
+
+2006-11-11  lirc  <lirc@eyepod>
+
+	* doc/table.sh: make script portable (closes bug 1592832)
+
+	* remotes/atiusb/lircd.conf.atiusb: updated config file for MD95700
+
+2006-11-10  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	fixed bug causing misinterpretation of pulses longer than 6350 us as spaces
+
+2006-11-09  lirc  <lirc@eyepod>
+
+	* doc/html-source/install.html, configure.in, setup.data, setup.sh:
+	improve installation guidance and documentation
+
+2006-11-08  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c: support for suspend/resume
+
+2006-11-07  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	reimplementation of reception code
+
+2006-10-27  lirc  <lirc@eyepod>
+
+	* configure.in: link to Linux input layer config file
+
+2006-10-22  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added transmit delay for correct gap calculation
+
+2006-10-20  lirc  <lirc@eyepod>
+
+	* remotes/imon/lircd.conf.imon-pad: Antec Fusion Wheel
+
+	* drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, drivers/lirc_streamzap/lirc_streamzap.c, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_bt829/lirc_bt829.c, drivers/lirc_cmdir/lirc_cmdir.c, drivers/lirc_dev/lirc_dev.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_mceusb2/lirc_mceusb2.c, drivers/lirc_parallel/lirc_parallel.c:
+	include linux/autoconf.h instead of obsolete linux/config.h
+
+2006-10-14  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.8.1pre2 snapshot release
+
+2006-10-09  lirc  <lirc@eyepod>
+
+	* daemons/lircmd.c: removed misplaced ;
+
+2006-10-08  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c, daemons/lircd.c: cleanup of logprintf function
+
+	* configure.in: respect empty CFLAGS
+
+2006-10-07  lirc  <lirc@eyepod>
+
+	* configure.in: fixed test for already set CFLAGS environment variable
+
+2006-10-05  lirc  <lirc@eyepod>
+
+	* drivers/lirc_streamzap/.cvsignore, drivers/lirc_i2c/.cvsignore, drivers/lirc_igorplugusb/.cvsignore, drivers/lirc_imon/.cvsignore, drivers/lirc_it87/.cvsignore, drivers/lirc_mceusb/.cvsignore, drivers/lirc_mceusb2/.cvsignore, drivers/lirc_parallel/.cvsignore, drivers/lirc_sasem/.cvsignore, drivers/lirc_serial/.cvsignore, drivers/lirc_sir/.cvsignore, drivers/lirc_atiusb/.cvsignore, drivers/lirc_bt829/.cvsignore, drivers/lirc_cmdir/.cvsignore, drivers/lirc_dev/.cvsignore, drivers/lirc_gpio/.cvsignore:
+	ignore Modules.symvers
+
+	* daemons/Makefile.am: added hw_iguanaIR.c to sources
+
+	* NEWS, acconfig.h, configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_iguanaIR.c, setup.data:
+	added support for Iguanaworks USB IR Transceiver (Joseph Dunn)
+
+2006-10-01  lirc  <lirc@eyepod>
+
+	* daemons/hw_uirt2_common.c:
+	improved reliability of driver (Wilfried Weissmann)
+
+2006-09-22  lirc  <lirc@eyepod>
+
+	* NEWS, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_mceusb2/lirc_mceusb2.c:
+	transmitter support (Daniel Melander)
+
+2006-09-03  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added entry for Topseed eHome Infrared Transceiver
+
+2006-08-24  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: added toggle codes for Medion X10
+
+2006-08-13  lirc  <lirc@eyepod>
+
+	* remotes/creative/lircd.conf.alsa_usb:
+	new configuration for  Sound Blaster Live! External USB for alsa_usb driver
+
+2006-08-10  lirc  <lirc@eyepod>
+
+	* drivers/lirc_cmdir/lirc_cmdir.c: merge of latest driver updates
+
+2006-08-04  lirc  <lirc@eyepod>
+
+	* configure.in: corrected config filename
+
+2006-08-03  lirc  <lirc@eyepod>
+
+	* contrib/lirc.rules:
+	udev 091 requires comparison with ==, sholud be backwards compatible down to udev 055
+
+2006-08-01  lirc  <lirc@eyepod>
+
+	* configure.in: make configure respect CFLAGS
+
+2006-07-31  lirc  <lirc@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_mceusb/lirc_mceusb.c:
+	fixed endianness issues in usb drivers with idVendor and idProduct
+
+2006-07-25  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added Mitsumi device (Quentin Smart)
+
+2006-07-23  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h, drivers/lirc_dev/lirc_dev.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_sasem/lirc_sasem.c:
+	compile on 2.6.18 (Matthias Schwarzott)
+
+2006-07-18  lirc  <lirc@eyepod>
+
+	* daemons/hw_devinput.c:
+	extended logging only in debug builds to prevent logfile flooding
+
+2006-07-16  lirc  <lirc@eyepod>
+
+	* daemons/hw_tira.c: fix for Tira2 (B. Galliart)
+
+	* daemons/receive.c: hit overflow later
+
+	* drivers/lirc_dev/lirc_dev.c: removed chunk_size from irctl struct
+
+2006-07-07  lirc  <lirc@eyepod>
+
+	* drivers/Makefile.common:
+	additional include path required to compile lirc_gpio on 2.6.17
+
+2006-07-06  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c: 2000XP Deluxe subsystem ID
+
+2006-06-26  lirc  <lirc@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c: make I2C_HW_B_CX2341X really work
+
+2006-06-20  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c: bttv header files were moved in 2.6.17
+
+2006-06-15  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: added Medion 8802 remote
+
+2006-06-07  lirc  <lirc@eyepod>
+
+	* daemons/ir_remote.c:
+	fixed recognition of remotes that send multiple codes for each button
+
+	* daemons/slinke.c: compile fix
+
+2006-06-05  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c:
+	added support for Askey CPH03x TV Capturer (Adam Sulmicki)
+
+2006-06-04  lirc  <lirc@eyepod>
+
+	* configure.in, doc/html-source/index.html, setup.sh, ANNOUNCE, NEWS:
+	lirc-0.8.1pre1 snapshot release
+
+	* daemons/hw_devinput.c: check if EVIOCGPHYS is available
+
+	* daemons/hw_devinput.c, doc/man-source/lircd.inc:
+	extend driver device selection code (Darren Salt)
+
+	* daemons/irrecord.c: fixed compiler warning
+
+2006-05-27  lirc  <lirc@eyepod>
+
+	* remotes/imon/lircd.conf.imon-pad: buttons aded by Corrin Lakeland
+
+2006-05-23  lirc  <lirc@eyepod>
+
+	* tools/lirc_client.c: fixed crash when reading in config file
+
+2006-05-20  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c: added BTTV_BOARD_PV_M4900 id
+
+	* tools/irpty.c: removed unused socket parameter
+
+	* drivers/lirc_i2c/lirc_i2c.c: new I2C id for PVR350
+
+2006-05-14  lirc  <lirc@eyepod>
+
+	* daemons/hw_devinput.c: prevent logfile flooding on fatal errors
+
+2006-05-06  lirc  <lirc@eyepod>
+
+	* tools/Makefile.am, tools/lirc_client.c, tools/lirc_client.h, tools/lircrcd.c:
+	added function to set current mode
+
+	* daemons/hw_hiddev.c: added conversion code to real codes
+
+	* remotes/dvico/lircd.conf.fusionHDTV:
+	added real codes for Ultraview remote
+
+	* remotes/creative/lircd.conf.livedrive: added headphone codes
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	fix key stutter problem (Maciek Klimkowski)
+
+2006-04-29  lirc  <lirc@eyepod>
+
+	* remotes/creative/lircd.conf.alsa_usb, remotes/sigma_designs/lircd.conf.realmagic:
+	added real signals
+
+2006-04-09  lirc  <lirc@eyepod>
+
+	* data2setup.sh: warning about autogenerated file
+
+	* remotes/imon/lircd.conf.imon-knob, configure.in, setup.data:
+	added iMON Knob configuration
+
+2006-04-07  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added Shuttle eHome Infrared Transceiver support
+
+2006-04-05  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c, daemons/lircd.c:
+	va_start/va_end must be used for all appearances of vfprintf independently
+
+2006-03-24  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb2/lirc_mceusb2.c:
+	added USB ID for Gateway FIC Spectra MCE Remote (patch by Hydroksyde)
+
+	* daemons/serial.c: don't change stopbit setting in tty_setrtscts()
+
+2006-03-21  lirc  <lirc@eyepod>
+
+	* remotes/leadtek/lircd.conf.RM-0010:
+	more buttons on CoolCommand remote
+
+2006-03-04  lirc  <lirc@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c, drivers/kcompat.h:
+	changes for 2.6.16: i2c changes
+
+	* drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_mceusb2/lirc_mceusb2.c, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_streamzap/lirc_streamzap.c, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_imon/lirc_imon.c, drivers/kcompat.h:
+	changes for 2.6.16: removed owner field in usb_driver struct
+
+2006-02-28  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c:
+	fixed overflow of client array (thanks to Martin von Gagern for the patch)
+
+2006-02-25  lirc  <lirc@eyepod>
+
+	* configure.in:
+	./configure treats --disable-maintainer-mode as --enable
+
+	* daemons/dump_config.c: log driver really in use
+
+2006-02-04  lirc  <lirc@eyepod>
+
+	* daemons/ir_remote.c: fixed overflow in toggle bit handling
+
+2006-02-01  lirc  <lirc@eyepod>
+
+	* doc/html-source/audio-alsa.html: corrected irrecord call
+
+2006-01-29  lirc  <lirc@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	clear rest of buffer also for repeats
+
+2006-01-28  lirc  <lirc@eyepod>
+
+	* daemons/config_file.h, daemons/ir_remote.h, daemons/ir_remote_types.h, daemons/receive.c, daemons/transmit.c:
+	added Bang+Olufsen protocol support
+
+2006-01-22  lirc  <lirc@eyepod>
+
+	* TODO, daemons/config_file.c, daemons/dump_config.c, daemons/ir_remote_types.h, daemons/receive.c:
+	implemented min_code_repeat to support protocol used by Creative RM-900
+
+	* daemons/lircd.c: compile on Mac OS
+
+2006-01-21  lirc  <lirc@eyepod>
+
+	* drivers/lirc_it87/lirc_it87.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c:
+	replace asm/segment.h (obsolete) by asm/uaccess.h
+
+	* doc/html-source/index.html, doc/man/Makefile.am, ANNOUNCE, NEWS, configure.in, doc/Makefile.am, setup.sh:
+	generate man pages selectively
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	0.8.0 release
+
+2006-01-19  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	Medion USB Remote Control X10, model no. 40009936
+
+2006-01-14  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0.8.0pre4 snapshot release
+
+	* drivers/lirc_sir/lirc_sir.c: enabled transmit code for Tekram 210
+
+2006-01-09  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: corrections for Medion MD1 remote
+
+2006-01-08  lirc  <lirc@eyepod>
+
+	* tools/lirc_client.c:
+	working again: try to open /etc/lircrc if default file does not exit
+
+	* tools/lircrcd.c: remove socket file on exit
+
+2006-01-07  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h: added include of linux/pci.h
+
+2006-01-06  lirc  <lirc@eyepod>
+
+	* drivers/lirc_streamzap/lirc_streamzap.c:
+	fixed race condition with usb interrupt in timer handler which would lead to a lockup
+
+2006-01-03  lirc  <lirc@eyepod>
+
+	* TODO: list not becoming shorter
+
+2006-01-02  lirc  <lirc@eyepod>
+
+	* tools/mode2.c: fixed check for wrong argument count
+
+2006-01-01  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h, drivers/lirc_gpio/lirc_gpio.c:
+	2.6.15: BTTV_* renamed to BTTV_BOARD_*
+
+2005-12-28  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h: compatibility for 2.2.x kernels
+
+2005-12-27  lirc  <lirc@eyepod>
+
+	* .cvsignore: added stamp-h1
+
+	* doc/man/.cvsignore: added lircrcd.1
+
+	* drivers/Makefile.common: corrected include path settings,
+	fixes compile problems with gcc 4
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.8.0pre3 snapshot release
+
+	* tools/lirc_client.c, tools/lirc_client.h:
+	lirc_send_command() not part of official interface yet
+
+2005-12-26  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: another remote config
+
+	* NEWS, acconfig.h, configure.in, drivers/lirc_sir/lirc_sir.c, setup.data:
+	added support for Actisys Act220L(+) (Jan Roemisch)
+
+2005-12-17  lirc  <lirc@eyepod>
+
+	* drivers/lirc_sir/lirc_sir.c:
+	pulses were too short or even were not sent at all
+
+	* drivers/lirc_serial/lirc_serial.c: removed questionable type field
+
+	* AUTHORS, NEWS, acconfig.h, configure.in, drivers/lirc_serial/lirc_serial.c, setup.data:
+	added support for Linksys NSLU2 (Matthias Goebl)
+
+2005-12-10  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0.8.0pre2 snapshot release
+
+	* NEWS, doc/html-source/configure.html, doc/html-source/index.html, doc/html-source/install.html, doc/html-source/technical.html, doc/man-source/lircrcd.inc, doc/man/Makefile.am, doc/release-html.sh, doc/release-man.sh, tools/.cvsignore, tools/Makefile.am, tools/lirc_client.c, tools/lirc_clientd.c, tools/lircrcd.c:
+	renamed lirc_clientd to lircrcd,
+	documented lircrcd
+
+	* remotes/pixelview/lircd.conf.playtv_pro, setup.data:
+	PixelView PlayTV MPEG2
+
+2005-12-08  lirc  <lirc@eyepod>
+
+	* configure.in: always use LIBUSB_CONFIG
+
+2005-12-04  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h: fixed typo
+
+2005-12-03  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h, drivers/lirc_dev/lirc_dev.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_sasem/lirc_sasem.c:
+	changes for 2.6.15
+
+2005-11-28  lirc  <lirc@eyepod>
+
+	* contrib/lirc.m4: proper quoting
+
+	* tools/lirc_client.c: need one more for terminating 0
+
+2005-11-27  lirc  <lirc@eyepod>
+
+	* tools/lirc_clientd.c: log messages using syslog
+
+	* drivers/kcompat.h, drivers/lirc_bt829/lirc_bt829.c:
+	use pci_name() instead of obsolete pci_pretty_name()
+
+2005-11-26  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: MEDION X10 RF
+
+	* tools/lirc_client.c, tools/lirc_client.h, tools/lirc_clientd.c:
+	added function to retrieve current mode
+
+2005-11-12  lirc  <lirc@eyepod>
+
+	* doc/html-source/alsa-usb.html, doc/release-html.sh, doc/table.sh:
+	added dedicated alsa_usb documentation
+
+	* doc/html-source/install.html, NEWS, configure.in:
+	replaced "any" with "all" and "userspace"
+
+2005-11-09  lirc  <lirc@eyepod>
+
+	* tools/lirc_clientd.c:
+	remove version string from usage and error messages
+
+2005-11-08  lirc  <lirc@eyepod>
+
+	* drivers/lirc_bt829/lirc_bt829.c: fixed compiler warnings
+
+	* drivers/kcompat.h: pci_pretty_name disappeared in 2.6.14
+
+	* tools/lirc_client.h: add stddef.h for size_t
+
+2005-11-05  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.8.0pre1 snapshot release
+
+	* configure.in, doc/html-source/index.html, setup.sh, ANNOUNCE, NEWS:
+	next version will be 0.8.0
+
+	* remotes/generic/RCMM-32.conf: added RCMM-32 template
+
+2005-11-01  lirc  <lirc@eyepod>
+
+	* tools/.cvsignore, tools/Makefile.am, tools/lirc_client.c, tools/lirc_client.h, tools/lirc_clientd.c:
+	initial support for lirc client daemon that syncronises mode between clients
+
+	* remotes/atiusb/lircd.conf.atiusb: changed obviously wrong code
+
+2005-10-30  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c, daemons/lircmd.c:
+	remove version string from usage and error messages
+
+2005-10-29  lirc  <lirc@eyepod>
+
+	* remotes/bestbuy/lircd.conf.bestbuy2: corrected code for 9 button
+
+	* doc/release-html.sh, doc/table.sh:
+	generation of driver overview table
+
+	* drivers/kcompat.h, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_mceusb2/lirc_mceusb2.c, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_streamzap/lirc_streamzap.c:
+	USB changes for 2.6.14
+
+2005-10-25  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c, daemons/ir_remote.c:
+	fixed potential information leaks (thanks to Rik Bobbaers for pointing out the problem)
+
+2005-10-21  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.7.3pre1 snapshot release
+
+	* NEWS: changes since last release
+
+2005-10-20  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c: more robust write for receive simulation
+
+	* daemons/receive.c: added debug traces
+
+	* drivers/kcompat.h: removed redundant defines
+
+	* drivers/lirc_i2c/lirc_i2c.c: check return value of i2c_use_client(),
+	call i2c_use_client() only if really necessary
+
+	* drivers/kcompat.h:
+	added include of interrupt.h to prevent redefinitions
+
+	* drivers/kcompat.h: I2C_ALGO_BIT disappeared in 2.6.14
+
+2005-10-16  lirc  <lirc@eyepod>
+
+	* doc/man-source/xmode2.inc:
+	added reading from stdin to support visualisation of captured mode2 signals
+
+	* tools/xmode2.c: added X geometry support
+
+	* tools/xmode2.c: changed indentation to 8
+
+	* tools/xmode2.c:
+	added reading from stdin to support visualisation of captured mode2 signals
+
+2005-10-15  lirc  <lirc@eyepod>
+
+	* daemons/transmit.c:
+	fixed misbehaviour if transmitting small gap value while a space is pending (affected configs: FURBY and Toshiba TDP-S2)
+
+2005-10-05  lirc  <lirc@eyepod>
+
+	* remotes/hauppauge/lircd.conf.hauppauge: config for WinTV Nexus-S
+
+2005-10-04  lirc  <lirc@eyepod>
+
+	* drivers/lirc_it87/lirc_it87.c:
+	call release_region() if request_irq() fails
+
+2005-09-25  lirc  <lirc@eyepod>
+
+	* drivers/lirc_cmdir/lirc_cmdir.c, drivers/lirc_cmdir/lirc_cmdir.h:
+	support for packet queueing and timing in the hardware driver to eliminate udelay()s that cause stuttering
+
+2005-09-22  lirc  <lirc@eyepod>
+
+	* drivers/lirc_cmdir/lirc_cmdir.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c:
+	get rid of verify_area
+
+2005-09-13  lirc  <lirc@eyepod>
+
+	* remotes/mceusb/lircd.conf.mceusb: updated for MCE 2005 remote
+
+2005-09-10  lirc  <lirc@eyepod>
+
+	* tools/irxevent.c: don't try to send events to non-existing window
+
+2005-09-06  lirc  <lirc@eyepod>
+
+	* remotes/asus/lircd.conf.digimatrix:
+	alternative version of remote control bundled with DigiMatrix
+
+2005-09-03  lirc  <lirc@eyepod>
+
+	* daemons/transmit.c:
+	consider NO_HEAD_REP when doing low gap concatenation
+
+2005-09-01  lirc  <lirc@eyepod>
+
+	* remotes/dvico/lircd.conf.fusionHDTV: new version
+
+2005-08-31  lirc  <lirc@eyepod>
+
+	* daemons/hw_hiddev.c: corrected code length
+
+2005-08-26  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c:
+	fix bug when recording with -f option using udp driver
+
+	* remotes/atiusb/lircd.conf.atiusb: Medion MD95700 remote
+
+2005-08-24  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	do not do async unlinking when decrementing mod count
+
+2005-08-15  lirc  <lirc@eyepod>
+
+	* tools/xmode2.c:
+	rewritten event handling to make this tool remotely usable
+
+	* daemons/lircd.c:
+	fixed potential crash when starting without -d option
+
+2005-08-14  lirc  <lirc@eyepod>
+
+	* configure.in: give correct error message
+
+	* configure.in: fixed typo
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	started development for 0.7.3
+
+	* drivers/lirc_streamzap/lirc_streamzap.c:
+	make data delivery independent of HZ value (better 2.6 support)
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.7.2 release
+
+2005-08-11  lirc  <lirc@eyepod>
+
+	* daemons/hw_uirt2_common.c: support extended version information
+
+2005-08-10  lirc  <lirc@eyepod>
+
+	* drivers/lirc_imon/lirc_imon.c, drivers/lirc_sasem/lirc_sasem.c:
+	use GFP_ATOMIC in interrupt context
+
+2005-08-08  lirc  <lirc@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c: corrected debug output
+
+2005-08-06  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.7.2pre3 snapshot release
+
+2005-08-04  lirc  <lirc@eyepod>
+
+	* tools/irxevent.c, doc/man-source/irxevent.inc:
+	support for KeySym and KeyCode in key definition (Warren Melnick)
+
+2005-08-02  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c:
+	device is set to wrong value when using -H option due to missing break
+
+2005-08-01  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h: inlucde linux/device.h when necessary
+
+	* daemons/hw-types.c: don't fiddle about hw.device in hw_choose_driver
+
+	* drivers/lirc_cmdir/Makefile.am: add lirc_cmdir.h
+
+2005-07-31  lirc  <lirc@eyepod>
+
+	* daemons/hw-types.c: enable alsa_usb in any driver configuration
+
+2005-07-30  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.7.2pre2 snapshot release
+
+	* drivers/Makefile.am: added lirc_cmdir
+
+2005-07-22  lirc  <lirc@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c, drivers/kcompat.h:
+	updated udev support for 2.6.13 kernels
+
+2005-07-18  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, drivers/Makefile.am, drivers/lirc_mceusb2/.cvsignore, drivers/lirc_mceusb2/Makefile.am, drivers/lirc_mceusb2/lirc_mceusb2.c, setup.data:
+	added support for new version of Windows Media Center Remotes (Martin Blatter, Eric Moors)
+
+	* acinclude.m4:
+	add /lib/modules/`uname -r`/build as a kernel source path
+
+2005-07-15  tjdavies  <tjdavies@eyepod>
+
+	* drivers/lirc_sasem/lirc_sasem.c, remotes/sasem/lircd.conf.sasem:
+	Use all 8 bytes of IR code
+
+2005-07-11  lirc  <lirc@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c: check for a module owner,
+	checking the return value of down_interruptible,
+	keeping the semaphore count and return value in irctl_open() correct
+
+2005-07-10  lirc  <lirc@eyepod>
+
+	* drivers/lirc_cmdir/.cvsignore, daemons/hw_slinke.c, drivers/lirc_cmdir/Makefile.am, drivers/lirc_cmdir/lirc_cmdir.c, drivers/lirc_cmdir/lirc_cmdir.h, tools/irsend.c, daemons/hw_pixelview.c, daemons/hw_silitek.c, daemons/hw_tira.c, daemons/hw_udp.c, daemons/hw_uirt2.c, daemons/hw_uirt2_raw.c, daemons/lircd.c, daemons/lircd.h, doc/man-source/irsend.inc, drivers/lirc.h, daemons/hw-types.c, daemons/hw_alsa_usb.c, daemons/hw_atilibusb.c, daemons/hw_audio.c, daemons/hw_audio_alsa.c, daemons/hw_bte.c, daemons/hw_caraca.c, daemons/hw_creative.c, daemons/hw_creative_infracd.c, daemons/hw_default.c, daemons/hw_default.h, daemons/hw_devinput.c, daemons/hw_dsp.c, daemons/hw_ea65.c, daemons/hw_hiddev.c, daemons/hw_irman.c, daemons/hw_livedrive_midi.c, daemons/hw_livedrive_seq.c, daemons/hw_logitech.c, daemons/hw_mouseremote.c, daemons/hw_mp3anywhere.c, daemons/hw_pcmak.c, daemons/hw_pinsys.c, daemons/hardware.h, setup.data, configure.in, NEWS:
+	added support for InnovationOne's COMMANDIR USB Transceiver (Evelyn Yeung, Matt Bodkin)
+
+2005-07-04  tjdavies  <tjdavies@eyepod>
+
+	* remotes/sasem/lircd.conf.sasem, drivers/lirc_sasem/Makefile.am, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_sasem/lirc_sasem.h:
+	Rewritten Sasem driver
+
+2005-06-18  lirc  <lirc@eyepod>
+
+	* daemons/config_file.c, daemons/ir_remote_types.h, daemons/receive.c:
+	support for parity bit in serial protocols
+
+2005-06-17  lirc  <lirc@eyepod>
+
+	* remotes/dvico/lircd.conf.fusionHDTV: new remote
+
+2005-06-11  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.7.2pre1 snapshot release
+
+	* doc/html-source/configure.html: typo
+
+2005-06-07  lirc  <lirc@eyepod>
+
+	* doc/html-source/install.html, doc/html-source/configure.html, doc/html-source/technical.html:
+	html tidy
+
+2005-06-05  lirc  <lirc@eyepod>
+
+	* configure.in, remotes/asus/lircd.conf.digimatrix:
+	added default config file for Digimatrix
+
+	* NEWS, acconfig.h, configure.in, drivers/lirc_it87/lirc_it87.c, setup.data:
+	added support for Asus Digimatrix (Andrew Calkin)
+
+	* NEWS, drivers/lirc_streamzap/lirc_streamzap.c:
+	bug fix: device stops responding in some situations
+
+	* daemons/hw_tira.c: remove lock files if tira_setup() fails
+
+2005-05-29  lirc  <lirc@eyepod>
+
+	* remotes/creative/lircd.conf.alsa_usb, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_alsa_usb.c, setup.data, NEWS, acconfig.h, configure.in:
+	added support for Sound Blaster Extigy/Audigy 2 NX (Clemens Ladisch)
+
+	* acinclude.m4:
+	fixed aclocal warning: underquoted definition of ... (SF patch)
+
+	* drivers/lirc_streamzap/lirc_streamzap.c:
+	added missing transition in state machine
+
+2005-05-28  lirc  <lirc@eyepod>
+
+	* remotes/remotec/lircd.conf.BW6130, remotes/remotec/lircmd.conf.BW6130, daemons/hw-types.c, daemons/hw_hiddev.c, doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.data, setup.sh:
+	added support for Remotec Multimedia PC Remote BW6130 (Maik Freudenberg)
+
+	* daemons/transmit.c: support RCMM transmit
+
+2005-05-01  tjdavies  <tjdavies@eyepod>
+
+	* remotes/sasem/lircd.conf.dignhv5, remotes/sasem/lircd.conf.sasem:
+	New name for lircd.conf.sasem
+
+2005-04-23  lirc  <lirc@eyepod>
+
+	* daemons/config_file.h, daemons/ir_remote.h, daemons/ir_remote_types.h, daemons/irrecord.c, daemons/slinke.c, daemons/config_file.c:
+	cleanup of protocol flags
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, acconfig.h, configure.in:
+	--with-driver=any now will also compile all kernel modules
+
+	* drivers/lirc_parallel/lirc_parallel.c:
+	turn IR off after reclaiming port
+
+2005-04-17  lirc  <lirc@eyepod>
+
+	* doc/html-source/foot.html, NEWS, configure.in, setup.data:
+	0.7.1 release
+
+2005-04-16  venkyr  <venkyr@eyepod>
+
+	* NEWS: Re: iMON-PAD and iMON-RSC support.
+
+	* configure.in, setup.data: Added support for iMON-PAD and iMON-RSC.
+
+	* drivers/lirc_imon/lirc_imon.c:
+	Printing incoming IR data (for debugging new models) now controlled by
+	conditional compilation.
+
+	* remotes/imon/lircd.conf.imon, remotes/imon/lircd.conf.imon-rsc:
+	Created separate config file for IMON RSC remote.  Original file (imon)
+	contains configuration for IMON MultiMedian remote.
+
+2005-04-15  venkyr  <venkyr@eyepod>
+
+	* remotes/imon/lircd.conf.imon-pad: Config file for iMON PAD remote
+
+	* drivers/lirc_imon/lirc_imon.c:
+	Added support for controllers that decode the IR in firmware (iMON-PAD).
+
+2005-04-14  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c:
+	added support for new version of Winfast TV2000 XP card (Stephen Vinall)
+
+2005-04-09  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0.7.1pre4 snapshot release
+
+2005-04-01  lirc  <lirc@eyepod>
+
+	* remotes/kworld/lircd.conf.kworld: added configuration for DVB-T card
+
+2005-03-30  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	correction for SAPPHIRE_ATIUSB_5000023600
+
+2005-03-29  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	new configuration for ATI Remote Wonder Sapphire version
+
+	* drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_sasem/lirc_sasem.h:
+	A few tidyups and keypress timings
+
+2005-03-28  lirc  <lirc@eyepod>
+
+	* drivers/lirc_sasem/lirc_sasem.h, drivers/lirc_sasem/lirc_sasem.c:
+	update to support 2.6 kernels
+
+	* configure.in, drivers/lirc_i2c/lirc_i2c.c, remotes/adaptec/lircd.conf.AVC-2410:
+	use full code for Adaptec AVC-2410 card
+
+2005-03-27  lirc  <lirc@eyepod>
+
+	* daemons/config_file.h, daemons/ir_remote.h, daemons/ir_remote_types.h, daemons/receive.c, daemons/transmit.c:
+	added support for SPACE_FIRST protocol
+
+	* daemons/hw_default.c:
+	removed obsolete remaining_gap calculation in transmit simulation code
+
+2005-03-26  lirc  <lirc@eyepod>
+
+	* NEWS: added due credit for Adaptec AVC-2410 code
+
+	* setup.sh:
+	merged from release branch: finally make transmitter enabled the default
+
+	* daemons/Makefile.am: added ir_remote_types.h, fixed typo
+
+	* daemons/Makefile.am: added ir_remote_types.h
+
+	* setup.sh: finally make transmitter enabled the default
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0.7.1pre3 snapshot release
+
+2005-03-25  lirc  <lirc@eyepod>
+
+	* remotes/ericsson/lircd.conf.bte, daemons/hw_bte.c:
+	fix tty_create_lock call,
+	minor changes
+
+2005-03-24  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c: refusing to connect to myself
+
+2005-03-21  lirc  <lirc@eyepod>
+
+	* drivers/lirc_igorplugusb/lirc_igorplugusb.c:
+	removed unregister in set_use_dec
+
+2005-03-20  lirc  <lirc@eyepod>
+
+	* tools/lirc_client.c:
+	make lirc_flags non-static as lircrc_config relies on this function
+
+	* remotes/ericsson/lircd.conf.bte, daemons/hw_bte.c, daemons/hw_bte.h, setup.sh:
+	bte driver updated
+
+2005-03-13  lirc  <lirc@eyepod>
+
+	* daemons/hw_hiddev.c: simplified repeat logic
+
+2005-03-12  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_atiusb/lirc_atiusb.c:
+	removed obsolete unregister code
+
+	* drivers/lirc_sir/lirc_sir.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_dev/lirc_dev.c:
+	use set_current_state
+
+	* daemons/hw_hiddev.c: make repeat work
+
+2005-03-11  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_hiddev.c, remotes/dvico/lircd.conf.fusionHDTV, setup.data:
+	added support for DViCO USB Remote (William Uther)
+
+	* drivers/lirc_dev/lirc_dev.c: fixed typo
+
+	* drivers/lirc_i2c/lirc_i2c.c, NEWS, configure.in, setup.data:
+	added support for Adaptec AVC-2410 capture card
+
+	* drivers/lirc_dev/lirc_dev.c, TODO:
+	lirc_unregister_plugin() can be called even if device is open (necessary for removable devices like USB receivers)
+
+	* daemons/lircd.c, daemons/lircmd.c: syslog identity without spaces
+
+	* tools/irpty.c: compile on FreeBSD
+
+2005-03-07  lirc  <lirc@eyepod>
+
+	* daemons/hw_bte.c, daemons/hw_dsp.c, daemons/hw_logitech.c, daemons/hw_mouseremote.c, daemons/hw_mp3anywhere.c, daemons/hw_udp.c, daemons/hw_uirt2_raw.c, daemons/receive.c, daemons/serial.c, daemons/transmit.c:
+	applied patch: eliminate format related compiler warnings
+
+2005-03-06  lirc  <lirc@eyepod>
+
+	* daemons/hw_livedrive_seq.c, daemons/hw_livedrive_midi.c:
+	added include for reverse function
+
+	* drivers/lirc_streamzap/lirc_streamzap.c:
+	removed deadlock in buffer overflow condition
+
+	* daemons/ir_remote.h, daemons/irrecord.c:
+	added code to remove trailing pulse
+
+	* drivers/lirc_streamzap/lirc_streamzap.c:
+	prevent buffer overflows in delay buffer
+
+2005-03-05  lirc  <lirc@eyepod>
+
+	* drivers/lirc_streamzap/lirc_streamzap.c, drivers/lirc_dev/lirc_dev.c:
+	corrected locking,
+	cleaned up usb unlink procedure,
+	fixed timer locking,
+	removed unnecessary variables,
+	minor number is now set by lirc_register_plugin
+
+2005-02-28  lirc  <lirc@eyepod>
+
+	* drivers/lirc_igorplugusb/.cvsignore: added .cvsignore
+
+	* drivers/lirc_streamzap/lirc_streamzap.c: cleaned up timer locking
+
+2005-02-27  lirc  <lirc@eyepod>
+
+	* drivers/lirc_streamzap/lirc_streamzap.c:
+	flush hardware buffer on open
+
+	* daemons/receive.c, drivers/lirc.h, drivers/lirc_streamzap/lirc_streamzap.c, daemons/hardware.h, daemons/hw_default.c, daemons/ir_remote.h, daemons/ir_remote_types.h:
+	support for receiver resolution
+
+	* tools/mode2.c: support LIRC_MODE_CODE and LIRC_MODE_LIRCCODE
+
+2005-02-26  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: added configuration for Niveus X10
+
+2005-02-22  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: change buffer lengths
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: fix ati2 buffer problem
+
+2005-02-20  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, setup.sh, ANNOUNCE, NEWS, configure.in:
+	lirc-0.7.1pre2 snapshot release
+
+2005-02-19  lirc  <lirc@eyepod>
+
+	* drivers/lirc_streamzap/lirc_streamzap.c:
+	minimise error in signal length
+
+	* drivers/lirc_dev/lirc_dev.h: increased MAX_IRCTL_DEVICES to 4
+
+	* drivers/lirc_serial/.cvsignore, drivers/lirc_sir/.cvsignore, drivers/lirc_streamzap/.cvsignore, drivers/lirc_mceusb/.cvsignore, drivers/lirc_parallel/.cvsignore, drivers/lirc_sasem/.cvsignore, drivers/lirc_i2c/.cvsignore, drivers/lirc_imon/.cvsignore, drivers/lirc_it87/.cvsignore, drivers/lirc_bt829/.cvsignore, drivers/lirc_dev/.cvsignore, drivers/lirc_gpio/.cvsignore, drivers/lirc_atiusb/.cvsignore:
+	ignore .tmp_versions
+
+	* drivers/lirc_streamzap/lirc_streamzap.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_i2c/lirc_i2c.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_imon/lirc_imon.c, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio.c, drivers/kcompat.h, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_bt829/lirc_bt829.c, TODO:
+	module reference counting is now done properly using an owner field in the plugin struct (2.6 and higher)
+
+	* drivers/lirc_serial/lirc_serial.c: removed unnecessary spinlock:
+	lirc_dev prevents calling set_use_inc on a plugin already in use
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	added ATI Sapphire Remote Bob II USB
+
+	* NEWS, daemons/receive.c: slight change to decode algorithm:
+	decoding was very unreliable since release 0.6.6 for Motorola
+	protocol which is mostly used by Grundig remotes
+
+2005-02-12  lirc  <lirc@eyepod>
+
+	* drivers/lirc_streamzap/lirc_streamzap.c: fixed CVS keyword
+
+	* remotes/leadtek/lircd.conf.PVR2000, NEWS, configure.in, drivers/lirc_i2c/lirc_i2c.c, setup.data:
+	added support for Winfast PVR2000 TV card
+
+	* daemons/receive.c, drivers/Makefile.am, drivers/lirc_streamzap/.cvsignore, drivers/lirc_streamzap/Makefile.am, drivers/lirc_streamzap/lirc_streamzap.c, remotes/streamzap/lircd.conf.streamzap, NEWS, configure.in, setup.data:
+	added support for Streamzap PC remote
+
+2005-02-07  lirc  <lirc@eyepod>
+
+	* daemons/dump_config.c, daemons/irrecord.c: support multi-code buttons
+
+2005-02-05  lirc  <lirc@eyepod>
+
+	* drivers/lirc_sir/lirc_sir.c:
+	removed obsolete calls to enable_irq/disable_irq
+
+	* daemons/config_file.c: fixed bug related to multi-code buttons
+
+2005-02-01  venkyr  <venkyr@eyepod>
+
+	* drivers/lirc_imon/lirc_imon.c:
+	lirc_unregister_plugin is now properly handled on USB disconnects.
+
+2005-01-29  venkyr  <venkyr@eyepod>
+
+	* drivers/lirc_imon/lirc_imon.c:
+	Added support for external iMON IR recevier.
+	Added support for VFDs with 6-pkt protocol.
+	Fixes for gcc-3.4 issues.
+
+2005-01-29  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: fixed wrong code
+
+2005-01-26  lirc  <lirc@eyepod>
+
+	* drivers/lirc_imon/.cvsignore, drivers/lirc_imon/Makefile.am, drivers/lirc_imon/lirc_imon.c, remotes/imon/lircd.conf.imon, configure.in, setup.data, NEWS:
+	added support for Soundgraph iMON MultiMedian IR/VFD (Venky Raju)
+
+	* remotes/atiusb/lircd.conf.atiusb: new X10 remote variation
+
+2005-01-26  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	make sure to do async unlinks everywhere
+
+2005-01-23  lirc  <lirc@eyepod>
+
+	* doc/html-source/head.html: added favicon
+
+2005-01-22  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0.7.1pre1 release
+
+	* daemons/hw_mouseremote.c, daemons/hw_mouseremote.h: added CVS Id tags
+
+	* remotes/x10/lircd.conf.mouseremote, remotes/x10/lircmd.conf.mouseremote, NEWS, configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_mouseremote.c, daemons/hw_mouseremote.h, daemons/serial.c, daemons/serial.h, setup.data:
+	added support for X10 MouseRemote RF Receiver (Geoffrey Hausheer)
+
+2005-01-14  lirc  <lirc@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c, NEWS:
+	added support for Hauppauge PVR150 (Per Jönsson)
+
+2005-01-07  lirc  <lirc@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c:
+	use parport macros to call irq functions
+
+2004-12-31  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	interrupt handler functional again...
+
+	* drivers/lirc_serial/lirc_serial.c: corrected appearance of warning
+
+2004-12-30  lirc  <lirc@eyepod>
+
+	* drivers/lirc_sir/lirc_sir.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_serial/lirc_serial.c, NEWS:
+	get rid of check_region (breaks 2.2.x compatibility)
+
+	* drivers/lirc_i2c/lirc_i2c.c: removed unnecessary include
+
+2004-12-27  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	added more buttons for Q-Sonic Master Remote 6in1 PC
+
+2004-12-25  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	parameter to choose transmitter polarity added (Stefan Schmidt)
+
+	* drivers/kcompat.h, drivers/lirc_i2c/lirc_i2c.c:
+	added I2C compatibility code for non 2.6 kernels (Jerome Brock)
+
+	* doc/html-source/configure.html, doc/html-source/index.html:
+	Using multiple different devices simultaneously
+
+	* drivers/lirc_serial/lirc_serial.c:
+	shared interrupts: handle only if really for us
+
+2004-12-19  lirc  <lirc@eyepod>
+
+	* remotes/hauppauge/lircd.conf.hauppauge: no spaces allowed in names
+
+	* remotes/hauppauge/lircd.conf.hauppauge:
+	added configuration for PVR-350
+
+	* doc/html-source/install.html:
+	added note about Linux input layer config file
+
+2004-12-18  lirc  <lirc@eyepod>
+
+	* daemons/hw-types.c, acconfig.h, configure.in:
+	3 additional checks for header files (patch by Matthias Ringwald)
+
+2004-12-01  lirc  <lirc@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c: request ivtv for PVR-250 as well
+
+	* daemons/hw_devinput.c: fixed EVIOCGRAB ioctl call
+
+	* drivers/lirc_serial/lirc_serial.c:
+	allow interrupt sharing (patch from Jason Miller)
+
+2004-12-01  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: patch from an ati-rw2 user.
+
+2004-11-28  lirc  <lirc@eyepod>
+
+	* tools/Makefile.am:
+	the library revision should have been incremented in the last release
+
+2004-11-25  lirc  <lirc@eyepod>
+
+	* setup.sh: even cleaner solution for shell search problem
+
+	* setup.sh:
+	not all shells search for sourced files in the current directory
+
+	* drivers/lirc_sir/lirc_sir.c: fixed build for SA1100 machines
+
+2004-11-21  lirc  <lirc@eyepod>
+
+	* TODO, daemons/lircd.c, daemons/transmit.c:
+	transmit behaviour: if(min_repeat>0 && remaining_gap<10000) directly send out all signals (should fix problems with JVC/Echostar dish box described by Karl Bongers)
+
+2004-11-20  lirc  <lirc@eyepod>
+
+	* daemons/receive.c:
+	fixed bug affecting repeat handling with remotes that have a repeat signal,
+	repeats are only reported now when the repeat signal is received
+
+	* daemons/Makefile.am, daemons/hw_ea65.c: cosmetic changes
+
+	* configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_ea65.c, daemons/hw_ea65.h, remotes/ea65/lircd.conf.ea65, remotes/ea65/lircrc.ea65, setup.data, NEWS:
+	added support for AOpen XC Cube EA65, EA65-II (Max Krasnyansky)
+
+	* tools/irxevent.c: removed DEBUG flag
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	added configuration for nvidia personal cinema remote UR88A (Phil Speights)
+
+	* daemons/hw_default.c, daemons/hw_default.h, daemons/hw_uirt2_raw.c, daemons/transmit.c, daemons/transmit.h:
+	hide optimisation from upper layers
+
+	* doc/html-source/configure.html, NEWS, daemons/lircmd.c:
+	added IGNORE directive (patch by Steven Mueller)
+
+	* drivers/lirc_serial/lirc_serial.c: wait without wait queue
+
+	* daemons/dump_config.c: only print out actually used bits
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	started development for 0.7.1
+
+2004-11-14  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: Fixes memory freeing issues
+	Remote Wonder II now supported using one LIRC device
+	VERY EXPERIMENTAL!
+
+2004-11-07  lirc  <lirc@eyepod>
+
+	* NEWS: release delayed due to failed regression tests
+
+	* drivers/lirc_sasem/lirc_sasem.c: driver does not compile on 2.6
+
+	* drivers/lirc_parallel/lirc_parallel.c: fixed 64-bit division trouble
+
+2004-11-06  lirc  <lirc@eyepod>
+
+	* configure.in: fixed caraca config file selection
+
+	* NEWS, configure.in: 0.7.0 release
+
+2004-10-29  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: add better debugging
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	major changes to better support remote wonder II (two inbound endpoints) -- still need to determine what data needs to be ignored from each endpoint
+
+2004-10-23  lirc  <lirc@eyepod>
+
+	* NEWS, setup.data: added TriTan Technology TView95
+
+	* tools/xmode2.c: fixed core dump when font is missing
+
+2004-10-19  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	minor change; display endpoint in hex
+
+2004-10-11  lirc  <lirc@eyepod>
+
+	* daemons/hw_devinput.c: fix usage of pre/post data with devinput
+
+2004-10-10  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	add a little more debugging information
+
+2004-10-09  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0_7_0pre8 pre-release
+
+	* daemons/hw_devinput.c: support repeats
+
+	* autogen.sh: updated links
+
+2004-10-08  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: remove old macro
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	kernel 2.4 doesn't support multiple usb tables per module; changed method for determining if we're using a remote wonder 1 or 2.
+
+2004-09-26  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	it appears that kernel 2.4 automagically resubmits urb after transfer completion.
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	add -EPIPE error for good measure :)
+
+	* setup.data:
+	Updated lirc_atiusb description to include remote wonder II support
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	implemented code for ATI's Remote Wonder II (based on patch from Falk Zoll)
+
+2004-09-25  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	added some additional model information
+
+	* contrib/lirc.rules, doc/html-source/install.html, configure.in:
+	added hints for devfs and sysfs
+
+2004-09-11  lirc  <lirc@eyepod>
+
+	* daemons/hw-types.c, daemons/hw_atilibusb.c, acconfig.h, configure.in, daemons/Makefile.am, setup.data, NEWS:
+	added userspce USB driver for ATI remotes (Michael Gold)
+
+2004-09-05  lirc  <lirc@eyepod>
+
+	* drivers/lirc_sir/lirc_sir.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_serial/lirc_serial.c, drivers/kcompat.h, drivers/lirc_dev/lirc_dev.c, drivers/lirc_i2c/lirc_i2c.c:
+	sysfs and devfs clean-ups (David Härdeman),
+	compilation fixes
+
+2004-09-04  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: added another config variation
+
+2004-09-02  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	linux 2.6.8.1 atiusb fix patch from Martin Tomasek <mtd@centrum.cz>
+
+2004-08-28  lirc  <lirc@eyepod>
+
+	* daemons/receive.c: bugfix for serial protocol decoder
+
+2004-08-21  lirc  <lirc@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c:
+	get rid of floating point operations
+
+2004-08-20  lirc  <lirc@eyepod>
+
+	* remotes/mceusb/lircd.conf.mceusb:
+	additional buttons for HP Media Center remote control
+
+2004-08-09  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	Patch from Reynald Poittevin to fix remote id stripping.
+
+2004-08-07  lirc  <lirc@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_bt829/lirc_bt829.c:
+	make more stuff static (David Härdeman)
+
+	* drivers/lirc_sir/lirc_sir.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_bt829/lirc_bt829.c, drivers/lirc_dev/lirc_dev.c, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_i2c/lirc_i2c.c:
+	harmonize debugging printk
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, drivers/lirc_dev/lirc_dev.c, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_i2c/lirc_i2c.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/kcompat.h, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_bt829/lirc_bt829.c:
+	harmonize module information (David Härdeman)
+
+	* drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_igorplugusb/lirc_igorplugusb.c:
+	corrected minimum version
+
+	* drivers/lirc_dev/lirc_dev.c:
+	devfs and sysfs support for 2.6 (David Härdeman)
+
+2004-08-05  lirc  <lirc@eyepod>
+
+	* configure.in, drivers/Makefile.am, drivers/lirc_igorplugusb/Makefile.am, drivers/lirc_igorplugusb/lirc_igorplugusb.c, setup.data, NEWS:
+	added support for Igor Cesko's USB IR receiver (Jan Hochstein)
+
+	* drivers/lirc_dev/lirc_dev.c: check for error
+
+2004-07-31  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb:
+	added config file for another variation of this receiver
+
+2004-07-26  lirc  <lirc@eyepod>
+
+	* configure.in: fixed typo in possible_drivers
+
+2004-07-25  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0_7_0pre7 release
+
+	* drivers/lirc_mceusb/lirc_mceusb.c:
+	support for 2.6 kernels (Malte Rohde)
+
+2004-07-24  lirc  <lirc@eyepod>
+
+	* remotes/pcmak/lircd.conf.pcmak, remotes/pcmak/lircmd.conf.pcmak, remotes/pcmak/lircrc.pcmak, NEWS, configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_pcmak.c, daemons/hw_pcmak.h, setup.data, setup.sh:
+	added support for ELMAK PCMAK (Pawel Nowak)
+
+2004-07-18  lirc  <lirc@eyepod>
+
+	* configure.in, setup.data:
+	convenience entries for Extigy USB sound card
+
+2004-07-11  lirc  <lirc@eyepod>
+
+	* configure.in, doc/html-source/install.html:
+	changed link for Technisat driver
+
+2004-06-19  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.7.0pre6
+
+	* configure.in, drivers/Makefile.am, drivers/lirc_sasem/.cvsignore, drivers/lirc_sasem/Makefile.am, drivers/lirc_sasem/lirc_sasem.c, drivers/lirc_sasem/lirc_sasem.h, remotes/sasem/lircd.conf.dignhv5, setup.data, NEWS:
+	added support for Sasem OnAir Remocon-V (Oliver Stabel)
+
+2004-06-13  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	lirc-0.7.0pre5
+
+	* doc/html-source/help.html:
+	list archive at geocrawler seems to have disappeared
+
+2004-05-30  lirc  <lirc@eyepod>
+
+	* tools/mode2.c: fixed compiler warning (Michael Mauch)
+
+2004-05-23  lirc  <lirc@eyepod>
+
+	* remotes/hercules/lircd.conf.smarttv_stereo, configure.in, data2setup.sh, setup.data:
+	added config file for Hercules SmartTV Stereo TV card (Dimitris Michail)
+
+2004-05-23  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	oops.  forgot to increment the version #define
+
+2004-05-20  lirc  <lirc@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb-unknown_ch, remotes/atiusb/lircd.conf.atiusb, configure.in:
+	added new atiusb config files,
+	general clean-up
+
+2004-05-16  lirc  <lirc@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c:
+	inteface change in 2.6.4 (Stian Davidsen)
+
+2004-05-06  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	attempt to handle repeats, somewhat based on the gatos code
+	-- new module parameter, repeat = repeat timeout (1/100 sec)
+
+2004-04-28  pmiller9  <pmiller9@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb: use channel 1 or set unique=0
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	- clearly print received data and channel (debug)
+	- add channel acceptance bit mask option
+	- add channel-specific option (default to non-unique, where the channel code is removed from key-code)
+	- bump version to 0.4
+	*** channel number not tested with 4/5-byte Dutch remotes ***
+
+2004-04-27  lirc  <lirc@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	usb structure change in 2.6.5 (Kenneth Aafloy)
+
+	* drivers/lirc_it87/lirc_it87.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_sir/lirc_sir.c, drivers/kcompat.h, drivers/lirc_atiusb/lirc_atiusb.c, drivers/lirc_bt829/lirc_bt829.c, TODO:
+	added missing module reference counting,
+	new MOD_[INC|DEC]_USE_COUNT macros for 2.6
+
+	* daemons/receive.c:
+	reset state on new keypress for remotes that use toggle_mask
+
+	* drivers/Makefile.am, drivers/Makefile.common: added Makefile.common
+
+	* drivers/lirc_gpio/lirc_gpio.c: return if bttv_get_cardinfo() fails
+
+2004-04-25  lirc  <lirc@eyepod>
+
+	* drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/.cvsignore, drivers/lirc_serial/Makefile.am, drivers/lirc_sir/.cvsignore, drivers/lirc_sir/Makefile.am, drivers/lirc_i2c/Makefile.am, drivers/lirc_it87/.cvsignore, drivers/lirc_it87/Makefile.am, drivers/lirc_mceusb/.cvsignore, drivers/lirc_mceusb/Makefile.am, drivers/lirc_parallel/.cvsignore, drivers/lirc_bt829/.cvsignore, drivers/lirc_bt829/Makefile.am, drivers/lirc_dev/.cvsignore, drivers/lirc_dev/Makefile.am, drivers/lirc_gpio/.cvsignore, drivers/lirc_gpio/Makefile.am, drivers/lirc_i2c/.cvsignore, daemons/lircmd.c, drivers/lirc_atiusb/.cvsignore, drivers/lirc_atiusb/Makefile.am, NEWS, TODO, acinclude.m4, configure.in:
+	install .ko modules on 2.6
+
+2004-04-24  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	added IgorPlug to parameter list (patch by Martin Lillepuu)
+
+2004-04-10  lirc  <lirc@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	renamed KERNEL26 define to be consistent with all other modules
+
+2004-04-10  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	fix lirc #includes such it'll compile under kernel 2.6 from lirc's source
+
+2004-04-09  lirc  <lirc@eyepod>
+
+	* setup.sh:
+	work-around for problems reported with cdialog 0.9b-20040316
+
+	* drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/Makefile.am, drivers/lirc_i2c/lirc_i2c.c, drivers/kcompat.h, drivers/lirc_bt829/Makefile.am, drivers/lirc_bt829/lirc_bt829.c, drivers/lirc_dev/lirc_dev.h:
+	more drivers that compile with 2.6
+
+2004-04-04  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h:
+	added note about CONFIG_MODULE_UNLOAD for 2.6 kernels
+
+2004-03-30  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h:
+	fixed warning about redefinition of daemonize in kernels with modversions enabled
+
+2004-03-29  lirc  <lirc@eyepod>
+
+	* configure.in: fixed setting of default values
+
+2004-03-28  lirc  <lirc@eyepod>
+
+	* drivers/kcompat.h: fixed unsafe defines
+
+	* drivers/lirc_sir/lirc_sir.c, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_dev/lirc_dev.c, drivers/kcompat.h:
+	part of the drivers compile now with 2.6 kernels
+
+	* drivers/lirc_mceusb/.cvsignore:
+	added .cvsignore for lirc_mceusb directory
+
+2004-03-25  lirc  <lirc@eyepod>
+
+	* doc/man-source/irxevent.inc: reformatted for nicer man page output
+
+	* doc/man-source/irxevent.inc, tools/irxevent.c:
+	added Focus flag (Rob Spearman),
+	restructured code to actually match the documentation
+
+2004-03-15  lirc  <lirc@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c:
+	fixed problem with lirc_dev thread exiting too early
+
+2004-03-07  lirc  <lirc@eyepod>
+
+	* tools/lirc_client.c, NEWS, acconfig.h, doc/html-source/configure.html, doc/html-source/install.html:
+	system-wide lircrc (Michal Svec)
+
+2004-03-06  lirc  <lirc@eyepod>
+
+	* drivers/lirc_mceusb/lirc_mceusb.c: cleanups
+
+2004-03-02  lirc  <lirc@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c:
+	fixed endianness issue in Hauppauge driver
+
+	* daemons/lircd.c: --listen takes optional argument
+
+2004-02-29  lirc  <lirc@eyepod>
+
+	* remotes/mceusb/lircd.conf.mceusb: fixed eps and gap value
+
+	* drivers/Makefile.am: added Makefile.kernel to EXTRA_DIST
+
+	* daemons/Makefile.am: fixed irrecord file list
+
+	* drivers/lirc_it87/lirc_it87.c, drivers/lirc_mceusb/lirc_mceusb.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_i2c/lirc_i2c.c, NEWS, drivers/lirc_bt829/lirc_bt829.c, drivers/lirc_dev/lirc_dev.c:
+	replaced get_key interface with more flexible add_to_buf method
+
+2004-02-11  lirc  <lirc@eyepod>
+
+	* tools/mode2.c: check for character device
+
+2004-02-08  lirc  <lirc@eyepod>
+
+	* daemons/config_file.c, daemons/config_file.h, daemons/dump_config.c, daemons/ir_remote.h, daemons/receive.c, daemons/transmit.c:
+	added preliminary support for serial protocols
+
+2004-02-06  lirc  <lirc@eyepod>
+
+	* daemons/dump_config.c: write rc6_mask
+
+2004-02-05  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c: don't set ptrail for pulse encoded remotes
+
+2004-02-04  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c: prevent infinite loop during toggle bit detection
+
+2004-02-02  lirc  <lirc@eyepod>
+
+	* remotes/creative/lircd.conf.livedrive, daemons/hw_livedrive_common.h, daemons/hw_livedrive_midi.c, daemons/hw_livedrive_seq.c:
+	added support for audigy2 livedrive controls (Stephen Beahm)
+
+2004-01-31  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c: apply transform functions to all remote configs
+
+2004-01-31  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: fix couple typos
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	forgot to submit urb for receiving!
+	tested and working w/ 2.6 (I finally got lirc to compile)
+
+2004-01-29  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	lirc_dev requires set_use_inc/dec functions to be set, otherwise it crashes
+
+2004-01-27  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: fix kernel oops on device probe
+
+2004-01-27  lirc  <lirc@eyepod>
+
+	* daemons/hw_udp.c: prevent integer overflow
+
+2004-01-24  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: request module "lirc_dev"
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	fixed memset() kernel seg fault problem
+	major updates for kernel 2.6 support (now compiles & loads!)
+	removed set_use_inc/dec functions (not needed for usb?)
+	code clean ups
+
+2004-01-19  ranty  <ranty@eyepod>
+
+	* drivers/Makefile.kernel:
+	Added missing file from the module building change.
+
+2004-01-18  ranty  <ranty@eyepod>
+
+	* drivers/lirc_sir/Makefile.am, drivers/lirc_atiusb/Makefile.am, drivers/lirc_bt829/Makefile.am, drivers/lirc_dev/Makefile.am, drivers/lirc_gpio/Makefile.am, drivers/lirc_i2c/Makefile.am, drivers/lirc_it87/Makefile.am, drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am:
+	Hack to make kernel module building more reliable, it should, maybe with small
+	tunning, work for 2.6 kernels.
+
+2004-01-18  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	started adding kernel 2.6 usb changes based on Brian Julin's GATOS ati_remote 2.6 port
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	nicer way to free kernel memory on failure
+
+2004-01-13  lirc  <lirc@eyepod>
+
+	* configure.in, drivers/Makefile.am, drivers/lirc_dev/lirc_dev.c, drivers/lirc_mceusb/Makefile.am, drivers/lirc_mceusb/lirc_mceusb.c, remotes/mceusb/lircd.conf.mceusb, setup.data, NEWS:
+	added support for Windows Media Center Remotes (Dan Conti)
+
+	* daemons/Makefile.am, daemons/config_file.c, daemons/ir_remote.h, daemons/irrecord.c, daemons/receive.c, daemons/transmit.c:
+	added rc6_mask for better RC6 variations support
+
+2004-01-12  lirc  <lirc@eyepod>
+
+	* NEWS, acconfig.h, configure.in, drivers/lirc_serial/lirc_serial.c, setup.sh:
+	fixed typo
+
+2004-01-06  lirc  <lirc@eyepod>
+
+	* setup.sh: fixed type
+
+2003-12-30  lirc  <lirc@eyepod>
+
+	* doc/html-source/install.html, drivers/lirc_sir/lirc_sir.c, NEWS:
+	fine-tuning of lirc_sir driver
+
+	* daemons/hw-types.c, daemons/hw_audio_alsa.c, doc/html-source/audio-alsa.html, doc/release-html.sh, NEWS, acconfig.h, configure.in, contrib/lirc.redhat, daemons/Makefile.am, setup.data:
+	IR receiver IC connected to auido input using ALSA (Andrew Zabolotny)
+
+	* daemons/hw_livedrive_common.c, daemons/hw_livedrive_midi.c, daemons/hw_livedrive_seq.c:
+	timing issues fixed (Stephen Beahm)
+
+2003-12-29  pmiller9  <pmiller9@eyepod>
+
+	* remotes/atiusb/lircd.conf.atiusb-unknown_ch:
+	example atiusb configuration file for (unknown channel).
+
+2003-12-28  lirc  <lirc@eyepod>
+
+	* daemons/hw_devinput.c:
+	get exclusive access to input device (Arkadiusz Miskiewicz)
+
+2003-12-27  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: fix for Igor receiver
+
+	* daemons/lircd.c: fixed typo in pidfile command line processing
+
+2003-11-23  lirc  <lirc@eyepod>
+
+	* configure.in: fixed --driver=any build failure
+
+2003-11-17  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: fix lirc_dev buffer init
+
+2003-11-14  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	different method to copy received buffer to lirc
+	renamed BUFLEN to USB_BUFLEN as it is now defined in lirc_dev.h
+
+2003-11-13  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	why are some people having problems with the code length?  works perfectly on my ati remote....?
+
+2003-11-12  lirc  <lirc@eyepod>
+
+	* daemons/hw_default.c: major number sanity check
+
+2003-11-11  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	properly handles 4 and 5 byte codes
+
+2003-11-10  lirc  <lirc@eyepod>
+
+	* tools/lirc_client.c:
+	repeat parameter was not respected for config entries where button entry is not set (reported by Peter Kundrat)
+
+	* doc/html-source/configure.html, tools/lirc_client.c, NEWS:
+	added include command to .lircrc config file (Ingo van Lil)
+
+	* daemons/hw_creative_infracd.c: fixed potential buffer overflow
+
+2003-11-09  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	Apparently, some remotes emit both 4 and 5 byte codes.  This change accepts codes >= 4.  we can assume that the code will be <= maxp <= BUF_LEN.  I'm not sure how LIRC/LIRC_DEV will handle bytes_in_key = 4 with a 5 byte input...
+
+	One user reports:
+	The remote which is described in German including a picture under
+	http://www.pearl.de/product.jsp?pdid=PE4444&catid=5005&rate=5
+	has some mouse movement keys. These and the corresponding mouse buttons have
+	4-byte codes (7 codes). The rest  which are more than 30 keys have 5-byte
+	codes.
+
+2003-11-07  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	report received data length (debug)
+	remove unnecessary #defines
+
+2003-11-06  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	appears to fix inc/dec problem - we shouldn't disconnect the remote on dec, but wait until the remote receiver is unplugged or the module is unloaded.  On inc, we should connect the remote only if it hasn't been already connected (the original problem).
+
+2003-11-02  pmiller9  <pmiller9@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: fix typos
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: keep track of use count
+	add extra safety checks for set_use_inc/dec()
+
+2003-11-02  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c:
+	generated codes for this card did not match config file since 0.6.6
+
+	* drivers/lirc_atiusb/lirc_atiusb.c: removed superfluous IRUNLOCK
+
+	* daemons/irrecord.c: don't touch *_data_bits if remote has pre or post
+
+2003-10-29  pmiller9  <pmiller9@eyepod>
+
+	* setup.data:
+	change description of atiusb to include NVidia and X10 RF remotes (same remote, but with a different usb product id)
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	support other X10 USB product IDs (definitions found in windows ini file)
+	attempt to fix multiple access problem
+
+2003-10-26  lirc  <lirc@eyepod>
+
+	* daemons/hw_uirt2.c, daemons/hw_uirt2_common.c, daemons/hw_uirt2_common.h, daemons/hw_uirt2_raw.c:
+	better transmit algorithm implemented
+
+	* drivers/lirc_gpio/lirc_gpio.c: clearer debug output
+
+2003-10-12  lirc  <lirc@eyepod>
+
+	* NEWS, drivers/lirc_gpio/lirc_gpio.c, setup.data:
+	added support for Prolink Pixelview PV-BT878P+ (Rev.4C,8E)
+
+	* NEWS, configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_uirt2.c, daemons/hw_uirt2_common.c, daemons/hw_uirt2_common.h, daemons/hw_uirt2_raw.c, setup.data:
+	added support for UIRT2 (Mikael Magnusson)
+
+	* daemons/hw_tira.c, setup.data: corrected bug, typo (Gregory McLean)
+
+2003-10-07  ranty  <ranty@eyepod>
+
+	* drivers/lirc_atiusb/.cvsignore:
+	Adapt to atiusb, .cvsignore was blindly copied from lirc_serial.
+
+	* drivers/lirc_atiusb/.cvsignore: I had forgotten .cvsignore :-/
+
+2003-10-05  lirc  <lirc@eyepod>
+
+	* setup.sh: removed Karsten's email on his request
+
+2003-09-28  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c, remotes/leadtek/lircd.conf.RM-0010:
+	use correct codes
+
+	* doc/lirc.css: center HR's
+
+2003-09-23  ranty  <ranty@eyepod>
+
+	* drivers/lirc_atiusb/lirc_atiusb.c:
+	Use wake_up() instead of wake_up_sync() since the later is not available until
+	2.4.20 kernels and wake_up() seams enough.
+
+2003-09-21  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_tira.c, daemons/hw_tira.h, data2setup.sh, setup.data, setup.sh:
+	added support for Home Electronics Tira USB device (Gregory McLean)
+
+	* TODO, daemons/Makefile.am, daemons/config_file.c, daemons/config_file.h, daemons/ir_remote.c, daemons/ir_remote.h:
+	added preliminary support for special Pioneer protocol feature
+
+2003-08-15  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_devinput.c, setup.data:
+	added support for Linux input layer (Oliver Endriss, Jack Thomasson)
+
+	* NEWS, acconfig.h, configure.in, daemons/config_file.c, daemons/ir_remote.c, daemons/ir_remote.h, setup.sh:
+	enabled lircd to optinally decode buttons that are not included in the config file
+
+	* daemons/config_file.c, daemons/ir_remote.c, daemons/ir_remote.h:
+	added reverse flag compatibility mode
+
+	* NEWS, doc/html-source/configure.html, tools/lirc_client.c, tools/lirc_client.h:
+	added delay directive to .lircrc config file (Tobias Blomberg)
+
+2003-08-05  lirc  <lirc@eyepod>
+
+	* doc/html-source/install.html:
+	clarification about lirc_gpio parameters added
+
+2003-08-05  ranty  <ranty@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c:
+	If p->get_queue is provided there should be no need for read, poll or ioctl.
+
+2003-08-03  lirc  <lirc@eyepod>
+
+	* configure.in, drivers/lirc_i2c/lirc_i2c.c, remotes/creative/lircd.conf.breakoutbox, setup.data:
+	patches for Asus TV-Box and Creative PersonalCinema BreakOut-Box
+
+2003-07-21  ranty  <ranty@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: lirc_buffer_init may fail;
+	removed leftover comment.
+
+2003-07-19  lirc  <lirc@eyepod>
+
+	* doc/html-source/install.html:
+	added section on kernel recompile shutcut
+
+	* daemons/hw_bte.c: log flood fixed (vss)
+
+2003-06-17  ranty  <ranty@eyepod>
+
+	* NEWS, configure.in, drivers/Makefile.am, drivers/lirc_atiusb/Makefile.am, drivers/lirc_atiusb/lirc_atiusb.c, setup.data:
+	added support for ATI RF Remote Wonder (Paul Miller).
+
+2003-06-07  lirc  <lirc@eyepod>
+
+	* tools/irexec.c: choose program name (patch by Vidar Holen)
+
+	* remotes/iodata/lircd.conf.gvbctv5pci, configure.in, drivers/lirc_gpio/lirc_gpio.c, setup.data, NEWS:
+	added support for I-O Data GV-BCTV5/PCI TV card (Jens C. Rasmussen)
+
+2003-05-24  lirc  <lirc@eyepod>
+
+	* daemons/hw_creative_infracd.c: fixed too small buffer bug
+
+	* NEWS, drivers/lirc_i2c/lirc_i2c.c, setup.data: corrected company name
+
+2003-05-12  ranty  <ranty@eyepod>
+
+	* autogen.sh: Create setup-driver.sh so CVS users don't miss it.
+
+2003-05-07  ranty  <ranty@eyepod>
+
+	* .cvsignore: ignore setup-driver.sh
+
+	* setup.data: Remove the obsolet old_* stuff.
+
+2003-05-07  lirc  <lirc@eyepod>
+
+	* doc/man-source/irw.inc, remotes/creative/lircd.conf.infracd, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_creative_infracd.c, daemons/hw_creative_infracd.h, setup.data, configure.in, NEWS:
+	added support for Creative iNFRA CDROMO (Leonid Froenchenko)
+
+2003-05-07  ranty  <ranty@eyepod>
+
+	* Makefile.am, data2setup.sh, setup.data, setup.sh:
+	Move the "hardware selection menu" to a machine readable format.
+
+2003-05-04  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c, daemons/irrecord.c: fixed bug in device selection,
+	order of --device and --driver option was relevant but shouldn't be
+
+	* doc/html-source/install.html, drivers/lirc_gpio/lirc_gpio.c:
+	allow forcing bttv id
+
+2003-05-04  ranty  <ranty@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c:
+	Use labeled (.FIELDNAME =) initializing for 'plugin'.
+
+	* drivers/lirc_dev/lirc_dev.c:
+	Remove extra lirc_buffer_unlock and make irctl_read return if it already wrote
+	some data and the buffer is empty.
+
+2003-05-03  lirc  <lirc@eyepod>
+
+	* remotes/hauppauge/lircd.conf.hauppauge:
+	added config for new Hauppauge PVR models
+
+2003-05-03  ranty  <ranty@eyepod>
+
+	* daemons/Makefile.am:
+	synchronize EXTRA_lircd_SOURCES and EXTRA_irrecord_SOURCES.
+
+2003-05-02  ranty  <ranty@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.h: make lirc_buffer_full overflow tolerant.
+
+	* drivers/lirc_dev/lirc_dev.h:
+	Replace the semaphore in 'struct lirc_buffer' with an spinlock.
+
+2003-05-01  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c, daemons/hw_default.c:
+	/dev/lirc can also be socket (for devices that use bidirectional communication through a helper daemon)
+
+	* tools/irsend.c: can specify socket name on command line
+
+2003-04-27  lirc  <lirc@eyepod>
+
+	* remotes/asus/lircd.conf.asus, drivers/lirc_i2c/lirc_i2c.c, NEWS, configure.in, setup.sh:
+	added support for VisionTek BreakOut-Box (Stefan Jahn)
+
+2003-04-21  lirc  <lirc@eyepod>
+
+	* remotes/creative/lircd.conf.livedrive: rm900 is a subset of rm1000w
+
+	* daemons/Makefile.am, daemons/hw-types.c, daemons/hw_livedrive.c, daemons/hw_livedrive_common.c, daemons/hw_livedrive_common.h, daemons/hw_livedrive_midi.c, daemons/hw_livedrive_seq.c, configure.in, setup.sh, acconfig.h:
+	split livedrive support into two separate modules for OSS/Alsa
+
+2003-04-20  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c:
+	finished Kworld support with original config file
+
+2003-04-19  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c, NEWS, acconfig.h, configure.in, setup.sh:
+	added support for Igor Ceska's receiver variation
+
+	* daemons/hw_bte.c, daemons/hw_bte.h, remotes/ericsson/lircd.conf.bte, TODO, configure.in, daemons/hw-types.c, setup.sh, NEWS:
+	added support for Ericsson mobile phone via Bluetooth (Vadim Shliakhov)
+
+	* tools/lirc_client.c: fixed bug related with button sequences,
+	if $HOME is not set use / as default
+
+2003-03-31  lirc  <lirc@eyepod>
+
+	* remotes/kworld/lircd.conf.kworld, configure.in:
+	finished Kworld support with original config file
+
+2003-03-30  lirc  <lirc@eyepod>
+
+	* tools/mode2.c, tools/smode2.c, tools/xmode2.c:
+	better guidance for dummies
+
+	* daemons/lircd.c: fixed bad pidfile command line parsing
+
+2003-03-07  lirc  <lirc@eyepod>
+
+	* daemons/Makefile.am: Mac OS X uses fifo instead of socket
+
+2003-02-16  lirc  <lirc@eyepod>
+
+	* daemons/Makefile.am, daemons/hw-types.c, daemons/hw_mp3anywhere.c, daemons/hw_mp3anywhere.h, remotes/x10/lircd.conf.mp3anywhere, NEWS, configure.in, setup.sh:
+	added support for X10 MP3 Anywhere RF receiver (Shawn Nycz),
+	fixed Creative Infra Receiver setup bug
+
+	* daemons/hw_creative.c: pre not hardwired anymore
+
+2003-02-15  lirc  <lirc@eyepod>
+
+	* daemons/Makefile.am, daemons/hw-types.c, daemons/hw_livedrive.c, remotes/creative/lircd.conf.livedrive, configure.in, NEWS, setup.sh:
+	added support for Creative LiveDrive (Stephen Beahm)
+
+	* daemons/hw_default.c:
+	transmit did not work correctly for raw config files that had the CONST_LENGTH flag turned on
+
+	* doc/man-source/lircd.inc, daemons/transmit.c, daemons/lircd.h, daemons/lircd.c, daemons/config_file.c, TODO:
+	use strtoull() instead of strtouq(),
+	fixed compiler warnings when using --with-syslog,
+	removed some duplicated code in start_server(),
+	new command line options that allow multiple instances of lircd (patch from Kir Kostuchenko):
+	  --output
+	  --logfile
+	  --pidfile
+
+2003-02-13  lirc  <lirc@eyepod>
+
+	* tools/irxevent.c:
+	replaced nice but broken code by ugly but working code
+
+2003-01-26  lirc  <lirc@eyepod>
+
+	* configure.in, daemons/Makefile.am, daemons/hw_audio.c:
+	more soundcard driver changes
+
+	* NEWS, Makefile.am:
+	removed dist-bz2 target in favour of automake 1.5 built-in dist-bzip2 target
+
+	* tools/irpty.c, NEWS, autogen.sh, configure.in, daemons/hw-types.c, daemons/lircd.c, drivers/lirc.h, setup.sh:
+	added support for IR receiver connected to soundcard input,
+	most parts now compile on Mac OS X/Darwin (Matthias Ringwald)
+
+2003-01-19  ranty  <ranty@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.h: Documented new fields.
+
+2003-01-04  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, TODO, daemons/ir_remote.c, daemons/irrecord.c:
+	new function in irrecord to invert codes,
+	some typos fixed
+
+2002-12-28  lirc  <lirc@eyepod>
+
+	* tools/smode2.c: removed dummy printfs
+
+2002-12-16  lirc  <lirc@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c: fix to support more RC-5 remotes
+
+2002-12-15  ranty  <ranty@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_serial/lirc_serial.c:
+	- lirc_dev:
+		- Introduces 'struct lirc_buffer' and functions to handle it.
+			- Moves the lock and wait queue to 'struct lirc_buffer'.
+			- Locking happens implicitly on lirc_buffer_[read!write]_1.
+			- The caller is responsible of locking on
+			  _lirc_buffer_[read!write]_1
+		- Plugins can provide an 'struct lirc_buffer' for reading.
+		- Remove 'struct irctl'->bytes_in_key in favor of 'struct
+		  lirc_buffer'->chunk_size.
+		- Extends lirc_dev's irctl_read and irctl_poll to acomodate lirc_serial.
+
+	- lirc_serial:
+		- Integrates lirc_serial with the above, removing lirc_poll and
+		  lirc_read.
+
+2002-12-02  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c: added support for AVerTV GO/wFM card
+
+	* daemons/irrecord.c: added explicit test command line switch,
+	this has confused too many people
+
+2002-11-21  lirc  <lirc@eyepod>
+
+	* NEWS, daemons/transmit.c:
+	fixed show-stopper bug in RC-6 transmit code
+
+	* doc/html-source/technical.html: added hint to hdparm
+
+2002-11-19  ranty  <ranty@eyepod>
+
+	* drivers/lirc_sir/lirc_sir.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_i2c/lirc_i2c.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_bt829/lirc_bt829.c:
+	- Make set_use_inc return an int to allow the plugins to reject an open.
+	- Move features into 'struct lirc_plugin' to allow the plugins to specify it's
+	  features.
+	- Add an 'ioctl' function pointer to 'struct lirc_plugin' so plugins have a
+	  chance to handle ioctl's before the general cases are handled.
+	- Extend the lirc_dev's ioctl handling to be more generic so it meets
+	  lirc_serial's needs.
+	- Make lirc_serial take advantage of lirc_dev's new capabilities.
+	- Make all other drivers fit with lirc_dev's changes.
+
+2002-11-12  lirc  <lirc@eyepod>
+
+	* daemons/config_file.h, daemons/ir_remote.h, daemons/receive.c, daemons/transmit.c:
+	added support for strange Grundig protocol
+
+2002-11-11  lirc  <lirc@eyepod>
+
+	* setup.sh: yet another TV card
+
+	* drivers/lirc_gpio/lirc_gpio.c, NEWS, configure.in:
+	yet another TV card,
+	config files still missing
+
+2002-11-09  lirc  <lirc@eyepod>
+
+	* configure.in, doc/html-source/install.html, drivers/lirc_gpio/lirc_gpio.c, remotes/leadtek/lircd.conf.RM-0007, remotes/leadtek/lircd.conf.RM-0010, remotes/leadtek/lircd.conf.leadtek, remotes/leadtek/lircmd.conf.RM-0007, remotes/leadtek/lircmd.conf.RM-0010, remotes/leadtek/lircmd.conf.leadtek, setup.sh:
+	better WinView 601 support
+
+	* remotes/life-view/lircd.conf.flyvideo:
+	some more buttons for LR50Q model
+
+	* doc/html-source/configure.html: mentioned BUTTON*.* in lircmd.conf
+
+	* drivers/lirc_dev/lirc_dev.c:
+	won't check for signals as signals are all blocked anyway,
+	bugfix: lirc_thread has to be waken up during shutdown
+
+2002-11-07  lirc  <lirc@eyepod>
+
+	* daemons/receive.c:
+	increased heuristic to better support Leadtek cards
+
+2002-11-03  lirc  <lirc@eyepod>
+
+	* remotes/leadtek/lircd.conf.leadtek, remotes/leadtek/lircmd.conf.leadtek, doc/html-source/install.html, drivers/lirc_gpio/lirc_gpio.c, NEWS, configure.in, setup.sh:
+	added support for Leadtek WinView 601 TV card
+
+2002-10-30  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c, setup.sh:
+	added support for WinFast TV 2000 XP (Markus Lischka)
+
+2002-10-27  ranty  <ranty@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	- Renamed calc_pulse_lengths_in_clocks into init_timing_params and wrote one
+	  for the !USE_RDTSC case.
+	- Inlined 'void on(void)' and 'void off(void)', better performance, and timing
+	  will not depend on CPU that much.
+	- Broke up send_pulse_homebrew, it now calls send_pulse_homebrew_softcarrier.
+	  And the implementation of send_pulse_homebrew_softcarrier depends on
+	  USE_RDTSC.
+
+	* drivers/lirc_serial/lirc_serial.c:
+	Restore proper check_region behaviour.
+
+	* drivers/lirc_dev/Makefile.am, drivers/lirc_it87/Makefile.am, drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am, drivers/lirc_sir/Makefile.am, drivers/lirc_bt829/Makefile.am:
+	Make sure that depmod is run after installing the modules, and not before.
+
+2002-10-26  lirc  <lirc@eyepod>
+
+	* remotes/generic/RC-6.conf:
+	added template config file for RC-6 protocol
+
+2002-10-25  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, drivers/lirc_gpio/lirc_gpio.c, remotes/avermedia/lircd.conf.vdomate, setup.sh:
+	added support for AverMedia VDOMATE
+
+2002-10-21  ranty  <ranty@eyepod>
+
+	* tools/irsend.c, tools/rc.c, doc/man-source/irsend.inc, doc/man-source/rc.inc, doc/man/Makefile.am, tools/.cvsignore, tools/Makefile.am, doc/html-source/index.html, doc/html-source/install.html, doc/html-source/programs.html, doc/html-source/technical.html, doc/man/.cvsignore, doc/release-html.sh, doc/release-man.sh:
+	Renamed 'rc' to 'irsend' and updated everything I could think of to reflect
+	the change.
+
+	* drivers/Makefile.am, drivers/lirc_bt829/Makefile.am, drivers/lirc_dev/Makefile.am, drivers/lirc_it87/Makefile.am, drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am, drivers/lirc_sir/Makefile.am, TODO, configure.in, daemons/Makefile.am, doc/html-source/index.html, doc/html-source/technical.html:
+	Renamed --disable-manage-devices into --enable-sandboxed enhanced it and added
+	a documentation note for packagers.
+
+	* configure.in:
+	sed segfaults when $hw_module is too long :(, changed the implementation to
+	use "sort -u".
+
+2002-10-15  ranty  <ranty@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio.c, remotes/pixelview/lircrc.playtv_pro, AUTHORS, doc/html-source/technical.html:
+	New email for Artur Lipowski.
+
+2002-10-12  ranty  <ranty@eyepod>
+
+	* drivers/lirc_it87/lirc_it87.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, drivers/Makefile.am, drivers/kcompat.h, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_i2c/lirc_i2c.c:
+	- Removes support for 2.0 kernels;
+	- Removes support for 2.2.17 and older kernels, 2.2.18 and above have some
+	  usefull 2.4 compatibility built in already;
+	- Started a kcompat.h header file, to hold backwards compatibility code.
+
+	* drivers/lirc_bt829/lirc_bt829.c: Cosmetic.
+
+2002-10-12  lirc  <lirc@eyepod>
+
+	* daemons/hw_udp.c: support for pre ISO C99 systems
+
+2002-10-10  ranty  <ranty@eyepod>
+
+	* configure.in: lirc_aver was gone long ago.
+
+2002-10-09  ranty  <ranty@eyepod>
+
+	* drivers/lirc_bt829/lirc_bt829.c:
+	Include parameter list in function prototypes to comply with ANSI C.
+
+	* daemons/Makefile.am:
+	Make sure that hw_caraca.c, hw_caraca.h and hw_udp.c get included in release
+	tarballs.
+
+2002-10-08  ranty  <ranty@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, drivers/lirc_it87/lirc_it87.c, drivers/lirc_parallel/lirc_parallel.c, configure.in, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h:
+	Make all kernel modules into lirc_plugin's.
+
+2002-10-06  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, drivers/lirc_i2c/lirc_i2c.c, remotes/asus/lircd.conf.asus, setup.sh:
+	added support for Asus TV-Box (patch by Stefan Jahn)
+
+	* remotes/life-view/lircd.conf.FlyVideo_II, remotes/life-view/lircd.conf.fly98, remotes/life-view/lircd.conf.flyvideo, remotes/life-view/lircmd.conf.fly98, remotes/life-view/lircmd.conf.flyvideo, remotes/life-view/lircrc.fly98, remotes/life-view/lircrc.flyvideo, doc/html-source/index.html, doc/html-source/install.html, drivers/lirc_gpio/lirc_gpio.c, NEWS, configure.in, setup.sh, ANNOUNCE:
+	added support for another FlyVideo type card,
+	major FlyVideo config cleanup
+
+	* doc/html-source/index.html, ANNOUNCE, NEWS, configure.in, setup.sh:
+	lirc-0.6.6 release
+
+2002-10-02  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: cosmetic change
+
+2002-09-26  lirc  <lirc@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c: malloc.h is obsolete
+
+2002-09-21  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, doc/html-source/programs.html, doc/man/Makefile.am:
+	forgot links to rc page
+
+	* ANNOUNCE, NEWS, configure.in, daemons/lircd.c, daemons/receive.c, doc/html-source/help.html, doc/html-source/index.html, doc/html-source/technical.html, setup.sh:
+	pre2
+
+2002-09-12  lirc  <lirc@eyepod>
+
+	* doc/man-source/xmode2.inc, tools/.cvsignore, tools/Makefile.am, tools/ircat.c, tools/irexec.c, tools/mode2.c, tools/rc.c, tools/smode2.c, tools/xmode2.c, NEWS, doc/html-source/configure.html, doc/html-source/foot.html, doc/html-source/help.html, doc/html-source/index.html, doc/html-source/install.html, doc/html-source/programs.html, doc/man-source/help2man.inc, doc/man-source/irexec.inc, doc/man-source/irxevent.inc, doc/man-source/lircd.inc, doc/man-source/rc.inc, doc/man/.cvsignore, doc/release-html.sh, doc/release-man.sh:
+	moved rc tool from xrc package to LIRC package
+
+2002-09-02  ranty  <ranty@eyepod>
+
+	* TODO: more things to do.
+
+2002-08-31  ranty  <ranty@eyepod>
+
+	* daemons/lircd.c: enable should be initialized.
+
+2002-08-30  lirc  <lirc@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c:
+	bugfix for Winfast TV 2000 cards (untested)
+
+	* daemons/lircd.c:
+	former version did not notice when server went down after successful connect in client mode
+
+2002-08-25  ranty  <ranty@eyepod>
+
+	* configure.in:
+	Do proper quoting on the vgalib detection for autoconf 2.5x compatibility.
+
+2002-08-17  lirc  <lirc@eyepod>
+
+	* TODO, daemons/lircd.c, daemons/lircmd.c, doc/html-source/foot.html, doc/html-source/head.html, doc/html-source/index.html, doc/html-source/programs.html, doc/man-source/ircat.inc, doc/man/Makefile.am, doc/release-html.sh, doc/release-man.sh, remotes/generic/NEC-AIWA.conf, remotes/generic/SANYO.conf, tools/Makefile.am, tools/ircat.c, tools/irexec.c, tools/irpty.c, tools/irw.c:
+	added ircat tool (patch by Bjorn Bringert),
+	minor fixes
+
+2002-07-28  lirc  <lirc@eyepod>
+
+	* daemons/ir_remote.h, daemons/lircd.c, daemons/lircd.h, doc/html-source/technical.html:
+	SEND_ONCE accepts optional repeat count (done by Scott Baily)
+
+2002-07-27  lirc  <lirc@eyepod>
+
+	* configure.in, doc/html-source/configure.html, drivers/lirc_sir/lirc_sir.c, setup.sh, NEWS, acconfig.h:
+	added SIR support for Actisys Act200L dongle (Karl Bongers)
+
+	* tools/xmode2.c, tools/mode2.c, tools/smode2.c:
+	add check for PIPE on fh,
+	don't do ioctl if pipe
+
+2002-07-13  ranty  <ranty@eyepod>
+
+	* acconfig.h, configure.in, daemons/hardware.h, daemons/hw-types.c, daemons/irrecord.c, daemons/lircd.c:
+	Add patch to have a 'null' driver by Andy Mortimer and massage things to
+	remove the LIRC_NETWORK_ONLY special case.
+
+2002-07-07  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	cosmetic fix for recursive call of configure script
+
+2002-07-04  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c: learn toggle_mask, untested
+
+2002-07-01  lirc  <lirc@eyepod>
+
+	* drivers/lirc.h:
+	int32_t would create incompatibilities on 64 bit architectures
+
+	* tools/.cvsignore, daemons/config_file.c:
+	begin and end now accepted as button names
+
+2002-06-28  lirc  <lirc@eyepod>
+
+	* daemons/receive.c, drivers/lirc.h:
+	should compile again with current 2.4.x kernels
+
+2002-06-24  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, daemons/hw-types.c, daemons/hw_udp.c, setup.sh:
+	added UDP network driver
+
+	* daemons/config_file.c, daemons/irrecord.c, daemons/serial.c, setup.sh, tools/irxevent.c:
+	minor cleanups
+
+2002-06-16  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c:
+	set O_NONBLOCK flag to client file descriptors to avoid blocking of lircd when client becomes unreachable
+
+2002-06-16  ranty  <ranty@eyepod>
+
+	* doc/man-source/irxevent.inc, tools/irxevent.c:
+	Allow sending events to an specific 'WindowID'.
+
+	* doc/man-source/irxevent.inc, tools/irxevent.c:
+	Allow targeting the 'RootWindow' which makes sending events to the
+	windowmanager posible/easier.
+
+2002-05-20  lirc  <lirc@eyepod>
+
+	* doc/html-source/configure.html, setup.sh: additional config file docu
+
+2002-05-18  lirc  <lirc@eyepod>
+
+	* acconfig.h, configure.in, drivers/lirc_sir/lirc_sir.c, setup.sh:
+	restructured setup script
+
+2002-05-12  lirc  <lirc@eyepod>
+
+	* doc/html-source/install.html:
+	clearer explanation of serial port problem
+
+2002-05-05  lirc  <lirc@eyepod>
+
+	* doc/html-source/install.html: doc update
+
+	* daemons/receive.c: fixed stall bug
+
+2002-05-04  lirc  <lirc@eyepod>
+
+	* daemons/hardware.h, daemons/hw_default.c, daemons/hw_default.h, daemons/hw_dsp.c, daemons/hw_slinke.c, daemons/hw_slinke.h, daemons/irrecord.c, daemons/lircd.c, daemons/lircd.h, daemons/receive.c:
+	changes to integrate hw_dsp,
+	irrecord bugfix
+
+2002-04-28  lirc  <lirc@eyepod>
+
+	* daemons/config_file.h, daemons/ir_remote.h, daemons/receive.c:
+	changes to decode unknown protocol found on a Goldstar TV remote
+
+2002-04-22  lirc  <lirc@eyepod>
+
+	* daemons/transmit.c, tools/Makefile.am, daemons/Makefile.am, daemons/hw-types.c, daemons/hw_dsp.c, setup.sh, configure.in, NEWS:
+	added support for hardware connected to soundcard input (Pavel Machek)
+
+2002-04-18  ranty  <ranty@eyepod>
+
+	* doc/man-source/irpty.inc:
+	The previous fix would add an extra space, this time it won't.
+
+2002-04-11  ranty  <ranty@eyepod>
+
+	* doc/man-source/irpty.inc:
+	A formating error was causing a piece of text not to be shown.
+
+2002-04-01  lirc  <lirc@eyepod>
+
+	* doc/html-source/index.html, doc/html-source/install.html, drivers/lirc_gpio/lirc_gpio.c, remotes/pixelview/lircd.conf.playtv_pro:
+	changed config file for Pixelview PlayTV pro and compatible TV cards to use original codes
+
+2002-03-28  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, drivers/Makefile.am, drivers/lirc_bt829/.cvsignore, drivers/lirc_bt829/Makefile.am, drivers/lirc_bt829/lirc_bt829.c, remotes/tekram/lircd.conf.m230, remotes/tekram/lircmd.conf.m230, setup.sh:
+	added support for Tekram M230 Mach64 (Froenchenko Leonid)
+
+2002-03-27  lirc  <lirc@eyepod>
+
+	* drivers/lirc_sir/lirc_sir.c: changes for Sharp Zaurus hardware,
+	disable interrupts during transmit
+
+2002-03-25  lirc  <lirc@eyepod>
+
+	* contrib/sendxevent.c: command line version of irxevent
+
+2002-03-24  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c: fixed bug in command line driver selection
+
+2002-03-06  lirc  <lirc@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c:
+	fixed minor bug in timer initialization
+
+2002-02-23  lirc  <lirc@eyepod>
+
+	* doc/html-source/technical.html: described interrupt issue
+
+	* doc/man-source/irxevent.inc, doc/man2html.c:
+	removed links to man pages from generated html pages
+
+2002-02-22  lirc  <lirc@eyepod>
+
+	* daemons/dump_config.c, daemons/ir_remote.c, daemons/ir_remote.h, daemons/lircd.c, daemons/transmit.c, daemons/config_file.c:
+	added support for error detection scheme found on Sharp RRMCG0041SJSA remote
+
+2002-02-06  lirc  <lirc@eyepod>
+
+	* daemons/receive.c: code cleanup
+
+2002-02-01  lirc  <lirc@eyepod>
+
+	* TODO, configure.in, daemons/irrecord.c, doc/man-source/irrecord.inc:
+	no new protocols seem to show up
+
+2002-02-01  ranty  <ranty@eyepod>
+
+	* drivers/lirc_dev/Makefile.am, drivers/lirc_it87/Makefile.am, drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am, drivers/lirc_sir/Makefile.am, drivers/Makefile.am:
+	Didn't notice that mkdev and rmdev where used in multiple Makefile.am files.
+	This should fix 'configure --disable-manage-devices'
+
+2002-01-31  lirc  <lirc@eyepod>
+
+	* setup.sh: really disable X11
+
+2002-01-26  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/index.html, setup.sh:
+	0.6.5 release
+
+	* doc/html-source/help.html: cosmetic fix
+
+2002-01-22  lirc  <lirc@eyepod>
+
+	* INSTALL, README: added pointers to main documentation
+
+2002-01-18  lirc  <lirc@eyepod>
+
+	* doc/.cvsignore: added more files to ignore
+
+	* doc/man/.cvsignore: added .cvsignore
+
+	* doc/html-source/install.html: added note about serial.c kernel bug
+
+	* doc/man/Makefile.am: man pages have to go into distribution
+
+	* README, doc/.cvsignore: doc.html has been removed
+
+2002-01-16  lirc  <lirc@eyepod>
+
+	* setup.sh: users don't look in the 'Other serial port devices' section
+
+2002-01-06  lirc  <lirc@eyepod>
+
+	* configure.in, doc/Makefile.am, doc/man/Makefile.am, doc/release-man.sh:
+	fixed man page handling (did not install correctly)
+
+	* daemons/hw_default.c, daemons/irrecord.c: cosmetic fixes
+
+	* doc/html-source/install.html, drivers/lirc_it87/README, drivers/lirc_it87/lirc_it87.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, setup.sh:
+	renamed I/O base address parameter to io
+
+	* doc/html-source/help.html: fixed typo
+
+2001-12-17  lirc  <lirc@eyepod>
+
+	* doc/Makefile.am, doc/html-source/configure.html, doc/html-source/doc.html, doc/html-source/foot.html, doc/html-source/head.html, doc/html-source/head1.html, doc/html-source/head2.html, doc/html-source/help.html, doc/html-source/index.html, doc/html-source/install.html, doc/html-source/programs.html, doc/html-source/technical.html, doc/lirc.css, doc/release-html.sh:
+	cleaned up html documentation, now uses CSS
+
+2001-12-16  ranty  <ranty@eyepod>
+
+	* doc/html-source/programs.html:
+	Forgot to remove "html/" from the links.
+
+	* doc/html-source/configure.html: Revised lircmd/XF4 configuration.
+	More IntelliMouse vs. IMPS/2 updates.
+
+	* doc/html-source/install.html, doc/html-source/programs.html:
+	Some documentation is generated from man pages.
+
+	* doc/html-source/configure.html, doc/html-source/foot.html, doc/html-source/head1.html, doc/html-source/head2.html, doc/html-source/help.html, doc/html-source/install.html, doc/html-source/technical.html:
+	Fixed html comments which prevented some text from showing up in a browser.
+
+2001-12-15  ranty  <ranty@eyepod>
+
+	* remotes/life-view/lircmd.conf.fly98, remotes/pixelview/lircmd.conf.playtv_pro, remotes/pixelview/lircmd.conf.remotemaster, remotes/silitek/lircmd.conf.silitek, NEWS, contrib/lircmd.conf, daemons/lircmd.c, doc/html-source/configure.html, doc/html-source/technical.html, doc/man-source/lircmd.inc, remotes/avermedia/lircmd.conf.avermedia, remotes/avermedia/lircmd.conf.avermedia98, remotes/bestbuy/lircmd.conf.bestbuy, remotes/bestbuy/lircmd.conf.bestbuy2, remotes/hauppauge/lircmd.conf.hauppauge:
+	Implemented IntelliMouse protocol in lircmd which is more appropriate for the
+	pipe we use there.
+
+2001-12-12  lirc  <lirc@eyepod>
+
+	* AUTHORS, NEWS, configure.in, drivers/Makefile.am, drivers/lirc_it87/.cvsignore, drivers/lirc_it87/Makefile.am, drivers/lirc_it87/README, drivers/lirc_it87/TODO, drivers/lirc_it87/lirc_it87.c, drivers/lirc_it87/lirc_it87.h, setup.sh:
+	added support for ITE IT8712/IT8705 CIR port (Hans-Günter Lütke Uphues)
+
+2001-12-12  ranty  <ranty@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_i2c/lirc_i2c.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c:
+	Added the GPL license paragraph to source files, MODULE_LICENSE
+	declarations and a couple of MODULE_AUTHOR and MODULE_DESCRIPTION
+	declarations.
+
+	* daemons/hw-types.c:
+	Include 'irman' in the list of available drivers if available.
+
+	* configure.in:
+	'irman' support wasn't building properly when driver 'any' was selected.
+
+2001-12-08  lirc  <lirc@eyepod>
+
+	* daemons/hardware.h, daemons/hw_caraca.c, daemons/hw_creative.c, daemons/hw_default.c, daemons/hw_default.h, daemons/hw_irman.c, daemons/hw_logitech.c, daemons/hw_pinsys.c, daemons/hw_pixelview.c, daemons/hw_silitek.c, daemons/hw_slinke.c, daemons/ir_remote.c, daemons/ir_remote.h, daemons/lircd.c, drivers/lirc.h:
+	implemented functions to set receiver frequency range
+
+	* drivers/lirc_sir/lirc_sir.c: implemented sane read function
+
+2001-12-02  lirc  <lirc@eyepod>
+
+	* configure.in: check for svgalib include files added
+
+	* drivers/lirc_sir/lirc_sir.c: del_timer_sync() not available in 2.2.x
+
+	* doc/html-source/configure.html: docs are far from being complete...
+
+	* drivers/lirc_sir/lirc_sir.c:
+	fixed potential kernel crash due to timer still being active at module removal
+
+	* daemons/hw_logitech.c: increased timeout, warning in debug mode only
+
+2001-11-27  ranty  <ranty@eyepod>
+
+	* daemons/irrecord.c, daemons/dump_config.c:
+	Christoph prefers #ifdef rather than #if with autoconf preprocesor macros.
+
+2001-11-24  ranty  <ranty@eyepod>
+
+	* daemons/lircd.c, daemons/lircd.h, daemons/lircmd.c:
+	ANSI-C forbids text after #endif, only comments are accepted there.
+
+2001-11-22  ranty  <ranty@eyepod>
+
+	* daemons/dump_config.c, daemons/irrecord.c, doc/man2html.c, tools/smode2.c:
+	Removed some compiler warnnings.
+
+2001-11-20  ranty  <ranty@eyepod>
+
+	* drivers/lirc_dev/Makefile.am, drivers/lirc_gpio/Makefile.am, drivers/lirc_i2c/Makefile.am, drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am, drivers/lirc_sir/Makefile.am:
+	automake 1.5 seams to change some variables which broke module compilation.
+
+	* configure.in:
+	prevent "AC_PROG_CPP was called before AC_PROG_CC" autoconf error.
+
+	* doc/man-source/irrecord.inc, doc/man-source/irw.inc, doc/man-source/irxevent.inc, doc/man-source/lircd.inc, doc/man-source/lircmd.inc, doc/man-source/mode2-common.inc, doc/man-source/mode2.inc, doc/man-source/smode2.inc, doc/man-source/xmode2.inc, tools/irw.c, tools/irxevent.c, tools/mode2.c, tools/smode2.c, tools/xmode2.c, Makefile.am, doc/Makefile.am, doc/html-source/doc.html, doc/man-source/daemons.inc, doc/man-source/help2man.inc, doc/man-source/irexec.inc, doc/man-source/irpty.inc, doc/man2html.c, doc/release-html.sh, doc/release-man.sh:
+	Generate manpages with help2man and html program manuals from the manpages.
+
+2001-11-18  lirc  <lirc@eyepod>
+
+	* remotes/pinnacle_systems/lircd.conf.pctv: some more buttons
+
+	* daemons/receive.c: didn't compile
+
+	* daemons/hw_pinsys.c: warning only should appear in debug mode,
+	otherwise the log file could fill up quite fast
+
+2001-11-14  lirc  <lirc@eyepod>
+
+	* NEWS, drivers/lirc_gpio/lirc_gpio.c, setup.sh:
+	added support for Prolink PV-BT878P+9B card (Arkadiusz Miskiewicz)
+
+	* daemons/receive.c:
+	introduced better heuristic that should fix problems with repeat and most TV cards
+
+2001-11-14  ranty  <ranty@eyepod>
+
+	* acconfig.h, tools/irpty.c: Polishing the use of forkpty in irpty.
+
+2001-11-09  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c, doc/html-source/configure.html, doc/html-source/install.html, doc/html-source/programs.html:
+	location of config files was wrong
+
+2001-11-04  ranty  <ranty@eyepod>
+
+	* configure.in:
+	The check for gl_setcontextvga in libvgagl was not using -lvga so it failed
+	even if libvga and libvgagl where there.
+
+	* configure.in, tools/Makefile.am, tools/irpty.c:
+	Use libc6's forkpty if available: enables devpts and probably devfs support.
+
+	* configure.in, daemons/Makefile.am:
+	made device node creation a configure option, to make easier installation by
+	non root users. This makes Debian packing easier and maybe others.
+
+	* configure.in:
+	Tagged driver/configuration selection heuristic for easier extraction on
+	Debian packing process and maybe others.
+
+2001-11-03  lirc  <lirc@eyepod>
+
+	* daemons/config_file.c, doc/html-source/install.html, drivers/lirc_serial/lirc_serial.c:
+	accept CR-LF in config file
+
+2001-10-21  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	removed nearly all compile time configuration from module,
+	the used hardware can now be chosen with a variable
+
+2001-10-18  lirc  <lirc@eyepod>
+
+	* TODO, daemons/lircd.c, daemons/serial.c: recognize stale lockfiles
+
+	* doc/html-source/doc.html, doc/html-source/foot.html, doc/html-source/technical.html:
+	added known bugs section
+
+2001-10-14  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, setup.sh:
+	fixed potential problem with udelay() on fast machines
+
+2001-09-30  lirc  <lirc@eyepod>
+
+	* NEWS, TODO, configure.in, setup.sh:
+	added support for Hauppauge DVB-s card
+
+2001-09-28  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	an unresolved symbol appeared in a special configuration, fixed
+
+2001-09-18  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	loops_per_jiffy is also used since 2.2.18
+
+2001-09-17  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	IRdeo Remote does support receiving
+
+	* setup.sh: fixed typo in TV card selection
+
+2001-09-14  lirc  <lirc@eyepod>
+
+	* acconfig.h, configure.in, drivers/lirc_serial/lirc_serial.c, setup.sh:
+	added support for IRdeo Remote
+
+2001-09-07  lirc  <lirc@eyepod>
+
+	* daemons/dump_config.c, remotes/generic/MOTOROLA.conf:
+	added template config file for Motorola protocol
+
+2001-08-26  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, doc/html-source/install.html, drivers/lirc_gpio/lirc_gpio.c:
+	AVerMedia TV cards with ID 0x00011461 and 0x00041461 should finally work with the provided config files
+
+2001-08-25  lirc  <lirc@eyepod>
+
+	* daemons/hw_default.c, daemons/ir_remote.h, daemons/lircd.c, daemons/transmit.c, daemons/transmit.h:
+	fixed two bugs in transmit code that affected distance between repeated signals
+
+2001-08-16  lirc  <lirc@eyepod>
+
+	* daemons/lircd.c: moved error logging to correct place
+
+2001-08-15  lirc  <lirc@eyepod>
+
+	* ANNOUNCE, NEWS, configure.in, doc/html-source/doc.html, setup.sh:
+	0.6.4 release
+
+2001-08-10  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c:
+	fixed segfault occuring for remotes with very short signals
+
+2001-08-08  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: fixed compile error in debug code
+
+2001-08-04  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: rdtsc in 2.2.x
+
+	* NEWS, doc/html-source/install.html, drivers/lirc_serial/lirc_serial.c:
+	use rdtsc if available (Steve Davies)
+
+	* remotes/generic/SONY12.conf: measured duty_cycle using oscilloscope
+
+2001-07-28  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	changes to improve transmissoin quality (Steve Davies)
+
+2001-07-24  lirc  <lirc@eyepod>
+
+	* drivers/lirc_sir/lirc_sir.c: made ISR more fail safe, some clean-ups
+
+2001-07-18  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c:
+	small gaps between bytes were generated...
+
+2001-07-16  lirc  <lirc@eyepod>
+
+	* daemons/hw-types.c, daemons/irrecord.c, daemons/lircd.c:
+	fixed network only compile error
+
+2001-07-12  lirc  <lirc@eyepod>
+
+	* daemons/serial.c: cosmetic fix
+
+2001-07-11  lirc  <lirc@eyepod>
+
+	* NEWS, doc/html-source/install.html, drivers/lirc_serial/lirc_serial.c:
+	fixed bug in Irdeo transmit code
+
+2001-07-06  ranty  <ranty@eyepod>
+
+	* setup.sh: It now should be POSIX Bourne shell compatible.
+
+2001-07-06  lirc  <lirc@eyepod>
+
+	* daemons/irrecord.c: produce nicer pre/post data values
+
+2001-07-05  lirc  <lirc@eyepod>
+
+	* daemons/Makefile.am, daemons/irrecord.c:
+	handle multiple remotes in pre/post remove functions
+
+2001-07-04  uid26674  <uid26674@eyepod>
+
+	* daemons/lircd.c: address was reused on wrong socket...
+
+2001-06-24  lirc  <lirc@eyepod>
+
+	* NEWS, configure.in, drivers/lirc_gpio/lirc_gpio.c, remotes/life-view/lircd.conf.FlyVideo_II, setup.sh:
+	added support for FlyVideo II TV card
+
+2001-06-23  lirc  <lirc@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: Animax receiver won't transmit...
+
+	* drivers/lirc_parallel/lirc_parallel.c: changes for 2.4.x kernels
+
+	* daemons/Makefile.am, daemons/hw-types.c, setup.sh:
+	hw-types.[c|h] was not included in the distribution
+
+2001-06-15  lirc  <lirc@eyepod>
+
+	* NEWS: updated NEWS file
+
+	* drivers/lirc_sir/lirc_sir.c: Power on IR module
+
+2001-06-14  lirc  <lirc@eyepod>
+
+	* TODO, drivers/lirc_gpio/lirc_gpio.c, remotes/cph03x/lircd.conf.cph03x, setup.sh:
+	added support for FlyVideo 98/FM TV card
+
+	* contrib/conf.modules.aver: lirc_aver no longer exists
+
+2001-06-11  ranty  <ranty@eyepod>
+
+	* doc/html-source/install.html, doc/html-source/programs.html:
+	documentation update: muti-driver lircd and long options for irpty.
+
+	* tools/irpty.c: added long options including --help and --version.
+
+	* acconfig.h, configure.in, daemons/Makefile.am, daemons/hardware.h, daemons/hw-types.c, daemons/hw-types.h, daemons/hw_caraca.c, daemons/hw_creative.c, daemons/hw_default.c, daemons/hw_irman.c, daemons/hw_logitech.c, daemons/hw_pinsys.c, daemons/hw_pixelview.c, daemons/hw_silitek.c, daemons/hw_slinke.c, daemons/irrecord.c, daemons/lircd.c, daemons/receive.c:
+	Multiple drivers may be linked into lircd and selected at runtime.
+
+2001-06-04  lirc  <lirc@eyepod>
+
+	* daemons/dump_config.c: changed description
+
+2001-05-24  lirc  <lirc@eyepod>
+
+	* daemons/hw_pinsys.c, daemons/hw_pinsys.h: changed timeout value
+
+2001-05-20  lirc  <lirc@eyepod>
+
+	* AUTHORS, NEWS, configure.in, drivers/lirc_gpio/lirc_gpio.c, setup.sh:
+	added support for Winfast TV2000,
+	thanks to Juan Toledo for the patch
+
+2001-05-06  lirc  <lirc@eyepod>
+
+	* configure.in, doc/html-source/install.html:
+	changed default location of some files
+
+	* contrib/lirc.suse7.1: added S.u.S.E. 7.1 init script
+
+2001-04-26  lirc  <lirc@eyepod>
+
+	* daemons/Makefile.am, drivers/Makefile.am, drivers/lirc_dev/Makefile.am, drivers/lirc_gpio/Makefile.am, drivers/lirc_i2c/Makefile.am, drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am, drivers/lirc_sir/Makefile.am:
+	modified Makefiles to support DESTDIR, etc.
+
+2001-04-25  lirc  <lirc@eyepod>
+
+	* configure.in, daemons/lircd.c, drivers/lirc_gpio/lirc_gpio.c, remotes/bestbuy/lircd.conf.bestbuy, remotes/bestbuy/lircd.conf.bestbuy2, remotes/bestbuy/lircmd.conf.bestbuy2, setup.sh:
+	added support for BT878 version of BestBuy Easy TV card (Miguel Angel)
+
+	* configure.in: added iPAQ to configure script
+
+	* daemons/lircd.c: reuse address
+
+	* acconfig.h, drivers/lirc_sir/lirc_sir.c, setup.sh:
+	initial iPAQ support (NOT working)
+
+2001-04-24  lirc  <lirc@eyepod>
+
+	* configure.in, drivers/lirc_i2c/lirc_i2c.c, remotes/knc_one/lircd.conf.knc_one, setup.sh:
+	added support for KNC ONE TV cards (Ulrich Mueller)
+
+	* remotes/pinnacle_systems/lircd.conf.pctv:
+	added extra buttons for new version of the remote
+
+	* doc/html-source/install.html: added mode3 warning
+
+	* doc/html-source/configure.html: added X 4.0 configuration detail
+
+	* daemons/ir_remote.c: fixed repeat bug
+
+	* daemons/hw_silitek.c, daemons/hw_silitek.h, remotes/silitek/lircd.conf.silitek, remotes/silitek/lircmd.conf.silitek:
+	added support for Silitek SM-1000 receiver,
+	many thanks to Krister Wicksell Eriksson
+
+	* tools/irxevent.c: fixed bug (Scott A. Herod)
+
+	* daemons/hw_pixelview.c: timeout was too short (Michael Beattie)
+
+	* daemons/ir_remote.h, tools/irw.c: fixed some compile warnings
+
+	* drivers/lirc_sir/lirc_sir.c:
+	show buffer overrun error only in DEBUG mode
+
+	* drivers/lirc_serial/lirc_serial.c:
+	show buffer overrun error only in DEBUG mode,
+	added clock debug code,
+	changes to transmit code
+
+	* daemons/Makefile.am, daemons/hw_logitech.c, daemons/hw_slinke.c, remotes/packard_bell/lircd.conf.packard_bell:
+	added support for Silitek SM-1000 receiver,
+	many thanks to Krister Wicksell Eriksson
+
+	* drivers/lirc_i2c/lirc_i2c.c:
+	fixed autodetection issues with PixelView cards (Gerd),
+	probe 0x1a first
+
+	* setup.sh: added TCP/IP network support (Bryan Clingman),
+	added support for Silitek SM-1000 receiver,
+	many thanks to Krister Wicksell Eriksson
+
+	* configure.in: added TCP/IP network support (Bryan Clingman),
+	fixed autodetection issues with PixelView cards (Gerd),
+	added support for Silitek SM-1000 receiver,
+	many thanks to Krister Wicksell Eriksson
+
+	* acconfig.h: added TCP/IP network support (Bryan Clingman),
+	fixed autodetection issues with PixelView cards (Gerd)
+
+	* NEWS: changed behaviour of repeat setting,
+	added TCP/IP network support (Bryan Clingman),
+	added support for Silitek SM-1000 receiver,
+	many thanks to Krister Wicksell Eriksson,
+	0.6.3 release
+
+	* daemons/irrecord.c, daemons/lircd.c, daemons/lircd.h, doc/html-source/doc.html, doc/html-source/programs.html, doc/html-source/technical.html:
+	added TCP/IP network support (Bryan Clingman)
+
+	* tools/lirc_client.c: changed behaviour of repeat setting
+
+2001-02-04  Christoph Bartelmus  <columbus@eyepod>
+
+	* remotes/sigma_designs/lircd.conf.realmagic: changes for version 1.5
+
+	* remotes/technisat/lircd.conf.mediafocusI:
+	cosmetic change to reduce confusion
+
+2001-01-30  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/ir_remote.h: fixed bug in map_code
+
+2001-01-27  Christoph Bartelmus  <columbus@eyepod>
+
+	* Makefile.am: added dist-bz2 target
+
+2001-01-21  Christoph Bartelmus  <columbus@eyepod>
+
+	* acconfig.h, configure.in, drivers/lirc_i2c/lirc_i2c.c:
+	fixed possible kernel oops in lirc_i2c
+
+	* daemons/hw_caraca.c, daemons/hw_creative.c, daemons/hw_irman.c, daemons/hw_logitech.c, daemons/irrecord.c:
+	fixed(?) irrecord toggle_bit problem
+
+	* remotes/bestbuy/lircd.conf.bestbuy, remotes/bestbuy/lircmd.conf.bestbuy:
+	added BestBuy config files
+
+	* NEWS, configure.in, drivers/lirc_gpio/lirc_gpio.c, setup.sh:
+	added support for BestBuy EasyTV (Miguel A. Alvarez <maacruz@navegalia.com>)
+
+2001-01-20  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in, daemons/dump_config.c, daemons/lircd.c, drivers/lirc_i2c/lirc_i2c.c, remotes/provideo/lircd.conf.pv951:
+	added config file for PV951
+
+2001-01-18  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, configure.in, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_i2c/lirc_i2c.c, setup.sh:
+	added support for ProVideo PV951 (Bogdan Gaspar)
+
+	* remotes/generic/DENON.conf: frequency update
+
+	* drivers/lirc_parallel/lirc_parallel.c: fixed 2.0.x compile problem
+
+2001-01-13  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c: some AVerMedia card ID related changes
+
+2001-01-11  Christoph Bartelmus  <columbus@eyepod>
+
+	* ChangeLog, daemons/irrecord.c: not obvious enough
+
+	* ChangeLog, drivers/lirc_gpio/lirc_gpio.c, remotes/avermedia/lircd.conf.avermedia:
+	adjusted number of bits in driver
+
+2001-01-10  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c:
+	changes to driver to work with the new AVerMedia config file
+
+	* doc/html-source/install.html, remotes/avermedia/lircd.conf.avermedia, remotes/avermedia/lircd.conf.avermedia98:
+	got the codes of the old AVerMedia remote from Santiago
+
+2001-01-06  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, configure.in, daemons/hw_creative.c, daemons/hw_logitech.c, daemons/hw_pinsys.c, daemons/hw_pixelview.c, daemons/ir_remote.h, remotes/creative/lircd.conf.creative, setup.sh:
+	fixed irrecord incompatibility with some receivers
+
+2001-01-05  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio.c:
+	config file did not work for AVerMedia TVCapture98 1461:0004
+
+	* configure.in, daemons/Makefile.am, daemons/hw_creative.c, daemons/hw_creative.h, daemons/irrecord.c, doc/html-source/programs.html, setup.sh:
+	added support for Creative Infra receiver
+
+	* drivers/lirc_dev/Makefile.am, drivers/lirc_gpio/Makefile.am, drivers/lirc_i2c/Makefile.am, drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am, drivers/lirc_sir/Makefile.am:
+	changed for 2.4.0 kernel Makefiles
+
+2000-12-23  Christoph Bartelmus  <columbus@eyepod>
+
+	* acinclude.m4, configure.in, drivers/lirc_dev/lirc_dev.c:
+	some devfs related changes
+
+2000-12-15  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, TODO, acconfig.h, configure.in, doc/html-source/install.html, drivers/lirc_sir/lirc_sir.c, setup.sh:
+	added support for Tekram Irmate 210,
+	cleaned up SIR driver (thanks to Frank Przybylski for bug fixes and suggestions)
+
+2000-12-09  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c: removed module_ prefix
+
+2000-12-08  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/hw_irman.c, daemons/hw_logitech.c, daemons/hw_pinsys.c, daemons/hw_pixelview.c, daemons/hw_slinke.c, daemons/irrecord.c, daemons/lircd.c, doc/html-source/programs.html, drivers/Makefile.am, tools/mode2.c, tools/smode2.c, tools/xmode2.c, configure.in, contrib/lirc.debian, contrib/lirc.suse, daemons/hardware.h, daemons/hw_caraca.c, daemons/hw_default.c:
+	device name can be selected from command line
+
+	* NEWS, README, configure.in, drivers/Makefile.am, drivers/lirc_gpio/.cvsignore, drivers/lirc_gpio/Makefile.am, drivers/lirc_gpio/lirc_gpio.c, drivers/lirc_gpio/lirc_gpio_i.c, drivers/lirc_gpio/lirc_gpio_p.c, drivers/lirc_i2c/lirc_i2c.c, remotes/technisat/lircd.conf.mediafocusI, setup.sh, doc/html-source/install.html, doc/html-source/technical.html:
+	added support for Technisat MediaFocus I,
+	moved lirc_gpio_p to lirc_gpio,
+	removed lirc_gpio_i,
+	added support of Fly98 TV card to lirc_gpio (interrupt driven),
+	removed old lirc_fly98 driver,
+	adapted lirc_i2c and lirc_gpio to current bttv versions
+
+2000-12-03  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio_i.c, drivers/lirc_gpio/lirc_gpio_p.c, drivers/lirc_dev/lirc_dev.c:
+	some clean-ups
+
+	* remotes/generic/DENON.conf, remotes/generic/NEC-AIWA.conf, remotes/generic/NEC-pulse.conf, remotes/generic/NEC-short-pulse.conf, remotes/generic/NEC.conf, remotes/generic/RC-5.conf, remotes/generic/RECS80.conf, remotes/generic/SONY12.conf, remotes/generic/SONY20.conf:
+	added generic config files for various protocols
+
+2000-11-30  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c: PixelView support, untested
+
+2000-11-26  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html, doc/html-source/programs.html:
+	documentation updates
+
+	* drivers/lirc_gpio/lirc_gpio_i.c, drivers/lirc_gpio/lirc_gpio_p.c:
+	update for 2.4.x kernels
+
+2000-11-25  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/hw_default.c, daemons/lircd.c, doc/html-source/install.html:
+	better min_repeat handling
+
+2000-11-24  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, doc/html-source/install.html, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c, setup.sh:
+	changes to transmit code in lirc_serial
+
+2000-11-23  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c:
+	compiling the serial port module is not really mandatory
+
+	* daemons/irrecord.c: cosmetic changes
+
+	* acinclude.m4: fixed problem when mktemp is not installed
+
+2000-11-16  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html: fixed bad link
+
+2000-11-13  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/irrecord.c, doc/html-source/programs.html:
+	existing config files now can be used as templates for new remotes
+
+	* remotes/sigma_designs/lircd.conf.realmagic:
+	config file should be correct now
+
+	* setup.sh: added Miro PCTV to list of supported devices
+
+2000-11-11  Christoph Bartelmus  <columbus@eyepod>
+
+	* ANNOUNCE, doc/html-source/foot.html, doc/html-source/help.html, doc/html-source/install.html:
+	LIRC homepage moved to www.lirc.org
+
+2000-11-10  Christoph Bartelmus  <columbus@eyepod>
+
+	* remotes/sigma_designs/lircd.conf.realmagic, configure.in, daemons/irrecord.c, setup.sh:
+	added support for REALmagic remote control from Sigma Designs
+
+2000-11-09  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/lirc_client.c, tools/lirc_client.h, NEWS, doc/html-source/configure.html:
+	added startup_mode flag to .lircrc config file,
+	thanks to Bruno Coudoin for the patches
+
+2000-11-01  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/programs.html:
+	most users probably don't know how to pass arguments to the slave program
+
+	* drivers/lirc_i2c/lirc_i2c.c: workaround for I2C read failures
+
+2000-10-23  Christoph Bartelmus  <columbus@eyepod>
+
+	* acinclude.m4:
+	configure script broke with 2.2.18pre* kernels because it failed to recognise the correct CC value,
+	it should work again, but it's still a hack
+
+2000-10-22  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/configure.html, doc/html-source/install.html, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c:
+	documentation updated
+
+2000-10-10  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/irrecord.c, drivers/lirc_i2c/lirc_i2c.c, configure.in:
+	enable devfs only for lirc_dev
+
+2000-10-08  Christoph Bartelmus  <columbus@eyepod>
+
+	* contrib/lirc.suse6.2, contrib/lircd.suse6: renamed file
+
+2000-10-07  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_i2c/lirc_i2c.c: uploaded Gerd's patch,
+	Hauppauge support should work again
+
+2000-10-02  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/serial.c: removed too much
+
+2000-10-01  Christoph Bartelmus  <columbus@eyepod>
+
+	* setup.sh, tools/irxevent.c: small fix and enhancement,
+	thanks to Tom Hudec <Tom.Hudec@seznam.cz> for the patch
+
+2000-09-30  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, README, configure.in, doc/html-source/doc.html, doc/html-source/install.html, drivers/Makefile.am, drivers/lirc_dev/lirc_dev.c, drivers/lirc_i2c/.cvsignore, drivers/lirc_i2c/Makefile.am, drivers/lirc_i2c/lirc_i2c.c, remotes/pixelview/lircd.conf.playtv_bt878, setup.sh:
+	started adding support for Pixelview PlayTV (bt878) card,
+	not working yet
+
+	* daemons/serial.c, tools/lirc_client.c: small fixes
+
+2000-09-27  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in, drivers/lirc_gpio/lirc_gpio_p.c, setup.sh:
+	added support for PixelView PlayTV PAK TV card
+
+	* TODO, acconfig.h: temporary devfs work-around
+
+	* TODO, daemons/irrecord.c: reducing misunderstandings
+
+	* drivers/lirc_dev/lirc_dev.c:
+	devfs support officially will come with 2.4.x AFAIK
+
+2000-09-26  Christoph Bartelmus  <columbus@eyepod>
+
+	* setup.sh: substituted which with type
+
+2000-09-21  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c: lirc_haup needs bttv module
+
+2000-09-19  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/lirc_client.c: bugfix and additional consistency tests
+
+	* contrib/lircs: added LIRC starter stript,
+	thanks to Michael Kammerer for this contribution
+
+2000-09-18  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/xmode2.c: added alternative display mode for xmode2,
+	thanks to Peter T. Whiting for the patch
+
+	* NEWS, configure.in, drivers/lirc_gpio/lirc_gpio_p.c, remotes/chronos/lircd.conf.chronos, setup.sh, ANNOUNCE:
+	 added support for Chronos Video Shuttle II TV card,
+	thanks to Tonu Raitviir <jussuf@BumpClub.ee> for patches
+
+2000-09-17  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/foot.html, drivers/lirc_gpio/lirc_gpio_p.c, NEWS:
+	fixed typo
+
+2000-09-07  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c, drivers/lirc_gpio/lirc_gpio_p.c, setup.sh:
+	added support for Phoebe Tv Master
+
+2000-09-03  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/hw_default.c, daemons/irrecord.c, daemons/receive.c, daemons/receive.h, daemons/transmit.c, daemons/transmit.h:
+	recognition of toggle bit should work again,
+	implemented recognition of min_repeat
+
+2000-08-28  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c: mapping should be correct now
+
+2000-08-26  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c: moved some bits around
+
+	* ANNOUNCE, NEWS, drivers/lirc_serial/lirc_serial.c, setup.sh:
+	ok, IRdeo support should *work* now,
+	transmitting is also implemented
+
+2000-08-25  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/hw_caraca.c, daemons/hw_caraca.h, remotes/caraca/lircd.conf.caraca, remotes/caraca/lircrc.caraca:
+	added caraca files...
+
+2000-08-23  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, acconfig.h, configure.in, drivers/lirc_serial/lirc_serial.c, setup.sh:
+	Added support for IRdeo.
+	Currently only receiving works. Many thanks to Hans-Hermann Redenius for contributing a device.
+
+	* daemons/Makefile.am, NEWS, acconfig.h, configure.in, setup.sh:
+	Konrad Riedel has added support for CARACA (caraca.sourceforge.net)
+
+2000-08-17  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircd.c: bugfix: don't close device during repeating
+
+2000-08-12  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html, drivers/lirc_serial/lirc_serial.c:
+	doc updates
+
+2000-08-05  Christoph Bartelmus  <columbus@eyepod>
+
+	* setup.sh: added bttv card ids
+
+2000-07-29  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c: this mask seems to be correct
+
+2000-07-28  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html: explained bttv autodetection
+
+	* AUTHORS, doc/html-source/technical.html, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/lirc_gpio_i.c, drivers/lirc_gpio/lirc_gpio_p.c, remotes/pixelview/lircd.conf.playtv_pro, remotes/pixelview/lircrc.playtv_pro:
+	code clean-up (Artur)
+
+2000-07-27  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c, remotes/cph03x/lircd.conf.cph03x, setup.sh:
+	some TV card changes
+
+2000-07-26  Christoph Bartelmus  <columbus@eyepod>
+
+	* ChangeLog, NEWS, TODO, configure.in, daemons/ir_remote.h, daemons/lircd.c, daemons/lircd.h, doc/html-source/technical.html, drivers/lirc_dev/lirc_dev.c:
+	implemented min_repeat (one TODO item less)
+
+2000-07-23  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c: fix for 2.4.0-test4
+
+	* configure.in: fixed typo in configure script
+
+2000-07-21  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/Makefile.am, drivers/lirc_gpio/lirc_gpio_p.c, ANNOUNCE, NEWS, configure.in, daemons/.cvsignore, doc/html-source/foot.html, doc/html-source/install.html:
+	releasing lirc-0.6.1
+
+2000-07-19  Christoph Bartelmus  <columbus@eyepod>
+
+	* remotes/avermedia/lircd.conf.avermedia, remotes/avermedia/lircd.conf.avermedia98, remotes/avermedia/lircmd.conf.avermedia, remotes/avermedia/lircmd.conf.avermedia98, setup.sh, configure.in:
+	added config files for old AVerMedia cards
+
+2000-07-13  Christoph Bartelmus  <columbus@eyepod>
+
+	* ANNOUNCE, ChangeLog, daemons/Makefile.am, daemons/config_file.c, daemons/dump_config.c, daemons/hw_default.c, daemons/ir_remote.h, daemons/slinke.c, daemons/slinke.h:
+	added a tool to convert Slink-e device files to LIRC config files
+
+	* configure.in, drivers/lirc_gpio/lirc_gpio_p.c, setup.sh:
+	added CPH6xx support (untested)
+
+2000-07-08  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, configure.in, daemons/Makefile.am, daemons/hw_pinsys.c, daemons/hw_pinsys.h, daemons/hw_pixelview.c, remotes/pinnacle_systems/lircd.conf.pctv, setup.sh:
+	added support for PCTV receiver,
+	many thanks to Bart Alewijnse for contributing the driver
+
+	* NEWS, acconfig.h, configure.in, daemons/config_file.c, daemons/hw_default.c, daemons/hw_irman.c, daemons/hw_logitech.c, daemons/hw_pixelview.c, daemons/hw_slinke.c, daemons/ir_remote.c, daemons/irrecord.c, daemons/lircd.c, daemons/lircd.h, daemons/lircmd.c, daemons/receive.c, daemons/serial.c, daemons/transmit.c, doc/html-source/programs.html, setup.sh:
+	lircd now can be configured to use syslogd for log output,
+	thanks to Rainer Clasen for the suggestion
+
+	* NEWS, doc/html-source/programs.html, tools/Makefile.am, tools/irexec.c:
+	added --daemon option to irexec (suggestion by Eric Crahen)
+
+2000-07-06  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, daemons/config_file.c, daemons/dump_config.c, daemons/ir_remote.c, daemons/ir_remote.h, daemons/irrecord.c, daemons/lircd.c, daemons/receive.c, daemons/transmit.c:
+	added RC-MM support
+
+2000-07-05  Christoph Bartelmus  <columbus@eyepod>
+
+	* AUTHORS, NEWS, daemons/config_file.h, daemons/dump_config.c, daemons/hw_default.c, daemons/ir_remote.h, daemons/irrecord.c, daemons/receive.c, daemons/receive.h, daemons/transmit.c, daemons/transmit.h, setup.sh:
+	added RC-6 support
+
+	* daemons/hw_slinke.c: made memory allocations safer,
+	freeing allocations
+
+2000-07-02  Christoph Bartelmus  <columbus@eyepod>
+
+	* AUTHORS, configure.in, daemons/Makefile.am, daemons/hw_slinke.c, daemons/hw_slinke.h, setup.sh:
+	added support for Slink-e from Nirvis Systems,
+	code provided by Max Spring
+
+	* daemons/hw_logitech.c, daemons/hw_pixelview.c:
+	added O_NONBLOCK,O_NOCTTY flags to open()
+
+	* drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c:
+	nobody reads documentations...
+
+2000-06-24  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/receive.c: fix for unusual header
+
+2000-06-22  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in, drivers/lirc_gpio/lirc_gpio_p.c, setup.sh:
+	support for CPH03x TV cards (untested)
+
+	* doc/html-source/install.html, setup.sh: UIR=Irman
+
+2000-06-18  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, drivers/lirc_sir/lirc_sir.c:
+	fixes for latest kernel,
+	thanks to wollny for the patch
+
+2000-06-12  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in, daemons/Makefile.am, daemons/hw_default.c, daemons/hw_default.h, daemons/receive.c, daemons/receive.h, daemons/serial.c, daemons/serial.h, daemons/transmit.c, daemons/transmit.h:
+	internal change of code structure
+
+2000-06-11  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c, remotes/avermedia/lircd.conf.avermedia:
+	AVerMedia config updates
+
+2000-06-02  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c, remotes/avermedia/lircd.conf.avermedia:
+	now should work with TVCapture98 cards
+
+	* drivers/lirc_dev/lirc_dev.c, drivers/lirc_parallel/lirc_parallel.c:
+	some SMP fixes (thanks to Gert)
+
+2000-05-27  Christoph Bartelmus  <columbus@eyepod>
+
+	* setup.sh: chaged default for SOFT_CARRIER to enabled
+
+2000-05-22  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c:
+	finally we get it right, TVPhone98 works
+
+2000-05-21  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c:
+	you were right Artur, it could not be correct... :)
+
+2000-05-15  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html: lirc_gpio_p doc updates
+
+2000-05-14  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/help.html: new mailing list
+
+2000-05-11  Christoph Bartelmus  <columbus@eyepod>
+
+	* acconfig.h, daemons/lircd.c:
+	lircd now creates pid lockfile in /var/run
+
+2000-05-10  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/lirc_gpio_p.c: code clean-ups (Artur)
+
+2000-05-06  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in, daemons/hw_default.c, daemons/hw_default.h, drivers/lirc_gpio/lirc_gpio_p.c, remotes/avermedia/lircd.conf.avermedia, remotes/avermedia/lircmd.conf.avermedia:
+	changes to make AverMedia TVCapture98 work with the correct config file
+
+2000-05-05  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html, doc/html-source/technical.html, drivers/lirc_gpio/lirc_gpio_p.c:
+	changed algorithm of get_key() to allow AVerMedia support
+
+	* drivers/lirc_dev/lirc_dev.c:
+	changed order of devfs registration (Artur)
+
+2000-05-04  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_dev/lirc_dev.c: added include for smp_lock.h
+
+2000-05-03  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircd.c, daemons/lircd.h, daemons/lircmd.c, doc/html-source/programs.html:
+	added --permission option,
+	lircd creates /dev/lircd if it does not exist
+
+	* daemons/ir_remote.c, daemons/lircd.c, daemons/lircmd.c, doc/html-source/programs.html:
+	added --nodaemon option
+
+	* configure.in: removed superfluous =
+
+2000-04-29  Christoph Bartelmus  <columbus@eyepod>
+
+	* acconfig.h, acinclude.m4, configure.in, drivers/lirc_dev/lirc_dev.c:
+	added devfs support to lirc_dev,
+	thanks to Gerd Knorr for patches
+
+	* doc/html-source/install.html:
+	too many people are still trying to run mode2
+
+	* daemons/irrecord.c: added some maintainer-only functions
+
+2000-04-24  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, daemons/config_file.c, daemons/config_file.h, daemons/dump_config.c, daemons/hw_default.c, daemons/ir_remote.h, drivers/lirc.h, drivers/lirc_serial/lirc_serial.c:
+	added duty_cycle option to lircd.conf
+
+	* setup.sh: sorry guys, setup.sh was broken
+
+2000-04-19  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/irrecord.c: making things idiot proof, my fault ;-)
+
+2000-04-18  Christoph Bartelmus  <columbus@eyepod>
+
+	* acconfig.h, configure.in, setup.sh:
+	removed old (buggy) Hauppauge driver
+
+	* NEWS, daemons/hw_default.c, daemons/irrecord.c, daemons/lircd.c:
+	hardware is only initialized if clients have connected to lircd
+
+	* doc/html-source/programs.html:
+	added pointer to remote control section
+
+2000-04-17  Christoph Bartelmus  <columbus@eyepod>
+
+	* TODO, daemons/irrecord.c: is this clear enough ?
+
+	* daemons/lircd.c: SIGHUP does again what it should
+
+2000-04-15  Christoph Bartelmus  <columbus@eyepod>
+
+	* TODO, daemons/lircd.c, daemons/lircd.h, daemons/lircmd.c:
+	implemented proper signal handlers
+
+2000-04-13  Christoph Bartelmus  <columbus@eyepod>
+
+	* remotes/pixelview/lircmd.conf.playtv_pro, configure.in:
+	added lircmd config file for PixelView PlayTV pro cards
+
+2000-04-11  Christoph Bartelmus  <columbus@eyepod>
+
+	* TODO, configure.in, daemons/Makefile.am: daemon(), where are you?
+
+	* doc/html-source/doc.html, doc/html-source/technical.html:
+	added short info about lirc_dev purpose and usage
+
+	* doc/html-source/install.html:
+	added short info about lirc_gpio_i and lirc_gpio_p with parameter descriptions
+
+	* drivers/lirc_dev/lirc_dev.c:
+	fixed compatibility bug with DECLARE_WAITQUEUE definition (required for 2.3.x kernels)
+
+2000-04-06  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_gpio/Makefile.am:
+	now automake uses top_module variable to find which module is valid
+
+	* drivers/lirc_gpio/lirc_gpio_i.c, drivers/lirc_gpio/lirc_gpio_p.c:
+	minor parameter can be now negative and it has -1 as default value
+
+	* drivers/lirc_dev/Makefile.am:
+	added EXPORT_SYMTAB symbol definition to compiler flags
+
+	* drivers/lirc_dev/lirc_dev.c:
+	fixed logical bug in lirc_read function, fixed bug in interpretation of minor device number in lirc_register_plugin
+
+	* configure.in:
+	added a top_module variable which is used in lirc_gpio directory for decision which module (lirc_gpio_p or lirc_gpio_i) to use
+
+2000-04-02  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c: fixes for 2.3.x
+
+	* remotes/pixelview/lircd.conf.playtv_pro, remotes/pixelview/lircrc.playtv_pro:
+	config files for PixelView PlayTV pro card
+
+	* doc/html-source/install.html, drivers/Makefile.am, drivers/lirc_dev/.cvsignore, drivers/lirc_dev/Makefile.am, drivers/lirc_dev/lirc_dev.c, drivers/lirc_dev/lirc_dev.h, drivers/lirc_gpio/.cvsignore, drivers/lirc_gpio/Makefile.am, drivers/lirc_gpio/lirc_gpio_i.c, drivers/lirc_gpio/lirc_gpio_p.c, Makefile.am, NEWS, configure.in, setup.sh:
+	added hardware abstraction layer for TV cards(Artur Lipowski <lipowski@comarch.pl>)
+
+	* doc/html-source/configure.html: forgot to mention TOGGLE_ACTIVATE
+
+	* daemons/lircmd.c: fixed leave semantics
+
+	* ANNOUNCE: noticed error 1 min after release...
+
+	* ANNOUNCE, NEWS, doc/html-source/foot.html, doc/html-source/head1.html, doc/html-source/head2.html, doc/html-source/help.html:
+	releasing lirc-0.6.0
+
+2000-04-01  Christoph Bartelmus  <columbus@eyepod>
+
+	* setup.sh: last pre release
+
+2000-03-30  Christoph Bartelmus  <columbus@eyepod>
+
+	* Makefile.am, TODO, configure.in, setup.sh:
+	probably broke configuration <g>
+
+2000-03-27  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/Makefile.am, doc/html-source/doc.html, doc/html-source/foot.html, doc/html-source/programs.html, doc/irxevent.keys:
+	done
+
+2000-03-25  Christoph Bartelmus  <columbus@eyepod>
+
+	* ChangeLog: oops, don't need any ChangeLog in CVS
+
+	* tools/xmode2.c, ChangeLog, doc/html-source/programs.html, tools/lirc_client.c, tools/smode2.c:
+	95% done
+
+	* doc/html-source/configure.html, doc/html-source/install.html:
+	ispell is your friend
+
+	* drivers/lirc_serial/lirc_serial.c:
+	sense variable could tilt in undesired situations
+
+	* tools/irpty.c:
+	found some bugs while trying to understand what this program does
+
+2000-03-24  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html, doc/html-source/programs.html, doc/html-source/technical.html:
+	final spurt
+
+	* doc/html-source/install.html: compile kernel serial support as module
+
+2000-03-23  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, TODO, drivers/lirc_serial/lirc_serial.c:
+	SMP support, fixed many minor implementation drawbacks
+
+	* drivers/lirc_parallel/lirc_parallel.c: fixed minor flaw
+
+2000-03-21  Christoph Bartelmus  <columbus@eyepod>
+
+	* TODO, daemons/lircd.c, daemons/lircmd.c:
+	finally fixed daemonize code (I hope)
+
+2000-03-18  Christoph Bartelmus  <columbus@eyepod>
+
+	* setup.sh: made clear serial port requirements
+
+2000-03-16  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/hw_default.c, doc/html-source/install.html, tools/xmode2.c:
+	some small fixes
+
+2000-03-14  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/help.html, doc/html-source/install.html, doc/html-source/configure.html, doc/html-source/doc.html, doc/html-source/foot.html:
+	only section 3 missing
+
+2000-03-12  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in: better use some default values than :
+
+2000-03-10  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/Makefile.am: removed Hauppauge driver too early
+
+2000-03-09  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_sir/.cvsignore: fixed file name
+
+	* ANNOUNCE, configure.in, drivers/Makefile.am:
+	started removing unmaintained drivers
+
+	* doc/html-source/configure.html, doc/html-source/doc.html, doc/html-source/install.html, doc/html-source/technical.html:
+	doc 75% ready
+
+2000-03-07  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/doc.html, doc/html-source/install.html, doc/html-source/configure.html:
+	documentation starts becoming useful
+
+2000-03-03  Christoph Bartelmus  <columbus@eyepod>
+
+	* AUTHORS, NEWS, TODO, configure.in, drivers/Makefile.am, drivers/lirc_sir/.cvsignore, drivers/lirc_sir/Makefile.am, drivers/lirc_sir/lirc_sir.c, setup.sh:
+	added SIR IrDA driver from Milan Pikula
+
+2000-03-02  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/lirc_client.c:
+	fixed some more init problems (again thanks to Crispin Flowerday)
+
+2000-02-19  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/lirc_client.c:
+	fixed reinit problem (thanks to Crispin Flowerday for the hint)
+
+2000-02-12  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircmd.c: release buttons when deactivated
+
+	* acconfig.h, configure.in, setup.sh:
+	added Hauppauge driver that uses new I2C layer,
+	thanks to Tom Lees for the port to the new layer
+
+2000-02-07  Christoph Bartelmus  <columbus@eyepod>
+
+	* remotes/pixelview/lircd.conf.remotemaster, remotes/pixelview/lircmd.conf.remotemaster:
+	added config file for lircmd
+
+2000-02-05  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c:
+	corrected EINTR semantics
+
+	* daemons/hw_pixelview.c, remotes/pixelview/lircd.conf.remotemaster:
+	PixelView RemoteMaster 2000 should work now
+
+2000-02-02  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/technical.html, tools/irexec.c, tools/irpty.c, tools/irxevent.c, tools/lirc_client.c, tools/lirc_client.h:
+	cleaned up library interface
+
+	* daemons/irrecord.c: added help string
+
+	* acconfig.h: fixed --disable-long-codes
+
+2000-01-24  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/irrecord.c: minor fixes
+
+	* remotes/README: pointer to remotes
+
+2000-01-23  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircd.c: minor protocol bug fixed
+
+2000-01-20  Christoph Bartelmus  <columbus@eyepod>
+
+	* Makefile.am: remove CVS traces from distribution
+
+2000-01-18  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in, remotes/logitech/lircd.conf.logitech, remotes/logitech/lircmd.conf.logitech:
+	added config files for Logitech receiver
+
+1999-12-12  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/help.html, doc/html-source/technical.html:
+	some more docs
+
+1999-11-22  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/doc.html, doc/html-source/help.html, doc/html-source/technical.html:
+	some more docs
+
+	* drivers/lirc_serial/lirc_serial.c:
+	removed autodetection failure warning
+
+1999-11-07  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircd.c, daemons/lircmd.c:
+	glibc-2.1 seems to choke on fclose(stdin), hmm...
+
+	* doc/html-source/doc.html, doc/html-source/foot.html, doc/html-source/help.html, doc/html-source/technical.html:
+	updated docs
+
+1999-10-27  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in: fixed check for libirman
+
+1999-10-18  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/.cvsignore: added .libs
+
+	* contrib/lircd.suse6: init script for S.u.S.E. 6.2
+
+	* daemons/ir_remote.h, daemons/irrecord.c, ChangeLog, daemons/hw_default.c:
+	NO_HEAD_REP now works
+	many thanks to Ti Leggett for his help
+
+	* tools/mode2.c, tools/smode2.c, tools/xmode2.c:
+	more understandable error message
+
+1999-10-14  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/doc.html, doc/html-source/help.html: doc updates
+
+	* daemons/irrecord.c: fixed problem with seldom protocol (untested)
+
+1999-10-09  Christoph Bartelmus  <columbus@eyepod>
+
+	* .cvsignore, daemons/.cvsignore, doc/.cvsignore, tools/.cvsignore:
+	updated some .cvsignore files
+
+1999-10-08  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/Makefile.am: create /usr/local/etc/ if not present
+
+1999-09-28  Christoph Bartelmus  <columbus@eyepod>
+
+	* lirc-bttv-2.2.7.patch.gz: removed old patch
+	fixed poll semantics
+
+1999-09-25  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/smode2.c: fixed typo
+
+1999-09-16  Christoph Bartelmus  <columbus@eyepod>
+
+	* doc/html-source/install.html: added updating infos
+
+1999-09-15  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/mode2.c, tools/smode2.c, tools/xmode2.c:
+	allow only MODE2 drivers
+
+1999-09-13  Christoph Bartelmus  <columbus@eyepod>
+
+	* ANNOUNCE, INSTALL, README, doc/html-source/doc.html, doc/html-source/foot.html, doc/html-source/programs.html:
+	writing docs...
+
+	* doc/html-source/configure.html, doc/html-source/doc.html, doc/html-source/foot.html, doc/html-source/head1.html, doc/html-source/head2.html, doc/html-source/help.html, doc/html-source/install.html, doc/html-source/programs.html, doc/html-source/technical.html, doc/Makefile.am, doc/images/diode.gif, doc/images/lirc.gif, doc/images/marb18.jpg, doc/release-html.sh:
+	started to write some docu... (thanks to Karsten)
+
+	* TODO, configure.in, contrib/lircd.conf, daemons/ir_remote.c, daemons/ir_remote.h, daemons/lircd.c, tools/Makefile.am, tools/irexec.c, tools/irpty.c, tools/irw.c, tools/irxevent.c, tools/lirc_client.c, tools/lirc_client.h, tools/mode2.c, ANNOUNCE, AUTHORS, Makefile.am, NEWS:
+	moved lirc_client into a library
+
+1999-09-12  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, TODO, daemons/irrecord.c, setup.sh:
+	changes not worth mentioning
+
+1999-09-07  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in, tools/irxevent.c:
+	merged with irxevent-0.5.0 with small modifications
+
+1999-09-06  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, TODO, configure.in, daemons/Makefile.am, daemons/hw_irman.c, daemons/hw_irman.h, daemons/hw_logitech.c, daemons/hw_logitech.h, daemons/hw_pixelview.c, daemons/hw_pixelview.h, daemons/ir_remote.c, daemons/ir_remote.h, daemons/irrecord.c, daemons/serial.c, drivers/Makefile.am:
+	removed lirmand,
+	added support of shift encoded remotes to irrecord
+
+1999-09-02  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/config_file.c, daemons/config_file.h, daemons/dump_config.c, daemons/dump_config.h, daemons/hardware.h, daemons/hw_default.c, daemons/hw_default.h, daemons/hw_logitech.c, daemons/hw_logitech.h, daemons/hw_pixelview.c, daemons/hw_pixelview.h, daemons/ir_remote.c, daemons/ir_remote.h, daemons/irrecord.c, drivers/Makefile.am, drivers/lirc.h, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, tools/mode2.c, tools/smode2.c, tools/xmode2.c:
+	changed type of all signal related data to lirc_t,
+	this should fix incompatibilities with Alphas
+
+1999-08-30  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/irrecord.c: implemented repeat code support,
+	thanks to Joachim Groh for suggestions
+
+1999-08-25  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/xmode2.c: fixed typos
+
+1999-08-24  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/xmode2.c: uploaded new version from Heinrich Langos,
+	modified it a bit on occation
+
+1999-08-18  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircd.c: added debug option
+
+1999-08-15  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/hw_default.c: improved sync
+
+1999-08-13  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/hw_logitech.c, daemons/hw_pixelview.c, daemons/irrecord.c:
+	further improved irrecord
+
+	* daemons/ir_remote.c: added heuristic for repeats
+
+	* daemons/hw_default.c, drivers/lirc_serial/lirc_serial.c:
+	moved noise filter to device driver
+
+1999-08-12  Christoph Bartelmus  <columbus@eyepod>
+
+	* configure.in, daemons/hw_logitech.c, daemons/hw_logitech.h, setup.sh:
+	added support of Logitech/AST receiver
+	many thanks to Isaac Lauer for the patch
+
+	* daemons/Makefile.am, daemons/hw_default.h, daemons/hw_pixelview.c, daemons/ir_remote.h, daemons/irrecord.c, tools/Makefile.am, tools/irrecord.c:
+	moved irrecord to daemons directory
+	started to rewrite irrecord
+	this version is far from being usable
+
+	* daemons/hw_default.c: added noise filter
+
+1999-08-07  denis  <denis@eyepod>
+
+	* setup.sh:
+	Fixed tiny mistake with AverMadia
+
+1999-08-06  Christoph Bartelmus  <columbus@eyepod>
+
+	* acconfig.h, configure.in, daemons/Makefile.am, drivers/lirc_serial/lirc_serial.c, setup.sh:
+	automatic install of config files
+	receiver only support in lirc_serial
+
+1999-08-04  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircmd.c, drivers/Makefile.am, remotes/pixelview/lircd.conf.playtv, setup.sh, configure.in:
+	added Nathan Hand's patch for Pixelview TV cards
+
+1999-08-03  Christoph Bartelmus  <columbus@eyepod>
+
+	* .cvsignore, daemons/.cvsignore, drivers/.cvsignore, drivers/lirc_parallel/.cvsignore, drivers/lirc_serial/.cvsignore, tools/.cvsignore:
+	added .cvsignore files
+
+	* drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am:
+	Makefiles should now be complete
+
+	* daemons/hw_default.c: forgot a FIXME ;-)
+
+	* daemons/Makefile.am, daemons/hw_default.c: small fixes
+
+	* daemons/lircmd.c: new directive: TOGGLE_ACTIVATE
+
+	* remotes/avermedia/lircd.conf.avermedia, remotes/avermedia/lircmd.conf.avermedia, remotes/life-view/lircd.conf.fly98, remotes/life-view/lircmd.conf.fly98:
+	adjusted config files to use new features
+
+1999-08-03  jochym  <jochym@eyepod>
+
+	* README, remotes/life-view/lircd.conf.fly98, remotes/life-view/lircmd.conf.fly98, remotes/life-view/lircrc.fly98:
+	Small additional rearangements
+
+1999-08-02  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/config_file.c, daemons/hardware.h, daemons/hw_default.c, daemons/hw_default.h, daemons/hw_pixelview.c, daemons/hw_pixelview.h, daemons/ir_remote.c, daemons/ir_remote.h, daemons/lircd.c, daemons/lircd.h, daemons/serial.c, daemons/serial.h, drivers/Makefile.am, tools/Makefile.am, acconfig.h, configure.in, daemons/Makefile.am, setup.sh:
+	reorganisation of lircd's code
+	added support for Pixelview RemoteMaster
+
+	* remotes/hauppauge/lircmd.conf.hauppauge:
+	uploaded *working* Hauppauge driver
+	many thanks to Matti Airas for making it finally work
+
+	* drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am:
+	added config.h to dependencies
+
+1999-08-02  jochym  <jochym@eyepod>
+
+	* README:
+	Finally a working setup. Further clean-up of the kernel patch (got it
+	even smaller). Configuration files for lircd, lircmd and ~/.lircrc.
+	Lock-up in the bttv caused by wrong initialization order removed.
+	External bttv patch not fully tested yet. Internal version 0.1. BETA.
+
+1999-07-30  Christoph Bartelmus  <columbus@eyepod>
+
+	* contrib/lirc.m4: m4 macros to check for LIRC support
+
+	* acinclude.m4, configure.in, drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am:
+	further changes for kernel Makefile usage
+
+1999-07-27  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/ir_remote.c:
+	bug-fix for LIRC_MODE_CODE and LIRC_MODE_LIRCCODE,
+	all buttons on Hauppauge remote control should work now
+
+	* configure.in, drivers/lirc_parallel/Makefile.am, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/Makefile.am, drivers/lirc_serial/lirc_serial.c:
+	drivers now use kernel Makefile to compile,
+	this fixes some long known problems
+
+	* acinclude.m4: additional m4 macros
+
+1999-07-27  jochym  <jochym@eyepod>
+
+	* README: Note for FlyVideo98 added
+
+1999-07-24  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_serial/lirc_serial.c:
+	fixes for 2.3.x kernels (thanks to Adam Fritzler for the patch),disabled interrupts during transmission
+
+1999-07-21  Christoph Bartelmus  <columbus@eyepod>
+
+	* Makefile.am, NEWS, daemons/ir_remote.c, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_parallel/lirc_parallel.h:
+	several small changes
+
+1999-07-08  Christoph Bartelmus  <columbus@eyepod>
+
+	* Makefile.am: added setup.sh
+	added rcs2log call for 'make dist'
+
+	* daemons/Makefile.am, daemons/ir_remote.c: maintainer-mode fixes
+
+	* tools/irrecord.c: added debug code
+
+1999-06-29  nic  <nic@eyepod>
+
+	* setup.sh: *** empty log message ***
+
+1999-06-21  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/config_file.c, daemons/dump_config.c, daemons/ir_remote.c, daemons/ir_remote.h, daemons/lircd.h, tools/irrecord.c:
+	support for different modulation frequencies (currently transmission only)
+
+	* daemons/ir_remote.c, daemons/ir_remote.h, daemons/lircd.c:
+	send_command() returns errors
+
+1999-06-19  Christoph Bartelmus  <columbus@eyepod>
+
+	* NEWS, tools/lirc_client.c, tools/lirc_client.h:
+	added new feature to .lircrc config file
+
+1999-06-14  denis  <denis@eyepod>
+
+	* drivers/lirc_serial/Makefile.am, drivers/lirc_parallel/Makefile.am:
+	module_SCRIPTS changed to module_DATA.
+	Run "depmod -a" after installation.
+
+	* contrib/conf.modules.aver:
+	/etc/conf.modules file for autoload lirc_aver driver.
+
+	* contrib/lirc.redhat: RedHat 5.x init script
+
+1999-06-11  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/lirc_client.c: potential memory leak fixed
+
+1999-06-08  denis  <denis@eyepod>
+
+	* remotes/avermedia/lircd.conf.avermedia:
+	Support for new 8-bit LIRC_MODE_CODE mode added.
+	Repeat bit support added.
+
+	* configure.in: Added 'depmod' program search.
+	Fixed return value from ${withval} to ${enableval} after AC_ARG_ENABLE.
+	Commented out SHELL redefinition.
+
+1999-05-28  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircd.c: lircd could be blocked by applications
+
+1999-05-15  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/Makefile.am, daemons/ir_remote.c: added maintainer mode
+
+1999-05-14  wheeley  <wheeley@eyepod>
+
+	* drivers/Makefile.am: added lirc.h to distribution
+
+	* acconfig.h, configure.in, daemons/Makefile.am, daemons/lircd.c:
+	added maintainer mode
+
+1999-05-10  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c:
+	now works with 2.0.x kernels
+
+1999-05-07  Christoph Bartelmus  <columbus@eyepod>
+
+	* tools/Makefile.am, tools/mode2.c: added mode2, I need it
+
+	* tools/irrecord.c: added some debug code
+
+1999-05-06  wheeley  <wheeley@eyepod>
+
+	* autogen.sh: added to repository
+
+1999-05-06  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/lircd.c, daemons/lircmd.c:
+	added config-file argument to daemons' command line
+
+1999-05-05  Christoph Bartelmus  <columbus@eyepod>
+
+	* daemons/ir_remote.c, daemons/ir_remote.h, daemons/lircd.c, daemons/lircd.h, drivers/lirc.h, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_serial/lirc_serial.c, tools/irrecord.c:
+	added new ioctl interface to lircd, lirc_parallel, lirc_serial
+
+	* drivers/lirc_parallel/Makefile.am, drivers/lirc_serial/Makefile.am:
+	corrected mknod call
+
+1999-05-04  rggammon  <rggammon@eyepod>
+
+	* AUTHORS, configure.in, daemons/ir_remote.c, daemons/lircd.c, drivers/Makefile.am, drivers/lirc.h, lirc-bttv-2.2.7.patch.gz, remotes/avermedia/lircd.conf.avermedia, remotes/avermedia/lircmd.conf.avermedia:
+	Added patches for Avermedia, Fly98, and Hauppague tv cards. These all need
+	various degrees of work. Also includes an experimental ioctl interface for
+	the avermedia driver.
+
+1999-05-03  Christoph Bartelmus  <columbus@eyepod>
+
+	* drivers/lirc_parallel/lirc_parallel.c:
+	fixed stupid bug that has overwritten the control register
+
+1999-04-29  Christoph Bartelmus  <columbus@eyepod>
+
+	* ANNOUNCE, AUTHORS, COPYING, ChangeLog, Makefile.am, NEWS, TODO, acconfig.h, configure.in, contrib/irman2lirc, contrib/lirc.debian, contrib/lirc.suse, contrib/lircd.conf, contrib/lircmd.conf, contrib/lircrc, daemons/Makefile.am, daemons/config_file.c, daemons/config_file.h, daemons/dump_config.c, daemons/dump_config.h, daemons/ir_remote.c, daemons/ir_remote.h, daemons/lircd.c, daemons/lircd.h, daemons/lircmd.c, drivers/Makefile.am, drivers/lirc_parallel/Makefile.am, drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_parallel/lirc_parallel.h, drivers/lirc_serial/Makefile.am, drivers/lirc_serial/lirc_serial.c, remotes/animax/lircd.conf.animax, remotes/animax/lircmd.conf.animax, remotes/hauppauge/lircd.conf.hauppauge, remotes/life-view/lircd.conf.FlyVideo_II, remotes/packard_bell/lircd.conf.packard_bell, tools/Makefile.am, tools/irexec.c, tools/irpty.c, tools/irrecord.c, tools/irw.c, tools/irxevent.c, tools/lirc_client.c, tools/lirc_client.h, tools/smode2.c, tools/xmode2.c:
+	changed revision to reflect current lirc version
+
+	* tools/irrecord.c: Imported sources.
+
+	* tools/irrecord.c: New file.
+
+	* tools/irexec.c, tools/irpty.c, tools/irw.c, tools/lirc_client.c, tools/lirc_client.h:
+	Imported sources.
+
+	* tools/irexec.c, tools/irpty.c, tools/irw.c, tools/lirc_client.c, tools/lirc_client.h:
+	New file.
+
+	* tools/irxevent.c: Imported sources.
+
+	* tools/irxevent.c: New file.
+
+	* tools/xmode2.c: Imported sources.
+
+	* tools/xmode2.c: New file.
+
+	* tools/Makefile.am, tools/smode2.c: Imported sources.
+
+	* tools/Makefile.am, tools/smode2.c: New file.
+
+	* daemons/dump_config.c, daemons/dump_config.h: Imported sources.
+
+	* daemons/dump_config.c, daemons/dump_config.h: New file.
+
+	* daemons/lircmd.c: Imported sources.
+
+	* daemons/lircmd.c: New file.
+
+	* daemons/config_file.h: Imported sources.
+
+	* daemons/config_file.h: New file.
+
+	* daemons/config_file.c, daemons/ir_remote.h, daemons/lircd.h:
+	Imported sources.
+
+	* daemons/config_file.c, daemons/ir_remote.h, daemons/lircd.h:
+	New file.
+
+	* daemons/ir_remote.c: Imported sources.
+
+	* daemons/ir_remote.c: New file.
+
+	* daemons/lircd.c: Imported sources.
+
+	* daemons/lircd.c: New file.
+
+	* daemons/Makefile.am: Imported sources.
+
+	* daemons/Makefile.am: New file.
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_parallel/lirc_parallel.h:
+	Imported sources.
+
+	* drivers/lirc_parallel/lirc_parallel.c, drivers/lirc_parallel/lirc_parallel.h:
+	New file.
+
+	* drivers/lirc_parallel/Makefile.am: Imported sources.
+
+	* drivers/lirc_parallel/Makefile.am: New file.
+
+	* drivers/lirc_serial/lirc_serial.c: Imported sources.
+
+	* drivers/lirc_serial/lirc_serial.c: New file.
+
+	* contrib/lirc.debian, drivers/Makefile.am, drivers/lirc_serial/Makefile.am:
+	Imported sources.
+
+	* contrib/lirc.debian, drivers/Makefile.am, drivers/lirc_serial/Makefile.am:
+	New file.
+
+	* contrib/irman2lirc, contrib/lirc.suse, contrib/lircd.conf, contrib/lircmd.conf, contrib/lircrc, remotes/packard_bell/lircd.conf.packard_bell:
+	Imported sources.
+
+	* contrib/irman2lirc, contrib/lirc.suse, contrib/lircd.conf, contrib/lircmd.conf, contrib/lircrc, remotes/packard_bell/lircd.conf.packard_bell:
+	New file.
+
+	* remotes/animax/lircd.conf.animax, remotes/animax/lircmd.conf.animax, remotes/hauppauge/lircd.conf.hauppauge, remotes/life-view/lircd.conf.FlyVideo_II:
+	Imported sources.
+
+	* remotes/animax/lircd.conf.animax, remotes/animax/lircmd.conf.animax, remotes/hauppauge/lircd.conf.hauppauge, remotes/life-view/lircd.conf.FlyVideo_II:
+	New file.
+
+	* ANNOUNCE, ChangeLog, configure.in: Imported sources.
+
+	* ANNOUNCE, ChangeLog, configure.in: New file.
+
+	* NEWS, TODO, acconfig.h: Imported sources.
+
+	* NEWS, TODO, acconfig.h: New file.
+
+	* COPYING, Makefile.am: Imported sources.
+
+	* COPYING, Makefile.am: New file.
+
+	* AUTHORS: Imported sources.
+
+	* AUTHORS: New file.
+

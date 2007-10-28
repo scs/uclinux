@@ -1,0 +1,84 @@
+#! /bin/sh
+#
+# This is an init script for a S.u.S.E. 7.1 distribution.
+#
+# This script was adapted from a version for S.U.S.E. 6.2. 
+# The original author was CW Zuckschwerdt <zany@triq.net>.
+#
+# /etc/init.d/lircd
+#
+
+. /etc/rc.status
+. /etc/rc.config
+
+# Determine the base and follow a runlevel link name.
+base=${0##*/}
+link=${base#*[SK][0-9][0-9]}
+
+# Force execution if not called by a runlevel directory.
+test $link = $base && START_LIRCD=yes
+# test "$START_LIRCD" = yes || exit 0
+
+# Shell functions sourced from /etc/rc.status:
+#      rc_status        check and set local and overall rc status
+#      rc_status -v     ditto but be verbose in local rc status
+#      rc_reset         clear local rc status (overall remains)
+#      rc_exit          exit appropriate to overall rc status
+
+# First reset status of this service
+rc_reset
+
+case "$1" in
+    start)
+	## Start daemon with startproc(8). If this fails,
+	## set the echo return value appropriately.
+
+	echo -n "Starting daemon lircd"
+	startproc /usr/sbin/lircd
+
+	# remember status and be verbose
+	rc_status -v
+	;;
+    stop)
+	## Stop daemon with killproc(8). If this fails,
+	## set the echo return value appropriately.
+
+	echo -n "Shutting down daemon lircd"
+	killproc -TERM /usr/sbin/lircd
+
+	# remember status and be verbose
+	rc_status -v
+	;;
+    restart)
+	## If the first command returns OK, call the second. If the 
+	## first or second command fails, set the echo return value.
+
+	$0 stop  &&  $0 start
+
+	# remember status and be quiet
+	rc_status
+	;;
+    reload)
+	## Both lircd and lircmd will re-read their
+	## config files on receipt of SIGHUP.
+
+	echo -n "Reload daemon lircd"
+	killproc -HUP /usr/sbin/lircd
+
+	# remember status and be verbose
+	rc_status -v
+	;;
+    status)
+	## Check status with checkproc(8). If process is running,
+	## checkproc will return with exit status 0.
+
+	echo -n "Checking for daemon lircd: "
+	checkproc /usr/sbin/lircd && echo OK || echo No process
+	;;
+    *)
+	echo "Usage: $0 {start|stop|status|restart|reload}"
+	exit 1
+	;;
+esac
+rc_exit
+

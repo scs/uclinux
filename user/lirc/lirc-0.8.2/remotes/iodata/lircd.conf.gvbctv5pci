@@ -1,0 +1,68 @@
+#
+# This is for the remote that I-O Data Co. bundles with its GV-BCTV5/PCI
+#
+# this config file was automatically generated
+# using lirc-0.6.6(gvbctv5pci) on Sun May 11 08:52:40 2003
+#
+# contributed by Jens C. Rasmussen (jens.rasmussen@ieee.org)
+#
+# brand:             I-O Data Co.
+# model:             GV-BCTV5/PCI
+# supported devices: This remote control comes with the TV Tuner card
+#                    GV-BCTV5/PCI from I-O Data Co. (Japan)
+#
+
+begin remote
+
+  name GV-BCTV5/PCI    
+  bits            8
+  eps            30
+  aeps          100
+
+  one             0     0
+  zero            0     0
+  gap          149949
+  toggle_bit      0
+
+
+      begin codes
+          TV                       0x0000000000000042
+          FM                       0x0000000000000022
+          EPG                      0x0000000000000062
+          POWER                    0x0000000000000002
+          1                        0x0000000000000052
+          2                        0x0000000000000032
+          3                        0x0000000000000072
+          4                        0x000000000000004A
+          5                        0x000000000000002A
+          6                        0x000000000000006A
+          7                        0x000000000000005A
+          8                        0x000000000000003A
+          9                        0x000000000000007A
+          10                       0x0000000000000046
+          11                       0x0000000000000026
+          12                       0x0000000000000066
+          LIVE                     0x0000000000000012
+          TIME_SHIFT               0x000000000000000A
+          PLAY                     0x000000000000001A
+          MULTI                    0x0000000000000006
+          VIDEO                    0x0000000000000056
+          SVIDEO                   0x000000000000004E
+          CHANNEL_PLUS             0x0000000000000036
+          CHANNEL_MINUS            0x000000000000002E
+          VOLUME_PLUS              0x0000000000000076
+          VOLUME_MINUS             0x000000000000006E
+          MUTE                     0x0000000000000016
+          PICTURE_SIZE             0x000000000000000E
+          PAUSE                    0x000000000000005E
+          HALT                     0x000000000000003E
+          RECORD                   0x000000000000007E
+          STOP                     0x000000000000001E
+          REWIND                   0x0000000000000043
+          START                    0x0000000000000023
+          FORWARD                  0x0000000000000063
+          SYNC                     0x0000000000000003
+      end codes
+
+end remote
+

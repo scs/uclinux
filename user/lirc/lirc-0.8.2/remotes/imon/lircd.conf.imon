@@ -1,0 +1,79 @@
+#
+# contributed by Venky Raju (dev@venky.ws)
+#
+# brand: Soundgraph
+# model no. of remote control: iMON MultiMedian
+#
+# devices being controlled by this remote: HTPC
+#
+
+begin remote
+
+  name           IMON_MultiMedian
+  bits           16
+  flags          SPACE_ENC|CONST_LENGTH
+  eps            30
+  aeps           130
+
+  header         9000  4500
+  one            625   1625
+  zero           625   375
+  ptrail         625
+  repeat         8875  2125
+  pre_data_bits  16
+  pre_data       0x609F
+  gap            100000
+  toggle_bit     0
+
+  frequency    38000
+  duty_cycle   33
+
+      begin codes
+          App.Exit                 0x00000000000000FF
+          Power                    0x000000000000807F
+          1                        0x00000000000040BF
+          2                        0x000000000000C03F
+          3                        0x00000000000020DF
+          4                        0x000000000000A05F
+          5                        0x000000000000609F
+          6                        0x000000000000E01F
+          7                        0x00000000000010EF
+          8                        0x000000000000906F
+          9                        0x00000000000050AF
+          0                        0x000000000000D02F
+          Windows                  0x00000000000030CF
+          Menu                     0x000000000000B04F
+          App.Launcher             0x000000000000708F
+          Function                 0x000000000000F00F
+          Task.Switcher            0x00000000000008F7
+          Back                     0x0000000000008877
+          Select                   0x00000000000048B7
+          Eject                    0x0000000000009867
+          Delete                   0x00000000000018E7
+          Up                       0x000000000000C837
+          Right                    0x0000000000006897
+          Down                     0x000000000000E817
+          Left                     0x00000000000028D7
+          Enter                    0x000000000000A857
+          Vol-                     0x00000000000058A7
+          Vol+                     0x000000000000D827
+          Mute                     0x00000000000038C7
+          Play                     0x000000000000B847
+          Pause                    0x0000000000007887
+          Prev                     0x000000000000F807
+          Next                     0x00000000000002FD
+          Rew                      0x000000000000827D
+          Fwd                      0x00000000000042BD
+          Stop                     0x000000000000C23D
+          Open                     0x00000000000022DD
+          Rec                      0x000000000000A25D
+          Bookmark                 0x000000000000629D
+          Thumbnail                0x000000000000E21D
+          Aspect                   0x00000000000012ED
+          DVD.Menu                 0x000000000000926D
+          DVD.Caption              0x00000000000052AD
+          DVD.Language             0x000000000000D22D
+          Full.Screen              0x00000000000032CD
+      end codes
+
+end remote

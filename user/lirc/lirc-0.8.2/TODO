@@ -1,0 +1,42 @@
+* __init, __exit
+
+* uinput
+
+* namespace
+
+* GUI for irrecord
+
+* autotools update
+
+* RC-5X support
+
+* fix tool command line options for config file
+
+* on_enter, on_leave in .lircrc modes
+
+* make the package portable (you will be able to use LIRC with an
+  Irman on Solaris)
+
+* irrecord: fancy Kenwood repeat code 78 11243 78: repeat_tail?
+
+* button_down & button_up codes.
+
+* Pioneer protocol:
+  add irrecord support
+
+* Grundig/Motorola (context?) protocol (maybe?)
+
+* echostar protocol reported by John.colburn@shaw.ca:
+  there's no gap and no ptrail although it is space encoded
+
+* internationalization
+
+* IrDA support (SIR support is available, real CIR support is still missing)
+
+* integrate lircrc_config with lirc source package.
+
+* add 'debian/' directory. (ranty)
+
+* SEND_RELAY command?
+
+* consider min_code_repeat on transmit

@@ -1,0 +1,362 @@
+hw_menu_entry: @any
+	serial: "Home-brew (16x50 UART compatible serial port)"
+	parallel: "Home-brew (parallel port)"
+	@hw-soundcard: "Home-brew (soundcard input)"
+	@hw-other-serial: "Other serial port devices"
+	@hw-tv-card: "TV card"
+	@hw-irda: "IrDA hardware"
+	@hw-pda: "PDAs"
+	@hw-usb: "USB devices"
+	udp: "Network (UDP)"
+	@hw-other: "Other (MIDI, Bluetooth, etc.)"
+	none: "None (network connections only)"
+
+hw_menu_entry: @hw-soundcard
+	dsp: "Simple IR diode (EXPERIMENTAL)"
+	audio: "IR receiver IC connected to audio input (EXPERIMENTAL)"
+	audio_alsa: "IR receiver IC connected to audio input using ALSA (EXPERIMENTAL)"
+
+hw_menu_entry: @hw-other
+	ea65: "AOpen XC Cube EA65, EA65-II"
+	livedrive_midi: "Creative LiveDrive midi"
+	livedrive_seq: "Creative LiveDrive sequencer"
+	creative_infracd: "Creative iNFRA CDROM"
+	bte: "Ericsson mobile phone via Bluetooth"
+	devinput: "Linux input layer (/dev/input/eventX)"
+
+hw_menu_entry: @hw-other-serial
+	animax: "Anir Multimedia Magic"
+	caraca: "CARACA"
+	creative: "Creative Infra Receiver/CIMR100"
+	irdeo: "IRdeo"
+	irdeo_remote: "IRdeo Remote"
+	irman: "Irman / UIR"
+	accent: "Kanam Accent"
+	nslu2: "Linksys NSLU2 (CTS2+GreenLED)"
+	logitech: "Logitech/AST"
+	pcmak: "PCMAK serial receiver"
+	pctv: "Miro PCTV receiver"
+	packard_bell: "Packard Bell receiver"
+	pctv: "Pinnacle Systems PCTV (pro) receiver"
+	pctv: "Pinnacle Systems PCTV Sat receiver"
+	remotemaster: "PixelView RemoteMaster RC2000/RC3000"
+	realmagic: "REALmagic (bundled with Hollywood Plus DVD card)"
+	slinke: "Slink-e (receive only)"
+	silitek: "Silitek SM-1000"
+	tekram: "Tekram Irmate 210 (16x50 UART compatible serial port)"
+	uirt2: "UIRT2 (receive only, UIR mode)"
+	uirt2_raw: "UIRT2 (receive and transmit)"
+	mouseremote: "X10 MouseRemote RF Receiver (Serial)"
+	mouseremote_ps2: "X10 MouseRemote RF Receiver (PS/2)"
+	mp3anywhere: "X10 MP3 Anywhere RF Receiver"
+
+hw_menu_entry: @hw-tv-card
+	adaptec: "Adaptec AVC-2410"
+	cph03x: "Askey Magic TView CPH03x (card=1)"
+	cph06x: "Askey/Typhoon/Anubis Magic TView CPH051/061 (bt878) (card=24)"
+	tvbox: "Asus TV-Box"
+	avermedia: "AverMedia TV card (TVCapture, TVPhone) (card=6)"
+	avermedia98: "AverMedia TV card (TVCapture98, TVPhone98) (card=13/41)"
+	avermedia_vdomate: "AverMedia TV card (VDOMATE) (use card=13)"
+	bestbuy: "BestBuy Easy TV (BT848) (card=55)"
+	bestbuy2: "BestBuy Easy TV (BT878) (card=62)"
+	chronos: "Chronos Video Shuttle II (card=35)"
+	breakoutbox: "Creative BreakOut-Box"
+	cph03x: "Dynalink Magic TView (card=48)"
+	flyvideo: "FlyVideo II (card=8)"
+	flyvideo: "FlyVideo 98 (card=30)"
+	flyvideo: "FlyVideo 98/FM /2000S (card=56)"
+	flyvideo: "Flyvideo 98FM (LR50Q) / Typhoon TView TV/FM Tuner (card=36)"
+	hauppauge: "Hauppauge TV card"
+	hauppauge_dvb: "Hauppauge DVB-s card (ver. 2.1)"
+        hercules_smarttv_stereo: "Hercules Smart TV Stereo (card=100)"
+	gvbctv5pci: "I-O Data Co. GV-BCTV5/PCI (card=81)"
+	kworld: "Jetway TV/Capture JW-TV878-FBK, Kworld KW-TV878RF (card=78)"
+	knc_one: "KNC ONE TV Station (-/SE/PRO/RDS)"
+	pixelview_pak: "Lenco MXTV-9578 CP (card=50)"
+	pctv: "Miro PCTV serial port receiver"
+	cph06x: "Phoebe Tv Master + FM (card=22)"
+	pctv: "Pinnacle Systems PCTV Sat receiver"
+	pixelview_pro: "Pixelview PlayTV MPEG2"
+	pixelview_pak: "PixelView PlayTV PAK (card=50)"
+	pixelview_pro: "Pixelview PlayTV pro (card=37)"
+	pixelview_bt878: "Pixelview PlayTV (bt878) \
+		(Prolink PV-BT878P+, card=16)"
+	pixelview_pro: "Prolink Pixelview PV-BT878P+ (Rev.4C,8E, card=70)"
+	pixelview_pak: "Prolink PV-BT878P+4E (card=50)"
+	pixelview_pro: "Prolink PV-BT878P+9B \
+		(PlayTV Pro rev.9B FM+NICAM) (card=72)"
+	provideo: "ProVideo PV951 (card=42)"
+	mediafocusI: "Technisat MediaFocus I"
+	tekram_bt829: "Tekram M230 Mach64 (and others bt829 based)"
+	cph03x: "TriTan Technology TView95 CPH03x (card=1)"
+	cph06x: "TView99 CPH063 (card=38)"
+	knc_one: "Typhoon TView RDS / FM Stereo (card=53)"
+	leadtek_pvr2000: "Winfast PVR2000 (Linux kernel >=2.6.11 required)"
+	leadtek_0010: "Winfast TV2000/XP (card=34)"
+	leadtek_0007: "WinView 601 (card=17)"
+
+hw_menu_entry: @hw-irda
+	sir: "SIR IrDA (built-in IR ports)"
+	tekram: "Tekram Irmate 210 (16x50 UART compatible serial port)"
+	it87: "ITE IT8712/IT8705 CIR port"
+	digimatrix: "Asus Digimatrix IT87xx CIR port"
+	act200l: "Actisys Act200L SIR driver support"
+	act220l: "Actisys Act220L(+) SIR driver support"
+
+hw_menu_entry: @hw-pda
+	sa1100: "HP iPAQ"
+	sa1100: "Sharp Zaurus"
+
+hw_menu_entry: @hw-usb
+	usbx: "ADSTech USBX-707 USB IR Blaster"
+	macmini: "Apple Mac mini USB IR Receiver"
+	asusdh: "Asus DH USB Remote"
+	atiusb: "ATI/NVidia/X10 I & II RF Remote"
+	atilibusb: "ATI/NVidia/X10 RF Remote (userspace)"
+	sb0540: "Creative USB IR Receiver (SB0540)"
+	cmdir: "COMMANDIR USB Transceiver"
+	sasem: "Dign HV5 HTPC IR/VFD Module"
+	dvico: "DViCO USB Remote"
+	tira: "Home Electronics Tira USB device"
+	igorplugusb: "Igor Cesko's USB IR Receiver"
+	iguanaIR: "Iguanaworks USB IR Transceiver"
+	pcmak_usb: "PCMAK USB receiver"
+	bw6130: "Remotec Multimedia PC Remote BW6130"
+	sasem: "Sasem OnAir Remocon-V"
+	exaudio: "Sound Blaster Extigy USB sound card (exaudio)"
+	alsa_usb: "Sound Blaster Extigy/Audigy 2 NX (ALSA snd-usb-audio)"
+	imon_24g: "Soundgraph iMON 2.4G DT & LT"
+	imon: "Soundgraph iMON MultiMedian IR/VFD"
+	imon_knob: "Soundgraph iMON Knob"
+	imon_pad: "Soundgraph iMON PAD IR/VFD"
+	imon_rsc: "Soundgraph iMON RSC"
+	streamzap: "Streamzap PC Remote"
+	ttusbir: "TechnoTrend USB IR receiver"
+	usb_uirt_raw: "USB-UIRT"
+	mceusb: "Windows Media Center Remotes (old version, MicroSoft USB ID)"
+	mceusb2: "Windows Media Center Remotes (new version, Philips et al.)"
+
+param_type: \
+	act200l \
+	act220l \
+	animax \
+	irdeo \
+	irdeo_remote \
+	packard_bell \
+	serial \
+	sir \
+	tekram
+	com:
+
+param_type: parallel
+	lpt:
+
+param_type: \
+	accent \
+	caraca \
+	creative \
+	ea65 \
+	irman \
+	logitech \
+	mouseremote \
+	mp3anywhere \
+	pcmak \
+	pctv \
+	realmagic \
+	remotemaster \
+	silitek \
+	slinke \
+	uirt2 \
+	uirt2_raw
+	tty:
+
+param_type: \
+	pcmak_usb \
+	tira \
+	usb_uirt_raw \
+	usbx
+	ttyUSB:
+
+param_type: \
+	adaptec \
+	alsa_usb \
+	asusdh \
+	atilibusb \
+	atiusb \
+	audio \
+	audio_alsa \
+	avermedia \
+	avermedia98 \
+	avermedia_vdomate \
+	bestbuy \
+	bestbuy2 \
+	breakoutbox \
+	bte \
+	bw6130 \
+	chronos \
+	cmdir \
+	cph03x \
+	cph06x \
+	creative_infracd \
+	devinput \
+	digimatrix \
+	dsp \
+	dvico \
+	exaudio \
+	flyvideo \
+	gvbctv5pci \
+	hauppauge \
+	hauppauge_dvb \
+	hercules_smarttv_stereo \
+	igorplugusb \
+	iguanaIR \
+	imon \
+	imon_24g \
+	imon_knob \
+	imon_pad \
+	imon_rsc \
+	it87 \
+	knc_one \
+	kworld \
+	leadtek_0007 \
+	leadtek_0010 \
+	leadtek_pvr2000 \
+	livedrive_midi \
+	livedrive_seq \
+	macmini \
+	mceusb \
+	mceusb2 \
+	mediafocusI \
+	mouseremote_ps2 \
+	none \
+	nslu2 \
+	pixelview_bt878 \
+	pixelview_pak \
+	pixelview_pro \
+	provideo \
+	sa1100 \
+	sasem \
+	sb0540 \
+	streamzap \
+	tekram_bt829 \
+	ttusbir \
+	tvbox \
+	udp
+	none:
+
+default_param: \
+	adaptec \
+	alsa_usb \
+	asusdh \
+	atilibusb \
+	atiusb \
+	audio \
+	audio_alsa \
+	avermedia \
+	avermedia98 \
+	avermedia_vdomate \
+	bestbuy \
+	bestbuy2 \
+	breakoutbox \
+	bw6130 \
+	chronos \
+	cmdir \
+	cph03x \
+	cph06x \
+	creative_infracd \
+	devinput \
+	digimatrix \
+	dsp \
+	dvico \
+	exaudio \
+	flyvideo \
+	gvbctv5pci \
+	hauppauge \
+	hauppauge_dvb \
+	hercules_smarttv_stereo \
+	igorplugusb \
+	iguanaIR \
+	imon \
+	imon_24g \
+	imon_knob \
+	imon_pad \
+	imon_rsc \
+	it87 \
+	knc_one \
+	kworld \
+	leadtek_0007 \
+	leadtek_0010 \
+	leadtek_pvr2000 \
+	livedrive_midi \
+	livedrive_seq \
+	macmini \
+	mceusb \
+	mceusb2 \
+	mediafocusI \
+	mouseremote_ps2 \
+	none \
+	nslu2 \
+	pixelview_bt878 \
+	pixelview_pak \
+	pixelview_pro \
+	provideo \
+	sa1100 \
+	sasem \
+	sb0540 \
+	streamzap \
+	tekram_bt829 \
+	ttusbir \
+	tvbox \
+	udp
+	none:
+
+default_param: \
+	accent \
+	caraca \
+	creative \
+	irman \
+	logitech \
+	mouseremote \
+	mp3anywhere \
+	pcmak \
+	pctv \
+	realmagic \
+	remotemaster \
+	silitek \
+	uirt2 \
+	uirt2_raw
+	tty1:
+
+default_param: ea65
+	tty2:
+
+default_param: slinke
+	tty3:
+
+default_param: parallel
+	lpt1:
+
+default_param: \
+	act200l \
+	act220l \
+	animax \
+	irdeo \
+	irdeo_remote \
+	packard_bell \
+	serial \
+	tekram
+	com1:
+
+default_param: sir
+	com3:
+
+default_param: bte
+	btty:
+
+default_param: \
+	pcmak_usb \
+	tira \
+	usb_uirt_raw \
+	usbx
+	ttyUSB1:

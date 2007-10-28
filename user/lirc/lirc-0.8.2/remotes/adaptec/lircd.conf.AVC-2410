@@ -1,0 +1,62 @@
+#
+# this config file was automatically generated
+# using lirc-0.6.6(any) on Mon Mar  7 14:55:17 2005
+#
+# contributed by 
+#
+# brand:                       Adaptec
+# model no. of remote control: 
+# devices being controlled by this remote: AVC-2410 capture card
+#
+
+begin remote
+
+  name  AVC-2410
+  bits           16
+  eps            30
+  aeps          100
+
+  one             0     0
+  zero            0     0
+  pre_data_bits   16
+  pre_data       0x82F1
+  gap          202922
+  min_repeat      0
+  toggle_bit      0
+
+
+      begin codes
+          Live                     0x00000000000025DA
+          Timeshift                0x00000000000017E8
+          Scan                     0x00000000000018e7
+          Power                    0x00000000000009f6
+          1                        0x00000000000026D9
+          2                        0x00000000000019E6
+          3                        0x00000000000010EF
+          4                        0x00000000000027D8
+          5                        0x00000000000020DF
+          6                        0x00000000000011EE
+          7                        0x00000000000028D7
+          8                        0x00000000000021DE
+          9                        0x00000000000012ED
+          0                        0x00000000000022DD
+          Mute                     0x00000000000013EC
+          Full                     0x00000000000029D6
+          Play                     0x00000000000030CF
+          Stop                     0x00000000000023DC
+          Skip                     0x00000000000024DB
+          Replay                   0x00000000000014EB
+          Rewind                   0x00000000000031CE
+          Forward                  0x00000000000015EA
+          Ch+                      0x00000000000001FE
+          Ch-                      0x00000000000005FA
+          Vol+                     0x00000000000004FB
+          Vol-                     0x00000000000002FD
+          Enter                    0x00000000000003FC
+          OSD                      0x00000000000032CD
+          cc                       0x00000000000016E9
+      end codes
+
+end remote
+
+
