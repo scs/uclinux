@@ -483,6 +483,7 @@ static int v4l_configure(V4lState *s)
 	int err;
 	int i;
 	int found=0;
+	int fps = 0;
 	
 	memset(&chan,0,sizeof(chan));
 	memset(&pict,0,sizeof(pict));
@@ -561,6 +562,14 @@ static int v4l_configure(V4lState *s)
 			}
 		}
 	}
+
+	/* try HW frame rate control */
+	fps = s->fps;
+	if (ioctl(s->fd, VIDIOSFPS, &fps) < 0)
+		ms_message("v4l_configure: cannot set HW frame rate");
+	else
+		ms_message("v4l_configure: set HW fps to be: %d", fps);
+
 	return 0;
 }	
 
