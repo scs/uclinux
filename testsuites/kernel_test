@@ -152,11 +152,12 @@ if [ $BOARD_CONFIG = "BF537-STAMP-AD7171" ] ; then
 fi
 
 
+# Since SW6.4 setting for jffs2(on) and usbhost(off) are conflicting, disable jffs2 test here.
 if [ $BOARD_CONFIG = "BF537-STAMP-ADV7393" ] ; then
 
    BOARD_TYPE=BF537-STAMP
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[$(( n + 10 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="1"
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[11]="0"; AUTO_RUN_STATUS[12]="0"; AUTO_RUN_STATUS[51]="1"; AUTO_RUN_STATUS[$(( n + 10 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="1"
    ##add 1981b test here
    AUTO_RUN_STATUS[$(( n + 5 ))]="1"
 
@@ -168,7 +169,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-AD(73311)" ] ; then
 
    BOARD_TYPE=BF537-STAMP
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[31]="1"; AUTO_RUN_STATUS[33]="1"; AUTO_RUN_STATUS[51]="1"; AUTO_RUN_STATUS[$(( n + 4 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="1"; AUTO_RUN_STATUS[$(( n + 13 ))]="1"; MANUAL_RUN_STATUS[$(( n + 2 ))]="1"
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[31]="1"; AUTO_RUN_STATUS[33]="1"; AUTO_RUN_STATUS[$(( n + 4 ))]="1"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 12 ))]="1"; AUTO_RUN_STATUS[$(( n + 13 ))]="1"; MANUAL_RUN_STATUS[$(( n + 2 ))]="1"
 
 fi
 

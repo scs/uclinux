@@ -1,12 +1,8 @@
 #!/usr/bin/expect
 
-# Main entrance
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
 
 step "Spawn kermit"
@@ -15,139 +11,174 @@ source ../spawn_kermit.exp
 step "Reboot the kernel."
 source ../reboot_kernel.exp 
 
+proc usb_test {device mnt_point} {
+    global case_num
+
+    incr case_num
+    set timeout 5
+    send "mount -t vfat $device $mnt_point\r"
+    while 1 {
+        expect {
+            -re "fail.*>" {
+                send_user "mount $device failed\n"
+                case_fail $case_num
+            }
+            -re "root:~>" {
+                break
+            }
+            timeout {
+                send -s "\3"
+                send_user "mount $device timeout\n"
+                break
+            }
+        }
+    }
+
+    send "mount\r"
+    while 1 {
+        expect {
+            -re "$device on $mnt_point type vfat.*>" {
+                send_user "mount $device succeeds\n"
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "mount $device failed\n"
+                case_fail $case_num
+            }
+        }
+    }
+
+    incr case_num
+    send "echo teststring > $mnt_point/usbhost_testfile; cat $mnt_point/usbhost_testfile\r"
+    while 1 {
+        expect {
+            -re "teststring\r\nroot:~>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "Write on $mnt_point failed\n"
+                case_fail $case_num
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 20
+    send "time dd if=/dev/zero of=$mnt_point/10m.bin bs=1M count=10\r"
+    while 1 {
+        expect {
+            -re "records in.*records out.*real.*user.*sys.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "Generate a 10M file on $mnt_point fail\n"
+                case_fail $case_num
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 10
+    send "rm $mnt_point/usbhost_testfile; rm $mnt_point/10m.bin\r"
+    while 1 {
+        expect {
+            -re "rm:.*>" {
+                send_user "Remove file on $mnt_point fail\n"
+                case_fail $case_num
+            }
+            -re "root:~>" {
+                break
+            }
+            timeout {
+                send_user "Remove file on $mnt_point timeout\n"
+                case_fail $case_num
+            }
+        }
+    }
+
+    send "ls $mnt_point/usbhost_testfile; ls $mnt_point/10m.bin\r"
+    while 1 {
+        expect {
+            -re "No such file or directory.*No such file or directory.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "Remove file on $mnt_point fail\n"
+                case_fail $case_num
+            }
+        }
+    }
+
+    incr case_num
+    send "umount $mnt_point\r"
+    while 1 {
+        expect {
+            -re "umount:.*>" {
+                send_user "umount $mnt_point error\n"
+                case_fail $case_num
+            }
+            -re "root:~>" {
+                break
+            }
+            timeout {
+                send -s "\3"
+                send_user "umount $mnt_point timeout\n"
+                break
+            }
+        }
+    }
+
+    send "mount\r"
+    while 1 {
+        expect {
+            -re "$device on $mnt_point type vfat.*>" {
+                send_user "umount $mnt_point fail"
+                case_fail $case_num
+            }
+            -re "root:~>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "umount $mnt_point fail\n"
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+
+step "Start testing"
+sleep 10
+send "mkdir -p /mnt/a; mkdir -p /mnt/b\r"
+expect "root:~>"
+
 set case_num 0
 incr case_num
 
-step "Start testing."
-
-sleep 10
 set timeout 10
-send "\r"
+send "dmesg\r"
 while 1 {
-   expect {
-      -re "Vendor.*" {
-         sleep 2
-         send "\r"
-         break
-      }
-      timeout {
-         send "\r"
-         break
-      }
-   }
-}
-sleep 2
-send "\r"
-
-step "mount on usb flash disk"
-set timeout 2
-send "mount -t vfat /dev/sda1 /mnt\r"
-while 1 {
-   expect {
-      -re "root:~>" {
-         send_log "\nmount on usb flash disk done\n"
-         send_user "\nmount on usb flash disk done\n"
-         break
-      }
-
-      -re ".*failed" {
-         case_fail $case_num
-      }
-
-      timeout {
-         send_log "\nmount on usb flash disk timeout\n"
-         send_user "\nmount on usb flash disk timeout\n"
-         break
-      }
-   }
+    expect {
+       -re "sda: sda1.*device scan complete.*sdb: sdb1.*device scan complete.*>" {
+           case_pass $case_num
+           break
+       }
+       timeout {
+           case_fail $case_num
+       }
+    }
 }
 
-step "check mount result"
-send "mount\r"
-set timeout 5
-while 1 {
-   expect {
-      -re "/dev/sda1 on /mnt type vfat.*" {
-         send_log "\nmount on usb flash disk succeeds\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         case_fail $case_num
-      }
-   }
-}
+send_user "Start to test on /dev/sda1\n"
+usb_test /dev/sda1 /mnt/a
 
-incr case_num
-step "creat file"
-send "echo teststring > usbhost_testfile\r"
-send "cat usbhost_testfile\r"
-while 1 {
-   expect {
-      -re "teststring" {
-         send "\r"
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-      }
-   }
-}
-
-incr case_num
-step "delete file"
-send "rm usbhost_testfile\r"
-expect "root:>"
-send "\r"
-send "ls /mnt/usbhost_testfile\r"
-set timeout 2
-while 1 {
-   expect {
-
-      -re ".*No such file or directory" {
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-      }
-   }
-}
-
-incr case_num
-send "umount /mnt\r"
-while 1 {
-   expect {
-      -re "root:~>" {
-         break
-      }
-      timeout {
-         send_log "\numount timeout\n"
-         case_fail $case_num
-      }
-   }
-}
-
-send "mount\r"
-while 1 {
-   expect {
-      -re "/dev/sda1 on /mnt type vfat.*" {
-         send_log "Test failed, umount failed"
-         case_fail $case_num
-      }
-      -re "root:~>" {
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_log "umount timeout"
-         break
-      }
-   }
-}
+send_user "Start to test /dev/sdb1\n"
+usb_test /dev/sdb1 /mnt/b
 
 all_pass
 
