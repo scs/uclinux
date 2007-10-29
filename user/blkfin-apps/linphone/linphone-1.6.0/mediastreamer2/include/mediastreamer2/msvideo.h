@@ -62,6 +62,7 @@ typedef struct MSRect{
 typedef enum{
 	MS_YUV420P,
 	MS_YUYV,
+	MS_UYVY,
 	MS_RGB24,
 	MS_MJPEG
 }MSPixFmt;

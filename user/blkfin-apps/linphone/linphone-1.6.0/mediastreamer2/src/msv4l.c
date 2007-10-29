@@ -528,26 +528,26 @@ static int v4l_configure(V4lState *s)
 		return -1;
 	}
 	ms_message("Default picture properties: brightness=%i,hue=%i,colour=%i,contrast=%i,depth=%i, palette=%i.",
-						pict.brightness,pict.hue,pict.colour, pict.contrast,pict.depth, pict.palette);
-	/* trying YUV420P format:*/
+				pict.brightness,pict.hue,pict.colour, pict.contrast,pict.depth, pict.palette);
 	
+	/* trying color format: */
 	if (try_format(s->fd,&pict,VIDEO_PALETTE_YUV420P,16)){
 		ms_message("Driver supports YUV420P, using that format.");
 		s->pix_fmt=MS_YUV420P;
-	}else{
-		ms_message("Driver does not support YUV420P, trying RGB24...");
-		if (try_format(s->fd, &pict,VIDEO_PALETTE_RGB24,24)){
-			ms_message("Driver supports RGB24, using that format.");
-			s->pix_fmt=MS_RGB24;
-		}else {
-			if (try_format(s->fd, &pict,VIDEO_PALETTE_YUV422, 16)){
-				ms_message("Driver supports YUV422, using that format.");
-				s->pix_fmt=MS_YUYV;
-			}else {
-				ms_fatal("Unsupported video pixel format.");
-			}
-		}
+	}else if (try_format(s->fd, &pict,VIDEO_PALETTE_RGB24,24)) {
+		ms_message("Driver supports RGB24, using that format.");
+		s->pix_fmt=MS_RGB24;
+	}else if (try_format(s->fd, &pict,VIDEO_PALETTE_YUV422, 16)) {
+		ms_message("Driver supports YUV422, using that format.");
+		s->pix_fmt=MS_YUYV;
+	}else if (try_format(s->fd, &pict,VIDEO_PALETTE_UYVY, 16)) {
+		ms_message("Driver supports UYVY, using that format.");
+		s->pix_fmt=MS_UYVY;
+	}else {
+		ms_fatal("Unsupported video pixel format.");
+		return -1;
 	}
+	
 	if (!try_size(s,s->vsize)) {
 		if (!try_size(s,MS_VIDEO_SIZE_NS1)){
 			if (!try_size(s,MS_VIDEO_SIZE_VGA)){
@@ -573,6 +573,8 @@ int ms_to_v4l_pix_fmt(MSPixFmt p){
 				return VIDEO_PALETTE_RGB24;
 		case MS_YUYV:
 				return VIDEO_PALETTE_YUV422;
+		case MS_UYVY:
+				return VIDEO_PALETTE_UYVY;
 		default:
 			ms_fatal("unsupported pix fmt");
 			return -1;
