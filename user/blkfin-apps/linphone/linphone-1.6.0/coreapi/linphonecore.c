@@ -445,18 +445,16 @@ void codecs_config_read(LinphoneCore *lc)
 
 void video_config_read(LinphoneCore *lc)
 {
-	int tmp, tmp2;
+	int capture, display;
 	const char *str;
 	
 	str=lp_config_get_string(lc->config,"video","device","/dev/video0");
 	linphone_core_set_video_device(lc,NULL,str);
 	
-	tmp=lp_config_get_int(lc->config,"video","enabled",1);
-	tmp2=lp_config_get_int(lc->config,"video","display",0);
+	capture=lp_config_get_int(lc->config,"video","capture",0);
+	display=lp_config_get_int(lc->config,"video","display",0);
 #ifdef VIDEO_ENABLED
-	if(tmp2)
-		tmp=tmp2;
-	linphone_core_enable_video(lc,tmp, tmp2);
+	linphone_core_enable_video(lc,capture,display);
 #endif
 }
 
@@ -1226,24 +1224,31 @@ void linphone_core_start_media_streams(LinphoneCore *lc, LinphoneCall *call){
 			video_preview_stop(lc->previewstream);
 			lc->previewstream=NULL;
 		}
-		if (lc->video_conf.enabled){
+		if (lc->video_conf.display || lc->video_conf.capture){
 			int jitt_comp;
 			StreamParams *video_params=&call->video_params;
 			
 			if (video_params->remoteport>0){
 				/* adjust rtp jitter compensation. It must be at least the latency of the sound card */
 				jitt_comp=MAX(lc->sound_conf.latency,lc->rtp_conf.audio_jitt_comp);
-				if (lc->video_conf.display)
+
+				if (lc->video_conf.display && lc->video_conf.capture)
+					lc->videostream=video_stream_start(call->profile,
+						video_params->localport, video_params->remoteaddr,
+						video_params->remoteport, video_params->pt, jitt_comp,
+						lc->video_conf.device);
+				else if (lc->video_conf.display)
 					lc->videostream=video_stream_recv_only_start(call->profile,
 						video_params->localport, video_params->remoteaddr,
 						video_params->remoteport, video_params->pt, jitt_comp,
 						lc->video_conf.device);
-				else
+				else if (lc->video_conf.capture)
 					/* start send only video stream */
-					lc->videostream=video_stream_send_only_start_new(call->profile,
+					lc->videostream=video_stream_send_only_start(call->profile,
 						video_params->localport, video_params->remoteaddr,
 						video_params->remoteport, video_params->pt, jitt_comp,
 						lc->video_conf.device);
+
 				video_stream_set_rtcp_information(lc->videostream, cname,tool);
 			}
 		}
@@ -1263,10 +1268,13 @@ void linphone_core_stop_media_streams(LinphoneCore *lc){
 	}
 #ifdef VIDEO_ENABLED
 	if (lc->videostream!=NULL){
-		if (lc->video_conf.display)
+		if (lc->video_conf.display && lc->video_conf.capture)
+			video_stream_stop(lc->videostream);
+		else if (lc->video_conf.display)
 			video_stream_recv_only_stop(lc->videostream);
-		else
+		else if (lc->video_conf.capture)
 			video_stream_send_only_stop(lc->videostream);
+
 		lc->videostream=NULL;
 	}
 	if (linphone_core_video_preview_enabled(lc)){
@@ -1670,15 +1678,19 @@ static void toggle_video_preview(LinphoneCore *lc, bool_t val){
 #endif
 }
 
-void linphone_core_enable_video(LinphoneCore *lc, bool_t video_enabled, bool_t display_enabled){
+void linphone_core_enable_video(LinphoneCore *lc, bool_t vcap_enabled, bool_t display_enabled){
 #ifndef VIDEO_ENABLED
-	if (video_enabled)
+	if (vcap_enabled || display_enabled)
 		ms_warning("This version of linphone was built without video support.");
 #endif
-	lc->video_conf.enabled=video_enabled;
+	lc->video_conf.capture=vcap_enabled;
 	lc->video_conf.display=display_enabled;
+	
 	/* disable preview */
-	lc->video_conf.show_local=0;
+	if (vcap_enabled && display_enabled)
+		lc->video_conf.show_local=1;
+	else
+		lc->video_conf.show_local=0;
 
 	/* need to re-apply network bandwidth settings*/
 	linphone_core_set_download_bandwidth(lc,
@@ -1688,7 +1700,7 @@ void linphone_core_enable_video(LinphoneCore *lc, bool_t video_enabled, bool_t d
 }
 
 bool_t linphone_core_video_enabled(LinphoneCore *lc){
-	return lc->video_conf.enabled;
+	return (lc->video_conf.capture || lc->video_conf.display);
 }
 
 
@@ -1829,7 +1841,8 @@ void sound_config_uninit(LinphoneCore *lc)
 void video_config_uninit(LinphoneCore *lc)
 {
 	video_config_t *config=&lc->video_conf;
-	lp_config_set_int(lc->config,"video","enabled",config->enabled);
+	lp_config_set_int(lc->config,"video","capture",config->capture);
+	lp_config_set_int(lc->config,"video","display",config->display);
 	lp_config_set_int(lc->config,"video","show_local",config->show_local);
 }
 

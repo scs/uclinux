@@ -119,9 +119,10 @@ void video_stream_stop (VideoStream * stream);
 VideoStream * video_preview_start(const char *device);
 void video_preview_stop(VideoStream *stream);
 
-VideoStream * video_stream_send_only_start(RtpProfile *profile, int locport, const char *remip, int remport, int payload, const char *device);
-
-void video_stream_send_only_stop(VideoStream *stream);
+VideoStream * video_stream_send_only_start(RtpProfile *profile, int locport, const char *remip, int remport, int payload, int jitt_comp, const char *device);
+VideoStream * video_stream_recv_only_start(RtpProfile *profile, int locport, const char *remip, int remport, int payload, int jitt_comp, const char *device);
+void video_stream_send_only_stop (VideoStream * stream);
+void video_stream_recv_only_stop (VideoStream * stream);
 
 #ifdef __cplusplus
 }

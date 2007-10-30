@@ -104,7 +104,7 @@ void call_accept(Call *call)
 #ifdef VIDEO_ENABLED
 	if (call->video.remoteport!=0){
 		call->video_stream=video_stream_send_only_start(call->profile,call->video.localport,call->video.remaddr,
-											call->video.remoteport,call->video.pt,"/dev/video0");
+											call->video.remoteport,call->video.pt,60,"/dev/video0");
 	}
 #endif
 	call->time=time(NULL);
