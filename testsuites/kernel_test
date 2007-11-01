@@ -123,9 +123,9 @@ fi
    n=100
 
 
-   AUTO_TESTCASE=( [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [29]="malloc_perf"  [30]="sram_alloc"   [31]="i2ctwi"  [32]="pbx"  [33]="sport"   [34]="erestart"  [35]="null_point"  [36]="np2"  [37]="dmacopy" [38]="boot_addr" [39]="lmbench" [40]="reserve_mem" [41]="scratchpad_app_stack" [42]="limit_vfssize" [43]="spimmc" [44]="xip" [45]="usbnet" [46]="string" [47]="shared_flat" [48]="nbench"  [49]="whetstone" [50]="dhrystone" [51]="usbhost_1362" [52]="usbhost_176x" [53]="mmap"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"   [$(( n + 5 ))]="audio_ad1981b"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb"  [$(( n + 9 ))]="video_adv7171"  [$(( n + 10 ))]="video_adv7393"  [$(( n + 11 ))]="tftlcd" [$(( n + 12 ))]="power" [$(( n + 13 ))]="qt" )
+   AUTO_TESTCASE=( [0]="serial"    [1]="ethernet"   [2]="ethernet_in_buffer"  [3]="stress"  [4]="nfs"  [5]="ramfs"  [6]="module"  [7]="kgdb"  [8]="rtc"  [9]="watchdog"  [10]="pnormtd"  [11]="jffs2"  [12]="jffs2_fs"  [13]="strace"  [14]="msh"  [15]="pthread"  [16]="dpm"  [17]="l1_memory"  [18]="l1_app"  [19]="dll"   [20]="sigqueue"  [21]="pound"  [22]="sqlite"   [23]="cfcard" [24]="ide_cdrom"  [25]="yaffs"  [26]="ad9960"  [27]="oprofile"  [28]="gpio"  [29]="malloc_perf"  [30]="sram_alloc"   [31]="i2ctwi"  [32]="pbx"  [33]="sport"   [34]="erestart"  [35]="null_point"  [36]="np2"  [37]="dmacopy" [38]="boot_addr" [39]="lmbench" [40]="reserve_mem" [41]="scratchpad_app_stack" [42]="limit_vfssize" [43]="spimmc" [44]="xip" [45]="usbnet" [46]="string" [47]="shared_flat" [48]="nbench"  [49]="whetstone" [50]="dhrystone" [51]="usbhost_1362" [52]="usbhost_176x" [53]="mmap" [54]="atapi_hd" [55]="sdiommc"  [$(( n + 1 ))]="timer"  [$(( n + 2 ))]="ltp"  [$(( n + 3 ))]="audio_ad1836"  [$(( n + 4 ))]="audio_ad73311"  [$(( n + 5 ))]="audio_ad1981b"  [$(( n + 6 ))]="snormtd"  [$(( n + 7 ))]="dpmc"  [$(( n + 8 ))]="coreb"  [$(( n + 9 ))]="video_adv7171"  [$(( n + 10 ))]="video_adv7393"  [$(( n + 11 ))]="tftlcd" [$(( n + 12 ))]="power" [$(( n + 13 ))]="qt"  [$(( n + 14 ))]="audio_ad1980" )
 
-   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1" [29]="1"  [30]="1"   [31]="0"  [32]="0"  [33]="0"  [34]="1" [35]="1" [36]="1" [37]="1" [38]="1" [39]="1" [40]="1" [41]="1" [42]="1" [43]="0" [44]="1" [45]="0" [46]="1" [47]="1"  [48]="1"  [49]="1"  [50]="1"  [51]="0" [52]="0" [53]="1"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="0"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1"  [$(( n + 8 ))]="0" [$(( n + 9 ))]="0" [$(( n + 10 ))]="0" [$(( n + 11 ))]="0" [$(( n + 12 ))]="0" [$(( n + 13 ))]="0" )
+   AUTO_RUN_STATUS=(  [0]="1"  [1]="1"  [2]="1" [3]="1"  [4]="1"  [5]="1"   [6]="1"  [7]="1"  [8]="1"   [9]="0"   [10]="1"   [11]="1"   [12]="1"     [13]="1" [14]="1"   [15]="1"  [16]="1"    [17]="1"  [18]="1"  [19]="1"  [20]="1"  [21]="1"   [22]="1" [23]="0"   [24]="0"  [25]="0"  [26]="0"  [27]="1"  [28]="1" [29]="1"  [30]="1"   [31]="0"  [32]="0"  [33]="0"  [34]="1" [35]="1" [36]="1" [37]="1" [38]="1" [39]="1" [40]="1" [41]="1" [42]="1" [43]="0" [44]="1" [45]="0" [46]="1" [47]="1"  [48]="1"  [49]="1"  [50]="1"  [51]="0" [52]="0" [53]="1" [54]="0" [55]="0"  [$(( n + 1 ))]="1"  [$(( n + 2 ))]="1"  [$(( n + 3 ))]="0"  [$(( n + 4 ))]="0"  [$(( n + 5 ))]="0"  [$(( n + 6 ))]="0"  [$(( n + 7 ))]="1"  [$(( n + 8 ))]="0" [$(( n + 9 ))]="0" [$(( n + 10 ))]="0" [$(( n + 11 ))]="0" [$(( n + 12 ))]="0" [$(( n + 13 ))]="0" [$(( n + 14 ))]="0" )
 
    MANUAL_TESTCASE=( [0]="pflag"  [1]="pfbutton"  [2]="ppifcd"  [3]="joystick"  [4]="ndso"  [5]="awg"  [6]="i2ctwi"  [7]="wireless" [8]="bluetooth"  [9]="bluetoothcf"  [10]="canbus"   [11]="irda"  [12]=""  [13]="linphone"  [14]="sport_uart"  [15]="netaudio" [16]="touchscreen" [17]="microwin" [18]="keypad" [$(( n + 1 ))]="serial_uart1" [$(( n + 2 ))]="konqueror" )
 
@@ -216,7 +216,8 @@ if [ $BOARD_CONFIG = "BF548-EZKIT-STD" ] ; then
 
    BOARD_TYPE=BF548-EZKIT
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[21]="0";AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[43]="1";AUTO_RUN_STATUS[45]="1";  AUTO_RUN_STATUS[$(( n + 6 ))]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="0"; AUTO_RUN_STATUS[$(( n + 11 ))]="1";     
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[21]="0";AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[54]="1"; AUTO_RUN_STATUS[55]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="0"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 14 ))]="1"
+
    
    MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="1"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="1" [17]="0" [18]="1"   [$(( n + 1 ))]="0"  )
 
@@ -289,7 +290,7 @@ fi
   ####################            AUTOMATED TESTING             ###############################
   #############################################################################################
  
-for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53
+for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55
 do
   if [ ${AUTO_RUN_STATUS[$i]} -eq 1  ] ; then
   
@@ -324,6 +325,8 @@ do
   cd $UCLINUX_DIST_TESTSUITES/ide
   elif ([ ${AUTO_TESTCASE[$i]} == "usbhost_1362" ] || [ ${AUTO_TESTCASE[$i]} == "usbhost_176x" ]) ; then
   cd $UCLINUX_DIST_TESTSUITES/usbhost
+  elif [ ${AUTO_TESTCASE[$i]} == "atapi_hd" ] ; then
+  cd $UCLINUX_DIST_TESTSUITES/atapi
   else
   cd $UCLINUX_DIST_TESTSUITES/${AUTO_TESTCASE[$i]}    
   fi
@@ -526,7 +529,39 @@ do
   #############################################################################################
   ###################################### TEST TFTLCD###########################################
 
-  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] ; then
+  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] && [ $BOARD_TYPE == "BF548-EZKIT" ]; then
+
+  echo  "Testing tftlcd..."
+
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+
+  cd $UCLINUX_DIST_TESTSUITES/tftlcd
+  ./build_tftlcd_LQ043_kernel.exp $BOARD_TYPE >/dev/null  2>&1
+  sleep 30
+  ./tftlcd_test.exp $BOARD_TYPE >/dev/null  2>&1
+
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_LQ043_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_test_log $THIS_LOG
+
+  sleep 300
+
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $UCLINUX_DIST_TESTSUITES
+   ./reset_board.exp  >/dev/null  2>&1
+   sleep 10
+  fi
+
+  fi
+
+
+  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] && [ $BOARD_TYPE != "BF548-EZKIT" ] ; then
 
   echo  "Testing tftlcd landscape..."
 
@@ -689,6 +724,45 @@ do
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad1981b
   cp $UCLINUX_DIST_TESTSUITES/audio/build_ad1981b_kernel_log $THIS_LOG
   cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_ad1981b_audio_test_log
+
+  cd $UCLINUX_DIST_PATH/
+  make clean  > /dev/null 2>&1
+
+  sleep 300
+
+
+  if [ $RESET_BOARD -eq 1  ] ; then
+   cd $UCLINUX_DIST_TESTSUITES
+   ./reset_board.exp  >/dev/null  2>&1
+   sleep 10
+  fi
+
+  fi
+
+
+  if [ ${AUTO_RUN_STATUS[$(( n + 14 ))]} -eq 1  ] ; then
+
+  echo  "Testing audio ad1980..."
+
+  rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+  cd $UCLINUX_DIST_PATH/
+  cp -a  $UCLINUX_DIST_PATH_BAK/linux-2.6.x  .
+  cp $UCLINUX_DIST_PATH_BAK/config/.config config
+  cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
+  rm -rf romfs/ images/
+
+  cd $UCLINUX_DIST_PATH/
+  make clean  > /dev/null 2>&1
+
+  cd $UCLINUX_DIST_TESTSUITES/audio
+  ./build_ad1980_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
+  sleep 30
+  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+
+  cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad1980
+  cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad1980
+  cp $UCLINUX_DIST_TESTSUITES/audio/build_ad1980_kernel_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/audio/one_channel_audio_test_log $THIS_LOG/one_channel_ad1980_audio_test_log
 
   cd $UCLINUX_DIST_PATH/
   make clean  > /dev/null 2>&1
