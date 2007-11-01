@@ -12,7 +12,7 @@
  * by O'Reilly & Associates.   No warranty is attached;
  * we cannot take responsibility for errors or fitness for use.
  *
- * $Id$
+ * $Id: simple.c 3032 2006-07-13 05:43:19Z rgetz $
  */
 
 /*
@@ -21,7 +21,6 @@
  * and assumed to be orginal
  */
 
-#include <linux/config.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
@@ -91,7 +90,7 @@ static int simple_remap_mmap(struct file *filp, struct vm_area_struct *vma)
          * the buffer to be mmaped. 
          */
 	extern unsigned long physical_mem_end;
-	extern int _ramend;
+	extern unsigned long _ramend;
 
 	/* the kernel passes in the vm_pgoff - the offset, in *pages*
 	 * from the start of the buffer that the user space app wants

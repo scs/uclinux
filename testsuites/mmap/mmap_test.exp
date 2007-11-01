@@ -1,0 +1,156 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+set case_num 0
+set timeout 10
+
+sleep 5
+send "\r"
+expect ">"
+
+incr case_num
+send "ifconfig eth0 $targetip up\r"
+while 1 {
+    expect {
+        -re "root:~>" {
+            break
+        }
+        timeout {
+            send -s "\3"
+            break
+        }
+    }
+}
+
+send "ifconfig eth0\r"
+while 1 {
+    expect {
+        -re "$targetip.*root:~>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+exec rcp mmap_test_load mmap_test_unload root@$targetip:/lib/modules
+
+incr case_num
+send "cd /lib/modules; ./mmap_test_load\r"
+while 1 {
+    expect {
+        -re "fail.*>|\[Ee]rror.*>" {
+            case_fail $case_num
+        }
+        -re ">" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "lsmod\r" 
+while 1 {
+    expect {
+        -re "simple.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "ls -l /dev/simple\[nr\]\r" 
+while 1 {
+    expect {
+        -re "crw-rw-r--.*1.*simplen.*crw-rw-r--.*0.*simpler.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "./mmap_test_unload\r"
+while 1 {
+    expect {
+        -re "fail.*>|\[Ee]rror.*>" {
+            case_fail $case_num
+        }
+        -re ">" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "lsmod\r" 
+while 1 {
+    expect {
+        -re "simple.*>" {
+            case_fail $case_num
+        }
+        ">" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "ls -l /dev/simple*\r" 
+while 1 {
+    expect {
+        -re "simpler|simplen" {
+            case_fail $case_num
+        }
+        -re "No such file or directory" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
