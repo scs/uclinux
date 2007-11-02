@@ -367,6 +367,10 @@ do
   cp $UCLINUX_DIST_TESTSUITES/ethernet/*_log  $THIS_LOG
   elif [ ${AUTO_TESTCASE[$i]} == "ide_cdrom" ] ; then
   cp $UCLINUX_DIST_TESTSUITES/ide/*_log  $THIS_LOG
+  elif ([ ${AUTO_TESTCASE[$i]} == "usbhost_1362" ] || [ ${AUTO_TESTCASE[$i]} == "usbhost_176x" ]) ; then
+  cp $UCLINUX_DIST_TESTSUITES/usbhost/*_log  $THIS_LOG
+  elif [ ${AUTO_TESTCASE[$i]} == "atapi_hd" ] ; then
+  cp $UCLINUX_DIST_TESTSUITES/atapi/*_log  $THIS_LOG
   else
   cp $UCLINUX_DIST_TESTSUITES/${AUTO_TESTCASE[$i]}/*_log  $THIS_LOG   
   fi
