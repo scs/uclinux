@@ -20,6 +20,9 @@ void bb_verror_msg(const char *s, va_list p, const char* strerr)
 	va_list p2;
 	va_copy(p2, p);
 
+	if (!s) /* nomsg[_and_die] uses NULL fmt */
+		s = ""; /* some libc don't like printf(NULL) */
+
 	if (logmode & LOGMODE_STDIO) {
 		fflush(stdout);
 		fprintf(stderr, "%s: ", applet_name);

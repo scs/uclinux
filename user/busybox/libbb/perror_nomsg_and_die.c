@@ -15,5 +15,5 @@ extern void bb_perror_msg_and_die(const char *s, ...);
 
 void bb_perror_nomsg_and_die(void)
 {
-	bb_perror_msg_and_die("");
+	bb_perror_msg_and_die(0);
 }
