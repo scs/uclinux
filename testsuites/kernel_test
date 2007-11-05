@@ -554,12 +554,12 @@ do
   cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_LQ043_kernel.exp $BOARD_TYPE >/dev/null  2>&1
   sleep 30
-  ./tftlcd_test.exp $BOARD_TYPE >/dev/null  2>&1
+  ./tftlcd_lq043_test.exp >/dev/null  2>&1
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_LQ043_kernel_log $THIS_LOG
-  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_test_log $THIS_LOG
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq043_test_log $THIS_LOG
 
   sleep 300
 
@@ -586,12 +586,12 @@ do
   cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_landscape_kernel.exp $BOARD_TYPE >/dev/null  2>&1
   sleep 30
-  ./tftlcd_test.exp $BOARD_TYPE LANDSCAPE >/dev/null  2>&1
+  ./tftlcd_lq035_test.exp LANDSCAPE >/dev/null  2>&1
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.landscape
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.landscape
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_landscape_kernel_log $THIS_LOG
-  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_landscape_test_log
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq035_test_log $THIS_LOG/tftlcd_lq035_landscape_test_log
 
   sleep 300
 
@@ -613,12 +613,12 @@ do
   cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_portrait_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
   sleep 30
-  ./tftlcd_test.exp $BOARD_TYPE PORTRAIT >/dev/null  2>&1
+  ./tftlcd_lq035_test.exp PORTRAIT >/dev/null  2>&1
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.portrait
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.portrait
   cp $UCLINUX_DIST_TESTSUITES/tftlcd/build_tftlcd_portrait_kernel_log $THIS_LOG
-  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_test_log $THIS_LOG/tftlcd_portrait_test_log
+  cp $UCLINUX_DIST_TESTSUITES/tftlcd/tftlcd_lq035_test_log $THIS_LOG/tftlcd_lq035_portrait_test_log
 
   sleep 300
 

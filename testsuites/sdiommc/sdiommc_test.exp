@@ -5,13 +5,15 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-if { $argc < 2} {
-    puts "Please input size of the first partition, in units of Megabytes. Eg: 256M\r"
-    puts "And input test file size. Eg: 5 means 5MB\r"
-    exit
-}
-set NUM_CYLINDER +[lindex $argv 0]
-set FILE_SIZE [lindex $argv 1]
+#if { $argc < 2} {
+#    puts "Please input size of the first partition, in units of Megabytes. Eg: 256M\r"
+#    puts "And input test file size. Eg: 5 means 5MB\r"
+#    exit
+#}
+#set NUM_CYLINDER +[lindex $argv 0]
+#set FILE_SIZE [lindex $argv 1]
+set NUM_CYLINDER +256
+set FILE_SIZE 10
 
 step "Start kermit."
 source ../spawn_kermit.exp

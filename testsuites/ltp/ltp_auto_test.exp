@@ -111,7 +111,7 @@ proc reset_board {} {
       }
       while 1 {
          expect {
-            -re "Password:" {
+            -re "\[Pp]assword:" {
                send -r "$password\r"
             }
             timeout {

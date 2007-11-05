@@ -1,13 +1,13 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-source  ../board_info.exp
 
 log_file [log_file_name "$argv0"]
 
 send_user "Starting $argv0\n"
 
-set TITLE "[title "$argv0"] [lindex $argv 1]"
+set TITLE "[title "$argv0"]"
+append TITLE " ([lindex $argv 0])"
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
@@ -28,14 +28,10 @@ send "\r"
 expect ">"
 
 incr case_num
-if { $board_type == "BF548-EZKIT" } {
-    send "modprobe bf54x-lq043\r"
-} elseif { $board_type == "BF537-STAMP" } {
-    send "modprobe bf537-lq035\r"
-}
+send "modprobe bf537-lq035\r"
 while 1 {
     expect {
-        "FrameBuffer initializing.*Done.*>" {
+        -re "FrameBuffer initializing.*Done.*>" {
             case_pass $case_num
             break
         }
@@ -44,6 +40,21 @@ while 1 {
         }
     }
 }
+
+incr case_num
+send "lsmod\r" 
+while 1 {
+    expect {
+        -re "bf537_lq035.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
 
 set timeout 15
 incr case_num
@@ -76,11 +87,7 @@ while 1 {
 
 set timeout 5
 incr case_num
-if { $board_type == "BF548-EZKIT" } {
-    send "rmmod bf54x-lq043\r"
-} elseif { $board_type == "BF537-STAMP" } {
-    send "rmmod bf537-lq035\r"
-}
+send "rmmod bf537-lq035\r"
 while 1 {
     expect {
         -re "Unregister LCD driver.*>" {
@@ -102,7 +109,7 @@ while 1 {
             case_pass $case_num
             break
         }
-        "lq0.*>" {
+        -re "bf537_lq035.*>" {
             case_fail $case_num
         }
         timeout {
