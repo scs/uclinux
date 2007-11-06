@@ -7,7 +7,7 @@ LASTRUN=lastrun
 THISRUN=thisrun
 
 BOARD_CONFIG=BF533-STAMP-STD
-CPU=BF533
+CPU=BF5xx
 UCLINUX_DIST_PATH=$USER/checkouts/uclinux-dist
 BINARY_FORMAT=flat
 ALLOCATOR=slab\(p2\)
@@ -38,7 +38,7 @@ fi
  
   cd $UCLINUX_DIST_SCRIPTS
   ./test_runtime_control & 
-  ###### ./kernel_test BF533-STAMP-STD bf533 0.0 /home/test/checkouts/uclinux-dist flat slab\(p2\) on on write_through dma
+  ###### ./kernel_test BF533-STAMP-STD BF5xx 0.0 /home/test/checkouts/uclinux-dist flat slab\(p2\) on on write_through dma
   ######  THIS_LOG
   ./kernel_test  $BOARD_CONFIG $CPU 0.0 $UCLINUX_DIST_PATH  $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $THIS_LOG > kernel_test_log \
   2>&1

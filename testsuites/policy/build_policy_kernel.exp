@@ -67,12 +67,16 @@ while 1 {
                        send "10\r"
             } elseif { $cpu == "BF544" } {
                        send "11\r"
-            } elseif { $cpu == "BF548" } {
+            } elseif { $cpu == "BF547" } {
                        send "12\r"
-            } elseif { $cpu == "BF549" } {
+            } elseif { $cpu == "BF548" } {
                        send "13\r"
-            } elseif { $cpu == "BF561" } {
+            } elseif { $cpu == "BF549" } {
                        send "14\r"
+            } elseif { $cpu == "BF561" } {
+                       send "15\r"
+            } elseif { $cpu == "BF5xx" } {
+                       send "\r"
             }
       }   
 
