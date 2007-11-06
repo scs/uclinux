@@ -1,0 +1,255 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+proc test_standby {} {
+    global case_num
+    global targetip
+    global serverip
+
+    set timeout 30
+    incr case_num
+    send "echo 'standby' > /sys/power/state\r"
+    while 1 {
+        expect {
+            -re "Stopping tasks.*done.*Suspending console.*Restarting tasks.*done" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+
+    set timeout 5
+    incr case_num
+    send "ifconfig\r"
+    while 1 {
+        expect {
+            -re "eth0.*$targetip.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "set ip $targetip failed\r"
+                case_fail $case_num
+            }
+        }
+    }
+
+    set timeout 20
+    send "ping $serverip -c 5\r"
+    while 1 {
+        expect {
+            -re "5 packets transmitted, 5 packets received, 0% packet loss.*>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "ping $serverip failed\r"
+                case_fail $case_num
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 10
+    send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
+    expect {
+        "Stereo \.\.\.\r\nroot:~>" {
+            case_pass $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+
+    incr case_num
+    set timeout 10
+    send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
+    expect {
+        "Stereo\r\nroot:~>" {
+            case_pass $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+
+step "Start testing"
+set case_num 0
+set Total_Count 5
+sleep 5
+send "\r"
+
+set timeout 5
+send "ifconfig eth0 $targetip\r"
+while 1 {
+    expect {
+        -re "root:~>" {
+            break
+        }
+        timeout {
+            send_user "set ip $targetip failed\r"
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 5
+send "\r"
+set timeout 20
+send "ping $serverip -c 5\r"
+while 1 {
+    expect {
+        -re "5 packets transmitted, 5 packets received, 0% packet loss.*>" {
+            break
+        }
+        timeout {
+            send_user "ping $serverip failed\r"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 20
+incr case_num
+send "modprobe snd-ad1836\r"
+while 1 {
+    expect {
+        -re "bfin_ad7171_fb: initializing.*fb memory address : 0x.*>" {
+            break
+        }
+        timeout {
+            send_user "Install ADV7393 module failed!\r"
+            case_fail $case_num
+        }
+    }
+}
+send "lsmod\r" 
+while 1 {
+    expect {
+        -re "snd_ad1836.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
+expect {
+    "Stereo \.\.\.\r\nroot:~>" {
+        case_pass $case_num
+    }
+    timeout {
+        case_fail $case_num
+    }
+}
+
+incr case_num
+set timeout 10
+send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
+expect {
+    "Stereo\r\nroot:~>" {
+        case_pass $case_num
+    }
+    timeout {
+        case_fail $case_num
+    }
+}
+
+set timeout 5
+incr case_num
+send "cat /proc/mounts\r"
+while 1 {
+    expect {
+        -re "sysfs /sys sysfs rw 0 0.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "ls /sys/power\r"
+while 1 {
+    expect {
+        -re "state.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+for {set count 1} {$count <= $Total_Count} {incr count} {
+    test_standby
+    send_user "\nStandby test round $count pass\n\n"
+}
+
+set timeout 20
+incr case_num
+send "rmmod snd-ad1836\r"
+while 1 {
+    expect {
+        -re "root:~>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 20
+incr case_num
+send "lsmod\r" 
+while 1 {
+    expect {
+        ">" {
+            case_pass $case_num
+            break
+        }
+        "snd_ad1836" {
+            case_fail $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
