@@ -12,7 +12,7 @@ set TITLE [title "$argv0"]
 #}
 #set NUM_CYLINDER +[lindex $argv 0]
 #set FILE_SIZE [lindex $argv 1]
-set NUM_CYLINDER +256
+set NUM_CYLINDER +256M
 set FILE_SIZE 10
 
 step "Start kermit."
