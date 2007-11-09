@@ -409,6 +409,7 @@ do
 
   if [ ${AUTO_TESTCASE[$i]} == "xip" ] ; then
   cp $UCLINUX_DIST_PATH/images/linux.romfs $THIS_LOG/linux.romfs.${AUTO_TESTCASE[$i]}
+  rm -fr $THIS_LOG/linux.${AUTO_TESTCASE[$i]}
   fi 
 
   echo  "End testing ${AUTO_TESTCASE[$i]}..."

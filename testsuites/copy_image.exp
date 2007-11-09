@@ -15,4 +15,5 @@ if { $HAVE_KERNEL_ONLY_IMAGE == "1" } {
 
 if { $HAVE_ROMFS_IMAGE == "1" } {
     exec cp images/$kernel_and_romfs_image /tftpboot
+    exec rm -fr /tftpboot/linux
 }
