@@ -290,7 +290,7 @@ static int v4l_mm_read_picture(VideoData *s, uint8_t *buf)
            (errno == EAGAIN || errno == EINTR));
 
     ptr = s->video_buf + s->gb_buffers.offsets[s->gb_frame];
-    memcpy(buf, ptr, s->frame_size);
+    dma_memcpy(buf, ptr, s->frame_size);
 
     /* Setup to capture the next frame */
     s->gb_buf.frame = s->gb_frame;
