@@ -135,7 +135,7 @@ LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-shared-lib-id,0 -mid-shared-librar
 LDFLAGS-$(CONFIG_FMT_USE_SEP_DATA) += -Wl,-shared-lib-id,0 -msep-data
 ifdef UCLINUX_BUILD_USER
 CFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -mshared-library-id=0
-FLAT_LIBC     := $(shell $(CC) -mid-shared-library -print-file-name=libc.gdb)
+FLAT_LIBC     := $(shell $(CC) $(CPUFLAGS) -mid-shared-library -print-file-name=libc.gdb)
 LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-R,$(FLAT_LIBC)
 
 endif
