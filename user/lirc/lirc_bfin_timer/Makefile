@@ -2,7 +2,7 @@ ifeq ($(origin CC),default)
 CC := bfin-uclinux-gcc
 endif
 MAKEARCH_KERNEL ?= $(MAKE) ARCH=blackfin CROSS_COMPILE=bfin-uclinux-
-ROOTDIR  ?= $(PWD)/../../../../
+ROOTDIR  ?= $(PWD)/../../../
 LINUXDIR ?= linux-2.6.x
 
 obj-m := lirc_bfin_timer.o
