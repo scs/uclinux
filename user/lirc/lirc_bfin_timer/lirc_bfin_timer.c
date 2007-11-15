@@ -17,27 +17,17 @@
 #include "drivers/lirc.h"
 #include "drivers/lirc_dev/lirc_dev.h"
 
+#include <asm/gpio.h>
 #include <asm/gptimers.h>
 #include <asm/portmux.h>
 
-#define SWAP(x,y) \
-	do { \
-		typeof(x) __tmp = x; \
-		x = y; \
-		y = __tmp; \
-	} while (0);
+static unsigned long clamp_usecs = 1, clamp_sclk;
+module_param(clamp_usecs, ulong, 0644);
+MODULE_PARM_DESC(clamp_usecs, "Min time in usecs for sample (default = 1)");
 
-static unsigned long clamp_usecs_hi = 5000, clamp_sclk_hi;
-module_param(clamp_usecs_hi, ulong, 0644);
-MODULE_PARM_DESC(clamp_usecs_hi, "Max time in usecs for sample (default = 5000)");
-
-static unsigned long clamp_usecs_lo = 5, clamp_sclk_lo;
-module_param(clamp_usecs_lo, ulong, 0644);
-MODULE_PARM_DESC(clamp_usecs_lo, "Min time in usecs for sample (default = 5)");
-
-static int sense = 0;
+static int sense = -1;	/* -1 = auto, 0 = active high, 1 = active low */
 module_param(sense, bool, 0444);
-MODULE_PARM_DESC(sense, "Active IR level (0 = active high, 1 = active low)");
+MODULE_PARM_DESC(sense, "Override autodetection of IR receiver circuit (0 = active high, 1 = active low)");
 
 /* BF537-EZKIT Timers Header:
  *   PIN      FUNCTION
@@ -59,8 +49,8 @@ MODULE_PARM_DESC(sense, "Active IR level (0 = active high, 1 = active low)");
 
 struct bfin_gptimer {
 	const char *name;
-	int irq, id, bit, mux;
-	uint32_t width, period;
+	int irq, id, bit, mux, gpio;
+	lirc_t pulse, space;
 	bool opened, skip_next_sample;
 	struct lirc_plugin plugin;
 	struct lirc_buffer lirc_buf;
@@ -68,17 +58,20 @@ struct bfin_gptimer {
 
 static void gptimer_queue_sample(struct bfin_gptimer *g)
 {
+	size_t i = 0;
 	lirc_t code[2];
 
 	pr_stamp();
 
-	code[0] = PULSE_BIT | (sclk_to_usecs(g->width) & PULSE_MASK);
-	code[1] = sclk_to_usecs(g->period - g->width) & PULSE_MASK;
+	if (g->pulse)
+		code[i++] = PULSE_BIT | (g->pulse & PULSE_MASK);
+	if (g->space)
+		code[i++] = g->space & PULSE_MASK;
 
 	if (lirc_buffer_full(&g->lirc_buf))
 		printk(KERN_NOTICE DRIVER_NAME ": buffer full, throwing away sample\n");
 	else
-		lirc_buffer_write_n(&g->lirc_buf, (void *)code, ARRAY_SIZE(code));
+		lirc_buffer_write_n(&g->lirc_buf, (void *)code, i);
 
 	wake_up(&g->lirc_buf.wait_poll);
 }
@@ -86,6 +79,7 @@ static void gptimer_queue_sample(struct bfin_gptimer *g)
 static irqreturn_t gptimer_irq(int irq, void *dev_id)
 {
 	struct bfin_gptimer *g = dev_id;
+	uint32_t width, period;
 
 	pr_stamp();
 
@@ -107,22 +101,25 @@ static irqreturn_t gptimer_irq(int irq, void *dev_id)
 	}
 
 	/* record this sample ! */
-	g->width = get_gptimer_pwidth(g->id);
-	g->period = get_gptimer_period(g->id);
+	width = get_gptimer_pwidth(g->id);
+	period = get_gptimer_period(g->id);
+	g->pulse = width;
+	g->space = period - width;
 
 	pr_debug(DRIVER_NAME ":irq: "
 		"sclk = 0x%08lx, "
-		"period = 0x%08x (%li usecs), "
-		"width = 0x%08x (%li usecs), "
-		"space = %li usecs\n",
+		"pulse = 0x%08x (%li usecs), "
+		"space = 0x%08x (%li usecs)\n",
 		get_sclk(),
-		g->period, sclk_to_usecs(g->period),
-		g->width, sclk_to_usecs(g->width),
-		sclk_to_usecs(g->period) - sclk_to_usecs(g->width));
+		g->pulse, sclk_to_usecs(g->pulse),
+		g->space, sclk_to_usecs(g->space));
 
-	/* only queue up good samples */
-	if (g->period <= clamp_sclk_hi && g->period >= clamp_sclk_lo)
-		gptimer_queue_sample(g);
+	/* toss out very short samples (presumably due to ambient light) */
+	g->pulse = (g->pulse < clamp_sclk ? 0 : sclk_to_usecs(g->pulse));
+	g->space = (g->space < clamp_sclk ? 0 : sclk_to_usecs(g->space));
+
+	/* queue it up! */
+	gptimer_queue_sample(g);
 
  finish:
 	clear_gptimer_intr(g->id);
@@ -141,7 +138,10 @@ static int gptimer_ioctl(struct inode *node, struct file *filep,
 	}
 }
 
-/* Called when userspace opens up our device */
+/* Called when userspace opens up our device.  We do not have
+ * to do any locking at the function level here ourselves as
+ * the lirc_dev layer takes care of it for us.
+ */
 static int gptimer_set_use_inc(void *data)
 {
 	struct bfin_gptimer *g = data;
@@ -151,6 +151,39 @@ static int gptimer_set_use_inc(void *data)
 
 	if (g->opened == true)
 		return -EBUSY;
+
+	/* figure out the idle level */
+	if (sense == -1) {
+		size_t i, nlow, nhigh;
+
+		ret = gpio_request(g->gpio, DRIVER_NAME);
+		if (ret) {
+			printk(KERN_NOTICE DRIVER_NAME " gpio_request() failed\n");
+			return ret;
+		}
+
+		/* probe 9 times every 0.04s, collect "votes" for
+		 * active high/low state.
+		 */
+		gpio_direction_input(g->gpio);
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		nlow = nhigh = 0;
+		for (i = 0; i < 9; ++i) {
+			if (gpio_get_value(g->gpio))
+				++nlow;
+			else
+				++nhigh;
+			schedule_timeout(HZ / 25);
+		}
+		sense = (nlow >= nhigh ? 1 : 0);
+		printk(KERN_INFO DRIVER_NAME ": auto-detected active "
+			"%s receiver\n", (sense ? "low" : "high"));
+
+		gpio_free(g->gpio);
+	} else
+		printk(KERN_INFO DRIVER_NAME ": manually using active "
+			"%s receiver\n", (sense ? "low" : "high"));
 
 	/* request the timer peripheral */
 	ret = peripheral_request(g->mux, g->name);
@@ -200,6 +233,7 @@ static struct bfin_gptimer timer5 = {
 	.id     = TIMER5_id,
 	.bit    = TIMER5bit,
 	.mux    = P_TMR5,
+	.gpio   = GPIO_PF4,
 };
 static struct lirc_plugin __initdata plugin_template = {
 	.name         = DRIVER_NAME,
@@ -229,8 +263,7 @@ static int __init lirc_bfin_timer_init(void)
 	/* this optimization will not fair well with changing of
 	 * kernel clocks on the fly ...
 	 */
-	clamp_sclk_hi = usecs_to_sclk(clamp_usecs_hi);
-	clamp_sclk_lo = usecs_to_sclk(clamp_usecs_lo);
+	clamp_sclk = usecs_to_sclk(clamp_usecs);
 
 	/* init the plugin data */
 	g->opened = false;

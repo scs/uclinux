@@ -15,7 +15,7 @@ module:
 	CFLAGS="" CPPFLAGS="" LDFLAGS="" \
 	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD modules
 
-IP = 192.168.0.16
+IP = bfin
 RSH = rsh -l root $(IP)
 rcp: module
 	rcp lirc_bfin_timer.ko root@$(IP):/
