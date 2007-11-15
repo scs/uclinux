@@ -3,7 +3,7 @@ diff -Naur -x CVS /home/aubrey/commit/kernel/uClinux-dist/linux-2.6.x/drivers/ch
 +++ char/hello.c	2006-08-09 12:21:11.000000000 +0800
 @@ -0,0 +1,59 @@
 +/*                                                     
-+ * $Id$ 
++ * $Id: l1_memory_patch 5598 2007-09-19 01:37:42Z grace $ 
 + */                                                    
 +#include <linux/init.h>
 +#include <linux/module.h>

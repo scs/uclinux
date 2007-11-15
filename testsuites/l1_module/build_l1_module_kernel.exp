@@ -5,11 +5,11 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-step "Apply module_l1_memory config patch."
+step "Apply l1_module config patch."
 
 cd $uclinux_path/linux-2.6.x/drivers/char
 
-exec patch -p1 < ../../../testsuites/l1_memory/l1_memory_patch
+exec patch -p1 < ../../../testsuites/l1_module/l1_module_patch
 
 sleep 10
 

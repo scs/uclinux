@@ -13,11 +13,6 @@ source  make_default_config.exp
 
 # Following make specific configuration for this case.
 
-#step "Apply ad73311 config patch."
-
-#cd $uclinux_path/linux-2.6.x
-#exec patch -p1 < ../testsuites/audio/ad73311_config_patch
-
 sleep 3
 
 cd $uclinux_path
