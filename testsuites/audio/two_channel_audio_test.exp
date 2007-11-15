@@ -211,7 +211,7 @@ proc alsa_play_rec2play {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     }
 }
 
-spawn mpg123 -Z 0 ./audiotest.mp3
+spawn mpg123 -Z ./audiotest.mp3
 set plaympeg_id $spawn_id
 set spawn_id $kermit_spawn_id 
 set case_num 0

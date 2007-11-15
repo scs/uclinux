@@ -3,103 +3,87 @@
 #
 # Build Kernel for XIP test
 #
-source  ../kernel_config.exp
+
+source ../kernel_config.exp
 source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+set format [lindex $argv 1]
+send_log "\n#### binary_format is $format\n"
+
+if { $argc < 2} {
+    puts "Please input: board_type, binary_format(fdpic or shared-flat)"
+    exit
+}
+
 set HAVE_ROMFS_IMAGE 1
 
 cd $uclinux_path/testsuites
-step "Make default config."
+step "Make config."
 source  make_default_config.exp
 
-step "Make config"
-
 cd $uclinux_path
 set timeout 300
 spawn make config
 
 while 1 {
-   expect {
-     -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
-         send "$board_type\r"
+    expect {
+        -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+            send "$board_type\r"
+        }
+
+        -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+            send "y\r"
+        }
+
+        -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+            send "y\r"
+        }
+
+        -re "ROM file system support \\\(ROMFS_FS\\\).*\\\[./././.]" {
+            send "y\r"
+        }
+
+        -re "MTD-based ROM file system support \\\(ROMFS_MTD_FS\\\).*\\\[./././.]" {
+            send "y\r"
+        }
+
+        -re "Enable shared FLAT support \\\(BINFMT_SHARED_FLAT\\\).*\\\[././.]" {
+            send "y\r"
+        }
+
+        -re "Generic uClinux RAM/ROM filesystem support \\\(MTD_UCLINUX\\\).*\\\[./././.]" {
+            send "y\r"
+        }
+
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            if { $format == "fdpic" } {
+                send  "FDPIC\r"
+            } elseif { $format == "shared-flat" } {
+                send  "Shared-FLAT\r"
+            } else {
+                send "FDPIC\r"
+            }
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
       }
 
-      "\\\(*) \\\[*]" {
-         send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
-
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
-}
-
-cd $uclinux_path
-set timeout 300
-spawn make config
-
-while 1 {
-   expect {
-
-      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
-         send "$board_type\r"
-      }
-
-      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
-         send "y\r"
-      }
-
-      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
-         send "y\r"
-      }
-
-      -re "ROM file system support \\\(ROMFS_FS\\\).*\\\[./././.]" {
-         send "y\r"
-      }
-
-      -re "MTD-based ROM file system support \\\(ROMFS_MTD_FS\\\).*\\\[./././.]" {
-         send "y\r"
-      }
-
-      -re "Enable shared FLAT support \\\(BINFMT_SHARED_FLAT\\\).*\\\[././.]" {
-         send "y\r"
-      }
-
-      -re "Generic uClinux RAM/ROM filesystem support \\\(MTD_UCLINUX\\\).*\\\[./././.]" {
-         send "y\r"
-      }
-
-      -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
-         send "Shared-FLAT\r"
-      }
-
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
-
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        eof {
+            puts "End of configuration"
+            break
+        }
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites

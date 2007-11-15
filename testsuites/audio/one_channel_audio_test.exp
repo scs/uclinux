@@ -123,7 +123,7 @@ proc oss_rec2play {format channel rate file_type} {
     }
 }
 
-spawn mpg123 -Z 0 ./audiotest.mp3
+spawn mpg123 -Z ./audiotest.mp3
 set plaympeg_id $spawn_id
 
 set spawn_id $kermit_spawn_id 

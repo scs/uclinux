@@ -1,18 +1,21 @@
 #!/usr/bin/expect
 
-# Main entrance
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
+
+set format [lindex $argv 0]
+send_log "\n#### binary format is $format\n"
+
+if { $argc < 1} {
+    puts "Please input: binary format (FDPIC or SHARED-FLAT)"
+    exit
+}
+append TITLE " ($format)"
 
 step "Spawn kermit"
 source ../spawn_kermit.exp
-
-step "Reboot the kernel."
 
 step "Start testing."
 
@@ -24,61 +27,59 @@ set where_are_we 0
 send "version\r"
 set timeout 20
 expect {
+    "U-Boot" {
+        send_user "We are in u-boot\n"
+        set where_are_we "uboot"
+    }
 
-   "U-Boot" {
-      send_user "We are in u-boot\n"
-      set where_are_we "uboot"
-   }
+    "Linux" {
+        send_user "We are in the kernel\n"
+        set where_are_we "kernel"
+    }
 
-   "Linux" {
-      send_user "We are in the kernel\n"
-      set where_are_we "kernel"
-   }
-
-   timeout {
-      send_user "Can't tell if we are in u-boot or the kernel\n"
-   }
+    timeout {
+        send_user "Can't tell if we are in u-boot or the kernel\n"
+    }
 }
 
 if { $where_are_we == "uboot" } {
-   set timeout 50
-   expect ">"
-   send_user "sending reset\n"
-   send "reset\r"
+    set timeout 50
+    expect ">"
+    send_user "sending reset\n"
+    send "reset\r"
 } else {
-   if { $where_are_we == "kernel" } {
-      set timeout 60
-      expect ">"
-      send_user "sending reboot\n"
-      send "reboot\r"
-   } else {
-      set timeout 10
-      expect "*"
-      expect "*"
-      send_user "sending control-C\n"
-      send "\3"
-      sleep 1
-      send "\r"
-   }
+    if { $where_are_we == "kernel" } {
+        set timeout 60
+        expect ">"
+        send_user "sending reboot\n"
+        send "reboot\r"
+    } else {
+        set timeout 10
+        expect "*"
+        expect "*"
+        send_user "sending control-C\n"
+        send "\3"
+        sleep 1
+        send "\r"
+    }
 }
 
 while 1 {
-   expect {
+    expect {
+        "Hit any key " {
+            send "\r"
+        }
 
-      "Hit any key " {
-         send "\r"
-      }
+        ">" {
+            send_user "successful reset attemp\n"
+            break
+        }
 
-      ">" {
-         send_user "successful reset attemp\n"
-         break
-      }
-
-      timeout {
-         send_user "failed reset attemp\n"
-         break
-      }
-   }
+        timeout {
+            send_user "failed reset attemp\n"
+            break
+        }
+    }
 }
 
 send -s "set bootargs root=mtd0 rootfstype=romfs ro\r"
@@ -88,97 +89,95 @@ expect ">"
 
 send -s "tftpboot 0x1000000 linux.romfs\r"
 while 1 {
-   expect {
-      "#" {
-         expect ">"
+    expect {
+        "#" {
+            expect ">"
             break
-      }
-      timeout {
-         puts "Fail tftp"
-         break
-      }
-   }
+        }
+        timeout {
+            puts "Fail tftp"
+            break
+        }
+    }
 }
 
 send -s "boote\r"
 
 set timeout 180
 while 1 {
-   expect {
+    expect {
+        -re "Kernel panic" {
+            puts "kernel panic detected... "
+            case_fail $case_num
+        }
 
-      -re "Kernel panic" {
-         puts "kernel panic detected... "
-         case_fail $case_num
-      }
+        -re "Sash command shell.*/> " {
+            puts "successful boot attempt"
+            break
+        }
 
-      -re "Sash command shell.*/> " {
-         puts "successful boot attempt"
-         break
-      }
+        "root:~> " {
+            puts "successful boot attempt"
+            break
+        }
 
-      "root:~> " {
-         puts "successful boot attempt"
-         break
-      }
+        -re "Linux version (.*) " {
+            set linux_version $expect_out(1,string)
+        }
 
-      -re "Linux version (.*) " {
-         set linux_version $expect_out(1,string)
-      }
+# Look for gcc version N.N[.N[.N]]
+        -re "gcc version (\[0-9](\.\[0-9]+)+)" {
+            set gcc_version [lindex $expect_out(0,string) 2]
+        }
 
-      # Look for gcc version N.N[.N[.N]]
-      -re "gcc version (\[0-9](\.\[0-9]+)+)" {
-         set gcc_version [lindex $expect_out(0,string) 2]
-      }
+# Look for text followed by 1 or more spaces or tabs
+# followed by = followed by 1 or more spaces or tabs
+# followed by (0xNNNNNN-0xNNNNNN)
+        -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_text $expect_out(1,string)
+        }
 
-      # Look for text followed by 1 or more spaces or tabs
-      # followed by = followed by 1 or more spaces or tabs
-      # followed by (0xNNNNNN-0xNNNNNN)
-      -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_text $expect_out(1,string)
-      }
+        -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_data $expect_out(1,string)
+        }
 
-      -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_data $expect_out(1,string)
-      }
+        -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_bss $expect_out(1,string)
+        }
 
-      -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_bss $expect_out(1,string)
-      }
+        -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_rootfs $expect_out(1,string)
+        }
 
-      -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_rootfs $expect_out(1,string)
-      }
+# Note that here we're looking for zero or 1 space. Doh!
+        -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
+            set map_stack $expect_out(1,string)
+        }
 
-      # Note that here we're looking for zero or 1 space. Doh!
-      -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_stack $expect_out(1,string)
-      }
+        -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
+            #set instruction_cache_boot_flag $CACHE_ENABLED
+        }
 
-      -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
-         # set instruction_cache_boot_flag $CACHE_ENABLED
-      }
+        -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
+            #set instruction_cache_boot_flag $CACHE_DISABLED
+        }
 
-      -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
-         # set instruction_cache_boot_flag $CACHE_DISABLED
-      }
+        -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
+            #set data_cache_boot_flag $CACHE_ENABLED
+        }
 
-      -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
-         # set data_cache_boot_flag $CACHE_ENABLED
-      }
+        -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
+            #set data_cache_boot_flag $CACHE_DISABLED
+        }
 
-      -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
-         #set data_cache_boot_flag $CACHE_DISABLED
-      }
-
-      timeout {
-         puts "failed boot attempt"
-         case_fail $case_num
-      }
-   }
+        timeout {
+            puts "failed boot attempt"
+            case_fail $case_num
+        }
+    }
 }
 
 sleep 5
-
 
 case_pass $case_num
 
