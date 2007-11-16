@@ -51,7 +51,7 @@ struct bfin_gptimer {
 	const char *name;
 	int irq, id, bit, mux, gpio;
 	lirc_t pulse, space;
-	bool opened, skip_next_sample;
+	bool opened;
 	struct lirc_plugin plugin;
 	struct lirc_buffer lirc_buf;
 };
@@ -87,16 +87,9 @@ static irqreturn_t gptimer_irq(int irq, void *dev_id)
 	if (!get_gptimer_intr(g->id))
 		return IRQ_NONE;
 
-	/* check for overflow and queue ignore */
+	/* check for overflow and clear it */
 	if (get_gptimer_over(g->id)) {
 		clear_gptimer_over(g->id);
-		g->skip_next_sample = true;
-		goto finish;
-	}
-
-	/* if previous irq was an overflow, skip this */
-	if (g->skip_next_sample == true) {
-		g->skip_next_sample = false;
 		goto finish;
 	}
 
@@ -171,9 +164,9 @@ static int gptimer_set_use_inc(void *data)
 		nlow = nhigh = 0;
 		for (i = 0; i < 9; ++i) {
 			if (gpio_get_value(g->gpio))
-				++nlow;
-			else
 				++nhigh;
+			else
+				++nlow;
 			schedule_timeout(HZ / 25);
 		}
 		sense = (nlow >= nhigh ? 1 : 0);
@@ -201,7 +194,6 @@ static int gptimer_set_use_inc(void *data)
 	}
 
 	/* configure the timer and enable it */
-	g->skip_next_sample = false;
 	set_gptimer_config(g->id, WDTH_CAP | (sense ? PULSE_HI : 0) | PERIOD_CNT | IRQ_ENA);
 	enable_gptimers(g->bit);
 
