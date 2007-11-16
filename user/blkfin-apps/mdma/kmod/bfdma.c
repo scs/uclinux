@@ -272,7 +272,7 @@ static int __exit bfmdma_proc_exit(void)
 
 void ex_dmach1 (void);
 asm(
-".extern _return_from_exception;"
+".extern _bfin_return_from_exception;"
 "_ex_dmach1:\n\t"
 "	p5.h = " hi(MDMA_D1_CURR_DESC_PTR) ";\n\t"
 "	p5.l = " lo(MDMA_D1_CURR_DESC_PTR) ";\n\t"
@@ -287,7 +287,7 @@ asm(
 "	r2 = r2 >> 16 || w[p4]=r2;\n\t"
 "	w[p5]=r2;\n\t"
 "	csync;\n\t"
-"	p5.h = _return_from_exception; p5.l = _return_from_exception;\n\t"
+"	p5.h = _bfin_return_from_exception; p5.l = _bfin_return_from_exception;\n\t"
 "	jump (p5);\n\t"
 );
 
