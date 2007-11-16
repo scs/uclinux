@@ -271,25 +271,6 @@ static int __exit bfmdma_proc_exit(void)
 #define lo(x) XSTR((x&0xffff))
 
 void ex_dmach1 (void);
-asm(
-".extern _bfin_return_from_exception;"
-"_ex_dmach1:\n\t"
-"	p5.h = " hi(MDMA_D1_CURR_DESC_PTR) ";\n\t"
-"	p5.l = " lo(MDMA_D1_CURR_DESC_PTR) ";\n\t"
-"	p4.h = " hi(MDMA_S1_CURR_DESC_PTR) ";\n\t"
-"	p4.l = " lo(MDMA_S1_CURR_DESC_PTR) ";\n\t"
-"\n\t"
-"	[p5]=r1;\n\t"
-"	[p4]=r0;\n\t"
-"	p5.l = " lo(MDMA_D1_CONFIG) ";\n\t"
-"	p4.l = " lo(MDMA_S1_CONFIG) ";\n\t"
-"\n\t"
-"	r2 = r2 >> 16 || w[p4]=r2;\n\t"
-"	w[p5]=r2;\n\t"
-"	csync;\n\t"
-"	p5.h = _bfin_return_from_exception; p5.l = _bfin_return_from_exception;\n\t"
-"	jump (p5);\n\t"
-);
 
 static int bfdma_opened;
 static DEFINE_SPINLOCK(dma_lock);
