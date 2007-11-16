@@ -65,6 +65,7 @@ bool    'camera test'                   CONFIG_CAMERA_TEST
 bool    'string test'                   CONFIG_STRING_TEST
 bool    'mmap test'                     CONFIG_MMAP_TEST
 bool    'Crypto++ Lib Test program'     CONFIG_USER_CRYPTOPP_LIB_EXAMPLES
+bool    'MDMA Memory DMA TEST progs'    CONFIG_USER_MDMA_TESTS
 if [ "$CONFIG_USER_CRYPTOPP_LIB_EXAMPLES" = "y" ] ; then
 	define_bool CONFIG_LIB_CRYPTOPP y
 fi
@@ -78,6 +79,9 @@ fi
 bool	'libipod examples'	CONFIG_USER_LIBIPOD_EXAMPLES
 if [ "$CONFIG_USER_LIBIPOD_EXAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_LIBIPOD y
+fi
+if [ "$CONFIG_USER_MDMA_TESTS" = "y" ] ; then
+	define_bool CONFIG_USER_MDMA_KO y
 fi
 endmenu
 

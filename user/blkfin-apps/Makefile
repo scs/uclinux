@@ -32,6 +32,8 @@ dir_$(CONFIG_USER_AWG)                           += ndso
 dir_$(CONFIG_USER_NDSO)                          += ndso
 dir_$(CONFIG_USER_NET_AUDIO)                     += net_audio
 dir_$(CONFIG_USER_NET_AUDIO)                     += musicpd
+dir_$(CONFIG_USER_MDMA_TESTS)                    += mdma
+dir_$(CONFIG_USER_MDMA_KO)                       += mdma
 
 all %::
 	for i in $(dir_y) ; do $(MAKE) -C $$i $@ || exit $$? ; done
