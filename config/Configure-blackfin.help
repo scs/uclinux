@@ -48,3 +48,9 @@ CONFIG_LIB_DMALLOC_FORCE
 
 CONFIG_USER_DAGRAB_DAGRAB
   Fixed point cd ripper
+
+CONFIG_USER_MDMA_KO
+  Execute memory dma's with little overhead from userspace.
+  See the example programs in user/blkfin-apps/mdma/ for more
+  information.  Also check out the documentation:
+  http://docs.blackfin.uclinux.org/doku.php?id=2d-dma
