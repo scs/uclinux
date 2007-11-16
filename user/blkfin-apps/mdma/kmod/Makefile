@@ -6,7 +6,7 @@ ROOTDIR  ?= $(PWD)/../../../..
 LINUXDIR ?= linux-2.6.x
 
 obj-m := bfdma.o
-bfdma-objs := bfdma_ex.o
+bfdma-objs := bfdma_main.o bfdma_ex.o
 
 CFLAGS += -Wall -g -O0
 
