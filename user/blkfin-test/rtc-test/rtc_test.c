@@ -21,6 +21,7 @@ int main(int argc, char *argv[])
 	int ret, i;
 	struct rtc_time rtc_tm;
 	char *rtc_dev = "/dev/rtc0";
+	time_t t1, t2;
 
 	if (argc > 1)
 		rtc_dev = argv[1];
@@ -120,6 +121,7 @@ int main(int argc, char *argv[])
 		perror("rtc ioctl RTC_ALM_READ error");
 	}
 
+	t1 = time(NULL);
 	printf("Alarm time now set to %02d:%02d:%02d\n",
 		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
 
@@ -135,7 +137,12 @@ int main(int argc, char *argv[])
 	if (ret == -1) {
 		perror("rtc read error");
 	}
-	printf(" Okay. Alarm rang.\n");
+
+	t2 = time(NULL);
+	if (t2 - t1 < 40)
+		fprintf(stderr, " Fail!  Alarm rang too fast ... took %i seconds instead of 50!\n", (int)(t2 - t1));
+	else
+		printf(" Okay. Alarm rang.\n");
 
 	ret = ioctl(rtc_fd, RTC_RD_TIME, &rtc_tm);
 	if (ret == -1) {
