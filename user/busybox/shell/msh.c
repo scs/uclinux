@@ -3798,7 +3798,7 @@ static char **eval(char **ap, int f)
 		}
 		for (wb = addword((char *) 0, wb); *ap; ap++) {
 			if (!flag['k'] || !isassign(*ap))
-				expand(*ap, &wb, (f & ~DOKEY) & ~DOTRIM);
+				expand(*ap, &wb, (f & ~DOKEY));
 		}
 		wb = addword((char *) 0, wb);
 		wp = getwords(wb);
