@@ -93,6 +93,9 @@ MACHINE=
 
 DEFINES= -DLINUX $(NO_UNAME)
 
+LINKFLAGS += $(LDFLAGS)
+DEFINES += $(CPPFLAGS)
+
 ##########################################################################
 # For LINUX-like systems with gcc
 sysinfoc.c: Makefile
