@@ -92,6 +92,12 @@ init_clock_sig(
 {
 # ifdef USE_TTY_SIGPOLL
 	{
+# ifndef I_SETSIG
+#  define I_SETSIG (('S' << 8) | 9)
+# endif
+# ifndef S_INPUT
+#  define S_INPUT 0x0001
+# endif
 		/* DO NOT ATTEMPT TO MAKE CLOCK-FD A CTTY: not portable, unreliable */
 		if (ioctl(rio->fd, I_SETSIG, S_INPUT) < 0)
 		{
