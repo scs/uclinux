@@ -1,4 +1,4 @@
-VER := ntp-4.2.0
+VER := ntp-4.2.4p4
 
 ifdef CONFIG_USER_NTPD_NTPDATE
 NTPDATE := with
@@ -66,3 +66,5 @@ builddir: makefile
 
 clean:
 	rm -rf builddir
+
+.PHONY: all clean romfs
