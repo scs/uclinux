@@ -1,3 +1,5 @@
+VER := ntp-4.2.0
+
 ifdef CONFIG_USER_NTPD_NTPDATE
 NTPDATE := with
 else
@@ -50,13 +52,14 @@ romfs:
 
 
 builddir: makefile
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	rm -rf builddir
 	mkdir builddir
 	( \
 		cd builddir; \
 		CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" \
 		MISSING="true" \
-			../configure --prefix= \
+			../$(VER)/configure --prefix= \
 			--with-headers=$(ROOTDIR)/$(LINUXDIR)/include \
 			$(CONFIGURE_OPTS) $(CONFOPTIONS) \
 	)
