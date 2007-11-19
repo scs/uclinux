@@ -22,6 +22,8 @@ $(LIBZMODEM): dummy_target
 
 romfs:
 	make -C src romfs
+	$(ROMFSINST) -e CONFIG_USER_LRZSZ_LSZ -s lsz /bin/sz
+	$(ROMFSINST) -e CONFIG_USER_LRZSZ_LRZ -s lrz /bin/rz
 
 clean:
 	-rm -f $(SH) $(SHUTDOWN) $(REBOOT) *.elf *.gdb *.o
