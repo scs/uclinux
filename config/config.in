@@ -631,6 +631,7 @@ if [ "$CONFIG_USER_NTPD_NTPD" = "y" ]; then
 fi
 bool 'ntpdate'			CONFIG_USER_NTPD_NTPDATE
 bool 'ntpq'			CONFIG_USER_NTPD_NTPQ
+bool 'openntpd'			CONFIG_USER_OPENNTPD
 bool 'openssl'			CONFIG_USER_OPENSSL_APPS
 if [ "$CONFIG_USER_OPENSSL_APPS" = "y" ]; then
 	define_bool	CONFIG_LIB_LIBSSL y

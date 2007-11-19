@@ -49,6 +49,9 @@ CONFIG_LIB_DMALLOC_FORCE
 CONFIG_USER_DAGRAB_DAGRAB
   Fixed point cd ripper
 
+CONFIG_USER_OPENNTPD
+  Simple ntpd daemon: http://www.openntpd.org/
+
 CONFIG_USER_MDMA_KO
   Execute memory dma's with little overhead from userspace.
   See the example programs in user/blkfin-apps/mdma/ for more
