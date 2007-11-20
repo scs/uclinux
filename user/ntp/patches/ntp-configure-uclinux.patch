@@ -1,0 +1,152 @@
+match uclinux targets with the normal linux matches
+
+https://support.ntp.org/bugs/show_bug.cgi?id=964
+
+Index: configure
+===================================================================
+--- configure	(revision 5759)
++++ configure	(working copy)
+@@ -32300,7 +32300,7 @@ esac
+ 
+ 
+ case "$host" in
+- *-*-linux*) ;;
++ *-*-*linux*) ;;
+  *)
+ 
+ echo "$as_me:$LINENO: checking for sched_setscheduler in -lrt" >&5
+@@ -38078,7 +38078,7 @@ done
+ esac
+ 
+ case "$host" in
+- *-*-linux*)
++ *-*-*linux*)
+ 
+ 
+ for ac_func in __adjtimex __ntp_gettime
+@@ -43940,7 +43940,7 @@ yes|glibc)
+ # Do we have getifaddrs() ?
+ #
+ case $host in
+-*-linux*)
++*-*linux*)
+ 	# Some recent versions of glibc support getifaddrs() which does not
+ 	# provide AF_INET6 addresses while the function provided by the USAGI
+ 	# project handles the AF_INET6 case correctly.  We need to avoid
+@@ -45537,7 +45537,7 @@ case "$host" in
+  *-*-irix[45]*)
+     # Just a stub in "old" Irix.  Idiots.
+     ;;
+- *-*-linux*)
++ *-*-*linux*)
+     # there, but more trouble than it is worth for now (resolver problems)
+     ;;
+  *-*-qnx*)
+@@ -48395,7 +48395,7 @@ else
+  *-*-hpux*)
+     ans=yes
+     ;;
+- *-*-linux*)
++ *-*-*linux*)
+     ans=yes
+     ;;
+  *-*-sunos3*)
+@@ -48486,7 +48486,7 @@ if test "${ac_cv_os_wildcardreuse+set}" 
+   echo $ECHO_N "(cached) $ECHO_C" >&6
+ else
+   case "$host" in
+- *-*-linux*)
++ *-*-*linux*)
+     ans=yes
+     ;;
+  *) ans=no
+@@ -48623,7 +48623,7 @@ case "$ac_cv_hdr_def_sigio" in
+      *-*-freebsd*)
+ 	ans=no
+ 	;;
+-     *-*-linux*)
++     *-*-*linux*)
+ 	ans=no
+ 	;;
+      *-*-unicosmp*)
+@@ -48729,7 +48729,7 @@ case "$ac_cv_hdr_def_sigpoll" in
+      *-*-hpux*)
+         ans=no
+         ;;
+-     *-*-linux*)
++     *-*-*linux*)
+ 	ans=no
+ 	;;
+      *-*-osf*)
+@@ -48791,7 +48791,7 @@ case "$ac_cv_hdr_def_sigpoll" in
+      *-*-hpux*)
+         ans=no
+         ;;
+-     *-*-linux*)
++     *-*-*linux*)
+ 	ans=no
+ 	;;
+      *-*-osf*)
+@@ -48919,7 +48919,7 @@ if test "${ac_cv_var_no_parenb_ignpar+se
+ else
+   ans=no
+ case "$host" in
+- i?86-*-linux*)
++ i?86-*-*linux*)
+     ans=yes
+     ;;
+  mips-sgi-irix*)
+@@ -49080,7 +49080,7 @@ if test "${ac_cv_var_typeof_ip_multicast
+   echo $ECHO_N "(cached) $ECHO_C" >&6
+ else
+   case "$host" in
+-	 *-*-netbsd*|*-*-linux*)
++	 *-*-netbsd*|*-*-*linux*)
+ 	    ac_cv_var_typeof_ip_multicast_loop=u_int
+ 	    ;;
+ 	 *-*-winnt*)
+@@ -50763,7 +50763,7 @@ if test "${ac_cv_var_rawdcf_parity+set}"
+ else
+   ans=no
+     case "$host" in
+-     *-*-linux*)
++     *-*-*linux*)
+         ans=yes
+         ;;
+     esac
+@@ -51276,7 +51276,7 @@ echo $ECHO_N "checking if we can make dc
+ ans=no
+ if test "$ntp_parseutil" = "yes"; then
+     case "$host" in
+-     *-*-sunos4*|*-*-solaris2*|*-*-linux*|*-*-netbsd*)
++     *-*-sunos4*|*-*-solaris2*|*-*-*linux*|*-*-netbsd*)
+ 	ans="dcfd testdcf"
+ 	DCFD=dcfd
+         TESTDCF=testdcf
+@@ -51399,7 +51399,7 @@ else
+      *-*-irix[456]*)
+ 	ans=no
+ 	;;
+-     *-*-linux*)
++     *-*-*linux*)
+ 	ans=no
+ 	;;
+      *-*-winnt3.5)
+@@ -51451,7 +51451,7 @@ else
+       *-ibm-aix[45]*)
+ 	 ans=yes
+ 	 ;;
+-      *-*-linux*)
++      *-*-*linux*)
+ 	 ans=yes
+ 	 ;;
+       *-*-solaris2.[01])
+@@ -51766,7 +51766,7 @@ else
+       *-*-irix*)
+ 	 ans=10000
+ 	 ;;
+-      *-*-linux*)
++      *-*-*linux*)
+ 	 ans=txc.tick
+ 	 ;;
+       *-*-mpeix*)
