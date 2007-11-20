@@ -53,7 +53,7 @@ while 1 {
      }
 }
 
-
+expect ">"
 
 incr case_num
 send "ztcfg\r" 
@@ -73,7 +73,7 @@ while 1 {
 
 
 incr case_num
-send "cd /usr/var\r" 
+send "cp -a /usr/var/*  /var/\r" 
 while 1 {
    expect {
       ">" {
@@ -89,22 +89,7 @@ while 1 {
 }
 
 incr case_num
-send "cp spool/ /var -r \r"
-while 1 {
-   expect {
-      ">" {
-                case_pass $case_num
-                break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit
-         }
-     }
-}
-incr case_num
-send "cp * /var -r\r"
+send "rm -rf /usr/var \r"
 while 1 {
    expect {
       ">" {
@@ -123,8 +108,10 @@ incr case_num
 send "asterisk -vvvc\r"
 while 1 {
    expect {
-      ">" {
+      "CLI>" {
                 case_pass $case_num
+                send -s "\3"
+                expect "Asterisk cleanly ending"
                 break
       }
 
