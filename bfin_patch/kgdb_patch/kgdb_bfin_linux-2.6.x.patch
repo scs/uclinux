@@ -2167,8 +2167,8 @@ diff -urN linux-2.6.x.old/net/core/netpoll.c linux-2.6.x/net/core/netpoll.c
  	---help---
  	  If you say yes here you will get support for the Blackfin On-Chip
  	  Watchdog Timer. If you have one of these processors and wish to
---- linux-2.6.x.old/arch/blackfin/Kconfig	2007-09-27 12:09:57.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/Kconfig	2007-09-27 15:17:26.000000000 +0800
+--- linux-2.6.x.old/arch/blackfin/Kconfig.debug 	2007-09-27 12:09:57.000000000 +0800
++++ linux-2.6.x/arch/blackfin/Kconfig.debug	2007-09-27 15:17:26.000000000 +0800
 @@ -1157,6 +1157,8 @@
  	  Say Y here to disable hardware tracing in some known "jumpy" pieces
  	  of code so that the trace buffer will extend further back.
