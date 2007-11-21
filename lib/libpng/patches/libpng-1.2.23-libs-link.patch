@@ -1,0 +1,5 @@
+--- libpng-1.2.22/scripts/libpng.pc-configure.in
++++ libpng-1.2.23/scripts/libpng.pc-configure.in
+@@ -9,1 +9,1 @@
+-Libs: -L${libdir} -lpng12
++Libs: -L${libdir} -lpng12 -lz -lm
