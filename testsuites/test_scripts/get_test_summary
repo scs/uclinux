@@ -11,7 +11,7 @@ fi
 
 ls build*kernel_log*  > test_summary/all_build_log_list
 
-grep -r "Leaving directory.*uclinux-dist\/vendors\/AnalogDevices" -m 10 -A 3 build*kernel_log* | grep "STEP .* Copy" | sed 's/\-/ /'| awk '{print$1}'| uniq > test_summary/build_kernel_pass_log
+grep -r "Leaving directory.*uclinux-dist\/vendors\/AnalogDevices" -m 10 -A 3 build*kernel_log* | grep "STEP .* Copy" | sed 's/\-\*/ \*/'| awk '{print$1}'| uniq > test_summary/build_kernel_pass_log
 
 echo -e "\n######The following build kernel fails:#######\n" > test_summary/summary
 comm -3  test_summary/all_build_log_list  test_summary/build_kernel_pass_log > test_summary/build_kernel_fail_log
