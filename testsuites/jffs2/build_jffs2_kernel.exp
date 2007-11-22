@@ -166,6 +166,13 @@ while 1 {
              }
       }
 
+       -re "Physical length of flash mapping.*MTD_PHYSMAP_LEN.*\\\[.*]" {
+
+             if { $board_type == "BF548-EZKIT" } {
+                send -s "0x600000\r"
+             }
+      }
+
  
        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
              
