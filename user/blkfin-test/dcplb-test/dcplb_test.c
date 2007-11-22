@@ -38,6 +38,7 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <strings.h>
+#include <limits.h>
 
 
 #define VERSION         "0.1"
@@ -58,6 +59,31 @@ usage (FILE * fp, int rc)
   exit (rc);
 }
 
+unsigned long
+str2long (char *str, char *opt)
+{
+  int base;
+  char *endptr;
+  long val;
+
+  base = (str[1] == 'x' || str[1] == 'X') ? 16 : 10;
+
+  errno = 0;    /* To distinguish success/failure after call */
+  val = strtoul(str, &endptr, base);
+
+  if ((errno == ERANGE && (val == LONG_MAX || val == LONG_MIN)) || (errno != 0 && val == 0)) {
+    fprintf(stderr, "error when parsing -%s\n", opt);
+    perror("strtol");
+    exit(EXIT_FAILURE);
+  }
+
+  if (endptr == str) {
+    fprintf(stderr, "No digits were found when parseing -%s\n", opt);
+    exit(EXIT_FAILURE);
+  }
+
+  return val;
+}
 int
 main (int argc, char *argv[])
 {
@@ -70,7 +96,7 @@ main (int argc, char *argv[])
 
   start = 0x4000;
   inc = 0x1000;
-  end = 0x0;
+  end = 0x8000;
 
     while ((c = getopt (argc, argv, "vch?s:e:i:")) > 0)
      {
@@ -80,13 +106,13 @@ main (int argc, char *argv[])
         printf ("%s: version %s\n", argv[0], VERSION);
         exit (0);
       case 's':
-        start = atol(optarg);
+        start = str2long(optarg, "s");
         break;
       case 'e':
-        end = atol(optarg);
+        end = str2long(optarg, "e");
         break;
       case 'i':
-        inc = atol(optarg);
+        inc = str2long(optarg, "i");
         break;
       case 'h':
       case '?':
@@ -102,6 +128,11 @@ main (int argc, char *argv[])
   printf ("Start:\t 0x%X\n",start);
   printf ("End:\t 0x%X\n",end);
   printf ("Incr:\t 0x%X\n\n",inc);
+
+  if(start >= end ){
+    usage (stdout, 0);
+    return 0;
+  }
 
   for(x=start; x<=end; x+=inc){
     ACCESS(x);
