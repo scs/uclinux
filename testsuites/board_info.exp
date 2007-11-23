@@ -18,7 +18,8 @@ set rootfs_end_addr 0x203effff
 set spi_kernel_start_addr 0x20000
 set spi_rootfs_start_addr 0x100000
 set spi_rootfs_size 0x6fffff
-set spi_rootfs_num 3
+set pnor_rootfs_num 2
+set spi_rootfs_num 2
 set nand_rootfs_num 1
 
 } elseif { $board_type == "BF561-EZKIT" } {
@@ -27,6 +28,7 @@ set kernel_start_addr 0x20040000
 set kernel_end_addr 0x201fffff
 set rootfs_start_addr 0x20200000
 set rootfs_end_addr 0x207fffff
+set pnor_rootfs_num 2
 
 } elseif { $board_type == "BF548-EZKIT" } {
 set kernel_start_addr 0x20040000
@@ -35,6 +37,7 @@ set rootfs_start_addr 0x20200000
 set rootfs_end_addr 0x205fffff
 set spi_rootfs_start_addr 0x40000
 set spi_rootfs_size 0x1bffff
+set pnor_rootfs_num 2
 set spi_rootfs_num 4
 set nand_rootfs_num 2 
 }

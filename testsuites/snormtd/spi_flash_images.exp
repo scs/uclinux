@@ -22,8 +22,8 @@ if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
 
 set bootargs 		 $bootargs_param1
 }  elseif { $board_type == "BF548-EZKIT" } {
-
-set bootargs 		 $bootargs_param8
+#set bootargs 		 $bootargs_param8
+exit
 }
 send -s "set bootargs $bootargs\r" 
 expect ">"
@@ -99,8 +99,6 @@ expect {
 expect ">"  
  
 
-if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-
 send -s "eeprom write 0x1000000 $spi_kernel_start_addr 0x$image_size\r"
 
 while 1 {
@@ -142,12 +140,6 @@ while 1 {
 
 expect ">"
 
-} elseif { $board_type == "BF548-EZKIT" } {
-
-send -s "cp.b 0x1000000 0x2000000 0x$image_size\r"
-
-expect ">"
-}
 send -s "cmp.b 0x1000000 0x2000000 0x$image_size\r"
 
 while 1 {
@@ -257,5 +249,5 @@ send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
 log_file
-	  
 send_user "Ending $argv0\n" 
+exit 0	  

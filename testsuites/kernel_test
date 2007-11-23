@@ -804,8 +804,10 @@ do
   ./build_snormtd_kernel.exp $BOARD_TYPE   >/dev/null  2>&1
   sleep 30
   ./spi_flash_images.exp $BOARD_TYPE >/dev/null  2>&1
+  if [ $? == 0 ] ; then
   sleep 30
   ./snormtd_reboot_test.exp $BOARD_TYPE >/dev/null  2>&1
+  fi
   sleep 30
 
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.snormtd

@@ -46,7 +46,7 @@ send -s "cat /proc/mtd \r"
 while 1 {
     expect {
 
-	"mtd2" {
+	"mtd$pnor_rootfs_num" {
 		set mtd_temp_result $TEST_PASS
                 case_pass $case_num
 	}
@@ -73,7 +73,7 @@ incr case_num
 step "Erase MTD "
 set mtd_temp_result $TEST_FAIL
 set timeout 180
-send -s "eraseall /dev/mtd2\r"
+send -s "eraseall /dev/mtd$pnor_rootfs_num\r"
 while 1 {
     expect {
 	
@@ -112,7 +112,7 @@ incr case_num
 step "Writing MTD"
 set mtd_temp_result $TEST_FAIL
 set timeout 60
-send -s "cp mtd.img /dev/mtd2\r"
+send -s "cp mtd.img /dev/mtd$pnor_rootfs_num\r"
 while 1 {
     expect {
 	
@@ -138,7 +138,7 @@ incr case_num
 step "Reading MTD "	
 set mtd_temp_result $TEST_FAIL
 set timeout 60
-send -s "mount -t jffs2 /dev/mtdblock2 /mnt\n"
+send -s "mount -t jffs2 /dev/mtdblock$pnor_rootfs_num /mnt\n"
 while 1 {
     expect {
                                                                                                                                                              
