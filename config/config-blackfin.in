@@ -46,7 +46,8 @@ bool    'TWI KEYPAD test program'       CONFIG_USER_BLACKFIN_TWIKEYPADTEST
 bool    'RTS/CTS test program'          CONFIG_USER_BLACKFIN_RTSCTSTEST
 bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
 bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
-bool    'Kernel Panic (test Watchdog)'  CONFIG_USER_BLACKFIN_CRASHTEST
+bool    'Kernel Panic (test Watchdog)'  CONFIG_USER_BLACKFIN_PANICTEST
+bool    'Trap tests'                    CONFIG_USER_BLACKFIN_TRAPSTEST
 bool    'netperf test tool'             CONFIG_USER_NETPERF_TEST
 bool    'SYSVIPC testcase'              CONFIG_USER_SYSVIPC_TEST
 bool    'Still to write'                CONFIG_YET

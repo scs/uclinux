@@ -1,13 +1,16 @@
-EXEC = crash_test
-OBJS = crash_test.o
+EXEC = crash_test traps_test
 
 all: $(EXEC)
 
-$(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS$(LDLIBS_$@))
+crash_test:
+	$(CC) $(LDFLAGS) crash_test.c -o $@ $(LDLIBS)
+
+traps_test:
+	$(CC) $(LDFLAGS) traps_test.c -o $@ $(LDLIBS)
 
 romfs:
-	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) -e CONFIG_USER_BLACKFIN_PANICTEST /bin/crash_test
+	$(ROMFSINST) -e CONFIG_USER_BLACKFIN_TRAPSTEST /bin/traps_test
 
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
