@@ -279,7 +279,6 @@ proc recover {} {
 	 #sleep 5
 	 catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
 	 catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
-	 catch {exec rcp $LTP_TESTCASES_DIR/sig_rev root@$ipaddr:/.}
 	 catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
 	 catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
 	#sleep 5
@@ -435,7 +434,6 @@ proc force_reboot {} {
             catch {exec rcp $LTP_SCRIPT_DIR/config/group root@$ipaddr:/etc}
             catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
             catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
-            catch {exec rcp $LTP_TESTCASES_DIR/sig_rev root@$ipaddr:/.}
             catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
             catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
             set timeout 4
@@ -1243,7 +1241,6 @@ set result_matrix {
        { alarm01     	     {alarm01}                     	 notrun		UCLINUX } 
        { alarm02     	     {alarm02}                     	 notrun		UCLINUX } 
        { alarm03     	     {alarm03}                     	 notrun		UCLINUX } 
-       { alarm04     	     {alarm04}                     	 notrun		UCLINUX } 
        { alarm05     	     {alarm05}                     	 notrun		UCLINUX } 
        { alarm06     	     {alarm06}                     	 notrun		UCLINUX } 
        { alarm07     	     {alarm07}                     	 notrun		UCLINUX } 
@@ -1460,6 +1457,8 @@ set result_matrix {
        { ioperm02     	     {ioperm02}                     	 notrun		UCLINUX } 
        { iopl01     	     {iopl01}                     	 notrun		UCLINUX } 
        { iopl02     	     {iopl02}                     	 notrun		UCLINUX } 
+       { inotify01     	     {inotify01}                     	 notrun		UCLINUX } 
+       { inotify02     	     {inotify02}                     	 notrun		UCLINUX } 
        { kill01     	     {kill01}                     	 notrun		UCLINUX } 
        { kill02     	     {kill02}                     	 notrun		UCLINUX } 
        { kill03     	     {kill03}                     	 notrun		UCLINUX } 
@@ -1838,6 +1837,7 @@ set result_matrix {
        { swapoff02     	     {swapoff02}                     	 notrun		NA } 
        { swapon01     	     {swapon01}                     	 notrun		NA } 
        { swapon02     	     {swapon02}                     	 notrun		NA } 
+       { swapon03     	     {swapon03}                     	 notrun		NA } 
        { symlink01     	     {symlink01}                     	 notrun		UCLINUX } 
        { symlink02     	     {symlink02}                     	 notrun		UCLINUX } 
        { symlink03     	     {symlink03}                     	 notrun		UCLINUX } 
@@ -1931,6 +1931,7 @@ set result_matrix {
        { writev03     	     {writev03}                     	 notrun		NA } 
        { writev04     	     {writev04}                     	 notrun		NA } 
        { writev05     	     {writev05}                     	 notrun		NA } 
+       { writev06     	     {writev06}                     	 notrun		NA } 
 }
 
 
@@ -2032,8 +2033,8 @@ catch {exec ./build_ltp.sh $cvs_server_addr > build_ltp_log}
 #set LTP_SOURCE_DIR		"$cwd/ltp/$LTP_SUB_DIR"
 #set LTP_TESTCASES_DIR           "$cwd/ltp/$LTP_SUB_DIR/testcases/bin"
 #set LTP_SUB_DIR			[exec cat ltp/current]
-set LTP_SOURCE_DIR		"$cwd/ltp-full-20061222"
-set LTP_TESTCASES_DIR           "$cwd/ltp-full-20061222/testcases/bin"
+set LTP_SOURCE_DIR		"$cwd/ltp-full-20071031"
+set LTP_TESTCASES_DIR           "$cwd/ltp-full-20071031/testcases/bin"
 
 cd $LTP_SOURCE_DIR
 #exec make uclinux
@@ -2355,10 +2356,8 @@ step "copy /etc/group"
 #sleep 5
 catch {exec rcp $LTP_TESTCASES_DIR/symlink01 root@$ipaddr:/bin}
 catch {exec rcp $LTP_TESTCASES_DIR/creat_slink root@$ipaddr:/bin}
-catch {exec rcp $LTP_TESTCASES_DIR/sig_rev root@$ipaddr:/bin}
 catch {exec rcp $LTP_TESTCASES_DIR/test1 root@$ipaddr:/bin}
 catch {exec rcp $LTP_TESTCASES_DIR/test3 root@$ipaddr:/bin}
-catch {exec rcp $LTP_TESTCASES_DIR/sig_rev root@$ipaddr:/.}
 
 send "export PATH=\$PATH:/bin\r"
 expect "/bin>"

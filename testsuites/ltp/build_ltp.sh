@@ -35,7 +35,7 @@ fi
 
 # Checkout ltp source directory
 #LTP_WORKING_DIR=`cat ltp/current`
-LTP_SUB_DIR=ltp-full-20061222
+LTP_SUB_DIR=ltp-full-20071031
 CWD=`pwd`
 
 #echo "$0:	Get ltp working directory [$LTP_WORKING_DIR]"
