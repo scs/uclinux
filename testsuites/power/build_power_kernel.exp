@@ -75,6 +75,75 @@ while 1 {
             send "m\r"
         }
 
+#Audio Output
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS\\\).*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+            send "m\r"
+        }
+
+#        -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
+#            send "m\r"
+#        }
+
+#        -re "SoC Audio for the ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
+#            send "m\r"
+#        }
+
+#        -re "SoC AC97 Audio support for BF5xx.*SND_BF5XX_SOC_BF5xx.*\\\[.*]" {
+#            send "m\r"
+#        }
+
+        -re "3 Stereos .*SND_BLACKFIN_AD1836_MULSUB.*choice\\\[.*]" {
+            send "1\r"
+        }
+
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            send "FDPIC\r"
+        }
+
+        -re "ALSA utils.*CONFIG_USER_ALSA_UTILS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "vplay.*CONFIG_USER_VPLAY_VPLAY.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "vrec.*CONFIG_USER_VPLAY_VREC.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "tone.*CONFIG_USER_PLAY_TONE.*\\\[.*]" {
+            send "y\r"
+        }
+
         "\\\(*) \\\[*]" {
             sleep .01
             send "\r"

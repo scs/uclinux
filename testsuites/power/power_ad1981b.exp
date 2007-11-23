@@ -33,27 +33,27 @@ proc standby_test_case1 {} {
         }
     }
 
-    set timeout 15
     incr case_num
-    send "video_test\r"
+    set timeout 10
+    send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
     while 1 {
         expect {
-            -re "\r\n\[a-zA-Z0-9]" {
-                case_fail $case_num
-            }
-            timeout {
+            -re "Stereo \.\.\.\r\nroot:~>" {
                 case_pass $case_num
                 break
+            }
+            timeout {
+                case_fail $case_num
             }
         }
     }
 
-    set timeout 15
     incr case_num
-    send -s "\3"
+    set timeout 10
+    send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
     while 1 {
         expect {
-            "root:~>" {
+            -re "Stereo\r\nroot:~>" {
                 case_pass $case_num
                 break
             }
@@ -81,6 +81,23 @@ proc standby_test_case2 {} {
             }
         }
     }
+
+    incr case_num
+    send "ps ax|grep tone|awk \'\$5==\"tone\" {print \$1}\'\r"
+    while 1 {
+        expect {
+            -re "\[0-9]+\r\nroot:~>" {
+                case_pass $case_num
+                break
+            }
+            -re "root:~>" {
+                case_fail $case_num
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
 }
 
 
@@ -89,57 +106,55 @@ set case_num 0
 set Total_Count 5
 sleep 5
 send "\r"
-expect ">"
 
 set timeout 20
 incr case_num
-send "modprobe bfin_ad7171fb\r"
+send "modprobe snd-ad1981\r"
 while 1 {
     expect {
-        -re "bfin_ad7171_fb: initializing.*fb memory address : 0x.*>" {
+        -re "Found AD1981.*>" {
             break
         }
         timeout {
-            send_user "Install ADV7393 module failed!\r"
+            send_user "Install AD1981 module failed!\r"
             case_fail $case_num
         }
     }
 }
-send "lsmod\r"
+send "lsmod\r" 
 while 1 {
     expect {
-        -re "bfin_ad7171fb.*>" {
+        -re "snd_ad1981.*>" {
             case_pass $case_num
             break
         }
         timeout {
-            send_user "Install ADV7393 module failed!\r"
             case_fail $case_num
         }
     }
 }
 
-set timeout 15
 incr case_num
-send "video_test\r"
+set timeout 10
+send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
 while 1 {
     expect {
-        -re "\r\n\[a-zA-Z0-9]" {
-            case_fail $case_num
-        }
-        timeout {
+        "Stereo \.\.\.\r\nroot:~>" {
             case_pass $case_num
             break
+        }
+        timeout {
+            case_fail $case_num
         }
     }
 }
 
-set timeout 15
 incr case_num
-send -s "\3"
+set timeout 10
+send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
 while 1 {
     expect {
-        "root:~>" {
+        "Stereo\r\nroot:~>" {
             case_pass $case_num
             break
         }
@@ -186,7 +201,7 @@ for {set count 1} {$count <= $Total_Count} {incr count} {
 
 set timeout 15
 incr case_num
-send "video_test&\r"
+send "tone &\n"
 while 1 {
     expect {
         -re "\[0-9]+\r\nroot:~>" {
@@ -208,7 +223,7 @@ for {set count 1} {$count <= $Total_Count} {incr count} {
 
 set timeout 20
 incr case_num
-send "video_test_id=\`ps ax|grep video_test|awk \'\$5==\"video_test\" {print \$1}\'\`; kill \$video_test_id\r"
+send "audio_test_id=\`ps ax|grep tone|awk \'\$5==\"tone\" {print \$1}\'\`; kill \$audio_test_id\r"
 while 1 {
     expect {
         -re "kill:.*>|Usage:.*>" {
@@ -226,10 +241,10 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "rmmod bfin_ad7171fb\r"
+send "rmmod snd-ad1981\r"
 while 1 {
     expect {
-        -re "rmmod: bfin_ad7171fb.*>" {
+        -re "rmmod:.*>" {
             case_fail $case_num
         }
         -re "root:~>" {
@@ -251,7 +266,7 @@ while 1 {
             case_pass $case_num
             break
         }
-        "bfin_ad7171fb" {
+        -re "snd_ad1981" {
             case_fail $case_num
         }
         timeout {
