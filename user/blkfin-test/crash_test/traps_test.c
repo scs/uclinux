@@ -35,6 +35,10 @@
 /* Can't do this in userspace */
 
 /* Undefined instruction -                             EXCAUSE 0x21 */
+void unknown_instruction(void)
+{
+	asm(".word 0x0001;");
+}
 
 /* Illegal instruction combination -                   EXCAUSE 0x22 */
 
@@ -103,18 +107,37 @@ void jump_to_zero(void)
 	(*foo)();
 }
 
-/* Illegal use of supervisor resource - -              EXCAUSE 0x2E */
+/* Illegal use of supervisor resource -                EXCAUSE 0x2E */
 void supervisor_instruction(void)
 {
 	asm("cli R0;");
 }
 
-/* Things that cause Hardware errors (IRQ5), not exceptions (IRQ3) */
+void supervisor_resource_mmr(void)
+{
+	int *i=(void *)0xFFC00014;
+	printf("chip id = %x", *i);
 
+}
+/* Things that cause Hardware errors (IRQ5), not exceptions (IRQ3) */
+/* System MMR Error                                    HWERRCAUSE 0x02 */
+/* Can't do this in userspace */
+
+/* External Memory Addressing Error -                  HWERRCAUSE 0x03 */
 void l1_instruction_access(void)
 {
 	int *i=(void *)0xffa10000;
 	printf("%i\n", *i);
+}
+
+/* Performance Monitor Overflow                        HWERRCAUSE 0x012*/
+/* Can't do this in userspace */
+
+/* RAISE 5 instruction                                 HWERRCAUSE 0x18 */
+/* Can't do this in userspace - since this is a supervisor instruction*/
+void raise_5(void)
+{
+	asm("raise 0x05;");
 }
 
 /* Now for the main code */
@@ -127,11 +150,14 @@ struct {
 	{ data_fetch_odd_address, SIGBUS, "Data access misaligned address violation" },
 	{ data_fetch_miss, SIGBUS, "Data access CPLB miss" },
 	{ null_pointer, SIGSEGV, "Data access multiple CPLB hits/Null Pointer" },
-	{ instrucution_fetch_odd_address, SIGSEGV, "Instruction fetch misaligned address violation"  },
-	{ instrucution_fetch_miss, SIGSEGV, "Instruction fetch CPLB miss"  },
-	{ l1_instruction_access, SIGSEGV, "l1_instruction_access" },
-	{ supervisor_instruction, SIGSEGV, "Illegal use of supervisor resource - Instruction" },
+	{ instrucution_fetch_odd_address, SIGBUS, "Instruction fetch misaligned address violation"  },
+	{ instrucution_fetch_miss, SIGBUS, "Instruction fetch CPLB miss"  },
+	{ l1_instruction_access, SIGBUS, "l1_instruction_access" },
+	{ supervisor_instruction, SIGILL, "Illegal use of supervisor resource - Instruction" },
+	{ supervisor_resource_mmr, SIGBUS, "Illegal use of supervisor resource - MMR" },
 	{ jump_to_zero, SIGSEGV, "Instruction fetch multiple CPLB hits - Jump to zero" },
+	{ raise_5, SIGILL, "RAISE 5 instruction"},
+	{ unknown_instruction, SIGILL, "Invalid Opcode" },
 };
 
 void usage(const char *errmsg)
@@ -198,7 +224,8 @@ int main(int argc, char *argv[])
 			if (pid == 0) {
 				int _ret;
 				_ret = execv(argv[0], argv);
-				fprintf(stderr, "Execution of '%s' failed (%i): %s\n",argv[0], _ret, strerror(errno));
+				fprintf(stderr, "Execution of '%s' failed (%i): %s\n",
+					argv[0], _ret, strerror(errno));
 				_exit(_ret);
 			}
 
@@ -209,16 +236,20 @@ int main(int argc, char *argv[])
 				char *str_expect = strsignal(sig_expect);
 				char *str_actual = strsignal(sig_actual);
 				if (sig_expect == sig_actual) {
-					printf("PASS (test failed as expected by signal %i: %s)\n", sig_actual, str_actual);
+					printf("PASS (test failed as expected by signal %i: %s)\n",
+						 sig_actual, str_actual);
 					++pass_count;
 				} else
 					printf("FAIL (test failed, but not with the right signal)\n"
 						"\t(We expected %i '%s' but instead we got %i '%s')\n",
 						sig_expect, str_expect, sig_actual, str_actual);
 			} else if (WIFEXITED(status))
-				printf("FAIL (test incorrectly 'passed' by exiting with %i)\n", WEXITSTATUS(status));
+				printf("FAIL (test incorrectly 'passed' by exiting with %i)\n",
+					 WEXITSTATUS(status));
 			else
 				printf("FAIL (unknown exit status 0x%x)\n", status);
+
+			fflush(stdout);
 		}
 
 		exit(pass_count == ARRAY_SIZE(bad_funcs) ? EXIT_SUCCESS : EXIT_FAILURE);
