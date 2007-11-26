@@ -26,7 +26,7 @@ main()
   }
   pblk (buf4,17,18,40);
   printf ("%08x\n", b);
-  bfdma_align32move (b, buf1, buf4, 4, 16, 24, 40);
+  bfdma_align32move (b, buf1, buf4, 16, 16, 24, 40);
   dma_add_stop_flag (b);
   dma_print (b);
   f = bfmdma (b);
