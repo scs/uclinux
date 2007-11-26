@@ -1,0 +1,146 @@
+#!/usr/bin/expect --
+
+#
+# Build Kernel for Linphone test
+#
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+step "Apply bf5xx-sport patch."
+
+cd $uclinux_path/linux-2.6.x/sound/soc/blackfin
+
+exec patch -p0 <  $uclinux_path/testsuites/linphone/bf5xx-sport.c.patch
+
+cd $uclinux_path/testsuites
+
+step "Make clean."
+
+source  make_clean.exp
+
+cd $uclinux_path/testsuites
+
+step "Make config."
+source  make_default_config.exp
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+   expect {
+
+      -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+         send "$board_type\r"
+      }
+
+      -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+         send "y\r"
+      }
+
+      -re "Sound card support.*SOUND.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\\\).*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+              send "n\r"
+      }
+
+      -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+              send "n\r"
+      }
+
+      -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "SoC Audio for the ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "SoC AC97 Audio support for BF5xx.*SND_BF5XX_SOC_BF5xx.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+              send "FDPIC\r"
+      }
+
+      -re "ALSA utils.*CONFIG_USER_ALSA_UTILS.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "vplay.*CONFIG_USER_VPLAY_VPLAY.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "vrec.*CONFIG_USER_VPLAY_VREC.*\\\[.*]" {
+              send "y\r"
+      }
+
+      -re "Linphone, a SIP compatible VoIP phone.*CONFIG_USER_BLACKFIN_LINPHONE.*\\\[././.]" {
+         send "y\r"
+      }
+
+      "\\\(*) \\\[*]" {
+         sleep .01
+         send "\r"
+      }
+
+      -re "\[cC]hoice\\\[.*]:" {
+         send "\r"
+      }
+
+      eof {
+         puts "End of configuration"
+         break
+      }
+      timeout {
+         puts "\n\nFATAL ERROR: config prompt timeout in make config"
+      }
+   }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+  
+
+log_file
+
+send_user "\nKernel building for Linphone test finishes!\n"

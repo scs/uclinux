@@ -1,0 +1,137 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Start $TITLE\r"
+
+set timeout 10
+set case_num 0
+
+set timeout 8
+set flag 0
+send "ifconfig eth0 $targetip\r"
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         set flag 1
+         puts "ifconfig set success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
+incr case_num
+spawn linphonec 
+set host_linphonec_id $spawn_id
+while 1 {
+      expect {
+	"linphonec>" {
+                case_pass $case_num
+	 	break
+         }
+         timeout {
+                case_fail $case_num
+		exit
+         }
+      }
+}
+
+set spawn_id $kermit_spawn_id
+set timeout 10
+send "linphonec\r"
+while 1 {
+expect {
+	"linphonec>" {
+        case_pass $case_num
+        break
+	}
+	timeout {
+        case_fail $case_num
+	exit
+	}
+}
+}
+
+set timeout 10
+incr case_num
+send "call sip:test@$serverip\r"
+
+set spawn_id $host_linphonec_id 
+while 1 {
+expect {
+        "is calling you" {
+        case_pass $case_num
+        break
+        }
+        timeout {
+        case_fail $case_num
+        exit
+        }
+}
+}
+send "answer\r"
+while 1 {
+expect {
+        "Connected" {
+        case_pass $case_num
+        break
+        }
+        timeout {
+        case_fail $case_num
+        exit
+        }
+}
+}
+
+set spawn_id $kermit_spawn_id
+
+while 1 {
+expect {
+	"Connected" {
+        case_pass $case_num
+        break
+	}
+	timeout {
+        case_fail $case_num
+	exit
+	}
+}
+}
+
+set timeout 800
+incr case_num
+while 1 {
+expect {
+	"Underrun happened" {
+        case_fail $case_num
+        break
+	}
+	timeout {
+        case_pass $case_num
+        send_log "\n$TITLE ............\[PASS\]\n"
+        break		
+	}
+}
+}
+send "\3"
+set spawn_id $host_linphonec_id
+send "\3"
+
+send_user "Ending $argv0\n"
+log_file
+

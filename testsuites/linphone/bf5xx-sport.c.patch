@@ -1,0 +1,37 @@
+--- bf5xx-sport.c.bak	2007-11-23 15:39:14.000000000 -0500
++++ bf5xx-sport.c	2007-11-23 15:49:29.000000000 -0500
+@@ -325,9 +325,12 @@
+ 	return 0;
+ }
+ 
++struct timeval start_time,stop_time;
++
+ int sport_tx_start(struct sport_device *sport)
+ {
+ 	unsigned flags;
++	long sec_diff,usec_diff;
+ 	pr_debug("%s: tx_run:%d, rx_run:%d\n", __FUNCTION__,
+ 			sport->tx_run, sport->rx_run);
+ 	if (sport->tx_run)
+@@ -337,6 +340,13 @@
+ 		BUG_ON(sport->dma_tx_desc == NULL);
+ 		BUG_ON(sport->curr_tx_desc != sport->dummy_tx_desc);
+ 		/* Hook the normal buffer descriptor */
++		do_gettimeofday(&start_time);
++		sec_diff = start_time.tv_sec - start_time.tv_sec;
++		usec_diff = start_time.tv_usec - start_time.tv_usec;
++		if (sec_diff == 0){
++			if(usec_diff <= 200000)
++			printk(KERN_ERR "Underrun happened!!!!\n");
++		}
+ 		local_irq_save(flags);
+ 		sport->dummy_tx_desc->next_desc_addr = \
+ 				(unsigned long)(sport->dma_tx_desc);
+@@ -360,6 +370,7 @@
+ 		return 0;
+ 
+ 	if (sport->rx_run) {
++		do_gettimeofday(&stop_time);
+ 		/* RX is still running, hook the dummy buffer */
+ 		sport_hook_tx_dummy(sport);
+ 	} else {
