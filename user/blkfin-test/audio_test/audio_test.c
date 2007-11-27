@@ -28,8 +28,6 @@
 #include <shadow.h>
 #endif
 
-#include <config/autoconf.h>
-
 #if __GNU_LIBRARY__ > 5
 #include <sys/reboot.h>
 #endif
