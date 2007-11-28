@@ -41,7 +41,6 @@ int main(int argc, char *argv[])
   int file_adc, file_dac;
   #define BUF_SIZE 1536
   static int buffer[BUF_SIZE];
-  static int count = 0;
   int ret;
 #define STEREO
 
@@ -93,4 +92,6 @@ int main(int argc, char *argv[])
     }
   }
 #endif
+
+  return 0;
 }
