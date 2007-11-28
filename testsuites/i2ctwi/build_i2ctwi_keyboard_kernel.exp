@@ -43,6 +43,14 @@ while 1 {
 	    }
       }
 
+          -re "PINT2_ASSIGN.*PINT2_ASSIGN.*\\\[.*]" {
+           if { $board_type == "BF548-EZKIT" } {
+                       send "0x04000101\r"
+            } else {
+                       send "\r"
+            }
+      }
+
       	   -re "I2C support.*I2C\[^_].*\\\[.*]" {             
              send "Y\r"
       }
@@ -74,7 +82,6 @@ while 1 {
 	     }	             
       }
       
-      
       	   -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {            
              send "Y\r"
       }
@@ -94,6 +101,17 @@ while 1 {
            -re "TWI/I2C Keypad input device.*TWI_KEYPAD.*\\\[.*]" {
              send "m\r"
       }
+           
+           -re "IRQ.*BFIN_TWIKEYPAD_IRQ_PFX.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                        send "33\r"
+             } elseif { $board_type == "BF548-EZKIT" } {
+                        send "212\r"
+             } else {
+                        send "\r"
+             }
+      }
+
            
            -re "TWI KEYPAD test program.*CONFIG_USER_BLACKFIN_TWIKEYPADTEST.*\\\[.*]" {
              send "Y\r"

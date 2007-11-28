@@ -1,260 +1,22 @@
 #!/usr/bin/expect
 
-# Main entrance
-#set logfile		"~/jvm_testlog"
-log_file jvm_test_log
-send_log "\nJVM test is starting...\r"
-send_user "Starting jvm_test.exp\n"
+source  ../kernel_config.exp
 
-set user /home/test
-set uclinux_path $user/checkouts/kernel/uClinux-dist
-set ttydev /dev/ttyS0
-set send_slow {1 0.1}
+log_file [log_file_name "$argv0"]
 
-proc step { message } {
-  global step_sequence_number
+send_user "Starting $argv0\n"
 
-  puts "\n*******************************************************************"
-  puts "STEP $step_sequence_number: $message\n\n"
-  send_log "\n************** STEP $step_sequence_number: $message\n\n"
-  incr step_sequence_number
-}
+set TITLE [title "$argv0"]
 
-if { $argc < 2 } {
-   send_user "\nAppend /dev/ttyS0 ipaddr\n"
-   exit
-}
+step "Spawn kermit"
+source ../spawn_kermit.exp
 
-set step_sequence_number    1
-
-step "Start kermit"
-set argc [llength $argv]
-set ttydev	[lindex $argv 0]
-set ipaddr 	[lindex $argv 1]
-
-set kparams	[list "set line $ttydev\r"]
-lappend kparams "set speed 57600\r"
-lappend kparams "set carrier-watch off\r"
-lappend kparams "set handshake none\r"
-lappend kparams "set flow-control none\r"
-lappend kparams "robust\r"
-lappend kparams "set file type bin\r"
-lappend kparams "set file name lit\r"
-lappend kparams "set rec pack 1000\r"
-lappend kparams "set send pack 1000\r"
-lappend kparams "set window 5\r"
-lappend kparams "set escape 255\r"
-set nkparams	[llength $kparams]
-
-set timeout 5
-spawn kermit
-set kermit_spawn_id $spawn_id
-
-while { 1 } {
-   expect {
-      "Type ?" { }
-      "ermit>" {
-         break
-      }
-      "not found" {
-         send_log "\nERROR: Failed to start Kermit\n"
-      }
-      timeout {
-         send_log "\nERROR: Time out starting up kermit\n"
-      }
-   }
-}
-
-for {set i 0} {$i < $nkparams} {incr i} {
-   send [lindex $kparams $i]
-
-   while 1 {
-      expect {
-         "ermit>" { break }
-         "\\?\[A-Z]" {
-            send_log "\nERROR: Failed to set up kermit parameters\n"
-         }
-         timeout {
-            send_log "\nERROR: Time out setting up kermit parameters\n"
-         }
-      }
-   }
-}
-
-send "connect\r"
-while 1 {
-   expect {
-      "ype the escape character*" {
-         break
-      }
-      timeout {
-         send_log "\nERROR: Can't connect to serial port\n"
-         exit
-      }
-   }
-}
-
-step "Restart the board."
-
-send_user "Try to figure out if we are in u-boot or the kernel"
-set where_are_we 0
-send "version\r"
-set timeout 20
-expect {
-
-   "U-Boot" {
-      send_user "We are in u-boot\n"
-      set where_are_we "uboot"
-   }
-
-   "Linux" {
-      send_user "We are in the kernel\n"
-      set where_are_we "kernel"
-   }
-
-   timeout {
-      send_user "Can't tell if we are in u-boot or the kernel\n"
-   }
-}
-
-if { $where_are_we == "uboot" } {
-   set timeout 50
-   expect ">"
-   send_user "sending reset\n"
-   send "reset\r"
-} else {
-   if { $where_are_we == "kernel" } {
-      set timeout 60
-      expect ">"
-      send_user "sending reboot\n"
-      send "reboot\r"
-   } else {
-      set timeout 10
-      expect "*"
-      expect "*"
-      send_user "sending control-C\n"
-      send "\3"
-      sleep 1
-      send "\r"
-   }
-}
-
-while 1 {
-   expect {
-
-      "Hit any key " {
-         send "\r"
-      }
-
-      ">" {
-         send_user "successful reset attemp\n"
-         break
-      }
-
-      timeout {
-         send_user "failed reset attemp\n"
-         break
-      }
-   }
-}
-
-send -s "set bootargs root=/dev/mtdblock0 rw\r"
-expect ">"
-send -s "save\r"
-expect ">"
-
-send -s "tftpboot 0x1000000 linux\r"
-while 1 {
-   expect {
-      "#" {
-         expect ">"
-            break
-      }
-      timeout {
-         puts "Fail tftp"
-         break
-      }
-   }
-}
-
-send -s "boote\r"
-
-set timeout 180
-while 1 {
-   expect {
-
-      -re "Kernel panic" {
-         report "kernel panic detected... trying to recover from it"
-         break
-      }
-
-      -re "Sash command shell.*/> " {
-         puts "successful boot attempt"
-         break
-      }
-
-      "root:~> " {
-         puts "successful boot attempt"
-         break
-      }
-
-      -re "Linux version (.*) " {
-         set linux_version $expect_out(1,string)
-      }
-
-      # Look for gcc version N.N[.N[.N]]
-      -re "gcc version (\[0-9](\.\[0-9]+)+)" {
-         set gcc_version [lindex $expect_out(0,string) 2]
-      }
-
-      # Look for text followed by 1 or more spaces or tabs
-      # followed by = followed by 1 or more spaces or tabs
-      # followed by (0xNNNNNN-0xNNNNNN)
-      -re "text\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_text $expect_out(1,string)
-      }
-
-      -re "data\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_data $expect_out(1,string)
-      }
-
-      -re "bss\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_bss $expect_out(1,string)
-      }
-
-      -re "rootfs\[\x20\t]+=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_rootfs $expect_out(1,string)
-      }
-
-      # Note that here we're looking for zero or 1 space. Doh!
-      -re "stack\[\x20\t]?=\[\x20\t]+(0x\[0-9a-fA-F]+-0x.....\[0-9a-fA-F]+)" {
-         set map_stack $expect_out(1,string)
-      }
-
-      -re "\[Ii]nstruction \[Cc]ache \[Ee]nabled" {
-         # set instruction_cache_boot_flag $CACHE_ENABLED
-      }
-
-      -re "\[Ii]nstruction \[Cc]ache \[Dd]isabled" {
-         # set instruction_cache_boot_flag $CACHE_DISABLED
-      }
-
-      -re "\[Dd]ata \[Cc]ache \[Ee]nabled" {
-         # set data_cache_boot_flag $CACHE_ENABLED
-      }
-
-      -re "\[Dd]ata \[Cc]ache \[Dd]isabled" {
-         #set data_cache_boot_flag $CACHE_DISABLED
-      }
-
-      timeout {
-         puts "failed boot attempt"
-         break
-      }
-   }
-}
-
-sleep 5
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
 
 step "Start JVM testing"
 
@@ -262,15 +24,15 @@ step "Do configuration..."
 
 catch {exec ./jvm_config.sh /uclinux/kernel/remote/717/uClinux-dist/testsuites/jvm > jvm_config_log}
 
-catch {exec rcp kaffe.flt $ipaddr:/bin/.}
-catch {exec rcp libraries/clib/native/.libs/libnative.a $ipaddr:/var/lib/.}
-catch {exec rcp libraries/clib/native/.libs/libnative.la $ipaddr:/var/lib/.}
-catch {exec rcp libraries/clib/nio/.libs/libnio.a $ipaddr:/var/lib/.}
-catch {exec rcp libraries/clib/nio/.libs/libnio.la $ipaddr:/var/lib/.}
-catch {exec rcp libraries/clib/io/.libs/libio.a $ipaddr:/var/lib/.}
-catch {exec rcp libraries/clib/io/.libs/libio.la $ipaddr:/var/lib/.}
-catch {exec rcp libraries/javalib/rt.jar $ipaddr:/var/lib/.}
-catch {exec rcp libraries/javalib/tools.jar $ipaddr:/var/lib/.}
+catch {exec rcp kaffe.flt $targetip:/bin/.}
+catch {exec rcp libraries/clib/native/.libs/libnative.a $targetip:/var/lib/.}
+catch {exec rcp libraries/clib/native/.libs/libnative.la $targetip:/var/lib/.}
+catch {exec rcp libraries/clib/nio/.libs/libnio.a $targetip:/var/lib/.}
+catch {exec rcp libraries/clib/nio/.libs/libnio.la $targetip:/var/lib/.}
+catch {exec rcp libraries/clib/io/.libs/libio.a $targetip:/var/lib/.}
+catch {exec rcp libraries/clib/io/.libs/libio.la $targetip:/var/lib/.}
+catch {exec rcp libraries/javalib/rt.jar $targetip:/var/lib/.}
+catch {exec rcp libraries/javalib/tools.jar $targetip:/var/lib/.}
 
 send "export KAFFELIBRARYPATH=/var/lib\r"
 
@@ -279,16 +41,18 @@ set timeout 300
 while 1 {
    expect {
       -re "Hello World!" {
-         send_log "\nJVM TEST ......... \[PASS\]\n"
-         send_user "\nJVM TEST ......... \[PASS\]\n"
+         send_log "\n$TITLE ......... \[PASS\]\n"
+         send_user "\n$TITLE ......... \[PASS\]\n"
          break
       }
       timeout {
-         send_log "\nJVM TEST ......... \[FAIL\]\n"
-         send_user "\nJVM TEST ......... \[FAIL\]\n"
+         send_log "\n$TITLE ......... \[FAIL\]\n"
+         send_user "\n$TITLE ......... \[FAIL\]\n"
          break
       }
    }
 }
 
-exit
+send_user "Ending $argv0\n"
+
+log_file
