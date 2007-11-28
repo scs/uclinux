@@ -1,0 +1,43 @@
+try libmad before any other mp3 codec as it is an integer decoding version
+rather than floating point
+
+--- mplayer/etc/codecs.conf
++++ mplayer/etc/codecs.conf
+@@ -2755,6 +2755,18 @@ audiocodec msadpcmacm
+   driver acm
+   dll "msadp32.acm"
+ 
++audiocodec mad
++  info "libMAD MPEG layer 1-2-3"
++  status working
++  format 0x50
++  format 0x55
++  format 0x5500736d  ; "ms\0\x55" older mp3 fcc (MOV files)
++  fourcc ".mp3"      ; CBR/VBR MP3 (MOV files)
++  fourcc "MP3 "      ; used in .nsv files
++  fourcc "LAME"      ; used in mythtv .nuv files
++  driver libmad
++  dll "libmad"
++
+ audiocodec mp3
+   info "mp3lib MPEG layer-2, layer-3"
+   status working
+@@ -2845,18 +2857,6 @@ audiocodec ffmp2
+   driver ffmpeg
+   dll "mp2"
+ 
+-audiocodec mad
+-  info "libMAD MPEG layer 1-2-3"
+-  status working
+-  format 0x50
+-  format 0x55
+-  format 0x5500736d  ; "ms\0\x55" older mp3 fcc (MOV files)
+-  fourcc ".mp3"      ; CBR/VBR MP3 (MOV files)
+-  fourcc "MP3 "      ; used in .nsv files
+-  fourcc "LAME"      ; used in mythtv .nuv files
+-  driver libmad
+-  dll "libmad"
+-
+ audiocodec mp3acm
+   info "MPEG layer-3"
+   status working
