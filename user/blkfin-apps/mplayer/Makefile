@@ -25,5 +25,6 @@ clean:
 romfs:
 	$(ROMFSINST) -d $(VER)/mplayer /usr/bin/mplayer
 	$(ROMFSINST) -d $(VER)/mencoder /usr/bin/mencoder
+	$(ROMFSINST) -d $(VER)/etc/codecs.conf /etc/codecs.conf
 
 .PHONY: all clean romfs
