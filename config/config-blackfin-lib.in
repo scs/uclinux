@@ -9,7 +9,7 @@ bool 'Build ffmpeg'		CONFIG_LIB_FFMPEG_FORCE
 bool 'Build flac'		CONFIG_LIB_FLAC_FORCE
 bool 'Build libao'		CONFIG_LIB_LIBAO_FORCE
 bool 'Build libaudio'		CONFIG_LIB_LIBAUDIO_FORCE
-bool 'Build libbfgdots'		CONFIG_LIB_LIBBFGDOTS
+bool 'Build libbfgdots'		CONFIG_LIB_LIBBFGDOTS_FORCE
 bool 'Build libiconv'		CONFIG_LIB_LIBICONV_FORCE
 bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
 if [ "$CONFIG_LIB_LIBID3TAG_FORCE" = "y" ]; then
@@ -26,9 +26,9 @@ if [ "$CONFIG_LIB_MPFR_FORCE" = "y" ]; then
 	define_bool CONFIG_LIB_LIBGMP y
 fi
 bool 'Build osip2'		CONFIG_LIB_OSIP2_FORCE
-bool 'Build popt'		CONFIG_LIB_POPT
+bool 'Build popt'		CONFIG_LIB_POPT_FORCE
 bool 'Build readline'		CONFIG_LIB_READLINE_FORCE
 bool 'Build speex'		CONFIG_LIB_SPEEX_FORCE
 bool 'Build tremor'		CONFIG_LIB_TREMOR_FORCE
-bool 'Build tslib'		CONFIG_LIB_TSLIB
-bool 'Build Crypto++ Lib'       CONFIG_LIB_CRYPTOPP
+bool 'Build tslib'		CONFIG_LIB_TSLIB_FORCE
+bool 'Build Crypto++ Lib'       CONFIG_LIB_CRYPTOPP_FORCE
