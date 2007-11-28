@@ -1,3 +1,5 @@
+# keep it sorted alphabetically
+
 dir_3_$(CONFIG_LIB_ALSA_LIB)         += alsa-lib
 dir_3_$(CONFIG_LIB_ALSA_LIB_FORCE)   += alsa-lib
 dir_3_$(CONFIG_LIB_AVAHI)            += avahi
@@ -45,6 +47,8 @@ dir_3_$(CONFIG_LIB_READLINE_FORCE)   += readline
 dir_3_$(CONFIG_LIB_READLINE)         += readline
 dir_3_$(CONFIG_LIB_SPEEX_FORCE)      += speex
 dir_3_$(CONFIG_LIB_SPEEX)            += speex
+dir_3_$(CONFIG_LIB_SQLITE_FORCE)     += sqlite
+dir_3_$(CONFIG_LIB_SQLITE)           += sqlite
 dir_3_$(CONFIG_LIB_TREMOR_FORCE)     += tremor
 dir_3_$(CONFIG_LIB_TREMOR)           += tremor
 dir_3_$(CONFIG_LIB_TSLIB_FORCE)      += tslib-1.0

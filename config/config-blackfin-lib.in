@@ -29,6 +29,7 @@ bool 'Build osip2'		CONFIG_LIB_OSIP2_FORCE
 bool 'Build popt'		CONFIG_LIB_POPT_FORCE
 bool 'Build readline'		CONFIG_LIB_READLINE_FORCE
 bool 'Build speex'		CONFIG_LIB_SPEEX_FORCE
+bool 'Build sqlite'		CONFIG_LIB_SQLITE_FORCE
 bool 'Build tremor'		CONFIG_LIB_TREMOR_FORCE
 bool 'Build tslib'		CONFIG_LIB_TSLIB_FORCE
 bool 'Build Crypto++ Lib'       CONFIG_LIB_CRYPTOPP_FORCE
