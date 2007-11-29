@@ -1,8 +1,12 @@
+PKG_CONFIG ?= pkg-config
+
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),)
 LDLIBS += $(shell $(PKG_CONFIG) sqlite3 --libs --static)
 else
 LDLIBS += $(shell $(PKG_CONFIG) sqlite3 --libs)
 endif
+
+CFLAGS += -Wall
 
 all: sqlite_test
 

@@ -202,7 +202,7 @@ struct item* item_populate(sqlite3_stmt* s, struct item* top) {
   struct item* cur;
   struct item* i;
   int size;
-  const char* hold;
+  const unsigned char* hold;
 
   i = (struct item*)calloc(1, sizeof(struct item));
   i->id = sqlite3_column_int(s, 0);
