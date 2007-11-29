@@ -28,16 +28,17 @@ while 1 {
       -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
          send "y\r"
       }
-
-      -re "Sqlite test program \\\(CONFIG_USER_SQLITE_TEST\\\) \\\[././.]" {
-         send "y\r"
+     
+      -re "Build sqlite.*CONFIG_LIB_SQLITE_FORCE.*\\\[././.]" {
+         send "Y\r"
       }
 
-      -re "Sqlite, a light weight database.*CONFIG_USER_SQLITE.*\\\[././.]" {
-         send "y\r"
+      -re "Sqlite test program \\\(CONFIG_USER_SQLITE_TEST\\\) \\\[././.]" {
+         send "Y\r"
       }
 
       "\\\(*) \\\[*]" {
+         sleep .01
          send "\r"
       }
 

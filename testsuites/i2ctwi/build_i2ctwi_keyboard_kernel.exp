@@ -104,7 +104,9 @@ while 1 {
            
            -re "IRQ.*BFIN_TWIKEYPAD_IRQ_PFX.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                        send "33\r"
+                        send "72\r"
+             } elseif { $board_type == "BF533-STAMP" } {
+                        send "39\r"
              } elseif { $board_type == "BF548-EZKIT" } {
                         send "212\r"
              } else {
