@@ -7,8 +7,6 @@
  * Licensed under the GPL-2 or later.
  */
 
-#define DEBUG
-
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -51,7 +49,7 @@ struct bfin_gptimer {
 	const char *name;
 	int irq, id, bit, mux, gpio;
 	lirc_t pulse, space;
-	bool opened;
+	bool need_a_fatty, opened;
 	struct lirc_plugin plugin;
 	struct lirc_buffer lirc_buf;
 };
@@ -93,7 +91,16 @@ static irqreturn_t gptimer_irq(int irq, void *dev_id)
 		goto finish;
 	}
 
-	/* record this sample ! */
+	/* our hardware cannot sample the first idle signal, so
+	 * inject a fat bit for the first space.
+	 */
+	if (unlikely(g->need_a_fatty)) {
+		lirc_t c = PULSE_MASK;
+		lirc_buffer_write_1(&g->lirc_buf, (void *)&c);
+		g->need_a_fatty = false;
+	}
+
+ 	/* record this sample ! */
 	width = get_gptimer_pwidth(g->id);
 	period = get_gptimer_period(g->id);
 	g->pulse = width;
@@ -145,7 +152,9 @@ static int gptimer_set_use_inc(void *data)
 	if (g->opened == true)
 		return -EBUSY;
 
-	/* figure out the idle level */
+	/* figure out the idle level because we need to trigger
+	 * away from it or the first sample gets ignored.
+	 */
 	if (sense == -1) {
 		size_t i, nlow, nhigh;
 
@@ -192,6 +201,9 @@ static int gptimer_set_use_inc(void *data)
 		peripheral_free(g->mux);
 		return ret;
 	}
+
+	/* init our timer-specific data */
+	g->need_a_fatty = true;
 
 	/* configure the timer and enable it */
 	set_gptimer_config(g->id, WDTH_CAP | (sense ? PULSE_HI : 0) | PERIOD_CNT | IRQ_ENA);
