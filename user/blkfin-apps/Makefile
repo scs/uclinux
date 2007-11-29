@@ -16,7 +16,6 @@ dir_$(CONFIG_USER_OPROFILE)                      += oprofile
 dir_$(CONFIG_USER_YAFFS_UTILS)                   += yaffs-utils
 dir_$(CONFIG_USER_POUND)                         += pound
 dir_$(CONFIG_USER_IRATTACH)                      += irattach
-dir_$(CONFIG_USER_JPEGVIEW)                      += jpegview
 dir_$(CONFIG_USER_PNGVIEW)                       += pngview
 dir_$(CONFIG_USER_BLACKFIN_WATCHDOGD)            += watchdogd
 dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa-utils

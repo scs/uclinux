@@ -111,10 +111,6 @@ bool    'watchdog simple deamon'        CONFIG_USER_BLACKFIN_WATCHDOGD
 bool    'yaffs-utils'                   CONFIG_USER_YAFFS_UTILS
 bool    'BF561 Core B support tools'    CONFIG_USER_BF561_COREBLD
 bool    'pound SSL Wrapper'             CONFIG_USER_POUND
-bool    'jpegview'                      CONFIG_USER_JPEGVIEW
-if [ "$CONFIG_USER_JPEGVIEW" = "y" ]; then
-	define_bool CONFIG_LIB_LIBJPEG y
-fi
 bool    'pngview'                       CONFIG_USER_PNGVIEW
 if [ "$CONFIG_USER_PNGVIEW" = "y" ]; then
 	define_bool CONFIG_LIB_LIBPNG y
