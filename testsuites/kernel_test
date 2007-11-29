@@ -137,7 +137,7 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
    
    BOARD_TYPE=BF537-STAMP
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[26]="1"; AUTO_RUN_STATUS[52]="1"; AUTO_RUN_STATUS[$(( n + 3 ))]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"     
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[26]="1"; AUTO_RUN_STATUS[$(( n + 3 ))]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"     
 
 fi
 

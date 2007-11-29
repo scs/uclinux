@@ -951,6 +951,11 @@ proc run_LTP_test { filename command torun mode} {
             break
          }
 
+         # seperate test case fcntl14 from the test cases that have been done
+         -re "BusyBox.*Built-in shell.*Enter \'help\'.*root:~> " {
+            continue
+         }
+
          # Some testcases leave the current directory in root
          "root:~> " {
             report "---done"
