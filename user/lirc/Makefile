@@ -3,6 +3,7 @@ VER = lirc-0.8.2
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER)
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
+	$(MAKE) -C lirc_bfin_timer
 
 build-$(VER)/Makefile:
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
@@ -18,15 +19,17 @@ build-$(VER)/Makefile:
 		--with-moduledir=/lib/modules/lirc \
 		--without-x \
 		--disable-daemonize \
-		--with-driver=dev \
-		--enable-debug
+		--with-driver=dev
+#		--enable-debug
 
 clean:
 	rm -rf build-*
+	$(MAKE) -C lirc_bfin_timer clean
 
 romfs:
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/liblirc_client.so.0 /lib/liblirc_client.so.0
 	$(ROMFSINST) -d -M $(STAGEDIR)/lib/modules/lirc/lirc_dev.ko lirc/lirc_dev.ko
+	$(ROMFSINST) -d -M lirc_bfin_timer/lirc_bfin_timer.ko lirc/lirc_bfin_timer.ko
 
 	$(ROMFSINST) -d -e CONFIG_USER_LIRC_LIRCD $(STAGEDIR)/usr/sbin/lircd /usr/sbin/lircd
 	$(ROMFSINST) -d -e CONFIG_USER_LIRC_LIRCMD $(STAGEDIR)/usr/sbin/lircmd /usr/sbin/lircmd
