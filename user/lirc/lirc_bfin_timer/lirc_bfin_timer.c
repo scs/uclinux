@@ -19,10 +19,6 @@
 #include <asm/gptimers.h>
 #include <asm/portmux.h>
 
-static unsigned long clamp_usecs = 1, clamp_sclk;
-module_param(clamp_usecs, ulong, 0644);
-MODULE_PARM_DESC(clamp_usecs, "Min time in usecs for sample (default = 1)");
-
 static int sense = -1;	/* -1 = auto, 0 = active high, 1 = active low */
 module_param(sense, bool, 0444);
 MODULE_PARM_DESC(sense, "Override autodetection of IR receiver circuit (0 = active high, 1 = active low)");
@@ -52,8 +48,7 @@ struct bfin_gptimer {
 
 	/* lirc pieces */
 	uint32_t last_width;
-	lirc_t pulse, space;
-	bool need_a_fatty, opened;
+	bool period_overflow, opened;
 	struct lirc_plugin plugin;
 	struct lirc_buffer lirc_buf;
 };
@@ -62,6 +57,7 @@ static irqreturn_t gptimer_irq(int irq, void *dev_id)
 {
 	struct bfin_gptimer *g = dev_id;
 	uint32_t width, period;
+	lirc_t codes[2];
 
 	pr_stamp();
 
@@ -72,16 +68,8 @@ static irqreturn_t gptimer_irq(int irq, void *dev_id)
 	/* check for overflow and clear it */
 	if (get_gptimer_over(g->id)) {
 		clear_gptimer_over(g->id);
+		g->period_overflow = true;
 		goto finish;
-	}
-
-	/* our hardware cannot sample the first idle signal, so
-	 * inject a fat bit for the first space.
-	 */
-	if (unlikely(g->need_a_fatty)) {
-		lirc_t c = PULSE_MASK;
-		lirc_buffer_write_1(&g->lirc_buf, (void *)&c);
-		g->need_a_fatty = false;
 	}
 
  	/* record this sample ! */
@@ -94,34 +82,15 @@ static irqreturn_t gptimer_irq(int irq, void *dev_id)
 	 * width value and the period value for the last irq.  so
 	 * maintain state across irq's to properly compute spaces.
 	 */
-	if (likely(period)) {
-		if (likely(period - g->last_width >= clamp_sclk)) {
-			lirc_t space = sclk_to_usecs(period - g->last_width) & PULSE_MASK;
-			lirc_buffer_write_1(&g->lirc_buf, (void *)&space);
-		}
-
-		if (likely(width >= clamp_sclk)) {
-			lirc_t pulse = PULSE_BIT | (sclk_to_usecs(width) & PULSE_MASK);
-			lirc_buffer_write_1(&g->lirc_buf, (void *)&pulse);
-		}
-	} else {
-		if (likely(width >= clamp_sclk)) {
-			lirc_t pulse = PULSE_BIT | (sclk_to_usecs(width) & PULSE_MASK);
-			lirc_buffer_write_1(&g->lirc_buf, (void *)&pulse);
-		}
-	}
-
+	if (g->period_overflow) {
+		codes[0] = PULSE_MASK;
+		g->period_overflow = false;
+	} else
+		codes[0] = sclk_to_usecs(period - g->last_width) & PULSE_MASK;
+	codes[1] = PULSE_BIT | (sclk_to_usecs(width) & PULSE_MASK);
+	lirc_buffer_write_n(&g->lirc_buf, (void *)codes, ARRAY_SIZE(codes));
 	g->last_width = width;
-
 	wake_up(&g->lirc_buf.wait_poll);
-
-	pr_debug(DRIVER_NAME ":irq: "
-		"period = 0x%08x (%li usecs), "
-		"pulse = 0x%08x (%li usecs), "
-		"space = 0x%08x (%li usecs)\n",
-		period, sclk_to_usecs(period),
-		g->pulse, sclk_to_usecs(g->pulse),
-		g->space, sclk_to_usecs(g->space));
 
  finish:
 	clear_gptimer_intr(g->id);
@@ -205,7 +174,7 @@ static int gptimer_set_use_inc(void *data)
 	}
 
 	/* init our timer-specific data */
-	g->need_a_fatty = true;
+	g->period_overflow = true;
 
 	/* configure the timer and enable it */
 	set_gptimer_config(g->id, WDTH_CAP | (sense ? PULSE_HI : 0) | IRQ_ENA);
@@ -268,11 +237,6 @@ static int __init lirc_bfin_timer_init(void)
 
 	pr_stamp();
 
-	/* this optimization will not fair well with changing of
-	 * kernel clocks on the fly ...
-	 */
-	clamp_sclk = usecs_to_sclk(clamp_usecs);
-
 	/* init the plugin data */
 	g->opened = false;
 	g->plugin = plugin_template;
@@ -291,8 +255,6 @@ static int __init lirc_bfin_timer_init(void)
 		lirc_buffer_free(&g->lirc_buf);
 		return ret;
 	}
-
-	printk(KERN_INFO DRIVER_NAME ": driver registered\n");
 
 	return 0;
 }
