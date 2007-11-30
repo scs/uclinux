@@ -46,33 +46,17 @@ MODULE_PARM_DESC(sense, "Override autodetection of IR receiver circuit (0 = acti
 #define pr_stamp() pr_debug(DRIVER_NAME ":%i:%s: here i am\n", __LINE__, __func__)
 
 struct bfin_gptimer {
+	/* hardware pieces */
 	const char *name;
 	int irq, id, bit, mux, gpio;
+
+	/* lirc pieces */
+	uint32_t last_width;
 	lirc_t pulse, space;
 	bool need_a_fatty, opened;
 	struct lirc_plugin plugin;
 	struct lirc_buffer lirc_buf;
 };
-
-static void gptimer_queue_sample(struct bfin_gptimer *g)
-{
-	size_t i = 0;
-	lirc_t code[2];
-
-	pr_stamp();
-
-	if (g->pulse)
-		code[i++] = PULSE_BIT | (g->pulse & PULSE_MASK);
-	if (g->space)
-		code[i++] = g->space & PULSE_MASK;
-
-	if (lirc_buffer_full(&g->lirc_buf))
-		printk(KERN_NOTICE DRIVER_NAME ": buffer full, throwing away sample\n");
-	else
-		lirc_buffer_write_n(&g->lirc_buf, (void *)code, i);
-
-	wake_up(&g->lirc_buf.wait_poll);
-}
 
 static irqreturn_t gptimer_irq(int irq, void *dev_id)
 {
@@ -103,23 +87,41 @@ static irqreturn_t gptimer_irq(int irq, void *dev_id)
  	/* record this sample ! */
 	width = get_gptimer_pwidth(g->id);
 	period = get_gptimer_period(g->id);
-	g->pulse = width;
-	g->space = period - width;
+	pr_debug(DRIVER_NAME ":irq: width = 0x%08x period = 0x%08x %s\n",
+		width, period, (g->last_width > period ? "!!!" : ""));
+
+	/* queue up the samples.  each irq will give us the current
+	 * width value and the period value for the last irq.  so
+	 * maintain state across irq's to properly compute spaces.
+	 */
+	if (likely(period)) {
+		if (likely(period - g->last_width >= clamp_sclk)) {
+			lirc_t space = sclk_to_usecs(period - g->last_width) & PULSE_MASK;
+			lirc_buffer_write_1(&g->lirc_buf, (void *)&space);
+		}
+
+		if (likely(width >= clamp_sclk)) {
+			lirc_t pulse = PULSE_BIT | (sclk_to_usecs(width) & PULSE_MASK);
+			lirc_buffer_write_1(&g->lirc_buf, (void *)&pulse);
+		}
+	} else {
+		if (likely(width >= clamp_sclk)) {
+			lirc_t pulse = PULSE_BIT | (sclk_to_usecs(width) & PULSE_MASK);
+			lirc_buffer_write_1(&g->lirc_buf, (void *)&pulse);
+		}
+	}
+
+	g->last_width = width;
+
+	wake_up(&g->lirc_buf.wait_poll);
 
 	pr_debug(DRIVER_NAME ":irq: "
-		"sclk = 0x%08lx, "
+		"period = 0x%08x (%li usecs), "
 		"pulse = 0x%08x (%li usecs), "
 		"space = 0x%08x (%li usecs)\n",
-		get_sclk(),
+		period, sclk_to_usecs(period),
 		g->pulse, sclk_to_usecs(g->pulse),
 		g->space, sclk_to_usecs(g->space));
-
-	/* toss out very short samples (presumably due to ambient light) */
-	g->pulse = (g->pulse < clamp_sclk ? 0 : sclk_to_usecs(g->pulse));
-	g->space = (g->space < clamp_sclk ? 0 : sclk_to_usecs(g->space));
-
-	/* queue it up! */
-	gptimer_queue_sample(g);
 
  finish:
 	clear_gptimer_intr(g->id);
@@ -160,7 +162,7 @@ static int gptimer_set_use_inc(void *data)
 
 		ret = gpio_request(g->gpio, DRIVER_NAME);
 		if (ret) {
-			printk(KERN_NOTICE DRIVER_NAME " gpio_request() failed\n");
+			printk(KERN_NOTICE DRIVER_NAME ": gpio_request() failed\n");
 			return ret;
 		}
 
@@ -190,7 +192,7 @@ static int gptimer_set_use_inc(void *data)
 	/* request the timer peripheral */
 	ret = peripheral_request(g->mux, g->name);
 	if (ret) {
-		printk(KERN_NOTICE DRIVER_NAME " peripheral_request() failed\n");
+		printk(KERN_NOTICE DRIVER_NAME ": peripheral_request() failed\n");
 		return ret;
 	}
 
@@ -206,8 +208,10 @@ static int gptimer_set_use_inc(void *data)
 	g->need_a_fatty = true;
 
 	/* configure the timer and enable it */
-	set_gptimer_config(g->id, WDTH_CAP | (sense ? PULSE_HI : 0) | PERIOD_CNT | IRQ_ENA);
+	set_gptimer_config(g->id, WDTH_CAP | (sense ? PULSE_HI : 0) | IRQ_ENA);
 	enable_gptimers(g->bit);
+
+	pr_debug(DRIVER_NAME ": device opened; sclk is 0x%08lx\n", get_sclk());
 
 	g->opened = true;
 
