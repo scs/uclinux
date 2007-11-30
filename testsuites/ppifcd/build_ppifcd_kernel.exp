@@ -5,8 +5,6 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-set set_config_file 0
-
 cd $uclinux_path/testsuites
 
 step "Make config."
@@ -14,80 +12,6 @@ step "Make config."
 source  make_default_config.exp
 
 # Following make specific configuration for this case.
-
-if { $set_config_file == 1 } {
-
-step "Apply ppifcd config patch."
-
-cd $uclinux_path/linux-2.6.x
-if { $board_type == "BF537-STAMP" } {
-        exec patch -p1 < ../testsuites/ppifcd/bf537_ppifcd_config_patch
-} elseif { $board_type == "BF533-STAMP" } {
-        exec patch -p1 < ../testsuites/ppifcd/bf533_ppifcd_config_patch
-}
-
-send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
-
-cd $uclinux_path/config
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_USER_BLACKFIN_PPIFCDTEST\[ =]\r"
-      expect "CONFIG_USER_BLACKFIN_PPIFCDTEST\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_USER_BLACKFIN_PPIFCDTEST=y\r"      
-      send ".\r"      
-      expect ":"
-      sleep .5   
-       
-      send "wq\r"
-      expect eof
-
-cd $uclinux_path
-set timeout 300
-spawn make config
-
-while 1 {
-   expect {
-
-       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-            
-             send "$board_type\r"
-      }
-
-      "\\\(*) \\\[*]" {
-             send "\r"
-      }
-
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
-
-      eof {
-             puts "End of configuration"
-             break
-      }
-      timeout {
-             puts "\n\nFATAL ERROR: config prompt timeout in make config"
-	     break
-
-      }
-   }
-}
-} else {
 
 cd $uclinux_path
 set timeout 300
@@ -110,31 +34,23 @@ while 1 {
            -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
              send "y\r"
       }
-
      	 
-	 -re "Blackfin BF53x Programmable Flags Driver.*BF533_PFLAGS.*\\\[.*]" {
+	   -re "Blackfin BF53x Programmable Flags Driver.*BF5xx_PFLAGS.*\\\[.*]" {
              send "Y\r"
       }
       
-         -re "Blackfin BF5xx PPI Camera frame capture driver.*BF5xx_PPIFCD.*\\\[.*]" {
+           -re "Blackfin BF5xx PPI Camera frame capture driver.*BF5xx_PPIFCD.*\\\[.*]" {
              send "Y\r"
       }
       
-         -re "I2C support.*I2C\[^_].*\\\[.*]" {
+           -re "I2C support.*I2C\[^_].*\\\[.*]" {
              send "Y\r"
       }
 
-        -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {
+          -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {
              send "Y\r"
       }
               
-	-re "Select BF537/6/4 default GPIO PFx PORTG.*BF537_PORT_G.*choice\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
-                       send "2\r"
-            } else {
-                       send "\r"
-            }
-      }
          -re "Blackfin GPIO based I2C interface.*I2C_BLACKFIN_GPIO.*\\\[.*]" {
              if { $board_type == "BF533-STAMP" || $board_type == "BF561-EZKIT" } {
                         send "Y\r"
@@ -180,7 +96,7 @@ while 1 {
       }
       
        -re  "\\\(.*\\\) \\\[.*]" { 
-             sleep .001
+             sleep .01
 	     send "\r"
       }
 
@@ -198,7 +114,6 @@ while 1 {
            
       }
    }
-}
 }
 
 cd $uclinux_path/testsuites

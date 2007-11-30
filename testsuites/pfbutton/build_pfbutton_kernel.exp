@@ -4,53 +4,12 @@ source  ../kernel_config.exp
 source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
-set set_config_file 0
 
 cd $uclinux_path/testsuites
 
 step "Make config."
 
 source  make_default_config.exp
-if { $set_config_file == 1 } {
-# Following make specific configuration for this case.
-
-step "Apply ppifcd config patch."
-
-cd $uclinux_path/linux-2.6.x
-
-exec patch -p1 < ../testsuites/pfbutton/pfbutton_config_patch
-
-send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
-
-cd $uclinux_path/config
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_USER_BLACKFIN_PFBUTTONS\[ =]\r"
-      expect "CONFIG_USER_BLACKFIN_PFBUTTONS\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_USER_BLACKFIN_PFBUTTONS=y\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-
-      send "wq\r"
-      expect eof
-
-} else {
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
@@ -80,27 +39,32 @@ while 1 {
       }
    	
       
-     	-re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
+     	  -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
           
 		send "y\r"
-     }
+       }
    	
-	-re "Miscellaneous devices.*INPUT_MISC.*\\\[.*]" {
+	  -re "Miscellaneous devices.*INPUT_MISC.*\\\[.*]" {
 
 		send "y\r"
 	}
 
-	-re "User level driver support.*INPUT_UINPUT.*\\\[.*]" {
+	  -re "User level driver support.*INPUT_UINPUT.*\\\[.*]" {
 
 		send "y\r"
 	}
 
-	-re "PF buttons input device.*BF53X_PFBUTTONS.*\\\[.*]" {
+	  -re "PF buttons input device.*BF53X_PFBUTTONS.*\\\[.*]" {
 
 		send "y\r"
 	}
+
+          -re "Sound card support.*SOUND.*\\\[.*]" {
+
+               send "N\r"
+      }
        
-	-re "PFBUTTONS test program.*CONFIG_USER_BLACKFIN_PFBUTTONS.*\\\[.*]" {
+          -re "PFBUTTONS test program.*CONFIG_USER_BLACKFIN_PFBUTTONS.*\\\[.*]" {
 
 		send "y\r"
 	}
@@ -125,7 +89,6 @@ while 1 {
            
       }
    }
-}
 }
 cd $uclinux_path/testsuites
 
