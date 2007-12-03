@@ -38,11 +38,17 @@ while 1 {
         }
 
         -re "Select PM Wakeup Event Source.*Cause Wakeup Event by GPIO.*PM_WAKEUP_BY_GPIO.*choice\\\[.*]:" {
-            send "2\r"
+            if { $board_type == "BF548-EZKIT" } {
+                #Specify Wakeup Event by SIC_IWR value
+                send "1\r"
+            } else {
+                #Cause Wakeup Event by GPIO
+                send "2\r"
+            }
         }
 
         -re "Wakeup GPIO number.*PM_WAKEUP_GPIO_NUMBER.*\\\[.*]" {
-            #2 is for PB1; sw5.1 set to OFF; sw5.2~5.4 set to ON
+            #If Wakeup Event is by GPIO, set GPIO NO. to 2 (for PB1); sw5.1 set to OFF on board
             send "2\r"
         }
 
@@ -68,11 +74,19 @@ while 1 {
         }
 
         -re "Blackfin ADI7171 video encoder on uClinux.*FB_BFIN_7171.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
         }
 
         -re "Blackfin ADV7393 Video encoder on uClinux.*FB_BFIN_7393.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
         }
 
 #Audio Output
@@ -104,17 +118,17 @@ while 1 {
             send "m\r"
         }
 
-#        -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
-#            send "m\r"
-#        }
+        -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
+            send "m\r"
+        }
 
-#        -re "SoC Audio for the ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
-#            send "m\r"
-#        }
+        -re "SoC Audio for the ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
+            send "m\r"
+        }
 
-#        -re "SoC AC97 Audio support for BF5xx.*SND_BF5XX_SOC_BF5xx.*\\\[.*]" {
-#            send "m\r"
-#        }
+        -re "SoC AC97 Audio support for BF5xx.*SND_BF5XX_SOC_BF5xx.*\\\[.*]" {
+            send "m\r"
+        }
 
         -re "3 Stereos .*SND_BLACKFIN_AD1836_MULSUB.*choice\\\[.*]" {
             send "1\r"

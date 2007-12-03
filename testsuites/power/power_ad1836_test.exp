@@ -262,12 +262,12 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
+        -re "snd_ad1836|snd_pcm_oss" {
+            case_fail $case_num
+        }
         ">" {
             case_pass $case_num
             break
-        }
-        -re "snd_ad1836|snd_pcm_oss" {
-            case_fail $case_num
         }
         timeout {
             case_fail $case_num

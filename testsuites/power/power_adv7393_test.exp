@@ -275,12 +275,12 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
+        "bfin_adv7393fb" {
+            case_fail $case_num
+        }
         ">" {
             case_pass $case_num
             break
-        }
-        "bfin_adv7393fb" {
-            case_fail $case_num
         }
         timeout {
             case_fail $case_num

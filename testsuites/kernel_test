@@ -916,21 +916,44 @@ do
   cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
 
+  cd $UCLINUX_DIST_PATH/
+  make clean > /dev/null 2>&1
+
   cd $UCLINUX_DIST_TESTSUITES/power
   ./build_power_kernel.exp $BOARD_TYPE >/dev/null  2>&1  
   sleep 30
 
-  if [ ${AUTO_RUN_STATUS[$(( n + 9 ))]} -eq 1  ] ; then
-    ./power_adv7171_test.exp >/dev/null  2>&1
-  elif [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
-    ./power_adv7393_test.exp >/dev/null  2>&1
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+	echo "$0:   Error, failed."
+	tail -50 ./build_power_kernel_log
   else
-    ./power_ethernet_test.exp >/dev/null  2>&1
+        sleep 30
+        if [ ${AUTO_RUN_STATUS[$(( n + 9 ))]} -eq 1  ] ; then
+            ./power_adv7171_test.exp >/dev/null  2>&1
+        elif [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
+            ./power_adv7393_test.exp >/dev/null  2>&1
+        elif [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
+            ./power_ad73311.exp >/dev/null  2>&1
+        #elif [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] ; then
+        #    ./power_tftlcd_test.exp >/dev/null  2>&1
+        elif [ ${AUTO_RUN_STATUS[$(( n + 3 ))]} -eq 1  ] ; then
+            ./power_ad1836_test.exp >/dev/null  2>&1
+        elif [ ${AUTO_RUN_STATUS[$(( n + 14 ))]} -eq 1  ] ; then
+            ./power_ad1980.exp >/dev/null  2>&1
+        elif [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
+            ./power_ad1981b.exp >/dev/null  2>&1
+        fi
+
+        ./power_ethernet_test.exp >/dev/null  2>&1
   fi
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.power
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.power
   cp $UCLINUX_DIST_TESTSUITES/power/*_log $THIS_LOG
+
+  cd $UCLINUX_DIST_PATH/
+  make clean > /dev/null 2>&1
 
   sleep 30
 

@@ -15,7 +15,7 @@ step "Reboot the kernel."
 # set bootargs  $bootargs_param0
 source ../reboot_kernel.exp
 
-proc test_standby {} {
+proc standby_test_case1 {} {
     global case_num
     global targetip
     global serverip
@@ -25,7 +25,7 @@ proc test_standby {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks.*done.*Suspending console.*Restarting tasks.*done" {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\." {
                 case_pass $case_num
                 break
             }
@@ -67,6 +67,42 @@ proc test_standby {} {
     }
 }
 
+proc standby_test_case2 {} {
+    global case_num
+    global targetip
+    global serverip
+    global pack_num
+
+    set timeout 30
+    incr case_num
+    send "echo 'standby' > /sys/power/state\r"
+    while 1 {
+        expect {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\." {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+
+    incr pack_num 20
+    while 1 {
+        expect {
+            -re "64 bytes from $serverip: icmp_seq=$pack_num ttl=64 time=" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "ping $serverip failed\r"
+                case_fail $case_num
+            }
+        }
+    }
+}
+
 
 step "Start testing"
 set case_num 0
@@ -78,7 +114,7 @@ set timeout 5
 send "ifconfig eth0 $targetip\r"
 while 1 {
     expect {
-        -re "..root:~>" {
+        -re "root:~>" {
             break
         }
         timeout {
@@ -135,8 +171,30 @@ while 1 {
 }
 
 for {set count 1} {$count <= $Total_Count} {incr count} {
-    test_standby
-    send_user "\nStandby test round $count pass\n\n"
+    standby_test_case1
+    send_user "\nStandby test case 1 round $count pass\n\n"
+}
+
+set timeout 20
+incr case_num
+send "ping $serverip&\r"
+while 1 {
+    expect {
+        -re "64 bytes from $serverip: icmp_seq=2 ttl=64 time=" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "ping $serverip failed\r"
+            case_fail $case_num
+        }
+    }
+}
+
+set pack_num 10
+for {set count 1} {$count <= $Total_Count} {incr count} {
+    standby_test_case2
+    send_user "\nStandby test case 2 round $count pass\n\n"
 }
 
 send_log "\n"

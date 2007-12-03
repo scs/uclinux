@@ -16,52 +16,19 @@ step "Reboot the kernel."
 # set bootargs  $bootargs_param0
 source ../reboot_kernel.exp
 
-proc test_standby {} {
+proc standby_test_case1 {} {
     global case_num
-    global targetip
-    global serverip
 
     set timeout 30
     incr case_num
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks.*done.*Suspending console.*Restarting tasks.*done" {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\." {
                 case_pass $case_num
                 break
             }
             timeout {
-                case_fail $case_num
-            }
-        }
-    }
-
-    set timeout 5
-    incr case_num
-    send "ifconfig\r"
-    while 1 {
-        expect {
-            -re "eth0.*$targetip.*>" {
-                case_pass $case_num
-                break
-            }
-            timeout {
-                send_user "set ip $targetip failed\r"
-                case_fail $case_num
-            }
-        }
-    }
-
-    set timeout 20
-    send "ping $serverip -c 5\r"
-    while 1 {
-        expect {
-            -re "5 packets transmitted, 5 packets received, 0% packet loss.*>" {
-                case_pass $case_num
-                break
-            }
-            timeout {
-                send_user "ping $serverip failed\r"
                 case_fail $case_num
             }
         }
@@ -98,44 +65,35 @@ proc test_standby {} {
     }
 }
 
+proc standby_test_case2 {} {
+    global case_num
+
+    set timeout 30
+    incr case_num
+    send "echo 'standby' > /sys/power/state\r"
+    while 1 {
+        expect {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\nroot:~>" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+}
+
 
 step "Start testing"
 set case_num 0
 set Total_Count 5
 sleep 5
 send "\r"
+expect ">"
 
-set timeout 5
-send "ifconfig eth0 $targetip\r"
-while 1 {
-    expect {
-        -re "..root:~>" {
-            break
-        }
-        timeout {
-            send_user "set ip $targetip failed\r"
-            case_fail $case_num
-        }
-    }
-}
 
-sleep 5
-send "\r"
 set timeout 20
-send "ping $serverip -c 5\r"
-while 1 {
-    expect {
-        -re "5 packets transmitted, 5 packets received, 0% packet loss.*>" {
-            break
-        }
-        timeout {
-            send_user "ping $serverip failed\r"
-            case_fail $case_num
-        }
-    }
-}
-
-set timeout 10
 incr case_num
 if { $board_type == "BF548-EZKIT" } {
     send "modprobe bf54x-lq043\r"
@@ -145,6 +103,17 @@ if { $board_type == "BF548-EZKIT" } {
 while 1 {
     expect {
         "FrameBuffer initializing.*>" {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "bf537_lq035.*>|bf54x_lq043.*>" {
             case_pass $case_num
             break
         }
@@ -215,8 +184,48 @@ while 1 {
 }
 
 for {set count 1} {$count <= $Total_Count} {incr count} {
-    test_standby
-    send_user "\nStandby test round $count pass\n\n"
+    standby_test_case1
+    send_user "\nStandby test case 1 round $count pass\n\n"
+}
+
+set timeout 15
+incr case_num
+send "video_test&\r"
+while 1 {
+    expect {
+        -re "\[0-9]+\r\nroot:~>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 3
+for {set count 1} {$count <= $Total_Count} {incr count} {
+    standby_test_case2
+    send_user "\nStandby test case 2 round $count pass\n\n"
+    sleep 3
+}
+
+set timeout 20
+incr case_num
+send "video_test_id=\`ps ax|grep video_test|awk \'\$5==\"video_test\" {print \$1}\'\`; kill \$video_test_id\r"
+while 1 {
+    expect {
+        -re "kill:.*>|Usage:.*>" {
+            case_fail $case_num
+        }
+        -re "root:~>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 set timeout 5
@@ -243,12 +252,12 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
+        -re "bf537_lq035|bf54x_lq043" {
+            case_fail $case_num
+        }
         -re ">" {         
             case_pass $case_num
             break
-        }
-        "lq0.*>" {
-            case_fail $case_num
         }
         timeout {
             case_fail $case_num

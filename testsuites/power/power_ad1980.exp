@@ -23,7 +23,7 @@ proc standby_test_case1 {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\)\r\nRestarting tasks \.\.\. done\.\r\nroot:~>" {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\nroot:~>" {
                 case_pass $case_num
                 break
             }
@@ -35,11 +35,10 @@ proc standby_test_case1 {} {
 
     incr case_num
     set timeout 10
-    send "tone\r"
+    send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
     while 1 {
         expect {
-            -re "TONE: generating sine wave at 1000 Hz\.\.\." {
-                sleep 3
+            -re "Stereo \.\.\.\r\nroot:~>" {
                 case_pass $case_num
                 break
             }
@@ -49,12 +48,12 @@ proc standby_test_case1 {} {
         }
     }
 
-    set timeout 15
     incr case_num
-    send -s "\3"
+    set timeout 10
+    send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
     while 1 {
         expect {
-            -re "root:~>" {
+            -re "Stereo\r\nroot:~>" {
                 case_pass $case_num
                 break
             }
@@ -73,7 +72,7 @@ proc standby_test_case2 {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\)\r\nRestarting tasks \.\.\. done\.\r\nroot:~>" {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\nroot:~>" {
                 case_pass $case_num
                 break
             }
@@ -110,14 +109,18 @@ send "\r"
 
 set timeout 20
 incr case_num
-send "modprobe snd-ad73311\r"
+send "modprobe snd-ad1981\r"
 while 1 {
     expect {
-        -re "root:~>" {
+        -re "error.*>" {
+            send_user "Install AD1980 module failed!\r"
+            case_fail $case_num
+        }
+        -re "AD1980 SoC.*>" {
             break
         }
         timeout {
-            send_user "Install AD73311 module failed!\r"
+            send_user "Install AD1980 module failed!\r"
             case_fail $case_num
         }
     }
@@ -125,7 +128,7 @@ while 1 {
 send "lsmod\r" 
 while 1 {
     expect {
-        -re "snd_ad73311.*>" {
+        -re "snd_soc_ad1980.*>" {
             case_pass $case_num
             break
         }
@@ -137,11 +140,10 @@ while 1 {
 
 incr case_num
 set timeout 10
-send "tone\r"
+send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
 while 1 {
     expect {
-        -re "TONE: generating sine wave at 1000 Hz\.\.\." {
-            sleep 3
+        "Stereo \.\.\.\r\nroot:~>" {
             case_pass $case_num
             break
         }
@@ -151,12 +153,12 @@ while 1 {
     }
 }
 
-set timeout 15
 incr case_num
-send -s "\3"
+set timeout 10
+send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
 while 1 {
     expect {
-        "root:~>" {
+        "Stereo\r\nroot:~>" {
             case_pass $case_num
             break
         }
@@ -243,7 +245,7 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "rmmod snd-ad73311\r"
+send "rmmod snd_ad1981 snd_soc_ad1980 snd_soc_bf5xx snd_soc_core ac97_bus snd_soc_bf5xx_ac97\r"
 while 1 {
     expect {
         -re "rmmod:.*>" {
@@ -264,7 +266,7 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
-        -re "snd_ad73311" {
+        -re "snd_ad1981|snd_soc_ad1980|snd_soc_bf5xx|snd_soc_core|ac97_bus|snd_soc_bf5xx_ac97" {
             case_fail $case_num
         }
         ">" {
