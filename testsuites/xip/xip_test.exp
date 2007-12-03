@@ -1,15 +1,16 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
+source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-set format [lindex $argv 0]
-send_log "\n#### binary format is $format\n"
+set format [lindex $argv 1]
+send_user "\n#### binary format is $format\n"
 
-if { $argc < 1} {
-    puts "Please input: binary format (FDPIC or SHARED-FLAT)"
+if { $argc < 2} {
+    puts "Please input:board_type, binary format (FDPIC or SHARED-FLAT)"
     exit
 }
 append TITLE " ($format)"
@@ -82,7 +83,11 @@ while 1 {
     }
 }
 
-send -s "set bootargs root=mtd0 rootfstype=romfs ro\r"
+if { $board_type == "BF548-EZKIT" } {
+    send -s "set bootargs root=mtd1 rootfstype=romfs ro\r"
+} else {
+    send -s "set bootargs root=mtd0 rootfstype=romfs ro\r"
+}
 expect ">"
 send -s "save\r"
 expect ">"

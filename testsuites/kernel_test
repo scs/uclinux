@@ -1031,7 +1031,7 @@ do
 	tail -50 ./build_xip_kernel_log
   else
         sleep 30
-        ./xip_test.exp FDPIC >/dev/null  2>&1
+        ./xip_test.exp $BOARD_TYPE FDPIC >/dev/null  2>&1
   fi
 
   cp $UCLINUX_DIST_PATH/images/linux.romfs $THIS_LOG/linux.romfs.xip.fdpic
@@ -1060,7 +1060,7 @@ do
 	tail -50 ./build_xip_kernel_log
   else
         sleep 30
-        ./xip_test.exp SHARED-FLAT >/dev/null  2>&1
+        ./xip_test.exp $BOARD_TYPE SHARED-FLAT >/dev/null  2>&1
   fi
 
   cp $UCLINUX_DIST_PATH/images/linux.romfs $THIS_LOG/linux.romfs.xip.shared-flat
