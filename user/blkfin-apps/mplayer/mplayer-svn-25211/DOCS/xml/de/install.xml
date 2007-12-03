@@ -1,0 +1,451 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- in sync with r24087 -->
+<!-- missing cosmetic commit 21537 -->
+<chapter id="install">
+  <title>Installation</title>
+
+  <para>
+    Eine Anleitung für eine schnelle Installation steht in der Datei
+    <filename>README</filename>. Bitte lies diese zuerst und komm erst dann für
+    den Rest der mörderischen Details zurück.
+  </para>
+
+  <para>
+    In diesem Abschnitt wirst du durch den Vorgang des
+    Compilierens und Konfigurierens von <application>MPlayer</application>
+    geleitet. Es ist nicht leicht, muss aber nicht unbedingt schwierig sein. Wenn du
+    Erfahrungen machst anders als das hier beschriebene, durchsuche bitte die
+    Dokumentation, und du wirst deine Antworten finden.
+  </para>
+
+  <para>
+    Du brauchst ein ziemlich aktuelles System. Unter Linux werden die Kernel der
+    Version 2.4.x empfohlen.
+  </para>
+
+  <sect1 id="softreq">
+    <title>Softwareanforderungen</title>
+
+    <itemizedlist>
+      <listitem>
+        <para>
+          <emphasis role="bold">binutils</emphasis> - empfohlene Version ist
+          <emphasis role="bold">2.11.x</emphasis>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">gcc</emphasis> - empfohlene Versionen sind 2.95
+          und 3.4+. 2.96 und 3.0.x generieren bekannterweise fehlerhaften Code, 3.1 und
+          3.2 hatten auch Probleme, 3.3 ein paar kleinere. Benutze auf PowerPC-Architektur 4.x+.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">Xorg/XFree86</emphasis> - empfohlene Version ist
+          4.3 oder neuer. Stelle auch sicher, dass die
+          <emphasis role="bold">Entwicklerpakete</emphasis>
+          installiert ist, sonst wird es nicht funktionieren.
+          Du brauchst X nicht zwangsläufig, manche Videoausgabetreiber funktionieren auch ohne.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">make</emphasis> - empfohlene Version ist
+          3.79.x oder neuer.
+          Um die XML-Dokumentation zu erstellen, benötigst du 3.80.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">FreeType</emphasis> - Version 2.0.9 oder neuer
+          wird benötigt, um Schriften für OSD und Untertitel zu erhalten.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">ALSA</emphasis> - optional, für Unterstützung der
+          Audioausgabe mit ALSA. Version 0.9.0rc4 ist mindestens erforderlich.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">libjpeg</emphasis> -
+          benötigt für den optionalen JPEG-Videoausgabetreiber
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">libpng</emphasis>
+          benötigt für den optionalen PNG-Videoausgabetreiber
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">directfb</emphasis> - optional, verwende 0.9.13 oder neuer,
+          benötigt für den directfb-Videoausgabetreiber
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">lame</emphasis> - 3.90 oder neuer wird empfohlen,
+          erforderlich für die Audioencodierung mit <application>MEncoder</application>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">zlib</emphasis> - empfohlen, benötigt für die
+          Unterstützung komprimierter MOV-Header und PNG.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold"><ulink url="http://www.live555.com/mplayer/">LIVE555 Streaming Media</ulink></emphasis>
+          - optional, benötigt für die Wiedergabe mancher RTSP/RTP-Streams.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">cdparanoia</emphasis> - optional, für CDDA-Unterstützung
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">libxmms</emphasis> - optional, für Unterstützung des
+          XMMS-Input-Plugins. Version 1.2.7 ist mindestens erforderlich.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          <emphasis role="bold">libsmb</emphasis> - optional, für SMB-Netzwerkunterstützung
+        </para>
+      </listitem>
+    </itemizedlist>
+  </sect1>
+
+
+  <sect1 id="features">
+    <title>Features</title>
+
+    <itemizedlist>
+      <listitem>
+        <para>
+          Entscheide, ob du eine GUI benötigst. Ist dies der Fall, schau in Abschnitt
+          <link linkend="gui">GUI</link>, bevor du compilierst.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Wenn Du <application>MEncoder</application> (unseren super Allzweck-Encoder)
+          installieren möchtest, siehe Abschnitt
+          <link linkend="mencoder"><application>MEncoder</application></link>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Wenn du eine V4L-kompatible <emphasis role="bold">TV-Tuner</emphasis>-Karte hast
+          und Filme mit <application>MPlayer</application> anschauen/grabben und encodieren
+          möchtest, lies den Abschnitt <link linkend="tv-input">TV-Input</link>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Wenn du eine V4L-kompatible <emphasis role="bold">Radioempfänger</emphasis>karte hast
+          und mit <application>MPlayer</application> Radio hören oder aufnehmen möchtest,
+          lies den Abschnitt <link linkend="radio">radio</link>.
+        </para>
+      </listitem>
+      <listitem>
+        <para>
+          Es gibt Unterstützung für ein schickes <emphasis role="bold">OSD-Menü</emphasis>,
+          das benutzt werden kann. Siehe Abschnitt <link linkend="subosd">OSD-Menü</link>.
+        </para>
+      </listitem>
+    </itemizedlist>
+
+    <para>
+      Baue dann <application>MPlayer</application>:
+<screen>./configure
+make
+make install</screen>
+    </para>
+
+    <para>
+      Zu diesem Zeitpunkt ist <application>MPlayer</application> benutzbar.
+      Überprüfe, ob du eine Datei namens <filename>codecs.conf</filename> in deinem
+      Benutzerverzeichnis unter (<filename>~/.mplayer/codecs.conf</filename>)
+      von alten <application>MPlayer</application>-Versionen hast.
+      Wenn du einer findest, entferne sie.
+    </para>
+
+    <para>
+      Beachte, dass die eingebaute und vom System bereitgestellte <filename>codecs.conf</filename>
+      ignoriert wird, wenn du eine <filename>codecs.conf</filename> im Verzeichnis
+      <filename>~/.mplayer/</filename>, hast.
+      Benutze diese nicht, wenn du nicht an den Interna von <application>MPlayer</application>
+      herumbasteln möchtest, da dies viele Probleme hervorrufen kann. Wenn du die Reihenfolge
+      der Suche nach Codecs ändern möchtest, benutze die Optionen <option>-vc</option>,
+      <option>-ac</option>, <option>-vfm</option>, oder <option>-afm</option> auf der
+      Kommandozeile oder in deiner Konfigurationsdatei (siehe Manpage).
+    </para>
+
+    <para>
+      Debian-Nutzer können ihr eigenes .deb-Paket bauen, das ist sehr leicht.
+      Führe nur <screen>fakeroot debian/rules binary</screen>
+      in <application>MPlayer</application>s Wurzelverzeichnis aus. Siehe
+      <link linkend="debian">Debian-Packaging</link> für detaillierte Informationen.
+    </para>
+
+    <para>
+      <emphasis role="bold">Überprüfe immer die Ausgabe von </emphasis>
+      <filename>./configure</filename> und die Datei <filename>configure.log</filename>,
+      sie enthalten Informationen darüber, was eingebaut wird und was nicht.
+      Du möchtest dir vielleicht auch die Dateien
+      <filename>config.h</filename> und <filename>config.mak</filename> anschauen.
+      Wenn du manche Bibliotheken installiert hast, die von
+      <filename>./configure</filename> aber nicht erkannt werden, überprüfe auch
+      die entsprechenden Header-Dateien (normalerweise die -dev-Pakete) und ob deren
+      Versionen passen. Die Datei <filename>configure.log</filename> gibt
+      normalerweise Auskunft darüber, was fehlt.
+    </para>
+
+    <para>
+      Obwohl sie nicht notwendig sind, sollten die Fonts installiert werden, um die
+      Funktionalität von OSD- und Untertiteldarstellung nutzen zu können. Die
+      empfohlene Methode dazu ist, eine TTF-Fontdatei zu installieren und
+      <application>MPlayer</application> anzuweisen, diese zu benutzen.
+      Siehe Abschnitt <link linkend="subosd">Untertitel und OSD</link> für Details.
+    </para>
+
+  </sect1>
+
+  <!-- ********** -->
+
+  <sect1 id="gui">
+    <title>Was ist mit der GUI?</title>
+
+    <para>
+      Die GUI benötigt GTK 1.2.x oder GTK 2.0 (sie ist nicht vollständig GTK, aber
+      die Panels). Die Skins werden im PNG-Format gespeichert, daher müssen GTK,
+      <systemitem class="library">libpng</systemitem> (und deren Entwicklungskram,
+      normalerweise <systemitem class="library">gtk-dev</systemitem> genannt),
+      installiert sein. Du kannst die GUI durch Angabe von <option>--enable-gui</option>
+      während <filename>./configure</filename> aktivieren. Dann musst du, um den
+      GUI-Modus zu aktivieren, die Binärdatei <command>gmplayer</command> starten.
+    </para>
+
+    <para>
+      Da <application>MPlayer</application> kein Skin enthält, musst du eins
+      herunterladen, um die GUI benutzen zu können. Siehe
+      <ulink url="http://www.mplayerhq.hu/dload.html">Download-Seite</ulink>.
+      Sie sollten in das normale systemweite Verzeichnis
+      (<filename class="directory">$PREFIX/share/mplayer/skins</filename>) oder nach
+      <filename class="directory">$HOME/.mplayer/skins</filename> installiert werden.
+      <application>MPlayer</application> schaut nach Voreinstellung in diesen Verzeichnissen
+      nach einem Verzeichnis mit dem Namen <filename class="directory">default</filename>,
+      du kannst aber die Option <option>-skin <replaceable>newskin</replaceable></option>
+      oder die Konfigurationsdateianweisung
+      <literal>skin=newskin</literal> nutzen, um ein Skin im Verzeichnis
+      <filename class="directory">*/skins/newskin</filename> zu benutzen.
+    </para>
+  </sect1>
+
+  <!-- ********** -->
+
+  <sect1 id="fonts-osd">
+    <title>Schriften und OSD</title>
+
+    <para>
+      Du musst <application>MPlayer</application> mitteilen, welche Schriftart verwendet
+      werden soll, um in den Genuß von OSD und Untertiteln zu kommen.
+      Jede TrueType-Schriftart oder spezielle Bitmap-Schriftarten werden funktionieren.
+      TrueType-Schriftarten werden jedoch empfohlen, da sie weit besser aussehen,
+      entsprechend der Filmgröße skaliert werden können und mit verschiedenen Zeichensätzen
+      besser umgehen.
+    </para>
+
+
+    <sect2 id="truetype-fonts">
+      <title>TrueType-Schriften</title>
+
+      <para>
+        Es gibt zwei Möglichkeiten, TrueType-Schriften ans Laufen zu bekommen.
+        Die erste besteht darin, die Option <option>-font</option> auf der Kommandozeile
+        anzugeben. Diese Option ist vermutlich ein guter Kandidat für die Aufnahme
+        in deine Konfigurationsdatei (siehe Manpage für Details).
+        Die zweite besteht darin, einen <filename>subfont.ttf</filename> genannten Symlink
+        zu der Schriftart deiner Wahl zu erstellen. Führe entweder
+        <screen>ln -s <replaceable>/Pfad/zur/Schrift.ttf</replaceable> ~/.mplayer/subfont.ttf</screen>
+        für jeden User durch, oder erstelle einen systemweiten Symlink:
+        <screen>ln -s <replaceable>/Pfad/zur/Schrift.ttf</replaceable> $PREFIX/share/mplayer/subfont.ttf</screen>
+      </para>
+
+      <para>
+        Wenn <application>MPlayer</application> mit
+        <systemitem class="library">fontconfig</systemitem>-Unterstützung compiliert wurde,
+        werden die oben genannten Methoden nicht funktionieren; statt dessen erwartet
+        <option>-font</option> einen <systemitem class="library">fontconfig</systemitem>-Schriftnamen,
+        der Standard ist die Schriftart Sans-serif. Beispiel:
+        <screen>mplayer -font <replaceable>'Bitstream Vera Sans'</replaceable> <replaceable>anime.mkv</replaceable></screen>
+      </para>
+
+      <para>
+        Um eine Liste der
+        <systemitem class="library">fontconfig</systemitem> bekannten Dateien zu erhalten,
+        benutze <command>fc-list</command>.
+      </para>
+
+    </sect2>
+
+
+    <sect2 id="bitmap-fonts">
+      <title>Bitmap-Schriften</title>
+
+      <para>
+        Wenn du aus einem bestimmten Grund Bitmap-Schriftwarten verwenden möchtest, lade dir einen Satz
+        von unserer Homepage herunter. Du kannst zwischen verschiedenen
+        <ulink url="http://www.mplayerhq.hu/MPlayer/releases/fonts/">ISO-Schriftarten</ulink>
+        und ein paar Sätzen von Schriftarten, die
+        <ulink url="http://www.mplayerhq.hu/MPlayer/contrib/fonts/">von Benutzern beigetragen</ulink> wurden,
+        in verschiedenen Zeichensätzen wählen.
+      </para>
+
+      <para>
+        Entpacke die Datei, die du heruntergeladen hast nach
+        <filename class="directory">~/.mplayer</filename> oder
+        <filename class="directory">$PREFIX/share/mplayer</filename>.
+        Benenne dann eins der extrahierten Verzeichnisse um zu
+        <filename class="directory">font</filename>, oder erstelle einen Symlink dorthin, zum Beispiel:
+        <screen>ln -s <replaceable>~/.mplayer/arial-24</replaceable> ~/.mplayer/font</screen>
+        <screen>ln -s <replaceable>$PREFIX/share/mplayer/arial-24</replaceable> $PREFIX/share/mplayer/font</screen>
+      </para>
+
+      <para>
+        Schriftarten sollten eine entsprechende <filename>font.desc</filename>-Datei haben,
+        die Positionen von Unicode-Schriften auf die aktuelle Codeseite des Untertiteltexts abbildet.
+        Eine andere Möglichkeit besteht darin, in UTF-8 codierte Untertitel zu verwenden und die Option
+        <option>-utf8</option> zu verwenden. Noch eine Möglichkeit besteht darin, der Untertiteldatei
+        den gleichen Namen zu geben wie die Videodatei mit der Dateiendung <filename>&lt;video_name&gt;.utf</filename> und sie im selben Verzeichnis wie
+        die Videodatei abzulegen.
+      </para>
+
+    </sect2>
+
+
+    <sect2 id="osdmenu">
+      <title>OSD-Menü</title>
+
+      <para>
+        <application>MPlayer</application> hat eine komplett benutzerdefinierbare OSD-Menü-Schnittstelle.
+      </para>
+
+      <note>
+        <para>
+          Das Menü Einstellungen ist momentan NICHT IMPLEMENTIERT!
+        </para>
+      </note>
+
+      <orderedlist>
+        <title>Installation</title>
+        <listitem>
+          <para>
+            compiliere <application>MPlayer</application> mit Übergabe von <option>--enable-menu</option>
+            an <filename>./configure</filename>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            stelle sicher, dass du ein OSD-Font installiert hast
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            kopiere <filename>etc/menu.conf</filename> in dein
+            <filename class="directory">.mplayer</filename>-Verzeichnis
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            kopiere <filename>etc/input.conf</filename> in dein
+            <filename class="directory">.mplayer</filename>-Verzeichnis oder in das systemweite
+            <application>MPlayer</application>-Konfigurationsverzeichnis (Standard:
+            <filename class="directory">/usr/local/etc/mplayer</filename>)
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            überprüfe und editiere <filename>input.conf</filename>, um Menüsteuerungstasten
+            zu aktivieren (das ist dort beschrieben).
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            starte <application>MPlayer</application> mit folgendem Beispiel:
+            <screen>mplayer -menu <replaceable>datei.avi</replaceable></screen>
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            drücke irgendeine von dir definierte Menütaste
+          </para>
+        </listitem>
+      </orderedlist>
+
+    </sect2>
+  </sect1>
+
+  <!-- ********** -->
+
+  <sect1 id="rtc">
+    <title>RTC</title>
+    <para>
+      Es gibt drei Zeitgebermethoden in <application>MPlayer</application>.
+
+      <itemizedlist>
+        <listitem>
+          <para>
+            <emphasis role="bold">Um die alte Methode zu verwenden</emphasis>, musst du
+            gar nichts machen. Diese benutzt <systemitem>usleep()</systemitem>, um
+            A/V-Synchronisation abzustimmen, mit +/- 10ms Genauigkeit. Trotzdem muss manchmal
+            die Synchronisation noch feiner abgestimmt werden.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <emphasis role="bold">Der neue Zeitgeber</emphasis>-Code benutzt RTC (RealTime Clock, Echtzeituhr)
+            für diese Aufgabe, da dieser präzise 1ms-Timer besitzt.
+            Die Option <option>-rtc</option> aktivert diesen, es ist jedoch ein hierfür speziell konfigurierter
+            Kernel erforderlich.
+            Wenn du Kernel 2.4.19pre8 oder neuer laufen hast, kannst du die maximale RTC-Frequenz
+            für normale Benutzer durch das <systemitem class="systemname">/proc</systemitem>-Dateisystem
+            festlegen.
+            Benutze einen der folgenden Befehle, um RTC für normale Benutzer zu aktivieren:
+            <screen>echo 1024 &gt; /proc/sys/dev/rtc/max-user-freq</screen>
+            <screen>sysctl dev/rtc/max-user-freq=1024</screen>
+            Die kannst diese Einstellung permanent machen, indem du letzteren Befehl der Datei
+            <filename>/etc/sysctl.conf</filename> hinzufügst.
+          </para>
+          <para>
+            Du kannst die Effizienz des neuen Zeitgebers in der Statuszeile sehen.
+            Die Power Management-Funktionen der BIOSse mancher Notebooks mit speedstep-CPUs
+            vertragen sich nicht gut mit RTC. Audio und Video könnten Synchronisation verlieren.
+            Die externe Stromversorgung anzuschließen, bevor du dein Notebook einschaltest,
+            scheint zu helfen.
+            Bei manchen Hardwarekombinationen (bestätigt
+            während des Gebrauchs eines Nicht-DMA-DVD-Laufwerks auf einem ALi1541-Board)
+            führt der Gebrauch des RTC-Zeitgebers zu sprunghafter Wiedergabe. Es wird empfohlen,
+            in solchen Fällen die dritte Methode zu verwenden.
+          </para>
+        </listitem>
+        <listitem>
+          <para>
+            <emphasis role="bold">Der Code des dritten Zeitgebers</emphasis> wird mit der Option
+            <option>-softsleep</option> aktiviert. Der hat die Effizienz von RTC, benutzt RTC aber nicht.
+            Auf der anderen Seite benötigt er mehr CPU.
+          </para>
+        </listitem>
+      </itemizedlist>
+    </para>
+  </sect1>
+
+</chapter>

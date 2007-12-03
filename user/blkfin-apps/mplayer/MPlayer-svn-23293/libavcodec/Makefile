@@ -389,11 +389,16 @@ OBJS-$(CONFIG_VC1_DECODER)             += ppc/vc1dsp_altivec.o
 OBJS-$(CONFIG_WMV3_DECODER)            += ppc/vc1dsp_altivec.o
 endif
 
-OBJS-$(TARGET_ARCH_BFIN)               += bfin/dsputil_bfin.o \
+OBJS-$(ARCH_BFIN)                      += bfin/dsputil_bfin.o \
+                                          bfin/mpegvideo_bfin.o \
+                                          bfin/vp3_bfin.o \
+                                          bfin/imgcvt_bfin.o    \
 
-ASM_OBJS-$(TARGET_ARCH_BFIN)           += bfin/pixels_bfin.o \
+ASM_OBJS-$(ARCH_BFIN)                  += bfin/pixels_bfin.o \
                                           bfin/idct_bfin.o   \
                                           bfin/fdct_bfin.o   \
+                                          bfin/vp3_idct_bfin.o   \
+                                          bfin/cvt_bfin.o    \
 
 EXTRALIBS := -L$(BUILD_ROOT)/libavutil -lavutil$(BUILDSUF) $(EXTRALIBS)
 

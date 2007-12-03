@@ -240,8 +240,27 @@ static INLINE void ComplexMult(real_t *y1, real_t *y2,
       return _MulHigh(A,B) << (32-FRAC_BITS);
   }
 #else
+#ifdef bfin
+#define _MulHigh(X,Y) ({ int xxo;                       \
+    asm (                                               \
+        "a1 = %2.H * %1.L (IS,M);\n\t"                  \
+        "a0 = %1.H * %2.H, a1+= %1.H * %2.L (IS,M);\n\t"\
+        "a1 = a1 >>> 16;\n\t"                           \
+        "%0 = (a0 += a1);\n\t"                          \
+        : "=d" (xxo) : "d" (X), "d" (Y)); xxo; })
+
+#define MUL_F(X,Y) ({ int xxo;                       \
+    asm (                                               \
+        "a1 = %2.H * %1.L (M);\n\t"                  \
+        "a0 = %1.H * %2.H, a1+= %1.H * %2.L (M);\n\t"\
+        "a1 = a1 >>> 16;\n\t"                           \
+        "%0 = (a0 += a1);\n\t"                          \
+        : "=d" (xxo) : "d" (X), "d" (Y)); xxo; })
+#else
   #define _MulHigh(A,B) (real_t)(((int64_t)(A)*(int64_t)(B)+(1 << (FRAC_SIZE-1))) >> FRAC_SIZE)
   #define MUL_F(A,B) (real_t)(((int64_t)(A)*(int64_t)(B)+(1 << (FRAC_BITS-1))) >> FRAC_BITS)
+#endif
+
 #endif
   #define MUL_Q2(A,B) (real_t)(((int64_t)(A)*(int64_t)(B)+(1 << (Q2_BITS-1))) >> Q2_BITS)
   #define MUL_SHIFT6(A,B) (real_t)(((int64_t)(A)*(int64_t)(B)+(1 << (6-1))) >> 6)

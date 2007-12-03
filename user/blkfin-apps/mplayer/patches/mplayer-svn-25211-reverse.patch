@@ -1,0 +1,60 @@
+Index: libvo/vo_fbdev.c
+===================================================================
+--- libvo/vo_fbdev.c	(revision 25211)
++++ libvo/vo_fbdev.c	(working copy)
+@@ -1001,8 +1001,13 @@
+ 	    int x_offset=0,y_offset=0;
+ 	    if ((frame_buffer = (uint8_t *) mmap(0, fb_size, PROT_READ | PROT_WRITE,
+ 				    MAP_SHARED, fb_dev_fd, 0)) == (uint8_t *) -1) {
+-		mp_msg(MSGT_VO, MSGL_ERR, "Can't mmap %s: %s\n", fb_dev_name, strerror(errno));
+-		return 1;
++                frame_buffer = (uint8_t *) mmap(0, fb_size, PROT_READ | PROT_WRITE,
++                                                MAP_PRIVATE, fb_dev_fd, 0);
++                if (frame_buffer == -1) {
++
++                    mp_msg(MSGT_VO, MSGL_ERR, "Can't mmap %s: %s\n", fb_dev_name, strerror(errno));
++                    return 1;
++                }
+ 	    }
+ 
+ 	    center = frame_buffer +
+Index: configure
+===================================================================
+--- configure	(revision 25211)
++++ configure	(working copy)
+@@ -750,6 +750,11 @@
+ 
+   --target=*)
+     _target=`echo $ac_option | cut -d '=' -f 2`
++    _host_cc=${_cc}
++    _cc=${_target}-gcc
++    _as=${_target}-as
++    _ar=${_target}-ar
++    _ranlib=${_target}-ranlib
+     ;;
+   --cc=*)
+     _cc=`echo $ac_option | cut -d '=' -f 2`
+@@ -2239,6 +2244,23 @@
+     _optimizing=''
+     ;;
+ 
++  bf*)
++    _arch='BFIN'
++    _target_arch='ARCH_BFIN = yes'
++    iproc='bfin'
++    proc=''
++    _bfin=yes
++    _march=''
++    _mcpu=''
++    _optimizing=''
++    _faad_fixed=yes
++    _libavcodec_mpegaudio_hp=no
++    _mp3lib=no
++    _speex=no
++    _termcap=no
++    _termios=no
++    ;;
++
+   generic)
+     _arch='GENERIC'
+     _target_arch='ARCH_GENERIC = yes'
