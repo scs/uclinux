@@ -111,11 +111,19 @@ while 1 {
         }
 
         -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
         }
 
         -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
         }
 
         -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
