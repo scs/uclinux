@@ -82,23 +82,6 @@ proc standby_test_case2 {} {
             }
         }
     }
-
-    incr case_num
-    send "ps ax|grep tone|awk \'\$5==\"tone\" {print \$1}\'\r"
-    while 1 {
-        expect {
-            -re "\[0-9]+\r\nroot:~>" {
-                case_pass $case_num
-                break
-            }
-            -re "root:~>" {
-                case_fail $case_num
-            }
-            timeout {
-                case_fail $case_num
-            }
-        }
-    }
 }
 
 
@@ -225,7 +208,7 @@ for {set count 1} {$count <= $Total_Count} {incr count} {
 
 set timeout 20
 incr case_num
-send "audio_test_id=\`ps ax|grep tone|awk \'\$5==\"tone\" {print \$1}\'\`; kill \$audio_test_id\r"
+send "audio_test_id=\`ps ax|awk \'\$5==\"tone\" {print \$1}\'\`; kill \$audio_test_id\r"
 while 1 {
     expect {
         -re "kill:.*>|Usage:.*>" {

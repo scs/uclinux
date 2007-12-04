@@ -24,7 +24,7 @@ proc standby_test_case1 {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\." {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\nroot:~>" {
                 case_pass $case_num
                 break
             }
@@ -91,7 +91,6 @@ set Total_Count 5
 sleep 5
 send "\r"
 expect ">"
-
 
 set timeout 20
 incr case_num
@@ -212,7 +211,7 @@ for {set count 1} {$count <= $Total_Count} {incr count} {
 
 set timeout 20
 incr case_num
-send "video_test_id=\`ps ax|grep video_test|awk \'\$5==\"video_test\" {print \$1}\'\`; kill \$video_test_id\r"
+send "video_test_id=\`ps ax|awk \'\$5==\"video_test\" {print \$1}\'\`; kill \$video_test_id\r"
 while 1 {
     expect {
         -re "kill:.*>|Usage:.*>" {
@@ -255,7 +254,7 @@ while 1 {
         -re "bf537_lq035|bf54x_lq043" {
             case_fail $case_num
         }
-        -re ">" {         
+        -re ">" {
             case_pass $case_num
             break
         }

@@ -208,7 +208,7 @@ for {set count 1} {$count <= $Total_Count} {incr count} {
 
 set timeout 20
 incr case_num
-send "video_test_id=\`ps ax|grep video_test|awk \'\$5==\"video_test\" {print \$1}\'\`; kill \$video_test_id\r"
+send "video_test_id=\`ps ax|awk \'\$5==\"video_test\" {print \$1}\'\`; kill \$video_test_id\r"
 while 1 {
     expect {
         -re "kill:.*>|Usage:.*>" {
