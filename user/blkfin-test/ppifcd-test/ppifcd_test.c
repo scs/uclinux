@@ -72,10 +72,10 @@ int WriteIMG(char *, unsigned long);
 #define HEIGHT          1024
 #endif
 
-#define BF537_MICRON_STANDBY  "/dev/pg11"
-#define BF537_MICRON_TRIGGER  "/dev/pg13"
-#define BF537_MICRON_LED      "/dev/pg8"
-#define BF537_MICRON_TRIGGER_STROBE 13
+#define BF537_MICRON_STANDBY  "/dev/pf27"      /* pg11 */
+#define BF537_MICRON_TRIGGER  "/dev/pf29"      /* pg13 */
+#define BF537_MICRON_LED      "/dev/pf24"      /* pg8 */
+#define BF537_MICRON_TRIGGER_STROBE 29
 
 #define BF533_MICRON_STANDBY  "/dev/pf8"
 #define BF533_MICRON_TRIGGER  "/dev/pf6"
