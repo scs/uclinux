@@ -953,6 +953,7 @@ proc run_LTP_test { filename command torun mode} {
 
          # seperate test case fcntl14 from the test cases that have been done
          -re "BusyBox.*Built-in shell.*Enter \'help\'.*root:~> " {
+            report "---continue"
             continue
          }
 
@@ -1005,7 +1006,6 @@ proc run_LTP_test { filename command torun mode} {
                       reset_board
                       break 
                 }
-
             }
          }
 
@@ -1019,14 +1019,19 @@ proc run_LTP_test { filename command torun mode} {
  
  
          timeout {
-	    step "timeout!"
-	    report "---timeout"
-            set result_flag $LTP_CRASH
-            break
+             if {$filename == "fcntl14"} { 
+                 send "\r"
+                 continue
+             } else {
+                 step "timeout!"
+                 report "---timeout"
+                 set result_flag $LTP_CRASH
+                 break
+             }
          }
       }
    }
-  
+
    if {$result_flag == $LTP_CRASH} {
       set x [recover]
       if {$x==0} {
