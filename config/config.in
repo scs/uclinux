@@ -279,9 +279,9 @@ if [ "$CONFIG_USER_SAMBA" = "y" ]; then
 	bool '  uses shared library'	CONFIG_USER_SAMBA_SHARED
 fi
 
-comment 'SMBFS'
-bool 'smbmount'			CONFIG_USER_SMBMOUNT_SMBMOUNT
-bool 'smbumount'		CONFIG_USER_SMBMOUNT_SMBUMOUNT
+#comment 'SMBFS'
+#bool 'smbmount'			CONFIG_USER_SMBMOUNT_SMBMOUNT
+#bool 'smbumount'		CONFIG_USER_SMBMOUNT_SMBUMOUNT
 
 comment 'CRAMFS'
 bool 'cramfsck'			CONFIG_USER_CRAMFS_CRAMFSCK
