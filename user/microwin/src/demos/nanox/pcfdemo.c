@@ -10,13 +10,15 @@ GR_FONT_ID font = 0;
 GR_WINDOW_ID main_wid;
 GR_FONT_INFO finfo;
 
+int max_width = 240;
+int max_height = 320;
+
 static void
 draw_string(void)
 {
-	int count = 0;
 	int x = 0;
 	int y = 10;
-	unsigned char ch;
+	int ch = 0;
 	GR_GC_ID gc = GrNewGC();
 
 	GrSetGCFont(gc, font);
@@ -24,25 +26,27 @@ draw_string(void)
 	GrSetGCForeground(gc, GR_RGB(255, 255, 255));
 	GrSetGCBackground(gc, GR_RGB(0, 0, 0));
 
-	printf("First char = %d, last char = %d\n", finfo.firstchar,
+	printf("First char = 0x%x, last char = 0x%x\n", finfo.firstchar,
 	       finfo.lastchar);
 	printf("Max width = %d, max height = %d\n", finfo.maxwidth,
 	       finfo.height);
 
-	for (ch = 0; ch < 255; ch++) {
-		if (ch < finfo.firstchar || ch > finfo.lastchar)
-			GrFillRect(main_wid, gc, x, y, finfo.maxwidth,
-				   finfo.height);
-		else
-			GrText(main_wid, gc, x, y, &ch, 1,
-			       GR_TFTOP | GR_TFASCII);
+	for (ch = finfo.firstchar; ch < finfo.lastchar; ch++) {
+		printf("draw_string: 0x%x\n", ch);
+		GrText(main_wid, gc, x, y, &ch, 1,
+		       GR_TFTOP | GR_TFUC16);
 
-		if (++count >= 16) {
+		if (x + (finfo.maxwidth + 2) >= max_width) {
 			x = 0;
-			y += finfo.height;
-			count = 0;
+			if ( (y + finfo.height) >= max_height) {
+				y = 0;
+				getchar();
+			}
+			else
+				y += finfo.height;
 		} else
-			x += finfo.maxwidth + 2;
+			x += (finfo.maxwidth + 2);
+			
 	}
 
 	GrDestroyGC(gc);
@@ -53,22 +57,26 @@ main(int argc, char **argv)
 {
 	int width, height;
 
-	if (argc < 2)
+	if (argc < 2) {
+		printf("%s <font>\n", argv[0]);
 		return (-1);
+	}
 
-	if (GrOpen() == -1)
+	if (GrOpen() == -1) {
+		printf("GrOpen() error\n");
 		return (-1);
+	}
 
-	font = GrCreateFont(argv[1], 12, 0);
+	font = GrCreateFont(argv[1], 0, 0);
 	if (!font)
 		printf("Unable to load %s\n", argv[1]);
 
 	GrGetFontInfo(font, &finfo);
 
-	width = ((finfo.maxwidth + 2) * 16);
-	height =
-		(((finfo.lastchar - finfo.firstchar) / 16) +
-		 5) * finfo.height;
+	width = (max_width / (finfo.maxwidth + 2)) * (finfo.maxwidth + 2);
+	height = (max_height / (finfo.height + 5)) * (finfo.height + 5);
+
+	printf("window height: %d, window width: %d\n", height, width);
 
 	main_wid = GrNewWindowEx(GR_WM_PROPS_APPWINDOW, "pcfdemo",
 			GR_ROOT_WINDOW_ID, 0, 0, width, height, BLACK);

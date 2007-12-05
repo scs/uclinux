@@ -145,7 +145,7 @@ LIBJPEG                  = /usr/lib/libjpeg.so
 HAVE_PNG_SUPPORT         = N
 INCPNG                   = .
 LIBPNG                   = /usr/lib/libpng.a
-LIBZ                     = /usr/lib/libz.a
+LIBZ                     = -lz
 
 ####################################################################
 # TIFF support through libtiff
