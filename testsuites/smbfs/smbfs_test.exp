@@ -1,0 +1,164 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Start tetsting."
+
+set case_num 0
+
+set timeout 8
+set flag 0
+send "ifconfig eth0 $targetip\r" 
+
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+          break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
+sleep 3
+send "ifconfig\r"
+while 1 {
+
+   expect {
+      "$targetip" {        
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "         
+            break
+         }
+     }
+}
+expect "root:~>"
+incr case_num
+
+send -s "smbmount //$serverip/users /mnt rw -o username=$name,password=$name \r" 
+while 1 {
+   expect  {
+       "root:~>"
+         break
+      }
+
+      timeout {
+            break
+         }
+ }
+
+incr case_num
+
+send -s "cp /bin/version /mnt/$name\r"
+while 1 {
+   expect {
+       "root:~>" {
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+         }
+     }
+}
+
+incr case_num
+
+send -s "ls /mnt/$name\r" 
+while 1 {
+   expect {
+       "version" {         
+         puts "******* samba mount  success.\n"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+incr case_num
+
+expect "root:~>"
+set timeout 3
+send -s "rm -f /mnt/$name/version\r"
+while 1 {
+   expect {
+       ">" {
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+        exit
+         }
+     }
+}
+
+incr case_num
+
+expect ">"
+send -s "smbumount /mnt\r" 
+while 1 {
+   expect {
+       ">" {         
+         puts "smbfs umount.\n"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+incr case_num
+
+set timeout 3
+send -s "ls /mnt\r"
+while 1 {
+   expect {
+       "home" {
+                case_fail $case_num
+	exit
+      }
+
+      timeout {
+                case_pass $case_num
+        break
+         }
+     }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+log_file
+
+
+
