@@ -2,7 +2,7 @@
 # and update the VER variable.  Or export your own from their
 # svn via:
 # svn export -r <REV> svn://svn.mplayerhq.hu/ffmpeg/trunk ffmpeg-svn-<REV>
-VER = ffmpeg-svn-9768
+VER = ffmpeg-svn-11114
 
 all: build/Makefile
 	$(MAKE) -C build
@@ -26,8 +26,8 @@ build/Makefile:
 		--enable-gpl \
 		--enable-pp \
 		--disable-strip \
-		--disable-v4l2 \
 		--cross-prefix=$(CONFIGURE_HOST)-
+	sed -i '/^LDCONFIG/s:=.*:=true:' build/config.mak
 
 #		--enable-swscaler
 
