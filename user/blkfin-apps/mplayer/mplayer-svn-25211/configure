@@ -2974,8 +2974,9 @@ EOF
   fi
   _wordsize=`expr $_wordsize + 1`
 done
+_wordsize=`expr $_wordsize '*' 8`
 [ -n "$_wordsize" ] && _mp_wordsize="#define MP_WORDSIZE $_wordsize"
-echores "$_wordsize"
+echores "$_wordsize bits"
 
 
 echocheck "malloc.h"

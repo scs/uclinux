@@ -2,7 +2,7 @@ turn wordsize check from a runtime test to compile time
 
 --- MPlayer-1.0rc1/configure
 +++ MPlayer-1.0rc1/configure
-@@ -2901,12 +2912,28 @@
+@@ -2901,12 +2912,29 @@
  
  echocheck "word size"
  _mp_wordsize="#undef MP_WORDSIZE"
@@ -31,7 +31,9 @@ turn wordsize check from a runtime test to compile time
 +  fi
 +  _wordsize=`expr $_wordsize + 1`
 +done
-+[ -n "$_wordsize" ] && _mp_wordsize="#define MP_WORDSIZE $_wordsize"
- echores "$_wordsize"
++_wordsize=`expr $_wordsize '*' 8`
++[ -n "$_wordsize" ] && _mp_wordsize="#define MP_WORDSIZE `expr $_wordsize '*' 8`"
+-echores "$_wordsize"
++echores "$_wordsize bits" 
  
  
