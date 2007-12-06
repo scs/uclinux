@@ -2953,12 +2953,28 @@ echores "$_fast_inttypes"
 
 echocheck "word size"
 _mp_wordsize="#undef MP_WORDSIZE"
-cat > $TMPC << EOF
-#include <stdio.h>
+_wordsize=0
+while true; do
+  cat > $TMPC << EOF
+#include <stdlib.h>
 #include <sys/types.h>
-int main(void) { printf("%d\n", sizeof(size_t)*8); return 0; }
+int main(void) {
+  static int test_array [1 - 2 * !(((long int) (sizeof (size_t))) <= $_wordsize)];
+  test_array [0] = 0;
+  return 0;
+}
 EOF
-cc_check && _wordsize=`$TMPEXE` && _mp_wordsize="#define MP_WORDSIZE $_wordsize"
+  if cc_check; then
+    break
+  fi
+  # sanity check
+  if test $_wordsize -gt 20; then
+    _wordsize=""
+    break
+  fi
+  _wordsize=`expr $_wordsize + 1`
+done
+[ -n "$_wordsize" ] && _mp_wordsize="#define MP_WORDSIZE $_wordsize"
 echores "$_wordsize"
 
 
@@ -3867,16 +3883,16 @@ echocheck "X11 headers presence"
   _res_comment="check if the dev(el) packages are installed"
   for I in `echo $_inc_extra | sed s/-I//g` /usr/include ; do
     if test -f "$I/X11/Xlib.h" ; then
-      _x11_headers="yes"
-      _res_comment=""
+      #_x11_headers="yes"
+      #_res_comment=""
       break
     fi
   done
   for I in /usr/X11/include /usr/X11R6/include /usr/include/X11R6 /usr/openwin/include ; do
     if test -f "$I/X11/Xlib.h" ; then
-      _inc_extra="$_inc_extra -I$I"
-      _x11_headers="yes"
-      _res_comment="using $I"
+      #_inc_extra="$_inc_extra -I$I"
+      #_x11_headers="yes"
+      #_res_comment="using $I"
       break
     fi
   done
