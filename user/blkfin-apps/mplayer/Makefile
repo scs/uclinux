@@ -3,12 +3,13 @@
 # svn via:
 # svn export --ignore-externals -r <REV> svn://svn.mplayerhq.hu/mplayer/trunk MPlayer-svn-<REV>
 
-VER = MPlayer-svn-23293
+VER = mplayer-svn-25211
 
 # The version of ffmpeg *must* be relatively close in time to the
 # version of mplayer since the build systems are so intertwined
-#FFM = ffmpeg-svn-9768
-FFM =
+#FFM = $(shell awk '$$1 == "VER" {print $$NF}' $(ROOTDIR)/lib/ffmpeg/Makefile)
+FFM-mplayer-svn-25211 = ffmpeg-svn-11114
+FFM = $(FFM-$(VER))
 
 # Would be nice to use these, but configure/build system needs to stop sucking
 #		--disable-lib{avutil,avcodec,avformat,postproc}_a 
@@ -46,7 +47,8 @@ $(VER)/config.mak: $(FFM_LIB_DIRS)
 		--confdir=/etc \
 		--mandir=/usr/share/man \
 		--enable-fbdev \
-		--disable-mp3lib
+		--disable-mp3lib \
+		--disable-live
 
 clean:
 	-$(MAKE) -C $(VER) distclean
