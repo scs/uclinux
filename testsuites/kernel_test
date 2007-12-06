@@ -928,21 +928,39 @@ do
 	echo "$0:   Error, failed."
 	tail -50 ./build_power_kernel_log
   else
-        sleep 30
         if [ ${AUTO_RUN_STATUS[$(( n + 9 ))]} -eq 1  ] ; then
             ./power_adv7171_test.exp >/dev/null  2>&1
-        elif [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
+            sleep 30
+        fi
+
+        if [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
             ./power_adv7393_test.exp >/dev/null  2>&1
-        elif [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
+            sleep 30
+        fi
+
+        if [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
             ./power_ad73311.exp >/dev/null  2>&1
-        elif [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] ; then
+            sleep 30
+        fi
+
+        if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] ; then
             ./power_tftlcd_test.exp $BOARD_TYPE >/dev/null  2>&1
-        elif [ ${AUTO_RUN_STATUS[$(( n + 3 ))]} -eq 1  ] ; then
+            sleep 30
+        fi
+
+        if [ ${AUTO_RUN_STATUS[$(( n + 3 ))]} -eq 1  ] ; then
             ./power_ad1836_test.exp >/dev/null  2>&1
-        elif [ ${AUTO_RUN_STATUS[$(( n + 14 ))]} -eq 1  ] ; then
+            sleep 30
+        fi
+
+        if [ ${AUTO_RUN_STATUS[$(( n + 14 ))]} -eq 1  ] ; then
             ./power_ad1980.exp >/dev/null  2>&1
-        elif [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
+            sleep 30
+        fi
+
+        if [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
             ./power_ad1981b.exp >/dev/null  2>&1
+            sleep 30
         fi
 
         ./power_ethernet_test.exp >/dev/null  2>&1
@@ -1241,7 +1259,12 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   cp $UCLINUX_DIST_PATH_BAK/config/.config config
   cp $UCLINUX_DIST_PATH_BAK/vendors/AnalogDevices/$BOARD_TYPE/Makefile vendors/AnalogDevices/$BOARD_TYPE
   rm -rf romfs/ images/
-  
+
+  if [ ${MANUAL_TESTCASE[$i]} == "netaudio" ] ; then
+      cd $UCLINUX_DIST_PATH/ 
+      make clean > /dev/null 2>&1
+  fi
+
   if [ ${MANUAL_TESTCASE[$i]} == "ndso" ] || [ ${MANUAL_TESTCASE[$i]} == "awg" ] ; then
   cd $UCLINUX_DIST_TESTSUITES/spiadc
   elif [ ${MANUAL_TESTCASE[$i]} == "sport_uart" ] ; then
@@ -1279,6 +1302,11 @@ for i in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
   cp $UCLINUX_DIST_TESTSUITES/${MANUAL_TESTCASE[$i]}/*_log  $THIS_LOG   
   fi
     
+  if [ ${MANUAL_TESTCASE[$i]} == "netaudio" ] ; then
+      cd $UCLINUX_DIST_PATH/ 
+      make clean > /dev/null 2>&1
+  fi
+
   echo  "End testing ${MANUAL_TESTCASE[$i]}..."
   fi
   done
