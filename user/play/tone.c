@@ -251,9 +251,10 @@ int main(int argc, char *argv[])
 	size *= 2 * sizeof(short);
 
 	for (;;) {
-		if ((i = write(ofd, buf, size)) != size) {
-			printf("ERROR: write(%s) failed, i=%d, errno=%d\n",
-				DACDEVICE, i, errno);
+		if ((i = write(ofd, buf, size)) < 0) {
+			printf("ERROR: write(%s) failed, errno=%d\n",
+				DACDEVICE, errno);
+			exit(1);
 		}
 	}
 
