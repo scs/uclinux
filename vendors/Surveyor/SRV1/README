@@ -1,0 +1,33 @@
+----------------------------------------------------------------------------
+Fri Aug 31 22:26:17 CEST 2007
+----------------------------------------------------------------------------
+Quick instructions to evaluate uClinux system:
+
+- Start target and interrupt u-boot on the console
+- Execute "runme.sh" in this directory. The unix image will be
+  automatically copied to the target. This can take up to a minute.
+- Follow instructions from the gdb init script about booting.
+
+- To boot from eeprom, the "flashboot" script must be possibly adapted:
+
+  > setenv flashboot 'eeprom read 0x1000000 0x20000 0x260000; bootm'
+  > setenv bootcmd 'run flashboot'
+  > saveenv
+
+- Programs can be downloaded using lrz:
+
+  1. Execute 'lrz' on target
+  2. Execute ZMODEM send command on target (e.g. "Send File" from minicom)
+
+  Likewise, files can be downloaded using lsz
+
+- Testing of the capture driver:
+
+  'v4l_test'
+
+- i2c direct register access of OV9655:
+
+  1. Setting: 'i2cset 0 0x30 <regaddr> <value>'
+  2. Dumping: 'i2cdump 0 0x30'
+
+----------------------------------------------------------------------------
