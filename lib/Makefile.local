@@ -60,3 +60,5 @@ dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
 
 dir_4_$(CONFIG_LIB_SDL_IMAGE)        += SDL_image
 dir_4_$(CONFIG_LIB_SDL_IMAGE_FORCE)  += SDL_image
+dir_4_$(CONFIG_LIB_SDL_TTF)          += SDL_ttf
+dir_4_$(CONFIG_LIB_SDL_TTF_FORCE)    += SDL_ttf
