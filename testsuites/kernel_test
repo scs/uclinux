@@ -141,6 +141,13 @@ if [ $BOARD_CONFIG = "BF537-STAMP-STD" ] ; then
 
 fi
 
+if [ $BOARD_CONFIG = "BF537-STAMP-USB176x" ] ; then
+
+   BOARD_TYPE=BF537-STAMP
+
+   AUTO_RUN_STATUS[$(( n + 15 ))]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[52]="1";
+
+fi
 
 if [ $BOARD_CONFIG = "BF537-STAMP-AD7171" ] ; then
 

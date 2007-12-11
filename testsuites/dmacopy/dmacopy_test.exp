@@ -26,81 +26,76 @@ incr case_num
 step "Clean src directory\n"
 spawn make clean -C src
 while 1 {
-   expect {
+    expect {
+        -re "\[Ee]rror" {
+            case_fail $case_num
+        }
 
-      "*error*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nClean src/. \n"
+            break
+        }
 
-      eof {
-         send_user "\nClean src/. \n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 step "Build test program\n"
 spawn make -C src
 while 1 {
-   expect {
+    expect {
+        -re "\[Ee]rror" {
+            case_fail $case_num
+        }
 
-      "*error*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nBuild test program done\n"
+            break
+        }
 
-      eof {
-         send_user "\nBuild test program done\n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
-
 
 set spawn_id $kermit_spawn_id
 
 send "ifconfig eth0 $targetip up\r"
 set timeout 60
 while 1 {
-   expect {
+    expect {
+        -re "~> " {
+            send "\r"
+            break
+        }
 
-      -re "~> " {
-         send "\r"
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-      }
-   }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 set timeout 100
 step "Copy testcase to target board\n"
 spawn rcp src/dmacopy root@$targetip:/
 while 1 {
-   expect {
+    expect {
+        "*connect*" {
+            case_fail $case_num
+        }
 
-      "*connect*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nCopy dmacopy to target board done\n"
+            break
+        }
 
-      eof {
-         send_user "\nCopy dmacopy to target board done\n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 step "Start testing"
@@ -108,35 +103,34 @@ set spawn_id $kermit_spawn_id
 set timeout 15
 send "./dmacopy\r"
 while 1 {
-   expect {
+    expect {
+        -re "CURRENT PROCESS.*Call Trace.*" {
+            case_fail $case_num
+            break
+        }
 
-      -re "CURRENT PROCESS.*Call Trace.*" {
-         case_fail $case_num
-         break
-      }
+        -re "test case 1 pass, memcmp result is 0" {
+            case_pass $case_num
+            incr case_num
+        }
 
-      -re "test case 1 pass, memcmp result is 0" {
-         case_pass $case_num
-	 incr case_num
-      }
+        -re "test case 1 fail, memcmp result is .*" {
+            case_fail $case_num
+            break
+        }
 
-      -re "test case 1 fail, memcmp result is .*" {
-         case_fail $case_num
-         break
-      }
+        -re "test case 2 pass, memcmp result is 0" {
+            case_pass $case_num
+            break
+        }
 
-      -re "test case 2 pass, memcmp result is 0" {
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-	 send -s "\3"
-         send_log "timeout\n"
-         case_fail $case_num
-         break
-      }
-   }
+        timeout {
+            send -s "\3"
+            send_log "timeout\n"
+            case_fail $case_num
+            break
+        }
+    }
 }
 
 send_log "\n"

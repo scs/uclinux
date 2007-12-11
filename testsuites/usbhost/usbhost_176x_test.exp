@@ -25,6 +25,7 @@ while 1 {
     expect {
        -re "ISP1761.*USB hub found.*USB Mass Storage devices.*sda: sda1.*Attached SCSI removable disk" {
            send "\r"
+           expect ">"
            case_pass $case_num
            break
        }
@@ -34,17 +35,17 @@ while 1 {
     }
 }
 
-expect ">"
+sleep 3
 incr case_num
 set timeout 5
 send "mount -t vfat /dev/sda1 /mnt\r"
 while 1 {
     expect {
-        -re "fail" {
+        -re "\[fF]ail|\[eE]rror" {
             send_user "mount usb flash disk failed\n"
             case_fail $case_num
         }
-        -re "\r\nroot:~>" {
+        -re "root:~>" {
             send_user "mount usb flash disk\n"
             break
         }
@@ -93,6 +94,7 @@ send "time dd if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
 while 1 {
     expect {
         -re "records in.*records out.*real.*user.*sys.*>" {
+            case_pass $case_num
             break
         }
         timeout {
@@ -103,14 +105,30 @@ while 1 {
 }
 
 incr case_num
+set timeout 40
+send "time dd if=/dev/zero of=/mnt/100m.bin bs=1M count=100\r"
+while 1 {
+    expect {
+        -re "records in.*records out.*real.*user.*sys.*>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Generate a 100M file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
 set timeout 5
-send "rm /mnt/usbhost_testfile; rm /mnt/10m.bin\r"
+send "rm /mnt/usbhost_testfile; rm /mnt/*.bin\r"
 while 1 {
     expect {
         -re "rm:.*>" {
             case_fail $case_num
         }
-        -re "\r\nroot:~>" {
+        -re "root:~>" {
             case_pass $case_num
             break
         }
@@ -120,11 +138,15 @@ while 1 {
     }
 }
 
-send "ls /mnt/usbhost_testfile; ls /mnt/10m.bin\r"
+send "ls /mnt/\r"
 set timeout 2
 while 1 {
     expect {
-        -re "No such file or directory.*No such file or directory.*>" {
+        -re "usbhost_testfile|10m\.bin|100m\.bin" {
+            case_fail $case_num
+            break
+        }
+        -re "root:~>" {
             case_pass $case_num
             break
         }
@@ -142,7 +164,7 @@ while 1 {
             send_user "umount error\n"
             case_fail $case_num
         }
-        -re "\r\nroot:~>" {
+        -re "root:~>" {
             break
         }
         timeout {
@@ -160,7 +182,7 @@ while 1 {
             send_user "umount failed"
             case_fail $case_num
         }
-        -re "\r\nroot:~>" {
+        -re "root:~>" {
             case_pass $case_num
             break
         }
