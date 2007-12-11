@@ -32,6 +32,8 @@ dir_$(CONFIG_USER_NET_AUDIO)                     += net_audio
 dir_$(CONFIG_USER_NET_AUDIO)                     += musicpd
 dir_$(CONFIG_USER_MDMA_TESTS)                    += mdma
 dir_$(CONFIG_USER_MDMA_KO)                       += mdma
+dir_$(CONFIG_USER_XMAME)                         += xmame
+dir_$(CONFIG_USER_UBOOT_TOOLS)                   += u-boot-tools
 
 all %::
 	for i in $(dir_y) ; do $(MAKE) -C $$i $@ || exit $$? ; done
