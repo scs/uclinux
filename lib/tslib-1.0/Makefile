@@ -1,11 +1,17 @@
-all: build/Makefile
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
-	cp etc/ts.conf $(STAGEDIR)/usr/lib/ts/ts.conf
+ifeq ($(MAKECMDGOALS)$(CONFIG_FMT_USE_FDPIC_ELF),)
+$(warning )
+$(warning )
+$(warning tslib only works with FDPIC, please change your build settings from FLAT to FDPIC)
+$(warning )
+$(warning )
+$(error )
 endif
 
+all: build/Makefile
+	$(MAKE) -C build install DESTDIR=$(STAGEDIR)
+	cp etc/ts.conf $(STAGEDIR)/usr/lib/ts/ts.conf
+
 build/Makefile:
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 	find . -type f -print0 | xargs -0 touch -r configure
 	set -e ; \
 	rm -rf build ; \
@@ -21,13 +27,11 @@ ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 		--disable-mk712 \
 		--disable-arctic2 \
 		CFLAGS='-DUSE_INPUT_API' 
-endif
 
 clean:
 	rm -rf build
 
 romfs:
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 	$(ROMFSINST) $(STAGEDIR)/usr/lib/libts.so /lib/
 	$(ROMFSINST) $(STAGEDIR)/usr/lib/libts-0.0.so.0 /lib/
 	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/dejitter.so /lib/
@@ -37,6 +41,5 @@ ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/variance.so /lib/
 	$(ROMFSINST) $(STAGEDIR)/usr/bin/ts_calibrate /bin/
 	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/ts.conf /etc/
-endif
 
 .PHONY: all clean romfs
