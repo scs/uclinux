@@ -112,19 +112,25 @@ DIRS_all = $(foreach n,1 2 3 4 5,$(sort $(dir_$(n)_y) $(dir_$(n)_n) $(dir_$(n)_)
 
 ##############################################################################
 
-all:
-	[ -z "$(dir_1_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_1_y)) || exit $$?
-	[ -z "$(dir_2_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_2_y)) || exit $$?
-	[ -z "$(dir_3_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_3_y)) || exit $$?
-	[ -z "$(dir_4_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_4_y)) || exit $$?
-	[ -z "$(dir_5_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_5_y)) || exit $$?
-
+SET_STAGEDIR = \
 	cd $(STAGEDIR); \
 	chmod 755 ./usr/lib/lib*.so*; \
 	chmod 644 ./usr/lib/lib*.la ./usr/lib/lib*.a; \
 	sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" ./usr/lib/*.la; \
 	sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':" ./usr/lib/pkgconfig/*.pc ./usr/bin/*-config; \
 	true
+
+all:
+	[ -z "$(dir_1_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_1_y)) || exit $$?
+	$(SET_STAGEDIR)
+	[ -z "$(dir_2_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_2_y)) || exit $$?
+	$(SET_STAGEDIR)
+	[ -z "$(dir_3_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_3_y)) || exit $$?
+	$(SET_STAGEDIR)
+	[ -z "$(dir_4_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_4_y)) || exit $$?
+	$(SET_STAGEDIR)
+	[ -z "$(dir_5_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_5_y)) || exit $$?
+	$(SET_STAGEDIR)
 
 # the actual dir target
 .PHONY: $(DIRS_y)
