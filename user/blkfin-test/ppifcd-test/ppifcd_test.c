@@ -60,6 +60,7 @@ int set_gpio(char *, char *);
 int WriteIMG(char *, unsigned long);
 
 #define I2C_DEVICE      "/dev/i2c-0"
+#define PPI_DEVICE      "/dev/ppi"
 #define VERSION         "0.1"
 
 /****************************************************************************/
@@ -391,7 +392,7 @@ int main(int argc, char *argv[])
 	buffer = (char *)malloc(IMAGESIZE + sizeof(bmphead));
 
 	/* Open /dev/ppi */
-	fd = open("/dev/ppi0", O_RDONLY, 0);
+	fd = open(PPI_DEVICE, O_RDONLY, 0);
 	if (fd == -1) {
 
 		printf("Could not open dev\/ppi : %d \n", errno);
