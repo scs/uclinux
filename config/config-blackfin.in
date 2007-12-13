@@ -206,3 +206,14 @@ if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
 	define_bool CONFIG_LIB_LIBAUDIO y
 fi
 endmenu
+
+#############################################################################
+
+
+mainmenu_option next_comment
+comment 'Blackfin device drivers (Experimental)'
+
+bool	'bf53x_pfbuttons'		CONFIG_USER_BLACKFIN_DRV_PFBUTTONS
+bool	'tea5764'			CONFIG_USER_BLACKFIN_DRV_TEA5764
+
+endmenu
