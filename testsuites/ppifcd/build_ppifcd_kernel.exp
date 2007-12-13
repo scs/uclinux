@@ -52,7 +52,7 @@ while 1 {
       }
               
          -re "Blackfin GPIO based I2C interface.*I2C_BLACKFIN_GPIO.*\\\[.*]" {
-             if { $board_type == "BF533-STAMP" || $board_type == "BF561-EZKIT" } {
+             if { $board_type == "BF533-STAMP" } {
                         send "Y\r"
              } else {
                         send "N\r"
@@ -94,7 +94,11 @@ while 1 {
 	 -re "PPIFCD test program.*CONFIG_USER_BLACKFIN_PPIFCDTEST.*\\\[.*]" {
              send "Y\r"
       }
-      
+        
+         -re "CGI based Test Application for the PPI Frame Capture Driver.*CONFIG_USER_BLACKFIN_PPIFCDCGI.*\\\[.*]" {
+             send "Y\r"
+      }
+
        -re  "\\\(.*\\\) \\\[.*]" { 
              sleep .01
 	     send "\r"
@@ -103,7 +107,6 @@ while 1 {
       -re "\[cC]hoice\\\[.*]:" {
              send "\r"
       }
-
 
       eof {
 	     puts "End of configuration"
