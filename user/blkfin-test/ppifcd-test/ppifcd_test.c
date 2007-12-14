@@ -74,12 +74,10 @@ int WriteIMG(char *, unsigned long);
 #endif
 
 #define BF537_MICRON_STANDBY  "/dev/pf27"      /* pg11 */
-#define BF537_MICRON_TRIGGER  "/dev/pf29"      /* pg13 */
 #define BF537_MICRON_LED      "/dev/pf24"      /* pg8 */
 #define BF537_MICRON_TRIGGER_STROBE 29
 
 #define BF533_MICRON_STANDBY  "/dev/pf8"
-#define BF533_MICRON_TRIGGER  "/dev/pf6"
 #define BF533_MICRON_LED      "/dev/pf11"
 #define BF533_MICRON_TRIGGER_STROBE 6
 
@@ -277,7 +275,7 @@ int main(int argc, char *argv[])
 {
 
 	int fd, i, c, cnt, delay, board, trigger_strobe;
-	int fd_trigger, fd_standby, fd_led, fd_fs3;
+	int fd_standby, fd_led, fd_fs3;
 	char *buffer, *filename;
 	u_char addr;
 	u_short value, usetrigger, sendi2c;
@@ -323,12 +321,10 @@ int main(int argc, char *argv[])
 	}
 
 	if (board == 537) {
-		strcpy(trigger, BF537_MICRON_TRIGGER);
 		strcpy(standby, BF537_MICRON_STANDBY);
 		strcpy(led, BF537_MICRON_LED);
 		trigger_strobe = BF537_MICRON_TRIGGER_STROBE;
 	} else if (board == 533) {
-		strcpy(trigger, BF533_MICRON_TRIGGER);
 		strcpy(standby, BF533_MICRON_STANDBY);
 		strcpy(led, BF533_MICRON_LED);
 		trigger_strobe = BF533_MICRON_TRIGGER_STROBE;
@@ -337,11 +333,6 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	fd_trigger = open(trigger, O_RDWR, 0);
-	if (fd_trigger < 0) {
-		printf("%s open error %d\n", trigger, errno);
-		return -1;
-	}
 
 	fd_standby = open(standby, O_RDWR, 0);
 	if (fd_standby < 0) {
@@ -372,7 +363,6 @@ int main(int argc, char *argv[])
 	}
 
 	write(fd_led, "1", sizeof("0"));
-	write(fd_trigger, "0", sizeof("0"));
 
 	if (usetrigger) {
 		i2c_write_register(I2C_DEVICE, DEVID, 0x1E, 0x8100);
@@ -470,7 +460,6 @@ int main(int argc, char *argv[])
 
 	write(fd_led, "0", sizeof("0"));
 
-	close(fd_trigger);
 	close(fd_standby);
 	close(fd_led);
 
