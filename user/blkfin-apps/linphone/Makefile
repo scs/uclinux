@@ -1,19 +1,38 @@
-linphone_subdirs = libosip2-3.0.3-2
-linphone_subdirs += libeXosip2-3.0.3-3
-linphone_subdirs += linphone-2.0.0
-export TEMPDIR=$(CURDIR)/temp
+VER = linphone-2.0.0
 
-all:
-	for i in $(linphone_subdirs) ; do $(MAKE) -C $$i -f ucldist.mk $@ || exit $$? ; done
+CFLAGS += -fno-strict-aliasing -ffast-math -mfast-fp
+
+CONF_OPTS = \
+	--enable-portaudio=no \
+	--enable-gnome_ui=no \
+	--disable-manual \
+	--disable-glib \
+	--enable-ipv6=no \
+	--disable-shared \
+	--enable-static \
+	--with-osip=$(STAGEDIR)/usr
+
+ifeq ($(CONFIG_USER_BFIN_LINPHONE_VIDEO),)
+CONF_OPTS += --disable-video
+endif
+
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER)
+
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+	set -e ; \
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
 
 romfs:
-	$(ROMFSINST) $(TEMPDIR)/usr/bin/linphonec /bin/linphonec
-	mkdir -p $(ROMFSDIR)/usr/share/sounds/linphone/rings
-	$(ROMFSINST) $(TEMPDIR)/usr/share/sounds/linphone/ringback.wav /usr/share/sounds/linphone/ringback.wav
-	$(ROMFSINST) $(TEMPDIR)/usr/share/sounds/linphone/rings/oldphone.wav /usr/share/sounds/linphone/rings/oldphone.wav
+	$(ROMFSINST) -d build-$(VER)/console/linphonec /usr/bin/linphonec
+	$(ROMFSINST) -d $(VER)/share/ringback.wav /usr/share/sounds/linphone/ringback.wav
+	$(ROMFSINST) -d $(VER)/share/rings/oldphone.wav /usr/share/sounds/linphone/rings/oldphone.wav
 
 clean:
-	rm -Rf $(TEMPDIR)
-	for i in $(linphone_subdirs) ; do $(MAKE) -C $$i -f ucldist.mk $@ || exit $$? ; done
+	rm -rf build-*
 
 .PHONY: all clean romfs
