@@ -1,0 +1,59 @@
+--- videostream.c.orig	2007-11-23 18:21:56.000000000 +0800
++++ videostream.c	2007-11-23 18:24:19.000000000 +0800
+@@ -286,11 +286,12 @@
+ }
+ 
+ void video_preview_stop(VideoStream *stream){
+-	ms_ticker_detach(stream->ticker, stream->source);
+-	ms_filter_call_method_noarg(stream->source,MS_V4L_STOP);
+-	ms_filter_unlink(stream->source,0,stream->pixconv,0);
+-	ms_filter_unlink(stream->pixconv,0,stream->output,0);
+-	
++	if (stream->ticker){
++		ms_ticker_detach(stream->ticker, stream->source);
++		ms_filter_call_method_noarg(stream->source,MS_V4L_STOP);
++		ms_filter_unlink(stream->source,0,stream->pixconv,0);
++		ms_filter_unlink(stream->pixconv,0,stream->output,0);
++	}
+ 	video_stream_free(stream);
+ }
+ 
+@@ -367,12 +368,13 @@
+ }
+ 
+ void video_stream_send_only_stop(VideoStream *stream){
+-	ms_ticker_detach (stream->ticker, stream->source);
+-	ms_filter_call_method_noarg(stream->source,MS_V4L_STOP);
+-	ms_filter_unlink(stream->source,0,stream->pixconv,0);
+-	ms_filter_unlink(stream->pixconv,0,stream->encoder,0);
+-	ms_filter_unlink(stream->encoder,0,stream->rtpsend,0);
+-	
++	if (stream->ticker){
++		ms_ticker_detach (stream->ticker, stream->source);
++		ms_filter_call_method_noarg(stream->source,MS_V4L_STOP);
++		ms_filter_unlink(stream->source,0,stream->pixconv,0);
++		ms_filter_unlink(stream->pixconv,0,stream->encoder,0);
++		ms_filter_unlink(stream->encoder,0,stream->rtpsend,0);
++	}
+ 	video_stream_free(stream);
+ }
+ 
+@@ -442,11 +444,13 @@
+ }
+ 
+ void video_stream_recv_only_stop (VideoStream * stream){
+-	ms_ticker_detach(stream->ticker, stream->rtprecv);
+-	rtp_stats_display(rtp_session_get_stats(stream->session),"Video session's RTP statistics");
+-	ms_filter_unlink(stream->rtprecv, 0, stream->decoder, 0);
+-	ms_filter_unlink(stream->decoder,0,stream->sizeconv,0);
+-	ms_filter_unlink(stream->sizeconv,0,stream->output,0);
++	if (stream->ticker){
++		ms_ticker_detach(stream->ticker, stream->rtprecv);
++		rtp_stats_display(rtp_session_get_stats(stream->session),"Video session's RTP statistics");
++		ms_filter_unlink(stream->rtprecv, 0, stream->decoder, 0);
++		ms_filter_unlink(stream->decoder,0,stream->sizeconv,0);
++		ms_filter_unlink(stream->sizeconv,0,stream->output,0);
++	}
+ 	video_stream_free (stream);
+ }
+ 
