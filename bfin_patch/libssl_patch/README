@@ -1,8 +1,0 @@
-                                                 Read me
-
-This patch is used to apply to openssl-0.9.8d.tar.gz, which can be downloaded
-from: http://www.openssl.org/.  Please use the exact package name, otherwise
-the patch may not apply.
-
-Please see the wiki for more info:
-http://docs.blackfin.uclinux.org/doku.php?id=enanble_asterisk_for_uclinux
