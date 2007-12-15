@@ -174,7 +174,7 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 systool_SOURCES = systool.c names.c names.h
-INCLUDES = -I$(top_builddir)/../include
+INCLUDES = -I$(top_srcdir)/include
 LDADD = ../lib/libsysfs.la
 AM_CFLAGS = -Wall -W -Wstrict-prototypes $(EXTRA_CFLAGS)
 all: all-am
