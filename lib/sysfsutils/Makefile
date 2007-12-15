@@ -1,4 +1,4 @@
-VER = sysfsutils-2.0.0
+VER = sysfsutils-2.1.0
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
