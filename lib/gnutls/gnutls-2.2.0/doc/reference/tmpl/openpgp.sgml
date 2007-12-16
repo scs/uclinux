@@ -1,0 +1,207 @@
+<!-- ##### SECTION Title ##### -->
+openpgp
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### TYPEDEF gnutls_openpgp_keyring_t ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_get_name ##### -->
+<para>
+
+</para>
+
+@key: 
+@idx: 
+@buf: 
+@sizeof_buf: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_get_fingerprint ##### -->
+<para>
+
+</para>
+
+@key: 
+@fpr: 
+@fprlen: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_get_pk_algorithm ##### -->
+<para>
+
+</para>
+
+@key: 
+@bits: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_get_version ##### -->
+<para>
+
+</para>
+
+@key: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_get_creation_time ##### -->
+<para>
+
+</para>
+
+@key: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_get_expiration_time ##### -->
+<para>
+
+</para>
+
+@key: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_get_id ##### -->
+<para>
+
+</para>
+
+@key: 
+@keyid: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_init ##### -->
+<para>
+
+</para>
+
+@key: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_deinit ##### -->
+<para>
+
+</para>
+
+@key: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_import ##### -->
+<para>
+
+</para>
+
+@key: 
+@data: 
+@format: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_export ##### -->
+<para>
+
+</para>
+
+@key: 
+@format: 
+@output_data: 
+@output_data_size: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_keyring_deinit ##### -->
+<para>
+
+</para>
+
+@keyring: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_keyring_init ##### -->
+<para>
+
+</para>
+
+@keyring: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_keyring_import ##### -->
+<para>
+
+</para>
+
+@keyring: 
+@data: 
+@format: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_keyring_check_id ##### -->
+<para>
+
+</para>
+
+@ring: 
+@keyid: 
+@flags: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_verify_ring ##### -->
+<para>
+
+</para>
+
+@key: 
+@keyring: 
+@flags: 
+@verify: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_crt_verify_self ##### -->
+<para>
+
+</para>
+
+@key: 
+@flags: 
+@verify: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_privkey_deinit ##### -->
+<para>
+
+</para>
+
+@key: 
+
+

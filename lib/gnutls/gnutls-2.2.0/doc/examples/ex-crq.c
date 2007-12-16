@@ -1,0 +1,89 @@
+/* Copyright 2007 Free Software Foundation
+ *
+ * Copying and distribution of this file, with or without modification,
+ * are permitted in any medium without royalty provided the copyright
+ * notice and this notice are preserved.
+ */
+
+#if HAVE_CONFIG_H
+# include <config.h>
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
+#include <time.h>
+
+/* This example will generate a private key and a certificate
+ * request.
+ */
+
+int
+main (void)
+{
+  gnutls_x509_crq_t crq;
+  gnutls_x509_privkey_t key;
+  unsigned char buffer[10 * 1024];
+  size_t buffer_size = sizeof (buffer);
+
+  gnutls_global_init ();
+
+  /* Initialize an empty certificate request, and
+   * an empty private key.
+   */
+  gnutls_x509_crq_init (&crq);
+
+  gnutls_x509_privkey_init (&key);
+
+  /* Generate a 1024 bit RSA private key.
+   */
+  gnutls_x509_privkey_generate (key, GNUTLS_PK_RSA, 1024, 0);
+
+  /* Add stuff to the distinguished name
+   */
+  gnutls_x509_crq_set_dn_by_oid (crq, GNUTLS_OID_X520_COUNTRY_NAME,
+				 0, "GR", 2);
+
+  gnutls_x509_crq_set_dn_by_oid (crq, GNUTLS_OID_X520_COMMON_NAME,
+				 0, "Nikos", strlen ("Nikos"));
+
+  /* Set the request version.
+   */
+  gnutls_x509_crq_set_version (crq, 1);
+
+  /* Set a challenge password.
+   */
+  gnutls_x509_crq_set_challenge_password (crq, "something to remember here");
+
+  /* Associate the request with the private key
+   */
+  gnutls_x509_crq_set_key (crq, key);
+
+  /* Self sign the certificate request.
+   */
+  gnutls_x509_crq_sign (crq, key);
+
+  /* Export the PEM encoded certificate request, and
+   * display it.
+   */
+  gnutls_x509_crq_export (crq, GNUTLS_X509_FMT_PEM, buffer, &buffer_size);
+
+  printf ("Certificate Request: \n%s", buffer);
+
+
+  /* Export the PEM encoded private key, and
+   * display it.
+   */
+  buffer_size = sizeof (buffer);
+  gnutls_x509_privkey_export (key, GNUTLS_X509_FMT_PEM, buffer, &buffer_size);
+
+  printf ("\n\nPrivate key: \n%s", buffer);
+
+  gnutls_x509_crq_deinit (crq);
+  gnutls_x509_privkey_deinit (key);
+
+  return 0;
+
+}

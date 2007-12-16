@@ -1,0 +1,1765 @@
+<?xml version="1.0"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" 
+               "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">
+<refentry id="gnutls-openssl">
+<refmeta>
+<refentrytitle role="top_of_page">openssl</refentrytitle>
+<manvolnum>3</manvolnum>
+<refmiscinfo>GNUTLS Library</refmiscinfo>
+</refmeta>
+
+<refnamediv>
+<refname>openssl</refname>
+<refpurpose></refpurpose>
+<!--[<xref linkend="desc" endterm="desc.title"/>]-->
+</refnamediv>
+
+<refsynopsisdiv role="synopsis">
+<title role="synopsis.title">Synopsis</title>
+
+<synopsis>
+
+
+
+#define             <link linkend="GNUTLS-X509-CN-SIZE:CAPS">GNUTLS_X509_CN_SIZE</link>
+#define             <link linkend="GNUTLS-X509-C-SIZE:CAPS">GNUTLS_X509_C_SIZE</link>
+#define             <link linkend="GNUTLS-X509-O-SIZE:CAPS">GNUTLS_X509_O_SIZE</link>
+#define             <link linkend="GNUTLS-X509-OU-SIZE:CAPS">GNUTLS_X509_OU_SIZE</link>
+#define             <link linkend="GNUTLS-X509-L-SIZE:CAPS">GNUTLS_X509_L_SIZE</link>
+#define             <link linkend="GNUTLS-X509-S-SIZE:CAPS">GNUTLS_X509_S_SIZE</link>
+#define             <link linkend="GNUTLS-X509-EMAIL-SIZE:CAPS">GNUTLS_X509_EMAIL_SIZE</link>
+#define             <link linkend="OPENSSL-VERSION-NUMBER:CAPS">OPENSSL_VERSION_NUMBER</link>
+#define             <link linkend="SSLEAY-VERSION-NUMBER:CAPS">SSLEAY_VERSION_NUMBER</link>
+#define             <link linkend="OPENSSL-VERSION-TEXT:CAPS">OPENSSL_VERSION_TEXT</link>
+#define             <link linkend="SSL-ERROR-NONE:CAPS">SSL_ERROR_NONE</link>
+#define             <link linkend="SSL-ERROR-SSL:CAPS">SSL_ERROR_SSL</link>
+#define             <link linkend="SSL-ERROR-WANT-READ:CAPS">SSL_ERROR_WANT_READ</link>
+#define             <link linkend="SSL-ERROR-WANT-WRITE:CAPS">SSL_ERROR_WANT_WRITE</link>
+#define             <link linkend="SSL-ERROR-SYSCALL:CAPS">SSL_ERROR_SYSCALL</link>
+#define             <link linkend="SSL-ERROR-ZERO-RETURN:CAPS">SSL_ERROR_ZERO_RETURN</link>
+#define             <link linkend="SSL-FILETYPE-PEM:CAPS">SSL_FILETYPE_PEM</link>
+#define             <link linkend="SSL-VERIFY-NONE:CAPS">SSL_VERIFY_NONE</link>
+#define             <link linkend="SSL-ST-OK:CAPS">SSL_ST_OK</link>
+#define             <link linkend="X509-V-ERR-CERT-NOT-YET-VALID:CAPS">X509_V_ERR_CERT_NOT_YET_VALID</link>
+#define             <link linkend="X509-V-ERR-CERT-HAS-EXPIRED:CAPS">X509_V_ERR_CERT_HAS_EXPIRED</link>
+#define             <link linkend="X509-V-ERR-DEPTH-ZERO-SELF-SIGNED-CERT:CAPS">X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT</link>
+#define             <link linkend="SSL-OP-ALL:CAPS">SSL_OP_ALL</link>
+#define             <link linkend="SSL-OP-NO-TLSv1">SSL_OP_NO_TLSv1</link>
+#define             <link linkend="SSL-MODE-ENABLE-PARTIAL-WRITE:CAPS">SSL_MODE_ENABLE_PARTIAL_WRITE</link>
+#define             <link linkend="SSL-MODE-ACCEPT-MOVING-WRITE-BUFFER:CAPS">SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER</link>
+#define             <link linkend="SSL-MODE-AUTO-RETRY:CAPS">SSL_MODE_AUTO_RETRY</link>
+typedef             <link linkend="X509-NAME:CAPS">X509_NAME</link>;
+typedef             <link linkend="X509:CAPS">X509</link>;
+                    <link linkend="SSL:CAPS">SSL</link>;
+#define             <link linkend="current-cert">current_cert</link>
+#define             <link linkend="X509-STORE-CTX-get-current-cert">X509_STORE_CTX_get_current_cert</link>     (ctx)
+<link linkend="int">int</link>                 <link linkend="verify-callback">verify_callback</link>                     (...,
+                                                         <link linkend="X509-STORE-CTX:CAPS">X509_STORE_CTX</link> *);
+#define             <link linkend="rbio">rbio</link>
+struct              <link linkend="RSA:CAPS">RSA</link>;
+#define             <link linkend="MD5-CTX:CAPS">MD5_CTX</link>
+#define             <link linkend="RIPEMD160-CTX:CAPS">RIPEMD160_CTX</link>
+#define             <link linkend="OpenSSL-add-ssl-algorithms">OpenSSL_add_ssl_algorithms</link>          ()
+#define             <link linkend="SSLeay-add-ssl-algorithms">SSLeay_add_ssl_algorithms</link>           ()
+#define             <link linkend="SSLeay-add-all-algorithms">SSLeay_add_all_algorithms</link>           ()
+#define             <link linkend="SSL-get-cipher-name">SSL_get_cipher_name</link>                 (ssl)
+#define             <link linkend="SSL-get-cipher">SSL_get_cipher</link>                      (ssl)
+#define             <link linkend="SSL-get-cipher-bits">SSL_get_cipher_bits</link>                 (ssl,bp)
+#define             <link linkend="SSL-get-cipher-version">SSL_get_cipher_version</link>              (ssl)
+<link linkend="int">int</link>                 <link linkend="SSL-library-init">SSL_library_init</link>                    (void);
+<link linkend="void">void</link>                <link linkend="OpenSSL-add-all-algorithms">OpenSSL_add_all_algorithms</link>          (void);
+<link linkend="SSL-CTX:CAPS">SSL_CTX</link>*            <link linkend="SSL-CTX-new">SSL_CTX_new</link>                         (<link linkend="SSL-METHOD:CAPS">SSL_METHOD</link> *method);
+<link linkend="void">void</link>                <link linkend="SSL-CTX-free">SSL_CTX_free</link>                        (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="int">int</link>                 <link linkend="SSL-CTX-set-default-verify-paths">SSL_CTX_set_default_verify_paths</link>    (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="int">int</link>                 <link linkend="SSL-CTX-use-certificate-file">SSL_CTX_use_certificate_file</link>        (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         const <link linkend="char">char</link> *certfile,
+                                                         <link linkend="int">int</link> type);
+<link linkend="int">int</link>                 <link linkend="SSL-CTX-use-PrivateKey-file">SSL_CTX_use_PrivateKey_file</link>         (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         const <link linkend="char">char</link> *keyfile,
+                                                         <link linkend="int">int</link> type);
+<link linkend="void">void</link>                <link linkend="SSL-CTX-set-verify">SSL_CTX_set_verify</link>                  (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         <link linkend="int">int</link> verify_mode,
+                                                         <link linkend="int">int</link> (verify_callbackint, X509_STORE_CTX *) ());
+unsigned <link linkend="long">long</link>       <link linkend="SSL-CTX-set-options">SSL_CTX_set_options</link>                 (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         <link linkend="unsigned-long-">unsigned long </link> options);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-set-mode">SSL_CTX_set_mode</link>                    (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         long <link linkend="mode">mode</link> );
+<link linkend="int">int</link>                 <link linkend="SSL-CTX-set-cipher-list">SSL_CTX_set_cipher_list</link>             (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         const <link linkend="char">char</link> *list);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-number">SSL_CTX_sess_number</link>                 (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-connect">SSL_CTX_sess_connect</link>                (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-connect-good">SSL_CTX_sess_connect_good</link>           (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-connect-renegotiate">SSL_CTX_sess_connect_renegotiate</link>    (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-accept">SSL_CTX_sess_accept</link>                 (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-accept-good">SSL_CTX_sess_accept_good</link>            (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-accept-renegotiate">SSL_CTX_sess_accept_renegotiate</link>     (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-hits">SSL_CTX_sess_hits</link>                   (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-misses">SSL_CTX_sess_misses</link>                 (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="long">long</link>                <link linkend="SSL-CTX-sess-timeouts">SSL_CTX_sess_timeouts</link>               (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="SSL:CAPS">SSL</link>*                <link linkend="SSL-new">SSL_new</link>                             (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);
+<link linkend="void">void</link>                <link linkend="SSL-free">SSL_free</link>                            (<link linkend="SSL:CAPS">SSL</link> *ssl);
+<link linkend="void">void</link>                <link linkend="SSL-load-error-strings">SSL_load_error_strings</link>              (void);
+<link linkend="int">int</link>                 <link linkend="SSL-get-error">SSL_get_error</link>                       (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> ret);
+<link linkend="int">int</link>                 <link linkend="SSL-set-fd">SSL_set_fd</link>                          (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> fd);
+<link linkend="int">int</link>                 <link linkend="SSL-set-rfd">SSL_set_rfd</link>                         (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> fd);
+<link linkend="int">int</link>                 <link linkend="SSL-set-wfd">SSL_set_wfd</link>                         (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> fd);
+<link linkend="void">void</link>                <link linkend="SSL-set-bio">SSL_set_bio</link>                         (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="BIO:CAPS">BIO</link> *rbio,
+                                                         <link linkend="BIO:CAPS">BIO</link> *wbio);
+<link linkend="void">void</link>                <link linkend="SSL-set-connect-state">SSL_set_connect_state</link>               (<link linkend="SSL:CAPS">SSL</link> *ssl);
+<link linkend="int">int</link>                 <link linkend="SSL-pending">SSL_pending</link>                         (<link linkend="SSL:CAPS">SSL</link> *ssl);
+<link linkend="void">void</link>                <link linkend="SSL-set-verify">SSL_set_verify</link>                      (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> verify_mode,
+                                                         <link linkend="int">int</link> (verify_callbackint, X509_STORE_CTX *) ());
+const <link linkend="X509:CAPS">X509</link>*         <link linkend="SSL-get-peer-certificate">SSL_get_peer_certificate</link>            (<link linkend="SSL:CAPS">SSL</link> *ssl);
+<link linkend="int">int</link>                 <link linkend="SSL-connect">SSL_connect</link>                         (<link linkend="SSL:CAPS">SSL</link> *ssl);
+<link linkend="int">int</link>                 <link linkend="SSL-accept">SSL_accept</link>                          (<link linkend="SSL:CAPS">SSL</link> *ssl);
+<link linkend="int">int</link>                 <link linkend="SSL-shutdown">SSL_shutdown</link>                        (<link linkend="SSL:CAPS">SSL</link> *ssl);
+<link linkend="int">int</link>                 <link linkend="SSL-read">SSL_read</link>                            (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> len);
+<link linkend="int">int</link>                 <link linkend="SSL-write">SSL_write</link>                           (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         const <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> len);
+<link linkend="int">int</link>                 <link linkend="SSL-want">SSL_want</link>                            (<link linkend="SSL:CAPS">SSL</link> *ssl);
+#define             <link linkend="SSL-NOTHING:CAPS">SSL_NOTHING</link>
+#define             <link linkend="SSL-WRITING:CAPS">SSL_WRITING</link>
+#define             <link linkend="SSL-READING:CAPS">SSL_READING</link>
+#define             <link linkend="SSL-X509-LOOKUP:CAPS">SSL_X509_LOOKUP</link>
+#define             <link linkend="SSL-want-nothing">SSL_want_nothing</link>                    (s)
+#define             <link linkend="SSL-want-read">SSL_want_read</link>                       (s)
+#define             <link linkend="SSL-want-write">SSL_want_write</link>                      (s)
+#define             <link linkend="SSL-want-x509-lookup">SSL_want_x509_lookup</link>                (s)
+<link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         <link linkend="SSLv23-client-method">SSLv23_client_method</link>                (void);
+<link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         <link linkend="SSLv23-server-method">SSLv23_server_method</link>                (void);
+<link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         <link linkend="SSLv3-client-method">SSLv3_client_method</link>                 (void);
+<link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         <link linkend="SSLv3-server-method">SSLv3_server_method</link>                 (void);
+<link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         <link linkend="TLSv1-client-method">TLSv1_client_method</link>                 (void);
+<link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         <link linkend="TLSv1-server-method">TLSv1_server_method</link>                 (void);
+<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link>*         <link linkend="SSL-get-current-cipher">SSL_get_current_cipher</link>              (<link linkend="SSL:CAPS">SSL</link> *ssl);
+const <link linkend="char">char</link>*         <link linkend="SSL-CIPHER-get-name">SSL_CIPHER_get_name</link>                 (<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link> *cipher);
+<link linkend="int">int</link>                 <link linkend="SSL-CIPHER-get-bits">SSL_CIPHER_get_bits</link>                 (<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link> *cipher,
+                                                         <link linkend="int">int</link> *bits);
+const <link linkend="char">char</link>*         <link linkend="SSL-CIPHER-get-version">SSL_CIPHER_get_version</link>              (<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link> *cipher);
+<link linkend="char">char</link>*               <link linkend="SSL-CIPHER-description">SSL_CIPHER_description</link>              (<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link> *cipher,
+                                                         <link linkend="char">char</link> *buf,
+                                                         <link linkend="int">int</link> size);
+<link linkend="X509-NAME:CAPS">X509_NAME</link>*          <link linkend="X509-get-subject-name">X509_get_subject_name</link>               (const <link linkend="X509:CAPS">X509</link> *cert);
+<link linkend="X509-NAME:CAPS">X509_NAME</link>*          <link linkend="X509-get-issuer-name">X509_get_issuer_name</link>                (const <link linkend="X509:CAPS">X509</link> *cert);
+<link linkend="char">char</link>*               <link linkend="X509-NAME-oneline">X509_NAME_oneline</link>                   (<link linkend="gnutls-x509-dn">gnutls_x509_dn</link> *name,
+                                                         <link linkend="char">char</link> *buf,
+                                                         <link linkend="int">int</link> len);
+<link linkend="void">void</link>                <link linkend="X509-free">X509_free</link>                           (const <link linkend="X509:CAPS">X509</link> *cert);
+<link linkend="void">void</link>                <link linkend="BIO-get-fd">BIO_get_fd</link>                          (<link linkend="gnutls-session-t">gnutls_session_t</link> gnutls_state,
+                                                         <link linkend="int">int</link> *fd);
+<link linkend="BIO:CAPS">BIO</link>*                <link linkend="BIO-new-socket">BIO_new_socket</link>                      (<link linkend="int">int</link> sock,
+                                                         <link linkend="int">int</link> close_flag);
+unsigned <link linkend="long">long</link>       <link linkend="ERR-get-error">ERR_get_error</link>                       (void);
+const <link linkend="char">char</link>*         <link linkend="ERR-error-string">ERR_error_string</link>                    (<link linkend="unsigned-long-">unsigned long </link> e,
+                                                         <link linkend="char">char</link> *buf);
+<link linkend="int">int</link>                 <link linkend="RAND-status">RAND_status</link>                         (void);
+<link linkend="void">void</link>                <link linkend="RAND-seed">RAND_seed</link>                           (const <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> num);
+<link linkend="int">int</link>                 <link linkend="RAND-bytes">RAND_bytes</link>                          (unsigned <link linkend="char">char</link> *buf,
+                                                         <link linkend="int">int</link> num);
+const <link linkend="char">char</link>*         <link linkend="RAND-file-name">RAND_file_name</link>                      (<link linkend="char">char</link> *buf,
+                                                         <link linkend="size-t">size_t</link> len);
+<link linkend="int">int</link>                 <link linkend="RAND-load-file">RAND_load_file</link>                      (const <link linkend="char">char</link> *name,
+                                                         long <link linkend="maxbytes">maxbytes</link> );
+<link linkend="int">int</link>                 <link linkend="RAND-write-file">RAND_write_file</link>                     (const <link linkend="char">char</link> *name);
+<link linkend="int">int</link>                 <link linkend="RAND-egd-bytes">RAND_egd_bytes</link>                      (const <link linkend="char">char</link> *path,
+                                                         <link linkend="int">int</link> bytes);
+#define             <link linkend="RAND-egd">RAND_egd</link>                            (p)
+#define             <link linkend="MD5-DIGEST-LENGTH:CAPS">MD5_DIGEST_LENGTH</link>
+<link linkend="void">void</link>                <link linkend="MD5-Init">MD5_Init</link>                            (<link linkend="MD5-CTX:CAPS">MD5_CTX</link> *ctx);
+<link linkend="void">void</link>                <link linkend="MD5-Update">MD5_Update</link>                          (<link linkend="MD5-CTX:CAPS">MD5_CTX</link> *ctx,
+                                                         const <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> len);
+<link linkend="void">void</link>                <link linkend="MD5-Final">MD5_Final</link>                           (unsigned <link linkend="char">char</link> *md,
+                                                         <link linkend="MD5-CTX:CAPS">MD5_CTX</link> *ctx);
+unsigned <link linkend="char">char</link>*      <link linkend="MD5:CAPS">MD5</link>                                 (unsigned <link linkend="char">char</link> *buf,
+                                                         <link linkend="unsigned-long-">unsigned long </link> len,
+                                                         unsigned <link linkend="char">char</link> *md);
+<link linkend="void">void</link>                <link linkend="RIPEMD160-Init">RIPEMD160_Init</link>                      (<link linkend="RIPEMD160-CTX:CAPS">RIPEMD160_CTX</link> *ctx);
+<link linkend="void">void</link>                <link linkend="RIPEMD160-Update">RIPEMD160_Update</link>                    (<link linkend="RIPEMD160-CTX:CAPS">RIPEMD160_CTX</link> *ctx,
+                                                         const <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> len);
+<link linkend="void">void</link>                <link linkend="RIPEMD160-Final">RIPEMD160_Final</link>                     (unsigned <link linkend="char">char</link> *md,
+                                                         <link linkend="RIPEMD160-CTX:CAPS">RIPEMD160_CTX</link> *ctx);
+unsigned <link linkend="char">char</link>*      <link linkend="RIPEMD160:CAPS">RIPEMD160</link>                           (unsigned <link linkend="char">char</link> *buf,
+                                                         <link linkend="unsigned-long-">unsigned long </link> len,
+                                                         unsigned <link linkend="char">char</link> *md);
+</synopsis>
+</refsynopsisdiv>
+
+
+
+
+
+
+
+
+
+<refsect1 role="desc">
+<title role="desc.title">Description</title>
+<para>
+
+</para>
+</refsect1>
+
+<refsect1 role="details">
+<title role="details.title">Details</title>
+<refsect2>
+<title><anchor id="GNUTLS-X509-CN-SIZE:CAPS" role="macro"/>GNUTLS_X509_CN_SIZE</title>
+<indexterm><primary>GNUTLS_X509_CN_SIZE</primary></indexterm><programlisting>#define             GNUTLS_X509_CN_SIZE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-X509-C-SIZE:CAPS" role="macro"/>GNUTLS_X509_C_SIZE</title>
+<indexterm><primary>GNUTLS_X509_C_SIZE</primary></indexterm><programlisting>#define             GNUTLS_X509_C_SIZE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-X509-O-SIZE:CAPS" role="macro"/>GNUTLS_X509_O_SIZE</title>
+<indexterm><primary>GNUTLS_X509_O_SIZE</primary></indexterm><programlisting>#define             GNUTLS_X509_O_SIZE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-X509-OU-SIZE:CAPS" role="macro"/>GNUTLS_X509_OU_SIZE</title>
+<indexterm><primary>GNUTLS_X509_OU_SIZE</primary></indexterm><programlisting>#define             GNUTLS_X509_OU_SIZE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-X509-L-SIZE:CAPS" role="macro"/>GNUTLS_X509_L_SIZE</title>
+<indexterm><primary>GNUTLS_X509_L_SIZE</primary></indexterm><programlisting>#define             GNUTLS_X509_L_SIZE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-X509-S-SIZE:CAPS" role="macro"/>GNUTLS_X509_S_SIZE</title>
+<indexterm><primary>GNUTLS_X509_S_SIZE</primary></indexterm><programlisting>#define             GNUTLS_X509_S_SIZE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-X509-EMAIL-SIZE:CAPS" role="macro"/>GNUTLS_X509_EMAIL_SIZE</title>
+<indexterm><primary>GNUTLS_X509_EMAIL_SIZE</primary></indexterm><programlisting>#define             GNUTLS_X509_EMAIL_SIZE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="OPENSSL-VERSION-NUMBER:CAPS" role="macro"/>OPENSSL_VERSION_NUMBER</title>
+<indexterm><primary>OPENSSL_VERSION_NUMBER</primary></indexterm><programlisting>#define             OPENSSL_VERSION_NUMBER</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSLEAY-VERSION-NUMBER:CAPS" role="macro"/>SSLEAY_VERSION_NUMBER</title>
+<indexterm><primary>SSLEAY_VERSION_NUMBER</primary></indexterm><programlisting>#define             SSLEAY_VERSION_NUMBER</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="OPENSSL-VERSION-TEXT:CAPS" role="macro"/>OPENSSL_VERSION_TEXT</title>
+<indexterm><primary>OPENSSL_VERSION_TEXT</primary></indexterm><programlisting>#define             OPENSSL_VERSION_TEXT</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-ERROR-NONE:CAPS" role="macro"/>SSL_ERROR_NONE</title>
+<indexterm><primary>SSL_ERROR_NONE</primary></indexterm><programlisting>#define             SSL_ERROR_NONE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-ERROR-SSL:CAPS" role="macro"/>SSL_ERROR_SSL</title>
+<indexterm><primary>SSL_ERROR_SSL</primary></indexterm><programlisting>#define             SSL_ERROR_SSL</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-ERROR-WANT-READ:CAPS" role="macro"/>SSL_ERROR_WANT_READ</title>
+<indexterm><primary>SSL_ERROR_WANT_READ</primary></indexterm><programlisting>#define             SSL_ERROR_WANT_READ</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-ERROR-WANT-WRITE:CAPS" role="macro"/>SSL_ERROR_WANT_WRITE</title>
+<indexterm><primary>SSL_ERROR_WANT_WRITE</primary></indexterm><programlisting>#define             SSL_ERROR_WANT_WRITE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-ERROR-SYSCALL:CAPS" role="macro"/>SSL_ERROR_SYSCALL</title>
+<indexterm><primary>SSL_ERROR_SYSCALL</primary></indexterm><programlisting>#define             SSL_ERROR_SYSCALL</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-ERROR-ZERO-RETURN:CAPS" role="macro"/>SSL_ERROR_ZERO_RETURN</title>
+<indexterm><primary>SSL_ERROR_ZERO_RETURN</primary></indexterm><programlisting>#define             SSL_ERROR_ZERO_RETURN</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-FILETYPE-PEM:CAPS" role="macro"/>SSL_FILETYPE_PEM</title>
+<indexterm><primary>SSL_FILETYPE_PEM</primary></indexterm><programlisting>#define             SSL_FILETYPE_PEM</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-VERIFY-NONE:CAPS" role="macro"/>SSL_VERIFY_NONE</title>
+<indexterm><primary>SSL_VERIFY_NONE</primary></indexterm><programlisting>#define             SSL_VERIFY_NONE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-ST-OK:CAPS" role="macro"/>SSL_ST_OK</title>
+<indexterm><primary>SSL_ST_OK</primary></indexterm><programlisting>#define             SSL_ST_OK</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="X509-V-ERR-CERT-NOT-YET-VALID:CAPS" role="macro"/>X509_V_ERR_CERT_NOT_YET_VALID</title>
+<indexterm><primary>X509_V_ERR_CERT_NOT_YET_VALID</primary></indexterm><programlisting>#define             X509_V_ERR_CERT_NOT_YET_VALID</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="X509-V-ERR-CERT-HAS-EXPIRED:CAPS" role="macro"/>X509_V_ERR_CERT_HAS_EXPIRED</title>
+<indexterm><primary>X509_V_ERR_CERT_HAS_EXPIRED</primary></indexterm><programlisting>#define             X509_V_ERR_CERT_HAS_EXPIRED</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="X509-V-ERR-DEPTH-ZERO-SELF-SIGNED-CERT:CAPS" role="macro"/>X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT</title>
+<indexterm><primary>X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT</primary></indexterm><programlisting>#define             X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-OP-ALL:CAPS" role="macro"/>SSL_OP_ALL</title>
+<indexterm><primary>SSL_OP_ALL</primary></indexterm><programlisting>#define             SSL_OP_ALL</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-OP-NO-TLSv1" role="macro"/>SSL_OP_NO_TLSv1</title>
+<indexterm><primary>SSL_OP_NO_TLSv1</primary></indexterm><programlisting>#define             SSL_OP_NO_TLSv1</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-MODE-ENABLE-PARTIAL-WRITE:CAPS" role="macro"/>SSL_MODE_ENABLE_PARTIAL_WRITE</title>
+<indexterm><primary>SSL_MODE_ENABLE_PARTIAL_WRITE</primary></indexterm><programlisting>#define             SSL_MODE_ENABLE_PARTIAL_WRITE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-MODE-ACCEPT-MOVING-WRITE-BUFFER:CAPS" role="macro"/>SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER</title>
+<indexterm><primary>SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER</primary></indexterm><programlisting>#define             SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-MODE-AUTO-RETRY:CAPS" role="macro"/>SSL_MODE_AUTO_RETRY</title>
+<indexterm><primary>SSL_MODE_AUTO_RETRY</primary></indexterm><programlisting>#define             SSL_MODE_AUTO_RETRY</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="X509-NAME:CAPS" role="typedef"/>X509_NAME</title>
+<indexterm><primary>X509_NAME</primary></indexterm><para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="X509:CAPS" role="typedef"/>X509</title>
+<indexterm><primary>X509</primary></indexterm><para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL:CAPS" role="struct"/>SSL</title>
+<indexterm><primary>SSL</primary></indexterm><programlisting>typedef struct {
+    gnutls_session_t gnutls_state;
+
+    gnutls_certificate_client_credentials gnutls_cred;
+
+    SSL_CTX *ctx;
+    SSL_CIPHER ciphersuite;
+
+    int last_error;
+    int shutdown;
+    int state;
+    unsigned long options;
+
+    int (*verify_callback) (int, X509_STORE_CTX *);
+    int verify_mode;
+
+    gnutls_transport_ptr_t rfd;
+    gnutls_transport_ptr_t wfd;
+} SSL;
+</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="current-cert" role="macro"/>current_cert</title>
+<indexterm><primary>current_cert</primary></indexterm><programlisting>#define             current_cert</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="X509-STORE-CTX-get-current-cert" role="macro"/>X509_STORE_CTX_get_current_cert()</title>
+<indexterm><primary>X509_STORE_CTX_get_current_cert</primary></indexterm><programlisting>#define             X509_STORE_CTX_get_current_cert(ctx)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="verify-callback" role="function"/>verify_callback ()</title>
+<indexterm><primary>verify_callback</primary></indexterm><programlisting><link linkend="int">int</link>                 verify_callback                     (...,
+                                                         <link linkend="X509-STORE-CTX:CAPS">X509_STORE_CTX</link> *);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>...</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>Param2</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="rbio" role="macro"/>rbio</title>
+<indexterm><primary>rbio</primary></indexterm><programlisting>#define             rbio</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="RSA:CAPS" role="struct"/>struct RSA</title>
+<indexterm><primary>RSA</primary></indexterm><programlisting>struct RSA;</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="MD5-CTX:CAPS" role="macro"/>MD5_CTX</title>
+<indexterm><primary>MD5_CTX</primary></indexterm><programlisting>#define             MD5_CTX</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="RIPEMD160-CTX:CAPS" role="macro"/>RIPEMD160_CTX</title>
+<indexterm><primary>RIPEMD160_CTX</primary></indexterm><programlisting>#define             RIPEMD160_CTX</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="OpenSSL-add-ssl-algorithms" role="macro"/>OpenSSL_add_ssl_algorithms()</title>
+<indexterm><primary>OpenSSL_add_ssl_algorithms</primary></indexterm><programlisting>#define             OpenSSL_add_ssl_algorithms()</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSLeay-add-ssl-algorithms" role="macro"/>SSLeay_add_ssl_algorithms()</title>
+<indexterm><primary>SSLeay_add_ssl_algorithms</primary></indexterm><programlisting>#define             SSLeay_add_ssl_algorithms()</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSLeay-add-all-algorithms" role="macro"/>SSLeay_add_all_algorithms()</title>
+<indexterm><primary>SSLeay_add_all_algorithms</primary></indexterm><programlisting>#define             SSLeay_add_all_algorithms()</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-get-cipher-name" role="macro"/>SSL_get_cipher_name()</title>
+<indexterm><primary>SSL_get_cipher_name</primary></indexterm><programlisting>#define             SSL_get_cipher_name(ssl)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-get-cipher" role="macro"/>SSL_get_cipher()</title>
+<indexterm><primary>SSL_get_cipher</primary></indexterm><programlisting>#define             SSL_get_cipher(ssl)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-get-cipher-bits" role="macro"/>SSL_get_cipher_bits()</title>
+<indexterm><primary>SSL_get_cipher_bits</primary></indexterm><programlisting>#define             SSL_get_cipher_bits(ssl,bp)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>bp</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-get-cipher-version" role="macro"/>SSL_get_cipher_version()</title>
+<indexterm><primary>SSL_get_cipher_version</primary></indexterm><programlisting>#define             SSL_get_cipher_version(ssl)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-library-init" role="function"/>SSL_library_init ()</title>
+<indexterm><primary>SSL_library_init</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_library_init                    (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="OpenSSL-add-all-algorithms" role="function"/>OpenSSL_add_all_algorithms ()</title>
+<indexterm><primary>OpenSSL_add_all_algorithms</primary></indexterm><programlisting><link linkend="void">void</link>                OpenSSL_add_all_algorithms          (void);</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-new" role="function"/>SSL_CTX_new ()</title>
+<indexterm><primary>SSL_CTX_new</primary></indexterm><programlisting><link linkend="SSL-CTX:CAPS">SSL_CTX</link>*            SSL_CTX_new                         (<link linkend="SSL-METHOD:CAPS">SSL_METHOD</link> *method);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>method</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-free" role="function"/>SSL_CTX_free ()</title>
+<indexterm><primary>SSL_CTX_free</primary></indexterm><programlisting><link linkend="void">void</link>                SSL_CTX_free                        (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-set-default-verify-paths" role="function"/>SSL_CTX_set_default_verify_paths ()</title>
+<indexterm><primary>SSL_CTX_set_default_verify_paths</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_CTX_set_default_verify_paths    (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-use-certificate-file" role="function"/>SSL_CTX_use_certificate_file ()</title>
+<indexterm><primary>SSL_CTX_use_certificate_file</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_CTX_use_certificate_file        (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         const <link linkend="char">char</link> *certfile,
+                                                         <link linkend="int">int</link> type);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>certfile</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>type</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-use-PrivateKey-file" role="function"/>SSL_CTX_use_PrivateKey_file ()</title>
+<indexterm><primary>SSL_CTX_use_PrivateKey_file</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_CTX_use_PrivateKey_file         (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         const <link linkend="char">char</link> *keyfile,
+                                                         <link linkend="int">int</link> type);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>keyfile</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>type</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-set-verify" role="function"/>SSL_CTX_set_verify ()</title>
+<indexterm><primary>SSL_CTX_set_verify</primary></indexterm><programlisting><link linkend="void">void</link>                SSL_CTX_set_verify                  (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         <link linkend="int">int</link> verify_mode,
+                                                         <link linkend="int">int</link> (verify_callbackint, X509_STORE_CTX *) ());</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>verify_mode</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>verify_callback</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-set-options" role="function"/>SSL_CTX_set_options ()</title>
+<indexterm><primary>SSL_CTX_set_options</primary></indexterm><programlisting>unsigned <link linkend="long">long</link>       SSL_CTX_set_options                 (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         <link linkend="unsigned-long-">unsigned long </link> options);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>options</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-set-mode" role="function"/>SSL_CTX_set_mode ()</title>
+<indexterm><primary>SSL_CTX_set_mode</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_set_mode                    (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         long <link linkend="mode">mode</link> );</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>Param2</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-set-cipher-list" role="function"/>SSL_CTX_set_cipher_list ()</title>
+<indexterm><primary>SSL_CTX_set_cipher_list</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_CTX_set_cipher_list             (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx,
+                                                         const <link linkend="char">char</link> *list);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>list</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-number" role="function"/>SSL_CTX_sess_number ()</title>
+<indexterm><primary>SSL_CTX_sess_number</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_number                 (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-connect" role="function"/>SSL_CTX_sess_connect ()</title>
+<indexterm><primary>SSL_CTX_sess_connect</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_connect                (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-connect-good" role="function"/>SSL_CTX_sess_connect_good ()</title>
+<indexterm><primary>SSL_CTX_sess_connect_good</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_connect_good           (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-connect-renegotiate" role="function"/>SSL_CTX_sess_connect_renegotiate ()</title>
+<indexterm><primary>SSL_CTX_sess_connect_renegotiate</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_connect_renegotiate    (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-accept" role="function"/>SSL_CTX_sess_accept ()</title>
+<indexterm><primary>SSL_CTX_sess_accept</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_accept                 (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-accept-good" role="function"/>SSL_CTX_sess_accept_good ()</title>
+<indexterm><primary>SSL_CTX_sess_accept_good</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_accept_good            (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-accept-renegotiate" role="function"/>SSL_CTX_sess_accept_renegotiate ()</title>
+<indexterm><primary>SSL_CTX_sess_accept_renegotiate</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_accept_renegotiate     (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-hits" role="function"/>SSL_CTX_sess_hits ()</title>
+<indexterm><primary>SSL_CTX_sess_hits</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_hits                   (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-misses" role="function"/>SSL_CTX_sess_misses ()</title>
+<indexterm><primary>SSL_CTX_sess_misses</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_misses                 (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CTX-sess-timeouts" role="function"/>SSL_CTX_sess_timeouts ()</title>
+<indexterm><primary>SSL_CTX_sess_timeouts</primary></indexterm><programlisting><link linkend="long">long</link>                SSL_CTX_sess_timeouts               (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-new" role="function"/>SSL_new ()</title>
+<indexterm><primary>SSL_new</primary></indexterm><programlisting><link linkend="SSL:CAPS">SSL</link>*                SSL_new                             (<link linkend="SSL-CTX:CAPS">SSL_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-free" role="function"/>SSL_free ()</title>
+<indexterm><primary>SSL_free</primary></indexterm><programlisting><link linkend="void">void</link>                SSL_free                            (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-load-error-strings" role="function"/>SSL_load_error_strings ()</title>
+<indexterm><primary>SSL_load_error_strings</primary></indexterm><programlisting><link linkend="void">void</link>                SSL_load_error_strings              (void);</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-get-error" role="function"/>SSL_get_error ()</title>
+<indexterm><primary>SSL_get_error</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_get_error                       (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> ret);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>ret</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-set-fd" role="function"/>SSL_set_fd ()</title>
+<indexterm><primary>SSL_set_fd</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_set_fd                          (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> fd);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>fd</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-set-rfd" role="function"/>SSL_set_rfd ()</title>
+<indexterm><primary>SSL_set_rfd</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_set_rfd                         (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> fd);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>fd</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-set-wfd" role="function"/>SSL_set_wfd ()</title>
+<indexterm><primary>SSL_set_wfd</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_set_wfd                         (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> fd);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>fd</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-set-bio" role="function"/>SSL_set_bio ()</title>
+<indexterm><primary>SSL_set_bio</primary></indexterm><programlisting><link linkend="void">void</link>                SSL_set_bio                         (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="BIO:CAPS">BIO</link> *rbio,
+                                                         <link linkend="BIO:CAPS">BIO</link> *wbio);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>rbio</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>wbio</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-set-connect-state" role="function"/>SSL_set_connect_state ()</title>
+<indexterm><primary>SSL_set_connect_state</primary></indexterm><programlisting><link linkend="void">void</link>                SSL_set_connect_state               (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-pending" role="function"/>SSL_pending ()</title>
+<indexterm><primary>SSL_pending</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_pending                         (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-set-verify" role="function"/>SSL_set_verify ()</title>
+<indexterm><primary>SSL_set_verify</primary></indexterm><programlisting><link linkend="void">void</link>                SSL_set_verify                      (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="int">int</link> verify_mode,
+                                                         <link linkend="int">int</link> (verify_callbackint, X509_STORE_CTX *) ());</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>verify_mode</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>verify_callback</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-get-peer-certificate" role="function"/>SSL_get_peer_certificate ()</title>
+<indexterm><primary>SSL_get_peer_certificate</primary></indexterm><programlisting>const <link linkend="X509:CAPS">X509</link>*         SSL_get_peer_certificate            (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-connect" role="function"/>SSL_connect ()</title>
+<indexterm><primary>SSL_connect</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_connect                         (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-accept" role="function"/>SSL_accept ()</title>
+<indexterm><primary>SSL_accept</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_accept                          (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-shutdown" role="function"/>SSL_shutdown ()</title>
+<indexterm><primary>SSL_shutdown</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_shutdown                        (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-read" role="function"/>SSL_read ()</title>
+<indexterm><primary>SSL_read</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_read                            (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> len);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>len</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-write" role="function"/>SSL_write ()</title>
+<indexterm><primary>SSL_write</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_write                           (<link linkend="SSL:CAPS">SSL</link> *ssl,
+                                                         const <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> len);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>len</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-want" role="function"/>SSL_want ()</title>
+<indexterm><primary>SSL_want</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_want                            (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-NOTHING:CAPS" role="macro"/>SSL_NOTHING</title>
+<indexterm><primary>SSL_NOTHING</primary></indexterm><programlisting>#define             SSL_NOTHING</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-WRITING:CAPS" role="macro"/>SSL_WRITING</title>
+<indexterm><primary>SSL_WRITING</primary></indexterm><programlisting>#define             SSL_WRITING</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-READING:CAPS" role="macro"/>SSL_READING</title>
+<indexterm><primary>SSL_READING</primary></indexterm><programlisting>#define             SSL_READING</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-X509-LOOKUP:CAPS" role="macro"/>SSL_X509_LOOKUP</title>
+<indexterm><primary>SSL_X509_LOOKUP</primary></indexterm><programlisting>#define             SSL_X509_LOOKUP</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="SSL-want-nothing" role="macro"/>SSL_want_nothing()</title>
+<indexterm><primary>SSL_want_nothing</primary></indexterm><programlisting>#define             SSL_want_nothing(s)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>s</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-want-read" role="macro"/>SSL_want_read()</title>
+<indexterm><primary>SSL_want_read</primary></indexterm><programlisting>#define             SSL_want_read(s)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>s</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-want-write" role="macro"/>SSL_want_write()</title>
+<indexterm><primary>SSL_want_write</primary></indexterm><programlisting>#define             SSL_want_write(s)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>s</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-want-x509-lookup" role="macro"/>SSL_want_x509_lookup()</title>
+<indexterm><primary>SSL_want_x509_lookup</primary></indexterm><programlisting>#define             SSL_want_x509_lookup(s)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>s</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSLv23-client-method" role="function"/>SSLv23_client_method ()</title>
+<indexterm><primary>SSLv23_client_method</primary></indexterm><programlisting><link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         SSLv23_client_method                (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSLv23-server-method" role="function"/>SSLv23_server_method ()</title>
+<indexterm><primary>SSLv23_server_method</primary></indexterm><programlisting><link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         SSLv23_server_method                (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSLv3-client-method" role="function"/>SSLv3_client_method ()</title>
+<indexterm><primary>SSLv3_client_method</primary></indexterm><programlisting><link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         SSLv3_client_method                 (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSLv3-server-method" role="function"/>SSLv3_server_method ()</title>
+<indexterm><primary>SSLv3_server_method</primary></indexterm><programlisting><link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         SSLv3_server_method                 (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="TLSv1-client-method" role="function"/>TLSv1_client_method ()</title>
+<indexterm><primary>TLSv1_client_method</primary></indexterm><programlisting><link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         TLSv1_client_method                 (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="TLSv1-server-method" role="function"/>TLSv1_server_method ()</title>
+<indexterm><primary>TLSv1_server_method</primary></indexterm><programlisting><link linkend="SSL-METHOD:CAPS">SSL_METHOD</link>*         TLSv1_server_method                 (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-get-current-cipher" role="function"/>SSL_get_current_cipher ()</title>
+<indexterm><primary>SSL_get_current_cipher</primary></indexterm><programlisting><link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link>*         SSL_get_current_cipher              (<link linkend="SSL:CAPS">SSL</link> *ssl);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ssl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CIPHER-get-name" role="function"/>SSL_CIPHER_get_name ()</title>
+<indexterm><primary>SSL_CIPHER_get_name</primary></indexterm><programlisting>const <link linkend="char">char</link>*         SSL_CIPHER_get_name                 (<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link> *cipher);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cipher</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CIPHER-get-bits" role="function"/>SSL_CIPHER_get_bits ()</title>
+<indexterm><primary>SSL_CIPHER_get_bits</primary></indexterm><programlisting><link linkend="int">int</link>                 SSL_CIPHER_get_bits                 (<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link> *cipher,
+                                                         <link linkend="int">int</link> *bits);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cipher</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>bits</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CIPHER-get-version" role="function"/>SSL_CIPHER_get_version ()</title>
+<indexterm><primary>SSL_CIPHER_get_version</primary></indexterm><programlisting>const <link linkend="char">char</link>*         SSL_CIPHER_get_version              (<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link> *cipher);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cipher</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="SSL-CIPHER-description" role="function"/>SSL_CIPHER_description ()</title>
+<indexterm><primary>SSL_CIPHER_description</primary></indexterm><programlisting><link linkend="char">char</link>*               SSL_CIPHER_description              (<link linkend="SSL-CIPHER:CAPS">SSL_CIPHER</link> *cipher,
+                                                         <link linkend="char">char</link> *buf,
+                                                         <link linkend="int">int</link> size);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cipher</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="X509-get-subject-name" role="function"/>X509_get_subject_name ()</title>
+<indexterm><primary>X509_get_subject_name</primary></indexterm><programlisting><link linkend="X509-NAME:CAPS">X509_NAME</link>*          X509_get_subject_name               (const <link linkend="X509:CAPS">X509</link> *cert);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="X509-get-issuer-name" role="function"/>X509_get_issuer_name ()</title>
+<indexterm><primary>X509_get_issuer_name</primary></indexterm><programlisting><link linkend="X509-NAME:CAPS">X509_NAME</link>*          X509_get_issuer_name                (const <link linkend="X509:CAPS">X509</link> *cert);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="X509-NAME-oneline" role="function"/>X509_NAME_oneline ()</title>
+<indexterm><primary>X509_NAME_oneline</primary></indexterm><programlisting><link linkend="char">char</link>*               X509_NAME_oneline                   (<link linkend="gnutls-x509-dn">gnutls_x509_dn</link> *name,
+                                                         <link linkend="char">char</link> *buf,
+                                                         <link linkend="int">int</link> len);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>name</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>len</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="X509-free" role="function"/>X509_free ()</title>
+<indexterm><primary>X509_free</primary></indexterm><programlisting><link linkend="void">void</link>                X509_free                           (const <link linkend="X509:CAPS">X509</link> *cert);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="BIO-get-fd" role="function"/>BIO_get_fd ()</title>
+<indexterm><primary>BIO_get_fd</primary></indexterm><programlisting><link linkend="void">void</link>                BIO_get_fd                          (<link linkend="gnutls-session-t">gnutls_session_t</link> gnutls_state,
+                                                         <link linkend="int">int</link> *fd);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>gnutls_state</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>fd</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="BIO-new-socket" role="function"/>BIO_new_socket ()</title>
+<indexterm><primary>BIO_new_socket</primary></indexterm><programlisting><link linkend="BIO:CAPS">BIO</link>*                BIO_new_socket                      (<link linkend="int">int</link> sock,
+                                                         <link linkend="int">int</link> close_flag);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>sock</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>close_flag</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="ERR-get-error" role="function"/>ERR_get_error ()</title>
+<indexterm><primary>ERR_get_error</primary></indexterm><programlisting>unsigned <link linkend="long">long</link>       ERR_get_error                       (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="ERR-error-string" role="function"/>ERR_error_string ()</title>
+<indexterm><primary>ERR_error_string</primary></indexterm><programlisting>const <link linkend="char">char</link>*         ERR_error_string                    (<link linkend="unsigned-long-">unsigned long </link> e,
+                                                         <link linkend="char">char</link> *buf);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>e</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RAND-status" role="function"/>RAND_status ()</title>
+<indexterm><primary>RAND_status</primary></indexterm><programlisting><link linkend="int">int</link>                 RAND_status                         (void);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RAND-seed" role="function"/>RAND_seed ()</title>
+<indexterm><primary>RAND_seed</primary></indexterm><programlisting><link linkend="void">void</link>                RAND_seed                           (const <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> num);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>num</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RAND-bytes" role="function"/>RAND_bytes ()</title>
+<indexterm><primary>RAND_bytes</primary></indexterm><programlisting><link linkend="int">int</link>                 RAND_bytes                          (unsigned <link linkend="char">char</link> *buf,
+                                                         <link linkend="int">int</link> num);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>num</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RAND-file-name" role="function"/>RAND_file_name ()</title>
+<indexterm><primary>RAND_file_name</primary></indexterm><programlisting>const <link linkend="char">char</link>*         RAND_file_name                      (<link linkend="char">char</link> *buf,
+                                                         <link linkend="size-t">size_t</link> len);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>len</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RAND-load-file" role="function"/>RAND_load_file ()</title>
+<indexterm><primary>RAND_load_file</primary></indexterm><programlisting><link linkend="int">int</link>                 RAND_load_file                      (const <link linkend="char">char</link> *name,
+                                                         long <link linkend="maxbytes">maxbytes</link> );</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>name</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>Param2</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RAND-write-file" role="function"/>RAND_write_file ()</title>
+<indexterm><primary>RAND_write_file</primary></indexterm><programlisting><link linkend="int">int</link>                 RAND_write_file                     (const <link linkend="char">char</link> *name);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>name</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RAND-egd-bytes" role="function"/>RAND_egd_bytes ()</title>
+<indexterm><primary>RAND_egd_bytes</primary></indexterm><programlisting><link linkend="int">int</link>                 RAND_egd_bytes                      (const <link linkend="char">char</link> *path,
+                                                         <link linkend="int">int</link> bytes);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>path</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>bytes</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RAND-egd" role="macro"/>RAND_egd()</title>
+<indexterm><primary>RAND_egd</primary></indexterm><programlisting>#define             RAND_egd(p)</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>p</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="MD5-DIGEST-LENGTH:CAPS" role="macro"/>MD5_DIGEST_LENGTH</title>
+<indexterm><primary>MD5_DIGEST_LENGTH</primary></indexterm><programlisting>#define             MD5_DIGEST_LENGTH</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="MD5-Init" role="function"/>MD5_Init ()</title>
+<indexterm><primary>MD5_Init</primary></indexterm><programlisting><link linkend="void">void</link>                MD5_Init                            (<link linkend="MD5-CTX:CAPS">MD5_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="MD5-Update" role="function"/>MD5_Update ()</title>
+<indexterm><primary>MD5_Update</primary></indexterm><programlisting><link linkend="void">void</link>                MD5_Update                          (<link linkend="MD5-CTX:CAPS">MD5_CTX</link> *ctx,
+                                                         const <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> len);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>len</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="MD5-Final" role="function"/>MD5_Final ()</title>
+<indexterm><primary>MD5_Final</primary></indexterm><programlisting><link linkend="void">void</link>                MD5_Final                           (unsigned <link linkend="char">char</link> *md,
+                                                         <link linkend="MD5-CTX:CAPS">MD5_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>md</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="MD5:CAPS" role="function"/>MD5 ()</title>
+<indexterm><primary>MD5</primary></indexterm><programlisting>unsigned <link linkend="char">char</link>*      MD5                                 (unsigned <link linkend="char">char</link> *buf,
+                                                         <link linkend="unsigned-long-">unsigned long </link> len,
+                                                         unsigned <link linkend="char">char</link> *md);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>len</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>md</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RIPEMD160-Init" role="function"/>RIPEMD160_Init ()</title>
+<indexterm><primary>RIPEMD160_Init</primary></indexterm><programlisting><link linkend="void">void</link>                RIPEMD160_Init                      (<link linkend="RIPEMD160-CTX:CAPS">RIPEMD160_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RIPEMD160-Update" role="function"/>RIPEMD160_Update ()</title>
+<indexterm><primary>RIPEMD160_Update</primary></indexterm><programlisting><link linkend="void">void</link>                RIPEMD160_Update                    (<link linkend="RIPEMD160-CTX:CAPS">RIPEMD160_CTX</link> *ctx,
+                                                         const <link linkend="void">void</link> *buf,
+                                                         <link linkend="int">int</link> len);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>len</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RIPEMD160-Final" role="function"/>RIPEMD160_Final ()</title>
+<indexterm><primary>RIPEMD160_Final</primary></indexterm><programlisting><link linkend="void">void</link>                RIPEMD160_Final                     (unsigned <link linkend="char">char</link> *md,
+                                                         <link linkend="RIPEMD160-CTX:CAPS">RIPEMD160_CTX</link> *ctx);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>md</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>ctx</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="RIPEMD160:CAPS" role="function"/>RIPEMD160 ()</title>
+<indexterm><primary>RIPEMD160</primary></indexterm><programlisting>unsigned <link linkend="char">char</link>*      RIPEMD160                           (unsigned <link linkend="char">char</link> *buf,
+                                                         <link linkend="unsigned-long-">unsigned long </link> len,
+                                                         unsigned <link linkend="char">char</link> *md);</programlisting>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>len</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>md</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+
+</refsect1>
+
+
+
+
+
+<refsect1><refsect2 /><refsect2 /></refsect1>
+</refentry>

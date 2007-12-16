@@ -1,0 +1,1090 @@
+<?xml version="1.0"?>
+<!DOCTYPE refentry PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN" 
+               "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd">
+<refentry id="gnutls-x509">
+<refmeta>
+<refentrytitle role="top_of_page">x509</refentrytitle>
+<manvolnum>3</manvolnum>
+<refmiscinfo>GNUTLS Library</refmiscinfo>
+</refmeta>
+
+<refnamediv>
+<refname>x509</refname>
+<refpurpose></refpurpose>
+<!--[<xref linkend="desc" endterm="desc.title"/>]-->
+</refnamediv>
+
+<refsynopsisdiv role="synopsis">
+<title role="synopsis.title">Synopsis</title>
+
+<synopsis>
+
+
+
+#define             <link linkend="HASH-OID-SHA1:CAPS">HASH_OID_SHA1</link>
+#define             <link linkend="HASH-OID-MD5:CAPS">HASH_OID_MD5</link>
+#define             <link linkend="HASH-OID-MD2:CAPS">HASH_OID_MD2</link>
+#define             <link linkend="HASH-OID-RMD160:CAPS">HASH_OID_RMD160</link>
+#define             <link linkend="HASH-OID-SHA256:CAPS">HASH_OID_SHA256</link>
+#define             <link linkend="HASH-OID-SHA384:CAPS">HASH_OID_SHA384</link>
+#define             <link linkend="HASH-OID-SHA512:CAPS">HASH_OID_SHA512</link>
+#define             <link linkend="MAX-PRIV-PARAMS-SIZE:CAPS">MAX_PRIV_PARAMS_SIZE</link>
+#define             <link linkend="DSA-PRIVATE-PARAMS:CAPS">DSA_PRIVATE_PARAMS</link>
+#define             <link linkend="DSA-PUBLIC-PARAMS:CAPS">DSA_PUBLIC_PARAMS</link>
+#define             <link linkend="RSA-PRIVATE-PARAMS:CAPS">RSA_PRIVATE_PARAMS</link>
+#define             <link linkend="RSA-PUBLIC-PARAMS:CAPS">RSA_PUBLIC_PARAMS</link>
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-issuer-dn-by-oid">gnutls_x509_crt_get_issuer_dn_by_oid</link>
+                                                        (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         const <link linkend="char">char</link> *oid,
+                                                         <link linkend="int">int</link> indx,
+                                                         unsigned <link linkend="int">int</link> raw_flag,
+                                                         <link linkend="void">void</link> *buf,
+                                                         <link linkend="size-t">size_t</link> *sizeof_buf);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-subject-alt-name">gnutls_x509_crt_get_subject_alt_name</link>
+                                                        (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         unsigned <link linkend="int">int</link> seq,
+                                                         <link linkend="void">void</link> *ret,
+                                                         <link linkend="size-t">size_t</link> *ret_size,
+                                                         unsigned <link linkend="int">int</link> *critical);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-dn-by-oid">gnutls_x509_crt_get_dn_by_oid</link>       (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         const <link linkend="char">char</link> *oid,
+                                                         <link linkend="int">int</link> indx,
+                                                         unsigned <link linkend="int">int</link> raw_flag,
+                                                         <link linkend="void">void</link> *buf,
+                                                         <link linkend="size-t">size_t</link> *sizeof_buf);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-ca-status">gnutls_x509_crt_get_ca_status</link>       (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         unsigned <link linkend="int">int</link> *critical);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-pk-algorithm">gnutls_x509_crt_get_pk_algorithm</link>    (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         unsigned <link linkend="int">int</link> *bits);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-serial">gnutls_x509_crt_get_serial</link>          (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         <link linkend="void">void</link> *result,
+                                                         <link linkend="size-t">size_t</link> *result_size);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-check-revocation">gnutls_x509_crt_check_revocation</link>    (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         const <link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> *crl_list,
+                                                         <link linkend="int">int</link> crl_list_length);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crl-get-crt-count">gnutls_x509_crl_get_crt_count</link>       (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crl-get-crt-serial">gnutls_x509_crl_get_crt_serial</link>      (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl,
+                                                         <link linkend="int">int</link> indx,
+                                                         unsigned <link linkend="char">char</link> *serial,
+                                                         <link linkend="size-t">size_t</link> *serial_size,
+                                                         <link linkend="time-t">time_t</link> *t);
+<link linkend="void">void</link>                <link linkend="gnutls-x509-crl-deinit">gnutls_x509_crl_deinit</link>              (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crl-init">gnutls_x509_crl_init</link>                (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> *crl);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crl-import">gnutls_x509_crl_import</link>              (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *data,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crl-export">gnutls_x509_crl_export</link>              (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format,
+                                                         <link linkend="void">void</link> *output_data,
+                                                         <link linkend="size-t">size_t</link> *output_data_size);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-init">gnutls_x509_crt_init</link>                (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> *cert);
+<link linkend="void">void</link>                <link linkend="gnutls-x509-crt-deinit">gnutls_x509_crt_deinit</link>              (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-import">gnutls_x509_crt_import</link>              (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *data,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-export">gnutls_x509_crt_export</link>              (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format,
+                                                         <link linkend="void">void</link> *output_data,
+                                                         <link linkend="size-t">size_t</link> *output_data_size);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-key-usage">gnutls_x509_crt_get_key_usage</link>       (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         unsigned <link linkend="int">int</link> *key_usage,
+                                                         unsigned <link linkend="int">int</link> *critical);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-signature-algorithm">gnutls_x509_crt_get_signature_algorithm</link>
+                                                        (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-crt-get-version">gnutls_x509_crt_get_version</link>         (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-privkey-init">gnutls_x509_privkey_init</link>            (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> *key);
+<link linkend="void">void</link>                <link linkend="gnutls-x509-privkey-deinit">gnutls_x509_privkey_deinit</link>          (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-privkey-generate">gnutls_x509_privkey_generate</link>        (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         <link linkend="gnutls-pk-algorithm-t">gnutls_pk_algorithm_t</link> algo,
+                                                         unsigned <link linkend="int">int</link> bits,
+                                                         unsigned <link linkend="int">int</link> flags);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-privkey-import">gnutls_x509_privkey_import</link>          (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *data,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-privkey-get-pk-algorithm">gnutls_x509_privkey_get_pk_algorithm</link>
+                                                        (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-privkey-import-rsa-raw">gnutls_x509_privkey_import_rsa_raw</link>  (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *m,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *e,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *d,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *p,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *q,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *u);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-privkey-export-rsa-raw">gnutls_x509_privkey_export_rsa_raw</link>  (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *m,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *e,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *d,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *p,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *q,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *u);
+<link linkend="int">int</link>                 <link linkend="gnutls-x509-privkey-export">gnutls_x509_privkey_export</link>          (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format,
+                                                         <link linkend="void">void</link> *output_data,
+                                                         <link linkend="size-t">size_t</link> *output_data_size);
+#define             <link linkend="GNUTLS-CRL-REASON-UNUSED:CAPS">GNUTLS_CRL_REASON_UNUSED</link>
+#define             <link linkend="GNUTLS-CRL-REASON-KEY-COMPROMISE:CAPS">GNUTLS_CRL_REASON_KEY_COMPROMISE</link>
+#define             <link linkend="GNUTLS-CRL-REASON-CA-COMPROMISE:CAPS">GNUTLS_CRL_REASON_CA_COMPROMISE</link>
+#define             <link linkend="GNUTLS-CRL-REASON-AFFILIATION-CHANGED:CAPS">GNUTLS_CRL_REASON_AFFILIATION_CHANGED</link>
+#define             <link linkend="GNUTLS-CRL-REASON-SUPERSEEDED:CAPS">GNUTLS_CRL_REASON_SUPERSEEDED</link>
+#define             <link linkend="GNUTLS-CRL-REASON-CESSATION-OF-OPERATION:CAPS">GNUTLS_CRL_REASON_CESSATION_OF_OPERATION</link>
+#define             <link linkend="GNUTLS-CRL-REASON-CERTIFICATE-HOLD:CAPS">GNUTLS_CRL_REASON_CERTIFICATE_HOLD</link>
+#define             <link linkend="GNUTLS-CRL-REASON-PRIVILEGE-WITHDRAWN:CAPS">GNUTLS_CRL_REASON_PRIVILEGE_WITHDRAWN</link>
+#define             <link linkend="GNUTLS-CRL-REASON-AA-COMPROMISE:CAPS">GNUTLS_CRL_REASON_AA_COMPROMISE</link>
+</synopsis>
+</refsynopsisdiv>
+
+
+
+
+
+
+
+
+
+<refsect1 role="desc">
+<title role="desc.title">Description</title>
+<para>
+
+</para>
+</refsect1>
+
+<refsect1 role="details">
+<title role="details.title">Details</title>
+<refsect2>
+<title><anchor id="HASH-OID-SHA1:CAPS" role="macro"/>HASH_OID_SHA1</title>
+<indexterm><primary>HASH_OID_SHA1</primary></indexterm><programlisting>#define             HASH_OID_SHA1</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="HASH-OID-MD5:CAPS" role="macro"/>HASH_OID_MD5</title>
+<indexterm><primary>HASH_OID_MD5</primary></indexterm><programlisting>#define             HASH_OID_MD5</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="HASH-OID-MD2:CAPS" role="macro"/>HASH_OID_MD2</title>
+<indexterm><primary>HASH_OID_MD2</primary></indexterm><programlisting>#define             HASH_OID_MD2</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="HASH-OID-RMD160:CAPS" role="macro"/>HASH_OID_RMD160</title>
+<indexterm><primary>HASH_OID_RMD160</primary></indexterm><programlisting>#define             HASH_OID_RMD160</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="HASH-OID-SHA256:CAPS" role="macro"/>HASH_OID_SHA256</title>
+<indexterm><primary>HASH_OID_SHA256</primary></indexterm><programlisting>#define             HASH_OID_SHA256</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="HASH-OID-SHA384:CAPS" role="macro"/>HASH_OID_SHA384</title>
+<indexterm><primary>HASH_OID_SHA384</primary></indexterm><programlisting>#define             HASH_OID_SHA384</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="HASH-OID-SHA512:CAPS" role="macro"/>HASH_OID_SHA512</title>
+<indexterm><primary>HASH_OID_SHA512</primary></indexterm><programlisting>#define             HASH_OID_SHA512</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="MAX-PRIV-PARAMS-SIZE:CAPS" role="macro"/>MAX_PRIV_PARAMS_SIZE</title>
+<indexterm><primary>MAX_PRIV_PARAMS_SIZE</primary></indexterm><programlisting>#define             MAX_PRIV_PARAMS_SIZE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="DSA-PRIVATE-PARAMS:CAPS" role="macro"/>DSA_PRIVATE_PARAMS</title>
+<indexterm><primary>DSA_PRIVATE_PARAMS</primary></indexterm><programlisting>#define             DSA_PRIVATE_PARAMS</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="DSA-PUBLIC-PARAMS:CAPS" role="macro"/>DSA_PUBLIC_PARAMS</title>
+<indexterm><primary>DSA_PUBLIC_PARAMS</primary></indexterm><programlisting>#define             DSA_PUBLIC_PARAMS</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="RSA-PRIVATE-PARAMS:CAPS" role="macro"/>RSA_PRIVATE_PARAMS</title>
+<indexterm><primary>RSA_PRIVATE_PARAMS</primary></indexterm><programlisting>#define             RSA_PRIVATE_PARAMS</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="RSA-PUBLIC-PARAMS:CAPS" role="macro"/>RSA_PUBLIC_PARAMS</title>
+<indexterm><primary>RSA_PUBLIC_PARAMS</primary></indexterm><programlisting>#define             RSA_PUBLIC_PARAMS</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-issuer-dn-by-oid" role="function"/>gnutls_x509_crt_get_issuer_dn_by_oid ()</title>
+<indexterm><primary>gnutls_x509_crt_get_issuer_dn_by_oid</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_issuer_dn_by_oid
+                                                        (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         const <link linkend="char">char</link> *oid,
+                                                         <link linkend="int">int</link> indx,
+                                                         unsigned <link linkend="int">int</link> raw_flag,
+                                                         <link linkend="void">void</link> *buf,
+                                                         <link linkend="size-t">size_t</link> *sizeof_buf);</programlisting>
+<para>
+This function will extract the part of the name of the Certificate
+issuer specified by the given OID. The output, if the raw flag is not
+used, will be encoded as described in RFC2253. Thus a string that is
+ASCII or UTF-8 encoded, depending on the certificate data.
+</para>
+<para>
+Some helper macros with popular OIDs can be found in gnutls/x509.h
+If raw flag is zero, this function will only return known OIDs as
+text. Other OIDs will be DER encoded, as described in RFC2253 --
+in hex format with a '\#' prefix.  You can check about known OIDs
+using <link linkend="gnutls-x509-dn-oid-known"><function>gnutls_x509_dn_oid_known()</function></link>.
+</para>
+<para>
+If <parameter>buf</parameter> is null then only the size will be filled.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>oid</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>indx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>raw_flag</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>sizeof_buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-subject-alt-name" role="function"/>gnutls_x509_crt_get_subject_alt_name ()</title>
+<indexterm><primary>gnutls_x509_crt_get_subject_alt_name</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_subject_alt_name
+                                                        (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         unsigned <link linkend="int">int</link> seq,
+                                                         <link linkend="void">void</link> *ret,
+                                                         <link linkend="size-t">size_t</link> *ret_size,
+                                                         unsigned <link linkend="int">int</link> *critical);</programlisting>
+<para>
+This function will return the alternative names, contained in the
+given certificate.
+</para>
+<para>
+This is specified in X509v3 Certificate Extensions.  GNUTLS will
+return the Alternative name (2.5.29.17), or a negative error code.
+</para>
+<para>
+When the SAN type is otherName, it will extract the data in the
+otherName's value field, and <link linkend="GNUTLS-SAN-OTHERNAME:CAPS"><literal>GNUTLS_SAN_OTHERNAME</literal></link> is returned.
+You may use <link linkend="gnutls-x509-crt-get-subject-alt-othername-oid"><function>gnutls_x509_crt_get_subject_alt_othername_oid()</function></link> to get
+the corresponding OID and the "virtual" SAN types (e.g.,
+<link linkend="GNUTLS-SAN-OTHERNAME-XMPP:CAPS"><literal>GNUTLS_SAN_OTHERNAME_XMPP</literal></link>).
+</para>
+<para>
+If an otherName OID is known, the data will be decoded.  Otherwise
+the returned data will be DER encoded, and you will have to decode
+it yourself.  Currently, only the RFC 3920 id-on-xmppAddr SAN is
+recognized.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>seq</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>ret</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>ret_size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>critical</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-dn-by-oid" role="function"/>gnutls_x509_crt_get_dn_by_oid ()</title>
+<indexterm><primary>gnutls_x509_crt_get_dn_by_oid</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_dn_by_oid       (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         const <link linkend="char">char</link> *oid,
+                                                         <link linkend="int">int</link> indx,
+                                                         unsigned <link linkend="int">int</link> raw_flag,
+                                                         <link linkend="void">void</link> *buf,
+                                                         <link linkend="size-t">size_t</link> *sizeof_buf);</programlisting>
+<para>
+This function will extract the part of the name of the Certificate
+subject specified by the given OID. The output, if the raw flag is not
+used, will be encoded as described in RFC2253. Thus a string that is
+ASCII or UTF-8 encoded, depending on the certificate data.
+</para>
+<para>
+Some helper macros with popular OIDs can be found in gnutls/x509.h
+If raw flag is zero, this function will only return known OIDs as
+text. Other OIDs will be DER encoded, as described in RFC2253 --
+in hex format with a '\#' prefix.  You can check about known OIDs
+using <link linkend="gnutls-x509-dn-oid-known"><function>gnutls_x509_dn_oid_known()</function></link>.
+</para>
+<para>
+If <parameter>buf</parameter> is null then only the size will be filled.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>oid</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>indx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>raw_flag</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>sizeof_buf</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-ca-status" role="function"/>gnutls_x509_crt_get_ca_status ()</title>
+<indexterm><primary>gnutls_x509_crt_get_ca_status</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_ca_status       (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         unsigned <link linkend="int">int</link> *critical);</programlisting>
+<para>
+This function will return certificates CA status, by reading the
+basicConstraints X.509 extension (2.5.29.19). If the certificate is
+a CA a positive value will be returned, or zero if the certificate
+does not have CA flag set.
+</para>
+<para>
+Use <link linkend="gnutls-x509-crt-get-basic-constraints"><function>gnutls_x509_crt_get_basic_constraints()</function></link> if you want to read the
+pathLenConstraint field too.
+</para>
+<para>
+A negative value may be returned in case of parsing error.
+If the certificate does not contain the basicConstraints extension
+GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE will be returned.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>critical</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-pk-algorithm" role="function"/>gnutls_x509_crt_get_pk_algorithm ()</title>
+<indexterm><primary>gnutls_x509_crt_get_pk_algorithm</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_pk_algorithm    (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         unsigned <link linkend="int">int</link> *bits);</programlisting>
+<para>
+This function will return the public key algorithm of an X.509 
+certificate.
+</para>
+<para>
+If bits is non null, it should have enough size to hold the parameters
+size in bits. For RSA the bits returned is the modulus. 
+For DSA the bits returned are of the public
+exponent.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>bits</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-serial" role="function"/>gnutls_x509_crt_get_serial ()</title>
+<indexterm><primary>gnutls_x509_crt_get_serial</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_serial          (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         <link linkend="void">void</link> *result,
+                                                         <link linkend="size-t">size_t</link> *result_size);</programlisting>
+<para>
+This function will return the X.509 certificate's serial number. 
+This is obtained by the X509 Certificate serialNumber
+field. Serial is not always a 32 or 64bit number. Some CAs use
+large serial numbers, thus it may be wise to handle it as something
+opaque.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>result</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>result_size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-check-revocation" role="function"/>gnutls_x509_crt_check_revocation ()</title>
+<indexterm><primary>gnutls_x509_crt_check_revocation</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_check_revocation    (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         const <link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> *crl_list,
+                                                         <link linkend="int">int</link> crl_list_length);</programlisting>
+<para>
+This function will return check if the given certificate is
+revoked.  It is assumed that the CRLs have been verified before.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>crl_list</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>crl_list_length</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crl-get-crt-count" role="function"/>gnutls_x509_crl_get_crt_count ()</title>
+<indexterm><primary>gnutls_x509_crl_get_crt_count</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crl_get_crt_count       (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl);</programlisting>
+<para>
+This function will return the number of revoked certificates in the
+given CRL.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>crl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crl-get-crt-serial" role="function"/>gnutls_x509_crl_get_crt_serial ()</title>
+<indexterm><primary>gnutls_x509_crl_get_crt_serial</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crl_get_crt_serial      (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl,
+                                                         <link linkend="int">int</link> indx,
+                                                         unsigned <link linkend="char">char</link> *serial,
+                                                         <link linkend="size-t">size_t</link> *serial_size,
+                                                         <link linkend="time-t">time_t</link> *t);</programlisting>
+<para>
+This function will return the serial number of the specified, by
+the index, revoked certificate.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>crl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>indx</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>serial</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>serial_size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>t</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crl-deinit" role="function"/>gnutls_x509_crl_deinit ()</title>
+<indexterm><primary>gnutls_x509_crl_deinit</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_x509_crl_deinit              (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl);</programlisting>
+<para>
+This function will deinitialize a CRL structure.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>crl</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crl-init" role="function"/>gnutls_x509_crl_init ()</title>
+<indexterm><primary>gnutls_x509_crl_init</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crl_init                (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> *crl);</programlisting>
+<para>
+This function will initialize a CRL structure. CRL stands for
+Certificate Revocation List. A revocation list usually contains
+lists of certificate serial numbers that have been revoked
+by an Authority. The revocation lists are always signed with
+the authority's private key.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>crl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crl-import" role="function"/>gnutls_x509_crl_import ()</title>
+<indexterm><primary>gnutls_x509_crl_import</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crl_import              (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *data,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format);</programlisting>
+<para>
+This function will convert the given DER or PEM encoded CRL
+to the native gnutls_x509_crl_t format. The output will be stored in 'crl'.
+</para>
+<para>
+If the CRL is PEM encoded it should have a header of "X509 CRL".</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>crl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>format</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crl-export" role="function"/>gnutls_x509_crl_export ()</title>
+<indexterm><primary>gnutls_x509_crl_export</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crl_export              (<link linkend="gnutls-x509-crl-t">gnutls_x509_crl_t</link> crl,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format,
+                                                         <link linkend="void">void</link> *output_data,
+                                                         <link linkend="size-t">size_t</link> *output_data_size);</programlisting>
+<para>
+This function will export the revocation list to DER or PEM format.
+</para>
+<para>
+If the buffer provided is not long enough to hold the output, then
+GNUTLS_E_SHORT_MEMORY_BUFFER will be returned.
+</para>
+<para>
+If the structure is PEM encoded, it will have a header
+of "BEGIN X509 CRL".</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>crl</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>format</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>output_data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>output_data_size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-init" role="function"/>gnutls_x509_crt_init ()</title>
+<indexterm><primary>gnutls_x509_crt_init</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_init                (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> *cert);</programlisting>
+<para>
+This function will initialize an X.509 certificate structure.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-deinit" role="function"/>gnutls_x509_crt_deinit ()</title>
+<indexterm><primary>gnutls_x509_crt_deinit</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_x509_crt_deinit              (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert);</programlisting>
+<para>
+This function will deinitialize a CRL structure.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-import" role="function"/>gnutls_x509_crt_import ()</title>
+<indexterm><primary>gnutls_x509_crt_import</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_import              (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *data,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format);</programlisting>
+<para>
+This function will convert the given DER or PEM encoded Certificate
+to the native gnutls_x509_crt_t format. The output will be stored in <parameter>cert</parameter>.
+</para>
+<para>
+If the Certificate is PEM encoded it should have a header of "X509 CERTIFICATE", or
+"CERTIFICATE".</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>format</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-export" role="function"/>gnutls_x509_crt_export ()</title>
+<indexterm><primary>gnutls_x509_crt_export</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_export              (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format,
+                                                         <link linkend="void">void</link> *output_data,
+                                                         <link linkend="size-t">size_t</link> *output_data_size);</programlisting>
+<para>
+This function will export the certificate to DER or PEM format.
+</para>
+<para>
+If the buffer provided is not long enough to hold the output, then
+*output_data_size is updated and GNUTLS_E_SHORT_MEMORY_BUFFER will
+be returned.
+</para>
+<para>
+If the structure is PEM encoded, it will have a header
+of "BEGIN CERTIFICATE".</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>format</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>output_data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>output_data_size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-key-usage" role="function"/>gnutls_x509_crt_get_key_usage ()</title>
+<indexterm><primary>gnutls_x509_crt_get_key_usage</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_key_usage       (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert,
+                                                         unsigned <link linkend="int">int</link> *key_usage,
+                                                         unsigned <link linkend="int">int</link> *critical);</programlisting>
+<para>
+This function will return certificate's key usage, by reading the 
+keyUsage X.509 extension (2.5.29.15). The key usage value will ORed values of the:
+GNUTLS_KEY_DIGITAL_SIGNATURE, GNUTLS_KEY_NON_REPUDIATION,
+GNUTLS_KEY_KEY_ENCIPHERMENT, GNUTLS_KEY_DATA_ENCIPHERMENT,
+GNUTLS_KEY_KEY_AGREEMENT, GNUTLS_KEY_KEY_CERT_SIGN,
+GNUTLS_KEY_CRL_SIGN, GNUTLS_KEY_ENCIPHER_ONLY,
+GNUTLS_KEY_DECIPHER_ONLY.
+</para>
+<para>
+A negative value may be returned in case of parsing error.
+If the certificate does not contain the keyUsage extension
+GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE will be returned.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>key_usage</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>critical</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-signature-algorithm" role="function"/>gnutls_x509_crt_get_signature_algorithm ()</title>
+<indexterm><primary>gnutls_x509_crt_get_signature_algorithm</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_signature_algorithm
+                                                        (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert);</programlisting>
+<para>
+This function will return a value of the gnutls_sign_algorithm_t enumeration that 
+is the signature algorithm.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-crt-get-version" role="function"/>gnutls_x509_crt_get_version ()</title>
+<indexterm><primary>gnutls_x509_crt_get_version</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_crt_get_version         (<link linkend="gnutls-x509-crt-t">gnutls_x509_crt_t</link> cert);</programlisting>
+<para>
+This function will return the version of the specified Certificate.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>cert</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-privkey-init" role="function"/>gnutls_x509_privkey_init ()</title>
+<indexterm><primary>gnutls_x509_privkey_init</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_privkey_init            (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> *key);</programlisting>
+<para>
+This function will initialize an private key structure.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-privkey-deinit" role="function"/>gnutls_x509_privkey_deinit ()</title>
+<indexterm><primary>gnutls_x509_privkey_deinit</primary></indexterm><programlisting><link linkend="void">void</link>                gnutls_x509_privkey_deinit          (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key);</programlisting>
+<para>
+This function will deinitialize a private key structure.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-privkey-generate" role="function"/>gnutls_x509_privkey_generate ()</title>
+<indexterm><primary>gnutls_x509_privkey_generate</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_privkey_generate        (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         <link linkend="gnutls-pk-algorithm-t">gnutls_pk_algorithm_t</link> algo,
+                                                         unsigned <link linkend="int">int</link> bits,
+                                                         unsigned <link linkend="int">int</link> flags);</programlisting>
+<para>
+This function will generate a random private key. Note that
+this function must be called on an empty private key.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>algo</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>bits</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>flags</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-privkey-import" role="function"/>gnutls_x509_privkey_import ()</title>
+<indexterm><primary>gnutls_x509_privkey_import</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_privkey_import          (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *data,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format);</programlisting>
+<para>
+This function will convert the given DER or PEM encoded key
+to the native gnutls_x509_privkey_t format. The output will be stored in <parameter>key</parameter> .
+</para>
+<para>
+If the key is PEM encoded it should have a header of "RSA PRIVATE KEY", or
+"DSA PRIVATE KEY".</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>format</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-privkey-get-pk-algorithm" role="function"/>gnutls_x509_privkey_get_pk_algorithm ()</title>
+<indexterm><primary>gnutls_x509_privkey_get_pk_algorithm</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_privkey_get_pk_algorithm
+                                                        (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key);</programlisting>
+<para>
+This function will return the public key algorithm of a private
+key.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-privkey-import-rsa-raw" role="function"/>gnutls_x509_privkey_import_rsa_raw ()</title>
+<indexterm><primary>gnutls_x509_privkey_import_rsa_raw</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_privkey_import_rsa_raw  (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *m,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *e,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *d,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *p,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *q,
+                                                         const <link linkend="gnutls-datum-t">gnutls_datum_t</link> *u);</programlisting>
+<para>
+This function will convert the given RSA raw parameters
+to the native gnutls_x509_privkey_t format. The output will be stored in <parameter>key</parameter>.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>m</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>e</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>d</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>p</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>q</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>u</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-privkey-export-rsa-raw" role="function"/>gnutls_x509_privkey_export_rsa_raw ()</title>
+<indexterm><primary>gnutls_x509_privkey_export_rsa_raw</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_privkey_export_rsa_raw  (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *m,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *e,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *d,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *p,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *q,
+                                                         <link linkend="gnutls-datum-t">gnutls_datum_t</link> *u);</programlisting>
+<para>
+This function will export the RSA private key's parameters found in the given
+structure. The new parameters will be allocated using
+<link linkend="gnutls-malloc"><function>gnutls_malloc()</function></link> and will be stored in the appropriate datum.</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>m</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>e</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>d</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>p</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>q</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>u</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="gnutls-x509-privkey-export" role="function"/>gnutls_x509_privkey_export ()</title>
+<indexterm><primary>gnutls_x509_privkey_export</primary></indexterm><programlisting><link linkend="int">int</link>                 gnutls_x509_privkey_export          (<link linkend="gnutls-x509-privkey-t">gnutls_x509_privkey_t</link> key,
+                                                         <link linkend="gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</link> format,
+                                                         <link linkend="void">void</link> *output_data,
+                                                         <link linkend="size-t">size_t</link> *output_data_size);</programlisting>
+<para>
+This function will export the private key to a PKCS1 structure for
+RSA keys, or an integer sequence for DSA keys. The DSA keys are in
+the same format with the parameters used by openssl.
+</para>
+<para>
+If the buffer provided is not long enough to hold the output, then
+*output_data_size is updated and GNUTLS_E_SHORT_MEMORY_BUFFER will
+be returned.
+</para>
+<para>
+If the structure is PEM encoded, it will have a header
+of "BEGIN RSA PRIVATE KEY".</para>
+<para>
+
+</para><variablelist role="params">
+<varlistentry><term><parameter>key</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>format</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>output_data</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><parameter>output_data_size</parameter>&nbsp;:</term>
+<listitem><simpara>
+</simpara></listitem></varlistentry>
+<varlistentry><term><emphasis>Returns</emphasis>&nbsp;:</term><listitem><simpara>
+
+
+</simpara></listitem></varlistentry>
+</variablelist></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-UNUSED:CAPS" role="macro"/>GNUTLS_CRL_REASON_UNUSED</title>
+<indexterm><primary>GNUTLS_CRL_REASON_UNUSED</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_UNUSED</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-KEY-COMPROMISE:CAPS" role="macro"/>GNUTLS_CRL_REASON_KEY_COMPROMISE</title>
+<indexterm><primary>GNUTLS_CRL_REASON_KEY_COMPROMISE</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_KEY_COMPROMISE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-CA-COMPROMISE:CAPS" role="macro"/>GNUTLS_CRL_REASON_CA_COMPROMISE</title>
+<indexterm><primary>GNUTLS_CRL_REASON_CA_COMPROMISE</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_CA_COMPROMISE</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-AFFILIATION-CHANGED:CAPS" role="macro"/>GNUTLS_CRL_REASON_AFFILIATION_CHANGED</title>
+<indexterm><primary>GNUTLS_CRL_REASON_AFFILIATION_CHANGED</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_AFFILIATION_CHANGED</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-SUPERSEEDED:CAPS" role="macro"/>GNUTLS_CRL_REASON_SUPERSEEDED</title>
+<indexterm><primary>GNUTLS_CRL_REASON_SUPERSEEDED</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_SUPERSEEDED</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-CESSATION-OF-OPERATION:CAPS" role="macro"/>GNUTLS_CRL_REASON_CESSATION_OF_OPERATION</title>
+<indexterm><primary>GNUTLS_CRL_REASON_CESSATION_OF_OPERATION</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_CESSATION_OF_OPERATION</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-CERTIFICATE-HOLD:CAPS" role="macro"/>GNUTLS_CRL_REASON_CERTIFICATE_HOLD</title>
+<indexterm><primary>GNUTLS_CRL_REASON_CERTIFICATE_HOLD</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_CERTIFICATE_HOLD</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-PRIVILEGE-WITHDRAWN:CAPS" role="macro"/>GNUTLS_CRL_REASON_PRIVILEGE_WITHDRAWN</title>
+<indexterm><primary>GNUTLS_CRL_REASON_PRIVILEGE_WITHDRAWN</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_PRIVILEGE_WITHDRAWN</programlisting>
+<para>
+
+</para></refsect2>
+<refsect2>
+<title><anchor id="GNUTLS-CRL-REASON-AA-COMPROMISE:CAPS" role="macro"/>GNUTLS_CRL_REASON_AA_COMPROMISE</title>
+<indexterm><primary>GNUTLS_CRL_REASON_AA_COMPROMISE</primary></indexterm><programlisting>#define             GNUTLS_CRL_REASON_AA_COMPROMISE</programlisting>
+<para>
+
+</para></refsect2>
+
+</refsect1>
+
+
+
+
+
+<refsect1><refsect2 /><refsect2 /></refsect1>
+</refentry>

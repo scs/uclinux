@@ -1,0 +1,332 @@
+<!-- ##### SECTION Title ##### -->
+extra
+
+<!-- ##### SECTION Short_Description ##### -->
+
+
+<!-- ##### SECTION Long_Description ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION See_Also ##### -->
+<para>
+
+</para>
+
+
+<!-- ##### SECTION Stability_Level ##### -->
+
+
+<!-- ##### MACRO LIBGNUTLS_EXTRA_VERSION ##### -->
+<para>
+
+</para>
+
+
+
+<!-- ##### ENUM gnutls_openpgp_crt_fmt_t ##### -->
+<para>
+
+</para>
+
+@GNUTLS_OPENPGP_FMT_RAW: 
+@GNUTLS_OPENPGP_FMT_BASE64: 
+
+<!-- ##### USER_FUNCTION gnutls_openpgp_recv_key_func ##### -->
+<para>
+
+</para>
+
+@session: 
+@keyfpr: 
+@keyfpr_length: 
+@key: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_openpgp_set_recv_key_function ##### -->
+<para>
+
+</para>
+
+@session: 
+@Param2: 
+
+
+<!-- ##### FUNCTION gnutls_certificate_set_openpgp_key_file ##### -->
+<para>
+
+</para>
+
+@Param1: 
+@CERTFILE: 
+@KEYFILE: 
+@Param4: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_certificate_set_openpgp_key_mem ##### -->
+<para>
+
+</para>
+
+@Param1: 
+@CERT: 
+@KEY: 
+@Param4: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_certificate_set_openpgp_keyring_mem ##### -->
+<para>
+
+</para>
+
+@c: 
+@data: 
+@dlen: 
+@Param4: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_certificate_set_openpgp_keyring_file ##### -->
+<para>
+
+</para>
+
+@c: 
+@file: 
+@Param3: 
+@Returns: 
+
+
+<!-- ##### ENUM gnutls_ia_apptype_t ##### -->
+<para>
+
+</para>
+
+@GNUTLS_IA_APPLICATION_PAYLOAD: 
+@GNUTLS_IA_INTERMEDIATE_PHASE_FINISHED: 
+@GNUTLS_IA_FINAL_PHASE_FINISHED: 
+
+<!-- ##### USER_FUNCTION gnutls_ia_avp_func ##### -->
+<para>
+
+</para>
+
+@session: 
+@ptr: 
+@last: 
+@lastlen: 
+@next: 
+@nextlen: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_free_client_credentials ##### -->
+<para>
+
+</para>
+
+@sc: 
+
+
+<!-- ##### FUNCTION gnutls_ia_allocate_client_credentials ##### -->
+<para>
+
+</para>
+
+@sc: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_free_server_credentials ##### -->
+<para>
+
+</para>
+
+@sc: 
+
+
+<!-- ##### FUNCTION gnutls_ia_allocate_server_credentials ##### -->
+<para>
+
+</para>
+
+@sc: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_set_client_avp_function ##### -->
+<para>
+
+</para>
+
+@cred: 
+@avp_func: 
+
+
+<!-- ##### FUNCTION gnutls_ia_set_client_avp_ptr ##### -->
+<para>
+
+</para>
+
+@cred: 
+@ptr: 
+
+
+<!-- ##### FUNCTION gnutls_ia_get_client_avp_ptr ##### -->
+<para>
+
+</para>
+
+@Param1: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_set_server_avp_function ##### -->
+<para>
+
+</para>
+
+@cred: 
+@avp_func: 
+
+
+<!-- ##### FUNCTION gnutls_ia_set_server_avp_ptr ##### -->
+<para>
+
+</para>
+
+@cred: 
+@ptr: 
+
+
+<!-- ##### FUNCTION gnutls_ia_get_server_avp_ptr ##### -->
+<para>
+
+</para>
+
+@Param1: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_handshake_p ##### -->
+<para>
+
+</para>
+
+@session: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_handshake ##### -->
+<para>
+
+</para>
+
+@session: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_permute_inner_secret ##### -->
+<para>
+
+</para>
+
+@session: 
+@session_keys_size: 
+@session_keys: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_endphase_send ##### -->
+<para>
+
+</para>
+
+@session: 
+@final_p: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_verify_endphase ##### -->
+<para>
+
+</para>
+
+@session: 
+@checksum: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_send ##### -->
+<para>
+
+</para>
+
+@session: 
+@data: 
+@sizeofdata: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_recv ##### -->
+<para>
+
+</para>
+
+@session: 
+@data: 
+@sizeofdata: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_generate_challenge ##### -->
+<para>
+
+</para>
+
+@session: 
+@buffer_size: 
+@buffer: 
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_ia_extract_inner_secret ##### -->
+<para>
+
+</para>
+
+@session: 
+@buffer: 
+
+
+<!-- ##### FUNCTION gnutls_ia_enable ##### -->
+<para>
+
+</para>
+
+@session: 
+@allow_skip_on_resume: 
+
+
+<!-- ##### FUNCTION gnutls_global_init_extra ##### -->
+<para>
+
+</para>
+
+@Returns: 
+
+
+<!-- ##### FUNCTION gnutls_extra_check_version ##### -->
+<para>
+
+</para>
+
+@req_version: 
+@Returns: 
+
+

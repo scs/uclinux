@@ -1,0 +1,25 @@
+
+
+
+
+@subheading gnutls_extra_check_version
+@anchor{gnutls_extra_check_version}
+@deftypefun {const char *} {gnutls_extra_check_version} (const char * @var{req_version})
+@var{req_version}: the version to check
+
+Check that the version of the gnutls-extra library is at minimum
+the requested one and return the version string; return NULL if the
+condition is not satisfied.  If a NULL is passed to this function,
+no check is done, but the version string is simply returned.
+@end deftypefun
+@subheading gnutls_global_init_extra
+@anchor{gnutls_global_init_extra}
+@deftypefun {int} {gnutls_global_init_extra} ( @var{void})
+
+This function initializes the global state of gnutls-extra library
+to defaults.  Returns zero on success.
+
+Note that @code{gnutls_global_init()} has to be called before this
+function.  If this function is not called then the gnutls-extra
+library will not be usable.
+@end deftypefun

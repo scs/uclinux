@@ -1,0 +1,1636 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=US-ASCII">
+<title>x509</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.73.2">
+<link rel="start" href="index.html" title="GNU TLS API Reference Manual">
+<link rel="up" href="ch01.html" title="GNU TLS API Reference Manual">
+<link rel="prev" href="gnutls-extra.html" title="extra">
+<link rel="next" href="gnutls-pkcs12.html" title="pkcs12">
+<meta name="generator" content="GTK-Doc V1.9 (XML mode)">
+<link rel="stylesheet" href="style.css" type="text/css">
+<link rel="chapter" href="ch01.html" title="GNU TLS API Reference Manual">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<table class="navigation" id="top" width="100%" summary="Navigation header" cellpadding="2" cellspacing="2">
+<tr valign="middle">
+<td><a accesskey="p" href="gnutls-extra.html"><img src="left.png" width="24" height="24" border="0" alt="Prev"></a></td>
+<td><a accesskey="u" href="ch01.html"><img src="up.png" width="24" height="24" border="0" alt="Up"></a></td>
+<td><a accesskey="h" href="index.html"><img src="home.png" width="24" height="24" border="0" alt="Home"></a></td>
+<th width="100%" align="center">GNU TLS API Reference Manual</th>
+<td><a accesskey="n" href="gnutls-pkcs12.html"><img src="right.png" width="24" height="24" border="0" alt="Next"></a></td>
+</tr>
+<tr><td colspan="5" class="shortcuts"><nobr><a href="#id2609275" class="shortcut">Top</a>
+                  &#160;|&#160;
+                  <a href="#id2627488" class="shortcut">Description</a></nobr></td></tr>
+</table>
+<div class="refentry" lang="en">
+<a name="gnutls-x509"></a><div class="titlepage"></div>
+<div class="refnamediv"><table width="100%"><tr>
+<td valign="top">
+<h2>
+<a name="id2609275"></a><span class="refentrytitle">x509</span>
+</h2>
+<p>x509</p>
+</td>
+<td valign="top" align="right"></td>
+</tr></table></div>
+<div class="refsynopsisdiv">
+<h2>Synopsis</h2>
+<pre class="synopsis">
+
+
+
+#define             <a class="link" href="gnutls-x509.html#HASH-OID-SHA1:CAPS">HASH_OID_SHA1</a>
+#define             <a class="link" href="gnutls-x509.html#HASH-OID-MD5:CAPS">HASH_OID_MD5</a>
+#define             <a class="link" href="gnutls-x509.html#HASH-OID-MD2:CAPS">HASH_OID_MD2</a>
+#define             <a class="link" href="gnutls-x509.html#HASH-OID-RMD160:CAPS">HASH_OID_RMD160</a>
+#define             <a class="link" href="gnutls-x509.html#HASH-OID-SHA256:CAPS">HASH_OID_SHA256</a>
+#define             <a class="link" href="gnutls-x509.html#HASH-OID-SHA384:CAPS">HASH_OID_SHA384</a>
+#define             <a class="link" href="gnutls-x509.html#HASH-OID-SHA512:CAPS">HASH_OID_SHA512</a>
+#define             <a class="link" href="gnutls-x509.html#MAX-PRIV-PARAMS-SIZE:CAPS">MAX_PRIV_PARAMS_SIZE</a>
+#define             <a class="link" href="gnutls-x509.html#DSA-PRIVATE-PARAMS:CAPS">DSA_PRIVATE_PARAMS</a>
+#define             <a class="link" href="gnutls-x509.html#DSA-PUBLIC-PARAMS:CAPS">DSA_PUBLIC_PARAMS</a>
+#define             <a class="link" href="gnutls-x509.html#RSA-PRIVATE-PARAMS:CAPS">RSA_PRIVATE_PARAMS</a>
+#define             <a class="link" href="gnutls-x509.html#RSA-PUBLIC-PARAMS:CAPS">RSA_PUBLIC_PARAMS</a>
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-issuer-dn-by-oid">gnutls_x509_crt_get_issuer_dn_by_oid</a>
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         const char *oid,
+                                                         int indx,
+                                                         unsigned int raw_flag,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         size_t *sizeof_buf);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-subject-alt-name">gnutls_x509_crt_get_subject_alt_name</a>
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         unsigned int seq,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *ret,
+                                                         size_t *ret_size,
+                                                         unsigned int *critical);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-dn-by-oid">gnutls_x509_crt_get_dn_by_oid</a>       (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         const char *oid,
+                                                         int indx,
+                                                         unsigned int raw_flag,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         size_t *sizeof_buf);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-ca-status">gnutls_x509_crt_get_ca_status</a>       (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         unsigned int *critical);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-pk-algorithm">gnutls_x509_crt_get_pk_algorithm</a>    (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         unsigned int *bits);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-serial">gnutls_x509_crt_get_serial</a>          (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *result,
+                                                         size_t *result_size);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-check-revocation">gnutls_x509_crt_check_revocation</a>    (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         const <a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> *crl_list,
+                                                         int crl_list_length);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crl-get-crt-count">gnutls_x509_crl_get_crt_count</a>       (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crl-get-crt-serial">gnutls_x509_crl_get_crt_serial</a>      (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl,
+                                                         int indx,
+                                                         unsigned char *serial,
+                                                         size_t *serial_size,
+                                                         time_t *t);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-x509.html#gnutls-x509-crl-deinit">gnutls_x509_crl_deinit</a>              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crl-init">gnutls_x509_crl_init</a>                (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> *crl);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crl-import">gnutls_x509_crl_import</a>              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crl-export">gnutls_x509_crl_export</a>              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *output_data,
+                                                         size_t *output_data_size);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-init">gnutls_x509_crt_init</a>                (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> *cert);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-x509.html#gnutls-x509-crt-deinit">gnutls_x509_crt_deinit</a>              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-import">gnutls_x509_crt_import</a>              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-export">gnutls_x509_crt_export</a>              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *output_data,
+                                                         size_t *output_data_size);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-key-usage">gnutls_x509_crt_get_key_usage</a>       (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         unsigned int *key_usage,
+                                                         unsigned int *critical);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-signature-algorithm">gnutls_x509_crt_get_signature_algorithm</a>
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-crt-get-version">gnutls_x509_crt_get_version</a>         (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-privkey-init">gnutls_x509_privkey_init</a>            (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> *key);
+<a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                <a class="link" href="gnutls-x509.html#gnutls-x509-privkey-deinit">gnutls_x509_privkey_deinit</a>          (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-privkey-generate">gnutls_x509_privkey_generate</a>        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-pk-algorithm-t">gnutls_pk_algorithm_t</a> algo,
+                                                         unsigned int bits,
+                                                         unsigned int flags);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-privkey-import">gnutls_x509_privkey_import</a>          (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-privkey-get-pk-algorithm">gnutls_x509_privkey_get_pk_algorithm</a>
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-privkey-import-rsa-raw">gnutls_x509_privkey_import_rsa_raw</a>  (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         const gnutls_datum_t *m,
+                                                         const gnutls_datum_t *e,
+                                                         const gnutls_datum_t *d,
+                                                         const gnutls_datum_t *p,
+                                                         const gnutls_datum_t *q,
+                                                         const gnutls_datum_t *u);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-privkey-export-rsa-raw">gnutls_x509_privkey_export_rsa_raw</a>  (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         gnutls_datum_t *m,
+                                                         gnutls_datum_t *e,
+                                                         gnutls_datum_t *d,
+                                                         gnutls_datum_t *p,
+                                                         gnutls_datum_t *q,
+                                                         gnutls_datum_t *u);
+int                 <a class="link" href="gnutls-x509.html#gnutls-x509-privkey-export">gnutls_x509_privkey_export</a>          (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *output_data,
+                                                         size_t *output_data_size);
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-UNUSED:CAPS">GNUTLS_CRL_REASON_UNUSED</a>
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-KEY-COMPROMISE:CAPS">GNUTLS_CRL_REASON_KEY_COMPROMISE</a>
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-CA-COMPROMISE:CAPS">GNUTLS_CRL_REASON_CA_COMPROMISE</a>
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-AFFILIATION-CHANGED:CAPS">GNUTLS_CRL_REASON_AFFILIATION_CHANGED</a>
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-SUPERSEEDED:CAPS">GNUTLS_CRL_REASON_SUPERSEEDED</a>
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-CESSATION-OF-OPERATION:CAPS">GNUTLS_CRL_REASON_CESSATION_OF_OPERATION</a>
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-CERTIFICATE-HOLD:CAPS">GNUTLS_CRL_REASON_CERTIFICATE_HOLD</a>
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-PRIVILEGE-WITHDRAWN:CAPS">GNUTLS_CRL_REASON_PRIVILEGE_WITHDRAWN</a>
+#define             <a class="link" href="gnutls-x509.html#GNUTLS-CRL-REASON-AA-COMPROMISE:CAPS">GNUTLS_CRL_REASON_AA_COMPROMISE</a>
+</pre>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2627488"></a><h2>Description</h2>
+<p>
+
+</p>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2627504"></a><h2>Details</h2>
+<div class="refsect2" lang="en">
+<a name="id2627515"></a><h3>
+<a name="HASH-OID-SHA1:CAPS"></a>HASH_OID_SHA1</h3>
+<a class="indexterm" name="id2627527"></a><pre class="programlisting">#define             HASH_OID_SHA1</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2627543"></a><h3>
+<a name="HASH-OID-MD5:CAPS"></a>HASH_OID_MD5</h3>
+<a class="indexterm" name="id2627556"></a><pre class="programlisting">#define             HASH_OID_MD5</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2627572"></a><h3>
+<a name="HASH-OID-MD2:CAPS"></a>HASH_OID_MD2</h3>
+<a class="indexterm" name="id2627584"></a><pre class="programlisting">#define             HASH_OID_MD2</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2627600"></a><h3>
+<a name="HASH-OID-RMD160:CAPS"></a>HASH_OID_RMD160</h3>
+<a class="indexterm" name="id2587181"></a><pre class="programlisting">#define             HASH_OID_RMD160</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587197"></a><h3>
+<a name="HASH-OID-SHA256:CAPS"></a>HASH_OID_SHA256</h3>
+<a class="indexterm" name="id2587208"></a><pre class="programlisting">#define             HASH_OID_SHA256</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587225"></a><h3>
+<a name="HASH-OID-SHA384:CAPS"></a>HASH_OID_SHA384</h3>
+<a class="indexterm" name="id2587236"></a><pre class="programlisting">#define             HASH_OID_SHA384</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587252"></a><h3>
+<a name="HASH-OID-SHA512:CAPS"></a>HASH_OID_SHA512</h3>
+<a class="indexterm" name="id2587264"></a><pre class="programlisting">#define             HASH_OID_SHA512</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587280"></a><h3>
+<a name="MAX-PRIV-PARAMS-SIZE:CAPS"></a>MAX_PRIV_PARAMS_SIZE</h3>
+<a class="indexterm" name="id2587291"></a><pre class="programlisting">#define             MAX_PRIV_PARAMS_SIZE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587307"></a><h3>
+<a name="DSA-PRIVATE-PARAMS:CAPS"></a>DSA_PRIVATE_PARAMS</h3>
+<a class="indexterm" name="id2587319"></a><pre class="programlisting">#define             DSA_PRIVATE_PARAMS</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587335"></a><h3>
+<a name="DSA-PUBLIC-PARAMS:CAPS"></a>DSA_PUBLIC_PARAMS</h3>
+<a class="indexterm" name="id2587347"></a><pre class="programlisting">#define             DSA_PUBLIC_PARAMS</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587363"></a><h3>
+<a name="RSA-PRIVATE-PARAMS:CAPS"></a>RSA_PRIVATE_PARAMS</h3>
+<a class="indexterm" name="id2587374"></a><pre class="programlisting">#define             RSA_PRIVATE_PARAMS</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587391"></a><h3>
+<a name="RSA-PUBLIC-PARAMS:CAPS"></a>RSA_PUBLIC_PARAMS</h3>
+<a class="indexterm" name="id2587402"></a><pre class="programlisting">#define             RSA_PUBLIC_PARAMS</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587419"></a><h3>
+<a name="gnutls-x509-crt-get-issuer-dn-by-oid"></a>gnutls_x509_crt_get_issuer_dn_by_oid ()</h3>
+<a class="indexterm" name="id2587432"></a><pre class="programlisting">int                 gnutls_x509_crt_get_issuer_dn_by_oid
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         const char *oid,
+                                                         int indx,
+                                                         unsigned int raw_flag,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         size_t *sizeof_buf);</pre>
+<p>
+This function will extract the part of the name of the Certificate
+issuer specified by the given OID. The output, if the raw flag is not
+used, will be encoded as described in RFC2253. Thus a string that is
+ASCII or UTF-8 encoded, depending on the certificate data.
+</p>
+<p>
+Some helper macros with popular OIDs can be found in gnutls/x509.h
+If raw flag is zero, this function will only return known OIDs as
+text. Other OIDs will be DER encoded, as described in RFC2253 --
+in hex format with a '\#' prefix.  You can check about known OIDs
+using <code class="function">gnutls_x509_dn_oid_known()</code>.
+</p>
+<p>
+If <em class="parameter"><code>buf</code></em> is null then only the size will be filled.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>oid</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>indx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>raw_flag</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>sizeof_buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587632"></a><h3>
+<a name="gnutls-x509-crt-get-subject-alt-name"></a>gnutls_x509_crt_get_subject_alt_name ()</h3>
+<a class="indexterm" name="id2587646"></a><pre class="programlisting">int                 gnutls_x509_crt_get_subject_alt_name
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         unsigned int seq,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *ret,
+                                                         size_t *ret_size,
+                                                         unsigned int *critical);</pre>
+<p>
+This function will return the alternative names, contained in the
+given certificate.
+</p>
+<p>
+This is specified in X509v3 Certificate Extensions.  GNUTLS will
+return the Alternative name (2.5.29.17), or a negative error code.
+</p>
+<p>
+When the SAN type is otherName, it will extract the data in the
+otherName's value field, and <code class="literal">GNUTLS_SAN_OTHERNAME</code> is returned.
+You may use <code class="function">gnutls_x509_crt_get_subject_alt_othername_oid()</code> to get
+the corresponding OID and the "virtual" SAN types (e.g.,
+<code class="literal">GNUTLS_SAN_OTHERNAME_XMPP</code>).
+</p>
+<p>
+If an otherName OID is known, the data will be decoded.  Otherwise
+the returned data will be DER encoded, and you will have to decode
+it yourself.  Currently, only the RFC 3920 id-on-xmppAddr SAN is
+recognized.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>seq</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ret</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>ret_size</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>critical</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2587842"></a><h3>
+<a name="gnutls-x509-crt-get-dn-by-oid"></a>gnutls_x509_crt_get_dn_by_oid ()</h3>
+<a class="indexterm" name="id2587856"></a><pre class="programlisting">int                 gnutls_x509_crt_get_dn_by_oid       (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         const char *oid,
+                                                         int indx,
+                                                         unsigned int raw_flag,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *buf,
+                                                         size_t *sizeof_buf);</pre>
+<p>
+This function will extract the part of the name of the Certificate
+subject specified by the given OID. The output, if the raw flag is not
+used, will be encoded as described in RFC2253. Thus a string that is
+ASCII or UTF-8 encoded, depending on the certificate data.
+</p>
+<p>
+Some helper macros with popular OIDs can be found in gnutls/x509.h
+If raw flag is zero, this function will only return known OIDs as
+text. Other OIDs will be DER encoded, as described in RFC2253 --
+in hex format with a '\#' prefix.  You can check about known OIDs
+using <code class="function">gnutls_x509_dn_oid_known()</code>.
+</p>
+<p>
+If <em class="parameter"><code>buf</code></em> is null then only the size will be filled.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>oid</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>indx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>raw_flag</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>sizeof_buf</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2588055"></a><h3>
+<a name="gnutls-x509-crt-get-ca-status"></a>gnutls_x509_crt_get_ca_status ()</h3>
+<a class="indexterm" name="id2588068"></a><pre class="programlisting">int                 gnutls_x509_crt_get_ca_status       (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         unsigned int *critical);</pre>
+<p>
+This function will return certificates CA status, by reading the
+basicConstraints X.509 extension (2.5.29.19). If the certificate is
+a CA a positive value will be returned, or zero if the certificate
+does not have CA flag set.
+</p>
+<p>
+Use <code class="function">gnutls_x509_crt_get_basic_constraints()</code> if you want to read the
+pathLenConstraint field too.
+</p>
+<p>
+A negative value may be returned in case of parsing error.
+If the certificate does not contain the basicConstraints extension
+GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE will be returned.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>critical</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2588176"></a><h3>
+<a name="gnutls-x509-crt-get-pk-algorithm"></a>gnutls_x509_crt_get_pk_algorithm ()</h3>
+<a class="indexterm" name="id2588189"></a><pre class="programlisting">int                 gnutls_x509_crt_get_pk_algorithm    (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         unsigned int *bits);</pre>
+<p>
+This function will return the public key algorithm of an X.509 
+certificate.
+</p>
+<p>
+If bits is non null, it should have enough size to hold the parameters
+size in bits. For RSA the bits returned is the modulus. 
+For DSA the bits returned are of the public
+exponent.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>bits</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2630451"></a><h3>
+<a name="gnutls-x509-crt-get-serial"></a>gnutls_x509_crt_get_serial ()</h3>
+<a class="indexterm" name="id2630463"></a><pre class="programlisting">int                 gnutls_x509_crt_get_serial          (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *result,
+                                                         size_t *result_size);</pre>
+<p>
+This function will return the X.509 certificate's serial number. 
+This is obtained by the X509 Certificate serialNumber
+field. Serial is not always a 32 or 64bit number. Some CAs use
+large serial numbers, thus it may be wise to handle it as something
+opaque.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>result</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>result_size</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2630570"></a><h3>
+<a name="gnutls-x509-crt-check-revocation"></a>gnutls_x509_crt_check_revocation ()</h3>
+<a class="indexterm" name="id2630583"></a><pre class="programlisting">int                 gnutls_x509_crt_check_revocation    (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         const <a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> *crl_list,
+                                                         int crl_list_length);</pre>
+<p>
+This function will return check if the given certificate is
+revoked.  It is assumed that the CRLs have been verified before.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>crl_list</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>crl_list_length</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2630690"></a><h3>
+<a name="gnutls-x509-crl-get-crt-count"></a>gnutls_x509_crl_get_crt_count ()</h3>
+<a class="indexterm" name="id2630703"></a><pre class="programlisting">int                 gnutls_x509_crl_get_crt_count       (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl);</pre>
+<p>
+This function will return the number of revoked certificates in the
+given CRL.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>crl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2630765"></a><h3>
+<a name="gnutls-x509-crl-get-crt-serial"></a>gnutls_x509_crl_get_crt_serial ()</h3>
+<a class="indexterm" name="id2630778"></a><pre class="programlisting">int                 gnutls_x509_crl_get_crt_serial      (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl,
+                                                         int indx,
+                                                         unsigned char *serial,
+                                                         size_t *serial_size,
+                                                         time_t *t);</pre>
+<p>
+This function will return the serial number of the specified, by
+the index, revoked certificate.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>crl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>indx</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>serial</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>serial_size</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>t</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2630926"></a><h3>
+<a name="gnutls-x509-crl-deinit"></a>gnutls_x509_crl_deinit ()</h3>
+<a class="indexterm" name="id2630937"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                gnutls_x509_crl_deinit              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl);</pre>
+<p>
+This function will deinitialize a CRL structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>crl</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2630988"></a><h3>
+<a name="gnutls-x509-crl-init"></a>gnutls_x509_crl_init ()</h3>
+<a class="indexterm" name="id2630999"></a><pre class="programlisting">int                 gnutls_x509_crl_init                (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> *crl);</pre>
+<p>
+This function will initialize a CRL structure. CRL stands for
+Certificate Revocation List. A revocation list usually contains
+lists of certificate serial numbers that have been revoked
+by an Authority. The revocation lists are always signed with
+the authority's private key.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>crl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2631064"></a><h3>
+<a name="gnutls-x509-crl-import"></a>gnutls_x509_crl_import ()</h3>
+<a class="indexterm" name="id2631075"></a><pre class="programlisting">int                 gnutls_x509_crl_import              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format);</pre>
+<p>
+This function will convert the given DER or PEM encoded CRL
+to the native gnutls_x509_crl_t format. The output will be stored in 'crl'.
+</p>
+<p>
+If the CRL is PEM encoded it should have a header of "X509 CRL".</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>crl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2631184"></a><h3>
+<a name="gnutls-x509-crl-export"></a>gnutls_x509_crl_export ()</h3>
+<a class="indexterm" name="id2631195"></a><pre class="programlisting">int                 gnutls_x509_crl_export              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crl-t">gnutls_x509_crl_t</a> crl,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *output_data,
+                                                         size_t *output_data_size);</pre>
+<p>
+This function will export the revocation list to DER or PEM format.
+</p>
+<p>
+If the buffer provided is not long enough to hold the output, then
+GNUTLS_E_SHORT_MEMORY_BUFFER will be returned.
+</p>
+<p>
+If the structure is PEM encoded, it will have a header
+of "BEGIN X509 CRL".</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>crl</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>output_data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>output_data_size</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2631330"></a><h3>
+<a name="gnutls-x509-crt-init"></a>gnutls_x509_crt_init ()</h3>
+<a class="indexterm" name="id2631342"></a><pre class="programlisting">int                 gnutls_x509_crt_init                (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> *cert);</pre>
+<p>
+This function will initialize an X.509 certificate structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2631403"></a><h3>
+<a name="gnutls-x509-crt-deinit"></a>gnutls_x509_crt_deinit ()</h3>
+<a class="indexterm" name="id2631414"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                gnutls_x509_crt_deinit              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert);</pre>
+<p>
+This function will deinitialize a CRL structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2631464"></a><h3>
+<a name="gnutls-x509-crt-import"></a>gnutls_x509_crt_import ()</h3>
+<a class="indexterm" name="id2631476"></a><pre class="programlisting">int                 gnutls_x509_crt_import              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format);</pre>
+<p>
+This function will convert the given DER or PEM encoded Certificate
+to the native gnutls_x509_crt_t format. The output will be stored in <em class="parameter"><code>cert</code></em>.
+</p>
+<p>
+If the Certificate is PEM encoded it should have a header of "X509 CERTIFICATE", or
+"CERTIFICATE".</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2638900"></a><h3>
+<a name="gnutls-x509-crt-export"></a>gnutls_x509_crt_export ()</h3>
+<a class="indexterm" name="id2638911"></a><pre class="programlisting">int                 gnutls_x509_crt_export              (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *output_data,
+                                                         size_t *output_data_size);</pre>
+<p>
+This function will export the certificate to DER or PEM format.
+</p>
+<p>
+If the buffer provided is not long enough to hold the output, then
+*output_data_size is updated and GNUTLS_E_SHORT_MEMORY_BUFFER will
+be returned.
+</p>
+<p>
+If the structure is PEM encoded, it will have a header
+of "BEGIN CERTIFICATE".</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>output_data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>output_data_size</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639046"></a><h3>
+<a name="gnutls-x509-crt-get-key-usage"></a>gnutls_x509_crt_get_key_usage ()</h3>
+<a class="indexterm" name="id2639060"></a><pre class="programlisting">int                 gnutls_x509_crt_get_key_usage       (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert,
+                                                         unsigned int *key_usage,
+                                                         unsigned int *critical);</pre>
+<p>
+This function will return certificate's key usage, by reading the 
+keyUsage X.509 extension (2.5.29.15). The key usage value will ORed values of the:
+GNUTLS_KEY_DIGITAL_SIGNATURE, GNUTLS_KEY_NON_REPUDIATION,
+GNUTLS_KEY_KEY_ENCIPHERMENT, GNUTLS_KEY_DATA_ENCIPHERMENT,
+GNUTLS_KEY_KEY_AGREEMENT, GNUTLS_KEY_KEY_CERT_SIGN,
+GNUTLS_KEY_CRL_SIGN, GNUTLS_KEY_ENCIPHER_ONLY,
+GNUTLS_KEY_DECIPHER_ONLY.
+</p>
+<p>
+A negative value may be returned in case of parsing error.
+If the certificate does not contain the keyUsage extension
+GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE will be returned.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key_usage</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>critical</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639176"></a><h3>
+<a name="gnutls-x509-crt-get-signature-algorithm"></a>gnutls_x509_crt_get_signature_algorithm ()</h3>
+<a class="indexterm" name="id2639190"></a><pre class="programlisting">int                 gnutls_x509_crt_get_signature_algorithm
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert);</pre>
+<p>
+This function will return a value of the gnutls_sign_algorithm_t enumeration that 
+is the signature algorithm.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639254"></a><h3>
+<a name="gnutls-x509-crt-get-version"></a>gnutls_x509_crt_get_version ()</h3>
+<a class="indexterm" name="id2639266"></a><pre class="programlisting">int                 gnutls_x509_crt_get_version         (<a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-t">gnutls_x509_crt_t</a> cert);</pre>
+<p>
+This function will return the version of the specified Certificate.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>cert</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639327"></a><h3>
+<a name="gnutls-x509-privkey-init"></a>gnutls_x509_privkey_init ()</h3>
+<a class="indexterm" name="id2639338"></a><pre class="programlisting">int                 gnutls_x509_privkey_init            (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> *key);</pre>
+<p>
+This function will initialize an private key structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639399"></a><h3>
+<a name="gnutls-x509-privkey-deinit"></a>gnutls_x509_privkey_deinit ()</h3>
+<a class="indexterm" name="id2639411"></a><pre class="programlisting"><a
+href="../shishi/shishi-shishi.html#void"
+>void</a>                gnutls_x509_privkey_deinit          (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key);</pre>
+<p>
+This function will deinitialize a private key structure.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody><tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr></tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639460"></a><h3>
+<a name="gnutls-x509-privkey-generate"></a>gnutls_x509_privkey_generate ()</h3>
+<a class="indexterm" name="id2639474"></a><pre class="programlisting">int                 gnutls_x509_privkey_generate        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-pk-algorithm-t">gnutls_pk_algorithm_t</a> algo,
+                                                         unsigned int bits,
+                                                         unsigned int flags);</pre>
+<p>
+This function will generate a random private key. Note that
+this function must be called on an empty private key.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>algo</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>bits</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>flags</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639599"></a><h3>
+<a name="gnutls-x509-privkey-import"></a>gnutls_x509_privkey_import ()</h3>
+<a class="indexterm" name="id2639611"></a><pre class="programlisting">int                 gnutls_x509_privkey_import          (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         const gnutls_datum_t *data,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format);</pre>
+<p>
+This function will convert the given DER or PEM encoded key
+to the native gnutls_x509_privkey_t format. The output will be stored in <em class="parameter"><code>key</code></em> .
+</p>
+<p>
+If the key is PEM encoded it should have a header of "RSA PRIVATE KEY", or
+"DSA PRIVATE KEY".</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639726"></a><h3>
+<a name="gnutls-x509-privkey-get-pk-algorithm"></a>gnutls_x509_privkey_get_pk_algorithm ()</h3>
+<a class="indexterm" name="id2639740"></a><pre class="programlisting">int                 gnutls_x509_privkey_get_pk_algorithm
+                                                        (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key);</pre>
+<p>
+This function will return the public key algorithm of a private
+key.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2639802"></a><h3>
+<a name="gnutls-x509-privkey-import-rsa-raw"></a>gnutls_x509_privkey_import_rsa_raw ()</h3>
+<a class="indexterm" name="id2639816"></a><pre class="programlisting">int                 gnutls_x509_privkey_import_rsa_raw  (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         const gnutls_datum_t *m,
+                                                         const gnutls_datum_t *e,
+                                                         const gnutls_datum_t *d,
+                                                         const gnutls_datum_t *p,
+                                                         const gnutls_datum_t *q,
+                                                         const gnutls_datum_t *u);</pre>
+<p>
+This function will convert the given RSA raw parameters
+to the native gnutls_x509_privkey_t format. The output will be stored in <em class="parameter"><code>key</code></em>.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>m</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>e</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>d</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>p</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>q</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>u</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2640013"></a><h3>
+<a name="gnutls-x509-privkey-export-rsa-raw"></a>gnutls_x509_privkey_export_rsa_raw ()</h3>
+<a class="indexterm" name="id2640027"></a><pre class="programlisting">int                 gnutls_x509_privkey_export_rsa_raw  (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         gnutls_datum_t *m,
+                                                         gnutls_datum_t *e,
+                                                         gnutls_datum_t *d,
+                                                         gnutls_datum_t *p,
+                                                         gnutls_datum_t *q,
+                                                         gnutls_datum_t *u);</pre>
+<p>
+This function will export the RSA private key's parameters found in the given
+structure. The new parameters will be allocated using
+<a class="link" href="gnutls-gnutls.html#gnutls-malloc"><code class="function">gnutls_malloc()</code></a> and will be stored in the appropriate datum.</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>m</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>e</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>d</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>p</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>q</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>u</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2640228"></a><h3>
+<a name="gnutls-x509-privkey-export"></a>gnutls_x509_privkey_export ()</h3>
+<a class="indexterm" name="id2640240"></a><pre class="programlisting">int                 gnutls_x509_privkey_export          (<a class="link" href="gnutls-gnutls.html#gnutls-x509-privkey-t">gnutls_x509_privkey_t</a> key,
+                                                         <a class="link" href="gnutls-gnutls.html#gnutls-x509-crt-fmt-t">gnutls_x509_crt_fmt_t</a> format,
+                                                         <a
+href="../shishi/shishi-shishi.html#void"
+>void</a> *output_data,
+                                                         size_t *output_data_size);</pre>
+<p>
+This function will export the private key to a PKCS1 structure for
+RSA keys, or an integer sequence for DSA keys. The DSA keys are in
+the same format with the parameters used by openssl.
+</p>
+<p>
+If the buffer provided is not long enough to hold the output, then
+*output_data_size is updated and GNUTLS_E_SHORT_MEMORY_BUFFER will
+be returned.
+</p>
+<p>
+If the structure is PEM encoded, it will have a header
+of "BEGIN RSA PRIVATE KEY".</p>
+<p>
+
+</p>
+<div class="variablelist"><table border="0">
+<col align="left" valign="top">
+<tbody>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>key</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>format</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>output_data</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><em class="parameter"><code>output_data_size</code></em>&#160;:</span></p></td>
+<td>
+</td>
+</tr>
+<tr>
+<td><p><span class="term"><span class="emphasis"><em>Returns</em></span>&#160;:</span></p></td>
+<td>
+
+
+</td>
+</tr>
+</tbody>
+</table></div>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2625789"></a><h3>
+<a name="GNUTLS-CRL-REASON-UNUSED:CAPS"></a>GNUTLS_CRL_REASON_UNUSED</h3>
+<a class="indexterm" name="id2625802"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_UNUSED</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2625818"></a><h3>
+<a name="GNUTLS-CRL-REASON-KEY-COMPROMISE:CAPS"></a>GNUTLS_CRL_REASON_KEY_COMPROMISE</h3>
+<a class="indexterm" name="id2625832"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_KEY_COMPROMISE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2625849"></a><h3>
+<a name="GNUTLS-CRL-REASON-CA-COMPROMISE:CAPS"></a>GNUTLS_CRL_REASON_CA_COMPROMISE</h3>
+<a class="indexterm" name="id2625862"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_CA_COMPROMISE</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2625879"></a><h3>
+<a name="GNUTLS-CRL-REASON-AFFILIATION-CHANGED:CAPS"></a>GNUTLS_CRL_REASON_AFFILIATION_CHANGED</h3>
+<a class="indexterm" name="id2625892"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_AFFILIATION_CHANGED</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2625909"></a><h3>
+<a name="GNUTLS-CRL-REASON-SUPERSEEDED:CAPS"></a>GNUTLS_CRL_REASON_SUPERSEEDED</h3>
+<a class="indexterm" name="id2625922"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_SUPERSEEDED</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2625939"></a><h3>
+<a name="GNUTLS-CRL-REASON-CESSATION-OF-OPERATION:CAPS"></a>GNUTLS_CRL_REASON_CESSATION_OF_OPERATION</h3>
+<a class="indexterm" name="id2625952"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_CESSATION_OF_OPERATION</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2625970"></a><h3>
+<a name="GNUTLS-CRL-REASON-CERTIFICATE-HOLD:CAPS"></a>GNUTLS_CRL_REASON_CERTIFICATE_HOLD</h3>
+<a class="indexterm" name="id2625984"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_CERTIFICATE_HOLD</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626001"></a><h3>
+<a name="GNUTLS-CRL-REASON-PRIVILEGE-WITHDRAWN:CAPS"></a>GNUTLS_CRL_REASON_PRIVILEGE_WITHDRAWN</h3>
+<a class="indexterm" name="id2626013"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_PRIVILEGE_WITHDRAWN</pre>
+<p>
+
+</p>
+</div>
+<hr>
+<div class="refsect2" lang="en">
+<a name="id2626030"></a><h3>
+<a name="GNUTLS-CRL-REASON-AA-COMPROMISE:CAPS"></a>GNUTLS_CRL_REASON_AA_COMPROMISE</h3>
+<a class="indexterm" name="id2626045"></a><pre class="programlisting">#define             GNUTLS_CRL_REASON_AA_COMPROMISE</pre>
+<p>
+
+</p>
+</div>
+</div>
+<div class="refsect1" lang="en">
+<a name="id2626063"></a><div class="refsect2" lang="en"><a name="id2626064"></a></div>
+<hr>
+<div class="refsect2" lang="en"><a name="id2626065"></a></div>
+</div>
+</div>
+</body>
+</html>
