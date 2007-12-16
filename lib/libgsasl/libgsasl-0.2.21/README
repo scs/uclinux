@@ -1,0 +1,61 @@
+GNU SASL LIBRARY README -- Important introductory notes.
+Copyright (C) 2002, 2003, 2004 Simon Josefsson
+See the end for copying conditions.
+
+This directory holds the GNU SASL library which is an implementation
+of the Simple Authentication and Security Layer (SASL).
+
+The GNU SASL library is licensed under the GNU Lesser General Public
+License (LGPL).  The GNU project typically uses the GNU General Public
+License (GPL) for libraries, and not the LGPL, but for this project we
+decided that we would get more help from the community if we used the
+LGPL, as other free SASL implementations exists.  See also
+<http://www.gnu.org/licenses/why-not-lgpl.html>.
+
+Currently there is some support for the following mechanisms:
+
+  - CRAM-MD5 (RFC 2195)
+  - EXTERNAL (RFC 2222)
+  - GSSAPI (RFC 2222, requires GSS, Heimdal or MIT Kerberos)
+  - ANONYMOUS (RFC 2245)
+  - PLAIN (RFC 2595)
+  - SECURID (RFC 2808)
+  - DIGEST-MD5 (RFC 2831)
+  - LOGIN (non-standard)
+  - NTLM (non-standard, client only, requires Libntlm)
+  - KERBEROS_V5 (experimental, requires Shishi)
+
+The library should be portable to all C89 platforms.
+
+Things left to do below.  If you like to start working on anything,
+please let me know so work duplication can be avoided.
+
+  * Security layer improvements (e.g., DES and AES in DIGEST-MD5).
+  * Bug: If gsasl_decode is handed a string longer than one SASL token,
+    the remaining data will be discarded.  This means if the sender
+    packed two SASL tokens in one network packet, only the first will be
+    seen.  To fix this the best way, and the same time also improve
+    string handling (security), the entire SASL step API probably
+    should change.  Later: It occured to me that the en/de-code functions
+    can simply buffer the left over data until the next invocation.
+    Still, it would be nice to change the API to one that encapsulates
+    string operations inte a separate package (my safestring.*).
+  + Authentication infrastructure implementing the callbacks for
+    PAM, Kerberos, SQL, etc.  Separate project?  GNU Mailutils has
+    some starting points for this, but the API is inflexible.
+  + Provide standard callbacks for tty, GTK, gpg-agent etc.  Probably
+    should be a separate library.
+  + Port applications to use libgsasl
+  + More SASL mechanisms
+  + Cleanup code, possibly by using some string abstraction library.
+    (lib/digest-md5.c most problematic)
+  - Privacy separation (authenticate in one process, pass state to another).
+  - Improve documentation
+  - Port to Cyclone? CCured?
+
+For updates to the project, see <http://www.gnu.org/software/gsasl/>.
+
+----------------------------------------------------------------------
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.

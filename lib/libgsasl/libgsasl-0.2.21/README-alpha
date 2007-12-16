@@ -1,0 +1,28 @@
+GNU SASL LIBRARY README-alpha -- Important notes for alpha releases.
+Copyright (C) 2003, 2004, 2007 Simon Josefsson
+See the end for copying conditions.
+
+GNU SASL Library is unstable.  You should expect it to not work.  You
+should expect it to have security problems.  The API will likely
+change.  This is the development release.  A proper release will be
+made in due time.  Let me repeat that, GNU SASL LIBRARY IS MOST LIKELY
+INSECURE. DO NOT USE IN A PRODUCTION ENVIRONMENT!
+
+The code will go through a security review before the stable release
+is made.  Volunteers needed.
+
+It will not become stable without help.  Donate time or money.
+
+To compile from version controlled sources rather than a
+libgsasl-*.tar.gz archive, you need autoconf (2.61), automake (1.10),
+libtool (1.5.2), and gettext (0.16.1).  Bootstrap the build
+environment with:
+
+  $ ./autogen.sh
+
+Then run ./configure etc as usual.
+
+----------------------------------------------------------------------
+Copying and distribution of this file, with or without modification,
+are permitted in any medium without royalty provided the copyright
+notice and this notice are preserved.
