@@ -1,0 +1,106 @@
+What's left to do                                 -*- outline -*-
+
+* Next API break:
+** gcry_ac_io_t
+  Remove use of anonymous union.
+** gcry_ac
+  Consider to remove it.
+
+* udiv-qrnbd.o should get build as *.lo [HPUX]
+
+* Allow operation using RSA keys consisting of the OpenSSL keys.
+  This requires the introduction of a parameter names (say) U which
+  is calculated according to OpenSSL/PKCS#1 rules.
+
+* Add a warning to the manual, to check that libgcrypt actually has
+  been compiled with thread support when used by a threaded
+  application.
+
+* linker script test
+  Write an autoconf test to check whether the linker supports a
+  version script. 
+
+* Add attributes to the MPI functions.
+
+* cipher/pubkey.c and pubkey implementaions.
+  Don't rely on the secure memory based wiping function but add an
+  extra wiping.
+  
+* update/improve documentation
+** it's outdated for e.g. gcry_pk_algo_info.
+** document algorithm capabilities
+** Init requirements for random
+   The documentation says in "Controlling the library" that some
+   functions can only be used at initialization time, but it does not
+   explain what that means.  Initialization is a multi-step procedure:
+   First the thread callbacks have to be set up (optional), then the
+   gcry_check_version() function must be called (mandatory), then
+   further functions can be used.
+
+   The manual also says that something happens when the seed file is
+   registered berfore the PRNG is initialized, but it does not say how
+   one can guarantee to call it early enough.
+
+   Suggested fix: Specify initialization time as the time after
+   gcry_check_version and before calling any other function except
+   gcry_control().
+
+   All functions which modify global state without a lock must be
+   documented as "can only be called during initialization time" (but
+   see item 1).  Then the extraneous calls to _gcry_random_initialize
+   in gcry_control() can be removed, and the comments "not thread
+   safe" in various initialization-time-only functions like
+   _gcry_use_random_daemon become superfluous.
+
+* Use builtin bit functions of gcc 3.4
+
+* Consider using a daemon to maintain the random pool
+  [Partly done] The down side of this is that we can't assume that the
+  random has has always been stored in "secure memory".  And we rely
+  on that sniffing of Unix domain sockets is not possible.  We can
+  implement this simply by detecting a special prefixed random seed
+  name and divert in this case to the daemon.  There are several
+  benefits with such an approach: We keep the state of the RNG over
+  invocations of libgcrypt based applications, don't need time
+  consuming initialization of the pool and in case the entropy
+  collectros need to run that bunch of Unix utilities we don't waste
+  their precious results.
+
+* Out of memory handler for secure memory should do proper logging
+
+  There is no shortage of standard memory, so logging is most likely
+  possible.
+
+* mpi_print does not use secure memory
+  for internal variables.
+
+* gcry_mpi_lshift is missing
+
+* Add OAEP
+
+* gcryptrnd.c
+  Requires a test for pth [done] as well as some other tests.
+
+* secmem.c
+  Check whether the memory block is valid before releasing it and
+  print a diagnosic, like glibc does.
+
+* threads
+** We need to document fork problems
+  In particular that reinitialization is required in random.c
+  However, there is no code yet to do it.
+
+* Tests
+  We need a lot more tests.  Lets keep an ever growing list here.
+** Write tests for the progress function
+** mpitests does no real checks yet.
+** pthreads
+  To catch simple errors like the one fixed on 2007-03-16.
+** C++ tests
+  We have some code to allow using libgcrypt from C++, so we also
+  should have a test case.
+
+* /dev/urandom and Solaris
+  Make the configure check similar to GnuPG.
+
+* Use aliases for symbol instead of the wrappers in visibility.c.
