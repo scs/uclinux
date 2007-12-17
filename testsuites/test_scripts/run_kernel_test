@@ -44,7 +44,8 @@ fi
   2>&1
  
   cd $UCLINUX_DIST_PATH 
-  rm -rf testsuites/*/*log  testsuites/*log  romfs/ images/
+  find testsuites -name *log -type f | xargs rm
+  rm -rf  romfs/ images/
   cp $UCLINUX_DIST_SCRIPTS/kernel_test_log $THIS_LOG
  
   echo "Here is the difference between lastrun and thisrun test results: "
