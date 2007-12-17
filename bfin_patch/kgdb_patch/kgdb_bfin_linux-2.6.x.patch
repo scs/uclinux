@@ -610,7 +610,7 @@ diff -urN linux-2.6.x.old/kernel/Makefile linux-2.6.x/kernel/Makefile
 diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 --- linux-2.6.x.old/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
 +++ linux-2.6.x/kernel/kgdb.c	2007-12-17 13:43:54.000000000 +0800
-@@ -0,0 +1,1547 @@
+@@ -0,0 +1,1545 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -702,9 +702,7 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +atomic_t kgdb_setting_breakpoint;
 +struct task_struct *kgdb_usethread, *kgdb_contthread;
 +
-+#ifdef CONFIG_BLACKFIN
 +int debugger_step;
-+#endif
 +atomic_t debugger_active;
 +
 +/* This will point to kgdb_handle_exception by default.
@@ -1527,8 +1525,6 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +#ifdef CONFIG_BLACKFIN
 +	if (debugger_step)
 +		local_irq_enable();
-+
-+	debugger_step = 0;
 +#endif
 +	/* 
 +	 * Interrupts will be restored by the 'trap return' code, except when
@@ -1546,6 +1542,8 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +	}
 +
 +	current->thread.debuggerinfo = linux_regs;
++
++	debugger_step = 0;
 +
 +	kgdb_disable_sw_debug();
 +	kgdb_disable_hw_debug(linux_regs);
