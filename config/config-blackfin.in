@@ -188,7 +188,7 @@ bool    'Linphone, a SIP compatible VoIP phone'	CONFIG_USER_BLACKFIN_LINPHONE
 if [ "$CONFIG_USER_BLACKFIN_LINPHONE" = "y" ]; then
 	define_bool CONFIG_LIB_SPEEX y
 	define_bool CONFIG_LIB_OSIP2 y
-	define_bool CONFIG_LIB_LIBEXOSIP2 y
+	define_bool CONFIG_LIB_LIBEXOSIP y
 	define_bool CONFIG_LIB_READLINE y
 	define_bool CONFIG_LIB_NCURSES y
 	define_bool CONFIG_LIB_ALSA_LIB y
