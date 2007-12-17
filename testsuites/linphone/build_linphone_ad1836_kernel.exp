@@ -61,6 +61,11 @@ while 1 {
          send "FDPIC\r"
       }
 
+     -re "Build eXosip.*CONFIG_LIB_LIBEXOSIP_FORCE.*\\\[././.]" {
+         send "Y\r"
+      }
+
+
       -re "Linphone, a SIP compatible VoIP phone.*CONFIG_USER_BLACKFIN_LINPHONE.*\\\[././.]" {
          send "y\r"
       }
