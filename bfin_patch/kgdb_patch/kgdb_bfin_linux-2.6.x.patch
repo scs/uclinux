@@ -609,8 +609,8 @@ diff -urN linux-2.6.x.old/kernel/Makefile linux-2.6.x/kernel/Makefile
  obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
 diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 --- linux-2.6.x.old/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/kernel/kgdb.c	2007-09-27 13:43:54.000000000 +0800
-@@ -0,0 +1,1512 @@
++++ linux-2.6.x/kernel/kgdb.c	2007-12-17 13:43:54.000000000 +0800
+@@ -0,0 +1,1547 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -702,7 +702,9 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +atomic_t kgdb_setting_breakpoint;
 +struct task_struct *kgdb_usethread, *kgdb_contthread;
 +
++#ifdef CONFIG_BLACKFIN
 +int debugger_step;
++#endif
 +atomic_t debugger_active;
 +
 +/* This will point to kgdb_handle_exception by default.
@@ -1386,12 +1388,6 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +				  BREAK_INSTR_SIZE)) < 0)
 +		return error;
 +
-+	if ((error = set_mem((char *)addr, kgdb_ops->gdb_bpt_instr,
-+			     BREAK_INSTR_SIZE)) < 0)
-+		return error;
-+	flush_cache_range(current->mm, addr, addr + BREAK_INSTR_SIZE);
-+	flush_icache_range(addr, addr + BREAK_INSTR_SIZE);
-+
 +	kgdb_break[breakno].state = bp_enabled;
 +	kgdb_break[breakno].type = bp_breakpoint;
 +	kgdb_break[breakno].bpt_addr = addr;
@@ -1419,6 +1415,40 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +		}
 +	}
 +	return -ENOENT;
++}
++
++void kgdb_enable_sw_debug(void) {
++	int i;
++
++	for (i = 0; i < MAX_BREAKPOINTS; i++) {
++		if (kgdb_break[i].state == bp_enabled) {
++			unsigned long addr = kgdb_break[i].bpt_addr;
++			set_mem((char *)addr, kgdb_ops->gdb_bpt_instr,
++				     BREAK_INSTR_SIZE);
++			flush_cache_range(current->mm, addr,
++					  addr + BREAK_INSTR_SIZE);
++			flush_icache_range(addr, addr + BREAK_INSTR_SIZE);
++		}
++	}
++
++	return;
++}
++
++void kgdb_disable_sw_debug(void) {
++	int i;
++
++	for (i = 0; i < MAX_BREAKPOINTS; i++) {
++		if (kgdb_break[i].state == bp_enabled) {
++			unsigned long addr = kgdb_break[i].bpt_addr;
++			set_mem((char *)addr, kgdb_break[i].saved_instr,
++				     BREAK_INSTR_SIZE);
++			flush_cache_range(current->mm, addr,
++					  addr + BREAK_INSTR_SIZE);
++			flush_icache_range(addr, addr + BREAK_INSTR_SIZE);
++		}
++	}
++
++	return;
 +}
 +
 +int remove_all_break(void)
@@ -1497,6 +1527,8 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +#ifdef CONFIG_BLACKFIN
 +	if (debugger_step)
 +		local_irq_enable();
++
++	debugger_step = 0;
 +#endif
 +	/* 
 +	 * Interrupts will be restored by the 'trap return' code, except when
@@ -1513,10 +1545,9 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +			cpu_relax();
 +	}
 +
-+	debugger_step = 0;
-+
 +	current->thread.debuggerinfo = linux_regs;
 +
++	kgdb_disable_sw_debug();
 +	kgdb_disable_hw_debug(linux_regs);
 +
 +	for (i = 0; i < num_online_cpus(); i++) {
@@ -1558,6 +1589,7 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +		memset(remcom_out_buffer, 0, sizeof(remcom_out_buffer));
 +
 +		get_packet(remcom_in_buffer);
++
 +		/*printk("%s\n", remcom_in_buffer);*/
 +		switch (remcom_in_buffer[0]) {
 +		case '?':
@@ -1860,6 +1892,8 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +
 +      kgdb_exit:
 +
++	kgdb_enable_sw_debug();
++
 +	current->thread.debuggerinfo = NULL;
 +	procindebug[smp_processor_id()] = 0;
 +
@@ -1886,6 +1920,7 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +#ifdef CONFIG_BLACKFIN
 +	if (debugger_step)
 +		local_irq_disable();
++
 +#endif
 +
 +#ifdef CONFIG_KGDB_ETH
