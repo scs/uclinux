@@ -65,7 +65,7 @@
 #define TRIGGER_PF14 14
 #define TRIGGER_PF15 15
 
-#define NO_TRIGGER  16
+#define NO_TRIGGER  (-1)
 
 
 /* Some Sensor Sepcific Defaults */
