@@ -8,6 +8,9 @@ bool 'Build faad2'		CONFIG_LIB_FAAD2_FORCE
 bool 'Build ffmpeg'		CONFIG_LIB_FFMPEG_FORCE
 bool 'Build flac'		CONFIG_LIB_FLAC_FORCE
 bool 'Build freetype'		CONFIG_LIB_FREETYPE_FORCE
+if [ "$CONFIG_LIB_FREETYPE_FORCE" = "y" -o "$CONFIG_LIB_FREETYPE" = "y" ]; then
+	define_bool CONFIG_LIB_ZLIB y
+fi
 bool 'Build libao'		CONFIG_LIB_LIBAO_FORCE
 bool 'Build libaudio'		CONFIG_LIB_LIBAUDIO_FORCE
 bool 'Build libbfgdots'		CONFIG_LIB_LIBBFGDOTS_FORCE
