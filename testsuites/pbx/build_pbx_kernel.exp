@@ -5,13 +5,6 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-step "Apply openssl patch."
-
-cd $uclinux_path/lib/
-exec rm -rf $uclinux_path/lib/libssl
-catch {exec tar zxf $user/openssl-0.9.8c.tar.gz}
-exec patch -p0 < ../bfin_patch/libssl_patch/libssl_bfin.patch
-exec mv openssl-0.9.8c libssl
 
 step "Change config file in /vender folder."
 
@@ -40,7 +33,6 @@ sleep 3
       expect ":"
       send "wq\r"
       expect eof
-
 
 
 cd $uclinux_path/testsuites

@@ -5,14 +5,6 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-step "Apply pound patch."
-
-cd $uclinux_path/lib/
-exec rm -rf $uclinux_path/lib/libssl
-catch {exec tar zxf $user/openssl-0.9.8c.tar.gz}
-exec patch -p0 < ../bfin_patch/libssl_patch/libssl_bfin.patch
-exec mv openssl-0.9.8c libssl
-
 step "Change config file in /vender folder."
 
 cd $uclinux_path
@@ -42,57 +34,14 @@ sleep 3
       expect eof
 
 
-
 cd $uclinux_path/testsuites
 
 step "Make config."
 
 source  make_default_config.exp
 
+
 # Following make specific configuration for this case.
-
-send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
-
-cd $uclinux_path/config
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_LIB_LIBSSL_FORCE\[ =]\r"
-      expect "CONFIG_LIB_LIBSSL_FORCE\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_LIB_LIBSSL_FORCE=y\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-      
-      send "/CONFIG_USER_POUND\[ =]\r"
-      expect "CONFIG_USER_POUND\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_USER_POUND=y\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-
-      send "wq\r"
-      expect eof
-
 
 cd $uclinux_path
 set timeout 300
@@ -115,15 +64,16 @@ while 1 {
              send "y\r"
       }
 
-#          -re "Build libSSL.*CONFIG_LIB_LIBSSL_FORCE.*\\\[.*]" {
-#             send "y\r"
-#      }
-#
-#          -re "pound.*CONFIG_USER_POUND.*\\\[.*]" {
-#             send "y\r"
-#      }
+          -re "Build libSSL.*CONFIG_LIB_LIBSSL_FORCE.*\\\[.*]" {
+             send "Y\r"
+      }
+
+          -re "pound.*CONFIG_USER_POUND.*\\\[.*]" {
+             send "Y\r"
+      }
        
        "\\\(*) \\\[*]" {
+             sleep .01
              send "\r"
       }
 
