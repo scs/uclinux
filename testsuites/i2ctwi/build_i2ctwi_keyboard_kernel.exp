@@ -34,16 +34,7 @@ while 1 {
              send "y\r"
       }
 
-    
-           -re "Select BF537/6/4 default GPIO PFx PORTG.*BF537_PORT_G.*choice\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
-                       send "2\r"
-	    } else {
-	               send "\r"
-	    }
-      }
-
-          -re "PINT2_ASSIGN.*PINT2_ASSIGN.*\\\[.*]" {
+           -re "PINT2_ASSIGN.*PINT2_ASSIGN.*\\\[.*]" {
            if { $board_type == "BF548-EZKIT" } {
                        send "0x04000101\r"
             } else {

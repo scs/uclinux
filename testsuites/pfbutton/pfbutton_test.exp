@@ -12,144 +12,94 @@ source ../spawn_kermit.exp
 step "Reboot the kernel."
 source ../reboot_kernel.exp
 
-sleep 5
 step "Starting test"
 set timeout 8
-set flag 0
 
 set case_num 0
 
 incr case_num
 
-send "cd /bin\r" 
-while 1 {
-   expect {
-      "bin" {
-         set flag 1
-         break
-      }
-
-      timeout {
-                   
-            break
-         }
-     }
-}
-expect "root:/bin>"
-
-send -s "./pfbuttons_test\r"
-while 1 {
-   expect {
-     -re  "open success /dev/input/event0" {
-         
-         puts "\nopen device success.\n"
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-          exit
-         }
-     }
-}
-
-puts "\n\nPlease enter the button 1 of the board.\n"
-set timeout 3600
-
-while 1 {
-   expect {
-     -re  "Event. Type.*Take a look LED_MUTE .* on.* off.*Event. Type" {
-                case_pass $case_num
-           break
-      }
-
-      timeout {            
-                case_fail $case_num
-          exit
-
-         }
-     }
-}
-
-incr case_num
-
-puts "\n\nPlease enter the button 2 of the board.\n"
-set timeout 3600
-
-while 1 {
-   expect {
-     -re  "Event. Type.*Hear SND_BELL .* on.* off.*Event. Type" {
-                case_pass $case_num
-           break
-      }
-
-      timeout {            
-                case_fail $case_num
-          exit
-
-         }
-     }
-}
-
-incr case_num
-
-puts "\n\nPlease enter the button 3 of the board.\n"
-set timeout 3600
-
-while 1 {
-   expect {
-     -re  "Event. Type.*Take a look LED_MISC .* on.* off.*Event. Type" {
-                case_pass $case_num
-           break
-      }
-
-      timeout {            
-                case_fail $case_num
-          exit
-
-         }
-     }
-}
-
-if { $board_type == "BF537-STAMP" } {
-
-incr case_num
-
-puts "\n\nPlease enter the button 4 of the board.\n"
-set timeout 3600
-
-while 1 {
-   expect {
-     -re  "Event. Type.*Take a look LED_SUSPEND .* on.* off.*Event. Type" {
-                case_pass $case_num
-           break
-      }
-
-      timeout {            
-                case_fail $case_num
-          exit
-
-         }
-     }
-}
-}
-send -s "\3"
-
+send -s "cd /bin\r"
 while 1 {
    expect {
       "root:/bin>" {
-         send_log "pfbutton led test done!" 
-         break
+            break
       }
 
       timeout {
-            send_log "pfbutton test fail to exit. "
-                case_fail $case_num
-            exit
+         break
          }
      }
 }
 
+expect "root:/bin>"
+send -s "event_test /dev/input/event0\r"
+while 1 {
+   expect {
+     -re "Input device name.*gpio-keys.*Testing" {
+         puts "\nPlease hit the PB1 buttons on the board...\n"
+         expect {
+                -re "Event: time .* type .* code 256.* value " {
+                case_pass $case_num
+                        }
+
+                timeout {
+                case_fail $case_num
+                        exit
+                        }
+                }
+
+         incr case_num
+         puts "\nPlease hit the PB2 buttons on the board...\n"
+         expect {
+                -re "Event: time .* type .* code 257.* value " {
+                case_pass $case_num
+                        }
+
+                timeout {
+                case_fail $case_num
+                        exit
+                        }
+                }
+          
+         incr case_num
+         puts "\nPlease hit the PB3 buttons on the board...\n"
+         expect {
+                -re "Event: time .* type .* code 258.* value " {
+                case_pass $case_num
+                        }
+
+                timeout {
+                case_fail $case_num
+                        exit
+                        }
+                }
+         
+         incr case_num
+         puts "\nPlease hit the PB4 buttons on the board...\n"
+         expect {
+                -re "Event: time .* type .* code 259.* value " {
+                case_pass $case_num
+                        }
+
+                timeout {
+                case_fail $case_num
+                        exit
+                        }
+                }
+
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+      exit
+         }
+     }
+}
+sleep 3
+send -s "\3"
+expect -re "root.*>"
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
