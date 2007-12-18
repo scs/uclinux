@@ -63,12 +63,6 @@ while 1 {
              send "y\r"
       }
 
-         # Select BF537/6/4 default GPIO PFx PORTG (BF537_PORT_G)
-          -re "Select BF537/6/4 default GPIO PFx PORTx.*choice\\\[.*]" {
-                       send "2\r"
-            
-      }
- 
            -re "I2C support.*I2C\[^_].*\\\[.*]" {             
              send "Y\r"
       }
@@ -113,7 +107,7 @@ while 1 {
              send "N\r"
       }
   
-    	   -re "Mouse.*INPUT_MOUSE.*\\\[.*]" {            
+    	   -re "Mice.*INPUT_MOUSE.*\\\[.*]" {            
              send "N\r"
       }
            
