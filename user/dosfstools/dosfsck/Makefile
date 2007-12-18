@@ -29,7 +29,7 @@ romfs:
 	$(ROMFSINST) -s dosfsck /sbin/fsck.vfat
 
 clean:
-	rm -f *.o *.s *.i *~ \#*# tmp_make .#* .new*
+	rm -f *.o *.s *.i *.gdb *~ \#*# tmp_make .#* .new*
 
 distclean: clean
 	rm -f *.a dosfsck

@@ -28,7 +28,7 @@ romfs:
 
 clean :
 	echo *.o *.i *.s *~ \#*# core .#* .new*
-	rm -f *.o *.i *.s *~ \#*# core .#* .new*
+	rm -f *.o *.i *.s *.gdb *~ \#*# core .#* .new*
 
 distclean: clean
 	rm -f mkdosfs *.a *# *.orig *.rej TAGS
