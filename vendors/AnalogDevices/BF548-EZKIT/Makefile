@@ -33,6 +33,7 @@ romfs::
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/mdev.conf
 	$(ROMFSINST) /etc/inittab
+	$(ROMFSINST) -e CONFIG_VT -a "tty0::respawn:-/bin/sh" /etc/inittab
 	$(ROMFSINST) /etc/services
 	$(ROMFSINST) /etc/protocols
 	$(ROMFSINST) /etc/passwd
