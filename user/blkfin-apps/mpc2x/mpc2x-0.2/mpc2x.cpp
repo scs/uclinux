@@ -214,7 +214,7 @@ void drawPicture(SDL_Surface* screen, char* filename, int x, int y)
 	strcat(filepath, filename);
 	temp = IMG_Load(filepath);
 	if (temp == NULL)
-		printf("Error loading images for the GUI.\n");
+		printf("Error loading images for the GUI: %s %s\n", filepath, SDL_GetError());
 	image = SDL_DisplayFormat(temp);
 	SDL_FreeSurface(temp);
 	SDL_Rect src, dest;
@@ -231,6 +231,7 @@ void drawPicture(SDL_Surface* screen, char* filename, int x, int y)
 	SDL_BlitSurface(image, &src, screen, &dest);
 	SDL_FreeSurface(image);
 
+	free(filepath);
 }
 
 void updateSongTitle()
@@ -241,7 +242,7 @@ void updateSongTitle()
 	int k;
 	char *Word;
 	Word = (char *)malloc(400);
-
+	
 	int linelength = 28;
 
 	i = scrollpos;
@@ -266,6 +267,7 @@ void updateSongTitle()
 		scrollpos = 0;
 	}
 
+	free(Word);
 
 }
 
@@ -315,6 +317,9 @@ void updateGUI()
 
 	drawPicture(screen,"volumebg.bmp",200,200);
 	drawPicture(screen,"cursor.bmp",200 + status->volume,200);
+
+	free(timeline);
+	free(infoline);
 }
 
 void buildGUI()
@@ -350,7 +355,7 @@ int main(int argc, char **argv)
 	// Prepare screen for GP2X
 	screen = SDL_SetVideoMode( WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_DEPTH, SDL_SWSURFACE);
 	if(!screen) {
-		printf("SDL_SetVideoMode screen not initialised.\n");
+		printf("SDL_SetVideoMode screen not initialised: %s\n",SDL_GetError());
 		shutdown();
 	}
 	// Set window title, which we don't need on gp2x
@@ -366,7 +371,7 @@ int main(int argc, char **argv)
 	strcpy(fontpath,config->skin_path); // assume the font is in the skin path, should do this other way!
 	strcat(fontpath,config->font_path);
 	font = TTF_OpenFont(fontpath, 16);
-
+	free(fontpath);
 	// Initialize the joystick
 	SDL_JoystickOpen(0);
 
