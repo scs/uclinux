@@ -105,10 +105,10 @@ dir_4_$(CONFIG_LIB_LIBPNG_FORCE) += libpng
 -include Makefile.local
 
 # And build libraries in the prop directory last
-dir_5_y += $(wildcard $(ROOTDIR)/prop)
+dir_9_y += $(wildcard $(ROOTDIR)/prop)
 
-DIRS_y   = $(foreach n,1 2 3 4 5,$(sort $(dir_$(n)_y)))
-DIRS_all = $(foreach n,1 2 3 4 5,$(sort $(dir_$(n)_y) $(dir_$(n)_n) $(dir_$(n)_)))
+DIRS_y   = $(foreach n,1 2 3 4 5 6 7 8 9,$(sort $(dir_$(n)_y)))
+DIRS_all = $(foreach n,1 2 3 4 5 6 7 8 9,$(sort $(dir_$(n)_y) $(dir_$(n)_n) $(dir_$(n)_)))
 
 ##############################################################################
 
@@ -130,6 +130,14 @@ all:
 	[ -z "$(dir_4_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_4_y)) || exit $$?
 	$(SET_STAGEDIR)
 	[ -z "$(dir_5_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_5_y)) || exit $$?
+	$(SET_STAGEDIR)
+	[ -z "$(dir_6_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_6_y)) || exit $$?
+	$(SET_STAGEDIR)
+	[ -z "$(dir_7_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_7_y)) || exit $$?
+	$(SET_STAGEDIR)
+	[ -z "$(dir_8_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_8_y)) || exit $$?
+	$(SET_STAGEDIR)
+	[ -z "$(dir_9_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_9_y)) || exit $$?
 	$(SET_STAGEDIR)
 
 # the actual dir target
