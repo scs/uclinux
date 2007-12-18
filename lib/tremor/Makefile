@@ -15,5 +15,8 @@ clean:
 	rm -rf build
 
 romfs:
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	$(ROMFSINST) $(STAGEDIR)/usr/lib/libvorbisidec.so.0 /lib/
+endif
 
 .PHONY: all clean romfs
