@@ -1,0 +1,23 @@
+Compiling mpc2x should be easy. I have provided a makefile that will work with the open2x toolchain/libs but should work on any other toolchain used to compile for the gp2x.
+To use the makefile with an other toolchain you will need to edit it a little:
+ CROSS_TOOLS point to the location where your toolchain is located
+ CROSS_COMPILE adds to the CROSS_TOOLS the path prefix of the tools (like gcc, strip)
+This makefile will compile for your host machine too, it should theoretically work on any arch because it will use the gcc compilers without any arch specific options (of course to compile for the host you will need compilers and libraries)
+
+You can compile mpc2x for gp2x with the command `make mpc2x.gpe` or just compile for both toolchain host and gp2x with the `make` command.
+
+After compiling you can put the mpc2x.gpe + the folder of the skin used anywhere on your sd card and run mpc2x.
+
+Key assignment:
+Functions (main screen)   |   gp2x    |   computer
+volume up                 -   vol+    -   numpad +
+volume down               -   vol-    -   numpad -
+play/pause                -   a       -   space
+next track                -   r       -   right
+prev track                -   l       -   left
+shuffle                   -   y       -   s
+repeat                    -   b       -   r
+forward                   -   right   -   up
+backward                  -   left    -   down
+quit                      -   start   -   escape
+settings (not working)    -   select  -   tab

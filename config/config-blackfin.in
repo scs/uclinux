@@ -207,6 +207,24 @@ if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
 	define_bool CONFIG_LIB_TREMOR y
 	define_bool CONFIG_LIB_LIBAUDIO y
 fi
+
+bool	'mpc2x'			CONFIG_USER_MPC2X
+if [ "$CONFIG_USER_MPC2X" = "y" ]; then
+	define_bool CONFIG_LIB_LIBMAD y
+	define_bool CONFIG_LIB_FAAD2 y
+	define_bool CONFIG_LIB_FLAC y
+	define_bool CONFIG_LIB_LIBID3TAG y
+	define_bool CONFIG_LIB_TREMOR y
+	define_bool CONFIG_LIB_LIBAUDIO y
+	define_bool CONFIG_LIB_LIBSDL y
+	define_bool CONFIG_LIB_ZLIB y
+	define_bool CONFIG_LIB_LIBPNG y
+	define_bool CONFIG_LIB_FREETYPE y
+	define_bool CONFIG_LIB_SDL_IMAGE y
+	define_bool CONFIG_LIB_SDL_TTF y
+	define_bool CONFIG_LIB_TSLIB y		
+fi
+
 endmenu
 
 #############################################################################
