@@ -31,7 +31,6 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <dlfcn.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <limits.h>
@@ -40,6 +39,10 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 #include <sys/utsname.h>
+
+#ifndef NO_SHARED_LIBS
+#include <dlfcn.h>
+#endif
 
 #ifndef TRUE
 #define TRUE 1
