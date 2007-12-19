@@ -141,7 +141,8 @@ all:  libjpeg.$(A) libjpeg.so
 	install -d $(STAGEDIR)/usr/lib
 	install -d $(STAGEDIR)/usr/include
 	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
-	install -m0755 libjpeg.so $(STAGEDIR)/usr/lib
+	install -m0755 libjpeg.so $(STAGEDIR)/usr/lib/libjpeg.so.62
+	ln -sf libjpeg.so.62 $(STAGEDIR)/usr/lib/libjpeg.so
 	install -m0644 jpeglib.h $(STAGEDIR)/usr/include
 	install -m0644 jconfig.h $(STAGEDIR)/usr/include
 	install -m0644 jmorecfg.h $(STAGEDIR)/usr/include
@@ -199,7 +200,7 @@ libjpeg.la:  $(LIBOBJECTS)
 # libjpeg.so
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 libjpeg.so: $(OBJSDLL)
-	$(CC) $(CFLAGS) -shared -Wl,-soname,libjpeg.so -o libjpeg.so \
+	$(CC) $(CFLAGS) -shared -Wl,-soname,libjpeg.so.62 -o libjpeg.so \
 	$(OBJSDLL) -lm -lc
 endif
 
@@ -245,7 +246,7 @@ install-headers: jconfig.h
 
 romfs:
 	if [ "$(CONFIG_FMT_USE_FDPIC_ELF)" = "y" ]; then \
-		$(ROMFSINST) libjpeg.so /lib/libjpeg.so ; \
+		$(ROMFSINST) libjpeg.so /lib/libjpeg.so.62 ; \
 	fi
 
 clean:
