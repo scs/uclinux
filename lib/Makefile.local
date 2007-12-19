@@ -33,8 +33,6 @@ dir_3_$(CONFIG_LIB_LIBMAD_FORCE)     += libmad
 dir_3_$(CONFIG_LIB_LIBMAD)           += libmad
 dir_3_$(CONFIG_LIB_LIBMPEG2_FORCE)   += mpeg2dec
 dir_3_$(CONFIG_LIB_LIBMPEG2)         += mpeg2dec
-dir_3_$(CONFIG_LIB_LIBEXOSIP_FORCE)  += libeXosip
-dir_3_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip
 dir_3_$(CONFIG_LIB_LIBSDL_FORCE)     += libsdl
 dir_3_$(CONFIG_LIB_LIBSDL)           += libsdl
 dir_3_$(CONFIG_LIB_LIBTOOL_FORCE)    += libtool
@@ -60,6 +58,8 @@ dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
 dir_3_$(CONFIG_LIB_CRYPTOPP_FORCE)   += crypto++lib
 dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
 
+dir_4_$(CONFIG_LIB_LIBEXOSIP_FORCE)  += libeXosip
+dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip
 dir_4_$(CONFIG_LIB_SDL_IMAGE)        += SDL_image
 dir_4_$(CONFIG_LIB_SDL_IMAGE_FORCE)  += SDL_image
 dir_4_$(CONFIG_LIB_SDL_TTF)          += SDL_ttf
