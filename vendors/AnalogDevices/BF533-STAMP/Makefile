@@ -19,7 +19,13 @@ LINUXBOOTDIR = $(ROOTDIR)/$(LINUXDIR)/arch/$(ARCH)/boot
 BLOCKS   = 8192
 INODES   = 1024
 
-ROMFS_DIRS = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp home/httpd home/httpd/cgi-bin etc/boa etc/config var/run var/lib/misc var/log/boa
+ROMFS_DIRS-y = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp etc/config var/run var/lib/misc
+ETC_FILES-y = \
+	group hosts host.conf inetd.conf issue mime.types modprobe.conf \
+	motd passwd protocols services TZ tux-bf.gif
+
+ROMFS_DIRS-$(CONFIG_USER_BOA_SRC_BOA_NEW) += home/httpd home/httpd/cgi-bin etc/boa var/log/boa
+ETC_FILES-$(CONFIG_USER_BOA_SRC_BOA_NEW) += boa.conf index.html tux-wink.gif tuxsit_small.gif
 
 all::
 
@@ -27,28 +33,21 @@ romfs.post:: romfs.shared.libs
 
 romfs::
 	mkdir -p $(ROMFSDIR)
-	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS)
+	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS-y)
 	chmod 1777 $(ROMFSDIR)/tmp
 	$(ROMFSINST) -s bin /sbin
+
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/mdev.conf
 	$(ROMFSINST) /etc/inittab
-	$(ROMFSINST) /etc/services
-	$(ROMFSINST) /etc/protocols
-	$(ROMFSINST) /etc/passwd
-	$(ROMFSINST) /etc/group
 	$(ROMFSINST) /etc/motd
 	$(ROMFSINST) /etc/issue
-	$(ROMFSINST) /etc/TZ
-	$(ROMFSINST) /etc/hosts
-	$(ROMFSINST) /etc/host.conf
-	$(ROMFSINST) /etc/boa.conf
-	$(ROMFSINST) /etc/mime.types
-	$(ROMFSINST) /etc/inetd.conf
-	$(ROMFSINST) /etc/index.html
-	$(ROMFSINST) /etc/tux-wink.gif
-	$(ROMFSINST) /etc/tuxsit_small.gif
-	$(ROMFSINST) /etc/modprobe.conf
+
+	set -e ; \
+	for f in $(ETC_FILES-y) ; do \
+		$(ROMFSINST) ../common/$$f /etc/$$f ; \
+	done
+
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
 ifeq ($(CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG),y)
 	gzip -9c $(ROOTDIR)/config/.config > $(ROMFSDIR)/root/uclinux-config.gz
