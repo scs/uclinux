@@ -17,15 +17,16 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <math.h>
+#include <string.h>
 
 #include <linux/soundcard.h>
 
 /*****************************************************************************/
 
-#define	DACDEVICE	"/dev/dsp"
 #define	MAXFREQ		50000
 #define	BUFSIZE		(2*MAXFREQ)
 
+char DACDEVICE[80] = "/dev/dsp";
 short	buf[BUFSIZE];
 
 #define	PI	((float) 3.141592654)
@@ -147,6 +148,7 @@ void usage(int rc)
 {
 	printf("usage: tone [-?hsqrwe] [-f replay-freq] [wave-freq]\n\n"
 		"\t-h?\tthis help\n"
+		"\t-d\tdevice (/dev/dsp)\n"
 		"\t-s\tsine wave output\n"
 		"\t-q\tsquare wave output\n"
 		"\t-r\tramp wave output\n"
@@ -169,8 +171,11 @@ int main(int argc, char *argv[])
 	wavefreq = 1000;
 	endian = AFMT_S16_LE;
 
-	while ((c = getopt(argc, argv, "?hsqrwef:m:")) >= 0) {
+	while ((c = getopt(argc, argv, "?d:hsqrwef:m:")) >= 0) {
 		switch (c) {
+		case 'd':
+			strncpy(DACDEVICE, optarg, 79);
+			break;
 		case 'f':
 			replayfreq = atoi(optarg);
 			if ((replayfreq < 1) || (replayfreq > MAXFREQ)) {
