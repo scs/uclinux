@@ -46,9 +46,17 @@ while 1 {
            -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
              send "Y\r"
       }
-  
+
+           -re "AT keyboard.*KEYBOARD_ATKBD.*\\\[.*]" {
+             send "N\r"
+      }
+
           -re "GPIO Buttons.*KEYBOARD_GPIO.*\\\[.*]" {
              send "Y\r"
+      }
+
+          -re "Serial I/O support.*SERIO.*\\\[.*]" {
+             send "N\r"
       }
 
           -re "Input event device test.*CONFIG_EVENT_TEST.*\\\[.*]" {

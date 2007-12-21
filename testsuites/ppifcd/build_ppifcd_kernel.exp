@@ -69,7 +69,7 @@ while 1 {
       
         -re "SCL GPIO pin number.*I2C_BLACKFIN_GPIO_SCL.*\\\[.*]" {
               if { $board_type == "BF533-STAMP" } {
-                        send "1\r"
+                        send "4\r"
              } else {
                         send "\r"
              }
