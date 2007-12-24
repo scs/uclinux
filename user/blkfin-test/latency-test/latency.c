@@ -16,6 +16,7 @@
 #include <semaphore.h>
 #include <pthread.h>
 #include <fcntl.h>
+#include <errno.h>
 #include <linux/ioctl.h>
 #include "timerbench.h"
 
@@ -68,7 +69,7 @@ int bucketsize = 1000;		/* default = 1000ns, -B <size> to override */
 
 #define read_tsc(t)					\
 	({							\
-	unsigned long __cy2;					\
+	volatile unsigned long __cy2;					\
 	__asm__ __volatile__ (	"1: %0 = CYCLES2\n"		\
 				"%1 = CYCLES\n"			\
 				"%2 = CYCLES2\n"		\
@@ -101,10 +102,10 @@ static int tb_timer_start(long long start_tsc, long long period_tsc)
 	return 0;
 }
 
-static int tb_timer_wait(void)
+static int tb_timer_wait(unsigned long *ov)
 {
-	int err;
-	err = ioctl(benchdev, RTTST_TMR_WAIT, NULL);
+	int err = 0;
+	err = ioctl(benchdev, RTTST_TMR_WAIT, ov);
 	return err; 
 }
 
@@ -124,8 +125,9 @@ static inline void add_histogram(long *histogram, long addval)
 
 void* latency(void *cookie)
 {
-	int err, count, nsamples, warmup = 1;
-	long long tsc, expected_tsc, period_tsc;
+	int err = 0, count = 0, nsamples = 0, warmup = 1;
+	volatile long long tsc = 0;
+	long long expected_tsc = 0, period_tsc = 0;
 	
 	nsamples = ONE_BILLION / period_ns;
 	period_tsc = tb_ns2tsc(period_ns);
@@ -137,16 +139,16 @@ void* latency(void *cookie)
 	    tb_timer_start(expected_tsc, tb_ns2tsc(period_ns));
 
 	for (;;) {
-		long minj = TEN_MILLION, maxj = -TEN_MILLION, dt;
+		long minj = TEN_MILLION, maxj = -TEN_MILLION, dt = 0;
 		long overrun = 0;
-		long long sumj;
+		long long sumj = 0;
 		test_loops++;
 
 		for (count = sumj = 0; count < nsamples; count++) {
-			unsigned long ov;
+			unsigned long ov = 0;
 
 			expected_tsc += period_tsc;
-			err = tb_timer_wait();
+			err = tb_timer_wait(&ov);
 			read_tsc(tsc);
 			dt = (long)(tsc - expected_tsc);
 			if (dt > maxj)
@@ -202,7 +204,7 @@ void* display(void *cookie)
 		if (err) {
 			fprintf(stderr,
 				"latency: cannot create semaphore: \n");
-			return;
+			return 0;
 		}
 
 	} else {
@@ -229,7 +231,7 @@ void* display(void *cookie)
 		if (err) {
 			fprintf(stderr,
 				"latency: failed to start in-kernel timer benchmark\n");
-			return;
+			return 0;
 		}
 	}
 
@@ -250,7 +252,7 @@ void* display(void *cookie)
 			if (err) {
 				fprintf(stderr,
 					"latency: failed to pend on semaphore, code %d\n", err);
-				return;
+				return 0;
 			}
 
 			/* convert jitters to nanoseconds. */
@@ -270,7 +272,7 @@ void* display(void *cookie)
 			if (err) {
 		   	    fprintf(stderr,
 				"latency: failed to call RTTST_RTIOC_INTERM_BENCH_RES, code %d\n", err);
-				return;
+				return 0;
 			}
 
 			minj = result.last.min;

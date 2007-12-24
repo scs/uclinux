@@ -3,7 +3,7 @@ Test for measure IRQ latency and schedule latency.
 It is copied and modified from the latency test case in Xenomai project.
 By: yi.li@analog.com
 
-Last update: 2006-11-23
+Last update: 2007-12-24
 
 Files:
 
@@ -13,7 +13,10 @@ timerbench.h: header
 
 Build:
 
-Tested on 06r2 bfin-uclinux-gcc. Run Make.
+Tested on 2008R1 kernel and toolchain. 
+Selecting:
+Blackfin test programs --->
+   IRQ schedule latency test
 
 Test:
 
