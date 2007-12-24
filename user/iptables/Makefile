@@ -1,8 +1,9 @@
-VER = iptables-1.3.8
+VER = iptables-1.4.0
 
 IPTABLES_OPTS = \
 	DO_MULTI=1 \
 	KERNEL_DIR=$(ROOTDIR)/$(LINUXDIR) \
+	KBUILD_OUTPUT=$(ROOTDIR)/$(LINUXDIR) \
 	COPT_FLAGS="${CFLAGS}" \
 	LIBDIR=/usr/lib
 
