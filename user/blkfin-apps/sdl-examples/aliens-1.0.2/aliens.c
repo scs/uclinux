@@ -520,6 +520,9 @@ void RunGame(void)
 
 main(int argc, char *argv[])
 {
+	SDL_Rect **modes;
+	int i;
+
 	/* Initialize the SDL library */
 	if ( SDL_Init(SDL_INIT_AUDIO|SDL_INIT_VIDEO) < 0 ) {
 		fprintf(stderr, "Couldn't initialize SDL: %s\n",SDL_GetError());
@@ -537,9 +540,41 @@ main(int argc, char *argv[])
 	/* Open the display device */
 	screen = SDL_SetVideoMode(640, 480, 0, SDL_SWSURFACE|SDL_FULLSCREEN);
 	if ( screen == NULL ) {
-		fprintf(stderr, "Couldn't set 640x480 video mode: %s\n",
+		fprintf(stderr, "Couldn't set fullscreen 640x480 video mode: %s\n",
 							SDL_GetError());
-		exit(2);
+		if ((screen = SDL_SetVideoMode(20, 20, 16, SDL_SWSURFACE)) == NULL) {
+			fprintf(stderr, "Can't even create a 20x20 window: %s\n", SDL_GetError());
+			exit(2);
+		}
+		/* Get available fullscreen/hardware modes */
+		modes = SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_SWSURFACE);
+		SDL_FreeSurface(screen);
+
+		/* Check is there are any modes available */
+		if (modes == (SDL_Rect **)0) {
+			printf("No modes available! \n");
+			exit(-1);
+		}
+
+		/* Check if or resolution is restricted */
+		if (modes == (SDL_Rect **) - 1) {
+			printf("All resolutions available. \n");
+			/* If this is really true - we should not have got here
+			 * So exit
+			 */
+			exit(2);
+		} else {
+			/* Print valid modes */
+			printf("Available Modes \n");
+			for (i = 0; modes[i]; ++i)
+				printf("  %d x %d\n", modes[i]->w, modes[i]->h);
+			screen = SDL_SetVideoMode(modes[i-1]->w, modes[i-1]->h, 0, SDL_SWSURFACE);
+			if ( screen == NULL ) {
+				fprintf(stderr, "Couldn't set %i x %i: %s\n",
+					modes[i-1]->w, modes[i-1]->h,SDL_GetError());
+				exit(2);
+			}
+		}
 	}
 
 	/* Initialize the random number generator */

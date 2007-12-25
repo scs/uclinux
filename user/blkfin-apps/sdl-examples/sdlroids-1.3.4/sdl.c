@@ -797,6 +797,8 @@ void init_graphics(int *palrgb)
 {
   int video_flags;
   int i;
+  SDL_Rect **modes;
+
   video_flags = SDL_SWSURFACE;
   if(ARG_FSCRN) 
     video_flags = SDL_FULLSCREEN|SDL_HWSURFACE;
@@ -854,9 +856,46 @@ void init_graphics(int *palrgb)
 			    SDL_GetVideoInfo()->vfmt->BitsPerPixel,
 			    video_flags);
   if ( screen == NULL ) {
-    fprintf(stderr, "Couldn't set %dx%d video mode: %s\n",width, height, 
-	    SDL_GetError());
-    exit(1);
+    screen = SDL_SetVideoMode(10, 10, SDL_GetVideoInfo()->vfmt->BitsPerPixel,
+                                                                   video_flags);
+    if ( screen == NULL ) {
+      fprintf(stderr, "Couldn't set display mode: %s\n",
+                                        SDL_GetError());
+      SDL_Quit();
+      exit(1);
+    }
+    /* Get available fullscreen/hardware modes */
+    modes = SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_SWSURFACE);
+    SDL_FreeSurface(screen);
+
+    /* Check is there are any modes available */
+    if (modes == (SDL_Rect **)0) {
+      printf("No modes available! \n");
+      SDL_Quit();
+      exit(1);
+    }
+
+    /* Check if or resolution is restricted */
+    if (modes == (SDL_Rect **) - 1) {
+      printf("All resolutions available. \n");
+      SDL_Quit();
+      exit(1);
+    } else {
+     /* Print valid modes */
+     printf("Available Modes \n");
+       for (i = 0; modes[i]; ++i)
+         printf("  %d x %d\n", modes[i]->w, modes[i]->h);
+
+       width = modes[i-1]->w;
+       height = modes[i-1]->h;
+       screen = SDL_SetVideoMode(width, height, SDL_GetVideoInfo()->vfmt->BitsPerPixel,
+                                                                   video_flags);
+       if ( screen == NULL ) {
+         fprintf(stderr, "Couldn't set %i x %i: %s\n",
+                      modes[i-1]->w, modes[i-1]->h,SDL_GetError());
+        exit(1);
+      }
+    }
   }
 
   /* Decide which pixel drawing function to use. This is an optimization */

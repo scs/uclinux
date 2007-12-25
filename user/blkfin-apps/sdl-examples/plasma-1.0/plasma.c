@@ -15,11 +15,18 @@
 #define PI	3.14159265358979323846
 #endif
 
+#if 0
 #define VIDEOX 320
 #define VIDEOY 200
-
 #define TABLEX VIDEOX*2
 #define TABLEY VIDEOY*2
+#else
+static int VIDEOX;
+static int VIDEOY;
+static int TABLEX;
+static int TABLEY;
+#endif
+
 #define TONES 256
 
 static void do_plasma(SDL_Surface*surface,
@@ -50,7 +57,7 @@ static void do_plasma(SDL_Surface*surface,
   }
 }
 
-main (int argc, char **argv)
+int main (int argc, char **argv)
 {
   Uint32 video_flags;
   double r[3];
@@ -60,7 +67,11 @@ main (int argc, char **argv)
   unsigned char *t;
   time_t starttime;
   int i, state=0;
-  
+  SDL_Rect **modes;
+ 
+  VIDEOX=640;
+  VIDEOY=480;
+ 
   /* randomized stuff */
   srand(time(NULL));
   {
@@ -69,24 +80,6 @@ main (int argc, char **argv)
       r[c]=((double)(rand()%1000+1))/300000;
     for (c=0; c<6; c++)
       R[c]=((double)(rand()%1000+1))/5000;
-  }
-
-  printf("Precalculating table...\n");
-  t = (unsigned char *)malloc(TABLEY*TABLEX);
-  if ( t == NULL ) {
-    fprintf(stderr, "Out of memory\n");
-    exit(1);
-  }
-  {
-    int y;
-    for (y=0 ; y<TABLEY ; y++) {
-      int x;
-      for (x=0 ; x<TABLEX ; x++) {
-	double tmp=(((double)((x-(TABLEX/2))*(x-(TABLEX/2))+(y-(TABLEX/2))*(y-(TABLEX/2))))
-		    *(PI/(TABLEX*TABLEX+TABLEY*TABLEY)));
-	t[y*TABLEX+x]=(sin(sqrt(tmp)*12)+1)*TONES/6;
-      }
-    }
   }
 
   /* Inizialize the SDL library */
@@ -108,12 +101,103 @@ main (int argc, char **argv)
     else
     if ( strcmp(argv[i], "-flip") == 0 )
       video_flags |= SDL_DOUBLEBUF;
+#ifndef VIDEOX
+    else
+    if ( strcmp(argv[i], "-width") == 0 ) {
+      if ((i+1)>argc) {
+        fprintf(stderr, "too few args\n");
+        return 1;
+      }
+      VIDEOX = atoi(argv[i+1]);
+      i++;
+    }
+#endif
+#ifndef VIDEOY
+    else
+    if ( strcmp(argv[i], "-height") == 0 ) {
+      if ((i+1)>argc) {
+        fprintf(stderr, "too few args\n");
+        return 1;
+      }
+      VIDEOY = atoi(argv[i+1]);
+      i++;
+    }
+#endif
   }
+
+  printf("trying %i x %i\n", VIDEOX, VIDEOY);
+
   screen=SDL_SetVideoMode(VIDEOX, VIDEOY, 8, video_flags);
+#ifdef VIDEOX
   if ( screen == NULL ) {
     fprintf(stderr, "Couldn't initialize video mode: %s\n", SDL_GetError());
     return 1;
   }
+#else
+  if ( screen == NULL ) {
+    screen = SDL_SetVideoMode(10, 10, 8, video_flags);
+    if ( screen == NULL ) {
+      fprintf(stderr, "Couldn't set display mode: %s\n",
+                                        SDL_GetError());
+      SDL_Quit();
+      return 1;
+    }
+
+    /* Get available fullscreen/hardware modes */
+    modes = SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_SWSURFACE);
+    SDL_FreeSurface(screen);
+
+    /* Check is there are any modes available */
+    if (modes == (SDL_Rect **)0) {
+      printf("No modes available! \n");
+      SDL_Quit();
+      return 1;
+    }
+
+    /* Check if or resolution is restricted */
+    if (modes == (SDL_Rect **) - 1) {
+      printf("All resolutions available. \n");
+      SDL_Quit();
+      return 1;
+    } else {
+     /* Print valid modes */
+     printf("Available Modes \n");
+       for (i = 0; modes[i]; ++i)
+         printf("  %d x %d\n", modes[i]->w, modes[i]->h);
+       screen = SDL_SetVideoMode(modes[i-1]->w, modes[i-1]->h, 8, video_flags);
+       if ( screen == NULL ) {
+         fprintf(stderr, "Couldn't set %i x %i: %s\n",
+                      modes[i-1]->w, modes[i-1]->h,SDL_GetError());
+         return 1;
+      }
+      VIDEOX=modes[i-1]->w;
+      VIDEOY=modes[i-1]->h;
+    }
+  }
+#endif
+
+  TABLEX=VIDEOX*2;
+  TABLEY=VIDEOY*2;
+
+  printf("Precalculating table...\n");
+  t = (unsigned char *)malloc(TABLEY*TABLEX);
+  if ( t == NULL ) {
+    fprintf(stderr, "Out of memory\n");
+    exit(1);
+  }
+  {
+    int y;
+    for (y=0 ; y<TABLEY ; y++) {
+      int x;
+      for (x=0 ; x<TABLEX ; x++) {
+        double tmp=(((double)((x-(TABLEX/2))*(x-(TABLEX/2))+(y-(TABLEX/2))*(y-(TABLEX/2))))
+                    *(PI/(TABLEX*TABLEX+TABLEY*TABLEY)));
+        t[y*TABLEX+x]=(sin(sqrt(tmp)*12)+1)*TONES/6;
+      }
+    }
+  }
+
+
   SDL_EventState(SDL_ACTIVEEVENT, SDL_IGNORE);
   SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);
   

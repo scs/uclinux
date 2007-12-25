@@ -31,5 +31,17 @@ clean:
 	done
 
 romfs:
+	$(ROMFSINST) -d aliens-1.0.2/aliens /usr/bin/aliens
+	$(ROMFSINST) -d aliens-1.0.2/data /usr/bin/data
+	$(ROMFSINST) -d fire-1.0/fire /usr/bin/fire
+	$(ROMFSINST) -d plasma-1.0/plasma /usr/bin/plasma
+	$(ROMFSINST) -d sdldoom-1.10/doom /usr/bin/doom
+	$(ROMFSINST) -d doom1.wad /usr/bin/doom1.wad
+	$(ROMFSINST) -d sdlroids-1.3.4/sdlroids /usr/bin/sdlroids
+	$(ROMFSINST) -d sdlroids-1.3.4/bmp /usr/bin/bmp
+	$(ROMFSINST) -d sierp-1.0/sierp /usr/bin/sierp
+	$(ROMFSINST) -d warp-1.1/warp /usr/bin/warp
+	$(ROMFSINST) -d warp-1.1/leeloo.bmp /usr/bin/bmp/leeloo.bmp
+	$(ROMFSINST) -d xflame-1.0/xflame /usr/bin/xflame
 
 .PHONY: all clean romfs

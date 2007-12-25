@@ -7,11 +7,12 @@
 
 main(int argc, char *argv[])
 {
-int x,y;
+int x,y,i;
 float param=0;
 long max=MAX;
 Uint32   pixel;
 Uint8   *bits, bpp;
+SDL_Rect **modes;
 /*initialisation part*/
 	SDL_Surface *screen;
 	if (SDL_Init (SDL_INIT_VIDEO) < 0)
@@ -25,9 +26,48 @@ Uint8   *bits, bpp;
 	screen = SDL_SetVideoMode(400, 300, 16, SDL_SWSURFACE);
 	if ( screen == NULL)
 		{
-		fprintf(stderr, "oops on 400x300x16: %s\n", SDL_GetError());
-		exit(1);
+		screen = SDL_SetVideoMode(10, 10, 16, SDL_SWSURFACE);
+		if ( screen == NULL )
+			{
+			fprintf(stderr, "Couldn't set display mode: %s\n",
+                                     SDL_GetError());
+			SDL_Quit();
+			return 1;
+			}
+
+		/* Get available fullscreen/hardware modes */
+		modes = SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_SWSURFACE);
+		SDL_FreeSurface(screen);
+
+		/* Check is there are any modes available */
+		if (modes == (SDL_Rect **)0)
+			{
+			printf("No modes available! \n");
+			SDL_Quit();
+			return 1;
+			}
+
+		/* Check if or resolution is restricted */
+		if (modes == (SDL_Rect **) - 1)
+			{
+			printf("All resolutions available. \n");
+			SDL_Quit();
+			return 1;
+			}
+		/* Print valid modes */
+		printf("Available Modes \n");
+		for (i = 0; modes[i]; ++i)
+			printf("  %d x %d\n", modes[i]->w, modes[i]->h);
+
+		screen = SDL_SetVideoMode(modes[i-1]->w, modes[i-1]->h, 16, SDL_SWSURFACE);
+		if ( screen == NULL )
+			{
+			fprintf(stderr, "Couldn't set %i x %i: %s\n",
+				modes[i-1]->w, modes[i-1]->h,SDL_GetError());
+			return 1;
+			}
 		}
+
 /*ignore mouse / focus events*/
 SDL_EventState(SDL_ACTIVEEVENT, SDL_IGNORE);
 SDL_EventState(SDL_MOUSEMOTION, SDL_IGNORE);

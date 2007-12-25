@@ -12,8 +12,13 @@
 
 #include "SDL.h"
 
+#if 0
 #define XSIZE 640
 #define YSIZE 480
+#else
+static int XSIZE;
+static int YSIZE;
+#endif
 
 SDL_Surface *thescreen;
 unsigned char *vmem1, *vmem2;
@@ -353,6 +358,8 @@ SDL_Event event;
 long starttime;
 int buttonstate;
 
+SDL_Rect **modes;
+
 	srand(time(NULL));
 	if ( SDL_Init(SDL_INIT_VIDEO) < 0 )
 	{
@@ -361,6 +368,7 @@ int buttonstate;
 	}
 	videoflags = SDL_SWSURFACE|SDL_FULLSCREEN|SDL_HWPALETTE;
 
+#ifdef XSIZE
 	thescreen = SDL_SetVideoMode(XSIZE, YSIZE, 8, videoflags);
 	if ( thescreen == NULL )
 	{
@@ -369,6 +377,46 @@ int buttonstate;
 		SDL_Quit();
 		exit(5);
 	}
+#else
+	thescreen = SDL_SetVideoMode(10,10,8,videoflags);
+	if ( thescreen == NULL )
+	{
+		fprintf(stderr, "Couldn't set display mode: %s\n",
+							SDL_GetError());
+		SDL_Quit();
+		exit(5);
+	}
+	/* Get available fullscreen/hardware modes */
+	modes = SDL_ListModes(NULL, SDL_FULLSCREEN|SDL_SWSURFACE);
+	SDL_FreeSurface(thescreen);
+
+	/* Check is there are any modes available */
+	if (modes == (SDL_Rect **)0) {
+		printf("No modes available! \n");
+		SDL_Quit();
+		exit(5);
+	}
+
+	/* Check if or resolution is restricted */
+	if (modes == (SDL_Rect **) - 1) {
+		printf("All resolutions available. \n");
+		SDL_Quit();
+		exit(5);
+	} else {
+		/* Print valid modes */
+		printf("Available Modes \n");
+		for (i = 0; modes[i]; ++i)
+			printf("  %d x %d\n", modes[i]->w, modes[i]->h);
+		thescreen = SDL_SetVideoMode(modes[i-1]->w, modes[i-1]->h, 8, videoflags);
+		if ( thescreen == NULL ) {
+			fprintf(stderr, "Couldn't set %i x %i: %s\n",
+					modes[i-1]->w, modes[i-1]->h,SDL_GetError());
+			exit(2);
+		}
+		XSIZE=modes[i-1]->w;
+		YSIZE=modes[i-1]->h;
+	}
+#endif
 
 	vmem1=NULL;
 	vmem2=malloc(XSIZE*YSIZE);
