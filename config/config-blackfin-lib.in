@@ -45,6 +45,11 @@ if [ "$CONFIG_LIB_SDL_TTF_FORCE" = "y" ]; then
 	define_bool CONFIG_LIB_LIBSDL y
 	define_bool CONFIG_LIB_FREETYPE y
 fi
+bool 'build SDL_mixer'		CONFIG_LIB_SDL_MIXER_FORCE
+if [ "$CONFIG_LIB_SDL_MIXER_FORCE" = "y" ]; then
+	define_bool CONFIG_LIB_LIBMAD y
+fi
+bool 'build SDL_net'		CONFIG_LIB_SDL_NET_FORCE
 bool 'Build speex'		CONFIG_LIB_SPEEX_FORCE
 bool 'Build sqlite'		CONFIG_LIB_SQLITE_FORCE
 bool 'Build tremor'		CONFIG_LIB_TREMOR_FORCE

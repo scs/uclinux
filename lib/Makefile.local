@@ -65,3 +65,7 @@ dir_4_$(CONFIG_LIB_SDL_TTF_FORCE)    += SDL_ttf
 
 dir_5_$(CONFIG_LIB_SDL_IMAGE)        += SDL_image
 dir_5_$(CONFIG_LIB_SDL_IMAGE_FORCE)  += SDL_image
+dir_5_$(CONFIG_LIB_SDL_NET)          += SDL_net
+dir_5_$(CONFIG_LIB_SDL_NET_FORCE)    += SDL_net
+dir_5_$(CONFIG_LIB_SDL_MIXER)        += SDL_mixer
+dir_5_$(CONFIG_LIB_SDL_MIXER_FORCE)  += SDL_mixer
