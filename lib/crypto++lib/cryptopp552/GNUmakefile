@@ -1,5 +1,5 @@
-CXXFLAGS = $(CFLAGS)
-#CXXFLAGS = -DNDEBUG -g -O2
+#CXXFLAGS = $(CFLAGS)
+CXXFLAGS = $(CFLAGS) -DNDEBUG -g -O
 # the following options reduce code size, but breaks link or makes link very slow on some systems
 # CXXFLAGS += -ffunction-sections -fdata-sections
 # LDFLAGS += -Wl,--gc-sections

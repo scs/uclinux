@@ -1,19 +1,19 @@
-// ****************************************************************************
-// *** (c) Copyright 1999 Analog Devices  Corporations					   ***
-// ***                                                                     ***
-// *** Analog Devices Confidential & Sensitive. All Rights Reserved.	   ***
-// ***                                                                     ***
-// *** No part of this file may be modified or reproduced without explicit ***
-// *** consent from Analog Devices Corporations.						   ***
-// ***                                                                     ***
-// *** All information contained in this file is subject to change without ***
-// *** notice.                                                             ***
-// ***                                                                     ***
-// *** Function:                                                     	   ***
-// ***                                                         			   ***
-// *** Author: Xiangzhi,wu   xiangzhi.wu@analog.com    2002/11/20	       ***
-// *** Performance:                       								   ***
-// ****************************************************************************
+/****************************************************************************
+Analog Devices, Inc.
+BSD-Style License
+
+This file is part of the libgdots library, an optimized codec library
+for the Blackfin processor.
+
+Copyright (c) 2007 Analog Devices, Inc.
+All rights reserved.
+
+The libgdots library, is free software, as in zero cost - it does not provide
+the freedoms provided to you by other free software licenses.
+
+For more information, see the top level COPYING file.
+*****************************************************************************/
+
 //#include "proc_select.h"
 .extern D_freq_prev;                                    
 .extern D_prev_lsp;                                     

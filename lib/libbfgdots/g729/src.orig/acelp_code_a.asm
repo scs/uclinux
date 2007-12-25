@@ -1,78 +1,27 @@
 /*****************************************************************************
-Developed by Analog Devices Australia - Unit 3, 97 Lewis Road,
-Wantirna, Victoria, Australia, 3152.  Email: ada.info@analog.com
-
 Analog Devices, Inc.
 BSD-Style License
 
-libgdots
-Copyright (c) 2007 Analog Devices, Inc.
+This file is part of the libgdots library, an optimized codec library
+for the Blackfin processor.
 
+Copyright (c) 2007 Analog Devices, Inc.
 All rights reserved.
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-  - Redistributions of source code must retain the above copyright
-    notice, this list of conditions and the following disclaimer.
-  - Redistributions in binary form must reproduce the above copyright
-    notice, this list of conditions and the following disclaimer in
-    the documentation and/or other materials provided with the
-    distribution.
-  - Neither the name of Analog Devices, Inc. nor the names of its
-    contributors may be used to endorse or promote products derived
-    from this software without specific prior written permission.
-  - The use of this software may or may not infringe the patent rights
-    of one or more patent holders.  This license does not release you
-    from the requirement that you obtain separate licenses from these
-    patent holders to use this software.
+The libgdots library, is free software, as in zero cost - it does not provide
+the freedoms provided to you by other free software licenses.
 
-THIS SOFTWARE IS PROVIDED BY ANALOG DEVICES "AS IS" AND ANY EXPRESS OR
-IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, NON-INFRINGEMENT,
-MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
-IN NO EVENT SHALL ANALOG DEVICES BE LIABLE FOR ANY DIRECT, INDIRECT,
-INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-BUT NOT LIMITED TO, INTELLECTUAL PROPERTY RIGHTS, PROCUREMENT OF
-SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR
-BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
-WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
-OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
-ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+For more information, see the top level COPYING file.
+
 ******************************************************************************
-$RCSfile: ACELP_Code_A.asm,v $
-$Revision: 1.4 $
-$Date: 2006/05/24 07:46:54 $
 
-Project:		G.729AB for Blackfin
-Title:			ACELP_CODE_A
-Author(s):		wuxiangzhi,
-Revised by:		E. HSU
+Project:                G.729AB for Blackfin
+Title:                  ACELP_CODE_A
 
 Description     :      Find Algebraic codebook for G.729A
 
-Prototype       :      	_ACELP_Code_A()						
-						_Cor_h()
-
-******************************************************************************
-Tab Setting:			4
-Target Processor:		ADSP-21535
-Target Tools Revision:	2.2.2.0
-******************************************************************************
-
-Modification History:
-====================
-$Log: ACELP_Code_A.asm,v $
-Revision 1.4  2006/05/24 07:46:54  adamliyi
-Fixed the failing case for g729ab decoder for tstseq6. The issue is the uClinux GAS bug: it cannot treat the (m) option correctly.
-
-Revision 1.4  2004/01/27 23:40:16Z  ehsu
-Revision 1.3  2004/01/23 00:39:29Z  ehsu
-Revision 1.2  2004/01/13 01:33:34Z  ehsu
-Revision 1.1  2003/12/01 00:12:04Z  ehsu
-Initial revision
-
-Version         Date            Authors        		  Comments
-0.0          11/01/2002         wuxiangzhi            Original
+Prototype       :       _ACELP_Code_A()
+                        _Cor_h()
 
 *******************************************************************************/ 
 

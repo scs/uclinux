@@ -1,9 +1,22 @@
+/***************************************************************************
+Analog Devices, Inc.
+BSD-Style License
 
+This file is part of the libgdots library, an optimized codec library
+for the Blackfin processor.
 
-/*--------------------------------------------------------------------------*
- *       Codec constant parameters (coder, decoder, and postfilter)         *
- *--------------------------------------------------------------------------*/
+Copyright (c) 2007 Analog Devices, Inc.
+All rights reserved.
 
+The libgdots library, is free software, as in zero cost - it does not provide
+the freedoms provided to you by other free software licenses.
+
+For more information, see the top level COPYING file.
+
+****************************************************************************
+*
+*       Codec constant parameters (coder, decoder, and postfilter)         *
+*****************************************************************************/
 #define  L_TOTAL      240     /* Total size of speech buffer.               */
 #define  L_WINDOW     240     /* Window size in LP analysis.                */
 #define  L_NEXT       40      /* Lookahead in LP analysis.                  */
