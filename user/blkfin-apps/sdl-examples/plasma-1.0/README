@@ -1,0 +1,9 @@
+
+Plasma demo by Bini Michele <mibin@tin.it>, Aug 1998. Public domain.
+Coding time: ~5 hours.
+
+TODO:
+ - timing (currently the demo only runs at full speed).
+ - better support for non-palettized displays?
+ - mmx optimizations? (the main task of the code is summing three tables,
+and mmx instructions could help).

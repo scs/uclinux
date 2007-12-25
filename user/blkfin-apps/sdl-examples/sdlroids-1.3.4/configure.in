@@ -1,0 +1,57 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(hyperoid.h)
+
+dnl The version of the package
+MAJOR_VERSION=1
+MINOR_VERSION=3
+MICRO_VERSION=4
+VERSION=$MAJOR_VERSION.$MINOR_VERSION.$MICRO_VERSION
+AC_SUBST(VERSION)
+AC_SUBST(MINOR_VERSION)
+AC_SUBST(MICRO_VERSION)
+AC_SUBST(MAJOR_VERSION)
+
+AM_INIT_AUTOMAKE(sdlroids, $VERSION)
+AM_CONFIG_HEADER(config.h)
+
+dnl Checks for programs.
+AC_PROG_CC
+AC_PROG_CPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+
+
+dnl Check for SDL
+SDL_VERSION=1.1.0
+AM_PATH_SDL($SDL_VERSION,
+            :,
+	    AC_MSG_ERROR([*** SDL version $SDL_VERSION not found!])
+)
+CFLAGS="$CFLAGS $SDL_CFLAGS"
+LIBS="$LIBS $SDL_LIBS"
+export CFLAGS LIBS
+dnl Checks for libraries.
+AC_CHECK_LIB(SDL_mixer, Mix_OpenAudio)
+AC_CHECK_LIB(m, sin)
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+oldcpp=CPP
+CPP="$CPP $SDL_CFLAGS"
+AC_CHECK_HEADERS(SDL_mixer.h SDL/SDL_mixer.h fcntl.h limits.h sys/ioctl.h sys/time.h unistd.h syslog.h windows.h)
+CPP=$oldcpp
+
+
+if test "$ac_cv_header_windows_h" = yes; then
+	SRRES=sdlroids.coff
+fi
+AC_SUBST(SRRES)
+AC_C_CONST
+AC_C_INLINE
+
+dnl Checks for library functions.
+AC_CHECK_FUNCS(strtol strdup strerror syslog getenv setenv)
+
+AC_OUTPUT(Makefile sdlroids.6 sdlroids.spec sdlroids-mdk.spec sdlroids.rc ) 

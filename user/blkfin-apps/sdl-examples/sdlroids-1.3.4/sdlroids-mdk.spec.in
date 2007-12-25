@@ -1,0 +1,99 @@
+# Note that this is NOT a relocatable package
+%define ver      @VERSION@
+%define rel      1mdk
+%define prefix   /usr
+
+Summary:   SDLRoids - an enhanced shoot-the-asteroids
+Name:      sdlroids
+Version:   %ver
+Release:   %rel
+Copyright: GPL
+
+Group:     Games/Arcade
+Source0:   @PACKAGE@-%{PACKAGE_VERSION}.tar.bz2
+Source1:   sdlroids-16x16.xpm
+Source2:   sdlroids-32x32.xpm
+Source3:   sdlroids-48x48.xpm
+URL:       http://david.hedbor.org/projects/sdlroids/
+BuildRoot: %{_tmppath}/@PACKAGE@-%{PACKAGE_VERSION}-root
+Packager:  David Hedbor <david@hedbor.org>
+Docdir: %{prefix}/doc
+
+%description
+SDLRoids is essentially an Asteroids clone, but with a few extra
+features, and some nice game physics. It is based on xhyperoid, which
+is a UNIX port of the 16-bit Windows game Hyperoid. Major changes from
+xhyperoid are that it's using SDL for sound and graphics, has a couple
+of extra powerups  and that the shield behaves differently.
+
+
+%prep
+rm -rf ${RPM_BUILD_ROOT}
+
+%setup -q
+
+%build
+# Needed for snapshot releases.
+if [ ! -f configure ]; then
+  CFLAGS="$RPM_OPT_FLAGS" ./autogen.sh
+  CFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%prefix
+else
+  CFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=%prefix
+fi
+
+if [ "$SMP" != "" ]; then
+  (make "MAKE=make -k -j $SMP"; exit 0)
+  make
+else
+  make
+fi
+
+%install
+rm -rf $RPM_BUILD_ROOT
+
+%makeinstall
+
+# icons
+mkdir -p $RPM_BUILD_ROOT%{_miconsdir}/
+mkdir -p $RPM_BUILD_ROOT%{_liconsdir}/
+mkdir -p $RPM_BUILD_ROOT%{_iconsdir}/
+
+install %{SOURCE1} $RPM_BUILD_ROOT%{_miconsdir}/sdlroids.xpm
+install %{SOURCE2} $RPM_BUILD_ROOT%{_iconsdir}/sdlroids.xpm
+install %{SOURCE3} $RPM_BUILD_ROOT%{_liconsdir}/sdlroids.xpm
+
+# Menu entry
+mkdir -p $RPM_BUILD_ROOT%{_libdir}/menu
+cat >$RPM_BUILD_ROOT%{_menudir}/%{name} <<EOF
+?package(%{name}):\\
+        command="%{prefix}/bin/sdlroids"\\
+        needs="X11"\\
+        icon="sdlroids.xpm"\\
+        section="Amusement/Arcade"\\
+        title="SDLRoids"\\
+        longtitle="%{summary}."
+EOF
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%post
+%{update_menus}
+
+%postun
+%{clean_menus}
+
+%files
+%defattr(-, root, root)
+%doc ChangeLog README README.orig README.xhyperoid COPYING
+%{_bindir}/sdlroids
+%{_mandir}/*
+%{_menudir}/sdlroids
+%{_iconsdir}/sdlroids.xpm
+%{_miconsdir}/sdlroids.xpm
+%{_liconsdir}/sdlroids.xpm
+%{_datadir}/sdlroids/*
+
+%changelog
+* Mon Oct 16 2000 David Hedbor <david@hedbor.org> 1.3.2-1mdk
+- First Mandrake RPM version

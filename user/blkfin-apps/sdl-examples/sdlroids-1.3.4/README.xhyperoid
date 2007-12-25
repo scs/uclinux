@@ -1,0 +1,89 @@
+xhyperoid - an enhanced shoot-the-asteroids game.
+Copyright (C) 1991 Edward Hutchins.
+Unix/Linux port by Russell Marks, 2000.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or (at
+your option) any later version.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+
+
+Description
+-----------
+
+Hyperoid was a really cool little game for Windows 3.x. It's
+essentially an Asteroids clone, but with a few extra features. There
+are three reasons I ported it:
+
+  - the decent game physics and enhancements over the original game
+    make it probably my favourite Asteroids variant;
+
+  - it's always sucked having to run it under Windows (admittedly, you
+    can run the original under Wine, but it's less than ideal);
+
+  - it's the first GPL'd program I ever saw, which gives it a certain
+    special something for me. :-)
+
+One of the first things I did on porting it was to add sound, so
+that's another plus. :-)
+
+Once you've installed it, READ THE MAN PAGE. Some things about it are
+a bit non-obvious, and it can save time to have them pointed out...
+
+
+Installation
+------------
+
+Despite the `xhyperoid' name, there are actually two versions - one
+for X, and one for svgalib. The X version requires GTK+ (it probably
+needs 1.2.x or better).
+
+(You can get GTK+ from http://www.gtk.org if you don't already have
+it, but if you run Linux you probably do, or can install a `gtk'
+package from your distribution (be sure to install any `gtk-devel' or
+similar too). Much the same is true of svgalib -
+http://www.svgalib.org for that.)
+
+You can choose to compile either version, or both. Here's what to do:
+
+	make x			# for xhyperoid (X version) only
+or
+	make vga		# for vhyperoid (svgalib version) only
+or
+	make			# for both
+
+If you don't know what to do, `make x' is probably safest.
+
+After that's finished, do (as root) `make install'. And as I say, be
+sure to read the man page. :-)
+
+(BTW, the X version stands a fair chance of working on non-Linux
+machines, though you'll probably have to comment out DO_SOUND in the
+Makefile. I'd like to know of any success or failure anyone has with
+this.)
+
+
+Contacting me
+-------------
+
+You can email me at russell.marks@ntlworld.com.
+
+Unfortunately, I don't have any contact details for the original
+author of Hyperoid (Edward Hutchins); as far as I can tell, his email
+address as given in README.orig seems to have been valid until at
+least 1994, but doesn't work any more. There is a snail-mail address
+for him in README.orig if you're desperate :-), but as it dates from
+1991, it may or may not be valid any more.
+
+
+Have fun,
+-Rus.

@@ -1,0 +1,302 @@
+2001-03-27  David Hedbor  <david@hedbor.org>
+
+	* Version 1.3.4 released.
+
+	* hyperoid.c (main): Don't draw during pause. This caused a crash
+	in windows when iconifying from fullscreen mode. Unfortunately
+	this also means that the nice little "PAUSED" text isn't shown.
+	(RestartHyperoid): Also show version on the intro screen.
+
+	* sdlroids.6.in: Updated to include the new keybindings.
+
+	* sdl.c (init_graphics): Don't do SDL_ShowCursor(0) until the
+	video mode is selected or you'll get a crash when using DGA2
+	rendering (and possibly others).
+	(update_graphics): Improved fullscreen/window toggling. Added
+	Ctrl-g binding to grab+hide / release+show mouse pointer. Added
+	Ctrl-z key binding which iconifies and pauses the game.
+
+2001-03-26  David Hedbor  <david@hedbor.org>
+
+	* autogen.sh: Removed a bashism.
+
+2001-03-23  David Hedbor  <david@hedbor.org>
+
+	* sdl.c: Added code to do scaled blitting for the status bar when
+	it's smaller than 16 pixels. Scale blit code written by Greg
+	Velichansky <hmaon@bumba.net>.
+
+2001-03-23  David Hedbor  <david@hedbor.org>
+	
+	* sdlroids.6.in: Updated date.
+
+	* configure.in, Makefile.am (windows): Various changes needed to
+	compile for Windows.
+	
+	* icons/sdlroids.ico: Added Windows .ico file.
+
+	* sdlroids.rc.in: Windows resource file for the icon.
+	
+	* autogen.sh: Change directory to srcdir before running.
+
+2001-03-13  David Hedbor  <david@hedbor.org>
+
+	* sdlsound.c: Always include stdlib.h for exit declaration.
+
+	* sdl.c: Include string.h for memset() declaration.
+
+2000-11-27  David Hedbor  <david@hedbor.org>
+
+	* Version 1.3.3 released. Adds support for joystick control.
+
+	* sdl.c (IsKeyDown): Now it doesn't crash when there are no
+	joysticks present.
+
+2000-10-25  David Hedbor  <david@hedbor.org>
+
+	* configure.in: Added check for setenv.
+
+	* sdl.c: Added support for joysticks.
+	
+	* getargs.c (pov), getargs.h: Added new joystick related options.
+
+ 	* hyperoid.c (DrawPlayer): Fixed analog joystick control. 
+
+	* graphics.h: Changed prototype for IsKeyDown.
+
+	* sdlroids.6.in: Added documentation about the new joystick support.
+	
+2000-07-16  David Hedbor  <david@hedbor.org>
+
+	* Version 1.3.2 released. 
+	
+	* sdlroids.6.in: Changed date to Jul 17th. 
+
+	* Makefile.am (SDLRoids.txt): Added target to build text version
+	of the manual.
+
+	* hyperoid.c (RestartHyperoid): Fixed bug which reset shield and
+	num bombs after an astroid crash.
+
+	* rand.c, rand.h: Better rand functions.
+
+2000-07-15  David Hedbor  <david@hedbor.org>
+
+	* roidsupp.c (datafilename): Removed forgotten debug.
+
+	* sdlroids.6.in: Document SRDATADIR environment variable.
+
+	* roidsupp.c (datafilename): Concatenates two strings and does
+	filename environment magic.
+
+	* sdlsound.c, hyperoid.c, sdl.c: Now tries a number of things to
+	find the data files including the current directory, the directory
+	of the binary and the directory pointed to by the environment
+	variable SRDATADIR. Thanks to David Powell <avid@mad.scientist.com>
+	for the suggestions. This is _mainly_ for the BeOS support, but
+	not only. 
+	
+	* sdlsound.h: Renamed from sound.h
+
+	* hyperoid.c, sdl.c: Removed double buffering code since it was
+	way to slow. Optimized updating significantly (seems like about 2x
+	the speed) by updating all rectangles by themselves instead of
+	individually. Also fixed locking of the surface so the fullscreen
+	mode works correctly in BeOS (bad me!).
+	
+2000-07-14  David Hedbor  <david@hedbor.org>
+
+	* Makefile.am (beos): Added a BeOS target that sets resources
+	(icon etc) for the binary and also set files' mime-types.
+
+2000-07-11  David Hedbor  <david@hedbor.org>
+
+	* sdl.c: Use a static table for coordinate conversion. Seems
+	slightly (marginally might be a better word) faster. 
+
+2000-07-10  David Hedbor  <david@hedbor.org>
+
+	* petopt.c, configure.in: Check for syslog. Another BeOS fix.
+
+	* hyperoid.c (do_sleep): New function for sleeping the SDL
+	way. SDLRoids now compile and run on BeOS.
+
+	* sdlsound.c (play_audio): Fixed typo when not using SDL_mixer,
+	and also fixed a type error.	
+
+	* Version 1.3.1 released.
+	
+	* sdlroids.6.in: Improved documentation and increased date.
+
+2000-07-09  David Hedbor  <david@hedbor.org>
+
+	* sdl.c (score_graphics): Fixed some bugs in the drawing of the
+	score. I also move the display of the score if the window is
+	resized, which makes it look nicer. Also use scaling if the score
+	would be too small to fit in the window. It uses SDL_SoftStretch,
+	which isn't perfect but at least works ok.
+
+	* hyperoid.c: Shields now work differently. Now you have a certain
+	amount of "shields" which gets drained as you use them, ie when
+	you have the shield button pressed. I believe this is nicer since
+	it gives the player more control.
+
+	* misc.h, hyperoid.c: Added a struct of the player which contains
+	information like lives etc. Makes for a cleaner "global"
+	namespace, which I like.
+
+	* sdl.c (drawcircle): Function to draw a circle. Slightly modified
+	version of the SGE library function.
+
+	* hyperoid.c (DrawShield): Shield is now drawn as a circle around
+	the ship instead of the previous ugly thing. Looks a lot
+	better. :)
+
+	* sdl.c (bmp2surface): Convert loaded image surfaces to the
+	current visual.
+	
+	* hyperoid.c, sdl.c, sdlsound.c: Free loaded / allocated data at
+	exit. Not really necessary but nice programming standards. Also
+	renamed init/exit functions to a more uniform version.
+
+	* configure.in (VERSION): Added microversion and made the CVS
+	version 1.3.1 instead of 1.4.
+
+	* sdl.c (graphics_init, load_images): Now setting the window title
+	and icon caption, as well as the icon bitmap.
+
+2000-07-08  David Hedbor  <david@hedbor.org>
+	
+	* Version 1.3 released.
+	
+	* sdlroids.6.in: Added documentation for all new options.
+
+	* sdl.c (graphics_init): Use the specified geometry if available.
+
+	* getargs.c (parse_option): Added version printing and extended
+	the help printed with --help. Also added geometry option.
+	
+	* hyperoid.c (main): Do command line parsing and added a benchmark
+	mode that runs X frames without delay and quits, printing the FPS.
+
+	* getargs.c, getargs.h: Implemented parsing of command line
+	arguments using petopt.
+
+	* petopt.c, petopt.h, README.petopt, Makefile.am: Added petopt
+	files. Petopt is a small, open source argument parser.
+
+	* hyperoid.c (FireShot): Added dual and tripple gun upgrades as
+	well as upgrades that increased the range of the guns.
+
+	* sdl.c (score_graphics): Only redraw score if something has changed.
+	
+	* hyperoid.c (DeleteBadguys): Deletes badguys from a list without
+	exploding them. Used when restarting.
+
+	* hyperoid.c (NewGame): Fixed bugs with starting a new game after
+	the player died. 
+
+2000-07-07  David Hedbor  <david@hedbor.org>
+	
+	* sdl.c (sdl_drawpixel): Use a faster method in pixeldrawing,
+	which basically doubles the speed. There's one function per bit
+	depth - which one to use is cached. Also the r,g,b->Uint32 part is
+	cached. 
+
+	* sounds: Lowered volume on some sounds and replaced player shot
+	sound.
+	 
+	* hyperoid.c: When the game is restarted due to death, the
+	playfield is reset first (NewGame). Also lowered the restart delay
+	some.
+
+	* sdl.c (graphics_update): Play thrust sample in looping mode.
+
+	* sdlsound.c (loopsam): Play/Stop playing looped sample.
+
+	* hyperoid.c (HitPlayer): Changed so astroids, enemy ships etc
+	explode if you hit them while the shield is on.
+
+	* sdl.c (_sdl_drawpixel): New version of the function. Fixed bug
+	where it would write outside the buffer causing a segfault
+
+2000-07-06  David Hedbor  <david@hedbor.org>
+
+	* Should have done this earlier, but here goes. This is now the
+	SDL port tree. Improvements (other than the porting itself):
+	
+	Added Pause functionality, fixed centering of play area and
+	drawing of boundary box around it, objects now wraps more nicely
+	(before they kinda "popped" from one side to another), fixed
+	flickering problem, added (ugly-looking) shield graphics instead
+	of changing the color of the ship, added configure / automake,
+	reindented the source.
+
+2000-05-14  Russell Marks  <russell.marks@ntlworld.com>
+
+	* Version 1.2. (Starting here to carry on from Hyperoid's version
+	number.)
+
+	* Given up on finding the original author :-/ (since I'm merely
+	prefixing the original name with `x' I felt I should really ask
+	permission, as it were), and decided to just release it anyway.
+
+	* gtk.c: fixed strange X errors on exit (it seems a gdk_flush()
+	was needed in gc_init(), though I don't quite see why :-/). Also
+	now works in mono, though not especially well.
+
+2000-04-12  Russell Marks  <russell.marks@dtn.ntl.com>
+
+	* xhyperoid.6: created.
+
+	* README: created.
+
+	* Makefile: finished off and cleaned up a bit.
+
+2000-03-26  Russell Marks  <russell.marks@dtn.ntl.com>
+
+	* Tweaked level.xpm and score.xpm to be more readable (well,
+	slightly less *un*readable, anyway :-)).
+
+	* gtk.c: finally got the X version sorted out. The big speed
+	problem was with doing so many colour switches with a single GC;
+	using multiple `single-colour' GCs avoided the need for that.
+
+2000-03-24  Russell Marks  <russell.marks@dtn.ntl.com>
+
+	* gtk.c: first hack at an X version. Slow and jerky. :-(
+
+2000-03-23  Russell Marks  <russell.marks@dtn.ntl.com>
+
+	* Sorted out sounds. They now seem at least reasonably
+	appropriate.
+
+2000-03-22  Russell Marks  <russell.marks@dtn.ntl.com>
+
+	* More concerted attempt at removing the most severe macro abuse.
+	Also mass conversion of "//" comments.
+
+2000-03-21  Russell Marks  <russell.marks@dtn.ntl.com>
+
+	* hyperoid.c: fixed segfault (from original code) where NULL
+	pointer was occasionally dereferenced when breaking up an
+	asteroid.
+
+	* Got score and other status indication working.
+
+2000-03-18  Russell Marks  <russell.marks@dtn.ntl.com>
+
+	* hyperoid.c: added sound support (lifted from zblast). Only the
+	code is there at the moment; tested with zblast sounds, but need
+	to put together some appropriate for this.
+
+	* hyperoid.c: got a crude svgalib port mostly working - there's an
+	intermittent segfault problem, but I suspect that was in the
+	original code (not that that helps :-)), and I haven't implemented
+	the score etc. display yet.
+
+2000-03-17  Russell Marks  <russell.marks@dtn.ntl.com>
+
+	* Started port. The first step is to try and remove the more
+	obvious Windows dain bramage and unsightly Pascal/Modula-2-isms. I
+	may be some time. ;-)

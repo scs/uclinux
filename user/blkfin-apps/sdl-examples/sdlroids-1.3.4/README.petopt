@@ -1,0 +1,31 @@
+			   Petopt 0.x
+
+	Copyright (c) 1999 Peter Eriksson <pen@lysator.liu.se>
+
+
+
+Petopt is a free command line argument parser. It handles short and
+long options, including abbreviated long options. See the file "tst.c"
+for a demonstration of how it's used.
+
+It is mainly intended to be included in other programs.
+
+
+
+LICENSE:
+
+This program is free software; you can redistribute it and/or
+modify it as you wish - as long as you don't claim that you wrote
+it.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+
+
+DOWNLOAD:
+
+Petopt's main FTP site is located at:
+
+	ftp://ftp.lysator.liu.se/pub/unix/petopt/

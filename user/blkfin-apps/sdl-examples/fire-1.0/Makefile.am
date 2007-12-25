@@ -1,0 +1,3 @@
+
+bin_PROGRAMS = fire
+
