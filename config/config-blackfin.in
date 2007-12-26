@@ -169,6 +169,24 @@ if [ "$CONFIG_USER_XMAME" = "y" ]; then
 	define_bool CONFIG_LIB_LIBSDL y
 	define_bool CONFIG_LIB_ZLIB y
 fi
+bool	'SDL Examples'		CONFIG_USER_SDLEXAMPLES
+if [ "$CONFIG_USER_SDLEXAMPLES" = "y" ]; then
+	define_bool CONFIG_LIB_LIBSDL y
+	define_bool CONFIG_LIB_SDL_MIXER y
+	define_bool CONFIG_LIB_SDL_NET y
+	define_bool CONFIG_LIB_SDL_IMAGE y
+	define_bool CONFIG_LIB_SDL_TTF y
+	define_bool CONFIG_LIB_ZLIB y
+	define_bool CONFIG_LIB_LIBMAD y
+	define_bool CONFIG_LIB_FAAD2 y
+	define_bool CONFIG_LIB_FLAC y
+	define_bool CONFIG_LIB_TREMOR y
+	define_bool CONFIG_LIB_LIBAUDIO y
+	define_bool CONFIG_LIB_LIBPNG y
+	define_bool CONFIG_LIB_FREETYPE y
+	define_bool CONFIG_LIB_TSLIB y
+fi
+
 bool	'U-Boot Tools'	CONFIG_USER_UBOOT_TOOLS
 endmenu
 
