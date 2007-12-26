@@ -37,6 +37,7 @@ romfs:
 	$(ROMFSINST) -d plasma-1.0/plasma /usr/bin/plasma
 	$(ROMFSINST) -d sdldoom-1.10/doom /usr/bin/doom
 	$(ROMFSINST) -d doom1.wad /usr/bin/doom1.wad
+	$(ROMFSINST) -d newvox-1.0/newvox /usr/bin/newvox
 	$(ROMFSINST) -d sdlroids-1.3.4/sdlroids /usr/bin/sdlroids
 	$(ROMFSINST) -d sdlroids-1.3.4/bmp /usr/bin/bmp
 	$(ROMFSINST) -d sierp-1.0/sierp /usr/bin/sierp
