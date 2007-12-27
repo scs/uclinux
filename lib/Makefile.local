@@ -15,8 +15,8 @@ dir_3_$(CONFIG_LIB_FFMPEG)           += ffmpeg
 dir_3_$(CONFIG_LIB_FFMPEG_FORCE)     += ffmpeg
 dir_3_$(CONFIG_LIB_FLAC)             += flac
 dir_3_$(CONFIG_LIB_FLAC_FORCE)       += flac
-dir_3_$(CONFIG_LIB_FREETYPE)         += freetype
-dir_3_$(CONFIG_LIB_FREETYPE_FORCE)   += freetype
+dir_4_$(CONFIG_LIB_FREETYPE)         += freetype
+dir_4_$(CONFIG_LIB_FREETYPE_FORCE)   += freetype
 dir_3_$(CONFIG_LIB_LIBAO_FORCE)      += libao
 dir_3_$(CONFIG_LIB_LIBAO)            += libao
 dir_3_$(CONFIG_LIB_LIBAUDIO_FORCE)   += libaudio
@@ -60,8 +60,8 @@ dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
 
 dir_4_$(CONFIG_LIB_LIBEXOSIP_FORCE)  += libeXosip
 dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip
-dir_4_$(CONFIG_LIB_SDL_TTF)          += SDL_ttf
-dir_4_$(CONFIG_LIB_SDL_TTF_FORCE)    += SDL_ttf
+dir_5_$(CONFIG_LIB_SDL_TTF)          += SDL_ttf
+dir_5_$(CONFIG_LIB_SDL_TTF_FORCE)    += SDL_ttf
 
 dir_5_$(CONFIG_LIB_SDL_IMAGE)        += SDL_image
 dir_5_$(CONFIG_LIB_SDL_IMAGE_FORCE)  += SDL_image
