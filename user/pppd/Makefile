@@ -1,15 +1,41 @@
+VER = ppp-2.4.4
 
-.EXPORT_ALL_VARIABLES:
+_MAKE = $(MAKE) \
+	CC=$(CC) \
+	COPTS="$(CFLAGS)" \
+	LDFLAGS="$(LDFLAGS)"
 
-DIRS = ppp-2.4.4
+all: $(VER)/Makefile
+	$(_MAKE) -C $(VER)/pppd
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	$(_MAKE) -C $(VER)/pppd/plugins
+endif
 
-all:
-	for i in $(DIRS) ; do make -C $$i || exit $? ; done
+$(VER)/Makefile:
+	cd $(VER) ; \
+	./configure --prefix=/usr --sysconfdir=/etc/ppp
+	cp $(VER)/pppd/Makefile $(VER)/pppd/Makefile.sed
+	sed \
+		-e 's:ifdef PLUGIN:ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y):' \
+		-e 's:ifdef HAS_SHADOW:ifeq (1,0):' \
+		-e 's:ifdef FILTER:ifneq ($(CONFIG_LIB_LIBPCAP)$(CONFIG_LIB_LIBPCAP_FORCE),):' \
+		-e 's:ifdef USE_PAM:ifeq ($(CONFIG_USER_PPPD_WITH_PAM),y):' \
+		-e 's:ifdef MPPE:ifeq ($(CONFIG_USER_PPPD_WITH_MPPE),y):' \
+		$(VER)/pppd/Makefile.sed > $(VER)/pppd/Makefile
+	rm -f $(VER)/pppd/Makefile.sed
 
 romfs:
-	for i in $(DIRS) ; do make -C $$i romfs || exit $? ; done
+	$(ROMFSINST) -d $(VER)/pppd/pppd /usr/bin/pppd
+	$(ROMFSINST) -d $(VER)/etc.ppp /etc/ppp
+ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+	set -e ; \
+	for f in `find $(VER)/pppd/plugins -name '*.so'` ; do \
+		$(ROMFSINST) -d $$f /usr/lib/pppd/$(patsubst ppp-%,%,$(VER))/`basename $$f` ; \
+	done
+endif
 
 clean:
-	-for i in $(DIRS) ; do make -C $$i clean ; done
+	rm -f $(VER)/pppd/Makefile.sed $(VER)/pppd/pppd.gdb
+	[ ! -e $(VER)/Makefile ] || $(MAKE) -C $(VER) dist-clean
 
-
+.PHONY: all clean romfs
