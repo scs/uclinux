@@ -31,6 +31,8 @@ romfs:
 	$(ROMFSINST) -d build-sierp-1.0/sierp /usr/bin/sierp
 	$(ROMFSINST) -d build-warp-1.1/warp /usr/bin/warp
 	$(ROMFSINST) -d warp-1.1/leeloo.bmp /usr/bin/bmp/leeloo.bmp
+	$(ROMFSINST) -d build-water-1.0/water /usr/bin/water
+	$(ROMFSINST) -d water-1.0/water320.bmp /usr/bin/water320.bmp
 	$(ROMFSINST) -d build-xflame-1.0/xflame /usr/bin/xflame
 
 .PHONY: all clean romfs
