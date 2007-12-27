@@ -36,9 +36,12 @@ dir_$(CONFIG_USER_MDMA_TESTS)                    += mdma
 dir_$(CONFIG_USER_MDMA_KO)                       += mdma
 dir_$(CONFIG_USER_XMAME)                         += xmame
 dir_$(CONFIG_USER_UBOOT_TOOLS)                   += u-boot-tools
+dir_$(CONFIG_USER_SDLEXAMPLES)                   += sdl-examples
 
 all %::
 	for i in $(dir_y) ; do $(MAKE) -C $$i $@ || exit $$? ; done
 
 clean:
 	for i in $(dir_y) $(dir_n) $(dir_) ; do $(MAKE) -C $$i $@ || exit $$? ; done
+
+.PHONY: all clean
