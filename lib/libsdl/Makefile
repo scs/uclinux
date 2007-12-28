@@ -4,8 +4,6 @@ CONF_OPTS = \
 	--disable-arts \
 	--disable-esd \
 	--disable-pth \
-	--disable-pthreads \
-	--disable-threads \
 	--disable-video-directfb \
 	--disable-video-x11
 
