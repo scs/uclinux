@@ -1,16 +1,18 @@
-all: my-build/Makefile
-	$(MAKE) -C my-build install DESTDIR=$(STAGEDIR)
+VER = flac-1.1.0
 
-my-build/Makefile:
-	find . -type f -print0 | xargs -0 touch -r configure
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
+
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
-	rm -rf my-build ; \
-	mkdir my-build ; \
-	cd my-build ; \
-	../configure $(CONFIGURE_OPTS)
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
 
 clean:
-	rm -rf my-build
+	rm -rf build*
 
 romfs:
 
