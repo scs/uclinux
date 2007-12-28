@@ -1,4 +1,4 @@
-VER = popt-1.7
+VER = popt-1.12
 
 CONF_OPTS = 
 
@@ -11,6 +11,7 @@ build-$(VER)/Makefile:
 	rm -rf build-$(VER) ; \
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
+	ac_cv_va_copy=C99 \
 	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
 
 clean:
