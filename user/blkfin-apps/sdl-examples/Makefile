@@ -41,5 +41,8 @@ romfs:
 	$(ROMFSINST) -d ballfield-1.0/blueball.png /usr/bin/bmp/blueball.png
 	$(ROMFSINST) -d ballfield-1.0/redball.png /usr/bin/bmp/redball.png
 	$(ROMFSINST) -d ballfield-1.0/redbluestars.png /usr/bin/bmp/redbluestars.png
+	$(ROMFSINST) -d build-dd2-0.2.2/src/dd2 /usr/bin/dd2
+	$(ROMFSINST) -d dd2-0.2.2/src/data /usr/share/dd2
+	rm -f $(ROMFSDIR)/usr/share/dd2/Makefile.*
 
 .PHONY: all clean romfs
