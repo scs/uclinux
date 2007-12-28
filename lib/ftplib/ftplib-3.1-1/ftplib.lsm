@@ -1,0 +1,20 @@
+Begin3
+Title:          ftplib
+Version:        Release 3.1
+Entered-date:   23JUN98
+Description:    library of callable ftp routines and a command line
+		utility for transferring files via ftp
+Keywords:       ftp library tcpip script
+Author:         pfau@cnj.digex.net (Thomas Pfau)
+Primary-site:   ftp.cnj.digex.net /pub/cnj/pfau
+		88KB ftplib-3.1-src.tar.gz
+		19KB ftplib-3.1-bin-linux-i386.zip
+		20KB ftplib-3.1-bin-nt-i386.zip
+		21KB ftplib-3.1-bin-vms-axp.tar.gz
+		16KB ftplib-3.1-bin-vms-vax.tar.gz
+Alternate-site: sunsite.unc.edu /pub/Linux/libs
+		88KB ftplib-3.1-src.tar.gz
+		19KB ftplib-3.1-bin-linux-i386.zip
+Platforms:      linux windows-nt vms
+Copying-policy: GPL, LGPL
+End

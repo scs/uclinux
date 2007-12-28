@@ -1,0 +1,35 @@
+<html>
+<head><title>FtpRename</title></head>
+<body>
+
+<h1>FtpRename</h1>
+<p>Rename a remote file.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpRename(const char *src, const char *dst, netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>src</b>
+<dd>A string containing the current name of the remote file.
+
+<dt><b>dst</b>
+<dd>A string containing the desired new name for the remote file.
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href="FtpConnect.html">FtpConnect()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>FtpRename() sends a rename request to the remote server.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>

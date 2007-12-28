@@ -1,0 +1,29 @@
+<html>
+<head><title>FtpCDUp</title></head>
+<body>
+
+<h1>FtpCDUp</h1>
+<p>Change to parent directory.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpCDUp(netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href="FtpConnect.html">FtpConnect()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>FtpCDUp() sends a CDUP command to the remote server.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>

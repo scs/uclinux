@@ -1,0 +1,37 @@
+<html>
+<head><title>FtpWrite</title></head>
+<body>
+
+<h1>FtpWrite</h1>
+<p>Write data to a remote file.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpWrite(void *buf, int len, netbuf *nData);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>buf</b>
+<dd>A buffer containing the data to be sent to the remote file.
+
+<dt><b>len</b>
+<dd>The number of bytes to be sent from 'buf'.
+
+<dt><b>nData</b>
+<dd>A handle returned by <a href="FtpAccess.html">FtpAccess()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>FtpWrite() sends data to a remote file.  If the file were accessed in
+record mode, the necessary conversions are performed.
+
+<h2>RETURN VALUE</h2>
+<p>Returns the number of bytes sent from the user's buffer or -1 on
+error.
+
+</body>
+</html>

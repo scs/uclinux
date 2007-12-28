@@ -1,0 +1,116 @@
+FTP Library Routines Release 2
+Thomas Pfau (pfau@cnj.digex.net)
+March 15, 1997
+
+This package implements a callable interface to FTP.  The FTP protocol is
+specified in RFC 959.  The library should build on linux, VMS, DEC Unix
+(OSF/1) and Windows NT.  Since I no longer have access to a DEC Unix or
+Windows NT system, it will be difficult for me to support the package on
+these platforms.
+
+All programs using the library should include ftplib.h.
+
+The routines look at the global variable ftplib_debug to determine how
+much information they should display.  Level 1 has been left for user
+programs.  Level 2 displays all responses received from the server.
+Level 3 displays all commands sent to the server.
+
+There have been a few changes since the first release of this library.  I
+have added an argument to most routines called a 'netbuf'.  This is a
+pointer to a data structure which maintains the state of the connection
+to the server.  Using this method allows calling programs to open
+multiple connections simultaneously.  FtpConnect() will return a pointer to
+a netbuf.  Pass this netbuf back to the other routines to talk to the
+server.  The buffer is freed by FtpQuit().  Since the response buffer is
+now in this data structure, it can no longer be accessed via the global
+variable ftplib_lastresp.  The function FtpLastResponse() has been added
+to replace it.
+
+Since the argument lists changed, old programs would have been
+incompatible with the new library.  Therefore, I changed the function
+names from ftp*() to Ftp*().  Also, ftpOpen() has been renamed to
+FtpConnect().  In order to allow existing programs to compile, I added
+some macros to ftplib.h to mask the differences.  qftp.c still uses the
+old interface via the macros in ftplib.h.
+
+---
+
+The following routines are implemented:
+
+void FtpInit(void);
+
+This routine should be called prior to any other routines.  On most
+operating systems, it is a no-op but some others don't implement TCP/IP
+as seamlessly as others (Windows NT).
+
+int FtpConnect(const char *host, netbuf **nControl);
+
+Establishes a connection to the named host.  Returns success/fail.
+
+int FtpLogin(const char *user, const char *pass, netbuf *nControl);
+
+Logs in using the specified username and password.  Returns success/fail.
+
+int FtpSite(const char *cmd, netbuf *nControl);
+
+Issues the specified SITE command.  See RFC 959 for more information.
+
+int FtpMkdir(const char *path, netbuf *nControl);
+
+Sends a create directory request to the server using the specified path.
+Returns success/fail.
+
+int FtpChdir(const char *path, netbuf *nControl);
+
+Sends a change working directory request to the server using the
+specified path.  Returns success/fail.
+
+int FtpRmdir(const char *path, netbuf *nControl);
+
+Sends a remove directory request to the server using the specified path.
+Returns success/fail.
+
+int FtpNlst(const char *outputfile, const char *path, netbuf *nControl);
+
+Sends an NLST command to the server with the specified path.  The
+response to this is a list of file names which will be written to the
+file named in outputfile.  If outputfile is specified as NULL, the list
+will be written to stdout.
+
+int FtpDir(const char *outputfile, const char *path, netbuf *nControl);
+
+Sends a LIST command to the server with the specified path.  The response
+to this is usually a long format directory listing which will be written
+to the file named in outputfile.  If outputfile is specified as NULL, the
+list will be written to stdout.
+
+int FtpGet(const char *outputfile, const char *path, char mode,
+	netbuf *nControl);
+
+Retreives the file specified by path and writes it to the file specified
+in outputfile.  Image or ASCII transfer mode can be specified by setting
+mode to 'I' or 'A', respectively.
+
+int FtpPut(const char *inputfile, const char *path, char mode,
+	netbuf *nControl);
+
+Sends the file specified by inputfile to the server with the name
+specified in path.  Image or ASCII transfer mode can be specified by
+setting mode to 'I' or 'A', respectively.
+
+int FtpRename(const char *src, const char *dst, netbuf *nControl);
+
+Renames the remote file specified by src to the name specified in dst.
+
+int FtpDelete(const char *fnm, netbuf *nControl);
+
+Removes the specified file from the server.
+
+void FtpQuit(void, netbuf *nControl);
+
+Disconnects from the remote server.
+
+char *FtpLastResponse(netbuf *nControl);
+
+Returns a pointer to the buffer containing the last response received
+from the server.  Useful for displaying error messages.

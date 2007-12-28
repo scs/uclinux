@@ -1,0 +1,87 @@
+<html>
+<head><title>FtpOptions</title></head>
+<body>
+
+<h1>FtpOptions</h1>
+<p>Set connection options.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpOptions(int opt, long val, netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>opt</b>
+<dd>Specifies the option to change.  Valid options are FTPLIB_CONNMODE,
+FTPLIB_CALLBACK, FTPLIB_IDLETIME, FTPLIB_CALLBACKARG, and
+FTPLIB_CALLBACKBYTES.
+
+<dt><b>val</b>
+<dd>Specifies the new value for the option.  The value may need to by
+cast to a long.
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href=FtpConnect.html>FtpConnect()</a> or <a
+href=FtpAccess.html>FtpAccess()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>FtpOptions() changes the options for a connection handle.  A data
+connection inherits the options assigned to the control connection it is
+created from.  Callbacks are only called on file data connections.
+
+<p>The following options and values are recognized.
+
+<table>
+<tr><th>Option<th>Value
+<tr><td>FTPLIB_CONNMODE
+    <td>Specifies the connection mode.  Either FTPLIB_PASSIVE or
+	FTPLIB_PORT.
+<tr><td>FTPLIB_CALLBACK
+    <td>Specifies the address of a user callback routine.
+<tr><td>FTPLIB_IDLETIME
+    <td>Specifies the socket idle time in milliseconds that triggers
+	calling the user's callback routine.
+<tr><td>FTPLIB_CALLBACKARG
+    <td>Specifies an argument to pass to the user's callback routine.
+<tr><td>FTPLIB_CALLBACKBYTES
+    <td>Specifies the number of bytes to transfer between calls to the
+	user's callback routine.
+</table>
+
+<p>The connection mode tells ftplib if it should use PASV or PORT to
+establish data connections.  The default is specified as a build option.
+
+<p>The user's callback routine is specified as:
+<pre>
+typedef int (*FtpCallback)(netbuf *nControl, int xfered, void *arg);
+</pre>
+<b>nControl</b> is the data connection in use.  <b>xfered</b> specifies
+how many bytes of data have been transferred on the connection.
+<b>arg</b> is the value specified with option FTPLIB_CALLBACKARG.
+
+<p>The user can request to be called back on either of two events.
+
+<p>If the user wishes to be called when the data socket is idle for some
+period of time, use FTPLIB_IDLETIME and pass the time in milliseconds.
+
+<p>If the user wishes to be called when a certain amount of data has been
+transferred, use FTPLIB_CALLBACKBYTES and pass the minimum number of
+bytes to transfer between callbacks.  When using this option, ftplib
+keeps track of the number of bytes transferred and calls the user once
+the specified number of bytes or more has been transferred.  It then
+resets the count to 0 and starts again.
+
+<p>If the user wishes to continue the transfer, the callback routine
+should return true (non-zero).  It can abort the transfer by return zero.
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if a valid option was specified and the value is legal.
+Otherwise, returns 0.
+
+</body>
+</html>

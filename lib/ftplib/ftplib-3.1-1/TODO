@@ -1,0 +1,25 @@
+Here are some things which users have asked for that I haven't gotten
+around to yet or haven't figured out how to implement yet.
+
+- Percentage complete indication - DONE V3.1
+
+	Do I want to do this in ftplib.c or somehow tie it into allowing
+	the user program to do the I/O?  I could parse the size out of
+	the 'retr' response and give it to the user.  Let the user do the
+	calculations while they are reading/writing the socket.
+
+- C++ support
+
+	I haven't done enough C++ to be able to generate the object model
+	myself.  I'm open to ideas on how to set this up.
+
+- Thread safe
+
+	I've been informed that gethostbyname() and getservbyname() are
+	not re-entrant although I don't know how to get around them.
+
+- Callback Support - DONE V3.1
+
+	Allow specification of a routine to be called while waiting on
+	the network.  This might be useable to update a progress
+	indicator or handle events in a windows program.

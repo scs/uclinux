@@ -1,0 +1,36 @@
+<html>
+<head><title>FtpLogin</title></head>
+<body>
+
+<h1>FtpLogin</h1>
+<p>Login to remote system.
+
+<h2>SYNOPSIS</h2>
+<pre>
+#include &lt;ftplib.h&gt;
+int FtpLogin(const char *user, const char *pass, netbuf *nControl);
+</pre>
+
+<h2>PARAMETERS</h2>
+<dl>
+
+<dt><b>user</b>
+<dd>Specifies the username.
+
+<dt><b>pass</b>
+<dd>Specifies the password.
+
+<dt><b>nControl</b>
+<dd>A handle returned by <a href="FtpConnect.html">FtpConnect()</a>.
+
+</dl>
+
+<h2>DESCRIPTION</h2>
+<p>FtpLogin() attempts to login to the remote system with the supplied
+username and password.  
+
+<h2>RETURN VALUE</h2>
+<p>Returns 1 if successful or 0 on error.
+
+</body>
+</html>
