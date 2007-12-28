@@ -1,0 +1,24 @@
+http://sourceforge.net/tracker/index.php?func=detail&aid=1859664&group_id=13478&atid=313478
+
+--- flac/doc/html/Makefile.am
++++ flac/doc/html/Makefile.am
+@@ -39,7 +39,7 @@
+ # handle 'api/' specially:
+ install-data-local:
+ 	$(mkinstalldirs) $(DESTDIR)$(docdir)/api
+-	(cd api && $(INSTALL_DATA) * $(DESTDIR)$(docdir)/api)
++	(cd $(srcdir)/api && $(INSTALL_DATA) * $(DESTDIR)$(docdir)/api)
+ uninstall-local:
+ 	rm -rf $(DESTDIR)$(docdir)/api
+ maintainer-clean-local:
+--- flac/doc/html/Makefile.in
++++ flac/doc/html/Makefile.in
+@@ -430,7 +430,7 @@
+ # handle 'api/' specially:
+ install-data-local:
+ 	$(mkinstalldirs) $(DESTDIR)$(docdir)/api
+-	(cd api && $(INSTALL_DATA) * $(DESTDIR)$(docdir)/api)
++	(cd $(srcdir)/api && $(INSTALL_DATA) * $(DESTDIR)$(docdir)/api)
+ uninstall-local:
+ 	rm -rf $(DESTDIR)$(docdir)/api
+ maintainer-clean-local:

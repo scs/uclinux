@@ -1,0 +1,31 @@
+disable ogg manually because the ogg.m4 is stupid
+
+--- flac/configure
++++ flac/configure
+@@ -22209,7 +22209,7 @@
+     OGG_LIBS="-L$prefix/lib"
+   fi
+ 
+-  OGG_LIBS="$OGG_LIBS -logg"
++  #OGG_LIBS="$OGG_LIBS -logg"
+ 
+   if test "x$ogg_includes" != "x" ; then
+     OGG_CFLAGS="-I$ogg_includes"
+@@ -22366,7 +22366,7 @@
+ fi
+ 
+ 
+-
++have_ogg=no
+ if test "x$have_ogg" = xyes; then
+   FLaC__HAS_OGG_TRUE=
+   FLaC__HAS_OGG_FALSE='#'
+@@ -23490,7 +23490,7 @@
+ 	CPPFLAGS="-DNDEBUG $CPPFLAGS"
+ 	if test "x$GCC" = xyes; then
+ 		CPPFLAGS="-DFLaC__INLINE=__inline__ $CPPFLAGS"
+-		CFLAGS="-O3 -funroll-loops -finline-functions -Wall -W -Winline $CFLAGS"
++		CFLAGS="-Wall -W -Winline $CFLAGS"
+ 	fi
+ fi
+ 
