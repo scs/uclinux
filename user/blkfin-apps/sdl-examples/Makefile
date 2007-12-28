@@ -27,6 +27,7 @@ romfs:
 	$(ROMFSINST) -d doom1.wad /usr/bin/doom1.wad
 	$(ROMFSINST) -d build-newvox-1.0/newvox /usr/bin/newvox
 	$(ROMFSINST) -d build-sdlroids-1.3.4/sdlroids /usr/bin/sdlroids
+	$(ROMFSINST) -d sdlroids-1.3.4/sounds /usr/bin/sounds
 	$(ROMFSINST) -d sdlroids-1.3.4/bmp /usr/bin/bmp
 	$(ROMFSINST) -d build-sierp-1.0/sierp /usr/bin/sierp
 	$(ROMFSINST) -d build-warp-1.1/warp /usr/bin/warp
