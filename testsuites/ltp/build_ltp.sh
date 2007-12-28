@@ -7,9 +7,10 @@ if [ $# -ne 1 ]; then
 fi       
 cvs_server_addr=$1
 
-if [ -d ltp ]
+LTP_SUB_DIR=ltp-full-20071031
+if [ -d $LTP_SUB_DIR ]
 then
-	rm -rf ltp
+	rm -rf $LTP_SUB_DIR
 	echo "$0:	Clean directory"
 fi
 
@@ -35,12 +36,12 @@ fi
 
 # Checkout ltp source directory
 #LTP_WORKING_DIR=`cat ltp/current`
-LTP_SUB_DIR=ltp-full-20071031
+#LTP_SUB_DIR=ltp-full-20071031
 CWD=`pwd`
 
 #echo "$0:	Get ltp working directory [$LTP_WORKING_DIR]"
 
-echo "$0:	Checking out from SVN, ltp/$LTP_WORKING_DIR"
+echo "$0:	Checking out from SVN, ltp/$LTP_SUB_DIR"
 #cvs -Q -d :pserver:anonymous@$cvs_server_addr:/cvsroot/uclinux533 co -A -P $LTP_SUB_DIR
 svn -q co svn://$cvs_server_addr/ltp/trunk/$LTP_SUB_DIR
 if [ $? -ne 0 ]

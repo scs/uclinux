@@ -1091,6 +1091,9 @@ do
   mv $UCLINUX_DIST_TESTSUITES/xip/build_xip_kernel_log $THIS_LOG/build_xip_fdpic_kernel_log
   mv $UCLINUX_DIST_TESTSUITES/xip/xip_test_log $THIS_LOG/xip_fdpic_test_log
 
+  #make sure it can boot up before next xip test
+  cp $UCLINUX_DIST_PATH/images/linux /tftpboot
+
   sleep 300
 
   if [ $RESET_BOARD -eq 1  ] ; then
