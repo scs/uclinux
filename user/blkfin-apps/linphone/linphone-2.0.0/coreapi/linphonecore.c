@@ -1346,7 +1346,6 @@ void linphone_core_start_media_streams(LinphoneCore *lc, LinphoneCall *call){
 			StreamParams *video_params=&call->video_params;
 			
 			if (video_params->remoteport>0){
-				printf("----------display: %d, capture: %d\n", lc->video_conf.display, lc->video_conf.capture);
 				if (lc->video_conf.display && lc->video_conf.capture)
 					video_stream_start(lc->videostream,
 					call->profile, video_params->remoteaddr, video_params->remoteport,
