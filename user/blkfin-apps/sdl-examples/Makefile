@@ -1,4 +1,4 @@
-DIRS = fire-1.0 plasma-1.0 xflame-1.0 warp-1.1 sdlroids-1.3.4 aliens-1.0.2 sdldoom-1.10 newvox-1.0 sierp-1.0 water-1.0
+DIRS = $(dir $(wildcard */configure))
 
 DIRS_makefiles = $(patsubst %,build-%/Makefile,$(DIRS))
 
