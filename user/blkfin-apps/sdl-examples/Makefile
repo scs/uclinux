@@ -13,7 +13,7 @@ all: $(DIRS_makefiles)
 	mkdir build-$${VER} ; \
 	cd build-$${VER} ; \
 	SDL_CONFIG=$(STAGEDIR)/usr/bin/sdl-config \
-	../$${VER}/configure $(CONFIGURE_OPTS)
+	../$${VER}/configure $(CONFIGURE_OPTS) --without-x
 
 clean:
 	rm -rf build-*
