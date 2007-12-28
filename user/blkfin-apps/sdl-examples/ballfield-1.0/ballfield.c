@@ -401,9 +401,9 @@ int main(int argc, char* argv[])
 	 * Load and prepare balls...
 	 */
 	balls->use_alpha = alpha;
-	if( ballfield_load_gfx(balls, "blueball.png", 0)
+	if( ballfield_load_gfx(balls, "bmp/blueball.png", 0)
 				||
-			ballfield_load_gfx(balls, "redball.png", 1) )
+			ballfield_load_gfx(balls, "bmp/redball.png", 1) )
 	{
 		fprintf(stderr, "Could not load balls!\n");
 		exit(-1);
@@ -412,7 +412,7 @@ int main(int argc, char* argv[])
 	/*
 	 * Load background image
 	 */
-	temp_image = IMG_Load("redbluestars.png");
+	temp_image = IMG_Load("bmp/redbluestars.png");
 	if(!temp_image)
 	{
 		fprintf(stderr, "Could not load background!\n");
@@ -424,7 +424,7 @@ int main(int argc, char* argv[])
 	/*
 	 * Load logo
 	 */
-	temp_image = SDL_LoadBMP("logo.bmp");
+	temp_image = SDL_LoadBMP("bmp/logo.bmp");
 	if(!temp_image)
 	{
 		fprintf(stderr, "Could not load logo!\n");
@@ -438,7 +438,7 @@ int main(int argc, char* argv[])
 	/*
 	 * Load font
 	 */
-	temp_image = SDL_LoadBMP("font7x10.bmp");
+	temp_image = SDL_LoadBMP("bmp/font7x10.bmp");
 	if(!temp_image)
 	{
 		fprintf(stderr, "Could not load font!\n");

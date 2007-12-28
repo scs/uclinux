@@ -34,5 +34,11 @@ romfs:
 	$(ROMFSINST) -d build-water-1.0/water /usr/bin/water
 	$(ROMFSINST) -d water-1.0/water320.bmp /usr/bin/water320.bmp
 	$(ROMFSINST) -d build-xflame-1.0/xflame /usr/bin/xflame
+	$(ROMFSINST) -d build-ballfield-1.0/ballfield /usr/bin/ballfield
+	$(ROMFSINST) -d ballfield-1.0/font7x10.bmp /usr/bin/bmp/font7x10.bmp
+	$(ROMFSINST) -d ballfield-1.0/logo.bmp /usr/bin/bmp/logo.bmp
+	$(ROMFSINST) -d ballfield-1.0/blueball.png /usr/bin/bmp/blueball.png
+	$(ROMFSINST) -d ballfield-1.0/redball.png /usr/bin/bmp/redball.png
+	$(ROMFSINST) -d ballfield-1.0/redbluestars.png /usr/bin/bmp/redbluestars.png
 
 .PHONY: all clean romfs
