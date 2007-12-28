@@ -1,0 +1,21 @@
+#
+# Try this one ('make  -f makefile.old') if you don't want to use autotools.
+#
+
+CC =		gcc
+CPATH =		-I/usr/include/SDL
+
+CLIBS =		$(shell sdl-config --libs) -lSDL_image
+CFLAGS =	-g -O3 -Wall $(shell sdl-config --cflags)
+
+HEADERS =	ballfield.h
+SOURCES =	ballfield.c
+
+all:		ballfield
+
+clean:
+		-rm -f *.o
+		-rm ballfield
+
+ballfield:	${HEADERS} ${SOURCES}
+		${CC} ${CFLAGS} -o ballfield ${CPATH} ${SOURCES} ${CLIBS}

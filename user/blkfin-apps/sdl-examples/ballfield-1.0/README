@@ -1,0 +1,22 @@
+
+                     Ballfield
+                     ---------
+
+Here's a cute little thing that should bring back
+memories from the days of the Amiga and Atari ST,
+and the old demo scene culture. I played with other
+stuff most of the time on my Amiga, so I guess I'll
+have my fun now, when it's dead simple and you
+don't even have to hack any asm code! ;-)
+
+
+The program supports a few command line options:
+
+	-f	Fullscreen
+	-nd	No Double Buffering
+	-h	Use Hardware Surface
+	-<n>	Depth = <n> bits
+	-na	Don't use antialiazing
+
+
+	//David Olofson  <david@olofson.net>

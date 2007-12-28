@@ -1,0 +1,11 @@
+release:
+	athlon fix (64b)
+	fix networking
+
+general:
+	image caching
+	surface buffering
+	filename rendering (on display, osd style)
+	arbitrary zooming and panning
+
+$Id: TODO,v 1.8 2007/01/15 16:47:47 erik Exp $

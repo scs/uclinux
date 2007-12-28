@@ -1,0 +1,50 @@
+.TH "views" "1" "0.3beta" "cappa" ""
+.SH "NAME"
+.LP 
+views \- View Images Exclusive With SDL
+.SH "SYNTAX"
+.LP 
+views [\fIimage|directory\fP]
+.SH "DESCRIPTION"
+.LP 
+views supports following formats:
+BMP, PNM, XPM, LBM. PCX, GIF, JPEG, PNG, TGA.
+
+its very simple and fast image viewer.
+developed to view images from console to X
+.SH "OPTIONS"
+.LP 
+.TP 
+\fB\-u, \-\-url\fR
+opens (supported format) file after successful fetch with wget
+.TP 
+\fB\-u, \-\-url\fR
+starts in fullscreen
+.TP 
+\fB\-l, \-\-longhelp\fR
+Output information inside of views and exit
+.TP 
+\fB\-v, \-\-version\fR
+Output version information and exit.
+.TP 
+\fB\-h, \-\-help\fR
+Output help information and exit.
+.SH "EXAMPLES"
+.LP 
+To run this program the standard way type:
+.LP 
+views blah.jpg or views /some/directory
+.LP 
+ESC \-> quits views and returns to shell
+.LP 
+F \-> turns fullscreen on
+.LP 
+N \-> returns to normal window screen (turns fullscreen off)
+.LP 
+PAGEDOWN \-> search for next (supported format) file and opens it
+.LP 
+PAGEUP \-> search for last (supported format) file and opens it
+.LP 
+.SH "AUTHORS"
+.LP 
+cappa <cappa@referee.at>

@@ -1,0 +1,19 @@
+ABOUT 0.2.2: This release only involves license changes.
+
+That's a 'fix things' release... so no new stage, sorry.
+
+I've had several reports about DD2's Joystick support working :D 
+
+"freakdave" <freakdave@gmx.de> has repported DD2 0.2 works in the X-Box
+game console, but it has some problems. I've tried to fix such problems:
+
+	-Use first Joystick in menu (1st but. select, 2nd but. exit)
+	-Joystick should work in hiscores (UP/DOWN and RIGHT, 1st but.
+	 finish, 2nd but. delete)
+	-While playing with Joystick, 2nd but. is pause
+	-Now you can play DD2 with two Joysticks
+
+I've added support to systems with just one CONTROL key. You should
+configure the package with --enable-alternate-fire-key switch in
+order to use 'm' key instead RIGHT CONTROL.
+

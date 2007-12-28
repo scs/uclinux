@@ -1,0 +1,57 @@
+#############################################################################
+# vp    -    SDL based image viewer for linux and fbsd. (X and console)	    #
+# Copyright (C) 2001-2007 Erik Greenwald <erik@smluc.org>		    #
+# 									    #
+# This program is free software; you can redistribute it and/or modify      #
+# it under the terms of the GNU General Public License as published by	    #
+# the Free Software Foundation; either version 2 of the License, or         #
+# (at your option) any later version.                                       #
+#                                                                           #
+# This program is distributed in the hope that it will be useful,           #
+# but WITHOUT ANY WARRANTY; without even the implied warranty of            #
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the             #
+# GNU General Public License for more details.                              #
+#                                                                           #
+# You should have received a copy of the GNU General Public License         #
+# along with this program; if not, write to the Free Software               #
+# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA #
+#############################################################################
+
+# $Id: vp.spec.in,v 1.6 2007/01/10 15:55:27 erik Exp $
+
+Summary: View image files.
+Name: @PACKAGE@
+Version: @VERSION@
+Release: 1
+Copyright: GPL
+Vendor: Erik Greenwald
+Url: http://math.missouristate.edu/~erik/software.php?id=63
+Group: Amusements/Graphics
+Source0: http://math.missouristate.edu/~erik/files/@PACKAGE@-@VERSION@.tar.gz
+Buildroot: /var/tmp/@PACKAGE@
+
+%description
+Image viewer based on SDL that can read and display a wide variety of formats.
+Features include both fullscreen and windowed mode, rescaling images to fill
+the screen, ability to navigate the images, slideshow, full functionality
+both in X and in console, and the ability to load images from web servers.
+
+%prep
+%setup -q
+%build
+CFLAGS="$RPM_OPT_FLAGS" ./configure --prefix=/usr
+
+make
+
+%install
+rm -rf $RPM_BUILD_ROOT
+make DESTDIR=$RPM_BUILD_ROOT install
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+%files
+/usr/*
+
+%changelog
+

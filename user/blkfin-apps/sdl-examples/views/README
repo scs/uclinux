@@ -1,0 +1,44 @@
+	VIEWS (View Images Exclusive With SDL)
+
+views is a simple image viewer written in C.
+depends on libSDL (http://www.libsdl.org) and SDL_Image (http://www.libsdl.org/projects/SDL_image/)
+
+to install this program, simply run:
+$ ./configure
+$ make
+$ su -c "make install-strip"
+
+$ views /some/path/
+or 
+$ views /some/path/blah.png
+
+Functions in program:
+
+ESC 		-> quits views and returns to shell
+F	 	-> turns fullscreen on
+N		-> returns to normal window screen (turns fullscreen off)
+PAGEDOWN 	-> search for next supported format and opens it
+PAGEUP		-> upside down from PAGEDOWN
+
+'cause views depends on SDL_Image it supports following formats:
+BMP
+PNM
+XPM
+LBM
+PCX
+GIF
+JPEG
+PNG
+TGA
+
+Tested:
+On Linux (Debian/RedHat) and FreeBSD.
+Please feel free to contact me if this program does/doesn't run on one of Your systems.
+(You can send me also a binary, I'll release it!)
+
+The whole code is written in C and stands under GPL Licence!
+
+Thank you for watching 
+Good Night
+
+cappa <cappa@referee.at>
