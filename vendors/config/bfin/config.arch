@@ -113,7 +113,7 @@ ifeq ($(CONFIG_ALL_DEBUG),y)
 	STRIPTOOL := echo
 	STRIP     := $(STRIPTOOL)
 else
-	CFLAGS-y  +=  -O2
+	CFLAGS-y  +=  -O2 -g
 endif
 
 CFLAGS-$(CONFIG_BLACKFIN_CHECK_STACKFLOW) += -mstack-check-l1
