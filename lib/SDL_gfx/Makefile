@@ -16,6 +16,6 @@ clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libSDL_net-1.2.so.0 /usr/lib/libSDL_net-1.2.so.0
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libSDL_gfx.so.0 /usr/lib/libSDL_gfx.so.0
 
 .PHONY: all clean romfs
