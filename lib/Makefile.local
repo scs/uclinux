@@ -62,6 +62,8 @@ dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
 
 dir_4_$(CONFIG_LIB_LIBEXOSIP_FORCE)  += libeXosip
 dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip
+dir_4_$(CONFIG_LIB_SDL_GFX)          += SDL_gfx
+dir_4_$(CONFIG_LIB_SDL_GFX_FORCE)    += SDL_gfx
 dir_5_$(CONFIG_LIB_SDL_TTF)          += SDL_ttf
 dir_5_$(CONFIG_LIB_SDL_TTF_FORCE)    += SDL_ttf
 

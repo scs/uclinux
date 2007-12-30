@@ -34,6 +34,10 @@ bool 'Build eXosip'		CONFIG_LIB_LIBEXOSIP_FORCE
 bool 'Build ftplib'		CONFIG_LIB_FTPLIB_FORCE
 bool 'Build popt'		CONFIG_LIB_POPT_FORCE
 bool 'Build readline'		CONFIG_LIB_READLINE_FORCE
+bool 'build SDL_gfx'		CONFIG_LIB_SDL_GFX_FORCE
+if [ "$CONFIG_LIB_SDL_GFX_FORCE" = "y" ]; then
+	define_bool CONFIG_LIB_LIBSDL y
+fi
 bool 'build SDL_image'		CONFIG_LIB_SDL_IMAGE_FORCE
 if [ "$CONFIG_LIB_SDL_IMAGE_FORCE" = "y" ]; then
 	define_bool CONFIG_LIB_LIBSDL y
