@@ -127,6 +127,16 @@ if [ "$CONFIG_USER_FFMPEG_APPS" = "y" ]; then
 	define_bool CONFIG_LIB_ZLIB y
 	define_bool CONFIG_LIB_FFMPEG y
 fi
+bool    'MPC'                           CONFIG_USER_MPC
+bool    'MPD'                           CONFIG_USER_MPD
+if [ "$CONFIG_USER_MPD" = "y" ]; then
+	define_bool CONFIG_LIB_FAAD2 y
+	define_bool CONFIG_LIB_FLAC y
+	define_bool CONFIG_LIB_LIBAUDIO y
+	define_bool CONFIG_LIB_LIBID3TAG y
+	define_bool CONFIG_LIB_LIBMAD y
+	define_bool CONFIG_LIB_TREMOR y
+fi
 bool    'MPlayer and mencode'           CONFIG_USER_MPLAYER
 if [ "$CONFIG_USER_MPLAYER" = "y" ]; then
 	# force libmad as it does fixed point decoding and only other
@@ -218,12 +228,8 @@ if [ "$CONFIG_USER_BLACKFIN_LINPHONE" = "y" ]; then
 fi
 bool	'NetAudio'			CONFIG_USER_NET_AUDIO
 if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
-	define_bool CONFIG_LIB_LIBMAD y
-	define_bool CONFIG_LIB_FAAD2 y
-	define_bool CONFIG_LIB_FLAC y
-	define_bool CONFIG_LIB_LIBID3TAG y
-	define_bool CONFIG_LIB_TREMOR y
-	define_bool CONFIG_LIB_LIBAUDIO y
+	define_bool CONFIG_USER_MPD y
+	define_bool CONFIG_USER_MPC y
 fi
 
 bool	'mpc2x'			CONFIG_USER_MPC2X
