@@ -1,0 +1,12 @@
+Index: libosip2-3.0.3-2/scripts/ltmain.sh
+===================================================================
+--- libosip2-3.0.3-2/scripts/ltmain.sh	(revision 5915)
++++ libosip2-3.0.3-2/scripts/ltmain.sh	(working copy)
+@@ -2765,6 +2765,7 @@ EOF
+ 	    else
+ 	      # We cannot seem to hardcode it, guess we'll fake it.
+ 	      add_dir="-L$libdir"
++	      add_dir="" # XXX: relink hack: dont add -L flag to host path
+ 	      # Try looking first in the location we're being installed to.
+ 	      if test -n "$inst_prefix_dir"; then
+ 		case $libdir in
