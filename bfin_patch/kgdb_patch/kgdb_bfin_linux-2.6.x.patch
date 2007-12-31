@@ -609,8 +609,8 @@ diff -urN linux-2.6.x.old/kernel/Makefile linux-2.6.x/kernel/Makefile
  obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
 diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 --- linux-2.6.x.old/kernel/kgdb.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/kernel/kgdb.c	2007-12-17 13:43:54.000000000 +0800
-@@ -0,0 +1,1545 @@
++++ linux-2.6.x/kernel/kgdb.c	2007-12-31 13:43:54.000000000 +0800
+@@ -0,0 +1,1547 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -1048,7 +1048,7 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +		}
 +	}
 +	else if ((unsigned int)mem >= 0xffA00000  /*access L1 instruction registers*/
-+#ifdef CONFIG_BLKFIN_CACHE
++#ifdef CONFIG_BLKFIN_ICACHE
 +		&& (unsigned int)mem < 0xffA10000) {
 +#else
 +		&& (unsigned int)mem < 0xffA14000) {
@@ -1137,7 +1137,7 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +		}
 +	}
 +	else if ((unsigned int)mem >= 0xffA00000  /*access L1 instruction registers*/
-+#ifdef CONFIG_BLKFIN_CACHE
++#ifdef CONFIG_BLKFIN_ICACHE
 +		&& (unsigned int)mem < 0xffA10000) {
 +#else
 +		&& (unsigned int)mem < 0xffA14000) {
@@ -1315,7 +1315,7 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +	int error;
 +#ifdef CONFIG_BLACKFIN
 +	if ((unsigned int)addr >= 0xffA00000  /*access L1 instruction registers*/
-+#ifdef CONFIG_BLKFIN_CACHE
++#ifdef CONFIG_BLKFIN_ICACHE
 +		&& (unsigned int)addr < 0xffA10000) {
 +#else
 +		&& (unsigned int)addr < 0xffA14000) {
@@ -1342,7 +1342,7 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +	int error;
 +#ifdef CONFIG_BLACKFIN
 +	if ((unsigned int)addr >= 0xffA00000  /*access L1 instruction registers*/
-+#ifdef CONFIG_BLKFIN_CACHE
++#ifdef CONFIG_BLKFIN_ICACHE
 +		&& (unsigned int)addr < 0xffA10000) {
 +#else
 +		&& (unsigned int)addr < 0xffA14000) {
@@ -1545,7 +1545,8 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +
 +	debugger_step = 0;
 +
-+	kgdb_disable_sw_debug();
++	if (!debugger_step)
++		kgdb_disable_sw_debug();
 +	kgdb_disable_hw_debug(linux_regs);
 +
 +	for (i = 0; i < num_online_cpus(); i++) {
@@ -1890,7 +1891,8 @@ diff -urN linux-2.6.x.old/kernel/kgdb.c linux-2.6.x/kernel/kgdb.c
 +
 +      kgdb_exit:
 +
-+	kgdb_enable_sw_debug();
++	if (!debugger_step)
++		kgdb_enable_sw_debug();
 +
 +	current->thread.debuggerinfo = NULL;
 +	procindebug[smp_processor_id()] = 0;
