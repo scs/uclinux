@@ -113,32 +113,32 @@ DIRS_all = $(foreach n,1 2 3 4 5 6 7 8 9,$(sort $(dir_$(n)_y) $(dir_$(n)_n) $(di
 ##############################################################################
 
 SET_STAGEDIR = \
-	cd $(STAGEDIR); \
+	(cd $(STAGEDIR); \
 	chmod 755 ./usr/lib/lib*.so*; \
 	chmod 644 ./usr/lib/lib*.la ./usr/lib/lib*.a; \
 	sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" ./usr/lib/*.la; \
 	sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':" ./usr/lib/pkgconfig/*.pc ./usr/bin/*-config; \
-	true
+	true)
 
 all:
 	[ -z "$(dir_1_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_1_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_1_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_2_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_2_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_2_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_3_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_3_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_3_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_4_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_4_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_4_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_5_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_5_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_5_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_6_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_6_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_6_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_7_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_7_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_7_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_8_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_8_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_8_y)" ] || $(SET_STAGEDIR)
 	[ -z "$(dir_9_y)" ] || $(MAKE) -j$(HOST_NCPU) $(sort $(dir_9_y)) || exit $$?
-	$(SET_STAGEDIR)
+	[ -z "$(dir_9_y)" ] || $(SET_STAGEDIR)
 
 # the actual dir target
 .PHONY: $(DIRS_y)
