@@ -1,4 +1,4 @@
-VER = flac-1.2.1
+VER = flac-1.1.0
 
 CONF_OPTS = --with-ogg=$(STAGEDIR)/usr
 
