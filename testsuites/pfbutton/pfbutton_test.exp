@@ -39,7 +39,7 @@ while 1 {
      -re "Input device name.*gpio-keys.*Testing" {
          puts "\nPlease hit the PB1 buttons on the board...\n"
          expect {
-                -re "Event: time .* type .* code 256.* value " {
+                -re  "Event: time .* type .* code 256.* value.*\r\n.*\r\n.*\r\n.*\r\n" {
                 case_pass $case_num
                         }
 
@@ -52,7 +52,7 @@ while 1 {
          incr case_num
          puts "\nPlease hit the PB2 buttons on the board...\n"
          expect {
-                -re "Event: time .* type .* code 257.* value " {
+                -re "Event: time .* type .* code 257.* value.*\r\n.*\r\n.*\r\n.*\r\n" {
                 case_pass $case_num
                         }
 
@@ -65,7 +65,7 @@ while 1 {
          incr case_num
          puts "\nPlease hit the PB3 buttons on the board...\n"
          expect {
-                -re "Event: time .* type .* code 258.* value " {
+                -re "Event: time .* type .* code 258.* value.*\r\n.*\r\n.*\r\n.*\r\n" {
                 case_pass $case_num
                         }
 
@@ -78,7 +78,7 @@ while 1 {
          incr case_num
          puts "\nPlease hit the PB4 buttons on the board...\n"
          expect {
-                -re "Event: time .* type .* code 259.* value " {
+                -re "Event: time .* type .* code 259.* value.*\r\n.*\r\n.*\r\n.*\r\n" {
                 case_pass $case_num
                         }
 
