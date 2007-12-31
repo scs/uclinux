@@ -6,6 +6,7 @@ CONF_OPTS = \
 	--enable-portaudio=no \
 	--enable-gnome_ui=no \
 	--disable-manual \
+	--disable-strict \
 	--disable-glib \
 	--enable-ipv6=no \
 	--disable-shared \
@@ -25,6 +26,7 @@ build-$(VER)/Makefile:
 	rm -rf build-$(VER) ; \
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
+	DOXYGEN=false \
 	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
 
 romfs:
