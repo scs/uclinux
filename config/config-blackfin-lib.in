@@ -16,7 +16,7 @@ bool 'Build libaudio'		CONFIG_LIB_LIBAUDIO_FORCE
 bool 'Build libbfgdots'		CONFIG_LIB_LIBBFGDOTS_FORCE
 bool 'Build libiconv'		CONFIG_LIB_LIBICONV_FORCE
 bool 'Build libid3tag'		CONFIG_LIB_LIBID3TAG_FORCE
-if [ "$CONFIG_LIB_LIBID3TAG_FORCE" = "y" ]; then
+if [ "$CONFIG_LIB_LIBID3TAG_FORCE" = "y" -o "$CONFIG_LIB_LIBID3TAG" = "y" ]; then
 	define_bool CONFIG_LIB_ZLIB y
 fi
 bool 'Build libipod'		CONFIG_LIB_LIBIPOD_FORCE
@@ -26,7 +26,7 @@ bool 'Build libSDL'		CONFIG_LIB_LIBSDL_FORCE
 bool 'Build libtool'		CONFIG_LIB_LIBTOOL_FORCE
 bool 'Build libusb'		CONFIG_LIB_LIBUSB_FORCE
 bool 'Build mpfr'		CONFIG_LIB_MPFR_FORCE
-if [ "$CONFIG_LIB_MPFR_FORCE" = "y" ]; then
+if [ "$CONFIG_LIB_MPFR_FORCE" = "y" -o "$CONFIG_LIB_MPFR" = "y" ]; then
 	define_bool CONFIG_LIB_LIBGMP y
 fi
 bool 'Build osip2'		CONFIG_LIB_OSIP2_FORCE
@@ -35,23 +35,23 @@ bool 'Build ftplib'		CONFIG_LIB_FTPLIB_FORCE
 bool 'Build popt'		CONFIG_LIB_POPT_FORCE
 bool 'Build readline'		CONFIG_LIB_READLINE_FORCE
 bool 'build SDL_gfx'		CONFIG_LIB_SDL_GFX_FORCE
-if [ "$CONFIG_LIB_SDL_GFX_FORCE" = "y" ]; then
+if [ "$CONFIG_LIB_SDL_GFX_FORCE" = "y" -o "$CONFIG_LIB_SDL_GFX" = "y" ]; then
 	define_bool CONFIG_LIB_LIBSDL y
 fi
 bool 'build SDL_image'		CONFIG_LIB_SDL_IMAGE_FORCE
-if [ "$CONFIG_LIB_SDL_IMAGE_FORCE" = "y" ]; then
+if [ "$CONFIG_LIB_SDL_IMAGE_FORCE" = "y" -o "$CONFIG_LIB_SDL_IMAGE" = "y" ]; then
 	define_bool CONFIG_LIB_LIBSDL y
 	define_bool CONFIG_LIB_LIBJPEG y
 	define_bool CONFIG_LIB_LIBPNG y
 	define_bool CONFIG_LIB_FREETYPE y
 fi
 bool 'build SDL_ttf'		CONFIG_LIB_SDL_TTF_FORCE
-if [ "$CONFIG_LIB_SDL_TTF_FORCE" = "y" ]; then
+if [ "$CONFIG_LIB_SDL_TTF_FORCE" = "y" -o "$CONFIG_LIB_SDL_TTF" = "y" ]; then
 	define_bool CONFIG_LIB_LIBSDL y
 	define_bool CONFIG_LIB_FREETYPE y
 fi
 bool 'build SDL_mixer'		CONFIG_LIB_SDL_MIXER_FORCE
-if [ "$CONFIG_LIB_SDL_MIXER_FORCE" = "y" ]; then
+if [ "$CONFIG_LIB_SDL_MIXER_FORCE" = "y" -o "$CONFIG_LIB_SDL_MIXER" = "y" ]; then
 	define_bool CONFIG_LIB_LIBMAD y
 fi
 bool 'build SDL_net'		CONFIG_LIB_SDL_NET_FORCE
