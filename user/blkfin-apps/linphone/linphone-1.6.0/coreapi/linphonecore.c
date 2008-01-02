@@ -1308,7 +1308,7 @@ int linphone_core_accept_call(LinphoneCore *lc, const char *url)
 	eXosip_lock();
 	eXosip_answer_call_with_body(lc->call->did,200,"application/sdp",sdpmesg);
 	eXosip_unlock();
-	lc->vtable.display_status(lc,_("Connected!."));
+	lc->vtable.display_status(lc,_("Connected."));
 	
 	linphone_core_start_media_streams(lc, lc->call);
 	return 0;
