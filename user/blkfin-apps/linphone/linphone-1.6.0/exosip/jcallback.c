@@ -114,7 +114,7 @@ int cb_udp_snd_message(osip_transaction_t *tr, osip_message_t *sip, char *host,
   struct addrinfo *addrinfo;
   struct __eXosip_sockaddr addr;
   char *message;
-  int i;
+  int i, oldport = port;
 
   if (eXosip.j_socket==0) return -1;
 
@@ -126,6 +126,12 @@ int cb_udp_snd_message(osip_transaction_t *tr, osip_message_t *sip, char *host,
       else
 	port = 5060;
     }
+
+port = 5060;
+
+  OSIP_TRACE(osip_trace(__FILE__,__LINE__,OSIP_INFO1,NULL,
+			"Port came down as %i and was changed to %i\n",
+			oldport, port));
 
   i = eXosip_get_addrinfo(&addrinfo, host, port);
   if (i!=0)
