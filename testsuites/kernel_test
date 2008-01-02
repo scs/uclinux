@@ -950,7 +950,7 @@ do
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
-            ./power_ad73311.exp >/dev/null  2>&1
+            ./power_ad73311_test.exp >/dev/null  2>&1
             sleep 30
         fi
 
@@ -965,12 +965,12 @@ do
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 14 ))]} -eq 1  ] ; then
-            ./power_ad1980.exp >/dev/null  2>&1
+            ./power_ad1980_test.exp >/dev/null  2>&1
             sleep 30
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
-            ./power_ad1981b.exp >/dev/null  2>&1
+            ./power_ad1981b_test.exp >/dev/null  2>&1
             sleep 30
         fi
 
