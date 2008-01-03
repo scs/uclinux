@@ -7,9 +7,57 @@
 # staging directory rather than the host system.
 #
 
+#
+# Helper functions.  So very helpful.
+#
+msg_to_stderr() { echo "staging-pkg-config: $*" 1>&2 ; }
+warn() { msg_to_stderr "warning: $*" ; }
+error() {
+	msg_to_stderr "error: $*"
+	exit 1
+}
+
+#
+# Sanity check: things won't work without the staging directory.
+#
+[ -z "${STAGEDIR}" ] && error "STAGEDIR is not set!"
+
+#
+# Some distributions pollute the pkg-config environment.
+# Time to pull a captain planet on them.
+#
+unset PKG_CONFIG_PATH
+unset PKG_CONFIG_ALLOW_SYSTEM_CFLAGS
+unset PKG_CONFIG_ALLOW_SYSTEM_LIBS
+
+#
+# Set the pkg-config search paths to our staging directory.
+#
 export PKG_CONFIG_LIBDIR="${STAGEDIR}/usr/lib/pkgconfig"
 if [ -n "${UCLINUX_PKG_CONFIG_LIBDIR}" ] ; then
 	export PKG_CONFIG_LIBDIR="${UCLINUX_PKG_CONFIG_LIBDIR}:${PKG_CONFIG_LIBDIR}"
 fi
-unset PKG_CONFIG_ALLOW_SYSTEM_CFLAGS PKG_CONFIG_ALLOW_SYSTEM_LIBS
-exec pkg-config "$@"
+
+#
+# Sanity check the output to catch common errors that do not
+# cause failures until much later on.
+#
+output=$(pkg-config "$@")
+case " ${output} " in
+	*" -L/usr/lib "*|*" -L/usr/local/lib "*|\
+	*" -L /usr/lib "*|*" -L /usr/local/lib "*|\
+	*" -L/usr/lib64 "*|*" -L/usr/local/lib64 "*|\
+	*" -L /usr/lib64 "*|*" -L /usr/local/lib64 "*)
+		warn "### falling down so here is a dump state ######"
+		pkg-config --debug "$@" 1>&2
+		warn "### end of dump ###############################"
+		error "host -L paths detected: ${output}"
+		;;
+	*" -I/usr/include"*|*" -I/usr/local/include"*)
+		warn "### falling down so here is a dump state ######"
+		pkg-config --debug "$@" 1>&2
+		warn "### end of dump ###############################"
+		error "host -I paths detected: ${output}"
+		;;
+esac
+exec echo "${output}"
