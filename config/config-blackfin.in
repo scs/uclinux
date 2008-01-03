@@ -19,7 +19,11 @@ else
 	bool 'Install FLAT shared libraries' CONFIG_INSTALL_FLAT_SHARED_LIBS
 fi
 
-bool 'build with stack overflow checking'	CONFIG_BLACKFIN_CHECK_STACKFLOW
+if [ "$CONFIG_LIB_DEBUG" = "n" -a "$CONFIG_USER_DEBUG" = "n" ] ; then
+	string 'User/Lib CFLAGS ='         CONFIG_USER_CFLAGS "-g -O2"
+fi
+bool 'build with stack overflow checking'  CONFIG_BLACKFIN_CHECK_STACKFLOW
+bool 'build with mudflap pointer checking' CONFIG_BLACKFIN_CHECK_POINTER
 
 bool 'install uClinux-dist .config into /root'	CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG
 

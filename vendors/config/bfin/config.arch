@@ -113,10 +113,11 @@ ifeq ($(CONFIG_ALL_DEBUG),y)
 	STRIPTOOL := echo
 	STRIP     := $(STRIPTOOL)
 else
-	CFLAGS-y  +=  -O2 -g
+	CFLAGS-y  += $(subst ",,$(strip $(CONFIG_USER_CFLAGS)))
 endif
 
 CFLAGS-$(CONFIG_BLACKFIN_CHECK_STACKFLOW) += -mstack-check-l1
+CFLAGS-$(CONFIG_BLACKFIN_CHECK_POINTER) += -fmudflap -lmudflap
 
 LDFLAGS-$(CONFIG_FMT_USE_FLAT) += -Wl,-elf2flt
 LDFLAGS-$(CONFIG_FMT_USE_SHARED_FLAT) += -Wl,-elf2flt
