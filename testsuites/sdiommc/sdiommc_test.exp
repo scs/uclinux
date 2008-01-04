@@ -350,7 +350,7 @@ expect -re "root:~>"
 send "ifconfig eth0 $targetip up\r"
 expect -re "root:~>"
 sleep 5
-exec rcp runcp.sh $targetip:/.
+exec rcp runcp.sh root@$targetip:/.
 sleep 1
 set timeout 900
 send "./runcp.sh\r"
