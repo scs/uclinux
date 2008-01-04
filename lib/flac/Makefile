@@ -17,7 +17,8 @@ clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libFLAC.so.8 /usr/lib/libFLAC.so.8
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libFLAC++.so.6 /usr/lib/libFLAC++.so.6
+# only newer flac produces shared libs
+#	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libFLAC.so.8 /usr/lib/libFLAC.so.8
+#	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libFLAC++.so.6 /usr/lib/libFLAC++.so.6
 
 .PHONY: all clean romfs
