@@ -43,6 +43,7 @@ fi
 # cause failures until much later on.
 #
 output=$(pkg-config "$@")
+ret=$?
 case " ${output} " in
 	*" -L/usr/lib "*|*" -L/usr/local/lib "*|\
 	*" -L /usr/lib "*|*" -L /usr/local/lib "*|\
@@ -60,4 +61,5 @@ case " ${output} " in
 		error "host -I paths detected: ${output}"
 		;;
 esac
-exec echo "${output}"
+[ -n "${output}" ] && echo "${output}"
+exit ${ret}
