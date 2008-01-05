@@ -1,4 +1,4 @@
-VER = readline-5.2_p1
+VER = readline-5.2_p12
 
 TARGETS-y =
 TARGETS-$(CONFIG_FMT_USE_FDPIC_ELF) += install-shared
