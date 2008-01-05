@@ -61,3 +61,4 @@ bool 'Build sqlite'		CONFIG_LIB_SQLITE_FORCE
 bool 'Build tremor'		CONFIG_LIB_TREMOR_FORCE
 bool 'Build tslib'		CONFIG_LIB_TSLIB_FORCE
 bool 'Build Crypto++ Lib'       CONFIG_LIB_CRYPTOPP_FORCE
+bool 'Build libConfuse'         CONFIG_LIB_CONFUSE_FORCE
