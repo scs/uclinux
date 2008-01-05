@@ -29,7 +29,7 @@ CONFIG_INSTALL_FLAT_SHARED_LIBS
   toolchain distribution installed in the romfs.
 
 CONFIG_BLACKFIN_CHECK_STACKFLOW
-  Build all libraries and applicaions with -fstack-limit-symbol=_stack_start.
+  Build all libraries and applicaions with -mstack-check-l1.
 
 CONFIG_USER_INETUTILS_RCP
   RCP utility. Part of the InetUtils package.
