@@ -40,6 +40,8 @@ romfs:
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libncurses.so.5 /lib/
 	mkdir -p $(ROMFSDIR)/usr/share/terminfo
 	tic -x -s -e $(NCURSES_TERMS) -o $(ROMFSDIR)/usr/share/terminfo/ $(VER)/misc/terminfo.src
+	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/tset /usr/bin/tset
+	$(ROMFSINST) -s tset /usr/bin/reset
 
 	set -e ; \
 	for x in $(NCURSES_DEMOS) ; do \
