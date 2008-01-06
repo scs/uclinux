@@ -200,7 +200,14 @@ if [ "$CONFIG_USER_SDLEXAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_FREETYPE y
 	define_bool CONFIG_LIB_TSLIB y
 fi
-
+bool	'curl'                  CONFIG_USER_CURL_CURL
+if [ "$CONFIG_USER_CURL_CURL" = "y" ] ; then
+	define_bool CONFIG_LIB_LIBCURL y
+	define_bool CONFIG_LIB_LIBIDN y
+	define_bool CONFIG_LIB_ZLIB y
+	define_bool CONFIG_LIB_LIBBZ2 y
+	define_bool CONFIG_LIB_LIBSSL y
+fi
 bool	'U-Boot Tools'	CONFIG_USER_UBOOT_TOOLS
 endmenu
 
