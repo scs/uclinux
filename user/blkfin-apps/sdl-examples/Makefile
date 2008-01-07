@@ -44,5 +44,6 @@ romfs:
 	$(ROMFSINST) -d build-dd2-0.2.2/src/dd2 /usr/bin/dd2
 	$(ROMFSINST) -d dd2-0.2.2/src/data /usr/share/dd2
 	rm -f $(ROMFSDIR)/usr/share/dd2/Makefile.*
+	$(ROMFSINST) -d build-vp-1.7/src/vp /usr/bin/vp
 
 .PHONY: all clean romfs
