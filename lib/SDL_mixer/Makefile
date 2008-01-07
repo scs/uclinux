@@ -17,6 +17,6 @@ clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libSDL_mixer-1.2.so.0.2.6 /usr/lib/libSDL_mixer-1.2.so.0.2.6
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libSDL_mixer-1.2.so.0 /usr/lib/libSDL_mixer-1.2.so.0
 
 .PHONY: all clean romfs
