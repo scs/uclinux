@@ -20,7 +20,7 @@ clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libcurl.so.4.0.1 /usr/lib/libcurl.so.4.0.1
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libcurl.so.4 /usr/lib/libcurl.so.4
 	$(ROMFSINST) -d -e CONFIG_USER_CURL_CURL $(STAGEDIR)/usr/bin/curl /usr/bin/curl
 
 .PHONY: all clean romfs
