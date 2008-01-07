@@ -59,29 +59,29 @@ while 1 {
       }
 
 
-      -re ".*Write through \\\(BLKFIN_WT\\\).*choice\\\[1-2\\\]:.*" {
+      -re "Write through \\\(BFIN_WT\\\).*choice\\\[1-2\\\]:" {
          send "$wt_wb\r"
       }
 
-      -re "Use full SLAB allocator \\\(SLAB\\\).*\\\[././.]" {
+      -re "Choose SLAB allocator.*SLAB.*SLOB.*choice\\\[1-3.\\\]" {
          if { $slab_slob == 1 } {
-            send "y\r"
+            send "1\r"
          }
          if { $slab_slob == 2 } {
-            send "n\r"
+            send "3\r"
          }
       }
 
-      -re "Page frame management algorithm.*choice\\\[.*]" {
+      -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
          if { $slab_slob == 1 } {
             if { $buddy_np2 == 1 } {
-               send "1\r"
+               send "n\r"
             }
             if { $buddy_np2 == 2 } {
-               send "2\r"
+               send "y\r"
             }
          } else {
-            send "1\r"
+            send "n\r"
          }
       }
 
