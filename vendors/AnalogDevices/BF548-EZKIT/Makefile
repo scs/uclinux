@@ -40,7 +40,7 @@ romfs::
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/mdev.conf
 	$(ROMFSINST) /etc/inittab
-	$(ROMFSINST) -e CONFIG_VT -a "tty0::respawn:-/bin/sh" /etc/inittab
+	$(ROMFSINST) -e CONFIG_VT -a "tty0:linux:respawn:-/bin/sh" /etc/inittab
 
 	set -e ; \
 	for f in $(ETC_FILES-y) ; do \
