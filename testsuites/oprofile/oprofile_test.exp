@@ -41,6 +41,7 @@ while 1 {
    }
 }
 
+sleep 5
 incr case_num
 set timeout 2
 send "/usr/bin/bfin_opcontrol --start-daemon &\r"
@@ -58,6 +59,7 @@ while 1 {
    }
 }
 
+sleep 5
 incr case_num
 set timeout 2
 send "/usr/bin/bfin_opcontrol --start\r"
@@ -75,6 +77,7 @@ while 1 {
    }
 }
 
+sleep 15
 incr case_num
 set timeout 2
 send "/usr/bin/bfin_opcontrol --dump\r"
@@ -92,10 +95,10 @@ while 1 {
    }
 }
 
+sleep 15
 incr case_num
-set timeout 2
+set timeout 5
 send "/usr/bin/opreport -l\r"
-
 while 1 {
    expect {
       -re "error" {

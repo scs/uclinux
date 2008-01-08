@@ -90,13 +90,18 @@ set case_num 0
 set Total_Count 5
 sleep 5
 send "\r"
+expect ">"
 
 set timeout 20
 incr case_num
 send "modprobe snd-ad73311\r"
 while 1 {
     expect {
+        -re "Call Trace" {
+            case_fail $case_num
+        }
         -re "root:~>" {
+            case_pass $case_num
             break
         }
         timeout {
@@ -105,6 +110,9 @@ while 1 {
         }
     }
 }
+
+set timeout 5
+incr case_num
 send "lsmod\r" 
 while 1 {
     expect {

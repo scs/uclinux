@@ -89,6 +89,7 @@ set case_num 0
 set Total_Count 5
 sleep 5
 send "\r"
+expect ">"
 
 set timeout 20
 incr case_num
