@@ -40,7 +40,7 @@ romfs::
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/mdev.conf
 	$(ROMFSINST) /etc/inittab
-	$(ROMFSINST) -e CONFIG_VT -a "tty0:linux:respawn:-/bin/sh" /etc/inittab
+	$(ROMFSINST) -e CONFIG_VT -a "tty0:linux:-/bin/sh" /etc/inittab
 	$(ROMFSINST) -e CONFIG_PATA_BF54X -a "echo 20 > /proc/sys/vm/pagecache_ratio" /etc/rc
 
 	set -e ; \
