@@ -22,79 +22,69 @@ send_log "*********************************\r"
 
 send -s "reset\r"
 
-for {set case_num 0} {$case_num < $count} {incr case_num} {
+for {set case_num 1} {$case_num <= $count} {incr case_num} {
 
+    set timeout 5
+    expect {
+        "Hit any key" {}
+        timeout {}
+    }
 
-set timeout 5
-expect {
-	"Hit any key" {
-	}
-	timeout {
-	}
-}
-
-sleep 1
-
-set timeout 2
-while 1 {
-   send -s "\r"
-   expect {
-      ">" {
-         break
-      }
-	timeout {
+    sleep 1
+    set timeout 2
+    while 1 {
+        send -s "\r"
+        expect {
+            ">" {
+                break
+            }
+            timeout {
                 case_fail $case_num
-		exit
-	}
-   }
-}
+            }
+        }
+    }
 
+    sleep 4
+    set timeout 5
+    send -s "bootm $kernel_start_addr\r"
+    while 1 {
+        expect {
+            "Linux version" {
+                break
+            }
+        }
+    }
 
-set timeout 5
-send -s "bootm $kernel_start_addr\r"
-while 1 {
-   expect {
-      "Linux version" {
-         break
-      }
-   }
-}
-
-set timeout 30
-while 1 {
-   expect {
-	"root:~>" {
+    set timeout 30
+    while 1 {
+        expect {
+            "root:~>" {
                 case_pass $case_num
-		break
-	}
-
-         timeout {
+                break
+            }
+            timeout {
                 case_fail $case_num
-		exit
-         }
-   }
-}
+            }
+        }
+    }
 
-send_log "Wait for 1 minutes before reboot.\r"
-sleep 60
+    send_user "Wait for 1 minutes before reboot.\r"
+    sleep 60
 
-set timeout 5
-send -s "\r\r"
-while 1 {
-   expect {
-	">" {
-		break
-	}
-
-         timeout {
+    set timeout 5
+    send -s "\r\r"
+    while 1 {
+        expect {
+            ">" {
+                break
+            }
+            timeout {
                 case_fail $case_num
-		exit
-         }
-   }
-}
+            }
+        }
+    }
 
-send -s "reboot\r"
-
+    send -s "reboot\r"
 }
 
 send_log "\n$TITLE ............\[PASS\]\n"
@@ -103,16 +93,14 @@ send_user "Ending $argv0\n"
 log_file
  
 while 1 {
-       expect {
-         "Hit any key " {
-             send "\r"
-             expect ">"
-             break
-         }
-
-         timeout {
-             break
-         }
-      }
-   }
-
+    expect {
+        "Hit any key " {
+            send "\r"
+            expect ">"
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}

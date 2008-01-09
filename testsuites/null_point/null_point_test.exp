@@ -28,12 +28,12 @@ step "Clean src directory\n"
 spawn make clean -C src
 while 1 {
     expect {
-        "*error*" {
+        -re "\[eE]rror" {
             case_fail $case_num
         }
 
         eof {
-            send_user "\nClean src/. \n"
+            send_user "\nClean src\n"
             break
         }
 
@@ -47,7 +47,7 @@ step "Build test program\n"
 spawn make -C src
 while 1 {
     expect {
-        "*error*" {
+        -re "\[eE]rror" {
             case_fail $case_num
         }
 
@@ -106,7 +106,7 @@ set timeout 15
 send "./null_point\r"
 while 1 {
     expect {
-        -re "NULL pointer access.*CURRENT PROCESS.*Call Trace.*" {
+        -re "NULL pointer access.*CURRENT PROCESS.*Hardware Trace" {
             case_pass $case_num
             break
         }
