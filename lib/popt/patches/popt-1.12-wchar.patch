@@ -1,0 +1,11 @@
+--- popt-1.12/popthelp.c
++++ popt-1.12/popthelp.c
+@@ -10,7 +10,7 @@
+ 
+ #include "system.h"
+ 
+-#define	POPT_WCHAR_HACK
++//#define	POPT_WCHAR_HACK
+ #ifdef 	POPT_WCHAR_HACK
+ #include <wchar.h>			/* for mbsrtowcs */
+ /*@access mbstate_t @*/
