@@ -17,30 +17,16 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 set case_num 0
-set timeout 10
-
 sleep 5
 send "\r"
 expect ">"
 
 incr case_num
-send "ifconfig eth0 $targetip up\r"
+set timeout 10
+send "ifconfig eth0 $targetip up;ifconfig eth0\r"
 while 1 {
     expect {
-        -re "root:~>" {
-            break
-        }
-        timeout {
-            send -s "\3"
-            break
-        }
-    }
-}
-
-send "ifconfig eth0\r"
-while 1 {
-    expect {
-        -re "$targetip.*root:~>" {
+        -re "inet addr.*$targetip.*root:~>" {
             case_pass $case_num
             break
         }
