@@ -1,4 +1,4 @@
-VER = popt-1.12
+VER = popt-1.13
 
 CONF_OPTS = 
 

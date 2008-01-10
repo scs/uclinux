@@ -1,0 +1,38 @@
+LIBPOPT_0
+{
+  global:
+    _findProgramPath;
+    __fini;
+    __init;
+    _poptAddAlias;
+    _poptAddItem;
+    _poptAliasOptions;
+    _poptBadOption;
+    _poptConfigFileToString;
+    _poptDupArgv;
+    _poptFreeContext;
+    _poptGetArg;
+    _poptGetArgs;
+    _poptGetContext;
+    _poptGetInvocationName;
+    _poptGetNextOpt;
+    _poptGetOptArg;
+    _poptHelpOptions;
+    _poptHelpOptionsI18N;
+    _poptParseArgvString;
+    _poptPeekArg;
+    _poptPrintHelp;
+    _poptPrintUsage;
+    _poptReadConfigFile;
+    _poptReadDefaultConfig;
+    _poptResetContext;
+    _poptSaveInt;
+    _poptSaveLong;
+    _poptSetExecPath;
+    _poptSetOtherOptionHelp;
+    _poptStrerror;
+    _poptStrippedArgv;
+    _poptStuffArgs;
+  local:
+    *;
+};

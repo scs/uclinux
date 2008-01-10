@@ -1,0 +1,120 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: popt 1.12\n"
+"Report-Msgid-Bugs-To: <popt-devel@rpm5.org>\n"
+"POT-Creation-Date: 2007-11-14 15:19-0500\n"
+"PO-Revision-Date: 2001-07-05 21:00-0500\n"
+"Last-Translator: Eugene Kanter <eugene@blackcatlinux.com>\n"
+"Language-Team: Black Cat Linux Team <blackcat-support@blackcatlinux.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=koi8-r\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: popt.c:35
+msgid "unknown errno"
+msgstr "неизвестный номер ошибки"
+
+#: popt.c:981
+#, c-format
+msgid "option type (%d) not implemented in popt\n"
+msgstr "обработка параметра (%d) в popt не предусмотрена\n"
+
+#: popt.c:1187
+msgid "missing argument"
+msgstr "пропущен аргумент"
+
+#: popt.c:1189
+msgid "unknown option"
+msgstr "неизвестный параметр"
+
+#: popt.c:1191
+msgid "mutually exclusive logical operations requested"
+msgstr "запрошены взаимно исключающие логические операции"
+
+#: popt.c:1193
+msgid "opt->arg should not be NULL"
+msgstr "opt->arg не может быть NULL"
+
+#: popt.c:1195
+msgid "aliases nested too deeply"
+msgstr "превышен уровень допустимой рекурсии подстановок"
+
+#: popt.c:1197
+msgid "error in parameter quoting"
+msgstr "ошибкa помещения параметров в кавычки"
+
+#: popt.c:1199
+msgid "invalid numeric value"
+msgstr "неправильное числовое значение"
+
+#: popt.c:1201
+msgid "number too large or too small"
+msgstr "числовое значение за пределами предусмотренного"
+
+#: popt.c:1203
+msgid "memory allocation failed"
+msgstr "ошибка выделения памяти"
+
+#: popt.c:1207
+msgid "unknown error"
+msgstr "неизвестная ошибка"
+
+#: popthelp.c:74 popthelp.c:85
+msgid "Show this help message"
+msgstr "Показать это сообщение"
+
+#: popthelp.c:75 popthelp.c:86
+msgid "Display brief usage message"
+msgstr "Показать краткую инструкцию по использованию"
+
+#: popthelp.c:89
+msgid "Display option defaults in message"
+msgstr "Показать параметры по умолчанию"
+
+#: popthelp.c:163
+msgid "Help options:"
+msgstr ""
+
+#: popthelp.c:164
+msgid "Options implemented via popt alias/exec:"
+msgstr ""
+
+#: popthelp.c:172
+msgid "NONE"
+msgstr "NONE"
+
+#: popthelp.c:174
+msgid "VAL"
+msgstr "VAL"
+
+#: popthelp.c:178
+msgid "INT"
+msgstr "INT"
+
+#: popthelp.c:179
+msgid "LONG"
+msgstr "LONG"
+
+#: popthelp.c:180
+msgid "STRING"
+msgstr "STRING"
+
+#: popthelp.c:181
+msgid "FLOAT"
+msgstr "FLOAT"
+
+#: popthelp.c:182
+msgid "DOUBLE"
+msgstr "DOUBLE"
+
+#: popthelp.c:184
+msgid "ARG"
+msgstr "ARG"
+
+#: popthelp.c:597
+msgid "Usage:"
+msgstr "Использование:"
+
+#: popthelp.c:619
+msgid "[OPTION...]"
+msgstr "[ПАРАМЕТР...]"

@@ -1,0 +1,162 @@
+/* config.h.in.  Generated from configure.ac by autoheader.  */
+
+/* Predefined possible va_copy() implementation (id: ASP) */
+#define __VA_COPY_USE_ASP(d, s) do { *(d) = *(s); } while (0)
+
+/* Predefined possible va_copy() implementation (id: ASS) */
+#define __VA_COPY_USE_ASS(d, s) do { (d) = (s); } while (0)
+
+/* Predefined possible va_copy() implementation (id: C99) */
+#define __VA_COPY_USE_C99(d, s) va_copy((d), (s))
+
+/* Predefined possible va_copy() implementation (id: CPP) */
+#define __VA_COPY_USE_CPP(d, s) memcpy((void *)(d), (void *)(s)), sizeof(*(s))
+
+/* Predefined possible va_copy() implementation (id: CPS) */
+#define __VA_COPY_USE_CPS(d, s) memcpy((void *)&(d), (void *)&(s)), sizeof((s))
+
+/* Define to 1 if translation of program messages to the user's native
+   language is requested. */
+#undef ENABLE_NLS
+
+/* Predefined possible va_copy() implementation (id: GCB) */
+#define __VA_COPY_USE_GCB(d, s) __builtin_va_copy((d), (s))
+
+/* Predefined possible va_copy() implementation (id: GCH) */
+#define __VA_COPY_USE_GCH(d, s) __va_copy((d), (s))
+
+/* Predefined possible va_copy() implementation (id: GCM) */
+#define __VA_COPY_USE_GCM(d, s) VA_COPY((d), (s))
+
+/* Define to 1 if you have the MacOS X function CFLocaleCopyCurrent in the
+   CoreFoundation framework. */
+#undef HAVE_CFLOCALECOPYCURRENT
+
+/* Define to 1 if you have the MacOS X function CFPreferencesCopyAppValue in
+   the CoreFoundation framework. */
+#undef HAVE_CFPREFERENCESCOPYAPPVALUE
+
+/* Define if the GNU dcgettext() function is already present or preinstalled.
+   */
+#undef HAVE_DCGETTEXT
+
+/* Define to 1 if you have the <dlfcn.h> header file. */
+#undef HAVE_DLFCN_H
+
+/* Define to 1 if you have the <float.h> header file. */
+#undef HAVE_FLOAT_H
+
+/* Define to 1 if you have the `geteuid' function. */
+#undef HAVE_GETEUID
+
+/* Define if the GNU gettext() function is already present or preinstalled. */
+#undef HAVE_GETTEXT
+
+/* Define to 1 if you have the `getuid' function. */
+#undef HAVE_GETUID
+
+/* Define if you have the iconv() function. */
+#undef HAVE_ICONV
+
+/* Define to 1 if you have the <inttypes.h> header file. */
+#undef HAVE_INTTYPES_H
+
+/* Define to 1 if you have the <langinfo.h> header file. */
+#undef HAVE_LANGINFO_H
+
+/* Define to 1 if you have the <libintl.h> header file. */
+#undef HAVE_LIBINTL_H
+
+/* Define to 1 if you have the <mcheck.h> header file. */
+#undef HAVE_MCHECK_H
+
+/* Define to 1 if you have the <memory.h> header file. */
+#undef HAVE_MEMORY_H
+
+/* Define to 1 if you have the `mtrace' function. */
+#undef HAVE_MTRACE
+
+/* Define to 1 if you have the `setregid' function. */
+#undef HAVE_SETREGID
+
+/* Define to 1 if you have the <stdint.h> header file. */
+#undef HAVE_STDINT_H
+
+/* Define to 1 if you have the <stdlib.h> header file. */
+#undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the `strerror' function. */
+#undef HAVE_STRERROR
+
+/* Define to 1 if you have the <strings.h> header file. */
+#undef HAVE_STRINGS_H
+
+/* Define to 1 if you have the <string.h> header file. */
+#undef HAVE_STRING_H
+
+/* Define to 1 if you have the <sys/stat.h> header file. */
+#undef HAVE_SYS_STAT_H
+
+/* Define to 1 if you have the <sys/types.h> header file. */
+#undef HAVE_SYS_TYPES_H
+
+/* Define to 1 if you have the <unistd.h> header file. */
+#undef HAVE_UNISTD_H
+
+/* Define if va_copy() macro exists (and no fallback implementation is
+   required) */
+#undef HAVE_VA_COPY
+
+/* Define to 1 if you have the `__secure_getenv' function. */
+#undef HAVE___SECURE_GETENV
+
+/* Name of package */
+#undef PACKAGE
+
+/* Define to the address where bug reports for this package should be sent. */
+#undef PACKAGE_BUGREPORT
+
+/* Define to the full name of this package. */
+#undef PACKAGE_NAME
+
+/* Define to the full name and version of this package. */
+#undef PACKAGE_STRING
+
+/* Define to the one symbol short name of this package. */
+#undef PACKAGE_TARNAME
+
+/* Define to the version of this package. */
+#undef PACKAGE_VERSION
+
+/* Full path to popt top_srcdir. */
+#undef POPT_SOURCE_PATH
+
+/* Full path to default POPT configuration directory */
+#undef POPT_SYSCONFDIR
+
+/* Define to 1 if the C compiler supports function prototypes. */
+#undef PROTOTYPES
+
+/* Define to 1 if you have the ANSI C header files. */
+#undef STDC_HEADERS
+
+/* Version number of package */
+#undef VERSION
+
+/* Number of bits in a file offset, on hosts where this is settable. */
+#undef _FILE_OFFSET_BITS
+
+/* Define for large files, on AIX-style hosts. */
+#undef _LARGE_FILES
+
+/* Define like PROTOTYPES; this can be used by system headers. */
+#undef __PROTOTYPES
+
+/* Optional va_copy() implementation activation */
+#ifndef HAVE_VA_COPY
+#define va_copy(d, s) __VA_COPY_USE(d, s)
+#endif
+
+
+/* Define to id of used va_copy() implementation */
+#undef __VA_COPY_USE
