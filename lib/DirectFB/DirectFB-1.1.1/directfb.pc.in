@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: DirectFB
+Description: Graphics and windowing library for the Linux frame buffer device
+Version: @VERSION@
+Requires: fusion direct
+Libs: -L${libdir} -ldirectfb @THREADLIB@ @OSX_LIBS@
+Libs.private: -L${libdir} @DYNLIB@ @ZLIB_LIBS@
+Cflags: @THREADFLAGS@ -I@INCLUDEDIR@

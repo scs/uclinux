@@ -3,6 +3,7 @@
 bool 'Build ALSA lib'		CONFIG_LIB_ALSA_LIB_FORCE
 bool 'Build avahi'		CONFIG_LIB_AVAHI_FORCE
 bool 'Build cgic'		CONFIG_LIB_CGIC_FORCE
+bool 'Build DirectFB'		CONFIG_LIB_DIRECTFB_FORCE
 bool 'Build dmalloc'		CONFIG_LIB_DMALLOC_FORCE
 bool 'Build bluez-lib'		CONFIG_LIB_BLUEZ_FORCE
 bool 'Build faad2'		CONFIG_LIB_FAAD2_FORCE
