@@ -65,7 +65,7 @@ endif
 image::
 	mkdir -p $(IMAGEDIR)
 	rm -rf $(IMAGEDIR)/*
-	rm -rf $(ROMFSDIR)/dev;
+	rm -rf $(ROMFSDIR)/dev
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
@@ -75,7 +75,7 @@ image::
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
 		$(MKFS_JFFS2) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
 	fi
-ifneq ($(CONFIG_YAFFS_FS),)
+ifeq ($(CONFIG_YAFFS_FS),y)
 	set -e ; \
 	if [ -x "$(MKFS_YAFFS)" -a -n "$(CONFIG_YAFFS_YAFFS1)" ]; then \
 		$(MKFS_YAFFS) $(ROMFSDIR) $(ROMFSIMG).yaffs > /dev/null ; \
@@ -84,19 +84,19 @@ ifneq ($(CONFIG_YAFFS_FS),)
 		$(MKFS_YAFFS2) $(ROMFSDIR) $(ROMFSIMG).yaffs2 > /dev/null ; \
 	fi
 endif
-ifneq ($(CONFIG_CRAMFS),)
+ifeq ($(CONFIG_CRAMFS),y)
 	$(CROSS_COMPILE)mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
 endif
-ifneq ($(CONFIG_EXT2_FS),)
+ifeq ($(CONFIG_EXT2_FS),y)
 	$(CROSS_COMPILE)genext2fs -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
 endif
-ifneq ($(CONFIG_ROMFS_FS),)
+ifeq ($(CONFIG_ROMFS_FS),y)
 	set -e ; \
 	if which genromfs >/dev/null 2>&1; then \
 		$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
