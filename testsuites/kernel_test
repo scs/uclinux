@@ -408,7 +408,7 @@ do
   cp $UCLINUX_DIST_PATH/images/rootfs.jffs2  $THIS_LOG/rootfs.jffs2.${AUTO_TESTCASE[$i]}
   fi
  
-  if [ ${AUTO_TESTCASE[$i]} == "kgdb" ] ; then
+  if [ ${AUTO_TESTCASE[$i]} == "kgdb" ] || [ ${AUTO_TESTCASE[$i]} == "spimmc" ] || [ ${AUTO_TESTCASE[$i]} == "sdiommc" ]; then
   cp $UCLINUX_DIST_PATH/linux-2.6.x/vmlinux  $THIS_LOG/vmlinux.${AUTO_TESTCASE[$i]}
   fi
 
