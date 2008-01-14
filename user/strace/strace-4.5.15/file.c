@@ -2414,6 +2414,10 @@ struct tcb *tcp;
 #endif /* SUNOS4 */
 		i += d->d_reclen;
 		dents++;
+		if (!d->d_reclen) {
+			fprintf(stderr, "[error: d->d_reclen == 0] ");
+			break;
+		}
 	}
 	if (!abbrev(tcp))
 		tprintf("}");
@@ -2466,6 +2470,10 @@ struct tcb * tcp;
 		}
 		i += d->d_reclen;
 		dents++;
+		if (!d->d_reclen) {
+			fprintf(stderr, "[error: d->d_reclen == 0] ");
+			break;
+		}
 	}
 	if (!abbrev(tcp))
 		tprintf("}");
