@@ -1,4 +1,6 @@
-VER = strace-4.4
+VER = strace-4.5.15
+
+FLTFLAGS = -s 20000
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER)
@@ -16,5 +18,6 @@ clean:
 
 romfs:
 	$(ROMFSINST) build-$(VER)/strace /bin/strace
+	$(ROMFSINST) -e CONFIG_USER_PERL_PERL build-$(VER)/strace-graph /bin/strace-graph
 
 .PHONY: all clean romfs
