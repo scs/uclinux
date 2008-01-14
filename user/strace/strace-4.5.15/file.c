@@ -1645,7 +1645,6 @@ printstatfs64(tcp, addr)
 struct tcb *tcp;
 long addr;
 {
-#ifndef BFIN
 	struct statfs64 statbuf;
 
 	if (syserror(tcp) || !verbose(tcp)) {
@@ -1671,14 +1670,12 @@ long addr;
 	tprintf(", f_frsize=%llu", (unsigned long long)statbuf.f_frsize);
 #endif
 	tprintf("}");
-#endif
 }
 
 int
 sys_statfs64(tcp)
 struct tcb *tcp;
 {
-#ifndef BFIN
 	if (entering(tcp)) {
 		printpath(tcp, tcp->u_arg[0]);
 		tprintf(", %lu, ", tcp->u_arg[1]);
@@ -1688,7 +1685,6 @@ struct tcb *tcp;
 		else
 			tprintf("{???}");
 	}
-#endif
 	return 0;
 }
 
@@ -1696,7 +1692,6 @@ int
 sys_fstatfs64(tcp)
 struct tcb *tcp;
 {
-#ifndef BFIN
 	if (entering(tcp)) {
 		tprintf("%lu, %lu, ", tcp->u_arg[0], tcp->u_arg[1]);
 	} else {
@@ -1705,7 +1700,6 @@ struct tcb *tcp;
 		else
 			tprintf("{???}");
 	}
-#endif
 	return 0;
 }
 #endif
@@ -2793,7 +2787,6 @@ int
 sys_fadvise64_64(tcp)
 struct tcb *tcp;
 {
-#ifndef BFIN
     if (entering(tcp)) {
 	tprintf("%ld, %lld, %lld, ",
 		tcp->u_arg[0],
@@ -2806,7 +2799,6 @@ struct tcb *tcp;
 	printxval(advise, tcp->u_arg[5], "POSIX_FADV_???");
 #endif
     }
-#endif
     return 0;
 }
 
