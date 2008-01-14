@@ -339,7 +339,7 @@
 	{ 6,	TD,	sys_pselect6,		"pselect6"	}, /* 308 */
 	{ 5,	TD,	sys_ppoll,		"ppoll"		}, /* 309 */
 	{ 1,	TP,	sys_unshare,		"unshare"	}, /* 310 */
-	{ 2,	0,	printargs,		"sram_alloc" }, /* 311 */
+	{ 2,	0,	sys_sram_alloc,		"sram_alloc" }, /* 311 */
 	{ 1,	0,	printargs,		"sram_free" }, /* 312 */
 	{ 3,	0,	printargs,		"dma_memcpy" }, /* 313 */
 	{ 3,	TN,	sys_accept,		"accept"	}, /* 314 */

@@ -315,3 +315,7 @@ int sys_capget(), sys_capset();
 #ifdef M68K
 int sys_cacheflush();
 #endif
+
+#ifdef BFIN
+int sys_sram_alloc();
+#endif
