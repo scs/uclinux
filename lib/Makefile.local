@@ -65,6 +65,8 @@ dir_3_$(CONFIG_LIB_TSLIB_FORCE)      += tslib-1.0
 dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
 dir_3_$(CONFIG_LIB_CRYPTOPP_FORCE)   += crypto++lib
 dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
+dir_3_$(CONFIG_LIB_CONFUSE_FORCE)    += libconfuse
+dir_3_$(CONFIG_LIB_CONFUSE)          += libconfuse
 
 dir_4_$(CONFIG_LIB_LIBEXOSIP_FORCE)  += libeXosip
 dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip
