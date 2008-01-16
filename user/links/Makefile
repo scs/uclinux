@@ -19,5 +19,5 @@ clean:
 	rm -rf build-*
 
 romfs:
-
+	$(ROMFSINST) build-links-2.1pre32/links /bin/links
 .PHONY: all clean romfs

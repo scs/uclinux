@@ -534,6 +534,14 @@ fi
 
 bool 'l2tpd'			CONFIG_USER_L2TPD_L2TPD
 
+bool 'links (web browswer)'	CONFIG_USER_LINKS_LINKS
+if [ "$CONFIG_USER_LINKS_LINKS" = "y" ] ; then
+	define_bool	CONFIG_LIB_DIRECTFB y
+	define_bool	CONFIG_LIB_ZLIB y
+	define_bool	CONFIG_LIB_LIBJPEG y
+	define_bool	CONFIG_LIB_LIBPNG y
+fi
+
 bool 'linux-igd'        CONFIG_USER_LINUXIGD_LINUXIGD
 if [ "$CONFIG_USER_LINUXIGD_LINUXIGD" = "y" ]; then
     define_bool CONFIG_LIB_LIBUPNP y
