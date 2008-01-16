@@ -101,7 +101,6 @@ mainmenu_option next_comment
 comment 'Blackfin app programs'
 
 bool	'lmbench'			CONFIG_USER_LMBENCH
-bool	'strace'			CONFIG_USER_BLACKFIN_STRACE
 bool	'devtest'			CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
 bool	'devout'			CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT
 bool	'rsh'				CONFIG_USER_INETUTILS_RSH
