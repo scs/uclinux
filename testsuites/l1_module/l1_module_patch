@@ -81,8 +81,8 @@ diff -Naur -x CVS /home/aubrey/commit/kernel/uClinux-dist/linux-2.6.x/drivers/ch
 +++ char/Makefile	2006-08-09 10:39:32.000000000 +0800
 @@ -51,6 +51,7 @@
  
- obj-$(CONFIG_SPIDMA_BF53x) += adsp-spidma.o
  obj-$(CONFIG_AD9960)		+= ad9960.o
+ obj-$(CONFIG_BFIN_OTP)		+= bfin-otp.o
 +obj-$(CONFIG_MODULE_L1_EXAMPLE) += hello.o
  obj-$(CONFIG_SPI_ADC_BF533) += bfin_spi_adc.o
  obj-$(CONFIG_BFIN_TIMER_LATENCY) += bfin_timer_latency.o
