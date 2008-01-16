@@ -1,0 +1,40 @@
+--- xmame/makefile.mame
++++ xmame/makefile.mame
+@@ -275,7 +275,7 @@
+ LIBS = 
+ 
+ # add expat XML library
+-ifdef BUILD_EXPAT
++ifeq ($(BUILD_EXPAT),1)
+ CFLAGS += -Isrc/expat
+ OBJDIRS += $(OBJ)/expat
+ EXPAT = $(OBJ)/libexpat.a
+@@ -285,7 +285,7 @@
+ endif
+ 
+ # add ZLIB compression library
+-ifdef BUILD_ZLIB
++ifeq ($(BUILD_ZLIB),1)
+ CFLAGS += -Isrc/zlib
+ OBJDIRS += $(OBJ)/zlib
+ ZLIB = $(OBJ)/libz.a
+--- xmame/makefile.mes
++++ xmame/makefile.mes
+@@ -327,7 +327,7 @@
+ LIBS = 
+ 
+ # add expat XML library
+-ifdef BUILD_EXPAT
++ifeq ($(BUILD_EXPAT),1)
+ CFLAGS += -Isrc/expat
+ OBJDIRS += $(OBJ)/expat
+ EXPAT = $(OBJ)/libexpat.a
+@@ -337,7 +337,7 @@
+ endif
+ 
+ # add ZLIB compression library
+-ifdef BUILD_ZLIB
++ifeq ($(BUILD_ZLIB),1)
+ CFLAGS += -Isrc/zlib
+ OBJDIRS += $(OBJ)/zlib
+ ZLIB = $(OBJ)/libz.a

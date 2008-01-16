@@ -1,0 +1,515 @@
+0.106
+-----
+
+
+Source Changes
+--------------
+Fixed vconv.exe so it doesn't use options that have been deprecated
+in MSVC 2005. [Aaron Giles]
+
+Fixed crash in the model3 games introduced by cleaning up empty ROM
+regions. [Ville Linde]
+
+
+
+0.105u5
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+memory0105u4red [Aaron Giles]
+
+
+
+Source Changes
+--------------
+Cleaned up the freekick.c driver [Sonikos]:
+ - added 2nd button in gigas/gias2m/oigas
+ - matched the Z80 chip mhz to the "confirmed" mhz of gigas
+
+Extended the gfxlayout structure to support "extended" arrays of
+x and y offsets. These are used for layouts that are larger than
+32x32. This enables the standard structure to be smaller for the
+vast majority of games that don't require huge graphics decodes.
+The end result is that the MAME .exe is ~3MB smaller.
+[Atari Ace, Aaron Giles]
+
+Added some Amiga enhancements needed for MESS Amiga and CDTV 
+drivers. [Dirk Best]
+
+Removed non-existant 3rd & 4th player controls from deadconx.
+[Don Maeby]
+
+Improvements to the MACS driver: [Tomasz Slanina]
+ - fixed a couple of gfx bugs in st0016 video emulation
+ - added hacks to allow MACS games to boot
+ - removed REGION_DISPOSE flag from srmp5 and speaglsht (no more 
+    crashes)
+
+Fixed/improved DIP switches in the powerbal.c, konamigx.c, and 
+gsword.c drivers. [Twisty]
+
+More improvements to the BFM driver and the 6840 timer emulation.
+[El Condor]
+
+Improvements to the x86 drc engine and the Windows blitters:
+ - Blitter CPUID features now accessed by drc_x86_get_features() call
+ - Added win_blit_init(), to initialize the blitter
+ - Changes to DRC to support usage for things other than CPU cores
+ - Fixed drc_dasm() so it works once again
+ - Added macros for a number of MMX/SSE instructions
+ - Added a number of MMX/SSE instructions to the i386 disassembler
+
+Actually applied the Marine Date fixes which were mentioned in a
+previous u release. [Aaron Giles]
+
+Added experimental support for building using Visual C++ 2003/2005.
+To do this, you still need the mingw environment (ironically) because
+we rely on the mingw make system to call out to the MSVC compilers.
+Set the variable MSVC_BUILD=1 on the command line or by modifying
+windows.mak, and it will build using the Microsoft compilers. This
+works through the use of a stub program vconv.exe which translates
+gcc options into MSVC options. As a bootstrapping measure, vconv.exe
+is compiled at the start of a clean build by mingw. Most of the
+standard build options just work (SYMBOLS, MAP, DEBUG, etc). If you
+have a beefy computer, you can also set MAXOPT=1 and use link-time
+code generation for maximum optimization effect. :) [Aaron Giles]
+
+Added preliminary support for 64-bit targets. A new makefile define
+PTR64 should be set if you are compiling for a 64-bit target. This
+propogates a PTR64 define into the C files as well. Made the makefile
+smart enough to auto-disable the drc cores for 64-bit, and removed
+most of the roadblocks to a 64-bit build, apart from the assembly
+blitters, which are currently undergoing a rewrite. [Aaron Giles]
+
+
+
+New games added or promoted from NOT_WORKING status
+---------------------------------------------------
+Hidden Catch 2 [Pierpaolo Prazzoli, Guru]
+Fishing Maniac 3 [Pierpaolo Prazzoli, Guru]
+Yu-Ka [Tomasz Slanina]
+Yu-Jan [Tomasz Slanina]
+
+
+
+New clones added
+----------------
+Greyhound Selection (Version 40.02TMB) set 2 [Brian Troha]
+Greyhound Poker (3 new sets) [Brian Troha]
+
+
+New games marked as GAME_NOT_WORKING
+------------------------------------
+Master Boy [David Haywood]
+Intersecti [David Haywood]
+
+
+
+0.105u4
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+invaders0105u2gre [Giuseppe Gorgoglione]
+taitosj0105u3yel [Aaron Giles]
+wardner0105u3red [Aaron Giles]
+
+
+
+Source Changes
+--------------
+Nintendo 64 system improvements: [Ville Linde, Ryan Holtz]
+ - Fixed a major bug in the RSP core
+ - Rewrote the PIF handling
+ - Slightly improved triangle rendering
+
+Added a NULL check on memory_set_bankptr(), memory_configure_bank() 
+and memory_configure_bank_decrypted(). [Nathan Woods]
+
+Added support in the debugger memory window to change the number
+of bytes displayed per row. [Andrew Gardner]
+
+Started simulation of orlegend super / special protection.
+[XingXing, ElSemi]
+
+Fixed colors and music tempo in Perfect Billiard. [Sonikos]
+
+Cleaned up 6840 implementation and revised scorpion2 driver's 
+handling of unmapped regions. Also updated the MPU4 memory
+map. [El Condor]
+
+Major Toaplan 2 driver cleanup: [Quench]
+ - Added Knuckle Bash 2 (kbash2)
+ - Consolidated the Read/Write memory maps
+ - Fixed coin counters on a few games
+ - Raised the volumes on a few games
+ - Cleaned the inputs by:
+    Adding input inheritance and DIPSW locations
+    Added conditional dependance to DIPSWs where required
+    Fixing a few incorrect inputs here and there
+
+Fixed/improved DIP switches in the m92, afega, tumbleb, and yunsun16 
+drivers. [Twisty]
+
+Cleaned up the liberate.c driver. [Sonikos]
+
+Improved ARM7 thumb mode disassembler. [MooglyGuy]
+
+Some improvements to Air Raid/Cross Shooter, but not playable 
+due to missing gfx roms. [Tomasz Slanina]
+
+Fixed UI positioning when artwork is enabled. [Giuseppe Gorgoglione]
+
+Big pile of updates/improvements to the ARM7 core thumb mode and
+the PGM drivers. [David Haywood, ElSemi]
+
+Improved OKI frequency in sslam and powerbls. [f205v]
+
+More DIP switch improvements to m62.c, m72.c, ddragon.c. [Twisty]
+
+Fixed bug in the debugger that would prevent you from typing a
+command line longer than what was visible. [Aaron Giles]
+
+Added a new tool jedutil, which will convert .JED files to binary
+form and back again. [Aaron Giles]
+
+Added new ROM region REGION_PLDS, which is designed to hold binary
+dumps of PLD fusemaps (produced from .JED files by jedutil). Added
+logic to -romident to automatically parse .JED files to identify them
+against these binary dumps. Added PLD dumps to the Vindicators,
+Batman, Pit Fighter, ThunderJaws, and Relief Pitcher drivers. More to
+come shortly. [Aaron Giles]
+
+Converted PLDs for catnmous and lazarian to the new binary format.
+[Aaron Giles]
+
+
+
+New games added or promoted from NOT_WORKING status
+---------------------------------------------------
+Tetris (D.R. Korea) [David Haywood]
+Knuckle Bash 2 (bootleg) [Quench]
+
+
+
+New clones added
+----------------
+Metal Slug 6 (Metal Slug 3 bootleg) [Mame32Plus]
+Metal Slug 5 (JAMMA PCB) [Mame32Plus]
+SVC Chaos - SNK vs CAPCOM (JAMMA PCB, set 2) [Mame32Plus]
+Night Slashers (Over Sea Rev 1.2) [Stefan Lindberg]
+Double Dragon (World Set 2) [Stefan Lindberg]
+
+
+
+0.105u3
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+mystston097u3yel [David Haywood]
+decocass0105u2yel [Aaron Giles]
+taitosj0105u2yel [Aaron Giles]
+vicdual0105u2gre [Aaron Giles]
+chqflag0105u2red [Aaron Giles]
+
+
+
+Source Changes
+--------------
+Fixed and cleaned up the DIP switches in the dec0 driver.
+[Roberto Fresca]
+
+More improvements to the PGM video code. Also added hooks for halting
+the sound CPU which allows ddp2 to boot. [David Haywood] 
+
+Fixed incorrect lightgun names. [Derrick Renaud]
+
+Fixed Bonze Adventure levels 2 & 9. [Bryan McPhail]
+
+Refactored the 8530 CIA code from the Amiga into a separate module
+and made it support both the 6526 and 8530 variants. [Nathan Woods]
+
+Fixed/improved DIP switches in the megasys1, dietgo, and yunsun16
+drivers. [Twisty]
+
+Fixed some DIP switches and added controls for 2nd player in cocktail 
+mode in Lost Castle in Darkmist. [Sonikos]
+
+Fixed a number of issues in the Windows rendering code:
+[Giuseppe Gorgoglione]
+ * fixed blit_vectors so it used the dirty pixel array in D3D mode
+ * fixed blit_vectors rotation issue for dirty pixels as well
+ * changed -full_screen_brightness to -full_screen_gamma
+    (which is a more correct description)
+ * changed -d3dfilter to be a boolean, since the other filtering modes
+    are either obsolete or not applicable to MAME
+ * removed limitations on windowing position so you no longer need to
+    be aligned on an 8-pixel boundary
+ * cleaned up a number of unused global variables
+ * improved multi-monitor support to work in GDI mode as well as in
+    non-full-screen modes
+ * added missing documentation for the -screen parameter
+
+Fixed some remaining errors and inconsistencies in the content and 
+usage of MAME header files by comparing declarations against actual
+definitions. Removed many orphaned/duplicate declarations. Added
+#includes where appropriate, and moved a few declarations to another
+file when they were in the wrong location. [Atari Ace]
+
+Removed a number of unused ROM regions. Most (but not all) of the
+empty ROM region warnings are now taken care of. Also uncommented/
+added missing undumped ROMs/XORs in the Namco and CPS2 games.
+[Aaron Giles]
+ 
+More Amiga cleanups: [Aaron Giles]
+ * fixed dual playfield mode
+ * rewrote blitter code (fixes glitches in ar_bowl and others)
+ * changed Arcadia boot loading to use ROMtags instead of autoconfig
+ * swapped Kickstart 1.2 in for Arcadia BIOS (fixes ar_sdwr)
+
+
+
+New games added or promoted from NOT_WORKING status
+---------------------------------------------------
+Puzzle Star [XingXing]
+Marine Date [MAME32Plus]
+Speed Up [Aaron Giles]
+Up Scope [Mariusz Wojcieszek, Tomasz Slanina, Aaron Giles]
+Greyhound Poker (Version 50.02) [Pierpaolo Prazzoli]
+
+
+
+New clones added
+----------------
+The Pit (Bootleg) [Brian Troha]
+Amidar (Bootleg) [Brian Troha]
+Moon Cresta (bootleg set 3) [Brian Troha]
+Xexex (ver AAA) [Corrado Tomaselli]
+
+
+
+New games marked as GAME_NOT_WORKING
+------------------------------------
+The Gladiator [David Haywood]
+
+
+
+0.105u2
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+raizing0105u1red [Ville Linde]
+psbasedgames0105u1red [Nathan Woods]
+
+
+
+Source Changes
+--------------
+Fixed Monster World DIP switches. [Sonikos]
+
+Fixed floating point rounding error in the PowerPC FPU. [Ville Linde]
+
+Some more work on the Killing Blade protection. [El Semi]
+
+Reorganized and cleaned up the PGM sprite drawing code a bit. Added
+zooming support. [David Haywood]
+
+Did some cleanup on the 6821 PIA functions, converting to new MAME
+struct conventions and enforcing that configuration/initialization
+happens only at init time. [Nathan Woods]
+
+Fixed some unknown DIP switches in Galivan and Dangar Ufo Robo.
+[Twisty]
+
+Some improvements to Playmark's Roulette, though it still doesn't
+quite work properly. [David Haywood]
+
+Fixed Showdown start button. [Don Maeby]
+
+Fixed sound frequency in Shocking. [Brian Troha, Guru]
+
+Fixes to Top Roller: [Tomasz Slanina]
+ - correct colors
+ - fixed gfx bugs
+ - better audio (added rom with samples)
+There's still minor problem with fg text layer colors.
+
+Made "This game doesn't work" text more explicit. [Olivier Galibert]
+
+Added PAIR and PAIR64 as valid save state types. [Nathan Woods]
+
+More Amiga/Arcadia system updates: [Aaron Giles]
+ - Rewrote autoconfig system to be more generically useful
+ - Cleaned up/rewrote the CIA emulation to be more complete
+ - Added dual playfield and sprite priority support
+ - Added collision detection support
+ - Tweaked COPPER timing to fix scores on Fast Break
+ - Shuffled the BIOSes so that the newer version is the default
+
+
+
+New games added or promoted from NOT_WORKING status
+---------------------------------------------------
+Mang-Chi [David Haywood, Brian Troha]
+New Hidden Catch [Pierpaolo Prazzoli]
+
+
+
+New clones added
+----------------
+Abscam [David Widel]
+Ms. Pac-Man (bootleg, encrypted) [David Widel]
+Billiard Academy Real Break (Korea) [Corrado Tomaselli]
+Carrier Air Wing (World 901009) [Stefan Lindberg]
+Plasma Sword (ASIA 980316) [Chris Hardy]
+
+
+
+New games marked as GAME_NOT_WORKING
+------------------------------------
+Total Vice [Curt Coder]
+Sega Ski Super G [R. Belmont]
+Over Rev [R. Belmont]
+Sliver [David Haywood]
+Puck People [David Haywood]
+
+
+
+0.105u1
+-------
+
+
+MAMETesters Bugs Fixed
+----------------------
+metmqstr0105yel [Aaron Giles]
+
+
+
+Source Changes
+--------------
+Cleaned up the usage of includes/*.h files across the project, by
+ensuring that:
+ 1. All includes/foo.h files are annotated with comments describing 
+     the source of the declarations.
+ 2. Each source file so annotated also explicitly does an
+     #include "includes/foo.h" to ensure consistent definitions.
+Along the way a number of inconsistent, irrelevant, and incomplete
+declarations were removed/cleaned up. [Atari Ace]
+
+Moved calls to ui_set_visible_area() into set_visible_area() to work
+around timing problems when they are called at separate times during
+a single frame. [Nathan Woods]
+
+Updated CPS driver to more accurately draw tilemaps, based on
+evidence from a board with mixed ROMs. [David Haywood]
+
+Fixed crash bug in old debugger introduced in the last release.
+[Olivier Galibert]
+
+Added demo sounds DIP switch to Pig Newton. [Derrick Renaud]
+
+Fixed DIP switches in gunmast, batlbubl. [Brian Troha]
+
+Added simulated sound for tumbleb2 and pangpang. [David Haywood]
+
+Added accessors for the CA2, CB2 and IRQ signals on the 6821 PIA.
+[Nathan Woods]
+
+Accurate C-Chip emulation in Bonze Adventure to fix protection 
+problems (no more missing or made up data, all data extracted from 
+working pcb). [Bryan McPhail]
+
+Some cleanups to the Taito F3 naming. [Marco, Bryan McPhail]
+
+Fixed the Z80 PIO code to prevent an interrupt to occur between the 
+PIO_OP_MODE byte and mask which follows. According to the datasheet, 
+this is not permitted in hardware. [Robert]
+
+Added many FPU opcodes to the M68040 core. [Ville Linde]
+
+Fixed rom loading in all Taito JC games. [Ville Linde]
+
+Added TMS320C51 cpu core. [Ville Linde]
+
+Split out some of the Nintendo 64 core pieces into MESS-shareable
+modules. [R. Belmont]
+
+Removed hard linkage of game driver clones. This reduces hard 
+inter-driver dependencies and allows for easier usage of tiny.mak.
+[Atari Ace, Aaron Giles]
+
+Updates to the PGM driver: [El Semi]
+ - Corrected mask on sprite width parameter in sprite list
+ - Corrected decryption function for The Killing Blade
+ - Fixed GFX Rom loading in The Killing Blade
+ - Added set The Killing Blade (Taiwan?)
+ - Added some WIP protection simulation for The Killing Blade
+    (Taiwan?), game boots but at least one stage is broken
+
+Added $(OBJ)/%.s target to the makefile for easy disassembly
+analysis of generated code (you can also use the $(OBJ)/%.pp to
+examine preprocessor output). [Nathan Woods]
+
+Moved region and address space names out of the Windows-specific
+code and into more common locations. [Olivier Galibert]
+
+Fixed a bug with code comments that led to incorrect display for
+long comments. [Andrew Gardner]
+
+Added several missing H8 opcodes to the core and color DAC to 
+lastfght.c. [Tomasz Slanina]
+
+Changed -romident option so that it returns errorlevels based on how
+many ROMs were identified (0=all files identified, 1=all files except
+some non-ROM files identified, 2=some files identified, 3=no files
+identified). [Aaron Giles]
+
+Added stricter type checking for save state registrations (only works 
+in gcc). [Aaron Giles]
+
+Changed automatic ROM assignment logic in the memory system so that
+it doesn't auto-assign out-of-bounds ROM regions. [Aaron Giles]
+
+Changed memory save state registration so it doesn't register for
+saving memory areas that overlap memory regions. This means that 
+drivers which rely on extra memory regions for RAM will need to fix
+that before supporting save. [Aaron Giles]
+
+Modified a number of drivers that were using empty RAM regions for
+RAM or which had extraneous memory regions. Most significant changes
+were to the arcadia, nss, and stv drivers. [Aaron Giles]
+
+Added a warning during validity checks to point out empty memory
+regions. These should either be eliminated, or marked with an 
+explicit fill value (ROMREGION_ERASE00 or ROMREGION_ERASEFF) to clear
+the warnings. [Aaron Giles]
+
+Rewrote a large chunk of the Amiga emulation to support sound and
+additional video modes/effects including extra half-bright mode, 
+manual sprites, and mid-scanline changes. This is still a work
+in progress. [Aaron Giles]
+
+
+New games added or promoted from NOT_WORKING status
+---------------------------------------------------
+Pang Pang [David Haywood]
+Crazy Fight [Luca Elia]
+Puzzle King (Dance & Puzzle) [Pierpaolo Prazzoli]
+Fighter's History [Bryan McPhail]
+Sex Triv [Pierpaolo Prazzoli]
+
+
+
+New clones added
+----------------
+Battle Bubble [f205v, Corrado Tomaselli]
+Bonze Adventure (World, Older) [Bryan McPhail]
+Fantasia II (set 2, less explicit) [HIGHWAYMAN]
+The Killing Blade (Taiwan?) [El Semi]

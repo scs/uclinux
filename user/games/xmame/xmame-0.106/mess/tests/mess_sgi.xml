@@ -1,0 +1,8 @@
+<tests>
+
+<test name="ip225015_000" driver="ip225015">
+	<wait time="1"/>
+	<checkblank/>
+</test>
+
+</tests>

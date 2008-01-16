@@ -1,0 +1,83 @@
+Subject: Re: Implementing the hq2x algorithm in xmame
+Date: Saturday 18 October 2003 17:36
+From: "Maxim Stepin" <maxim@hiend3d.com>
+To: "Pieter Hulshoff" <phulshof@xs4all.nl>
+
+Yes, sure you can use it.
+Just give me a credit, that's all.
+
+Maxim.
+
+
+----- Original Message -----
+From: "Pieter Hulshoff" <phulshof@xs4all.nl>
+To: <maxim@hiend3d.com>
+Sent: Saturday, October 18, 2003 10:47 AM
+Subject: Implementing the hq2x algorithm in xmame
+
+
+>> Hello Maxim,
+>>
+>> I'd like to implement the hq2x algorithm in xmame, but I seem to be having
+>> a license issue. As xmame does not use the GPL, and I doubt I could
+>> convince the authors to release it as such, I would not be allowed to
+>> include your GPL code. Not that I could include it directly anyway (I've
+>> tried to analyze the algorithm, and I'll write my own implementation), but
+>> still. Would you consider allowing me to use the algorithm under the xmame
+>> license within that program? The xmame license can be found at x.mame.net.
+>>
+>> Kind regards,
+>>
+>> Pieter Hulshoff
+
+
+-------------------------------------------------------
+
+
+----------  Forwarded Message  ----------
+
+Subject: Re: hq2x and xmame
+Date: Sunday 19 October 2003 17:13
+From: Andrea Mazzoleni <amadvance@users.sourceforge.net>
+To: Pieter Hulshoff <phulshof@xs4all.nl>
+
+On 10/18, Pieter Hulshoff wrote:
+
+>> I'd like to implement the hq2x algorithm in xmame, but I seem to be running
+>> into some license issues (GPL vs xmame license).
+
+
+AdvanceMAME uses a rewritten implementation of the effects. It's GPL, but
+ it's allowed to link with MAME, so also with xmame.
+
+
+>> I've tried to contact Maxim
+>> Stepin about this, but both the addresses I could find of his get bounced
+>> as "discontinued". Would you happen to know how I could contact him?
+
+
+I used this address: maxim@hiend3d.com, anyway his code is downloadable on
+ his site and it's LGPL.
+
+
+>> Also, I've been unable to find the hq2x or even the scale2x code within
+>> advancemame sofar. Any hints you could give me so I could learn as to how
+>> it was implemented there for comparison?  :) 
+
+
+All the code is in the advance/blit directory. The hq*.* files are for the
+ HQ2/3/4x effects, the lq*.* files are for the LQ2/3/4x effects and the
+ scale*.* files are for the Scale2/3/4x effects. For any effect is defined a
+ function that apply the effect on a single scanline. These functions are
+ used in the advance/blit/blit.c file.
+
+Be warned that the advance/blit/interp.h file in the current AdvanceMAME
+ contains a precision error. You must get it from CVS or wait the upcoming
+ AdvanceMAME 0.75.0.
+
+--
+Andrea Mazzoleni
+935A 2D3C 5C70 BCD6 CB0C  ED89 7C19 4321 6340 3F6D
+
+-------------------------------------------------------
+

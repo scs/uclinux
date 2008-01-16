@@ -1,0 +1,247 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+	<head>
+		<title>MESS Guide</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<link href="../style.css" rel="stylesheet" type="text/css">
+	</head>
+	<body>
+		<h1>MESS Configuration Files</h1>
+		<p class="normal">This section deals with configuration files used by MESS. You 
+			will find an explanation on how to find create configuration files for your 
+			games and where to put them.
+		</p>
+			<hr>
+		<h2>Introduction</h2>
+		<p class="normal">
+		In MESS you have always been able to configure each game individually MESS 
+		GUI is the same. This is of great use if for instance you are having 
+		performance issues with systems or say want to run certain systems in windows 
+		and others in full screen. The command line version of MESS or Mame never had 
+		this option so you had to change the command line for each game you wanted 
+		different settings on.
+		<p class="normal">
+		Now with the latest versions of MESS and Mame you can have configuration files 
+		for any system or clone system you want and when MESS starts it will 
+		automatically load the settings for you.
+		<p class="normal">&nbsp;
+			<hr>
+		<h2>
+		Creating The Files
+        </h2>
+		<p class="normal">
+		The settings files are based on the <span class="filename">MESS.ini</span> file that is created when MESS 
+		starts. The easiest way to create a new config file is to simply duplicate the 
+		original file and remove/change the stuff you don't want.
+		<p class="normal">
+		Open you MESS folder and find the <span class="filename">MESS.ini</span> file. It'll look someting like 
+		this...
+		<p align="center"><img src="images/iniicon.gif" width="166" height="61" border="1">
+		<p class="normal">
+		Right click on the file and select copy. Now right click on a blank area and 
+		select paste and you will see a file &quot;copy of MESS&quot; appear. Right 
+		click over this file and select rename. In the box type the name of the sysem 
+		as it appears on the original BIOS zip file e.g. Atari 2600 = a2600.
+		<p class="normal">
+		It will keep things a lot tidier if you move your new config file to the ini 
+		folder. MESS will by default look there anyway.
+		<p class="normal">Double click your config file and it should open up in notepad. 
+			Below you can see the default <span class="filename">MESS.ini</span> file.
+			<table width="35%" border="1" cellpadding="3" align="center">
+				<tr>
+					<td>
+						<pre class="fixedsize">
+### mess.ini ###
+
+### Frontend Related ###
+clones 1
+
+### Windows path and directory options ###
+biospath bios
+softwarepath software
+CRC_directory crc
+samplepath samples
+inipath ini
+cfg_directory cfg
+nvram_directory nvram
+memcard_directory memcard
+input_directory inp
+hiscore_directory hi
+state_directory sta
+artwork_directory artwork
+snapshot_directory snap
+diff_directory diff
+ctrlr_directory ctrlr
+cheat_file cheat.dat
+sysinfo_file sysinfo.dat
+messinfo_file messinfo.dat
+
+### Windows video options ###
+autoframeskip 1
+frameskip 0
+waitvsync 0
+triplebuffer 0
+window 1
+ddraw 1
+direct3d 0
+hwstretch 1
+cleanstretch auto
+resolution auto
+zoom 2
+refresh 0
+scanlines 0
+switchres 1
+switchbpp 1
+maximize 0
+keepaspect 1
+matchrefresh 0
+syncrefresh 0
+throttle 1
+full_screen_brightness 1.000000
+frames_to_run 0
+effect none
+screen_aspect 4:3
+sleep 0
+rdtsc 1
+high_priority 0
+
+### Windows Direct3D 2D video options ###
+d3dtexmanage 1
+d3dfilter 1
+d3dfeedback 0
+d3dscan 100
+d3deffectrotate 1
+d3dprescale auto
+d3deffect auto
+# d3dcustom &lt;NULL&gt; (not set)
+# d3dexpert &lt;NULL&gt; (not set)
+
+### Windows sound options ###
+audio_latency 1
+
+### Input device options ###
+mouse 0
+joystick 0
+lightgun 0
+steadykey 0
+keyboard_leds 0
+a2d_deadzone 0.300000
+ctrlr Standard
+
+### MESS specific options ###
+newui 1
+# cartridge &lt;NULL&gt; (not set)
+# floppydisk &lt;NULL&gt; (not set)
+# harddisk &lt;NULL&gt; (not set)
+# cylinder &lt;NULL&gt; (not set)
+# cassette &lt;NULL&gt; (not set)
+# punchcard &lt;NULL&gt; (not set)
+# punchtape &lt;NULL&gt; (not set)
+# printer &lt;NULL&gt; (not set)
+# serial &lt;NULL&gt; (not set)
+# parallel &lt;NULL&gt; (not set)
+# snapshot &lt;NULL&gt; (not set)
+# quickload &lt;NULL&gt; (not set)
+# cartridge_dir &lt;NULL&gt; (not set)
+# floppydisk_dir &lt;NULL&gt; (not set)
+# harddisk_dir &lt;NULL&gt; (not set)
+# cylinder_dir &lt;NULL&gt; (not set)
+# cassette_dir &lt;NULL&gt; (not set)
+# punchcard_dir &lt;NULL&gt; (not set)
+# punchtape_dir &lt;NULL&gt; (not set)
+# printer_dir &lt;NULL&gt; (not set)
+# serial_dir &lt;NULL&gt; (not set)
+# parallel_dir &lt;NULL&gt; (not set)
+# snapshot_dir &lt;NULL&gt; (not set)
+# quickload_dir &lt;NULL&gt; (not set)
+# ramsize &lt;NULL&gt; (not set)
+threads 0
+natural 0
+min_width 200
+min_height 200
+writeconfig 0
+
+### Mame CORE video options ###
+norotate 0
+ror 0
+rol 0
+autoror 0
+			</pre>
+			</table>
+		<p class="normal">As you can see most of the lines mimic the command line options 
+			use by MESS and you can find detailed explanantions of these commands on the <a href="win32cmd.htm" target="_blank">
+				MESS W32 Commands</a>
+		page. The only difference is the 1 or 0 that follows the command. These mean 
+		yes (1) or no (0) on most commands but check on the setup page as they may 
+		refer to a value. The lines starting with # are comments and are ignored by 
+		MESS.
+		<p class="normal">
+		Remember no matter what changes you make you cant mess up MESS, just change the 
+		setting back or delete the config file and start again.
+		<p class="normal">&nbsp;
+			<hr>
+		<h2>
+		Types Of Config Files</h2>
+		<p class="normal">
+		There are four types of config types. You have one for vector games called 
+		<span class="filename">vector.ini</span> and one for specific drivers for games e.g. <span class="filename">cps2.ini</span> or <span class="filename">neogeo.ini</span> 
+		You can also create files for specific parent rom sets that will be used by all 
+		of the clones or you can make config file for specific clones.
+		<p class="normal">To find out what drivers a game uses you can add the -verbose 
+			option to your command line. e.g. <span class="command">MESS a2600 -verbose</span> and will give you 
+			something like the following...
+			<table width="52%" border="1" align="center">
+				<tr>
+					<td class="consoletext">
+<pre>parsing mess.ini...OK.
+parsing /a2600.ini...N/A
+parsing root.ini...N/A
+parsing a2600.ini...N/A
+Using DirectInput 5
+Keyboards=1 Mice=1 Joysticks=1 Lightguns=0
+Mouse support disabled
+Joystick support disabled
+Keyboards=1 Mice=0 Joysticks=0
+Initialising DirectDraw &amp; Direct3D 7 blitter (58.81MB video memory 
+available)
+Rendering to an off-screen surface and using blt()
+Primary surface created: 1280x1024x32 (R=00ff0000 G=0000ff00 B=000000ff)
+Managed texture surface created: 256x256x16 (R=00007c00 G=000003e0 B=0000001f)
+Pre-process texture surface created: 1024x1024x16
+RGB effects surface created: 1280x1024x32
+Scanline surface[0] created: 2x2x32
+Scanline surface[1] created: 4x4x32
+Blitter initialisation complete (46.78MB video memory free)
+Primary buffer: 44100 Hz, 16 bits, 1 channels
+SSE supported</pre>
+					</td>
+				</tr>
+			</table>
+		<p class="normal">
+		If you look at the first couple of lines you can see the ini files that MESS is 
+		looking for. MESS always loads the MESS.ini file first but in this instance it 
+		looks for the <span class="filename">a2600.ini</span> file (system file). If I had used a clone system MESS 
+		would also look for the .ini file for that as well. Each of these files would 
+		override the previous one and MESS would only use the commands in the final 
+		config file.
+		<p class="normal">As an example of a config file, here is one that I have made up 
+			for the Atari 2600 system. The reason behind it was that I wanted it to run 
+			fullscreen as it was easier to see. The d3d option made MESS use my 3D card to 
+			draw the graphics as it's faster on my system.
+			<table width="27%" border="1" align="center">
+				<tr>
+				<td>
+					<pre class="fixedsize">
+#Atari 2600 Fullscreen
+window 0
+direct3d 1</pre>
+					</td>
+				</tr>
+			</table>
+		<p class="normal">
+		&nbsp;
+		<p class="normal">
+		Once you are happy with your file save it and run MESS and it will use your new 
+		settings.
+	</body>
+</html>

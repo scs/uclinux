@@ -1795,7 +1795,12 @@ comment 'Games'
 
 bool 'advent4'		CONFIG_USER_GAMES_ADVENT4
 bool 'dungeon'		CONFIG_USER_GAMES_DUNGEON
-# bool 'mame'		CONFIG_USER_GAMES_XMAME
+bool 'xmame'		CONFIG_USER_GAMES_XMAME
+if [ "$CONFIG_USER_GAMES_XMAME" = "y" ]; then
+	define_bool CONFIG_LIB_EXPAT y
+	define_bool CONFIG_LIB_LIBSDL y
+	define_bool CONFIG_LIB_ZLIB y
+fi
 bool 'rubik'		CONFIG_USER_GAMES_RUBIK
 endmenu
 

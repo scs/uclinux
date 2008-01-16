@@ -1,0 +1,877 @@
+###########################################################################
+#                                                                         #
+# makefile for xmame/xmess                                                #
+#                                                                         #
+# Original version by Juan Antonio Martinez and Hans de Goede.            #
+# Current version by Lawrence Gold, with much inspiration from XviD.      #
+# http://x.mame.net                                                       #
+# mailto:gold@aros.net                                                    #
+#                                                                         #
+#                                                                         #
+# READ COMMENTS AND MODIFY CONFIGURABLE OPTIONS WITH CARE.                #
+#                                                                         #
+# Members of the MAME and Xmame projects assume no responsibility         #
+# implicit or explicit about illegal or incorrect use of this             #
+# sofware and about possible hardware or software damage caused           #
+# by its use.                                                             #
+#                                                                         #
+# THIS SOFTWARE IS DISTRIBUTED "AS IS".  USE AT YOUR OWN RISK             #
+#                                                                         #
+# MAME and Xmame are Copyright (c) Nicola Salmoria and Mirko buffoni      #
+# and distributed under terms simular to the GNU General Public           #
+# License.  See doc/readme.unix for more details                          # 
+#                                                                         #
+# Arcade ROM images are copyrighted by their authors.  DISTRIBUTING       #
+# MAME OR XMAME WITH ROM IMAGES IN THE SAME PACKAGE IS ILLEGAL AND        #
+# CONSTITUTES A VIOLATION OF TERMS OF COPYRIGHT.                          #
+#                                                                         #
+###########################################################################
+
+
+###########################################################################
+# Xmame or xmess or...?
+###########################################################################
+
+# Uncomment one of these.
+TARGET = mame
+# TARGET = mess
+# TARGET = mage
+# TARGET = mmsnd
+# example for a tiny compile
+# TARGET = tiny
+
+
+###########################################################################
+# Special features
+###########################################################################
+
+# Enable experimental network support.  See 
+# src/unix/doc/multiplayer-readme.txt for more information.  (CURRENTLY 
+# BROKEN)
+# XMAME_NET = 1
+
+# Uncomment to use DRC MIPS3 engine (faster emulation, but only works on x86-
+# compatible CPUs).
+# X86_MIPS3_DRC = 1
+
+# Uncomment to use DRC PowerPC engine (faster emulation, but only works on x86-
+# compatible CPUs).
+# X86_PPC_DRC = 1
+
+# Uncomment to use DRC Voodoo rasterizers (faster emulation, but only works on 
+# x86-compatible CPUs).
+# X86_VOODOO_DRC = 1
+
+# Uncomment to disable effects.  This can considerably speed up compilation of 
+# the blit files.
+# DISABLE_EFFECTS = 1
+
+# Uncomment the line below to enable the MMX assembly-language optimized
+# routines for the "light scanlines" and "6-tap filter" effects. This
+# requires an IA-32 processor with MMX capability and the NASM assembler.
+#
+# On Linux-i386 you can enable this without causing problems on non
+# MMX capable processors: the Linux code will autodetect if an MMX
+# capable processor is present and use the right code.
+# EFFECT_MMX_ASM = 1
+
+
+###########################################################################
+# Development environment options 
+###########################################################################
+
+# GNU make is MANDATORY!!!
+
+
+###########################################################################
+# Choose your compiler.
+###########################################################################
+
+# Support for the Intel C++ Compiler is new and experimental.  Be sure
+# to check the CFLAGS, RANLIB, IL, LD, and MY_CPU sections in this 
+# makefile.  If you've set up a nice environment or alias or wrapper
+# script, then you can use `icc'.
+#
+# Use of `c89' is recommend for Ultrix as it generates faster code, which
+# means fewer frames to be skipped and better graphics, but `gcc' works 
+# just as well.  However, stay away from the `cc' Ultrix compiler if 
+# possible.
+
+CC	= @gcc
+# CC    = @cc
+# CC	= @icc
+# CC	= @c89
+
+# Uncomment for Sun Forte 7 and above C/C++ compiler, see below for
+# additional optimizations.
+# CC = @sun-forte
+
+# Compiler for host compilations in cross-compiling environments (used 
+# in src/unix/unix.mak for m68k).
+HOST_CC = $(CC)
+# HOST_CC = @gcc
+
+
+###########################################################################
+# Reset CFLAGS
+###########################################################################
+
+# If you want to use whatever CFLAGS are currently set in your 
+# environment, then comment this out.
+#CFLAGS =
+
+
+###########################################################################
+# Choose from some preset CFLAGS.  Or, if you want to tweak some more, skip
+# this section.
+###########################################################################
+
+# GCC on x86
+CFLAGS ?= -O2
+
+# GCC on x86 with some optimizations
+# CFLAGS = -O2 -mtune=i686 -fomit-frame-pointer -fstrength-reduce -ffast-math
+
+# GCC on Linux/PowerPC
+# CFLAGS = -O2 -funroll-loops -fstrength-reduce -fomit-frame-pointer \
+# 	-ffast-math -fsigned-char -mlongcall
+
+# GCC on OpenStep/Intel
+# CFLAGS = -O2 -finline-functions -ffast-math -fstrength-reduce \
+# 	-traditional-cpp
+
+# GCC on OpenStep/PPC or Mac OS X.
+# CFLAGS = -O2 -funroll-loops -fstrength-reduce -fomit-frame-pointer \
+#   -ffast-math -fsigned-char
+
+# IRIX MIPSpro R5+K without IPA
+# CFLAGS = -n32 -mips4 -O3 -OPT:Olimit=0
+
+# IRIX MIPSpro with really serious optimization for R10K O2
+# CFLAGS = -fullwarn -n32 -mips4 -Ofast=ip32_10k -TARG:platform=ip32_10k \
+#   -OPT:Olimit=0 -IPA
+
+# IRIX with more general optimization for R5+K MIPS machines
+# CFLAGS = -fullwarn -n32 -mips4 -Ofast -OPT:Olimit=0 -IPA
+
+# IRIX with R4K MIPS chips (older Indys, Indigo2s, etc).
+# CFLAGS = -fullwarn -n32 -mips3 -Ofast -OPT:Olimit=0 -IPA
+
+# PlayStation2 Linux
+# CFLAGS = -O2 -mcpu=r5900 -fsingle-precision-constant -fstrength-reduce \
+# 	-fomit-frame-pointer -ffast-math -fsigned-char -pipe -malign-loops=2 
+# 	-malign-jumps=2 -funroll-loops
+
+ifneq (,$(findstring gcc,$(CC)))
+
+  #########################################################################
+  # Special cases
+  #########################################################################
+
+  # Uncomment for a Linux/PowerPC system.
+  # CFLAGS += -fsigned-char -mlongcall
+
+  # Uncomment for OpenStep.  This might also apply to some early versions 
+  # of Mac OS X.
+  # CFLAGS += -traditional-cpp
+
+
+  #########################################################################
+  # Warnings
+  #########################################################################
+  
+  # Check for C89 + GNU extensions compliance.
+  CFLAGS += -std=gnu89
+
+  # Show all warnings.
+  CFLAGS += -Wall
+
+  # Don't warn about unused variables.
+  CFLAGS += -Wno-unused
+
+  # Warn about declarations after statements.
+  # CFLAGS += -Wdeclaration-after-statement
+
+  # Don't warn about code that might break strict aliasing rules. 
+  # CFLAGS += -Wno-strict-aliasing
+
+
+  #########################################################################
+  # Debugging
+  #########################################################################
+
+  # Detect non-ANSI C code.
+  # CFLAGS += -pedantic -ansi -D_XOPEN_SOURCE -D_BSD_SOURCE \
+  # -Wno-long-long -Wno-trigraphs -Dasm=__asm__
+ 
+  # Check for C89 compliance.
+  # CFLAGS += -std=c89
+
+  # Enable debugging (e.g., using gdb).
+  # CFLAGS += -ggdb
+ 
+  # Enable gprof profiling.
+  # CFLAGS += -pg
+
+
+  #########################################################################
+  # General optimizations
+  #########################################################################
+  
+  # Optimization level -- choose one of these.
+  # Use -O1 if you suspect that -O2 is producing bad code; use -O3 for a 
+  # possible speedup, -Os for a smaller executable, and -O0 to aid 
+  # debugging.
+  # CFLAGS += -O2
+  # CFLAGS += -O1
+  # CFLAGS += -O3
+  # CFLAGS += -Os
+  # CFLAGS += -O0
+
+  # This option should reduce compilation time and disk activity, but at 
+  # the expense of using a LOT more memory.  If you have less than 
+  # 256Mb of RAM, you may not want to use this.
+  # CFLAGS += -pipe
+  
+  # If you use GCC 3.x and find that it's taking many minutes to link, 
+  # enable this to speed up the link stage considerably.
+  # CFLAGS += -fno-merge-constants
+  
+  # Free up the frame pointer register for other uses.  This can make 
+  # debugging impossible on some platforms, notably x86.  Also, GCC 3.0.2 
+  # can produce invalid code for x86 with this enabled.
+  # CFLAGS += -fomit-frame-pointer
+
+  # Use with GCC 2.95.1 and above for a nice speedup.  For GCC 3.0 and
+  # up, this is automatically turned on by -O2 and higher.
+  # CFLAGS += -fstrict-aliasing
+
+  # Use with EGCS 1.1.x and GCC 2.95; otherwise, xmame compilation will 
+  # break.
+  # CFLAGS += -fno-strict-aliasing
+ 
+  # Unroll loops for a possible speedup.  Beware that combining this with 
+  # -O2 in GCC 3.0.x on x86 platforms miscompiles src/sndhrdw/williams.c, 
+  # causing narc (and possibly other games) to segfault.
+  # CFLAGS += -funroll-loops
+
+  # Produce faster floating point code that isn't IEEE/ISO-compliant.
+  # CFLAGS += -ffast-math
+
+  # Strength reduction and elimination of iteration variables.
+  # CFLAGS += -fstrength-reduce
+
+  # Enable minor optimizations that are relatively expensive.
+  # CFLAGS += -fexpensive-optimizations
+
+
+  #########################################################################
+  # Architecture-specific optimizations
+  #########################################################################
+  
+  # Note that -march may produce an executable that won't run on lesser 
+  # CPUs.  If you're aiming for portability across an entire architecture, 
+  # use -mtune instead.  For example, -mtune=pentiumpro will produce an 
+  # executable that (in theory) should be optimized for a PentiumPro 
+  # system, but it will still run on a 386.
+  # Note: For older versions of GCC, you may have to use -mcpu instead of 
+  # -mtune.
+
+  # x86 options that work with any version of GCC:
+  # CFLAGS += -march=i386
+  # CFLAGS += -march=i486
+  # CFLAGS += -march=i586
+  # CFLAGS += -march=i686
+  # CFLAGS += -march=pentium
+  # CFLAGS += -march=pentiumpro
+
+  # x86 options that work only with newer versions of GCC:
+  # CFLAGS += -march=pentium-mmx
+  # CFLAGS += -march=pentium2
+  # CFLAGS += -march=pentium3
+  # CFLAGS += -march=pentium3m
+  # CFLAGS += -march=pentium-m
+  # CFLAGS += -march=pentium4
+  # CFLAGS += -march=pentium4m
+  # CFLAGS += -march=prescott
+  # CFLAGS += -march=nocona
+  # CFLAGS += -march=k6
+  # CFLAGS += -march=k6-2
+  # CFLAGS += -march=k6-3
+  # CFLAGS += -march=athlon
+  # CFLAGS += -march=athlon-tbird
+  # CFLAGS += -march=athlon-4
+  # CFLAGS += -march=athlon-xp
+  # CFLAGS += -march=athlon-mp
+  # CFLAGS += -march=k8
+  # CFLAGS += -march=opteron
+  # CFLAGS += -march=athlon64
+  # CFLAGS += -march=athlon-fx
+  # CFLAGS += -march=winchip-c6
+  # CFLAGS += -march=winchip-2
+  # CFLAGS += -march=c3
+  # CFLAGS += -march=c3-2
+
+  # x86 SIMD options that work only with newer versions of GCC:
+  # CFLAGS += -mfpmath=sse
+  # CFLAGS += -mfpmath=sse,387
+  #
+  # CFLAGS += -mmmx
+  # CFLAGS += -msse
+  # CFLAGS += -msse2
+  # CFLAGS += -m3dnow
+  #
+  # A good value for PIII/Athlon XP(MP) and above:
+  # CFLAGS += -mfpmath=sse -msse 
+
+else
+ifeq ($(CC),icc)
+
+  # Optimizations for the Intel compiler.
+  CFLAGS    = -O3 -rcd -Xa -ipo -ipo_obj
+
+else
+ifeq ($(CC),sun-forte)
+  #
+  # sun-forte given above is just an artifice to get us into this section
+  CC = cc
+
+  # uncomment to set compiler defaults oriented for maximum performance
+  XOPT += -fast
+
+  # Choose one optimization level;
+  #XOPT += -xO0
+  #XOPT += -xO1
+  #XOPT += -xO2
+  #XOPT += -xO3
+  # -xO4 and above automatically inline
+  #XOPT += -xO4
+  XOPT += -xO5
+
+  # uncomment for code generation targeted to the local machine; this
+  # supplies -xarch, -xcpu, -xtarget.  It also seems to cause an annoying
+  # message related to code generated at -native being compatible with 
+  # older hardware, which apparently can't be disabled.  As an alternative,
+  # the particular -xtarget for your system could be specified; 
+  # -xtarget=ultra2/2300
+  XTARGET += -native 
+  #XTARGET += -xtarget=ultra2/2300
+
+  # uncomment to inline library math functions
+  EXTRA_OPTS += -xlibmil
+
+  ######################################################
+  # Additional options for parallelization optimizations
+  ######################################################
+  # uncomment for automatic parallelization (if your machine has > 1 cpu)
+  # Before starting xmame, be sure to set the env variable PARALLEL to the #
+  # of processors to use; PARALLEL=2 ./xmame.x11 
+  # xmame doesn't appear to like these at present
+  # XPARALLEL += -xparallel
+  # uncomment to have cc collapse various math expression sequences, possibly 
+  # affecting roundoffs.  Requires -xparallel
+  # EXTRA_OPTS += -xreduction
+
+  # Sparc only, uncomment to do loop restructuring optimizations
+  # and speculative prefetch for v8plusa and above
+  EXTRA_OPTS += -xdepend  -xsafe=mem
+
+  #################################################
+  # Additional options for glx builds
+  #################################################
+  #
+  # uncomment and modify as required if Mesa wants /lib/libCrun.so
+  # (libGLU dlopen() complains of missing name mangled symbols)
+  # GLCFLAGS += -DSUN_FORTE_DLOPEN_LIBCRUN='\"libCrun.so.1\"'
+
+  CFLAGS= $(XOPT) $(XTARGET) $(XPARALLEL) $(EXTRA_OPTS)
+  LDFLAGS=$(XOPT) $(XTARGET) $(XPARALLEL) $(EXTRA_OPTS)
+
+  # uncomment for silence...
+  CFLAGS += -erroff
+  # Tell xmame that we really are in fact elf.  If not supplied, 
+  # SHARED_PREFIX is set causing dlopen()'s to fail.
+  CFLAGS += -D__ELF__ 
+endif
+endif
+endif
+
+###########################################################################
+# Inlining
+###########################################################################
+
+# This can very noticeably increase xmame's performance, so enabling this 
+# is encouraged.  It works fine with GCC, MIPSpro, and probably with most
+# other compilers.
+IL	= '-DINLINE=static __inline__'
+
+# Use this with strict ANSI or BeOS or Sun Forte
+# IL	= -DINLINE=static
+
+# Intel C++ Compiler doesn't know about __inline__.
+# IL	= '-DINLINE=static inline'
+
+
+###########################################################################
+# Linker and linker flags
+###########################################################################
+
+# Normal linking.
+LD	= $(CC)
+
+# For a Linux/PowerPC system.
+# LD	= $(CC) -Wl,-s,--relax
+
+# For the Intel C++ Compiler -- expect large link time due to -ipo 
+# optimization.
+# LD	= $(CC) -Wl,-s -ipo -ipo_obj
+
+# To profile with GCC and gprof.
+# LD	= $(CC) -pg
+
+# No profiling (less strace output), but include debug info.
+# LD	= $(CC)
+
+# For debugging only.  This only works with GNU binutils!!
+# LD	= $(CC) -Wl,-warn-common
+
+# For IRIX MIPSpro, no IPA
+# LD = $(CC) -fullwarn -n32 -mips4
+
+# For IRIX R5+K MIPSpro, optimization at link time.  This takes nearly a 
+# gig of memory!!
+# LD    = $(CC) -fullwarn -n32 -mips4 -IPA
+
+# For IRIX R4K MIPSpro, optimization at link time.  This takes nearly a gig
+# of memory!!
+# LD  = $(CC) -fullwarn -n32 -mips3 -IP
+
+
+###########################################################################
+# Assembler and object file format
+###########################################################################
+
+ASM = @nasm
+
+# Choose ELF or a.out
+# ELF settings: No leading underscores + ELF object format.  Tested with
+# Linux/i386.  Also for Solaris/x86, for example.
+ASM_STRIP = src/unix/contrib/porting/strip_
+ASM_FMT  = -f elf
+# a.out settings: Leading underscores + a.out object format.  Tested with
+# netBSD i386.  Also for older Linux installs, FreeBSD, and others.
+# ASM_STRIP = true  # no strip command
+# ASM_FMT  = -f aoutb
+
+
+###########################################################################
+# Archiver
+###########################################################################
+
+AR = @ar
+AR_OPTS = rc
+
+
+###########################################################################
+# Math library and ranlib
+###########################################################################
+
+# Does your platform have a separate libm?  Only comment this out if you
+# have math libraries included within libc.  This is very rare; you will
+# probably only need it for OpenStep and BeOS systems.
+SEPARATE_LIBM = 1
+
+# Does your platform have ranlib?  Leave this untouched unless you are
+# using IRIX, Unixware 7, or the Intel C++ Compiler.
+RANLIB = @ranlib
+# RANLIB = @true
+
+
+###########################################################################
+# Install method and paths for the executable, man pages, and data
+###########################################################################
+
+# OSes that don't have an install command should use the provided 
+# install.sh script.
+INSTALL =              /usr/bin/install
+# INSTALL =            install-sh
+# INSTALL =            /bin/install
+# INSTALL =            install      # e.g., for BeOS 
+
+# The user and group to be used for installation.
+INSTALL_USER =         root
+INSTALL_GROUP =        bin
+
+INSTALL_PROGRAM_DIR =	$(INSTALL) -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m  755
+INSTALL_MAN_DIR =	$(INSTALL) -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m  755
+INSTALL_DATA_DIR =	$(INSTALL) -d -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m  755
+INSTALL_PROGRAM =	$(INSTALL) -c -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m  555
+INSTALL_PROGRAM_SUID =	$(INSTALL) -c -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m 4555
+INSTALL_MAN =		$(INSTALL) -c -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m  444
+INSTALL_DATA =		$(INSTALL) -c -o $(INSTALL_USER) -g $(INSTALL_GROUP) -m  644
+
+
+###########################################################################
+# Extra include and/or library paths
+###########################################################################
+
+# These are sometimes needed for zlib.
+# SuSE Linux may require -L/usr/X11R6/lib.
+# UnixWare7 requires -lsocket.
+# LIBS     = -L/usr/X11R6/lib -L/usr/local/lib
+# INCLUDES = -I/usr/X11R6/include -I/usr/local/include
+
+
+###########################################################################
+# Miscellaneous settings
+###########################################################################
+
+# Uncomment next line to build expat as part of the build.
+# BUILD_EXPAT = 1
+
+# Uncomment next line to build zlib as part of the build.
+# BUILD_ZLIB = 1
+
+# Does your system support the gettimeofday() function?  If so, we 
+# encourage you to enable this feature.  Otherwise, comment it out.
+# :-(
+HAVE_GETTIMEOFDAY = 1
+
+# Does your system support the mmap() function?  If not, comment this out.
+HAVE_MMAP = 1
+
+# Most UNIX-like systems use LF for an end-of-line.  Set this to 1 for CR, 2 
+# for LF, or 3 for CR/LF.
+CRLF = 2
+
+# Most of the time, the pause key uses keycode 101, but sometimes it uses 
+# keycode 119.  Uncomment this if the pause key doesn't work for you.
+# PAUSE_KEY_119 = 1
+
+# Uncomment this if you want to link with ElectricFence (for developers 
+# only).
+# EFENCE = 1
+
+
+###########################################################################
+# Configuration files and directories
+###########################################################################
+
+# Select destination directory for your compiled program, manual page,
+# and binary distribution.
+ifndef PREFIX
+PREFIX = /usr/local
+endif
+BINDIR = $(PREFIX)/bin
+MANDIR = $(PREFIX)/man/man6
+
+# This is the default path for ROMs and other data files.
+XMAMEROOT = $(PREFIX)/share/x$(TARGET)
+# This is the default path for system-wide configuration files.
+SYSCONFDIR = $(XMAMEROOT)
+
+
+###########################################################################
+# Architecture; choose your CPU (only one!!) 
+###########################################################################
+
+# i386, GNU asm
+MY_CPU = i386
+
+# i386, no asm -- needed for the Intel C++ compiler, which does not fully
+# understand GCC's inline assembly syntax, though you may still enable 
+# X86_ASM_68000, etc., which are assembled by NASM.  You may also need to 
+# use this for BeOS.
+# MY_CPU = i386_noasm
+
+# IA64
+# MY_CPU = ia64
+
+# Opteron/Athlon64
+# MY_CPU = amd64
+
+# Intel EM64T
+# MY_CPU = em64t
+
+# DEC Alpha
+# MY_CPU = alpha
+
+# Motorola M68K
+# MY_CPU = m68k
+
+# Generic RISC (PowerPC, SPARC, HPPA, IBM)
+# MY_CPU = risc
+
+# Generic RISC, LSB-first (RISC Ultrix machines & PlayStation2)
+# MY_CPU = risc_lsb
+
+# MIPS (generic RISC + SGI compiler bug workarounds)
+# MY_CPU = mips
+
+
+###########################################################################
+# Architecture; choose your OS (only one!!) 
+###########################################################################
+
+# Linux 
+ARCH  = linux
+
+# FreeBSD
+# ARCH  = freebsd
+
+# NetBSD
+# ARCH  = netbsd
+
+# OpenBSD
+# ARCH = openbsd
+
+# Solaris/SunOS
+# ARCH  = solaris
+# For Solaris, you MIGHT need to add paths where other stuff is; libjpeg and 
+# so on...  If so, uncomment the next two lines.
+# CFLAGS += -I/usr/local/include -I/usr/sfw/include 
+# LDFLAGS += -L/usr/local/lib -L/usr/sfw/lib
+
+# QNX Neutrino (QNX4/QNX6)
+# ARCH = nto
+
+# OpenStep on NeXT systems
+# ARCH  = next
+
+# OpenStep on Apple systems (Cocoa)
+# ARCH  = macosx
+
+# IRIX (with sound using the old AL (version 1) package) (*)
+# ARCH  = irix
+
+# IRIX (with sound using the al (IRIX 6.x) package) (*)
+# ARCH  = irix_al
+
+# AIX (with sound, you'll need the UMS and SOM lpp's installed (under 
+# AIX4))
+# ARCH  = aix
+
+# BeOS on Intel
+# ARCH = beos
+
+# generic UNIX, no sound
+# ARCH  = generic
+
+# (*) For IRIX 6.5 or higher add -DHAVE_SNPRINTF to CFLAGS.irix(_al) in
+# src/unix/Makefile
+
+
+###########################################################################
+# Input Devices
+###########################################################################
+
+# Uncomment any joystick types that you want to use; the one that is 
+# actually used can be selected at runtime with the -joytype switch.
+
+# Enable the standard joystick driver, which should work in Linux, OpenBSD, 
+# NetBSD, and FreeBSD.
+# JOY_STANDARD = 1
+
+# Linux FM-TOWNS game pad joystick emulation support.  Thanks to Osamu 
+# Kurati.
+# JOY_PAD = 1
+
+# NetBSD/FreeBSD USB joystick support.
+# JOY_USB = 1
+
+# PlayStation2-Linux native pad support.
+# JOY_PS2 = 1
+
+# SDL joystick support.
+# JOY_SDL = 1
+
+# This will enable the use of the Happ Controls UGCI(tm) USB devices'
+# Coin/Start inputs using the libugci library available from
+# http://www.phunnypharm.org/ugci/
+# UGCICOIN = 1
+
+# Enables use of Linux input devices that support ABS (absolute) X/Y axis
+# events as lightguns. This can be tablets, touchpads or lightguns. You
+# must have the input layer and support for your devices (e.g. USB) for
+# this to work.
+# LIGHTGUN_ABS_EVENT = 1
+
+# Uncomment this if you get errors about a input_absinfo being undefined.
+# Some versions of the Linux headers define this, others don't, and it 
+# seems to vary by distribution.
+# LIGHTGUN_DEFINE_INPUT_ABSINFO = 1
+
+# Uncomment this to add LIRC support to xmame.
+# LIRC = 1
+
+
+###########################################################################
+# Sound Devices
+###########################################################################
+
+# Choose any additonal sound drivers you want to include, besides the 
+# native sound driver for your system.
+# SOUND_ESOUND = 1
+# SOUND_ALSA = 1
+# SOUND_ARTS_TEIRA = 1
+# SOUND_ARTS_SMOTEK = 1
+# SOUND_SDL = 1
+# SOUND_WAVEOUT = 1
+
+
+###########################################################################
+# Select your display method; choose only one.
+###########################################################################
+
+# Note: x11 is the only one supported on almost all platforms.  For BeOS, 
+# use SDL.
+
+# X11 (including Glide & OpenGL if enabled below)
+DISPLAY_METHOD = x11
+
+# SDL library 
+# DISPLAY_METHOD = SDL
+
+# SVGALib, only supported under Linux
+# DISPLAY_METHOD = svgalib
+
+# GGI, only tested under Linux
+# DISPLAY_METHOD = ggi
+
+# Glide in console mode
+# DISPLAY_METHOD = svgafx
+
+# OpenStep bitmaps
+# DISPLAY_METHOD = openstep
+
+# Photon 2.x (QNX6), currently buggy, but working...
+# DISPLAY_METHOD = photon2
+
+
+###########################################################################
+# X-Window options (only needed when X is the display method)
+###########################################################################
+
+# Uncomment any extensions you wish to use.
+
+# MIT-Shared Memory X Extensions
+# X11_MITSHM = 1
+
+# Use Xv extension for hardware scaling.
+# X11_XV = 1
+
+# Enable XFree86 DGA.  This also causes "make install" to set the suid bit 
+# on the executable.
+# X11_DGA = 1
+
+# Build support for OpenGL rendering into the X-Window version
+# X11_OPENGL = 1
+
+# Build support for rendering through Glide into the X-Window version
+# X11_GLIDE = 1
+
+# The XIL library (Solaris 2.5.1 and higher)
+# X11_XIL = 1
+# Turn off the annoying obsolesence message if XIL is enabled
+# CFLAGS += -DSUNXIL_WARNING_DISABLE
+
+# Choose the location of your X headers and libraries.
+
+# Standard location for X11 
+# X11INC		= -I/usr/include/X11
+# X11LIB		= -L/usr/lib/X11
+
+# Standard location for XFree86
+# X11INC		= -I/usr/X11R6/include
+# X11LIB		= -L/usr/X11R6/lib
+
+# Standard location for Sun systems
+# X11INC		= -I/usr/openwin/include
+# X11LIB		= -L/usr/openwin/lib
+
+# Some non-standard locations
+# X11INC		= -I/usr/local/include/X11
+# X11LIB		= -L/usr/local/lib
+
+# The default name for the input device used by the X11 joystick driver.
+# Use provided program "xlistdev" to list available ones.
+X11_JOYNAME = "Joystick"
+
+# Uncomment this to use XInput devices, e.g. additional mice as 
+# trackballs.
+# XINPUT_DEVICES = 1
+
+# Enable Xinerama support
+# X11_XINERAMA = 1
+
+
+##############################################################################
+# SDL options (only needed when SDL is the display method)
+##############################################################################
+
+# The name of your sdl-config executable
+SDL_CONFIG	= sdl-config
+
+
+##############################################################################
+# 3Dfx options (only needed when xfx or svgafx is the display method)
+##############################################################################
+
+# Uncomment if you want to build against Glide2x instead of Glide3.
+# GLIDE2 = 1
+
+
+##############################################################################
+# OpenGL info -- configure if you are using the xgl display option
+##############################################################################
+GLLIBS += -ldl
+
+# General OpenGL (GL/GLU) dynamic loading support for:
+#
+# <OS - System>          <#define>  commentary
+# -----------------------------------------------
+# GNU/Linux, UNIX/X11    _X11_      (loads glx also)
+# Macinstosh OS 9        _MAC_OS9_
+# Macinstosh OS X        _MAC_OSX_
+# Win32                  _WIN32_    (load wgl also)
+#
+# GLU version 1.2 is recommended (e.g., from SGI).  If you 
+# use Mesa's GLU, you may have to add -DGLU_VERSION_1_2 to 
+# the GLCFLAGS below.
+#
+# If you wish you can add -DNOGLCHECKS for a small speedup, but this is not
+# advised, or you can add -DGLDEBUG to get more verbose debugging messages.
+# GLCFLAGS += -D_X11_
+
+# Uncomment to add more libraries that Mesa may require.
+# GLLIBS += -lXmu -lXi
+
+###########################################################################
+# Debug support
+###########################################################################
+
+# Uncomment the next lines to build xmame with a built-in debugger (only
+# supported for X11 and SVGALib). Only enable this if you need it -- if you
+# want to develop drivers, that is, since it slows down xmame considerably.
+# This also enables the built-in profiler.
+# DEBUG = 1
+
+# Uncomment the next line to use the new multiwindow debugger.  This is 
+# currently not supported by xmame or xmess.
+# NEW_DEBUGGER = 1
+
+ifdef DEBUG
+NAME=x$(TARGET)d
+else
+NAME=x$(TARGET)
+endif
+
+
+# Blackfin settings
+include makefile.bfin
+
+###########################################################################
+# All done.  Type make -f makefile.unix and enjoy xmame/xmess.  ;)
+# No configurable options below this line.
+###########################################################################
+include src/unix/unix.mak

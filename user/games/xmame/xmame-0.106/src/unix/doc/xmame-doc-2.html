@@ -1,0 +1,1422 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+>Compiling, Setting Up and Starting Xmame/Xmess
+  </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REL="HOME"
+TITLE="XMAME/XMESS DOCUMENTATION
+  "
+HREF="xmame-doc.html"><LINK
+REL="PREVIOUS"
+TITLE="XMAME/XMESS DOCUMENTATION
+  "
+HREF="xmame-doc.html"><LINK
+REL="NEXT"
+TITLE="Contact Information and Credits
+  "
+HREF="xmame-doc-4.html"><link rel="stylesheet" href="xmame.css" type="text/css" >
+</HEAD
+><BODY BACKGROUND="img/xmame.jpg" BGPROPERTIES="fixed" 
+CLASS="SECT1"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="3"
+ALIGN="center"
+>XMAME/XMESS DOCUMENTATION</TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="bottom"
+><A
+HREF="xmame-doc.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="80%"
+ALIGN="center"
+VALIGN="bottom"
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="bottom"
+><A
+HREF="xmame-doc-4.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="XMAME-DOC-2"
+>Compiling, Setting Up and Starting Xmame/Xmess</A
+></H1
+><P
+>Note: This section is not a Unix tutorial. You need to know some basic  Unix commands to compile and install xmame/xmess.
+  </P
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN91"
+>Requirements</A
+></H2
+><P
+></P
+><UL
+><LI
+><P
+>GNU make is MANDATORY in ALL Systems, even if you use a different  compiler. 
+    </P
+></LI
+><LI
+><P
+>On all platforms zlib is now needed since the core uses it. If you don't have zlib, a stripped version is included with xmame. See: FAQ: Why do I get gz_open symbol not while compiling? and FAQ: Why do I get zlib.h not found?
+    </P
+></LI
+><LI
+><P
+>You are encouraged to use a GNU development environment: gcc, gmake, GNU ar. Lots of problems are found due to the very permissive syntax in gcc, so if you use a strictly ANSI C compiler, you'll get lots of warnings, and if the version of xmame/xmess is not fully debugged, compilation errors.
+    </P
+></LI
+><LI
+><P
+>Xmame compilation breaks when using egcs-1.1.x or gcc-2.95, use -fno-strict-aliasing to fix it. gcc-2.95.1 does work with -fstrict-aliasing, and gives a nice speed increase.
+    </P
+></LI
+><LI
+><P
+>Xmame compilation also breaks when using Red Hat 7's latest (as of 16 January 2001) update for gcc. If you experience problems, please either downgrade your compiler to the one included on the Red Hat 7 CD-ROM, or try replacing &ldquo;gcc&rdquo; in the Makefile with &ldquo;kgcc&rdquo;, which will invoke egcs-1.1.2. (But please see above about the -fstrict-aliasing flag.)
+    </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN106"
+>Follow these steps to compile xmame/xmess</A
+></H2
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>See Compile Notes for Specific Operating Systems for platform specific compiling information.
+    </P
+></LI
+><LI
+><P
+>See Display subsystem specific comments and notes for special display methods information.
+    </P
+></LI
+><LI
+><P
+>Download the xmame/xmess source files archive.
+    </P
+></LI
+><LI
+><P
+>Move the xmame/xmess source files archive to a suitable work directory. When you extract the archive, sub directories will be created under the  work directory.
+    </P
+></LI
+><LI
+><P
+>Use bzcat and tar to decompress the archive. For example:
+    </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>bzcat xmame-0.81.1.tar.bz2 | tar xv
+    </PRE
+></TD
+></TR
+></TABLE
+><P
+>There are other ways to extract the archive, such as the great &ldquo;atool&rdquo; script.
+    </P
+></LI
+><LI
+><P
+>After extracting the archive, cd (and X driver) is capable of doing so. You can achieve a very nice full-screen display without taxing your cpu very much because the scaling will all be done by your video card.
+    </P
+><P
+>To determine if your video card supports the Xv extension, you may use this command:
+    </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>xvinfo
+    </PRE
+></TD
+></TR
+></TABLE
+><P
+>If you don't see a message indicating &ldquo;no screens found&rdquo;, then the Xv extension is supported by your machine.
+    </P
+><P
+>To compile this into xmame, select &ldquo;DISPLAY_METHOD = x11&rdquo; and uncomment the line &ldquo;X11_XV = 1&rdquo; in the makefile.
+    </P
+><P
+>Build xmame, and use the -fullscreen parameter when loading a game to get a nice full-screen display.
+    </P
+><P
+>If the colors seem messed up and/or you only see half of the game image, try using &ldquo;-yuv&rdquo; or &ldquo;-yv12&rdquo;. By default, the Xv extension attempts to use RGB mode if your driver supports it, but some cards' drivers are broken.
+    </P
+><P
+>If your screen goes blank or gets full of little green vertical lines, then your graphics card does not support the Xv extension and you're out of luck.
+    </P
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN132"
+>xmame.x11/OpenGL</A
+></H3
+><P
+>To use OpenGL, you must have:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>An OpenGL implementation
+     </P
+></LI
+><LI
+><P
+>libjpeg
+     </P
+></LI
+><LI
+><P
+>hardware 3D acceleration (if you want any kind of decent frame rate)
+     </P
+></LI
+></UL
+><P
+>Select &ldquo;DISPLAY_METHOD = x11&rdquo; and uncomment the line &ldquo;X11_OPENGL = 1&quot; in the makefile. Follow the general instructions for installing xmame. There are some additional makefile options:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>For runtimerun-time printed debug info, add &ldquo;-DGLDEBUG&rdquo; to the &ldquo;GLCFLAGS&quot; variable.
+     </P
+></LI
+><LI
+><P
+>GLU version 1.2 is recommended (e.g., from SGI). If you use Mesa's GLU, you may have to add &ldquo;-DGLU_VERSION_1_2&rdquo; to the &ldquo;GLCFLAGS&rdquo;.
+     </P
+></LI
+></UL
+><P
+>The OpenGL driver also adds several command-line options:
+    </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    -[no]gldblbuffer        Enable/disable double buffering
+                            (default: enabled)
+    -gltexture_size &#60;int&#62;   Force the max width and height of one 
+                            texture segment (default: autosize)
+    -[no]glbilinear /       Enable/disable bilinear filtering
+    -[no]glbilin            (default: enabled)
+    
+    -glbeam &#60;float&#62;         Set the beam size for vector games
+                            (default: 1.0)
+    -[no]glantialias /      Enable/disable antialiasing
+    -[no]glaa               (default: disabled)
+    -[no]glantialiasvec /   Enable/disable vector antialiasing
+    -[no]glaav              (default: disabled)
+    -[no]cabview            Start/don't start in cabinet view mode
+                            (default: don't start in this mode)
+    -cabinet &#60;cabname&#62;      Specify which cabinet model to use
+                            (default: glmamejau)
+    </PRE
+></TD
+></TR
+></TABLE
+><P
+>Three cabinet models are provided. The default, &quot;glmamejau&quot;, is designed to look like a standard arcade cabinet, like &quot;glmame&quot;. The last one, &quot;trans&quot;, is a box with a transparent game screen.
+    </P
+><P
+>Note that in order to display the game options or the fps display in vector games, the game's bitmap is overlaid above the vector display. Drawing the bitmap is a big CPU hog for some low-end hardware accelerated OpenGL implementations, so you'll notice that the game slows down when the bitmap is overlaid.
+    </P
+><P
+>Because bitmap overlaying is the default, you can toggle it on and off by pressing the &quot;RIGHT_ALT-O&quot; key, or turn it off at startup time by using the command line option &quot;-noglbitmap&quot;.
+    </P
+><P
+>A problem with vector games and the cabinet mode is that some vector points do not reside within the screen coordinates, so you may see some vectors outside of the cabinet's MAME display.
+    </P
+><P
+>*** IMPORTANT! ***
+    </P
+><P
+>If you have trouble with GLmame, or it is slow, read the &quot;Common Questions&quot; section. Most of the questions people email me are answered here.
+    </P
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN156"
+>Cabinet Models</A
+></H4
+><P
+>Cabinet model information is stored in the &quot;cab&quot; subdirectory of the directory you specified with the ROMPATH variable in the Makefile. Path information specified in xmamerc or with the 'rompath' shell environment variable is currently not used. Each cabinet model has it's own subdirectory. GLmame will first try to load either the user-specified cabinet model (using the -cabinet command-line option), or a model corresponding to the current game name. Failing that, it will use the generic &quot;glmame&quot; model.
+     </P
+><P
+>A cabinet model directory must contain a geometry file &lt;modelname&gt;.cab, and any .jpg files used for textures on the model. The format of the .cab file will be familiar if you have ever programmed using OpenGL -- it looks much like an OpenGL display list. The format is as follows:
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    cabv1.1
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>This header must be the first 7 characters of the file.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    #&#60;text&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Comment lines begin with '&num;'
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    begin &#60;type&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Begins a geometry object, where type is one of (points, polygon, quads, quad_strip, screen). Each &quot;begin&quot; must be paired with an &quot;end&quot; statement. A &quot;polygon&quot; is specified using one vertex per, well... vertex. &quot;quads&quot; are four-sided polygons, each specified by four vertices in order around the polygon. A &quot;quad_strip&quot; is a series of four-sided polygons, each of which shares an edge with the polygons before and after it in the strip. A &quot;screen&quot; is a quad that defines the actual area in 3D space where the game will be displayed. only one of these should be defined. For more info, look at any description of OpenGL geometry.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    end
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Ends the geometry object begun with &quot;begin&quot;.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    pointsize &#60;s&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Changes the current pointsize to the corresponding size value (specified as a floating point number between 0.0 and, e.g., 20.0). Note: You cannot use this statement between begin and end!
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    color4 &#60;r&#62; &#60;g&#62; &#60;b&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Changes the current color to the corresponding rgb value (specified as floating point numbers between 0 and 1).
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    color4 &#60;r&#62; &#60;g&#62; &#60;b&#62; &#60;a&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Changes the current color to the corresponding rgba value (specified as floating point numbers between 0 and 1).
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    shading &#60;type&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Sets the shading type. available types are &quot;smooth&quot; (which blends colors from one vertex to the next) or &quot;flat&quot; (which doesn't).
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    vertex &#60;x&#62; &#60;y&#62; &#60;z&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Specifies a vertex for the current geometry object as a point in 3-space.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    numtex &#60;num&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Specifies the number of different textures to be loaded. This declaration must precede any &quot;loadtex&quot; call.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    loadtex &#60;num&#62; &#60;width&#62; &#60;height&#62; &#60;filename&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Loads texture number &lt;num&gt; from .jpg file &lt;filename&gt;. The .jpg file *must* be &lt;width&gt; by &lt;height&gt; pixels, and both &lt;width&gt; and &lt;height&gt; must be powers of two (and must conform to the hardware requirements of any 3D card you want the cabinet to work with -- 256x256 for 3Dfx).
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    texcoord &#60;xcoord&#62; &#60;ycoord&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Sets the texture coordinate of the next vertex. This specifies where in 2D texture space the vertex lies.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    enable texture
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Enables texture mapping (using the currently-selected texture).
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    disable texture
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Turns off texture mapping.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    settex &#60;num&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Select texture &lt;num&gt; for doing texturing. The texture must previously have been loaded using &quot;loadtex&quot;.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    camerapan &#60;num&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Starts the camera pan definition that will be followed by &lt;num&gt; camera transistions. After the last transision definition, the pan sequence must be ended with an &quot;end&quot; statement.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    goto &#60;lx&#62; &#60;ly&#62; &#60;lz&#62; &#60;px&#62; &#60;py&#62; &#60;pz&#62; &#60;nx&#62; &#60;ny&#62; &#60;nz&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Relocates and reorients the camera. The arguments are the same as are used by the OpenGL command &quot;gluLookAt()&quot;. The camera is positioned at point &lt;lx,ly,lz&gt;, pointing along vector &lt;px,py,pz&gt;, with &quot;up&quot; normal (the direction that is &quot;up&quot; for the camera) &lt;nx,ny,nz&gt;.
+     </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    moveto &#60;lx&#62; &#60;ly&#62; &#60;lz&#62; &#60;px&#62; &#60;py&#62; &#60;pz&#62; &#60;nx&#62; &#60;ny&#62; &#60;nz&#62; &#60;frames&#62;
+     </PRE
+></TD
+></TR
+></TABLE
+><P
+>Moves the camera to a new location (specified as in &quot;goto&quot;). The transition occurs over &lt;frames&gt; frames.
+     </P
+><P
+>All commands must be on separate lines. Use the (somewhat) commented glmamejau cabinet as an example to work from.
+     </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN197"
+>Present Limitations/Bugs</A
+></H4
+><P
+></P
+><UL
+><LI
+><P
+>No clipping of vector games (most noticeable in cabinet mode).
+      </P
+></LI
+><LI
+><P
+>No preservation of game aspect ratio in cabinet mode.
+      </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN204"
+>Future Work</A
+></H4
+><P
+></P
+><UL
+><LI
+><P
+>Fixing existing bugs .. are there any ? Or are there some unknown features only ;-) ? 
+      </P
+></LI
+><LI
+><P
+>Optimize the drawing code to update only the changed portions of the game bitmap. Optimizing the dirty code ..
+      </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN211"
+>License</A
+></H4
+><P
+>The GLmame code is based upon Mike Oliphant's GLmame code version 0.6. 
+     </P
+><P
+>The GLMame code is Copyright 1998 by Mike Oliphant. It may be used and distributed under the terms of the MAME license. 
+     </P
+><P
+>Since GLmame version 0.7, the code has been changed and improved heavily by Sven Goethel --- no license change, of course!
+     </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN216"
+>Version History</A
+></H4
+><P
+>v0.83 -- March 29th, 2001 ---------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>Changed the code heavily to improve compatibility and speed. The new code is a re-merge of the GLMame32 code, which is a branch of Mike Oliphant's GLmame code version 0.6. 
+      </P
+></LI
+><LI
+><P
+>For a detailed list, please consult the file changes.opengl within the distribution's documentation directory! You can also view the current changes.opengl here: <A
+HREF="http://www.jausoft.com/glmame.html"
+TARGET="_top"
+>http://www.jausoft.com/glmame.html</A
+>
+      </P
+></LI
+></UL
+><P
+>v0.6 -- December 14th, 1998 ---------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>added support for systems that do not support paletted textures (SGI and Solaris OpenGL implementations, for example)
+      </P
+></LI
+><LI
+><P
+>merged source with xmame b8.1
+      </P
+></LI
+></UL
+><P
+>v0.5 -- October 30th, 1998 --------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>fixed a bug with texturing being left on in bad places
+      </P
+></LI
+><LI
+><P
+>added 3Dfx gamma adjustment
+      </P
+></LI
+></UL
+><P
+>v0.4 -- October 21st, 1998 --------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>updated to work with xmame v0.34b5.2
+      </P
+></LI
+></UL
+><P
+>v0.3 -- October 12th, 1998 --------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>fixed vertical screen centering in full-screen mode
+      </P
+></LI
+><LI
+><P
+>moved cabinet and camera panning information into a user-editable configuration file
+      </P
+></LI
+><LI
+><P
+>added 'trans' cabinet model o added double buffer, view type, and cabinet selection command-line options
+      </P
+></LI
+></UL
+><P
+>v0.2 -- October 6th, 1998 -------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>adding missing 'cab' directory
+      </P
+></LI
+></UL
+><P
+>v0.1 -- October 5th, 1998 -------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>first public release
+      </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN257"
+>Authors</A
+></H4
+><P
+>Since GLmame version 0.7: Sven Goethel <A
+HREF="mailto:sgoethel@jausoft.com"
+TARGET="_top"
+>(sgoethel@jausoft.com)</A
+> <A
+HREF="http://www.jausoft.com/glmame.html"
+TARGET="_top"
+>http://www.jausoft.com/glmame.html</A
+>
+     </P
+><P
+>Till GLmame version 0.6: Mike Oliphant <A
+HREF="mailto:oliphant@ling.ed.ac.uk"
+TARGET="_top"
+>(oliphant@ling.ed.ac.uk)</A
+> <A
+HREF="http://glmame.linuxgames.com"
+TARGET="_top"
+>http://glmame.linuxgames.com</A
+>
+     </P
+><P
+>FXmame, a glide driver for xmame
+     </P
+><P
+>The latest version of this driver can be obtained at <A
+HREF="http://glmame.linuxgames.com"
+TARGET="_top"
+>http://glmame.linuxgames.com</A
+>.
+     </P
+></DIV
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN268"
+>xmame.x11/GLIDE</A
+></H3
+><P
+>To run with 3Dfx support, you must have:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>A 3Dfx card
+     </P
+></LI
+><LI
+><P
+>Glide 2x or 3
+     </P
+></LI
+><LI
+><P
+>The xmame distribution
+     </P
+></LI
+></UL
+><P
+>Select &ldquo;DISPLAY_METHOD = x11&rdquo; and uncomment the line &ldquo;X11_GLIDE = 1&quot; in the makefile. For Glide 2x support, also uncomment &ldquo;GLIDE2 = 1&rdquo;.
+    </P
+><P
+>The Glide driver adds several command-line options:
+    </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>    -fxgama &#60;value&#62; 3Dfx gamma correction value
+    </PRE
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN281"
+>Common Questions (FAQ)</A
+></H4
+><P
+>Q: When I run with Glide support, it just dumps core.
+     </P
+><P
+>A: Make sure you are running xmame as root. Root privileges are required to access the 3Dfx hardware
+     </P
+><P
+>Q: When I run with Glide support, it just hangs at the initial game screen.
+     </P
+><P
+>A: Are you running KDE? For some reason, I can't get keyboard input under KDE. If you have this problem, switch window managers or use xmame.svgafx instead.
+     </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN287"
+>Present Limitations/Bugs</A
+></H4
+><P
+></P
+><UL
+><LI
+><P
+>Antialiasing isn't working quite as well as it should
+      </P
+></LI
+><LI
+><P
+>Input problems under KDE
+      </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN294"
+>Future Work</A
+></H4
+><P
+></P
+><UL
+><LI
+><P
+>Optimize the drawing code to update only the changed portions of the game bitmap.
+      </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN299"
+>License</A
+></H4
+><P
+>The FXmame code is Copyright 1998 by Mike Oliphant. It may be used and distributed under the terms of the MAME license.
+     </P
+></DIV
+><DIV
+CLASS="SECT4"
+><H4
+CLASS="SECT4"
+><A
+NAME="AEN302"
+>Version History</A
+></H4
+><P
+>v0.5 -- December 11th, 1998 ---------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>implemented long copies in screen update
+      </P
+></LI
+><LI
+><P
+>added dirty handling. this greatly increases the speed of games that support the dirty update strategy (although most of them are older games that already ran at full speed on modern hardware)
+      </P
+></LI
+><LI
+><P
+>merged source with xmame b8.1
+      </P
+></LI
+></UL
+><P
+>v0.4 -- October 30th, 1998 --------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>improved alpha handling in vector games - now bitmapped overlays do not dim the screen o added svgalib support (xmame.svgafx) o fixed a tiling bug that gave artifacts on texture tile boundaries
+      </P
+></LI
+></UL
+><P
+>v0.3 -- October 29th, 1998 --------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>got rid of extra lines in vector games o added bitmap overlay in vector games to show options/fps o added antialiasing in vector games
+      </P
+></LI
+></UL
+><P
+>v0.2 -- October 28th, 1998 --------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>added screenshots o added 3Dfx gamma adjustment o added direct acceleration of vector games (still buggy)
+      </P
+></LI
+></UL
+><P
+>v0.1 -- October 27th, 1998 --------------------------
+     </P
+><P
+></P
+><UL
+><LI
+><P
+>first public release
+      </P
+></LI
+></UL
+></DIV
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN328"
+>Authors</A
+></H3
+><P
+>Since fall of 2004: Hans de Goede
+    </P
+><P
+>Original author: Mike Oliphant <A
+HREF="mailto:oliphant@ling.ed.ac.uk"
+TARGET="_top"
+>(oliphant@ling.ed.ac.uk)</A
+> <A
+HREF="http://glmame.linuxgames.com"
+TARGET="_top"
+>http://glmame.linuxgames.com</A
+>
+    </P
+></DIV
+><DIV
+CLASS="SECT3"
+><H3
+CLASS="SECT3"
+><A
+NAME="AEN334"
+>xmame.SDL</A
+></H3
+><P
+>The SDL library was meant to make it easy for programmers to make full-screen applications. To start SDL in full-screen mode, just run xmame.SDL with the option '-fullscreen'. If you want to know the resolutions that SDL can use, run &ldquo;xmame.SDL -listmodes&rdquo;, choose the resolution you want, and start &rdquo;xmame.SDL -modenumber &lt;insert chosen number here&gt;&rdquo;.
+    </P
+><P
+>You can add &ldquo;fullscreen 1&rdquo; to your xmamerc file if you want SDL to start full-screen automatically; the modenumber line can also be used in the xmamerc.
+    </P
+><P
+>Most problems experienced by people who are trying to use SDL for full-screen are related to the section <A
+HREF="xmame-doc-2.html#SCREENBORDER"
+>fullscreen has a large border</A
+>
+    </P
+><P
+>During play you can switch between windowed and fullscreen mode. See What keys does xmame/xmess use?
+    </P
+></DIV
+></LI
+></OL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN342"
+>I am only getting a few frames-per-second in xmame.x11/OpenGL. This sucks! What gives?</A
+></H2
+><P
+></P
+><UL
+><LI
+><P
+>You're probably running Mesa in software mode. You should read the &quot;README.3Dfx&quot; file in the Mesa distro. Specifically, you need to &quot;setenv MESA_GLX_FX fullscreen&quot;.
+    </P
+></LI
+><LI
+><P
+>You don't have a 3D graphics card. Go buy one (see below)!
+    </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN349"
+>When I run xmame.x11/OpenGL, it just dumps core. That's not as much fun as 3D Pac-Man, now is it?</A
+></H2
+><P
+></P
+><UL
+><LI
+><P
+>If you are using a 3Dfx card, make sure you are running xmame.x11 as root. Root privileges are required to access the 3Dfx hardware.
+    </P
+></LI
+><LI
+><P
+>If you're using Mesa and haven't upgraded to v3.0, do so. 
+    </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN356"
+>When I run xmame.x11/OpenGL, everything is messed up.</A
+></H2
+><P
+>Read the above experiences, and try
+   </P
+><P
+></P
+><UL
+><LI
+><P
+>switching your X server's bpp value, e.g., switch from 32bpp or 24bpp to 16bpp; 
+    </P
+></LI
+><LI
+><P
+>the command line option &quot;-bpp 16&quot;;
+    </P
+></LI
+><LI
+><P
+>the command line option &quot;-noglaa&quot;.
+    </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN366"
+>xmame.SDL / fullscreen has a large border around the game. <A
+NAME="SCREENBORDER"
+></A
+></A
+></H2
+><P
+>If the game runs in fullscreen but occupies only a small area in the center of the screen, then your xserver does not have access to low resolutions (320x240, 400x300, and 512x384, for instance). In the case of SDL, the window will be in the resolution of closest matching resolution that SDL can switch to for full-screen display.
+   </P
+><P
+>In this case, you have to add &quot;Modelines&quot; for these resolutions in your XF86config file and add these resolutions to the resolutions list of your display somewhere in your XF86config file (you know, the list of resolutions you can switch to using ctrl-+).
+   </P
+><P
+>You should find modelines that works with most graphic cards in the xmame contrib subdirectory.
+   </P
+><P
+>If you don't want to alter your XF86config file, another solution is to run xmame.x11 with the &quot;-scale 2&quot; argument. In this case, the emulator will use 640x480 instead of 320x240, 800x600 instead of 400x300, etc. But I don't recommend it. The scaling uses cpu and the games will run more slowly.
+   </P
+><P
+>However, if your cpu is fast enough, a better option is to use the effects, e.g., &rdquo;-ef 1&rdquo;. This introduces advanced render methods to create a nicer looking effect than the simple scaling. On the website you can see <A
+HREF="http://x.mame.net/gamescreenshots.html"
+TARGET="_top"
+>screenshots</A
+> of the different effects.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN375"
+>I only use some of the emulation parts (Neo Geo / CPS-2 /...). Do I need the entire xmame?</A
+></H2
+><P
+>There used to be targets such as &ldquo;cpmame&rdquo; and &ldquo;neomame&rdquo;, but these have been removed from the core.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN378"
+>Why does xmame freeze and lock up when I hit &lt;ESC&gt; to exit the game or P to pause the game?</A
+></H2
+><P
+>There appears to be a bug in the &quot;timer-based audio&quot; code that xmame/oss uses on at least one motherboard that we are aware of. Specifically, the ATX 845Pro (Intel Pentium 4 processor) with an integrated i810 soundchip.
+   </P
+><P
+>To get around this bug use EsounD (Enlightened Sound Daemon), found as esd with Gnome distributions, instead of the oss sound drivers.
+   </P
+><P
+>Compile ESOUND support into the xmame executable by uncommenting the appropriate line in makefile.unix. Tell xmame to use esound by specifying &quot;esound&quot; on the &quot;dsp-plugin&quot; line in xmamerc, or use the -dp command line parameter to select esound. Also see the next section below.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN383"
+>Why does xmame report &ldquo;can't resolve host name '/dev/dsp'&rdquo; when trying to use esound?</A
+></H2
+><P
+>Remove the words &quot;/dev/dsp&quot; from the &quot;audiodevice&quot; line in xmamerc. In other words, you want to have the word &quot;audiodevice&quot; on a line all by itself, with no audiodevice specified.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN386"
+>Where can I get the latest version of xmame/xmess?</A
+></H2
+><P
+>The xmame/xmess Home Page always has the most up-to-date version. The address is
+   </P
+><P
+><A
+HREF="http://x.mame.net/"
+TARGET="_top"
+>http://x.mame.net/</A
+>
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN391"
+>I upgraded xmame and now some games do not work anymore.</A
+></H2
+><P
+>This can happen, especially if the drivers are in full development or some internal core routines have changed and the drivers have to be updated to accomodate for these core changes. Sometimes a new romdump has been made from the game and you still have the old version, or the zipfile has changed names and you need to rename yours (or any combination of these factors :-).
+   </P
+><P
+>Here are some things you can do:
+   </P
+><P
+></P
+><OL
+TYPE="1"
+><LI
+><P
+>Clear all the old configuration files, nvram files, etc. Also delete the content of the directories mem, nvram, cfg, and try to run the game again. Don't forget to delete the default.cfg file!
+    </P
+></LI
+><LI
+><P
+>If that fails, check to see if the name of the zipfile is still in the list of supported games. If you enter an invalid game name, xmame will take a guess to determine which game you wanted; look at the first lines of output to see if it tries to load a different game than the one you want. To know if your game is still supported, try 'xmame.x11 -list gamename'. If you do not pass a game name, the complete list of supported games is printed, and you can search for the new game name (better use 'xmame.x11 -listfull').
+    </P
+></LI
+><LI
+><P
+>If the name hasn't changed, check to see if you have the correct romdump. Run 'xmame.x11 -verifyroms gamename' to check your romset. If this fails you will need to download a newer romdump. Also check your parent roms as a possible cause of this romset failure.
+    </P
+></LI
+><LI
+><P
+>Read the documentation!! Or like the experts would say, &ldquo;RTFM!&rdquo; :-) Chances are that if the driver is broken, the developer has noted this in the documentation.
+    </P
+></LI
+><LI
+><P
+>If the above steps don't solve the problem, then check to see if it is a known problem; if necessary, report it to the MAME Testers project.
+    </P
+></LI
+></OL
+><P
+>If none of these fixes the problem, then try using the older version of xmame you have backed up somewhere to play the game. (You did back-up, didn't you?)
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN407"
+>Where can I send fixes, bug reports, suggestions, or money?  :-)</A
+></H2
+><P
+>See <A
+HREF="xmame-doc-4.html#MAIL"
+>Mail</A
+> of this document.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN411"
+>What if my question is still not answered?</A
+></H2
+><P
+>Please check the offical MAME and MESS readme files to see if that answers your question:
+   </P
+><P
+></P
+><UL
+><LI
+><P
+><A
+HREF="readme.mame"
+TARGET="_top"
+>The official mame readme file (readme.mame)</A
+>
+    </P
+></LI
+><LI
+><P
+><A
+HREF="readme.mess"
+TARGET="_top"
+>The official mess readme file (readme.mess)</A
+>
+    </P
+></LI
+></UL
+><P
+>If that doesn't help, then ask your question on the mailing list or send it to the xmame/xmess maintainer, see  <A
+HREF="xmame-doc-4.html#MAIL"
+>Mail</A
+> for contact information.
+   </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="xmame-doc.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="xmame-doc.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="xmame-doc-4.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>XMAME/XMESS DOCUMENTATION</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Contact Information and Credits</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

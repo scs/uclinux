@@ -1,0 +1,95 @@
+Reported in 0.74.1
+- Look into adding new AdvanceMAME effects and TV and arcade monitor support.
+
+Reported in 0.61.1
+- Make the blit core obey the updatebounds rectangle that's passed to 
+  osd_update_video_and_audio().
+- Add dirty pixels support to the vector code.
+- In devices.c, fill in the bodies of osd_analogjoy_read(), 
+  osd_is_joystick_axis_code(), and osd_lightgun_read().
+- Update the docs/FAQs for OpenGL to mention http://dri.sourceforge.net and 
+  using glxgears to test for 3D acceleration.
+- Change the debugger support so that both the debug and game window can be 
+  open at the same time.
+- Add the pthreads code from Andrea Mazzoleni.  Make sure this works with more 
+  than just Linux or that it can be selectively enabled/disabled.
+- Add xinerama support, so that xmame can send its output to a particular 
+  display, as mplayer does with its -xineramascreen switch.
+- Add XVidMode support, so non-root users can change the resolution.
+
+Reported in 0.60.1:
+- Add support for external configuration files for special controllers, as in 
+  the Windows version.
+
+Reported in 0.57.1:
+- Figure out why hotdogst compiled with gcc 2.95.x is crashing when the bomb 
+  button is hit.
+
+Reported in 0.56.1:
+- Look into adding VESA/FB support, as per MPlayer.
+
+Reported in 0.55.1:
+- Fix the tiny build for cvs mess.
+- Williams games look messed up when using xmame.xgl -fullscreen.
+- Add a note to the docs about Red Hat's nasm package screwing up builds.  Try
+  to detect this case.
+
+Reported in 0.54.1:
+- See if nec765_dummy.c is necessary anymore in xmess.
+- Figure out a way to force the use of DGA 1.0 on startup.
+- Put back the -mono flag that existed around xmame-0.34.x.
+
+Reported in 0.53.1:
+- 8bpp mode is no longer supported by the core.  There may be a way for xmame 
+  to downgrade the 16bpp bitmap so that we can support 8bpp video modes, at 
+  least for games which use 256 or fewer colors.  For those which use more, we
+  might be able to use a 332 RGB mode.
+- One of the files uses a variable called "x11" which causes a compile error.
+  Chris Stone thinks it's probably a macro in an X11 include file that's
+  interfering.  If there isn't a straightforward way to fix it in xmame, I'll
+  see if the core folks would be so kind as to rename the variable.
+- Running xmame --version still tries to read the various .xmamerc files.  
+  "Fix" this if it's simple to do.
+- Change the joystick code so that if a numeral if something like -jdev
+  /dev/input/js1 is specified, then that literal string is tried before
+  appending 0, 1, 2, etc. to the device name.
+- Running xmame.xgl with ssf2tu, sfa3, and spf2xj won't work if something
+  changes the default.cfg (e.g., editing the controls).  They will work again
+  after deleting default.cfg.
+
+Reported in 0.37b16.1:
+- xmame.sdl doesn't work under BeOS; it just stalls.
+- xmame.xgl will crash if you pause/unpause when running sfz3jr1 with
+  -fullscreen and -bpp 16.  This could be specific to running the NVidia 
+  drivers with a GeForce 2 MX 64Mb card; I can't reproduce it with my Matrox 
+  G400.
+- xmame.xgl will crash if you try to run it with a "NO GOOD DUMP KNOWN" rom.
+  After crashing like this, subsequent attempts to run cps1/cps2 games will 
+  also crash it until X is restarted.  This might be a problem with NVidia's 
+  XFree86 binary.
+- A couple people have reported that asterix and gradius3 run fine once and 
+  then never runs again, reporting that a couple of the ROMs are bad.  I 
+  haven't been able to reproduce this.  I wonder if it might have something to
+  do with a bad .cfg file being written out.  One user (garph) reports it 
+  happening on NetBSD 1.5 in plain X11 mode, so there's no exotic setup in 
+  common.  Update: Using -fakesound appears to make the problem go away.
+- Hot Chase (hotchase) endlessly cycles through its initialization screens. 
+  This doesn't happen with mamew.  The solution is to use the asm 68k core 
+  instead of the C one.
+- Update the docs to mention the problems using the nasm that comes bundled 
+  with Red Hat.  Encourage people to use a vanilla nasm 0.98 or higher.
+
+Reported in 0.37b15.1:
+- Certain games, such as kabuki, hang when running xmame.xgl, unless you first
+  run another version of xmame (e.g., xmame.x11) and get past the legal screen.
+  It looks like its the absence of a .cfg file that prevents xmame.xgl from
+  running the game.  Thus far I have no idea why, though.
+- Switching to fullscreen DGA mode and then quitting xmame screws up the
+  keyboard.  Apparently this has something to do with xmame losing the ctrl or
+  alt release codes; pressing ctrl or alt a few times should restore the
+  keyboard to a sane state.
+- Figure out how to handle mess_printf.  This may only exist in mess cvs right
+  now.
+
+Reported in 0.37b14.1:
+- Add -steadykey support from MAME.

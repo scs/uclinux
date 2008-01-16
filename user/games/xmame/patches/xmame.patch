@@ -1,0 +1,128 @@
+--- xmame/makefile.unix
++++ xmame/makefile.unix
+@@ -118,7 +118,7 @@
+ 
+ # If you want to use whatever CFLAGS are currently set in your 
+ # environment, then comment this out.
+-CFLAGS =
++#CFLAGS =
+ 
+ 
+ ###########################################################################
+@@ -127,7 +127,7 @@
+ ###########################################################################
+ 
+ # GCC on x86
+-CFLAGS = -O2
++CFLAGS ?= -O2
+ 
+ # GCC on x86 with some optimizations
+ # CFLAGS = -O2 -mtune=i686 -fomit-frame-pointer -fstrength-reduce -ffast-math
+@@ -417,7 +417,7 @@
+ ###########################################################################
+ 
+ # Normal linking.
+-LD	= $(CC) -Wl,-s
++LD	= $(CC)
+ 
+ # For a Linux/PowerPC system.
+ # LD	= $(CC) -Wl,-s,--relax
+@@ -729,10 +729,10 @@
+ # Uncomment any extensions you wish to use.
+ 
+ # MIT-Shared Memory X Extensions
+-X11_MITSHM = 1
++# X11_MITSHM = 1
+ 
+ # Use Xv extension for hardware scaling.
+-X11_XV = 1
++# X11_XV = 1
+ 
+ # Enable XFree86 DGA.  This also causes "make install" to set the suid bit 
+ # on the executable.
+@@ -756,8 +756,8 @@
+ # X11LIB		= -L/usr/lib/X11
+ 
+ # Standard location for XFree86
+-X11INC		= -I/usr/X11R6/include
+-X11LIB		= -L/usr/X11R6/lib
++# X11INC		= -I/usr/X11R6/include
++# X11LIB		= -L/usr/X11R6/lib
+ 
+ # Standard location for Sun systems
+ # X11INC		= -I/usr/openwin/include
+@@ -815,7 +815,7 @@
+ #
+ # If you wish you can add -DNOGLCHECKS for a small speedup, but this is not
+ # advised, or you can add -DGLDEBUG to get more verbose debugging messages.
+-GLCFLAGS += -D_X11_
++# GLCFLAGS += -D_X11_
+ 
+ # Uncomment to add more libraries that Mesa may require.
+ # GLLIBS += -lXmu -lXi
+@@ -851,6 +851,9 @@
+ # NASM_FMT  = -f aoutb
+ 
+ 
++# Blackfin settings
++include makefile.bfin
++
+ ###########################################################################
+ # All done.  Type make -f makefile.unix and enjoy xmame/xmess.  ;)
+ # No configurable options below this line.
+--- xmame/src/drivers/pacman.c
++++ xmame/src/drivers/pacman.c
+@@ -4951,7 +4951,9 @@
+ GAME( 1983, sprglobp, suprglob, theglobp, theglobp, 0,        ROT90,  "Epos Corporation", "Super Glob (Pac-Man hardware)", GAME_SUPPORTS_SAVE )
+ GAME( 1984, beastf,   suprglob, theglobp, theglobp, 0,        ROT90,  "Epos Corporation", "Beastie Feastie", GAME_SUPPORTS_SAVE )
+ GAME( 1984, drivfrcp, 0,        drivfrcp, drivfrcp, 0,        ROT90,  "Shinkai Inc. (Magic Eletronics Inc. licence)", "Driving Force (Pac-Man conversion)", GAME_SUPPORTS_SAVE )
++/* BFIN_HACK: compiling just pacman and link fails
+ GAME( 1985, 8bpm,     8ballact, 8bpm,     8bpm,     8bpm,     ROT90,  "Seatongrove Ltd (Magic Eletronics USA licence)", "Eight Ball Action (Pac-Man conversion)", GAME_SUPPORTS_SAVE )
++*/
+ GAME( 1985, porky,    0,        porky,    porky,    porky,    ROT90,  "Shinkai Inc. (Magic Eletronics Inc. licence)", "Porky", GAME_NO_SOUND )
+ GAME( 1986, rocktrv2, 0,        rocktrv2, rocktrv2, rocktrv2, ROT90,  "Triumph Software Inc.", "MTV Rock-N-Roll Trivia (Part 2)", GAME_SUPPORTS_SAVE )
+ GAME( 1986, bigbucks, 0,        bigbucks, bigbucks, 0,        ROT90,  "Dynasoft Inc.", "Big Bucks", GAME_SUPPORTS_SAVE )
+--- xmame/src/tiny.mak
++++ xmame/src/tiny.mak
+@@ -29,8 +29,8 @@
+ #	an & in front of each name.
+ #-------------------------------------------------
+ 
+-COREDEFS += -DTINY_NAME="driver_robby,driver_gridlee,driver_polyplay,driver_alienar"
+-COREDEFS += -DTINY_POINTER="&driver_robby,&driver_gridlee,&driver_polyplay,&driver_alienar"
++COREDEFS += -DTINY_NAME="driver_robby,driver_gridlee,driver_polyplay,driver_alienar,driver_puckman,driver_mspacman,driver_pacman"
++COREDEFS += -DTINY_POINTER="&driver_robby,&driver_gridlee,&driver_polyplay,&driver_alienar,&driver_puckman,&driver_mspacman,&driver_pacman"
+ 
+ 
+ 
+@@ -41,6 +41,8 @@
+ 
+ CPUS += Z80
+ CPUS += M6809
++CPUS+=I8035
++CPUS+=N2A03
+ 
+ 
+ 
+@@ -57,6 +57,9 @@
+ SOUNDS += HC55516
+ SOUNDS += YM2151
+ SOUNDS += OKIM6295
++SOUNDS+=NAMCO
++SOUNDS+=AY8910
++SOUNDS+=DAC
+ 
+ 
+ 
+@@ -75,3 +75,11 @@
+ 	$(OBJ)/drivers/gridlee.o $(OBJ)/sndhrdw/gridlee.o $(OBJ)/vidhrdw/gridlee.o \
+ 	$(OBJ)/drivers/polyplay.o $(OBJ)/sndhrdw/polyplay.o $(OBJ)/vidhrdw/polyplay.o \
+ 	$(OBJ)/drivers/williams.o $(OBJ)/machine/williams.o $(OBJ)/sndhrdw/williams.o $(OBJ)/vidhrdw/williams.o \
++	$(OBJ)/drivers/pacman.o $(OBJ)/vidhrdw/pacman.o \
++	$(OBJ)/machine/mspacman.o \
++	$(OBJ)/machine/pacplus.o \
++	$(OBJ)/machine/theglobp.o \
++	$(OBJ)/machine/acitya.o \
++	$(OBJ)/machine/jumpshot.o \
++	$(OBJ)/drivers/epos.o $(OBJ)/vidhrdw/epos.o \
++	$(OBJ)/machine/8255ppi.o

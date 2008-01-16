@@ -1,0 +1,1250 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+	<head>
+		<title>MESS Guide</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<link href="../style.css" rel="stylesheet" type="text/css">
+	</head>
+	<body>
+		<h1>Using MESS at the Command Line</h1>
+		<p class="normal">This section deals with configuring and running MESS for Win32. 
+			It includes where to start, an in depth look at the command line and a section 
+			looking at the MESS.ini file.
+		</p>
+		<p class="normal">
+			<hr>
+			<h2>
+				Where to start...
+			</h2>
+		<p class="normal">
+		The beauty of MESS for Win32 is the fact although it looks like a DOS file it 
+		is actually a windows based program. Therefore you don't have to mess around 
+		configuring drivers as it uses DirectX and your windows drivers.
+		<p class="normal">
+		All you need to do to run it is to open a command prompt. Either go to the 
+		start button, press run and type command or you can run the command prompt from 
+		the start/programs/accessories menu.
+		<p class="normal">
+		Once you are in a DOS box type in this command
+		<p align="center"><span class="command">cd C:\MESS</span>
+		<p class="normal">
+		You should see the prompt
+		<p align="center"><span class="command">C:\MESS&gt;</span>
+		<p class="normal">If it is the first time you have run MESS type MESS -cc. This 
+			will create a file called MESS.ini which holds all the default MESS settings.
+			<br>
+			<hr width="95%">
+			<h2>
+				Command Line Options
+			</h2>
+		<p class="normal">
+		MESS for Win32 uses a straightforward command format to execute. Heres what it 
+		looks like...
+		<p align="center" class="Tutorial">
+			<span class="command">MESS &lt;system&gt; 
+  &lt;device&gt; &lt;software_name&gt; -options</span>
+		<p class="normal"><span class="command">System</span>
+			- Is the name of the system to be used which can be found <a href="messsuppsys.htm" target="_blank">
+				here</a>
+		.
+		<p class="normal">
+			<span class="command">Device</span>
+			- Is the name of the device MESS need to emulate to load the software. This 
+			option is relevant to the system you want to use for example an Atari 2600 uses 
+			a cartridge therefore this option would say
+			<span class="command">-cart</span>
+		<p class="normal">Heres a breakdown of the device names...
+			<table width="95%" border="1" align="center">
+				<tr>
+					<td width="19%" class="tablehead">-cartridge / -cart</td>
+					<td width="81%" class="TableDesc">Cartridge based software</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-floppydisk / -flop</td>
+					<td class="TableDesc">Floppy disk based software</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-quickload / -quik</td>
+					<td class="TableDesc">Quick Saved Memory</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-printer / -prin</td>
+					<td class="TableDesc">Output to printer</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-snapshot / -dump</td>
+					<td class="TableDesc">Memory dump (e.g. exact copy of a systems memory that can be 
+						reloaded and run)</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-cassette / -cass</td>
+					<td class="TableDesc">Cassette tape image</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-harddisk / -hard</td>
+					<td class="TableDesc">Hard drive image</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-parallel / -parl</td>
+					<td class="TableDesc">Data normally loaded through a parallel (printer) port.</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-punchcard / -pcrd</td>
+					<td class="TableDesc">Punch card data</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-punchtape / -ptap</td>
+					<td class="TableDesc">Punch tape data</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-serial / -serl</td>
+					<td class="TableDesc">Data normally loaded through a serial port</td>
+				</tr>
+				<tr>
+					<td class="tablehead">-cylinder / -cyln</td>
+					<td class="TableDesc">Data loaded from a metal cylinder (really old computers used 
+						these)</td>
+				</tr>
+			</table>
+		<p class="normal">
+		You can find out the devices used and what file extensions can be used by 
+		typing
+		<p align="center" class="Tutorial"><span class="command">MESS &lt;System&gt; -listdevices</span>
+		<p class="normal">
+		From there it's up to you to decide what the software is. The way to look at it 
+		is that most consoles used cartridges, most computers used cassettes or floppy 
+		disks and newer computers used harddisks. You probably wont find many hard disk 
+		images about and most of the other devices (e.g. punchcard) are very obselete. 
+		Snapshot is probably the most commonly found file especially in home computer 
+		emulation as it is a complete system dump and when loaded will run software 
+		from exactly the point that it was saved from.
+		<p class="normal"><span class="command">Software_Name</span>
+			- is the name of the file that you want to run in MESS. You must remember that 
+			you need the <font color="#ff0000">whole</font>
+		file name including the file extension (e.g. frogger.a26 or frogger.zip)
+		<p class="normal"><span class="command">Options</span>
+		- Finally you have the options. Most of the options are exactly the same as 
+		Mame but there are a few exclusives.
+		<p class="normal"><span class="Tutorial">These are all the command line options 
+  that MESS uses...<br>
+  </span>
+			<table width="888" border="1" cellpadding="3" align="center">
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** Frontend Related ***
+				<tr>
+					<td width="345" class="tablehead">
+					-help / -h ./ -?
+					<td width="519" colspan="-1" class="Maintext">
+				Show the help message
+				<tr>
+					<td width="345" class="tablehead">
+					-list / -ls
+					<td width="519" colspan="-1" class="Maintext">
+				List supported games matching gamename, or all, gamename may contain * and ? 
+				wildcards
+				<tr>
+					<td width="345" class="tablehead">
+					-listfull / -ll
+					<td width="519" colspan="-1" class="Maintext">
+				Lists all games as short name, full name
+				<tr>
+					<td width="345" class="tablehead">
+					-listgames
+					<td width="519" colspan="-1" class="Maintext">
+				Lists all games as year, manufacturer and full name
+				<tr>
+					<td width="345" class="tablehead">
+					-listdetails
+					<td width="519" colspan="-1" class="Maintext">
+				Lists all games with detailed info
+				<tr>
+					<td width="345" class="tablehead">
+					-gamelist
+					<td width="519" colspan="-1" class="Maintext">
+				Outputs the gamelist.txt file
+				<tr>
+					<td width="345" class="tablehead">
+					-listsourcefile
+					<td width="519" colspan="-1" class="Maintext">
+				Lists all sourcefile names
+				<tr>
+					<td class="TableMenu" width="345">
+					-listgamespersourcefile
+					<td colspan="-1" class="Maintext" width="519">
+				Lists all the games in a sourcefile
+				<tr>
+					<td width="345" class="tablehead">
+					-listinfo / -li
+					<td width="519" colspan="-1" class="Maintext">
+				Lists all available info on a driver
+				<tr>
+					<td class="TableMenu" width="345">
+					-listxml / -lx
+					<td colspan="-1" class="Maintext" width="519">
+				Lists all available info on a driver in XML format
+				<tr>
+					<td width="345" class="tablehead">
+					-listclones / -lc
+					<td width="519" colspan="-1" class="Maintext">
+				Lists only clones
+				<tr>
+					<td width="345" class="tablehead">
+					-listsamdir
+					<td width="519" colspan="-1" class="Maintext">
+				Lists the shared sample folder
+				<tr>
+					<td width="345" class="tablehead">
+					-listcrc
+					<td width="519" colspan="-1" class="Maintext">
+				Lists rom checksums
+				<tr>
+					<td class="TableMenu" width="345">
+					-listmd5
+					<td colspan="-1" class="Maintext" width="519">
+				Lists the checksums used in hard disk based games
+				<tr>
+					<td class="TableMenu" width="345">
+					-listsha1
+					<td colspan="-1" class="Maintext" width="519">
+				Lists all roms using tha sha1 checksum
+				<tr>
+					<td width="345" class="tablehead">
+					-listdupcrc
+					<td width="519" colspan="-1" class="Maintext">
+				Lists roms with duplicate crc's
+				<tr>
+					<td width="345" class="tablehead">
+					-listwrongmerge / -lwm
+					<td width="519" colspan="-1" class="Maintext">
+				Lists roms with wrong merge attempts done on them
+				<tr>
+					<td width="345" class="tablehead">
+					-listromsize / -lrs
+					<td width="519" colspan="-1" class="Maintext">
+				Lists rom sizes
+				<tr>
+					<td class="TableMenu" width="345">
+					-listromdistribution
+					<td colspan="-1" class="Maintext" width="519">
+				Lists the distribution of roms MESS support by year and size
+				<tr>
+					<td class="TableMenu" width="345">
+					-listromnumber
+					<td colspan="-1" class="Maintext" width="519">
+				Lists games by how many roms they contain
+				<tr>
+					<td class="TableMenu" width="345">
+					-listpalettesize / -lps
+					<td colspan="-1" class="Maintext" width="519">
+				Lists games by name, year and how many colours it supports.
+				<tr>
+					<td width="345" class="tablehead">
+					-listcpu
+					<td width="519" colspan="-1" class="Maintext">
+				Lists cpu's used in drivers
+				<tr>
+					<td class="TableMenu" width="345">
+					-listcpuclass
+					<td colspan="-1" class="Maintext" width="519">
+				Lists by year how many games have 8, 16 or 32bit processors.
+				<tr>
+					<td class="TableMenu" width="345">
+					-listnosound
+					<td colspan="-1" class="Maintext" width="519">
+				Lists game that don't support sound yet
+				<tr>
+					<td class="TableMenu" width="345">
+					-listsound
+					<td colspan="-1" class="Maintext" width="519">
+				Lists how many games support the different sound chips emulated in MESS
+				<tr>
+					<td class="TableMenu" width="345">
+					-listnvram
+					<td colspan="-1" class="Maintext" width="519">
+				Lists how many game support NVRAM data saving
+				<tr>
+					<td width="345" class="tablehead">
+					-wrongorientation
+					<td width="519" colspan="-1" class="Maintext">
+				Lists games with wrong screen orientation
+				<tr>
+					<td width="345" class="tablehead">
+					-wrongfps
+					<td width="519" colspan="-1" class="Maintext">
+				Lists games with wrong fps
+				<tr>
+					<td class="TableMenu" width="345">
+					-listdevices
+					<td colspan="-1" class="Maintext" width="519">
+				Lists the devices used by a system in MESS
+				<tr>
+					<td class="TableMenu" width="345">
+					-listtext
+					<td colspan="-1" class="Maintext" width="519">
+				Lists the file extensions used by a system in MESS
+				<tr>
+					<td width="345" class="tablehead">
+					-listroms
+					<td width="519" colspan="-1" class="Maintext">
+				Displays ROMs required by the specified game
+				<tr>
+					<td width="345" class="tablehead">
+					-listsamples
+					<td width="519" colspan="-1" class="Maintext">
+				Displays samples required by the specified game
+				<tr>
+					<td width="345" class="tablehead">
+					-verifyroms
+					<td width="519" colspan="-1" class="Maintext">
+				Checks specified game(s) for missing and invalid ROMs.
+				<tr>
+					<td width="345" class="tablehead">
+					-verifysets / -vset
+					<td width="519" colspan="-1" class="Maintext">
+				Checks specified game(s) and reports its status.
+				<tr>
+					<td width="345" class="tablehead">
+					-verifysamples
+					<td width="519" colspan="-1" class="Maintext">
+				Checks that all samplesets have the correct samples in them.
+				<tr>
+					<td class="TableMenu" width="345">
+					-vsam
+					<td colspan="-1" class="Maintext" width="519">
+				Check that an individual sampleset has the correct samples in it.
+				<tr>
+					<td width="345" class="tablehead">
+					-romident
+					<td width="519" colspan="-1" class="Maintext">
+				Checks an unknown romset against MESS romsets to see what it belongs to
+				<tr>
+					<td width="345" class="tablehead">
+					-isknown
+					<td width="519" colspan="-1" class="Maintext">
+				Same as above but with less info
+				<tr>
+					<td width="345" class="tablehead">
+					-sortname
+					<td width="519" colspan="-1" class="Maintext">
+				Sort by descriptive name (e.g. Pacman (Japan))
+				<tr>
+					<td width="345" class="tablehead">
+					-sortdriver
+					<td width="519" colspan="-1" class="Maintext">
+				Sort by driver name (e.g. puckman)
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** Windows path and folder options ***
+				<tr>
+					<td width="345" class="tablehead">
+					-biospath / -bp
+					<td width="519" colspan="-1" class="Maintext">
+				Specify path for bios files
+				<tr>
+					<td width="345" class="tablehead">
+					-softwarepath / -swp
+					<td width="519" colspan="-1" class="Maintext">
+				Specify path for system software
+				<tr>
+					<td class="TableMenu" width="345">
+					-crcpath / -crc
+					<td colspan="-1" class="Maintext" width="519">
+				Specify path for software crc check files
+				<tr>
+					<td class="TableMenu" width="345">
+					-inipath
+					<td colspan="-1" class="Maintext" width="519">
+				Specify path for game ini files
+				<tr>
+					<td class="TableMenu" width="345">
+					-samplepath / -sp
+					<td colspan="-1" class="Maintext" width="519">
+				Specify path for system samples
+				<tr>
+					<td width="345" class="tablehead">
+					-cfg_directory
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the folder to save configurations
+				<tr>
+					<td width="345" class="tablehead">
+					-nvram_directory
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the folder to save nvram contents
+				<tr>
+					<td width="345" class="tablehead">
+					-memcard_directory
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the folder to save memory card contents
+				<tr>
+					<td width="345" class="tablehead">
+					-input_directory
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the folder to save input device logs
+				<tr>
+					<td width="345" class="tablehead">
+					-hiscore_directory
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the folder to save hiscores
+				<tr>
+					<td width="345" class="tablehead">
+					-state_directory
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the folder to save states
+				<tr>
+					<td width="345" class="tablehead">
+					-artwork_directory
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the folder for Artwork (Overlays etc.)
+				<tr>
+					<td width="345" class="tablehead">
+					-snapshot_directory
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the folder for screenshots (.png format)
+				<tr>
+					<td class="TableMenu" width="345">
+						-ctrlr_directory name
+						<p class="fixedsize">
+							Lets you specify a folder for MESS to look in for you controller ini files.</p>
+				<tr>
+					<td class="TableMenu" width="345">
+						-diff_directory name
+						<p class="fixedsize">
+							Lets you specify a folder for MESS to look in for you hard drive difference 
+							files.</p>
+				<tr>
+					<td width="345" class="tablehead">
+					-cheat_file
+					<td width="519" colspan="-1" class="Maintext">
+				Specify the cheat filename
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** Windows video options ***
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]autoframeskip / -[no]afs
+					<td width="519" colspan="-1" class="Maintext">
+				If you game is running slow then use skip frames to speed up emulation
+				<tr>
+					<td width="345" class="tablehead">
+					-frameskip / -fs
+					<td width="519" colspan="-1" class="Maintext">
+				Lets you specify how many frames are skipped when playing a game. 
+				(autoframeskip needs to be off)
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]waitvsync
+					<td width="519" colspan="-1" class="Maintext">
+				Waits for the screen to draw before drawing the next frame (reduces tearing of 
+				graphics)
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]triplebuffer / -[no]tb
+					<td width="519" colspan="-1" class="Maintext">
+				Triple buffering (only if fullscreen) draws three screens at a time and flips 
+				them which creates smoother animation.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]window / -[no]w
+					<td width="519" colspan="-1" class="Maintext">
+				This option lets you run MESS in a window on your desktop or fullscreen.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]ddraw / -[no]dd
+					<td width="519" colspan="-1" class="Maintext">
+				Use DirectDraw for rendering (Leave on!)
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]direct3d / -[no]d3d
+					<td colspan="-1" class="Maintext" width="519">
+				Use Direct3D for rendering (On some cards faster than direct draw)
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]hwstretch / -[no]hws
+					<td width="519" colspan="-1" class="Maintext">
+				Stretches games to fill the screen using the hardware on your graphics card (if 
+				you have it)
+				<tr>
+					<td class="TableMenu" width="345">
+					-cleanstretch / -cs
+					<td colspan="-1" class="Maintext" width="519"><p>Stretches the screem to integer ratios 
+							and ignores the game aspect ratio. Uses these options...</p>
+						<p>
+							-cleanstretch auto : Lets MESS decide.<br>
+							-cleanstretch full<br>
+							-cleanstretch none : Disables cleanstretch<br>
+							-cleanstretch horizontal : Horzontal clean stretch only<br>
+							-cleanstretch vertical : Vertical clean stretch only</p>
+				<tr>
+					<td width="345" class="tablehead">
+					-resolution / -r
+					<td width="519" colspan="-1" class="Maintext">
+				Sets the resolution in fullscreen mode (e.g. 640x480)
+				<tr>
+					<td class="TableMenu" width="345">
+					-zoom / -z
+					<td colspan="-1" class="Maintext" width="519">
+				Forces a specific zoom level
+				<tr>
+					<td width="345" class="tablehead">
+					-refresh
+					<td width="519" colspan="-1" class="Maintext">
+				Set a specific monitor refresh rate in hz
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]scanlines / -[no]sl
+					<td width="519" colspan="-1" class="Maintext">
+				Emulates the lower resolution screenmode on monitors and TV's.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]switchres
+					<td width="519" colspan="-1" class="Maintext">
+				Switches the screen resolutions to best fit the game
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]switchbpp
+					<td width="519" colspan="-1" class="Maintext">
+				Switch the color depth of a screen to match the game being played.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]maximize / -[no]max
+					<td width="519" colspan="-1" class="Maintext">
+				Starts a MESS window maximized
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]keepaspect / -[no]ka
+					<td width="519" colspan="-1" class="Maintext">
+				Keep a game in the right aspect no matter what resolution is used.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]matchrefresh
+					<td width="519" colspan="-1" class="Maintext">
+				Attempt to match the game's refresh rate
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]syncrefresh
+					<td width="519" colspan="-1" class="Maintext">
+				Synchronize only to the monitor refresh
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]throttle
+					<td width="519" colspan="-1" class="Maintext">
+				Throttle MESS's speed to match the game's framerate
+				<tr>
+					<td width="345" class="tablehead">
+					-full_screen_brightness / -fsb
+					<td width="519" colspan="-1" class="Maintext">
+				Sets the brightness in full screen mode
+				<tr>
+					<td class="TableMenu" width="345">
+					-frames_to_run / -ftr
+					<td colspan="-1" class="Maintext" width="519">
+				Sets the number of frames to run within the game
+				<tr>
+					<td width="345" class="tablehead">
+					-effect
+					<td width="519" colspan="-1" class="Maintext">
+						<p>none - no effect (this is the default)<br>
+							sharp - Stretch screen without blurring<br>
+							scan25 - 25% scanlines<br>
+							scan50 - 50% scanlines<br>
+							scan75 - 75% scanlines<br>
+							rgb3 - a certain "monitor mask"<br>
+							rgb4 - another one<br>
+							rgb6 - another one<br>
+							rgb16 - another one. Choose the one you like best.
+						</p>
+				<tr>
+					<td width="345" class="tablehead">
+					-screen_aspect X:Y
+					<td width="519" colspan="-1" class="Maintext">
+				Where X and Y are the aspect you want. Helps configure the screen to fill your 
+				monitor. eg.g. most monitors are 4:3 though if you have a wide screen then you 
+				may have 16:9.
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]sleep
+					<td colspan="-1" class="Maintext" width="519">
+				Lets MESS use less CPU time if it can
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]rdtsc
+					<td colspan="-1" class="Maintext" width="519">
+				Changes the timing in a game
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]high_priority
+					<td width="519" colspan="-1" class="Maintext">
+				Increase processor thread priority so improves performance if you have alot of 
+				programs running.
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** Windows Direct3D 2D video options ***
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]d3dtexmanage
+					<td colspan="-1" class="Maintext" width="519">
+				Lets DirectX manage all game screen to texture operations rather than MESS.
+				<tr>
+					<td height="50" class="TableMenu" width="345">
+					-d3dfilter / -flt
+					<td colspan="-1" class="Maintext" width="519"><p>Sets the filter (blurriness) when 
+							using D3D for rendering the game screen thus reducing jagged edges.</p>
+						<p>0 is none<br>
+							1 bi-linear<br>
+							2 flat bi-cubic<br>
+							3 gaussian bicubic<br>
+							4 anisotropic (If your card supports it)</p>
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]d3dprescale
+					<td colspan="-1" class="Maintext" width="519">
+				Works like sharp in the effects so doesn't blur the screen.
+				<tr>
+					<td class="TableMenu" width="345">
+					-d3dfeedback
+					<td colspan="-1" class="Maintext" width="519">
+				Something about feedback intensity (Whatever that is)
+				<tr>
+					<td class="TableMenu" width="345">
+					-d3dsaturate
+					<td colspan="-1" class="Maintext" width="519">
+				Over saturates the colour intensity in games.
+				<tr>
+					<td class="TableMenu" width="345">
+					-d3dscan
+					<td colspan="-1" class="Maintext" width="519">
+				Sets the scanline intensity if you select this effect.
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]d3deffectrotate
+					<td colspan="-1" class="Maintext" width="519">
+				Rotates the d3deffect command to work with vertically aligned monitors.
+				<tr>
+					<td class="TableMenu" width="345">
+					-d3deffect
+					<td colspan="-1" class="Maintext" width="519"><p>Adds screen effects when the game 
+							screen is drawn. You can also use the names from the -effect option too.</p>
+						<p>rgbminmask<br>
+							dotmedmask<br>
+							rgbmedmask<br>
+							rgbmicro<br>
+							rgbtiny<br>
+							aperturegrille<br>
+							dotmedbright<br>
+							rgbmaxbright</p>
+				<tr>
+					<td class="TableMenu" width="345">
+					-d3dcustom
+					<td colspan="-1" class="Maintext" width="519">
+				Dont touch unless you know what you're doing
+				<tr>
+					<td class="TableMenu" width="345">
+					-d3dexpert
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above.
+				<tr>
+					<td height="24" colspan="2" class="TableTitle" width="874">
+				*** Windows sound options ***
+				<tr>
+					<td class="TableMenu" width="345">
+					-audio_latency
+					<td colspan="-1" class="Maintext" width="519">
+				Sets MESSs audio latency which help to reduce sound clicks and pops
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** Input device options ***
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]mouse
+					<td colspan="-1" class="Maintext" width="519">
+				Enable mouse input
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]joystick / -[no]joy
+					<td colspan="-1" class="Maintext" width="519">
+				Enable joystick input
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]lightgun / -[no]gun
+					<td colspan="-1" class="Maintext" width="519">
+				Enable lightgun input
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]steadkey / -[no]steady
+					<td colspan="-1" class="Maintext" width="519">
+				If you are having problems with pressing more than one key at a time then 
+				enable this option.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]keyboard_leds / -[no]leds
+					<td width="519" colspan="-1" class="Maintext">
+				uses the keyboard LED's (e.g. numlock light) to simulate the LED's on an arcade 
+				board
+				<tr>
+					<td class="TableMenu" width="345">
+					-a2d_deadzone / -a2d &lt;float&gt;
+					<td colspan="-1" class="Maintext" width="519">
+				How much you have to move an analog joystick before it registers on digitally 
+				controlled games.
+				<tr>
+					<td class="TableMenu" width="345">
+						-ctrlr name
+						<p class="fixedsize">
+							Loads the controller ini file specified by name (e.g. -ctrlr wingman)</p>
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** MESS specific options ***
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]newui / -[no]nu
+					<td colspan="-1" class="Maintext" width="519">
+				Uses the new MESS windows user interface for options instead of Mames screen 
+				based one
+				<tr>
+					<td class="TableMenu" width="345">
+					-cartridge / -cart
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were a cartridge
+				<tr>
+					<td class="TableMenu" width="345">
+					-floppydisk / -flop
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were on a floppy disk
+				<tr>
+					<td class="TableMenu" width="345">
+					-harddisk / -hard
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were a harddisk
+				<tr>
+					<td class="TableMenu" width="345">
+					-cylinder / -cyln
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were on a cylinder storage device
+				<tr>
+					<td class="TableMenu" width="345">
+					-cassette / -cass
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were on a cassette tape
+				<tr>
+					<td class="TableMenu" width="345">
+					-punchcard / -pcrd
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were a on punchcard
+				<tr>
+					<td class="TableMenu" width="345">
+					-punchtape / -ptap
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were on punchtape
+				<tr>
+					<td class="TableMenu" width="345">
+					-printer / -prin
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were from a printer
+				<tr>
+					<td class="TableMenu" width="345">
+					-serial / -serl
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it was sent through a serial port
+				<tr>
+					<td class="TableMenu" width="345">
+					-parallel / -parl
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it was sent through a parallel port
+				<tr>
+					<td class="TableMenu" width="345">
+					-snapshot / -dump
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a system dump files straight to memory
+				<tr>
+					<td class="TableMenu" width="345">
+					-quickload / -quik
+					<td colspan="-1" class="Maintext" width="519">
+				Opens a software file as if it were a quickload file
+				<tr>
+					<td class="TableMenu" width="345">
+					-cartridge_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Sets the default cartridge sub folder (useful if you want to separate different 
+				types of in system software folders)
+				<tr>
+					<td class="TableMenu" width="345">
+					-floppydisk_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for floppydisks
+				<tr>
+					<td class="TableMenu" width="345">
+					-harddisk_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for harddisks
+				<tr>
+					<td class="TableMenu" width="345">
+					-cylinder_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for cylinders
+				<tr>
+					<td class="TableMenu" width="345">
+					-cassette_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for cassettes
+				<tr>
+					<td class="TableMenu" width="345">
+					-punchcard_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for punchcards
+				<tr>
+					<td class="TableMenu" width="345">
+					-punchtape_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for punchtape
+				<tr>
+					<td class="TableMenu" width="345">
+					-printer_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for printer files
+				<tr>
+					<td class="TableMenu" width="345">
+					-serial_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for serial data
+				<tr>
+					<td class="TableMenu" width="345">
+					-parallel_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for parallel data
+				<tr>
+					<td class="TableMenu" width="345">
+					-snapshot_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for system snapshots
+				<tr>
+					<td class="TableMenu" width="345">
+					-quickload_dir
+					<td colspan="-1" class="Maintext" width="519">
+				Same as above but for quickload files
+				<tr>
+					<td class="TableMenu" width="345">
+					-ramsize / -ram
+					<td colspan="-1" class="Maintext" width="519">
+				Lets you set the amount of RAM a system can use (if the system supports it)
+				<tr>
+					<td class="TableMenu" width="345">
+					-threads / -thr
+					<td colspan="-1" class="Maintext" width="519">
+				Used for parallel data
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]natural / -[no]nat
+					<td colspan="-1" class="Maintext" width="519">
+				Determines whether a natural keyboard is being used
+				<tr>
+					<td class="TableMenu" width="345">
+					-min_width / -mw &lt;int&gt;
+					<td colspan="-1" class="Maintext" width="519">
+				Sets a minimum width for the MESS screen
+				<tr>
+					<td class="TableMenu" width="345">
+					-min_height / -mh &lt;int&gt;
+					<td colspan="-1" class="Maintext" width="519">
+				Sets a minimum height for the MESS screen
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]writeconfig / -[no]wc
+					<td colspan="-1" class="Maintext" width="519">
+				Determines whether MESS writes a configuration file for a system when you close 
+				it
+				<tr>
+					<td class="TableMenu" width="345">
+					-createdir
+					<td colspan="-1" class="Maintext" width="519">
+				Creates all the system folders in the MESS software folder
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** MESS CORE video options ***
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]norotate
+					<td width="519" colspan="-1" class="Maintext">
+				Do not apply rotation
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]ror
+					<td width="519" colspan="-1" class="Maintext">
+				Rotate screen clockwise
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]rol
+					<td width="519" colspan="-1" class="Maintext">
+				Rotate screen anti-clockwise
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]autoror
+					<td colspan="-1" class="Maintext" width="519">
+				Automatically rotates the screen clockwise for vertical games.
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]autorol
+					<td colspan="-1" class="Maintext" width="519">
+				Automatically rotates the screen anti-clockwise for vertical games.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]flipx
+					<td width="519" colspan="-1" class="Maintext">
+				Flip screen upside-down
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]flipy
+					<td width="519" colspan="-1" class="Maintext">
+				Flip screen left-right
+				<tr>
+					<td class="TableMenu" width="345">
+					-gamma
+					<td colspan="-1" class="Maintext" width="519">
+				Gamma correction is used if you find your game is too dark.
+				<tr>
+					<td class="TableMenu" width="345">
+					-brightness
+					<td colspan="-1" class="Maintext" width="519">
+				Brightness is also used if you find your game is too dark.
+				<tr>
+					<td class="TableMenu" width="345">
+					-pause_brightness
+					<td colspan="-1" class="Maintext" width="519">
+				Changes the brightness of the game when paused.
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** MESS CORE vector game options ***
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]antialias / -[no]aa
+					<td width="519" colspan="-1" class="Maintext">
+				Draw antialiased vectors which smoothes out the edges.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]translucency / -[no]tl
+					<td width="519" colspan="-1" class="Maintext">
+				Draw translucent vectors which simulates the feel of vector games
+				<tr>
+					<td width="345" class="tablehead">
+					-beam
+					<td width="519" colspan="-1" class="Maintext">
+				Set beam width in vector games
+				<tr>
+					<td class="TableMenu" width="345">
+					-flicker
+					<td colspan="-1" class="Maintext" width="519">
+				Set flickering in vector games which again adds to the realism of vector games.
+				<tr>
+					<td width="345" class="tablehead">
+					-intensity
+					<td width="519" colspan="-1" class="Maintext">
+				Sets the brightness of the vectors.
+				<tr>
+					<td colspan="2" class="TableTitle" width="874">
+				*** MESS CORE sound options ***
+				<tr>
+					<td width="345" class="tablehead">
+					-samplerate / -sr
+					<td width="519" colspan="-1" class="Maintext">
+				Set samplerate (e.g. 22050) in khz
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]samples
+					<td width="519" colspan="-1" class="Maintext">
+				Uses samples to complete the sound systems for games which require them.
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]sound
+					<td width="519" colspan="-1" class="Maintext">
+				Enable/Disable sound and sound CPUs
+				<tr>
+					<td width="345" class="tablehead">
+					-volume / -vol
+					<td width="519" colspan="-1" class="Maintext">
+				Volume (range [-32,0])
+				<tr>
+					<td height="15" colspan="4" class="TableTitle" width="874">
+				*** MESS CORE misc options ***
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]artwork / -[no]art
+					<td width="519" colspan="-1" class="Maintext">
+				Use additional game artwork
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]use_backdrops / -[no]backdrop
+					<td colspan="-1" class="Maintext" width="519">
+				For art files that are the backdrop for games.
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]use_overlays / -[no]overlay
+					<td colspan="-1" class="Maintext" width="519">
+				For art files that are overlayed on top of games.
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]use_bezels / -[no]bezel
+					<td colspan="-1" class="Maintext" width="519">
+				For art files that are go around games.
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]artwork_crop / -[no]artcrop
+					<td colspan="-1" class="Maintext" width="519">
+				Crop artwork to game screen size only.
+				<tr>
+					<td class="TableMenu" width="345">
+						-artwork_resolution / -artres
+						<br>
+					<td colspan="-1" class="Maintext" width="519">
+				Sets the resolution for the artwork in a game (0 for auto)
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]cheat / -[no]c
+					<td width="519" colspan="-1" class="Maintext">
+				Enable/disable cheat subsystem
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]debug / -[no]d
+					<td width="519" colspan="-1" class="Maintext">
+				Enable/disable debugger (only if available)
+				<tr>
+					<td width="345" class="tablehead">
+					-playback / -pb
+					<td width="519" colspan="-1" class="Maintext">
+				Playback an input file
+				<tr>
+					<td width="345" class="tablehead">
+					-record / -rec
+					<td width="519" colspan="-1" class="Maintext">
+				Record an input file
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]log
+					<td colspan="-1" class="Maintext" width="519">
+				Generate an error.log for debugging
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]oslog
+					<td colspan="-1" class="Maintext" width="519">
+				Outputs an error log to MESSs debugger
+				<tr>
+					<td class="TableMenu" width="345">
+					-[no]skip_gameinfo
+					<td colspan="-1" class="Maintext" width="519">
+				Skips the game info screen
+				<tr>
+					<td width="345" class="tablehead">
+					-bios
+					<td width="519" colspan="-1" class="Maintext">
+				Lets you set the country of the BIOS for Neo-Geo based games.
+				<tr>
+					<td colspan="2" class="Tabletitle" width="874">
+				*** Configuration options ***
+				<tr>
+					<td width="345" class="tablehead">
+					-createconfig / -cc
+					<td width="519" colspan="-1" class="Maintext">
+				Create the default configuration file
+				<tr>
+					<td width="345" class="tablehead">
+					-showconfig / -sc
+					<td width="519" colspan="-1" class="Maintext">
+				Display running parameters in rc style
+				<tr>
+					<td width="345" class="tablehead">
+					-showusage / -su
+					<td width="519" colspan="-1" class="Maintext">
+				Show key help
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]readconfig / -[no]rc
+					<td width="519" colspan="-1" class="Maintext">
+				Enable/disable loading of configfiles
+				<tr>
+					<td width="345" class="tablehead">
+					-[no]verbose / -[no]v
+					<td width="519" colspan="-1" class="Maintext">
+					Display additional diagnostic information</tr>
+			</table>
+		<p class="normal">Heres an example of running MESS at the command line...</p>
+		<p align="center"><span class="command">MESS a2600 -cart defender.a26 -now</span></p>
+		<p class="normal">This will run defender on an Atari 2600 using the full screen. As 
+			you can see it's not too hard once you've got over the amount of options 
+			available to you. If your brain is frazzled and you want an easier MESS use the 
+			GUI version as it's much easier to configure.</p>
+		<hr width="95%">
+		<h2><br>
+			MESS.ini File
+			<P></P>
+		</h2>
+		<p class="normal">
+			Rather than using the command line to set up the options you want to use in 
+			MESS you can adjust a file called
+			<span class="filename">MESS.ini</span>
+		. This is where MESS stores it's default configuration information.
+		<p class="normal">
+			To edit the file in windows find the
+			<span class="filename">MESS.ini</span>
+		file in the C:\MESS folder (it will have an icon next to it that looks like a 
+		text pad with a yellow stamp on it) and then double click it. This will 
+		automatically bring up the MESS.ini file in notepad. There are several parts to 
+		it and as you can see they relate to the command line options above.
+		<p class="normal">
+		The format of the file is simple to follow, most things with a yes / no answer 
+		are denoted by 0 for no and 1 for yes. there are also a few numerical options 
+		(e.g. gamma) and a few that require a text answer (e.g. rom path)
+		<p class="normal">
+		If you configure this file correctly you wont need to add options onto the 
+		command line.
+		<p><span class="Tutorial">Don't worry if you muck the whole file up because if 
+  you can delete it and, if you run MESS -cc again it will make another. <strong><br>
+				</strong></span><strong><br>
+			</strong>
+			<table width="35%" border="1" align="center" cellpadding="3" bordercolor="#000000" class="command">
+				<tr>
+					<td>
+						<p>
+						### mess.ini ###
+						<p>### Frontend Related ###<br>
+						<p>### Windows path and directory options ###<br>
+							biospath bios<br>
+							softwarepath software<br>
+							CRC_directory crc<br>
+							samplepath samples<br>
+							inipath ini<br>
+							cfg_directory cfg<br>
+							nvram_directory nvram<br>
+							memcard_directory memcard<br>
+							input_directory inp<br>
+							hiscore_directory hi<br>
+							state_directory sta<br>
+							artwork_directory artwork<br>
+							snapshot_directory snap<br>
+							diff_directory diff<br>
+							ctrlr_directory ctrlr<br>
+							cheat_file cheat.dat<br>
+						<p>### Windows video options ###<br>
+							autoframeskip 1<br>
+							frameskip 0<br>
+							waitvsync 0<br>
+							triplebuffer 0<br>
+							window 1<br>
+							ddraw 1<br>
+							direct3d 0<br>
+							hwstretch 1<br>
+							cleanstretch auto<br>
+							resolution auto<br>
+							zoom 2<br>
+							refresh 0<br>
+							scanlines 0<br>
+							switchres 1<br>
+							switchbpp 1<br>
+							maximize 0<br>
+							keepaspect 1<br>
+							matchrefresh 0<br>
+							syncrefresh 0<br>
+							throttle 1<br>
+							full_screen_brightness 1.000000<br>
+							frames_to_run 0<br>
+							effect none<br>
+							screen_aspect 4:3<br>
+							sleep 0<br>
+							rdtsc 1<br>
+							high_priority 0</p>
+						<p>### Windows Direct3D 2D video options ###<br>
+							d3dtexmanage 1<br>
+							d3dfilter 1<br>
+							d3dfeedback 0<br>
+							d3dscan 100<br>
+							d3deffectrotate 1<br>
+							d3dprescale auto<br>
+							d3deffect auto<br>
+							# d3dcustom &lt;NULL&gt; (not set)<br>
+							# d3dexpert &lt;NULL&gt; (not set)</p>
+						<p>### Windows sound options ###<br>
+							audio_latency 1</p>
+						<p>### Input device options ###<br>
+							mouse 0<br>
+							joystick 0<br>
+							lightgun 0<br>
+							steadykey 0<br>
+							keyboard_leds 0<br>
+							a2d_deadzone 0.300000<br>
+							ctrlr Standard</p>
+						<p>### MESS specific options ###<br>
+							newui 1<br>
+							# cartridge &lt;NULL&gt; (not set)<br>
+							# floppydisk &lt;NULL&gt; (not set)<br>
+							# harddisk &lt;NULL&gt; (not set)<br>
+							# cylinder &lt;NULL&gt; (not set)<br>
+							# cassette &lt;NULL&gt; (not set)<br>
+							# punchcard &lt;NULL&gt; (not set)<br>
+							# punchtape &lt;NULL&gt; (not set)<br>
+							# printer &lt;NULL&gt; (not set)<br>
+							# serial &lt;NULL&gt; (not set)<br>
+							# parallel &lt;NULL&gt; (not set)<br>
+							# snapshot &lt;NULL&gt; (not set)<br>
+							# quickload &lt;NULL&gt; (not set)<br>
+							# cartridge_dir &lt;NULL&gt; (not set)<br>
+							# floppydisk_dir &lt;NULL&gt; (not set)<br>
+							# harddisk_dir &lt;NULL&gt; (not set)<br>
+							# cylinder_dir &lt;NULL&gt; (not set)<br>
+							# cassette_dir &lt;NULL&gt; (not set)<br>
+							# punchcard_dir &lt;NULL&gt; (not set)<br>
+							# punchtape_dir &lt;NULL&gt; (not set)<br>
+							# printer_dir &lt;NULL&gt; (not set)<br>
+							# serial_dir &lt;NULL&gt; (not set)<br>
+							# parallel_dir &lt;NULL&gt; (not set)<br>
+							# snapshot_dir &lt;NULL&gt; (not set)<br>
+							# quickload_dir &lt;NULL&gt; (not set)<br>
+							# ramsize &lt;NULL&gt; (not set)<br>
+							threads 0<br>
+							natural 0<br>
+							min_width 200<br>
+							min_height 200<br>
+							writeconfig 0</p>
+						<p>### Mame CORE video options ###<br>
+							norotate 0<br>
+							ror 0<br>
+							rol 0<br>
+							autoror 0<br>
+							autorol 0<br>
+							flipx 0<br>
+							flipy 0<br>
+							gamma 1.000000<br>
+							brightness 1.000000<br>
+							pause_brightness 0.650000</p>
+						<p>### Mame CORE vector game options ###<br>
+							antialias 1<br>
+							translucency 1<br>
+							beam 1.000000<br>
+							flicker 0.000000<br>
+							intensity 1.500000</p>
+						<p>### Mame CORE sound options ###<br>
+							samplerate 44100<br>
+							samples 1<br>
+							sound 1<br>
+							volume 0</p>
+						<p>### Mame CORE misc options ###<br>
+							artwork 1<br>
+							use_backdrops 1<br>
+							use_overlays 1<br>
+							use_bezels 1<br>
+							artwork_crop 0<br>
+							artwork_resolution 0<br>
+							cheat 0<br>
+							debug 0<br>
+							# playback &lt;NULL&gt; (not set)<br>
+							# record &lt;NULL&gt; (not set)<br>
+							log 0<br>
+							oslog 0<br>
+							skip_gameinfo 0<br>
+							bios 0</p>
+						<p>### Configuration options ###<br>
+							readconfig 1<br>
+							verbose 0</p>
+						<p></p>
+				</tr>
+			</table>
+		</p>
+	</body>
+</html>

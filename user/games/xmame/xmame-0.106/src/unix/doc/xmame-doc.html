@@ -1,0 +1,343 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+>XMAME/XMESS DOCUMENTATION
+  </TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REL="NEXT"
+TITLE="Compiling, Setting Up and Starting Xmame/Xmess
+  "
+HREF="xmame-doc-2.html"><link rel="stylesheet" href="xmame.css" type="text/css" >
+</HEAD
+><BODY BACKGROUND="img/xmame.jpg" BGPROPERTIES="fixed" 
+CLASS="ARTICLE"
+><DIV
+CLASS="ARTICLE"
+><DIV
+CLASS="TITLEPAGE"
+><H1
+CLASS="TITLE"
+><A
+NAME="AEN2"
+>XMAME/XMESS DOCUMENTATION</A
+></H1
+><DIV
+CLASS="AUTHORGROUP"
+><A
+NAME="AEN5"
+></A
+><H3
+CLASS="AUTHOR"
+><A
+NAME="AEN6"
+>Juan Antonio Martinez</A
+></H3
+><DIV
+CLASS="AFFILIATION"
+><SPAN
+CLASS="ORGNAME"
+><A
+HREF="mailto:jantonio@dit.upm.es"
+TARGET="_top"
+>jantonio@dit.upm.es</A
+><BR></SPAN
+></DIV
+><H3
+CLASS="AUTHOR"
+><A
+NAME="AEN12"
+>Hans de Goede</A
+></H3
+><DIV
+CLASS="AFFILIATION"
+><SPAN
+CLASS="ORGNAME"
+><A
+HREF="mailto:hans@highrise.nl"
+TARGET="_top"
+>hans@highrise.nl</A
+><BR></SPAN
+></DIV
+><H3
+CLASS="AUTHOR"
+><A
+NAME="AEN18"
+>Rene' Herrmann</A
+></H3
+><DIV
+CLASS="AFFILIATION"
+><SPAN
+CLASS="ORGNAME"
+><A
+HREF="mailto:rene.herrmann@berlin.de"
+TARGET="_top"
+>rene.herrmann@berlin.de</A
+><BR></SPAN
+></DIV
+><H3
+CLASS="AUTHOR"
+><A
+NAME="AEN24"
+>Lawrence Gold</A
+></H3
+><DIV
+CLASS="AFFILIATION"
+><SPAN
+CLASS="ORGNAME"
+><A
+HREF="mailto:gold@aros.net"
+TARGET="_top"
+>gold@aros.net</A
+><BR></SPAN
+></DIV
+></DIV
+><DIV
+><DIV
+CLASS="ABSTRACT"
+><P
+></P
+><A
+NAME="AEN30"
+></A
+><P
+>xmame/xmess documentation with an installation guide, the FAQ (frequently asked questions), hints, tips and tricks, the changes to the code, and much more!
+  </P
+><P
+></P
+></DIV
+></DIV
+><HR></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="XMAME-DOC-1"
+>Introduction<A
+NAME="INTRODUCTION"
+></A
+></A
+></H1
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN35"
+>Welcome to XMAME</A
+></H2
+><P
+>This the the *nix port of the legendary MAME. MAME is an arcade machine emulator, started in 1997 by Nicola Salmoria. It started out as a series of emulators for  individual games. This series of emulators was combined into a  single multi-game emulator. This is the current form of MAME; no longer a one-man show, there are over 100 contributors to the project.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN38"
+>Keep everything up-to-date!</A
+></H2
+><P
+>The most recent copy of this guide, the xmame/xmess sources and much more can be found on the xmame/xmess project homepage at <A
+HREF="http://x.mame.net/"
+TARGET="_top"
+>http://x.mame.net/</A
+>.
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN42"
+>Pending Jobs - or TODO</A
+></H2
+><P
+>If you think you can help with the todo list or you can make a  contribution that you feel is interesting, please send mail to the xmame/xmess coordinator. See <A
+HREF="xmame-doc-4.html#MAIL"
+>Mail</A
+> for contact information.
+   </P
+><P
+></P
+><UL
+><LI
+><P
+>Optimise mouse warping.
+    </P
+></LI
+><LI
+><P
+>Remove osd_input_init_post, add display ready flag.
+    </P
+></LI
+><LI
+><P
+>Updating of fps is off (dirty marking problem) with vector games.
+    </P
+></LI
+><LI
+><P
+>Convert all remaining sound drivers to plugins.
+    </P
+></LI
+><LI
+><P
+>Rewrite display/input code to be more modular, oo-ish, and usable as a separate library.
+    </P
+></LI
+><LI
+><P
+>Split -&lsqb;no&rsqb;scanline option into emulated and real scanline options.
+    </P
+></LI
+><LI
+><P
+>Add an option to specify which resolution to use, add clipping and panning if it doesn't fit and use it anyway.
+    </P
+></LI
+><LI
+><P
+>Use Pentium TSC for uclock where available.
+    </P
+></LI
+><LI
+><P
+>Network:
+    </P
+><P
+></P
+><UL
+><LI
+><P
+>Add support for more than 2 players.
+     </P
+></LI
+><LI
+><P
+>Explore P2P as an alternative to the existing server-based method.
+     </P
+></LI
+><LI
+><P
+>Add mouse/joystick support to network play. &lsqb;Is this already in place?&rsqb;
+     </P
+></LI
+><LI
+><P
+>Make network code more robust, version check, input settings check, etc.
+     </P
+></LI
+><LI
+><P
+>Split off the OS-specific portions of the network code and submit the rest for inclusion in the MAME core.
+     </P
+></LI
+></UL
+></LI
+><LI
+><P
+>Check X11 joystick support. Rumor has it it's broken, but then again there's only one bug-report, so it seems no one is using it.
+    </P
+></LI
+><LI
+><P
+>FM soundhack for linux-i386.
+    </P
+></LI
+><LI
+><P
+>Make which messages are emitted and when configurable (log-type's and log-level), make fileio emit messages about which files it tries to open, to help debug rom-loading problems, and walk through all messages xmame emits giving them all a standard format like:
+    </P
+><TABLE
+BORDER="0"
+BGCOLOR="#E0E0E0"
+WIDTH="90%"
+><TR
+><TD
+><PRE
+CLASS="PROGRAMLISTING"
+>OSD:        Info:    bla
+X11-window: Warning: bla
+Svgalib:    Error:   bla
+    </PRE
+></TD
+></TR
+></TABLE
+></LI
+><LI
+><P
+>Add scancode 128-255 for non-PC keys like F13 -- F24, more keypad keys, etc., update all display targets to use this.
+    </P
+></LI
+><LI
+><P
+>Also see the text todo file, kept around to quickly enter stuff while hacking: <A
+HREF="todo"
+TARGET="_top"
+>todo</A
+>.
+    </P
+></LI
+></UL
+></DIV
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="xmame-doc-2.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+>&nbsp;</TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Compiling, Setting Up and Starting Xmame/Xmess</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

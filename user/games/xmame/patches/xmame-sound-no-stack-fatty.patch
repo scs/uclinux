@@ -1,0 +1,48 @@
+--- xmame/src/sound/ymf271.c
++++ xmame/src/sound/ymf271.c
+@@ -671,10 +671,11 @@
+ {
+ 	int i, j;
+ 	int op;
+-	INT32 mix[48000*2];
++	INT32 *mix;
+ 	INT32 *mixp;
+ 	YMF271Chip *chip = param;
+ 
++	mix = auto_malloc(sizeof(mix[0])*length*2);
+ 	memset(mix, 0, sizeof(mix[0])*length*2);
+ 
+ 	for (j = 0; j < 12; j++)
+@@ -1044,6 +1045,8 @@
+ 		outputs[0][i] = (*mixp++)>>2;
+ 		outputs[1][i] = (*mixp++)>>2;
+ 	}
++
++	free(mix);
+ }
+ 
+ static void write_register(YMF271Chip *chip, int slotnum, int reg, int data)
+--- xmame/src/sound/ymf278b.c
++++ xmame/src/sound/ymf278b.c
+@@ -237,10 +237,11 @@
+ 	YMF278BSlot *slot = NULL;
+ 	INT16 sample = 0;
+ 	const UINT8 *rombase;
+-	INT32 mix[44100*2];
++	INT32 *mix;
+ 	INT32 *mixp;
+ 	INT32 vl, vr;
+ 
++	mix = auto_malloc(sizeof(mix[0])*length*2);
+ 	memset(mix, 0, sizeof(mix[0])*length*2);
+ 
+ 	rombase = chip->rom;
+@@ -310,6 +311,8 @@
+ 		outputs[0][i] = (*mixp++ * vl) >> 16;
+ 		outputs[1][i] = (*mixp++ * vr) >> 16;
+ 	}
++
++	free(mix);
+ }
+ 
+ static void ymf278b_irq_check(YMF278BChip *chip)
