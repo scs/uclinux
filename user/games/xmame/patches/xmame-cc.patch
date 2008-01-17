@@ -1,0 +1,25 @@
+Index: makefile.unix
+===================================================================
+--- makefile.unix	(revision 5986)
++++ makefile.unix	(working copy)
+@@ -97,7 +97,10 @@ TARGET = mame
+ # just as well.  However, stay away from the `cc' Ultrix compiler if 
+ # possible.
+ 
+-CC	= @gcc
++ifeq ($(V)$(VERBOSE),)
++CC := @$(CC)
++endif
++# CC	= @gcc
+ # CC    = @cc
+ # CC	= @icc
+ # CC	= @c89
+@@ -108,7 +111,7 @@ CC	= @gcc
+ 
+ # Compiler for host compilations in cross-compiling environments (used 
+ # in src/unix/unix.mak for m68k).
+-HOST_CC = $(CC)
++HOST_CC = gcc
+ # HOST_CC = @gcc
+ 
+ 
