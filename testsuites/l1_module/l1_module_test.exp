@@ -16,11 +16,98 @@ step "Start testing."
 set case_num 0
 incr case_num
 
-sleep 5
+set timeout 2
+step "Clean src directory\n"
+spawn make clean
+while 1 {
+   expect {
+
+      "*error*" {
+         send_log "\nMake clean failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nMake clean.\n"
+         send_user "\nMake clean.\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+step "Build test program\n"
+spawn make
+while 1 {
+   expect {
+
+      "*error*" {
+         send_log "\nBuild test program failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nBuild test program done\n"
+         case_pass $case_num
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+
+set spawn_id $kermit_spawn_id
+
+sleep 3
 send "\r"
 expect "root:~>"
 
-send "modprobe hello\r" 
+send "ifconfig eth0 $targetip up\r"
+while 1 {
+   sleep 3
+   expect {
+      ">" {
+         puts "ifconfig set success.\n"
+         break
+      }
+
+      timeout {
+            puts "Fail ifconfig. "
+            break
+         }
+     }
+}
+
+set timeout 10
+step "Copy testcase to target board\n"
+spawn rcp hello.ko root@$targetip:/
+while 1 {
+   expect {
+
+      "*connect*" {
+         send_log "\nCopy libhelloworld.so to target board failed\n"
+         case_fail $case_num
+      }
+
+      eof {
+         send_log "\nCopy libhelloworld.so to target board done\n"
+         break
+      }
+
+      timeout {
+         break
+      }
+   }
+}
+
+set spawn_id $kermit_spawn_id
+send "insmod hello.ko\r" 
 while 1 {   
          expect {
 	  "code function addr = 0xffa0\[0-9a-f]\[0-9a-f]\[0-9a-f]\[0-9a-f]*\[

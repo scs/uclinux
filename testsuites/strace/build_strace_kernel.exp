@@ -67,7 +67,7 @@ while 1 {
              send "y\r"
       }
  
-           -re "strace.*CONFIG_USER_BLACKFIN_STRACE.*\\\[.*]" {
+           -re "strace.*CONFIG_USER_STRACE_STRACE.*\\\[.*]" {
              send "Y\r"
       }
 
