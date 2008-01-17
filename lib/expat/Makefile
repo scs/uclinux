@@ -1,4 +1,20 @@
-VER = expat-1.95.7
+VER = expat-2.0.1
 
-all %:
-	$(MAKE) -C $(VER) $@
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
+
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+	set -e ; \
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure $(CONFIGURE_OPTS)
+
+clean:
+	rm -rf build*
+
+romfs:
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libexpat.so.1 /usr/lib/libexpat.so.1
+
+.PHONY: all clean romfs
