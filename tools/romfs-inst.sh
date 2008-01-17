@@ -16,7 +16,9 @@ cat << !EOF >&2
 $0: [options] [src] dst
     -v          : output actions performed.
     -e env-var  : only take action if env-var is set to "y".
+    -E env-var  : only take action if env-var is not set to "y".
     -o option   : only take action if option is set to "y".
+    -O option   : only take action if option is not set to "y".
     -p perms    : chmod style permissions for dst.
     -d          : make dst directory if it doesn't exist
     -S          : don't strip after installing
@@ -143,6 +145,7 @@ fi
 
 v=
 option=y
+noption=
 pattern=
 perm=
 func=file_copy
@@ -152,7 +155,7 @@ dst=
 strip=1
 kernmod=
 
-while getopts 'dSMve:o:A:p:a:l:s:' opt "$@"
+while getopts 'dSMve:E:o:O:A:p:a:l:s:' opt "$@"
 do
 	case "$opt" in
 	v) v="1";                           ;;
@@ -160,7 +163,9 @@ do
 	S) strip=;							;;
 	M) kernmod="1";                     ;;
 	o) option="$OPTARG";                ;;
+	O) noption="$OPTARG";               ;;
 	e) eval option=\"\$$OPTARG\";       ;;
+	E) eval noption=\"\$$OPTARG\";      ;;
 	p) perm="$OPTARG";                  ;;
 	a) src="$OPTARG"; func=file_append; ;;
 	A) pattern="$OPTARG";               ;;
@@ -174,6 +179,18 @@ do
 #
 	case "$option" in
 	*[mMyY]*) # this gives OR effect, ie., nYn
+		;;
+	*)
+		[ "$v" ] && echo "Condition not satisfied."
+		exit 0
+		;;
+	esac
+
+#
+#	process negative options here to get an ANDing effect
+#
+	case "${noption:-n}" in
+	*[nN]*) # this gives OR effect, ie., yNy
 		;;
 	*)
 		[ "$v" ] && echo "Condition not satisfied."
