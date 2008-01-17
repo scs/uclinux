@@ -40,6 +40,7 @@ romfs::
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/mdev.conf
 	$(ROMFSINST) /etc/inittab
+	$(ROMFSINST) -o $(CONFIG_LIB_DIRECTFB_FORCE)$(CONFIG_LIB_DIRECTFB) /etc/directfbrc
 
 	set -e ; \
 	for f in $(ETC_FILES-y) ; do \
