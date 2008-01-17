@@ -19,7 +19,7 @@ clean:
 	rm -rf build
 
 romfs:
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libmpeg2.so.0 /usr/lib/
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libmpeg2convert.so.0 /usr/lib/
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libmpeg2.so.0 /usr/lib/libmpeg2.so.0
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libmpeg2convert.so.0 /usr/lib/libmpeg2convert.so.0
 
 .PHONY: all clean romfs
