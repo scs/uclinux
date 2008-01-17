@@ -8,6 +8,7 @@ CONF_OPTS = \
 	--disable-multi \
 	--enable-fbdev \
 	--disable-x11 \
+	--disable-vnc \
 	$(call USE_ENABLE,LIB_LIBSDL,sdl) \
 	$(call USE_ENABLE,LIB_LIBJPEG,jpeg) \
 	$(call USE_ENABLE,LIB_ZLIB,zlib) \
