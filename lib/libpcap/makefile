@@ -9,7 +9,7 @@ all: build/build
 build/build: makefile
 	rm -rf build
 	mkdir build
-	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
+	(cd build; sh ../libpcap-0.9.2/configure $(CONFIGURE_OPTS) $(CONFOPTS))
 	touch build/build
 
 clean:
