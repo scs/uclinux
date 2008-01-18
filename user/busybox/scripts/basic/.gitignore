@@ -1,0 +1,4 @@
+# ignore automatically generated files
+docproc
+fixdep
+split-include

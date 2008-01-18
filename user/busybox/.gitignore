@@ -1,0 +1,5 @@
+# ignore automatically generated files
+.config
+.config.old
+.kernelrelease
+_install

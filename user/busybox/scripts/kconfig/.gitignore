@@ -1,0 +1,5 @@
+# ignore automatically generated files
+conf
+lex.zconf.c
+zconf.hash.c
+zconf.tab.c

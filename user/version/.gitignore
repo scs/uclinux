@@ -1,0 +1,4 @@
+# ignore automatically generated files
+.version
+compile.h
+version.h
