@@ -1,0 +1,14 @@
+README
+
+Since 2.6.22-rcN, kernel will include Blackfin architecture code. But the kernel code from
+kernel.org can not be compiled and booted on Blackfin because binfmt_flat and binfmt_elf_fdpic
+need some dirty hack as well as the uclinux mtd maps code.
+
+These 2 patches is for binfmt and uclinux mtd maps hack.
+
+If you want test the mainline Blackfin code, please apply these patches for your further development.
+
+When kernel mainline accept these patches, they will be dropped at that time.
+
+2007-06-13
+- Bryan Wu <bryan.wu@analog.com>

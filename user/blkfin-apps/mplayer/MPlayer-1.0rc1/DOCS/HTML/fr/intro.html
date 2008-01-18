@@ -1,0 +1,89 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Chapitre 1. Introduction</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Le Lecteur Vidéo"><link rel="up" href="index.html" title="MPlayer - Le Lecteur Vidéo"><link rel="prev" href="howtoread.html" title="Comment lire cette documentation"><link rel="next" href="install.html" title="Chapitre 2. Installation"><link rel="preface" href="howtoread.html" title="Comment lire cette documentation"><link rel="chapter" href="intro.html" title="Chapitre 1. Introduction"><link rel="chapter" href="install.html" title="Chapitre 2. Installation"><link rel="chapter" href="usage.html" title="Chapitre 3. Utilisation"><link rel="chapter" href="cd-dvd.html" title="Chapitre 4. Utilisation des CD/DVD"><link rel="chapter" href="faq.html" title="Chapitre 5. Foire Aux Questions"><link rel="chapter" href="containers.html" title="Chapitre 6. Conteneurs"><link rel="chapter" href="codecs.html" title="Chapitre 7. Codecs Supportés"><link rel="chapter" href="video.html" title="Chapitre 8. Sorties vidéo"><link rel="chapter" href="audio.html" title="Chapitre 9. Périphériques de sortie audio"><link rel="chapter" href="tv.html" title="Chapitre 10. TV"><link rel="chapter" href="radio.html" title="Chapitre 11. Radio"><link rel="chapter" href="ports.html" title="Chapitre 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapitre 13. Utilisation basique de MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapitre 14. L'encodage avec MEncoder"><link rel="appendix" href="bugreports.html" title="Annexe A. Comment rapporter les bogues"><link rel="appendix" href="bugs.html" title="Annexe B. Bogues connus"><link rel="appendix" href="skin.html" title="Annexe C. Format de skins MPlayer"><link rel="appendix" href="history.html" title="Annexe D. Histoire"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Chapitre 1. Introduction</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="howtoread.html">Précédent</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> <a accesskey="n" href="install.html">Suivant</a></td></tr></table><hr></div><div class="chapter" lang="fr"><div class="titlepage"><div><div><h2 class="title"><a name="intro"></a>Chapitre 1. Introduction</h2></div></div></div><p>
+<span class="application">MPlayer</span> est un lecteur de vidéos pour GNU/Linux
+(fonctionne sur de nombreux autres Un*x, et processeurs
+<span class="bold"><strong>non-x86</strong></span>, voir la section <a href="ports.html">Ports</a>).
+Il lit la majorité des fichiers MPEG, VOB, AVI, OGG/OGM, VIVO, ASF/WMA/WMV,
+QT/MOV/MP4, FLI, RM, NuppelVideo, yuv4mpeg, FILM, RoQ, PVA, Matroska supportés
+par de nombreux codecs natifs, XAnim, RealPlayer et les DLLs Win32.
+Vous pouvez regarder les <span class="bold"><strong>VideoCD, SVCD, DVD, 3ivx,
+RealMedia, Sorenson, Theora</strong></span>, ainsi que les vidéos au format
+<span class="bold"><strong>MPEG-4 (DivX)</strong></span>.
+L'autre point fort de <span class="application">MPlayer</span> est la grande
+variété de pilotes de sortie supportée.
+Il fonctionne avec X11, Xv, DGA, OpenGL, SVGAlib, fbdev, AAlib, libcaca,
+DirectFB, mais vous pouvez utiliser GGI et SDL (et ainsi tous leurs pilotes)
+et également certains pilotes de bas niveau spécifiques à certaines cartes
+(pour Matrox, 3Dfx et Radeon, Mach64, Permedia3) !
+La plupart d'entre eux supportent le redimmensionnement logiciel ou
+matériel, vous pouvez donc apprécier les films en plein écran.
+<span class="application">MPlayer</span> supporte la décompression matérielle
+fournie par certaines cartes MPEG, telles que la <a href="mpeg_decoders.html#dvb" title="8.3.1. sorties et entrées DVB">DVB</a>
+et la <a href="mpeg_decoders.html#dxr3" title="8.3.3. DXR3/Hollywood+">DXR3/Hollywood+</a>.
+Et que dire de ces superbes sous-titres lissés (<span class="bold"><strong>14
+types supportés</strong></span>) avec des polices européennes/ISO 8859-1,2
+(Hongrois, Anglais, tchèque, etc.), Cyrilliques, Coréennes, ainsi que de
+l'OnScreenDisplay (OSD) ?
+</p><p>
+Ce lecteur peut lire les fichiers MPEG endommagés (utile pour certains VCDs),
+ainsi que les mauvais fichiers AVI qui ne sont pas lisibles par le célèbre
+Windows Media Player.
+Même les fichiers AVI sans index sont lisibles, et vous pouvez reconstruire
+ses indexs soit temporairement avec l'option <tt class="option">-idx</tt>,
+soit de manière définitive avec <span class="application">MEncoder</span>, autorisant
+ainsi l'avance/retour rapide !
+Comme vous pouvez le constater, la stabilité et la qualité sont les choses
+les plus importantes, mais la vitesse est également formidable.
+Il y a également un puissant système de filtres pour faire de la manipulation
+vidéo et audio.
+</p><p>
+<span class="application">MEncoder</span> (Le Movie Encoder de
+<span class="application">MPlayer</span>) est un simple encodeur de vidéos, conçu
+pour encoder des vidéos jouables par <span class="application">MPlayer</span>
+(<span class="bold"><strong>AVI/ASF/OGG/DVD/VCD/VOB/MPG/MOV/VIV/FLI/RM/NUV/NET/PVA</strong></span>)
+dans d'autres formats jouables par <span class="application">MPlayer</span>
+(voir plus bas).
+Il peut encoder avec des codecs variés comme <span class="bold"><strong>MPEG-4 (DivX4)</strong></span>
+(1 ou 2 passes),<code class="systemitem">libavcodec</code>,
+audio <span class="bold"><strong>PCM/MP3/MP3 VBR</strong></span>.
+</p><div class="itemizedlist"><p class="title"><b>Fonctionnalités de <span class="application">MEncoder</span></b></p><ul type="disc"><li>Encodage à partir de la grande variété de formats de fichiers
+et de décodeurs de <span class="application">MPlayer</span></li><li>
+  Encodage dans tous les codecs
+  <a href="video-codecs.html#ffmpeg" title="7.1.2. FFmpeg/libavcodec"><code class="systemitem">libavcodec</code></a> de ffmpeg
+</li><li>
+  Encodage vidéo depuis <span class="bold"><strong>les tuners TV compatibles V4L</strong></span>
+</li><li>
+  Encodage/multiplexage vers fichiers AVI entrelacés avec index propre
+</li><li>
+  Création de fichiers à partir de flux audio externes
+</li><li>
+  Encodage 1, 2 ou 3 passes
+</li><li><p>
+  MP3 audio <span class="bold"><strong>VBR</strong></span>
+  </p><div class="important" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Important</h3><p>
+  L'audio MP3 VBR peut ne pas être bien lu sur les lecteurs Windows!
+  </p></div><p>
+</p></li><li>
+  PCM audio
+</li><li>
+  Copie de flux (stream)
+</li><li>
+  Synchronisation A/V de la source (basé sur PTS, peut être désactivé avec l'option
+  <tt class="option">-mc 0</tt>)
+</li><li>
+  Correction FPS avec l'option <tt class="option">-ofps</tt> (utile
+  pour l'encodage d'un VOB 29.97fps en AVI 24fps)
+</li><li>
+  Utilise notre très puissant système de plugins (crop, expand,
+  flip, postprocess, rotate, scale, conversion rgb/yuv)
+</li><li>
+  Peut encoder les sous-titres DVD/VOBsub <span class="bold"><strong>ET</strong></span>
+  texte dans le fichier de destination
+</li><li>
+  Peut ripper les sous-titres DVD en format VOBsub
+</li></ul></div><div class="itemizedlist"><p class="title"><b>Fonctionnalités prévues</b></p><ul type="disc"><li>
+  Toujours plus de formats/codecs disponibles
+  (création de fichiers VOB avec des flux DivX4/Indeo5/VIVO :)
+</li></ul></div><p>
+<span class="application">MPlayer</span> et <span class="application">MEncoder</span>
+peuvent être distribués selon les termes de la GNU General Public License Version 2.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="howtoread.html">Précédent</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> <a accesskey="n" href="install.html">Suivant</a></td></tr><tr><td width="40%" align="left" valign="top">Comment lire cette documentation </td><td width="20%" align="center"><a accesskey="h" href="index.html">Sommaire</a></td><td width="40%" align="right" valign="top"> Chapitre 2. Installation</td></tr></table></div></body></html>

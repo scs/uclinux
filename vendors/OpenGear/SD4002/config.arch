@@ -1,0 +1,16 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+
+ifeq ($(ROOTDIR)/boot,$(wildcard $(ROOTDIR)/boot))
+VENDOR_TOPDIRS = boot
+endif
+
+LINUXTARGET = zImage
+VERSIONPKG = 2.0.3p0
+VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
+
+############################################################################
+
+include $(ROOTDIR)/vendors/config/arm/config.arch
+
+############################################################################

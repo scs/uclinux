@@ -1,0 +1,183 @@
+Copyright 1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation.
+Contributed by the Spaces project, INRIA Lorraine.
+
+This file is part of the MPFR Library.
+
+The MPFR Library is free software; you can redistribute it and/or modify it
+under the terms of the GNU Lesser General Public License (either version 2.1
+of the License, or, at your option, any later version) and the GNU General
+Public License as published by the Free Software Foundation (most of MPFR is
+under the former, some under the latter).
+
+The MPFR Library is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
+License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with the MPFR Library; see the file COPYING.LIB.  If not, write to
+the Free Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA
+02111-1307, USA.
+
+##############################################################################
+
+Documentation:
+
+- add a description of the algorithms used + proof of correctness
+
+- mpfr_set_prec: add an explanation of how to speed up calculations
+  which increase their precision at each step.
+
+- solve the problem with @pxref{Custom Allocation,,, gmp,GNU MP}
+	[gives broken link on the html version]
+
+Installation:
+
+- from Kevin Ryde <user42@zip.com.au>:
+  Determine the exp2/exp3 thresholds using tune/tuneup.c.
+  A start has been made on this, but there's a noticable step-effect
+  in the times making them cross back and forward between which is
+  faster.  Hopefully this will go away with improvements to the exp
+  code.
+
+- Build a dynamic library (.so / .dll).
+
+- Maybe use the autotools to manage properly the version number,
+  ie create mpfr.texi.in, mpfr.h.in, version.c.in, VERSION.in
+  and substitute MPFR_MAJOR_VERSION, MPFR_MINOR_VERSION,
+  MPFR_PATCHLEVEL_VERSION within configure?
+
+Changes in existing functions:
+
+- merge mpfr_inp_str, mpfr_set_str to use mpfr_strtofr
+- mpfr_get_str should support base up to 62 too.
+
+- mpfr_can_round:
+1) remove the first rounding mode (rnd1) that was giving the direction of
+   the error. We'll consider now that the sign of the error is unknown.
+   This will simplify the code, should not loose too much since in most
+   cases we call mpfr_can_round with rnd1 = nearest, and should detect cases
+   with exact results that may loop.
+2) change the meaning of the 2nd argument (err). Currently the error is
+   at most 2^(MPFR_EXP(b)-err), i.e. err is the relative shift wrt the
+   most significant bit of the approximation. I propose that the error
+   is now at most 2^err ulps of the approximation, i.e.
+   2^(MPFR_EXP(b)-MPFR_PREC(b)+err).
+3) the current code performs two computations to check if we can round:
+   it checks if both round(approx-error) and round(approx+error) give
+   the same result. One computation is enough: for example in directed
+   rounding, if the round bit is 0 (resp. 1), we just have to check
+   round(approx-error) (resp. round(approx+error)).
+
+New functions to implement:
+
+- modf (to extract integer and fractional parts), suggested by
+	Dmitry Antipov <dmitry.antipov@mail.ru> Thu, 13 Jun 2002
+- those from LIA: missing secant, cosecant, cotangent (trigo/hyperbolic)
+- atan2
+- mpfr_root to compute x^(1/n) for n integer, similar to mpz_root
+	[suggested by Damien Fisher, damien@maths.usyd.edu.au, 20 Jul 2003,
+	and Mark Watkins <watkins@maths.usyd.edu.au>, 23 Jul 2003]
+- mpfr_fmod (mpfr_t, mpfr_srcptr, mpfr_srcptr, mp_rnd_t)
+  [suggested by Tomas Zahradnicky <tomas@24uSoftware.com>, 29 Nov 2003]
+  Kevin: Might want to be called mpfr_mod, to match mpz_mod.
+  -> we probably want to allow both mpfr_fmod and mpfr_mod.
+- mpfr_fms for a-b*c
+  [suggested by Tomas Zahradnicky <tomas@24uSoftware.com>, 29 Nov 2003]
+- 1/sqrt(x) [Regis Dupont <dupont@lix.polytechnique.fr>, 15 Sep 2004]
+- dilog() [the dilogarithm: dilog(x) =  int(ln(t)/(1-t), t=1..x)]
+
+Efficiency:
+
+- implement range reduction in sin/cos/tan for large arguments
+	(currently too slow for 2^1024)
+- mpfr_asin/acos are too slow for small values (2^(-1021) for example)
+- idem for mpfr_atanh (2^(-1021) for example)
+- improve generic.c to work for number of terms <> 2^k
+- rewrite mpfr_greater_p... as native code.
+- mpfr_mul(a,b,c): truncate b,c when their precision is larger than that of a
+- mpfr_tanh is inefficient is x is large (Pb of overflow too).
+  Should compute tanh(x)-1=-2/(exp(2x)+1) instead?
+
+- mpf_t uses a scheme where the number of limbs actually present can
+  be less than the selected precision, thereby allowing low precision
+  values (for instance small integers) to be stored and manipulated in
+  an mpf_t efficiently.
+
+  Perhaps mpfr should get something similar, especially if looking to
+  replace mpf with mpfr, though it'd be a major change.  Alternately
+  perhaps those mpfr routines like mpfr_mul where optimizations are
+  possible through stripping low zero bits or limbs could check for
+  that (this would be less efficient but easier).
+
+Miscellaneous:
+
+- rename mpf2mpfr.h to gmp-mpf2mpfr.h?
+  (will wait until mpfr is fully integrated into gmp :-)
+
+- from Kevin Ryde <user42@zip.com.au>:
+   Also for pi.c, a pre-calculated compiled-in pi to a few thousand
+   digits would be good value I think.  After all, say 10000 bits using
+   1250 bytes would still be small compared to the code size!
+   Store pi in round to zero mode (to recover other modes).
+
+- add a new rounding mode: rounding away from 0. This can be easily
+  implemented as follows: round to zero, and if the result is inexact,
+	add one ulp to the mantissa.
+- add a new rounding mode: round to nearest, with ties away from zero
+  (will be in 754r, could be used by mpfr_round)
+- add a new roundind mode: round to odd. If the result is not exactly
+	representable, then round to the odd mantissa. This rounding
+	has the nice property that for k > 1, if:
+	y = round(x, p+k, TO_ODD)
+        z = round(y, p, TO_NEAREST_EVEN), then
+        z = round(x, p, TO_NEAREST_EVEN)
+  so it avoids the double-rounding problem.
+
+- check/define the sign of infinity for gamma(-integer)
+
+- add tests of the ternary value for constants
+
+Reentrancy / Thread-Safety:
+
+- Temporary changes to emin/emax are not safe (all uses of
+  mpfr_save_emin_emax, eg. mpfr_set_q).
+
+- Global variables for caching in mpfr_const_log2 and mpfr_const_pi
+  are not safe.
+
+
+Portability:
+
+- [Kevin about texp.c long strings]
+  For strings longer than c99 guarantees, it might be cleaner to
+  introduce a "tests_strdupcat" or something to concatenate literal
+  strings into newly allocated memory.  I thought I'd done that in a
+  couple of places already.  Arrays of chars are not much fun.
+
+Possible future MPF / MPFR integration:
+
+- mpf routines can become "extern inline"s calling mpfr equivalents,
+  probably just with GMP_RNDZ hard coded, since that's what mpf has
+  always done.
+
+- Want to preserve the mpf_t structure size, for binary compatibility.
+  Breaking compatibility would cause lots of pain and potential subtle
+  breakage for users.  If the fields in mpf_t are not enough then
+  extra space under _mp_d can be used.
+
+- mpf_sgn has been a macro directly accessing the _mp_size field, so a
+  compatible representation would be required.  At worst that field
+  could be maintained for mpf_sgn, but not otherwise used internally.
+
+  mpf_sgn should probably throw an exception if called with NaN, since
+  there's no useful value it can return, so it might want to become a
+  function.  Inlined copies in existing binaries would hopefully never
+  see a NaN, if they only do old-style mpf things.
+
+- mpfr routines replacing mpf routines must be reentrant and thread
+  safe, since of course that's what has been documented for mpf.
+
+- mpfr_random will not be wanted since there's no corresponding
+  mpf_random and new routines should not use the old style global
+  random state.

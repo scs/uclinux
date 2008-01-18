@@ -1,0 +1,600 @@
+--- konqueror3-embedded/konq-embed/src/Makefile.in	2006-01-21 19:50:26.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/src/Makefile.in	2006-03-09 17:26:15.252618128 +0800
+@@ -558,7 +558,7 @@
+ 	done
+ konqueror$(EXEEXT): $(konqueror_OBJECTS) $(konqueror_DEPENDENCIES) 
+ 	@rm -f konqueror$(EXEEXT)
+-	$(CXXLINK) $(konqueror_LDFLAGS) $(konqueror_OBJECTS) $(konqueror_LDADD) $(LIBS)
++	$(CXXLINK) $(konqueror_LDFLAGS) $(konqueror_OBJECTS) $(konqueror_LDADD) $(LIBS) ../dropin/kio/.libs/libkiodropin.a
+ 
+ mostlyclean-compile:
+ 	-rm -f *.$(OBJEXT)
+--- konqueror3-embedded/konq-embed/kdesrc/kjs/Makefile.in	2006-01-21 19:50:26.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/kdesrc/kjs/Makefile.in	2006-03-08 18:11:33.000000000 +0800
+@@ -475,7 +475,7 @@
+ #>- libkjs_la_LDFLAGS = -version-info 3:0:2 -no-undefined $(VSCRIPT) \
+ #>-           $(USER_LDFLAGS) $(all_libraries)
+ #>+ 2
+-libkjs_la_LDFLAGS = -version-info 3:0:2 -no-undefined $(KDE_NO_UNDEFINED) $(VSCRIPT) \
++libkjs_la_LDFLAGS = -version-info 3:0:2 $(VSCRIPT) \
+           $(USER_LDFLAGS) $(all_libraries)
+ 
+ libkjs_la_LIBADD = -lm $(LIBPCRE)
+--- konqueror3-embedded/konq-embed/add-ons/pppdialer/pppdialer.cpp	2003-02-03 23:59:25.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/add-ons/pppdialer/pppdialer.cpp	2006-03-21 18:09:31.136425936 +0800
+@@ -341,7 +341,11 @@
+     if ( 0 == ::socketpair( AF_UNIX, SOCK_STREAM, PF_UNIX, spair ) )
+     {
+ 	int i;
++#ifdef NOMMU
++	switch( vfork() )
++#else
+ 	switch( ::fork() )
++#endif
+ 	{
+ 	    case -1:
+ 		// error
+@@ -353,7 +357,11 @@
+ 		    ::close( i );
+ 		::execl( s_script.latin1(), s_script.latin1(),
+ 			 command, arg, 0 );
++#ifdef NOMMU
++		_exit( errno );
++#else
+ 		::exit( errno );
++#endif
+ 	    default:
+ 		// parent
+ 		::close( spair[0] );
+--- konqueror3-embedded/konq-embed/kdesrc/khtml/test_regression.cpp	2005-12-20 03:48:32.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/kdesrc/khtml/test_regression.cpp	2006-03-09 17:28:54.000000000 +0800
+@@ -474,7 +474,11 @@
+ 
+     if (args->isSet("xvfb"))
+     {
++#ifdef NOMMU
++        xvfb = vfork();
++#else
+         xvfb = fork();
++#endif
+         if ( !xvfb ) {
+             char buffer[1000];
+             sprintf( buffer, "%s/resources,/usr/X11R6/lib/X11/fonts/75dpi:unscaled,/usr/X11R6/lib/X11/fonts/misc:unscaled,/usr/X11R6/lib/X11/fonts/Type1", (const char *)baseDir );
+--- konqueror3-embedded/konq-embed/dropin/kio/slavebase.cpp	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/dropin/kio/slavebase.cpp	2006-04-24 18:26:40.000000000 +0800
+@@ -261,7 +261,11 @@
+                 {
+                     kdDebug() << "SlaveBase: read() error " << errno << ",  " << 
+ 			    QString(strerror(errno)) << "! exiting!" << endl;
++#ifdef NOMMU
++		    pthread_exit(0);
++#else
+                     ::exit( 0 );
++#endif
+                 }
+             }
+         }
+@@ -269,7 +273,11 @@
+         {
+             kdDebug() << "SlaveBase: select() error " << errno << ",  " << 
+ 			    QString(strerror(errno)) << "! exiting!" << endl;
++#ifdef NOMMU
++	    pthread_exit(0);
++#else
+             ::exit( 0 );
++#endif
+         }
+     }
+ #endif
+--- konqueror3-embedded/konq-embed/dropin/kio/kio_file.cpp	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/dropin/kio/kio_file.cpp	2006-04-25 09:42:46.000000000 +0800
+@@ -37,6 +37,10 @@
+ #include <kconfig.h>
+ #include <klocale.h>
+ 
++#ifdef NOMMU
++#include <pthread.h>
++#endif
++
+ using namespace KIO;
+ 
+ #define MAX_IPC_SIZE (1024*32)
+@@ -114,7 +118,11 @@
+ 		return;
+ 	    }
+ 
++#ifdef NOMMU
++	    int pid = vfork();
++#else
+ 	    int pid = fork();
++#endif
+ 	    if ( pid == -1 )
+ 	    {
+ 		error( KIO::ERR_CANNOT_LAUNCH_PROCESS, path );
+@@ -124,8 +132,13 @@
+ 	    if ( pid == 0 )
+ 	    { // in child here
+ 		::close( pipefd [0] );
+-		if ( ::dup2( pipefd[1], 1 ) == -1 )
++		if ( ::dup2( pipefd[1], 1 ) == -1 ) {
++#ifdef NOMMU
++		    _exit( errno );
++#else
+ 		    ::exit( errno );
++#endif
++		}
+ 		int i;
+ 		for ( i=getdtablesize(); i >= 3 ; i-- )
+ 		    ::close( i );
+@@ -150,7 +163,11 @@
+ 		::setenv( "PROTOCOL_NAME", mProtocol.data(), true );
+ 		QDir::setCurrent( info.dirPath( true ) );
+ 		execl( path.latin1(), path.latin1(), 0 );
++#ifdef NOMMU
++		_exit( errno );
++#else
+ 		::exit( errno );
++#endif
+ 	    }
+ 	    ::close( pipefd[1] );
+ 	    if ( !file.open( IO_ReadOnly, pipefd[0] ) )
+--- konqueror3-embedded/konq-embed/dropin/kio/mimehandler.cpp	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/dropin/kio/mimehandler.cpp	2006-04-19 14:54:04.000000000 +0800
+@@ -61,7 +61,11 @@
+     {
+ 	if ( ::pipe( m_pipe_in ) == 0 )
+ 	{
++#ifdef NOMMU
++	    int pid = vfork();
++#else
+ 	    int pid = fork();
++#endif
+ 	    if ( pid == -1 )
+ 	    {
+ 		::close( m_pipe_in[0] );
+@@ -80,7 +84,11 @@
+ 		::setenv( "FILTER_URL", url.url().latin1(), TRUE );
+ 		const char *exe = app.latin1();
+ 		::execlp( exe, exe, 0 );
++#ifdef NOMMU
++		_exit( errno );
++#else
+ 		::exit( errno );
++#endif
+ 	    }
+ 	    else
+ 	    {
+--- konqueror3-embedded/konq-embed/dropin/kio/launcher.h	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/dropin/kio/launcher.h	2006-04-25 11:04:42.000000000 +0800
+@@ -30,6 +30,39 @@
+ {
+     class Slave;
+ 
++#ifdef NOMMU
++#define STACK_SIZE 1024*32
++
++    class LauncherChildData
++    {
++    public:
++        int launcherFds[ 2 ];
++        LauncherChildData(int launcherFds[2])
++        {
++            this->launcherFds[0] = launcherFds[0];
++            this->launcherFds[1] = launcherFds[1];
++        }
++    };
++
++    class SlaveChildData
++    {
++    public:
++        int slaveReadFd;
++        int slaveWriteFd;
++        int dcopReadFd;
++        int dcopWriteFd;
++        QString protocol;
++        SlaveChildData(int slaveReadFd, int slaveWriteFd, int dcopReadFd, int dcopWriteFd, const char* protocol)
++        {
++            this->slaveReadFd = slaveReadFd;
++            this->slaveWriteFd = slaveWriteFd;
++            this->dcopReadFd = dcopReadFd;
++            this->dcopWriteFd = dcopWriteFd;
++            this->protocol = QString::fromLatin1(protocol);
++        }
++    };
++#endif
++    
+     class Launcher
+     {
+     public:
+@@ -76,6 +109,10 @@
+         int m_socket;
+         pid_t m_launcherPid;
+ #endif
++#ifdef NOMMU
++	static void *launcherChild(void *arg);
++	static void *slaveChild(void *arg);
++#endif
+ 
+         static Launcher *s_self;
+     };
+--- konqueror3-embedded/konq-embed/dropin/kio/launcher.cpp	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/dropin/kio/launcher.cpp	2006-04-25 11:04:26.000000000 +0800
+@@ -30,6 +30,10 @@
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <assert.h>
++#ifdef NOMMU
++#include <sched.h>
++#include <pthread.h>
++#endif
+ 
+ #include <kdebug.h>
+ #include <kio/slave.h>
+@@ -61,36 +64,54 @@
+     if ( pipe( app2slave ) == -1 )
+     {
+         perror( "FATAL: can't create pipe for app->slave communication" );
++#ifdef NOMMU
++	pthread_exit(0);
++#else
+         ::exit( 0 );
++#endif
+     }
+ 
+     if ( pipe( slave2app ) == -1 )
+     {
+         perror( "FATAL: can't create pipe for slave->app communcation" );
++#ifdef NOMMU
++	pthread_exit(0);
++#else
+         ::exit( 0 );
++#endif
+     }
+ 
+     if ( pipe( dcopApp2Slave ) == -1 )
+     {
+         perror( "FATAL: can't create pipe for dcop app->slave communcation" );
++#ifdef NOMMU
++	pthread_exit(0);
++#else
+         ::exit( 0 );
++#endif
+     }
+ 
+     if ( pipe( dcopSlave2App ) == -1 )
+     {
+         perror( "FATAL: can't create pipe for dcop slave->app communication" );
++#ifdef NOMMU
++	pthread_exit(0);
++#else
+         ::exit( 0 );
++#endif
+     }
+ 
+     pid_t slavePid = sendCreateSlaveCommand( prot.latin1(),
+                                              app2slave[ 0 ], slave2app[ 1 ],
+                                              dcopApp2Slave[ 0 ], dcopSlave2App[ 1 ] );
+ 
++#ifndef NOMMU
+     // we can close these, now that they have been transferred to the slave
+     ::close( app2slave[ 0 ] );
+     ::close( slave2app[ 1 ] );
+     ::close( dcopApp2Slave[ 0 ] );
+     ::close( dcopSlave2App[ 1 ] );
++#endif
+ 
+     if ( slavePid == 0 )
+     {
+@@ -98,6 +119,12 @@
+         ::close( slave2app[ 0 ] );
+         ::close( dcopApp2Slave[ 1 ] );
+         ::close( dcopSlave2App[ 0 ] );
++#ifdef NOMMU
++        ::close( app2slave[ 0 ] );
++        ::close( slave2app[ 1 ] );
++        ::close( dcopApp2Slave[ 0 ] );
++        ::close( dcopSlave2App[ 1 ] );
++#endif
+ 
+         return 0;
+     }
+@@ -131,6 +158,18 @@
+         ::kill( m_launcherPid, SIGTERM );
+ }
+ 
++#ifdef NOMMU
++void *Launcher::launcherChild(void *arg)
++{
++    LauncherChildData *lcd = (LauncherChildData *)arg;
++
++    Launcher l( lcd->launcherFds[ 1 ] );
++    l.dispatchLoop();
++    delete lcd;
++    return 0;
++}
++#endif
++
+ void Launcher::startLauncherProcess()
+ {
+     int launcherFds[ 2 ];
+@@ -138,11 +177,25 @@
+     if ( socketpair( AF_UNIX, SOCK_STREAM, 0, launcherFds ) != 0 )
+     {
+         perror( "FATAL: can't create socket for launcher" );
++#ifdef NOMMU
++	pthread_exit(0);
++#else
+         ::exit( 1 );
++#endif
+     }
+ 
++#ifdef NOMMU
++    LauncherChildData *lcd = new LauncherChildData(launcherFds);
++    pthread_attr_t attr;
++    pthread_t pthread;
++    pthread_attr_init(&attr);
++    pthread_attr_setinheritsched(&attr, PTHREAD_INHERIT_SCHED);
++    pthread_attr_setstacksize( &attr, STACK_SIZE );
++    pthread_create( &pthread, &attr, Launcher::launcherChild, lcd );
++    pthread_attr_destroy( &attr );
++    pid_t pid = pthread;
++#else
+     pid_t pid = fork();
+-
+     if ( pid == 0 )
+     {
+         ::close( launcherFds[ 0 ] );
+@@ -154,6 +207,7 @@
+     }
+ 
+     ::close( launcherFds[ 1 ] );
++#endif
+ 
+     s_self = new Launcher( launcherFds[ 0 ], pid );
+ }
+@@ -289,6 +343,31 @@
+     }
+ }
+ 
++#ifdef NOMMU
++void *Launcher::slaveChild(void *arg)
++{
++    SlaveChildData *scd = (SlaveChildData *)arg;
++    Connection *connection = new Connection;
++    connection->init( scd->slaveReadFd, scd->slaveWriteFd );
++
++    SlaveBase *slave = SlaveBase::createSlave( scd->protocol );
++
++    assert( slave );
++
++    slave->setConnection( connection );
++
++    connection = new Connection;
++    connection->init( scd->dcopReadFd, scd->dcopWriteFd );
++
++    DCOPClient::setGlobalConnection( connection );
++
++    slave->dispatchLoop();
++
++    delete scd;
++    return 0;
++}
++#endif
++
+ bool Launcher::createSlaveInternal( const char *protocol, cmsghdr *controlmsg )
+ {
+     qDebug( "launcher: creating slave for protocol %s", protocol );
+@@ -300,6 +379,18 @@
+     int dcopReadFd = *fdPtr++;
+     int dcopWriteFd = *fdPtr;
+ 
++#ifdef NOMMU
++    SlaveChildData *scd = new SlaveChildData(slaveReadFd, slaveWriteFd, 
++        dcopReadFd, dcopWriteFd, protocol);
++    pthread_attr_t attr;
++    pthread_t pthread;
++    pthread_attr_init(&attr);
++    pthread_attr_setinheritsched(&attr, PTHREAD_INHERIT_SCHED);
++    pthread_attr_setstacksize( &attr, STACK_SIZE );
++    pthread_create( &pthread, &attr, Launcher::slaveChild, scd );
++    pthread_attr_destroy( &attr );
++    pid_t pid=pthread;
++#else
+     pid_t pid = fork();
+ 
+     if ( pid == 0 )
+@@ -325,12 +416,13 @@
+         ::exit( 0 );
+     }
+ 
+-    assert( pid != -1 );
+-
+     ::close( slaveReadFd );
+     ::close( slaveWriteFd );
+     ::close( dcopReadFd );
+     ::close( dcopWriteFd );
++#endif
++
++    assert( pid != -1 );
+ 
+     // send back pid to main
+     LauncherMsg launcherMsg;
+--- konqueror3-embedded/konq-embed/dropin/kio/krun.cpp	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/dropin/kio/krun.cpp	2006-04-19 14:54:04.000000000 +0800
+@@ -281,7 +281,11 @@
+     if ( passdata && ::pipe( filedes ) )
+ 	return -1;
+ 
++#ifdef NOMMU
++    int pid = vfork();
++#else
+     int pid = fork();
++#endif
+     if ( pid == -1 )
+     {
+ 	if ( passdata )
+@@ -316,8 +320,12 @@
+     if ( !ref.isEmpty() )
+ 	::setenv( "PROTOCOL_REFERER", ref.latin1(), true );
+     execlp( app.local8Bit().data(), app.local8Bit().data(), arg.local8Bit().data(), 0 );
++#ifdef NOMMU
++    _exit( errno );
++#else
+     ::exit( errno );
+ #endif
++#endif
+     return -1;
+ }
+ 
+--- konqueror3-embedded/konq-embed/dropin/kapplication.h	2006-01-08 08:26:19.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/dropin/kapplication.h	2006-04-25 11:01:21.203214960 +0800
+@@ -56,6 +56,20 @@
+ 
+ #include <kglobalsettings.h>
+ 
++#ifdef NOMMU
++#define STACK_SIZE 1024*32
++
++class ServiceChildData
++{
++public:
++    void *serviceEntryPoint;
++    ServiceChildData(void *serviceEntryPoint)
++    {
++        this->serviceEntryPoint = serviceEntryPoint;
++    }
++};
++#endif
++
+ class KApplication : public QApplication, public KInstance
+ {
+     Q_OBJECT
+@@ -66,6 +80,10 @@
+     KApplication( int &argc, char **argv, const char *name );
+     virtual ~KApplication();
+ 
++#ifdef NOMMU
++    static void *serviceChild(void *arg);
++#endif
++    
+     static KApplication *self() { return s_self; }
+     static KApplication *kApplication() { return self(); } // for render_form.cpp
+ 
+--- konqueror3-embedded/konq-embed/dropin/kapplication.cpp	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/konq-embed/dropin/kapplication.cpp	2006-04-25 11:01:05.000000000 +0800
+@@ -31,6 +31,11 @@
+ #include <qdir.h>
+ 
+ #include <assert.h>
++#ifdef NOMMU
++#include <sched.h>
++#include <signal.h>
++#include <pthread.h>
++#endif
+ 
+ bool kde_kiosk_admin = false;
+ 
+@@ -69,11 +73,35 @@
+     s_serviceEntryPoint = entryPoint;
+ }
+ 
++#ifdef NOMMU
++void *KApplication::serviceChild(void *arg)
++{
++    ServiceChildData *scd = (ServiceChildData *)arg;
++
++    typedef int (*EntryFunc)(int, char **);
++    EntryFunc func = (EntryFunc)scd->serviceEntryPoint;
++    (*func)( qApp->argc(), qApp->argv() );
++
++    delete scd;
++    return 0;
++}
++#endif
++
+ bool KApplication::startServiceByDesktopPath( const QString &path )
+ {
+     // ### hack
+     if ( s_serviceName && path == *s_serviceName && s_serviceEntryPoint )
+     {
++#ifdef NOMMU
++        ServiceChildData *scd = new ServiceChildData(s_serviceEntryPoint);
++        pthread_attr_t attr;
++        pthread_t pthread;
++        pthread_attr_init(&attr);
++        pthread_attr_setinheritsched(&attr, PTHREAD_INHERIT_SCHED);
++        pthread_attr_setstacksize( &attr, STACK_SIZE );
++        pthread_create( &pthread, &attr, KApplication::serviceChild, scd );
++        pthread_attr_destroy( &attr );
++#else
+         if ( fork() == 0 )
+         {
+             typedef int (*EntryFunc)(int, char **);
+@@ -81,6 +109,7 @@
+             (*func)( qApp->argc(), qApp->argv() );
+             ::exit( 0 );
+         }
++#endif
+ 
+         return true;
+     }
+--- konqueror3-embedded/configure	2005-12-04 10:13:04.000000000 +0800
++++ konqueror3-embedded.bfin/configure	2006-09-11 17:01:05.000000000 +0800
+@@ -11114,6 +11114,28 @@
+   hardcode_into_libs=yes
+   ;;
+ 
++uclinux*)
++  version_type=linux
++  need_lib_prefix=no
++  need_version=no
++  dynamic_linker=no
++  sys_lib_dlsearch_path_spec="/lib"
++  sys_lib_search_path_spec=""
++  ;;
++
++linux-uclibc*)
++  version_type=linux
++  need_lib_prefix=no
++  need_version=no
++  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}$major $libname${shared_ext}'
++  soname_spec='${libname}${release}${shared_ext}$major'
++  finish_cmds='PATH="\$PATH:/sbin" ldconfig -n $libdir'
++  shlibpath_var=LD_LIBRARY_PATH
++  dynamic_linker=yes
++  sys_lib_dlsearch_path_spec="/lib"
++  sys_lib_search_path_spec="/lib"
++  ;;
++
+ # No shared lib support for Linux oldld, aout, or coff.
+ linux*oldld* | linux*aout* | linux*coff*)
+   dynamic_linker=no
+@@ -14780,6 +14798,28 @@
+   hardcode_into_libs=yes
+   ;;
+ 
++uclinux*)
++  version_type=linux
++  need_lib_prefix=no
++  need_version=no
++  dynamic_linker=no
++  sys_lib_dlsearch_path_spec="/lib"
++  sys_lib_search_path_spec=""
++  ;;
++
++linux-uclibc*)
++  version_type=linux
++  need_lib_prefix=no
++  need_version=no
++  library_names_spec='${libname}${release}${shared_ext}$versuffix ${libname}${release}${shared_ext}$major $libname${shared_ext}'
++  soname_spec='${libname}${release}${shared_ext}$major'
++  finish_cmds='PATH="\$PATH:/sbin" ldconfig -n $libdir'
++  shlibpath_var=LD_LIBRARY_PATH
++  dynamic_linker=yes
++  sys_lib_dlsearch_path_spec="/lib"
++  sys_lib_search_path_spec="/lib"
++  ;;
++
+ # No shared lib support for Linux oldld, aout, or coff.
+ linux*oldld* | linux*aout* | linux*coff*)
+   dynamic_linker=no

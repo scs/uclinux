@@ -1,0 +1,6 @@
+GNU inetutils
+
+This is a distribution of common networking utilities and servers.
+They are currently mostly from the 4.4BSD-Lite2 distribution.
+Whois client was written by Joel N. Weber II.
+ping and talkd was written by Sergey Poznyakoff

@@ -1,0 +1,48 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>8.1. Setting up MTRR</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="video.html" title="Chapter 8. Video output devices"><link rel="prev" href="video.html" title="Chapter 8. Video output devices"><link rel="next" href="output-trad.html" title="8.2. Video outputs for traditional video cards"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">8.1. Setting up MTRR</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="video.html">Prev</a> </td><th width="60%" align="center">Chapter 8. Video output devices</th><td width="20%" align="right"> <a accesskey="n" href="output-trad.html">Next</a></td></tr></table><hr></div><div class="sect1" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="mtrr"></a>8.1. Setting up MTRR</h2></div></div></div><p>
+It is VERY recommended to check if the MTRR registers
+are set up properly, because they can give a big performance boost.
+</p><p>
+Do a <span><strong class="command">cat /proc/mtrr</strong></span>:
+</p><pre class="screen">
+<code class="prompt">--($:~)--</code> cat /proc/mtrr
+reg00: base=0xe4000000 (3648MB), size=  16MB: write-combining, count=9
+reg01: base=0xd8000000 (3456MB), size= 128MB: write-combining, count=1</pre><p>
+</p><p>
+It's right, shows my Matrox G400 with 16MB memory. I did this from
+XFree 4.x.x , which sets up MTRR registers automatically.
+</p><p>
+If nothing worked, you have to do it manually. First, you have to find the
+base address. You have 3 ways to find it:
+
+</p><div class="orderedlist"><ol type="1"><li><p>
+  from X11 startup messages, for example:
+  </p><pre class="screen">
+(--) SVGA: PCI: Matrox MGA G400 AGP rev 4, Memory @ 0xd8000000, 0xd4000000
+(--) SVGA: Linear framebuffer at 0xD8000000</pre><p>
+  </p></li><li><p>
+  from <tt class="filename">/proc/pci</tt> (use <span><strong class="command">lspci -v</strong></span>
+  command):
+  </p><pre class="screen">
+01:00.0 VGA compatible controller: Matrox Graphics, Inc.: Unknown device 0525
+Memory at d8000000 (32-bit, prefetchable)
+  </pre><p>
+  </p></li><li><p>
+  from mga_vid kernel driver messages (use <span><strong class="command">dmesg</strong></span>):
+  </p><pre class="screen">mga_mem_base = d8000000</pre><p>
+  </p></li></ol></div><p>
+</p><p>
+Then let's find the memory size. This is very easy, just convert video RAM
+size to hexadecimal, or use this table:
+</p><div class="informaltable"><table border="0"><colgroup><col><col></colgroup><tbody><tr><td>1 MB</td><td>0x100000</td></tr><tr><td>2 MB</td><td>0x200000</td></tr><tr><td>4 MB</td><td>0x400000</td></tr><tr><td>8 MB</td><td>0x800000</td></tr><tr><td>16 MB</td><td>0x1000000</td></tr><tr><td>32 MB</td><td>0x2000000</td></tr></tbody></table></div><p>
+</p><p>
+You know base address and memory size, let's setup MTRR registers!
+For example, for the Matrox card above (<code class="literal">base=0xd8000000</code>)
+with 32MB ram (<code class="literal">size=0x2000000</code>) just execute:
+</p><pre class="screen">
+echo "base=0xd8000000 size=0x2000000 type=write-combining" &gt;| /proc/mtrr
+</pre><p>
+</p><p>
+Not all CPUs have MTRRs. For example older K6-2 (around 266MHz,
+stepping 0) CPUs don't have MTRRs, but stepping 12 does
+(execute <span><strong class="command">cat /proc/cpuinfo</strong></span> to check it).
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="video.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="video.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="output-trad.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 8. Video output devices </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> 8.2. Video outputs for traditional video cards</td></tr></table></div></body></html>

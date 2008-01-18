@@ -1,0 +1,61 @@
+<head>
+<title>About NDSO</title>
+<link rel="stylesheet" href="/style.css" type="text/css">
+</head>
+
+<body>
+
+<div>
+<img src="/images/ADI3.jpg">
+<img src="about_files/image002.gif">
+</div>
+
+<p style='text-align:center; font-size:xx-large; font-weight:bolder;'>
+Blackfin Network Scope Demo Overview 
+</p>
+
+<p>
+The Network Scope, demonstrates a simple mechanism to share access and data 
+distributed over a TCP/IP network. The web browser contacts the HTTP server 
+running on the Blackfin processor where the CGI script or backend program 
+resides. Parameters from the HTML form are passed to the program in a similar 
+manor as parameters are passed through an Environment, or to the command line.
+</p>
+
+<p>
+The called program samples data from the ADC using a linux device driver. 
+Incoming data samples are processed and stored in a data file. The backend CGI 
+program then calls Gnuplot and requests to generate a PNG or JPEG image based on 
+the sampled data and form settings. (Gnuplot is a portable command-line driven 
+interactive datafile and function plotting utility). The server takes the output 
+of the CGI program and returns it to the web browser which displays the output 
+as an HTML page.
+</p>
+
+<div style='text-align:center; font-size:xx-large;'>
+<a href="http://blackfin.uclinux.org/">http://blackfin.uclinux.org/</a>
+</div>
+
+<div>
+ <b>Features:</b>
+ <ul>
+  <li>Variable Sample Rate</li>
+  <li>Variable Sample Depth</li>
+  <li>Several Trigger Options (State, Edge, Variable Level)</li>
+  <li>Different Plotting and Displaying Options</li>
+  <li>Statistical Functions (Min, Max, Mean, etc.)</li>
+ </ul>
+</div>
+
+<div>
+ <b>Platform:</b>
+ <ul>
+  <li>Blackfin STAMP Board (ADDS-BF5XX-STAMP)</li>
+  <li>uClinux 2.6.x for Blackfin</li>
+  <li>AD7476A-DBRD</li>
+ </ul>
+</div>
+
+</body>
+
+</html>

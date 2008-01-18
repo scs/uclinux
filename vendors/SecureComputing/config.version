@@ -1,0 +1,5 @@
+.EXPORT_ALL_VARIABLES:
+#
+# Declare the CyberGuard version in one place.
+#
+VERSIONPKG=3.2.0p1

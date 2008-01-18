@@ -1,0 +1,23 @@
+What works:
+
+1) enumerating, adding, removing, altering tracks
+2) enumerating, adding, removing, altering playlists
+3) creation of new, empty iTunesDB file
+4) creation of new, default iTunesEQPresets file
+5) automatic generating of iTunesSD file for iPod shuffle
+6) support for reading and writing all known database versions
+7) high level addition of mp3 and m4a files
+
+To be done:
+
+1) Implementation of the Type 50 and 51 mhod atoms (Smart Playlists)
+2) Implementation of the Type 17 mhod atoms (Chapter Data)
+2) Implementation of the ArtworkDB
+3) Support for Video iPods, whatever that means
+
+
+To create documentation, type:
+
+doxygen
+
+Duane Maxwell <duane.maxwell@linspire.com>

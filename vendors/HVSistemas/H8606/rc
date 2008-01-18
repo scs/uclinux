@@ -1,0 +1,21 @@
+hostname blackfin
+mount -t proc proc /proc
+mount -t ramfs ramfs /var
+mount -t sysfs sysfs /sys
+mount -t devpts devpts /dev/pts
+[ -d /proc/bus/usb ] && mount -t usbfs usbfs /proc/bus/usb
+if [ -e /bin/mdev ] ; then
+	echo /bin/mdev 2>/dev/null > /proc/sys/kernel/hotplug
+	/bin/mdev -s 2> /dev/null
+fi
+mkdir /var/tmp
+mkdir /var/log
+mkdir /var/run
+mkdir /var/lock
+#dhcpcd &
+ifconfig eth0 192.168.0.220 up
+ifconfig lo 127.0.0.1
+inetd &
+route add default gw 192.168.0.1
+#cat /etc/issue
+cat /etc/motd

@@ -1,0 +1,30 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>12.2. *BSD</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="ports.html" title="Chapter 12. Ports"><link rel="prev" href="linux.html" title="12.1. Linux"><link rel="next" href="unix.html" title="12.3. Commercial Unix"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"><link rel="subsection" href="bsd.html#freebsd" title="12.2.1. FreeBSD"><link rel="subsection" href="bsd.html#openbsd" title="12.2.2. OpenBSD"><link rel="subsection" href="bsd.html#darwin" title="12.2.3. Darwin"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">12.2. *BSD</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="linux.html">Prev</a> </td><th width="60%" align="center">Chapter 12. Ports</th><td width="20%" align="right"> <a accesskey="n" href="unix.html">Next</a></td></tr></table><hr></div><div class="sect1" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="bsd"></a>12.2. *BSD</h2></div></div></div><p>
+<span class="application">MPlayer</span> runs on all known BSD flavors.
+There are ports/pkgsrc/fink/etc versions of <span class="application">MPlayer</span>
+available that are probably easier to use than our raw sources.
+</p><p>
+To build <span class="application">MPlayer</span> you will need GNU make
+(gmake - native BSD make will not work) and a recent version of binutils.
+</p><p>
+If <span class="application">MPlayer</span> complains about not finding <tt class="filename">/dev/cdrom</tt>
+or <tt class="filename">/dev/dvd</tt>, create an appropriate symbolic link:
+</p><pre class="screen">ln -s /dev/<em class="replaceable"><code>your_cdrom_device</code></em> /dev/cdrom</pre><p>
+</p><p>
+To use Win32 DLLs with <span class="application">MPlayer</span> you will need to
+re-compile the kernel with "<code class="envar">option USER_LDT</code>"
+(unless you run FreeBSD-CURRENT,
+where this is the default).
+</p><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="freebsd"></a>12.2.1. FreeBSD</h3></div></div></div><p>
+If your CPU has SSE, recompile your kernel with
+"<code class="envar">options CPU_ENABLE_SSE</code>" (FreeBSD-STABLE or kernel
+patches required).
+</p></div><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="openbsd"></a>12.2.2. OpenBSD</h3></div></div></div><p>
+Due to limitations in different versions of gas (relocation vs MMX), you
+will need to compile in two steps: First make sure that the non-native as
+is first in your <code class="envar">$PATH</code> and do a <span><strong class="command">gmake -k</strong></span>, then
+make sure that the native version is used and do <span><strong class="command">gmake</strong></span>.
+</p><p>
+As of OpenBSD 3.4 the hack above is no longer needed.
+</p></div><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="darwin"></a>12.2.3. Darwin</h3></div></div></div><p>
+See the <a href="macos.html" title="12.5. Mac OS">Mac OS</a> section.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="linux.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="ports.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="unix.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">12.1. Linux </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> 12.3. Commercial Unix</td></tr></table></div></body></html>

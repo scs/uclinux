@@ -1,0 +1,54 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>4.1. CD/DVD-Laufwerke</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Movie Player"><link rel="up" href="cd-dvd.html" title="Kapitel 4. CD/DVD Nutzung"><link rel="prev" href="cd-dvd.html" title="Kapitel 4. CD/DVD Nutzung"><link rel="next" href="dvd.html" title="4.2. DVD-Wiedergabe"><link rel="preface" href="howtoread.html" title="Wie diese Dokumentation gelesen werden soll"><link rel="chapter" href="intro.html" title="Kapitel 1. Einführung"><link rel="chapter" href="install.html" title="Kapitel 2. Installation"><link rel="chapter" href="usage.html" title="Kapitel 3. Gebrauch"><link rel="chapter" href="cd-dvd.html" title="Kapitel 4. CD/DVD Nutzung"><link rel="chapter" href="faq.html" title="Kapitel 5. Häufig gestellte Fragen"><link rel="chapter" href="containers.html" title="Kapitel 6. Containerformate"><link rel="chapter" href="codecs.html" title="Kapitel 7. Codecs"><link rel="chapter" href="video.html" title="Kapitel 8. Videoausgabegeräte"><link rel="chapter" href="audio.html" title="Kapitel 9. Audioausgabegeräte"><link rel="chapter" href="tv.html" title="Kapitel 10. TV"><link rel="chapter" href="radio.html" title="Kapitel 11. Radio"><link rel="chapter" href="ports.html" title="Kapitel 12. Portierungen"><link rel="chapter" href="mencoder.html" title="Kapitel 13. Allgemeiner Gebrauch von MEncoder"><link rel="chapter" href="encoding-guide.html" title="Kapitel 14. Encodieren mit MEncoder"><link rel="appendix" href="bugreports.html" title="Anhang A. Wie Fehler (Bugs) berichtet werden"><link rel="appendix" href="bugs.html" title="Anhang B. Bekannte Fehler"><link rel="appendix" href="skin.html" title="Anhang C. MPlayers Skinformat"><link rel="appendix" href="history.html" title="Anhang D. Geschichte"><link rel="subsection" href="drives.html#drives_linux" title="4.1.1. Linux"><link rel="subsection" href="drives.html#drives_freebsd" title="4.1.2. FreeBSD"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">4.1. CD/DVD-Laufwerke</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="cd-dvd.html">Zurück</a> </td><th width="60%" align="center">Kapitel 4. CD/DVD Nutzung</th><td width="20%" align="right"> <a accesskey="n" href="dvd.html">Weiter</a></td></tr></table><hr></div><div class="sect1" lang="de"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="drives"></a>4.1. CD/DVD-Laufwerke</h2></div></div></div><p>
+      Moderne CD-ROM-Laufwerke können sehr hohe Geschwindigkeiten
+      erreichen. Jedoch sind einige CD-ROM-Laufwerke in der Lage, mit gedrosselter
+      Geschwindigkeit zu laufen. Es gibt verschiedene Gründe, in Erwägung zu ziehen,
+      die Geschwindig eines CD-ROM-Laufwerks zu ändern:
+    </p><div class="itemizedlist"><ul type="disc"><li><p>
+          Es gibt Berichte über Lesefehler bei hohen Geschwindigkeiten, besonders
+          bei schlecht gepressten CD-ROMs. Reduzierung der Geschwindigkeit kann
+          unter diesen Umständen Datenverlust verhindern.
+        </p></li><li><p>
+          Viele CD-ROM-Laufwerke sind nervend laut. Eine geringere Geschwindigkeit kann
+          die Geräsche reduzieren.
+        </p></li></ul></div><div class="sect2" lang="de"><div class="titlepage"><div><div><h3 class="title"><a name="drives_linux"></a>4.1.1. Linux</h3></div></div></div><p>
+        Du kannst die Geschwindigkeit von IDE CD-ROM-Laufwerken mit
+        <span><strong class="command">hdparm</strong></span>, <span><strong class="command">setcd</strong></span> oder
+        <span><strong class="command">cdctl</strong></span> reduzieren. Dies funktioniert wie folgt:
+        </p><pre class="screen">hdparm -E <em class="replaceable"><code>[Geschwindigkeit]</code></em> <em class="replaceable"><code>[CD-ROM-Gerät]</code></em></pre><p>
+        </p><pre class="screen">setcd -x <em class="replaceable"><code>[Geschwindigkeit]</code></em> <em class="replaceable"><code>[CD-ROM-Gerät]</code></em></pre><p>
+        </p><pre class="screen">cdctl -bS <em class="replaceable"><code>[Geschwindigkeit]</code></em></pre><p>
+      </p><p>
+        Wenn du SCSI-Emulation benuzt, musst du die Einstellungen unter Umständen am
+        echten IDE-Gerät vornehmen und nicht am emuliertem SCSI-Gerät.
+      </p><p>
+        Wenn du über root-Rechte verfügst, kann das folgende Kommando
+        ebenso helfen:
+        </p><pre class="screen">echo file_readahead:2000000 &gt; /proc/ide/<em class="replaceable"><code>[CD-ROM-Gerät]</code></em>/settings</pre><p>
+      </p><p>
+        
+        Dies setzt die Menge der vorausgehend gelesenen Daten auf 2MB, was bei
+        verkratzten CD-ROMs hilft.
+        Wenn du dies zu hoch setzt, wird das Laufwerk dauernd anlaufen und wieder langsamer werden;
+        dies wird die Leistung dramtisch verschlechtern.
+        Es wird ebenso empfohlen, dass du dein CD-ROM-Laufwerk mit <span><strong class="command">hdparm</strong></span>
+        konfigurierst:
+        </p><pre class="screen">hdparm -d1 -a8 -u1 <em class="replaceable"><code>[CD-ROM-Gerät]</code></em></pre><p>
+      </p><p>
+        Dies aktiviert DMA-Zugriff, Read-ahead (vorausgehendes Lesen) und IRQ-Unmasking
+        (lies die <span><strong class="command">hdparm</strong></span> Manpage für eine ausführliche Erklärung).
+      </p><p>
+        Wir verweisen hier auf
+        "<tt class="filename">/proc/ide/<em class="replaceable"><code>[CD-ROM-Gerät]</code></em>/settings</tt>"
+        für Feineinstellungen an deinem CD-ROM.
+      </p><p>
+        SCSI-Laufwerke haben kein einheitliches Verfahren, diese Parameter zu
+        setzen. (Kennst du einen? Berichte ihn uns!) Es gibt ein Tool, welches mit
+        <a href="http://das.ist.org/~georg/" target="_top">Plextor SCSI-Laufwerken</a>
+        funktioniert.
+      </p></div><div class="sect2" lang="de"><div class="titlepage"><div><div><h3 class="title"><a name="drives_freebsd"></a>4.1.2. FreeBSD</h3></div></div></div><p>
+        Geschwindigkeit:
+        </p><pre class="screen">cdcontrol [-f <em class="replaceable"><code>Gerät</code></em>] speed <em class="replaceable"><code>[Geschwindigkeit]</code></em></pre><p>
+      </p><p>
+        DMA:
+        </p><pre class="screen">sysctl hw.ata.atapi_dma=1</pre><p>
+      </p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="cd-dvd.html">Zurück</a> </td><td width="20%" align="center"><a accesskey="u" href="cd-dvd.html">Nach oben</a></td><td width="40%" align="right"> <a accesskey="n" href="dvd.html">Weiter</a></td></tr><tr><td width="40%" align="left" valign="top">Kapitel 4. CD/DVD Nutzung </td><td width="20%" align="center"><a accesskey="h" href="index.html">Zum Anfang</a></td><td width="40%" align="right" valign="top"> 4.2. DVD-Wiedergabe</td></tr></table></div></body></html>

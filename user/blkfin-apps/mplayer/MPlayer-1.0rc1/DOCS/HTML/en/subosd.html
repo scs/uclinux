@@ -1,0 +1,58 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>3.2. Subtitles and OSD</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="usage.html" title="Chapter 3. Usage"><link rel="prev" href="commandline.html" title="3.1. Command line"><link rel="next" href="control.html" title="3.3. Control"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">3.2. Subtitles and OSD</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="commandline.html">Prev</a> </td><th width="60%" align="center">Chapter 3. Usage</th><td width="20%" align="right"> <a accesskey="n" href="control.html">Next</a></td></tr></table><hr></div><div class="sect1" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="subosd"></a>3.2. Subtitles and OSD</h2></div></div></div><p>
+<span class="application">MPlayer</span> can display subtitles along with movie files.
+Currently the following formats are supported:
+</p><div class="itemizedlist"><ul type="disc"><li><p>VOBsub</p></li><li><p>OGM</p></li><li><p>CC (closed caption)</p></li><li><p>MicroDVD</p></li><li><p>SubRip</p></li><li><p>SubViewer</p></li><li><p>Sami</p></li><li><p>VPlayer</p></li><li><p>RT</p></li><li><p>SSA</p></li><li><p>PJS (Phoenix Japanimation Society)</p></li><li><p>MPsub</p></li><li><p>AQTitle</p></li><li><p><a href="http://unicorn.us.com/jacosub/" target="_top">JACOsub</a></p></li></ul></div><p>
+</p><p>
+<span class="application">MPlayer</span> can dump the previously listed subtitle formats
+(<span class="bold"><strong>except the three first</strong></span>) into the following
+destination formats, with the given options:
+</p><div class="itemizedlist"><ul type="disc"><li><p>MPsub: <tt class="option">-dumpmpsub</tt></p></li><li><p>SubRip: <tt class="option">-dumpsrtsub</tt></p></li><li><p>MicroDVD: <tt class="option">-dumpmicrodvdsub</tt></p></li><li><p>JACOsub: <tt class="option">-dumpjacosub</tt></p></li><li><p>Sami: <tt class="option">-dumpsami</tt></p></li></ul></div><p>
+</p><p>
+<span class="application">MEncoder</span> can dump DVD subtitles into
+<a href="menc-feat-extractsub.html" title="13.9. Extracting DVD subtitles to VOBsub file">VOBsub</a> format.
+</p><p>
+The command line options differ slightly for the different formats:
+</p><p><b>VOBsub subtitles. </b>
+VOBsub subtitles consist of a big (some megabytes) <tt class="filename">.SUB</tt> file,
+and optional <tt class="filename">.IDX</tt> and/or <tt class="filename">.IFO</tt>
+files.  If you have files like
+<tt class="filename"><em class="replaceable"><code>sample.sub</code></em></tt>,
+<tt class="filename"><em class="replaceable"><code>sample.ifo</code></em></tt> (optional),
+<tt class="filename"><em class="replaceable"><code>sample.idx</code></em></tt> - you have to pass
+<span class="application">MPlayer</span> the <tt class="option">-vobsub sample
+[-vobsubid <em class="replaceable"><code>id</code></em>]</tt> options
+(full path optional). The <tt class="option">-vobsubid</tt> option is like
+<tt class="option">-sid</tt> for DVDs, you can choose between subtitle tracks
+(languages) with it. In case that <tt class="option">-vobsubid</tt> is omitted,
+<span class="application">MPLayer</span> will try to use the languages given by the
+<tt class="option">-slang</tt> option and fall back to the <code class="systemitem">langidx</code>
+in the <tt class="filename">.IDX</tt> file to set the subtitle language. If it fails,
+there will be no subtitles.
+</p><p><b>Other subtitles. </b>
+The other formats consist of a single text file containing timing,
+placement and text information. Usage: If you have a file like
+<tt class="filename"><em class="replaceable"><code>sample.txt</code></em></tt>,
+you have to pass the option <tt class="option">-sub
+<em class="replaceable"><code>sample.txt</code></em></tt> (full path optional).
+</p><div class="variablelist"><p class="title"><b>Adjusting subtitle timing and placement:</b></p><dl><dt><span class="term"><tt class="option">-subdelay <em class="replaceable"><code>sec</code></em></tt></span></dt><dd>
+    Delays subtitles by <tt class="option"><em class="replaceable"><code>sec</code></em></tt> seconds.
+    Can be negative. The value is added to movie's time position counter.
+    </dd><dt><span class="term"><tt class="option">-subfps <em class="replaceable"><code>RATE</code></em></tt></span></dt><dd>
+    Specify frame/sec rate of subtitle file (float number).
+    </dd><dt><span class="term"><tt class="option">-subpos <em class="replaceable"><code>0-100</code></em></tt></span></dt><dd>
+    Specify the position of subtitles.
+    </dd></dl></div><p>
+If you experience a growing delay between the movie and the subtitles when
+using a MicroDVD subtitle file, most likely the framerate of the movie and
+the subtitle file are different. Please note that the MicroDVD subtitle
+format uses absolute frame numbers for its timing, but there is no fps
+information in it, and therefore the <tt class="option">-subfps</tt> option should
+be used with this format. If you like to solve this problem permanently,
+you have to manually convert the subtitle file framerate.
+<span class="application">MPlayer</span> can do this
+conversion for you:
+
+</p><pre class="screen">mplayer -dumpmicrodvdsub -fps <em class="replaceable"><code>subtitles_fps</code></em> -subfps <em class="replaceable"><code>avi_fps</code></em> -sub <em class="replaceable"><code>subtitle_filename</code></em> <em class="replaceable"><code>dummy.avi</code></em></pre><p>
+</p><p>
+About DVD subtitles, read the <a href="dvd.html" title="4.2. DVD playback">DVD</a> section.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="commandline.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="usage.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="control.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">3.1. Command line </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> 3.3. Control</td></tr></table></div></body></html>

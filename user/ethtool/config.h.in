@@ -1,0 +1,28 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader 2.13.  */
+#ifndef __ETHTOOL_CONFIG_H__
+#define __ETHTOOL_CONFIG_H__
+
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you have the socket function.  */
+#undef HAVE_SOCKET
+
+/* Define if you have the strtol function.  */
+#undef HAVE_STRTOL
+
+/* Define if you have the <sys/ioctl.h> header file.  */
+#undef HAVE_SYS_IOCTL_H
+
+/* Name of package */
+#undef PACKAGE
+
+/* Version number of package */
+#undef VERSION
+
+
+#undef PACKAGE
+#undef VERSION
+
+#endif /* __ETHTOOL_CONFIG_H__ */

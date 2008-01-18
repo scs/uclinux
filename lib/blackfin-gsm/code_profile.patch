@@ -1,0 +1,36 @@
+--- gsm/src/code.c	2006-06-09 10:34:07.112111072 +0930
++++ gsm/src/code.c	2006-06-06 20:14:54.000000000 +0930
+@@ -67,9 +67,13 @@
+ 	longword ltmp;
+ #endif
+ 
++	SAMCYCLES("start Gsm_Coder");
+ 	Gsm_Preprocess			(S, s, so);
++	SAMCYCLES("  Gsm_Preprocess");
+ 	Gsm_LPC_Analysis		(S, so, LARc);
++	SAMCYCLES("  Gsm_LPC_Analysis");
+ 	Gsm_Short_Term_Analysis_Filter	(S, LARc, so);
++	SAMCYCLES("  Gsm_Short_Term_Analysis_Filter");
+ 
+ 	for (k = 0; k <= 3; k++, xMc += 13) {
+ 
+@@ -80,11 +84,13 @@
+ 					dpp,	  /* dpp    [0..39] OUT */
+ 					 Nc++,
+ 					 bc++);
++	        SAMCYCLES("    Gsm_Long_Term_Predictor");
+ 
+ 		Gsm_RPE_Encoding	( S,
+ 					e + 5,	/* e	  ][0..39][ IN/OUT */
+ 					  xmaxc++, Mc++, xMc );
+ 
++	        SAMCYCLES("    Gsm_RPE_Encoding");
+ 
+ 		/*
+ 		 * Gsm_Update_of_reconstructed_short_time_residual_signal
+@@ -101,4 +107,5 @@
+ 	}
+ 	(void)memcpy( (char *)S->dp0, (char *)(S->dp0 + 160),
+ 		120 * sizeof(*S->dp0) );
++	SAMCYCLES("end Gsm_Coder");
+ }

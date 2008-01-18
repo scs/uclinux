@@ -1,0 +1,21 @@
+2007-09-21  Mike Frysinger  <vapier@gentoo.org>
+
+	* server.c (main): Check status after start_inferior.
+
+2007-06-12  Mike Frysinger  <vapier@gentoo.org>
+
+	* linux-low.c (linux_create_inferior): Change execv to execvp.
+
+2007-02-08  Jie Zhang  <jie.zhang@analog.com>
+
+	* linux-bfin-low.c: Don't include asm/asm-offsets.h, include
+	asm/ptrace.h instead.
+
+2006-09-04  Jie Zhang  <jie.zhang@analog.com>
+
+	* linux-bfin-low.c (bfin_regmap): Rename PT_EXTRA1 to PT_TEXT_ADDR,
+	PT_EXTRA2 to PT_TEXT_END_ADDR, PT_EXTRA3 to PT_DATA_ADDR.
+	* linux-low.c (PT_TEXT_ADDR): Define for BFIN.
+	(PT_TEXT_END_ADDR): Likewise.
+	(PT_DATA_ADDR): Likewise.
+

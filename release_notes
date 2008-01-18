@@ -1,0 +1,217 @@
+Release Notes for uClinux for Blackfin 2007R1 Release
+Version: 2007R1
+Date: Mar. 7, 2007 
+The latest version of this document can always be found here: http://docs.blackfin.uclinux.org/doku.php?id=release_notes 
+Development Environments
+Tool Chain: Toolchain Release 2007R1 
+u-boot: uboot_1.1.6 Release 2007R1 
+Host platform: SuSE Linux 9.2 or above 
+Target board: STAMP & EZKIT Board 
+Note: However, other similar host platforms are also supported, but they are not well tested. 
+Deliverables
+Source files 
+uClinux_dist_2007R1.tar.bz2
+Linux ELF file 
+linux-bf533-stamp
+linux-bf533-ezkit
+linux-bf537
+linux-bf561
+Compressed Linux image 
+uImage-bf533-stamp
+uImage-bf533-ezkit
+uImage-bf537
+uImage-bf561
+This document 
+release_notes_2007R1.pdf
+Compressed archive of test results 
+test_results_bf533_STAMP_2007R1.tar.gz
+test_results_bf533_EZKIT_2007R1.tar.gz
+test_results_bf537_2007R1.tar.gz
+test_results_bf561_2007R1.tar.gz
+Summary of test results 
+test_results_summary_2007R1
+New features and changes
+1.	Build new hardware.
+o	AD7877 touch screen daughter board.
+o	AD1981 AC97 audio daughter board.
+o	SPORT-UART convert daughter board.
+o	ISP 1760 USB Host and Device daughter board.
+o	Micron mt9m001 sensor connection board.
+o	PCF8575 16-bit IO Expander
+2.	Improve kernel.
+o	Upgrade kernel to 2.6.19.3
+o	Change blackfin IRQ infrastructure to the generic IRQ infrastructure since kernel 2.6.18.
+o	Add kernel level common GPIO driver framework API proposed by Haavard Skinnemoen for AVR32. Add new PM GPIO Wakeup API. Add function bfin_gpio_interrupt_setup on BF561. http://lkml.org/lkml/2006/11/16/103
+o	Update KGDB patch and enable kgdb to access L1 instruction SRAM. Move some arch dependent code from kgdb patch into kernel source.
+o	Remove useless system call indicated in LKML review comments.
+o	Replace sys_socketcall and sys_ipc with separate socket and ipc functions asked by LKML guys.
+o	Remove all assembly code from the C head file.
+o	Add strcmp, strncmp, strcpy and strncpy library routines for blackfin kernel arch code to build with "Optimize for size".
+o	Add more optimized divsi3 and udivsi3 functions into blackfin kernel library
+o	Update Bluetechnix CM-561 board support
+o	Add board support to PNAV-10
+o	Replace current NP2 algorithm with a more stable and efficient one.
+o	Limit VFS page cache size for each process and the whole system per request.
+o	Enabel i2c-bfin-gpio on all Blackfin architectures and on all GPIO capabale IOs
+o	Clean up SPI driver. Clear tx register before reading anything, so previous data is not shifted out. Start duplex mode by CFG_SPI_WRITE. Keep SPI CS active when transfer data. Set dummy SPI CS to 0. caculate SPI_BAUD value based on input max_speed_hz or speed_hz.
+o	Improve kernel performance by enable user to configure whether to put some frequently used kernel
+functions into L1 instruction SRAM. 
+"	Enable ptrace system call to peek/poke L1 instruction sram. So, user can debug app code in L1 SRAM.
+1.	Drivers
+"	Move core B test driver from kernel source into test app folder and build outside kernel tree.
+"	Move exported information in core B driver from /proc to /sys
+"	Add the video for Linux driver for the Micron MT9M001 and MT9V022 sensor
+"	Switch to serial core based new serial driver bfin_5xx.c. Enable changing tty configuration dynamically. Allow UART port be configured individually.
+"	add NOR flash driver for the BF561 EZ-Kit
+"	NAND flashlarge page support
+"	update yaffs2 driver to version of Nov9, 2006
+"	SPORT-UART driver to emulate UART over SPORT.
+"	AD7877 touch screen controller driver
+"	Change PBX driver to SPI, DMA and GPIO framework.
+"	Add i2c chip driver for PCF8575 16-bit IO Expander
+"	Enable RMII PHY Support in blackfin MAC driver
+"	Restore Bas Vermeulens old AC97 AD1981b Sound Driver and add support for single channel/Mono - Use only one combined RX/TX IRQ 
+"	Enable Landscape 320¡Á240 fb mode in lq035 LCD driver and a lot of cleanup.
+"	Ad5304 DAC driver over SPI bus and its test app.
+"	Enable AD1836 driver on BF561.
+"	Support linphone's 16bit 8k mono audio format in ad1836 driver.
+"	Add ISP1760 USB host driver 
+"	Enable AD9960 driver to work on 64MHz PPI.
+"	Port rtc driver to the new rtc framework in kernel.
+"	Make MTD driver to detect NOR flash chip ST MW320E correctly.
+1.	Application and library
+"	Update busybox to 1.4.1
+"	Update linphone to 1.6.0
+"	Update UPNP library to 1.4.1
+"	Update dropbear to 0.48.1
+"	Update app iptables from uClinux tree
+"	New application pngviewer to display png pictures.
+"	Enable NDSO to show images in the framebuffer by pngviewer
+"	Port tslib for app to use touch screen driver.
+"	Enable NANO-X Microwin to accept input from AD7877 touch screen controller
+"	Port mplayer to blackfin and enable it to play video stream from a VLC streaming server.
+"	New benchmark tool "latency_test" for irq and schedudle latency
+"	Add Support for Infineon UniStone PBA31308 in the Bluetooth utility.
+"	Port new functions to bfindsp library: div_fl16(), mul_fl16(), cmp_fl16(), sub_fl16(), add_fl16, and MatrixMultVec3x1Frac28_4 28.4 fractional multiplication.
+"	Port a minimal dumb-terminal emulation "picocom" to blackfin.
+"	Port a lightweight library written in C for the management of the Apple iPod to blackfin.
+1.	Enable SYSV and Sigqueue LTP test cases for Blackfin. Update LTP to Jan. 07 release.
+2.	Clean up duplicated scripts in the automation test framework.
+Known Issues
+A full list of known issues can be found at: 
+http://blackfin.uclinux.org/gf/project/uclinux-dist/tracker/?action=TrackerItemBrowse&tracker_id=141 
+No 	Issue Title 
+1146	a couple of the libraries don't compile. 
+1165	CVS 2.6.16 kernel networking fails after 2 hours of downloading on 533 
+1186	Sometimes CTRL+C kills shell 
+1475	Blackfin dpmc and pm driver are broken
+1676	busybox hdparm doesn't work properly if only built once
+1685	cplbmgr.S does not exit properly on error condition
+1696	ndso fails to give out wave picture a while after connection
+1784	Cannot talk by linphone on bf533-stamp
+1800	kaffe.flt crash
+2534	adsl-start error
+2543	bfin_write_VR_CTL() will hang the system
+2616	Arecord failed to work with some format setting.
+2718	/proc/self/exe link is broken for FLAT binaries
+2719	unable to strace across vforks
+2779	Null pointer exception when run a test bash script
+2896	dpmc test case doesn't pass with higher or lower VCO and voltage value.
+2910	Kernel only image hangs when enable CONFIG_MTD_UCLINUX
+There are also some issues in the LTP test cases. They are recorded as bug 1010, 1211, 1358, 1566, 2731, 2818. 
+Build Procedure
+1. Install Toolchain Release 2007R1 
+Go to http://blackfin.uclinux.org/frs/?group_id=18 for more information 
+2. Download the source code of project uClinux for Blackfin release 2007R1 
+Go to http://blackfin.uclinux.org/frs/?group_id=17 
+3. Uncompress uclinux-dist.tar.bz to working directory 
+cp uClinux-dist_2007R1.tar.bz /(WORK_DIR)
+cd /(WORK_DIR)
+bunzip2 uClinux-dist_2007R1.tar.bz
+tar -xvf uClinux-dist_2007R1.tar
+4. Compile the source using following commands 
+cd uClinux-dist
+make menuconfig (save and exit without making any changes)
+make clean 
+make 
+5. Find the compiled Blackfin executable images in the following location 
+$(WORK_DIR)/uClinux-dist/images/
+6. 6 types of images are available according to the kernel configuration. 
+linux-ext2
+linux-cramfs
+linux-romfs
+uImage-ext2
+uImage-cramfs
+uImage-romfs
+Load Kernel to Target Board
+1. Use below serial cables to connect board to host computer. 
+Male-Female 1-1 serial cable
+2. Use minicom or some other serial communications utility to configure the serial port with the following parameters. If run minicom for the first time, run "minicom -s" to setup the port. 
+Serial Device = /dev/ttyS0
+Baud Rate = Baud that have been selected in kernel menuconfig (Default value is 57600)
+Number of bits = 8
+Parity = None
+Stop bits = 1
+3. Make sure the BMODE pins on the target board are set to 00. If u-boot loads automatically on reset, the pins are already set correctly. 
+4. Make sure tftp server is installed in the host machine. Copy linux from uClinux-dist/images/ that is built in above steps to the /tftpboot of the host PC. 
+5. Load the linux file with the following boot loader commands. Make sure the ipaddr (target board IP) and serverip (host IP) are correct. 
+STAMP> setenv ipaddr x.y.z.n
+STAMP> setenv serverip x.y.z.m 
+STAMP> saveenv
+STAMP> tftp 0x1000000 linux
+STAMP> bootelf 0x1000000
+Where x.y.z.m is the ip address of the host machine, and x.y.z.n is the ip address of the target board. 
+6. The kernel should then boot 
+Adding / upgrading kernel in flash
+Building Linux image (compressed and uncompressed)
+(This Image Will be Used in bootm command) Linux ELF image has to be changed as per u-boot standards to load Linux using bootm command. Following subsections explain how to build compressed and uncompressed Linux images. 
+Building Compressed Linux Image Manually
+Compressed Linux images can be found under folder "uClinux-dist/image". But, you can also generate by yourself as follows. 
+1. Generate the binary file from the ELF file, using following command 
+$ bfin-uclinux-objcopy -O binary linux linux.bin 
+2. Compress the binary file obtained above, using following command 
+$ gzip -9 linux.bin  
+3. Build the final linux image, using following command 
+bfin-uclinux-mkimage -A blackfin -O linux -T kernel -C gzip -a 0x1000 
+-e 0x1000 -n "Bfin uClinux Kernel" -d linux.bin.gz uImage
+Use the utility bfin-uclinux-mkimage to merge the header information like Image Name, Image Type, Data Size, Load Address, Entry Point into the linux.bin.gz. 
+Building uncompressed Linux image
+Use following commands to build uncompressed Linux image 
+bfin-uclinux-mkimage -A blackfin -O linux -T kernel -C none -a 0x1000 -e 0x1000 
+-n "Bfin uClinux kernel" -d linux.bin uImage
+0¡Á1000 is used because we have compiled the kernel with that location as the entry point. If anyone wants to chose a different address for entry point (for eg, 0¡Á20000), then please give that address instead of 0¡Á1000. Ensure to change the entry point of the kernel. 
+Programming Flash
+STAMP> tftp 0x1000000 uImage
+STAMP> protect off all
+STAMP> erase 0x20040000 0x203EFFFF
+STAMP> cp.b 0x1000000 0x20040000 $(filesize) 
+STAMP> setenv bootcmd bootm 0x20040000 
+STAMP> save
+STAMP> reset
+Build Customized uClinux
+Customize Kernel
+1. make menuconfig in uClinux for Blackfin project 
+2. select option [Kernel/Library/Defaults Selection] ¡ú [Customize Kernel Settings] and exit 
+3. In kernel configuration, processor and board specific options can be changed in [Processor type and features], such as cache status, CPU, DMA, etc. 
+4. Driver specific options are in respective menus. Such as Ethernet driver in [Networking supporting], sound card driver in [Sound], video driver in [Graphic Support], etc. 
+5. Save and exit. Then make the image again as mentioned before. The changes of the kernel take effects after you load and run the new image. 
+Customize Application and Lib
+1. make menuconfig in uClinux for Blackfin project 
+2. select Blackfin architecture in menu [Vendor/Product Selection] ¡ú [AnalogDevices Product] 
+3. select option [Kernel/Library/Defaults Selection] ¡ú [Customize Vendor/User Settings] and exit 
+4. In user configuration, applications and libraries can be selected and debugging information can be enabled. 
+5. After the menuconfig is done, make the image again as mentioned before. The new selected application can be found in the romfs after you load and run the new image. 
+Customize FLAT/ELF Binary Format
+1. make menuconfig in uClinux for Blackfin project 
+2. select Blackfin architecture in menu [Vendor/Product Selection] ¡ú [AnalogDevices Product] 
+3. select [Kernel/Library/Defaults Selection] ¡ú [Customize Vendor/User Settings] and exit 
+4. In menu [Blackfin Build Options] ¡ú [Binary Format], select FDPIC to build application into ELF binary and library, select FLAT to build FLAT binary, select Shared-FLAT to build shared FLAT binary and library. Don't foget to select install shared libraries if you want to run application built with shared library. 
+5. Change into folder uClinux-dist and make the image. 
+Customize for debugging
+1. To debug an application, please refer to the document "gdb_guide_bfin.txt" in patch folder bfin_patch/kgdb_patch. 
+2. To do source level kernel debugging by kgdb, please refer to the README file in patch folder bfin_patch/kgdb_patch. After apply the kgdb patch file to the kernel, a simple guide "kgdb_bfin.txt" can be found in subfolder "linux-2.6.x/Documentation/blackfin/" 
+Reporting Bugs
+1. Go to the following Blackfin uClinux bug tracker page, 
+http://blackfin.uclinux.org/tracker/?atid=141&group_id=17&func=browse 
+2. If the bug is not already reported click on "Submit New" button to report new bug. 
+

@@ -1,0 +1,99 @@
+#!/bin/sh
+#
+# zaptel        This shell script takes care of loading and unloading \
+#               Zapata Telephony interfaces
+# chkconfig: 2345 9 92
+# description: The zapata telephony drivers allow you to use your linux \
+# computer to accept incoming data and voice interfaces
+#
+# config: /etc/sysconfig/zaptel
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+[ -f /etc/sysconfig/zaptel ] || exit 0
+
+# Source zaptel configuration.
+. /etc/sysconfig/zaptel
+
+# Check that telephony is up.
+if [ "${TELEPHONY}" = "no" ]; then
+	exit 0
+fi
+
+[ -f /sbin/ztcfg ] || exit 0
+
+[ -f /etc/zaptel.conf ] || exit 0
+
+RETVAL=0
+
+MODULES="torisa tor2 wct4xxp wct1xxp wcfxo wcfxs wcusb wcte11xp"
+
+RMODULES="wcusb wcfxs wcfxo wct1xxp wct4xxp tor2 torisa wcte11xp"
+
+if [ "${DEBUG}" = "yes" ]; then
+	ARGS="debug=1"
+fi
+
+# See how we were called.
+case "$1" in
+  start)
+        # Load drivers
+	rmmod wcusb >& /dev/null
+	rmmod wcfxsusb >& /dev/null
+	rmmod audio >& /dev/null
+	action "Loading zaptel framework: " modprobe zaptel
+       	echo -n "Waiting for zap to come online ..." 
+	TMOUT=10 # max secs to wait
+	while [ ! -d /dev/zap ] ; do
+ 		sleep 1
+		TMOUT=`expr $TMOUT - 1`
+		if [ $TMOUT -eq 0 ] ; then
+			echo "Error: missing /dev/zap!"
+			exit 1
+		fi
+	done
+	echo "OK"	
+	echo -n "Loading zaptel hardware modules: "
+	for x in $MODULES; do 
+		if insmod ${x} ${ARGS} >& /dev/null; then
+			echo -n "$x "
+		fi
+	done
+	echo
+	sleep 1;
+	action "Running ztcfg: " /sbin/ztcfg
+	RETVAL=$?
+
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/zaptel
+
+        ;;
+  stop)
+        # Stop daemons.
+        echo -n "Unloading zaptel hardware drivers: "
+	for x in $RMODULES; do 
+		if rmmod ${x} >& /dev/null; then
+			echo -n "$x "
+		fi
+	done
+	echo
+
+	action "Removing zaptel module: " rmmod zaptel
+	RETVAL=$?
+        [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/zaptel
+        ;;
+ restart)
+	$0 stop
+	$0 start
+	RETVAL=$?
+	;;
+  reload)
+	action "Reloading ztcfg: " /sbin/ztcfg
+	;;
+  *)
+        echo "Usage: zaptel {start|stop|restart|reload}"
+        exit 1
+esac
+
+exit $RETVAL
+

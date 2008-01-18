@@ -1,0 +1,29 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>13.6. Kopiowanie strumienia</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="prev" href="menc-feat-rescale.html" title="13.5. Przeskalowywanie filmów"><link rel="next" href="menc-feat-enc-images.html" title="13.7. Kodowanie z wielu wejściowych plików obrazkowych (JPEG, PNG, TGA, SGI)"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.6. Kopiowanie strumienia</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="menc-feat-rescale.html">Poprzedni</a> </td><th width="60%" align="center">Rozdział 13. Podstawy używania <span class="application">MEncodera</span></th><td width="20%" align="right"> <a accesskey="n" href="menc-feat-enc-images.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-streamcopy"></a>13.6. Kopiowanie strumienia</h2></div></div></div><p>
+<span class="application">MEncoder</span> obsługuje strumienie wejściowe na dwa sposoby:
+<span class="bold"><strong>koduje</strong></span> lub <span class="bold"><strong>kopiuje</strong></span>
+je. Ta sekcja jest o <span class="bold"><strong>kopiowaniu</strong></span>.
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="bold"><strong>Strumień video</strong></span> (opcja <tt class="option">-ovc copy</tt>):
+  można ładne rzeczy wyczyniać:) Jak wstawianie (nie konwertowanie) FLI, VIDO lub MPEG-1 video w plik AVI!
+  Oczywiście tylko <span class="application">MPlayer</span> potrafi odtwarzać takie pliki :) I prawdopodobnie nie ma
+  dla tego żadnego sensownego zastosowania. Poważniej: kopiowanie strumieni video może być przydatne
+  wtedy, gdy np. tylko strumień audio ma być zakodowany (np. PCM do MP3).
+  </p></li><li><p>
+  <span class="bold"><strong>Strumień audio</strong></span> (opcja <tt class="option">-oac copy</tt>):
+  prosto i przystępnie. Możliwe jest wmiksowanie zewnętrznego źródła (MP3, WAV)
+  do strumienia wyjściowego. Użyj w tym celu opcji
+  <tt class="option">-audiofile <em class="replaceable"><code>nazwa_pliku</code></em></tt>.
+  </p></li></ul></div><p>
+  Używanie <tt class="option">-oac copy</tt> do kopiowania z jednego formatu
+  przechowywania do innego może wymagać użycia <tt class="option">-fafmttag</tt> żeby
+  utrzymać znacznik formatu audio z oryginalnego zbioru.
+  Na przykład jeśli konwertujesz zbiór NSV z audio zakodowanym AAC do formatu
+  AVI, to znacznik formatu audio będzie nieprawidłowy i musi zostać zmieniony.
+  Listę znaczników formatów audio znajdziesz w pliku
+  <tt class="filename">codecs.conf</tt>.
+</p><p>
+Przykład:
+</p><pre class="screen">
+mencoder <em class="replaceable"><code>wejście.nsv</code></em> -oac copy -fafmttag 0x706D -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell -o <em class="replaceable"><code>wyjście.avi</code></em>
+</pre><p>
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="menc-feat-rescale.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="menc-feat-enc-images.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">13.5. Przeskalowywanie filmów </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> 13.7. Kodowanie z wielu wejściowych plików obrazkowych (JPEG, PNG, TGA, SGI)</td></tr></table></div></body></html>

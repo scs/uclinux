@@ -1,0 +1,549 @@
+2002-12-22  Jeff Bailey  <jbailey@gnu.org>
+
+	* configure.ac: Bump version to 1.4.2
+
+	* NEWS: Update for inetutils 1.4.2
+
+2002-12-11  Jeff Bailey  <jbailey@gnu.org>
+
+	* configure.ac: Add AC_FUNC_MALLOC and AC_FUNC_REALLOC calls.
+
+2002-10-30  Jeff Bailey  <jbailey@gnu.org>
+
+	* autogen.sh: Just use autoreconf - it's the right tool now.
+	* configure.ac: Require autoconf 2.54
+	* Makefile.am: Require automake 1.7
+
+2002-11-15  Alfred M. Szmidt  <ams@kemisten.nu>
+
+	* configure.ac (AC_CONFIG_FILES): Removed duplicate entries
+	`libicmp/Makefile' and `ping/Makefile' from the list.
+
+2002-09-13  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* acinclude.m4 (IU_CHECK_KRB5): Fixed.
+	* configure.ac: Define KRB5 as well as KERBEROS_V. When
+	  kerberos support is finally rewritten one of these will
+	  disappear.
+
+2002-09-02  Jeff Bailey  <jbailey@outpost.dnsalias.org>
+
+	* configure.ac: Bump version to 1.4.1
+
+2002-09-02  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* THANKS: Added Michael Deutschmann.
+	* NEWS: Updated.
+
+2002-09-02  Jeff Bailey  <jbailey@outpost.dnsalias.org>
+
+	* ROADMAP: Update
+
+	* NEWS: Update
+
+	* THANKS: Add Chris Ulherr 
+
+2002-08-04  Sergey Poznyakoff  <Mirddin.farlep.net>
+
+	* acinclude.m4 (IU_CHECK_MEMBER,IU_CHECK_MEMBERS): added new
+	  macros to override the autoconf bug noted on 2002-05-14.
+	  The old workaround didn't work for some cases (namely,
+	  utmp.ut_exit, whose members are named differently on
+	  different systems). When the autoconf is updated, the
+	  need for these macros will disappear.
+	* configure.ac: Use IU_CHECK_MEMBER(S) instead of AC_CHECK_MEMBERS
+	  throughout the file.
+
+2002-07-31  Jeff Bailey  <jbailey@outpost.dnsalias.org>
+
+	* configure.ac: Update version to 1.4
+
+	* ROADMAP: New file
+
+2002-07-27  Marcus Brinkmann  <marcus@gnu.org>
+
+	* NEWS: Update to reflect the recent changes, and change its
+	format to match current GNU practice.  Add a copyright statement,
+	and some emacs local variables to support editing it.
+
+2002-06-26  Alfred M. Szmidt  <ams@kemisten.nu>
+
+	* .cvsignore (config.h.in): Removed.
+	(config.hin, autom4te.cache): Added.
+
+	* configure.ac: Removed erroneous #ifdef's in the checks for __P
+	and syslog internal macros.
+
+2002-05-14  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* configure.ac: AC_CHECK_MEMBERS (as of version 2.53 ) fails to
+	  recognize the presense of a structure member which is itself
+	  of an aggregate type. Thus, tests for struct ifreq.ifr_netmask
+	  and struct ifreq.ifr_broadaddr always fail. To work around the
+	  bug, first check for a non-aggregate sub-member of the member
+	  in question and then create an appropriate HAVE_ define.
+
+	  Use AC_CHECK_DECLS on crypt and errno, as AC_CHECK_DECL does
+	  not generate HAVE_DECL_ define.
+
+	  (AH_BOTTOMs): Checks for HAVE_DECL variables must read
+	  #if !HAVE_DECL_something, since AC_CHECK_DECLS always
+	  declares HAVE_DECL, either to 0 or to 1. The only
+	  exception is HAVE_DECL_HSTRERROR, whose AC_CHECK_DECLS
+	  is under a conditional expression, so we have to
+	  check for !defined(HAVE_DECL_HSTRERROR) first.
+
+2002-04-29  Alfred M. Szmidt  <ams@kemisten.nu>
+
+	* configure.ac (VERSION): Variable removed.
+	(AC_OUTPUT): Removed headers/version.h and headers/version.h.in
+	from the list.
+
+2002-04-28  Alfred M. Szmidt  <ams@kemisten.nu>
+
+	* configure.ac: Removed form feeds.
+
+2002-04-21  Alfred M. Szmidt  <ams@kemisten.nu>
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Require GNU Automake 1.6.
+
+	* acinclude.m4 (IU_UCASE, iu_lcase): Variables removed.
+	(IU_RESULT_ACTIONS, IU_CHECK_WEAK_REFS): Use the new AC_DEFINE syntax.
+	(IU_CHECK_DECL, IU_CHECK_TYPE, IU_CHECK_STRUCT_FIELD):
+	Functions removed.
+	(IU_ENABLE_FOO): Use name_BUILD instead of BUILD_NAME.
+	(IU_INCLUDED_REGEX): Replaced with..
+	(jm_INCLUDED_REGEX): this.
+	* acconfig.h: Removed.
+	* configure.ac: Rewrite.
+
+2002-04-08  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* acconfig.h: #undef's for KERBEROS_IV and KERBEROS_V
+	* acinclude.m4 (IU_CHECK_KRB5): New macro: check for the
+	  presense of kerberos v.5
+	* configure.ac: New options: --with-krb4[=PATH],
+	  --with-krb5[=PATH]
+	
+2002-04-05  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* acconfig.h: Removed extra HAVE_UTMPX_H. Added HAVE_CC_T
+	  and HAVE_LIBREADLINE.
+	* configure.ac: Check for obstack functions. Modified
+	  readline check: assign -lreadline to the separate AC_SUBST
+	  variable, instead of appending it to LIBS. Check for cc_t
+	  type.
+	  Raised patchlevel.
+	
+2002-03-14  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* configure.ac: Added AC_CANONICAL_SYSTEM to set $host
+	  properly. Additional AC_DEFINEs for Solaris.
+	
+
+2002-02-12  Jeff Bailey  <jbailey@outpost.dnsalias.org>
+
+	* TODO: Remove ping
+
+	* THANKS: Update
+
+	* README-alpha: *Wow* this file was really inaccurate.
+
+	* NEWS: Mention talkd, and ping
+
+	* AUTHORS: Update
+
+2002-02-10  Jeff Bailey  <jbailey@outpost.dnsalias.org>
+
+	* configure.in: Reworked for autoconf 2.52 and renamed to
+	* configure.ac: this.
+
+	* autogen.sh: Don't point autoheader to headers/
+
+        * headers/acconfig.h: Move to ...
+	* acconfig.h: Here
+
+	* Makefile.am: Require Automake 1.5.  Add doc and doc/rfc to 
+	build tree.  Don't tell autoheader to look in headers/
+
+        I moved config.h to the top_builddir to overcome a bug in
+	autoconf that requires the config.h to be in the same 
+	directory as aclocal.m4
+
+	This meant that I also had to add
+	INCLUDES=-I$(top_builddir)/include.  The upshot is that make
+	distcheck now passes, even for $(srcdir)!=$(builddir)
+  
+	* .cvsignore: Add files relating moving config.h to
+	$(top_builddir)
+
+2001-12-25  Alain Magloire
+
+	* configure.in:  Add check for mkstemp ().
+	Check for getpass().
+	Note from Bert De Knuydt <Bert.Deknuydt@esat.kuleuven.ac.be>.
+
+2001-11-21  Sergey Poznyakoff
+
+	* configure.in: Removed poll.h, sys/poll.h from AC_CHECK_HEADERS.
+	Added individual check for poll.h, since syslogd uses it
+	unconditionally.
+
+2001-11-03  Alain Magloire
+
+	* configure.in: Added doc/rfc/Makefile.
+
+2001-11-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* configure.in: When checking for utmp structure fields, always
+	include sys/types.h [HAVE_SYS_TYPES_H] before utmp.h (for time_t)
+	to get it working on FreeBSD.  Add checks for fields pid, id and
+	user.
+
+2001-11-02  Marcus Brinkmann  <marcus@gnu.org>
+
+	* configure.in: Add doc/Makefile as output file.
+
+2001-10-28  Alain Magloire
+
+	Certain programs __MUST__ be install root to work properly. There is
+	a hook in the installation to warn the user.  But maybe in the future
+	we should try to install as root and failed the installation if it
+	does not work?
+
+	* ping/Makefile.am: Rules to try install setuid root.
+	* rcp/Makefile.am: Rules to try install setuid root.
+	* rlogin/Makefile.am: Rules to try install setuid root.
+	* rsh/Makefile.am: Rules to try install setuid root.
+
+2001-10-25  Alain Magloire
+
+	* configure.in: Version to 1.3.2g.
+
+2001-10-25  Sergey Poznyakoff
+
+	* acinclude.m4: IU_INCLUDED_REGEX: Check for working regex,
+	provide replacement, if necessary.
+	* configure.in: Check for regex.
+
+2001-09-06  Alain Magloire
+
+	* configure.in: Check for strsignal().
+	* libinetutils/strsignal.c: New file.
+
+2001-08-29  Marcus Brinkmann  <marcus@gnu.org>
+
+	* Makefile.am (SUBDIRS): Remove `ifconfig' for now
+	(see ifconfig/TODO for a list of items that need to be resolved).
+
+2001-08-26  Alain Magloire
+
+	Marco D'Itri whois is much more complete then the original
+	one provided by Joel N. Weber II (devnull).  So it is enable.
+
+	* configure.in: use gwhois instead whois
+	* Makefile.am: SUBDIRS have gwhois instead of whois.
+
+2001-08-25  Alain Magloire
+
+	* configure.in: AC_ARG_ENABLE(libls ..) libls will not work
+	on all platforms, make it possible to disable it.
+	LIBLS, BUILD_LIBLS, WITH_LIBLS, new variable.s
+	* header/acconfig.h: WITH_LIBLS new.
+
+2001-07-14  Sergey Poznyakoff  <gray@farlep.net>
+	* configure.in: Check for setpgid(), vhangup().
+	* ping/ChangeLog: (new)
+	* libicmp/ChangeLog: (new)
+	* libinetutils: See libinetutils/ChangeLog.
+	* rlogind: See rlogind/ChangeLog.
+	* ping: See ping/ChangeLog.
+
+2001-06-20  Sergey Poznyakoff  <gray@farlep.net>
+	Patches by Alain:
+	* libicmp(icmp_cksum.c,icmp_echo.c,icmp_timestamp.c,libping.c):
+		use <signal.h> instead of <sys/signal.h>,
+		truncate pid_t before using as ping_ident.
+	* libicmp/ping.h: changed type of ping_datalen to size_t.
+	* libicmp/icmp_address.c: icmp was used unitialized.
+	* ping(ping_address.c,ping_echo.c,ping_router.c,ping_timestamp.c):
+		<signal.h> -> <sys/signal.h>
+
+2001-06-19  Sergey Poznyakoff  <gray@farlep.net>
+	* configure.in, Makefile.am: added libicmp and ping to build.
+	* ping/Makefile.am: use @BUILD_PING@ instead of directly
+	  assigning bin_PROGRAMS.
+	* libicmp/icmp_timestamp.c: forgotten to commit yesterday :^)
+	* libicmp/ping.h: changed counters in struct PING from int to longs.
+	* libicmp/icmp.h,libicmp/libping.c,
+	  ping/ping.c,ping/ping_address.c,ping/ping_echo.c,
+	  ping/ping_impl.h,ping/ping_router.c,ping/ping_timestamp.c:
+		Fixed a bunch of inconsistencies (thanks to Alain).
+		Changes to make gcc -Wall less verbose.
+
+2001-06-18  Sergey Poznyakoff  <gray@farlep.net>
+	* libicmp/Makefile.am: added icmp_address.c
+	* libicmp/icmp_address.c: added.
+	* libicmp/icmp.h: added new protos
+	* libicmp/icmp_echo.c: eliminated unused variable
+	* libicmp/icmp_timestamp.c: implemented
+	* libicmp/libping.c: changes too numerous to mention.
+	* libicmp/ping.h: reflect changes to libping.c
+	* ping/Makefile.am: added OMIT_DEPENDENCIES
+	* ping/(ping.c,ping_address.c,ping_echo.c,ping_impl.h,ping_timestamp.c)
+		Implemented ICMP_TIMESTAMP and ICMP_ADDRESSMASK requests.
+          None of existing routers answers the latter, though.
+
+
+2001-06-13  Sergey Poznyakoff  <gray@farlep.net>
+	* libicmp(Makefile.am, icmp.h, icmp_cksum.c, icmp_echo.c,
+	  icmp_timestamp.c,libping.c,ping.h): added to repository.
+	  Currently it is more libping than libicmp, I will be adding
+          required functionality latter.
+	* ping/ping.c: implemented
+	* ping_address.c, ping_echo.c, ping_impl.h, ping_router.c,
+	  ping_timestamp.c: added to repository.
+	* paths: PATH_HEQUIV needs search in <netdb.h> (for Solaris)
+
+2001-06-05  Sergey Poznyakoff  <gray@farlep.net>
+
+	* libinetutils/ttymsg.c (normalize_path): Define static and provide
+	a prototype and it was call with the wrong number of arguments.
+
+2001-06-05  Sergey Poznyakoff  <gray@farlep.net>
+
+        * ftpd/ftpd.c: MAP_FAILED is not defined on some systems
+          (e.g. Solaris, SunOS)
+        * headers/paths.h: Added missing _PATH_LOGCONF, _PATH_LOGPID,
+          _PATH_LOG
+        * libls/print.c: Provided defaults for major() and minor() macros
+          for systems lacking them.
+
+2001-06-02  Sergey Poznyakoff  <gray@farlep.net>
+
+	* libinetutils/ttymsg.c: Simple check for '/' in the line name is
+	way too week: it doesn't work for tty names like pts/2, which are
+	perfectly OK. Changed to more sophisticated one: all "./", "../"
+	references in the name are resolved and the resulting name is
+	compared with PATH_TTY_PFX. If it lies under it, everything's
+	Ok. Otherwise we just bail out and quit.
+	* talk/display.c: Added check for *text == '\a' to produce audible
+	bell.
+	* talk/io.c: changed \007's in initial message to beep() after
+	message(). On solaris's AT386 those \007 just produce ^G on
+	the screen.
+	Changed read(0, buf, nb) to getch() in loop. Reason: read()
+	returns raw data from console, thus pressing <enter> returns
+	'\r' which gets displayed on console as ^M, because display.c
+	is expecting to get '\n'. getch() returns '\n' and everything
+	goes smooth.
+	* talk/announce.c: syslog error message from ttymsg(). One never
+	knows...
+	* talkd/process.c: changed find_user(). Previous version returned
+	first console the remote party was logged onto. This one returns
+	the one where he currently is. This is a slightly modified version
+	of berkeley's find_user() dated 1997/04/06.
+
+2001-05-07  Jeff Bailey  <jbailey@oasis.zugzug.com>
+
+	* Makefile.am: Integrate ifconfig into build
+
+	* configure.in: Integrate ifconfig into build
+
+2001-03-14  Joachim Gabler <joga@sun.com>
+
+	* rlogind/rlogind.c: exec to /bin/login requires additional
+	parameters on SOLARIS
+
+2001-02-09  Jeff Bailey  <jbailey@oasis.zugzug.com>
+
+	* Makefile.am: Use 4 digit year for `make release'
+
+2001-01-16  Alain Magloire
+
+	* gwhois/whois.c gwhois/TODO gwhois/Makefile: Update from the
+	patch send by Marco d'Itri.
+
+2001-01-16  Marcus Brinkmann  <marcus@gnu.org>
+
+	* main.c: Terminate array longopts with an element containing all
+	zeros.
+
+2000-11-25  Marcus Brinkmann  <marcus@gnu.org>
+
+	* README: Uppercase the Hurd, fix comment about long option
+	support missing (most -> many).
+
+	* TODO: Update the entry about long options support (we can now
+	list those which are missing, instead those which have it).
+	Add internationalization/gettext to the list. Uppercase the Hurd.
+
+2000-08-22  Alain Magloire
+
+	* configure.in:  Options --with-pam and --with-wrap
+	so far they are only usefull for ftpd.
+	* Makefile.am: Syslog change for logger.
+
+2000-08-16  Alain Magloire
+
+	* syslog: Deleted.
+	* logger: New directory, .i.e syslog rename to logger.
+	* configure.in: Change name syslog for logger.
+
+2000-08-15  Alain Magloire
+
+	* configure.in: Check for fchdir().
+	Check for ruserok().
+
+2000-08-09  Alain Magloire
+
+	* configure.in: Check for poll() and link headers/poll.h
+	to include/poll.h if the OS does not have poll.
+
+2000-08-05  Alain Magloire
+
+	* configure.in: Remove the check for setlinebuf(), it
+	was for syslogd.  We use the more portable:
+	setvbuf (stream, 0, _IOLBF, 0);
+	* header/config.h.in: remove HAVE_SETLINEBUF
+
+2000-08-03 Jeff Bailey
+
+	* .cvsignore: Add INCLUDE file.  Delete it from repository.
+
+2000-08-02 Jeff Bailey
+
+	* */.cvsignore: Mass add of .cvsignore files to beat CVS into
+	submission.
+
+2000-08-02 Jeff Bailey
+
+	* README-alpha: Advertise the new commit-inetutils@gnu.org mailing
+	list.
+
+2000-08-01 Michael Vogt
+
+	* configure.in: added checks for mkdev.h, features.h, dirfd()
+	* headers/config.h.in: added defines for HABE_SYS_MKDEV
+	HAVE_FEATURES_H, HAVE_DIRFD.
+
+2000-07-30 Alain Magloire
+
+	* headers/config.h.in: new macro HAVE_LIBWRAP.
+
+2000-07-30 Michael Vogt <mvo@debian.org>
+
+	* configure.in: check for libwrap and <tcpd.h>
+	* headers/config.h.in: new macros HAVE_TCPD_H
+
+2000-07-26 Alain Magloire
+
+	* configure.in: check for libpam and <security/pam_appl.h>.
+	* headers/config.h.in: new marcros HAVE_LIBPAM, HAVE_SECURITY_APPL_H.
+
+2000-07-18 Alain Magloire
+
+	* all C files and header files, we make a bold move
+	and translate the prototypes to ANSI C, instead of K&R
+	for better compile time warnings etc ..
+	ansi2knr will the massaging for old C compilers.
+
+2000-07-14 Alain Magloire
+
+	* configure.in: check for initgroups().
+
+2000-07-08 Michael Vogt <mvo@debian.org>
+
+	* ftpd/Makefile.am (INCLUDES): Added $(PATHDEF_FTPDPID)
+	* paths: add PATHDEF_FTPDPID
+
+2000-07-07  Alain Magloire
+
+	* configure.in: check for <shadow.h>
+
+2000-07-06  Jeff Bailey  <jbailey@nisa.net>
+
+	* autogen.sh: New file for generating build environment for
+	the first time from a CVS checkout.  Not added to Makefile.am
+	for distribution.
+
+2000-06-23  Jakob 'sparky' Kaivo  <jkaivo@timothy.nodomainname.net>
+
+	* paths: add PATH_INETDDIR
+
+2000-06-15 David O'Shea
+
+	* rlogin/rlogin.c(speed): the fd may not be associated with
+	a terminal, when checking for speed(), take appropriate actions
+	to handle the error case.
+
+2000-06-14 Joachim Gabler
+
+	* configure.in: add check for element ut_exit in struct utmp
+	* lininetutils/utmp_logout: check for HAVE_UTMP_UT_EXIT
+	* libinetutils/openpty.c: smaller fixes (missing ';',
+	structure element gr_pid of struct group replaced by gr_gid
+
+1999-10-03  Jeff Bailey
+
+	* README-alpha: Update with CVS info and mailing list info.
+
+	* THANKS: Add Marcus Brinkman
+
+1999-09-13  Jeff Bailey
+
+	* COPYING, INSTALL, aclocal.m4, install-sh, missing, mkinstalldirs:
+	Remove from CVS repository - They are automatically generated.
+
+1999-05-19 Alain Magloire
+	* configure.in : check for ptsname(), this will give
+	a hint to use SYSVR4 pseudo ptys handling.  particularly
+	for telnetd and rlogind.
+	* libinetutls/utmp_{init,logout} : new files.
+	* libinetutils/openpty.c : a new version that should be
+	compatible with SYSV STREAM.
+	* paths : add check for PATH_UTMPX and PATH_WTMPX
+	* configure.in : add check for getcwd, since we use xgetcwd.
+
+1999-05-18 Dan Stromberg
+	* headers/arpa/tftp.h : changing tu_clock to be unsigned to handle
+	larger files (twice as big), without sacrificing anything.
+	We need this to allow sgis to roboinst from a sun tftp server.
+
+1999-05-16 Alain Magloire
+	* config.{guess,sub} : files removed from the repository.
+	We let automake -a create a newer version when releasing
+	From Jeff Bailey.
+	* Makefile.am : added ChangeLog.0 in EXTRA_DIST
+	Noted by Jeff Bailey.
+
+1999-05-14 Alain Magloire
+	* libinetutils/opentty.c : writing on a constant string
+	"/dev/ptyXX" would cause the server to sigsegv.  Change
+	to be an array.
+	Problem first noted by Frederic Goudal.
+
+1999-04-18 Alain Magloire
+	* configure.in: ping disable.
+	* configure.in: make links for fnmatch
+	* libinetutils/snprintf.[ch] : support for "%ul".
+	patch from  Gerald Combs <gerald@unicom.net>
+
+1999-02-17 Alain Magloire
+
+	* configure.in: Force the check of HAVE_SOCKADDR_IN_SIN_LEN
+	all the time not just for talk.
+	* configure.in: Check for mmap(), HAVE_MMAP.
+	* configure.in: Check for tzset(), HAVE_TZSET.
+	* configure.in: Check for strcasecmp().
+	* libinetutils/strcasecmp.c: New file.
+	* libinetutils/xgetcwd.c: New file.
+	* libinetutils/pathmax.h: New file.
+
+1999-02-13 Alain Magloire
+
+	* ChangeLog.0 : New file, mv ChangeLog ChangeLog.0.
+	Since inetutils is such an heteroclite package, it is
+	more manageable for each utility to have their own ChangLog.
+
+	* */ChangeLog : New files.

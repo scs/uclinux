@@ -1,0 +1,64 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>11.1. Entrée Radio</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Le Lecteur Vidéo"><link rel="up" href="radio.html" title="Chapitre 11. Radio"><link rel="prev" href="radio.html" title="Chapitre 11. Radio"><link rel="next" href="ports.html" title="Chapitre 12. Ports"><link rel="preface" href="howtoread.html" title="Comment lire cette documentation"><link rel="chapter" href="intro.html" title="Chapitre 1. Introduction"><link rel="chapter" href="install.html" title="Chapitre 2. Installation"><link rel="chapter" href="usage.html" title="Chapitre 3. Utilisation"><link rel="chapter" href="cd-dvd.html" title="Chapitre 4. Utilisation des CD/DVD"><link rel="chapter" href="faq.html" title="Chapitre 5. Foire Aux Questions"><link rel="chapter" href="containers.html" title="Chapitre 6. Conteneurs"><link rel="chapter" href="codecs.html" title="Chapitre 7. Codecs Supportés"><link rel="chapter" href="video.html" title="Chapitre 8. Sorties vidéo"><link rel="chapter" href="audio.html" title="Chapitre 9. Périphériques de sortie audio"><link rel="chapter" href="tv.html" title="Chapitre 10. TV"><link rel="chapter" href="radio.html" title="Chapitre 11. Radio"><link rel="chapter" href="ports.html" title="Chapitre 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapitre 13. Utilisation basique de MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapitre 14. L'encodage avec MEncoder"><link rel="appendix" href="bugreports.html" title="Annexe A. Comment rapporter les bogues"><link rel="appendix" href="bugs.html" title="Annexe B. Bogues connus"><link rel="appendix" href="skin.html" title="Annexe C. Format de skins MPlayer"><link rel="appendix" href="history.html" title="Annexe D. Histoire"><link rel="subsection" href="radio-input.html#radio-compilation" title="11.1.1. Compilation"><link rel="subsection" href="radio-input.html#radio-tips" title="11.1.2. Astuces d'utilisation"><link rel="subsection" href="radio-input.html#radio-examples" title="11.1.3. Exemples"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">11.1. Entrée Radio</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="radio.html">Précédent</a> </td><th width="60%" align="center">Chapitre 11. Radio</th><td width="20%" align="right"> <a accesskey="n" href="ports.html">Suivant</a></td></tr></table><hr></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="radio-input"></a>11.1. Entrée Radio</h2></div></div></div><p>
+Cette section a pour but de vous expliquer comment écouter la radio
+depuis un tuner compatible V4L (Video For Linux). Reportez-vous à la 
+page de manuel pour la description des options controlant la radio ainsi
+que pour la liste des raccourcis clavier.
+</p><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="radio-compilation"></a>11.1.1. Compilation</h3></div></div></div><div class="procedure"><ol type="1"><li><p>
+  Le support de la radio n'est pas activée par défaut, vous devez donc commencer
+  par recompiler MPlayer. Invoquez <tt class="filename">./configure</tt> avec l'option
+  <tt class="option">--enable-radio</tt> et si vous désirez pouvoir enregister la radio,
+  ajoutez  <tt class="option">--enable-radio-capture</tt>.
+</p></li><li><p>
+  Vérifiez que votre tuner fonctionne avec un autre logiciel d'écoute radio
+  comme <span class="application">XawTV</span> par exemple.
+</p></li></ol></div></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="radio-tips"></a>11.1.2. Astuces d'utilisation</h3></div></div></div><p>
+La liste complète des options est disponible dans la page de manuel.
+En voici une sélection des plus pratiques:
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+L'option <tt class="option">channels</tt>. Un exemple:
+</p><pre class="screen">-radio channels=104.4-Sibir,103.9-Maximum</pre><p>
+Avec cette option, seules les fréquences 104.4 et 103.9
+pourront être écoutées. Lors d'un changement de station, le nom de la radio
+apparaitra à l'écran (OSD). Les caractères espace " " dans le nom de la station
+doivent être remplacés par le caractère underscore "_".
+</p></li><li><p>
+Il y a plusieurs façons d'enregistrer la radio. Vous pouvez soit utiliser votre
+carte son via un cable externe reliant votre carte vidéo et le line-in de la carte son
+ou utiliser l'ADC integré à la puce saa7134. Dans le second cas, vous devez charger le
+pilote <code class="systemitem">saa7134-alsa</code> ou <code class="systemitem">saa7134-oss</code> selon 
+votre configuration.
+</p></li><li><p>
+<span class="application">MEncoder</span> ne peut pas être utilisé pour enregistrer la radio car
+il doit necessairement travailler sur un flux vidéo. Vous pouvez soit utiliser le logiciel
+<span class="application">arecord</span> du projet ALSA ou utiliser l'option 
+<tt class="option">-ao pcm:file=fichier.wav</tt>. Dans ce cas, vous n'entenderez rien,
+sauf si vous utilisez un cable branché au line-in et que le volume du line-in n'est pas nul).
+</p></li></ul></div></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="radio-examples"></a>11.1.3. Exemples</h3></div></div></div><div class="informalexample"><p>
+Ecoute depuis un périphérique V4L standard (cable relié au line-in,
+enregistrement désactivé):
+</p><pre class="screen">
+mplayer radio://104.4
+</pre><p>
+</p></div><div class="informalexample"><p>
+Ecoute depuis un périphérique V4L standard (cable relié au line-in,
+enregistrement désactivé, interface V4Lv1):
+</p><pre class="screen">
+mplayer -radio driver=v4l radio://104.4
+</pre><p>
+</p></div><div class="informalexample"><p>
+Ecoute de la seconde fréquence dans la liste.
+</p><pre class="screen">
+mplayer -radio channels=104.4=Sibir,103.9=Maximm radio://2
+</pre><p>
+</p></div><div class="informalexample"><p>
+Transfert du son par le bus PCI depuis l'ADC interne de la carte son.
+Dans cet exemple, le tuner radio est utilisé comme une seconde carte son
+(périphérique ALSA hw:1,0). Pour les cartes son basées sur la puce
+saa7134, le module saa7134-alsa ou saa7134-oss doit être chargé.
+</p><pre class="screen">
+mplayer -rawaudio rate=32000 -radio adevice=hw=1.0:arate=32000:channels=104.4=Sibir,103.9=Maximm radio://2/capture
+</pre><p>
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>Dans les noms de périphérique ALSA, les point-virgules ";" doivent être remplacés
+par des signes égal "=" et les virgules "," par des points ".".
+</p></div><p>
+</p></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="radio.html">Précédent</a> </td><td width="20%" align="center"><a accesskey="u" href="radio.html">Niveau supérieur</a></td><td width="40%" align="right"> <a accesskey="n" href="ports.html">Suivant</a></td></tr><tr><td width="40%" align="left" valign="top">Chapitre 11. Radio </td><td width="20%" align="center"><a accesskey="h" href="index.html">Sommaire</a></td><td width="40%" align="right" valign="top"> Chapitre 12. Ports</td></tr></table></div></body></html>

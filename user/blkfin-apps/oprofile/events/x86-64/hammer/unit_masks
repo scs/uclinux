@@ -1,0 +1,97 @@
+# Athlon possible unit masks
+#
+# See "Bios and Kernel Developer's Guide for the AMD Athlon 64 and AMD Opteron
+# Processors" (publication #26094)
+#
+
+name:zero type:mandatory default:0x0
+	0x0 No unit mask
+name:moesi type:bitmask default:0x1f
+	0x10 (M)odified cache state
+	0x08 (O)wner cache state
+	0x04 (E)xclusive cache state
+	0x02 (S)hared cache state
+	0x01 (I)nvalid cache state
+	0x1f All cache states
+name:fpu_ops type:bitmask default:0x3f
+	0x01 Add pipe ops excluding junk ops
+	0x02 Multiply pipe ops excluding junk ops
+	0x04 Store pipe ops excluding junk ops
+	0x08 Add pipe junk ops
+# FIXME: correct ?
+	0x10 Multiple pipe junk ops
+	0x20 Store pipe junk ops
+name:segregload type:bitmask default:0x7f
+	0x01 ES register
+	0x02 CS register
+	0x04 SS register
+	0x08 DS register
+	0x10 FS register
+	0x20 GS register
+	0x40 HS register
+name:ecc type:bitmask default:0x03
+	0x01 Scrubber error
+	0x02 Piggyback scrubber errors
+name:prefetch type:bitmask default:0x07
+	0x01 Load
+	0x02 Store
+	0x04 NTA
+name:fpu_instr type:bitmask default:0x0f
+	0x01 x87 instructions
+	0x02 Combined MMX & 3DNow instructions
+	0x04 Combined packed SSE & SSE2 instructions
+	0x08 Combined packed scalar SSE & SSE2 instructions
+name:fpu_fastpath type:bitmask default:0x07
+	0x01 With low op in position 0
+	0x02 With low op in position 1
+	0x04 With low op in position 2
+name:fpu_exceptions type:bitmask default:0x0f
+	0x01 x87 reclass microfaults
+	0x02 SSE retype microfaults
+	0x04 SSE reclass microfaults
+	0x08 SSE and x87 microtraps
+name:page_access type:bitmask default:0x07
+	0x01 Page hit
+	0x02 Page miss
+	0x04 Page conflict
+name:turnaround type:bitmask default:0x07
+	0x01 DIMM turnaround
+	0x02 Read to write turnaround
+	0x04 Write to read turnaround
+name:saturation type:bitmask default:0x0f
+	0x01 Memory controller high priority bypass
+	0x02 Memory controller low priority bypass
+	0x04 DRAM controller interface bypass
+	0x08 DRAM controller queue bypass
+name:sizecmds type:bitmask default:0x7f
+# FIXME: can we get some non-gobbledegook ?
+	0x01 NonPostWrSzByte
+	0x02 NonPostWrSzDWord
+	0x04 PostWrSzByte
+	0x08 PostWrSzDWord
+	0x10 RdSzByte
+	0x20 RdSzDword
+	0x40 RdModWr
+name:probe type:bitmask default:0x0f
+	0x01 Probe miss
+	0x02 Probe hit
+	0x04 Probe hit dirty without memory cancel
+	0x08 Probe hit dirty with memory cancel
+name:ht type:bitmask default:0x7
+	0x01 Command sent
+	0x02 Data sent
+	0x04 Buffer release sent
+	0x08 NOP sent
+name:l2_internal type:bitmask default:0x1f
+	0x01 IC fill
+	0x02 DC fill
+	0x04 TLB reload
+	0x08 Tag snoop request
+	0x10 Canceled request
+name:l2_req_miss type:bitmask default:0x07
+	0x01 IC fill
+	0x02 DC fill
+	0x04 TLB reload
+name:l2_fill type:bitmask default:0x03
+	0x01 Dirty L2 victim
+	0x02 Victim from L1

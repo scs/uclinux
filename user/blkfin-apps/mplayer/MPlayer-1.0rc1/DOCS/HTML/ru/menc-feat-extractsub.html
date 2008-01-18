@@ -1,0 +1,31 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=KOI8-R"><title>13.9. Извлечение DVD субтитров в файл VOBsub</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="mencoder.html" title="Глава 13. Основы использования MEncoder"><link rel="prev" href="menc-feat-enc-images.html" title="13.8. Кодирование из нескольких входных файлов изображений (JPEG, PNG, TGA, SGI)"><link rel="next" href="aspect.html" title="13.10. Сохранение пропорций"><link rel="preface" href="howtoread.html" title="Как читать эту документацию"><link rel="chapter" href="intro.html" title="Глава 1. Введение"><link rel="chapter" href="install.html" title="Глава 2. Установка"><link rel="chapter" href="usage.html" title="Глава 3. Использование"><link rel="chapter" href="cd-dvd.html" title="Глава 4. Использование CD/DVD"><link rel="chapter" href="faq.html" title="Глава 5. Часто Задаваемые вопросы"><link rel="chapter" href="containers.html" title="Глава 6. Поддерживаемые форматы"><link rel="chapter" href="codecs.html" title="Глава 7. Поддерживаемые кодеки"><link rel="chapter" href="tv.html" title="Глава 8. TV"><link rel="chapter" href="radio.html" title="Глава 9. Радио"><link rel="chapter" href="video.html" title="Глава 10. Устройства вывода видео"><link rel="chapter" href="audio.html" title="Глава 11. Устройства вывода звука"><link rel="chapter" href="ports.html" title="Глава 12. Портинг"><link rel="chapter" href="mencoder.html" title="Глава 13. Основы использования MEncoder"><link rel="chapter" href="encoding-guide.html" title="Глава 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Приложение A. Как сообщать об ошибках"><link rel="appendix" href="bugs.html" title="Приложение B. Известные проблемы"><link rel="appendix" href="skin.html" title="Приложение C. Формат скинов MPlayer"><link rel="appendix" href="history.html" title="Приложение D. История"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.9. Извлечение DVD субтитров в файл VOBsub</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="menc-feat-enc-images.html">Пред.</a> </td><th width="60%" align="center">Глава 13. Основы использования <span class="application">MEncoder</span></th><td width="20%" align="right"> <a accesskey="n" href="aspect.html">След.</a></td></tr></table><hr></div><div class="sect1" lang="ru"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-extractsub"></a>13.9. Извлечение DVD субтитров в файл VOBsub</h2></div></div></div><p>
+<span class="application">MEncoder</span> способен извлекать субтитры из DVD в файлы формата
+VOBsub. Они состоят из пары файлов, оканчивающихся на
+<tt class="filename">.idx</tt> и <tt class="filename">.sub</tt> и обычно 
+упакованы в один <tt class="filename">.rar</tt> архив.
+<span class="application">MPlayer</span> может воспроизводить из при помощи опций
+<tt class="option">-vobsub</tt> и <tt class="option">-vobsubid</tt>.
+</p><p>
+Вы указываете базовое имя (т.е. без расширения <tt class="filename">.idx</tt> или
+<tt class="filename">.sub</tt>) выходных файлов с помощью 
+<tt class="option">-vobsubout</tt> и индекс этих субтитров в результирующем файле
+при помощи <tt class="option">-vobsuboutindex</tt>.
+</p><p>
+Если источником является не DVD следует использовать <tt class="option">-ifo</tt> для
+указания указания файла <tt class="filename">.ifo</tt>, необходимого для создания
+результирующего <tt class="filename">.idx</tt> файла.
+</p><p>
+Если источником является не DVD и у вас нет <tt class="filename">.ifo</tt> файла,
+используйте опцию <tt class="option">-vobsubid</tt> для указания, какой ид языка 
+следует записать в <tt class="filename">.idx</tt> файл.
+</p><p>
+При каждом запуске субтитры будут добавляться в конец файлов, если
+<tt class="filename">.idx</tt> и <tt class="filename">.sub</tt> уже существуют. 
+Так что вам следует удалять их перед началом.
+</p><div class="example"><a name="copying_two_subtitles_from_a_dvd_while_doing_two_pass_encoding"></a><p class="title"><b>Пример 13.4. копирование двух субтитров из DVD при выполнении двухпроходного кодирования</b></p><pre class="screen">
+rm subtitles.idx subtitles.sub
+mencoder dvd://1 -oac copy -ovc lavc -lavcopts vcodec=mpeg4:vpass=1 -vobsubout subtitles -vobsuboutindex 0 -sid 2
+mencoder dvd://1 -oac copy -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell:vpass=2 -vobsubout subtitles -vobsuboutindex 1 -sid 5</pre></div><div class="example"><a name="copying_a_french_subtitle_from_an_mpeg_file"></a><p class="title"><b>Пример 13.5. Копирование французских субтитров из MPEG файла</b></p><pre class="screen">
+rm subtitles.idx subtitles.sub
+mencoder <em class="replaceable"><code>movie.mpg</code></em> -ifo <em class="replaceable"><code>movie.ifo</code></em> -vobsubout subtitles -vobsuboutindex 0 -vobsuboutid fr -sid 1 -nosound -ovc copy
+</pre></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="menc-feat-enc-images.html">Пред.</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Уровень выше</a></td><td width="40%" align="right"> <a accesskey="n" href="aspect.html">След.</a></td></tr><tr><td width="40%" align="left" valign="top">13.8. Кодирование из нескольких входных файлов изображений (JPEG, PNG, TGA, SGI) </td><td width="20%" align="center"><a accesskey="h" href="index.html">Начало</a></td><td width="40%" align="right" valign="top"> 13.10. Сохранение пропорций</td></tr></table></div></body></html>

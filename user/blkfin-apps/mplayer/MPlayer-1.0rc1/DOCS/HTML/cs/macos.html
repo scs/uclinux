@@ -1,0 +1,125 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>12.5. Mac OS</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="ports.html" title="Kapitola 12. Porty"><link rel="prev" href="windows.html" title="12.4. Windows"><link rel="next" href="exotic_platforms.html" title="12.6. Exotické platformy"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="macos.html#osx_gui" title="12.5.1. MPlayer OS X GUI"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">12.5. Mac OS</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="windows.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 12. Porty</th><td width="20%" align="right"> <a accesskey="n" href="exotic_platforms.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="macos"></a>12.5. Mac OS</h2></div></div></div><p>
+<span class="application">MPlayer</span> nepracuje na Mac OS verzích pod
+10, ale m&#283;l by být bez úprav kompilovatelný na Mac OS X 10.2 a vy&#353;&#353;ích.
+Preferovaná verze kompileru je Apple verze
+GCC 3.x a vy&#353;&#353;ích.
+Základní prost&#345;edí pro kompilaci m&#367;&#382;ete získat instalací
+<a href="http://developer.apple.com/tools/download/" target="_top">Xcode</a>
+od Apple. Máte-li Mac OS X 10.3.9 nebo pozd&#283;j&#353;í a QuickTime 7
+m&#367;&#382;ete pou&#382;ít výstupní video rozhraní <tt class="option">macosx</tt>.
+</p><p>
+Nane&#353;t&#283;stí toto základní prost&#345;edí neumo&#382;&#328;uje vyu&#382;ít v&#353;echny
+p&#283;kné vlastnosti <span class="application">MPlayer</span>u.
+Nap&#345;íklad, budete-li chtít mít zakompilovánu podporu OSD, budete
+muset mít na svém stroji nainstalovány knihovny
+<code class="systemitem">fontconfig</code>
+a <code class="systemitem">freetype</code>.
+ Narozdíl od jiných Unix&#367;, jako je v&#283;t&#353;ina variant Linuxu a BSD, OS X
+ nemá balí&#269;kovací systém distribuovaný se systémem.
+</p><p>
+M&#367;&#382;ete vybírat minimáln&#283; ze dvou:
+<a href="http://fink.sourceforge.net/" target="_top">Fink</a>u a
+<a href="http://www.macports.org/" target="_top">DarwinPorts</a>.
+Oba poskytují zhruba stejné slu&#382;by (nap&#345;. mnoho dostupných balí&#269;k&#367;,
+&#345;e&#353;ení závislostí, schopnost jednodu&#353;e p&#345;idávat/aktualizovat/odebírat
+balí&#269;ky, atp...).
+Fink nabízí jak p&#345;edkompilované binární balí&#269;ky, tak mo&#382;nost kompilovat
+v&#353;echno ze zdrojového kódu, zatímco DarwinPorts nabízí pouze mo&#382;nost
+kompilace ze zdrojového kódu.
+Autor této p&#345;íru&#269;ky zvolil DarwinPorts z jednoduchého d&#367;vodu, &#382;e jeho
+základní nastavení je mnohem leh&#269;í.
+Pozd&#283;j&#353;í p&#345;íklady budou zalo&#382;eny na DarwinPorts.
+</p><p>
+Nap&#345;íklad pro kompilaci <span class="application">MPlayer</span> s podporou OSD:
+</p><pre class="screen">sudo port install pkgconfig</pre><p>
+Takto nainstalujete <span class="application">pkg-config</span>, co&#382; je systém pro správu
+knihovních p&#345;íznak&#367; compile/link.
+<span class="application">MPlayer</span>&#367;v skript <code class="systemitem">configure</code> jej
+pou&#382;ívá pro správnou detekci knihoven.
+Pak m&#367;&#382;ete nainstalovat <span class="application">fontconfig</span>
+podobným zp&#367;sobem:
+</p><pre class="screen">sudo port install fontconfig</pre><p>
+Následn&#283; m&#367;&#382;ete pokra&#269;ovat spu&#353;t&#283;ním <span class="application">MPlayer</span>ova
+<code class="systemitem">configure</code> skriptu (ov&#283;&#345;te prom&#283;nné prost&#345;edí
+<code class="systemitem">PKG_CONFIG_PATH</code> a <code class="systemitem">PATH</code>,
+aby <code class="systemitem">configure</code> na&#353;el knihovny instalované pomocí
+DarwinPorts):
+</p><pre class="screen">PKG_CONFIG_PATH=/opt/local/lib/pkgconfig/ PATH=$PATH:/opt/local/bin/ ./configure</pre><p>
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="osx_gui"></a>12.5.1. MPlayer OS X GUI</h3></div></div></div><p>
+M&#367;&#382;ete si stáhnout nativní GUI pro <span class="application">MPlayer</span> spolu
+s p&#345;edkompilovanými binárkami <span class="application">MPlayer</span>u pro Mac OS X
+z <a href="http://mplayerosx.sf.net/" target="_top">MPlayerOSX</a> projektu, ale upozor&#328;ujeme:
+tento projekt ji&#382; není aktivní.
+</p><p>
+Na&#353;t&#283;stí byl <span class="application">MPlayerOSX</span> p&#345;evzat &#269;lenem
+<span class="application">MPlayer</span> týmu.
+P&#345;edvád&#283;cí verze lze stáhnout z na&#353;í
+<a href="http://mplayerhq.hu/dload.html" target="_top">download stránky</a>
+a oficiální verze by m&#283;la p&#345;ijít ji&#382; brzy.
+</p><p>
+Abyste mohli skompilovat <span class="application">MPlayerOSX</span> ze zdrojového
+kódu sami, budete pot&#345;ebovat <code class="systemitem">mplayerosx</code>,
+<code class="systemitem">main</code> a kopii
+<code class="systemitem">main</code> CVS modulu jménem
+<code class="systemitem">main_noaltivec</code>.
+<code class="systemitem">mplayerosx</code> je GUI nadstavba,
+<code class="systemitem">main</code> je MPlayer a
+<code class="systemitem">main_noaltivec</code> je MPlayer p&#345;elo&#382;ený bez podpory AltiVec.
+</p><p>
+Pro sta&#382;ení SVN modul&#367; pou&#382;ijte:
+
+</p><pre class="screen">
+svn checkout svn://svn.mplayerhq.hu/mplayerosx/trunk/ mplayerosx
+svn checkout svn://svn.mplayerhq.hu/mplayer/trunk/ main
+</pre><p>
+</p><p>
+Abyste skompilovali <span class="application">MPlayerOSX</span> budete muset setavit
+asi toto:
+
+</p><pre class="screen">
+Adresá&#345;_se_zdrojáky_MPlayeru
+   |
+   |---&gt;main           (Zdrojový kód MPlayeru ze Subversion)
+   |
+   |---&gt;main_noaltivec (Zdrojový kód MPlayeru ze Subversion konfigurován s --disable-altivec)
+   |
+   |---&gt;mplayerosx     (Zdrojový kód MPlayer OS X ze Subversion)
+</pre><p>
+
+Nejd&#345;ív musíte skompilovat main a main_noaltivec.
+</p><p>
+Pak nastavte globální prom&#283;nnou:
+
+</p><pre class="screen">export MACOSX_DEPLOYMENT_TARGET=10.3</pre><p>
+</p><p>
+Pak konfigurujte:
+</p><p>
+Pokud konfigurujete pro G4 nebo pozd&#283;j&#353;í CPU s podporou AltiVec, prove&#271;te následující:
+</p><pre class="screen">
+./configure --with-termcaplib=ncurses.5 --disable-gl --disable-x11
+</pre><p>
+Pokud konfigurujete pro stroj s G3 bez AltiVec, pou&#382;ijte:
+</p><pre class="screen">
+./configure --with-termcaplib=ncurses.5 --disable-gl --disable-x11
+--disable-altivec
+</pre><p>
+Mo&#382;ná budete muset editovat <tt class="filename">config.mak</tt> a zm&#283;nit
+<code class="systemitem">-mcpu</code> a <code class="systemitem">-mtune</code>
+z <code class="systemitem">74XX</code> na <code class="systemitem">G3</code>.
+</p><p>
+Pokra&#269;ujte s
+</p><pre class="screen">
+make
+</pre><p>
+pak jd&#283;te do adresá&#345;e mplayerosx a napi&#353;te
+
+</p><pre class="screen">
+make dist
+</pre><p>
+To vytvo&#345;í komprimovaný <code class="systemitem">.dmg</code> archiv
+s binárkou p&#345;ipravenou k pou&#382;ití.
+</p><p>
+Také lze pou&#382;ít projekt <span class="application">Xcode</span> 2.1;
+starý projekt pro <span class="application">Xcode</span> 1.x
+ji&#382; nepracuje.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="windows.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="ports.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="exotic_platforms.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">12.4. Windows </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 12.6. Exotické platformy</td></tr></table></div></body></html>

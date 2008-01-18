@@ -1,0 +1,88 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>Appendix D. History</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="index.html" title="MPlayer - The Movie Player"><link rel="prev" href="skin-quality.html" title="C.5. Creating quality skins"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Appendix D. History</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="skin-quality.html">Prev</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> </td></tr></table><hr></div><div class="appendix" lang="en"><div class="titlepage"><div><div><h2 class="title"><a name="history"></a>Appendix D. History</h2></div></div></div><div class="blockquote"><blockquote class="blockquote"><p>
+This began a year ago...  I have tried lots of players under Linux
+(<span class="application">mtv</span>, <span class="application">xmps</span>,
+<span class="application">dvdview</span>, <span class="application">livid/oms</span>,
+<span class="application">videolan</span>, <span class="application">xine</span>,
+<span class="application">xanim</span>, <span class="application">avifile</span>,
+<span class="application">xmmp</span>) but they all have some problem. Mostly with
+special files or with audio/video sync. Most of them are unable to play both
+MPEG-1, MPEG-2 and AVI (DivX) files. Many players have image quality or speed
+problems too. So I've decided to write/modify one...
+</p></blockquote></div><p>A'rpi, 2001</p><p>
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="bold"><strong><span class="application">mpg12play</span> v0.1-v0.3</strong></span>: Sep 22-25, 2000
+  </p><p>The first try, hacked together in a half hour!  I've used libmpeg3
+  from <a href="http://www.heroinewarrior.com" target="_top">http://www.heroinewarrior.com</a> up to the version 0.3, but
+  there were image quality and speed problems with it.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">mpg12play</span> v0.5-v0.87</strong></span>: Sep 28-Oct 20, 2000
+  </p><p>MPEG codec replaced with DVDview by Dirk Farin, it was a
+  great stuff, but it was slow and was written in C++ (A'rpi hates C++!!!)
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">mpg12play</span> v0.9-v0.95pre5</strong></span>: Oct 21-Nov 2, 2000
+  </p><p>MPEG codec was libmpeg2 (mpeg2dec) by Aaron Holtzman and
+  Michel Lespinasse.  It's great, optimized very fast C code with perfect
+  image quality and 100% MPEG standard conformance.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> v0.3-v0.9</strong></span>: Nov 18-Dec 4, 2000
+  </p><p>It was a pack of two programs: mpg12play v0.95pre6 and my
+  new simple AVI player 'avip' based on avifile's Win32 DLL loader.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> v0.10</strong></span>: Jan 1, 2001
+  </p><p>The MPEG and AVI player in a single binary!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> v0.11pre series</strong></span>:
+  </p><p>Some new developers joined and since 0.11 the <span class="application">MPlayer</span>
+  project is a team-work! Added ASF file support, and OpenDivX
+  (see <a href="http://www.projectmayo.com" target="_top">http://www.projectmayo.com</a>) en/decoding.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> v0.17a "The IdegCounter"</strong></span> Apr 27, 2001
+  </p><p>The release version of the 0.11pre after 4 months of heavy
+  development!  Try it, and be amazed! Thousands of new features added...
+  and of course old code was improved too, bugs removed etc.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.18 "The BugCounter"</strong></span> Jul 9, 2001
+  </p><p>2 months since 0.17 and here's a new release.. Completed ASF
+  support, more subtitle formats, introduced libao (similar to libvo but to
+  audio), even more stable than ever, and so on. It's a MUST!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.50 "The Faszom(C)ounter"</strong></span> Oct 8, 2001
+  </p><p>Hmm. Release again. Tons of new features, beta GUI version,
+  bugs fixed, new vo and ao drivers, ported to many systems, including
+  opensource DivX codecs and much more. Try it!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.60 "The RTFMCounter"</strong></span> Jan 3, 2002
+  </p><p>MOV/VIVO/RM/FLI/NUV fileformats support, native CRAM, Cinepak,
+  ADPCM codecs, and support for XAnim's binary codecs; DVD subtitles support,
+  first release of <span class="application">MEncoder</span>, TV grabbing, cache,
+  liba52, countless fixes.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.90pre10 "The BirthdayCounter"</strong></span> Nov 11, 2002
+  </p><p> Although this is not a release, I am going to mention it because it
+  came out 2 years after <span class="application">MPlayer</span> v0.01.
+  Happy birthday, <span class="application">MPlayer</span>!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.90rc1 "The CodecCounter"</strong></span> Dec 7, 2002
+  </p><p>Again not a release, but after adding Sorenson 3 (QuickTime)
+  and Windows Media 9 support, <span class="application">MPlayer</span> is the
+  world's first movie player with support for all known video formats!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.90 "The CounterCounter"</strong></span> Apr 6, 2003
+  </p><p>After more than 1 year, we finally concluded that the code was indeed
+    stable again, and ready to be published as a release. Unfortunately we
+    forgot even to increase the version number, and other annoying bugs went
+    in, so get ready for...
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.91</strong></span> Aug 13, 2003
+  </p><p>The above mentioned and lot of other bugs have been fixed.
+    This is the latest stable version.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 1.0pre1 "Development on the beach"</strong></span> Sep 1, 2003
+  </p><p>Although this is not a stable release, I am going to mention
+    it because it is the first pre version of the 1.0 series of <span class="application">MPlayer</span>
+    and it is intended to help the <span class="emphasis"><em>big bug hunting party</em></span>.
+    This is a huge step forward!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 1.0</strong></span> date yet unknown
+  </p></li></ul></div><p>
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="skin-quality.html">Prev</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> </td></tr><tr><td width="40%" align="left" valign="top">C.5. Creating quality skins </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> </td></tr></table></div></body></html>

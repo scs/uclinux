@@ -1,0 +1,15 @@
+*.o
+*.a
+ccdv
+udev
+udevd
+udevcontrol
+udevtrigger
+udevsettle
+udevsend
+udevinfo
+udevmonitor
+udevstart
+udevtest
+udev_version.h
+

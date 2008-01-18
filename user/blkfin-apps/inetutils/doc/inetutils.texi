@@ -1,0 +1,232 @@
+\input texinfo @c -*-texinfo-*-
+@c %**start of header
+@setfilename inetutils.info
+@settitle GNU networking utilities
+@c %**end of header
+
+@include version.texi
+
+@c Define new indices for file names and options.
+@defcodeindex fl
+@defcodeindex op
+
+@c Put everything in one index (arbitrarily chosen to be the concept index).
+@syncodeindex fl cp
+@syncodeindex fn cp
+@syncodeindex ky cp
+@syncodeindex op cp
+@syncodeindex pg cp
+@syncodeindex vr cp
+
+@set Francois Fran@,{c}ois
+
+@ifinfo
+@format
+START-INFO-DIR-ENTRY
+* networking(inet) utilities: (inetutils).      GNU networking utilities.
+* ftp: (inetutils)ftp invocation.               File Transfer Protocol.
+* ftpd: (inetutils)ftpd invocation.             FTP Daemon.
+* inetd: (inetutils)inetd invocation.           Interner super-server.
+* ping: (inetutils)ping invocation.             Packets to network hosts.
+* rcp: (inetutils)rcp invocation.               Strip non-directory suffix.
+* rexecd: (inetutils)rexecd invocation.         Remote execution server.
+* rlogin: (inetutils)rlogin invocation.         Remote login.
+* rlogind: (inetutils)rlogind invocation.       Remote login server.
+* rsh: (inetutils)rsh invocation.               Remote shell.
+* rshd: (inetutils)rshd invocation.             Remote shell server.
+* logger: (inetutils)logger invocation.         Logger.
+* syslogd: (inetutils)syslogd invocation.       Syslog server.
+* talk: (inetutils)talk invocation.             Talk client.
+* talkd: (inetutils)talkd invocation.           Talk server.
+@c * telnet: (inetutils)telnet invocation.         User interface to TELNET.
+@c * telnetd: (inetutils)telnetd invocation.       Telnet server.
+* tftp: (inetutils)tftp invocation.             Trivial FTP.
+@c * tftpd: (inetutils)tftpd invocation.           TFTP server.
+@c * uucpd: (inetutils)uucpd invocation.           Unix to Unix Copy.
+@c * whois: (inetutils)whois invocation.           Whois user interface.
+END-INFO-DIR-ENTRY
+@end format
+@end ifinfo
+
+@ifinfo
+This file documents the GNU networking utilities.
+
+Copyright (C) 1994, 95, 96, 2000, 2001 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+@ignore
+Permission is granted to process this file through TeX and print the
+results, provided the printed document carries copying permission
+notice identical to this one except for the removal of this paragraph
+(this paragraph not being relevant to the printed manual).
+
+@end ignore
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end ifinfo
+
+@titlepage
+@title GNU @code{inetutils}
+@subtitle A set of networking utilities
+@subtitle for version @value{VERSION}, @value{UPDATED}
+@author Alain Magloire et al.
+
+@page
+@vskip 0pt plus 1filll
+Copyright @copyright{} 1994, 95, 96, 2001 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of
+this manual provided the copyright notice and this permission notice
+are preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the entire
+resulting derived work is distributed under the terms of a permission
+notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation approved
+by the Foundation.
+@end titlepage
+
+
+@ifnottex
+@node Top
+@top GNU networking utilities
+
+@cindex networking utilities
+
+This manual documents version @value{VERSION} of the GNU network utilities.
+
+@menu
+* Introduction::                Caveats, overview, and authors.
+* ftp::                         File Transfer Protocol.
+* ftpd::                        FTP Daemon.
+* inetd::                       Interner super-server.
+* ping::                        Packets to network hosts.
+* rcp::                         Strip non-directory suffix.
+* rexecd::                      Remote execution server.
+* rlogin::                      Remote login.
+* rlogind::                     Remote login server.
+* rsh::                         Remote shell.
+* rshd::                        Remote shell server.
+* logger::                      Logger.
+* syslogd::                     Syslog server.
+* talk::                        Talk client.
+* talkd::                       Talk server.
+@c * telnet::                      User interface to TELNET.
+@c * telnetd::                     Telnet server.
+* tftp::                        Trivial FTP.
+@c * tftpd::                       TFTP server.
+@c * uucpd::                       Unix to Unix Copy.
+@c * whois::                       Whois user interface.
+* Reporting Bugs::              How to report bugs.
+* Concept Index::               Index of concepts.
+* Index::                       Index of commands, options and variables.
+@end menu
+@end ifnottex
+
+
+@node Introduction
+@chapter Introduction
+@cindex introduction
+
+The individual utilities was originally derived from the 4.4BSDLite2
+distribution.  Many features were integrated from NetBSD, OpenBSD,
+FreeBSD and GNU/Linux, the merges were done by a group of dedicated
+hackers (in no particular order): Jeff Bailey, Marcus Brinkmann,
+Michael Vogt, Bernhard Rosenkraenzer, Kaveh R. Ghazi, NIIBE Yutaka,
+Nathan Neulinger, Jeff Smith, Dan Stromberg, David O'Shea, Frederic
+Goudal, Gerald Combs, Joachim Gabler, Marco D'Itri.
+
+Certain options are available in all these programs.  Rather than
+writing identical descriptions for each of the programs, they are
+described here.  (In fact, every GNU program accepts (or should
+accept) these options.)
+
+Many of these programs take arbitrary strings as arguments.  In those
+cases, @samp{--help} and @samp{--version} are taken as these options
+only if there is one and exactly one command line argument.
+
+@table @samp
+@item --help
+@opindex --help
+@cindex help, online
+Print a usage message listing all available options, then exit
+successfully.
+
+@item -V
+@itemx --version
+@opindex --version
+@cindex version number, finding
+Print the version number, then exit successfully.
+@end table
+
+
+@include ftp.texi
+@include ftpd.texi
+@include inetd.texi
+@include ping.texi
+@include rcp.texi
+@include rexecd.texi
+@include rlogin.texi
+@include rlogind.texi
+@include rsh.texi
+@include rshd.texi
+@include logger.texi
+@include syslogd.texi
+@include talk.texi
+@include talkd.texi
+@c @include telnet.texi
+@c @include telnetd.texi
+@include tftp.texi
+@c @include tftpd.texi
+@c @include uucpd.texi
+@c @include whois.texi
+
+
+@node Reporting Bugs
+@chapter Reporting bugs
+@cindex Bugs, reporting
+
+Email bug reports to @email{bug-inetutils@@gnu.org}.  Be sure to
+include the word ``inetutils'' somewhere in the ``Subject:'' field.
+
+@table @samp
+@item @command{syslogd}
+     The effects of multiple selectors are sometimes not intuitive.  For exam-
+     ple ``mail.crit,*.err'' will select ``mail'' facility messages at the
+     level of ``err'' or higher, not at the level of ``crit'' or higher.
+@end table
+
+@page
+@node Concept Index
+@unnumbered Concept Index
+
+This is a general index of all issues discussed in this manual, with the
+exception of the commands and command-line options.
+
+@printindex cp
+
+@page
+@node Index
+@unnumbered Index
+
+This is an alphabetical list of all commands, command-line
+options, and environment variables.
+
+@printindex fn
+
+@contents
+@bye

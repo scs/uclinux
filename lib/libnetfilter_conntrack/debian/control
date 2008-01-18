@@ -1,0 +1,21 @@
+Source: libnetfilter-conntrack
+Section: libs
+Priority: optional
+Maintainer: Max Kellermann <max@duempel.org>
+Build-Depends: cdbs (>= 0.4), debhelper (>= 4.2), gcc (>= 3.4), libnfnetlink-dev (>= 0.0.13)
+Standards-Version: 3.6.2
+
+Package: libnetfilter-conntrack1
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: Netfilter netlink-conntrack library
+ This is the userspace library for nfnetlink_conntrack.
+
+Package: libnetfilter-conntrack-dev
+Architecture: any
+Section: libdevel
+Depends: libnetfilter-conntrack1 (= ${Source-Version}), libnfnetlink-dev (>= 0.0.13)
+Description: Netfilter netlink-conntrack library
+ This is the userspace library for nfnetlink_conntrack.
+ .
+ This package provides the development files.

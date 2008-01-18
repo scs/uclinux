@@ -1,0 +1,24 @@
+Index: MPlayer-1.0rc1/libvo/vo_fbdev.c
+===================================================================
+--- MPlayer-1.0rc1/libvo/vo_fbdev.c	(revision 31)
++++ MPlayer-1.0rc1/libvo/vo_fbdev.c	(working copy)
+@@ -1003,10 +1003,15 @@ static int config(uint32_t width, uint32
+ #endif
+ 	{
+ 	    int x_offset=0,y_offset=0;
+-	    if ((frame_buffer = (uint8_t *) mmap(0, fb_size, PROT_READ | PROT_WRITE,
+-				    MAP_SHARED, fb_dev_fd, 0)) == (uint8_t *) -1) {
+-		mp_msg(MSGT_VO, MSGL_ERR, "Can't mmap %s: %s\n", fb_dev_name, strerror(errno));
+-		return 1;
++	    frame_buffer = (uint8_t *) mmap(0, fb_size, PROT_READ | PROT_WRITE,
++	                                    MAP_SHARED, fb_dev_fd, 0);
++	    if (frame_buffer == MAP_FAILED) {
++		frame_buffer = (uint8_t *) mmap(0, fb_size, PROT_READ | PROT_WRITE,
++		                                MAP_PRIVATE, fb_dev_fd, 0);
++		if (frame_buffer == MAP_FAILED) {
++		    mp_msg(MSGT_VO, MSGL_ERR, "Can't mmap %s: %s\n", fb_dev_name, strerror(errno));
++		    return 1;
++		}
+ 	    }
+ 
+ 	    center = frame_buffer +

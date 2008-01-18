@@ -1,0 +1,32 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>13.5. Encoding to MPEG format</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="prev" href="menc-feat-handheld-psp.html" title="13.4. Encoding to Sony PSP video format"><link rel="next" href="menc-feat-rescale.html" title="13.6. Rescaling movies"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.5. Encoding to MPEG format</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="menc-feat-handheld-psp.html">Prev</a> </td><th width="60%" align="center">Chapter 13. Basic usage of <span class="application">MEncoder</span></th><td width="20%" align="right"> <a accesskey="n" href="menc-feat-rescale.html">Next</a></td></tr></table><hr></div><div class="sect1" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-mpeg"></a>13.5. Encoding to MPEG format</h2></div></div></div><p>
+<span class="application">MEncoder</span> can create MPEG (MPEG-PS) format output
+files.
+Usually, when you are using MPEG-1 or MPEG-2 video, it is because you are
+encoding for a constrained format such as SVCD, VCD, or DVD.
+The specific requirements for these formats are explained in the
+<a href="menc-feat-vcd-dvd.html" title="14.7. Using MEncoder to create VCD/SVCD/DVD-compliant files."> VCD and DVD creation guide</a>
+section.
+</p><p>
+To change <span class="application">MEncoder</span>'s output file format,
+use the <tt class="option">-of mpeg</tt> option.
+</p><div class="informalexample"><p>
+Example:
+</p><pre class="screen">
+mencoder <em class="replaceable"><code>input.avi</code></em> -of mpeg -ovc lavc -lavcopts vcodec=mpeg1video -oac copy <em class="replaceable"><code>other_options</code></em> -o <em class="replaceable"><code>output.mpg</code></em>
+</pre><p>
+Creating an MPEG-1 file suitable to be played on systems with minimal
+multimedia support, such as default Windows installs:
+</p><pre class="screen">
+mencoder <em class="replaceable"><code>input.avi</code></em> -of mpeg -mpegopts format=mpeg1:tsaf:muxrate=2000 -o <em class="replaceable"><code>output.mpg</code></em> -oac lavc -ovc lavc \
+-lavcopts acodec=mp2:abitrate=224:vcodec=mpeg1video:vbitrate=1152:keyint=15:mbd=2:aspect=4/3
+</pre><p>
+</p></div><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Hint:</h3><p>
+  If for some reason the video quality of the second pass did not
+  satisfy you, you may re-run your video encode with a different target
+  bitrate, provided that you saved the statistics file of the previous
+  pass.
+  This is possible because the statistics file's primary goal is to
+  record the complexity of each frame, which doesn't depend heavily on
+  bitrate. You should note, though, that you'll get the best results if
+  all passes are run with target bitrates that do not differ very much.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="menc-feat-handheld-psp.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="menc-feat-rescale.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">13.4. Encoding to Sony PSP video format </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> 13.6. Rescaling movies</td></tr></table></div></body></html>

@@ -1,0 +1,62 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>11.1. Radio input</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="radio.html" title="Chapter 11. Radio"><link rel="prev" href="radio.html" title="Chapter 11. Radio"><link rel="next" href="ports.html" title="Chapter 12. Ports"><link rel="preface" href="howtoread.html" title="How to read this documentation"><link rel="chapter" href="intro.html" title="Chapter 1. Introduction"><link rel="chapter" href="install.html" title="Chapter 2. Installation"><link rel="chapter" href="usage.html" title="Chapter 3. Usage"><link rel="chapter" href="cd-dvd.html" title="Chapter 4. CD/DVD usage"><link rel="chapter" href="faq.html" title="Chapter 5. Frequently Asked Questions"><link rel="chapter" href="containers.html" title="Chapter 6. Containers"><link rel="chapter" href="codecs.html" title="Chapter 7. Codecs"><link rel="chapter" href="video.html" title="Chapter 8. Video output devices"><link rel="chapter" href="audio.html" title="Chapter 9. Audio output devices"><link rel="chapter" href="tv.html" title="Chapter 10. TV"><link rel="chapter" href="radio.html" title="Chapter 11. Radio"><link rel="chapter" href="ports.html" title="Chapter 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapter 13. Basic usage of MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapter 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Appendix A. How to report bugs"><link rel="appendix" href="bugs.html" title="Appendix B. Known bugs"><link rel="appendix" href="skin.html" title="Appendix C. MPlayer skin format"><link rel="appendix" href="history.html" title="Appendix D. History"><link rel="subsection" href="radio-input.html#radio-compilation" title="11.1.1. Compilation"><link rel="subsection" href="radio-input.html#radio-tips" title="11.1.2. Usage tips"><link rel="subsection" href="radio-input.html#radio-examples" title="11.1.3. Examples"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">11.1. Radio input</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="radio.html">Prev</a> </td><th width="60%" align="center">Chapter 11. Radio</th><td width="20%" align="right"> <a accesskey="n" href="ports.html">Next</a></td></tr></table><hr></div><div class="sect1" lang="en"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="radio-input"></a>11.1. Radio input</h2></div></div></div><p>
+This section is about how to enable listening to radio from
+a V4L-compatible radio tuner. See the man page for a
+description of radio options and keyboard controls.
+</p><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="radio-compilation"></a>11.1.1. Compilation</h3></div></div></div><div class="procedure"><ol type="1"><li><p>
+  First, you have to recompile MPlayer using <tt class="filename">./configure</tt> with
+  <tt class="option">--enable-radio</tt> and (if you want capture support)
+  <tt class="option">--enable-radio-capture</tt>.
+  </p></li><li><p>
+  Make sure your tuner works with another radio software in Linux, for
+  example <span class="application">XawTV</span>.
+  </p></li></ol></div></div><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="radio-tips"></a>11.1.2. Usage tips</h3></div></div></div><p>
+The full listing of the options is available in the manual page.
+Here are just a few tips:
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+Use the <tt class="option">channels</tt> option. An example:
+</p><pre class="screen">-radio channels=104.4-Sibir,103.9-Maximum</pre><p>
+Explanation: With this option, only the 104.4 and 103.9 radio stations
+will be usable. There will be a nice OSD text upon channel switching,
+displaying the channel's name. Spaces in the channel name must be
+replaced by the "_" character.
+</p></li><li><p>
+There are several ways of capturing audio. You can grab the sound either using
+your sound card via an external cable connection between video card and line-in,
+or using the built-in ADC in the saa7134 chip. In the latter case, you have to
+load the <code class="systemitem">saa7134-alsa</code> or
+<code class="systemitem">saa7134-oss</code> driver.
+</p></li><li><p>
+<span class="application">MEncoder</span> cannot be used for audio capture, because it
+requires a video stream to work. So your can either use
+<span class="application">arecord</span> from ALSA project or
+use <tt class="option">-ao pcm:file=file.wav</tt>. In the latter case you
+will not hear any sound (unless you are using a line-in cable and
+have switched line-in mute off).
+</p></li></ul></div></div><div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title"><a name="radio-examples"></a>11.1.3. Examples</h3></div></div></div><div class="informalexample"><p>
+Input from standard V4L (using line-in cable, capture switched off):
+</p><pre class="screen">
+mplayer radio://104.4
+</pre><p>
+</p></div><div class="informalexample"><p>
+Input from standard V4L (using line-in cable, capture switched off,
+V4Lv1 interface):
+</p><pre class="screen">
+mplayer -radio driver=v4l radio://104.4
+</pre><p>
+</p></div><div class="informalexample"><p>
+Playing second channel from channel list:
+</p><pre class="screen">
+mplayer -radio channels=104.4=Sibir,103.9=Maximm radio://2
+</pre><p>
+</p></div><div class="informalexample"><p>
+Passing sound over the PCI bus from the radio card's internal ADC.
+In this example the tuner is used as a second sound card
+(ALSA device hw:1,0). For saa7134-based cards either the
+saa7134-alsa or saa7134-oss module must be loaded.
+</p><pre class="screen">
+mplayer -rawaudio rate=32000 -radio adevice=hw=1.0:arate=32000:channels=104.4=Sibir,103.9=Maximm radio://2/capture
+</pre><p>
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Note</h3><p>When using ALSA device names colons must be replaced
+by equal signs, commas by periods.
+</p></div><p>
+</p></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="radio.html">Prev</a> </td><td width="20%" align="center"><a accesskey="u" href="radio.html">Up</a></td><td width="40%" align="right"> <a accesskey="n" href="ports.html">Next</a></td></tr><tr><td width="40%" align="left" valign="top">Chapter 11. Radio </td><td width="20%" align="center"><a accesskey="h" href="index.html">Home</a></td><td width="40%" align="right" valign="top"> Chapter 12. Ports</td></tr></table></div></body></html>

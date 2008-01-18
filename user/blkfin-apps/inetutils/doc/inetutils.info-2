@@ -1,0 +1,1346 @@
+This is inetutils.info, produced by makeinfo version 4.3 from
+../../inetutils/doc/inetutils.texi.
+
+START-INFO-DIR-ENTRY
+* networking(inet) utilities: (inetutils).      GNU networking utilities.
+* ftp: (inetutils)ftp invocation.               File Transfer Protocol.
+* ftpd: (inetutils)ftpd invocation.             FTP Daemon.
+* inetd: (inetutils)inetd invocation.           Interner super-server.
+* ping: (inetutils)ping invocation.             Packets to network hosts.
+* rcp: (inetutils)rcp invocation.               Strip non-directory suffix.
+* rexecd: (inetutils)rexecd invocation.         Remote execution server.
+* rlogin: (inetutils)rlogin invocation.         Remote login.
+* rlogind: (inetutils)rlogind invocation.       Remote login server.
+* rsh: (inetutils)rsh invocation.               Remote shell.
+* rshd: (inetutils)rshd invocation.             Remote shell server.
+* logger: (inetutils)logger invocation.         Logger.
+* syslogd: (inetutils)syslogd invocation.       Syslog server.
+* talk: (inetutils)talk invocation.             Talk client.
+* talkd: (inetutils)talkd invocation.           Talk server.
+* tftp: (inetutils)tftp invocation.             Trivial FTP.
+END-INFO-DIR-ENTRY
+
+   This file documents the GNU networking utilities.
+
+   Copyright (C) 1994, 95, 96, 2000, 2001 Free Software Foundation, Inc.
+
+   Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+   Permission is granted to copy and distribute modified versions of
+this manual under the conditions for verbatim copying, provided that
+the entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+   Permission is granted to copy and distribute translations of this
+manual into another language, under the above conditions for modified
+versions, except that this permission notice may be stated in a
+translation approved by the Foundation.
+
+
+File: inetutils.info,  Node: ping,  Next: rcp,  Prev: inetd,  Up: Top
+
+ping
+****
+
+   `Ping' uses the ICMP protocol's mandatory ECHO_REQUEST datagram to
+elicit an ICMP ECHO_RESPONSE from a host or gateway.  ECHO_REQUEST
+datagrams ("pings") have an IP and ICMP header, followed by a "struct
+timeval" and then an arbitrary number of "pad" bytes used to fill out
+the packet.
+
+Invoking
+========
+
+   The options are as follows:
+
+`--echo'
+     Send ICMP_ECHO requests (default).
+
+`--address'
+     Send ICMP_ADDRESS packets.
+
+`--timestamp'
+     Send ICMP_TIMESTAMP packets.
+
+`--router'
+     Send ICMP_ROUTERDISCOVERY packets.
+
+`-c N'
+
+`--count=N'
+     Stop after sending (and receiving) count ECHO_RESPONSE packets.
+
+`-d'
+`-debug'
+     Set the SO_DEBUG option on the socket being used.
+
+`-i N'
+`--interval=N'
+     Wait N seconds between sending each packet. The default is to wait
+     for one second between each packet.  This option is incompatible
+     with the -f option.
+
+`-n'
+`--numeric'
+     Numeric output only.  No attempt will be made to lookup symbolic
+     names for host addresses.
+
+`-r'
+`--ignore-routing'
+     Bypass the normal routing tables and send directly to a host on an
+     attached network.  If the host is not on a directly-attached
+     network, an error is returned.  This option can be used to ping a
+     local host through an interface that has no route through it
+     (e.g., after the interface was dropped by routed(8)).
+
+`-v'
+`--verbose'
+     Verbose output.  ICMP packets other than ECHO_RESPONSE that are
+     received are listed.
+
+`-f'
+`--flood'
+     Flood ping.  Outputs packets as fast as they come back or one
+     hundred times per second, whichever is more.  For every
+     ECHO_REQUEST sent a period "." is printed, while for every
+     ECHO_REPLY received a backspace is printed.  This provides a rapid
+     display of how many packets are being dropped.  Only the
+     super-user may use this option.  This can be very hard on a network
+     and should be used with caution.
+
+`-l N'
+
+`--preload=N'
+     If N is specified, ping sends that many packets as fast as
+     possible before falling into its normal mode of behavior.
+
+`-p PAT'
+`--pattern=PAT'
+     You may specify up to 16 "pad" bytes to fill out the packet you
+     send.  This is useful for diagnosing data-dependent problems in a
+     network.  For example, "-p ff" will cause the sent packet to be
+     filled with all ones.
+
+`-q'
+`--quiet'
+     Quiet output.  Nothing is displayed except the summary lines at
+     startup time and when finished.
+
+`-R'
+`--route'
+     Record route.  Includes the RECORD_ROUTE option in the
+     ECHO_REQUEST packet and displays the route buffer on returned
+     packets.  Note that the IP header is only large enough for nine
+     such routes.  Many hosts ignore or discard this option.
+
+`-s N'
+`--size=N'
+     Specifies the number of data bytes to be sent.  The default is 56,
+     which translates into 64 ICMP data bytes when combined with the 8
+     bytes of ICMP header data.
+
+   When using ping for fault isolation, it should first be run on the
+local host, to verify that the local network interface is up and
+running.  Then, hosts and gateways further and further away should be
+"pinged".  Round-trip times and packet loss statistics are computed.
+If duplicate packets are received, they are not included in the packet
+loss calculation, although the round trip time of these packets is used
+in calculating the minimum/average/maximum round-trip time numbers.
+When the speci- fied number of packets have been sent (and received) or
+if the program is terminated with a SIGINT, a brief summary is
+displayed.
+
+   This program is intended for use in network testing, measurement and
+man- agement.  Because of the load it can impose on the network, it is
+unwise to use ping during normal operations or from automated scripts.
+
+ICMP Packet Details
+===================
+
+   An IP header without options is 20 bytes.  An ICMP ECHO_REQUEST
+packet contains an additional 8 bytes worth of ICMP header followed by
+an arbitrary amount of data.  When a packetsize is given, this
+indicated the size of this extra piece of data (the default is 56).
+Thus the amount of data received inside of an IP packet of type ICMP
+ECHO_REPLY will always be 8 bytes more than the requested data space
+(the ICMP header).
+
+   If the data space is at least eight bytes large, ping uses the first
+eight bytes of this space to include a timestamp which it uses in the
+computation of round trip times.  If less than eight bytes of pad are
+specified, no round trip times are given.
+
+Duplicate And Damaged Packets
+=============================
+
+   Ping will report duplicate and damaged packets.  Duplicate packets
+should never occur, and seem to be caused by inappropriate link-level
+retransmissions.  Duplicates may occur in many situations and are rarely
+(if ever) a good sign, although the presence of low levels of
+duplicates may not always be cause for alarm.
+
+   Damaged packets are obviously serious cause for alarm and often
+indicate broken hardware somewhere in the ping packet's path (in the
+network or in the hosts).
+
+Trying Different Data Patterns
+==============================
+
+   The (inter)network layer should never treat packets differently
+depending on the data contained in the data portion.  Unfortunately,
+data-dependent problems have been known to sneak into networks and
+remain undetected for long periods of time.  In many cases the
+particular pattern that will have problems is something that doesn't
+have sufficient "transitions", such as all ones or all zeros, or a
+pattern right at the edge, such as almost all zeros.  It isn't
+necessarily enough to specify a data pattern of all zeros (for example)
+on the command line because the pattern that is of interest is at the
+data link level, and the relationship between what you type and what
+the controllers transmit can be complicated.
+
+   This means that if you have a data-dependent problem you will
+probably have to do a lot of testing to find it.  If you are lucky, you
+may manage to find a file that either can't be sent across your network
+or that takes much longer to transfer than other similar length files.
+You can then examine this file for repeated patterns that you can test
+using the -p option of ping.
+
+TTL Details
+===========
+
+   The TTL value of an IP packet represents the maximum number of IP
+routers that the packet can go through before being thrown away.  In
+current practice you can expect each router in the Internet to
+decrement the TTL field by exactly one.
+
+   The TCP/IP specification states that the TTL field for TCP packets
+should be set to 60, but many systems use smaller values (4.3 BSD uses
+30, 4.2 used 15).
+
+   The maximum possible value of this field is 255, and most Unix
+systems set the TTL field of ICMP ECHO_REQUEST packets to 255.  This is
+why you will find you can "ping" some hosts, but not reach them with
+telnet(1) or ftp(1).
+
+   In normal operation ping prints the ttl value from the packet it
+receives.  When a remote system receives a ping packet, it can do one of
+three things with the TTL field in its response:
+
+*
+     Not change it; this is what Berkeley Unix systems did before the
+     4.3BSD-Tahoe release.  In this case the TTL value in the received
+     packet will be 255 minus the number of routers in the round-trip
+     path.
+
+*
+     Set it to 255; this is what current Berkeley Unix systems do.  In
+     this case the TTL value in the received packet will be 255 minus
+     the number of routers in the path from the remote system to the
+     pinging host.
+
+*
+     Set it to some other value.  Some machines use the same value for
+     ICMP packets that they use for TCP packets, for example either 30
+     or 60.  Others may use completely wild values.
+
+   Many Hosts and Gateways ignore the RECORD_ROUTE option.
+
+   The maximum IP header length is too small for options like
+RECORD_ROUTE to be completely useful.  There's not much that that can
+be done about this, however.
+
+   Flood pinging is not recommended in general, and flood pinging the
+broadcast address should only be done under very controlled conditions.
+
+
+File: inetutils.info,  Node: rcp,  Next: rexecd,  Prev: ping,  Up: Top
+
+rcp
+***
+
+   `Rcp' copies files between machines.  Each file or directory
+argument is either a remote file name of the form "rname@rhost:path",
+or a local file name (containing no `:' characters, or a `/' before any
+`:'s).
+
+Invoking
+========
+
+   The options are as follows :
+
+`-K'
+`--kerberos'
+     Turns off all Kerberos authentication.
+
+`-k'
+`--realm=REALM'
+     The option requests rcp to obtain tickets for the remote host in
+     REALM realm instead of the remote host's realm as determined by
+     krb_realmofhost(3).
+
+`-p'
+`--preserve'
+     Causes rcp to attempt to preserve (duplicate) in its copies the
+     modification times and modes of the source files, ignoring the
+     umask. By default, the mode and owner of file2 are preserved if it
+     already existed; otherwise the mode of the source file modified by
+     the umask(2) on the destination host is used.
+
+`-r'
+`--recursive'
+     If any of the source files are directories, rcp copies each subtree
+     rooted at that name; in this case the destination must be a
+     directory.
+
+`-x'
+`--encrypt'
+     Turns on DES encryption for all data passed via the rcp session.
+     This may impact response time and CPU utilization, but provides
+     increased security.
+
+   `rcp' doesn't detect all cases where the target of a copy might be a
+file in cases where only a directory should be legal.
+
+   Is confused by any output generated by commands in a .login,
+.profile, or .cshrc file on the remote host.
+
+   The destination user and hostname may have to be specified as
+"rhost.rname" when the destination machine is running the 4.2BSD version
+of `rcp'.
+
+
+File: inetutils.info,  Node: rexecd,  Next: rlogin,  Prev: rcp,  Up: Top
+
+rexecd
+******
+
+   `Rexecd' is the server for the rexec(3) routine.  The server provides
+remote execution facilities with authentication based on user names and
+passwords.
+
+   `Rexecd' listens for service requests at the port indicated in the
+"exec" service specification; see services(5).  When a service request
+is received the following protocol is initiated:
+
+  1. The server reads characters from the socket up to a NUL (`\0')
+     byte.  The resultant string is interpreted as an ASCII number,
+     base 10.
+
+  2. If the number received in step 1 is non-zero, it is interpreted as
+     the port number of a secondary stream to be used for the stderr. A
+     second connection is then created to the specified port on the
+     client's machine.
+
+  3. A NUL terminated user name of at most 16 characters is retrieved on
+     the initial socket.
+
+  4. A NUL terminated, unencrypted password of at most 16 characters is
+     retrieved on the initial socket.
+
+  5. A NUL terminated command to be passed to a shell is retrieved on
+     the initial socket.  The length of the command is limited by the
+     upper bound on the size of the system's argument list.
+
+  6. `Rexecd' then validates the user as is done at login time and, if
+     the authentication was successful, changes to the user's home
+     directory, and establishes the user and group protections of the
+     user.  If any of these steps fail the connection is aborted with a
+     diagnostic message returned.
+
+  7. A NUL byte is returned on the initial socket and the command line
+     is passed to the normal login shell of the user.  The shell
+     inherits the network connections established by rexecd.
+
+
+Diagnostics
+===========
+
+   Except for the last one listed below, all diagnostic messages are
+returned on the initial socket, after which any network connections are
+closed.  An error is indicated by a leading byte with a value of 1 (0
+is returned in step 7 above upon successful completion of all the steps
+prior to the command execution).
+
+`username too long'
+     The name is longer than 16 characters.
+
+`password too long'
+     The password is longer than 16 characters.
+
+`command too long'
+     The command line passed exceeds the size of the argument list (as
+     configured into the system).
+
+`Login incorrect.'
+     No password file entry for the user name existed.
+
+`Password incorrect.'
+     The wrong password was supplied.
+
+`No remote directory.'
+     The chdir command to the home directory failed.
+
+`Try again.'
+     A fork by the server failed.
+
+`<shellname>: ...'
+     The user's login shell could not be started.  This message is
+     returned on the connection associated with the stderr, and is not
+
+   Indicating "Login incorrect" as opposed to "Password incorrect" is a
+security breach which allows people to probe a system for users with
+null passwords.
+
+
+File: inetutils.info,  Node: rlogin,  Next: rlogind,  Prev: rexecd,  Up: Top
+
+rlogin
+******
+
+   `rlogin' command logs into a specified remote host and connects your
+local terminal to the remote host.  The remote terminal type is the
+same as that given in the _TERM_ local environment variable.  The
+terminal or window size is also the same, if the remote host supports
+them, and any changes in size are transferred.
+
+   When using the `rlogin' command, you can create a link to your path
+using a host name as the link name. For example:
+
+     #
+     # ln -s /usr/bin/rlogin HostName
+     # Hostname -8
+
+   Using HOSTNAME automatically uses the `rlogin' to log in to the
+remote host named HOSTNAME.
+
+   `rlogin' allows access to the remote host without the use of a
+passwd.  For details, *Note rcmd: (libc)rcmd.
+
+Invoking
+========
+
+   The options are as follows :
+
+`-8'
+`--8-bit'
+     Allows an eight-bit input data path at all times; otherwise parity
+     bits are stripped except when the remote side's stop and start
+     characters are other than ^S/^Q .
+
+`-E'
+
+`--no-escape'
+`--no-escape'
+     Stops any character from being recognized as an escape character.
+     When used with the -8 option, this provides a completely
+     transparent connection.
+
+`-K'
+`--kerberos'
+     Turns off all Kerberos authentication.
+
+`-d'
+`--debug'
+     Turns on socket debugging (see setsockopt(2))  on the TCP sockets
+     used for communication with the remote host.
+
+`-e'
+`--escape=CHAR'
+     Allows user specification of the escape character, which is "~" by
+     default.  This specification may be as a literal character, or as
+     an octal value in the form \nnn.
+
+`-k'
+`--realm=REALM'
+     The option requests rlogin to obtain tickets for the remote host
+     in REALM realm instead of the remote host's realm as determined by
+     krb_realmofhost(3).
+
+`-x'
+`--encrypt'
+     Turns on DES encryption for all data passed via the rlogin
+     session.  This may impact response time and CPU utilization, but
+     provides increased security.
+
+   A line of the form "<escape char>." disconnects from the remote host.
+Similarly, the line "<escape char>^Z" will suspend the rlogin session,
+and "<escape char><delayed-suspend char>" suspends the send portion of
+the rlogin, but allows output from the remote system.  By default, the
+tilde ("~") character is the escape character, and normally control-Y
+("^Y") is the delayed-suspend character.
+
+   All echoing takes place at the remote site, so that (except for
+delays) the rlogin is transparent.  Flow control via ^S/^Q, if
+supported, stop and start the flow of information, flushing of input
+and output on interrupts are handled properly.
+
+   On the server side the iruserok() and ruserok() functions are used to
+authenticate see the appropriate man page for more information, if
+supported.
+
+Kerberos Authentication
+=======================
+
+   If `rlogin' was compiled with kerberos support, optins -x, -k, -K
+are available.  Each user may have a private authorization list in the
+file .klogin in their home directory.  Each line in this file should
+contain a Kerberos principal name of the form principal.instance@realm.
+If the originating user is authenticated to one of the principals named
+in .klogin, access is granted to the account.  The principal
+accountname.@localrealm is granted access if there is no .klogin file.
+Otherwise a login and password will be prompted for on the remote
+machine as in login(1).  To avoid certain security problems, the
+.klogin file must be owned by the remote user.  If Kerberos
+authentication fails, a warning message is printed and the standard
+Berkeley rlogin is used instead.
+
+
+File: inetutils.info,  Node: rlogind,  Next: rsh,  Prev: rlogin,  Up: Top
+
+rlogind
+*******
+
+   `rlogind' is the server for the rlogin(1) program.  The server
+provides a remote login facility with authentication based on
+privileged port numbers from trusted hosts.
+
+   `Rlogind' listens for service requests at the port indicated in the
+"login" service specification; see services(5).  When a service request
+is received the following protocol is initiated:
+  1. The server checks the client's source port.  If the port is not in
+     the range 512-1023, the server aborts the connection.
+
+  2. The server checks the client's source address and requests the
+     corresponding host name (see gethostbyaddr(3),  hosts(5) and
+     named(8)).  If the hostname cannot be determined, the dot-notation
+     representation of the host address is used.  If the hostname is in
+     the same domain as the server (according to the last two
+     components of the domain name), or if the -a option is given, the
+     addresses for the hostname are requested, verifying that the name
+     and address correspond.  Normal authentication is bypassed if the
+     address verification fails.
+
+   Once the source port and address have been checked, rlogind proceeds
+with the authentication process described in rshd(8).  It then
+allocates a pseudo terminal (see pty(4)),  and manipulates file
+descriptors so that the slave half of the pseudo terminal becomes the
+stdin, stdout, and stderr for a login process.  The login process is an
+instance of the login(1) program, invoked with the -f option if
+authentication has succeeded.  If automatic authentication fails, the
+user is prompted to log in as if on a standard terminal line.
+
+   The parent of the login process manipulates the master side of the
+pseudo terminal, operating as an intermediary between the login process
+and the client instance of the rlogin program.  In normal operation,
+the packet protocol described in pty(4) is invoked to provide `^S/^Q'
+type facilities and propagate interrupt signals to the remote programs.
+The login process propagates the client terminal's baud rate and
+terminal type, as found in the environment variable, `TERM'; see
+environ(7).  The screen or window size of the terminal is requested
+from the client, and window size changes from the client are propagated
+to the pseudo terminal.
+
+   Transport-level keepalive messages are enabled unless the -n option
+is client instance of the rlogin program.  In normal operation, the
+packet protocol described in pty(4) is invoked to provide `^S/^Q' type
+facilities and propagate interrupt signals to the remote programs.  The
+login process propagates the client terminal's baud rate and terminal
+type, as found in the environment variable, `TERM'; see environ(7).
+The screen or window size of the terminal is requested from the client,
+and window size changes from the client are propagated to the pseudo
+terminal.
+
+   Transport-level keepalive messages are enabled unless the -n option
+is present.  The use of keepalive messages allows sessions to be timed
+out if the client crashes or becomes unreachable.
+
+   *Note ruserok: (libc)ruserok, for details.
+
+Invoking
+========
+
+   The options are as follows :
+
+`-a'
+`--verify-hostname'
+     Ask hostname for verification.
+
+`-d'
+`--daemon'
+     Daemon mode.
+
+`-l'
+`--no-rhosts'
+     Ignore .rhosts file.
+
+`-L'
+`--local-domain=NAME'
+     Set local domain name.
+
+`-n'
+`--no-keepalive'
+     Do not set SO_KEEPALIVE.
+
+`-k'
+`--kerberos'
+     Use kerberos IV authentication.
+
+`-x'
+`--encrypt'
+     Turns on DES encryption for all data passed via the rlogind
+     session.  This may impact response time and CPU utilization, but
+     provides increased security.
+
+`-D'
+`--debug[=LEVEL]'
+     Set debug level, not implemented.
+
+`-h'
+`--help'
+     Display usage instructions.
+
+`-V'
+`--version'
+     Display program version.
+
+`-o'
+`--allow-root'
+     Allow uid == 0 to login, disable by default\n"
+
+`-p'
+`--port=PORT'
+     Listen on given port (valid only in daemon mode).
+
+`-r'
+`--reverse-required'
+     Required  Require reverse resolving of a remote host IP.
+
+Diagnostics
+===========
+
+   All initial diagnostic messages are indicated by a leading byte with
+a value of 1, after which any network connections are closed.  If there
+are no errors before login is invoked, a null byte is returned as in
+indication of success.
+
+`Try again.'
+     A fork by the server failed.
+
+   The authentication procedure used here assumes the integrity of each
+client machine and the connecting medium.  This is insecure, but is
+useful in an "open" environment.
+
+
+File: inetutils.info,  Node: rsh,  Next: rshd,  Prev: rlogind,  Up: Top
+
+rsh
+***
+
+   `Rsh' executes command on host and copies its standard input to the
+remote command, the standard output of the remote command to its
+standard output, and the standard error of the remote command to its
+standard error.  Interrupt, quit and terminate signals are propagated
+to the remote command; `rsh' normally terminates when the remote
+command does.
+
+   When using the `rsh' command, you can create a link to your path
+using a host name as the link name. For example:
+
+     #
+     # ln -s /usr/bin/rsh HostName
+     # Hostname ls
+
+   HOSTNAME will be passed to `rsh' as the default host.
+
+   `rsh' allows access to the remote host without the use of a passwd.
+For details, *Note rcmd: (libc)rcmd.
+
+Invoking
+========
+
+   The options are as follows :
+
+`-K'
+`--kerberos'
+     Turns off all Kerberos authentication.
+
+`-d'
+`--debug'
+     Turns on socket debugging (see setsockopt(2))  on the TCP sockets
+     used for communication with the remote host.
+
+`-k'
+`--realm=REALM'
+     The option requests rsh to obtain tickets for the remote host in
+     REALM realm instead of the remote host's realm as determined by
+     krb_realmofhost(3).
+
+`-x'
+`--encrypt'
+     Turns on DES encryption for all data passed via the rsh session.
+     This may impact response time and CPU utilization, but provides
+     increased security.
+
+`-l'
+`--user'
+     By default, the remote username is the same as the local username.
+     The -l option or the username@host format allow the remote name to
+     be specified.  Kerberos authentication is used, and authorization
+     is determined as in rlogin(1).
+
+   If no command is specified, you will be logged in on the remote host
+using rlogin(1).
+
+   Shell metacharacters which are not quoted are interpreted on local
+machine, while quoted metacharacters are interpreted on the remote
+machine.
+
+     For example, the command
+     
+     # rsh otherhost cat remotefile >> localfile
+     
+     appends the remote file remotefile to the local file localfile, while
+     
+     # rsh otherhost cat remotefile ">>" other_remotefile
+     
+     appends remotefile to other_remotefile.
+
+
+File: inetutils.info,  Node: rshd,  Next: logger,  Prev: rsh,  Up: Top
+
+rshd
+****
+
+   The `rshd' server is the server for the rcmd(3) routine and,
+consequently, for the rsh(1) program.  The server provides remote
+execution facilities with authentication based on privileged port
+numbers from trusted hosts.  The `rshd' server listens for service
+requests at the port indicated in the "cmd" service specification; see
+services(5).  When a service request is received the following protocol
+is initiated:
+
+  1. The server checks the client's source port.  If the port is not in
+     the range 512-1023, the server aborts the connection.
+
+  2. The server reads characters from the socket up to a null (`\0')
+     byte.  The resultant string is interpreted as an ASCII number,
+     base 10.
+
+  3. If the number received in step 2 is non-zero, it is interpreted as
+     the port number of a secondary stream to be used for the stderr. A
+     second connection is then created to the specified port on the
+     client's machine.  The source port of this second connection is
+     also in the range 512-1023.
+
+  4. The server checks the client's source address and requests the
+     corresponding host name (see gethostbyaddr(3),  hosts(5) and
+     named(8)).  If the hostname cannot be determined, the dot-notation
+     representation of the host address is used.  If the hostname is in
+     the same domain as the server (according to the last two
+     components of the domain name), or if the -a option is given, the
+     addresses for the hostname are requested, verifying that the name
+     and address correspond.  If address verification fails, the
+     connection is aborted with the message, "Host address mismatch."
+
+  5. A null terminated user name of at most 16 characters is retrieved
+     on the initial socket.  This user name is interpreted as the user
+     identity on the client's machine.
+
+  6. A null terminated user name of at most 16 characters is retrieved
+     on the initial socket.  This user name is interpreted as a user
+     identity to use on the server's machine.
+
+  7. A null terminated command to be passed to a shell is retrieved on
+     the initial socket.  The length of the command is limited by the
+     upper bound on the size of the system's argument list.
+
+  8. Rshd then validates the user using ruserok(3),  which uses the file
+     /etc/hosts.equiv and the .rhosts file found in the user's home
+     directory.  The -l option prevents ruserok(3) from doing any
+     validation based on the user's ".rhosts" file, unless the user is
+     the superuser.
+
+  9. If the file /etc/nologin exists and the user is not the superuser,
+     the connection is closed.
+
+ 10. A null byte is returned on the initial socket and the command line
+     is passed to the normal login shell of the user.  The shell
+     inherits the network connections established by `rshd'.
+
+ 11. Transport-level keepalive messages are enabled unless the -n
+     option is present.  The use of keepalive messages allows sessions
+     to be timed out if the client crashes or becomes unreachable.
+
+ 12. The -L option causes all successful accesses to be logged to
+     syslogd(8) as auth.info messages.
+
+
+   *Note ruserok: (libc)ruserok, for details.
+
+Invoking
+========
+
+   The options are as follows :
+
+`-a'
+`--verify-hostname'
+     Ask hostname for verification.
+
+`-l'
+`--no-rhosts'
+     Ignore .rhosts file.
+
+`-L'
+`--local-domain=NAME'
+     Set local domain name.
+
+`-n'
+`--no-keepalive'
+     Do not set SO_KEEPALIVE.
+
+`-k'
+`--kerberos'
+     Use kerberos IV authentication.
+
+`-x'
+`--encrypt'
+     Turns on DES encryption for all data passed via the `rshd' session.
+     This may impact response time and CPU utilization, but provides
+     increased security.
+
+`-D'
+`--debug[=LEVEL]'
+     Set debug level, not implemented.
+
+`-h'
+`--help'
+     Display usage instructions.
+
+`-V'
+`--version'
+     Display program version.
+
+Diagnostics
+===========
+
+   Except for the last one listed below, all diagnostic messages are
+returned on the initial socket, after which any network connections are
+closed.  An error is indicated by a leading byte with a value of 1 (0
+is returned in step 10 above upon successful completion of all the
+steps prior to the execution of the login shell).
+
+`Locuser too long'
+     The name of the user on the client's machine is longer than 16
+     characters.
+
+`Ruser too long'
+     The name of the user on the remote machine is longer than 16
+     characters.
+
+`Command too long'
+     The command line passed exceeds the size of the argument list (as
+     configured into the system).
+
+`Login incorrect'
+     No password file entry for the user name existed.
+
+`Remote directory'
+     The chdir command to the home directory failed.
+
+`Permission denied'
+     The authentication procedure described above failed.
+
+`Can't make pipe.'
+     The pipe needed for the stderr, wasn't created.
+
+`Can't fork; try again.'
+     A fork by the server failed.
+
+`<shellname>: ...'
+     The user's login shell could not be started.  This message is re-
+     turned on the connection associated with the stderr, and is not
+     preceded by a flag byte.
+
+   The authentication procedure used here assumes the integrity of each
+client machine and the connecting medium.  This is insecure, but is
+useful in an "open" environment.
+
+
+File: inetutils.info,  Node: logger,  Next: syslogd,  Prev: rshd,  Up: Top
+
+logger
+******
+
+   `logger' is a program to make entries in the system log files.  It
+provides a shell command interface to the system log module.  *Note
+Syslog: (libc)Syslog, for details.
+
+   The message can contain a priority code, which should be a preceding
+decimal number in angle braces, for example, `<5>'.  This priority code
+should map into the priorities defined in the include file
+`<sys/syslog.h>'.
+
+Invoking
+========
+
+   The options are as follows :
+
+`-i'
+     Log the process ID of the logger process with each line.
+
+`-s'
+     Log the message to standard error, as well as the system log.  This
+     option might not be supported on all systems.
+
+`-f FILE'
+`--file=FILE'
+     Log the content of the specified file.
+
+`-p PRIORITY'
+`--priority=PRIORITY'
+     Enter the message with the specified priority.  The priority may be
+     specified numerically or as a `facility.level' pair.  For example,
+     `-p local3.info' logs the message at the informational level in
+     the `local3' facility.  The default is `user.notice'.
+
+     The actual list of supported facilities and levels is system
+     specific.
+
+`-t TAG'
+`--tag=TAG'
+     Mark every line in the log with the specified tag.
+
+   The options are followed by the message which should be written to
+the log.  If not specified, and the -f flag is not provided, standard
+input is logged.
+
+   The logger utility exits 0 on success, and >0 if an error occurs.
+
+   The following examples illustrate the usage of the `logger' command.
+
+     logger System rebooted
+     
+     logger -p local0.notice -t HOSTIDM -f /dev/idmc
+
+
+File: inetutils.info,  Node: syslogd,  Next: talk,  Prev: logger,  Up: Top
+
+syslogd
+*******
+
+   `syslogd' is a system service that provides error logging facility.
+Messages are read from the UNIX domain socket `/dev/log', from an
+Internet domain socket specified in `/etc/services', and from the
+special device `/dev/klog' (to read kernel messages).
+
+   `syslogd' creates the file `/var/run/syslog.pid', and stores its
+process id there.  This can be used to kill or reconfigure `syslogd'.
+
+   The message sent to `syslogd' should consist of a single line.  The
+message can contain a priority code, which should be a preceding
+decimal number in angle braces, for example, `<5>'.  This priority code
+should map into the priorities defined in the include file
+`sys/syslog.h'.
+
+Invoking
+========
+
+   The options are as follows:
+
+`-f FILE'
+`--rcfile=FILE'
+     Override configuration (the default file is `/etc/syslog.conf').
+
+`--pidfile=FILE'
+     Override pidfile (the default file is `/var/run/syslogd.pid').
+
+`-n'
+`--no-detach'
+     Do not enter daemon mode.
+
+`-d'
+`--debug'
+     Print debug information (implies `-n').
+
+`-p FILE'
+
+`--socket=FILE'
+     Override default UNIX domain socket `/dev/log'.
+
+`-a SOCKET'
+     Add UNIX socket to listen.  An unlimited number of sockets is
+     allowed.
+
+`-r'
+`--inet'
+     Receive remote messages via Internet domain socket.
+
+`--no-unixaf'
+     Do not listen on UNIX domain sockets (overrides `-a' and `-p').
+
+`--no-klog'
+     Do not listen to kernel log device `/dev/klog'.
+
+`--no-forward'
+     Do not forward any messages (overrides `-h').
+
+`-h'
+
+`--hop'
+     Forward messages from remote hosts.
+
+`-m INTERVAL'
+
+`--mark=INTERVAL'
+     Specify timestamp interval in logs (0 for no timestamps).
+
+`-l HOSTLIST'
+     Log hosts in HOSTLIST by their hostname. Multiple lists are
+     allowed.
+
+`-s DOMAINLIST'
+     List of domains which should be stripped from the FQDN of hosts
+     before logging their name.  Multiple lists are allowed.
+
+Configuration file
+==================
+
+   `syslogd' reads its configuration file when it starts up and
+whenever it receives a hangup signal.  The `syslog.conf' file is the
+configuration file for the `syslogd' program.  It consists of lines
+with two fields: the _selector_ field which specifies the types of
+messages and priorities to which the line applies, and an _action_
+field which specifies the action to be taken if a message `syslogd'
+receives matches the selection criteria.  The _selector_ field is
+separated from the action field by one or more tab or space characters.
+A rule can be splitted in several lines if all lines except the last
+are terminated with a backslash `\'.
+
+   The Selectors function are encoded as a facility, a period (`.'),
+and a level, with no intervening white-space.  Both the facility and
+the level are case insensitive.
+
+   The facility describes the part of the system generating the message,
+and is one of the following keywords: `auth', `authpriv', `cron',
+`daemon', `kern', `lpr', `mail', `mark', `news', `syslog', `user',
+`uucp' and `local0' through `local7'.  These keywords (with the
+exception of `mark') correspond to the similar `LOG_' values specified
+to the `openlog' and `syslog' library routines.  *Note Syslog:
+(libc)Syslog, for details.
+
+   The level describes the severity of the message, and is a keyword
+from the following ordered list (higher to lower): `emerg', `alert',
+`crit', `err, warning', `notice' and `debug'.  These keywords
+correspond to the similar `LOG_' values specified to the syslog library
+routine.
+
+   *Note syslog and vsyslog: (libc)syslog; vsyslog, for a further
+descriptions of both the facility and level keywords and their
+significance.
+
+   If a received message matches the specified facility and is of the
+specified level (or a higher level), the action specified in the action
+field will be taken.
+
+   Multiple selectors may be specified for a single action by separating
+them with semicolon (`;') characters.  It is important to note,
+however, that each selector can modify the ones preceding it.
+
+   Multiple facilities may be specified for a single level by separating
+them with comma (`,') characters.
+
+   An asterisk (`*') can be used to specify all facilities or all
+levels.  Two asterisks (`**') specifie all facilities not named
+previously in the configuration file.
+
+   By default, a level applies to all messages with the same or higher
+level. The equal (`=') character can be prepended to a level to
+restrict this line of the configuration file to messages with the very
+same level.
+
+   An exclamation mark (`!') prepended to a level or the asterisk means
+that this line of the configuration file does not apply to the
+specified level (and higher ones). In conjunction with the equal sign,
+you can exclude single levels as well.
+
+   The special facility _mark_ receives a message at priority `info'
+every 20 minutes.  This is not enabled by a facility field containing
+an asterisk.
+
+   The special level `none' disables a particular facility.
+
+   The action field of each line specifies the action to be taken when
+the selector field selects a message.  There are five forms:
+
+   * A pathname (beginning with a leading slash).  Selected messages are
+     appended to the file.
+
+     You may prepend a minus (`-') to the path to omit syncing the file
+     after each message log. This can cause data loss at system
+     crashes, but increases performance for programs which use logging
+     extensively.
+
+   * A named pipe (fifo), beginning with a vertical bar (`|') followed
+     by a pathname. The pipe must be created with `mkfifo'(8) before
+     `syslogd' reads its configuration file.  This feature is
+     especially useful fo debugging.
+
+   * A hostname (preceded by an at (`@') sign).  Selected messages are
+     forwarded to `syslogd' on the named host.
+
+   * A comma separated list of users.  Selected messages are written to
+     those users if they are logged in.
+
+   * An asterisk.  Selected messages are written to all logged-in users.
+
+     Blank lines and lines whose first non-blank character is a hash
+     (`#') character are ignored.
+
+   A configuration file might appear as follows:
+
+     # Log all kernel messages, authentication messages of
+     # level notice or higher and anything of level err or
+     # higher to the console.
+     # Don't log private authentication messages!
+     *.err;kern.*;auth.notice;authpriv.none  /dev/console
+     
+     # Log anything (except mail) of level info or higher.
+     # Don't log private authentication messages!
+     *.info;mail.none;authpriv.none          /var/log/messages
+     
+     # The authpriv file has restricted access.
+     authpriv.*                              /var/log/secure
+     
+     # Log all the mail messages in one place.
+     mail.*                                  /var/log/maillog
+     
+     # Everybody gets emergency messages, plus log them on another
+     # machine.
+     *.emerg                                 *
+     *.emerg                                 @arpa.berkeley.edu
+     
+     # Root and Eric get alert and higher messages.
+     *.alert                                 root,eric
+     
+     # Save mail and news errors of level err and higher in a
+     # special file.
+     uucp,news.crit                          /var/log/spoolerr
+
+   The effects of multiple selectors are sometimes not intuitive.  For
+example `mail.crit,*.err' will select the `mail' facility messages at
+the level of `err' or higher, not at the level of `crit' or higher.
+
+
+File: inetutils.info,  Node: talk,  Next: talkd,  Prev: syslogd,  Up: Top
+
+talk
+****
+
+   `Talk' is a visual communication program which copies lines from
+your terminal to that of another user.
+
+Invoking
+========
+
+   The options are as follows:
+
+`person'
+     If you wish to talk to someone on your own machine, then person is
+     just the person's login name.  If you wish to talk to a user on
+     another host, then person is of the form `user@host'.
+
+`ttyname'
+     If you wish to talk to a user who is logged in more than once, the
+     ttyname argument may be used to indicate the appropriate terminal
+     name, where ttyname is of the form `ttyXX'.
+
+   When first called, talk sends the message
+                Message from TalkDaemon@his_machine...
+                talk: connection requested by your_name@your_machine.
+                talk: respond with: talk your_name@your_machine
+
+   to the user you wish to talk to. At this point, the recipient of the
+message should reply by typing
+                talk  your_name@your_machine
+
+   It doesn't matter from which machine the recipient replies, as long
+as his login-name is the same.  Once communication is established, the
+two parties may type simultaneously, with their output appearing in
+separate windows.  Typing control-L `^L' will cause the screen to be
+reprinted, while your erase, kill, and word kill characters will behave
+normally.  To exit, just type your interrupt character; talk then moves
+the cursor to the bottom of the screen and restores the terminal to its
+previous state.
+
+   Permission to talk may be denied or granted by use of the mesg(1)
+command.  At the outset talking is allowed.  Certain commands, in
+particular nroff(1) and pr(1),  disallow messages in order to prevent
+messy output.
+
+   To exit, just type your interrupt character; talk then moves the
+cursor to the bottom of the screen and restores the terminal to its
+previous state.
+
+   Permission to talk may be denied or granted by use of the mesg(1)
+command.  At the outset talking is allowed.  Certain commands, in
+particular nroff(1) and pr(1),  disallow messages in order to prevent
+messy output.
+
+   The version of talk(1) released with 4.3BSD uses a protocol that is
+incompatible with the protocol used in the version released with 4.2BSD.
+
+
+File: inetutils.info,  Node: talkd,  Next: tftp,  Prev: talk,  Up: Top
+
+talkd
+*****
+
+   `Talkd' is the server that notifies a user that someone else wants to
+initiate a conversation.  It acts as a repository of invitations,
+responding to requests by clients wishing to rendezvous to hold a
+conversation.  In normal operation, a client, the caller, initiates a
+rendezvous by sending a CTL_MSG to the server of type LOOK_UP (see
+<protocols/talkd.h>). This causes the server to search its invitation
+tables to check if an invitation currently exists for the caller (to
+speak to the callee specified in the message).  If the lookup fails,
+the caller then sends an ANNOUNCE message causing the server to
+broadcast an announcement on the callee's login ports requesting
+contact.  When the callee responds, the local server uses the recorded
+invitation to respond with the appropriate rendezvous address and the
+caller and callee client programs establish a stream connection through
+which the conversation takes place.
+
+Invoking
+========
+
+   The options are as follows:
+
+`-a FILE'
+`--acl=FILE'
+     Read site-wide ACLs from FILE.
+
+`-d'
+
+`--debug'
+     Enable debugging.
+
+`-i SECONDS'
+`--idle-timeout=SECONDS'
+     Set idle timeout value.
+
+`-r SECONDS'
+`--request-ttl=SECONDS'
+     Set request time-to-live value.
+
+`-t SECONDS'
+
+`--timeout=SECONDS'
+     Set timeout value.
+
+
+File: inetutils.info,  Node: tftp,  Next: Reporting Bugs,  Prev: talkd,  Up: Top
+
+tftp
+****
+
+   `Tftp' is the user interface to the Internet TFTP (Trivial File
+Transfer Protocol), which allows users to transfer files to and from a
+remote machine.  The remote host may be specified on the command line,
+in which case tftp uses host as the default host for future transfers
+(see the connect command below).
+
+Invoking
+========
+
+   tftp [host]
+
+Commands
+========
+
+   Once tftp is running, it issues the prompt and recognizes the
+following commands:
+
+`? command-name ...'
+     Print help information.
+
+`ascii'
+     Shorthand for "mode ascii"
+
+`binary'
+     Shorthand for "mode binary"
+
+`connect host-name [port]'
+     Set the host (and optionally port) for transfers.  Note that the
+     TFTP protocol, unlike the FTP protocol, does not maintain
+     connections between transfers; thus, the connect command does not
+     actually create a connection, but merely remembers what host is to
+     be used for transfers.  You do not have to use the connect
+     command; the remote host can be specified as part of the get or
+     put commands.
+
+`get filename'
+`get remotename localname'
+`get file1 file2 ... fileN'
+     Get a file or set of files from the specified sources. Source can
+     be in one of two forms: a filename on the remote host, if the host
+     has already been specified, or a string of the form hosts:filename
+     to specify both a host and filename at the same time.  If the
+     latter form is used, the last hostname specified becomes the
+     default for future transfers.
+
+`mode transfer-mode'
+     Set the mode for transfers; transfer-mode may be one of ascii or
+     binary. The default is ascii.
+
+`put file'
+`put localfile remotefile'
+`put file1 file2 ... fileN remote-directory'
+     Put a file or set of files to the specified remote file or
+     directory.  The destination can be in one of two forms: a filename
+     on the remote host, if the host has already been specified, or a
+     string of the form hosts:filename to specify both a host and
+     filename at the same time.  If the latter form is used, the
+     hostname specified becomes the default for future transfers.  If
+     the remote-directory form is used, the remote host is assumed to
+     be a UNIX machine.
+
+`quit'
+     Exit tftp. An end of file also exits.
+
+`rexmt retransmission-timeout'
+     Set the per-packet retransmission timeout, in seconds.
+
+`status'
+     Show current status.
+
+`timeout total-transmission-timeout'
+     Set the total transmission timeout, in seconds.
+
+`trace'
+     Toggle packet tracing.
+
+`verbose'
+     Toggle verbose mode.
+
+   Because there is no user-login or validation within the TFTP
+protocol, the remote site will probably have some sort of file-access
+restrictions in place.  The exact methods are specific to each site and
+therefore difficult to document here.
+
+
+File: inetutils.info,  Node: Reporting Bugs,  Next: Concept Index,  Prev: tftp,  Up: Top
+
+Reporting bugs
+**************
+
+   Email bug reports to <bug-inetutils@gnu.org>.  Be sure to include
+the word "inetutils" somewhere in the "Subject:" field.
+
+``syslogd''
+     The effects of multiple selectors are sometimes not intuitive.
+     For exam-      ple "mail.crit,*.err" will select "mail" facility
+     messages at the      level of "err" or higher, not at the level of
+     "crit" or higher.
+

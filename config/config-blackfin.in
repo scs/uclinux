@@ -1,0 +1,202 @@
+mainmenu_option next_comment
+comment "Blackfin build Options"
+
+choice 'Binary format' \
+	"FLAT          CONFIG_FMT_USE_FLAT \
+	 Sep-Data      CONFIG_FMT_USE_SEP_DATA \
+	 Shared-FLAT   CONFIG_FMT_USE_SHARED_FLAT \
+	 FDPIC         CONFIG_FMT_USE_FDPIC_ELF \
+	" FLAT
+
+if [ "$CONFIG_FMT_USE_FDPIC_ELF" = "y" ]; then
+	define_bool CONFIG_INSTALL_ELF_SHARED_LIBS y
+else
+	bool 'Install ELF shared libraries' CONFIG_INSTALL_ELF_SHARED_LIBS
+fi
+if [ "$CONFIG_FMT_USE_SHARED_FLAT" = "y" ]; then
+	define_bool CONFIG_INSTALL_FLAT_SHARED_LIBS y
+else
+	bool 'Install FLAT shared libraries' CONFIG_INSTALL_FLAT_SHARED_LIBS
+fi
+
+bool 'build with stack overflow checking'	CONFIG_BLACKFIN_CHECK_STACKFLOW
+
+bool 'install uClinux-dist .config into /root'	CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG
+
+endmenu
+
+
+#############################################################################
+
+
+mainmenu_option next_comment
+comment 'Blackfin test programs'
+bool    'RTC test program'              CONFIG_USER_BLACKFIN_RTC
+bool    'DPMC test program'             CONFIG_USER_BLACKFIN_DPMC
+bool    'PPIFCD test program'           CONFIG_USER_BLACKFIN_PPIFCDTEST
+bool    'AUDIO test program'            CONFIG_USER_BLACKFIN_AUDIOTEST
+bool    'VIDEO test program'            CONFIG_USER_BLACKFIN_VIDEOTEST
+bool    'PFLAGS test program'           CONFIG_USER_BLACKFIN_PFLAGS
+bool    'PFBUTTONS test program'        CONFIG_USER_BLACKFIN_PFBUTTONS
+bool    'TWI test program'              CONFIG_USER_BLACKFIN_TWI
+bool    'SPI test program'              CONFIG_USER_BLACKFIN_SPITEST
+bool    'PPI test program'              CONFIG_USER_BLACKFIN_PPI
+bool    'TWI LCD test program'          CONFIG_USER_BLACKFIN_TWILCDTEST
+bool    'TWI KEYPAD test program'       CONFIG_USER_BLACKFIN_TWIKEYPADTEST
+bool    'RTS/CTS test program'          CONFIG_USER_BLACKFIN_RTSCTSTEST
+bool    'Sqlite test program'           CONFIG_USER_SQLITE_TEST
+bool    'Pthread lib test'              CONFIG_USER_BLACKFIN_PTHREADTEST
+bool    'Kernel Panic (test Watchdog)'  CONFIG_USER_BLACKFIN_CRASHTEST
+bool    'netperf test tool'             CONFIG_USER_NETPERF_TEST
+bool    'SYSVIPC testcase'              CONFIG_USER_SYSVIPC_TEST
+bool    'Still to write'                CONFIG_YET
+bool    'Input event device test'       CONFIG_EVENT_TEST
+bool    'AD9960 device test'            CONFIG_AD9960_TEST
+bool    'AD5304 device test'            CONFIG_AD5304_TEST
+bool    'file operation test'           CONFIG_FILE_OPERATION_TEST
+bool    'common sport test'             CONFIG_USER_BLACKFIN_SPORT
+bool    'UPNP samples'                  CONFIG_USER_UPNP_SAMPLES
+bool    'DCPLB Replacement Test'        CONFIG_USER_BLACKFIN_DCPLB
+bool    'IRQ Schedule latency test' 	CONFIG_USER_BLACKFIN_LATENCYTEST
+bool    'Malloc performance test' 	CONFIG_USER_BLACKFIN_MALLOCPERF
+bool    'sram_alloc/sram_free test' 	CONFIG_USER_BLACKFIN_SRAMALLOC_TEST
+bool    'erestart test' 	        CONFIG_USER_BLACKFIN_ERESTART_TEST
+bool    'camera test'                   CONFIG_CAMERA_TEST
+bool    'string test'                   CONFIG_STRING_TEST
+bool    'mmap test'                     CONFIG_MMAP_TEST
+bool    'Crypto++ Lib Test program'     CONFIG_USER_CRYPTOPP_LIB_EXAMPLES
+bool    'MDMA Memory DMA TEST progs'    CONFIG_USER_MDMA_TESTS
+if [ "$CONFIG_USER_CRYPTOPP_LIB_EXAMPLES" = "y" ] ; then
+	define_bool CONFIG_LIB_CRYPTOPP y
+fi
+if [ "$CONFIG_USER_UPNP_SAMPLES" = "y" ]; then
+	define_bool CONFIG_LIB_LIBUPNP y
+fi
+bool    'NCurses Test apps'             CONFIG_USER_NCURSES_TESTS
+if [ "$CONFIG_USER_NCURSES_TESTS" = "y" ]; then
+	define_bool CONFIG_LIB_NCURSES y
+fi
+bool	'libipod examples'	CONFIG_USER_LIBIPOD_EXAMPLES
+if [ "$CONFIG_USER_LIBIPOD_EXAMPLES" = "y" ]; then
+	define_bool CONFIG_LIB_LIBIPOD y
+fi
+if [ "$CONFIG_USER_MDMA_TESTS" = "y" ] ; then
+	define_bool CONFIG_USER_MDMA_KO y
+fi
+endmenu
+
+
+#############################################################################
+
+
+mainmenu_option next_comment
+comment 'Blackfin app programs'
+
+bool    'Sqlite, a light weight database' CONFIG_USER_SQLITE
+bool	'lmbench'			CONFIG_USER_LMBENCH
+bool	'strace'			CONFIG_USER_BLACKFIN_STRACE
+bool	'devtest'			CONFIG_USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
+bool	'devout'			CONFIG_USER_BLKFIN_APPS_DEVVOUT_DEVOUT
+bool	'rsh'				CONFIG_USER_INETUTILS_RSH
+bool	'rcp'				CONFIG_USER_INETUTILS_RCP
+bool	'rshd'				CONFIG_USER_INETUTILS_RSHD
+bool	'oprofile'			CONFIG_USER_OPROFILE
+if [ "$CONFIG_USER_OPROFILE" = "y" ]; then
+	define_bool CONFIG_LIB_POPT y
+fi
+bool    'watchdog simple deamon'        CONFIG_USER_BLACKFIN_WATCHDOGD
+bool    'yaffs-utils'                   CONFIG_USER_YAFFS_UTILS
+bool    'BF561 Core B support tools'    CONFIG_USER_BF561_COREBLD
+bool    'pound SSL Wrapper'             CONFIG_USER_POUND
+bool    'jpegview'                      CONFIG_USER_JPEGVIEW
+if [ "$CONFIG_USER_JPEGVIEW" = "y" ]; then
+	define_bool CONFIG_LIB_LIBJPEG y
+fi
+bool    'pngview'                       CONFIG_USER_PNGVIEW
+if [ "$CONFIG_USER_PNGVIEW" = "y" ]; then
+	define_bool CONFIG_LIB_LIBPNG y
+	define_bool CONFIG_LIB_ZLIB y
+fi
+bool    'IRDA Tools (irattach)'         CONFIG_USER_IRATTACH
+bool    'ALSA utils'                    CONFIG_USER_ALSA_UTILS
+if [ "$CONFIG_USER_ALSA_UTILS" = "y" ]; then
+	define_bool CONFIG_LIB_ALSA_LIB y
+	define_bool CONFIG_LIB_NCURSES y
+fi
+bool    'FFmpeg and FFserver'           CONFIG_USER_FFMPEG_APPS
+if [ "$CONFIG_USER_FFMPEG_APPS" = "y" ]; then
+	define_bool CONFIG_LIB_ZLIB y
+	define_bool CONFIG_LIB_FFMPEG y
+fi
+bool    'MPlayer and mencode'           CONFIG_USER_MPLAYER
+if [ "$CONFIG_USER_MPLAYER" = "y" ]; then
+	# force libmad as it does fixed point decoding and only other
+	# choice is floating point which is unusable on Blackfin
+	define_bool CONFIG_LIB_LIBMAD y
+fi
+bool    'VLC'                           CONFIG_USER_VLC
+if [ "$CONFIG_USER_VLC" = "y" ]; then
+	define_bool CONFIG_LIB_FFMPEG y
+	define_bool CONFIG_LIB_LIBICONV y
+	define_bool CONFIG_LIB_LIBMPEG2 y
+	define_bool CONFIG_LIB_ZLIB y
+fi
+bool    'Asterisk PBX'         		CONFIG_USER_BLACKFIN_ASTERISK
+if [ "$CONFIG_USER_BLACKFIN_ASTERISK" = "y" ]; then
+	define_bool CONFIG_USER_THREADSTACK	y
+	define_bool CONFIG_LIB_LIBSSL	y
+	define_bool CONFIG_LIB_LIBTOOL	y
+	define_bool CONFIG_LIB_SPEEX	y
+	define_bool CONFIG_LIB_BFIN_GSM		y
+	define_bool CONFIG_USER_ZAPTEL		y
+	define_bool CONFIG_LIB_NCURSES	y
+fi
+bool    'usbutils (lsusb)'              CONFIG_USER_USBUTILS
+if [ "$CONFIG_USER_USBUTILS" = "y" ]; then
+	define_bool CONFIG_LIB_LIBUSB y
+fi
+bool	'Bluez-utils'		CONFIG_USER_BLUEZ
+if [ "$CONFIG_USER_BLUEZ" = "y" ]; then
+	define_bool CONFIG_LIB_BLUEZ y
+fi
+bool	'picocom'		CONFIG_USER_PICOCOM
+bool	'dagrab'		CONFIG_USER_DAGRAB_DAGRAB
+bool	'can4linux examples'	CONFIG_USER_CAN_EXAMPLES
+bool	'horch'			CONFIG_USER_CAN_HORCH
+bool	'mdma kernel module'	CONFIG_USER_MDMA_KO
+endmenu
+
+
+#############################################################################
+
+
+mainmenu_option next_comment
+comment 'Blackfin canned demos'
+bool    'Networked Software Defined Storage Oscilloscope' CONFIG_USER_NDSO
+if [ "$CONFIG_USER_NDSO" = "y" ]; then
+	define_bool CONFIG_LIB_LIBPNG y
+fi
+bool    'Networked Arbitrary Waveform Genertor' CONFIG_USER_AWG 
+bool    'CGI based Test Application for the PPI Frame Capture Driver' CONFIG_USER_BLACKFIN_PPIFCDCGI
+bool    'Linphone, a SIP compatible VoIP phone'	CONFIG_USER_BLACKFIN_LINPHONE
+if [ "$CONFIG_USER_BLACKFIN_LINPHONE" = "y" ]; then
+	define_bool CONFIG_LIB_SPEEX y
+	define_bool CONFIG_LIB_READLINE y
+	define_bool CONFIG_LIB_NCURSES y
+	define_bool CONFIG_LIB_ALSA_LIB y
+        bool '   Enable video'     CONFIG_USER_BFIN_LINPHONE_VIDEO
+	if [ "$CONFIG_USER_BFIN_LINPHONE_VIDEO" = "y" ]; then
+		define_bool CONFIG_LIB_LIBSDL y
+		define_bool CONFIG_LIB_FFMPEG y
+	fi
+fi
+bool	'NetAudio'			CONFIG_USER_NET_AUDIO
+if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
+	define_bool CONFIG_LIB_LIBMAD y
+	define_bool CONFIG_LIB_FAAD2 y
+	define_bool CONFIG_LIB_FLAC y
+	define_bool CONFIG_LIB_LIBID3TAG y
+	define_bool CONFIG_LIB_TREMOR y
+	define_bool CONFIG_LIB_LIBAUDIO y
+fi
+endmenu

@@ -1,0 +1,24 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>9.1. Audio/Video-Synchronisation</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Movie Player"><link rel="up" href="audio.html" title="Kapitel 9. Audioausgabegeräte"><link rel="prev" href="audio.html" title="Kapitel 9. Audioausgabegeräte"><link rel="next" href="troubleshooting.html" title="9.2. Troubleshooting/Problemlösung"><link rel="preface" href="howtoread.html" title="Wie diese Dokumentation gelesen werden soll"><link rel="chapter" href="intro.html" title="Kapitel 1. Einführung"><link rel="chapter" href="install.html" title="Kapitel 2. Installation"><link rel="chapter" href="usage.html" title="Kapitel 3. Gebrauch"><link rel="chapter" href="cd-dvd.html" title="Kapitel 4. CD/DVD Nutzung"><link rel="chapter" href="faq.html" title="Kapitel 5. Häufig gestellte Fragen"><link rel="chapter" href="containers.html" title="Kapitel 6. Containerformate"><link rel="chapter" href="codecs.html" title="Kapitel 7. Codecs"><link rel="chapter" href="video.html" title="Kapitel 8. Videoausgabegeräte"><link rel="chapter" href="audio.html" title="Kapitel 9. Audioausgabegeräte"><link rel="chapter" href="tv.html" title="Kapitel 10. TV"><link rel="chapter" href="radio.html" title="Kapitel 11. Radio"><link rel="chapter" href="ports.html" title="Kapitel 12. Portierungen"><link rel="chapter" href="mencoder.html" title="Kapitel 13. Allgemeiner Gebrauch von MEncoder"><link rel="chapter" href="encoding-guide.html" title="Kapitel 14. Encodieren mit MEncoder"><link rel="appendix" href="bugreports.html" title="Anhang A. Wie Fehler (Bugs) berichtet werden"><link rel="appendix" href="bugs.html" title="Anhang B. Bekannte Fehler"><link rel="appendix" href="skin.html" title="Anhang C. MPlayers Skinformat"><link rel="appendix" href="history.html" title="Anhang D. Geschichte"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">9.1. Audio/Video-Synchronisation</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="audio.html">Zurück</a> </td><th width="60%" align="center">Kapitel 9. Audioausgabegeräte</th><td width="20%" align="right"> <a accesskey="n" href="troubleshooting.html">Weiter</a></td></tr></table><hr></div><div class="sect1" lang="de"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="sync"></a>9.1. Audio/Video-Synchronisation</h2></div></div></div><p>
+      Soundkartentreiber für Linux bereiten Kompatibilitätsprobleme. Dies liegt
+      daran, dass sich <span class="application">MPlayer</span> auf ein eingebautes
+      Feature von <span class="emphasis"><em>ordentlich</em></span> programmierten Soundkartentreibern
+      verlässt, das es ermöglicht, korrekte Audio/Video-Synchronisation beizubehalten.
+      Leider ist es jedoch so, dass sich manche Schreiber der Treiber um dieses
+      Feature nicht kümmern, da es zum Abspielen von MP3s oder für Soundeffekte
+      nicht benötigt wird.
+    </p><p>
+      Andere Mediaplayer wie <a href="http://avifile.sf.net" target="_top">aviplay</a>
+      oder <a href="http://xinehq.de" target="_top">xine</a> funktionieren vermutlich
+      deshalb von Haus aus mit diesen Treibern, da sie "einfache" Methoden
+      mit internem Timing verwenden. Messungen haben gezeigt, dass deren Methoden
+      nicht so effizient sind wie die von <span class="application">MPlayer</span>.
+    </p><p>
+      Die Benutzung von <span class="application">MPlayer</span> mit einem ordentlich
+      geschriebenen Audiotreiber wird niemals zu mit Audio im Zusammenhang
+      stehender A/V-Desynchronisation führen, außer bei sehr schlecht erstellten
+      Dateien (siehe Manpage für Umgehungsmöglichkeiten).
+    </p><p>
+      Sollte es der Fall sein, dass du einen schlechten Audiotreiber hast, probiere
+      die Option <tt class="option">-autosync</tt>, diese sollte deine Probleme lösen.
+      Siehe Manpage für detaillierte Informationen.
+    </p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="audio.html">Zurück</a> </td><td width="20%" align="center"><a accesskey="u" href="audio.html">Nach oben</a></td><td width="40%" align="right"> <a accesskey="n" href="troubleshooting.html">Weiter</a></td></tr><tr><td width="40%" align="left" valign="top">Kapitel 9. Audioausgabegeräte </td><td width="20%" align="center"><a accesskey="h" href="index.html">Zum Anfang</a></td><td width="40%" align="right" valign="top"> 9.2. Troubleshooting/Problemlösung</td></tr></table></div></body></html>

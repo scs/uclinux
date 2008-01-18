@@ -1,0 +1,164 @@
+netcpu_procstat.o netcpu_procstat.o: netcpu_procstat.c ../config.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/stdio.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/features.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/uClibc_config.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/cdefs.h \
+  /home/jie/installs/bfin-41/lib/gcc/bfin-uclinux/4.1.1/include/stddef.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/types.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/kernel_types.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/pthreadtypes.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/sched.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/uClibc_stdio.h \
+  /home/jie/installs/bfin-41/lib/gcc/bfin-uclinux/4.1.1/include/stdarg.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/stdio_lim.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/fcntl.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/fcntl.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/types.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/time.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/endian.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/endian.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/select.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/select.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/sigset.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/time.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/sysmacros.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/unistd.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/posix_opt.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/confname.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/getopt.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/stdlib.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/alloca.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/string.h \
+  netsh.h netlib.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/socket.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/uio.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/uio.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/socket.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/limits.h \
+  /home/jie/installs/bfin-41/lib/gcc/bfin-uclinux/4.1.1/include/limits.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/posix1_lim.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/local_lim.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/linux/limits.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/posix2_lim.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/sockaddr.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/asm/socket.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/asm/sockios.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/netdb.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/netinet/in.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/stdint.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/wordsize.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/in.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/byteswap.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/rpc/netdb.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/netdb.h \
+  /home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/inttypes.h
+
+../config.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/stdio.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/features.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/uClibc_config.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/cdefs.h:
+
+/home/jie/installs/bfin-41/lib/gcc/bfin-uclinux/4.1.1/include/stddef.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/types.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/kernel_types.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/pthreadtypes.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/sched.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/uClibc_stdio.h:
+
+/home/jie/installs/bfin-41/lib/gcc/bfin-uclinux/4.1.1/include/stdarg.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/stdio_lim.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/fcntl.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/fcntl.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/types.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/time.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/endian.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/endian.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/select.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/select.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/sigset.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/time.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/sysmacros.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/unistd.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/posix_opt.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/confname.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/getopt.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/stdlib.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/alloca.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/string.h:
+
+netsh.h:
+
+netlib.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/socket.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/sys/uio.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/uio.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/socket.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/limits.h:
+
+/home/jie/installs/bfin-41/lib/gcc/bfin-uclinux/4.1.1/include/limits.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/posix1_lim.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/local_lim.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/linux/limits.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/posix2_lim.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/sockaddr.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/asm/socket.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/asm/sockios.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/netdb.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/netinet/in.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/stdint.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/wordsize.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/in.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/byteswap.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/rpc/netdb.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/bits/netdb.h:
+
+/home/jie/blackfin-cvs/uclinux533/uClinux-dist/lib/uClibc/include/inttypes.h:

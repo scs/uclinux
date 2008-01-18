@@ -1,0 +1,95 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>Dodatek D. Historia</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="prev" href="skin-quality.html" title="C.5. Tworzenie dobrych skórek"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">Dodatek D. Historia</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="skin-quality.html">Poprzedni</a> </td><th width="60%" align="center"> </th><td width="20%" align="right"> </td></tr></table><hr></div><div class="appendix" lang="pl"><div class="titlepage"><div><div><h2 class="title"><a name="history"></a>Dodatek D. Historia</h2></div></div></div><div class="blockquote"><blockquote class="blockquote"><p>
+Zaczęło się rok temu... Wypróbowałem mnóstwo odtwarzaczy pod Linuksa
+(<span class="application">mtv</span>, <span class="application">xmps</span>,
+<span class="application">dvdview</span>, <span class="application">livid/oms</span>,
+<span class="application">videolan</span>, <span class="application">xine</span>,
+<span class="application">xanim</span>, <span class="application">avifile</span>,
+<span class="application">xmmp</span>), ale one wszystkie miały jakieś problemy.
+Przeważnie z wyjątkowymi formatami plików lub z synchronizacją audio/video.
+Większość z nich nie potrafiła odtwarzać zarówno plików MPEG-1, MPEG-2 jak
+i AVI (DivX). Wiele odtwarzaczy miało także problemy z jakością obrazu lub
+prędkością odtwarzania. Tak więc zdecydowałem się zmienić jeden
+z istniejących lub napisać własny odtwarzacz...
+</p></blockquote></div><p>A'rpi, 2001</p><p>
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="bold"><strong><span class="application">mpg12play</span> v0.1-v0.3</strong></span>: 22-25 września 2000
+  </p><p>Pierwsza próba, przerobione w pół godziny! Używałem
+  libmpeg3 z <a href="http://www.heroinewarrior.com" target="_top">http://www.heroinewarrior.com</a> aż do wersji 0.3,
+  ale miała ona problemy z jakością obrazu i szybkością odtwarzania.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">mpg12play</span> v0.5-v0.87</strong></span>: 28 września - 20 października, 2000
+  </p><p>Kodek MPEG został zastąpiony przez DVDview Dirka Farina,
+  była to naprawdę świetna rzecz, ale zbyt wolna i napisana w C++ (A'rpi
+  nienawidzi C++!!!)
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">mpg12play</span> v0.9-v0.95pre5</strong></span>: 21 października - 2 listopada, 2000
+  </p><p>Kodekiem MPEG został libmpeg2 (mpeg2dec) autorstwa Aarona
+  Holtzmana i Michela Lespinasse'a. Jest to znakomity, bardzo szybki
+  zoptymalizowany kod w C z perfekcyjną jakością obrazu i 100% zgodnością
+  ze standardem MPEG.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> v0.3-v0.9</strong></span>: 18 listopada - 4 grudnia, 2000
+  </p><p>Był to pakiet dwóch programów: <span class="application">mpg12play</span>
+  v0.95pre6 i mój nowy prosty odtwarzacz AVI 'avip' bazujący na ładowarce
+  DLLi Win32 z avifile.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> v0.10</strong></span>: 1 stycznia 2001
+  </p><p>Odtwarzacz formatu MPEG i AVI w jednym programie!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> v0.11pre series</strong></span>:
+  </p><p>Przyłączyło się kilku nowych deweloperów i od wersji 0.11
+  projekt <span class="application">MPlayer</span> jest pracą grupową. Dodano obsługę plików ASF i
+  kodowanie/dekodowanie OpenDivX (zajrzyj na <a href="http://www.projectmayo.com" target="_top">http://www.projectmayo.com</a>)
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> v0.17a "The IdegCounter"</strong></span> 27 kwietnia 2001
+  </p><p>Po 4 miesiącach burzliwego rozwoju z 0.11pre powstała stabilna
+  wersja! Wypróbuj ją i bądź zadziwiony! Dodano tysiące
+  nowych funkcji... oraz oczywiście ulepszono stary kod, usunięto błędy, itp.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.18 "The BugCounter"</strong></span> 9 lipca 2001
+  </p><p>2 miesiące od 0.17 i oto nowe wydanie... Ukończona obsługa ASF,
+  więcej obsługiwanych formatów napisów, wprowadzona libao (podobna do libvo
+  ale do audio), nawet bardziej stabilne niż kiedykolwiek, i tak dalej.
+  MUSISZ wypróbować!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.50 "The Faszom(C)ounter"</strong></span> 8 października 2001
+  </p><p>Hmm. Kolejne wydanie. Tony nowych funkcji, wersja beta GUI,
+  poprawione błędy, nowe sterowniki vo i ao, kod przeniesiony na wiele systemów,
+  dołączenie otwartych kodeków DivX i o wiele więcej. Wypróbuj!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.60 "The RTFMCounter"</strong></span> 3 stycznia 2002
+  </p><p>Obsługa formatów MOV/VIVO/RM/FLI/NUV, własne kodeki CRAM,
+  Cinepak, ADPCM i obsługa binarnych kodeków XAnima; obsługa napisów DVD,
+  pierwsze wydanie MEncodera, przechwytywanie obrazu z TV, cache, liba52,
+  niezliczone poprawki.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.90pre10 "The BirthdayCounter"</strong></span> 11 listopada 2002
+  </p><p>Choć nie jest to wydanie stabilne, wspomnę o nim, gdyż wyszło
+  dwa lata po <span class="application">MPlayerze</span> v0.01. Wszystkiego
+  najlepszego, <span class="application">MPlayer</span>!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.90rc1 "The CodecCounter"</strong></span> 7 grudnia 2002
+  </p><p>Znów nie jest to wydanie stabilne, ale po dodaniu obsługi
+  Sorenson 3 (QuickTime) i Windows Media 9, <span class="application">MPlayer</span>
+  został pierwszym na świecie odtwarzaczem filmów obsługującym wszystkie znane
+  formaty video!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.90 "The CounterCounter"</strong></span> 6 kwietnia 2003
+  </p><p>Po ponad roku, zdecydowaliśmy w końcu, że kod stał się znów
+    naprawdę stabilny i gotów do publikacji w formie stabilnego wydania.
+    Niestety, zapomnieliśmy nawet o zwiększeniu numeru wersji, a ponieważ
+    wpadło trochę innych denerwujących błędów, więc przygotujcie się na...
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 0.91</strong></span> 13 sierpnia, 2003
+  </p><p>Naprawiono wyżej wymienione i mnóstwo innych błędów. Jest to
+    najnowsza stabilna wersja.
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 1.0pre1 "Development on the beach"</strong></span> 1 września 2003
+  </p><p>Choć nie jest to wydanie stabilne, wspomnę o nim, ponieważ
+    jest to pierwsza wersja zapoznawcza z rodziny 1.0 <span class="application">MPlayera</span>
+    i ma ona za zadanie wspomóc <span class="emphasis"><em>wielkie łowy na błędy</em></span>.
+    To wielki krok naprzód!
+  </p></li><li><p>
+  <span class="bold"><strong><span class="application">MPlayer</span> 1.0</strong></span> data jeszcze nieznana
+  </p></li></ul></div><p>
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="skin-quality.html">Poprzedni</a> </td><td width="20%" align="center"> </td><td width="40%" align="right"> </td></tr><tr><td width="40%" align="left" valign="top">C.5. Tworzenie dobrych skórek </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> </td></tr></table></div></body></html>

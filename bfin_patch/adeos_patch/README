@@ -1,0 +1,27 @@
+File: adeos-bfin-06r2.patch
+
+Last update: 2006-11-15
+Adeos patch based on Blackfin uClinux-R06R2 released toolchain
+and kernel. 
+
+This patch includes ipipe-tracer patch. It will be included into
+official Xenomai/Adeos release.
+
+
+File: adeos-bfin-cvs.patch
+
+Last update: 2006-09-28 for uClinux-R06R2
+This is the adeos patch for Blackfin uClinux CVS.
+The patch will be updated regularly, to sync with kernel update
+and newer release of ADEOS at: 
+http://download.gna.org/adeos/patches/v2.6/blackfin/
+
+
+File: adeos-bfin-tracer.patch
+
+This patch implements the profiling tool ipipe-tracer on Blackfin.
+It is based on adeos-ipipe-R06R1RC2-bf53x-1.4-03.patch and it requires
+blacfin toolchain support (toolchain cvs 09-01-2006 and later).
+
+ 
+

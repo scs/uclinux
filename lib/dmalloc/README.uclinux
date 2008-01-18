@@ -1,0 +1,10 @@
+The following changes were made to have this work for uClinux
+
+Makefile.in:
+	- add empty romfs target
+
+settings.dist:
+	- change HAVE_MMAP to USE_MMAP for sbrk
+
+configure / configure.ac:
+	- hardcode ac_cv_page_size to 12

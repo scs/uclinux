@@ -1,0 +1,61 @@
+				A Simple GDB Guide
+
+			Sonic Zhang(sonic.zhang@analog.com)
+
+				Apr. 15th 2005
+
+This guide is for the blackfin uclinux user to debug applications by GDB.
+The debugging works over the ethernet interface. 
+
+In order to compile gdbserver correctly, you must enable the following options
+for uClibc, after you have configured the kernel:
+
+$ cd uClibc
+$ make menuconfig
+In General Library Settings  ---> select
+.      [*] POSIX Threading Support   and
+.      [*] Build pthreads debugging support
+in Networking Support  ---> select
+.      [*] Remote Procedure Call (RPC) support
+.      [*]   Full RPC support
+
+
+Sample Steps:
+
+1. Compile and install the cross platform version of gdb for blackfin533, which can be found as $(BINROOT)/bfin-elf-gdb.
+
+2. Compile the gdbserver. Select user setting config option under "Blackfin app programs" -> "gdbserver" and "Debug Builds" -> "build debugable application".
+
+3. Create a test application "gdbtest" in folder user/blkfin-apps/. Copy the Makefile in folder user/ping/ into the folder of the application. Edit this Makefile, change the string ping into gdbtest.
+
+4. Edit Makefile in folder user/blkfin-apps/. Add "dir_$(CONFIG_USER_BLACKFIN_GDB") += gdbtest" at line 2.
+
+5. Make the bootimage.
+
+6. Connect minicom to the serial port and boot the kernel image.
+
+7. Configure the IP "/> ifconfig eth0 target-IP"
+
+8. Start the gdbservere "/> gdbserver localhost:3456 /bin/gdbtest"
+
+9. Start GDB client "bfin-elf-gdb gdbtest.gdb".
+
+10. Connect to the target "(gdb) target remote target-IP:3456".
+
+11. Set software breakpoint "(gdb) break testgdb".
+
+12. Continue "(gdb) c".
+
+13. Breakpoint hits. "Breakpoint 1: testgdb(..."
+
+14. Display local variables and function paramters. 
+
+15. Single stepping "(gdb) step".
+
+16. Remove breakpoint 1. "(gdb) del 1"
+
+17. Continue "(gdb) c".
+
+18. The test application exits on target.
+
+19. Exit GDB "(gdb) quit".

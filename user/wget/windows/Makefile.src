@@ -1,0 +1,113 @@
+# Makefile for `wget' utility for MSVC 4.0
+# Copyright (C) 1995, 1996, 1997 Free Software Foundation, Inc.
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+
+# In addition, as a special exception, the Free Software Foundation
+# gives permission to link the code of its release of Wget with the
+# OpenSSL project's "OpenSSL" library (or with modified versions of it
+# that use the same license as the "OpenSSL" library), and distribute
+# the linked executables.  You must obey the GNU General Public License
+# in all respects for all of the code used other than "OpenSSL".  If you
+# modify this file, you may extend this exception to your version of the
+# file, but you are not obligated to do so.  If you do not wish to do
+# so, delete this exception statement from your version.
+
+#
+# Version: 1.4.4
+#
+
+#Comment these if you don't have openssl available - however https
+#won't work.
+SSLDEFS	=	/DHAVE_SSL
+SSLLIBS	=	libeay32.lib ssleay32.lib
+SSLSRC	=	gen_sslfunc.c
+SSLOBJ	=	gen_sslfunc$o
+
+SHELL = command
+
+VPATH       = .
+o           = .obj
+OUTDIR      = .
+
+CC       = cl
+LD       = link
+
+CFLAGS   = /nologo /MT /W0 /O2
+#DEBUGCF  = /DENABLE_DEBUG /Zi /Od #/Fd /FR
+CPPFLAGS = 
+DEFS     = /DWINDOWS /D_CONSOLE /DHAVE_CONFIG_H /DSYSTEM_WGETRC=\"wgetrc\"
+LDFLAGS  = /subsystem:console /incremental:no /warn:3
+#DEBUGLF  = /pdb:wget.pdb /debug /debugtype:cv /map:wget.map /opt:noref
+LIBS     = kernel32.lib advapi32.lib wsock32.lib user32.lib
+
+INCLUDES = /I.
+
+COMPILE = $(CC) $(INCLUDES) $(CPPFLAGS) $(DEBUGCF) $(DEFS) $(SSLDEFS) $(CFLAGS)
+LINK    = $(LD) $(LDFLAGS) $(DEBUGLF) /out:$@
+
+#INSTALL = @INSTALL@
+#INSTALL_PROGRAM = @INSTALL_PROGRAM@
+
+RM      = del
+
+SRC = cmpt.c safe-ctype.c convert.c connect.c host.c http.c netrc.c \
+      ftp-basic.c ftp.c ftp-ls.c ftp-opie.c getopt.c hash.c headers.c \
+      html-parse.c html-url.c progress.c retr.c recur.c res.c url.c cookies.c \
+      init.c utils.c main.c version.c mswindows.c gen-md5.c \
+      gnu-md5.c rbuf.c log.c $(SSLSRC)
+
+OBJ = cmpt$o safe-ctype$o convert$o connect$o host$o http$o netrc$o \
+      ftp-basic$o ftp$o ftp-ls$o ftp-opie$o getopt$o hash$o headers$o \
+      html-parse$o html-url$o progress$o retr$o recur$o res$o url$o cookies$o \
+      init$o utils$o main$o version$o mswindows$o gen-md5$o gnu-md5$o\
+      rbuf$o log$o $(SSLOBJ)
+
+.SUFFIXES: .c .obj
+
+.c.obj:
+        $(COMPILE) /c $<
+
+# Dependencies for building
+
+wget: wget.exe
+
+wget.exe: $(OBJ)
+         $(LD) @<< $(LDFLAGS) $(DEBUGLF) /out:$@ $(LIBS) $(SSLLIBS) $(OBJ)
+<<
+        ren wget.exe WGET.EXE
+
+
+#
+# Dependencies for cleanup
+#
+
+clean:
+        $(RM) *.obj
+        $(RM) *.exe
+        $(RM) *.bak
+        $(RM) *.pdb
+        $(RM) *.map
+        $(RM) config.h
+
+distclean: clean
+	$(RM) Makefile
+
+realclean: distclean
+	$(RM) TAGS
+
+# Dependencies:
+
+!include "..\windows\wget.dep"

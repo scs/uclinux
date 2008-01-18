@@ -1,0 +1,152 @@
+#! /bin/sh
+#
+# The idea to this kind of setup info script was stolen from numerous
+# other packages, such as neon, libxml and gnome.
+#
+# $Id: curl-config.in,v 1.21 2005/03/15 07:49:47 bagder Exp $
+#
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+includedir=@includedir@
+
+usage()
+{
+    cat <<EOF
+Usage: curl-config [OPTION]
+
+Available values for OPTION include:
+
+  --ca        ca bundle install path
+  --cc        compiler
+  --cflags    pre-processor and compiler flags
+  --features  newline separated list of enabled features
+  --protocols newline separated list of enabled protocols
+  --help      display this help and exit
+  --libs      library linking information
+  --prefix    curl install prefix
+  --version   output version information
+  --vernum    output the version information as a number (hexadecimal)
+EOF
+
+    exit $1
+}
+
+if test $# -eq 0; then
+    usage 1
+fi
+
+while test $# -gt 0; do
+    case "$1" in
+    # this deals with options in the style
+    # --option=value and extracts the value part
+    # [not currently used]
+    -*=*) value=`echo "$1" | sed 's/[-_a-zA-Z0-9]*=//'` ;;
+    *) value= ;;
+    esac
+
+    case "$1" in
+    --ca)
+	echo "@CURL_CA_BUNDLE@"
+	;;
+
+    --cc)
+	echo "@CC@"
+	;;
+
+    --prefix)
+	echo "$prefix"
+	;;
+
+    --feature|--features)
+	if test "@USE_SSLEAY@" = "1"; then
+          echo "SSL"
+          NTLM=1
+        fi
+	if test "@KRB4_ENABLED@" = "1"; then
+          echo "KRB4"
+        fi
+	if test "@IPV6_ENABLED@" = "1"; then
+          echo "IPv6"
+        fi
+	if test "@HAVE_LIBZ@" = "1"; then
+          echo "libz"
+        fi
+	if test "@HAVE_ARES@" = "1"; then
+          echo "AsynchDNS"
+        fi
+	if test "@IDN_ENABLED@" = "1"; then
+          echo "IDN"
+        fi
+	if test "@USE_WINDOWS_SSPI@" = "1"; then
+          echo "SSPI"
+          NTLM=1
+        fi
+	if test "$NTLM" = "1"; then
+          echo "NTLM"
+        fi
+	;;
+
+    --protocols)
+	if test "@CURL_DISABLE_HTTP@" != "1"; then
+          echo "HTTP"
+	  if test "@USE_SSLEAY@" = "1"; then
+            echo "HTTPS"
+          fi
+        fi
+	if test "@CURL_DISABLE_FTP@" != "1"; then
+          echo "FTP"
+	  if test "@USE_SSLEAY@" = "1"; then
+            echo "FTPS"
+          fi
+        fi
+	if test "@CURL_DISABLE_GOPHER@" != "1"; then
+          echo "GOPHER"
+        fi
+	if test "@CURL_DISABLE_FILE@" != "1"; then
+          echo "FILE"
+        fi
+	if test "@CURL_DISABLE_TELNET@" != "1"; then
+          echo "TELNET"
+        fi
+	if test "@CURL_DISABLE_LDAP@" != "1"; then
+          echo "LDAP"
+        fi
+	if test "@CURL_DISABLE_DICT@" != "1"; then
+          echo "DICT"
+        fi
+	;;
+    --version)
+	echo libcurl @VERSION@
+	exit 0
+	;;
+
+    --vernum)
+	echo @VERSIONNUM@
+	exit 0
+	;;
+
+    --help)
+	usage 0
+	;;
+
+    --cflags)
+       	if test "X@includedir@" = "X/usr/include"; then
+          echo ""
+        else
+          echo "-I@includedir@"
+        fi
+       	;;
+
+    --libs)
+       	echo -lcurl @LDFLAGS@ @LIBS@
+       	;;
+
+    *)
+        echo "unknown option: $1"
+	usage 1
+	;;
+    esac
+    shift
+done
+
+exit 0

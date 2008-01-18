@@ -1,0 +1,37 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>6.2. Audió formátumok</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="containers.html" title="6. fejezet - Konténerek"><link rel="prev" href="video-formats.html" title="6.1. Videó formátumok"><link rel="next" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="preface" href="howtoread.html" title="Hogyan olvasd ezt a dokumentációt"><link rel="chapter" href="intro.html" title="1. fejezet - Bevezetés"><link rel="chapter" href="install.html" title="2. fejezet - Telepítés"><link rel="chapter" href="usage.html" title="3. fejezet - Használat"><link rel="chapter" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="chapter" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="chapter" href="containers.html" title="6. fejezet - Konténerek"><link rel="chapter" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="chapter" href="video.html" title="8. fejezet - Videó kimeneti eszközök"><link rel="chapter" href="audio.html" title="9. fejezet - Audió kimeneti eszközök"><link rel="chapter" href="tv.html" title="10. fejezet - TV"><link rel="chapter" href="radio.html" title="11. fejezet - Rádió"><link rel="chapter" href="ports.html" title="12. fejezet - Portok"><link rel="chapter" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="chapter" href="encoding-guide.html" title="14. fejezet - Kódolás a MEncoderrel"><link rel="appendix" href="bugreports.html" title="A. függelék - Hogyan jelentsd a hibákat"><link rel="appendix" href="bugs.html" title="B. függelék - Ismert hibák"><link rel="appendix" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="appendix" href="history.html" title="D. függelék - Történelem"><link rel="subsection" href="audio-formats.html#mp3" title="6.2.1. MP3 fájlok"><link rel="subsection" href="audio-formats.html#ogg-vorbis" title="6.2.2. OGG/OGM fájlok (Vorbis)"><link rel="subsection" href="audio-formats.html#cdda" title="6.2.3. CD audio"><link rel="subsection" href="audio-formats.html#xmms" title="6.2.4. XMMS"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">6.2. Audió formátumok</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="video-formats.html">El&#337;z&#337;</a> </td><th width="60%" align="center">6. fejezet - Konténerek</th><td width="20%" align="right"> <a accesskey="n" href="codecs.html">Következ&#337;</a></td></tr></table><hr></div><div class="sect1" lang="hu"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="audio-formats"></a>6.2. Audió formátumok</h2></div></div></div><p>
+Az <span class="application">MPlayer</span> egy <span class="bold"><strong>film</strong></span>
+és nem egy <span class="bold"><strong>zene</strong></span> lejátszó, ennek ellenére
+le tud játszani néhány audió fájl formátumot (az alábbi részben vannak felsorolva).
+Nem javaslom az <span class="application">MPlayer</span> ilyen formában történ&#337; használatát,
+jobb ha <a href="http://www.xmms.org" target="_top">XMMS</a>-t használsz.
+</p><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="mp3"></a>6.2.1. MP3 fájlok</h3></div></div></div><p>
+Bizonyos MP3 <span class="application">MPlayer</span>rel történ&#337; lejátszásakor
+problémáid lehetnek, mert rosszul, MPEG-ként ismeri fel és vagy rosszul
+vagy sehogy sem játsza le. Ez nem javítható anélkül, hogy ne törölnénk
+bizonyos sérült MPEG fájlok lejátszásának támogatását, így a belátható
+jöv&#337;ben ez így is marad. A <tt class="option">-demuxer</tt> kapcsoló, melyet a man
+oldal ír le, segíthet ezekben az esetekben.
+</p></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="ogg-vorbis"></a>6.2.2. OGG/OGM fájlok (Vorbis)</h3></div></div></div><p>
+Megfelel&#337;en telepített
+<code class="systemitem">libogg</code> és
+<code class="systemitem">libvorbis</code> kell hozzá.
+</p></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="cdda"></a>6.2.3. CD audio</h3></div></div></div><p>
+Az <span class="application">MPlayer</span> fel tudja használni a <span class="application">cdparanoia</span>-t
+CDDA (Audio CD) lejátszásához. A <span class="application">cdparanoia</span> jellemz&#337;inek
+felsorolása átlépi ezen fejezet kereteit.
+</p><p>
+Lásd a man oldal <tt class="option">-cdda</tt> kapcsolóra vonatkozó részét, melynek a segítségével
+kapcsolókat adhatsz tovább a <span class="application">cdparanoia</span>-nak.
+</p></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="xmms"></a>6.2.4. XMMS</h3></div></div></div><p>
+Az <span class="application">MPlayer</span> fel tudja használni az <span class="application">XMMS</span>
+bemeneti plugin-jeit több fájl formátum lejátszásához. Van plugin SNES játék hangok, SID
+hangok (Commodore 64), sok Amiga formátum, .xm, .it, VQF, musepack, Bonk,
+és számos egyéb lejátszásához. Megtalálhatóak az
+<a href="http://www.xmms.org/plugins.php?category=input" target="_top">XMMS bemeneti plugin oldalán</a>.
+</p><p>
+Ehhez a képességhez <span class="application">XMMS</span> és <tt class="filename">./configure --enable-xmms</tt>
+kapcsolóval fordított <span class="application">MPlayer</span> kell. Ha ez nem m&#369;ködik,
+pontosan meg kell adnod az <span class="application">XMMS</span> plugin és függvénykönyvtár elérési
+útvonalát a <tt class="option">--with-xmmsplugindir</tt> és <tt class="option">--with-xmmslibdir</tt>
+kapcsolókkal.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="video-formats.html">El&#337;z&#337;</a> </td><td width="20%" align="center"><a accesskey="u" href="containers.html">Fel</a></td><td width="40%" align="right"> <a accesskey="n" href="codecs.html">Következ&#337;</a></td></tr><tr><td width="40%" align="left" valign="top">6.1. Videó formátumok </td><td width="20%" align="center"><a accesskey="h" href="index.html">Tartalom</a></td><td width="40%" align="right" valign="top"> 7. fejezet - Codec-ek</td></tr></table></div></body></html>

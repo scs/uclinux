@@ -1,0 +1,46 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>A.4. Jak zgłaszać błędy</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="prev" href="bugreports_regression_test.html" title="A.3. Jak wykonać test regresji za pomocą Subversion"><link rel="next" href="bugreports_where.html" title="A.5. Gdzie zgłaszać błędy"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">A.4. Jak zgłaszać błędy</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="bugreports_regression_test.html">Poprzedni</a> </td><th width="60%" align="center">Dodatek A. Jak zgłaszać błędy</th><td width="20%" align="right"> <a accesskey="n" href="bugreports_where.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="bugreports_report"></a>A.4. Jak zgłaszać błędy</h2></div></div></div><p>
+Po pierwsze sprawdź najnowszą wersję SVN <span class="application">MPlayera</span>,
+ponieważ dany błąd może być już w niej naprawiony. Rozwój
+<span class="application">MPlayera</span> przebiega naprawdę szybko, większość
+problemów występujących w oficjalnych wydaniach jest zgłaszana w ciągu kilku dni
+albo nawet godzin. Dlatego też prosimy używać <span class="bold"><strong>tylko wersji
+z Subversion</strong></span> do zgłaszania błędów. Dotyczy to głównie pakietów binarnych
+<span class="application">MPlayera</span>. Instrukcje dotyczące Subversion znajdują się
+na dole <a href="http://www.mplayerhq.hu/dload.html" target="_top">tej strony</a>
+lub w pliku README. Jeżeli problem dalej występuje prosimy sprawdzić listę
+<a href="bugs.html" title="Dodatek B. Znane błędy">znanych błędów</a> i resztę dokumentacji. Jeżeli problem
+nie jest znany lub rozwiązany przez naszą dokumentację prosimy zgłosić błąd.
+</p><p>
+Nie należy wysyłać zgłoszeń do deweloperów. <span class="application">MPlayer</span>
+jest dziełem dużej grupy, więc więcej osób może być zainteresowanych tym
+problemem. Czasami inni użytkownicy spotkali się już z danym problemem i wiedzą,
+jak go rozwiązać, nawet jeżeli jest to błąd w kodzie
+<span class="application">MPlayera</span>.
+</p><p>
+Prosimy opisywać problem tak dokładnie, jak to tylko możliwe. Należy sprawdzić w
+jakich dokładnie okolicznościach pojawia się błąd. Czy występuje on tylko w
+określonych sytuacjach? Czy ma związek z konkretnym plikiem lub typem plików?
+Czy dotyczy tylko danego kodeka, czy też jest niezależny od kodeków? Czy możesz
+go powtórzyć z każdym wyjściem wideo? Im więcej informacji dostarczysz, tym
+większe są szanse na rozwiązanie zgłoszonego problemu. Nie należy również
+zapominać o dołączeniu wartościowych informacji wymienionych poniżej. W
+przeciwnym wypadku nie będziemy w stanie prawidłowo zdiagnozować zgłoszonego
+problemu.
+</p><p>
+Doskonałym i dobrze napisanym przewodnikiem dotyczącym zadawania pytań jest
+dokument <a href="http://www.catb.org/~esr/faqs/smart-questions.html" target="_top">"Jak
+mądrze zadawać pytania"</a> napisany przez
+<a href="http://www.catb.org/~esr/" target="_top">Erica S. Raymonda</a>
+(Polskie tłumaczenie tego dokumentu można znaleźć
++<a href="http://rtfm.killfile.pl/" target="_top">tutaj</a> -przyp. tłum.). Istnieje
+także inny dokumentem tego typu zatytułowany
+<a href="http://www.chiark.greenend.org.uk/~sgtatham/bugs.html" target="_top">Jak efektywnie zgłaszać błędy</a>
+stworzony przez <a href="http://www.chiark.greenend.org.uk/~sgtatham/" target="_top">Simona Tathama</a>
+(Polskie tłumaczenie tego dokumentu można znaleźć
+<a href="http://www.chiark.greenend.org.uk/~sgtatham/bugs-pl.html" target="_top">tutaj</a>
+-przyp. tłum.). Jeśli będziesz postępował zgodnie z tymi przewodnikami,
+powinieneś uzyskać pomoc. Prosimy jednak pamiętać, że śledzimy listę jako
+ochotnicy, poświęcając nasz wolny czas. Jesteśmy bardzo zajęci i nie potrafimy
+zagwarantować, że pomożemy rozwiązać zgłoszony problem, ani nawet tego, że
+odpowiemy na Twoje zgłoszenie.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="bugreports_regression_test.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="bugreports.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="bugreports_where.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">A.3. Jak wykonać test regresji za pomocą Subversion </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> A.5. Gdzie zgłaszać błędy</td></tr></table></div></body></html>

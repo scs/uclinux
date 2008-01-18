@@ -1,0 +1,27 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>13.3. Dvoupr&#367;chodové enkódování MPEG-4 ("DivX")</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="prev" href="menc-feat-selecting-input.html" title="13.2. Výb&#283;r vstupního souboru nebo za&#345;ízení"><link rel="next" href="menc-feat-handheld-psp.html" title="13.4. Enkódovánído video formátu Sony PSP"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.3. Dvoupr&#367;chodové enkódování MPEG-4 ("DivX")</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="menc-feat-selecting-input.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 13. Základní pou&#382;ití <span class="application">MEncoder</span>u</th><td width="20%" align="right"> <a accesskey="n" href="menc-feat-handheld-psp.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-mpeg4"></a>13.3. Dvoupr&#367;chodové enkódování MPEG-4 ("DivX")</h2></div></div></div><p>
+Název vychází z faktu, &#382;e soubor je enkódován <span class="emphasis"><em>dvakrát</em></span>.
+První enkódování (dubbed pass) vytvo&#345;í do&#269;asné soubory
+(<tt class="filename">*.log</tt>) velikosti n&#283;kolika megabajt&#367;, které zatím nema&#382;te
+(m&#367;&#382;ete smazat AVI, nebo rad&#283;ji &#382;ádné nevytvá&#345;ejte a p&#345;esm&#283;rujte je do
+<tt class="filename">/dev/null</tt>).
+Ve druhém pr&#367;chodu je vytvo&#345;en dvoupr&#367;chodový výstupní
+soubor s pou&#382;itím &#345;ízení datového toku z do&#269;asných soubor&#367;. Výsledný soubor
+bude mít lep&#353;í kvalitu obrazu. Pokud jste o tom te&#271; sly&#353;eli poprvé, m&#283;li byste
+si prostudovat n&#283;které návody dostupné na netu.
+</p><div class="example"><a name="id2582866"></a><p class="title"><b>P&#345;íklad 13.1. Kopírování zvukové stopy</b></p><p>
+Dvoupr&#367;chodové enkódování druhé stopy z DVD do MPEG-4 ("DivX")
+AVI zatímco se zvuk pouze zkopíruje.
+</p><pre class="screen">
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:vpass=1 -oac copy -o /dev/null
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell:vpass=2 -oac copy -o <em class="replaceable"><code>výstup.avi</code></em>
+</pre><p>
+</p></div><div class="example"><a name="id2582891"></a><p class="title"><b>P&#345;íklad 13.2. Enkódování zvukové stopy</b></p><p>
+Dvoupr&#367;chodové enkódování DVD do MPEG-4 ("DivX") AVI a sou&#269;asn&#283;
+enkódování zvukové stopy do MP3.
+P&#345;i této metod&#283; bu&#271;te opatrní, jeliko&#382; v n&#283;kterých p&#345;ípadech m&#367;&#382;e vést k rozjetí
+zvuku s videem.
+</p><pre class="screen">
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:vpass=1 -oac mp3lame -lameopts vbr=3 -o /dev/null
+mencoder dvd://2 -ovc lavc -lavcopts vcodec=mpeg4:mbd=2:trell:vpass=2 -oac mp3lame -lameopts vbr=3 -o <em class="replaceable"><code>výstup.avi</code></em>
+</pre><p>
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="menc-feat-selecting-input.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="menc-feat-handheld-psp.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">13.2. Výb&#283;r vstupního souboru nebo za&#345;ízení </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 13.4. Enkódovánído video formátu Sony PSP</td></tr></table></div></body></html>

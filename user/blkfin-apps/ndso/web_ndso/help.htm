@@ -1,0 +1,199 @@
+<html>
+
+<head>
+<title>NDSO Help</title>
+<link rel="stylesheet" href="/style.css" type="text/css">
+</head>
+
+<body>
+
+<hr>
+
+<div style='text-align:center; font-size:40pt; font-weight:bold; font-style:italic;'>
+Networked Storage Oscilloscope
+</div>
+
+<hr>
+
+<p align="center">
+<a class=button target="main" href="webfiles/Schematic_Prints.pdf">Schematic</a>
+</p>
+<p align="center">
+<a class=button target="main" href="webfiles/Component_Report.pdf">BOM</a>
+</p>
+<p align="center">
+<a class=button target="main" href="webfiles/Assembly_Drawings.pdf">Assembly Drawings</a>
+</p>
+<p align="center">
+<a class=button target="main" href="webfiles/Final_Artwork_Prints.pdf">Artwork Prints</a>
+</p>
+
+<hr>
+
+<p><b>&nbsp;&nbsp;&nbsp;Form Options</b></p>
+
+<span style='font-size:x-small'>
+
+<p>
+<b>Trigger Options:</b>
+<br>
+The left drop down field enables or disables the Trigger.  The right field 
+provides options for Level or Edge sensitive triggers.  Options are Rising 
+and Falling Edge triggers.  The Level Textbox is used to adjust the desired 
+trigger level.  Maximum level is 4096 mV.
+</p>
+
+<p>
+<b>Vertical:</b>
+<br>
+Fine control of the major (labelled) tics on the y axis.
+</p>
+
+<p>
+<b>Sample Frequency:</b>
+<br>
+Recommended Sample Frequency measured in SPS (samples per second).  The actual 
+sample frequency may vary, due to divide ratios of System Clock.  However the 
+actual Sample frequency is displayed and used to scale the plot.  Maximum 
+Sample frequency for the AD7476A ADC is 1MSPS.
+</p>
+
+<p>
+<b>Depth:</b>
+<br>
+Number of samples to be sampled.
+</p>
+
+<p>
+<b>Range:</b>
+<br>
+This option specifies the region of the graph that will be displayed.  A * can 
+be used to allow autoscaling of either of min and max.
+</p>
+
+<p>
+<b>Grid:</b>
+<br>
+The grid option allows grid lines to be drawn on the plot.
+</p>
+
+<p>
+<b>Highlight Zeroaxis:</b>
+<br>
+This option allows the Zeroaxis to be drawn on the plot.
+</p>
+
+<p>
+<b>Size Ratio:</b>
+<br>
+The Size Ratio option scales the displayed size of the plot.  The size is 
+relative to the default size.
+<br>
+Example: To make the graph twice as high as wide use: 2 or 2.0
+</p>
+
+<p>
+<b>Time / Frequency Domain:</b>
+<br>
+Decides whether the plot is displayed in Time / Frequency Domain.  In case 
+of Frequency the FFT options below are enabled.
+</p>
+
+<p>
+<b>FFT:</b>
+<br>
+Select the FFT size, available options are 1024, 512, 256, 128, 64, 32 and 16.
+Entries in the Horizontal Depth field are ignored.
+</p>
+
+<p>
+<b>Scaled:</b>
+<br>
+Removes redundant information and scales the plot on the frequency axis 
+according to the Sample Frequency.
+</p>
+
+<p>
+<b>Exclude F(0):</b>
+<br>
+Excludes the DC part from being plotted.
+</p>
+
+<p>
+<b>Plot Style:</b>
+<br>
+Available options are: linespoints, points, dots, lines, impulses, fsteps, 
+histeps, boxes, steps.
+</p>
+
+<p>
+<b>Scale:</b>
+<br>
+Logarithmic scaling can be enabled on the horizontal and vertical or both axis.
+</p>
+
+<p>
+<b>Interpolate:</b>
+<br>
+<p>
+These options includes a few general-purpose routines for interpolation and 
+approximation of data.
+</p>
+
+<p>
+<b>Measurements:</b>
+<br>
+If checked these options perform calculation of statistical outputs.
+</p>
+
+<p>
+<b>Input:</b>
+<br>
+Set to AC in when the AD7476-DBRD is jumpered for AC input mode.
+</p>
+
+</span>
+
+
+<br>
+
+
+<p><b>&nbsp;&nbsp;&nbsp;Action Buttons</b></p>
+
+<span style='font-size:x-small'>
+
+<p>
+<b>Acquire:</b>
+<br>
+Samples data and plots it based on the current form settings.
+</p>
+
+<p>
+<b>Replot:</b>
+<br>
+Replots previous sampled data, based on the current form settings.
+</p>
+
+<p>
+<b>Multimeter:</b>
+<br>
+Displays current input voltage.
+</p>
+
+<p>
+<b>Show Samples:</b>
+<br>
+Displays the sampled data in MATLAB and C array declaration.
+</p>
+
+<p>
+<b>Default:</b>
+<br>
+Resets the form settings to it's default state.
+</p>
+
+</span>
+
+</body>
+
+</html>

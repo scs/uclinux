@@ -1,0 +1,40 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>6.2. Formats Audio</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Le Lecteur Vidéo"><link rel="up" href="containers.html" title="Chapitre 6. Conteneurs"><link rel="prev" href="video-formats.html" title="6.1. Formats vidéo"><link rel="next" href="codecs.html" title="Chapitre 7. Codecs Supportés"><link rel="preface" href="howtoread.html" title="Comment lire cette documentation"><link rel="chapter" href="intro.html" title="Chapitre 1. Introduction"><link rel="chapter" href="install.html" title="Chapitre 2. Installation"><link rel="chapter" href="usage.html" title="Chapitre 3. Utilisation"><link rel="chapter" href="cd-dvd.html" title="Chapitre 4. Utilisation des CD/DVD"><link rel="chapter" href="faq.html" title="Chapitre 5. Foire Aux Questions"><link rel="chapter" href="containers.html" title="Chapitre 6. Conteneurs"><link rel="chapter" href="codecs.html" title="Chapitre 7. Codecs Supportés"><link rel="chapter" href="video.html" title="Chapitre 8. Sorties vidéo"><link rel="chapter" href="audio.html" title="Chapitre 9. Périphériques de sortie audio"><link rel="chapter" href="tv.html" title="Chapitre 10. TV"><link rel="chapter" href="radio.html" title="Chapitre 11. Radio"><link rel="chapter" href="ports.html" title="Chapitre 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapitre 13. Utilisation basique de MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapitre 14. L'encodage avec MEncoder"><link rel="appendix" href="bugreports.html" title="Annexe A. Comment rapporter les bogues"><link rel="appendix" href="bugs.html" title="Annexe B. Bogues connus"><link rel="appendix" href="skin.html" title="Annexe C. Format de skins MPlayer"><link rel="appendix" href="history.html" title="Annexe D. Histoire"><link rel="subsection" href="audio-formats.html#mp3" title="6.2.1. Fichiers MP3"><link rel="subsection" href="audio-formats.html#ogg-vorbis" title="6.2.2. Fichiers OGG/OGM (Vorbis)"><link rel="subsection" href="audio-formats.html#cdda" title="6.2.3. CD audio"><link rel="subsection" href="audio-formats.html#xmms" title="6.2.4. XMMS"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">6.2. Formats Audio</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="video-formats.html">Précédent</a> </td><th width="60%" align="center">Chapitre 6. Conteneurs</th><td width="20%" align="right"> <a accesskey="n" href="codecs.html">Suivant</a></td></tr></table><hr></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="audio-formats"></a>6.2. Formats Audio</h2></div></div></div><p>
+<span class="application">MPlayer</span> est un lecteur de <span class="bold"><strong>films</strong></span>
+et pas de <span class="bold"><strong>media</strong></span>, bien qu'il puisse lire
+quelques formats audio (listés dans les sections ci-dessous). Ce n'est pas un
+usage recommandé de <span class="application">MPlayer</span>, vous feriez mieux d'utiliser
+<a href="http://www.xmms.org" target="_top">XMMS</a>.
+</p><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="mp3"></a>6.2.1. Fichiers MP3</h3></div></div></div><p>
+Vous pouvez avoir des problèmes pour lire certains fichiers MP3 que
+<span class="application">MPlayer</span> prends pour des MPEGs et ne joue pas
+correctement voir pas du tout. Ceci ne peut être réparé sans enlever le
+support de certains fichiers MPEG endommagés et donc restera ainsi pour
+un temps indéterminé. L'option <tt class="option">-demuxer</tt> décrite dans la
+page de man pourrait vous aider dans ces cas-là.
+</p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="ogg-vorbis"></a>6.2.2. Fichiers OGG/OGM (Vorbis)</h3></div></div></div><p>
+Requiert
+<code class="systemitem">libogg</code> et
+<code class="systemitem">libvorbis</code> correctement installés.
+</p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="cdda"></a>6.2.3. CD audio</h3></div></div></div><p>
+<span class="application">MPlayer</span> peut utiliser <span class="application">cdparanoia</span>
+pour lire des CDDA (Audio CD). Le but de cette section n'est pas d'énumérer les
+fonctions de <span class="application">cdparanoia</span>.
+</p><p>
+Voir la page de man pour les options à passer à <span class="application">cdparanoia</span>
+via <tt class="option">-cdda</tt>.
+</p></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="xmms"></a>6.2.4. XMMS</h3></div></div></div><p>
+<span class="application">MPlayer</span> peut utiliser les plugins d'entrée de
+<span class="application">XMMS</span> pour jouer de nombreux formats de fichier.
+Il y a des plugins pour les thèmes de jeux SNES, les thèmes SID (du Commodore
+64), de nombreux formats Amiga, .xm, .it, VQF, musepack, Bonk, shorten et bien
+d'autres. Vous pouvez les trouver sur la
+<a href="http://www.xmms.org/plugins.php?category=input" target="_top">page des plugins d'entrée XMMS</a>.
+</p><p>
+Pour cette fonctionnalité vous devez avoir <span class="application">XMMS</span>
+et compiler MPlayer avec <span class="application">MPlayer</span> avec
+<span><strong class="command">./configure --enable-xmms</strong></span>.
+Si cela ne fonctionne pas, vous pourriez avoir besoin de préciser le chemin
+des plugins et des librairies <span class="application">XMMS</span> explicitement
+par l'intermédiaire des options <tt class="option">--with-xmmsplugindir</tt> et
+<tt class="option">--with-xmmslibdir</tt>.
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="video-formats.html">Précédent</a> </td><td width="20%" align="center"><a accesskey="u" href="containers.html">Niveau supérieur</a></td><td width="40%" align="right"> <a accesskey="n" href="codecs.html">Suivant</a></td></tr><tr><td width="40%" align="left" valign="top">6.1. Formats vidéo </td><td width="20%" align="center"><a accesskey="h" href="index.html">Sommaire</a></td><td width="40%" align="right" valign="top"> Chapitre 7. Codecs Supportés</td></tr></table></div></body></html>

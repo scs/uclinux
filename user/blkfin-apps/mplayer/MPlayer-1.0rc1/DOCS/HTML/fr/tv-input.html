@@ -1,0 +1,153 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>10.1. Entrée TV</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Le Lecteur Vidéo"><link rel="up" href="tv.html" title="Chapitre 10. TV"><link rel="prev" href="tv.html" title="Chapitre 10. TV"><link rel="next" href="radio.html" title="Chapitre 11. Radio"><link rel="preface" href="howtoread.html" title="Comment lire cette documentation"><link rel="chapter" href="intro.html" title="Chapitre 1. Introduction"><link rel="chapter" href="install.html" title="Chapitre 2. Installation"><link rel="chapter" href="usage.html" title="Chapitre 3. Utilisation"><link rel="chapter" href="cd-dvd.html" title="Chapitre 4. Utilisation des CD/DVD"><link rel="chapter" href="faq.html" title="Chapitre 5. Foire Aux Questions"><link rel="chapter" href="containers.html" title="Chapitre 6. Conteneurs"><link rel="chapter" href="codecs.html" title="Chapitre 7. Codecs Supportés"><link rel="chapter" href="video.html" title="Chapitre 8. Sorties vidéo"><link rel="chapter" href="audio.html" title="Chapitre 9. Périphériques de sortie audio"><link rel="chapter" href="tv.html" title="Chapitre 10. TV"><link rel="chapter" href="radio.html" title="Chapitre 11. Radio"><link rel="chapter" href="ports.html" title="Chapitre 12. Ports"><link rel="chapter" href="mencoder.html" title="Chapitre 13. Utilisation basique de MEncoder"><link rel="chapter" href="encoding-guide.html" title="Chapitre 14. L'encodage avec MEncoder"><link rel="appendix" href="bugreports.html" title="Annexe A. Comment rapporter les bogues"><link rel="appendix" href="bugs.html" title="Annexe B. Bogues connus"><link rel="appendix" href="skin.html" title="Annexe C. Format de skins MPlayer"><link rel="appendix" href="history.html" title="Annexe D. Histoire"><link rel="subsection" href="tv-input.html#tv-compilation" title="10.1.1. Compilation"><link rel="subsection" href="tv-input.html#tv-tips" title="10.1.2. Astuces d'utilisation"><link rel="subsection" href="tv-input.html#tv-examples" title="10.1.3. Exemples"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">10.1. Entrée TV</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="tv.html">Précédent</a> </td><th width="60%" align="center">Chapitre 10. TV</th><td width="20%" align="right"> <a accesskey="n" href="radio.html">Suivant</a></td></tr></table><hr></div><div class="sect1" lang="fr"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="tv-input"></a>10.1. Entrée TV</h2></div></div></div><p>
+Cette section concerne l'activation de la <span class="bold"><strong>lecture/enregistrement
+à partir d'un tuner TV compatible V4L.</strong></span> Voir la page de man pour une
+description des options TV et des contrôles clavier.
+
+</p><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="tv-compilation"></a>10.1.1. Compilation</h3></div></div></div><div class="procedure"><ol type="1"><li><p>
+  D'abord, vous devez recompiler. <tt class="filename">./configure</tt> autodétectera
+  les entêtes v4l du noyau et l'existence des entrées
+  <tt class="filename">/dev/video*</tt>. Si elles existent, le support TV sera activé
+  (voir le résultat de <tt class="filename">./configure</tt>).
+  </p></li><li><p>
+  Assurez-vous que votre tuner fonctionne avec d'autres logiciels TV pour Linux.
+  par exemple <span class="application">XawTV</span>.
+  </p></li></ol></div></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="tv-tips"></a>10.1.2. Astuces d'utilisation</h3></div></div></div><p>
+La liste complète des options est disponible sur la page de man. Voici juste
+quelques astuces:
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+Utilisez l'option <tt class="option">channels</tt>. Un exemple:
+</p><pre class="screen">-tv channels=26-MTV1,23-TV2</pre><p>
+Explication: en utilisant cette option, seuls les canaux 26 et 23 seront
+utilisables, et il y a un joli texte OSD lors des changements de canaux
+affichant le nom du nouveau.
+Les espaces dans le nom du canal doivent être remplacés par le caractère
+"_".
+</p></li><li><p>
+Choisissez des dimensions d'images sensées. Les dimensions de l'image de
+destination devraient être divisible par 16.
+</p></li><li><p>
+Si vous capturez la vidéo avec une résolution verticale supérieure à la
+moitié de la pleine résolution (c-a-d. 288 pour PAL ou 240 pour NTSC),
+alors les trames que vous obtenez seront en réalité des paires de champs
+entrelacées.
+En fonction de ce que vous voulez faire avec la vidéo, vous pourriez la laisser
+sous cette forme, malheureusement désentrelacé, ou séparer les paires en champs
+individuels.
+</p><p>
+Autrement vous aurez un film qui a des distorsion durant les scènes à
+mouvements rapides et le contrôleur de bitrate ne sera probablement
+même pas capable de garder le bitrate demandé car les artefacts de
+désentrelacement produisent beaucoup de détails et donc consomment
+plus de bande passante.
+Vous pouvez désactiver l'entrelacement avec
+<tt class="option">-vf pp=DEINT_TYPE</tt>.
+Généralement <tt class="option">pp=lb</tt> peut faire du bon travail, mais
+c'est une histoire de préférence personnelle.
+Voyez les autres algorithmes de désentrelacement dans le manuel et
+essayez-les.
+</p></li><li><p>
+Coupez les espaces morts. Quand vous capturez la vidéo, les bords sont
+généralement noirs ou contiennent du "bruit".
+De nouveau cela consomme de la bande passante inutilement.
+Plus précisément ce ne sont pas les zones noires elles-mêmes mais les
+transitions nettes entre le noir et la vidéo plus claire qui jouent, mais
+ce n'est pas très important pour le moment.
+Avant que vous commenciez la capture, ajustez les arguments de l'option
+<tt class="option">crop</tt> pour que toutes les saletés des bords soient coupées.
+De nouveau, n'oubliez pas de garder des dimensions sensées.
+</p></li><li><p>
+Regardez la charge CPU.
+Elle ne devrait pas dépasser la limite des 90% la plupart du temps.
+Si vous avez un gros tampon, <span class="application">MEncoder</span> peut
+survivre à une surcharge pendant quelques secondes mais pas plus.
+Il vaut mieux désactiver l'économiseur d'écran OpenGL et les trucs
+similaires.
+</p></li><li><p>
+Ne jouez pas avec l'horloge système. <span class="application">MEncoder</span>
+l'utilise pour la synchro A/V.
+Si vous réglez l'horloge système (surtout en arrière dans le temps),
+<span class="application">MEncoder</span> va se sentir perdu et va perdre des
+trames.
+C'est un problème important lorsque vous êtes en réseau et que vous utilisez
+certains logiciels de synchronisation comme NTP.
+Vous devrez désactiver NTP pendant le processus de capture si vous voulez
+capturer correctement.
+</p></li><li><p>
+Ne changez pas le <tt class="option">outfmt</tt> à moins que vous sachiez ce que
+vous faites ou votre si votre carte/pilote ne supporte pas la valeur par
+défaut (palette YV12).
+Dans les versions précédentes de <span class="application">MPlayer</span>/
+<span class="application">MEncoder</span> il était nécessaire de spécifier le
+format de sortie.
+Ce problème devrait être résolu dans la version actuelle et
+<tt class="option">outfmt</tt> n'est plus requis, et la valeur par défaut convient
+dans la plupart des cas.
+Par exemple, si vous capturez en DivX en utilisant
+<code class="systemitem">libavcodec</code> et que vous spécifiez
+<tt class="option">outfmt=RGB24</tt> de façon à augmenter la qualité de l'image
+capturée, l'image capturée sera reconvertie plus tard en YV12; donc la
+seule chose que vous obtiendrez est un gaspillage massif de puissance CPU.
+</p></li><li><p>
+Pour spécifier la palette I420 (<tt class="option">outfmt=i420</tt>), vous devez
+ajouter une option <tt class="option">-vc rawi420</tt> à cause d'un conflit de
+fourcc avec un codec vidéo Intel Indeo.
+</p></li><li><p>
+Il y a plusieurs façons de capturer l'audio.
+Vous pouvez attraper le son soit avec votre carte son via un câble externe
+entre la carte vidéo et l'entrée ligne, soit en utilisant le DAC intégré
+à la puce bt878.
+Dans ce dernier cas, vous devrez charger le pilote
+<span class="bold"><strong>btaudio</strong></span>.
+Lisez le fichier <tt class="filename">linux/Documentation/sound/btaudio</tt>
+(dans l'arborescence du noyau, pas celle de <span class="application">MPlayer</span>)
+pour les instructions d'utilisations de ce pilote.
+</p></li><li><p>
+Si <span class="application">MEncoder</span> ne peut pas ouvrir le périphérique
+audio, assurez-vous qu'il soit réellement disponible.
+Il peut y avoir des ennuis avec certains serveurs de son comme aRts (KDE)
+ou ESD (GNOME).
+Si vous avez une carte son full duplex (presque toutes les cartes décentes
+le supportent aujourd'hui), et que vous utilisez KDE, essayez d'activer
+l'option "full duplex" dans le menu des préférences du serveur de son.
+</p></li></ul></div></div><div class="sect2" lang="fr"><div class="titlepage"><div><div><h3 class="title"><a name="tv-examples"></a>10.1.3. Exemples</h3></div></div></div><div class="informalexample"><p>
+Sortie muette, vers AAlib :)
+</p><pre class="screen">
+mplayer -tv driver=dummy:width=640:height=480 -vo aa tv://</pre><p>
+</p></div><div class="informalexample"><p>
+Entrée depuis V4L standard:
+</p><pre class="screen">
+mplayer -tv driver=v4l:width=640:height=480:outfmt=i420 -vc rawi420 -vo xv tv://</pre><p>
+</p></div><div class="informalexample"><p>
+Un exemple plus élaboré.
+Ici <span class="application">MEncoder</span> capture l'image PAL entière, coupe
+les marges, et désentrelace l'image en utilisant un algorithme de mélange
+linéaire.
+L'audio est compressée à un débit constant de 64kbps, en utilisant le codec
+LAME.
+Cette combinaison est adaptée pour capturer des films.
+</p><pre class="screen">
+     mencoder -tv driver=v4l:width=768:height=576 \
+     -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=900 \
+     -oac mp3lame -lameopts cbr:br=64 \
+     -vf crop=720:544:24:16,pp=lb -o <em class="replaceable"><code>sortie.avi</code></em> tv://
+</pre><p>
+</p></div><div class="informalexample"><p>
+Cela dimensionne également l'image en 384x288 et compresse la vidéo avec
+un débit de 350kbps en mode haute qualité.
+L'option vqmax perd le quantizer et permet au compresseur vidéo d'atteindre
+un débit plus bas au détriment de la qualité.
+Cela peut être utilisé pour capturer des longues séries TV, quand la qualité
+n'est pas très importante.
+</p><pre class="screen">
+     mencoder -tv driver=v4l:width=768:height=576 \
+     -ovc lavc -lavcopts vcodec=mpeg4:vbitrate=350:vhq:vqmax=31:keyint=300 \
+     -oac mp3lame -lameopts cbr:br=48 \
+      -vf crop=720:540:24:18,pp=lb,scale=384:288 -sws 1 -o <em class="replaceable"><code>output.avi</code></em> tv://
+</pre><p>
+Il est également possible de spécifier des dimensions d'images plus petites
+dans l'option <tt class="option">-tv</tt> et d'omettre le zoom logiciel mais cette
+approche utilise le maximum d'informations disponibles et, est un peu plus
+résistant au bruit.
+Les chipsets bt8x8 peuvent faire une moyenne de pixels uniquement dans la
+direction horizontale à cause d'une limitation matérielle.
+</p></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="tv.html">Précédent</a> </td><td width="20%" align="center"><a accesskey="u" href="tv.html">Niveau supérieur</a></td><td width="40%" align="right"> <a accesskey="n" href="radio.html">Suivant</a></td></tr><tr><td width="40%" align="left" valign="top">Chapitre 10. TV </td><td width="20%" align="center"><a accesskey="h" href="index.html">Sommaire</a></td><td width="40%" align="right" valign="top"> Chapitre 11. Radio</td></tr></table></div></body></html>

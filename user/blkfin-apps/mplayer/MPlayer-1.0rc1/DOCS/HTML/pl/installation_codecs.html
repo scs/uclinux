@@ -1,0 +1,76 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>2.2. Kodeki</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="install.html" title="Rozdział 2. Instalacja"><link rel="prev" href="softreq.html" title="2.1. Wymagania sprzętowe"><link rel="next" href="video-cards.html" title="2.3. Karty graficzne"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.2. Kodeki</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="softreq.html">Poprzedni</a> </td><th width="60%" align="center">Rozdział 2. Instalacja</th><td width="20%" align="right"> <a accesskey="n" href="video-cards.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="installation_codecs"></a>2.2. Kodeki</h2></div></div></div><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="bold"><strong><code class="systemitem">libavcodec</code></strong></span>:
+  Ten pakiet kodeków jest zdolny do dekodowania strumieni video zakodowanych
+  H.263/MJPEG/RV10/DivX3/DivX4/DivX5/MP41/MP42/WMV1/WMV2/SVQ1/SVQ3
+  i strumieni audio WMA (Windows Media Audio) v1/v2 na wielu platformach.
+  Jest również uważany za najszybszy. Przeczytaj rozdział
+  <a href="video-codecs.html#ffmpeg" title="7.1.1. FFmpeg/libavcodec">FFmpeg</a>, a dowiesz się więcej. Cechy:
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    umożliwia dekodowanie wyżej wymienionych strumieni video na maszynach innych niż x86
+    </li><li>
+    kodowanie większością wymienionych kodeków
+    </li><li>
+    ten kodek jest <span class="bold"><strong>najszybszym dostępnym</strong></span> dla
+    DivX/3/4/5 i innych rodzajów MPEG-4. Zalecany!
+    </li></ul></div><p>
+  </p></li><li><p>
+  <span class="bold"><strong>Kodeki Win32</strong></span>: Jeśli zamierzasz używać
+  <span class="application">MPlayera</span> na architekturze x86, będziesz ich prawdopodobnie
+  potrzebował. Ściągnij pakiet z naszej
+  <a href="http://www.mplayerhq.hu/design7/codecs.html" target="_top">strony kodeków</a>
+  i umieść je w katalogu <tt class="filename">/usr/local/lib/codecs</tt>
+  <span class="bold"><strong>PRZED</strong></span> kompilacją <span class="application">MPlayera</span>,
+  w przeciwnym wypadku obsługa Win32 nie będzie wkompilowana!
+  </p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Notatka</h3><p>Projekt avifile ma podobny pakiet kodeków, ale różni się on od naszego,
+  więc jeżeli chcesz używać wszystkich, obsługiwanych kodeków, skorzystaj z
+  naszej paczki (nie przejmuj się, avifile działa z nią bez problemów).</p></div><p>
+  Cechy:
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    potrzebujesz tego do odtwarzania i zakodowania, na przykład, filmów nagranych z użyciem
+    różnych kompresorów sprzętowych, jak tunery, kamery cyfrowe
+    (na przykład: DV, ATI VCR, MJPEG)
+    </li><li>
+    wymagane jeśli chcesz odtwarzać <span class="bold"><strong>filmy WMV9/WMA9</strong></span>.
+   </li><li>
+    Nie są potrzebne do starych plików video ASF z MP41 lub MP42 (mimo, że dźwięk VoxWare
+    jest często używany w tych plikach - realizowane jest to przez kodek Win32), lub WMV7.
+    Nie są również potrzebne do WMA (Windows Media Audio),
+    <code class="systemitem">libavcodec</code> ma potrzebne do niego dekodery ze
+    świata wolnego oprogramowania.
+    </li></ul></div><p>
+  </p></li><li><p>
+  <span class="bold"><strong>Kodeki QuickTime</strong></span>: na platformach x86 te kodeki
+  mogą być użyte do dekodowania RPZA, innych sekwencji video QuickTime i
+  strumieni audio QDesign. Instrukcję instalacji możesz znaleźć w rozdziale
+  <a href="video-codecs.html#sorenson" title="7.1.8. Sorenson">kodeki video Sorenson</a>.
+  </p></li><li><p>
+  <span class="bold"><strong>XviD</strong></span>: Alternatywa do kodowania dla DivX4Linux
+  z otwartym źródłem. Cechy:
+  </p><div class="itemizedlist"><ul type="circle"><li>
+    1 lub 2 przebiegowe kodowanie przy pomocy <a href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera">
+    <span class="application">MEncodera</span></a>
+    </li><li>
+    ma otwarte źródło, więc jest wieloplatformowa.
+    </li><li>
+    jest około 2 razy szybsza od DivX4 podczas zakodowywania, a osiąga mniej więcej tę samą jakość
+    </li></ul></div><p>
+  </p></li><li><p>
+  <span class="bold"><strong><a href="video-codecs.html#xanim" title="7.1.2. kodeki XAnim">Kodeki XAnim</a></strong></span>
+  są najlepsze (pełny ekran, sprzętowy zoom YUV) do dekodowania filmów
+  <span class="bold"><strong>3ivx</strong></span>, Indeo 3/4/5 i kilku starych formatów.
+  Są wieloplatformowe, więc są jednym sposobem, żeby odtworzyć Indeo na platformach
+  innych niż x86 (no, może poza użyciem XAnim:). Ale na przykład filmy Cinepak
+  są najlepiej odtwarzane przy pomocy <span class="application">MPlayerowego</span> dekodera Cinepak!
+  </p></li><li><p>
+  Do dekodowania dźwięku <span class="bold"><strong>Ogg Vorbis</strong></span>, będziesz musiał
+  poprawnie zainstalować <code class="systemitem">libvorbis</code>.
+  Źródła i odpowiednie pakiety binarne możesz pobrać ze
+  <a href="http://www.vorbis.com/download.psp" target="_top">strony ogg vorbis</a>.
+  </p></li><li><p>
+  <span class="application">MPlayer</span> może korzystać z bibliotek RealPlayer 8
+  lub RealONE, żeby odtworzyć pliki z obrazem w formacie
+  <span class="bold"><strong>RealVideo 3.0 i 4.0</strong></span>
+  i dźwiękiem w Sipro/Cook. Zobacz rozdział
+  <a href="video-formats.html#realmedia" title="6.1.7. Pliki RealMedia (RM)">format pliku RealMedia</a>,
+  znajdziesz tam instrukcje i kilka informacji.
+  </p></li></ul></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="softreq.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="video-cards.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">2.1. Wymagania sprzętowe </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> 2.3. Karty graficzne</td></tr></table></div></body></html>

@@ -1,0 +1,46 @@
+# To create your own version, just unpack ffmpeg tarball here
+# and update the VER variable.  Or export your own from their
+# svn via:
+# svn export -r <REV> svn://svn.mplayerhq.hu/ffmpeg/trunk ffmpeg-svn-<REV>
+VER = ffmpeg-svn-9768
+
+all: build/Makefile
+	$(MAKE) -C build
+	$(MAKE) -C build DESTDIR=$(STAGEDIR) install
+
+build/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+	set -e ; \
+	rm -rf build ; \
+	mkdir build ; \
+	cd build ; \
+	../$(VER)/configure \
+		--prefix=/usr \
+		--source-path=$$PWD/../$(VER) \
+		--target-os=Linux \
+		--cpu=bfin \
+		--arch=bfin \
+		--extra-ldflags="$(LDFLAGS)" \
+		--enable-static \
+		--enable-shared \
+		--enable-gpl \
+		--enable-pp \
+		--disable-strip \
+		--disable-v4l2 \
+		--cross-prefix=$(CONFIGURE_HOST)-
+
+#		--enable-swscaler
+
+clean:
+	rm -rf build
+
+romfs:
+	set -e ; \
+	cd $(STAGEDIR)/usr/lib ; \
+	for l in libavcodec.so.?? libavformat.so.?? libavutil.so.?? libpostproc.so.?? vhook/* ; do \
+		$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $$l /usr/lib/$$l ; \
+	done
+	$(ROMFSINST) -d -e CONFIG_USER_FFMPEG_APPS $(STAGEDIR)/usr/bin/ffmpeg /usr/bin/ffmpeg
+	$(ROMFSINST) -d -e CONFIG_USER_FFMPEG_APPS $(STAGEDIR)/usr/bin/ffserver /usr/bin/ffserver
+
+.PHONY: all clean romfs

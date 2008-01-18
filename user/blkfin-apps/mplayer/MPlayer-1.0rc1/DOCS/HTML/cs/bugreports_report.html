@@ -1,0 +1,40 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>A.4. Jak oznamovat chyby</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="prev" href="bugreports_regression_test.html" title="A.3. Jak provád&#283;t regresní testování pomocí Subversion"><link rel="next" href="bugreports_where.html" title="A.5. Kam hlásit chyby"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">A.4. Jak oznamovat chyby</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="bugreports_regression_test.html">P&#345;edcházející</a> </td><th width="60%" align="center">P&#345;íloha A. Jak hlásit chyby</th><td width="20%" align="right"> <a accesskey="n" href="bugreports_where.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="bugreports_report"></a>A.4. Jak oznamovat chyby</h2></div></div></div><p>
+Nejprve, prosím, vyzkou&#353;ejte poslední Subversion verzi
+<span class="application">MPlayer</span>u, jeliko&#382; va&#353;e chyba ji&#382; mohla být
+odstran&#283;na. Vývoj je velmi rychlý, v&#283;t&#353;ina chyb v oficiálních balí&#269;cích je
+nahlá&#353;ena b&#283;hem n&#283;kolika dn&#367;, nebo dokonce hodin, tak&#382;e prosím pou&#382;ívejte
+<span class="bold"><strong>pouze Subversion</strong></span> pro hlá&#353;ení chyb. To zahrnuje binární
+balí&#269;ky <span class="application">MPlayer</span>u. Subversion instrukce naleznete na konci
+<a href="http://www.mplayerhq.hu/dload.html" target="_top">této stránky</a>,
+nebo v souboru README. Pokud to nepom&#367;&#382;e, prostudujte si prosím seznam
+<a href="bugs.html" title="P&#345;íloha B. Známé chyby">známých chyb</a> a zbytek dokumentace. Pokud je vá&#353;
+problém neznámý nebo jej nelze &#345;e&#353;it pomocí na&#353;ich instrukcí pak jej nahlaste
+jako chybu.
+</p><p>
+Prosíme, neposílejte hlá&#353;ení chyb soukrom&#283; jednotlivým vývojá&#345;&#367;m. Toto je týmová
+práce a proto se o n&#283; m&#367;&#382;e zajímat více lidí. &#268;as od &#269;asu m&#283;li ostatní u&#382;ivatelé
+stejný problém a v&#283;dí jak jej obejít, dokonce i kdy&#382; se jedná o chybu v kódu
+<span class="application">MPlayer</span>u.
+</p><p>
+Prosíme popi&#353;te sv&#367;j problém tak podrobn&#283;, jak je to jen mo&#382;né. Prove&#271;te malé
+pátrání po okolnostech za kterých problém nastává. Projevuje se ta chyba jen
+v ur&#269;itých situacích? Je vlastní ur&#269;itým soubor&#367;m nebo typ&#367;m soubor&#367;? Stává se
+pouze s jedním kodekem, nebo je nezávislá na pou&#382;itém kodeku? Doká&#382;ete ji
+zopakovat se v&#353;emi výstupními rozhraními nebo ovlada&#269;i?
+&#268;ím více nám poskytnete informací, tím je v&#283;t&#353;í &#353;ance na odstran&#283;ní problému.
+Nezapome&#328;te také p&#345;ipojit hodnotné informace po&#382;adované ní&#382;e, jinak nebudeme
+schopni stanovit p&#345;í&#269;inu problému.
+</p><p>
+Skv&#283;lá, dob&#345;e napsaná p&#345;íru&#269;ka jak se ptát ve ve&#345;ejných konferencích je
+<a href="http://www.catb.org/~esr/faqs/smart-questions.html" target="_top">How To Ask
+Questions The Smart Way</a> od
+<a href="http://www.catb.org/~esr/" target="_top">Erica S. Raymonda</a>.
+Dal&#353;í p&#345;íru&#269;ka je
+<a href="http://www.chiark.greenend.org.uk/~sgtatham/bugs.html" target="_top">How to Report
+Bugs Effectively</a> od
+<a href="http://www.chiark.greenend.org.uk/~sgtatham/" target="_top">Simona Tathama</a>.
+Pokud budete postupovat podle t&#283;chto rad, jist&#283; se vám dostane pomoci. Pochopte
+v&#353;ak, &#382;e my v&#353;ichni sledujeme konference dobrovoln&#283; ve svém volném &#269;ase. Máme
+mnoho práce a nem&#367;&#382;eme vám zaru&#269;it &#382;e vy&#345;e&#353;íme vá&#353; problém nebo &#382;e v&#367;bec
+dostanete odpov&#283;&#271;.
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="bugreports_regression_test.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="bugreports.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="bugreports_where.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">A.3. Jak provád&#283;t regresní testování pomocí Subversion </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> A.5. Kam hlásit chyby</td></tr></table></div></body></html>

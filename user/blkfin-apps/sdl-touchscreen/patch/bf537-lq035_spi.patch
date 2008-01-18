@@ -1,0 +1,54 @@
+Index: bf537-lq035.c
+===================================================================
+--- bf537-lq035.c	(revision 2706)
++++ bf537-lq035.c	(working copy)
+@@ -196,7 +196,8 @@
+ 
+ #else
+ 
+-#define UD      GPIO_PF13	/* Up / Down */
++/* UD conflicts with SPI-SCK, if enble SPI device */
++//#define UD      GPIO_PF13	/* Up / Down */
+ #define MOD     GPIO_PF10
+ #define LBR     GPIO_PF14	/* Left Right */
+ 
+@@ -387,17 +388,17 @@
+ 	*/
+ 
+ 
+-#if (defined(UD) &&  defined(LBR))
++#if defined(UD)
+ 	if (gpio_request(UD, NULL))
+ 		printk(KERN_ERR"Requesting GPIO %d faild\n",UD);
+-
++	gpio_set_value(UD,0);
++	gpio_direction_output(UD);
++#endif
++	
++#if defined(LBR)
+ 	if (gpio_request(LBR, NULL))
+ 		printk(KERN_ERR"Requesting GPIO %d faild\n",LBR);
+-
+-	gpio_direction_output(UD);
+ 	gpio_direction_output(LBR);
+-
+-	gpio_set_value(UD,0);
+ 	gpio_set_value(LBR,1);
+ #endif
+ 
+@@ -740,11 +741,12 @@
+ 	unregister_framebuffer(&bfin_lq035_fb);
+ 	i2c_del_driver(&ad5280_driver);
+ 
+-#if (defined(UD) &&  defined(LBR))
+-	gpio_free(LBR);
++#if defined(UD)
+ 	gpio_free(UD);
+ #endif
+-
++#if defined(LBR)
++	gpio_free(LBR);
++#endif
+ 	gpio_free(MOD);
+ 
+ 	printk(KERN_INFO DRIVER_NAME ": Unregister LCD driver.\n");

@@ -1,0 +1,100 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>C.4. GUI üzenetek</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="prev" href="skin-fonts.html" title="C.3. Bet&#369;k"><link rel="next" href="skin-quality.html" title="C.5. Min&#337;ségi skin-ek készítése"><link rel="preface" href="howtoread.html" title="Hogyan olvasd ezt a dokumentációt"><link rel="chapter" href="intro.html" title="1. fejezet - Bevezetés"><link rel="chapter" href="install.html" title="2. fejezet - Telepítés"><link rel="chapter" href="usage.html" title="3. fejezet - Használat"><link rel="chapter" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="chapter" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="chapter" href="containers.html" title="6. fejezet - Konténerek"><link rel="chapter" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="chapter" href="video.html" title="8. fejezet - Videó kimeneti eszközök"><link rel="chapter" href="audio.html" title="9. fejezet - Audió kimeneti eszközök"><link rel="chapter" href="tv.html" title="10. fejezet - TV"><link rel="chapter" href="radio.html" title="11. fejezet - Rádió"><link rel="chapter" href="ports.html" title="12. fejezet - Portok"><link rel="chapter" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="chapter" href="encoding-guide.html" title="14. fejezet - Kódolás a MEncoderrel"><link rel="appendix" href="bugreports.html" title="A. függelék - Hogyan jelentsd a hibákat"><link rel="appendix" href="bugs.html" title="B. függelék - Ismert hibák"><link rel="appendix" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="appendix" href="history.html" title="D. függelék - Történelem"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">C.4. GUI üzenetek</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="skin-fonts.html">El&#337;z&#337;</a> </td><th width="60%" align="center">C. függelék - <span class="application">MPlayer</span> skin formátum</th><td width="20%" align="right"> <a accesskey="n" href="skin-quality.html">Következ&#337;</a></td></tr></table><hr></div><div class="sect1" lang="hu"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="skin-gui"></a>C.4. GUI üzenetek</h2></div></div></div><p>
+Az alábbi üzeneteket generálják a gombok, potméterek és menüpontok.
+</p><div class="variablelist"><p class="title"><b>Lejátszás vezérlése:</b></p><dl><dt><span class="term"><span class="bold"><strong>evNext</strong></span></span></dt><dd><p>
+ugrás a következ&#337; sávra a lejátszási listában.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evPause</strong></span></span></dt><dd><p>
+Párt alkot az <code class="literal">evPlaySwitchToPause</code>-val. Egy általános
+lejátszás/szünet gomb készítéséhez használhatóak fel. Mind a két üzenetet
+egy olyan gombhoz kell hozzárendelni, ami teljesen ugyan ott jelenik meg az
+ablakban. Ez az üzenet megállítja a lejátszást és megjelenteti az
+<code class="literal">evPlaySwitchToPause</code> gombhoz tartozó képet (jelezve
+ezzel, hogy a gombot meg lehet nyomni a lejátszás folytatásához).
+    </p></dd><dt><span class="term"><span class="bold"><strong>evPlay</strong></span></span></dt><dd><p>
+Lejátszás elindítása.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evPlaySwitchToPause</strong></span></span></dt><dd><p>
+Az <code class="literal">evPauseSwitchToPlay</code> ellentéte. Ez az üzenet elkezdi a
+lejátszást és megjelenteti az <code class="literal">evPauseSwitchToPlay</code> gomb
+képét (jelezve ezzel, hogy a gombot meg lehet nyomni a lejátszás megállításához).
+    </p></dd><dt><span class="term"><span class="bold"><strong>evPrev</strong></span></span></dt><dd><p>
+Az el&#337;z&#337; sávra ugrik a lejátszási listában.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evStop</strong></span></span></dt><dd><p>
+Lejátszás megállítása.
+    </p></dd></dl></div><div class="variablelist"><p class="title"><b>Seeking:</b></p><dl><dt><span class="term"><span class="bold"><strong>evBackward10sec</strong></span></span></dt><dd><p>
+Visszalépés 10 másodperccel.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evBackward1min</strong></span></span></dt><dd><p>
+Visszalépés 1 perccel.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evBackward10min</strong></span></span></dt><dd><p>
+Visszalépés 10 perccel.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evForward10sec</strong></span></span></dt><dd><p>
+El&#337;relépés 10 másodperccel.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evForward1min</strong></span></span></dt><dd><p>
+El&#337;relépés 1 perccel.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evForward10min</strong></span></span></dt><dd><p>
+El&#337;relépés 10 perccel.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evSetMoviePosition</strong></span></span></dt><dd><p>
+Ugrás a pozícióhoz (potméter tudja használni; a
+potméter relatív értékét (0-100%) használja).
+    </p></dd></dl></div><div class="variablelist"><p class="title"><b>Videó vezérlés:</b></p><dl><dt><span class="term"><span class="bold"><strong>evHalfSize</strong></span></span></dt><dd><p>
+Film ablak méretének felezése.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evDoubleSize</strong></span></span></dt><dd><p>
+Film ablak méretének duplázása.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evFullScreen</strong></span></span></dt><dd><p>
+Teljes képerny&#337;s mód be-/kikapcsolása.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evNormalSize</strong></span></span></dt><dd><p>
+Film ablak normál méretének beállítása.
+    </p></dd></dl></div><div class="variablelist"><p class="title"><b>Audió vezérlés:</b></p><dl><dt><span class="term"><span class="bold"><strong>evDecAudioBufDelay</strong></span></span></dt><dd><p>
+Audió buffer késleltetésének csökkentése.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evDecBalance</strong></span></span></dt><dd><p>
+Balansz csökkentése.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evDecVolume</strong></span></span></dt><dd><p>
+Hanger&#337; csökkentése.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evIncAudioBufDelay</strong></span></span></dt><dd><p>
+Audió buffer késleltetésének növelése.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evIncBalance</strong></span></span></dt><dd><p>
+Balansz növelése.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evIncVolume</strong></span></span></dt><dd><p>
+Hanger&#337; növelése.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evMute</strong></span></span></dt><dd><p>
+Hang ki-/bekapcsolása.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evSetBalance</strong></span></span></dt><dd><p>
+Balansz beállítása (potméter tudja használni; a
+potméter relatív értékét (0-100%) használja).
+    </p></dd><dt><span class="term"><span class="bold"><strong>evSetVolume</strong></span></span></dt><dd><p>
+Hanger&#337; beállítása (potméter tudja használni; a
+potméter relatív értékét (0-100%) használja).
+    </p></dd></dl></div><div class="variablelist"><p class="title"><b>Vegyes:</b></p><dl><dt><span class="term"><span class="bold"><strong>evAbout</strong></span></span></dt><dd><p>
+Programinformációs ablak megnyitása.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evDropSubtitle</strong></span></span></dt><dd><p>
+Aktuálisan használt felirat letiltása.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evEqualizer</strong></span></span></dt><dd><p>
+Equalizer be-/kikapcsolása.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evExit</strong></span></span></dt><dd><p>
+Kilépés a programból.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evIconify</strong></span></span></dt><dd><p>
+Ablak összecsukása kis méret&#369;vé.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evLoad</strong></span></span></dt><dd><p>
+Fájl betöltése (a fájl böngész&#337; ablak megnyitásával, ahol kiválaszthatod a fájlt).
+    </p></dd><dt><span class="term"><span class="bold"><strong>evLoadPlay</strong></span></span></dt><dd><p>
+Ugyan azt csinálja, mint az <code class="literal">evLoad</code>, de automatikusan elkezdi
+lejátszani a fájlt, miután betöltötte.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evLoadSubtitle</strong></span></span></dt><dd><p>
+Felirat fájl betöltése (a fájlválasztóval)
+    </p></dd><dt><span class="term"><span class="bold"><strong>evLoadAudioFile</strong></span></span></dt><dd><p>
+Audió fájl betöltése (a fájlválasztóval)
+    </p></dd><dt><span class="term"><span class="bold"><strong>evNone</strong></span></span></dt><dd><p>
+Üres üzenet, nincs hatása (kivéve talán a Subversion verziót :-)).
+    </p></dd><dt><span class="term"><span class="bold"><strong>evPlaylist</strong></span></span></dt><dd><p>
+Lejátszási lista ablak megnyitása/becsukása.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evPlayDVD</strong></span></span></dt><dd><p>
+Megpróbálja megnyitni az adott DVD-ROM meghajtóban lév&#337; lemezt.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evPlayVCD</strong></span></span></dt><dd><p>
+Megpróbálja megnyitni az adott CD-ROM meghajtóban lév&#337; lemezt.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evPreferences</strong></span></span></dt><dd><p>
+Megnyitja a beállítások ablakot.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evSetAspect</strong></span></span></dt><dd><p>
+Beállítja a megjelenített kép arányát.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evSetURL</strong></span></span></dt><dd><p>
+Megjeleníti az URL dialógus ablakot.
+    </p></dd><dt><span class="term"><span class="bold"><strong>evSkinBrowser</strong></span></span></dt><dd><p>
+Megnyitja a skin böngész&#337; ablakot.
+    </p></dd></dl></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="skin-fonts.html">El&#337;z&#337;</a> </td><td width="20%" align="center"><a accesskey="u" href="skin.html">Fel</a></td><td width="40%" align="right"> <a accesskey="n" href="skin-quality.html">Következ&#337;</a></td></tr><tr><td width="40%" align="left" valign="top">C.3. Bet&#369;k </td><td width="20%" align="center"><a accesskey="h" href="index.html">Tartalom</a></td><td width="40%" align="right" valign="top"> C.5. Min&#337;ségi skin-ek készítése</td></tr></table></div></body></html>

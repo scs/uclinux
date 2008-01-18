@@ -1,0 +1,196 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=KOI8-R"><title>7.1. Видео кодеки</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="codecs.html" title="Глава 7. Поддерживаемые кодеки"><link rel="prev" href="codecs.html" title="Глава 7. Поддерживаемые кодеки"><link rel="next" href="audio-codecs.html" title="7.2. Аудио кодеки"><link rel="preface" href="howtoread.html" title="Как читать эту документацию"><link rel="chapter" href="intro.html" title="Глава 1. Введение"><link rel="chapter" href="install.html" title="Глава 2. Установка"><link rel="chapter" href="usage.html" title="Глава 3. Использование"><link rel="chapter" href="cd-dvd.html" title="Глава 4. Использование CD/DVD"><link rel="chapter" href="faq.html" title="Глава 5. Часто Задаваемые вопросы"><link rel="chapter" href="containers.html" title="Глава 6. Поддерживаемые форматы"><link rel="chapter" href="codecs.html" title="Глава 7. Поддерживаемые кодеки"><link rel="chapter" href="tv.html" title="Глава 8. TV"><link rel="chapter" href="radio.html" title="Глава 9. Радио"><link rel="chapter" href="video.html" title="Глава 10. Устройства вывода видео"><link rel="chapter" href="audio.html" title="Глава 11. Устройства вывода звука"><link rel="chapter" href="ports.html" title="Глава 12. Портинг"><link rel="chapter" href="mencoder.html" title="Глава 13. Основы использования MEncoder"><link rel="chapter" href="encoding-guide.html" title="Глава 14. Encoding with MEncoder"><link rel="appendix" href="bugreports.html" title="Приложение A. Как сообщать об ошибках"><link rel="appendix" href="bugs.html" title="Приложение B. Известные проблемы"><link rel="appendix" href="skin.html" title="Приложение C. Формат скинов MPlayer"><link rel="appendix" href="history.html" title="Приложение D. История"><link rel="subsection" href="video-codecs.html#ffmpeg" title="7.1.1. FFmpeg/libavcodec"><link rel="subsection" href="video-codecs.html#xvid" title="7.1.2. XviD"><link rel="subsection" href="video-codecs.html#codec-x264" title="7.1.3. x264"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">7.1. Видео кодеки</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="codecs.html">Пред.</a> </td><th width="60%" align="center">Глава 7. Поддерживаемые кодеки</th><td width="20%" align="right"> <a accesskey="n" href="audio-codecs.html">След.</a></td></tr></table><hr></div><div class="sect1" lang="ru"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="video-codecs"></a>7.1. Видео кодеки</h2></div></div></div><p>
+<a href="../../codecs-status.html" target="_top">Таблица статуса кодеков</a> содержит
+полный, ежедневно обновляющийся список всех поддерживаемых кодеков. Некоторые
+бинарные кодеки, которые можно использовать в MPlayer, доступны 
+в <a href="http://www.mplayerhq.hu/design7/dload.html#binary_codecs" target="_top">разделе закачки</a>
+нашего сайта.
+</p><p>
+Наиболее важные кодеки:
+</p><div class="itemizedlist"><ul type="disc"><li>
+  <span class="bold"><strong>MPEG1</strong></span> (<span class="bold"><strong>VCD</strong></span>) и
+  <span class="bold"><strong>MPEG2</strong></span> (<span class="bold"><strong>DVD</strong></span>) видео
+  </li><li>
+  "родные" декодеры для <span class="bold"><strong>всех вариантов DivX,
+  3ivX, M$ MPEG-4</strong></span> v1, v2 и других вариантов MPEG-4.
+  </li><li>
+  "родной" декодер для <span class="bold"><strong>Windows Media Video 7/8</strong></span>
+  (<span class="bold"><strong>WMV1/WMV2</strong></span>), и Win32 DLL декодер
+  для <span class="bold"><strong>Windows Media Video 9</strong></span>
+  (<span class="bold"><strong>WMV3</strong></span>), оба используются в <tt class="filename">.wmv
+  </tt> файлах
+  </li><li>
+  "родной" <span class="bold"><strong>Sorenson 1 (SVQ1)</strong></span> декодер
+  </li><li>
+  "родной" <span class="bold"><strong>Sorenson 3 (SVQ3)</strong></span> декодер
+  </li><li>
+  <span class="bold"><strong>3ivx</strong></span> v1, v2 декодер
+  </li><li>
+  Cinepak и <span class="bold"><strong>Intel Indeo</strong></span> кодеки (3.1,3.2,4.1,5.0)
+  </li><li>
+  <span class="bold"><strong>MJPEG</strong></span>, AVID, VCR2, ASV2 и другие аппаратные
+  форматы
+  </li><li>
+  VIVO 1.0, 2.0, I263 и другие <span class="bold"><strong>h263(+)</strong></span> варианты
+  </li><li>
+  FLI/FLC
+  </li><li>
+  <span class="bold"><strong>RealVideo 1.0 &amp; 2.0 </strong></span> из
+  <code class="systemitem">libavcodec</code>, и
+  <span class="bold"><strong>RealVideo 3.0 &amp; 4.0</strong></span> кодеки, используя 
+  библиотеки RealPlayer
+  </li><li>
+  "родной" декодер для HuffYUV
+  </li><li>
+  Различные старые, простые, похожие на RLE форматы
+  </li></ul></div><p>
+Если у Вас есть не упомянутый здесь Win32 кодек, который ещё не поддерживается,
+пожалуйста, прочтите <a href="codec-importing.html" title="7.3. КАК извлечь кодек из Win32">Как добавить кодек</a>
+и помогите нам добавить для него поддержку.
+</p><div class="sect2" lang="ru"><div class="titlepage"><div><div><h3 class="title"><a name="ffmpeg"></a>7.1.1. FFmpeg/libavcodec</h3></div></div></div><p>
+<a href="http://ffmpeg.sourceforge.net" target="_top">FFmpeg</a> содержит
+<code class="systemitem">libavcodec</code> - ведущую библиотеку аудио
+и видео кодеков с открытым исходным кодом. Она способна декодировать 
+большинство мультимедиа форматов, обычно быстрее альтернатив, and aim support for the rest
+of them eventually. Это декодер по-умолчанию для большинства кодеков, поддерживаемых 
+<span class="application">MPlayer</span>. Кодирование также возможно для некоторых форматов и
+поддерживается в <span class="application">Mencoder</span>.
+</p><p>
+Полный список доступных кодеков доступен на странице FFmpeg.
+Поддерживаемые <a href="http://www.ffmpeg.org/ffmpeg-doc.html#SEC19" target="_top">видео</a>
+и <a href="http://www.ffmpeg.org/ffmpeg-doc.html#SEC20" target="_top">аудио</a> кодеки.
+</p><p>
+<span class="application">MPlayer</span> 
+содержит <code class="systemitem">libavcodec</code>. 
+Просто запустите <tt class="filename">configure</tt> и компилируйте как обычно.
+</p></div><div class="sect2" lang="ru"><div class="titlepage"><div><div><h3 class="title"><a name="xvid"></a>7.1.2. XviD</h3></div></div></div><p>
+<a href="http://www.xvid.org" target="_top">XviD</a> свободный, MPEG-4 ASP совместимый
+видео кодек, особенностями которого являются двухпроходное кодирование и
+полная поддержка MPEG-4 ASP, делающая его намного более эеффективным, чем
+хорошо известный DivX. Он предоставляет видео отменного качества и хорошую
+производительность, в силу оптимизаций под большинство современных процессоров.
+</p><p>
+Он начался как ответвление OpenDivX кодека. Это произошло, когда ProjectMayo 
+сделал исходный код OpenDivX
+закрытым DivX4, и разработчики OpenDivX не из ProjectMayo
+разозлились, и взялись за XviD. Поэтому у обоих проектов общие корни.
+</p><p>
+Имейте в виду, что XviD не нужен для декодирования XviD-кодированного видео.
+<code class="systemitem">libavcodec</code> используется по-умолчанию,
+т.к. обеспечивает более высокую скорость.
+</p><div class="procedure"><a name="id2560187"></a><p class="title"><b>Установка <code class="systemitem">XviD</code></b></p><p>
+  Как и большинство ПО с открытым исходным кодом, он доступен как в виде 
+  <a href="http://www.xvid.org/downloads.html" target="_top">официальных релизов</a>,
+  так и в виде CVS версии. 
+  Как правило, CVS версия достаточно стабильна для использования, т.к. в большинстве
+  случаев ее особенностью является отсутствие ошибок, присутствующих в релизах.
+  Далее описывается как заставить  работать
+  <code class="systemitem">XviD</code> CVS с <span class="application">MEncoder</span>'ом
+  (необходимы, как минимум,
+  <span class="application">autoconf</span> 2.50,
+  <span class="application">automake</span> и <span class="application">libtool</span>):
+</p><ol type="1"><li><p>
+  </p><pre class="screen">cvs -z3 -d:pserver:anonymous@cvs.xvid.org:/xvid login</pre><p>
+  </p></li><li><p>
+  </p><pre class="screen">cvs -z3 -d:pserver:anonymous@cvs.xvid.org:/xvid co xvidcore</pre><p>
+</p></li><li><p>
+  </p><pre class="screen">cd xvidcore/build/generic</pre><p>
+  </p></li><li><p>
+  </p><pre class="screen">./bootstrap.sh</pre><p>
+  </p></li><li><p>
+  </p><pre class="screen">./configure</pre><p>
+  Вам может потребоваться добавить некоторые опции (посмотрите вывод
+  <span><strong class="command">./configure --help</strong></span>).
+  </p></li><li><p>
+  </p><pre class="screen">make &amp;&amp; make install</pre><p>
+  </p></li><li><p>
+  Если Вы указали <tt class="option">--enable-divxcompat</tt>,
+  скопируйте <tt class="filename">../../src/divx4.h</tt> в
+  <tt class="filename">/usr/local/include/</tt>.
+  </p></li><li><p>
+  Перекомпилируйте <span class="application">MPlayer</span> с
+  <tt class="option">--with-xvidlibdir=<em class="replaceable"><code>/path/to/</code></em>libxvidcore.a</tt>
+  <tt class="option">--with-xvidincdir=<em class="replaceable"><code>/path/to/</code></em>xvid.h</tt>.
+  </p></li></ol></div></div><div class="sect2" lang="ru"><div class="titlepage"><div><div><h3 class="title"><a name="codec-x264"></a>7.1.3. x264</h3></div></div></div><div class="sect3" lang="ru"><div class="titlepage"><div><div><h4 class="title"><a name="codec-x264-whatis"></a>7.1.3.1. Что такое x264?</h4></div></div></div><p>
+  <a href="http://developers.videolan.org/x264.html" target="_top"><code class="systemitem">x264</code></a> - 
+  это библиотека для создания
+  видеопотоков H.264. Она не завершена на 100%, но, по крайней мере, имеет 
+  поддержку большинства возможностей H.264, влияющих на качество.
+  В спецификации H.264 присутствует множество дополнительных возможностей,
+  которые сами по себе никак не влияют на качество видео и до сих в 
+  <code class="systemitem">x264</code> не реализованы.
+</p><div class="itemizedlist"><p class="title"><b>возможности кодера</b></p><ul type="disc"><li><p>CAVLC/CABAC (Контекстнозависимое адаптивное бинарное арифметическое
+                  кодирование / Контестнозависимое адаптивное кодирование с переменной длиной)</p></li><li><p>Кадры с несколькими ссылками</p></li><li><p>Базовые (I-) кадры: все типы макроблоков (16x16, 8x8 и 4x4 со всеми
+    видами предсказания)</p></li><li><p>Предсказуемые (P-) кадры: все дробления (от 16x16 до 4x4)</p></li><li><p>Двунаправленные (B-) кадры: дробления от 16x16 до 8x8
+    (включая SKIP/DIRECT)</p></li><li><p>Управление потоком: постоянный квантователь, постоянный битпоток,
+    одинарный или многопроходный ABR, опциональный VBV</p></li><li><p>Обнаружение усечения изображения</p></li><li><p>Адаптивное расположение B-кадров</p></li><li><p>B-кадры как ссылки или в произвольном расположении кадров</p></li><li><p>Адаптивные пространственные преобразования 8x8 и 4x4</p></li><li><p>Режим кодирования без потерь</p></li><li><p>Возможность задания пользовательских матриц квантования</p></li><li><p>Параллельное кодирование разных блоков</p></li></ul></div></div><div class="sect3" lang="ru"><div class="titlepage"><div><div><h4 class="title"><a name="codec-h264-whatis"></a>7.1.3.2. Что такое H.264?</h4></div></div></div><p>
+  
+  H.264 - это одно из названий нового цифрового кодека, совместно 
+  разрабатываемого ITU и MPEG. Названия "ISO/IEC 14496-10" или
+  "MPEG-4 Part 10" тоже являются корректными, но чаще его
+  называют  "MPEG-4 AVC" или просто "AVC".
+</p><p>
+  Как его ни называй, но H.264 стоит попробовать, поскольку он 
+  дает то же качество, что и MPEG-4 ASP, но при битрейте меньшем 
+  на 5%-30%. Конкретный результат зависит как от исходного
+  материала, так и от кодировщика. Выигрыш не дается просто так:
+  декодирование потока H.264, похоже, имеет существенно повышенные требования
+  к CPU и памяти. В частности, на 1733 MHz Athlon декодирование
+  H.264 потока в 1500кбит/с с DVD-разрешением  использует около 35% CPU.
+  Для сравнения, декодирование 1500кбит/с потока MPEG4-ASP с 
+  DVD-разрешением требует около 10% CPU. Это означает, что для 
+  большинства пользователей практически не может быть и речи о декодировании 
+  потоков высокого разрешения.
+  Также это значит, что даже скромный DVD рип может время от времени
+  заикаться на процессорах слабее 2.0 GHz или около того.
+</p><p>
+  По крайней мере, с <code class="systemitem">x264</code>
+  требования для кодирования не слишком велики по сравнению с MPEG4-ASP.
+  В частности, на 1733 MHz Athlon кодирование обичного DVD будет идти со
+  скоростью 5-15 fps.
+</p><p>
+  Объяснять все тонкости H.264 не является целью этого документа, но если
+  вас интересует краткий обзор, вы можете прочесть 
+  <a href="http://www.cdt.luth.se/~peppar/kurs/smd151/spie04-h264OverviewPaper.pdf" target="_top">The H.264/AVC Advanced Video Coding Standard: Overview and Introduction to the Fidelity Range Extensions</a>.
+</p></div><div class="sect3" lang="ru"><div class="titlepage"><div><div><h4 class="title"><a name="codec-x264-playback"></a>7.1.3.3. Как мне посмотреть H.264 при помощи <span class="application">MPlayer</span>?</h4></div></div></div><p>
+  <span class="application">MPlayer</span> использует H.264 декодер библиотеки
+  <code class="systemitem">libavcodec</code>.
+  <code class="systemitem">libavcodec</code> получила мало-мальски
+  пригодную для использования возможность декодирования H.264 где-то в июле 2004,
+  однако, с того времени было внесено можество серъезных изменений и улучшений,
+  как с точки зрения поддерживаемых функциональных возможностей, так и улучшенного
+  использования CPU.
+  Для определенности: использование свежей версии Subversion - всегда хорошая идея.
+</p><p>
+  Если нужен быстрый и простой способ узнать какие свежие изменения, относящиеся к H.264,
+  были сделаны в <code class="systemitem">libavcodec</code>, Вам следует
+  иметь ввиду
+  <a href="http://mplayerhq.hu/cgi-bin/cvsweb.cgi/ffmpeg/libavcodec/h264.c?cvsroot=FFMpeg" target="_top">Веб-интерфейс к репозиторию FFmpeg Subversion</a>.
+</p></div><div class="sect3" lang="ru"><div class="titlepage"><div><div><h4 class="title"><a name="codec-x264-encode"></a>7.1.3.4. Как кодировать видео, используя <span class="application">MEncoder</span> и <code class="systemitem">x264</code>?</h4></div></div></div><p>
+  Если у вас установлен клиент subversion, последнюю версию x264 
+  можно загрузить следующей командой:
+  </p><pre class="screen">
+    svn co svn://svn.videolan.org/x264/trunk x264</pre><p>
+  Исходный код <span class="application">MPlayer</span> обновляется 
+  всякий раз при изменении API <code class="systemitem">x264</code>, 
+  так что предлагается использовать Subversion версию
+  <span class="application">MPlayer</span>'а.
+  возможно, ситуация изменится с выходом "релиза" 
+  <code class="systemitem">x264</code> (если он будет).
+  В данный момент <code class="systemitem">x264</code> следует
+  рассматривать как очень нестабильный, в свете постоянного изменения
+  интерфейса программирования.
+</p><p>
+  <code class="systemitem">x264</code> собирается и устанавливается
+  как обычно:
+  </p><pre class="screen">
+    ./configure &amp;&amp; make &amp;&amp; sudo make install
+  </pre><p>
+  Это установит libx264.a в /usr/local/lib, а x264.h - в /usr/local/include.
+  Сборка <span class="application">MPlayer</span> при установленных в стандартные
+  каталоги библиотеке и заголовочном файле <code class="systemitem">x264</code>
+  очень проста.
+  Просто запустите станартное:
+  </p><pre class="screen">./configure &amp;&amp; make &amp;&amp; sudo make install</pre><p>
+  Скрипт configure сам определит, выполнены ли необходимые требования для
+  <code class="systemitem">x264</code>.
+</p></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="codecs.html">Пред.</a> </td><td width="20%" align="center"><a accesskey="u" href="codecs.html">Уровень выше</a></td><td width="40%" align="right"> <a accesskey="n" href="audio-codecs.html">След.</a></td></tr><tr><td width="40%" align="left" valign="top">Глава 7. Поддерживаемые кодеки </td><td width="20%" align="center"><a accesskey="h" href="index.html">Начало</a></td><td width="40%" align="right" valign="top"> 7.2. Аудио кодеки</td></tr></table></div></body></html>

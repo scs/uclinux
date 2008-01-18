@@ -1,0 +1,226 @@
+# ppc64 POWERPC970 events
+#
+#  Within each group the event names must be unique.  Each event in a group is
+#  assigned to a unique counter.  The groups are from the groups defined in the
+#  PowerPC970 manual.
+#
+#  Only events within the same group can be selected simultaneously
+#  Each event is given a unique event number.  The event number is used by the
+#  Oprofile code to resolve event names for the postprocessing.  This is done
+#  to preserve compatibility with the rest of the Oprofile code.  The event 
+#  number format group_num followed by the counter number for the event within
+#  the group.  The event number must be between 0 and 100 hex.
+
+#Group Default
+event:0x1 counters:1 um:zero minimum:10000 name:CYCLES : Processor Cycles
+
+#Group 0 pm_slice0
+event:0x10 counters:0 um:zero minimum:10000 name:PM_RUN_CYC_GRP1 : (Group 1 pm_slice0) Processor Cycles gated by the run latch
+event:0x11 counters:1 um:zero minimum:10000 name:PM_CYC_GRP1 : (Group 1 pm_slice0) Processor Cycles
+event:0x13 counters:3 um:zero minimum:10000 name:PM_INST_CMPL_GRP1 : (Group 1 pm_slice0) Number of eligible instructions that completed
+
+#Group 2 pm_basic
+event:0x18 counters:0 um:zero minimum:10000 name:PM_INST_CMPL_GRP2 : (Group 2 pm_basic) Instructions completed
+event:0x19 counters:1 um:zero minimum:10000 name:PM_CYC_GRP2 : (Group 2 pm_basic) Processor cycles
+event:0x1a counters:2 um:zero minimum:1000 name:PM_LD_MISS_1_GRP2 : (Group 2 pm_basic) Total DL1 load references that miss the DL1
+event:0x1b counters:3 um:zero minimum:1000 name:PM_DC_INV_L2_GRP2 : (Group 2 pm_basic) A Dcache invalidated was received from the L2 because a line in L2 was castout
+event:0x1c counters:4 um:zero minimum:5000 name:PM_INST_DISP_GRP2 : (Group 2 pm_basic) The ISU sends the number of instructions dispatched
+event:0x1d counters:6 um:zero minimum:5000 name:PM_ST_REF_L1_GRP2 : (Group 2 pm_basic) Total DL1 store references
+event:0x1e counters:7 um:zero minimum:5000 name:PM_LD_REF_L1_GRP2 : (Group 2 pm_basic) Total DL1 load references
+
+#Group 3 pm_lsu
+event:0x20 counters:0 um:zero minimum:1000 name:PM_LSU_FLUSH_ULD_GRP3 : (Group 3 pm_lsu) A load was flushed because it was unaligned (crossed a 64byte boundary, or 32 byte if it missed the L1)
+event:0x21 counters:1 um:zero minimum:1000 name:PM_LSU_FLUSH_UST_GRP3 : (Group 3 pm_lsu) A store was flushed because it was unaligned
+event:0x22 counters:2 um:zero minimum:10000 name:PM_CYC_GRP3 : (Group 3 pm_lsu) Processor cycles
+event:0x23 counters:3 um:zero minimum:10000 name:PM_INST_CMPL_GRP3 : (Group 3 pm_lsu) Number of Eligible Instructions that completed
+event:0x24 counters:4 um:zero minimum:1000 name:PM_LSU_FLUSH_SRQ_GRP3 : (Group 3 pm_lsu) Store flushed because younger load hits and older store already in SRQ or in the same group
+event:0x25 counters:5 um:zero minimum:1000 name:PM_LSU_FLUSH_LRQ_GRP3 : (Group 3 pm_lsu) Load flushed because younger load executed before older store executed where data overlapped; OR two loads executed out of order with byte overlap and a snoop in between.
+event:0x26 counters:6 um:zero minimum:5000 name:PM_ST_REF_L1_GRP3 : (Group 3 pm_lsu) Total DL1 store references
+event:0x27 counters:7 um:zero minimum:5000 name:PM_LD_REF_L1_GRP3 : (Group 3 pm_lsu) Total DL1 load references
+
+#Group 4 pm_fpul
+event:0x08 counters:0 um:zero minimum:1000 name:PM_FPU_FDIV_GRP4 : (GRP4 pm_fpul) Active for one cycle at end of microcode executed when FPU is executing divide instruction; e.g. fdiv, fdivs.
+event:0x09 counters:1 um:zero minimum:1000 name:PM_FPU_FMA_GRP4 : (GRP4 pm_fpul) Active for one cycle when FPU is executing multiply-add kind of instruction; e.g. fmadd*, fnmsub*, where XYZ* means XYZ, XYZs.
+event:0x0a counters:2 um:zero minimum:1000 name:PM_FPU_FEST_GRP4 : (GRP4 pm_fpul) Active for one cycle when executing one of the estimate instructions; e.g. fres*.
+event:0x0b counters:3 um:zero minimum:1000 name:PM_FPU_FIN_GRP4 : (GRP4 pm_fpul) FPU finished, produced a result. This only indicates finish, not completion.
+event:0x0c counters:4 um:zero minimum:10000 name:PM_CYC_GRP4 : (GRP4 pm_fpul) Processor cycles
+event:0x0d counters:5 um:zero minimum:1000 name:PM_FPU_FSQRT_GRP4 : (GRP4 pm_fpul) Active for one cycle at end of microcode executed when FPU is executing a square root instruction; e.g. fsqrt*.
+event:0x0e counters:6 um:zero minimum:10000 name:PM_INST_CMPL_GRP4 : (GRP4 pm_fpul) Number of Eligible Instructions that completed. 
+event:0x0f counters:7 um:zero minimum:1000 name:PM_FPU_FMOV_FEST_GRP4 : (GRP4 pm_fpul) Active for one cycle when executing a move kind of instruction or one of the estimate instructions; e.g. fmr* or fres*.
+
+#Group 15 LSU Load Events
+event:0x28 counters:0 um:zero minimum:1000 name:PM_LSU0_FLUSH_ULD_GRP15 : (GRP15 LSU load events) A load was flushed from unit 0 because it was unaligned.
+event:0x29 counters:1 um:zero minimum:1000 name:PM_LSU1_FLUSH_ULD_GRP15 : (GRP15 LSU load events) A load was flushed from unit 1 because it was unaligned.
+event:0x2a counters:2 um:zero minimum:1000 name:PM_LD_REF_L1_LSU0_GRP15 : (GRP15 LSU load events) LSU0 L1 Dcache load reference execucted on uint 0
+event:0x2b counters:3 um:zero minimum:1000 name:PM_LD_REF_L1_LSU1_GRP15 : (GRP15 LSU load events) LSU1 L1 Dcache load reference execucted on uint 0
+event:0x2c counters:4 um:zero minimum:10000 name:PM_CYC_GRP15 : (GRP15 LSU load events) Processor cycles
+event:0x2d counters:5 um:zero minimum:10000 name:PM_INST_CMPL_GRP15 : (GRP15 LSU load events) Number of elegible instructions that completed
+event:0x2e counters:6 um:zero minimum:1000 name:PM_LD_MISS_L1_LSU0_GRP15 : (GRP15 LSU load events) A load executing on unit 0 missed the D cache
+event:0x2f counters:7 um:zero minimum:1000 name:PM_LD_MISS_L1_LSU1_GRP15 : (GRP15 LSU load events) A load executing on unit 1 missed the D cache
+
+#Group 16 LSU Store Events
+event:0x30 counters:0 um:zero minimum:1000 name:PM_LSU0_FLUSH_UST_GRP16 : (GRP16 LSU store events) A store was flushed from unit 0 because it was unaligned (crossed 4K boundary)
+event:0x31 counters:1 um:zero minimum:1000 name:PM_LSU1_FLUSH_UST_GRP16 : (GRP16 LSU store events) A store was flushed from unit 1 because it was unaligned (crossed 4K boundary)
+event:0x32 counters:2 um:zero minimum:1000 name:PM_ST_REF_L1_LSU0_GRP16 : (GRP16 LSU store events) An L1 D cache store executed on unit 0
+event:0x33 counters:3 um:zero minimum:1000 name:PM_ST_REF_L1_LSU1_GRP16 : (GRP16 LSU store events) An L1 D cache store executed on unit 1
+event:0x34 counters:4 um:zero minimum:10000 name:PM_CYC_GRP16 : (GRP16 LSU store events) Processor cycles
+event:0x35 counters:5 um:zero minimum:10000 name:PM_INST_CMPL_GRP16 : (GRP16 LSU store events) Instructions completed
+event:0x36 counters:6 um:zero minimum:1000 name:PM_ST_MISS_L1_GRP16 : (GRP16 LSU store events) L1 Dcache store missed the D cache
+event:0x37 counters:7 um:zero minimum:1000 name:PM_DC_INV_L2_GRP16 : (GRP16 LSU store events) An L1 Dcache entry invalidated from the L2 because L2 line was cast out
+
+#Group 17 LSU Store Events 2
+event:0x38 counters:0 um:zero minimum:1000 name:PM_LSU0_SRQ_STFWD_GRP17 : (GRP17 LSU store events 2) Data from a store instruction was forwarded to a load on unit 0
+event:0x39 counters:1 um:zero minimum:1000 name:PM_LSU1_SRQ_STFWD_GRP17 : (GRP17 LSU store events 2) Data from a store instruction was forwarded to a load on unit 1
+event:0x3a counters:2 um:zero minimum:1000 name:PM_ST_REF_L1_LSU0_GRP17 : (GRP17 LSU store events 2) L1 Dcache store executed on unit 0
+event:0x3b counters:3 um:zero minimum:1000 name:PM_ST_REF_L1_LSU1_GRP17 : (GRP17 LSU store events 2) L1 Dcache store executed on unit 1
+event:0x3c counters:4 um:zero minimum:1000 name:PM_ST_MISS_L1_GRP17 : (GRP17 LSU store events 2) L1 Dcache store missed the D cache
+event:0x3d counters:5 um:zero minimum:10000 name:PM_CYC_GRP17 : (GRP17 LSU store events 2) Processor Cycles
+event:0x3e counters:6 um:zero minimum:10000 name:PM_INST_CMPL_GRP17 : (GRP17 LSU store events 2) Instructions completed
+event:0x3f counters:7 um:zero minimum:10000 name:PM_CYC_GRP17 : (GRP17 LSU store events 2) Processor Cycles
+
+#Group 18 Information on the Load Store Unit
+event:0x40 counters:0 um:zero minimum:1000 name:PM_LSU0_DERAT_MISS_GRP18 : (GRP18 Info on load store unit) Data request from LSU unit 0 missed ERAT causing ERAT reload
+event:0x41 counters:1 um:zero minimum:1000 name:PM_LSU1_DERAT_MISS_GRP18 : (GRP18 Info on load store unit) Data request from LSU unit 1 missed ERAT causing ERAT reload
+event:0x42 counters:2 um:zero minimum:10000 name:PM_CYC_GRP18 : (GRP18 Info on load store unit) Processor Cycles
+event:0x43 counters:3 um:zero minimum:10000 name:PM_CYC_GRP18 : (GRP18 Info on load store unit) Processor Cycles
+event:0x44 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_GRP18 : (GRP18 Info on load store unit) Instructions completed
+event:0x45 counters:5 um:zero minimum:10000 name:PM_CYC_GRP18 : (GRP18 Info on load store unit) Processor Cycles
+event:0x46 counters:6 um:zero minimum:1000 name:PM_L1_DCACHE_RELOAD_VALID_GRP18 : (GRP18 Info on load store unit) L1 reload data source valid
+event:0x47 counters:7 um:zero minimum:10000 name:PM_CYC_GRP18 : (GRP18 Info on load store unit) Processor Cycles
+
+#Group 21 PE Benchmarker group for L1 and TLB
+event:0x48 counters:0 um:zero minimum:1000 name:PM_DTLB_MISS_GRP21 : (GRP21 PE Benchmarker group for L1 and TLB) TLB miss for Data request occurred.  Request may be retried until inst is in next complete group causing multiple TLB misses for the same inst.
+event:0x49 counters:1 um:zero minimum:1000 name:PM_ITLB_MISS_GRP21 : (GRP21 PE Benchmarker group for L1 and TLB) A TLB miss for an instruction Fetch has occurred
+event:0x4a counters:2 um:zero minimum:1000 name:PM_LD_MISS_L1_GRP21 : (GRP21 PE Benchmarker group for L1 and TLB) L1 reference that misses the L1 Dcache
+event:0x4b counters:3 um:zero minimum:1000 name:PM_ST_MISS_L1_GRP21 : (GRP21 PE Benchmarker group for L1 and TLB) L1 D cache store that misses the cache
+event:0x4c counters:4 um:zero minimum:10000 name:PM_CYC_GRP21 : (GRP21 PE Benchmarker group for L1 and TLB) Processor cycles
+event:0x4d counters:5 um:zero minimum:10000 name:PM_INST_CMPL_GRP21 : (GRP21 PE Benchmarker group for L1 and TLB) Instructions completed
+event:0x4e counters:6 um:zero minimum:1000 name:PM_ST_REF_L1_GRP21 : (GRP21 PE Benchmarker group for L1 and TLB) L1 D cache store references
+event:0x4f counters:7 um:zero minimum:1000 name:PM_LD_REF_L1_GRP21 : (GRP21 PE Benchmarker group for L1 and TLB) L1 D cache load references
+
+#Group 22 Hpmcount group for L1 and TLB behavior
+event:0x50 counters:0 um:zero minimum:1000 name:PM_DTLB_MISS_GRP22 : (GRP22 Hpmcount group for L1 and TLB behavior) A TLB miss for data, request may be retried until the instruction is in the next complete group.  This may cause multiple TLB misses for the same instruction.
+event:0x51 counters:1 um:zero minimum:1000 name:PM_LSU_LMQ_SRQ_EMPTY_CYC_GRP22 : (GRP22 Hpmcount group for L1 and TLB behavior) Cycles LMQ and SRQ empty
+event:0x52 counters:2 um:zero minimum:1000 name:PM_LD_MISS_L1_GRP22 : (GRP22 Hpmcount group for L1 and TLB behavior) L1 D cache load miss
+event:0x53 counters:3 um:zero minimum:1000 name:PM_ST_MISS_L1_GRP22 : (GRP22 Hpmcount group for L1 and TLB behavior) L1 D cache store miss
+event:0x54 counters:4 um:zero minimum:10000 name:PM_CYC_GRP22 : (GRP22 Hpmcount group for L1 and TLB behavior) processor cycles
+event:0x55 counters:5 um:zero minimum:10000 name:PM_INST_CMPL_GRP22 : (GRP22 Hpmcount group for L1 and TLB behavior) instructions completed
+event:0x56 counters:6 um:zero minimum:1000 name:PM_ST_REF_L1_GRP22 : (GRP22 Hpmcount group for L1 and TLB behavior) L1 D cache store references
+event:0x57 counters:7 um:zero minimum:1000 name:PM_LD_REF_L1_GRP22 : (GRP22 Hpmcount group for L1 and TLB behavior) L1 D cache load references
+
+#Group 24 L1 miss and branch mispredict
+event:0x58 counters:0 um:zero minimum:10000 name:PM_INST_CMPL_GRP24 : (GRP24 L1 miss and branch mispredict) Instructions completed 
+event:0x59 counters:1 um:zero minimum:10000 name:PM_CYC_GRP24 : (GRP24 L1 miss and branch mispredict) Processor Cycles
+event:0x5a counters:2 um:zero minimum:1000 name:PM_LD_MISS_L1_GRP24 : (GRP24 L1 miss and branch mispredict) L1 D cache load misses
+event:0x5b counters:3 um:zero minimum:1000 name:PM_BR_ISSUED_GRP24 : (GRP24 L1 miss and branch mispredict) Branches issued
+event:0x5c counters:4 um:zero minimum:1000 name:PM_ST_MISS_L1_GRP24 : (GRP24 L1 miss and branch mispredict) L1 D cache store misses
+event:0x5d counters:5 um:zero minimum:10000 name:PM_CYC_GRP24 : (GRP24 L1 miss and branch mispredict) Processor Cycles
+event:0x5e counters:6 um:zero minimum:1000 name:PM_BR_MPRED_CR_GRP24 : (GRP24 L1 miss and branch mispredict) Branch misprediction due to CR bit setting
+event:0x5f counters:7 um:zero minimum:1000 name:PM_BR_MPRED_TA_GRP24 : (GRP24 L1 miss and branch mispredict) Branch mispreditions due to target address 
+
+#Group 26 SLB and branch mispredict analysis
+event:0x80 counters:0 um:zero minimum:10000 name:PM_RUN_CYC_GRP26 : (GRP26 SLB and branch mispredict analysis) Processor Cycles gated by the run latch
+event:0x81 counters:1 um:zero minimum:1000 name:PM_DSLB_MISS_GRP26 : (GRP26 SLB and branch mispredict analysis) SLB miss for a data request. SLB misses trap to the operating system to resolve.
+event:0x82 counters:2 um:zero minimum:1000 name:PM_BR_ISSUED_GRP26 : (GRP26 SLB and branch mispredict analysis) Asserted when ISU issues a branch instruction.
+event:0x83 counters:3 um:zero minimum:1000 name:PM_BR_MPRED_CR_GRP26 : (GRP26 SLB and branch mispredict analysis) Asserted when the branch execution unit detects a branch mispredict because the CR value is opposite of the predicted value.
+event:0x84 counters:4 um:zero minimum:1000 name:PM_ISLB_MISS_GRP26 : (GRP26 SLB and branch mispredict analysis) SLB miss for an instruction fetch as occurred
+event:0x85 counters:5 um:zero minimum:10000 name:PM_CYC_GRP26 : (GRP26 SLB and branch mispredict analysis) Processor cycles
+event:0x86 counters:6 um:zero minimum:10000 name:PM_INST_CMPL_GRP26 : (GRP26 SLB and branch mispredict analysis) Instructions completed
+event:0x87 counters:7 um:zero minimum:1000 name:PM_BR_MPRED_TA_GRP26 : (GRP26 SLB and branch mispredict analysis) Asserted when the branch execution unit detects an incorrect target address prediction.
+
+#Group 27 Data source and LMQ
+event:0x88 counters:0 um:zero minimum:1000 name:PM_DATA_FROM_L2_GRP27 : (GRP27 Data source and LMQ) DL1 was reloaded from the local L2 due to a demand load
+event:0x89 counters:1 um:zero minimum:10000 name:PM_INST_CMPL_GRP27 : (GRP27 Data source and LMQ) Instructions completed
+event:0x8a counters:2 um:zero minimum:1000 name:PM_DATA_FROM_MEM_GRP27 : (GRP27 Data source and LMQ) Data loaded from memory
+event:0x8b counters:3 um:zero minimum:10000 name:PM_CYC_GRP27 : (GRP27 Data source and LMQ) Processor cycles
+event:0x8c counters:4 um:zero minimum:1000 name:PM_DATA_FROM_L25_SHR_GRP27 : (GRP27 Data source and LMQ) DL1 reloaded with shared (T or SL) data from L2 of a chip on this MCM due to demand load
+event:0x8d counters:5 um:zero minimum:1000 name:PM_DATA_FROM_L25_MOD_GRP27 : (GRP27 Data source and LMQ) DL1 reloaded with modified (M) data from L2 of a chip on this MCM due to a demand load
+event:0x8e counters:6 um:zero minimum:1000 name:PM_LSU_LMQ_S0_ALLOC_GRP27 : (GRP27 Data source and LMQ) The first entry in the LMQ was allocated
+event:0x8f counters:7 um:zero minimum:1000 name:PM_LSU_LMQ_S0_VALID_GRP27 : (GRP27 Data source and LMQ) Asserted every cycle when first entry in LMQ is valid. LMQ had eight entries allocated FIFO.
+
+#Group 28 TLB and LRQ plus data prefetch
+event:0x90 counters:0 um:zero minimum:1000 name:PM_DTLB_MISS_GRP28 : (GRP28 TLB and LRQ plus data prefetch) TLB miss for data request. Request may be retried, resulting in multiple TLB misses for same instruction.
+event:0x91 counters:1 um:zero minimum:1000 name:PM_ITLB_MISS_GRP28 : (GRP28 TLB and LRQ plus data prefetch) TLB miss for an Instruction Fetch has occurred
+event:0x92 counters:2 um:zero minimum:10000 name:PM_INST_CMPL_GRP28 : (GRP28 TLB and LRQ plus data prefetch) Instructions completed
+event:0x93 counters:3 um:zero minimum:10000 name:PM_CYC_GRP28 : (GRP28 TLB and LRQ plus data prefetch) Processor cycles
+event:0x94 counters:4 um:zero minimum:1000 name:PM_LSU_LRQ_S0_ALLOC_GRP28 : (GRP28 TLB and LRQ plus data prefetch) LRQ slot zero was allocated
+event:0x95 counters:5 um:zero minimum:1000 name:PM_LSU_LRQ_S0_VALID_GRP28 : (GRP28 TLB and LRQ plus data prefetch) Asserted every cycle that Load Request Queue slot zero is valid. SRQ is 32 entries long and is allocated round-robin.
+event:0x96 counters:6 um:zero minimum:1000 name:PM_L1_PREF_GRP28 : (GRP28 TLB and LRQ plus data prefetch) A request to prefetch data into the L1 was made
+event:0x97 counters:7 um:zero minimum:1000 name:PM_L2_PREF_GRP28 : (GRP28 TLB and LRQ plus data prefetch) A request to prefetch data into L2 was made
+
+#Group 29 Instruction source and tablewalk
+event:0x98 counters:0 um:zero minimum:1000 name:PM_INST_FROM_L2_GRP29 : (GRP29 Instruction source and tablewalk) Instruction fetch group was fetched from L2. Fetch Groups can contain up to 8 instructions.
+event:0x99 counters:1 um:zero minimum:1000 name:PM_INST_FROM_MEM_GRP29 : (GRP29 Instruction source and tablewalk) Instruction fetched from memory
+event:0x9a counters:2 um:zero minimum:10000 name:PM_HV_CYC_GRP29 : (GRP29 Instruction source and tablewalk) Cycles when the processor is executing in Hypervisor (MSR[HV] = 1 and MSR[PR]=0)
+event:0x9b counters:3 um:zero minimum:10000 name:PM_INST_CMPL_GRP29 : (GRP29 Instruction source and tablewalk) Instructions completed
+event:0x9c counters:4 um:zero minimum:1000 name:PM_DATA_TABLEWALK_CYC_GRP29 : (GRP29 Instruction source and tablewalk) Asserted every cycle when a tablewalk is active, during which, any request attempting to access the TLB will be rejected and retried.
+event:0x9d counters:5 um:zero minimum:10000 name:PM_CYC_GRP29 : (GRP29 Instruction source and tablewalk) Processor cycles
+event:0x9e counters:6 um:zero minimum:1000 name:PM_GRP_CMPL_GRP29 : (GRP29 Instruction source and tablewalk) A group completed. Microcoded instructions that span multiple groups will generate this event once per group.
+event:0x9f counters:7 um:zero minimum:1000 name:PM_DC_INV_L2_GRP29 : (GRP29 Instruction source and tablewalk) A dcache invalidated was received from the L2 because a line in L2 was castout.
+
+#Group 30 Sync and SRQ
+event:0xa0 counters:0 um:zero minimum:1000 name:PM_LSU_SRQ_S0_ALLOC_GRP30 : (GRP30 Sync and SRQ) SRQ Slot zero was allocated
+event:0xa1 counters:1 um:zero minimum:1000 name:PM_LSU_SRQ_S0_VALID_GRP30 : (GRP30 Sync and SRQ) Asserted every cycle that the Store Request Queue slot zero is valid. SRQ is 32 entries long and is allocated round-robin.
+event:0xa2 counters:2 um:zero minimum:1000 name:PM_LD_MISS_L1_GRP30 : (GRP30 Sync and SRQ) Total DL1 load references that miss the DL1
+event:0xa3 counters:3 um:zero minimum:1000 name:PM_LSU_SRQ_SYNC_CYC_GRP30 : (GRP30 Sync and SRQ) Asserted every cycle when a sync is in the SRQ.
+event:0xa4 counters:4 um:zero minimum:10000 name:PM_INST_CMPL_GRP30 : (GRP30 Sync and SRQ) Instructions completed
+event:0xa5 counters:6 um:zero minimum:10000 name:PM_CYC_GRP30 : (GRP30 Sync and SRQ) Processor cycles
+event:0xa6 counters:7 um:zero minimum:1000 name:PM_LD_REF_L1_GRP30 : (GRP30 Sync and SRQ) Total DL1 Load references
+
+#Group 31 IERAT
+event:0xa8 counters:0 um:zero minimum:1000 name:PM_INST_FROM_L1_GRP31 : (GRP31 IERAT) Instruction fetch group was fetched from L1. Fetch Groups can contain up to 8 instructions.
+event:0xa9 counters:1 um:zero minimum:1000 name:PM_IERAT_XLATE_WR_GRP31 : (GRP31 IERAT) Asserted each time the I-ERAT is written, indicating that an ERAT miss has been serviced.
+event:0xaa counters:2 um:zero minimum:10000 name:PM_INST_CMPL_GRP31 : (GRP31 IERAT) Instructions completed
+event:0xab counters:3 um:zero minimum:10000 name:PM_CYC_GRP31 : (GRP31 IERAT) Processor cycles
+
+#Group 32 DERAT
+event:0xb0 counters:0 um:zero minimum:1000 name:PM_GCT_EMPTY_CYC_GRP32 : (GRP32 DERAT) The Global Completion Table is completely empty
+event:0xb1 counters:1 um:zero minimum:1000 name:PM_GRP_DISP_VALID_GRP32 : (GRP32 DERAT) Dispatch has been attempted for a valid group.
+event:0xb2 counters:2 um:zero minimum:1000 name:PM_L1_DCACHE_RELOAD_VALID_GRP32 : (GRP32 DERAT) The data source information is valid
+event:0xb3 counters:3 um:zero minimum:10000 name:PM_INST_CMPL_GRP32 : (GRP32 DERAT) Instructions completed
+event:0xb4 counters:4 um:zero minimum:1000 name:PM_INST_DISP_GRP32 : (GRP32 DERAT) The ISU sends the number of instructions dispatched.
+event:0xb5 counters:5 um:zero minimum:1000 name:PM_LSU_DERAT_MISS_GRP32 : (GRP32 DERAT) Total D-ERAT Misses (Unit 0 + Unit 1). Requests are retried and may result in multiple erat misses for the same instruction.
+event:0xb6 counters:6 um:zero minimum:1000 name:PM_ST_REF_L1_GRP32 : (GRP32 DERAT) Total DL1 Store references
+event:0xb7 counters:7 um:zero minimum:10000 name:PM_CYC_GRP32 : (GRP32 DERAT) Processor cycles
+
+#Group 33 Info on marked instructions
+event:0x60 counters:0 um:zero minimum:1000 name:PM_MRK_LD_MISS_L1_GRP33 : (GRP33 Info on marked instructions) Marked L1 D cache load misses
+event:0x61 counters:1 um:zero minimum:1000 name:PM_THRESHOLD_TIMEO_GRP33 : (GRP33 Info on marked instructions) Threshold timer expired
+event:0x62 counters:2 um:zero minimum:10000 name:PM_CYC_GRP33 : (GRP33 Info on marked instructions) Processor cycles
+event:0x63 counters:3 um:zero minimum:1000 name:PM_MRK_GRP_CMPL_GRP33 : (GRP33 Info on marked instructions) Marked group completed
+event:0x64 counters:4 um:zero minimum:1000 name:PM_GRP_MRK_GRP33 : (GRP33 Info on marked instructions) A marked group was sampled in IDU
+event:0x65 counters:5 um:zero minimum:1000 name:PM_MRK_GRP_ISSUED_GRP33 : (GRP33 Info on marked instructions) A marked group was issued
+event:0x66 counters:6 um:zero minimum:1000 name:PM_MRK_GRP_INST_FIN_GRP33 : (GRP33 Info on marked instructions) A marked instruction finished
+event:0x67 counters:7 um:zero minimum:10000 name:PM_INST_CMPL_GRP33 : (GRP33 Info on marked instructions) Instructions completed
+
+#Group 34 Marked Stores Processing Flow
+event:0x68 counters:0 um:zero minimum:1000 name:PM_MRK_ST_CMPL_GRP34 : (GRP34 Marked Stores Processing Flow) Marked store instruction completed (data home)
+event:0x69 counters:1 um:zero minimum:10000 name:PM_CYC_GRP34 : (GRP34 Marked Stores Processing Flow) Processor cycles
+event:0x6a counters:2 um:zero minimum:1000 name:PM_MRK_ST_CMPL_INT_GRP34 : (GRP34 Marked Stores Processing Flow) Marked store completed with intervention
+event:0x6b counters:3 um:zero minimum:1000 name:PM_MRK_GRP_CMPL_GRP34 : (GRP34 Marked Stores Processing Flow) Marked group completed
+event:0x6c counters:4 um:zero minimum:1000 name:PM_MRK_GRP_TIME0_GRP34 : (GRP34 Marked Stores Processing Flow) Marked group completion timeout
+event:0x6d counters:5 um:zero minimum:1000 name:PM_MRK_ST_GPS_GRP34 : (GRP34 Marked Stores Processing Flow) Marked store sent to GPS
+event:0x6e counters:6 um:zero minimum:1000 name:PM_MRK_LSU_SRQ_INST_VALID_GRP34 : (GRP34 Marked Stores Processing Flow) Marked instruction valid in SRQ
+event:0x6f counters:7 um:zero minimum:10000 name:PM_INST_CMPL_GRP34 : (GRP34 Marked Stores Processing Flow) Instructions completed
+
+#Group 35 Load Store Unit Marked Events
+event:0x70 counters:0 um:zero minimum:1000 name:PM_MRK_ST_MISS_L1_GRP35 : (GRP35 Load Store Unit Marked Events) Marked L1 D cacahe store misses
+event:0x71 counters:1 um:zero minimum:1000 name:PM_MRK_IMR_RELOAD_GRP35 : (GRP35 Load Store Unit Marked Events) A DL1 reload occured due to a marked load
+event:0x72 counters:2 um:zero minimum:1000 name:PM_MRK_LSU0_FLUSH_UST_GRP35 : (GRP35 Load Store Unit Marked Events) A marked store was flushed from unit 0 because it was unaligned
+event:0x73 counters:3 um:zero minimum:1000 name:PM_MRK_LSU1_FLUSH_UST_GRP35 : (GRP35 Load Store Unit Marked Events) A marked store was flushed from unit 1 because it was unaligned
+event:0x74 counters:4 um:zero minimum:10000 name:PM_CYC_GRP35 : (GRP35 Load Store Unit Marked Events) processor cycles
+event:0x75 counters:5 um:zero minimum:10000 name:PM_INST_CMPL_GRP35 : (GRP35 Load Store Unit Marked Events) Instructions completed
+event:0x76 counters:6 um:zero minimum:1000 name:PM_MRK_LSU0_FLUSH_ULD_GRP35 : (GRP35 Load Store Unit Marked Events) Marked load was flushed from unit 0 because it was unaligned (crossed a 64byte boundery or 32 byte if it missed the L1
+event:0x77 counters:7 um:zero minimum:1000 name:PM_MRK_LSU1_FLUSH_ULD_GRP35 : (GRP35 Load Store Unit Marked Events) Marked load was flushed from unit 1 because it was unaligned (crossed a 64byte boundery or 32 byte if it missed the L1
+
+#Group 36 Load Store Unit Marked Events 2
+event:0x78 counters:0 um:zero minimum:1000 name:PM_MRK_LD_MISS_L1_LSU0_GRP36 : (GRP36 Load Store Unit Marked Events2) Marked load executing on unit 0 missed the dcache
+event:0x79 counters:1 um:zero minimum:1000 name:PM_MRK_LD_MISS_L1_LSU1_GRP36 : (GRP36 Load Store Unit Marked Events2) Marked load executing on unit 1 missed the dcache
+event:0x7a counters:2 um:zero minimum:1000 name:PM_MRK_LSU0_FLUSH_LRQ_GRP36 : (GRP36 Load Store Unit Marked Events2) Marked load was flushed by unit 0 because a younger load executed before an older store executed and they had overlapping data OR two loads executed out of order and they have byte overlap and there was a snoop in between to an overlapped byte
+event:0x7b counters:3 um:zero minimum:1000 name:PM_MRK_LSU1_FLUSH_LRQ_GRP36 : (GRP36 Load Store Unit Marked Events2) Marked load was flushed by unit 1 because a younger load executed before an older store executed and they had overlapping data OR two loads executed out of order and they have byte overlap and there was a snoop in between to an overlapped byte
+event:0x7c counters:4 um:zero minimum:10000 name:PM_CYC_GRP36 : (GRP36 Load Store Unit Marked Events2) Processor cycles
+event:0x7d counters:5 um:zero minimum:10000 name:PM_INST_CMPL_GRP36 : (GRP36 Load Store Unit Marked Events2) Instructions completed
+event:0x7e counters:6 um:zero minimum:1000 name:PM_MRK_LSU0_FLUSH_SRQ_GRP36 : (GRP36 Load Store Unit Marked Events2) A marked store was flushed because younger load hits and older store that is already in the SRQ or in the same group
+event:0x7f counters:7 um:zero minimum:1000 name:PM_MRK_LSU1_FLUSH_SRQ_GRP36 : (GRP36 Load Store Unit Marked Events2) A marked store was flushed because younger load hits and older store that is already in the SRQ or in the same group
+
+

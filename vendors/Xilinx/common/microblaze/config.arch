@@ -1,0 +1,9 @@
+.EXPORT_ALL_VARIABLES:
+
+# ARCH = kernel,  TARGET_ARCH = uClibc
+MACHINE       = mbvanilla
+ARCH          = microblaze
+CROSS_COMPILE = mb-
+CROSS         = $(CROSS_COMPILE)
+
+include $(ROOTDIR)/vendors/Xilinx/common/common-config.arch

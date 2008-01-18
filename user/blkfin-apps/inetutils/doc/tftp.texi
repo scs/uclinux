@@ -1,0 +1,90 @@
+@node tftp
+@chapter tftp
+@cindex tftp
+
+@command{Tftp} is the user interface to the Internet TFTP (Trivial File
+Transfer Protocol), which allows users to transfer files to and from a
+remote machine.  The remote host may be specified on the command line, in which
+case tftp uses host as the default host for future transfers (see the
+connect command below).
+
+
+@section Invoking
+
+tftp [host]
+
+@section Commands
+
+Once tftp is running, it issues the prompt and recognizes the following
+commands:
+
+@table @samp
+
+@item ? command-name ...
+Print help information.
+
+@item ascii
+Shorthand for "mode ascii"
+
+@item binary
+Shorthand for "mode binary"
+
+@item connect host-name [port]
+Set the host (and optionally port) for transfers.  Note that the
+TFTP protocol, unlike the FTP protocol, does not maintain connections
+between transfers; thus, the connect command does not
+actually create a connection, but merely remembers what host is
+to be used for transfers.  You do not have to use the connect
+command; the remote host can be specified as part of the get or
+put commands.
+
+@item get filename
+@itemx get remotename localname
+@itemx get file1 file2 ... fileN
+Get a file or set of files from the specified sources. Source
+can be in one of two forms: a filename on the remote host, if
+the host has already been specified, or a string of the form
+hosts:filename to specify both a host and filename at the same
+time.  If the latter form is used, the last hostname specified
+becomes the default for future transfers.
+
+@item mode transfer-mode
+Set the mode for transfers; transfer-mode may be one of ascii or
+binary. The default is ascii.
+
+@item put file
+@itemx put localfile remotefile
+@itemx put file1 file2 ... fileN remote-directory
+Put a file or set of files to the specified remote file or directory.
+The destination can be in one of two forms: a filename
+on the remote host, if the host has already been specified, or a
+string of the form hosts:filename to specify both a host and
+filename at the same time.  If the latter form is used, the
+hostname specified becomes the default for future transfers.  If
+the remote-directory form is used, the remote host is assumed to
+be a UNIX machine.
+
+@item quit
+Exit tftp. An end of file also exits.
+
+@item rexmt retransmission-timeout
+Set the per-packet retransmission timeout, in seconds.
+
+@item status
+Show current status.
+
+@item timeout total-transmission-timeout
+Set the total transmission timeout, in seconds.
+
+@item trace
+Toggle packet tracing.
+
+@item verbose
+Toggle verbose mode.
+
+@end table
+
+Because there is no user-login or validation within the TFTP protocol,
+the remote site will probably have some sort of file-access restrictions
+in place.  The exact methods are specific to each site and therefore
+difficult to document here.

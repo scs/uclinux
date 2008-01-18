@@ -1,0 +1,12 @@
+#
+# get rid of various editor temp files
+#
+all:
+	rm -f *~
+	rm -f examples/*~
+	rm -f include/*~
+	rm -f include/ipod/*~
+	rm -f src/*~
+	rm -f python/*~
+	rm -f python/examples/*~
+	rm -rf docs/*

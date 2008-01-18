@@ -1,0 +1,10 @@
+[Desktop Entry]
+Encoding=UTF-8
+Categories=Development;X-LOS-DevelopmentReference;
+Exec=sensible-browser /usr/share/doc/HTML/libipod/index.html
+Icon=document2
+StartupNotify=true
+Terminal=false
+Type=Application
+Name=Documentation - libipod 
+X-CNR-Desktop=false

@@ -1,0 +1,60 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=iso-8859-2"><title>13.1. Wybieranie kodeka i formatu</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Odtwarzacz filmów"><link rel="up" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="prev" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="next" href="menc-feat-selecting-input.html" title="13.2. Wybieranie źródłowego zbioru lub urządzenia"><link rel="preface" href="howtoread.html" title="Jak czytać tę dokumentację"><link rel="chapter" href="intro.html" title="Rozdział 1. Wprowadzenie"><link rel="chapter" href="install.html" title="Rozdział 2. Instalacja"><link rel="chapter" href="usage.html" title="Rozdział 3. Sposób użycia"><link rel="chapter" href="cd-dvd.html" title="Rozdział 4. Używanie CD/DVD"><link rel="chapter" href="faq.html" title="Rozdział 5. FAQ - Często Zadawane Pytania"><link rel="chapter" href="formats.html" title="Rozdział 6. Kontenery"><link rel="chapter" href="codecs.html" title="Rozdział 7. Obsługiwane kodeki"><link rel="chapter" href="video.html" title="Rozdział 8. Urządzenia wyjścia video"><link rel="chapter" href="audio.html" title="Rozdział 9. Urządzenia wyjściowe audio"><link rel="chapter" href="tv.html" title="Rozdział 10. TV"><link rel="chapter" href="radio.html" title="Rozdział 11. Radio"><link rel="chapter" href="ports.html" title="Rozdział 12. Porty"><link rel="chapter" href="mencoder.html" title="Rozdział 13. Podstawy używania MEncodera"><link rel="chapter" href="encoding-guide.html" title="Rozdział 14. Kodowanie przy użyciu MEncodera"><link rel="appendix" href="bugreports.html" title="Dodatek A. Jak zgłaszać błędy"><link rel="appendix" href="bugs.html" title="Dodatek B. Znane błędy"><link rel="appendix" href="skin.html" title="Dodatek C. Format skórki MPlayera"><link rel="appendix" href="history.html" title="Dodatek D. Historia"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.1. Wybieranie kodeka i formatu</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="mencoder.html">Poprzedni</a> </td><th width="60%" align="center">Rozdział 13. Podstawy używania <span class="application">MEncodera</span></th><td width="20%" align="right"> <a accesskey="n" href="menc-feat-selecting-input.html">Następny</a></td></tr></table><hr></div><div class="sect1" lang="pl"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-selecting-codec"></a>13.1. Wybieranie kodeka i formatu</h2></div></div></div><p>
+  Kodeki audio i video stosowane przy kodowaniu są wybierane odpowiednio
+  opcjami <tt class="option">-oac</tt> i <tt class="option">-ovc</tt>.
+  Napisz na przykład:
+  </p><pre class="screen">mencoder -ovc help</pre><p>
+  by uzyskać listę wszystkich kodeków video obsługiwanych przez
+  <span class="application">MEncodera</span> na Twoim komputerze.
+  Dostępne są następujące:
+</p><p>
+Kodeki audio:
+
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Nazwa kodeka audio</th><th>Opis</th></tr></thead><tbody><tr><td>mp3lame</td><td>Kodowanie na MP3 VBR, ABR lub przy użyciu LAME</td></tr><tr><td>lavc</td><td>Używa jednego z kodeków audio z <a href="menc-feat-enc-libavcodec.html#menc-feat-enc-libavcodec-audio-codecs" title="14.3.2. libavcodec's audio codecs"><code class="systemitem">libavcodec</code></a>
+    </td></tr><tr><td>faac</td><td>Koder audio FAAC AAC</td></tr><tr><td>toolame</td><td>Koder MPEG Audio Layer 2</td></tr><tr><td>twolame</td><td>Koder MPEG Audio Layer 2 encoder oparty na tooLAME</td></tr><tr><td>pcm</td><td>Nieskompresowany dźwięk PCM</td></tr><tr><td>copy</td><td>Nie przekodowywuj, tylko przekopiuj zakodowane ramki</td></tr></tbody></table></div><p>
+</p><p>
+Kodeki video:
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Nazwa kodeka video</th><th>Opis</th></tr></thead><tbody><tr><td>lavc</td><td>Używa jednego z kodeków video z <a href="menc-feat-enc-libavcodec.html#menc-feat-enc-libavcodec-video-codecs" title="14.3.1. libavcodec's video codecs"><code class="systemitem">libavcodec</code></a>
+    </td></tr><tr><td>xvid</td><td>XviD, kodek MPEG-4 Advanced Simple Profile (ASP)</td></tr><tr><td>x264</td><td>x264, MPEG-4 Advanced Video Coding (AVC), zwany kodekiem H.264</td></tr><tr><td>nuv</td><td>nuppel video, używany przez niektóre aplikacje czasu rzeczywistego</td></tr><tr><td>raw</td><td>Nieskompresowane klatki video</td></tr><tr><td>copy</td><td>Nie przekodowywuj, tylko przekopiuj zakodowane ramki</td></tr><tr><td>frameno</td><td>Używany do kodowania trójprzebiegowego (nie zalecane)</td></tr></tbody></table></div><p>
+</p><p>
+  Format wyjściowy wybiera się opcją <tt class="option">-of</tt>.
+  Napisz:
+  </p><pre class="screen">mencoder -of help</pre><p>
+  by otrzymać listę wszystkich formatów obsługiwanych przez
+  <span class="application">MEncodera</span> na Twoim komputerze.
+</p><p>
+Formaty przechowywania:
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Nazwa formatu</th><th>Opis</th></tr></thead><tbody><tr><td>lavf</td><td>Jeden z formatów obsługiwanych przez
+    <code class="systemitem">libavformat</code></td></tr><tr><td>avi</td><td>Audio-Video Interleaved (Przeplecione Audio-Video)</td></tr><tr><td>mpeg</td><td>MPEG-1 i MPEG-2 PS</td></tr><tr><td>rawvideo</td><td>surowy strumień video (bez muxowania - tylko jeden strumień video)</td></tr><tr><td>rawaudio</td><td>surowy strumień audio (bez muxowania - tylko jeden strumień audio)</td></tr></tbody></table></div><p>
+  Format AVI jest podstawowym formatem <span class="application">MEncodera</span>,
+  co oznacza że jest najlepiej obsługiwany i że
+  <span class="application">MEncoder</span> był projektowany z myślą o nim.
+  Jak napisano wcześniej, można używać innych formatów, ale możesz napotkać
+  przy tym problemy.
+</p><p>
+<code class="systemitem">libavformat</code> containers:
+</p><p>
+  Jeśli chcesz żeby <code class="systemitem">libavformat</code>
+  dokonywał muksowania zbioru wyjściowego (przy użyciu opcji
+  <tt class="option">-of lavf</tt>), stosowny format zostanie ustalony na podstawie
+  rozszerzenia pliku wyjściowego.
+  Możesz wymusić konkretny format opcją <tt class="option">format</tt> biblioteki
+  <code class="systemitem">libavformat</code>.
+
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th><code class="systemitem">libavformat</code> container name</th><th>Description</th></tr></thead><tbody><tr><td>mpg</td><td>MPEG-1 i MPEG-2 PS</td></tr><tr><td>asf</td><td>Advanced Streaming Format (Zaawansowany format strumieniowy)</td></tr><tr><td>avi</td><td>Audio-Video Interleaved</td></tr><tr><td>wav</td><td>Waveform Audio</td></tr><tr><td>swf</td><td>Macromedia Flash</td></tr><tr><td>flv</td><td>Macromedia Flash video</td></tr><tr><td>rm</td><td>RealMedia</td></tr><tr><td>au</td><td>SUN AU</td></tr><tr><td>nut</td><td>Otwarty format NUT (eksperymentalny i jeszcze bez specyfikacji)</td></tr><tr><td>mov</td><td>QuickTime</td></tr><tr><td>mp4</td><td>MPEG-4 format</td></tr><tr><td>dv</td><td>format Sony Digital Video</td></tr></tbody></table></div><p>
+  Jak widzisz, <code class="systemitem">libavformat</code> pozwala
+  <span class="application">MEncoderowi</span> tworzyć sporą ilość różnych formatów.
+  Niestety, ponieważ <span class="application">MEncoder</span> nie był tworzony
+  z myślą o innych formatach niż AVI, powinieneś popadać w paranoję na temat
+  wynikowych plików. 
+  Dokładnie sprawdź czy jest prawidłowa synchronizacja audio/video i czy plik
+  może zostać prawidłowo odtworzony przez odtwarzacze inne niż
+  <span class="application">MPlayer</span>.
+</p><div class="informalexample"><p>Przykład:</p><p>
+  Tworzenie zbioru Macromedia Flash video, nadającego się do odtwarzania
+  w przeglądarce sieci z wtyczką Macromedia Flash:
+</p><pre class="screen">
+mencoder <em class="replaceable"><code>wejście.avi</code></em> -o <em class="replaceable"><code>wyjście.flv</code></em> -of lavf -oac mp3lame -lameopts abr:br=56 -ovc lavc \
+-lavcopts vcodec=flv:vbitrate=500:mbd=2:mv0:trell:v4mv:cbp:last_pred=3 \
+-srate 22050
+</pre><p>
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="mencoder.html">Poprzedni</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Początek rozdziału</a></td><td width="40%" align="right"> <a accesskey="n" href="menc-feat-selecting-input.html">Następny</a></td></tr><tr><td width="40%" align="left" valign="top">Rozdział 13. Podstawy używania <span class="application">MEncodera</span> </td><td width="20%" align="center"><a accesskey="h" href="index.html">Spis treści</a></td><td width="40%" align="right" valign="top"> 13.2. Wybieranie źródłowego zbioru lub urządzenia</td></tr></table></div></body></html>

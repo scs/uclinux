@@ -1,0 +1,57 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>11.1. Rádio vstup</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="radio.html" title="Kapitola 11. Rádio"><link rel="prev" href="radio.html" title="Kapitola 11. Rádio"><link rel="next" href="ports.html" title="Kapitola 12. Porty"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="radio-input.html#radio-compilation" title="11.1.1. Kompilace"><link rel="subsection" href="radio-input.html#radio-tips" title="11.1.2. U&#382;ivatelské tipy"><link rel="subsection" href="radio-input.html#radio-examples" title="11.1.3. P&#345;íklady"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">11.1. Rádio vstup</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="radio.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 11. Rádio</th><td width="20%" align="right"> <a accesskey="n" href="ports.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="radio-input"></a>11.1. Rádio vstup</h2></div></div></div><p>
+Tato sekce se zabývá tím, jak zprovoznit poslech rozhlasu
+z V4L-kompatibilního rozhlasového tuneru.
+Popis voleb a ovládání z klávesnice naleznete v man stránce.
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="radio-compilation"></a>11.1.1. Kompilace</h3></div></div></div><div class="procedure"><ol type="1"><li><p>
+  Nejprve musíte spustit <tt class="filename">./configure</tt>
+  s <tt class="option">--enable-radio</tt> a (pokud chcete i nahrávat)
+  <tt class="option">--enable-radio-capture</tt> a znovup&#345;elo&#382;it MPlayer.
+  </p></li><li><p>
+  Ujist&#283;te se, &#382;e vá&#353; tuner pracuje s jiným softwarem v Linuxu, nap&#345;íklad
+  <span class="application">XawTV</span>.
+  </p></li></ol></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="radio-tips"></a>11.1.2. U&#382;ivatelské tipy</h3></div></div></div><p>
+Plný vý&#269;et voleb je v manuálové stránce.
+Zde uvádíme jen n&#283;kolik tip&#367;:
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+Pou&#382;ití volby <tt class="option">channels</tt>. P&#345;íklad:
+</p><pre class="screen">-radio channels=104.4-Sibir,103.9-Maximum</pre><p>
+Vysv&#283;tlení: Pomocí této volby budou k dispozici pouze stanice 104.4
+a 103.9. Budete mít krásný OSD text b&#283;hem p&#345;epínání kanál&#367;,
+který zobrazí jméno kanálu. Mezery v názvech kanál&#367; musí být
+nahrazeny znakem "_".
+</p></li><li><p>
+Je mnoho zp&#367;sob&#367;, jak zachytávat (nahrávat) zvuk. M&#367;&#382;ete bu&#271; zachytávat pomocí
+vstupu line-in zvukové karty propojeného vn&#283;j&#353;í linkou s videokartou,
+nebo pou&#382;itím vestav&#283;ného ADC v &#269;ipu saa7134. V druhém p&#345;ípad&#283; musíte
+zavést ovlada&#269; <code class="systemitem">saa7134-alsa</code> nebo
+<code class="systemitem">saa7134-oss</code>.
+</p></li><li><p>
+<span class="application">MEncoder</span> nelze pou&#382;ít pro zachytávání zvuku, jeliko&#382;
+vy&#382;aduje videoproud, aby fungoval. Tak&#382;e bu&#271; pou&#382;ijete
+<span class="application">arecord</span> z projektu ALSA, nebo
+volbu <tt class="option">-ao pcm:file=file.wav</tt>. V druhém p&#345;ípad&#283; neusly&#353;íte nic
+(pokud ov&#353;em nemáte propojku s line-in a vypnuté mute na kanále line-in).
+</p></li></ul></div></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="radio-examples"></a>11.1.3. P&#345;íklady</h3></div></div></div><div class="informalexample"><p>
+Vstup ze standardního V4L (pomocí line-in kablu, zachytávání vypnuto):
+</p><pre class="screen">
+mplayer radio://104.4</pre><p>
+</p></div><div class="informalexample"><p>
+Vstup ze standardního V4L (pomocí line-in kablu, zachytávání vypnuto,
+rozhraní V4Lv1):
+</p><pre class="screen">
+mplayer -radio driver=v4l radio://104.4</pre><p>
+</p></div><div class="informalexample"><p>
+P&#345;ehrávání druhé stanice ze seznamu:
+</p><pre class="screen">
+mplayer -radio channels=104.4=Sibir,103.9=Maximm  radio://2</pre><p>
+</p></div><div class="informalexample"><p>
+Pr&#367;chod zvuku p&#345;es PCI sb&#283;rnici z interního ADC rádio karty.
+V tomto p&#345;íkladu se tuner pou&#382;ívá jako druhá zvuková karta
+(ALSA za&#345;ízení hw:1,0). Pro za&#345;ízení zalo&#382;ené na saa7134 musí
+být zaveden bu&#271; modul saa7134-alsa nebo modul saa7134-oss.
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>Kdy&#382; pou&#382;íváte názvy za&#345;ízení ALSA, dvojte&#269;ky musí být
+nahrazeny zkaky rovnáse, &#269;árky te&#269;kami.
+</p><pre class="screen">
+mplayer -rawaudio rate=32000 -radio adevice=hw=1.0:arate=32000:channels=104.4=Sibir,103.9=Maximm  radio://2/capture</pre><p>
+</p></div><p>
+</p></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="radio.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="radio.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="ports.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">Kapitola 11. Rádio </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> Kapitola 12. Porty</td></tr></table></div></body></html>

@@ -1,0 +1,4650 @@
+<HTML>
+<HEAD>
+<!-- Created by texi2html 1.56k from ./dmalloc.texi on 19 October 2004 -->
+
+<TITLE>Dmalloc Tutorial</TITLE>
+</HEAD>
+<BODY>
+<H1>Debug Malloc Library</H1>
+<H2>Version 5.4.2</H2>
+<H2>October 2004</H2>
+<ADDRESS>Gray Watson</ADDRESS>
+<P>
+<P><HR><P>
+<H1>Table of Contents</H1>
+<UL>
+<LI><A NAME="TOC1" HREF="dmalloc.html#SEC1">1. Library Copying and Licensing Conditions</A>
+<LI><A NAME="TOC2" HREF="dmalloc.html#SEC2">2. Description of Features and How to Get Started</A>
+<UL>
+<LI><A NAME="TOC3" HREF="dmalloc.html#SEC3">2.1 How to Install the Library</A>
+<LI><A NAME="TOC4" HREF="dmalloc.html#SEC4">2.2 Getting Started with the Library</A>
+<LI><A NAME="TOC5" HREF="dmalloc.html#SEC5">2.3 Basic Description of Terms and Functions</A>
+<UL>
+<LI><A NAME="TOC6" HREF="dmalloc.html#SEC6">2.3.1 General Memory Terms and Concepts</A>
+<LI><A NAME="TOC7" HREF="dmalloc.html#SEC7">2.3.2 Functionality Supported by All Malloc Libraries</A>
+</UL>
+<LI><A NAME="TOC8" HREF="dmalloc.html#SEC8">2.4 General Features of the Library</A>
+<LI><A NAME="TOC9" HREF="dmalloc.html#SEC9">2.5 How the Library Checks Your Program</A>
+</UL>
+<LI><A NAME="TOC10" HREF="dmalloc.html#SEC10">3. How to Program with the Library</A>
+<UL>
+<LI><A NAME="TOC11" HREF="dmalloc.html#SEC11">3.1 Macros Providing File and Line Information</A>
+<LI><A NAME="TOC12" HREF="dmalloc.html#SEC12">3.2 Getting Caller Address Information</A>
+<LI><A NAME="TOC13" HREF="dmalloc.html#SEC13">3.3 Checking of Function Arguments</A>
+<LI><A NAME="TOC14" HREF="dmalloc.html#SEC14">3.4 Additional Non-standard Routines</A>
+<LI><A NAME="TOC15" HREF="dmalloc.html#SEC15">3.5 Description of the Internal Error Codes</A>
+<LI><A NAME="TOC16" HREF="dmalloc.html#SEC16">3.6 How to Disable the library</A>
+<LI><A NAME="TOC17" HREF="dmalloc.html#SEC17">3.7 Using the Library with C++</A>
+<LI><A NAME="TOC18" HREF="dmalloc.html#SEC18">3.8 Using Dmalloc With a Debugger</A>
+<UL>
+<LI><A NAME="TOC19" HREF="dmalloc.html#SEC19">3.8.1 Diagnosing General Problems with a Debugger</A>
+<LI><A NAME="TOC20" HREF="dmalloc.html#SEC20">3.8.2 Tracking Down Non-Freed Memory</A>
+<LI><A NAME="TOC21" HREF="dmalloc.html#SEC21">3.8.3 Diagnosing Fence-Post Overwritten Memory</A>
+<LI><A NAME="TOC22" HREF="dmalloc.html#SEC22">3.8.4 Translating Return Addresses into Code Locations</A>
+</UL>
+<LI><A NAME="TOC23" HREF="dmalloc.html#SEC23">3.9 Using the Library with a Thread Package</A>
+<LI><A NAME="TOC24" HREF="dmalloc.html#SEC24">3.10 Using the library with Cygwin environment.</A>
+<LI><A NAME="TOC25" HREF="dmalloc.html#SEC25">3.11 Debugging Memory in a Server or Cgi-Bin Process</A>
+</UL>
+<LI><A NAME="TOC26" HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>
+<UL>
+<LI><A NAME="TOC27" HREF="dmalloc.html#SEC27">4.1 Using a Shell Alias with the Utility</A>
+<LI><A NAME="TOC28" HREF="dmalloc.html#SEC28">4.2 How to Use the Dmalloc Program</A>
+<LI><A NAME="TOC29" HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>
+<LI><A NAME="TOC30" HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>
+<LI><A NAME="TOC31" HREF="dmalloc.html#SEC31">4.5 Format of the Runtime Configuration File</A>
+</UL>
+<LI><A NAME="TOC32" HREF="dmalloc.html#SEC32">5. Information on the Source Code</A>
+<UL>
+<LI><A NAME="TOC33" HREF="dmalloc.html#SEC33">5.1 Definition of Terms and other Information</A>
+<LI><A NAME="TOC34" HREF="dmalloc.html#SEC34">5.2 General Compatibility Concerns</A>
+<LI><A NAME="TOC35" HREF="dmalloc.html#SEC35">5.3 Issues Important for Porting the Library</A>
+</UL>
+<LI><A NAME="TOC36" HREF="dmalloc.html#SEC36">6. Some Solutions to Common Problems</A>
+<LI><A NAME="TOC37" HREF="dmalloc.html#SEC37">Index of Concepts</A>
+</UL>
+<P><HR><P>
+
+
+<H1><A NAME="SEC1" HREF="dmalloc.html#TOC1">1. Library Copying and Licensing Conditions</A></H1>
+
+<P>
+<A NAME="IDX1"></A>
+<A NAME="IDX2"></A>
+<A NAME="IDX3"></A>
+<A NAME="IDX4"></A>
+
+
+<P>
+Copyright 1992 to 2004 by Gray Watson.
+
+
+<P>
+Permission to use, copy, modify, and distribute this software for any
+purpose and without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies, and
+that the name of Gray Watson not be used in advertising or publicity
+pertaining to distribution of the document or software without specific,
+written prior permission.
+
+
+<P>
+Gray Watson makes no representations about the suitability of the
+software described herein for any purpose.  It is provided "as is"
+without express or implied warranty.
+
+
+
+
+<H1><A NAME="SEC2" HREF="dmalloc.html#TOC2">2. Description of Features and How to Get Started</A></H1>
+
+<P>
+<A NAME="IDX5"></A>
+
+
+
+
+<H2><A NAME="SEC3" HREF="dmalloc.html#TOC3">2.1 How to Install the Library</A></H2>
+
+<P>
+<A NAME="IDX6"></A>
+<A NAME="IDX7"></A>
+<A NAME="IDX8"></A>
+<A NAME="IDX9"></A>
+<A NAME="IDX10"></A>
+
+
+<P>
+To configure, compile, and install the library, follow these steps
+carefully.
+
+
+
+<OL>
+
+<LI>Make sure you have the latest version of the library available
+
+from the home page at URL <A HREF="http://dmalloc.com/">http://dmalloc.com/</A>.
+
+<A NAME="IDX11"></A>
+
+<LI>You may want to edit or at least review the settings in
+
+<TT>`settings.dist'</TT> to tune specific features of the library.  The
+<TT>`configure'</TT> script will copy this file to <TT>`settings.h'</TT> which
+is where you should be adding per-architecture settings.
+
+<A NAME="IDX12"></A>
+<A NAME="IDX13"></A>
+<A NAME="IDX14"></A>
+<A NAME="IDX15"></A>
+<A NAME="IDX16"></A>
+
+<LI>Type <KBD>sh ./configure</KBD> to configure the library.  You may want
+
+to first examine the <TT>`config.help'</TT> file for some information about
+configure.  You may want to use the <KBD>--disable-cxx</KBD> option if you do
+not want the Makefile to build the C++ version of dmalloc.  You may want
+to use the <KBD>--enable-threads</KBD> option to build the threaded version
+of dmalloc.  You may want to use the <KBD>--enable-shlib</KBD> option to
+build the shared versions of the dmalloc libraries.  <KBD>sh ./configure
+--help</KBD> lists the available options to configure.  Configure should
+generate the <TT>`Makefile'</TT> and configuration files automatically.
+
+<LI>You may want to examine the <TT>`Makefile'</TT> and <TT>`conf.h'</TT> files
+
+created by configure to make sure it did its job correctly.
+
+<A NAME="IDX17"></A>
+
+<LI>You might want to tune the settings in <TT>`settings.h'</TT> file to
+
+tune the library to the local architecture.  This file contains relevant
+settings if you are using pthreads or another thread library.
+See section <A HREF="dmalloc.html#SEC23">3.9 Using the Library with a Thread Package</A>.  The <TT>`configure'</TT> script created this
+file from the <TT>`settings.dist'</TT> file.  Any permanent changes to these
+settings should made to the <TT>`settings.dist'</TT> file.  You then can run
+<TT>`config.status'</TT> to re-create the <TT>`settings.h'</TT> file.
+
+<A NAME="IDX18"></A>
+
+<LI>The <CODE>DMALLOC_SIZE</CODE> variable gets auto-configured in
+
+<TT>`dmalloc.h.2'</TT> but it may not generate correct settings for all
+systems.  You may have to alter the definitions in this file to get
+things to stop complaining when you go to compile about the size
+arguments to malloc routines.  Comments on this please.
+
+<LI>Typing <KBD>make</KBD> should be enough to build <TT>`libdmalloc.a'</TT>,
+
+and <TT>`dmalloc'</TT> program.  If it does not work, please see if there
+are any notes in the contrib directory about your system-type.  If not
+and you figure your problem out, please send me some notes so future
+users can profit from your experiences.
+
+<EM>NOTE</EM>: You may experience some errors compiling some of the
+return.h assembly macros which attempt to determine the callers address
+for logging purposes.  You may want to first try disabling any compiler
+optimization flags.  If this doesn't work then you may need to disable
+the <SAMP>`USE_RETURN_MACROS'</SAMP> variable in the <TT>`settings.h'</TT> file.
+
+<A NAME="IDX19"></A>
+
+<EM>NOTE</EM>: The code is dependent on an ANSI-C compiler.  If the
+configure script gives the <SAMP>`WARNING'</SAMP> that you do not have an ANSI-C
+compiler, you may still be able to add some sort of option to your
+compiler to make it ANSI.  If there such is an option, please send it to
+the author so it can be added to the configure script.
+
+<LI>If you use threads and did not add the <KBD>--enable-threads</KBD>
+
+argument to configure, typing <KBD>make threads</KBD> should be enough to
+build <TT>`libdmallocth.a'</TT> which is the threaded version of the
+library.  This may or may not work depending on the configuration
+scripts ability to detect your local thread functionality.  Feel free to
+send me mail with improvements.
+
+See the "Using With Threads" section for more information about the
+operation of the library with your threaded program.  See section <A HREF="dmalloc.html#SEC23">3.9 Using the Library with a Thread Package</A>.
+
+<LI>If you have a C++ compiler installed, the library should have
+
+automatically built <TT>`libdmallocxx.a'</TT> which is the C++ version of
+the library.  If it was not done automatically, you can build it by
+typing <KBD>make cxx</KBD>.  You should link this library into your C++
+programs instead of <TT>`libdmalloc.a'</TT>.  See the <TT>`dmallocc.cc'</TT> C++
+file which contains basic code to overload the <CODE>new</CODE>, <CODE>new[]</CODE>,
+<CODE>delete</CODE>, and <CODE>delete[]</CODE> C++ operators.  My apologies on the
+minimal C++ support.  I am still living in a mostly C world.  Any help
+improving this interface without sacrificing portability would be
+appreciated.
+
+<A NAME="IDX20"></A>
+<A NAME="IDX21"></A>
+
+<LI>Typing <KBD>make light</KBD> should build and run the <TT>`dmalloc_t'</TT> test
+
+program through a set of light trials.  By default this will execute
+<TT>`dmalloc_t'</TT> 5 times -- each time will execute 10,000 malloc
+operations in a very random manner.  Anal folks can type <KBD>make
+heavy</KBD> to up the ante.  Use <KBD>dmalloc_t --usage</KBD> for the list of all
+<TT>`dmalloc_t'</TT> options.
+
+<LI>Typing <KBD>make install</KBD> should install the <TT>`libdmalloc.a'</TT>
+
+library in <TT>`/usr/local/lib'</TT>, the <TT>`dmalloc.h'</TT> include file in
+<TT>`/usr/local/include'</TT>, and the <TT>`dmalloc'</TT> utility in
+<TT>`/usr/local/bin'</TT>.  You may also want to type <KBD>make installth</KBD>
+to install the thread library into place and/or <KBD>make installcc</KBD> to
+install the C++ library into place.
+
+You may have specified a <SAMP>`--prefix=PATH'</SAMP> option to configure in
+which case <SAMP>`/usr/local'</SAMP> will have been replaced with <SAMP>`PATH'</SAMP>.
+
+</OL>
+
+<P>
+See the "Getting Started" section to get up and running with the
+library.  See section <A HREF="dmalloc.html#SEC4">2.2 Getting Started with the Library</A>.
+
+
+
+
+<H2><A NAME="SEC4" HREF="dmalloc.html#TOC4">2.2 Getting Started with the Library</A></H2>
+
+<P>
+<A NAME="IDX22"></A>
+<A NAME="IDX23"></A>
+<A NAME="IDX24"></A>
+<A NAME="IDX25"></A>
+<A NAME="IDX26"></A>
+<A NAME="IDX27"></A>
+
+
+<P>
+This section should give you a quick idea on how to get going.
+Basically, you need to do the following things to make use of the
+library:
+
+
+
+<OL>
+
+<LI>Make sure you have the latest version of the library available
+
+from the home page at URL <A HREF="http://dmalloc.com/">http://dmalloc.com/</A>.
+
+<LI>Follow the installation instructions on how to configure,
+
+make, and install the library (i.e. type: <KBD>make install</KBD>).
+See section <A HREF="dmalloc.html#SEC3">2.1 How to Install the Library</A>.
+
+<A NAME="IDX28"></A>
+<A NAME="IDX29"></A>
+<A NAME="IDX30"></A>
+<A NAME="IDX31"></A>
+<A NAME="IDX32"></A>
+
+<LI>You need to make sure that the library configuration and
+
+build process above was able to locate one of the <CODE>on_exit</CODE>
+function, <CODE>atexit</CODE> function, or had compiler destructor support.
+If one of these functions or support is available then the dmalloc
+library should be able to automatically shut itself down when the
+program exits.  This causes the memory statistics and unfreed
+information to be dumped to the log file.  However, if your system has
+none of the above, then you will need to call <CODE>dmalloc_shutdown</CODE>
+yourself before your program exits.
+
+<A NAME="IDX33"></A>
+<A NAME="IDX34"></A>
+<A NAME="IDX35"></A>
+<A NAME="IDX36"></A>
+
+<LI>Add an alias for dmalloc to your shell's rc file if supported.
+
+The idea is to have the shell capture the dmalloc program's output and
+adjust the environment.  Bash, ksh, and zsh users should add the
+following to their <TT>`.bashrc'</TT>, <TT>`.profile'</TT>, or <TT>`.zshrc'</TT>
+file respectively (notice the <KBD>-b</KBD> option for bourne shell output):
+
+
+<PRE>
+function dmalloc { eval `command dmalloc -b $*`; }
+</PRE>
+
+If your shell does not support the <CODE>command</CODE> function then try:
+
+
+<PRE>
+function dmalloc { eval `\dmalloc -b $*`; }
+</PRE>
+
+or
+
+<PRE>
+function dmalloc { eval `/usr/local/bin/dmalloc -b $*`; }
+</PRE>
+
+<A NAME="IDX37"></A>
+<A NAME="IDX38"></A>
+
+If you are <EM>still</EM> using csh or tcsh, you should add the following
+to your <TT>`.cshrc'</TT> file (notice the <KBD>-C</KBD> option for c-shell
+output):
+
+
+<PRE>
+alias dmalloc 'eval `\dmalloc -C \!*`'
+</PRE>
+
+<A NAME="IDX39"></A>
+
+If you are using rc shell, you should add the following to your
+<TT>`.rcrc'</TT> file (notice the <KBD>-R</KBD> option for rc-shell output):
+
+
+<PRE>
+fn dmalloc {eval `{/usr/local/bin/dmalloc $*}}
+</PRE>
+
+By the way, if you are looking for a shell, I heartily recommend trying
+out zsh at URL <A HREF="http://www.zsh.org/">http://www.zsh.org/</A>.  It is a bourne shell
+written from scratch with much the same features as tcsh without the csh
+crap.
+
+<EM>NOTE</EM>: After you add the alias to the file you need to log out and
+log back in to have it take effect, or you can execute the above
+appropriate command on the command line.  If you enter <KBD>dmalloc
+runtime</KBD> and see any output with DMALLOC_OPTIONS in it then the alias
+did not work.
+
+<LI>Although not necessary, you may want to include <TT>`dmalloc.h'</TT>
+
+in your C files and recompile.  This will allow the library to report
+the file/line numbers of calls that generate problems.  See section <A HREF="dmalloc.html#SEC11">3.1 Macros Providing File and Line Information</A>.  It should be inserted at the <EM>bottom</EM> of your include
+files as to not conflict with wother includes.  You may want to ifdef it
+as well and compile with <KBD>cc -DDMALLOC ...</KBD>:
+
+
+<PRE>
+/* other includes above ^^^ */
+
+#ifdef DMALLOC
+#include "dmalloc.h"
+#endif
+</PRE>
+
+<LI>Link the dmalloc library into your program.  The dmalloc library
+
+should probably be placed at or near the end of the library list.
+
+<LI>Enable the debugging features by typing <KBD>dmalloc -l logfile
+
+-i 100 low</KBD> (for example).  This will:
+
+
+<UL>
+
+<LI>set the malloc log path to <TT>`logfile'</TT> (<KBD>-l logfile</KBD>)
+
+<LI>have the library check itself every 100 iterations (<KBD>-i 100</KBD>)
+
+<LI>enable a number of debug features (<KBD>low</KBD>).  You can
+
+also try <KBD>runtime</KBD> for minimal checking or <KBD>medium</KBD> or
+<KBD>high</KBD> for more extensive heap verification.
+
+</UL>
+
+<KBD>dmalloc --usage</KBD> will provide verbose usage info for the dmalloc
+program.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+You may also want to install the <TT>`dmallocrc'</TT> file in your home
+directory as <TT>`.dmallocrc'</TT>.  This allows you to add your own
+combination of debug tokens.  See section <A HREF="dmalloc.html#SEC31">4.5 Format of the Runtime Configuration File</A>.
+
+<LI>Run your program, examine the logfile that should have been created by
+
+dmalloc_shutdown, and use its information to help debug your program.
+See the next section for help with this.  See section <A HREF="dmalloc.html#SEC36">6. Some Solutions to Common Problems</A>.
+
+</OL>
+
+
+
+<H2><A NAME="SEC5" HREF="dmalloc.html#TOC5">2.3 Basic Description of Terms and Functions</A></H2>
+
+<P>
+<A NAME="IDX40"></A>
+<A NAME="IDX41"></A>
+
+
+
+
+<H3><A NAME="SEC6" HREF="dmalloc.html#TOC6">2.3.1 General Memory Terms and Concepts</A></H3>
+
+<P>
+<A NAME="IDX42"></A>
+<A NAME="IDX43"></A>
+
+
+<P>
+Any program can be divided into 2 logical parts: text and data.  Text is
+the actual program code in machine-readable format and data is the
+information that the text operates on when it is executing.  The data,
+in turn, can be divided into 3 logical parts according to where it is
+stored: <EM>static</EM>, <EM>stack</EM>, and <EM>heap</EM>.
+
+
+<P>
+<A NAME="IDX44"></A>
+
+
+<P>
+Static data is the information whose storage space is compiled into the
+program.
+
+
+
+<PRE>
+/* global variables are allocated as static data */
+int numbers[10];
+
+main()
+{
+        ...
+}
+</PRE>
+
+<P>
+<A NAME="IDX45"></A>
+
+
+<P>
+Stack data is data allocated at runtime to hold information used inside
+of functions.  This data is managed by the system in the space called
+stack space.
+
+
+
+<PRE>
+void foo()
+{
+        /* this local variable is stored on the stack */
+        float total;
+        ...
+}
+
+main()
+{
+        foo();
+}
+</PRE>
+
+<P>
+<A NAME="IDX46"></A>
+
+
+<P>
+Heap data is also allocated at runtime and provides a programmer with
+dynamic memory capabilities.
+
+
+
+<PRE>
+main()
+{
+        /* the address is stored on the stack */
+        char * string;
+        ...
+
+        /*
+         * Allocate a string of 10 bytes on the heap.  Store the
+         * address in string which is on the stack.
+         */
+        string = (char *)malloc(10);
+        ...
+
+        /* de-allocate the heap memory now that we're done with it */
+        (void)free(string);
+        ...
+}
+</PRE>
+
+<P>
+It is the heap data that is managed by this library.
+
+
+<P>
+Although the above is an example of how to use the malloc and free
+commands, it is not a good example of why using the heap for runtime
+storage is useful.
+
+
+<P>
+Consider this: You write a program that reads a file into memory,
+processes it, and displays results.  You would like to handle files with
+arbitrary size (from 10 bytes to 1.2 megabytes and more).  One problem,
+however, is that the entire file must be in memory at one time to do the
+calculations.  You don't want to have to allocate 1.2 megabytes when you
+might only be reading in a 10 byte file because it is wasteful of system
+resources.  Also, you are worried that your program might have to handle
+files of more than 1.2 megabytes.
+
+
+<P>
+A solution: first check out the file's size and then, using the
+heap-allocation routines, get enough storage to read the entire file
+into memory.  The program will only be using the system resources
+necessary for the job and you will be guaranteed that your program can
+handle any sized file.
+
+
+
+
+<H3><A NAME="SEC7" HREF="dmalloc.html#TOC7">2.3.2 Functionality Supported by All Malloc Libraries</A></H3>
+
+<P>
+<A NAME="IDX47"></A>
+
+
+<P>
+All malloc libraries support 4 basic memory allocation commands.  These
+include <EM>malloc</EM>, <EM>calloc</EM>, <EM>realloc</EM>, and <EM>free</EM>.  For
+more information about their capabilities, check your system's manual
+pages -- in unix, do a <CODE>man 3 malloc</CODE>.
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX48"></A>
+void *malloc ( unsigned int <VAR>size</VAR> )
+<A NAME="IDX49"></A>
+
+
+<P>
+Usage: <CODE>pnt = (type *)malloc(size)</CODE>
+
+
+<P>
+The malloc routine is the basic memory allocation routine.  It allocates
+an area of <CODE>size</CODE> bytes.  It will return a pointer to the space
+requested.
+
+
+</DL>
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX50"></A>
+void *calloc ( unsigned int <VAR>number</VAR>, unsigned int
+<VAR>size</VAR> )
+<A NAME="IDX51"></A>
+<A NAME="IDX52"></A>
+<A NAME="IDX53"></A>
+
+
+<P>
+Usage: <CODE>pnt = (type *)calloc(number, size)</CODE>
+
+
+<P>
+The calloc routine allocates a certain <CODE>number</CODE> of items, each of
+<CODE>size</CODE> bytes, and returns a pointer to the space.  It is
+appropriate to pass in a <CODE>sizeof(type)</CODE> value as the size argument.
+
+
+<P>
+Also, calloc nulls the space that it returns, assuring that the memory
+is all zeros.
+
+
+</DL>
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX54"></A>
+void *realloc ( void *<VAR>old_pnt</VAR>, unsigned int
+<VAR>new_size</VAR> )
+<A NAME="IDX55"></A>
+
+
+<P>
+Usage: <CODE>new_pnt = (type *)realloc(old_pnt, new_size)</CODE>
+
+
+<P>
+The realloc function expands or shrinks the memory allocation in
+<CODE>old_pnt</CODE> to <CODE>new_size</CODE> number of bytes.  Realloc copies as
+much of the information from <CODE>old_pnt</CODE> as it can into the
+<CODE>new_pnt</CODE> space it returns, up to <CODE>new_size</CODE> bytes.  If there
+is a problem allocating this memory, 0L will be returned.
+
+
+<P>
+If the <CODE>old_pnt</CODE> is 0L then realloc will do the equivalent of a
+<CODE>malloc(new_size)</CODE>.  If <CODE>new_size</CODE> is 0 and <CODE>old_pnt</CODE> is
+not 0L, then it will do the equivalent of <CODE>free(old_pnt)</CODE> and will
+return 0L.
+
+
+</DL>
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX56"></A>
+void free ( void *<VAR>pnt</VAR> )
+<A NAME="IDX57"></A>
+
+
+<P>
+Usage: <CODE>free(pnt)</CODE>
+
+
+<P>
+The free routine releases allocation in <CODE>pnt</CODE> which was returned by
+malloc, calloc, or realloc back to the heap.  This allows other parts of
+the program to re-use memory that is not needed anymore.  It guarantees
+that the process does not grow too big and swallow a large portion of
+the system resources.
+
+
+</DL>
+
+<P>
+<EM>WARNING</EM>: there is a quite common myth that all of the space that
+is returned by malloc libraries has already been cleared.  <EM>Only</EM>
+the <CODE>calloc</CODE> routine will zero the memory space it returns.
+
+
+
+
+<H2><A NAME="SEC8" HREF="dmalloc.html#TOC8">2.4 General Features of the Library</A></H2>
+
+<P>
+<A NAME="IDX58"></A>
+
+
+<P>
+The debugging features that are available in this debug malloc library
+can be divided into a couple basic classifications:
+
+
+<DL COMPACT>
+
+<DT>file and line number information
+<DD>
+<A NAME="IDX59"></A>
+<A NAME="IDX60"></A>
+One of the nice things about a good debugger is its ability to provide
+the file and line number of an offending piece of code.  This library
+attempts to give this functionality with the help of <EM>cpp</EM>, the C
+preprocessor.  See section <A HREF="dmalloc.html#SEC11">3.1 Macros Providing File and Line Information</A>.
+
+<DT>return-address information
+<DD>
+<A NAME="IDX61"></A>
+To debug calls to the library from external sources (i.e. those files
+that could not use the allocation macros), some facilities have been
+provided to supply the caller's address.  This address, with the help of
+a debugger, can help you locate the source of a problem.  See section <A HREF="dmalloc.html#SEC12">3.2 Getting Caller Address Information</A>.
+
+<DT>fence-post (i.e. bounds) checking
+<DD>
+<A NAME="IDX62"></A>
+<A NAME="IDX63"></A>
+<A NAME="IDX64"></A>
+<EM>Fence-post</EM> memory is the area immediately above or below memory
+allocations.  It is all too easy to write code that accesses above or
+below an allocation -- especially when dealing with arrays or strings.
+The library can write special values in the areas around every
+allocation so it will notice when these areas have been overwritten.
+See section <A HREF="dmalloc.html#SEC21">3.8.3 Diagnosing Fence-Post Overwritten Memory</A>.
+
+<EM>NOTE</EM>: The library cannot notice when the program <EM>reads</EM>
+from these areas, only when it writes values.  Also, fence-post checking
+will increase the amount of memory the program allocates.
+
+<DT>heap-constancy verification
+<DD>
+<A NAME="IDX65"></A>
+The administration of the library is reasonably complex.  If any of the
+heap-maintenance information is corrupted, the program will either crash
+or give unpredictable results.
+
+By enabling heap-consistency checking, the library will run through its
+administrative structures to make sure all is in order.  This will mean
+that problems will be caught faster and diagnosed better.
+
+The drawback of this is, of course, that the library often takes quite a
+long time to do this.  It is suitable to enable this only during
+development and debugging sessions.
+
+<EM>NOTE</EM>: the heap checking routines cannot guarantee that the tests
+will not cause a segmentation-fault if the heap administration
+structures are properly (or improperly if you will) overwritten.  In
+other words, the tests will verify that everything is okay but may not
+inform the user of problems in a graceful manner.
+
+<DT>logging statistics
+<DD>
+<A NAME="IDX66"></A>
+<A NAME="IDX67"></A>
+<A NAME="IDX68"></A>
+<A NAME="IDX69"></A>
+One of the reasons why the debug malloc library was initially developed
+was to track programs' memory usage -- specifically to locate
+<EM>memory leaks</EM> which are places where allocated memory is never
+getting freed.  See section <A HREF="dmalloc.html#SEC20">3.8.2 Tracking Down Non-Freed Memory</A>.
+
+The library has a number of logging capabilities that can track un-freed
+memory pointers as well as runtime memory usage, memory transactions,
+administrative actions, and final statistics.
+
+<DT>examining freed memory
+<DD>
+<A NAME="IDX70"></A>
+<A NAME="IDX71"></A>
+Another common problem happens when a program frees a memory pointer but
+goes on to use it again by mistake.  This can lead to mysterious crashes
+and unexplained problems.
+
+To combat this, the library can write special values into a block of
+memory after it has been freed.  This serves two purposes: it will make
+sure that the program will get garbage data if it trying to access the
+area again, and it will allow the library to verify the area later for
+signs of overwriting.
+</DL>
+
+<P>
+If any of the above debugging features detect an error, the library will
+try to recover.  If logging is enabled then an error will be logged with
+as much information as possible.
+
+
+<P>
+The error messages that the library displays are designed to give the
+most information for developers.  If the error message is not
+understood, then it is most likely just trying to indicate that a part
+of the heap has been corrupted.
+
+
+<P>
+<A NAME="IDX72"></A>
+<A NAME="IDX73"></A>
+The library can be configured to quit immediately when an error is
+detected and to dump a core file or memory-image.  This can be examined
+with a debugger to determine the source of the problem.  The library can
+either stop after dumping core or continue running.
+
+
+<P>
+<A NAME="IDX74"></A>
+<A NAME="IDX75"></A>
+<EM>NOTE</EM>: do not be surprised if the library catches problems with
+your system's routines.  It took me hours to finally come to the
+conclusion that the localtime call, included in SunOS release 4.1,
+overwrites one of its fence-post markers.
+
+
+
+
+<H2><A NAME="SEC9" HREF="dmalloc.html#TOC9">2.5 How the Library Checks Your Program</A></H2>
+
+<P>
+This is one of the newer sections of the library implying that it is
+incomplete.  If you have any questions or issues that you'd like to see
+handled here, please let me know.
+
+
+<P>
+The dmalloc library replaces the heap library calls normally found in
+your system libraries with its own versions.  When you make a call to
+malloc (for example), you are calling dmalloc's version of the memory
+allocation function.  When you allocate memory with these functions, the
+dmalloc library keeps track of a number of pieces of debugging
+information about your pointer including: where it was allocated,
+exactly how much memory was requested, when the call was made, etc..
+This information can then be verified when the pointer is freed or
+reallocated and the details can be logged on any errors.
+
+
+<P>
+Whenever you reallocate or free a memory address, the dmalloc library
+always performs a number of checks on the pointer to make sure that it
+is valid and has not been corrupted.  You can configure the library to
+perform additional checks such as detected fence-post writing.  The
+library can also be configured to overwrite memory with non-zeros (only
+if calloc is not called) when it is allocated and erase the memory when
+the pointers are freed.
+
+
+<P>
+<A NAME="IDX76"></A>
+In addition to per-pointer checks, you can configure the library to
+perform complete heap checks.  These complete checks verify all internal
+heap structures and include walking all of the known allocated pointers
+to verify each one in turn.  You need this level of checking to find
+random pointers in your program which got corrupted but that won't be
+freed for a while.  To turn on these checks, you will need to enable the
+'check-heap' debug token.  See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>.  By default this will
+cause the heap to be fully checked each and every time dmalloc is called
+whether it is a malloc, free, realloc, or another dmalloc overloaded
+function.
+
+
+<P>
+Performing a full heap check can take a good bit of CPU and it may be
+that you will want to run it sporadically.  This can be accomplished in
+a couple different ways including the '-i' interval argument to the
+dmalloc utility.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.  This will cause the check to
+be run every N-th time.  For instance, 'dmalloc -i 3' will cause the
+heap to be checked before every 3rd call to a memory function.  Values
+of 100 or even 1000 for high memory usage programs are more useful than
+smaller ones.
+
+
+<P>
+<A NAME="IDX77"></A>
+<A NAME="IDX78"></A>
+<A NAME="IDX79"></A>
+You can also cause the program to start doing detailed heap checking
+after a certain point.  For instance, with 'dmalloc -s 1000' option, you
+can tell the dmalloc library to enable the heap checks after the 1000th
+memory call.  Examine the dmalloc log file produced and use the
+iteration count if you have <CODE>LOG_ITERATION_COUNT</CODE> enabled in your
+<TT>`settings.h'</TT> file.
+
+
+<P>
+The start option can also have the format <SAMP>`file:line'</SAMP>.  For
+instance, if it is set to <SAMP>`dmalloc_t.c:126'</SAMP>, dmalloc will start
+checking the heap after it sees a dmalloc call from the
+<TT>`dmalloc_t.c'</TT> file, line number 126.  If you use
+<SAMP>`dmalloc_t.c:0'</SAMP>, with a 0 line number, then dmalloc will start
+checking the heap after it sees a call from anywhere in the
+<TT>`dmalloc_t.c'</TT> file.
+
+
+
+
+<H1><A NAME="SEC10" HREF="dmalloc.html#TOC10">3. How to Program with the Library</A></H1>
+
+<P>
+<A NAME="IDX80"></A>
+
+
+
+
+<H2><A NAME="SEC11" HREF="dmalloc.html#TOC11">3.1 Macros Providing File and Line Information</A></H2>
+
+<P>
+<A NAME="IDX81"></A>
+<A NAME="IDX82"></A>
+<A NAME="IDX83"></A>
+
+
+<P>
+By including <TT>`dmalloc.h'</TT> in your C files, your calls to malloc,
+calloc, realloc, recalloc, memalign, valloc, strdup, and free are
+replaced with calls to _dmalloc_malloc, _dmalloc_realloc, and
+_dmalloc_free with various flags.  Additionally the library replaces
+calls to xmalloc, xcalloc, xrealloc, xrecalloc, xmemalign, xvalloc,
+xstrdup, and xfree with associated calls.
+
+
+<P>
+These macros use the c-preprocessor <CODE>__FILE__</CODE> and <CODE>__LINE__</CODE>
+macros which get replaced at compilation time with the current file and
+line-number of the source code in question.  The routines use this
+information to produce verbose reports on memory problems.
+
+
+
+<PRE>
+not freed: '0x38410' (22 bytes) from 'dmalloc_t.c:92'
+</PRE>
+
+<P>
+This line from a log file shows that memory was not freed from file
+<TT>`dmalloc_t.c'</TT> line 92.  See section <A HREF="dmalloc.html#SEC20">3.8.2 Tracking Down Non-Freed Memory</A>.
+
+
+<P>
+<A NAME="IDX84"></A>
+<A NAME="IDX85"></A>
+<A NAME="IDX86"></A>
+<A NAME="IDX87"></A>
+
+
+<P>
+You may notice some non standard memory allocation functions in the
+above list.  Recalloc is a routine like realloc that reallocates
+previously allocated memory to a new size.  If the new memory size is
+larger than the old, recalloc initializes the new space to all zeros.
+This may or may not be supported natively by your operating system.
+Memalign is like malloc but should insure that the returned pointer is
+aligned to a certain number of specified bytes.  Currently, the memalign
+function is not supported by the library.  It defaults to returning
+possibly non-aligned memory for alignment values less than a block-size.
+Valloc is like malloc but insures that the returned pointer will be
+aligned to a page boundary.  This may or may not be supported natively
+by your operating system but is fully supported by the library.  Strdup
+is a string duplicating routine which takes in a null terminated string
+pointer and returns an allocated copy of the string that will need to be
+passed to free later to deallocate.
+
+
+<P>
+The X versions of the standard memory functions (xmalloc, xfree, etc.)
+will print out an error message to standard error and will stop if the
+library is unable to allocate any additional memory.  It is useful to
+use these routines instead of checking everywhere in your program for
+allocation routines returning NULL pointers.
+
+
+<P>
+<EM>WARNING</EM>: If you are including the <TT>`dmalloc.h'</TT> file in your
+sources, it is recommended that it be at the end of your include file
+list because dmalloc uses macros and may try to change declarations of
+the malloc functions if they come after it.
+
+
+
+
+<H2><A NAME="SEC12" HREF="dmalloc.html#TOC12">3.2 Getting Caller Address Information</A></H2>
+
+<P>
+<A NAME="IDX88"></A>
+<A NAME="IDX89"></A>
+<A NAME="IDX90"></A>
+<A NAME="IDX91"></A>
+
+
+<P>
+Even though the allocation macros can provide file/line information for
+some of your code, there are still modules which either you can't
+include <TT>`dmalloc.h'</TT> (such as library routines) or you just don't
+want to.  You can still get information about the routines that call
+dmalloc function from the return-address information.  To accomplish
+this, you must be using this library on one of the supported
+architecture/compilers.  See section <A HREF="dmalloc.html#SEC35">5.3 Issues Important for Porting the Library</A>.
+
+
+<P>
+<A NAME="IDX92"></A>
+
+
+<P>
+The library attempts to use some assembly hacks to get the
+return-address or the address of the line that called the dmalloc
+function.  If you have unfreed memory that does not have associated file
+and line information, you might see the following non-freed memory
+messages.
+
+
+
+<PRE>
+not freed: '0x38410' (22 bytes) from 'ra=0xdd2c'
+not freed: '0x38600' (10232 bytes) from 'ra=0x10234d'
+not freed: '0x38220' (137 bytes) from 'ra=0x82cc'
+</PRE>
+
+<P>
+<A NAME="IDX93"></A>
+With the help of a debugger, these return-addresses (or ra) can then be
+identified.  I've provided a <TT>`ra_info.pl'</TT> perl script in the
+<TT>`contrib/'</TT> directory with the dmalloc sources which seems to work
+well with gdb.  You can also use manual methods for gdb to find the
+return-address location.  See section <A HREF="dmalloc.html#SEC22">3.8.4 Translating Return Addresses into Code Locations</A>.
+
+
+
+
+<H2><A NAME="SEC13" HREF="dmalloc.html#TOC13">3.3 Checking of Function Arguments</A></H2>
+
+<P>
+<A NAME="IDX94"></A>
+<A NAME="IDX95"></A>
+<A NAME="IDX96"></A>
+
+
+<P>
+One potential problem with the library and its multitude of checks and
+diagnoses is that they only get performed when a dmalloc function is
+called.  One solution this is to include <TT>`dmalloc.h'</TT> and compile
+your source code with the <CODE>DMALLOC_FUNC_CHECK</CODE> flag defined and
+enable the <CODE>check-funcs</CODE> token.  See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>.
+
+
+
+<PRE>
+cc -DDMALLOC_FUNC_CHECK file.c
+</PRE>
+
+<P>
+<EM>NOTE</EM>: Once you have compiled your source with DMALLOC_FUNC_CHECK
+enabled, you will have to recompile with it off to disconnect the
+library.  See section <A HREF="dmalloc.html#SEC16">3.6 How to Disable the library</A>.
+
+
+<P>
+<EM>WARNING</EM>: You should be sure to have <TT>`dmalloc.h'</TT> included at
+the end of your include file list because dmalloc uses macros and may
+try to change declarations of the checked functions if they come after
+it.
+
+
+<P>
+When this is defined dmalloc will override a number of functions and
+will insert a routine which knows how to check its own arguments and
+then call the real function.  Dmalloc can check such functions as
+<CODE>bcopy</CODE>, <CODE>index</CODE>, <CODE>strcat</CODE>, and <CODE>strcasecmp</CODE>.  For
+the full list see the end of <TT>`dmalloc.h'</TT>.
+
+
+<P>
+When you call <CODE>strlen</CODE>, for instance, dmalloc will make sure the
+string argument's fence-post areas have not been overwritten, its file
+and line number locations are good, etc.  With <CODE>bcopy</CODE>, dmalloc
+will make sure that the destination string has enough space to store the
+number of bytes specified.
+
+
+<P>
+For all of the arguments checked, if the pointer is not in the heap then
+it is ignored since dmalloc does not know anything about it.
+
+
+
+
+<H2><A NAME="SEC14" HREF="dmalloc.html#TOC14">3.4 Additional Non-standard Routines</A></H2>
+
+<P>
+<A NAME="IDX97"></A>
+
+
+<P>
+The library has a number of variables that are not a standard part of
+most malloc libraries:
+
+
+<DL COMPACT>
+
+<DT><CODE>int dmalloc_errno</CODE>
+<DD>
+<A NAME="IDX98"></A>
+ <A NAME="IDX99"></A>
+ <A NAME="IDX100"></A>
+ 
+
+This variable stores the internal dmalloc library error number like errno
+does for the system calls.  It can be passed to <CODE>dmalloc_strerror()</CODE>
+(see below) to get a string version of the error.  It will have a value
+of zero if the library has not detected any problems.
+
+<A NAME="IDX101"></A>
+<A NAME="IDX102"></A>
+
+<DT><CODE>char * dmalloc_logpath</CODE>
+<DD>
+This variable can be used to set the dmalloc log filename.  The env
+variable DMALLOC_LOGFILE overrides this variable.
+
+</DL>
+
+<P>
+Additionally the library provides a number of non-standard malloc
+routines:
+
+
+<P>
+<A NAME="IDX103"></A>
+<A NAME="IDX104"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX105"></A>
+void dmalloc_shutdown ( void )
+
+
+<P>
+This function shuts the library down and logs the final statistics and
+information especially the non-freed memory pointers.  The library has
+code to support auto-shutdown if your system has the <CODE>on_exit()</CODE>
+call, <CODE>atexit()</CODE> call, or compiler destructor support (see
+<TT>`conf.h'</TT>).  If you do not have these, then <CODE>dmalloc_shutdown</CODE>
+should be called right before <CODE>exit()</CODE> or as the last function in
+<CODE>main()</CODE>.
+
+
+
+<PRE>
+main()
+{
+        ...
+        dmalloc_shutdown();
+        exit(0);
+}
+</PRE>
+
+</DL>
+
+<P>
+<A NAME="IDX106"></A>
+<A NAME="IDX107"></A>
+<A NAME="IDX108"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX109"></A>
+int dmalloc_verify ( char * <VAR>pnt</VAR> )
+
+
+<P>
+This function verifies individual memory pointers that are suspect of
+memory problems.  To check the entire heap pass in a NULL or 0 pointer.
+The routine returns DMALLOC_VERIFY_ERROR or DMALLOC_VERIFY_NOERROR.
+
+
+<P>
+<EM>NOTE</EM>: <SAMP>`dmalloc_verify()'</SAMP> can only check the heap with the
+functions that have been enabled.  For example, if fence-post checking
+is not enabled, <SAMP>`dmalloc_verify()'</SAMP> cannot check the fence-post
+areas in the heap.
+</DL>
+
+
+<P>
+<A NAME="IDX110"></A>
+<A NAME="IDX111"></A>
+<A NAME="IDX112"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX113"></A>
+unsigned int dmalloc_debug ( const unsigned int <VAR>flags</VAR> )
+
+
+<P>
+This routine sets the debug functionality flags and returns the
+previous flag value.  It is helpful in server or cgi-bin programs
+where environmental variables cannot be used.  See section <A HREF="dmalloc.html#SEC25">3.11 Debugging Memory in a Server or Cgi-Bin Process</A>.  For instance, if debugging should never be enabled for a
+program, a call to <CODE>dmalloc_debug(0)</CODE> as the first call in
+<CODE>main()</CODE> will disable all the memory debugging from that point
+on.
+
+
+<P>
+<EM>NOTE</EM>: you cannot add or remove certain flags such as signal
+handlers since they are setup at initialization time only.
+
+
+<P>
+<EM>NOTE</EM>: you can also use <CODE>dmalloc_debug_setup</CODE> below.
+
+
+</DL>
+
+<P>
+<A NAME="IDX114"></A>
+<A NAME="IDX115"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX116"></A>
+unsigned int dmalloc_debug_current ( void )
+
+
+<P>
+This routine returns the current debug functionality value value.  This
+allows you to save a copy of the debug dmalloc settings to be changed
+and then restored later.
+
+
+</DL>
+
+<P>
+<A NAME="IDX117"></A>
+<A NAME="IDX118"></A>
+<A NAME="IDX119"></A>
+<A NAME="IDX120"></A>
+<A NAME="IDX121"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX122"></A>
+void dmalloc_debug_setup ( const char * <VAR>options_str</VAR> )
+
+
+<P>
+This routine sets the global debugging functionality as an option
+string.  Normally this would be passed in in the DMALLOC_OPTIONS
+environmental variable.  This is here to override the env or for
+circumstances where modifying the environment is not possible or does
+not apply such as servers or cgi-bin programs.  See section <A HREF="dmalloc.html#SEC25">3.11 Debugging Memory in a Server or Cgi-Bin Process</A>.
+
+
+<P>
+Some examples:
+
+
+
+<PRE>
+/* debug tokens high, threaded lock-on at 20, log to dmalloc.%p (pid) */
+dmalloc_debug_setup("debug=0x4f46d03,lockon=20,log=dmalloc.%p");
+
+/* turn on some debug tokens directly and log to the file 'logfile' */
+dmalloc_debug_setup("log-stats,log-non-free,check-fence,log=logfile");
+</PRE>
+
+</DL>
+
+<P>
+<A NAME="IDX123"></A>
+<A NAME="IDX124"></A>
+<A NAME="IDX125"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX126"></A>
+int dmalloc_examine ( const DMALLOC_PNT <VAR>pnt</VAR>, DMALLOC_SIZE *
+<VAR>user_size_p</VAR>, DMALLOC_SIZE * <VAR>total_size_p</VAR>, char **
+<VAR>file_p</VAR>, int * <VAR>line_p</VAR>, DMALLOC_PNT * <VAR>ret_addr_p</VAR>,
+unsigned long * <VAR>user_mark_p</VAR>, unsigned long * <VAR>seen_p</VAR> )
+
+
+<P>
+This function returns the size of a pointer's allocation as well as the
+total size given including administrative overhead, file and line or the
+return-address from where it was allocated, the last pointer when the
+pointer was "used", and the number of times the pointer has been "seen".
+It will return DMALLOC_NOERROR or DMALLOC_ERROR depending on whether pnt
+is good or not.
+
+
+<P>
+<EM>NOTE</EM>: This function is <EM>certainly</EM> not provided by most if
+not all other malloc libraries.
+
+
+</DL>
+
+<P>
+<A NAME="IDX127"></A>
+<A NAME="IDX128"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX129"></A>
+void dmalloc_track ( const dmalloc_track_t <VAR>track_func</VAR> )
+
+
+<P>
+Register an allocation tracking function which will be called each time
+an allocation occurs.  Pass in NULL to disable.  To take a look at what
+information is provided, see the dmalloc_track_t function typedef in
+dmalloc.h.
+
+
+</DL>
+
+<P>
+<A NAME="IDX130"></A>
+<A NAME="IDX131"></A>
+<A NAME="IDX132"></A>
+<A NAME="IDX133"></A>
+<A NAME="IDX134"></A>
+<A NAME="IDX135"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX136"></A>
+unsigned unsigned long dmalloc_mark ( void )
+
+
+<P>
+Return to the caller the current "mark" which can be used later to log
+the pointers which have changed since this mark with the
+<CODE>dmalloc_log_changed</CODE> function.  Multiple marks can be saved and
+used.
+
+
+<P>
+This is very useful when using the library with a server which does
+not exit.  You can then save a mark before a transaction or event
+happens and then check to see what has changed using the
+<CODE>dmalloc_log_changed</CODE> function below.  See section <A HREF="dmalloc.html#SEC25">3.11 Debugging Memory in a Server or Cgi-Bin Process</A>.
+
+
+<P>
+If you <CODE>LOG_ITERATION</CODE> enabled in your <TT>`settings.h'</TT> file then
+the entries in the log file will be prepended with the number of memory
+transactions that the library has handled so far.  You can also enable
+<CODE>LOG_PNT_ITERATION</CODE> in <TT>`settings.h'</TT> to store the memory
+transaction number with each pointer.
+
+
+</DL>
+
+<P>
+<A NAME="IDX137"></A>
+<A NAME="IDX138"></A>
+<A NAME="IDX139"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX140"></A>
+unsigned unsigned long dmalloc_memory_allocated ( void )
+
+
+<P>
+Return to the caller the total number of bytes that have been allocated
+by the library.  This is not the current in use but the total number of
+bytes returned by allocation functions.
+
+
+</DL>
+
+<P>
+<A NAME="IDX141"></A>
+<A NAME="IDX142"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX143"></A>
+unsigned unsigned int dmalloc_page_size ( void )
+
+
+<P>
+Return to the caller the memory page-size being used by the library.
+This should be the same value as the one returned by the
+<CODE>getpagesize()</CODE> function, if available.
+
+
+</DL>
+
+<P>
+<A NAME="IDX144"></A>
+<A NAME="IDX145"></A>
+<A NAME="IDX146"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX147"></A>
+unsigned unsigned long dmalloc_count_changed ( const unsigned long <VAR>mark</VAR>,
+const int <VAR>not_freed_b</VAR>, const int <VAR>free_b</VAR> )
+
+
+<P>
+Count the pointers that have changed since the mark which was returned by
+<CODE>dmalloc_mark</CODE>.  If <CODE>not_freed_b</CODE> is set to non-0 then count the
+pointers that have not been freed.  If <CODE>free_b</CODE> is set to non-0
+then count the pointers that have been freed.
+
+
+<P>
+This can be used in conjunction with the <CODE>dmalloc_mark()</CODE>
+function to help servers which never exit ensure that transactions or
+events are not leaking memory.  See section <A HREF="dmalloc.html#SEC25">3.11 Debugging Memory in a Server or Cgi-Bin Process</A>.
+
+
+
+<PRE>
+unsigned long mark = dmalloc_mark() ;
+...
+assert(dmalloc_count_changed(mark, 1, 0) == 0) ;
+</PRE>
+
+</DL>
+
+<P>
+<A NAME="IDX148"></A>
+<A NAME="IDX149"></A>
+<A NAME="IDX150"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX151"></A>
+void dmalloc_log_stats ( void )
+
+
+<P>
+This routine outputs the current dmalloc statistics to the log file.
+</DL>
+
+
+<P>
+<A NAME="IDX152"></A>
+<A NAME="IDX153"></A>
+<A NAME="IDX154"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX155"></A>
+void dmalloc_log_unfreed( void )
+
+
+<P>
+This function logs the unfreed-memory information to the log file.
+This is also useful to log the currently allocated points to the log
+file to be compared against another dump later on.
+
+
+</DL>
+
+<P>
+<A NAME="IDX156"></A>
+<A NAME="IDX157"></A>
+<A NAME="IDX158"></A>
+<A NAME="IDX159"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX160"></A>
+void dmalloc_log_changed ( const unsigned long <VAR>mark</VAR>, const int
+<VAR>not_freed_b</VAR>, const int <VAR>freed_b</VAR>, const int <VAR>details_b</VAR> )
+
+
+<P>
+Log the pointers that have changed since the mark which was returned by
+<CODE>dmalloc_mark</CODE>.  If <CODE>not_freed_b</CODE> is set to non-0 then log the
+pointers that have not been freed.  If <CODE>free_b</CODE> is set to non-0
+then log the pointers that have been freed.  If <CODE>details_b</CODE> set to
+non-0 then log the individual pointers that have changed otherwise just
+log the summaries.
+
+
+<P>
+This can be used in conjunction with the <CODE>dmalloc_mark()</CODE>
+function to help servers which never exit find transactions or events
+which are leaking memory.  See section <A HREF="dmalloc.html#SEC25">3.11 Debugging Memory in a Server or Cgi-Bin Process</A>.
+
+
+</DL>
+
+<P>
+<A NAME="IDX161"></A>
+<A NAME="IDX162"></A>
+<A NAME="IDX163"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX164"></A>
+void dmalloc_vmessage ( const char * <VAR>format</VAR>, va_list <VAR>args</VAR> )
+
+
+<P>
+Write a message into the dmalloc logfile using vprintf-like arguments.
+
+
+</DL>
+
+<P>
+<A NAME="IDX165"></A>
+<A NAME="IDX166"></A>
+<A NAME="IDX167"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX168"></A>
+void dmalloc_message ( const char * <VAR>format</VAR>, <VAR>...</VAR> )
+
+
+<P>
+Write a message into the dmalloc logfile using printf-like arguments.
+
+
+</DL>
+
+<P>
+<A NAME="IDX169"></A>
+<A NAME="IDX170"></A>
+<A NAME="IDX171"></A>
+
+
+<P>
+<DL>
+<DT><U>Function:</U>  <B></B>
+<DD><A NAME="IDX172"></A>
+const char * dmalloc_strerror ( const int <VAR>error_number</VAR> )
+
+
+<P>
+This function returns the string representation of the error value in
+<CODE>error_number</CODE> (which probably should be dmalloc_errno).  This
+allows the logging of more verbose memory error messages.
+
+
+<P>
+You can also display the string representation of an error value by a
+call to the <TT>`dmalloc'</TT> program with a <SAMP>`-e #'</SAMP> option.
+See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+
+</DL>
+
+
+
+<H2><A NAME="SEC15" HREF="dmalloc.html#TOC15">3.5 Description of the Internal Error Codes</A></H2>
+
+<P>
+<A NAME="IDX173"></A>
+
+
+<P>
+The following error codes are defined in <TT>`error_val.h'</TT>.  They are
+used by the library to indicate a detected problem.  They can be caused
+by the user (<SAMP>`ERROR_TOO_BIG'</SAMP>) or can indicate an internal library
+problem (<SAMP>`ERROR_SLOT_CORRUPT'</SAMP>).  The <TT>`dmalloc'</TT> utility can
+give you the string version of the error with the <CODE>-e</CODE> argument:
+
+
+
+<PRE>
+$ dmalloc -e 60
+dmalloc: dmalloc_errno value '60' = 
+   'pointer is not on block boundary'
+</PRE>
+
+<P>
+Here are the error codes set by the library.  They are non contiguous on
+purpose because I add and delete codes all of the time and there are
+sections for various error-code types.
+
+
+<DL COMPACT>
+
+<DT><CODE>1 (ERROR_NONE)</CODE>
+<DD>
+<A NAME="IDX174"></A>
+ <A NAME="IDX175"></A>
+ <A NAME="IDX176"></A>
+ <A NAME="IDX177"></A>
+ 
+No error.  It is good coding practice to set the no-error code to be
+non-0 value because it forces you to set it explicitly.
+
+<A NAME="IDX178"></A>
+<A NAME="IDX179"></A>
+<A NAME="IDX180"></A>
+<A NAME="IDX181"></A>
+<A NAME="IDX182"></A>
+
+<DT><CODE>2 (INVALID_ERROR)</CODE>
+<DD>
+Invalid error number.  If the library outputs this error however the
+dmalloc utility says that it is invalid then your dmalloc utility may be
+out of date with the library you linked against.  This will be returned
+with all error codes not listed here.
+
+<A NAME="IDX183"></A>
+<A NAME="IDX184"></A>
+<A NAME="IDX185"></A>
+<A NAME="IDX186"></A>
+<A NAME="IDX187"></A>
+
+<DT><CODE>10 (ERROR_BAD_SETUP)</CODE>
+<DD>
+Bad setup value.  This is currently unused but it is intended to report
+on invalid setup configuration information.
+
+<A NAME="IDX188"></A>
+<A NAME="IDX189"></A>
+<A NAME="IDX190"></A>
+<A NAME="IDX191"></A>
+<A NAME="IDX192"></A>
+<A NAME="IDX193"></A>
+<A NAME="IDX194"></A>
+
+<DT><CODE>11 (ERROR_IN_TWICE)</CODE>
+<DD>
+Library went recursive.  This usually indicates that you are not using
+the threaded version of the library.  Or if you are then you are not
+using the <SAMP>`-o'</SAMP> "lock-on" option.  See section <A HREF="dmalloc.html#SEC23">3.9 Using the Library with a Thread Package</A>.
+
+<A NAME="IDX195"></A>
+<A NAME="IDX196"></A>
+<A NAME="IDX197"></A>
+<A NAME="IDX198"></A>
+<A NAME="IDX199"></A>
+
+<DT><CODE>13 (ERROR_LOCK_NOT_CONFIG)</CODE>
+<DD>
+Thread locking has not been configured.  This indicates that you
+attempted to use the <SAMP>`-o'</SAMP> "lock-on" option without linking with the
+thread version of the library.
+
+<A NAME="IDX200"></A>
+<A NAME="IDX201"></A>
+<A NAME="IDX202"></A>
+<A NAME="IDX203"></A>
+<A NAME="IDX204"></A>
+<A NAME="IDX205"></A>
+<A NAME="IDX206"></A>
+
+<DT><CODE>20 (ERROR_IS_NULL)</CODE>
+<DD>
+Pointer is null.  The program passed a NULL (0L) pointer to <CODE>free</CODE>
+and you have the <SAMP>`error-free-null'</SAMP> token enabled.
+
+<A NAME="IDX207"></A>
+<A NAME="IDX208"></A>
+<A NAME="IDX209"></A>
+<A NAME="IDX210"></A>
+<A NAME="IDX211"></A>
+<A NAME="IDX212"></A>
+
+<DT><CODE>21 (ERROR_NOT_IN_HEAP)</CODE>
+<DD>
+Pointer is not pointing to heap data space.  This means that the program
+passed an out-of-bounds pointer to <CODE>free</CODE> or <CODE>realloc</CODE>.  This
+could be someone trying to work with a wild pointer or trying to free a
+pointer from a different source than <CODE>malloc</CODE>.
+
+<A NAME="IDX213"></A>
+<A NAME="IDX214"></A>
+<A NAME="IDX215"></A>
+<A NAME="IDX216"></A>
+<A NAME="IDX217"></A>
+<A NAME="IDX218"></A>
+<A NAME="IDX219"></A>
+<A NAME="IDX220"></A>
+
+<DT><CODE>22 (ERROR_NOT_FOUND)</CODE>
+<DD>
+Cannot locate pointer in heap.  The user passed in a pointer which the
+heap did not know about.  Either this pointer was allocated by some
+other mechanism (like <CODE>mmap</CODE> or <CODE>sbrk</CODE> directly) or it is a
+random invalid pointer.
+
+In some rare circumstances, sometimes seen with shared libraries, there
+can be two separate copies of the dmalloc library in a program.  Each
+one does not know about the pointers allocated by the other.
+
+<A NAME="IDX221"></A>
+<A NAME="IDX222"></A>
+<A NAME="IDX223"></A>
+<A NAME="IDX224"></A>
+<A NAME="IDX225"></A>
+
+<DT><CODE>23 (ERROR_IS_FOUND)</CODE>
+<DD>
+This indicates that the pointer specified in the address part of the
+environmental variable was discovered by the library.  See section <A HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>.  This error is useful so you can put a breakpoint in a
+debugger to find where a particular address was allocated.  See section <A HREF="dmalloc.html#SEC18">3.8 Using Dmalloc With a Debugger</A>.
+
+<A NAME="IDX226"></A>
+<A NAME="IDX227"></A>
+<A NAME="IDX228"></A>
+<A NAME="IDX229"></A>
+<A NAME="IDX230"></A>
+
+<DT><CODE>24 (ERROR_BAD_FILE)</CODE>
+<DD>
+A possibly invalid filename was discovered in the dmalloc administrative
+sections.  This could indicate some corruption of the internal tables.
+It also could mean that you have a source file whose name is longer than
+100 characters.  See <CODE>MAX_FILE_LENGTH</CODE> in the <TT>`settings.dist'</TT>
+file.
+
+<A NAME="IDX231"></A>
+<A NAME="IDX232"></A>
+<A NAME="IDX233"></A>
+<A NAME="IDX234"></A>
+<A NAME="IDX235"></A>
+
+<DT><CODE>25 (ERROR_BAD_LINE)</CODE>
+<DD>
+A line-number was out-of-bounds in the dmalloc administrative sections.
+This could indicate some corruption of the internal tables.  It also
+could mean that you have a source file containing more than <CODE>30000</CODE>
+lines of code.  See <CODE>MAX_LINE_NUMBER</CODE> in the <TT>`settings.dist'</TT>
+file.
+
+<A NAME="IDX236"></A>
+<A NAME="IDX237"></A>
+<A NAME="IDX238"></A>
+<A NAME="IDX239"></A>
+<A NAME="IDX240"></A>
+
+<DT><CODE>26 (ERROR_UNDER_FENCE)</CODE>
+<DD>
+This indicates that a pointer had its lower bound picket-fence magic
+number overwritten.  If the <SAMP>`check-fence'</SAMP> token is enabled, the
+library writes magic values above and below allocations to protect
+against overflow.  Most likely this is because a pointer below it went
+past its allocate and wrote into the next pointer's space.
+
+<A NAME="IDX241"></A>
+<A NAME="IDX242"></A>
+<A NAME="IDX243"></A>
+<A NAME="IDX244"></A>
+<A NAME="IDX245"></A>
+
+<DT><CODE>27 (ERROR_OVER_FENCE)</CODE>
+<DD>
+This indicates that a pointer had its upper bound picket-fence magic
+space overwritten.  If the <SAMP>`check-fence'</SAMP> token is enabled, the
+library writes magic values above and below allocations to protect
+against overflow.  Most likely this is because an array or string
+allocation wrote past the end of the allocation.
+
+Check for improper usage of <CODE>strcat</CODE>, <CODE>sprintf</CODE>,
+<CODE>strcpy</CODE>, and any other functions which work with strings and do
+not protect themselves by tracking the size of the string.  These
+functions should <EM>always</EM> be replaced with: <CODE>strncat</CODE>,
+<CODE>snprintf</CODE>, <CODE>strncpy</CODE>, and others.
+
+<A NAME="IDX246"></A>
+<A NAME="IDX247"></A>
+<A NAME="IDX248"></A>
+<A NAME="IDX249"></A>
+<A NAME="IDX250"></A>
+
+<DT><CODE>28 (ERROR_WOULD_OVERWRITE)</CODE>
+<DD>
+This error is generated by the function pointer checking code usually
+enabled wit the <CODE>check-funcs</CODE> token.  Dmalloc overloads a number of
+string and memory copying functions and verifies that the buffers (if
+allocated in the heap) would not be overwritten by the function.
+
+<A NAME="IDX251"></A>
+<A NAME="IDX252"></A>
+<A NAME="IDX253"></A>
+<A NAME="IDX254"></A>
+<A NAME="IDX255"></A>
+
+<DT><CODE>30 (ERROR_NOT_START_BLOCK)</CODE>
+<DD>
+This indicates that the user passed in a pointer to be freed or
+reallocated that was not at the start of the allocation.  You would get
+this error, for example, if you allocate and get pointer <CODE>X</CODE> but
+then try to free <CODE>X+1</CODE>.
+
+<A NAME="IDX256"></A>
+<A NAME="IDX257"></A>
+<A NAME="IDX258"></A>
+<A NAME="IDX259"></A>
+<A NAME="IDX260"></A>
+
+<DT><CODE>40 (ERROR_BAD_SIZE)</CODE>
+<DD>
+This error indicates that a size value in the internal structures of the
+library were corrupted.  This could be a random pointer problem, pointer
+overflow, or some other corruption.
+
+<A NAME="IDX261"></A>
+<A NAME="IDX262"></A>
+<A NAME="IDX263"></A>
+<A NAME="IDX264"></A>
+<A NAME="IDX265"></A>
+
+<DT><CODE>41 (ERROR_TOO_BIG)</CODE>
+<DD>
+An allocation asked for memory larger than the configured maximum.  This
+is a user configured setting.  See <CODE>LARGEST_ALLOCATION</CODE> in the
+<TT>`settings.dist'</TT> file.  It is used to protect against wild
+allocation sizes.  If you have super large allocation sizes then you
+should tune the <CODE>LARGEST_ALLOCATION</CODE> value appropriately.
+
+<A NAME="IDX266"></A>
+<A NAME="IDX267"></A>
+<A NAME="IDX268"></A>
+<A NAME="IDX269"></A>
+<A NAME="IDX270"></A>
+
+<DT><CODE>43 (ERROR_ALLOC_FAILED)</CODE>
+<DD>
+The library could not allocate more heap space and the program has run
+out of memory.  This could indicate that you've overflowed some system
+imposed limit.  On many operation systems, the <CODE>ulimit</CODE> call can
+tune system defaults.
+
+<A NAME="IDX271"></A>
+<A NAME="IDX272"></A>
+<A NAME="IDX273"></A>
+<A NAME="IDX274"></A>
+<A NAME="IDX275"></A>
+
+<DT><CODE>44 (ERROR_ALLOC_NONLINEAR)</CODE>
+<DD>
+If the <CODE>force-linear</CODE> token is enabled, the library will ensure
+that the heap memory returned, is linear and contiguous.  This should
+only be used in special circumstances.
+
+<A NAME="IDX276"></A>
+<A NAME="IDX277"></A>
+<A NAME="IDX278"></A>
+<A NAME="IDX279"></A>
+<A NAME="IDX280"></A>
+<A NAME="IDX281"></A>
+
+<DT><CODE>45 (ERROR_OVER_LIMIT)</CODE>
+<DD>
+The library has allocated more memory than was specified in the
+memory-limit environmental variable.  See section <A HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>.
+
+<A NAME="IDX282"></A>
+<A NAME="IDX283"></A>
+<A NAME="IDX284"></A>
+<A NAME="IDX285"></A>
+<A NAME="IDX286"></A>
+
+<DT><CODE>60 (ERROR_NOT_ON_BLOCK)</CODE>
+<DD>
+The user tried to free or realloc a pointer that was not pointing to a
+block boundary.  You would get this error, for example, if you allocate
+and get pointer <CODE>X</CODE> but then try to free <CODE>X+1</CODE>.
+
+<A NAME="IDX287"></A>
+<A NAME="IDX288"></A>
+<A NAME="IDX289"></A>
+<A NAME="IDX290"></A>
+<A NAME="IDX291"></A>
+
+<DT><CODE>61 (ERROR_ALREADY_FREE)</CODE>
+<DD>
+The user tried to free a pointer than has already been freed.  This is a
+very common mistake and can lead to serious problems.  It can be because
+a destructor is being called twice for some reason.  Although tracking
+down the specific source is highly recommended, it is good to set
+pointers to NULL (0L) after you free them as a rule.
+
+<A NAME="IDX292"></A>
+<A NAME="IDX293"></A>
+<A NAME="IDX294"></A>
+<A NAME="IDX295"></A>
+<A NAME="IDX296"></A>
+<A NAME="IDX297"></A>
+<A NAME="IDX298"></A>
+
+<DT><CODE>67 (ERROR_FREE_OVERWRITTEN)</CODE>
+<DD>
+If either the <CODE>free-blank</CODE> or <CODE>check-blank</CODE> tokens are enabled
+then the library will overwrite memory when it is freed with the
+"dmalloc-free" byte (hex 0xdf, octal 0337, decimal 223).  If the
+program writes into this space, then the library will detect the write
+and trigger this error.  This could indicate that the program is using a
+pointer after it has been freed.
+
+<A NAME="IDX299"></A>
+<A NAME="IDX300"></A>
+<A NAME="IDX301"></A>
+<A NAME="IDX302"></A>
+<A NAME="IDX303"></A>
+
+<DT><CODE>70 (ERROR_ADMIN_LIST)</CODE>
+<DD>
+An internal corruption in the library's administrative structures has
+been detected.  This could be a random pointer problem, pointer
+overflow, or some other corruption.
+
+<A NAME="IDX304"></A>
+<A NAME="IDX305"></A>
+<A NAME="IDX306"></A>
+<A NAME="IDX307"></A>
+<A NAME="IDX308"></A>
+
+<DT><CODE>72 (ERROR_ADDRESS_LIST)</CODE>
+<DD>
+An internal corruption in the library's administrative structures has
+been detected.  This could be a random pointer problem, pointer
+overflow, or some other corruption.
+
+<A NAME="IDX309"></A>
+<A NAME="IDX310"></A>
+<A NAME="IDX311"></A>
+<A NAME="IDX312"></A>
+<A NAME="IDX313"></A>
+
+<DT><CODE>73 (ERROR_SLOT_CORRUPT)</CODE>
+<DD>
+An internal corruption in the library's administrative structures has
+been detected.  This could be a random pointer problem, pointer
+overflow, or some other corruption.
+
+</DL>
+
+
+
+<H2><A NAME="SEC16" HREF="dmalloc.html#TOC16">3.6 How to Disable the library</A></H2>
+
+<P>
+<A NAME="IDX314"></A>
+
+
+<P>
+When you are finished with the development and debugging sessions, you
+may want to disable the dmalloc library and put in its place either the
+system's memory-allocation routines, gnu-malloc, or maybe your own.
+Attempts have been made to make this a reasonably painless process.  The
+ease of the extraction depends heavily on how many of the library's
+features your made use of during your coding.
+
+
+<P>
+Reasonable suggestions are welcome as to how to improve this process
+while maintaining the effectiveness of the debugging.
+
+
+
+<UL>
+<LI>
+
+If you want to <EM>totally</EM> disable the dmalloc library then you will
+need to recompile all the C files that include <TT>`dmalloc.h'</TT> while
+defining <CODE>DMALLOC_DISABLE</CODE>.  This will cause the dmalloc macros to
+not be applied.  See section <A HREF="dmalloc.html#SEC11">3.1 Macros Providing File and Line Information</A>.
+
+
+<PRE>
+cc -g -DDMALLOC_DISABLE main.c
+</PRE>
+
+An alternative is to surround the <CODE>dmalloc.h</CODE> inclusion or any
+direct dmalloc references with an <CODE>#ifdef DMALLOC</CODE> and then just
+remove the -DDMALLOC.
+
+
+<PRE>
+#ifdef DMALLOC
+#include "dmalloc.h"
+#endif
+
+main()
+{
+  ...
+
+#ifdef DMALLOC
+  dmalloc_verify(0L);
+#endif
+  return 0;
+}
+</PRE>
+
+
+<PRE>
+// to get dmalloc information
+$ cc -Ddmalloc main.c
+
+// without dmalloc information
+$ cc main.c
+</PRE>
+
+<LI>
+
+If you compiled any of your source modules with <CODE>DMALLOC_FUNC_CHECK</CODE>
+defined then you must first recompile all those modules without the flag
+enabled.
+
+If you have disabled dmalloc with the <CODE>DMALLOC_DISABLED</CODE> flag or
+never included <TT>`dmalloc.h'</TT> in any of your C files, then you will
+not need to recompile your sources when you need to disable the library.
+
+If you get unresolved references like <CODE>_dmalloc_malloc</CODE> or
+<CODE>_dmalloc_bcopy</CODE> then something was not disabled as it should have
+been.
+</UL>
+
+
+
+<H2><A NAME="SEC17" HREF="dmalloc.html#TOC17">3.7 Using the Library with C++</A></H2>
+
+<P>
+<A NAME="IDX315"></A>
+<A NAME="IDX316"></A>
+
+
+<P>
+<A NAME="IDX317"></A>
+For those people using the C++ language, the library tries to configure
+and build <TT>`libdmallocxx.a'</TT> library.  This library should be linked
+into your C++ programs instead of <TT>`libdmalloc.a'</TT>.
+
+
+<P>
+<A NAME="IDX318"></A>
+Dmalloc is not as good with C++ as C because the dynamic memory routines
+in C++ are <CODE>new()</CODE> and <CODE>delete()</CODE> as opposed to
+<CODE>malloc()</CODE> and <CODE>free()</CODE>.  Since new and delete are usually not
+used as functions but rather as <CODE>x = new type</CODE>, there is no easy
+way for dmalloc to pass in file and line information unfortunately.  The
+<TT>`libdmallocxx.a'</TT> library provides the file <TT>`dmallocc.cc'</TT> which
+effectively redirects <CODE>new</CODE> to the more familiar <CODE>malloc</CODE> and
+<CODE>delete</CODE> to the more familiar <CODE>free</CODE>.
+
+
+<P>
+<EM>NOTE</EM>: The author is not a C++ hacker so feedback in the form of
+other hints and ideas for C++ users would be much appreciated.
+
+
+
+
+<H2><A NAME="SEC18" HREF="dmalloc.html#TOC18">3.8 Using Dmalloc With a Debugger</A></H2>
+
+<P>
+<A NAME="IDX319"></A>
+<A NAME="IDX320"></A>
+
+
+<P>
+Here are a number of possible scenarios for using the dmalloc library to
+track down problems with your program.
+
+
+<P>
+You should first enable a logfile filename and turn on a set of debug
+features.  You can use <KBD>dmalloc -l logfile low</KBD> to accomplish this.
+If you are interested in having the error messages printed to your
+terminal as well, enable the <SAMP>`print-messages'</SAMP> token by typing
+<KBD>dmalloc -p print-messages</KBD> afterwards.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+
+<P>
+<A NAME="IDX321"></A>
+<A NAME="IDX322"></A>
+Now you can enter your debugger (I use the <EM>excellent</EM> GNU debugger
+gdb), and put a break-point in <CODE>dmalloc_error()</CODE> which is the
+internal error routine for the library.  When your program is run, it
+will stop there if a memory problem is detected.
+
+
+<P>
+If you are using GDB, I would recommend adding the contents of
+<TT>`dmalloc.gdb'</TT> in the <TT>`contrib'</TT> subdirectory to your
+<TT>`.gdbinit'</TT> file in your home directory.  This enables the
+<CODE>dmalloc</CODE> command which will prompt you for the arguments to the
+dmalloc command and will set a break point in <CODE>dmalloc_error()</CODE>
+automatically.
+
+
+<P>
+<A NAME="IDX323"></A>
+<A NAME="IDX324"></A>
+If you are using shared libraries, you may want to execute the following
+commands initially to load in dmalloc and other library symbols:
+
+
+
+<PRE>
+(gdb) sharedlibrary
+(gdb) add-shared-symbol-files
+</PRE>
+
+
+
+<H3><A NAME="SEC19" HREF="dmalloc.html#TOC19">3.8.1 Diagnosing General Problems with a Debugger</A></H3>
+
+<P>
+<A NAME="IDX325"></A>
+<A NAME="IDX326"></A>
+<A NAME="IDX327"></A>
+<A NAME="IDX328"></A>
+
+
+<P>
+If your program stops at the <CODE>dmalloc_error()</CODE> routine then one
+of a number of problems could be happening.  Incorrect arguments could
+have been passed to a malloc call: asking for negative number of
+bytes, trying to realloc a non-heap pointer, etc..  There also could
+be a problem with the system's allocations: you've run out of memory,
+some other function in your program is using the heap allocation
+functions <CODE>mmap</CODE> or <CODE>sbrk</CODE>, etc..  However, it is most
+likely that some code that has been executed was naughty.
+
+
+<P>
+To get more information about the problem, first print via the debugger
+the dmalloc_errno variable to get the library's internal error code.
+You can suspend your debugger and run <KBD>dmalloc -e
+value-returned-from-print</KBD> to get an English translation of the error.
+A number of the error messages are designed to indicate specific
+problems with the library administrative structures and may not be
+user-friendly.
+
+
+<P>
+If the problem was due to the arguments or system allocations then the
+source of the problem has been found.  However, if some code did
+something wrong, you may have some more work to do to locate the actual
+problem.  The <CODE>check-heap</CODE> token should be enabled and the interval
+setting disabled or set to a low value so that the library can find the
+problem as close as possible to its source.  The code that was execute
+right before the library halted, can then be examined closely for
+irregularities.  See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>, See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+
+<P>
+<A NAME="IDX329"></A>
+
+
+<P>
+You may also want to put calls to <CODE>dmalloc_verify(0)</CODE> in your code
+before the section which generated the error.  This should locate the
+problem faster by checking the library's structures at that point.
+See section <A HREF="dmalloc.html#SEC14">3.4 Additional Non-standard Routines</A>.
+
+
+
+
+<H3><A NAME="SEC20" HREF="dmalloc.html#TOC20">3.8.2 Tracking Down Non-Freed Memory</A></H3>
+
+<P>
+<A NAME="IDX330"></A>
+<A NAME="IDX331"></A>
+
+
+<P>
+So you've run your program, examined the log-file and discovered (to
+your horror) some un-freed memory.  Memory leaks can become large
+problems since even the smallest and most insignificant leak can starve
+the program given the right circumstances.
+
+
+
+<PRE>
+not freed: '0x45008' (12 bytes) from 'ra=0x1f8f4'
+not freed: '0x45028' (12 bytes) from 'unknown'
+not freed: '0x45048' (10 bytes) from 'argv.c:1077'
+  known memory not freed: 1 pointer, 10 bytes
+unknown memory not freed: 2 pointers, 24 bytes
+</PRE>
+
+<P>
+Above you will see a sample of some non-freed memory messages from the
+logfile.  In the first line the <SAMP>`0x45008'</SAMP> is the pointer that was
+not freed, the <SAMP>`12 bytes'</SAMP> is the size of the unfreed block, and the
+<SAMP>`ra=0x1f8f4'</SAMP> or return-address shows where the allocation
+originated from.  See section <A HREF="dmalloc.html#SEC22">3.8.4 Translating Return Addresses into Code Locations</A>.
+
+
+<P>
+The systems which cannot provide return-address information show
+<SAMP>`unknown'</SAMP> instead, as in the 2nd line in the sample above.
+
+
+<P>
+The <SAMP>`argv.c:1077'</SAMP> information from the 3rd line shows the file and
+line number which allocated the memory which was not freed.  This
+information comes from the calls from C files which included
+<TT>`dmalloc.h'</TT>.  See section <A HREF="dmalloc.html#SEC11">3.1 Macros Providing File and Line Information</A>.
+
+
+<P>
+At the bottom of the sample it totals the memory for you and breaks it
+down to known memory (those calls which supplied the file/line
+information) and unknown (the rest).
+
+
+<P>
+Often, you may allocate memory in via <CODE>strdup()</CODE> or another
+routine, so the logfile listing where in the <CODE>strdup</CODE> routine the
+memory was allocated does not help locate the true source of the memory
+leak -- the routine that called <CODE>strdup</CODE>.  Without a mechanism to
+trace the calling stack, there is no way for the library to see who the
+caller of the caller (so to speak) was.
+
+
+<P>
+<A NAME="IDX332"></A>
+<A NAME="IDX333"></A>
+
+
+<P>
+However, there is a way to track down unfreed memory in this
+circumstance.  You need to compile the library with
+<CODE>STORE_SEEN_COUNT</CODE> defined in <TT>`conf.h'</TT>.  The library will then
+record how many times a pointer has been allocated or freed.  It will
+display the unfreed memory as:
+
+
+
+<PRE>
+not freed: '0x45008|s3' (12 bytes) from 'ra=0x1f8f4'
+</PRE>
+
+<P>
+The <CODE>STORE_SEEN_COUNT</CODE> option adds a <SAMP>`|s#'</SAMP> qualifier to the
+address.  This means that the address in question was seen <SAMP>`#'</SAMP> many
+times.  In the above example, the address <SAMP>`0x45008'</SAMP> was seen
+<SAMP>`3'</SAMP> times.  The last time it was allocated, it was not freed.
+
+
+<P>
+How can a pointer be "seen" 3 times?  Let say you <CODE>strdup</CODE> a
+string of 12 characters and get address <SAMP>`0x45008'</SAMP> -- this is #1
+time the pointer is seen.  You then free the pointer (seen #2) but later
+<CODE>strdup</CODE> another 12 character string and it gets the <SAMP>`0x45008'</SAMP>
+address from the free list (seen #3).
+
+
+<P>
+So to find out who is allocating this particular 12 bytes the 3rd time,
+try <KBD>dmalloc -a 0x45008:3</KBD>.  The library will stop the program the
+third time it sees the <SAMP>`0x45008'</SAMP> address.  You then enter a
+debugger and put a break point at <CODE>dmalloc_error</CODE>.  Run the program
+and when the breakpoint is reached you can examine the stack frame to
+determine who called <CODE>strdup</CODE> to allocate the pointer.
+
+
+<P>
+To not bother with the <CODE>STORE_SEEN_COUNT</CODE> feature, you can also run
+your program with the <SAMP>`never-reuse'</SAMP> token enabled.  This token will
+cause the library to never reuse memory that has been freed.  Unique
+addresses are always generated.  This should be used with caution since
+it may cause your program to run out of memory.
+
+
+
+
+<H3><A NAME="SEC21" HREF="dmalloc.html#TOC21">3.8.3 Diagnosing Fence-Post Overwritten Memory</A></H3>
+
+<P>
+<A NAME="IDX334"></A>
+
+
+<P>
+For a definition of fence-posts please see the "Features" section.
+See section <A HREF="dmalloc.html#SEC8">2.4 General Features of the Library</A>.
+
+
+<P>
+To detect fence-post overruns, you need to enable the <SAMP>`check-fence'</SAMP>
+token.  See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>.  This pads your allocations with some extra
+bytes at the front and the end and watches the space to make sure that
+they don't get overwritten.  <EM>NOTE:</EM> The library cannot detect if
+this space gets read, only written.
+
+
+<P>
+If you have encountered a fence-post memory error, the logfile should be
+able to tell you the offending address.
+
+
+
+<PRE>
+free: failed UNDER picket-fence magic-number checking: 
+pointer '0x1d008' from 'dmalloc_t.c:427'
+Dump of proper fence-bottom bytes: '\e\253\300\300\e\253\300\300'
+Dump of '0x1d008'-8: '\e\253\300\300WOW!\003\001pforger\023\001\123'
+</PRE>
+
+<P>
+The above sample shows that the pointer <SAMP>`0x1d008'</SAMP> has had its lower
+fence-post area overwritten.  This means that the code wrote below the
+bottom of the address or above the address right below this one.  In the
+sample, the string that did it was <SAMP>`WOW!'</SAMP>.
+
+
+<P>
+The library first shows you what the proper fence-post information
+should look like, and then shows what the pointer's bad information was.
+If it cannot print the character, it will display the value as
+<SAMP>`\ddd'</SAMP> where ddd are three octal digits.
+
+
+<P>
+By enabling the <CODE>check-heap</CODE> debugging token and assigning the
+interval setting to a low number, you should be able to locate
+approximately when this problem happened.  See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>,
+See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+
+
+
+<H3><A NAME="SEC22" HREF="dmalloc.html#TOC22">3.8.4 Translating Return Addresses into Code Locations</A></H3>
+
+<P>
+<A NAME="IDX335"></A>
+
+
+<P>
+The following gdb commands help you translate the return-addresses (ra=)
+entries in the logfile into locations in your code.  I've provided a
+<TT>`ra_info.pl'</TT> perl script in the <TT>`contrib/'</TT> directory with the
+dmalloc sources which seems to work well with gdb.  But, if you need to
+do it manually, here are the commands in gdb to use.
+
+
+<P>
+<A NAME="IDX336"></A>
+<A NAME="IDX337"></A>
+
+
+
+<PRE>
+# you may need to add the following commands to load in shared libraries
+(gdb) sharedlibrary
+(gdb) add-shared-symbol-files
+
+(gdb) x 0x10234d
+0x10234d &#60;_findbuf+132&#62;: 0x7fffceb7
+
+(gdb) info line *(0x82cc)
+Line 1092 of argv.c starts at pc 0x7540 and ends at 0x7550.
+</PRE>
+
+<P>
+In the above example, gdb was used to find that the two non-freed memory
+pointers were allocated in <CODE>_findbuf()</CODE> and in file argv.c line
+1092 respectively.  The <SAMP>`x address'</SAMP> (for examine) can always be
+used on the return-addresses but the <SAMP>`info line *(address)'</SAMP> will
+only work if that file was compiled using the <KBD>-g</KBD> option and has
+not been stripped.  This limitation may not be true in later versions of
+gdb.
+
+
+
+
+<H2><A NAME="SEC23" HREF="dmalloc.html#TOC23">3.9 Using the Library with a Thread Package</A></H2>
+
+<P>
+<A NAME="IDX338"></A>
+<A NAME="IDX339"></A>
+
+
+<P>
+Threads are special operating system facilities which allow your
+programs to have multiple threads of execution (hence the name).  In
+effect your program can be doing a number of things "at the same
+time".  This allows you to take full advantage of modern operating
+system scheduling and multi-processor hardware.  If I've already lost
+you or if any of the terminology below does not make sense, see manuals
+about POSIX threads (pthreads) before going any further.  O'Reilly
+publishes a pretty good pthreads manual for example.
+
+
+<P>
+To use dmalloc with your threaded program, you will first need to make
+sure that you are linking with <TT>`libdmallocth.a'</TT> which is the
+threaded version of the library.  The support for threads in dmalloc
+should be adequate for most if not all testing scenarios.  It provides
+support for mutex locking itself to protect against race conditions that
+result in multiple simultaneous execution.  One of the major problems is
+that most thread libraries uses malloc themselves.  Since all of
+dmalloc's initialization happens when a call to malloc is made, we may
+be attempting to initialize or lock the mutex while the thread library
+is booting up.  A very bad thing since thread libraries don't expect to
+recurse.
+
+
+<P>
+<A NAME="IDX340"></A>
+
+
+<P>
+The solution to this problem is to have the library not initialize or
+lock its mutex variable until after a certain number of allocation calls
+have been completed.  If the library does not wait before initializing
+the locks, the thread library will probably core dump.  If it waits too
+long then it can't protect itself from multiple execution and it will
+abort or other bad things might happen.  You adjust the number of times
+to wait at runtime with the <SAMP>`lock-on'</SAMP> option to the dmalloc program
+(for example <KBD>dmalloc -o 20</KBD>).  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.  Times
+values between 5 and 30 are probably good although operating systems
+will vary significantly.  You know its too low if your program
+immediately core dumps and too high if the dmalloc library says its gone
+recursive although with low values, you might get either problem.
+
+
+<P>
+An additional complexity is when we are initializing the lock before
+mutex locking around the library.  As mentioned, the initialization
+itself may generate a malloc call causing the library to go recursive
+and the pthread library to possibly core dump. With the THREAD_INIT_LOCK
+setting defined in <TT>`settings.h'</TT>, you can tune how many times before
+we start locking to try and initialize the mutex lock.  It defaults to 2
+which seems to work for me.  If people need to have this runtime
+configurable or would like to present an alternative default, please let
+me know.
+
+
+<P>
+So to use dmalloc with a threaded program, follow the following steps
+carefully.
+
+
+
+<OL>
+
+<LI>Follow the installation instructions on how to configure,
+
+make, and install the library but make sure to add the
+<KBD>--enable-threads</KBD> argument to configure.  See section <A HREF="dmalloc.html#SEC3">2.1 How to Install the Library</A>.
+
+<LI>Typing <KBD>make</KBD> should be enough to build the threaded versions
+
+of the libraries including <TT>`libdmallocth.a'</TT>.
+
+<LI>Link the dmalloc threaded library into your program.  The dmalloc
+
+library should probably be placed at or near the end of the library
+list.
+
+<LI>Enable the debugging options that you need by typing
+
+<KBD>dmalloc -l logfile -i 100 low</KBD> (for example).  <KBD>dmalloc
+--usage</KBD> will provide verbose usage info for the dmalloc program.
+See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+<LI>Enable the "lock-on" option (for example <KBD>dmalloc -o 20</KBD>).
+
+As explained above, you may have to try different values before getting
+it right.  Values between 5 and 30 are probably good.
+
+<LI>If you get a dmalloc error #13 <SAMP>`thread locking has not
+
+been configured'</SAMP> then you have not compiled you program with the
+threaded version of dmalloc or there was a problem building it.
+
+<LI>If everything works, you should be able to run your program, have
+
+it not immediately crash, and the dmalloc library should not complain
+about recursion.
+
+</OL>
+
+<P>
+If you have any specific questions or would like addition information
+posted in this section, please let me know.  Experienced thread
+programmers only please.
+
+
+
+
+<H2><A NAME="SEC24" HREF="dmalloc.html#TOC24">3.10 Using the library with Cygwin environment.</A></H2>
+
+<P>
+<A NAME="IDX341"></A>
+
+
+<P>
+The Cygwin environment is a Linux-like environment for Windows.  It
+provides Linux look and feel as well as a programming environment.  See
+URL <A HREF="http://www.cygwin.com/">http://www.cygwin.com/</A> for more details.
+
+
+<P>
+<A NAME="IDX342"></A>
+<A NAME="IDX343"></A>
+
+
+<P>
+The challenge with using dmalloc to debug Cygwin programs is that when
+it initializes, dmalloc makes a call to <CODE>getenv</CODE> to read the
+environmental variables.  It is looking for the value of the
+<SAMP>`DMALLOC_OPTIONS'</SAMP> variable which sets the debugging options.
+See section <A HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>.  Because Cygwin calls a memory allocation
+function while it is loading its shared libraries, it goes recursive
+when <CODE>getenv</CODE> is called from within <CODE>malloc</CODE> causing a
+segfault.
+
+
+<P>
+To work around this, I have added to the configure script a check to
+make sure that calls to <CODE>getenv</CODE> are okay inside of malloc.  See
+<CODE>GETENV_SAFE</CODE> in <TT>`conf.h'</TT>.  If they are not then you are going
+to have to add some code into the <CODE>main</CODE> function in your program
+to initialize the dmalloc flags yourself.  Here is a code sample:
+
+
+<P>
+<A NAME="IDX344"></A>
+
+
+
+<PRE>
+main(int argc, char **argv)
+{
+#ifdef DMALLOC
+  /*
+   * Get environ variable DMALLOC_OPTIONS and pass the settings string
+   * on to dmalloc_debug_setup to setup the dmalloc debugging flags.
+   */
+  dmalloc_debug_setup(getenv("DMALLOC_OPTIONS"));
+#endif
+
+  /* rest of code in main starts here */
+  ...
+}
+</PRE>
+
+<P>
+The <CODE>#ifdef</CODE> is just a good idea.  I means that when debugging with
+dmalloc you need to compile your code with <CODE>-DDMALLOC</CODE>.  When you
+are done debugging you can remove the flag and the call to
+<CODE>dmalloc_debug_setup</CODE> will be removed.
+
+
+<P>
+Please let me know if there is a different way to read the environment
+in Cygwin without calling <CODE>getenv</CODE> or if there is a better way to
+do this.
+
+
+
+
+<H2><A NAME="SEC25" HREF="dmalloc.html#TOC25">3.11 Debugging Memory in a Server or Cgi-Bin Process</A></H2>
+
+<P>
+<A NAME="IDX345"></A>
+<A NAME="IDX346"></A>
+<A NAME="IDX347"></A>
+<A NAME="IDX348"></A>
+<A NAME="IDX349"></A>
+<A NAME="IDX350"></A>
+<A NAME="IDX351"></A>
+<A NAME="IDX352"></A>
+<A NAME="IDX353"></A>
+<A NAME="IDX354"></A>
+<A NAME="IDX355"></A>
+<A NAME="IDX356"></A>
+
+
+<P>
+There are some specified challenges when trying to debug allocations
+in processes which do not startup, run, and then shutdown.  Server
+processes (often called daemons) are those that are started (often at
+system boot time) and run perpetually.  Other processes which are
+difficult to debug are CGI programs which are spawned by web servers
+or when you want to start debugging inside of a child process.
+
+
+
+<OL>
+
+<LI>Build your server or cgi-bin program with the dmalloc library
+
+like any other program.  See section <A HREF="dmalloc.html#SEC4">2.2 Getting Started with the Library</A>.
+
+<LI>Add code into your program to enable the library flags to
+
+perform the memory checks that you require.  Since these programs
+often do not run from the command line, you cannot use the dmalloc
+utility program and modify the process environment.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.  The library provides a couple of functions to set the
+debugging flags when a program is running.
+
+<A NAME="IDX357"></A>
+
+<LI>To set the memory debugging flags, use the
+
+<CODE>dmalloc_debug_setup</CODE> function which takes a string in the same
+format of the <SAMP>`DMALLOC_OPTIONS'</SAMP> environmental variable.
+See section <A HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>.  Use the dmalloc utility with the
+<CODE>-n</CODE> no-changes argument to see the appropriate settings for the
+<SAMP>`DMALLOC_OPTIONS'</SAMP> environmental variable.
+
+
+<PRE>
+&#62; dmalloc -n -l logfile high
+Outputed:
+DMALLOC_OPTIONS=debug=0x4f4ed03,log=logfile
+export DMALLOC_OPTIONS
+</PRE>
+
+So if you want to turn on <KBD>high</KBD> debugging and log to the file
+<TT>`logfile'</TT> then you would copy the above <SAMP>`DMALLOC_OPTIONS'</SAMP>
+value into a call to <CODE>dmalloc_debug_setup</CODE>.  Notice that I have
+surrounded the dmalloc code with an <CODE>#ifdef DMALLOC</CODE> so you'll
+have to compile using the <CODE>-DDMALLOC</CODE> flag.
+
+
+<PRE>
+main()
+{
+#ifdef DMALLOC
+  /* set the 'high' flags */
+  dmalloc_debug_setup("debug=0x4f47d03,log=logfile");
+#endif
+  ...
+}
+</PRE>
+
+<EM>Please note</EM> that the <CODE>dmalloc_debug_setup</CODE> function does
+not know about <CODE>high</CODE>, <CODE>low</CODE>, or other debug tokens but
+needs the actual flag values.
+
+<LI>For earlier versions of the library (before 5.0.0) without
+
+<CODE>dmalloc_debug_setup</CODE>, the <CODE>dmalloc_debug</CODE> function is
+available to set the flags directly, but it cannot adjust the logfile
+name and the other environment settings.  You can use the dmalloc
+utility program to see what the numerical equivalent of the <KBD>high</KBD>
+token.
+
+
+<PRE>
+&#62; dmalloc -n high
+Outputed:
+DMALLOC_OPTIONS=debug=0x4f4ed03
+export DMALLOC_OPTIONS
+</PRE>
+
+You can then take the <CODE>0x4f4ed03</CODE> hexadecimal number and call
+<CODE>dmalloc_debug</CODE> with that number.
+
+
+<PRE>
+main()
+{
+#ifdef DMALLOC
+  /* set the 'high' flags */
+  dmalloc_debug(0x4f4ed03);
+#endif
+  ...
+}
+</PRE>
+
+<LI>Even with the settings enabled, you may have problems getting
+
+the logfile to be written if your program is running as <SAMP>`nobody'</SAMP>
+or another user without permissions for security reasons.  This is
+especially true for cgi-bin programs.  In this case you should specify
+a full path to your malloc logfile in a world writable directory
+(ex. <CODE>dmalloc_debug_setup("debug=0x4f47d03,log=/var/tmp/malloc");</CODE>).
+Watch for programs which change into other directories and which may
+cause logfiles specified as relative or local paths to be dropped in
+other locations.  You may always want to use a full path logfile.
+
+<LI>Once you have your settings enabled and your log is being
+
+generated, you may now want to check out how your process is doing in
+terms of unfreed memory.  Since it is not shutting down, the automatic
+unfreed log entries are not being dropped to the logfile.  By using
+the <CODE>dmalloc_mark</CODE> and <CODE>dmalloc_log_changed</CODE> functions, you
+can set a mark point at a certain place inside of your program, and
+then later see whether there are any unfreed pointers since the mark.
+
+
+<PRE>
+main()
+{
+#ifdef DMALLOC
+  /* set the 'high' flags */
+  dmalloc_debug_setup("debug=0x4f47d03,log=logfile");
+#endif
+
+  while (1) {
+    /* accept a connection from a client */
+    accept_connection();
+
+    while (1) {
+#ifdef DMALLOC
+      unsigned long mark;
+      /* get the current dmalloc position */
+      mark = dmalloc_mark() ;
+#endif
+      /* process the connection */
+      if (process_connection() != PROCESS_OK) {
+        break;
+      }
+#ifdef DMALLOC
+      /* log unfreed pointers that have been added to the heap since mark */
+      dmalloc_log_changed(mark,
+                          1 /* log unfreed pointers */,
+                          0 /* do not log freed pointers */,
+                          1 /* log individual pointers otherwise a summary */);
+#endif
+    }
+    /* close the connection with the client */
+    close_connection();
+  }
+  ...
+}
+</PRE>
+
+Usually you would set the mark after the initializations and before
+each transaction is processed.  Then for each transaction you can use
+<CODE>dmalloc_log_changed</CODE> to show the unfreed memory.
+See section <A HREF="dmalloc.html#SEC14">3.4 Additional Non-standard Routines</A>.
+
+<LI>You can also use the <CODE>dmalloc_log_stats</CODE> function to dump
+
+general information about the heap.  Also, remember that you can use
+the <CODE>dmalloc_message</CODE> and <CODE>dmalloc_vmessage</CODE> routines to
+annotate the dmalloc logfile with details to help you debug memory
+problems.  See section <A HREF="dmalloc.html#SEC14">3.4 Additional Non-standard Routines</A>.
+
+</OL>
+
+
+
+<H1><A NAME="SEC26" HREF="dmalloc.html#TOC26">4. Dmalloc Utility Program</A></H1>
+
+<P>
+<A NAME="IDX358"></A>
+<A NAME="IDX359"></A>
+<A NAME="IDX360"></A>
+<A NAME="IDX361"></A>
+
+
+<P>
+The dmalloc program is designed to assist in the setting of the
+environment variable <SAMP>`DMALLOC_OPTIONS'</SAMP>.  See section <A HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>.  It is designed to print the shell commands necessary to make
+the appropriate changes to the environment.  Unfortunately, it cannot
+make the changes on its own so the output from dmalloc should be sent
+through the <CODE>eval</CODE> shell command which will do the commands.
+
+
+
+
+<H2><A NAME="SEC27" HREF="dmalloc.html#TOC27">4.1 Using a Shell Alias with the Utility</A></H2>
+
+<P>
+The dmalloc program is designed to assist in the setting of the
+environment variable <SAMP>`DMALLOC_OPTIONS'</SAMP>.  See section <A HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>.  It is designed to print the shell commands necessary to make
+the appropriate changes to the environment.  Unfortunately, it cannot
+make the changes on its own so the output from dmalloc should be sent
+through the <CODE>eval</CODE> shell command which will do the commands.
+
+
+<P>
+<A NAME="IDX362"></A>
+<A NAME="IDX363"></A>
+<A NAME="IDX364"></A>
+<A NAME="IDX365"></A>
+
+
+<P>
+With shells that have aliasing or macro capabilities: csh, bash, ksh,
+tcsh, zsh, etc., setting up an alias to dmalloc to do the eval call is
+recommended.  Bash, ksh, and zsh users should add the following to their
+<TT>`.bashrc'</TT>, <TT>`.profile'</TT>, or <TT>`.zshrc'</TT> file respectively
+(notice the <KBD>-b</KBD> option for bourne shell output):
+
+
+
+<PRE>
+function dmalloc { eval `command dmalloc -b $*`; }
+</PRE>
+
+<P>
+If your shell does not support the <CODE>command</CODE> function then try:
+
+
+
+<PRE>
+function dmalloc { eval `\dmalloc -b $*`; }
+</PRE>
+
+<P>
+or
+
+<PRE>
+function dmalloc { eval `/usr/local/bin/dmalloc -b $*`; }
+</PRE>
+
+<P>
+<A NAME="IDX366"></A>
+<A NAME="IDX367"></A>
+
+
+<P>
+If you are <EM>still</EM> using csh or tcsh, you should add the following
+to your <TT>`.cshrc'</TT> file (notice the <KBD>-C</KBD> option for c-shell
+output):
+
+
+
+<PRE>
+alias dmalloc 'eval `\dmalloc -C \!*`'
+</PRE>
+
+<P>
+This allows the user to execute the dmalloc command as <SAMP>`dmalloc
+arguments'</SAMP>.
+
+
+<P>
+Users of versions of the Bourne shell (usually known as /bin/sh) that
+don't have command functions will need to send the output to a temporary
+file and the read it back in with the "." command:
+
+
+
+<PRE>
+$  dmalloc -b arguments ... &#62; /tmp/out
+$  . /tmp/out
+</PRE>
+
+<P>
+By the way, if you are looking for a shell, I heartily recommend trying
+out zsh.  It is a bourne shell written from scratch with much the same
+features as tcsh without the csh crap.
+
+
+<P>
+<EM>NOTE</EM>: After you add the alias to the file you need to log out and
+log back in to have it take effect, or you can execute the above
+appropriate command on the command line.  If you enter <KBD>dmalloc
+runtime</KBD> and see any output with DMALLOC_OPTIONS in it then the alias
+did not work.
+
+
+
+
+<H2><A NAME="SEC28" HREF="dmalloc.html#TOC28">4.2 How to Use the Dmalloc Program</A></H2>
+
+<P>
+<A NAME="IDX368"></A>
+
+
+<P>
+The most basic usage for the program is <SAMP>`dmalloc [-bC] tag'</SAMP>.  The
+<SAMP>`-b'</SAMP> or <SAMP>`-C'</SAMP> (either but not both flags used at a time) are
+for generating Bourne or C shell type commands respectively.  dmalloc
+will try and use the <CODE>SHELL</CODE> environment variable to determine
+whether bourne or C shell commands should be generated but you may want
+to explicitly specify the correct flag.
+
+
+<P>
+The <SAMP>`tag'</SAMP> argument to dmalloc should match a line from the user's
+runtime configuration file or should be one of the built-in tags.
+See section <A HREF="dmalloc.html#SEC31">4.5 Format of the Runtime Configuration File</A>.  If no tag is specified and no other option-commands
+used, dmalloc will display the current settings of the environment
+variable.  It is useful to specify one of the verbose options when doing
+this.
+
+
+<P>
+To find out the usage for the debug malloc program try <SAMP>`dmalloc
+--usage-long'</SAMP>.  The standardized usage message that will be displayed is
+one of the many features of the argv library included with this package.
+
+
+<P>
+It is available on the web at URL <A HREF="http://256.com/sources/argv/">http://256.com/sources/argv/</A>.
+See the documentation there for more information.
+
+
+<P>
+Here is a detailed list of the flags that can passed to dmalloc:
+
+
+<DL COMPACT>
+
+<DT><CODE>-a address</CODE>
+<DD>
+Set the <SAMP>`addr'</SAMP> part of the <SAMP>`DMALLOC_OPTIONS'</SAMP> variable to
+address (or alternatively address:number).
+
+<DT><CODE>-b</CODE>
+<DD>
+Output Bourne shell type commands.
+
+<DT><CODE>-C</CODE>
+<DD>
+Output C shell type commands.
+
+<DT><CODE>-c</CODE>
+<DD>
+Clear/unset all of the settings not specified with other arguments.  You
+can do this automatically when you set to a new tag with the <KBD>-r</KBD>
+option.
+
+<EM>NOTE</EM>: clear will never unset the <SAMP>`debug'</SAMP> setting.  Use
+<KBD>-d 0</KBD> or a tag to <SAMP>`none'</SAMP> to achieve this.
+
+<DT><CODE>-d bitmask</CODE>
+<DD>
+Set the <SAMP>`debug'</SAMP> part of the <SAMP>`DMALLOC_OPTIONS'</SAMP> env variable to
+the bitmask value which should be in hex.  This is overridden (and
+unnecessary) if a tag is specified.
+
+<DT><CODE>-D</CODE>
+<DD>
+List all of the debug-tokens.  Useful for finding a token to be used
+with the <KBD>-p</KBD> or <KBD>-m</KBD> options.  Use with <KBD>-v</KBD> or <KBD>-V</KBD>
+verbose options.
+
+<DT><CODE>-e errno</CODE>
+<DD>
+Print the dmalloc error string that corresponds to the error number
+errno.
+
+<DT><CODE>-f filename</CODE>
+<DD>
+Use this configuration file instead of the RC file
+<TT>`$HOME/.dmallocrc'</TT>.
+
+<DT><CODE>-i number</CODE>
+<DD>
+<A NAME="IDX369"></A>
+Set the checking interval to number.  If the <CODE>check-heap</CODE> token is
+enabled, this causes the library to only check the heap every Nth time
+which can <EM>significantly</EM> increase the running speed of your
+program.  If a problem is found, however, this limits your ability to
+determine when the problem occurred.  Try values of 50 or 100 initially.
+
+<DT><CODE>-k</CODE>
+<DD>
+Do not reset all of the settings when a tag is specified.  This
+specifically overrides the <KBD>-r</KBD> option and is provided here to
+override <KBD>-r</KBD> if it has been added to the dmalloc alias.
+
+<DT><CODE>-l filename</CODE>
+<DD>
+Write the debugging output and other log-file information to the
+filename.  Filename can include some of the following patterns which get
+expanded into strings:
+
+<DL COMPACT>
+
+<DT><CODE>%h</CODE>
+<DD>
+<A NAME="IDX370"></A>
+ <A NAME="IDX371"></A>
+ <A NAME="IDX372"></A>
+ <A NAME="IDX373"></A>
+ 
+Gets expanded into the hostname if the <CODE>gethostname()</CODE> function is
+available.
+
+<A NAME="IDX374"></A>
+<A NAME="IDX375"></A>
+<DT><CODE>%i</CODE>
+<DD>
+Gets expanded into the thread-id if the library has been configure to be
+used with threads.  See section <A HREF="dmalloc.html#SEC23">3.9 Using the Library with a Thread Package</A>.  See the end of the
+<TT>`settings.dist'</TT> file for settings which return the thread-id and
+convert it into a string.
+
+<A NAME="IDX376"></A>
+<A NAME="IDX377"></A>
+<A NAME="IDX378"></A>
+<A NAME="IDX379"></A>
+<DT><CODE>%p</CODE>
+<DD>
+Gets expanded into the process-id if the <CODE>getpid()</CODE> function is
+available.
+
+<A NAME="IDX380"></A>
+<A NAME="IDX381"></A>
+<A NAME="IDX382"></A>
+<DT><CODE>%t</CODE>
+<DD>
+Gets expanded into the time value in seconds if the <CODE>time()</CODE>
+function is available.
+
+<A NAME="IDX383"></A>
+<A NAME="IDX384"></A>
+<A NAME="IDX385"></A>
+<A NAME="IDX386"></A>
+<DT><CODE>%u</CODE>
+<DD>
+Gets expanded into the user-id number if the <CODE>getuid()</CODE> function is
+available.
+
+</DL>
+
+Some examples:
+
+
+<PRE>
+# logfile produced with pid extension:   logfile.8412  or  logfile.31451
+dmalloc -l logfile.%p
+
+# hostname and time extensions:  dmalloc-box1.foo.com-1055213240
+dmalloc -l dmalloc-%h-%t
+
+# if threads enabled, have thread-id extension:  log.thread32
+dmalloc -l log.thread%i
+</PRE>
+
+<DT><CODE>-L</CODE>
+<DD>
+Output the debug-value not in hex but by individual debug-tokens in long
+form.
+
+<DT><CODE>-m token(s)</CODE>
+<DD>
+Remove (minus) the debug capabilities of token(s) from the current debug
+setting or from the selected tag (or <KBD>-d</KBD> value).  Multiple <KBD>-m</KBD>
+options can be specified.
+
+<DT><CODE>-n</CODE>
+<DD>
+Without changing the environment, output the commands resulting from the
+supplied options.
+
+<A NAME="IDX387"></A>
+<A NAME="IDX388"></A>
+<DT><CODE>-M limit</CODE>
+<DD>
+Set the memory allocation limit which will abort the program if the
+total memory allocations exceed this number of bytes.  The limit can be
+a number with a k, m, or g at the end to indicate kilobyte, megabyte,
+and gigabyte respectively.  Ex: 100k, 200m, 1g.  If the limit is
+exceeded, this will generate an <CODE>ERROR_OVER_LIMIT</CODE> error.
+
+<A NAME="IDX389"></A>
+<DT><CODE>-o times</CODE>
+<DD>
+Set the "lock-on" period which dictates to the threaded version of
+the library to not initialize or lock the mutex lock around the library
+until after a certain number of allocation calls have been made.  Some
+number between 2 and 30 is probably good.  See the "Using With
+Threads" section for more information about the operation of the
+library with threads.  See section <A HREF="dmalloc.html#SEC23">3.9 Using the Library with a Thread Package</A>.
+
+<DT><CODE>-p token(s)</CODE>
+<DD>
+Add (plus) the debug capabilities of token(s) to the current debug
+setting or to the selected tag (or <KBD>-d</KBD> value).  Multiple <KBD>-p</KBD>
+options can be specified.
+
+<DT><CODE>-r</CODE>
+<DD>
+Remove (unset) all settings when using a tag.  This is useful when you
+are returning to a standard development tag and want the logfile,
+address, and interval settings to be cleared automatically.  If you want
+this behavior by default, this can be put into the dmalloc alias.
+
+<A NAME="IDX390"></A>
+<A NAME="IDX391"></A>
+<DT><CODE>-s file:line</CODE>
+<DD>
+Set the <SAMP>`start'</SAMP> part of the <SAMP>`DMALLOC_OPTIONS'</SAMP> env variable to
+a file-name and line-number location in the source where the library
+should begin more extensive heap checking.  The file and line numbers
+for heap transactions must be working for this option to be obeyed.
+This is used if you are trying to locate a problem and you want the
+extensive checking to not happen initially because it's too slow.
+
+<A NAME="IDX392"></A>
+<A NAME="IDX393"></A>
+<A NAME="IDX394"></A>
+<A NAME="IDX395"></A>
+<A NAME="IDX396"></A>
+<A NAME="IDX397"></A>
+<A NAME="IDX398"></A>
+<DT><CODE>-S number</CODE>
+<DD>
+Set the <SAMP>`start'</SAMP> part of the <SAMP>`DMALLOC_OPTIONS'</SAMP> env variable to
+an dmalloc mark number.  The library will begin more extensive heap
+checking after this number of memory transactions.  If you
+<CODE>LOG_ITERATION</CODE> enabled in your <TT>`settings.h'</TT> file then
+the entries in the log file will be prepended with the number of memory
+transactions that the library has handled so far.  This number can be
+used to delay the start of the fine grained heap checking which can be
+very slow.
+
+<A NAME="IDX399"></A>
+<A NAME="IDX400"></A>
+<DT><CODE>--start-size size</CODE>
+<DD>
+Set the <SAMP>`start'</SAMP> part of the <SAMP>`DMALLOC_OPTIONS'</SAMP> env variable to
+a number of bytes.  The library will begin more extensive heap checking
+after this amount of memory has been allocated by the library.  This
+allows you to start the slow and detailed checking of the library later
+in the program execution.  You can use patterns like 250m, 1g, or 102k
+to mean 250 megabytes, 1 gigabyte, and 102 kilobytes respectively.
+
+<DT><CODE>-t</CODE>
+<DD>
+List all of the tags in the rc-file.  Use with <KBD>-v</KBD> or <KBD>-V</KBD>
+verbose options.
+
+<DT><CODE>-v</CODE>
+<DD>
+Give verbose output.  Especially useful when dumping current settings or
+listing all of the tags.
+</DL>
+
+<P>
+If no arguments are specified, dmalloc dumps out the current settings
+that you have for the environment variable.  For example:
+
+
+
+<PRE>
+Debug-Flags  '0x40005c7' (runtime)
+Address      0x1f008, count = 3
+Interval     100
+Logpath      'malloc'
+Start-File   not-set
+</PRE>
+
+<P>
+With a -v option and no arguments, dmalloc dumps out the current
+settings in a verbose manner.  For example:
+
+
+
+<PRE>
+Debug-Flags  '0x40005c7' (runtime)
+   log-stats, log-non-free, log-bad-space, check-fence, catch-null
+Address      0x1f008, count = 10
+Interval     100
+Logpath      'malloc'
+Start-File   not-set
+</PRE>
+
+<P>
+Here are some examples of dmalloc usage:
+
+
+
+<PRE>
+# start tough debugging, check the heap every 100 times,
+# send the log information to file 'logfile'
+dmalloc high -i 100 -l logfile
+
+# find out what error code 20 is (from the logfile)
+dmalloc -e 20
+
+# cause the library to halt itself when it sees the address 0x34238
+# for the 6th time.
+dmalloc -a 0x34238:6
+
+# send the log information to file 'logfile' with the time in seconds
+# as an extension.
+dmalloc -l logfile.%t
+
+# return to the normal 'runtime' settings and clear out all
+# other settings
+dmalloc -c runtime
+
+# enable basic 'low' settings plus (-p) the logging of
+# transactions (log-trans) to file 'logfile'
+dmalloc low -p log-trans -l logfile
+
+# print out the current settings with Very-verbose output
+dmalloc -V
+
+# list the available debug malloc tokens with Very-verbose output
+dmalloc -DV
+
+# list the available tags from the rc file with verbose output
+dmalloc -tv
+</PRE>
+
+
+
+<H2><A NAME="SEC29" HREF="dmalloc.html#TOC29">4.3 Environment Variable Name and Features</A></H2>
+
+<P>
+<A NAME="IDX401"></A>
+<A NAME="IDX402"></A>
+<A NAME="IDX403"></A>
+
+
+<P>
+An <EM>environment variable</EM> is a variable that is part of the user's
+working environment and is shared by all the programs.  The
+<SAMP>`DMALLOC_OPTIONS'</SAMP> variable is used by the dmalloc library to enable
+or disable the memory debugging features, at runtime.  <EM>NOTE:</EM> you
+can also use the dmalloc_debug_setup function to set the option string.
+It can be set either by hand or with the help of the dmalloc program.
+See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+
+<P>
+<A NAME="IDX404"></A>
+
+
+<P>
+<A NAME="IDX405"></A>
+<A NAME="IDX406"></A>
+<A NAME="IDX407"></A>
+<A NAME="IDX408"></A>
+<A NAME="IDX409"></A>
+To set it by hand, Bourne shell (sh, bash, ksh, or zsh) users should use:
+
+
+
+<PRE>
+DMALLOC_OPTIONS=value
+export DMALLOC_OPTIONS
+</PRE>
+
+<P>
+<A NAME="IDX410"></A>
+<A NAME="IDX411"></A>
+<A NAME="IDX412"></A>
+C shell (csh or tcsh) users need to invoke:
+
+
+
+<PRE>
+setenv DMALLOC_OPTIONS value
+</PRE>
+
+<P>
+The value in the above examples is a comma separated list of tokens each
+having a corresponding value.  The tokens are described below:
+
+
+<DL COMPACT>
+
+<DT><CODE>debug</CODE>
+<DD>
+<A NAME="IDX413"></A>
+This should be set to a value in hexadecimal which corresponds to the
+functionality token values added together.  See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>.  For
+instance, if the user wanted to enable the logging of memory
+transactions (value <SAMP>`0x008'</SAMP>) and wanted to check fence-post memory
+(value <SAMP>`0x400'</SAMP>) then <SAMP>`debug'</SAMP> should be set to <SAMP>`0x408'</SAMP>
+(<SAMP>`0x008'</SAMP> + <SAMP>`0x400'</SAMP>).
+
+<EM>NOTE</EM>: You don't have to worry about remembering all the hex
+values of the tokens because the dmalloc program automates the setting
+of this variable especially.
+
+<A NAME="IDX414"></A>
+
+<EM>NOTE</EM>: You can also specify the debug tokens directly, separated
+by commas.  See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>.  If <SAMP>`debug'</SAMP> and the tokens are
+both used, the token values will be added to the debug value.
+
+<DT><CODE>lockon</CODE>
+<DD>
+<A NAME="IDX415"></A>
+Set this to a number which is the "lock-on" period.  This dictates
+to the threaded version of the library to not initialize or lock the
+mutex lock around the library until after a certain number of allocation
+calls have been made.  See the "Using With Threads" section for more
+information about the operation of the library with threads.
+See section <A HREF="dmalloc.html#SEC23">3.9 Using the Library with a Thread Package</A>.
+
+<DT><CODE>log</CODE>
+<DD>
+<A NAME="IDX416"></A>
+<A NAME="IDX417"></A>
+Set this to a filename so that if <SAMP>`debug'</SAMP> has logging enabled, the
+library can log transactions, administration information, and/or errors
+to the file so memory problems and usage can be tracked.
+
+To get different logfiles for different processes, you can assign
+<SAMP>`log'</SAMP> to a string with <CODE>%d</CODE> in it (for instance
+<SAMP>`logfile.%d'</SAMP>).  This will be replaced with the pid of the running
+process (for instance <SAMP>`logfile.2451'</SAMP>).
+
+<EM>WARNING</EM>: it is easy to core dump any program with dmalloc, if
+you send in a format with arguments other than the one <CODE>%d</CODE>.
+
+<DT><CODE>addr</CODE>
+<DD>
+<A NAME="IDX418"></A>
+<A NAME="IDX419"></A>
+<A NAME="IDX420"></A>
+When this is set to a hex address (taken from the dmalloc log-file for
+instance) dmalloc will abort when it finds itself either allocating or
+freeing that address.
+
+The address can also have an <SAMP>`:number'</SAMP> argument.  For instance, if
+it was set it to <SAMP>`0x3e45:10'</SAMP>, the library will kill itself the 10th
+time it sees address <SAMP>`0x3e45'</SAMP>.  By setting the number argument to
+0, the program will never stop when it sees the address.  This is useful
+for logging all activity on the address and makes it easier to track
+down specific addresses not being freed.
+
+This works well in conjunction with the <CODE>STORE_SEEN_COUNT</CODE> option.
+See section <A HREF="dmalloc.html#SEC20">3.8.2 Tracking Down Non-Freed Memory</A>.
+
+<EM>NOTE</EM>: dmalloc will also log all activity on this address along
+with a count.
+
+<DT><CODE>inter</CODE>
+<DD>
+<A NAME="IDX421"></A>
+By setting this to a number X, dmalloc will only check the heap every X
+times.  This means a number of debugging features can be enabled while
+still running the program within a finite amount of time.
+
+A setting of <SAMP>`100'</SAMP> works well with reasonably memory intensive
+programs.  This of course means that the library will not catch errors
+exactly when they happen but possibly 100 library calls later.
+
+<DT><CODE>start</CODE>
+<DD>
+<A NAME="IDX422"></A>
+Set this to a number X and dmalloc will begin checking the heap after X
+times.  This means the intensive debugging can be started after a
+certain point in a program.
+
+<SAMP>`start'</SAMP> also has the format <SAMP>`file:line'</SAMP>.  For instance, if it
+is set to <SAMP>`dmalloc_t.c:126'</SAMP> dmalloc will start checking the heap
+after it sees a dmalloc call from the <TT>`dmalloc_t.c'</TT> file, line
+number 126.  If you use <SAMP>`dmalloc_t.c:0'</SAMP>, with a 0 line number, then
+dmalloc will start checking the heap after it sees a call from anywhere
+in the <TT>`dmalloc_t.c'</TT> file.
+
+This allows the intensive debugging to be started after a certain
+routine or file has been reached in the program.
+</DL>
+
+<P>
+Some examples are:
+
+
+
+<PRE>
+# turn on transaction and stats logging and set 'logfile' as the log-file
+setenv DMALLOC_OPTIONS log-trans,log-stats,log=logfile
+
+# enable debug flags 0x1f as well as heap-checking and set the interval
+# to be 100
+setenv DMALLOC_OPTIONS debug=0x1f,check-heap,inter=100
+
+# enable 'logfile' as the log-file, watch for address '0x1234', and start
+# checking when we see file.c line 123
+setenv DMALLOC_OPTIONS log=logfile,addr=0x1234,start=file.c:123
+</PRE>
+
+
+
+<H2><A NAME="SEC30" HREF="dmalloc.html#TOC30">4.4 Description of the Debugging Tokens</A></H2>
+
+<P>
+<A NAME="IDX423"></A>
+<A NAME="IDX424"></A>
+
+
+<P>
+The below tokens and their corresponding descriptions are for the
+setting of the debug library setting in the environment variable.
+See section <A HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>.  They should be specified in the user's
+<TT>`.dmallocrc'</TT> file.  See section <A HREF="dmalloc.html#SEC31">4.5 Format of the Runtime Configuration File</A>.
+
+
+<P>
+Each token, when specified, enables a specific debugging feature.  For
+instance, if you have the log-stats token enabled, the library will log
+general statistics to the logfile.
+
+
+<P>
+To get this information on the fly, use <KBD>dmalloc -DV</KBD>.  This will
+print out the Debug tokens in Very-verbose mode.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+
+<DL COMPACT>
+
+<DT><CODE>none</CODE>
+<DD>
+<A NAME="IDX425"></A>
+ 
+No debugging functionality
+
+<A NAME="IDX426"></A>
+<DT><CODE>log-stats</CODE>
+<DD>
+Log general statistics when dmalloc_shutdown or dmalloc_log_stats is
+called.
+
+<A NAME="IDX427"></A>
+<DT><CODE>log-non-free</CODE>
+<DD>
+Log non-freed memory pointers when dmalloc_shutdown or dmalloc_log_unfreed
+is called.
+
+<A NAME="IDX428"></A>
+<DT><CODE>log-known</CODE>
+<DD>
+Log only known memory pointers that have not been freed.  Pointers which
+do not have file/line or return-address information will not be logged.
+
+<A NAME="IDX429"></A>
+<DT><CODE>log-trans</CODE>
+<DD>
+Log general memory transactions (quite verbose).
+
+<A NAME="IDX430"></A>
+<DT><CODE>log-admin</CODE>
+<DD>
+Log administrative information (quite verbose).
+
+<A NAME="IDX431"></A>
+<DT><CODE>log-bad-space</CODE>
+<DD>
+Log actual bytes in and around bad pointers.
+
+<A NAME="IDX432"></A>
+<DT><CODE>log-nonfree-space</CODE>
+<DD>
+Log actual bytes in non-freed pointers.
+
+<A NAME="IDX433"></A>
+<DT><CODE>log-elapsed-time</CODE>
+<DD>
+Log elapsed-time for allocated pointers (see <TT>`conf.h'</TT>).
+
+<A NAME="IDX434"></A>
+<DT><CODE>log-current-time</CODE>
+<DD>
+Log current-time for allocated pointers (see <TT>`conf.h'</TT>).
+
+<A NAME="IDX435"></A>
+<DT><CODE>check-fence</CODE>
+<DD>
+Check fence-post memory areas.
+
+<A NAME="IDX436"></A>
+<DT><CODE>check-heap</CODE>
+<DD>
+Verify heap administrative structure.
+
+<A NAME="IDX437"></A>
+<DT><CODE>check-blank</CODE>
+<DD>
+Check to see if space that was blanked by free-blank or alloc-blank has
+been overwritten.  If this is enabled then it will enable free-blank and
+alloc-blank automatically.
+
+<A NAME="IDX438"></A>
+<DT><CODE>check-funcs</CODE>
+<DD>
+Check the arguments of some functions (mostly string operations) looking
+for bad pointers.
+
+<A NAME="IDX439"></A>
+<DT><CODE>check-shutdown</CODE>
+<DD>
+Check all of the pointers in the heap when the program exits.
+
+<A NAME="IDX440"></A>
+<A NAME="IDX441"></A>
+<A NAME="IDX442"></A>
+<A NAME="IDX443"></A>
+<A NAME="IDX444"></A>
+<A NAME="IDX445"></A>
+<A NAME="IDX446"></A>
+<A NAME="IDX447"></A>
+<A NAME="IDX448"></A>
+<DT><CODE>catch-signals</CODE>
+<DD>
+Shutdown the library automatically on SIGHUP, SIGINT, or SIGTERM.  This
+will cause the library to dump its statistics (if requested) when you
+press control-c on the program (for example).
+
+<A NAME="IDX449"></A>
+<DT><CODE>realloc-copy</CODE>
+<DD>
+Always copy data to a new pointer when realloc.
+
+<A NAME="IDX450"></A>
+<A NAME="IDX451"></A>
+<A NAME="IDX452"></A>
+<A NAME="IDX453"></A>
+<A NAME="IDX454"></A>
+<A NAME="IDX455"></A>
+<A NAME="IDX456"></A>
+<A NAME="IDX457"></A>
+<A NAME="IDX458"></A>
+<A NAME="IDX459"></A>
+<A NAME="IDX460"></A>
+<A NAME="IDX461"></A>
+<A NAME="IDX462"></A>
+<A NAME="IDX463"></A>
+<DT><CODE>free-blank</CODE>
+<DD>
+Write special "dmalloc-free" byte (hexadecimal <CODE>0xdf</CODE>, octal
+<CODE>0337</CODE>, decimal <CODE>223</CODE>) into space when it is freed.  You can
+set this to be something else in the <TT>`settings.dist'</TT> file.  You
+can then check to see if areas have been improperly overwritten with
+the <CODE>check-blank</CODE> token.  If the free space has been overwritten,
+then ERROR_FREE_OVERWRITTEN is triggered.
+
+<A NAME="IDX464"></A>
+<A NAME="IDX465"></A>
+<A NAME="IDX466"></A>
+<DT><CODE>error-abort</CODE>
+<DD>
+Abort the program (and dump core) on errors.  See <CODE>error-dump</CODE> below.
+
+<A NAME="IDX467"></A>
+<A NAME="IDX468"></A>
+<A NAME="IDX469"></A>
+<A NAME="IDX470"></A>
+<A NAME="IDX471"></A>
+<A NAME="IDX472"></A>
+<A NAME="IDX473"></A>
+<A NAME="IDX474"></A>
+<A NAME="IDX475"></A>
+<A NAME="IDX476"></A>
+<A NAME="IDX477"></A>
+<A NAME="IDX478"></A>
+<A NAME="IDX479"></A>
+<DT><CODE>alloc-blank</CODE>
+<DD>
+Write special "dmalloc-alloc" byte (hexadecimal <CODE>0xda</CODE>, octal
+<CODE>0332</CODE>, decimal <CODE>218</CODE>) into space when it is allocated.  You
+can set this to be something else in the <TT>`settings.dist'</TT> file.
+You can then check to see if areas have been improperly overwritten
+with the check-blank token.
+
+<A NAME="IDX480"></A>
+<DT><CODE>print-messages</CODE>
+<DD>
+Log any errors and messages to the screen via standard-error.
+
+<A NAME="IDX481"></A>
+<A NAME="IDX482"></A>
+<A NAME="IDX483"></A>
+<DT><CODE>catch-null</CODE>
+<DD>
+Abort the program immediately if the library fails to get more heap
+space from the heap allocation routine <CODE>mmap</CODE> or <CODE>sbrk</CODE>.
+
+<A NAME="IDX484"></A>
+<DT><CODE>never-reuse</CODE>
+<DD>
+Have the heap never use space that has been used before and freed.
+See section <A HREF="dmalloc.html#SEC20">3.8.2 Tracking Down Non-Freed Memory</A>.  <EM>WARNING</EM>: This should be used with caution
+since you may run out of heap space.
+
+<A NAME="IDX485"></A>
+<A NAME="IDX486"></A>
+<A NAME="IDX487"></A>
+<DT><CODE>error-dump</CODE>
+<DD>
+Dump core on error and then continue.  Later core dumps overwrite
+earlier ones if the program encounters more than one error.  See
+<CODE>error-abort</CODE> above.
+
+<EM>NOTE</EM>: This will only work if your system supports the <CODE>fork</CODE>
+system call and the configuration utility was able to fork without going
+recursive.
+
+<A NAME="IDX488"></A>
+<DT><CODE>error-free-null</CODE>
+<DD>
+By default the library will not generate an error when a program tries
+to free a NULL pointer.  By enabling this token, you can change this
+behavior so an error is reported.  See also the ALLOW_FREE_NULL and
+ALLOW_FREE_NULL_MESSAGE settings in the <TT>`settings.h'</TT> file to change
+the default behavior.
+
+</DL>
+
+
+
+<H2><A NAME="SEC31" HREF="dmalloc.html#TOC31">4.5 Format of the Runtime Configuration File</A></H2>
+
+<P>
+<A NAME="IDX489"></A>
+<A NAME="IDX490"></A>
+<A NAME="IDX491"></A>
+<A NAME="IDX492"></A>
+<A NAME="IDX493"></A>
+
+
+<P>
+By using a <EM>RC File</EM> (or runtime configuration file) you can alias
+tags to combinations of debug tokens.  See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>.
+
+
+<P>
+<EM>NOTE</EM>: For beginning users, the dmalloc program has a couple of
+tags built into it so it is not necessary for you to setup a RC file:
+
+
+<DL COMPACT>
+
+<DT><CODE>runtime</CODE>
+<DD>
+<A NAME="IDX494"></A>
+ <A NAME="IDX495"></A>
+ 
+Enables basic runtime tests including fence-post checking, null handling,
+and logging of any errors.
+
+<A NAME="IDX496"></A>
+<A NAME="IDX497"></A>
+<DT><CODE>low</CODE>
+<DD>
+Runtime settings plus minimal checking of heap structures and
+overwriting of allocated and freed space.
+
+<A NAME="IDX498"></A>
+<A NAME="IDX499"></A>
+<DT><CODE>medium</CODE>
+<DD>
+Low settings plus checking of all heap structures on each memory call,
+always relocates block on realloc, and aborts on errors.  You may want
+to use <KBD>-i</KBD> option to the dmalloc utility.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+<A NAME="IDX500"></A>
+<A NAME="IDX501"></A>
+<DT><CODE>high</CODE>
+<DD>
+Medium settings plus checking of overwritten freed and allocated
+memory and checking of arguments to a number of common functions. You
+may want to use <KBD>-i</KBD> option to the dmalloc utility.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+
+</DL>
+
+<P>
+For expert users, a sample <TT>`dmallocrc'</TT> file has been provided but
+you are encouraged to roll your own combinations.  The name of default
+rc-file is <TT>`$HOME/.dmallocrc'</TT>.  The <SAMP>`$HOME'</SAMP> environment
+variable should be set by the system to point to your home-directory.
+
+
+<P>
+The file should contain lines in the general form of:
+
+
+
+<PRE>
+tag     token1, token2, ...
+</PRE>
+
+<P>
+<SAMP>`tag'</SAMP> is to be matched with the tag argument passed to the dmalloc
+program, while <SAMP>`token1, token2, ...'</SAMP> are debug capability
+tokens.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>, section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>.
+
+
+<P>
+A line can be finished with a <SAMP>`\'</SAMP> meaning it continues onto the
+next line.  Lines beginning with <SAMP>`#'</SAMP> are treated as comments and
+are ignored along with empty lines.
+
+
+<P>
+Here is an example of a <TT>`.dmallocrc'</TT> file:
+
+
+
+<PRE>
+#
+# Dmalloc runtime configuration file for the debug malloc library
+#
+
+# no debugging
+none    none
+
+# basic debugging
+debug1  log-stats, log-non-free, check-fence
+
+# more logging and some heap checking
+debug2  log-stats, log-non-free, log-trans, \
+        check-fence, check-heap, error-abort
+
+# good utilities
+debug3  log-stats, log-non-free, log-trans, \
+        log-admin, check-fence, check-heap, realloc-copy, \
+        free-blank, error-abort
+
+...
+</PRE>
+
+<P>
+For example, with the above file installed, you can type <CODE>dmalloc
+debug1</CODE> after setting up your shell alias.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.
+This enables the logging of statistics, the logging of non-freed memory,
+and the checking of fence-post memory areas.
+
+
+<P>
+Enter <CODE>dmalloc none</CODE> to disable all memory debugging features.
+
+
+
+
+<H1><A NAME="SEC32" HREF="dmalloc.html#TOC32">5. Information on the Source Code</A></H1>
+
+<P>
+<A NAME="IDX502"></A>
+
+
+
+
+<H2><A NAME="SEC33" HREF="dmalloc.html#TOC33">5.1 Definition of Terms and other Information</A></H2>
+
+<P>
+<A NAME="IDX503"></A>
+
+
+<P>
+Here are a couple definitions and other information for those interested
+in "picking the brain" of the library.  The code is a little ugly here
+and there and it conforms to the Gray-Watson handbook of coding
+standards only.
+
+
+<DL COMPACT>
+
+<DT><EM>bblock</EM>
+<DD>
+basic block containing 2 ^ BASIC_BLOCK bytes of info
+
+<DT><EM>bblock_adm</EM>
+<DD>
+administration for a set of basic blocks
+
+<DT><EM>dblock</EM>
+<DD>
+divided block containing some base 2 number of blocks smaller than a
+basic block.
+
+<DT><EM>dblock_adm</EM>
+<DD>
+administration for a set of divided blocks
+
+<DT><EM>chunk</EM>
+<DD>
+some anonymous amount of memory
+</DL>
+
+<P>
+For more information about administration structures, see the code and
+comments from <TT>`chunk_loc.h'</TT>.
+
+
+
+
+<H2><A NAME="SEC34" HREF="dmalloc.html#TOC34">5.2 General Compatibility Concerns</A></H2>
+
+<P>
+<A NAME="IDX504"></A>
+
+
+
+<UL>
+<LI>
+
+Realloc() backwards compatibility with being able to realloc from the
+last freed block is <EM>not</EM> supported.  The author is interested to
+know who is using this (cough, cough) feature and for what reason.
+
+<LI>
+
+Realloc() of a NULL pointer is supported in which case the library will
+just make a call to malloc().  This can be disabled with the help of a
+manual compilation option in the <TT>`conf.h'</TT> file.
+
+<LI>
+
+Some systems allow free(0) to not be an error for some reason.  Since 0
+is not a valid address returned by the malloc call, it is debatable that
+this should be allowed.  See <TT>`conf.h'</TT> for some manual compilation
+options to handle this.
+
+<LI>
+
+Aside from possibly being slower than the system's memory allocation
+functions, the library should be fully compatible with the standard
+memory routines.  If this is <EM>not</EM> the case, please bring this to
+my attention.
+</UL>
+
+
+
+<H2><A NAME="SEC35" HREF="dmalloc.html#TOC35">5.3 Issues Important for Porting the Library</A></H2>
+
+<P>
+<A NAME="IDX505"></A>
+
+
+<P>
+General portability issues center around:
+
+
+
+<UL>
+<LI>
+
+<A NAME="IDX506"></A>
+<A NAME="IDX507"></A>
+<A NAME="IDX508"></A>
+<A NAME="IDX509"></A>
+mmap, sbrk, or compatible function usages.  The library does support a
+preallocated memory chunk heap.  See the <CODE>INTERNAL_MEMORY_SPACE</CODE>
+define in the <TT>`settings.dist'</TT> file.
+
+<LI>
+
+<A NAME="IDX510"></A>
+The locating of the caller's address from the dmalloc functions.
+This is useful in locating problems from dmalloc functions called from C
+files which did not include <TT>`dmalloc.h'</TT>: C library calls for
+instance.
+
+<A NAME="IDX511"></A>
+See <TT>`return.h'</TT> for the available architecture/compiler
+combinations.  You may want to examine the assembly code from gcc (GNUs
+superior c-compiler) version 2+ being run on the following code.  It
+should give you a good start on building a hack for your box.
+
+
+<PRE>
+static char * x;
+
+a()
+{
+        x = __builtin_return_address(0);
+}
+
+main()
+{
+        a();
+}
+</PRE>
+
+</UL>
+
+
+
+<H1><A NAME="SEC36" HREF="dmalloc.html#TOC36">6. Some Solutions to Common Problems</A></H1>
+
+<P>
+<A NAME="IDX512"></A>
+<A NAME="IDX513"></A>
+<A NAME="IDX514"></A>
+<A NAME="IDX515"></A>
+<A NAME="IDX516"></A>
+<A NAME="IDX517"></A>
+<A NAME="IDX518"></A>
+
+
+<P>
+This section provides some answers to some common problems and
+questions.  Please send me mail with any additions to
+this list -- either problems you are still having or tips that you would
+like to pass on.
+
+
+<P>
+When diagnosing a problem, if possible, always make sure you are running
+the most up to date version of Dmalloc available from the home page at
+URL <A HREF="http://dmalloc.com/">http://dmalloc.com/</A>.  Problems are often fixed and a new
+release can be published before people encounter them.
+
+
+<DL COMPACT>
+
+<DT><SAMP>`Why does my program run so slow?'</SAMP>
+<DD>
+<A NAME="IDX519"></A>
+ <A NAME="IDX520"></A>
+ <A NAME="IDX521"></A>
+ 
+
+<A NAME="IDX522"></A>
+This library has never been (and maybe never will be) optimized for
+space nor speed.  Some of its features make it unable to use some of
+the organizational methods of other more efficient heap libraries.
+
+If you have the <CODE>check-heap</CODE> token enabled, you can have the
+library check itself less frequently by using the <KBD>-i</KBD> option to
+the dmalloc utility.  See section <A HREF="dmalloc.html#SEC26">4. Dmalloc Utility Program</A>.  If you are using the
+<KBD>high</KBD> token and you need your program to run faster, try the
+<KBD>medium</KBD> or <KBD>low</KBD> tokens which don't check as many heap
+features and so run faster although they will not catch as many
+problems. See section <A HREF="dmalloc.html#SEC31">4.5 Format of the Runtime Configuration File</A>.
+
+<A NAME="IDX523"></A>
+<A NAME="IDX524"></A>
+<DT><SAMP>`Why was a log-file not produced after I ran my program?'</SAMP>
+<DD>
+This could be caused by a number of different problems.
+
+
+<OL>
+
+<LI>Are you sure you followed all of the items in the "Getting Started"
+
+section?  Please review them if there is any doubt.  See section <A HREF="dmalloc.html#SEC4">2.2 Getting Started with the Library</A>.
+
+<A NAME="IDX525"></A>
+<A NAME="IDX526"></A>
+<A NAME="IDX527"></A>
+
+<LI>Use the <KBD>env</KBD> or <KBD>printenv</KBD> commands to make sure that
+
+the <SAMP>`DMALLOC_OPTIONS'</SAMP> variable is set in your exported environment.
+See section <A HREF="dmalloc.html#SEC29">4.3 Environment Variable Name and Features</A>.
+
+<A NAME="IDX528"></A>
+<A NAME="IDX529"></A>
+
+<LI>Make sure that your program has been compiled correctly with the
+
+dmalloc library.  The <KBD>ident</KBD> program should show chunk.c and other
+dmalloc files compiled into your program.  You can also do <KBD>strings
+-a your-program | grep chunk.c</KBD> and look for something like <SAMP>`$Id:
+chunk.c,v 1.152 1999/08/25 12:37:01 gray Exp $'</SAMP> with different versions
+and date information.  If this doesn't show up then chances are dmalloc
+was not linked into your program.
+
+<LI>If your program changes its working directory, it may write the
+
+dmalloc log-file somewhere else in the filesystem.  You will need to
+check both where the program was started and to where it might change
+directory.
+
+<LI>The logfile is only produced when <CODE>dmalloc_shutdown()</CODE> is
+
+called.  By default it will be called when <CODE>exit()</CODE> gets called.
+If you are running your program and press <KBD>Control-C</KBD> under Unix the
+program will stop immediately and <CODE>dmalloc_shutdown()</CODE> will not get
+called.  You can either setup a signal handler for <CODE>SIGINTR</CODE> and
+call exit yourself, or you can enable the <KBD>catch-signals</KBD> token.
+See section <A HREF="dmalloc.html#SEC30">4.4 Description of the Debugging Tokens</A>.
+
+<LI>If your program is segfaulting or otherwise crashing when it exits, the
+
+<CODE>exit()</CODE> routine may not being called.  You will have to resolve
+these issues so the dmalloc library can gracefully exit and write its
+log file.
+
+<LI>You may want to call <CODE>dmalloc_log_stats()</CODE> and
+
+<CODE>dmalloc_log_unfreed()</CODE> (or <CODE>dmalloc_log_changed()</CODE>) directly
+to have the library write its log file.  Some system modules may not
+have shutdown if you call this before <CODE>exit()</CODE> so extra unfreed
+memory may be reported.
+
+</OL>
+
+<DT><SAMP>`I don't see any information about my non-freed (leaked) memory?'</SAMP>
+<DD>
+The library will not (by default) report on "unknown" non-freed
+memory.  Unknown means memory that does not have associated file and
+line information.
+
+This will be necessary if you are <EM>not</EM>
+including <TT>`dmalloc.h'</TT> in all of your C files or if you are
+interested in tracking leaks in system functions.
+
+<DT><SAMP>`Dmalloc is returning the error "malloc library has gone recursive"'</SAMP>
+<DD>
+This most likely indicates that you are using the Dmalloc library within
+a threaded application and two threads are trying to use the dmalloc
+library at once.  Please see the section of the manual about threads for
+more information about properly configuring the library.  See section <A HREF="dmalloc.html#SEC23">3.9 Using the Library with a Thread Package</A>.
+
+If you are not using threads, then your program could have caught a
+signal while within Dmalloc, which then in turn called a memory
+allocation routine.  It is unwise to allocate memory on the heap in most
+signal handlers.  Lastly, some functions called by the library may call
+memory routines that it does not anticipate.  If you think this the
+case, please report the problem and include a stack trace, operating
+system version/type, and the version of Dmalloc you are using.
+
+</DL>
+
+
+
+<H1><A NAME="SEC37" HREF="dmalloc.html#TOC37">Index of Concepts</A></H1>
+
+<P>
+Jump to:
+<A HREF="#cindex_%">%</A>
+-
+<A HREF="#cindex_-">-</A>
+-
+<A HREF="#cindex_.">.</A>
+-
+<A HREF="#cindex_0">0</A>
+-
+<A HREF="#cindex_1">1</A>
+-
+<A HREF="#cindex_2">2</A>
+-
+<A HREF="#cindex_3">3</A>
+-
+<A HREF="#cindex_4">4</A>
+-
+<A HREF="#cindex_6">6</A>
+-
+<A HREF="#cindex_7">7</A>
+-
+<A HREF="#cindex_a">a</A>
+-
+<A HREF="#cindex_b">b</A>
+-
+<A HREF="#cindex_c">c</A>
+-
+<A HREF="#cindex_d">d</A>
+-
+<A HREF="#cindex_e">e</A>
+-
+<A HREF="#cindex_f">f</A>
+-
+<A HREF="#cindex_g">g</A>
+-
+<A HREF="#cindex_h">h</A>
+-
+<A HREF="#cindex_i">i</A>
+-
+<A HREF="#cindex_j">j</A>
+-
+<A HREF="#cindex_k">k</A>
+-
+<A HREF="#cindex_l">l</A>
+-
+<A HREF="#cindex_m">m</A>
+-
+<A HREF="#cindex_n">n</A>
+-
+<A HREF="#cindex_o">o</A>
+-
+<A HREF="#cindex_p">p</A>
+-
+<A HREF="#cindex_q">q</A>
+-
+<A HREF="#cindex_r">r</A>
+-
+<A HREF="#cindex_s">s</A>
+-
+<A HREF="#cindex_t">t</A>
+-
+<A HREF="#cindex_u">u</A>
+-
+<A HREF="#cindex_v">v</A>
+-
+<A HREF="#cindex_w">w</A>
+-
+<A HREF="#cindex_z">z</A>
+<P>
+<H2><A NAME="cindex_%">%</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX370">%h</A>
+<LI><A HREF="dmalloc.html#IDX374">%i</A>
+<LI><A HREF="dmalloc.html#IDX376">%p</A>
+<LI><A HREF="dmalloc.html#IDX380">%t</A>
+<LI><A HREF="dmalloc.html#IDX383">%u</A>
+</DIR>
+<H2><A NAME="cindex_-">-</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX13">--disable-cxx</A>
+<LI><A HREF="dmalloc.html#IDX15">--enable-shlib</A>
+<LI><A HREF="dmalloc.html#IDX14">--enable-threads</A>
+</DIR>
+<H2><A NAME="cindex_.">.</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX493">.dmallocrc file</A>
+</DIR>
+<H2><A NAME="cindex_0">0</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX475">0332 character</A>
+<LI><A HREF="dmalloc.html#IDX458">0337 character</A>
+<LI><A HREF="dmalloc.html#IDX477">0xda character</A>
+<LI><A HREF="dmalloc.html#IDX460">0xdf character</A>
+</DIR>
+<H2><A NAME="cindex_1">1</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX174">1, error code</A>
+<LI><A HREF="dmalloc.html#IDX183">10, error code</A>
+<LI><A HREF="dmalloc.html#IDX191">11, error code</A>
+<LI><A HREF="dmalloc.html#IDX196">13, error code</A>
+</DIR>
+<H2><A NAME="cindex_2">2</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX178">2, error code</A>
+<LI><A HREF="dmalloc.html#IDX202">20, error code</A>
+<LI><A HREF="dmalloc.html#IDX209">21, error code</A>
+<LI><A HREF="dmalloc.html#IDX472">218 character</A>
+<LI><A HREF="dmalloc.html#IDX215">22, error code</A>
+<LI><A HREF="dmalloc.html#IDX455">223 character</A>
+<LI><A HREF="dmalloc.html#IDX221">23, error code</A>
+<LI><A HREF="dmalloc.html#IDX226">24, error code</A>
+<LI><A HREF="dmalloc.html#IDX231">25, error code</A>
+<LI><A HREF="dmalloc.html#IDX236">26, error code</A>
+<LI><A HREF="dmalloc.html#IDX241">27, error code</A>
+<LI><A HREF="dmalloc.html#IDX246">28, error code</A>
+</DIR>
+<H2><A NAME="cindex_3">3</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX251">30, error code</A>
+<LI><A HREF="dmalloc.html#IDX474">332 character</A>
+<LI><A HREF="dmalloc.html#IDX457">337 character</A>
+</DIR>
+<H2><A NAME="cindex_4">4</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX256">40, error code</A>
+<LI><A HREF="dmalloc.html#IDX261">41, error code</A>
+<LI><A HREF="dmalloc.html#IDX266">43, error code</A>
+<LI><A HREF="dmalloc.html#IDX271">44, error code</A>
+<LI><A HREF="dmalloc.html#IDX276">45, error code</A>
+</DIR>
+<H2><A NAME="cindex_6">6</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX282">60, error code</A>
+<LI><A HREF="dmalloc.html#IDX287">61, error code</A>
+<LI><A HREF="dmalloc.html#IDX292">67, error code</A>
+</DIR>
+<H2><A NAME="cindex_7">7</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX299">70, error code</A>
+<LI><A HREF="dmalloc.html#IDX304">72, error code</A>
+<LI><A HREF="dmalloc.html#IDX309">73, error code</A>
+</DIR>
+<H2><A NAME="cindex_a">a</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX307">address list error</A>
+<LI><A HREF="dmalloc.html#IDX419">address locating</A>
+<LI><A HREF="dmalloc.html#IDX418">address setting</A>
+<LI><A HREF="dmalloc.html#IDX302">admin list error</A>
+<LI><A HREF="dmalloc.html#IDX33">alias, shell</A>, <A HREF="dmalloc.html#IDX362">alias, shell</A>
+<LI><A HREF="dmalloc.html#IDX269">alloc failed error</A>
+<LI><A HREF="dmalloc.html#IDX274">alloc nonlinear error</A>
+<LI><A HREF="dmalloc.html#IDX479">alloc-blank</A>
+<LI><A HREF="dmalloc.html#IDX40">allocation basics</A>
+<LI><A HREF="dmalloc.html#IDX81">allocation macros</A>
+<LI><A HREF="dmalloc.html#IDX52">Allocation of zeros</A>
+<LI><A HREF="dmalloc.html#IDX290">already free error</A>
+<LI><A HREF="dmalloc.html#IDX19">ANSI-C compiler</A>
+<LI><A HREF="dmalloc.html#IDX94">argument checking</A>
+<LI><A HREF="dmalloc.html#IDX92">assembly hacks</A>
+<LI><A HREF="dmalloc.html#IDX31">atexit</A>
+<LI><A HREF="dmalloc.html#IDX28">automatic shutdown</A>
+</DIR>
+<H2><A NAME="cindex_b">b</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX301">bad admin structure list</A>
+<LI><A HREF="dmalloc.html#IDX229">bad file error</A>
+<LI><A HREF="dmalloc.html#IDX234">bad line error</A>
+<LI><A HREF="dmalloc.html#IDX186">bad setup error</A>
+<LI><A HREF="dmalloc.html#IDX259">bad size error</A>
+<LI><A HREF="dmalloc.html#IDX34">bash shell</A>, <A HREF="dmalloc.html#IDX363">bash shell</A>
+<LI><A HREF="dmalloc.html#IDX407">bash usage</A>
+<LI><A HREF="dmalloc.html#IDX41">basic allocation information</A>
+<LI><A HREF="dmalloc.html#IDX42">basic definitions</A>
+<LI><A HREF="dmalloc.html#IDX27">beginning</A>
+<LI><A HREF="dmalloc.html#IDX450">blank space</A>, <A HREF="dmalloc.html#IDX467">blank space</A>
+<LI><A HREF="dmalloc.html#IDX451">blanking memory</A>, <A HREF="dmalloc.html#IDX468">blanking memory</A>
+<LI><A HREF="dmalloc.html#IDX63">bounds checking</A>
+<LI><A HREF="dmalloc.html#IDX405">Bourne shell usage</A>
+<LI><A HREF="dmalloc.html#IDX8">building the library</A>
+</DIR>
+<H2><A NAME="cindex_c">c</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX410">C shell usage</A>
+<LI><A HREF="dmalloc.html#IDX315">c++ usage</A>
+<LI><A HREF="dmalloc.html#IDX337">caller address translation</A>
+<LI><A HREF="dmalloc.html#IDX88">caller's address</A>
+<LI><A HREF="dmalloc.html#IDX51">calloc</A>
+<LI><A HREF="dmalloc.html#IDX217">cannot locate pointer in heap</A>
+<LI><A HREF="dmalloc.html#IDX483">catch-null</A>
+<LI><A HREF="dmalloc.html#IDX440">catch-signals</A>
+<LI><A HREF="dmalloc.html#IDX345">cgi-bin process debugging</A>
+<LI><A HREF="dmalloc.html#IDX346">cgi-bin usage of dmalloc</A>
+<LI><A HREF="dmalloc.html#IDX157">changed memory log</A>
+<LI><A HREF="dmalloc.html#IDX298">check-blank</A>, <A HREF="dmalloc.html#IDX437">check-blank</A>
+<LI><A HREF="dmalloc.html#IDX435">check-fence</A>
+<LI><A HREF="dmalloc.html#IDX438">check-funcs</A>
+<LI><A HREF="dmalloc.html#IDX76">check-heap</A>, <A HREF="dmalloc.html#IDX436">check-heap</A>, <A HREF="dmalloc.html#IDX522">check-heap</A>
+<LI><A HREF="dmalloc.html#IDX439">check-shutdown</A>
+<LI><A HREF="dmalloc.html#IDX95">checking arguments</A>
+<LI><A HREF="dmalloc.html#IDX64">checking bounds</A>
+<LI><A HREF="dmalloc.html#IDX158">checkpoint memory usage</A>
+<LI><A HREF="dmalloc.html#IDX347">child process debugging</A>
+<LI><A HREF="dmalloc.html#IDX453">clearing memory</A>, <A HREF="dmalloc.html#IDX470">clearing memory</A>
+<LI><A HREF="dmalloc.html#IDX414">comma separated tokens in env variable</A>
+<LI><A HREF="dmalloc.html#IDX513">common problems</A>
+<LI><A HREF="dmalloc.html#IDX504">compatibility</A>
+<LI><A HREF="dmalloc.html#IDX7">compiling the library</A>
+<LI><A HREF="dmalloc.html#IDX16">conf.h file</A>
+<LI><A HREF="dmalloc.html#IDX491">configuration file</A>
+<LI><A HREF="dmalloc.html#IDX12">configure script</A>
+<LI><A HREF="dmalloc.html#IDX9">configuring the library</A>
+<LI><A HREF="dmalloc.html#IDX65">constancy verification</A>
+<LI><A HREF="dmalloc.html#IDX1">copying</A>
+<LI><A HREF="dmalloc.html#IDX73">core dump</A>, <A HREF="dmalloc.html#IDX465">core dump</A>, <A HREF="dmalloc.html#IDX486">core dump</A>
+<LI><A HREF="dmalloc.html#IDX268">could not grow heap by allocating memory</A>
+<LI><A HREF="dmalloc.html#IDX144">count changed</A>
+<LI><A HREF="dmalloc.html#IDX145">count number of bytes changed since mark</A>
+<LI><A HREF="dmalloc.html#IDX60">cpp</A>
+<LI><A HREF="dmalloc.html#IDX37">csh shell</A>, <A HREF="dmalloc.html#IDX367">csh shell</A>
+<LI><A HREF="dmalloc.html#IDX411">csh usage</A>
+<LI><A HREF="dmalloc.html#IDX115">current debug value</A>
+<LI><A HREF="dmalloc.html#IDX341">cygwin</A>
+</DIR>
+<H2><A NAME="cindex_d">d</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX478">da character</A>
+<LI><A HREF="dmalloc.html#IDX348">daemon process debugging</A>
+<LI><A HREF="dmalloc.html#IDX413">debug setting</A>
+<LI><A HREF="dmalloc.html#IDX423">debug tokens</A>
+<LI><A HREF="dmalloc.html#IDX319">debugger usage with dmalloc</A>
+<LI><A HREF="dmalloc.html#IDX349">debugging cgi-bin processes</A>
+<LI><A HREF="dmalloc.html#IDX350">debugging child processes</A>
+<LI><A HREF="dmalloc.html#IDX351">debugging daemon processes</A>
+<LI><A HREF="dmalloc.html#IDX352">debugging server processes</A>
+<LI><A HREF="dmalloc.html#IDX471">decimal 218 character</A>
+<LI><A HREF="dmalloc.html#IDX454">decimal 223 character</A>
+<LI><A HREF="dmalloc.html#IDX390">delay heap checking</A>, <A HREF="dmalloc.html#IDX392">delay heap checking</A>, <A HREF="dmalloc.html#IDX399">delay heap checking</A>
+<LI><A HREF="dmalloc.html#IDX32">destructor</A>
+<LI><A HREF="dmalloc.html#IDX461">df character</A>
+<LI><A HREF="dmalloc.html#IDX325">diagnosing errors</A>
+<LI><A HREF="dmalloc.html#IDX314">disabling the library</A>
+<LI><A HREF="dmalloc.html#IDX358">dmalloc program</A>
+<LI><A HREF="dmalloc.html#IDX359">dmalloc utility</A>
+<LI><A HREF="dmalloc.html#IDX83">dmalloc.h file</A>
+<LI><A HREF="dmalloc.html#IDX110">dmalloc_debug function</A>
+<LI><A HREF="dmalloc.html#IDX114">dmalloc_debug_current function</A>
+<LI><A HREF="dmalloc.html#IDX117">dmalloc_debug_setup</A>
+<LI><A HREF="dmalloc.html#IDX357">dmalloc_debug_setup function</A>, <A HREF="dmalloc.html#IDX403">dmalloc_debug_setup function</A>
+<LI><A HREF="dmalloc.html#IDX344">dmalloc_debug_setup usage</A>
+<LI><A HREF="dmalloc.html#IDX98">dmalloc_errno number</A>
+<LI><A HREF="dmalloc.html#IDX322">dmalloc_error() routine</A>
+<LI><A HREF="dmalloc.html#IDX123">dmalloc_examine function</A>
+<LI><A HREF="dmalloc.html#IDX96">DMALLOC_FUNC_CHECK flag</A>
+<LI><A HREF="dmalloc.html#IDX156">dmalloc_log_changed function</A>
+<LI><A HREF="dmalloc.html#IDX148">dmalloc_log_stats function</A>
+<LI><A HREF="dmalloc.html#IDX152">dmalloc_log_unfreed function</A>
+<LI><A HREF="dmalloc.html#IDX101">dmalloc_logpath variable</A>
+<LI><A HREF="dmalloc.html#IDX130">dmalloc_mark function</A>
+<LI><A HREF="dmalloc.html#IDX137">dmalloc_memory_allocated function</A>
+<LI><A HREF="dmalloc.html#IDX165">dmalloc_message function</A>
+<LI><A HREF="dmalloc.html#IDX402">DMALLOC_OPTIONS</A>, <A HREF="dmalloc.html#IDX527">DMALLOC_OPTIONS</A>
+<LI><A HREF="dmalloc.html#IDX103">dmalloc_shutdown function</A>
+<LI><A HREF="dmalloc.html#IDX18">DMALLOC_SIZE variable</A>
+<LI><A HREF="dmalloc.html#IDX169">dmalloc_strerror function</A>
+<LI><A HREF="dmalloc.html#IDX21">dmalloc_t test program</A>
+<LI><A HREF="dmalloc.html#IDX127">dmalloc_track function</A>
+<LI><A HREF="dmalloc.html#IDX106">dmalloc_verify function</A>
+<LI><A HREF="dmalloc.html#IDX329">dmalloc_verify() routine</A>
+<LI><A HREF="dmalloc.html#IDX161">dmalloc_vmessage function</A>
+<LI><A HREF="dmalloc.html#IDX318">dmallocc.cc</A>
+<LI><A HREF="dmalloc.html#IDX316">dmallocc.cc file</A>
+<LI><A HREF="dmalloc.html#IDX492">dmallocrc file</A>
+<LI><A HREF="dmalloc.html#IDX72">dump core</A>, <A HREF="dmalloc.html#IDX464">dump core</A>, <A HREF="dmalloc.html#IDX485">dump core</A>
+</DIR>
+<H2><A NAME="cindex_e">e</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX525">env</A>
+<LI><A HREF="dmalloc.html#IDX401">environment variable</A>
+<LI><A HREF="dmalloc.html#IDX181">errno value is not valid</A>
+<LI><A HREF="dmalloc.html#IDX184">error code 10</A>
+<LI><A HREF="dmalloc.html#IDX192">error code 11</A>
+<LI><A HREF="dmalloc.html#IDX197">error code 13</A>
+<LI><A HREF="dmalloc.html#IDX203">error code 20</A>
+<LI><A HREF="dmalloc.html#IDX210">error code 21</A>
+<LI><A HREF="dmalloc.html#IDX216">error code 22</A>
+<LI><A HREF="dmalloc.html#IDX222">error code 23</A>
+<LI><A HREF="dmalloc.html#IDX227">error code 24</A>
+<LI><A HREF="dmalloc.html#IDX232">error code 25</A>
+<LI><A HREF="dmalloc.html#IDX237">error code 26</A>
+<LI><A HREF="dmalloc.html#IDX242">error code 27</A>
+<LI><A HREF="dmalloc.html#IDX247">error code 28</A>
+<LI><A HREF="dmalloc.html#IDX252">error code 30</A>
+<LI><A HREF="dmalloc.html#IDX257">error code 40</A>
+<LI><A HREF="dmalloc.html#IDX262">error code 41</A>
+<LI><A HREF="dmalloc.html#IDX267">error code 43</A>
+<LI><A HREF="dmalloc.html#IDX272">error code 44</A>
+<LI><A HREF="dmalloc.html#IDX277">error code 45</A>
+<LI><A HREF="dmalloc.html#IDX283">error code 60</A>
+<LI><A HREF="dmalloc.html#IDX288">error code 61</A>
+<LI><A HREF="dmalloc.html#IDX293">error code 67</A>
+<LI><A HREF="dmalloc.html#IDX300">error code 70</A>
+<LI><A HREF="dmalloc.html#IDX305">error code 72</A>
+<LI><A HREF="dmalloc.html#IDX310">error code 73</A>
+<LI><A HREF="dmalloc.html#IDX175">error code, 1</A>
+<LI><A HREF="dmalloc.html#IDX179">error code, 2</A>
+<LI><A HREF="dmalloc.html#IDX173">error codes</A>
+<LI><A HREF="dmalloc.html#IDX171">error message</A>
+<LI><A HREF="dmalloc.html#IDX100">error number</A>
+<LI><A HREF="dmalloc.html#IDX466">error-abort</A>
+<LI><A HREF="dmalloc.html#IDX487">error-dump</A>
+<LI><A HREF="dmalloc.html#IDX488">error-free-null</A>
+<LI><A HREF="dmalloc.html#IDX200">error-free-null token</A>
+<LI><A HREF="dmalloc.html#IDX308">ERROR_ADDRESS_LIST</A>
+<LI><A HREF="dmalloc.html#IDX303">ERROR_ADMIN_LIST</A>
+<LI><A HREF="dmalloc.html#IDX270">ERROR_ALLOC_FAILED</A>
+<LI><A HREF="dmalloc.html#IDX275">ERROR_ALLOC_NONLINEAR</A>
+<LI><A HREF="dmalloc.html#IDX291">ERROR_ALREADY_FREE</A>
+<LI><A HREF="dmalloc.html#IDX230">ERROR_BAD_FILE</A>
+<LI><A HREF="dmalloc.html#IDX235">ERROR_BAD_LINE</A>
+<LI><A HREF="dmalloc.html#IDX187">ERROR_BAD_SETUP</A>
+<LI><A HREF="dmalloc.html#IDX260">ERROR_BAD_SIZE</A>
+<LI><A HREF="dmalloc.html#IDX296">ERROR_FREE_OVERWRITTEN</A>, <A HREF="dmalloc.html#IDX463">ERROR_FREE_OVERWRITTEN</A>
+<LI><A HREF="dmalloc.html#IDX194">ERROR_IN_TWICE</A>
+<LI><A HREF="dmalloc.html#IDX225">ERROR_IS_FOUND</A>
+<LI><A HREF="dmalloc.html#IDX206">ERROR_IS_NULL</A>
+<LI><A HREF="dmalloc.html#IDX199">ERROR_LOCK_NOT_CONFIG</A>
+<LI><A HREF="dmalloc.html#IDX177">ERROR_NONE</A>
+<LI><A HREF="dmalloc.html#IDX218">ERROR_NOT_FOUND</A>
+<LI><A HREF="dmalloc.html#IDX212">ERROR_NOT_IN_HEAP</A>
+<LI><A HREF="dmalloc.html#IDX286">ERROR_NOT_ON_BLOCK</A>
+<LI><A HREF="dmalloc.html#IDX255">ERROR_NOT_START_BLOCK</A>
+<LI><A HREF="dmalloc.html#IDX245">ERROR_OVER_FENCE</A>
+<LI><A HREF="dmalloc.html#IDX281">ERROR_OVER_LIMIT</A>, <A HREF="dmalloc.html#IDX388">ERROR_OVER_LIMIT</A>
+<LI><A HREF="dmalloc.html#IDX313">ERROR_SLOT_CORRUPT</A>
+<LI><A HREF="dmalloc.html#IDX265">ERROR_TOO_BIG</A>
+<LI><A HREF="dmalloc.html#IDX240">ERROR_UNDER_FENCE</A>
+<LI><A HREF="dmalloc.html#IDX250">ERROR_WOULD_OVERWRITE</A>
+<LI><A HREF="dmalloc.html#IDX124">examine a pointer</A>
+<LI><A HREF="dmalloc.html#IDX97">extensions</A>
+</DIR>
+<H2><A NAME="cindex_f">f</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX243">failed over picket-fence magic-number check</A>
+<LI><A HREF="dmalloc.html#IDX238">failed under picket-fence magic-number check</A>
+<LI><A HREF="dmalloc.html#IDX516">faq</A>
+<LI><A HREF="dmalloc.html#IDX58">features</A>
+<LI><A HREF="dmalloc.html#IDX62">fence-post checking</A>
+<LI><A HREF="dmalloc.html#IDX334">fence-post errors</A>
+<LI><A HREF="dmalloc.html#IDX59">file/line numbers</A>
+<LI><A HREF="dmalloc.html#IDX223">found pointer the user was looking for</A>
+<LI><A HREF="dmalloc.html#IDX57">free</A>
+<LI><A HREF="dmalloc.html#IDX201">free null token</A>
+<LI><A HREF="dmalloc.html#IDX295">free overwritten error</A>
+<LI><A HREF="dmalloc.html#IDX294">free space has been overwritten</A>
+<LI><A HREF="dmalloc.html#IDX297">free-blank</A>, <A HREF="dmalloc.html#IDX462">free-blank</A>
+<LI><A HREF="dmalloc.html#IDX70">freed memory</A>, <A HREF="dmalloc.html#IDX71">freed memory</A>
+</DIR>
+<H2><A NAME="cindex_g">g</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX511">gcc</A>
+<LI><A HREF="dmalloc.html#IDX321">gdb</A>
+<LI><A HREF="dmalloc.html#IDX324">gdb with shared libraries</A>
+<LI><A HREF="dmalloc.html#IDX326">general errors</A>
+<LI><A HREF="dmalloc.html#IDX343">getenv, problems with</A>
+<LI><A HREF="dmalloc.html#IDX371">gethostname function usage</A>
+<LI><A HREF="dmalloc.html#IDX377">getpid function usage</A>
+<LI><A HREF="dmalloc.html#IDX23">getting started</A>
+<LI><A HREF="dmalloc.html#IDX384">getuid function usage</A>
+</DIR>
+<H2><A NAME="cindex_h">h</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX273">heap failed to produce linear address space</A>
+<LI><A HREF="dmalloc.html#IDX46">heap memory</A>
+<LI><A HREF="dmalloc.html#IDX514">help</A>
+<LI><A HREF="dmalloc.html#IDX476">hexadecimal 0xda character</A>
+<LI><A HREF="dmalloc.html#IDX459">hexadecimal 0xdf character</A>
+<LI><A HREF="dmalloc.html#IDX500">high token</A>
+<LI><A HREF="dmalloc.html#IDX372">hostname in logfile path</A>
+<LI><A HREF="dmalloc.html#IDX515">how do i...</A>
+<LI><A HREF="dmalloc.html#IDX25">how to begin</A>
+<LI><A HREF="dmalloc.html#IDX446">HUP signal</A>
+</DIR>
+<H2><A NAME="cindex_i">i</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX528">ident</A>
+<LI><A HREF="dmalloc.html#IDX190">in twice error</A>
+<LI><A HREF="dmalloc.html#IDX185">initialization and setup failed</A>
+<LI><A HREF="dmalloc.html#IDX6">installing the library</A>
+<LI><A HREF="dmalloc.html#IDX447">INT signal</A>
+<LI><A HREF="dmalloc.html#IDX134">interaction count</A>, <A HREF="dmalloc.html#IDX395">interaction count</A>
+<LI><A HREF="dmalloc.html#IDX306">internal address list corruption</A>
+<LI><A HREF="dmalloc.html#IDX99">internal error number</A>
+<LI><A HREF="dmalloc.html#IDX311">internal memory slot corruption</A>
+<LI><A HREF="dmalloc.html#IDX509">INTERNAL_MEMORY_SPACE</A>
+<LI><A HREF="dmalloc.html#IDX369">interval setting</A>, <A HREF="dmalloc.html#IDX421">interval setting</A>
+<LI><A HREF="dmalloc.html#IDX258">invalid allocation size</A>
+<LI><A HREF="dmalloc.html#IDX180">invalid errno value</A>
+<LI><A HREF="dmalloc.html#IDX182">INVALID_ERROR</A>
+<LI><A HREF="dmalloc.html#IDX224">is found error</A>
+<LI><A HREF="dmalloc.html#IDX205">is null error</A>
+<LI><A HREF="dmalloc.html#IDX78">iteration count</A>
+</DIR>
+<H2><A NAME="cindex_j">j</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX24">jump start</A>
+</DIR>
+<H2><A NAME="cindex_k">k</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX35">ksh shell</A>, <A HREF="dmalloc.html#IDX364">ksh shell</A>
+<LI><A HREF="dmalloc.html#IDX408">ksh usage</A>
+</DIR>
+<H2><A NAME="cindex_l">l</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX263">largest maximum allocation size exceeded</A>
+<LI><A HREF="dmalloc.html#IDX69">leaking memory</A>, <A HREF="dmalloc.html#IDX331">leaking memory</A>
+<LI><A HREF="dmalloc.html#IDX317">libdmallocxx.a</A>
+<LI><A HREF="dmalloc.html#IDX3">library permissions</A>
+<LI><A HREF="dmalloc.html#IDX361">library utility</A>
+<LI><A HREF="dmalloc.html#IDX2">license</A>
+<LI><A HREF="dmalloc.html#IDX340">lock on</A>, <A HREF="dmalloc.html#IDX389">lock on</A>
+<LI><A HREF="dmalloc.html#IDX188">lock-on</A>
+<LI><A HREF="dmalloc.html#IDX195">lock-on not configured</A>
+<LI><A HREF="dmalloc.html#IDX415">lockon setting</A>
+<LI><A HREF="dmalloc.html#IDX159">log memory changes</A>
+<LI><A HREF="dmalloc.html#IDX149">log statistics</A>
+<LI><A HREF="dmalloc.html#IDX153">log unfreed memory</A>
+<LI><A HREF="dmalloc.html#IDX430">log-admin</A>
+<LI><A HREF="dmalloc.html#IDX431">log-bad-space</A>
+<LI><A HREF="dmalloc.html#IDX434">log-current-time</A>
+<LI><A HREF="dmalloc.html#IDX433">log-elapsed-time</A>
+<LI><A HREF="dmalloc.html#IDX428">log-known</A>
+<LI><A HREF="dmalloc.html#IDX427">log-non-free</A>
+<LI><A HREF="dmalloc.html#IDX432">log-nonfree-space</A>
+<LI><A HREF="dmalloc.html#IDX426">log-stats</A>
+<LI><A HREF="dmalloc.html#IDX429">log-trans</A>
+<LI><A HREF="dmalloc.html#IDX133">LOG_ITERATION</A>, <A HREF="dmalloc.html#IDX394">LOG_ITERATION</A>
+<LI><A HREF="dmalloc.html#IDX77">LOG_ITERATION_COUNT</A>
+<LI><A HREF="dmalloc.html#IDX163">logfile message writer</A>, <A HREF="dmalloc.html#IDX167">logfile message writer</A>
+<LI><A HREF="dmalloc.html#IDX102">logfile name</A>
+<LI><A HREF="dmalloc.html#IDX523">logfile not produced</A>
+<LI><A HREF="dmalloc.html#IDX416">logfile setting</A>
+<LI><A HREF="dmalloc.html#IDX417">logging information to disk</A>
+<LI><A HREF="dmalloc.html#IDX66">logging statistics</A>
+<LI><A HREF="dmalloc.html#IDX496">low token</A>
+</DIR>
+<H2><A NAME="cindex_m">m</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX82">macros, allocation</A>
+<LI><A HREF="dmalloc.html#IDX10">making the library</A>
+<LI><A HREF="dmalloc.html#IDX49">malloc</A>
+<LI><A HREF="dmalloc.html#IDX47">malloc functions</A>
+<LI><A HREF="dmalloc.html#IDX193">malloc library has gone recursive</A>
+<LI><A HREF="dmalloc.html#IDX397">mark count</A>
+<LI><A HREF="dmalloc.html#IDX132">mark memory position</A>
+<LI><A HREF="dmalloc.html#IDX498">medium token</A>
+<LI><A HREF="dmalloc.html#IDX85">memalign</A>
+<LI><A HREF="dmalloc.html#IDX138">memory allocated function</A>
+<LI><A HREF="dmalloc.html#IDX43">memory definitions</A>
+<LI><A HREF="dmalloc.html#IDX68">memory leaks</A>, <A HREF="dmalloc.html#IDX330">memory leaks</A>
+<LI><A HREF="dmalloc.html#IDX278">memory limit</A>, <A HREF="dmalloc.html#IDX387">memory limit</A>
+<LI><A HREF="dmalloc.html#IDX131">memory position marker</A>
+<LI><A HREF="dmalloc.html#IDX75">memory problems in system functions</A>
+<LI><A HREF="dmalloc.html#IDX79">memory transaction count</A>, <A HREF="dmalloc.html#IDX398">memory transaction count</A>
+<LI><A HREF="dmalloc.html#IDX219">mmap</A>, <A HREF="dmalloc.html#IDX327">mmap</A>, <A HREF="dmalloc.html#IDX481">mmap</A>
+<LI><A HREF="dmalloc.html#IDX506">mmap, usage without</A>
+</DIR>
+<H2><A NAME="cindex_n">n</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX373">name of host in logfile path</A>
+<LI><A HREF="dmalloc.html#IDX484">never-reuse</A>
+<LI><A HREF="dmalloc.html#IDX176">no error</A>
+<LI><A HREF="dmalloc.html#IDX524">no logfile produced</A>
+<LI><A HREF="dmalloc.html#IDX425">none token</A>
+<LI><A HREF="dmalloc.html#IDX213">not found error</A>
+<LI><A HREF="dmalloc.html#IDX208">not in heap error</A>
+<LI><A HREF="dmalloc.html#IDX285">not on block boundary error</A>
+<LI><A HREF="dmalloc.html#IDX254">not start block error</A>
+<LI><A HREF="dmalloc.html#IDX146">number bytes changed since mark</A>
+<LI><A HREF="dmalloc.html#IDX139">number of bytes allocated</A>
+</DIR>
+<H2><A NAME="cindex_o">o</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX473">octal 332 character</A>
+<LI><A HREF="dmalloc.html#IDX456">octal 337 character</A>
+<LI><A HREF="dmalloc.html#IDX30">on_exit</A>
+<LI><A HREF="dmalloc.html#IDX244">over fence error</A>
+<LI><A HREF="dmalloc.html#IDX280">over limit error</A>
+<LI><A HREF="dmalloc.html#IDX279">over user specified allocation limit error</A>
+<LI><A HREF="dmalloc.html#IDX111">override debug settings</A>, <A HREF="dmalloc.html#IDX118">override debug settings</A>
+<LI><A HREF="dmalloc.html#IDX5">overview</A>
+<LI><A HREF="dmalloc.html#IDX452">overwriting memory</A>, <A HREF="dmalloc.html#IDX469">overwriting memory</A>
+</DIR>
+<H2><A NAME="cindex_p">p</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX141">page size</A>
+<LI><A HREF="dmalloc.html#IDX4">permissions of the library</A>
+<LI><A HREF="dmalloc.html#IDX378">pid in logfile path</A>
+<LI><A HREF="dmalloc.html#IDX125">pointer information</A>
+<LI><A HREF="dmalloc.html#IDX284">pointer is not on block boundary</A>
+<LI><A HREF="dmalloc.html#IDX211">pointer is not pointing to heap data space</A>
+<LI><A HREF="dmalloc.html#IDX253">pointer is not to start of memory block</A>
+<LI><A HREF="dmalloc.html#IDX204">pointer is null error</A>
+<LI><A HREF="dmalloc.html#IDX214">pointer not found error</A>
+<LI><A HREF="dmalloc.html#IDX207">pointer not in heap error</A>
+<LI><A HREF="dmalloc.html#IDX333">pointer seen count</A>
+<LI><A HREF="dmalloc.html#IDX505">portability</A>
+<LI><A HREF="dmalloc.html#IDX233">possibly bad .c file line-number</A>
+<LI><A HREF="dmalloc.html#IDX228">possibly bad .c filename pointer</A>
+<LI><A HREF="dmalloc.html#IDX508">preallocated memory heap</A>
+<LI><A HREF="dmalloc.html#IDX480">print-messages</A>
+<LI><A HREF="dmalloc.html#IDX526">printenv</A>
+<LI><A HREF="dmalloc.html#IDX518">problems</A>
+<LI><A HREF="dmalloc.html#IDX379">process-id in logfile path</A>
+<LI><A HREF="dmalloc.html#IDX80">programming</A>
+<LI><A HREF="dmalloc.html#IDX339">pthreads</A>
+</DIR>
+<H2><A NAME="cindex_q">q</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX517">questions</A>
+<LI><A HREF="dmalloc.html#IDX22">quick start</A>
+</DIR>
+<H2><A NAME="cindex_r">r</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX91">ra</A>
+<LI><A HREF="dmalloc.html#IDX93">ra_info.pl</A>, <A HREF="dmalloc.html#IDX335">ra_info.pl</A>
+<LI><A HREF="dmalloc.html#IDX489">rc file</A>
+<LI><A HREF="dmalloc.html#IDX39">rc shell</A>
+<LI><A HREF="dmalloc.html#IDX342">reading environment, problems with</A>
+<LI><A HREF="dmalloc.html#IDX55">realloc</A>
+<LI><A HREF="dmalloc.html#IDX449">realloc-copy</A>
+<LI><A HREF="dmalloc.html#IDX84">recalloc</A>
+<LI><A HREF="dmalloc.html#IDX189">recursion</A>
+<LI><A HREF="dmalloc.html#IDX61">return-address</A>, <A HREF="dmalloc.html#IDX89">return-address</A>, <A HREF="dmalloc.html#IDX510">return-address</A>
+<LI><A HREF="dmalloc.html#IDX336">return-address translation</A>
+<LI><A HREF="dmalloc.html#IDX90">return.h file</A>
+<LI><A HREF="dmalloc.html#IDX494">runtime token</A>
+<LI><A HREF="dmalloc.html#IDX490">runtime-config file</A>
+</DIR>
+<H2><A NAME="cindex_s">s</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX220">sbrk</A>, <A HREF="dmalloc.html#IDX328">sbrk</A>, <A HREF="dmalloc.html#IDX482">sbrk</A>
+<LI><A HREF="dmalloc.html#IDX507">sbrk, usage without</A>
+<LI><A HREF="dmalloc.html#IDX353">server process debugging</A>
+<LI><A HREF="dmalloc.html#IDX112">set debug functionality flags</A>, <A HREF="dmalloc.html#IDX119">set debug functionality flags</A>
+<LI><A HREF="dmalloc.html#IDX11">settings.dist file</A>
+<LI><A HREF="dmalloc.html#IDX17">settings.h file</A>
+<LI><A HREF="dmalloc.html#IDX120">setup debug flags</A>
+<LI><A HREF="dmalloc.html#IDX406">sh usage</A>
+<LI><A HREF="dmalloc.html#IDX323">shared libraries with gdb</A>
+<LI><A HREF="dmalloc.html#IDX404">shell usage</A>
+<LI><A HREF="dmalloc.html#IDX442">shutdown on signal</A>
+<LI><A HREF="dmalloc.html#IDX104">shutdown the library</A>
+<LI><A HREF="dmalloc.html#IDX29">shutdown, automatic</A>
+<LI><A HREF="dmalloc.html#IDX443">SIGHUP</A>
+<LI><A HREF="dmalloc.html#IDX444">SIGINT</A>
+<LI><A HREF="dmalloc.html#IDX441">signal shutdown</A>
+<LI><A HREF="dmalloc.html#IDX445">SIGTERM</A>
+<LI><A HREF="dmalloc.html#IDX142">size of memory pages</A>
+<LI><A HREF="dmalloc.html#IDX312">slot corrupt error</A>
+<LI><A HREF="dmalloc.html#IDX519">slow running</A>
+<LI><A HREF="dmalloc.html#IDX502">source code</A>
+<LI><A HREF="dmalloc.html#IDX503">source definitions</A>
+<LI><A HREF="dmalloc.html#IDX45">stack memory</A>
+<LI><A HREF="dmalloc.html#IDX391">start heap check later</A>, <A HREF="dmalloc.html#IDX393">start heap check later</A>, <A HREF="dmalloc.html#IDX400">start heap check later</A>
+<LI><A HREF="dmalloc.html#IDX422">start setting</A>
+<LI><A HREF="dmalloc.html#IDX44">static memory</A>
+<LI><A HREF="dmalloc.html#IDX67">statistics</A>
+<LI><A HREF="dmalloc.html#IDX150">statistics logging</A>
+<LI><A HREF="dmalloc.html#IDX332">STORE_SEEN_COUNT option</A>
+<LI><A HREF="dmalloc.html#IDX87">strdup</A>
+<LI><A HREF="dmalloc.html#IDX170">string error message</A>
+<LI><A HREF="dmalloc.html#IDX121">string of debug tokens</A>
+<LI><A HREF="dmalloc.html#IDX529">strings</A>
+<LI><A HREF="dmalloc.html#IDX74">system memory problems</A>
+</DIR>
+<H2><A NAME="cindex_t">t</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX38">tcsh shell</A>, <A HREF="dmalloc.html#IDX366">tcsh shell</A>
+<LI><A HREF="dmalloc.html#IDX412">tcsh usage</A>
+<LI><A HREF="dmalloc.html#IDX448">TERM signal</A>
+<LI><A HREF="dmalloc.html#IDX20">testing the library</A>
+<LI><A HREF="dmalloc.html#IDX198">thread locking has not been configured</A>
+<LI><A HREF="dmalloc.html#IDX375">thread-id in logfile path</A>
+<LI><A HREF="dmalloc.html#IDX338">threads</A>
+<LI><A HREF="dmalloc.html#IDX381">time function usage</A>
+<LI><A HREF="dmalloc.html#IDX382">time in logfile path</A>
+<LI><A HREF="dmalloc.html#IDX501">token high</A>
+<LI><A HREF="dmalloc.html#IDX497">token low</A>
+<LI><A HREF="dmalloc.html#IDX499">token medium</A>
+<LI><A HREF="dmalloc.html#IDX495">token runtime</A>
+<LI><A HREF="dmalloc.html#IDX424">tokens, debug</A>
+<LI><A HREF="dmalloc.html#IDX264">too big error</A>
+<LI><A HREF="dmalloc.html#IDX521">too slow</A>
+<LI><A HREF="dmalloc.html#IDX128">track memory calls</A>
+<LI><A HREF="dmalloc.html#IDX420">tracking addresses</A>
+<LI><A HREF="dmalloc.html#IDX135">transaction count</A>, <A HREF="dmalloc.html#IDX396">transaction count</A>
+<LI><A HREF="dmalloc.html#IDX289">tried to free previously freed pointer</A>
+<LI><A HREF="dmalloc.html#IDX512">troubleshooting</A>
+</DIR>
+<H2><A NAME="cindex_u">u</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX385">uid in logfile path</A>
+<LI><A HREF="dmalloc.html#IDX239">under fence error</A>
+<LI><A HREF="dmalloc.html#IDX154">unfreed memory log</A>
+<LI><A HREF="dmalloc.html#IDX354">usage of dmalloc in a daemon</A>
+<LI><A HREF="dmalloc.html#IDX355">usage of dmalloc in a server</A>
+<LI><A HREF="dmalloc.html#IDX356">usage of dmalloc with cgi-bin</A>
+<LI><A HREF="dmalloc.html#IDX248">use of pointer would exceed allocation</A>
+<LI><A HREF="dmalloc.html#IDX386">user-id in logfile path</A>
+<LI><A HREF="dmalloc.html#IDX320">using a debugger with dmalloc</A>
+<LI><A HREF="dmalloc.html#IDX360">utility program</A>
+<LI><A HREF="dmalloc.html#IDX368">utility usage</A>
+</DIR>
+<H2><A NAME="cindex_v">v</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX86">valloc</A>
+<LI><A HREF="dmalloc.html#IDX107">verify pointers</A>
+<LI><A HREF="dmalloc.html#IDX108">verify the heap</A>
+</DIR>
+<H2><A NAME="cindex_w">w</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX26">where to begin</A>
+<LI><A HREF="dmalloc.html#IDX520">why running slow</A>
+<LI><A HREF="dmalloc.html#IDX249">would overwrite error</A>
+<LI><A HREF="dmalloc.html#IDX162">write message to logfile</A>, <A HREF="dmalloc.html#IDX166">write message to logfile</A>
+</DIR>
+<H2><A NAME="cindex_z">z</A></H2>
+<DIR>
+<LI><A HREF="dmalloc.html#IDX53">zeros, allocation of</A>
+<LI><A HREF="dmalloc.html#IDX36">zsh shell</A>, <A HREF="dmalloc.html#IDX365">zsh shell</A>
+<LI><A HREF="dmalloc.html#IDX409">zsh usage</A>
+</DIR>
+
+
+<P><HR><P>
+This document was generated on 19 October 2004 using
+<A HREF="http://wwwinfo.cern.ch/dis/texi2html/">texi2html</A>&nbsp;1.56k.
+</BODY>
+</HTML>

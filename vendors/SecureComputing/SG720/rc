@@ -1,0 +1,53 @@
+echo "/etc/rc processing ..."
+mount -t proc proc /proc
+echo 2 >/proc/cpu/alignment
+echo "Starting watchdog ..."
+watchdog /dev/watchdog
+hostname SG720
+echo "Mounting Filesystems ..."
+mount -t sysfs none /sys
+mount -t devpts devpts /dev/pts
+mount -t tmpfs -o size=33m tmpfs /var
+if ! mount -t ext3 /dev/flash/config /etc/config
+then
+	mke2fs -j /dev/flash/config
+	if ! mount -t ext3 /dev/flash/config /etc/config
+	then
+		mount -t tmpfs -o size=4096k tmpfs /etc/config
+	fi
+fi
+[ -d /etc/config/persistent ] || mkdir /etc/config/persistent
+mkdir -m 1777 /var/tmp
+mkdir -m 755 /var/log
+mkdir -m 755 /var/run
+mkdir -m 1777 /var/lock
+mkdir -m 755 /var/empty
+mkdir -m 755 /var/mnt
+echo "Setting system clock ..."
+hwclock --hctosys --utc
+echo "Processing Config Filesystem ..."
+flatfsd -r 
+echo "Loading network drivers."
+modprobe ixp400
+cat /etc/IxNpeMicrocode.dat >/dev/ixNpe
+modprobe ixp400_eth
+# reorder ports to get consistent naming
+ip link set eth0 name ethb
+ip link set eth1 name etha
+ip link set eth2 name ethd
+ip link set eth3 name ethe
+ip link set eth4 name ethc
+ip link set etha name eth0
+ip link set ethb name eth1
+ip link set ethc name eth2
+ip link set ethd name eth3
+ip link set ethe name eth4
+setmac -p
+echo 1 >/proc/sys/net/ipv4/conf/all/promote_secondaries
+echo "Loading crypto drivers."
+modprobe ocf
+modprobe ixp4xx
+modprobe cryptodev
+modprobe ipsec
+ifconfig lo 127.0.0.1
+echo "/etc/rc complete."

@@ -1,0 +1,61 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>11.1. Radió bemenet</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - The Movie Player"><link rel="up" href="radio.html" title="11. fejezet - Rádió"><link rel="prev" href="radio.html" title="11. fejezet - Rádió"><link rel="next" href="ports.html" title="12. fejezet - Portok"><link rel="preface" href="howtoread.html" title="Hogyan olvasd ezt a dokumentációt"><link rel="chapter" href="intro.html" title="1. fejezet - Bevezetés"><link rel="chapter" href="install.html" title="2. fejezet - Telepítés"><link rel="chapter" href="usage.html" title="3. fejezet - Használat"><link rel="chapter" href="cd-dvd.html" title="4. fejezet - CD/DVD használat"><link rel="chapter" href="faq.html" title="5. fejezet - Gyakran ismételt kérdések"><link rel="chapter" href="containers.html" title="6. fejezet - Konténerek"><link rel="chapter" href="codecs.html" title="7. fejezet - Codec-ek"><link rel="chapter" href="video.html" title="8. fejezet - Videó kimeneti eszközök"><link rel="chapter" href="audio.html" title="9. fejezet - Audió kimeneti eszközök"><link rel="chapter" href="tv.html" title="10. fejezet - TV"><link rel="chapter" href="radio.html" title="11. fejezet - Rádió"><link rel="chapter" href="ports.html" title="12. fejezet - Portok"><link rel="chapter" href="mencoder.html" title="13. fejezet - A MEncoder használatának alapjai"><link rel="chapter" href="encoding-guide.html" title="14. fejezet - Kódolás a MEncoderrel"><link rel="appendix" href="bugreports.html" title="A. függelék - Hogyan jelentsd a hibákat"><link rel="appendix" href="bugs.html" title="B. függelék - Ismert hibák"><link rel="appendix" href="skin.html" title="C. függelék - MPlayer skin formátum"><link rel="appendix" href="history.html" title="D. függelék - Történelem"><link rel="subsection" href="radio-input.html#radio-compilation" title="11.1.1. Fordítás"><link rel="subsection" href="radio-input.html#radio-tips" title="11.1.2. Használati tippel"><link rel="subsection" href="radio-input.html#radio-examples" title="11.1.3. Példák"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">11.1. Radió bemenet</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="radio.html">El&#337;z&#337;</a> </td><th width="60%" align="center">11. fejezet - Rádió</th><td width="20%" align="right"> <a accesskey="n" href="ports.html">Következ&#337;</a></td></tr></table><hr></div><div class="sect1" lang="hu"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="radio-input"></a>11.1. Radió bemenet</h2></div></div></div><p>
+Ez a fejezet arról szól, hogyan engedélyezheted a V4L-kompatibilis
+rádió tuner-r&#337;l történ&#337; rádió hallgatást. Lásd a man oldalt a
+rádiós opciók és a billenty&#369;zeten keresztüli vezérlés leírásához.
+</p><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="radio-compilation"></a>11.1.1. Fordítás</h3></div></div></div><div class="procedure"><ol type="1"><li><p>
+  El&#337;ször újra kell fordítanod az MPlayer-t a <tt class="filename">./configure</tt>
+  <tt class="option">--enable-radio</tt> és (ha menteni is szeretnél)
+  <tt class="option">--enable-radio-capture</tt> opcióival.
+  </p></li><li><p>
+  Gy&#337;z&#337;dj meg róla, hogy a tuner-ed m&#369;ködik más Linux-os rádiós
+  programmal, mint pl. a <span class="application">XawTV</span>.
+  </p></li></ol></div></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="radio-tips"></a>11.1.2. Használati tippel</h3></div></div></div><p>
+Az összes használható opcióhoz nézd meg a man oldalt.
+Következzék pár tipp:
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+Használd a <tt class="option">channels</tt> opciót. Egy példa:
+</p><pre class="screen">-radio channels=104.4-Sibir,103.9-Maximum</pre><p>
+Magyarázat: Ezzel az opcióval csak a 104.4 és 103.9 rádió adók
+használhatóak. Egy szép OSD szöveg fog megjelenni csatorna váltásnál,
+kiírva a csatorna nevét. A csatorna nevében szerepl&#337; szóközöket
+"_" karakterrel kell helyettesíteni.
+</p></li><li><p>
+Több lehet&#337;ség is adott az audió elmentésére. Menthetsz a hangkártyád segítségével
+is, egy videó kártyát és a line-in-t összeköt&#337; küls&#337; kábellel, vagy az saa7134
+chip-be beépített ADC segítségével. Ez utóbbi esetben be kell töltened az
+<code class="systemitem">saa7134-alsa</code> vagy az <code class="systemitem">saa7134-oss</code>
+vezérl&#337;t.
+</p></li><li><p>
+A <span class="application">MEncoder</span> nem használható az audió elmentésére,
+mert videó folyamra van szüksége. Így vagy az <span class="application">arecord</span>
+használhatod az ALSA projektb&#337;l vagy a <tt class="option">-ao pcm:file=file.wav</tt>
+opciót. Ez utóbbi esetben nem fogsz hallani semmilyen hangot (hacsak nem használsz
+egy line-in kábelt és nem kapcsolod ki a line-in némítást).
+</p></li></ul></div></div><div class="sect2" lang="hu"><div class="titlepage"><div><div><h3 class="title"><a name="radio-examples"></a>11.1.3. Példák</h3></div></div></div><div class="informalexample"><p>
+Bemenet szabványos V4L-r&#337;l (line-in kábellel, mentés kikapcsolva):
+</p><pre class="screen">
+mplayer radio://104.4
+</pre><p>
+</p></div><div class="informalexample"><p>
+Bemenet szabványos V4L-r&#337;l (line-in kábellel, mentés kikapcsolva,
+V4Lv1 interfész):
+</p><pre class="screen">
+mplayer -radio driver=v4l radio://104.4
+</pre><p>
+</p></div><div class="informalexample"><p>
+A csatorna listán második csatorna lejátszása:
+</p><pre class="screen">
+mplayer -radio channels=104.4=Sibir,103.9=Maximm radio://2
+</pre><p>
+</p></div><div class="informalexample"><p>
+Hang átadása a PCI buszon a rádió kártya bels&#337; ADC-jéb&#337;l.
+Ebben a példában a tuner második hangkártyaként szerepel
+(ALSA device hw:1,0). Az saa7134-alapú kártyákhoz vagy az
+saa7134-alsa vagy az saa7134-oss modult be kell tölteni.
+</p><pre class="screen">
+mplayer -rawaudio rate=32000 -radio adevice=hw=1.0:arate=32000:channels=104.4=Sibir,103.9=Maximm radio://2/capture
+</pre><p>
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Megjegyzés</h3><p>Ha ALSA eszköz neveket használsz, a kett&#337;spontokat egyenl&#337;ség
+jelekkel kell helyettesíteni, a periódusokat vessz&#337;k választják el.
+</p></div><p>
+</p></div></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="radio.html">El&#337;z&#337;</a> </td><td width="20%" align="center"><a accesskey="u" href="radio.html">Fel</a></td><td width="40%" align="right"> <a accesskey="n" href="ports.html">Következ&#337;</a></td></tr><tr><td width="40%" align="left" valign="top">11. fejezet - Rádió </td><td width="20%" align="center"><a accesskey="h" href="index.html">Tartalom</a></td><td width="40%" align="right" valign="top"> 12. fejezet - Portok</td></tr></table></div></body></html>

@@ -1,0 +1,10 @@
+		README for hacked msh
+
+		Mickael.Kang (blackfin.kang@gmail.com)
+
+			Dec. 13th 2005
+
+This patch is for enhancement of msh.  After apply this patch, msh can support
+function recursive call.  So it is more like bash than before.  Many
+applications under uClinux maybe need this patch to run some bash script under
+msh, such as oprofile.

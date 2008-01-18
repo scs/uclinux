@@ -1,0 +1,16 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+
+ENDIAN := big
+CPUFLAGS := -mbig-endian
+CPULDFLAGS := -EB
+VENDOR_CFLAGS = -DCONFIG_SNAPGEAR
+
+BUILD_NETtel = 1
+LINUXTARGET = zImage
+
+############################################################################
+
+include $(ROOTDIR)/vendors/config/arm/config.arch
+
+############################################################################

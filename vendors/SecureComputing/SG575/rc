@@ -1,0 +1,28 @@
+echo "/etc/rc processing ..."
+mount -t proc proc /proc
+echo "Starting watchdog ..."
+watchdog /dev/watchdog
+hostname SG575
+echo "Mounting Filesystems ..."
+mount -t sysfs none /sys
+mount -t devpts devpts /dev/pts
+mount -t tmpfs -o size=33m tmpfs /var
+mount -t tmpfs -o size=2048k tmpfs /etc/config
+mkdir -m 1777 /var/tmp
+mkdir -m 755 /var/log
+mkdir -m 755 /var/run
+mkdir -m 1777 /var/lock
+mkdir -m 755 /var/empty
+mkdir -m 755 /var/mnt
+echo "Setting system clock ..."
+hwclock --hctosys --utc
+echo "Processing Config Filesystem ..."
+flatfsd -r 
+echo 1 >/proc/sys/net/ipv4/conf/all/promote_secondaries
+echo "Loading crypto drivers."
+modprobe ocf
+modprobe safe
+modprobe cryptodev
+modprobe ipsec
+ifconfig lo 127.0.0.1
+echo "/etc/rc complete."

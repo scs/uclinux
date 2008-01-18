@@ -1,0 +1,36 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>2.7. RTC</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="install.html" title="Kapitola 2. Instalace"><link rel="prev" href="fonts-osd.html" title="2.6. Fonty a OSD"><link rel="next" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">2.7. RTC</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="fonts-osd.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 2. Instalace</th><td width="20%" align="right"> <a accesskey="n" href="usage.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="rtc"></a>2.7. RTC</h2></div></div></div><p>
+V <span class="application">MPlayer</span> jsou zabudovány t&#345;i metody &#269;asování.
+
+</p><div class="itemizedlist"><ul type="disc"><li>
+<span class="bold"><strong>Abyste pou&#382;ili starou metodu</strong></span>, nemusíte d&#283;lat
+  v&#367;bec nic. Ta pou&#382;ívá <code class="systemitem">usleep()</code> pro hlídání
+  A/V synchronizace s p&#345;esností +/- 10ms. A&#269;koli n&#283;kdy m&#367;&#382;e být synchronizace
+  hlídána je&#353;t&#283; jemn&#283;ji.
+  </li><li><p>
+Kód <span class="bold"><strong>nového &#269;asova&#269;e</strong></span> pou&#382;ívá pro tento ú&#269;el RTC
+  (hodiny reálného &#269;asu), proto&#382;e mají p&#345;esné 1ms &#269;asova&#269;e.
+  Volba <tt class="option">-rtc</tt> to zapíná, je v&#353;ak nutné vhodn&#283; nastavené jádro.
+  Pokud pou&#382;íváte jádro 2.4.19pre8 nebo pozd&#283;j&#353;í, m&#367;&#382;ete nastavit maximální RTC
+  kmito&#269;et pro normální u&#382;ivatele pomocí systému soubor&#367;
+  <code class="systemitem">/proc
+  </code>. Pou&#382;ijte jeden z t&#283;chto dvou p&#345;íkaz&#367; pro zapnutí RTC
+  pro oby&#269;ejné u&#382;ivatele:
+  </p><pre class="screen">echo 1024 &gt; /proc/sys/dev/rtc/max-user-freq</pre><p>
+  </p><pre class="screen">sysctl dev/rtc/max-user-freq=1024</pre><p>
+  M&#367;&#382;ete tuto volbu u&#269;init trvalou p&#345;idáním druhého p&#345;íkazu do
+  <tt class="filename">/etc/sysctl.conf</tt>.
+  </p><p>
+   Efektivitu nového &#269;asova&#269;e uvidíte na stavovém &#345;ádku.
+   Funkce power managementu n&#283;kterých notebookových BIOS&#367; s speedstep procesory
+   &#353;patn&#283; komunikují s RTC. Audio a video se mohou rozejít. Zdá se &#382;e pomáhá
+   p&#345;ipojení vn&#283;j&#353;ího napájení p&#345;ed zapnutím notebooku.
+   V n&#283;kterých hardwarových kombinacích (zji&#353;t&#283;no b&#283;hem pou&#382;ívání ne-DMA DVD
+   mechaniky na ALi1541 boardu) zp&#367;sobuje pou&#382;ití RTC &#269;asování trhavé p&#345;ehrávání.
+   Pak doporu&#269;ujeme
+   pou&#382;ít t&#345;etí metodu.
+  </p></li><li>
+  <span class="bold"><strong>T&#345;etí kód &#269;asova&#269;e</strong></span> se zapíná volbou
+  <tt class="option">-softsleep</tt>. Je stejn&#283; efektní jako RTC, ale nepou&#382;ívá RTC.
+  Na druhou stranu více zat&#283;&#382;uje CPU.
+  </li></ul></div><p>
+</p></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="fonts-osd.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="install.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="usage.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">2.6. Fonty a OSD </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> Kapitola 3. Pou&#382;ití</td></tr></table></div></body></html>

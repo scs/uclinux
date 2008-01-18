@@ -1,0 +1,257 @@
+#!/bin/sh
+# grab for dagrab; Miroslav Stibor <stibor@vertigo.fme.vutbr.cz>
+#
+# The script is predefined for using the lame encoder. Common encoders do not
+# allow adding id3 tags, so, if you do not use lame or oggenc, you need another
+# command that can add id3 tags: get id3ed (http://freshmeat.net/projects/id3ed)
+# or adjust appropriate line with id3ed to your favourite command below
+
+################## BASE ENVIRONMENT ###########################################
+PROGNAME=`basename $0`
+
+if test -z "$TMPDIR"
+then	## if not defined by user's environment
+	TMPDIR="/tmp"
+fi
+
+TEMPFILE="$TMPDIR/.$USER-$PROGNAME-$$"
+
+if test -z "$DAGRAB"
+then	## if not defined by user's environment
+	DAGRAB="dagrab -JS -f -"
+fi
+
+## Default file name convention (can be overriden by user environment)
+if test -z "$DAGRAB_FNAME"; then
+	DAGRAB_FNAME='$DISK _ $NUM $TITLE'
+fi
+
+## if not defined by user's environment use lame | oggenc | bladeenc | gogo
+if test -z "$DAGRAB_ENCODER"; then
+	SHOW_LONG_HELP=1
+	if ( which lame 2>&1 ) > /dev/null; then
+		DAGRAB_ENCODER="nice lame -khb 192 - "
+	fi
+fi
+
+if test -z "$DAGRAB_ENCODER"; then
+ 	if ( which oggenc 2>&1 ) > /dev/null; then
+		DAGRAB_ENCODER="nice oggenc -q4 - "
+	fi
+fi
+
+if test -z "$DAGRAB_ENCODER"; then
+	if ( which bladeenc 2>&1 ) > /dev/null; then
+		DAGRAB_ENCODER="nice bladeenc -192 STDIN "
+	fi
+fi
+
+if test -z "$DAGRAB_ENCODER"
+then	## encoder still not found, gogo is the last chance
+	if ( which gogo 2>&1 ) > /dev/null; then
+		DAGRAB_ENCODER="nice gogo -b 192 -q 0 stdin "
+	else
+		echo -e "$PROGNAME: Can't find encoder (looking for lame, oggenc, bladeenc or gogo)."
+		exit 1
+	fi
+fi
+
+################## USAGE ######################################################
+usage ()
+{
+	echo -e "\
+This script allows you to encode audio CD to the mp3s or oggs (by default using\nthe lame, oggenc or bladeenc/gogo + id3ed) through the pipe from dagrab.\n\
+Usage:\n\
+\t$PROGNAME 2 4 6 7 8   to encode these tracks into mp3s/oggs\n\
+\t$PROGNAME all         to encode whole the CD into mp3s/oggs\n\n\
+\tThe environments are:\n\
+\tDAGRAB_FNAME=\"$DAGRAB_FNAME\"\n"
+
+	if test -n "$DAGRAB_MKDIR"; then
+		echo -e "\tDAGRAB_MKDIR=\"$DAGRAB_MKDIR\"\n"
+	else
+		echo -e "\tDAGRAB_MKDIR is not set\n"
+	fi
+
+	echo -e "\
+\tDAGRAB=\"$DAGRAB\"\n\
+\tDAGRAB_ENCODER=\"$DAGRAB_ENCODER\""
+
+	if test -n "$SHOW_LONG_HELP"; then
+		echo -e "\
+\nYou are encouraged to set \$DAGRAB and \$DAGRAB_ENCODER variables yourselves.\n\
+Examples:\n\
+\t        DAGRAB=\"dagrab -JS -n150 -D /tmp/tmp -f -\"\n\
+\tDAGRAB_ENCODER=\"nice lame -khb 192 - \"\n\
+\tDAGRAB_ENCODER=\"nice oggenc -q4 - \"\n\
+\tDAGRAB_ENCODER=\"nice bladeenc -192 STDIN \"\n\
+\tDAGRAB_ENCODER=\"nice gogo -b 192 -q 0 stdin \"\n"
+
+		echo -e "\
+\tDAGRAB_FNAME='\$DISK _ \$NUM \$TITLE'\n\
+\tDAGRAB_MKDIR='\$AUTHOR'\n\
+\t[\$NUM, \$TITLE, \$DISK, \$AUTHOR, \$YEAR, \$GENRE are valid for both above]"
+	else
+		echo -e "\nRun $PROGNAME --help for extended help"
+	fi
+}
+
+if test $# = 0; then	## Nothing to proceed
+	usage; exit 0
+fi
+
+if test "$1" = "--help"
+then
+	SHOW_LONG_HELP=1
+	usage; exit 0
+fi
+
+################## BASE UTILITIES WE NEED #####################################
+if which sed > /dev/null; then
+	true
+else
+	echo -e "\nYou need sed to use $PROGNAME."
+	exit 1
+fi
+	
+if which tee > /dev/null; then
+	true
+else
+	echo -e "\nYou need tee to use $PROGNAME or a bit modify that script."
+	exit 1
+fi
+	
+################## REMOVE -f - AND STICK -i TO DISPLAY THE TRACK LIST #########
+DAGRAB_I=`echo "$DAGRAB -i" | sed "s/-f \+-//"`	
+
+################## CHECK WHETHER DAGRAB CAN GET CDDB NAMES OR NOT #############
+if [ "`$DAGRAB_I | tee $TEMPFILE | grep ^TITLE`" ]
+then	## TEMPFILE stores output of DAGRAB_I to prevent running it still again
+	CDDB=yes
+	if ls $TEMPFILE > /dev/null; then	# rather ls because of ash
+		if test $1 = all; then		# Print cddb entry dagrab found
+			cat "$TEMPFILE"
+		fi
+	else
+		echo -e "$PROGNAME: can't create tempfile, please adjust \$TMPDIR variable."
+		exit 1
+	fi
+	trap "rm -f $TEMPFILE" 0 2 ## Remove tempfile on exit
+else
+	CDDB=no
+fi
+
+################## REMOVE -S TO AVOID RELATED WARNINGS ########################
+DAGRAB=`echo "$DAGRAB" | sed "s/\(\-[^[:space:]]*\)S\([^[:space:]]*\)/\1\2/g" | sed "s/ -S \| -S$/ /g"`
+
+##################### EXPAND 'all' TO NUMBERS IF WAS SPECIFIED ################
+if test $1 = all
+then	## expand 'all tracks' into tracks variable list
+	tracks=`grep "[0-9]\+ \+audio \+[0-9]\+" $TEMPFILE | \
+		sed "s/ \+[0-9]\+ \+[0-9]\+ \+audio.*//"`
+else	## fill shell arguments into tracks variable list
+	if test $1 -gt 0; then
+		tracks=$*
+	else
+		usage
+	fi
+fi
+
+################## ENCODE TRACKS THOROUGH THE PIPE ############################
+if test $CDDB = "no"
+then	## Loop without cddb support
+	for number in $tracks; do
+		if test $number -lt 10; then
+			NUM="0$number"	## Tracks below 10
+		else
+			NUM="$number"
+		fi
+		if echo "$DAGRAB_ENCODER" | grep oggenc > /dev/null; then
+			$DAGRAB $number | $DAGRAB_ENCODER -o track$NUM.ogg
+		else
+			$DAGRAB $number | $DAGRAB_ENCODER track$NUM.mp3
+		fi
+	done
+else	## Second loop also resolves and adds id3 tags
+	AUTHOR=`grep "^AUTHOR:" $TEMPFILE | sed "s/^AUTHOR: *//"`
+	DISK=`grep "^TITLE: " $TEMPFILE | sed "s/^TITLE: *//"`
+	GENRE=`grep "^GENRE: " $TEMPFILE | sed "s/^GENRE: *//"`
+	YEAR=`grep "^YEAR: " $TEMPFILE | sed "s/^YEAR: *//"`
+
+	## If the var is set, mkdir and cd into a subdirectory
+	if test ! -z "$DAGRAB_MKDIR" 
+	then
+		FDIR=`eval "echo $DAGRAB_MKDIR"`
+		mkdir --verbose --parents "$FDIR"
+		cd "$FDIR"
+	fi
+
+	# Start up the m3u file
+	M3UFILE="$AUTHOR - $DISK.m3u"
+	if test $1 = all; then
+		echo '#EXTM3U' > $M3UFILE
+	fi
+
+	for number in $tracks; do
+		TITLE=`grep "^ * $number .*audio" $TEMPFILE | \
+			sed "s/^.*audio \+[0-9:]\+ \+[0-9]\+ \+//g"`
+		# FNAME=`echo $TITLE | sed -e "s/[/:*<>\|]/-/g" -e "s/?/./g"`
+		# FNAME=`echo $TITLE | tr ":/*<>?\\\\\\\\|" ";\-+().\-#"`
+
+		if test $number -lt 10; then
+			NUM="0$number"	## Tracks below 10
+		else
+			NUM="$number"
+		fi
+
+		# Absolutely resolve what the filename is going to be
+		## TODO What if CDDB failed or we start handling WMA
+		FNAME=`eval "echo $DAGRAB_FNAME"`
+		FNAME=`echo $FNAME | tr ":/*<>?\\\\\\\\|" ";\-+().\-#"`
+		if echo "$DAGRAB_ENCODER" | grep oggenc > /dev/null 
+		then
+			FNAME="$FNAME.ogg"
+		else 
+			FNAME="$FNAME.mp3"
+		fi
+
+		# Encode the thing
+		if echo "$DAGRAB_ENCODER" | grep lame > /dev/null
+		then	## lame can do id3 tags itself
+			$DAGRAB $number | $DAGRAB_ENCODER \
+				--tl "$DISK" \
+				--ta "$AUTHOR" \
+				--tn "$number" \
+				--ty "$YEAR" \
+				--tt "$TITLE" \
+				--tg "$GENRE" \
+				"$FNAME"
+		else if echo "$DAGRAB_ENCODER" | grep oggenc > /dev/null
+			then	## oggenc can do id3 tags itself
+				$DAGRAB $number | $DAGRAB_ENCODER \
+					--album    "$DISK" \
+					--artist   "$AUTHOR" \
+					--tracknum "$number" \
+					--date     "$YEAR" \
+					--title    "$TITLE" \
+					--genre    "$GENRE" \
+					-o "$FNAME"
+			else
+				$DAGRAB $number | $DAGRAB_ENCODER "$FNAME"
+				id3ed -qq \
+					-a "$DISK" \
+					-n "$AUTHOR" \
+					-k "$number" \
+					-y "$YEAR" \
+					-s "$TITLE"  \
+					-g "$GENRE" \
+					"$FNAME"
+			fi
+		fi
+
+		## Append this track to the m3u file
+		## TODO Convert the mm:ss to seconds and insert after colon
+		echo "#EXTINF:, $TITLE" >> $M3UFILE
+		echo "$FNAME" >> $M3UFILE
+	done
+fi

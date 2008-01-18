@@ -1,0 +1,68 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>13.1. Výb&#283;r kodek&#367; a nosných formát&#367;</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="prev" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="next" href="menc-feat-selecting-input.html" title="13.2. Výb&#283;r vstupního souboru nebo za&#345;ízení"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">13.1. Výb&#283;r kodek&#367; a nosných formát&#367;</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="mencoder.html">P&#345;edcházející</a> </td><th width="60%" align="center">Kapitola 13. Základní pou&#382;ití <span class="application">MEncoder</span>u</th><td width="20%" align="right"> <a accesskey="n" href="menc-feat-selecting-input.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="menc-feat-selecting-codec"></a>13.1. Výb&#283;r kodek&#367; a nosných formát&#367;</h2></div></div></div><p>
+  Audio a video kodeky pro enkódování jsou vybírány p&#345;íslu&#353;nými volbami
+  <tt class="option">-oac</tt> a <tt class="option">-ovc</tt> options.
+  Napi&#353;te nap&#345;íklad:
+  </p><pre class="screen">mencoder -ovc help</pre><p>
+  pro seznam video kodek&#367; podporovaných verzí programu
+  <span class="application">MEncoder</span> na va&#353;em po&#269;íta&#269;i.
+  Dostupné jsou následující mo&#382;nosti:
+</p><p>
+Audio (zvukové) kodeky:
+
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Jméno audio kodeku</th><th>Popis</th></tr></thead><tbody><tr><td>mp3lame</td><td>Enkóduje do VBR, ABR nebo CBR MP3 pomocí LAME</td></tr><tr><td>lavc</td><td>Pou&#382;ije se n&#283;který z
+    <a href="menc-feat-enc-libavcodec.html#menc-feat-enc-libavcodec-audio-codecs" title="14.3.2. Audio kodeky libavcodec">
+    <code class="systemitem">libavcodec</code> audio kodek&#367;</a>
+    </td></tr><tr><td>faac</td><td>FAAC AAC audio enkodér</td></tr><tr><td>toolame</td><td>Enkodér MPEG Audio Layer 2</td></tr><tr><td>twolame</td><td>Enkodér MPEG Audio Layer 2 zalo&#382;ený na tooLAME</td></tr><tr><td>pcm</td><td>Nekomprimovaný PCM zvuk</td></tr><tr><td>copy</td><td>Nereenkóduje, pouze kopíruje komprimované vzorky</td></tr></tbody></table></div><p>
+</p><p>
+Video kodeky:
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Jméno video kodeku</th><th>Popis</th></tr></thead><tbody><tr><td>lavc</td><td>Pou&#382;ije se n&#283;který z
+    <a href="menc-feat-enc-libavcodec.html#menc-feat-enc-libavcodec-video-codecs" title="14.3.1. Video kodeky libavcodec">
+    <code class="systemitem">libavcodec</code> video kodek&#367;</a>
+    </td></tr><tr><td>xvid</td><td>XviD, MPEG-4 Advanced Simple Profile (ASP) kodek</td></tr><tr><td>x264</td><td>x264, MPEG-4 Advanced Video Coding (AVC), alias H.264 kodek</td></tr><tr><td>nuv</td><td>nuppel video, pou&#382;ívaný n&#283;kterými realtime aplikacemi</td></tr><tr><td>raw</td><td>Nekomprimované videosnímky</td></tr><tr><td>copy</td><td>Nereenkóduje, pouze kopíruje komprimované snímky</td></tr><tr><td>frameno</td><td>Pou&#382;ité pro 3-pr&#367;chodové enkódování (nedoporu&#269;ujeme)</td></tr></tbody></table></div><p>
+</p><p>
+  Výstupní nosný formát je vybírán volbou <tt class="option">-of</tt>.
+  Zadejte:
+  </p><pre class="screen">mencoder -of help</pre><p>
+  pro seznam v&#353;ech nosných formát&#367; podporovaných verzí programu
+  <span class="application">MEncoder</span> na va&#353;em po&#269;íta&#269;i.
+  Dostupné jsou následující mo&#382;nosti:
+</p><p>
+Nosné formáty:
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Název nosného formátu</th><th>Popis</th></tr></thead><tbody><tr><td>lavf</td><td>Jeden z nosných formát&#367; podporovaných
+    <code class="systemitem">libavformat</code></td></tr><tr><td>avi</td><td>Audio-Video Interleaved (Prokládané audio s videem)</td></tr><tr><td>mpeg</td><td>MPEG-1 a MPEG-2 PS</td></tr><tr><td>rawvideo</td><td>surový (raw) video datový proud (&#382;ádný muxing &#8211; pouze jeden
+    video proud)</td></tr><tr><td>rawaudio</td><td>surový (raw) audio datový proud (&#382;ádný muxing &#8211; pouze jeden
+    audio proud)</td></tr></tbody></table></div><p>
+  Nosný formát AVI je nativním nosným formátem
+  <span class="application">MEncoder</span>u, co&#382; znamená, &#382;e je tím, který je nejlépe
+  zpracován a pro n&#283;j&#382; byl <span class="application">MEncoder</span>
+  navr&#382;en.
+  Jak bylo zmín&#283;no, ostatní nosné formáty jsou pou&#382;itelné, ale m&#367;&#382;ete
+  p&#345;i jejich pou&#382;ití narazit na problémy.
+</p><p>
+Nosné formáty <code class="systemitem">libavformat</code>:
+</p><p>
+  Pokud jste si zvolili <code class="systemitem">libavformat</code>
+  pro provád&#283;ní muxování výstupního souboru (pomocí <tt class="option">-of lavf</tt>),
+  p&#345;íslu&#353;ný nosný formát bude ur&#269;en z p&#345;ípony výstupního souboru.
+  M&#367;&#382;ete vynutit ur&#269;itý nosný formát pomocí parametru <tt class="option">format</tt>
+  knihovny <code class="systemitem">libavformat</code>.
+
+</p><div class="informaltable"><table border="1"><colgroup><col><col></colgroup><thead><tr><th>Název <code class="systemitem">libavformat</code> nosného formátu</th><th>Popis</th></tr></thead><tbody><tr><td>mpg</td><td>MPEG-1 a MPEG-2 PS</td></tr><tr><td>asf</td><td>Advanced Streaming Format</td></tr><tr><td>avi</td><td>Audio-Video Interleaved</td></tr><tr><td>wav</td><td>Waveform Audio</td></tr><tr><td>swf</td><td>Macromedia Flash</td></tr><tr><td>flv</td><td>Macromedia Flash video</td></tr><tr><td>rm</td><td>RealMedia</td></tr><tr><td>au</td><td>SUN AU</td></tr><tr><td>nut</td><td>otev&#345;ený nosný formát NUT (experimentální a dosud neslu&#269;itelný se specifikací)</td></tr><tr><td>mov</td><td>QuickTime</td></tr><tr><td>mp4</td><td>formát MPEG-4</td></tr><tr><td>dv</td><td>Sony Digital Video</td></tr></tbody></table></div><p>
+  Jak vidíte, <code class="systemitem">libavformat</code>
+  umo&#382;&#328;uje <span class="application">MEncoder</span>u muxovat do velkého mno&#382;ství
+  nosných formát&#367;.
+  Nane&#353;t&#283;stí, jeliko&#382; <span class="application">MEncoder</span> nebyl od po&#269;átku
+  navr&#382;en pro podporu jiných nosných formát&#367; ne&#382; AVI, m&#283;li byste být
+  paranoidní ve vstahu k výstupnímu souboru.
+  Ov&#283;&#345;te si prosím pro jistotu, &#382;e audio/video synchronizace je OK
+  a soubor lze správn&#283; p&#345;ehrát i jinými p&#345;ehráva&#269;i, ne&#382;
+  <span class="application">MPlayer</span>.
+</p><div class="informalexample"><p>P&#345;íklad:</p><p>
+  Vytvo&#345;ení Macromedia Flash videa vhodného pro p&#345;ehrávání ve webovém prohlí&#382;e&#269;i
+  pomocí Macromedia Flash pluginu:
+</p><pre class="screen">
+mencoder <em class="replaceable"><code>vstupní.avi</code></em> -o <em class="replaceable"><code>výstupní.flv</code></em> -of lavf -oac mp3lame -lameopts abr:br=56 -ovc lavc \
+-lavcopts vcodec=flv:vbitrate=500:mbd=2:mv0:trell:v4mv:cbp:last_pred=3 \
+-srate 22050
+</pre><p>
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="mencoder.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="mencoder.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="menc-feat-selecting-input.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">Kapitola 13. Základní pou&#382;ití <span class="application">MEncoder</span>u </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> 13.2. Výb&#283;r vstupního souboru nebo za&#345;ízení</td></tr></table></div></body></html>

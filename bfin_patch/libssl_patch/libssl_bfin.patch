@@ -1,0 +1,147 @@
+--- openssl-0.9.8c/Configure
++++ openssl-0.9.8c/Configure
+@@ -98,9 +98,11 @@
+ # AES_ASM	ASE_[en|de]crypt is implemented in assembler
+ 
+ my $x86_gcc_des="DES_PTR DES_RISC1 DES_UNROLL";
++my $bfin_gcc_des="DES_PTR DES_RISC1 DES_UNROLL";
+ 
+ # MD2_CHAR slags pentium pros
+ my $x86_gcc_opts="RC4_INDEX MD2_INT";
++my $bfin_gcc_opts="RC4_INDEX MD2_INT";
+ 
+ # MODIFY THESE PARAMETERS IF YOU ARE GOING TO USE THE 'util/speed.sh SCRIPT
+ # Don't worry about these normally
+@@ -318,6 +320,7 @@
+ #### IA-32 targets...
+ "linux-ia32-icc",	"icc:-DL_ENDIAN -DTERMIO -O2 -no_cpprt::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-KPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+ "linux-elf",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT::-ldl:BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_elf_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
++"linux-bfin",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -Wall::-D_REENTRANT::-ldl:BN_LLONG ${bfin_gcc_des} ${bfin_gcc_opts}:${no_asm}:::::",
+ "linux-aout",	"gcc:-DL_ENDIAN -DTERMIO -O3 -fomit-frame-pointer -march=i486 -Wall::(unknown):::BN_LLONG ${x86_gcc_des} ${x86_gcc_opts}:${x86_out_asm}",
+ ####
+ "linux-generic64","gcc:-DTERMIO -O3 -Wall::-D_REENTRANT::-ldl:SIXTY_FOUR_BIT_LONG RC4_CHAR RC4_CHUNK DES_INT DES_UNROLL BF_PTR:${no_asm}:dlfcn:linux-shared:-fPIC::.so.\$(SHLIB_MAJOR).\$(SHLIB_MINOR)",
+--- openssl-0.9.8c/crypto/opensslconf.h
++++ openssl-0.9.8c/crypto/opensslconf.h
+@@ -18,6 +18,9 @@
+ #endif
+ 
+ #endif /* OPENSSL_DOING_MAKEDEPEND */
++#ifndef OPENSSL_THREADS
++# define OPENSSL_THREADS
++#endif
+ #ifndef OPENSSL_NO_DYNAMIC_ENGINE
+ # define OPENSSL_NO_DYNAMIC_ENGINE
+ #endif
+@@ -101,7 +104,7 @@
+ 
+ #if defined(HEADER_BN_H) && !defined(CONFIG_HEADER_BN_H)
+ #define CONFIG_HEADER_BN_H
+-#undef BN_LLONG
++#define BN_LLONG
+ 
+ /* Should we define BN_DIV2W here? */
+ 
+@@ -120,7 +123,7 @@
+ #define CONFIG_HEADER_RC4_LOCL_H
+ /* if this is defined data[i] is used instead of *data, this is a %20
+  * speedup on x86 */
+-#undef RC4_INDEX
++#define RC4_INDEX
+ #endif
+ 
+ #if defined(HEADER_BF_LOCL_H) && !defined(CONFIG_HEADER_BF_LOCL_H)
+@@ -134,14 +137,14 @@
+ /* the following is tweaked from a config script, that is why it is a
+  * protected undef/define */
+ #ifndef DES_PTR
+-#undef DES_PTR
++#define DES_PTR
+ #endif
+ 
+ /* This helps C compiler generate the correct code for multiple functional
+  * units.  It reduces register dependancies at the expense of 2 more
+  * registers */
+ #ifndef DES_RISC1
+-#undef DES_RISC1
++#define DES_RISC1
+ #endif
+ 
+ #ifndef DES_RISC2
+@@ -155,7 +158,7 @@
+ /* Unroll the inner loop, this sometimes helps, sometimes hinders.
+  * Very mucy CPU dependant */
+ #ifndef DES_UNROLL
+-#undef DES_UNROLL
++#define DES_UNROLL
+ #endif
+ 
+ /* These default values were supplied by
+--- openssl-0.9.8c/INSTALL
++++ openssl-0.9.8c/INSTALL
+@@ -132,7 +132,7 @@
+      as the argument to ./Configure. For example, a "linux-elf" user would
+      run:
+ 
+-       $ ./Configure linux-elf [options]
++       $ ./Configure linux-bfin threads [options]
+ 
+      If your system is not available, you will have to edit the Configure
+      program and add the correct configuration for your system. The
+--- openssl-0.9.8c/Makefile
++++ openssl-0.9.8c/Makefile
+@@ -12,9 +12,10 @@
+ SHLIB_MAJOR=0
+ SHLIB_MINOR=9.8
+ SHLIB_EXT=
+-PLATFORM=dist
++PLATFORM=linux-bfin
+ OPTIONS= no-camellia no-gmp no-krb5 no-mdc2 no-rc5 no-shared no-zlib no-zlib-dynamic
++OPTIONS += enable-threads
+-CONFIGURE_ARGS=dist
++CONFIGURE_ARGS=linux-bfin threads
+ SHLIB_TARGET=
+ 
+ # HERE indicates where this Makefile lives.  This can be used to indicate
+@@ -59,19 +59,19 @@
+ # equal 4.
+ # PKCS1_CHECK - pkcs1 tests.
+ 
+-CC= cc
+-CFLAG= -O
++CC?= bfin-uclinux-gcc
++CFLAG= $(CFLAGS) -DOPENSSL_THREADS -D_REENTRANT -DL_ENDIAN -DTERMIO -fomit-frame-pointer -Wall
+ DEPFLAG= -DOPENSSL_NO_CAMELLIA -DOPENSSL_NO_GMP -DOPENSSL_NO_MDC2 -DOPENSSL_NO_RC5 
+ PEX_LIBS= 
+ EX_LIBS= 
+ EXE_EXT= 
+ ARFLAGS= 
+-AR=ar $(ARFLAGS) r
+-RANLIB= /usr/bin/ranlib
++AR=bfin-uclinux-ar $(ARFLAGS) r
++RANLIB= bfin-uclinux-ranlib
+-PERL= /usr/local/bin/perl
++PERL= perl
+ TAR= tar
+ TARFLAGS= --no-recursion
+-MAKEDEPPROG=makedepend
++MAKEDEPPROG= gcc
+ 
+ # We let the C compiler driver to take care of .s files. This is done in
+ # order to be excused from maintaining a separate set of architecture
+@@ -102,7 +102,7 @@
+ ZLIB_INCLUDE=
+ LIBZLIB=
+ 
+-DIRS=   crypto ssl engines apps test tools
++DIRS=   crypto ssl engines 
+ SHLIBDIRS= crypto ssl
+ 
+ # dirs in crypto to build
+@@ -325,6 +325,7 @@
+ 
+ libclean:
+ 	rm -f *.map *.so *.so.* *.dll engines/*.so engines/*.dll *.a engines/*.a */lib */*/lib
++romfs:
+ 
+ clean:	libclean
+ 	rm -f shlib/*.o *.o core a.out fluff rehash.time testlog make.log cctest cctest.c

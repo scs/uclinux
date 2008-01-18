@@ -1,0 +1,113 @@
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1"><title>C.1. P&#345;ehled</title><link rel="stylesheet" href="default.css" type="text/css"><meta name="generator" content="DocBook XSL Stylesheets V1.68.1"><link rel="start" href="index.html" title="MPlayer - Multimediální p&#345;ehráva&#269;"><link rel="up" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="prev" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="next" href="skin-file.html" title="C.2. Soubor skin"><link rel="preface" href="howtoread.html" title="Jak &#269;íst tuto  dokumentaci"><link rel="chapter" href="intro.html" title="Kapitola 1. P&#345;edstavení"><link rel="chapter" href="install.html" title="Kapitola 2. Instalace"><link rel="chapter" href="usage.html" title="Kapitola 3. Pou&#382;ití"><link rel="chapter" href="cd-dvd.html" title="Kapitola 4. Pou&#382;ití CD/DVD"><link rel="chapter" href="faq.html" title="Kapitola 5. &#268;asto Kladené Dotazy (FAQ)"><link rel="chapter" href="containers.html" title="Kapitola 6. Nosné formáty (Containers)"><link rel="chapter" href="codecs.html" title="Kapitola 7. Kodeky"><link rel="chapter" href="video.html" title="Kapitola 8. Výstupní video za&#345;ízení/rozhraní"><link rel="chapter" href="audio.html" title="Kapitola 9. Výstupní zvuková za&#345;ízení"><link rel="chapter" href="tv.html" title="Kapitola 10. TV"><link rel="chapter" href="radio.html" title="Kapitola 11. Rádio"><link rel="chapter" href="ports.html" title="Kapitola 12. Porty"><link rel="chapter" href="mencoder.html" title="Kapitola 13. Základní pou&#382;ití MEncoderu"><link rel="chapter" href="encoding-guide.html" title="Kapitola 14. Enkódování s MEncoderem"><link rel="appendix" href="bugreports.html" title="P&#345;íloha A. Jak hlásit chyby"><link rel="appendix" href="bugs.html" title="P&#345;íloha B. Známé chyby"><link rel="appendix" href="skin.html" title="P&#345;íloha C. Formát skin&#367; MPlayeru"><link rel="subsection" href="skin-overview.html#skin-overview-directories" title="C.1.1. Adresá&#345;e"><link rel="subsection" href="skin-overview.html#skin-overview-formats" title="C.1.2. Formáty obrázk&#367;"><link rel="subsection" href="skin-overview.html#skin-overview-components" title="C.1.3. Sou&#269;ásti skinu"><link rel="subsection" href="skin-overview.html#skin-files" title="C.1.4. Soubory"></head><body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="navheader"><table width="100%" summary="Navigation header"><tr><th colspan="3" align="center">C.1. P&#345;ehled</th></tr><tr><td width="20%" align="left"><a accesskey="p" href="skin.html">P&#345;edcházející</a> </td><th width="60%" align="center">P&#345;íloha C. Formát skin&#367; <span class="application">MPlayer</span>u</th><td width="20%" align="right"> <a accesskey="n" href="skin-file.html">Dal&#353;í</a></td></tr></table><hr></div><div class="sect1" lang="cs"><div class="titlepage"><div><div><h2 class="title" style="clear: both"><a name="skin-overview"></a>C.1. P&#345;ehled</h2></div></div></div><p>
+Nemá to sice nic spole&#269;ného s formátem skinu, ale m&#283;li byste v&#283;d&#283;t, &#382;e
+<span class="application">MPlayer</span> <span class="bold"><strong>nemá</strong></span>
+vestav&#283;ný skin, tak&#382;e <span class="bold"><strong>si musíte alespo&#328; jeden skin
+nainstalovat, chcete-li pou&#382;ívat GUI.</strong></span>
+</p><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="skin-overview-directories"></a>C.1.1. Adresá&#345;e</h3></div></div></div><p>
+Adresá&#345;e prohledávané na skiny jsou (v tomto po&#345;adí):
+</p><div class="orderedlist"><ol type="1"><li><p>
+<tt class="filename">$(DATADIR)/skins/</tt>
+</p></li><li><p>
+<tt class="filename">$(PREFIX)/share/mplayer/skins/</tt>
+</p></li><li><p>
+<tt class="filename">~/.mplayer/skins/</tt>
+</p></li></ol></div><p>
+</p><p>
+Poznamenejme, &#382;e první z cest se m&#367;&#382;e li&#353;it podle toho, jak je
+<span class="application">MPlayer</span> zkonfigurován (viz volby  configure skriptu
+<tt class="option">--prefix</tt> a <tt class="option">--datadir</tt>).
+</p><p>
+Ka&#382;dý skin je instalován do vlastního adresá&#345;e v n&#283;kterém z vý&#353;e uvedených.
+Nap&#345;íklad:
+</p><pre class="screen">$(PREFIX)/share/mplayer/skins/default/</pre><p>
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="skin-overview-formats"></a>C.1.2. Formáty obrázk&#367;</h3></div></div></div><p>Obrázky musí být truecolor (24 nebo 32 bpp) PNG.</p><p>
+V hlavním okn&#283; a v p&#345;ehráva&#269;i (viz ní&#382;) m&#367;&#382;ete pou&#382;ít obrázky s 'pr&#367;hledností':
+Oblasti vypln&#283;né barvou #FF00FF (magenta) jsou pln&#283; pr&#367;hledné, pokud jsou
+zobrazovány <span class="application">MPlayer</span>em. To znamená, &#382;e m&#367;&#382;ete mít
+tvarovaná okna, pokud má vá&#353; X server XShape roz&#353;í&#345;ení.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="skin-overview-components"></a>C.1.3. Sou&#269;ásti skinu</h3></div></div></div><p>
+Skiny mají pom&#283;rn&#283; volný formát (narozdíl nap&#345;íklad od pevného formátu skin&#367;
+<span class="application">Winamp</span>u/<span class="application">XMMS</span>),
+tak&#382;e je jen na vás, zda vytvo&#345;íte n&#283;co skv&#283;lého.
+</p><p>
+V sou&#269;asnosti jsou zde &#269;ty&#345;i okna, která m&#367;&#382;ete dekorovat:
+<a href="skin-file.html#skin-file-main" title="C.2.1. Hlavní okno a ovládací panel">hlavní okno</a>,
+<a href="skin-file.html#skin-file-subwindow" title="C.2.2. Ovládací panel">podokno</a>,
+<a href="skin-file.html#skin-file-main" title="C.2.1. Hlavní okno a ovládací panel">ovládací panel</a> a
+<a href="skin-file.html#skin-file-menu" title="C.2.3. Nabídka">nabidka</a> (tu lze aktivovat
+pravým my&#353;ítkem).
+
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  <span class="application">MPlayer</span> je ovládán v
+  <span class="bold"><strong>hlavním okn&#283;</strong></span> a/nebo v
+  <span class="bold"><strong>ovládacím panelu</strong></span>. Pozadím okna je obrázek.
+  Následující sou&#269;ásti mohou (a musí) být umíst&#283;ny v okn&#283;:
+  <span class="emphasis"><em>tla&#269;ítka</em></span>, <span class="emphasis"><em>potenciometry</em></span> (&#353;oupátka)
+  a <span class="emphasis"><em>popisky</em></span>.
+  Ka&#382;dé sou&#269;ásti musíte nastavit pozici a velikost.
+</p><p>
+  A <span class="bold"><strong>tla&#269;ítko</strong></span> má t&#345;i stavy (stisknuto, pu&#353;t&#283;no a
+  zakázáno), proto musí být jeho obraz svisle rozd&#283;len do t&#345;í &#269;ástí.
+  Detaily viz sou&#269;ást <a href="skin-file.html#skin-button">tla&#269;ítko</a>.
+</p><p>
+  A <span class="bold"><strong>potenciometr</strong></span> (hlavn&#283; pou&#382;ívaný pro
+  li&#353;tu p&#345;evíjení a ovládání hlasitosti/stereováhy) m&#367;&#382;e mít libovolný po&#269;et
+  fází d&#283;lících jeho obraz na jednotlivé &#269;ásti pod sebou. Detaily viz
+  <a href="skin-file.html#skin-hpotmeter">hpotenciometr</a> a
+  <a href="skin-file.html#skin-potmeter">potenciometr</a>.
+</p><p>
+  <span class="bold"><strong>Popisky</strong></span> jsou pon&#283;kud zvlá&#353;tní: Znaky pot&#345;ebné
+  pro jejich vykreslení jsou brány z obrazového souboru a znaky v obrázku jsou
+  popsány <a href="skin-fonts.html" title="C.3. Fonty">souborem popisu fontu</a>.
+  Tento (druhý) soubor je prostý textový soubor, který popisuje pozici x,y a
+  velikost ka&#382;dého znaku v obrázku (obrázkový soubor a soubor popisu fontu
+  <span class="emphasis"><em>spolu</em></span> tvo&#345;í font). Detaily viz
+  <a href="skin-file.html#skin-dlabel">dlabel</a>.
+</p><div class="note" style="margin-left: 0.5in; margin-right: 0.5in;"><h3 class="title">Poznámka</h3><p>V&#353;echny obrázky mohou mít plnou pr&#367;hlednost, jak je popsána v sekci
+  o <a href="skin-overview.html#skin-overview-formats" title="C.1.2. Formáty obrázk&#367;">formátech obrázk&#367;</a>. Pokud X
+  server nepodporuje roz&#353;í&#345;ení XShape, budou pr&#367;hledné &#269;ásti &#269;erné. Pokud byste
+  cht&#283;li vyu&#382;ít tuto vlastnost, musí být &#353;í&#345;ka pozadí hlavního okna celo&#269;íseln&#283;
+  d&#283;litelná 8.
+</p></div></li><li><p>
+  <span class="bold"><strong>Podokno</strong></span> je to okno, kde se zobrazuje film.
+  M&#367;&#382;e v n&#283;m být zobrazen ur&#269;ený obrázek, pokud není na&#269;ten &#382;ádný film (je
+  docela únavné, pokud zde není nic :-)).
+  <span class="bold"><strong>Poznámka:</strong></span> pr&#367;hlednost zde
+  is <span class="bold"><strong>není povolena</strong></span>.
+</p></li><li><p>
+  <span class="bold"><strong>Nabídka</strong></span> je jen zp&#367;sob, jak ovládat
+  <span class="application">MPlayer</span> polo&#382;kami menu. Vy&#382;adovány jsou dva
+  obrázky: jeden z nich jako menu v normálním stavu a druhý se zvýrazn&#283;nými
+  polo&#382;kami. Kdy&#382; pak vyvoláte menu, je zobrazen první obrázek. P&#345;i pohybu my&#353;í
+  p&#345;es polo&#382;ky, je zkopírována aktuáln&#283; vybraná polo&#382;ka z druhého obrázku p&#345;es
+  ten první pod kursorem (druhý obrázek není nikdy zobrazen celý).
+</p><p>
+  Polo&#382;ka menu je definována svou pozicí a velikostí v obrázku (detaily viz
+  sekce <a href="skin-file.html#skin-file-menu" title="C.2.3. Nabídka">nabídka</a>).
+</p></li></ul></div><p>
+</p><p>
+  Jednu d&#367;le&#382;itou v&#283;c jsme je&#353;t&#283; nezmínili: Mají-li tla&#269;ítka,
+  potenciometry a polo&#382;ky menu pracovat, musí <span class="application">MPlayer</span>
+  v&#283;d&#283;t, co má ud&#283;lat, pokud je na n&#283; kliknuto. To je zaji&#353;t&#283;no pomocí
+  <a href="skin-gui.html" title="C.4. GUI zprávy">zpráv</a> (událostí). Pro tyto &#269;leny tedy musíte
+  definovat zprávy, které budou p&#345;i kliku generovány.
+</p></div><div class="sect2" lang="cs"><div class="titlepage"><div><div><h3 class="title"><a name="skin-files"></a>C.1.4. Soubory</h3></div></div></div><p>
+Pro výrobu skinu budete pot&#345;ebovat následující:
+</p><div class="itemizedlist"><ul type="disc"><li><p>
+  Konfigura&#269;ní soubor jménem <a href="skin-file.html" title="C.2. Soubor skin">skin</a> &#345;ekne
+  <span class="application">MPlayer</span>u, jak má dát jednotlivé &#269;ásti skinu
+  dohromady a co ud&#283;lat, kliknete-li n&#283;kde v okn&#283;.
+</p></li><li><p>
+  Obrázek pozadí hlavního okna.
+</p></li><li><p>
+  Obrázky polo&#382;ek hlavního okna (v&#269;etn&#283; jednoho nebo více soubor&#367; s popisem
+  fontu pro vykreslování popisek).
+</p></li><li><p>
+  Obrázek pro zobrazení v podokn&#283; (volitelný).
+</p></li><li><p>
+  Dva obrázky pro nabídku (ty jsou pot&#345;eba pouze pokud chcete vytvo&#345;it menu).
+</p></li></ul></div><p>
+  S výjimkou konfigura&#269;ního souboru skinu si m&#367;&#382;ete pojmenovat ostatní soubory
+  jak chcete (s tím, &#382;e va&#353;e soubory s popisem fontu budou mít p&#345;íponu
+  <tt class="filename">.fnt</tt>).
+</p></div></div><div class="navfooter"><hr><table width="100%" summary="Navigation footer"><tr><td width="40%" align="left"><a accesskey="p" href="skin.html">P&#345;edcházející</a> </td><td width="20%" align="center"><a accesskey="u" href="skin.html">Nahoru</a></td><td width="40%" align="right"> <a accesskey="n" href="skin-file.html">Dal&#353;í</a></td></tr><tr><td width="40%" align="left" valign="top">P&#345;íloha C. Formát skin&#367; <span class="application">MPlayer</span>u </td><td width="20%" align="center"><a accesskey="h" href="index.html">Dom&#367;</a></td><td width="40%" align="right" valign="top"> C.2. Soubor skin</td></tr></table></div></body></html>

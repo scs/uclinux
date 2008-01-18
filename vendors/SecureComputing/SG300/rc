@@ -1,0 +1,29 @@
+echo "/etc/rc processing ..."
+mount -t proc proc /proc
+echo 2 >/proc/cpu/alignment
+echo "Starting watchdog ..."
+watchdog /dev/watchdog
+hostname SG300
+echo "Mounting Filesystems ..."
+mount -t sysfs none /sys
+mount -t devpts devpts /dev/pts
+mount -t tmpfs -o size=256k tmpfs /var
+mount -t tmpfs -o size=256k tmpfs /etc/config
+mkdir -m 1777 /var/tmp
+mkdir -m 755 /var/log
+mkdir -m 755 /var/run
+mkdir -m 1777 /var/lock
+mkdir -m 755 /var/empty
+mkdir -m 755 /var/mnt
+echo "Processing Config Filesystem ..."
+flatfsd -r 
+echo "Loading network drivers."
+modprobe ks8695
+echo 1 >/proc/sys/net/ipv4/conf/all/promote_secondaries
+echo "Loading crypto drivers."
+modprobe ocf
+modprobe cryptosoft
+modprobe cryptodev
+modprobe ipsec
+ifconfig lo 127.0.0.1
+echo "/etc/rc complete."

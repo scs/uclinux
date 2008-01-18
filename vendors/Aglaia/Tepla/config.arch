@@ -1,0 +1,20 @@
+.EXPORT_ALL_VARIABLES:
+############################################################################
+#
+# Vendor specific settings
+#
+
+CONSOLE_BAUD_RATE = 115200
+
+############################################################################
+#
+# The makefiles need to know how to do things in different contexts
+# To save some pain we put it all here
+#
+# First settings we always want for all build
+#
+
+# ARCH = kernel,  TARGET_ARCH = uClibc
+
+
+include $(ROOTDIR)/vendors/config/bfin/config.arch

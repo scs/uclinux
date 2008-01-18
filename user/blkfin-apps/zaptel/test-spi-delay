@@ -1,0 +1,73 @@
+#!/bin/awk -f
+
+# This file is for spi message delay test
+# If one want to test SPI delay
+# 1. Enable TEST_SPI_DELAY in wcfxs.c by "#define TEST_SPI_DELAY          1" 
+# 2. Using SPI framework or not in wcfxs.c
+#    Using SPI framework "#define BFIN_SPI_FRAMEWORK    1"
+#    Using non-framework "//#define BFIN_SPI_FRAMEWORK    1"
+# 3. Compile zptel driver and asterisk according http://docs.blackfin.uclinux.org/doku.php?id=enanble_asterisk_for_uclinux
+# 4. Download kernel and run
+# 5. The SPI message delay time are stored in /var/log/messages that resident on STAMP board.
+# 6. rcp /var/log/messages from host machine after asterisk running fro a while
+# 7. run this file to analysis the data. For example:
+#    ./test-spi-delay spi-framework-delay.txt
+#    or
+#    ./test-spi-delay spi-delay.txt
+#
+# By Jerry Zeng @ ADI
+# 2007-01-22
+#
+BEGIN { OFS = "\t" }
+{
+	name = $5
+	if(( name == "SF-DTX" ) || ( name == "SF-DRX" )) { 
+		SPI = "SPI framework delay"
+		Number += 1
+		if (Number == 1){
+			Total = $6
+			Max_delay = $6
+			Min_delay = $6
+		}
+		else{
+			Total += $6
+			if (Max_delay < $6)
+				Max_delay = $6
+			if (Min_delay > $6)
+				Min_delay = $6
+		}
+	}	
+	else if (( name == "SPI-DTX") || ( name == "SPI-DRX" )) {
+		SPI = " SPI no-frame delay"
+		Number += 1
+		if (Number == 1){
+			Total = $6
+			Max_delay = $6
+			Min_delay = $6
+		}
+		else{
+			Total += $6
+			if (Max_delay < $6)
+				Max_delay = $6
+			if (Min_delay > $6)
+				Min_delay = $6
+		}
+	}	
+}
+END{
+	#print "end"
+	Mean = Total / Number
+	CoreClock = 500;
+	Mean = Mean/CoreClock
+	Max_delay = Max_delay/CoreClock
+	Min_delay = Min_delay/CoreClock
+	print ""
+	print "*****",SPI,"*****"
+	print "------------------------------"
+	print "number: ",Number
+	print "Max   : ",Max_delay,"uS"
+	print "Mean  : ",Mean,"uS"
+	print "Min   : ",Min_delay,"uS"
+	print "------------------------------"
+	print ""
+}
