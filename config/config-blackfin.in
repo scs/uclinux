@@ -166,7 +166,6 @@ bool	'horch'			CONFIG_USER_CAN_HORCH
 bool	'mdma kernel module'	CONFIG_USER_MDMA_KO
 endmenu
 
-
 #############################################################################
 
 
@@ -200,3 +199,7 @@ if [ "$CONFIG_USER_NET_AUDIO" = "y" ]; then
 	define_bool CONFIG_LIB_LIBAUDIO y
 fi
 endmenu
+
+#############################################################################
+
+source config-blackfin-lcv.in

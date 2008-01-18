@@ -1,0 +1,33 @@
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+<title>Camera Control</title>
+<base target="main">
+</head>
+
+<body background="images/ADI2.JPG">
+
+<p>
+&nbsp;&nbsp; </p>
+<form method="POST" action="/cgi-bin/fcd.cgi">
+  <p align="left">
+  <input type="submit" value="Capture" name="B1"><input type="submit" value="Capture Raw" name="B4"><input type="submit" value="PRG Register" name="B3"><input type="submit" value="Reset to Default" name="B2"><select size="1" name="D1">
+  <option value="53">AnalogGain(16-64)</option>
+  <option value="28">ADCResolution(2=10bit;3=12-to-10-bit)</option>
+  <option value="175">AEC/AGC Enable(0=none;1=AEC;2=AGC;3=both)</option>
+  <option value="112">NoiseCorrection(20=off;52=on)</option> -->
+  <option value="11">ShutterWidth(1-480)</option>
+  <option value="127">TestPatternEnable(0=off;10240=vert;12288=hor;14336=diag)</option>
+  <option value="12">SoftReset(Set to 1)</option>
+  </select><!--webbot bot="Validation" s-data-type="String" b-allow-letters="TRUE" b-allow-digits="TRUE" b-value-required="TRUE" i-minimum-length="2" i-maximum-length="6" --><input type="text" name="T1" size="7" value="0" maxlength="6"><b>&nbsp;
+  <i><font size="4">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+  Low-Cost Vision Platform: B</font>lack<font size="4">f</font>in</i></b><i> uClinux</i></p>
+  
+</form>
+<p>
+&nbsp;</p>
+
+</body>
+
+</html>
