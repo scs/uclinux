@@ -43,6 +43,7 @@
 #include <string.h>    /* for strcmp()       */
 
 #include "pngtest3.h"
+#include "directfb-internal/gfx/convert.h"
 
 /* the super interface */
 static IDirectFB *dfb;

@@ -193,6 +193,12 @@ if [ "$CONFIG_USER_SDLEXAMPLES" = "y" ]; then
 	define_bool CONFIG_LIB_FREETYPE y
 	define_bool CONFIG_LIB_TSLIB y
 fi
+bool	'DirectFB Examples'	CONFIG_USER_DIRECTFBEXAMPLES
+if [ "$CONFIG_USER_DIRECTFBEXAMPLES" = "y" ] ; then
+	define_bool CONFIG_LIB_DIRECTFB y
+	define_bool CONFIG_LIB_FREETYPE_FORCE y
+	define_bool CONFIG_LIB_LIBJPEG_FORCE y
+fi
 bool	'curl'                  CONFIG_USER_CURL_CURL
 if [ "$CONFIG_USER_CURL_CURL" = "y" ] ; then
 	define_bool CONFIG_LIB_LIBCURL y

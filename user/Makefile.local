@@ -5,3 +5,4 @@ dir_y                                       += blkfin-drvs
 dir_$(CONFIG_USER_BOA_SRC_BOA_NEW)          += boa-new
 dir_$(CONFIG_USER_DAGRAB_DAGRAB)            += dagrab
 dir_$(CONFIG_USER_OPENNTPD)                 += openntpd
+dir_$(CONFIG_USER_DIRECTFBEXAMPLES)         += DirectFB-examples
