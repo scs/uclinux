@@ -1,2 +1,0 @@
-#! /bin/sh
-[ -f $KERNEL_DIR/include/linux/netfilter_ipv4/ipt_connbytes.h -a -f $KERNEL_DIR/include/linux/netfilter_ipv4/ip_conntrack.h ] && echo connbytes
