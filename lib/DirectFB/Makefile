@@ -26,7 +26,7 @@ build-$(VER)/Makefile:
 	rm -rf build-$(VER) ; \
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
-	SDL_CONFIG=$(STAGEDIR)/usr/bin/sdl-config \
+	SDL_CONFIG=$(STAGEDIR)/usr/bin/sdl-config LIBJPEG="" \
 	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
 
 clean:
