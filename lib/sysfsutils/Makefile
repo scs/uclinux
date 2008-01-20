@@ -12,7 +12,7 @@ build-$(VER)/Makefile:
 	../$(VER)/configure $(CONFIGURE_OPTS)
 
 clean:
-	rm -rf build-$(VER)
+	rm -rf build*
 
 romfs:
 	#$(ROMFSINST) build/systool /bin/systool
