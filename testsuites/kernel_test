@@ -244,7 +244,7 @@ if [ $BOARD_CONFIG = "BF561-EZKIT-STD" ] ; then
 
    AUTO_RUN_STATUS[8]="0"; AUTO_RUN_STATUS[21]="0"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0"; AUTO_RUN_STATUS[$(( n + 8 ))]="1"
 
-   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="0"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="0" [17]="0" [18]="0"   [$(( n + 1 ))]="0"  )
+   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="0"  [7]="0" [8]="0"  [9]="0"  [10]="0"   [11]="0"  [12]="0"  [13]="0"  [14]="0"  [15]="0"  [16]="0" [17]="0" [18]="0"   [$(( n + 1 ))]="0" [$(( n + 12 ))]="0" )
 
 fi
 
@@ -931,13 +931,21 @@ do
   make clean > /dev/null 2>&1
 
   cd $UCLINUX_DIST_TESTSUITES/power
-  ./build_power_kernel.exp $BOARD_TYPE >/dev/null  2>&1  
+  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] && [ $BOARD_TYPE == "BF537-STAMP" ]; then
+      ./build_power_iwr_kernel.exp $BOARD_TYPE >/dev/null  2>&1
+  else
+      ./build_power_gpio_kernel.exp $BOARD_TYPE >/dev/null  2>&1  
+  fi
   sleep 30
 
   if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
   then
 	echo "$0:   Error, failed."
-	tail -50 ./build_power_kernel_log
+        if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] && [ $BOARD_TYPE == "BF537-STAMP" ]; then
+            tail -50 ./build_power_iwr_kernel_log
+        else
+            tail -50 ./build_power_gpio_kernel_log
+        fi
   else
         if [ ${AUTO_RUN_STATUS[$(( n + 9 ))]} -eq 1  ] ; then
             ./power_adv7171_test.exp >/dev/null  2>&1
