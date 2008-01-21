@@ -20,10 +20,11 @@ mkdir /app
 mount -t jffs2 /dev/mtdblock3 /app
 
 # Redirect the kernel log to the persistent application flash
-echo "Shuffling kernel logs..."
-mv /app/log /app/log.last
-touch /app/log
-ln -s /app/log /var/log/messages
+#syslogd -n -b 1 -s 32 -O /app/log
+#echo "Shuffling kernel logs..."
+#mv /app/log /app/log.last
+#touch /app/log
+#ln -s /app/log /var/log/messages
 
 # Configure network interface
 #dhcpcd &

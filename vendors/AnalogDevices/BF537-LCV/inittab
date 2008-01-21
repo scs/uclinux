@@ -8,3 +8,6 @@
 #sh:console:respawn:/bin/sh
 #console::askfirst:-/bin/sh
 
+# Logging
+slog:unknown:/sbin/syslogd -n -b 1 -s 32 -O /app/log
+klog:unknown:/sbin/klogd -n
