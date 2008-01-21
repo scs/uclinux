@@ -111,7 +111,6 @@ dir_$(CONFIG_USER_ELVISTINY_VI)             += elvis-tiny
 dir_$(CONFIG_USER_ETHATTACH_ETHATTACH)      += ethattach
 dir_$(CONFIG_USER_ETHERWAKE)				+= etherwake
 dir_$(CONFIG_USER_ETHTOOL_ETHTOOL)          += ethtool
-dir_$(CONFIG_USER_EXPAT_EXAMPLES)           += expat-examples
 dir_$(CONFIG_USER_EZIPUPDATE_EZIPUPDATE)    += ez-ipupdate
 dir_$(CONFIG_USER_FAKEIDENTD_IDENTD)        += fakeidentd
 dir_$(CONFIG_USER_FCONFIG_FCONFIG)          += fconfig
