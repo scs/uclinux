@@ -14,16 +14,27 @@ if [ -e /bin/mdev ] ; then
 fi
 mkdir /var/tmp /var/log /var/run /var/lock
 
+# Mount the application flash to /app
+echo "Mounting Application Flash..."
 mkdir /app
 mount -t jffs2 /dev/mtdblock3 /app
 
+# Redirect the kernel log to the persistent application flash
+echo "Shuffling kernel logs..."
+mv /app/log /app/log.last
+touch /app/log
+ln -s /app/log /var/log/messages
+
+# Configure network interface
 #dhcpcd &
 ifconfig eth0 192.168.0.10 up
 #ifconfig eth0 10.100.4.251 up
 ifconfig lo 127.0.0.1
 inetd &
+
 #cat /etc/issue
 cat /etc/motd
 
 #start webserver
+echo "Starting Webserver"
 boa -f /etc/boa.conf&
