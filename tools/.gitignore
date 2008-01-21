@@ -8,4 +8,5 @@ bfin-uclinux-g++
 bfin-uclinux-gcc
 bfin-uclinux-ld
 cksum
+bfin-linux-uclibc-pkg-config
 

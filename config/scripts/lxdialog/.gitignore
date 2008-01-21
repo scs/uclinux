@@ -1,0 +1,3 @@
+# Ignore temporary file not cleaned up by make clean
+lxdialog
+*.o

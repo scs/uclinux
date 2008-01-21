@@ -49,6 +49,7 @@ romfs::
 	$(ROMFSINST) /etc/tux-wink.gif
 	$(ROMFSINST) /etc/tuxsit_small.gif
 	$(ROMFSINST) /etc/modprobe.conf
+	$(ROMFSINST) -s /var/log/messages /app/log
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
 
 BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | awk '/.bss/ {print "0x"$$4}')

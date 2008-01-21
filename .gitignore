@@ -1,0 +1,4 @@
+# Ignore temporary file not cleaned up by make clean
+.config
+.oldconfig
+config.arch
