@@ -19,7 +19,7 @@ set limit_ratio 10
 set case_num 0
 incr case_num
                        
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "cat /proc/meminfo\r"
 while 1 {
 expect {
@@ -37,11 +37,11 @@ timeout {
 }
 
 incr case_num
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "echo $limit_ratio > /proc/sys/vm/pagecache_ratio\r"
 while 1 {
 expect {
-       "root:~>" {
+        -re $kernel_prompt {
         case_pass $case_num
         break
 }

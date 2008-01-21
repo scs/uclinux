@@ -170,7 +170,7 @@ proc recover {} {
                return 0
             }
 
-            "root:~>" {	    
+             -re $kernel_prompt {	    
                 return 0
             }
 
@@ -204,7 +204,7 @@ proc recover {} {
                break
             }
 	    
-	     "root:~>" {
+	      -re $kernel_prompt {
                set state_variable 2
 	       send "\r"
                break
@@ -260,11 +260,11 @@ proc recover {} {
 	 catch {exec rcp /home/test/ltp-cvs/ltp/testcases/bin/sig_rev root@10.100.4.50:/bin}
         
 	send "export PATH=\$PATH:/bin\r"
-	expect "root:~>"
+	expect  -re $kernel_prompt
 	send "export TMP=/tmp\r"
-	expect "root:~>"
+	expect  -re $kernel_prompt
 	send "echo \$PATH\r"
-	expect "root:~>"
+	expect  -re $kernel_prompt
 #	sleep 5
          send -s "chmod 777 /tmp\r"
          set timeout 14
@@ -677,7 +677,7 @@ proc run_LTP_test { filename command mode} {
          }
 
          # Some testcases leave the current directory in root
-         "root:~> " {
+          -re $kernel_prompt {
 #	 report "qqqqqqqqqqqqqqqqwwwwwwwwww88"
             report "---done"
             sleep .5
@@ -2000,7 +2000,7 @@ for {set i 0} {$i < 50} {incr i} {
             break
          }
 	 
-	  "root:~> " {
+	   -re $kernel_prompt {
             report "successful boot attempt"
             incr successful_boots
             break
@@ -2091,11 +2091,11 @@ catch {exec rcp $TESTCASES_DIR/creat_slink root@10.100.4.50:/bin}
 catch {exec rcp $TESTCASES_DIR/sig_rev root@10.100.4.50:/bin}
 
 send "export PATH=\$PATH:/bin\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 send "export TMP=/tmp\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 send "echo \$PATH\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "chmod 777 /tmp\r"
 
 set timeout 4

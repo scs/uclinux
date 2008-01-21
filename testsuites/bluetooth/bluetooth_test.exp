@@ -22,7 +22,7 @@ set case_num		0
 sleep 2
 incr case_num
 send "hciconfig hci0 up\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 puts "\r############### EXEC: hciconfig... ###############\r"
 sleep 2

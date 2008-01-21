@@ -23,7 +23,7 @@ proc standby_test_case1 {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\)\r\nRestarting tasks \.\.\. done\.\r\nroot:~>" {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\)\r\nRestarting tasks \.\.\. done\.\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -54,7 +54,7 @@ proc standby_test_case1 {} {
     send -s "\3"
     while 1 {
         expect {
-            -re "root:~>" {
+            -re  -re $kernel_prompt {
                 case_pass $case_num
                 break
             }
@@ -73,7 +73,7 @@ proc standby_test_case2 {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\)\r\nRestarting tasks \.\.\. done\.\r\nroot:~>" {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\)\r\nRestarting tasks \.\.\. done\.\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -100,7 +100,7 @@ while 1 {
         -re "Call Trace" {
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -147,7 +147,7 @@ incr case_num
 send -s "\3"
 while 1 {
     expect {
-        "root:~>" {
+         -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -197,7 +197,7 @@ incr case_num
 send "tone &\n"
 while 1 {
     expect {
-        -re "\[0-9]+\r\nroot:~>" {
+        -re "\[0-9]+\r\n$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -222,7 +222,7 @@ while 1 {
         -re "kill:.*>|Usage:.*>" {
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -240,7 +240,7 @@ while 1 {
         -re "rmmod:.*>" {
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }

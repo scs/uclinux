@@ -65,9 +65,9 @@ incr case_num
 set timeout 8
 
 send "ls /etc/pound/mycert.pem\r"
-expect   "root:~>"
+expect    -re $kernel_prompt
 send "ls /usr/local/etc/pound.cfg\r"
-expect   "root:~>"
+expect    -re $kernel_prompt
 
 set flag 0
 send "ifconfig eth0 $targetip\r" 
@@ -88,7 +88,7 @@ while 1 {
 }
 
 #send "flthdr -s 32000 /bin/boa\r"
-#expect   "root:~>"
+#expect    -re $kernel_prompt
 #send "flthdr -p /bin/boa\r"
 #while 1 {
 #  sleep 3
@@ -128,7 +128,7 @@ send  "pound &\r"
 set timeout 10
 while 1 {
    expect {
-      "root:~>" {         
+       -re $kernel_prompt {         
          break
       }
 

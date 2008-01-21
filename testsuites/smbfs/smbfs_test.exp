@@ -48,13 +48,13 @@ while 1 {
          }
      }
 }
-expect "root:~>"
+expect  -re $kernel_prompt
 incr case_num
 
 send -s "smbmount //$serverip/users /mnt rw -o username=$name,password=$name \r" 
 while 1 {
    expect  {
-       "root:~>"
+        -re $kernel_prompt
          break
       }
 
@@ -68,7 +68,7 @@ incr case_num
 send -s "cp /bin/version /mnt/$name\r"
 while 1 {
    expect {
-       "root:~>" {
+        -re $kernel_prompt {
                 case_pass $case_num
          break
       }
@@ -100,7 +100,7 @@ while 1 {
 
 incr case_num
 
-expect "root:~>"
+expect  -re $kernel_prompt
 set timeout 3
 send -s "rm -f /mnt/$name/version\r"
 while 1 {

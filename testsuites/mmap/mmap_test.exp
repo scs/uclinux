@@ -26,7 +26,7 @@ set timeout 10
 send "ifconfig eth0 $targetip up;ifconfig eth0\r"
 while 1 {
     expect {
-        -re "inet addr.*$targetip.*root:~>" {
+        -re "inet addr.*$targetip.*$kernel_prompt" {
             case_pass $case_num
             break
         }

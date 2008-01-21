@@ -176,7 +176,7 @@ proc recover {} {
                return 0
             }
 
-            "root:~>" {	    
+             -re $kernel_prompt {	    
                 return 0
             }
 
@@ -210,7 +210,7 @@ proc recover {} {
                break
             }
 	    
-	     "root:~>" {
+	      -re $kernel_prompt {
                set state_variable 2
 	       send "\r"
                break
@@ -371,7 +371,7 @@ proc force_reboot {} {
                     break
                 }
 
-                "root:~>" {
+                 -re $kernel_prompt {
                     set state_variable 2
                     send "\r"
                     break
@@ -952,13 +952,13 @@ proc run_LTP_test { filename command torun mode} {
          }
 
          # seperate test case fcntl14 from the test cases that have been done
-         -re "BusyBox.*Built-in shell.*Enter \'help\'.*root:~> " {
+         -re "BusyBox.*Built-in shell.*Enter \'help\'.*$kernel_prompt " {
             report "---continue"
             continue
          }
 
          # Some testcases leave the current directory in root
-         "root:~> " {
+          -re $kernel_prompt {
             report "---done"
             sleep .5
             break
@@ -2267,7 +2267,7 @@ for {set i 0} {$i < 50} {incr i} {
             break
          }
 	 
-	  "root:~> " {
+	   -re $kernel_prompt {
             report "successful boot attempt"
             incr successful_boots
             break
@@ -2353,7 +2353,7 @@ test_cleanup
 sleep 2
 set timeout 2
 send -s "ifconfig eth0 $ipaddr up\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 #sleep 5
  
 step "additional setup for tests"

@@ -24,7 +24,7 @@ set flag 0
 if { $board_type == "BF537-STAMP" } {
 
                         
-			expect "root:~>"
+			expect  -re $kernel_prompt
 			send -s "modprobe bfin_mac\r"
 			while 1 {
 			expect {
@@ -43,7 +43,7 @@ if { $board_type == "BF537-STAMP" } {
 			
 			incr case_num
 			
-			expect "root:~>"
+			expect  -re $kernel_prompt
 			send -s "lsmod\r"
 			while 1 {
 			expect {
@@ -62,7 +62,7 @@ if { $board_type == "BF537-STAMP" } {
 
 
 } elseif { $board_type == "BF533-STAMP" } {
-                       	expect "root:~>"
+                       	expect  -re $kernel_prompt
 						
 			send -s "modprobe smc91x\r"
 			while 1 {
@@ -82,7 +82,7 @@ if { $board_type == "BF537-STAMP" } {
 			
 			incr case_num
 			
-			expect "root:~>"
+			expect  -re $kernel_prompt
 			send -s "lsmod\r"
 			while 1 {
 			expect {
@@ -102,7 +102,7 @@ if { $board_type == "BF537-STAMP" } {
 
 incr case_num
 
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "ifconfig eth0 $targetip\r" 
 while 1 {
    sleep 3
@@ -135,7 +135,7 @@ while 1 {
 
 incr case_num
 
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "ping $serverip\r" 
 while 1 {
    expect {
@@ -155,7 +155,7 @@ while 1 {
 
 incr case_num
 
-expect "root:~>"
+expect  -re $kernel_prompt
 set timeout 50
 
 if { $board_type == "BF537-STAMP" } {
@@ -163,7 +163,7 @@ if { $board_type == "BF537-STAMP" } {
 	send -s  "rmmod bfin_mac\r"
 	while 1 {
 	expect {
-	"root:~>" {
+	 -re $kernel_prompt {
                 case_pass $case_num
 		break
 	}
@@ -180,7 +180,7 @@ if { $board_type == "BF537-STAMP" } {
 	send -s  "rmmod smc91x\r" 
 	while 1 {
 	expect {
-	"root:~>" {    
+	 -re $kernel_prompt {    
                 case_pass $case_num
 		break
 	}
@@ -206,7 +206,7 @@ while 1 {
 	exit
          }
 	 
-      "root:~>" {
+       -re $kernel_prompt {
                 case_pass $case_num
          break
       }
@@ -228,7 +228,7 @@ while 1 {
 	exit
          }
 	 
-      "root:~>" {
+       -re $kernel_prompt {
                 case_pass $case_num
          break
       }

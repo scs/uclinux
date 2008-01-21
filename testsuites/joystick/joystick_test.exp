@@ -18,7 +18,7 @@ set case_num 0
 
 incr case_num
                        
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "modprobe ad7142\r"
 while 1 {
 expect {
@@ -38,7 +38,7 @@ timeout {
 
 incr case_num
 
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "lsmod\r"
 while 1 {
 expect {

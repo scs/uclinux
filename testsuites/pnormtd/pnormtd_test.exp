@@ -51,7 +51,7 @@ while 1 {
                 case_pass $case_num
 	}
 
-	 "root:~>" {
+	  -re $kernel_prompt {
                 break
         }
 
@@ -77,7 +77,7 @@ send -s "eraseall /dev/mtd$pnor_rootfs_num\r"
 while 1 {
     expect {
 	
-	"root:~>" {
+	 -re $kernel_prompt {
 		set mtd_temp_result $TEST_PASS
                 case_pass $case_num
 		break
@@ -102,7 +102,7 @@ send -s "mkdir -p rootfs\r"
 expect ">"
 send_log " \n2)create test file\n"
 send -s "echo This is test for mtd driver > rootfs/test\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 send_log " \n3)create JFFS2 image\n"
 send -s "mkfs.jffs2 -r rootfs -o mtd.img\r"
 expect ">"
@@ -116,7 +116,7 @@ send -s "cp mtd.img /dev/mtd$pnor_rootfs_num\r"
 while 1 {
     expect {
 	
-	"root:~>" {
+	 -re $kernel_prompt {
 		set mtd_temp_result $TEST_PASS
                 case_pass $case_num
 		break
@@ -142,7 +142,7 @@ send -s "mount -t jffs2 /dev/mtdblock$pnor_rootfs_num /mnt\n"
 while 1 {
     expect {
                                                                                                                                                              
-        "root:~>" {
+         -re $kernel_prompt {
                 set mtd_temp_result $TEST_PASS
                 case_pass $case_num
 		break

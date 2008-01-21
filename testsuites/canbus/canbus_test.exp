@@ -15,7 +15,7 @@ step "Starting test."
 set timeout 8
 set flag 0
 
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "modprobe can\r" 
 while 1 {
    expect {
@@ -31,7 +31,7 @@ while 1 {
          }
      }
 }
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "lsmod\r" 
 while 1 {
    expect {
@@ -48,12 +48,12 @@ while 1 {
      }
 }
 
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "can_send 10 01 02 03 04 05 06 07 08\r" 
 while 1 {
    sleep 3
    expect {
-      "root:~>" { 
+       -re $kernel_prompt { 
          incr flag
          break
       }
@@ -64,12 +64,12 @@ while 1 {
      }
 }
 
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "can_send 10 01 02 03 04 05 06 07 08\r" 
 while 1 {
    sleep 3
    expect {
-      "root:~>" { 
+       -re $kernel_prompt { 
         incr flag
          break
       }
@@ -96,7 +96,7 @@ while 1 {
 }
 
 #send -s "lsmod\r" 
-expect "root:~>"
+expect  -re $kernel_prompt
 
 send -s "lsmod\r"
 

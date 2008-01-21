@@ -68,7 +68,7 @@ set timeout 2
 send "iwconfig eth1 essid linksys-uclinux key 1234567890\r"
 while 1 {
    expect {
-      "root:~>" {
+       -re $kernel_prompt {
          send_user "\nSet key done\n"
          case_pass $case_num
          break
@@ -132,7 +132,7 @@ set timeout 10
 #send "ifconfig eth1 192.168.1.2\r"
 #while 1 {
 #   expect {
-#      -re "root:~>" {
+#      -re  -re $kernel_prompt {
 #         send_log "\nSet IP address done\n"
 #         case_pass $case_num
 #         break

@@ -72,7 +72,7 @@ if { $build_opt == 1 } {
     send "cd /lib; ln -fs libkonqe.so.0.0.0 libkonqe.so.0; ln -fs libkonqe.so.0.0.0 libkonqe.so; cd /\r"
     while 1 {
         expect {
-            -re "..root:~>" {
+            -re "..$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -89,12 +89,12 @@ set timeout 30
 send "dmesg|grep \"USB Mouse\"\r"
 while 1 {
     expect {
-        -re "\[0-9a-zA-Z]..root:~>" {
+        -re "\[0-9a-zA-Z]..$kernel_prompt" {
             send_user "USB Mouse is found\n"
             case_pass $case_num
             break
         }
-        -re "..root:~>" {
+        -re "..$kernel_prompt" {
             send_user "USB Mouse is not found\n"
             case_fail $case_num
         }
@@ -128,7 +128,7 @@ while 1 {
 }
 
 send "export QTDIR=/usr/local/qt-embedded/;export KDEDIR=/kde\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 incr case_num
 set timeout 30
@@ -143,7 +143,7 @@ while 1 {
             case_pass $case_num
             break
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_fail $case_num
         }
         timeout {
@@ -171,7 +171,7 @@ send "dhcpcd &\r"
 set timeout 10
 while 1 {
     expect {
-        -re "\[0-9]..root:~>" {
+        -re "\[0-9]..$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -203,7 +203,7 @@ send "./konqueror -qws http://www.kde.org &\r"
 set timeout 10
 while 1 {
     expect {
-        -re "\[1-9]..root:~>" {
+        -re "\[1-9]..$kernel_prompt" {
             send_user "Use mouse to explore konqueror\r"
             case_pass $case_num
             break

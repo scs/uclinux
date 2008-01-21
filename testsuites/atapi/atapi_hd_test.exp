@@ -96,7 +96,7 @@ while 1 {
             send "1\r"
             expect -re "Command.*"
             send "w\r"
-            expect "root:~>"
+            expect  -re $kernel_prompt
             send_user "sda1 is deleted\n"
             break
         }
@@ -120,7 +120,7 @@ while 1 {
             send "2\r"
             expect -re "Command.*"
             send "w\r"
-            expect "root:~>"
+            expect  -re $kernel_prompt
             send_user "sda1 is deleted\n"
             break
         }
@@ -161,18 +161,18 @@ expect -re "Last cylinder.*"
 send "$NUM_CYLINDER_EXT2\r"
 expect -re "Command.*"
 send "w\r"
-expect -re "root:~>"
+expect -re  -re $kernel_prompt
 
 set timeout 300
 incr case_num
 send "mkdosfs /dev/sda1\r"
 while 1 {
     expect {
-        -re "Hardware Trace.*root:~>" {
+        -re "Hardware Trace.*$kernel_prompt" {
             send_user "mkdosfs sda1 crash, test fail\n"
             case_fail $case_num
         }
-        -re "mkdosfs.*\\\)..root:~>" {
+        -re "mkdosfs.*\\\)..$kernel_prompt" {
             send_user "mke2fs sda1 done, test pass\n"
             case_pass $case_num
             break
@@ -189,7 +189,7 @@ incr case_num
 send "mke2fs /dev/sda2\r"
 while 1 {
     expect {
-        -re "Hardware Trace.*root:~>" {
+        -re "Hardware Trace.*$kernel_prompt" {
             send_user "mke2fs sda2 crash, test fail\n"
             case_fail $case_num
         }
@@ -214,7 +214,7 @@ while 1 {
             send_user "mount sda1 failed, test fail\n"
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             send_user "mount sda1 done, test pass\n"
             case_pass $case_num
             break
@@ -235,7 +235,7 @@ while 1 {
             send_user "mount sda2 failed, test fail\n"
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             send_user "mount sda2 done, test pass\n"
             case_pass $case_num
             break
@@ -250,7 +250,7 @@ while 1 {
 set timeout 5
 incr case_num
 send "cp /bin/busybox /mnt/hd1/abc\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 send "ls /mnt/hd1\r"
 while 1 {
     expect {
@@ -269,7 +269,7 @@ while 1 {
 set timeout 5
 incr case_num
 send "rm /mnt/hd1/abc\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 send "ls /mnt/hd1\r"
 while 1 {
     expect {
@@ -277,7 +277,7 @@ while 1 {
             send_user "Delete in HD fail, test fail\n"
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             send_user "Delete in HD done, test pass\n"
             case_pass $case_num
             break
@@ -332,7 +332,7 @@ while 1 {
             send_user "umount sda1 failed, test fail\n"
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             send_user "umount sda1 done, test pass\n"
             case_pass $case_num
             break
@@ -353,7 +353,7 @@ while 1 {
             send_user "umount sda2 failed, test fail\n"
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             send_user "umount sda2 done, test pass\n"
             case_pass $case_num
             break

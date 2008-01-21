@@ -23,7 +23,7 @@ proc standby_test_case1 {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\nroot:~>" {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -38,7 +38,7 @@ proc standby_test_case1 {} {
     send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
     while 1 {
         expect {
-            -re "Stereo \.\.\.\r\nroot:~>" {
+            -re "Stereo \.\.\.\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -53,7 +53,7 @@ proc standby_test_case1 {} {
     send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
     while 1 {
         expect {
-            -re "Stereo\r\nroot:~>" {
+            -re "Stereo\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -72,7 +72,7 @@ proc standby_test_case2 {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\nroot:~>" {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -127,7 +127,7 @@ set timeout 10
 send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
 while 1 {
     expect {
-        "Stereo \.\.\.\r\nroot:~>" {
+        "Stereo \.\.\.\r\n$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -142,7 +142,7 @@ set timeout 10
 send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
 while 1 {
     expect {
-        "Stereo\r\nroot:~>" {
+        "Stereo\r\n$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -192,7 +192,7 @@ incr case_num
 send "tone &\n"
 while 1 {
     expect {
-        -re "\[0-9]+\r\nroot:~>" {
+        -re "\[0-9]+\r\n$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -217,7 +217,7 @@ while 1 {
         -re "kill:.*>|Usage:.*>" {
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -235,7 +235,7 @@ while 1 {
         -re "rmmod:.*>" {
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }

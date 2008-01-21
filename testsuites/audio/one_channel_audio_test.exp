@@ -32,7 +32,7 @@ proc alsa_rec_play {format channel rate file_type} {
     set timeout 10
     send -s "arecord -t $file_type -c $channel_num -f $format -r $rate -d 5 $file_type\n"
     expect {
-        "$channel\r\nroot:~>" {}
+        "$channel\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
@@ -40,7 +40,7 @@ proc alsa_rec_play {format channel rate file_type} {
 
     send -s "aplay $file_type\n"
     expect {
-        "$channel\r\nroot:~>" {
+        "$channel\r\n$kernel_prompt" {
             case_pass $case_num
         }
         timeout {
@@ -62,7 +62,7 @@ proc alsa_rec2play {format channel rate file_type} {
     set timeout 10
     send -s "arecord -t $file_type -c $channel_num -f $format -r $rate -d 5 |aplay\n"
     expect {
-        "$channel\r\nroot:~>" {
+        "$channel\r\n$kernel_prompt" {
             case_pass $case_num
         }
         timeout {
@@ -84,7 +84,7 @@ proc oss_rec_play {format channel rate file_type} {
     set timeout 10
     send -s "vrec -w $channel_type -b $format -s $rate -t 5 $file_type\n"
     expect {
-        "$channel \.\.\.\r\nroot:~>" {}
+        "$channel \.\.\.\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
@@ -92,7 +92,7 @@ proc oss_rec_play {format channel rate file_type} {
 
     send -s "vplay $file_type\n"
     expect {
-        "$channel \.\.\.\r\nroot:~>" {
+        "$channel \.\.\.\r\n$kernel_prompt" {
             case_pass $case_num
         }
         timeout {
@@ -114,7 +114,7 @@ proc oss_rec2play {format channel rate file_type} {
     set timeout 10
     send -s "vrec -w $channel_type -b $format -s $rate -t 5 |vplay\n"
     expect {
-        "$channel \.\.\.\r\nroot:~>" {
+        "$channel \.\.\.\r\n$kernel_prompt" {
             case_pass $case_num
         }
         timeout {
@@ -179,7 +179,7 @@ while 1 {
     set timeout 15
     send -s "arecord -t wav -c 2 -f S16_LE -r 11000 -d 10 aaa\n"
     expect {
-        "Stereo\r\nroot:~>" {}
+        "Stereo\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
@@ -202,7 +202,7 @@ while 1 {
 
     send -s "arecord -t wav -c 2 -f S16_LE -r 11000 -d 5 bbb\n"
     expect {
-        "Stereo\r\nroot:~>" {}
+        "Stereo\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
@@ -259,7 +259,7 @@ while 1 {
     set timeout 15
     send -s "vrec -w -b 16 -s 11000 -t 8 aaa\n"
     expect {
-        "\.\.\r\nroot:~>" {}
+        "\.\.\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
@@ -282,7 +282,7 @@ while 1 {
 
     send -s "vrec -w -b 16 -s 11000 -t 4 bbb\n"
     expect {
-        "\.\.\r\nroot:~>" {}
+        "\.\.\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }

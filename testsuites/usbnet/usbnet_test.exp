@@ -36,7 +36,7 @@ set timeout 5
 send "dmesg|grep net2272\r"
 while 1 {
     expect {
-        -re "usb0.*root:~>" {
+        -re "usb0.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -51,7 +51,7 @@ set timeout 5
 send "ifconfig -a\r"
 while 1 {
     expect {
-        -re "usb0.*root:~>" {
+        -re "usb0.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -66,7 +66,7 @@ set timeout 5
 send "ifconfig usb0 $boardip\r"
 while 1 {
     expect {
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -177,7 +177,7 @@ set timeout 20
 send "ping $hostip -c $count\r"
 while 1 {
     expect {
-        -re "$count packets transmitted, $count packets received, 0% packet loss.*root:~>" {
+        -re "$count packets transmitted, $count packets received, 0% packet loss.*$kernel_prompt" {
             send_user "Ping from board to host pc pass!\r"
             case_pass $case_num
             break

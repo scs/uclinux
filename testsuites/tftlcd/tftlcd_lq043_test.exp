@@ -73,7 +73,7 @@ incr case_num
 send -s "\3"
 while 1 {
     expect {
-        "root:~>" {
+         -re $kernel_prompt {
             case_pass $case_num
             break
         }

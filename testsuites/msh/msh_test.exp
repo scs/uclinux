@@ -21,7 +21,7 @@ send "ifconfig eth0 $targetip\r"
 while 1 {
    sleep 3
    expect {
-      "root:~>" {
+       -re $kernel_prompt {
          puts "ifconfig set success.\n"
          break
       }
@@ -42,7 +42,7 @@ spawn rcp ./msh_testcase root@$targetip:/
 set spawn_id $kermit_spawn_id
 
 send -s "chmod +x /msh_testcase\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 incr case_num
 send -s "./msh_testcase\r"
 while 1 {

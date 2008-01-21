@@ -29,7 +29,7 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --init\r"
 while 1 {
    expect {
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "\nInit ok\n"
          case_pass $case_num
          break
@@ -47,7 +47,7 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --start-daemon &\r"
 while 1 {
    expect {
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_log "\nStart daemon ok\n"
          case_pass $case_num
          break
@@ -65,7 +65,7 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --start\r"
 while 1 {
    expect {
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_log "\nStart ok\n"
          case_pass $case_num
          break
@@ -83,7 +83,7 @@ set timeout 2
 send "/usr/bin/bfin_opcontrol --dump\r"
 while 1 {
    expect {
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_log "\n--dump ok\n"
          case_pass $case_num
          break

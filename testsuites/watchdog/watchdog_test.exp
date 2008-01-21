@@ -79,7 +79,7 @@ send -s  "kill -9 $process_id\r"
 while 1 {    
          expect {
 	 "Hit any key" {
-	        expect "root:~>"
+	        expect  -re $kernel_prompt
                 case_pass $case_num
 		break
          }

@@ -50,12 +50,12 @@ expect ">"
 #send "dmesg|grep \"USB Mouse\"\r"
 #while 1 {
 #    expect {
-#        -re "\[0-9a-zA-Z]..root:~>" {
+#        -re "\[0-9a-zA-Z]..$kernel_prompt" {
 #            send_user "USB Mouse is found\n"
 #            case_pass $case_num
 #            break
 #        }
-#        -re "..root:~>" {
+#        -re "..$kernel_prompt" {
 #            send_user "USB Mouse is not found\n"
 #            case_fail $case_num
 #        }
@@ -89,7 +89,7 @@ while 1 {
 }
 
 send "export QTDIR=/usr/local/qt-embedded/\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 incr case_num
 set timeout 30
@@ -104,7 +104,7 @@ while 1 {
             case_pass $case_num
             break
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_fail $case_num
         }
         timeout {

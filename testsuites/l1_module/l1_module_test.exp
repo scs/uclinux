@@ -66,7 +66,7 @@ set spawn_id $kermit_spawn_id
 
 sleep 3
 send "\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 send "ifconfig eth0 $targetip up\r"
 while 1 {
@@ -147,11 +147,11 @@ while 1 {
 
 incr case_num
 
-expect "root:~>"
+expect  -re $kernel_prompt
 send "rmmod hello\r" 
 
 set timeout 5
-expect "root:~>"
+expect  -re $kernel_prompt
 send "lsmod\r" 
 while 1 {
    expect {

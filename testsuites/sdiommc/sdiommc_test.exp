@@ -29,7 +29,7 @@ sleep 2
 send "mkdir /mnt/mmc\r"
 send "mkdir /mnt/mmc1\r"
 send "mkdir /mnt/mmc2\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 incr case_num
 set timeout 10
@@ -61,7 +61,7 @@ while 1 {
          send_user "mount DOS FS fail, test fail\n"
          case_fail $case_num
       }
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "mount dos fs done, test pass\n"
          case_pass $case_num
          break
@@ -113,7 +113,7 @@ while 1 {
          send_user "umount DOS FS fail, test fail\n"
          case_fail $case_num
       }
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "umount DOS FS done, test pass\n"
          case_pass $case_num
          break
@@ -150,7 +150,7 @@ expect -re "Last cylinder.*"
 send "\r"
 expect -re "Command.*"
 send "w\r"
-expect -re "root:~>"
+expect -re  -re $kernel_prompt
 
 set timeout 10
 send "fdisk /dev/mmcblk0\r"
@@ -162,7 +162,7 @@ expect -re "Hex code.*:"
 send "6\r"
 expect -re "Changed system type.*:"
 send "w\r"
-expect -re "root:~>"
+expect -re  -re $kernel_prompt
 
 step "TEST - Test with the two partitions"
 incr case_num
@@ -191,7 +191,7 @@ while 1 {
          send_user "mount EXT2 FS fail, test fail\n"
          case_fail $case_num
       }
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "mount EXT2 FS done, test pass\n"
          case_pass $case_num
          break
@@ -233,7 +233,7 @@ while 1 {
          send_user "mount DOS FS fail, test fail\n"
          case_fail $case_num
       }
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "mount DOS FS done, test pass\n"
          case_pass $case_num
          break
@@ -284,7 +284,7 @@ while 1 {
          send_user "rm fail, test fail\n"
          case_fail $case_num
       }
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "rm done, test pass\n"
          case_pass $case_num
          break
@@ -305,7 +305,7 @@ while 1 {
          send_user "umount /mnt/mmc1 fail, test fail\n"
          case_fail $case_num
       }
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "umount /mnt/mmc1 done, test pass\n"
          case_pass $case_num
          break
@@ -326,7 +326,7 @@ while 1 {
          send_user "umount /mnt/mmc2 fail, test fail\n"
          case_fail $case_num
       }
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "umount /mnt/mmc2 done, test pass\n"
          case_pass $case_num
          break
@@ -344,11 +344,11 @@ step "TEST - Use MMC/SD as root FS"
 incr case_num
 set timeout 5
 send "mkdir /mnt/rootfs\r"
-expect -re "root:~>"
+expect -re  -re $kernel_prompt
 send "mount -o sync /dev/mmcblk0p1 /mnt/rootfs\r"
-expect -re "root:~>"
+expect -re  -re $kernel_prompt
 send "ifconfig eth0 $targetip up\r"
-expect -re "root:~>"
+expect -re  -re $kernel_prompt
 sleep 5
 exec rcp runcp.sh root@$targetip:/.
 sleep 1
@@ -380,7 +380,7 @@ while 1 {
          send_user "umount /mnt/rootfs fail, test fail\n"
          case_fail $case_num
       }
-      -re "root:~>" {
+      -re  -re $kernel_prompt {
          send_user "umount /mnt/rootfs done, test pass\n"
          case_pass $case_num
          break
@@ -445,7 +445,7 @@ while 1 {
          break
       }
 
-      "root:~> " {
+       -re $kernel_prompt {
          send_user "successful boot attempt"
          case_pass $case_num
          break

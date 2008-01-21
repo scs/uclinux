@@ -23,7 +23,7 @@ proc usb_test {device mnt_point} {
                 send_user "mount $device failed\n"
                 case_fail $case_num
             }
-            -re "root:~>" {
+            -re  -re $kernel_prompt {
                 break
             }
             timeout {
@@ -53,7 +53,7 @@ proc usb_test {device mnt_point} {
     send "echo teststring > $mnt_point/usbhost_testfile; cat $mnt_point/usbhost_testfile\r"
     while 1 {
         expect {
-            -re "teststring\r\nroot:~>" {
+            -re "teststring\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -89,7 +89,7 @@ proc usb_test {device mnt_point} {
                 send_user "Remove file on $mnt_point fail\n"
                 case_fail $case_num
             }
-            -re "root:~>" {
+            -re  -re $kernel_prompt {
                 break
             }
             timeout {
@@ -121,7 +121,7 @@ proc usb_test {device mnt_point} {
                 send_user "umount $mnt_point error\n"
                 case_fail $case_num
             }
-            -re "root:~>" {
+            -re  -re $kernel_prompt {
                 break
             }
             timeout {
@@ -139,7 +139,7 @@ proc usb_test {device mnt_point} {
                 send_user "umount $mnt_point fail"
                 case_fail $case_num
             }
-            -re "root:~>" {
+            -re  -re $kernel_prompt {
                 case_pass $case_num
                 break
             }
@@ -155,7 +155,7 @@ proc usb_test {device mnt_point} {
 step "Start testing"
 sleep 10
 send "mkdir -p /mnt/a; mkdir -p /mnt/b\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 set case_num 0
 incr case_num

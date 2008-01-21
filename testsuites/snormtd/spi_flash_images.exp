@@ -210,7 +210,7 @@ while 1 {
 	set timeout 35
 	expect {
 
-	    "root:~>" {
+	     -re $kernel_prompt {
                 case_pass $case_num
 		send_user "Boot from spi flash success\n"
 		break

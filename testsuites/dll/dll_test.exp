@@ -16,7 +16,7 @@ source ../reboot_kernel.exp
 
 sleep 5
 send "\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 step "Start DLL testing"
 

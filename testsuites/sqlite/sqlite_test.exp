@@ -23,10 +23,10 @@ step "Start Sqlite testing"
 incr case_num
 set timeout 2
 send "sqlite3 wishlist.db < /usr/wishlist.sql\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 send "sqlite3 wishlist.db \".dump\"\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 send "sqlite_test \"foo\"\r"
 

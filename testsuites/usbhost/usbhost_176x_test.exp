@@ -14,7 +14,7 @@ source ../reboot_kernel.exp
 step "Start testing"
 sleep 5
 send "\r"
-expect "root:~>"
+expect  -re $kernel_prompt
 
 set case_num 0
 incr case_num
@@ -45,7 +45,7 @@ while 1 {
             send_user "mount usb flash disk failed\n"
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             send_user "mount usb flash disk\n"
             break
         }
@@ -78,7 +78,7 @@ set timeout 5
 send "echo teststring > /mnt/usbhost_testfile; cat /mnt/usbhost_testfile\r"
 while 1 {
     expect {
-        -re "teststring\r\nroot:~>" {
+        -re "teststring\r\n$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -128,7 +128,7 @@ while 1 {
         -re "rm:.*>" {
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -146,7 +146,7 @@ while 1 {
             case_fail $case_num
             break
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -164,7 +164,7 @@ while 1 {
             send_user "umount error\n"
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             break
         }
         timeout {
@@ -182,7 +182,7 @@ while 1 {
             send_user "umount failed"
             case_fail $case_num
         }
-        -re "root:~>" {
+        -re  -re $kernel_prompt {
             case_pass $case_num
             break
         }

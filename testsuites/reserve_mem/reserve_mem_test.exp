@@ -21,7 +21,7 @@ set MemTotal_LOW  28000
 set case_num 0
 incr case_num
                        
-expect "root:~>"
+expect  -re $kernel_prompt
 send -s "cat /proc/meminfo\r"
 while 1 {
     expect {

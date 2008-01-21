@@ -39,7 +39,7 @@ incr case_num
      
 	while 1 {
   	expect {
-            "root:~>" {
+             -re $kernel_prompt {
 	    send_user "\nEnding boot_kernel_only_uimage.exp \n"  
                 case_pass $case_num
 	    break

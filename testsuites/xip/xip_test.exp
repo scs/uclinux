@@ -121,7 +121,7 @@ while 1 {
             break
         }
 
-        "root:~> " {
+         -re $kernel_prompt {
             puts "successful boot attempt"
             break
         }
