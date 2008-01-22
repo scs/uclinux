@@ -20,12 +20,12 @@ clean:
 
 romfs:
 	for i in df_andi df_bltload df_drivertest df_cpuload df_databuffer df_dok df_fire \
-        	df_flip df_fonts df_input df_joystick df_layer df_matrix df_netload       \
-		df_dioload df_palette df_particle df_porter df_video df_video_particle    \
+		df_flip df_fonts df_input df_joystick df_layer df_matrix df_netload \
+		df_dioload df_palette df_particle df_porter df_video df_video_particle \
 		df_stress df_texture df_window pss; \
 	do \
 		$(ROMFSINST) -d build-DirectFB-examples-1.0.1/src/$$i /usr/bin/$$i; \
-	done;
+	done
 	$(ROMFSINST) -d build-DirectFB-examples-1.0.1/src/df_knuckles/df_knuckles /usr/bin/df_knuckles
 	$(ROMFSINST) -d build-DirectFB-examples-1.0.1/src/spacedream/spacedream /usr/bin/spacedream
 	$(ROMFSINST) -d build-DirectFB-examples-1.0.1/src/df_neo/df_neo /usr/bin/df_neo
