@@ -104,7 +104,7 @@ while 1 {
             case_pass $case_num
             break
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             case_fail $case_num
         }
         timeout {

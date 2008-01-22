@@ -161,7 +161,7 @@ expect -re "Last cylinder.*"
 send "$NUM_CYLINDER_EXT2\r"
 expect -re "Command.*"
 send "w\r"
-expect -re  -re $kernel_prompt
+expect -re $kernel_prompt
 
 set timeout 300
 incr case_num
@@ -214,7 +214,7 @@ while 1 {
             send_user "mount sda1 failed, test fail\n"
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             send_user "mount sda1 done, test pass\n"
             case_pass $case_num
             break
@@ -235,7 +235,7 @@ while 1 {
             send_user "mount sda2 failed, test fail\n"
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             send_user "mount sda2 done, test pass\n"
             case_pass $case_num
             break
@@ -277,7 +277,7 @@ while 1 {
             send_user "Delete in HD fail, test fail\n"
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             send_user "Delete in HD done, test pass\n"
             case_pass $case_num
             break
@@ -332,7 +332,7 @@ while 1 {
             send_user "umount sda1 failed, test fail\n"
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             send_user "umount sda1 done, test pass\n"
             case_pass $case_num
             break
@@ -353,7 +353,7 @@ while 1 {
             send_user "umount sda2 failed, test fail\n"
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             send_user "umount sda2 done, test pass\n"
             case_pass $case_num
             break

@@ -15,7 +15,7 @@ step "Starting test."
 set timeout 8
 set flag 0
 
-expect  -re $kernel_prompt
+#expect  -re $kernel_prompt
 send -s "modprobe can\r" 
 while 1 {
    expect {

@@ -87,7 +87,7 @@ incr case_num
 send "rmmod bfin_adv7393fb\r"
 while 1 {
     expect {
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }

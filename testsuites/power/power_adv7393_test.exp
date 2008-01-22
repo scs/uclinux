@@ -242,7 +242,7 @@ while 1 {
         -re "kill:.*>|Usage:.*>" {
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -260,7 +260,7 @@ while 1 {
         -re "rmmod: bfin_adv7393fb.*>" {
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }

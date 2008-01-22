@@ -45,7 +45,7 @@ while 1 {
             send_user "mount usb flash disk failed\n"
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             send_user "mount usb flash disk\n"
             break
         }
@@ -128,7 +128,7 @@ while 1 {
         -re "rm:.*>" {
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -146,7 +146,7 @@ while 1 {
             case_fail $case_num
             break
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -164,7 +164,7 @@ while 1 {
             send_user "umount error\n"
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             break
         }
         timeout {
@@ -182,7 +182,7 @@ while 1 {
             send_user "umount failed"
             case_fail $case_num
         }
-        -re  -re $kernel_prompt {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
