@@ -3437,7 +3437,7 @@ if test x"$CFLAGS" = x"-g -O2"; then
   CFLAGS=
 fi
 
-CFLAGS="-O3 -pipe $CFLAGS"
+CFLAGS="-pipe $CFLAGS"
 
 if test "x$GCC" = xyes; then
   CFLAGS="-Wall $CFLAGS"
