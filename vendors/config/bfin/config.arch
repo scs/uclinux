@@ -54,7 +54,9 @@ CONFIGURE_OPTS  := \
 	--datadir=/usr/share \
 	--mandir=/usr/share/man \
 	--infodir=/usr/share/info \
-	--localstatedir=/var/lib
+	--localstatedir=/var/lib \
+	--disable-dependency-tracking \
+	--enable-fast-install
 
 # help out autotools a bit and force some tests that would otherwise
 # fail because they rely on RUN tests rather than COMPILE
