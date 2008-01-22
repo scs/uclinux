@@ -78,6 +78,11 @@ proc standby_test_case2 {} {
     send "echo 'standby' > /sys/power/state\r"
     while 1 {
         expect {
+            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Stopping disk.*Starting disk" {
+                #this match is only for BF548-ezkit
+                case_pass $case_num
+                break
+            }
             -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\." {
                 case_pass $case_num
                 break

@@ -17,6 +17,7 @@ source ../reboot_kernel.exp
 
 proc standby_test_case1 {} {
     global case_num
+    global kernel_prompt
 
     set timeout 30
     incr case_num
@@ -66,6 +67,7 @@ proc standby_test_case1 {} {
 
 proc standby_test_case2 {} {
     global case_num
+    global kernel_prompt
 
     set timeout 30
     incr case_num
