@@ -71,7 +71,7 @@ set timeout 60
 while 1 {
    expect {
 
-      -re "~> " {
+      -re "$kernel_prompt " {
          send "\r"
          break
       }
