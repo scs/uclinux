@@ -38,7 +38,7 @@ proc oss_rec2_play2 {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     set timeout 15 
     send -s "vrec -w $channel_type_1 -b $format_1 -s $rate_1 -t 5 wav1; vrec -w $channel_type_2 -b $format_2 -s $rate_2 -t 5 wav2\n"
     expect {
-        -re -re "$channel_1.*$channel_2 \.\.\.\r\n$kernel_prompt" {}
+        -re "$channel_1.*$channel_2 \.\.\.\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
@@ -86,7 +86,7 @@ proc oss_play_rec2play {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     set timeout 10
     send -s "vrec -w $channel_type_1 -b $format_1 -s $rate_1 -t 5 wav1\n"
     expect {
-        -re -re "$channel_1 \.\.\.\r\n$kernel_prompt" {}
+        -re "$channel_1 \.\.\.\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
@@ -134,7 +134,7 @@ proc alsa_rec2_play2 {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     set timeout 15
     send -s "arecord -t wav -c $channel_num_1 -f $format_1 -r $rate_1 -d 5 wav1; arecord -t wav -c $channel_num_2 -f $format_2 -r $rate_2 -d 5 wav2\n"
     expect {
-        -re -re "$channel_1.*$channel_2\r\n$kernel_prompt" {}
+        -re "$channel_1.*$channel_2\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
@@ -182,7 +182,7 @@ proc alsa_play_rec2play {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     set timeout 10
     send -s "arecord -t wav -c $channel_num_1 -f $format_1 -r $rate_1 -d 5 wav1\n"
     expect {
-        -re -re "$channel_1\r\n$kernel_prompt" {}
+        -re "$channel_1\r\n$kernel_prompt" {}
         timeout {
             case_fail $case_num
         }
