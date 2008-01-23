@@ -208,6 +208,7 @@ if [ "$CONFIG_USER_CURL_CURL" = "y" ] ; then
 	define_bool CONFIG_LIB_LIBSSL y
 fi
 bool	'U-Boot Tools'	CONFIG_USER_UBOOT_TOOLS
+bool	'I2C Tools'	CONFIG_USER_I2C_TOOLS
 endmenu
 
 
