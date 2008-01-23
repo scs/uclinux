@@ -230,7 +230,7 @@ static int do_command(const char *path, const char *filename, int dowait)
 		argv[1] = (char *)filename;
 		argv[2] = NULL;
 
-		env[0] = "PATH=/bin:/usr/bin:/etc:/sbin:/usr/sbin";
+		env[0] = "PATH=/bin:/usr/bin:/sbin:/usr/sbin";
 #ifdef INCLUDE_TIMEZONE
 		strcpy(tz, "TZ=");
 		strcat(tz, tzone);
