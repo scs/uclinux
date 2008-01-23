@@ -52,7 +52,7 @@ while 1 {
             send "2\r"
         }
 
-#Video Output. At present ethernet, two LCDs and ADV7393 support standby mode. ADI7171 not supported yet
+#Video Output.
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             send "m\r"
         }

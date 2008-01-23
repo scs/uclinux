@@ -42,10 +42,16 @@ while 1 {
         }
 
         -re "Wakeup Events.*SIC_IWR.*PM_WAKEUP_SIC_IWR.*\\\[.*]" {
-            send "0x8\r"
+            if { $board_type == "BF548-EZKIT" } {
+                send "\r"
+            } elseif { $board_type == "BF537-STAMP" } {
+                send "0x8\r"
+            } else {
+                send "0x80\r"
+            }
         }
 
-#Video Output. At present ethernet, two LCDs and ADV7393 support standby mode. ADI7171 not supported yet
+#Video Output
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             send "m\r"
         }
