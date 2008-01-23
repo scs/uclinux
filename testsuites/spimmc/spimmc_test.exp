@@ -234,6 +234,69 @@ expect -re $kernel_prompt
 
 send_user "Creat 2 partitions done\n"
 
+incr case_num
+set timeout 5
+send "ls /sys/block/spi_mmc\r"
+while 1 { 
+   expect {
+      -re "(spi_mmc1.*spi_mmc2|spi_mmc2.*spi_mmc1).*>" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "ls /dev\r"
+while 1 { 
+   expect {
+      -re "spi_mmc2.*spi_mmc.*spi_mmc1.*>" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
+source ../reboot_kernel.exp
+sleep 5
+
+incr case_num
+set timeout 5
+send "ls /sys/block/spi_mmc\r"
+while 1 { 
+   expect {
+      -re "(spi_mmc1.*spi_mmc2|spi_mmc2.*spi_mmc1).*>" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "ls /dev\r"
+while 1 { 
+   expect {
+      -re "spi_mmc2.*spi_mmc.*spi_mmc1.*>" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
+
 step "TEST - Test with the two partitions"
 incr case_num
 set timeout 90
