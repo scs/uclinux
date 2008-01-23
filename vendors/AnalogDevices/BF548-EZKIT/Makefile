@@ -76,7 +76,7 @@ image::
 	$(STRIP) -g $(IMAGEDIR)/vmlinux
 	set -e ; \
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
-		$(MKFS_JFFS2) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
+		$(MKFS_JFFS2) -l -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
 	fi
 ifeq ($(CONFIG_YAFFS_FS),y)
 	set -e ; \

@@ -65,7 +65,7 @@ image:
 	cp $(ROOTDIR)/$(LINUXDIR)/linux $(IMAGEDIR)/vmlinux
 	$(CROSS_COMPILE)strip -g $(IMAGEDIR)/vmlinux
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
-		$(MKFS_JFFS2) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
+		$(MKFS_JFFS2) -l -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
 	fi
 	set -e ; \
 	if [ -n "$(CONFIG_YAFFS_FS)" ]; then \
