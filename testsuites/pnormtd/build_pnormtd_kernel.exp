@@ -36,9 +36,9 @@ while 1 {
       }
 
           
-          -re "Compiled-in Kernel Boot Parameter.*BOOTPARAM.*\\\[.*]" {
-            
-             send "N\r"
+        -re "Default bootloader kernel arguments.*CMDLINE_BOOL.*\\\[.*]" {
+
+             send -s "N\r"
       }
 
           -re "Initial RAM filesystem and RAM disk.*initramfs/initrd.*support.*BLK_DEV_INITRD.*\\\[.*]" {
@@ -66,50 +66,19 @@ while 1 {
              send  -s "Y\r"
       }
       
-        -re "Detect non-CFI AMD/JEDEC-compatible flash chips.*MTD_JEDECPROBE.*\\\[.*]" {
-             
-             send  -s "Y\r"
+        -re "Detect flash chips by Common Flash Interface \\\(CFI\\\) probe \\\(MTD_CFI\\\).*\\\[.*]" {
+
+                send -s "Y\r"
       }
 
-       -re "Flash chip driver advanced configuration options.*MTD_CFI_ADV_OPTIONS.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP"  || $board_type == "BF533-STAMP" } {
-                       send "Y\r"
-            } else {
-                       send "N\r"
-            }
-      }
 
-         -re "Detect flash chips by Common Flash Interface.*CFI.*probe.*MTD_CFI.*\\\[.*]" {
-            if { $board_type == "BF561-EZKIT" || $board_type == "BF548-EZKIT" } {
+        -re "Support for AMD/Fujitsu flash chips.*MTD_CFI_AMDSTD.*\\\[.*]" {
                        send "Y\r"
-            } else {
-                       send "N\r"
-            }
-      }
-
-         -re "ST MW320D compatible flash chip support.*MTD_MW320D.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-                       send "Y\r"
-            } else {
-                       send "N\r"
-            }
-      }
-
-         -re "Support for AMD/Fujitsu flash chips.*MTD_CFI_AMDSTD.*\\\[.*]" {
-            if { $board_type == "BF561-EZKIT" } {
-                       send "Y\r"
-            } else {
-                       send "N\r"
-            }
       }
 
        -re "Support for Intel/Sharp flash chips.*MTD_CFI_INTELEXT.*\\\[.*]" {
 
-             if { $board_type == "BF548-EZKIT" } {
                 send -s "Y\r"
-             } else {
-                send -s "N\r"
-             }
       }
 
          -re "Support for RAM chips in bus mapping.*MTD_RAM.*\\\[.*]" {
@@ -130,38 +99,35 @@ while 1 {
             }
       }
 
-        -re "Support non-linear mappings of flash chips.*MTD_COMPLEX_MAPPINGS.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP"  || $board_type == "BF533-STAMP" } {
-                       send "Y\r"
-            } else {
-                       send "N\r"
-            }
-      }
-
-        -re "Blackfin BF5xx Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP"  } {
-                       send "Y\r"
-            } else {
-                       send "N\r"
-            }
-      }
 
        -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
 
-             if { $board_type == "BF548-EZKIT" } {
                 send -s "Y\r"
-             } else {
-                send -s "N\r"
-             }
+      }
+
+       -re "Physical start address of flash mapping.*MTD_PHYSMAP_START.*\\\[.*]" {
+
+                send -s "\r"
       }
 
        -re "Physical length of flash mapping.*MTD_PHYSMAP_LEN.*\\\[.*]" {
 
              if { $board_type == "BF548-EZKIT" } {
                 send -s "0x600000\r"
+             } else {
+                send -s "\r"
              }
       }
 
+       -re "Bank width in octets.*MTD_PHYSMAP_BANKWIDTH.*\\\[.*]" {
+
+                send -s "\r"
+      }
+
+      -re "Blackfin BF533-STAMP Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
+
+                send -s "Y\r"
+      }
 
        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
              

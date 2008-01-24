@@ -107,7 +107,7 @@ send -s "ifconfig eth0 $targetip\r"
 while 1 {
    sleep 3
    expect {
-      "$kernel_prompt" { 
+      -re "$kernel_prompt" { 
                 case_pass $case_num
          break
       }
