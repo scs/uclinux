@@ -1,3 +1,5 @@
+VER = libtool-1.5.22
+
 all: build/Makefile
 	$(MAKE) -C build install DESTDIR=$$PWD/DESTDIR
 
@@ -7,7 +9,7 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
-	../configure --host=$(CONFIGURE_HOST) --prefix=/usr
+	../$(VER)/configure --host=$(CONFIGURE_HOST) --prefix=/usr
 
 clean:
 	rm -rf build DESTDIR
