@@ -1,0 +1,280 @@
+#############################################################################
+
+
+menu "Blackfin test programs"
+
+config USER_BLACKFIN_RTC
+	bool "RTC test program"
+config USER_BLACKFIN_DPMC
+	bool "DPMC test program"
+config USER_BLACKFIN_PPIFCDTEST
+	bool "PPIFCD test program"
+config USER_BLACKFIN_AUDIOTEST
+	bool "AUDIO test program"
+config USER_BLACKFIN_VIDEOTEST
+	bool "VIDEO test program"
+config USER_BLACKFIN_PFLAGS
+	bool "PFLAGS test program"
+config USER_BLACKFIN_PFBUTTONS
+	bool "PFBUTTONS test program"
+config USER_BLACKFIN_TWI
+	bool "TWI test program"
+config USER_BLACKFIN_SPITEST
+	bool "SPI test program"
+config USER_BLACKFIN_PPI
+	bool "PPI test program"
+config USER_BLACKFIN_TWILCDTEST
+	bool "TWI LCD test program"
+config USER_BLACKFIN_TWIKEYPADTEST
+	bool "TWI KEYPAD test program"
+config USER_BLACKFIN_RTSCTSTEST
+	bool "RTS/CTS test program"
+config USER_SQLITE_TEST
+	bool "Sqlite test program"
+	select LIB_SQLITE
+config USER_BLACKFIN_PTHREADTEST
+	bool "Pthread lib test"
+config USER_BLACKFIN_PANICTEST
+	bool "Kernel Panic (test Watchdog)"
+config USER_BLACKFIN_TRAPSTEST
+	bool "Trap tests"
+config USER_NETPERF_TEST
+	bool "netperf test tool"
+config USER_SYSVIPC_TEST
+	bool "SYSVIPC testcase"
+config YET
+	bool "Still to write"
+config EVENT_TEST
+	bool "Input event device test"
+config AD9960_TEST
+	bool "AD9960 device test"
+config AD5304_TEST
+	bool "AD5304 device test"
+config FILE_OPERATION_TEST
+	bool "file operation test"
+config USER_BLACKFIN_SPORT
+	bool "common sport test"
+config USER_UPNP_SAMPLES
+	bool "UPNP samples"
+	select LIB_LIBUPNP
+config USER_BLACKFIN_DCPLB
+	bool "DCPLB Replacement Test"
+config USER_BLACKFIN_LATENCYTEST
+	bool "IRQ Schedule latency test"
+config USER_BLACKFIN_MALLOCPERF
+	bool "Malloc performance test"
+config USER_BLACKFIN_SRAMALLOC_TEST
+	bool "sram_alloc/sram_free test"
+config USER_BLACKFIN_ERESTART_TEST
+	bool "erestart test"
+config CAMERA_TEST
+	bool "camera test"
+config STRING_TEST
+	bool "string test"
+config MMAP_TEST
+	bool "mmap test"
+config USER_CRYPTOPP_LIB_EXAMPLES
+	bool "Crypto++ Lib Test program"
+	select LIB_CRYPTOPP
+config USER_MDMA_TESTS
+	bool "MDMA Memory DMA TEST progs"
+	select USER_MDMA_KO
+config USER_NCURSES_TESTS
+	bool "NCurses Test apps"
+	select LIB_NCURSES
+config USER_LIBIPOD_EXAMPLES
+	bool "libipod examples"
+	select LIB_LIBIPOD
+
+endmenu
+
+
+#############################################################################
+
+
+menu "Blackfin app programs"
+
+config USER_LMBENCH
+	bool "lmbench"
+config USER_BLKFIN_APPS_DEVFBAPP_DEVTEST
+	bool "devtest"
+config USER_BLKFIN_APPS_DEVVOUT_DEVOUT
+	bool "devout"
+config USER_INETUTILS_RSH
+	bool "rsh"
+config USER_INETUTILS_RCP
+	bool "rcp"
+config USER_INETUTILS_RSHD
+	bool "rshd"
+config USER_OPROFILE
+	bool "oprofile"
+	select LIB_POPT
+config USER_BLACKFIN_WATCHDOGD
+	bool "watchdog simple deamon"
+config USER_YAFFS_UTILS
+	bool "yaffs-utils"
+config USER_BF561_COREBLD
+	bool "BF561 Core B support tools"
+config USER_POUND
+	bool "pound SSL Wrapper"
+config USER_PNGVIEW
+	bool "pngview"
+	select LIB_LIBPNG
+	select LIB_ZLIB
+config USER_IRATTACH
+	bool "IRDA Tools (irattach)"
+config USER_ALSA_UTILS
+	bool "ALSA utils"
+	select LIB_ALSA_LIB
+	select LIB_NCURSES
+config USER_FFMPEG_APPS
+	bool "FFmpeg and FFserver"
+	select LIB_ZLIB
+	select LIB_FFMPEG
+config USER_MPC
+	bool "MPC"
+config USER_MPD
+	bool "MPD"
+	select LIB_FAAD2
+	select LIB_FLAC
+	select LIB_LIBAUDIO
+	select LIB_LIBID3TAG
+	select LIB_LIBMAD
+	select LIB_TREMOR
+config USER_MPLAYER
+	bool "MPlayer and mencode"
+	# force libmad as it does fixed point decoding and only other
+	# choice is floating point which is unusable on Blackfin
+	select LIB_LIBMAD
+config USER_VLC
+	bool "VLC"
+	select LIB_FFMPEG
+	select LIB_LIBICONV
+	select LIB_LIBMPEG2
+	select LIB_ZLIB
+config USER_BLACKFIN_ASTERISK
+	bool "Asterisk PBX"
+	select USER_THREADSTACK
+	select LIB_LIBSSL
+	select LIB_LIBTOOL
+	select LIB_SPEEX
+	select LIB_BFIN_GSM
+	select USER_ZAPTEL
+	select LIB_NCURSES
+config USER_USBUTILS
+	bool "usbutils (lsusb)"
+	select LIB_LIBUSB
+config USER_BLUEZ
+	bool "Bluez-utils"
+	select LIB_BLUEZ
+config USER_PICOCOM
+	bool "picocom"
+config USER_DAGRAB_DAGRAB
+	bool "dagrab"
+config USER_CAN_EXAMPLES
+	bool "can4linux examples"
+config USER_CAN_HORCH
+	bool "horch"
+config USER_MDMA_KO
+	bool "mdma kernel module"
+config USER_SDLEXAMPLES
+	bool "SDL Examples"
+	select LIB_LIBSDL
+	select LIB_SDL_MIXER
+	select LIB_SDL_NET
+	select LIB_SDL_IMAGE
+	select LIB_SDL_TTF
+	select LIB_ZLIB
+	select LIB_LIBMAD
+	select LIB_FAAD2
+	select LIB_FLAC
+	select LIB_TREMOR
+	select LIB_LIBAUDIO
+	select LIB_LIBPNG
+	select LIB_FREETYPE
+	select LIB_TSLIB
+config USER_DIRECTFBEXAMPLES
+	bool "DirectFB Examples"
+	select LIB_DIRECTFB
+	select LIB_FREETYPE
+	select LIB_LIBJPEG
+config USER_CURL_CURL
+	bool "curl"
+	select LIB_LIBCURL
+	select LIB_LIBIDN
+	select LIB_ZLIB
+	select LIB_LIBBZ2
+	select LIB_LIBSSL
+config USER_UBOOT_TOOLS
+	bool "U-Boot Tools"
+config USER_I2C_TOOLS
+	bool "I2C Tools"
+
+endmenu
+
+
+#############################################################################
+
+
+menu "Blackfin canned demos"
+
+config USER_NDSO
+	bool "Networked Software Defined Storage Oscilloscope"
+	select LIB_LIBPNG
+
+config USER_AWG 
+	bool "Networked Arbitrary Waveform Genertor"
+
+config USER_BLACKFIN_PPIFCDCGI
+	bool "CGI based Test Application for the PPI Frame Capture Driver"
+
+config USER_BLACKFIN_LINPHONE
+	bool "Linphone, a SIP compatible VoIP phone"
+	select LIB_SPEEX
+	select LIB_OSIP2
+	select LIB_LIBEXOSIP
+	select LIB_READLINE
+	select LIB_NCURSES
+	select LIB_ALSA_LIB
+config USER_BFIN_LINPHONE_VIDEO
+	bool "Enable video"
+	depends on USER_BLACKFIN_LINPHONE
+	select LIB_LIBSDL
+	select LIB_FFMPEG
+
+config USER_NET_AUDIO
+	bool "NetAudio"
+	select USER_MPD
+	select USER_MPC
+
+config USER_MPC2X
+	bool "mpc2x"
+	select LIB_LIBMAD
+	select LIB_FAAD2
+	select LIB_FLAC
+	select LIB_LIBID3TAG
+	select LIB_TREMOR
+	select LIB_LIBAUDIO
+	select LIB_LIBSDL
+	select LIB_ZLIB
+	select LIB_LIBPNG
+	select LIB_FREETYPE
+	select LIB_SDL_IMAGE
+	select LIB_SDL_TTF
+	select LIB_TSLIB
+
+endmenu
+
+
+#############################################################################
+
+
+menu "Blackfin device drivers (Experimental)"
+
+config USER_BLACKFIN_DRV_PFBUTTONS
+	bool "bf53x_pfbuttons"
+
+config USER_BLACKFIN_DRV_TEA5764
+	bool "tea5764"
+
+endmenu

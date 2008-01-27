@@ -1,10 +1,13 @@
 #! /bin/sh
 #############################################################################
+
 #
 # Generate the vendor/product menu entries for the top level config
 #
 # davidm@snapgear.com
+# gerg@snapgear.com
 #
+
 #############################################################################
 
 fix_name()
@@ -12,148 +15,226 @@ fix_name()
 	echo $1 | tr '[\-\.\/\+a-z]' '[____A-Z]'
 }
 
-#############################################################################
-#
-# the header of the config
-#
+echo_separator()
+{
+	echo "##############################################################"
+	echo
+}
 
-echo "mainmenu_name 'Analog Devices Blackfin Embedded Linux Configuration'"
-
 #############################################################################
+
+echo "mainmenu \"Embedded Linux Configuration\""
+echo
+echo
+
 #
 # Figure out the vendor/products dynamically, allows people to add there
 # own without messin with the config.in file
 #
-
-echo "mainmenu_option next_comment"
-echo "comment 'Vendor/Product Selection'"
-echo "comment 'Select the Vendor you wish to target'"
-echo -n "choice 'Vendor' \""
-
-oldv=
-find vendors -name config.arch -print | sed -e 's?/? ?g' | \
-		sort | while read t1 v p t2
-do
-	[ "$v" = "config" ] && continue
-	[ "$v" = "$oldv" ] && continue
-	echo "${v} CONFIG_DEFAULTS_`fix_name ${v}` \\"
-	oldv=$v
-done
-echo "\" AnalogDevices"
-#echo "endmenu"
-
-# echo "mainmenu_option next_comment"
-# echo "comment 'Product Selection'"
-echo "comment 'Select the Product you wish to target'"
+echo "menu \"Vendor/Product Selection\""
+echo
+echo "comment \"Select the Vendor you wish to target\""
+echo
+echo "choice"
+echo "	prompt \"Vendor\""
+echo "	default DEFAULTS_ANALOGDEVICES"
+echo
 
 oldv=
+fv=
 def=
-find vendors -name config.arch -print | sed -e 's?/? ?g' | \
-		(sort; echo "END END END END") | while read t1 v p t2
+pfile=/tmp/products.$$
+
+trap "rm -f $pfile; exit 1" 1 2 3 15
+
+find vendors -name config.arch -print | \
+		sed -e 's?^vendors/??' -e 's?/[^/]*$??' -e 's?/? ?g' | \
+		(sort; echo "END END END END") | while read v p junk
 do
 	[ "$v" = "config" ] && continue
-	if [ "$v" != "$oldv" ]
-	then
-		[ "$def" -o "$v" = END ] && echo "\" $def"
-		[ "$def" -o "$v" = END ] && echo "fi"
+	pv="`fix_name ${p}`"
+	if [ "$v" != "$oldv" ]; then
+		fv="`fix_name ${v}`"
+		[ "$def" -o "$v" = END ] && (echo "endchoice"; echo) >> $pfile
 		[ "$v" = END ] && break
-		echo "if [ \"\$CONFIG_DEFAULTS_`fix_name ${v}`\" = \"y\" ]; then"
-		echo -n "choice '${v} Products' \""
+
+		echo "config DEFAULTS_${fv}"
+		echo "	bool \"${v}\""
+		echo
+
+		echo_separator >> $pfile
+		echo "choice" >> $pfile
+		echo "	prompt \"${v} Products\"" >> $pfile
+		echo "	depends on DEFAULTS_${fv}" >> $pfile
+		echo "	default DEFAULTS_${fv}_${pv}" >> $pfile
+		echo >> $pfile
+
 		def="${p}"
 	fi
-	if [ -f "vendors/$v/$p/config.languages" ]
-	then
-		for i in `cat "vendors/$v/$p/config.languages"`
-		do
-			[ "$def" = "${p}" ] && def="${p}\\($i\\)"
-			echo "${p}($i) CONFIG_DEFAULTS_`fix_name ${v}`_`fix_name ${p}`_`fix_name ${i}` \\"
-		done
-	else
-		echo "${p} CONFIG_DEFAULTS_`fix_name ${v}`_`fix_name ${p}` \\"
-	fi
+
+	echo "config DEFAULTS_${fv}_${pv}" >> $pfile
+	echo "	bool \"${p}\"" >> $pfile
+	echo >> $pfile
+
 	oldv=$v
 done
 
+echo "endchoice"
+echo
+echo "config VENDOR"
+echo "	string"
+echo
+echo_separator
+echo "comment \"Select the Product you wish to target\""
+echo
+
+cat $pfile
+rm -f $pfile
+
 echo "endmenu"
+echo
+echo "config PRODUCT"
+echo "	string"
+echo
+
+echo_separator
 
 #############################################################################
 
-echo "mainmenu_option next_comment"
-echo "comment 'Kernel/Library/Defaults Selection'"
+echo "menu \"Kernel/Library/Defaults Selection\""
+echo
 
 #
 # Which kernel do they want,  if only one then just set it,  I don't
 # expect an explosion of kernels just yet ;-)
 #
 
-KERNELS="`ls -d linux-* 2>/dev/null`"
+KERNELS="`ls -dr linux-* 2>/dev/null`"
 NKERNELS="`echo ${KERNELS} | wc -w`"
 if [ ${NKERNELS} -gt 1 ]; then
-	echo -n "choice 'Kernel Version' \""
+	echo "choice"
+	echo "	prompt \"Kernel Version\""
+	GOTDEFAULT="no"
+
 	for i in ${KERNELS}; do
 		VER=${i##linux-}
-		CFG="CONFIG_DEFAULTS_KERNEL_`echo ${VER%%.x}|sed -e 's/[-\.]/_/g'`"
+		CFG="DEFAULTS_KERNEL_`echo ${VER%%.x}|sed -e 's/[-\.]/_/g'`"
 		DEF="linux-${VER}"
-		echo "${DEF} ${CFG} \\"
+		if  [ $GOTDEFAULT = "no" ]
+		then
+			echo "	default ${CFG}"
+			echo
+			GOTDEFAULT="yes"
+		fi
+		echo "config ${CFG}"
+		echo "	bool \"${DEF}\""
+		echo
 	done
-	echo "\" $DEF"
+
+	echo "endchoice"
+	echo
+
 elif [ ${NKERNELS} -eq 1 ]; then
 	VER=${KERNELS##linux-}
-	CFG="CONFIG_DEFAULTS_KERNEL_`echo ${VER%%.x}|sed -e 's/[-\.]/_/g'`"
-	echo "comment 'Kernel is linux-${VER}'"
-	echo "define_bool ${CFG} y"
+	CFG="DEFAULTS_KERNEL_`echo ${VER%%.x}|sed -e 's/[-\.]/_/g'`"
+	echo "comment \"Kernel is linux-${VER}\""
+	echo
+	echo "config ${CFG}"
+	echo "	bool"
+	echo "	default y"
+	echo
+
 else
 	echo "ERROR: you have no kernels available in this directory." >&2
 	exit 1
 fi
 
+echo "config LINUXDIR"
+echo "	string"
+echo
+
 #############################################################################
+
 #
 # Which libc do they want,  if only one then just set it,  I don't
-# expect an explosion of libc's just yet ;-)
+# expect an explosion of libc's just yet either ;-)
 #
 
-LIBCS="None `ls -d lib/libc uClibc uClibc-* glibc glibc-* 2>/dev/null`"
+LIBCS="`ls -d glibc glibc-* 2>/dev/null` `ls -d uClibc uClibc-* 2>/dev/null` `ls -d lib/libc 2>/dev/null` None"
 NLIBCS="`echo ${LIBCS} | wc -w`"
 if [ ${NLIBCS} -gt 1 ]; then
-	echo -n "choice 'Libc Version' \""
+	echo "choice"
+	echo "	prompt \"Libc Version\""
+	GOTDEFAULT="no"
+
 	for i in ${LIBCS}; do
 		[ "$i" = "lib/libc" ] && i=uC-libc
-		CFG="CONFIG_DEFAULTS_LIBC_`fix_name ${i}`"
+		CFG="DEFAULTS_LIBC_`fix_name ${i}`"
 		DEF="${i}"
-		echo "${DEF} ${CFG} \\"
+		if  [ $GOTDEFAULT = "no" ]
+		then
+			echo "	default ${CFG}"
+			echo
+			GOTDEFAULT="yes"
+		fi
+		echo "config ${CFG}"
+		echo "	bool \"${DEF}\""
+		echo
 	done
-	echo "\" $DEF"
+
+	echo "endchoice"
+	echo
+
 elif [ ${NLIBCS} -eq 1 ]; then
 	[ "$LIBCS" = "lib/libc" ] && LIBCS=uC-libc
-	CFG="CONFIG_DEFAULTS_LIBC_`fix_name ${LIBCS}`"
-	echo "comment 'Libc is ${LIBCS}'"
-	echo "define_bool ${CFG} y"
+	CFG="DEFAULTS_LIBC_`fix_name ${LIBCS}`"
+	echo "comment \"Libc is ${LIBCS}\""
+	echo
+	echo "config ${CFG}"
+	echo "	bool"
+	echo "	default y"
+	echo
+
 else
 	echo "ERROR: you have no libc available in this directory." >&2
 	exit 1
 fi
 
-# echo "endmenu"
+echo "config LIBCDIR"
+echo "	string"
+echo
 
 #############################################################################
+
 #
 # the rest of the config
 #
 
-# echo "mainmenu_option next_comment"
-# echo "comment 'Configuration Overrides'"
+cat <<!EOF
+config DEFAULTS_OVERRIDE
+	bool "Default all settings (lose changes)"
+
+config DEFAULTS_KERNEL
+	bool "Customize Kernel Settings"
+
+!EOF
+
+if [ -d modules ]
+then
+	echo "config DEFAULTS_MODULES"
+	echo "	bool \"Customize Module Settings\""
+	echo
+fi
 
 cat <<!EOF
-bool 'Default all settings (lose changes)'	CONFIG_DEFAULTS_OVERRIDE
-bool 'Customize Kernel Settings'			CONFIG_DEFAULTS_KERNEL
-!EOF
-[ -d modules ] &&
-	echo "bool 'Customize Module Settings'			CONFIG_DEFAULTS_MODULES"
-cat <<!EOF
-bool 'Customize Vendor/User Settings'		CONFIG_DEFAULTS_VENDOR
-bool 'Update Default Vendor Settings'		CONFIG_DEFAULTS_VENDOR_UPDATE
+config DEFAULTS_VENDOR
+	bool "Customize Application/Library Settings"
+
+config DEFAULTS_VENDOR_UPDATE
+	bool "Update Default Vendor Settings"
+
 endmenu
+
 !EOF
 
 ############################################################################

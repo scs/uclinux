@@ -1,0 +1,132 @@
+# Libraries that are in Blackfin dist but not upstream
+
+comment "*** Additional Blackfin dist libs ***"
+
+config LIB_ALSA_LIB
+	bool "Build ALSA lib"
+
+config LIB_AVAHI
+	bool "Build avahi"
+
+config LIB_BLUEZ
+	bool "Build bluez-lib"
+
+config LIB_CGIC
+	bool "Build cgic"
+
+config LIB_CRYPTOPP
+	bool "Build Crypto++ Lib"
+
+config LIB_DIRECTFB
+	bool "Build DirectFB"
+
+config LIB_DMALLOC
+	bool "Build dmalloc"
+
+config LIB_LIBEXOSIP
+	bool "Build eXosip"
+
+config LIB_FAAD2
+	bool "Build faad2"
+
+config LIB_FFMPEG
+	bool "Build ffmpeg"
+
+config LIB_FLAC
+	bool "Build flac"
+
+config LIB_FREETYPE
+	bool "Build freetype"
+	select LIB_ZLIB
+
+config LIB_FTPLIB
+	bool "Build ftplib"
+
+config LIB_LIBAO
+	bool "Build libao"
+
+config LIB_LIBAUDIO
+	bool "Build libaudio"
+
+config LIB_LIBBFGDOTS
+	bool "Build libbfgdots"
+
+config LIB_CONFUSE
+	bool "Build libConfuse"
+
+config LIB_LIBICONV
+	bool "Build libiconv"
+
+config LIB_LIBID3TAG
+	bool "Build libid3tag"
+	select LIB_ZLIB
+
+config LIB_LIBIPOD
+	bool "Build libipod"
+
+config LIB_LIBMAD
+	bool "Build libmad"
+
+config LIB_LIBMPEG2
+	bool "Build libmpeg2"
+
+config LIB_LIBSDL
+	bool "Build libSDL"
+
+config LIB_LIBTOOL
+	bool "Build libtool"
+
+config LIB_LIBUSB
+	bool "Build libusb"
+
+config LIB_MPFR
+	bool "Build mpfr"
+	select LIB_LIBGMP
+
+config LIB_OSIP2
+	bool "Build osip2"
+
+config LIB_POPT
+	bool "Build popt"
+
+config LIB_READLINE
+	bool "Build readline"
+
+config LIB_SDL_GFX
+	bool "build SDL_gfx"
+	select LIB_LIBSDL
+
+config LIB_SDL_IMAGE
+	bool "build SDL_image"
+	select LIB_LIBSDL
+	select LIB_LIBJPEG
+	select LIB_LIBPNG
+	select LIB_FREETYPE
+
+config LIB_SDL_MIXER
+	bool "build SDL_mixer"
+	select LIB_LIBMAD
+
+config LIB_SDL_NET
+	bool "build SDL_net"
+	select LIB_LIBSDL
+
+config LIB_SDL_TTF
+	bool "build SDL_ttf"
+	select LIB_LIBSDL
+	select LIB_FREETYPE
+
+config LIB_SPEEX
+	bool "Build speex"
+
+config LIB_SPHINXBASE
+	bool "Build sphinxbase"
+
+config LIB_SQLITE
+	bool "Build sqlite"
+
+config LIB_TREMOR
+	bool "Build tremor"
+
+config LIB_TSLIB
+	bool "Build tslib"

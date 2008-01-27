@@ -86,17 +86,17 @@ fix_conf_files()
 	replace_line CONFIG_LIBCDIR= "CONFIG_LIBCDIR=$LIBCDIR"    .config
 
 	replace_line CONFIG_VENDOR "#define CONFIG_VENDOR \"$VENDOR\"" \
-			 config/autoconf.h
+		 autoconf.h
 	replace_line CONFIG_PRODUCT "#define CONFIG_PRODUCT \"$PRODUCT\"" \
-			 config/autoconf.h
+		 autoconf.h
 	replace_line CONFIG_LINUXDIR "#define CONFIG_LINUXDIR \"$LINUXDIR\"" \
-			 config/autoconf.h
+		 autoconf.h
 	replace_line CONFIG_LIBCDIR "#define CONFIG_LIBCDIR \"$LIBCDIR\"" \
-			 config/autoconf.h
+		 autoconf.h
 	replace_line VENDORS_AUTOCONF_INCLUDED \
-			 "#define VENDORS_AUTOCONF_INCLUDED" config/autoconf.h
+		 "#define VENDORS_AUTOCONF_INCLUDED" autoconf.h
 	replace_line "#undef AUTOCONF_INCLUDED" "#undef AUTOCONF_INCLUDED" \
-			 config/autoconf.h
+		 autoconf.h
 
 	replace_line OLD_VENDOR   "OLD_VENDOR=\"$VENDOR\""   ./.oldconfig
 	replace_line OLD_PRODUCT  "OLD_PRODUCT=\"$PRODUCT\"" ./.oldconfig

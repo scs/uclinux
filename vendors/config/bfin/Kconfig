@@ -1,0 +1,70 @@
+menu "Blackfin build options"
+
+choice
+	prompt "Binary format"
+	default FMT_USE_FLAT
+
+config FMT_USE_FLAT
+	bool "FLAT"
+	help
+	  Build all libraries and applicaions to produce flat binaries.
+	  FLAT binaries tend to be smaller. Their load time tend to be shorter.
+	  This option must match the choice made for the C library; when configuring
+	  uClibc, select the 'bfin' target.
+
+config FMT_USE_SEP_DATA
+	bool "Sep-Data"
+
+config FMT_USE_SHARED_FLAT
+	bool "Shared-FLAT"
+	select INSTALL_FLAT_SHARED_LIBS
+	help
+	  Build all libraries and applicaions with -mid-shared-library.
+	  This option must match the choice made for the C library; when configuring
+	  uClibc, select the 'bfin' target.
+
+config FMT_USE_FDPIC_ELF
+	bool "FDPIC"
+	select INSTALL_ELF_SHARED_LIBS
+	help
+	  Build all libraries and applicaions with -mfdpic to produce ELF binaries
+	  rather than the default flat binaries.  ELF binaries tend to be larger,
+	  but have more capabilities, such as support for dlopen.
+	  This option must match the choice made for the C library; when configuring
+	  uClibc, select either the 'bfin' target for flat binaries, or 'bfinfdpic'
+	  for ELF.
+
+endchoice
+
+config INSTALL_ELF_SHARED_LIBS
+	bool "Install ELF shared libraries"
+	help
+	  If you wish to use some ELF binaries on a system with mostly flat binaries,
+	  enable this option to get the shared libraries from the toolchain
+	  distribution installed in the romfs.
+
+config INSTALL_FLAT_SHARED_LIBS
+	bool "Install FLAT shared libraries"
+	help
+	  If the majority of binaries in your system uses either static flat or ELF
+	  binaries, but there are some applications built against shared flat
+	  libraries, enable this option to get the shared flat libraries from the
+	  toolchain distribution installed in the romfs.
+
+config USER_CFLAGS
+	string "User/Lib CFLAGS"
+	default "-g -O2"
+	depends !LIB_DEBUG && !USER_DEBUG
+
+config BLACKFIN_CHECK_STACKFLOW
+	bool "build with stack overflow checking"
+	help
+	  Build all libraries and applicaions with -mstack-check-l1.
+
+config BLACKFIN_CHECK_POINTER
+	bool "build with mudflap pointer checking"
+
+config BLACKFIN_INSTALL_UCLINUX_CONFIG
+	bool "install uClinux-dist .config into /root"
+
+endmenu

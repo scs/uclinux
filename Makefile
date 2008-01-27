@@ -1,8 +1,9 @@
 ############################################################################
+
 #
-# Makefile -- Top level uClinux makefile.
+# Makefile -- Top level dist makefile.
 #
-# Copyright (c) 2001-2004, SnapGear (www.snapgear.com)
+# Copyright (c) 2001-2007, SnapGear (www.snapgear.com)
 # Copyright (c) 2001, Lineo
 #
 
@@ -36,7 +37,7 @@ IMAGEDIR = $(ROOTDIR)/images
 RELDIR   = $(ROOTDIR)/release
 ROMFSDIR = $(ROOTDIR)/romfs
 ROMFSINST= romfs-inst.sh
-SCRIPTSDIR = $(ROOTDIR)/config/scripts
+SCRIPTSDIR = $(ROOTDIR)/config/kconfig
 STAGEDIR = $(ROOTDIR)/staging
 TFTPDIR    = /tftpboot
 BUILD_START_STRING ?= $(shell date "+%a, %d %b %Y %T %z")
@@ -116,58 +117,24 @@ tools/$(CROSS_COMPILE)pkg-config:
 ############################################################################
 
 #
-# Config stuff,  we recall ourselves to load the new config.arch before
+# Config stuff, we recall ourselves to load the new config.arch before
 # running the kernel and other config scripts
 #
 
-.PHONY: config.tk config.in
+.PHONY: vendors/Kconfig
+vendors/Kconfig:
+	find vendors -mindepth 2 -name Kconfig | sed 's:^:source ../:' > vendors/Kconfig
 
-config.in:
+.PHONY: Kconfig
+Kconfig: vendors/Kconfig
 	@chmod u+x config/mkconfig
-	config/mkconfig > config.in
+	config/mkconfig > Kconfig
 
-config.tk: config.in
-	$(MAKE) -C $(SCRIPTSDIR) tkparse
-	ARCH=dummy $(SCRIPTSDIR)/tkparse < config.in > config.tmp
-	@if [ -f /usr/local/bin/wish ];	then \
-		echo '#!'"/usr/local/bin/wish -f" > config.tk; \
-	else \
-		echo '#!'"/usr/bin/wish -f" > config.tk; \
-	fi
-	cat $(SCRIPTSDIR)/header.tk >> ./config.tk
-	cat config.tmp >> config.tk
-	rm -f config.tmp
-	echo "set defaults \"/dev/null\"" >> config.tk
-	echo "set help_file \"config/Configure.help\"" >> config.tk
-	cat $(SCRIPTSDIR)/tail.tk >> config.tk
-	chmod 755 config.tk
-
-.PHONY: xconfig
-xconfig: config.tk
-	@wish -f config.tk
-	@if [ ! -f .config ]; then \
-		echo; \
-		echo "You have not saved your config, please re-run make config"; \
-		echo; \
-		exit 1; \
-	 fi
-	@chmod u+x config/setconfig
-	@config/setconfig defaults
-	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
-		$(MAKE) linux_xconfig; \
-	 fi
-	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
-		$(MAKE) modules_xconfig; \
-	 fi
-	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
-		$(MAKE) config_xconfig; \
-	 fi
-	@config/setconfig final
+include config/Makefile.conf
 
 .PHONY: config
-config: config.in
-	@HELP_FILE=config/Configure.help \
-		$(CONFIG_SHELL) $(SCRIPTSDIR)/Configure config.in
+config: Kconfig conf
+	$(SCRIPTSDIR)/conf Kconfig
 	@chmod u+x config/setconfig
 	@config/setconfig defaults
 	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
@@ -182,10 +149,8 @@ config: config.in
 	@config/setconfig final
 
 .PHONY: menuconfig
-menuconfig: config.in
-	$(MAKE) -C $(SCRIPTSDIR)/lxdialog all
-	@HELP_FILE=config/Configure.help \
-		$(CONFIG_SHELL) $(SCRIPTSDIR)/Menuconfig config.in
+menuconfig: Kconfig conf mconf
+	$(SCRIPTSDIR)/mconf Kconfig
 	@if [ ! -f .config ]; then \
 		echo; \
 		echo "You have not saved your config, please re-run make config"; \
@@ -206,9 +171,8 @@ menuconfig: config.in
 	@config/setconfig final
 
 .PHONY: oldconfig
-oldconfig: config.in
-	@HELP_FILE=config/Configure.help \
-		$(CONFIG_SHELL) $(SCRIPTSDIR)/Configure -d config.in
+oldconfig: Kconfig conf
+	$(SCRIPTSDIR)/conf -o Kconfig
 	@$(MAKE) oldconfig_linux
 	@$(MAKE) oldconfig_modules
 	@$(MAKE) oldconfig_config
@@ -225,14 +189,16 @@ modules:
 
 .PHONY: modules_install
 modules_install:
-	. $(LINUXDIR)/.config; if [ "$$CONFIG_MODULES" = "y" ]; then \
+	. $(LINUX_CONFIG); \
+	. $(CONFIG_CONFIG); \
+	if [ "$$CONFIG_MODULES" = "y" ]; then \
 		[ -d $(ROMFSDIR)/lib/modules ] || mkdir -p $(ROMFSDIR)/lib/modules; \
 		rm -f $(ROMFSDIR)/lib/modules/modules.dep; \
 		$(MAKEARCH_KERNEL) -C $(LINUXDIR) INSTALL_MOD_PATH=$(ROMFSDIR) DEPMOD=true modules_install; \
 		rm -f $(ROMFSDIR)/lib/modules/*/build; \
 		rm -f $(ROMFSDIR)/lib/modules/*/source; \
 		find $(ROMFSDIR)/lib/modules -type f -name "*o" | xargs $(STRIP) -R .comment -R .note -g --strip-unneeded; \
-		env NM=$(CROSS_COMPILE)nm $(ROOTDIR)/user/busybox/examples/depmod.pl -b $(ROMFSDIR)/lib/modules/ -k $(ROOTDIR)/$(LINUXDIR)/vmlinux; \
+		env NM=$(CROSS_COMPILE)nm $(ROOTDIR)/user/busybox/depmod.pl -P _ -b $(ROMFSDIR)/lib/modules/ -k $(ROOTDIR)/$(LINUXDIR)/vmlinux; \
 	fi
 
 linux_xconfig:
@@ -270,7 +236,11 @@ oldconfig_uClibc:
 #
 
 .PHONY: romfs
-romfs: romfs.subdirs modules_install romfs.post
+romfs: romfs.newlog romfs.subdirs modules_install romfs.post
+
+.PHONY: romfs.newlog
+romfs.newlog:
+	rm -f $(IMAGEDIR)/romfs-inst.log
 
 .PHONY: romfs.subdirs
 romfs.subdirs:
@@ -289,6 +259,10 @@ image:
 .PHONY: release
 release:
 	$(MAKE) -C release release
+
+.PHONY: single
+single single%:
+	$(MAKE) NON_SMP_BUILD=1 `expr $(@) : 'single[_]*\(.*\)'`
 
 %_fullrelease:
 	@echo "This target no longer works"
@@ -310,7 +284,6 @@ linux linux%_only:
 		echo "ERROR: you need to do a 'make dep' first" ; \
 		exit 1 ; \
 	fi
-	rm -f $(LINUXDIR)/usr/initramfs_data.cpio.gz
 	$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(LINUXDIR) $(LINUXTARGET) || exit 1
 	if [ -f $(LINUXDIR)/vmlinux ]; then \
 		ln -f $(LINUXDIR)/vmlinux $(LINUXDIR)/linux ; \
@@ -345,24 +318,29 @@ clean: modules_clean
 	rm -rf $(ROMFSDIR)/*
 	rm -rf $(STAGEDIR)/*
 	rm -f $(IMAGEDIR)/*
-	rm -f config.tk
 	rm -f $(LINUXDIR)/linux
 	rm -f $(LINUXDIR)/include/asm
 	rm -rf $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
 
 real_clean mrproper: clean
-	-$(MAKEARCH_KERNEL) -C $(LINUXDIR) mrproper
+	[ -d "$(LINUXDIR)" ] && $(MAKEARCH_KERNEL) -C $(LINUXDIR) mrproper || :
 	-$(MAKEARCH) -C config clean
-	-$(MAKEARCH) -C uClibc distclean
-	-$(MAKEARCH) -C $(RELDIR) clean
-	rm -rf romfs staging config.in config.arch config.tk images
-	rm -f modules/config.tk
-	rm -rf .config .config.old .oldconfig autoconf.h
+	[ -d uClibc ] && $(MAKEARCH) -C uClibc distclean || :
+	[ -d "$(RELDIR)" ] && $(MAKEARCH) -C $(RELDIR) clean || :
+	-$(MAKEARCH) -C config clean
+	rm -rf romfs Kconfig config.arch images
+	rm -rf .config .config.old .oldconfig autoconf.h auto.conf
+	rm -rf staging
 	find ./tools/ -name "*-pkg-config" -type l | xargs rm -f
 
 distclean: mrproper
 	-$(MAKEARCH_KERNEL) -C $(LINUXDIR) distclean
 	-rm -f user/tinylogin/applet_source_list user/tinylogin/config.h
+	-rm -f lib/uClibc lib/glibc
+	-$(MAKE) -C tools/ucfront clean
+	-rm -f tools/ucfront-gcc tools/ucfront-g++ tools/ucfront-ld
+	-$(MAKE) -C tools/sg-cksum clean
+	-rm -f tools/cksum
 
 bugreport:
 	rm -f ./bugreport.tgz ./toolchain_vers ./host_vers
@@ -410,7 +388,15 @@ bugreport:
 	config/setconfig final
 	$(MAKE) dep
 
-%_default:
+%_romfs:
+	@case "$(@)" in \
+	*/*) d=`expr $(@) : '\([^/]*\)/.*'`; \
+	     t=`expr $(@) : '[^/]*/\(.*\)'`; \
+	     $(MAKEARCH) -C $$d $$t;; \
+	*)   $(MAKEARCH) -C $(@:_romfs=) romfs;; \
+	esac
+
+%_default: conf
 	@if [ ! -f "vendors/$(@:_default=)/config.device" ]; then \
 		echo "vendors/$(@:_default=)/config.device must exist first"; \
 		exit 1; \
@@ -447,6 +433,3 @@ dist-prep:
 	 done
 
 ############################################################################
-
-# top level is not parallel; we'll handle parallel in subdirs
-.NOTPARALLEL:
