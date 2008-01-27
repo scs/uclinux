@@ -1,14 +1,13 @@
+CFLAGS += -Wall
 
-EXEC = video_test
-OBJS = lissa.o
+LDLIBS += -lm
 
-all: $(EXEC)
-
-$(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBM) $(LDLIBS) $(LIBGCC)
+all: video_test
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)
 
 clean:
-	-rm -f $(EXEC) *.elf *.gdb *.o
+	rm -f video_test *.elf *.gdb *.o
+
+.PHONY: all clean romfs

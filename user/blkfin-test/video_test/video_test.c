@@ -11,8 +11,10 @@
 #include <sys/types.h>
 #include <linux/fb.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <stdio.h>
 
@@ -30,7 +32,6 @@ int bits_per_pixel;
 
 inline void draw_pixel(int x, int y, int color)
 {
-	int mask = 1 << (7-(x % 8));
 	unsigned char * loc = screen_ptr + (y * screen_width *(bits_per_pixel/8)) + (x * (bits_per_pixel/8));
 	
 	if ((x<0) || (x>=screen_width) || (y<0) || (y>=screen_height))
