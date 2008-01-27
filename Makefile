@@ -215,11 +215,11 @@ modules_config:
 	[ ! -d modules ] || $(MAKEARCH) -C modules config
 modules_clean:
 	-[ ! -d modules ] || $(MAKEARCH) -C modules clean
-config_xconfig:
+config_xconfig: vendors/Kconfig
 	$(MAKEARCH) -C config xconfig
-config_menuconfig:
+config_menuconfig: vendors/Kconfig
 	$(MAKEARCH) -C config menuconfig
-config_config:
+config_config: vendors/Kconfig
 	$(MAKEARCH) -C config config
 oldconfig_config:
 	$(MAKEARCH) -C config oldconfig
