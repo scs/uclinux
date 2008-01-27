@@ -1,41 +1,43 @@
-all: build/Makefile build-host/Makefile
-	$(MAKE) -C build MULTI=1 PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp"
-	$(MAKE) -C build-host dropbearkey
+VER = dropbear-0.49
 
-build/Makefile:
-	find . -type f -print0 | xargs -0 touch -r configure
+all: build-$(VER)/Makefile build-$(VER)-host/Makefile
+	$(MAKE) -C build-$(VER) MULTI=1 PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp"
+	$(MAKE) -C build-$(VER)-host dropbearkey
+
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
-	rm -rf build ; \
-	mkdir build ; \
-	cd build ; \
-	../configure $(CONFIGURE_OPTS)
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure $(CONFIGURE_OPTS)
 
 	# work around broken libtom makefiles
 	set -e ; \
-	list=`find libtom* -mindepth 1 -type d` ; \
-	cd build ; \
+	list=`cd $(VER); find libtom* -mindepth 1 -type d` ; \
+	cd build-$(VER) ; \
 	mkdir -p $$list
 
-build-host/Makefile:
-	find . -type f -print0 | xargs -0 touch -r configure
+build-$(VER)-host/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
-	rm -rf build-host ; \
-	mkdir build-host ; \
-	cd build-host ; \
+	rm -rf build-$(VER)-host ; \
+	mkdir build-$(VER)-host ; \
+	cd build-$(VER)-host ; \
 	unset AR CC LD RANLIB CFLAGS LDFLAGS CPPFLAGS ; \
-	../configure
+	../$(VER)/configure
 
 	# work around broken libtom makefiles
 	set -e ; \
-	list=`find libtom* -mindepth 1 -type d` ; \
-	cd build-host ; \
+	list=`cd $(VER); find libtom* -mindepth 1 -type d` ; \
+	cd build-$(VER)-host ; \
 	mkdir -p $$list
 
 clean:
-	rm -rf build build-host
+	rm -rf build*
 
 romfs:
-	$(ROMFSINST) build/dropbearmulti /bin/dropbear
+	$(ROMFSINST) build-$(VER)/dropbearmulti /bin/dropbear
 	$(ROMFSINST) -s dropbear /bin/dropbearkey
 	$(ROMFSINST) -s dropbear /bin/dbclient
 	$(ROMFSINST) -s dropbear /bin/dropbearconvert
@@ -43,7 +45,7 @@ romfs:
 	$(ROMFSINST) -a "ssh     stream tcp nowait root /bin/dropbear -i 2 > /dev/null" /etc/inetd.conf
 
 	mkdir -p $(ROMFSDIR)/etc/dropbear
-	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key ] || ./build-host/dropbearkey -t dss -f $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key
-	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key ] || ./build-host/dropbearkey -t rsa -f $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key
+	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key ] || ./build-$(VER)-host/dropbearkey -t dss -f $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key
+	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key ] || ./build-$(VER)-host/dropbearkey -t rsa -f $(ROMFSDIR)/etc/dropbear/dropbear_rsa_host_key
 
 .PHONY: all clean romfs
