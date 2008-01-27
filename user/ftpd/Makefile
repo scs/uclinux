@@ -21,7 +21,7 @@ endif
 
 CFLAGS += -DKEEP_OPEN=1
 
-EXTRALIBS = $(LIBCRYPT)
+EXTRALIBS = -lcrypt
 
 
 all: $(EXEC)

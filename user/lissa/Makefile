@@ -5,7 +5,7 @@ OBJS = lissa.o
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBM) $(LDLIBS) $(LIBGCC)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lm $(LDLIBS) $(LIBGCC)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)

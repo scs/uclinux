@@ -13,7 +13,7 @@ endif
 
 CFLAGS  += -MD
 
-EXTRALIBS += $(LIBCRYPT)
+EXTRALIBS += -lcrypt
 
 all: mime_types.h mini_httpd htpasswd
 

@@ -16,10 +16,10 @@ endif
 all: $(LOGIN) $(PASSWD)
 
 $(LOGIN): $(LOGINOBJS)
-	$(CC) $(LDFLAGS) -o $@ $(LOGINOBJS) $(LIBCRYPT) $(LDLIBS$(LDLIBS_$@))
+	$(CC) $(LDFLAGS) -o $@ $(LOGINOBJS) -lcrypt $(LDLIBS$(LDLIBS_$@))
 
 $(PASSWD): $(PASSWDOBJS)
-	$(CC) $(LDFLAGS) -o $@ $(PASSWDOBJS) $(LIBCRYPT) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(PASSWDOBJS) -lcrypt $(LDLIBS)
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_LOGIN_LOGIN /bin/login

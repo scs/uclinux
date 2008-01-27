@@ -19,7 +19,7 @@ endif
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBUTIL) $(LDLIBS$(LDLIBS_$@))
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lutil $(LDLIBS$(LDLIBS_$@))
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)

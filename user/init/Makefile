@@ -23,7 +23,7 @@ endif
 all: $(EXEC1) $(EXEC2)
 
 $(EXEC1): $(OBJS1)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS1) $(LIBCRYPT) $(LDLIBS$(LDLIBS_$@))
+	$(CC) $(LDFLAGS) -o $@ $(OBJS1) -lcrypt $(LDLIBS$(LDLIBS_$@))
 	cp init simpleinit
 
 $(EXEC2): $(OBJS2)

@@ -69,7 +69,7 @@ clean:
 	rm -f $(OBJS) $(EXEC)
 
 $(EXEC): $(OBJS) $(HDRS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBUTIL)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) -lutil
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)

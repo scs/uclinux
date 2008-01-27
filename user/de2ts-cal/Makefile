@@ -1,7 +1,7 @@
 
 EXEC = de2ts-cal
 OBJS = de2ts-cal.o textdisplay.o
-LDLIBS += $(LIBM)
+LDLIBS += -lm
 
 CPPFLAGS += -DUSE_EEPROM=1
 

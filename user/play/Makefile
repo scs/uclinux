@@ -11,7 +11,7 @@ $(EXEC1): $(OBJS1)
 	$(CC) $(LDFLAGS) -o $@ $(OBJS1) $(LDLIBS)
 
 $(EXEC2): $(OBJS2)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS2) $(LDLIBS) $(LIBM)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS2) $(LDLIBS) -lm
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_PLAY_PLAY /bin/play

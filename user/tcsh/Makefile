@@ -164,7 +164,7 @@ SBINLDFLAGS=-Wl,-R/etc/lib,-I/etc/lib/ld.so.1,-ldl,-Bstatic
 ################################################################
 ## LIBES.  Pick one, or roll your own.
 ################################################################
-LIBES= $(LIBCRYPT)
+LIBES= -lcrypt
 #LIBES= -ltermcap 			 ## BSD style things
 #LIBES= -ltermcap			 ## SunOS, HP-UX, pyramid
 #LIBES= -ltermcap			 ## Linux

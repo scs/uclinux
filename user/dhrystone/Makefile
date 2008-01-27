@@ -7,7 +7,7 @@ CFLAGS += -DNO_PROTOTYPES=1
 all: $(EXEC)
 
 $(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBM) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lm $(LDLIBS)
 
 romfs:
 	$(ROMFSINST) /bin/$(EXEC)

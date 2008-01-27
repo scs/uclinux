@@ -5,7 +5,7 @@ LDLIBS += -lm
 all: video_test
 
 romfs:
-	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) /bin/video_test
 
 clean:
 	rm -f video_test *.elf *.gdb *.o

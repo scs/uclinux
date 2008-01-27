@@ -35,7 +35,7 @@ all: mawk
 mawk_and_test :  mawk  mawk_test  fpe_test
 
 mawk : $(O)  rexp/.done
-	$(CC) $(LDFLAGS) -o mawk $(O) $(REXP_O) $(LIBM) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o mawk $(O) $(REXP_O) -lm $(LDLIBS)
 
 mawk_test :  mawk  # test that we have a sane mawk
 	@cp mawk test/mawk

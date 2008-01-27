@@ -34,7 +34,7 @@ endif
 all: httpd
 
 httpd: $(OBJS) libowfat.a
-	$(CC) $(LDFLAGS) -o $@ $^ $(LIBCRYPT) $(AUTHLIBS) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $^ -lcrypt $(AUTHLIBS) $(LDLIBS)
 
 libowfat.a: httpd.o buffer_1.o buffer_puts.o buffer_flush.o buffer_put.o \
 buffer_putulong.o buffer_2.o buffer_putspace.o buffer_stubborn.o \

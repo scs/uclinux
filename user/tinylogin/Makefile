@@ -41,7 +41,7 @@ USE_SYSTEM_PWD_GRP = true
 USE_SYSTEM_SHADOW = true
 
 # GNU libc needs libcrypt, but libc5 wants it compiled out...
-LIBRARIES = $(LIBCRYPT)
+LIBRARIES = -lcrypt
 
 # If you are running a cross compiler, you may want to set this
 # to something more interesting...

@@ -16,13 +16,13 @@ FLTFLAGS  += -v
 all:	$(TARGETS)
 
 $(THDM_TARGET): $(THDM_OBJS) 
-	$(CC) $(LDFLAGS) -o $@ $< $(LIBPTHREAD) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $< -lpthread $(LDLIBS)
 
 $(MTDM_TARGET): $(MTDM_OBJS) 
-	$(CC) $(LDFLAGS) -o $@ $< $(LIBPTHREAD) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $< -lpthread $(LDLIBS)
 
 $(BCDM_TARGET): $(BCDM_OBJS) 
-	$(CC) $(LDFLAGS) -o $@ $< $(LIBPTHREAD) $(LDLIBS)
+	$(CC) $(LDFLAGS) -o $@ $< -lpthread $(LDLIBS)
 
 clean:
 	rm -f $(TARGETS) *.gdb *.elf *.elf2flt *.o *~ core

@@ -21,10 +21,10 @@ FLTFLAGS += -s 8192
 all:		$(EXEC1) $(EXEC2)
 
 $(EXEC1):	$(OBJS1)
-		$(CC) $(LDFLAGS) -o $@ $(OBJS1) $(LDLIBS) $(LIBUTIL)
+		$(CC) $(LDFLAGS) -o $@ $(OBJS1) $(LDLIBS) -lutil
 
 $(EXEC2):	$(OBJS2)
-		$(CC) $(LDFLAGS) -o $@ $(OBJS2) $(LDLIBS) $(LIBUTIL)
+		$(CC) $(LDFLAGS) -o $@ $(OBJS2) $(LDLIBS) -lutil
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_PPTP_CLIENT_PPTP /bin/pptp
