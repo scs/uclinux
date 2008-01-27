@@ -424,13 +424,13 @@ all: config
 snort: mysql
 
 $(sort $(dir_y) $(dir_p)):  config
-	[ ! -d "$@" ] || ( touch $@/.sgbuilt_user && $(MAKE) -j1 -C $@ ) || exit $$?
+	[ ! -d "$@" ] || ( touch $@/.sgbuilt_user && $(MAKE) -C $@ ) || exit $$?
 
 %_only:
-	touch $(@:_only=)/.sgbuilt_user && $(MAKE) -j1 -C $(@:_only=)
+	touch $(@:_only=)/.sgbuilt_user && $(MAKE) -C $(@:_only=) -j$(HOST_NCPU)
 
 %_clean:
-	$(MAKE) -j1 -C $(@:_clean=) clean; rm -f $(@:_clean=)/.sgbuilt_user; true
+	$(MAKE) -C $(@:_clean=) clean; rm -f $(@:_clean=)/.sgbuilt_user; true
 
 romfs:
 	for i in $(sort $(dir_y)) $(dir_p) ; do \
