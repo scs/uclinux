@@ -396,17 +396,17 @@ bugreport:
 	*)   $(MAKEARCH) -C $(@:_romfs=) romfs;; \
 	esac
 
-%_default: conf
+%_default: Kconfig conf
 	@if [ ! -f "vendors/$(@:_default=)/config.device" ]; then \
 		echo "vendors/$(@:_default=)/config.device must exist first"; \
 		exit 1; \
 	 fi
 	-$(MAKE) clean > /dev/null 2>&1
 	cp vendors/$(@:_default=)/config.device .config
+	echo CONFIG_DEFAULTS_OVERRIDE=y >> .config
 	chmod u+x config/setconfig
 	yes "" | config/setconfig defaults
 	config/setconfig final
-	$(MAKE) dep
 	$(MAKE)
 
 config_error:
