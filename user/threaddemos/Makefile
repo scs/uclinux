@@ -8,7 +8,6 @@ MTDM_OBJS=mtdm.o
 BCDM_OBJS=bcdm.o
 
 TARGETS=$(THDM_TARGET) $(MTDM_TARGET) $(BCDM_TARGET)
-FLTFLAGS  += -v
 
 # .c.o:
 # 	$(CC) $(CFLAGS) -o $@ -c $<
