@@ -1,7 +1,11 @@
 VER = dropbear-0.49
 
-all: build-$(VER)/Makefile build-$(VER)-host/Makefile
+FLTFLAGS = -s 0x4000
+
+all: build-$(VER)/Makefile build-$(VER)-host/dropbearkey
 	$(MAKE) -C build-$(VER) MULTI=1 PROGRAMS="dropbear dbclient dropbearkey dropbearconvert scp"
+
+build-$(VER)-host/dropbearkey: build-$(VER)-host/Makefile
 	$(MAKE) -C build-$(VER)-host dropbearkey
 
 build-$(VER)/Makefile:
