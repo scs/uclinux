@@ -1,27 +1,25 @@
-#
-# build using configure as best we can, should work for most targets
-# David McCullough <davidm@snapgear.com>
-#
-#
+VER = wget-1.9.1
 
-all: build
-	$(MAKE) -C build
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER)
 
-build: Makefile
-	rm -rf build
-	mkdir build
-	chmod u+x configure
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+	set -e ; \
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
 	( \
-		cd build; \
 		export CC="$(CC) $(CFLAGS)"; \
 		export LDFLAGS="$(LDFLAGS)"; \
 		export LIBS="$(LDLIBS)"; \
-		sh ../configure $(CONFIGURE_OPTS) --prefix= ; \
+		../$(VER)/configure $(CONFIGURE_OPTS) --prefix= ; \
 	)
 
-romfs:
-	$(ROMFSINST) build/src/wget /bin/wget
-
 clean:
-	rm -rf build
+	rm -rf build*
 
+romfs:
+	$(ROMFSINST) build-$(VER)/src/wget /bin/wget
+
+.PHONY: all clean romfs
