@@ -1,4 +1,4 @@
-VER = wget-1.9.1
+VER = wget-1.11
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER)
@@ -9,17 +9,12 @@ build-$(VER)/Makefile:
 	rm -rf build-$(VER) ; \
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
-	( \
-		export CC="$(CC) $(CFLAGS)"; \
-		export LDFLAGS="$(LDFLAGS)"; \
-		export LIBS="$(LDLIBS)"; \
-		../$(VER)/configure $(CONFIGURE_OPTS) --prefix= ; \
-	)
+	../$(VER)/configure $(CONFIGURE_OPTS)
 
 clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) build-$(VER)/src/wget /bin/wget
+	$(ROMFSINST) build-$(VER)/src/wget /usr/bin/wget
 
 .PHONY: all clean romfs
