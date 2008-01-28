@@ -187,12 +187,9 @@ version.h:	Makefile
 		@echo "#define RELEASE \"net-tools $(RELEASE)\"" >version.h
 
 
-$(NET_LIB):	config.h version.h intl.h libdir
+$(NET_LIB):	config.h version.h intl.h subdirs
 
 i18n.h:		i18ndir
-
-libdir:
-		@$(MAKE) -C $(NET_LIB_PATH) $(MDEFINES)
 
 i18ndir:
 		@$(MAKE) -C po
