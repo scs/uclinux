@@ -57,6 +57,9 @@ CONFIGURE_OPTS  := \
 	--localstatedir=/var/lib \
 	--disable-dependency-tracking \
 	--enable-fast-install
+ifneq ($(findstring s,$(MAKEFLAGS)),)
+CONFIGURE_OPTS += --quiet
+endif
 
 # help out autotools a bit and force some tests that would otherwise
 # fail because they rely on RUN tests rather than COMPILE
