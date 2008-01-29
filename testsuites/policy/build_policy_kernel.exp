@@ -43,36 +43,13 @@ while 1 {
              send "y\r"
       }
       
-        -re "CPU.* (\[0-9]+). $cpu.*choice.*\\\[.*]" {
+           -re "CPU.* (\[0-9]+). $cpu.*choice.*\\\[.*]" {
                 send "$expect_out(1,string)\r"
-      }   
+        }   
 
-	-re "Silicon Rev.*BF_REV.*BF_REV.*choice.*\\\[.*]" {
-		if { $cpu == "BF533" || $cpu == "BF561" } {
-			if { $revision == "0.3" } {
-				send "1\r"
-			} elseif { $revision == "0.4" } {
-				send "2\r"
-			} elseif { $revision == "0.5" } {
-				send "3\r"
-			} elseif { $revision == "0.0" } {
-				send "\r"
-			}
-		} else {
-			if { $revision == "0.2" } {
-				send "1\r"
-			} elseif { $revision == "0.3" } {
-				send "2\r"
-			} elseif { $revision == "0.4" } {
-				send "3\r"
-			} elseif { $revision == "0.5" } {
-				send "4\r"
-			} elseif { $revision == "0.0" } {
-				send "\r"
-			}
-		}
+	   -re "Silicon Rev.* (\[0-9]+). $revision.*choice.*\\\[.*]" {
+                send "$expect_out(1,string)\r"
 	}
-
       
            -re "Choose SLAB allocator.*SLAB.*SLUB.*SLOB.*choice.*\\\[.*]" {
 	    if { $allocator == "slab\(p2\)" } {
@@ -88,7 +65,7 @@ while 1 {
             } elseif { $allocator == "slub\(np2\)" } {
                        send "2\r"
             }
-      }
+       }
       
            -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
  	    if { $allocator == "slab\(p2\)" } {

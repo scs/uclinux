@@ -9,12 +9,11 @@ spawn make config
 while 1 {
    expect {
 
-       -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-            
-             send "$board_type\r"
-      }
+          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+                send "$expect_out(1,string)\r"
+          }
 
-       -re "Default all settings.*lose changes.*CONFIG_DEFAULTS_OVERRIDE.*\\\[.*]" {
+       -re "Default all settings.*lose changes.*DEFAULTS_OVERRIDE.*\\\[.*]" {
                 if { $file_name == "./build_policy_kernel.exp" } {
                         send "y\r"
                 } else {
