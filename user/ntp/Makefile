@@ -18,7 +18,7 @@ else
 NTPQ := without
 endif
 
-CONFOPTIONS=								   \
+CONF_OPTS = \
 	--disable-debugging	\
 	--disable-HOPFSERIAL --disable-HOPFPCI --disable-BANCOMM           \
 	--disable-GPSVME --disable-SHM --disable-all-clocks                \
@@ -41,30 +41,26 @@ CONFOPTIONS=								   \
 	--$(NTPDC)-ntpdc --$(NTPQ)-ntpq
 
 
-all: builddir
-	$(MAKE) -C builddir CFLAGS='$(CFLAGS) -DCONFIG_FILE=\"/etc/config/ntp.conf\"'
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER)
+
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+	set -e ; \
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
+
+clean:
+	rm -rf build*
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPD builddir/ntpd/ntpd /bin/ntpd
 	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDATE builddir/ntpdate/ntpdate /bin/ntpdate
 	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPDC builddir/ntpdc/ntpdc /bin/ntpdc
 	$(ROMFSINST) -e CONFIG_USER_NTPD_NTPQ builddir/ntpq/ntpq /bin/ntpq
-
-
-builddir: makefile
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	rm -rf builddir
-	mkdir builddir
-	( \
-		cd builddir; \
-		CC="$(CC) $(CFLAGS)" LDFLAGS="$(LDFLAGS)" LIBS="$(LDLIBS)" \
-		MISSING="true" \
-			../$(VER)/configure --prefix= \
-			--with-headers=$(ROOTDIR)/$(LINUXDIR)/include \
-			$(CONFIGURE_OPTS) $(CONFOPTIONS) \
-	)
-
-clean:
-	rm -rf builddir
+	$(ROMFSINST) -a "ntp	123/tcp" /etc/services
+	$(ROMFSINST) -a "ntp	123/udp" /etc/services
 
 .PHONY: all clean romfs
