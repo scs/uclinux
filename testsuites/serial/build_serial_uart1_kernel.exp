@@ -25,11 +25,11 @@ while 1 {
           -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
                 send "$expect_out(1,string)\r"
           }
-   	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
              send "y\r"
       }
 
-           -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
              send "y\r"
       }
              
