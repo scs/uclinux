@@ -4,10 +4,12 @@
 
 CC = cc
 
-# lxdialog peices needed locally
+# lxdialog pieces needed locally
 check-lxdialog := lxdialog/check-lxdialog.sh
 CFLAGS += $(shell $(CONFIG_SHELL) $(check-lxdialog) -ccflags)
 LDLIBS += $(shell $(CONFIG_SHELL) $(check-lxdialog) -ldflags $(CC))
+
+CPPFLAGS += $(shell $(CONFIG_SHELL) ./check.sh $(CC) $(CFLAGS) $(LDLIBS))
 
 conf-objs := conf.o zconf.tab.o
 mconf-objs := mconf.o zconf.tab.o
