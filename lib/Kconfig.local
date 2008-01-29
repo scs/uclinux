@@ -4,6 +4,10 @@ comment "*** Additional Blackfin dist libs ***"
 
 config LIB_ALSA_LIB
 	bool "Build ALSA lib"
+	depends on FMT_USE_FDPIC_ELF
+if !FMT_USE_FDPIC_ELF
+comment "ALSA lib requires FDPIC ELF"
+endif
 
 config LIB_AVAHI
 	bool "Build avahi"
@@ -44,6 +48,10 @@ config LIB_FTPLIB
 
 config LIB_LIBAO
 	bool "Build libao"
+	depends on FMT_USE_FDPIC_ELF
+if !FMT_USE_FDPIC_ELF
+comment "libao requires FDPIC ELF"
+endif
 
 config LIB_LIBAUDIO
 	bool "Build libaudio"
