@@ -432,6 +432,9 @@ $(sort $(dir_y) $(dir_p)):  config
 %_clean:
 	$(MAKE) -C $(@:_clean=) clean; rm -f $(@:_clean=)/.sgbuilt_user; true
 
+%_romfs:
+	$(MAKE) -j1 -C $(@:_romfs=) romfs
+
 romfs:
 	for i in $(sort $(dir_y)) $(dir_p) ; do \
 		[ ! -d $$i ] || $(MAKE) -C $$i romfs || exit $$? ; \
