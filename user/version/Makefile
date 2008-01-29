@@ -1,3 +1,4 @@
+ROOTDIR ?= ../..
 
 include id.mk
 
@@ -16,14 +17,16 @@ romfs:
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
 
-newversion:
+.PHONY: .version
+.version:
 	@if [ ! -f .version ]; then \
 		echo 1 > .version; \
 	else \
 		expr 0`cat .version` + 1 > .version; \
 	fi
 
-compile.h: $(CONFIGURATION) version.h newversion
+.PHONY: compile.h
+compile.h: $(CONFIGURATION) version.h .version
 	@if [ -f .name ]; then \
 	  echo \#define TOOLCHAIN_VERSION \"\#`cat .version`-`cat .name` `date`\"; \
 	 else \
@@ -49,7 +52,8 @@ USER_DIST_VERSION = $(shell \
 		|| grep '^Version:' $(ROOTDIR)/release_notes | awk '{print $$NF}' \
 )
 
-version.h: ./Makefile id.mk
+.PHONY: version.h
+version.h: Makefile id.mk
 	@echo \#define TOOLCHAIN_BANNER \"$(BANNER)\" > .ver
 	@echo \#define TOOLCHAIN_NAME \"$(TOOLCHAIN)\" >> .ver
 	@echo \#define TOOLCHAIN_RELEASE \"$(VERSION).$(PATCHLEVEL).$(SUBLEVEL)\" >> .ver
