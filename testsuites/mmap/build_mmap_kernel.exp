@@ -20,10 +20,9 @@ spawn make config
 
 while 1 {
     expect {
-        -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
-            send "$board_type\r"
-        }
-
+          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+                send "$expect_out(1,string)\r"
+          }
         -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
             send "y\r"
         }

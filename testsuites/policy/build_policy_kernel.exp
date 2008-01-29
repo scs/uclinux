@@ -29,10 +29,9 @@ spawn make config
 while 1 {
    expect {
    
-   	   -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP.*\\\[.*]" {
-	        
-	     send "$board_type\r"
-      } 
+          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+                send "$expect_out(1,string)\r"
+          }
    
    	   -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
              
@@ -44,40 +43,8 @@ while 1 {
              send "y\r"
       }
       
-        -re "CPU.*BF531.*BF532.*BF533.*BF534.*BF536.*BF537.*BF561.*choice.*\\\[.*]" {
- 	    if { $cpu == "BF522" } {
-                       send "1\r"
-            } elseif { $cpu == "BF525" } {
-                       send "2\r"
-            } elseif { $cpu == "BF527" } {
-                       send "3\r"
-            } elseif { $cpu == "BF531" } {
-                       send "4\r"
-            } elseif { $cpu == "BF532" } {
-                       send "5\r"
-            } elseif { $cpu == "BF533" } {
-                       send "6\r"
-            } elseif { $cpu == "BF534" } {
-                       send "7\r"
-            } elseif { $cpu == "BF536" } {
-                       send "8\r"
-            } elseif { $cpu == "BF537" } {
-                       send "9\r"
-            } elseif { $cpu == "BF542" } {
-                       send "10\r"
-            } elseif { $cpu == "BF544" } {
-                       send "11\r"
-            } elseif { $cpu == "BF547" } {
-                       send "12\r"
-            } elseif { $cpu == "BF548" } {
-                       send "13\r"
-            } elseif { $cpu == "BF549" } {
-                       send "14\r"
-            } elseif { $cpu == "BF561" } {
-                       send "15\r"
-            } elseif { $cpu == "BF5xx" } {
-                       send "\r"
-            }
+        -re "CPU.* (\[0-9]+). $cpu.*choice.*\\\[.*]" {
+                send "$expect_out(1,string)\r"
       }   
 
 	-re "Silicon Rev.*BF_REV.*BF_REV.*choice.*\\\[.*]" {
@@ -167,11 +134,11 @@ while 1 {
 
           -re "Binary format.*FLAT.*Sep-Data.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             if { $binary_format == "flat" } {
-                       send  "FLAT\r"
+                       send  "1\r"
             } elseif { $binary_format == "elf" } {
-                       send  "FDPIC\r"
+                       send  "4\r"
             } elseif { $binary_format == "shared-flat" } {
-                       send  "Shared-FLAT\r"
+                       send  "3\r"
             }
       }
       
