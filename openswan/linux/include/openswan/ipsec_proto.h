@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_proto.h,v 1.14 2005/04/29 04:50:03 mcr Exp $
+ * RCSID $Id: ipsec_proto.h,v 1.14 2005-04-29 04:50:03 mcr Exp $
  *
  */
 
@@ -142,7 +142,7 @@ extern int debug_netlink;
 
 /*
  * $Log: ipsec_proto.h,v $
- * Revision 1.14  2005/04/29 04:50:03  mcr
+ * Revision 1.14  2005-04-29 04:50:03  mcr
  * 	prototypes for xmit and alg code.
  *
  * Revision 1.13  2005/04/17 03:46:07  mcr

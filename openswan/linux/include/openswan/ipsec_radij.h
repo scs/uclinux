@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_radij.h,v 1.22 2004/07/10 19:08:41 mcr Exp $
+ * RCSID $Id: ipsec_radij.h,v 1.22 2004-07-10 19:08:41 mcr Exp $
  */
 
 #ifndef _IPSEC_RADIJ_H
@@ -63,7 +63,7 @@ void rj_dumptrees(void);
 
 /*
  * $Log: ipsec_radij.h,v $
- * Revision 1.22  2004/07/10 19:08:41  mcr
+ * Revision 1.22  2004-07-10 19:08:41  mcr
  * 	CONFIG_IPSEC -> CONFIG_KLIPS.
  *
  * Revision 1.21  2004/04/29 11:06:42  ken

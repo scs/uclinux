@@ -1,6 +1,6 @@
 
 #
-# RCSID $Id: defconfig-nodebug,v 1.2 2005/05/12 03:10:53 mcr Exp $
+# RCSID $Id: defconfig-nodebug,v 1.2 2005-05-12 03:10:53 mcr Exp $
 #
 
 #
@@ -54,7 +54,7 @@ CONFIG_KLIPS_DEBUG=n
 #
 #
 # $Log: defconfig-nodebug,v $
-# Revision 1.2  2005/05/12 03:10:53  mcr
+# Revision 1.2  2005-05-12 03:10:53  mcr
 # 	adjusted settings for IPSEC->KLIPS change.
 #
 # Revision 1.1  2004/12/22 00:31:01  paul

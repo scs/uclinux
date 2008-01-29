@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Library General Public
  * License for more details.
  *
- * RCSID $Id: rangetosubnet.c,v 1.9 2004/04/09 18:00:36 mcr Exp $
+ * RCSID $Id: rangetosubnet.c,v 1.9 2004-04-09 18:00:36 mcr Exp $
  */
 #include "internal.h"
 #include "openswan.h"

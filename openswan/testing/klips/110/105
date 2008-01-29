@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# RCSID $Id: 105,v 1.9 2002/04/24 07:36:14 mcr Exp $
+# RCSID $Id: 105,v 1.9 2002-04-24 07:36:14 mcr Exp $
 #
 
 net1=192.168.4.0
@@ -387,7 +387,7 @@ esac
 
 #
 # $Log: 105,v $
-# Revision 1.9  2002/04/24 07:36:14  mcr
+# Revision 1.9  2002-04-24 07:36:14  mcr
 # Moved from ./klips/test/110/105,v
 #
 # Revision 1.8  1999/04/06 04:54:34  rgb

@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: keywords.c,v 1.12 2004/12/02 16:26:02 ken Exp $
+ * RCSID $Id: keywords.c,v 1.12 2004-12-02 16:26:02 ken Exp $
  */
 
 #define DEBUG

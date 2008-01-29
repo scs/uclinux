@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: context.c,v 1.4 2004/12/02 06:16:19 mcr Exp $ */
+/* $Id: context.c,v 1.4 2004-12-02 06:16:19 mcr Exp $ */
 
 #include <config.h>
 

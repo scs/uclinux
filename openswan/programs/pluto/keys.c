@@ -15,7 +15,7 @@
  * Daniel Djamaludin <ddjamaludin@cyberguard.com>
  * Copyright (C) 2004-2005 Intel Corporation.  All Rights Reserved.
  *
- * RCSID $Id: keys.c,v 1.102.2.1 2005/08/19 17:52:42 ken Exp $
+ * RCSID $Id: keys.c,v 1.102.2.1 2005-08-19 17:52:42 ken Exp $
  */
 
 #include <stddef.h>

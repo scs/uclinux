@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: alloc.c,v 1.2 2004/10/16 23:42:13 mcr Exp $
+ * RCSID $Id: alloc.c,v 1.2 2004-10-16 23:42:13 mcr Exp $
  */
 
 #include <stdlib.h>

@@ -1,5 +1,5 @@
 /*
- * RCSID $Id: ipsec_md5c.c,v 1.10 2005/04/15 01:25:57 mcr Exp $
+ * RCSID $Id: ipsec_md5c.c,v 1.10 2005-04-15 01:25:57 mcr Exp $
  */
 
 /*
@@ -399,7 +399,7 @@ unsigned int len;
 
 /*
  * $Log: ipsec_md5c.c,v $
- * Revision 1.10  2005/04/15 01:25:57  mcr
+ * Revision 1.10  2005-04-15 01:25:57  mcr
  * 	minor fix to comments.
  *
  * Revision 1.9  2004/09/08 17:21:36  ken

@@ -23,7 +23,7 @@ $INCLUDE K1.0.192.in-addr.arpa.+001+22846.key
 
 ;
 ; $Log: db.1.0.192.in-addr.arpa.,v $
-; Revision 1.9  2003/05/26 22:11:23  mcr
+; Revision 1.9  2003-05-26 22:11:23  mcr
 ; 	both TXT/KEY records present.
 ;
 ; Revision 1.8  2003/05/23 16:04:19  mcr

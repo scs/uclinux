@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: secrets.h,v 1.2 2005/02/15 01:52:10 mcr Exp $
+ * RCSID $Id: secrets.h,v 1.2 2005-02-15 01:52:10 mcr Exp $
  */
 
 #ifndef _SECRETS_H_

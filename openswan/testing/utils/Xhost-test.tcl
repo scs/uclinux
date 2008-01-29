@@ -1,7 +1,7 @@
 #!/usr/bin/expect --
 
 #
-# $Id: Xhost-test.tcl,v 1.18 2005/02/11 01:31:19 mcr Exp $
+# $Id: Xhost-test.tcl,v 1.18 2005-02-11 01:31:19 mcr Exp $
 #
 
 if {! [info exists env(OPENSWANSRCDIR)]} {
@@ -288,7 +288,7 @@ expect {
 
 # 
 # $Log: Xhost-test.tcl,v $
-# Revision 1.18  2005/02/11 01:31:19  mcr
+# Revision 1.18  2005-02-11 01:31:19  mcr
 # 	added a sleep to permit UMLs to finish and drain.
 #
 # Revision 1.17  2004/04/03 19:44:52  ken

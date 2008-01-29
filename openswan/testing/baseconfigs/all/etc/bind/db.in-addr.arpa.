@@ -1,7 +1,7 @@
 ;
 ; BIND reverse data file for in-addr.arpa.
 ;
-; $Id: db.in-addr.arpa.,v 1.4 2002/11/12 18:56:52 mcr Exp $
+; $Id: db.in-addr.arpa.,v 1.4 2002-11-12 18:56:52 mcr Exp $
 ;
 $TTL	604800
 @	IN	SOA	in-addr.arpa. root.freeswan.org. (
@@ -22,7 +22,7 @@ $INCLUDE Kin-addr.arpa.+001+51589.key
 
 ;
 ; $Log: db.in-addr.arpa.,v $
-; Revision 1.4  2002/11/12 18:56:52  mcr
+; Revision 1.4  2002-11-12 18:56:52  mcr
 ; 	resigned zones, include proper keys.
 ;
 ; Revision 1.3  2002/11/12 05:29:39  mcr

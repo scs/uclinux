@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: kernel_netlink.h,v 1.1 2003/07/31 18:14:23 mcr Exp $
+ * RCSID $Id: kernel_netlink.h,v 1.1 2003-07-31 18:14:23 mcr Exp $
  */
 
 #if defined(KLIPS) && defined(linux)

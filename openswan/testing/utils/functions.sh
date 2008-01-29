@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# $Id: functions.sh,v 1.124.2.2 2005/11/17 03:43:46 ken Exp $
+# $Id: functions.sh,v 1.124.2.2 2005-11-17 03:43:46 ken Exp $
 #
 
 preptest() {
@@ -1605,10 +1605,10 @@ umlXhost() {
 }
 
 #
-# $Id: functions.sh,v 1.124.2.2 2005/11/17 03:43:46 ken Exp $
+# $Id: functions.sh,v 1.124.2.2 2005-11-17 03:43:46 ken Exp $
 #
 # $Log: functions.sh,v $
-# Revision 1.124.2.2  2005/11/17 03:43:46  ken
+# Revision 1.124.2.2  2005-11-17 03:43:46  ken
 # Remove CVS commit errors
 #
 # Revision 1.124.2.1  2005/11/17 01:44:13  mcr

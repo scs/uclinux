@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: kernel.h,v 1.46.2.3 2005/07/26 02:11:23 ken Exp $
+ * RCSID $Id: kernel.h,v 1.46.2.3 2005-07-26 02:11:23 ken Exp $
  */
 
 extern bool can_do_IPcomp;  /* can system actually perform IPCOMP? */

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# $Id: foreach-ref-console.sh,v 1.1 2002/10/10 16:09:59 mcr Exp $
+# $Id: foreach-ref-console.sh,v 1.1 2002-10-10 16:09:59 mcr Exp $
 #
 # use this script to run some script on each reference output script.
 # It uses the foreach_ref_console function in functions.sh to do its
@@ -24,7 +24,7 @@ foreach_ref_console $@
 
 
 # $Log: foreach-ref-console.sh,v $
-# Revision 1.1  2002/10/10 16:09:59  mcr
+# Revision 1.1  2002-10-10 16:09:59  mcr
 # 	refactored update-ref-console to use new foreach_ref_console
 # 	function in functions.sh, added a simple way to invoke it,
 # 	and also used it in repatch-console.sh.

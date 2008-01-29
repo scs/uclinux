@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: defs.h,v 1.36 2004/05/27 00:39:59 mcr Exp $
+ * RCSID $Id: defs.h,v 1.36 2004-05-27 00:39:59 mcr Exp $
  */
 
 #include "oswalloc.h"

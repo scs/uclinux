@@ -11,18 +11,27 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.3.6.1 2005/11/01 18:10:07 paul Exp $
+# RCSID $Id: Makefile,v 1.3.6.4 2007-11-02 16:12:25 paul Exp $
 
 OPENSWANSRCDIR?=$(shell cd ../..; pwd)
 include ${OPENSWANSRCDIR}/Makefile.inc
 
 CONFDSUBDIR=examples
-CONFDFILES=no_oe.conf l2tp-cert.conf l2tp-cert-orgWIN2KXP.conf l2tp-psk.conf l2tp-psk-orgWIN2KXP.conf
+CONFDFILES=no_oe.conf l2tp-cert.conf l2tp-psk.conf linux-linux.conf sysctl.conf
 
 include ${srcdir}../Makefile.program
 
 #
 # $Log: Makefile,v $
+# Revision 1.3.6.4  2007-11-02 16:12:25  paul
+# Remove deleted targets from Makefile (old examples)
+#
+# Revision 1.3.6.3  2007/02/21 00:48:02  paul
+# Added sysctl.conf example file
+#
+# Revision 1.3.6.2  2006/09/22 20:28:12  paul
+# Added example of simple linux-linux connection using raw RSA keys.
+#
 # Revision 1.3.6.1  2005/11/01 18:10:07  paul
 # dopted Jacco's L2TP example configuration files. I changed them slightly
 # from his versions to properly support nat-t and to avoid breaking rekey

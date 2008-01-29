@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: id.c,v 1.46 2005/02/14 05:56:02 ken Exp $
+ * RCSID $Id: id.c,v 1.46 2005-02-14 05:56:02 ken Exp $
  */
 
 #include <stdlib.h>

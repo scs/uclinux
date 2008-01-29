@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pluto_endian.h,v 1.2 2005/05/13 00:33:13 mcr Exp $
+ * RCSID $Id: pluto_endian.h,v 1.2 2005-05-13 00:33:13 mcr Exp $
  */
 
 /* sets BYTE_ORDER, LITTLE_ENDIAN, and BIG_ENDIAN */

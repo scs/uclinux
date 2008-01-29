@@ -278,7 +278,7 @@ you see traffic sent from sg1.
 If you also see responses, then the problem is in the reverse flow.
 Follow these instructions again, but with "sg1" and "sg2" swapped.
 
-$Id: debugging-tcpdump.txt,v 1.1 2005/04/24 15:47:26 mcr Exp $
+$Id: debugging-tcpdump.txt,v 1.1 2005-04-24 15:47:26 mcr Exp $
 
 
 

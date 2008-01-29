@@ -50,7 +50,7 @@ done
 
 #
 # $Log: gen-primaries.sh,v $
-# Revision 1.2  2002/11/28 04:59:57  mcr
+# Revision 1.2  2002-11-28 04:59:57  mcr
 # 	generate list of zones for "nic" machine.
 #
 # Revision 1.1  2002/11/27 19:43:09  mcr

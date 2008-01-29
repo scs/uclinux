@@ -1953,22 +1953,6 @@ refine_host_connection(const struct state *st, const struct id *peer_id
 	    log("cannot determine PSK");
 	    return NULL;	/* cannot determine PSK! */
 	}
-	if (c->dnshostname != NULL) {
-			d = c;
-			d->that.id = *peer_id;
-			psk_check = get_preshared_secret(d);
-			if (psk_check != NULL && !strcmp(psk_check->ptr, psk->ptr) && (psk_check->len == psk->len)) {
-				ip_address new_addr;
-				d->that.host_addr = new_addr;
-				if (ttoaddr(inet_ntoa(d->that.id.ip_addr.u.v4.sin_addr), 0, c->addr_family, &new_addr) == NULL) {
-					for (; d != NULL; d = d->hp_next)
-					{
-						d->that.host_addr = new_addr;
-						state_rehash(c);
-					}
-				}
-			}
-	}
 	break;
 
     case OAKLEY_RSA_SIG:

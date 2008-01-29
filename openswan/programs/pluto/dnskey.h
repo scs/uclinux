@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: dnskey.h,v 1.24 2003/09/18 02:21:21 mcr Exp $
+ * RCSID $Id: dnskey.h,v 1.24 2003-09-18 02:21:21 mcr Exp $
  */
 
 extern int

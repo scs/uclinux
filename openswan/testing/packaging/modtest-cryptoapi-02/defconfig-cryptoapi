@@ -1,6 +1,6 @@
 
 #
-# RCSID $Id: defconfig-cryptoapi,v 1.1 2005/05/12 03:10:12 mcr Exp $
+# RCSID $Id: defconfig-cryptoapi,v 1.1 2005-05-12 03:10:12 mcr Exp $
 #
 
 #
@@ -55,7 +55,7 @@ CONFIG_KLIPS_DEBUG=n
 #
 #
 # $Log: defconfig-cryptoapi,v $
-# Revision 1.1  2005/05/12 03:10:12  mcr
+# Revision 1.1  2005-05-12 03:10:12  mcr
 # 	build case for 1DES support via cryptoapi.
 # 	(never enabled by default)
 #

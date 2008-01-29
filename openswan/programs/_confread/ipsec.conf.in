@@ -1,5 +1,5 @@
 # /etc/ipsec.conf - Openswan IPsec configuration file
-# RCSID $Id: ipsec.conf.in,v 1.15.2.4 2006/07/11 16:17:53 paul Exp $
+# RCSID $Id: ipsec.conf.in,v 1.15.2.6 2006-10-19 03:49:46 paul Exp $
 
 # This file:  @FINALEXAMPLECONFDIR@/ipsec.conf-sample
 #
@@ -12,10 +12,9 @@ version	2.0	# conforms to second version of ipsec.conf specification
 config setup
 	# plutodebug / klipsdebug = "all", "none" or a combation from below:
 	# "raw crypt parsing emitting control klips pfkey natt x509 private"
-	# eg:
-	# plutodebug="control parsing"
+	# eg: plutodebug="control parsing"
 	#
-	# Only enable klipsdebug=all if you are a developer
+	# ONLY enable plutodebug=all or klipsdebug=all if you are a developer !!
 	#
 	# NAT-TRAVERSAL support, see README.NAT-Traversal
 	nat_traversal=yes

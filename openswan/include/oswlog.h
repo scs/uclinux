@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: oswlog.h,v 1.11 2005/01/26 00:52:16 mcr Exp $
+ * RCSID $Id: oswlog.h,v 1.11 2005-01-26 00:52:16 mcr Exp $
  */
 
 #ifndef _OSWLOG_H_

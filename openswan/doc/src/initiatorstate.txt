@@ -63,4 +63,4 @@ conn.     msg  /        |        \ deny
                   `--------------'
 
 
-$Id: initiatorstate.txt,v 1.1 2003/06/30 01:45:55 mcr Exp $
+$Id: initiatorstate.txt,v 1.1 2003-06-30 01:45:55 mcr Exp $

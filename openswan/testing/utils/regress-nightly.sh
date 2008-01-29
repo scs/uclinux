@@ -69,10 +69,10 @@ fi
 
 )
 
-# $Id: regress-nightly.sh,v 1.10 2003/11/21 23:07:03 mcr Exp $
+# $Id: regress-nightly.sh,v 1.10 2003-11-21 23:07:03 mcr Exp $
 #
 # $Log: regress-nightly.sh,v $
-# Revision 1.10  2003/11/21 23:07:03  mcr
+# Revision 1.10  2003-11-21 23:07:03  mcr
 # 	updates for hulk builds of openswan.
 #
 # Revision 1.9  2003/02/01 20:45:58  mcr

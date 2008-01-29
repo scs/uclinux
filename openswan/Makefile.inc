@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile.inc,v 1.116.2.6 2006/07/18 14:00:51 paul Exp $
+# RCSID $Id: Makefile.inc,v 1.116.2.16 2007-11-02 03:07:27 paul Exp $
 
 
 # snapgear specific defaults from build env.
@@ -166,6 +166,8 @@ VERFILE=$(KERNELSRC)/include/linux/version.h
 # where KLIPS kernel module is install
 OSMOD_DESTDIR?=net/ipsec
 
+# What command to use to load the modules. openwrt does not have modprobe
+MODPROBE?=modprobe
 
 ### misc installation stuff
 
@@ -190,8 +192,8 @@ INSTCONFFLAGS=
 # Do no use this for cross-compiling flags such as -I or -L. Add those to a
 # CC variable
 # (caution, this stuff is still being sorted out, will change in future)
-USERCOMPILE?=-g -O3
-KLIPSCOMPILE=-O3
+USERCOMPILE?=-g -O3 -DDISABLE_UDP_CHECKSUM
+KLIPSCOMPILE=-O3 -DCONFIG_KLIPS_ALG
 # for AMD64 use 
 #USERCOMPILE?=-g -O3 -m64
 #KLIPSCOMPILE=-O3 -m64 -mno-red-zone
@@ -274,6 +276,8 @@ BIND9STATICLIBDIR?=/usr/local/lib
 # LWRES is the lightweight resolver, part of BIND9
 # We test with LWRES, but ship with it off, as it requires
 # additional headers not present on most systems.
+# Note you need a locally running bind9 nameserver with lwres{} enabled
+# to use this.
 USE_LWRES?=false
 
 # Whether or not to use iproute2 based commands.
@@ -309,9 +313,6 @@ USE_KERNEL26?=true
 # include support for sending Openswan Vendor IDs
 USE_VENDORID?=true
 
-# Use /dev/hwrandom if available (EG: VIA Padlock)
-USE_HWRANDOM?=true
-
 # include aggressive mode authentication system code - both Server and Client.
 # This is off by default, since aggressive mode leads to denial of service
 # attacks.
@@ -344,7 +345,7 @@ USE_SMARTCARD?=false
 
 # should opportunistic encryption be turned on by default?
 # Enabled during testing, but probably turned off in shipping versions.
-USE_OE?=false
+USE_OE?=true
 ifeq ($(USE_OE),false)
 # warning: examples subdirectory is statically defined here
 OE_FLAG=\#Disable Opportunistic Encryption\\ninclude ${FINALCONFDDIR}/examples/no_oe.conf
@@ -381,7 +382,6 @@ HAVE_OPENSSL?=false
 # if so, then internationalization code is retained in the shell scripts
 USE_BASH?=true
 
-X509_VERSION=X.509-1.5.4
 NONINTCONFIG=oldconfig
 
 # Should we build with object directories?

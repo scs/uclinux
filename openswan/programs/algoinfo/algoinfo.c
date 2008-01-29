@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char spi_c_version[] = "RCSID $Id: algoinfo.c,v 1.1 2004/04/29 04:13:02 mcr Exp $";
+char spi_c_version[] = "RCSID $Id: algoinfo.c,v 1.1 2004-04-29 04:13:02 mcr Exp $";
 
 #include <asm/types.h>
 #include <sys/types.h>
@@ -1687,7 +1687,7 @@ main(int argc, char *argv[])
 
 /*
  * $Log: algoinfo.c,v $
- * Revision 1.1  2004/04/29 04:13:02  mcr
+ * Revision 1.1  2004-04-29 04:13:02  mcr
  * 	diagnostic program for algorithm code.
  *
  * Revision 1.105  2004/04/26 05:05:04  ken

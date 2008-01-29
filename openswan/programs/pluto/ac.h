@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ac.h,v 1.3 2004/06/14 01:46:02 mcr Exp $
+ * RCSID $Id: ac.h,v 1.3 2004-06-14 01:46:02 mcr Exp $
  */
 
 /* definition of ietfAttribute kinds */

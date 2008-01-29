@@ -18,7 +18,7 @@
  * Daniel Djamaludin <ddjamaludin@cyberguard.com>
  * Copyright (C) 2004-2005 Intel Corporation.  All Rights Reserved.
  *
- * RCSID $Id: crypt_ke.c,v 1.11.2.3 2006/03/20 13:32:03 paul Exp $
+ * RCSID $Id: crypt_ke.c,v 1.11.2.3 2006-03-20 13:32:03 paul Exp $
  */
 
 #include <stdlib.h>

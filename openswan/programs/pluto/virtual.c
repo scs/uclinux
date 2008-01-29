@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: virtual.c,v 1.5 2004/05/08 11:05:38 ken Exp $
+ * RCSID $Id: virtual.c,v 1.5 2004-05-08 11:05:38 ken Exp $
  */
 
 #ifdef VIRTUAL_IP

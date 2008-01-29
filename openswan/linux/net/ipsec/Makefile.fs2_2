@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile.fs2_2,v 1.2 2004/09/18 19:32:42 mcr Exp $
+# RCSID $Id: Makefile.fs2_2,v 1.2 2004-09-18 19:32:42 mcr Exp $
 #
 # Note! Dependencies are done automagically by 'make dep', which also
 # removes any old dependencies. DON'T put your own dependencies here
@@ -260,7 +260,7 @@ tar:
 
 #
 # $Log: Makefile.fs2_2,v $
-# Revision 1.2  2004/09/18 19:32:42  mcr
+# Revision 1.2  2004-09-18 19:32:42  mcr
 # 	add EXPORT_SYMTAB for 2.2 if building as a module.
 #
 # Revision 1.1  2004/07/10 19:11:18  mcr

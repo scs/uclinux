@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
  * License for more details.
  *
- * RCSID $Id: config-rh-alpha.h,v 1.1 2003/02/08 04:09:14 mcr Exp $
+ * RCSID $Id: config-rh-alpha.h,v 1.1 2003-02-08 04:09:14 mcr Exp $
  */
 #define	_CONFIG_RH_I586_H_	/* seen it, no need to see it again */
 

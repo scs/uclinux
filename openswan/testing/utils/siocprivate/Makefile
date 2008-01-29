@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.1 2005/03/20 02:59:24 mcr Exp $
+# RCSID $Id: Makefile,v 1.1 2005-03-20 02:59:24 mcr Exp $
 
 OPENSWANSRCDIR=../../..
 OBJS = nethub.o cmdmode.o port.o hash.o tuntap.o

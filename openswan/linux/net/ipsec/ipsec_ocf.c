@@ -56,7 +56,11 @@ extern int debug_rcv;
 #define USE_BATCH 1	/* enable batch mode */
 #define USE_CBIMM 1	/* enable immediate callbacks */
 #define FORCE_QS  0	/* force use of queues for continuation of state machine */
-
+#ifdef DECLARE_TASKLET
+#define USE_TASKLET 1  /* use tasklet for continuation of state machine */
+#else
+#define USE_TASKLET 0  /* don't use tasklet for continuation of state machine */
+#endif
 /*
  * Because some OCF operations are synchronous (ie., software encryption)
  * we need to protect ourselves from distructive re-entry.  All we do
@@ -64,27 +68,40 @@ extern int debug_rcv;
  * callback to avoid conflicts.  This allows us to deal with the fact that
  * OCF doesn't tell us if our crypto operations will be async or sync.
  */
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
+#define	_INIT_WORK(wq, fn, arg)	INIT_WORK(&(wq), (void (*)(struct work_struct *))(fn))
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+#define	_INIT_WORK(wq, fn, arg)	INIT_WORK(&(wq), (void (*)(struct work_queue *))(fn))
+#else
+#define	_INIT_WORK(wq, fn, arg)	INIT_WORK(&(wq), (void (*)(void *))(fn), (void *)(arg))
+#endif
 
 #define PROCESS_LATER(wq, sm, arg) \
 	({ \
-		INIT_WORK(&(wq), (void (*)(void *))(sm), (void *)(arg)); \
+		_INIT_WORK(wq, sm, arg); \
 		schedule_work(&(wq)); \
 	})
 
-#define PROCESS_NOW(wq, sm, arg) \
+#define PROCESS_NOW(sm, arg) \
 	({ \
 		(*sm)(arg); \
 	})
 
-#if FORCE_QS == 0
-	#define PROCESS_NEXT(wq, sm, arg) \
+#if USE_TASKLET == 1
+	#define PROCESS_NEXT(this, wqsm, sm) ({ \
+		tasklet_init(&this->tasklet, \
+			(void (*)(unsigned long)) sm, (unsigned long)this); \
+		tasklet_schedule(&this->tasklet); \
+		})
+#elif FORCE_QS == 0
+	#define PROCESS_NEXT(this, wqsm, sm) \
 		if (in_interrupt()) { \
-			PROCESS_LATER(wq, sm, arg); \
+			PROCESS_LATER(this->workq, wqsm, this); \
 		} else { \
-			PROCESS_NOW(wq, sm, arg); \
+			PROCESS_NOW(sm, this); \
 		}
 #else
-	#define PROCESS_NEXT(wq, sm, arg) PROCESS_LATER(wq, sm, arg)
+	#define PROCESS_NEXT(this, wqsm, sm) PROCESS_LATER(this->workq, wqsm, this)
 #endif
 
 /*
@@ -152,6 +169,7 @@ ipsec_ocf_sa_init(struct ipsec_sa *ipsp, int authalg, int encalg)
 	cria.cri_alg = ipsec_ocf_authalg(authalg);
 	cria.cri_klen = ipsp->ips_key_bits_a;
 	cria.cri_key  = ipsp->ips_key_a;
+	cria.cri_mlen = 12;
 
 	crie.cri_alg = ipsec_ocf_encalg(encalg);
 	crie.cri_klen = ipsp->ips_key_bits_e;
@@ -210,6 +228,18 @@ ipsec_ocf_sa_free(struct ipsec_sa *ipsp)
 	return 1;
 }
 
+#if USE_TASKLET == 0
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+static void
+ipsec_rsm_wq(struct work_struct *work)
+{
+	struct ipsec_rcv_state *irs = container_of(work, struct ipsec_rcv_state, workq);
+	ipsec_rsm(irs);
+}
+#else
+#define	ipsec_rsm_wq	ipsec_rsm
+#endif
+#endif /* USE_TASKLET */
 
 static int
 ipsec_ocf_rcv_cb(struct cryptop *crp)
@@ -217,7 +247,6 @@ ipsec_ocf_rcv_cb(struct cryptop *crp)
 	struct ipsec_rcv_state *irs = (struct ipsec_rcv_state *)crp->crp_opaque;
 
 	KLIPS_PRINT(debug_rcv, "klips_debug:ipsec_ocf_rcv_cb\n");
-
 	if (irs == NULL) {
 		KLIPS_PRINT(debug_rcv, "klips_debug:ipsec_ocf_rcv_cb: "
 				"NULL irs in callback\n");
@@ -255,7 +284,7 @@ ipsec_ocf_rcv_cb(struct cryptop *crp)
 	crp = NULL;
 
 	/* setup the rest of the processing now */
-	PROCESS_NEXT(irs->workq, ipsec_rsm, irs);
+	PROCESS_NEXT(irs, ipsec_rsm_wq, ipsec_rsm);
 	return 0;
 }
 
@@ -352,7 +381,7 @@ ipsec_ocf_rcv(struct ipsec_rcv_state *irs)
 
 		irs->esphlen     = ESP_HEADER_LEN + ipsp->ips_iv_size;
 		irs->ilen       -= irs->esphlen;
-		crde->crd_skip   = (irs->skb->h.raw - irs->skb->data) + irs->esphlen;
+		crde->crd_skip   = (skb_transport_header(irs->skb) - irs->skb->data) + irs->esphlen;
 		crde->crd_len    = irs->ilen;
 		crde->crd_inject = crde->crd_skip - ipsp->ips_iv_size;
 		crde->crd_klen   = ipsp->ips_key_bits_e;
@@ -373,10 +402,23 @@ ipsec_ocf_rcv(struct ipsec_rcv_state *irs)
 	crp->crp_callback = ipsec_ocf_rcv_cb;
 	crp->crp_sid = ipsp->ocf_cryptoid;
 	crp->crp_opaque = (caddr_t) irs;
-	crypto_dispatch(crp);
+	if (crypto_dispatch(crp))
+		return IPSEC_RCV_REALLYBAD;
 	return(IPSEC_RCV_PENDING);
 }
 
+#if USE_TASKLET == 0
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,20)
+static void
+ipsec_xsm_wq(struct work_struct *work)
+{
+	struct ipsec_xmit_state *ixs = container_of(work, struct ipsec_xmit_state, workq);
+	ipsec_xsm(ixs);
+}
+#else
+#define	ipsec_xsm_wq	ipsec_xsm
+#endif
+#endif /* USE_TASKLET */
 
 static int
 ipsec_ocf_xmit_cb(struct cryptop *crp)
@@ -416,7 +458,7 @@ ipsec_ocf_xmit_cb(struct cryptop *crp)
 	crp = NULL;
 
 	/* setup the rest of the processing now */
-	PROCESS_NEXT(ixs->workq, ipsec_xsm, ixs);
+	PROCESS_NEXT(ixs, ipsec_xsm_wq, ipsec_xsm);
 	return 0;
 }
 
@@ -521,7 +563,8 @@ ipsec_ocf_xmit(struct ipsec_xmit_state *ixs)
 	crp->crp_callback = ipsec_ocf_xmit_cb;
 	crp->crp_sid = ipsp->ocf_cryptoid;
 	crp->crp_opaque = (caddr_t) ixs;
-	crypto_dispatch(crp);
+	if (crypto_dispatch(crp))
+		return IPSEC_XMIT_ERRMEMALLOC;
 	return(IPSEC_XMIT_PENDING);
 }
 

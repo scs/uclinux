@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: files.h,v 1.5 2005/01/11 17:52:51 ken Exp $
+ * RCSID $Id: files.h,v 1.5 2005-01-11 17:52:51 ken Exp $
  */
 
 #ifndef _STARTER_FILES_H_

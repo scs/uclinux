@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: uml_netjig.c,v 1.27.26.1 2005/08/12 16:32:01 ken Exp $
+ * RCSID $Id: uml_netjig.c,v 1.27.26.1 2005-08-12 16:32:01 ken Exp $
  *
  * @(#) based upon uml_router from User-Mode-Linux tools package
  *
@@ -658,7 +658,7 @@ int main(int argc, char **argv)
 
 /*
  * $Log: uml_netjig.c,v $
- * Revision 1.27.26.1  2005/08/12 16:32:01  ken
+ * Revision 1.27.26.1  2005-08-12 16:32:01  ken
  * Make tree PG13
  *
  * Revision 1.27  2003/04/02 20:25:53  mcr

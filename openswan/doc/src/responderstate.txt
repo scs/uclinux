@@ -40,4 +40,4 @@
 	machine
 
 
-$Id: responderstate.txt,v 1.1 2003/06/30 01:45:55 mcr Exp $
+$Id: responderstate.txt,v 1.1 2003-06-30 01:45:55 mcr Exp $

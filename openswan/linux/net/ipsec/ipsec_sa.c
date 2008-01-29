@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_sa.c,v 1.30.2.1 2006/04/20 16:33:07 mcr Exp $
+ * RCSID $Id: ipsec_sa.c,v 1.30.2.3 2007-09-05 02:56:10 paul Exp $
  *
  * This is the file formerly known as "ipsec_xform.h"
  *
@@ -1053,7 +1053,7 @@ int ipsec_sa_init(struct ipsec_sa *ipsp)
 #if defined CONFIG_KLIPS_ALG
 	struct ipsec_alg_enc *ixt_e = NULL;
 	struct ipsec_alg_auth *ixt_a = NULL;
-#endif
+#endif /* CONFIG_KLIPS_ALG */
 
 	if(ipsp == NULL) {
 		KLIPS_PRINT(debug_pfkey,
@@ -1517,6 +1517,15 @@ int ipsec_sa_init(struct ipsec_sa *ipsp)
 
 /*
  * $Log: ipsec_sa.c,v $
+ * Revision 1.30.2.3  2007-09-05 02:56:10  paul
+ * Use the new ipsec_kversion macros by David to deal with 2.6.22 kernels.
+ * Fixes based on David McCullough patch.
+ *
+ * Revision 1.30.2.2  2006/10/06 21:39:26  paul
+ * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
+ * set. This is defined through autoconf.h which is included through the
+ * linux kernel build macros.
+ *
  * Revision 1.30.2.1  2006/04/20 16:33:07  mcr
  * remove all of CONFIG_KLIPS_ALG --- one can no longer build without it.
  * Fix in-kernel module compilation. Sub-makefiles do not work.

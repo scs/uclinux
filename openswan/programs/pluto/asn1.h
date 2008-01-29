@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: asn1.h,v 1.4 2004/06/14 01:46:02 mcr Exp $
+ * RCSID $Id: asn1.h,v 1.4 2004-06-14 01:46:02 mcr Exp $
  */
 
 /* Defines some primitive ASN1 types */

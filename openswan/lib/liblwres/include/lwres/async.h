@@ -17,7 +17,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: async.h,v 1.4 2003/12/01 21:45:12 mcr Exp $ */
+/* $Id: async.h,v 1.4 2003-12-01 21:45:12 mcr Exp $ */
 
 #ifndef LWRES_ASYNC_H
 #define LWRES_ASYNC_H 1

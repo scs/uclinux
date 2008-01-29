@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: demux.h,v 1.35 2005/06/14 22:38:06 mcr Exp $
+ * RCSID $Id: demux.h,v 1.35 2005-06-14 22:38:06 mcr Exp $
  */
 
 #ifndef _DEMUX_H

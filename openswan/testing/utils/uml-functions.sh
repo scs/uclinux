@@ -1,7 +1,7 @@
 #! /bin/sh 
 #
 # 
-# $Id: uml-functions.sh,v 1.38 2005/07/14 01:35:54 mcr Exp $
+# $Id: uml-functions.sh,v 1.38 2005-07-14 01:35:54 mcr Exp $
 #
 
 setup_make() {
@@ -357,7 +357,7 @@ applypatches() {
 
 #
 # $Log: uml-functions.sh,v $
-# Revision 1.38  2005/07/14 01:35:54  mcr
+# Revision 1.38  2005-07-14 01:35:54  mcr
 # 	use USE_OBJDIR.
 #
 # Revision 1.37  2005/05/11 02:17:52  mcr

@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: auto.in,v 1.104.6.3 2006/01/05 22:50:45 ken Exp $
+# RCSID $Id: auto.in,v 1.104.6.3 2006-01-05 22:50:45 ken Exp $
 
 me='ipsec auto'
 usage="Usage:

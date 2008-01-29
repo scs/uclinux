@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: whack.h,v 1.68 2004/12/16 01:22:44 mcr Exp $
+ * RCSID $Id: whack.h,v 1.68 2004-12-16 01:22:44 mcr Exp $
  */
 
 #include <openswan.h>

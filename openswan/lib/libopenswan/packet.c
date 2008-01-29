@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: packet.c,v 1.49 2005/01/23 18:53:56 mcr Exp $
+ * RCSID $Id: packet.c,v 1.49 2005-01-23 18:53:56 mcr Exp $
  */
 
 #include <stdio.h>

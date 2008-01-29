@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: rsasigkey.c,v 1.27 2004/05/23 21:32:03 paul Exp $
+ * RCSID $Id: rsasigkey.c,v 1.27 2004-05-23 21:32:03 paul Exp $
  */
 
 #include <sys/types.h>

@@ -1,7 +1,7 @@
 #!/usr/bin/expect --
 
 #
-# $Id: localswitches.tcl,v 1.5 2004/04/03 19:44:52 ken Exp $
+# $Id: localswitches.tcl,v 1.5 2004-04-03 19:44:52 ken Exp $
 #
 
 source $env(OPENSWANSRCDIR)/testing/utils/GetOpts.tcl

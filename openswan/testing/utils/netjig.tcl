@@ -1,4 +1,4 @@
-# $Id: netjig.tcl,v 1.53 2005/03/20 23:20:10 mcr Exp $
+# $Id: netjig.tcl,v 1.53 2005-03-20 23:20:10 mcr Exp $
 
 global theprompt
 set theprompt {([a-zA-Z0-9]*):.*# }
@@ -548,10 +548,10 @@ proc process_net {net} {
 
 match_max -d 10000
 
-# $Id: netjig.tcl,v 1.53 2005/03/20 23:20:10 mcr Exp $
+# $Id: netjig.tcl,v 1.53 2005-03-20 23:20:10 mcr Exp $
 #
 # $Log: netjig.tcl,v $
-# Revision 1.53  2005/03/20 23:20:10  mcr
+# Revision 1.53  2005-03-20 23:20:10  mcr
 # 	when looking for an output file for console output,
 # 	include the kernel version in the variable that we will
 # 	look for.

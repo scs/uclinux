@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: constants.h,v 1.3 2004/05/29 03:06:12 mcr Exp $
+ * RCSID $Id: constants.h,v 1.3 2004-05-29 03:06:12 mcr Exp $
  */
 
 #ifndef _CONSTANTS_H_

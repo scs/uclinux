@@ -157,6 +157,7 @@ LDLIBS=${LIBS} ${USERLINK}
 			-e "s:@IPSEC_FIREWALLTYPE@:$(IPSEC_FIREWALLTYPE):" \
 			-e "s:@OE_FLAG@:$(OE_FLAG):" \
 			-e "s:@USE_DEFAULT_CONNS@:$(USE_DEFAULT_CONNS):" \
+			-e "s:@MODPROBE@:$(MODPROBE):" \
 			| cat >$@
 	@if [ -x $< ]; then chmod +x $@; fi
 	@if [ "${PROGRAM}.in" = $< ]; then chmod +x $@; fi

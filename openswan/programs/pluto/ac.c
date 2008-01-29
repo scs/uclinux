@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ac.c,v 1.7 2004/06/14 01:46:02 mcr Exp $
+ * RCSID $Id: ac.c,v 1.7 2004-06-14 01:46:02 mcr Exp $
  */
 
 #include <stdlib.h>

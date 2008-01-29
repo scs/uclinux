@@ -480,6 +480,7 @@ load_asn1_file(const char* filename, const char* passphrase,
 	if (blob->len <= 0)
  	{
             log("  %s file '%s' is zero length", type, filename);
+	    fclose(fd);
             return FALSE;
 	}
 	rewind(fd);

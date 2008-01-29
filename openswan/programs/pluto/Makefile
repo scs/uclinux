@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.189.2.3 2005/08/12 01:12:38 ken Exp $
+# RCSID $Id: Makefile,v 1.189.2.9 2007-11-06 18:56:26 paul Exp $
 
 # All of the USE_ and HAVE_ variables are controlled from openswan/Makefile.inc
 
@@ -39,10 +39,6 @@ endif
 # whether or not to enable aggressive mode exchanges.
 ifeq ($(USE_AGGRESSIVE),true)
 AGGRESSIVE=1
-endif
-
-ifeq ($(USE_HWRANDOM),true)
-HW_DEFS+=-DHWRANDOM
 endif
 
 ifeq ($(USE_XAUTH),true)
@@ -76,7 +72,6 @@ HDRDIRS = -I${OPENSWANSRCDIR}/programs/pluto/linux26 -I${OPENSWANSRCDIR}/include
 # -DDEBUG enables debugging code, allowing for debugging output
 #    (note that output must also be selected at runtime, so it is
 #    reasonable to always define this)
-# -DX509_VERSION is used to transfer the X.509 version number to Pluto
 # -DPLUTO_SENDS_VENDORID enables pluto to send out a VendorID payload.
 #    this can be used by remote nodes to work around faults (bugs),
 #    but is most useful to humans who are debugging things.
@@ -150,8 +145,7 @@ SMARTCARD_DIST_OBJS=smartcard.o
 SMARTCARD_DIST_SRCS=smartcard.c smartcard.h 
 X509_OBJS=${X509_DIST_OBJS}
 X509_SRCS=${X509_DIST_SRCS}
-X509_DEFS=-DX509 
-X509_DEFS=-DX509_VERSION=\"${X509_VERSION}\"
+X509_DEFS=
 HAVE_OCF_DIST_OBJS=ocf_cryptodev.o 
 HAVE_OCF_DIST_SRCS=ocf_cryptodev.c ocf_cryptodev.h
 
@@ -291,7 +285,7 @@ LIBSPLUTO =$(OBJSGCRYPT) $(LIBDESLITE) $(LIBAES) $(OPENSWANLIB)
 LIBSPLUTO+=$(OPENSSL_LIBS)
 LIBSPLUTO+=$(IPSECPOLICY_LIBS) $(X509_LIBS) $(SMARTCARD_LIBS) 
 LIBSPLUTO+=$(HAVE_THREADS_LIBS) ${XAUTHPAM_LIBS}
-LIBSPLUTO+=${CURL_LIBS} 
+LIBSPLUTO+=${CURL_LIBS}  $(EXTRA_LIBS)
 LIBSPLUTO+=${EXTRA_CRYPTO_LIBS}
 LIBSPLUTO+= -lgmp -lresolv # -lefence
 LIBCRYPT ?= -lcrypt

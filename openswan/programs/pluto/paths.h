@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: paths.h,v 1.2 2004/06/14 01:46:03 mcr Exp $
+ * RCSID $Id: paths.h,v 1.2 2004-06-14 01:46:03 mcr Exp $
  */
 
 #ifndef _PATHS_H_

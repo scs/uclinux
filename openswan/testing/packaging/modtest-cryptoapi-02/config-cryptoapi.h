@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
  * License for more details.
  *
- * RCSID $Id: config-cryptoapi.h,v 1.1 2005/05/12 03:10:12 mcr Exp $
+ * RCSID $Id: config-cryptoapi.h,v 1.1 2005-05-12 03:10:12 mcr Exp $
  */
 #define	_CONFIG_ALL_H_	/* seen it, no need to see it again */
 

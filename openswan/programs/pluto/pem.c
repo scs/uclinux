@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pem.c,v 1.8 2005/02/28 22:16:59 mcr Exp $
+ * RCSID $Id: pem.c,v 1.8 2005-02-28 22:16:59 mcr Exp $
  */
 
 /* decrypt a PEM encoded data block using DES-EDE3-CBC

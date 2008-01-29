@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: foodgroups.c,v 1.21 2005/05/13 00:32:35 mcr Exp $
+ * RCSID $Id: foodgroups.c,v 1.21 2005-05-13 00:32:35 mcr Exp $
  */
 
 #include <unistd.h>

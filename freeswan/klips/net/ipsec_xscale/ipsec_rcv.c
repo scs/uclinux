@@ -1994,6 +1994,10 @@ static void ipsec_rcv_next_transform (void *data)
 #ifdef CONFIG_NETFILTER_DEBUG
     skb->nf_debug = 0;
 #endif /* CONFIG_NETFILTER_DEBUG */
+#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+    nf_bridge_put(skb->nf_bridge);
+    skb->nf_bridge = NULL;
+#endif
 #endif /* SKB_RESET_NFCT */
 
     KLIPS_PRINT(debug_rcv & DB_RX_PKTRX,
@@ -3631,6 +3635,10 @@ ipsec_rcv(struct sk_buff *skb, struct device *dev, struct options *opt,
 #ifdef CONFIG_NETFILTER_DEBUG
     skb->nf_debug = 0;
 #endif /* CONFIG_NETFILTER_DEBUG */
+#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+    nf_bridge_put(skb->nf_bridge);
+    skb->nf_bridge = NULL;
+#endif
 #endif /* SKB_RESET_NFCT */
 
     KLIPS_PRINT(debug_rcv & DB_RX_PKTRX,

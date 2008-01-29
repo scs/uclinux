@@ -19,13 +19,13 @@
  * for more details.
  */
 
-char ipsec_xmit_c_version[] = "RCSID $Id: ipsec_xmit.c,v 1.20.2.6 2006/07/07 22:09:49 paul Exp $";
+char ipsec_xmit_c_version[] = "RCSID $Id: ipsec_xmit.c,v 1.20.2.13 2007-10-30 21:38:56 paul Exp $";
 
 #define __NO_VERSION__
 #include <linux/module.h>
 #ifndef AUTOCONF_INCLUDED
-#include <linux/config.h>	/* for CONFIG_IP_FORWARD */
-#endif
+#include <linux/config.h>
+#endif	/* for CONFIG_IP_FORWARD */
 #include <linux/version.h>
 #include <linux/kernel.h> /* printk() */
 
@@ -492,7 +492,7 @@ ipsec_xmit_sanity_check_skb(struct ipsec_xmit_state *ixs)
 		}
 	}
 
-	ixs->iph = ixs->skb->nh.iph;
+	ixs->iph = ip_hdr(ixs->skb);
 
 	/* sanity check for IP version as we can't handle IPv6 right now */
 	if (ixs->iph->version != 4) {
@@ -603,9 +603,12 @@ ipsec_xmit_encap_init(struct ipsec_xmit_state *ixs)
 		} else
 #endif /* CONFIG_KLIPS_OCF */
 #ifdef CONFIG_KLIPS_ALG
-		if ((ixs->ixt_a=ixs->ipsp->ips_alg_auth)) {
+
+		ixs->ixt_a=ixs->ipsp->ips_alg_auth;
+		if (ixs->ixt_a) {
 			ixs->tailroom += AHHMAC_HASHLEN;
-		} else
+			ixs->authlen = AHHMAC_HASHLEN;
+		} else 
 #endif /* CONFIG_KLIPS_ALG */
 		switch(ixs->ipsp->ips_authalg) {
 #ifdef CONFIG_KLIPS_AUTH_HMAC_MD5
@@ -736,7 +739,7 @@ ipsec_xmit_esp(struct ipsec_xmit_state *ixs)
 
 	ixs->espp = (struct esphdr *)(ixs->dat + ixs->iphlen);
 #ifdef NET_21
-	ixs->skb->h.raw = (unsigned char*)ixs->espp;
+	skb_set_transport_header(ixs->skb, ipsec_skb_offset(ixs->skb, ixs->espp));
 #endif /* NET_21 */
 	ixs->espp->esp_spi = ixs->ipsp->ips_said.spi;
 	ixs->espp->esp_rpl = htonl(++(ixs->ipsp->ips_replaywin_lastseq));
@@ -766,9 +769,11 @@ ipsec_xmit_esp(struct ipsec_xmit_state *ixs)
 		return IPSEC_XMIT_ESP_BADALG;
 	}
 	
+#ifdef CONFIG_KLIPS_DEBUG
 	if(debug_tunnel & DB_TN_ENCAP) {
 		dmp("pre-encrypt", ixs->dat, ixs->len);
 	}
+#endif
 
 	/*
 	 * Do all operations here:
@@ -901,7 +906,7 @@ ipsec_xmit_ah(struct ipsec_xmit_state *ixs)
 
 	ahp = (struct ahhdr *)(ixs->dat + ixs->iphlen);
 #ifdef NET_21
-	ixs->skb->h.raw = (unsigned char*)ahp;
+	skb_set_transport_header(ixs->skb, ipsec_skb_offset(ixs->skb, ahp));
 #endif /* NET_21 */
 	ahp->ah_spi = ixs->ipsp->ips_said.spi;
 	ahp->ah_rpl = htonl(++(ixs->ipsp->ips_replaywin_lastseq));
@@ -990,7 +995,7 @@ ipsec_xmit_ipip(struct ipsec_xmit_state *ixs)
 	switch(sysctl_ipsec_tos) {
 	case 0:
 #ifdef NET_21
-		ixs->iph->tos = ixs->skb->nh.iph->tos;
+		ixs->iph->tos = ip_hdr(ixs->skb)->tos;
 #else /* NET_21 */
 		ixs->iph->tos = ixs->skb->ip_hdr->tos;
 #endif /* NET_21 */
@@ -1014,7 +1019,7 @@ ipsec_xmit_ipip(struct ipsec_xmit_state *ixs)
 	ixs->newsrc = (__u32)ixs->iph->saddr;
 	
 #ifdef NET_21
-	ixs->skb->h.ipiph = ixs->skb->nh.iph;
+	skb_set_transport_header(ixs->skb, ipsec_skb_offset(ixs->skb, ip_hdr(ixs->skb)));
 #endif /* NET_21 */
 	return IPSEC_XMIT_OK;
 }
@@ -1040,7 +1045,7 @@ ipsec_xmit_ipcomp(struct ipsec_xmit_state *ixs)
 	ixs->skb = skb_compress(ixs->skb, ixs->ipsp, &flags);
 
 #ifdef NET_21
-	ixs->iph = ixs->skb->nh.iph;
+	ixs->iph = ip_hdr(ixs->skb);
 #else /* NET_21 */
 	ixs->iph = ixs->skb->ip_hdr;
 #endif /* NET_21 */
@@ -1085,7 +1090,7 @@ enum ipsec_xmit_value
 ipsec_xmit_cont(struct ipsec_xmit_state *ixs)
 {
 #ifdef NET_21
-	ixs->skb->nh.raw = ixs->skb->data;
+	skb_set_network_header(ixs->skb, ipsec_skb_offset(ixs->skb, ixs->skb->data));
 #else /* NET_21 */
 	ixs->skb->ip_hdr = ixs->skb->h.iph = (struct iphdr *) ixs->skb->data;
 #endif /* NET_21 */
@@ -1379,14 +1384,14 @@ ipsec_xmit_init(struct ipsec_xmit_state *ixs)
 					 * the eroute while we are using and
 					 * updating it.
 					 */
-					spin_lock(&eroute_lock);
+					spin_lock_bh(&eroute_lock);
 					ixs->eroute = ipsec_findroute(&ixs->matcher);
 					if(ixs->eroute) {
 						ixs->eroute->er_said.spi = htonl(SPI_HOLD);
 						ixs->eroute->er_first = ixs->skb;
 						ixs->skb = NULL;
 					}
-					spin_unlock(&eroute_lock);
+					spin_unlock_bh(&eroute_lock);
 				} else if (create_hold_eroute(ixs->eroute,
 							      ixs->skb,
 							      ixs->iph,
@@ -1433,7 +1438,7 @@ ipsec_xmit_init(struct ipsec_xmit_state *ixs)
 	ixs->ipsq = ixs->ipsp;	/* save the head of the ipsec_sa chain */
 	while (ixs->ipsp) {
 		if (debug_tunnel & DB_TN_XMIT) {
-		ixs->sa_len = satot(&ixs->ipsp->ips_said, 0, ixs->sa_txt, sizeof(ixs->sa_txt));
+		ixs->sa_len = KLIPS_SATOT(debug_tunnel, &ixs->ipsp->ips_said, 0, ixs->sa_txt, sizeof(ixs->sa_txt));
 		if(ixs->sa_len == 0) {
 			strcpy(ixs->sa_txt, "(error)");
 		}
@@ -1662,9 +1667,11 @@ ipsec_xmit_init(struct ipsec_xmit_state *ixs)
 		ixs->max_tailroom += ixs->tailroom;
 		ixs->pyldsz += (ixs->headroom + ixs->tailroom);
 
+#ifdef CONFIG_KLIPS_DEBUG
 		if(debug_tunnel & DB_TN_ENCAP) {
 			ipsec_print_ip(ixs->iph);
 		}
+#endif
 	}
 	ixs->ipsp = ixs->ipsq;	/* restore the head of the ipsec_sa chain */
 		
@@ -1778,7 +1785,7 @@ ipsec_xmit_init(struct ipsec_xmit_state *ixs)
 	       */
 	      __u32 natt_oa = ixs->ipsp->ips_natt_oa ?
 		      ((struct sockaddr_in*)(ixs->ipsp->ips_natt_oa))->sin_addr.s_addr : 0;
-	      __u16 pkt_len = ixs->skb->tail - (unsigned char *)ixs->iph;
+	      unsigned int pkt_len = skb_tail_pointer(ixs->skb) - (unsigned char *)ixs->iph;
 	      __u16 data_len = pkt_len - (ixs->iph->ihl << 2);
 	      switch (ixs->iph->protocol) {
 		      case IPPROTO_TCP:
@@ -1935,9 +1942,11 @@ ipsec_xmit_init(struct ipsec_xmit_state *ixs)
 			    skb_headroom(ixs->skb), skb_tailroom(ixs->skb));
 	}
 
+#ifdef CONFIG_KLIPS_DEBUG
 	if(debug_tunnel & DB_TN_ENCAP) {
 		ipsec_print_ip(ixs->iph);
 	}
+#endif
 
 cleanup:
 	return bundle_stat;
@@ -2003,7 +2012,7 @@ ipsec_xsm(struct ipsec_xmit_state *ixs)
 	/*
 	 * make sure nothing is removed from underneath us
 	 */
-	spin_lock(&tdb_lock);
+	spin_lock_bh(&tdb_lock);
 
 	/*
 	 * if we have a valid said,  then we must check it here to ensure it
@@ -2037,7 +2046,7 @@ ipsec_xsm(struct ipsec_xmit_state *ixs)
 			 * things are on hold until we return here in the next/new state
 			 * we check our SA is valid when we return
 			 */
-			spin_unlock(&tdb_lock);
+			spin_unlock_bh(&tdb_lock);
 			return;
 		} else {
 			/* bad result, force state change to done */
@@ -2052,7 +2061,7 @@ ipsec_xsm(struct ipsec_xmit_state *ixs)
 	/*
 	 * all done with anything needing locks
 	 */
-	spin_unlock(&tdb_lock);
+	spin_unlock_bh(&tdb_lock);
 
 	/* we are done with this SA */
 	if (ixs->ipsp) {
@@ -2069,6 +2078,31 @@ ipsec_xsm(struct ipsec_xmit_state *ixs)
 
 /*
  * $Log: ipsec_xmit.c,v $
+ * Revision 1.20.2.13  2007-10-30 21:38:56  paul
+ * Use skb_tail_pointer [dhr]
+ *
+ * Revision 1.20.2.12  2007-10-28 00:26:03  paul
+ * Start of fix for 2.6.22+ kernels and skb_tail_pointer()
+ *
+ * Revision 1.20.2.11  2007/10/22 15:40:45  paul
+ * Missing #ifdef CONFIG_KLIPS_ALG [davidm]
+ *
+ * Revision 1.20.2.10  2007/09/05 02:56:10  paul
+ * Use the new ipsec_kversion macros by David to deal with 2.6.22 kernels.
+ * Fixes based on David McCullough patch.
+ *
+ * Revision 1.20.2.9  2007/07/06 17:18:43  paul
+ * Fix for authentication field on sent packets has size equals to zero when
+ * using custom auth algorithms. This is bug #811. Patch by "iamscared".
+ *
+ * Revision 1.20.2.8  2006/10/06 21:39:26  paul
+ * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
+ * set. This is defined through autoconf.h which is included through the
+ * linux kernel build macros.
+ *
+ * Revision 1.20.2.7  2006/08/24 03:02:01  paul
+ * Compile fixes for when CONFIG_KLIPS_DEBUG is not set. (bug #642)
+ *
  * Revision 1.20.2.6  2006/07/07 22:09:49  paul
  * From: Bart Trojanowski <bart@xelerance.com>
  * Removing a left over '#else' that split another '#if/#endif' block in two.

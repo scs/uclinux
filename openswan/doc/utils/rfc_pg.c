@@ -1,5 +1,5 @@
 /*
- *  $Header: /projects/xelerance/MASTER/cvs-master/openswan-2/doc/utils/rfc_pg.c,v 1.1 2002/07/23 18:42:43 mcr Exp $
+ *  $Header: /projects/xelerance/MASTER/cvs-master/openswan-2/doc/utils/rfc_pg.c,v 1.1 2002-07-23 18:42:43 mcr Exp $
  *
  * from 2-nroff.template file.
  *
@@ -9,7 +9,7 @@
  *  OPTION:
  *	-n#	Number of lines to delete following each ^L (0 default).
  * $Log: rfc_pg.c,v $
- * Revision 1.1  2002/07/23 18:42:43  mcr
+ * Revision 1.1  2002-07-23 18:42:43  mcr
  * 	required utility from IETF to help with formatting of drafts.
  *
  */

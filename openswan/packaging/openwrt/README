@@ -1,0 +1,23 @@
+
+To (re)build openswan for openwrt:
+export MODPROBE=/sbin/insmod
+
+cat OpenWrt-SDK-Linux-i686-1.tar.bz2 | tar -xvf -
+cd ~/OpenWrt-SDK-Linux-i686-1
+rm -r package/helloworld
+svn co https://svn.openwrt.org/openwrt/branches/whiterussian whiterussian
+cp -av whiterussian/openwrt/package/gmp package/
+cp openswan-latest.tar.gz dl/
+tar zxvf dl/openswan-latest.tar.gz
+cp -av dl/openswan-latest/packaging/openwrt package/openswan
+md5sum dl/openswan-latest.tar.gz
+
+[ edit package/openswan/Makefile and update PKG_VERSION and PKG_MD5SUM ]
+
+make V=99
+
+This should then give you the gmp and openswan package.
+
+If this does not pick up the build, either edit .config and enable
+CONFIG_PACKAGE_openswan or try a make menuconfig, and/or try
+a make clean.

@@ -1,5 +1,5 @@
 #
-# $Id: net.carrot.sh,v 1.1 2002/10/22 01:10:35 mcr Exp $
+# $Id: net.carrot.sh,v 1.1 2002-10-22 01:10:35 mcr Exp $
 #
 if [ -n "$UML_public_CTL" ]
 then

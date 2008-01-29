@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pkcs.c,v 1.5 2004/06/14 01:46:03 mcr Exp $
+ * RCSID $Id: pkcs.c,v 1.5 2004-06-14 01:46:03 mcr Exp $
  */
 
 #include <stdlib.h>

@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: certs.c,v 1.8 2004/06/27 20:43:41 mcr Exp $
+ * RCSID $Id: certs.c,v 1.8 2004-06-27 20:43:41 mcr Exp $
  */
 
 #include <stdlib.h>
@@ -88,6 +88,15 @@ load_coded_file(const char *filename, prompt_pass_t *pass, const char *type
 	fseek(fd, 0, SEEK_END );
 	blob->len = ftell(fd);
 	rewind(fd);
+
+	if (blob->len <= 0) {
+#ifndef SINGLE_CONF_DIR /* too verbose in single conf mode */
+	    /* no point barfing on this */
+	    openswan_log("  empty file, discarded");
+#endif
+	    return FALSE;
+	}
+
 	blob->ptr = alloc_bytes(blob->len, type);
 	bytes = fread(blob->ptr, 1, blob->len, fd);
 	fclose(fd);

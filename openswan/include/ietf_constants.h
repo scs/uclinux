@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ietf_constants.h,v 1.16.2.1 2005/09/27 04:34:20 paul Exp $
+ * RCSID $Id: ietf_constants.h,v 1.16.2.1 2005-09-27 04:34:20 paul Exp $
  */
 
 /* Group parameters from draft-ietf-ike-01.txt section 6 */

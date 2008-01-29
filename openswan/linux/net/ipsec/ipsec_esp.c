@@ -13,7 +13,7 @@
  * for more details.
  */
 
-char ipsec_esp_c_version[] = "RCSID $Id: ipsec_esp.c,v 1.13.2.4 2006/05/06 03:07:38 ken Exp $";
+char ipsec_esp_c_version[] = "RCSID $Id: ipsec_esp.c,v 1.13.2.7 2007-09-05 02:56:09 paul Exp $";
 #ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
 #endif
@@ -68,6 +68,7 @@ char ipsec_esp_c_version[] = "RCSID $Id: ipsec_esp.c,v 1.13.2.4 2006/05/06 03:07
 
 #include "openswan/ipsec_proto.h"
 #include "openswan/ipsec_alg.h"
+#include "ipsec_ocf.h"
 
 #ifdef CONFIG_KLIPS_DEBUG
 #define ESP_DMP(_x,_y,_z) if(debug_rcv && sysctl_ipsec_debug_verbose) ipsec_dmp_block(_x,_y,_z)
@@ -110,7 +111,7 @@ ipsec_rcv_esp_checks(struct ipsec_rcv_state *irs,
 		return IPSEC_RCV_BADLEN;
 	}
 
-	irs->protostuff.espstuff.espp = (struct esphdr *)skb->h.raw;
+	irs->protostuff.espstuff.espp = (struct esphdr *)skb_transport_header(skb);
 	irs->said.spi = irs->protostuff.espstuff.espp->esp_spi;
 
 	return IPSEC_RCV_OK;
@@ -137,7 +138,7 @@ ipsec_rcv_esp_decrypt_setup(struct ipsec_rcv_state *irs,
 		    irs->sa_len ? irs->sa : " (error)");
 
 	*replay = ntohl(espp->esp_rpl);
-	*authenticator = &(skb->h.raw[irs->ilen]);
+	*authenticator = &(skb_transport_header(skb)[irs->ilen]);
 
 	return IPSEC_RCV_OK;
 }
@@ -222,7 +223,7 @@ ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 #ifdef CONFIG_KLIPS_ALG
 	skb=irs->skb;
 
-	idat = skb->h.raw;
+	idat = skb_transport_header(skb);
 
 	/* encaplen is the distance between the end of the IP
 	 * header and the beginning of the ESP header.
@@ -232,7 +233,7 @@ ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 	 * Note: UDP-encap code has already moved the
 	 *       skb->data forward to accomodate this.
 	 */
-	encaplen = skb->h.raw - (skb->nh.raw + irs->iphlen);
+	encaplen = skb_transport_header(skb) - (skb_network_header(skb) + irs->iphlen);
 
 	ixt_e=ipsp->ips_alg_enc;
 	irs->esphlen = ESP_HEADER_LEN + ixt_e->ixt_common.ixt_support.ias_ivlen/8;
@@ -247,6 +248,7 @@ ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 	if (ipsec_alg_esp_encrypt(ipsp, 
 				  idat, irs->ilen, espp->esp_iv, 
 				  IPSEC_ALG_DECRYPT) <= 0) {
+#ifdef CONFIG_KLIPS_DEBUG
 		KLIPS_ERROR(debug_rcv, "klips_error:ipsec_rcv: "
 			    "got packet with esplen = %d "
 			    "from %s -- should be on "
@@ -255,6 +257,7 @@ ipsec_rcv_esp_decrypt(struct ipsec_rcv_state *irs)
 			    irs->ilen,
 			    irs->ipsaddr_txt,
 			    ipsp->ips_encalg);
+#endif
 		if(irs->stats) {
 			irs->stats->rx_errors++;
 		}
@@ -280,7 +283,7 @@ ipsec_rcv_esp_post_decrypt(struct ipsec_rcv_state *irs)
 
 	skb = irs->skb;
 
-	idat = skb->h.raw + irs->esphlen;
+	idat = skb_transport_header(skb) + irs->esphlen;
 
 	ESP_DMP("postdecrypt", idat, irs->ilen);
 
@@ -343,7 +346,7 @@ ipsec_rcv_esp_post_decrypt(struct ipsec_rcv_state *irs)
 	 *
 	 */
 	memmove((void *)(idat - irs->iphlen),
-		(void *)(skb->nh.raw), irs->iphlen);
+		(void *)(skb_network_header(skb)), irs->iphlen);
 
 	ESP_DMP("esp postmove", (idat - irs->iphlen),
 		irs->iphlen + irs->ilen);
@@ -359,8 +362,8 @@ ipsec_rcv_esp_post_decrypt(struct ipsec_rcv_state *irs)
 		return IPSEC_RCV_ESP_DECAPFAIL;
 	}
 	skb_pull(skb, irs->esphlen);
-	skb->nh.raw = idat - irs->iphlen;
-	irs->ipp = skb->nh.iph;
+	skb_set_network_header(skb, ipsec_skb_offset(skb, idat - irs->iphlen));
+	irs->ipp = ip_hdr(skb);
 
 	ESP_DMP("esp postpull", skb->data, skb->len);
 
@@ -524,7 +527,7 @@ ipsec_xmit_esp_setup(struct ipsec_xmit_state *ixs)
     return IPSEC_XMIT_AH_BADALG;
   }
 
-  ixs->skb->h.raw = (unsigned char*)espp;
+  skb_set_transport_header(ixs->skb, ipsec_skb_offset(ixs->skb, espp));
 
   return IPSEC_XMIT_OK;
 }
@@ -569,6 +572,18 @@ struct inet_protocol esp_protocol =
 
 /*
  * $Log: ipsec_esp.c,v $
+ * Revision 1.13.2.7  2007-09-05 02:56:09  paul
+ * Use the new ipsec_kversion macros by David to deal with 2.6.22 kernels.
+ * Fixes based on David McCullough patch.
+ *
+ * Revision 1.13.2.6  2006/10/06 21:39:26  paul
+ * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
+ * set. This is defined through autoconf.h which is included through the
+ * linux kernel build macros.
+ *
+ * Revision 1.13.2.5  2006/08/24 03:02:01  paul
+ * Compile fixes for when CONFIG_KLIPS_DEBUG is not set. (bug #642)
+ *
  * Revision 1.13.2.4  2006/05/06 03:07:38  ken
  * Pull in proper padsize->tailroom fix from #public
  * Need to do correct math on padlen since padsize is not equal to tailroom

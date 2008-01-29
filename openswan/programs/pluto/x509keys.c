@@ -15,7 +15,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: x509keys.c,v 1.5 2005/06/14 22:38:06 mcr Exp $
+ * RCSID $Id: x509keys.c,v 1.5 2005-06-14 22:38:06 mcr Exp $
  */
 
 #include <stdlib.h>

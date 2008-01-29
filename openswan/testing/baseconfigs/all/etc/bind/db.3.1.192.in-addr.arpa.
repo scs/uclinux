@@ -30,7 +30,7 @@ $INCLUDE K3.1.192.in-addr.arpa.+001+39340.key
 
 ;
 ; $Log: db.3.1.192.in-addr.arpa.,v $
-; Revision 1.9  2003/06/02 05:33:48  mcr
+; Revision 1.9  2003-06-02 05:33:48  mcr
 ; 	added .214 for myid-road-04
 ;
 ; Revision 1.8  2003/06/02 01:20:29  mcr

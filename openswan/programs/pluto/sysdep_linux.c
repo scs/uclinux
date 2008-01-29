@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: sysdep_linux.c,v 1.2 2005/07/19 20:34:15 ken Exp $
+ * RCSID $Id: sysdep_linux.c,v 1.2 2005-07-19 20:34:15 ken Exp $
  */
 
 #include <stddef.h>

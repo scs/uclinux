@@ -1,6 +1,6 @@
 #! /bin/sh
 #
-# $Id: manlink,v 1.8 2002/09/17 20:17:16 sam Exp $
+# $Id: manlink,v 1.8 2002-09-17 20:17:16 sam Exp $
 #
 # make list of alternate names for manpages
 
@@ -50,7 +50,7 @@ done
 
 #
 # $Log: manlink,v $
-# Revision 1.8  2002/09/17 20:17:16  sam
+# Revision 1.8  2002-09-17 20:17:16  sam
 #
 # The "make doc" fix broke "make install" silently; some man page symlinks
 # were being linked incorrectly. This resulted in files which passed the make

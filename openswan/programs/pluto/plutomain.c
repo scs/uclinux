@@ -17,7 +17,7 @@
  * Daniel Djamaludin <ddjamaludin@cyberguard.com>
  * Copyright (C) 2004-2005 Intel Corporation.  All Rights Reserved.
  *
- * RCSID $Id: plutomain.c,v 1.102.2.4 2005/08/12 01:15:00 ken Exp $
+ * RCSID $Id: plutomain.c,v 1.102.2.7 2007-04-06 17:10:37 paul Exp $
  */
 
 #include <stdio.h>
@@ -113,7 +113,6 @@ usage(const char *mess)
 	    " \\\n\t"
 	    "[--nofork]"
 	    " [--stderrlog]"
-	    " [--use-nostack]"         /* old --no_klips */
 	    " [--nocrsend]"
 	    " [--strictcrlpolicy]"
 	    " [--crlcheckinterval]"
@@ -122,6 +121,7 @@ usage(const char *mess)
 	    " [--use-auto]"
 	    " [--use-klips]"
 	    " [--use-netkey]"
+	    " [--use-nostack]"         /* old --no_klips */
 	    " \\\n\t"
 	    "[--interface <ifname>]"
 	    " [--ikeport <port-number>]"
@@ -129,6 +129,8 @@ usage(const char *mess)
 	    "[--ctlbase <path>]"
 	    " \\\n\t"
 	    "[--perpeerlogbase <path>] [--perpeerlog]"
+	    " \\\n\t"
+	    "[--coredir <dirname>] [--noretransmits]"
 	    " \\\n\t"
 	    "[--secretsfile <secrets-file>]"
 	    " [--ipsecdir <ipsec-dir>]"
@@ -146,8 +148,10 @@ usage(const char *mess)
 	    " [--debug-emitting]"
 	    " \\\n\t"
 	    "[--debug-control]"
+	    "[--debug-lifecycle]"
 	    " [--debug-klips]"
 	    " [--debug-dns]"
+	    " [--debug-oppo]"
 	    " [--debug-dpd]"
 	    " [ --debug-private]"
 	    " [ --debug-pfkey]"
@@ -425,7 +429,7 @@ main(int argc, char **argv)
 
                 if (*endptr != '\0' || endptr == optarg
 		    || count < -1)
-                    usage("<interval-time> must be a positive number, 0 or -1");
+                    usage("<nhelpers> must be a positive number, 0 or -1");
                 nhelpers = count;
             }
 	    continue;

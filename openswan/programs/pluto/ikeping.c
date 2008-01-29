@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ikeping.c,v 1.1 2005/04/21 02:14:30 mcr Exp $
+ * RCSID $Id: ikeping.c,v 1.1 2005-04-21 02:14:30 mcr Exp $
  */
 
 #include <stdio.h>

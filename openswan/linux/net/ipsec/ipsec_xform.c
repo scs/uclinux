@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_xform.c,v 1.65 2005/04/29 05:10:22 mcr Exp $
+ * RCSID $Id: ipsec_xform.c,v 1.65.2.1 2006-10-06 21:39:26 paul Exp $
  */
 
 #ifndef AUTOCONF_INCLUDED
@@ -66,6 +66,11 @@ int debug_xform = 0;
 
 /*
  * $Log: ipsec_xform.c,v $
+ * Revision 1.65.2.1  2006-10-06 21:39:26  paul
+ * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
+ * set. This is defined through autoconf.h which is included through the
+ * linux kernel build macros.
+ *
  * Revision 1.65  2005/04/29 05:10:22  mcr
  * 	removed from extraenous includes to make unit testing easier.
  *

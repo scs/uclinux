@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pfkey_v2_debug.c,v 1.11 2005/04/06 17:45:16 mcr Exp $
+ * RCSID $Id: pfkey_v2_debug.c,v 1.11 2005-04-06 17:45:16 mcr Exp $
  *
  */
 
@@ -133,7 +133,7 @@ pfkey_v2_sadb_type_string(int sadb_type)
 
 /*
  * $Log: pfkey_v2_debug.c,v $
- * Revision 1.11  2005/04/06 17:45:16  mcr
+ * Revision 1.11  2005-04-06 17:45:16  mcr
  * 	always include NAT-T names.
  *
  * Revision 1.10  2004/07/10 07:48:35  mcr

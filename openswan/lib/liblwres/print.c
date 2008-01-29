@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.c,v 1.1 2004/09/20 18:00:36 mcr Exp $ */
+/* $Id: print.c,v 1.1 2004-09-20 18:00:36 mcr Exp $ */
 
 #include <config.h>
 

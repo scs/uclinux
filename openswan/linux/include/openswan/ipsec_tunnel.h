@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_tunnel.h,v 1.33 2005/06/04 16:06:05 mcr Exp $
+ * RCSID $Id: ipsec_tunnel.h,v 1.33 2005-06-04 16:06:05 mcr Exp $
  */
 
 
@@ -130,7 +130,7 @@ extern int sysctl_ipsec_debug_verbose;
 
 /*
  * $Log: ipsec_tunnel.h,v $
- * Revision 1.33  2005/06/04 16:06:05  mcr
+ * Revision 1.33  2005-06-04 16:06:05  mcr
  * 	better patch for nat-t rcv-device code.
  *
  * Revision 1.32  2005/05/21 03:18:35  mcr

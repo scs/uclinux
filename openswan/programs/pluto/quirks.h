@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: quirks.h,v 1.4 2004/10/22 19:34:43 mcr Exp $
+ * RCSID $Id: quirks.h,v 1.4 2004-10-22 19:34:43 mcr Exp $
  */
 
 #ifndef _QUIRKS_H_

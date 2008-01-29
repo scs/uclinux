@@ -105,6 +105,12 @@
 #define FOUR_IM_TABLES
 #endif
 #else
+#ifdef __mips__
+#define UNROLL
+#define FIXED_TABLES
+#define FOUR_TABLES
+#define FOUR_IM_TABLES
+#else
 /* Defaults... no idea what they are optimal for :-) */
 #error tune your aes please
 
@@ -125,6 +131,7 @@
 //#define ONE_IM_TABLE
 #define FOUR_IM_TABLES
 
+#endif
 #endif
 #endif
 #endif

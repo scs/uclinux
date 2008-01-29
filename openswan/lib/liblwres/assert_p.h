@@ -15,7 +15,7 @@
  * WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: assert_p.h,v 1.1.1.1 2002/09/30 19:51:06 mcr Exp $ */
+/* $Id: assert_p.h,v 1.1.1.1 2002-09-30 19:51:06 mcr Exp $ */
 
 #ifndef LWRES_ASSERT_P_H
 #define LWRES_ASSERT_P_H 1

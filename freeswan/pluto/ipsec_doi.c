@@ -2010,19 +2010,9 @@ quick_outI1(int whack_sock
 	if (ttoaddr(c->dnshostname, 0, c->addr_family, &new_addr) == NULL
 	&& !sameaddr(&new_addr, &c->that.host_addr))
 	{
-		struct connection *d;
-		const chunk_t *psk_check;
-
-		d = c;
-		d->that.id.ip_addr = new_addr;
-		psk_check = get_preshared_secret(d);
-		if (psk_check == NULL) {
-			d->that.host_addr = new_addr;
-			state_rehash(d);
-		    load_preshared_secrets();
-			c=d;
-		}
-
+	    c->that.host_addr = new_addr;
+	    state_rehash(c);
+	    load_preshared_secrets();
 	}
     }
 

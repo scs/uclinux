@@ -1,4 +1,4 @@
-/* $Id: _updown.c,v 1.1 2005/07/21 20:42:57 ken Exp $
+/* $Id: _updown.c,v 1.1 2005-07-21 20:42:57 ken Exp $
  *
  * THIS IS OBSOLETE - It is no longer functionally identical to the scripts
  *

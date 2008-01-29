@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: crypto.h,v 1.21 2005/07/05 22:05:02 mcr Exp $
+ * RCSID $Id: crypto.h,v 1.21 2005-07-05 22:05:02 mcr Exp $
  */
 
 #include <gmp.h>    /* GNU MP library */

@@ -12,14 +12,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pfkey_v2_ext_bits.c,v 1.22 2005/05/11 01:45:31 mcr Exp $
+ * RCSID $Id: pfkey_v2_ext_bits.c,v 1.22 2005-05-11 01:45:31 mcr Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_parse.c.
  */
 
-char pfkey_v2_ext_bits_c_version[] = "$Id: pfkey_v2_ext_bits.c,v 1.22 2005/05/11 01:45:31 mcr Exp $";
+char pfkey_v2_ext_bits_c_version[] = "$Id: pfkey_v2_ext_bits.c,v 1.22 2005-05-11 01:45:31 mcr Exp $";
 
 /*
  * Some ugly stuff to allow consistent debugging code for use in the
@@ -735,7 +735,7 @@ unsigned int extensions_bitmaps[2/*in/out*/][2/*perm/req*/][SADB_EXTENSIONS_MAX]
 
 /*
  * $Log: pfkey_v2_ext_bits.c,v $
- * Revision 1.22  2005/05/11 01:45:31  mcr
+ * Revision 1.22  2005-05-11 01:45:31  mcr
  * 	make pfkey.h standalone.
  *
  * Revision 1.21  2004/07/10 07:48:36  mcr

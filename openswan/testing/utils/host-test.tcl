@@ -1,7 +1,7 @@
 #!/usr/bin/expect --
 
 #
-# $Id: host-test.tcl,v 1.38 2004/09/15 21:50:32 mcr Exp $
+# $Id: host-test.tcl,v 1.38 2004-09-15 21:50:32 mcr Exp $
 #
 
 source $env(OPENSWANSRCDIR)/testing/utils/GetOpts.tcl
@@ -218,7 +218,7 @@ system "sleep 4"
 
 # 
 # $Log: host-test.tcl,v $
-# Revision 1.38  2004/09/15 21:50:32  mcr
+# Revision 1.38  2004-09-15 21:50:32  mcr
 # 	sleep after the test case finishes to give the UML time
 # 	to exit cleanly.
 #

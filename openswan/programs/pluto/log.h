@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: log.h,v 1.54 2004/10/21 19:13:37 mcr Exp $
+ * RCSID $Id: log.h,v 1.54 2004-10-21 19:13:37 mcr Exp $
  */
 
 #include <openswan.h>

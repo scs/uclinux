@@ -18,7 +18,7 @@
  *
  */
 
-char ipsec_init_c_version[] = "RCSID $Id: ipsec_init.c,v 1.104.2.3 2006/07/31 15:25:20 paul Exp $";
+char ipsec_init_c_version[] = "RCSID $Id: ipsec_init.c,v 1.104.2.5 2007-09-05 02:36:57 paul Exp $";
 
 #ifndef AUTOCONF_INCLUDED
 #include <linux/config.h>
@@ -131,8 +131,8 @@ int debug_netlink = 0;
  * these as fast as the come in,  crypto is usually much slower
  * than your network interface
  */
-kmem_cache_t *ipsec_irs_cache;
-kmem_cache_t *ipsec_ixs_cache;
+struct kmem_cache *ipsec_irs_cache;
+struct kmem_cache *ipsec_ixs_cache;
 
 #if !defined(MODULE_PARM) && defined(module_param)
 /*
@@ -287,13 +287,21 @@ ipsec_klips_init(void)
 	atomic_set(&ipsec_ixs_cnt, 0);
 
 	ipsec_irs_cache = kmem_cache_create("ipsec_irs",
-			sizeof(struct ipsec_rcv_state), 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+			sizeof(struct ipsec_rcv_state), 0, SLAB_HWCACHE_ALIGN, NULL
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+			, NULL
+#endif
+			);
 	if (!ipsec_irs_cache) {
 		printk("Failed to get IRS cache\n");
 		error |= 1;
 	}
 	ipsec_ixs_cache = kmem_cache_create("ipsec_ixs",
-			sizeof(struct ipsec_xmit_state), 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+			sizeof(struct ipsec_xmit_state), 0, SLAB_HWCACHE_ALIGN, NULL
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,23)
+			, NULL
+#endif
+			);
 	if (!ipsec_ixs_cache) {
 		printk("Failed to get IXS cache\n");
 		error |= 1;
@@ -404,6 +412,14 @@ cleanup_module(void)
 
 /*
  * $Log: ipsec_init.c,v $
+ * Revision 1.104.2.5  2007-09-05 02:36:57  paul
+ * include ipsec_init.h. Added an ifdef. Patch by David McCullough
+ *
+ * Revision 1.104.2.4  2006/10/06 21:39:26  paul
+ * Fix for 2.6.18+ only include linux/config.h if AUTOCONF_INCLUDED is not
+ * set. This is defined through autoconf.h which is included through the
+ * linux kernel build macros.
+ *
  * Revision 1.104.2.3  2006/07/31 15:25:20  paul
  * Check for NETKEY backport in Debian using IPSKB_XFRM_TUNNEL_SIZE to
  * determine wether inet_add_protocol needs the protocol argument.

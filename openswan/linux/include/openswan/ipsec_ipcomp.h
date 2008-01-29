@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_ipcomp.h,v 1.4 2004/07/10 19:08:41 mcr Exp $
+ * RCSID $Id: ipsec_ipcomp.h,v 1.4 2004-07-10 19:08:41 mcr Exp $
  */
 
 #ifndef IPSEC_IPCOMP_H
@@ -63,7 +63,7 @@ extern struct xform_functions ipcomp_xform_funcs[];
 
 /*
  * $Log: ipsec_ipcomp.h,v $
- * Revision 1.4  2004/07/10 19:08:41  mcr
+ * Revision 1.4  2004-07-10 19:08:41  mcr
  * 	CONFIG_IPSEC -> CONFIG_KLIPS.
  *
  * Revision 1.3  2004/04/06 02:49:08  mcr

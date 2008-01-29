@@ -1,6 +1,6 @@
 Summary: Openswan IPSEC implementation
 Name: openswan
-Version: 2.4.6
+Version: 2.4.10
 # Build KLIPS kernel module?
 %{!?buildklips: %{expand: %%define buildklips 0}}
 %{!?buildxen: %{expand: %%define buildxen 0}}
@@ -31,7 +31,7 @@ Group: System Environment/Daemons
 Provides: ipsec-userland
 Obsoletes: freeswan superfreeswan super-freeswan
 Requires: ipsec-kernel, iproute >= 2.6.8, gmp
-BuildRequires: gmp-devel bison flex
+BuildRequires: gmp-devel bison flex bind-devel redhat-rpm-config
 Release: %{ourrelease}
 
 %package doc
@@ -100,8 +100,6 @@ cd packaging/redhat
     KERNELSRC=/lib/modules/%{kversion}/build \
 %if %{buildxen}
     ARCH=xen \
-%else
-    ARCH=%{_arch} \
 %endif
     MODULE_DEF_INCLUDE=$FS/packaging/redhat/config-%{_target_cpu}.h \
     MODULE_EXTRA_INCLUDE=$FS/packaging/redhat/extra_%{krelver}.h \

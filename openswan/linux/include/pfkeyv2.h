@@ -1,5 +1,5 @@
 /*
- * RCSID $Id: pfkeyv2.h,v 1.31 2005/04/14 01:14:54 mcr Exp $
+ * RCSID $Id: pfkeyv2.h,v 1.31 2005-04-14 01:14:54 mcr Exp $
  */
 
 /*
@@ -371,7 +371,7 @@ enum sadb_sastate {
 
 /*
  * $Log: pfkeyv2.h,v $
- * Revision 1.31  2005/04/14 01:14:54  mcr
+ * Revision 1.31  2005-04-14 01:14:54  mcr
  * 	change sadb_state to an enum.
  *
  * Revision 1.30  2004/04/06 02:49:00  mcr

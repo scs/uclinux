@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.9 2002/04/24 07:55:32 mcr Exp $
+# RCSID $Id: Makefile,v 1.9 2002-04-24 07:55:32 mcr Exp $
 #
 
 
@@ -86,7 +86,7 @@ programs: $(L_TARGET)
 
 #
 # $Log: Makefile,v $
-# Revision 1.9  2002/04/24 07:55:32  mcr
+# Revision 1.9  2002-04-24 07:55:32  mcr
 # 	#include patches and Makefiles for post-reorg compilation.
 #
 # Revision 1.8  2002/04/24 07:36:44  mcr

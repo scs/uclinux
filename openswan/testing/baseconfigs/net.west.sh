@@ -1,5 +1,5 @@
 #
-# $Id: net.west.sh,v 1.6 2004/04/16 19:46:17 mcr Exp $
+# $Id: net.west.sh,v 1.6 2004-04-16 19:46:17 mcr Exp $
 #
 
 if [ -n "$UML_west_CTL" ]

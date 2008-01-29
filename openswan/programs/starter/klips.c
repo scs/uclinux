@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: klips.c,v 1.5 2004/01/21 01:35:29 mcr Exp $
+ * RCSID $Id: klips.c,v 1.5.30.1 2007-11-06 18:42:07 paul Exp $
  */
 
 #include <sys/types.h>
@@ -83,7 +83,8 @@ int starter_klips_init (void)
 		if (stat(PROC_MODULES,&stb)==0) {
 			unsetenv("MODPATH");
 			unsetenv("MODULECONF");
-			system("depmod -a >/dev/null 2>&1 && modprobe ipsec");
+			/* Try modprobe, then insmod. mostly for openwrt */
+			system("depmod -a >/dev/null 2>&1 && modprobe ipsec || insmod ipsec");
 		}
 		if (stat(PROC_IPSECVERSION,&stb)==0) {
 			_klips_module_loaded = 1;

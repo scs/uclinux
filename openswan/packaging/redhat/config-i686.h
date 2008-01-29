@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
  * License for more details.
  *
- * RCSID $Id: config-i686.h,v 1.5.6.3 2006/03/22 03:43:53 paul Exp $
+ * RCSID $Id: config-i686.h,v 1.5.6.3 2006-03-22 03:43:53 paul Exp $
  */
 #define	_CONFIG_RH_I686_H_	/* seen it, no need to see it again */
 

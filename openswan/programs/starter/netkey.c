@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: netkey.c,v 1.1 2004/12/01 07:31:26 ken Exp $
+ * RCSID $Id: netkey.c,v 1.1.8.1 2007-11-06 18:51:19 paul Exp $
  */
 
 #include <sys/types.h>
@@ -75,7 +75,7 @@ int starter_netkey_init (void)
 		if (stat(PROC_MODULES,&stb)==0) {
 			unsetenv("MODPATH");
 			unsetenv("MODULECONF");
-			system("depmod -a >/dev/null 2>&1 && modprobe xfrm4_tunnel esp4 ah4 af_key");
+			system("depmod -a >/dev/null 2>&1 && export MODPROBE=`cat /proc/sys/kernel/modprobe` && for mod in xfrm4_tunnel esp4 ah4 af_key; do echo $MODPROBE $mod; done");
 		}
 		if (stat(PROC_NETKEY,&stb)==0) {
 			_netkey_module_loaded = 1;

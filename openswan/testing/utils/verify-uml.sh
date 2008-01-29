@@ -44,7 +44,7 @@ if [ ! -d ${BASICROOT}/. ]; then echo Your BASICROOT= is not properly set; exit 
     
 #
 # $Log: verify-uml.sh,v $
-# Revision 1.1  2005/07/14 01:37:56  mcr
+# Revision 1.1  2005-07-14 01:37:56  mcr
 # 	script to check out umlsetup.sh and complain before
 # 	we get too far.
 #

@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: sysctl_net_ipsec.c,v 1.17 2004/07/10 19:11:18 mcr Exp $
+ * RCSID $Id: sysctl_net_ipsec.c,v 1.17.10.2 2007-10-30 21:42:25 paul Exp $
  */
 
 /* -*- linux-c -*-
@@ -20,6 +20,7 @@
  * Initiated April 3, 1998, Richard Guy Briggs <rgb@conscoop.ottawa.on.ca>
  */
 
+#include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 
@@ -72,65 +73,182 @@ enum {
 };
 
 static ctl_table ipsec_table[] = {
+
 #ifdef CONFIG_KLIPS_DEBUG
-	{ NET_IPSEC_DEBUG_AH, "debug_ah", &debug_ah,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_ESP, "debug_esp", &debug_esp,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_TUNNEL, "debug_tunnel", &debug_tunnel,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_EROUTE, "debug_eroute", &debug_eroute,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_SPI, "debug_spi", &debug_spi,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_RADIJ, "debug_radij", &debug_radij,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_NETLINK, "debug_netlink", &debug_netlink,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_XFORM, "debug_xform", &debug_xform,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_RCV, "debug_rcv", &debug_rcv,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_PFKEY, "debug_pfkey", &debug_pfkey,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_DEBUG_VERBOSE, "debug_verbose",&sysctl_ipsec_debug_verbose,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_AH,
+		.procname     = "debug_ah",
+		.data         = &debug_ah,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_ESP,
+		.procname     = "debug_esp",
+		.data         = &debug_esp,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_TUNNEL,
+		.procname     = "debug_tunnel",
+		.data         = &debug_tunnel,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_EROUTE,
+		.procname     = "debug_eroute",
+		.data         = &debug_eroute,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_SPI,
+		.procname     = "debug_spi",
+		.data         = &debug_spi,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_RADIJ,
+		.procname     = "debug_radij",
+		.data         = &debug_radij,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_NETLINK,
+		.procname     = "debug_netlink",
+		.data         = &debug_netlink,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_XFORM,
+		.procname     = "debug_xform",
+		.data         = &debug_xform,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_RCV,
+		.procname     = "debug_rcv",
+		.data         = &debug_rcv,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_PFKEY,
+		.procname     = "debug_pfkey",
+		.data         = &debug_pfkey,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_VERBOSE,
+		.procname     = "debug_verbose",
+		.data         = &sysctl_ipsec_debug_verbose,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
 #ifdef CONFIG_KLIPS_IPCOMP
-	{ NET_IPSEC_DEBUG_IPCOMP, "debug_ipcomp", &sysctl_ipsec_debug_ipcomp,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
+	{
+		.ctl_name     = NET_IPSEC_DEBUG_IPCOMP,
+		.procname     = "debug_ipcomp",
+		.data         = &sysctl_ipsec_debug_ipcomp,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
 #endif /* CONFIG_KLIPS_IPCOMP */
 
 #ifdef CONFIG_KLIPS_REGRESS
-	{ NET_IPSEC_REGRESS_PFKEY_LOSSAGE, "pfkey_lossage",
-	  &sysctl_ipsec_regress_pfkey_lossage,
-	  sizeof(int), 0644, NULL, &proc_dointvec},
+	{
+		.ctl_name     = NET_IPSEC_REGRESS_PFKEY_LOSSAGE,
+		.procname     = "pfkey_lossage",
+		.data         = &sysctl_ipsec_regress_pfkey_lossage,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
 #endif /* CONFIG_KLIPS_REGRESS */
 
 #endif /* CONFIG_KLIPS_DEBUG */
-	{ NET_IPSEC_ICMP, "icmp", &sysctl_ipsec_icmp,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_INBOUND_POLICY_CHECK, "inbound_policy_check", &sysctl_ipsec_inbound_policy_check,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{ NET_IPSEC_TOS, "tos", &sysctl_ipsec_tos,
-	  sizeof(int), 0644, NULL, &proc_dointvec},    
-	{0}
+
+	{
+		.ctl_name     = NET_IPSEC_ICMP,
+		.procname     = "icmp",
+		.data         = &sysctl_ipsec_icmp,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_INBOUND_POLICY_CHECK,
+		.procname     = "inbound_policy_check",
+		.data         = &sysctl_ipsec_inbound_policy_check,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = NET_IPSEC_TOS,
+		.procname     = "tos",
+		.data         = &sysctl_ipsec_tos,
+		.maxlen       = sizeof(int),
+		.mode         = 0644,
+		.proc_handler = &proc_dointvec
+	},
+	{
+		.ctl_name     = 0
+	}
 };
 
 static ctl_table ipsec_net_table[] = {
-        { NET_IPSEC, "ipsec", NULL, 0, 0555, ipsec_table },
-        { 0 }
+	{
+		.ctl_name     = NET_IPSEC,
+		.procname     = "ipsec",
+		.mode         = 0555,
+		.child        = ipsec_table
+	},
+	{
+		.ctl_name     = 0
+	}
 };
  
 static ctl_table ipsec_root_table[] = {
-        { CTL_NET, "net", NULL, 0, 0555, ipsec_net_table },
-        { 0 }
+	{
+		.ctl_name     = CTL_NET,
+		.procname     = "net",
+		.mode         = 0555,
+		.child        = ipsec_net_table
+	},
+	{
+		.ctl_name     = 0
+	}
 };
  
 static struct ctl_table_header *ipsec_table_header;
 
 int ipsec_sysctl_register(void)
 {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,21)
+        ipsec_table_header = register_sysctl_table(ipsec_root_table);
+#else
         ipsec_table_header = register_sysctl_table(ipsec_root_table, 0);
+#endif
         if (!ipsec_table_header) {
                 return -ENOMEM;
 	}
@@ -146,6 +264,19 @@ void ipsec_sysctl_unregister(void)
 
 /*
  * $Log: sysctl_net_ipsec.c,v $
+ * Revision 1.17.10.2  2007-10-30 21:42:25  paul
+ * The kernel has changed the layout of ctl_table (defined in
+ * linux/sysctl.h).  Unfortunately, a new field has been inserted before
+ * the last one we wish to initialize in ipsec_table.
+ *
+ * The easiest fix that works with old and new kernels is to use an
+ * initializer that explicitly says which field is being initialized.
+ *
+ * Patch by dhr
+ *
+ * Revision 1.17.10.1  2007/09/05 02:54:13  paul
+ * register_sysctl_table() takes one argument for 2.6.21+ [david]
+ *
  * Revision 1.17  2004/07/10 19:11:18  mcr
  * 	CONFIG_IPSEC -> CONFIG_KLIPS.
  *

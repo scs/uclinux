@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: stubs.c,v 1.1.2.1 2005/07/26 02:11:23 ken Exp $
+ * RCSID $Id: stubs.c,v 1.1.2.1 2005-07-26 02:11:23 ken Exp $
  */
 
 #include <string.h>

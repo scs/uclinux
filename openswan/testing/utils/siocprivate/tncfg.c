@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char tncfg_c_version[] = "RCSID $Id: tncfg.c,v 1.1 2005/03/20 02:59:24 mcr Exp $";
+char tncfg_c_version[] = "RCSID $Id: tncfg.c,v 1.1 2005-03-20 02:59:24 mcr Exp $";
 
 
 #include <stdio.h>
@@ -130,7 +130,7 @@ main(int argc, char *argv[])
 	
 /*
  * $Log: tncfg.c,v $
- * Revision 1.1  2005/03/20 02:59:24  mcr
+ * Revision 1.1  2005-03-20 02:59:24  mcr
  * 	code to test bad SIOCPRIVATE call (never finished)
  *
  * Revision 1.32  2004/04/06 03:05:06  mcr

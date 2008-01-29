@@ -4,7 +4,7 @@
 # Only argument is east or west
 # Actually, extra args are passed on to pluto, so --nofork might be useful
 #
-# RCSID $Id: dopluto,v 1.14 2004/10/17 23:59:57 mcr Exp $
+# RCSID $Id: dopluto,v 1.14 2004-10-17 23:59:57 mcr Exp $
 
 . CONFIG
 

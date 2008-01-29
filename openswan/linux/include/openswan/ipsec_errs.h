@@ -14,7 +14,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_errs.h,v 1.4 2004/04/05 19:55:05 mcr Exp $
+ * RCSID $Id: ipsec_errs.h,v 1.4 2004-04-05 19:55:05 mcr Exp $
  *
  */
 
@@ -33,7 +33,7 @@ struct ipsec_errs {
 
 /*
  * $Log: ipsec_errs.h,v $
- * Revision 1.4  2004/04/05 19:55:05  mcr
+ * Revision 1.4  2004-04-05 19:55:05  mcr
  * Moved from linux/include/freeswan/ipsec_errs.h,v
  *
  * Revision 1.3  2002/04/24 07:36:46  mcr

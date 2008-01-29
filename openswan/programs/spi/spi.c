@@ -14,7 +14,7 @@
  * for more details.
  */
 
-char spi_c_version[] = "RCSID $Id: spi.c,v 1.112.2.3 2006/02/15 04:36:36 paul Exp $";
+char spi_c_version[] = "RCSID $Id: spi.c,v 1.112.2.3 2006-02-15 04:36:36 paul Exp $";
 
 #include <asm/types.h>
 #include <sys/types.h>
@@ -1779,7 +1779,7 @@ void exit_tool(int x)
 
 /*
  * $Log: spi.c,v $
- * Revision 1.112.2.3  2006/02/15 04:36:36  paul
+ * Revision 1.112.2.3  2006-02-15 04:36:36  paul
  * Added #ifdef NAT_TRAVERSAL for pfkey_build. The 'unused' warning caused
  * a compile failure when compiling without NAT_TRAVERSAL.
  *

@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
  * License for more details.
  *
- * RCSID $Id: config-noipcomp.h,v 1.4 2003/03/14 08:09:26 rgb Exp $
+ * RCSID $Id: config-noipcomp.h,v 1.4 2003-03-14 08:09:26 rgb Exp $
  */
 #define	_CONFIG_ALL_H_	/* seen it, no need to see it again */
 

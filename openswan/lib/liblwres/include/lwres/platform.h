@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: platform.h,v 1.2 2004/09/20 18:00:43 mcr Exp $ */
+/* $Id: platform.h,v 1.2 2004-09-20 18:00:43 mcr Exp $ */
 
 #ifndef LWRES_PLATFORM_H
 #define LWRES_PLATFORM_H 1

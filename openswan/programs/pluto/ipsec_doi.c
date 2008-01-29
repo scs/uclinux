@@ -17,7 +17,7 @@
  * Daniel Djamaludin <ddjamaludin@cyberguard.com>
  * Copyright (C) 2004-2005 Intel Corporation.  All Rights Reserved.
  *
- * RCSID $Id: ipsec_doi.c,v 1.304.2.11 2006/04/16 02:24:19 mcr Exp $
+ * RCSID $Id: ipsec_doi.c,v 1.304.2.17 2007-09-05 19:46:15 paul Exp $
  */
 
 #include <stdio.h>
@@ -290,6 +290,8 @@ send_notification(struct state *sndst, u_int16_t type, struct state *encst,
 	    delete_state(sndst);
 	    return;
 	}
+
+	openswan_DBG_dump("payload malformed after IV", sndst->st_iv, sndst->st_iv_len);
 
 	/*
 	 * do not encrypt notification, since #1 reason for malformed
@@ -1857,8 +1859,16 @@ decode_peer_id(struct msg_digest *md, bool initiator, bool aggrmode)
     case ID_USER_FQDN:
 	if (memchr(id_pbs->cur, '@', pbs_left(id_pbs)) == NULL)
 	{
-	    loglog(RC_LOG_SERIOUS, "peer's ID_USER_FQDN contains no @");
-	    return FALSE;
+           char idbuf[IDTOA_BUF];
+           int len = pbs_left(id_pbs);
+           if(len>(IDTOA_BUF-1)) len = IDTOA_BUF;
+
+           memcpy(idbuf, id_pbs->cur, len-1);
+           idbuf[len]='\0';
+           loglog(RC_LOG_SERIOUS, "peer's ID_USER_FQDN contains no @: %s", idbuf);
+           /* return FALSE; */
+
+
 	}
 	/* FALLTHROUGH */
     case ID_FQDN:
@@ -2341,7 +2351,7 @@ main_inR1_outI2(struct msg_digest *md)
     if (nat_traversal_enabled && md->quirks.nat_traversal_vid) {
 	st->hidden_variables.st_nat_traversal = nat_traversal_vid_to_method(md->quirks.nat_traversal_vid);
 	openswan_log("enabling possible NAT-traversal with method %s"
-	     , bitnamesof(natt_type_bitnames, st->hidden_variables.st_nat_traversal));
+	     , bitnamesof(natt_type_bitnames, st->hidden_variables.st_nat_traversal>>1));
     }
 #endif
 
@@ -3534,6 +3544,8 @@ aggr_inI1_outR1_common(struct msg_digest *md
     st->st_connection = c;
     st->st_remoteaddr = md->sender;
     st->st_remoteport = md->sender_port;
+    st->st_localaddr  = md->iface->ip_addr;
+    st->st_localport  = md->iface->port;
     st->st_interface  = md->iface;
     st->st_state = STATE_AGGR_R1;
 
@@ -3781,7 +3793,7 @@ aggr_inI1_outR1_tail(struct pluto_crypto_req_cont *pcrc
 
 #ifdef NAT_TRAVERSAL
     if (st->hidden_variables.st_nat_traversal) {
-      if (!out_vendorid(auth_payload
+      if (!out_vendorid(ISAKMP_NEXT_NONE
 			, &md->rbody
 			, md->quirks.nat_traversal_vid)) {
 	return STF_INTERNAL_ERROR;
@@ -3789,7 +3801,7 @@ aggr_inI1_outR1_tail(struct pluto_crypto_req_cont *pcrc
     }
 
     if (st->hidden_variables.st_nat_traversal & NAT_T_WITH_NATD) {
-      if (!nat_traversal_add_natd(auth_payload, &md->rbody, md))
+        if (!nat_traversal_add_natd(ISAKMP_NEXT_NONE, &md->rbody, md))
 	return STF_INTERNAL_ERROR;
     }
 #endif

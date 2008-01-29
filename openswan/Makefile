@@ -12,7 +12,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: Makefile,v 1.273.2.4 2005/09/13 22:09:28 mcr Exp $
+# RCSID $Id: Makefile,v 1.273.2.7 2006-11-17 15:35:51 paul Exp $
 
 
 OPENSWANSRCDIR?=$(shell pwd)
@@ -29,8 +29,8 @@ def:
 	@echo
 	@echo "Commonly used build commands:"
 	@echo
-	@echo "Kernel 2.4: make KERNELSRC=/usr/src/linux-2.4 module minstall programs install"
-	@echo "Kernel 2.6: make programs install"
+	@echo "When using KLIPS: make KERNELSRC=/usr/src/linux-2.6.18 module minstall programs install"
+	@echo "When using NETKEY: make programs install"
 	@echo
 	@echo
 
@@ -402,7 +402,7 @@ module24:
 	@echo '========================================================='
 	@echo 
 	@echo 'KLIPS module built successfully. '
-	@echo ipsec.o is in ${MODBUILDDIR}
+	@echo ipsec.o is in ${MODBUILDDIR}/ipsec.o
 	@echo 
 	@(cd ${MODBUILDDIR}; ls -l ipsec.o)
 	@(cd ${MODBUILDDIR}; size ipsec.o)
@@ -478,7 +478,7 @@ module26:
 	@echo '========================================================='
 	@echo 
 	@echo 'KLIPS26 module built successfully. '
-	@echo ipsec.ko is in ${MOD26BUILDDIR}
+	@echo ipsec.ko is in ${MOD26BUILDDIR}/ipsec.ko
 	@echo 
 	@(cd ${MOD26BUILDDIR}; ls -l ipsec.ko)
 	@(cd ${MOD26BUILDDIR}; size ipsec.ko)

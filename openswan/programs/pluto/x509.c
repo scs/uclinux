@@ -18,7 +18,7 @@
  * Daniel Djamaludin <ddjamaludin@cyberguard.com>
  * Copyright (C) 2004-2005 Intel Corporation.  All Rights Reserved.
  *
- * RCSID $Id: x509.c,v 1.23.18.4 2006/04/27 15:48:13 paul Exp $
+ * RCSID $Id: x509.c,v 1.23.18.4 2006-04-27 15:48:13 paul Exp $
  */
 
 #include <stdlib.h>

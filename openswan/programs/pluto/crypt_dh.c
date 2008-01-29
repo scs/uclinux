@@ -14,7 +14,7 @@
  *
  * This code was developed with the support of IXIA communications.
  *
- * RCSID $Id: crypt_dh.c,v 1.8.2.1 2006/03/20 13:32:03 paul Exp $
+ * RCSID $Id: crypt_dh.c,v 1.8.2.1 2006-03-20 13:32:03 paul Exp $
  */
 
 #include <stdlib.h>

@@ -1,7 +1,7 @@
 ;
 ; BIND reverse data file for 192.in-addr.arpa.
 ;
-; $Id: db.192.in-addr.arpa.,v 1.4 2002/11/12 18:56:52 mcr Exp $
+; $Id: db.192.in-addr.arpa.,v 1.4 2002-11-12 18:56:52 mcr Exp $
 ;
 $TTL	604800
 @	IN	SOA	192.in-addr.arpa. root.freeswan.org. (
@@ -27,7 +27,7 @@ $INCLUDE K192.in-addr.arpa.+001+45421.key
 
 ;
 ; $Log: db.192.in-addr.arpa.,v $
-; Revision 1.4  2002/11/12 18:56:52  mcr
+; Revision 1.4  2002-11-12 18:56:52  mcr
 ; 	resigned zones, include proper keys.
 ;
 ; Revision 1.3  2002/11/12 05:29:39  mcr

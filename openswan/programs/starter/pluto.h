@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pluto.h,v 1.1 2004/01/06 21:43:47 mcr Exp $
+ * RCSID $Id: pluto.h,v 1.1 2004-01-06 21:43:47 mcr Exp $
  */
 
 #ifndef _STARTER_PLUTO_H_

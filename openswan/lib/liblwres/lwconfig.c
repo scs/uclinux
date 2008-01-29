@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwconfig.c,v 1.2 2004/09/20 18:00:36 mcr Exp $ */
+/* $Id: lwconfig.c,v 1.2 2004-09-20 18:00:36 mcr Exp $ */
 
 /***
  *** Module for parsing resolv.conf files.

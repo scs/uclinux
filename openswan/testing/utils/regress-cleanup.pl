@@ -135,10 +135,10 @@ print "Found ".&getdiskspace." free, continuing.\n";
 
 exit 0;  
 
-# $Id: regress-cleanup.pl,v 1.6 2003/01/24 16:18:40 build Exp $
+# $Id: regress-cleanup.pl,v 1.6 2003-01-24 16:18:40 build Exp $
 #
 # $Log: regress-cleanup.pl,v $
-# Revision 1.6  2003/01/24 16:18:40  build
+# Revision 1.6  2003-01-24 16:18:40  build
 # 	remove directories by explicit path names.
 # 	added log of candidate directories
 #

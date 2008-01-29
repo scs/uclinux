@@ -5,7 +5,7 @@
 #
 # run this script in a UML after running pluto_unit_tests.sh
 #
-# $Id: update-in-place.sh,v 1.1 2003/05/21 15:45:57 mcr Exp $
+# $Id: update-in-place.sh,v 1.1 2003-05-21 15:45:57 mcr Exp $
 #
 #
 
@@ -18,7 +18,7 @@ done
 
 
 # $Log: update-in-place.sh,v $
-# Revision 1.1  2003/05/21 15:45:57  mcr
+# Revision 1.1  2003-05-21 15:45:57  mcr
 # 	update the log.ref files from the newly generated files in
 # 	/tmp/log. Run this in a UML.
 #

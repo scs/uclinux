@@ -1,6 +1,6 @@
 
 #
-# RCSID $Id: defconfig-noipcomp,v 1.1 2003/01/22 21:35:44 rgb Exp $
+# RCSID $Id: defconfig-noipcomp,v 1.1 2003-01-22 21:35:44 rgb Exp $
 #
 
 #
@@ -54,7 +54,7 @@ CONFIG_IPSEC_DEBUG=y
 #
 #
 # $Log: defconfig-noipcomp,v $
-# Revision 1.1  2003/01/22 21:35:44  rgb
+# Revision 1.1  2003-01-22 21:35:44  rgb
 #
 # Added a file that contains the defaults for the kernel config, replacing
 # defconfig.

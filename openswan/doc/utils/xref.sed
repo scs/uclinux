@@ -11,7 +11,7 @@
 # or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
 # for more details.
 #
-# RCSID $Id: xref.sed,v 1.1 2001/01/29 01:18:08 sandy Exp $
+# RCSID $Id: xref.sed,v 1.1 2001-01-29 01:18:08 sandy Exp $
 s/<\/a>/<*>/g
 # delete all xrefs that point
 # within our document set

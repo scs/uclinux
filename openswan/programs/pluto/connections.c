@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: connections.c,v 1.256.2.7 2005/11/17 01:44:12 mcr Exp $
+ * RCSID $Id: connections.c,v 1.256.2.10 2007-06-05 16:48:58 paul Exp $
  */
 
 #include <string.h>
@@ -426,6 +426,15 @@ delete_connection(struct connection *c, bool relations)
 #ifdef DEBUG
     lset_t old_cur_debugging = cur_debugging;
 #endif
+	union {
+		struct alg_info**     ppai;
+#ifdef KERNEL_ALG
+		struct alg_info_esp** ppai_esp;
+#endif
+#ifdef IKE_ALG
+		struct alg_info_ike** ppai_ike;
+#endif
+	} palg_info;
 
     set_cur_connection(c);
 
@@ -504,10 +513,12 @@ delete_connection(struct connection *c, bool relations)
 
     gw_delref(&c->gw_info);
 #ifdef KERNEL_ALG
-    alg_info_delref((struct alg_info **)&c->alg_info_esp);
+    palg_info.ppai_esp = &c->alg_info_esp;
+    alg_info_delref(palg_info.ppai);
 #endif
 #ifdef IKE_ALG
-    alg_info_delref((struct alg_info **)&c->alg_info_ike);
+    palg_info.ppai_ike = &c->alg_info_ike;
+    alg_info_delref(palg_info.ppai);
 #endif
     pfree(c);
 }
@@ -3182,9 +3193,10 @@ initiate_opportunistic_body(struct find_oppo_bundle *b
 		    }
 #endif
 		    c->gw_info->key->last_tried_time = now();
-		    openswan_log("initiate on demand from %s:%d to %s:%d proto=%d state: %s because: %s"
+		    DBG(DBG_CONTROL,
+			DBG_log("initiate on demand from %s:%d to %s:%d proto=%d state: %s because: %s"
 				 , ours, ourport, his, hisport, b->transport_proto
-				 , oppo_step_name[b->step], b->want);
+				 , oppo_step_name[b->step], b->want));
 
 		    ipsecdoi_initiate(b->whackfd, c, c->policy, 1
 				      , SOS_NOBODY, pcim_local_crypto);
@@ -4562,14 +4574,15 @@ show_connections_status(void)
 	/* Note: we display key_from_DNS_on_demand as if policy [lr]KOD */
 	fmt_policy_prio(c->prio, prio);
 	whack_log(RC_COMMENT
-	    , "\"%s\"%s:   policy: %s%s%s; prio: %s; interface: %s; "
+	    , "\"%s\"%s:   policy: %s%s%s; prio: %s; interface: %s; encap: %s;"
 	    , c->name
 	    , instance
 	    , prettypolicy(c->policy)
 	    , c->spd.this.key_from_DNS_on_demand? "+lKOD" : ""
 	    , c->spd.that.key_from_DNS_on_demand? "+rKOD" : ""
 	    , prio
-	    , ifn);
+	    , ifn
+		  ,c->forceencaps ? "udp" : "esp");
 
 	/* slightly complicated stuff to avoid extra crap */
 	if(c->dpd_timeout > 0 || DBGP(DBG_DPD)) {

@@ -1,7 +1,7 @@
 # 'include' this file to disable Opportunistic Encryption.
 # See @FINALDOCDIR@/policygroups.html for details.
 #
-# RCSID $Id: no_oe.conf.in,v 1.2 2004/10/03 19:33:10 paul Exp $
+# RCSID $Id: no_oe.conf.in,v 1.2 2004-10-03 19:33:10 paul Exp $
 conn block 
     auto=ignore
 

@@ -14,7 +14,7 @@
  *
  * This code was developed with the support of IXIA communications.
  *
- * RCSID $Id: crypt_utils.c,v 1.1 2005/03/13 00:38:08 mcr Exp $
+ * RCSID $Id: crypt_utils.c,v 1.1 2005-03-13 00:38:08 mcr Exp $
  */
 
 #include <stdlib.h>

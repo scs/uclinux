@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: demux.c,v 1.210.2.10 2005/10/06 00:57:26 paul Exp $
+ * RCSID $Id: demux.c,v 1.210.2.15 2007-09-05 03:02:19 paul Exp $
  */
 
 /* Ordering Constraints on Payloads
@@ -414,12 +414,12 @@ static const struct state_microcode state_microcode_table[] = {
      */
     { STATE_AGGR_R0, STATE_AGGR_R1,
       SMF_PSK_AUTH| SMF_REPLY,
-      P(SA) | P(KE) | P(NONCE) | P(ID), P(VID), PT(NONE),
+      P(SA) | P(KE) | P(NONCE) | P(ID), P(VID) | P(NATD_RFC), PT(NONE),
       EVENT_RETRANSMIT, aggr_inI1_outR1_psk },
 
     { STATE_AGGR_R0, STATE_AGGR_R1,
       SMF_DS_AUTH | SMF_REPLY,
-      P(SA) | P(KE) | P(NONCE) | P(ID), P(VID), PT(NONE),
+      P(SA) | P(KE) | P(NONCE) | P(ID), P(VID) | P(NATD_RFC), PT(NONE),
       EVENT_RETRANSMIT, aggr_inI1_outR1_rsasig },
 
     /* STATE_AGGR_I1:
@@ -2092,9 +2092,17 @@ process_packet(struct msg_digest **mdp)
 		return;
 	    }
 
+	    DBG(DBG_CONTROLMORE, DBG_log("np=%u and sd=%p\n", np, sd));
+
 #ifdef NAT_TRAVERSAL
-	    switch (np)
-	    {
+	    /*
+	     * only do this in main mode. In aggressive mode, there
+	     * is no negotiation of NAT-T method. Get it right.
+	     */
+	    if(st != NULL && st->st_connection != NULL
+	       && (st->st_connection->policy & POLICY_AGGRESSIVE)==0) {
+		switch (np)
+		{
 		case ISAKMP_NEXT_NATD_RFC:
 		case ISAKMP_NEXT_NATOA_RFC:
 		    if ((!st) || (!(st->hidden_variables.st_nat_traversal & NAT_T_WITH_RFC_VALUES))) {
@@ -2102,12 +2110,15 @@ process_packet(struct msg_digest **mdp)
 			 * don't accept NAT-D/NAT-OA reloc directly in message,
 			 * unless we're using NAT-T RFC
 			 */
+			DBG_log("st_nat_traversal was: %u\n",
+				st->hidden_variables.st_nat_traversal);
 			sd = NULL;
 		    }
 		    break;
+		}
 	    }
 #endif
-
+		
 	    if (sd == NULL)
 	    {
 		/* payload type is out of range or requires special handling */
@@ -2413,7 +2424,7 @@ complete_state_transition(struct msg_digest **mdp, stf_status result)
      * we can only be in calculating state if state is ignore,
      * or suspended.
      */
-    passert(result == STF_IGNORE || result == STF_SUSPEND || st->st_calculating==FALSE);
+    passert(result == STF_IGNORE || result == STF_INLINE || result == STF_SUSPEND || st->st_calculating==FALSE);
 
     switch (result)
     {

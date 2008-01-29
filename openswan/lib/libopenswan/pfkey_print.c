@@ -12,10 +12,10 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pfkey_print.c,v 1.2 2004/04/26 05:03:40 ken Exp $
+ * RCSID $Id: pfkey_print.c,v 1.2 2004-04-26 05:03:40 ken Exp $
  */
 
-char pfkey_v2_print_c_version[] = "$Id: pfkey_print.c,v 1.2 2004/04/26 05:03:40 ken Exp $";
+char pfkey_v2_print_c_version[] = "$Id: pfkey_print.c,v 1.2 2004-04-26 05:03:40 ken Exp $";
 
 #include <sys/types.h>
 

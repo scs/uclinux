@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 # 
-# $Id: make-uml.sh,v 1.48 2005/07/14 01:35:54 mcr Exp $
+# $Id: make-uml.sh,v 1.48 2005-07-14 01:35:54 mcr Exp $
 #
 
 # show me
@@ -196,7 +196,7 @@ cd $POOLSPACE && make $OPENSWANHOSTS
     
 #
 # $Log: make-uml.sh,v $
-# Revision 1.48  2005/07/14 01:35:54  mcr
+# Revision 1.48  2005-07-14 01:35:54  mcr
 # 	use USE_OBJDIR.
 #
 # Revision 1.47  2005/06/06 19:53:42  mcr

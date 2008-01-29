@@ -51,7 +51,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)herror.c	8.1 (Berkeley) 6/4/93";
 static const char rcsid[] =
-	"$Id: herror.c,v 1.2 2004/09/20 18:00:36 mcr Exp $";
+	"$Id: herror.c,v 1.2 2004-09-20 18:00:36 mcr Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <config.h>

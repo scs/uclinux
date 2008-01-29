@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: starter.c,v 1.12 2005/01/11 17:52:51 ken Exp $
+ * RCSID $Id: starter.c,v 1.12 2005-01-11 17:52:51 ken Exp $
  */
 
 #include <sys/types.h>

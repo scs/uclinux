@@ -12,7 +12,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
  * License for more details.
  *
- * RCSID $Id: config-x86_64-smp.h,v 1.2.8.4 2006/03/22 03:43:53 paul Exp $
+ * RCSID $Id: config-x86_64-smp.h,v 1.2.8.4 2006-03-22 03:43:53 paul Exp $
  */
 #define	_CONFIG_RH_X86_64_SMP_H_	/* seen it, no need to see it again */
 

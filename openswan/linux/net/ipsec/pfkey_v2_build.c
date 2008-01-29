@@ -12,14 +12,14 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pfkey_v2_build.c,v 1.51.8.1 2006/05/01 14:36:39 mcr Exp $
+ * RCSID $Id: pfkey_v2_build.c,v 1.51.8.1 2006-05-01 14:36:39 mcr Exp $
  */
 
 /*
  *		Template from klips/net/ipsec/ipsec/ipsec_parser.c.
  */
 
-char pfkey_v2_build_c_version[] = "$Id: pfkey_v2_build.c,v 1.51.8.1 2006/05/01 14:36:39 mcr Exp $";
+char pfkey_v2_build_c_version[] = "$Id: pfkey_v2_build.c,v 1.51.8.1 2006-05-01 14:36:39 mcr Exp $";
 
 /*
  * Some ugly stuff to allow consistent debugging code for use in the
@@ -1388,7 +1388,7 @@ errlab:
 
 /*
  * $Log: pfkey_v2_build.c,v $
- * Revision 1.51.8.1  2006/05/01 14:36:39  mcr
+ * Revision 1.51.8.1  2006-05-01 14:36:39  mcr
  * get rid of dead code.
  *
  * Revision 1.51  2004/10/03 01:26:36  mcr

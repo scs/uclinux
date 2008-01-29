@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: cmdmode.c,v 1.9 2003/05/05 18:00:06 mcr Exp $
+ * RCSID $Id: cmdmode.c,v 1.9 2003-05-05 18:00:06 mcr Exp $
  *
  * @(#) based upon uml_router from User-Mode-Linux tools package
  *

@@ -13,7 +13,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: ipsec_kern24.h,v 1.4 2005/05/20 03:19:18 mcr Exp $
+ * RCSID $Id: ipsec_kern24.h,v 1.4 2005-05-20 03:19:18 mcr Exp $
  */
 
 #ifndef _IPSEC_KERN24_H

@@ -90,6 +90,10 @@ IPSEC_ALG_MODULE_INIT_STATIC( ipsec_cryptoapi_init )
 #define CIPHERNAME_SERPENT	"serpent"
 #define CIPHERNAME_TWOFISH	"twofish"
 
+#ifndef CRYPTO_TFM_MODE_CBC
+#define	CRYPTO_TFM_MODE_CBC	0
+#endif
+
 #define ESP_SERPENT		252	/* from ipsec drafts */
 #define ESP_TWOFISH		253	/* from ipsec drafts */
 

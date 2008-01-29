@@ -11,7 +11,7 @@
  * or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
  * for more details.
  *
- * RCSID $Id: pgp.h,v 1.3 2004/06/14 01:46:03 mcr Exp $
+ * RCSID $Id: pgp.h,v 1.3 2004-06-14 01:46:03 mcr Exp $
  */
 
 #ifndef _PGP_H

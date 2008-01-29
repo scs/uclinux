@@ -2081,6 +2081,14 @@ complete_state_transition(struct msg_digest **mdp, stf_status result)
 		{
 		    /* log our success */
 		    log("%s", story);
+			if (st->st_connection) {
+				struct connection *c = st->st_connection;
+				char lhs[SUBNETTOT_BUF + ADDRTOT_BUF + IDTOA_BUF + ADDRTOT_BUF];
+				char rhs[SUBNETTOT_BUF + ADDRTOT_BUF + IDTOA_BUF + ADDRTOT_BUF];
+				(void) format_end(lhs, sizeof(lhs), &c->this, &c->that, TRUE);
+				(void) format_end(rhs, sizeof(rhs), &c->that, &c->this, FALSE);
+				log("%s...%s", lhs, rhs);
+			}
 		    w = RC_SUCCESS;
 
 			switch (st->st_state) {

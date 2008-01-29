@@ -2582,6 +2582,10 @@ bypass_cb:
 #ifdef CONFIG_NETFILTER_DEBUG
     skb->nf_debug = 0;
 #endif /* CONFIG_NETFILTER_DEBUG */
+#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+    nf_bridge_put(skb->nf_bridge);
+    skb->nf_bridge = NULL;
+#endif
 #endif /* SKB_RESET_NFCT */
     KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
             "klips_debug:ipsec_tunnel_start_xmit: "
@@ -4155,6 +4159,10 @@ bypass:
 #ifdef CONFIG_NETFILTER_DEBUG
 	    skb->nf_debug = 0;
 #endif /* CONFIG_NETFILTER_DEBUG */
+#if defined(CONFIG_BRIDGE) || defined(CONFIG_BRIDGE_MODULE)
+        nf_bridge_put(skb->nf_bridge);
+        skb->nf_bridge = NULL;
+#endif
 #endif /* SKB_RESET_NFCT */
         KLIPS_PRINT(debug_tunnel & DB_TN_XMIT,
                 "klips_debug:ipsec_tunnel_start_xmit: "
