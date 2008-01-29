@@ -1,4 +1,4 @@
-VER = libao-0.8.6
+VER = libao-0.8.8
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
