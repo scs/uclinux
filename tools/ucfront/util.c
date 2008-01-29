@@ -28,12 +28,14 @@ void cc_log(const char *format, ...)
 
 	if (!cache_logfile) return;
 
-	if (strcmp(cache_logfile, "stderr") == 0)
-		logfile = stderr;
-	else if (strcmp(cache_logfile, "stdout") == 0)
-		logfile = stdout;
-	else
-		logfile = fopen(cache_logfile, "a");
+	if (!logfile) {
+		if (strcmp(cache_logfile, "stderr") == 0)
+			logfile = stderr;
+		else if (strcmp(cache_logfile, "stdout") == 0)
+			logfile = stdout;
+		else
+			logfile = fopen(cache_logfile, "a");
+	}
 
 	if (!logfile)
 		return;

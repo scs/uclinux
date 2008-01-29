@@ -7,8 +7,9 @@ OBJS=   cksum.o crc.o print.o sum1.o sum2.o crc32.o
 LINKS=	${BINDIR}/cksum ${BINDIR}/sum
 MLINKS=	cksum.1 sum.1
 
-clean:
-	$(RM) -f *.o ${PROG} core tags
 
 $(PROG): $(SRCS)
 	$(HOSTCC) -Werror -Wall -DHAVE_MKSTEMP -o $@ $^
+
+clean:
+	-rm -f $(PROG)

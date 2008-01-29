@@ -282,6 +282,9 @@ static void find_lib_env(void)
 			x_asprintf(&libc_libdir, "%s/lib/%s", rootdir, config_libcdir);
 		}
 	}
+	else if (getenv("CONFIG_DEFAULTS_LIBC_NONE")) {
+		libtype = LIBTYPE_NONE;
+	}
 	else {
 		fatal("Could not determine libc. Are $CONFIG_DEFAULTS_LIBC_... and $CONFIG_LIBCDIR set correctly?"); 
 	}
@@ -325,8 +328,10 @@ static void process_args(int argc, char **argv)
 	if (!nostdlib) {
 		args_add(stripped_args, "-nostdlib");
 
-		args_add(stripped_args, "-L");
-		args_add(stripped_args, libc_libdir);
+		if(libc_libdir) {
+			args_add(stripped_args, "-L");
+			args_add(stripped_args, libc_libdir);
+		}
 
 		x_asprintf(&e, "%s/lib", rootdir);
 		args_add(stripped_args, "-L");

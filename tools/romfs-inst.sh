@@ -73,15 +73,24 @@ file_copy()
 			rc=$?
 			# And make sure these files are still writable
 			find . -print | grep -E -v '/CVS|/\.svn' | ( cd ${ROMFSDIR}${dst}; xargs chmod u+w )
+			setperm ${ROMFSDIR}${dst}
 		)
 	else
-		if [ -d ${dst} ]; then
+		if [ -d ${ROMFSDIR}${dst} ]; then
 			dstfile=${ROMFSDIR}${dst}/`basename ${src}`
 		else
 			dstfile=${ROMFSDIR}${dst}
 		fi
 		rm -f ${dstfile}
 		[ "$v" ] && echo "cp ${src} ${dstfile}"
+		if [ ! -d "$IMAGEDIR" ]
+		then
+			mkdir -p $IMAGEDIR
+		fi
+		case "$src" in
+			/*) echo "${src} ${dstfile}" ;;
+			*)  echo "`pwd`/${src} ${dstfile}" ;;
+		esac >> $IMAGEDIR/romfs-inst.log
 		cp ${src} ${dstfile} && setperm ${dstfile}
 		rc=$?
 		if [ $rc -eq 0 -a -n "$strip" ]; then

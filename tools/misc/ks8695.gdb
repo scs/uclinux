@@ -51,20 +51,17 @@ end
 #
 
 define flash-init
-# Map flash0 bank to 0x02000000
-set *((unsigned long *) 0x03ff4010) = 0xbfd0004c
-end
-
-
-define flash-unmap
-set *((unsigned long *) 0x03ff4030) = 0
-set *((unsigned long *) 0x03ff4010) = 0x3fc0007c
+# Map flash0 and flash1 banks contiguously from 0x02000000
+set *((unsigned long *) 0x03ff4010) = 0x8fe00040
+set *((unsigned long *) 0x03ff4014) = 0x9fe40040
+set *((unsigned long *) 0x03ff4020) = 0x30000005
 end
 
 
 define mem-init
 # Set bank0 to map RAM to 0x00000000, 16bit, 9 columns, 4banks
-set *((unsigned long *) 0x03ff4030) = 0x3fc0010c
+#set *((unsigned long *) 0x03ff4030) = 0x3fc0010c
+set *((unsigned long *) 0x03ff4030) = 0x3fc0000e
 set *((unsigned long *) 0x03ff4034) = 0
 
 # Set global RAS/CAS timings
@@ -175,6 +172,14 @@ set *((unsigned char *) $arg0) = 0xff
 printf "\n"
 end
 
+define flash-unlock
+printf "UNLOCK: addr=%x", $arg0
+set *((unsigned char *) $arg0) = 0x60
+set *((unsigned char *) $arg0) = 0xd0
+shell sleep 2
+set *((unsigned char *) $arg0) = 0xff
+printf "\n"
+end
 
 define flash-eraseall
 set $addr = 0
