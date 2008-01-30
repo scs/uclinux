@@ -45,9 +45,7 @@ romfs:
 
 	echo "$(VERSIONSTR) -- " `date` > $(ROMFSDIR)/etc/version
 
-BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$4}')
-BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | grep .bss | awk '{print "0x"$$3}')
-ADDR     = $$(echo $$(($(BSS) + $(BSS_SIZE))))
+ADDR     = $$($(CROSS_COMPILE)readelf -s $(IMAGEDIR)/vmlinux | awk '$$NF == "__end" {print "0x"$$2}')
 
 ifeq ($(CONFIG_USER_DEV_DYNAMIC),y)
 DEVICE_TABLE = device_table-min.txt

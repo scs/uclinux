@@ -57,9 +57,7 @@ old-image:
 	fi
 	./bfin-elf-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG)
 	cp $(ROMFSIMG) $(ROOTDIR)/$(LINUXDIR)/
-	BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(ROOTDIR)/$(LINUXDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
-	BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(ROOTDIR)/$(LINUXDIR)/linux | grep .bss\` ; echo 0x$${3}` ; \
-	ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
+	ADDR=`$(CROSS_COMPILE)readelf -s $(IMAGEDIR)/vmlinux | awk '$$NF == "__end" {print "0x"$$2}'` ; \
 	$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROOTDIR)/$(LINUXDIR)/rootfs.img \
 	--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
 	--set-section-flags .romfs=alloc,load,data \
