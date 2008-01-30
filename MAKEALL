@@ -1,0 +1,70 @@
+#!/bin/sh
+
+if [ "$1" = "-p" ] ; then
+	pretend=true
+	shift
+else
+	pretend=false
+fi
+
+arches="$@"
+if [ -z "$arches" ] ; then
+	all_arches=$(
+		cd vendors/config
+		echo */config.arch | sed 's:/config.arch::g'
+	)
+	arches=""
+	for arch in ${all_arches} ; do
+		CROSS_COMPILE=$(
+			var="CROSS_COMPILE"
+			makefile="vendors/config/${arch}/config.arch"
+			export ROOTDIR=$PWD
+			echo -e "e:\\n\\t@echo \$(${var})\\ninclude ${makefile}" | \
+				make --no-print-directory -s -f - 2>/dev/null
+		)
+		if [ -n "$CROSS_COMPILE" ] ; then
+			if ${CROSS_COMPILE}gcc -v 2>/dev/null 1>&2 ; then
+				arches="${arch} ${arches}"
+				echo "Adding ${arch} to build list"
+			else
+				echo "Skipping ${arch}: unable to find '${CROSS_COMPILE}gcc'"
+			fi
+		elif [ "${arch}" != "host" -a "${arch}" != "common" ] ; then
+			echo "Skipping ${arch}: does not define CROSS_COMPILE"
+		fi
+	done
+	echo
+fi
+
+PASS=""
+FAIL=""
+for arch in ${arches} ; do
+	list=$(
+		cd vendors
+		grep -l ${arch}/config.arch */*/config.arch | sed 's:/config.arch::g'
+	)
+	echo "Building boards:"
+	echo " `echo ${list} | sed 's: :\n :g'`"
+	echo
+
+	for board in ${list} ; do
+		echo "#### BUILDING BOARD: ${board}"
+		if ${pretend} || ${MAKE:-make} ${board}_default ; then
+			PASS="${PASS} ${board}"
+		else
+			FAIL="${FAIL} ${board}"
+		fi
+	done
+done
+
+cat <<EOF
+
+These boards passed:
+ `echo ${PASS:-no passes here} | sed 's: :\n :g'`
+
+These boards failed:
+ `echo ${FAIL:-no failures here} | sed 's: :\n :g'`
+
+EOF
+
+[ -n "${FAIL}" ] && exit 1 || exit 0
