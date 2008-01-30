@@ -948,40 +948,62 @@ do
         fi
   else
         if [ ${AUTO_RUN_STATUS[$(( n + 9 ))]} -eq 1  ] ; then
+            cd $UCLINUX_DIST_TESTSUITES/power
             ./power_adv7171_test.exp >/dev/null  2>&1
-            sleep 30
+            cd $UCLINUX_DIST_TESTSUITES
+            ./reset_board.exp  >/dev/null  2>&1
+            sleep 10
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 10 ))]} -eq 1  ] ; then
+            cd $UCLINUX_DIST_TESTSUITES/power
             ./power_adv7393_test.exp >/dev/null  2>&1
-            sleep 30
+            cd $UCLINUX_DIST_TESTSUITES
+            ./reset_board.exp  >/dev/null  2>&1
+            sleep 10
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 4 ))]} -eq 1  ] ; then
+            cd $UCLINUX_DIST_TESTSUITES/power
             ./power_ad73311_test.exp >/dev/null  2>&1
-            sleep 30
+            cd $UCLINUX_DIST_TESTSUITES
+            ./reset_board.exp  >/dev/null  2>&1
+            sleep 10
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] ; then
+            cd $UCLINUX_DIST_TESTSUITES/power
             ./power_tftlcd_test.exp $BOARD_TYPE >/dev/null  2>&1
-            sleep 30
+            cd $UCLINUX_DIST_TESTSUITES
+            ./reset_board.exp  >/dev/null  2>&1
+            sleep 10
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 3 ))]} -eq 1  ] ; then
+            cd $UCLINUX_DIST_TESTSUITES/power
             ./power_ad1836_test.exp >/dev/null  2>&1
-            sleep 30
+            cd $UCLINUX_DIST_TESTSUITES
+            ./reset_board.exp  >/dev/null  2>&1
+            sleep 10
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 14 ))]} -eq 1  ] ; then
+            cd $UCLINUX_DIST_TESTSUITES/power
             ./power_ad1980_test.exp >/dev/null  2>&1
-            sleep 30
+            cd $UCLINUX_DIST_TESTSUITES
+            ./reset_board.exp  >/dev/null  2>&1
+            sleep 10
         fi
 
         if [ ${AUTO_RUN_STATUS[$(( n + 5 ))]} -eq 1  ] ; then
+            cd $UCLINUX_DIST_TESTSUITES/power
             ./power_ad1981b_test.exp >/dev/null  2>&1
-            sleep 30
+            cd $UCLINUX_DIST_TESTSUITES
+            ./reset_board.exp  >/dev/null  2>&1
+            sleep 10
         fi
 
+        cd $UCLINUX_DIST_TESTSUITES/power
         ./power_ethernet_test.exp >/dev/null  2>&1
   fi
 
@@ -996,7 +1018,7 @@ do
 
   if [ $RESET_BOARD -eq 1  ] ; then
    cd $UCLINUX_DIST_TESTSUITES
-   ./reset_board.exp  >/dev/null  2>&1 
+   ./reset_board.exp  >/dev/null  2>&1
    sleep 10
   fi
 
