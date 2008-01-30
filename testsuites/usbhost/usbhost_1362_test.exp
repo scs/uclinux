@@ -13,6 +13,7 @@ source ../reboot_kernel.exp
 
 proc usb_test {device mnt_point} {
     global case_num
+    global kernel_prompt
 
     incr case_num
     set timeout 5
