@@ -285,39 +285,35 @@ Index: sound/soc/blackfin/bf5xx-pcm.c
  		dma_free_coherent(NULL, buf->bytes, buf->area, 0);
  		buf->area = NULL;
  	}
-Index: mm/nommu.c
+Index: sound/core/pcm_native.c
 ===================================================================
---- mm/nommu.c	(revision 4191)
-+++ mm/nommu.c	(working copy)
-@@ -672,8 +672,10 @@
+--- sound/core/pcm_native.c	(revision 4191)
++++ sound/core/pcm_native.c	(working copy)
+@@ -3413,6 +3413,12 @@
+ }
+ #endif /* CONFIG_SND_SUPPORT_OLD_API */
  
- 		/* eliminate any capabilities that we can't support on this
- 		 * device */
-+		/*
- 		if (!file->f_op->get_unmapped_area)
- 			capabilities &= ~BDI_CAP_MAP_DIRECT;
-+		*/
- 		if (!file->f_op->read)
- 			capabilities &= ~BDI_CAP_MAP_COPY;
- 
-@@ -1202,6 +1204,7 @@
- 			if (err)
- 				return err;
- 		}
-+		
- 		if (vma->vm_end > end) {
- 			err = split_nommu_vma(mm, vma, end, 0, &(*parent)->next);
- 			if (err == -EINVAL)
-@@ -1209,11 +1212,10 @@
- 			if (err)
- 				return err;
- 		}
--
-+		
- 		/* Set up another round for the remaining area to unmap.  */
- 		addr = vma->vm_end;
- 		len -= vma->vm_end - vma->vm_start;
--
- 		unmap_one_vma(mm, vma, parent);
- 
- 		if (!len)
++unsigned long dummy_get_unmapped_area(struct file *file, unsigned long addr,
++				      unsigned long len, unsigned long pgoff,unsigned long flags)
++{
++	return 0;
++}
++
+ /*
+  *  Register section
+  */
+@@ -3429,6 +3435,7 @@
+ 		.compat_ioctl = 	snd_pcm_ioctl_compat,
+ 		.mmap =			snd_pcm_mmap,
+ 		.fasync =		snd_pcm_fasync,
++		.get_unmapped_area =	dummy_get_unmapped_area,
+ 	},
+ 	{
+ 		.owner =		THIS_MODULE,
+@@ -3441,5 +3448,6 @@
+ 		.compat_ioctl = 	snd_pcm_ioctl_compat,
+ 		.mmap =			snd_pcm_mmap,
+ 		.fasync =		snd_pcm_fasync,
++		.get_unmapped_area =	dummy_get_unmapped_area,
+ 	}
+ };
