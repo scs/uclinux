@@ -30,7 +30,10 @@
 #include <string.h>
 #include <pthread.h>
 #include <unistd.h>
+
+#ifdef DLOPEN
 #include <dlfcn.h>
+#endif
 
 #define FRAMES_PER_SEC 100 /* 10ms frames */
 #define MAX_THREADS    20
