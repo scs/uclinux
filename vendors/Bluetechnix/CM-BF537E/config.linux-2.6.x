@@ -1,22 +1,22 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.19.3
+# Linux kernel version: 2.6.22.16
 #
 # CONFIG_MMU is not set
 # CONFIG_FPU is not set
 CONFIG_RWSEM_GENERIC_SPINLOCK=y
 # CONFIG_RWSEM_XCHGADD_ALGORITHM is not set
 CONFIG_BLACKFIN=y
-CONFIG_BFIN=y
+CONFIG_ZONE_DMA=y
 CONFIG_SEMAPHORE_SLEEPERS=y
 CONFIG_GENERIC_FIND_NEXT_BIT=y
 CONFIG_GENERIC_HWEIGHT=y
 CONFIG_GENERIC_HARDIRQS=y
 CONFIG_GENERIC_IRQ_PROBE=y
-CONFIG_GENERIC_CALIBRATE_DELAY=y
-CONFIG_UCLINUX=y
+# CONFIG_GENERIC_TIME is not set
+CONFIG_GENERIC_GPIO=y
 CONFIG_FORCE_MAX_ZONEORDER=14
-CONFIG_IRQCHIP_DEMUX_GPIO=y
+CONFIG_GENERIC_CALIBRATE_DELAY=y
 CONFIG_DEFCONFIG_LIST="/lib/modules/$UNAME_RELEASE/.config"
 
 #
@@ -33,14 +33,17 @@ CONFIG_LOCALVERSION=""
 CONFIG_LOCALVERSION_AUTO=y
 CONFIG_SYSVIPC=y
 # CONFIG_IPC_NS is not set
+CONFIG_SYSVIPC_SYSCTL=y
 # CONFIG_POSIX_MQUEUE is not set
 # CONFIG_BSD_PROCESS_ACCT is not set
 # CONFIG_TASKSTATS is not set
 # CONFIG_UTS_NS is not set
 # CONFIG_AUDIT is not set
 # CONFIG_IKCONFIG is not set
+CONFIG_LOG_BUF_SHIFT=14
+CONFIG_SYSFS_DEPRECATED=y
 # CONFIG_RELAY is not set
-CONFIG_INITRAMFS_SOURCE=""
+# CONFIG_BLK_DEV_INITRD is not set
 # CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
 CONFIG_SYSCTL=y
 CONFIG_EMBEDDED=y
@@ -54,17 +57,19 @@ CONFIG_BUG=y
 CONFIG_ELF_CORE=y
 CONFIG_BASE_FULL=y
 CONFIG_FUTEX=y
+CONFIG_ANON_INODES=y
 CONFIG_EPOLL=y
+CONFIG_SIGNALFD=y
+CONFIG_EVENTFD=y
+CONFIG_VM_EVENT_COUNTERS=y
 CONFIG_BIG_ORDER_ALLOC_NOFAIL_MAGIC=3
-# CONFIG_LIMIT_PAGECACHE is not set
-CONFIG_BUDDY=y
 # CONFIG_NP2 is not set
 CONFIG_SLAB=y
-CONFIG_VM_EVENT_COUNTERS=y
+# CONFIG_SLUB is not set
+# CONFIG_SLOB is not set
 CONFIG_RT_MUTEXES=y
 CONFIG_TINY_SHMEM=y
 CONFIG_BASE_SMALL=0
-# CONFIG_SLOB is not set
 
 #
 # Loadable module support
@@ -80,7 +85,9 @@ CONFIG_KMOD=y
 # Block layer
 #
 CONFIG_BLOCK=y
+# CONFIG_LBD is not set
 # CONFIG_BLK_DEV_IO_TRACE is not set
+# CONFIG_LSF is not set
 
 #
 # IO Schedulers
@@ -94,6 +101,9 @@ CONFIG_IOSCHED_CFQ=y
 # CONFIG_DEFAULT_CFQ is not set
 CONFIG_DEFAULT_NOOP=y
 CONFIG_DEFAULT_IOSCHED="noop"
+CONFIG_PREEMPT_NONE=y
+# CONFIG_PREEMPT_VOLUNTARY is not set
+# CONFIG_PREEMPT is not set
 
 #
 # Blackfin Processor Options
@@ -102,51 +112,36 @@ CONFIG_DEFAULT_IOSCHED="noop"
 #
 # Processor and Board Settings
 #
+# CONFIG_BF522 is not set
+# CONFIG_BF523 is not set
+# CONFIG_BF524 is not set
+# CONFIG_BF525 is not set
+# CONFIG_BF526 is not set
+# CONFIG_BF527 is not set
 # CONFIG_BF531 is not set
 # CONFIG_BF532 is not set
 # CONFIG_BF533 is not set
 # CONFIG_BF534 is not set
-# CONFIG_BF535 is not set
 # CONFIG_BF536 is not set
 CONFIG_BF537=y
+# CONFIG_BF542 is not set
+# CONFIG_BF544 is not set
+# CONFIG_BF547 is not set
+# CONFIG_BF548 is not set
+# CONFIG_BF549 is not set
 # CONFIG_BF561 is not set
+# CONFIG_BF_REV_0_0 is not set
+# CONFIG_BF_REV_0_1 is not set
 CONFIG_BF_REV_0_2=y
 # CONFIG_BF_REV_0_3 is not set
 # CONFIG_BF_REV_0_4 is not set
 # CONFIG_BF_REV_0_5 is not set
+# CONFIG_BF_REV_ANY is not set
+# CONFIG_BF_REV_NONE is not set
+CONFIG_BF53x=y
 CONFIG_BFIN_SINGLE_CORE=y
-# CONFIG_BFIN533_EZKIT is not set
-# CONFIG_BFIN533_STAMP is not set
-# CONFIG_BFIN537_STAMP is not set
-# CONFIG_BFIN533_BLUETECHNIX_CM is not set
-CONFIG_BFIN537_BLUETECHNIX_CM=y
-# CONFIG_BFIN561_BLUETECHNIX_CM is not set
-# CONFIG_BFIN561_EZKIT is not set
-# CONFIG_PNAV10 is not set
-# CONFIG_GENERIC_BOARD is not set
 CONFIG_MEM_MT48LC16M16A2TG_75=y
 CONFIG_IRQ_PLL_WAKEUP=7
-
-#
-# BF537 Specific Configuration
-#
-
-#
-# PORT F/G Selection
-#
-CONFIG_BF537_PORT_F=y
-# CONFIG_BF537_PORT_G is not set
-# CONFIG_BF537_PORT_H is not set
-
-#
-# Interrupt Priority Assignment
-#
-
-#
-# Priority
-#
-CONFIG_IRQ_DMA_ERROR=7
-CONFIG_IRQ_ERROR=7
 CONFIG_IRQ_RTC=8
 CONFIG_IRQ_PPI=8
 CONFIG_IRQ_SPORT0_RX=9
@@ -159,8 +154,6 @@ CONFIG_IRQ_UART0_RX=10
 CONFIG_IRQ_UART0_TX=10
 CONFIG_IRQ_UART1_RX=10
 CONFIG_IRQ_UART1_TX=10
-CONFIG_IRQ_CAN_RX=11
-CONFIG_IRQ_CAN_TX=11
 CONFIG_IRQ_MAC_RX=11
 CONFIG_IRQ_MAC_TX=11
 CONFIG_IRQ_TMR0=12
@@ -171,48 +164,70 @@ CONFIG_IRQ_TMR4=12
 CONFIG_IRQ_TMR5=12
 CONFIG_IRQ_TMR6=12
 CONFIG_IRQ_TMR7=12
-CONFIG_IRQ_PROG_INTA=12
 CONFIG_IRQ_PORTG_INTB=12
 CONFIG_IRQ_MEM_DMA0=13
 CONFIG_IRQ_MEM_DMA1=13
 CONFIG_IRQ_WATCH=13
+# CONFIG_BFIN537_STAMP is not set
+CONFIG_BFIN537_BLUETECHNIX_CM=y
+# CONFIG_PNAV10 is not set
+# CONFIG_CAMSIG_MINOTAUR is not set
+# CONFIG_GENERIC_BF537_BOARD is not set
+
+#
+# BF537 Specific Configuration
+#
+
+#
+# Interrupt Priority Assignment
+#
+
+#
+# Priority
+#
+CONFIG_IRQ_DMA_ERROR=7
+CONFIG_IRQ_ERROR=7
+CONFIG_IRQ_CAN_RX=11
+CONFIG_IRQ_CAN_TX=11
+CONFIG_IRQ_PROG_INTA=12
 
 #
 # Board customizations
 #
+# CONFIG_CMDLINE_BOOL is not set
 
 #
-# Board Setup
+# Clock/PLL Setup
 #
 CONFIG_CLKIN_HZ=25000000
+# CONFIG_BFIN_KERNEL_CLOCK is not set
+CONFIG_MAX_VCO_HZ=600000000
+CONFIG_MIN_VCO_HZ=50000000
+CONFIG_MAX_SCLK_HZ=133333333
+CONFIG_MIN_SCLK_HZ=27000000
+
+#
+# Kernel Timer/Scheduler
+#
+# CONFIG_HZ_100 is not set
+CONFIG_HZ_250=y
+# CONFIG_HZ_300 is not set
+# CONFIG_HZ_1000 is not set
+CONFIG_HZ=250
+
+#
+# Memory Setup
+#
 CONFIG_MEM_SIZE=32
 CONFIG_MEM_ADD_WIDTH=9
 CONFIG_BOOT_LOAD=0x1000
-
-#
-# Console UART Setup
-#
-# CONFIG_BAUD_9600 is not set
-# CONFIG_BAUD_19200 is not set
-# CONFIG_BAUD_38400 is not set
-# CONFIG_BAUD_57600 is not set
-CONFIG_BAUD_115200=y
-CONFIG_BAUD_NO_PARITY=y
-# CONFIG_BAUD_PARITY is not set
-CONFIG_BAUD_1_STOPBIT=y
-# CONFIG_BAUD_2_STOPBIT is not set
+CONFIG_BFIN_SCRATCH_REG_RETN=y
+# CONFIG_BFIN_SCRATCH_REG_RETE is not set
+# CONFIG_BFIN_SCRATCH_REG_CYCLES is not set
 
 #
 # Blackfin Kernel Optimizations
 #
-
-#
-# Timer Tick
-#
-# CONFIG_HZ_100 is not set
-CONFIG_HZ_250=y
-# CONFIG_HZ_1000 is not set
-CONFIG_HZ=250
 
 #
 # Memory Optimizations
@@ -229,6 +244,7 @@ CONFIG_MEMSET_L1=y
 CONFIG_MEMCPY_L1=y
 CONFIG_SYS_BFIN_SPINLOCK_L1=y
 CONFIG_IP_CHECKSUM_L1=y
+CONFIG_CACHELINE_ALIGNED_L1=y
 CONFIG_SYSCALL_TAB_L1=y
 CONFIG_CPLB_SWITCH_TAB_L1=y
 CONFIG_RAMKERNEL=y
@@ -242,7 +258,9 @@ CONFIG_FLAT_NODE_MEM_MAP=y
 # CONFIG_SPARSEMEM_STATIC is not set
 CONFIG_SPLIT_PTLOCK_CPUS=4
 # CONFIG_RESOURCES_64BIT is not set
+CONFIG_ZONE_DMA_FLAG=1
 CONFIG_LARGE_ALLOCS=y
+# CONFIG_BFIN_GPTIMERS is not set
 CONFIG_BFIN_DMA_5XX=y
 # CONFIG_DMA_UNCACHED_2M is not set
 CONFIG_DMA_UNCACHED_1M=y
@@ -251,24 +269,21 @@ CONFIG_DMA_UNCACHED_1M=y
 #
 # Cache Support
 #
-CONFIG_BLKFIN_CACHE=y
-CONFIG_BLKFIN_DCACHE=y
-# CONFIG_BLKFIN_CACHE_LOCK is not set
-# CONFIG_BLKFIN_WB is not set
-CONFIG_BLKFIN_WT=y
+CONFIG_BFIN_ICACHE=y
+CONFIG_BFIN_DCACHE=y
+# CONFIG_BFIN_DCACHE_BANKA is not set
+# CONFIG_BFIN_ICACHE_LOCK is not set
+CONFIG_BFIN_WB=y
+# CONFIG_BFIN_WT is not set
 CONFIG_L1_MAX_PIECE=16
-
-#
-# Clock Settings
-#
-# CONFIG_BFIN_KERNEL_CLOCK is not set
+# CONFIG_MPU is not set
 
 #
 # Asynchonous Memory Configuration
 #
 
 #
-# EBIU_AMBCTL Global Control
+# EBIU_AMGCTL Global Control
 #
 CONFIG_C_AMCKEN=y
 CONFIG_C_CDPRIO=y
@@ -290,13 +305,10 @@ CONFIG_BANK_3=0xFFC3
 # Bus options (PCI, PCMCIA, EISA, MCA, ISA)
 #
 # CONFIG_PCI is not set
+# CONFIG_ARCH_SUPPORTS_MSI is not set
 
 #
 # PCCARD (PCMCIA/CardBus) support
-#
-
-#
-# PCI Hotplug Support
 #
 
 #
@@ -312,6 +324,7 @@ CONFIG_BINFMT_SHARED_FLAT=y
 # Power management options
 #
 # CONFIG_PM is not set
+# CONFIG_PM_WAKEUP_BY_GPIO is not set
 
 #
 # CPU Frequency scaling
@@ -326,13 +339,13 @@ CONFIG_NET=y
 #
 # Networking options
 #
-# CONFIG_NETDEBUG is not set
 CONFIG_PACKET=y
 # CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
 CONFIG_XFRM=y
 # CONFIG_XFRM_USER is not set
 # CONFIG_XFRM_SUB_POLICY is not set
+# CONFIG_XFRM_MIGRATE is not set
 # CONFIG_NET_KEY is not set
 CONFIG_INET=y
 # CONFIG_IP_MULTICAST is not set
@@ -356,26 +369,15 @@ CONFIG_INET_TCP_DIAG=y
 # CONFIG_TCP_CONG_ADVANCED is not set
 CONFIG_TCP_CONG_CUBIC=y
 CONFIG_DEFAULT_TCP_CONG="cubic"
+# CONFIG_TCP_MD5SIG is not set
 # CONFIG_IPV6 is not set
 # CONFIG_INET6_XFRM_TUNNEL is not set
 # CONFIG_INET6_TUNNEL is not set
 # CONFIG_NETLABEL is not set
 # CONFIG_NETWORK_SECMARK is not set
 # CONFIG_NETFILTER is not set
-
-#
-# DCCP Configuration (EXPERIMENTAL)
-#
 # CONFIG_IP_DCCP is not set
-
-#
-# SCTP Configuration (EXPERIMENTAL)
-#
 # CONFIG_IP_SCTP is not set
-
-#
-# TIPC Configuration (EXPERIMENTAL)
-#
 # CONFIG_TIPC is not set
 # CONFIG_ATM is not set
 # CONFIG_BRIDGE is not set
@@ -401,7 +403,16 @@ CONFIG_DEFAULT_TCP_CONG="cubic"
 # CONFIG_HAMRADIO is not set
 # CONFIG_IRDA is not set
 # CONFIG_BT is not set
+# CONFIG_AF_RXRPC is not set
+
+#
+# Wireless
+#
+# CONFIG_CFG80211 is not set
+# CONFIG_WIRELESS_EXT is not set
+# CONFIG_MAC80211 is not set
 # CONFIG_IEEE80211 is not set
+# CONFIG_RFKILL is not set
 
 #
 # Device Drivers
@@ -418,10 +429,6 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 # Connector - unified userspace <-> kernelspace linker
 #
 # CONFIG_CONNECTOR is not set
-
-#
-# Memory Technology Devices (MTD)
-#
 CONFIG_MTD=y
 # CONFIG_MTD_DEBUG is not set
 # CONFIG_MTD_CONCAT is not set
@@ -433,6 +440,7 @@ CONFIG_MTD_PARTITIONS=y
 # User Modules And Translation Layers
 #
 CONFIG_MTD_CHAR=y
+CONFIG_MTD_BLKDEVS=y
 CONFIG_MTD_BLOCK=y
 # CONFIG_FTL is not set
 # CONFIG_NFTL is not set
@@ -458,13 +466,11 @@ CONFIG_MTD_CFI_I2=y
 CONFIG_MTD_RAM=y
 # CONFIG_MTD_ROM is not set
 # CONFIG_MTD_ABSENT is not set
-# CONFIG_MTD_OBSOLETE_CHIPS is not set
 
 #
 # Mapping drivers for chip access
 #
 # CONFIG_MTD_COMPLEX_MAPPINGS is not set
-# CONFIG_MTD_BF5xx is not set
 CONFIG_MTD_UCLINUX=y
 # CONFIG_MTD_PLATRAM is not set
 
@@ -482,16 +488,13 @@ CONFIG_MTD_UCLINUX=y
 # CONFIG_MTD_DOC2000 is not set
 # CONFIG_MTD_DOC2001 is not set
 # CONFIG_MTD_DOC2001PLUS is not set
-
-#
-# NAND Flash Device Drivers
-#
 # CONFIG_MTD_NAND is not set
+# CONFIG_MTD_ONENAND is not set
 
 #
-# OneNAND Flash Device Drivers
+# UBI - Unsorted block images
 #
-# CONFIG_MTD_ONENAND is not set
+# CONFIG_MTD_UBI is not set
 
 #
 # Parallel port support
@@ -501,6 +504,7 @@ CONFIG_MTD_UCLINUX=y
 #
 # Plug and Play support
 #
+# CONFIG_PNPACPI is not set
 
 #
 # Block devices
@@ -512,17 +516,11 @@ CONFIG_BLK_DEV_RAM=y
 CONFIG_BLK_DEV_RAM_COUNT=16
 CONFIG_BLK_DEV_RAM_SIZE=4096
 CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
-# CONFIG_BLK_DEV_INITRD is not set
 # CONFIG_CDROM_PKTCDVD is not set
 # CONFIG_ATA_OVER_ETH is not set
 
 #
 # Misc devices
-#
-# CONFIG_TIFM_CORE is not set
-
-#
-# ATA/ATAPI/MFM/RLL support
 #
 # CONFIG_IDE is not set
 
@@ -532,29 +530,12 @@ CONFIG_BLK_DEV_RAM_BLOCKSIZE=1024
 # CONFIG_RAID_ATTRS is not set
 # CONFIG_SCSI is not set
 # CONFIG_SCSI_NETLINK is not set
-
-#
-# Serial ATA (prod) and Parallel ATA (experimental) drivers
-#
 # CONFIG_ATA is not set
 
 #
 # Multi-device support (RAID and LVM)
 #
 # CONFIG_MD is not set
-
-#
-# Fusion MPT device support
-#
-# CONFIG_FUSION is not set
-
-#
-# IEEE 1394 (FireWire) support
-#
-
-#
-# I2O device support
-#
 
 #
 # Network device support
@@ -564,11 +545,20 @@ CONFIG_NETDEVICES=y
 # CONFIG_BONDING is not set
 # CONFIG_EQUALIZER is not set
 # CONFIG_TUN is not set
+CONFIG_PHYLIB=y
 
 #
-# PHY device support
+# MII PHY device drivers
 #
-# CONFIG_PHYLIB is not set
+# CONFIG_MARVELL_PHY is not set
+# CONFIG_DAVICOM_PHY is not set
+# CONFIG_QSEMI_PHY is not set
+# CONFIG_LXT_PHY is not set
+# CONFIG_CICADA_PHY is not set
+# CONFIG_VITESSE_PHY is not set
+# CONFIG_SMSC_PHY is not set
+# CONFIG_BROADCOM_PHY is not set
+# CONFIG_FIXED_PHY is not set
 
 #
 # Ethernet (10 or 100Mbit)
@@ -581,27 +571,17 @@ CONFIG_BFIN_MAC_USE_L1=y
 CONFIG_BFIN_TX_DESC_NUM=10
 CONFIG_BFIN_RX_DESC_NUM=20
 # CONFIG_BFIN_MAC_RMII is not set
+# CONFIG_SMSC911X is not set
+# CONFIG_DM9000 is not set
+CONFIG_NETDEV_1000=y
+# CONFIG_AX88180 is not set
+CONFIG_NETDEV_10000=y
 
 #
-# Ethernet (1000 Mbit)
+# Wireless LAN
 #
-
-#
-# Ethernet (10000 Mbit)
-#
-
-#
-# Token Ring devices
-#
-
-#
-# Wireless LAN (non-hamradio)
-#
-# CONFIG_NET_RADIO is not set
-
-#
-# Wan interfaces
-#
+# CONFIG_WLAN_PRE80211 is not set
+# CONFIG_WLAN_80211 is not set
 # CONFIG_WAN is not set
 # CONFIG_PPP is not set
 # CONFIG_SLIP is not set
@@ -636,9 +616,9 @@ CONFIG_BFIN_RX_DESC_NUM=20
 #
 # CONFIG_AD9960 is not set
 # CONFIG_SPI_ADC_BF533 is not set
-# CONFIG_BF533_PFLAGS is not set
+# CONFIG_BF5xx_PFLAGS is not set
 # CONFIG_BF5xx_PPIFCD is not set
-# CONFIG_BF5xx_TIMERS is not set
+# CONFIG_BFIN_SIMPLE_TIMER is not set
 # CONFIG_BF5xx_PPI is not set
 CONFIG_BFIN_SPORT=y
 # CONFIG_BFIN_TIMER_LATENCY is not set
@@ -677,30 +657,16 @@ CONFIG_LEGACY_PTY_COUNT=256
 # IPMI
 #
 # CONFIG_IPMI_HANDLER is not set
-
-#
-# Watchdog Cards
-#
 # CONFIG_WATCHDOG is not set
 # CONFIG_HW_RANDOM is not set
 # CONFIG_GEN_RTC is not set
-CONFIG_BLACKFIN_DPMC=y
-# CONFIG_DTLK is not set
 # CONFIG_R3964 is not set
-
-#
-# Ftape, the floppy tape device driver
-#
 # CONFIG_RAW_DRIVER is not set
 
 #
 # TPM devices
 #
 # CONFIG_TCG_TPM is not set
-
-#
-# I2C support
-#
 # CONFIG_I2C is not set
 
 #
@@ -713,33 +679,40 @@ CONFIG_BLACKFIN_DPMC=y
 # Dallas's 1-wire bus
 #
 # CONFIG_W1 is not set
-
-#
-# Hardware Monitoring support
-#
 CONFIG_HWMON=y
 # CONFIG_HWMON_VID is not set
 # CONFIG_SENSORS_ABITUGURU is not set
 # CONFIG_SENSORS_F71805F is not set
+# CONFIG_SENSORS_PC87427 is not set
+# CONFIG_SENSORS_SMSC47M1 is not set
+# CONFIG_SENSORS_SMSC47B397 is not set
 # CONFIG_SENSORS_VT1211 is not set
+# CONFIG_SENSORS_W83627HF is not set
 # CONFIG_HWMON_DEBUG_CHIP is not set
+
+#
+# Multifunction device drivers
+#
+# CONFIG_MFD_SM501 is not set
 
 #
 # Multimedia devices
 #
 # CONFIG_VIDEO_DEV is not set
-
-#
-# Digital Video Broadcasting Devices
-#
-# CONFIG_DVB is not set
+# CONFIG_DVB_CORE is not set
+CONFIG_DAB=y
 
 #
 # Graphics support
 #
-# CONFIG_FIRMWARE_EDID is not set
-# CONFIG_FB is not set
 # CONFIG_BACKLIGHT_LCD_SUPPORT is not set
+
+#
+# Display device support
+#
+# CONFIG_DISPLAY_SUPPORT is not set
+# CONFIG_VGASTATE is not set
+# CONFIG_FB is not set
 
 #
 # Sound
@@ -755,6 +728,10 @@ CONFIG_USB_ARCH_HAS_HCD=y
 # CONFIG_USB is not set
 
 #
+# Enable Host or Gadget support to see Inventra options
+#
+
+#
 # NOTE: USB_STORAGE enables SCSI, and 'SCSI disk support'
 #
 
@@ -762,10 +739,6 @@ CONFIG_USB_ARCH_HAS_HCD=y
 # USB Gadget Support
 #
 # CONFIG_USB_GADGET is not set
-
-#
-# MMC/SD Card support
-#
 # CONFIG_MMC is not set
 
 #
@@ -873,7 +846,6 @@ CONFIG_RAMFS=y
 # CONFIG_BFS_FS is not set
 # CONFIG_EFS_FS is not set
 # CONFIG_YAFFS_FS is not set
-# CONFIG_JFFS_FS is not set
 # CONFIG_JFFS2_FS is not set
 # CONFIG_CRAMFS is not set
 # CONFIG_VXFS_FS is not set
@@ -906,6 +878,11 @@ CONFIG_MSDOS_PARTITION=y
 # CONFIG_NLS is not set
 
 #
+# Distributed Lock Manager
+#
+# CONFIG_DLM is not set
+
+#
 # Profiling support
 #
 # CONFIG_PROFILING is not set
@@ -917,20 +894,22 @@ CONFIG_MSDOS_PARTITION=y
 CONFIG_ENABLE_MUST_CHECK=y
 # CONFIG_MAGIC_SYSRQ is not set
 # CONFIG_UNUSED_SYMBOLS is not set
-# CONFIG_DEBUG_KERNEL is not set
-CONFIG_LOG_BUF_SHIFT=14
-# CONFIG_DEBUG_BUGVERBOSE is not set
 # CONFIG_DEBUG_FS is not set
-# CONFIG_UNWIND_INFO is not set
 # CONFIG_HEADERS_CHECK is not set
-# CONFIG_DEBUG_SERIAL_EARLY_INIT is not set
+# CONFIG_DEBUG_KERNEL is not set
+# CONFIG_DEBUG_BUGVERBOSE is not set
+# CONFIG_DEBUG_MMRS is not set
 # CONFIG_DEBUG_HUNT_FOR_ZERO is not set
+CONFIG_DEBUG_BFIN_HWTRACE_ON=y
+CONFIG_DEBUG_BFIN_HWTRACE_COMPRESSION_OFF=y
+# CONFIG_DEBUG_BFIN_HWTRACE_COMPRESSION_ONE is not set
+# CONFIG_DEBUG_BFIN_HWTRACE_COMPRESSION_TWO is not set
+CONFIG_DEBUG_BFIN_HWTRACE_COMPRESSION=0
+# CONFIG_DEBUG_BFIN_HWTRACE_EXPAND is not set
 # CONFIG_DEBUG_BFIN_NO_KERN_HWTRACE is not set
-CONFIG_BOOTPARAM=y
-CONFIG_BOOTPARAM_STRING="root=/dev/mtdblock0 rw console=ttyBF0,115200"
-# CONFIG_NO_KERNEL_MSG is not set
+# CONFIG_EARLY_PRINTK is not set
 CONFIG_CPLB_INFO=y
-# CONFIG_NO_ACCESS_CHECK is not set
+CONFIG_ACCESS_CHECK=y
 
 #
 # Security options
@@ -948,9 +927,14 @@ CONFIG_SECURITY_CAPABILITIES=y
 #
 # Library routines
 #
+CONFIG_BITREVERSE=y
 CONFIG_CRC_CCITT=m
 # CONFIG_CRC16 is not set
+# CONFIG_CRC_ITU_T is not set
 CONFIG_CRC32=y
 # CONFIG_LIBCRC32C is not set
 CONFIG_ZLIB_INFLATE=y
 CONFIG_PLIST=y
+CONFIG_HAS_IOMEM=y
+CONFIG_HAS_IOPORT=y
+CONFIG_HAS_DMA=y

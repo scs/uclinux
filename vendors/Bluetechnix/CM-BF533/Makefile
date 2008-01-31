@@ -19,7 +19,13 @@ LINUXBOOTDIR = $(ROOTDIR)/$(LINUXDIR)/arch/$(ARCH)/boot
 BLOCKS   = 5120
 INODES   = 1024
 
-ROMFS_DIRS = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp home/httpd home/httpd/cgi-bin etc/boa etc/config var/run var/lib/misc var/log/boa
+ROMFS_DIRS-y = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp etc/config var/run var/lib/misc
+ETC_FILES-y = \
+	filesystems group hosts host.conf inetd.conf issue mime.types \
+	modprobe.conf motd passwd protocols services TZ tux-bf.gif
+
+ROMFS_DIRS-$(CONFIG_USER_BOA_SRC_BOA) += home/httpd home/httpd/cgi-bin etc/boa var/log/boa
+ETC_FILES-$(CONFIG_USER_BOA_SRC_BOA) += boa.conf index.html tux-wink.gif tuxsit_small.gif
 
 all::
 
@@ -27,29 +33,23 @@ romfs.post:: romfs.shared.libs
 
 romfs::
 	mkdir -p $(ROMFSDIR)
-	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS)
+	cd $(ROMFSDIR) && mkdir -p $(ROMFS_DIRS-y)
 	chmod 1777 $(ROMFSDIR)/tmp
 	$(ROMFSINST) -s bin /sbin
+
 	$(ROMFSINST) /etc/rc
 	$(ROMFSINST) /etc/mdev.conf
 	$(ROMFSINST) /etc/inittab
-	$(ROMFSINST) /etc/services
-	$(ROMFSINST) /etc/protocols
-	$(ROMFSINST) /etc/passwd
-	$(ROMFSINST) /etc/group
-	$(ROMFSINST) /etc/motd
-	$(ROMFSINST) /etc/issue
-	$(ROMFSINST) /etc/TZ
-	$(ROMFSINST) /etc/hosts
-	$(ROMFSINST) /etc/host.conf
-	$(ROMFSINST) /etc/boa.conf
-	$(ROMFSINST) /etc/mime.types
-	$(ROMFSINST) /etc/inetd.conf
-	$(ROMFSINST) /etc/index.html
-	$(ROMFSINST) /etc/tux-wink.gif
-	$(ROMFSINST) /etc/tuxsit_small.gif
-	$(ROMFSINST) /etc/modprobe.conf
+
+	set -e ; \
+	for f in $(ETC_FILES-y) ; do \
+		$(ROMFSINST) ../common/$$f /etc/$$f ; \
+	done
+
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
+ifeq ($(CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG),y)
+	gzip -9c $(ROOTDIR)/config/.config > $(ROMFSDIR)/root/uclinux-config.gz
+endif
 
 ADDR     = $$($(CROSS_COMPILE)readelf -s $(IMAGEDIR)/vmlinux | awk '$$NF == "__end" {print "0x"$$2}')
 ENTRY    = $$($(CROSS_COMPILE)nm $(IMAGE).$$FS | awk '$$NF == "__start" {print $$1}')
@@ -63,7 +63,7 @@ endif
 image::
 	mkdir -p $(IMAGEDIR)
 	rm -rf $(IMAGEDIR)/*
-	rm -rf $(ROMFSDIR)/dev;
+	rm -rf $(ROMFSDIR)/dev
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
@@ -71,9 +71,9 @@ image::
 	$(STRIP) -g $(IMAGEDIR)/vmlinux
 	set -e ; \
 	if [ -x $(MKFS_JFFS2) ] && [ -n "$(CONFIG_JFFS_FS)" -o -n "$(CONFIG_JFFS2_FS)" ]; then \
-		$(MKFS_JFFS2) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
+		$(MKFS_JFFS2) -l -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(ROMFSIMG).jffs2; \
 	fi
-ifneq ($(CONFIG_YAFFS_FS),)
+ifeq ($(CONFIG_YAFFS_FS),y)
 	set -e ; \
 	if [ -x "$(MKFS_YAFFS)" -a -n "$(CONFIG_YAFFS_YAFFS1)" ]; then \
 		$(MKFS_YAFFS) $(ROMFSDIR) $(ROMFSIMG).yaffs > /dev/null ; \
@@ -82,19 +82,19 @@ ifneq ($(CONFIG_YAFFS_FS),)
 		$(MKFS_YAFFS2) $(ROMFSDIR) $(ROMFSIMG).yaffs2 > /dev/null ; \
 	fi
 endif
-ifneq ($(CONFIG_CRAMFS),)
+ifeq ($(CONFIG_CRAMFS),y)
 	$(CROSS_COMPILE)mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
 endif
-ifneq ($(CONFIG_EXT2_FS),)
+ifeq ($(CONFIG_EXT2_FS),y)
 	$(CROSS_COMPILE)genext2fs -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
 endif
-ifneq ($(CONFIG_ROMFS_FS),)
+ifeq ($(CONFIG_ROMFS_FS),y)
 	set -e ; \
 	if which genromfs >/dev/null 2>&1; then \
 		$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
