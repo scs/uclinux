@@ -11,9 +11,13 @@ source ../spawn_kermit.exp
 
 step "Reboot the kernel."
 
-if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+if { $board_type == "BF537-STAMP" } {
 
 set bootargs  $bootargs_param1
+
+} elseif { $board_type == "BF533-STAMP" } {
+
+set bootargs  $bootargs_param2
 
 } elseif { $board_type == "BF561-EZKIT" } {
 

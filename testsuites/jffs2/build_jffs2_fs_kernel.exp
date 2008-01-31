@@ -177,9 +177,6 @@ while 1 {
           -re "dhcpcd-new.*CONFIG_USER_DHCPCD_NEW_DHCPCD.*\\\[.*]" {
              send -s "N\r"
       }
-         -re "ftpd.*CONFIG_USER_FTPD_FTPD.*\\\[.*]" {
-             send -s "N\r"
-      }
          -re "portmap.*CONFIG_USER_PORTMAP_PORTMAP.*\\\[.*]" {
              send -s "N\r"
       }

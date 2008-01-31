@@ -29,7 +29,7 @@ set bootargs  $bootargs_param6
 
 send -s "set bootargs $bootargs\r"
 expect   ">" 
-send "save\r"
+send -s "save\r"
 expect   ">" 
 
 step "Flash images."
