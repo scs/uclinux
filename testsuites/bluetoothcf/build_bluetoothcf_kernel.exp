@@ -21,117 +21,121 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+#avoid GPIO confliction with ad1836
+            send "n\r"
+        }
 
-      -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
-         send "0xFFC3\r"
-      }
+        -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
+            send "0xFFC3\r"
+        }
 
-      -re "PCCard \\\(PCMCIA/CardBus\\\) support \\\(PCCARD\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "PCCard \\\(PCMCIA/CardBus\\\) support \\\(PCCARD\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "16-bit PCMCIA support \\\(PCMCIA\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "16-bit PCMCIA support \\\(PCMCIA\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "Load CIS updates from userspace \\\(EXPERIMENTAL\\\) \\\(PCMCIA_LOAD_CIS\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Load CIS updates from userspace \\\(EXPERIMENTAL\\\) \\\(PCMCIA_LOAD_CIS\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "PCMCIA control ioctl \\\(obsolete\\\) \\\(PCMCIA_IOCTL\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "PCMCIA control ioctl \\\(obsolete\\\) \\\(PCMCIA_IOCTL\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Blackfin CompactFlash PCMCIA Driver \\\(BFIN_CFPCMCIA\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "Blackfin CompactFlash PCMCIA Driver \\\(BFIN_CFPCMCIA\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "Re-program Clocks while Kernel boots.*\\\(BFIN_KERNEL_CLOCK\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Re-program Clocks while Kernel boots.*\\\(BFIN_KERNEL_CLOCK\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "System Clock Divider \\\(SCLK_DIV\\\).*\\\[.*].*" {
-         send "8\r"
-      }
+        -re "System Clock Divider \\\(SCLK_DIV\\\).*\\\[.*].*" {
+            send "8\r"
+        }
 
-      -re "Networking support \\\(NET\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Networking support \\\(NET\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Bluetooth subsystem support \\\(BT\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "Bluetooth subsystem support \\\(BT\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "L2CAP protocol support \\\(BT_L2CAP\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "L2CAP protocol support \\\(BT_L2CAP\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "SCO links support \\\(BT_SCO\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "SCO links support \\\(BT_SCO\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "RFCOMM protocol support \\\(BT_RFCOMM\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "RFCOMM protocol support \\\(BT_RFCOMM\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "RFCOMM TTY support \\\(BT_RFCOMM_TTY\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "RFCOMM TTY support \\\(BT_RFCOMM_TTY\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "BNEP protocol support \\\(BT_BNEP\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "BNEP protocol support \\\(BT_BNEP\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "Multicast filter support \\\(BT_BNEP_MC_FILTER\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Multicast filter support \\\(BT_BNEP_MC_FILTER\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Protocol filter support \\\(BT_BNEP_PROTO_FILTER\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Protocol filter support \\\(BT_BNEP_PROTO_FILTER\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "HIDP protocol support \\\(BT_HIDP\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "HIDP protocol support \\\(BT_HIDP\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "HCI BlueCard \\\(PC Card\\\) driver \\\(BT_HCIBLUECARD\\\).*\\\[./././.]" {
-         send "y\r"
-      }
-      
-      -re "Bluez-utils \\\(CONFIG_USER_BLUEZ\\\).*\\\[.*]" {
-	send "y\r"
-	}
-      
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
+        -re "HCI BlueCard \\\(PC Card\\\) driver \\\(BT_HCIBLUECARD\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        -re "Bluez-utils \\\(CONFIG_USER_BLUEZ\\\).*\\\[.*]" {
+            send "y\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -146,6 +150,5 @@ step "Copy linux"
 
 source   copy_image.exp
   
-
 send_user "Ending $argv0\n"
 log_file
