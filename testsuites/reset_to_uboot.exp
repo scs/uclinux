@@ -5,7 +5,9 @@
 
 send_user "Try to figure out if we are in u-boot or the kernel"
 set where_are_we 0
-send "version\r"
+send "\r"
+expect ">"
+send -s "version\r"
 set timeout 20
 while 1 {
 	expect {
@@ -34,7 +36,7 @@ while 1 {
 
 if { $where_are_we == "uboot" } {
     set timeout 50 
-    send "reset\r"   
+    send -s "reset\r"   
     send_user "sending reset\n"    
 } else {
     if { $where_are_we == "kernel" } {
