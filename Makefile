@@ -171,7 +171,7 @@ menuconfig: Kconfig conf mconf
 	@config/setconfig final
 
 .PHONY: xconfig
-xconfig: qconfig
+xconfig: gconfig
 
 .PHONY: qconfig
 qconfig: Kconfig conf qconf
@@ -185,13 +185,13 @@ qconfig: Kconfig conf qconf
 	@chmod u+x config/setconfig
 	@config/setconfig defaults
 	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
-		$(MAKE) linux_menuconfig; \
+		$(MAKE) linux_qconfig; \
 	 fi
 	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
-		$(MAKE) modules_menuconfig; \
+		$(MAKE) modules_qconfig; \
 	 fi
 	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
-		$(MAKE) config_menuconfig; \
+		$(MAKE) config_qconfig; \
 	 fi
 	@config/setconfig final
 
@@ -207,13 +207,13 @@ gconfig: Kconfig conf gconf
 	@chmod u+x config/setconfig
 	@config/setconfig defaults
 	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
-		$(MAKE) linux_menuconfig; \
+		$(MAKE) linux_gconfig; \
 	 fi
 	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
-		$(MAKE) modules_menuconfig; \
+		$(MAKE) modules_gconfig; \
 	 fi
 	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
-		$(MAKE) config_menuconfig; \
+		$(MAKE) config_gconfig; \
 	 fi
 	@config/setconfig final
 
