@@ -20,105 +20,122 @@ cd $uclinux_path
 set timeout 300
 spawn make config
 
-
 while 1 {
-   expect {
+    expect {
+        -re "AnalogDevices Products .*BF533-EZKIT, BF533-STAMP, BF537-STAMP, BF561-EZKIT.*\\\[.*]" {
+            send "$board_type\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Kernel Settings.*CONFIG_DEFAULTS_KERNEL.*\\\[././.]" {
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Customize Vendor/User Settings.*CONFIG_DEFAULTS_VENDOR.*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Bank 3.*BANK_3.*\\\[0x99B3]" {
-         send "0xAAC2\r"
-      }
+        -re "Bluetooth subsystem support.*BT.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Bluetooth subsystem support.*BT.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "L2CAP protocol support.*BT_L2CAP.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "L2CAP protocol support.*BT_L2CAP.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "SCO links support.*BT_SCO.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "SCO links support.*BT_SCO.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "RFCOMM protocol support.*BT_RFCOMM.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "RFCOMM protocol support.*BT_RFCOMM.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "RFCOMM TTY support.*BT_RFCOMM_TTY.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "RFCOMM TTY support.*BT_RFCOMM_TTY.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "BNEP protocol support.*BT_BNEP.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "BNEP protocol support.*BT_BNEP.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Multicast filter support.*BT_BNEP_MC_FILTER.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Multicast filter support.*BT_BNEP_MC_FILTER.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Protocol filter support.*BT_BNEP_PROTO_FILTER.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Protocol filter support.*BT_BNEP_PROTO_FILTER.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "HIDP protocol support.*BT_HIDP.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "HIDP protocol support.*BT_HIDP.*\\\[.*]" {
-         send "y\r"
-      }
-      -re "HCI USB driver.*BT_HCIUSB.*\\\[.*]" {
-         send "y\r"
-      }
-      -re "SCO.*voice.*support.*BT_HCIUSB_SCO.*\\\[.*]" {
-         send "n\r"
-      }
+        -re "HCI USB driver.*BT_HCIUSB.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Support for Host-side USB.*USB.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "SCO.*voice.*support.*BT_HCIUSB_SCO.*\\\[.*]" {
+            send "n\r"
+        }
 
-      -re "USB verbose debug messages.*USB_DEBUG.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Bank 3.*BANK_3.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "0xAAC2\r"
+            } else {
+                send "\r"
+            }
+        }
 
-      -re "ISP1362 HCD support \\\(USB_ISP1362_HCD\\\).*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Support for Host-side USB.*USB.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[./././.]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
 
-      -re "Bluez-utils \\\(CONFIG_USER_BLUEZ\\\).*\\\[.*]" {
+        -re "ISP1362 HCD support \\\(USB_ISP1362_HCD\\\).*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
 
-          send "y\r"
-      }
+        -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
 
-       "\\\(*) \\\[*]" {
-	sleep .01
-         send "\r"
-      }
+        -re "Bluez-utils \\\(CONFIG_USER_BLUEZ\\\).*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -132,7 +149,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
-  
 
 send_user "Ending $argv0\n"
 log_file
