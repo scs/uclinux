@@ -170,6 +170,53 @@ menuconfig: Kconfig conf mconf
 	 fi
 	@config/setconfig final
 
+.PHONY: xconfig
+xconfig: qconfig
+
+.PHONY: qconfig
+qconfig: Kconfig conf qconf
+	$(SCRIPTSDIR)/qconf Kconfig
+	@if [ ! -f .config ]; then \
+		echo; \
+		echo "You have not saved your config, please re-run make config"; \
+		echo; \
+		exit 1; \
+	 fi
+	@chmod u+x config/setconfig
+	@config/setconfig defaults
+	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
+		$(MAKE) linux_menuconfig; \
+	 fi
+	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
+		$(MAKE) modules_menuconfig; \
+	 fi
+	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
+		$(MAKE) config_menuconfig; \
+	 fi
+	@config/setconfig final
+
+.PHONY: gconfig
+gconfig: Kconfig conf gconf
+	$(SCRIPTSDIR)/gconf Kconfig
+	@if [ ! -f .config ]; then \
+		echo; \
+		echo "You have not saved your config, please re-run make config"; \
+		echo; \
+		exit 1; \
+	 fi
+	@chmod u+x config/setconfig
+	@config/setconfig defaults
+	@if egrep "^CONFIG_DEFAULTS_KERNEL=y" .config > /dev/null; then \
+		$(MAKE) linux_menuconfig; \
+	 fi
+	@if egrep "^CONFIG_DEFAULTS_MODULES=y" .config > /dev/null; then \
+		$(MAKE) modules_menuconfig; \
+	 fi
+	@if egrep "^CONFIG_DEFAULTS_VENDOR=y" .config > /dev/null; then \
+		$(MAKE) config_menuconfig; \
+	 fi
+	@config/setconfig final
+
 .PHONY: oldconfig
 oldconfig: Kconfig conf
 	$(SCRIPTSDIR)/conf -o Kconfig
@@ -201,26 +248,12 @@ modules_install:
 		env NM=$(CROSS_COMPILE)nm $(ROOTDIR)/user/busybox/depmod.pl -P _ -b $(ROMFSDIR)/lib/modules/ -k $(ROOTDIR)/$(LINUXDIR)/vmlinux; \
 	fi
 
-linux_xconfig:
-	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) xconfig
-linux_menuconfig:
-	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) menuconfig
-linux_config:
-	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) config
-modules_xconfig:
-	[ ! -d modules ] || $(MAKEARCH) -C modules xconfig
-modules_menuconfig:
-	[ ! -d modules ] || $(MAKEARCH) -C modules menuconfig
-modules_config:
-	[ ! -d modules ] || $(MAKEARCH) -C modules config
-modules_clean:
-	-[ ! -d modules ] || $(MAKEARCH) -C modules clean
-config_xconfig: vendors/Kconfig
-	$(MAKEARCH) -C config xconfig
-config_menuconfig: vendors/Kconfig
-	$(MAKEARCH) -C config menuconfig
-config_config: vendors/Kconfig
-	$(MAKEARCH) -C config config
+linux_%:
+	KCONFIG_NOTIMESTAMP=1 $(MAKEARCH_KERNEL) -C $(LINUXDIR) $(patsubst linux_%,%,$@)
+modules_%:
+	[ ! -d modules ] || $(MAKEARCH) -C modules $(patsubst modules_%,%,$@)
+config_%: vendors/Kconfig
+	$(MAKEARCH) -C config $(patsubst config_%,%,$@)
 oldconfig_config:
 	$(MAKEARCH) -C config oldconfig
 oldconfig_modules:
