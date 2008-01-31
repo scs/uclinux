@@ -143,6 +143,7 @@ proc recover {} {
    global ipaddr
    global LTP_SCRIPT_DIR
    global LTP_TESTCASES_DIR
+   global kernel_prompt
 
    set MAX_ATTEMPTS  2
 
@@ -345,6 +346,7 @@ proc force_reboot {} {
     global ipaddr
     global LTP_SCRIPT_DIR
     global LTP_TESTCASES_DIR
+    global kernel_prompt
 
 
     report "!!!! force rebooting"
@@ -490,6 +492,7 @@ proc force_reboot {} {
 #
 proc wait_for_kernel_prompt {} {
    global timeout
+   global kernel_prompt
 
    report "waiting for kernel prompt"
    set timeout 30
@@ -831,6 +834,7 @@ proc run_LTP_test { filename command torun mode} {
    global LTP_NA
    global LTP_TESTCASES_DIR
    global ipaddr
+   global kernel_prompt
 
    step "Start to test \[$filename\]"
 
