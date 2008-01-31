@@ -21,6 +21,7 @@ send_log "*********************************\r"
 
 proc alsa_rec_play {format channel rate file_type} {
     global case_num
+    global kernel_prompt
 
     if { $channel == "Mono" } {
         set channel_num "1"
@@ -51,6 +52,7 @@ proc alsa_rec_play {format channel rate file_type} {
 
 proc alsa_rec2play {format channel rate file_type} {
     global case_num
+    global kernel_prompt
 
     if { $channel == "Mono" } {
         set channel_num "1"
@@ -73,6 +75,7 @@ proc alsa_rec2play {format channel rate file_type} {
 
 proc oss_rec_play {format channel rate file_type} {
     global case_num
+    global kernel_prompt
 
     if { $channel == "Mono" } {
         set channel_type ""
@@ -103,6 +106,7 @@ proc oss_rec_play {format channel rate file_type} {
 
 proc oss_rec2play {format channel rate file_type} {
     global case_num
+    global kernel_prompt
 
     if { $channel == "Mono" } {
         set channel_type ""

@@ -21,6 +21,7 @@ send_log "*********************************\r"
 
 proc oss_rec2_play2 {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     global case_num
+    global kernel_prompt
 
     if { $channel_1 == "Mono" } {
         set channel_type_1 ""
@@ -69,6 +70,7 @@ proc oss_rec2_play2 {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
 
 proc oss_play_rec2play {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     global case_num
+    global kernel_prompt
 
     if { $channel_1 == "Mono" } {
         set channel_type_1 ""
@@ -117,6 +119,7 @@ proc oss_play_rec2play {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
 
 proc alsa_rec2_play2 {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     global case_num
+    global kernel_prompt
 
     if { $channel_1 == "Mono" } {
         set channel_num_1 "1"
@@ -165,6 +168,7 @@ proc alsa_rec2_play2 {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
 
 proc alsa_play_rec2play {format_1 channel_1 rate_1 format_2 channel_2 rate_2} {
     global case_num
+    global kernel_prompt
 
     if { $channel_1 == "Mono" } {
         set channel_num_1 "1"
