@@ -1,0 +1,723 @@
+? _FOSSIL_
+? ci-comment-193CF3B1F386.txt
+? ci-comment-1FDEF45C5CAE.txt
+? ci-comment-3B10D8152269.txt
+? ci-comment-8E988A598BF9.txt
+? ci-comment-E56C076CA0F5.txt
+? ci-comment-F51229116239.txt
+? diff.out
+? diff.txt
+? manifest
+? manifest.uuid
+Index: src/analyze.c
+===================================================================
+RCS file: /sqlite/sqlite/src/analyze.c,v
+retrieving revision 1.39
+diff -u -r1.39 analyze.c
+--- src/analyze.c	17 Jan 2008 02:36:28 -0000	1.39
++++ src/analyze.c	23 Jan 2008 03:00:14 -0000
+@@ -414,9 +414,9 @@
+   /* Load new statistics out of the sqlite_stat1 table */
+   zSql = sqlite3MPrintf(db, "SELECT idx, stat FROM %Q.sqlite_stat1",
+                         sInfo.zDatabase);
+-  sqlite3SafetyOff(db);
++  (void)sqlite3SafetyOff(db);
+   rc = sqlite3_exec(db, zSql, analysisLoader, &sInfo, 0);
+-  sqlite3SafetyOn(db);
++  (void)sqlite3SafetyOn(db);
+   sqlite3_free(zSql);
+   return rc;
+ }
+Index: src/attach.c
+===================================================================
+RCS file: /sqlite/sqlite/src/attach.c,v
+retrieving revision 1.69
+diff -u -r1.69 attach.c
+--- src/attach.c	17 Jan 2008 16:22:15 -0000	1.69
++++ src/attach.c	23 Jan 2008 03:00:14 -0000
+@@ -186,11 +186,11 @@
+   ** we found it.
+   */
+   if( rc==SQLITE_OK ){
+-    sqlite3SafetyOn(db);
++    (void)sqlite3SafetyOn(db);
+     sqlite3BtreeEnterAll(db);
+     rc = sqlite3Init(db, &zErrDyn);
+     sqlite3BtreeLeaveAll(db);
+-    sqlite3SafetyOff(db);
++    (void)sqlite3SafetyOff(db);
+   }
+   if( rc ){
+     int iDb = db->nDb - 1;
+Index: src/main.c
+===================================================================
+RCS file: /sqlite/sqlite/src/main.c,v
+retrieving revision 1.412
+diff -u -r1.412 main.c
+--- src/main.c	22 Jan 2008 21:30:53 -0000	1.412
++++ src/main.c	23 Jan 2008 03:00:28 -0000
+@@ -134,7 +134,7 @@
+   if( !db ){
+     return SQLITE_OK;
+   }
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckSickOrOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   sqlite3_mutex_enter(db->mutex);
+@@ -164,21 +164,7 @@
+     sqlite3_mutex_leave(db->mutex);
+     return SQLITE_BUSY;
+   }
+-  assert( !sqlite3SafetyCheck(db) );
+-
+-  /* FIX ME: db->magic may be set to SQLITE_MAGIC_CLOSED if the database
+-  ** cannot be opened for some reason. So this routine needs to run in
+-  ** that case. But maybe there should be an extra magic value for the
+-  ** "failed to open" state.
+-  **
+-  ** TODO: Coverage tests do not test the case where this condition is
+-  ** true. It's hard to see how to cause it without messing with threads.
+-  */
+-  if( db->magic!=SQLITE_MAGIC_CLOSED && sqlite3SafetyOn(db) ){
+-    /* printf("DID NOT CLOSE\n"); fflush(stdout); */
+-    sqlite3_mutex_leave(db->mutex);
+-    return SQLITE_ERROR;
+-  }
++  assert( sqlite3SafetyCheckSickOrOk(db) );
+ 
+   for(j=0; j<db->nDb; j++){
+     struct Db *pDb = &db->aDb[j];
+@@ -240,6 +226,7 @@
+   */
+   sqlite3_free(db->aDb[1].pSchema);
+   sqlite3_mutex_leave(db->mutex);
++  db->magic = SQLITE_MAGIC_CLOSED;
+   sqlite3_mutex_free(db->mutex);
+   sqlite3_free(db);
+   return SQLITE_OK;
+@@ -387,7 +374,7 @@
+   int (*xBusy)(void*,int),
+   void *pArg
+ ){
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   sqlite3_mutex_enter(db->mutex);
+@@ -410,7 +397,7 @@
+   int (*xProgress)(void*), 
+   void *pArg
+ ){
+-  if( !sqlite3SafetyCheck(db) ){
++  if( sqlite3SafetyCheckOk(db) ){
+     sqlite3_mutex_enter(db->mutex);
+     if( nOps>0 ){
+       db->xProgress = xProgress;
+@@ -432,7 +419,7 @@
+ ** specified number of milliseconds before returning 0.
+ */
+ int sqlite3_busy_timeout(sqlite3 *db, int ms){
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   if( ms>0 ){
+@@ -448,7 +435,7 @@
+ ** Cause any pending operation to stop at its earliest opportunity.
+ */
+ void sqlite3_interrupt(sqlite3 *db){
+-  if( db && (db->magic==SQLITE_MAGIC_OPEN || db->magic==SQLITE_MAGIC_BUSY) ){
++  if( sqlite3SafetyCheckOk(db) ){
+     db->u1.isInterrupted = 1;
+   }
+ }
+@@ -474,7 +461,7 @@
+   int nName;
+ 
+   assert( sqlite3_mutex_held(db->mutex) );
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   if( zFunctionName==0 ||
+@@ -798,7 +785,7 @@
+   if( !db ){
+     return sqlite3ErrStr(SQLITE_NOMEM);
+   }
+-  if( sqlite3SafetyCheck(db) || db->errCode==SQLITE_MISUSE ){
++  if( !sqlite3SafetyCheckSickOrOk(db) || db->errCode==SQLITE_MISUSE ){
+     return sqlite3ErrStr(SQLITE_MISUSE);
+   }
+   sqlite3_mutex_enter(db->mutex);
+@@ -840,7 +827,7 @@
+   if( !db ){
+     return (void *)(&outOfMemBe[SQLITE_UTF16NATIVE==SQLITE_UTF16LE?1:0]);
+   }
+-  if( sqlite3SafetyCheck(db) || db->errCode==SQLITE_MISUSE ){
++  if( !sqlite3SafetyCheckSickOrOk(db) || db->errCode==SQLITE_MISUSE ){
+     return (void *)(&misuseBe[SQLITE_UTF16NATIVE==SQLITE_UTF16LE?1:0]);
+   }
+   sqlite3_mutex_enter(db->mutex);
+@@ -865,7 +852,7 @@
+   if( !db || db->mallocFailed ){
+     return SQLITE_NOMEM;
+   }
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckSickOrOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   return db->errCode & db->errMask;
+@@ -886,7 +873,7 @@
+   CollSeq *pColl;
+   int enc2;
+   
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   assert( sqlite3_mutex_held(db->mutex) );
+@@ -1000,7 +987,7 @@
+   db->pVfs = sqlite3_vfs_find(zVfs);
+   if( !db->pVfs ){
+     rc = SQLITE_ERROR;
+-    db->magic = SQLITE_MAGIC_CLOSED;
++    db->magic = SQLITE_MAGIC_SICK;
+     sqlite3Error(db, rc, "no such vfs: %s", (zVfs?zVfs:"(null)"));
+     goto opendb_out;
+   }
+@@ -1016,7 +1003,7 @@
+       (db->pDfltColl = sqlite3FindCollSeq(db, SQLITE_UTF8, "BINARY", 6, 0))==0 
+   ){
+     assert( db->mallocFailed );
+-    db->magic = SQLITE_MAGIC_CLOSED;
++    db->magic = SQLITE_MAGIC_SICK;
+     goto opendb_out;
+   }
+ 
+@@ -1037,7 +1024,7 @@
+                            &db->aDb[0].pBt);
+   if( rc!=SQLITE_OK ){
+     sqlite3Error(db, rc, 0);
+-    db->magic = SQLITE_MAGIC_CLOSED;
++    db->magic = SQLITE_MAGIC_SICK;
+     goto opendb_out;
+   }
+   db->aDb[0].pSchema = sqlite3SchemaGet(db, db->aDb[0].pBt);
+@@ -1253,7 +1240,7 @@
+   void *pCollNeededArg, 
+   void(*xCollNeeded)(void*,sqlite3*,int eTextRep,const char*)
+ ){
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   sqlite3_mutex_enter(db->mutex);
+@@ -1274,7 +1261,7 @@
+   void *pCollNeededArg, 
+   void(*xCollNeeded16)(void*,sqlite3*,int eTextRep,const void*)
+ ){
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   sqlite3_mutex_enter(db->mutex);
+@@ -1358,7 +1345,7 @@
+   int autoinc = 0;
+ 
+   /* Ensure the database schema has been loaded */
+-  if( sqlite3SafetyOn(db) ){
++  if( !sqlite3SafetyCheckOk(db) || sqlite3SafetyOn(db) ){
+     return SQLITE_MISUSE;
+   }
+   sqlite3_mutex_enter(db->mutex);
+Index: src/os.c
+===================================================================
+RCS file: /sqlite/sqlite/src/os.c,v
+retrieving revision 1.100
+diff -u -r1.100 os.c
+--- src/os.c	22 Jan 2008 11:50:13 -0000	1.100
++++ src/os.c	23 Jan 2008 03:00:30 -0000
+@@ -191,7 +191,9 @@
+ ** first VFS on the list.
+ */
+ sqlite3_vfs *sqlite3_vfs_find(const char *zVfs){
++#ifndef SQLITE_MUTEX_NOOP
+   sqlite3_mutex *mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER);
++#endif
+   sqlite3_vfs *pVfs = 0;
+   static int isInit = 0;
+   sqlite3_mutex_enter(mutex);
+@@ -233,7 +235,9 @@
+ ** true.
+ */
+ int sqlite3_vfs_register(sqlite3_vfs *pVfs, int makeDflt){
++#ifndef SQLITE_MUTEX_NOOP
+   sqlite3_mutex *mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER);
++#endif
+   sqlite3_vfs_find(0);  /* Make sure we are initialized */
+   sqlite3_mutex_enter(mutex);
+   vfsUnlink(pVfs);
+@@ -253,7 +257,9 @@
+ ** Unregister a VFS so that it is no longer accessible.
+ */
+ int sqlite3_vfs_unregister(sqlite3_vfs *pVfs){
++#ifndef SQLITE_MUTEX_NOOP
+   sqlite3_mutex *mutex = sqlite3_mutex_alloc(SQLITE_MUTEX_STATIC_MASTER);
++#endif
+   sqlite3_mutex_enter(mutex);
+   vfsUnlink(pVfs);
+   sqlite3_mutex_leave(mutex);
+Index: src/prepare.c
+===================================================================
+RCS file: /sqlite/sqlite/src/prepare.c,v
+retrieving revision 1.74
+diff -u -r1.74 prepare.c
+--- src/prepare.c	22 Jan 2008 19:34:28 -0000	1.74
++++ src/prepare.c	23 Jan 2008 03:00:37 -0000
+@@ -174,7 +174,6 @@
+   zMasterName = SCHEMA_TABLE(iDb);
+ 
+   /* Construct the schema tables.  */
+-  sqlite3SafetyOff(db);
+   azArg[0] = zMasterName;
+   azArg[1] = "1";
+   azArg[2] = zMasterSchema;
+@@ -182,9 +181,10 @@
+   initData.db = db;
+   initData.iDb = iDb;
+   initData.pzErrMsg = pzErrMsg;
++  (void)sqlite3SafetyOff(db);
+   rc = sqlite3InitCallback(&initData, 3, (char **)azArg, 0);
++  (void)sqlite3SafetyOn(db);
+   if( rc ){
+-    sqlite3SafetyOn(db);
+     rc = initData.rc;
+     goto error_out;
+   }
+@@ -192,7 +192,6 @@
+   if( pTab ){
+     pTab->readOnly = 1;
+   }
+-  sqlite3SafetyOn(db);
+ 
+   /* Create a cursor to hold the database open
+   */
+@@ -312,7 +311,7 @@
+     zSql = sqlite3MPrintf(db, 
+         "SELECT name, rootpage, sql FROM '%q'.%s",
+         db->aDb[iDb].zName, zMasterName);
+-    sqlite3SafetyOff(db);
++    (void)sqlite3SafetyOff(db);
+ #ifndef SQLITE_OMIT_AUTHORIZATION
+     {
+       int (*xAuth)(void*,int,const char*,const char*,const char*,const char*);
+@@ -325,7 +324,7 @@
+     }
+ #endif
+     if( rc==SQLITE_ABORT ) rc = initData.rc;
+-    sqlite3SafetyOn(db);
++    (void)sqlite3SafetyOn(db);
+     sqlite3_free(zSql);
+ #ifndef SQLITE_OMIT_ANALYZE
+     if( rc==SQLITE_OK ){
+@@ -524,7 +523,7 @@
+       if( rc ){
+         const char *zDb = db->aDb[i].zName;
+         sqlite3Error(db, SQLITE_LOCKED, "database schema is locked: %s", zDb);
+-        sqlite3SafetyOff(db);
++        (void)sqlite3SafetyOff(db);
+         return SQLITE_LOCKED;
+       }
+     }
+@@ -536,7 +535,7 @@
+     char *zSqlCopy;
+     if( SQLITE_MAX_SQL_LENGTH>0 && nBytes>SQLITE_MAX_SQL_LENGTH ){
+       sqlite3Error(db, SQLITE_TOOBIG, "statement too long");
+-      sqlite3SafetyOff(db);
++      (void)sqlite3SafetyOff(db);
+       return SQLITE_TOOBIG;
+     }
+     zSqlCopy = sqlite3DbStrNDup(db, zSql, nBytes);
+@@ -622,7 +621,7 @@
+   const char **pzTail       /* OUT: End of parsed string */
+ ){
+   int rc;
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   sqlite3_mutex_enter(db->mutex);
+@@ -715,7 +714,7 @@
+   const char *zTail8 = 0;
+   int rc = SQLITE_OK;
+ 
+-  if( sqlite3SafetyCheck(db) ){
++  if( !sqlite3SafetyCheckOk(db) ){
+     return SQLITE_MISUSE;
+   }
+   sqlite3_mutex_enter(db->mutex);
+Index: src/sqliteInt.h
+===================================================================
+RCS file: /sqlite/sqlite/src/sqliteInt.h,v
+retrieving revision 1.653
+diff -u -r1.653 sqliteInt.h
+--- src/sqliteInt.h	22 Jan 2008 21:30:53 -0000	1.653
++++ src/sqliteInt.h	23 Jan 2008 03:00:43 -0000
+@@ -590,6 +590,7 @@
+ */
+ #define SQLITE_MAGIC_OPEN     0xa029a697  /* Database is open */
+ #define SQLITE_MAGIC_CLOSED   0x9f3c2d33  /* Database is closed */
++#define SQLITE_MAGIC_SICK     0x4b771290  /* Error and awaiting close */
+ #define SQLITE_MAGIC_BUSY     0xf03b7906  /* Database currently in use */
+ #define SQLITE_MAGIC_ERROR    0xb5357930  /* An SQLITE_MISUSE error occurred */
+ 
+@@ -1816,9 +1817,15 @@
+ FuncDef *sqlite3FindFunction(sqlite3*,const char*,int,int,u8,int);
+ void sqlite3RegisterBuiltinFunctions(sqlite3*);
+ void sqlite3RegisterDateTimeFunctions(sqlite3*);
+-int sqlite3SafetyOn(sqlite3*);
+-int sqlite3SafetyOff(sqlite3*);
+-int sqlite3SafetyCheck(sqlite3*);
++#ifdef SQLITE_DEBUG
++  int sqlite3SafetyOn(sqlite3*);
++  int sqlite3SafetyOff(sqlite3*);
++#else
++# define sqlite3SafetyOn(A) 0
++# define sqlite3SafetyOff(A) 0
++#endif
++int sqlite3SafetyCheckOk(sqlite3*);
++int sqlite3SafetyCheckSickOrOk(sqlite3*);
+ void sqlite3ChangeCookie(Parse*, int);
+ 
+ #ifndef SQLITE_OMIT_TRIGGER
+@@ -2008,8 +2015,7 @@
+ ** Available fault injectors.  Should be numbered beginning with 0.
+ */
+ #define SQLITE_FAULTINJECTOR_MALLOC     0
+-#define SQLITE_FAULTINJECTOR_SAFETY     1
+-#define SQLITE_FAULTINJECTOR_COUNT      2
++#define SQLITE_FAULTINJECTOR_COUNT      1
+ 
+ /*
+ ** The interface to the fault injector subsystem.  If the fault injector
+Index: src/test_devsym.c
+===================================================================
+RCS file: /sqlite/sqlite/src/test_devsym.c,v
+retrieving revision 1.1
+diff -u -r1.1 test_devsym.c
+--- src/test_devsym.c	22 Jan 2008 11:50:13 -0000	1.1
++++ src/test_devsym.c	23 Jan 2008 03:00:53 -0000
+@@ -344,4 +344,3 @@
+ }
+ 
+ #endif
+-
+Index: src/util.c
+===================================================================
+RCS file: /sqlite/sqlite/src/util.c,v
+retrieving revision 1.215
+diff -u -r1.215 util.c
+--- src/util.c	22 Jan 2008 14:50:17 -0000	1.215
++++ src/util.c	23 Jan 2008 03:00:56 -0000
+@@ -660,6 +660,7 @@
+ ** call to sqlite3_close(db) and db has been deallocated.  And we do
+ ** not want to write into deallocated memory.
+ */
++#ifdef SQLITE_DEBUG
+ int sqlite3SafetyOn(sqlite3 *db){
+   if( db->magic==SQLITE_MAGIC_OPEN ){
+     db->magic = SQLITE_MAGIC_BUSY;
+@@ -670,38 +671,54 @@
+   }
+   return 1;
+ }
++#endif
+ 
+ /*
+ ** Change the magic from SQLITE_MAGIC_BUSY to SQLITE_MAGIC_OPEN.
+ ** Return an error (non-zero) if the magic was not SQLITE_MAGIC_BUSY
+ ** when this routine is called.
+ */
++#ifdef SQLITE_DEBUG
+ int sqlite3SafetyOff(sqlite3 *db){
+   if( db->magic==SQLITE_MAGIC_BUSY ){
+     db->magic = SQLITE_MAGIC_OPEN;
+     return 0;
+-  }else {
++  }else{
+     db->magic = SQLITE_MAGIC_ERROR;
+     db->u1.isInterrupted = 1;
+     return 1;
+   }
+ }
++#endif
+ 
+ /*
+ ** Check to make sure we have a valid db pointer.  This test is not
+ ** foolproof but it does provide some measure of protection against
+ ** misuse of the interface such as passing in db pointers that are
+ ** NULL or which have been previously closed.  If this routine returns
+-** TRUE it means that the db pointer is invalid and should not be
++** 1 it means that the db pointer is valid and 0 if it should not be
+ ** dereferenced for any reason.  The calling function should invoke
+ ** SQLITE_MISUSE immediately.
++**
++** sqlite3SafetyCheckOk() requires that the db pointer be valid for
++** use.  sqlite3SafetyCheckSickOrOk() allows a db pointer that failed to
++** open properly and is not fit for general use but which can be
++** used as an argument to sqlite3_errmsg() or sqlite3_close().
+ */
+-int sqlite3SafetyCheck(sqlite3 *db){
++int sqlite3SafetyCheckOk(sqlite3 *db){
+   int magic;
+-  if( db==0 ) return 1;
++  if( db==0 ) return 0;
+   magic = db->magic;
+-  if( magic!=SQLITE_MAGIC_CLOSED &&
+-         magic!=SQLITE_MAGIC_OPEN &&
+-         magic!=SQLITE_MAGIC_BUSY ) return 1;
+-  return 0;
++  if( magic!=SQLITE_MAGIC_OPEN &&
++      magic!=SQLITE_MAGIC_BUSY ) return 0;
++  return 1;
++}
++int sqlite3SafetyCheckSickOrOk(sqlite3 *db){
++  int magic;
++  if( db==0 ) return 0;
++  magic = db->magic;
++  if( magic!=SQLITE_MAGIC_SICK &&
++      magic!=SQLITE_MAGIC_OPEN &&
++      magic!=SQLITE_MAGIC_BUSY ) return 0;
++  return 1;
+ }
+Index: src/vdbe.c
+===================================================================
+RCS file: /sqlite/sqlite/src/vdbe.c,v
+retrieving revision 1.704
+diff -u -r1.704 vdbe.c
+--- src/vdbe.c	22 Jan 2008 21:30:53 -0000	1.704
++++ src/vdbe.c	23 Jan 2008 03:00:59 -0000
+@@ -3905,7 +3905,7 @@
+      "SELECT name, rootpage, sql FROM '%q'.%s WHERE %s",
+      db->aDb[iDb].zName, zMaster, pOp->p4.z);
+   if( zSql==0 ) goto no_mem;
+-  sqlite3SafetyOff(db);
++  (void)sqlite3SafetyOff(db);
+   assert( db->init.busy==0 );
+   db->init.busy = 1;
+   assert( !db->mallocFailed );
+@@ -3913,7 +3913,7 @@
+   if( rc==SQLITE_ABORT ) rc = initData.rc;
+   sqlite3_free(zSql);
+   db->init.busy = 0;
+-  sqlite3SafetyOn(db);
++  (void)sqlite3SafetyOn(db);
+   if( rc==SQLITE_NOMEM ){
+     goto no_mem;
+   }
+@@ -4798,11 +4798,7 @@
+   */
+ abort_due_to_interrupt:
+   assert( db->u1.isInterrupted );
+-  if( db->magic!=SQLITE_MAGIC_BUSY ){
+-    rc = SQLITE_MISUSE;
+-  }else{
+-    rc = SQLITE_INTERRUPT;
+-  }
++  rc = SQLITE_INTERRUPT;
+   p->rc = rc;
+   sqlite3SetString(&p->zErrMsg, sqlite3ErrStr(rc), (char*)0);
+   goto vdbe_error_halt;
+Index: src/vdbeapi.c
+===================================================================
+RCS file: /sqlite/sqlite/src/vdbeapi.c,v
+retrieving revision 1.118
+diff -u -r1.118 vdbeapi.c
+--- src/vdbeapi.c	22 Jan 2008 21:30:53 -0000	1.118
++++ src/vdbeapi.c	23 Jan 2008 03:01:00 -0000
+@@ -44,7 +44,9 @@
+     rc = SQLITE_OK;
+   }else{
+     Vdbe *v = (Vdbe*)pStmt;
++#ifndef SQLITE_MUTEX_NOOP
+     sqlite3_mutex *mutex = v->db->mutex;
++#endif
+     sqlite3_mutex_enter(mutex);
+     rc = sqlite3VdbeFinalize(v);
+     sqlite3_mutex_leave(mutex);
+@@ -81,12 +83,14 @@
+ int sqlite3_clear_bindings(sqlite3_stmt *pStmt){
+   int i;
+   int rc = SQLITE_OK;
+-  Vdbe *v = (Vdbe*)pStmt;
+-  sqlite3_mutex_enter(v->db->mutex);
++#ifndef SQLITE_MUTEX_NOOP
++  sqlite3_mutex *mutex = ((Vdbe*)pStmt)->db->mutex;
++#endif
++  sqlite3_mutex_enter(mutex);
+   for(i=1; rc==SQLITE_OK && i<=sqlite3_bind_parameter_count(pStmt); i++){
+     rc = sqlite3_bind_null(pStmt, i);
+   }
+-  sqlite3_mutex_leave(v->db->mutex);
++  sqlite3_mutex_leave(mutex);
+   return rc;
+ }
+ 
+Index: src/vdbeaux.c
+===================================================================
+RCS file: /sqlite/sqlite/src/vdbeaux.c,v
+retrieving revision 1.354
+diff -u -r1.354 vdbeaux.c
+--- src/vdbeaux.c	22 Jan 2008 01:48:09 -0000	1.354
++++ src/vdbeaux.c	23 Jan 2008 03:01:02 -0000
+@@ -1021,9 +1021,9 @@
+     sqlite3_vtab_cursor *pVtabCursor = pCx->pVtabCursor;
+     const sqlite3_module *pModule = pCx->pModule;
+     p->inVtabMethod = 1;
+-    sqlite3SafetyOff(p->db);
++    (void)sqlite3SafetyOff(p->db);
+     pModule->xClose(pVtabCursor);
+-    sqlite3SafetyOn(p->db);
++    (void)sqlite3SafetyOn(p->db);
+     p->inVtabMethod = 0;
+   }
+ #endif
+@@ -1167,9 +1167,9 @@
+ 
+   /* If there are any write-transactions at all, invoke the commit hook */
+   if( needXcommit && db->xCommitCallback ){
+-    sqlite3SafetyOff(db);
++    (void)sqlite3SafetyOff(db);
+     rc = db->xCommitCallback(db->pCommitArg);
+-    sqlite3SafetyOn(db);
++    (void)sqlite3SafetyOn(db);
+     if( rc ){
+       return SQLITE_CONSTRAINT;
+     }
+@@ -1617,9 +1617,9 @@
+   ** error, then it might not have been halted properly.  So halt
+   ** it now.
+   */
+-  sqlite3SafetyOn(db);
++  (void)sqlite3SafetyOn(db);
+   sqlite3VdbeHalt(p);
+-  sqlite3SafetyOff(db);
++  (void)sqlite3SafetyOff(db);
+ 
+   /* If the VDBE has be run even partially, then transfer the error code
+   ** and error message from the VDBE into the main database structure.  But
+Index: src/vdbeblob.c
+===================================================================
+RCS file: /sqlite/sqlite/src/vdbeblob.c,v
+retrieving revision 1.18
+diff -u -r1.18 vdbeblob.c
+--- src/vdbeblob.c	10 Jan 2008 23:50:11 -0000	1.18
++++ src/vdbeblob.c	23 Jan 2008 03:01:02 -0000
+@@ -109,7 +109,7 @@
+       }
+       sqlite3_free(sParse.zErrMsg);
+       rc = SQLITE_ERROR;
+-      sqlite3SafetyOff(db);
++      (void)sqlite3SafetyOff(db);
+       sqlite3BtreeLeaveAll(db);
+       goto blob_open_out;
+     }
+@@ -123,7 +123,7 @@
+     if( iCol==pTab->nCol ){
+       sqlite3_snprintf(sizeof(zErr), zErr, "no such column: \"%s\"", zColumn);
+       rc = SQLITE_ERROR;
+-      sqlite3SafetyOff(db);
++      (void)sqlite3SafetyOff(db);
+       sqlite3BtreeLeaveAll(db);
+       goto blob_open_out;
+     }
+@@ -141,7 +141,7 @@
+             sqlite3_snprintf(sizeof(zErr), zErr,
+                              "cannot open indexed column for writing");
+             rc = SQLITE_ERROR;
+-            sqlite3SafetyOff(db);
++            (void)sqlite3SafetyOff(db);
+             sqlite3BtreeLeaveAll(db);
+             goto blob_open_out;
+           }
+Index: src/vtab.c
+===================================================================
+RCS file: /sqlite/sqlite/src/vtab.c,v
+retrieving revision 1.62
+diff -u -r1.62 vtab.c
+--- src/vtab.c	17 Jan 2008 16:22:15 -0000	1.62
++++ src/vtab.c	23 Jan 2008 03:01:03 -0000
+@@ -93,12 +93,12 @@
+ void sqlite3VtabUnlock(sqlite3 *db, sqlite3_vtab *pVtab){
+   pVtab->nRef--;
+   assert(db);
+-  assert(!sqlite3SafetyCheck(db));
++  assert( sqlite3SafetyCheckOk(db) );
+   if( pVtab->nRef==0 ){
+     if( db->magic==SQLITE_MAGIC_BUSY ){
+-      sqlite3SafetyOff(db);
++      (void)sqlite3SafetyOff(db);
+       pVtab->pModule->xDisconnect(pVtab);
+-      sqlite3SafetyOn(db);
++      (void)sqlite3SafetyOn(db);
+     } else {
+       pVtab->pModule->xDisconnect(pVtab);
+     }
+@@ -594,7 +594,7 @@
+     if( xDestroy ){
+       rc = xDestroy(pTab->pVtab);
+     }
+-    sqlite3SafetyOn(db);
++    (void)sqlite3SafetyOn(db);
+     if( rc==SQLITE_OK ){
+       pTab->pVtab = 0;
+     }
+Index: src/where.c
+===================================================================
+RCS file: /sqlite/sqlite/src/where.c,v
+retrieving revision 1.284
+diff -u -r1.284 where.c
+--- src/where.c	19 Jan 2008 20:11:26 -0000	1.284
++++ src/where.c	23 Jan 2008 03:01:05 -0000
+@@ -1381,7 +1381,7 @@
+     *(int*)&pIdxInfo->nOrderBy = 0;
+   }
+ 
+-  sqlite3SafetyOff(pParse->db);
++  (void)sqlite3SafetyOff(pParse->db);
+   WHERETRACE(("xBestIndex for %s\n", pTab->zName));
+   TRACE_IDX_INPUTS(pIdxInfo);
+   rc = pTab->pVtab->pModule->xBestIndex(pTab->pVtab, pIdxInfo);
+@@ -1392,10 +1392,8 @@
+     }else {
+       sqlite3ErrorMsg(pParse, "%s", sqlite3ErrStr(rc));
+     }
+-    sqlite3SafetyOn(pParse->db);
+-  }else{
+-    rc = sqlite3SafetyOn(pParse->db);
+   }
++  (void)sqlite3SafetyOn(pParse->db);
+   *(int*)&pIdxInfo->nOrderBy = nOrderBy;
+ 
+   return pIdxInfo->estimatedCost;
+Index: test/safety.test
+===================================================================
+RCS file: /sqlite/sqlite/test/safety.test,v
+retrieving revision 1.2
+diff -u -r1.2 safety.test
+--- test/safety.test	3 Jan 2006 00:33:50 -0000	1.2
++++ test/safety.test	23 Jan 2008 03:01:05 -0000
+@@ -18,6 +18,12 @@
+ set testdir [file dirname $argv0]
+ source $testdir/tester.tcl
+ 
++ifcapable !debug {
++  puts "Skipping safety tests since SQLITE_DEBUG is off"
++  finish_test
++  return
++}
++
+ do_test safety-1.1 {
+   set DB [sqlite3_connection_pointer db]
+   db eval {CREATE TABLE t1(a)}

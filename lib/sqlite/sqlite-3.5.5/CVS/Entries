@@ -1,0 +1,36 @@
+D/art////
+D/contrib////
+D/doc////
+D/notes////
+D/src////
+D/test////
+D/tool////
+D/www////
+D/ext////
+/Makefile.arm-wince-mingw32ce-gcc/1.1/Mon Nov 12 21:09:11 2007//
+/Makefile.linux-gcc/1.8/Fri Nov 30 01:28:09 2007//
+/README/1.8/Mon Aug  7 11:31:06 2006//
+/aclocal.m4/1.5/Tue Jun 12 12:17:59 2007//
+/addopcodes.awk/1.1/Thu Nov 24 22:22:30 2005//
+/config.guess/1.4/Tue Jun 12 12:17:59 2007//
+/config.sub/1.4/Tue Jun 12 12:17:59 2007//
+/configure/1.45/Fri Nov 30 01:28:10 2007//
+/configure.ac/1.31/Fri Nov 30 01:28:10 2007//
+/install-sh/1.1/Sat Apr 23 22:45:24 2005//
+/ltmain.sh/1.4/Tue Jun 12 12:18:00 2007//
+/mkdll.sh/1.13/Fri Nov 30 01:28:10 2007//
+/mkextu.sh/1.1/Fri Jul 20 13:42:27 2007//
+/mkextw.sh/1.1/Fri Jul 20 13:42:27 2007//
+/mkopcodec.awk/1.6/Fri Nov 30 01:28:10 2007//
+/mkso.sh/1.3/Thu Mar 29 18:39:30 2007//
+/publish_osx.sh/1.2/Tue Nov 27 21:44:30 2007//
+/spec.template/1.4/Mon Dec 19 17:30:55 2005//
+/sqlite.pc.in/1.1/Sat Apr 23 22:45:24 2005//
+/sqlite3.1/1.2/Thu Feb 24 04:51:51 2005//
+/sqlite3.pc.in/1.3/Fri Nov 30 01:28:10 2007//
+/tclinstaller.tcl/1.3/Fri Nov 30 01:13:52 2007//
+/mkopcodeh.awk/1.23/Sat Jan 19 05:25:19 2008//
+/Makefile.in/1.194/Tue Jan 22 18:42:50 2008//
+/main.mk/1.169/Tue Jan 22 18:42:54 2008//
+/VERSION/1.167/Thu Jan 31 12:27:27 2008//
+/publish.sh/1.40/Thu Jan 31 16:32:53 2008//

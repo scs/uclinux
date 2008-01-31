@@ -1,0 +1,6 @@
+
+# Enter comments on this commit.  Lines beginning with # are ignored
+#
+# EDITED   src/pragma.c
+# EDITED   src/vdbeaux.c
+# EDITED   test/collate9.test
