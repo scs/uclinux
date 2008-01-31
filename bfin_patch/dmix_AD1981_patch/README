@@ -1,0 +1,15 @@
+1.patch kernel:
+			    #cd ../uclinux-dist/linux-2.6.x
+../uclinux-dist/linux-2.6.x # patch -p0 < linux-2.6.x.patch
+
+2.patch alsa-lib:
+			     #cd  ../uclinux-dist/lib/alsa-lib
+../uclinux-dist/lib/alsa-lib # patch -p0 < alsa-lib.patch 
+
+
+3.set 2M DMA memory
+
+Blackfin Processor Options --->
+	[*]Enable DMA Support
+		Uncached SDRAM region (Enable 2M DMA region) --->
+
