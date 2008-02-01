@@ -1,4 +1,4 @@
-VER = libtool-1.5.24
+VER = libtool-1.5.26
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
