@@ -1,6 +1,6 @@
 VER = DirectFB-1.1.1
 
-USE_ENABLE = $(shell test "$(CONFIG_$(1)_FORCE)" = "y" && echo "--enable-$(2)" || echo "--disable-$(2)")
+USE_ENABLE = $(shell test "$(CONFIG_$(1))" = "y" && echo "--enable-$(2)" || echo "--disable-$(2)")
 
 CONF_OPTS = \
 	--with-tests \
@@ -26,7 +26,10 @@ build-$(VER)/Makefile:
 	rm -rf build-$(VER) ; \
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
-	SDL_CONFIG=$(STAGEDIR)/usr/bin/sdl-config LIBJPEG="" \
+	SDL_CONFIG=$(STAGEDIR)/usr/bin/sdl-config \
+	LIBPNG_CONFIG=$(STAGEDIR)/usr/bin/libpng-config \
+	FREETYPE_CONFIG=$(STAGEDIR)/usr/bin/freetype-config \
+	LIBJPEG="" LIBPNG="" \
 	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
 
 clean:
