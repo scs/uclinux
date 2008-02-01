@@ -3,7 +3,7 @@
 # Convert all of the busybox Config.in files to Kconfig
 # files suitable for uClinux-dist integration
 
-bdir=$1
+bdir=${1%/}
 
 if [ ! -d "${bdir}" ] ; then
 	echo "Usage: $0 <busybox dir>" 1>&2
