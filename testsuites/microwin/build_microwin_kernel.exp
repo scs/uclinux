@@ -20,109 +20,117 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-      -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
-          send "m\r"
-      }
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            send "m\r"
+        }
 
-      -re "MicroWindows \\\(CONFIG_USER_MICROWIN\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" { 
+            send "m\r"
+        }
 
-      -re "Optimize.*CONFIG_USER_MICROWIN_OPTIMIZE.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "SHARP LQ035 TFT LCD.*BF537 STAMP.*\\\[.*]" { 
+            send "m\r"
+        }
 
-      -re "Microwin \\\(CONFIG_USER_MICROWIN_MICROWIN\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "MicroWindows \\\(CONFIG_USER_MICROWIN\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "NanoX \\\(CONFIG_USER_MICROWIN_NANOX\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Optimize.*CONFIG_USER_MICROWIN_OPTIMIZE.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "MicrowinDemo \\\(CONFIG_USER_MICROWIN_MICROWINDEMO\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Microwin \\\(CONFIG_USER_MICROWIN_MICROWIN\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "NanoXDemo \\\(CONFIG_USER_MICROWIN_NANOXDEMO\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "NanoX \\\(CONFIG_USER_MICROWIN_NANOX\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "NanoWM.*CONFIG_USER_MICROWIN_NANOWM.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "MicrowinDemo \\\(CONFIG_USER_MICROWIN_MICROWINDEMO\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Screen PixType.*Packed.*\\\[.*]" {
-          send "Packed-8bit-Palette\r"
-      }
+        -re "NanoXDemo \\\(CONFIG_USER_MICROWIN_NANOXDEMO\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Have File IO.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "NanoWM.*CONFIG_USER_MICROWIN_NANOWM.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Frame Buffer Display \\\(CONFIG_USER_MICROWIN_FRAMEBUFFER\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Screen PixType.*Packed.*\\\[.*]" {
+            send "Packed-8bit-Palette\r"
+        }
 
-      -re "No Mouse \\\(CONFIG_USER_MICROWIN_NOMOUSE\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Have File IO.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "No Keyboard \\\(CONFIG_USER_MICROWIN_NOKBD\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Frame Buffer Display \\\(CONFIG_USER_MICROWIN_FRAMEBUFFER\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Nano-X \\\(CONFIG_USER_MICROWIN_BIN_NANO_X\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "No Mouse \\\(CONFIG_USER_MICROWIN_NOMOUSE\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "NanoWM \\\(CONFIG_USER_MICROWIN_BIN_NANOWM\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "No Keyboard \\\(CONFIG_USER_MICROWIN_NOKBD\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "NXclock.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Nano-X \\\(CONFIG_USER_MICROWIN_BIN_NANO_X\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "NXkbd.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "NanoWM \\\(CONFIG_USER_MICROWIN_BIN_NANOWM\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "VIDEO test program \\\(CONFIG_USER_BLACKFIN_VIDEOTEST\\\).*\\\[././.]" {
-         send "y\r"
-      }
+        -re "NXclock.*\\\[.*]" {
+            send "y\r"
+        }
 
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
+        -re "NXkbd.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        -re "VIDEO test program \\\(CONFIG_USER_BLACKFIN_VIDEOTEST\\\).*\\\[././.]" {
+            send "y\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites

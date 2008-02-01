@@ -42,11 +42,11 @@ source  make_default_config.exp
 #      send ".\r"
 #      expect ":"
 #      sleep .5    
-      
+
 #      send "wq\r"
 #      expect eof
-      
-      
+
+
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
@@ -54,123 +54,128 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-           -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[././.]" {
-             send "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-           -re "VCO Multiplier \\\(VCO_MULT\\\) \\\[.*]" {
-             send "20\r"
-      }
+        -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[././.]" {
+            send "Y\r"
+        }
 
-           -re "Core Clock Divider.*choice\\\[1-4\\\?]\\\:" {
-             send "1\r"
-      }
+        -re "VCO Multiplier \\\(VCO_MULT\\\) \\\[.*]" {
+            send "20\r"
+        }
 
-           -re "System Clock Divider \\\(SCLK_DIV\\\) \\\[.*]" {
-             send "8\r"
-      }
+        -re "Core Clock Divider.*choice\\\[1-4\\\?]\\\:" {
+            send "1\r"
+        }
 
-          -re "PCCard \\\(PCMCIA/CardBus\\\) support.*PCCARD.*\\\[./././.]" {
-             send "y\r"
-      }
+        -re "System Clock Divider \\\(SCLK_DIV\\\) \\\[.*]" {
+            send "8\r"
+        }
 
-          -re "16-bit PCMCIA support.*PCMCIA.*\\\[./././.]" {
-             send "y\r"
-      }
+        -re "PCCard \\\(PCMCIA/CardBus\\\) support.*PCCARD.*\\\[./././.]" {
+            send "y\r"
+        }
 
-          -re "Load CIS updates from userspace.*PCMCIA_LOAD_CIS.*\\\[././.]" {
-             send "y\r"
-      }
+        -re "16-bit PCMCIA support.*PCMCIA.*\\\[./././.]" {
+            send "y\r"
+        }
 
-          -re "PCMCIA control ioctl.*PCMCIA_IOCTL.*\\\[././.]" {
-             send "y\r"
-      }
+        -re "Load CIS updates from userspace.*PCMCIA_LOAD_CIS.*\\\[././.]" {
+            send "y\r"
+        }
 
-          -re "Blackfin CompactFlash PCMCIA Driver.*BFIN_CFPCMCIA.*\\\[./././.]" {
-             send "y\r"
-      }
+        -re "PCMCIA control ioctl.*PCMCIA_IOCTL.*\\\[././.]" {
+            send "y\r"
+        }
 
-          -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
-             send -s "0xFFC3\r"
-      }
+        -re "Blackfin CompactFlash PCMCIA Driver.*BFIN_CFPCMCIA.*\\\[./././.]" {
+            send "y\r"
+        }
+
+        -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
+            send -s "0xFFC3\r"
+        }
 
 #       -re "Wireless LAN drivers.*non-hamradio.*Wireless Extensions.*NET_RADIO.*\\\[.*]" {
 #             send "Y\r"
 #      }
 
-      -re "Wireless LAN.*IEEE 802.11.*WLAN_80211.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Wireless LAN.*IEEE 802.11.*WLAN_80211.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Hermes chipset 802.11b support.*Orinoco.Prism2.Symbol.*HERMES.*\\\[.*]" {
-             send "m\r"
-      }
+        -re "Hermes chipset 802.11b support.*Orinoco.Prism2.Symbol.*HERMES.*\\\[.*]" {
+            send "m\r"
+        }
 
-      -re "Hermes PCMCIA card support.*PCMCIA_HERMES.*\\\[.*]" {
-             send "m\r"
-      }
+        -re "Hermes PCMCIA card support.*PCMCIA_HERMES.*\\\[.*]" {
+            send "m\r"
+        }
 
 #      -re "Blackfin WLAN card support.*WLAN_BLACKFIN.*\\\[.*]" {
 #             send "Y\r"
 #      }
-      
+
         -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
-             send "y\r"
-      }
+            send "y\r"
+        }
 
         -re "wireless_tools support.*CONFIG_USER_WIRELESS_TOOLS.*\\\[.*]" {
-             send "Y\r"
-      }
+            send "Y\r"
+        }
         -re "iwconfig.*CONFIG_USER_WIRELESS_TOOLS_IWCONFIG.*\\\[.*]" {
-             send "Y\r"
-      }
+            send "Y\r"
+        }
 
-      -re "iwgetid.*CONFIG_USER_WIRELESS_TOOLS_IWGETID.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "iwgetid.*CONFIG_USER_WIRELESS_TOOLS_IWGETID.*\\\[.*]" {
+            send "Y\r"
+        }
 
-      -re "iwlist.*CONFIG_USER_WIRELESS_TOOLS_IWLIST.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "iwlist.*CONFIG_USER_WIRELESS_TOOLS_IWLIST.*\\\[.*]" {
+            send "Y\r"
+        }
 
-      -re "iwpriv.*CONFIG_USER_WIRELESS_TOOLS_IWPRIV.*\\\[.*]" {
-             send "Y\r"
-      }
- 
-       -re "iwspy.*CONFIG_USER_WIRELESS_TOOLS_IWSPY.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "iwpriv.*CONFIG_USER_WIRELESS_TOOLS_IWPRIV.*\\\[.*]" {
+            send "Y\r"
+        }
 
-       "\\\(*) \\\[*]" {
-         sleep .01
-	     send "\r"
-      }
+        -re "iwspy.*CONFIG_USER_WIRELESS_TOOLS_IWSPY.*\\\[.*]" {
+            send "Y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+#avoid GPIO confliction with ad1836
+            send "n\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -186,29 +191,29 @@ exec tar zxvf netperf.tgz
 
 cd $uclinux_path/testsuites/ethernet/
 sleep 3
- set timeout 2
-      spawn ex netperf_script
-      expect {
-         "Entering Ex mode*Normal mode." { }
+set timeout 2
+spawn ex netperf_script
+expect {
+    "Entering Ex mode*Normal mode." { }
 
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/HOSTIP\r"
-      expect "HOSTIP=*"
-      send "d\r"
-      expect ":"
-      send "i\r"
+    "already exists!" {
+        send "e\r"
+        sleep 1
+    }
+}
+sleep 1
+send "/HOSTIP\r"
+expect "HOSTIP=*"
+send "d\r"
+expect ":"
+send "i\r"
 
-      send "HOSTIP=10.100.4.174\r"
+send "HOSTIP=10.100.4.174\r"
 
-      send ".\r"
-      expect :
-      send "wq\r"
-      expect eof
+send ".\r"
+expect :
+send "wq\r"
+expect eof
 
 exec chmod 777 netperf_script
 cd $uclinux_path
@@ -227,6 +232,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
- 
+
 send_user "Ending $argv0\n"
 log_file

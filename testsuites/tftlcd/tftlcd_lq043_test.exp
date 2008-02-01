@@ -27,7 +27,7 @@ send "\r"
 expect ">"
 
 incr case_num
-send "modprobe bf54x-lq043\r"
+send "modprobe bf54x-lq043fb\r"
 while 1 {
     expect {
         -re "FrameBuffer initializing.*>" {
@@ -44,7 +44,7 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
-        -re "bf54x_lq043.*>" {
+        -re "bf54x_lq043fb.*>" {
             case_pass $case_num
             break
         }
@@ -85,7 +85,7 @@ while 1 {
 
 set timeout 5
 incr case_num
-send "rmmod bf54x-lq043\r"
+send "rmmod bf54x-lq043fb\r"
 while 1 {
     expect {
         -re "Unregister LCD driver.*>" {
@@ -103,7 +103,7 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
-        -re "bf54x_lq043.*>" {
+        -re "bf54x_lq043fb.*>" {
             case_fail $case_num
         }
         -re ">" {         

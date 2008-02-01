@@ -1,6 +1,7 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
+source  ../board_info.exp
 
 log_file [log_file_name "$argv0"]
 
@@ -25,10 +26,17 @@ send "\r"
 
 set timeout 10
 incr case_num
-send "modprobe bf537-lq035\r"
+if { $board_type == "BF548-EZKIT" } {
+    send "modprobe bf54x-lq043fb\r"
+} elseif { $board_type == "BF537-STAMP" } {
+    send "modprobe bf537-lq035\r"
+} else {
+    send_user "Wrong board type!\n"
+    case_fail $case_num
+}
 while 1 {
     expect {
-        "FrameBuffer initializing*Done.*>" {
+        -re "FrameBuffer initializing.*>" {
             case_pass $case_num
             break
         }
