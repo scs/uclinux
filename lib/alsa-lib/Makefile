@@ -21,14 +21,9 @@ clean:
 	rm -rf build*
 
 romfs:
-	if [ "$(CONFIG_LIB_ALSA_LIB)" = "y" ] || [ "$(CONFIG_LIB_ALSA_LIB_FORCE)" = "y" ] ; then \
-		for conf in `cd $(STAGEDIR) ; find usr/share/alsa -type f` ; do \
-			$(ROMFSINST) -d $(STAGEDIR)/$$conf /$$conf || exit $$? ; \
-		done ; \
-	fi
-	$(ROMFSINST) \
-		-d -e CONFIG_FMT_USE_FDPIC_ELF \
-		$(STAGEDIR)/usr/lib/libasound.so.2 \
-		/usr/lib/libasound.so.2
+	for conf in `cd $(STAGEDIR) ; find usr/share/alsa -type f` ; do \
+		$(ROMFSINST) -e CONFIG_LIB_ALSA_LIB -d $(STAGEDIR)/$$conf /$$conf || exit $$? ; \
+	done
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libasound.so.2 /usr/lib/libasound.so.2
 
 .PHONY: all clean romfs
