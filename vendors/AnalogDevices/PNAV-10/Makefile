@@ -75,7 +75,7 @@ image:
 		fi ; \
 	fi ; \
 	if [ -n "$(CONFIG_CRAMFS)" ]; then \
-		bfin-uclinux-mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
+		bfin-uclinux-mkcramfs -z -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs ; \
 		$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs ; \

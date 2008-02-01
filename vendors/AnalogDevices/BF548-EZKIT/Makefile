@@ -86,7 +86,7 @@ ifeq ($(CONFIG_YAFFS_FS),y)
 	fi
 endif
 ifeq ($(CONFIG_CRAMFS),y)
-	$(CROSS_COMPILE)mkcramfs -z -r -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
+	$(CROSS_COMPILE)mkcramfs -z -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
