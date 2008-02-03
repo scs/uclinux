@@ -56,6 +56,11 @@ if { $where_are_we == "uboot" } {
 
 while 1 {
 	expect {
+
+               -re  "RAM:.* (\[0-9]+) MB" {
+                    set ram_size $expect_out(1,string)
+                    send_user "\nRAM size is $ram_size MB.\n"
+                }
 		"Hit any key " {
 			send "\r"
 			break
@@ -78,7 +83,13 @@ expect ">"
 send -s "save\r"
 expect ">"
 
-send -s "tftpboot $bootaddr_high linux\r"
+if { $ram_size == 32 } {
+         set bootaddr $bootaddr_low
+   } else {
+         set bootaddr $bootaddr_high
+   }
+
+send -s "tftpboot $bootaddr linux\r"
 while 1 {
 	expect {	
 	    -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
@@ -90,20 +101,6 @@ while 1 {
             timeout {
                 send_user "Fail to tftp download linux image."
 		# if tftpboot from high bootaddr failed, try to reload image from low bootaddr
-                send -s "tftpboot $bootaddr_low linux\r"
-                while 1 {
-	           expect {	
-	              -re "Bytes transferred = \[0-9]+ \\\((\[0-9a-fA-F]+) hex\\\)" {
-			 set image_size $expect_out(1,string)
-			 send_user "Image size is $image_size\n"
-		         break
-		      }
-                      timeout {
-                         send_user "Fail to tftp download linux image."
-                         exit 
-                      }
-                   }
-                }
 		break
             }	
 	}
