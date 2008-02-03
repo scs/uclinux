@@ -42,14 +42,14 @@ while 1 {
              send "Y\r"
       }
 
-         -re "Blackfin GPIO based I2C interface.*I2C_BLACKFIN_GPIO.*\\\[.*]" {
-             if { $board_type == "BF533-STAMP" || $board_type == "BF561-EZKIT" } {
+           -re "GPIO-based bitbanging I2C.*I2C_GPIO.*\\\[.*]" {
+             if { $board_type == "BF533-STAMP" } {
                         send "Y\r"
              } else {
                         send "N\r"
              }
       }
-      
+
            -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
              if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {
                         send "Y\r"
