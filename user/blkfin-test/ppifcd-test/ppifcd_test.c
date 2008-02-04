@@ -328,6 +328,11 @@ int main(int argc, char *argv[])
 		strcpy(standby, BF533_MICRON_STANDBY);
 		strcpy(led, BF533_MICRON_LED);
 		trigger_strobe = BF533_MICRON_TRIGGER_STROBE;
+		
+		if (usetrigger) {
+			fprintf(stderr, "ERROR:Trigger option unsupported on BF533-STAMP\n");
+			usetrigger = 0;
+		}
 	} else {
 		usage(stderr, 1);
 		exit(1);
