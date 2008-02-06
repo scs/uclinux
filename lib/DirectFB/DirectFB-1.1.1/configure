@@ -22573,7 +22573,7 @@ need_libdl=yes
 want_ppcasm=yes
 
 case "$target_or_host" in
-  *-linux*)
+  *-*linux*)
     have_linux=yes
     ;;
 
