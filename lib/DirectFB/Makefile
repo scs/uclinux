@@ -27,9 +27,8 @@ build-$(VER)/Makefile:
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
 	SDL_CONFIG=$(STAGEDIR)/usr/bin/sdl-config \
-	LIBPNG_CONFIG=$(STAGEDIR)/usr/bin/libpng-config \
+	LIBPNG_CONFIG="$(PKG_CONFIG) libpng" \
 	FREETYPE_CONFIG=$(STAGEDIR)/usr/bin/freetype-config \
-	LIBJPEG="" LIBPNG="" \
 	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
 
 clean:
