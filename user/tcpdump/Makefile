@@ -1,21 +1,25 @@
-VER = tcpdump-3.9.2
+VER = tcpdump-3.9.8
 
-CONFOPTS = --with-crypto --disable-smb
+CONF_OPTS = --with-crypto --disable-smb
 ifdef CONFIG_IPV6
-CONFOPTS += --enable-ipv6
+CONF_OPTS += --enable-ipv6
 endif
 
-all: build/build
-	$(MAKE) -C build
+all: build-$(VER)/Makefile
+	$(MAKE) -C build-$(VER)
 
-build/build:
-	rm -rf build
-	mkdir build
-	(cd build; sh ../$(VER)/configure $(CONFIGURE_OPTS) $(CONFOPTS))
-	touch build/build
+build-$(VER)/Makefile:
+	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
+	set -e ; \
+	rm -rf build-$(VER) ; \
+	mkdir build-$(VER) ; \
+	cd build-$(VER) ; \
+	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
 
 clean:
-	rm -rf build
+	rm -rf build*
 
 romfs:
-	$(ROMFSINST) build/tcpdump /bin/tcpdump
+	$(ROMFSINST) -d build-$(VER)/tcpdump /usr/bin/tcpdump
+
+.PHONY: all clean romfs
