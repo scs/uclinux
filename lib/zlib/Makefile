@@ -33,8 +33,8 @@ SHAREDLIB=libz.so
 SHAREDLIBV=libz.so.1.2.3
 SHAREDLIBM=libz.so.1
 
-AR=ar rc
-RANLIB=ranlib
+AR:=$(AR) rc
+RANLIB?=ranlib
 TAR=tar
 SHELL=/bin/sh
 EXE=
