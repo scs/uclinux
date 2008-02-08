@@ -49,11 +49,13 @@
 #include <time.h>
 #endif
 
-#include "adsp-spiadc.h"
+#include "spiadc.h"
 #include "cgivars.h"
 #include "htmllib.h"
 #include "ndso.h"
 #include "dac.h"
+
+#define STIMEOUT		       50
 
 static s_info sinfo;
 
@@ -160,10 +162,10 @@ int
 Sample (int form_method, char **getvars, char **postvars, s_info * info)
 {
 
-  int errval, baud, sclk;
+  int errval, spi_div, sclk, mode, sense, edge, skfs, timeout,
+   repeat_reading, count, level, i, actcount, triggerpos;
+  unsigned short  *buffer;
 
-
-//        info->fd0 = open("/dev/spi",O_RDONLY);
   info->fd0 = open ("/dev/spi", O_RDWR);
 
   if (info->fd0 < 0)
@@ -174,23 +176,108 @@ Sample (int form_method, char **getvars, char **postvars, s_info * info)
   ioctl (info->fd0, CMD_SPI_GET_SYSTEMCLOCK, &sclk);
 
   /* Calculate required Baud Rate */
-  baud = (unsigned short) (sclk / (34 * info->stime_s.sps));
-  ioctl (info->fd0, CMD_SPI_SET_BAUDRATE, baud);	// Set baud rate SCK = HCLK/(2*SPIBAUD)
+  spi_div = (unsigned short) (sclk / (34 * info->stime_s.sps));
+
+	if ((sclk % (sclk / spi_div)) > 0)
+		spi_div++;
+
   /* Calculate real Baud Rate */
-  info->stime_s.sps = sclk / ((2 * 16 + 2) * baud);
+  info->stime_s.sps = sclk / ((2 * 16 + 2) * spi_div);
+  ioctl (info->fd0, CMD_SPI_SET_BAUDRATE, (sclk / (2 * spi_div)));
+  mode = info->strigger.mode;
+  sense = info->strigger.sense;
+  edge = info->strigger.edge;
+  skfs = 4;
+  repeat_reading = 0;
 
-  ioctl (info->fd0, CMD_SPI_SET_TRIGGER_MODE, info->strigger.mode);
-  ioctl (info->fd0, CMD_SPI_SET_TRIGGER_SENSE, info->strigger.sense);
-  ioctl (info->fd0, CMD_SPI_SET_TRIGGER_EDGE, info->strigger.edge);
-  ioctl (info->fd0, CMD_SPI_SET_SKFS, 2);
+  level = VoltageToSample(info->strigger.level, info);
 
-  ioctl (info->fd0, CMD_SPI_SET_TRIGGER_LEVEL,
-	 (unsigned short) VoltageToSample (info->strigger.level, info));
 
-  errval = read (info->fd0, info->samples, (info->stime_s.samples * 2));
+	count = info->stime_s.samples * 2;
+
+	timeout = STIMEOUT;
+
+	if (mode)
+		actcount = 2 * count;
+	else
+		actcount = count;
+
+	/* Allocate some memory */
+	buffer = malloc(actcount + 2*skfs);
+
+	do {
+   		errval = read (info->fd0, buffer, actcount + 2*skfs);
+		  if (errval < 0)
+		    NDSO_Error (TRIGCOND, form_method, getvars, postvars, info);
+		
+		triggerpos=0;
+
+		if (mode) {
+			/* Search for trigger condition */
+			if (sense) {
+				/* Edge sensitive */
+				if (edge){
+					/* Falling edge */
+					triggerpos=0;
+					for (i=1+skfs;(i < actcount)&& !triggerpos;i++) {
+						if ((buffer[i-1] > level)&&(buffer[i+1] < level)) {
+							triggerpos=i;
+							i=actcount;
+						}
+					}
+
+				} else {
+					/* Rising edge */
+					triggerpos=0;
+					for (i=1+skfs;(i < actcount)&& !triggerpos;i++) {
+
+						if ((buffer[i-1] < level)&&(buffer[i+1] > level)) {
+							triggerpos=i;
+							i=actcount;
+						}
+					}
+
+				}
+			} else {
+				if (edge){
+					/* Falling edge */
+					triggerpos=0;
+					for (i=1+skfs;(i < actcount)&& !triggerpos;i++) {
+						if ((buffer[i-1] > level)&&(buffer[i+1] < level)) {
+							triggerpos=i;
+							i=actcount;
+						}
+					}
+				} else {
+					/* Rising edge */
+					triggerpos=0;
+					for (i=1+skfs;(i < actcount)&& !triggerpos;i++) {
+						if ((buffer[i-1] < level)&&(buffer[i+1] > level)) {
+							triggerpos=i;
+							i=actcount;
+						}
+					}
+
+				}
+			}
+			if (!triggerpos && timeout--)
+				 repeat_reading = 1;
+			else
+				 repeat_reading = 0;
+			
+		}
+	} while (repeat_reading);
+
+
+	if (!(timeout < 0) && (!triggerpos))
+		memcpy(info->samples, buffer + skfs, count);
+	else
+		memcpy(info->samples, buffer + triggerpos, count);
+
 
   close (info->fd0);
-
+  free(buffer);
+  
   if (errval < 0)
     NDSO_Error (TRIGCOND, form_method, getvars, postvars, info);
 

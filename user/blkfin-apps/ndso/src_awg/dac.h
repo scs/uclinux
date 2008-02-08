@@ -14,27 +14,9 @@ struct
 {
   unsigned int cmd, arg;
 }
-hw_device_table[][13] =
+hw_device_table[][4] =
 {
-  {
-    {
-    CMD_SPI_OUT_ENABLE, 1},	/* AD5443 */
-    {
-    CMD_SPI_SET_MASTER, 1},
-    {
-    CMD_SPI_SET_LENGTH16, 1},
-    {
-    CMD_SPI_MISO_ENABLE, 0},
-    {
-    CMD_SPI_SET_POLAR, 0},
-    {
-    CMD_SPI_SET_PHASE, 0},
-    {
-    CMD_SPI_SET_CSENABLE, 1},
-    {
-    CMD_SPI_SET_CSLOW, 1},
-    {
-    CMD_SPI_SET_ORDER, 0},
+  {/* AD5443 */
     {
     0x00, 0x00},
     {
@@ -43,25 +25,7 @@ hw_device_table[][13] =
     REF_VOLTAGE, 4096},
     {
   MAX_SAMPLERATE, 25000000}},	/* 1M SPS */
-  {
-    {
-    CMD_SPI_OUT_ENABLE, 1},	/* ADxxxx */
-    {
-    CMD_SPI_SET_MASTER, 1},
-    {
-    CMD_SPI_SET_LENGTH16, 1},
-    {
-    CMD_SPI_MISO_ENABLE, 0},
-    {
-    CMD_SPI_SET_POLAR, 0},
-    {
-    CMD_SPI_SET_PHASE, 0},
-    {
-    CMD_SPI_SET_CSENABLE, 1},
-    {
-    CMD_SPI_SET_CSLOW, 1},
-    {
-    CMD_SPI_SET_ORDER, 0},
+  {/* ADxxxx */
     {
     0x00, 0x00},
     {

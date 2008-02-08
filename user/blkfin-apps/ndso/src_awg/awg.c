@@ -44,7 +44,7 @@
 #include "readsamples.h"
 #include "cgivars.h"
 #include "htmllib.h"
-#include "adsp-spiadc.h"
+#include "spiadc.h"
 #include "dac.h"
 
 void calc_frequency(int form_method, char **getvars, char **postvars, float frequency);
@@ -91,7 +91,7 @@ typedef	struct cgi_info
 	float dutycycle;
 	float symmetry;
 
-	unsigned short baud;
+	unsigned spi_hz;
 	unsigned short samples_cnt;
    unsigned short *samples;
 
@@ -195,7 +195,7 @@ for	(i=0; postvars[i]; i+= 2) {
 
 void calc_frequency(int form_method, char **getvars, char **postvars, float frequency) {
 
-int fd0,sclk,baud,samples;
+int fd0, sclk, spi_div, samples;
 float sps;
 
 fd0 = open ("/dev/spi", O_RDWR);
@@ -207,17 +207,24 @@ fd0 = open ("/dev/spi", O_RDWR);
   ioctl (fd0, CMD_SPI_GET_SYSTEMCLOCK, &sclk);
   close(fd0);
 
-	for(baud=2; baud < 65535; baud++)
+	for(spi_div = 2; spi_div < 65535; spi_div++)
 	 {
 
 	  /* Calculate required Baud Rate */
-	  sps = sclk / ((2 * 16 + 2) * baud);
-	  samples = (unsigned int) (sps/frequency);
+	  if ((sclk % (sclk / spi_div)) > 0)
+		spi_div++;
+
+	  sps = sclk / ((2 * 16 + 2) * spi_div);
+	  samples = (unsigned int) (sps / frequency);
 	  if( samples < MAXSAMPLES ) break;
 
 	 }
 
-	  cgiinfo.baud= baud;
+	if ((sclk % (sclk / spi_div)) > 0)
+		spi_div++;
+
+
+	  cgiinfo.spi_hz = (sclk / (2 * spi_div));
 	  cgiinfo.samples_cnt= samples;
 
  return;
@@ -472,7 +479,7 @@ sample (int form_method, char **getvars, char **postvars)
   if (fd0 < 0)
       error (ERR_SPI, form_method, getvars, postvars);
 
-  ioctl (fd0, CMD_SPI_SET_BAUDRATE, cgiinfo.baud);
+  ioctl (fd0, CMD_SPI_SET_BAUDRATE, cgiinfo.spi_hz);
   ioctl (fd0, CMD_SPI_SET_WRITECONTINUOUS, 1);
 
 	cgiinfo.samples = malloc (cgiinfo.samples_cnt * 2);
@@ -488,7 +495,7 @@ sample (int form_method, char **getvars, char **postvars)
 	for(i=0;i<cgiinfo.samples_cnt;i++){
     	cgiinfo.samples[i]= (unsigned short) ((unsigned short)cgiinfo.samples[i]| 0x1000);}
 
-    errval = write (fd0, cgiinfo.samples, cgiinfo.samples_cnt);
+    errval = write (fd0, cgiinfo.samples, cgiinfo.samples_cnt * 2);
 
   	sleep(cgiinfo.time2run);
 	write (fd0,def, 2);
