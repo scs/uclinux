@@ -14,7 +14,7 @@ build/Makefile: makefile
 		CC="$(CC) $(CFLAGS)" \
 		LDFLAGS="$(LDFLAGS)" \
 		LIBS="$(LDLIBS)" \
-			sh ../configure $(CONFIGURE_OPTS) \
+			sh ../libidn-0.5.2/configure $(CONFIGURE_OPTS) \
 				--enable-dependency-tracking \
 				--disable-shared \
 			; \
