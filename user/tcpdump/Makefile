@@ -5,21 +5,9 @@ ifdef CONFIG_IPV6
 CONF_OPTS += --enable-ipv6
 endif
 
-all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER)
+export ac_cv_linux_vers=2
 
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
-
-clean:
-	rm -rf build*
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
-	$(ROMFSINST) -d build-$(VER)/tcpdump /usr/bin/tcpdump
-
-.PHONY: all clean romfs
+	$(ROMFSINST) -d $(STAGEDIR)/usr/sbin/tcpdump /usr/sbin/tcpdump
