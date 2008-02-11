@@ -23,3 +23,10 @@ clean:
 	rm -rf build*
 
 .PHONY: all clean romfs
+
+#
+# Helper functions
+#
+
+# $(call USE_ENABLE,LIB_FFMPEG,video) => --enable-video if LIB_FFMPEG is set
+USE_ENABLE = $(shell test "$(CONFIG_$(1))" = "y" && echo "--enable-$(2)" || echo "--disable-$(2)")
