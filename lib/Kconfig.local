@@ -91,6 +91,9 @@ config LIB_MPFR
 	bool "Build mpfr"
 	select LIB_LIBGMP
 
+config LIB_ORTP
+	bool "Build ortp"
+
 config LIB_OSIP2
 	bool "Build osip2"
 

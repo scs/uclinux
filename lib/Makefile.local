@@ -23,6 +23,7 @@ dir_3_$(CONFIG_LIB_LIBSDL)           += libsdl
 dir_3_$(CONFIG_LIB_LIBTOOL)          += libtool
 dir_3_$(CONFIG_LIB_LIBUSB)           += libusb
 dir_3_$(CONFIG_LIB_MPFR)             += mpfr
+dir_3_$(CONFIG_LIB_ORTP)             += ortp
 dir_3_$(CONFIG_LIB_NCURSES)          += ncurses
 dir_3_$(CONFIG_LIB_POPT)             += popt
 dir_3_$(CONFIG_LIB_READLINE)         += readline
