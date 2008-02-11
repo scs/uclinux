@@ -25,6 +25,9 @@ echo_separator()
 
 echo "mainmenu \"Embedded Linux Configuration\""
 echo
+echo "config KERNELVERSION"
+echo "	string"
+echo "	default 4.0"
 echo
 
 #

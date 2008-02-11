@@ -8,6 +8,10 @@
 
 mainmenu "Linux Application Configuration"
 
+config KERNELVERSION
+	string
+	default "4.0"
+
 source ../lib/Kconfig
 
 source ../user/Kconfig

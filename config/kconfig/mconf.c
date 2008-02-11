@@ -873,7 +873,7 @@ int main(int ac, char **av)
 
 	sym = sym_lookup("KERNELVERSION", 0);
 	sym_calc_value(sym);
-	sprintf(menu_backtitle, _("Linux Kernel v%s Configuration"),
+	sprintf(menu_backtitle, _("uClinux Distribution v%s Configuration"),
 		sym_get_string_value(sym));
 
 	mode = getenv("MENUCONFIG_MODE");
