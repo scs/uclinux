@@ -87,6 +87,10 @@ config LIB_LIBTOOL
 config LIB_LIBUSB
 	bool "Build libusb"
 
+config LIB_MEDIASTREAMER
+	bool "Build mediastreamer"
+	select LIB_ORTP
+
 config LIB_MPFR
 	bool "Build mpfr"
 	select LIB_LIBGMP
