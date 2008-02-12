@@ -93,6 +93,7 @@ config LIB_LIBUSB
 config LIB_MEDIASTREAMER
 	bool "Build mediastreamer"
 	select LIB_ORTP
+	select LIB_SPEEX
 
 config LIB_MPFR
 	bool "Build mpfr"
