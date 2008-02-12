@@ -4296,7 +4296,7 @@ config USER_DEV_DYNAMIC
 	bool "Dynamic"
 
 config USER_DEV_STATIC
-	bool "Static
+	bool "Static"
 
 endchoice
 
