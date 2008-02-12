@@ -12,6 +12,9 @@ endif
 config LIB_AVAHI
 	bool "Build avahi"
 
+config LIB_BFIN_GSM
+	bool "Build Blackfin optimized GSM library"
+
 config LIB_BLUEZ
 	bool "Build bluez-lib"
 
