@@ -2044,6 +2044,17 @@ config USER_PORTMAP_PORTMAP
 	  The portmapper service, needed for NFS under 2.4.
 	  Approx. binary size: 49k
 
+config USER_PORTMAP_PMAP_SET
+	bool "pmap_set"
+	depends on USER_PORTMAP_PORTMAP
+	help
+	  Set the list of portmap registered programs.
+
+config USER_PORTMAP_PMAP_DUMP
+	bool "pmap_dump"
+	depends on USER_PORTMAP_PORTMAP
+	help
+	  Print the list of portmap registered programs.
 
 config USER_PPPD_PPPD_PPPD
 	bool "pppd"
