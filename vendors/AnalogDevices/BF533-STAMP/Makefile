@@ -63,7 +63,6 @@ endif
 image::
 	mkdir -p $(IMAGEDIR)
 	rm -rf $(IMAGEDIR)/*
-	rm -rf $(ROMFSDIR)/dev
 #
 # make romfs.[fstype] images, and add them to linux(elf file) if possible
 #
