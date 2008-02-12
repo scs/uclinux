@@ -1,5 +1,7 @@
 VER = ortp-0.13.1
 
+CONF_OPTS = --disable-strict
+
 # disable generation of documentation
 export ac_cv_path_DOXYGEN = false
 
