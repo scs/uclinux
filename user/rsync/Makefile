@@ -1,20 +1,6 @@
-VER = rsync-2.6.6
+VER = rsync-2.6.9
 
-all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER)
-
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
-
-clean:
-	rm -rf build*
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
-	$(ROMFSINST) build-$(VER)/rsync /bin/rsync
-
-.PHONY: all clean romfs
+	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/rsync /usr/bin/rsync
