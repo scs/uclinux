@@ -50,7 +50,31 @@ Building the Libraries and Test Programs
    g729asimgot          : simulated GOT flat mode test program
    g729ab_fdpic         : fdpic test program, statically linked G729
    g729ab_fdpic_so      : fdpic test program, dynamically linked G729
-   
+
+Using the library
+-----------------
+Please refer to the test program test/g729ab_test.c for library APIs.
+
+Bitstream formats:
+
+   using 0x6b21 as SYNC word for each frame
+     [SYNCWORD][BIT_NUM][bits]
+
+   Packed mode:
+     - g729a:
+     [0x6b21][0x0050][80-bit]
+
+     - g729ab:
+     three kinds of frames
+        -- BIT_NUM = 0x0050
+        -- BIT_NUM = 0x0010
+        -- BIT_NUM = 0x0000
+
+   Unpacked mode:
+     each bit is encoded using a 16-bit word:
+       - 0x007F for 0
+       - 0x0081 for 1
+
 Running the Test Programs
 -------------------------
 
