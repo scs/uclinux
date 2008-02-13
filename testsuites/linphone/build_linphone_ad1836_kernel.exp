@@ -19,73 +19,72 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-      -re "Sound card support.*SOUND.*\\\[./././.]" {
-         send "m\r"
-      }
+        -re "Sound card support.*SOUND.*\\\[./././.]" {
+            send "m\r"
+        }
 
-      -re "OSS Mixer API \\\(SND_MIXER_OSS\\\).*\\\[././.]" {
-         send "m\r"
-      }
+        -re "OSS Mixer API \\\(SND_MIXER_OSS\\\).*\\\[././.]" {
+            send "m\r"
+        }
 
-      -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\[^_].*\\\[././.]" {
-         send "m\r"
-      }
+        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\[^_].*\\\[././.]" {
+            send "m\r"
+        }
 
-      -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[././.]" {
-         send "m\r"
-      }
+        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[././.]" {
+            send "m\r"
+        }
 
-      -re "Blackfin Audio SPORT port.*SND_BLACKFIN_SPORT.*\\\[.]" {
-         send "0\r"
-      }
+        -re "Blackfin Audio SPORT port.*SND_BLACKFIN_SPORT.*\\\[.]" {
+            send "0\r"
+        }
 
-      -re "Blackfin Audio SPI channel selection bit.*SND_BLACKFIN_SPI_PFBIT.*\\\[.]" {
-         send "4\r"
-      }
+        -re "Blackfin Audio SPI channel selection bit.*SND_BLACKFIN_SPI_PFBIT.*\\\[.]" {
+            send "4\r"
+        }
 
-      -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
-         send "FDPIC\r"
-      }
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            send "4\r"
+        }
 
-     -re "Build eXosip.*CONFIG_LIB_LIBEXOSIP_FORCE.*\\\[././.]" {
-         send "Y\r"
-      }
+        -re "Build eXosip.*CONFIG_LIB_LIBEXOSIP_FORCE.*\\\[././.]" {
+            send "Y\r"
+        }
 
+        -re "Linphone, a SIP compatible VoIP phone.*CONFIG_USER_BLACKFIN_LINPHONE.*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Linphone, a SIP compatible VoIP phone.*CONFIG_USER_BLACKFIN_LINPHONE.*\\\[././.]" {
-         send "y\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
-
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        eof {
+            puts "End of configuration"
+            break
+        }
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -99,7 +98,7 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
-  
+
 
 log_file
 

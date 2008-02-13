@@ -141,7 +141,7 @@ while 1 {
         }
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
-            send "FDPIC\r"
+            send "4\r"
         }
 
         -re "ALSA utils.*CONFIG_USER_ALSA_UTILS.*\\\[.*]" {

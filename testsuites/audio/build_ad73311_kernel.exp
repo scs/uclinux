@@ -22,47 +22,46 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-	expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-			send "y\r"
-		}
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-			send "y\r"
-		}
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-		-re "Sound card support.*SOUND.*\\\[.*]" {
-			send "Y\r"
-		}
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "Y\r"
+        }
 
-		-re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
-			send "Y\r"
+        -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+            send "Y\r"
+        }
 
-		}
+        -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
+            send "Y\r"
+        }
 
-		-re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
-			send "Y\r"
-		}
+        -re "Sequencer dummy client.*SND_SEQ_DUMMY.*\\\[.*]" {
+            send "N\r"
+        }
 
-		-re "Sequencer dummy client.*SND_SEQ_DUMMY.*\\\[.*]" {
-			send "N\r"
-		}
+        -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+            send "Y\r"
+        }
 
-		-re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
-			send "Y\r"
-		}
+        -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS\\\).*\\\[.*]" {
+            send "Y\r"
+        }
 
-		-re "OSS PCM .*digital audio.* API .*SND_PCM_OSS\\\).*\\\[.*]" {
-			send "Y\r"
-		}
-
-		-re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
-			send "N\r"
-		}
+        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+            send "N\r"
+        }
 
 #     -re "TDM interface.*SND_BLACKFIN_AD1836_TDM.*\\\[.*]" {
 #            send "N\r"
@@ -71,52 +70,52 @@ while 1 {
 #            send "1\r"
 #     }
 
-		-re "AD1981B AC97 SPORT0 Audio support.*SND_BLACKFIN_AD1981B.*\\\[.*]" {
-			send "n\r"
-		}
+        -re "AD1981B AC97 SPORT0 Audio support.*SND_BLACKFIN_AD1981B.*\\\[.*]" {
+            send "n\r"
+        }
 
-		-re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
-			send "Y\r"
-		}
+        -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+            send "Y\r"
+        }
 
-                -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
-			send "FDPIC\r"
-                }
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            send "4\r"
+        }
 
-                -re "ALSA utils.*CONFIG_USER_ALSA_UTILS.*\\\[.*]" {
-			send "y\r"
-                }
+        -re "ALSA utils.*CONFIG_USER_ALSA_UTILS.*\\\[.*]" {
+            send "y\r"
+        }
 
-		-re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
-			send "Y\r"
-		}
+        -re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+            send "Y\r"
+        }
 
-		-re "vplay.*CONFIG_USER_VPLAY_VPLAY.*\\\[.*]" {
-			send "Y\r"
-		}
+        -re "vplay.*CONFIG_USER_VPLAY_VPLAY.*\\\[.*]" {
+            send "Y\r"
+        }
 
-		-re "vrec.*CONFIG_USER_VPLAY_VREC.*\\\[.*]" {
-			send "Y\r"
-		}
+        -re "vrec.*CONFIG_USER_VPLAY_VREC.*\\\[.*]" {
+            send "Y\r"
+        }
 
-		"\\\(*) \\\[*]" {
-			sleep .01
-			send "\r"
-		}
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-		-re "\[cC]hoice\\\[.*]:" {
-			send "\r"
-		}
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-		eof {
-			puts "End of configuration"
-			break
-		}
+        eof {
+            puts "End of configuration"
+            break
+        }
 
-		timeout {
-			puts "\n\nFATAL ERROR: config prompt timeout in make config"
-		}
-	}
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -130,6 +129,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
- 
+
 send_user "Ending $argv0\n"
 log_file
