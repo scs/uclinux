@@ -1584,6 +1584,11 @@ config USER_L2TPD_L2TPD
 	  Layer 2 Tunnelling Protocol Daemon
 	  Approx. binary size: 70k
 
+config USER_LINKS_LINKS
+	bool "links"
+	help
+	  A fast, lightweight text and graphical web-browser.
+
 config USER_LINUXIGD_LINUXIGD
 	bool "linux-igd"
 	select LIB_LIBUPNP
@@ -1996,6 +2001,11 @@ config USER_NTPD_NTPQ
 	bool "ntpq"
 	help
 	  NTP utility.  Part of the NTPD package.
+
+config USER_OPENNTPD
+	bool "openntpd"
+	help
+	  Lightweight and secure NTP server.
 
 config USER_OPENSSL_APPS
 	bool "openssl"
@@ -4292,6 +4302,12 @@ config USER_GAMES_RUBIK
 	bool "rubik"
 	help
 	  Non-optimal rubik's cube solver.
+
+config USER_GAMES_XMAME
+	bool "xmame"
+	help
+	  Xmame is a port of MAME, the Multiple Arcade Machine Emulator,
+	  the Multi Emulator Super System.
 
 endmenu
 
