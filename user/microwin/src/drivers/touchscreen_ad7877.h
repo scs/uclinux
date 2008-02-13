@@ -1,8 +1,8 @@
 #ifndef TS_DEVICE
 #define TS_DEVICE "AD7877"
 
-/*Major 13 Minor 128*/ 
-#define TS_DEVICE_FILE "/dev/ts"
+/*Dynamic Mayor,Minor*/
+#define TS_DEVICE_FILE "/dev/ts0"
 
 
 struct ts_event {

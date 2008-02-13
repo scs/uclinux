@@ -311,11 +311,11 @@ HWVGA                    = N
 # PSIONMOUSE	Psion 5 (/dev/touch_psion)
 # YOPYMOUSE	Yopy (/dev/yopy-ts)
 # HARRIERMOUSE	NEC Harrier (/dev/tpanel)
+# AD7877MOUSE	Analog Devices AD7877 Touch Screen Digitizer (/dev/ts0)
 ####################################################################
 GPMMOUSE                 = N
 SERMOUSE                 = N
 SUNMOUSE                 = N
-NOMOUSE                  = Y
 IPAQMOUSE                = N
 ZAURUSMOUSE              = N
 TUXMOUSE                 = N
@@ -328,6 +328,8 @@ PSIONMOUSE               = N
 YOPYMOUSE                = N
 HARRIERMOUSE             = N
 LIRCMOUSE                = N
+AD7877MOUSE              = N
+NOMOUSE                  = Y
 
 # keyboard or null kbd driver
 TTYKBD                   = N
