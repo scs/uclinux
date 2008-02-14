@@ -1,12 +1,6 @@
 # Here we have uClinux stuff for romfs/.config generation
 # We also need to tweak:
-#  Makefile: remove .config target
 #  Makefile.custom:install: rm -rf $(CONFIG_PREFIX) first
-
-ROOTDIR ?= ../..
-.config: $(ROOTDIR)/config/.config
-	sed -n -e '/CONFIG_USER_BUSYBOX_/s:CONFIG_USER_BUSYBOX_:CONFIG_:p' $< > $@
-	yes "" | $(MAKE) oldconfig
 
 .PHONY: romfs
 romfs:
