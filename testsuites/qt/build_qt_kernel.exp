@@ -25,6 +25,7 @@ if { $build_opt == 1 } {
     set build_type FLAT
     set type 1
 } elseif { $build_opt == 2 } {
+    set build_type FDPIC
     set type 4
 }
 
@@ -35,8 +36,6 @@ cd $QT_WORK_PATH
 
 step "Change config file in /vender folder."
 cd $uclinux_path
-sleep 3
-exec cp vendors/AnalogDevices/$board_type/Makefile vendors/AnalogDevices/$board_type/Makefile.bak
 set timeout 2
 spawn ex vendors/AnalogDevices/$board_type/Makefile
 expect {
@@ -237,14 +236,9 @@ if { $build_opt == 2 } {
 cd $uclinux_path/testsuites
 source  make_kernel.exp
 
-cd $uclinux_path
-exec mv vendors/AnalogDevices/$board_type/Makefile.bak vendors/AnalogDevices/$board_type/Makefile
-
 step "Copy linux"
 cd $uclinux_path/testsuites
 source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
-
-send_user "\nKernel building for QT test finishes!\n"

@@ -37,9 +37,9 @@ set QT_WORK_PATH  "$QT_PATH.$build_type"
 
 spawn /bin/bash
 send "cd $KON_PATH\r"
-expect "$konq_ver #"
+expect "$konq_ver>"
 send "patch -p1 < $uclinux_path/$konq_patch\r"
-expect "$konq_ver #"
+expect "$konq_ver>"
 
 incr case_num
 set timeout 600
@@ -50,11 +50,11 @@ if { $build_opt == 1 } {
 }
 while 1 {
     expect {
-        -re "error:.*$konq_ver #" {
+        -re "error:.*$konq_ver>" {
             send_user "Error somewhere in configuration\n"
             case_fail $case_num
         }
-        -re "$konq_ver #" {
+        -re "$konq_ver>" {
             send_user "Configure success\n"
             case_pass $case_num
             break
@@ -74,7 +74,7 @@ while 1 {
     expect {
         "Leaving directory" { set bfin_make_status success }
         "Error" {set bfin_make_status failure }
-        "$konq_ver #" { break }
+        "$konq_ver>" { break }
     }
 }
 if { $bfin_make_status == "failure" } {
@@ -86,9 +86,9 @@ if { $bfin_make_status == "failure" } {
 }
 
 send "rm -fr $KON_WORK_PATH\r"
-expect "$konq_ver #"
+expect "$konq_ver>"
 send "cp -fr $KON_PATH $KON_WORK_PATH\r"
-expect "$konq_ver #"
+expect "$konq_ver>"
 
 send_user "Ending $argv0\n"
 log_file

@@ -19,9 +19,9 @@ spawn /bin/bash
 send "export QTDIR=$QT_PATH\r"
 send "echo \$QTDIR\r"
 send "cd \$QTDIR\r"
-expect "$qt_ver #"
+expect "$qt_ver>"
 send "patch -p1 < $uclinux_path/$qt_patch\r"
-expect "$qt_ver #"
+expect "$qt_ver>"
 
 incr case_num
 set timeout 600
@@ -34,7 +34,7 @@ while 1 {
         -re "Your choices \\\(default 8,16,32\\\):" {
             send "\r"
         }
-        -re "$qt_ver #" {
+        -re "$qt_ver>" {
             send_user "Configure success\n"
             case_pass $case_num
             break
@@ -54,7 +54,7 @@ while 1 {
     expect {
         "Leaving directory" { set bfin_make_status success }
         "Error" {set bfin_make_status failure }
-        "$qt_ver #" { break }
+        "$qt_ver>" { break }
     }
 }
 if { $bfin_make_status == "failure" } {
@@ -70,7 +70,7 @@ set timeout 600
 send "make clean\r"
 while 1 {
     expect {
-        -re "$qt_ver #" {
+        -re "$qt_ver>" {
             send_user "make clean success\n"
             case_pass $case_num
             break
@@ -88,11 +88,11 @@ set timeout 2
 send "cp mkspecs/qws/linux-bfin-g++/qmake.static.conf mkspecs/qws/linux-bfin-g++/qmake.conf\r"
 while 1 {
     expect {
-        -re "cp:.*#" {
+        -re "cp:.*>" {
             send_user "copy qmake.static.conf fail\n"
             case_fail $case_num
         }
-        -re "$qt_ver #" {
+        -re "$qt_ver>" {
             send_user "copy qmake.static.conf pass\n"
             case_pass $case_num
             break
@@ -112,7 +112,7 @@ while 1 {
         -re "Do you accept the terms of the license?" {
             send "yes\r"
         }
-        -re "$qt_ver #" {
+        -re "$qt_ver>" {
             send_user "Configure for FLAT static success\n"
             case_pass $case_num
             break
@@ -132,7 +132,7 @@ while 1 {
     expect {
         "Leaving directory" { set bfin_make_status success }
         "Error" {set bfin_make_status failure }
-        "$qt_ver #" { break }
+        "$qt_ver>" { break }
     }
 }
 if { $bfin_make_status == "failure" } {
@@ -144,9 +144,9 @@ if { $bfin_make_status == "failure" } {
 }
 
 send "rm -fr \$QTDIR.FLAT\r"
-expect "$qt_ver #"
+expect "$qt_ver>"
 send "cp -fr \$QTDIR \$QTDIR.FLAT\r"
-expect "$qt_ver #"
+expect "$qt_ver>"
 
 #build FDPIC dynamic loadable shared library
 incr case_num
@@ -154,7 +154,7 @@ set timeout 600
 send "make clean\r"
 while 1 {
     expect {
-        -re "$qt_ver #" {
+        -re "$qt_ver>" {
             send_user "make clean success\n"
             case_pass $case_num
             break
@@ -171,11 +171,11 @@ set timeout 2
 send "cp mkspecs/qws/linux-bfin-g++/qmake.shared.conf mkspecs/qws/linux-bfin-g++/qmake.conf\r"
 while 1 {
     expect {
-        -re "cp:.*#" {
+        -re "cp:.*>" {
             send_user "copy qmake.shared.conf fail\n"
             case_fail $case_num
         }
-        -re "$qt_ver #" {
+        -re "$qt_ver>" {
             send_user "copy qmake.shared.conf pass\n"
             case_pass $case_num
             break
@@ -195,7 +195,7 @@ while 1 {
         -re "Do you accept the terms of the license?" {
             send "yes\r"
         }
-        -re "$qt_ver #" {
+        -re "$qt_ver>" {
             send_user "Configure for FDPIC success\n"
             case_pass $case_num
             break
@@ -215,7 +215,7 @@ while 1 {
     expect {
         "Leaving directory" { set bfin_make_status success }
         "Error" {set bfin_make_status failure }
-        "$qt_ver #" { break }
+        "$qt_ver>" { break }
     }
 }
 if { $bfin_make_status == "failure" } {
@@ -227,9 +227,9 @@ if { $bfin_make_status == "failure" } {
 }
 
 send "rm -fr \$QTDIR.FDPIC\r"
-expect "$qt_ver #"
+expect "$qt_ver>"
 send "cp -fr \$QTDIR \$QTDIR.FDPIC\r"
-expect "$qt_ver #"
+expect "$qt_ver>"
 
 send_user "Ending $argv0\n"
 log_file
