@@ -9,7 +9,6 @@ dir_3_$(CONFIG_LIB_CONFUSE)          += libconfuse
 dir_3_$(CONFIG_LIB_CRYPTOPP)         += crypto++lib
 dir_3_$(CONFIG_LIB_DMALLOC)          += dmalloc
 dir_3_$(CONFIG_LIB_FAAD2)            += faad2
-dir_3_$(CONFIG_LIB_FFMPEG)           += ffmpeg
 dir_3_$(CONFIG_LIB_FLAC)             += flac
 dir_3_$(CONFIG_LIB_FTPLIB)           += ftplib
 dir_3_$(CONFIG_LIB_LIBAO)            += libao
@@ -40,6 +39,7 @@ dir_4_$(CONFIG_LIB_MEDIASTREAMER)    += mediastreamer   # requires ortp(3)
 dir_4_$(CONFIG_LIB_SDL_GFX)          += SDL_gfx         # requires libsdl(3)
 
 dir_5_$(CONFIG_LIB_DIRECTFB)         += DirectFB        # requires zlib(3) libsdl(3) libpng(4)
+dir_5_$(CONFIG_LIB_FFMPEG)           += ffmpeg          # requires libsdl(3)
 dir_5_$(CONFIG_LIB_SDL_IMAGE)        += SDL_image       # requires libsdl(3) libpng(4) libjpeg(3) zlib (3) tiff(?)
 dir_5_$(CONFIG_LIB_SDL_MIXER)        += SDL_mixer       # requires libsdl(3) tremor(3) SMPEG(?) libmad(3)
 dir_5_$(CONFIG_LIB_SDL_NET)          += SDL_net         # requires libsdl(3)
