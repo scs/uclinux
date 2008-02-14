@@ -118,7 +118,7 @@ while 1 {
                         break }
         }
 
-	send -s "cd bin\r"
+	send -s "cd /bin\r"
         expect {
                 "ftp>" { }
                 timeout { send_user "Failed first return\n"

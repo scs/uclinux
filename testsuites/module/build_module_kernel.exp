@@ -56,26 +56,38 @@ while 1 {
              send -s "Y\r"
              
       }
-         
- 	-re "SMC 91C9x/91C1xxx support.*SMC91X.*\\\[.*]" {
-	
-	 if { $board_type == "BF533-STAMP" } {
-             		send -s "M\r"
-             		
+
+        -re "SMC 91C9x/91C1xxx support.*SMC91X.*\\\[.*]" {
+
+         if { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" || $board_type == "BF561-EZKIT" } {
+                        send -s "M\r"
+
              } else {
                         send -s "\r"
-             }             
+             }
       }
         -re "Blackfin .*536.537 on-chip mac support.*BFIN_MAC.*\\\[.*]" {
-             
-	      if { $board_type == "BF537-STAMP" } {
-                        
-             		send -s "M\r"
-             		
+
+              if { $board_type == "BF537-STAMP" } {
+
+                        send -s "M\r"
+
              } else {
                         send -s "\r"
-             }    
-	    
+             }
+
+      }
+
+        -re "SMSC LAN911x/LAN921x families embedded ethernet support.*SMSC911X.*\\\[.*]" {
+
+              if { $board_type == "BF548-EZKIT" } {
+
+                        send -s "M\r"
+
+             } else {
+                        send -s "\r"
+             }
+
       }
 
        "\\\(*) \\\[*]" {

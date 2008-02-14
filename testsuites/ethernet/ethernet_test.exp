@@ -207,6 +207,13 @@ while 1 {
                         break }
         }
 
+        send -s "cd /\r"
+        expect {
+                "ftp>" { }
+                timeout { send_user "Failed first return\n"
+                        break }
+        }
+
         send -s "get netperf_tcp_rr\r"
         expect {
                 "ftp>" { }

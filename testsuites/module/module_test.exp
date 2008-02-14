@@ -14,91 +14,71 @@ source ../reboot_kernel.exp
 
 step "Starting test."
 
-set case_num 0
-
-incr case_num
-
 set timeout 8
 set flag 0
 
 if { $board_type == "BF537-STAMP" } {
-
-                        
-			expect  -re $kernel_prompt
-			send -s "modprobe bfin_mac\r"
-			while 1 {
-			expect {
-			-re "Blackfin BF53.* on-chip Ethernet MAC driver" {
-                case_pass $case_num
-				puts "\nmodule insert success.\n"
-				break
-			}
-			
-			timeout {
-                case_fail $case_num
-				exit
-				}
-			}
-			}
-			
-			incr case_num
-			
-			expect  -re $kernel_prompt
-			send -s "lsmod\r"
-			while 1 {
-			expect {
-			"bfin_mac" {
-                case_pass $case_num
-				puts "\nmodule ls success.\n"
-				break
-			}
-			
-			timeout {
-                case_fail $case_num
-				exit
-				}
-			}
-			}
-
-
-} elseif { $board_type == "BF533-STAMP" } {
-                       	expect  -re $kernel_prompt
-						
-			send -s "modprobe smc91x\r"
-			while 1 {
-			expect {
-			"eth0: Ethernet addr" {
-                case_pass $case_num
-				puts "\nmodule insert success.\n"
-				break
-			}
-			
-			timeout {
-                case_fail $case_num
-				exit
-				}
-			}
-			}
-			
-			incr case_num
-			
-			expect  -re $kernel_prompt
-			send -s "lsmod\r"
-			while 1 {
-			expect {
-			"smc91x" {
-                case_pass $case_num
-				puts "\nmodule ls success.\n"
-				break
-			}
-			
-			timeout {
-                case_fail $case_num
-				exit
-				}
-			}
-			}
+   set module_name bfin_mac
+} elseif { $board_type == "BF548-EZKIT" } {
+   set module_name smsc911x
+} elseif { $board_type == "BF533-STAMP" || $board_type == "BF533-EZKIT" || $board_type == "BF561-EZKIT" } {
+   set module_name smc91x
 }
+                        
+set case_num 0
+
+incr case_num
+
+expect  -re $kernel_prompt
+send -s "modprobe $module_name\r"
+while 1 {
+expect {
+-re "Blackfin BF53.* on-chip Ethernet MAC driver" {
+        case_pass $case_num
+	puts "\nmodule insert success.\n"
+	break
+}
+
+-re "eth0: Ethernet addr" {
+        case_pass $case_num
+        puts "\nmodule insert success.\n"
+        break
+}
+
+
+-re "Driver" {
+        case_pass $case_num
+        puts "\nmodule insert success.\n"
+        break
+}
+
+
+timeout {
+        case_fail $case_num
+	exit
+	}
+}
+}
+
+incr case_num
+
+expect  -re $kernel_prompt
+send -s "lsmod\r"
+while 1 {
+expect {
+"$module_name" {
+        case_pass $case_num
+	puts "\nmodule ls success.\n"
+	break
+}
+
+timeout {
+        case_fail $case_num
+	exit
+	}
+}
+}
+
 
 incr case_num
 
@@ -158,50 +138,28 @@ incr case_num
 expect  -re $kernel_prompt
 set timeout 50
 
-if { $board_type == "BF537-STAMP" } {
+send -s  "rmmod $module_name\r"
+while 1 {
+expect {
+ -re $kernel_prompt {
+        case_pass $case_num
+	break
+}
 
-	send -s  "rmmod bfin_mac\r"
-	while 1 {
-	expect {
-	 -re $kernel_prompt {
-                case_pass $case_num
-		break
+timeout {
+        case_fail $case_num
+	exit
 	}
-	
-	timeout {
-                case_fail $case_num
-		exit
-		}
-	}
-	}
-
-} elseif { $board_type == "BF533-STAMP" } {
-
-	send -s  "rmmod smc91x\r" 
-	while 1 {
-	expect {
-	 -re $kernel_prompt {    
-                case_pass $case_num
-		break
-	}
-	
-	timeout {
-                case_fail $case_num
-		exit
-		}
-	}
-	}
+}
 }
 
 incr case_num
-
-if { $board_type == "BF537-STAMP" } {
 
 send -s "lsmod\r" 
 while 1 {
    expect {
    
-      "bfin_mac" { 
+      "$module_name" { 
                 case_fail $case_num
 	exit
          }
@@ -217,29 +175,7 @@ while 1 {
          }
      }
 }
-} elseif { $board_type == "BF533-STAMP" } {
 
-send -s "lsmod\r" 
-while 1 {
-   expect {
-   
-      "smc91x" { 
-                case_fail $case_num
-	exit
-         }
-	 
-       -re $kernel_prompt {
-                case_pass $case_num
-         break
-      }
-
-      timeout { 
-                case_fail $case_num
-	exit
-         }
-     }
-}
-}
 
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
