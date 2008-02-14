@@ -14,6 +14,7 @@ build/Makefile:
 	rm -rf build ; \
 	mkdir build ; \
 	cd build ; \
+	SDL_CONFIG=$(STAGEDIR)/usr/bin/sdl-config \
 	../$(VER)/configure \
 		--prefix=/usr \
 		--source-path=$$PWD/../$(VER) \
@@ -42,5 +43,6 @@ romfs:
 	done
 	$(ROMFSINST) -d -e CONFIG_USER_FFMPEG_APPS $(STAGEDIR)/usr/bin/ffmpeg /usr/bin/ffmpeg
 	$(ROMFSINST) -d -e CONFIG_USER_FFMPEG_APPS $(STAGEDIR)/usr/bin/ffserver /usr/bin/ffserver
+	$(ROMFSINST) -d -e CONFIG_USER_FFMPEG_APPS -e CONFIG_LIB_LIBSDL $(STAGEDIR)/usr/bin/ffplay /usr/bin/ffplay
 
 .PHONY: all clean romfs
