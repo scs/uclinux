@@ -33,6 +33,12 @@ $(FFM_LIB_DIRS):
 		mv $(VER)/$${lib}.tmp $(VER)/$${lib} ; \
 	fi
 
+ifeq ($(CONFIG_LIB_LIVE),y)
+CONF_OPTS += --with-extraincdir=$(STAGEDIR)/usr/lib/live
+else
+CONF_OPTS += --disable-live
+endif
+
 $(VER)/config.mak: $(FFM_LIB_DIRS)
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
@@ -48,7 +54,7 @@ $(VER)/config.mak: $(FFM_LIB_DIRS)
 		--mandir=/usr/share/man \
 		--enable-fbdev \
 		--disable-mp3lib \
-		--disable-live
+		$(CONF_OPTS)
 
 clean:
 	-$(MAKE) -C $(VER) distclean
