@@ -1,0 +1,82 @@
+diff -U 3 -H -d -r -N -- liveMedia/JPEGVideoRTPSource.cpp liveMedia/JPEGVideoRTPSource.cpp
+--- liveMedia/JPEGVideoRTPSource.cpp	2007-11-18 02:27:55.000000000 +0200
++++ liveMedia/JPEGVideoRTPSource.cpp	2007-11-21 19:52:45.000000000 +0200
+@@ -55,18 +55,20 @@
+ JPEGVideoRTPSource*
+ JPEGVideoRTPSource::createNew(UsageEnvironment& env, Groupsock* RTPgs,
+ 			      unsigned char rtpPayloadFormat,
+-			      unsigned rtpTimestampFrequency) {
++                  unsigned rtpTimestampFrequency, int width, int height) {
+   return new JPEGVideoRTPSource(env, RTPgs, rtpPayloadFormat,
+-				rtpTimestampFrequency);
++                rtpTimestampFrequency, width, height);
+ }
+ 
+ JPEGVideoRTPSource::JPEGVideoRTPSource(UsageEnvironment& env,
+ 				       Groupsock* RTPgs,
+ 				       unsigned char rtpPayloadFormat,
+-				       unsigned rtpTimestampFrequency)
++                       unsigned rtpTimestampFrequency, int width, int height)
+   : MultiFramedRTPSource(env, RTPgs,
+ 			 rtpPayloadFormat, rtpTimestampFrequency,
+ 			 new JPEGBufferedPacketFactory) {
++  _width = width;
++  _height = height;
+ }
+ 
+ JPEGVideoRTPSource::~JPEGVideoRTPSource() {
+@@ -340,8 +342,12 @@
+   unsigned type = Type & 1;
+   unsigned Q = (unsigned)headerStart[5];
+   unsigned width = (unsigned)headerStart[6] * 8;
+-  if (width == 0) width = 256*8; // special case
+   unsigned height = (unsigned)headerStart[7] * 8;
++  if ((width == 0 || height == 0) && _width != 0 && _height != 0) {
++    width = _width;
++    height = _height;
++  }
++  if (width == 0) width = 256*8; // special case
+   if (height == 0) height = 256*8; // special case
+ 
+   if (Type > 63) {
+diff -U 3 -H -d -r -N -- liveMedia/MediaSession.cpp liveMedia/MediaSession.cpp
+--- liveMedia/MediaSession.cpp	2007-11-18 02:27:55.000000000 +0200
++++ liveMedia/MediaSession.cpp	2007-11-21 19:55:12.000000000 +0200
+@@ -745,7 +745,9 @@
+ 	fReadSource = fRTPSource
+ 	  = JPEGVideoRTPSource::createNew(env(), fRTPSocket,
+ 					  fRTPPayloadFormat,
+-					  fRTPTimestampFrequency);
++					  fRTPTimestampFrequency,
++                      videoWidth(),
++                      videoHeight());
+       } else if (strcmp(fCodecName, "X-QT") == 0
+ 		 || strcmp(fCodecName, "X-QUICKTIME") == 0) {
+ 	// Generic QuickTime streams, as defined in
+diff -U 3 -H -d -r -N -- liveMedia/include/JPEGVideoRTPSource.hh liveMedia/include/JPEGVideoRTPSource.hh
+--- liveMedia/include/JPEGVideoRTPSource.hh	2007-11-18 02:27:54.000000000 +0200
++++ liveMedia/include/JPEGVideoRTPSource.hh	2007-11-21 19:57:36.000000000 +0200
+@@ -32,7 +32,7 @@
+   static JPEGVideoRTPSource*
+   createNew(UsageEnvironment& env, Groupsock* RTPgs,
+ 	    unsigned char rtpPayloadFormat = 26,
+-	    unsigned rtpPayloadFrequency = 90000);
++	    unsigned rtpPayloadFrequency = 90000, int width = 0, int height = 0);
+ 
+ protected:
+   virtual ~JPEGVideoRTPSource();
+@@ -40,9 +40,13 @@
+ private:
+   JPEGVideoRTPSource(UsageEnvironment& env, Groupsock* RTPgs,
+ 		     unsigned char rtpPayloadFormat,
+-		     unsigned rtpTimestampFrequency);
++		     unsigned rtpTimestampFrequency, int width,int height);
+       // called only by createNew()
+ 
++  // Image dimensions from the SDP description, if any
++  int _width;
++  int _height;
++
+ private:
+   // redefined virtual functions:
+   virtual Boolean processSpecialHeader(BufferedPacket* packet,

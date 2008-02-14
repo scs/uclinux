@@ -1,0 +1,33 @@
+diff -U7 -p -r1.1 OnDemandServerMediaSubsession.cpp
+--- OnDemandServerMediaSubsession.cpp	29 May 2007 11:35:10 -0000	1.1
++++ OnDemandServerMediaSubsession.cpp	7 Jun 2007 10:17:31 -0000
+@@ -295,24 +295,25 @@ void OnDemandServerMediaSubsession::setS
+   if (streamState != NULL && streamState->mediaSource() != NULL) {
+     setStreamSourceScale(streamState->mediaSource(), scale);
+   }
+ }
+ 
+ void OnDemandServerMediaSubsession::deleteStream(unsigned clientSessionId,
+ 						 void*& streamToken) {
++  StreamState* streamState = (StreamState*)streamToken; 
++
+   // Look up (and remove) the destinations for this client session:
+   Destinations* destinations
+     = (Destinations*)(fDestinationsHashTable->Lookup((char const*)clientSessionId));
+   if (destinations != NULL) {
+     fDestinationsHashTable->Remove((char const*)clientSessionId);
+-  }
+ 
+-  // Stop streaming to these destinations:
+-  StreamState* streamState = (StreamState*)streamToken; 
+-  if (streamState != NULL) streamState->endPlaying(destinations);
++    // Stop streaming to these destinations:
++    if (streamState != NULL) streamState->endPlaying(destinations);
++  }
+ 
+   // Delete the "StreamState" structure if it's no longer being used:
+   if (streamState != NULL && streamState->referenceCount() >= 0) {
+     if (streamState->referenceCount() > 0) --streamState->referenceCount();
+     if (streamState->referenceCount() == 0) {
+       delete streamState;
+       if (fLastStreamToken == streamToken) fLastStreamToken = NULL; 

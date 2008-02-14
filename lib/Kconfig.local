@@ -90,6 +90,9 @@ config LIB_LIBTOOL
 config LIB_LIBUSB
 	bool "Build libusb"
 
+config LIB_LIVE
+	bool "Build live555"
+
 config LIB_MEDIASTREAMER
 	bool "Build mediastreamer"
 	select LIB_ORTP
