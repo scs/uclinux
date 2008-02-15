@@ -247,60 +247,12 @@ step "Make"
 
 source  make_kernel.exp
 
-
-step "Make busybox clean."
-
-cd $uclinux_path/user/busybox
-spawn make clean
-set timeout 1200
-set bfin_make_status failure
-while 1 {
-      expect {
-             "Entering directory" { }
-             "Leaving directory" { set bfin_make_status success }
-             "Error" {set bfin_make_status failure }
-             "/bin/sh" { }
-             eof { break }
-      }
-}
-
-if { $bfin_make_status == "failure" } {
-      puts "ERROR: Error somewhere during make"
-
-}
-
-cd $uclinux_path/testsuites
-
-step "Make again."
-
-source  make_kernel.exp
-
-
 cd $uclinux_path/testsuites
 
 step "Copy linux"
 
 source   copy_image.exp
  
-step "Make busybox clean."
-
-cd $uclinux_path/user/busybox
-spawn make clean
-set timeout 1200
-set bfin_make_status failure
-while 1 {
-      expect {
-             "Entering directory" { }
-             "Leaving directory" { set bfin_make_status success }
-             "Error" {set bfin_make_status failure }
-             "/bin/sh" { }
-             eof { break }
-      }
-}
-
-if { $bfin_make_status == "failure" } {
-      puts "ERROR: Error somewhere during make"
-}
 send_user "Ending $argv0\n"
 log_file
  
