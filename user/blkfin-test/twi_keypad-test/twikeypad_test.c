@@ -232,7 +232,7 @@ main (int argc, char *argv[])
 
 
 	  if (!quiet)
-	    printf (" TWI LCD Test Application\n\n");
+	    printf (" TWI Keypad Test Application\n\n");
 
   do {	
 	  keypad_fgets (input, LINE_MAX_LEN);
