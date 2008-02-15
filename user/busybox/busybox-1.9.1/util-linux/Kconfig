@@ -461,6 +461,12 @@ config USER_BUSYBOX_READPROFILE
 	help
 	  This allows you to parse /proc/profile for basic profiling.
 
+config USER_BUSYBOX_RTCWAKE
+	bool "rtcwake"
+	default n
+	help
+	  Enter a system sleep state until specified wakeup time.
+
 config USER_BUSYBOX_SETARCH
 	bool "setarch"
 	default n
