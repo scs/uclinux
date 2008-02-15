@@ -5,6 +5,10 @@
 
 bdir=${1%/}
 
+if [ -z "${bdir}" ] ; then
+	bdir=$(awk '$1 == "VER" { print $NF }' Makefile)
+fi
+
 if [ ! -d "${bdir}" ] ; then
 	echo "Usage: $0 <busybox dir>" 1>&2
 	exit 1
