@@ -1,5 +1,5 @@
 /*********************************************************************
- *                
+ *
  * Filename:      irda.h
  * Version:       1.0
  * Description:   IrDA header file to be used by any IrDA applications
@@ -8,17 +8,17 @@
  * Created at:    Mon Mar  8 14:06:12 1999
  * Modified at:   Sat Dec 25 16:07:54 1999
  * Modified by:   Dag Brattli <dagb@cs.uit.no>
- * 
+ *
  *     Copyright (c) 1999 Dag Brattli, All Rights Reserved.
  *     Copyright (c) 2003 Jean Tourrilhes, All Rights Reserved.
- *      
- *     This header is free software; you can redistribute it and/or 
+ *
+ *     This header is free software; you can redistribute it and/or
  *     modify it under the terms of the GNU Lesser General Public
  *     License as published by the Free Software Foundation; either
  *     version 2.1 of the License, or (at your option) any later version.
- *  
+ *
  *     Neither Dag Brattli nor University of Tromsø admit liability nor
- *     provide warranty for any of this software. This material is 
+ *     provide warranty for any of this software. This material is
  *     provided "AS-IS" and at no charge.
  *
  ********************************************************************/
@@ -48,15 +48,15 @@
 
 /* IrLMP character code values */
 #define CS_ASCII         0x00
-#define	CS_ISO_8859_1    0x01
-#define	CS_ISO_8859_2    0x02
-#define	CS_ISO_8859_3    0x03
-#define	CS_ISO_8859_4    0x04
-#define	CS_ISO_8859_5    0x05
-#define	CS_ISO_8859_6    0x06
-#define	CS_ISO_8859_7    0x07
-#define	CS_ISO_8859_8    0x08
-#define	CS_ISO_8859_9    0x09
+#define CS_ISO_8859_1    0x01
+#define CS_ISO_8859_2    0x02
+#define CS_ISO_8859_3    0x03
+#define CS_ISO_8859_4    0x04
+#define CS_ISO_8859_5    0x05
+#define CS_ISO_8859_6    0x06
+#define CS_ISO_8859_7    0x07
+#define CS_ISO_8859_8    0x08
+#define CS_ISO_8859_9    0x09
 #define CS_UNICODE       0xff
 
 /* These are the currently known dongles */
@@ -86,30 +86,30 @@ enum {
 #define SOL_IRLMP      266 /* Same as SOL_IRDA for now */
 #define SOL_IRTTP      266 /* Same as SOL_IRDA for now */
 
-#define IRLMP_ENUMDEVICES        1	/* Return discovery log */
-#define IRLMP_IAS_SET            2	/* Set an attribute in local IAS */
-#define IRLMP_IAS_QUERY          3	/* Query remote IAS for attribute */
-#define IRLMP_HINTS_SET          4	/* Set hint bits advertised */
+#define IRLMP_ENUMDEVICES        1 /* Return discovery log */
+#define IRLMP_IAS_SET            2 /* Set an attribute in local IAS */
+#define IRLMP_IAS_QUERY          3 /* Query remote IAS for attribute */
+#define IRLMP_HINTS_SET          4 /* Set hint bits advertised */
 #define IRLMP_QOS_SET            5
 #define IRLMP_QOS_GET            6
 #define IRLMP_MAX_SDU_SIZE       7
-#define IRLMP_IAS_GET            8	/* Get an attribute from local IAS */
-#define IRLMP_IAS_DEL		 9	/* Remove attribute from local IAS */
-#define IRLMP_HINT_MASK_SET	10	/* Set discovery filter */
-#define IRLMP_WAITDEVICE	11	/* Wait for a new discovery */
+#define IRLMP_IAS_GET            8 /* Get an attribute from local IAS */
+#define IRLMP_IAS_DEL            9 /* Remove attribute from local IAS */
+#define IRLMP_HINT_MASK_SET     10 /* Set discovery filter */
+#define IRLMP_WAITDEVICE        11 /* Wait for a new discovery */
 
 #define IRTTP_MAX_SDU_SIZE IRLMP_MAX_SDU_SIZE /* Compatibility */
 
 /* LM-IAS Limits */
-#define IAS_MAX_STRING         256	/* See IrLMP 1.1, 4.3.3.2 */
-#define IAS_MAX_OCTET_STRING  1024	/* See IrLMP 1.1, 4.3.3.2 */
-#define IAS_MAX_CLASSNAME       60	/* See IrLMP 1.1, 4.3.1 */
-#define IAS_MAX_ATTRIBNAME      60	/* See IrLMP 1.1, 4.3.3.1 */
-#define IAS_MAX_ATTRIBNUMBER   256	/* See IrLMP 1.1, 4.3.3.1 */
+#define IAS_MAX_STRING         256 /* See IrLMP 1.1, 4.3.3.2 */
+#define IAS_MAX_OCTET_STRING  1024 /* See IrLMP 1.1, 4.3.3.2 */
+#define IAS_MAX_CLASSNAME       60 /* See IrLMP 1.1, 4.3.1 */
+#define IAS_MAX_ATTRIBNAME      60 /* See IrLMP 1.1, 4.3.3.1 */
+#define IAS_MAX_ATTRIBNUMBER   256 /* See IrLMP 1.1, 4.3.3.1 */
 /* For user space backward compatibility - may be fixed in kernel 2.5.X
  * Note : need 60+1 ('\0'), make it 64 for alignement - Jean II */
-#define IAS_EXPORT_CLASSNAME       64
-#define IAS_EXPORT_ATTRIBNAME     256
+#define IAS_EXPORT_CLASSNAME    64
+#define IAS_EXPORT_ATTRIBNAME  256
 
 /* LM-IAS Attribute types */
 #define IAS_MISSING 0
@@ -135,8 +135,8 @@ struct irda_device_info {
 };
 
 struct irda_device_list {
-       u_int32_t len;
-       struct irda_device_info dev[1];
+	u_int32_t len;
+	struct irda_device_info dev[1];
 };
 
 struct irda_ias_set {
@@ -171,7 +171,7 @@ struct irda_ias_set {
 #define SIOCGQOS       (SIOCDEVPRIVATE + 9)
 
 /* No reason to include <linux/if.h> just because of this one ;-) */
-#define IRNAMSIZ 16 
+#define IRNAMSIZ 16
 
 /* IrDA quality of service information (must not exceed 16 bytes) */
 struct if_irda_qos {
@@ -195,7 +195,7 @@ struct if_irda_req {
 	union {
 		char ifrn_name[IRNAMSIZ];  /* if name, e.g. "irda0" */
 	} ifr_ifrn;
-	
+
 	/* Data part */
 	union {
 		struct if_irda_line ifru_line;
@@ -208,7 +208,7 @@ struct if_irda_req {
 };
 
 #define ifr_baudrate  ifr_ifru.ifru_qos.baudrate
-#define ifr_receiving ifr_ifru.ifru_receiving 
+#define ifr_receiving ifr_ifru.ifru_receiving
 #define ifr_dongle    ifr_ifru.ifru_dongle
 #define ifr_mode      ifr_ifru.ifru_mode
 #define ifr_dtr       ifr_ifru.ifru_line.dtr

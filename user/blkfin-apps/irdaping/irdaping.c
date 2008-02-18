@@ -1,5 +1,5 @@
 /*********************************************************************
- *                
+ *
  * Filename:      irdaping.c
  * Version:       0.4
  * Description:   Ping tool for irda frames
@@ -8,18 +8,18 @@
  * Created at:    Sat Feb 20 02:09:06 1999
  * Modified at:   Tue Sep  7 21:00:24 1999
  * Modified by:   Dag Brattli <dagb@cs.uit.no>
- * 
+ *
  *     Copyright (c) 1999 Dag Brattli, All Rights Reserved.
- *      
- *     This program is free software; you can redistribute it and/or 
- *     modify it under the terms of the GNU General Public License as 
- *     published by the Free Software Foundation; either version 2 of 
+ *
+ *     This program is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of
  *     the License, or (at your option) any later version.
- *  
+ *
  *     Neither Dag Brattli nor University of Tromsø admit liability nor
- *     provide warranty for any of this software. This material is 
+ *     provide warranty for any of this software. This material is
  *     provided "AS-IS" and at no charge.
- *     
+ *
  ********************************************************************/
 
 #include <stdio.h>
@@ -32,24 +32,24 @@
 #include <sys/time.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <net/if.h>		/* For struct ifreq */
-#include <net/if_packet.h>	/* For struct sockaddr_pkt */
-#include <net/if_arp.h>		/* For ARPHRD_IRDA */
-#include <netinet/if_ether.h>	/* For ETH_P_ALL */
-#include <netinet/in.h>		/* For htons */
+#include <net/if.h>            /* For struct ifreq */
+#include <net/if_packet.h>     /* For struct sockaddr_pkt */
+#include <net/if_arp.h>        /* For ARPHRD_IRDA */
+#include <netinet/if_ether.h>  /* For ETH_P_ALL */
+#include <netinet/in.h>        /* For htons */
 
-/* 
+/*
  * We should not really include kernel header files, but they are currently
  * the only ones that knows anything about IrDA and byte ordering.
  */
 
-#include <asm/byteorder.h>	/* __cpu_to_le32 and co. */
+#include <asm/byteorder.h>     /* __cpu_to_le32 and co. */
 
-#include <linux/types.h>	/* For __u8 and co. */
+#include <linux/types.h>       /* For __u8 and co. */
 #include "irda.h"
 
 #ifndef AF_IRDA
-#define AF_IRDA    23        /* <linux/socket.h> */
+#define AF_IRDA    23          /* <linux/socket.h> */
 #define PF_IRDA    AF_IRDA
 #endif /* AF_IRDA */
 
@@ -103,7 +103,7 @@ void cleanup(int signo)
 	putc('\n', stdout);
 
 	printf("%d packets received by filter\n", self.packets);
-	
+
 	exit(0);
 }
 
@@ -125,14 +125,14 @@ void timeout(int signo)
 	frame = (struct test_frame *) self.buf;
 	info = (struct test_info *) frame->info;
 
-	/* Build ping test frame */	
+	/* Build ping test frame */
 	self.saddr = *((__u32*) self.ifr.ifr_hwaddr.sa_data);
-	
+
 	frame->caddr   = CBROADCAST | CMD_FRAME;
 	frame->control = TEST_FRAME | PF_BIT;
 	frame->saddr = __cpu_to_le32(self.saddr);
 	frame->daddr = __cpu_to_le32(self.daddr);
-	
+
 	info->pkt_nr = __cpu_to_le16(self.packets++);
 	gettimeofday(&self.time_current, (struct timezone*) 0);
 	memcpy(&info->time, &self.time_current, sizeof(struct timezone));
@@ -142,12 +142,12 @@ void timeout(int signo)
 	for (i=0;i<rest;i++) {
 		info->info[i] = n++;
 	}
-	
+
 	from.spkt_family = ARPHRD_IRDA;
 	from.spkt_protocol = htons(AF_IRDA);
 	memcpy(from.spkt_device, self.device, 6);
-	
-	count = sendto(self.fd, self.buf, self.framelen, 0, 
+
+	count = sendto(self.fd, self.buf, self.framelen, 0,
 		       (struct sockaddr *) &from, sizeof(from));
 	if (count < 0) {
 		perror("sendto");
@@ -174,12 +174,12 @@ int main(int argc, char *argv[])
 	struct itimerval itime;
 	float diff;
 	int c;
-	
+
 	if (argc < 2) {
 		printf("Usage: irdaping <daddr> [-s <framesize>] [-i <iface>]\n");
 		exit(-1);
 	}
-	
+
 	/* Initialize */
 	memset(&self, 0, sizeof(struct instance));
 	self.daddr = (__u32) strtoul(argv[1], NULL, 0);
@@ -199,65 +199,65 @@ int main(int argc, char *argv[])
 			exit(-1);
 		default:
 			break;
-		} 
+		}
 	}
 
 	/* Correct the framesize */
-        if (self.framelen < (12+sizeof(struct timeval)))
+		if (self.framelen < (12+sizeof(struct timeval)))
 		self.framelen = 12+sizeof(struct timeval);
-	
-        /* Eventually we should use sigaction instead */
+
+		/* Eventually we should use sigaction instead */
 	signal(SIGTERM, cleanup);
 	signal(SIGINT, cleanup);
 	signal(SIGHUP, cleanup);
 	signal(SIGALRM, timeout);
-	
-        /* Create socket */
+
+		/* Create socket */
 	self.fd = socket(AF_PACKET, SOCK_PACKET, htons(ETH_P_ALL));
 	if (self.fd < 0) {
 		perror("socket");
 		exit(-1);
-        }
-	
+		}
+
 	/* Bind to the interface */
-        memset(&from_sa, 0, sizeof(from_sa));
+		memset(&from_sa, 0, sizeof(from_sa));
 	from_sa.sa_family = AF_PACKET;
-        strncpy(from_sa.sa_data, self.device, sizeof(from_sa.sa_data));
-        if (bind(self.fd, &from_sa, sizeof(from_sa))) {
+		strncpy(from_sa.sa_data, self.device, sizeof(from_sa.sa_data));
+		if (bind(self.fd, &from_sa, sizeof(from_sa))) {
 		perror("bind");
 		exit(-1);
-        }
-	
-        /* Get source device address */
+		}
+
+		/* Get source device address */
 	memset(&self.ifr, 0, sizeof(self.ifr));
 	strncpy(self.ifr.ifr_name, self.device, sizeof(self.ifr.ifr_name));
-        if (ioctl(self.fd, SIOCGIFHWADDR, &self.ifr) < 0 ) {
+		if (ioctl(self.fd, SIOCGIFHWADDR, &self.ifr) < 0 ) {
 		perror("SIOCGIFHWADDR");
 		exit(-1);
-        }
+		}
 	itime.it_value.tv_sec = 1;
 	itime.it_value.tv_usec = 0;
-	
+
 	itime.it_interval.tv_sec = 1;
 	itime.it_interval.tv_usec = 0;
 	setitimer(ITIMER_REAL, &itime, NULL);
-	
+
 	printf("IrDA ping (0x%08x on %s): %d bytes\n", self.daddr, self.device, self.framelen);
-	
+
 	while(1) {
 		fromlen = sizeof(struct sockaddr_pkt);
-		count = recvfrom(self.fd, buf, 2048, 0, 
+		count = recvfrom(self.fd, buf, 2048, 0,
 				 (struct sockaddr *) &from, &fromlen);
 		if (count < 0) {
 			perror("recvfrom");
 			exit(-1);
 		}
-		
+
 		frame = (struct test_frame *) buf;
 		info = (struct test_info *) frame->info;
-		
+
 		/* Assert that this is really a test response frame */
-		if ((frame->caddr & CMD_FRAME) || 
+		if ((frame->caddr & CMD_FRAME) ||
 		    (frame->control != (TEST_FRAME|PF_BIT)))
 			continue;
 
@@ -266,7 +266,7 @@ int main(int argc, char *argv[])
 
 		printf( "%d bytes from ", count);
  		printf( "0x%08x", __le32_to_cpu(frame->saddr));
-		
+
 		/* Check if frame contains any addtional info */
 		if (count < (sizeof(struct test_frame)+
 			     sizeof(struct test_info))) {
@@ -275,22 +275,22 @@ int main(int argc, char *argv[])
 		}
 
 		gettimeofday(&time, (struct timezone*) 0);
-		
+
 		/* Read time from frame */
-                timep = &info->time;
-		
-                if (timep->tv_usec > time.tv_usec) {
-                        time.tv_usec += 1000000;
-                        time.tv_sec--;
-                }
-                time.tv_usec = time.tv_usec - timep->tv_usec;
-                time.tv_sec = time.tv_sec - timep->tv_sec;
-                
-                diff = ((float) time.tv_sec * 1000000.0 + time.tv_usec)
-                        / 1000.0;
-		
+		timep = &info->time;
+
+		if (timep->tv_usec > time.tv_usec) {
+			time.tv_usec += 1000000;
+			time.tv_sec--;
+		}
+		time.tv_usec = time.tv_usec - timep->tv_usec;
+		time.tv_sec = time.tv_sec - timep->tv_sec;
+
+		diff = ((float) time.tv_sec * 1000000.0 + time.tv_usec)
+					    / 1000.0;
+
 		printf( ": irda_seq=%d ", __le16_to_cpu(info->pkt_nr));
- 		printf( "time=%6.2f ms.\n", diff);
+		printf( "time=%6.2f ms.\n", diff);
 	}
 }
 
