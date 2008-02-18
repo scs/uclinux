@@ -236,6 +236,26 @@ while 1 {
              send -s "N\r"
       }
 
+          -re "ftp.*CONFIG_USER_FTP_FTP_FTP.*\\\[.*]" {
+                 send "N\r"
+      }
+
+          -re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+                 send "N\r"
+      }
+
+          -re "vplay.*CONFIG_USER_VPLAY_VPLAY.*\\\[.*]" {
+                 send "N\r"
+      }
+
+          -re "vrec.*CONFIG_USER_VPLAY_VREC.*\\\[.*]" {
+                 send "N\r"
+      }
+
+          -re "gdbserver.*CONFIG_USER_GDB.*\\\[.*]" {
+                 send "N\r"
+      }
+
           -re "Install ELF shared libraries.*CONFIG_INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
 
                        send  "N\r"
