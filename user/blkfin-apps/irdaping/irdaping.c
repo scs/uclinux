@@ -126,7 +126,7 @@ void timeout(int signo)
 	info = (struct test_info *) frame->info;
 
 	/* Build ping test frame */
-	self.saddr = *((__u32*) self.ifr.ifr_hwaddr.sa_data);
+	memcpy(&self.saddr, &self.ifr.ifr_hwaddr.sa_data, sizeof(__u32));
 
 	frame->caddr   = CBROADCAST | CMD_FRAME;
 	frame->control = TEST_FRAME | PF_BIT;
