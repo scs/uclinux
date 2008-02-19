@@ -146,7 +146,7 @@ char *wavnames[] = {
 
 void usage(int rc)
 {
-	printf("usage: tone [-?hsqrwe] [-f replay-freq] [wave-freq]\n\n"
+	printf("usage: tone [-?hsqrwe] [-m output-magintude] [-f replay-freq] [wave-freq]\n\n"
 		"\t-h?\tthis help\n"
 		"\t-d\tdevice (/dev/dsp)\n"
 		"\t-s\tsine wave output\n"
@@ -154,7 +154,8 @@ void usage(int rc)
 		"\t-r\tramp wave output\n"
 		"\t-w\tsawtooth wave output\n"
 		"\t-e\toutput big-endian data\n"
-		"\t-f\tfrequency of replay engine\n");
+		"\t-f\tfrequency of replay engine\n"
+		"\t-m\tmagintude of output (0-255)\n");
 	exit(rc);
 }
 
