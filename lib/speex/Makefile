@@ -1,27 +1,12 @@
-VER = speex-svn-13013
+VER = speex-svn-14525
 
 CONF_OPTS = \
 	--without-ogg \
 	--enable-blackfin-asm \
 	--enable-fixed-point
 
-FLTFLAGS += -s 100000
-
-all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
-
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	../$(VER)/configure $(CONFIGURE_OPTS) $(CONF_OPTS)
-
-clean:
-	rm -rf build*
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
-	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libspeex.so.1 /lib/
-
-.PHONY: all clean romfs
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libspeex.so.1 /usr/lib/libspeex.so.1
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libspeexdsp.so.1 /usr/lib/libspeexdsp.so.1
