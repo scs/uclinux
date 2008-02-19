@@ -35,6 +35,10 @@ while 1 {
              
              send "y\r"
       }
+
+           -re "Sound card support.*SOUND.*\\\[.*]" {
+             send "N\r"
+      }
        
           -re "Blackfin BF53x SPORT support.*BFIN_SPORT.*\\\[.*]" {
              send "Y\r"
