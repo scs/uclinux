@@ -9,6 +9,17 @@
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
+	$(MAKE) post-build
+
+	set -e; \
+	cd $(STAGEDIR); \
+	find ./usr/lib/ -name 'lib*.so*' -print0 | xargs -0 -r chmod 755; \
+	find ./usr/lib/ -name 'lib*.la' -o -name 'lib*.a' -print0 | xargs -0 -r chmod 644; \
+	find ./usr/lib/ -name 'lib*.la' -print0 | xargs -0 -r sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':"; \
+	find ./usr/lib/pkgconfig/ -name '*.pc' -print0 | xargs -0 -r sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':"; \
+	find ./usr/bin/ -name '*-config' -print0 | xargs -0 -r sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':"
+
+post-build::
 
 build-$(VER)/Makefile:
 	chmod a+rx $(VER)/configure # for CVS users with screwed perms
@@ -22,7 +33,7 @@ build-$(VER)/Makefile:
 clean:
 	rm -rf build*
 
-.PHONY: all clean romfs
+.PHONY: all clean post-build romfs
 
 #
 # Helper functions
