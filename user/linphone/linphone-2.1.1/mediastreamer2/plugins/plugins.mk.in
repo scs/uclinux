@@ -1,0 +1,44 @@
+
+VERSION=@VERSION@
+PACKAGE_PLUGINS_DIR=@PACKAGE_PLUGINS_DIR@
+
+#various programs
+CC=@CC@
+
+MS_CFLAGS=`PKG_CONFIG_PATH="@prefix@/lib/pkgconfig" pkg-config --cflags mediastreamer`
+MS_LIBS=`PKG_CONFIG_PATH="@prefix@/lib/pkgconfig" pkg-config --libs mediastreamer`
+
+#comment this on macosx
+TH_CFLAGS=@MSPLUGINS_CFLAGS@
+TH_LIBS=@MSPLUGINS_LIBS@
+
+CFLAGS=-g -O2 $(TH_CFLAGS) $(MS_CFLAGS) $(PLUGIN_CFLAGS)
+LDFLAGS=$(TH_LIBS) $(MS_LIBS) $(PLUGIN_LIBS)
+
+PLUGIN_SO_NAME=lib$(PLUGIN_NAME).so
+
+all: $(PLUGIN_SO_NAME)
+
+.c.o	:
+	$(CC) $(CFLAGS) -fPIC -o $@ -c $<
+
+$(PLUGIN_SO_NAME)	:	$(PLUGIN_OBJS)
+	$(CC) $(LDFLAGS)  -o $@ $(PLUGIN_OBJS)
+
+clean:
+	rm -f *.o *.so
+
+install:	$(PLUGIN_SO_NAME)
+	mkdir -p $(PACKAGE_PLUGINS_DIR)
+	cp -f $(PLUGIN_SO_NAME) $(PACKAGE_PLUGINS_DIR)/. 
+	OS=`uname`;\
+	if [ "$${OS}" = "Darwin" ]; then\
+		mv $(PACKAGE_PLUGINS_DIR)/$(PLUGIN_SO_NAME) $(PACKAGE_PLUGINS_DIR)/lib$(PLUGIN_NAME).dylib;\
+	fi;\
+
+dist:	$(PLUGIN_SOURCES)
+	mkdir -p $(PLUGIN_NAME)-$(VERSION)
+	cp -f $(PLUGIN_SOURCES) $(PLUGIN_NAME)-$(VERSION)/.
+	tar -cvf $(PLUGIN_NAME)-$(VERSION).tar $(PLUGIN_NAME)-$(VERSION)
+	gzip -f $(PLUGIN_NAME)-$(VERSION).tar
+	rm -rf $(PLUGIN_NAME)-$(VERSION)
