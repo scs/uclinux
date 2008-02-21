@@ -18,3 +18,5 @@ set konq_name       "konqueror3-embedded-$konq_ver"
 set konq_tarball    "$konq_name.tar.bz2"
 set konq_patch      "bfin_patch/konqueror3_embedded_patch/konqueror3-embedded-bfin-0.2.patch"
 set KON_PATH        "$konq_dir/$konq_name"
+
+set konq_prompt     "20060121>"

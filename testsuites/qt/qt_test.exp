@@ -47,15 +47,15 @@ expect ">"
 
 #incr case_num
 #set timeout 30
-#send "dmesg|grep \"USB Mouse\"\r"
+#send "dmesg|grep \"USB Optical Mouse\"\r"
 #while 1 {
 #    expect {
-#        -re "\[0-9a-zA-Z]..$kernel_prompt" {
+#        -re "\[0-9a-zA-Z]\r\n$kernel_prompt" {
 #            send_user "USB Mouse is found\n"
 #            case_pass $case_num
 #            break
 #        }
-#        -re "..$kernel_prompt" {
+#        -re "$kernel_prompt" {
 #            send_user "USB Mouse is not found\n"
 #            case_fail $case_num
 #        }

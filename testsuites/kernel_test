@@ -1046,9 +1046,9 @@ do
   ./qt_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
 
   if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
-    ./build_konqueror_source.exp 1 >/dev/null  2>&1
+    ./konqueror_build_test.exp 1 >/dev/null  2>&1
     sleep 30
-    mv $UCLINUX_DIST_TESTSUITES/qt/build_konqueror_source_log $THIS_LOG/build_konqueror_source_flat_log
+    mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_build_test_log $THIS_LOG/konqueror_build_flat_test_log
   fi
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.qt.flat
@@ -1065,9 +1065,9 @@ do
   ./qt_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
 
   if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
-    ./build_konqueror_source.exp 2 >/dev/null  2>&1
+    ./konqueror_build_test.exp 2 >/dev/null  2>&1
     sleep 30
-    mv $UCLINUX_DIST_TESTSUITES/qt/build_konqueror_source_log $THIS_LOG/build_konqueror_source_fdpic_log
+    mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_build_test_log $THIS_LOG/konqueror_build_fdpic_test_log
   fi
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.qt.fdpic

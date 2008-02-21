@@ -5,6 +5,8 @@ source  config.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+set TITLE [title "$argv0"]
+
 if { $argc == 1 } {
     set build_opt [lindex $argv 0]
     send_user "\n#### Blackfin build Option is $build_opt\n"
@@ -23,6 +25,8 @@ if { $build_opt == 1 } {
     exit
 }
 
+append TITLE " ($build_type)"
+
 step "Start building konqueror..."
 set case_num 0
 
@@ -37,24 +41,24 @@ set QT_WORK_PATH  "$QT_PATH.$build_type"
 
 spawn /bin/bash
 send "cd $KON_PATH\r"
-expect "$konq_ver>"
+expect -re $konq_prompt
 send "patch -p1 < $uclinux_path/$konq_patch\r"
-expect "$konq_ver>"
+expect -re $konq_prompt
 
 incr case_num
 set timeout 600
 if { $build_opt == 1 } {
-    send "./configure --host bfin-uclinux --disable-debug --disable-shared --enable-static --enable-qt-embedded --enable-embedded --disable-dlopen --with-qt-dir=$QT_WORK_PATH -without-ssl --disable-rpath --disable-printing --disable-pcre LDFLAGS=\"-static -Wl,-elf2flt\" CFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CXXFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CPPFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" --with-extra-libs=$uclinux_path/staging/usr/lib/ --with-extra-includes=$uclinux_path/staging/usr/include\r"
+    send "./configure --host bfin-uclinux --disable-debug --disable-shared --enable-static --enable-qt-embedded --enable-embedded --disable-dynamic-ssl --disable-dlopen --with-qt-dir=$QT_WORK_PATH -without-ssl --disable-rpath --disable-printing --disable-pcre LDFLAGS=\"-static -Wl,-elf2flt\" CFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CXXFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CPPFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" --with-extra-libs=$uclinux_path/staging/usr/lib/ --with-extra-includes=$uclinux_path/staging/usr/include\r"
 } elseif { $build_opt == 2 } {
     send "./configure --host bfin-linux-uclibc --disable-debug --enable-shared --disable-static --enable-qt-embedded --enable-embedded --with-qt-dir=$QT_WORK_PATH -without-ssl --disable-rpath --disable-printing  --disable-pcre LDFLAGS=\"-mfdpic\" CFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CXXFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" CPPFLAGS=\"-D__linux__ -DNOMMU -DQT_THREAD_SUPPORT\" --with-extra-libs=$uclinux_path/staging/usr/lib/ --with-extra-includes=$uclinux_path/staging/usr/include\r"
 }
 while 1 {
     expect {
-        -re "error:.*$konq_ver>" {
+        -re "\[eE]rror:.*$konq_prompt" {
             send_user "Error somewhere in configuration\n"
             case_fail $case_num
         }
-        -re "$konq_ver>" {
+        -re $konq_prompt {
             send_user "Configure success\n"
             case_pass $case_num
             break
@@ -74,21 +78,56 @@ while 1 {
     expect {
         "Leaving directory" { set bfin_make_status success }
         "Error" {set bfin_make_status failure }
-        "$konq_ver>" { break }
+        -re $konq_prompt { break }
     }
 }
 if { $bfin_make_status == "failure" } {
-    puts "ERROR: Error somewhere during make"
-    exit
+    send_user "ERROR: Error somewhere during make"
+    case_fail $case_num
 } else {
     send_user "Build konqueror finish\n"
     case_pass $case_num
 }
 
+incr case_num
+set timeout 900
 send "rm -fr $KON_WORK_PATH\r"
-expect "$konq_ver>"
+while 1 {
+    expect {
+        -re "\r\n\[0-9a-zA-Z]$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 900
 send "cp -fr $KON_PATH $KON_WORK_PATH\r"
-expect "$konq_ver>"
+while 1 {
+    expect {
+        -re "\r\n\[0-9a-zA-Z]$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
 
 send_user "Ending $argv0\n"
+
 log_file
