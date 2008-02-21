@@ -16,7 +16,7 @@ lappend kparams "set file name lit\r"
 lappend kparams "set rec pack 1000\r"
 lappend kparams "set send pack 1000\r"
 lappend kparams "set window 5\r"
-lappend kparams "set escape 255\r"
+lappend kparams "set escape 129\r"
 set nkparams [llength $kparams]
 
 set timeout 5

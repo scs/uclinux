@@ -57,9 +57,9 @@ if { $where_are_we == "uboot" } {
 while 1 {
 	expect {
 
-               -re  "RAM:.* (\[0-9]+) MB" {
+               -re  "RAM: +(\[0-9]+) MB" {
                     set ram_size $expect_out(1,string)
-                    send_user "\nRAM size is $ram_size MB.\n"
+                    send_user "\nRAM size is $ram_size MB. \n"
                 }
 		"Hit any key " {
 			send "\r"
@@ -83,7 +83,7 @@ expect ">"
 send -s "save\r"
 expect ">"
 
-if { $ram_size == 32 } {
+if { $ram_size <= 32 } {
          set bootaddr $bootaddr_low
    } else {
          set bootaddr $bootaddr_high

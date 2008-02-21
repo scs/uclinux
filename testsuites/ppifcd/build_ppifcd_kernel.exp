@@ -1,4 +1,5 @@
 #!/usr/bin/expect
+#Before building, make sure change sda_pin to 2 and scl_pin to 4 in stamp.c.
 
 source  ../kernel_config.exp
 source  ../board_info.exp

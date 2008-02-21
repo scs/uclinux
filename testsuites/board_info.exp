@@ -17,7 +17,7 @@ set rootfs_start_addr 0x20120000
 set rootfs_end_addr 0x203effff
 set spi_kernel_start_addr 0x40000
 set spi_rootfs_start_addr 0x120000
-set spi_rootfs_size 0x6fffff
+set spi_rootfs_size 0x6dffff
 set pnor_rootfs_num 2
 set spi_rootfs_num 2
 set nand_rootfs_num 1
