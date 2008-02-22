@@ -34,12 +34,22 @@ static char sccsid[] = "@(#)tftp.c	5.7 (Berkeley) 6/29/88";
 
 #include <signal.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <unistd.h>
 
 #include "exit_codes.h"
+#include "netflash.h"
+#include "tftp.h"
 
-extern	int errno;
+static int tftpmakerequest(int request, char *name, struct tftphdr *tp, char *mode);
+static void tftpnak(int error);
+static void tftpstartclock(void);
+static void tftptpacket(char *s, struct tftphdr *tp, int n);
+static void tftpstopclock(void);
+static void tftpprintstats(char *direction, unsigned long amount, char *join, char *name);
 
 extern  struct sockaddr_in tftpsin;         /* filled in by main */
 extern  int     tftpf;                      /* the opened socket */
@@ -49,7 +59,6 @@ extern  int     tftprexmtval;
 extern  int     tftpmaxtimeout;
 
 extern struct tftphdr *tftpw_init(void);
-extern FILE *local_fdopen(int fd, char *flags);
 
 #define PKTSIZE    SEGSIZE+4
 char    tftpackbuf[PKTSIZE];
@@ -84,7 +93,7 @@ tftpsendfile(fd, name, mode)
 	register int block = 0, size, n;
 	register unsigned long amount = 0;
 	struct sockaddr_in from;
-	int fromlen;
+	socklen_t fromlen;
 	int convert;            /* true if doing nl->crlf conversion */
 	FILE *file;
 
@@ -181,6 +190,7 @@ abort:
 /*
  * Receive a file.
  */
+void
 tftprecvfile(fd, name, mode)
 	int fd;
 	char *name;
@@ -192,7 +202,8 @@ tftprecvfile(fd, name, mode)
 	u_short block = 1;
 	unsigned long amount = 0;
 	struct sockaddr_in from;
-	int fromlen, firsttrip = 1;
+	socklen_t fromlen;
+	int firsttrip = 1;
 	FILE *file;
 	int convert;                    /* true if converting crlf -> lf */
 
@@ -288,6 +299,7 @@ abort:                                          /* ok to ack, since user */
 		tftpprintstats("Received", amount, "from", name);
 }
 
+static int
 tftpmakerequest(request, name, tp, mode)
 	int request;
 	char *name, *mode;
@@ -327,13 +339,13 @@ struct errmsg {
  * standard TFTP codes, or a UNIX errno
  * offset by 100.
  */
+static void
 tftpnak(error)
 	int error;
 {
 	register struct tftphdr *tp;
 	int length;
 	register struct errmsg *pe;
-/*	extern char *sys_errlist[]; */
 
 	tp = (struct tftphdr *)tftpackbuf;
 	tp->th_opcode = htons((u_short)ERROR);
@@ -345,7 +357,7 @@ tftpnak(error)
 #ifdef EMBED
 		pe->e_msg = "error";
 #else
-		pe->e_msg = sys_errlist[error - 100];
+		pe->e_msg = strerror(error - 100);
 #endif
 		tp->th_code = EUNDEF;
 	}
@@ -358,6 +370,7 @@ tftpnak(error)
 		perror("nak");
 }
 
+static void
 tftptpacket(s, tp, n)
 	char *s;
 	struct tftphdr *tp;
@@ -401,14 +414,17 @@ struct timeval tftptstart;
 struct timeval tftptstop;
 struct timezone tftpzone;
 
+static void
 tftpstartclock() {
 	gettimeofday(&tftptstart, &tftpzone);
 }
 
+static void
 tftpstopclock() {
 	gettimeofday(&tftptstop, &tftpzone);
 }
 
+static void
 tftpprintstats(direction, amount, join, name)
 char *direction;
 unsigned long amount;

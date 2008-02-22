@@ -80,6 +80,7 @@
 #include "fileblock.h"
 #include "exit_codes.h"
 #include "versioning.h"
+#include "netflash.h"
 
 /****************************************************************************/
 
@@ -969,9 +970,7 @@ int local_write(int fd, char *buf, int count)
 
 /****************************************************************************/
  
-extern int tftpmain(int argc, char *argv[]);
-extern int tftpsetbinary(int argc, char *argv[]);
-extern int tftpget(int argc, char *argv[]);
+#include "tftp.h"
 
 /*
  * Call to tftp. This will initialize tftp and do a get operation.

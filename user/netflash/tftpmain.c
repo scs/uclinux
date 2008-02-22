@@ -35,6 +35,7 @@ static char sccsid[] = "@(#)main.c	5.8 (Berkeley) 10/11/88";
 #include <sys/file.h>
 
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <signal.h>
 #include <stdlib.h>
@@ -44,8 +45,11 @@ static char sccsid[] = "@(#)main.c	5.8 (Berkeley) 10/11/88";
 #include <string.h>
 #include <ctype.h>
 #include <netdb.h>
+#include <unistd.h>
 
 #include "exit_codes.h"
+#include "netflash.h"
+#include "tftp.h"
 
 #define	TIMEOUT		5		/* secs between rexmt's */
 
@@ -63,19 +67,24 @@ char	*tftpprompt = "tftp";
 jmp_buf	tftptoplevel;
 static void	tftpintr(int signo);
 #ifndef EMBED
-struct	servent *tftpsp;
+struct	servent *sp;
 #endif
 
-int	tftpquit(), tftphelp(), tftpsetverbose(), tftpsettrace(), tftpstatus();
-int     tftpget(), tftpput(), tftpsetpeer(), tftpmodecmd(), tftpsetrexmt(), tftpsettimeout();
-int     tftpsetbinary(), tftpsetascii();
+static void tftpgetusage(char *s);
+static void tftpmakeargv(void);
+static void tftpsetmode(char *newmode);
+#if 0
+static void tftpquit(void);
+static void tftpsettrace(void);
+static void tftpsetverbose(void);
+#endif
 
 #define HELPINDENT (sizeof("connect"))
 
 struct cmd {
 	char	*name;
 	char	*help;
-	int	(*handler)();
+	void	(*handler)(int argc, char *argv[]);
 };
 
 #if 0
@@ -115,13 +124,14 @@ struct cmd tftpcmdtab[] = {
 	{ "timeout",	tftpihelp,	tftpsettimeout },
 	{ "?",		tftphhelp,	tftphelp },
 #endif
-	0
+	{ 0 }
 };
 struct	cmd *tftpgetcmd();
 char	*tftptail();
 char	*strchr();
 char	*strrchr();
 
+void
 tftpmain(argc, argv)
 	char *argv[];
 {
@@ -174,6 +184,7 @@ tftpmain(argc, argv)
 
 char    tftphostname[100];
 
+void
 tftpsetpeer(argc, argv)
 	int argc;
 	char *argv[];
@@ -237,6 +248,7 @@ struct	modes {
 	{ 0,		0 }
 };
 
+void
 tftpmodecmd(argc, argv)
 	char *argv[];
 {
@@ -270,16 +282,19 @@ tftpmodecmd(argc, argv)
 	return;
 }
 
+void
 tftpsetbinary(argc, argv)
 char *argv[];
 {       tftpsetmode("octet");
 }
 
+void
 tftpsetascii(argc, argv)
 char *argv[];
 {       tftpsetmode("netascii");
 }
 
+static void
 tftpsetmode(newmode)
 char *newmode;
 {
@@ -384,6 +399,7 @@ tftpputusage(s)
 /*
  * Receive file(s).
  */
+void
 tftpget(argc, argv)
 	char *argv[];
 {
@@ -466,6 +482,7 @@ tftpget(argc, argv)
 	}
 }
 
+static void
 tftpgetusage(s)
 char * s;
 {
@@ -636,6 +653,7 @@ tftpgetcmd(name)
 /*
  * Slice a string up into argc/argv.
  */
+static void
 tftpmakeargv()
 {
 	register char *cp;
@@ -658,13 +676,14 @@ tftpmakeargv()
 	*argp++ = 0;
 }
 
+#if 0
 /*VARARGS*/
+static void
 tftpquit()
 {
 	exit(0);
 }
 
-#if 0
 /*
  * Help command.
  */
@@ -694,7 +713,9 @@ tftphelp(argc, argv)
 }
 #endif
 
+#if 0
 /*VARARGS*/
+void
 tftpsettrace()
 {
 	tftptrace = !tftptrace;
@@ -702,8 +723,10 @@ tftpsettrace()
 }
 
 /*VARARGS*/
+void
 tftpsetverbose()
 {
 	tftpverbose = !tftpverbose;
 	printf("Verbose mode %s.\n", tftpverbose ? "on" : "off");
 }
+#endif

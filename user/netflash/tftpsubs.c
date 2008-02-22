@@ -37,6 +37,9 @@ static char sccsid[] = "@(#)tftpsubs.c	5.4 (Berkeley) 6/29/88";
 #include <arpa/tftp.h>
 #include <stdio.h>
 
+#include "netflash.h"
+#include "tftp.h"
+
 #define PKTSIZE SEGSIZE+4       /* should be moved to tftp.h */
 
 static struct bf {
@@ -92,7 +95,7 @@ tftpreadit(file, dpp, convert)
 	b = &bfs[current];              /* look at new buffer */
 	if (b->counter == BF_FREE)      /* if it's empty */
 		read_ahead(file, convert);      /* fill it */
-/*      assert(b->counter != BF_FREE);  /* check */
+//      assert(b->counter != BF_FREE);  /* check */
 	*dpp = (struct tftphdr *)b->buf;        /* set caller's ptr */
 	return b->counter;
 }
@@ -150,6 +153,7 @@ tftpread_ahead(file, convert)
    from the queue.  Calls write_behind only if next buffer not
    available.
  */
+int
 tftpwriteit(file, dpp, ct, convert)
 	FILE *file;
 	struct tftphdr **dpp;
@@ -170,6 +174,7 @@ tftpwriteit(file, dpp, ct, convert)
  * Note spec is undefined if we get CR as last byte of file or a
  * CR followed by anything else.  In this case we leave it alone.
  */
+int
 tftpwrite_behind(file, convert)
 	FILE *file;
 	int convert;
@@ -235,7 +240,7 @@ int	f;		/* socket to flush */
 	int i, j = 0;
 	char rbuf[PKTSIZE];
 	struct sockaddr_in from;
-	int fromlen;
+	socklen_t fromlen;
 
 	while (1) {
 		(void) ioctl(f, FIONREAD, &i);

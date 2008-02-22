@@ -1,12 +1,8 @@
+#include <stdio.h>
 
-struct fileblock_t {
-    unsigned char * data;
-    unsigned long pos;
-    unsigned long length;
-    unsigned long maxlength;
-    struct fileblock_t * next;
-};
-
-extern struct fileblock_t *fileblocks;
-
-void remove_data(int length);
+int local_creat(char *name, int flags);
+int local_fclose(FILE *fp);
+int local_fseek(FILE *fp, int offset, int whence);
+int local_putc(int ch, FILE *fp);
+int local_write(int fd, char *buf, int count);
+FILE *local_fdopen(int fd, char *flags);

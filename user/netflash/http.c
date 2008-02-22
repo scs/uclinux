@@ -13,9 +13,11 @@
 #include <string.h>
 #include <errno.h>
 #include <netdb.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 
 /****************************************************************************/
 
@@ -47,7 +49,7 @@ int openhttp(char *url)
 	char			urlfile[256];
 	char			buf[256];
 	char			relocurl[512];
-	int			fd, portnr, n, relocated;
+	int			fd, portnr, relocated;
 
 	fd = -1;
 	portnr = 80;

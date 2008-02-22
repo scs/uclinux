@@ -1,3 +1,4 @@
+CFLAGS += -Wall
 
 EXEC = netflash
 OBJS = tftpmain.o tftp.o tftpsubs.o http.o
