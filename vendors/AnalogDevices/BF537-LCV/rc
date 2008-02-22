@@ -19,6 +19,9 @@ echo "Mounting Application Flash..."
 mkdir /app
 mount -t jffs2 /dev/mtdblock3 /app
 
+echo "Loading Memory DMA kernel module..."
+insmod /lib/modules/2.6.22.12-ADI-2007R2-pre-g83ab4962-dirty-svn/bfdma.ko  
+
 # Configure network interface
 #dhcpcd &
 ifconfig eth0 192.168.0.10 up
