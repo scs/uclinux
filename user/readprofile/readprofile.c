@@ -168,7 +168,7 @@ int popenMap;   /* flag to tell if popen() has been used */
 	      prgname,mapFile, maplineno);
       exit(1);
       }
-    if (strcmp(fn_name,"_stext") == 0) /* only elf works like this */
+    if (strcmp(fn_name,"__stext") == 0) /* only elf works like this */
       {
       add0=fn_add;
       break;
@@ -177,7 +177,7 @@ int popenMap;   /* flag to tell if popen() has been used */
 
   if (!add0)
     {
-    fprintf(stderr,"%s: can't find \"_stext\" in %s\n",prgname, mapFile);
+    fprintf(stderr,"%s: can't find \"__stext\" in %s\n",prgname, mapFile);
     exit(1);
     }
 
