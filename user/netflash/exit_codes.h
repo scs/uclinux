@@ -33,4 +33,6 @@
 #define NO_CRYPT             41
 #define BAD_MD5_SIG          42
 #define BAD_CRYPT            43
+#define NOT_BOOTLOADER_IMAGE 44
+#define NOT_FIRMWARE_IMAGE   45
 

@@ -40,7 +40,7 @@ char copyright[] =
  * from: @(#)main.c	5.18 (Berkeley) 3/1/91
  */
 char main_rcsid[] = 
-  "$Id: ftpmain.c,v 1.3 2001/08/07 04:54:06 pdh Exp $";
+  "$Id: ftpmain.c,v 1.3 2001-08-07 04:54:06 pdh Exp $";
 #endif
 
 

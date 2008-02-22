@@ -188,7 +188,8 @@ tftprecvfile(fd, name, mode)
 {
 	register struct tftphdr *ap;
 	struct tftphdr *dp, *w_init();
-	register int block = 1, n, size;
+	register int n, size;
+	u_short block = 1;
 	unsigned long amount = 0;
 	struct sockaddr_in from;
 	int fromlen, firsttrip = 1;
@@ -208,7 +209,7 @@ tftprecvfile(fd, name, mode)
 			firsttrip = 0;
 		} else {
 			ap->th_opcode = htons((u_short)ACK);
-			ap->th_block = htons((u_short)(block));
+			ap->th_block = htons(block);
 			size = 4;
 			block++;
 		}
@@ -277,7 +278,7 @@ send_ack:
 	} while (size == SEGSIZE);
 abort:                                          /* ok to ack, since user */
 	ap->th_opcode = htons((u_short)ACK);    /* has seen err msg */
-	ap->th_block = htons((u_short)block);
+	ap->th_block = htons(block);
 	(void) sendto(tftpf, tftpackbuf, 4, 0, (struct sockaddr *) &tftpsin,
 			sizeof (tftpsin));
 	tftpwrite_behind(file, convert);            /* flush last buffer */

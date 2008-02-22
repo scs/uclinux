@@ -9,8 +9,10 @@
 /*#define DEBUG_CGI*/
 
 static char s_options[64];
+static char s_flash_region[20];
 static const char *s_data_name = 0;
 static const char *s_options_name = 0;
+static const char *s_flash_region_name = 0;
 static size_t s_len = 0;
 
 static void data_writer(const char *name, const char *content_type, const char *buf, size_t len, off_t pos)
@@ -39,6 +41,15 @@ static void data_writer(const char *name, const char *content_type, const char *
 			syslog(LOG_INFO, "SECTION: options: %s = '%s'", name, s_options);
 #endif
 		}
+		else if (strcmp(name, s_flash_region_name) == 0) {
+			assert(len < sizeof(s_flash_region));
+			memcpy(s_flash_region, buf, len);
+			s_flash_region[len] = 0;
+#ifdef DEBUG_CGI
+			/*printf("Got flash_region: %s\n", s_flash_region);*/
+			syslog(LOG_INFO, "SECTION: flash_region: %s = '%s'", name, s_flash_region);
+#endif
+		}
 		else {
 #ifdef DEBUG_CGI
 			syslog(LOG_ERR, "Unknown cgi section: %s (options=%s)\n", name, s_options_name);
@@ -51,18 +62,20 @@ static void data_writer(const char *name, const char *content_type, const char *
  * Returns length of data if OK, or 0 if error.
  * 
  */
-size_t cgi_load(const char *data_name, const char *options_name, char options[64])
+size_t cgi_load(const char *data_name, const char *options_name, char options[64], const char *flash_region_name, char flash_region[20])
 {
 	int ret;
 
 	s_data_name = data_name;
 	s_options_name = options_name;
+	s_flash_region_name = flash_region_name;
 
 	ret = cgi_extract_sections(data_writer);
 	if (ret == 0) {
 		strcpy(options, s_options);
+		strcpy(flash_region, s_flash_region);
 #ifdef DEBUG_CGI
-		syslog(LOG_INFO, "Returning s_len=%d, options=%s", s_len, options);
+		syslog(LOG_INFO, "Returning s_len=%d, options=%s, flash_region=%s", s_len, options, flash_region);
 #endif
 		return(s_len);
 	}

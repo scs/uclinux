@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ftp_var.h	5.9 (Berkeley) 6/1/90
- *	$Id: ftp_var.h,v 1.1 2000/07/25 07:19:26 gerg Exp $
+ *	$Id: ftp_var.h,v 1.1 2000-07-25 07:19:26 gerg Exp $
  */
 
 /*

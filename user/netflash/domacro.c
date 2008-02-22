@@ -36,7 +36,7 @@
  * from: @(#)domacro.c	1.8 (Berkeley) 9/28/90
  */
 char domacro_rcsid[] = 
-  "$Id: domacro.c,v 1.1 2000/07/25 07:19:26 gerg Exp $";
+  "$Id: domacro.c,v 1.1 2000-07-25 07:19:26 gerg Exp $";
 
 #include <errno.h>
 #include <ctype.h>

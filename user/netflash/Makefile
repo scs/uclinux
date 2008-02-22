@@ -52,6 +52,9 @@ ifdef CONFIG_USER_NETFLASH_CRYPTO
 CFLAGS += -I$(ROOTDIR)/include/aes
 ADD_LIBZ += $(LIBAES) $(LIBCRYPTO)
 endif
+ifdef CONFIG_USER_NETFLASH_SHA256
+ADD_LIBZ += $(LIBCRYPTO)
+endif
 
 CFLAGS += -Dnetflashmain=main
 # CFLAGS += -DDEBUG_CGI
@@ -64,12 +67,15 @@ netflash: $(OBJS) build_netflash build_versioning
 
 
 build_netflash:
-	$(CC) -c -o netflash.o netflash.c $(CFLAGS)
+	$(CC) -c -o netflash.o netflash.c $(CFLAGS) $(CPPFLAGS)
 
 build_versioning:
-	$(CC) -c -o versioning.o versioning.c $(CFLAGS)
+	$(CC) -c -o versioning.o versioning.c $(CFLAGS) $(CPPFLAGS)
 
 hmacmd5: hmacmd5main.c hmacmd5.c md5.c
+	gcc -o $@ $^
+
+sha256sum: sha256sum.c sha256.c
 	gcc -o $@ $^
 
 versiontest: versioning.c
@@ -79,5 +85,5 @@ romfs:
 	$(ROMFSINST) /bin/netflash
 
 clean:
-	-rm -f netflash hmacmd5 *.elf *.gdb *.o
+	-rm -f netflash hmacmd5 sha256sum *.elf *.gdb *.o
 
