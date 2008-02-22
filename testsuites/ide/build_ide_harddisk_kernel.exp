@@ -158,6 +158,10 @@ while 1 {
           -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
              send -s "0xFFC3\r"
       }
+    
+         -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
+             send "Y\r"
+      }
 
 	-re "ISO 9660 CDROM file system support.*ISO9660_FS.*\\\[.*]" {
              send "Y\r"

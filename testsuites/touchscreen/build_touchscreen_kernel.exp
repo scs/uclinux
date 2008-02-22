@@ -38,6 +38,10 @@ while 1 {
 	   -re "Generic input layer.*needed for keyboard\, mouse.*\\\[.*]" {
              send "y\r"
       }
+
+           -re "Touchscreen interface.*INPUT_TSDEV.*\\\[.*]" {
+             send "y\r"
+      }
         
 	   -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
              send "y\r"             
@@ -49,6 +53,15 @@ while 1 {
 
 	   -re "AD7877 based touchscreens.*TOUCHSCREEN_AD7877.*\\\[.*]" {
              send "y\r"
+      }
+
+           -re "Blackfin BF54x keypad support.*KEYBOARD_BFIN.*\\\[.*]" {
+		    if { $board_type == "BF548-EZKIT" } {
+			       send "N\r"
+		    } else {
+			       send "\r"
+		    }
+
       }
 
            -re "Sound card support.*SOUND.*\\\[.*]" {
