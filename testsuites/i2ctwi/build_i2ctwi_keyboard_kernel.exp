@@ -113,6 +113,9 @@ while 1 {
              }
       }
 
+           -re "Sound card support.*SOUND.*\\\[.*]" {
+             send -s "N\r"
+      }
            
            -re "TWI KEYPAD test program.*CONFIG_USER_BLACKFIN_TWIKEYPADTEST.*\\\[.*]" {
              send "Y\r"
