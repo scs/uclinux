@@ -1,0 +1,67 @@
+# This file targets a *development* system.  Many things are not
+# needed for *production* systems.  Comment out what you do not need.
+
+hostname blackfin
+
+mount -t proc proc /proc -o noexec,nosuid,nodev
+mount -t sysfs sysfs /sys -o noexec,nosuid,nodev
+
+#
+# Setup dynamic /dev and let mdev manage it for us
+#
+if [ -e /bin/mdev ] && [ -e /proc/sys/kernel/hotplug ] ; then
+	mount -t tmpfs mdev /dev -o exec,nosuid,mode=0755,size=10M
+	echo /bin/mdev > /proc/sys/kernel/hotplug
+	/bin/mdev -s
+fi
+
+#
+# Setup dynamic pseudo-terminal file system ... needed by any system that
+# uses telnet or ssh (like dropbear) rather than the old static pty system.
+# You should give this a dedicated gid and set the mode to 0650.
+#
+mkdir -p /dev/pts
+mount -t devpts devpts /dev/pts -o noexec,nosuid
+
+#
+# Give the log/state/runtime files in /var temporary storage that'll be
+# lost when we reboot.
+#
+mount -t ramfs var /var
+mkdir /var/tmp /var/log /var/run /var/lock
+
+#
+# Needed if you plan on doing anything USB related
+#
+[ -d /proc/bus/usb ] && mount -t usbfs usbfs /proc/bus/usb
+
+#
+# Needed if you run an NFS server on the board
+#
+grep -qs nfsd /proc/filesystems && mount -t nfsd nfsd /proc/fs/nfsd
+
+#
+# Useful for debugging only
+#
+[ -d /sys/kernel/debug ] && mount -t debugfs debugfs /sys/kernel/debug
+
+#
+# Create your own interpreters for random file formats
+#
+[ -d /proc/sys/fs/binfmt_misc ] && mount -t binfmt_misc binfmt_misc /proc/sys/fs/binfmt_misc
+
+#
+# User interface to security modules (selinux, etc...)
+#
+[ -d /sys/kernel/security ] && mount -t securityfs securityfs /sys/kernel/security
+
+#
+# Do random network setup
+#
+#dhcpcd &
+#ifconfig eth0 10.100.4.251 up
+ifconfig lo 127.0.0.1
+inetd &
+
+#cat /etc/issue
+cat /etc/motd

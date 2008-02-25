@@ -22,7 +22,8 @@ INODES   = 1024
 ROMFS_DIRS-y = bin etc etc/dhcpc home lib mnt proc sys usr var root home tmp etc/config var/run var/lib/misc
 ETC_FILES-y = \
 	filesystems group hosts host.conf inetd.conf issue mime.types \
-	modprobe.conf motd passwd protocols services TZ tux-bf.gif
+	modprobe.conf motd passwd protocols services TZ tux-bf.gif \
+	rc mdev.conf
 
 ROMFS_DIRS-$(CONFIG_USER_BOA_SRC_BOA) += home/httpd home/httpd/cgi-bin etc/boa var/log/boa
 ETC_FILES-$(CONFIG_USER_BOA_SRC_BOA) += boa.conf index.html tux-wink.gif tuxsit_small.gif
@@ -37,8 +38,6 @@ romfs::
 	chmod 1777 $(ROMFSDIR)/tmp
 	$(ROMFSINST) -s bin /sbin
 
-	$(ROMFSINST) /etc/rc
-	$(ROMFSINST) /etc/mdev.conf
 	$(ROMFSINST) /etc/inittab
 
 	set -e ; \
@@ -57,6 +56,12 @@ ENTRY    = $$($(CROSS_COMPILE)nm $(IMAGE).$$FS | awk '$$NF == "__start" {print $
 ifeq ($(CONFIG_USER_DEV_DYNAMIC),y)
 DEVICE_TABLE = device_table-min.txt
 else
+ifeq ($(CONFIG_USER_BUSYBOX_MDEV),y)
+$(warning )
+$(warning You have busybox's mdev enabled.  The static device tree will be)
+$(warning overridden during boot by a tmpfs in /dev.)
+$(warning )
+endif
 DEVICE_TABLE = device_table.txt
 endif
 
