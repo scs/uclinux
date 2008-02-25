@@ -85,6 +85,8 @@ config USER_NCURSES_TESTS
 config USER_LIBIPOD_EXAMPLES
 	bool "libipod examples"
 	select LIB_LIBIPOD
+config USER_GETTIMEOFDAY_TEST
+	bool "gettimeofday system time test"
 
 endmenu
 
