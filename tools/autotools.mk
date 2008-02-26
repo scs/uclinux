@@ -25,6 +25,7 @@ all: build-$(VER)/Makefile
 	find ./usr/lib/ -name 'lib*.la' -print0 | xargs -0 -r sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':"; \
 	find ./usr/lib/pkgconfig/ -name '*.pc' -print0 | xargs -0 -r sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':"; \
 	find ./usr/bin/ -name '*-config' -print0 | xargs -0 -r sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':"; \
+	test -d usr/bin || exit 0; \
 	cd usr/bin; \
 	for config in *-config ; do \
 		ln -s "$(STAGEDIR)/usr/bin/$$config" "$(ROOTDIR)/tools/$(CROSS_COMPILE)$$config.$$$$"; \
