@@ -11,12 +11,17 @@
 #include <sys/types.h>
 #include <linux/fb.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/ioctl.h>
 
-#include <mathf.h>
-
+#include <math.h>
+#ifndef M_PIf
+# define M_PIf (float)M_PI
+#endif
 
 char * device = "/dev/fb0";
 
@@ -242,9 +247,7 @@ void draw_lissajous(void)
 	b = screen_height / M_PIf;
 	
 	
-	t=0;
-	
-	for (;;) {
+	for (t=0.0; t<50.0; t+=0.04) {
 		x = ap + a * cos(t);
 		y = bp + b * sin(n * t - d);
 		
@@ -256,8 +259,6 @@ void draw_lissajous(void)
 		draw_rectangle(x-1, y-1, x+1, y+1, 1);
 		draw_pixel(x, y, 0);
 
-		t += 0.04;
-		
 	}
 }
 
@@ -268,7 +269,7 @@ int main(int argc, char *argv[])
 	screen_fd = open(device, O_RDWR);
 	if (screen_fd == -1) {
 		perror("Unable to open frame buffer device /dev/fb0");
-		exit(0);
+		exit(-1);
 	}
 	
 	
@@ -279,10 +280,12 @@ int main(int argc, char *argv[])
 	screen_width = screeninfo.xres_virtual;
 	screen_height = screeninfo.yres_virtual;
 	
-	screen_ptr = mmap(0, screen_height * screen_width / 8, PROT_READ|PROT_WRITE, 0, screen_fd, 0);
+	screen_ptr = mmap(0, screen_height * screen_width / 8, PROT_READ|PROT_WRITE, MAP_SHARED, screen_fd, 0);
 	
 	if (screen_ptr==MAP_FAILED) {
 		perror("Unable to mmap frame buffer");
+		close (screen_fd);
+		exit (errno);
 	}
 	
 	draw_filled_rectangle(0,0, screen_width-1, screen_height-1, 1);

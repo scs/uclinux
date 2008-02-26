@@ -1,14 +1,12 @@
+CFLAGS += -Wall
+LDLIBS += -lm
 
-EXEC = lissa
-OBJS = lissa.o
-
-all: $(EXEC)
-
-$(EXEC): $(OBJS)
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) -lm $(LDLIBS) $(LIBGCC)
+all: lissa
 
 romfs:
-	$(ROMFSINST) /bin/$(EXEC)
+	$(ROMFSINST) /bin/lissa
 
 clean:
-	-rm -f $(EXEC) *.elf *.gdb *.o
+	-rm -f lissa *.elf *.gdb *.o
+
+.PHONY: all clean romfs
