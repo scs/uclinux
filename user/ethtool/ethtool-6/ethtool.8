@@ -1,0 +1,434 @@
+.\" -*- nroff -*-
+.\" Copyright 1999 by David S. Miller.  All Rights Reserved.
+.\" Portions Copyright 2001 Sun Microsystems
+.\" This file may be copied under the terms of the GNU Public License.
+.\" 
+.\"	.An - list of n alternative values as in "flav vanilla|strawberry"
+.\"
+.de A1
+\\fB\\$1\\fP|\\fB\\$2\\fP
+..
+.de A2
+\\fB\\$1\\fP\ \\fB\\$2\\fP|\\fB\\$3\\fP
+..
+.de A3
+\\fB\\$1\\fP\ \\fB\\$2\\fP|\\fB\\$3\\fP|\\fB\\$4\\fP
+..
+.de A4
+\\fB\\$1\\fP\ \\fB\\$2\\fP|\\fB\\$3\\fP|\\fB\\$4\\fP|\\fB\\$5\\fP
+..
+.\" 
+.\"	.Bn - same as above but framed by square brackets
+.\"
+.de B1
+[\\fB\\$1\\fP|\\fB\\$2\\fP]
+..
+.de B2
+[\\fB\\$1\\fP\ \\fB\\$2\\fP|\\fB\\$3\\fP]
+..
+.de B3
+[\\fB\\$1\\fP\ \\fB\\$2\\fP|\\fB\\$3\\fP|\\fB\\$4\\fP]
+..
+.de B4
+[\\fB\\$1\\fP\ \\fB\\$2\\fP|\\fB\\$3\\fP|\\fB\\$4\\fP|\\fB\\$5\\fP]
+..
+.\"
+.\"	\(*MA - mac address
+.\"
+.ds MA \fIxx\fP\fB:\fP\fIyy\fP\fB:\fP\fIzz\fP\fB:\fP\fIaa\fP\fB:\fP\fIbb\fP\fB:\fP\fIcc\fP
+.\"
+.\"	\(*WO - wol flags
+.\"
+.ds WO \fBp\fP|\fBu\fP|\fBm\fP|\fBb\fP|\fBa\fP|\fBg\fP|\fBs\fP|\fBd\fP...
+.TH ETHTOOL 8 "July 2007" "Ethtool version 6"
+.SH NAME
+ethtool \- Display or change ethernet card settings
+.SH SYNOPSIS
+.B ethtool
+.I ethX
+
+.B ethtool \-h|\-\-help
+
+.B ethtool \-a|\-\-show\-pause
+.I ethX
+
+.B ethtool \-A|\-\-pause
+.I ethX
+.B2 autoneg on off
+.B2 rx on off
+.B2 tx on off
+
+.B ethtool \-c|\-\-show\-coalesce
+.I ethX
+
+.B ethtool \-C|\-\-coalesce
+.I ethX
+.B2 adaptive-rx on off
+.B2 adaptive-tx on off
+.RB [ rx-usecs
+.IR N ]
+.RB [ rx-frames
+.IR N ]
+.RB [ rx-usecs-irq
+.IR N ]
+.RB [ rx-frames-irq
+.IR N ]
+.RB [ tx-usecs
+.IR N ]
+.RB [ tx-frames
+.IR N ]
+.RB [ tx-usecs-irq
+.IR N ]
+.RB [ tx-frames-irq
+.IR N ]
+.RB [ stats-block-usecs
+.IR N ]
+.RB [ pkt-rate-low
+.IR N ]
+.RB [ rx-usecs-low
+.IR N ]
+.RB [ rx-frames-low
+.IR N ]
+.RB [ tx-usecs-low
+.IR N ]
+.RB [ tx-frames-low
+.IR N ]
+.RB [ pkt-rate-high
+.IR N ]
+.RB [ rx-usecs-high
+.IR N ]
+.RB [ rx-frames-high
+.IR N ]
+.RB [ tx-usecs-high
+.IR N ]
+.RB [ tx-frames-high
+.IR N ]
+.RB [ sample-interval
+.IR N ]
+
+.B ethtool \-g|\-\-show\-ring
+.I ethX
+
+.B ethtool \-G|\-\-set\-ring
+.I ethX
+.RB [ rx
+.IR N ]
+.RB [ rx-mini
+.IR N ]
+.RB [ rx-jumbo
+.IR N ]
+.RB [ tx
+.IR N ]
+
+.B ethtool \-i|\-\-driver
+.I ethX
+
+.B ethtool \-d|\-\-register\-dump
+.I ethX
+.B2 raw on off
+.B2 hex on off
+.RB [ file 
+.IR name ]
+
+.B ethtool \-e|\-\-eeprom\-dump
+.I ethX
+.B2 raw on off
+.RB [ offset
+.IR N ]
+.RB [ length
+.IR N ]
+
+.B ethtool \-E|\-\-change\-eeprom
+.I ethX
+.RB [ magic
+.IR N ]
+.RB [ offset
+.IR N ]
+.RB [ value
+.IR N ]
+
+.B ethtool \-k|\-\-show\-offload
+.I ethX
+
+.B ethtool \-K\-\-offload
+.I ethX
+.B2 rx on off
+.B2 tx on off
+.B2 sg on off
+.B2 tso on off
+.B2 ufo on off
+.B2 gso on off
+
+.B ethtool \-p|\-\-blink
+.I ethX
+.IR [ N ]
+
+.B ethtool \-r|\-\-negotiate
+.I ethX
+
+.B ethtool \-S|\-\-statistics
+.I ethX
+
+.B ethtool \-t|\-\-test
+.I ethX
+.B1 offline online
+
+.B ethtool \-s
+.I ethX
+.B4 speed 10 100 1000 2500 10000
+.B2 duplex half full
+.B4 port tp aui bnc mii fibre
+.B2 autoneg on off
+.RB [ advertise
+.IR N ]
+.RB [ phyad
+.IR N ]
+.B2 xcvr internal external
+.RB [ wol \ \*(WO]
+.RB [ sopass \ \*(MA]
+.RB [ msglvl
+.IR N ]
+.SH DESCRIPTION
+.BI ethtool
+is used for querying settings of an ethernet device and changing them.
+
+.I ethX
+is the name of the ethernet device on which ethtool should operate.
+
+.SH OPTIONS
+.B ethtool
+with a single argument specifying the device name prints current
+settings of the specified device.
+.TP
+.B \-h \-\-help
+Shows a short help message.
+.TP
+.B \-a \-\-show\-pause
+Queries the specified ethernet device for pause parameter information.
+.TP
+.B \-A \-\-pause
+Changes the pause parameters of the specified ethernet device.
+.TP
+.A2 autoneg on off
+Specifies whether pause autonegotiation should be enabled.
+.TP
+.A2 rx on off
+Specifies whether RX pause should be enabled.
+.TP
+.A2 tx on off
+Specifies whether TX pause should be enabled.
+.TP
+.B \-c \-\-show\-coalesce
+Queries the specified ethernet device for coalescing information.
+.TP
+.B \-C \-\-coalesce
+Changes the coalescing settings of the specified ethernet device.
+.TP
+.B \-g \-\-show\-ring
+Queries the specified ethernet device for rx/tx ring parameter information.
+.TP
+.B \-G \-\-set\-ring
+Changes the rx/tx ring parameters of the specified ethernet device.
+.TP
+.BI rx \ N
+Changes the number of ring entries for the Rx ring.
+.TP
+.BI rx-mini \ N
+Changes the number of ring entries for the Rx Mini ring.
+.TP
+.BI rx-jumbo \ N
+Changes the number of ring entries for the Rx Jumbo ring.
+.TP
+.BI tx \ N
+Changes the number of ring entries for the Tx ring.
+.TP
+.B \-i \-\-driver
+Queries the specified ethernet device for associated driver information.
+.TP
+.B \-d \-\-register\-dump
+Retrieves and prints a register dump for the specified ethernet device.
+The register format for some devices is known and decoded others
+are printed in hex.
+When 
+.I raw 
+is enabled, then ethtool dumps the raw register data to stdout.
+If
+.I file
+is specified, then use contents of previous raw register dump, rather
+than reading from the device.
+
+.TP
+.B \-e \-\-eeprom\-dump
+Retrieves and prints an EEPROM dump for the specified ethernet device.
+When raw is enabled, then it dumps the raw EEPROM data to stdout. The
+length and offset parameters allow dumping certain portions of the EEPROM.
+Default is to dump the entire EEPROM.
+.TP
+.B \-E \-\-change\-eeprom
+Changes EEPROM byte for the specified ethernet device.  offset and value
+specify which byte and it's new value.  Because of the persistent nature
+of writing to the EEPROM, a device-specific magic key must be specified
+to prevent the accidental writing to the EEPROM.
+.TP
+.B \-k \-\-show\-offload
+Queries the specified ethernet device for offload information.
+.TP
+.B \-K \-\-offload
+Changes the offload parameters of the specified ethernet device.
+.TP
+.A2 rx on off
+Specifies whether RX checksumming should be enabled.
+.TP
+.A2 tx on off
+Specifies whether TX checksumming should be enabled.
+.TP
+.A2 sg on off
+Specifies whether scatter-gather should be enabled.
+.TP
+.A2 tso on off
+Specifies whether TCP segmentation offload should be enabled.
+.TP
+.A2 ufo on off
+Specifies whether UDP fragmentation offload should be enabled 
+.TP
+.A2 gso on off
+Specifies whether generic segmentation offload should be enabled 
+.TP
+.B \-p \-\-identify
+Initiates adapter-specific action intended to enable an operator to
+easily identify the adapter by sight.  Typically this involves
+blinking one or more LEDs on the specific ethernet port.
+.TP
+.B N
+Length of time to perform phys-id, in seconds.
+.TP
+.B \-r \-\-negotiate
+Restarts auto-negotiation on the specified ethernet device, if
+auto-negotiation is enabled.
+.TP
+.B \-S \-\-statistics
+Queries the specified ethernet device for NIC- and driver-specific
+statistics.
+.TP
+.B \-t \-\-test
+Executes adapter selftest on the specified ethernet device. Possible test modes are:
+.TP
+.A1 offline online
+defines test type: 
+.B offline
+(default) means to perform full set of tests possibly causing normal operation interruption during the tests,
+.B online
+means to perform limited set of tests do not interrupting normal adapter operation.
+.TP
+.B \-s \-\-change
+Allows changing some or all settings of the specified ethernet device.
+All following options only apply if
+.B \-s
+was specified.
+.TP
+.A4 speed 10 100 1000 2500 10000
+Set speed in Mb/s.
+.B ethtool
+with just the device name as an argument will show you the supported device speeds.
+.TP
+.A2 duplex half full
+Sets full or half duplex mode.
+.TP
+.A4 port tp aui bnc mii fibre
+Selects device port.
+.TP
+.A2 autoneg on off
+Specifies whether autonegotiation should be enabled. Autonegotiation 
+is enabled by deafult, but in some network devices may have trouble
+with it, so you can disable it if really necessary. 
+.TP
+.BI advertise \ N
+Sets the speed and duplex advertised by autonegotiation.  The argument is
+a hexidecimal value using one or a combination of the following values:
+.RS
+.PD 0
+.TP 3
+.BR "0x001" "    10 Half"
+.TP 3
+.BR "0x002" "    10 Full"
+.TP 3
+.BR "0x004" "    100 Half"
+.TP 3
+.BR "0x008" "    100 Full"
+.TP 3
+.BR "0x010" "    1000 Half" "(not supported by IEEE standards)"
+.TP 3
+.BR "0x020" "    1000 Full"
+.TP 3
+.BR "0x8000" "   2500 Full" "(not supported by IEEE standards)"
+.TP 3
+.BR "0x800" "    10000 Full"
+.TP 3
+.BR "0x03F" "    Auto"
+.PD
+.RE
+.TP
+.BI phyad \ N
+PHY address.
+.TP
+.A2 xcvr internal external
+Selects transceiver type. Currently only internal and external can be
+specified, in the future further types might be added.
+.TP
+.BR wol \ \*(WO
+Sets Wake-on-LAN options.  Not all devices support this.  The argument to 
+this option is a string of characters specifying which options to enable.
+.RS
+.PD 0
+.TP 3
+.B p
+Wake on phy activity
+.TP 3
+.B u
+Wake on unicast messages
+.TP 3
+.B m
+Wake on multicast messages
+.TP 3
+.B b
+Wake on broadcast messages
+.TP 3
+.B a
+Wake on ARP
+.TP 3
+.B g
+Wake on MagicPacket(tm)
+.TP 3
+.B s
+Enable SecureOn(tm) password for MagicPacket(tm)
+.TP 3
+.B d
+Disable (wake on nothing).  This option clears all previous options.
+.PD
+.RE
+.TP
+.B sopass \*(MA\c
+Sets the SecureOn(tm) password.  The argument to this option must be 6
+bytes in ethernet MAC hex format (\*(MA).
+.TP
+.BI msglvl \ N
+Sets the driver message level. Meanings differ per driver.
+.SH BUGS
+Not supported (in part or whole) on all ethernet drivers.
+.SH AUTHOR
+.B ethtool
+was written by David Miller.
+
+Modifications by 
+Jeff Garzik, 
+Tim Hockin,
+Jakub Jelinek,
+Andre Majorel,
+Eli Kupermann,
+Scott Feldman,
+Andi Kleen.
+.SH AVAILABILITY
+.B ethtool
+is available over the Web on the SourceForge site at
+http://sourceforge.net/projects/gkernel/
+
