@@ -1,4 +1,4 @@
-VER = sqlite-3.5.5
+VER = sqlite-3.5.6
 
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
