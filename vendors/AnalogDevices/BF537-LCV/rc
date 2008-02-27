@@ -20,7 +20,7 @@ mkdir /app
 mount -t jffs2 /dev/mtdblock3 /app
 
 echo "Loading Memory DMA kernel module..."
-insmod /lib/modules/2.6.22.12-ADI-2007R2-pre-g83ab4962-dirty-svn/bfdma.ko  
+insmod /lib/modules/`uname -r`/bfdma.ko
 
 # Configure network interface
 #dhcpcd &
