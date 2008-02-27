@@ -1,3 +1,5 @@
+VER = e2fsprogs-1.39
+
 -include ../user.mak
 
 #CONFOPTS=
@@ -8,7 +10,7 @@ all: build/build
 build/build: makefile
 	rm -rf build
 	mkdir build
-	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS) --with-ldopts="$(LDFLAGS)")
+	(cd build; sh ../$(VER)/configure $(CONFIGURE_OPTS) $(CONFOPTS) --with-ldopts="$(LDFLAGS)")
 	touch build/build
 
 clean:
