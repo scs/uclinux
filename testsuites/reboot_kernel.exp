@@ -41,7 +41,7 @@ if { $where_are_we == "uboot" } {
 } else {
     if { $where_are_we == "kernel" } {
 	set timeout 60	
-	send "reboot\r"
+	send -s "reboot\r"
 	send_user "sending reboot\n"	
     } else {
 	# If we don't know where we are, hit control-C and enter
@@ -127,7 +127,12 @@ while 1 {
             puts "successful boot attempt"          
             break
          }
-         
+
+         -re "turn off boot console early_BFuart0" {
+            puts "Closed console."
+            break
+         }
+        
 	 -re "Welcome to.*#" {
             puts "successful boot attempt"          
             break

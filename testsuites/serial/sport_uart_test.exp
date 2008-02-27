@@ -15,6 +15,7 @@ step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
+set bootargs             $bootargs_param9
 source ../reboot_kernel.exp
 
 set file aaa
@@ -30,27 +31,11 @@ set ttyBFdev             [lindex $argv 0]
 send_log "*********************************\r"
 send_log "Start $TITLE\r"
 send_log "*********************************\r"
+
 set case_num 0
+
 incr case_num
 
-set timeout 8
-send "ifconfig eth0 $targetip\r"
-while 1 {
-   sleep 3
-   expect {
-      ">" {
-         puts "ifconfig set success.\n"
-         break
-      }
-
-      timeout {
-            puts "Fail ifconfig. "
-            break
-         }
-     }
-}
-    
-    send -s "\r"
     send -s "\x81"
     send -s "c"
     while 1 {
@@ -79,19 +64,19 @@ while 1 {
                 break
             }
         }
-    }
-incr case_num
+} 
+set timeout 3
 send_user "\n######Please check that serial cable has been switched from /dev/ttyBF0 to the testing uart port $ttyBFdev ! ####\n"
 sleep 5
-set timeout 3
 
 spawn  /bin/sh
 set telnet_id $spawn_id
+expect  $sh_prompt
 
 send -s "telnet $targetip\r"
 while 1 {
         expect {
-                ">" { break  }
+                -re  "$kernel_prompt" { break  }
                 timeout {
                       send_user "Failed inital telnet\n"
                       exit }
@@ -100,7 +85,7 @@ while 1 {
 send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate \r"
 while 1 {
         expect {
-                ">" { break  }
+                -re  "$kernel_prompt" { break  }
                 timeout {
                      send_user "Failed to set uart speed.\n"
                      exit }
@@ -109,7 +94,7 @@ while 1 {
 send -s "cat $ttyBFdev  \r"
 while 1 {
         expect {
-                ">" {
+                -re  "$kernel_prompt" {
                       break }
                 timeout {
                       break }
@@ -119,8 +104,8 @@ while 1 {
 
 spawn /bin/sh
 set host_sh_id $spawn_id
-
 expect  $sh_prompt
+
 while 1 {
 send -s " echo $STRDATA > $ttydev  \r"
 expect {
@@ -138,10 +123,10 @@ send "\r"
 while 1 {
 expect {
         "$STRDATA" {
-          send_log "Echoed char get."
           case_pass $case_num
           send "\3"
           expect -re "$kernel_prompt"
+          send_log "Echoed char get on host ." 
           break }
           timeout {
           send "\3"
@@ -151,15 +136,27 @@ expect {
          }
 }
 }
-
 incr case_num
 
+set spawn_id $telnet_id
+send -s "stty -F $ttyBFdev ispeed $baud_rate ospeed $baud_rate \r"
+while 1 {
+        expect {
+                -re  "$kernel_prompt" { break  }
+                timeout {
+                     send_user "Failed to set uart speed.\n"
+                     exit }
+        }
+}
 set spawn_id $host_sh_id
+sleep 3
+send "ls\r"
+expect "$sh_prompt"
 while 1 {
 send -s "cat $ttydev > $file \r"
 expect {
         "$sh_prompt" {
-          puts "Fail to cat.\n"
+          puts "Fail to cat on host.\n"
           break }
          timeout {
           puts "wait for receiving data...\n"
@@ -167,6 +164,7 @@ expect {
          }
 }
 }
+
 set spawn_id $telnet_id
 set timeout 10
 while 1 {
@@ -180,6 +178,7 @@ send -s "cat /etc/boa.conf > $ttyBFdev \r"
 
 }
 set spawn_id $host_sh_id
+sleep 3
 while 1 {
 expect {
         "$sh_prompt" {
@@ -202,7 +201,6 @@ expect {
          }
 }
 }
-
 send -s "cat $file \r"
 while 1 {
 expect {
@@ -254,6 +252,12 @@ expect {
                         case_pass $case_num
                         break
                         }   
+          "differ"
+                      {
+                         puts "Two files diffs.\n"
+                         case_fail $case_num
+                        }
+
           timeout 
                       {
                          puts "Fail to diff.\n"
@@ -261,10 +265,8 @@ expect {
                         }   
          }
 }
-
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 log_file
-
