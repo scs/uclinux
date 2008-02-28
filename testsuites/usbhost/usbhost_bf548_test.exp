@@ -1,0 +1,342 @@
+#!/usr/bin/expect
+
+#
+# This test script is for usb host test on BF548-EZKIT, device is a usb memory card
+#
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp 
+
+step "Start testing"
+
+set case_num 0
+set timeout 20
+expect "Attached SCSI removable disk"
+send "\r"
+expect -re $kernel_prompt
+
+incr case_num
+set timeout 5
+send "dmesg|grep -i sd\r"
+while 1 {
+    expect {
+        -re "sdb: sdb1 sdb2.*Attached SCSI removable disk.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 60
+send "mke2fs /dev/sdb1\r"
+while 1 {
+    expect {
+        -re "done.*done.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "mount -t ext2 -o sync /dev/sdb1 /mnt\r"
+while 1 {
+    expect {
+        -re "(mount:|\[fF]ail|\[eE]rror).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "mount\r"
+while 1 {
+    expect {
+        -re "/dev/sdb1 on /mnt type ext2.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "echo teststring > /mnt/usbhost_testfile; cat /mnt/usbhost_testfile\r"
+while 1 {
+    expect {
+        -re "teststring\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 400
+send "time dd if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
+while 1 {
+    expect {
+        -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Generate a 10M file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "rm /mnt/usbhost_testfile; rm /mnt/*.bin\r"
+while 1 {
+    expect {
+        -re "(rm:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send "ls /mnt/\r"
+set timeout 2
+while 1 {
+    expect {
+        -re "usbhost_testfile|10m\.bin" {
+            case_fail $case_num
+            break
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "umount /mnt\r"
+while 1 {
+    expect {
+        -re "umount:.*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            break
+        }
+        timeout {
+            send -s "\3"
+            break
+        }
+    }
+}
+
+send "mount\r"
+while 1 {
+    expect {
+        -re "/dev/sdb1 on /mnt type ext2.*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 60
+send "mkdosfs /dev/sdb2\r"
+while 1 {
+    expect {
+        -re "mkdosfs 2.10 \\\(22 Sep 2003\\\)\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "mount -o sync /dev/sdb2 /mnt\r"
+while 1 {
+    expect {
+        -re "(mount:|\[fF]ail|\[eE]rror).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "mount\r"
+while 1 {
+    expect {
+        -re "/dev/sdb2 on /mnt type vfat.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "echo teststring > /mnt/usbhost_testfile; cat /mnt/usbhost_testfile\r"
+while 1 {
+    expect {
+        -re "teststring\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 400
+send "time dd if=/dev/zero of=/mnt/10m.bin bs=1M count=10\r"
+while 1 {
+    expect {
+        -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Generate a 10M file timeout, test fail\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "rm /mnt/usbhost_testfile; rm /mnt/*.bin\r"
+while 1 {
+    expect {
+        -re "(rm:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send "ls /mnt/\r"
+set timeout 2
+while 1 {
+    expect {
+        -re "usbhost_testfile|10m\.bin" {
+            case_fail $case_num
+            break
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "umount /mnt\r"
+while 1 {
+    expect {
+        -re "umount:.*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            break
+        }
+        timeout {
+            send -s "\3"
+            break
+        }
+    }
+}
+
+send "mount\r"
+while 1 {
+    expect {
+        -re "/dev/sdb2 on /mnt type vfat.*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file

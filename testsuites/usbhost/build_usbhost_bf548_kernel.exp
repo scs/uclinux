@@ -1,6 +1,8 @@
 #!/usr/bin/expect --
 
-# Build Kernel for USB host test
+#
+# Build Kernel for USB host test on BF548-EZKIT
+#
 
 source ../kernel_config.exp
 source  ../board_info.exp
@@ -10,6 +12,7 @@ send_user "Starting $argv0\n"
 cd $uclinux_path/testsuites
 
 step "Make config."
+
 source  make_default_config.exp
 
 # Following make specific configuration for this case.
@@ -32,43 +35,44 @@ while 1 {
             send "y\r"
         }
 
-        -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
-            send "0x88C0\r"
+
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            send "n\r"
         }
 
-        -re "SCSI device support \\\(SCSI\\\).*\\\[.*]" {
+#        -re "SCSI device support \\\(SCSI\\\).*\\\[./././.]" {
+#            send "y\r"
+#        }
+
+        -re "SCSI disk support.*BLK_DEV_SD.*\\\[./././.]" {
             send "y\r"
         }
 
-        -re "SCSI disk support.*BLK_DEV_SD.*\\\[.*]" {
+#        -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[././.]" {
+#            send "y\r"
+#        }
+
+        -re "Support for Host-side USB.*USB.*\\\[./././.]" {
             send "y\r"
         }
 
-        -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[.*]" {
+        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[./././.]" {
             send "y\r"
         }
 
-        -re "Support for Host-side USB.*USB.*\\\[.*]" {
+        -re "USB Mass Storage support.*USB_STORAGE.*\\\[./././.]" {
             send "y\r"
         }
 
-        -re "ISP1760 HCD support.*USB_ISP1760_HCD.*\\\[.*]" {
-            send "m\r"
-        }
-
-        -re "USB Mass Storage support.*USB_STORAGE.*\\\[.*]" {
+        -re "MSDOS fs support.*MSDOS_FS.*\\\[./././.]" {
             send "y\r"
         }
 
-        -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
+        -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[./././.]" {
             send "y\r"
         }
 
-        -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[.*]" {
-            send "y\r"
-        }
-
-        -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[.*]" {
+        -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[*]" {
             send "437\r"
         }
 
@@ -80,11 +84,11 @@ while 1 {
             send "iso8859-1\r"
         }
 
-        -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[.*]" {
+        -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[./././.]" {
             send "y\r"
         }
 
-        -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
+        -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[./././.]" {
             send "y\r"
         }
 

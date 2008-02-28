@@ -22,105 +22,105 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-      -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
-         send "0xAAC2\r"
-      }
+        -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
+            send "0xAAC2\r"
+        }
 
-      -re "SCSI device support \\\(SCSI\\\).*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "SCSI device support \\\(SCSI\\\).*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "SCSI disk support.*BLK_DEV_SD.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "SCSI disk support.*BLK_DEV_SD.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[././.]" {
-         send "y\r"
-      }
+        -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[././.]" {
+            send "y\r"
+        }
 
-      -re "Support for Host-side USB.*USB.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "Support for Host-side USB.*USB.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "ISP1362 HCD support.*USB_ISP1362_HCD.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "ISP1362 HCD support.*USB_ISP1362_HCD.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "GPIO for Interrupt.*USB_ISP1362_BFIN_GPIO.*\\\[.]" {
-         send "3\r"
-      }
+        -re "GPIO for Interrupt.*USB_ISP1362_BFIN_GPIO.*\\\[.]" {
+            send "3\r"
+        }
 
-      -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "PF pin for Interrupt.*USB_SL811_BFIN_GPIO.*\\\[.]" {
-         send "4\r"
-      }
+        -re "PF pin for Interrupt.*USB_SL811_BFIN_GPIO.*\\\[.]" {
+            send "4\r"
+        }
 
-      -re "USB Mass Storage support.*USB_STORAGE.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "USB Mass Storage support.*USB_STORAGE.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "MSDOS fs support.*MSDOS_FS.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "MSDOS fs support.*MSDOS_FS.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[*]" {
-         send "437\r"
-      }
+        -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[*]" {
+            send "437\r"
+        }
 
-      -re "Default iocharset for FAT \\\(FAT_DEFAULT_IOCHARSET\\\).*\\\[.*]" {
-         send "iso8859-1\r"
-      }
+        -re "Default iocharset for FAT \\\(FAT_DEFAULT_IOCHARSET\\\).*\\\[.*]" {
+            send "iso8859-1\r"
+        }
 
-      -re "Default NLS Option \\\(NLS_DEFAULT\\\).*\\\[.*]" {
-         send "iso8859-1\r"
-      }
+        -re "Default NLS Option \\\(NLS_DEFAULT\\\).*\\\[.*]" {
+            send "iso8859-1\r"
+        }
 
-      -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[./././.]" {
-         send "y\r"
-      }
+        -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[./././.]" {
+            send "y\r"
+        }
 
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
+        eof {
+            puts "End of configuration"
+            break
+        }
 
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
