@@ -38,7 +38,7 @@ clean:
 romfs:
 	set -e ; \
 	cd $(STAGEDIR)/usr/lib ; \
-	for l in libavcodec.so.?? libavformat.so.?? libavutil.so.?? libpostproc.so.?? vhook/* ; do \
+	for l in libavcodec.so.?? libavdevice.so.?? libavformat.so.?? libavutil.so.?? libpostproc.so.?? vhook/* ; do \
 		$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $$l /usr/lib/$$l ; \
 	done
 	$(ROMFSINST) -d -e CONFIG_USER_FFMPEG_APPS $(STAGEDIR)/usr/bin/ffmpeg /usr/bin/ffmpeg
