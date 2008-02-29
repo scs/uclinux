@@ -1,0 +1,397 @@
+#!/usr/bin/expect
+
+#
+# This usb device test script is for Gadget Serial dirver on BF548-EZKIT talking with Generic USB Serial Driver on Linux host PC
+#
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+set case_num 0
+
+set timeout 5
+sleep 3
+send "ifconfig eth0 $targetip\r"
+sleep 3
+send "\r"
+expect -re $kernel_prompt
+
+incr case_num
+set timeout 5
+send "ifconfig\r"
+while 1 {
+    expect {
+        -re "$targetip.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 3
+send "mknod /dev/ttygserial c 127 0\r"
+while 1 {
+    expect {
+        -re "mknod:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+send "ls -l /dev/ttygserial\r"
+while 1 {
+    expect {
+        -re "ls:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "127.*/dev/ttygserial.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "modprobe g_serial use_acm=0\r"
+while 1 {
+    expect {
+        -re "modprobe:|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "Gadget Serial.*loaded.*high speed BULK config" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "dmesg|tail\r"
+while 1 {
+    expect {
+        -re "Gadget Serial.*loaded.*high speed BULK config.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+spawn /bin/bash
+set host_spawn_id $spawn_id
+
+incr case_num
+set timeout 15
+send "su -\r"
+while 1 {
+    expect {
+        -re "\[pP]assword" {
+            send "$password\r"
+            continue
+        }
+        -re "\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 15
+send "sudo mount -t usbfs none /proc/bus/usb/\r"
+while 1 {
+    expect {
+        -re "mount: none already mounted" {
+            case_pass $case_num
+            break
+        }
+        -re "\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 4
+send "mount\r"
+while 1 {
+    expect {
+        -re "none on /proc/bus/usb type usbfs.*#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "cat /proc/bus/usb/devices\r"
+while 1 {
+    expect {
+        -re "Product=Gadget Serial.*~#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "sudo modprobe usbserial vendor=0x0525 product=0xA4A6\r"
+while 1 {
+    expect {
+        -re "modprobe:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "lsmod |grep usbserial\r"
+while 1 {
+    expect {
+        -re "lsmod:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "usbserial.*usbcore.*usbserial.*#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+###TODO
+
+
+incr case_num
+set timeout 4
+send "kermit $uclinux_path/testsuites/usbdev/configs/kermrc.ttyUSB0\r"
+while 1 {
+    expect {
+        -re "ttyUSB0 Kermit>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 4
+send "connect\r"
+while 1 {
+    expect {
+        -re "Connecting to /dev/ttyUSB0.*---" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "\n"
+set spawn_id $kermit_spawn_id
+set timeout 5
+while 1 {
+    expect {
+        -re "gs_recv_packet: port=0, port is closed" {
+            send "\r"
+            expect -re $kernel_prompt
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "echo \"test string for gadget serial driver\" > /dev/ttygserial\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+set spawn_id $host_spawn_id
+while 1 {
+    expect {
+        -re "test string for gadget serial driver\r\n" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "\0q"
+while 1 {
+    expect {
+        -re "Closing /dev/ttyUSB0\.\.\.OK.*#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "umount /proc/bus/usb\r"
+while 1 {
+    expect {
+        -re "umount:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "sudo rmmod usbserial\r"
+while 1 {
+    expect {
+        -re "rmmod:|\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "usbserial.*#" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
+
+incr case_num
+set timeout 5
+send "rmmod g_serial\r"
+while 1 {
+    expect {
+        -re "Gadget Serial disconnected.*unbound.*unloaded.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file

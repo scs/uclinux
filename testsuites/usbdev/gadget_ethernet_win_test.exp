@@ -1,0 +1,146 @@
+#!/usr/bin/expect
+
+#
+# This usb device test script is for Ethernet over USB (Gadget) on BF548-EZKIT with Windows host
+#
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+set case_num 0
+set usb0_addr "192.168.1.66"
+set usb_host  "192.168.1.56"
+
+sleep 3
+
+incr case_num
+set timeout 5
+send "modprobe g_ether host_addr=00:dc:c8:f7:75:05 dev_addr=00:dd:dc:eb:6d:f1\r"
+while 1 {
+    expect {
+        -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re "Ethernet Gadget.*RNDIS ready.*(high|full) speed.*using RNDIS" {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "(lsmod:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re "g_ether.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send "ifconfig usb0 $usb0_addr up\r"
+sleep 3
+send "\r"
+expect -re $kernel_prompt
+
+incr case_num
+set timeout 10
+send "ifconfig usb0\r"
+while 1 {
+    expect {
+        -re "$usb0_addr.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 120
+send "ping -c 100 $usb_host\r"
+while 1 {
+    expect {
+        -re "100 packets transmitted, (100|9..) packets received.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send "\3"
+            expect $kernel_prompt
+            case_fail $case_num
+        }
+    }
+}
+
+puts "In Windows, set USB ethernet controller's IP address to $usb_host, connect to Windows host"
+puts "Test from Window's host side, time: 20 mins"
+sleep 1200
+puts "Time is up!"
+sleep 5
+
+incr case_num
+set timeout 5
+send "rmmod g_ether\r"
+while 1 {
+    expect {
+        -re "(rmmod:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "g_ether" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file

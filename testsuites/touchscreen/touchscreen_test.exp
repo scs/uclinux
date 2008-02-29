@@ -12,60 +12,56 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp
 
 step "Starting test."
-set timeout 8
-
+sleep 4
 set case_num 0
 
 incr case_num
-
-send -s "cd /bin\r" 
-while 1 {
-   expect {
-      "root:/bin>" { 
-            break
-      }
-
-      timeout {                           
-         break
-         }
-     }
-}
-
-expect "root:/bin>"
+set timeout 10 
 send -s "event_test /dev/input/event0\r" 
 while 1 {
-   expect {
-     -re "Input device name.*Testing" { 
-         puts "\nPlease touch the keypad...\n"	 
-	 expect {
-		-re "Event: time .* type .* code .* value " { 
-                case_pass $case_num
-			}
-		
-		timeout {                           
-                case_fail $case_num
-			exit
-			}
-		}
-	 sleep 5
-	 send "\003"
-         break
-      }
-
-      timeout {                           
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        -re "Input device name.*AD7877 Touchscreen.*Testing.*exit" { 
+            case_pass $case_num
+            break
+        }
+        timeout {                           
+            case_fail $case_num
+        }
+    }
 }
 
-expect "root:/bin>"
-set timeout 50
+puts "\nPlease touch the keypad...\n"	 
+incr case_num
+while 1 {
+    expect {
+        -re "Event: time.*type.*code.*value" { 
+            sleep 1
+            case_pass $case_num
+            break
+        }
+        timeout {                           
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 5
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+         -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
 send_log "\n"
 send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 log_file
- 
-

@@ -1,0 +1,387 @@
+#!/usr/bin/expect
+
+#
+# This usb device test script is for File-backed Storage Gadget on BF548-EZKIT with Linux host, using RAM based file as backing storage.
+#
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+step "Start testing."
+set case_num 0
+set dev "/dev/sdc"
+set mnt_point "/mnt/usb"
+
+set timeout 5
+sleep 3
+send "ifconfig eth0 $targetip\r"
+sleep 3
+send "\r"
+expect -re $kernel_prompt
+
+incr case_num
+set timeout 5
+send "ifconfig\r"
+while 1 {
+    expect {
+        -re "$targetip.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "echo 40 > /proc/sys/vm/pagecache_ratio; cat /proc/sys/vm/pagecache_ratio\r"
+while 1 {
+    expect {
+        -re "40\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "dd if=/dev/zero of=fsg.block bs=1M count=16\r"
+while 1 {
+    expect {
+        -re "(\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re "records in.*records out.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "modprobe g_file_storage file=fsg.block stall=0\r"
+while 1 {
+    expect {
+        -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re "File-backed Storage Gadget.*fsg\.block." {
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "(lsmod:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re "g_file_storage.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+spawn /bin/bash
+set host_spawn_id $spawn_id
+
+incr case_num
+set timeout 15
+send "su -\r"
+while 1 {
+    expect {
+        -re "\[pP]assword" {
+            send "$password\r"
+            continue
+        }
+        -re "\[eE]rror|\[fF]ail" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "mkdir -p $mnt_point\r"
+while 1 {
+    expect {
+        -re "(mkdir:|\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 10
+incr case_num
+set timeout 5
+send "ls $dev\r"
+while 1 {
+    expect {
+        -re "(ls:|\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 15
+send "fdisk $dev\r"
+while 1 {
+    expect {
+        -re "(fdisk:|\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "Command.*:" {
+            send "n\r"
+            expect -re "primary partition \\\(1-4\\\)"
+            send "p\r"
+            expect -re "Partition number \\\(1-4\\\):"
+            send "1\r"
+            expect -re "First cylinder.*:"
+            send "\r"
+            expect -re "Using default.*Last cylinder.*:"
+            send "\r"
+            expect -re "Using default.*Command.*:"
+            send "w\r"
+            while 1 {
+                expect {
+                    -re "kernel still uses the old table|\[eE]rror|\[fF]ail" {
+                        case_fail $case_num
+                    }
+                    -re "Syncing disks.*#" {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+append dev "1"
+
+incr case_num
+set timeout 5
+send "mke2fs $dev\r"
+while 1 {
+    expect {
+        -re "Writing inode tables.*done.*done.*#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "mount -t ext2 -o sync $dev $mnt_point\r"
+while 1 {
+    expect {
+        -re "(mount:|\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 60
+send "time dd if=/dev/zero of=$mnt_point/10m.bin bs=1M count=10\r"
+while 1 {
+    expect {
+        -re "(\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "ls -l $mnt_point\r"
+while 1 {
+    expect {
+        -re "(\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "10m\.bin.*lost\\+found.*#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "rm $mnt_point/10m.bin\r"
+while 1 {
+    expect {
+        -re "(\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "ls -l $mnt_point/\r"
+while 1 {
+    expect {
+        -re "(10m\.bin|\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "umount $mnt_point\r"
+while 1 {
+    expect {
+        -re "(umount:|\[eE]rror|\[fF]ail).*#" {
+            case_fail $case_num
+        }
+        -re "#" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
+
+incr case_num
+set timeout 5
+send "rmmod g_file_storage\r"
+while 1 {
+    expect {
+        -re "(rmmod:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "g_file_storage" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file

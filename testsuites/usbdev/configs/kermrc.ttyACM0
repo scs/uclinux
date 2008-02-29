@@ -1,0 +1,13 @@
+set line /dev/ttyACM0
+define sz !sz \%0 > /dev/ttyACM0 < /dev/ttyACM0
+set speed 57600
+set carrier-watch off
+set prefixing all
+set parity none
+set stop-bits 1
+set modem none
+set file type bin
+set file name lit
+set flow-control none
+set escape 0
+set prompt "ttyACM0 Kermit> "

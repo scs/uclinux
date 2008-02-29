@@ -1,0 +1,10 @@
+#Makefile for usb test
+uclinux_path = /home/test/work/cruise/checkouts/uclinux-dist
+
+all: usb
+
+usb :
+	bfin-linux-uclibc-gcc -Wall -g -o usb usb.c usbstring.c -lpthread -I $(uclinux_path)/linux-2.6.x/include/
+
+clean :
+	rm -rf usb

@@ -1,0 +1,199 @@
+#!/usr/bin/expect --
+
+#
+# Build Kernel for BF548-EZKIT USB device test
+#
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+
+step "Make config."
+source  make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
+
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            send "n\r"
+        }
+
+        -re "Support for Host-side USB.*USB.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "USB device filesystem.*USB_DEVICEFS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "USB device class-devices.*USB_DEVICE_CLASS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
+            send "n\r"
+        }
+
+        -re "Logging Level.*USB_MUSB_LOGLEVEL.*\\\[.*]" {
+            send "0\r"
+        }
+
+        -re "USB testing driver.*USB_TEST.*\\\[.*]" {
+            send "m\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
+}
+
+
+cd $uclinux_path/linux-2.6.x
+sleep 3
+set timeout 2
+spawn ex .config
+expect {
+    "Entering Ex mode*Normal mode." { }
+
+    "already exists!" {
+        send "e\r"
+        sleep 1
+    }
+}
+sleep 1
+send "/CONFIG_SND_PCM=y\r"
+expect "CONFIG_SND_PCM=y"
+send "a\r"
+sleep .5
+send "CONFIG_SND_RAWMIDI=m\r"
+send ".\r"
+expect ":"
+sleep .5
+
+send "/CONFIG_USB_MUSB_HOST=y\r"
+expect "CONFIG_USB_MUSB_HOST=y"
+send "d\r"
+sleep .5
+expect ":"
+send "i\r"
+sleep .5
+send "# CONFIG_USB_MUSB_HOST is not set\r"
+send ".\r"
+expect ":"
+sleep .5
+
+send "/CONFIG_USB_MUSB_PERIPHERAL is not set\r"
+expect "CONFIG_USB_MUSB_PERIPHERAL is not set"
+send "d\r"
+sleep .5
+expect ":"
+send "a\r"
+sleep .5
+send "CONFIG_USB_MUSB_PERIPHERAL=y\r"
+send ".\r"
+expect ":"
+sleep .5
+
+send "/CONFIG_USB_MUSB_HDRC_HCD=y\r"
+expect "CONFIG_USB_MUSB_HDRC_HCD=y"
+send "d\r"
+sleep .5
+expect ":"
+send "a\r"
+sleep .5
+send "CONFIG_USB_GADGET_MUSB_HDRC=y\r"
+send ".\r"
+expect ":"
+sleep .5
+
+send "/CONFIG_USB_GADGET is not set\r"
+expect "CONFIG_USB_GADGET is not set"
+send "d\r"
+sleep .5
+expect ":"
+send "a\r"
+sleep .5
+
+send "# CONFIG_USB_GADGET_DEBUG_FILES is not set\r"
+send "# CONFIG_USB_GADGET_FSL_USB2 is not set\r"
+send "# CONFIG_USB_GADGET_NET2272 is not set\r"
+send "# CONFIG_USB_GADGET_NET2280 is not set\r"
+send "# CONFIG_USB_GADGET_PXA2XX is not set\r"
+send "# CONFIG_USB_GADGET_GOKU is not set\r"
+send "# CONFIG_USB_GADGET_LH7A40X is not set\r"
+send "# CONFIG_USB_GADGET_OMAP is not set\r"
+send "# CONFIG_USB_GADGET_AT91 is not set\r"
+send "# CONFIG_USB_GADGET_DUMMY_HCD is not set\r"
+
+send "CONFIG_USB_GADGET=y\r"
+send "CONFIG_USB_GADGET_SELECTED=y\r"
+send "CONFIG_USB_GADGET_DUALSPEED=y\r"
+send "CONFIG_USB_ZERO=m\r"
+send "CONFIG_USB_ETH=m\r"
+send "CONFIG_USB_ETH_RNDIS=y\r"
+send "CONFIG_USB_GADGETFS=m\r"
+send "CONFIG_USB_FILE_STORAGE=m\r"
+send "CONFIG_USB_FILE_STORAGE_TEST=y\r"
+send "CONFIG_USB_G_SERIAL=m\r"
+send "CONFIG_USB_MIDI_GADGET=m\r"
+send ".\r"
+expect ":"
+sleep .5
+
+send "wq\r"
+expect eof
+
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file

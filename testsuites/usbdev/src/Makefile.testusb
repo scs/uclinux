@@ -1,0 +1,7 @@
+all: testusb
+
+testusb :
+	gcc -Wall -g -lpthread -o testusb testusb.c
+
+clean :
+	rm -rf testusb
