@@ -1,0 +1,11 @@
+--- libidn-1.5/configure
++++ libidn-1.5/configure
+@@ -8915,7 +8915,7 @@
+ 
+         if test "x$supports_anon_versioning" = xyes; then
+           archive_expsym_cmds='echo "{ global:" > $output_objdir/$libname.ver~
+-	    cat $export_symbols | sed -e "s/\(.*\)/\1;/" >> $output_objdir/$libname.ver~
++	    cat $export_symbols | sed -e "s/\(.*\)/\1;/" -e s:^:_: >> $output_objdir/$libname.ver~
+ 	    echo "local: *; };" >> $output_objdir/$libname.ver~
+ 	    $CC '"$tmp_sharedflag""$tmp_addflag"' $libobjs $deplibs $compiler_flags ${wl}-soname $wl$soname ${wl}-version-script ${wl}$output_objdir/$libname.ver -o $lib'
+         fi

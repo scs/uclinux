@@ -1,4 +1,4 @@
-VER = libidn-1.0
+VER = libidn-1.5
 
 include $(ROOTDIR)/tools/autotools.mk
 

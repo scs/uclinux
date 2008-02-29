@@ -1,0 +1,289 @@
+# Mesajele în limba românã pentru libidn.
+# Copyright (C) 2003 Free Software Foundation, Inc.
+# Acest fiºier este distribuit sub aceeaºi licenþã ca ºi pachetul libidn.
+# Laurentiu Buzdugan <lbuz@rolix.org>, 2003.
+#
+#
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: libidn 0.4.1\n"
+"Report-Msgid-Bugs-To: bug-libidn@gnu.org\n"
+"POT-Creation-Date: 2008-02-19 20:25+0100\n"
+"PO-Revision-Date: 2004-04-23 12:00-0500\n"
+"Last-Translator: Laurentiu Buzdugan <lbuz@rolix.org>\n"
+"Language-Team: Romanian <translation-team-ro@lists.sourceforge.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=ISO-8859-2\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Success"
+msgstr ""
+
+msgid "String preparation failed"
+msgstr ""
+
+msgid "Punycode failed"
+msgstr ""
+
+msgid "Non-digit/letter/hyphen in input"
+msgstr ""
+
+msgid "Forbidden leading or trailing minus sign (`-')"
+msgstr ""
+
+msgid "Output would be too large or too small"
+msgstr ""
+
+msgid "Input does not start with ACE prefix (`xn--')"
+msgstr ""
+
+msgid "String not idempotent under ToASCII"
+msgstr ""
+
+msgid "Input already contain ACE prefix (`xn--')"
+msgstr ""
+
+msgid "System iconv failed"
+msgstr ""
+
+msgid "Cannot allocate memory"
+msgstr ""
+
+msgid "System dlopen failed"
+msgstr ""
+
+msgid "Unknown error"
+msgstr ""
+
+msgid "String not idempotent under Unicode NFKC normalization"
+msgstr ""
+
+msgid "Invalid input"
+msgstr ""
+
+msgid "Output would exceed the buffer space provided"
+msgstr ""
+
+msgid "String size limit exceeded"
+msgstr ""
+
+msgid "Forbidden unassigned code points in input"
+msgstr ""
+
+msgid "Prohibited code points in input"
+msgstr ""
+
+msgid "Conflicting bidirectional properties in input"
+msgstr ""
+
+msgid "Malformed bidirectional string"
+msgstr ""
+
+msgid "Prohibited bidirectional code points in input"
+msgstr ""
+
+msgid "Error in stringprep profile definition"
+msgstr ""
+
+msgid "Flag conflict with profile"
+msgstr ""
+
+msgid "Unknown profile"
+msgstr ""
+
+msgid "Unicode normalization failed (internal error)"
+msgstr ""
+
+msgid "Code points prohibited by top-level domain"
+msgstr ""
+
+msgid "Missing input"
+msgstr ""
+
+msgid "No top-level domain found in input"
+msgstr ""
+
+#. TRANSLATORS: The placeholder indicates the bug-reporting address
+#. for this package.  Please add _another line_ saying
+#. "Report translation bugs to <...>\n" with the address for translation
+#. bugs (typically your translation team's web or email address).
+#, c-format
+msgid ""
+"\n"
+"Report bugs to <%s>.\n"
+msgstr ""
+
+#, c-format
+msgid "Try `%s --help' for more information.\n"
+msgstr ""
+
+#, c-format
+msgid "Usage: %s [OPTION]... [STRINGS]...\n"
+msgstr ""
+
+msgid ""
+"Internationalized Domain Name (IDN) convert STRINGS, or standard input.\n"
+"\n"
+msgstr ""
+
+msgid ""
+"Command line interface to the internationalized domain name library.\n"
+"\n"
+"All strings are expected to be encoded in the preferred charset used\n"
+"by your locale.  Use `--debug' to find out what this charset is.  You\n"
+"can override the charset used by setting environment variable CHARSET.\n"
+"\n"
+"To process a string that starts with `-', for example `-foo', use `--'\n"
+"to signal the end of parameters, as in `idn --quiet -a -- -foo'.\n"
+"\n"
+"Mandatory arguments to long options are mandatory for short options too.\n"
+msgstr ""
+
+msgid ""
+"  -h, --help               Print help and exit\n"
+"  -V, --version            Print version and exit\n"
+msgstr ""
+
+msgid ""
+"  -s, --stringprep         Prepare string according to nameprep profile\n"
+"  -d, --punycode-decode    Decode Punycode\n"
+"  -e, --punycode-encode    Encode Punycode\n"
+"  -a, --idna-to-ascii      Convert to ACE according to IDNA (default mode)\n"
+"  -u, --idna-to-unicode    Convert from ACE according to IDNA\n"
+msgstr ""
+
+msgid ""
+"      --allow-unassigned   Toggle IDNA AllowUnassigned flag\n"
+"      --usestd3asciirules  Toggle IDNA UseSTD3ASCIIRules flag\n"
+msgstr ""
+
+msgid ""
+"  -t, --tld                Check string for TLD specific rules\n"
+"                             Only for --idna-to-ascii and --idna-to-unicode\n"
+msgstr ""
+
+msgid ""
+"  -p, --profile=STRING     Use specified stringprep profile instead\n"
+"                             Valid stringprep profiles: `Nameprep',\n"
+"                             `iSCSI', `Nodeprep', `Resourceprep', \n"
+"                             `trace', `SASLprep'\n"
+msgstr ""
+
+msgid ""
+"      --debug              Print debugging information\n"
+"      --quiet              Silent operation\n"
+msgstr ""
+
+#, fuzzy, c-format
+msgid "Only one of -s, -e, -d, -a or -u can be specified."
+msgstr ""
+"%s: Numai una din opþiunile -s, -e, -d, -a sau -u poate fi specificatã.\n"
+
+#, c-format
+msgid "Charset `%s'.\n"
+msgstr "Charset `%s'.\n"
+
+#, c-format
+msgid ""
+"Type each input string on a line by itself, terminated by a newline "
+"character.\n"
+msgstr ""
+"Scrieþi fiecare ºir de intrare pe o singurã linie, terminatã cu un caracter "
+"linie-nouã.\n"
+
+#, c-format
+msgid "Input error"
+msgstr ""
+
+#, fuzzy, c-format
+msgid "Could not convert from %s to UTF-8."
+msgstr "%s: nu am putut transforma din %s în UTF-8.\n"
+
+#, fuzzy, c-format
+msgid "Could not convert from UTF-8 to UCS-4."
+msgstr "%s: nu am putut transforma din UTF-8 în UCS-4.\n"
+
+#, fuzzy, c-format
+msgid "input[%lu] = U+%04x\n"
+msgstr "intrare[%d] = U+%04x\n"
+
+#, c-format
+msgid "stringprep_profile: %s"
+msgstr ""
+
+#, fuzzy, c-format
+msgid "output[%lu] = U+%04x\n"
+msgstr "ieºire[%d] = U+%04x\n"
+
+#, fuzzy, c-format
+msgid "Could not convert from UTF-8 to %s."
+msgstr "%s: nu am putut transforma din UTF-8 în %s.\n"
+
+#, c-format
+msgid "punycode_encode: %s"
+msgstr ""
+
+#, c-format
+msgid "malloc"
+msgstr ""
+
+#, c-format
+msgid "punycode_decode: %s"
+msgstr ""
+
+#, fuzzy, c-format
+msgid "Could not convert from UCS-4 to UTF-8."
+msgstr "%s: nu am putut transforma din UCS-4 în UTF-8.\n"
+
+#, c-format
+msgid "idna_to_ascii_4z: %s"
+msgstr ""
+
+#, fuzzy, c-format
+msgid "idna_to_unicode_8z4z (TLD): %s"
+msgstr "%s: idna_to_unicode_8z4z() a eºuat cu eroarea %d.\n"
+
+#, fuzzy, c-format
+msgid "tld[%lu] = U+%04x\n"
+msgstr "tld[%d] = U+%04x\n"
+
+#, c-format
+msgid "tld_check_4z (position %lu): %s"
+msgstr ""
+
+#, c-format
+msgid "tld_check_4z: %s"
+msgstr ""
+
+#, fuzzy, c-format
+msgid "idna_to_unicode_8z4z: %s"
+msgstr "%s: idna_to_unicode_8z4z() a eºuat cu eroarea %d.\n"
+
+#~ msgid "%s: fgets() failed: "
+#~ msgstr "%s: fgets() a eºuat: "
+
+#~ msgid "%s: stringprep_profile() failed with error %d.\n"
+#~ msgstr "%s: stringprep_profile() a eºuat cu eroarea %d.\n"
+
+#~ msgid "%s: punycode_encode() failed with error %d.\n"
+#~ msgstr "%s: punycode_encode() a eºuat cu eroarea %d.\n"
+
+#~ msgid "%s: malloc() failed: "
+#~ msgstr "%s: malloc() a eºuat: "
+
+#~ msgid "%s: punycode_decode() failed with error %d.\n"
+#~ msgstr "%s: punycode_decode() a eºuat cu eroarea %d.\n"
+
+#~ msgid "%s: idna_to_ascii_4z() failed with error %d.\n"
+#~ msgstr "%s: idna_to_ascii_4z() a eºuat cu eroarea %d.\n"
+
+#~ msgid "%s: TLD idna_to_unicode_8z8z() failed with error %d.\n"
+#~ msgstr "%s: TLD idna_to_unicode_8z8z() a eºuat cu eroarea %d.\n"
+
+#~ msgid "%s: string rejected by TLD test (Unicode position %d)\n"
+#~ msgstr "%s: ºir refuzat de testul TLD (poziþia Unicode %d)\n"
+
+#~ msgid "%s: tld_check_4z failed with error %d.\n"
+#~ msgstr "%s: tld_check_4z a eºuat cu eroarea %d.\n"

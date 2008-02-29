@@ -1,0 +1,255 @@
+# Danish translation of the libidn gettext message catalogue
+# Copyright (C) 2005 Free Software Foundation, Inc.
+# Morten Bo Johansen <mojo@mbjnet.dk>, 2004, 2005
+msgid ""
+msgstr ""
+"Project-Id-Version: libidn 0.5.16\n"
+"Report-Msgid-Bugs-To: bug-libidn@gnu.org\n"
+"POT-Creation-Date: 2008-02-19 20:25+0100\n"
+"PO-Revision-Date: 2005-10-25 18:08+0200\n"
+"Last-Translator: Morten Bo Johansen <mojo@mbjnet.dk>\n"
+"Language-Team: Danish <dansk@klid.dk>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+msgid "Success"
+msgstr "Lykkedes"
+
+msgid "String preparation failed"
+msgstr "Dannelse af tekststreng mislykkedes"
+
+msgid "Punycode failed"
+msgstr "Punycode mislykkedes"
+
+msgid "Non-digit/letter/hyphen in input"
+msgstr "Ikke-ciffer/bogstav/bindestreg i inddata"
+
+msgid "Forbidden leading or trailing minus sign (`-')"
+msgstr "Må ikke begynde eller slutte med minustegn ('-')"
+
+msgid "Output would be too large or too small"
+msgstr "Mængden af uddata ville blive for stor eller lille"
+
+msgid "Input does not start with ACE prefix (`xn--')"
+msgstr "Inddata begynder ikke med et ACE-præfiks ('xn--')"
+
+msgid "String not idempotent under ToASCII"
+msgstr "Tekststreng er ikke beskyttet mod gentagelse under ToASCII"
+
+msgid "Input already contain ACE prefix (`xn--')"
+msgstr "Inddata indeholder allerede et ACE-præfiks ('xn--')"
+
+msgid "System iconv failed"
+msgstr "Systemkald til iconv mislykkedes"
+
+msgid "Cannot allocate memory"
+msgstr "Kan ikke tildele hukommelse"
+
+msgid "System dlopen failed"
+msgstr "Systemkald til dlopen mislykkedes"
+
+msgid "Unknown error"
+msgstr "Ukendt fejl"
+
+msgid "String not idempotent under Unicode NFKC normalization"
+msgstr "Tekststreng er ikke beskyttet mod gentagelse under NFKC-normalisering"
+
+msgid "Invalid input"
+msgstr "Ugyldige inddata"
+
+msgid "Output would exceed the buffer space provided"
+msgstr "Størrelse på uddata ville overstige tildelt plads i buffer"
+
+msgid "String size limit exceeded"
+msgstr "Grænse for størrelse på tekststreng overskredet"
+
+msgid "Forbidden unassigned code points in input"
+msgstr "Ikke-tildelte kodepunkter i inddata ikke tilladt"
+
+msgid "Prohibited code points in input"
+msgstr "Kodepunkter i inddata ikke tilladt"
+
+msgid "Conflicting bidirectional properties in input"
+msgstr "Konflikter mellem tovejs egenskaber i inddata"
+
+msgid "Malformed bidirectional string"
+msgstr "Misdannet tovejs tekststreng"
+
+msgid "Prohibited bidirectional code points in input"
+msgstr "Tovejs kodepunkter i inddata ikke tilladt"
+
+msgid "Error in stringprep profile definition"
+msgstr "Fejl i definition af stringprep-profil"
+
+msgid "Flag conflict with profile"
+msgstr "Konflikt mellem flag og profil"
+
+msgid "Unknown profile"
+msgstr "Ukendt profil"
+
+msgid "Unicode normalization failed (internal error)"
+msgstr "Normalisering af unicode mislykkedes (intern fejl)"
+
+msgid "Code points prohibited by top-level domain"
+msgstr "Kodepunkter ikke tilladt af top-domæne"
+
+msgid "Missing input"
+msgstr "Manglende inddata"
+
+msgid "No top-level domain found in input"
+msgstr "Fandt ikke et top-domæne i inddata"
+
+#. TRANSLATORS: The placeholder indicates the bug-reporting address
+#. for this package.  Please add _another line_ saying
+#. "Report translation bugs to <...>\n" with the address for translation
+#. bugs (typically your translation team's web or email address).
+#, c-format
+msgid ""
+"\n"
+"Report bugs to <%s>.\n"
+msgstr ""
+
+#, c-format
+msgid "Try `%s --help' for more information.\n"
+msgstr ""
+
+#, c-format
+msgid "Usage: %s [OPTION]... [STRINGS]...\n"
+msgstr ""
+
+msgid ""
+"Internationalized Domain Name (IDN) convert STRINGS, or standard input.\n"
+"\n"
+msgstr ""
+
+msgid ""
+"Command line interface to the internationalized domain name library.\n"
+"\n"
+"All strings are expected to be encoded in the preferred charset used\n"
+"by your locale.  Use `--debug' to find out what this charset is.  You\n"
+"can override the charset used by setting environment variable CHARSET.\n"
+"\n"
+"To process a string that starts with `-', for example `-foo', use `--'\n"
+"to signal the end of parameters, as in `idn --quiet -a -- -foo'.\n"
+"\n"
+"Mandatory arguments to long options are mandatory for short options too.\n"
+msgstr ""
+
+msgid ""
+"  -h, --help               Print help and exit\n"
+"  -V, --version            Print version and exit\n"
+msgstr ""
+
+msgid ""
+"  -s, --stringprep         Prepare string according to nameprep profile\n"
+"  -d, --punycode-decode    Decode Punycode\n"
+"  -e, --punycode-encode    Encode Punycode\n"
+"  -a, --idna-to-ascii      Convert to ACE according to IDNA (default mode)\n"
+"  -u, --idna-to-unicode    Convert from ACE according to IDNA\n"
+msgstr ""
+
+msgid ""
+"      --allow-unassigned   Toggle IDNA AllowUnassigned flag\n"
+"      --usestd3asciirules  Toggle IDNA UseSTD3ASCIIRules flag\n"
+msgstr ""
+
+msgid ""
+"  -t, --tld                Check string for TLD specific rules\n"
+"                             Only for --idna-to-ascii and --idna-to-unicode\n"
+msgstr ""
+
+msgid ""
+"  -p, --profile=STRING     Use specified stringprep profile instead\n"
+"                             Valid stringprep profiles: `Nameprep',\n"
+"                             `iSCSI', `Nodeprep', `Resourceprep', \n"
+"                             `trace', `SASLprep'\n"
+msgstr ""
+
+msgid ""
+"      --debug              Print debugging information\n"
+"      --quiet              Silent operation\n"
+msgstr ""
+
+#, c-format
+msgid "Only one of -s, -e, -d, -a or -u can be specified."
+msgstr "Kun et af argumenterne -s, -e, -d, -a eller -u kan angives."
+
+#, c-format
+msgid "Charset `%s'.\n"
+msgstr "Tegnsæt `%s'.\n"
+
+#, c-format
+msgid ""
+"Type each input string on a line by itself, terminated by a newline "
+"character.\n"
+msgstr "Indtast hver streng på en særskilt linje, afsluttet med en ny linje.\n"
+
+#, c-format
+msgid "Input error"
+msgstr "Fejl i inddata"
+
+#, c-format
+msgid "Could not convert from %s to UTF-8."
+msgstr "Kunne ikke omdanne fra %s til UTF-8."
+
+#, c-format
+msgid "Could not convert from UTF-8 to UCS-4."
+msgstr "Kunne ikke omdanne fra UTF-8 til UCS-4."
+
+#, fuzzy, c-format
+msgid "input[%lu] = U+%04x\n"
+msgstr "inddata[%d] = U+%04x\n"
+
+#, c-format
+msgid "stringprep_profile: %s"
+msgstr "stringprep_profile: %s"
+
+#, fuzzy, c-format
+msgid "output[%lu] = U+%04x\n"
+msgstr "uddata[%d] = U+%04x\n"
+
+#, c-format
+msgid "Could not convert from UTF-8 to %s."
+msgstr "Kunne ikke omdanne fra UTF-8 til %s."
+
+#, c-format
+msgid "punycode_encode: %s"
+msgstr "punycode_encode: %s"
+
+#, c-format
+msgid "malloc"
+msgstr "malloc"
+
+#, c-format
+msgid "punycode_decode: %s"
+msgstr "punycode_decode: %s"
+
+#, c-format
+msgid "Could not convert from UCS-4 to UTF-8."
+msgstr "Kunne ikke omdanne fra UCS-4 til UTF-8."
+
+#, c-format
+msgid "idna_to_ascii_4z: %s"
+msgstr "idna_to_ascii_4z: %s"
+
+#, c-format
+msgid "idna_to_unicode_8z4z (TLD): %s"
+msgstr "idna_to_unicode_8z4z (TLD): %s"
+
+#, fuzzy, c-format
+msgid "tld[%lu] = U+%04x\n"
+msgstr "tld[%d] = U+%04x\n"
+
+#, fuzzy, c-format
+msgid "tld_check_4z (position %lu): %s"
+msgstr "tld_check_4z (position %d): %s"
+
+#, c-format
+msgid "tld_check_4z: %s"
+msgstr "tld_check_4z: %s"
+
+#, c-format
+msgid "idna_to_unicode_8z4z: %s"
+msgstr "idna_to_unicode_8z4z: %s"
