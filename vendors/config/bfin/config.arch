@@ -69,7 +69,10 @@ export ac_cv_func_malloc_0_nonnull  = yes
 export ac_cv_func_realloc_0_nonnull = yes
 
 cpu-$(CONFIG_BF522) := bf522
+cpu-$(CONFIG_BF523) := bf523
+cpu-$(CONFIG_BF524) := bf524
 cpu-$(CONFIG_BF525) := bf525
+cpu-$(CONFIG_BF526) := bf526
 cpu-$(CONFIG_BF527) := bf527
 cpu-$(CONFIG_BF531) := bf531
 cpu-$(CONFIG_BF532) := bf532
@@ -77,6 +80,9 @@ cpu-$(CONFIG_BF533) := bf533
 cpu-$(CONFIG_BF534) := bf534
 cpu-$(CONFIG_BF536) := bf536
 cpu-$(CONFIG_BF537) := bf537
+cpu-$(CONFIG_BF542) := bf542
+cpu-$(CONFIG_BF544) := bf544
+cpu-$(CONFIG_BF547) := bf547
 cpu-$(CONFIG_BF548) := bf548
 cpu-$(CONFIG_BF549) := bf549
 cpu-$(CONFIG_BF561) := bf561
@@ -89,8 +95,22 @@ rev-$(CONFIG_BF_REV_0_4) := 0.4
 rev-$(CONFIG_BF_REV_0_5) := 0.5
 rev-$(CONFIG_BF_REV_ANY) := any
 rev-$(CONFIG_BF_REV_NONE) := none
+ifeq ($(rev-y),)
+$(warning )
+$(warning The Blackfin Silicon Revision you are targetting is not known.)
+$(warning Please file a bug report about this.)
+$(warning )
+rev-y := any
+endif
 
+ifeq ($(cpu-y),)
+$(warning )
+$(warning The Blackfin CPU you are targetting is not known.)
+$(warning Please file a bug report about this.)
+$(warning )
+else
 CPUFLAGS = -mcpu=$(cpu-y)-$(rev-y)
+endif
 
 ############################################################################
 #
