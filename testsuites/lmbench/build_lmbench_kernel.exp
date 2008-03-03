@@ -33,17 +33,6 @@ sleep 3
       send ".\r"
       expect ":"
 
-      if { $board_type == "BF548-EZKIT" } {
-      send "/pagecache_ratio\r"
-      expect "*pagecache_ratio*"
-      send "d\r"
-      expect ":"
-      send "i\r"
-      send "	$\(ROMFSINST\) -e CONFIG_PATA_BF54X -a \"echo 100 > \/proc\/sys\/vm\/pagecache_ratio\" \/etc\/rc\r"
-      send ".\r"
-      expect ":"
-      }
-
       send "wq\r"
       expect eof
 
