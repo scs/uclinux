@@ -30,12 +30,12 @@ set timeout 2
 send "cat /proc/spi_mmc\r"
 while 1 {
    expect {
-      -re "Capacity.*Name.*>" {
+      -re "Capacity.*Name.*$kernel_prompt" {
          send_user "MMC/SD card detected, test pass\n"
          case_pass $case_num
          break
       }
-      -re "No MMC/SD card found.*>" {
+      -re "No MMC/SD card found.*$kernel_prompt" {
          send_user "no MMC/SD card, test fail\n"
          case_fail $case_num
       }
@@ -51,11 +51,11 @@ set timeout 2
 send "mkdosfs /dev/spi_mmc\r"
 while 1 {
    expect {
-      -re "No such .*>" {
+      -re "No such .*$kernel_prompt" {
          send_user "No spi_mmc device, test fail\n"
          case_fail $case_num
       }
-      -re "mkdosfs.*>" {
+      -re "mkdosfs.*$kernel_prompt" {
          send_user "mkdosfs done, test pass\n"
          case_pass $case_num
          break
@@ -72,7 +72,7 @@ set timeout 2
 send "mount -t msdos /dev/spi_mmc /mnt/mmc\r"
 while 1 {
    expect {
-      -re "mount.*failed.*>" {
+      -re "mount.*failed.*$kernel_prompt" {
          send_user "mount DOS FS fail, test fail\n"
          case_fail $case_num
       }
@@ -93,7 +93,7 @@ set timeout 10
 send "time dd if=/dev/zero of=/mnt/mmc/10m.bin bs=1M count=10\r"
 while 1 {
    expect {
-      -re "records in.*records out.*real.*user.*sys.*>" {
+      -re "records in.*records out.*real.*user.*sys.*$kernel_prompt" {
          break
       }
       timeout {
@@ -123,7 +123,7 @@ set timeout 2
 send "umount /mnt/mmc\r"
 while 1 {
    expect {
-      -re "cannot umount.*>" {
+      -re "cannot umount.*$kernel_prompt" {
          send_user "umount DOS FS fail, test fail\n"
          case_fail $case_num
       }
@@ -239,7 +239,7 @@ set timeout 5
 send "ls /sys/block/spi_mmc\r"
 while 1 { 
    expect {
-      -re "(spi_mmc1.*spi_mmc2|spi_mmc2.*spi_mmc1).*>" {
+      -re "(spi_mmc\[12])+.*$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -254,7 +254,7 @@ set timeout 5
 send "ls /dev\r"
 while 1 { 
    expect {
-      -re "spi_mmc2.*spi_mmc.*spi_mmc1.*>" {
+      -re "spi_mmc\[12]?.*spi_mmc\[12]?.*spi_mmc\[12]?.*$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -272,7 +272,7 @@ set timeout 5
 send "ls /sys/block/spi_mmc\r"
 while 1 { 
    expect {
-      -re "(spi_mmc1.*spi_mmc2|spi_mmc2.*spi_mmc1).*>" {
+      -re "(spi_mmc\[12])+.*$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -287,7 +287,7 @@ set timeout 5
 send "ls /dev\r"
 while 1 { 
    expect {
-      -re "spi_mmc2.*spi_mmc.*spi_mmc1.*>" {
+      -re "spi_mmc\[12]?.*spi_mmc\[12]?.*spi_mmc\[12]?.*$kernel_prompt" {
          case_pass $case_num
          break
       }
@@ -303,7 +303,7 @@ set timeout 90
 send "mke2fs /dev/spi_mmc1\r"
 while 1 { 
    expect {
-      -re "mke2fs.*Writing.*>" {
+      -re "mke2fs.*Writing.*$kernel_prompt" {
          send_user "mke2fs done, test pass\n"
          case_pass $case_num
          break
@@ -320,7 +320,7 @@ set timeout 2
 send "mount -t ext2 /dev/spi_mmc1 /mnt/mmc1\r"
 while 1 {
    expect {
-      -re "mount.*failed.*>" {
+      -re "mount.*failed.*$kernel_prompt" {
          send_user "mount EXT2 FS fail, test fail\n"
          case_fail $case_num
       }
@@ -341,11 +341,11 @@ set timeout 2
 send "mkdosfs /dev/spi_mmc2\r"
 while 1 {
    expect {
-      -re "No such .*>" {
+      -re "No such .*$kernel_prompt" {
          send_user "No spi_mmc2 device, test fail\n"
          case_fail $case_num
       }
-      -re "mkdosfs.*>" {
+      -re "mkdosfs.*$kernel_prompt" {
          send_user "mkdosfs done, test pass\n"
          case_pass $case_num
          break
@@ -362,7 +362,7 @@ set timeout 2
 send "mount -t msdos /dev/spi_mmc2 /mnt/mmc2\r"
 while 1 {
    expect {
-      -re "mount.*failed.*>" {
+      -re "mount.*failed.*$kernel_prompt" {
          send_user "mount DOS FS fail, test fail\n"
          case_fail $case_num
       }
@@ -384,7 +384,7 @@ set timeout 2
 send "cp /bin/busybox /mnt/mmc2\r"
 while 1 {
    expect {
-      -re "cp:.*>" {
+      -re "cp:.*$kernel_prompt" {
          send_user "cp fail, test fail\n"
          case_fail $case_num
       }
@@ -405,7 +405,7 @@ set timeout 2
 send "rm /mnt/mmc2/busybox\r"
 while 1 {
    expect {
-      -re "rm:.*>" {
+      -re "rm:.*$kernel_prompt" {
          send_user "rm fail, test fail\n"
          case_fail $case_num
       }
@@ -426,7 +426,7 @@ set timeout 2
 send "umount /mnt/mmc1\r"
 while 1 {
    expect {
-      -re "cannot umount.*>" {
+      -re "cannot umount.*$kernel_prompt" {
          send_user "umount /mnt/mmc1 fail, test fail\n"
          case_fail $case_num
       }
@@ -447,7 +447,7 @@ set timeout 2
 send "umount /mnt/mmc2\r"
 while 1 {
    expect {
-      -re "cannot umount.*>" {
+      -re "cannot umount.*$kernel_prompt" {
          send_user "umount /mnt/mmc2 fail, test fail\n"
          case_fail $case_num
       }
@@ -481,7 +481,7 @@ set timeout 900
 send "./runcp.sh\r"
 while 1 {
    expect {
-      -re "copy rootfs done.*>" {
+      -re "copy rootfs done.*$kernel_prompt" {
          send_user "finish to copy rootfs to mmc card\n"
          case_pass $case_num
          break
@@ -501,7 +501,7 @@ set timeout 20
 send "umount /mnt/rootfs\r"
 while 1 {
    expect {
-      -re "cannot umount.*>" {
+      -re "cannot umount.*$kernel_prompt" {
          send_user "umount /mnt/rootfs fail, test fail\n"
          case_fail $case_num
       }
@@ -568,7 +568,7 @@ while 1 {
          case_fail $case_num
       }
 
-      -re "Sash command shell.*/> " {
+      -re "Sash command shell.*/$kernel_prompt " {
          send_user "successful boot attempt"
          case_pass $case_num
          break
@@ -641,7 +641,7 @@ set timeout 20
 send "dmesg\r"
 while 1 {
    expect {
-      -re "VFS\\\: Mounted root \\\(ext2 filesystem\\\).*>" {
+      -re "VFS\\\: Mounted root \\\(ext2 filesystem\\\).*$kernel_prompt" {
          break
       }
       timeout {
@@ -652,7 +652,7 @@ while 1 {
 send "ls /\r"
 while 1 {
    expect {
-      -re "runcp\\\.sh.*>" {
+      -re "runcp\\\.sh.*$kernel_prompt" {
          send_user "successfully mount MMC/SD as the root filesystem\r"
          case_pass $case_num
          break
