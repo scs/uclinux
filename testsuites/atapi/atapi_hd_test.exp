@@ -20,17 +20,32 @@ source ../reboot_kernel.exp
 
 step "Start testing."
 set case_num 0
-set 4G "+4050M"
-set 10G "+10240M"
-set 20G "+20480M"
-set 30G "+30720M"
 set MAX "\r"
-set NUM_CYLINDER_DOS "$4G"
-set NUM_CYLINDER_EXT2 "$MAX"
+set NUM_CYLINDER_DOS "+2G"
+set NUM_CYLINDER_EXT2 "+20G"
 
 sleep 5
 send "mkdir /mnt/hd1\r"
 send "mkdir /mnt/hd2\r"
+
+incr case_num
+set timeout 10
+send "cat /proc/sys/vm/pagecache_ratio\r"
+expect  -re $kernel_prompt
+send "echo 100 > /proc/sys/vm/pagecache_ratio\r"
+expect  -re $kernel_prompt
+send "cat /proc/sys/vm/pagecache_ratio\r"
+while 1 {
+   expect {
+      -re "100\r\n$kernel_prompt" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+      }
+   }
+}
 
 set timeout 5
 incr case_num
