@@ -18,42 +18,129 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp
 
 step "Start $TITLE"
+set target_id $spawn_id
 
 set case_num 0
-
 incr case_num
-set timeout 30
-send -s "$STRDATA\r"
+
+send -s "stty -echo;cat \r"
+set timeout 3
 while 1 {
-   expect {
-	"> " {
-                case_pass $case_num
-		break
+expect {
+        -re  "$kernel_prompt" {
+              case_fail $case_num
+              exit 
+        }
+
+         timeout {
+              break
+         }
+   }
+}
+set timeout 3
+set this_case FAIL
+spawn /bin/sh
+while 1 {
+expect {
+       $sh_prompt {
+       break
+       }
+       timeout {
+       send_user "No prompt!\n"
+       break
+       }
+
+}
+}
+
+set host_id $spawn_id 
+
+for {set i 0} {$i<30} {incr i} {
+
+set spawn_id $host_id
+send  "echo $STRDATA > $ttydev \r"
+while 1 {
+expect {
+       $sh_prompt {
+       break
+       } 
+       timeout {
+       send_user "No prompt!\n" 
+       break
+       }
+
+}
+}
+
+set spawn_id $target_id
+while 1 {
+expect {
+	"$STRDATA" {
+              set this_case PASS 
+              break
 	}
 
          timeout {
+                
                 case_fail $case_num
 		exit
          }
    }
 }
+}
+if { $this_case == "PASS" } {
+      case_pass $case_num
 
-incr case_num
+} else {
+      case_fail $case_num
+}
+
+send -s "\3"
+expect  -re  "$kernel_prompt" 
+
+send "stty echo \r"
+set timeout 3
 while 1 {
-   set timeout 5
-   send -s "\3"
-   expect {
-	"> " {
-                case_pass $case_num
-		break
-	}
+expect {
+        -re  "$kernel_prompt" {
+              break
+        }
 
          timeout {
-                case_fail $case_num
-		exit
+              exit
          }
    }
 }
+
+incr case_num
+
+set this_case FAIL
+
+for {set i 0} {$i<30} {incr i} {
+
+send  "$STRDATA\r"
+while 1 {
+expect {
+        "$STRDATA" {
+              set this_case PASS
+              break
+        }
+
+         timeout {
+                case_fail $case_num
+                exit
+         }
+   }
+}
+}
+
+if { $this_case == "PASS" } {
+      case_pass $case_num
+
+} else {
+      case_fail $case_num
+}
+
 
 incr case_num
 while 1 {
