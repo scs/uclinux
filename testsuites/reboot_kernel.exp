@@ -185,6 +185,13 @@ while 1 {
             set data_cache_boot_flag $CACHE_DISABLED
          }
 
+         -re "Trace:.*\r\n\r\n" {
+            expect -re "$kernel_prompt"
+            send_user "\nKernel booting up with dump info\n"
+            send_log "\n$TITLE ............\[FAIL\]\n"
+            exit
+         }
+
          timeout {
             send_user "Failed to reboot the linux kernel"	  
             exit
