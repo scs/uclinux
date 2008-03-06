@@ -89,7 +89,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 10
+set timeout 30
 send "time dd if=/dev/zero of=/mnt/mmc/10m.bin bs=1M count=10\r"
 while 1 {
    expect {
@@ -141,7 +141,7 @@ while 1 {
 
 step "Remove old partition in MMC/SD"
 set timeout 10
-send "fdisk /dev/spi_mmc1\r"
+send "fdisk /dev/spi_mmc\r"
 expect -re "Command.*:"
 send "p\r"
 set timeout 10
@@ -227,7 +227,7 @@ send "t\r"
 expect -re "Partition number.*"
 send "2\r"
 expect -re "Hex code.*:"
-send "6\r"
+send "b\r"
 expect -re "Changed system type.*:"
 send "w\r"
 expect -re $kernel_prompt
