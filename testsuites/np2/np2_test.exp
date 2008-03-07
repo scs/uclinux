@@ -1,11 +1,8 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE [title "$argv0"]
 
 step "Spawn kermit"
@@ -32,12 +29,10 @@ while 1 {
         -re "\[eE]rror" {
             case_fail $case_num
         }
-
         eof {
             send_user "\nClean src\n"
             break
         }
-
         timeout {
             break
         }
@@ -51,12 +46,10 @@ while 1 {
         -re "\[eE]rror" {
             case_fail $case_num
         }
-
         eof {
             send_user "\nBuild test program done\n"
             break
         }
-
         timeout {
             break
         }
@@ -74,7 +67,6 @@ while 1 {
             send "\r"
             break
         }
-
         timeout {
             case_fail $case_num
         }
@@ -89,7 +81,6 @@ while 1 {
         -re "$targetip.*$kernel_prompt" {
             break
         }
-
         timeout {
             case_fail $case_num
         }
@@ -102,15 +93,13 @@ step "Copy testcase to target board\n"
 spawn rcp src/mkfragment root@$targetip:/
 while 1 {
     expect {
-        -re "connect|No route to host" {
+        -re "connect|No route to host|No such file or directory" {
             case_fail $case_num
         }
-
         eof {
             send_user "\nCopy mkfragment to target board done\n"
             break
         }
-
         timeout {
             break
         }
@@ -127,12 +116,10 @@ while 1 {
             case_fail $case_num
             break
         }
-
         -re "mkfragment success" {
             case_pass $case_num
             break
         }
-
         timeout {
             send -s "\3"
             send_log "timeout\n"

@@ -19,14 +19,29 @@ step "Start testing."
 set case_num 0
 sleep 5
 send "\r"
-expect ">"
+expect -re $kernel_prompt
 
 incr case_num
-set timeout 10
-send "ifconfig eth0 $targetip up;ifconfig eth0\r"
+send "ifconfig eth0 $targetip up\r"
+set timeout 30
 while 1 {
     expect {
-        -re "inet addr.*$targetip.*$kernel_prompt" {
+        -re $kernel_prompt {
+            send "\r"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 5
+send "ifconfig eth0\r"
+set timeout 60
+while 1 {
+    expect {
+        -re "$targetip.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -36,16 +51,35 @@ while 1 {
     }
 }
 
-exec rcp mmap_test_load mmap_test_unload root@$targetip:/lib/modules
+incr case_num
+set timeout 60
+spawn rcp mmap_test_load mmap_test_unload root@$targetip:/lib/modules
+while 1 {
+    expect {
+        -re "connect|No route to host|No such file or directory" {
+            case_fail $case_num
+        }
+        eof {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+            break
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
 
 incr case_num
 send "cd /lib/modules; ./mmap_test_load\r"
 while 1 {
     expect {
-        -re "fail.*>|\[Ee]rror.*>" {
+        -re "(fail|No such file or directory|\[eE]rror).*$kernel_prompt" {
             case_fail $case_num
         }
-        -re ">" {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -59,7 +93,7 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
-        -re "simple.*>" {
+        -re "simple.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -73,7 +107,7 @@ incr case_num
 send "ls -l /dev/simple\[nr\]\r" 
 while 1 {
     expect {
-        -re "crw-rw-r--.*1.*simplen.*crw-rw-r--.*0.*simpler.*>" {
+        -re "crw-rw-r--.*1.*simplen.*crw-rw-r--.*0.*simpler.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -87,10 +121,10 @@ incr case_num
 send "./mmap_test_unload\r"
 while 1 {
     expect {
-        -re "fail.*>|\[Ee]rror.*>" {
+        -re "(fail|No such file or directory|\[eE]rror).*$kernel_prompt" {
             case_fail $case_num
         }
-        -re ">" {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -104,10 +138,10 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
-        -re "simple.*>" {
+        -re "simple.*$kernel_prompt" {
             case_fail $case_num
         }
-        ">" {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
