@@ -19,48 +19,48 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp
 sleep 5
 send "\r"
+expect -re $kernel_prompt
 
 set case_num 0
 incr case_num
 
 step "Clean src directory\n"
+set timeout 30
 spawn make clean -C src
 while 1 {
-   expect {
+    expect {
+        -re "\[eE]rror" {
+            case_fail $case_num
+        }
 
-      "*error*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nClean src\n"
+            break
+        }
 
-      eof {
-         send_user "\nClean src/. \n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 step "Build test program\n"
 spawn make -C src
 while 1 {
-   expect {
+    expect {
+        -re "\[eE]rror" {
+            case_fail $case_num
+        }
 
-      "*error*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nBuild test program done\n"
+            break
+        }
 
-      eof {
-         send_user "\nBuild test program done\n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 
@@ -69,38 +69,52 @@ set spawn_id $kermit_spawn_id
 send "ifconfig eth0 $targetip up\r"
 set timeout 60
 while 1 {
-   expect {
+    expect {
+        -re "$kernel_prompt" {
+            send "\r"
+            break
+        }
 
-      -re "$kernel_prompt " {
-         send "\r"
-         break
-      }
-
-      timeout {
-         case_fail $case_num
-      }
-   }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
+
+sleep 5
+send "ifconfig eth0\r"
+set timeout 60
+while 1 {
+    expect {
+        -re "$targetip.*$kernel_prompt" {
+            break
+        }
+
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
 
 set timeout 100
 step "Copy testcase to target board\n"
 spawn rcp src/mkfragment root@$targetip:/
 while 1 {
-   expect {
+    expect {
+        -re "connect|No route to host" {
+            case_fail $case_num
+        }
 
-      "*connect*" {
-         case_fail $case_num
-      }
+        eof {
+            send_user "\nCopy mkfragment to target board done\n"
+            break
+        }
 
-      eof {
-         send_user "\nCopy mkfragment to target board done\n"
-         break
-      }
-
-      timeout {
-         break
-      }
-   }
+        timeout {
+            break
+        }
+    }
 }
 
 step "Start testing"
@@ -108,25 +122,24 @@ set spawn_id $kermit_spawn_id
 set timeout 15
 send "./mkfragment\r"
 while 1 {
-   expect {
+    expect {
+        -re "NULL pointer access.*CURRENT PROCESS.*Call Trace.*" {
+            case_fail $case_num
+            break
+        }
 
-      -re "NULL pointer access.*CURRENT PROCESS.*Call Trace.*" {
-         case_fail $case_num
-         break
-      }
+        -re "mkfragment success" {
+            case_pass $case_num
+            break
+        }
 
-      "mkfragment success" {
-         case_pass $case_num
-         break
-      }
-
-      timeout {
-	 send -s "\3"
-         send_log "timeout\n"
-         case_fail $case_num
-         break
-      }
-   }
+        timeout {
+            send -s "\3"
+            send_log "timeout\n"
+            case_fail $case_num
+            break
+        }
+    }
 }
 
 send_log "\n"
