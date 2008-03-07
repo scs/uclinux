@@ -15,7 +15,7 @@
 int dmesg_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int dmesg_main(int argc, char **argv)
 {
-	int len;
+	int len, reallen;
 	char *buf;
 	char *size, *level;
 	int flags = getopt32(argv, "cs:n:", &size, &level);
@@ -26,7 +26,11 @@ int dmesg_main(int argc, char **argv)
 		return EXIT_SUCCESS;
 	}
 
-	len = (flags & 2) ? xatoul_range(size, 2, INT_MAX) : 16384;
+	/* Get the real length of kernel ring buffer. */
+	len = klogctl(10, NULL, 0);
+	reallen = len >= 0 ? len : 16384;
+
+	len = (flags & 2) ? xatoul_range(size, 2, INT_MAX) : reallen;
 	buf = xmalloc(len);
 	len = klogctl(3 + (flags & 1), buf, len);
 	if (len < 0)
