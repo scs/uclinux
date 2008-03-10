@@ -18,55 +18,51 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-   
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             
-             send "y\r"
-      }
-      
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re "RTC class.*RTC_CLASS.*\\\[.*]" {
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-             send -s "Y\r"
-      }
- 
-           -re "Blackfin On-Chip RTC.*RTC_DRV_BFIN.*\\\[.*]" {
-            
-             send -s "Y\r"
-      }
-      
-           -re "RTC test program.*CONFIG_USER_BLACKFIN_RTC.*\\\[.*]" {
-         
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "RTC class.*RTC_CLASS.*\\\[.*]" {
             send -s "Y\r"
-      }
-      
-       "\\\(*) \\\[*]" {
-              sleep .01	     
-              send "\r"
-      }
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Blackfin On-Chip RTC.*RTC_DRV_BFIN.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             break
-           
-      }
-   }
+        -re "RTC test program.*USER_BLACKFIN_RTC.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -84,5 +80,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-

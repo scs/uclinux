@@ -173,23 +173,25 @@ while 1 {
         }
 
 #Libs needed for konqueror
-        -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
-            send "y\r"
-        }
+#default now
+#        -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
+#            send "y\r"
+#        }
 
-        -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
-            send "y\r"
-        }
+#        -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
+#            send "y\r"
+#        }
 
-        -re "Build libjpeg.*CONFIG_LIB_LIBJPEG_FORCE.*\\\[.*]" {
-            send "y\r"
-        }
+#        -re "Build libjpeg.*CONFIG_LIB_LIBJPEG_FORCE.*\\\[.*]" {
+#            send "y\r"
+#        }
+#default now
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             send "$type\r"
         }
 
-        -re "VIDEO test program.*CONFIG_USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
+        -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
             send "y\r"
         }
 

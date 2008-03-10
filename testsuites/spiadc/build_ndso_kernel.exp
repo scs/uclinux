@@ -16,30 +16,29 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
+        "\\\(*) \\\[*]" {
+            send "\r"
+        }
 
-      "\\\(*) \\\[*]" {
-             send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        eof {
+            puts "End of configuration"
+            break
+        }
 
-      eof {
-             puts "End of configuration"
-             break
-      }
-      timeout {
-             puts "\n\nFATAL ERROR: config prompt timeout in make config"
-	     break
-
-      }
-   }
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path
@@ -49,59 +48,58 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-   
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Blackfin BF53x ADSP SPI ADC support.*SPI_ADC_BF533.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Blackfin BF53x ADSP SPI ADC support.*SPI_ADC_BF533.*\\\[.*]" {
+            send "Y\r"
+        }
 
-            -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
+            send "Y\r"
+        }
 
-            -re "Networked Software Defined Storage Oscilloscope.*CONFIG_USER_NDSO.*\\\[.*]" {
-             send "Y\r"
-      }
- 	
-            -re "Networked Arbitrary Waveform Genertor.*CONFIG_USER_AWG.*\\\[.*]" {
-             send "N\r"
-      }
+        -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
+            send "Y\r"
+        }
 
-       "\\\(*) \\\[*]" {
-             sleep .01
-             send "\r"
-      }
+        -re "Networked Software Defined Storage Oscilloscope.*USER_NDSO.*\\\[.*]" {
+            send "Y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Networked Arbitrary Waveform Genertor.*USER_AWG.*\\\[.*]" {
+            send "N\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-          }
-   }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -118,6 +116,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

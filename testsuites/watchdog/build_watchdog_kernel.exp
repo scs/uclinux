@@ -22,54 +22,50 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-   
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             
-             send "y\r"
-      }
-      
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
-          
- 	  -re "Watchdog Timer Support.*WATCHDOG.*\\\[.*]" {
-            
-             send -s "Y\r"
-      }
- 
-            -re "Blackfin On-Chip Watchdog Timer.*BFIN_WDT.*\\\[.*]" {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-             send -s "Y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-         -re "watchdog simple deamon.*CONFIG_USER_BLACKFIN_WATCHDOGD.*\\\[.*]" {
-             send -s "Y\r"
-      }
-      
-       "\\\(*) \\\[*]" {
-             sleep .001	     
-              send "\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Watchdog Timer Support.*WATCHDOG.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             break
-           
-      }
-   }
+        -re "Blackfin On-Chip Watchdog Timer.*BFIN_WDT.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        -re "watchdog simple deamon.*USER_BLACKFIN_WATCHDOGD.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .001
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -83,22 +79,22 @@ cd $uclinux_path
 step "Edit inittab file."
 
 set timeout 2
-      spawn ex romfs/etc/inittab
-      expect {
-         "Entering Ex mode*Normal mode." { }
+spawn ex romfs/etc/inittab
+expect {
+    "Entering Ex mode*Normal mode." { }
 
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/watchdogd\r"
-      expect "watchdogd*"
-      send "d\r"
-      expect ":"
-      send "wq\r"
-      expect eof
+    "already exists!" {
+        send "e\r"
+        sleep 1
+    }
+}
+sleep 1
+send "/watchdogd\r"
+expect "watchdogd*"
+send "d\r"
+expect ":"
+send "wq\r"
+expect eof
 
 
 step "Make images again."
@@ -108,17 +104,17 @@ spawn make image
 set timeout 1200
 set bfin_make_status failure
 while 1 {
-      expect {
-             "Entering directory" { }
-             "Leaving directory" { set bfin_make_status success }
-             "Error" {set bfin_make_status failure }
-             "/bin/sh" { }
-             eof { break }
-      }
+    expect {
+        "Entering directory" { }
+        "Leaving directory" { set bfin_make_status success }
+        "Error" {set bfin_make_status failure }
+        "/bin/sh" { }
+        eof { break }
+    }
 }
 
 if { $bfin_make_status == "failure" } {
-      puts "ERROR: Error somewhere during make"
+    puts "ERROR: Error somewhere during make"
 
 }
 
@@ -131,6 +127,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

@@ -20,57 +20,54 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-   
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "SMB file system support.*SMB_FS.*\\\[.*]" {
-             
-             send -s "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "samba \\\(CONFIG_USER_SAMBA\\\) \\\[././.]" {
-             send "Y\r"
-      }
+        -re "SMB file system support.*SMB_FS.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-           -re "smbmount \\\(CONFIG_USER_SAMBA_SMBMOUNT\\\) \\\[././.]" {
-             send "Y\r"
-      }
+        -re "samba \\\(USER_SAMBA\\\) \\\[.*]" {
+            send "Y\r"
+        }
 
-           -re "smbumount \\\(CONFIG_USER_SAMBA_SMBUMOUNT\\\) \\\[././.]" {
-             send "Y\r"
-      }
+        -re "smbmount \\\(USER_SAMBA_SMBMOUNT\\\) \\\[.*]" {
+            send "Y\r"
+        }
 
-           "\\\(*) \\\[*]" {
-             sleep .01
-             send "\r"
-      }
+        -re "smbumount \\\(USER_SAMBA_SMBUMOUNT\\\) \\\[.*]" {
+            send "Y\r"
+        }
 
-       
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -87,6 +84,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

@@ -21,106 +21,106 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-          
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
-     	 
-	   -re "Blackfin BF53x Programmable Flags Driver.*BF5xx_PFLAGS.*\\\[.*]" {
-             send "Y\r"
-      }
-      
-           -re "Blackfin BF5xx PPI Camera frame capture driver.*BF5xx_PPIFCD.*\\\[.*]" {
-             send "Y\r"
-      }
-      
-           -re "I2C support.*I2C\[^_].*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {
-             send "Y\r"
-      }
-  
-          -re "GPIO-based bitbanging I2C.*I2C_GPIO.*\\\[.*]" { 
-             if { $board_type == "BF533-STAMP" } {
-                        send "Y\r"
-             } else {
-                        send "N\r"
-             }
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Blackfin BF53x Programmable Flags Driver.*BF5xx_PFLAGS.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Blackfin BF5xx PPI Camera frame capture driver.*BF5xx_PPIFCD.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "I2C support.*I2C\[^_].*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "GPIO-based bitbanging I2C.*I2C_GPIO.*\\\[.*]" { 
+            if { $board_type == "BF533-STAMP" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
 
         -re "SDA GPIO pin number.*I2C_BLACKFIN_GPIO_SDA.*\\\[.*]" {
-              if { $board_type == "BF533-STAMP" } {
-                        send "2\r"
-             } else {
-                        send "\r"
-             }
-      }
-      
+            if { $board_type == "BF533-STAMP" } {
+                send "2\r"
+            } else {
+                send "\r"
+            }
+        }
+
         -re "SCL GPIO pin number.*I2C_BLACKFIN_GPIO_SCL.*\\\[.*]" {
-              if { $board_type == "BF533-STAMP" } {
-                        send "4\r"
-             } else {
-                        send "\r"
-             }
-      }
-     
-           -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
-             if { $board_type == "BF537-STAMP" } {
-                        send "Y\r"
-             } else {
-                        send "\r"
-             }
-      }
+            if { $board_type == "BF533-STAMP" } {
+                send "4\r"
+            } else {
+                send "\r"
+            }
+        }
 
-           -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {
-             if { $board_type == "BF537-STAMP" } {
-                        send "50\r"
-             } else {
-                        send "\r"
-             }
-      }
+        -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
+        }
 
-          -re "Sound card support.*SOUND.*\\\[.*]" {
-             send -s "N\r"
-      }
- 
-	 -re "PPIFCD test program.*CONFIG_USER_BLACKFIN_PPIFCDTEST.*\\\[.*]" {
-             send "Y\r"
-      }
-        
-         -re "CGI based Test Application for the PPI Frame Capture Driver.*CONFIG_USER_BLACKFIN_PPIFCDCGI.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "50\r"
+            } else {
+                send "\r"
+            }
+        }
 
-       -re  "\\\(.*\\\) \\\[.*]" { 
-             sleep .01
-	     send "\r"
-      }
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send -s "N\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "PPIFCD test program.*USER_BLACKFIN_PPIFCDTEST.*\\\[.*]" {
+            send "Y\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
-      }
-   }
+        -re "CGI based Test Application for the PPI Frame Capture Driver.*USER_BLACKFIN_PPIFCDCGI.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re  "\\\(.*\\\) \\\[.*]" { 
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -134,9 +134,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
-  
+
 send_user "Ending $argv0\n"
 log_file
- 
-
-
