@@ -14,6 +14,7 @@ source ../reboot_kernel.exp
 step "Starting test."
 set timeout 8
 
+set rcp_file testsuites/audio/audiotest.mp3
 set limit_ratio 10
 
 set case_num 0
@@ -63,7 +64,7 @@ incr case_num
 cd $uclinux_path
 
 set timeout 100
-spawn rcp images/rootfs.yaffs2  root@$targetip:/
+spawn rcp $rcp_file  root@$targetip:/
 while 1 {
    expect {
 
