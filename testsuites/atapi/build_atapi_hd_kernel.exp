@@ -16,116 +16,118 @@ spawn make config
 
 #tee "Begin the interactive process of configuration"
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Serial ATA \\\(prod\\\) and Parallel ATA \\\(experimental\\\) drivers.*ATA.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Serial ATA \\\(prod\\\) and Parallel ATA \\\(experimental\\\) drivers.*ATA.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Blackfin 54x ATAPI support.*PATA_BF54X.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Blackfin 54x ATAPI support.*PATA_BF54X.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "DMA mode.*PATA_BF54X_DMA.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "DMA mode.*PATA_BF54X_DMA.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "SCSI target support.*SCSI_TGT.*\\\[.*]" {
-         send "n\r"
-      }
+        -re "SCSI target support.*SCSI_TGT.*\\\[.*]" {
+            send "n\r"
+        }
 
-      -re "SCSI disk support.*BLK_DEV_SD.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "SCSI disk support.*BLK_DEV_SD.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "SCSI CDROM support.*BLK_DEV_SR.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "SCSI CDROM support.*BLK_DEV_SR.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "VFAT \\\(Windows-95\\\) fs support.*VFAT_FS.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "VFAT \\\(Windows-95\\\) fs support.*VFAT_FS.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Codepage 437 \\\(United States, Canada\\\).*NLS_CODEPAGE_437.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Codepage 437 \\\(United States, Canada\\\).*NLS_CODEPAGE_437.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Locate interrupt entry code in L1 Memory.*I_ENTRY_L1.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Locate interrupt entry code in L1 Memory.*I_ENTRY_L1.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Locate entire ASM lowlevel excepetion.*EXCPT_IRQ_SYSC_L1.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Locate entire ASM lowlevel excepetion.*EXCPT_IRQ_SYSC_L1.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Locate frequently called do_irq dispatcher function in L1 Memory.*DO_IRQ_L1.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Locate frequently called do_irq dispatcher function in L1 Memory.*DO_IRQ_L1.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Locate frequently called timer_interrupt.*function in L1 Memory.*CORE_TIMER_IRQ_L1.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Locate frequently called timer_interrupt.*function in L1 Memory.*CORE_TIMER_IRQ_L1.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Locate access_ok function in L1 Memory.*ACCESS_OK_L1.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Locate access_ok function in L1 Memory.*ACCESS_OK_L1.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "fdisk.*CONFIG_USER_FDISK_FDISK.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "fdisk.*CONFIG_USER_FDISK_FDISK.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "e2fsck.*CONFIG_USER_E2FSPROGS_E2FSCK_E2FSCK.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "e2fsck.*USER_E2FSPROGS_E2FSCK_E2FSCK.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "mke2fs.*CONFIG_USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "mke2fs.*USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "mkdosfs.*CONFIG_USER_DOSFSTOOLS_MKDOSFS.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "mkdosfs.*USER_DOSFSTOOLS_MKDOSFS.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "dosfsck.*CONFIG_USER_DOSFSTOOLS_DOSFSCK.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "dosfsck.*USER_DOSFSTOOLS_DOSFSCK.*\\\[.*]" {
+            send "y\r"
+        }
 
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites

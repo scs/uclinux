@@ -22,52 +22,54 @@ spawn make config
 
 #tee "Begin the interactive process of configuration"
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Enable Core B support.*BF561_COREB.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Enable Core B support.*BF561_COREB.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Enable Core B reset support.*BF561_COREB_RESET.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Enable Core B reset support.*BF561_COREB_RESET.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Dual Core Test Module.*DUAL_CORE_TEST_MODULE.*\\\[.*]" {
-         send "m\r"
-      }
-      
-      -re "BF561 Core B support tools.*CONFIG_USER_BF561_COREBLD.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Dual Core Test Module.*DUAL_CORE_TEST_MODULE.*\\\[.*]" {
+            send "m\r"
+        }
 
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
+        -re "BF561 Core B support tools.*USER_BF561_COREBLD.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -81,6 +83,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
-  
+
 send_user "Ending $argv0\n"
 log_file

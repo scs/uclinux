@@ -84,7 +84,7 @@ while 1 {
          }
       }
 
-      -re "hostid \\\(CONFIG_USER_BUSYBOX_HOSTID\\\).*\\\[././.]" {
+      -re "hostid.*USER_BUSYBOX_HOSTID.*\\\[.*]" {
          send "y\r"
       }
 
