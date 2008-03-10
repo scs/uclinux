@@ -127,35 +127,36 @@ while 1 {
 #             send "Y\r"
 #      }
 
-        -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
+        -re "netperf test tool.*USER_NETPERF_TEST.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "wireless_tools support.*CONFIG_USER_WIRELESS_TOOLS.*\\\[.*]" {
-            send "Y\r"
-        }
-        -re "iwconfig.*CONFIG_USER_WIRELESS_TOOLS_IWCONFIG.*\\\[.*]" {
+        -re "wireless_tools support.*USER_WIRELESS_TOOLS.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "iwgetid.*CONFIG_USER_WIRELESS_TOOLS_IWGETID.*\\\[.*]" {
+        -re "iwconfig.*USER_WIRELESS_TOOLS_IWCONFIG.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "iwlist.*CONFIG_USER_WIRELESS_TOOLS_IWLIST.*\\\[.*]" {
+        -re "iwgetid.*USER_WIRELESS_TOOLS_IWGETID.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "iwpriv.*CONFIG_USER_WIRELESS_TOOLS_IWPRIV.*\\\[.*]" {
+        -re "iwlist.*USER_WIRELESS_TOOLS_IWLIST.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "iwspy.*CONFIG_USER_WIRELESS_TOOLS_IWSPY.*\\\[.*]" {
+        -re "iwpriv.*USER_WIRELESS_TOOLS_IWPRIV.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "iwspy.*USER_WIRELESS_TOOLS_IWSPY.*\\\[.*]" {
             send "Y\r"
         }
 
         -re "Sound card support.*SOUND.*\\\[.*]" {
-#avoid GPIO confliction with ad1836
+            #avoid GPIO confliction with ad1836
             send "n\r"
         }
 
@@ -172,6 +173,7 @@ while 1 {
             puts "End of configuration"
             break
         }
+
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
         }
@@ -198,7 +200,7 @@ expect {
 
     "already exists!" {
         send "e\r"
-        sleep 1
+            sleep 1
     }
 }
 sleep 1

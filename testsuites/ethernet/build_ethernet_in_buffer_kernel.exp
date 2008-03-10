@@ -16,30 +16,30 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
+        "\\\(*) \\\[*]" {
+            send "\r"
+        }
 
-      "\\\(*) \\\[*]" {
-             send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        eof {
+            puts "End of configuration"
+            break
+        }
 
-      eof {
-             puts "End of configuration"
-             break
-      }
-      timeout {
-             puts "\n\nFATAL ERROR: config prompt timeout in make config"
-	     break
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
 
-      }
-   }
+        }
+    }
 }
 
 cd $uclinux_path
@@ -49,61 +49,54 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-   
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             
-             send "y\r"
-      }
-       
-          -re "Use L1 memory for rx/tx packets.*BFIN_MAC_USE_L1.*\\\[.*]" {
-             
-             send -s "N\r"
-      }
-      
-          -re "Number of transmit buffer packets.*BFIN_TX_DESC_NUM.*\\\[.*]" {
-             
-             send -s "100\r"
-      }
-      
-          -re "Number of receive buffer packets.*BFIN_RX_DESC_NUM.*\\\[.*]" {
-             
-             send -s "500\r"
-      }
-          -re "netperf test tool.*CONFIG_USER_NETPERF_TEST.*\\\[.*]" {
-             
-             send -s "Y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-       "\\\(*) \\\[*]" {
-             sleep .1
-	     send "\r"
-      }
+        -re "Use L1 memory for rx/tx packets.*BFIN_MAC_USE_L1.*\\\[.*]" {
+            send -s "N\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Number of transmit buffer packets.*BFIN_TX_DESC_NUM.*\\\[.*]" {
+            send -s "100\r"
+        }
 
+        -re "Number of receive buffer packets.*BFIN_RX_DESC_NUM.*\\\[.*]" {
+            send -s "500\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             break        
-      }
-   }
+        -re "netperf test tool.*USER_NETPERF_TEST.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .1
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break        
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -121,29 +114,29 @@ exec tar zxvf netperf.tgz
 
 cd $uclinux_path/testsuites/ethernet/
 sleep 3
- set timeout 2
-      spawn ex netperf_script
-      expect {
-         "Entering Ex mode*Normal mode." { }
+set timeout 2
+spawn ex netperf_script
+expect {
+    "Entering Ex mode*Normal mode." { }
 
-         "already exists!" {
-            send "e\r"
+    "already exists!" {
+        send "e\r"
             sleep 1
-         } 
-      }
-      sleep 1
-      send "/HOSTIP\r"
-      expect "HOSTIP=*"
-      send "d\r"
-      expect ":"
-      send "i\r"
-      
-      send "HOSTIP=$serverip\r"
-      
-      send ".\r"
-      expect :
-      send "wq\r"
-      expect eof
+    } 
+}
+sleep 1
+send "/HOSTIP\r"
+expect "HOSTIP=*"
+send "d\r"
+expect ":"
+send "i\r"
+
+send "HOSTIP=$serverip\r"
+
+send ".\r"
+expect :
+send "wq\r"
+expect eof
 
 exec chmod 777 netperf_script
 cd $uclinux_path
@@ -161,9 +154,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
-  
+
 send_user "Ending $argv0\n"
 log_file
- 
-
-

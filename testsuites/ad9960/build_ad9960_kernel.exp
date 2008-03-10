@@ -20,63 +20,62 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-          -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
-             send -s "Y\r"
-      }
+        -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-          -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-             send "21\r"
-      }
+        -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
+            send "21\r"
+        }
 
-          -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
-             send "1\r"
-      }
+        -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
+            send "1\r"
+        }
 
-          -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
-             send "4\r"
-      }
-     
-          -re "AD9960 chip driver.*AD9960.*\\\[.*]" {
-             send -s "Y\r"
-      }
-    
-	  -re "AD9960 device test.*CONFIG_AD9960_TEST.*\\\[.*]" {
-             send -s "Y\r"
-      }
-   
-   
-       "\\\(*) \\\[*]" {
-             sleep .01
-	     send "\r"
-      }
+        -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
+            send "4\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "AD9960 chip driver.*AD9960.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-	     break
-      }
-   }
+        -re "AD9960 device test.*AD9960_TEST.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+                break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -93,6 +92,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

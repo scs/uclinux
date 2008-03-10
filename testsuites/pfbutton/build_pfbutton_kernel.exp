@@ -17,70 +17,67 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-   
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             
-             send "y\r"
-      }
-        
-           -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {
-             send "Y\r"
-      }
-   	
-       	  -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
-          
-		send "y\r"
-       }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-           -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-           -re "AT keyboard.*KEYBOARD_ATKBD.*\\\[.*]" {
-             send "N\r"
-      }
+        -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {
+            send "Y\r"
+        }
 
-          -re "GPIO Buttons.*KEYBOARD_GPIO.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "Serial I/O support.*SERIO.*\\\[.*]" {
-             send "N\r"
-      }
+        -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {
+            send "Y\r"
+        }
 
-          -re "Input event device test.*CONFIG_EVENT_TEST.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "AT keyboard.*KEYBOARD_ATKBD.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "GPIO Buttons.*KEYBOARD_GPIO.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Serial I/O support.*SERIO.*\\\[.*]" {
+            send "N\r"
+        }
+
+        -re "Input event device test.*EVENT_TEST.*\\\[.*]" {
+            send "Y\r"
+        }
 
         -re  "\\\(.*\\\) \\\[.*]" {
-             sleep .01
-             send "\r"
-      }
- 
+            sleep .01
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
-      }
-   }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+
+        }
+    }
 }
 cd $uclinux_path/testsuites
 
@@ -93,9 +90,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
- 
+
 send_user "Ending $argv0\n"
 log_file
- 
-
-

@@ -19,40 +19,41 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
-     
-      -re "Build sqlite.*CONFIG_LIB_SQLITE_FORCE.*\\\[././.]" {
-         send "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-      -re "Sqlite test program \\\(CONFIG_USER_SQLITE_TEST\\\) \\\[././.]" {
-         send "Y\r"
-      }
+        -re "Build sqlite.*LIB_SQLITE.*\\\[.*]" {
+            send "Y\r"
+        }
 
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
+        -re "Sqlite test program \\\(USER_SQLITE_TEST\\\) \\\[.*]" {
+            send "Y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 cd $uclinux_path/testsuites

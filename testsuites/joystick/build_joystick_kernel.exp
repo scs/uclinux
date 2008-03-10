@@ -9,29 +9,29 @@ step "Change config file in /vender folder."
 
 cd $uclinux_path
 sleep 3
- set timeout 2
-      spawn ex vendors/AnalogDevices/$board_type/Makefile
-      expect {
-         "Entering Ex mode*Normal mode." { }
+set timeout 2
+spawn ex vendors/AnalogDevices/$board_type/Makefile
+expect {
+    "Entering Ex mode*Normal mode." { }
 
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/BLOCKS\r"
-      expect "BLOCKS*="
-      send "d\r"
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "BLOCKS = 16384\r"
-      sleep .5
-      send ".\r"
-      expect ":"
-      send "wq\r"
-      expect eof
+    "already exists!" {
+        send "e\r"
+        sleep 1
+    }
+}
+sleep 1
+send "/BLOCKS\r"
+expect "BLOCKS*="
+send "d\r"
+expect ":"
+send "i\r"
+sleep .5
+send "BLOCKS = 16384\r"
+sleep .5
+send ".\r"
+expect ":"
+send "wq\r"
+expect eof
 
 
 cd $uclinux_path/testsuites
@@ -49,95 +49,97 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-           -re "I2C support.*I2C\[^_].*\\\[.*]" {             
-             send "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-      	   -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
-             send "Y\r"
-      }
-           	     
-      	   -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {   
-	     if { $board_type == "BF537-STAMP" } {             
-             		send "Y\r"
-	     } else {
-	     		send "\r"
-	     }	             
-      }
-      
-      	   -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {   
-	     if { $board_type == "BF537-STAMP" } {             
-             		send "50\r"
-	     } else {
-	     		send "\r"
-	     }	             
-      }
-      
-      	   -re "Generic input layer.*\\\[.*]" {            
-             send "Y\r"
-      }
-      
-           -re "Mouse interface.*INPUT_MOUSEDEV.*\\\[.*]" {            
-             send "N\r"
-      }
-      
-           -re "Joystick interface.*INPUT_JOYDEV.*\\\[.*]" {            
-             send "Y\r"
-      }
-         	   
-  	   -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {            
-             send "Y\r"
-      }
-         	 
-	   -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {            
-             send "N\r"
-      }
-  
-    	   -re "Mice.*INPUT_MOUSE.*\\\[.*]" {            
-             send "N\r"
-      }
-           
-      	   -re "Joysticks.*INPUT_JOYSTICK.*\\\[.*]" {            
-             send "Y\r"
-      }
-      	   -re "Analog Devices AD7142 Joystick support.*JOYSTICK_AD7142.*\\\[.*]" {            
-             send "m\r"
-      }
-      
-      	   -re "Input event device test.*CONFIG_EVENT_TEST.*\\\[.*]" {            
-             send "Y\r"
-      }
-       
-     -re  "\\\(.*\\\) \\\[.*]" { 
-             sleep .01
-	     send "\r"
-      }
+        -re "I2C support.*I2C\[^_].*\\\[.*]" {             
+            send "Y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
+            send "Y\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {   
+            if { $board_type == "BF537-STAMP" } {             
+                send "Y\r"
+            } else {
+                send "\r"
+            }	             
+        }
+
+        -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {   
+            if { $board_type == "BF537-STAMP" } {             
+                send "50\r"
+            } else {
+                send "\r"
+            }	             
+        }
+
+        -re "Generic input layer.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "Mouse interface.*INPUT_MOUSEDEV.*\\\[.*]" {            
+            send "N\r"
+        }
+
+        -re "Joystick interface.*INPUT_JOYDEV.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {            
+            send "N\r"
+        }
+
+        -re "Mice.*INPUT_MOUSE.*\\\[.*]" {            
+            send "N\r"
+        }
+
+        -re "Joysticks.*INPUT_JOYSTICK.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "Analog Devices AD7142 Joystick support.*JOYSTICK_AD7142.*\\\[.*]" {            
+            send "m\r"
+        }
+
+        -re "Input event device test.*EVENT_TEST.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re  "\\\(.*\\\) \\\[.*]" { 
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+        }
+    }
 }
 
 
@@ -152,9 +154,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
- 
+
 send_user "Ending $argv0\n"
 log_file
- 
-
-
