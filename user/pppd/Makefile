@@ -10,6 +10,9 @@ all: $(VER)/Makefile
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 	$(_MAKE) -C $(VER)/pppd/plugins
 endif
+ifeq ($(CONFIG_USER_CHAT_CHAT),y)
+	$(_MAKE) -C $(VER)/chat
+endif
 
 $(VER)/Makefile:
 	cd $(VER) ; \
@@ -25,8 +28,9 @@ $(VER)/Makefile:
 	rm -f $(VER)/pppd/Makefile.sed
 
 romfs:
-	$(ROMFSINST) -d $(VER)/pppd/pppd /usr/bin/pppd
-	$(ROMFSINST) -d $(VER)/etc.ppp /etc/ppp
+	$(ROMFSINST) -d -e CONFIG_USER_CHAT_CHAT $(VER)/chat/chat /usr/sbin/chat
+	$(ROMFSINST) -d -e CONFIG_USER_PPPD_PPPD_PPPD $(VER)/pppd/pppd /usr/sbin/pppd
+	$(ROMFSINST) -d -e CONFIG_USER_PPPD_PPPD_PPPD $(VER)/etc.ppp /etc/ppp
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 	set -e ; \
 	for f in `find $(VER)/pppd/plugins -name '*.so'` ; do \
