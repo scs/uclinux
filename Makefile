@@ -103,6 +103,7 @@ tools/cksum: tools/sg-cksum/*.c
 	ln -sf $(ROOTDIR)/tools/sg-cksum/cksum tools/cksum
 
 .PHONY: staging
+ifneq ($(CROSS_COMPILE),)
 staging: \
 	tools/$(CROSS_COMPILE)gcc \
 	tools/$(CROSS_COMPILE)g++ \
@@ -113,6 +114,10 @@ tools/$(CROSS_COMPILE)%:
 	ln -sf staging-compiler $@
 tools/$(CROSS_COMPILE)pkg-config:
 	ln -sf staging-pkg-config $@
+else
+staging:
+	@echo "Error: you have not configured things yet" ; false
+endif
 
 ############################################################################
 
@@ -355,6 +360,7 @@ clean: modules_clean
 	rm -f $(LINUXDIR)/linux
 	rm -f $(LINUXDIR)/include/asm
 	rm -rf $(LINUXDIR)/net/ipsec/alg/libaes $(LINUXDIR)/net/ipsec/alg/perlasm
+	find ./tools/ -maxdepth 1 -type l | xargs rm -f
 
 real_clean mrproper: clean
 	[ -d "$(LINUXDIR)" ] && $(MAKEARCH_KERNEL) -C $(LINUXDIR) mrproper || :
@@ -365,7 +371,6 @@ real_clean mrproper: clean
 	rm -rf romfs Kconfig config.arch images
 	rm -rf .config .config.old .oldconfig autoconf.h auto.conf
 	rm -rf staging
-	find ./tools/ -maxdepth 1 -type l | xargs rm -f
 
 distclean: mrproper
 	-$(MAKEARCH_KERNEL) -C $(LINUXDIR) distclean
