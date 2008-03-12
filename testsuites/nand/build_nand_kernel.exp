@@ -20,56 +20,55 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Initial RAM filesystem and RAM disk.*initramfs/initrd.*support.*BLK_DEV_INITRD.*\\\[.*]" {
-              send "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
+        -re "Initial RAM filesystem and RAM disk.*initramfs/initrd.*support.*BLK_DEV_INITRD.*\\\[.*]" {
+            send "Y\r"
+        }
 
-             send -s "N\r"
-      }
+        -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
+            send -s "N\r"
+        }
 
-          -re "mtd-utils.*CONFIG_USER_MTDUTILS.*\\\[.*]" {
+        -re "mtd-utils.*USER_MTDUTILS.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-             send -s "Y\r"
-      }
-
-           -re "eraseall.*CONFIG_USER_MTDUTILS_ERASEALL.*\\\[.*]" {
-
-             send -s "Y\r"
-      }
+        -re "eraseall.*USER_MTDUTILS_ERASEALL.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
 
-       "\\\(*) \\\[*]" {
-             sleep .01
-	     send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -86,6 +85,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

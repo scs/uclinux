@@ -20,65 +20,66 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
+            send "Y\r"
+        }
 
-          -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-             send "20\r"
-      }
+        -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
+            send "20\r"
+        }
 
-          -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
-             send "1\r"
-      }
+        -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
+            send "1\r"
+        }
 
-          -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
-             send "4\r"
-      }
+        -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
+            send "4\r"
+        }
 
-          -re "can4linux support, the car bus and industrial fieldbus.*CAN4LINUX.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "can4linux support, the car bus and industrial fieldbus.*CAN4LINUX.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "Analog Devices BlackFin CAN Controller.*CAN_BLACKFIN.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Analog Devices BlackFin CAN Controller.*CAN_BLACKFIN.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "can4linux examples.*CONFIG_USER_CAN_EXAMPLES.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "can4linux examples.*USER_CAN_EXAMPLES.*\\\[.*]" {
+            send "y\r"
+        }
 
-       "\\\(*) \\\[*]" {
-             sleep .01
-	     send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites

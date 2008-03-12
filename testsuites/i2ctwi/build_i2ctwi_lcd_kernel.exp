@@ -20,81 +20,82 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-      
-      	   -re "I2C support.*I2C. \\\[.*]" {             
-             send "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-      	   -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
-             send "Y\r"
-      }
+        -re "I2C support.*I2C. \\\[.*]" {             
+            send "Y\r"
+        }
 
-           -re "GPIO-based bitbanging I2C.*I2C_GPIO.*\\\[.*]" {
-             if { $board_type == "BF533-STAMP" } {
-                        send "Y\r"
-             } else {
-                        send "N\r"
-             }
-      }
+        -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
+            send "Y\r"
+        }
 
-           -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
-             if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {
-                        send "Y\r"
-             } else {
-                        send "\r"
-             }
-      }
+        -re "GPIO-based bitbanging I2C.*I2C_GPIO.*\\\[.*]" {
+            if { $board_type == "BF533-STAMP" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
 
-           -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {
-             if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {
-                        send "50\r"
-             } else {
-                        send "\r"
-             }
-      }
-      
-      	   -re "TWI/I2C LCD support for HD44780 based LCD modules.*TWI_LCD.*\\\[.*]" {            
-             send "M\r"
-      }
-     
-      	   -re "Analog Devices AD5252 and AD5251 Digital Potentiometers.*SENSORS_AD5252.*\\\[.*]" {            
-             send "Y\r"
-      }
-                
-	   -re "TWI LCD test program.*CONFIG_USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {            
-             send "y\r"
-      }
-      
-       "\\\(*) \\\[*]" {
-             sleep .01
-	     send "\r"
-      }
+        -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {
+                send "Y\r"
+            } else {
+                send "\r"
+            }
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {
+                send "50\r"
+            } else {
+                send "\r"
+            }
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "TWI/I2C LCD support for HD44780 based LCD modules.*TWI_LCD.*\\\[.*]" {            
+            send "M\r"
+        }
+
+        -re "Analog Devices AD5252 and AD5251 Digital Potentiometers.*SENSORS_AD5252.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "TWI LCD test program.*USER_BLACKFIN_TWILCDTEST.*\\\[.*]" {            
+            send "y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -111,6 +112,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

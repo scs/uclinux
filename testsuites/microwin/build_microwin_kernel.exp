@@ -45,59 +45,60 @@ while 1 {
             send "m\r"
         }
 
-        -re "MicroWindows \\\(CONFIG_USER_MICROWIN\\\).*\\\[././.]" {
+        -re "MicroWindows \\\(USER_MICROWIN\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "Optimize.*CONFIG_USER_MICROWIN_OPTIMIZE.*\\\[.*]" {
+        -re "Optimize.*USER_MICROWIN_OPTIMIZE.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Microwin \\\(CONFIG_USER_MICROWIN_MICROWIN\\\).*\\\[././.]" {
+        -re "Microwin \\\(USER_MICROWIN_MICROWIN\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "NanoX \\\(CONFIG_USER_MICROWIN_NANOX\\\).*\\\[././.]" {
+        -re "NanoX \\\(USER_MICROWIN_NANOX\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "MicrowinDemo \\\(CONFIG_USER_MICROWIN_MICROWINDEMO\\\).*\\\[././.]" {
+        -re "MicrowinDemo \\\(USER_MICROWIN_MICROWINDEMO\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "NanoXDemo \\\(CONFIG_USER_MICROWIN_NANOXDEMO\\\).*\\\[././.]" {
+        -re "NanoXDemo \\\(USER_MICROWIN_NANOXDEMO\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "NanoWM.*CONFIG_USER_MICROWIN_NANOWM.*\\\[.*]" {
+        -re "NanoWM.*USER_MICROWIN_NANOWM.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Screen PixType.*Packed.*\\\[.*]" {
-            send "Packed-8bit-Palette\r"
+        -re "Screeen PixType.*Packed.*choice.*\\\[.*]" {
+            #here we choose Packed-8bit-Palette
+            send "1\r"
         }
 
-        -re "Have File IO.*\\\[.*]" {
+        -re "Have File IO.*USER_MICROWIN_HAVE_FILEIO.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Frame Buffer Display \\\(CONFIG_USER_MICROWIN_FRAMEBUFFER\\\).*\\\[././.]" {
+        -re "Frame Buffer Display \\\(USER_MICROWIN_FRAMEBUFFER\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "No Mouse \\\(CONFIG_USER_MICROWIN_NOMOUSE\\\).*\\\[././.]" {
+        -re "No Mouse \\\(USER_MICROWIN_NOMOUSE\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "No Keyboard \\\(CONFIG_USER_MICROWIN_NOKBD\\\).*\\\[././.]" {
+        -re "No Keyboard \\\(USER_MICROWIN_NOKBD\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "Nano-X \\\(CONFIG_USER_MICROWIN_BIN_NANO_X\\\).*\\\[././.]" {
+        -re "Nano-X \\\(USER_MICROWIN_BIN_NANO_X\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "NanoWM \\\(CONFIG_USER_MICROWIN_BIN_NANOWM\\\).*\\\[././.]" {
+        -re "NanoWM \\\(USER_MICROWIN_BIN_NANOWM\\\) \\\[.*]" {
             send "y\r"
         }
 
@@ -109,7 +110,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "VIDEO test program \\\(CONFIG_USER_BLACKFIN_VIDEOTEST\\\).*\\\[././.]" {
+        -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
             send "y\r"
         }
 
@@ -129,6 +130,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }

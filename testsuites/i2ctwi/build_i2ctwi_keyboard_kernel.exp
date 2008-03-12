@@ -20,124 +20,126 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "PINT2_ASSIGN.*PINT2_ASSIGN.*\\\[.*]" {
-           if { $board_type == "BF548-EZKIT" } {
-                       send "0x04000101\r"
-            } else {
-                       send "\r"
-            }
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-      	   -re "I2C support.*I2C\[^_].*\\\[.*]" {             
-             send "Y\r"
-      }
-
-      	   -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
-             send "Y\r"
-      }
-
-           -re "GPIO-based bitbanging I2C.*I2C_GPIO.*\\\[.*]" {
-             if { $board_type == "BF533-STAMP" } {
-                        send "Y\r"
-             } else {
-                        send "N\r"
-             }
-      }
-     	   
-      	   -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {   
-	     if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {             
-             		send "Y\r"
-	     } else {
-	     		send "\r"
-	     }	             
-      }
-      
-      	   -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {   
-	     if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {             
-             		send "50\r"
-	     } else {
-	     		send "\r"
-	     }	             
-      }
-      
-      	   -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {            
-             send "Y\r"
-      }
-  
-      	   -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {            
-             send "Y\r"
-      }
-      
-      	   -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {            
+        -re "PINT2_ASSIGN.*PINT2_ASSIGN.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
-                        send "N\r"
-             } else {
-                        send "\r"
-             }
-      }
-      
-      	   -re "Miscellaneous devices.*INPUT_MISC.*\\\[.*]" {            
-             send "Y\r"
-      }
-      
-      	   -re "User level driver support.*INPUT_UINPUT.*\\\[.*]" {            
-             send "Y\r"
-      }
-       
-           -re "TWI/I2C Keypad input device.*TWI_KEYPAD.*\\\[.*]" {
-             send "m\r"
-      }
-           
-           -re "IRQ.*BFIN_TWIKEYPAD_IRQ_PFX.*\\\[.*]" {
+                send "0x04000101\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "I2C support.*I2C\[^_].*\\\[.*]" {             
+            send "Y\r"
+        }
+
+        -re "I2C device interface.*I2C_CHARDEV.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "GPIO-based bitbanging I2C.*I2C_GPIO.*\\\[.*]" {
+            if { $board_type == "BF533-STAMP" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+        -re "Blackfin TWI I2C support.*I2C_BLACKFIN_TWI.*\\\[.*]" {   
+            if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {             
+                send "Y\r"
+            } else {
+                send "\r"
+            }	             
+        }
+
+        -re "Blackfin TWI I2C clock.*I2C_BLACKFIN_TWI_CLK_KHZ.*\\\[.*]" {   
+            if { $board_type == "BF537-STAMP" || $board_type == "BF548-EZKIT" } {             
+                send "50\r"
+            } else {
+                send "\r"
+            }	             
+        }
+
+        -re "Generic input layer.*needed for keyboard, mouse.*INPUT.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {            
+            if { $board_type == "BF548-EZKIT" } {
+                send "N\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Miscellaneous devices.*INPUT_MISC.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "User level driver support.*INPUT_UINPUT.*\\\[.*]" {            
+            send "Y\r"
+        }
+
+        -re "TWI/I2C Keypad input device.*TWI_KEYPAD.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "IRQ.*BFIN_TWIKEYPAD_IRQ_PFX.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                        send "72\r"
-             } elseif { $board_type == "BF533-STAMP" } {
-                        send "39\r"
-             } elseif { $board_type == "BF548-EZKIT" } {
-                        send "212\r"
-             } else {
-                        send "\r"
-             }
-      }
+                send "72\r"
+            } elseif { $board_type == "BF533-STAMP" } {
+                send "39\r"
+            } elseif { $board_type == "BF548-EZKIT" } {
+                send "212\r"
+            } else {
+                send "\r"
+            }
+        }
 
-           -re "Sound card support.*SOUND.*\\\[.*]" {
-             send -s "N\r"
-      }
-           
-           -re "TWI KEYPAD test program.*CONFIG_USER_BLACKFIN_TWIKEYPADTEST.*\\\[.*]" {
-             send "Y\r"
-      }
- 
-       "\\\(*) \\\[*]" {
-             sleep .01
-	     send "\r"
-      }
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send -s "N\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "TWI KEYPAD test program.*USER_BLACKFIN_TWIKEYPADTEST.*\\\[.*]" {
+            send "Y\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -154,6 +156,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

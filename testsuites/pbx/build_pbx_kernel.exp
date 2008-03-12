@@ -50,68 +50,71 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "PBX support.*PBX.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "Asterisk PBX.*CONFIG_USER_BLACKFIN_ASTERISK.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "PBX support.*PBX.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
-             send "N\r"
-      }
+        -re "Asterisk PBX.*USER_BLACKFIN_ASTERISK.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "Support for frame buffer devices.*FB.*\\\[.*]" {
-             send "N\r"
-      }
+        -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
+            send "N\r"
+        }
 
-          -re "Sound card support.*SOUND.*\\\[.*]" {
-             send "N\r"
-      }
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            send "N\r"
+        }
 
-          -re "Build libSSL.*CONFIG_LIB_LIBSSL_FORCE.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "N\r"
+        }
 
-          -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Build libSSL.*LIB_LIBSSL.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "Build ncurses.*CONFIG_LIB_NCURSES_FORCE.*\\\[.*]" {
-             send "y\r"
-      }
+#Select by default
+#        -re "Build libZ.*LIB_ZLIB.*\\\[.*]" {
+#            send "y\r"
+#        }
 
-       "\\\(*) \\\[*]" {
-             sleep .01
-             send "\r"
-      }
+        -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -128,6 +131,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
- 
-
-

@@ -20,124 +20,128 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Sound card support.*SOUND.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Blackfin Audio SPORT port.*SND_BLACKFIN_SPORT.*\\\[.]" {
-         send "0\r"
-      }
+        -re "Blackfin Audio SPORT port.*SND_BLACKFIN_SPORT.*\\\[.]" {
+            send "0\r"
+        }
 
-      -re "Blackfin Audio SPI channel selection bit.*SND_BLACKFIN_SPI_PFBIT.*\\\[.]" {
-         send "4\r"
-      }
+        -re "Blackfin Audio SPI channel selection bit.*SND_BLACKFIN_SPI_PFBIT.*\\\[.]" {
+            send "4\r"
+        }
 
-      -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
-         send "n\r"
-      }
+        -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+            send "n\r"
+        }
 
-      -re "SMB file system support \\\(.*\\\) \\\(SMB_FS\\\) \\\[./././.]" {
-         send "y\r"
-      }
+        -re "SMB file system support \\\(.*\\\) \\\(SMB_FS\\\) \\\[./././.]" {
+            send "y\r"
+        }
 
-      -re "tone.*CONFIG_USER_PLAY_TONE.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "samba \\\(CONFIG_USER_SAMBA\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "samba \\\(USER_SAMBA\\\) \\\[.*]" {
+            send "y\r"
+        }
 
-      -re "smbmount \\\(CONFIG_USER_SAMBA_SMBMOUNT\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "smbmount \\\(USER_SAMBA_SMBMOUNT\\\) \\\[.*]" {
+            send "y\r"
+        }
 
-      -re "smbumount \\\(CONFIG_USER_SAMBA_SMBUMOUNT\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "smbumount \\\(USER_SAMBA_SMBUMOUNT\\\) \\\[.*]" {
+            send "y\r"
+        }
 
-      -re "NetAudio \\\(CONFIG_USER_NET_AUDIO\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "NetAudio \\\(USER_NET_AUDIO\\\) \\\[.*]" {
+            send "y\r"
+        }
 
-      -re "boa-new\\\(.*\\\) \\\(CONFIG_USER_BOA_SRC_BOA_NEW\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "boa \\\(USER_BOA_SRC_BOA\\\) \\\[.*]" {
+            send "y\r"
+        }
 
-      -re "Build faad2 \\\(CONFIG_LIB_FAAD2_FORCE\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "Build faad2.*LIB_FAAD2.*\\\[./.]" {
+            send "y\r"
+        }
 
-      -re "Build flac \\\(CONFIG_LIB_FLAC_FORCE\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "Build flac.*LIB_FLAC.*\\\[./.]" {
+            send "y\r"
+        }
 
-      -re "Build tremor \\\(CONFIG_LIB_TREMOR_FORCE\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "Build tremor.*LIB_TREMOR.*\\\[./.]" {
+            send "y\r"
+        }
 
-      -re "Build libao \\\(CONFIG_LIB_LIBAO_FORCE\\\) \\\[././.]" {
-         send "y\r"
-      }
+#libao requires FDPIC ELF
+#No such option now
+#        -re "Build libao \\\(CONFIG_LIB_LIBAO_FORCE\\\) \\\[././.]" {
+#            send "y\r"
+#        }
 
-      -re "Build libaudio \\\(CONFIG_LIB_LIBAUDIO_FORCE\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "Build libaudio.*LIB_LIBAUDIO.*\\\[./.]" {
+            send "y\r"
+        }
 
-      -re "Build libmad \\\(CONFIG_LIB_LIBMAD_FORCE\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "Build libmad.*LIB_LIBMAD.*\\\[./.]" {
+            send "y\r"
+        }
 
-      -re "Build libid3tag \\\(CONFIG_LIB_LIBID3TAG_FORCE\\\) \\\[././.]" {
-         send "y\r"
-      }
+        -re "Build libid3tag.*LIB_LIBID3TAG.*\\\[./.]" {
+            send "y\r"
+        }
 
-      "\\\(*) \\\[*]" {
-         sleep .01
-         send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites

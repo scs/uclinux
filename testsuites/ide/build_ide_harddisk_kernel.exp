@@ -103,101 +103,101 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-         -re "ATA.ATAPI.MFM.RLL support.*IDE.*\\\[.*]" {
-             send -s "Y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
-         -re "Enhanced IDE.MFM.RLL disk.cdrom.tape.floppy support.*BLK_DEV_IDE.*\\\[.*]" {
-             send -s "Y\r"
-      }
+        -re "ATA.ATAPI.MFM.RLL support.*IDE.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-         -re "Include IDE.ATA-2 DISK support.*BLK_DEV_IDEDISK.*\\\[.*]" {
-             send -s "Y\r"
-      }
+        -re "Enhanced IDE.MFM.RLL disk.cdrom.tape.floppy support.*BLK_DEV_IDE.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-         -re "Include IDE/ATAPI CDROM support.*BLK_DEV_IDECD.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "Include IDE.ATA-2 DISK support.*BLK_DEV_IDEDISK.*\\\[.*]" {
+            send -s "Y\r"
+        }
 
-         -re "IDE Interface Address Mapping .*Linear 16-bit mapping with reg spacing.*BFIN_IDE_ADDRESS_MAPPING_MODE0.*choice.*\\\[.*]" {
-             send "1\r"
-      }
+        -re "Include IDE/ATAPI CDROM support.*BLK_DEV_IDECD.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "IDE Interface Address Mapping .*Linear 16-bit mapping with reg spacing.*BFIN_IDE_ADDRESS_MAPPING_MODE0.*choice.*\\\[.*]" {
+            send "1\r"
+        }
 
 
-         -re "IDE register base address.*BFIN_IDE_BASE.*\\\[.*]" {
-             send "0x20314020\r"
-      }
-          -re "IDE register alternate address.*BFIN_IDE_ALT.*\\\[.*]" {
-             send "0x2031401c\r"
-      }
-         -re "IDE IRQ no.*BFIN_IDE_IRQ.*\\\[.*]" {
-             send "34\r"
-      }
+        -re "IDE register base address.*BFIN_IDE_BASE.*\\\[.*]" {
+            send "0x20314020\r"
+        }
+        -re "IDE register alternate address.*BFIN_IDE_ALT.*\\\[.*]" {
+            send "0x2031401c\r"
+        }
+        -re "IDE IRQ no.*BFIN_IDE_IRQ.*\\\[.*]" {
+            send "34\r"
+        }
 
-         -re "IDE IRQ PFx no.*BFIN_IDE_IRQ_PFX.*\\\[.*]" {
-             send "5\r"
-      }
+        -re "IDE IRQ PFx no.*BFIN_IDE_IRQ_PFX.*\\\[.*]" {
+            send "5\r"
+        }
 
         -re "Blackfin A.* used as CF A0.*BFIN_IDE_ADDRESS_AX.*\\\[.*]" {
-             send "2\r"
-      }
-   
-          -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
-             send -s "0xFFC3\r"
-      }
-    
-         -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
-             send "Y\r"
-      }
+            send "2\r"
+        }
 
-	-re "ISO 9660 CDROM file system support.*ISO9660_FS.*\\\[.*]" {
-             send "Y\r"
-      }
-       
+        -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
+            send -s "0xFFC3\r"
+        }
+
+        -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "ISO 9660 CDROM file system support.*ISO9660_FS.*\\\[.*]" {
+            send "Y\r"
+        }
+
         -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
-             send "Y\r"
-      }
+            send "Y\r"
+        }
 
         -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[.*]" {
-             send "Y\r"
-      }
+            send "Y\r"
+        }
 
         -re "Default NLS Option.*NLS_DEFAULT.*\\\[.*]" {
-             send "\r"
-      }
+            send "\r"
+        }
 
         -re "Codepage 437.*United States.*Canada.*NLS_CODEPAGE_437.*\\\[.*]" {
-             send "Y\r"
-      }
+            send "Y\r"
+        }
 
         -re "Codepage 850.*Europe.*NLS_CODEPAGE_850.*\\\[.*]" {
-             send "Y\r"
-      }
- 
+            send "Y\r"
+        }
+
         -re "NLS ISO 8859-1.*Latin 1.*Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
-             send "Y\r"
-      }
+            send "Y\r"
+        }
 
-        -re "fdisk.*CONFIG_USER_FDISK_FDISK.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "fdisk.*USER_FDISK_FDISK.*\\\[.*]" {
+            send "Y\r"
+        }
 
-       -re "mke2fs.*CONFIG_USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
-             send "Y\r"
-      }
+        -re "mke2fs.*USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
+            send "Y\r"
+        }
 
 #     -re "hdparm.*CONFIG_USER_BUSYBOX_HDPARM.*\\\[.*]" {
 #             send "Y\r"
@@ -226,23 +226,26 @@ while 1 {
 #             send "Y\r"
 #      }
 
-      
-       "\\\(*) \\\[*]" {
-	     send "\r"
-      }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -257,9 +260,6 @@ cd $uclinux_path/testsuites
 step "Copy linux"
 
 source   copy_image.exp
- 
+
 send_user "Ending $argv0\n"
 log_file
- 
-
-
