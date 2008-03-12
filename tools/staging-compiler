@@ -22,6 +22,13 @@ if [ -d "${STAGEDIR}" ] ; then
 		for p in /usr/local/include /usr/include ; do
 			[ -d "${STAGEDIR}${p}" ] && set -- "$@" -isystem "${STAGEDIR}${p}"
 		done
+
+		if [ -n "${UCLINUX_USE_CCACHE}" ] ; then
+			if ccache -V > /dev/null 2>&1 ; then
+				export CCACHE_DIR="${ROOTDIR}/ccache"
+				ccache="ccache"
+			fi
+		fi
 	fi
 	if ${l} ; then
 		for p in /usr/local/lib /usr/lib /lib ; do
@@ -35,12 +42,6 @@ if [ -d "${STAGEDIR}" ] ; then
 				*)
 					if ${i} ; then
 						set -- "$@" -Wl,-rpath-link,"${STAGEDIR}${p}"
-						if [ -n "${UCLINUX_USE_CCACHE}" ] ; then
-							if ccache -V > /dev/null 2>&1 ; then
-								export CCACHE_DIR="${ROOTDIR}/ccache"
-								ccache="ccache"
-							fi
-						fi
 					else
 						set -- "$@" -rpath-link "${STAGEDIR}${p}"
 					fi
