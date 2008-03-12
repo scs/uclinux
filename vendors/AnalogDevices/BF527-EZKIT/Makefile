@@ -24,9 +24,11 @@ ETC_FILES-y = \
 	filesystems group hosts host.conf inetd.conf issue mime.types \
 	modprobe.conf motd passwd protocols services TZ tux-bf.gif \
 	rc mdev.conf
+WEB_FILES-y =
 
 ROMFS_DIRS-$(CONFIG_USER_BOA_SRC_BOA) += home/httpd home/httpd/cgi-bin etc/boa var/log/boa
-ETC_FILES-$(CONFIG_USER_BOA_SRC_BOA) += boa.conf index.html tux-wink.gif tuxsit_small.gif
+ETC_FILES-$(CONFIG_USER_BOA_SRC_BOA) += boa.conf
+WEB_FILES-$(CONFIG_USER_BOA_SRC_BOA) += boa.conf index.html tux-bf.gif tux-wink.gif tuxsit_small.gif favicon.ico
 
 all::
 
@@ -44,6 +46,9 @@ romfs::
 	set -e ; \
 	for f in $(ETC_FILES-y) ; do \
 		$(ROMFSINST) ../common/$$f /etc/$$f ; \
+	done ; \
+	for f in $(WEB_FILES-y) ; do \
+		$(ROMFSINST) ../common/$$f /home/httpd/$$f ; \
 	done
 
 	echo "$(VERSIONSTR) -- `date`" > $(ROMFSDIR)/etc/version
