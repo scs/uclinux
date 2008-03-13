@@ -22,12 +22,27 @@ mount -t jffs2 /dev/mtdblock3 /app
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
 
-# Configure network interface
+# Configure network interface based on SPI EEPROM info
 #dhcpcd &
-ifconfig eth0 192.168.0.10 up
-#ifconfig eth0 10.100.4.251 up
+ifconfig eth0 down
+if test -e /sys/bus/spi/devices/spi0.4/eeprom
+then
+	ifconfig eth0 hw ether `grep "MAC" /sys/bus/spi/devices/spi0.4/eeprom | awk '{print $2}'`
+	ifconfig eth0 `grep "IP" /sys/bus/spi/devices/spi0.4/eeprom | awk '{print $2}'`
+else
+	ifconfig eth0 192.168.0.10
+	#ifconfig eth0 10.100.4.251
+fi
+ifconfig eth0 up
+
 ifconfig lo 127.0.0.1
 inetd &
+
+echo -n "Set MAC from EEPROM: " 
+ifconfig eth0 | grep "HWaddr" | awk '{print $5}'
+echo -n "Set IP from EEPROM: "
+ifconfig eth0 | grep "inet" | awk '{print $2}' | sed -e s/addr://g
+
 
 #cat /etc/issue
 cat /etc/motd
