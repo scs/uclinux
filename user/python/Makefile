@@ -1,5 +1,9 @@
 VER = python-2.4.4
 
+CONF_OPTS = \
+	$(CONFIGURE_SHARED_ENABLE) \
+	--with-cxx=no
+
 all: build-$(VER)/Makefile
 	$(MAKE) -C build-$(VER) altinstall DESTDIR=$(STAGEDIR)
 
@@ -10,9 +14,7 @@ build-$(VER)/Makefile: build-$(VER)-cross/python
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
 	OPT="$(CFLAGS)" \
-	../$(VER)/configure \
-		--with-cxx=no \
-		$(CONFIGURE_OPTS)
+	../$(VER)/configure $(CONF_OPTS) $(CONFIGURE_OPTS)
 
 build-$(VER)-cross/python: build-$(VER)-cross/Makefile
 	$(MAKE) -C build-$(VER)-cross python Parser/pgen
@@ -24,11 +26,11 @@ build-$(VER)-cross/Makefile:
 	mkdir build-$(VER)-cross ; \
 	cd build-$(VER)-cross ; \
 	OPT="-O1 -pipe" CFLAGS="" CPPFLAGS="" LDFLAGS="" CC="" AR="" RANLIB="" \
-	../$(VER)/configure \
-		--with-cxx=no
+	../$(VER)/configure --with-cxx=no --disable-shared
 
 romfs:
 	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/python* /usr/bin/python
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libpython2.4.so.1.0 /usr/lib/libpython2.4.so.1.0
 
 clean:
 	rm -rf build*
