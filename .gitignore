@@ -2,3 +2,4 @@
 .config
 .oldconfig
 config.arch
+kscope
