@@ -20,14 +20,15 @@ spawn make config
 
 while 1 {
     expect {
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
             send "y\r"
         }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
         }
 
@@ -145,23 +146,23 @@ while 1 {
             send "4\r"
         }
 
-        -re "ALSA utils.*CONFIG_USER_ALSA_UTILS.*\\\[.*]" {
+        -re "ALSA utils.*USER_ALSA_UTILS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "mp3play.*CONFIG_USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
+        -re "mp3play.*USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "vplay.*CONFIG_USER_VPLAY_VPLAY.*\\\[.*]" {
+        -re "vplay.*USER_VPLAY_VPLAY.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "vrec.*CONFIG_USER_VPLAY_VREC.*\\\[.*]" {
+        -re "vrec.*USER_VPLAY_VREC.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "tone.*CONFIG_USER_PLAY_TONE.*\\\[.*]" {
+        -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
             send "y\r"
         }
 
@@ -181,6 +182,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }

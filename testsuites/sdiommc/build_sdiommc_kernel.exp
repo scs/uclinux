@@ -82,8 +82,12 @@ while 1 {
             send "y\r"
         }
 
-        -re "fdisk.*CONFIG_USER_FDISK_FDISK.*\\\[.*]" {
+        -re "fdisk.*USER_FDISK_FDISK.*\\\[.*]" {
             send "y\r"
+        }
+
+        -re "fdisk.*USER_BUSYBOX_FDISK.*\\\[.*]" {
+            send "n\r"
         }
 
         -re "e2fsck.*USER_E2FSPROGS_E2FSCK_E2FSCK.*\\\[.*]" {
