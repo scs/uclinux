@@ -4,8 +4,17 @@ CONF_OPTS = \
 	$(CONFIGURE_SHARED_ENABLE) \
 	--with-cxx=no
 
+export PYTHON_DONTCOMPILE = 1
+export PYTHON_DISABLE_SSL = 1
+export PYTHON_DISABLE_MODULES = bz2 nis readline pyexpat dbm gdbm bsddb _curses _curses_panel _tkinter
+
 all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER) altinstall DESTDIR=$(STAGEDIR)
+	$(MAKE) \
+		-C build-$(VER) \
+		altinstall \
+		DESTDIR=$(STAGEDIR) \
+		HOSTPYTHON=$$PWD/build-$(VER)-cross/python \
+		HOSTPGEN=$$PWD/build-$(VER)-cross/Parser/pgen
 
 build-$(VER)/Makefile: build-$(VER)-cross/python
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
