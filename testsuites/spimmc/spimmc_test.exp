@@ -48,7 +48,7 @@ while 1 {
 
 incr case_num
 set timeout 2
-send "mkdosfs /dev/spi_mmc\r"
+send "mkdosfs -F 32 /dev/spi_mmc\r"
 while 1 {
    expect {
       -re "No such .*$kernel_prompt" {
@@ -338,7 +338,7 @@ while 1 {
 
 incr case_num
 set timeout 2
-send "mkdosfs /dev/spi_mmc2\r"
+send "mkdosfs -F 32 /dev/spi_mmc2\r"
 while 1 {
    expect {
       -re "No such .*$kernel_prompt" {

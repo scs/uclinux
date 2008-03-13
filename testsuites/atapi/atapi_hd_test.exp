@@ -21,7 +21,7 @@ source ../reboot_kernel.exp
 step "Start testing."
 set case_num 0
 set MAX "\r"
-set NUM_CYLINDER_DOS "+2G"
+set NUM_CYLINDER_DOS "+8G"
 set NUM_CYLINDER_EXT2 "+20G"
 
 sleep 5
@@ -87,12 +87,12 @@ send "cat /proc/devices\r"
 while 1 {
     expect {
         -re "sd.*>" {
-            send_user "Libata block device “sd” found, test pass\n"
+            send_user "Libata block device found\n"
             case_pass $case_num
             break
         }
         timeout {
-            send_user "Libata block device “sd” not found, test fail\n"
+            send_user "Libata block device not found\n"
             case_fail $case_num
         }
     }
@@ -180,7 +180,7 @@ expect -re $kernel_prompt
 
 set timeout 300
 incr case_num
-send "mkdosfs /dev/sda1\r"
+send "mkdosfs -F 32 /dev/sda1\r"
 while 1 {
     expect {
         -re "Hardware Trace.*$kernel_prompt" {
@@ -306,24 +306,24 @@ while 1 {
 
 set timeout 60
 incr case_num
-send "time dd if=/dev/zero of=/mnt/hd2/32m.bin bs=1M count=32\r"
+send "time dd if=/dev/zero of=/mnt/hd2/test.bin bs=1M count=100\r"
 while 1 {
     expect {
         -re "records in.*records out.*real.*user.*sys.*>" {
-            send_user "Generate a 32M file done, test pass\n"
+            send_user "Generate file done, test pass\n"
             case_pass $case_num
             break
         }
         timeout {
-            send_user "Generate a 32M file timeout, test fail\n"
+            send_user "Generate file timeout, test fail\n"
             case_fail $case_num
         }
     }
 }
 
-set timeout 4
+set timeout 60
 incr case_num
-send "time cat /mnt/hd2/32m.bin > /dev/null\r"
+send "time cat /mnt/hd2/test.bin > /dev/null\r"
 while 1 {
     expect {
         -re "real.*user.*sys.*>" {
