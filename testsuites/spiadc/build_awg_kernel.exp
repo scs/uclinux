@@ -17,7 +17,7 @@ spawn make config
 
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -65,13 +65,13 @@ while 1 {
             send "Y\r"
         }
 
-        -re "Build libZ.*CONFIG_LIB_ZLIB_FORCE.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Build libpng.*CONFIG_LIB_LIBPNG_FORCE.*\\\[.*]" {
-            send "Y\r"
-        }
+#Default to select it, no other choice
+#        -re "Build libZ.*LIB_ZLIB.*\\\[.*]" {
+#            send "Y\r"
+#        }
+#        -re "Build libpng.*LIB_LIBPNG.*\\\[.*]" {
+#            send "Y\r"
+#        }
 
         -re "Networked Software Defined Storage Oscilloscope.*USER_NDSO.*\\\[.*]" {
             send "N\r"
