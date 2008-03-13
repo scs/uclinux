@@ -4,19 +4,19 @@ LINUXDIR ?= linux-2.6.x
 
 obj-m := string_test.o
 
-CFLAGS += -Wall -fno-builtin
+EXTRA_CFLAGS += -Wall -fno-builtin
 
 all: module
 
 module:
-	CFLAGS="" CPPFLAGS="" LDFLAGS="" \
+	EXTRA_CFLAGS="" CPPFLAGS="" LDFLAGS="" \
 	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD modules
 
 romfs:
 	$(ROMFSINST) -d -S /lib/modules/string_test.ko
 
 clean:
-	CFLAGS="" CPPFLAGS="" LDFLAGS="" \
+	EXTRA_CFLAGS="" CPPFLAGS="" LDFLAGS="" \
 	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD clean
 
 .PHONY: all clean module romfs
