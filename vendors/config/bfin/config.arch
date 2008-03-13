@@ -16,8 +16,12 @@ ENDIAN  = little
 
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 CONFIGURE_HOST       := bfin-linux-uclibc
+CONFIGURE_SHARED_ENABLE := --enable-shared
+CONFIGURE_SHARED_WITH   := --with-shared
 else
 CONFIGURE_HOST       := bfin-uclinux
+CONFIGURE_SHARED_ENABLE := --disable-shared
+CONFIGURE_SHARED_WITH   := --without-shared
 endif
 CROSS_COMPILE        := $(CONFIGURE_HOST)-
 CROSS                := $(CROSS_COMPILE)
