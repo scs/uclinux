@@ -166,7 +166,7 @@ UNICODE_OBJS=   @UNICODE_OBJS@
 
 PYTHON=		python$(EXE)
 BUILDPYTHON=	python$(BUILDEXE)
-HOSTPYTHON=	$(BUILDPYTHON)
+HOSTPYTHON?=	$(BUILDPYTHON)
 
 # === Definitions added by makesetup ===
 
@@ -193,7 +193,7 @@ GRAMMAR_INPUT=	$(srcdir)/Grammar/Grammar
 ##########################################################################
 # Parser
 PGEN=		Parser/pgen$(EXE)
-HOSTPGEN=	$(PGEN)$(EXE)
+HOSTPGEN?=	$(PGEN)$(EXE)
 POBJS=		\
 		Parser/acceler.o \
 		Parser/grammar1.o \
