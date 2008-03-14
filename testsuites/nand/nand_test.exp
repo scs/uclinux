@@ -156,7 +156,7 @@ step "Touch file"
 
 send_log " \n1)create file system directory\n"
 send -s "mkdir -p rootfs\r"
-expect ">"
+expect  -re $kernel_prompt
 send_log " \n2)create test file\n"
 send -s "echo This is test for mtd driver > rootfs/test\r"
 expect  -re $kernel_prompt
@@ -236,7 +236,7 @@ send -s "cp /rootfs/test /mnt\r"
 while 1 {
     expect {
 
-        ">" {
+       -re $kernel_prompt {
                 case_pass $case_num
                 break
         }
@@ -268,9 +268,22 @@ while 1 {
     }
 }
 
-expect ">"
+incr case_num
+expect  -re $kernel_prompt
 send -s "umount /mnt\r"
-expect ">"
+while 1 {
+    expect {
+
+       -re $kernel_prompt {
+                break
+        }
+
+        timeout {
+                case_fail $case_num
+		exit
+        }
+    }
+}
 send -s "ls /mnt\r"
 while 1 {
     expect {

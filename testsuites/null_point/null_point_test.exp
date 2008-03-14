@@ -111,7 +111,7 @@ while 1 {
 
 step "Start testing"
 set spawn_id $kermit_spawn_id
-set timeout 15
+set timeout 20
 send "./null_point\r"
 while 1 {
     expect {

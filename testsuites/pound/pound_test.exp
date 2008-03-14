@@ -162,7 +162,10 @@ spawn fl-run-test test_Simple.py
 
 while 1 {
    expect {
-      "rcp ok! Start webserver test" {
+     -re "Cannot allocate memory.*rcp error!" {
+         send_user "No enough space for whole folder.\n"      
+      }
+      "Try 999*OK!" {
                 case_pass $case_num
          break
       }

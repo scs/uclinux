@@ -5,10 +5,31 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
+step "Decide the busybox version from Makefile."
+
+cd $uclinux_path
+ set timeout 2
+      spawn ex user/busybox/Makefile
+      expect {
+         "Entering Ex mode*Normal mode." { }
+
+         "already exists!" {
+            send "e\r"
+         }
+      }
+      send "/VER\r"
+      while 1 {
+      expect "VER = (busybox-\[0-9]+.\[0-9]+.\[0-9]+)" {
+      set busybox_version $expect_out(1,string)
+      }
+      }
+      send "q\r"
+      expect eof
+
 step "Apply msh patch."
 
-cd $uclinux_path/user/busybox/shell
-exec patch -p2 < ../../../bfin_patch/msh_patch/busybox-msh.patch
+cd $uclinux_path/user/busybox/$busybox_version/shell
+exec patch -p2 < ../../../../bfin_patch/msh_patch/busybox-msh.patch
 
 step "Change config file in /vender folder."
 
