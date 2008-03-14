@@ -30,8 +30,7 @@ then
 	ifconfig eth0 hw ether `grep "MAC" /sys/bus/spi/devices/spi0.4/eeprom | awk '{print $2}'`
 	ifconfig eth0 `grep "IP" /sys/bus/spi/devices/spi0.4/eeprom | awk '{print $2}'`
 else
-	ifconfig eth0 192.168.0.10
-	#ifconfig eth0 10.100.4.251
+	ifconfig eth0 192.168.1.1
 fi
 ifconfig eth0 up
 

@@ -11,7 +11,6 @@
 #define TEMP_FILE_LOCATION "/tmp/"
 #define U_BOOT_PARTITION "/dev/mtd1"
 #define LINUX_PARTITION "/dev/mtd2"
-//#define SERVER_IP "192.168.0.3"
 
 int main(int argc, char** argv)
 {
@@ -19,20 +18,25 @@ int main(int argc, char** argv)
   void * pBuf;
   char sTemp[256];
   char * sImgName;
+  char sServerIp = SERVER_IP;
 
   int ret = -1;
   unsigned int * pWrd;
   
-  if(argc != 2)
+  if(argc != 2 && argc != 3)
   {
-      printf("Usage: %s <image file>\n", argv[0]);
+      printf("Usage: %s <image file> [<ip>]\n", argv[0]);
       return -1;
   }
   
   sImgName = argv[1];
+  if(argc == 3)
+  {
+  	sServerIp = argv[2];
+  }
   
-  printf("Transferring %s from %s over tftp.\n", sImgName, SERVER_IP);
-  sprintf(sTemp, "tftp %s -g -l %s%s -r %s\n", SERVER_IP, TEMP_FILE_LOCATION, sImgName, sImgName);
+  printf("Transferring %s from %s over tftp.\n", sImgName, sServerIp);
+  sprintf(sTemp, "tftp %s -g -l %s%s -r %s\n", sServerIp, TEMP_FILE_LOCATION, sImgName, sImgName);
   ret = system(sTemp);
   if(ret != 0)
     {
