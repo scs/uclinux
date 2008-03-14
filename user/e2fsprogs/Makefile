@@ -1,4 +1,4 @@
-VER = e2fsprogs-1.40.6
+VER = e2fsprogs-1.40.8
 
 CONF_OPTS = \
 	--prefix=/ \

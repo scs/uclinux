@@ -1,0 +1,14 @@
+#!/bin/sh
+
+set -e
+groupadd -f -K GID_MIN=100 -K GID_MAX=999 libuuid
+if ! grep -q libuuid /etc/passwd; then
+   useradd -d /var/lib/libuuid -K UID_MIN=100 -K UID_MAX=999 -g libuuid libuuid
+fi
+mkdir -p /var/lib/libuuid
+chown libuuid:libuuid /var/lib/libuuid
+chmod 2775 /var/lib/libuuid
+
+#DEBHELPER#
+
+exit 0
