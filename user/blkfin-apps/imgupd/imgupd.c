@@ -7,18 +7,21 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define TEMP_FILE_LOCATION "/tmp/"
 #define U_BOOT_PARTITION "/dev/mtd1"
 #define LINUX_PARTITION "/dev/mtd2"
 
+#define XSTR(x) #x
+#define STR(x) XSTR(x)
 int main(int argc, char** argv)
 {
   FILE * pF;
   void * pBuf;
   char sTemp[256];
   char * sImgName;
-  char sServerIp = SERVER_IP;
+  char *sServerIp;
 
   int ret = -1;
   unsigned int * pWrd;
@@ -33,6 +36,8 @@ int main(int argc, char** argv)
   if(argc == 3)
   {
   	sServerIp = argv[2];
+  } else {
+	  strcpy(sServerIp, STR(SERVER_IP));
   }
   
   printf("Transferring %s from %s over tftp.\n", sImgName, sServerIp);
