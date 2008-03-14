@@ -1,5 +1,0 @@
-root:~> arecord -d 20 a.wav
-root:~> arecord -d 20 b.wav
-root:~> addgroup audio
-root:~> aplay -D plug:dmix a.wav &
-root:~> aplay -D plug:dmix b.wav &
