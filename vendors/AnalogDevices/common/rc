@@ -31,6 +31,11 @@ mount -t ramfs var /var
 mkdir /var/tmp /var/log /var/run /var/lock
 
 #
+# Give temp files a read/write location not in flash/etc...
+#
+mount -t tmpfs tmp /tmp -o noexec,nosuid,nodev
+
+#
 # Needed if you plan on doing anything USB related
 #
 [ -d /proc/bus/usb ] && mount -t usbfs usbfs /proc/bus/usb
