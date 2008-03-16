@@ -7,4 +7,6 @@ dir_$(CONFIG_USER_DIRECTFBEXAMPLES)         += DirectFB-examples
 dir_$(CONFIG_USER_I2C_TOOLS)                += i2c-tools
 dir_$(CONFIG_USER_BLACKFIN_LINPHONE)        += linphone
 dir_$(CONFIG_USER_OPENNTPD)                 += openntpd
+
+dir_$(CONFIG_CRAMFS)                        += cramfs
 dir_$(CONFIG_EXT2_FS)                       += genext2fs
