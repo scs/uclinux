@@ -9,10 +9,6 @@ include $(CONFIG_CONFIG)
 ROMFSIMG = $(IMAGEDIR)/rootfs
 IMAGE    = $(IMAGEDIR)/linux
 
-MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
-MKFS_YAFFS  = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffsimage
-MKFS_YAFFS2 = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffs2image
-
 LINUXBOOTDIR = $(ROOTDIR)/$(LINUXDIR)/arch/$(ARCH)/boot
 
 # Blocks must be a multiple of 1024
@@ -95,13 +91,15 @@ ifeq ($(CONFIG_YAFFS_FS),y)
 	fi
 endif
 ifeq ($(CONFIG_CRAMFS),y)
-	$(CROSS_COMPILE)mkcramfs -z -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
+ifneq ($(wildcard $(MKFS_CRAMFS)),)
+	$(MKFS_CRAMFS) -z -D $(DEVICE_TABLE) $(ROMFSDIR) $(ROMFSIMG).cramfs
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).cramfs \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).cramfs
 endif
+endif
 ifeq ($(CONFIG_EXT2_FS),y)
-	$(CROSS_COMPILE)genext2fs -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
+	$(MKFS_EXT2) -m 0 -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(ROMFSIMG).ext2
 	$(OBJCOPY) --add-section .romfs=$(ROMFSIMG).ext2 \
 		--adjust-section-vma .romfs=$(ADDR) --no-adjust-warnings \
 		--set-section-flags .romfs=alloc,load,data $(IMAGEDIR)/vmlinux $(IMAGE).ext2
@@ -129,7 +127,7 @@ ifeq ($(CONFIG_MTD_UCLINUX),y)
 		if [ -f "$(IMAGE).$$FS" ] ; then \
 			$(OBJCOPY) -O binary -S $(IMAGE).$$FS $(IMAGE).bin; \
 			gzip -f9 $(IMAGE).bin; \
-			$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel \
+			$(MKIMAGE) -A blackfin -O linux -T kernel \
 				-C gzip -a $(CONFIG_BOOT_LOAD) -e $(ENTRY) -n "uClinux Kernel and $$FS" \
 				-d $(IMAGE).bin.gz $(IMAGEDIR)/uImage.$$FS; \
 			rm $(IMAGE).bin.gz; \

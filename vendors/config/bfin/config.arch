@@ -41,8 +41,12 @@ STRIPTOOL = $(CROSS_COMPILE)strip
 STRIP     = $(STRIPTOOL)
 CC_FOR_BUILD = gcc
 
-MKIMAGE   = $(CROSS_COMPILE)mkimage
-MKCRAMFS  = $(CROSS_COMPILE)mkcramfs
+MKIMAGE     = $(ROOTDIR)/$(LINUXDIR)/scripts/mkuboot.sh
+MKFS_EXT2   = $(ROOTDIR)/user/genext2fs/build-host/genext2fs
+MKFS_CRAMFS = $(ROOTDIR)/user/cramfs/host_build/mkcramfs
+MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/build/mkfs.jffs2
+MKFS_YAFFS  = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffsimage
+MKFS_YAFFS2 = $(ROOTDIR)/user/blkfin-apps/yaffs-utils/utils/mkyaffs2image
 
 ############################################################################
 #
