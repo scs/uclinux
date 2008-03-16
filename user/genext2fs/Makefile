@@ -1,14 +1,14 @@
 VER = genext2fs-1.4.1-cvs
 
-all: build-host-$(VER)/Makefile
-	$(MAKE) -C build-host-$(VER)
+all: build-host/Makefile
+	$(MAKE) -C build-host
 
-build-host-$(VER)/Makefile:
+build-host/Makefile:
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
-	rm -rf build-host-$(VER) ; \
-	mkdir build-host-$(VER) ; \
-	cd build-host-$(VER) ; \
+	rm -rf build-host ; \
+	mkdir build-host ; \
+	cd build-host ; \
 	CFLAGS="" CPPFLAGS="" LDFLAGS="" CC="" AR="" RANLIB="" \
 	../$(VER)/configure
 
