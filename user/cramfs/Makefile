@@ -1,26 +1,29 @@
+CRAMFS_CFLAGS = -W -Wall
+CRAMFS_CPPFLAGS = -I.
+CRAMFS_CPPFLAGS += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE
+CRAMFS_CPPFLAGS += $(shell ./detectendian.sh)
 
+CC ?= gcc
+BUILD_CC ?= gcc
+CFLAGS ?= -O2 -g
+CPPFLAGS += $(CRAMFS_CPPFLAGS)
+BUILD_CPPFLAGS += $(CRAMFS_CPPFLAGS)
+LDLIBS = -lz
 PROGS = mkcramfs cramfsck
-ifeq ($(CONFIG_USER_CRAMFS_TEST),y)
-FSCK_CFLAGS += -DINCLUDE_FS_TESTS
-endif
+HOST_PROGS = $(patsubst %,host_build/%,$(PROGS))
 
-all: $(PROGS)
+all: $(PROGS) $(HOST_PROGS)
 
-host_build:
-	make -C host_build
-
-mkcramfs: mkcramfs.o
-	$(CC) $(LDFLAGS) -o $@ mkcramfs.o -lz $(LDLIBS$(LDLIBS_$@))
-
-cramfsck: cramfsck.o
-	$(CC) $(LDFLAGS) -o $@ cramfsck.o $(FSCK_CFLAGS) -lz $(LDLIBS$(LDLIBS_$@))
+HOST_FILE = $(patsubst host_build/%,%,$@)
+host_build/%:
+	mkdir -p host_build
+	$(BUILD_CC) $(BUILD_CFLAGS) $(BUILD_CPPFLAGS) $(HOST_FILE).c -o $@ $(LDLIBS)
 
 romfs:
 	$(ROMFSINST) -e CONFIG_USER_CRAMFS_MKCRAMFS /bin/mkcramfs
 	$(ROMFSINST) -e CONFIG_USER_CRAMFS_CRAMFSCK /bin/cramfsck
 
-clean:
-	-rm -f $(EXEC) *.elf *.gdb *.o
-	make -C host_build clean
+distclean clean:
+	rm -rf $(PROGS) *.o */*.o host_build
 
-.PHONY:	host_build
+.PHONY: all clean
