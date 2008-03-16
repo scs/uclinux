@@ -13,7 +13,7 @@ ifdef UCLINUX_BUILD_USER
 	UCLINUX_COMMON_LIB = 1
 endif
 
-ifeq ($(UCLINUX_COMMON_LIB),1)
+ifeq ($(DISABLED_FOR_BLACKFIN_UCLINUX_COMMON_LIB),1)
 	# Static versions of libraries
 	SLIBFLEX	=	-lfl
 	SLIBC		=	-lc
