@@ -603,7 +603,7 @@ void spawn(int i)
 		strcpy(term, "TERM=");
 		strcat(term, it->termcap);
 		env[0] = term;
-		env[1] = "PATH=/bin:/usr/bin:/etc:/sbin:/usr/sbin";
+		env[1] = "PATH=/bin:/usr/bin:/sbin:/usr/sbin";
 #ifdef INCLUDE_TIMEZONE
 		strcpy(tz, "TZ=");
 		strcat(tz, tzone);
