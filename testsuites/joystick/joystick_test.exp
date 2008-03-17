@@ -22,7 +22,7 @@ expect  -re $kernel_prompt
 send -s "modprobe ad7142\r"
 while 1 {
 expect {
--re "ad7142_js_attach" {
+-re "is attached at" {
 
 	puts "\nmodule insert success.\n"
                 case_pass $case_num
