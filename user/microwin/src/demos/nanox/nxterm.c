@@ -1122,7 +1122,7 @@ again:
 	}
 	signal(SIGCHLD, sigchild);
 	signal(SIGINT, sigchild);
-	if ((pid = fork()) == -1) {
+	if ((pid = vfork()) == -1) {
 		fprintf(stderr, "No processes\n");
 		return -1;
 	}
@@ -1135,14 +1135,14 @@ again:
 		pty_name[5] = 't';
 		if ((tfd = open(pty_name, O_RDWR)) < 0) {
 			fprintf(stderr, "Child: Can't open pty %s\n", pty_name);
-			exit(1);
+			_exit(1);
 		}
 		close(STDERR_FILENO);
 		dup2(tfd, STDIN_FILENO);
 		dup2(tfd, STDOUT_FILENO);
 		dup2(tfd, STDERR_FILENO);
 		execv(nargv[0], nargv);
-		exit(1);
+		_exit(1);
 	}
 	return tfd;
 }
