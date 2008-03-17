@@ -240,7 +240,7 @@ void draw_lissajous(void)
 	d = 0.1;
 	
 	ap = screen_width/2;
-	bp = screen_width/2;
+	bp = screen_height/2;
 	a = screen_width / M_PIf;
 	b = screen_height / M_PIf;
 	
