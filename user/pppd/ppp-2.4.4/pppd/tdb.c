@@ -1866,6 +1866,9 @@ TDB_CONTEXT *tdb_open_ex(const char *name, int hash_size, int tdb_flags,
  **/
 int tdb_close(TDB_CONTEXT *tdb)
 {
+#ifdef NOMMU
+	return close(tdb->fd);
+#else
 	TDB_CONTEXT **i;
 	int ret = 0;
 
@@ -1892,6 +1895,7 @@ int tdb_close(TDB_CONTEXT *tdb)
 	SAFE_FREE(tdb);
 
 	return ret;
+#endif
 }
 
 /* lock/unlock entire database */

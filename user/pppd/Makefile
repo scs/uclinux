@@ -2,7 +2,7 @@ VER = ppp-2.4.4
 
 _MAKE = $(MAKE) \
 	CC=$(CC) \
-	COPTS="$(CFLAGS)" \
+	COPTS="$(CFLAGS) -DNOMMU" \
 	LDFLAGS="$(LDFLAGS)"
 
 all: $(VER)/Makefile

@@ -1524,8 +1524,12 @@ bad_signal(sig)
  * This also arranges for the specified fds to be dup'd to
  * fds 0, 1, 2 in the child.
  */
+struct child_tail {
+	void (*followup)(void *args);
+	void *args;
+};
 pid_t
-safe_fork(int infd, int outfd, int errfd)
+safe_fork_tail(int infd, int outfd, int errfd, struct child_tail *tail)
 {
 	pid_t pid;
 	int fd, pipefd[2];
@@ -1541,7 +1545,7 @@ safe_fork(int infd, int outfd, int errfd)
 
 	if (pipe(pipefd) == -1)
 		pipefd[0] = pipefd[1] = -1;
-#ifdef __uClinux__
+#ifdef NOMMU
 	pid = vfork();
 #else
 	pid = fork();
@@ -1602,7 +1606,14 @@ safe_fork(int infd, int outfd, int errfd)
 	/* this close unblocks the read() call above in the parent */
 	close(pipefd[1]);
 
+	if (tail)
+		tail->followup(tail->args);
 	return 0;
+}
+pid_t
+safe_fork(int infd, int outfd, int errfd)
+{
+	return safe_fork_tail(infd, outfd, errfd, NULL);
 }
 
 /*
@@ -1610,6 +1621,21 @@ safe_fork(int infd, int outfd, int errfd)
  * (e.g. to run the connector or disconnector script).
  * stderr gets connected to the log fd or to the _PATH_CONNERRS file.
  */
+void device_script_tail(void *args)
+{
+    char *program = args;
+    /* here we are executing in the child */
+
+    setgid(getgid());
+    setuid(uid);
+    if (getuid() != uid) {
+	fprintf(stderr, "pppd: setuid failed\n");
+	_exit(1);
+    }
+    execl("/bin/sh", "sh", "-c", program, (char *)0);
+    perror("pppd: could not exec /bin/sh");
+    _exit(99);
+}
 int
 device_script(program, in, out, dont_wait)
     char *program;
@@ -1619,6 +1645,7 @@ device_script(program, in, out, dont_wait)
     int pid;
     int status = -1;
     int errfd;
+    struct child_tail tail = { device_script_tail, program };
 
     if (log_to_fd >= 0)
 	errfd = log_to_fd;
@@ -1626,7 +1653,7 @@ device_script(program, in, out, dont_wait)
 	errfd = open(_PATH_CONNERRS, O_WRONLY | O_APPEND | O_CREAT, 0600);
 
     ++conn_running;
-    pid = safe_fork(in, out, errfd);
+    pid = safe_fork_tail(in, out, errfd, &tail);
 
     if (pid != 0 && log_to_fd < 0)
 	close(errfd);
@@ -1652,17 +1679,7 @@ device_script(program, in, out, dont_wait)
 	return (status == 0 ? 0 : -1);
     }
 
-    /* here we are executing in the child */
-
-    setgid(getgid());
-    setuid(uid);
-    if (getuid() != uid) {
-	fprintf(stderr, "pppd: setuid failed\n");
-	exit(1);
-    }
-    execl("/bin/sh", "sh", "-c", program, (char *)0);
-    perror("pppd: could not exec /bin/sh");
-    exit(99);
+    _exit(99);
     /* NOTREACHED */
 }
 
@@ -1677,51 +1694,18 @@ device_script(program, in, out, dont_wait)
  * If done != NULL, (*done)(arg) will be called later (within
  * reap_kids) iff the return value is > 0.
  */
-pid_t
-run_program(prog, args, must_exist, done, arg, wait)
+struct run_program_args {
     char *prog;
     char **args;
     int must_exist;
-    void (*done) __P((void *));
-    void *arg;
-    int wait;
+};
+void
+run_program_tail(void *vargs)
 {
-    int pid, status;
-    struct stat sbuf;
-
-    /*
-     * First check if the file exists and is executable.
-     * We don't use access() because that would use the
-     * real user-id, which might not be root, and the script
-     * might be accessible only to root.
-     */
-    errno = EINVAL;
-    if (stat(prog, &sbuf) < 0 || !S_ISREG(sbuf.st_mode)
-	|| (sbuf.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH)) == 0) {
-	if (must_exist || errno != ENOENT)
-	    warn("Can't execute %s: %m", prog);
-	return 0;
-    }
-
-    pid = safe_fork(fd_devnull, fd_devnull, fd_devnull);
-    if (pid == -1) {
-	error("Failed to create child process for %s: %m", prog);
-	return -1;
-    }
-    if (pid != 0) {
-	if (debug)
-	    dbglog("Script %s started (pid %d)", prog, pid);
-	record_child(pid, prog, done, arg);
-	if (wait) {
-	    while (waitpid(pid, &status, 0) < 0) {
-		if (errno == EINTR)
-		    continue;
-		fatal("error waiting for script %s: %m", prog);
-	    }
-	    forget_child(pid, status);
-	}
-	return pid;
-    }
+    struct run_program_args *rpargs = vargs;
+    char *prog = rpargs->prog;
+    char **args = rpargs->args;
+    int must_exist = rpargs->must_exist;
 
     /* Leave the current location */
     (void) setsid();	/* No controlling tty. */
@@ -1745,6 +1729,55 @@ run_program(prog, args, must_exist, done, arg, wait)
 	syslog(LOG_ERR, "Can't execute %s: %m", prog);
 	closelog();
     }
+}
+pid_t
+run_program(prog, args, must_exist, done, arg, wait)
+    char *prog;
+    char **args;
+    int must_exist;
+    void (*done) __P((void *));
+    void *arg;
+    int wait;
+{
+    int pid, status;
+    struct stat sbuf;
+    struct run_program_args vargs = { prog, args, must_exist };
+    struct child_tail tail = { run_program_tail, &vargs };
+
+    /*
+     * First check if the file exists and is executable.
+     * We don't use access() because that would use the
+     * real user-id, which might not be root, and the script
+     * might be accessible only to root.
+     */
+    errno = EINVAL;
+    if (stat(prog, &sbuf) < 0 || !S_ISREG(sbuf.st_mode)
+	|| (sbuf.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH)) == 0) {
+	if (must_exist || errno != ENOENT)
+	    warn("Can't execute %s: %m", prog);
+	return 0;
+    }
+
+    pid = safe_fork_tail(fd_devnull, fd_devnull, fd_devnull, &tail);
+    if (pid == -1) {
+	error("Failed to create child process for %s: %m", prog);
+	return -1;
+    }
+    if (pid != 0) {
+	if (debug)
+	    dbglog("Script %s started (pid %d)", prog, pid);
+	record_child(pid, prog, done, arg);
+	if (wait) {
+	    while (waitpid(pid, &status, 0) < 0) {
+		if (errno == EINTR)
+		    continue;
+		fatal("error waiting for script %s: %m", prog);
+	    }
+	    forget_child(pid, status);
+	}
+	return pid;
+    }
+
     _exit(-1);
 }
 
