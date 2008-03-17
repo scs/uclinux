@@ -148,6 +148,36 @@ void maximize(void)
     }
 }
 
+struct geometry {
+	int w, h, x, y;
+};
+void parse_geometry(const char *geostr, struct geometry *geometry)
+{
+	/* parse the format WIDTH[xHEIGHT[+OFFX[+OFFY]]] */
+	char *p;
+
+	/* first the WIDTH */
+	memset(geometry, 0, sizeof(*geometry));
+	geometry->w = atoi(geostr);
+
+	/* then the xHEIGHT */
+	p = strchr(geostr, 'x');
+	if (!p)
+		return;
+	geometry->h = atoi(p + 1);
+
+	/* then the +OFFX */
+	p = strchr(p, '+');
+	if (!p)
+		return;
+	geometry->x = atoi(++p);
+
+	/* then the +OFFY */
+	p = strchr(p, '+');
+	if (!p)
+		return;
+	geometry->y = atoi(++p);
+}
 
 /* **************************************************************************/
 
@@ -916,14 +946,13 @@ int main(int argc, char **argv)
     yp = 0;
     if (geometry) 
     {
-	if (col < 1) 
-	{
-	    col = 80;
-	}
-	if (row < 1) 
-	{
-	    row = 25;
-	}
+#ifndef MAX
+# define MAX(x, y) (x > y ? x : y)
+#endif
+	struct geometry g;
+	parse_geometry(geometry, &g);
+	col = MAX(g.w, 1);
+	row = MAX(g.h, 1);
 	if (col > 0x7f)
 	    colmask = 0xffff;
 	if (row > 0x7f)
