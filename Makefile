@@ -128,7 +128,7 @@ endif
 
 .PHONY: vendors/Kconfig
 vendors/Kconfig:
-	find vendors -mindepth 2 -name Kconfig | sed 's:^:source ../:' > vendors/Kconfig
+	find vendors -mindepth 2 '(' -name .svn -prune ')' -o -type f -name Kconfig -print | sed 's:^:source ../:' > vendors/Kconfig
 
 .PHONY: Kconfig
 Kconfig: vendors/Kconfig
