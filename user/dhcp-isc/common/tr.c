@@ -13,6 +13,8 @@
 #include "netinet/if_tr.h"
 #include <sys/time.h>
 
+#include <linux/types.h>
+
 /*
  * token ring device handling subroutines.  These are required as token-ring
  * does not have a simple on-the-wire header but requires the use of
