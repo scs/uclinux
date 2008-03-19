@@ -1,17 +1,9 @@
 VER = lzo-2.02
 
-CONFOPTS =
+CONF_OPTS = \
+	$(CONFIGURE_SHARED_ENABLE)
 
-all: build/build
-	$(MAKE) -C build
-
-build/build: Makefile
-	rm -rf build
-	mkdir build
-	(cd build; sh ../$(VER)/configure $(CONFIGURE_OPTS) $(CONFOPTS))
-	touch build/build
-
-clean:
-	rm -rf build
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/liblzo2.so.2 /usr/lib/liblzo2.so.2
