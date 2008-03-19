@@ -1,3 +1,5 @@
+VER = openvpn-2.0.5
+
 CONFOPTS=
 
 all: build/build
@@ -6,7 +8,7 @@ all: build/build
 build/build: makefile
 	rm -rf build
 	mkdir build
-	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
+	(cd build; sh ../$(VER)/configure $(CONFIGURE_OPTS) $(CONFOPTS))
 	touch build/build
 
 clean:
