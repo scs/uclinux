@@ -66,7 +66,7 @@ send "ifconfig eth0 $targetip up\r"
 set timeout 60
 while 1 {
     expect {
-        -re "$kernel_prompt" {
+        -re $kernel_prompt {
             send "\r"
             break
         }
@@ -89,7 +89,6 @@ while 1 {
         }
     }
 }
-
 
 set timeout 100
 step "Copy testcase to target board\n"
@@ -115,7 +114,7 @@ set timeout 20
 send "./null_point\r"
 while 1 {
     expect {
-        -re "NULL pointer access.*CURRENT PROCESS.*Hardware Trace" {
+        -re "pointer access.*CURRENT PROCESS.*Hardware Trace" {
             case_pass $case_num
             break
         }

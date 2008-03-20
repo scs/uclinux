@@ -33,25 +33,6 @@ expect  -re $kernel_prompt
 
 incr case_num
 set timeout 10
-send "cat /proc/sys/vm/pagecache_ratio\r"
-expect  -re $kernel_prompt
-send "echo 100 > /proc/sys/vm/pagecache_ratio\r"
-expect  -re $kernel_prompt
-send "cat /proc/sys/vm/pagecache_ratio\r"
-while 1 {
-   expect {
-      -re "100\r\n$kernel_prompt" {
-         case_pass $case_num
-         break
-      }
-      timeout {
-         case_fail $case_num
-      }
-   }
-}
-
-incr case_num
-set timeout 10
 send "mkdosfs -F 32 /dev/mmcblk0\r"
 while 1 {
    expect {

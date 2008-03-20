@@ -28,25 +28,6 @@ sleep 5
 send "mkdir /mnt/hd1\r"
 send "mkdir /mnt/hd2\r"
 
-incr case_num
-set timeout 10
-send "cat /proc/sys/vm/pagecache_ratio\r"
-expect  -re $kernel_prompt
-send "echo 100 > /proc/sys/vm/pagecache_ratio\r"
-expect  -re $kernel_prompt
-send "cat /proc/sys/vm/pagecache_ratio\r"
-while 1 {
-   expect {
-      -re "100\r\n$kernel_prompt" {
-         case_pass $case_num
-         break
-      }
-      timeout {
-         case_fail $case_num
-      }
-   }
-}
-
 set timeout 5
 incr case_num
 send "dmesg\r"

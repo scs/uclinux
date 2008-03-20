@@ -94,10 +94,10 @@ set timeout 900
 send "rm -fr $KON_WORK_PATH\r"
 while 1 {
     expect {
-        -re "\r\n\[0-9a-zA-Z]$kernel_prompt" {
+        -re "(rm:|fail|error).*$konq_prompt" {
             case_fail $case_num
         }
-        -re $kernel_prompt {
+        -re $$konq_prompt {
             case_pass $case_num
             break
         }
@@ -112,10 +112,10 @@ set timeout 900
 send "cp -fr $KON_PATH $KON_WORK_PATH\r"
 while 1 {
     expect {
-        -re "\r\n\[0-9a-zA-Z]$kernel_prompt" {
+        -re "(cp:|fail|error).*$konq_prompt" {
             case_fail $case_num
         }
-        -re $kernel_prompt {
+        -re $konq_prompt {
             case_pass $case_num
             break
         }

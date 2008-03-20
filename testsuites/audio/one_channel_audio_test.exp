@@ -19,9 +19,12 @@ send_log "*********************************\r"
 send_log "Start $TITLE\r"
 send_log "*********************************\r"
 
+set count_under_run 0
+
 proc alsa_rec_play {format channel rate file_type} {
     global case_num
     global kernel_prompt
+    global count_under_run
 
     if { $channel == "Mono" } {
         set channel_num "1"
@@ -32,20 +35,52 @@ proc alsa_rec_play {format channel rate file_type} {
     incr case_num
     set timeout 10
     send -s "arecord -t $file_type -c $channel_num -f $format -r $rate -d 5 $file_type\n"
-    expect {
-        -re "$channel\r\n$kernel_prompt" {}
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "$channel\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 
     send -s "aplay $file_type\n"
-    expect {
-        -re "$channel\r\n$kernel_prompt" {
-            case_pass $case_num
-        }
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "$channel\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 }
@@ -53,6 +88,7 @@ proc alsa_rec_play {format channel rate file_type} {
 proc alsa_rec2play {format channel rate file_type} {
     global case_num
     global kernel_prompt
+    global count_under_run
 
     if { $channel == "Mono" } {
         set channel_num "1"
@@ -63,12 +99,27 @@ proc alsa_rec2play {format channel rate file_type} {
     incr case_num
     set timeout 10
     send -s "arecord -t $file_type -c $channel_num -f $format -r $rate -d 5 |aplay\n"
-    expect {
-        -re "$channel\r\n$kernel_prompt" {
-            case_pass $case_num
-        }
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "$channel\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 }
@@ -76,6 +127,7 @@ proc alsa_rec2play {format channel rate file_type} {
 proc oss_rec_play {format channel rate file_type} {
     global case_num
     global kernel_prompt
+    global count_under_run
 
     if { $channel == "Mono" } {
         set channel_type ""
@@ -86,20 +138,52 @@ proc oss_rec_play {format channel rate file_type} {
     incr case_num
     set timeout 10
     send -s "vrec -w $channel_type -b $format -s $rate -t 5 $file_type\n"
-    expect {
-        -re "$channel \.\.\.\r\n$kernel_prompt" {}
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "$channel \.\.\.\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 
     send -s "vplay $file_type\n"
-    expect {
-        -re "$channel \.\.\.\r\n$kernel_prompt" {
-            case_pass $case_num
-        }
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "$channel \.\.\.\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 }
@@ -107,6 +191,7 @@ proc oss_rec_play {format channel rate file_type} {
 proc oss_rec2play {format channel rate file_type} {
     global case_num
     global kernel_prompt
+    global count_under_run
 
     if { $channel == "Mono" } {
         set channel_type ""
@@ -117,12 +202,27 @@ proc oss_rec2play {format channel rate file_type} {
     incr case_num
     set timeout 10
     send -s "vrec -w $channel_type -b $format -s $rate -t 5 |vplay\n"
-    expect {
-        -re "$channel \.\.\.\r\n$kernel_prompt" {
-            case_pass $case_num
-        }
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        case_pass $case_num
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "$channel \.\.\.\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 }
@@ -182,18 +282,48 @@ while 1 {
     incr case_num
     set timeout 15
     send -s "arecord -t wav -c 2 -f S16_LE -r 11000 -d 10 aaa\n"
-    expect {
-        -re "Stereo\r\n$kernel_prompt" {}
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "Stereo\r\n$kernel_prompt" {
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 
     send -s "aplay aaa &\n"
-    expect {
-        "Playing WAVE" {}
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "Playing WAVE" {
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
     send -s "\n"
@@ -205,10 +335,25 @@ while 1 {
     }
 
     send -s "arecord -t wav -c 2 -f S16_LE -r 11000 -d 5 bbb\n"
-    expect {
-        -re "Stereo\r\n$kernel_prompt" {}
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "Stereo\r\n$kernel_prompt" {
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 
@@ -262,18 +407,48 @@ while 1 {
     incr case_num
     set timeout 15
     send -s "vrec -w -b 16 -s 11000 -t 8 aaa\n"
-    expect {
-        -re "\.\.\r\n$kernel_prompt" {}
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "\.\.\r\n$kernel_prompt" {
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 
     send -s "vplay aaa &\n"
-    expect {
-        "Playing WAVE" {}
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "Playing WAVE" {
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
     send -s "\n"
@@ -285,10 +460,25 @@ while 1 {
     }
 
     send -s "vrec -w -b 16 -s 11000 -t 4 bbb\n"
-    expect {
-        -re "\.\.\r\n$kernel_prompt" {}
-        timeout {
-            case_fail $case_num
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "\.\.\r\n$kernel_prompt" {
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
         }
     }
 
@@ -303,6 +493,15 @@ while 1 {
             break
         }
     }
+}
+
+incr case_num
+if { $count_under_run == 0 } {
+    send_user "No under run error\n"
+    case_pass $case_num
+} else {
+    send_user "Under run error occurs $count_under_run times\n"
+    case_fail $case_num
 }
 
 set spawn_id $plaympeg_id
