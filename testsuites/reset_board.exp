@@ -147,12 +147,13 @@ set timeout 50
 
             }
 
-            "2" {
+            " 2 " {
              send "\r"
              break
             }
 
             timeout {
+             send "\r"
              send_user "u-boot miss the hit any key prompt\n"
              break
             }
