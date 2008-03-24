@@ -1,5 +1,7 @@
 VER = e2fsprogs-1.40.8
 
+MAKE := $(MAKE) DVI=true MAKEINFO=true
+
 CONF_OPTS = \
 	--prefix=/ \
 	--with-ldopts="$(LDFLAGS)"
