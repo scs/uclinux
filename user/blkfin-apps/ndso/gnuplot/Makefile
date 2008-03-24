@@ -31,7 +31,7 @@ CORETERM = term/aed.trm term/ai.trm term/amiga.trm term/apollo.trm \
 
 CFLAGS := $(subst -Wall,,$(CFLAGS))
 CFLAGS := -I. -DSHORT_TERMLIST -DHAVE_GETCWD -DHELPFILE=\"/usr/local/share/gnuplot.gih\" -DGNUPLOT_BINDIR=\"/bin\" -DCONTACT=\"bug-gnuplot@dartmouth.edu\"  $(CFLAGS)
-LDLIBS := $(LIBM) $(LIBPNG) $(LDLIBS) -L$(ROOTDIR)/lib/libpng -lpng -L$(ROOTDIR)/lib/zlib -lz
+LDLIBS := $(LIBPNG) $(LDLIBS) -L$(ROOTDIR)/lib/libpng -lpng -L$(ROOTDIR)/lib/zlib -lz -lm
 CFLAGS := $(subst -g,, $(CFLAGS))
 CFLAGS := $(subst -O2,-Os, $(CFLAGS))
 

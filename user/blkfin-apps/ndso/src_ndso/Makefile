@@ -11,7 +11,7 @@ romfs:
 	$(ROMFSINST) $(EXEC) /home/httpd/cgi-bin/ndso.cgi
 	
 $(EXEC): $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) $(LIBM)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJS) $(LDLIBS) -lm
 
 clean:
 	-rm -f $(EXEC) *.elf *.gdb *.o
