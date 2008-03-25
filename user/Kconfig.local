@@ -123,10 +123,12 @@ config USER_PNGVIEW
 	bool "pngview"
 	select LIB_LIBPNG
 	select LIB_ZLIB
-config USER_IRATTACH
-	bool "IRDA Tools (irattach)"
-config USER_IRDAPING
-	bool "IRDA Tools (irdaping)"
+config USER_IRDA_TOOLS
+	bool "IrDA Tools"
+	#irattach,irdaping
+config USER_IRCP
+	bool "ircp"
+	select LIB_OPENOBEX
 config USER_ALSA_UTILS
 	bool "ALSA utils"
 	select LIB_ALSA_LIB

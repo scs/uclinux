@@ -1,0 +1,51 @@
+!include ..\makefile.msc.rules
+
+all : \
+	openobex-$(OBEX_VER).dll
+
+obex_HEADERS = \
+	inobex.h \
+	irda_wrap.h \
+	irobex.h \
+	netbuf.h \
+	obex.h \
+	obex_client.h \
+	obex_connect.h \
+	obex_const.h \
+	obex_header.h \
+	obex_main.h \
+	obex_object.h \
+	obex_server.h \
+	obex_transport.h \
+
+obex_OBJECTS = \
+	netbuf.obj \
+	irobex.obj \
+	inobex.obj \
+	obex_transport.obj \
+	obex_header.obj \
+	obex_object.obj \
+	obex_connect.obj \
+	obex_client.obj \
+	obex_server.obj \
+	obex_main.obj \
+	obex.obj \
+	win32compat.obj
+
+openobex-$(OBEX_VER).dll : $(obex_OBJECTS) $(obex_HEADERS) obex.def
+	$(CC) $(CFLAGS) -LD -Feopenobex-$(OBEX_VER).dll $(obex_OBJECTS) user32.lib advapi32.lib wsock32.lib glib-$(GLIB_VER).lib $(LDFLAGS) /def:obex.def
+
+clean:
+	-@del *.obj
+	-@del *.dll
+	-@del *.exp
+	-@del *.lib
+	-@del *.err
+	-@del *.map
+	-@del *.lk1
+	-@del *.mk1
+	-@del *.pdb
+	-@del *.ilk
+	-@del *.exe
+
+!include windeps.dep

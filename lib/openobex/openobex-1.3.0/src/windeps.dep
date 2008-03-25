@@ -1,0 +1,28 @@
+inobex.obj: inobex.c ../config.h obex_main.h obex_const.h obex_object.h \
+ netbuf.h obex_transport.h irda_wrap.h
+irobex.obj: irobex.c ../config.h
+netbuf.obj: netbuf.c
+obex.obj: obex.c obex_main.h obex_const.h obex_object.h netbuf.h \
+ obex_transport.h irda_wrap.h obex_connect.h obex_client.h irobex.h
+obex_client.obj: obex_client.c ../config.h obex_main.h obex_const.h \
+ obex_object.h netbuf.h obex_transport.h irda_wrap.h obex_header.h \
+ obex_connect.h
+obex_connect.obj: obex_connect.c ../config.h obex_main.h obex_const.h \
+ obex_object.h netbuf.h obex_transport.h irda_wrap.h obex_header.h \
+ obex_connect.h
+obex_header.obj: obex_header.c ../config.h obex_main.h obex_const.h \
+ obex_object.h netbuf.h obex_transport.h irda_wrap.h obex_header.h
+obex_main.obj: obex_main.c obex_main.h obex_const.h obex_object.h \
+ netbuf.h obex_transport.h irda_wrap.h obex_header.h obex_server.h \
+ obex_client.h
+obex_object.obj: obex_object.c ../config.h obex_main.h obex_const.h \
+ obex_object.h netbuf.h obex_transport.h irda_wrap.h obex_header.h \
+ obex_connect.h
+obex_server.obj: obex_server.c obex_main.h obex_const.h obex_object.h \
+ netbuf.h obex_transport.h irda_wrap.h obex_header.h obex_connect.h
+obex_transport.obj: obex_transport.c ../config.h obex_main.h \
+ obex_const.h obex_object.h netbuf.h obex_transport.h irda_wrap.h \
+ irobex.h inobex.h
+parameters.obj: parameters.c
+win32compat.obj: win32compat.c ../config.h obex_main.h obex_const.h \
+ obex_object.h netbuf.h obex_transport.h irda_wrap.h

@@ -1,0 +1,26 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader 2.13.  */
+
+/* Define if you have the <dlfcn.h> header file.  */
+#undef HAVE_DLFCN_H
+
+/* Name of package */
+#undef PACKAGE
+
+/* Version number of package */
+#undef VERSION
+
+/* Define if system supports IrDA */
+#undef HAVE_IRDA
+
+/* Define if system supports Bluetooth */
+#undef HAVE_BLUETOOTH
+
+/* debug level */
+#undef OBEX_DEBUG
+
+/* dump level */
+#undef OBEX_DUMP
+
+/* syslog_enable */
+#undef OBEX_SYSLOG
+

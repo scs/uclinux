@@ -1,0 +1,310 @@
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook V3.1//EN"[]>
+
+<book id="OpenOBEX-Guide">
+ <bookinfo>
+  <title>OpenOBEX shared library programming guide</title>
+  
+  <authorgroup>
+   <author>
+    <firstname>Pontus</firstname>
+    <surname>Fuchs</surname>
+    <affiliation>
+     <address>
+      <email>pontus.fuchs@tactel.se</email>
+     </address>
+    </affiliation>
+   </author>
+  </authorgroup>
+
+  <copyright>
+   <year>2000</year>
+   <holder>Pontus Fuchs</holder>
+  </copyright>
+
+  <legalnotice>
+   <para>
+     This documentation is free software; you can redistribute
+     it and/or modify it under the terms of the GNU General Public
+     License as published by the Free Software Foundation; either
+     version 2 of the License, or (at your option) any later
+     version.
+   </para>
+      
+   <para>
+     This program is distributed in the hope that it will be
+     useful, but WITHOUT ANY WARRANTY; without even the implied
+     warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+     See the GNU General Public License for more details.
+   </para>
+      
+   <para>
+     You should have received a copy of the GNU General Public
+     License along with this program; if not, write to the Free
+     Software Foundation, Inc., 59 Temple Place, Suite 330, Boston,
+     MA 02111-1307 USA
+   </para>
+      
+  </legalnotice>
+ </bookinfo>
+
+<toc></toc>
+
+  <chapter id="intro">
+      <title>Introduction</title>
+
+  <para>
+    This library tries to implement a generic OBEX Session Protocol. It does not implement the OBEX Application FrameWork.
+  </para>
+
+  <para>
+    When you read this it's very useful to have a copy of the OBEX specification. It is available for download on IrDA's website
+    http://www.irda.org. Make sure you have <filename class=headerfile>obex.h</filename> and
+    <filename class=headerfile>obex_const.h</filename> too. You might also find the OpenOBEX test-apps useful.
+  </para>
+
+
+  </chapter>
+
+<chapter id="operations">
+<title>Programming the library</title>
+
+  <sect1><title>Preparations</title>
+  <para>
+    To be able to use the OpenOBEX API you must include the file <filename class=headerfile>openobex/obex.h</filename>.
+  </para>
+  <para>
+    First of all you must create an OBEX instance by calling <function>OBEX_init</function>.
+    In this call you specify what transport you want to use, an event callback, and optional flags.
+    <function>OBEX_init</function> will return a handle which shall be passed to almost all other functions.
+  </para>
+  <para>
+    To let the parser do some work you must call <function>OBEX_HandleInput</function>. It will block for the
+    specified timeout if there is no data to read. You can call <function>OBEX_GetFD</function> if you want
+    to do <function>select</function> yourself.
+  </para>
+
+  </sect1>
+
+  <sect1><title>The event callback</title>
+  <para>
+    The event callback shall be a function with the following prototype: <funcsynopsis>
+    <funcprototype><funcdef>void <function>obex_event_t</function></funcdef>
+    <paramdef>
+      <parameter>obex_t *handle</parameter>
+      <parameter>obex_object_t *obj</parameter>
+      <parameter>gint mode</parameter>
+      <parameter>gint event</parameter>
+      <parameter>gint obex_cmd</parameter>
+      <parameter>gint obex_rsp</parameter>
+    </paramdef>
+    </funcprototype>
+    </funcsynopsis>
+
+<table frame=all><title>Arguments</title>
+<tgroup cols=2 align=left colsep=1 rowsep=1>
+<thead>
+<row>
+  <entry>Argument</entry>
+  <entry>Description</entry>
+</row>
+</thead>
+<tbody>
+<row>
+  <entry>handle</entry>
+  <entry>OBEX handle</entry>
+</row>
+<row>
+  <entry>obj</entry>
+  <entry>OBEX object</entry>
+</row>
+<row>
+  <entry>mode</entry>
+  <entry>OBEX_CLI for client event or OBEX_SRV, for server event</entry>
+</row>
+<row>
+  <entry>event</entry>
+  <entry>The event. See <filename class=headerfile>obex_const.h</filename> for possible events.</entry>
+</row>
+<row>
+  <entry>obex_cmd</entry>
+  <entry>Command if any (depending on event type)</entry>
+</row>
+<row>
+  <entry>obex_rsp</entry>
+  <entry>Response if any (depending on event type)</entry>
+</row>
+</tbody>
+</tgroup>
+</table>
+
+  To this function events from the library will be passed to you, for example when an operation finishes.
+  <function>OBEX_SetUserData</function> and <function>OBEX_GetUserData</function> are useful if you need
+  to access your own private data from inside the event callback.
+  </para>
+  </sect1>
+
+  <sect1><title>Client Operations</title>
+  <para>
+    First of all you must connect the transport using <function>OBEX_TransportConnect</function> or
+    <function>IrOBEX_TransportConnect</function>. When the transport is connected you shall most likely
+    also send an OBEX Connect, to let the library negotiate MTU etc. OBEX Connect is sent as any other
+    OBEX command.
+  </para>
+  <para>
+    When you are done sending your requests you shall end by sending an OBEX Disconnect request and then
+    call <function>OBEX_TransportDisconnect</function>.
+  </para>
+
+  <para>
+    To send a request to you must first create an OBEX Object by calling <function>OBEX_ObjectCreate</function> with the
+    command opcode as argument. Next you add headers to it using <function>OBEX_ObjectAddHeader</function>. Finally you send
+    away the request using <function>OBEX_Request</function>.
+  </para>
+
+  <para>
+    When the request has finished you'll get an <constant>OBEX_EV_REQDONE</constant> event. You can get any headers sent in response
+    (like in a OBEX Get) by calling <function>OBEX_ObjectGetNextHeader</function>.
+  </para>
+
+   <para>
+     A Put would look something like this:
+    <example><title>OBEX Put example</title><programlisting>
+	
+	obex_object_t *object;
+	obex_headerdata_t hd;
+	
+	object = OBEX_ObjectNew(handle, OBEX_CMD_PUT);
+	if(object == NULL) {
+		/* Error */
+	}
+	
+	/* Add length header */
+	hd.bq4 = body_size;
+	OBEX_ObjectAddHeader(handle, object,
+                OBEX_HDR_LENGTH, hd, 4, 0);
+	
+	/* Add unicode name header*/
+	hdd.bs = unicodename;
+	OBEX_ObjectAddHeader(handle, object,
+                OBEX_HDR_NAME, hd, name_size, 0);
+
+	/* Add body header*/
+	hd.bs = body;
+	OBEX_ObjectAddHeader(handle, object,
+                OBEX_HDR_BODY, hd, body_size, 0);
+
+	if(OBEX_Request(handle, object) < 0) {
+		/* Error */
+	}
+	
+
+    </programlisting></example>
+
+  </para>
+  </sect1>
+
+  <sect1><title>Server Operations</title>
+  <para>
+     To act as a server you must first tell the transport to receive incoming connections via the function
+     <function>OBEX_ServerRegister</function>. When an incoming connection is coming you'll get an
+     <constant>OBEX_EV_ACCEPTHINT</constant> event. If you ignore this event no more incoming connections
+     will be accepted, but if you call <function>OBEX_Accept</function> you'll get back a new OBEX handle
+     and the old handle will still be listening to connections.
+  </para>
+  <para>
+    When an incoming request comes you'll first get an <constant>OBEX_EV_REQHINT</constant> event. The supplied
+    OBEX Object is allocated by the library so you do not need to create it yourself.
+  </para>
+
+  <para>
+    The <constant>OBEX_EV_REQHINT</constant> event comes before the parser start receiving the request,
+    so you can cancel requests that your application does not support early.
+  </para>
+
+  <para>
+    Set the response to the request using <function>OBEX_ObjectSetRsp</function>
+  </para>
+
+  <para>
+    You can tell the parser to deliver the body-header as a stream when this event comes using
+    <function>OBEX_ObjectReadStream</function>
+  </para>
+
+  <para>
+    When the request is received you'll get an <constant>OBEX_EV_REQ</constant> event. Get the headers from
+    the object by calling <function>OBEX_GetNextHeader</function>. You can now change the response if you
+    decide to reject the request. Add any headers you want in the response here too.
+  </para>
+
+  <para>
+    When your response is successfully sent you'll get an <constant>OBEX_EV_REQDONE</constant> event.
+  </para>
+
+  <para>
+    After you have received and answered an OBEX Disconnect request you shall call
+    <function>OBEX_TransportDisconnect</function>
+  </para>
+
+
+    <example><title>Event callback of a typical server</title><programlisting>
+  switch (event)	{
+  case OBEX_EV_REQ:
+      /* An incoming request */
+      switch(obex_cmd) {
+      case OBEX_CMD_CONNECT:
+      case OBEX_CMD_DISCONNECT:
+      /* Dont need to do anything here.
+         Response is already set to
+         success by OBEX_EV_REQHINT event */
+          break;
+      case OBEX_CMD_PUT:
+          deliver_put_to_app(object);
+          break;
+      }			
+      break;
+
+  case OBEX_EV_REQHINT:
+
+      /* A new request is coming in */
+      switch(obex_cmd) {
+      /* Accept xome commands! */
+      case OBEX_CMD_PUT:
+      case OBEX_CMD_CONNECT:
+      case OBEX_CMD_DISCONNECT:
+          OBEX_ObjectSetRsp(object, OBEX_RSP_CONTINUE, OBEX_RSP_SUCCESS);
+          break;
+		
+      default:
+          /* Reject any other commands */			
+          OBEX_ObjectSetRsp(object, OBEX_RSP_NOT_IMPLEMENTED,
+          			OBEX_RSP_NOT_IMPLEMENTED);
+              break;
+		
+      }
+      break;
+
+  case OBEX_EV_REQDONE:
+      if(obex_cmd == OBEX_CMD_DISCONNECT) {
+          /* Disconnect transport here */
+      }
+      break;
+
+  case OBEX_EV_LINKERR:
+      /* Not good */
+      break;
+
+  default:
+      break;
+  }
+
+    </programlisting></example>
+
+  </sect1>
+  </chapter>
+
+  <chapter id="apiref">
+     <title>API Reference</title>
+!Esrc/obex.c
+  </chapter>
+
+</book>

@@ -1,0 +1,12 @@
+#Change these to match your system
+GLIB_VER=1.2
+
+# Nothing to change here.
+CC = cl -G5 -GF -Ox -W3 -MD -nologo
+
+LDFLAGS = /link
+INSTALL = copy
+INCDIR= -I. -I.. -I$(GLIB)
+CFLAGS = $(INCDIR) -DHAVE_CONFIG_H
+
+OBEX_VER=0.9

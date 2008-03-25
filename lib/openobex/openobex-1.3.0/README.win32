@@ -1,0 +1,9 @@
+To compile for win32 you need MS VC6 and glib 1.2 installed.
+Edit makefile.msc.rules to fit your system.
+copy config.h.win to config.h
+run nmake -f makefile.msc
+
+If everything goes well you should create a directory called openobex in your
+include-path and put the files obex.h and obex_const.h in there. obex-x.x.dll
+should go somewhere in your path (c:\WINNT\system32) and obex-x.x-lib should
+go where your lib-files are.

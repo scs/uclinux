@@ -32,6 +32,7 @@ dir_3_$(CONFIG_LIB_SPHINXBASE)       += sphinxbase
 dir_3_$(CONFIG_LIB_SQLITE)           += sqlite
 dir_3_$(CONFIG_LIB_TREMOR)           += tremor
 dir_3_$(CONFIG_LIB_TSLIB)            += tslib-1.0
+dir_3_$(CONFIG_LIB_OPENOBEX)         += openobex
 
 dir_4_$(CONFIG_LIB_FREETYPE)         += freetype        # requires zlib(3)
 dir_4_$(CONFIG_LIB_LIBEXOSIP)        += libeXosip       # requires ???

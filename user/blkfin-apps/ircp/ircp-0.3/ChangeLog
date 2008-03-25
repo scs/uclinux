@@ -1,0 +1,36 @@
+2002-11-30  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Remove GLib dependencies.
+
+2002-10-16  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Cleanup of autoconf/automake stuff.
+	* Fixes for the new API.
+	* Bump version number to 0.3
+
+2000-12-05  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Server is now streaming body!
+	* Better, easier and smaller handling of setpath.
+
+2000-12-04  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Client is now streaming body, which leads to reduced memory usage.
+	
+2000-11-20  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Specifying absoulte path as inbox didn't work.
+	* Sending 0 bytes long files didn't work.
+	* Don't continue if connect fails when beeing client.
+
+2000-08-23  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* ircp is now printing status-messages while working.
+
+2000-08-22  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Most server-functions shall now work too.
+
+2000-08-21  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Client now work. Can send files and dirs to Win2K

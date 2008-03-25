@@ -152,3 +152,6 @@ config LIB_TREMOR
 
 config LIB_TSLIB
 	bool "Build tslib"
+
+config LIB_OPENOBEX
+    bool "Build openobex"

@@ -1,0 +1,359 @@
+2002-11-15  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Add OBEX_SetCustomData() and OBEX_GetCustomData()
+
+2002-11-05  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Replace OBEX_GetResponseMessage() with OBEX_ResponseToString()
+
+2002-11-01  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Change Bluetooth MTU to OBEX_DEFAULT_MTU
+	* Change type of RFCOMM channel to uint8_t
+	* Return static strings from obex_get_response_message()
+
+2002-10-29  Dmitry Kasatkin  <dmitry.kasatkin@nokia.com>
+
+	* Add OBEX_TRANS_FD support
+
+2002-10-28  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Remove GLib dependencies.
+	* Remove default prefix statement.
+	* Fix workaround for Bluetooth support, again.
+	* Replace OBEX_TRANS_CUST with OBEX_TRANS_CUSTOM.
+
+2002-10-25  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Change g_htons() into htons()
+
+2002-10-23  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Fix workaround for compilation without Bluetooth support.
+	* Add support for DEBUG and DUMP.
+	* Disable IrDA discovery if a valid IrDA address is supplied.
+
+2002-10-16  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Allow higher MTUs.
+	* Handle unexpected data in continue.
+
+2002-10-11  Marcel Holtmann  <marcel@holtmann.org>
+
+	* Cleanup of autoconf/automake stuff.
+	* Support for Bluetooth transport layer.
+	* Bump version number to 1.0.0
+
+2001-02-27  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Added a patch from Jean:
+	  o OBEX_SetUserCallBack - change callback after OBEX_init()
+	  o OBEX_ObjectReParseHeaders - Parse headers more than one time
+	  o Some documentation fixes.
+	* Fixed some minor warnings
+
+2000-12-06  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Removed OBEX_Object(G|S)etUserData as they were not needed.
+	* Documented the API, and added a DocBook-based doc-system
+	  (actually I just copied the Linux Kernel documentation-system).
+	
+2000-12-05  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Pass timeout to handleinput when using a custom transport.
+
+2000-12-04  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Added streaming support.
+	* Fixed endian-bug in obex_client.c and obex_server.c
+
+2000-12-02  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* obex_data_indication was broken and didn't work correctly 
+	  with custom transport.
+
+2000-12-01  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Minor cleanups to obex.c
+
+2000-11-30  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Made obex_object_send a bit more readable
+	
+	* Rewrote obex_client.c and obex_server.c. They are now more state-
+	  machine like which make them a lot easier to read.
+	
+	* Support recieving of ABORT (no sending yet).
+	
+	* Fixed so that IrDA works on older kernels again.
+
+2000-11-21  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Removed the async support.
+	* Fixed irobex.c compilation on win32 (which Jean's patch broke).
+	* Bumped version to 0.9.7
+
+2000-11-20  Pontus Fuchs  <pontus.fuchs@tactel.se>
+	
+	Applied a buch of fixes/changes made by 
+	Jean Tourrilhes <jt@bougret.hpl.hp.com>
+
+	* Full "accept" capability in OBEX Server (optional) :
+		-> Keep server alive
+		-> Detach receiver instance from server instance
+	* Properly close all sockets (server + receiver) when Cleanup
+	* Declare OBEX_GetFD() in obex.h
+	* Updated irda.h to the latest
+	* OBEX Server do tell IrDA stack to advertise OBEX hint bit
+	* OBEX Client can do optional hint bit filtering of discovery log
+	* OBEX Client can do optional IAS entry filtering of discovery log
+	* Safer discovery log allocation
+
+2000-10-16  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* obex_object.c: When a header with 0 length was received 
+	  obex_object_receive tried to allocate a zero-length netbuf, 
+	  which ofcourse failed causing the transfer to be aborted.
+
+2000-08-29  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Minor fix to obex_main.c which prevented 
+	  custom transport to work.
+
+2000-08-28  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Minor improvements to many files. Defined
+	  some variables const as they ought to be.
+
+2000-08-23  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Fixed bug when receiving more than one fragment at a time.
+	  Win2K irftp seems to do this.
+
+2000-08-21  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Fixes to win32 makefiles.
+
+2000-08-20  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Created openobex.m4.
+
+2000-08-18  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Added IrDA-server support on win32.
+
+2000-08-15  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Various fixes to Makefiles etc
+	* Did a workaround for client.c to be able
+	  to do PUT to Win2K.
+
+2000-08-14  Pontus Fuchs  <pontus.fuchs@tactel.se>
+	
+	* Fixed dependencies for win32. You need cygwin to
+	  generate them though.
+
+2000-08-13  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Made the listen/accept code to block.
+	* Renamed the library openobex.
+
+2000-08-11  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Small fixes to obex.c and obex_const.h.
+
+2000-08-09  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Some more win32 fixes. irobex_test.c now compiles.
+	* Added the win32 makefiles that I had forgotten.
+
+2000-08-06  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Lots of small win32 fixes.
+	* irobex_palm3 and obex_tcp now compiles in win32.
+
+2000-08-05  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Made this thing compile on win32!
+
+2000-08-03  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Fixed a memleak when doing IrDA-discovery.
+	* Fixed irda-check.m4 to really check for IrDA.
+	* Added check to see if SIGIO is supported.
+	  Hopefully this stuff compiles on solaris now.
+
+2000-07-21  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* When OBEX_Cleanup was called. Async IO instance
+	  was not unregistered. Fixed!
+	* Fixed a small memleak when sending objects.
+
+2000-07-16  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Added a few more headers in obex_const.h
+ 
+2000-07-13  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Added functions to store userdata in an obex object
+	  and in the obex handle:
+	  OBEX_SetUserData, OBEX_GetUserData,
+	  OBEX_ObjectSetUserData and OBEX_ObjectGetUserData
+
+	* Made custom transport work in sync mode.
+
+2000-05-22  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Fixed missing file in obex.spec.in
+
+2000-05-18  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Fixed libtool versioning.
+	* Added obex.sym
+	* Changed irobex.c to print discoved devices with DEBUG
+	  instead of g_print
+
+2000-05-06  Pontus Fuchs  <pontus.fuchs@tactel.se>
+
+	* Added irda.h in src
+	* Changed so that obex.h and obex_const.h are the only files
+          That gets included by apps.
+
+1999-12-06  Pontus Fuchs  <pontus@tactel.se>
+
+	* Fixed a compile error on obex_object.c.
+
+1999-12-05  Pontus Fuchs  <pontus@tactel.se>
+
+	* Made some general routines to handle data before headers.
+	  (ie SETPATH works now)
+	* Parsing of connect-hdr is a bit safer now.
+	* Renamed OBEX_HEADER_* OBEX_HDR_*.
+
+1999-11-29  Pontus Fuchs  <pontus@tactel.se>
+
+	* Fix irobex_palm3 to quick on a link-error.
+	* Check that we got at least 3 bytes after a read.
+	* Made obex_receive_object check buffer sizes.
+
+1999-11-28  Pontus Fuchs  <pontus@tactel.se>
+
+	* Fixed the missing final-bit on server-operations.
+	* Added some more errorchecking.
+
+1999-11-26  Pontus Fuchs  <pontus@tactel.se>
+
+	* Changed API again. Hopefully it will quite finished after this.
+	* Updated all apps to work with the new API.
+	* Made the custom-transport things cleaner.
+
+1999-11-23  Pontus Fuchs  <pontus@tactel.se>
+
+	* Fixed inobex.c to work after yesterdays changes.
+	* Made an attempt to support multiple async instances!
+	  This needs more polishing but obex_tcp seems to work when
+	  sending to localhost.
+
+1999-11-22  Pontus Fuchs  <pontus@tactel.se>
+
+	* Fixed so that the socket is closed in OBEX_TransportDisconnect()
+	  instead of shutdown'ed.
+	* Made async_self an array so we can have multiple async instances.
+
+1999-11-20  Pontus Fuchs  <pontus@tactel.se>
+
+	* Did some API-polishing.
+	* Got tired of rewriting many test-apps so now
+	  obex_tcp and irobex_palm3 has common code.
+	* Made OBEX_ObjectAddHeader() check that headers fit etc.
+	* Made obex_parse_connect_header safer.
+
+1999-11-17  Pontus Fuchs  <pontus@tactel.se>
+
+	* Implemented a way to use custom transports.
+	  OBEX_CustomDataFeed() us used to give the OBEXlib data.
+	  A new callback is used when the OBEX-lib wants to write data.
+
+	* Made code to use OBEX to an R320 over a serial line (see
+	  apps/cobex_R320.c and apps/irobex_test.c).
+
+1999-11-16  Pontus Fuchs  <pontus@tactel.se>
+
+	* More heavy changes
+
+1999-11-08  Pontus Fuchs  <pontus@tactel.se>
+
+	* Changed union OBEX_ADDHEADER_DATA to obex_headerdata_t typedef
+	* The app is now responsible for converting to unicode before
+	  adding a unicode header. Made OBEX_CharToUnicode() for apps
+	  to use.
+
+1999-10-28  Pontus Fuchs  <pontus@tactel.se>
+
+	* Heavy changes to many things. Please look at my mail in the
+	  OBEX mailing-list for more info.
+
+1999-10-25  Pontus Fuchs  <pontus@tactel.se>
+
+	* src/obex_connect.c (obex_connect_confirm): Fixed so that the
+	  object created by obex_parse_connect_frame got properly
+	  deleted after connect_confirm callback was called.
+	* src/obex_get.c (obex_get_indication): Removed some code which
+	  was not in my tree causing a compile error.
+
+1999-10-22  Dag Brattli  <dagb@cs.uit.no>
+
+	* src/obex_main.c (obex_status_indication): Fixed so that it just 
+	  return if the body has not been allocated yet. This will happen
+	  if you start a get operation, and the first packet does not
+          contain any body data.	 
+
+1999-10-22  Pontus Fuchs  <pontus@tactel.se>
+
+	* Small change to make irobex_palm3.c work again.
+
+1999-10-22  Pontus Fuchs  <pontus@tactel.se>
+
+	* Many changes with GET and PUT.
+
+1999-10-21  Dag Brattli  <dagb@cs.uit.no>
+
+	* Fixed irda-check.m4, so it doesn't stop with an error if IrDA 
+	  support is not found. Now it will continue, but you will of
+	  course only get TCP support
+
+1999-10-18  Pontus Fuchs  <pontus@tactel.se>
+
+	* Fixed some small things in the GET statemachine.
+
+1999-10-18  Dag Brattli  <dagb@cs.uit.no>
+
+	* Removed irdalib, and just added netbuf.[ch] and parameters.[ch]
+	  to the obex/src dir.
+
+1999-10-08  Dag Brattli  <dagb@cs.uit.no>
+
+	* Fixed irda-check.m4 so #define HAVE_IRDA 1 will show up in
+	  config.h if you have irda support in your kernel
+
+1999-10-08  Ole Sorslett  <oles@stud.cs.uit.no>
+
+	* Added HAVE_IRDA ifdefs around all IrDA related code. Hopefully,
+	  the code should now compile OK even on *BSD systems.
+
+1999-10-08  Pontus Fuchs <pontus@tactel.se>
+
+	* defined OBEX_OBJECT_MAXSTRLEN and removed hardcoded values
+	* Changed obex_object_t and updated GET and PUT
+	* Changed the status-indication to work when length
+	  is unknown.
+
+1999-10-07  Pontus Fuchs  <pontus@tactel.se>
+
+	* Fixed GET.
+	* Fixed PUT. After a connect self->object was not
+	  empty causing putrequest to fail.
+	* Added some checking to obex_put_request()
+	  and obex_get_request so they now fail nicely
+	  if obex_data_request() fails.
+

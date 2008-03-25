@@ -1,0 +1,68 @@
+dnl
+dnl  $Id: configure.in,v 1.19 2002/12/01 17:26:43 holtmann Exp $
+dnl
+dnl Process this file with autoconf to produce a configure script.
+dnl
+
+AC_INIT(src/obex.c)
+
+AC_CANONICAL_SYSTEM
+AC_CANONICAL_HOST
+
+OBEX_MAJOR_VERSION=1
+OBEX_MINOR_VERSION=0
+OBEX_MICRO_VERSION=0
+
+OBEX_INTERFACE_AGE=0
+OBEX_BINARY_AGE=0
+
+OBEX_VERSION=$OBEX_MAJOR_VERSION.$OBEX_MINOR_VERSION.$OBEX_MICRO_VERSION
+
+AC_SUBST(OBEX_VERSION)
+
+AM_INIT_AUTOMAKE(openobex, $OBEX_VERSION)
+AM_CONFIG_HEADER(config.h)
+
+AC_PROG_CC
+AC_PROG_INSTALL
+AM_PROG_LIBTOOL
+
+LT_RELEASE=$OBEX_MAJOR_VERSION.$OBEX_MINOR_VERSION
+LT_CURRENT=`expr $OBEX_MICRO_VERSION - $OBEX_INTERFACE_AGE`
+LT_REVISION=$OBEX_INTERFACE_AGE
+LT_AGE=`expr $OBEX_BINARY_AGE - $OBEX_INTERFACE_AGE`
+
+AC_SUBST(LT_RELEASE)
+AC_SUBST(LT_CURRENT)
+AC_SUBST(LT_REVISION)
+AC_SUBST(LT_AGE)
+
+IRDA_CHECK
+BLUETOOTH_CHECK
+
+dnl Configure debug facilities
+AC_ARG_WITH(debug,[  --with-debug=level      Debug level],
+	debug_level="$withval", debug_level="")
+
+CFLAGS="-O2"
+if test "$debug_level" != ""; then
+	AC_DEFINE_UNQUOTED([OBEX_DEBUG],$debug_level, [debug level])
+	CFLAGS="-g -O1"
+fi
+
+AC_ARG_WITH(dump,[  --with-dump=level       Dump level],
+	dump_level="$withval", dump_level="")
+ 
+if test "$dump_level" != ""; then
+	AC_DEFINE_UNQUOTED([OBEX_DUMP],$dump_level, [dump level])
+fi
+ 
+AC_ARG_WITH(syslog,[  --with-syslog=boolean   Debugging to Syslog],
+	syslog_enable="$withval", syslog_enable="")
+ 
+if test "$syslog_enable" != ""; then
+	AC_DEFINE_UNQUOTED([OBEX_SYSLOG],$syslog_enable, [syslog_enable])
+fi
+
+AC_OUTPUT([Makefile m4macros/Makefile src/Makefile doc/Makefile
+		openobex-config openobex.spec])

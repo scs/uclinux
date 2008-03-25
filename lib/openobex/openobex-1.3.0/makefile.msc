@@ -1,0 +1,10 @@
+!include "makefile.msc.rules"
+
+all:
+	cd src & $(MAKE) /f makefile.msc $@"
+
+clean:
+	cd src & $(MAKE) /f makefile.msc $@"
+
+dep:
+	@bash makewindep.sh "$(INCDIR)" src $@

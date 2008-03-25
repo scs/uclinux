@@ -1,0 +1,20 @@
+dnl
+dnl  $Id: configure.in,v 1.6 2002/11/30 18:55:55 holtmann Exp $
+dnl
+dnl Process this file with autoconf to produce a configure script.
+dnl
+
+AC_INIT(src/ircp.c)
+
+AM_INIT_AUTOMAKE(ircp, 0.3)
+AM_CONFIG_HEADER(config.h)
+
+AM_MAINTAINER_MODE
+
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+
+AM_PATH_OPENOBEX(1.0.0)
+
+AC_OUTPUT([Makefile src/Makefile])

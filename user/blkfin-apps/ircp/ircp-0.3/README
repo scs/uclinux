@@ -1,0 +1,14 @@
+Introduction:
+ircp is used to "beam" files or whole directories to/from Linux, Windows.
+
+To compile and install:
+# ./configure
+# make
+# make install (as root)
+
+To send files or directories:
+# ircp file/dir file/dir ....
+
+To receive files or directories:
+# ircp -r [DEST]
+If no destination is specified files will be written to the current directory.

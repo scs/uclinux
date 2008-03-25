@@ -1,0 +1,5 @@
+This is the Open OBEX c-library. I have compiled it on Linux, Solaris
+(no IrDA) and Win2K. Maybe it compiles on other platforms to.
+
+To compile for Unix do the normal ./confgure, make, make install.
+To compile for Win2k read README.win32.
