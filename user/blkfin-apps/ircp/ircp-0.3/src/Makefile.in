@@ -80,7 +80,7 @@ bin_PROGRAMS = ircp
 
 ircp_SOURCES = ircp.c
 
-LDADD = @OPENOBEX_LIBS@ libircp.a
+LDADD = libircp.a @OPENOBEX_LIBS@
 
 INCLUDES = @OPENOBEX_CFLAGS@
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs

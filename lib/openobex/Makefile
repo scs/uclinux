@@ -8,6 +8,8 @@ build-$(VER)/Makefile:
 	set -e ; \
 	rm -rf build-$(VER) ; \
 	mkdir build-$(VER) ; \
+	mkdir build-$(VER)/src ; \
+	cp $(VER)/src/irda.h build-$(VER)/src/irda.h ; \
 	cd build-$(VER) ; \
 	../$(VER)/configure \
 		$(CONFIGURE_OPTS)
