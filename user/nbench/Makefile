@@ -95,6 +95,7 @@ DEFINES= -DLINUX $(NO_UNAME)
 
 LINKFLAGS += $(LDFLAGS)
 DEFINES += $(CPPFLAGS)
+FLTFLAGS = -s 32000
 
 ##########################################################################
 # For LINUX-like systems with gcc
