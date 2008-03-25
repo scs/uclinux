@@ -1858,7 +1858,7 @@ irix5* | irix6* | nonstopux*)
   ;;
 
 # This must be Linux ELF.
-linux-gnu*)
+linux-gnu*|linux-uclibc*)
   lt_cv_deplibs_check_method=pass_all
   lt_cv_file_magic_test_file=`echo /lib/libc.so* /lib/libc-*.so`
   ;;
@@ -2636,7 +2636,7 @@ fi
 
 # Transform linux* to *-*-linux-gnu*, to support old configure scripts.
 case $host_os in
-linux-gnu*) ;;
+linux-gnu*|linux-uclibc*) ;;
 linux*) host=`echo $host | sed 's/^\(.*-.*-linux\)\(.*\)$/\1-gnu\2/'`
 esac
 
@@ -4073,7 +4073,7 @@ linux-gnuoldld* | linux-gnuaout* | linux-gnucoff*)
   ;;
 
 # This must be Linux ELF.
-linux-gnu*)
+linux-gnu*|linux-uclibc*)
   version_type=linux
   need_lib_prefix=no
   need_version=no
