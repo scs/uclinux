@@ -23,6 +23,8 @@ ROMFS_DIRS = bin dev etc etc/dhcpc home lib lib/xenomai mnt proc sys usr var roo
 
 all:
 
+romfs.post:: romfs.shared.libs
+
 romfs:
 	mkdir -p $(ROMFSDIR)
 	for i in $(ROMFS_DIRS); do \
@@ -167,8 +169,11 @@ ifeq ($(CONFIG_BLK_DEV_INITRD),y)
 endif
 endif
 
-#	cp $(IMAGEDIR)/vmImage /tftpboot
-#	cp $(IMAGEDIR)/rootfs.jffs2 /tftpboot
+	cp $(IMAGEDIR)/vmImage /tftpboot
+	cp $(IMAGEDIR)/rootfs.jffs2 /tftpboot
 
 clean::
 
+.PHONY: all clean image romfs
+
+include ../vendor.mak
