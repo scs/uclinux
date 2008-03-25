@@ -19,12 +19,15 @@ cd $uclinux_path
       }
       send "/VER\r"
       while 1 {
-      expect "VER = (busybox-\[0-9]+.\[0-9]+.\[0-9]+)" {
+      expect -re "VER = (busybox-\[0-9]+.\[0-9]+.\[0-9]+)" {
       set busybox_version $expect_out(1,string)
+      send_user "Busybox version is  $busybox_version"
+      break
       }
       }
       send "q\r"
       expect eof
+
 
 step "Apply msh patch."
 
