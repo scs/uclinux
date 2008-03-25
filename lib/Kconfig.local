@@ -102,6 +102,9 @@ config LIB_MPFR
 	bool "Build mpfr"
 	select LIB_LIBGMP
 
+config LIB_OPENOBEX
+    bool "Build openobex"
+
 config LIB_ORTP
 	bool "Build ortp"
 
@@ -152,6 +155,3 @@ config LIB_TREMOR
 
 config LIB_TSLIB
 	bool "Build tslib"
-
-config LIB_OPENOBEX
-    bool "Build openobex"
