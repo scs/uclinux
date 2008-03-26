@@ -19,9 +19,9 @@ int main(int argc, char** argv)
 {
   FILE * pF;
   void * pBuf;
-  char sTemp[256];
+  char sTemp[1024];
   char * sImgName;
-  char *sServerIp;
+  char sServerIp="192.168.1.3";
 
   int ret = -1;
   unsigned int * pWrd;
@@ -32,16 +32,19 @@ int main(int argc, char** argv)
       return -1;
   }
   
+  printf("bla\n");
   sImgName = argv[1];
-  if(argc == 3)
+/*  if(argc == 3)
   {
   	sServerIp = argv[2];
   } else {
 	  strcpy(sServerIp, STR(SERVER_IP));
-  }
+	  }*/
   
+  printf("bli\n");
   printf("Transferring %s from %s over tftp.\n", sImgName, sServerIp);
   sprintf(sTemp, "tftp %s -g -l %s%s -r %s\n", sServerIp, TEMP_FILE_LOCATION, sImgName, sImgName);
+  printf("%s\n", sTemp);
   ret = system(sTemp);
   if(ret != 0)
     {
@@ -49,6 +52,7 @@ int main(int argc, char** argv)
       return -1;
     }
 
+  printf("Analyzing file header of \"%s\".\n", sImgName);
   sprintf(sTemp, "%s%s", TEMP_FILE_LOCATION, sImgName);
   pF = fopen(sTemp, "rb");
   if(!pF)
