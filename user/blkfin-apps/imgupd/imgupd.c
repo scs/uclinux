@@ -21,7 +21,7 @@ int main(int argc, char** argv)
   void * pBuf;
   char sTemp[1024];
   char * sImgName;
-  char sServerIp="192.168.1.3";
+  char *sServerIp;
 
   int ret = -1;
   unsigned int * pWrd;
@@ -32,16 +32,14 @@ int main(int argc, char** argv)
       return -1;
   }
   
-  printf("bla\n");
   sImgName = argv[1];
-/*  if(argc == 3)
+  if(argc == 3)
   {
-  	sServerIp = argv[2];
+	  sServerIp = argv[2];
   } else {
 	  strcpy(sServerIp, STR(SERVER_IP));
-	  }*/
+  }
   
-  printf("bli\n");
   printf("Transferring %s from %s over tftp.\n", sImgName, sServerIp);
   sprintf(sTemp, "tftp %s -g -l %s%s -r %s\n", sServerIp, TEMP_FILE_LOCATION, sImgName, sImgName);
   printf("%s\n", sTemp);
@@ -88,8 +86,9 @@ int main(int argc, char** argv)
       printf("Image not recognized!\n");
       goto cleanup;
       break;
-    }
+   }
  cleanup:
    sprintf(sTemp, "rm %s%s\n", TEMP_FILE_LOCATION, sImgName);
+   system(sTemp);
    return ret;
 }
