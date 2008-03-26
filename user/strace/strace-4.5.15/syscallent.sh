@@ -30,7 +30,7 @@ cat ${1+"$@"} |
 	sed -n 's/^#[ 	]*define[ 	][ 	]*SYS_\([^ 	]*\)[ 	]*[^0-9]*\([0-9]*\).*$/\1 \2/p
 s/^#[ 	]*define[ 	][ 	]*__NR_\([^ 	]*\)[ 	]*[^0-9]*\([0-9]*\).*$/\1 \2/p
 s/^#[ ]*define[ ][ ]*__NR_\([^ ]*\)[ ]*[^0-9()]*(__NR_Linux + \([0-9]*\))$/\1 \2/p' |
-	sort -k1n | uniq |
+	sort -k2n | uniq |
 	awk '
 	BEGIN {
 		tabs = "\t\t\t\t\t\t\t\t"
@@ -59,6 +59,7 @@ s/^#[ ]*define[ ][ ]*__NR_\([^ ]*\)[ ]*[^0-9()]*(__NR_Linux + \([0-9]*\))$/\1 \2
 		print s
 	}
 	END {
+		exit
 		limit = call + 100
 		while (++call < limit) {
 			f = "printargs"
