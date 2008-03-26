@@ -96,7 +96,7 @@ proc standby_test_case2 {} {
     incr pack_num 20
     while 1 {
         expect {
-            -re "64 bytes from $serverip: icmp_seq=$pack_num ttl=64 time=" {
+            -re "64 bytes from $serverip: seq=$pack_num ttl=64 time=" {
                 case_pass $case_num
                 break
             }
@@ -185,7 +185,7 @@ incr case_num
 send "ping $serverip&\r"
 while 1 {
     expect {
-        -re "64 bytes from $serverip: icmp_seq=2 ttl=64 time=" {
+        -re "64 bytes from $serverip: seq=2 ttl=64 time=" {
             case_pass $case_num
             break
         }

@@ -119,7 +119,7 @@ expect  -re $kernel_prompt
 send -s "ping $serverip\r" 
 while 1 {
    expect {
-      "icmp_seq" { 
+      "seq" { 
        sleep 10
        send "\003"
                 case_pass $case_num
