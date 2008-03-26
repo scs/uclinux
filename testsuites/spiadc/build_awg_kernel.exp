@@ -42,7 +42,7 @@ while 1 {
 }
 
 cd $uclinux_path
-set timeout 300
+set timeout 5 
 set baud_rate_done_flag 0
 spawn make config
 
@@ -61,17 +61,35 @@ while 1 {
             send "y\r"
         }
 
-        -re "Blackfin BF53x ADSP SPI ADC support.*SPI_ADC_BF533.*\\\[.*]" {
+     #   -re "Blackfin BF53x ADSP SPI ADC support.*SPI_ADC_BF533.*\\\[.*]" {
+     #       send "Y\r"
+     #   }
+
+        -re "User mode SPI device driver support.*SPI_SPIDEV.*\\\[.*]" {
             send "Y\r"
         }
 
-#Default to select it, no other choice
-#        -re "Build libZ.*LIB_ZLIB.*\\\[.*]" {
-#            send "Y\r"
-#        }
-#        -re "Build libpng.*LIB_LIBPNG.*\\\[.*]" {
-#            send "Y\r"
-#        }
+        -re "Build libZ \\\(LIB_ZLIB\\\) \\\[\[^\r]*]" {
+            expect {
+            -nocase -re  " (\[ym])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "Y\r"
+            }
+            }
+        }
+
+        -re "Build libpng \\\(LIB_LIBPNG\\\) \\\[(\[^\r]*)]" {
+            expect {
+             -nocase -re " (\[ym])\r\n" {
+                send_user "\n Item_value is selected $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "Y\r"
+            }
+            }
+        }
 
         -re "Networked Software Defined Storage Oscilloscope.*USER_NDSO.*\\\[.*]" {
             send "N\r"
@@ -82,7 +100,7 @@ while 1 {
         }
 
         "\\\(*) \\\[*]" {
-            sleep .01
+            sleep .1
             send "\r"
         }
 
