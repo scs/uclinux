@@ -24,13 +24,14 @@ insmod /lib/modules/`uname -r`/bfdma.ko
 
 # Configure network interface based on SPI EEPROM info
 #dhcpcd &
+ln -sfn /sys/bus/spi/devices/spi0.4/eeprom /eeprom 
 ifconfig eth0 down
-if test -e /sys/bus/spi/devices/spi0.4/eeprom
+ifconfig eth0 192.168.1.1
+ifconfig eth0 hw 00:20:e3:22:00:00
+if test -e /eeprom
 then
-	ifconfig eth0 hw ether `grep "MAC" /sys/bus/spi/devices/spi0.4/eeprom | awk '{print $2}'`
-	ifconfig eth0 `grep "IP" /sys/bus/spi/devices/spi0.4/eeprom | awk '{print $2}'`
-else
-	ifconfig eth0 192.168.1.1
+	ifconfig eth0 hw ether `grep "MAC" /eeprom | awk '{print $2}'`
+	ifconfig eth0 `grep "IP" /eeprom | awk '{print $2}'`
 fi
 ifconfig eth0 up
 
