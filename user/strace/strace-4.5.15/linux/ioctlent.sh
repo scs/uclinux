@@ -78,12 +78,48 @@ s/^\(.*\):[[:space:]]*#[[:space:]]*define[[:space:]]*\([A-Z0-9_]*\)[[:space:]]*_
 	>> ioctls.h
 
 # Some use a special base to offset their ioctls on. Extract that as well.
+# Some use 2 defines: _IOC(_IOC_NONE,DM_IOCTL,DM_LIST_DEVICES_CMD,....)
 : > ioctldefs.h
 
-bases=$(sed -ne 's/.*_IOC_NONE.*,[[:space:]]*\([A-Z][A-Z0-9_]\+\)[[:space:]+,].*/\1/p' ioctls.h | uniq | sort)
+bases=$(sed -n \
+	-e 's/.*_IOC_NONE.*,[[:space:]]*\([A-Z][A-Z0-9_]\+\)[[:space:]]*,[[:space:]]*\([A-Z][A-Z0-9_]\+\)[[:space:]+,].*/\1\n\2/p' \
+	-e 's/.*_IOC_NONE.*,[[:space:]]*\([A-Z][A-Z0-9_]\+\)[[:space:]+,].*/\1/p' \
+	ioctls.h | sort -u)
 for base in $bases ; do
-	echo "Looking for $base"
+	printf "Looking for $base"
 	regexp="^[[:space:]]*#[[:space:]]*define[[:space:]]\+$base"
 	(cd $dir ; grep -h $regexp 2>/dev/null $files ) | \
 		grep -v '\<_IO' >> ioctldefs.h
+
+	if ! grep -qs "\<$base\>" ioctldefs.h ; then
+		# DM_* stuff uses an enum
+		(
+		cd $dir
+		${CPP:-cpp} -E -dD -P $(grep -l $base $files 2>/dev/null) | \
+		awk -v base="$base" '{
+			if ($1 == "enum") {
+				val = 0
+				while ($NF != "};") {
+					if (!getline)
+						exit
+					gsub(/,/, "")
+					if ($0 ~ /=/)
+						val = $NF
+					if ($1 == base) {
+						print "#define " base " " val
+						exit
+					}
+					val++
+				}
+			}
+		}'
+		) >> ioctldefs.h
+		if ! grep -qs "\<$base\>" ioctldefs.h ; then
+			echo ": FAIL"
+		else
+			echo " (enum!)"
+		fi
+	else
+		echo
+	fi
 done
