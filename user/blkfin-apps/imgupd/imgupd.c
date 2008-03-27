@@ -19,7 +19,7 @@ int main(int argc, char** argv)
 {
   FILE * pF;
   void * pBuf;
-  char sTemp[256];
+  char sTemp[1024];
   char * sImgName;
   char *sServerIp;
 
@@ -35,13 +35,14 @@ int main(int argc, char** argv)
   sImgName = argv[1];
   if(argc == 3)
   {
-  	sServerIp = argv[2];
+	  sServerIp = argv[2];
   } else {
 	  strcpy(sServerIp, STR(SERVER_IP));
   }
   
   printf("Transferring %s from %s over tftp.\n", sImgName, sServerIp);
   sprintf(sTemp, "tftp %s -g -l %s%s -r %s\n", sServerIp, TEMP_FILE_LOCATION, sImgName, sImgName);
+  printf("%s\n", sTemp);
   ret = system(sTemp);
   if(ret != 0)
     {
@@ -49,6 +50,7 @@ int main(int argc, char** argv)
       return -1;
     }
 
+  printf("Analyzing file header of \"%s\".\n", sImgName);
   sprintf(sTemp, "%s%s", TEMP_FILE_LOCATION, sImgName);
   pF = fopen(sTemp, "rb");
   if(!pF)
@@ -84,8 +86,9 @@ int main(int argc, char** argv)
       printf("Image not recognized!\n");
       goto cleanup;
       break;
-    }
+   }
  cleanup:
    sprintf(sTemp, "rm %s%s\n", TEMP_FILE_LOCATION, sImgName);
+   system(sTemp);
    return ret;
 }
