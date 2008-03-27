@@ -46,6 +46,8 @@ ifconfig eth0 | grep "HWaddr" | awk '{print $5}'
 echo -n "Set IP from EEPROM otherwise default: "
 ifconfig eth0 | grep "inet" | awk '{print $2}' | sed -e s/addr://g
 
+# send out two arp request to itselfe
+arping -c 2 -w 1 `ifconfig eth0 | grep "inet" | awk '{print $2}' | sed -e s/addr://g`
 
 #cat /etc/issue
 cat /etc/motd
