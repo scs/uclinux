@@ -21,6 +21,7 @@ int main(int argc, char** argv)
   void * pBuf;
   char sTemp[1024];
   char * sImgName;
+  char sServerIpBuf[64];
   char *sServerIp;
 
   int ret = -1;
@@ -37,7 +38,8 @@ int main(int argc, char** argv)
   {
 	  sServerIp = argv[2];
   } else {
-	  strcpy(sServerIp, STR(SERVER_IP));
+	  strcpy(sServerIpBuf, STR(SERVER_IP));
+	  sServerIp = sServerIpBuf;
   }
   
   printf("Transferring %s from %s over tftp.\n", sImgName, sServerIp);
