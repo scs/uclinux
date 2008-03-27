@@ -26,7 +26,7 @@ send "mkdir /mnt/mmc1\r"
 send "mkdir /mnt/mmc2\r"
 
 incr case_num
-set timeout 2
+set timeout 5
 send "cat /proc/spi_mmc\r"
 while 1 {
    expect {
@@ -47,7 +47,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 10
 send "mkdosfs -F 32 /dev/spi_mmc\r"
 while 1 {
    expect {
@@ -68,7 +68,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 5
 send "mount -t msdos /dev/spi_mmc /mnt/mmc\r"
 while 1 {
    expect {
@@ -119,7 +119,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 10
 send "umount /mnt/mmc\r"
 while 1 {
    expect {
@@ -316,7 +316,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 5
 send "mount -t ext2 /dev/spi_mmc1 /mnt/mmc1\r"
 while 1 {
    expect {
@@ -337,7 +337,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 10
 send "mkdosfs -F 32 /dev/spi_mmc2\r"
 while 1 {
    expect {
@@ -358,7 +358,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 5
 send "mount -t msdos /dev/spi_mmc2 /mnt/mmc2\r"
 while 1 {
    expect {
@@ -380,7 +380,7 @@ while 1 {
 
 sleep 2
 incr case_num
-set timeout 2
+set timeout 5
 send "cp /bin/busybox /mnt/mmc2\r"
 while 1 {
    expect {
@@ -401,7 +401,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 5
 send "rm /mnt/mmc2/busybox\r"
 while 1 {
    expect {
@@ -422,7 +422,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 10
 send "umount /mnt/mmc1\r"
 while 1 {
    expect {
@@ -443,7 +443,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
+set timeout 10
 send "umount /mnt/mmc2\r"
 while 1 {
    expect {
@@ -467,7 +467,7 @@ while 1 {
 step "TEST - Use MMC/SD as root FS"
 
 incr case_num
-set timeout 2
+set timeout 5
 send "mkdir /mnt/rootfs\r"
 expect -re $kernel_prompt
 send "mount -o sync /dev/spi_mmc1 /mnt/rootfs\r"
