@@ -35,9 +35,9 @@ int compare(const void* a, const void* b) {
 int main(int argc, char** argv) {
 	int i;
 
-#ifdef POWERPC			/* unspeakable kludge */
+#ifdef __powerpc__			/* unspeakable kludge */
 	for (i = 0; i < nioctls; i++)
-		ioctls[i].code &= ~_IOC_DIRMASK;
+		ioctls[i].code &= ~(1 << 29);
 #endif
 
 	qsort(ioctls, nioctls, sizeof(ioctls[0]), compare);
