@@ -32,27 +32,28 @@ while 1 {
             send "y\r"
         }
 
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "n\r"
+            } else {
+                send "\r"
+            }
+        }
+
 #Power Management
         -re "Power Management support \\\(PM\\\) \\\[.*]" {
             send "y\r"
         }
 
-        -re "Select PM Wakeup Event Source.*Cause Wakeup Event by GPIO.*PM_WAKEUP_BY_GPIO.*choice\\\[.*]:" {
-            if { $board_type == "BF548-EZKIT" } {
-                #Specify Wakeup Event by SIC_IWR value
-                send "1\r"
-            } else {
-                #Cause Wakeup Event by GPIO
-                send "2\r"
-            }
+        -re "Default Power Saving Mode.*Sleep Deeper.*Sleep.*choice\\\[.*]" {
+            send "1\r"
         }
 
-        -re "Wakeup GPIO number.*PM_WAKEUP_GPIO_NUMBER.*\\\[.*]" {
-            #If Wakeup Event is by GPIO, set GPIO NO. to 2 (for PB1); sw5.1 set to OFF on board
-            send "2\r"
+        -re "Cause Wakeup Event by GPIO \\\(PM_WAKEUP_BY_GPIO\\\) \\\[.*]" {
+            send "n\r"
         }
 
-#Video Output.
+#Video Output
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             send "m\r"
         }
@@ -71,14 +72,6 @@ while 1 {
 
         -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
             send "m\r"
-        }
-
-        -re "Blackfin ADI7171 video encoder on uClinux.*FB_BFIN_7171.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-                send "m\r"
-            } else {
-                send "n\r"
-            }
         }
 
         -re "Blackfin ADV7393 Video encoder on uClinux.*FB_BFIN_7393.*\\\[.*]" {

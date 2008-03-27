@@ -16,16 +16,21 @@ step "Reboot the kernel."
 # set bootargs  $bootargs_param0
 source ../reboot_kernel.exp
 
+set wait_time 15
+set standby_fail 0
+
 proc standby_test_case1 {} {
     global case_num
     global kernel_prompt
+    global wait_time
+    global standby_fail
 
-    set timeout 30
+    set timeout 5
     incr case_num
-    send "echo 'standby' > /sys/power/state\r"
+    send "rtctest $wait_time /dev/rtc0 &\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+            -re "Current RTC.*Alarm time now.*Waiting $wait_time seconds for alarm" {
                 case_pass $case_num
                 break
             }
@@ -35,8 +40,28 @@ proc standby_test_case1 {} {
         }
     }
 
-    set timeout 15
+    set timeout 20
     incr case_num
+    send "\necho 'standby' > /sys/power/state\r"
+    while 1 {
+        expect {
+            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed 0.00 seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed 0.00 seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "Test case 1: Wake up fail\n"
+                incr standby_fail
+                break
+            }
+        }
+    }
+
+    set timeout 5
+    expect -re "Full\r\n|lpa 0x41E1\r\n"
+
+    incr case_num
+    set timeout 10
     send "video_test\r"
     while 1 {
         expect {
@@ -50,12 +75,12 @@ proc standby_test_case1 {} {
         }
     }
 
-    set timeout 15
+    set timeout 5
     incr case_num
     send -s "\3"
     while 1 {
         expect {
-             -re $kernel_prompt {
+            -re $kernel_prompt {
                 case_pass $case_num
                 break
             }
@@ -69,13 +94,15 @@ proc standby_test_case1 {} {
 proc standby_test_case2 {} {
     global case_num
     global kernel_prompt
+    global wait_time
+    global standby_fail
 
-    set timeout 30
+    set timeout 5
     incr case_num
-    send "echo 'standby' > /sys/power/state\r"
+    send "rtctest $wait_time /dev/rtc0 &\r"
     while 1 {
         expect {
-            -re "Stopping tasks \.\.\. done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+            -re "Current RTC.*Alarm time now.*Waiting $wait_time seconds for alarm" {
                 case_pass $case_num
                 break
             }
@@ -84,6 +111,26 @@ proc standby_test_case2 {} {
             }
         }
     }
+
+    set timeout 20
+    incr case_num
+    send "\necho 'standby' > /sys/power/state\r"
+    while 1 {
+        expect {
+            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed 0.00 seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed 0.00 seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "Test case 2: Wake up fail\n"
+                incr standby_fail
+                break
+            }
+        }
+    }
+
+    set timeout 5
+    expect -re "Full\r\n|lpa 0x41E1\r\n"
 }
 
 
@@ -92,18 +139,50 @@ set case_num 0
 set Total_Count 5
 sleep 5
 send "\r"
-expect ">"
+expect -re $kernel_prompt
 
-set timeout 20
-incr case_num
-if { $board_type == "BF548-EZKIT" } {
-    send "modprobe bf54x-lq043\r"
-} elseif { $board_type == "BF537-STAMP" } {
-    send "modprobe bf537-lq035\r"
-}
+step "Clean src directory\n"
+spawn make clean -C src
 while 1 {
     expect {
-        "FrameBuffer initializing.*>" {
+        -re "\[eE]rror" {
+            case_fail $case_num
+        }
+        eof {
+            send_user "\nClean src\n"
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+step "Build test program\n"
+spawn make -C src
+while 1 {
+    expect {
+        -re "\[eE]rror" {
+            case_fail $case_num
+        }
+        eof {
+            send_user "\nBuild test program done\n"
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
+
+send "ifconfig eth0 $targetip up\r"
+set timeout 60
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            send "\r"
             break
         }
         timeout {
@@ -111,10 +190,68 @@ while 1 {
         }
     }
 }
+
+set timeout 5
+expect -re "Full\r\n|lpa 0x41E1\r\n"
+
+set timeout 100
+step "Copy testcase to target board\n"
+spawn rcp src/rtctest root@$targetip:/bin
+while 1 {
+    expect {
+        "*connect*" {
+            case_fail $case_num
+        }
+        eof {
+            send_user "\nCopy rtctest to target board done\n"
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
+
+set timeout 20
+incr case_num
+if { $board_type == "BF548-EZKIT" } {
+    send "modprobe bf54x_lq043fb\r"
+} elseif { $board_type == "BF537-STAMP" } {
+    send "modprobe bf537-lq035\r"
+}
+while 1 {
+    expect {
+        -re "FrameBuffer initializing.*$kernel_prompt" {
+            break
+        }
+        timeout {
+            send_user "Install module failed!\r"
+            case_fail $case_num
+        }
+    }
+}
 send "lsmod\r"
 while 1 {
     expect {
-        -re "bf537_lq035.*>|bf54x_lq043.*>" {
+        -re "(bf537_lq035|bf54x_lq043fb).*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Install module failed!\r"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "echo 'enabled' > /sys/class/rtc/rtc0/power/wakeup\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -124,8 +261,8 @@ while 1 {
     }
 }
 
-set timeout 15
 incr case_num
+set timeout 10
 send "video_test\r"
 while 1 {
     expect {
@@ -139,7 +276,7 @@ while 1 {
     }
 }
 
-set timeout 15
+set timeout 5
 incr case_num
 send -s "\3"
 while 1 {
@@ -159,7 +296,7 @@ incr case_num
 send "cat /proc/mounts\r"
 while 1 {
     expect {
-        -re "sysfs /sys sysfs rw 0 0.*>" {
+        -re "sysfs /sys sysfs rw,nosuid,nodev,noexec 0 0.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -174,7 +311,7 @@ incr case_num
 send "ls /sys/power\r"
 while 1 {
     expect {
-        -re "state.*>" {
+        -re "state.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -204,11 +341,11 @@ while 1 {
     }
 }
 
-sleep 3
+sleep 5
 for {set count 1} {$count <= $Total_Count} {incr count} {
     standby_test_case2
     send_user "\nStandby test case 2 round $count pass\n\n"
-    sleep 3
+    sleep 5
 }
 
 set timeout 20
@@ -216,7 +353,7 @@ incr case_num
 send "video_test_id=\`ps ax|awk \'\$5==\"video_test\" {print \$1}\'\`; kill \$video_test_id\r"
 while 1 {
     expect {
-        -re "kill:.*>|Usage:.*>" {
+        -re "(kill:|Usage:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             case_fail $case_num
         }
         -re $kernel_prompt {
@@ -229,16 +366,39 @@ while 1 {
     }
 }
 
-set timeout 5
+set timeout 20
 incr case_num
 if { $board_type == "BF548-EZKIT" } {
-    send "rmmod bf54x-lq043\r"
+    send "modprobe -r bf54x_lq043fb\r"
 } elseif { $board_type == "BF537-STAMP" } {
-    send "rmmod bf537-lq035\r"
+    send "modprobe -r bf537-lq035\r"
 }
 while 1 {
     expect {
-        -re "Unregister LCD driver.*>" {
+        -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            send_user "Uninstall module failed!\r"
+            case_fail $case_num
+        }
+        -re "Unregister LCD driver.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Uninstall module failed!\r"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 20
+incr case_num
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "bf537_lq035|bf54x_lq043fb" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
             case_pass $case_num
             break
         }
@@ -248,22 +408,13 @@ while 1 {
     }
 }
 
-set timeout 5
 incr case_num
-send "lsmod\r" 
-while 1 {
-    expect {
-        -re "bf537_lq035|bf54x_lq043" {
-            case_fail $case_num
-        }
-        -re ">" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
+if { $standby_fail == 0 } {
+    send_user "Wake up pass\n"
+    case_pass $case_num
+} else {
+    send_user "Wake up fail $standby_fail times\n"
+    case_fail $case_num
 }
 
 send_log "\n"
