@@ -1,7 +1,7 @@
 ROOTDIR ?= $(PWD)/../..
 LINUXDIR ?= linux-2.6.x
 
-CFLAGS += -Wall
+EXTRA_CFLAGS += -Wall
 
 obj-m := hello.o
 
