@@ -5,7 +5,7 @@
 usage()
 {
 	cat <<-EOF
-	Usage: check-entities.sh [options] [kernel dir] [kernel arch] [strace dir] [strace arch]"
+	Usage: check-entities.sh [options] [kernel dir] [kernel arch] [strace dir] [strace arch]
 
 	Options:
 	  -k,--keep    Keep generated files
@@ -102,11 +102,10 @@ eend()
 	shift
 	if [ ${lret} -eq 0 ] ; then
 		echo "OK!"
+		${keep} || rm -f "$@"
 	else
 		echo "FAIL! (see ${PWD}/${header})"
-		shift # keep the header in case of failure
 	fi
-	${keep} || rm -f "$@"
 	((ret+=${lret}))
 }
 
@@ -129,10 +128,11 @@ eend $? errnoent.h
 # in case someone runs an old binary with the old ioctl.
 ebegin "ioctl list"
 ./linux/ioctlent.sh "$ksrc/include" "asm-$karch" | grep -v '^Looking for '
-${BUILD_CC:-${CC:-gcc}} -I. -Wall linux/ioctlsort.c -o ioctlsort
+${BUILD_CC:-${CC:-gcc}} -E -dD -I. -Wall linux/ioctlsort.c -o ioctlsort.i
+${BUILD_CC:-${CC:-gcc}} -Wall ioctlsort.i -o ioctlsort
 ./ioctlsort > ioctlent.h
 ! diff -u ioctlent.h $(get_header ioctlent.h) | sed 1,2d | grep -qs '^\-'
-eend $? ioctlent.h ioctlsort ioctls.h ioctldefs.h
+eend $? ioctlent.h ioctlsort ioctlsort.i ioctls.h ioctldefs.h
 
 # easy: output is exactly what we want
 ebegin "signal list"
