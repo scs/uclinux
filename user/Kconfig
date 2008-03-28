@@ -3961,6 +3961,10 @@ config USER_MICROWIN_OBJFRAMEWORK
 	bool "OBJFramework"
 	depends on USER_MICROWIN
 
+config USER_MICROWIN_NXLIB
+	bool "nxlib"
+	depends on USER_MICROWIN
+
 comment "Demos"
 
 config USER_MICROWIN_MICROWINDEMO
