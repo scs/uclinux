@@ -330,8 +330,8 @@ YOPYMOUSE                = N
 HARRIERMOUSE             = N
 LIRCMOUSE                = N
 AD7877MOUSE              = N
-TSLIBMOUSE               = Y
-NOMOUSE                  = N
+TSLIBMOUSE               = N
+NOMOUSE                  = Y
 
 # keyboard or null kbd driver
 TTYKBD                   = N
