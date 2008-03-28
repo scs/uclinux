@@ -186,6 +186,11 @@ CFLAGS += -DTOUCHSCREEN_ZAURUS=1
 MW_CORE_OBJS += $(MW_DIR_OBJ)/drivers/mou_touchscreen.o
 endif
 
+### tslib touchscreen interface
+ifeq ($(TSLIBMOUSE), Y)
+MW_CORE_OBJS += $(MW_DIR_OBJ)/drivers/mou_tslib.o
+endif
+
 ### Embedded Planet touchscreen
 ifeq ($(EPMOUSE), Y)
 CFLAGS += -DTOUCHSCREEN_EPLANET

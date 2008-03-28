@@ -244,6 +244,10 @@ ifeq ($(FBVGA), Y)
 DEFINES += -DFBVGA=1
 endif
 
+ifeq ($(TSLIBMOUSE), Y)
+LDFLAGS += -lts
+endif
+
 ifeq ($(INVERT4BPP), Y)
 DEFINES += -DINVERT4BPP=1
 endif

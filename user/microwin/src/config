@@ -312,6 +312,7 @@ HWVGA                    = N
 # YOPYMOUSE	Yopy (/dev/yopy-ts)
 # HARRIERMOUSE	NEC Harrier (/dev/tpanel)
 # AD7877MOUSE	Analog Devices AD7877 Touch Screen Digitizer (/dev/ts0)
+# TSLIBMOUSE    Common touchscreen driver using tslib  
 ####################################################################
 GPMMOUSE                 = N
 SERMOUSE                 = N
@@ -329,7 +330,8 @@ YOPYMOUSE                = N
 HARRIERMOUSE             = N
 LIRCMOUSE                = N
 AD7877MOUSE              = N
-NOMOUSE                  = Y
+TSLIBMOUSE               = Y
+NOMOUSE                  = N
 
 # keyboard or null kbd driver
 TTYKBD                   = N
