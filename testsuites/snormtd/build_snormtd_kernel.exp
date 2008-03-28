@@ -99,7 +99,7 @@ while 1 {
             send "N\r"
         }
 
-        -re "Support for M25 SPI Flash.*MTD_M25P80.*\\\[.*]" {
+        -re "Support most SPI Flash chips.*MTD_M25P80.*\\\[.*]" {
             send "Y\r"
         }
 
