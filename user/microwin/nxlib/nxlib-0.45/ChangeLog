@@ -1,0 +1,104 @@
+Version 0.45 - 11 Sep 2003 - greg@censoft.com
+	* added XAllocWMHints, XAllocSizeHints for FLTK 1.1.4
+	* fixed 'p' entry in mwscan_to_mwkey
+	* added X headers to nxlib distribution, X11 now not required to build
+	* added Jordan's mods for better GTK (1.2.10) compatibility:
+		XwcTextListToProperty, XwcPropertyToTextList, XWcFreeTextList
+		fixed XPutImage w/src_x not 0 or unequal widths
+		stubbed out XCreateFontSet
+		added XGetSelectionOwner, XSetSelectionOwner, XConvertCase
+	* temp kluged problem with X11 width/height vs NX radius for arc specs
+	* fixed XDrawRectangle, XDrawArc width/height +1 bug
+	* fixed angle1/angle2 difference between X11 and Nano-X in XDraw/FillArc
+Version 0.44 - 1 June 2003 - greg@censoft.com
+	* fixed GrGetColorByName return value
+	* added XMapSubwindows for xpilot
+	* added XKeycodeToKeysym
+	* return XKeyEvent.keycode as scancode (must be < 256 for FLTK)
+	* add standard scancode table for XKeycodeToKeysym
+	* implement XKeycodeToKeysym, rewrite XLookupKeysym
+	* fix XQueryFont for fonts with firstchar > 256
+	* added to CVS
+	* changed decl for XrmLocaleOfDatabase (removed XCONST)
+	* comment out XSetTSOrigin for fltk test/bitmap
+	* added XQueryKeymap for fltk 1.0.11 build
+Version 0.43 - 18 May 2003 - greg@censoft.com
+	* fixed XQueryPointer return values
+	* fixed ConfigureNotify notifications, UPDATE event reporting
+	* hack XWindowEvent for FLTK NoExpose requirement w/XCopyArea
+	* changed behaviour of XQLength to make FLTK select loop work
+	* added XGetDefault, XRecolorCursor stub for FLTK 1.0.11 port
+Version 0.42 - 12 Apr 2003 - greg@censoft.com
+	* fixed bad reporting of state&button data for some events
+	* fixed MotionNotify event reporting, added XPutBackEvent for qt
+	* fixed popup menus by reading override_noredirect flags
+	* fixed GrCreateFont bug to sometimes return 0
+Version 0.41 - 19 Oct 2002 - greg@censoft.com
+	* fixed per_char member in XFontStruct
+Version 0.40 - 05 Oct 2002 - greg@censoft.com
+	* added new font pattern match code, allow */? in XLoadFont
+		and sort return values
+	* alias fixed -> 6x13, don't create font unless found in XLoadFont
+	* calculate DisplayWidthMM properly
+	* added XmbSetWMProperties
+	* free image->data, fixed put_pixel offsets
+	* fix ParentRelative in XSetWindowBackgroundPixmap
+	(01 Oct 02)
+	* filled out XFontStruct members in QueryLoadFont
+	* fixed expansion bug in XListFonts for -* and * patterns
+	* allow NULL visual in XCreateImage
+	* temp allow multiple XOpenDisplay calls (no GrClose)
+	* filled out internal display values
+	* added GetGeometry
+	* added XListPixmapFormats for GTK+ port
+	(19 Sep 02)
+	(25 Aug 02)
+	* tried fixing XPutImage for 1bpp images...
+	* added XDefaultRootWindow, XServerVendor, fixed XGetImage bounds
+	* added XSetClipRectangles
+	* added _Xdebug, _XLockMutex_fn, _XUnlockMutex_fn, _Xglobal_lock
+		(no multi-threading support in nxlib directly, only nano-X)
+	(12 Aug 02)
+	* rewrote region handling, added XPointInRegion, XOffsetRegion
+	* added XSetSubwindowMode
+	* fixed XInternAtom, fixed XSync to discard events
+	* added shadow XGCValues to gc->ext_data member to store GC vals locally
+	* added XConnectionNumber
+	* added XGetPixel, XPutPixel
+	* added XVisualIDFromVisual, XScreenNumberofScreen, XRootWindowOfScreen
+	* fix XParseColor to return shifted RGB values
+	* added Quarks.c, Xrm.c: _XrmInternalStringToQuark, XrmGetStringDatabase,
+		XrmGetResource, XrmPutLineResource
+	* added XGetVisualInfo
+	(04 Aug 02)
+	* fixed XCreateWindow attribute setting via valuemask
+	* added XCopyPlane
+	* added XDrawImageString, XDrawImageString16
+	* fixed XCreatePixmapFromBitmapData mono colors
+		fg/bg colors appear to be reversed in mono bitmaps
+	* fixed startup default colormap b/w colors
+	* fixed cursor fg/bg - reversed from X11!!
+	* added shared library build and install as libX11.so.6.2
+	* added XShapeCombineMask - shaped windows!
+	* enhanced XChangeWindowAttributes, added XSetInputFocus
+	(19 Jul 02)
+	* corrected bpp/depth (never 15), and bits_per_rgb == 5 in visual
+	* rewrote XMatchVisualInfo
+	* added 32 bit cursors, fixed up/rewrote cursor routines
+	* fixed up malloc/alloca usage
+	* fixed GrReadArea use bug: always return GR_PIXELVAL array,
+		not sinfo.bpp sized
+	* cleaned up src formatting
+	* got most of Qt examples running w/fonts, unicode, colors
+	* add XDrawString16, XTextWidth16, XTextExtents16, GR_TFXCHAR2B
+	* allow multiple X11 pcf font directories
+	* fixed fonts.dir reading bug, PCF font loading
+Version 0.3 - 01 Jul 2002 - greg@censoft.com
+	* partially fixed PCF reader
+	* fixed x11 rgb unsigned short << 8 bugs 
+	* fixed x11 default usebackground false
+	* ported xfreecell for testing
+Version 0.2 - 11 Feb 2002 - jordanc@censoft.com
+	* greatly expanded for initial qt x11 v2.3.1 port (Jordan)
+Version 0.1 - 17 Jul 2001 - greg@censoft.com
+	* initial version/concept by g haerr

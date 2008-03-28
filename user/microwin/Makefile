@@ -5,9 +5,15 @@ all clean:
 	[ -d src/lib ] || mkdir src/lib
 	[ -d src/bin ] || mkdir src/bin
 	$(MAKE) -C src TOOLSPREFIX=$(CROSS_COMPILE) $@ || exit 1
+ifeq ($(CONFIG_USER_MICROWIN_NXLIB),y)
+	$(MAKE) -C nxlib $@
+endif
 
 romfs:
 	$(MAKE) -C src/bin -f ../../Makefile real_romfs || exit 1
+ifeq ($(CONFIG_USER_MICROWIN_NXLIB),y)
+	$(MAKE) -C nxlib romfs
+endif
 
 real_romfs:
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_BIN_LAUNCHER    /bin/launcher
