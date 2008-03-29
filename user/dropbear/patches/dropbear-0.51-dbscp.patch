@@ -1,0 +1,11 @@
+--- dropbear-0.51/dbmulti.c
++++ dropbear-0.51/dbmulti.c
+@@ -60,7 +60,7 @@
+ 		}
+ #endif
+ #ifdef DBMULTI_scp
+-		if (strcmp(progname, "scp") == 0) {
++		if (strcmp(progname, "scp") == 0 || strcmp(progname, "dbscp") == 0) {
+ 			return scp_main(argc, argv);
+ 		}
+ #endif

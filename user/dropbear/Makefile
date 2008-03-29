@@ -1,4 +1,4 @@
-VER = dropbear-0.49
+VER = dropbear-0.51
 
 FLTFLAGS = -s 0x4000
 
@@ -16,12 +16,6 @@ build-$(VER)/Makefile:
 	cd build-$(VER) ; \
 	../$(VER)/configure $(CONFIGURE_OPTS)
 
-	# work around broken libtom makefiles
-	set -e ; \
-	list=`cd $(VER); find libtom* -mindepth 1 -type d` ; \
-	cd build-$(VER) ; \
-	mkdir -p $$list
-
 build-$(VER)-host/Makefile:
 	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
 	set -e ; \
@@ -30,12 +24,6 @@ build-$(VER)-host/Makefile:
 	cd build-$(VER)-host ; \
 	unset AR CC LD RANLIB CFLAGS LDFLAGS CPPFLAGS ; \
 	../$(VER)/configure
-
-	# work around broken libtom makefiles
-	set -e ; \
-	list=`cd $(VER); find libtom* -mindepth 1 -type d` ; \
-	cd build-$(VER)-host ; \
-	mkdir -p $$list
 
 clean:
 	rm -rf build*
