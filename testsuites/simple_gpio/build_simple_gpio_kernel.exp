@@ -33,11 +33,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "Blackfin BF53x Programmable Flags Driver.*BF5xx_PFLAGS.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "Obsolet /proc/drivers/pflags entry.*BF5xx_PFLAGS_PROC.*" {
+        -re "Simple GPIO char interface.*SIMPLE_GPIO.*\\\[.*]" {
             send "Y\r"
         }
 
@@ -45,7 +41,7 @@ while 1 {
             send "N\r"
         }
 
-        -re "PFLAGS test program.*USER_BLACKFIN_PFLAGS.*\\\[.*]" {
+        -re "Simple GPIO test.*SIMPLE_GPIO_TEST.*\\\[.*]" {
             send "Y\r"
         }
 

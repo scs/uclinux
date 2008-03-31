@@ -1,0 +1,115 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+source ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "$TITLE needs SW5: on on on on."
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+set gpio_matrix {
+       { PB1            notknown }
+       { PB2            notknown }
+       { PB3            notknown }
+       { PB4            notknown }
+                                 }
+
+
+step "Starting test"
+set timeout 8
+set flag 0
+
+send "cd /bin\r" 
+while 1 {
+   expect {
+      "bin" {
+         set flag 1
+         break
+      }
+
+      timeout {
+                   
+            break
+         }
+     }
+}
+expect "root:/bin>"
+
+
+set i 1
+send -s "./simple-gpio-test\r"
+expect -re  "$board_type:" 
+while 1 {
+      expect {
+       -re "PB$i => GPIO(\[0-9]+)" {
+         set element_matrix [lindex $gpio_matrix  [ expr $i - 1 ] ]
+         set element_matrix [lreplace $element_matrix 1 1 $expect_out(1,string)]
+         set gpio_matrix [lreplace $gpio_matrix [ expr $i - 1 ] [ expr $i - 1 ]  $element_matrix]
+         set  i  [ expr $i + 1 ]
+      }
+
+      ":" {
+            send_log "Finished match GPIO."
+            break
+         }
+      timeout {
+            send_log "Open devices fail. "
+            break
+         }
+     }
+}
+#for { set j 0 } { $j < 4 } { incr j 1 } {
+#send_user "[lindex $gpio_matrix $j ] \n"
+#}
+for { set j 0 } { $j < 4 } { incr j 1 } {
+
+        set element_matrix [lindex $gpio_matrix  $j ]
+        set number  [lindex $element_matrix 1 ]
+        if { $number == "notknown" }  continue 
+        set GPIO "gpio"
+        append GPIO $number 
+	send -s "./simple-gpio-test /dev/$GPIO \r" 
+	while 1 {
+	   expect {
+	     -re  "Going to sleep until the gpio goes high.*\\\)" {
+	         break
+	      }
+	
+	      timeout {
+	            send_log "Open devices fail. "
+	            break
+	         }
+	     }
+	}
+	
+        send_user "Please press [lindex $element_matrix 0 ] to toggle the gpio status.\n "
+	while 1 {
+	   expect {
+	     -re  "The gpio went high!  Time to bail!" {
+                 expect -re $kernel_prompt
+                 send "\r"
+	         break
+	      }
+	
+	      timeout {
+	            send_log "Test fails to go high. "
+	            break
+	         }
+	     }
+	}
+	
+}
+
+send_user "Ending $argv0\n"
+log_file
+
+
+
+
