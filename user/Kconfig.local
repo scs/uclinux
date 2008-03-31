@@ -87,6 +87,8 @@ config USER_LIBIPOD_EXAMPLES
 	select LIB_LIBIPOD
 config USER_GETTIMEOFDAY_TEST
 	bool "gettimeofday system time test"
+config SIMPLE_GPIO_TEST
+        bool "Simple GPIO test"
 
 endmenu
 
