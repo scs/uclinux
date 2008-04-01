@@ -174,15 +174,15 @@ LIBT1LIB                 = /usr/local/lib/libt1.a
 HAVE_FREETYPE_SUPPORT    = N
 INCFTLIB                 = /usr/include/freetype1
 LIBFTLIB                 = /usr/lib/libttf.so
-FREETYPE_FONT_DIR        = "fonts/truetype"
+FREETYPE_FONT_DIR        = "/usr/fonts/truetype"
 
 ####################################################################
 # Support for many kinds of font thru FreeType 2.x
 # Must also set FREETYPE_FONT_DIR in the Freetype 1.x section
 ####################################################################
-HAVE_FREETYPE_2_SUPPORT  = N
-INCFT2LIB                = /usr/include
-LIBFT2LIB                = /usr/lib/libfreetype.a
+HAVE_FREETYPE_2_SUPPORT  = Y
+INCFT2LIB                = $(STAGEDIR)/usr/include
+LIBFT2LIB                = -lfreetype -lz
 
 ####################################################################
 # PCF font support 
@@ -191,7 +191,7 @@ LIBFT2LIB                = /usr/lib/libfreetype.a
 ####################################################################
 HAVE_PCF_SUPPORT         = Y
 HAVE_PCFGZ_SUPPORT       = N
-PCF_FONT_DIR             = "fonts/pcf"
+PCF_FONT_DIR             = "/usr/fonts/pcf"
 
 ####################################################################
 # Chinese Han Zi Ku loadable font support

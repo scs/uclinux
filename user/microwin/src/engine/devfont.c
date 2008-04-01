@@ -193,7 +193,7 @@ DPRINTF("createfont: (height == 0) found builtin font %s (%d)\n", fontname, i);
 
 #if HAVE_FREETYPE_2_SUPPORT
  	if (fontclass == MWLF_CLASS_ANY || fontclass == MWLF_CLASS_FREETYPE) {
-		if (freetype2_init(psd)) {
+		if (freetype_init(psd)) {
 			/* FIXME auto antialias for height > 14 for kaffe*/
 			if (plogfont && plogfont->lfHeight > 14 &&
 				plogfont->lfQuality)
@@ -952,7 +952,7 @@ GdCreateFontFromBuffer(PSD psd, const unsigned char *buffer,
 	 * extension - e.g. TTF, PFR, ...)
 	 */
 
-	if (freetype2_init(psd)) {
+	if (freetype_init(psd)) {
 		pfont = (PMWFONT)freetype2_createfontfrombuffer(buffer, length, height);
 	}
 	if (!pfont)

@@ -92,8 +92,10 @@ real_romfs:
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NANOXDEMO	/bin/fontdemo
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NANOXDEMO	/bin/ftdemo
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NANOXDEMO	/bin/ftdemo.txt
+	$(ROMFSINST) -d -e CONFIG_USER_MICROWIN_NANOXDEMO ../fonts/truetype/lt1-r-omega-serif.ttf /usr/fonts/truetype/lt1-r-omega-serif.ttf
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NANOXDEMO	/bin/grabdemo
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NANOXDEMO	/bin/pcfdemo
+	$(ROMFSINST) -d -e CONFIG_USER_MICROWIN_NANOXDEMO ../fonts/pcf/gb24st.pcf /usr/fonts/pcf/gb24st.pcf
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NANOXDEMO	/bin/polydemo
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NANOXDEMO	/bin/rgndemo
 	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NANOXDEMO	/bin/t1demo
