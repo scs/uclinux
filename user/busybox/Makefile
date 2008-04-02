@@ -1,12 +1,15 @@
-VER = busybox-1.9.1
+VER = busybox-1.10.0
 
-all: $(VER)/.config depmod.pl $(VER)/Makefile.local
-	$(MAKE) -C $(VER)
+export KBUILD_OUTPUT = $(ROOTDIR)/user/busybox/build-$(VER)
+
+all: build-$(VER)/.config depmod.pl
+	$(MAKE) -C build-$(VER)
 
 # the uclinux-dist config gets updated a lot more than the busybox options,
 # so dont bother updating the busybox config if none of the options have
 # changed.  this will save time on pointless recompiling/relinking.
-$(VER)/.config: $(ROOTDIR)/config/.config
+build-$(VER)/.config: $(ROOTDIR)/config/.config
+	mkdir -p build-$(VER)
 	sed -n -e '/CONFIG_USER_BUSYBOX_/s:CONFIG_USER_BUSYBOX_:CONFIG_:p' $< > $@.uclinux-dist.new
 	set -e ; \
 	if ! cmp -s $@.uclinux-dist.new $@.uclinux-dist.old ; then \
@@ -18,16 +21,14 @@ $(VER)/.config: $(ROOTDIR)/config/.config
 depmod.pl: $(VER)/examples/depmod.pl
 	ln -sf $< $@
 
-$(VER)/Makefile.local: Makefile.local
-	cp -f $< $@
-
 clean:
-	rm -f depmod.pl
-	rm -f $(VER)/Makefile.local
-	rm -f $(VER)/.config.uclinux-dist*
-	$(MAKE) -C $(VER) distclean
+	rm -rf build*
 
+bbdir = build-$(VER)/$(CONFIG_USER_BUSYBOX_PREFIX)
 romfs:
-	$(MAKE) -C $(VER) romfs
+	rm -rf $(bbdir)
+	$(MAKE) -C build-$(VER) install
+	test -L $(ROMFSDIR)/sbin && mv $(bbdir)/sbin/* $(bbdir)/bin/ && rmdir $(bbdir)/sbin
+	cp -pPR $(bbdir)/* $(ROMFSDIR)/
 
 .PHONY: all clean romfs
