@@ -21,7 +21,6 @@ dir_$(CONFIG_USER_ALSA_UTILS)                    += alsa-utils
 dir_$(CONFIG_USER_ZAPTEL)                        += zaptel
 dir_$(CONFIG_USER_BLACKFIN_ASTERISK)             += asterisk
 dir_$(CONFIG_USER_USBUTILS)                      += usbutils
-dir_$(CONFIG_USER_BLUEZ)                         += bluez-utils
 dir_$(CONFIG_USER_PICOCOM)                       += picocom
 dir_$(CONFIG_USER_MPLAYER)                       += mplayer
 dir_$(CONFIG_USER_VLC)                           += vlc
