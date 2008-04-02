@@ -1,4 +1,4 @@
-VER = bluez-libs-3.27
+VER = bluez-libs-3.29
 
 include $(ROOTDIR)/tools/autotools.mk
 
