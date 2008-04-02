@@ -75,25 +75,24 @@ void null_pointer(void)
 /* Can't do this in userspace */
 
 /* Instruction fetch misaligned address violation -    EXCAUSE 0x2A */
-void instrucution_fetch_odd_address(void)
+void instruction_fetch_odd_address(void)
 {
 	int (*foo)(void);
-	char i;
-	i = (char)&instrucution_fetch_odd_address;
-	i++;
-	foo = (void *)&i;
+	int i;
+	i = (int)&instruction_fetch_odd_address;
+	foo = (void *)(i+1);
 	(*foo)();
 }
 
 /* Instruction fetch CPLB protection violation -       EXCAUSE 0x2B */
 
 /* Instruction fetch CPLB miss -                       EXCAUSE 0x2C */
-void instrucution_fetch_miss(void)
+void instruction_fetch_miss(void)
 {
 	int (*foo)(void);
 	int i;
 	i=0x87654320;
-	foo = (void *)&i;
+	foo = (void *)i;
 	(*foo)();
 }
 
@@ -103,7 +102,7 @@ void jump_to_zero(void)
 	int (*foo)(void);
 	int i;
 	i=0x0;
-	foo = (void *)&i;
+	foo = (void *)i;
 	(*foo)();
 }
 
@@ -150,8 +149,8 @@ struct {
 	{ data_fetch_odd_address, SIGBUS, "Data access misaligned address violation" },
 	{ data_fetch_miss, SIGBUS, "Data access CPLB miss" },
 	{ null_pointer, SIGSEGV, "Data access multiple CPLB hits/Null Pointer" },
-	{ instrucution_fetch_odd_address, SIGBUS, "Instruction fetch misaligned address violation"  },
-	{ instrucution_fetch_miss, SIGBUS, "Instruction fetch CPLB miss"  },
+	{ instruction_fetch_odd_address, SIGBUS, "Instruction fetch misaligned address violation"  },
+	{ instruction_fetch_miss, SIGBUS, "Instruction fetch CPLB miss"  },
 	{ l1_instruction_access, SIGBUS, "l1_instruction_access" },
 	{ supervisor_instruction, SIGILL, "Illegal use of supervisor resource - Instruction" },
 	{ supervisor_resource_mmr, SIGBUS, "Illegal use of supervisor resource - MMR" },
