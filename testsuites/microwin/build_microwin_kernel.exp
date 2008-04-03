@@ -21,15 +21,15 @@ spawn make config
 
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
-        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
         }
 
@@ -43,6 +43,10 @@ while 1 {
 
         -re "SHARP LQ035 TFT LCD.*BF537 STAMP.*\\\[.*]" { 
             send "m\r"
+        }
+
+        -re "Build freetype.*LIB_FREETYPE.*\\\[.*]" {
+            send "y\r"
         }
 
         -re "MicroWindows \\\(USER_MICROWIN\\\) \\\[.*]" {
