@@ -1216,7 +1216,7 @@ set result_matrix1 {
        { brk01     	     {brk01}                     	 notrun		NA } 
        { capget01     	     {capget01}                     	 notrun		UCLINUX } 
        { capget02     	     {capget02}                     	 notrun		UCLINUX } 
-       { capset01     	     {modprobe capability;capset01}                     	 notrun		UCLINUX } 
+       { capset01     	     {capset01}                     	 notrun		UCLINUX } 
        { capset02     	     {capset02}                     	 notrun		UCLINUX } 
        { chdir01     	     {chdir01}                     	 notrun		UCLINUX } 
        { chdir01A     	     {symlink01 -T chdir01}                     	 notrun		UCLINUX } 

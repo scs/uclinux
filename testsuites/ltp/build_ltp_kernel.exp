@@ -8,33 +8,32 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-
 # slab_slob = 1, enable slab
 # slab_slob = 2, enable slob 
 #
 # buddy_np2 = 1, slab with buddy
 # buddy_np2 = 2, slab with np2
-#
+
 
 if { $argc == 4 } {
-   set uclinux_path [lindex $argv 1]
-   set wt_wb [lindex $argv 2]
-   set slab_slob [lindex $argv 3]
-   send_log "\n#### uclinux_path is $uclinux_path\n"
+    set uclinux_path [lindex $argv 1]
+    set wt_wb [lindex $argv 2]
+    set slab_slob [lindex $argv 3]
+    send_log "\n#### uclinux_path is $uclinux_path\n"
 } else {
-   if { $argc == 5 } {
-      set uclinux_path [lindex $argv 1]
-      set wt_wb [lindex $argv 2]
-      set slab_slob [lindex $argv 3]
-      set buddy_np2 [lindex $argv 4]
-      send_log "\n#### uclinux_path is $uclinux_path\n"
-   }
+    if { $argc == 5 } {
+        set uclinux_path [lindex $argv 1]
+        set wt_wb [lindex $argv 2]
+        set slab_slob [lindex $argv 3]
+        set buddy_np2 [lindex $argv 4]
+        send_log "\n#### uclinux_path is $uclinux_path\n"
+    }
 }
 
 
 cd $uclinux_path/testsuites
 
-step "Make config."
+step "Make config"
 source  make_default_config.exp
 # Following make specific configuration for this case.
 
@@ -44,67 +43,72 @@ spawn make config
 
 #tee "Begin the interactive process of configuration"
 while 1 {
-   expect {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-         send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-         send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
 
+        -re "Write through \\\(BFIN_WT\\\).*choice\\\[1-2\\\]:" {
+            send "$wt_wb\r"
+        }
 
-      -re "Write through \\\(BFIN_WT\\\).*choice\\\[1-2\\\]:" {
-         send "$wt_wb\r"
-      }
-
-      -re "Choose SLAB allocator.*SLAB.*SLOB.*choice\\\[1-3.\\\]" {
-         if { $slab_slob == 1 } {
-            send "1\r"
-         }
-         if { $slab_slob == 2 } {
-            send "3\r"
-         }
-      }
-
-      -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
-         if { $slab_slob == 1 } {
-            if { $buddy_np2 == 1 } {
-               send "n\r"
+        -re "Choose SLAB allocator.*SLAB.*SLOB.*choice\\\[1-3.\\\]" {
+            if { $slab_slob == 1 } {
+                send "1\r"
             }
-            if { $buddy_np2 == 2 } {
-               send "y\r"
+            if { $slab_slob == 2 } {
+                send "3\r"
             }
-         } else {
-            send "n\r"
-         }
-      }
+        }
 
-      -re "hostid.*USER_BUSYBOX_HOSTID.*\\\[.*]" {
-         send "y\r"
-      }
+        -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
+            if { $slab_slob == 1 } {
+                if { $buddy_np2 == 1 } {
+                    send "n\r"
+                }
+                if { $buddy_np2 == 2 } {
+                    send "y\r"
+                }
+            } else {
+                send "n\r"
+            }
+        }
 
-      "\\\(*) \\\[*]" {
-	 sleep .01
-         send "\r"
-      }
+        -re "Default Linux Capabilities.*SECURITY_CAPABILITIES.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-         send "\r"
-      }
+        -re "hostid.*USER_BUSYBOX_HOSTID.*\\\[.*]" {
+            send "y\r"
+        }
 
-      eof {
-         puts "End of configuration"
-         break
-      }
-      timeout {
-         puts "\n\nFATAL ERROR: config prompt timeout in make config"
-      }
-   }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -119,7 +123,5 @@ step "Copy linux"
 
 source   copy_image.exp
 
+send_user "Ending $argv0\n"
 log_file
-
-send_user "\nKernel building for LTP test finishes!\n"
-exit 0
