@@ -8,6 +8,7 @@ CONF_OPTS = \
 all: fltk 
 	
 fltk: $(FLTK)/makeinclude
+	$(MAKE) -C $(FLTK)
 
 $(FLTK)/makeinclude: nxlib
 	find $(FLTK) -type f -print0 | xargs -0 touch -r $(FLTK)/configure
@@ -28,6 +29,6 @@ romfs:
         for l in `find -name '*.so'` ; do \
                 $(ROMFSINST) -d $$l /usr/lib/$$l ; \
         done
-	$(ROMFSINST) -d $(FLTK)/test/editor /usr/bin/editor
+	$(ROMFSINST) -e CONFIG_USER_MICROWIN_NXLIB -d $(FLTK)/test/editor /usr/bin/editor
 	
 .PHONY: all clean romfs fltk nxlib
