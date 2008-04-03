@@ -44,7 +44,7 @@ proc standby_test_case1 {} {
     send "\necho 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed 0.00 seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed 0.00 seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
@@ -116,7 +116,7 @@ proc standby_test_case2 {} {
     send "\necho 'standby' > /sys/power/state\r"
     while 1 {
         expect {
-            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed 0.00 seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed 0.00 seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
                 case_pass $case_num
                 break
             }
