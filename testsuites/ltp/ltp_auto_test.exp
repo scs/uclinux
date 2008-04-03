@@ -2380,7 +2380,8 @@ send "export TMP=/tmp\r"
 expect "/bin>"
 send "echo \$PATH\r"
 expect "/bin>"
-#send -s "chmod 777 /tmp\r"
+send -s "chmod 777 /tmp\r"
+expect "/bin>"
 #step "chmod /tmp done"
 
 #set timeout 4
