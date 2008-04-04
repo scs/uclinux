@@ -16,9 +16,13 @@
 
 #KERNELDIR = /usr/src/kernel-headers-2.4.18
 
-CFLAGS =   -I.. -O2 -Wall -DCONFIG_YAFFS_UTIL
+CFLAGS+=   -I.. -O2 -Wall -DCONFIG_YAFFS_UTIL
 CFLAGS+=   -Wshadow -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Wmissing-declarations
 CFLAGS+=   -Wmissing-prototypes -Wredundant-decls -Wnested-externs -Winline
+
+BUILD_CFLAGS =   -I.. -O2 -Wall -DCONFIG_YAFFS_UTIL
+BUILD_CFLAGS+=   -Wshadow -Wpointer-arith -Wwrite-strings -Wstrict-prototypes -Wmissing-declarations
+BUILD_CFLAGS+=   -Wmissing-prototypes -Wredundant-decls -Wnested-externs -Winline
 
 ## Change if you are using a cross-compiler
 MAKETOOLS = $(CROSS_COMPILE)
@@ -45,7 +49,7 @@ $(COMMONLINKS) $(MKYAFFSLINKS) $(MKYAFFS2LINKS):
 	ln -s ../$@ $@
 
 $(COMMONOBJS) $(MKYAFFSIMAGEOBJS) $(MKYAFFS2IMAGEOBJS) : %.o: %.c
-	$(BUILD_CC) -c $(CFLAGS) $< -o $@
+	$(BUILD_CC) -c $(BUILD_CFLAGS) $< -o $@
 
 mkyaffsimage: $(COMMONOBJS) $(MKYAFFSIMAGEOBJS)
 	$(BUILD_CC) -o $@ $(COMMONOBJS) $(MKYAFFSIMAGEOBJS)
