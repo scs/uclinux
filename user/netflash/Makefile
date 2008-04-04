@@ -1,4 +1,4 @@
-CFLAGS += -Wall
+CFLAGS += -Wall `./kernel-defs.sh`
 
 EXEC = netflash
 OBJS = tftpmain.o tftp.o tftpsubs.o http.o
