@@ -9,5 +9,5 @@
 #console::askfirst:-/bin/sh
 
 # Logging
-slog:unknown:/sbin/syslogd -n -b 1 -s 128 -O /var/log
+slog:unknown:/sbin/syslogd -n -b 1 -s 128 -O /var/log/log
 klog:unknown:/sbin/klogd -n
