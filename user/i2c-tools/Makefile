@@ -1,5 +1,7 @@
 VER = i2c-tools-3.0.1
 
+FLTFLAGS = -s 0x4000
+
 all:
 	$(MAKE) -C $(VER) CC=$(CC) CFLAGS="$(CFLAGS)"
 
