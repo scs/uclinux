@@ -1,4 +1,4 @@
-VER = i2c-tools-3.0.0
+VER = i2c-tools-3.0.1
 
 all:
 	$(MAKE) -C $(VER) CC=$(CC) CFLAGS="$(CFLAGS)"
