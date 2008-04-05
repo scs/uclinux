@@ -1,5 +1,7 @@
 VER = dosfstools-2.11
 
+CFLAGS += -D_FILE_OFFSET_BITS=64
+
 all clean:
 ifeq ($(CONFIG_USER_DOSFSTOOLS_MKDOSFS),y)
 	$(MAKE) -C $(VER)/mkdosfs $@

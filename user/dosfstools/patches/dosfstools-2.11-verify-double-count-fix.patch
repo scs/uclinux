@@ -1,0 +1,37 @@
+Don't double-count n_files during a verification pass.
+
+Bugzilla: http://bugs.gentoo.org/show_bug.cgi?id=99845
+Signed-off-by: Robin H. Johnson <robbat2@gentoo.org>
+
+diff -Nuar --exclude '*~' dosfstools-2.11.orig/dosfsck/dosfsck.c dosfstools-2.11/dosfsck/dosfsck.c
+--- dosfstools-2.11.orig/dosfsck/dosfsck.c	2004-02-25 11:28:57.000000000 -0800
++++ dosfstools-2.11/dosfsck/dosfsck.c	2006-10-05 09:21:41.116526881 -0700
+@@ -84,6 +84,7 @@
+ {
+     DOS_FS fs;
+     int rw,salvage_files,verify,c;
++	unsigned n_files_check=0, n_files_verify=0;
+     unsigned long free_clusters;
+     
+     rw = salvage_files = verify = 0;
+@@ -154,12 +155,15 @@
+     free_clusters = update_free(&fs);
+     file_unused();
+     qfree(&mem_queue);
++	n_files_check = n_files;
+     if (verify) {
+-	printf("Starting verification pass.\n");
+-	read_fat(&fs);
+-	scan_root(&fs);
+-	reclaim_free(&fs);
+-	qfree(&mem_queue);
++		n_files = 0;
++		printf("Starting verification pass.\n");
++		read_fat(&fs);
++		scan_root(&fs);
++		reclaim_free(&fs);
++		qfree(&mem_queue);
++		n_files_verify = n_files;
+     }
+ 
+     if (fs_changed()) {
