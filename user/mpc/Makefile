@@ -1,12 +1,9 @@
-VER = mpc-0.11.1
+VER = mpc-0.12.1
 
-all: $(VER)/Makefile
-	$(MAKE) -C $(VER)
+CONF_OPTS = \
+	--disable-iconv
 
-clean:
-	$(MAKE) -C $(VER) clean
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
-	$(MAKE) -C $(VER) romfs
-
-.PHONY: all clean romfs
+	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/mpc /usr/bin/mpc

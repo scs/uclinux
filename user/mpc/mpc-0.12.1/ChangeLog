@@ -1,0 +1,78 @@
+0.12.1 (2007/3/21)
+1) Support for compiling on Windows
+2) New output format for "mpc playlist"
+3) Support for many more search types with "mpc search"
+4) Add "mpc del 0" behaviour to remove the currently playing song
+5) Fixed compiling on Solaris
+6) Allow some predefined escape sequences in --format strings
+7) Removed support for "mpc search <type> -", as it was previously broken
+8) Allow multiple pairs of search types/queries with "mpc search"
+9) Various minor bugfixes
+
+0.12.0 (2006/9/22)
+1) Add outputs command
+2) Add enable command
+3) Add disable command
+4) Add --no-status switch
+5) Display total time in status output
+6) Include mppledit, a bash script that edits playlists with a text editor
+7) Allow "/" to be specified as a file to add to the playlist
+8) Multiple bug fixes and cleanups
+
+0.11.2 (2005/3/11)
+1) Fix a very hard-to-trigger segfault in libmpdclient (Eric Wong)
+2) Add new commands: crop, stats, toggle (avuton and Snark)
+3) Add relative and exact-time seeking (mackstann)
+4) Fix single-digit time formatting in status (Eric Wong)
+5) fix formatting issue that occurs when a %label% is found, but no tag info
+exists for it, it was then appending the %label% itself (Warren Dukes)
+
+0.11.1 (2004/6/18)
+1) Fix compiler problem for gcc < 3
+2) Fix a bug in libmpdclient
+
+0.11.0 (2004/6/18)
+1) Add support for adding streams
+2) Make add command more robust
+3) Add --format option (thanks to danb)
+4) Support for new update command
+
+0.10.3 (2004/4/1)
+1) Forgot to enable iconv support
+
+0.10.2 (2004/3/25)
+1) Fix bug in searching
+2) Fix bug with crossfade
+
+0.10.1 (2004/3/7)
+1) gcc<3 compiler fixes (Mark Reidel)
+
+0.10.0 (2004/3/4)
+1) UTF-8 Support
+2) Crossfade Support
+3) Password Support
+4) Cleanup/rewrite by normalperson
+5) Add seek by second support by mackstann
+6) More command.c cleanup by mackstann
+
+0.9.2 (2003/10/31)
+1) Updated libmpdclient, much more efficient thanks to tw-nym
+
+0.9.1 (2003/10/6)
+1) Fix a bug in move command
+2) Updated libmpdclient
+3) Fix solaris compile problems
+
+0.9.0 (2003/9/30)
+1) Add seek command
+2) Add move command
+3) Add version command
+4) repat and random commands take args now
+5) Updated libmpdclient
+
+0.8.1 (2003/8/12)
+1) Fix compilation errors with older gcc's due to declarations not being at
+the top of a code block
+2) Fix bug with out of order song deletion
+3) Status will now display the total number of songs in the playlist
+4) Updated copy of libmpdclient
