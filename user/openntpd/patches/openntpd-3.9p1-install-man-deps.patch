@@ -1,0 +1,11 @@
+--- openntpd-3.9p1/Makefile.in
++++ openntpd-3.9p1/Makefile.in
+@@ -73,7 +73,7 @@
+ y.tab.c:	$(top_srcdir)/parse.y
+ 	$(YACC) $(top_srcdir)/parse.y
+ 
+-install: ntpd $(MANOUT)
++install: ntpd $(MANPAGES)
+ 	@if [ ! -d $(DESTDIR)$(sbindir) ]; then \
+ 		$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir); \
+ 	fi

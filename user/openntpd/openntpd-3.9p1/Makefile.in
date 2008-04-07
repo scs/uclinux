@@ -73,7 +73,7 @@ ntpd:	ntpd.o buffer.o log.o imsg.o ntp.o ntp_msg.o config.o \
 y.tab.c:	$(top_srcdir)/parse.y
 	$(YACC) $(top_srcdir)/parse.y
 
-install: ntpd $(MANOUT)
+install: ntpd $(MANPAGES)
 	@if [ ! -d $(DESTDIR)$(sbindir) ]; then \
 		$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir); \
 	fi
