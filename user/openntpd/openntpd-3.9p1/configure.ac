@@ -328,8 +328,8 @@ AC_CACHE_CHECK([if libc defines in6addr_any], ac_cv_libc_defines_in6addr_any, [
 	AC_TRY_LINK(
 		[ #include <sys/types.h>
 		  #include <sys/socket.h>
-		  #include <netinet/in.h> ]
-		[  struct sockaddr_in6 = in6addr_any; ],
+		  #include <netinet/in.h> ],
+		[ struct sockaddr_in6 sin; sin.sin6_addr = in6addr_any; ],
 		[ ac_cv_libc_defines_in6addr_any="yes" ],
 		[ ac_cv_libc_defines_in6addr_any="no" ]
 	)

@@ -1,0 +1,50 @@
+fix obvious errors in configure script for detecting ipv6 support
+
+patch by Stefan Pledl
+
+http://blackfin.uclinux.org/gf/project/uclinux-dist/forum/?action=ForumBrowse&_forum_action=MessageReply&message_id=53706
+
+--- openntpd-3.9p1/configure.ac
++++ openntpd-3.9p1/configure.ac
+@@ -328,8 +328,8 @@
+ 	AC_TRY_LINK(
+ 		[ #include <sys/types.h>
+ 		  #include <sys/socket.h>
+-		  #include <netinet/in.h> ]
+-		[  struct sockaddr_in6 = in6addr_any; ],
++		  #include <netinet/in.h> ],
++		[ struct sockaddr_in6 sin; sin.sin6_addr = in6addr_any; ],
+ 		[ ac_cv_libc_defines_in6addr_any="yes" ],
+ 		[ ac_cv_libc_defines_in6addr_any="no" ]
+ 	)
+--- openntpd-3.9p1/configure
++++ openntpd-3.9p1/configure
+@@ -6305,11 +6305,10 @@
+  #include <sys/types.h>
+ 		  #include <sys/socket.h>
+ 		  #include <netinet/in.h>
+-		  struct sockaddr_in6 = in6addr_any;
+ int
+ main ()
+ {
+- ac_cv_libc_defines_in6addr_any="yes"
++ struct sockaddr_in6 sin; sin.sin6_addr = in6addr_any;
+   ;
+   return 0;
+ }
+@@ -6336,12 +6335,13 @@
+   ac_status=$?
+   echo "$as_me:$LINENO: \$? = $ac_status" >&5
+   (exit $ac_status); }; }; then
+-   ac_cv_libc_defines_in6addr_any="no"
+-
++   ac_cv_libc_defines_in6addr_any="yes"
+ else
+   echo "$as_me: failed program was:" >&5
+ sed 's/^/| /' conftest.$ac_ext >&5
+ 
++ ac_cv_libc_defines_in6addr_any="no"
++
+ fi
+ rm -f conftest.err conftest.$ac_objext \
+       conftest$ac_exeext conftest.$ac_ext
