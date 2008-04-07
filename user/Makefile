@@ -89,8 +89,8 @@ dir_$(CONFIG_USER_DHCPD_DHCPD)              += dhcpd
 dir_$(CONFIG_USER_DIALD_DIALD)              += diald
 dir_$(CONFIG_USER_DISCARD_DISCARD)          += discard
 dir_$(CONFIG_USER_DISCARD_ECHO)             += discard
-dir_$(CONFIG_USER_DOSFSTOOLS_MKDOSFS)       += dosfstools/mkdosfs
-dir_$(CONFIG_USER_DOSFSTOOLS_DOSFSCK)       += dosfstools/dosfsck
+dir_$(CONFIG_USER_DOSFSTOOLS_MKDOSFS)       += dosfstools
+dir_$(CONFIG_USER_DOSFSTOOLS_DOSFSCK)       += dosfstools
 ifneq ($(CONFIG_USER_DNSMASQ2_DNSMASQ2),y)
 dir_$(CONFIG_USER_DNSMASQ_DNSMASQ)          += dnsmasq
 endif
