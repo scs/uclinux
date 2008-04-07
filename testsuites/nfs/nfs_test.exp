@@ -52,7 +52,7 @@ expect  -re $kernel_prompt
 incr case_num
 
 sleep 2
-send "portmap &\r" 
+send "portmap -f &\r" 
 while 1 {
    expect {
       -re "\[0-9]+" {

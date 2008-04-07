@@ -33,7 +33,7 @@ expect  -re $kernel_prompt
 send -s "modprobe $module_name\r"
 while 1 {
 expect {
--re "Blackfin BF53.* on-chip Ethernet MAC driver" {
+-re "Blackfin on-chip Ethernet MAC driver" {
         case_pass $case_num
 	puts "\nmodule insert success.\n"
 	break
