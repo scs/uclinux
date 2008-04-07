@@ -48,3 +48,20 @@ http://blackfin.uclinux.org/gf/project/uclinux-dist/forum/?action=ForumBrowse&_f
  fi
  rm -f conftest.err conftest.$ac_objext \
        conftest$ac_exeext conftest.$ac_ext
+--- openntpd-3.9p1/server.c
++++ openntpd-3.9p1/server.c
+@@ -63,12 +63,14 @@ setup_listeners(struct servent *se, stru
+ 			    INADDR_ANY)
+ 				continue;
+ 
++#ifdef HAVE_IN6ADDR_ANY
+ 			if (sa->sa_family == AF_INET6) {
+ 				a6 = ((struct sockaddr_in6 *)sa)->
+ 				    sin6_addr.s6_addr;
+ 				if (memcmp(a6, &in6addr_any, sa6len) == 0)
+ 					continue;
+ 			}
++#endif
+ 
+ 			if ((la = calloc(1, sizeof(struct listen_addr))) ==
+ 			    NULL)
