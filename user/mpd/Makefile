@@ -1,13 +1,25 @@
-VER = mpd-0.10.0
+VER = mpd-0.13.1
 
-all: $(VER)/Makefile
-	$(MAKE) -C $(VER)
+CONF_OPTS = \
+	$(call USE_ENABLE,LIB_LIBAO,ao) \
+	--disable-shout \
+	--disable-iconv \
+	--disable-ipv6 \
+	$(call USE_ENABLE,LIB_ALSA_LIB,alsa) \
+	--disable-jack \
+	--disable-pulse \
+	--disable-oggvorbis \
+	--disable-oggflac \
+	$(call USE_ENABLE,LIB_FLAC,flac) \
+	$(call USE_ENABLE,LIB_LIBMAD,mp3) \
+	$(call USE_ENABLE,LIB_FAAD2,aac) \
+	--disable-audiofile \
+	--disable-mod \
+	$(call USE_ENABLE,LIB_LIBID3TAG,id3) \
+	--disable-lsr
 
-clean:
-	$(MAKE) -C $(VER) clean
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
-	$(MAKE) -C $(VER) romfs
+	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/mpd /usr/bin/mpd
 	$(ROMFSINST) /etc/mpd.conf
-
-.PHONY: all clean romfs
