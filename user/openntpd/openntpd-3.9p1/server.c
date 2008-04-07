@@ -63,12 +63,14 @@ setup_listeners(struct servent *se, struct ntpd_conf *conf, u_int *cnt)
 			    INADDR_ANY)
 				continue;
 
+#ifdef HAVE_IN6ADDR_ANY
 			if (sa->sa_family == AF_INET6) {
 				a6 = ((struct sockaddr_in6 *)sa)->
 				    sin6_addr.s6_addr;
 				if (memcmp(a6, &in6addr_any, sa6len) == 0)
 					continue;
 			}
+#endif
 
 			if ((la = calloc(1, sizeof(struct listen_addr))) ==
 			    NULL)

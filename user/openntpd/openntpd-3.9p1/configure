@@ -6308,7 +6308,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 int
 main ()
 {
- struct sockaddr_in6 sin; sin.sin6_addr = in6addr_any;
+ struct sockaddr_in6 sin; sin.sin6_addr = in6addr_any; return (&sin.sin6_addr == &in6addr_any);
   ;
   return 0;
 }
