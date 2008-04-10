@@ -26,7 +26,25 @@ send "sqlite3 wishlist.db < /usr/wishlist.sql\r"
 expect  -re $kernel_prompt
 
 send "sqlite3 wishlist.db \".dump\"\r"
-expect  -re $kernel_prompt
+while 1 {
+expect {
+         -re $kernel_prompt {
+         case_pass $case_num
+         break
+         }
+         -re "Trace:.*\r\n\r\n" {
+            expect -re "$kernel_prompt"
+            send_user "\nShow up dump info\n"
+            case_fail $case_num
+            exit
+         }
+         timeout {
+         case_fail $case_num
+         }
+
+
+}
+}
 
 send "sqlite_test \"foo\"\r"
 
@@ -36,6 +54,14 @@ while 1 {
          case_pass $case_num
          break
       }
+
+      -re "Trace:.*\r\n\r\n" {
+            expect -re "$kernel_prompt"
+            send_user "\nShow up dump info\n"
+            case_fail $case_num
+            exit
+      }
+
       timeout {
          case_fail $case_num
       }
