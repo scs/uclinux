@@ -55,3 +55,14 @@ cat /etc/motd
 #start webserver
 echo "Starting Webserver"
 boa -f /etc/boa.conf&
+
+#lunch application with priority: 1. drupaRun, 2. maintenance
+if test -e /app/drupaRun.sh && test -e /app/app
+then
+	/app/./drupaRun.sh
+else
+	if test -e /app/maintenance
+	then
+		/app/./maintenance
+	fi
+fi
