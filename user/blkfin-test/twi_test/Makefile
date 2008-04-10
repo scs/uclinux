@@ -1,10 +1,16 @@
+MAKEARCH_KERNEL ?= $(MAKE) ARCH=blackfin CROSS_COMPILE=bfin-uclinux-
+ROOTDIR  ?= $(PWD)/../../../
+LINUXDIR ?= linux-2.6.x
 
-all:
-	LDFLAGS="" CROSS_COMPILE="bfin-uclinux-" $(MAKE) -C $(ROOTDIR)/linux-2.6.x SUBDIRS=$(PWD)/twi_test modules
-	$(CC) $(CFLAGS) $(LDFLAGS) -o twi_test twi_test.c $(LDLIBS)
+obj-m := twi_smbus_test.o
 
-modules:
-obj-m += twi_smbus_test.o
+EXTRA_CFLAGS += -Wall -fno-builtin
+
+all: module twi_test
+
+module:
+	EXTRA_CFLAGS="" CPPFLAGS="" LDFLAGS="" \
+	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD modules
 
 clean:
 	rm -f twi_test *.o *.gdb *.ko .*.cmd *.mod.* Module.*
