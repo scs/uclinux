@@ -29,12 +29,12 @@ clean:
 	rm -rf build*
 
 romfs:
-	$(ROMFSINST) build-$(VER)/dropbearmulti /bin/dropbear
-	$(ROMFSINST) -s dropbear /bin/dropbearkey
-	$(ROMFSINST) -s dropbear /bin/dbclient
-	$(ROMFSINST) -s dropbear /bin/dropbearconvert
-	$(ROMFSINST) -s dropbear /bin/scp
-	$(ROMFSINST) -a "ssh     stream tcp nowait root /bin/dropbear -i 2 > /dev/null" /etc/inetd.conf
+	$(ROMFSINST) build-$(VER)/dropbearmulti /usr/bin/dropbear
+	$(ROMFSINST) -s dropbear /usr/bin/dropbearkey
+	$(ROMFSINST) -s dropbear /usr/bin/dbclient
+	$(ROMFSINST) -s dropbear /usr/bin/dropbearconvert
+	$(ROMFSINST) -s dropbear /usr/bin/scp
+	$(ROMFSINST) -a "ssh     stream tcp nowait root /usr/bin/dropbear -i 2 > /dev/null" /etc/inetd.conf
 
 	mkdir -p $(ROMFSDIR)/etc/dropbear
 	[ -e $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key ] || ./build-$(VER)-host/dropbearkey -t dss -f $(ROMFSDIR)/etc/dropbear/dropbear_dss_host_key
