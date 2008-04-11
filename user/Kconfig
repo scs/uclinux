@@ -4315,6 +4315,12 @@ config USER_GAMES_RUBIK
 	help
 	  Non-optimal rubik's cube solver.
 
+config USER_GAMES_TAMA
+	bool "Tamagotchi daemon"
+	help
+	  The Net Tamagotchi server - maintains multiple virtual pets.
+	  To be accessed via telnet.  Default port is 9111.
+
 config USER_GAMES_XMAME
 	bool "xmame"
 	help
