@@ -164,7 +164,7 @@ dnl Written by Pontus Fuchs 2000-08-18
 dnl Version checking fixed by Christian W. Zuckschwerdt 2002-10-17
 
 AC_DEFUN([AM_PATH_OPENOBEX], [
-	AC_PATH_PROG(OPENOBEX_CONFIG, openobex-config, no)
+	AC_PATH_TOOL(OPENOBEX_CONFIG, openobex-config, no)
 
 	if test "$OPENOBEX_CONFIG" = "no" ; then
 		AC_MSG_ERROR(openobex-config not found. Pehaps openobex is not installed.)
