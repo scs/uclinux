@@ -2,6 +2,8 @@ VER = sqlite-3.5.7
 
 CONF_OPTS = --disable-tcl
 
+FLTFLAGS = -s 32000
+
 include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
