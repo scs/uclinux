@@ -60,13 +60,13 @@ boa -f /etc/boa.conf&
 if test -e /app/drupaRun.sh && test -e /app/app
 then
 	cd app
-	./drupaRun.sh
+	./drupaRun.sh &
 	cd /
 else
 	if test -e /app/maintenance
 	then
 		cd app
-		./maintenance
+		./maintenance &
 		cd /
 	fi
 fi
