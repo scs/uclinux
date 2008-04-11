@@ -23,6 +23,8 @@
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_AUTH
 
+static_decl_auth;
+
 static struct auth_init_function_entry *backends = NULL;
 
 static struct auth_init_function_entry *auth_find_backend_entry(const char *name);
@@ -196,7 +198,7 @@ static BOOL check_domain_match(const char *user, const char *domain)
  *                  function auth_get_challenge().  
  *
  * @param server_info If successful, contains information about the authentication, 
- *                    including a SAM_ACCOUNT struct describing the user.
+ *                    including a struct samu struct describing the user.
  *
  * @return An NTSTATUS with NT_STATUS_OK or an appropriate error.
  *
@@ -216,10 +218,10 @@ static NTSTATUS check_ntlm_password(const struct auth_context *auth_context,
 		return NT_STATUS_LOGON_FAILURE;
 
 	DEBUG(3, ("check_ntlm_password:  Checking password for unmapped user [%s]\\[%s]@[%s] with the new password interface\n", 
-		  user_info->client_domain.str, user_info->smb_name.str, user_info->wksta_name.str));
+		  user_info->client_domain, user_info->smb_name, user_info->wksta_name));
 
 	DEBUG(3, ("check_ntlm_password:  mapped user is: [%s]\\[%s]@[%s]\n", 
-		  user_info->domain.str, user_info->internal_username.str, user_info->wksta_name.str));
+		  user_info->domain, user_info->internal_username, user_info->wksta_name));
 
 	if (auth_context->challenge.length != 8) {
 		DEBUG(0, ("check_ntlm_password:  Invalid challenge stored for this auth context - cannot continue\n"));
@@ -235,22 +237,22 @@ static NTSTATUS check_ntlm_password(const struct auth_context *auth_context,
 
 #ifdef DEBUG_PASSWORD
 	DEBUG(100, ("user_info has passwords of length %d and %d\n", 
-		    user_info->lm_resp.length, user_info->nt_resp.length));
+		    (int)user_info->lm_resp.length, (int)user_info->nt_resp.length));
 	DEBUG(100, ("lm:\n"));
-	dump_data(100, user_info->lm_resp.data, user_info->lm_resp.length);
+	dump_data(100, (const char *)user_info->lm_resp.data, user_info->lm_resp.length);
 	DEBUG(100, ("nt:\n"));
-	dump_data(100, user_info->nt_resp.data, user_info->nt_resp.length);
+	dump_data(100, (const char *)user_info->nt_resp.data, user_info->nt_resp.length);
 #endif
 
 	/* This needs to be sorted:  If it doesn't match, what should we do? */
-  	if (!check_domain_match(user_info->smb_name.str, user_info->domain.str))
+  	if (!check_domain_match(user_info->smb_name, user_info->domain))
 		return NT_STATUS_LOGON_FAILURE;
 
 	for (auth_method = auth_context->auth_method_list;auth_method; auth_method = auth_method->next) {
 		NTSTATUS result;
 		
 		mem_ctx = talloc_init("%s authentication for user %s\\%s", auth_method->name, 
-					    user_info->domain.str, user_info->smb_name.str);
+					    user_info->domain, user_info->smb_name);
 
 		result = auth_method->auth(auth_context, auth_method->private_data, mem_ctx, user_info, server_info);
 
@@ -265,10 +267,10 @@ static NTSTATUS check_ntlm_password(const struct auth_context *auth_context,
 
 		if (NT_STATUS_IS_OK(nt_status)) {
 			DEBUG(3, ("check_ntlm_password: %s authentication for user [%s] succeeded\n", 
-				  auth_method->name, user_info->smb_name.str));
+				  auth_method->name, user_info->smb_name));
 		} else {
 			DEBUG(5, ("check_ntlm_password: %s authentication for user [%s] FAILED with error %s\n", 
-				  auth_method->name, user_info->smb_name.str, nt_errstr(nt_status)));
+				  auth_method->name, user_info->smb_name, nt_errstr(nt_status)));
 		}
 
 		talloc_destroy(mem_ctx);
@@ -279,6 +281,8 @@ static NTSTATUS check_ntlm_password(const struct auth_context *auth_context,
 		}
 	}
 
+	/* successful authentication */
+	
 	if (NT_STATUS_IS_OK(nt_status)) {
 		unix_username = (*server_info)->unix_name;
 		if (!(*server_info)->guest) {
@@ -300,18 +304,21 @@ static NTSTATUS check_ntlm_password(const struct auth_context *auth_context,
 			DEBUG((*server_info)->guest ? 5 : 2, 
 			      ("check_ntlm_password:  %sauthentication for user [%s] -> [%s] -> [%s] succeeded\n", 
 			       (*server_info)->guest ? "guest " : "", 
-			       user_info->smb_name.str, 
-			       user_info->internal_username.str, 
+			       user_info->smb_name, 
+			       user_info->internal_username, 
 			       unix_username));
 		}
+		
+		return nt_status;
 	}
-
-	if (!NT_STATUS_IS_OK(nt_status)) {
-		DEBUG(2, ("check_ntlm_password:  Authentication for user [%s] -> [%s] FAILED with error %s\n", 
-			  user_info->smb_name.str, user_info->internal_username.str, 
-			  nt_errstr(nt_status)));
-		ZERO_STRUCTP(server_info);
-	}
+	
+	/* failed authentication; check for guest lapping */
+	
+	DEBUG(2, ("check_ntlm_password:  Authentication for user [%s] -> [%s] FAILED with error %s\n", 
+		  user_info->smb_name, user_info->internal_username, 
+		  nt_errstr(nt_status)));
+	ZERO_STRUCTP(server_info); 
+	
 	return nt_status;
 }
 
@@ -425,7 +432,6 @@ static NTSTATUS make_auth_context_text_list(struct auth_context **auth_context, 
 {
 	auth_methods *list = NULL;
 	auth_methods *t = NULL;
-	auth_methods *tmp;
 	NTSTATUS nt_status;
 
 	if (!text_list) {
@@ -438,7 +444,7 @@ static NTSTATUS make_auth_context_text_list(struct auth_context **auth_context, 
 
 	for (;*text_list; text_list++) { 
 		if (load_auth_module(*auth_context, *text_list, &t)) {
-		    DLIST_ADD_END(list, t, tmp);
+		    DLIST_ADD_END(list, t, auth_methods *);
 		}
 	}
 	

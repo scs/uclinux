@@ -227,7 +227,7 @@ static int berDecodeLoginData(
 	size_t   *retDataLen,
 	void     *retData )
 {
-	int rc=0, err = 0;
+	int err = 0;
 	BerElement *replyBer = NULL;
 	char    *retOctStr = NULL;
 	size_t  retOctStrLen = 0;
@@ -241,14 +241,14 @@ static int berDecodeLoginData(
 	if(retData)
 	{
 		retOctStrLen = *retDataLen + 1;
-		retOctStr = (char *)malloc(retOctStrLen);
+		retOctStr = SMB_MALLOC_ARRAY(char, retOctStrLen);
 		if(!retOctStr)
 		{
 			err = LDAP_OPERATIONS_ERROR;
 			goto Cleanup;
 		}
 	
-		if( (rc = ber_scanf(replyBer, "{iis}", serverVersion, &err, retOctStr, &retOctStrLen)) != -1)
+		if(ber_scanf(replyBer, "{iis}", serverVersion, &err, retOctStr, &retOctStrLen) != -1)
 		{
 			if (*retDataLen >= retOctStrLen)
 			{
@@ -268,7 +268,7 @@ static int berDecodeLoginData(
 	}
 	else
 	{
-		if( (rc = ber_scanf(replyBer, "{ii}", serverVersion, &err)) == -1)
+		if(ber_scanf(replyBer, "{ii}", serverVersion, &err) == -1)
 		{
 			if (!err)
 			{
@@ -404,7 +404,7 @@ static int nmasldap_get_simple_pwd(
 	size_t  pwdBufLen, bufferLen;
 
 	bufferLen = pwdBufLen = pwdLen+2;
-	pwdBuf = (char *)malloc(pwdBufLen); /* digest and null */
+	pwdBuf = SMB_MALLOC_ARRAY(char, pwdBufLen); /* digest and null */
 	if(pwdBuf == NULL)
 	{
 		return LDAP_NO_MEMORY;
@@ -550,7 +550,7 @@ static int nmasldap_get_password(
 	LDAP	 *ld,
 	char     *objectDN,
 	size_t   *pwdSize,	/* in bytes */
-	char     *pwd )
+	unsigned char     *pwd )
 {
 	int err = 0;
 
@@ -568,7 +568,7 @@ static int nmasldap_get_password(
 	}
 
 	bufferLen = pwdBufLen = *pwdSize;
-	pwdBuf = (char *)malloc(pwdBufLen+2);
+	pwdBuf = SMB_MALLOC_ARRAY(char, pwdBufLen+2);
 	if(pwdBuf == NULL)
 	{
 		return LDAP_NO_MEMORY;
@@ -663,13 +663,13 @@ Cleanup:
 int pdb_nds_get_password(
 	struct smbldap_state *ldap_state,
 	char *object_dn,
-	int *pwd_len,
+	size_t *pwd_len,
 	char *pwd )
 {
 	LDAP *ld = ldap_state->ldap_struct;
 	int rc = -1;
 
-	rc = nmasldap_get_password(ld, object_dn, pwd_len, pwd);
+	rc = nmasldap_get_password(ld, object_dn, pwd_len, (unsigned char *)pwd);
 	if (rc == LDAP_SUCCESS) {
 #ifdef DEBUG_PASSWORD
 		DEBUG(100,("nmasldap_get_password returned %s for %s\n", pwd, object_dn));
@@ -714,9 +714,13 @@ int pdb_nds_set_password(
 	if (rc == LDAP_SUCCESS) {
 		DEBUG(5,("NDS Universal Password changed for user %s\n", object_dn));
 	} else {
+		char *ld_error = NULL;
+		ldap_get_option(ld, LDAP_OPT_ERROR_STRING, &ld_error);
+		
 		/* This will fail if Universal Password is not enabled for the user's context */
-		DEBUG(3,("NDS Universal Password could not be changed for user %s: %d\n",
-				 object_dn, rc));
+		DEBUG(3,("NDS Universal Password could not be changed for user %s: %s (%s)\n",
+				 object_dn, ldap_err2string(rc), ld_error?ld_error:"unknown"));
+		SAFE_FREE(ld_error);
 	}
 
 	/* Set eDirectory Password */
@@ -737,7 +741,7 @@ int pdb_nds_set_password(
 *********************************************************************/
 
 static NTSTATUS pdb_nds_update_login_attempts(struct pdb_methods *methods,
-					SAM_ACCOUNT *sam_acct, BOOL success)
+					struct samu *sam_acct, BOOL success)
 {
 	struct ldapsam_privates *ldap_state;
 
@@ -757,27 +761,26 @@ static NTSTATUS pdb_nds_update_login_attempts(struct pdb_methods *methods,
 		LDAPMessage *entry = NULL;
 		const char **attr_list;
 		size_t pwd_len;
-		uchar clear_text_pw[512];
-		const char *p = NULL;
+		char clear_text_pw[512];
 		LDAP *ld = NULL;
-		int ldap_port = 0;
-		char protocol[12];
-		char ldap_server[256];
 		const char *username = pdb_get_username(sam_acct);
 		BOOL got_clear_text_pw = False;
 
 		DEBUG(5,("pdb_nds_update_login_attempts: %s login for %s\n",
 				success ? "Successful" : "Failed", username));
 
-		result = pdb_get_backend_private_data(sam_acct, methods);
+		result = (LDAPMessage *)pdb_get_backend_private_data(sam_acct, methods);
 		if (!result) {
-			attr_list = get_userattr_list(ldap_state->schema_ver);
+			attr_list = get_userattr_list(NULL,
+						      ldap_state->schema_ver);
 			rc = ldapsam_search_suffix_by_name(ldap_state, username, &result, attr_list );
-			free_attr_list( attr_list );
+			TALLOC_FREE( attr_list );
 			if (rc != LDAP_SUCCESS) {
 				return NT_STATUS_OBJECT_NAME_NOT_FOUND;
 			}
-			pdb_set_backend_private_data(sam_acct, result, private_data_free_fn, methods, PDB_CHANGED);
+			pdb_set_backend_private_data(sam_acct, result, NULL,
+						     methods, PDB_CHANGED);
+			talloc_autofree_ldapmsg(sam_acct, result);
 		}
 
 		if (ldap_count_entries(ldap_state->smbldap_state->ldap_struct, result) == 0) {
@@ -800,69 +803,38 @@ static NTSTATUS pdb_nds_update_login_attempts(struct pdb_methods *methods,
 				got_clear_text_pw = True;
 			}
 		} else {
-			generate_random_buffer(clear_text_pw, 24);
+			generate_random_buffer((unsigned char *)clear_text_pw, 24);
 			clear_text_pw[24] = '\0';
 			DEBUG(5,("pdb_nds_update_login_attempts: using random password %s\n", clear_text_pw));
 		}
 
-		/* Parse the location string */
-		p = ldap_state->location; 
-
-		/* skip leading "URL:" (if any) */
-		if ( strnequal( p, "URL:", 4 ) ) {
-			p += 4;
-		}
-
-		sscanf(p, "%10[^:]://%254[^:/]:%d", protocol, ldap_server, &ldap_port);
-
-		if (ldap_port == 0) {
-			if (strequal(protocol, "ldap")) {
-				ldap_port = LDAP_PORT;
-			} else if (strequal(protocol, "ldaps")) {
-				ldap_port = LDAPS_PORT;
-			} else {
-				DEBUG(0, ("unrecognised protocol (%s)!\n", protocol));
-			}
-		}
-
-		ld = ldap_init(ldap_server, ldap_port);
-
-		if(ld != NULL) {
-			int version;
-
-			/* LDAP version 3 required for ldap_sasl */
-			if (ldap_get_option(ld, LDAP_OPT_PROTOCOL_VERSION, &version) == LDAP_OPT_SUCCESS) {
-				if (version != LDAP_VERSION3) {
-					version = LDAP_VERSION3;
-					if (ldap_set_option (ld, LDAP_OPT_PROTOCOL_VERSION, &version) == LDAP_OPT_SUCCESS) {
-						DEBUG(4, ("pdb_nds_update_login_attempts: Set protocol version to LDAP_VERSION3\n"));
-					}
-				}
-			}
-
-			/* Turn on ssl if required */
-			if(strequal(protocol, "ldaps")) {
-				int tls = LDAP_OPT_X_TLS_HARD;
-				if (ldap_set_option (ld, LDAP_OPT_X_TLS, &tls) != LDAP_SUCCESS) {
-					DEBUG(1, ("pdb_nds_update_login_attempts: Failed to setup a TLS session\n"));
-				} else {
-					DEBUG(4, ("pdb_nds_update_login_attempts: Activated TLS on session\n"));
-				}
-			}
-		}
-
 		if((success != True) || (got_clear_text_pw == True)) {
+			
+			rc = smb_ldap_setup_full_conn(&ld, ldap_state->location);
+			if (rc) {
+				return NT_STATUS_INVALID_CONNECTION;
+			}
+
 			/* Attempt simple bind with real or bogus password */
 			rc = ldap_simple_bind_s(ld, dn, clear_text_pw);
+			ldap_unbind(ld);
 			if (rc == LDAP_SUCCESS) {
 				DEBUG(5,("pdb_nds_update_login_attempts: ldap_simple_bind_s Successful for %s\n", username));
-				ldap_unbind_ext(ld, NULL, NULL);
 			} else {
 				NTSTATUS nt_status = NT_STATUS_ACCOUNT_RESTRICTION;
 				DEBUG(5,("pdb_nds_update_login_attempts: ldap_simple_bind_s Failed for %s\n", username));
 				switch(rc) {
 					case LDAP_INVALID_CREDENTIALS:
 						nt_status = NT_STATUS_WRONG_PASSWORD;
+						break;
+					case LDAP_UNWILLING_TO_PERFORM:
+						/* eDir returns this if the account was disabled. */
+						/* The problem is we don't know if the given
+						   password was correct for this account or
+						   not. We have to return more info than we
+						   should and tell the client NT_STATUS_ACCOUNT_DISABLED
+						   so they don't think the password was bad. JRA. */
+						nt_status = NT_STATUS_ACCOUNT_DISABLED;
 						break;
 					default:
 						break;
@@ -876,12 +848,14 @@ static NTSTATUS pdb_nds_update_login_attempts(struct pdb_methods *methods,
 }
 
 /**********************************************************************
- Intitalise the parts of the pdb_context that are common to NDS_ldapsam modes
+ Intitalise the parts of the pdb_methods structuire that are common 
+ to NDS_ldapsam modes
  *********************************************************************/
 
-static NTSTATUS pdb_init_NDS_ldapsam_common(PDB_CONTEXT *pdb_context, PDB_METHODS **pdb_method, const char *location)
+static NTSTATUS pdb_init_NDS_ldapsam_common(struct pdb_methods **pdb_method, const char *location)
 {
-	struct ldapsam_privates *ldap_state = (*pdb_method)->private_data;
+	struct ldapsam_privates *ldap_state =
+		(struct ldapsam_privates *)((*pdb_method)->private_data);
 
 	/* Mark this as eDirectory ldap */
 	ldap_state->is_nds_ldap = True;
@@ -890,7 +864,7 @@ static NTSTATUS pdb_init_NDS_ldapsam_common(PDB_CONTEXT *pdb_context, PDB_METHOD
 	(*pdb_method)->update_login_attempts = pdb_nds_update_login_attempts;
 
 	/* Save location for use in pdb_nds_update_login_attempts */
-	ldap_state->location = strdup(location);
+	ldap_state->location = SMB_STRDUP(location);
 
 	return NT_STATUS_OK;
 }
@@ -900,13 +874,13 @@ static NTSTATUS pdb_init_NDS_ldapsam_common(PDB_CONTEXT *pdb_context, PDB_METHOD
  Initialise the 'nds compat' mode for pdb_ldap
  *********************************************************************/
 
-static NTSTATUS pdb_init_NDS_ldapsam_compat(PDB_CONTEXT *pdb_context, PDB_METHODS **pdb_method, const char *location)
+static NTSTATUS pdb_init_NDS_ldapsam_compat(struct pdb_methods **pdb_method, const char *location)
 {
-	NTSTATUS nt_status = pdb_init_ldapsam_compat(pdb_context, pdb_method, location);
+	NTSTATUS nt_status = pdb_init_ldapsam_compat(pdb_method, location);
 
 	(*pdb_method)->name = "NDS_ldapsam_compat";
 
-	pdb_init_NDS_ldapsam_common(pdb_context, pdb_method, location);
+	pdb_init_NDS_ldapsam_common(pdb_method, location);
 
 	return nt_status;
 }
@@ -916,13 +890,13 @@ static NTSTATUS pdb_init_NDS_ldapsam_compat(PDB_CONTEXT *pdb_context, PDB_METHOD
  Initialise the 'nds' normal mode for pdb_ldap
  *********************************************************************/
 
-static NTSTATUS pdb_init_NDS_ldapsam(PDB_CONTEXT *pdb_context, PDB_METHODS **pdb_method, const char *location)
+static NTSTATUS pdb_init_NDS_ldapsam(struct pdb_methods **pdb_method, const char *location)
 {
-	NTSTATUS nt_status = pdb_init_ldapsam(pdb_context, pdb_method, location);
+	NTSTATUS nt_status = pdb_init_ldapsam(pdb_method, location);
 
 	(*pdb_method)->name = "NDS_ldapsam";
 
-	pdb_init_NDS_ldapsam_common(pdb_context, pdb_method, location);
+	pdb_init_NDS_ldapsam_common(pdb_method, location);
 
 	return nt_status;
 }

@@ -5,6 +5,7 @@
    Copyright (C) John H Terpstra              1996-2000
    Copyright (C) Luke Kenneth Casson Leighton 1996-2000
    Copyright (C) Paul Ashton                  1998-2000
+   Copyright (C) Gerald (Jerry) Carter        2005
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +44,7 @@
 #define ERRnomem 8 /* Out of memory */
 #define ERRbadmem 9 /* Invalid memory block address */
 #define ERRbadenv 10 /* Invalid environment */
+#define ERRbadformat 11 /* Bad Format */
 #define ERRbadaccess 12 /* Invalid open mode */
 #define ERRbaddata 13 /* Invalid data (only from ioctl call) */
 #define ERRres 14 /* reserved */
@@ -59,16 +61,21 @@
 #define ERRfilexists 80 /* File in operation already exists */
 #define ERRinvalidparam 87
 #define ERRcannotopen 110 /* Cannot open the file specified */
+#define ERRbufferoverflow 111
 #define ERRinsufficientbuffer 122
 #define ERRinvalidname 123 /* Invalid name */
 #define ERRunknownlevel 124
 #define ERRnotlocked 158 /* This region is not locked by this locking context. */
+#define ERRinvalidpath 161
+#define ERRcancelviolation 173
+#define ERRnoatomiclocks 174
 #define ERRrename 183
 #define ERRbadpipe 230 /* Named pipe invalid */
 #define ERRpipebusy 231 /* All instances of pipe are busy */
 #define ERRpipeclosing 232 /* named pipe close in progress */
 #define ERRnotconnected 233 /* No process on other end of named pipe */
 #define ERRmoredata 234 /* More data to be returned */
+#define ERReainconsistent 255 /* from EMC */
 #define ERRnomoreitems 259
 #define ERRbaddirectory 267 /* Invalid directory name in a path. */
 #define ERReasnotsupported 282 /* Extended attributes */
@@ -170,6 +177,7 @@
 #define WERR_NOMEM W_ERROR(8)
 #define WERR_GENERAL_FAILURE W_ERROR(31)
 #define WERR_NOT_SUPPORTED W_ERROR(50)
+#define WERR_DEVICE_NOT_EXIST W_ERROR(55)
 #define WERR_PRINTQ_FULL W_ERROR(61)
 #define WERR_NO_SPOOL_SPACE W_ERROR(62)
 #define WERR_NO_SUCH_SHARE W_ERROR(67)
@@ -185,7 +193,20 @@
 #define WERR_INVALID_OWNER W_ERROR(1307)
 #define WERR_IO_PENDING W_ERROR(997)
 #define WERR_CAN_NOT_COMPLETE W_ERROR(1003)
+#define WERR_REG_CORRUPT W_ERROR(1015)
+#define WERR_REG_IO_FAILURE W_ERROR(1016)
+#define WERR_REG_FILE_INVALID W_ERROR(1017)
+#define WERR_NO_SUCH_SERVICE W_ERROR(1060)
+#define WERR_INVALID_SERVICE_CONTROL W_ERROR(1052)
+#define WERR_SERVICE_DISABLED W_ERROR(1058)
+#define WERR_SERVICE_NEVER_STARTED W_ERROR(1077)
+#define WERR_MACHINE_LOCKED W_ERROR(1271)
+#define WERR_NO_LOGON_SERVERS W_ERROR(1311)
+#define WERR_LOGON_FAILURE W_ERROR(1326)
+#define WERR_NO_SUCH_DOMAIN W_ERROR(1355)
 #define WERR_INVALID_SECURITY_DESCRIPTOR W_ERROR(1338)
+#define WERR_TIME_SKEW W_ERROR(1398)
+#define WERR_EVENTLOG_FILE_CORRUPT W_ERROR(1500)
 #define WERR_SERVER_UNAVAILABLE W_ERROR(1722)
 #define WERR_INVALID_FORM_NAME W_ERROR(1902)
 #define WERR_INVALID_FORM_SIZE W_ERROR(1903)
@@ -218,6 +239,12 @@
 #define WERR_PRINT_MONITOR_IN_USE W_ERROR(ERRprintmonitorinuse)
 #define WERR_PRINTER_HAS_JOBS_QUEUED W_ERROR(ERRprinterhasjobsqueued)
 
+/* Configuration Manager Errors */
+/* Basically Win32 errors meanings are specific to the \ntsvcs pipe */
+
+#define WERR_CM_NO_MORE_HW_PROFILES W_ERROR(35)
+#define WERR_CM_NO_SUCH_VALUE W_ERROR(37)
+
 
 /* DFS errors */
 
@@ -230,5 +257,8 @@
 #define WERR_DFS_NO_SUCH_SERVER         W_ERROR(NERR_BASE+573)
 #define WERR_DFS_INTERNAL_ERROR         W_ERROR(NERR_BASE+590)
 #define WERR_DFS_CANT_CREATE_JUNCT      W_ERROR(NERR_BASE+569)
+
+#define WERR_NET_NAME_NOT_FOUND		W_ERROR(NERR_BASE+210)
+
 
 #endif /* _DOSERR_H */

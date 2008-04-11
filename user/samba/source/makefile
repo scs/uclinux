@@ -6,7 +6,7 @@ endif
 
 CONFOPTS = --prefix= --with-smbmount --with-privatedir=/etc/config \
 			--with-configdir=/etc/config --with-logfilebase=/var/log \
-			--without-ldap --disable-cups \
+			--without-ldap --disable-cups --disable-pie \
 			--$(SHARED)-shared --disable-debug --disable-developer \
 			--disable-krb5developer --disable-dmalloc --disable-nls
 
@@ -20,7 +20,7 @@ all: build/build
 build/build: makefile
 	rm -rf build
 	mkdir build
-	(cd build; sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
+	(cd build; CONFIG_SITE=../config.site sh ../configure $(CONFIGURE_OPTS) $(CONFOPTS))
 	touch build/build
 clean:
 	rm -rf build

@@ -55,7 +55,7 @@ static NTSTATUS check_oem_password(const char *user,
 				   const uchar old_lm_hash_encrypted[16],
 				   uchar password_encrypted_with_nt_hash[516], 
 				   const uchar old_nt_hash_encrypted[16],
-				   SAM_ACCOUNT **hnd, char *new_passwd,
+				   struct samu **hnd, char *new_passwd,
 				   int new_passwd_size);
 
 #if ALLOW_CHANGE_PASSWORD
@@ -64,7 +64,7 @@ static int findpty(char **slave)
 {
 	int master;
 	static fstring line;
-	DIR *dirp;
+	SMB_STRUCT_DIR *dirp;
 	const char *dpname;
 
 #if defined(HAVE_GRANTPT)
@@ -93,7 +93,7 @@ static int findpty(char **slave)
 
 	fstrcpy(line, "/dev/ptyXX");
 
-	dirp = opendir("/dev");
+	dirp = sys_opendir("/dev");
 	if (!dirp)
 		return (-1);
 	while ((dpname = readdirname(dirp)) != NULL)
@@ -110,12 +110,12 @@ static int findpty(char **slave)
 				DEBUG(3, ("pty: opened %s\n", line));
 				line[5] = 't';
 				*slave = line;
-				closedir(dirp);
+				sys_closedir(dirp);
 				return (master);
 			}
 		}
 	}
-	closedir(dirp);
+	sys_closedir(dirp);
 	return (-1);
 }
 
@@ -153,9 +153,13 @@ static int dochild(int master, const char *slavedev, const struct passwd *pass,
 		DEBUG(3, ("More weirdness, could not open %s\n", slavedev));
 		return (False);
 	}
-#ifdef I_PUSH
-	ioctl(slave, I_PUSH, "ptem");
-	ioctl(slave, I_PUSH, "ldterm");
+#if defined(I_PUSH) && defined(I_FIND)
+	if (ioctl(slave, I_FIND, "ptem") == 0) {
+		ioctl(slave, I_PUSH, "ptem");
+	}
+	if (ioctl(slave, I_FIND, "ldterm") == 0) {
+		ioctl(slave, I_PUSH, "ldterm");
+	}
 #elif defined(TIOCSCTTY)
 	if (ioctl(slave, TIOCSCTTY, 0) < 0)
 	{
@@ -237,7 +241,7 @@ static int expect(int master, char *issue, char *expected)
 			if (lp_passwd_chat_debug())
 				DEBUG(100, ("expect: sending [%s]\n", issue));
 
-			if ((len = write(master, issue, strlen(issue))) != strlen(issue)) {
+			if ((len = sys_write(master, issue, strlen(issue))) != strlen(issue)) {
 				DEBUG(2,("expect: (short) write returned %d\n", len ));
 				return False;
 			}
@@ -263,7 +267,7 @@ static int expect(int master, char *issue, char *expected)
 				pstrcpy( str, buffer);
 				trim_char( str, ' ', ' ');
 
-				if ((match = (unix_wild_match(expected, str) == 0))) {
+				if ((match = unix_wild_match(expected, str)) == True) {
 					/* Now data has started to return, lower timeout. */
 					timeout = lp_passwd_chat_timeout() * 100;
 				}
@@ -411,9 +415,10 @@ while we were waiting\n", WTERMSIG(wstat)));
 		/* CHILD */
 
 		/*
-		 * Lose any oplock capabilities.
+		 * Lose any elevated privileges.
 		 */
-		oplock_set_capability(False, False);
+		drop_effective_capability(KERNEL_OPLOCK_CAPABILITY);
+		drop_effective_capability(DMAPI_ACCESS_CAPABILITY);
 
 		/* make sure it doesn't freeze */
 		alarm(20);
@@ -566,14 +571,19 @@ BOOL chgpasswd(const char *name, const struct passwd *pass,
 ************************************************************/
 
 BOOL check_lanman_password(char *user, uchar * pass1,
-			   uchar * pass2, SAM_ACCOUNT **hnd)
+			   uchar * pass2, struct samu **hnd)
 {
 	uchar unenc_new_pw[16];
 	uchar unenc_old_pw[16];
-	SAM_ACCOUNT *sampass = NULL;
-	uint16 acct_ctrl;
+	struct samu *sampass = NULL;
+	uint32 acct_ctrl;
 	const uint8 *lanman_pw;
 	BOOL ret;
+
+	if ( !(sampass = samu_new(NULL)) ) {
+		DEBUG(0, ("samu_new() failed!\n"));
+		return False;
+	}
 	
 	become_root();
 	ret = pdb_getsampwnam(sampass, user);
@@ -581,7 +591,7 @@ BOOL check_lanman_password(char *user, uchar * pass1,
 
 	if (ret == False) {
 		DEBUG(0,("check_lanman_password: getsampwnam returned NULL\n"));
-		pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return False;
 	}
 	
@@ -590,7 +600,7 @@ BOOL check_lanman_password(char *user, uchar * pass1,
 
 	if (acct_ctrl & ACB_DISABLED) {
 		DEBUG(0,("check_lanman_password: account %s disabled.\n", user));
-		pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return False;
 	}
 
@@ -601,7 +611,7 @@ BOOL check_lanman_password(char *user, uchar * pass1,
 			return True;
 		} else {
 			DEBUG(0, ("check_lanman_password: no lanman password !\n"));
-			pdb_free_sam(&sampass);
+			TALLOC_FREE(sampass);
 			return False;
 		}
 	}
@@ -615,7 +625,7 @@ BOOL check_lanman_password(char *user, uchar * pass1,
 	/* Check that the two old passwords match. */
 	if (memcmp(lanman_pw, unenc_old_pw, 16)) {
 		DEBUG(0,("check_lanman_password: old password doesn't match.\n"));
-		pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return False;
 	}
 
@@ -632,12 +642,12 @@ BOOL check_lanman_password(char *user, uchar * pass1,
  is correct before calling. JRA.
 ************************************************************/
 
-BOOL change_lanman_password(SAM_ACCOUNT *sampass, uchar *pass2)
+BOOL change_lanman_password(struct samu *sampass, uchar *pass2)
 {
 	static uchar null_pw[16];
 	uchar unenc_new_pw[16];
 	BOOL ret;
-	uint16 acct_ctrl;
+	uint32 acct_ctrl;
 	const uint8 *pwd;
 
 	if (sampass == NULL) {
@@ -679,14 +689,14 @@ BOOL change_lanman_password(SAM_ACCOUNT *sampass, uchar *pass2)
 		return False;	/* We lose the NT hash. Sorry. */
 	}
 
-	if (!pdb_set_pass_changed_now  (sampass)) {
-		pdb_free_sam(&sampass);
+	if (!pdb_set_pass_last_set_time  (sampass, time(NULL), PDB_CHANGED)) {
+		TALLOC_FREE(sampass);
 		/* Not quite sure what this one qualifies as, but this will do */
 		return False; 
 	}
  
 	/* Now flush the sam_passwd struct to persistent storage */
-	ret = pdb_update_sam_account (sampass);
+	ret = NT_STATUS_IS_OK(pdb_update_sam_account (sampass));
 
 	return ret;
 }
@@ -699,10 +709,11 @@ NTSTATUS pass_oem_change(char *user,
 			 uchar password_encrypted_with_lm_hash[516], 
 			 const uchar old_lm_hash_encrypted[16],
 			 uchar password_encrypted_with_nt_hash[516], 
-			 const uchar old_nt_hash_encrypted[16])
+			 const uchar old_nt_hash_encrypted[16],
+			 uint32 *reject_reason)
 {
 	pstring new_passwd;
-	SAM_ACCOUNT *sampass = NULL;
+	struct samu *sampass = NULL;
 	NTSTATUS nt_status = check_oem_password(user, password_encrypted_with_lm_hash, 
 						old_lm_hash_encrypted, 
 						password_encrypted_with_nt_hash, 
@@ -714,12 +725,12 @@ NTSTATUS pass_oem_change(char *user,
 
 	/* We've already checked the old password here.... */
 	become_root();
-	nt_status = change_oem_password(sampass, NULL, new_passwd, True);
+	nt_status = change_oem_password(sampass, NULL, new_passwd, True, reject_reason);
 	unbecome_root();
 
 	memset(new_passwd, 0, sizeof(new_passwd));
 
-	pdb_free_sam(&sampass);
+	TALLOC_FREE(sampass);
 
 	return nt_status;
 }
@@ -741,16 +752,16 @@ static NTSTATUS check_oem_password(const char *user,
 				   const uchar old_lm_hash_encrypted[16],
 				   uchar password_encrypted_with_nt_hash[516], 
 				   const uchar old_nt_hash_encrypted[16],
-				   SAM_ACCOUNT **hnd, char *new_passwd,
+				   struct samu **hnd, char *new_passwd,
 				   int new_passwd_size)
 {
 	static uchar null_pw[16];
 	static uchar null_ntpw[16];
-	SAM_ACCOUNT *sampass = NULL;
-	char *password_encrypted;
-	const char *encryption_key;
+	struct samu *sampass = NULL;
+	uint8 *password_encrypted;
+	const uint8 *encryption_key;
 	const uint8 *lanman_pw, *nt_pw;
-	uint16 acct_ctrl;
+	uint32 acct_ctrl;
 	uint32 new_pw_len;
 	uchar new_nt_hash[16];
 	uchar new_lm_hash[16];
@@ -763,7 +774,9 @@ static NTSTATUS check_oem_password(const char *user,
 
 	*hnd = NULL;
 
-	pdb_init_sam(&sampass);
+	if ( !(sampass = samu_new( NULL )) ) {
+		return NT_STATUS_NO_MEMORY;
+	}
 
 	become_root();
 	ret = pdb_getsampwnam(sampass, user);
@@ -771,7 +784,7 @@ static NTSTATUS check_oem_password(const char *user,
 
 	if (ret == False) {
 		DEBUG(0, ("check_oem_password: getsmbpwnam returned NULL\n"));
-		pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return NT_STATUS_NO_SUCH_USER; 
 	}
 
@@ -779,7 +792,7 @@ static NTSTATUS check_oem_password(const char *user,
 	
 	if (acct_ctrl & ACB_DISABLED) {
 		DEBUG(2,("check_lanman_password: account %s disabled.\n", user));
-		pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return NT_STATUS_ACCOUNT_DISABLED;
 	}
 
@@ -814,7 +827,7 @@ static NTSTATUS check_oem_password(const char *user,
 	} else if (nt_pass_set) {
 		DEBUG(1, ("NT password change supplied for user %s, but we have no NT password to check it with\n", 
 			  user));
-		pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return NT_STATUS_WRONG_PASSWORD;	
 	} else if (lm_pass_set) {
 		if (lp_lanman_auth()) {
@@ -824,12 +837,12 @@ static NTSTATUS check_oem_password(const char *user,
 			DEBUG(1, ("LM password change supplied for user %s, but we have disabled LanMan authentication\n", 
 				  user));
 		}
-			pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return NT_STATUS_WRONG_PASSWORD;
 	} else {
 		DEBUG(1, ("password change requested for user %s, but no password supplied!\n", 
 			  user));
-		pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return NT_STATUS_WRONG_PASSWORD;
 	}
 
@@ -840,7 +853,7 @@ static NTSTATUS check_oem_password(const char *user,
 
 	if ( !decode_pw_buffer(password_encrypted, new_passwd, new_passwd_size, &new_pw_len, 
 			       nt_pass_set ? STR_UNICODE : STR_ASCII)) {
-		pdb_free_sam(&sampass);
+		TALLOC_FREE(sampass);
 		return NT_STATUS_WRONG_PASSWORD;
 	}
 
@@ -863,7 +876,7 @@ static NTSTATUS check_oem_password(const char *user,
 			E_old_pw_hash(new_nt_hash, nt_pw, verifier);
 			if (memcmp(verifier, old_nt_hash_encrypted, 16)) {
 				DEBUG(0,("check_oem_password: old lm password doesn't match.\n"));
-				pdb_free_sam(&sampass);
+				TALLOC_FREE(sampass);
 				return NT_STATUS_WRONG_PASSWORD;
 			}
 			
@@ -891,7 +904,7 @@ static NTSTATUS check_oem_password(const char *user,
 			E_old_pw_hash(new_nt_hash, lanman_pw, verifier);
 			if (memcmp(verifier, old_lm_hash_encrypted, 16)) {
 				DEBUG(0,("check_oem_password: old lm password doesn't match.\n"));
-				pdb_free_sam(&sampass);
+				TALLOC_FREE(sampass);
 				return NT_STATUS_WRONG_PASSWORD;
 			}
 #ifdef DEBUG_PASSWORD
@@ -913,7 +926,7 @@ static NTSTATUS check_oem_password(const char *user,
 		E_old_pw_hash(new_lm_hash, lanman_pw, verifier);
 		if (memcmp(verifier, old_lm_hash_encrypted, 16)) {
 			DEBUG(0,("check_oem_password: old lm password doesn't match.\n"));
-			pdb_free_sam(&sampass);
+			TALLOC_FREE(sampass);
 			return NT_STATUS_WRONG_PASSWORD;
 		}
 		
@@ -926,7 +939,7 @@ static NTSTATUS check_oem_password(const char *user,
 	}
 
 	/* should not be reached */
-	pdb_free_sam(&sampass);
+	TALLOC_FREE(sampass);
 	return NT_STATUS_WRONG_PASSWORD;
 }
 
@@ -936,16 +949,17 @@ static NTSTATUS check_oem_password(const char *user,
  found in the history list.
 ************************************************************/
 
-static BOOL check_passwd_history(SAM_ACCOUNT *sampass, const char *plaintext)
+static BOOL check_passwd_history(struct samu *sampass, const char *plaintext)
 {
 	uchar new_nt_p16[NT_HASH_LEN];
 	uchar zero_md5_nt_pw[SALTED_MD5_HASH_LEN];
 	const uint8 *nt_pw;
 	const uint8 *pwhistory;
 	BOOL found = False;
-	int i, pwHisLen, curr_pwHisLen;
+	int i;
+	uint32 pwHisLen, curr_pwHisLen;
 
-	account_policy_get(AP_PASSWORD_HISTORY, &pwHisLen);
+	pdb_get_account_policy(AP_PASSWORD_HISTORY, &pwHisLen);
 	if (pwHisLen == 0) {
 		return False;
 	}
@@ -969,8 +983,8 @@ static BOOL check_passwd_history(SAM_ACCOUNT *sampass, const char *plaintext)
 		return True;
 	}
 
-	dump_data(100, new_nt_p16, NT_HASH_LEN);
-	dump_data(100, pwhistory, PW_HISTORY_ENTRY_LEN*pwHisLen);
+	dump_data(100, (const char *)new_nt_p16, NT_HASH_LEN);
+	dump_data(100, (const char *)pwhistory, PW_HISTORY_ENTRY_LEN*pwHisLen);
 
 	memset(zero_md5_nt_pw, '\0', SALTED_MD5_HASH_LEN);
 	for (i=0; i<pwHisLen; i++) {
@@ -1002,46 +1016,59 @@ static BOOL check_passwd_history(SAM_ACCOUNT *sampass, const char *plaintext)
  is correct before calling. JRA.
 ************************************************************/
 
-NTSTATUS change_oem_password(SAM_ACCOUNT *hnd, char *old_passwd, char *new_passwd, BOOL as_root)
+NTSTATUS change_oem_password(struct samu *hnd, char *old_passwd, char *new_passwd, BOOL as_root, uint32 *samr_reject_reason)
 {
-	BOOL ret;
 	uint32 min_len;
 	struct passwd *pass = NULL;
 	const char *username = pdb_get_username(hnd);
 	time_t can_change_time = pdb_get_pass_can_change_time(hnd);
 
-	if ((can_change_time != 0) && (time(NULL) < can_change_time)) {
-		DEBUG(1, ("user %s cannot change password now, must wait until %s\n", 
-			  username, http_timestring(can_change_time)));
+	if (samr_reject_reason) {
+		*samr_reject_reason = Undefined;
+	}
+
+	/* check to see if the secdesc has previously been set to disallow */
+	if (!pdb_get_pass_can_change(hnd)) {
+		DEBUG(1, ("user %s does not have permissions to change password\n", username));
+		if (samr_reject_reason) {
+			*samr_reject_reason = REJECT_REASON_OTHER;
+		}
 		return NT_STATUS_ACCOUNT_RESTRICTION;
 	}
 
-	/* FIXME: AP_MIN_PASSWORD_LEN and lp_min_passwd_length() need to be merged - gd */
-	if (account_policy_get(AP_MIN_PASSWORD_LEN, &min_len) && (str_charnum(new_passwd) < min_len)) {
+	/* removed calculation here, becuase passdb now calculates
+	   based on policy.  jmcd */
+	if ((can_change_time != 0) && (time(NULL) < can_change_time)) {
+		DEBUG(1, ("user %s cannot change password now, must "
+			  "wait until %s\n", username,
+			  http_timestring(can_change_time)));
+		if (samr_reject_reason) {
+			*samr_reject_reason = REJECT_REASON_OTHER;
+		}
+		return NT_STATUS_ACCOUNT_RESTRICTION;
+	}
+
+	if (pdb_get_account_policy(AP_MIN_PASSWORD_LEN, &min_len) && (str_charnum(new_passwd) < min_len)) {
 		DEBUG(1, ("user %s cannot change password - password too short\n", 
 			  username));
 		DEBUGADD(1, (" account policy min password len = %d\n", min_len));
-		return NT_STATUS_PASSWORD_RESTRICTION;
-/* 		return NT_STATUS_PWD_TOO_SHORT; */
-	}
-
-	/* Take the passed information and test it for minimum criteria */
-	/* Minimum password length */
-	if (str_charnum(new_passwd) < lp_min_passwd_length()) {
-		/* too short, must be at least MINPASSWDLENGTH */
-		DEBUG(1, ("Password Change: user %s, New password is shorter than minimum password length = %d\n",
-		       username, lp_min_passwd_length()));
+		if (samr_reject_reason) {
+			*samr_reject_reason = REJECT_REASON_TOO_SHORT;
+		}
 		return NT_STATUS_PASSWORD_RESTRICTION;
 /* 		return NT_STATUS_PWD_TOO_SHORT; */
 	}
 
 	if (check_passwd_history(hnd,new_passwd)) {
+		if (samr_reject_reason) {
+			*samr_reject_reason = REJECT_REASON_IN_HISTORY;
+		}
 		return NT_STATUS_PASSWORD_RESTRICTION;
 	}
 
 	pass = Get_Pwnam(username);
 	if (!pass) {
-		DEBUG(1, ("check_oem_password: Username %s does not exist in system !?!\n", username));
+		DEBUG(1, ("change_oem_password: Username %s does not exist in system !?!\n", username));
 		return NT_STATUS_ACCESS_DENIED;
 	}
 
@@ -1054,6 +1081,9 @@ NTSTATUS change_oem_password(SAM_ACCOUNT *hnd, char *old_passwd, char *new_passw
 
 		if (check_ret != 0) {
 			DEBUG(1, ("change_oem_password: check password script said new password is not good enough!\n"));
+			if (samr_reject_reason) {
+				*samr_reject_reason = REJECT_REASON_NOT_COMPLEX;
+			}
 			return NT_STATUS_PASSWORD_RESTRICTION;
 		}
 	}
@@ -1080,11 +1110,5 @@ NTSTATUS change_oem_password(SAM_ACCOUNT *hnd, char *old_passwd, char *new_passw
 	}
 
 	/* Now write it into the file. */
-	ret = pdb_update_sam_account (hnd);
-
-	if (!ret) {
-		return NT_STATUS_ACCESS_DENIED;
-	}
-	
-	return NT_STATUS_OK;
+	return pdb_update_sam_account (hnd);
 }

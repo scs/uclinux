@@ -20,8 +20,6 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define NO_SYSLOG
-
 #include "includes.h"
 
 #define MAX_FILES 1000
@@ -36,7 +34,7 @@ static struct {
 	int handle;
 } ftable[MAX_FILES];
 
-static struct {
+static struct children {
 	double bytes_in, bytes_out;
 	int line;
 	int done;
@@ -72,7 +70,7 @@ void nb_alarm(int ignore)
 void nbio_shmem(int n)
 {
 	nprocs = n;
-	children = shm_setup(sizeof(*children) * nprocs);
+	children = (struct children *)shm_setup(sizeof(*children) * nprocs);
 	if (!children) {
 		printf("Failed to setup shared memory!\n");
 		exit(1);
@@ -228,11 +226,11 @@ void nb_rmdir(const char *fname)
 	}
 }
 
-void nb_rename(const char *old, const char *new)
+void nb_rename(const char *oldname, const char *newname)
 {
-	if (!cli_rename(c, old, new)) {
+	if (!cli_rename(c, oldname, newname)) {
 		printf("ERROR: rename %s %s failed (%s)\n", 
-		       old, new, cli_errstr(c));
+		       oldname, newname, cli_errstr(c));
 		exit(1);
 	}
 }
@@ -281,7 +279,7 @@ static void delete_fn(const char *mnt, file_info *finfo, const char *name, void 
 	char *s, *n;
 	if (finfo->name[0] == '.') return;
 
-	n = strdup(name);
+	n = SMB_STRDUP(name);
 	n[strlen(n)-1] = 0;
 	asprintf(&s, "%s%s", n, finfo->name);
 	if (finfo->mode & aDIR) {

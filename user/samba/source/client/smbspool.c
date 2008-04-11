@@ -4,6 +4,7 @@
    Copyright 1999 by Easy Software Products
    Copyright Andrew Tridgell 1994-1998
    Copyright Andrew Bartlett 2002
+   Copyright Rodrigo Fernandez-Vizarra 2005 
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,9 +21,16 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define NO_SYSLOG
-
 #include "includes.h"
+
+#define TICKET_CC_DIR            "/tmp"
+#define CC_PREFIX                "krb5cc_" /* prefix of the ticket cache */
+#define CC_MAX_FILE_LEN          24   
+#define CC_MAX_FILE_PATH_LEN     (sizeof(TICKET_CC_DIR)-1)+ CC_MAX_FILE_LEN+2   
+#define OVERWRITE                1   
+#define KRB5CCNAME               "KRB5CCNAME"
+#define MAX_RETRY_CONNECT        3
+
 
 /*
  * Globals...
@@ -36,7 +44,8 @@ extern BOOL		in_client;	/* Boolean for client library */
  */
 
 static void		list_devices(void);
-static struct cli_state	*smb_connect(const char *, const char *, int, const char *, const char *, const char *);
+static struct cli_state *smb_complete_connection(const char *, const char *,int , const char *, const char *, const char *, const char *, int);
+static struct cli_state	*smb_connect(const char *, const char *, int, const char *, const char *, const char *, const char *);
 static int		smb_print(struct cli_state *, char *, FILE *);
 
 
@@ -61,6 +70,11 @@ static int		smb_print(struct cli_state *, char *, FILE *);
   FILE		*fp;		/* File to print */
   int		status=0;		/* Status of LPD job */
   struct cli_state *cli;	/* SMB interface */
+  char null_str[1];
+  int tries = 0;
+  const char *dev_uri;
+
+  null_str[0] = '\0';
 
   /* we expect the URI in argv[0]. Detect the case where it is in argv[1] and cope */
   if (argc > 2 && strncmp(argv[0],"smb://", 6) && !strncmp(argv[1],"smb://", 6)) {
@@ -97,6 +111,7 @@ static int		smb_print(struct cli_state *, char *, FILE *);
   * Otherwise, print data from stdin...
   */
 
+
   if (argc == 6)
   {
    /*
@@ -118,8 +133,9 @@ static int		smb_print(struct cli_state *, char *, FILE *);
   * Find the URI...
   */
 
-  if (getenv("DEVICE_URI") != NULL)
-    strncpy(uri, getenv("DEVICE_URI"), sizeof(uri) - 1);
+  dev_uri = getenv("DEVICE_URI");
+  if (dev_uri)
+    strncpy(uri, dev_uri, sizeof(uri) - 1);
   else if (strncmp(argv[0], "smb://", 6) == 0)
     strncpy(uri, argv[0], sizeof(uri) - 1);
   else
@@ -148,12 +164,12 @@ static int		smb_print(struct cli_state *, char *, FILE *);
     if ((password = strchr_m(username, ':')) != NULL)
       *password++ = '\0';
     else
-      password = "";
+      password = null_str;
   }
   else
   {
-    username = "";
-    password = "";
+    username = null_str;
+    password = null_str;
     server   = uri + 6;
   }
 
@@ -199,7 +215,9 @@ static int		smb_print(struct cli_state *, char *, FILE *);
 
   in_client = True;   /* Make sure that we tell lp_load we are */
 
-  if (!lp_load(dyn_CONFIGFILE, True, False, False))
+  load_case_tables();
+
+  if (!lp_load(dyn_CONFIGFILE, True, False, False, True))
   {
     fprintf(stderr, "ERROR: Can't load %s - run testparm to debug it\n", dyn_CONFIGFILE);
     return (1);
@@ -212,21 +230,27 @@ static int		smb_print(struct cli_state *, char *, FILE *);
 
   do
   {
-    if ((cli = smb_connect(workgroup, server, port, printer, username, password)) == NULL)
+    if ((cli = smb_connect(workgroup, server, port, printer, username, password, argv[2])) == NULL)
     {
       if (getenv("CLASS") == NULL)
       {
-        fprintf(stderr, "ERROR: Unable to connect to SAMBA host, will retry in 60 seconds...");
-        sleep (60);
+        fprintf(stderr, "ERROR: Unable to connect to CIFS host, will retry in 60 seconds...\n");
+        sleep (60); /* should just waiting and retrying fix authentication  ??? */
+        tries++;
       }
       else
       {
-        fprintf(stderr, "ERROR: Unable to connect to SAMBA host, trying next printer...");
+        fprintf(stderr, "ERROR: Unable to connect to CIFS host, trying next printer...\n");
         return (1);
       }
     }
   }
-  while (cli == NULL);
+  while ((cli == NULL) && (tries < MAX_RETRY_CONNECT));
+
+  if (cli == NULL) {
+        fprintf(stderr, "ERROR: Unable to connect to CIFS host after (tried %d times)\n", tries);
+        return (1);
+  }
 
  /*
   * Now that we are connected to the server, ignore SIGTERM so that we
@@ -272,40 +296,231 @@ list_devices(void)
 
 
 /*
+ * get the name of the newest ticket cache for the uid user.
+ * pam_krb5 defines a non default ticket cache for each user
+ */
+static
+char * get_ticket_cache( uid_t uid )
+{
+  char *ticket_file = NULL;
+  SMB_STRUCT_DIR *tcdir;                  /* directory where ticket caches are stored */
+  SMB_STRUCT_DIRENT *dirent;   /* directory entry */
+  char *filename = NULL;       /* holds file names on the tmp directory */
+  SMB_STRUCT_STAT buf;        
+  char user_cache_prefix[CC_MAX_FILE_LEN];
+  char file_path[CC_MAX_FILE_PATH_LEN];
+  time_t t = 0;
+
+  snprintf(user_cache_prefix, CC_MAX_FILE_LEN, "%s%d", CC_PREFIX, uid );
+  tcdir = sys_opendir( TICKET_CC_DIR );
+  if ( tcdir == NULL ) 
+    return NULL; 
+  
+  while ( (dirent = sys_readdir( tcdir ) ) ) 
+  { 
+    filename = dirent->d_name;
+    snprintf(file_path, CC_MAX_FILE_PATH_LEN,"%s/%s", TICKET_CC_DIR, filename); 
+    if (sys_stat(file_path, &buf) == 0 ) 
+    {
+      if ( ( buf.st_uid == uid ) && ( S_ISREG(buf.st_mode) ) ) 
+      {
+        /*
+         * check the user id of the file to prevent denial of
+         * service attacks by creating fake ticket caches for the 
+         * user
+         */
+        if ( strstr( filename, user_cache_prefix ) ) 
+        {
+          if ( buf.st_mtime > t ) 
+          { 
+            /*
+             * a newer ticket cache found 
+             */
+            free(ticket_file);
+            ticket_file=SMB_STRDUP(file_path);
+            t = buf.st_mtime;
+          }
+        }
+      }
+    }
+  }
+
+  sys_closedir(tcdir);
+
+  if ( ticket_file == NULL )
+  {
+    /* no ticket cache found */
+    fprintf(stderr, "ERROR: No ticket cache found for userid=%d\n", uid);
+    return NULL;
+  }
+
+  return ticket_file;
+}
+
+static struct cli_state 
+*smb_complete_connection(const char *myname,
+            const char *server,
+            int port,
+            const char *username, 
+            const char *password, 
+            const char *workgroup, 
+            const char *share,
+            int flags)
+{
+  struct cli_state  *cli;    /* New connection */    
+  NTSTATUS nt_status;
+  
+  /* Start the SMB connection */
+  nt_status = cli_start_connection( &cli, myname, server, NULL, port, 
+                                    Undefined, flags, NULL);
+  if (!NT_STATUS_IS_OK(nt_status)) 
+  {
+    return NULL;      
+  }
+    
+  /* We pretty much guarentee password must be valid or a pointer
+     to a 0 char. */
+  if (!password) {
+    return NULL;
+  }
+  
+  if ( (username) && (*username) && 
+      (strlen(password) == 0 ) && 
+       (cli->use_kerberos) ) 
+  {
+    /* Use kerberos authentication */
+    struct passwd *pw;
+    char *cache_file;
+    
+    
+    if ( !(pw = sys_getpwnam(username)) ) {
+      fprintf(stderr,"ERROR Can not get %s uid\n", username);
+      cli_shutdown(cli);
+      return NULL;
+    }
+
+    /*
+     * Get the ticket cache of the user to set KRB5CCNAME env
+     * variable
+     */
+    cache_file = get_ticket_cache( pw->pw_uid );
+    if ( cache_file == NULL ) 
+    {
+      fprintf(stderr, "ERROR: Can not get the ticket cache for %s\n", username);
+      cli_shutdown(cli);
+      return NULL;
+    }
+
+    if ( setenv(KRB5CCNAME, cache_file, OVERWRITE) < 0 ) 
+    {
+      fprintf(stderr, "ERROR: Can not add KRB5CCNAME to the environment");
+      cli_shutdown(cli);
+      free(cache_file);
+      return NULL;
+    }
+    free(cache_file);
+
+    /*
+     * Change the UID of the process to be able to read the kerberos
+     * ticket cache
+     */
+    setuid(pw->pw_uid);
+
+  }
+   
+   
+  if (!NT_STATUS_IS_OK(cli_session_setup(cli, username,
+					 password, strlen(password)+1, 
+					 password, strlen(password)+1,
+					 workgroup)))
+  {
+    fprintf(stderr,"ERROR: Session setup failed: %s\n", cli_errstr(cli));
+    if (NT_STATUS_V(cli_nt_error(cli)) == 
+        NT_STATUS_V(NT_STATUS_MORE_PROCESSING_REQUIRED))
+    {
+      fprintf(stderr, "did you forget to run kinit?\n");
+    }
+    cli_shutdown(cli);
+
+    return NULL;
+  }
+    
+  if (!cli_send_tconX(cli, share, "?????", password, strlen(password)+1)) 
+  {
+    fprintf(stderr, "ERROR: Tree connect failed (%s)\n", cli_errstr(cli));
+    cli_shutdown(cli);
+    return NULL;
+  }
+    
+  return cli;
+}
+
+/*
  * 'smb_connect()' - Return a connection to a server.
  */
 
-static struct cli_state *		/* O - SMB connection */
-smb_connect(const char *workgroup,		/* I - Workgroup */
-            const char *server,		/* I - Server */
-            const int port,		/* I - Port */
-            const char *share,		/* I - Printer */
-            const char *username,		/* I - Username */
-            const char *password)		/* I - Password */
+static struct cli_state *    /* O - SMB connection */
+smb_connect(const char *workgroup,    /* I - Workgroup */
+            const char *server,    /* I - Server */
+            const int port,    /* I - Port */
+            const char *share,    /* I - Printer */
+            const char *username,    /* I - Username */
+            const char *password,    /* I - Password */
+      const char *jobusername)   /* I - User who issued the print job */
 {
-  struct cli_state	*c;		/* New connection */
-  pstring		myname;		/* Client name */
-  NTSTATUS nt_status;
+  struct cli_state  *cli;    /* New connection */
+  pstring    myname;    /* Client name */
+  struct passwd *pwd;
 
  /*
   * Get the names and addresses of the client and server...
   */
 
   get_myname(myname);  
-  	
-  nt_status = cli_full_connection(&c, myname, server, NULL, port, share, "?????", 
-				  username, workgroup, password, 0, Undefined, NULL);
+
+  /* See if we have a username first.  This is for backwards compatible 
+     behavior with 3.0.14a */
+
+  if ( username &&  *username )
+  {
+      cli = smb_complete_connection(myname, server, port, username, 
+                                    password, workgroup, share, 0 );
+      if (cli) 
+        return cli;
+  }
   
-  if (!NT_STATUS_IS_OK(nt_status)) {
-	  fprintf(stderr, "ERROR:  Connection failed with error %s\n", nt_errstr(nt_status));
-	  return NULL;
+  /* 
+   * Try to use the user kerberos credentials (if any) to authenticate
+   */
+  cli = smb_complete_connection(myname, server, port, jobusername, "", 
+                                workgroup, share, 
+                                CLI_FULL_CONNECTION_USE_KERBEROS );
+
+  if (cli ) { return cli; }
+
+  /* give a chance for a passwordless NTLMSSP session setup */
+
+  pwd = getpwuid(geteuid());
+  if (pwd == NULL) {
+     return NULL;
   }
 
+  cli = smb_complete_connection(myname, server, port, pwd->pw_name, "", 
+                                workgroup, share, 0);
+
+  if (cli) { return cli; }
+
+  /*
+   * last try. Use anonymous authentication
+   */
+
+  cli = smb_complete_connection(myname, server, port, "", "", 
+                                workgroup, share, 0);
   /*
    * Return the new connection...
    */
   
-  return (c);
+  return (cli);
 }
 
 

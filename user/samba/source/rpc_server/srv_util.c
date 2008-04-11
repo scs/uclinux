@@ -42,6 +42,7 @@
 #undef DBGC_CLASS
 #define DBGC_CLASS DBGC_RPC_SRV
 
+#if 0	/* these aren't used currently but are here if you need them */
 /*
  * A list of the rids of well known BUILTIN and Domain users
  * and groups.
@@ -78,34 +79,5 @@ static const rid_name domain_group_rids[] =
     { DOMAIN_GROUP_RID_GUESTS       , "Domain Guests" },
     { 0                             , NULL }
 };
-
-
-/*******************************************************************
- gets a domain user's groups from their already-calculated NT_USER_TOKEN
- ********************************************************************/
-NTSTATUS nt_token_to_group_list(TALLOC_CTX *mem_ctx, const DOM_SID *domain_sid, 
-				const NT_USER_TOKEN *nt_token,
-				int *numgroups, DOM_GID **pgids) 
-{
-	DOM_GID *gids;
-	int i;
-
-	gids = TALLOC_ARRAY(mem_ctx, DOM_GID, nt_token->num_sids);
-
-	if (!gids) {
-		return NT_STATUS_NO_MEMORY;
-	}
-
-	*numgroups=0;
-
-	for (i=PRIMARY_GROUP_SID_INDEX; i < nt_token->num_sids; i++) {
-		if (sid_compare_domain(domain_sid, &nt_token->user_sids[i])==0) {
-			sid_peek_rid(&nt_token->user_sids[i], &(gids[*numgroups].g_rid));
-			gids[*numgroups].attr=7;
-			(*numgroups)++;
-		}
-	}
-	*pgids = gids; 
-	return NT_STATUS_OK;
-}
+#endif
 

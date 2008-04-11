@@ -27,6 +27,8 @@ int ClientNMB       = -1;
 int ClientDGRAM     = -1;
 int global_nmb_port = -1;
 
+extern BOOL rescan_listen_set;
+extern struct in_addr loopback_ip;
 extern BOOL global_in_nmbd;
 
 extern BOOL override_logfile;
@@ -56,7 +58,7 @@ static void terminate(void)
 	DEBUG(0,("Got SIGTERM: going down...\n"));
   
 	/* Write out wins.dat file if samba is a WINS server */
-	wins_write_database(False);
+	wins_write_database(0,False);
   
 	/* Remove all SELF registered names from WINS */
 	release_wins_names();
@@ -74,7 +76,8 @@ static void terminate(void)
  Handle a SHUTDOWN message from smbcontrol.
  **************************************************************************** */
 
-static void nmbd_terminate(int msg_type, pid_t src, void *buf, size_t len)
+static void nmbd_terminate(int msg_type, struct process_id src,
+			   void *buf, size_t len, void *private_data)
 {
 	terminate();
 }
@@ -88,7 +91,7 @@ static SIG_ATOMIC_T got_sig_term;
 static void sig_term(int sig)
 {
 	got_sig_term = 1;
-	sys_select_signal();
+	sys_select_signal(SIGTERM);
 }
 
 /**************************************************************************** **
@@ -100,48 +103,8 @@ static SIG_ATOMIC_T reload_after_sighup;
 static void sig_hup(int sig)
 {
 	reload_after_sighup = 1;
-	sys_select_signal();
+	sys_select_signal(SIGHUP);
 }
-
-#if DUMP_CORE
-/**************************************************************************** **
- Prepare to dump a core file - carefully!
- **************************************************************************** */
-
-static BOOL dump_core(void)
-{
-	char *p;
-	pstring dname;
-	pstrcpy( dname, lp_logfile() );
-	if ((p=strrchr_m(dname,'/')))
-		*p=0;
-	pstrcat( dname, "/corefiles" );
-	mkdir( dname, 0700 );
-	sys_chown( dname, getuid(), getgid() );
-	chmod( dname, 0700 );
-	if ( chdir(dname) )
-		return( False );
-	umask( ~(0700) );
-
-#ifdef HAVE_GETRLIMIT
-#ifdef RLIMIT_CORE
-	{
-		struct rlimit rlp;
-		getrlimit( RLIMIT_CORE, &rlp );
-		rlp.rlim_cur = MAX( 4*1024*1024, rlp.rlim_cur );
-		setrlimit( RLIMIT_CORE, &rlp );
-		getrlimit( RLIMIT_CORE, &rlp );
-		DEBUG( 3, ( "Core limits now %d %d\n", (int)rlp.rlim_cur, (int)rlp.rlim_max ) );
-	}
-#endif
-#endif
-
-
-	DEBUG(0,("Dumping core in %s\n",dname));
-	abort();
-	return( True );
-}
-#endif
 
 /**************************************************************************** **
  Possibly continue after a fault.
@@ -149,9 +112,7 @@ static BOOL dump_core(void)
 
 static void fault_continue(void)
 {
-#if DUMP_CORE
 	dump_core();
-#endif
 }
 
 /**************************************************************************** **
@@ -196,8 +157,6 @@ static BOOL reload_interfaces(time_t t)
 	static time_t lastt;
 	int n;
 	struct subnet_record *subrec;
-	extern BOOL rescan_listen_set;
-	extern struct in_addr loopback_ip;
 
 	if (t && ((t - lastt) < NMBD_INTERFACES_RELOAD)) return False;
 	lastt = t;
@@ -211,6 +170,11 @@ static BOOL reload_interfaces(time_t t)
 	/* find any interfaces that need adding */
 	for (n=iface_count() - 1; n >= 0; n--) {
 		struct interface *iface = get_interface(n);
+
+		if (!iface) {
+			DEBUG(2,("reload_interfaces: failed to get interface %d\n", n));
+			continue;
+		}
 
 		/*
 		 * We don't want to add a loopback interface, in case
@@ -290,7 +254,7 @@ static BOOL reload_nmbd_services(BOOL test)
 	if ( test && !lp_file_list_changed() )
 		return(True);
 
-	ret = lp_load( dyn_CONFIGFILE, True , False, False);
+	ret = lp_load( dyn_CONFIGFILE, True , False, False, True);
 
 	/* perhaps the config filename is now set */
 	if ( !test ) {
@@ -307,7 +271,8 @@ static BOOL reload_nmbd_services(BOOL test)
  * detects that there are no subnets.
  **************************************************************************** */
 
-static void msg_reload_nmbd_services(int msg_type, pid_t src, void *buf, size_t len)
+static void msg_reload_nmbd_services(int msg_type, struct process_id src,
+				     void *buf, size_t len, void *private_data)
 {
 	write_browse_list( 0, True );
 	dump_all_namelists();
@@ -323,6 +288,58 @@ static void msg_reload_nmbd_services(int msg_type, pid_t src, void *buf, size_t 
 	}
 }
 
+static void msg_nmbd_send_packet(int msg_type, struct process_id src,
+				 void *buf, size_t len, void *private_data)
+{
+	struct packet_struct *p = (struct packet_struct *)buf;
+	struct subnet_record *subrec;
+	struct in_addr *local_ip;
+
+	DEBUG(10, ("Received send_packet from %d\n", procid_to_pid(&src)));
+
+	if (len != sizeof(struct packet_struct)) {
+		DEBUG(2, ("Discarding invalid packet length from %d\n",
+			  procid_to_pid(&src)));
+		return;
+	}
+
+	if ((p->packet_type != NMB_PACKET) &&
+	    (p->packet_type != DGRAM_PACKET)) {
+		DEBUG(2, ("Discarding invalid packet type from %d: %d\n",
+			  procid_to_pid(&src), p->packet_type));
+		return;
+	}
+
+	local_ip = iface_ip(p->ip);
+
+	if (local_ip == NULL) {
+		DEBUG(2, ("Could not find ip for packet from %d\n",
+			  procid_to_pid(&src)));
+		return;
+	}
+
+	subrec = FIRST_SUBNET;
+
+	p->fd = (p->packet_type == NMB_PACKET) ?
+		subrec->nmb_sock : subrec->dgram_sock;
+
+	for (subrec = FIRST_SUBNET; subrec != NULL;
+	     subrec = NEXT_SUBNET_EXCLUDING_UNICAST(subrec)) {
+		if (ip_equal(*local_ip, subrec->myip)) {
+			p->fd = (p->packet_type == NMB_PACKET) ?
+				subrec->nmb_sock : subrec->dgram_sock;
+			break;
+		}
+	}
+
+	if (p->packet_type == DGRAM_PACKET) {
+		p->port = 138;
+		p->packet.dgram.header.source_ip.s_addr = local_ip->s_addr;
+		p->packet.dgram.header.source_port = 138;
+	}
+
+	send_packet(p);
+}
 
 /**************************************************************************** **
  The main select loop.
@@ -540,7 +557,8 @@ static void process(void)
 
 		if(reload_after_sighup) {
 			DEBUG( 0, ( "Got SIGHUP dumping debug info.\n" ) );
-			msg_reload_nmbd_services(MSG_SMB_CONF_UPDATED, (pid_t) 0, (void*) &no_subnets, 0);
+			msg_reload_nmbd_services(MSG_SMB_CONF_UPDATED,
+						 pid_to_procid(0), (void*) &no_subnets, 0, NULL);
 			if(no_subnets)
 				return;
 			reload_after_sighup = 0;
@@ -552,7 +570,7 @@ static void process(void)
 			return;
 
 		/* free up temp memory */
-			lp_talloc_free();
+			lp_TALLOC_FREE();
 	}
 }
 
@@ -577,7 +595,9 @@ static BOOL open_sockets(BOOL isdaemon, int port)
 	else
 		ClientNMB = 0;
   
-	ClientDGRAM = open_socket_in(SOCK_DGRAM,DGRAM_PORT,3,0,True);
+	ClientDGRAM = open_socket_in(SOCK_DGRAM, DGRAM_PORT,
+					   3, interpret_addr(lp_socket_address()),
+					   True);
 
 	if ( ClientNMB == -1 )
 		return( False );
@@ -587,6 +607,10 @@ static BOOL open_sockets(BOOL isdaemon, int port)
 
 	set_socket_options( ClientNMB,   "SO_BROADCAST" );
 	set_socket_options( ClientDGRAM, "SO_BROADCAST" );
+
+	/* Ensure we're non-blocking. */
+	set_blocking( ClientNMB, False);
+	set_blocking( ClientDGRAM, False);
 
 	DEBUG( 3, ( "open_sockets: Broadcast sockets opened.\n" ) );
 	return( True );
@@ -600,23 +624,27 @@ static BOOL open_sockets(BOOL isdaemon, int port)
 	pstring logfile;
 	static BOOL opt_interactive;
 	poptContext pc;
-	int opt;
+	static char *p_lmhosts = dyn_LMHOSTSFILE;
+	static BOOL no_process_group = False;
 	struct poptOption long_options[] = {
 	POPT_AUTOHELP
 	{"daemon", 'D', POPT_ARG_VAL, &is_daemon, True, "Become a daemon(default)" },
 	{"interactive", 'i', POPT_ARG_VAL, &opt_interactive, True, "Run interactive (not a daemon)" },
 	{"foreground", 'F', POPT_ARG_VAL, &Fork, False, "Run daemon in foreground (for daemontools & etc)" },
+	{"no-process-group", 0, POPT_ARG_VAL, &no_process_group, True, "Don't create a new process group" },
 	{"log-stdout", 'S', POPT_ARG_VAL, &log_stdout, True, "Log to stdout" },
-	{"hosts", 'H', POPT_ARG_STRING, dyn_LMHOSTSFILE, 'H', "Load a netbios hosts file"},
+	{"hosts", 'H', POPT_ARG_STRING, &p_lmhosts, 'H', "Load a netbios hosts file"},
 	{"port", 'p', POPT_ARG_INT, &global_nmb_port, NMB_PORT, "Listen on the specified port" },
 	POPT_COMMON_SAMBA
 	{ NULL }
 	};
 
+	load_case_tables();
+
 	global_nmb_port = NMB_PORT;
 
 	pc = poptGetContext("nmbd", argc, argv, long_options, 0);
-	while ((opt = poptGetNextOpt(pc)) != -1) ;
+	while (poptGetNextOpt(pc) != -1) {};
 	poptFreeContext(pc);
 
 	global_in_nmbd = True;
@@ -635,6 +663,7 @@ static BOOL open_sockets(BOOL isdaemon, int port)
 	}
 	
 	fault_setup((void (*)(void *))fault_continue );
+	dump_core_setup("nmbd");
 	
 	/* POSIX demands that signals are inherited. If the invoking process has
 	 * these signals masked, we will have problems, as we won't receive them. */
@@ -670,7 +699,7 @@ static BOOL open_sockets(BOOL isdaemon, int port)
 	reopen_logs();
 
 	DEBUG( 0, ( "Netbios nameserver version %s started.\n", SAMBA_VERSION_STRING) );
-	DEBUGADD( 0, ( "Copyright Andrew Tridgell and the Samba Team 1994-2004\n" ) );
+	DEBUGADD( 0, ( "%s\n", COPYRIGHT_STARTUP_MESSAGE ) );
 
 	if ( !reload_nmbd_services(False) )
 		return(-1);
@@ -694,7 +723,7 @@ static BOOL open_sockets(BOOL isdaemon, int port)
   
 	if (is_daemon && !opt_interactive) {
 		DEBUG( 2, ( "Becoming a daemon.\n" ) );
-		become_daemon(Fork);
+		become_daemon(Fork, no_process_group);
 	}
 
 #if HAVE_SETPGID
@@ -702,7 +731,7 @@ static BOOL open_sockets(BOOL isdaemon, int port)
 	 * If we're interactive we want to set our own process group for 
 	 * signal management.
 	 */
-	if (opt_interactive)
+	if (opt_interactive && !no_process_group)
 		setpgid( (pid_t)0, (pid_t)0 );
 #endif
 
@@ -720,10 +749,16 @@ static BOOL open_sockets(BOOL isdaemon, int port)
 
 	pidfile_create("nmbd");
 	message_init();
-	message_register(MSG_FORCE_ELECTION, nmbd_message_election);
-	message_register(MSG_WINS_NEW_ENTRY, nmbd_wins_new_entry);
-	message_register(MSG_SHUTDOWN, nmbd_terminate);
-	message_register(MSG_SMB_CONF_UPDATED, msg_reload_nmbd_services);
+	message_register(MSG_FORCE_ELECTION, nmbd_message_election, NULL);
+#if 0
+	/* Until winsrepl is done. */
+	message_register(MSG_WINS_NEW_ENTRY, nmbd_wins_new_entry, NULL);
+#endif
+	message_register(MSG_SHUTDOWN, nmbd_terminate, NULL);
+	message_register(MSG_SMB_CONF_UPDATED, msg_reload_nmbd_services, NULL);
+	message_register(MSG_SEND_PACKET, msg_nmbd_send_packet, NULL);
+
+	TimeInit();
 
 	DEBUG( 3, ( "Opening sockets %d\n", global_nmb_port ) );
 
@@ -743,8 +778,8 @@ static BOOL open_sockets(BOOL isdaemon, int port)
 	}
 
 	/* Load in any static local names. */ 
-	load_lmhosts_file(dyn_LMHOSTSFILE);
-	DEBUG(3,("Loaded hosts file %s\n", dyn_LMHOSTSFILE));
+	load_lmhosts_file(p_lmhosts);
+	DEBUG(3,("Loaded hosts file %s\n", p_lmhosts));
 
 	/* If we are acting as a WINS server, initialise data structures. */
 	if( !initialise_wins() ) {

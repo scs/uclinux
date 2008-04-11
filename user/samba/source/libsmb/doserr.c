@@ -31,6 +31,7 @@ typedef const struct
 werror_code_struct dos_errs[] =
 {
 	{ "WERR_OK", WERR_OK },
+	{ "WERR_GENERAL_FAILURE", WERR_GENERAL_FAILURE },
 	{ "WERR_BADFILE", WERR_BADFILE },
 	{ "WERR_ACCESS_DENIED", WERR_ACCESS_DENIED },
 	{ "WERR_BADFID", WERR_BADFID },
@@ -65,16 +66,27 @@ werror_code_struct dos_errs[] =
 	{ "WERR_DFS_NO_SUCH_SERVER", WERR_DFS_NO_SUCH_SERVER },
 	{ "WERR_DFS_INTERNAL_ERROR", WERR_DFS_INTERNAL_ERROR },
 	{ "WERR_DFS_CANT_CREATE_JUNCT", WERR_DFS_CANT_CREATE_JUNCT },
+	{ "WERR_MACHINE_LOCKED", WERR_MACHINE_LOCKED },
+	{ "WERR_NO_LOGON_SERVERS", WERR_NO_LOGON_SERVERS },
+	{ "WERR_LOGON_FAILURE", WERR_LOGON_FAILURE },
+	{ "WERR_NO_SUCH_DOMAIN", WERR_NO_SUCH_DOMAIN },
 	{ "WERR_INVALID_SECURITY_DESCRIPTOR", WERR_INVALID_SECURITY_DESCRIPTOR },
 	{ "WERR_INVALID_OWNER", WERR_INVALID_OWNER },
 	{ "WERR_SERVER_UNAVAILABLE", WERR_SERVER_UNAVAILABLE },
 	{ "WERR_IO_PENDING", WERR_IO_PENDING },
+	{ "WERR_INVALID_SERVICE_CONTROL", WERR_INVALID_SERVICE_CONTROL },
+	{ "WERR_NET_NAME_NOT_FOUND", WERR_NET_NAME_NOT_FOUND },
+	{ "WERR_REG_CORRUPT", WERR_REG_CORRUPT },
+	{ "WERR_REG_IO_FAILURE", WERR_REG_IO_FAILURE },
+	{ "WERR_REG_FILE_INVALID", WERR_REG_FILE_INVALID },
+	{ "WERR_SERVICE_DISABLED", WERR_SERVICE_DISABLED },
 	{ NULL, W_ERROR(0) }
 };
 
 /*****************************************************************************
- returns a DOS error message.  not amazingly helpful, but better than a number.
+ Returns a DOS error message.  not amazingly helpful, but better than a number.
  *****************************************************************************/
+
 const char *dos_errstr(WERROR werror)
 {
         static pstring msg;

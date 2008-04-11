@@ -22,6 +22,8 @@
 
 #ifdef WITH_FAKE_KASERVER
 
+#define NO_ASN1_TYPEDEFS 1
+
 #include <afs/stds.h>
 #include <afs/afs.h>
 #include <afs/auth.h>
@@ -209,20 +211,26 @@ char *afs_createtoken_str(const char *username, const char *cell)
 
 BOOL afs_login(connection_struct *conn)
 {
+	extern userdom_struct current_user_info;
+	extern struct current_user current_user;
 	DATA_BLOB ticket;
 	pstring afs_username;
 	char *cell;
 	BOOL result;
 	char *ticket_str;
-	DOM_SID user_sid;
+	const DOM_SID *user_sid;
 
 	struct ClearToken ct;
 
 	pstrcpy(afs_username, lp_afs_username_map());
-	standard_sub_conn(conn, afs_username, sizeof(afs_username));
+	standard_sub_advanced(SNUM(conn), conn->user,
+			      conn->connectpath, conn->gid,
+			      get_current_username(),
+			      current_user_info.domain,
+			      afs_username, sizeof(afs_username));
 
-	if (NT_STATUS_IS_OK(uid_to_sid(&user_sid, conn->uid)))
-		pstring_sub(afs_username, "%s", sid_string_static(&user_sid));
+	user_sid = &current_user.nt_user_token->user_sids[0];
+	pstring_sub(afs_username, "%s", sid_string_static(user_sid));
 
 	/* The pts command always generates completely lower-case user
 	 * names. */

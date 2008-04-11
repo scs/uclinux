@@ -242,7 +242,7 @@ enum client_action
 	*term_code = 0;
 #endif /* KANJI */
 
-	if (!lp_load(dyn_CONFIGFILE,True, False, False))
+	if (!lp_load(dyn_CONFIGFILE,True, False, False, True))
 	{
 		fprintf(stderr, "Can't load %s - run testparm to debug it\n", dyn_CONFIGFILE);
 	}
@@ -288,7 +288,7 @@ enum client_action
 	{
 		int i;
 		for (i=0; i<PI_MAX_PIPES; i++)
-			smb_cli->nt_pipe_fnum[i]   = 0xffff;
+			smb_cli->pipes[i].fnum   = 0xffff;
 	}
 
 	setup_logging(pname, True);
@@ -493,7 +493,7 @@ enum client_action
 	strupper_m(global_myname);
 	fstrcpy(cli_info.myhostname, global_myname);
 
-	DEBUG(3,("%s client started (version %s)\n",timestring(False),SAMBA_VERSION_STRING));
+	DEBUG(3,("%s client started (version %s)\n",current_timestring(False),SAMBA_VERSION_STRING));
 
 	if (*smb_cli->domain == 0)
 	{

@@ -57,6 +57,9 @@ typedef struct {
 #define SE_ADD_USERS			{ { 0x00000040, 0x00000000, 0x00000000, 0x00000000 } }
 #define SE_DISK_OPERATOR		{ { 0x00000080, 0x00000000, 0x00000000, 0x00000000 } }
 #define SE_REMOTE_SHUTDOWN		{ { 0x00000100, 0x00000000, 0x00000000, 0x00000000 } }
+#define SE_BACKUP			{ { 0x00000200, 0x00000000, 0x00000000, 0x00000000 } }
+#define SE_RESTORE			{ { 0x00000400, 0x00000000, 0x00000000, 0x00000000 } }
+#define SE_TAKE_OWNERSHIP		{ { 0x00000800, 0x00000000, 0x00000000, 0x00000000 } }
 
 /* defined in lib/privilegs.c */
 
@@ -66,6 +69,8 @@ extern const SE_PRIV se_print_operator;
 extern const SE_PRIV se_add_users;
 extern const SE_PRIV se_disk_operators;
 extern const SE_PRIV se_remote_shutdown;
+extern const SE_PRIV se_restore;
+extern const SE_PRIV se_take_ownership;
 
 
 /*
@@ -78,25 +83,22 @@ extern const SE_PRIV se_remote_shutdown;
 #define PR_LOG_ON_SERVICE      0x0010
 
 
-#ifndef _BOOL
-typedef int BOOL;
-#define _BOOL       /* So we don't typedef BOOL again in vfs.h */
-#endif
-
-typedef struct LUID
-{
-	uint32 low;
+typedef struct {
 	uint32 high;
+	uint32 low;
 } LUID;
 
-typedef struct LUID_ATTR
-{
+typedef struct {
 	LUID luid;
 	uint32 attr;
 } LUID_ATTR;
 
-typedef struct privilege_set
-{
+#ifndef _UPPER_BOOL
+typedef int BOOL;
+#define _UPPER_BOOL
+#endif
+
+typedef struct {
 	TALLOC_CTX *mem_ctx;
 	BOOL ext_ctx;
 	uint32 count;
@@ -104,10 +106,11 @@ typedef struct privilege_set
 	LUID_ATTR *set;
 } PRIVILEGE_SET;
 
-typedef struct _PRIVS {
+typedef struct {
 	SE_PRIV se_priv;
 	const char *name;
 	const char *description;
+	LUID luid;
 } PRIVS;
 
 #endif /* PRIVILEGES_H */

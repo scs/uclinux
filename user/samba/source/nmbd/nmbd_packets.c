@@ -536,6 +536,8 @@ void queue_wins_refresh(struct nmb_name *nmbname,
 
 	userdata = (struct userdata_struct *)SMB_MALLOC(sizeof(*userdata) + strlen(tag) + 1);
 	if (!userdata) {
+		p->locked = False;
+		free_packet(p);
 		DEBUG(0,("Failed to allocate userdata structure!\n"));
 		return;
 	}
@@ -1151,10 +1153,10 @@ mismatch with our scope (%s).\n", inet_ntoa(p->ip), scope, global_scope()));
 	switch (command) {
 		case ANN_HostAnnouncement:
 			debug_browse_data(buf, len);
-			process_lm_host_announce(subrec, p, buf+1);
+			process_lm_host_announce(subrec, p, buf+1, len > 1 ? len-1 : 0);
 			break;
 		case ANN_AnnouncementRequest:
-			process_lm_announce_request(subrec, p, buf+1);
+			process_lm_announce_request(subrec, p, buf+1, len > 1 ? len-1 : 0);
 			break;
 		default:
 			DEBUG(0,("process_lanman_packet: On subnet %s ignoring browse packet \
@@ -1246,7 +1248,7 @@ packet sent to name %s from IP %s\n",
 packet sent to name %s from IP %s\n",
 			dgram->datasize,
 			len,
-			PTR_DIFF(buf2, dgram->data),
+			(int)PTR_DIFF(buf2, dgram->data),
 			nmb_namestr(&dgram->dest_name),
 			inet_ntoa(p->ip) ));
 		return;
@@ -1257,7 +1259,7 @@ packet sent to name %s from IP %s\n",
 packet sent to name %s from IP %s\n",
 			dgram->datasize,
 			len,
-			PTR_DIFF(buf2, dgram->data),
+			(int)PTR_DIFF(buf2, dgram->data),
 			nmb_namestr(&dgram->dest_name),
 			inet_ntoa(p->ip) ));
 		return;
@@ -1668,11 +1670,13 @@ static BOOL create_listen_fdset(fd_set **ppset, int **psock_array, int *listen_n
 	if((count*2) + 2 > FD_SETSIZE) {
 		DEBUG(0,("create_listen_fdset: Too many file descriptors needed (%d). We can \
 only use %d.\n", (count*2) + 2, FD_SETSIZE));
+		SAFE_FREE(pset);
 		return True;
 	}
 
 	if((sock_array = SMB_MALLOC_ARRAY(int, (count*2) + 2)) == NULL) {
 		DEBUG(0,("create_listen_fdset: malloc fail for socket array.\n"));
+		SAFE_FREE(pset);
 		return True;
 	}
 
@@ -1895,7 +1899,7 @@ BOOL send_mailslot(BOOL unique, const char *mailslot,char *buf, size_t len,
 	SSVAL(ptr,smb_vwv16,2);
 	p2 = smb_buf(ptr);
 	safe_strcpy_base(p2, mailslot, dgram->data, sizeof(dgram->data));
-	p2 = skip_string(p2,1);
+	p2 = skip_string(ptr,MAX_DGRAM_SIZE,p2);
   
 	if (((p2+len) > dgram->data+sizeof(dgram->data)) || ((p2+len) < p2)) {
 		DEBUG(0, ("send_mailslot: Cannot write beyond end of packet\n"));

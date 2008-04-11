@@ -25,8 +25,6 @@
 
 #define PRIVPREFIX              "PRIV_"
 
-#define GENERATE_LUID_LOW(x)	(x)+1;
-
 static const SE_PRIV se_priv_all  = SE_ALL_PRIVS;
 static const SE_PRIV se_priv_end  = SE_END;
 
@@ -39,67 +37,81 @@ const SE_PRIV se_print_operator  = SE_PRINT_OPERATOR;
 const SE_PRIV se_add_users       = SE_ADD_USERS;
 const SE_PRIV se_disk_operators  = SE_DISK_OPERATOR;
 const SE_PRIV se_remote_shutdown = SE_REMOTE_SHUTDOWN;
+const SE_PRIV se_restore         = SE_RESTORE;
+const SE_PRIV se_take_ownership  = SE_TAKE_OWNERSHIP;
 
 /********************************************************************
  This is a list of privileges reported by a WIndows 2000 SP4 AD DC
- just for reference purposes:
+ just for reference purposes (and I know the LUID is not guaranteed 
+ across reboots):
 
-            SeCreateTokenPrivilege  Create a token object
-     SeAssignPrimaryTokenPrivilege  Replace a process level token
-             SeLockMemoryPrivilege  Lock pages in memory
-          SeIncreaseQuotaPrivilege  Increase quotas
-         SeMachineAccountPrivilege  Add workstations to domain
-                    SeTcbPrivilege  Act as part of the operating system
-               SeSecurityPrivilege  Manage auditing and security log
-          SeTakeOwnershipPrivilege  Take ownership of files or other objects
-             SeLoadDriverPrivilege  Load and unload device drivers
-          SeSystemProfilePrivilege  Profile system performance
-             SeSystemtimePrivilege  Change the system time
-   SeProfileSingleProcessPrivilege  Profile single process
-   SeIncreaseBasePriorityPrivilege  Increase scheduling priority
-         SeCreatePagefilePrivilege  Create a pagefile
-        SeCreatePermanentPrivilege  Create permanent shared objects
-                 SeBackupPrivilege  Back up files and directories
-                SeRestorePrivilege  Restore files and directories
-               SeShutdownPrivilege  Shut down the system
-                  SeDebugPrivilege  Debug programs
-                  SeAuditPrivilege  Generate security audits
-      SeSystemEnvironmentPrivilege  Modify firmware environment values
-           SeChangeNotifyPrivilege  Bypass traverse checking
-         SeRemoteShutdownPrivilege  Force shutdown from a remote system
-                 SeUndockPrivilege  Remove computer from docking station
-              SeSyncAgentPrivilege  Synchronize directory service data
-       SeEnableDelegationPrivilege  Enable computer and user accounts to be trusted for delegation
-           SeManageVolumePrivilege  Perform volume maintenance tasks
-            SeImpersonatePrivilege  Impersonate a client after authentication
-           SeCreateGlobalPrivilege  Create global objects
+            SeCreateTokenPrivilege  Create a token object ( 0x0, 0x2 )
+     SeAssignPrimaryTokenPrivilege  Replace a process level token ( 0x0, 0x3 )
+             SeLockMemoryPrivilege  Lock pages in memory ( 0x0, 0x4 )
+          SeIncreaseQuotaPrivilege  Increase quotas ( 0x0, 0x5 )
+         SeMachineAccountPrivilege  Add workstations to domain ( 0x0, 0x6 )
+                    SeTcbPrivilege  Act as part of the operating system ( 0x0, 0x7 )
+               SeSecurityPrivilege  Manage auditing and security log ( 0x0, 0x8 )
+          SeTakeOwnershipPrivilege  Take ownership of files or other objects ( 0x0, 0x9 )
+             SeLoadDriverPrivilege  Load and unload device drivers ( 0x0, 0xa )
+          SeSystemProfilePrivilege  Profile system performance ( 0x0, 0xb )
+             SeSystemtimePrivilege  Change the system time ( 0x0, 0xc )
+   SeProfileSingleProcessPrivilege  Profile single process ( 0x0, 0xd )
+   SeIncreaseBasePriorityPrivilege  Increase scheduling priority ( 0x0, 0xe )
+         SeCreatePagefilePrivilege  Create a pagefile ( 0x0, 0xf )
+        SeCreatePermanentPrivilege  Create permanent shared objects ( 0x0, 0x10 )
+                 SeBackupPrivilege  Back up files and directories ( 0x0, 0x11 )
+                SeRestorePrivilege  Restore files and directories ( 0x0, 0x12 )
+               SeShutdownPrivilege  Shut down the system ( 0x0, 0x13 )
+                  SeDebugPrivilege  Debug programs ( 0x0, 0x14 )
+                  SeAuditPrivilege  Generate security audits ( 0x0, 0x15 )
+      SeSystemEnvironmentPrivilege  Modify firmware environment values ( 0x0, 0x16 )
+           SeChangeNotifyPrivilege  Bypass traverse checking ( 0x0, 0x17 )
+         SeRemoteShutdownPrivilege  Force shutdown from a remote system ( 0x0, 0x18 )
+                 SeUndockPrivilege  Remove computer from docking station ( 0x0, 0x19 )
+              SeSyncAgentPrivilege  Synchronize directory service data ( 0x0, 0x1a )
+       SeEnableDelegationPrivilege  Enable computer and user accounts to be trusted for delegation ( 0x0, 0x1b )
+           SeManageVolumePrivilege  Perform volume maintenance tasks ( 0x0, 0x1c )
+            SeImpersonatePrivilege  Impersonate a client after authentication ( 0x0, 0x1d )
+           SeCreateGlobalPrivilege  Create global objects ( 0x0, 0x1e )
 
-********************************************************************/
+ ********************************************************************/
 
-
+/* we have to define the LUID here due to a horrible check by printmig.exe
+   that requires the SeBackupPrivilege match what is in Windows.  So match
+   those that we implement and start Samba privileges at 0x1001 */
+   
 PRIVS privs[] = {
 #if 0	/* usrmgr will display these twice if you include them.  We don't 
 	   use them but we'll keep the bitmasks reserved in privileges.h anyways */
 	   
-	{SE_NETWORK_LOGON,		"SeNetworkLogonRight",			"Access this computer from network"},
-	{SE_INTERACTIVE_LOGON,		"SeInteractiveLogonRight",		"Log on locally"},
-	{SE_BATCH_LOGON,		"SeBatchLogonRight",			"Log on as a batch job"},
-	{SE_SERVICE_LOGON,		"SeServiceLogonRight",			"Log on as a service"},
+	{SE_NETWORK_LOGON,	"SeNetworkLogonRight",		"Access this computer from network", 	   { 0x0, 0x0 }},
+	{SE_INTERACTIVE_LOGON,	"SeInteractiveLogonRight",	"Log on locally", 			   { 0x0, 0x0 }},
+	{SE_BATCH_LOGON,	"SeBatchLogonRight",		"Log on as a batch job",		   { 0x0, 0x0 }},
+	{SE_SERVICE_LOGON,	"SeServiceLogonRight",		"Log on as a service",			   { 0x0, 0x0 }},
 #endif
-	{SE_MACHINE_ACCOUNT,		"SeMachineAccountPrivilege",		"Add machines to domain"},
-	{SE_PRINT_OPERATOR,		"SePrintOperatorPrivilege",		"Manage printers"},
-	{SE_ADD_USERS,			"SeAddUsersPrivilege",			"Add users and groups to the domain"},
-	{SE_REMOTE_SHUTDOWN,		"SeRemoteShutdownPrivilege",		"Force shutdown from a remote system"},
-	{SE_DISK_OPERATOR,		"SeDiskOperatorPrivilege",		"Manage disk shares"},
+	{SE_MACHINE_ACCOUNT,	"SeMachineAccountPrivilege",	"Add machines to domain",		   { 0x0, 0x0006 }},
+	{SE_TAKE_OWNERSHIP,     "SeTakeOwnershipPrivilege",     "Take ownership of files or other objects",{ 0x0, 0x0009 }},
+        {SE_BACKUP,             "SeBackupPrivilege",            "Back up files and directories",	   { 0x0, 0x0011 }},
+        {SE_RESTORE,            "SeRestorePrivilege",           "Restore files and directories",	   { 0x0, 0x0012 }},
+	{SE_REMOTE_SHUTDOWN,	"SeRemoteShutdownPrivilege",	"Force shutdown from a remote system",	   { 0x0, 0x0018 }},
+	
+	{SE_PRINT_OPERATOR,	"SePrintOperatorPrivilege",	"Manage printers",			   { 0x0, 0x1001 }},
+	{SE_ADD_USERS,		"SeAddUsersPrivilege",		"Add users and groups to the domain",	   { 0x0, 0x1002 }},
+	{SE_DISK_OPERATOR,	"SeDiskOperatorPrivilege",	"Manage disk shares",			   { 0x0, 0x1003 }},
 
-	{SE_END,			"",					""}
+	{SE_END, "", "", { 0x0, 0x0 }}
 };
 
-typedef struct priv_sid_list {
+typedef struct {
+	size_t count;
+	DOM_SID *list;
+} SID_LIST;
+
+typedef struct {
 	SE_PRIV privilege;
 	SID_LIST sids;
 } PRIV_SID_LIST;
-
 
 /***************************************************************************
  copy an SE_PRIV structure
@@ -274,6 +286,11 @@ static BOOL set_privileges( const DOM_SID *sid, SE_PRIV *mask )
 	if ( !tdb )
 		return False;
 
+	if ( !sid || (sid->num_auths == 0) ) {
+		DEBUG(0,("set_privileges: Refusing to store empty SID!\n"));
+		return False;
+	}
+
 	/* PRIV_<SID> (NULL terminated) as the key */
 	
 	fstr_sprintf( keystr, "%s%s", PRIVPREFIX, sid_string_static(sid) );
@@ -292,7 +309,8 @@ static BOOL set_privileges( const DOM_SID *sid, SE_PRIV *mask )
  check if the privilege is in the privilege list
 ****************************************************************************/
 
-static BOOL is_privilege_assigned( SE_PRIV *privileges, const SE_PRIV *check )
+static BOOL is_privilege_assigned( const SE_PRIV *privileges,
+				   const SE_PRIV *check )
 {
 	SE_PRIV p1, p2;
 
@@ -380,6 +398,8 @@ static BOOL privilege_set_add(PRIVILEGE_SET *priv_set, LUID_ATTR set)
 
 /*********************************************************************
  Generate the LUID_ATTR structure based on a bitmask
+ The assumption here is that the privilege has already been validated
+ so we are guaranteed to find it in the list. 
 *********************************************************************/
 
 LUID_ATTR get_privilege_luid( SE_PRIV *mask )
@@ -387,13 +407,12 @@ LUID_ATTR get_privilege_luid( SE_PRIV *mask )
 	LUID_ATTR priv_luid;
 	int i;
 
-	priv_luid.attr = 0;
-	priv_luid.luid.high = 0;
+	ZERO_STRUCT( priv_luid );
 	
 	for ( i=0; !se_priv_equal(&privs[i].se_priv, &se_priv_end); i++ ) {
 	
 		if ( se_priv_equal( &privs[i].se_priv, mask ) ) {
-			priv_luid.luid.low = GENERATE_LUID_LOW(i);
+			priv_luid.luid = privs[i].luid;
 			break;
 		}
 	}
@@ -455,7 +474,7 @@ BOOL get_privileges_for_sids(SE_PRIV *privileges, DOM_SID *slist, int scount)
 
 static int priv_traverse_fn(TDB_CONTEXT *t, TDB_DATA key, TDB_DATA data, void *state)
 {
-	PRIV_SID_LIST *priv = state;
+	PRIV_SID_LIST *priv = (PRIV_SID_LIST *)state;
 	int  prefixlen = strlen(PRIVPREFIX);
 	DOM_SID sid;
 	fstring sid_string;
@@ -486,13 +505,21 @@ static int priv_traverse_fn(TDB_CONTEXT *t, TDB_DATA key, TDB_DATA data, void *s
 		
 	fstrcpy( sid_string, &key.dptr[strlen(PRIVPREFIX)] );
 
+	/* this is a last ditch safety check to preventing returning
+	   and invalid SID (i've somehow run into this on development branches) */
+
+	if ( strcmp( "S-0-0", sid_string ) == 0 )
+		return 0;
+
 	if ( !string_to_sid(&sid, sid_string) ) {
 		DEBUG(0,("travsersal_fn_enum__acct: Could not convert SID [%s]\n",
 			sid_string));
 		return 0;
 	}
 
-	add_sid_to_array( &sid, &priv->sids.list, &priv->sids.count );
+	if (!add_sid_to_array( NULL, &sid, &priv->sids.list, &priv->sids.count )) {
+		return 0;
+	}
 	
 	return 0;
 }
@@ -506,6 +533,10 @@ NTSTATUS privilege_enumerate_accounts(DOM_SID **sids, int *num_sids)
 	TDB_CONTEXT *tdb = get_account_pol_tdb();
 	PRIV_SID_LIST priv;
 	
+	if (!tdb) {
+		return NT_STATUS_ACCESS_DENIED;
+	}
+
 	ZERO_STRUCT(priv);
 
 	se_priv_copy( &priv.privilege, &se_priv_none );
@@ -528,6 +559,9 @@ BOOL grant_privilege(const DOM_SID *sid, const SE_PRIV *priv_mask)
 {
 	SE_PRIV old_mask, new_mask;
 	
+	ZERO_STRUCT( old_mask );
+	ZERO_STRUCT( new_mask );
+
 	if ( get_privileges( sid, &old_mask ) )
 		se_priv_copy( &new_mask, &old_mask );
 	else
@@ -631,6 +665,7 @@ NTSTATUS privilege_create_account(const DOM_SID *sid )
 /****************************************************************************
  initialise a privilege list and set the talloc context 
  ****************************************************************************/
+ 
 NTSTATUS privilege_set_init(PRIVILEGE_SET *priv_set)
 {
 	TALLOC_CTX *mem_ctx;
@@ -688,10 +723,14 @@ NTSTATUS dup_luid_attr(TALLOC_CTX *mem_ctx, LUID_ATTR **new_la, LUID_ATTR *old_l
 	if ( !old_la )
 		return NT_STATUS_OK;
 
-	*new_la = TALLOC_ARRAY(mem_ctx, LUID_ATTR, count);
-	if ( !*new_la ) {
-		DEBUG(0,("dup_luid_attr: failed to alloc new LUID_ATTR array [%d]\n", count));
-		return NT_STATUS_NO_MEMORY;
+	if (count) {
+		*new_la = TALLOC_ARRAY(mem_ctx, LUID_ATTR, count);
+		if ( !*new_la ) {
+			DEBUG(0,("dup_luid_attr: failed to alloc new LUID_ATTR array [%d]\n", count));
+			return NT_STATUS_NO_MEMORY;
+		}
+	} else {
+		*new_la = NULL;
 	}
 
 	for (i=0; i<count; i++) {
@@ -708,7 +747,7 @@ NTSTATUS dup_luid_attr(TALLOC_CTX *mem_ctx, LUID_ATTR **new_la, LUID_ATTR *old_l
  at a time here.
 *****************************************************************************/
 
-BOOL user_has_privileges(NT_USER_TOKEN *token, const SE_PRIV *privilege)
+BOOL user_has_privileges(const NT_USER_TOKEN *token, const SE_PRIV *privilege)
 {
 	if ( !token )
 		return False;
@@ -736,17 +775,19 @@ BOOL user_has_any_privilege(NT_USER_TOKEN *token, const SE_PRIV *privilege)
 char* luid_to_privilege_name(const LUID *set)
 {
 	static fstring name;
-	int max = count_all_privileges();
+	int i;
 
 	if (set->high != 0)
 		return NULL;
 
-	if ( set->low > max )
-		return NULL;
-
-	fstrcpy( name, privs[set->low - 1].name );
+	for ( i=0; !se_priv_equal(&privs[i].se_priv, &se_priv_end); i++ ) {
+		if ( set->low == privs[i].luid.low ) {
+			fstrcpy( name, privs[i].name );
+			return name;
+		}
+	}
 	
-	return name;
+	return NULL;
 }
 
 /*******************************************************************
@@ -782,7 +823,7 @@ BOOL se_priv_to_privilege_set( PRIVILEGE_SET *set, SE_PRIV *mask )
 		if ( !is_privilege_assigned(mask, &privs[i].se_priv) )
 			continue;
 		
-		luid.luid.low = GENERATE_LUID_LOW(i);
+		luid.luid = privs[i].luid;
 		
 		if ( !privilege_set_add( set, luid ) )
 			return False;
@@ -794,10 +835,27 @@ BOOL se_priv_to_privilege_set( PRIVILEGE_SET *set, SE_PRIV *mask )
 /*******************************************************************
 *******************************************************************/
 
-BOOL privilege_set_to_se_priv( SE_PRIV *mask, PRIVILEGE_SET *privset )
+static BOOL luid_to_se_priv( LUID *luid, SE_PRIV *mask )
 {
 	int i;
 	uint32 num_privs = count_all_privileges();
+	
+	for ( i=0; i<num_privs; i++ ) {
+		if ( luid->low == privs[i].luid.low ) {
+			se_priv_copy( mask, &privs[i].se_priv );
+			return True;
+		}
+	}
+
+	return False;
+}
+
+/*******************************************************************
+*******************************************************************/
+
+BOOL privilege_set_to_se_priv( SE_PRIV *mask, PRIVILEGE_SET *privset )
+{
+	int i;
 	
 	ZERO_STRUCTP( mask );
 	
@@ -810,12 +868,8 @@ BOOL privilege_set_to_se_priv( SE_PRIV *mask, PRIVILEGE_SET *privset )
 		if ( privset->set[i].luid.high != 0 )
 			return False;
 		
-		/* make sure :LUID.low is in range */	
-		if ( privset->set[i].luid.low == 0 || privset->set[i].luid.low > num_privs )
-			return False;
-		
-		r = privs[privset->set[i].luid.low - 1].se_priv;
-		se_priv_add( mask, &r );
+		if ( luid_to_se_priv( &privset->set[i].luid, &r ) )		
+			se_priv_add( mask, &r );
 	}
 
 	return True;
@@ -824,9 +878,27 @@ BOOL privilege_set_to_se_priv( SE_PRIV *mask, PRIVILEGE_SET *privset )
 /*******************************************************************
 *******************************************************************/
 
-BOOL is_privileged_sid( DOM_SID *sid )
+BOOL is_privileged_sid( const DOM_SID *sid )
 {
 	SE_PRIV mask;
 	
 	return get_privileges( sid, &mask );
+}
+
+/*******************************************************************
+*******************************************************************/
+
+BOOL grant_all_privileges( const DOM_SID *sid )
+{
+	int i;
+	SE_PRIV mask;
+	uint32 num_privs = count_all_privileges();
+
+	se_priv_copy( &mask, &se_priv_none );
+	
+	for ( i=0; i<num_privs; i++ ) {
+		se_priv_add(&mask, &privs[i].se_priv); 
+	}
+
+	return grant_privilege( sid, &mask );
 }

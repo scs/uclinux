@@ -4,7 +4,23 @@
  *  Copyright (C) 1995-1998 by Paal-Kr. Engstad and Volker Lendecke
  *  extensively modified by Tridge
  *
+ *  This program is free software; you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation; either version 2 of the License, or
+ *  (at your option) any later version.
+ *  
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *  
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
  */
+
+#define SMBMOUNT_MALLOC 1
 
 #include "includes.h"
 
@@ -285,12 +301,14 @@ do_mount(char *share_name, unsigned int flags, struct smb_mount_data *data)
 		return -1;
 	}
 	
+#ifndef EMBED
         if ((fd = open("/var/lock/mtab~", O_RDWR|O_CREAT|O_EXCL, 0600)) == -1)
         {
                 fprintf(stderr, "Can't get /var/lock/mtab~ lock file");
                 return 1;
         }
         close(fd);
+#endif
 	
         if ((mtab = setmntent(MOUNTED, "a+")) == NULL)
         {
@@ -310,11 +328,13 @@ do_mount(char *share_name, unsigned int flags, struct smb_mount_data *data)
         }
         endmntent(mtab);
 
+#ifndef EMBED
         if (unlink("/var/lock/mtab~") == -1)
         {
                 fprintf(stderr, "Can't remove /var/lock/mtab~");
                 return 1;
         }
+#endif
 
 	return 0;
 }	

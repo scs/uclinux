@@ -1,6 +1,6 @@
 /* 
  *  Unix SMB/CIFS implementation.
- *  RPC Pipe client / server routines
+ *  Virtual Windows Registry Layer
  *  Copyright (C) Gerald Carter                     2002.
  *
  *  This program is free software; you can redistribute it and/or modify
@@ -36,7 +36,7 @@ static REGISTRY_HOOK default_hook = { KEY_TREE_ROOT, &regdb_ops };
 
 BOOL reghook_cache_init( void )
 {
-	cache_tree = pathtree_init( &default_hook, NULL, NULL );
+	cache_tree = pathtree_init( &default_hook, NULL );
 
 	return ( cache_tree == NULL );
 }
@@ -67,7 +67,7 @@ BOOL reghook_cache_add( REGISTRY_HOOK *hook )
  Initialize the cache tree
  *********************************************************************/
 
-REGISTRY_HOOK* reghook_cache_find( char *keyname )
+REGISTRY_HOOK* reghook_cache_find( const char *keyname )
 {
 	char *key;
 	int len;
@@ -79,7 +79,7 @@ REGISTRY_HOOK* reghook_cache_find( char *keyname )
 	/* prepend the string with a '\' character */
 	
 	len = strlen( keyname );
-	if ( !(key = SMB_MALLOC( len + 2 )) ) {
+	if ( !(key = (char *)SMB_MALLOC( len + 2 )) ) {
 		DEBUG(0,("reghook_cache_find: malloc failed for string [%s] !?!?!\n",
 			keyname));
 		return NULL;
@@ -94,7 +94,7 @@ REGISTRY_HOOK* reghook_cache_find( char *keyname )
 		
 	DEBUG(10,("reghook_cache_find: Searching for keyname [%s]\n", key));
 	
-	hook = pathtree_find( cache_tree, key ) ;
+	hook = (REGISTRY_HOOK *)pathtree_find( cache_tree, key ) ;
 	
 	SAFE_FREE( key );
 	

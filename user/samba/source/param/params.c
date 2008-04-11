@@ -3,9 +3,9 @@
  *
  * This module Copyright (C) 1990-1998 Karl Auer
  *
- * Rewritten almost completely by Christopher R. Hertel
- * at the University of Minnesota, September, 1997.
- * This module Copyright (C) 1997-1998 by the University of Minnesota
+ * Rewritten almost completely by Christopher R. Hertel, 1997.
+ * This module Copyright (C) 1997-1998 by Christopher R. Hertel
+ * 
  * -------------------------------------------------------------------------- **
  *
  * This program is free software; you can redistribute it and/or modify
@@ -80,6 +80,8 @@
  */
 
 #include "includes.h"
+
+extern BOOL in_client;
 
 /* -------------------------------------------------------------------------- **
  * Constants...
@@ -260,10 +262,8 @@ static BOOL Section( myFILE *InFile, BOOL (*sfunc)(const char *) )
 	while( (EOF != c) && (c > 0) ) {
 		/* Check that the buffer is big enough for the next character. */
 		if( i > (bSize - 2) ) {
-			char *tb;
-      
-			tb = SMB_REALLOC( bufr, bSize +BUFR_INC );
-			if( NULL == tb ) {
+			char *tb = (char *)SMB_REALLOC_KEEP_OLD_ON_ERROR( bufr, bSize +BUFR_INC );
+			if(!tb) {
 				DEBUG(0, ("%s Memory re-allocation failure.", func) );
 				return False;
 			}
@@ -354,8 +354,8 @@ static BOOL Parameter( myFILE *InFile, BOOL (*pfunc)(const char *, const char *)
 		/* Loop until we've found the start of the value. */
 		if( i > (bSize - 2) ) {
 			/* Ensure there's space for next char.    */
-			char *tb = SMB_REALLOC( bufr, bSize + BUFR_INC );
-			if( NULL == tb ) {
+			char *tb = (char *)SMB_REALLOC_KEEP_OLD_ON_ERROR( bufr, bSize + BUFR_INC );
+			if (!tb) {
 				DEBUG(0, ("%s Memory re-allocation failure.", func) );
 				return False;
 			}
@@ -412,8 +412,8 @@ static BOOL Parameter( myFILE *InFile, BOOL (*pfunc)(const char *, const char *)
 	while( (EOF !=c) && (c > 0) ) {
 		if( i > (bSize - 2) ) {
 			/* Make sure there's enough room. */
-			char *tb = SMB_REALLOC( bufr, bSize + BUFR_INC );
-			if( NULL == tb ) {
+			char *tb = (char *)SMB_REALLOC_KEEP_OLD_ON_ERROR( bufr, bSize + BUFR_INC );
+			if (!tb) {
 				DEBUG(0, ("%s Memory re-allocation failure.", func));
 				return False;
 			}
@@ -523,7 +523,6 @@ static BOOL Parse( myFILE *InFile,
 static myFILE *OpenConfFile( const char *FileName )
 {
 	const char *func = "params.c:OpenConfFile() -";
-	extern BOOL in_client;
 	int lvl = in_client?1:0;
 	myFILE *ret;
 
@@ -531,7 +530,7 @@ static myFILE *OpenConfFile( const char *FileName )
 	if (!ret)
 		return NULL;
 
-	ret->buf = file_load(FileName, &ret->size);
+	ret->buf = file_load(FileName, &ret->size, 0);
 	if( NULL == ret->buf ) {
 		DEBUG( lvl, ("%s Unable to open configuration file \"%s\":\n\t%s\n",
 			func, FileName, strerror(errno)) );
@@ -588,7 +587,6 @@ BOOL pm_process( const char *FileName,
 
 		result = Parse( InFile, sfunc, pfunc );
 		SAFE_FREE( bufr );
-		bufr  = NULL;
 		bSize = 0;
 	}
 

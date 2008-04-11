@@ -18,8 +18,6 @@
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 */
 
-#define NO_SYSLOG
-
 #include "includes.h"
 
 /*****************************************************************************
@@ -66,16 +64,16 @@ int cli_print_queue(struct cli_state *cli,
 	SSVAL(p,0,76);         /* API function number 76 (DosPrintJobEnum) */
 	p += 2;
 	pstrcpy_base(p,"zWrLeh", param);   /* parameter description? */
-	p = skip_string(p,1);
+	p = skip_string(param,sizeof(param),p);
 	pstrcpy_base(p,"WWzWWDDzz", param);  /* returned data format */
-	p = skip_string(p,1);
+	p = skip_string(param,sizeof(param),p);
 	pstrcpy_base(p,cli->share, param);    /* name of queue */
-	p = skip_string(p,1);
+	p = skip_string(param,sizeof(param),p);
 	SSVAL(p,0,2);   /* API function level 2, PRJINFO_2 data structure */
 	SSVAL(p,2,1000); /* size of bytes of returned data buffer */
 	p += 4;
 	pstrcpy_base(p,"", param);   /* subformat */
-	p = skip_string(p,1);
+	p = skip_string(param,sizeof(param),p);
 
 	DEBUG(4,("doing cli_print_queue for %s\n", cli->share));
 
@@ -99,7 +97,7 @@ int cli_print_queue(struct cli_state *cli,
 				fstrcpy(job.user,
 					fix_char_ptr(SVAL(p,4), converter, 
 						     rdata, rdrcnt));
-				job.t = make_unix_date3(p + 12);
+				job.t = cli_make_unix_date3(cli, p + 12);
 				job.size = IVAL(p,16);
 				fstrcpy(job.name,fix_char_ptr(SVAL(p,24), 
 							      converter, 
@@ -135,9 +133,9 @@ int cli_printjob_del(struct cli_state *cli, int job)
 	SSVAL(p,0,81);		/* DosPrintJobDel() */
 	p += 2;
 	pstrcpy_base(p,"W", param);
-	p = skip_string(p,1);
+	p = skip_string(param,sizeof(param),p);
 	pstrcpy_base(p,"", param);
-	p = skip_string(p,1);
+	p = skip_string(param,sizeof(param),p);
 	SSVAL(p,0,job);     
 	p += 2;
 	

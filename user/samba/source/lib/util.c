@@ -5,7 +5,8 @@
    Copyright (C) Jeremy Allison 2001-2002
    Copyright (C) Simo Sorce 2001
    Copyright (C) Jim McDonough <jmcd@us.ibm.com> 2003
-   
+   Copyright (C) James Peach 2006
+
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; either version 2 of the License, or
@@ -22,6 +23,11 @@
 */
 
 #include "includes.h"
+
+extern fstring local_machine;
+extern char *global_clobber_region_function;
+extern unsigned int global_clobber_region_line;
+extern fstring remote_arch;
 
 /* Max allowable allococation - 256mb - 0x10000000 */
 #define MAX_ALLOC_SIZE (1024*1024*256)
@@ -55,7 +61,7 @@
 enum protocol_types Protocol = PROTOCOL_COREPLUS;
 
 /* a default finfo structure to ensure all fields are sensible */
-file_info def_finfo = {-1,0,0,0,0,0,0,"",""};
+file_info def_finfo;
 
 /* this is used by the chaining code */
 int chain_size = 0;
@@ -174,6 +180,32 @@ static BOOL set_my_netbios_names(const char *name, int i)
 	return True;
 }
 
+/***********************************************************************
+ Free memory allocated to global objects
+***********************************************************************/
+
+void gfree_names(void)
+{
+	SAFE_FREE( smb_myname );
+	SAFE_FREE( smb_myworkgroup );
+	SAFE_FREE( smb_scope );
+	free_netbios_names_array();
+}
+
+void gfree_all( void )
+{
+	gfree_names();	
+	gfree_loadparm();
+	gfree_case_tables();
+	gfree_debugsyms();
+	gfree_charcnv();
+	gfree_messages();
+	gfree_interfaces();
+
+	/* release the talloc null_context memory last */
+	talloc_disable_null_tracking();
+}
+
 const char *my_netbios_names(int i)
 {
 	return smb_my_netbios_names[i];
@@ -230,7 +262,6 @@ BOOL set_netbios_aliases(const char **str_array)
 
 BOOL init_names(void)
 {
-	extern fstring local_machine;
 	char *p;
 	int n;
 
@@ -274,43 +305,36 @@ const char *tmpdir(void)
 }
 
 /****************************************************************************
- Determine whether we are in the specified group.
-****************************************************************************/
-
-BOOL in_group(gid_t group, gid_t current_gid, int ngroups, const gid_t *groups)
-{
-	int i;
-
-	if (group == current_gid)
-		return(True);
-
-	for (i=0;i<ngroups;i++)
-		if (group == groups[i])
-			return(True);
-
-	return(False);
-}
-
-/****************************************************************************
  Add a gid to an array of gids if it's not already there.
 ****************************************************************************/
 
-void add_gid_to_array_unique(gid_t gid, gid_t **gids, int *num)
+BOOL add_gid_to_array_unique(TALLOC_CTX *mem_ctx, gid_t gid,
+			     gid_t **gids, size_t *num_gids)
 {
 	int i;
 
-	for (i=0; i<*num; i++) {
-		if ((*gids)[i] == gid)
-			return;
+	if ((*num_gids != 0) && (*gids == NULL)) {
+		/*
+		 * A former call to this routine has failed to allocate memory
+		 */
+		return False;
 	}
-	
-	*gids = SMB_REALLOC_ARRAY(*gids, gid_t, *num+1);
 
-	if (*gids == NULL)
-		return;
+	for (i=0; i<*num_gids; i++) {
+		if ((*gids)[i] == gid) {
+			return True;
+		}
+	}
 
-	(*gids)[*num] = gid;
-	*num += 1;
+	*gids = TALLOC_REALLOC_ARRAY(mem_ctx, *gids, gid_t, *num_gids+1);
+	if (*gids == NULL) {
+		*num_gids = 0;
+		return False;
+	}
+
+	(*gids)[*num_gids] = gid;
+	*num_gids += 1;
+	return True;
 }
 
 /****************************************************************************
@@ -352,14 +376,10 @@ const char *get_numlist(const char *p, uint32 **num, int *count)
 	(*num  ) = NULL;
 
 	while ((p = Atoic(p, &val, ":,")) != NULL && (*p) != ':') {
-		uint32 *tn;
-		
-		tn = SMB_REALLOC_ARRAY((*num), uint32, (*count)+1);
-		if (tn == NULL) {
-			SAFE_FREE(*num);
+		*num = SMB_REALLOC_ARRAY((*num), uint32, (*count)+1);
+		if (!(*num)) {
 			return NULL;
-		} else
-			(*num) = tn;
+		}
 		(*num)[(*count)] = val;
 		(*count)++;
 		p++;
@@ -516,8 +536,9 @@ void smb_setlen(char *buf,int len)
 
 int set_message(char *buf,int num_words,int num_bytes,BOOL zero)
 {
-	if (zero)
+	if (zero && (num_words || num_bytes)) {
 		memset(buf + smb_size,'\0',num_words*2 + num_bytes);
+	}
 	SCVAL(buf,smb_wct,num_words);
 	SSVAL(buf,smb_vwv + num_words*SIZEOFWORD,num_bytes);  
 	smb_setlen(buf,smb_size + num_words*2 + num_bytes - 4);
@@ -559,6 +580,13 @@ void dos_clean_name(char *s)
 	/* remove any double slashes */
 	all_string_sub(s, "\\\\", "\\", 0);
 
+	/* Remove leading .\\ characters */
+	if(strncmp(s, ".\\", 2) == 0) {
+		trim_string(s, ".\\", NULL);
+		if(*s == 0)
+			pstrcpy(s,".\\");
+	}
+
 	while ((p = strstr_m(s,"\\..\\")) != NULL) {
 		pstring s1;
 
@@ -573,7 +601,6 @@ void dos_clean_name(char *s)
 	}  
 
 	trim_string(s,NULL,"\\..");
-
 	all_string_sub(s, "\\.\\", "\\", 0);
 }
 
@@ -611,38 +638,13 @@ void unix_clean_name(char *s)
 	}  
 
 	trim_string(s,NULL,"/..");
+	all_string_sub(s, "/./", "/", 0);
 }
 
-/****************************************************************************
- Make a dir struct.
-****************************************************************************/
-
-void make_dir_struct(char *buf, const char *mask, const char *fname,SMB_OFF_T size,int mode,time_t date)
-{  
-	char *p;
-	pstring mask2;
-
-	pstrcpy(mask2,mask);
-
-	if ((mode & aDIR) != 0)
-		size = 0;
-
-	memset(buf+1,' ',11);
-	if ((p = strchr_m(mask2,'.')) != NULL) {
-		*p = 0;
-		push_ascii(buf+1,mask2,8, 0);
-		push_ascii(buf+9,p+1,3, 0);
-		*p = '.';
-	} else
-		push_ascii(buf+1,mask2,11, 0);
-
-	memset(buf+21,'\0',DIR_STRUCT_SIZE-21);
-	SCVAL(buf,21,mode);
-	put_dos_date(buf,22,date);
-	SSVAL(buf,26,size & 0xFFFF);
-	SSVAL(buf,28,(size >> 16)&0xFFFF);
-	push_ascii(buf+30,fname,12,0);
-	DEBUG(8,("put name [%s] from [%s] into dir struct\n",buf+30, fname));
+void clean_name(char *s)
+{
+	dos_clean_name(s);
+	unix_clean_name(s);
 }
 
 /*******************************************************************
@@ -679,6 +681,46 @@ void close_low_fds(BOOL stderr_too)
 			return;
 		}
 	}
+#endif
+}
+
+/*******************************************************************
+ Write data into an fd at a given offset. Ignore seek errors.
+********************************************************************/
+
+ssize_t write_data_at_offset(int fd, const char *buffer, size_t N, SMB_OFF_T pos)
+{
+	size_t total=0;
+	ssize_t ret;
+
+	if (pos == (SMB_OFF_T)-1) {
+		return write_data(fd, buffer, N);
+	}
+#if defined(HAVE_PWRITE) || defined(HAVE_PRWITE64)
+	while (total < N) {
+		ret = sys_pwrite(fd,buffer + total,N - total, pos);
+		if (ret == -1 && errno == ESPIPE) {
+			return write_data(fd, buffer + total,N - total);
+		}
+		if (ret == -1) {
+			DEBUG(0,("write_data_at_offset: write failure. Error = %s\n", strerror(errno) ));
+			return -1;
+		}
+		if (ret == 0) {
+			return total;
+		}
+		total += ret;
+		pos += ret;
+	}
+	return (ssize_t)total;
+#else
+	/* Use lseek and write_data. */
+	if (sys_lseek(fd, pos, SEEK_SET) == -1) {
+		if (errno != ESPIPE) {
+			return -1;
+		}
+	}
+	return write_data(fd, buffer, N);
 #endif
 }
 
@@ -730,7 +772,7 @@ ssize_t transfer_file_internal(int infd, int outfd, size_t n, ssize_t (*read_fn)
 	size_t num_to_read_thistime;
 	size_t num_written = 0;
 
-	if ((buf = SMB_MALLOC(TRANSFER_BUF_SIZE)) == NULL)
+	if ((buf = SMB_MALLOC_ARRAY(char, TRANSFER_BUF_SIZE)) == NULL)
 		return -1;
 
 	while (total < n) {
@@ -827,7 +869,7 @@ void smb_msleep(unsigned int t)
  Become a daemon, discarding the controlling terminal.
 ****************************************************************************/
 
-void become_daemon(BOOL Fork)
+void become_daemon(BOOL Fork, BOOL no_process_group)
 {
 	if (Fork) {
 		if (sys_fork()) {
@@ -837,9 +879,9 @@ void become_daemon(BOOL Fork)
 
   /* detach from the terminal */
 #ifdef HAVE_SETSID
-	setsid();
+	if (!no_process_group) setsid();
 #elif defined(TIOCNOTTY)
-	{
+	if (!no_process_group) {
 		int i = sys_open("/dev/tty", O_RDWR, 0);
 		if (i != -1) {
 			ioctl(i, (int) TIOCNOTTY, (char *)0);      
@@ -879,6 +921,9 @@ BOOL yesno(char *p)
 
 void *malloc_(size_t size)
 {
+	if (size == 0) {
+		return NULL;
+	}
 #undef malloc
 	return malloc(size);
 #define malloc(s) __ERROR_DONT_USE_MALLOC_DIRECTLY
@@ -890,6 +935,9 @@ void *malloc_(size_t size)
 
 static void *calloc_(size_t count, size_t size)
 {
+	if (size == 0 || count == 0) {
+		return NULL;
+	}
 #undef calloc
 	return calloc(count, size);
 #define calloc(n,s) __ERROR_DONT_USE_CALLOC_DIRECTLY
@@ -918,11 +966,27 @@ void *malloc_array(size_t el_size, unsigned int count)
 		return NULL;
 	}
 
+	if (el_size == 0 || count == 0) {
+		return NULL;
+	}
 #if defined(PARANOID_MALLOC_CHECKER)
 	return malloc_(el_size*count);
 #else
 	return malloc(el_size*count);
 #endif
+}
+
+/****************************************************************************
+ Type-safe memalign
+****************************************************************************/
+
+void *memalign_array(size_t el_size, size_t align, unsigned int count)
+{
+	if (count >= MAX_ALLOC_SIZE/el_size) {
+		return NULL;
+	}
+
+	return sys_memalign(align, el_size*count);
 }
 
 /****************************************************************************
@@ -934,6 +998,9 @@ void *calloc_array(size_t size, size_t nmemb)
 	if (nmemb >= MAX_ALLOC_SIZE/size) {
 		return NULL;
 	}
+	if (size == 0 || nmemb == 0) {
+		return NULL;
+	}
 #if defined(PARANOID_MALLOC_CHECKER)
 	return calloc_(nmemb, size);
 #else
@@ -943,32 +1010,68 @@ void *calloc_array(size_t size, size_t nmemb)
 
 /****************************************************************************
  Expand a pointer to be a particular size.
+ Note that this version of Realloc has an extra parameter that decides
+ whether to free the passed in storage on allocation failure or if the
+ new size is zero.
+
+ This is designed for use in the typical idiom of :
+
+ p = SMB_REALLOC(p, size)
+ if (!p) {
+    return error;
+ }
+
+ and not to have to keep track of the old 'p' contents to free later, nor
+ to worry if the size parameter was zero. In the case where NULL is returned
+ we guarentee that p has been freed.
+
+ If free later semantics are desired, then pass 'free_old_on_error' as False which
+ guarentees that the old contents are not freed on error, even if size == 0. To use
+ this idiom use :
+
+ tmp = SMB_REALLOC_KEEP_OLD_ON_ERROR(p, size);
+ if (!tmp) {
+    SAFE_FREE(p);
+    return error;
+ } else {
+    p = tmp;
+ }
+
+ Changes were instigated by Coverity error checking. JRA.
 ****************************************************************************/
 
-void *Realloc(void *p,size_t size)
+void *Realloc(void *p, size_t size, BOOL free_old_on_error)
 {
 	void *ret=NULL;
 
 	if (size == 0) {
-		SAFE_FREE(p);
-		DEBUG(5,("Realloc asked for 0 bytes\n"));
+		if (free_old_on_error) {
+			SAFE_FREE(p);
+		}
+		DEBUG(2,("Realloc asked for 0 bytes\n"));
 		return NULL;
 	}
 
 #if defined(PARANOID_MALLOC_CHECKER)
-	if (!p)
+	if (!p) {
 		ret = (void *)malloc_(size);
-	else
+	} else {
 		ret = (void *)realloc_(p,size);
+	}
 #else
-	if (!p)
+	if (!p) {
 		ret = (void *)malloc(size);
-	else
+	} else {
 		ret = (void *)realloc(p,size);
+	}
 #endif
 
-	if (!ret)
+	if (!ret) {
+		if (free_old_on_error && p) {
+			SAFE_FREE(p);
+		}
 		DEBUG(0,("Memory allocation error: failed to expand to %d bytes\n",(int)size));
+	}
 
 	return(ret);
 }
@@ -977,12 +1080,70 @@ void *Realloc(void *p,size_t size)
  Type-safe realloc.
 ****************************************************************************/
 
-void *realloc_array(void *p,size_t el_size, unsigned int count)
+void *realloc_array(void *p, size_t el_size, unsigned int count, BOOL free_old_on_error)
 {
 	if (count >= MAX_ALLOC_SIZE/el_size) {
+		if (free_old_on_error) {
+			SAFE_FREE(p);
+		}
 		return NULL;
 	}
-	return Realloc(p,el_size*count);
+	return Realloc(p, el_size*count, free_old_on_error);
+}
+
+/****************************************************************************
+ (Hopefully) efficient array append.
+****************************************************************************/
+
+void add_to_large_array(TALLOC_CTX *mem_ctx, size_t element_size,
+			void *element, void *_array, uint32 *num_elements,
+			ssize_t *array_size)
+{
+	void **array = (void **)_array;
+
+	if (*array_size < 0) {
+		return;
+	}
+
+	if (*array == NULL) {
+		if (*array_size == 0) {
+			*array_size = 128;
+		}
+
+		if (*array_size >= MAX_ALLOC_SIZE/element_size) {
+			goto error;
+		}
+
+		*array = TALLOC(mem_ctx, element_size * (*array_size));
+		if (*array == NULL) {
+			goto error;
+		}
+	}
+
+	if (*num_elements == *array_size) {
+		*array_size *= 2;
+
+		if (*array_size >= MAX_ALLOC_SIZE/element_size) {
+			goto error;
+		}
+
+		*array = TALLOC_REALLOC(mem_ctx, *array,
+					element_size * (*array_size));
+
+		if (*array == NULL) {
+			goto error;
+		}
+	}
+
+	memcpy((char *)(*array) + element_size*(*num_elements),
+	       element, element_size);
+	*num_elements += 1;
+
+	return;
+
+ error:
+	*num_elements = 0;
+	*array_size = -1;
 }
 
 /****************************************************************************
@@ -1233,7 +1394,7 @@ static void strip_mount_options( pstring *str)
 *******************************************************************/
 
 #ifdef WITH_NISPLUS_HOME
-char *automount_lookup( char *user_name)
+char *automount_lookup(const char *user_name)
 {
 	static fstring last_key = "";
 	static pstring last_value = "";
@@ -1276,7 +1437,7 @@ char *automount_lookup( char *user_name)
 }
 #else /* WITH_NISPLUS_HOME */
 
-char *automount_lookup( char *user_name)
+char *automount_lookup(const char *user_name)
 {
 	static fstring last_key = "";
 	static pstring last_value = "";
@@ -1301,12 +1462,8 @@ char *automount_lookup( char *user_name)
   	} else {
 		if ((nis_error = yp_match(nis_domain, nis_map, user_name, strlen(user_name),
 				&nis_result, &nis_result_len)) == 0) {
-			if (!nis_error && nis_result_len >= sizeof(pstring)) {
-				nis_result_len = sizeof(pstring)-1;
-			}
 			fstrcpy(last_key, user_name);
-			strncpy(last_value, nis_result, nis_result_len);
-			last_value[nis_result_len] = '\0';
+			pstrcpy(last_value, nis_result);
 			strip_mount_options(&last_value);
 
 		} else if(nis_error == YPERR_KEY) {
@@ -1349,12 +1506,26 @@ BOOL same_net(struct in_addr ip1,struct in_addr ip2,struct in_addr mask)
  Check if a process exists. Does this work on all unixes?
 ****************************************************************************/
 
-BOOL process_exists(pid_t pid)
+BOOL process_exists(const struct process_id pid)
 {
+	if (procid_is_me(&pid)) {
+		return True;
+	}
+
+	if (!procid_is_local(&pid)) {
+		/* This *SEVERELY* needs fixing. */
+		return True;
+	}
+
 	/* Doing kill with a non-positive pid causes messages to be
 	 * sent to places we don't want. */
-	SMB_ASSERT(pid > 0);
-	return(kill(pid,0) == 0 || errno != ESRCH);
+	SMB_ASSERT(pid.pid > 0);
+	return(kill(pid.pid,0) == 0 || errno != ESRCH);
+}
+
+BOOL process_exists_by_pid(pid_t pid)
+{
+	return process_exists(pid_to_procid(pid));
 }
 
 /*******************************************************************
@@ -1366,10 +1537,10 @@ const char *uidtoname(uid_t uid)
 	static fstring name;
 	struct passwd *pass;
 
-	pass = getpwuid_alloc(uid);
+	pass = getpwuid_alloc(NULL, uid);
 	if (pass) {
 		fstrcpy(name, pass->pw_name);
-		passwd_free(&pass);
+		TALLOC_FREE(pass);
 	} else {
 		slprintf(name, sizeof(name) - 1, "%ld",(long int)uid);
 	}
@@ -1403,10 +1574,10 @@ uid_t nametouid(const char *name)
 	char *p;
 	uid_t u;
 
-	pass = getpwnam_alloc(name);
+	pass = getpwnam_alloc(NULL, name);
 	if (pass) {
 		u = pass->pw_uid;
-		passwd_free(&pass);
+		TALLOC_FREE(pass);
 		return u;
 	}
 
@@ -1438,35 +1609,16 @@ gid_t nametogid(const char *name)
 }
 
 /*******************************************************************
- legacy wrapper for smb_panic2()
-********************************************************************/
-void smb_panic( const char *why )
-{
-	smb_panic2( why, True );
-}
-
-/*******************************************************************
  Something really nasty happened - panic !
 ********************************************************************/
 
-#ifdef HAVE_LIBEXC_H
-#include <libexc.h>
-#endif
-
-void smb_panic2(const char *why, BOOL decrement_pid_count )
+void smb_panic(const char *const why)
 {
 	char *cmd;
 	int result;
-#ifdef HAVE_BACKTRACE_SYMBOLS
-	void *backtrace_stack[BACKTRACE_STACK_SIZE];
-	size_t backtrace_size;
-	char **backtrace_strings;
-#endif
 
 #ifdef DEVELOPER
 	{
-		extern char *global_clobber_region_function;
-		extern unsigned int global_clobber_region_line;
 
 		if (global_clobber_region_function) {
 			DEBUG(0,("smb_panic: clobber_region() last called from [%s(%u)]\n",
@@ -1476,9 +1628,9 @@ void smb_panic2(const char *why, BOOL decrement_pid_count )
 	}
 #endif
 
-	/* only smbd needs to decrement the smbd counter in connections.tdb */
-	if ( decrement_pid_count )
-		decrement_smbd_process_count();
+	DEBUG(0,("PANIC (pid %llu): %s\n",
+		    (unsigned long long)sys_getpid(), why));
+	log_stack_trace();
 
 	cmd = lp_panic_action();
 	if (cmd && *cmd) {
@@ -1492,9 +1644,90 @@ void smb_panic2(const char *why, BOOL decrement_pid_count )
 			DEBUG(0, ("smb_panic(): action returned status %d\n",
 					  WEXITSTATUS(result)));
 	}
-	DEBUG(0,("PANIC: %s\n", why));
 
-#ifdef HAVE_BACKTRACE_SYMBOLS
+	dump_core();
+}
+
+/*******************************************************************
+ Print a backtrace of the stack to the debug log. This function
+ DELIBERATELY LEAKS MEMORY. The expectation is that you should
+ exit shortly after calling it.
+********************************************************************/
+
+#ifdef HAVE_LIBUNWIND_H
+#include <libunwind.h>
+#endif
+
+#ifdef HAVE_EXECINFO_H
+#include <execinfo.h>
+#endif
+
+#ifdef HAVE_LIBEXC_H
+#include <libexc.h>
+#endif
+
+void log_stack_trace(void)
+{
+#ifdef HAVE_LIBUNWIND
+	/* Try to use libunwind before any other technique since on ia64
+	 * libunwind correctly walks the stack in more circumstances than
+	 * backtrace.
+	 */ 
+	unw_cursor_t cursor;
+	unw_context_t uc;
+	unsigned i = 0;
+
+	char procname[256];
+	unw_word_t ip, sp, off;
+
+	procname[sizeof(procname) - 1] = '\0';
+
+	if (unw_getcontext(&uc) != 0) {
+		goto libunwind_failed;
+	}
+
+	if (unw_init_local(&cursor, &uc) != 0) {
+		goto libunwind_failed;
+	}
+
+	DEBUG(0, ("BACKTRACE:\n"));
+
+	do {
+	    ip = sp = 0;
+	    unw_get_reg(&cursor, UNW_REG_IP, &ip);
+	    unw_get_reg(&cursor, UNW_REG_SP, &sp);
+
+	    switch (unw_get_proc_name(&cursor,
+			procname, sizeof(procname) - 1, &off) ) {
+	    case 0:
+		    /* Name found. */
+	    case -UNW_ENOMEM:
+		    /* Name truncated. */
+		    DEBUGADD(0, (" #%u %s + %#llx [ip=%#llx] [sp=%#llx]\n",
+			    i, procname, (long long)off,
+			    (long long)ip, (long long) sp));
+		    break;
+	    default:
+	    /* case -UNW_ENOINFO: */
+	    /* case -UNW_EUNSPEC: */
+		    /* No symbol name found. */
+		    DEBUGADD(0, (" #%u %s [ip=%#llx] [sp=%#llx]\n",
+			    i, "<unknown symbol>",
+			    (long long)ip, (long long) sp));
+	    }
+	    ++i;
+	} while (unw_step(&cursor) > 0);
+
+	return;
+
+libunwind_failed:
+	DEBUG(0, ("unable to produce a stack trace with libunwind\n"));
+
+#elif HAVE_BACKTRACE_SYMBOLS
+	void *backtrace_stack[BACKTRACE_STACK_SIZE];
+	size_t backtrace_size;
+	char **backtrace_strings;
+
 	/* get the backtrace (stack frames) */
 	backtrace_size = backtrace(backtrace_stack,BACKTRACE_STACK_SIZE);
 	backtrace_strings = backtrace_symbols(backtrace_stack, backtrace_size);
@@ -1513,59 +1746,52 @@ void smb_panic2(const char *why, BOOL decrement_pid_count )
 
 #elif HAVE_LIBEXC
 
-#define NAMESIZE 32 /* Arbitrary */
-
 	/* The IRIX libexc library provides an API for unwinding the stack. See
 	 * libexc(3) for details. Apparantly trace_back_stack leaks memory, but
 	 * since we are about to abort anyway, it hardly matters.
-	 *
-	 * Note that if we paniced due to a SIGSEGV or SIGBUS (or similar) this
-	 * will fail with a nasty message upon failing to open the /proc entry.
 	 */
-	{
-		__uint64_t	addrs[BACKTRACE_STACK_SIZE];
-		char *      	names[BACKTRACE_STACK_SIZE];
-		char		namebuf[BACKTRACE_STACK_SIZE * NAMESIZE];
 
-		int		i;
-		int		levels;
+#define NAMESIZE 32 /* Arbitrary */
 
-		ZERO_ARRAY(addrs);
-		ZERO_ARRAY(names);
-		ZERO_ARRAY(namebuf);
+	__uint64_t	addrs[BACKTRACE_STACK_SIZE];
+	char *      	names[BACKTRACE_STACK_SIZE];
+	char		namebuf[BACKTRACE_STACK_SIZE * NAMESIZE];
 
-		/* We need to be root so we can open our /proc entry to walk
-		 * our stack. It also helps when we want to dump core.
-		 */
-		become_root();
+	int		i;
+	int		levels;
 
-		for (i = 0; i < BACKTRACE_STACK_SIZE; i++) {
-			names[i] = namebuf + (i * NAMESIZE);
-		}
+	ZERO_ARRAY(addrs);
+	ZERO_ARRAY(names);
+	ZERO_ARRAY(namebuf);
 
-		levels = trace_back_stack(0, addrs, names,
-				BACKTRACE_STACK_SIZE, NAMESIZE);
+	/* We need to be root so we can open our /proc entry to walk
+	 * our stack. It also helps when we want to dump core.
+	 */
+	become_root();
 
-		DEBUG(0, ("BACKTRACE: %d stack frames:\n", levels));
-		for (i = 0; i < levels; i++) {
-			DEBUGADD(0, (" #%d 0x%llx %s\n", i, addrs[i], names[i]));
-		}
-     }
+	for (i = 0; i < BACKTRACE_STACK_SIZE; i++) {
+		names[i] = namebuf + (i * NAMESIZE);
+	}
+
+	levels = trace_back_stack(0, addrs, names,
+			BACKTRACE_STACK_SIZE, NAMESIZE - 1);
+
+	DEBUG(0, ("BACKTRACE: %d stack frames:\n", levels));
+	for (i = 0; i < levels; i++) {
+		DEBUGADD(0, (" #%d 0x%llx %s\n", i, addrs[i], names[i]));
+	}
 #undef NAMESIZE
-#endif
 
-	dbgflush();
-#ifdef SIGABRT
-	CatchSignal(SIGABRT,SIGNAL_CAST SIG_DFL);
+#else
+	DEBUG(0, ("unable to produce a stack trace on this platform\n"));
 #endif
-	abort();
 }
 
 /*******************************************************************
   A readdir wrapper which just returns the file name.
  ********************************************************************/
 
-const char *readdirname(DIR *p)
+const char *readdirname(SMB_STRUCT_DIR *p)
 {
 	SMB_STRUCT_DIRENT *ptr;
 	char *dname;
@@ -1584,7 +1810,7 @@ const char *readdirname(DIR *p)
 		return(NULL);
 #endif
 
-#ifdef HAVE_BROKEN_READDIR
+#ifdef HAVE_BROKEN_READDIR_NAME
 	/* using /usr/ucb/cc is BAD */
 	dname = dname - 2;
 #endif
@@ -1619,8 +1845,7 @@ BOOL is_in_path(const char *name, name_compare_entry *namelist, BOOL case_sensit
 
 	/* Get the last component of the unix name. */
 	p = strrchr_m(name, '/');
-	strncpy(last_component, p ? ++p : name, sizeof(last_component)-1);
-	last_component[sizeof(last_component)-1] = '\0'; 
+	pstrcpy(last_component, p ? ++p : name);
 
 	for(; namelist->name != NULL; namelist++) {
 		if(namelist->is_wild) {
@@ -1746,9 +1971,13 @@ void free_namearray(name_compare_entry *name_array)
 	SAFE_FREE(name_array);
 }
 
+#undef DBGC_CLASS
+#define DBGC_CLASS DBGC_LOCKING
+
 /****************************************************************************
  Simple routine to do POSIX file locking. Cruft in NFS and 64->32 bit mapping
  is dealt with in posix.c
+ Returns True if the lock was granted, False otherwise.
 ****************************************************************************/
 
 BOOL fcntl_lock(int fd, int op, SMB_OFF_T offset, SMB_OFF_T count, int type)
@@ -1756,7 +1985,8 @@ BOOL fcntl_lock(int fd, int op, SMB_OFF_T offset, SMB_OFF_T count, int type)
 	SMB_STRUCT_FLOCK lock;
 	int ret;
 
-	DEBUG(8,("fcntl_lock %d %d %.0f %.0f %d\n",fd,op,(double)offset,(double)count,type));
+	DEBUG(8,("fcntl_lock fd=%d op=%d offset=%.0f count=%.0f type=%d\n",
+		fd,op,(double)offset,(double)count,type));
 
 	lock.l_type = type;
 	lock.l_whence = SEEK_SET;
@@ -1766,35 +1996,63 @@ BOOL fcntl_lock(int fd, int op, SMB_OFF_T offset, SMB_OFF_T count, int type)
 
 	ret = sys_fcntl_ptr(fd,op,&lock);
 
-	if (ret == -1 && errno != 0)
-		DEBUG(3,("fcntl_lock: fcntl lock gave errno %d (%s)\n",errno,strerror(errno)));
-
-	/* a lock query */
-	if (op == SMB_F_GETLK) {
-		if ((ret != -1) &&
-				(lock.l_type != F_UNLCK) && 
-				(lock.l_pid != 0) && 
-				(lock.l_pid != sys_getpid())) {
-			DEBUG(3,("fcntl_lock: fd %d is locked by pid %d\n",fd,(int)lock.l_pid));
-			return(True);
-		}
-
-		/* it must be not locked or locked by me */
-		return(False);
-	}
-
-	/* a lock set or unset */
 	if (ret == -1) {
+		int sav = errno;
 		DEBUG(3,("fcntl_lock: lock failed at offset %.0f count %.0f op %d type %d (%s)\n",
 			(double)offset,(double)count,op,type,strerror(errno)));
-		return(False);
+		errno = sav;
+		return False;
 	}
 
 	/* everything went OK */
 	DEBUG(8,("fcntl_lock: Lock call successful\n"));
 
-	return(True);
+	return True;
 }
+
+/****************************************************************************
+ Simple routine to query existing file locks. Cruft in NFS and 64->32 bit mapping
+ is dealt with in posix.c
+ Returns True if we have information regarding this lock region (and returns
+ F_UNLCK in *ptype if the region is unlocked). False if the call failed.
+****************************************************************************/
+
+BOOL fcntl_getlock(int fd, SMB_OFF_T *poffset, SMB_OFF_T *pcount, int *ptype, pid_t *ppid)
+{
+	SMB_STRUCT_FLOCK lock;
+	int ret;
+
+	DEBUG(8,("fcntl_getlock fd=%d offset=%.0f count=%.0f type=%d\n",
+		    fd,(double)*poffset,(double)*pcount,*ptype));
+
+	lock.l_type = *ptype;
+	lock.l_whence = SEEK_SET;
+	lock.l_start = *poffset;
+	lock.l_len = *pcount;
+	lock.l_pid = 0;
+
+	ret = sys_fcntl_ptr(fd,SMB_F_GETLK,&lock);
+
+	if (ret == -1) {
+		int sav = errno;
+		DEBUG(3,("fcntl_getlock: lock request failed at offset %.0f count %.0f type %d (%s)\n",
+			(double)*poffset,(double)*pcount,*ptype,strerror(errno)));
+		errno = sav;
+		return False;
+	}
+
+	*ptype = lock.l_type;
+	*poffset = lock.l_start;
+	*pcount = lock.l_len;
+	*ppid = lock.l_pid;
+	
+	DEBUG(3,("fcntl_getlock: fd %d is returned info %d pid %u\n",
+			fd, (int)lock.l_type, (unsigned int)lock.l_pid));
+	return True;
+}
+
+#undef DBGC_CLASS
+#define DBGC_CLASS DBGC_ALL
 
 /*******************************************************************
  Is the name specified one of my netbios names.
@@ -1845,6 +2103,9 @@ BOOL is_myname_or_ipaddr(const char *s)
 		return True;
 
 	/* check for loopback */
+
+	if (strequal(servername, "127.0.0.1")) 
+		return True;
 
 	if (strequal(servername, "localhost")) 
 		return True;
@@ -1910,6 +2171,7 @@ BOOL is_myworkgroup(const char *s)
 /*******************************************************************
  we distinguish between 2K and XP by the "Native Lan Manager" string
    WinXP => "Windows 2002 5.1"
+   WinXP 64bit => "Windows XP 5.2"
    Win2k => "Windows 2000 5.0"
    NT4   => "Windows NT 4.0" 
    Win9x => "Windows 4.0"
@@ -1918,8 +2180,10 @@ BOOL is_myworkgroup(const char *s)
 ********************************************************************/
 
 void ra_lanman_string( const char *native_lanman )
-{		 
+{	
 	if ( strcmp( native_lanman, "Windows 2002 5.1" ) == 0 )
+		set_remote_arch( RA_WINXP );
+	else if ( strcmp( native_lanman, "Windows XP 5.2" ) == 0 )
 		set_remote_arch( RA_WINXP );
 	else if ( strcmp( native_lanman, "Windows Server 2003 5.2" ) == 0 )
 		set_remote_arch( RA_WIN2K3 );
@@ -1931,7 +2195,6 @@ void ra_lanman_string( const char *native_lanman )
 
 void set_remote_arch(enum remote_arch_types type)
 {
-	extern fstring remote_arch;
 	ra_type = type;
 	switch( type ) {
 	case RA_WFWG:
@@ -1954,6 +2217,9 @@ void set_remote_arch(enum remote_arch_types type)
 		break;
 	case RA_WIN2K3:
 		fstrcpy(remote_arch, "Win2K3");
+		break;
+	case RA_VISTA:
+		fstrcpy(remote_arch, "Vista");
 		break;
 	case RA_SAMBA:
 		fstrcpy(remote_arch,"Samba");
@@ -2025,7 +2291,7 @@ void dump_data_pw(const char *msg, const uchar * data, size_t len)
 	DEBUG(11, ("%s", msg));
 	if (data != NULL && len > 0)
 	{
-		dump_data(11, data, len);
+		dump_data(11, (const char *)data, len);
 	}
 #endif
 }
@@ -2156,51 +2422,17 @@ int set_maxfiles(int requested_max)
 }
 
 /*****************************************************************
- Splits out the start of the key (HKLM or HKU) and the rest of the key.
-*****************************************************************/  
-
-BOOL reg_split_key(const char *full_keyname, uint32 *reg_type, char *key_name)
-{
-	pstring tmp;
-
-	if (!next_token(&full_keyname, tmp, "\\", sizeof(tmp)))
-		return False;
-
-	(*reg_type) = 0;
-
-	DEBUG(10, ("reg_split_key: hive %s\n", tmp));
-
-	if (strequal(tmp, "HKLM") || strequal(tmp, "HKEY_LOCAL_MACHINE"))
-		(*reg_type) = HKEY_LOCAL_MACHINE;
-	else if (strequal(tmp, "HKU") || strequal(tmp, "HKEY_USERS"))
-		(*reg_type) = HKEY_USERS;
-	else {
-		DEBUG(10,("reg_split_key: unrecognised hive key %s\n", tmp));
-		return False;
-	}
-	
-	if (next_token(&full_keyname, tmp, "\n\r", sizeof(tmp)))
-		fstrcpy(key_name, tmp);
-	else
-		key_name[0] = 0;
-
-	DEBUG(10, ("reg_split_key: name %s\n", key_name));
-
-	return True;
-}
-
-/*****************************************************************
  Possibly replace mkstemp if it is broken.
 *****************************************************************/  
 
-int smb_mkstemp(char *template)
+int smb_mkstemp(char *name_template)
 {
 #if HAVE_SECURE_MKSTEMP
-	return mkstemp(template);
+	return mkstemp(name_template);
 #else
 	/* have a reasonable go at emulating it. Hope that
 	   the system mktemp() isn't completly hopeless */
-	char *p = mktemp(template);
+	char *p = mktemp(name_template);
 	if (!p)
 		return -1;
 	return open(p, O_CREAT|O_EXCL|O_RDWR, 0600);
@@ -2250,8 +2482,16 @@ char *smb_xstrdup(const char *s)
 #undef strdup
 #endif
 #endif
+
+#ifndef HAVE_STRDUP
+#define strdup rep_strdup
+#endif
+
 	char *s1 = strdup(s);
 #if defined(PARANOID_MALLOC_CHECKER)
+#ifdef strdup
+#undef strdup
+#endif
 #define strdup(s) __ERROR_DONT_USE_STRDUP_DIRECTLY
 #endif
 	if (!s1)
@@ -2271,8 +2511,17 @@ char *smb_xstrndup(const char *s, size_t n)
 #undef strndup
 #endif
 #endif
+
+#if (defined(BROKEN_STRNDUP) || !defined(HAVE_STRNDUP))
+#undef HAVE_STRNDUP
+#define strndup rep_strndup
+#endif
+
 	char *s1 = strndup(s, n);
 #if defined(PARANOID_MALLOC_CHECKER)
+#ifdef strndup
+#undef strndup
+#endif
 #define strndup(s,n) __ERROR_DONT_USE_STRNDUP_DIRECTLY
 #endif
 	if (!s1)
@@ -2419,6 +2668,37 @@ char *parent_dirname(const char *path)
 	return dirpath;
 }
 
+BOOL parent_dirname_talloc(TALLOC_CTX *mem_ctx, const char *dir,
+			   char **parent, const char **name)
+{
+	char *p;
+	ptrdiff_t len;
+ 
+	p = strrchr_m(dir, '/'); /* Find final '/', if any */
+
+	if (p == NULL) {
+		if (!(*parent = talloc_strdup(mem_ctx, "."))) {
+			return False;
+		}
+		if (name) {
+			*name = "";
+		}
+		return True;
+	}
+
+	len = p-dir;
+
+	if (!(*parent = TALLOC_ARRAY(mem_ctx, char, len+1))) {
+		return False;
+	}
+	memcpy(*parent, dir, len);
+	(*parent)[len] = '\0';
+
+	if (name) {
+		*name = p+1;
+	}
+	return True;
+}
 
 /*******************************************************************
  Determine if a pattern contains any Microsoft wildcard characters.
@@ -2427,6 +2707,12 @@ char *parent_dirname(const char *path)
 BOOL ms_has_wild(const char *s)
 {
 	char c;
+
+	if (lp_posix_pathnames()) {
+		/* With posix pathnames no characters are wild. */
+		return False;
+	}
+
 	while ((c = *s++)) {
 		switch (c) {
 		case '*':
@@ -2469,7 +2755,23 @@ BOOL mask_match(const char *string, char *pattern, BOOL is_case_sensitive)
 	if (strcmp(pattern,".") == 0)
 		return False;
 	
-	return ms_fnmatch(pattern, string, Protocol, is_case_sensitive) == 0;
+	return ms_fnmatch(pattern, string, Protocol <= PROTOCOL_LANMAN2, is_case_sensitive) == 0;
+}
+
+/*******************************************************************
+ A wrapper that handles case sensitivity and the special handling
+ of the ".." name. Varient that is only called by old search code which requires
+ pattern translation.
+*******************************************************************/
+
+BOOL mask_match_search(const char *string, char *pattern, BOOL is_case_sensitive)
+{
+	if (strcmp(string,"..") == 0)
+		string = ".";
+	if (strcmp(pattern,".") == 0)
+		return False;
+	
+	return ms_fnmatch(pattern, string, True, is_case_sensitive) == 0;
 }
 
 /*******************************************************************
@@ -2589,6 +2891,7 @@ static BOOL unix_do_match(const char *regexp, const char *str)
 
 /*******************************************************************
  Simple case insensitive interface to a UNIX wildcard matcher.
+ Returns True if match, False if not.
 *******************************************************************/
 
 BOOL unix_wild_match(const char *pattern, const char *string)
@@ -2609,24 +2912,74 @@ BOOL unix_wild_match(const char *pattern, const char *string)
 	if (strequal(p2,"*"))
 		return True;
 
-	return unix_do_match(p2, s2) == 0;	
+	return unix_do_match(p2, s2);
 }
 
 /**********************************************************************
- Converts a name to a fully qalified domain name.
+ Converts a name to a fully qualified domain name.
+ Returns True if lookup succeeded, False if not (then fqdn is set to name)
 ***********************************************************************/
                                                                                                                                                    
-void name_to_fqdn(fstring fqdn, const char *name)
+BOOL name_to_fqdn(fstring fqdn, const char *name)
 {
 	struct hostent *hp = sys_gethostbyname(name);
+
 	if ( hp && hp->h_name && *hp->h_name ) {
-		DEBUG(10,("name_to_fqdn: lookup for %s -> %s.\n", name, hp->h_name));
-		fstrcpy(fqdn,hp->h_name);
+		char *full = NULL;
+
+		/* find out if the fqdn is returned as an alias
+		 * to cope with /etc/hosts files where the first
+		 * name is not the fqdn but the short name */
+		if (hp->h_aliases && (! strchr_m(hp->h_name, '.'))) {
+			int i;
+			for (i = 0; hp->h_aliases[i]; i++) {
+				if (strchr_m(hp->h_aliases[i], '.')) {
+					full = hp->h_aliases[i];
+					break;
+				}
+			}
+		}
+		if (full && (StrCaseCmp(full, "localhost.localdomain") == 0)) {
+			DEBUG(1, ("WARNING: your /etc/hosts file may be broken!\n"));
+			DEBUGADD(1, ("    Specifing the machine hostname for address 127.0.0.1 may lead\n"));
+			DEBUGADD(1, ("    to Kerberos authentication problems as localhost.localdomain\n"));
+			DEBUGADD(1, ("    may end up being used instead of the real machine FQDN.\n"));
+			full = hp->h_name;
+		}
+			
+		if (!full) {
+			full = hp->h_name;
+		}
+
+		DEBUG(10,("name_to_fqdn: lookup for %s -> %s.\n", name, full));
+		fstrcpy(fqdn, full);
+		return True;
 	} else {
 		DEBUG(10,("name_to_fqdn: lookup for %s failed.\n", name));
 		fstrcpy(fqdn, name);
+		return False;
 	}
 }
+
+/**********************************************************************
+ Extension to talloc_get_type: Abort on type mismatch
+***********************************************************************/
+
+void *talloc_check_name_abort(const void *ptr, const char *name)
+{
+	void *result;
+
+	result = talloc_check_name(ptr, name);
+	if (result != NULL)
+		return result;
+
+	DEBUG(0, ("Talloc type mismatch, expected %s, got %s\n",
+		  name, talloc_get_name(ptr)));
+	smb_panic("aborting");
+	/* Keep the compiler happy */
+	return NULL;
+}
+
 
 #ifdef __INSURE__
 
@@ -2666,3 +3019,290 @@ int _Insure_trap_error(int a1, int a2, int a3, int a4, int a5, int a6)
 	return ret;
 }
 #endif
+
+uint32 map_share_mode_to_deny_mode(uint32 share_access, uint32 private_options)
+{
+	switch (share_access & ~FILE_SHARE_DELETE) {
+		case FILE_SHARE_NONE:
+			return DENY_ALL;
+		case FILE_SHARE_READ:
+			return DENY_WRITE;
+		case FILE_SHARE_WRITE:
+			return DENY_READ;
+		case FILE_SHARE_READ|FILE_SHARE_WRITE:
+			return DENY_NONE;
+	}
+	if (private_options & NTCREATEX_OPTIONS_PRIVATE_DENY_DOS) {
+		return DENY_DOS;
+	} else if (private_options & NTCREATEX_OPTIONS_PRIVATE_DENY_FCB) {
+		return DENY_FCB;
+	}
+
+	return (uint32)-1;
+}
+
+pid_t procid_to_pid(const struct process_id *proc)
+{
+	return proc->pid;
+}
+
+struct process_id pid_to_procid(pid_t pid)
+{
+	struct process_id result;
+	result.pid = pid;
+	return result;
+}
+
+struct process_id procid_self(void)
+{
+	return pid_to_procid(sys_getpid());
+}
+
+struct server_id server_id_self(void)
+{
+	struct server_id id;
+	id.id = procid_self();
+	return id;
+}
+
+BOOL procid_equal(const struct process_id *p1, const struct process_id *p2)
+{
+	return (p1->pid == p2->pid);
+}
+
+BOOL cluster_id_equal(const struct server_id *id1,
+		      const struct server_id *id2)
+{
+	return procid_equal(&id1->id, &id2->id);
+}
+
+BOOL procid_is_me(const struct process_id *pid)
+{
+	return (pid->pid == sys_getpid());
+}
+
+struct process_id interpret_pid(const char *pid_string)
+{
+	return pid_to_procid(atoi(pid_string));
+}
+
+char *procid_str_static(const struct process_id *pid)
+{
+	static fstring str;
+	fstr_sprintf(str, "%d", pid->pid);
+	return str;
+}
+
+char *procid_str(TALLOC_CTX *mem_ctx, const struct process_id *pid)
+{
+	return talloc_strdup(mem_ctx, procid_str_static(pid));
+}
+
+BOOL procid_valid(const struct process_id *pid)
+{
+	return (pid->pid != -1);
+}
+
+BOOL procid_is_local(const struct process_id *pid)
+{
+	return True;
+}
+
+int this_is_smp(void)
+{
+#if defined(HAVE_SYSCONF)
+
+#if defined(SYSCONF_SC_NPROC_ONLN)
+        return (sysconf(_SC_NPROC_ONLN) > 1) ? 1 : 0;
+#elif defined(SYSCONF_SC_NPROCESSORS_ONLN)
+        return (sysconf(_SC_NPROCESSORS_ONLN) > 1) ? 1 : 0;
+#else
+	return 0;
+#endif
+
+#else
+	return 0;
+#endif
+}
+
+/****************************************************************
+ Check if an offset into a buffer is safe.
+ If this returns True it's safe to indirect into the byte at
+ pointer ptr+off.
+****************************************************************/
+
+BOOL is_offset_safe(const char *buf_base, size_t buf_len, char *ptr, size_t off)
+{
+	const char *end_base = buf_base + buf_len;
+	char *end_ptr = ptr + off;
+
+	if (!buf_base || !ptr) {
+		return False;
+	}
+
+	if (end_base < buf_base || end_ptr < ptr) {
+		return False; /* wrap. */
+	}
+
+	if (end_ptr < end_base) {
+		return True;
+	}
+	return False;
+}
+
+/****************************************************************
+ Return a safe pointer into a buffer, or NULL.
+****************************************************************/
+
+char *get_safe_ptr(const char *buf_base, size_t buf_len, char *ptr, size_t off)
+{
+	return is_offset_safe(buf_base, buf_len, ptr, off) ?
+			ptr + off : NULL;
+}
+
+/****************************************************************
+ Return a safe pointer into a string within a buffer, or NULL.
+****************************************************************/
+
+char *get_safe_str_ptr(const char *buf_base, size_t buf_len, char *ptr, size_t off)
+{
+	if (!is_offset_safe(buf_base, buf_len, ptr, off)) {
+		return NULL;
+	}
+	/* Check if a valid string exists at this offset. */
+	if (skip_string(buf_base,buf_len, ptr + off) == NULL) {
+		return NULL;
+	}
+	return ptr + off;
+}
+
+/****************************************************************
+ Return an SVAL at a pointer, or failval if beyond the end.
+****************************************************************/
+
+int get_safe_SVAL(const char *buf_base, size_t buf_len, char *ptr, size_t off, int failval)
+{
+	/*
+	 * Note we use off+1 here, not off+2 as SVAL accesses ptr[0] and ptr[1],
+ 	 * NOT ptr[2].
+ 	 */
+	if (!is_offset_safe(buf_base, buf_len, ptr, off+1)) {
+		return failval;
+	}
+	return SVAL(ptr,off);
+}
+
+/****************************************************************
+ Return an IVAL at a pointer, or failval if beyond the end.
+****************************************************************/
+
+int get_safe_IVAL(const char *buf_base, size_t buf_len, char *ptr, size_t off, int failval)
+{
+	/*
+	 * Note we use off+3 here, not off+4 as IVAL accesses 
+	 * ptr[0] ptr[1] ptr[2] ptr[3] NOT ptr[4].
+ 	 */
+	if (!is_offset_safe(buf_base, buf_len, ptr, off+3)) {
+		return failval;
+	}
+	return IVAL(ptr,off);
+}
+
+/****************************************************************
+ talloc wrapper functions that guarentee a null pointer return
+ if size == 0.
+****************************************************************/
+
+#ifndef MAX_TALLOC_SIZE
+#define MAX_TALLOC_SIZE 0x10000000
+#endif
+
+/*
+ *    talloc and zero memory.
+ *    - returns NULL if size is zero.
+ */
+
+void *_talloc_zero_zeronull(const void *ctx, size_t size, const char *name)
+{
+	void *p;
+
+	if (size == 0) {
+		return NULL;
+	}
+
+	p = talloc_named_const(ctx, size, name);
+
+	if (p) {
+		memset(p, '\0', size);
+	}
+
+	return p;
+}
+
+/*
+ *   memdup with a talloc.
+ *   - returns NULL if size is zero.
+ */
+
+void *_talloc_memdup_zeronull(const void *t, const void *p, size_t size, const char *name)
+{
+	void *newp;
+
+	if (size == 0) {
+		return NULL;
+	}
+
+	newp = talloc_named_const(t, size, name);
+	if (newp) {
+		memcpy(newp, p, size);
+	}
+
+	return newp;
+}
+
+/*
+ *   alloc an array, checking for integer overflow in the array size.
+ *   - returns NULL if count or el_size are zero.
+ */
+
+void *_talloc_array_zeronull(const void *ctx, size_t el_size, unsigned count, const char *name)
+{
+	if (count >= MAX_TALLOC_SIZE/el_size) {
+		return NULL;
+	}
+
+	if (el_size == 0 || count == 0) {
+		return NULL;
+	}
+
+	return talloc_named_const(ctx, el_size * count, name);
+}
+
+/*
+ *   alloc an zero array, checking for integer overflow in the array size
+ *   - returns NULL if count or el_size are zero.
+ */
+
+void *_talloc_zero_array_zeronull(const void *ctx, size_t el_size, unsigned count, const char *name)
+{
+	if (count >= MAX_TALLOC_SIZE/el_size) {
+		return NULL;
+	}
+
+	if (el_size == 0 || count == 0) {
+		return NULL;
+	}
+
+	return _talloc_zero(ctx, el_size * count, name);
+}
+
+/*
+ *   Talloc wrapper that returns NULL if size == 0.
+ */
+void *talloc_zeronull(const void *context, size_t size, const char *name)
+{
+	if (size == 0) {
+		return NULL;
+	}
+	return talloc_named_const(context, size, name);
+}

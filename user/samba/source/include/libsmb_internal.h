@@ -10,11 +10,11 @@
 
 
 struct _SMBCSRV {
-	struct cli_state cli;
+	struct cli_state *cli;
 	dev_t dev;
+	BOOL no_pathinfo;
 	BOOL no_pathinfo2;
         BOOL no_nt_session;
-	int server_fd;
 
 	SMBCSRV *next, *prev;
 	
@@ -35,7 +35,7 @@ struct smbc_dir_list {
 struct _SMBCFILE {
 	int cli_fd; 
 	char *fname;
-	off_t offset;
+	SMB_OFF_T offset;
 	struct _SMBCSRV *srv;
 	BOOL file;
 	struct smbc_dir_list *dir_list, *dir_end, *dir_next;
@@ -47,11 +47,12 @@ struct _SMBCFILE {
 
 struct smbc_internal_data {
 
-	/** INTERNAL: is this handle initialized ? 
+	/*
+         * Is this handle initialized ? 
 	 */
-	int     _initialized;
+	BOOL    _initialized;
 
-        /** INTERNAL: dirent pointer location
+        /* dirent pointer location
          *
          * Leave room for any urlencoded filename and the comment field.
          *
@@ -64,13 +65,47 @@ struct smbc_internal_data {
          */
 	char    _dirent[1024];
 
-	/** INTERNAL: server connection list
+	/*
+         * server connection list
 	 */
 	SMBCSRV * _servers;
 	
-	/** INTERNAL: open file/dir list
+	/*
+         * open file/dir list
 	 */
 	SMBCFILE * _files;
+
+        /*
+         * Log to standard error instead of the more typical standard output
+         */
+        BOOL _debug_stderr;
+
+        /*
+         * Support "Create Time" in get/set with the *xattr() functions, if
+         * true.  This replaces the dos attribute strings C_TIME, A_TIME and
+         * M_TIME with CHANGE_TIME, ACCESS_TIME and WRITE_TIME, and adds
+         * CREATE_TIME.  Default is FALSE, i.e.  to use the old-style shorter
+         * names and to not support CREATE time, for backward compatibility.
+         */
+        BOOL _full_time_names;
+
+        /*
+         * The share mode of a file being opened.  To match POSIX semantics
+         * (and maintain backward compatibility), DENY_NONE is the default.
+         */
+         smbc_share_mode _share_mode;
+
+        /*
+         * Authentication function which includes the context.  This will be
+         * used if set; otherwise context->callbacks.auth_fn() will be used.
+         */
+        smbc_get_auth_data_with_context_fn _auth_fn_with_context;
+
+        /*
+         * An opaque (to this library) user data handle which can be set
+         * and retrieved with smbc_option_set() and smbc_option_get().
+         */
+        void * _user_data;
 };	
 
 

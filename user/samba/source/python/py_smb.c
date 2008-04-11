@@ -43,7 +43,7 @@ static PyObject *py_smb_connect(PyObject *self, PyObject *args, PyObject *kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "s", kwlist, &server))
 		return NULL;
 
-	if (!(cli = cli_initialise(NULL)))
+	if (!(cli = cli_initialise()))
 		return NULL;
 
 	ZERO_STRUCT(ip);
@@ -99,7 +99,7 @@ static PyObject *py_smb_session_setup(PyObject *self, PyObject *args,
 	static char *kwlist[] = { "creds", NULL };
 	PyObject *creds;
 	char *username, *domain, *password, *errstr;
-	BOOL result;
+	NTSTATUS result;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "|O", kwlist, &creds))
 		return NULL;
@@ -118,7 +118,7 @@ static PyObject *py_smb_session_setup(PyObject *self, PyObject *args,
 		return NULL;
 	}
 
-	return Py_BuildValue("i", result);
+	return Py_BuildValue("i", NT_STATUS_IS_OK(result));
 }
 
 static PyObject *py_smb_tconx(PyObject *self, PyObject *args, PyObject *kw)
@@ -154,7 +154,7 @@ static PyObject *py_smb_nt_create_andx(PyObject *self, PyObject *args,
 	char *filename;
 	uint32 desired_access, file_attributes = 0, 
 		share_access = FILE_SHARE_READ | FILE_SHARE_WRITE,
-		create_disposition = FILE_EXISTS_OPEN, create_options = 0;
+		create_disposition = OPENX_FILE_EXISTS_OPEN, create_options = 0;
 	int result;
 
 	/* Parse parameters */
@@ -212,7 +212,7 @@ static PyObject *py_smb_read(PyObject *self, PyObject *args, PyObject *kw)
 	static char *kwlist[] = { "fnum", "offset", "size", NULL };
 	int fnum, offset=0, size=0;
 	ssize_t result;
-	size_t fsize;
+	SMB_OFF_T fsize;
 	char *data;
 	PyObject *ret;
 
@@ -235,7 +235,7 @@ static PyObject *py_smb_read(PyObject *self, PyObject *args, PyObject *kw)
 	if (size < 1 || size > fsize - offset)
 		size = fsize - offset;
 
-	if (!(data = (char *) malloc((size_t) size))) {
+	if (!(data = SMB_XMALLOC_ARRAY(char, size))) {
 		PyErr_SetString(PyExc_RuntimeError, "malloc failed");
 		return NULL;
 	}
