@@ -9,6 +9,7 @@ build-$(VER)/Makefile:
 	rm -rf build-$(VER) ; \
 	mkdir build-$(VER) ; \
 	cd build-$(VER) ; \
+	OPENOBEX_CONFIG=$(STAGEDIR)/usr/bin/openobex-config \
 	../$(VER)/configure \
 		$(CONFIGURE_OPTS)
 
