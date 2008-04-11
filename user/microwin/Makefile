@@ -4,7 +4,7 @@ BINDIR=src/bin
 all clean:
 	[ -d src/lib ] || mkdir src/lib
 	[ -d src/bin ] || mkdir src/bin
-	$(MAKE) -C src TOOLSPREFIX=$(CROSS_COMPILE) $@ || exit 1
+	$(MAKE) -C src $@ || exit 1
 ifeq ($(CONFIG_USER_MICROWIN_NXLIB),y)
 	$(MAKE) -C nxlib $@
 endif
