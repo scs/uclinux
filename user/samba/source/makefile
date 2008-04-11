@@ -14,7 +14,11 @@ ifeq ($(ARCH),arm)
 CFLAGS := $(CFLAGS:-O1=-Os)
 endif
 
+# build pch target first as this gets us two things:
+# - ignores parallel build troubles with header generation
+# - speeds up build time as all the common/major headers are precompiled
 all: build/build
+	$(MAKE) -C build pch
 	$(MAKE) -C build
 
 build/build: makefile
