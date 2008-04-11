@@ -37,3 +37,5 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_SAMBA_SMBMOUNT build/bin/smbmnt /bin/smbmnt
 	$(ROMFSINST) -e CONFIG_USER_SAMBA_SMBMOUNT build/bin/smbmount /bin/smbmount
 	$(ROMFSINST) -e CONFIG_USER_SAMBA_SMBUMOUNT build/bin/smbumount /bin/smbumount
+	$(ROMFSINST) -e CONFIG_USER_SAMBA_MOUNT_CIFS build/bin/mount.cifs /bin/mount.cifs
+	$(ROMFSINST) -e CONFIG_USER_SAMBA_UMOUNT_CIFS build/bin/umount.cifs /bin/umount.cifs

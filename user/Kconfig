@@ -700,6 +700,14 @@ config USER_SAMBA_SMBUMOUNT
 	bool "smbumount"
 	depends on USER_SAMBA
 
+config USER_SAMBA_MOUNT_CIFS
+	bool "mount.cifs"
+	depends on USER_SAMBA
+
+config USER_SAMBA_UMOUNT_CIFS
+	bool "umount.cifs"
+	depends on USER_SAMBA
+
 config USER_SAMBA_SHARED
 	bool "uses shared library"
 	depends on USER_SAMBA
