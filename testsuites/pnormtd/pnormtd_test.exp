@@ -8,18 +8,7 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
 
-if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-
-set bootargs  $bootargs_param1
-
-} elseif { $board_type == "BF561-EZKIT" } {
-
-set bootargs  $bootargs_param1
-
-} elseif { $board_type == "BF548-EZKIT" } {
-
-set bootargs  $bootargs_param5
-}
+set bootargs  $bootargs_param0
 
 step "Start kermit."
 source ../spawn_kermit.exp

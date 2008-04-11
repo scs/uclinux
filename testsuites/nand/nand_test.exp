@@ -12,6 +12,7 @@ source ../spawn_kermit.exp
 step "Reboot the kernel."
 source ../reboot_kernel.exp
 
+set nand_rootfs_num         "x"
 set TEST_PASS               "pass"
 set TEST_FAIL               "fail"
 
@@ -79,6 +80,31 @@ while 1 {
 }
 }  
 
+step "Locate the partition."
+incr case_num
+
+send -s "dmesg \r"
+while 1 {
+    expect {
+
+       -re "NAND.*(0x\[0-9a-fA-F]+-0x\[0-9a-fA-F]+)\[\x20\t]+:\[\x20\t]+\"(.*)\"\r\n(0x\[0-9a-fA-F]+-0x\[0-9a-fA-F]+)\[\x20\t]+:\[\x20\t]+\"(.*)\"\r\n" {
+                set kernel_partition_address $expect_out(1,string)
+                set kernel_partition_name $expect_out(2,string)
+                set rootfs_partition_address $expect_out(3,string)
+                set rootfs_partition_name $expect_out(4,string)
+
+                case_pass $case_num
+                expect ">"
+                break;
+        }
+
+        timeout {
+                case_fail $case_num
+                exit
+        }
+    }
+}
+
 step "Show file systems."
 incr case_num
 
@@ -111,15 +137,14 @@ send -s "cat /proc/mtd \r"
 while 1 {
     expect {
 
-	"mtd$nand_rootfs_num" {
+       -re  "mtd(\[0-9]):\[0-9a-fA-F ]+\"$rootfs_partition_name\"" {
+                set nand_rootfs_num $expect_out(1,string)
 		set mtd_temp_result $TEST_PASS
                 case_pass $case_num
-	}
-
-	  -re $kernel_prompt {
+                send_user "Nand_rootfs_num is $nand_rootfs_num\n"
+                expect -re $kernel_prompt
                 break
-        }
-
+	}
 
 	timeout {
                 case_fail $case_num
@@ -127,8 +152,10 @@ while 1 {
 	}
     }
 }
-
 sleep 1
+if { $nand_rootfs_num == "x" } {
+exit
+}
 
 incr case_num
 

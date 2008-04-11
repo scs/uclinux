@@ -14,18 +14,7 @@ source ../spawn_kermit.exp
 step "Reset the uboot."
 source ../reset_to_uboot.exp
 
-if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
-
 set bootargs  $bootargs_param1
-
-} elseif { $board_type == "BF561-EZKIT" } {
-
-set bootargs  $bootargs_param1
-
-} elseif { $board_type == "BF548-EZKIT" } {
-
-set bootargs  $bootargs_param6
-}
 
 send -s "set bootargs $bootargs\r"
 expect   ">" 

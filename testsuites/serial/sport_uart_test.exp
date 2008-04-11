@@ -15,7 +15,7 @@ step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
-set bootargs             $bootargs_param9
+set bootargs             $bootargs_param6
 source ../reboot_kernel.exp
 
 set file aaa

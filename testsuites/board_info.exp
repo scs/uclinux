@@ -39,7 +39,7 @@ set spi_rootfs_start_addr 0x40000
 set spi_rootfs_size 0x1bffff
 set pnor_rootfs_num 2
 set spi_rootfs_num 4
-set nand_rootfs_num 2 
+set nand_rootfs_num 1 
 }
 
 if { $board_type == "BF537-STAMP" } {

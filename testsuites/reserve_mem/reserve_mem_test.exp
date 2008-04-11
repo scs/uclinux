@@ -9,7 +9,7 @@ step "Start kermit."
 source ../spawn_kermit.exp
 
 step "Reboot the kernel."
-set bootargs  $bootargs_param3
+set bootargs  $bootargs_param5
 source ../reboot_kernel.exp
 
 step "Starting test."
