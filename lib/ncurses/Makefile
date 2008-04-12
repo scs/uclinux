@@ -3,38 +3,23 @@ VER = ncurses-5.6
 NCURSES_TERMS = linux,vt100,vt220,xterm
 NCURSES_DEMOS = dots firework gdc hanoi newdemo railroad rain tclock worm xmas
 
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-NCURSES_SHARED = --with-shared
-else
-NCURSES_SHARED = --without-shared
-endif
+CONF_OPTS = \
+	$(CONFIGURE_SHARED_ENABLE) \
+	--disable-termcap \
+	--without-ada \
+	--with-manpage-format=normal \
+	--with-manpage-renames=no \
+	--with-manpage-aliases=no \
+	--with-manpage-symlinks=no \
+	--enable-symlinks \
+	--enable-const
 
-all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
+include $(ROOTDIR)/tools/autotools.mk
+
+post-build::
 ifeq ($(CONFIG_USER_NCURSES_TESTS),y)
 	$(MAKE) -C build-$(VER)/test
 endif
-
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	../$(VER)/configure \
-		$(CONFIGURE_OPTS) \
-		$(NCURSES_SHARED) \
-		--disable-termcap \
-		--without-ada \
-		--with-manpage-format=normal \
-		--with-manpage-renames=no \
-		--with-manpage-aliases=no \
-		--with-manpage-symlinks=no \
-		--enable-symlinks \
-		--enable-const
-
-clean:
-	rm -rf build*
 
 romfs:
 	$(ROMFSINST) -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libncurses.so.5 /lib/
@@ -47,5 +32,3 @@ romfs:
 	for x in $(NCURSES_DEMOS) ; do \
 		$(ROMFSINST) -e CONFIG_USER_NCURSES_TESTS build-$(VER)/test/$$x /bin/ncurses-demo-$$x ; \
 	done
-
-.PHONY: all clean romfs
