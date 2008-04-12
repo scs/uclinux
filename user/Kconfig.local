@@ -217,6 +217,12 @@ config USER_UBOOT_TOOLS
 	bool "U-Boot Tools"
 config USER_I2C_TOOLS
 	bool "I2C Tools"
+config USER_NANO
+	bool "nano"
+	select LIB_NCURSES
+	help
+	  The ncurses based text editor:
+	  http://www.nano-editor.org/
 
 endmenu
 
