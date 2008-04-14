@@ -3932,6 +3932,8 @@ menu "MicroWindows"
 
 config USER_MICROWIN
 	bool "MicroWindows"
+	select LIB_FREETYPE
+	select LIB_TSLIB
 
 comment "Compiling Options"
 
