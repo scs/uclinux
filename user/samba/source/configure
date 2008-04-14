@@ -11607,13 +11607,13 @@ echo "${ECHO_T}$SINIX_LFS_SUPPORT" >&6; }
 # Tests for linux LFS support. Need kernel 2.4 and glibc2.2 or greater support.
 #
     *linux*)
+        old_CPPFLAGS="$CPPFLAGS"
         { echo "$as_me:$LINENO: checking for LFS support" >&5
 echo $ECHO_N "checking for LFS support... $ECHO_C" >&6; }
 if test "${LINUX_LFS_SUPPORT+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
 
-        old_CPPFLAGS="$CPPFLAGS"
         CPPFLAGS="-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $CPPFLAGS"
        if test "$cross_compiling" = yes; then
   LINUX_LFS_SUPPORT=cross

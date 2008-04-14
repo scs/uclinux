@@ -754,8 +754,8 @@ exit(1);
 # Tests for linux LFS support. Need kernel 2.4 and glibc2.2 or greater support.
 #
     *linux*)
-        AC_CACHE_CHECK([for LFS support],LINUX_LFS_SUPPORT, [
         old_CPPFLAGS="$CPPFLAGS"
+        AC_CACHE_CHECK([for LFS support],LINUX_LFS_SUPPORT, [
         CPPFLAGS="-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE $CPPFLAGS"
        AC_TRY_RUN([
 #include <unistd.h>
