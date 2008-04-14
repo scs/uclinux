@@ -1,3 +1,5 @@
+FLTFLAGS = -s 0x8000
+
 all:
 	$(MAKE) -C source
 clean:
