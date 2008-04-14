@@ -20,7 +20,7 @@ AC_DEFUN([IRDA_HOOK],[
 	AC_CACHE_CHECK([for IrDA support],am_cv_irda_found,[
 
 		AC_TRY_COMPILE([#include <sys/socket.h>
-				#include "src/irda.h"],
+				#include "../openobex-1.3.0/src/irda.h"],
 		[struct irda_device_list l;],
 		am_cv_irda_found=yes,
 		am_cv_irda_found=no)])
