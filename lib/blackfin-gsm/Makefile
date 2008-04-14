@@ -17,6 +17,8 @@ LDFLAGS += -lm
 FLAGS=CC=$(CC) CCFLAGS='$(CCFLAGS)' AR=$(AR) WAV49=
 
 all: tgsm
+	cp gsm/lib/libgsm.a $(STAGEDIR)/usr/lib
+	cp gsm/inc/*.h $(STAGEDIR)/usr/include
 
 gsm/lib/libgsm.a:
 	$(MAKE) $(FLAGS) -C gsm lib/libgsm.a

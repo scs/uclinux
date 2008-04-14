@@ -228,22 +228,9 @@ LIBS+=-lltdl -lm -lncurses -lssl -lz -lcrypto -ltonezone
 LIBS+=-lpthread -lgsm -lspeex -lm
 
 #uClinux libtool
-LIBTOOL=$(ROOTDIR)/lib/libtool/DESTDIR/usr/bin/libtool
-CFLAGS+=-I$(ROOTDIR)/lib/libtool/DESTDIR/usr/include
-CFLAGS+=-I$(ROOTDIR)/lib/libssl/include
-CFLAGS+=-I$(ROOTDIR)/lib/ncurses/include
-CFLAGS+=-I$(ROOTDIR)/lib/zlib
-CFLAGS+=-I$(ROOTDIR)/lib/blackfin-gsm/gsm/inc
-CFLAGS+=-I$(ROOTDIR)/lib/speex/DESTDIR/usr/include/
+LIBTOOL=$(STAGEDIR)/usr/bin/libtool
 CFLAGS+=-I$(ROOTDIR)/user/blkfin-apps/zaptel
 
-LIBS+= -L$(ROOTDIR)/lib/libtool/build/libltdl/.libs/
-LIBS+= -L$(ROOTDIR)/lib/libssl
-LIBS+= -L$(ROOTDIR)/lib/ncurses/lib
-LIBS+= -L$(ROOTDIR)/lib/zlib
-LIBS+= -L$(ROOTDIR)/lib
-LIBS+= -L$(ROOTDIR)/lib/blackfin-gsm/gsm/lib
-LIBS+= -L$(ROOTDIR)/lib/speex/build/libspeex/.libs/
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/zaptel 
 LIBS+= -L$(ROOTDIR)/user/blkfin-apps/asterisk/editline 
 

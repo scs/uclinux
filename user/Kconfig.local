@@ -160,9 +160,10 @@ config USER_VLC
 	select LIB_LIBICONV
 	select LIB_LIBMPEG2
 	select LIB_ZLIB
+config USER_ZAPTEL
+	bool "ZAPTEL app"
 config USER_BLACKFIN_ASTERISK
 	bool "Asterisk PBX"
-	select USER_THREADSTACK
 	select LIB_LIBSSL
 	select LIB_LIBTOOL
 	select LIB_SPEEX
