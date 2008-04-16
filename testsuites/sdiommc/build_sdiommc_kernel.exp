@@ -50,6 +50,10 @@ while 1 {
             send "y\r"
         }
 
+        -re "Pull Up Resistor Workaround.*SDH_BFIN_MISSING_CMD_PULLUP_WORKAROUND.*\\\[.*]" {
+            send "y\r"
+        }
+
         -re "Blackfin on-chip NAND Flash Controller driver.*MTD_NAND_BF5XX.*\\\[.*]" {
             send "n\r"
         }
