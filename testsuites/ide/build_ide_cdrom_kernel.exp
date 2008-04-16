@@ -13,89 +13,6 @@ source  make_default_config.exp
 
 # Following make specific configuration for this case.
 
-send_log "\n\n#### Set config under $uclinux_path/linux-2.6.x folder.\n\n"
-
-cd $uclinux_path/linux-2.6.x
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_BFIN_KERNEL_CLOCK is not set\r"
-      expect "CONFIG_BFIN_KERNEL_CLOCK is not set"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_BFIN_KERNEL_CLOCK=y\r"
-      send "CONFIG_VCO_MULT=20\r"
-      send "CONFIG_CCLK_DIV=1\r"
-      send "CONFIG_SCLK_DIV=8\r"
-      send ".\r"
-      expect ":"
-      sleep .5    
-      
-      send "/CONFIG_BANK_3\[ =]\r"
-      expect "CONFIG_BANK_3\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_BANK_3=0xFFC3\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-      
-      send "wq\r"
-      expect eof
-
-      
-send_log "\n\n#### Set config under $uclinux_path/config folder.\n\n"
-
-cd $uclinux_path/config
-sleep 3
- set timeout 2
-      spawn ex .config
-      expect {
-         "Entering Ex mode*Normal mode." { }
-
-         "already exists!" {
-            send "e\r"
-            sleep 1
-         }
-      }
-      sleep 1
-      send "/CONFIG_USER_BUSYBOX_HDPARM\[ =]\r"
-      expect "CONFIG_USER_BUSYBOX_HDPARM\[ =]"
-      send "d\r"
-      sleep .5
-      expect ":"
-      send "i\r"
-      sleep .5
-      send "CONFIG_USER_BUSYBOX_HDPARM=y\r"
-      send "CONFIG_USER_BUSYBOX_FEATURE_HDPARM_GET_IDENTITY=y\r"
-      send "CONFIG_USER_BUSYBOX_FEATURE_HDPARM_HDIO_SCAN_HWIF=y\r"
-      send "CONFIG_USER_BUSYBOX_FEATURE_HDPARM_HDIO_UNREGISTER_HWIF=y\r"
-      send "CONFIG_USER_BUSYBOX_FEATURE_HDPARM_HDIO_DRIVE_RESET=y\r"
-      send "CONFIG_USER_BUSYBOX_FEATURE_HDPARM_HDIO_TRISTATE_HWIF=y\r"
-      send "CONFIG_USER_BUSYBOX_FEATURE_HDPARM_HDIO_GETSET_DMA=y\r"
-      send ".\r"
-      expect ":"
-      sleep .5
-
-      send "wq\r"
-      expect eof
-      
-      
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
@@ -114,6 +31,22 @@ while 1 {
 
         -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
+        }
+
+        -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
+            send "20\r"
+        }
+
+        -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
+            send "1\r"
+        }
+
+        -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
+            send "8\r"
         }
 
         -re "ATA.ATAPI.MFM.RLL support.*IDE.*\\\[.*]" {
@@ -195,33 +128,33 @@ while 1 {
             send "Y\r"
         }
 
-#     -re "hdparm.*CONFIG_USER_BUSYBOX_HDPARM.*\\\[.*]" {
-#             send "Y\r"
-#      }
-#
-#       -re "hdparm. get identity.*CONFIG_USER_BUSYBOX_HDPARM_GET_IDENTITY.*\\\[.*]" {
-#             send "Y\r"
-#      }
-#
-#      -re "hdparm. scan hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_SCAN_HWIF.*\\\[.*]" {
-#             send "Y\r"
-#      }
-#       -re "hdparm. unregister hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_UNREGISTER_HWIF.*\\\[.*]" {
-#             send "Y\r"
-#      }
-#
-#       -re "hdparm. drive reset.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_DRIVE_RESET.*\\\[.*]" {
-#             send "Y\r"
-#      }
-#
-#      -re "hdparm. tristate hwif.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_TRISTATE_HWIF.*\\\[.*]" {
-#             send "Y\r"
-#      }
-#
-#      -re "hdparm. get.set dma.*CONFIG_USER_BUSYBOX_HDPARM_HDIO_GETSET_DMA.*\\\[.*]" {
-#             send "Y\r"
-#      }
+       -re "hdparm.*USER_BUSYBOX_HDPARM.*\\\[.*]" {
+             send "Y\r"
+      }
 
+       -re "Support obtaining detailed information directly from drives.*USER_BUSYBOX_FEATURE_HDPARM_GET_IDENTITY.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       -re "Register an IDE interface.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_SCAN_HWIF.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       -re "Un-register an IDE interface.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_UNREGISTER_HWIF.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       -re "perform device reset.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_DRIVE_RESET.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       -re "tristate device for hotswap.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_TRISTATE_HWIF.*\\\[.*]" {
+             send "Y\r"
+      }
+
+       -re "get/set using_dma flag.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_GETSET_DMA.*\\\[.*]" {
+             send "Y\r"
+      }
 
         "\\\(*) \\\[*]" {
             sleep .01
