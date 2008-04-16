@@ -54,9 +54,7 @@ ifeq ($(CONFIG_BLACKFIN_INSTALL_UCLINUX_CONFIG),y)
 	gzip -9c $(ROOTDIR)/config/.config > $(ROMFSDIR)/root/uclinux-config.gz
 endif
 
-BSS      = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | awk '/.bss/ {print "0x"$$4}')
-BSS_SIZE = $$($(CROSS_COMPILE)objdump -h $(IMAGEDIR)/vmlinux | awk '/.bss/ {print "0x"$$3}')
-ADDR     = $$(echo $$(($(BSS) + $(BSS_SIZE))))
+ADDR     = $$($(CROSS_COMPILE)readelf -s $(IMAGEDIR)/vmlinux | awk '$$NF == "__end" {print "0x"$$2}')
 ENTRY    = $$($(CROSS_COMPILE)nm $(IMAGE).$$FS | awk '$$NF == "__start" {print $$1}')
 
 ifeq ($(CONFIG_USER_DEV_DYNAMIC),y)
