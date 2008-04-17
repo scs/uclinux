@@ -491,7 +491,7 @@ set_up_server(char hostname[], char port[], int af)
     */
 
 #if !defined(WIN32) && !defined(MPE) && !defined(__VMS)
-  switch (fork())
+  switch (vfork())
     {
     case -1:  	
       perror("netperf server error");
@@ -524,7 +524,7 @@ set_up_server(char hostname[], char port[], int af)
 				  &peeraddr_len)) == INVALID_SOCKET)
 	    {
 	      printf("server_control: accept failed errno %d\n",errno);
-	      exit(1);
+	      _exit(1);
 	    }
 #if defined(MPE) || defined(__VMS)
 	  /*
@@ -592,16 +592,16 @@ set_up_server(char hostname[], char port[], int af)
 #else
       signal(SIGCLD, SIG_IGN);
 	  
-	  switch (fork())
+	  switch (vfork())
 	    {
 	    case -1:
 	      /* something went wrong */
-	      exit(1);
+	      _exit(1);
 	    case 0:
 	      /* we are the child process */
 	      close(server_control);
 	      process_requests();
-	      exit(0);
+	      _exit(0);
 	      break;
 	    default:
 	      /* we are the parent process */
