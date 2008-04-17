@@ -29,16 +29,23 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifdef WIN32
 #include <malloc.h> /* for alloca */
 #endif
+/*DELAY_NUM need to be changed for different delay
+currently,40 is for AD1980 mmap-driver*/
+#define DELAY_NUM 40
 
 static const int framesize=128;
-static const int filter_length=2048; /*250 ms*/
+/*filter_length also need to be changed for different environment
+refer to speex manual*/
+static const int filter_length=1024; /*125 ms*/
 
 typedef struct SpeexECState{
 	SpeexEchoState *ecstate;
-	MSBufferizer in[2];
+	MSBufferizer in[3];
 	int framesize;
 	int filterlength;
 	int samplerate;
+	int len;
+	int delay;
 	SpeexPreprocessState *den;
         int ref;
         int echo;
@@ -51,12 +58,14 @@ static void speex_ec_init(MSFilter *f){
 	s->samplerate=8000;
 	s->framesize=framesize;
 	s->filterlength=filter_length;
-
+	s->len = 0;
+	s->delay = 0;
 	ms_bufferizer_init(&s->in[0]);
 	ms_bufferizer_init(&s->in[1]);
+	ms_bufferizer_init(&s->in[2]);
 	s->ecstate=speex_echo_state_init(s->framesize,s->filterlength);
 	s->den = speex_preprocess_state_init(s->framesize, s->samplerate);
-
+	speex_preprocess_ctl(s->den, SPEEX_PREPROCESS_SET_ECHO_STATE, s->ecstate);
 	f->data=s;
 }
 
@@ -64,6 +73,9 @@ static void speex_ec_uninit(MSFilter *f){
 	SpeexECState *s=(SpeexECState*)f->data;
 	ms_bufferizer_uninit(&s->in[0]);
 	ms_bufferizer_uninit(&s->in[1]);
+	ms_bufferizer_uninit(&s->in[2]);
+	s->len = 0;
+	s->delay = 0;
 	speex_echo_state_destroy(s->ecstate);
 	if (s->den!=NULL)
 	  speex_preprocess_state_destroy(s->den);
@@ -79,42 +91,51 @@ static void speex_ec_uninit(MSFilter *f){
 static void speex_ec_process(MSFilter *f){
 	SpeexECState *s=(SpeexECState*)f->data;
 	int nbytes=s->framesize*2;
-	uint8_t *in1;
-	mblk_t *om0,*om1;
-#ifdef HAVE_SPEEX_NOISE
-	spx_int32_t *noise=(spx_int32_t*)alloca(nbytes*sizeof(spx_int32_t)+1);
-#else
-	float *noise=NULL;
-#endif
+	uint8_t *in1,*ref;
+	mblk_t *om0,*om0bak,*om1;
 #ifdef AMD_WIN32_HACK
 	static int count=0;
 #endif
-
+	
+	
 	/*read input and put in bufferizers*/
 	ms_bufferizer_put_from_queue(&s->in[0],f->inputs[0]);
 	ms_bufferizer_put_from_queue(&s->in[1],f->inputs[1]);
-	
-	in1=(uint8_t*)alloca(nbytes);
+	in1 = (uint8_t*)alloca(nbytes);
+	ref = (uint8_t*)alloca(nbytes);
 
-	ms_debug("speexec:  in0=%i, in1=%i",ms_bufferizer_get_avail(&s->in[0]),ms_bufferizer_get_avail(&s->in[1]));
+	ms_debug("speexec:  in0=%i, in1=%i\n",ms_bufferizer_get_avail(&s->in[0]),ms_bufferizer_get_avail(&s->in[1]));
 
 	while (ms_bufferizer_get_avail(&s->in[0])>=nbytes && ms_bufferizer_get_avail(&s->in[1])>=nbytes){
 		om0=allocb(nbytes,0);
+		om0bak=allocb(nbytes,0);
+		om1=allocb(nbytes,0);
 		ms_bufferizer_read(&s->in[0],(uint8_t*)om0->b_wptr,nbytes);
 		/* we have reference signal */
 		/* the reference signal is sent through outputs[0]*/
-		
 		om0->b_wptr+=nbytes;
+		/*backup it as further reference signal*/
+		memcpy((uint8_t*)om0bak->b_wptr,(uint8_t*)om0->b_rptr,nbytes);
+		om0bak->b_wptr+=nbytes;	
+		ms_bufferizer_put(&s->in[2], om0bak);	
 		ms_queue_put(f->outputs[0],om0);
-
-		ms_bufferizer_read(&s->in[1],in1,nbytes);
-		/* we have echo signal */
-		om1=allocb(nbytes,0);
-		speex_echo_cancel(s->ecstate,(short*)in1,(short*)om0->b_rptr,(short*)om1->b_wptr,(spx_int32_t*)noise);
-		if (s->den!=NULL && noise!=NULL)
-		  speex_preprocess(s->den, (short*)om1->b_wptr, (spx_int32_t*)noise);
-
-		om1->b_wptr+=nbytes;
+		/*Because of the delay between reference signal and echo signal,
+		the first DELAY_NUM of echo signal packets are meaningless*/
+		if (!s->delay){ 
+			if (s->len < DELAY_NUM)			
+				s->len++;
+			else 
+				s->delay = 1;
+		}
+		else {
+			/*get the reference signal from backup queue*/
+			ms_bufferizer_read(&s->in[2],ref,nbytes);
+			ms_bufferizer_read(&s->in[1],in1,nbytes);
+			/* we have echo signal */
+			speex_echo_cancellation(s->ecstate,(short*)in1,(short*)ref,(short*)om1->b_wptr);
+			speex_preprocess_run(s->den,(short*)om1->b_wptr);
+			om1->b_wptr+=nbytes;
+		}
 		ms_queue_put(f->outputs[1],om1);
 #ifdef AMD_WIN32_HACK
 		count++;
@@ -127,9 +148,9 @@ static void speex_ec_process(MSFilter *f){
 #endif
 	}
 
-	if (ms_bufferizer_get_avail(&s->in[0])> 4*320*(s->samplerate/8000)) /* above 4*20ms -> useless */
+
+	if (ms_bufferizer_get_avail(&s->in[0])> 4*320*(s->samplerate/8000)) 
 	  {
-	    /* reset evrything */
 	    ms_warning("speexec: -reset of echo canceller- in0=%i, in1=%i",ms_bufferizer_get_avail(&s->in[0]),ms_bufferizer_get_avail(&s->in[1]));
 	    flushq(&s->in[1].q,0);
 	    flushq(&s->in[0].q,0);
@@ -170,9 +191,9 @@ static int speex_ec_set_sr(MSFilter *f, void *arg){
 }
 
 static int speex_ec_set_framesize(MSFilter *f, void *arg){
+	
 	SpeexECState *s=(SpeexECState*)f->data;
 	s->framesize = *(int*)arg;
-
 	if (s->ecstate==NULL)
 		speex_echo_state_destroy(s->ecstate);
 	if (s->den!=NULL)
@@ -189,7 +210,6 @@ static int speex_ec_set_framesize(MSFilter *f, void *arg){
 static int speex_ec_set_filterlength(MSFilter *f, void *arg){
 	SpeexECState *s=(SpeexECState*)f->data;
 	s->filterlength = *(int*)arg;
-
 	if (s->ecstate==NULL)
 		speex_echo_state_destroy(s->ecstate);
 	if (s->den!=NULL)
