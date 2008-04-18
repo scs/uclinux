@@ -490,8 +490,8 @@ set_up_server(char hostname[], char port[], int af)
     setpgrp();
     */
 
-#if !defined(WIN32) && !defined(MPE) && !defined(__VMS)
-  switch (vfork())
+#if !defined(WIN32) && !defined(MPE) && !defined(__VMS) && !defined(__uClinux__)
+  switch (fork())
     {
     case -1:  	
       perror("netperf server error");
@@ -515,7 +515,7 @@ set_up_server(char hostname[], char port[], int af)
 
       signal(SIGCLD, SIG_IGN);
       
-#endif /* !WIN32 !MPE !__VMS */
+#endif /* !WIN32 !MPE !__VMS !__uClinux__ */
 
       for (;;)
 	{
@@ -524,7 +524,7 @@ set_up_server(char hostname[], char port[], int af)
 				  &peeraddr_len)) == INVALID_SOCKET)
 	    {
 	      printf("server_control: accept failed errno %d\n",errno);
-	      _exit(1);
+	      exit(1);
 	    }
 #if defined(MPE) || defined(__VMS)
 	  /*
@@ -596,7 +596,7 @@ set_up_server(char hostname[], char port[], int af)
 	    {
 	    case -1:
 	      /* something went wrong */
-	      _exit(1);
+	      exit(1);
 	    case 0:
 	      /* we are the child process */
 	      close(server_control);
@@ -619,14 +619,14 @@ set_up_server(char hostname[], char port[], int af)
 	    }
 #endif /* !WIN32 !MPE !__VMS */  
 	} /*for*/
-#if !defined(WIN32) && !defined(MPE) && !defined(__VMS)
+#if !defined(WIN32) && !defined(MPE) && !defined(__VMS) && !defined(__uClinux__)
       break; /*case 0*/
       
     default: 
       exit (0);
       
     }
-#endif /* !WIN32 !MPE !__VMS */  
+#endif /* !WIN32 !MPE !__VMS !__uClinux__ */  
 }
 
 #ifdef WIN32
