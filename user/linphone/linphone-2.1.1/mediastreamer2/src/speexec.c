@@ -30,8 +30,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #include <malloc.h> /* for alloca */
 #endif
 /*DELAY_NUM need to be changed for different delay
-currently,40 is for AD1980 mmap-driver*/
-#define DELAY_NUM 40
+currently,26 is for AD1980 mmap-driver*/
+#define DELAY_NUM 26
 
 static const int framesize=128;
 /*filter_length also need to be changed for different environment
