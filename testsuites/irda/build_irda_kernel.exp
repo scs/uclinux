@@ -20,70 +20,98 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-   
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             
-             send "y\r"
-      }
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             
-             send "y\r"
-      }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-          -re "IrDA \\\(infrared\\\) subsystem support.*IRDA.*\\\[.*]" {
-             
-             send "Y\r"
-      }
-      
-         -re "IrLAN protocol.*IRLAN.*\\\[.*]" {
-             send "m\r"
-      }
-      
-         -re "IrCOMM protocol.*IRCOMM.*\\\[.*]" {
-             
-             send "m\r"
-      }
-       
-	 -re "Cache last LSAP.*IRDA_CACHE_LAST_LSAP.*\\\[.*]" {
-             
-             send "Y\r"
-      }
-      
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "IrDA \\\(infrared\\\) subsystem support.*IRDA.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "IrLAN protocol.*IRLAN.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "IrCOMM protocol.*IRCOMM.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "Cache last LSAP.*IRDA_CACHE_LAST_LSAP.*\\\[.*]" {
+            send "Y\r"
+        }
+
         -re "IrTTY \\\(uses Linux serial driver\\\).*IRTTY_SIR.*\\\[.*]" {
-             
-             send "m\r"             
-      }      
-      
-         -re "irattach.*USER_IRATTACH.*\\\[.*]" {
-             
-             send "Y\r"             
-      }      
-     
-       "\\\(*) \\\[*]" {
-           sleep .01 
-	     send "\r"
-      }
+            send "m\r"             
+        }      
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Blackfin SIR on UART \\\(BFIN_SIR\\\) \\\[.*]" {
+            send "y\r"
+        }
 
+        -re "Blackfin SIR on UART0.*BFIN_SIR0.*\\\[.*]" {
+            if { $board_type == "BF533-STAMP" || $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
-      }
-   }
+        -re "Blackfin SIR on UART1.*BFIN_SIR1.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Blackfin SIR on UART3.*BFIN_SIR3.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "IrDA Tools.*USER_IRDA_TOOLS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "ircp.*USER_IRCP.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "irattach.*USER_IRATTACH.*\\\[.*]" {
+            send "Y\r"             
+        }      
+
+        "\\\(*) \\\[*]" {
+            sleep .01 
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
