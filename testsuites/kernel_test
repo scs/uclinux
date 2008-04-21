@@ -511,8 +511,17 @@ do
  
   cd $UCLINUX_DIST_TESTSUITES/video
   ./build_video_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./adv7393_test.exp >/dev/null  2>&1
+
+
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_video_kernel_log
+  else
+      sleep 30
+      ./adv7393_test.exp >/dev/null  2>&1
+  fi
+
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.adv7393
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.adv7393
@@ -545,8 +554,17 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_LQ043_kernel.exp $BOARD_TYPE >/dev/null  2>&1
-  sleep 30
-  ./tftlcd_lq043_test.exp >/dev/null  2>&1
+
+
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_tftlcd_LQ043_kernel_log
+  else
+      sleep 30
+      ./tftlcd_lq043_test.exp >/dev/null  2>&1
+  fi
+
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd
@@ -577,8 +595,17 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_landscape_kernel.exp $BOARD_TYPE >/dev/null  2>&1
-  sleep 30
-  ./tftlcd_lq035_test.exp LANDSCAPE >/dev/null  2>&1
+
+
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_tftlcd_landscape_kernel_log
+  else
+      sleep 30
+      ./tftlcd_lq035_test.exp LANDSCAPE >/dev/null  2>&1
+  fi
+
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.landscape
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.landscape
@@ -604,8 +631,17 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/tftlcd
   ./build_tftlcd_portrait_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./tftlcd_lq035_test.exp PORTRAIT >/dev/null  2>&1
+
+
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_tftlcd_portrait_kernel_log
+  else
+      sleep 30
+      ./tftlcd_lq035_test.exp PORTRAIT >/dev/null  2>&1
+  fi
+
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.tftlcd.portrait
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.tftlcd.portrait
@@ -641,11 +677,20 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/audio
   ./build_ad1836_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  sleep 30
-  ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
-  
+
+
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_ad1836_kernel_log
+  else
+      sleep 30
+      ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+      sleep 30
+      ./two_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  fi
+
+
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad1836   
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad1836
   cp $UCLINUX_DIST_TESTSUITES/audio/build_ad1836_kernel_log $THIS_LOG
@@ -682,8 +727,17 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/audio 
   ./build_ad73311_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+
+
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_ad73311_kernel_log
+  else
+      sleep 30
+      ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  fi
+
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad73311
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad73311
@@ -720,8 +774,17 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/audio
   ./build_ad1981b_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+
+
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_ad1981b_kernel_log
+  else
+      sleep 30
+      ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  fi
+
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad1981b
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad1981b
@@ -759,8 +822,17 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/audio
   ./build_ad1980_kernel.exp $BOARD_TYPE  >/dev/null  2>&1
-  sleep 30
-  ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+
+
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_ad1980_kernel_log
+  else
+      sleep 30
+      ./one_channel_audio_test.exp /dev/ttyS0 >/dev/null  2>&1
+  fi
+
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.ad1980
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.ad1980
@@ -1006,13 +1078,19 @@ do
   make clean  > /dev/null 2>&1
   cd $UCLINUX_DIST_TESTSUITES/qt
   ./build_qt_kernel.exp $BOARD_TYPE 1 >/dev/null  2>&1
-  sleep 30
-  ./qt_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
 
-  if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
-    ./konqueror_build_test.exp 1 >/dev/null  2>&1
-    sleep 30
-    mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_build_test_log $THIS_LOG/konqueror_build_flat_test_log
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_qt_kernel_log
+  else
+      sleep 30
+      ./qt_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
+      if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
+          ./konqueror_build_test.exp 1 >/dev/null  2>&1
+          sleep 30
+          mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_build_test_log $THIS_LOG/konqueror_build_flat_test_log
+      fi
   fi
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.qt.flat
@@ -1025,13 +1103,19 @@ do
 
   cd $UCLINUX_DIST_TESTSUITES/qt
   ./build_qt_kernel.exp $BOARD_TYPE 2 >/dev/null  2>&1
-  sleep 30
-  ./qt_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
 
-  if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
-    ./konqueror_build_test.exp 2 >/dev/null  2>&1
-    sleep 30
-    mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_build_test_log $THIS_LOG/konqueror_build_fdpic_test_log
+  if [ ! -f $UCLINUX_DIST_PATH/images/linux ]
+  then
+      echo "$0:   Error, failed."
+      tail -50 ./build_qt_kernel_log
+  else
+      sleep 30
+      ./qt_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
+      if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
+          ./konqueror_build_test.exp 2 >/dev/null  2>&1
+          sleep 30
+          mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_build_test_log $THIS_LOG/konqueror_build_fdpic_test_log
+      fi
   fi
 
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.qt.fdpic
