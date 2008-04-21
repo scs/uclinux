@@ -318,6 +318,7 @@ void sound_config_read(LinphoneCore *lc)
 	const char **devices;
 	int ndev;
 	int i;
+	int echo_delay;
 #ifndef WIN32
 	/*alsadev let the user use custom alsa device within linphone*/
 	devid=lp_config_get_string(lc->config,"sound","alsadev",NULL);
@@ -382,6 +383,8 @@ void sound_config_read(LinphoneCore *lc)
 
 	linphone_core_enable_echo_cancelation(lc,
 		lp_config_get_int(lc->config,"sound","echocancelation",0));
+	echo_delay=lp_config_get_int(lc->config,"sound","echodelay",0);
+		linphone_core_set_echo_delay(lc, echo_delay);
 }
 
 void sip_config_read(LinphoneCore *lc)
@@ -846,6 +849,11 @@ int linphone_core_get_audio_jittcomp(LinphoneCore *lc)
 int linphone_core_get_audio_port(const LinphoneCore *lc)
 {
 	return lc->rtp_conf.audio_rtp_port;
+}
+
+void linphone_core_set_echo_delay(LinphoneCore *lc, int value)
+{
+	lc->sound_conf.echo_delay=value;
 }
 
 int linphone_core_get_video_port(const LinphoneCore *lc){
@@ -1320,6 +1328,7 @@ void linphone_core_start_media_streams(LinphoneCore *lc, LinphoneCall *call){
 	const char *tool="linphone-" LINPHONE_VERSION;
 	/* adjust rtp jitter compensation. It must be at least the latency of the sound card */
 	int jitt_comp=MAX(lc->sound_conf.latency,lc->rtp_conf.audio_jitt_comp);
+	int echo_delay=lc->sound_conf.echo_delay;
 	char *cname=ortp_strdup_printf("%s@%s",me->url->username,me->url->host);
 	{
 		StreamParams *audio_params=&call->audio_params;
@@ -1344,7 +1353,8 @@ void linphone_core_start_media_streams(LinphoneCore *lc, LinphoneCall *call){
 				jitt_comp,
 				playcard,
 				captcard,
-				linphone_core_echo_cancelation_enabled(lc));
+				linphone_core_echo_cancelation_enabled(lc),
+				echo_delay);
 		}else{
 			audio_stream_start_with_files(
 				lc->audiostream,
@@ -2021,6 +2031,7 @@ void sound_config_uninit(LinphoneCore *lc)
 	lp_config_set_string(lc->config,"sound","local_ring",config->local_ring);
 	lp_config_set_string(lc->config,"sound","remote_ring",config->remote_ring);
 	lp_config_set_int(lc->config,"sound","echocancelation",config->ec);
+	lp_config_set_int(lc->config,"sound","echodelay",config->echo_delay);
 }
 
 void video_config_uninit(LinphoneCore *lc)

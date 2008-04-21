@@ -115,9 +115,9 @@ static void parse_events(OrtpEvQueue *q){
 
 const char *usage="mediastream --local <port> --remote <ip:port> --payload <payload type number>\n"
 								"[ --fmtp <fmtpline>]\n"
-								"[ --jitter <miliseconds>]\n";
-static void run_media_streams(int localport, const char *remote_ip, int remoteport, int payload, const char *fmtp, int jitter, bool_t ec, int bitrate);
-
+								"[ --jitter <miliseconds>]\n"
+								"[ --echodelay <int>]\n";
+static void run_media_streams(int localport, const char *remote_ip, int remoteport, int payload, const char *fmtp, int jitter, bool_t ec, int bitrate, int echo_delay);
 
 #ifdef VIDEO_ENABLED
 VAR_DECLSPEC PayloadType payload_type_x_snow;
@@ -131,6 +131,7 @@ int main(int argc, char * argv[])
 	const char *fmtp=NULL;
 	int jitter=50;
 	int bitrate=0;
+	int echo_delay=0;
 	bool_t ec=FALSE;
 	/*create the rtp session */
 	ortp_init();
@@ -174,16 +175,19 @@ int main(int argc, char * argv[])
 			i++;
 			bitrate=atoi(argv[i]);
 		}else if (strcmp(argv[i],"--ec")==0){
+			i++;
 			ec=TRUE;
+		}else if (strcmp(argv[i],"--echodelay")==0){
+			echo_delay=atoi(argv[i]);
 		}
 		
 		
 	}
-	run_media_streams(localport,ip,remoteport,payload,fmtp,jitter,ec,bitrate);
+	run_media_streams(localport,ip,remoteport,payload,fmtp,jitter,ec,bitrate,echo_delay);
 	return 0;
 }
 
-void run_media_streams(int localport,  const char *remote_ip, int remoteport, int payload, const char *fmtp, int jitter, bool_t ec, int bitrate)
+void run_media_streams(int localport,  const char *remote_ip, int remoteport, int payload, const char *fmtp, int jitter, bool_t ec, int bitrate, int echo_delay)
 {
 	AudioStream *audio=NULL;
 #ifdef VIDEO_ENABLED
@@ -206,7 +210,7 @@ void run_media_streams(int localport,  const char *remote_ip, int remoteport, in
 
 	if (pt->type!=PAYLOAD_VIDEO){
 		printf("Starting audio stream.\n");
-		audio=audio_stream_start(profile,localport,remote_ip,remoteport,payload,jitter, ec);
+		audio=audio_stream_start(profile,localport,remote_ip,remoteport,payload,jitter,ec,echo_delay);
 		if (audio) session=audio->session;
 	}else{
 #ifdef VIDEO_ENABLED

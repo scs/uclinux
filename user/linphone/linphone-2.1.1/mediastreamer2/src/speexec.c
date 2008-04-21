@@ -29,10 +29,6 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #ifdef WIN32
 #include <malloc.h> /* for alloca */
 #endif
-/*DELAY_NUM need to be changed for different delay
-currently,26 is for AD1980 mmap-driver*/
-#define DELAY_NUM 26
-
 static const int framesize=128;
 /*filter_length also need to be changed for different environment
 refer to speex manual*/
@@ -46,6 +42,11 @@ typedef struct SpeexECState{
 	int samplerate;
 	int len;
 	int delay;
+	/*this parameter is used to reduce the delay between reference signal and echo signal
+	you can adjust it through the section "echodelay" in linphone's config file.To get a proper
+	value running echo_diagnostic to see the delay is needed,currently 27 is a proper value for 
+	AD1981 MMAP driver*/
+	int echo_delay;
 	SpeexPreprocessState *den;
         int ref;
         int echo;
@@ -60,11 +61,13 @@ static void speex_ec_init(MSFilter *f){
 	s->filterlength=filter_length;
 	s->len = 0;
 	s->delay = 0;
+	s->echo_delay = 0;
 	ms_bufferizer_init(&s->in[0]);
 	ms_bufferizer_init(&s->in[1]);
 	ms_bufferizer_init(&s->in[2]);
 	s->ecstate=speex_echo_state_init(s->framesize,s->filterlength);
 	s->den = speex_preprocess_state_init(s->framesize, s->samplerate);
+	speex_echo_ctl(s->ecstate, SPEEX_ECHO_SET_SAMPLING_RATE, &s->samplerate);
 	speex_preprocess_ctl(s->den, SPEEX_PREPROCESS_SET_ECHO_STATE, s->ecstate);
 	f->data=s;
 }
@@ -122,7 +125,7 @@ static void speex_ec_process(MSFilter *f){
 		/*Because of the delay between reference signal and echo signal,
 		the first DELAY_NUM of echo signal packets are meaningless*/
 		if (!s->delay){ 
-			if (s->len < DELAY_NUM)			
+			if (s->len < s->echo_delay)			
 				s->len++;
 			else 
 				s->delay = 1;
@@ -224,10 +227,17 @@ static int speex_ec_set_filterlength(MSFilter *f, void *arg){
 	return 0;
 }
 
+static int speex_ec_set_echodelay(MSFilter *f, void *arg){
+	SpeexECState *s=(SpeexECState*)f->data;
+	s->echo_delay = *(int*)arg;
+	return 0;
+}
+
 static MSFilterMethod speex_ec_methods[]={
 	{	MS_FILTER_SET_SAMPLE_RATE, speex_ec_set_sr },
 	{	MS_FILTER_SET_FRAMESIZE, speex_ec_set_framesize },
 	{	MS_FILTER_SET_FILTERLENGTH, speex_ec_set_filterlength },
+	{	MS_FILTER_SET_ECHODELAY, speex_ec_set_echodelay },
 	{	0			, NULL}
 };
 

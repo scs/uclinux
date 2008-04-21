@@ -94,6 +94,7 @@ typedef struct sound_config
 	char *local_ring;
 	char *remote_ring;
 	bool_t ec;
+	int echo_delay;
 } sound_config_t;
 
 typedef struct codecs_config
@@ -559,6 +560,8 @@ int linphone_core_get_audio_jittcomp(LinphoneCore *lc);
 void linphone_core_set_audio_jittcomp(LinphoneCore *lc, int value);
 
 int linphone_core_get_audio_port(const LinphoneCore *lc);
+
+void linphone_core_set_echo_delay(LinphoneCore *lc, int value);
 
 int linphone_core_get_video_port(const LinphoneCore *lc);
 

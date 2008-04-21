@@ -59,9 +59,9 @@ typedef struct _RingStream RingStream;
 
 /* start a thread that does sampling->encoding->rtp_sending|rtp_receiving->decoding->playing */
 AudioStream *audio_stream_start (RtpProfile * prof, int locport, const char *remip,
-				 int remport, int payload_type, int jitt_comp, bool_t echo_cancel);
+				 int remport, int payload_type, int jitt_comp, bool_t echo_cancel,int echo_delay);
 
-AudioStream *audio_stream_start_with_sndcards(RtpProfile * prof, int locport, const char *remip4, int remport, int payload_type, int jitt_comp, MSSndCard *playcard, MSSndCard *captcard, bool_t echocancel);
+AudioStream *audio_stream_start_with_sndcards(RtpProfile * prof, int locport, const char *remip4, int remport, int payload_type, int jitt_comp, MSSndCard *playcard, MSSndCard *captcard, bool_t echocancel,int echo_delay);
 
 int audio_stream_start_with_files (AudioStream * stream, RtpProfile * prof,
 					    const char *remip, int remport,
@@ -77,7 +77,7 @@ void audio_stream_set_rtcp_information(AudioStream *st, const char *cname, const
 this is useful to make sure that sockets are open before sending an invite; 
 or to start to stream only after receiving an ack.*/
 AudioStream *audio_stream_new(int locport, bool_t ipv6);
-int audio_stream_start_now(AudioStream * stream, RtpProfile * prof,  const char *remip, int remport, int payload_type, int jitt_comp,MSSndCard *playcard, MSSndCard *captcard, bool_t echo_cancel);
+int audio_stream_start_now(AudioStream * stream, RtpProfile * prof,  const char *remip, int remport, int payload_type, int jitt_comp,MSSndCard *playcard, MSSndCard *captcard, bool_t echo_cancel, int echo_delay);
 
 
 /* stop the above process*/

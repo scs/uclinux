@@ -157,7 +157,7 @@ static void payload_type_changed(RtpSession *session, unsigned long data){
 }
 
 
-int audio_stream_start_full(AudioStream *stream, RtpProfile *profile, const char *remip,int remport, int payload,int jitt_comp, const char *infile, const char *outfile, MSSndCard *playcard, MSSndCard *captcard, bool_t use_ec)
+int audio_stream_start_full(AudioStream *stream, RtpProfile *profile, const char *remip,int remport, int payload,int jitt_comp, const char *infile, const char *outfile, MSSndCard *playcard, MSSndCard *captcard, bool_t use_ec, int echo_delay)
 {
 	RtpSession *rtps=stream->session;
 	PayloadType *pt;
@@ -208,6 +208,7 @@ int audio_stream_start_full(AudioStream *stream, RtpProfile *profile, const char
 	if (use_ec) {
 		stream->ec=ms_filter_new(MS_SPEEX_EC_ID);
 		ms_filter_call_method(stream->ec,MS_FILTER_SET_SAMPLE_RATE,&pt->clock_rate);
+		ms_filter_call_method(stream->ec,MS_FILTER_SET_ECHODELAY,&echo_delay);
 	}	
 
 	/* give the sound filters some properties */
@@ -255,10 +256,10 @@ int audio_stream_start_full(AudioStream *stream, RtpProfile *profile, const char
 
 int audio_stream_start_with_files(AudioStream *stream, RtpProfile *prof,const char *remip, int remport,int pt,int jitt_comp, const char *infile, const char * outfile)
 {
-	return audio_stream_start_full(stream,prof,remip,remport,pt,jitt_comp,infile,outfile,NULL,NULL,FALSE);
+	return audio_stream_start_full(stream,prof,remip,remport,pt,jitt_comp,infile,outfile,NULL,NULL,FALSE,0);
 }
 
-AudioStream * audio_stream_start(RtpProfile *prof,int locport,const char *remip,int remport,int profile,int jitt_comp,bool_t use_ec)
+AudioStream * audio_stream_start(RtpProfile *prof,int locport,const char *remip,int remport,int profile,int jitt_comp,bool_t use_ec, int echo_delay)
 {
 	MSSndCard *sndcard;
 	AudioStream *stream;
@@ -266,12 +267,12 @@ AudioStream * audio_stream_start(RtpProfile *prof,int locport,const char *remip,
 	if (sndcard==NULL)
 		return NULL;
 	stream=audio_stream_new(locport, ms_is_ipv6(remip));
-	if (audio_stream_start_full(stream,prof,remip,remport,profile,jitt_comp,NULL,NULL,sndcard,sndcard,use_ec)==0) return stream;
+	if (audio_stream_start_full(stream,prof,remip,remport,profile,jitt_comp,NULL,NULL,sndcard,sndcard,use_ec,echo_delay)==0) return stream;
 	audio_stream_free(stream);
 	return NULL;
 }
 
-AudioStream *audio_stream_start_with_sndcards(RtpProfile *prof,int locport,const char *remip,int remport,int profile,int jitt_comp,MSSndCard *playcard, MSSndCard *captcard, bool_t use_ec)
+AudioStream *audio_stream_start_with_sndcards(RtpProfile *prof,int locport,const char *remip,int remport,int profile,int jitt_comp,MSSndCard *playcard, MSSndCard *captcard, bool_t use_ec,int echo_delay)
 {
 	AudioStream *stream;
 	if (playcard==NULL) {
@@ -283,7 +284,7 @@ AudioStream *audio_stream_start_with_sndcards(RtpProfile *prof,int locport,const
 		return NULL;
 	}
 	stream=audio_stream_new(locport, ms_is_ipv6(remip));
-	if (audio_stream_start_full(stream,prof,remip,remport,profile,jitt_comp,NULL,NULL,playcard,captcard,use_ec)==0) return stream;
+	if (audio_stream_start_full(stream,prof,remip,remport,profile,jitt_comp,NULL,NULL,playcard,captcard,use_ec,echo_delay)==0) return stream;
 	audio_stream_free(stream);
 	return NULL;
 }
@@ -322,8 +323,9 @@ AudioStream *audio_stream_new(int locport, bool_t ipv6){
 	stream->session=create_duplex_rtpsession(locport,ipv6);
 	return stream;
 }
-int audio_stream_start_now(AudioStream *stream, RtpProfile * prof,  const char *remip, int remport, int payload_type, int jitt_comp, MSSndCard *playcard, MSSndCard *captcard, bool_t use_ec){
-	return audio_stream_start_full(stream,prof,remip,remport,payload_type,jitt_comp,NULL,NULL,playcard,captcard,use_ec);
+
+int audio_stream_start_now(AudioStream *stream, RtpProfile * prof,  const char *remip, int remport, int payload_type, int jitt_comp, MSSndCard *playcard, MSSndCard *captcard, bool_t use_ec, int echo_delay){
+	return audio_stream_start_full(stream,prof,remip,remport,payload_type,jitt_comp,NULL,NULL,playcard,captcard,use_ec,echo_delay);
 }
 
 void audio_stream_stop(AudioStream * stream)
