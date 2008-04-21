@@ -44,7 +44,7 @@ source  make_default_config.exp
 # Following make specific configuration for this case.
 
 cd $uclinux_path
-set timeout 300
+set timeout 5
 set baud_rate_done_flag 0
 spawn make config
 
@@ -67,7 +67,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "Asterisk PBX.*USER_BLACKFIN_ASTERISK.*\\\[.*]" {
+        -re "asterisk PBX.*USER_ASTERISK.*\\\[.*]" {
             send "y\r"
         }
 
@@ -87,17 +87,31 @@ while 1 {
             send "y\r"
         }
 
-#Select by default
-#        -re "Build libZ.*LIB_ZLIB.*\\\[.*]" {
-#            send "y\r"
-#        }
-
-        -re "Build ncurses.*LIB_NCURSES.*\\\[.*]" {
-            send "y\r"
+       -re "Build libZ \\\(LIB_ZLIB\\\) \\\[\[^\r]*]" {
+            expect {
+            -nocase -re  " (\[ym])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "Y\r"
+            }
+            }
         }
 
+       -re "Build ncurses \\\(LIB_NCURSES\\\) \\\[\[^\r]*]" {
+            expect {
+            -nocase -re  " (\[ym])\r\n" {
+                send_user "\n Item_value is selected  $expect_out(1,string).\n"
+            }
+            timeout {
+                send -s "Y\r"
+            }
+            }
+        }
+
+
         "\\\(*) \\\[*]" {
-            sleep .01
+            sleep .1
             send "\r"
         }
 
