@@ -17,7 +17,7 @@ step "Starting test."
 set timeout 8
 set flag 0
 
-if { $board_type == "BF537-STAMP" } {
+if { $board_type == "BF537-STAMP" || $board_type == "BF527-EZKIT" } {
    set module_name bfin_mac
 } elseif { $board_type == "BF548-EZKIT" } {
    set module_name smsc911x

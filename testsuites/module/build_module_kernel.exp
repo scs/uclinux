@@ -56,12 +56,16 @@ while 1 {
                 send -s "\r"
             }
         }
-        -re "Blackfin .*536.537 on-chip mac support.*BFIN_MAC.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
-                send -s "M\r"
-            } else {
-                send -s "\r"
-            }
+        
+        -re "Blackfin 527/536/537 on-chip mac support.*BFIN_MAC.*\\\[.*]" {
+
+         if { $board_type == "BF537-STAMP" || $board_type == "BF527-EZKIT" } {
+
+                        send -s "M\r"
+
+             } else {
+                        send -s "\r"
+             }
 
         }
 
