@@ -4,7 +4,7 @@ NCURSES_TERMS = linux,vt100,vt220,xterm
 NCURSES_DEMOS = dots firework gdc hanoi newdemo railroad rain tclock worm xmas
 
 CONF_OPTS = \
-	$(CONFIGURE_SHARED_ENABLE) \
+	$(CONFIGURE_SHARED_WITH) \
 	--disable-termcap \
 	--without-ada \
 	--with-manpage-format=normal \
