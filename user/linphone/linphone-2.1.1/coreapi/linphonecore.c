@@ -384,7 +384,7 @@ void sound_config_read(LinphoneCore *lc)
 	linphone_core_enable_echo_cancelation(lc,
 		lp_config_get_int(lc->config,"sound","echocancelation",0));
 	echo_delay=lp_config_get_int(lc->config,"sound","echodelay",0);
-		linphone_core_set_echo_delay(lc, echo_delay);
+		lc->sound_conf.echo_delay = echo_delay;
 }
 
 void sip_config_read(LinphoneCore *lc)
@@ -849,11 +849,6 @@ int linphone_core_get_audio_jittcomp(LinphoneCore *lc)
 int linphone_core_get_audio_port(const LinphoneCore *lc)
 {
 	return lc->rtp_conf.audio_rtp_port;
-}
-
-void linphone_core_set_echo_delay(LinphoneCore *lc, int value)
-{
-	lc->sound_conf.echo_delay=value;
 }
 
 int linphone_core_get_video_port(const LinphoneCore *lc){
@@ -1353,7 +1348,7 @@ void linphone_core_start_media_streams(LinphoneCore *lc, LinphoneCall *call){
 				jitt_comp,
 				playcard,
 				captcard,
-				linphone_core_echo_cancelation_enabled(lc),
+				lc->sound_conf.ec,
 				echo_delay);
 		}else{
 			audio_stream_start_with_files(

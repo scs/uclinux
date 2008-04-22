@@ -32,7 +32,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 static const int framesize=128;
 /*filter_length also need to be changed for different environment
 refer to speex manual*/
-static const int filter_length=1024; /*125 ms*/
+static const int filter_length=1024; /*250 ms*/
 
 typedef struct SpeexECState{
 	SpeexEchoState *ecstate;
@@ -67,7 +67,6 @@ static void speex_ec_init(MSFilter *f){
 	ms_bufferizer_init(&s->in[2]);
 	s->ecstate=speex_echo_state_init(s->framesize,s->filterlength);
 	s->den = speex_preprocess_state_init(s->framesize, s->samplerate);
-	speex_echo_ctl(s->ecstate, SPEEX_ECHO_SET_SAMPLING_RATE, &s->samplerate);
 	speex_preprocess_ctl(s->den, SPEEX_PREPROCESS_SET_ECHO_STATE, s->ecstate);
 	f->data=s;
 }
@@ -95,7 +94,7 @@ static void speex_ec_process(MSFilter *f){
 	SpeexECState *s=(SpeexECState*)f->data;
 	int nbytes=s->framesize*2;
 	uint8_t *in1,*ref;
-	mblk_t *om0,*om0bak,*om1;
+	mblk_t *om0,*om0bak,*om1,*refmp;
 #ifdef AMD_WIN32_HACK
 	static int count=0;
 #endif
@@ -135,7 +134,8 @@ static void speex_ec_process(MSFilter *f){
 			ms_bufferizer_read(&s->in[2],ref,nbytes);
 			ms_bufferizer_read(&s->in[1],in1,nbytes);
 			/* we have echo signal */
-			speex_echo_cancellation(s->ecstate,(short*)in1,(short*)ref,(short*)om1->b_wptr);
+			//speex_echo_cancellation(s->ecstate,(short*)in1,(short*)ref,(short*)om1->b_wptr);
+			speex_echo_cancellation(s->ecstate,(short*)in1,(short*)om0->b_rptr,(short*)om1->b_wptr);
 			speex_preprocess_run(s->den,(short*)om1->b_wptr);
 			om1->b_wptr+=nbytes;
 		}
@@ -240,6 +240,7 @@ static MSFilterMethod speex_ec_methods[]={
 	{	MS_FILTER_SET_ECHODELAY, speex_ec_set_echodelay },
 	{	0			, NULL}
 };
+
 
 #ifdef _MSC_VER
 

@@ -59,9 +59,9 @@ typedef struct _RingStream RingStream;
 
 /* start a thread that does sampling->encoding->rtp_sending|rtp_receiving->decoding->playing */
 AudioStream *audio_stream_start (RtpProfile * prof, int locport, const char *remip,
-				 int remport, int payload_type, int jitt_comp, bool_t echo_cancel,int echo_delay);
+				 int remport, int payload_type, int jitt_comp, bool_t echo_cancel, int echo_delay);
 
-AudioStream *audio_stream_start_with_sndcards(RtpProfile * prof, int locport, const char *remip4, int remport, int payload_type, int jitt_comp, MSSndCard *playcard, MSSndCard *captcard, bool_t echocancel,int echo_delay);
+AudioStream *audio_stream_start_with_sndcards(RtpProfile * prof, int locport, const char *remip4, int remport, int payload_type, int jitt_comp, MSSndCard *playcard, MSSndCard *captcard, bool_t echocancel, int echo_delay);
 
 int audio_stream_start_with_files (AudioStream * stream, RtpProfile * prof,
 					    const char *remip, int remport,
