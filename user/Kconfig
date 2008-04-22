@@ -3433,6 +3433,11 @@ config USER_ELVISTINY_VI
 
 comment "Audio tools"
 
+config USER_MADPLAY_MADPLAY
+	bool "madplay"
+	help
+	  Play MP3 files
+
 config USER_MP3PLAY_MP3PLAY
 	bool "mp3play"
 	help

@@ -1,0 +1,18 @@
+# List of source files containing translatable strings.
+
+audio_carbon.c
+audio_esd.c
+audio_jaguar.c
+audio_nas.c
+audio_oss.c
+audio_qnx.c
+audio_sun.c
+audio_win32.c
+getopt.c
+madtag.c
+madmix.c
+madplay.c
+madtime.c
+rgain.c
+player.c
+version.c
