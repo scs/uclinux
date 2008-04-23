@@ -136,7 +136,11 @@ while 1 {
                 case_pass $case_num
 		break
         }
-                                                                                                                                                             
+
+       "failed" {
+                case_fail $case_num
+                exit
+        }
         timeout {
                 case_fail $case_num
 		exit
