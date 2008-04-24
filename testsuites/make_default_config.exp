@@ -7,38 +7,36 @@ set timeout 300
 spawn make config
 
 while 1 {
-   expect {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
+        -re "Default all settings.*lose changes.*DEFAULTS_OVERRIDE.*\\\[.*]" {
+            if { $file_name == "./build_policy_kernel.exp" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
 
-       -re "Default all settings.*lose changes.*DEFAULTS_OVERRIDE.*\\\[.*]" {
-                if { $file_name == "./build_policy_kernel.exp" } {
-                        send "y\r"
-                } else {
-                        send "\r"
-                }
-      }
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
 
-      "\\\(*) \\\[*]" {
-             sleep .01
-             send "\r"
-      }
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        eof {
+            puts "End of configuration"
+            break
+        }
 
-      eof {
-             puts "End of configuration"
-             break
-      }
-      timeout {
-             puts "\n\nFATAL ERROR: config prompt timeout in make config"
-	     break
-
-      }
-   }
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
-
