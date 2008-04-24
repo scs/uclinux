@@ -83,11 +83,8 @@ while 1 {
     }
 }
 
-if { $board_type == "BF548-EZKIT" } {
-    send -s "set bootargs root=mtd1 rootfstype=romfs ro\r"
-} else {
-    send -s "set bootargs root=mtd0 rootfstype=romfs ro\r"
-}
+send -s "set bootargs root=mtd0 rootfstype=romfs ro\r"
+
 expect ">"
 send -s "save\r"
 expect ">"
