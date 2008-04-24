@@ -6,6 +6,7 @@ CONF_OPTS += --enable-ipv6
 endif
 
 export ac_cv_linux_vers=2
+export ac_cv_lbl_unaligned_fail=yes
 
 include $(ROOTDIR)/tools/autotools.mk
 
