@@ -37,24 +37,24 @@ while 1 {
             send "Y\r"
         }
 
-        -re "IrLAN protocol.*IRLAN.*\\\[.*]" {
-            send "m\r"
-        }
+#        -re "IrLAN protocol.*IRLAN.*\\\[.*]" {
+#            send "m\r"
+#        }
 
-        -re "IrCOMM protocol.*IRCOMM.*\\\[.*]" {
-            send "m\r"
-        }
+#        -re "IrCOMM protocol.*IRCOMM.*\\\[.*]" {
+#            send "m\r"
+#        }
 
-        -re "Cache last LSAP.*IRDA_CACHE_LAST_LSAP.*\\\[.*]" {
-            send "Y\r"
-        }
+#        -re "Cache last LSAP.*IRDA_CACHE_LAST_LSAP.*\\\[.*]" {
+#            send "Y\r"
+#        }
 
         -re "IrTTY \\\(uses Linux serial driver\\\).*IRTTY_SIR.*\\\[.*]" {
             send "m\r"             
         }      
 
         -re "Blackfin SIR on UART \\\(BFIN_SIR\\\) \\\[.*]" {
-            send "y\r"
+            send "m\r"
         }
 
         -re "Blackfin SIR on UART0.*BFIN_SIR0.*\\\[.*]" {
@@ -75,6 +75,42 @@ while 1 {
 
         -re "Blackfin SIR on UART3.*BFIN_SIR3.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+#BF533-STAMP: only one UART, disable serial port for IRTTY_SIR
+        -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
+            if { $board_type == "BF533-STAMP" } {
+                send "n\r"
+            } else {
+                send "\r"
+            }
+        }
+
+#BF537: default serial port is on UART0, open UART1 for IRTTY_SIR
+        -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+#BF548: default serial port is on UART1, open UART3 for IRTTY_SIR
+        -re "Enable UART3.*SERIAL_BFIN_UART3.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+#BF527: default serial port is on UART1, open UART0 for IRTTY_SIR
+        -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
                 send "y\r"
             } else {
                 send "\r"

@@ -1,0 +1,311 @@
+#!/usr/bin/expect
+
+#
+#This manual test is for bfin_sir dirver in a BFIN to BFIN situation.
+#It can be applied to board BF537-STAMP/BF548-EZKIT/BF527-EZKIT.
+#
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+
+step "Prepare testing BFIN_SIR"
+
+
+set case_num 0
+set timeout 10
+
+sleep 5
+send "\r"
+expect -re $kernel_prompt
+
+incr case_num
+send "ifconfig eth0 $targetip up\r"
+set timeout 20
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            send "\r"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "modprobe bfin_sir\r"
+while 1 {
+    expect {
+        -re "(modprobe:|not found|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "bfin_sir.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+send "irattach irda0 -s &\r"
+while 1 {
+    expect {
+        -re "\[0-9]+\r\n$kernel_prompt" {
+            case_pass $case_num
+            set pid_irattach [lindex $expect_out(0,string) 0]
+            send_user "pid_irattach=$pid_irattach\n"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_user "\n##############################################\n"
+send_user "Prepare another bfin board with the same image\n"
+send_user "Bfin: modprobe bfin_sir; irattach irda0 -s &\n"
+send_user "##############################################\n\n"
+send_user "Press \"y\" and ENTER when board is prepared\n"
+set timeout 600
+expect_user "y\n"
+
+set timeout 10
+incr case_num
+send "cat /proc/net/irda/discovery\r"
+while 1 {
+    expect {
+        -re "nickname: blackfin, hint: 0x\[0-9]+, saddr: 0x\[0-9a-f]+, daddr: 0x\[0-9a-f]+.*$kernel_prompt" {
+            case_pass $case_num
+            set daddr [lindex $expect_out(0,string) 7]
+            send_user "daddr=$daddr\n"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+
+step "Test with irdaping"
+
+
+set timeout 360
+incr case_num
+send "irdaping $daddr\r"
+while 1 {
+    expect {
+        -re "32 bytes from $daddr: irda_seq=1\[0-1]\[0-9] time=.*ms." {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+send -s "\3"
+while 1 {
+    expect {
+         -re "packets received by filter.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+
+step "Test receiving file"
+
+
+send_user "Press \"y\" and ENTER to start the procedure of receiving file...\n"
+set timeout 600
+expect_user "y\n"
+
+set timeout 5
+incr case_num
+send "ircp -r\r"
+while 1 {
+    expect {
+        -re "Waiting for incoming connection" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_user "\n\n##########################################\n"
+send_user "Receive a file from another irda device...\n"
+send_user "Bfin: ircp /bin/busybox\n"
+send_user "##########################################\n\n"
+
+set timeout 600
+incr case_num
+while 1 {
+    expect {
+        -re "Incoming connection\r\nReceiving.*done\r\nDisconnecting\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "diff ./busybox /bin/busybox\r"
+while 1 {
+    expect {
+        -re "\r\n\[0-9a-zA-Z]$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re "\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send "rm ./busybox\r"
+expect -re $kernel_prompt
+
+
+step "Test sending file"
+
+
+send_user "\n##########################################\n"
+send_user "Send a file to another irda device...\n"
+send_user "Bfin: ircp -r\n"
+send_user "##########################################\n"
+send_user "Press \"y\" and ENTER when board is prepared\n"
+set timeout 600
+expect_user "y\n"
+
+set timeout 600
+incr case_num
+send "ircp /bin/busybox\r"
+while 1 {
+    expect {
+        -re "Connecting.*done\r\nSending.*done\r\nDisconnecting.*done.*$kernel_prompt" {
+            case_pass $case_num
+            send_user "Bfin: \"diff busybox bin/busybox\" to verify\n"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+
+step "Take actions to finish test"
+
+
+set timeout 10
+incr case_num
+send "kill $pid_irattach\r"
+while 1 {
+    expect {
+        -re "(kill:|Usage:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+send "modprobe -r bfin_sir\r"
+while 1 {
+    expect {
+        -re "(modprobe:|not found|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "lsmod\r" 
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        -re "bfin_sir" {
+            case_fail $case_num
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file
