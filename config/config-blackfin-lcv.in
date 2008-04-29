@@ -7,6 +7,10 @@ if [ "$CONFIG_USER_IMGUPD_IMGUPD" = "y" ]; then
    string '  imgupd tftp server ip'  CONFIG_USER_IMGUPD_SERVER_IP '192.168.0.3'
 fi
 
+if [ "$CONFIG_BFIN537_LCV_IND" = "y" ]; then
+   bool 'Ferag SHT Webinterface' 	CONFIG_USER_SHT_CGI
+fi
+
 endmenu
 
 #############################################################################
