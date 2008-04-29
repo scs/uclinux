@@ -12,6 +12,7 @@
 #define TEMP_FILE_LOCATION "/tmp/"
 #define U_BOOT_PARTITION "/dev/mtd1"
 #define LINUX_PARTITION "/dev/mtd2"
+#define CALIBRATION_PARTITION "/dev/mtd3"
 
 #define XSTR(x) #x
 #define STR(x) XSTR(x)
@@ -84,6 +85,12 @@ int main(int argc, char** argv)
       ret = system(sTemp);
       goto cleanup;
       break;
+    case 0x012345678:
+      printf("Magic word of Sensor Calibration image found!\n");
+      printf("Copying to %s...\n", CALIBRATION_PARTITION);
+      sprintf(sTemp, "cp %s%s %s\n", TEMP_FILE_LOCATION, sImgName, CALIBRATION_PARTITION);
+      ret = system(sTemp);
+      goto cleanup;
     default:
       printf("Image not recognized!\n");
       goto cleanup;
