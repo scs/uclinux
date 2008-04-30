@@ -37,6 +37,18 @@ while 1 {
             send "Y\r"
         }
 
+        -re "Blackfin on-chip NAND Flash Controller driver.*MTD_NAND_BF5XX.*\\\[.*]" {
+        
+             if { $board_type == "BF527-EZKIT" } {
+
+                        send -s "Y\r"
+
+             } else {
+                        send -s "\r"
+             }
+
+        }
+
         -re "Generic uClinux RAM/ROM filesystem support.*MTD_UCLINUX.*\\\[.*]" {
             send -s "N\r"
         }

@@ -39,7 +39,18 @@ set spi_rootfs_start_addr 0x40000
 set spi_rootfs_size 0x1bffff
 set pnor_rootfs_num 2
 set spi_rootfs_num 6
-set nand_rootfs_num 1 
+set nand_rootfs_num 1
+ 
+} elseif { $board_type == "BF527-EZKIT" } {
+set kernel_start_addr 0x20040000
+set kernel_end_addr 0x201fffff
+set rootfs_start_addr 0x20200000
+set rootfs_end_addr 0x203fffff
+set spi_rootfs_start_addr 0x40000
+set spi_rootfs_size 0x1bffff
+set pnor_rootfs_num 2
+set spi_rootfs_num 4
+set nand_rootfs_num 2
 }
 
 if { $board_type == "BF537-STAMP" } {
@@ -50,6 +61,8 @@ if { $board_type == "BF537-STAMP" } {
   set  cpu       BF533
 } elseif { $board_type == "BF561-EZKIT" } {
   set  cpu       BF561
+} elseif { $board_type == "BF527-EZKIT" } {
+  set  cpu       BF527
 } else {
   set  cpu       BF537
 }
