@@ -1,0 +1,77 @@
+#Index: testcases/kernel/syscalls/mmap/Makefile
+#===================================================================
+#--- testcases/kernel/syscalls/mmap/Makefile	(revision 126)
+#+++ testcases/kernel/syscalls/mmap/Makefile	(working copy)
+#@@ -23,7 +23,8 @@
+# #TARGETS = $(patsubst %.c,%,$(SRCS))
+# 
+# ifeq (UCLINUX, $(findstring UCLINUX, $(CFLAGS)))
+#-TARGETS = $(patsubst mmap01,,$(patsubst mmap001,,$(patsubst %.c,%,$(SRCS))))
+#+#TARGETS = $(patsubst mmap01,,$(patsubst mmap001,,$(patsubst %.c,%,$(SRCS))))
+#+TARGETS = $(patsubst mmap001,,$(patsubst %.c,%,$(SRCS)))
+# else
+# TARGETS = $(patsubst %.c,%,$(SRCS))
+# endif
+Index: testcases/kernel/Makefile
+===================================================================
+--- testcases/kernel/Makefile	(revision 126)
++++ testcases/kernel/Makefile	(working copy)
+@@ -1,5 +1,5 @@
+ SUBDIRS = numa containers include fs io ipc mem pty sched security syscalls
+-UCLINUX_SUBDIRS = syscalls
++UCLINUX_SUBDIRS = mem syscalls
+ 
+ all:
+ 	@set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
+Index: testcases/kernel/mem/mtest06/Makefile
+===================================================================
+--- testcases/kernel/mem/mtest06/Makefile	(revision 126)
++++ testcases/kernel/mem/mtest06/Makefile	(working copy)
+@@ -2,8 +2,13 @@
+ CPPFLAGS += -I../../../../include
+ LDLIBS += -lpthread -L../../../../lib -lltp
+ 
++ifeq (UCLINUX, $(findstring UCLINUX, $(CFLAGS)))
++SRCS=mmap1.c
++TARGETS=mmap1
++else
+ SRCS=$(wildcard *.c)
+ TARGETS=$(patsubst %.c,%,$(SRCS))
++endif
+ 
+ all: $(TARGETS)
+ 
+@@ -11,4 +16,4 @@
+ 	@set -e; for i in $(TARGETS) ; do ln -f $$i ../../../bin/$$i ; done ;
+ 
+ clean:
+-	rm -f $(TARGETS)
++	rm -f $(TARGETS) *.gdb
+Index: testcases/kernel/mem/Makefile
+===================================================================
+--- testcases/kernel/mem/Makefile	(revision 126)
++++ testcases/kernel/mem/Makefile	(working copy)
+@@ -1,4 +1,11 @@
++DEBUG_CFLAGS=-O
++DEBUG_LDFLAGS=-s
++CFLAGS+=-I../../include -g -Wall
++LDLIBS+=
++EXCLUDE_DIR=epoll
++
+ SUBDIRS = hugetlb mem mmapstress mtest01 mtest05 mtest06 mtest07 page shmt vmtests
++UCLINUX_SUBDIR = mtest06
+ 
+ all:
+ 	@set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i ; done
+@@ -6,5 +13,11 @@
+ install:
+ 	@set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i install ; done
+ 
++uclinux:
++	@set -e; for i in $(UCLINUX_SUBDIR); do $(MAKE) -C $$i UCLINUX=1; done
++
++uclinux_install:
++	@set -e; for i in $(UCLINUX_SUBDIR); do $(MAKE) -C $$i UCLINUX=1 install; done
++
+ clean:
+ 	@set -e; for i in $(SUBDIRS); do $(MAKE) -C $$i clean ; done

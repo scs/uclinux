@@ -1,0 +1,117 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+sleep 5
+send "\r"
+expect -re $kernel_prompt
+
+set case_num 0
+incr case_num
+
+send "ifconfig eth0 $targetip up\r"
+set timeout 60
+while 1 {
+    expect {
+        -re "$kernel_prompt" {
+            send "\r"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 5
+send "ifconfig eth0\r"
+set timeout 10
+while 1 {
+    expect {
+        -re "$targetip.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 20
+step "Copy testcase to target board\n"
+spawn ./rcp.sh
+while 1 {
+    expect {
+        -re "fail" {
+            case_fail $case_num
+        }
+        -re "pass" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+step "Start testing"
+set spawn_id $kermit_spawn_id
+set testres 0
+set allcases {mmap1 mmap02 mmap03 mmap04 mmap05 mmap06 mmap07 mmap08 mmap09}
+set casenum [llength $allcases]
+send_user "casenum=$casenum\n"
+
+incr case_num
+set timeout 10
+send "echo \"nobody:x:1:1:nobody:/:/bin/sh\" >> /etc/passwd\n"
+send "cd /bin\n"
+expect -re $kernel_prompt
+
+for {set i 0} {$i < $casenum} {incr i} {
+    send "./[lindex $allcases $i]\n"
+    while 1 {
+        expect {
+            -re "FAIL" {
+                incr testres
+                send_user "testres=$testres\n"
+            }
+            -re "bin>" {
+                send "\r"
+                expect "bin>"
+                break
+            }
+            timeout {
+                send -s "\3"
+                expect "bin>"
+                break
+            }
+        }
+    }
+    sleep 2
+}
+
+if { $testres != 0 } {
+    send_user "\n$testres cases fail\n"
+    case_fail $case_num
+} else {
+    case_pass $case_num
+}
+
+send_user "Ending $argv0\n"
+
+log_file
