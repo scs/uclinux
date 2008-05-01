@@ -57,7 +57,7 @@ int mo, year;
 
 	if (( day = cal_lm (mo, year)) > 6) {
 		usage();
-		exit();
+		exit(0);
 	}
 	mo--;
 	printf ("\n      %s %d", n[mo], year);
