@@ -88,8 +88,9 @@ config USER_LIBIPOD_EXAMPLES
 config USER_GETTIMEOFDAY_TEST
 	bool "gettimeofday system time test"
 config SIMPLE_GPIO_TEST
-        bool "Simple GPIO test"
-
+	bool "Simple GPIO test"
+config FIXED_CODE_TEST
+	bool "Fixed code test"
 endmenu
 
 
