@@ -35,9 +35,10 @@ while 1 {
             send "y\r"
         }
 
-        -re "Compiled-in Kernel Boot Parameter.*BOOTPARAM.*\\\[.*]" {
-            send "N\r"
-        }
+        -re "Default bootloader kernel arguments.*CMDLINE_BOOL.*\\\[.*]" {
+
+             send -s "N\r"
+      }
 
         -re "Initial RAM filesystem and RAM disk.*initramfs/initrd.*support.*BLK_DEV_INITRD.*\\\[.*]" {
             send "N\r"
