@@ -37,14 +37,36 @@ while 1 {
             send "Y\r"
         }
 
+        -re "YAFFS2 file system support.*YAFFS_FS.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        -re "Direct char device access to MTD devices.*MTD_CHAR.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
+        -re "NAND Device Support.*MTD_NAND.*\\\[.*]" {
+            send -s "Y\r"
+        }
+
         -re "Blackfin on-chip NAND Flash Controller driver.*MTD_NAND_BF5XX.*\\\[.*]" {
         
-             if { $board_type == "BF527-EZKIT" } {
+             if { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
 
                         send -s "Y\r"
 
              } else {
                         send -s "\r"
+             }
+
+        }
+
+        -re "Blackfin 527/536/537 on-chip mac support.*BFIN_MAC.*\\\[.*]" {
+
+         if { $board_type == "BF527-EZKIT" } {
+
+                        send -s "M\r"
+
              }
 
         }

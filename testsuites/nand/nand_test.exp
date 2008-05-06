@@ -18,27 +18,7 @@ set TEST_FAIL               "fail"
 
 set case_num 0
 
-
 step "Mount modules"
-
-incr case_num
-set timeout 5
-
-send -s "modprobe yaffs\r"
-while 1 {
-    expect {
-        -re "yaffs.*Installing" {
-                case_pass $case_num
-                break;
-        }
-
-        timeout {
-                case_fail $case_num
-		exit
-        }
-    }
-}
-expect ">"
 
 if { $board_type == "BF537-STAMP" } {
 
