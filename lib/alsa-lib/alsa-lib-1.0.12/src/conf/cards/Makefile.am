@@ -3,6 +3,7 @@ cfg_files = aliases.conf \
 	AACI.conf \
 	AD1836.conf \
 	AD73311.conf \
+	AD73322.conf \
 	AD1980.conf \
 	ATIIXP.conf \
 	ATIIXP-SPDMA.conf \
