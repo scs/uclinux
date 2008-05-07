@@ -538,7 +538,7 @@ do
   #############################################################################################
   ###################################### TEST TFTLCD###########################################
 
-  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] && [ $BOARD_TYPE == "BF548-EZKIT" ]; then
+  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] && [ $BOARD_TYPE != "BF537-STAMP" ]; then
 
   echo  "Testing tftlcd..."
 
@@ -559,7 +559,7 @@ do
       tail -50 ./build_tftlcd_LQ043_kernel_log
   else
       sleep 30
-      ./tftlcd_lq043_test.exp >/dev/null  2>&1
+      ./tftlcd_lq043_test.exp $BOARD_TYPE >/dev/null  2>&1
   fi
 
 
@@ -579,7 +579,7 @@ do
   fi
 
 
-  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] && [ $BOARD_TYPE != "BF548-EZKIT" ] ; then
+  if [ ${AUTO_RUN_STATUS[$(( n + 11 ))]} -eq 1  ] && [ $BOARD_TYPE == "BF537-STAMP" ] ; then
 
   echo  "Testing tftlcd landscape..."
 

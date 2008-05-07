@@ -1,11 +1,9 @@
 #!/usr/bin/expect
 
 source  ../kernel_config.exp
-
+source  ../board_info.exp
 log_file [log_file_name "$argv0"]
-
 send_user "Starting $argv0\n"
-
 set TITLE "[title "$argv0"]"
 
 step "Spawn kermit"
@@ -24,13 +22,19 @@ set case_num 0
 set timeout 10
 sleep 5
 send "\r"
-expect ">"
+expect -re $kernel_prompt
+
+if { $board_type == "BF548-EZKIT" } {
+    set module "bf54x_lq043fb"
+} elseif {$board_type == "BF527-EZKIT" } {
+    set module "bfin_t350mcqb_fb"
+}
 
 incr case_num
-send "modprobe bf54x-lq043fb\r"
+send "modprobe $module\r"
 while 1 {
     expect {
-        -re "FrameBuffer initializing.*>" {
+        -re "FrameBuffer initializing.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -44,7 +48,7 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
-        -re "bf54x_lq043fb.*>" {
+        -re "$module.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -85,10 +89,10 @@ while 1 {
 
 set timeout 5
 incr case_num
-send "rmmod bf54x-lq043fb\r"
+send "modprobe -r $module\r"
 while 1 {
     expect {
-        -re "Unregister LCD driver.*>" {
+        -re "Unregister LCD driver.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -103,10 +107,10 @@ incr case_num
 send "lsmod\r" 
 while 1 {
     expect {
-        -re "bf54x_lq043fb.*>" {
+        -re "$module.*$kernel_prompt" {
             case_fail $case_num
         }
-        -re ">" {         
+        -re "Used by\r\n$kernel_prompt" {         
             case_pass $case_num
             break
         }

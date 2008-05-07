@@ -42,7 +42,19 @@ while 1 {
         }
 
         -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF548-EZKIT" } {
+                send "m\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                send "m\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
@@ -65,6 +77,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }
