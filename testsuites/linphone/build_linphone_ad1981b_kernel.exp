@@ -8,11 +8,34 @@ source  ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
-step "Apply bf5xx-sport patch."
+step "Decide the linphone version from Makefile."
 
-cd $uclinux_path/linux-2.6.x/sound/soc/blackfin
+cd $uclinux_path
+ set timeout 2
+      spawn ex user/linphone/Makefile
+      expect {
+         "Entering Ex mode*Normal mode." { }
 
-exec patch -p0 <  $uclinux_path/testsuites/linphone/bf5xx-sport.c.patch
+         "already exists!" {
+            send "e\r"
+         }
+      }
+      send "/VER\r"
+      while 1 {
+      expect -re "VER = (linphone-\[0-9]+.\[0-9]+.\[0-9]+)" {
+      set linphone_version $expect_out(1,string)
+      send_user "Linphone version is  $linphone_version"
+      break
+      }
+      }
+      send "q\r"
+      expect eof
+
+step "Apply linphone patch."
+
+cd $uclinux_path/user/linphone/$linphone_version
+
+exec patch -p1 <  $uclinux_path/testsuites/linphone/linphone.patch
 
 cd $uclinux_path/testsuites
 
