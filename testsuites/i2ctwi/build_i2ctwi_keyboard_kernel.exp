@@ -82,7 +82,7 @@ while 1 {
         }
 
         -re "Keyboards.*INPUT_KEYBOARD.*\\\[.*]" {            
-            if { $board_type == "BF548-EZKIT" } {
+            if { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
                 send "N\r"
             } else {
                 send "\r"
