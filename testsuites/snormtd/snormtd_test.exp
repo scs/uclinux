@@ -1,5 +1,13 @@
 #!/usr/bin/expect
 #
+#To use dataflash(df), remember to edit .type in linux-2.6.x/arch/blackfin/mach-bf537/boards/stamp.c to at45df321d like:
+#
+#static struct flash_platform_data bfin_spi_flash_data = {
+#        .name = "m25p80",
+#        .parts = bfin_spi_flash_partitions,
+#        .nr_parts = ARRAY_SIZE(bfin_spi_flash_partitions),
+#        .type = "at45df321d",
+#};
 
 source ../kernel_config.exp
 source ../board_info.exp
@@ -7,6 +15,12 @@ source ../board_info.exp
 log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 set TITLE [title "$argv0"]
+
+if { $argc >= 2} {
+set board_type [lindex $argv 1]
+append TITLE " ($board_type)"
+set spi_rootfs_num 0
+}
 
 step "Start kermit."
 source ../spawn_kermit.exp
@@ -219,6 +233,52 @@ if  { $mtd_temp_result!=$TEST_PASS } {
 }
 
 incr case_num
+step "cp pwd to JFFS."
+set jffs_temp_result $TEST_FAIL
+
+set timeout 200
+send -s "cp /bin/pwd /mnt\r"
+while 1 {
+    expect {
+         -re $kernel_prompt {
+                case_pass $case_num
+                break
+        }
+
+        timeout {
+                case_fail $case_num
+                exit
+        }
+    }
+}
+
+sleep 1
+
+step "JFFS Validating data integrity"
+set jffs_temp_result $TEST_FAIL
+incr case_num
+
+set timeout 60
+send "while \[ 1 \]; md5sum /mnt/pwd ; done\r"
+while 1 {
+   expect {
+      -re "\[0-9a-z]+  /mnt/pwd" {
+                sleep 3
+                send "\3"
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+
+expect ">"
+
+incr case_num
 
 step "Verify "
 set timeout 2
@@ -234,6 +294,43 @@ while 1 {
                 case_pass $case_num
 		break
 	}
+    }
+}
+
+incr case_num
+expect  -re $kernel_prompt
+send -s "umount /mnt\r"
+while 1 {
+    expect {
+
+       -re $kernel_prompt {
+                break
+        }
+
+       "failed" {
+                case_fail $case_num
+                exit
+        }
+
+        timeout {
+                case_fail $case_num
+                exit
+        }
+    }
+}
+send -s "ls /mnt\r"
+while 1 {
+    expect {
+
+        "test" {
+                case_fail $case_num
+                exit
+        }
+
+        timeout {
+                case_pass $case_num
+                break
+        }
     }
 }
 

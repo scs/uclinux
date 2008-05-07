@@ -152,6 +152,53 @@ if  { $mtd_temp_result!=$TEST_PASS } {
         exit
 }
 
+step "cp pwd to JFFS."
+set jffs_temp_result $TEST_FAIL
+incr case_num
+
+set timeout 200
+send -s "cp /bin/pwd /mnt\r"
+while 1 {
+    expect {
+         -re $kernel_prompt {
+                case_pass $case_num
+                break
+        }
+
+        timeout {
+                case_fail $case_num
+                exit
+        }
+    }
+}
+
+sleep 1
+
+step "JFFS Validating data integrity"
+set jffs_temp_result $TEST_FAIL
+incr case_num
+
+set timeout 60
+send "while \[ 1 \]; md5sum /mnt/pwd ; done\r"
+while 1 {
+   expect {
+      -re "\[0-9a-z]+  /mnt/pwd" {
+                sleep 3
+                send "\3"
+                case_pass $case_num
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+
+expect ">"
+
+
 incr case_num
 
 step "Verify "
@@ -175,6 +222,43 @@ while 1 {
                 case_pass $case_num
 		break
 	}
+    }
+}
+
+incr case_num
+expect  -re $kernel_prompt
+send -s "umount /mnt\r"
+while 1 {
+    expect {
+
+       -re $kernel_prompt {
+                break
+        }
+
+       "failed" {
+                case_fail $case_num
+                exit
+        }
+
+        timeout {
+                case_fail $case_num
+                exit
+        }
+    }
+}
+send -s "ls /mnt\r"
+while 1 {
+    expect {
+
+        "test" {
+                case_fail $case_num
+                exit
+        }
+
+        timeout {
+                case_pass $case_num
+                break
+        }
     }
 }
 
