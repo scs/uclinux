@@ -217,10 +217,13 @@ set spawn_id $kermit_spawn_id
 set timeout 20
 incr case_num
 if { $board_type == "BF548-EZKIT" } {
-    send "modprobe bf54x_lq043fb\r"
+    set module "bf54x_lq043fb"
+} elseif {$board_type == "BF527-EZKIT" } {
+    set module "bfin_t350mcqb_fb"
 } elseif { $board_type == "BF537-STAMP" } {
-    send "modprobe bf537-lq035\r"
+    set module "bf537_lq035"
 }
+send "modprobe $module\r"
 while 1 {
     expect {
         -re "FrameBuffer initializing.*$kernel_prompt" {
@@ -235,7 +238,7 @@ while 1 {
 send "lsmod\r"
 while 1 {
     expect {
-        -re "(bf537_lq035|bf54x_lq043fb).*$kernel_prompt" {
+        -re "$module.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -368,11 +371,7 @@ while 1 {
 
 set timeout 20
 incr case_num
-if { $board_type == "BF548-EZKIT" } {
-    send "modprobe -r bf54x_lq043fb\r"
-} elseif { $board_type == "BF537-STAMP" } {
-    send "modprobe -r bf537-lq035\r"
-}
+send "modprobe -r $module\r"
 while 1 {
     expect {
         -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
@@ -395,7 +394,7 @@ incr case_num
 send "lsmod\r"
 while 1 {
     expect {
-        -re "bf537_lq035|bf54x_lq043fb" {
+        -re "$module.*$kernel_prompt" {
             case_fail $case_num
         }
         -re $kernel_prompt {
