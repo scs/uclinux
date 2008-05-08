@@ -34,6 +34,10 @@ while 1 {
             send "y\r"
         }
 
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            send "n\r"
+        }
+
         -re "Bluetooth subsystem support.*BT.*\\\[.*]" {
             send "y\r"
         }
@@ -90,8 +94,18 @@ while 1 {
             send "y\r"
         }
 
-        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[./././.]" {
+        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } || { $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
+                send "n\r"
+            } elseif { $board_type == "BF527-EZKIT" } {
                 send "y\r"
             } else {
                 send "\r"
