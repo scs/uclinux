@@ -39,9 +39,13 @@ while 1 {
             send "n\r"
         }
 
-#        -re "SCSI device support \\\(SCSI\\\).*\\\[./././.]" {
-#            send "y\r"
-#        }
+        -re "SCSI device support \\\(SCSI\\\).*\\\[./././.]" {
+            if { $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
 
         -re "SCSI disk support.*BLK_DEV_SD.*\\\[./././.]" {
             send "y\r"
@@ -57,6 +61,16 @@ while 1 {
 
         -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[./././.]" {
             send "y\r"
+        }
+
+        -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "n\r"
+            } elseif { $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "USB Mass Storage support.*USB_STORAGE.*\\\[./././.]" {
@@ -88,6 +102,10 @@ while 1 {
         }
 
         -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[./././.]" {
+            send "y\r"
+        }
+
+        -re "fdisk.*USER_FDISK_FDISK.*\\\[.*]" {
             send "y\r"
         }
 
