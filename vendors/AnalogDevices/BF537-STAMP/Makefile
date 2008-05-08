@@ -38,6 +38,12 @@ romfs::
 
 	$(ROMFSINST) /etc/inittab
 
+ifeq ($(CONFIG_SND_BFIN_AD73322),y)
+	cp asound.conf $(ROMFSDIR)/etc/asound.conf
+else
+	rm -f $(ROMFSDIR)/etc/asound.conf
+endif
+
 	set -e ; \
 	for f in $(ETC_FILES-y) ; do \
 		$(ROMFSINST) ../common/$$f /etc/$$f ; \
