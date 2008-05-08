@@ -1,7 +1,7 @@
 #!/usr/bin/expect --
 
 #
-# Build Kernel for BF548-EZKIT USB device test
+# Build Kernel for BF548-EZKIT and BF527-EZKIT USB device test
 #
 
 source ../kernel_config.exp
@@ -50,16 +50,12 @@ while 1 {
             send "y\r"
         }
 
-        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
+        -re "Support for USB Gadgets.*USB_GADGET.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
-            send "n\r"
-        }
-
-        -re "Logging Level.*USB_MUSB_LOGLEVEL.*\\\[.*]" {
-            send "0\r"
+        -re "USB Gadget Drivers \\\[.*]" {
+            send "m\r"
         }
 
         -re "USB testing driver.*USB_TEST.*\\\[.*]" {
@@ -82,106 +78,112 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }
 
+cd $uclinux_path
+set timeout 300
+spawn make config
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-cd $uclinux_path/linux-2.6.x
-sleep 3
-set timeout 2
-spawn ex .config
-expect {
-    "Entering Ex mode*Normal mode." { }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-    "already exists!" {
-        send "e\r"
-        sleep 1
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "n\r"
+        }
+
+        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Driver Mode.*USB Host.*USB Peripheral.*USB_MUSB_PERIPHERAL.*\[cC]hoice\\\[.*]:" {
+            send "2\r"
+        }
+
+        -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "n\r"
+            } elseif { $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            }
+        }
+
+        -re "Logging Level.*USB_MUSB_LOGLEVEL.*\\\[.*]" {
+            send "0\r"
+        }
+
+        -re "USB Peripheral Controller.*Inventra HDRC USB.*USB_GADGET_MUSB_HDRC.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "3\r"
+            } elseif { $board_type == "BF527-EZKIT" } {
+                send "2\r"
+            }
+        }
+
+        -re "USB Gadget Drivers \\\[.*]" {
+            send "m\r"
+        }
+
+        -re "Gadget Zero.*USB_ZERO.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "Ethernet Gadget.*USB_ETH.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "RNDIS support.*USB_ETH_RNDIS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Gadget Filesystem.*USB_GADGETFS.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "File-backed Storage Gadget \\\(USB_FILE_STORAGE.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "File-backed Storage Gadget.*USB_FILE_STORAGE_TEST.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Serial Gadget.*USB_G_SERIAL.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "MIDI Gadget.*USB_MIDI_GADGET.*\\\[.*]" {
+            send "m\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
     }
 }
-sleep 1
-send "/CONFIG_SND_PCM=y\r"
-expect "CONFIG_SND_PCM=y"
-send "a\r"
-sleep .5
-send "CONFIG_SND_RAWMIDI=m\r"
-send ".\r"
-expect ":"
-sleep .5
-
-send "/CONFIG_USB_MUSB_HOST=y\r"
-expect "CONFIG_USB_MUSB_HOST=y"
-send "d\r"
-sleep .5
-expect ":"
-send "i\r"
-sleep .5
-send "# CONFIG_USB_MUSB_HOST is not set\r"
-send ".\r"
-expect ":"
-sleep .5
-
-send "/CONFIG_USB_MUSB_PERIPHERAL is not set\r"
-expect "CONFIG_USB_MUSB_PERIPHERAL is not set"
-send "d\r"
-sleep .5
-expect ":"
-send "a\r"
-sleep .5
-send "CONFIG_USB_MUSB_PERIPHERAL=y\r"
-send ".\r"
-expect ":"
-sleep .5
-
-send "/CONFIG_USB_MUSB_HDRC_HCD=y\r"
-expect "CONFIG_USB_MUSB_HDRC_HCD=y"
-send "d\r"
-sleep .5
-expect ":"
-send "a\r"
-sleep .5
-send "CONFIG_USB_GADGET_MUSB_HDRC=y\r"
-send ".\r"
-expect ":"
-sleep .5
-
-send "/CONFIG_USB_GADGET is not set\r"
-expect "CONFIG_USB_GADGET is not set"
-send "d\r"
-sleep .5
-expect ":"
-send "a\r"
-sleep .5
-
-send "# CONFIG_USB_GADGET_DEBUG_FILES is not set\r"
-send "# CONFIG_USB_GADGET_FSL_USB2 is not set\r"
-send "# CONFIG_USB_GADGET_NET2272 is not set\r"
-send "# CONFIG_USB_GADGET_NET2280 is not set\r"
-send "# CONFIG_USB_GADGET_PXA2XX is not set\r"
-send "# CONFIG_USB_GADGET_GOKU is not set\r"
-send "# CONFIG_USB_GADGET_LH7A40X is not set\r"
-send "# CONFIG_USB_GADGET_OMAP is not set\r"
-send "# CONFIG_USB_GADGET_AT91 is not set\r"
-send "# CONFIG_USB_GADGET_DUMMY_HCD is not set\r"
-
-send "CONFIG_USB_GADGET=y\r"
-send "CONFIG_USB_GADGET_SELECTED=y\r"
-send "CONFIG_USB_GADGET_DUALSPEED=y\r"
-send "CONFIG_USB_ZERO=m\r"
-send "CONFIG_USB_ETH=m\r"
-send "CONFIG_USB_ETH_RNDIS=y\r"
-send "CONFIG_USB_GADGETFS=m\r"
-send "CONFIG_USB_FILE_STORAGE=m\r"
-send "CONFIG_USB_FILE_STORAGE_TEST=y\r"
-send "CONFIG_USB_G_SERIAL=m\r"
-send "CONFIG_USB_MIDI_GADGET=m\r"
-send ".\r"
-expect ":"
-sleep .5
-
-send "wq\r"
-expect eof
-
 
 cd $uclinux_path/testsuites
 

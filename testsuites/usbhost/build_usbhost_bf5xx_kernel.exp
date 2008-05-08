@@ -23,18 +23,17 @@ spawn make config
 
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
-        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
         }
-
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
             send "n\r"
@@ -108,6 +107,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }
