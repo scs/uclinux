@@ -95,7 +95,7 @@ while 1 {
         }
 
         -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } || { $board_type == "BF527-EZKIT" } {
+            if { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
                 send "y\r"
             } else {
                 send "\r"

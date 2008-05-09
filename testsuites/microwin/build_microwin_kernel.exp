@@ -43,11 +43,15 @@ while 1 {
             send "m\r"
         }
 
-        -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" { 
+        -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
             send "m\r"
         }
 
-        -re "SHARP LQ035 TFT LCD.*BF537 STAMP.*\\\[.*]" { 
+        -re "SHARP LQ035 TFT LCD.*BF537 STAMP.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
             send "m\r"
         }
 

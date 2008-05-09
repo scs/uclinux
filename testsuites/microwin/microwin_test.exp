@@ -27,16 +27,19 @@ send "\r"
 set timeout 10
 incr case_num
 if { $board_type == "BF548-EZKIT" } {
-    send "modprobe bf54x-lq043fb\r"
+    set module "bf54x_lq043fb"
+} elseif {$board_type == "BF527-EZKIT" } {
+    set module "bfin_t350mcqb_fb"
 } elseif { $board_type == "BF537-STAMP" } {
-    send "modprobe bf537-lq035\r"
+    set module "bf537_lq035"
 } else {
     send_user "Wrong board type!\n"
     case_fail $case_num
 }
+send "modprobe $module\r"
 while 1 {
     expect {
-        -re "FrameBuffer initializing.*>" {
+        -re "FrameBuffer initializing.*$kernel_prompt" {
             case_pass $case_num
             break
         }

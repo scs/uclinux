@@ -106,7 +106,7 @@ while 1 {
             send "m\r"
         }
 
-        -re "Blackfin ADI7171 video encoder on uClinux.*FB_BFIN_7171.*\\\[.*]" {
+        -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
             send "m\r"
         }
 
