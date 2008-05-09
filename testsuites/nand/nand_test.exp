@@ -280,6 +280,7 @@ while 1 {
 }
 
 incr case_num
+set timeout 60
 expect  -re $kernel_prompt
 send -s "umount /mnt\r"
 while 1 {
