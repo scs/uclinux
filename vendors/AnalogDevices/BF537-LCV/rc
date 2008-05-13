@@ -25,8 +25,10 @@ ln -sfn /dev/mtd3 /calib
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
 
-# Configure network interface based on SPI EEPROM info
+
 #dhcpcd &
+
+# Configure network interface based on SPI EEPROM info
 ln -sfn /sys/bus/spi/devices/spi0.4/eeprom /eeprom 
 ifconfig eth0 down
 ifconfig eth0 192.168.1.1
