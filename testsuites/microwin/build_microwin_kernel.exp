@@ -44,7 +44,11 @@ while 1 {
         }
 
         -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF548-EZKIT" } {
+                send "m\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "SHARP LQ035 TFT LCD.*BF537 STAMP.*\\\[.*]" {
@@ -52,7 +56,11 @@ while 1 {
         }
 
         -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF527-EZKIT" } {
+                send "m\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "Build freetype.*LIB_FREETYPE.*\\\[.*]" {
