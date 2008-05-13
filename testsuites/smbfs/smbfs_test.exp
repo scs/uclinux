@@ -20,138 +20,120 @@ set flag 0
 send "ifconfig eth0 $targetip\r" 
 
 while 1 {
-   sleep 3
-   expect {
-      ">" {
-          break
-      }
-
-      timeout {
+    sleep 3
+    expect {
+        ">" {
+            break
+        }
+        timeout {
             puts "Fail ifconfig. "
             break
-         }
-     }
+        }
+    }
 }
 
 sleep 3
 send "ifconfig\r"
 while 1 {
-
-   expect {
-      "$targetip" {        
-         break
-      }
-
-      timeout {
+    expect {
+        -re "$targetip" {        
+            break
+        }
+        timeout {
             puts "Fail ifconfig. "         
             break
-         }
-     }
+        }
+    }
 }
 expect  -re $kernel_prompt
 incr case_num
 
 send -s "smbmount //$serverip/users /mnt rw -o username=$name,password=$name \r" 
 while 1 {
-   expect  {
-        -re $kernel_prompt
-         break
-      }
-
-      timeout {
+    expect  {
+        -re $kernel_prompt {
             break
-         }
- }
+        }
+        timeout {
+            break
+        }
+    }
+}
 
 incr case_num
-
 send -s "cp /bin/version /mnt/$name\r"
 while 1 {
-   expect {
+    expect {
         -re $kernel_prompt {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
 send -s "ls /mnt/$name\r" 
 while 1 {
-   expect {
-       "version" {         
-         puts "******* samba mount  success.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        "version" {         
+            puts "******* samba mount  success.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
-expect  -re $kernel_prompt
-set timeout 3
+expect -re $kernel_prompt
+set timeout 5
 send -s "rm -f /mnt/$name/version\r"
 while 1 {
-   expect {
-       ">" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        ">" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
 expect ">"
 send -s "smbumount /mnt\r" 
 while 1 {
-   expect {
-       ">" {         
-         puts "smbfs umount.\n"
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        ">" {         
+            puts "smbfs umount.\n"
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
-
 set timeout 3
 send -s "ls /mnt\r"
 while 1 {
-   expect {
-       "home" {
-                case_fail $case_num
-	exit
-      }
-
-      timeout {
-                case_pass $case_num
-        break
-         }
-     }
+    expect {
+        "home" {
+            case_fail $case_num
+        }
+        timeout {
+            case_pass $case_num
+            break
+        }
+    }
 }
 
 send_log "\n"
@@ -159,6 +141,3 @@ send_log "\n$TITLE ............\[PASS\]\n"
 
 send_user "Ending $argv0\n"
 log_file
-
-
-
