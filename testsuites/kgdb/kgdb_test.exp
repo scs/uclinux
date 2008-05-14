@@ -16,7 +16,43 @@ source ../reboot_kernel.exp
 
 step "Start $TITLE\r"
 
-set timeout 10
+proc clean_host_gdb { } {
+
+global gdb_id
+global sh_prompt
+
+spawn /bin/sh
+expect $sh_prompt
+
+set timeout 5
+send -s "ps aux | grep bfin-uclinux-gdb\r"
+while 1 {
+   expect {
+     $sh_prompt {
+         break
+      }
+
+     timeout {
+            break
+         }
+     }
+}
+
+send -s "kill -9 `pidof  bfin-uclinux-gdb`\r"
+while 1 {
+   expect {
+     $sh_prompt {
+         break
+      }
+
+     timeout {
+            break
+         }
+     }
+}
+}
+
+set timeout 20
 set case_num 0
 
 set timeout 8
@@ -66,6 +102,7 @@ while 1 {
 			}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -81,6 +118,7 @@ while 1 {
 			}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -92,6 +130,7 @@ while 1 {
                 case_pass $case_num
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -103,6 +142,7 @@ while 1 {
 		"> " {
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -118,6 +158,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -129,6 +170,7 @@ while 1 {
                 case_pass $case_num
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -139,6 +181,7 @@ while 1 {
 		"Continuing." {
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -153,6 +196,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -167,6 +211,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -182,6 +227,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -197,6 +243,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -212,6 +259,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -232,6 +280,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -247,6 +296,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -262,6 +312,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -271,6 +322,7 @@ while 1 {
 		"Continuing." {
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -284,6 +336,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -298,6 +351,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -308,6 +362,7 @@ while 1 {
 		"Delete all breakpoints? (y or n)" {
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -317,6 +372,7 @@ while 1 {
 		"(gdb) " {
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -331,6 +387,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -341,6 +398,7 @@ while 1 {
 		"Continuing." {
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -351,6 +409,7 @@ while 1 {
                 case_pass $case_num
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -371,6 +430,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -386,6 +446,7 @@ while 1 {
 		}
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
@@ -400,6 +461,7 @@ while 1 {
 			break
 		}
 		timeout {
+                clean_host_gdb
                 case_fail $case_num
 			exit
 		}
