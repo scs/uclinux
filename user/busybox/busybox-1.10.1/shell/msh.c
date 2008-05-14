@@ -3006,7 +3006,7 @@ static int waitfor(int lastpid, int canintr)
 					prs(" - core dumped");
 				if (rv >= ARRAY_SIZE(signame) || signame[rv])
 					prs("\n");
-				rv = -1;
+				rv |= 0x80;
 			} else
 				rv = WAITVAL(s);
 		}
