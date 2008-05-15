@@ -1,7 +1,7 @@
 #!/usr/bin/expect
 
 #
-# Build script for irda dirver: bfin sir
+# Build script for irda dirver: irtty
 #
 
 source ../kernel_config.exp
@@ -22,7 +22,7 @@ set timeout 300
 set baud_rate_done_flag 0
 spawn make config
 
-#Config serial port first
+#puts "Begin the interactive process of configuration"
 while 1 {
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
@@ -34,26 +34,38 @@ while 1 {
         }
 
         -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
-            send "n\r"
+            send "y\r"
         }
 
         -re "Virtual terminal.*VT.*\\\[.*]" {
             send "n\r"
         }
 
-#BF533-STAMP: only one UART, disable serial port for SIR
-        -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
+        -re "IrDA \\\(infrared\\\) subsystem support.*IRDA.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "IrTTY \\\(uses Linux serial driver\\\).*IRTTY_SIR.*\\\[.*]" {
+            send "m\r"             
+        }      
+
+        -re "Blackfin SIR on UART \\\(BFIN_SIR\\\) \\\[.*]" {
+            send "n\r"
+        }
+
+#BF533-STAMP: only one UART, don't send console info to serial port, reserve for IRTTY_SIR
+        -re "Console on Blackfin serial port.*SERIAL_BFIN_CONSOLE.*\\\[.*]" {
             if { $board_type == "BF533-STAMP" } {
                 send "n\r"
             } else {
-                send "y\r"
+                send "\r"
             }
         }
 
 #BF537: default serial port is on UART0, open UART1 for IRTTY_SIR
         -re "Enable UART1.*SERIAL_BFIN_UART1.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
-                send "n\r"
+                send "y\r"
             } else {
                 send "\r"
             }
@@ -62,7 +74,7 @@ while 1 {
 #BF548: default serial port is on UART1, open UART3 for IRTTY_SIR
         -re "Enable UART3.*SERIAL_BFIN_UART3.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
-                send "n\r"
+                send "y\r"
             } else {
                 send "\r"
             }
@@ -71,87 +83,27 @@ while 1 {
 #BF527: default serial port is on UART1, open UART0 for IRTTY_SIR
         -re "Enable UART0.*SERIAL_BFIN_UART0.*\\\[.*]" {
             if { $board_type == "BF527-EZKIT" } {
-                send "n\r"
-            } else {
-                send "\r"
-            }
-        }
-
-        "\\\(*) \\\[*]" {
-            sleep .01 
-            send "\r"
-        }
-
-        -re "\[cC]hoice\\\[.*]:" {
-            send "\r"
-        }
-
-        eof {
-            puts "End of configuration"
-            break
-        }
-
-        timeout {
-            puts "\n\nFATAL ERROR: config prompt timeout in make config"
-            break
-        }
-    }
-}
-
-cd $uclinux_path
-set timeout 300
-spawn make config
-
-#Config SIR now
-while 1 {
-    expect {
-        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-            send "$expect_out(1,string)\r"
-        }
-
-        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
-            send "y\r"
-        }
-
-        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
-            send "y\r"
-        }
-
-        -re "IrDA \\\(infrared\\\) subsystem support.*IRDA.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "IrTTY \\\(uses Linux serial driver\\\).*IRTTY_SIR.*\\\[.*]" {
-            send "n\r"             
-        }      
-
-        -re "Blackfin SIR on UART \\\(BFIN_SIR\\\) \\\[.*]" {
-            send "m\r"
-        }
-
-        -re "Blackfin SIR on UART0.*BFIN_SIR0.*\\\[.*]" {
-            if { $board_type == "BF533-STAMP" || $board_type == "BF527-EZKIT" } {
                 send "y\r"
             } else {
                 send "\r"
             }
         }
 
-        -re "Blackfin SIR on UART1.*BFIN_SIR1.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
-                send "y\r"
-            } else {
-                send "\r"
-            }
-        }
+#        -re "Default bootloader kernel arguments.*CMDLINE_BOOL.*\\\[.*]" {
+#            if { $board_type == "BF527-EZKIT" } {
+#                send "y\r"
+#            } else {
+#                send "n\r"
+#            }
+#        }
 
-        -re "Blackfin SIR on UART3.*BFIN_SIR3.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "y\r"
-            } else {
-                send "\r"
-            }
-        }
+#        -re "Initial kernel command string.*CMDLINE.*\\\[.*]" {
+#            if { $board_type == "BF527-EZKIT" } {
+#                send "console=ttyBF1,57600\r"
+#            } else {
+#                send "\r"
+#            }
+#        }
 
         -re "IrDA Tools.*USER_IRDA_TOOLS.*\\\[.*]" {
             send "y\r"
@@ -181,7 +133,6 @@ while 1 {
         }
     }
 }
-
 
 cd $uclinux_path/testsuites
 
