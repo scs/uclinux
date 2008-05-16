@@ -211,7 +211,7 @@ while 1 {
         -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             case_fail $case_num
         }
-        -re "Gadget Zero.*using musb_hdrc.*$kernel_prompt" {
+        -re "Gadget Zero.*using musb_hdrc.*source and sink data" {
             break
         }
         timeout {
@@ -288,153 +288,41 @@ while 1 {
     }
 }
 
+set Total_Count 10
+set fail_count 0
+
 incr case_num
 set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t9\r"
+send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t14 -c 15000 -s 256 -v 1\r"
 while 1 {
     expect {
-        -re "test 9.*\[0-2]\\\.\[0-9]+ secs" {
-            puts "$expect_out(0,string)"
+        -re "test 14 --> 75 \\\(Value too large for defined data type\\\)" {
             case_pass $case_num
             break
         }
         timeout {
-            case_fail $case_num
+            incr fail_count
+            send_user "testusb t14 fail\n"
+            break
         }
     }
 }
 
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t10\r"
-while 1 {
-    expect {
-        -re "test 10.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t1\r"
-while 1 {
-    expect {
-        -re "test 1.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t3\r"
-while 1 {
-    expect {
-        -re "test 3.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t5\r"
-while 1 {
-    expect {
-        -re "test 5.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t7\r"
-while 1 {
-    expect {
-        -re "test 7.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t2\r"
-while 1 {
-    expect {
-        -re "test 2.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t4\r"
-while 1 {
-    expect {
-        -re "test 4.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t6\r"
-while 1 {
-    expect {
-        -re "test 6.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t8\r"
-while 1 {
-    expect {
-        -re "test 8.*\[0-2]\\\.\[0-9]+ secs" {
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
+for {set count 1} {$count <= $Total_Count} {incr count} {
+    incr case_num
+    set timeout 5
+    send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t$count\r"
+    while 1 {
+        expect {
+            -re "test $count.*\[0-2]\\\.\[0-9]+ secs" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                incr fail_count
+                send_user "testusb t$count fail\n"
+                break
+            }
         }
     }
 }
@@ -511,6 +399,15 @@ while 1 {
             case_fail $case_num
         }
     }
+}
+
+incr case_num
+if { $fail_count == 0 } {
+    send_user "No error when running testusb\n"
+    case_pass $case_num
+} else {
+    send_user "testusb fail $fail_count times\n"
+    case_fail $case_num
 }
 
 send_log "\n"

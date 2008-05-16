@@ -34,6 +34,12 @@ while 1 {
             send "y\r"
         }
 
+        -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
+#CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
+#need to entirely disable it while using various U-Connector boards
+            send "n\r"
+        }
+
         -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
             send "0xAAC2\r"
         }
@@ -54,7 +60,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "ISP1362 HCD support.*USB_ISP1362_HCD.*\\\[./././.]" {
+        -re "ISP1362 HCD support.*USB_ISP1362_HCD.*\\\[.*]" {
             send "y\r"
         }
 
@@ -62,7 +68,7 @@ while 1 {
             send "3\r"
         }
 
-        -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[./././.]" {
+        -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
             send "y\r"
         }
 
@@ -118,6 +124,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }
