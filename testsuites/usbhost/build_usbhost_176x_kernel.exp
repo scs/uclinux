@@ -1,6 +1,8 @@
 #!/usr/bin/expect --
 
+#
 # Build Kernel for USB host test
+#
 
 source ../kernel_config.exp
 source  ../board_info.exp

@@ -12,7 +12,6 @@ send_user "Starting $argv0\n"
 cd $uclinux_path/testsuites
 
 step "Make config."
-
 source  make_default_config.exp
 
 # Following make specific configuration for this case.
@@ -23,15 +22,15 @@ spawn make config
 
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
-        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
         }
 
@@ -39,19 +38,19 @@ while 1 {
             send "0xAAC2\r"
         }
 
-        -re "SCSI device support \\\(SCSI\\\).*\\\[./././.]" {
+        -re "SCSI device support \\\(SCSI\\\).*\\\[.*]" {
             send "y\r"
         }
 
-        -re "SCSI disk support.*BLK_DEV_SD.*\\\[./././.]" {
+        -re "SCSI disk support.*BLK_DEV_SD.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[././.]" {
+        -re "Probe all LUNs on each SCSI device.*SCSI_MULTI_LUN.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Support for Host-side USB.*USB.*\\\[./././.]" {
+        -re "Support for Host-side USB.*USB.*\\\[.*]" {
             send "y\r"
         }
 
@@ -71,19 +70,19 @@ while 1 {
             send "4\r"
         }
 
-        -re "USB Mass Storage support.*USB_STORAGE.*\\\[./././.]" {
+        -re "USB Mass Storage support.*USB_STORAGE.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "MSDOS fs support.*MSDOS_FS.*\\\[./././.]" {
+        -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[./././.]" {
+        -re "VFAT.*Windows-95.*fs support.*VFAT_FS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[*]" {
+        -re "Default codepage for FAT.*FAT_DEFAULT_CODEPAGE.*\\\[.*]" {
             send "437\r"
         }
 
@@ -95,11 +94,11 @@ while 1 {
             send "iso8859-1\r"
         }
 
-        -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[./././.]" {
+        -re "Codepage 437.*United States, Canada.*NLS_CODEPAGE_437.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[./././.]" {
+        -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
             send "y\r"
         }
 

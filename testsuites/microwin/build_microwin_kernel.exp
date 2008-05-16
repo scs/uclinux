@@ -39,6 +39,14 @@ while 1 {
             send "y\r"
         }
 
+        -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            send "y\r"
+        }
+
         -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
             send "m\r"
         }
@@ -47,7 +55,7 @@ while 1 {
             if { $board_type == "BF548-EZKIT" } {
                 send "m\r"
             } else {
-                send "\r"
+                send "n\r"
             }
         }
 
@@ -59,7 +67,7 @@ while 1 {
             if { $board_type == "BF527-EZKIT" } {
                 send "m\r"
             } else {
-                send "\r"
+                send "n\r"
             }
         }
 
