@@ -1,4 +1,4 @@
-VER = sqlite-3.5.7
+VER = sqlite-3.5.9
 
 CONF_OPTS = --disable-tcl
 
