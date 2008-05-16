@@ -1,5 +1,0 @@
-
-# Enter comments on this commit.  Lines beginning with # are ignored
-#
-# EDITED   src/expr.c
-# EDITED   src/vdbe.c

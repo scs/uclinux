@@ -1,4 +1,0 @@
-
-# Enter comments on this commit.  Lines beginning with # are ignored
-#
-# EDITED   src/insert.c
