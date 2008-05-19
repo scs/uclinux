@@ -68,6 +68,10 @@ while 1 {
             send "y\r"
         }
 
+        -re "Second extended fs support.*EXT2_FS.*\\\[.*]" {
+            send "y\r"
+        }
+
         -re "MSDOS fs support.*MSDOS_FS.*\\\[.*]" {
             send "y\r"
         }
