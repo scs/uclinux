@@ -102,8 +102,8 @@ while 1 {
         -re "Bank width in octets.*MTD_PHYSMAP_BANKWIDTH.*\\\[.*]" {
             send -s "\r"
         }
-
-        -re "Blackfin BF533-STAMP Flash Chip Support.*MTD_BF5xx.*\\\[.*]" {
+        
+        -re "Blackfin BF533-STAMP Flash Chip Support.*MTD_BFIN_ASYNC.*\\\[.*]" {
             send -s "Y\r"
         }
 
