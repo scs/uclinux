@@ -61,17 +61,12 @@ cat /etc/motd
 echo "Starting Webserver"
 boa -f /etc/boa.conf&
 
-#launch application with priority: 1. drupaRun, 2. maintenance
-#if test -e /app/drupaRun.sh && test -e /app/app
-#then
-#	cd app
-#	./drupaRun.sh &
-#	cd /
-#else
-#	if test -e /app/maintenance
-#	then
-#		cd app
-#		./maintenance &
-#		cd /
-#	fi
-#fi
+#launch user specific application script
+if test -e /app/runapp.sh
+then
+       cd app
+       ./runapp.sh &
+       cd /
+fi
+
+
