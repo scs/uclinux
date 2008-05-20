@@ -121,6 +121,15 @@ expect {
         case_fail $case_num
         break
 	}
+	"Network is unreachable" {
+        case_fail $case_num
+        break
+	}
+        -re "Trace:.*\r\n\r\n" {
+            expect -re "$kernel_prompt"
+            case_fail $case_num
+         }
+
 	timeout {
         case_pass $case_num
         send_log "\n$TITLE ............\[PASS\]\n"
