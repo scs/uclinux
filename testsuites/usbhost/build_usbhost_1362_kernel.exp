@@ -64,17 +64,17 @@ while 1 {
             send "y\r"
         }
 
-        -re "GPIO for Interrupt.*USB_ISP1362_BFIN_GPIO.*\\\[.]" {
-            send "3\r"
-        }
+#        -re "GPIO for Interrupt.*USB_ISP1362_BFIN_GPIO.*\\\[..]" {
+#            send "53\r"
+#        }
 
         -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "PF pin for Interrupt.*USB_SL811_BFIN_GPIO.*\\\[.]" {
-            send "4\r"
-        }
+#        -re "PF pin for Interrupt.*USB_SL811_BFIN_GPIO.*\\\[..]" {
+#            send "54\r"
+#        }
 
         -re "USB Mass Storage support.*USB_STORAGE.*\\\[.*]" {
             send "y\r"
@@ -109,6 +109,10 @@ while 1 {
         }
 
         -re "NLS ISO 8859-1.*Latin 1; Western European Languages.*NLS_ISO8859_1.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "fdisk.*USER_FDISK_FDISK.*\\\[.*]" {
             send "y\r"
         }
 

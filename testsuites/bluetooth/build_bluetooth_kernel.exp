@@ -82,6 +82,12 @@ while 1 {
             send "n\r"
         }
 
+        -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
+#CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
+#need to entirely disable it while using various U-Connector boards
+            send "n\r"
+        }
+
         -re "Bank 3.*BANK_3.*\\\[.*]" {
             if { $board_type == "BF537-STAMP" } {
                 send "0xAAC2\r"
