@@ -44,6 +44,10 @@ while 1 {
             send "N\r"
         }
 
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            send "Y\r"
+        }
+
         -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
             send "Y\r"
         }
@@ -102,6 +106,10 @@ while 1 {
 
         -re "Support most SPI Flash chips.*MTD_M25P80.*\\\[.*]" {
             send "Y\r"
+        }
+
+        -re "Use FAST_READ OPCode allowing SPI CLK <= 50MHz.*M25PXX_USE_FAST_READ.*\\\[.*]" {
+             send "Y\r"
         }
 
         -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {

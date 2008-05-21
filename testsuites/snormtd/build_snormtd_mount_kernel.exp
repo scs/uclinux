@@ -6,6 +6,11 @@ log_file [log_file_name "$argv0"]
 send_user "Starting $argv0\n"
 
 set HAVE_JFFS2_IMAGE 1
+set spi_board_type NORMAL
+
+if { $argc >= 2} {
+set spi_board_type [lindex $argv 1]
+}
 
 cd $uclinux_path/testsuites
 
@@ -44,13 +49,17 @@ while 1 {
             send "Y\r"
         }
 
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            send "Y\r"
+        }
+
         -re "Memory Technology Device .*MTD.* support.*MTD.*\\\[.*]" {
             send "Y\r"
         }
 
-#        -re "MTD partitioning support.*MTD_PARTITIONS.*\\\[.*]" {
-#            send "Y\r"
-#        }
+        -re "MTD partitioning support.*MTD_PARTITIONS.*\\\[.*]" {
+            send "Y\r"
+        }
 
         -re "Direct char device access to MTD devices.*MTD_CHAR.*\\\[.*]" {
             send "Y\r"
@@ -100,8 +109,27 @@ while 1 {
             send "N\r"
         }
 
+        -re "Support for AT45xxx DataFlash.*MTD_DATAFLASH.*\\\[.*]" {
+            if { $spi_board_type == "df" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
         -re "Support most SPI Flash chips.*MTD_M25P80.*\\\[.*]" {
-            send "Y\r"
+            if { $spi_board_type == "NORMAL" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
+        }
+
+       -re "Use FAST_READ OPCode allowing SPI CLK <= 50MHz.*M25PXX_USE_FAST_READ.*\\\[.*]" {
+            if { $spi_board_type == "NORMAL" } {
+                send "Y\r"
+            } else {
+                send "N\r"
+            }
         }
 
         -re "Journalling Flash File System v2.*JFFS2.*support.*JFFS2_FS.*\\\[.*]" {
@@ -160,11 +188,6 @@ while 1 {
         -re "whetstone.*USER_WHETSTONE_WHETSTONE.*\\\[.*]" {
             send "N\r"
         }
-
-#no such choice
-#        -re "Sqlite.*a light weight database.*CONFIG_USER_SQLITE.*\\\[.*]" {
-#            send "N\r"
-#        }
 
         -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
             send "N\r"
