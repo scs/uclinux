@@ -23,7 +23,7 @@ spawn make config
 #puts "Begin the interactive process of configuration"
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -33,6 +33,14 @@ while 1 {
 
         -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
+        }
+
+        -re "DMA has priority over core for ext. accesses.*DEB_DMA_URGENT.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "Sound card support.*SOUND.*\\\[.*]" {
@@ -67,7 +75,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "SoC Audio for the  ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
+        -re "SoC Audio for the ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
             send "y\r"
         }
 
