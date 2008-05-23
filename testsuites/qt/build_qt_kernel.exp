@@ -69,8 +69,9 @@ set baud_rate_done_flag 0
 spawn make config
 
 #TFT-LCD is used to test QT. Other video module can also be used.
-#TFT-LCD driver is different for BF537-STAMP and BF548-EZKIT. So we build them as modules.
-#In fact we can also directly use kernels for LCD/ADV7171/ADV7393 test to test QT.
+#TFT-LCD driver is different for different boards.
+#So all video related dirvers are built as modules.
+#In fact we can also directly use kernels for LCD/ADV7393 test to test QT.
 while 1 {
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
@@ -83,6 +84,10 @@ while 1 {
 
         -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
+        }
+
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            send "n\r"
         }
 
 #Video Output
@@ -99,14 +104,18 @@ while 1 {
         }
 
         -re "SHARP LQ035 TFT LCD on uClinux.*BF537 STAMP.*FB_BF537_LQ035.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF537-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
         }
 
         -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
             if { $board_type == "BF548-EZKIT" } {
                 send "m\r"
             } else {
-                send "\r"
+                send "n\r"
             }
         }
 
@@ -114,40 +123,80 @@ while 1 {
             if { $board_type == "BF527-EZKIT" } {
                 send "m\r"
             } else {
-                send "\r"
+                send "n\r"
             }
         }
 
         -re "Blackfin ADV7393 Video encoder on uClinux.*FB_BFIN_7393.*\\\[.*]" {
-            send "m\r"
+            if { $board_type == "BF537-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
         }
 
 #USB mouse
-        -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
-            send "0xAAC2\r"
+        -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
+#CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
+#need to entirely disable it while using various U-Connector boards
+            send "n\r"
         }
 
         -re "Support for Host-side USB.*USB.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "ISP1362 HCD support.*USB_ISP1362_HCD.*\\\[.*]" {
-            send "y\r"
+        -re "Bank 3 \\\(BANK_3\\\).*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "0xAAC2\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "ISP1362 HCD support \\\(USB_ISP1362_HCD\\\).*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "n\r"
+            }
         }
 
         -re "GPIO for Interrupt.*USB_ISP1362_BFIN_GPIO_IRQ.*\\\[.*]" {
-            #For JP4 on usb add-on board, pin15 & 16 should be connected.
-            #PB4 on BF537-STAMP should be disabled.
-            send "55\r"
+#For JP4 on usb add-on board, pin15 & 16 should be connected.
+#PB4 on BF537-STAMP should be disabled.
+            if { $board_type == "BF537-STAMP" } {
+                send "55\r"
+            } else {
+                send "\r"
+            }
         }
 
 #        -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
-#            send "y\r"
+#            if { $board_type == "BF537-STAMP" } {
+#                send "y\r"
+#            } else {
+#                send "n\r"
+#            }
 #        }
 
-#        -re "GPIO IRQ pin for Interrupt.*USB_SL811_BFIN_IRQ.*\\\[.]" {
-#            send "54\r"
-#        }
+        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" || $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "n\r"
+            } elseif { $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
 
         -re "USB Human Interface Device \\\(full HID\\\) support.*USB_HID.*\\\[.*]" {
             send "y\r"
@@ -162,11 +211,19 @@ while 1 {
         }
 
         -re "Horizontal screen resolution.*INPUT_MOUSEDEV_SCREEN_X.*\\\[.*]" {
-            send "320\r"
+            if { $board_type == "BF548-EZKIT" } {
+                send "480\r"
+            } else {
+                send "320\r"
+            }
         }
 
         -re "Vertical screen resolution.*INPUT_MOUSEDEV_SCREEN_Y.*\\\[.*]" {
-            send "240\r"
+            if { $board_type == "BF548-EZKIT" } {
+                send "272\r"
+            } else {
+                send "240\r"
+            }
         }
 
         -re "Event interface.*INPUT_EVDEV.*\\\[.*]" {
@@ -181,18 +238,7 @@ while 1 {
             send "y\r"
         }
 
-#Libs needed for konqueror
-#default now
-#        -re "Build libZ.*LIB_ZLIB.*\\\[.*]" {
-#            send "y\r"
-#        }
-#        -re "Build libpng.*LIB_LIBPNG.*\\\[.*]" {
-#            send "y\r"
-#        }
-#        -re "Build libjpeg.*LIB_LIBJPEG.*\\\[.*]" {
-#            send "y\r"
-#        }
-#default now
+#Libs needed for konqueror: libZ, libpng and libjpeg. Default to be selected already.
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             send "$type\r"
@@ -218,6 +264,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }

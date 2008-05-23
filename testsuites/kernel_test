@@ -219,9 +219,9 @@ if [ $BOARD_CONFIG = "BF527-EZKIT-STD" ] ; then
 
    BOARD_TYPE=BF527-EZKIT
 
-  AUTO_RUN_STATUS[2]="1"; AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[44]="1"; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[55]="0"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="0"; AUTO_RUN_STATUS[$(( n + 11 ))]="1" 
+  AUTO_RUN_STATUS[2]="1"; AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[44]="1"; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[55]="0"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="0"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 13 ))]="1"
 
-   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="1"  [7]="0" [8]="1"  [9]="0"  [10]="0"   [11]="0"  [12]="1"  [13]="0"  [14]="0"  [15]="0"  [16]="1" [17]="1" [18]="1"   [$(( n + 1 ))]="0"  )
+   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="1"  [7]="0" [8]="1"  [9]="0"  [10]="0"   [11]="0"  [12]="1"  [13]="0"  [14]="0"  [15]="0"  [16]="1" [17]="1" [18]="1"   [$(( n + 1 ))]="0" [$(( n + 2 ))]="1" )
 
 fi
 
@@ -241,10 +241,10 @@ if [ $BOARD_CONFIG = "BF548-EZKIT-STD" ] ; then
 
    BOARD_TYPE=BF548-EZKIT
    
-   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[44]="1"; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[54]="1"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[55]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="0"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 14 ))]="1"
+   AUTO_RUN_STATUS[9]="1"; AUTO_RUN_STATUS[16]="0"; AUTO_RUN_STATUS[25]="1"; AUTO_RUN_STATUS[40]="0"; AUTO_RUN_STATUS[42]="0" ; AUTO_RUN_STATUS[44]="1"; AUTO_RUN_STATUS[45]="0"; AUTO_RUN_STATUS[54]="1"; AUTO_RUN_STATUS[57]="1"; AUTO_RUN_STATUS[55]="1"; AUTO_RUN_STATUS[$(( n + 6 ))]="1"; AUTO_RUN_STATUS[$(( n + 7 ))]="0"; AUTO_RUN_STATUS[$(( n + 11 ))]="1"; AUTO_RUN_STATUS[$(( n + 13 ))]="1"; AUTO_RUN_STATUS[$(( n + 14 ))]="1"
 
    
-   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="1"  [7]="0" [8]="1"  [9]="0"  [10]="0"   [11]="0"  [12]="1"  [13]="0"  [14]="0"  [15]="0"  [16]="1" [17]="1" [18]="1"   [$(( n + 1 ))]="0"  )
+   MANUAL_RUN_STATUS=( [0]="0"    [1]="0"     [2]="0"    [3]="0"    [4]="0"  [5]="0"  [6]="1"  [7]="0" [8]="1"  [9]="0"  [10]="0"   [11]="0"  [12]="1"  [13]="0"  [14]="0"  [15]="0"  [16]="1" [17]="1" [18]="1"   [$(( n + 1 ))]="0"  [$(( n + 2 ))]="1" )
 
 fi
 
@@ -1084,9 +1084,9 @@ do
       sleep 30
       ./qt_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
       if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
-          ./konqueror_build_test.exp 1 >/dev/null  2>&1
+          ./konqueror_kernel_test.exp 1 >/dev/null  2>&1
           sleep 30
-          mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_build_test_log $THIS_LOG/konqueror_build_flat_test_log
+          mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_kernel_test_log $THIS_LOG/konqueror_kernel_flat_test_log
       fi
   fi
 
@@ -1109,9 +1109,9 @@ do
       sleep 30
       ./qt_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
       if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
-          ./konqueror_build_test.exp 2 >/dev/null  2>&1
+          ./konqueror_kernel_test.exp 2 >/dev/null  2>&1
           sleep 30
-          mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_build_test_log $THIS_LOG/konqueror_build_fdpic_test_log
+          mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_kernel_test_log $THIS_LOG/konqueror_kernel_fdpic_test_log
       fi
   fi
 
