@@ -2,7 +2,6 @@ dir_y =
 dir_n =
 dir_  =
 
-dir_$(CONFIG_USER_SHT_CGI) 			 += lcv-sht-cgi
 dir_$(CONFIG_USER_BLACKFIN_PPIFCDCGI)            += ppifcd-cgi-lcv
 dir_$(CONFIG_USER_IMGUPD_IMGUPD)		 += imgupd
 dir_$(CONFIG_USER_BLACKFIN_LINPHONE)             += linphone
