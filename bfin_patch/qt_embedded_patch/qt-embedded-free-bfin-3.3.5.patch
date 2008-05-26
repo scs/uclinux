@@ -171,7 +171,7 @@ diff -urN qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qmake.shared.conf qt
 diff -urN qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qplatformdefs.h qt-embedded-free-3.3.5.bfin/mkspecs/qws/linux-bfin-g++/qplatformdefs.h
 --- qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qplatformdefs.h	1970-01-01 08:00:00.000000000 +0800
 +++ qt-embedded-free-3.3.5.bfin/mkspecs/qws/linux-bfin-g++/qplatformdefs.h	2006-02-21 14:05:05.000000000 +0800
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,104 @@
 +#ifndef QPLATFORMDEFS_H
 +#define QPLATFORMDEFS_H
 +
@@ -212,7 +212,6 @@ diff -urN qt-embedded-free-3.3.5/mkspecs/qws/linux-bfin-g++/qplatformdefs.h qt-e
 +#include <grp.h>
 +#include <pwd.h>
 +#include <signal.h>
-+#include <dlfcn.h>
 +
 +#include <sys/types.h>
 +#include <sys/ioctl.h>
