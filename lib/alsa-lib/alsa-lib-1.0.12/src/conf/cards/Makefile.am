@@ -4,6 +4,7 @@ cfg_files = aliases.conf \
 	AD1836.conf \
 	AD73311.conf \
 	AD73322.conf \
+	AD73322.asound.conf \
 	AD1980.conf \
 	ATIIXP.conf \
 	ATIIXP-SPDMA.conf \
