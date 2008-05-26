@@ -391,6 +391,18 @@ set host_sh_id $spawn_id
 expect  $sh_prompt
 
 while 1 {
+send -s "stty -F $ttydev -icrnl\r"
+expect {
+        "$sh_prompt" {
+          break }
+         timeout {
+          puts " set $ttydev failed...\n"
+          break
+         }
+}
+}
+
+while 1 {
 send -s " echo $STRDATA > $ttydev  \r"
 expect {
         "$sh_prompt" { 
