@@ -86,7 +86,7 @@ if { $build_opt == 1 } {
 
 incr case_num
 set timeout 30
-send "dmesg|grep \"USB Optical Mouse\"\r"
+send "dmesg|grep -i \"Mouse\"\r"
 while 1 {
     expect {
         -re "\[0-9a-zA-Z]\r\n$kernel_prompt" {
@@ -159,7 +159,7 @@ send_user "Change connection to public netwok\n"
 set timeout 60
 while 1 {
     expect {
-        -re "Link is Down.*Link is Up" {
+        -re "\[lL]ink.*\[dD]own.*\[uU]p" {
             break
         }
         timeout {
