@@ -38,7 +38,16 @@ romfs::
 
 	$(ROMFSINST) /etc/inittab
 	$(ROMFSINST) -o $(CONFIG_LIB_DIRECTFB_FORCE)$(CONFIG_LIB_DIRECTFB) /etc/directfbrc
-	$(ROMFSINST) -e CONFIG_VT -a "tty0:linux:-/bin/sh" /etc/inittab
+	$(ROMFSINST) -e CONFIG_VT -E CONFIG_USER_LOGIN_LOGIN -E CONFIG_USER_BUSYBOX_LOGIN \
+		-a "tty0:linux:-/bin/sh" /etc/inittab
+	$(ROMFSINST) -e CONFIG_VT -o $(CONFIG_USER_LOGIN_LOGIN)$(CONFIG_USER_BUSYBOX_LOGIN) \
+		-a "tty0:linux:/bin/login -f root" /etc/inittab
+	$(ROMFSINST) -E CONFIG_USER_INIT_CONSOLE_SH -E CONFIG_USER_LOGIN_LOGIN -E CONFIG_USER_BUSYBOX_LOGIN \
+		-a "ttyBF0:vt110:-bin/sh" /etc/inittab
+	$(ROMFSINST) -E CONFIG_USER_INIT_CONSOLE_SH -o $(CONFIG_USER_LOGIN_LOGIN)$(CONFIG_USER_BUSYBOX_LOGIN) \
+		-a "ttyBF0:vt110:/bin/login -f root" /etc/inittab
+	$(ROMFSINST) -E CONFIG_USER_BUSYBOX_LOGIN -a "cat /etc/motd" /etc/rc
+
 	$(ROMFSINST) -e CONFIG_PATA_BF54X -a "echo 20 > /proc/sys/vm/pagecache_ratio" /etc/rc
 
 	set -e ; \
