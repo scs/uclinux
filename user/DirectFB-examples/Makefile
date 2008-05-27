@@ -30,7 +30,7 @@ romfs:
 	$(ROMFSINST) -d build-DirectFB-examples-1.0.1/src/spacedream/spacedream /usr/bin/spacedream
 	$(ROMFSINST) -d build-DirectFB-examples-1.0.1/src/df_neo/df_neo /usr/bin/df_neo
 	$(ROMFSINST) -d DirectFB-examples-1.0.1/data /usr/share/directfb-examples
-	$(ROMFSINST) -d /usr/share/directfb-examples/fonts
+	mkdir -p ${ROMFSDIR}/usr/share/directfb-examples/fonts
 	mv ${ROMFSDIR}/usr/share/directfb-examples/decker.ttf ${ROMFSDIR}/usr/share/directfb-examples/fonts/decker.ttf
 	mv ${ROMFSDIR}/usr/share/directfb-examples/df_neo/* ${ROMFSDIR}/usr/share/directfb-examples/
 	rm -rf ${ROMFSDIR}/usr/share/directfb-examples/df_neo
