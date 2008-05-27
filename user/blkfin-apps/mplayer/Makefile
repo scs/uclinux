@@ -14,6 +14,13 @@ FFM = $(FFM-$(VER))
 # Would be nice to use these, but configure/build system needs to stop sucking
 #		--disable-lib{avutil,avcodec,avformat,postproc}_a 
 #		--enable-lib{avutil,avcodec,avformat,postproc}_so
+CONF_OPTS-y =
+CONF_OPTS-m =
+CONF_OPTS-$(CONFIG_LIB_LIBSDL_FORCE) += --enable-sdl --with-sdl-config=$(STAGEDIR)/usr/bin/sdl-config
+CONF_OPTS-$(CONFIG_USER_LIRC) += --enable-lirc
+CONF_OPTS-$(CONFIG_INPUT_JOYDEV) += --enable-joystick
+CONF_OPTS-$(CONFIG_USER_MPLAYER_OSD) += --enable-menu
+
 ifeq ($(FFM),)
 FFM_LIB_DIRS = 
 else
@@ -54,7 +61,7 @@ $(VER)/config.mak: $(FFM_LIB_DIRS)
 		--mandir=/usr/share/man \
 		--enable-fbdev \
 		--disable-mp3lib \
-		$(CONF_OPTS)
+		$(CONF_OPTS) $(CONF_OPTS-y) $(CONF_OPTS-m)
 
 clean:
 	-$(MAKE) -C $(VER) distclean
