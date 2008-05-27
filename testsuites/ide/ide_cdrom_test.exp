@@ -24,7 +24,7 @@ incr case_num
 send "dmesg\r" 
 while 1 {
    expect {
-     -re "hda.*CD/DVD-ROM drive" {
+     -re "scsi CD-ROM sr0" {
                 case_pass $case_num
 		break
       }
@@ -39,7 +39,7 @@ while 1 {
 
 
 incr case_num
-send "mount -t iso9660 /dev/hda /mnt\r" 
+send "mount -t iso9660 /dev/sr0 /mnt\r" 
 while 1 {
    expect {
       ">" {
@@ -87,24 +87,6 @@ while 1 {
      }
 }
 
-
-incr case_num
-send "hdparm -i /dev/hda\r" 
-while 1 {
-   expect {
-     -re "Model=.*Config=.*AdvancedPM.*" {
-                sleep 1
-                case_pass $case_num
-		break
-      }
-
-      timeout {
-                case_fail $case_num
-                exit      
-         }
-     }
-}
-
 incr case_num
 send "cat /proc/filesystems\r" 
 while 1 {
@@ -125,7 +107,7 @@ incr case_num
 send "df\r" 
 while 1 {
    expect {
-      "/dev/hda" {
+      "/dev/sr0" {
                 case_pass $case_num
 		break
       }

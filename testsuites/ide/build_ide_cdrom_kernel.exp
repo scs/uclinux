@@ -38,7 +38,7 @@ while 1 {
         }
 
         -re "VCO Multiplier.*VCO_MULT.*\\\[.*]" {
-            send "20\r"
+            send "14\r"
         }
 
         -re "Core Clock Divider.*CCLK_DIV.*\\\[.*]" {
@@ -46,50 +46,23 @@ while 1 {
         }
 
         -re "System Clock Divider.*SCLK_DIV.*\\\[.*]" {
-            send "8\r"
-        }
-
-        -re "ATA.ATAPI.MFM.RLL support.*IDE.*\\\[.*]" {
-            send -s "Y\r"
-        }
-
-        -re "Enhanced IDE.MFM.RLL disk.cdrom.tape.floppy support.*BLK_DEV_IDE.*\\\[.*]" {
-            send -s "Y\r"
-        }
-
-        -re "Include IDE.ATA-2 DISK support.*BLK_DEV_IDEDISK.*\\\[.*]" {
-            send -s "Y\r"
-        }
-
-        -re "Include IDE/ATAPI CDROM support.*BLK_DEV_IDECD.*\\\[.*]" {
-            send "Y\r"
-        }
-
-        -re "IDE Interface Address Mapping .*Linear 16-bit mapping with reg spacing.*BFIN_IDE_ADDRESS_MAPPING_MODE0.*choice.*\\\[.*]" {
-            send "1\r"
-        }
-
-
-        -re "IDE register base address.*BFIN_IDE_BASE.*\\\[.*]" {
-            send "0x20314020\r"
-        }
-        -re "IDE register alternate address.*BFIN_IDE_ALT.*\\\[.*]" {
-            send "0x2031401c\r"
-        }
-        -re "IDE IRQ no.*BFIN_IDE_IRQ.*\\\[.*]" {
-            send "34\r"
-        }
-
-        -re "IDE IRQ PFx no.*BFIN_IDE_IRQ_PFX.*\\\[.*]" {
             send "5\r"
         }
 
-        -re "Blackfin A.* used as CF A0.*BFIN_IDE_ADDRESS_AX.*\\\[.*]" {
-            send "2\r"
+        -re "SCSI device support.*SCSI.*\\\[.*]" {
+            send -s "Y\r"
+        }
+        
+        -re "SCSI CDROM support.*BLK_DEV_SR.*\\\[.*]" {
+            send -s "Y\r"
         }
 
-        -re "Bank 3.*\\\(BANK_3\\\).*\\\[.*]" {
-            send -s "0xFFC3\r"
+        -re "Serial ATA.*and Parallel ATA.*drivers.*ATA.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Generic platform device PATA support.*PATA_PLATFORM.*\\\[.*]" {
+            send "Y\r"
         }
 
         -re "ISO 9660 CDROM file system support.*ISO9660_FS.*\\\[.*]" {
@@ -127,34 +100,6 @@ while 1 {
         -re "mke2fs.*USER_E2FSPROGS_MISC_MKE2FS.*\\\[.*]" {
             send "Y\r"
         }
-
-       -re "hdparm.*USER_BUSYBOX_HDPARM.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "Support obtaining detailed information directly from drives.*USER_BUSYBOX_FEATURE_HDPARM_GET_IDENTITY.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "Register an IDE interface.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_SCAN_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "Un-register an IDE interface.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_UNREGISTER_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "perform device reset.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_DRIVE_RESET.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "tristate device for hotswap.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_TRISTATE_HWIF.*\\\[.*]" {
-             send "Y\r"
-      }
-
-       -re "get/set using_dma flag.*USER_BUSYBOX_FEATURE_HDPARM_HDIO_GETSET_DMA.*\\\[.*]" {
-             send "Y\r"
-      }
 
         "\\\(*) \\\[*]" {
             sleep .01
