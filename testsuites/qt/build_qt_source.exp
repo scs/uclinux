@@ -20,8 +20,21 @@ send "export QTDIR=$QT_PATH\r"
 send "echo \$QTDIR\r"
 send "cd \$QTDIR\r"
 expect "$qt_ver>"
+
+incr case_num
+set timeout 60
 send "patch -p1 < $uclinux_path/$qt_patch\r"
-expect "$qt_ver>"
+while 1 {
+    expect {
+        -re "$qt_ver>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
 incr case_num
 set timeout 600
@@ -143,10 +156,35 @@ if { $bfin_make_status == "failure" } {
     case_pass $case_num
 }
 
+incr case_num
+set timeout 2000
 send "rm -fr \$QTDIR.FLAT\r"
-expect "$qt_ver>"
+while 1 {
+    expect {
+        -re "$qt_ver>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 2000
 send "cp -fr \$QTDIR \$QTDIR.FLAT\r"
-expect "$qt_ver>"
+while 1 {
+    expect {
+        -re "$qt_ver>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
 
 #build FDPIC dynamic loadable shared library
 incr case_num
@@ -226,10 +264,39 @@ if { $bfin_make_status == "failure" } {
     case_pass $case_num
 }
 
+incr case_num
+set timeout 2000
 send "rm -fr \$QTDIR.FDPIC\r"
-expect "$qt_ver>"
+while 1 {
+    expect {
+        -re "$qt_ver>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 2000
 send "cp -fr \$QTDIR \$QTDIR.FDPIC\r"
-expect "$qt_ver>"
+while 1 {
+    expect {
+        -re "$qt_ver>" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
 
 send_user "Ending $argv0\n"
+
 log_file
