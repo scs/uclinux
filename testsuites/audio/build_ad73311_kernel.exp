@@ -23,7 +23,7 @@ spawn make config
 #puts "Begin the interactive process of configuration"
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -63,13 +63,6 @@ while 1 {
             send "n\r"
         }
 
-#     -re "TDM interface.*SND_BLACKFIN_AD1836_TDM.*\\\[.*]" {
-#            send "N\r"
-#     }
-#        -re "3 Stereos.*SND_BLACKFIN_AD1836_MULSUB.*\\\[.*]" {
-#            send "1\r"
-#     }
-
         -re "AD1981B AC97 SPORT0 Audio support.*SND_BLACKFIN_AD1981B.*\\\[.*]" {
             send "n\r"
         }
@@ -86,16 +79,20 @@ while 1 {
             send "y\r"
         }
 
+        -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
+            send "y\r"
+        }
+
         -re "mp3play.*USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
-            send "Y\r"
+            send "y\r"
         }
 
         -re "vplay.*USER_VPLAY_VPLAY.*\\\[.*]" {
-            send "Y\r"
+            send "y\r"
         }
 
         -re "vrec.*USER_VPLAY_VREC.*\\\[.*]" {
-            send "Y\r"
+            send "y\r"
         }
 
         "\\\(*) \\\[*]" {
@@ -114,6 +111,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }

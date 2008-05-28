@@ -23,7 +23,7 @@ spawn make config
 #puts "Begin the interactive process of configuration"
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -83,6 +83,10 @@ while 1 {
             send "y\r"
         }
 
+        -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
+            send "y\r"
+        }
+
         -re "mp3play.*USER_MP3PLAY_MP3PLAY.*\\\[.*]" {
             send "y\r"
         }
@@ -111,6 +115,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }

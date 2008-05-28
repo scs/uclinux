@@ -35,14 +35,6 @@ while 1 {
             send "y\r"
         }
 
-        -re "DMA has priority over core for ext. accesses.*DEB_DMA_URGENT.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "y\r"
-            } else {
-                send "\r"
-            }
-        }
-
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "y\r"
         }
@@ -55,11 +47,15 @@ while 1 {
             send "y\r"
         }
 
+        -re "Sequencer dummy client.*SND_SEQ_DUMMY.*\\\[.*]" {
+            send "N\r"
+        }
+
         -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS.*\\\[.*]" {
+        -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS\\\).*\\\[.*]" {
             send "y\r"
         }
 
@@ -67,20 +63,28 @@ while 1 {
             send "n\r"
         }
 
+        -re "AD1981B AC97 SPORT0 Audio support.*SND_BLACKFIN_AD1981B.*\\\[.*]" {
+            send "n\r"
+        }
+
         -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
             send "n\r"
         }
 
-        -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "Cascaded AD73322 Audio support for BF53x.*SND_BFIN_AD73322.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "SoC Audio for the ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
-            send "y\r"
+        -re "Blackfin Audio SPORT port.*SND_BFIN_SPORT.*\\\[.*]" {
+            send "2\r"
         }
 
-        -re "SoC AC97 Audio support for BF548 ezkit.*SND_BF5XX_SOC_BF548_EZKIT.*\\\[.*]" {
-            send "y\r"
+        -re "Uncached SDRAM region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
+            send "2\r"
         }
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
