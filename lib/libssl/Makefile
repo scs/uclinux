@@ -1,4 +1,4 @@
-VER = openssl-0.9.8g
+VER = openssl-0.9.8h
 
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
 SSL_SHARED := shared
