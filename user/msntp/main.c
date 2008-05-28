@@ -135,7 +135,6 @@ fiddle unless you really have to. */
 #include <limits.h>
 #include <float.h>
 #include <math.h>
-#include <syslog.h>
 
 #define MAIN
 #include "kludges.h"
@@ -163,7 +162,7 @@ assumptions. */
 #define NTP_LI_FUDGE          0        /* The current 'status' */
 #define NTP_VERSION           3        /* The current version */
 #define NTP_VERSION_MAX       4        /* The maximum valid version */
-#define NTP_STRATUM           5        /* The current stratum as a server */
+#define NTP_STRATUM          15        /* The current stratum as a server */
 #define NTP_STRATUM_MAX      15        /* The maximum valid stratum */
 #define NTP_POLLING           8        /* The current 'polling interval' */
 #define NTP_PRECISION         0        /* The current 'precision' - 1 sec. */
@@ -219,8 +218,7 @@ static double outgoing[2*COUNT_MAX],   /* Transmission timestamps */
     prompt = 0.0,                      /* -p value in seconds */
     dispersion = 0.0;                  /* The source dispersion in seconds */
 static FILE *savefile = NULL;          /* Holds the data to restart from */
-int msntp_daemon = 0;                        /* value for separation in daemon mode */
-#define daemon msntp_daemon
+
 
 
 /* The unpacked NTP data structure, with all the fields even remotely relevant
@@ -229,7 +227,6 @@ to SNTP. */
 typedef struct NTP_DATA {
     unsigned char status, version, mode, stratum, polling, precision;
     double dispersion, reference, originate, receive, transmit, current;
-    char real_transmit[8];
 } ntp_data;
 
 
@@ -255,9 +252,6 @@ void fatal (int syserr, const char *message, const char *insert) {
         fprintf(stderr,"%s: ",argv0);
         fprintf(stderr,message,insert);
         fprintf(stderr,"\n");
-		if (daemon) {
-			syslog(LOG_DAEMON|LOG_WARNING, message, insert); 
-		}
     }
     errno = k;
     if (syserr) perror(argv0);
@@ -266,8 +260,6 @@ void fatal (int syserr, const char *message, const char *insert) {
         if (savefile != NULL && fclose(savefile))
             fatal(1,"unable to close the daemon save file",NULL);
         if (locked) set_lock(0);
-		if (daemon)
-			closelog();
     }
     exit(EXIT_FAILURE);
 }
@@ -336,23 +328,11 @@ endian problems.  Note that it ignores fields irrelevant to SNTP. */
     packet[1] = data->stratum;
     packet[2] = data->polling;
     packet[3] = data->precision;
-    if (data->originate < 0) {
-	for (i = 0; i < 8; ++i)
-	    packet[NTP_ORIGINATE+i] = data->real_transmit[i];
-	/* Fake a slightly dated reference time */
-	d = (data->transmit - 80000.0)/NTP_SCALE;
-	for (i = 0; i < 8; ++i) {
-            if ((k = (int)(d *= 256.0)) >= 256) k = 255;
-            packet[NTP_REFERENCE+i] = k;
-            d -= k;
-	}
-    } else {
-        d = data->originate/NTP_SCALE;
-	for (i = 0; i < 8; ++i) {
-            if ((k = (int)(d *= 256.0)) >= 256) k = 255;
-            packet[NTP_ORIGINATE+i] = k;
-            d -= k;
-	}
+    d = data->originate/NTP_SCALE;
+    for (i = 0; i < 8; ++i) {
+        if ((k = (int)(d *= 256.0)) >= 256) k = 255;
+        packet[NTP_ORIGINATE+i] = k;
+        d -= k;
     }
     d = data->receive/NTP_SCALE;
     for (i = 0; i < 8; ++i) {
@@ -397,8 +377,6 @@ endian problems.  Note that it ignores fields irrelevant to SNTP. */
     d = 0.0;
     for (i = 0; i < 8; ++i) d = 256.0*d+packet[NTP_RECEIVE+i];
     data->receive = d/NTP_SCALE;
-    for (i = 0; i < 8; ++i)
-	data->real_transmit[i] = packet[NTP_TRANSMIT+i];
     d = 0.0;
     for (i = 0; i < 8; ++i) d = 256.0*d+packet[NTP_TRANSMIT+i];
     data->transmit = d/NTP_SCALE;
@@ -419,7 +397,7 @@ designing an alternative protocol (however much better it might be). */
     data->reference = data->dispersion = 0.0;
     if (mode == NTP_SERVER) {
         data->mode = (data->mode == NTP_CLIENT ? NTP_SERVER : NTP_PASSIVE);
-	data->originate = -1;
+        data->originate = data->transmit;
         data->receive = data->current;
     } else {
         data->version = NTP_VERSION;
@@ -446,8 +424,6 @@ that it must not change its arguments if it fails. */
 
 /* Read the packet and deal with diagnostics. */
 
-	if (verbose > 2)
-        fprintf(stderr,"calling read_socket with waiting=%d\n",waiting);
     if ((length = read_socket(which,receive,NTP_PACKET_MAX+1,waiting)) <= 0)
         return 1;
     if (length < NTP_PACKET_MIN || length > NTP_PACKET_MAX) {
@@ -475,8 +451,7 @@ but allow for version 1 semantics and sick clients. */
         failed = (data->mode != NTP_SERVER && data->mode != NTP_PASSIVE);
         response = 1;
     }
-    if (failed || (data->status != 0 && data->status != 3) ||
-	    data->version < 1 ||
+    if (failed || data->status != 0 || data->version < 1 ||
             data->version > NTP_VERSION_MAX ||
             data->stratum > NTP_STRATUM_MAX) {
         if (verbose)
@@ -890,7 +865,9 @@ delay function may be inaccurate. */
 
     wait = delay;
     x = (drift < 0.0 ? -drift : drift);
-    if (x*delay < 0.5*minerr) {
+    if (! update)
+        ;
+    else if (x*delay < 0.5*minerr) {
         if (verbose > 2) fprintf(stderr,"Drift too small to correct\n");
     } else if (x < 2.0*drifterr) {
         if (verbose > 2)
@@ -901,7 +878,7 @@ delay function may be inaccurate. */
         wait = (int)(delay/(int)(delay/(double)wait+0.999)+0.999);
         if (wait > delay)
             fatal(0,"internal error in drift calculation",NULL);
-        if (update && (drift*wait > maxerr || wait < RESET_MIN)) {
+        if (drift*wait > maxerr || wait < RESET_MIN) {
             sprintf(text,"%.6f+/-%.6f",drift,drifterr);
             fatal(0,"drift correction too large: %s",text);
         }
@@ -1178,8 +1155,6 @@ void query_savefile (void) {
     printf("%s\n",text);
     if (fclose(savefile)) fatal(1,"unable to close daemon save file",NULL);
     if (verbose > 2) fprintf(stderr,"Stopped normally\n");
-	if (daemon)
-		closelog();
     exit(EXIT_SUCCESS);
 }
 
@@ -1604,7 +1579,7 @@ int main (int argc, char *argv[]) {
 one of the specialised routines to do the work. */
 
     char *hostnames[MAX_SOCKETS], *savename = NULL;
-    int nhosts = 0, help = 0, args = argc-1, k;
+    int daemon = 0, nhosts = 0, help = 0, args = argc-1, k;
     char c;
 
     if (argv[0] == NULL || argv[0][0] == '\0')
@@ -1647,7 +1622,6 @@ one of the specialised routines to do the work. */
             k = 2;
         } else if ((strcmp(argv[1],"-x") == 0) &&
                 daemon == 0) {
-			openlog(argv0, LOG_PID, LOG_DAEMON);
             if (argc > 2 && sscanf(argv[2],"%d%c",&daemon,&c) == 1) {
                 if (daemon < 1 || daemon > 1440)
                     fatal(0,"%s option value out of range",argv[1]);

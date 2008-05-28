@@ -15,14 +15,14 @@ No changes should be needed for any system that is even remotely like Unix. */
 
 
 
-#define VERSION         "1.6"          /* Just the version string */
+#define VERSION         "1.6a"         /* Just the version string */
 #define MAX_SOCKETS        10          /* Maximum number of addresses */
 
 #ifndef LOCKNAME
-    #define LOCKNAME "/etc/msntp.pid"  /* Stores the pid */
+    #define LOCKNAME "/var/run/msntp.pid"  /* Stores the pid */
 #endif
 #ifndef SAVENAME
-    #define SAVENAME "/etc/msntp.state" /* Stores the recovery state */
+    #define SAVENAME "/var/run/msntp.state" /* Stores the recovery state */
 #endif
 
 

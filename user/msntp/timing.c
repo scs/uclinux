@@ -11,8 +11,6 @@ more than is defined by POSIX, unfortunately.  Systems that do not have the
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include <stdlib.h>
-#include <config/autoconf.h>
 
 #define TIMING
 #include "kludges.h"
@@ -24,7 +22,6 @@ more than is defined by POSIX, unfortunately.  Systems that do not have the
 #define MILLION_D       1.0e6          /* Must be equal to MILLION_L */
 
 
-#define UPDATE_RTC_MIN_DIFF   60       /* Minimum time step before RTC is updated */
 
 double current_time (double offset) {
 
@@ -109,17 +106,5 @@ negative, unsigned values. */
                 fprintf(stderr,"%s: outstanding time adjustment %s\n",
                     argv0,text);
         }
-    }
-
-    /* Now if the time has changed by a lot, update the RTC */
-    if (adjust.tv_sec >= UPDATE_RTC_MIN_DIFF || adjust.tv_sec < -UPDATE_RTC_MIN_DIFF) {
-        if (verbose) {
-            fprintf(stderr,"%s: setting RTC due to time step of %ld seconds\n", argv0, adjust.tv_sec);
-        }
-#ifdef CONFIG_USER_HWCLOCK_HWCLOCK
-        system("hwclock --systohc --utc");
-#elif defined(CONFIG_USER_RTC_M41T11) || defined (CONFIG_USER_RTC_DS1302)
-        system("rtc -w");
-#endif
     }
 }

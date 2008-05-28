@@ -49,6 +49,7 @@ void find_address (struct in_addr *address, struct in_addr *anywhere,
 /* Locate the specified NTP server and return its Internet address and port 
 number. */
 
+    unsigned long ipaddr;
     struct in_addr nowhere[1];
     struct hostent *host;
     struct servent *service;
@@ -76,14 +77,24 @@ it needs to set up a timeout. */
 
 /* Look up the Internet name or IP number. */
 
-        host = gethostbyname(hostname);
+        if (! isdigit(hostname[0])) {
+            errno = 0;
+            host = gethostbyname(hostname);
+        } else {
+            if ((ipaddr = inet_addr(hostname)) == (unsigned long)-1)
+                fatal(0,"invalid IP number %s",hostname);
+            network_to_address(address,ipaddr);
+            errno = 0;
+            host = gethostbyaddr((void *)address,sizeof(struct in_addr),
+                AF_INET);
+        }
 
 /* Now clear the timer and check the result. */
 
         clear_alarm();
-        if (host == NULL) fatal(1,"unable to locate IP address/number: %s", hostname);
+        if (host == NULL) fatal(1,"unable to locate IP address/number",NULL);
         if (host->h_length != sizeof(struct in_addr))
-            fatal(0,"the address does not seem to be an Internet one: %s", hostname);
+            fatal(0,"the address does not seem to be an Internet one",NULL);
         *address = *((struct in_addr **)host->h_addr_list)[0];
         if (memcmp(address,nowhere,sizeof(struct in_addr)) == 0 ||
                 memcmp(address,anywhere,sizeof(struct in_addr)) == 0 ||

@@ -11,14 +11,12 @@ the only system that the author uses that has it is Linux. */
 #include "header.h"
 #include "internet.h"
 #include <fcntl.h>
-#include <syslog.h>
 
 #define SOCKET
 #include "kludges.h"
 #undef SOCKET
 
 
-extern int msntp_daemon;
 
 /* The code needs to set some variables during the open, for use by later
 functions. */
@@ -140,7 +138,7 @@ server vulnerable to a denial of service attack. */
     errno = 0;
     k = sendto(descriptors[which],packet,(size_t)length,0,
             (struct sockaddr *)&there[which],sizeof(there[which]));
-    if (k != length) fatal(1,"unable to send NTP packet to %s", inet_ntoa(there[which].sin_addr));
+    if (k != length) fatal(1,"unable to send NTP packet",NULL);
 }
 
 
@@ -160,12 +158,11 @@ length and timeout are not fatal. */
         fatal(0,"socket index out of range or not open",NULL);
     if (waiting > 0) {
         if (setjmp(jump_buffer)) {
-            if (verbose > 1)
+            if (verbose > 2)
+                fprintf(stderr,"Receive timed out\n");
+            else if (verbose > 1)
                 fprintf(stderr,"%s: receive timed out after %d seconds\n",
                     argv0,waiting);
-			if (msntp_daemon)
-                syslog(LOG_DAEMON|LOG_WARNING,"timed out after %ds waiting for reply from %s\n",
-                    waiting,inet_ntoa(there[which].sin_addr));
             return -1;
         }
         errno = 0;
