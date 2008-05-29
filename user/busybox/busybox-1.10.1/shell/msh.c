@@ -595,7 +595,7 @@ static struct op *dowholefile(int /*, int*/);
 /* Globals */
 static char **dolv;
 static int dolc;
-static int exstat;
+static unsigned char exstat;
 static smallint gflg;                   /* (seems to be a parse error indicator) */
 static smallint interactive;            /* Is this an interactive shell */
 static smallint execflg;
@@ -807,7 +807,8 @@ static void warn(const char *s)
 {
 	if (*s) {
 		prs(s);
-		exstat = -1;
+		if (!exstat)
+			exstat = 255;
 	}
 	prs("\n");
 	if (FLAG['e'])
@@ -3079,10 +3080,12 @@ static const char *rexecve(char *c, char **v, char **envp)
 
 		switch (errno) {
 		case ENOEXEC:
+			/* execvp would do it itself, but we used execve,
+			 * and it doesn't do it for us! */
 			*v = global_env.linep;
 			v--;
 			tp = *v;
-			*v = global_env.linep;
+			*v = DEFAULT_SHELL;
 			execve(DEFAULT_SHELL, v, envp);
 			*v = tp;
 			return "no shell";
@@ -3094,7 +3097,12 @@ static const char *rexecve(char *c, char **v, char **envp)
 			return "argument list too long";
 		}
 	}
-	return errno == ENOENT ? "not found" : "cannot execute";
+	if (errno == ENOENT) {
+		exstat = 127; /* standards require this */
+		return "not found";
+	}
+	exstat = 126; /* mimic bash */
+	return "cannot execute";
 }
 
 /*
