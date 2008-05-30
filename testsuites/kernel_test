@@ -1064,12 +1064,14 @@ do
  if [ ${AUTO_RUN_STATUS[$(( n + 13 ))]} -eq 1  ] ; then
   echo  "Testing qt..."
 
+  echo  "Build qt source..."
   cd $UCLINUX_DIST_TESTSUITES/qt
   ./build_qt_source.exp >/dev/null  2>&1
   if [ ! -f build_qt_source_log ] || [ `grep -c "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" build_qt_source_log` -gt 0 ] ; then
       echo "$0:   Error, fail."
       tail -50 ./build_qt_source_log
   fi
+  mv $UCLINUX_DIST_TESTSUITES/qt/build_qt_source_log $THIS_LOG
 
   rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
   cd $UCLINUX_DIST_PATH/
