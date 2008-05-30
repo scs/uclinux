@@ -1,0 +1,13 @@
+need to convert the version-script to take into account symbol prefix
+
+--- procps-3.2.7/proc/module.mk
++++ procps-3.2.7/proc/module.mk
+@@ -76,7 +76,7 @@
+ 
+ #proc/$(SONAME): proc/library.map
+ proc/$(SONAME): $(LIBOBJ)
+-	$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) -shared -Wl,-soname,$(SONAME) -Wl,--version-script=proc/library.map -o $@ $^ -lc
++	$(CC) $(ALL_CFLAGS) $(ALL_LDFLAGS) -shared -Wl,-soname,$(SONAME) -o $@ $^ -lc
+ 
+ 
+ # AUTOMATIC DEPENDENCY GENERATION -- GCC AND GNUMAKE DEPENDENT
