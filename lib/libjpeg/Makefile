@@ -54,7 +54,7 @@ SYSDEPMEM= jmemnobs.$(O)
 # miscellaneous OS-dependent stuff
 SHELL= /bin/sh
 # linker
-#LN= $(CC)
+LN= $(CC)
 # file deletion command
 RM= rm -f
 # directory creation command
@@ -137,7 +137,7 @@ OBJSDLL = $(LIBOBJECTS:.o=.pic.o)
 
 #all:  libjpeg.$(A) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
-all:  libjpeg.$(A) libjpeg.so
+all:  libjpeg.$(A) libjpeg.so cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 	install -d $(STAGEDIR)/usr/lib
 	install -d $(STAGEDIR)/usr/include
 	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
@@ -148,7 +148,7 @@ all:  libjpeg.$(A) libjpeg.so
 	install -m0644 jmorecfg.h $(STAGEDIR)/usr/include
 	install -m0644 jerror.h $(STAGEDIR)/usr/include
 else
-all:  libjpeg.$(A)
+all:  libjpeg.$(A) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 	install -d $(STAGEDIR)/usr/lib
 	install -d $(STAGEDIR)/usr/include
 	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
