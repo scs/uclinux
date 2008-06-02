@@ -117,7 +117,7 @@ int main () {
   }
   close(fd);
   return 0;
-}], large_file="yes")
+}], large_file="yes", large_file="", large_file="yes")
 if [[ -n "$large_file" ]]; then
    large_file="#define _LARGEFILE64_SOURCE"
 fi

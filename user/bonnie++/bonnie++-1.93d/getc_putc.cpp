@@ -17,6 +17,19 @@
 #include "duration.h"
 #include "getc_putc.h"
 
+#ifndef HAVE_MIN_MAX
+#if defined(HAVE_ALGO_H) || defined(HAVE_ALGO)
+#ifdef HAVE_ALGO
+#include <algo>
+#else
+#include <algo.h>
+#endif
+#else
+#define min(XX,YY) ((XX) < (YY) ? (XX) : (YY))
+#define max(XX,YY) ((XX) > (YY) ? (XX) : (YY))
+#endif
+#endif
+
 static void usage()
 {
   fprintf(stderr, "usage:\n"
