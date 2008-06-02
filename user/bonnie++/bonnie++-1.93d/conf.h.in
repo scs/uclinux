@@ -1,0 +1,8 @@
+#ifndef CONF_H
+#define CONF_H
+
+#undef HAVE_ALGO_H
+#undef HAVE_ALGO
+#undef HAVE_ALGORITHM
+
+#endif

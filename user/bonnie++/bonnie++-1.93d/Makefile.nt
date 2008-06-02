@@ -1,0 +1,47 @@
+# Generated automatically from Makefile.in by configure.
+EXES=bonnie++.exe zcav.exe bon_csv2html.exe getc_putc.exe
+EXE=bon_csv2html.exe generate_randfile.exe
+
+all: $(EXES)
+
+SCRIPTS=bon_csv2txt
+
+OPTFLAGS=/MT /GX /GF /O2 /Og /Ot /Oy /D "NDEBUG"
+DEBFLAGS=/MTd /GX /ZI /Od /D "_DEBUG" /GZ
+CC=cl /nologo /W4 /D "WIN32" /D "_CONSOLE" /D "_MBCS" /FD $(DEBFLAGS) /c
+LINK=link kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib \
+ advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib \
+ odbccp32.lib kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib \
+ advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib \
+ odbccp32.lib /nologo /subsystem:console /incremental:no
+
+BONSRC=bonnie++.cpp bon_io.cpp bon_file.cpp bon_time.cpp thread.cpp duration.cpp rand.cpp
+BONOBJS=$(BONSRC:.cpp=.obj)
+
+ZCAVSRC=zcav.cpp thread.cpp zcav_io.cpp duration.cpp
+ZCAVOBJS=$(ZCAVSRC:.cpp=.obj)
+
+GETCSRC=getc_putc.cpp bon_suid.cpp duration.cpp util.o
+GETCOBJS=$(GETCSRC:.cpp=.o)
+
+bonnie++.exe: $(BONOBJS)
+	$(LINK) /out:bonnie++.exe $(BONOBJS)
+
+zcav.exe: $(ZCAVOBJS)
+	$(LINK) /out:zcav.exe $(ZCAVOBJS)
+
+getc_putc.exe: $(GETCOBJS)
+	$(LINK) /out:getc_putc.exe $(GETCOBJS)
+
+bon_csv2html.exe: bon_csv2html.obj
+	$(LINK) /out:bon_csv2html.exe bon_csv2html.obj
+
+generate_randfile.exe: generate_randfile.obj
+	$(LINK) /out:generate_randfile.exe generate_randfile.obj
+
+%.obj: %.cpp %.h bonnie.h port.h
+	$(CC) /C+ $<
+
+clean:
+	rm -f $(EXE) $(EXES) *.obj
+

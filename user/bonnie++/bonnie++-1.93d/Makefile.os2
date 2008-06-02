@@ -1,0 +1,34 @@
+# Generated automatically from Makefile.in by configure.
+EXES=bonnie++.exe zcav.exe bon_csv2html.exe
+
+all: $(EXES)
+
+SCRIPTS=bon_csv2txt
+
+OPTFLAGS=/N4 /W2 /Wall /DOS2 /G5 /Gi+ /Gm+ /Gl+ /O+ /Ol+ /Q+
+DEBFLAGS=/N4 /W2 /Wall /DOS2 /Gm+ /Ti+ /Q+
+CC=icc $(DEBFLAGS)
+
+BONSRC=bon_io.cpp bon_file.cpp bon_time.cpp thread.cpp duration.cpp
+BONOBJS=$(BONSRC:.cpp=.obj)
+
+ZCAVSRC=thread.cpp zcav_io.cpp
+ZCAVOBJS=$(ZCAVSRC:.cpp=.obj)
+
+ALLOBJS=$(BONOBJS) $(ZCAVOBJS)
+
+bonnie++.exe: bonnie++.cpp $(BONOBJS)
+	$(CC) bonnie++.cpp /Fe bonnie++ $(BONOBJS)
+
+zcav.exe: zcav.cpp $(ZCAVOBJS)
+	$(CC) zcav.cpp /Fe zcav $(ZCAVOBJS)
+
+bon_csv2html.exe: bon_csv2html.cpp
+	$(CC) bon_csv2html.cpp /Fe bon_csv2html
+
+#%.obj: %.cpp %.h bonnie.h port.h
+#	$(CC) /C+ $<
+
+clean:
+	rm -f $(EXES) $(ALLOBJS) build-stamp install-stamp
+
