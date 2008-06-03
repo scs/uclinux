@@ -141,6 +141,7 @@ all:  libjpeg.$(A) libjpeg.so cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 	install -d $(STAGEDIR)/usr/lib
 	install -d $(STAGEDIR)/usr/include
 	install -m0644 libjpeg.$(A) $(STAGEDIR)/usr/lib
+	install -m0644 libjpeg.la $(STAGEDIR)/usr/lib
 	install -m0755 libjpeg.so $(STAGEDIR)/usr/lib/libjpeg.so.62
 	ln -sf libjpeg.so.62 $(STAGEDIR)/usr/lib/libjpeg.so
 	install -m0644 jpeglib.h $(STAGEDIR)/usr/include
