@@ -1,0 +1,13 @@
+--- directvnc-0.7.5/src/dfb.c
++++ directvnc-0.7.5/src/dfb.c
+@@ -30,7 +30,9 @@
+ IDirectFBEventBuffer    *input_buffer;
+ DFBResult err;
+ DFBSurfaceDescription dsc;
+-DFBCardCapabilities caps;
++/* DFBCardCapabilities caps; */
++DFBGraphicsDeviceDescription caps;
++
+ DFBDisplayLayerConfig layer_config;
+ DFBRegion rect;
+ DFBRectangle scratch_rect;
