@@ -1066,12 +1066,12 @@ do
 
   echo  "Build qt source..."
   cd $UCLINUX_DIST_TESTSUITES/qt
-  ./build_qt_source.exp >/dev/null  2>&1
-  if [ ! -f build_qt_source_log ] || [ `grep -c "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" build_qt_source_log` -gt 0 ] ; then
+  ./qt_source_test.exp >/dev/null  2>&1
+  if [ ! -f qt_source_test_log ] || [ `grep -c "T[Ee][Ss][Tt] .*\.\.\.\[FAIL]" qt_source_test_log` -gt 0 ] ; then
       echo "$0:   Error, fail."
-      tail -50 ./build_qt_source_log
+      tail -50 ./qt_source_test_log
   fi
-  mv $UCLINUX_DIST_TESTSUITES/qt/build_qt_source_log $THIS_LOG
+  mv $UCLINUX_DIST_TESTSUITES/qt/qt_source_test_log $THIS_LOG
 
   rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
   cd $UCLINUX_DIST_PATH/
@@ -1093,6 +1093,7 @@ do
       sleep 30
       ./qt_test.exp $BOARD_TYPE 1 >/dev/null  2>&1
       if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
+          echo  "Build konqueror..."
           ./konqueror_kernel_test.exp 1 >/dev/null  2>&1
           sleep 30
           mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_kernel_test_log $THIS_LOG/konqueror_kernel_flat_test_log
@@ -1118,6 +1119,7 @@ do
       sleep 30
       ./qt_test.exp $BOARD_TYPE 2 >/dev/null  2>&1
       if [ ${MANUAL_RUN_STATUS[$(( n + 2 ))]} -eq 1  ] ; then
+          echo  "Build konqueror..."
           ./konqueror_kernel_test.exp 2 >/dev/null  2>&1
           sleep 30
           mv $UCLINUX_DIST_TESTSUITES/qt/konqueror_kernel_test_log $THIS_LOG/konqueror_kernel_fdpic_test_log
