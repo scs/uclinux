@@ -22,7 +22,7 @@ all: build-$(VER)/Makefile
 	cd $(STAGEDIR); \
 	find ./usr/lib/ -name 'lib*.so*' -print0 | xargs -0 -r chmod 755; \
 	find ./usr/lib/ -name 'lib*.la' -o -name 'lib*.a' -print0 | xargs -0 -r chmod 644; \
-	find ./usr/lib/ -name 'lib*.la' -print0 | xargs -0 -r sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':"; \
+	find ./usr/lib/ -name 'lib*.la' -print0 | xargs -0 -r sed -i -e "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" -e "/^dependency_libs=/s: /usr/lib/:$(STAGEDIR)/usr/lib/:g"; \
 	find ./usr/lib/pkgconfig/ -name '*.pc' -print0 | xargs -0 -r sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':"; \
 	find ./usr/bin/ -name '*-config' -print0 | xargs -0 -r sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':"; \
 	test -d usr/bin || exit 0; \

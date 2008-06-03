@@ -95,7 +95,7 @@ SET_STAGEDIR = \
 	(cd $(STAGEDIR); \
 	chmod 755 ./usr/lib/lib*.so*; \
 	chmod 644 ./usr/lib/lib*.la ./usr/lib/lib*.a; \
-	sed -i "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" ./usr/lib/*.la; \
+	sed -i -e "/^libdir=/s:=.*:='$(STAGEDIR)/usr/lib':" -e "/^dependency_libs=/s: /usr/lib/:$(STAGEDIR)/usr/lib/:g" ./usr/lib/*.la; \
 	sed -i "/^prefix=/s:=.*:='$(STAGEDIR)/usr':" ./usr/lib/pkgconfig/*.pc ./usr/bin/*-config; \
 	true)
 
