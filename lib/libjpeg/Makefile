@@ -251,7 +251,7 @@ romfs:
 	fi
 
 clean:
-	-$(RM) *.o *.lo libjpeg.a libjpeg.la *.so
+	-$(RM) *.o *.lo libjpeg.a *.so
 	-$(RM) cjpeg djpeg jpegtran rdjpgcom wrjpgcom
 	-$(RM) ansi2knr core testout* config.log config.status
 	-$(RM) -r knr .libs _libs
