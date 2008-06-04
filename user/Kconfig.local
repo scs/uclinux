@@ -196,6 +196,7 @@ config USER_SDLEXAMPLES
 config USER_DIRECTVNC
 	bool "DirectVNC"
 	select LIB_DIRECTFB
+	select LIB_LIBJPEG
 config USER_DIRECTFBEXAMPLES
 	bool "DirectFB Examples"
 	select LIB_DIRECTFB
