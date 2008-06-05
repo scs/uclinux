@@ -1,7 +1,5 @@
-Index: linux-2.6.x.kgdb/kernel/Kconfig.kgdb
-===================================================================
---- linux-2.6.x.kgdb/kernel/Kconfig.kgdb	(revision 0)
-+++ linux-2.6.x.kgdb/kernel/Kconfig.kgdb	(revision 0)
+--- linux-2.6.x/kernel/Kconfig.kgdb
++++ linux-2.6.x/kernel/Kconfig.kgdb
 @@ -0,0 +1,63 @@
 +config KGDB
 +	bool "KGDB: kernel debugging with remote gdb"
@@ -66,10 +64,8 @@ Index: linux-2.6.x.kgdb/kernel/Kconfig.kgdb
 +	help
 +	  Wait for gdb to connect on UART at kernel boot 
 +
-Index: linux-2.6.x.kgdb/kernel/Makefile
-===================================================================
---- linux-2.6.x.kgdb/kernel/Makefile	(revision 4518)
-+++ linux-2.6.x.kgdb/kernel/Makefile	(working copy)
+--- linux-2.6.x/kernel/Makefile
++++ linux-2.6.x/kernel/Makefile
 @@ -51,6 +51,7 @@
  obj-$(CONFIG_DETECT_SOFTLOCKUP) += softlockup.o
  obj-$(CONFIG_GENERIC_HARDIRQS) += irq/
@@ -78,10 +74,8 @@ Index: linux-2.6.x.kgdb/kernel/Makefile
  obj-$(CONFIG_RCU_TORTURE_TEST) += rcutorture.o
  obj-$(CONFIG_RELAY) += relay.o
  obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
-Index: linux-2.6.x.kgdb/kernel/kgdb.c
-===================================================================
---- linux-2.6.x.kgdb/kernel/kgdb.c	(revision 0)
-+++ linux-2.6.x.kgdb/kernel/kgdb.c	(revision 0)
+--- linux-2.6.x/kernel/kgdb.c
++++ linux-2.6.x/kernel/kgdb.c
 @@ -0,0 +1,1547 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
@@ -1630,10 +1624,8 @@ Index: linux-2.6.x.kgdb/kernel/kgdb.c
 +#endif
 +__setup("gdb", opt_gdb);
 +__setup("kgdbwait", opt_kgdb_enter);
-Index: linux-2.6.x.kgdb/kernel/sched.c
-===================================================================
---- linux-2.6.x.kgdb/kernel/sched.c	(revision 4518)
-+++ linux-2.6.x.kgdb/kernel/sched.c	(working copy)
+--- linux-2.6.x/kernel/sched.c
++++ linux-2.6.x/kernel/sched.c
 @@ -53,6 +53,7 @@
  #include <linux/cpuset.h>
  #include <linux/percpu.h>
@@ -1652,10 +1644,8 @@ Index: linux-2.6.x.kgdb/kernel/sched.c
  	if ((in_atomic() || irqs_disabled()) &&
  	    system_state == SYSTEM_RUNNING && !oops_in_progress) {
  		if (time_before(jiffies, prev_jiffy + HZ) && prev_jiffy)
-Index: linux-2.6.x.kgdb/include/linux/kgdb.h
-===================================================================
---- linux-2.6.x.kgdb/include/linux/kgdb.h	(revision 0)
-+++ linux-2.6.x.kgdb/include/linux/kgdb.h	(revision 0)
+--- linux-2.6.x/include/linux/kgdb.h
++++ linux-2.6.x/include/linux/kgdb.h
 @@ -0,0 +1,185 @@
 +#ifndef _KGDB_H_
 +#define _KGDB_H_
@@ -1842,10 +1832,8 @@ Index: linux-2.6.x.kgdb/include/linux/kgdb.h
 +#define kgdb_process_breakpoint()      do {} while(0)
 +#endif /* KGDB && !__ASSEMBLY__ */
 +#endif				/* _KGDB_H_ */
-Index: linux-2.6.x.kgdb/include/linux/debugger.h
-===================================================================
---- linux-2.6.x.kgdb/include/linux/debugger.h	(revision 0)
-+++ linux-2.6.x.kgdb/include/linux/debugger.h	(revision 0)
+--- linux-2.6.x/include/linux/debugger.h
++++ linux-2.6.x/include/linux/debugger.h
 @@ -0,0 +1,59 @@
 +#ifndef _DEBUGGER_H_
 +#define _DEBUGGER_H_
@@ -1906,10 +1894,8 @@ Index: linux-2.6.x.kgdb/include/linux/debugger.h
 +#endif
 +
 +#endif				/* _DEBUGGER_H_ */
-Index: linux-2.6.x.kgdb/net/core/netpoll.c
-===================================================================
---- linux-2.6.x.kgdb/net/core/netpoll.c	(revision 4518)
-+++ linux-2.6.x.kgdb/net/core/netpoll.c	(working copy)
+--- linux-2.6.x/net/core/netpoll.c
++++ linux-2.6.x/net/core/netpoll.c
 @@ -327,6 +327,8 @@
  	if (!skb)
  		return;
@@ -1919,10 +1905,8 @@ Index: linux-2.6.x.kgdb/net/core/netpoll.c
  	skb_copy_to_linear_data(skb, msg, len);
  	skb->len += len;
  
-Index: linux-2.6.x.kgdb/arch/blackfin/Kconfig.debug
-===================================================================
---- linux-2.6.x.kgdb/arch/blackfin/Kconfig.debug	(revision 4518)
-+++ linux-2.6.x.kgdb/arch/blackfin/Kconfig.debug	(working copy)
+--- linux-2.6.x/arch/blackfin/Kconfig.debug
++++ linux-2.6.x/arch/blackfin/Kconfig.debug
 @@ -140,6 +140,8 @@
  	  Say Y here to disable hardware tracing in some known "jumpy" pieces
  	  of code so that the trace buffer will extend further back.
@@ -1932,10 +1916,8 @@ Index: linux-2.6.x.kgdb/arch/blackfin/Kconfig.debug
  config EARLY_PRINTK
  	bool "Early printk" 
  	default n
-Index: linux-2.6.x.kgdb/drivers/serial/kgdb_uart.c
-===================================================================
---- linux-2.6.x.kgdb/drivers/serial/kgdb_uart.c	(revision 0)
-+++ linux-2.6.x.kgdb/drivers/serial/kgdb_uart.c	(revision 0)
+--- linux-2.6.x/drivers/serial/kgdb_uart.c
++++ linux-2.6.x/drivers/serial/kgdb_uart.c
 @@ -0,0 +1,90 @@
 +/*
 + * File:         drivers/serial/kgdb_uart.c
@@ -2027,10 +2009,8 @@ Index: linux-2.6.x.kgdb/drivers/serial/kgdb_uart.c
 +	kgdb_schedule_breakpoint();
 +#endif
 +}
-Index: linux-2.6.x.kgdb/drivers/serial/Makefile
-===================================================================
---- linux-2.6.x.kgdb/drivers/serial/Makefile	(revision 4518)
-+++ linux-2.6.x.kgdb/drivers/serial/Makefile	(working copy)
+--- linux-2.6.x/drivers/serial/Makefile
++++ linux-2.6.x/drivers/serial/Makefile
 @@ -28,6 +28,7 @@
  obj-$(CONFIG_SERIAL_PNX8XXX) += pnx8xxx_uart.o
  obj-$(CONFIG_SERIAL_SA1100) += sa1100.o
@@ -2039,10 +2019,8 @@ Index: linux-2.6.x.kgdb/drivers/serial/Makefile
  obj-$(CONFIG_SERIAL_BFIN_SPORT) += bfin_sport_uart.o
  obj-$(CONFIG_SERIAL_S3C2410) += s3c2410.o
  obj-$(CONFIG_SERIAL_SUNCORE) += suncore.o
-Index: linux-2.6.x.kgdb/drivers/watchdog/Kconfig
-===================================================================
---- linux-2.6.x.kgdb/drivers/watchdog/Kconfig	(revision 4518)
-+++ linux-2.6.x.kgdb/drivers/watchdog/Kconfig	(working copy)
+--- linux-2.6.x/drivers/watchdog/Kconfig
++++ linux-2.6.x/drivers/watchdog/Kconfig
 @@ -232,7 +232,7 @@
  
  config BFIN_WDT
@@ -2052,10 +2030,8 @@ Index: linux-2.6.x.kgdb/drivers/watchdog/Kconfig
  	---help---
  	  If you say yes here you will get support for the Blackfin On-Chip
  	  Watchdog Timer. If you have one of these processors and wish to
-Index: linux-2.6.x.kgdb/drivers/net/Makefile
-===================================================================
---- linux-2.6.x.kgdb/drivers/net/Makefile	(revision 4518)
-+++ linux-2.6.x.kgdb/drivers/net/Makefile	(working copy)
+--- linux-2.6.x/drivers/net/Makefile
++++ linux-2.6.x/drivers/net/Makefile
 @@ -243,6 +243,7 @@
  obj-$(CONFIG_ENP2611_MSF_NET) += ixp2000/
  
@@ -2064,10 +2040,8 @@ Index: linux-2.6.x.kgdb/drivers/net/Makefile
  
  obj-$(CONFIG_FS_ENET) += fs_enet/
  
-Index: linux-2.6.x.kgdb/drivers/net/kgdb_eth.c
-===================================================================
---- linux-2.6.x.kgdb/drivers/net/kgdb_eth.c	(revision 0)
-+++ linux-2.6.x.kgdb/drivers/net/kgdb_eth.c	(revision 0)
+--- linux-2.6.x/drivers/net/kgdb_eth.c
++++ linux-2.6.x/drivers/net/kgdb_eth.c
 @@ -0,0 +1,160 @@
 +/*
 + * drivers/net/kgdb_eth.c
