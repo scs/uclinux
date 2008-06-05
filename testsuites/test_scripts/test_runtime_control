@@ -15,7 +15,12 @@ if [ "$test_pid" != "" ] && test "$test_command" && [ "$test_command" == 'grep' 
 
 else
 
- sleep 3600
+ script_name=`ps aux | grep .exp | head -1 | awk '{print $12}'`
+ if [ "$script_name" == "./qt_source_test.exp" ] ; then
+     sleep 7200
+ else
+     sleep 3600
+ fi
 
  test_name=`{ ps -p $test_pid | tail -1 | awk '{print $4}' ;}  2> /dev/null`
  if [ "$test_pid" != "" ] && [ "$test_name" != 'CMD' ] ; then
