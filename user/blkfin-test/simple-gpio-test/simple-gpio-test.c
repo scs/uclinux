@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 
 	/* set it to input mode */
 	if (fwrite("I", 1, 1, fp) != 1)
-		errp("unable to set to output mode");
+		errp("unable to set to input mode");
 	fsync(fileno(fp));
 
 	/* now wait for user to press the button */
