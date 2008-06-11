@@ -6,6 +6,8 @@ cfg_files = aliases.conf \
 	AD73322.conf \
 	AD73322.asound.conf \
 	AD1980.conf \
+	SSM2602.conf \
+	SSM2602-no-mmap.conf \
 	ATIIXP.conf \
 	ATIIXP-SPDMA.conf \
 	ATIIXP-MODEM.conf \
