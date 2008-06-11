@@ -1,4 +1,4 @@
-VER = bzip2-1.0.4
+VER = bzip2-1.0.5
 
 FILES = blocksort.c huffman.c crctable.c randtable.c compress.c decompress.c bzlib.c
 VFILES = $(patsubst %,$(VER)/%,$(FILES) bzip2.c)
