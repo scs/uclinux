@@ -11,8 +11,11 @@ BINS = $(LIBS-y) $(VER)/bzip2
 all: $(BINS)
 	install -D -m 644 $(VER)/bzlib.h $(STAGEDIR)/include/bzlib.h
 	install -D -m 644 $(VER)/libbz2.a $(STAGEDIR)/lib/libbz2.a
-	install -D -m 755 $(VER)/libbz2.so.1 $(STAGEDIR)/lib/libbz2.so.1
-	ln -sf libbz2.so.1 $(STAGEDIR)/lib/libbz2.so
+	set -e ; \
+	if test -e $(VER)/libbz2.so.1 ; then \
+		install -D -m 755 $(VER)/libbz2.so.1 $(STAGEDIR)/lib/libbz2.so.1 ; \
+		ln -sf libbz2.so.1 $(STAGEDIR)/lib/libbz2.so ; \
+	fi
 
 $(VER)/libbz2.a: $(VFILES)
 	set -e ; \
