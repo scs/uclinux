@@ -9,12 +9,12 @@ LIBS-y += $(VER)/libbz2.a
 BINS = $(LIBS-y) $(VER)/bzip2
 
 all: $(BINS)
-	install -D -m 644 $(VER)/bzlib.h $(STAGEDIR)/include/bzlib.h
-	install -D -m 644 $(VER)/libbz2.a $(STAGEDIR)/lib/libbz2.a
+	install -D -m 644 $(VER)/bzlib.h $(STAGEDIR)/usr/include/bzlib.h
+	install -D -m 644 $(VER)/libbz2.a $(STAGEDIR)/usr/lib/libbz2.a
 	set -e ; \
 	if test -e $(VER)/libbz2.so.1 ; then \
-		install -D -m 755 $(VER)/libbz2.so.1 $(STAGEDIR)/lib/libbz2.so.1 ; \
-		ln -sf libbz2.so.1 $(STAGEDIR)/lib/libbz2.so ; \
+		install -D -m 755 $(VER)/libbz2.so.1 $(STAGEDIR)/usr/lib/libbz2.so.1 ; \
+		ln -sf libbz2.so.1 $(STAGEDIR)/usr/lib/libbz2.so ; \
 	fi
 
 $(VER)/libbz2.a: $(VFILES)
@@ -39,6 +39,6 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_BZIP2_BZIP2 $(VER)/bzip2 /bin/bzip2
 	$(ROMFSINST) -e CONFIG_USER_BZIP2_BZIP2 -s bzip2 /bin/bunzip2
 	$(ROMFSINST) -e CONFIG_USER_BZIP2_BZIP2 -s bzip2 /bin/bzcat
-	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/lib/libbz2.so.1 /lib/libbz2.so.1
+	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libbz2.so.1 /lib/libbz2.so.1
 
 .PHONY: all clean romfs
