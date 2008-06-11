@@ -457,6 +457,7 @@ config USER_MTDUTILS_MKFSJFFS
 config USER_MTDUTILS_MKFSJFFS2
 	bool "mkfs.jff2"
 	depends on USER_MTDUTILS
+	select LIB_LIBLZO
 
 config USER_MTDUTILS_NFTLDUMP
 	bool "nftldump"
