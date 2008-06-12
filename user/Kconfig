@@ -415,14 +415,14 @@ config USER_MTDUTILS
 	select LIB_ZLIB
 
 config USER_MTDUTILS_ERASE
-	bool "erase"
+	bool "flash_erase (formerly 'erase')"
 	depends on USER_MTDUTILS
 	help
 	  A tool for erasing MTD partitions.
 	  This option adds approximately 40K to the image.
 
 config USER_MTDUTILS_ERASEALL
-	bool "eraseall"
+	bool "flash_eraseall (formerly 'eraseall')"
 	depends on USER_MTDUTILS
 	help
 	  A tool for erasing entire MTD partitions.
