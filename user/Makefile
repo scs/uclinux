@@ -33,6 +33,7 @@ dir_  =
 
 dir_$(CONFIG_JFFS_FS)                       += mtd-utils
 dir_$(CONFIG_JFFS2_FS)                      += mtd-utils
+dir_$(CONFIG_YAFFS_FS)                      += yaffs-utils
 
 dir_$(CONFIG_USER_AGETTY_AGETTY)            += agetty
 dir_$(CONFIG_USER_APPWEB_APPWEB)            += appWeb

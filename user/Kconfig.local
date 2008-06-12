@@ -116,8 +116,6 @@ config USER_OPROFILE
 	select LIB_POPT
 config USER_BLACKFIN_WATCHDOGD
 	bool "watchdog simple deamon"
-config USER_YAFFS_UTILS
-	bool "yaffs-utils"
 config USER_BF561_COREBLD
 	bool "BF561 Core B support tools"
 config USER_POUND
