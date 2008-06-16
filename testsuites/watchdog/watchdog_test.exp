@@ -40,7 +40,7 @@ set timeout 50
 send -s  "./watchdogd\r" 
 while 1 {
    expect {
-      "Start in deamon mode" {
+      "Start in daemon mode" {
                 case_pass $case_num
          break
       }

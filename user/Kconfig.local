@@ -115,7 +115,7 @@ config USER_OPROFILE
 	bool "oprofile"
 	select LIB_POPT
 config USER_BLACKFIN_WATCHDOGD
-	bool "watchdog simple deamon"
+	bool "watchdog simple daemon"
 config USER_BF561_COREBLD
 	bool "BF561 Core B support tools"
 config USER_POUND

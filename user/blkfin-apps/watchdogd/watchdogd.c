@@ -98,7 +98,7 @@ static void usage(char *argv[])
 {
 	printf(
 		"%s [-f] [-w <sec>] [-k <sec>] [-s] [-h|--help]\n"
-		"A simple watchdog deamon that send WDIOC_KEEPALIVE ioctl every some\n"
+		"A simple watchdog daemon that send WDIOC_KEEPALIVE ioctl every some\n"
 		"\"heartbeat of keepalives\" seconds.\n"
 		"Options:\n"
 		"\t-f        start in foreground (background is default)\n"
@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (background) {
-		printf("Start in deamon mode.\n");
+		printf("Start in daemon mode.\n");
 		vfork_daemon_rexec(1, 0, argc, argv, FOREGROUND_FLAG);
 	}
 
