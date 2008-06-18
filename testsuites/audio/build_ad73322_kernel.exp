@@ -20,7 +20,6 @@ set timeout 300
 set baud_rate_done_flag 0
 spawn make config
 
-#puts "Begin the interactive process of configuration"
 while 1 {
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
@@ -55,15 +54,11 @@ while 1 {
             send "y\r"
         }
 
-        -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS\\\).*\\\[.*]" {
+        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\\\).*\\\[.*]" {
             send "y\r"
         }
 
         -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
-            send "n\r"
-        }
-
-        -re "AD1981B AC97 SPORT0 Audio support.*SND_BLACKFIN_AD1981B.*\\\[.*]" {
             send "n\r"
         }
 

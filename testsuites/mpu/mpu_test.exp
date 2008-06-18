@@ -51,7 +51,7 @@ while 1 {
 }
 
 incr case_num
-set timeout 20
+set timeout 900
 step "Copy testcase to target board\n"
 spawn ./rcp.sh
 while 1 {

@@ -63,10 +63,6 @@ while 1 {
             send "n\r"
         }
 
-        -re "AD1981B AC97 SPORT0 Audio support.*SND_BLACKFIN_AD1981B.*\\\[.*]" {
-            send "n\r"
-        }
-
         -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
             send "Y\r"
         }

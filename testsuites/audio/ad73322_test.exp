@@ -1,0 +1,216 @@
+#!/usr/bin/expect
+
+#
+#Test program to test the audio driver.
+#
+
+source ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+send_log "*********************************\r"
+send_log "Start $TITLE\r"
+send_log "*********************************\r"
+
+set count_under_run 0
+set count_other_fail 0
+
+proc alsa_rec2play_timed {in_dev in_subdev out_dev out_subdev} {
+    global case_num
+    global kernel_prompt
+    global count_under_run
+    global count_other_fail
+
+    incr case_num
+    set timeout 10
+    send -s "arecord -D plughw:$in_dev,$in_subdev -d 5 |aplay -D plughw:$out_dev,$out_subdev\n"
+    while 1 {
+        expect {
+            -re "TUV|UVF|TU|UV|VF" {
+                incr count_under_run
+                expect {
+                    -re $kernel_prompt {
+                        send "\nunder run fail\n"
+                        break
+                    }
+                    timeout {
+                        case_fail $case_num
+                    }
+                }
+            }
+            -re "Rate 8000 Hz, Mono\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            -re $kernel_prompt {
+                send "other fail\n"
+                incr count_other_fail
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+proc alsa_rec2play {NO in_dev in_subdev out_dev out_subdev} {
+    global case_num
+    global kernel_prompt
+    global targetip
+
+    set timeout 10
+    spawn telnet $targetip
+    set spawn_telnet_$NO $spawn_id
+    expect -re $kernel_prompt
+    incr case_num
+    send -s "arecord -D plughw:$in_dev,$in_subdev |aplay -D plughw:$out_dev,$out_subdev\n"
+    while 1 {
+        expect {
+            -re "Playing WAVE 'stdin' : Unsigned 8 bit, Rate 8000 Hz, Mono" {
+                send_log "telnet NO. $NO pass\n"
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+spawn mpg123 -Z ./audiotest.mp3
+set plaympeg_id $spawn_id
+
+set spawn_id $kermit_spawn_id 
+
+set case_num 0
+
+send_log "\nPlease listen to the earphone or amplifier.\n\n"
+
+sleep 5
+set timeout 4
+send "\n"
+expect -re $kernel_prompt
+
+incr case_num
+set timeout 5
+send "dmesg|grep -i AD73322\n"
+while 1 {
+    expect {
+        -re "#0: Analog Devices AD73322 at PF10 SPORT0.*#1: Analog Devices AD73322 at PF14 SPORT1.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "tone\n"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_fail $case_num
+        }
+        -re "TONE: generating sine wave at 1000 Hz\.\.\.\r\n" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "\3"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "cp /usr/share/alsa/cards/AD73322.asound.conf /etc/asound.conf; ls /etc/asound.conf\n"
+while 1 {
+    expect {
+        -re "No such file or directory" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set Total_Dev 2
+set Total_Subdev 8
+while 1 {
+    for {set In_Dev 0} {$In_Dev < $Total_Dev} {incr In_Dev} {
+        for {set Out_Dev 0} {$Out_Dev < $Total_Dev} {incr Out_Dev} {
+            for {set In_Subdev 0} {$In_Subdev < $Total_Subdev} {incr In_Subdev 3} {
+                for {set Out_Subdev 1} {$Out_Subdev < $Total_Subdev} {incr Out_Subdev 3} {
+                    alsa_rec2play_timed $In_Dev $In_Subdev $Out_Dev $Out_Subdev
+                }
+            }
+        }
+    }
+}
+
+alsa_rec2play 1 0 2 0 3
+alsa_rec2play 2 0 3 0 6
+alsa_rec2play 3 0 5 1 2
+alsa_rec2play 4 0 7 1 7
+alsa_rec2play 5 1 0 1 0
+alsa_rec2play 6 1 2 1 5
+alsa_rec2play 7 1 4 0 2
+alsa_rec2play 8 1 6 0 5
+#alsa_rec2play 1 0 0 0 0
+#alsa_rec2play 2 0 1 0 1
+#alsa_rec2play 3 0 4 1 1
+#alsa_rec2play 4 0 6 1 4
+#alsa_rec2play 5 1 1 1 3
+#alsa_rec2play 6 1 3 1 6
+#alsa_rec2play 7 1 5 0 4
+#alsa_rec2play 8 1 7 0 7
+
+incr case_num
+if { $count_under_run == 0 } {
+    send_user "No under run error\n"
+    case_pass $case_num
+} else {
+    send_user "Under run error occurs $count_under_run times\n"
+    case_fail $case_num
+}
+
+set spawn_id $plaympeg_id
+send "\3\3"
+sleep 1
+
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "Ending $argv0\n"
+log_file
