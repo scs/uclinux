@@ -2,7 +2,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 
-static int *testarg = (int*)0xfeb00000;
+static int *testarg = (int*)0xfeb1fffc; /* last four bytes in L2 */
 struct proc_dir_entry *coreb_testarg_file;
 
 

@@ -2,21 +2,35 @@ corebld - A simple ELF loader for BF561 core B
 
 Files:
 
-corebld.c: Coreb loader
-coreb.lds: Linker script to create coreb ELF image.
-coreb.S: Simple test code to be loaded on core B. It sets up coreb then do idle.
-coreb_get_testarg.S: It sets up core B, then write "0x2" to address "0xFEB00000"
+corebld.c: 
+           Coreb loader
+coreb_stub.S: 
+           Jump to BF561 coreb initialization code (or the entry point "__start").
+           It should be placed to 0xFF600000, where coreB loads the first instruction when started.
+test.c: 
+           A simple C program to be loaded to coreb. It changes the value in "0xFEB1FFFC".
+           It is build using bfin-elf-gcc.
+test_cpp:
+           A simple C++ program to be loaded to coreb. It changes the value in "0xFEB1FFFC".
+           Default bfin-elf-gcc linker script puts everything in L1. A simple C++ program is too large to be loaded into L1.
+           So we used a customized linker script.
+coreb.lds: 
+           Linker script to create coreb ELF image.
+
 test_module/dulecore_test.c: Kernel module used together with "coreb_get_testarg.S"
-. It writes "0xFEB00000" with value "0x1". When exit, it read from "0xFEB00000" and display.
+. It writes "0xFEB1FFFC" with value "0x1". When exit, it read from "0xFEB1FFFC" and display.
 
 To test:
 
 1. Configure kernel to include "corebld" and boot uClinux on BF561 board.
 2. "insmod dulecore_test.ko"
-3. "coreld coreb_get_testarg"
+3. "corebld test_c"
 4. "rmmod dulecore_test.ko" - you should see that "coreb_get_testarg" change
-value in "0xFEB00000" to "0x2".
+value in "0xFEB1FFFC" to "0x2" (or you can "cat /proc/coreb_testarg" to see the current value).
 5. Reset the board - note that core A cannot reset core B. You will have to 
 reset the two cores if you want to run the test again.
 
+To test the C++ program, repeat above steps, while on step 3, do:
+3. "corebld test_cpp"
+4. "cat /proc/coreb_testarg" got "12".
 
