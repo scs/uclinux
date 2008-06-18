@@ -39,8 +39,9 @@ int main(int argc, char** argv)
   {
 	  sServerIp = argv[2];
   } else {
-	  strcpy(sServerIpBuf, STR(SERVER_IP));
-	  sServerIp = sServerIpBuf;
+/*	  strcpy(sServerIpBuf, STR(SERVER_IP));
+	  sServerIp = sServerIpBuf;*/
+	sServerIp = getenv("TFTPIP");
   }
   
   printf("Transferring %s from %s over tftp.\n", sImgName, sServerIp);
