@@ -31,15 +31,17 @@ insmod /lib/modules/`uname -r`/bfdma.ko
 # Configure network interface based on SPI EEPROM info
 ln -sfn /sys/bus/spi/devices/spi0.4/eeprom /eeprom 
 ifconfig eth0 down
-ifconfig eth0 192.168.1.1
+ifconfig eth0 192.168.11.10
 ifconfig eth0 hw 00:20:e3:22:00:00
 ifconfig eth0 up
 
 ifconfig eth0 down
 if test -e /eeprom
 then
-	ifconfig eth0 hw ether `grep "MAC" /eeprom | awk '{print $2}'`
-	ifconfig eth0 `grep "IP" /eeprom | awk '{print $2}'`
+	ifconfig eth0 hw ether `grep "^MAC" /eeprom | awk '{print $2}'`
+	ifconfig eth0 `grep "^IP" /eeprom | awk '{print $2}'`
+        route add -net default gw `grep "^GW" /eeprom | awk '{print $2}'`  
+        export TFTPIP=`grep "^TFTPIP" /eeprom | awk '{print $2}'` 
 fi
 ifconfig eth0 up
 
