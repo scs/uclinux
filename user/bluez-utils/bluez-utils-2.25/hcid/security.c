@@ -50,10 +50,6 @@
 #include "hcid.h"
 #include "lib.h"
 
-#ifdef __uClinux__
-static char cstack[STACK_SIZE];
-#endif
-
 static GIOChannel *io_chan[HCI_MAX_DEV];
 
 static int pairing;
@@ -301,127 +297,8 @@ static int read_default_pin_code(void)
 	PIN:12345678	-	PIN code
 	ERR		-	No PIN available
 */
-
-#ifdef __uClinux__
-struct c_data_type {
-	int dev;
-	bdaddr_t *sba;
-	struct hci_conn_info *ci;
-};
-
-static struct c_data_type *cdata = NULL;
-
-int
-do_call_pin_helper(void *t)
-{
-	int dev;
-	bdaddr_t *sba;
-	struct hci_conn_info *ci;
-
-	pin_code_reply_cp pr;
-	struct sigaction sa;
-	char addr[18], str[512], *pin, name[249], tmp[497], *ptr;
-	FILE *pipe;
-	int i, ret, len;
-
-	cdata = (struct hci_conn_info *)t;
-	dev = cdata->dev;
-	sba = cdata->sba;
-	ci = cdata->ci;
-
-	if (access(hcid.pin_helper, R_OK | X_OK)) {
-		syslog(LOG_ERR, "Can't exec PIN helper %s: %s (%d)",
-					hcid.pin_helper, strerror(errno), errno);
-		goto reject;
-	}
-
-	memset(name, 0, sizeof(name));
-	read_device_name(sba, &ci->bdaddr, name);
-	//hci_remote_name(dev, &ci->bdaddr, sizeof(name), name, 0);
-
-	memset(tmp, 0, sizeof(tmp));
-	ptr = tmp;
-
-	for (i = 0; i < 248 && name[i]; i++)
-		if (isprint(name[i])) {
-			switch (name[i]) {
-			case '"':
-			case '`':
-			case '$':
-			case '|':
-			case '>':
-			case '<':
-			case '&':
-			case ';':
-			case '\\':
-				*ptr++ = '\\';
-			}
-			*ptr++ = name[i];
-		} else {
-			name[i] = '.';
-			*ptr++ = '.';
-		}
-
-	ba2str(&ci->bdaddr, addr);
-	snprintf(str, sizeof(str), "%s %s %s \"%s\"", hcid.pin_helper,
-					ci->out ? "out" : "in", addr, tmp);
-
-	setenv("PATH", "/bin:/usr/bin:/usr/local/bin", 1);
-
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_flags = SA_NOCLDSTOP;
-	sa.sa_handler = SIG_DFL;
-	sigaction(SIGCHLD, &sa, NULL);
-
-	pipe = popen(str, "r");
-	if (!pipe) {
-		syslog(LOG_ERR, "Can't exec PIN helper: %s (%d)",
-							strerror(errno), errno);
-		goto reject;
-	}
-
-	pin = fgets(str, sizeof(str), pipe);
-	ret = pclose(pipe);
-
-	if (!pin || strlen(pin) < 5)
-		goto nopin;
-
-	strtok(pin, "\n\r");
-
-	if (strncmp("PIN:", pin, 4))
-		goto nopin;
-
-	pin += 4;
-	len  = strlen(pin);
-
-	memset(&pr, 0, sizeof(pr));
-	bacpy(&pr.bdaddr, &ci->bdaddr);
-	memcpy(pr.pin_code, pin, len);
-	pr.pin_len = len;
-	hci_send_cmd(dev, OGF_LINK_CTL, OCF_PIN_CODE_REPLY,
-			PIN_CODE_REPLY_CP_SIZE, &pr);
-	exit(0);
-
-nopin:
-	if (!pin || strncmp("ERR", pin, 3))
-		syslog(LOG_ERR, "PIN helper exited abnormally with code %d", ret);
-
-reject:
-	hci_send_cmd(dev, OGF_LINK_CTL, OCF_PIN_CODE_NEG_REPLY, 6, &ci->bdaddr);
-	exit(0);
-
-
-}
-#endif
-
 static void call_pin_helper(int dev, bdaddr_t *sba, struct hci_conn_info *ci)
 {
-#ifdef __uClinux__
-	cdata->dev = dev;
-	cdata->sba = sba;
-	cdata->ci = ci;
-	clone(do_call_pin_helper, cstack + STACK_SIZE - 4, CLONE_VM|SIGCHLD, &cdata);
-#else
 	pin_code_reply_cp pr;
 	struct sigaction sa;
 	char addr[18], str[512], *pin, name[249], tmp[497], *ptr;
@@ -429,7 +306,11 @@ static void call_pin_helper(int dev, bdaddr_t *sba, struct hci_conn_info *ci)
 	int i, ret, len;
 
 	/* Run PIN helper in the separate process */
+#ifdef __uClinux__
+	switch (vfork()) {
+#else
 	switch (fork()) {
+#endif
 		case 0:
 			break;
 		case -1:
@@ -510,7 +391,11 @@ static void call_pin_helper(int dev, bdaddr_t *sba, struct hci_conn_info *ci)
 	pr.pin_len = len;
 	hci_send_cmd(dev, OGF_LINK_CTL, OCF_PIN_CODE_REPLY,
 			PIN_CODE_REPLY_CP_SIZE, &pr);
+#ifdef __uClinux__
+	_exit(0);
+#else
 	exit(0);
+#endif
 
 nopin:
 	if (!pin || strncmp("ERR", pin, 3))
@@ -518,6 +403,9 @@ nopin:
 
 reject:
 	hci_send_cmd(dev, OGF_LINK_CTL, OCF_PIN_CODE_NEG_REPLY, 6, &ci->bdaddr);
+#ifdef __uClinux__
+	_exit(0);
+#else
 	exit(0);
 #endif
 }
