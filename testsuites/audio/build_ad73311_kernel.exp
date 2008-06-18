@@ -55,7 +55,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS\\\).*\\\[.*]" {
+        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\\\).*\\\[.*]" {
             send "y\r"
         }
 
@@ -64,7 +64,7 @@ while 1 {
         }
 
         -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
-            send "Y\r"
+            send "y\r"
         }
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {

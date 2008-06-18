@@ -171,8 +171,8 @@ set Total_Subdev 8
 while 1 {
     for {set In_Dev 0} {$In_Dev < $Total_Dev} {incr In_Dev} {
         for {set Out_Dev 0} {$Out_Dev < $Total_Dev} {incr Out_Dev} {
-            for {set In_Subdev 0} {$In_Subdev < $Total_Subdev} {incr In_Subdev 3} {
-                for {set Out_Subdev 1} {$Out_Subdev < $Total_Subdev} {incr Out_Subdev 3} {
+            for {set In_Subdev 0} {$In_Subdev < $Total_Subdev} {incr In_Subdev 4} {
+                for {set Out_Subdev 1} {$Out_Subdev < $Total_Subdev} {incr Out_Subdev 4} {
                     alsa_rec2play_timed $In_Dev $In_Subdev $Out_Dev $Out_Subdev
                 }
             }

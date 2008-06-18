@@ -6,7 +6,7 @@
 send_user "Try to figure out if we are in u-boot or the kernel"
 set where_are_we 0
 send "\r"
-expect ">" 
+expect ">"
 send -s "version\r"
 set timeout 20
 while 1 {
