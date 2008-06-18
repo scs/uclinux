@@ -1,0 +1,229 @@
+<h1>Bluetooth audio on embedded hardware</h1>
+
+I would really like the bluetooth-alsa project to get far enough along
+to really shine on embedded platforms. <a
+href="http://www.gumstix.com">gumstix</a> is the perfect little device
+for working this out. This device currently ships with an Infineon
+Singlestone PBA31307.
+
+<h3>Status</h3>
+
+<ul>
+<li>Gumstix uses a bluetooth 1.2 adapter now, the infineon pba 31307 (bt1.2 means better cooperation with wifi)
+<li>Gumstix hardware now routes infineon PCM to xscale's NSSP i/o (PCM-clock goes to NSSP-clock, PCM-frame goes to NSSP-frame, and PCM-in/out map to the NSSPTXD/TXD)
+<li>Unfortunately, Gumstix is talking to bluetooth adapter at a fixed 115k (switching to 921k according to infineon docs does not work properly)
+</ul>
+
+<h3>To-do</h3>
+
+<ul>
+<li>Complete alsa kernel driver code to deal with audio in/out through NSSP as a "regular" audio device (Craig)
+</ul>
+
+<h3>Wishlist</h3>
+
+<ul>
+<li>Negotiate 921kbps connection to bluetooth adapter, needed for a2dp and sco over hci
+<li>Try sco over hci by forcing mtu values and investigating the adapter's ogf and ocf parameters (Brad)
+<li>Modify a2play to build again and so it uses usleep() instead of the rtc (Brad)
+</ul>
+<h3>Bluegiga Class 1 bluecore4 module</h3>
+
+Adding your own bluetooth module will allow things like full 921k data
+connection, SCO over HCI, and class 1 ranges. This adapter can do EDR,
+but the pxa255 UART cannot go beyond 921k unfortunately.
+
+<p>
+
+The model for this adapter is wt11-a-hci from <a
+href="http://bluetooth-alsa.sourceforge.net/embedv1.html">semiconductorstore.com</a>. Note
+that the data sheet referenced from semiconductorstore is old. Go
+directly to bluegiga for updated docs.
+
+<h4>Wiring it up</h4>
+
+Using GPIO48-51 as I'm suggesting here conflicts with the pcmcia pins,
+so plan to leave the GPIO settings alone and use HWUART through
+GPIO42-45 if you need pcmcia. You do this either on a module without
+bluetooth or by clearing GPIO7 and hoping the pins can all be used
+while the built-in module is held in reset.
+
+<p>
+
+The first thing to do after getting this module is to wire it up and
+try to reconfigure it from a PC so the module will use the uart/h4
+interface.
+
+<p>
+
+<table>
+<tr><th>Bluegiga</th><th>pxa</th><th>Description</th></tr>
+<tr><td>1</td><td></td><td>gnd</td></tr>
+<tr><td>2</td><td></td><td>3.3v regulated typical 200mA max 220mA</td></tr>
+<tr><td>21</td><td></td><td>3.3v to disable spi? (I left this unconnected)</td></tr>
+<tr><td>8</td><td></td><td>usb d+ for programming
+<tr><td>9</td><td></td><td>usb d- for programming
+<tr><td>5 rts</td><td>gpio50 hwcts</td><td>module uart rts->hwcts (asserted by module)
+<tr><td>10 cts</td><td>gpio51 hwrts</td><td>module uart cts<-hwrts (asserted by gumstix)
+<tr><td>26 tx</td><td>gpio49 hwrxd</td><td>module uart tx->hwrxd (asserted by module)
+<tr><td>6 rx</td><td>gpio48 hwtxd</td><td>module uart rx<-hwtxd (asserted by gumstix)
+<tr><td>17 reset</td><td>gpio16 "PW[M]0"</td><td>reset (active high)</td></tr>
+<tr><td></td><td></td><td></td></tr>
+</table>
+
+<h4>Firmware settings</h4>
+
+Making the adapter use its uart connection is done using the bccmd app
+from bluez utils cvs (configure with <tt>--enable-bccmd</tt> to get
+bccmd)
+
+<p>bccmd can "brick" your adapter if you make a mistake! To test
+things without risking this, connect both usb to a pc and the uart
+connected to the gumstix. (I power the gumstix from usb when doing
+this.) Then run
+
+<pre>
+ bccmd psset -r 0x3cd 4
+</pre>
+
+To set the adapter to use the uart and do a soft reset. I had to do this
+twice before it would actually disconnect from usb and reconnect on the uart.
+
+<p>
+
+Then attach to the adapter on the gumstix:
+
+<pre>
+# shut down internal bluetooth
+/etc/init.d/S30bluetooth stop
+
+# switch the built-in bluetooth to BTUART for now
+echo "AF1 in" >/proc/gpio/GPIO42
+echo "AF2 out" >/proc/gpio/GPIO43
+echo "AF1 in" >/proc/gpio/GPIO44
+echo "AF2 out" >/proc/gpio/GPIO45
+        
+# make the "HWUART" labeled pads on the audiostix actually carry HWUART
+echo "AF1 out" >/proc/gpio/GPIO48
+echo "AF1 in" >/proc/gpio/GPIO49
+echo "AF1 in" >/proc/gpio/GPIO50
+echo "AF1 out" >/proc/gpio/GPIO51
+
+# bring it up
+echo "GPIO out set" >/proc/gpio/GPIO16
+sleep 1
+echo clear >/proc/gpio/GPIO16
+sleep 1
+
+# attach the adapter
+/usr/sbin/hciattach -s 115200 ttyS3 csr 921600
+
+# check for the adapter
+hciconfig
+</pre>
+
+Once you are satisfied that works, cold boot everything and this time
+make it permanent from the pc:
+
+<pre>
+ bccmd psset -s default 0x3cd 4
+</pre>
+
+<p>
+
+<h4>Bringing up CSR automatically</h4>
+
+<ul>
+<li>Modify /etc/default/bluetooth
+<pre>
+	HCIATTACH_TYPE=csr
+	HCIATTACH_START_SPEED=115200
+</pre>
+<li>modify S30bluetooth to set GPIO status before attempting an attach--only if NOT using pcmcia
+<ul>
+<li>We either need to move the bt module to BTUART (we could have two bt interfaces--hmm!)
+<pre>
+	echo "AF1 in" >/proc/gpio/GPIO42
+	echo "AF2 out" >/proc/gpio/GPIO43
+	echo "AF1 in" >/proc/gpio/GPIO44
+	echo "AF2 out" >/proc/gpio/GPIO45
+</pre>
+</li>
+<li>Or... disable the bt module's GPIOs entirely (for better power efficiency, set 42 and 44 for output as long as we know they are left in hi-z by the module)
+<pre>
+	echo clear >/proc/gpio/GPIO7
+
+	echo "GPIO in" >/proc/gpio/GPIO42
+	echo "GPIO out" >/proc/gpio/GPIO43
+	echo "GPIO in" >/proc/gpio/GPIO44
+	echo "GPIO out" >/proc/gpio/GPIO45
+
+	echo "GPIO out" >/proc/gpio/GPIO12
+</pre>
+</li>
+
+<li>set the appropriate GPIO pins to use the HWUART on GPIOs 48-51
+
+<pre>
+        echo "AF1 out" >/proc/gpio/GPIO48
+        echo "AF1 in" >/proc/gpio/GPIO49
+	echo "AF1 in" >/proc/gpio/GPIO50
+	echo "AF1 out" >/proc/gpio/GPIO51
+</pre>
+</ul>
+
+<li>and finally, be sure the startup script resets the adapter before the hciattach
+
+<pre>
+	echo "GPIO out set" >/proc/gpio/GPIO16
+	sleep 1
+	echo clear >/proc/gpio/GPIO16
+	sleep 1
+</pre>
+
+</li>
+</ul>
+
+
+<p> 
+
+It's working (woohoo)
+
+<pre>
+# hciconfig hci0 revision
+hci0:   Type: UART
+        BD Address: 00:07:80:81:BC:3E ACL MTU: 384:8 SCO MTU: 64:8
+        Build 2810
+        Chip version: BlueCore4-External
+        Max key size: 56 bit
+        SCO mapping:  HCI
+# hciconfig -a hci0
+hci0:   Type: UART
+        BD Address: 00:07:80:81:BC:3E ACL MTU: 384:8 SCO MTU: 64:8
+        UP RUNNING PSCAN ISCAN 
+        RX bytes:4577 acl:95 sco:0 events:289 errors:0
+        TX bytes:2735 acl:95 sco:0 commands:80 errors:0
+        Features: 0xff 0xff 0x8f 0xfe 0x9b 0xf9 0x00 0x80
+        Packet type: DM1 DM3 DM5 DH1 DH3 DH5 HV1 HV2 HV3 
+        Link policy: RSWITCH HOLD SNIFF PARK 
+        Link mode: SLAVE ACCEPT 
+        Name: 'Gumstix (0)'
+        Class: 0x820116
+        Service Classes: Networking
+        Device Class: Computer, Palm
+        HCI Ver: 2.0 (0x3) HCI Rev: 0xafa LMP Ver: 2.0 (0x3) LMP Subver: 0xafa
+        Manufacturer: Cambridge Silicon Radio (10)
+</pre>
+
+<p>
+
+fwiw... S30bluetooth runs <tt>echo AF1 out >
+/proc/gpio/GPIO12</tt> on start but has no corresponding action in
+stop. This sends out a clock signal that the infineon needs apparently.
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="embedv1.html">Old porting effort</a>
+<li><a href="/">bluetooth-alsa project</a>
+</ul>

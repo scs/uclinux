@@ -1,0 +1,17 @@
+#!/bin/bash
+
+#
+# This script runs, when Skype closes its DSP device.
+# I make sure here to switch calls back to the speakers.
+# You may not like this behaviour. Comment it out, if so.
+#
+# Also note, that Skype 1.2.0.11 for Linux has a bug which causes it
+# not to close the device properly sometimes. Thus this script might
+# not run at the end of the call, but rather at the beginning of the
+# next call. It will run before another onopen, though, as the hijacker
+# contains fixup code for this case, which will also fix the "problem
+# with sound device" messages in skype that are caused by this 
+# misbehaviour.
+#
+
+[ -f /tmp/switch_dsp ] && rm -f "/tmp/switch_dsp"

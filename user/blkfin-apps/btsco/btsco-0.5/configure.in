@@ -1,0 +1,50 @@
+dnl
+dnl  $Id: configure.in,v 1.13 2006/10/26 16:21:39 bmidgley Exp $
+dnl
+
+AC_PREREQ(2.50)
+AC_INIT()
+
+AM_INIT_AUTOMAKE(btsco, 0.42)
+AM_CONFIG_HEADER(config.h)
+
+if (test "${CFLAGS}" = ""); then
+	CFLAGS="-Wall -O2"
+fi
+
+AC_LANG_C
+
+AC_PROG_CC
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+AC_PATH_BLUEZ
+
+m4_define([_LT_AC_TAGCONFIG], [])
+m4_ifdef([AC_LIBTOOL_TAGS], [AC_LIBTOOL_TAGS([])])
+
+AC_PROG_LIBTOOL
+
+AC_TRY_COMPILE([
+	#include <bluetooth/bluetooth.h>
+	#include <sys/socket.h>
+	#include <bluetooth/hci.h>
+	#include <bluetooth/hci_lib.h>
+	],[
+	bdaddr_t *addr;
+	int dd = 0;
+	int role = 0;
+	int to = 0;
+	hci_switch_role(dd, addr, role, to);
+	],HAVE_HCI_SWITCH_ROLE=yes,HAVE_HCI_SWITCH_ROLE=no)
+
+if test x$HAVE_HCI_SWITCH_ROLE != xyes; then
+	AC_DEFINE(HAVE_NO_HCI_SWITCH_ROLE, 1, [defined if hci_switch_role is broken])
+fi
+
+AM_PATH_ALSA(1.0.3)
+
+XIPH_PATH_AO
+
+AC_ARG_BTSCO
+
+AC_OUTPUT(Makefile sbc/Makefile avdtp/Makefile alsa-plugins/Makefile alsa-plugins/headsetd/Makefile)

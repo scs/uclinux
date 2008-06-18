@@ -1,0 +1,7 @@
+# change hcid to lm:accept,master
+mount /mnt/mmc
+modprobe snd-pcm-oss
+modprobe snd-bt-sco
+btsco -v 00:03:89:77:9A:E9 1
+# madplay /mnt/mmc/gates.mp3
+

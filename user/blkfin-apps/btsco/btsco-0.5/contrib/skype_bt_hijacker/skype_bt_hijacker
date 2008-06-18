@@ -1,0 +1,10 @@
+#!/bin/bash
+BINPATH=.
+
+PATH=${BINPATH}:${PATH}
+
+SECONDARYDEV=/dev/dsp1 \
+HIJACKDSP=/dev/dsp \
+SWITCHFILE=/tmp/switch_dsp \
+LD_PRELOAD=${BINPATH}/libskype_bt_hijacker.so \
+skype

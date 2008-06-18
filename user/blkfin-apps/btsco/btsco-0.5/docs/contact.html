@@ -1,0 +1,60 @@
+<html>
+<head><title>Bluetooth-alsa</title></head>
+<body>
+
+<p>
+
+<h1>Bluetooth-alsa</h1>
+Bluetooth audio for Linux
+
+<p>
+
+<a href="index.html">Overview</a>
+| <a href="history.html">History</a>
+| <a href="future.html">Future work</a>
+| <a href="build.html">Download & build</a>
+| <a href="credits.html">Credits</a>
+| <b>Contact us</b>
+
+<hr>
+
+Please join us on the bluez-devel mailing list to work on this project
+or provide feedback.
+
+<p>
+
+Sourceforge also provides forums and a place to submit patches, but
+most of the BlueZ developers don't frequent the forums, so the mailing
+list is the best place to reach us.
+
+<p>If things aren't working as you expect, some of the things that can
+help us track it down are:
+
+<ul>
+<li>Check to see you have installed bluez-passkey-gnome (debian, ubuntu)
+<li>Whether there is a hub between your computer and bluetooth adapter (you should avoid this <a href="http://sourceforge.net/mailarchive/message.php?msg_id=11431438">especially if it's a usb 2.0 hub</a>)
+<li>Manufacturer and model of headset and bluetooth adapter
+<li>Output from <tt>hciconfig -a</tt>
+<li>For using SCO, the output from <tt>hciconfig hci0 revision</tt> is helpful <b>(Run hciconfig as root) </b>
+
+<ul>
+<li>If it prints "SCO mapping: HCI" then your adapter should work.</li>
+<li>If it prints "SCO mapping: PCM" then you might permanently change the setting using a command like "pskey mapsco 0" or "bccmd psset -s default 0x1ab 0" using bluez-utils-cvs but this is at your own risk.</li>
+<li>If it doesn't print either of those, you probably need a different bluetooth adapter (preferably "CSR" based). You <b>might</b> be able to get a broadcom adapter to work but it may require that you boot with a kernel argument (<i>the force_scofix
+parameter of the hci_usb driver?</i>) to force sco mtu values</li>
+<li>If the adapter is made by Silicon Wave, it will not work. No one has gotten these things to do audio in linux.
+</ul>
+
+<li>Output from <tt>hcitool info bdaddr</tt> where bdaddr is the headset's address
+<li>Output from <tt>hcidump -X -V</tt> while running btsco or a2play if appropriate
+<li>Your kernel version and bluez userland versions or distro
+<li>Result when trying it with a recent kernel if possible 
+<li>If you have a headset that can do a2dp, try both SCO and A2DP
+<li>If you can try another bluetooth adapter or headset, let us know if that helps (the adapters are cheap now, eh? :)
+<li>If you can't pair or connect with the headset, did you pair it with another device? Did it help to reset the pairing by removing /etc/bluetooth/link_key or /var/lib/bluetooth/[dongleaddr]/linkkeys or by putting the headset in pair mode? You may have to redo this often if you try to dual-boot windows or if you use the same dongle on another computer. Be sure to set "auth disable" and "encrypt disable" in /etc/bluetooth/hcid.conf.
+<li>Change the pin helper. Strangely it started working for me one time by using: <tt>pin_helper /usr/bin/bluez-pin;</tt>
+<li>Think about scatternets--if you have "master" in hcid.conf's lm setting, you are forcing the pc to be master. This may not jive well with a combo headset.
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+#
+# This script runs, when Skype opens its DSP device.
+# If I have a headset connected, I play a ringtone on it.
+#
+
+[ -f /tmp/bt_headset_connected ] && aplay -q -B1000000 -Dplughw:Headset /usr/share/sounds/linphone/rings/oldphone.wav

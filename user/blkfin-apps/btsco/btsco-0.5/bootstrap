@@ -1,0 +1,3 @@
+#! /bin/sh
+
+aclocal -I /usr/share/aclocal && autoheader && automake --add-missing --copy && autoconf

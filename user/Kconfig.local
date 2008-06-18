@@ -165,6 +165,10 @@ config USER_USBUTILS
 config USER_BLUEZ
 	bool "Bluez-utils"
 	select LIB_BLUEZ
+config USER_BTSCO
+	bool "Bluetooth ALSA utility"
+	select USER_BLUEZ
+	select USER_ALSA_UTILS
 config USER_PICOCOM
 	bool "picocom"
 config USER_DAGRAB_DAGRAB

@@ -1,0 +1,59 @@
+
+Compile and install:
+
+	Just "make".
+	You can move the script and .so somehwere you like, but then
+	adjust the script for the location of the .so
+
+Configuration:
+
+	Configure your headset address in the btscorunner.
+
+	Configure your primary dsp device (speakers) and the secondary 
+	device (bt headset) in either the source of the hijacker lib or
+	in the skype_bt_hijacker script.
+
+	Configure a command that gets run at dsp-open time. I run aplay
+	to send a ring to the headset. Make sure you point it to an
+	appropriate wav.
+	Using killall -USR1 btsco doesn't really do what I want on my 
+	headset.
+
+	If you change the switchfile, please also change it in the python
+	script and the btscorunner script.
+
+	Find out what your headset sends when you press the button you
+	want to use for call pickup/ending. Put that in your .btscorc
+	like this:
+--- snip ---
+AT\+CKPD=200
+system /[your_installpath]/skype_pickup.py
+--- snap ---
+
+Start:
+	Run the btrunner. It will scan for your headset and run btsco,
+	when it finds the set. When the set is not available, it will 
+	make sure, the switchfile gets deleted, so that audio is sent
+	to the speakers.
+
+	Now run skype_bt_hijacker. This will fire up skype with the 
+	hijacking-library enabled. Make sure that your skype is 
+	reachable via your PATH variable.
+
+Using:
+	Now when a call comes in (or goes out, or some other audio
+	stuff is used by skype), you will hear a ring in the headset.
+	Press the button you chose above and skype_pickup.py will
+	be engaged.
+
+	It will make skype pick the call up and transfer it to the 
+	headset. You can hang up the call with the same button.
+
+	If you press the button during a call that uses your speakers,
+	the call will be transferred to the headset.
+
+	If you want to transfer it back, just delete the switchfile.
+
+Contact:
+	becka-bzdvl@bedatec.de
+

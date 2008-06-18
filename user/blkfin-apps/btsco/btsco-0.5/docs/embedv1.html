@@ -1,0 +1,108 @@
+<html>
+<head>
+<title>Bluetooth audio on embedded hardware</title>
+</head>
+<body>
+<h1>Bluetooth audio on embedded hardware</h1>
+
+I would really like the bluetooth-alsa project to get far enough along
+to really shine on embedded platforms. <a
+href="http://www.gumstix.com">gumstix</a> is the perfect little device
+for working this out.
+
+<h3>Completed items</h3>
+
+<ul>
+<li>Modify btsco to build in a cross-compile buildroot environment (seems to have broken again in 2.6.14 buildroot)
+<li>Tweak build so kernel module snd-hwdep-new gets built (need to make sure it gets installed automatically)
+<li>Figure out hcid.conf settings and required modules for audio
+<li>Fix timing problem in a2play--setitimer and rtc/pthreads timers
+<li>Implemented unrolled and fixed-point a2dp encoder and fixed-point decoder
+<li>Implemented 32-bit fixed point codec, made it the default fixed point, moving it into its own independent library
+</ul>
+
+<h3>Status</h3>
+
+<ul>
+<li>Stereo A2DP transmission (.au file) with a2play: audio breaks up occasionally but comes back (using -n flag)
+<li>Live stereo transmission from line-in: occasional bursts of static (probably endian problems again)
+<li>Stereo reception with a2recv: cpu is working hard and audio is working using subbands=4,blocks=4,bitpool=12 (should work with any settings now that decoder is in fixed-point)
+<li>SCO (voice-quality audio) with btsco: gumstix connects to bluetooth headset and responds to headset controls but audio is not going through
+<li>Some basic AVRCP code; able to receive commands in a separate process
+</ul>
+
+<h3>To-do</h3>
+
+<ul>
+<li>fix btsco.mk for 2.6.14+ buildroot
+<li>Squash the last remaining quality problems with fixed point encoding (high frequencies are distorted) and retire floating point :)
+<li>Set up AVRCP to control the stream
+<li>Find out if future gumstix boards could have PCM pins from infineon connected to xscale (yes! confirmed!)
+<li>Find out if SCO can be mapped to HCI as it can on CSR (maybe; see bluez-devel topic <a href="http://sourceforge.net/search/?forum_id=1881&group_id=26526&words=%22sco+over+uart%22&type_of_search=mlists">"SCO over UART"</a>)
+<li>Try connecting a CSR bluetooth chip to see if audio works better (see next section)
+</ul>
+
+<h3>Bluetooth 1.1 CSR Module</h3>
+
+The avantwave class 1 module is here. The specs are <a
+href=btr-140.pdf>here</a> and the specific model is
+btr140-h4-921k. Now I need to connect it up. I'm going to get access
+to hirose pins through the tweener vias (tweener also has a 3.3v
+converter which might be usable when I try a class 2 module)
+
+hciattach times out complaining about no connection. I have a newer
+module so I'm likely to spend additional effort getting it to work.
+
+<p>
+<table>
+<tr><th>BTR140</th><th>hirose</th><th>pxa</th><th>Description</th>
+<tr><td>1</td><td>-</td><td></td><td>attached an mmcx post here for an external antenna
+<tr><td>5</td><td>14</td><td>gpio35</td><td>steal GPIO from ffuart for btr140 active high reset
+<tr><td>7</td><td>32 </td><td>gpio50</td><td>module uart rts->hwcts (asserted by module)
+<tr><td>8</td><td>34 </td><td>gpio51</td><td>module uart cts<-hwrts (asserted by gumstix)
+<tr><td>9</td><td>33 </td><td>gpio49</td><td>module uart tx->hwrxd (asserted by module)
+<tr><td>10</td><td>35 </td><td>gpio48</td><td>module uart rx<-hwtxd (asserted by gumstix)
+<tr><td>15</td><td>-</td><td></td><td>1.8v using a voltage regulator (digikey MCP1700-1802E/TO-ND or NJM2845DL118TE1CT-ND) for a max 161mA
+<tr><td>6,16</td><td>30</td><td></td><td>3.3v using voltage regulator for max 161mA
+<tr><td>17</td><td>1</td><td></td><td>Ground
+<tr><td>11</td><td>3.3v</td><td></td><td>synchronous serial (active low) do we use synchronous??
+<tr><td>18</td><td></td><td></td><td>pcm clock
+<tr><td>24</td><td></td><td></td><td>gnd (dual boot fn)
+<tr><td>25</td><td></td><td></td><td>pcm out
+<tr><td>26</td><td></td><td></td><td>pcm in
+<tr><td>27</td><td></td><td></td><td>pcm sync
+<tr><td>42</td><td>-</td><td></td><td>rf ground (also surrounds pin 1)
+</table>
+<p>
+
+<h3>Links</h3>
+
+<ul>
+<li><a href="embed/">Source files</a>
+<li><a href="/">bluetooth-alsa project</a>
+</ul>
+
+<h3>Notes</h3>
+
+PSKEY_HOST_INTERFACE values are 1 (BCSP), 2 (USB), 3 (H4) so I thought
+we need 3. In the end it was unnecessary to change this.
+
+<p>
+
+PSKEY_INITIAL_BOOTMODE (x3cd) should be 4 for HCI H4. It's shipped set
+to 3 for USB.
+
+<p>
+
+PSKEY_UART_BAUDRATE (x1be) should be x1d8 for 115k or xebf for
+921k. The default was 115k so I left it alone.
+
+<p>
+
+It seems that PSKEY_HOSTIO_MAP_SCO_PCM (x1ab) should be 0, equivalent
+to the old "pskey mapsco 0" command. There is no x1ab key and
+<tt>hciconfig hci0 revision</tt> indicates <b>SCO mapping: HCI</b> so
+HCI must be the default routing.
+
+</body>
+</html>

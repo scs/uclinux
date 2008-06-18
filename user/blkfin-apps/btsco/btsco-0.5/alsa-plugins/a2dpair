@@ -1,0 +1,129 @@
+#!/bin/sh
+
+#
+# Discovery
+#
+echo "Discovery in progress..."
+I=0
+SCANFILE=/tmp/hci_scan
+declare -a ARRAYADDR
+declare -a ARRAYNAME
+
+# We need this file because else there is a problem with arrays in shell
+# The while loop is run in a subshell
+hcitool scan > $SCANFILE
+
+while read BTADDR BTDESC ; do
+	if expr match "$BTADDR" "..:..:..:..:..:.." > /dev/null ; then
+		# Truc
+		echo "$I) [$BTADDR] $BTDESC" 
+		I=`expr $I + 1`
+		ARRAYADDR[$I]="$BTADDR"
+		ARRAYNAME[$I]="$BTDESC"
+	fi
+done < $SCANFILE
+rm -f $SCANFILE
+
+if [ $I -le 0 ] ; then
+	echo "Found $I devices"
+	exit -1
+fi
+
+#
+# Device selection
+#
+SELECTION=
+I=`expr $I - 1`
+while [ -z $SELECTION ] || [ $SELECTION -gt $I ] ; do
+	echo "Choose device (0-$I)"
+	read SELECTION
+done
+# sh uses 1 based arrays
+SELECTION=`expr $SELECTION + 1`
+ADDRESS=${ARRAYADDR[$SELECTION]}
+NAME=${ARRAYNAME[$SELECTION]}
+#
+# Pairing
+#
+echo "Pair device $NAME (y/N)?"
+read CANPAIR
+
+if [ "$CANPAIR" = "y" ] ; then
+	
+	# Device passkey
+	SELECTION=
+	while [ -z $SELECTION ] ; do
+		echo "Enter passkey for $NAME"
+		read SELECTION
+	done
+	PASSKEY=$SELECTION
+	
+	# Prefetch password
+	sudo echo "Pairing in progress..."
+	
+	# passkey agent
+	if sudo passkey-agent --default $PASSKEY & PASSPID=$! ; then
+	
+		#echo "Registered passkey-agent pid=$PASSPID"
+	
+		# pairing
+		ANYTEXTISFAILURE=`sudo hcitool cc $ADDRESS 2>&1`
+	
+		if [ -z "$ANYTEXTISFAILURE" ] ; then
+			echo "Pairing successfull"
+			RESULT=0
+		else
+			echo "$ANYTEXTISFAILURE"
+			echo "Pairing failed"
+		fi
+	
+		#echo "Killing pid=$PASSPID"
+		# Kill bg process
+		sudo kill $PASSPID
+	fi
+fi
+
+#
+# A2DP Setting
+#
+echo "Select device for a2dp (y/N)?"
+read A2PARAM
+
+if [ "$A2PARAM" = "y" ] ; then
+	echo "Writing ~/.a2dprc"
+	if [ -f ~/.a2dprc ] ; then
+		mv -f ~/.a2dprc ~/.a2dprc~
+		cat ~/.a2dprc~ | while read LINE ; do
+			# Address line
+			if expr "$LINE" : "address=.*" > /dev/null; then
+				echo "address=$ADDRESS" >> ~/.a2dprc
+			else
+				echo "$LINE" >> ~/.a2dprc
+			fi
+		done
+	else
+		echo "[A2DPD]" > ~/.a2dprc
+		echo "address=$ADDRESS" >> ~/.a2dprc
+	fi
+fi
+
+
+#
+# A2DP Daemon
+#
+echo "Start a2dp daemon (y/N)?"
+read A2DAEMON
+if [ "$A2DAEMON" = "y" ] ; then
+	while killall a2dpd 2> /dev/null ; do
+		echo -n .
+		sleep 1
+	done
+	a2dpd -d +v
+fi
+
+#
+# Ending
+#
+exit 0
+
+############

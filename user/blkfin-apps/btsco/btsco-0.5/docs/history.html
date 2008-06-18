@@ -1,0 +1,110 @@
+<html>
+<head><title>Bluetooth-alsa</title></head>
+<body>
+
+<p>
+
+<h1>Bluetooth-alsa</h1>
+Bluetooth audio for Linux
+
+<p>
+
+<a href="index.html">Overview</a>
+| <b>History</b>
+| <a href="future.html">Future work</a>
+| <a href="build.html">Download & build</a>
+| <a href="credits.html">Credits</a>
+| <a href="contact.html">Contact us</a>
+
+<hr>
+
+The Linux drivers for audio have gone through some experimental
+stages.  It's worth explaining where each of these experiments fits
+into the big picture and what we learned.
+
+<h3>Early work</h3>
+
+Development started with the btsco daemon and the snd-bt-sco kernel
+module.  The daemon opens a data connection to a HSP headset and works
+in conjunction with the kernel audio driver snd-bt-sco to provide an
+alsa device to send and receive headset audio. btsco2 takes a slightly
+different approach and runs in the place of the original btsco daemon.
+
+<p>
+
+Work with A2DP started with a basic SBC encoder that used
+floating-point math to compress the audio stream. Negotiating the
+connection to the headset and transmitting the stream was tested and
+realized using a standalone application, a2play. This application does
+not work well with other apps; audio is typically piped in using
+standard input rather than working as a normal audio device. There is
+another application, a2recv, that listens for incoming streaming audio
+and plays the stream on the computer's built-in speakers.
+
+<p>
+
+Some rudimentary experimenting with AVRCP resulted in two different
+test applications: avrecv listens for an AVRCP connection from a
+headset and displays received messages on the console. avsnd makes the
+outbound connection to the specified headset and similarly listens for
+messages.
+
+<h3>Limitations</h3>
+
+It became apparent that the audio driver inside the kernel was not the 
+best solution to the problem of making a driver. Audio architectures like
+the userspace library side of alsa provide a way for audio drivers like
+bluetooth to be implemented entirely in userspace which is proving to be
+a better fit.
+
+<p>
+
+A2DP similarly needed a userspace alsa plugin in order to make it work
+with mp3 players and movie players.
+
+<p>
+
+An additional complication is the fact that the alsa interface is too
+simplistic to cover the advanced signaling that bluetooth provides,
+like ringing a headset and waiting for an answer or responding to a
+track advance event from an A2DP/AVRCP set.
+
+<h3>Alsa plugin progress</h3>
+
+A first pass at the A2DP plugin resulted in a plugin that communicates
+directly with the headset without any intermediate application. This
+proved to be too simplistic since only one application could use the
+set. Some audio applications would lock up the headphones by
+repeatedly opening and closing the audio device because these
+operations were translated into opening and closing the bluetooth
+audio link.
+
+<p>
+
+The first attempt at SCO alsa plugin fortunately involved an
+intermediate daemon to mitigate some of these issues.
+
+<p>
+
+As a second iteration on A2DP alsa plugins, a daemon ("a2dpd") was
+designed to control connections to the headphones and to mix audio
+from multiple applications together.
+
+<h3>SBC encoding</h3>
+
+Adaptations in the SBC encoder allowed it to run on small computers
+without a floating point coprocessor. For the first time, our A2DP
+transmission was scaled down enough to operate on cellphone-class
+devices. Unfortunately, some quality problems were introduced, such as
+low volume and occasional overflows when the input volume is high
+(manifest as a popping sound).
+
+<p>
+
+The fixed-point-only SBC encoder was moved into its own project on
+sourceforge, and unfortunately the continued presence of the (messier)
+combined fixed-point/floating-point code in the btsco project has been
+a source for some confusion.
+
+</body>
+</html>
