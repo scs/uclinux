@@ -62,7 +62,7 @@ incr case_num
 step "Erase MTD "
 set mtd_temp_result $TEST_FAIL
 set timeout 180
-send -s "eraseall /dev/mtd$pnor_rootfs_num\r"
+send -s "flash_eraseall /dev/mtd$pnor_rootfs_num\r"
 while 1 {
     expect {
 	
