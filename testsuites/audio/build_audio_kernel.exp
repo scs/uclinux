@@ -2,25 +2,34 @@
 
 source ../kernel_config.exp
 source  ../board_info.exp
-log_file [log_file_name "$argv0"]
+
+if { $argc < 2} {
+    puts "Please input: board_type, audio_dev"
+    puts "audio_dev: audio_ad1836, audio_ad73311, audio_ad73322, audio_ad1980, audio_ad1981b, audio_ssm2602"
+    exit
+}
+
+set audio_dev [lindex $argv 1]
+set title build_$audio_dev
+append title "_log"
+log_file $title
+
 send_user "Starting $argv0\n"
+send_log "\n#### build kernel for $audio_dev\n"
 
 cd $uclinux_path/testsuites
 
-step "Make config."
+step "Make config"
 
 source make_default_config.exp
 
 # Following make specific configuration for this case.
-
-sleep 3
 
 cd $uclinux_path
 set timeout 300
 set baud_rate_done_flag 0
 spawn make config
 
-#puts "Begin the interactive process of configuration"
 while 1 {
     expect {
         -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
@@ -35,14 +44,6 @@ while 1 {
             send "y\r"
         }
 
-        -re "DMA has priority over core for ext. accesses.*DEB_DMA_URGENT.*\\\[.*]" {
-            if { $board_type == "BF548-EZKIT" } {
-                send "y\r"
-            } else {
-                send "\r"
-            }
-        }
-
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "y\r"
         }
@@ -51,28 +52,36 @@ while 1 {
             send "y\r"
         }
 
-        -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
-            send "y\r"
-        }
-
         -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
             send "y\r"
         }
 
-        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS.*\\\[.*]" {
+        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\\\).*\\\[.*]" {
             send "y\r"
         }
 
         -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
-            send "n\r"
+            if { $audio_dev == "audio_ad1836" } {
+                send "y\r"
+            } else {
+                send "n\r"
+            }
         }
 
         -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
-            send "n\r"
+            if { $audio_dev == "audio_ad73311" } {
+                send "y\r"
+            } else {
+                send "n\r"
+            }
         }
 
         -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
-            send "y\r"
+            if { $audio_dev == "audio_ad73311" || $audio_dev == "audio_ad73322" || $audio_dev == "audio_ad1836" } {
+                send "n\r"
+            } else {
+                send "y\r"
+            }
         }
 
         -re "SoC Audio for the ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
@@ -80,8 +89,62 @@ while 1 {
         }
 
         -re "SoC AC97 Audio support for BF548 ezkit.*SND_BF5XX_SOC_BF548_EZKIT.*\\\[.*]" {
-            send "y\r"
+            if { $audio_dev == "audio_ad1980" && $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "n\r"
+            }
         }
+
+        -re "SoC AC97 Audio support for BF5xx.*SND_BF5XX_SOC_BF5xx.*\\\[.*]" {
+            if { $audio_dev == "audio_ad1981b" } {
+                send "y\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "SoC SSM2602 Audio support for BF52x ezkit.*SND_BF5XX_SOC_SSM2602.*\\\[.*]" {
+            if { $audio_dev == "audio_ssm2602" } {
+                send "y\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+#ad73322
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            if { $audio_dev == "audio_ad73322" } {
+                send "m\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Cascaded AD73322 Audio support for BF53x.*SND_BFIN_AD73322.*\\\[.*]" {
+            if { $audio_dev == "audio_ad73322" } {
+                send "y\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "Blackfin Audio SPORT port.*SND_BFIN_SPORT.*\\\[.*]" {
+            if { $audio_dev == "audio_ad73322" } {
+                send "2\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Uncached SDRAM region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
+            if { $audio_dev == "audio_ad73322" } {
+                send "2\r"
+            } else {
+                send "\r"
+            }
+        }
+#ad73322
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             send "4\r"
