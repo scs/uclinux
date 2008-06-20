@@ -276,30 +276,27 @@ static struct filesystem_entry *find_filesystem_entry(
 		e = dir->files;
 	}
 	while (e) {
-		/* Only bother to do the expensive strcmp on matching file types */
-		if (type == (e->sb.st_mode & S_IFMT)) {
-			if (S_ISDIR(e->sb.st_mode)) {
-				int len = strlen(e->fullname);
+		if (S_ISDIR(e->sb.st_mode)) {
+			int len = strlen(e->fullname);
 
-				/* Check if we are a parent of the correct path */
-				if (strncmp(e->fullname, fullname, len) == 0) {
-					/* Is this an _exact_ match? */
-					if (strcmp(fullname, e->fullname) == 0) {
-						return (e);
-					}
-					/* Looks like we found a parent of the correct path */
-					if (fullname[len] == '/') {
-						if (e->files) {
-							return (find_filesystem_entry (e, fullname, type));
-						} else {
-							return NULL;
-						}
-					}
-				}
-			} else {
+			/* Check if we are a parent of the correct path */
+			if (strncmp(e->fullname, fullname, len) == 0) {
+				/* Is this an _exact_ match? */
 				if (strcmp(fullname, e->fullname) == 0) {
 					return (e);
 				}
+				/* Looks like we found a parent of the correct path */
+				if (fullname[len] == '/') {
+					if (e->files) {
+						return (find_filesystem_entry (e, fullname, type));
+					} else {
+						return NULL;
+					}
+				}
+			}
+		} else {
+			if (strcmp(fullname, e->fullname) == 0) {
+				return (e);
 			}
 		}
 		e = e->next;
@@ -547,8 +544,11 @@ static int interpret_table_entry(struct filesystem_entry *root, char *line)
 		case 'b':
 			mode |= S_IFBLK;
 			break;
+		case 'l':
+			mode |= S_IFLNK;
+			break;
 		default:
-			error_msg_and_die("Unsupported file type");
+			error_msg_and_die("Unsupported file type '%c'", type);
 	}
 	entry = find_filesystem_entry(root, name, mode);
 	if (entry) {
@@ -607,7 +607,7 @@ static int interpret_table_entry(struct filesystem_entry *root, char *line)
 				}
 				break;
 			default:
-				error_msg_and_die("Unsupported file type");
+				error_msg_and_die("Unsupported file type '%c'", type);
 		}
 	}
 	free(name);

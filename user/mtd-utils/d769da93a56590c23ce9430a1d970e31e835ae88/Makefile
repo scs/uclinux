@@ -7,8 +7,7 @@ INCLUDEDIR=/usr/include
 
 #CROSS=arm-linux-
 CC := $(CROSS)gcc
-
-CFLAGS ?= -O2
+CFLAGS ?= -O2 -g
 CFLAGS += -Wall
 CPPFLAGS += -I./include
 
@@ -41,7 +40,7 @@ SYMLINKS =
 
 $(BUILDDIR)/%.o: %.c
 	mkdir -p $(BUILDDIR)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -g -c -o $@ $< -g -Wp,-MD,$(BUILDDIR)/.$(<F).dep
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $< -g -Wp,-MD,$(BUILDDIR)/.$(<F).dep
 
 .SUFFIXES:
 

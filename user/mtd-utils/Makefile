@@ -1,7 +1,7 @@
 # version is based on current git snapshot from here (since releases are not
 # really made anymore by the mtd guys):
 # http://git.infradead.org/?p=mtd-utils.git;a=summary
-VER = 1fd1b5430221b99e05d4f63693ccb0ec11a4af7c
+VER = d769da93a56590c23ce9430a1d970e31e835ae88
 
 RAWTARGETS-y :=
 RAWTARGETS-$(CONFIG_USER_MTDUTILS_ERASE)        += flash_erase
@@ -48,3 +48,17 @@ romfs:
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_NANDWRITE    build-$(VER)/nandwrite /bin/nandwrite
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_DOC_LOADBIOS build-$(VER)/doc_loadbios /bin/doc_loadbios
 	$(ROMFSINST) -e CONFIG_USER_MTDUTILS_DOC_LOADIPL  build-$(VER)/doc_loadipl /bin/doc_loadipl
+
+update:
+	set -e ; \
+	tar="http://git.infradead.org`wget -q -O - 'http://git.infradead.org/?p=mtd-utils.git;a=summary' | sed -n '/snapshot/{s:.*href="\([^"]*\).*:\1:;p;q}'`" ; \
+	ver=`echo $$tar | sed 's:.*h=\([^;]*\).*:\1:'` ; \
+	test "$(VER)" = "$$ver" && exit 0 ; \
+	wget $$tar -O mtd-utils.tar.gz ; \
+	tar xf mtd-utils.tar.gz ; \
+	rm -rf $$ver ; \
+	mv mtd-utils $$ver ; \
+	rm mtd-utils.tar.gz ; \
+	sed -i "/^VER/s:=.*:= $$ver:" Makefile
+
+.PHONY: all clean romfs update
