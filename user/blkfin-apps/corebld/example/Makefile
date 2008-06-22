@@ -24,3 +24,5 @@ romfs:
 
 clean:
 	-rm -f *.map *.dump *.elf *.gdb *.o *.ko test_c test_cpp 
+
+.PHONY: all clean romfs
