@@ -230,13 +230,13 @@ int main (int argc, char **argv)
 #endif
 	    
 	if (argc < 2) {
-		printf ("Usage: evtest /dev/inputX\n");
+		printf ("Usage: %s /dev/inputX\n", argv[0]);
 		printf ("Where X = input device number\n");
 		exit (1);
 	}
 
 	if ((fd = open(argv[argc - 1], O_RDONLY)) < 0) {
-		perror("evtest");
+		perror(argv[0]);
 		exit(1);
 	}
 
