@@ -11,7 +11,7 @@ if { $argc < 2} {
 
 set audio_dev [lindex $argv 1]
 set title build_$audio_dev
-append title "_log"
+append title "_kernel_log"
 log_file $title
 
 send_user "Starting $argv0\n"
