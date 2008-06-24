@@ -30,6 +30,7 @@ dir_$(CONFIG_USER_MDMA_KO)                       += mdma
 dir_$(CONFIG_USER_XMAME)                         += xmame
 dir_$(CONFIG_USER_UBOOT_TOOLS)                   += u-boot-tools
 dir_$(CONFIG_USER_SDLEXAMPLES)                   += sdl-examples
+dir_$(CONFIG_USER_FPGA_HSCONV)                   += fpga
 
 all %::
 	for i in $(dir_y) ; do $(MAKE) -C $$i $@ || exit $$? ; done

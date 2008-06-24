@@ -221,7 +221,9 @@ config USER_NANO
 	help
 	  The ncurses based text editor:
 	  http://www.nano-editor.org/
-
+config USER_FPGA_HSCONV
+	bool "HS Conv driver and FPGA Tools"
+	
 endmenu
 
 
