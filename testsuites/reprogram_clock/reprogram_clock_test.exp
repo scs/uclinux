@@ -1,0 +1,59 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+
+log_file [log_file_name "$argv0"]
+
+send_user "Starting $argv0\n"
+
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated, 
+# for it is the default value.
+# set bootargs 	$bootargs_param0   
+source ../reboot_kernel.exp 
+
+step "Start testing."
+
+set timeout 5
+
+set case_num 0
+incr case_num
+
+set timeout 5
+
+send -s  "dmesg\r" 
+while 1 {
+   expect {
+     -re "Processor Speed: (.*) MHz core clock and (.*) MHz System Clock" {         
+                set core_clock $expect_out(1,string)
+                set system_clock $expect_out(2,string)
+                expect  -re "$kernel_prompt"
+                case_pass $case_num
+         break
+      }
+
+      timeout {
+                case_fail $case_num
+	exit
+         }
+     }
+}
+
+if {$core_clock < 450   && $system_clock < 100 } {
+   send_log "\n"
+   send_log "\n$TITLE ............\[PASS\]\n"
+} else {
+   send_log "\n"
+                case_fail $case_num
+}
+
+send_user "Ending $argv0\n"
+
+log_file
+
