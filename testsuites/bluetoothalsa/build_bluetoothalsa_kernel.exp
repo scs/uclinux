@@ -1,0 +1,133 @@
+#!/usr/bin/expect --
+
+#
+# Build Kernel for Bluetooth alsa audio test
+#
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+
+step "Make config."
+source  make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Bluetooth subsystem support.*BT.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "L2CAP protocol support.*BT_L2CAP.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "SCO links support.*BT_SCO.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "RFCOMM protocol support.*BT_RFCOMM.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "HCI USB driver.*BT_HCIUSB.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "SCO.*voice.*support.*BT_HCIUSB_SCO.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
+#CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
+#need to entirely disable it while using various U-Connector boards
+            send "n\r"
+        }
+
+        -re "Bank 3.*BANK_3.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "0xAAC2\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Support for Host-side USB.*USB.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "SL811HS HCD support.*USB_SL811_HCD.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            send "4\r"
+        }
+
+        -re "Bluez-utils.*USER_BLUEZ.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "bluetooth ALSA utility.*USER_BTSCO.*\\\[.*]" {
+            send "y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file
