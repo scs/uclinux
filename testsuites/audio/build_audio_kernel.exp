@@ -138,7 +138,7 @@ while 1 {
         }
 
         -re "Uncached SDRAM region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
-            if { $audio_dev == "audio_ad73322" } {
+            if { $board_type == "BF537-STAMP" } {
                 send "2\r"
             } else {
                 send "\r"
