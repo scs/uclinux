@@ -9,9 +9,9 @@ mount -t sysfs sysfs /sys -o noexec,nosuid,nodev
 #
 # Setup dynamic /dev and let mdev manage it for us
 #
-if [ -e /bin/mdev ] && [ -e /proc/sys/kernel/hotplug ] ; then
+if [ -e /bin/mdev ] ; then
 	mount -t tmpfs mdev /dev -o exec,nosuid,mode=0755,size=10M
-	echo /bin/mdev > /proc/sys/kernel/hotplug
+	[ -e /proc/sys/kernel/hotplug ] && echo /bin/mdev > /proc/sys/kernel/hotplug
 	/bin/mdev -s
 fi
 
