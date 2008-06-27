@@ -67,6 +67,10 @@ while 1 {
             send "y\r"
         }
 
+        -re "Uncached SDRAM region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
+                send "2\r"
+        }
+
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "y\r"
         }
