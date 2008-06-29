@@ -298,6 +298,11 @@ config LIB_LIBNL_NETFILTER_LOG
 	depends on LIB_LIBNL_NETFILTER
 	default n
 
+config LIB_LIBNL_NETFILTER_QUEUE
+	bool "Include libnl netfilter queue support"
+	depends on LIB_LIBNL_NETFILTER
+	default n
+
 config LIB_NFNETLINK
 	bool "Build libnfnetlink"
 	default n
@@ -333,6 +338,7 @@ config LIB_LIBCRYPT_OLD
 
 config LIB_PWLIB
 	bool 'Build pwlib'
+	select LIB_STLPORT
 	help
 	  Portable Windows libaray.
 	  Only enable this if you want to force the library to be built.  The
@@ -341,10 +347,44 @@ config LIB_PWLIB
 config LIB_LIBOPENH323
 	bool 'Build libopenh323'
 	select LIB_PWLIB
+	select LIB_STLPORT
 	help
 	  Open H.323 (VoIP) library.
 	  Only enable this if you want to force the library to be built.  The
 	  Config will make sure this library is built if it is needed.
+
+config LIB_LIBJUDY
+	bool 'Build libjudy'
+	default n
+	help
+	  Judy array library.
+	  Only enable this if you want to force the library to be built.  The
+	  Config will make sure this library is built if it is needed.
+
+ config LIB_LIBJUDY_TESTS
+ 	bool 'Build libjudy tests'
+	depends on LIB_LIBJUDY
+	default n
+	help
+	  Builds the libjudy tests.  These are installed in /bin and
+	  the required file StringCompare.c in /etc.  To manually
+	  execute the tests look at the tests/Checkit script.
+
+config LIB_CLASSPATH
+	bool 'Build classpath'
+	default n
+	help
+	  Clean room standard Java libraries
+	  Only enable this if you want to force the library to be built.
+	  The Config will make sure this library is built if it is needed.
+
+config LIB_LIBFFI
+	bool 'Build libffi'
+	default n
+	help
+	  Foreign Function Interface library
+	  Only enable this if you want to force the library to be built.
+	  The Config will make sure this library is built if it is needed.
 
 comment "Library Configuration"
 
