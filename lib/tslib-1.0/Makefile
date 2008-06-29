@@ -32,14 +32,13 @@ clean:
 	rm -rf build
 
 romfs:
-	$(ROMFSINST) $(STAGEDIR)/usr/lib/libts.so /lib/
-	$(ROMFSINST) $(STAGEDIR)/usr/lib/libts-0.0.so.0 /lib/
-	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/dejitter.so /lib/
-	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/input.so /lib/
-	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/linear.so /lib/
-	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/pthres.so /lib/
-	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/variance.so /lib/
-	$(ROMFSINST) $(STAGEDIR)/usr/bin/ts_calibrate /bin/
-	$(ROMFSINST) $(STAGEDIR)/usr/lib/ts/ts.conf /etc/
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/libts-0.0.so.0 /usr/lib/libts-0.0.so.0
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/dejitter.so /usr/lib/ts/dejitter.so
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/input.so /usr/lib/ts/input.so
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/linear.so /usr/lib/ts/linear.so
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/pthres.so /usr/lib/ts/pthres.so
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/variance.so /usr/lib/variance.so
+	$(ROMFSINST) -d $(STAGEDIR)/usr/bin/ts_calibrate /usr/bin/ts_calibrate
+	$(ROMFSINST) -d $(STAGEDIR)/usr/lib/ts/ts.conf /etc/ts.conf
 
 .PHONY: all clean romfs
