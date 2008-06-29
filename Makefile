@@ -18,7 +18,7 @@ VERSIONSTR = $(CONFIG_VENDOR)/$(CONFIG_PRODUCT) Version $(VERSIONPKG)
 ifeq (.config,$(wildcard .config))
 include .config
 
-all: ucfront cksum staging subdirs romfs image
+all: tools staging subdirs romfs image
 else
 all: config_error
 endif
@@ -87,6 +87,10 @@ export CONFIG_CONFIG LINUX_CONFIG MODULES_CONFIG ROMFSDIR SCRIPTSDIR
 export VERSIONPKG VERSIONSTR ROMFSINST PATH IMAGEDIR RELDIR RELFILES TFTPDIR
 export BUILD_START_STRING
 export HOST_NCPU
+
+.PHONY: tools
+tools: ucfront cksum
+	chmod +x tools/romfs-inst.sh tools/modules-alias.sh
 
 .PHONY: ucfront
 ucfront: tools/ucfront/*.c
@@ -288,6 +292,9 @@ romfs.subdirs:
 romfs.post:
 	$(MAKEARCH) -C vendors romfs.post
 	-find $(ROMFSDIR)/. -name CVS | xargs -r rm -rf
+	. $(LINUXDIR)/.config; if [ "$$CONFIG_INITRAMFS_SOURCE" != "" ]; then \
+		$(MAKEARCH_KERNEL) -j$(HOST_NCPU) -C $(LINUXDIR) $(LINUXTARGET) || exit 1; \
+	fi
 
 .PHONY: image
 image:
@@ -317,6 +324,10 @@ vendor_%:
 
 .PHONY: linux
 linux linux%_only:
+	. $(LINUXDIR)/.config; if [ "$$CONFIG_INITRAMFS_SOURCE" != "" ]; then \
+		mkdir -p `dirname $$CONFIG_INITRAMFS_SOURCE`; \
+		touch $$CONFIG_INITRAMFS_SOURCE || exit 1; \
+	fi
 	@if expr "$(LINUXDIR)" : 'linux-2\.[0-4].*' > /dev/null && \
 			 [ ! -f $(LINUXDIR)/.depend ] ; then \
 		echo "ERROR: you need to do a 'make dep' first" ; \
@@ -442,10 +453,10 @@ bugreport:
 	 fi
 	-$(MAKE) clean > /dev/null 2>&1
 	cp vendors/$(@:_default=)/config.device .config
-	echo CONFIG_DEFAULTS_OVERRIDE=y >> .config
 	chmod u+x config/setconfig
 	yes "" | config/setconfig defaults
 	config/setconfig final
+	#$(MAKE) dep
 	$(MAKE)
 
 config_error:
@@ -470,5 +481,40 @@ dist-prep:
 	-find $(ROOTDIR) -name 'Makefile*.bin' | while read t; do \
 		$(MAKEARCH) -C `dirname $$t` -f `basename $$t` $@; \
 	 done
+
+help:
+	@echo "Quick reference for various supported make commands."
+	@echo "----------------------------------------------------"
+	@echo ""
+	@echo "make xconfig               Configure the target etc"
+	@echo "make config                \""
+	@echo "make menuconfig            \""
+	@echo "make qconfig               \""
+	@echo "make gconfig               \""
+	@echo "make dep                   2.4 and earlier kernels need this step"
+	@echo "make                       build the entire tree and final images"
+	@echo "make clean                 clean out compiled files, but not config"
+	@echo "make distclean             clean out all non-distributed files"
+	@echo "make oldconfig             re-run the config without interaction"
+	@echo "make linux                 compile the selected kernel only"
+	@echo "make romfs                 install all files to romfs directory"
+	@echo "make image                 combine romfs and kernel into final image"
+	@echo "make modules               build all modules"
+	@echo "make modules_install       install modules into romfs"
+	@echo "make DIR_only              build just the directory DIR"
+	@echo "make DIR_romfs             install files from directory DIR to romfs"
+	@echo "make DIR_clean             clean just the directory DIR"
+	@echo "make single                non-parallelised build"
+	@echo "make single[make-target]   non-parallelised build of \"make-target\""
+	@echo "make V/P_default           full default build for V=Vendor/P=Product"
+	@echo "make prune                 clean out uncompiled source (be careful)"
+	@echo ""
+	@echo "Typically you want to start with this sequence before experimenting."
+	@echo ""
+	@echo "make config                select platform, kernel, etc, customise nothing."
+	@echo "make dep                   optional but safe even on newer kernels."
+	@echo "make                       build it as the creators intended."
+	@exit 0
+	
 
 ############################################################################
