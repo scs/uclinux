@@ -75,11 +75,12 @@ proc alsa_rec2play {NO in_dev in_subdev out_dev out_subdev} {
     while 1 {
         expect {
             -re "Playing WAVE 'stdin' : Unsigned 8 bit, Rate 8000 Hz, Mono" {
-                send_log "telnet NO. $NO pass\n"
+                send_log "\ntelnet NO. $NO pass\n"
                 case_pass $case_num
                 break
             }
             timeout {
+                send_log "\ntelnet NO. $NO fail\n"
                 case_fail $case_num
             }
         }
@@ -124,6 +125,7 @@ while 1 {
             case_fail $case_num
         }
         -re "TONE: generating sine wave at 1000 Hz\.\.\.\r\n" {
+            sleep 5
             case_pass $case_num
             break
         }
@@ -148,9 +150,13 @@ while 1 {
     }
 }
 
+spawn rcp AD73322.asound.conf root@$targetip:/etc/asound.conf
+set spawn_id $kermit_spawn_id 
+sleep 3
+
 incr case_num
 set timeout 5
-send "cp /usr/share/alsa/cards/AD73322.asound.conf /etc/asound.conf; ls /etc/asound.conf\n"
+send "ls /etc/asound.conf\n"
 while 1 {
     expect {
         -re "No such file or directory" {
@@ -166,36 +172,32 @@ while 1 {
     }
 }
 
-set Total_Dev 2
 set Total_Subdev 8
-while 1 {
-    for {set In_Dev 0} {$In_Dev < $Total_Dev} {incr In_Dev} {
-        for {set Out_Dev 0} {$Out_Dev < $Total_Dev} {incr Out_Dev} {
-            for {set In_Subdev 0} {$In_Subdev < $Total_Subdev} {incr In_Subdev 4} {
-                for {set Out_Subdev 1} {$Out_Subdev < $Total_Subdev} {incr Out_Subdev 4} {
-                    alsa_rec2play_timed $In_Dev $In_Subdev $Out_Dev $Out_Subdev
-                }
-            }
+#while 0 {
+    for {set In_Subdev 0} {$In_Subdev < $Total_Subdev} {incr In_Subdev 4} {
+        for {set Out_Subdev 1} {$Out_Subdev < $Total_Subdev} {incr Out_Subdev 4} {
+            alsa_rec2play_timed 0 $In_Subdev 0 $Out_Subdev
         }
     }
+#}
+
+#while 0 {
+    for {set In_Subdev 0} {$In_Subdev < $Total_Subdev} {incr In_Subdev 4} {
+        for {set Out_Subdev 1} {$Out_Subdev < $Total_Subdev} {incr Out_Subdev 4} {
+            alsa_rec2play_timed 1 $In_Subdev 1 $Out_Subdev
+        }
+    }
+#}
+
+for {set times 0} {$times < $Total_Subdev} {incr times} {
+    alsa_rec2play $times 0 $times 0 $times
 }
 
-alsa_rec2play 1 0 2 0 3
-alsa_rec2play 2 0 3 0 6
-alsa_rec2play 3 0 5 1 2
-alsa_rec2play 4 0 7 1 7
-alsa_rec2play 5 1 0 1 0
-alsa_rec2play 6 1 2 1 5
-alsa_rec2play 7 1 4 0 2
-alsa_rec2play 8 1 6 0 5
-#alsa_rec2play 1 0 0 0 0
-#alsa_rec2play 2 0 1 0 1
-#alsa_rec2play 3 0 4 1 1
-#alsa_rec2play 4 0 6 1 4
-#alsa_rec2play 5 1 1 1 3
-#alsa_rec2play 6 1 3 1 6
-#alsa_rec2play 7 1 5 0 4
-#alsa_rec2play 8 1 7 0 7
+while 0 {
+    for {set times 0} {$times < $Total_Subdev} {incr times} {
+        alsa_rec2play $times 1 $times 1 $times
+    }
+}
 
 incr case_num
 if { $count_under_run == 0 } {
