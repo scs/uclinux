@@ -21,31 +21,15 @@ src.fdpic  - fdpic asm files, generated auto magically by Perl script from
  
 Building the Libraries and Test Programs
 ----------------------------------------
+Configure uclinux-dist to built libbfgdots.
 
-1. Install Blackfin uClinux toolchain and add the path to PATH.  To
-   build the .so version the toolchain needs to have the following
-   patch (or CVS update to binutils) applied:
-
-   http://blackfin.uclinux.org/tracker/?func=detail&aid=1752&group_id=18&atid=145
- 
-   This patch hides symbols in asm files (such as LOOP labels) by
-   default.  Without this patch there will be many symbols that will
-   fail to link correctly when programs using the .so (such as
-   g789ab_testfdpic_so) are linked.  However the flat mode and
-   statically linked fdpic programs will still link OK without this
-   patch.
-
-2. [host]$ cd test
-   [host]$ make
-
-   This will create libraries in the src directories, and several test
-   programs in the test directory:
-
+   Libraries created:
    src.orig/libg729.a   : flat mode lib
    src.simgot/libg729.a : simulated GOT flat mode lib (used for development)
    src.fdpic/libg729.a  : fdpic static lib
    src.fdpic/libg729.so : fdpic shared lib
   
+   Test programs are created in test/: 
    g729ab               : flat mode test program
    g729asimgot          : simulated GOT flat mode test program
    g729ab_fdpic         : fdpic test program, statically linked G729
