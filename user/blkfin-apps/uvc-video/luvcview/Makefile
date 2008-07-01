@@ -2,15 +2,12 @@
 # spcaview Makefile
 ##############################
 
-INSTALLROOT=$(PWD)
-
-CC=gcc
-CPP=g++
-INSTALL=install
 APP_BINARY=luvcview
-BIN=/usr/local/bin
-SDLLIBS = $(shell sdl-config --libs) 
-SDLFLAGS = $(shell sdl-config --cflags)
+
+SDL_CONFIG=$(STAGEDIR)/usr/bin/sdl-config
+SDLLIBS = $(shell $(SDL_CONFIG) --libs)
+SDLFLAGS = $(shell $(SDL_CONFIG) --cflags)
+
 #LIBX11FLAGS= -I/usr/X11R6/include -L/usr/X11R6/lib
 VERSION = 0.2.4
 
@@ -22,11 +19,10 @@ VERSION = 0.2.4
 #           -Wno-unused
 #           -Wunused
 
-CFLAGS += -DUSE_SDL -O2 -DLINUX -DVERSION=\"$(VERSION)\" -I$(SDLFLAGS) $(WARNINGS)
+CFLAGS += -DUSE_SDL -O2 -DLINUX -DVERSION=\"$(VERSION)\" -I$(SDLFLAGS) -I../linux-uvc $(WARNINGS)
 CPPFLAGS = $(CFLAGS)
 
 OBJECTS= luvcview.o color.o utils.o v4l2uvc.o gui.o avilib.o
-		
 
 all:	luvcview
 
@@ -43,6 +39,5 @@ luvcview:	$(OBJECTS)
 	chmod 755 $(APP_BINARY)
 
 
-install: luvcview
-	$(INSTALL) -s -m 755 -g root -o root $(APP_BINARY) $(BIN) 
-	rm -f $(BIN)/uvcview
+romfs:
+	$(ROMFSINST) -d $(APP_BINARY) /usr/bin/$(APP_BINARY)

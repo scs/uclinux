@@ -41,7 +41,6 @@
 #include <time.h>
 #include <sys/time.h>
 #include <signal.h>
-#include <X11/Xlib.h>
 #include <SDL/SDL_syswm.h>
 #include "v4l2uvc.h"
 #include "gui.h"

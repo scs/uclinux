@@ -469,9 +469,15 @@ static int init_v4l2(struct vdIn *vd)
 		if (debug)
 			printf("length: %u offset: %u\n", vd->buf.length,
 					vd->buf.m.offset);
+#ifdef __bfin__
+		vd->mem[i] = mmap(0 /* start anywhere */ ,
+				vd->buf.length, PROT_READ, MAP_PRIVATE, vd->fd,
+				vd->buf.m.offset);
+#else
 		vd->mem[i] = mmap(0 /* start anywhere */ ,
 				vd->buf.length, PROT_READ, MAP_SHARED, vd->fd,
 				vd->buf.m.offset);
+#endif				
 		if (vd->mem[i] == MAP_FAILED) {
 			perror("Unable to map buffer");
 			goto fatal;
