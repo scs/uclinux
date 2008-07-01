@@ -223,7 +223,10 @@ config USER_NANO
 	  http://www.nano-editor.org/
 config USER_FPGA_HSCONV
 	bool "HS Conv driver and FPGA Tools"
-	
+config USER_UVC_VIDEO
+	bool "USB Video Class Driver and Test Application"
+	select LIB_LIBSDL
+	select LIB_TSLIB	
 endmenu
 
 
