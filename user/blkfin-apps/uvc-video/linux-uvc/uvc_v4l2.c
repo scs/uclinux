@@ -1030,6 +1030,51 @@ static struct vm_operations_struct uvc_vm_ops = {
 	.close		= uvc_vm_close,
 };
 
+#ifdef __bfin__
+static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct uvc_video_device *video = video_get_drvdata(vdev);
+	struct uvc_buffer *buffer;
+	struct page *page;
+	unsigned long addr, start, size;
+	unsigned int i;
+	int ret = 0;
+
+	uvc_trace(UVC_TRACE_CALLS, "uvc_v4l2_mmap\n");
+
+	start = vma->vm_start;
+	size = vma->vm_end - vma->vm_start;
+
+	mutex_lock(&video->queue.mutex);
+
+	for (i = 0; i < video->queue.count; ++i) {
+		buffer = &video->queue.buffer[i];
+		if ((buffer->buf.m.offset >> PAGE_SHIFT) == vma->vm_pgoff)
+			break;
+	}
+
+	if (i == video->queue.count) {
+		ret = -EINVAL;
+		goto done;
+	}
+
+	vma->vm_flags |= VM_IO | VM_MAYSHARE | VM_SHARED;
+
+	addr = (unsigned long)video->queue.mem + buffer->buf.m.offset;
+
+	vma->vm_start = addr;
+	vma->vm_end = addr +  video->queue.buf_size;
+
+	vma->vm_ops = &uvc_vm_ops;
+	vma->vm_private_data = buffer;
+	uvc_vm_open(vma);
+
+done:
+	mutex_unlock(&video->queue.mutex);
+	return ret;
+}
+#else
 static int uvc_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -1083,6 +1128,7 @@ done:
 	mutex_unlock(&video->queue.mutex);
 	return ret;
 }
+#endif
 
 static unsigned int uvc_v4l2_poll(struct file *file, poll_table *wait)
 {

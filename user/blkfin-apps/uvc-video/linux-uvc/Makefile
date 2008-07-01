@@ -1,8 +1,14 @@
-KERNEL_VERSION	:= `uname -r`
-KERNEL_DIR	:= /lib/modules/$(KERNEL_VERSION)/build
-INSTALL_MOD_DIR	:= usb/media
+ifeq ($(origin CC),default)
+CC := bfin-uclinux-gcc
+endif
+MAKEARCH_KERNEL ?= $(MAKE) ARCH=blackfin CROSS_COMPILE=bfin-uclinux-
+ROOTDIR  ?= $(PWD)/../../../../
+LINUXDIR ?= linux-2.6.x
 
-PWD		:= $(shell pwd)
+obj-m := hs_conv.o
+
+EXTRA_CFLAGS += -Wall -g -O2
+
 
 obj-m		:= uvcvideo.o
 uvcvideo-objs   := uvc_driver.o uvc_queue.o uvc_v4l2.o uvc_video.o uvc_ctrl.o uvc_status.o uvc_isight.o
@@ -12,11 +18,11 @@ all: uvcvideo
 uvcvideo:
 	@echo "Building USB Video Class driver..."
 	@sh svn-version.sh > version.h 2>/dev/null
-	@(make -C $(KERNEL_DIR) M=$(PWD) CROSS_COMPILE=$(CROSS_COMPILE) modules)
+	CFLAGS="" CPPFLAGS="" LDFLAGS="" \
+	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD modules
 
-install:
-	@echo "Installing USB Video Class driver..."
-	@(make -C $(KERNEL_DIR) M=$(PWD) INSTALL_MOD_DIR=$(INSTALL_MOD_DIR) INSTALL_MOD_PATH=$(INSTALL_MOD_PATH) modules_install)
+romfs:
+	$(ROMFSINST) -d -M uvcvideo.ko blkfindrvs/uvcvideo.ko
 
 clean:
 	-rm -f *.o *.ko .*.cmd .*.flags *.mod.c Module.symvers version.h modules.order

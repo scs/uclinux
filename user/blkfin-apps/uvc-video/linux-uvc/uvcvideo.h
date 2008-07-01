@@ -70,6 +70,27 @@ struct uvc_xu_control {
 
 #include <linux/poll.h>
 
+#ifdef __bfin__
+#include <asm/byteorder.h>
+#include <asm/unaligned.h>
+
+#ifdef le16_to_cpup	/* Workaround some unaligned exceptions */
+#undef le16_to_cpup
+static inline u16 le16_to_cpup(void *ptr)
+{
+	return le16_to_cpu(get_unaligned((__le16 *) ptr));
+}
+#endif
+
+#ifdef le32_to_cpup
+#undef le32_to_cpup
+static inline u32 le32_to_cpup(void *ptr)
+{
+	return le32_to_cpu(get_unaligned((__le32 *) ptr));
+}
+#endif
+#endif /* __bfin__ */
+
 /* --------------------------------------------------------------------------
  * UVC constants
  */
