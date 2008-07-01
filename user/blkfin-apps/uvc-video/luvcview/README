@@ -1,0 +1,128 @@
+luvcview: SDL-based video grabber
+=================================
+
+Copyright and license
+---------------------
+
+Copyright (C) 2005-2008 Michel Xhaard
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+
+Credits
+-------
+
+Original code from spcaview: Copyright (C) 2003-2006 Michel Xhaard
+AVI writing code from Avilib: Copyright (C) 1999 Rainer Johanni
+SDL (Simple DirectMedia Layer)
+
+Contributions by:
+	Laurent Pinchart, Linux UVC driver (http://linux-uvc.berlios.de/)
+	Martin Rubli, Logitech (http://www.quickcamteam.net/)
+	... and many others whose names are in the ChangeLog.
+
+
+Download and support
+--------------------
+
+Currently luvcview does not have an official website but the preferred way of
+posting questions and feedback is through the QuickCam Team forums:
+	http://forums.quickcamteam.net/forumdisplay.php?fid=6
+
+The latest version can be found in the Subversion repository at:
+	http://svn.quickcamteam.net/svn/luvcview/
+
+The current maintainer of luvcview is Michel Xhaard <mxhaard@free.fr>.
+
+
+Disclaimer
+----------
+
+Use this program as you see fit. We are not liable for damages or illegal use
+of it whatsoever. You are on your own. Use of this code is at your own risk.
+There is absolutely no warranty. Have fun with it!
+
+
+Building
+--------
+
+Required libraries:
+- SDL (from http://www.libsdl.org/ or e.g. the libsdl1.2 Debian package)
+
+Required header files:
+- SDL (from http://www.libsdl.org/ or e.g. the libsdl1.2-dev Debian package)
+- uvcvideo (Linux UVC driver)
+- uvcdynctrl (part of libwebcam)
+
+The JPEG encoder and decoder are now part of the package to allow for a small
+footprint on embedded devices. libsdl provides the necessary layers to run on
+the Linux framebuffer or an X server.
+
+Important notes on the uvcvideo and uvcdynctrl dependencies:
+
+	Compiling the luvcview sources requires three source files to be present.
+	If you already have these projects on your system, you can link them, e.g.
+	using the following commands:
+
+	ln -s ~/uvcvideo/trunk/uvcvideo.h
+	ln -s ~/uvcvideo/trunk/uvc_compat.h
+	ln -s ~/libwebcam/Common/include/dynctrl-logitech.h
+
+	Alternatively, the latest versions can be downloaded directly from the
+	corresponding source code repositories:
+
+	wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvcvideo.h
+	wget http://svn.berlios.de/svnroot/repos/linux-uvc/linux-uvc/trunk/uvc_compat.h
+	wget http://svn.quickcamteam.net/svn/qct/Linux/Common/include/dynctrl-logitech.h
+
+Once you have the SDL headers installed and the three above header files in the
+luvcview source directory you can continue as normal.
+
+To compile luvcview simply type:
+
+make
+
+To install it in /usr/local/bin type (as root):
+
+make install
+
+
+Usage
+-----
+
+Run luvcview with the -h or --help command line options to get a list of
+supported command line options.
+
+In the GUI the following keys are supported:
+	{SDLK_n, A_BRIGHTNESS_UP},
+	{SDLK_b, A_BRIGHTNESS_DOWN},
+	{SDLK_x, A_CONTRAST_UP},
+	{SDLK_w, A_CONTRAST_DOWN},
+	{SDLK_c, A_SATURATION_UP},
+	{SDLK_v, A_SATURATION_DOWN},
+	{SDLK_z, A_GAIN_UP},
+	{SDLK_a, A_GAIN_DOWN},
+	{SDLK_r, A_SHARPNESS_UP},
+	{SDLK_e, A_SHARPNESS_DOWN},
+	{SDLK_y, A_CUSTOM_A},
+	{SDLK_t, A_CUSTOM_B},
+	{SDLK_f, A_SWITCH_LIGHTFREQFILT},
+	{SDLK_s, A_SCREENSHOT},
+	{SDLK_p, A_RECORD_TOGGLE},
+	{SDLK_l, A_RESET},
+	{SDLK_q, A_QUIT},
+	{SDLK_F1, A_SAVE}, // save configuration
+	{SDLK_F2, A_LOAD}, // restore configuration
+
