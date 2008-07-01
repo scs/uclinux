@@ -19,7 +19,7 @@ VERSION = 0.2.4
 #           -Wno-unused
 #           -Wunused
 
-CFLAGS += -DUSE_SDL -O2 -DLINUX -DVERSION=\"$(VERSION)\" -I$(SDLFLAGS) -I../linux-uvc $(WARNINGS)
+CFLAGS += -DUSE_SDL -O2 -DLINUX -DVERSION=\"$(VERSION)\" -I$(SDLFLAGS) -I../linux-uvc-svn-220 $(WARNINGS)
 CPPFLAGS = $(CFLAGS)
 
 OBJECTS= luvcview.o color.o utils.o v4l2uvc.o gui.o avilib.o
