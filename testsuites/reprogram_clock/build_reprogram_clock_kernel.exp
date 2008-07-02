@@ -21,7 +21,7 @@ spawn make config
 #puts "Begin the interactive process of configuration"
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -31,6 +31,16 @@ while 1 {
 
         -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
             send "y\r"
+        }
+
+        -re "SDRAM Memory Size in MBytes.*MEM_SIZE.*\\\[.*]" {
+            if { $board_type == "BF533-STAMP" } {
+                send "128\r"
+            } elseif { $board_type == "BF533-EZKIT" } {
+                send "32\r"
+            } else {
+                send "64\r"
+            }
         }
 
         -re "Re-program Clocks while Kernel boots.*BFIN_KERNEL_CLOCK.*\\\[.*]" {
