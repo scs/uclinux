@@ -10,9 +10,9 @@
 #include <string.h>
 
 #define TEMP_FILE_LOCATION "/tmp/"
-#define U_BOOT_PARTITION "/dev/mtd1"
-#define LINUX_PARTITION "/dev/mtd2"
-#define CALIBRATION_PARTITION "/dev/mtd3"
+#define U_BOOT_PARTITION "/uboot"
+#define LINUX_PARTITION "/linux"
+#define CALIBRATION_PARTITION "/calib"
 
 #define XSTR(x) #x
 #define STR(x) XSTR(x)

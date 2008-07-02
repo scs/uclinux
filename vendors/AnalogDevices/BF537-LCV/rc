@@ -14,13 +14,19 @@ if [ -e /bin/mdev ] ; then
 fi
 mkdir /var/tmp /var/log /var/run /var/lock
 
+# Create verbose soft links for /dev/mtd* 
+ln -sfn /dev/mtd1 /uboot
+ln -sfn /dev/mtd2 /env_uboot
+ln -sfn /dev/mtd3 /env_uboot_r
+ln -sfn /dev/mtd4 /env_board
+ln -sfn /dev/mtd5 /env_user
+ln -sfn /dev/mtd6 /linux
+ln -sfn /dev/mtd7 /calib
+
 # Mount the application flash to /app
 echo "Mounting Application Flash..."
 mkdir /app
-mount -t jffs2 /dev/mtdblock4 /app
-
-# Link the sensor calibration flash partition to /calib
-ln -sfn /dev/mtd3 /calib
+mount -t jffs2 /dev/mtdblock8 /app
 
 echo "Loading Memory DMA kernel module..."
 insmod /lib/modules/`uname -r`/bfdma.ko
