@@ -26,6 +26,10 @@ config LIB_CRYPTOPP
 
 config LIB_DIRECTFB
 	bool "Build DirectFB"
+	depends on FMT_USE_FDPIC_ELF
+if !FMT_USE_FDPIC_ELF
+comment "DirectFB requires FDPIC ELF"
+endif
 
 config LIB_DMALLOC
 	bool "Build dmalloc"
