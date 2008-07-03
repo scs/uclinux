@@ -18,9 +18,12 @@ error() {
 }
 
 #
-# Sanity check: things won't work without the staging directory.
+# Sanity checks
 #
+# things won't work without the staging directory.
 [ -z "${STAGEDIR}" ] && error "STAGEDIR is not set!"
+# abort infinite loop due to misconfiguration
+[ "${0##*/}" = "pkg-config" ] && error "aborting infinite loop! (make sure to delete uClinux-dist/tools/pkg-config)"
 
 #
 # Some distributions pollute the pkg-config environment.
