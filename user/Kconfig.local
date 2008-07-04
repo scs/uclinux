@@ -120,6 +120,7 @@ config USER_BF561_COREBLD
 	bool "BF561 Core B support tools"
 config USER_POUND
 	bool "pound SSL Wrapper"
+	select LIB_LIBSSL
 config USER_PNGVIEW
 	bool "pngview"
 	select LIB_LIBPNG
