@@ -10,11 +10,11 @@ SSL_OPTS = \
 	DIRS="crypto ssl engines" \
 	CC=$(CONFIGURE_HOST)-gcc
 
-all: $(VER)/Makefile.bak
+all: $(VER)/.configure
 	$(MAKE) -C $(VER) $(SSL_OPTS)
 	$(MAKE) -C $(VER) $(SSL_OPTS) install_sw INSTALL_PREFIX=$(STAGEDIR)
 
-$(VER)/Makefile.bak:
+$(VER)/.configure:
 	set -e ; \
 	cd $(VER) ; \
 	./Configure \
@@ -22,9 +22,10 @@ $(VER)/Makefile.bak:
 		--prefix=/usr \
 		--openssldir=/etc/ssl \
 		$(SSL_SHARED) threads
+	touch $(VER)/.configure
 
 clean:
-	rm -f $(VER)/Makefile.bak
+	rm -f $(VER)/.configure
 	$(MAKE) -C $(VER) clean
 
 romfs:
