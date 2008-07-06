@@ -61,6 +61,7 @@
 #define PPI_INTNAME       "IRQ PPI hs_conv"	/* Should be less than 19 chars. */
 
 #define WRDACRAM GPIO_PG9
+#define STARTAQ	 GPIO_26
 
 #define ppi_debug pr_debug
 
@@ -149,17 +150,21 @@ static irqreturn_t hs_conv_irq(int irq, void *dev_id, struct pt_regs *regs)
 {
 	ppi_device_t *pdev = (ppi_device_t *) dev_id;
 
-
-	udelay(10);
 	ppi_debug("hs_conv_irq:\n");
 	ppi_debug(":hs_conv_irq: X_COUNT = %d PPI Status = 0x%X\n",bfin_read_DMA0_CURR_X_COUNT(), bfin_read_PPI_STATUS());
-	/* Acknowledge DMA Interrupt */
-	clear_dma_irqstat(CH_PPI);
+
+
+	/* Wait until all bytes left the PPI FIFO */
+	if (bfin_read_PPI_CONTROL() & PORT_DIR)
+		while(!(bfin_read_PPI_STATUS() & UNDR));
+
+	disable_dma(CH_PPI);
 
 	/* disable ppi */
-
 	bfin_write_PPI_CONTROL(pdev->ppi_control & ~PORT_EN);
-
+	/* Acknowledge DMA Interrupt */
+	clear_dma_irqstat(CH_PPI);
+	bfin_clear_PPI_STATUS();
 	pdev->done = 1;
 
 	/* Give a signal to user program. */
@@ -182,8 +187,6 @@ static irqreturn_t hs_conv_irq(int irq, void *dev_id, struct pt_regs *regs)
 static irqreturn_t hs_conv_irq_error(int irq, void *dev_id, struct pt_regs *regs)
 {
 	ppi_device_t *pdev = (ppi_device_t *) dev_id;
-
-	udelay(10);
 
 	ppi_debug(":hs_conv_irq_error: X_COUNT = %d PPI Status = 0x%X\n",bfin_read_DMA0_CURR_X_COUNT(), bfin_read_PPI_STATUS());
 
@@ -364,9 +367,6 @@ static ssize_t hs_conv_ppi_read(struct file *filp, char *buf, size_t count,
 	}
 
 	ppi_debug("PPI wait_event_interruptible done\n");
-
-	disable_dma(CH_PPI);
-
 	ppi_debug("hs_conv_ppi_read: return\n");
 
 	return count;
@@ -381,6 +381,9 @@ static ssize_t hs_conv_ppi_write (struct file *filp, const char *buf, size_t cou
 
 	if (count <= 0)
 		return 0;
+
+
+	gpio_set_value(STARTAQ, 0);
 
 	pdev->done = 0;
 
@@ -426,6 +429,8 @@ static ssize_t hs_conv_ppi_write (struct file *filp, const char *buf, size_t cou
 			ierr =
 			    wait_event_interruptible(*(pdev->rx_avail),
 						     pdev->done);
+			gpio_set_value(pdev->ppi_trigger_gpio, 0);
+
 			if (ierr) {
 				/* waiting is broken by a signal */
 				ppi_debug("PPI wait_event_interruptible ierr\n");
@@ -436,9 +441,8 @@ static ssize_t hs_conv_ppi_write (struct file *filp, const char *buf, size_t cou
 
 	ppi_debug("PPI wait_event_interruptible done\n");
 
-	disable_dma(CH_PPI);
-	gpio_set_value(pdev->ppi_trigger_gpio, 0);
 	ppi_debug("hs_conv_ppi_write: return\n");
+	gpio_set_value(STARTAQ, 1);
 
 	return count;
 }
@@ -612,12 +616,23 @@ int __init hs_conv_init(void)
 
 	gpio_direction_output(WRDACRAM, 0);
 
+	if (gpio_request(STARTAQ, PPI_DEVNAME)) {
+		printk(KERN_ERR"Requesting GPIO %d faild\n",
+				STARTAQ);
+		peripheral_free_list(hs_conv_ppi_req);
+		gpio_free(WRDACRAM);
+		return -EFAULT;
+	}
+
+	gpio_direction_output(STARTAQ, 0);
+
 	/* Request DMA channel, and pass the interrupt handler */
 
 	if (request_dma(CH_PPI, "BF533_PPI_DMA") < 0) {
 		panic("Unable to attach BlackFin PPI DMA channel\n");
 		peripheral_free_list(hs_conv_ppi_req);
 		gpio_free(WRDACRAM);
+		gpio_free(STARTAQ);
 		return -EFAULT;
 
 	} else
@@ -633,6 +648,10 @@ int __init hs_conv_init(void)
 
 	if (result < 0) {
 		printk(KERN_WARNING "PPI: can't get minor %d\n", PPI0_MINOR);
+		peripheral_free_list(hs_conv_ppi_req);
+		free_dma(CH_PPI);
+		gpio_free(WRDACRAM);
+		gpio_free(STARTAQ);
 		return result;
 	}
 	printk(KERN_INFO "High Speed Converter Driver IRQ:%d\n",
@@ -662,7 +681,7 @@ int __init hs_conv_init(void)
 void __exit hs_conv_uninit(void)
 {
 	gpio_free(ppiinfo.ppi_trigger_gpio);
-
+	gpio_free(STARTAQ);
 	free_dma(CH_PPI);
 
 #ifdef USE_PPI_ERROR_IRQ
