@@ -43,10 +43,6 @@
 #define SAMPLES  4096
 #define BUFFERSIZE (SAMPLES * 2)
 
-#define AVERAGE 10
-
-#define STARTAQ	 "/dev/gpio26"
-
 void usage(FILE * fp, int rc)
 {
 	fprintf(fp,
@@ -84,7 +80,7 @@ int make_outfile(char *fname, unsigned short *samples, int cnt)
 int main(int argc, char *argv[])
 {
 
-	int fd, i, c, fd_startaq = 0;
+	int fd, i, c;
 	unsigned short *buffer;
 	int r = 0, f = 0, cnt = 1, d = 0;
 	char dacfile[50];
@@ -128,24 +124,13 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	/* Drive STARTAQ Low */
-	if (f || d) {
-		fd_startaq = open(STARTAQ, O_RDWR);
-		if (fd_startaq < 0) {
-			perror("open");
-			return 1;
-		}
-		write(fd_startaq, "O0", 2);
-	}
-
 	buffer = malloc(BUFFERSIZE);
 
 	if(buffer == NULL) {
 		perror("malloc");
 		close(fd);
-		close(fd_startaq);
-	}		
-		
+	}
+
 	if (f || d) {
 		if (d) {
 			/* Read DAC sequence from file */
@@ -153,28 +138,23 @@ int main(int argc, char *argv[])
 		} else {
 			/* Generate Sinewave with frequency f */
 			for(i = 0; i < SAMPLES; i++)
-				buffer[i] = (unsigned short) (2048 + (2048 * sin(f * 2 * PI * i / SAMPLES)));
+				buffer[i] = (unsigned short) (2048 + (2047 * sin(f * 2 * PI * i / SAMPLES)));
 		}
-	
+
 		/* Write DAC sequence into FPGA */
 		write(fd, buffer, BUFFERSIZE);
-	
-		/* Drive STARTAQ High */
-		write(fd_startaq, "O1", 2);
 	}
 
 	if (r) {
 		/* Read count c times ADC buffer from FPGA and save to files */
 		while (cnt--) {
 				read(fd, buffer, BUFFERSIZE);
-			
 				sprintf(adcfile, "out_%d.csv", cnt);
 				make_outfile(adcfile, buffer, SAMPLES);
 		}
 	}
 
 	close(fd);
-	close(fd_startaq);
 	free(buffer);
 	exit(0);
 }
