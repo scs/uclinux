@@ -11,6 +11,12 @@ send_user "Starting $argv0\n"
 
 cd $uclinux_path/testsuites
 
+step "Make clean."
+
+source  make_clean.exp
+
+cd $uclinux_path/testsuites
+
 step "Make config."
 source  make_default_config.exp
 
@@ -34,6 +40,11 @@ while 1 {
             send "y\r"
         }
 
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            send "n\r"
+        }
+
+#Bellow is the config for Bluetooth driver
         -re "Bluetooth subsystem support.*BT.*\\\[.*]" {
             send "y\r"
         }
@@ -58,9 +69,10 @@ while 1 {
             send "y\r"
         }
 
+#Bellow is the config for USB host driver
         -re "CFI Flash device in physical memory map.*MTD_PHYSMAP.*\\\[.*]" {
-#CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
-#need to entirely disable it while using various U-Connector boards
+            #CONFIG_MTD_PHYSMAP claims the entire Async. Memory Space
+            #need to entirely disable it while using various U-Connector boards
             send "n\r"
         }
 
@@ -84,6 +96,25 @@ while 1 {
             }
         }
 
+        -re "Inventra Highspeed Dual Role Controller.*USB_MUSB_HDRC.*\\\[./././.]" {
+            if { $board_type == "BF527-EZKIT" || $board_type == "BF548-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "Disable DMA \\\(always use PIO\\\).*MUSB_PIO_ONLY.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "n\r"
+            } elseif { $board_type == "BF527-EZKIT" } {
+                send "y\r"
+            } else {
+                send "\r"
+            }
+        }
+
+#Bellow is app&lib config
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             send "4\r"
         }
@@ -92,7 +123,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "bluetooth ALSA utility.*USER_BTSCO.*\\\[.*]" {
+        -re "Bluetooth ALSA utility.*USER_BTSCO.*\\\[.*]" {
             send "y\r"
         }
 
