@@ -100,6 +100,14 @@ while 1 {
         }
 
 #Audio Output
+        -re "Uncached SDRAM region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
+            if { $board_type == "BF537-STAMP" } {
+                send "2\r"
+            } else {
+                send "\r"
+            }
+        }
+
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "y\r"
         }
