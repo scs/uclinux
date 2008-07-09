@@ -33,7 +33,7 @@ sleep 3
       
       } else {
       
-      send "BLOCKS = 8096\r"
+      send "BLOCKS   = 8192\r"
       }
       sleep .5
       send ".\r"
@@ -63,184 +63,174 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-   
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             
-             send "y\r"
-      }
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             
-             send "y\r"
-      }
-      
-           -re "CPU.* (\[0-9]+). $cpu.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-        }   
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
 
-	   -re "Silicon Rev.* (\[0-9]+). $revision.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-	}
-      
-           -re "Choose SLAB allocator.*SLAB.*SLUB.*SLOB.*choice.*\\\[.*]" {
-	    if { $allocator == "slab\(p2\)" } {
-                       send "1\r"		       
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "CPU.* (\[0-9]+). $cpu.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Silicon Rev.* (\[0-9]+). $revision.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Choose SLAB allocator.*SLAB.*SLUB.*SLOB.*choice.*\\\[.*]" {
+            if { $allocator == "slab\(p2\)" } {
+                send "1\r"		       
             } elseif { $allocator == "slab\(np2\)" } {
-                       send "1\r"
+                send "1\r"
             } elseif { $allocator == "slob\(p2\)" } {
-                       send "3\r"
+                send "3\r"
             } elseif { $allocator == "slob\(np2\)" } {
-                       send "3\r"
+                send "3\r"
             } elseif { $allocator == "slub\(p2\)" } {
-                       send "2\r"
+                send "2\r"
             } elseif { $allocator == "slub\(np2\)" } {
-                       send "2\r"
+                send "2\r"
             }
-       }
-      
-           -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
- 	    if { $allocator == "slab\(p2\)" } {
-                       send "N\r"
+        }
+
+        -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
+            if { $allocator == "slab\(p2\)" } {
+                send "N\r"
             } elseif { $allocator == "slab\(np2\)" } {
-                       send "Y\r"
+                send "Y\r"
             } elseif { $allocator == "slob\(p2\)" } {
-                       send "N\r"
+                send "N\r"
             } elseif { $allocator == "slob\(np2\)" } {
-                       send "Y\r"
+                send "Y\r"
             }
-      }
-            
-          -re "Kernel support for FDPIC ELF binaries.*BINFMT_ELF_FDPIC.*\\\[.*]" {
-		if { $binary_format == "elf" } {
-			send  "Y\r"
-		} elseif { $binary_format == "flat" } {
-			send  "\r"
-		} elseif { $binary_format == "shared-flat" } {
-                       send  "\r"
-            }	
-      }
-      
-          -re "Kernel support for flat binaries.*BINFMT_FLAT.*\\\[.*]" {
-		if { $binary_format == "elf" } {
-			send "\r"
-		} elseif { $binary_format == "flat" } {
-			send "Y\r"
-		} elseif { $binary_format == "shared-flat" } {
-                       send  "\r"
-            }	
-      }
-      
-          -re "Enable shared FLAT support.*BINFMT_SHARED_FLAT.*\\\[.*]" {
-		if { $binary_format == "elf" } {
-			send "\r"
-		} elseif { $binary_format == "flat" } {
-			send  "\r"
-		} elseif { $binary_format == "shared-flat" } {
-                       send  "Y\r"
-            }	
-      }
+        }
 
-          -re "Binary format.*FLAT.*Sep-Data.*Shared-FLAT.*FDPIC.*\\\[.*]" {
-            if { $binary_format == "flat" } {
-                       send  "1\r"
-            } elseif { $binary_format == "elf" } {
-                       send  "4\r"
+        -re "Kernel support for FDPIC ELF binaries.*BINFMT_ELF_FDPIC.*\\\[.*]" {
+            if { $binary_format == "elf" } {
+                send  "Y\r"
+            } elseif { $binary_format == "flat" } {
+                send  "\r"
             } elseif { $binary_format == "shared-flat" } {
-                       send  "3\r"
+                send  "\r"
             }
-      }
-      
-           -re "Install ELF shared libraries.*INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
-      
-                       send  "\r"
-      }
+        }
 
-           -re "Install FLAT shared libraries.*INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
+        -re "Kernel support for flat binaries.*BINFMT_FLAT.*\\\[.*]" {
+            if { $binary_format == "elf" } {
+                send "\r"
+            } elseif { $binary_format == "flat" } {
+                send "Y\r"
+            } elseif { $binary_format == "shared-flat" } {
+                send  "\r"
+            }
+        }
 
-                       send  "\r"
-      }
+        -re "Enable shared FLAT support.*BINFMT_SHARED_FLAT.*\\\[.*]" {
+            if { $binary_format == "elf" } {
+                send "\r"
+            } elseif { $binary_format == "flat" } {
+                send  "\r"
+            } elseif { $binary_format == "shared-flat" } {
+                send  "Y\r"
+            }
+        }
 
-#           -re "build with stack overflow checking.*CONFIG_BLACKFIN_CHECK_STACKFLOW.*\\\[.*]" {
-#
-#                      send -s "Y\r"
-#      }
+        -re "Binary format.*FLAT.*Sep-Data.*Shared-FLAT.*FDPIC.*\\\[.*]" {
+            if { $binary_format == "flat" } {
+                send  "1\r"
+            } elseif { $binary_format == "elf" } {
+                send  "4\r"
+            } elseif { $binary_format == "shared-flat" } {
+                send  "3\r"
+            }
+        }
 
-#
-#          -re "Trace user apps.*turn off hwtrace in kernel.*DEBUG_BFIN_NO_KERN_HWTRACE.*\\\[.*]" {
-#
-#                       send  "y\r"
-#      }
- 
-           -re "Enable ICACHE.*BFIN_ICACHE.*\\\[.*]" {
-		if { $icache == "on" } {
-			send "Y\r"
-		} elseif { $icache == "off" } {
-			send "N\r"
-		}
-         }
-      
-	   -re "Enable DCACHE.*BFIN_DCACHE.*\\\[.*]" {
-		if { $dcache == "on" } {
-			send "Y\r"
-		} elseif { $dcache == "off" } {
-			send "N\r"
-		}
-         }
-	 
-           -re "Policy.*Write back.*BFIN_WB.*Write through.*BFIN_WT.*choice.*\\\[.*]" {
-		if { $policy == "write_through" } {
-			send "2\r"
-		} elseif { $policy == "write_back" } {
-			send "1\r"
-		}
-      }
-      
-           -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
-	  		
-			send "Y\r"		
-      }
-      
-           -re "UART Mode.*DMA mode.*SERIAL_BFIN_DMA.*PIO mode.*SERIAL_BFIN_PIO.*choice\\\[.*]" {
-		if { $uart_mode == "dma" } {
-			send "1\r"
-		} elseif { $uart_mode == "pio" } {
-			send "2\r"
-		}
-      }
+        -re "Install ELF shared libraries.*INSTALL_ELF_SHARED_LIBS.*\\\[.*]" {
+            send  "\r"
+        }
 
-           -re "Early printk.*EARLY_PRINTK.*\\\[.*]" {
+        -re "Install FLAT shared libraries.*INSTALL_FLAT_SHARED_LIBS.*\\\[.*]" {
+            send  "\r"
+        }
 
-                        send "Y\r"
-      }
+#        -re "build with stack overflow checking.*CONFIG_BLACKFIN_CHECK_STACKFLOW.*\\\[.*]" {
+#            send -s "Y\r"
+#        }
 
-          -re "Virtual terminal.*VT.*\\\[.*]" {
-                       
-                        send "N\r"
-      }
+#        -re "Trace user apps.*turn off hwtrace in kernel.*DEBUG_BFIN_NO_KERN_HWTRACE.*\\\[.*]" {
+#            send  "y\r"
+#        }
 
-       "\\\(*) \\\[*]" {
-	    sleep .01 
-	    send "\r"
-      }
+        -re "Enable ICACHE.*BFIN_ICACHE.*\\\[.*]" {
+            if { $icache == "on" } {
+                send "Y\r"
+            } elseif { $icache == "off" } {
+                send "N\r"
+            }
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Enable DCACHE.*BFIN_DCACHE.*\\\[.*]" {
+            if { $dcache == "on" } {
+                send "Y\r"
+            } elseif { $dcache == "off" } {
+                send "N\r"
+            }
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-             break
-      }
-   }
+        -re "Policy.*Write back.*BFIN_WB.*Write through.*BFIN_WT.*choice.*\\\[.*]" {
+            if { $policy == "write_through" } {
+                send "2\r"
+            } elseif { $policy == "write_back" } {
+                send "1\r"
+            }
+        }
+
+        -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
+            send "Y\r"		
+        }
+
+        -re "UART Mode.*DMA mode.*SERIAL_BFIN_DMA.*PIO mode.*SERIAL_BFIN_PIO.*choice\\\[.*]" {
+            if { $uart_mode == "dma" } {
+                send "1\r"
+            } elseif { $uart_mode == "pio" } {
+                send "2\r"
+            }
+        }
+
+        -re "Early printk.*EARLY_PRINTK.*\\\[.*]" {
+            send "Y\r"
+        }
+
+        -re "Virtual terminal.*VT.*\\\[.*]" {
+            send "N\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01 
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
