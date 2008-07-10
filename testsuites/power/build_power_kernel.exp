@@ -100,23 +100,11 @@ while 1 {
         }
 
 #Audio Output
-        -re "Uncached SDRAM region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
-            if { $board_type == "BF537-STAMP" } {
-                send "2\r"
-            } else {
-                send "\r"
-            }
-        }
-
         -re "Sound card support.*SOUND.*\\\[.*]" {
             send "y\r"
         }
 
         -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
-            send "y\r"
-        }
-
-        -re "Sequencer support.*SND_SEQUENCER.*\\\[.*]" {
             send "y\r"
         }
 
@@ -148,16 +136,36 @@ while 1 {
             send "m\r"
         }
 
-        -re "SoC Audio for the ADI BF5xx chip.*SND_BF5XX_SOC.*\\\[.*]" {
+        -re "SoC I2S Audio for the ADI BF5xx chip.*SND_BF5XX_I2S.*\\\[.*]" {
             send "m\r"
         }
 
-        -re "SoC AC97 Audio support for BF5xx.*SND_BF5XX_SOC_BF5xx.*\\\[.*]" {
+        -re "SoC SSM2602 Audio support for BF52x ezkit.*SND_BF5XX_SOC_SSM2602.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "SoC AC97 Audio for the ADI BF5xx chip.*SND_BF5XX_AC97.*\\\[.*]" {
             send "m\r"
         }
 
-        -re "3 Stereos .*SND_BLACKFIN_AD1836_MULSUB.*choice\\\[.*]" {
-            send "1\r"
+        -re "SoC AD1980/1 Audio support for BF5xx.*SND_BF5XX_SOC_AD1980.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" || $board_type == "BF548-EZKIT" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "Uncached SDRAM region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
+            if { $board_type == "BF537-STAMP" } {
+                send "2\r"
+            } else {
+                send "\r"
+            }
         }
 
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
@@ -165,6 +173,10 @@ while 1 {
         }
 
         -re "ALSA utils.*USER_ALSA_UTILS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
             send "y\r"
         }
 
@@ -178,10 +190,6 @@ while 1 {
 
         -re "vrec.*USER_VPLAY_VREC.*\\\[.*]" {
             send "Y\r"
-        }
-
-        -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
-            send "y\r"
         }
 
         -re "rtcwake.*USER_BUSYBOX_RTCWAKE.*\\\[.*]" {
