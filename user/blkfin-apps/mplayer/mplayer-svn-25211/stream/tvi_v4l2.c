@@ -1502,10 +1502,14 @@ static int start(priv_t *priv)
         priv->map[i].addr = mmap (0, priv->map[i].buf.length, PROT_READ |
                                   PROT_WRITE, MAP_SHARED, priv->video_fd, priv->map[i].buf.m.offset);
         if (priv->map[i].addr == MAP_FAILED) {
-            mp_msg(MSGT_TV, MSGL_ERR, "%s: mmap capture buffer failed: %s\n",
-                   info.short_name, strerror(errno));
-            priv->map[i].len = 0;
-            return 0;
+	        priv->map[i].addr = mmap (0, priv->map[i].buf.length, PROT_READ |
+	                                  PROT_WRITE, MAP_PRIVATE, priv->video_fd, priv->map[i].buf.m.offset);
+	        if (priv->map[i].addr == MAP_FAILED) {
+	            mp_msg(MSGT_TV, MSGL_ERR, "%s: mmap capture buffer failed: %s\n",
+	                   info.short_name, strerror(errno));
+	            priv->map[i].len = 0;
+	            return 0;
+	        }
         }
         priv->map[i].len = priv->map[i].buf.length;
         /* count up to make sure this is correct everytime */
