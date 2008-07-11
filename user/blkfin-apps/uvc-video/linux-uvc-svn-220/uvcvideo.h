@@ -70,7 +70,7 @@ struct uvc_xu_control {
 
 #include <linux/poll.h>
 
-#ifdef __bfin__
+#ifdef CONFIG_BLACKFIN
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 
