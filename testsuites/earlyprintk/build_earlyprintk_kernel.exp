@@ -1,0 +1,100 @@
+#!/usr/bin/expect
+
+#
+# Build Kernel for early printk test
+#
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+
+step "Change main.c in linux-2.6.x/init/"
+cd $uclinux_path
+set timeout 2
+spawn ex linux-2.6.x/init/main.c
+expect {
+    "Entering Ex mode*Normal mode." { }
+
+    "already exists!" {
+        send "e\r"
+        sleep 1
+    }
+}
+sleep 1
+send "/setup_arch\r"
+expect "setup_arch(&command_line);"
+send "a\r"
+send "panic(\"Test early printk\");\r"
+send ".\r"
+expect ":"
+send "wq\r"
+expect eof
+
+
+cd $uclinux_path/testsuites
+step "Make config."
+source  make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+spawn make config
+
+#tee "Begin the interactive process of configuration"
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "n\r"
+        }
+
+        -re "Early printk.*EARLY_PRINTK.*\\\[.*]" {
+            send "y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+
+log_file
