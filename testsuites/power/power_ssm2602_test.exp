@@ -1,0 +1,419 @@
+#!/usr/bin/expect
+
+source  ../kernel_config.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Spawn kermit"
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+# To add following line here to indicate that if the bootargs is different,
+# it could be set here. If the bootargs value is 0, it needn't be stated,
+# for it is the default value.
+# set bootargs  $bootargs_param0
+source ../reboot_kernel.exp
+
+set wait_time 15
+set standby_fail 0
+
+proc standby_test_case1 {} {
+    global case_num
+    global kernel_prompt
+    global wait_time
+    global standby_fail
+
+    set timeout 5
+    incr case_num
+    send "rtctest $wait_time /dev/rtc0 &\r"
+    while 1 {
+        expect {
+            -re "Current RTC.*Alarm time now.*Waiting $wait_time seconds for alarm" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+
+    set timeout $wait_time
+    incr case_num
+    send "\necho 'standby' > /sys/power/state\r"
+    while 1 {
+        expect {
+            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "Test case 1: Wake up fail\n"
+                incr standby_fail
+                break
+            }
+        }
+    }
+
+    set timeout 5
+    expect -re "Full\r\n|lpa 0x41E1\r\n"
+
+    incr case_num
+    set timeout 10
+    send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
+    while 1 {
+        expect {
+            -re "Stereo \.\.\.\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+
+    incr case_num
+    set timeout 10
+    send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
+    while 1 {
+        expect {
+            -re "Stereo\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+}
+
+proc standby_test_case2 {} {
+    global case_num
+    global kernel_prompt
+    global wait_time
+    global standby_fail
+
+    set timeout 5
+    incr case_num
+    send "rtctest $wait_time /dev/rtc0 &\r"
+    while 1 {
+        expect {
+            -re "Current RTC.*Alarm time now.*Waiting $wait_time seconds for alarm" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                case_fail $case_num
+            }
+        }
+    }
+
+    set timeout $wait_time
+    incr case_num
+    send "\necho 'standby' > /sys/power/state\r"
+    while 1 {
+        expect {
+            -re "Syncing filesystems \.\.\. done\.\r\nFreezing user space processes \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nFreezing remaining freezable tasks \.\.\. \\\(elapsed.*seconds\\\) done\.\r\nSuspending console\\\(s\\\).*Restarting tasks \.\.\. done\.\r\n$kernel_prompt" {
+                case_pass $case_num
+                break
+            }
+            timeout {
+                send_user "Test case 2: Wake up fail\n"
+                incr standby_fail
+                break
+            }
+        }
+    }
+
+    set timeout 5
+    expect -re "Full\r\n|lpa 0x41E1\r\n"
+}
+
+
+step "Start testing"
+set case_num 0
+set Total_Count 5
+sleep 5
+send "\r"
+expect -re $kernel_prompt
+
+step "Clean src directory\n"
+spawn make clean -C src
+while 1 {
+    expect {
+        -re "\[eE]rror" {
+            case_fail $case_num
+        }
+        eof {
+            send_user "\nClean src\n"
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+step "Build test program\n"
+spawn make -C src
+while 1 {
+    expect {
+        -re "\[eE]rror" {
+            case_fail $case_num
+        }
+        eof {
+            send_user "\nBuild test program done\n"
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
+
+send "ifconfig eth0 $targetip up\r"
+set timeout 60
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            send "\r"
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+expect -re "Full\r\n|lpa 0x41E1\r\n"
+
+set timeout 100
+step "Copy testcase to target board\n"
+spawn rcp src/rtctest root@$targetip:/bin
+while 1 {
+    expect {
+        "*connect*" {
+            case_fail $case_num
+        }
+        eof {
+            send_user "\nCopy rtctest to target board done\n"
+            break
+        }
+        timeout {
+            break
+        }
+    }
+}
+
+set spawn_id $kermit_spawn_id
+
+set timeout 20
+incr case_num
+send "modprobe i2c-bfin-twi; modprobe snd-ssm2602\r"
+while 1 {
+    expect {
+        -re "(\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            send_user "Install module failed!\r"
+            case_fail $case_num
+        }
+        -re "I2C TWI Contoller Driver.*ssm2602 Audio Codec.*mapping ok.*$kernel_prompt" {
+            break
+        }
+        timeout {
+            send_user "Install module failed!\r"
+            case_fail $case_num
+        }
+    }
+}
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "snd_ssm2602.*i2c_bfin_twi.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "echo 'enabled' > /sys/class/rtc/rtc0/power/wakeup\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send -s "vrec -w -S -b 16 -s 48000 -t 5|vplay\n"
+while 1 {
+    expect {
+        -re "Stereo \.\.\.\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send -s "arecord -t wav -c 2 -f S16_LE -r 48000 -d 5 |aplay\n"
+while 1 {
+    expect {
+        -re "Stereo\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "cat /proc/mounts\r"
+while 1 {
+    expect {
+        -re "sysfs /sys sysfs rw,nosuid,nodev,noexec 0 0.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 5
+incr case_num
+send "ls /sys/power\r"
+while 1 {
+    expect {
+        -re "state.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+for {set count 1} {$count <= $Total_Count} {incr count} {
+    standby_test_case1
+    send_user "\nStandby test case 1 round $count pass\n\n"
+}
+
+set timeout 15
+incr case_num
+send "tone &\n"
+while 1 {
+    expect {
+        -re "\[0-9]+\r\n$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+sleep 5
+for {set count 1} {$count <= $Total_Count} {incr count} {
+    standby_test_case2
+    send_user "\nStandby test case 2 round $count pass\n\n"
+    sleep 5
+}
+
+set timeout 20
+incr case_num
+send "audio_test_id=\`ps ax|awk \'\$5==\"tone\" {print \$1}\'\`; kill \$audio_test_id\r"
+while 1 {
+    expect {
+        -re "(kill:|Usage:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 20
+incr case_num
+send "modprobe -r snd-ssm2602; modprobe -r i2c-bfin-twi\r"
+while 1 {
+    expect {
+        -re "(modprobe:|No such).*$kernel_prompt" {
+            send_user "Uninstall module failed!\r"
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "Uninstall module failed!\r"
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 20
+incr case_num
+send "lsmod\r"
+while 1 {
+    expect {
+        -re "snd_ssm2602|i2c_bfin_twi" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+if { $standby_fail == 0 } {
+    send_user "Wake up pass\n"
+    case_pass $case_num
+} else {
+    send_user "Wake up fail $standby_fail times\n"
+    case_fail $case_num
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n" 
+
+send_user "Ending $argv0\n"
+
+log_file

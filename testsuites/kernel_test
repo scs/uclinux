@@ -1151,6 +1151,14 @@ do
             sleep 10
         fi
 
+        if [ ${AUTO_RUN_STATUS[$(( n + 17 ))]} -eq 1  ] ; then
+            cd $UCLINUX_DIST_TESTSUITES/power
+            ./power_ssm2602_test.exp >/dev/null  2>&1
+            cd $UCLINUX_DIST_TESTSUITES
+            ./reset_board.exp  >/dev/null  2>&1
+            sleep 10
+        fi
+
         cd $UCLINUX_DIST_TESTSUITES/power
         ./power_ethernet_test.exp >/dev/null  2>&1
   fi
