@@ -37,15 +37,15 @@ while 1 {
             send -s "Y\r"
         }
 
-        -re "samba \\\(USER_SAMBA\\\) \\\[.*]" {
+        -re "samba .*USER_SAMBA.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "smbmount \\\(USER_SAMBA_SMBMOUNT\\\) \\\[.*]" {
+        -re "smbmount .*USER_SAMBA_SMBMOUNT.*\\\[.*]" {
             send "Y\r"
         }
 
-        -re "smbumount \\\(USER_SAMBA_SMBUMOUNT\\\) \\\[.*]" {
+        -re "smbumount .*USER_SAMBA_SMBUMOUNT.*\\\[.*]" {
             send "Y\r"
         }
 
@@ -53,7 +53,6 @@ while 1 {
             sleep .01
             send "\r"
         }
-
 
         -re "\[cC]hoice\\\[.*]:" {
             send "\r"
@@ -66,6 +65,7 @@ while 1 {
 
         timeout {
             puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
         }
     }
 }
