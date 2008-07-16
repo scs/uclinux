@@ -16,7 +16,7 @@ source ../reboot_kernel.exp
 sleep 3
 set spawn_id $kermit_spawn_id
 
-step "Start testing."
+step "Start testing: test_cpp"
 
 incr case_num
 set timeout 2
@@ -37,11 +37,11 @@ while 1 {
 }
 
 incr case_num
-set timeout 2
-send "modprobe dualcore_test\r"
+set timeout 5
+send "insmod /usr/coreb/dualcore_test.ko\r"
 while 1 {
    expect {
-      -re "Dual core test module inserted.*$kernel_prompt" {
+      -re "Dual core test module inserted: set testarg = \\\[1\].*feb1fffc.*$kernel_prompt" {
          send_user "\nDual core test module inserted\n"
          break
       }
@@ -67,16 +67,9 @@ while 1 {
    }
 }
 
-spawn rcp ../../user/blkfin-apps/corebld/example/test_c root@$targetip:/bin
-sleep 5
-spawn rcp ../../user/blkfin-apps/corebld/example/test_cpp root@$targetip:/bin
-sleep 5
-
-set spawn_id $kermit_spawn_id
-
 set timeout 5
 incr case_num
-send "corebld /bin/test_c\r"
+send "corebld /usr/coreb/test_cpp\r"
 while 1 {
    expect {
       -re ".*not found" {
@@ -84,30 +77,7 @@ while 1 {
          case_fail $case_num
          break
       }
-      -re "wrote.*wrote.*$kernel_prompt" {
-         send_user "\nexecute C application on another core\n"
-         case_pass $case_num
-         break
-      }
-      timeout {
-         send_user "\nexecute C application on another core timeout\n"
-         case_fail $case_num
-         break
-      }
-   }
-}
-
-set timeout 5
-incr case_num
-send "corebld /bin/test_cpp\r"
-while 1 {
-   expect {
-      -re ".*not found" {
-         send_user "\nexecute application corebld failed\n"
-         case_fail $case_num
-         break
-      }
-      -re "wrote.*wrote.*$kernel_prompt" {
+      -re "wrote.*wrote.*wrote.*$kernel_prompt" {
          send_user "\nexecuted C++ application on another core\n"
          case_pass $case_num
          break
@@ -141,7 +111,118 @@ incr case_num
 send "rmmod dualcore_test\r"
 while 1 {
    expect {
+      -re "Dual core test module removed: testarg = \\\[12\]*" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+         break
+      }
+   }
+}
 
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+sleep 3
+
+step "Start testing: test_c"
+
+incr case_num
+set timeout 2
+send "cat /sys/class/misc/coreb/coreb_status\r"
+while 1 {
+   expect {
+      -re "Base Address.*Core B is stalled.*$kernel_prompt" {
+         send_user "Get coreb information from /sys\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "Get coreb information from /sys\n"
+         case_fail $case_num
+         break
+      }
+   }
+}
+
+incr case_num
+set timeout 5
+send "insmod /usr/coreb/dualcore_test.ko\r"
+while 1 {
+   expect {
+      -re "Dual core test module inserted: set testarg = \\\[1\].*feb1fffc.*$kernel_prompt" {
+         send_user "\nDual core test module inserted\n"
+         break
+      }
+      timeout {
+         send_user "\nInsert coreb test module timeout\n"
+         case_fail $case_num
+         break
+      }
+   }
+}
+
+send "lsmod\r"
+while 1 {
+   expect {
+      -re "dualcore_test.*$kernel_prompt" {
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+         break
+      }
+   }
+}
+
+set timeout 5
+incr case_num
+send "corebld /usr/coreb/test_c\r"
+while 1 {
+   expect {
+      -re ".*not found" {
+         send_user "\nexecute application corebld failed\n"
+         case_fail $case_num
+         break
+      }
+      -re "wrote.*wrote.*$kernel_prompt" {
+         send_user "\nexecute C application on another core\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         send_user "\nexecute C application on another core timeout\n"
+         case_fail $case_num
+         break
+      }
+   }
+}
+
+incr case_num
+set timeout 2
+send "cat /sys/class/misc/coreb/coreb_status\r"
+while 1 {
+   expect {
+      -re "Base Address.*Core B is running.*$kernel_prompt" {
+         send_user "Core B is running.\n"
+         case_pass $case_num
+         break
+      }
+      timeout {
+         case_fail $case_num
+         break
+      }
+   }
+}
+
+incr case_num
+send "rmmod dualcore_test\r"
+while 1 {
+   expect {
       -re "Dual core test module removed: testarg = \\\[2\]*" {
          case_pass $case_num
          break
