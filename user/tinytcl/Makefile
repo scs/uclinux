@@ -41,8 +41,10 @@ endif
 ifdef CONFIG_USER_TINYTCL_DEBUGGER
 # If you want to add the debugger...
 OBJS += debugger/Dbg.o debugger/Dbg_cmd.o
-CFLAGS += -I. -Idebugger -DDEBUGGER -DDEBUGGER_INIT=\"Dbg_lib.tcl\"
+CFLAGS += -Idebugger -DDEBUGGER -DDEBUGGER_INIT=\"Dbg_lib.tcl\"
 endif
+
+CFLAGS += -I.
 
 TARGETS += $(LIBTCL)
 ifdef UCLINUX_BUILD_USER
