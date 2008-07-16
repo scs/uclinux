@@ -179,6 +179,7 @@ config USER_CRON_CRON
 	  Approx. binary size: 27k
 
 
+if DISABLED_FOR_BLACKFIN_SYSTEMS
 comment "Real Time Clock"
 
 config USER_HWCLOCK_HWCLOCK
@@ -196,6 +197,7 @@ config USER_RTC_M41T11
 
 config USER_RTC_DS1302
 	bool "rtc ds1302"
+endif !DISABLED_FOR_BLACKFIN_SYSTEMS
 
 
 comment "Vixie-cron"
@@ -380,6 +382,7 @@ config USER_RECOVER_PRESERVE_CONFIG_FS
 	depends on USER_RECOVER_RECOVER
 
 
+if DISABLED_FOR_BLACKFIN_SYSTEMS
 comment "Arcturus uCbootloader Apps/Libs"
 
 config USER_BOOTTOOLS_LOADER
@@ -406,6 +409,7 @@ config USER_BOOTTOOLS_RESET
 	bool "reset"
 	help
 	  The uCsimm/uCdimm tools.
+endif #DISABLED_FOR_BLACKFIN_SYSTEMS
 
 
 comment "MTD utils"
