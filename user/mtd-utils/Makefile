@@ -19,7 +19,7 @@ RAWTARGETS-$(CONFIG_USER_MTDUTILS_MKFSJFFS)     += mkfs.jffs
 RAWTARGETS-$(CONFIG_USER_MTDUTILS_MKFSJFFS2)    += mkfs.jffs2
 
 # Host based builds needed for constructing host images
-BUILDTARGETS-y := mkfs.jffs2
+BUILDTARGETS-y :=
 BUILDTARGETS-$(CONFIG_JFFS_FS)  += mkfs.jffs
 BUILDTARGETS-$(CONFIG_JFFS2_FS) += mkfs.jffs2
 
