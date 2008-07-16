@@ -197,7 +197,7 @@ config USER_RTC_M41T11
 
 config USER_RTC_DS1302
 	bool "rtc ds1302"
-endif !DISABLED_FOR_BLACKFIN_SYSTEMS
+endif #DISABLED_FOR_BLACKFIN_SYSTEMS
 
 
 comment "Vixie-cron"
