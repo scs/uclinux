@@ -70,12 +70,17 @@ int main(int argc, char *argv[])
 	puts("Going to sleep until the gpio goes high.");
 	puts("(if this is a button, you should push it :p)");
 
+	/* figure out what the current level */
+	char curr_byte;
+	if (fread(&curr_byte, 1, 1, fp) != 1)
+		errp("unable to read device");
+
 	while (1) {
 		char byte;
 		if (fread(&byte, 1, 1, fp) != 1)
 			errp("unable to read device");
 
-		if (byte == '1')
+		if (byte != curr_byte)
 			break;
 	}
 
