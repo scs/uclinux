@@ -50,6 +50,9 @@ void usage(int exit_status)
 	exit(exit_status);
 }
 
+char *bf533_stamp_buttons[] = { "/dev/gpio5", "/dev/gpio6", "/dev/gpio8" };
+char *bf533_stamp_leds[] = { "/dev/gpio2", "/dev/gpio3", "/dev/gpio4" };
+
 char *bf537_stamp_buttons[] = { "/dev/gpio2", "/dev/gpio3", "/dev/gpio4", "/dev/gpio5" };
 char *bf537_stamp_leds[] = { "/dev/gpio10", "/dev/gpio9", "/dev/gpio8", "/dev/gpio7" };
 
@@ -75,6 +78,10 @@ int main(int argc, char *argv[])
 			num_buttons = num_leds = 4;
 			buttons = bf537_stamp_buttons;
 			leds = bf537_stamp_leds;
+		} else if (!strcasecmp(argv[1], "bf533-stamp")) {
+			num_buttons = num_leds = 3;
+			buttons = bf533_stamp_buttons;
+			leds = bf533_stamp_leds;
 		} else
 			err("unknown board template '%s'", argv[1]);
 		using_template = true;
