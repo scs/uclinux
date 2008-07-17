@@ -1,0 +1,234 @@
+#!/usr/bin/expect
+
+# Main entrance
+source ../kernel_config.exp
+source ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Start testing."
+
+set timeout 10
+expect "Link is Up"
+sleep 3
+
+spawn rcp $uclinux_path/user/blkfin-apps/btsco/btsco-0.5/alsa-plugins/asound.conf root@$targetip:/etc
+sleep 3
+spawn rcp $uclinux_path/user/blkfin-apps/btsco/btsco-0.5/alsa-plugins/sample.bluepin root@$targetip:/usr/bin/bluepin
+sleep 3
+spawn rcp test.wav root@$targetip:/
+sleep 3
+
+set BT_BD_ADDR "00:10:60:D0:8C:41"
+set BT_HP_BD_ADDR "00:1A:45:4A:EA:39"
+set case_num 0
+set timeout 5
+
+set spawn_id $kermit_spawn_id
+send "\r"
+expect -re $kernel_prompt
+
+set timeout 10
+incr case_num
+if { $board_type == "BF548-EZKIT" } {
+    send "modprobe snd-ad1981\r"
+} elseif {$board_type == "BF527-EZKIT" } {
+    send "modprobe i2c-bfin-twi; modprobe snd-ssm2602\r"
+} elseif { $board_type == "BF537-STAMP" } {
+    send "modprobe snd-ad1836\r"
+} else {
+    send_user "Wrong board type!\n"
+    case_fail $case_num
+}
+while 1 {
+    expect {
+        -re "\[fF]ail|\[eE]rror|\[nN]o such" {
+            case_fail $case_num
+        }
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+send "tone\r"
+while 1 {
+    expect {
+        -re "TONE: generating sine wave at 1000 Hz" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+set timeout 10
+incr case_num
+send "\3\r"
+while 1 {
+    expect {
+        -re $kernel_prompt {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+send "hciconfig hci0 up\r"
+while 1 {
+    expect {
+        -re "no such device" {
+            case_fail $case_num
+        }
+        -re "$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "hciconfig hci0 failed\r"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 5
+send "hciconfig hci0\r"
+while 1 {
+    expect {
+        -re "$BT_BD_ADDR.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "hciconfig hci0 failed\r"
+            case_fail $case_num
+        }
+    }
+}
+
+puts "\nOpen Jabra BT125 bluetooth headphone and set to scan mode"
+puts "If you are ready, press \"y\" and enter:"
+set timeout 120
+while 1 {
+    expect_user {
+        -re "\[yY]" {
+            break
+        }
+        timeout {
+            send_user "quit this test\n"
+            case_fail $case_num
+        }
+    }
+}
+
+incr case_num
+set timeout 60
+send "hcitool scan\r"
+while 1 {
+    expect {
+        -re "\[fF]ail|\[eE]rror|not found" {
+            case_fail $case_num
+        }
+        -re "$BT_HP_BD_ADDR.*$kernel_prompt" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            send_user "scan device failed\r"
+            break
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "hcid -n &\r"
+while 1 {
+    expect {
+        -re "Bluetooth HCI daemon.*Starting security manager \[0-9].*hdev=\[0-9]" {
+            case_pass $case_num
+            sleep 3
+            send "\r"
+            break
+        }
+        timeout {
+            case_fail $case_num
+            break
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "sdpd &\r"
+while 1 {
+    expect {
+        -re "\r\n\[0-9]+\r\n$kernel_prompt" {
+            case_pass $case_num
+            sleep 3
+            break
+        }
+        timeout {
+            case_fail $case_num
+            break
+        }
+    }
+}
+
+incr case_num
+set timeout 10
+send "headsetd -n &\r"
+while 1 {
+    expect {
+        -re "Bluetooth headset daemon version 0.42" {
+            case_pass $case_num
+            sleep 3
+            send "\r"
+            break
+        }
+        timeout {
+            case_fail $case_num
+            break
+        }
+    }
+}
+
+incr case_num
+set timeout 60
+send "aplay -D headset test.wav\r"
+while 1 {
+    expect {
+        -re "headsetd.*Closewaiting.*Connected" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+            break
+        }
+    }
+}
+
+send_user "Ending $argv0\n"
+
+log_file

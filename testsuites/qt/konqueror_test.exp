@@ -140,9 +140,10 @@ sleep 1
 while 1 {
     expect {
         -re "Creating mouse: Auto" {
-            sleep 20
+            sleep 10
             send -s "\3"
             expect ">"
+            send "rm drawlines\r"
             case_pass $case_num
             break
         }
@@ -190,7 +191,7 @@ send "ifconfig eth0\r"
 set timeout 10
 while 1 {
     expect {
-        -re "10\.99\.22\..*>" {
+        -re "10\.99\..*>" {
             case_pass $case_num
             break
         }

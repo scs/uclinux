@@ -41,13 +41,13 @@ source ../reboot_kernel.exp
 step "Start testing."
 set case_num 0
 
-sleep 2
+sleep 5
 send "\r"
 expect ">"
 
 #incr case_num
 #set timeout 30
-#send "dmesg|grep \"USB Optical Mouse\"\r"
+#send "dmesg|grep -i mouse\r"
 #while 1 {
 #    expect {
 #        -re "\[0-9a-zA-Z]\r\n$kernel_prompt" {
