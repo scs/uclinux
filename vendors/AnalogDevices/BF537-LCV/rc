@@ -45,7 +45,7 @@ if test -e /env_user
 then
 	ifconfig eth0 `grep "^IP" /env_user | awk '{print $2}'`
 	route add -net default gw `grep "^GW" /env_user | awk '{print $2}'`  
-	export TFTPIP=`grep "^TFTPIP" /env_user | awk '{print $2}'` 
+	echo export TFTPIP=`grep "^TFTPIP" /env_user | awk '{print $2}'` > /etc/oscarrc 
 fi
 ifconfig eth0 up
 

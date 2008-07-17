@@ -31,6 +31,7 @@ romfs::
 	chmod 1777 $(ROMFSDIR)/tmp
 	$(ROMFSINST) -s bin /sbin
 	$(ROMFSINST) /etc/rc
+	$(ROMFSINST) /etc/profile
 	$(ROMFSINST) /etc/mdev.conf
 	$(ROMFSINST) /etc/inittab
 	$(ROMFSINST) /etc/services
