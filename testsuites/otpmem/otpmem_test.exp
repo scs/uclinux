@@ -1,0 +1,71 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+source ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+set TITLE [title "$argv0"]
+
+step "Start kermit."
+source ../spawn_kermit.exp
+
+step "Reboot the kernel."
+source ../reboot_kernel.exp
+
+step "Starting test"
+set timeout 8
+set count_size 440
+
+set case_num 0
+
+incr case_num
+
+for { set j 0 } { $j < 10 } { incr j 1 } {
+
+send -s "dd if=/dev/otp of=otp_out.bin$j bs=8 count=$count_size\r"
+while 1 {
+   expect {
+     -re "$count_size.*records in.*$count_size.*records out" {
+                break
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+}
+
+for { set j 0 } { $j < 9 } { incr j 1 } {
+
+send -s "diff -u otp_out.bin$j otp_out.bin[ expr $j + 1 ]\r"
+while 1 {
+   expect {
+      -re  "$kernel_prompt" {
+                break
+      }
+
+       -re  "\\+\\+\\+" {
+                expect -re "$kernel_prompt"
+                puts "\nTwo files diffs.\n"
+                case_fail $case_num
+      }
+
+      timeout {
+                case_fail $case_num
+                exit
+         }
+     }
+}
+}
+
+send_log "\n"
+send_log "\n$TITLE ............\[PASS\]\n"
+
+send_user "\nEnding $argv0\n"
+log_file
+
+
+
+
