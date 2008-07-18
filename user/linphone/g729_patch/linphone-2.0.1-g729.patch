@@ -1,18 +1,19 @@
-diff -Nur linphone-1.6.0/mediastreamer2/configure.ac linphone-1.6.0.new/mediastreamer2/configure.ac
---- linphone-1.6.0/mediastreamer2/configure.ac	2007-10-15 18:04:17.000000000 +0800
-+++ linphone-1.6.0.new/mediastreamer2/configure.ac	2007-10-15 18:27:47.000000000 +0800
-@@ -281,6 +281,8 @@
- 	   build_gsm=yes
- 	fi
- fi
+diff -Nur --exclude '*svn' linphone-2.0.1.orig/mediastreamer2/configure.ac linphone-2.0.1/mediastreamer2/configure.ac
+--- linphone-2.0.1.orig/mediastreamer2/configure.ac	2008-06-24 18:06:21.000000000 +0800
++++ linphone-2.0.1/mediastreamer2/configure.ac	2008-06-25 11:47:25.000000000 +0800
+@@ -284,6 +284,9 @@
+ AC_SUBST(SPEEX_LIBS)
+ AM_CONDITIONAL(BUILD_SPEEX, test x$build_speex = xyes )
+ 
 +G729_LIBS="-lg729ab"
 +AC_SUBST(G729_LIBS)
- 
- build_resample=false
- AC_CHECK_LIB(resample,resample_open,[LIBS="$LIBS -lresample"; build_resample=yes])
-diff -Nur linphone-1.6.0/mediastreamer2/include/mediastreamer2/allfilters.h linphone-1.6.0.new/mediastreamer2/include/mediastreamer2/allfilters.h
---- linphone-1.6.0/mediastreamer2/include/mediastreamer2/allfilters.h	2007-10-15 18:04:10.000000000 +0800
-+++ linphone-1.6.0.new/mediastreamer2/include/mediastreamer2/allfilters.h	2007-10-15 18:25:02.000000000 +0800
++
+ dnl check for gsm
+ AC_ARG_WITH( gsm,
+ 		  [  --with-gsm		Sets the installation prefix of gsm codec library [default=/usr] ],
+diff -Nur --exclude '*svn' linphone-2.0.1.orig/mediastreamer2/include/mediastreamer2/allfilters.h linphone-2.0.1/mediastreamer2/include/mediastreamer2/allfilters.h
+--- linphone-2.0.1.orig/mediastreamer2/include/mediastreamer2/allfilters.h	2008-06-24 18:06:21.000000000 +0800
++++ linphone-2.0.1/mediastreamer2/include/mediastreamer2/allfilters.h	2008-06-25 11:47:25.000000000 +0800
 @@ -45,6 +45,8 @@
  	MS_SPEEX_DEC_ID,
  	MS_GSM_ENC_ID,
@@ -22,10 +23,10 @@ diff -Nur linphone-1.6.0/mediastreamer2/include/mediastreamer2/allfilters.h linp
  	MS_V4L_ID,
  	MS_SDL_OUT_ID,
  	MS_H263_ENC_ID,
-diff -Nur linphone-1.6.0/mediastreamer2/src/g729.c linphone-1.6.0.new/mediastreamer2/src/g729.c
---- linphone-1.6.0/mediastreamer2/src/g729.c	1970-01-01 08:00:00.000000000 +0800
-+++ linphone-1.6.0.new/mediastreamer2/src/g729.c	2007-10-15 18:28:42.000000000 +0800
-@@ -0,0 +1,268 @@
+diff -Nur --exclude '*svn' linphone-2.0.1.orig/mediastreamer2/src/g729.c linphone-2.0.1/mediastreamer2/src/g729.c
+--- linphone-2.0.1.orig/mediastreamer2/src/g729.c	1970-01-01 08:00:00.000000000 +0800
++++ linphone-2.0.1/mediastreamer2/src/g729.c	2008-06-25 15:21:10.000000000 +0800
+@@ -0,0 +1,264 @@
 +/*
 +mediastreamer2 library - modular sound and video processing and streaming
 +Copyright (C) 2006  Simon MORLAT (simon.morlat@linphone.org)
@@ -71,61 +72,64 @@ diff -Nur linphone-1.6.0/mediastreamer2/src/g729.c linphone-1.6.0.new/mediastrea
 + *   - 0x0081 for 1
 + */
 +
++/*
++ * This code makes linphone talk with some SIP phones, e.g, POLYCOM SoundPoint IP300 SIP.
++ * Those devices use g729a codec. Each RTP packet contains two frames.
++ * The bitstream format looks like:
++ * 
++ *        [80-bit data][80-bit data]
++ *
++ * There is no [SYCWORD][BIT_NUM] header.
++ * 
++ * */
++
 +#include "mediastreamer2/msfilter.h"
 +
 +#include <g729ab_codec.h>
 +
++#define VAD_ENABLE 1
++#define VAD_DISABLE 0 
++
 +#define FMT_PACKED 0
 +#define FMT_UNPACKED 1
++
++#define SYNCWORD 0x6b21
++#define BITNUM_G729A 0x0050
++#define BITNUM_G729AB_1 0x0050
++#define BITNUM_G729AB_2 0x0010
++#define BITNUM_G729AB_3 0x0000
++
++#define _ADSP_G729_H_LEN 2
++#define _PCK_BITSTREAM_LEN 80
++#define _PCK_BITSTREAM_LEN_BYTES (_PCK_BITSTREAM_LEN/8)
++#define _PCK_LEN_MS 10
++#define _SAMPLES (_PCK_LEN_MS * 8)
++#define _PCK_SIZE (_SAMPLES * sizeof(short))
++
 +
 +typedef struct EncState{
 +	G729_EncObj state;
 +	uint32_t ts;
 +	int enc_vad;
-+	int fmt_packed;
++	int pck_len;
 +	MSBufferizer *bufferizer; /* a queue */
 +} EncState;
 +
-+/* return g729ab encoded data bits number, NOT including 4-byte header */
-+static int g729ab_get_frame_len(short *frame)
-+{
-+	short header = 0, len = 0;
-+
-+	if (frame) 
-+		header = *frame++;
-+	else
-+		return -1;
-+	if (header == 0x6b21) {
-+    		/* Get length */
-+		if (frame) {
-+			len = *frame;
-+			return len;
-+		} else
-+			return -1;
-+	} else {
-+		ms_error("g729ab_get_frame_len(): wrong header: 0x%hx\n", header);
-+		return -1;
-+	}
-+
-+	return -1;
-+}
-+
 +static void enc_init(MSFilter *f){
-+	EncState *s=ms_new(EncState, 1); /* alloc EncState object, count = 1 */
++	EncState *s=ms_new(EncState, 1);
 +	memset(s, 0 , sizeof(*s));
 +	
 +	g729ab_enc_process = G729AB_ENC_PROCESS; /* function pointers: special for FDPIC g729 lib */
 +	G729AB_ENC_RESET(&s->state);
 +	
-+	G729AB_ENC_CONFIG(&s->state, G729_ENC_OUTPUTFORMAT, FMT_PACKED); /* packed */ 
-+	//G729AB_ENC_CONFIG(&s->state, G729_ENC_OUTPUTFORMAT, FMT_UNPACKED); /* unpacked */ 
++	G729AB_ENC_CONFIG(&s->state, G729_ENC_OUTPUTFORMAT, FMT_UNPACKED); /* unpacked */ 
 +	
-+	G729AB_ENC_CONFIG(&s->state, G729_ENC_VAD, 1 ); /* g729ab */
-+	//G729AB_ENC_CONFIG(&s->state, G729_ENC_VAD, 0 ); /* g729a */
++	//G729AB_ENC_CONFIG(&s->state, G729_ENC_VAD, VAD_ENALBE); /* g729ab */
++	G729AB_ENC_CONFIG(&s->state, G729_ENC_VAD, VAD_DISABLE); /* g729a */
 +	
-+	s->enc_vad = 1;
-+	s->fmt_packed = 1;
++	s->enc_vad = VAD_DISABLE;
 +	s->ts=0;
++	s->pck_len = 20;
 +	s->bufferizer=ms_bufferizer_new();
 +	f->data=s;
 +}
@@ -139,50 +143,34 @@ diff -Nur linphone-1.6.0/mediastreamer2/src/g729.c linphone-1.6.0.new/mediastrea
 +static void enc_process(MSFilter *f){
 +	EncState *s=(EncState*)f->data;
 +	mblk_t *im;
-+	int16_t	ibuf[80] __attribute__ ((aligned (4)));
-+	int obuf_len_byte = 0;
-+	int bit_len = 0;
++	const int n_pck = s->pck_len/_PCK_LEN_MS;
++	int pck;
++	int i,byte,bit;
++	short ibuf[_SAMPLES * n_pck] __attribute__ ((aligned (4)));
++	short obuf[_ADSP_G729_H_LEN + _PCK_BITSTREAM_LEN] __attribute__ ((aligned (4)));
++	int obuf_len_byte = n_pck * _PCK_BITSTREAM_LEN_BYTES;
 +
 +	while((im=ms_queue_get(f->inputs[0]))!=NULL){
 +		ms_bufferizer_put(s->bufferizer,im);
 +	}
-+
-+	if (s->fmt_packed == 1) 
-+		obuf_len_byte = 14; /* 4 byte header and 80-bit data */
-+	else if (s->fmt_packed == 0)
-+		obuf_len_byte = 164; /* 4 byte header and 80 16-bit data */
-+
 +	while(ms_bufferizer_read(s->bufferizer,(uint8_t*)ibuf,sizeof(ibuf))==sizeof(ibuf)) {
 +		mblk_t *om=allocb(obuf_len_byte,0); 
-+		memset(om->b_wptr, 0 , obuf_len_byte);
-+	
-+		G729AB_ENC(&s->state, (short *)ibuf, (short *)om->b_wptr);
-+		
-+		if (s->enc_vad == 1) {
-+			/* g729ab */
-+			bit_len = g729ab_get_frame_len((short *)om->b_wptr);
-+			if (bit_len == -1) {
-+				ms_error("g729ab: enc_process: encoding error");
-+				return;
++		memset(om->b_wptr,0,obuf_len_byte);
++		for (pck=0;pck<n_pck;++pck){
++			G729AB_ENC(&s->state, ibuf + (pck * _SAMPLES), obuf);
++			/* unpacked -> packed */
++			for(i=0; i<_PCK_BITSTREAM_LEN; i++) {
++				byte = i>>3;
++				bit = i & 0x7;
++				if (obuf[i+2] == 0x81)
++					om->b_wptr[byte] |= 1 << (7-bit);
 +			}
-+		} else if (s->enc_vad == 0 ) {
-+			/* g729a */
-+			bit_len = 80;
-+		}
-+			
-+		if (s->fmt_packed)
-+			obuf_len_byte = (bit_len & 0x7) ? ((bit_len >> 3) + 5) : 
-+						((bit_len >> 3) + 4); /* 4-byte header */
-+		else
-+			obuf_len_byte = 4 + bit_len * 2;
-+	
-+		om->b_wptr += obuf_len_byte;
-+		//ms_message("g729_enc: message size: %d, obuf_len_byte: %d", 
-+		//	msgdsize(om), obuf_len_byte);
 +
++			om->b_wptr += _PCK_BITSTREAM_LEN_BYTES;
++		}
 +		mblk_set_timestamp_info(om,s->ts);
-+		ms_queue_put(f->outputs[0],om); /* one frame per packet */
-+		s->ts+=sizeof(ibuf)/2;
++		ms_queue_put(f->outputs[0],om); /* two frames per message */
++		s->ts+=sizeof(ibuf)/sizeof(short);
 +	}
 +}
 +
@@ -226,8 +214,7 @@ diff -Nur linphone-1.6.0/mediastreamer2/src/g729.c linphone-1.6.0.new/mediastrea
 +	DecState *s = ms_new(DecState, 1);
 +	g729ab_dec_process = G729AB_DEC_PROCESS;
 +	G729AB_DEC_RESET(s);
-+	G729AB_DEC_CONFIG(s, G729_DEC_INPUTFORMAT, FMT_PACKED); /* packed */
-+	//G729AB_DEC_CONFIG(s, G729_DEC_INPUTFORMAT, FMT_UNPACKED); /* unpacked */
++	G729AB_DEC_CONFIG(s, G729_DEC_INPUTFORMAT, FMT_UNPACKED); /* unpacked */
 +	f->data= s;
 +}
 +
@@ -240,19 +227,29 @@ diff -Nur linphone-1.6.0/mediastreamer2/src/g729.c linphone-1.6.0.new/mediastrea
 +	DecState *s=(DecState*)f->data;
 +	mblk_t *im;
 +	mblk_t *om;
-+
-+	//int i = 0;
-+	//char * ibuf = NULL;
++	int i,byte,bit;
++	short __attribute__ ((aligned (4))) _pck[_ADSP_G729_H_LEN + _PCK_BITSTREAM_LEN];
++	_pck[0] = SYNCWORD;
++	_pck[1] = BITNUM_G729A;
 +	while((im=ms_queue_get(f->inputs[0]))!=NULL){
-+		//ms_message("g729_dec: message size: %d", msgdsize(im));
-+		//ibuf = im->b_rptr;
-+		//for (i = 0; i < msgdsize(im); i++)
-+		//	ms_message("g729_dec: %hhx", ibuf[i]);	
-+		/* suppose to get one frame */
-+		om=allocb(160,0); /* 80 * 2 */
-+		G729AB_DEC(s, (short *)im->b_rptr, (short *)om->b_wptr);
-+		om->b_wptr += 160;
-+		ms_queue_put(f->outputs[0],om);
++		/* two frames in each message */
++		while (im->b_wptr - im->b_rptr >= _PCK_BITSTREAM_LEN_BYTES){
++			/* packed -> unpacked */
++			for(i=0; i<_PCK_BITSTREAM_LEN; i++) {
++				byte = i>>3;
++				bit = i & 0x7;
++				if ((im->b_rptr[byte] >> (7-bit)) & 0x1)
++					_pck[i+2] = 0x81;
++				else
++					_pck[i+2] = 0x7f;
++			}
++
++			om=allocb(_PCK_SIZE,0); /* 80 * 2 */
++			G729AB_DEC(s, _pck, (short *)om->b_wptr);
++			om->b_wptr += _PCK_SIZE;
++			ms_queue_put(f->outputs[0],om);
++			im->b_rptr += _PCK_BITSTREAM_LEN_BYTES;
++		}
 +		freemsg(im);
 +	}
 +}
@@ -294,19 +291,20 @@ diff -Nur linphone-1.6.0/mediastreamer2/src/g729.c linphone-1.6.0.new/mediastrea
 +
 +MS_FILTER_DESC_EXPORT(ms_g729_dec_desc)
 +MS_FILTER_DESC_EXPORT(ms_g729_enc_desc)
-diff -Nur linphone-1.6.0/mediastreamer2/src/Makefile.am linphone-1.6.0.new/mediastreamer2/src/Makefile.am
---- linphone-1.6.0/mediastreamer2/src/Makefile.am	2007-10-15 18:04:12.000000000 +0800
-+++ linphone-1.6.0.new/mediastreamer2/src/Makefile.am	2007-10-15 18:25:51.000000000 +0800
-@@ -75,6 +75,8 @@
+diff -Nur --exclude '*svn' linphone-2.0.1.orig/mediastreamer2/src/Makefile.am linphone-2.0.1/mediastreamer2/src/Makefile.am
+--- linphone-2.0.1.orig/mediastreamer2/src/Makefile.am	2008-06-24 18:06:21.000000000 +0800
++++ linphone-2.0.1/mediastreamer2/src/Makefile.am	2008-06-25 11:47:25.000000000 +0800
+@@ -88,6 +88,9 @@
  libmediastreamer_la_SOURCES+=gsm.c
  endif
  
 +libmediastreamer_la_SOURCES+=g729.c
 +
++
  alldescs.h:	Makefile.am $(libmediastreamer_la_SOURCES)
  	builddir=`pwd` && cd $(srcdir) && \
  	awk 'BEGIN { FS="[()]" ; }; /^\t*MS_FILTER_DESC_EXPORT/{ printf("%s\n", $$2) } '  > $$builddir/filterdescs.txt $(libmediastreamer_la_SOURCES) && \
-@@ -88,6 +90,7 @@
+@@ -101,6 +104,7 @@
  				$(ARTS_LIBS) \
  				$(SPEEX_LIBS) \
  				$(GSM_LIBS) \
