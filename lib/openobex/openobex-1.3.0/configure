@@ -19518,6 +19518,8 @@ if test "${am_cv_irda_found+set}" = set; then
 else
 
 
+		save_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS -I$srcdir"
 		cat >conftest.$ac_ext <<_ACEOF
 /* confdefs.h.  */
 _ACEOF
@@ -19560,6 +19562,8 @@ sed 's/^/| /' conftest.$ac_ext >&5
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+		CPPFLAGS="$save_CPPFLAGS"
+
 fi
 { echo "$as_me:$LINENO: result: $am_cv_irda_found" >&5
 echo "${ECHO_T}$am_cv_irda_found" >&6; }

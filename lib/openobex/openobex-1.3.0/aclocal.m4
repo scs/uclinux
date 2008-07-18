@@ -19,11 +19,15 @@ dnl
 AC_DEFUN([IRDA_HOOK],[
 	AC_CACHE_CHECK([for IrDA support],am_cv_irda_found,[
 
+		save_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS -I$srcdir"
 		AC_TRY_COMPILE([#include <sys/socket.h>
 				#include "src/irda.h"],
 		[struct irda_device_list l;],
 		am_cv_irda_found=yes,
-		am_cv_irda_found=no)])
+		am_cv_irda_found=no)
+		CPPFLAGS="$save_CPPFLAGS"
+		])
 
 		if test $am_cv_irda_found = yes; then
 			AC_DEFINE(HAVE_IRDA,1,[Define if system supports IrDA])
