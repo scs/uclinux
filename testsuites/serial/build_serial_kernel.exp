@@ -20,49 +20,54 @@ spawn make config
 
 #puts "Begin the interactive process of configuration"
 while 1 {
-   expect {
-   
-          -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
-                send "$expect_out(1,string)\r"
-          }
-           -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
-             send "y\r"
-      }
+    expect {
+        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" { 
+            send "y\r"
+        }
 
-           -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
-             send "y\r"
-      }
-             
-	   -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
-             send "y\r"
-      }
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {   
+            send "y\r"
+        }
 
-          -re "Console on Blackfin serial port.*SERIAL_BFIN_CONSOLE.*\\\[.*]" {
-             send "y\r"
-      }
-      
-         -re "Blackfin UART Mode.*Blackfin UART DMA mode.*SERIAL_BFIN_DMA.*Blackfin UART PIO mode.*SERIAL_BFIN_PIO.*choice.*\\\[.*]" {
-             send "1\r"
-      }
+        -re "Blackfin serial port support.*SERIAL_BFIN.*\\\[.*]" {
+            send "y\r"
+        }
 
-       "\\\(*) \\\[*]" {
-             sleep .01
-	     send "\r"
-      }
+        -re "Console on Blackfin serial port.*SERIAL_BFIN_CONSOLE.*\\\[.*]" {
+            send "y\r"
+        }
 
-      -re "\[cC]hoice\\\[.*]:" {
-             send "\r"
-      }
+        -re "Blackfin UART Mode.*Blackfin UART DMA mode.*SERIAL_BFIN_DMA.*Blackfin UART PIO mode.*SERIAL_BFIN_PIO.*choice.*\\\[.*]" {
+            send "1\r"
+        }
 
-      eof {
-	     puts "End of configuration"
-	     break
-      }
-      timeout {
-	     puts "\n\nFATAL ERROR: config prompt timeout in make config"
-           
-      }
-   }
+#Disable usb related drivers to avoid unnecessary info
+        -re "USB support \\\(USB_SUPPORT\\\) \\\[././.]" {
+            send "n\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
 }
 
 cd $uclinux_path/testsuites
@@ -79,9 +84,3 @@ source   copy_image.exp
 
 send_user "Ending $argv0\n"
 log_file
-
-
-
-
-
- 
