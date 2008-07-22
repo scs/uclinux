@@ -83,15 +83,11 @@ static struct vm_operations_struct simple_remap_vm_ops = {
 	.close = simple_vma_close,
 };
 
+/* In this sample we are using _ramend <-> physical_mem_end as
+ * the buffer to be mmaped.
+ */
 static int simple_remap_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-
-	/* In this sample we are using _ramend <-> physical_mem_end as 
-         * the buffer to be mmaped. 
-         */
-	extern unsigned long physical_mem_end;
-	extern unsigned long _ramend;
-
 	/* the kernel passes in the vm_pgoff - the offset, in *pages*
 	 * from the start of the buffer that the user space app wants
 	 * to mmap. This is the last arg in the user space mmap call.
