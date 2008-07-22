@@ -24,7 +24,7 @@ spawn make config
 
 while 1 {
     expect {
-        -re  "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
             send "$expect_out(1,string)\r"
         }
 
@@ -36,19 +36,23 @@ while 1 {
             send "y\r"
         }
 
-        -re "Sound card support.*SOUND.*\\\[./././.]" {
+        -re "Sound card support.*SOUND.*\\\[.*]" {
             send "m\r"
         }
 
-        -re "OSS Mixer API \\\(SND_MIXER_OSS\\\).*\\\[././.]" {
+        -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
             send "m\r"
         }
 
-        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\[^_].*\\\[././.]" {
+        -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
             send "m\r"
         }
 
-        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[././.]" {
+        -re "OSS PCM.*digital audio.*API.*SND_PCM_OSS\\\).*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
             send "m\r"
         }
 
@@ -63,6 +67,14 @@ while 1 {
         -re "Binary format.*FLAT.*Shared-FLAT.*FDPIC.*\\\[.*]" {
             #choose FDPIC
             send "4\r"
+        }
+
+        -re "ALSA utils.*USER_ALSA_UTILS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "tone.*USER_PLAY_TONE.*\\\[.*]" {
+            send "y\r"
         }
 
         -re "Build eXosip.*LIB_LIBEXOSIP.*\\\[.*]" {
@@ -106,7 +118,5 @@ step "Copy linux"
 
 source   copy_image.exp
 
-
+send_user "Ending $argv0\n"
 log_file
-
-send_user "\nKernel building for Linphone test finishes!\n"
