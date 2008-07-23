@@ -113,31 +113,42 @@ expect {
 }
 }
 
-set timeout 800
+set timeout 3000
 incr case_num
 while 1 {
 expect {
-	"Underrun happened" {
-        case_fail $case_num
+        "Underrun happened" {
+        set underrun_test_status 1
         break
-	}
-	"Network is unreachable" {
-        case_fail $case_num
+        }
+        "Network is unreachable" {
+        set underrun_test_status 1
         break
-	}
+        }
         -re "Trace:.*\r\n\r\n" {
-            expect -re "$kernel_prompt"
-            case_fail $case_num
-         }
+        expect -re "$kernel_prompt"
+        set underrun_test_status 1
+        break
+        }
 
-	timeout {
-        case_pass $case_num
-        send_log "\n$TITLE ............\[PASS\]\n"
-        break		
-	}
+        timeout {
+        set underrun_test_status 0
+        break
+        }
 }
 }
+
 send "\3"
+expect -re "$kernel_prompt"
+
+if { $underrun_test_status == "0" } {
+   case_pass $case_num
+   send_log "\n"
+   send_log "\n$TITLE ............\[PASS\]\n"
+} elseif { $underrun_test_status == "1" } {
+   case_fail $case_num
+}
+
 set spawn_id $host_linphonec_id
 send "\3"
 
