@@ -76,7 +76,7 @@
  obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
 --- linux-2.6.x/kernel/kgdb.c
 +++ linux-2.6.x/kernel/kgdb.c
-@@ -0,0 +1,1547 @@
+@@ -0,0 +1,1535 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -988,10 +988,6 @@
 +	netpoll_set_trap(1);
 +#endif
 +
-+#ifdef CONFIG_BLACKFIN
-+	if (debugger_step)
-+		local_irq_enable();
-+#endif
 +	/* 
 +	 * Interrupts will be restored by the 'trap return' code, except when
 +	 * single stepping.
@@ -1008,8 +1004,6 @@
 +	}
 +
 +	current->thread.debuggerinfo = linux_regs;
-+
-+	debugger_step = 0;
 +
 +	if (!debugger_step)
 +		kgdb_disable_sw_debug();
@@ -1382,12 +1376,6 @@
 +	/* Free debugger_active */
 +	atomic_set(&debugger_active, 0);
 +	local_irq_restore(flags);
-+
-+#ifdef CONFIG_BLACKFIN
-+	if (debugger_step)
-+		local_irq_disable();
-+
-+#endif
 +
 +#ifdef CONFIG_KGDB_ETH
 +	netpoll_set_trap(0);
