@@ -172,6 +172,7 @@ int main(int argc, char *argv[])
 		rtc_tm.tm_hour, rtc_tm.tm_min, rtc_tm.tm_sec);
 	/* R Getz till here */
 
+#if 0 /* Blackfin RTC does not support PIE */
 	printf("9. ioctl RTC_PIE_ON\n");
 	ret = ioctl(rtc_fd, RTC_PIE_ON, 0);
 	if (ret == -1) {
@@ -207,6 +208,7 @@ int main(int argc, char *argv[])
 	if (ret == -1) {
 		perror("ioctl RTC_PIE_OFF error");
 	}
+#endif
 
 #if 0
 	/* New RTC framework doesn't support EPOCH ioctls */
