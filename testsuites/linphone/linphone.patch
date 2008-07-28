@@ -6,7 +6,7 @@ Index: linphone-2.1.1/mediastreamer2/src/alsa.c
  	int err;
  	if ((err=snd_pcm_writei(handle,buf,nsamples))<0){
  		if (err==-EPIPE){
-+			printf("underrun happened!!!\n");
++			printf("Underrun happened!!!\n");
  			snd_pcm_prepare(handle);
  #ifdef EPIPE_BUGFIX
  			alsa_fill_w (handle);
