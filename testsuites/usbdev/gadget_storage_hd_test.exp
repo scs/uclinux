@@ -66,7 +66,7 @@ expect -re $kernel_prompt
 
 incr case_num
 set timeout 20
-send "modprobe g_file_storage file=/dev/sda1 stall=0\r"
+send "modprobe g_file_storage file=/dev/sda stall=0\r"
 while 1 {
     expect {
         -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
@@ -178,8 +178,10 @@ while 1 {
             expect -re "First cylinder.*:"
             send "\r"
             expect -re "Using default.*Last cylinder.*:"
-            send "\r"
-            expect -re "Using default.*Command.*:"
+            send "+1G\r"
+            expect -re "Command.*:"
+            send "p\r"
+            expect -re "Command.*:"
             send "w\r"
             while 1 {
                 expect {
