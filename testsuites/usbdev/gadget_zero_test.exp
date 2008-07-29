@@ -296,7 +296,7 @@ set timeout 5
 send "sudo ./src/testusb -D /proc/bus/usb/$g_zero_bus/$g_zero_dev -t14 -c 15000 -s 256 -v 1\r"
 while 1 {
     expect {
-        -re "test 14.*\[0-2]\\\.\[0-9]+ secs" {
+        -re "test 14.*\[0-3]\\\.\[0-9]+ secs" {
             case_pass $case_num
             break
         }
