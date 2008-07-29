@@ -19,21 +19,21 @@ step "Reboot the kernel."
 source ../reboot_kernel.exp 
 
 step "Start testing."
-
+sleep 10
 set timeout 5
+send "\r"
+expect -re $kernel_prompt
 
 send "cd lmbench3/bin/blackfin-Linux\r" 
 while 1 {
-   expect {
-      "bin*>" {         
-         break
-      }
-
-      timeout { 
-                case_fail $case_num
-	exit
-      }
-   }
+    expect {
+        "bin*>" {         
+            break
+        }
+        timeout { 
+            case_fail $case_num
+        }
+    }
 }
 
 set case_num 0
@@ -43,112 +43,98 @@ set timeout 500
 incr case_num
 send -s  "./lat_ctx -s 0 2\r" 
 while 1 {
-   expect {
-     -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-	exit
-         }
-     }
+    expect {
+        -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
 send -s  "./lat_ctx -s 16 2\r"
 while 1 {
-   expect {
-     -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
 send -s  "./lat_ctx -s 64 2\r"
 while 1 {
-   expect {
-     -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
 send -s  "./lat_ctx -s 16 8\r"
 while 1 {
-   expect {
-     -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 incr case_num
 send -s  "./lat_ctx -s 64 8\r"
 while 1 {
-   expect {
-     -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
 send -s  "./lat_ctx -s 16 16\r"
 while 1 {
-   expect {
-     -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 incr case_num
 send -s  "./lat_ctx -s 64 16\r"
 while 1 {
-   expect {
-     -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
-                case_pass $case_num
-         break
-      }
-
-      timeout {
-                case_fail $case_num
-        exit
-         }
-     }
+    expect {
+        -re "size.* ovr.*\[\r\n]\[0-9]+ \[0-9\.]+\[\r\n]" {
+            case_pass $case_num
+            break
+        }
+        timeout {
+            case_fail $case_num
+        }
+    }
 }
 
 send_log "\n"
@@ -157,4 +143,3 @@ send_log "\n$TITLE ............\[PASS\]\n"
 send_user "Ending $argv0\n"
 
 log_file
-

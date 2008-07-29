@@ -66,14 +66,15 @@ while 1 {
 }
 
 incr case_num
-set timeout 5
+set timeout 20
 send "modprobe g_file_storage file=fsg.block stall=0\r"
 while 1 {
     expect {
         -re "(modprobe:|\[eE]rror|\[fF]ail).*$kernel_prompt" {
             case_fail $case_num
         }
-        -re "File-backed Storage Gadget.*fsg\.block." {
+        -re "File-backed Storage Gadget.*fsg\.block" {
+            expect "speed config #1"
             break
         }
         timeout {
