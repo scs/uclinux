@@ -148,6 +148,7 @@ int main(int argc, char *argv[])
 		} else if (strcmp(*av, "-s") == 0) {
 			printf("-s switch: safe exit (CTRL-C and kill).\n");
 			sa.sa_handler = safe_exit;
+			sigaction(SIGHUP, &sa, NULL);
 			sigaction(SIGINT, &sa, NULL);
 			sigaction(SIGTERM, &sa, NULL);
 		} else if (strcmp(*av, FOREGROUND_FLAG) == 0) {
