@@ -8,7 +8,8 @@ clean:
 	rm -f *.o fw_env *.gdb
 
 romfs:
-	$(ROMFSINST) -d /bin/fw_printenv
-	$(ROMFSINST) -s fw_printenv /bin/fw_setenv
+	$(ROMFSINST) -d /bin/fw_env
+	$(ROMFSINST) -s fw_env /bin/fw_printenv
+	$(ROMFSINST) -s fw_env /bin/fw_setenv
 
 .PHONY: all clean romfs
