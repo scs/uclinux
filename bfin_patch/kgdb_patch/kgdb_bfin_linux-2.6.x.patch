@@ -76,7 +76,7 @@
  obj-$(CONFIG_SYSCTL) += utsname_sysctl.o
 --- linux-2.6.x/kernel/kgdb.c
 +++ linux-2.6.x/kernel/kgdb.c
-@@ -0,0 +1,1535 @@
+@@ -0,0 +1,1533 @@
 +/*
 + * This program is free software; you can redistribute it and/or modify it
 + * under the terms of the GNU General Public License as published by the
@@ -1005,8 +1005,7 @@
 +
 +	current->thread.debuggerinfo = linux_regs;
 +
-+	if (!debugger_step)
-+		kgdb_disable_sw_debug();
++	kgdb_disable_sw_debug();
 +	kgdb_disable_hw_debug(linux_regs);
 +
 +	for (i = 0; i < num_online_cpus(); i++) {
@@ -1351,8 +1350,7 @@
 +
 +      kgdb_exit:
 +
-+	if (!debugger_step)
-+		kgdb_enable_sw_debug();
++	kgdb_enable_sw_debug();
 +
 +	current->thread.debuggerinfo = NULL;
 +	procindebug[smp_processor_id()] = 0;
