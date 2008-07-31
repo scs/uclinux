@@ -79,6 +79,21 @@ while 1 {
     }
 }
 
+puts "In Windows, set USB ethernet controller's IP address to $usb_host, connect to Windows host"
+puts "If you are ready, press \"y\" and enter:"
+set timeout 120
+while 1 {
+    expect_user {
+        -re "\[yY]" {
+            break
+        }
+        timeout {
+            send_user "quit this test\n"
+            case_fail $case_num
+        }
+    }
+}
+
 incr case_num
 set timeout 120
 send "ping -c 100 $usb_host\r"
@@ -96,11 +111,25 @@ while 1 {
     }
 }
 
-puts "In Windows, set USB ethernet controller's IP address to $usb_host, connect to Windows host"
 puts "Test from Window's host side, time: 20 mins"
-sleep 1200
-puts "Time is up!"
-sleep 5
+puts "If pass, press \"y\" and enter; If fail, press \"n\" and enter: "
+incr case_num
+set timeout 300
+while 1 {
+    expect_user {
+        -re "\[yY]" {
+            case_pass $case_num
+            break
+        }
+        -re "\[nN]" {
+            case_fail $case_num
+        }
+        timeout {
+            send_user "quit this test\n"
+            case_fail $case_num
+        }
+    }
+}
 
 incr case_num
 set timeout 5

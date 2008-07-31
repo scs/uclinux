@@ -256,29 +256,13 @@ while 1 {
 
 incr case_num
 set timeout 5
-send "lsusb|grep \"Gadget Zero\"|awk '{print \$2\"\:\"\$4}'|awk -F \: '{print \$1}'\r"
+send "lsusb|grep \"Gadget Zero\"|awk '{print \$2\" \"\$4}'\r"
 while 1 {
     expect {
-        -re "\[0-9]\[0-9]+" {
-            set g_zero_bus "$expect_out(0,string)"
-            send_user "g_zero_bus = $g_zero_bus\r"
-            case_pass $case_num
-            break
-        }
-        timeout {
-            case_fail $case_num
-        }
-    }
-}
-
-incr case_num
-set timeout 5
-send "lsusb|grep \"Gadget Zero\"|awk '{print \$2\"\:\"\$4}'|awk -F \: '{print \$2}'\r"
-while 1 {
-    expect {
-        -re "\[0-9]\[0-9]+" {
-            set g_zero_dev "$expect_out(0,string)"
-            send_user "g_zero_dev = $g_zero_dev\r"
+        -re "(\[0-9]+)( )(\[0-9]+)" {
+            set g_zero_bus "$expect_out(1,string)"
+            set g_zero_dev "$expect_out(3,string)"
+            send_user "g_zero_bus=$g_zero_bus;g_zero_dev=$g_zero_dev\n"
             case_pass $case_num
             break
         }
