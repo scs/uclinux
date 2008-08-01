@@ -40,6 +40,9 @@ ifeq ($(CONFIG_INSTALL_ELF_SHARED_LIBS),y)
 				/lib/`basename $$i`; \
 		fi; \
 	done; \
+	if [ "$(CONFIG_INSTALL_ELF_TRIM_LIBS)" = "y" ] ; then \
+		$(ROOTDIR)/vendors/AnalogDevices/trim-libs.sh; \
+	fi; \
 	if type bfin-linux-uclibc-ldconfig >/dev/null 2>&1; then \
 		bfin-linux-uclibc-ldconfig -r $(ROMFSDIR); \
 	fi
