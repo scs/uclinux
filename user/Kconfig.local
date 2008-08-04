@@ -91,6 +91,8 @@ config SIMPLE_GPIO_TEST
 	bool "Simple GPIO test"
 config FIXED_CODE_TEST
 	bool "Fixed code test"
+config DYNTICK_TEST
+	bool "Dynamic Tick Test"
 endmenu
 
 

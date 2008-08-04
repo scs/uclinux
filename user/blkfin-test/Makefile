@@ -38,6 +38,7 @@ dir_$(CONFIG_MMAP_TEST)                     += mmap_test
 dir_$(CONFIG_USER_GETTIMEOFDAY_TEST)        += gettimeofday_test
 dir_$(CONFIG_SIMPLE_GPIO_TEST)              += simple-gpio-test
 dir_$(CONFIG_FIXED_CODE_TEST)               += fixed_code_test
+dir_$(CONFIG_DYNTICK_TEST)                  += dyntick-test
 
 all romfs:
 	for i in $(dir_y)   ; do $(MAKE) -C $$i $@ || exit $$? ; done
