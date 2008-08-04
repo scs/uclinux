@@ -48,7 +48,7 @@ image:
 	bfin-uclinux-objcopy -O binary $(ROOTDIR)/$(LINUXDIR)/vmlinux $(ROOTDIR)/$(LINUXDIR)/vmlinux.bin
 	rm -f $(ROOTDIR)/$(LINUXDIR)/vmlinux.bin.gz
 	gzip -9 $(ROOTDIR)/$(LINUXDIR)/vmlinux.bin
-	$(UBOOT_DIR)/tools/mkimage -A blackfin -O linux -T kernel -C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel Image" -d $(ROOTDIR)/$(LINUXDIR)/vmlinux.bin.gz $(ROOTDIR)/$(LINUXDIR)/uImage
+	$(CROSS_COMPILE)mkimage -A blackfin -O linux -T kernel -C gzip -a 0x1000 -e 0x1000 -n "uClinux Kernel Image" -d $(ROOTDIR)/$(LINUXDIR)/vmlinux.bin.gz $(ROOTDIR)/$(LINUXDIR)/uImage
 
 old-image:
 	[ -d $(IMAGEDIR) ] || mkdir -p $(IMAGEDIR)
@@ -57,7 +57,9 @@ old-image:
 	fi
 	./bfin-elf-genext2fs -i $(INODES) -b $(BLOCKS) -d $(ROMFSDIR) -D device_table.txt $(ROMFSIMG)
 	cp $(ROMFSIMG) $(ROOTDIR)/$(LINUXDIR)/
-	ADDR=`$(CROSS_COMPILE)readelf -s $(IMAGEDIR)/vmlinux | awk '$$NF == "__end" {print "0x"$$2}'` ; \
+	BSS=`set -- \`$(CROSS_COMPILE)objdump -h $(ROOTDIR)/$(LINUXDIR)/linux | grep .bss\` ; echo 0x$${4}` ; \
+	BSS_SIZE=`set -- \`$(CROSS_COMPILE)objdump -h $(ROOTDIR)/$(LINUXDIR)/linux | grep .bss\` ; echo 0x$${3}` ; \
+	ADDR=$$(($$BSS + $$BSS_SIZE)) ; \
 	$(CROSS_COMPILE)objcopy --add-section .romfs=$(ROOTDIR)/$(LINUXDIR)/rootfs.img \
 	--adjust-section-vma .romfs=$${ADDR} --no-adjust-warnings \
 	--set-section-flags .romfs=alloc,load,data \
