@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 ########################################################################################################################
 ######### To run this script, please first set following uboot varibles properly on your target board  #################
 ######### set  bootcmd   run tftpboot                                                                  #################
