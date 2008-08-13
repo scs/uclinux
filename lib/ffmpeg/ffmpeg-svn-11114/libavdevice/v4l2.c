@@ -288,9 +288,13 @@ static int mmap_init(AVFormatContext *ctx)
         s->buf_start[i] = mmap (NULL, buf.length,
                         PROT_READ | PROT_WRITE, MAP_SHARED, s->fd, buf.m.offset);
         if (s->buf_start[i] == MAP_FAILED) {
-            av_log(ctx, AV_LOG_ERROR, "mmap: %s\n", strerror(errno));
+     	    s->buf_start[i] = mmap (NULL, buf.length, PROT_READ | PROT_WRITE, MAP_PRIVATE, s->fd, buf.m.offset);
+            
+            if (s->buf_start[i] == MAP_FAILED) {	
+            	av_log(ctx, AV_LOG_ERROR, "mmap: %s\n", strerror(errno));
 
-            return -1;
+  		return -1;
+            }
         }
     }
 
