@@ -27,7 +27,6 @@ dir_$(CONFIG_USER_NDSO)                          += ndso
 dir_$(CONFIG_USER_NET_AUDIO)                     += net_audio
 dir_$(CONFIG_USER_MDMA_TESTS)                    += mdma
 dir_$(CONFIG_USER_MDMA_KO)                       += mdma
-dir_$(CONFIG_USER_XMAME)                         += xmame
 dir_$(CONFIG_USER_UBOOT_TOOLS)                   += u-boot-tools
 dir_$(CONFIG_USER_SDLEXAMPLES)                   += sdl-examples
 dir_$(CONFIG_USER_FPGA_HSCONV)                   += fpga
