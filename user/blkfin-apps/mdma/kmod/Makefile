@@ -5,6 +5,14 @@ MAKEARCH_KERNEL ?= $(MAKE) ARCH=blackfin CROSS_COMPILE=bfin-uclinux-
 ROOTDIR  ?= $(PWD)/../../../..
 LINUXDIR ?= linux-2.6.x
 
+# avoid infinite recursion
+ifneq ($(LINUXDIR),)
+MAKE_KERNEL = CFLAGS="" CPPFLAGS="" LDFLAGS="" \
+	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD
+else
+MAKE_KERNEL = echo
+endif
+
 obj-m := bfdma.o
 bfdma-objs := bfdma_main.o bfdma_ex.o
 
@@ -13,8 +21,7 @@ CFLAGS += -Wall -g -O0
 all: module
 
 module:
-	CFLAGS="" CPPFLAGS="" LDFLAGS="" \
-	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD modules
+	$(MAKE_KERNEL) modules
 
 IP = bfin
 RSH = rsh -l root $(IP)
@@ -26,6 +33,6 @@ rcp: module
 romfs:
 
 clean:
-	$(MAKEARCH_KERNEL) -C $(ROOTDIR)/$(LINUXDIR) SUBDIRS=$$PWD clean
+	$(MAKE_KERNEL) clean
 
 .PHONY: all module romfs clean
