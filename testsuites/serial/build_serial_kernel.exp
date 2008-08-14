@@ -40,7 +40,7 @@ while 1 {
             send "y\r"
         }
 
-        -re "Blackfin UART Mode.*Blackfin UART DMA mode.*SERIAL_BFIN_DMA.*Blackfin UART PIO mode.*SERIAL_BFIN_PIO.*choice.*\\\[.*]" {
+        -re "UART Mode.*DMA mode.*SERIAL_BFIN_DMA.*PIO mode.*SERIAL_BFIN_PIO.*choice.*\\\[.*]" {
             send "1\r"
         }
 

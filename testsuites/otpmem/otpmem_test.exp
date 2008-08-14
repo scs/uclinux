@@ -22,7 +22,7 @@ incr case_num
 
 for { set j 0 } { $j < 10 } { incr j 1 } {
 
-send -s "dd if=/dev/otp of=otp_out.bin$j bs=8 count=$count_size\r"
+send -s "dd if=/dev/bfin-otp of=otp_out.bin$j bs=8 count=$count_size\r"
 while 1 {
    expect {
      -re "$count_size.*records in.*$count_size.*records out" {
