@@ -1,0 +1,1722 @@
+dnl Process this file with autoconf to produce a configure script.
+
+AC_INIT(include/directfb.h)
+
+AC_PREREQ(2.52)
+
+#
+# Making releases:
+#   DIRECTFB_MICRO_VERSION += 1;
+#   DIRECTFB_INTERFACE_AGE += 1;
+#   DIRECTFB_BINARY_AGE += 1;
+# if any functions have been added, set DIRECTFB_INTERFACE_AGE to 0.
+# if backwards compatibility has been broken,
+# set DIRECTFB_BINARY_AGE and DIRECTFB_INTERFACE_AGE to 0.
+#
+#
+DIRECTFB_MAJOR_VERSION=1
+DIRECTFB_MINOR_VERSION=2
+DIRECTFB_MICRO_VERSION=2
+DIRECTFB_INTERFACE_AGE=0
+DIRECTFB_BINARY_AGE=2
+DIRECTFB_VERSION=$DIRECTFB_MAJOR_VERSION.$DIRECTFB_MINOR_VERSION.$DIRECTFB_MICRO_VERSION
+
+AC_SUBST(DIRECTFB_MAJOR_VERSION)
+AC_SUBST(DIRECTFB_MINOR_VERSION)
+AC_SUBST(DIRECTFB_MICRO_VERSION)
+AC_SUBST(DIRECTFB_INTERFACE_AGE)
+AC_SUBST(DIRECTFB_BINARY_AGE)
+AC_SUBST(DIRECTFB_VERSION)
+
+AC_DEFINE_UNQUOTED(DIRECTFB_VERSION,"$DIRECTFB_VERSION",[The DirectFB version])
+
+# libtool versioning
+LT_RELEASE=$DIRECTFB_MAJOR_VERSION.$DIRECTFB_MINOR_VERSION
+LT_CURRENT=`expr $DIRECTFB_MICRO_VERSION - $DIRECTFB_INTERFACE_AGE`
+LT_BINARY=`expr $DIRECTFB_MICRO_VERSION - $DIRECTFB_BINARY_AGE`
+LT_REVISION=$DIRECTFB_INTERFACE_AGE
+LT_AGE=`expr $DIRECTFB_BINARY_AGE - $DIRECTFB_INTERFACE_AGE`
+
+AC_SUBST(LT_RELEASE)
+AC_SUBST(LT_CURRENT)
+AC_SUBST(LT_BINARY)
+AC_SUBST(LT_REVISION)
+AC_SUBST(LT_AGE)
+
+# The earliest version that this release has binary compatibility with.
+# This is used for module locations.
+BINARY_VERSION=$DIRECTFB_MAJOR_VERSION.$DIRECTFB_MINOR_VERSION-$LT_BINARY
+
+
+VERSION=$DIRECTFB_VERSION
+PACKAGE=DirectFB
+
+AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
+
+AM_INIT_AUTOMAKE($PACKAGE, $VERSION, no-define)
+
+
+AM_CONFIG_HEADER(config.h)
+AM_MAINTAINER_MODE
+AC_DISABLE_STATIC
+
+
+case x"$target" in
+  xNONE | x)
+    target_or_host="$host" ;;
+  *)
+    target_or_host="$target" ;;
+esac
+
+
+case "$target_or_host" in
+  *-cygwin)
+dnl    AC_ENABLE_STATIC
+dnl    AC_DISABLE_SHARED
+    ;;
+esac
+
+
+AC_PROG_CC
+AM_PROG_CC_C_O
+ifdef([AM_PROG_AS],[AM_PROG_AS],[])
+AM_PROG_LIBTOOL
+AM_SANITY_CHECK
+AC_SUBST(LD)
+AC_ISC_POSIX
+AC_PROG_INSTALL
+AC_PROG_MAKE_SET
+AC_HEADER_STDC
+AC_C_BIGENDIAN
+
+AC_CHECK_SIZEOF(int)
+AC_CHECK_SIZEOF(long)
+AC_CHECK_SIZEOF(long long)
+
+
+## Work around libstuhl during cross build...
+if test "$host" != "$build"; then
+  sys_lib_dlsearch_path_spec=""
+  sys_lib_search_path_spec=""
+fi
+
+AC_PATH_PROGS(PERL, perl5 perl)
+
+AC_PATH_PROG(MAN2HTML, man2html, no)
+AC_SUBST(MAN2HTML)
+AM_CONDITIONAL(HAVE_MAN2HTML, test "$MAN2HTML" != "no")
+
+
+dnl Test for OSX
+AC_ARG_ENABLE(osx,
+  [  --enable-osx            build with Mac OS X support [[default=auto]]],,
+  enable_osx=yes)
+
+if test "$enable_osx" = "yes"; then
+  AC_CHECK_HEADER(Carbon/Carbon.h, osx_found=yes, osx_found=no)
+  if test "$osx_found" = no; then
+    enable_osx=no
+    AC_MSG_WARN([
+*** no Carbon/Carbon.h found -- building without Mac OS X support.])
+  else
+    OSX_LIBS="-framework Carbon"
+  fi
+fi
+
+AM_CONDITIONAL(OSX_CORE, test "$enable_osx" = "yes")
+
+dnl Test for X11
+AC_ARG_ENABLE(x11,
+  [  --enable-x11            build with X11 support [[default=auto]]],,
+  enable_x11=yes)
+
+if test "$enable_x11" = "yes"; then
+  CFLAGS_saved="$CFLAGS"
+  CFLAGS="$CFLAGS -I/usr/X11R6/include"
+  AC_CHECK_HEADER(X11/X.h, x11_found=yes, x11_found=no)
+  CFLAGS="$CFLAGS_saved"
+  if test "$x11_found" = no; then
+    enable_x11=no
+    AC_MSG_WARN([
+*** no X11/X.h found -- building without X11 support.])
+  else
+    X11_LIBS="-L/usr/X11R6/lib -lX11 -lXext"
+    X11_CFLAGS="-I/usr/X11R6/include"
+  fi
+fi
+
+AM_CONDITIONAL(X11_CORE, test "$enable_x11" = "yes")
+
+
+AC_CHECK_HEADERS(linux/compiler.h linux/unistd.h asm/page.h)
+
+
+dnl Clear default CFLAGS
+if test x"$CFLAGS" = x"-g -O2"; then
+  CFLAGS=
+fi
+
+CFLAGS="-O3 -ffast-math -pipe $CFLAGS"
+
+DFB_INTERNAL_CFLAGS="-D_GNU_SOURCE $DFB_INTERNAL_CFLAGS"
+
+AC_ARG_ENABLE(extra-warnings,
+  [  --enable-extra-warnings   enable extra warnings [[default=no]]],,
+  enable_extra_warnings=no)
+if test "$enable_extra_warnings" = "yes"; then
+  CFLAGS="-W -Wno-sign-compare -Wno-unused-parameter -Wundef -Wcast-qual -Wcast-align -Waggregate-return -Wmissing-declarations -Winline $CFLAGS"
+fi
+
+# FIXME
+#if test "$GCC" = "yes"; then
+#  CFLAGS="-Wall -Wno-strict-aliasing $CFLAGS"
+#fi
+
+
+#
+# check target architecture
+#
+have_x86=no
+have_x86_64=no
+have_arm=no
+have_ppc=no
+
+case "$target_or_host" in
+  i*86-*-*)
+    have_x86=yes
+    AC_DEFINE(ARCH_X86,1,[Define to 1 if you are compiling for ix86.])
+    ;;
+    
+  x86_64-*)
+    have_x86=yes
+    have_x86_64=yes
+    AC_DEFINE(ARCH_X86_64,1,[Define to 1 if you are compiling for AMD64.])
+    ;;
+
+  *arm*)
+    have_arm=yes
+    ;;
+
+  ppc-*-linux* | powerpc-*)
+    have_ppc=yes
+    AC_DEFINE(ARCH_PPC,1,[Define to 1 if you are compiling for PowerPC.])
+    ;;
+
+  *)
+    ;;
+esac
+
+
+have_linux=no
+have_cygwin=no
+have_kos=no
+need_libc_r=no
+need_libdl=yes
+want_ppcasm=yes
+
+case "$target_or_host" in
+  *-linux*)
+    have_linux=yes
+    ;;
+
+  *-cygwin)
+    have_cygwin=yes
+    need_libdl=no
+    ;;
+
+  *-freebsd*)
+    need_libc_r=yes
+    need_libdl=no
+    want_ppcasm=yes
+    CPPFLAGS="$CPPFLAGS -I/usr/local/include"
+    LDFLAGS="$LDFLAGS -L/usr/local/lib"
+    ;;
+
+  *-openbsd*)
+    need_libc_r=yes
+    need_libdl=no
+    want_ppcasm=no
+    CPPFLAGS="$CPPFLAGS -I/usr/local/include"
+    LDFLAGS="$LDFLAGS -L/usr/local/lib"
+    ;;
+
+  *-netbsd*)
+    need_libc_r=no
+    need_libdl=no
+    want_ppcasm=yes
+    CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+    LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
+    ;;    
+
+  *-darwin*)
+    need_libc_r=no
+    need_libdl=yes
+    want_ppcasm=no
+    CPPFLAGS="$CPPFLAGS -I/sw/include"
+    LDFLAGS="$LDFLAGS -L/sw/lib"
+    ;;
+
+  sh-*-elf)
+    if test "$CC" = "kos-cc"; then
+      need_libc_r=no
+      need_libdl=no
+      have_kos=yes
+    fi
+    ;;
+esac
+
+AM_CONDITIONAL(HAVE_LINUX, test "$have_linux" = "yes")    
+
+AM_CONDITIONAL(BUILDPPCASM, test "$have_ppc" = "yes" && test "$want_ppcasm" = "yes")
+
+if test "$have_ppc" = "yes" && test "$want_ppcasm" = "yes"; then
+    AC_DEFINE(USE_PPCASM,1,[Define to 1 if ppc assembly is available.])
+fi
+
+if test "$have_kos" = "yes"; then
+    AC_DEFINE(USE_KOS,1,[Define to 1 if compiling on KallistiOS.])
+fi
+
+dnl Threads
+
+THREADFLAGS="-D_REENTRANT"
+
+if test "$have_kos" = "no"; then
+  if test "$need_libc_r" = "yes"; then
+    AC_CHECK_LIB(c_r, pthread_attr_init, ,
+      AC_MSG_ERROR([
+*** DirectFB requires phtreads in libc_r.]))
+    THREADLIB="-lc_r"
+  else
+    AC_CHECK_LIB(pthread, pthread_attr_init, ,
+      AC_MSG_ERROR([
+*** DirectFB requires libpthread.]))
+    THREADLIB="-lpthread"
+  fi
+fi
+
+AC_CHECK_DECLS(PTHREAD_MUTEX_RECURSIVE,,
+  AC_MSG_WARN([
+*** PTHREAD_MUTEX_RECURSIVE is not defined! Dead locks might occur!]), [
+#define _GNU_SOURCE
+#include <pthread.h>])
+
+AC_CHECK_DECLS(PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP,,
+  AC_MSG_WARN([
+*** PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP is not defined! Dead locks might occur!]), [
+#define _GNU_SOURCE
+#include <pthread.h>])
+
+AC_SUBST(THREADFLAGS)
+AC_SUBST(THREADLIB)
+
+CPPFLAGS="$THREADFLAGS $CPPFLAGS"
+
+
+dnl Dynamic Linker
+DYNLIB=""
+if test "$need_libdl" = "yes"; then
+  if test "$enable_shared" = "yes"; then
+    AC_CHECK_LIB(dl, dlopen, ,
+      AC_MSG_ERROR([
+*** DirectFB requires libdl.]))
+    DYNLIB="-ldl"
+  fi
+fi
+
+AC_SUBST(DYNLIB)
+
+
+if test "$have_x86" = "yes"; then
+##
+## HACK HACK HACK automake uses @AS@ like a gcc
+##
+  AS=$CC
+  ASFLAGS=$CFLAGS
+  AC_SUBST(AS)
+  AC_SUBST(ASFLAGS)
+
+  AC_DEFINE(HAVE_INB_OUTB_IOPL,1,
+            [Define to 1 if inb, outb and iopl are available.])
+  AC_MSG_CHECKING([for sys/io.h])
+  AC_TRY_COMPILE([#include <sys/io.h>], [char x = inb(0); (void)x;], 
+    AC_DEFINE(HAVE_SYSIO,1,
+              [Define to 1 if you have the <sys/io.h> header file.])
+    have_sysio=yes
+    AC_MSG_RESULT(yes),
+    AC_MSG_RESULT(no))
+else
+  have_sysio=no
+fi
+
+
+AC_ARG_ENABLE(profiling,
+  [  --enable-profiling        enable profiling support [[default=no]]],,
+  enable_profiling=no)
+if test "$enable_profiling" = "yes"; then
+    CFLAGS="$CFLAGS -pg -g3"
+else
+    DFB_CFLAGS_OMIT_FRAME_POINTER="-fomit-frame-pointer"
+fi
+
+
+AC_ARG_ENABLE(debug,
+  [  --enable-debug            enable debugging [[default=no]]],,
+  enable_debug=no)
+if test "$enable_debug" = "yes"; then
+    CFLAGS="$CFLAGS -g3 -fno-inline"
+    DIRECT_BUILD_DEBUG=1
+else
+    DIRECT_BUILD_DEBUG=0
+fi
+AM_CONDITIONAL(ENABLE_DEBUG, test "$enable_debug" = "yes")
+
+AC_SUBST(DIRECT_BUILD_DEBUG)
+
+
+AC_ARG_ENABLE(debug-support,
+  [  --enable-debug-support    enable debugging support [[default=yes]]],, enable_debug_support=yes)
+if test "$enable_debug_support" = "yes" || test "$enable_debug" = "yes"; then
+    enable_debug_support=yes
+    DIRECT_BUILD_DEBUGS=1
+else
+    DIRECT_BUILD_DEBUGS=0
+fi
+AM_CONDITIONAL(ENABLE_DEBUGS, test "$enable_debug_support" = "yes")
+
+AC_SUBST(DIRECT_BUILD_DEBUGS)
+
+
+AC_ARG_ENABLE(trace,
+  [  --enable-trace            enable call tracing [[default=no]]],,
+  enable_trace=no)
+if test "$enable_trace" = "yes"; then
+    DFB_INTERNAL_CFLAGS="$DFB_INTERNAL_CFLAGS -finstrument-functions"
+    DIRECT_BUILD_TRACE=1
+else
+    DIRECT_BUILD_TRACE=0
+fi
+AM_CONDITIONAL(ENABLE_TRACE, test "$enable_trace" = "yes")
+
+AC_SUBST(DIRECT_BUILD_TRACE)
+
+
+AC_ARG_ENABLE(text,
+  [  --enable-text             enable text output [[default=yes]]],,
+  enable_text=yes)
+if test "$enable_text" = "no"; then
+    DIRECT_BUILD_TEXT=0
+else
+    DIRECT_BUILD_TEXT=1
+fi
+
+AC_SUBST(DIRECT_BUILD_TEXT)
+
+
+AC_ARG_ENABLE(gettid,
+  [  --enable-gettid           enable usage of gettid() [[default=yes]]],,
+  enable_gettid=yes)
+if test "$enable_gettid" = "no"; then
+    DIRECT_BUILD_GETTID=0
+else
+    DIRECT_BUILD_GETTID=1
+fi
+
+AC_SUBST(DIRECT_BUILD_GETTID)
+
+
+AC_ARG_ENABLE(network,
+  [  --enable-network          enable network support [[default=yes]]],,
+  enable_network=yes)
+if test "$enable_network" = "no"; then
+    DIRECT_BUILD_NETWORK=0
+else
+    DIRECT_BUILD_NETWORK=1
+fi
+
+AC_SUBST(DIRECT_BUILD_NETWORK)
+
+
+AC_CHECK_HEADER(stdbool.h, DIRECT_BUILD_STDBOOL=1, DIRECT_BUILD_STDBOOL=0)
+
+AC_SUBST(DIRECT_BUILD_STDBOOL)
+
+
+linux_fusion="N/A"
+AC_ARG_ENABLE(multi,
+  [  --enable-multi            enable multi application core [[default=no]]],,
+  enable_multi=no)
+if test "$enable_multi" = "yes"; then
+  dnl Test for Fusion Kernel Device
+  linux_fusion=yes
+  AC_CHECK_HEADER( [linux/fusion.h],, linux_fusion=no)
+  if test "$linux_fusion" = "yes"; then
+     FUSION_BUILD_KERNEL=1
+  else
+     fusion_warning="
+Linux-Fusion header not found. Using EXPERIMENTAL Builtin Multi application core!"
+     AC_MSG_WARN([*** $fusion_warning *** ])
+     FUSION_BUILD_KERNEL=0
+  fi
+  FUSION_BUILD_MULTI=1
+else
+  FUSION_BUILD_MULTI=0
+  FUSION_BUILD_KERNEL=0
+fi
+
+AM_CONDITIONAL(ENABLE_MULTI, test "$enable_multi" = "yes")
+
+AC_SUBST(FUSION_BUILD_MULTI)
+AC_SUBST(FUSION_BUILD_KERNEL)
+
+
+AC_ARG_ENABLE(voodoo,
+  [  --enable-voodoo           enable Voodoo (network support) [[default=no]]],,
+  enable_voodoo=no)
+
+AM_CONDITIONAL(ENABLE_VOODOO, test "$enable_voodoo" = "yes")
+
+
+AC_ARG_ENABLE(unique,
+  [  --enable-unique           enable Unique (WM Module) [[default=no]]],,
+  enable_unique=no)
+
+AM_CONDITIONAL(ENABLE_UNIQUE, test "$enable_unique" = "yes")
+
+
+AC_ARG_ENABLE(mmx,
+  [  --enable-mmx              enable MMX support [[default=auto]]],,
+  enable_mmx=$have_x86)
+
+AC_ARG_ENABLE(sse,
+  [  --enable-sse              enable SSE support [[default=auto]]],,
+  enable_sse=$have_x86)
+
+if test "$enable_mmx" = "yes"; then
+
+  dnl Necessary for assembler sources
+  save_ac_ext="$ac_ext"
+  ac_ext=S
+
+  AC_MSG_CHECKING(whether the binutils support MMX)
+
+  echo "       movq 0, %mm0" > conftest.S
+  if AC_TRY_EVAL(ac_compile); then
+    AC_DEFINE(USE_MMX,1,[Define to 1 if MMX assembly is available.])
+    AC_MSG_RESULT(yes)
+
+    if test "$enable_sse" = "yes"; then
+
+      AC_MSG_CHECKING(whether the binutils support SSE)
+
+      echo "       movntps %xmm0, 0" > conftest.S
+      if AC_TRY_EVAL(ac_compile); then
+        AC_DEFINE(USE_SSE,1,[Define to 1 if SSE assembly is available.])
+        AC_MSG_RESULT(yes)
+      else
+        enable_sse=no
+        AC_MSG_RESULT(no)
+        AC_MSG_WARN([
+****************************************************************
+ The installed assembler does not supports the SSE command set. 
+ Update your binutils package, if you want to compile SSE code. 
+****************************************************************])
+      fi
+
+    fi
+
+  else
+    enable_mmx=no
+    AC_MSG_RESULT(no)
+    AC_MSG_WARN([
+****************************************************************
+ The installed assembler does not supports the MMX command set. 
+ Update your binutils package, if you want to compile MMX code. 
+****************************************************************])
+  fi
+
+  rm conftest*
+  ac_ext="$save_ac_ext"
+
+else
+  enable_sse=no
+fi
+
+AM_CONDITIONAL(BUILDMMX, test "$enable_mmx" = "yes")
+
+
+dnl Test for DevMem system
+AC_ARG_ENABLE(devmem,
+  [  --enable-devmem           build with generic /dev/mem support [[default=yes]]],,
+  enable_devmem=yes)
+
+AM_CONDITIONAL(DEVMEM_CORE, test "$enable_devmem" = "yes")
+
+
+
+dnl Test for Linux frame buffer device
+AC_ARG_ENABLE(fbdev,
+  [  --enable-fbdev            build with linux fbdev support [[default=auto]]],,
+  enable_fbdev=yes)
+
+if test "$have_linux" = "no"; then
+  enable_fbdev=no
+  AC_MSG_WARN([
+*** no linux kernel -- building without linux fbdev support.])
+fi
+
+if test "$enable_fbdev" = "yes"; then
+  AC_DEFINE(LINUX_INPUT_USE_FBDEV,1,[Define to 1 if Linux Input driver should use FBDev system module for console keymap queries.])
+fi
+
+AM_CONDITIONAL(FBDEV_CORE, test "$enable_fbdev" = "yes")
+
+
+
+dnl Test for SDL
+AC_ARG_ENABLE(sdl,
+  [  --enable-sdl              build with SDL support [[default=no]]],,
+  enable_sdl=no)
+
+if test "$enable_sdl" = "yes"; then
+  AC_PATH_PROG(SDL_CONFIG, sdl-config, no)
+  if test "$SDL_CONFIG" = "no"; then
+    enable_sdl=no
+    AC_MSG_WARN([
+*** sdl-config not found -- building without SDL support.])
+  else
+    SDL_CFLAGS=`$SDL_CONFIG --cflags`
+    SDL_LIBS=`$SDL_CONFIG --libs`
+    if test "$enable_osx" = "yes"; then
+      AC_MSG_WARN([
+*** SDL is now unsupported on OSX.]) 
+      enable_sdl=no
+   else
+      SDL_CFLAGS=`$SDL_CONFIG --cflags`
+      SDL_LIBS=`$SDL_CONFIG --libs`
+    fi 
+  fi
+fi
+
+AC_SUBST(OSX_LIBS)
+AM_CONDITIONAL(SDL_CORE, test "$enable_sdl" = "yes")
+
+dnl Test for VNC
+AC_ARG_ENABLE(vnc,
+  [  --enable-vnc              build with VNC support [[default=auto]]],,
+  enable_vnc=yes)
+                                                                     
+                                                                     
+                                                                     
+if test "$enable_vnc" = "yes"; then
+  AC_PATH_PROG(VNC_CONFIG, libvncserver-config, no)
+  if test "$VNC_CONFIG" = "no"; then
+    enable_vnc=no
+    AC_MSG_WARN([
+*** libvncserver-config not found -- building without VNC support. See http://libvncserver.sourceforge.net])
+  else
+    VNC_CFLAGS=`$VNC_CONFIG --cflags`
+    VNC_LIBS=`$VNC_CONFIG --libs`
+  fi
+fi
+                                                                     
+                                                                     
+                                                                     
+                                                                     
+AM_CONDITIONAL(VNC_CORE, test "$enable_vnc" = "yes")
+AC_SUBST(VNC_LIBS)
+AC_SUBST(VNC_CFLAGS)
+
+dnl Test for libsysfs
+AC_ARG_ENABLE(sysfs,
+  [  --enable-sysfs            build with sysfs support [[default=auto]]],,
+  enable_sysfs=yes)
+
+use_sysfs=no
+SYSFS_LIBS=
+
+if test "$enable_sysfs" = "yes"; then
+  AC_CHECK_LIB(sysfs, sysfs_get_mnt_path,
+    [
+	AC_CHECK_HEADER(sysfs/libsysfs.h,
+	use_sysfs=yes
+        AC_DEFINE(USE_SYSFS,1,[Define to 1 to build with sysfs support.])
+	SYSFS_LIBS='-lsysfs',
+	AC_MSG_WARN([
+*** libsysfs header files not found -- Building without sysfs support.]))
+    ],[
+	AC_MSG_WARN([ *** libsysfs not found -- Building without sysfs support.])
+    ])
+fi
+
+AC_SUBST(SYSFS_LIBS)
+
+
+dnl Test for libjpeg
+JPEG=no
+
+AC_ARG_ENABLE(jpeg,
+  [  --enable-jpeg             build JPEG image provider [[default=yes]]],
+  enable_jpeg="$enableval", enable_jpeg=yes)
+
+if test "$enable_jpeg" = "yes"; then
+  if test -z "$LIBJPEG"; then
+    AC_CHECK_LIB(jpeg, jpeg_destroy_decompress,
+      jpeg_ok=yes,
+      jpeg_ok=no)
+    if test "$jpeg_ok" = yes; then
+      AC_CHECK_HEADER(jpeglib.h,
+        jpeg_ok=yes,
+        jpeg_ok=no)
+      if test "$jpeg_ok" = yes; then
+	JPEG=yes
+	LIBJPEG='-ljpeg'
+      else
+	JPEG=no
+	AC_MSG_WARN([
+*** JPEG header files not found. JPEG image provider will not be built.])
+      fi
+    else
+      JPEG=no
+      AC_MSG_WARN([
+*** JPEG library not found. JPEG image provider will not be built.])
+    fi
+  fi
+fi
+
+AM_CONDITIONAL(JPEG_PROVIDER, test "$JPEG" = "yes")
+
+if test "$enable_jpeg" != "no" && test "$JPEG" != "yes"; then
+  jpeg_warning="
+JPEG support is missing - many applications won't work correctly!"
+fi
+
+
+AC_ARG_ENABLE(zlib,
+  [  --enable-zlib             use zlib, e.g. for screen shots [[default=no]]],
+  enable_zlib="$enableval", enable_zlib=no)
+
+use_zlib=no
+ZLIB_LIBS=
+
+if test "$enable_zlib" = "yes"; then
+  dnl Test for libz
+  AC_CHECK_LIB(z, gzsetparams,
+    [
+	AC_CHECK_HEADER(zlib.h,
+	use_zlib=yes
+        AC_DEFINE(USE_ZLIB,1,[Define to 1 to build with zlib compression.])
+	ZLIB_LIBS='-lz',
+	AC_MSG_ERROR([
+*** libz header files not found.]))
+    ],[
+	AC_MSG_ERROR([ *** libz not found.])
+    ])
+fi
+
+AC_SUBST(ZLIB_LIBS)
+
+
+dnl Test for libpng and libz
+PNG=no
+
+AC_ARG_ENABLE(png,
+  [  --enable-png              build PNG image provider [[default=yes]]],
+  enable_png="$enableval", enable_png=yes)
+
+if test "$enable_png" = "yes"; then
+  dnl Test for libz
+  if test -z "$ZLIB_LIBS"; then
+    AC_CHECK_LIB(z, gzsetparams,
+      [
+	AC_CHECK_HEADER(zlib.h,
+	  ZLIB_LIBS='-lz',
+	  AC_MSG_WARN([
+*** libz header files not found. PNG image provider will not be built.]))
+      ],[
+        AC_MSG_WARN([ *** libz not found. PNG image provider will not be built.])
+      ])
+  fi
+
+  AC_PATH_PROG(LIBPNG_CONFIG, libpng-config, no)
+  if test "$LIBPNG_CONFIG" = no; then
+      PNG=no
+      AC_MSG_WARN([
+*** libpng-config not found ])
+  else
+      PNG=yes
+      LIBPNG=`$LIBPNG_CONFIG --libs`
+  fi
+
+  dnl Test for libpng
+  if test -z "$LIBPNG" && test -n "$ZLIB_LIBS"; then
+    AC_CHECK_LIB(png, png_read_info,
+      [
+	AC_CHECK_HEADER(png.h,
+	  png_ok=yes,
+	  AC_MSG_WARN([
+*** PNG header files not found. PNG image provider will not be built.]))
+      ],[
+        AC_MSG_WARN([
+*** PNG library not found. PNG image provider will not be built.])
+	],
+      $ZLIB_LIBS -lm)
+    if test "$png_ok" = yes; then
+      AC_MSG_CHECKING([for png_structp in png.h])
+      AC_TRY_COMPILE([#include <png.h>],
+        [png_structp pp;
+	 png_infop info;
+	 png_colorp cmap;
+	 (void)png_create_read_struct; (void)pp; (void)info; (void)cmap;],
+        png_ok=yes, png_ok=no)
+      AC_MSG_RESULT($png_ok)
+      if test "$png_ok" = yes; then
+	PNG=yes
+        LIBPNG="-lpng $ZLIB_LIBS -lm"
+      else
+	PNG=no
+        AC_MSG_WARN([
+*** PNG library is too old. PNG image provider will not be built.])
+      fi
+    else
+      PNG=no
+    fi
+  fi
+fi
+
+AM_CONDITIONAL(PNG_PROVIDER, test "$PNG" = "yes")
+AM_CONDITIONAL(BUILD_DIRECTFB_CSOURCE, test "$PNG" = "yes")
+
+if test "$enable_png" != "no" && test "$PNG" != "yes"; then
+  png_warning="
+PNG support is missing - many applications won't work correctly!"
+fi
+
+
+dnl Allow to disable GIF support
+AC_ARG_ENABLE(gif,
+  [  --enable-gif              build GIF image/video provider [[default=yes]]],
+  enable_gif="$enableval", enable_gif=yes)
+ 
+AM_CONDITIONAL(GIF_PROVIDER, test "$enable_gif" = "yes")
+
+
+dnl Test for freetype
+AC_ARG_ENABLE(freetype,
+  [  --enable-freetype         build FreeType2 font provider [[default=yes]]],
+  enable_freetype="$enableval", enable_freetype=yes)
+
+if test "$enable_freetype" = "yes"; then
+  if test -n "$FREETYPE_CFLAGS" && test -n "$FREETYPE_LIBS"; then
+    FREETYPE=yes
+  else
+    AC_PATH_PROG(FREETYPE_CONFIG, freetype-config, no)
+    if test "$FREETYPE_CONFIG" = no; then
+      FREETYPE=no
+      AC_MSG_WARN([
+*** freetype-config not found -- FreeType font provider will not be built.])
+    else
+      FREETYPE=yes
+      FREETYPE_CFLAGS=`$FREETYPE_CONFIG --cflags`
+      FREETYPE_LIBS=`$FREETYPE_CONFIG --libs`
+    fi
+  fi
+fi
+
+AM_CONDITIONAL(FREETYPE_PROVIDER, test "$FREETYPE" = "yes")
+
+if test "$enable_freetype" != "no" && test "$FREETYPE" != "yes"; then
+  freetype_warning="
+FreeType2 support is missing - many applications won't work correctly!"
+fi
+
+dnl Test for video4linux
+V4L=no
+
+if test "$have_linux" = "yes"; then
+  AC_ARG_ENABLE(video4linux,
+    [  --enable-video4linux      build Video4Linux video provider [[default=yes]]],
+    enable_v4l="$enableval", enable_v4l=yes)
+
+  if test "$enable_v4l" = "yes"; then
+    V4L=yes
+  fi
+fi
+
+AM_CONDITIONAL(V4L_PROVIDER, test "$V4L" = "yes")
+
+
+dnl Test for video4linux
+V4L2=no
+
+if test "$V4L" = "yes"; then
+  AC_ARG_ENABLE(video4linux2,
+    [  --enable-video4linux2     build with Video4Linux2 support [[default=no]]],
+    enable_v4l2="$enableval", enable_v4l2=no)
+
+  if test "$enable_v4l2" = "yes"; then
+    V4L2=yes
+    AC_DEFINE( DFB_HAVE_V4L2, 1, [Define to 1 if Video4Linux 2 is supported.] )
+  fi
+fi
+
+
+dnl check which gfxdrivers to build
+ati128=no
+cle266=no
+cyber5k=no
+davinci=no
+ep9x=no
+i810=no
+i830=no
+mach64=no
+matrox=no
+neomagic=no
+nsc=no
+nvidia=no
+omap=no
+radeon=no
+savage=no
+sh7722=no
+sis315=no
+tdfx=no
+unichrome=no
+vmware=no
+
+if test "$have_linux" = "yes"; then
+
+AC_MSG_CHECKING(which gfxdrivers should be built)
+AC_ARG_WITH(gfxdrivers,
+[  --with-gfxdrivers=<list>   compile gfxdrivers in <list> ]
+[                               gfxdrivers may be comma separated ]
+[                               'all' builds all drivers (default), 'none' builds none ]
+[                               Possible gfxdrivers are: ]
+[                               ati128, cle266, cyber5k, davinci, ep9x, i810, i830, mach64,]
+[                               matrox, neomagic, nsc, nvidia, omap, radeon, savage, sh7722,]
+[                               sis315, tdfx, unichrome, vmware], gfxdrivers="$withval",[gfxdrivers="all"])
+
+if test "$gfxdrivers" = "all"; then
+  checkfor_ati128=yes
+  checkfor_cle266=no
+  checkfor_cyber5k=yes
+  checkfor_davinci="$have_arm"
+  checkfor_ep9x=yes
+  checkfor_i810=yes
+  checkfor_i830=yes
+  checkfor_mach64=yes
+  checkfor_matrox=yes
+  checkfor_neomagic=yes
+  checkfor_nsc=yes
+  checkfor_nvidia=yes
+  checkfor_omap="$have_arm"
+  checkfor_radeon=yes
+  checkfor_savage=yes
+  checkfor_sh7722=yes
+  checkfor_sis315=yes
+  checkfor_tdfx=yes
+  checkfor_unichrome=yes
+  checkfor_vmware=yes
+
+  AC_MSG_RESULT(all)
+else 
+  if test "$gfxdrivers" != "none"; then
+    gfxdrivers=`echo $gfxdrivers | sed 's/,/ /g'`
+    for gfxdriver in $gfxdrivers
+    do
+      case "$gfxdriver" in
+          ati128)
+                  checkfor_ati128=yes
+                  ;;
+          cle266)
+                  checkfor_cle266=yes
+                  ;;
+          cyber5k)
+                  checkfor_cyber5k=yes
+                  ;;
+          davinci)
+                  checkfor_davinci=yes
+                  ;;
+          ep9x)
+                  checkfor_ep9x=yes
+                  ;;
+          i810)
+                  checkfor_i810=yes
+                  ;;
+          i830)
+                  checkfor_i830=yes
+                  ;;
+          mach64)
+                  checkfor_mach64=yes
+                  ;;
+          matrox)
+                  checkfor_matrox=yes
+                  ;;
+          neomagic)
+                  checkfor_neomagic=yes
+                  ;;
+          nsc)
+                  checkfor_nsc=yes
+                  ;;
+          nvidia)
+                  checkfor_nvidia=yes
+                  ;;
+          omap)
+                  checkfor_omap=yes
+                  ;;
+          radeon)
+                  checkfor_radeon=yes
+                  ;;
+          savage)
+                  checkfor_savage=yes
+                  ;;
+          sh7722)
+                  checkfor_sh7722=yes
+                  ;;
+          sis315)
+                  checkfor_sis315=yes
+                  ;;
+          tdfx)
+                  checkfor_tdfx=yes
+                  ;;
+          unichrome)
+                  checkfor_unichrome=yes
+                  ;;
+          vmware)
+                  checkfor_vmware=yes
+                  ;;
+          *)
+                  echo "Unknown gfxdriver $gfxdriver, exiting!"
+                  exit 1
+                  ;;
+      esac
+    done
+    AC_MSG_RESULT($gfxdrivers)
+  fi
+fi
+
+if test "$checkfor_ati128" = "yes"; then
+  ati128=yes
+fi
+
+if test "$checkfor_cle266" = "yes" && test "$have_sysio" = "yes"; then
+  cle266=yes
+fi
+
+if test "$checkfor_cyber5k" = "yes"; then
+  cyber5k=yes
+fi
+
+if test "$checkfor_davinci" = "yes"; then
+  davinci=yes
+fi
+
+if test "$checkfor_ep9x" = "yes"; then
+  ep9x=yes
+fi
+
+if test "$checkfor_i810" = "yes" && test "$have_sysio" = "yes"; then
+  i810=yes
+fi
+
+if test "$checkfor_i830" = "yes" && test "$have_sysio" = "yes"; then
+  i830=yes
+fi
+
+if test "$checkfor_mach64" = "yes"; then
+  mach64=yes
+fi
+
+if test "$checkfor_matrox" = "yes"; then
+  matrox=yes
+fi
+
+if test "$checkfor_neomagic" = "yes" && test "$have_sysio" = "yes"; then
+  neomagic=yes
+fi
+
+if test "$checkfor_nsc" = "yes"; then
+  nsc=yes
+fi
+
+if test "$checkfor_nvidia" = "yes"; then
+  nvidia=yes
+fi
+
+if test "$checkfor_omap" = "yes"; then
+  omap=yes
+fi
+
+if test "$checkfor_radeon" = "yes"; then
+  radeon=yes
+fi
+
+if test "$checkfor_savage" = "yes" && test "$have_sysio" = "yes"; then
+  savage=yes
+fi
+
+if test "$checkfor_sh7722" = "yes"; then
+  sh7722=yes
+fi
+
+if test "$checkfor_sis315" = "yes"; then
+  sis315=yes
+fi
+
+if test "$checkfor_tdfx" = "yes"; then
+  tdfx=yes
+fi
+
+if test "$checkfor_unichrome" = "yes" && test "$have_sysio" = "yes"; then
+  unichrome=yes
+fi
+
+if test "$checkfor_vmware" = "yes"; then
+  vmware=yes
+fi
+
+# lets check for input driver
+
+checkfor_dbox2remote=no
+checkfor_dreamboxremote=no
+checkfor_dynapro=no
+checkfor_elo=no
+checkfor_gunze=no
+checkfor_h3600ts=no
+checkfor_joystick=no
+checkfor_keyboard=no
+checkfor_linux_input=no
+checkfor_lirc=no
+checkfor_mutouch=no
+checkfor_penmount=no
+checkfor_ps2mouse=no
+checkfor_serialmouse=no
+checkfor_sonypijogdial=no
+checkfor_tslib=no
+checkfor_ucb1x00=no
+checkfor_wm97xx=no
+
+AC_MSG_CHECKING(which inputdrivers should be built)
+AC_ARG_WITH(inputdrivers,
+[  --with-inputdrivers=<list> compile inputdrivers in <list> ]
+[                               inputdrivers may be comma separated ]
+[                               'all' builds all drivers (default), 'none' builds none ]
+[                               Possible inputdrivers are: ]
+[                               dbox2remote, dreamboxremote, dynapro, elo-input, gunze, h3600_ts, ]
+[                               joystick, keyboard, linuxinput, lirc, mutouch, penmount, ps2mouse, ]
+[                               serialmouse, sonypijogdial, tslib, ucb1x00, wm97xx], inputdrivers="$withval",[inputdrivers="all"])
+
+if test "$inputdrivers" = "all"; then
+  checkfor_dbox2remote=yes
+  checkfor_dreamboxremote=yes
+  checkfor_dynapro=no
+  checkfor_elo=no
+  checkfor_gunze=no
+  checkfor_h3600ts=yes
+  checkfor_joystick=yes
+  checkfor_keyboard=yes
+  checkfor_linux_input=yes
+  checkfor_lirc=yes
+  checkfor_mutouch=yes
+  checkfor_penmount=yes
+  checkfor_ps2mouse=yes
+  checkfor_serialmouse=yes
+  checkfor_sonypijogdial=yes
+  checkfor_tslib=yes
+  checkfor_ucb1x00="$have_arm"
+  checkfor_wm97xx=yes
+  AC_MSG_RESULT(all)
+else 
+  if test "$inputdrivers" != "none"; then
+    inputdrivers=`echo $inputdrivers | sed 's/,/ /g'`
+    for inputdriver in $inputdrivers
+    do
+      case "$inputdriver" in
+          dbox2remote)
+                  checkfor_dbox2remote=yes
+                  ;;
+          dreamboxremote)
+                  checkfor_dreamboxremote=yes
+                  ;;
+          dynapro)
+                  checkfor_dynapro=yes
+                  ;;
+          elo-input)
+                  checkfor_elo=yes
+                  ;;
+          gunze)
+                  checkfor_gunze=yes
+                  ;;
+          h3600_ts)
+                  checkfor_h3600ts=yes
+                  ;;
+          joystick)
+                  checkfor_joystick=yes
+                  ;;
+          keyboard)
+                  checkfor_keyboard=yes
+                  ;;
+          linuxinput)
+                  checkfor_linux_input=yes
+                  ;;
+          lirc)
+                  checkfor_lirc=yes
+                  ;;
+          mutouch)
+                  checkfor_mutouch=yes
+                  ;;
+          penmount)
+                  checkfor_penmount=yes
+                  ;;
+          ps2mouse)
+                  checkfor_ps2mouse=yes
+                  ;;
+          serialmouse)
+                  checkfor_serialmouse=yes
+                  ;;
+          sonypijogdial)
+                  checkfor_sonypijogdial=yes
+                  ;;
+          tslib)
+                  checkfor_tslib=yes
+                  ;;
+          ucb1x00)
+                  checkfor_ucb1x00=yes
+                  ;;
+          wm97xx)
+                  checkfor_wm97xx=yes
+                  ;;
+          *)
+                  echo "Unknown inputdriver $inputdriver, exiting!"
+                  exit 1
+                  ;;
+      esac
+    done
+    AC_MSG_RESULT($inputdrivers)
+  fi
+fi
+
+enable_dbox2remote=no
+if test "$checkfor_dbox2remote" = "yes"; then
+  dnl Test for dbox2 remote support in the kernel
+    AC_CHECK_HEADER( [dbox/fp.h], enable_dbox2remote=yes, enable_dbox2remote=no
+    AC_MSG_WARN([*** DBox2 Remote input driver will not be built.]))
+fi
+
+enable_dreamboxremote=no
+if test "$checkfor_dreamboxremote" = "yes"; then
+  dnl Test for dreambox remote support in the kernel
+    AC_CHECK_HEADER( [dbox/fp.h], enable_dreamboxremote=yes, enable_dreamboxremote=no
+    AC_MSG_WARN([*** DreamBox Remote input driver will not be built.]))
+fi
+
+enable_dynapro_ts=no
+if test "$checkfor_dynapro" = "yes"; then
+  dnl Test for Dynapro Touchscreen support
+  enable_dynapro_ts=yes
+fi
+
+enable_elo_input=no
+if test "$checkfor_elo" = "yes"; then
+  dnl Test for ELO Touchscreen support
+  enable_elo_input=yes
+fi
+
+enable_gunze_input=no
+if test "$checkfor_gunze" = "yes"; then
+  dnl Test for Gunze Touchscreen support
+  enable_gunze_input=yes
+fi
+
+enable_h3600_ts=no
+if test "$checkfor_h3600ts" = "yes"; then
+  dnl Test for H3600 Touchscreen support
+  AC_CHECK_HEADER( [linux/h3600_ts.h], enable_h3600_ts=yes, enable_h3600_ts=no  
+    AC_MSG_WARN([*** H3600 Touchscreen driver will not be built.]))
+fi
+
+enable_joystick=no
+if test "$checkfor_joystick" = "yes"; then
+  dnl Test for linux/joystick.h in the kernel
+  
+  AC_CHECK_HEADER([linux/joystick.h], enable_joystick=yes, enable_joystick=no 
+     AC_MSG_WARN([*** no linux/joystick.h -- Joystick driver will not be built.]))
+fi
+
+enable_keyboard=no
+if test "$checkfor_keyboard" = "yes"; then
+    enable_keyboard=yes
+fi
+    
+enable_linux_input=no
+if test "$checkfor_linux_input" = "yes"; then
+  AC_CHECK_HEADER([linux/input.h], enable_linux_input=yes, enable_linux_input=no
+    AC_MSG_WARN([*** no linux/input.h -- Linux Input driver will not be built.]))
+
+  if test "$enable_linux_input" = "yes"; then
+    AC_MSG_CHECKING([for struct input_absinfo in linux/input.h])
+    AC_TRY_COMPILE([#include <linux/input.h>], [struct input_absinfo x; (void)x;],
+       AC_DEFINE(HAVE_INPUT_ABSINFO,1,
+         [Define to 1 if struct input_absinfo is defined in linux/input.h.])
+       AC_MSG_RESULT(yes),
+       AC_MSG_RESULT(no))
+  fi
+fi
+
+enable_lirc=no
+if test "$checkfor_lirc" = "yes"; then
+    enable_lirc=yes
+fi
+
+enable_mutouch=no
+if test "$checkfor_mutouch" = "yes"; then  
+  dnl Allow to enable driver for Microtouch serial touchscreen
+  dnl This driver is not built by default since it needs to be configured
+  dnl by changing some defines in the source.
+    enable_mutouch=yes
+fi
+
+enable_penmount=no
+if test "$checkfor_penmount" = "yes"; then
+    enable_penmount=yes
+fi
+
+enable_ps2mouse=no
+if test "$checkfor_ps2mouse" = "yes"; then
+    enable_ps2mouse=yes
+fi
+
+enable_serial_mouse=no
+if test "$checkfor_serialmouse" = "yes"; then
+  dnl Test for linux/serial.h in the kernel
+  AC_CHECK_HEADER([linux/serial.h], enable_serial_mouse=yes, enable_serial_mouse=no 
+     AC_MSG_WARN([*** no linux/serial.h -- serial mouse driver will not be built.]))
+fi
+
+enable_sonypi_jogdial=no
+if test "$checkfor_sonypijogdial" = "yes"; then
+  dnl Test for SonyPI Jogdial support
+  AC_CHECK_HEADER([linux/sonypi.h], enable_sonypi_jogdial=yes, enable_sonypi_jogdial=no 
+    AC_MSG_WARN([*** no linux/sonypi.h -- SonyPI Jogdial driver will not be built.]))
+fi
+
+enable_tslib=no
+if test "$checkfor_tslib" = "yes"; then
+    PKG_CHECK_MODULES([TSLIB], [tslib-0.0 >= 0.0.2], enable_tslib=yes, enable_tslib=no
+        AC_MSG_WARN([*** no tslib -- tslib driver will not be built.]))
+fi
+
+enable_ucb1x00_ts=no
+if test "$checkfor_ucb1x00" = "yes"; then
+  dnl Test for UCB1x00 Touchscreen support
+  enable_ucb1x00_ts=yes
+fi
+
+enable_wm97xx_ts=no
+if test "$checkfor_wm97xx" = "yes"; then
+  dnl Test for WM97xx Touchscreen support
+  enable_wm97xx_ts=yes
+fi
+ 
+ dnl *** end of if $testlinux ***
+fi
+
+
+AC_ARG_WITH(software,
+  [  --without-software         build without software rendering (can decrease binary size by >100k)])
+if test "$with_software" != "no"; then
+  with_software=yes
+fi
+
+AM_CONDITIONAL(SOFTWARE_RENDERING, test "$with_software" != "no")
+
+
+AC_ARG_WITH(smooth-scaling,
+  [  --with-smooth-scaling      build with smooth software scaling code (can increase binary size by >100k)])
+if test "$with_smooth_scaling" != "yes" -o "$with_software" != "yes"; then
+  with_smooth_scaling=no
+else
+  AC_DEFINE(DFB_SMOOTH_SCALING,1,[Define to 1 if smooth scaling code should be built.])
+fi
+
+AC_SUBST(DFB_SMOOTH_SCALING)
+
+
+AC_ARG_WITH(tests,
+  [  --with-tests               build test programs])
+if test "$with_tests" != "yes"; then
+  with_tests=no
+fi
+
+
+# How big of a buffer fusion uses to read messages from the fusion device
+AC_ARG_WITH(message-size,
+[  --with-message-size=SIZE   allow fusion messages up to SIZE bytes [[default=1024]]],
+[ ], [with_message_size=no])
+test x"$with_message_size" = x"no" && with_message_size=1024
+FUSION_MESSAGE_SIZE=$with_message_size
+AC_SUBST(FUSION_MESSAGE_SIZE)
+
+
+# Build tools?
+AC_ARG_WITH(tools,
+  [  --without-tools            do not build any tools])
+if test "$with_tools" != "no"; then
+  with_tools=yes
+fi
+
+
+# Sysroot used for runtime module loading, etc.
+AC_ARG_WITH(sysroot,
+[  --with-sysroot=DIR         search for lib/share et al within DIR at runtime]
+[                               (e.g. when loading modules)],
+[ RUNTIME_SYSROOT="$withval" ], [ RUNTIME_SYSROOT= ] )
+test x"$RUNTIME_SYSROOT" = x"no" && RUNTIME_SYSROOT=
+AC_SUBST(RUNTIME_SYSROOT)
+
+
+dnl *** Look for directfb-csource in PATH if we are cross-compiling ***
+
+if test "$enable_unique" = "yes"; then
+  if test "$cross_compiling" = "yes" || test "$with_tools" = "no"; then
+    AC_PATH_PROG(DIRECTFB_CSOURCE, directfb-csource, no)
+    if test "x$DIRECTFB_CSOURCE" = "xno"; then
+      AC_MSG_ERROR(Could not find a directfb-csource in your PATH)
+    fi
+  fi
+fi
+
+
+AM_CONDITIONAL(GFX_ATI128, test "$ati128" = "yes")
+AM_CONDITIONAL(GFX_CLE266, test "$cle266" = "yes")
+AM_CONDITIONAL(GFX_CYBER5K, test "$cyber5k" = "yes")
+AM_CONDITIONAL(GFX_DAVINCI, test "$davinci" = "yes")
+AM_CONDITIONAL(GFX_EP9X, test "$ep9x" = "yes")
+AM_CONDITIONAL(GFX_I810, test "$i810" = "yes")
+AM_CONDITIONAL(GFX_I830, test "$i830" = "yes")
+AM_CONDITIONAL(GFX_MACH64, test "$mach64" = "yes")
+AM_CONDITIONAL(GFX_MATROX, test "$matrox" = "yes")
+AM_CONDITIONAL(GFX_NEOMAGIC, test "$neomagic" = "yes")
+AM_CONDITIONAL(GFX_NSC, test "$nsc" = "yes")
+AM_CONDITIONAL(GFX_NVIDIA, test "$nvidia" = "yes")
+AM_CONDITIONAL(GFX_OMAP, test "$omap" = "yes")
+AM_CONDITIONAL(GFX_RADEON, test "$radeon" = "yes")
+AM_CONDITIONAL(GFX_SAVAGE, test "$savage" = "yes")
+AM_CONDITIONAL(GFX_SH7722, test "$sh7722" = "yes")
+AM_CONDITIONAL(GFX_SIS315, test "$sis315" = "yes")
+AM_CONDITIONAL(GFX_TDFX, test "$tdfx" = "yes")
+AM_CONDITIONAL(GFX_UNICHROME, test "$unichrome" = "yes")
+AM_CONDITIONAL(GFX_VMWARE, test "$vmware" = "yes")
+
+AM_CONDITIONAL(DBOX2REMOTE, test "$enable_dbox2remote" = "yes")
+AM_CONDITIONAL(DREAMBOXREMOTE, test "$enable_dreamboxremote" = "yes")
+AM_CONDITIONAL(DYNAPRO_INPUT, test "$enable_dynapro_ts" = "yes")
+AM_CONDITIONAL(ELO_INPUT, test "$enable_elo_input" = "yes")
+AM_CONDITIONAL(GUNZE_INPUT, test "$enable_gunze_input" = "yes")
+AM_CONDITIONAL(H3600_TS, test "$enable_h3600_ts" = "yes")
+AM_CONDITIONAL(JOYSTICK_INPUT, test "$enable_joystick" = "yes")
+AM_CONDITIONAL(KEYBOARD_INPUT, test "$enable_keyboard" = "yes")
+AM_CONDITIONAL(LINUX_INPUT, test "$enable_linux_input" = "yes")
+AM_CONDITIONAL(LIRC_INPUT, test "$enable_lirc" = "yes")
+AM_CONDITIONAL(MUTOUCH_TS, test "$enable_mutouch" = "yes")
+AM_CONDITIONAL(PENMOUNT_TS, test "$enable_penmount" = "yes" )
+AM_CONDITIONAL(PS2MOUSE_INPUT, test "$enable_ps2mouse" = "yes")
+AM_CONDITIONAL(SERIAL_MOUSE_INPUT, test "$enable_serial_mouse" = "yes")
+AM_CONDITIONAL(SONYPI, test "$enable_sonypi_jogdial" = "yes")
+AM_CONDITIONAL(TSLIB, test "$enable_tslib" = "yes")
+AM_CONDITIONAL(UCB1X00_TS, test "$enable_ucb1x00_ts" = "yes")
+AM_CONDITIONAL(WM97XX_TS, test "$enable_wm97xx_ts" = "yes")
+
+AM_CONDITIONAL(BUILD_TESTS, test "$with_tests" = "yes")
+AM_CONDITIONAL(BUILD_TOOLS, test "$with_tools" = "yes")
+AM_CONDITIONAL(CROSS_COMPILING, test "$cross_compiling" = "yes")
+
+CFLAGS="$CFLAGS $DFB_INTERNAL_CFLAGS"
+DFB_LDFLAGS="$LDFLAGS $ZLIB_LIBS"
+
+
+
+# Honor aclocal flags
+ACLOCAL="$ACLOCAL $ACLOCAL_FLAGS"
+
+
+AM_CONDITIONAL(BUILD_SHARED, test "$enable_shared" = "yes")
+AM_CONDITIONAL(BUILD_STATIC, test "$enable_static" = "yes")
+
+
+# Change the module directory only for builds that don't *support* debug
+if test "$enable_debug_support" = "no"; then
+  MODULEDIRNAME=directfb-$BINARY_VERSION-pure
+else
+  MODULEDIRNAME=directfb-$BINARY_VERSION
+fi
+
+MODULEDIR=$libdir/$MODULEDIRNAME
+DATADIR=$datadir/directfb-$VERSION
+INCLUDEDIR=$includedir/directfb
+INTERNALINCLUDEDIR=$includedir/directfb-internal
+
+SOPATH=$libdir/libdirectfb-$LT_RELEASE.so.$LT_CURRENT
+AC_SUBST(SOPATH)
+
+AC_SUBST(HAVE_LINUX)
+AC_SUBST(DFB_CFLAGS_OMIT_FRAME_POINTER)
+AC_SUBST(DFB_LDFLAGS)
+AC_SUBST(DFB_INTERNAL_CFLAGS)
+AC_SUBST(X11_CFLAGS)
+AC_SUBST(X11_LIBS)
+AC_SUBST(SDL_CFLAGS)
+AC_SUBST(SDL_LIBS)
+AC_SUBST(TSLIB_CFLAGS)
+AC_SUBST(TSLIB_LIBS)
+AC_SUBST(ZLIB_LIBS)
+AC_SUBST(GIF_PROVIDER)
+AC_SUBST(JPEG_PROVIDER)
+AC_SUBST(PNG_PROVIDER)
+AC_SUBST(LIBJPEG)
+AC_SUBST(LIBPNG)
+AC_SUBST(FREETYPE_PROVIDER)
+AC_SUBST(FREETYPE_CFLAGS)
+AC_SUBST(FREETYPE_LIBS)
+
+AC_SUBST(DATADIR)
+AC_SUBST(MODULEDIR)
+AC_SUBST(MODULEDIRNAME)
+AC_SUBST(INCLUDEDIR)
+AC_SUBST(INTERNALINCLUDEDIR)
+AS_AC_EXPAND(SYSCONFDIR, $sysconfdir)
+
+CFLAGS="$CFLAGS -Werror-implicit-function-declaration"
+
+
+AC_OUTPUT([
+
+directfb-config
+directfb.pc
+directfb-internal.pc
+directfb.spec
+
+Makefile
+
+include/Makefile
+include/directfb_version.h
+
+lib/Makefile
+
+lib/direct/Makefile
+lib/direct/build.h
+lib/direct/direct.pc
+
+lib/fusion/Makefile
+lib/fusion/build.h
+lib/fusion/fusion.pc
+lib/fusion/shm/Makefile
+
+lib/voodoo/Makefile
+lib/voodoo/build.h
+lib/voodoo/voodoo.pc
+
+patches/Makefile
+
+proxy/Makefile
+proxy/dispatcher/Makefile
+proxy/requestor/Makefile
+
+rules/Makefile
+
+src/Makefile
+src/core/Makefile
+src/display/Makefile
+src/gfx/Makefile
+src/gfx/generic/Makefile
+src/input/Makefile
+src/media/Makefile
+src/misc/Makefile
+src/windows/Makefile
+
+systems/Makefile
+systems/devmem/Makefile
+systems/fbdev/Makefile
+systems/x11/Makefile
+systems/osx/Makefile
+systems/sdl/Makefile
+systems/vnc/Makefile
+
+wm/Makefile
+wm/default/Makefile
+wm/unique/Makefile
+wm/unique/classes/Makefile
+wm/unique/data/Makefile
+wm/unique/devices/Makefile
+
+gfxdrivers/Makefile
+gfxdrivers/ati128/Makefile
+gfxdrivers/cle266/Makefile
+gfxdrivers/cyber5k/Makefile
+gfxdrivers/davinci/Makefile
+gfxdrivers/ep9x/Makefile
+gfxdrivers/i810/Makefile
+gfxdrivers/i830/Makefile
+gfxdrivers/mach64/Makefile
+gfxdrivers/matrox/Makefile
+gfxdrivers/neomagic/Makefile
+gfxdrivers/nsc/Makefile
+gfxdrivers/nsc/include/Makefile
+gfxdrivers/nvidia/Makefile
+gfxdrivers/omap/Makefile
+gfxdrivers/radeon/Makefile
+gfxdrivers/savage/Makefile
+gfxdrivers/sh7722/Makefile
+gfxdrivers/sis315/Makefile
+gfxdrivers/tdfx/Makefile
+gfxdrivers/unichrome/Makefile
+gfxdrivers/vmware/Makefile
+
+inputdrivers/Makefile
+inputdrivers/dbox2remote/Makefile
+inputdrivers/dreamboxremote/Makefile
+inputdrivers/dynapro/Makefile
+inputdrivers/elo/Makefile
+inputdrivers/gunze/Makefile
+inputdrivers/h3600_ts/Makefile
+inputdrivers/joystick/Makefile
+inputdrivers/keyboard/Makefile
+inputdrivers/linux_input/Makefile
+inputdrivers/lirc/Makefile
+inputdrivers/mutouch/Makefile
+inputdrivers/penmount/Makefile
+inputdrivers/ps2mouse/Makefile
+inputdrivers/serialmouse/Makefile
+inputdrivers/sonypi/Makefile
+inputdrivers/tslib/Makefile
+inputdrivers/ucb1x00_ts/Makefile
+inputdrivers/wm97xx_ts/Makefile
+
+interfaces/Makefile
+interfaces/IDirectFBFont/Makefile
+interfaces/IDirectFBImageProvider/Makefile
+interfaces/IDirectFBVideoProvider/Makefile
+
+data/Makefile
+
+tests/Makefile
+tools/Makefile
+
+docs/Makefile
+docs/dfbg.1
+docs/directfb-csource.1
+docs/directfbrc.5
+docs/html/Makefile
+
+], [chmod +x directfb-config])
+
+
+
+AC_MSG_RESULT([
+Build options:
+  Version                   $VERSION
+  Linux powered             $have_linux
+  Install prefix            $prefix
+  Config files in           $SYSCONFDIR
+  Build shared libs         $enable_shared
+  Build static libs         $enable_static
+  Module directory          $MODULEDIR
+  CPPFLAGS                  $CPPFLAGS
+  CFLAGS                    $CFLAGS
+  LDFLAGS                   $LDFLAGS
+  LIBS                      $LIBS
+  DYNLIB                    $DYNLIB
+  THREADFLAGS               $THREADFLAGS
+  THREADLIBS                $THREADLIBS
+
+Misc options:
+  Multi Application Core    $enable_multi
+  Fusion Kernel Device      $linux_fusion
+  Fusion message size       $with_message_size
+  Voodoo (network support)  $enable_voodoo
+  Debug supported           $enable_debug_support
+  Debug enabled             $enable_debug
+  Trace support             $enable_trace
+  MMX support               $enable_mmx
+  SSE support               $enable_sse
+  Network support           $enable_network
+  Include all strings       $enable_text
+  Software Rendering        $with_software
+  Smooth SW Scaling         $with_smooth_scaling
+  zlib compression          $use_zlib                 $ZLIB_LIBS
+  sysfs support             $use_sysfs                 $SYSFS_LIBS
+
+Building Tests              $with_tests
+Building Tools              $with_tools
+
+Building System Modules:
+  Linux FBDev support       $enable_fbdev
+  Generic /dev/mem support  $enable_devmem
+  X11 support               $enable_x11                 $X11_CFLAGS    $X11_LIBS
+  OSX support               $enable_osx                 $OSX_CFLAGS    $OSX_LIBS
+  SDL support               $enable_sdl                 $SDL_CFLAGS    $SDL_LIBS
+  VNC support               $enable_vnc                 $VNC_CFLAGS    $VNC_LIBS
+
+Building Window Manager Modules:
+  Default                   yes
+  UniQuE                    $enable_unique
+
+Building Image Provider Modules:
+  GIF                       $enable_gif 
+  JPEG                      $JPEG                 $LIBJPEG
+  PNG                       $PNG                 $LIBPNG
+
+Building Video Provider Modules:
+  GIF                       $enable_gif
+  Video4Linux               $V4L (v2: $V4L2)
+
+Building Font Modules:
+  FreeType2                 $FREETYPE                 $FREETYPE_CFLAGS    $FREETYPE_LIBS
+  Default font              yes]);
+
+if test "$have_linux" = "yes"; then
+AC_MSG_RESULT([
+Building Graphics Drivers:
+  3Dfx Voodoo               $tdfx
+  ATI Mach64                $mach64 
+  ATI Rage 128              $ati128
+  ATI Radeon                $radeon
+  Cirrus EP9X               $ep9x
+  Intel i810                $i810
+  Intel i830                $i830
+  Matrox                    $matrox
+  NeoMagic                  $neomagic
+  NSC Geode                 $nsc
+  nVidia                    $nvidia
+  Renesas SH7722            $sh7722
+  S3 Savage                 $savage
+  SiS 315                   $sis315
+  TI Davinci                $davinci
+  TI OMAP                   $omap
+  TVIA CyberPro             $cyber5k
+  VIA CLE266                $cle266
+  VIA UniChrome             $unichrome
+  VMWare                    $vmware
+
+Building Input Drivers:
+  DBox2 Remote              $enable_dbox2remote
+  DreamBox Remote           $enable_dreamboxremote
+  Dynapro Touchscreen       $enable_dynapro_ts
+  ELO Touchscreen           $enable_elo_input
+  Gunze Touchscreen         $enable_gunze_input
+  H3600 Touchscreen         $enable_h3600_ts
+  Joystick                  $enable_joystick
+  Keyboard                  $enable_keyboard
+  Linux Input               $enable_linux_input
+  LiRC                      $enable_lirc
+  MuTouch touchscreen       $enable_mutouch
+  PS/2 Mouse                $enable_ps2mouse
+  Serial Mouse              $enable_serial_mouse
+  SonyPI Jogdial            $enable_sonypi_jogdial
+  tslib                     $enable_tslib                  $TSLIB_CFLAGS    $TSLIB_LIBS
+  ucb1x00 Touchscreen       $enable_ucb1x00_ts
+  WM97xx Touchscreen        $enable_wm97xx_ts]);
+fi
+
+AC_MSG_RESULT([$fusion_warning $png_warning $jpeg_warning $freetype_warning
+]);
