@@ -1,4 +1,4 @@
-VER = libpng-1.2.26
+VER = libpng-1.2.30
 
 include $(ROOTDIR)/tools/autotools.mk
 

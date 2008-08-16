@@ -1,0 +1,10 @@
+--- libpng-1.2.30/scripts/libpng.pc-configure.in.orig	2008-08-15 21:08:07.000000000 -0400
++++ libpng-1.2.30/scripts/libpng.pc-configure.in	2008-08-15 21:08:14.000000000 -0400
+@@ -6,6 +6,6 @@
+ Name: libpng
+ Description: Loads and saves PNG files
+ Version: @PNGLIB_VERSION@
+-Libs: -L${libdir} -lpng@PNGLIB_MAJOR@@PNGLIB_MINOR@
++Libs: -L${libdir} -lpng@PNGLIB_MAJOR@@PNGLIB_MINOR@ -lz -lm
+ Libs.private: @LIBS@
+ Cflags: -I${includedir} @LIBPNG_NO_MMX@
