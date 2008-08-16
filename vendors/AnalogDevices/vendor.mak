@@ -265,6 +265,8 @@ $(IMAGEDIR)/vmImage: $(LINUXBOOTDIR)/vmImage
 image.uimage.vmimage: $(IMAGEDIR)/vmImage
 
 .PHONY: image.uimage.all
+image.uimage.all: \
+	image.uimage.vmimage
 ifeq ($(CONFIG_MTD_UCLINUX),y)
 image.uimage.all: \
 	image.uimage.cramfs \
@@ -283,8 +285,6 @@ image.uimage.all: \
 	image.uimage.initramfs
 endif
 endif
-image.uimage.all: \
-	image.uimage.vmimage
 
 ############################################################################
 #
