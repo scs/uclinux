@@ -32,7 +32,7 @@ if [ $# -lt 1 ] ; then
   echo "The CPU :           BF533, BF537, BF561,etc."
   echo "The REVISION :      0.2, 0.3 ,etc."
   echo "The BINARY_FORMAT : flat, elf, shared-flat."
-  echo "The ALLOCATOR :     slab\(p2\), slab\(np2\), slob\(p2\), slob\(np2\)."
+  echo "The ALLOCATOR :     slab\(p2\), slob\(p2\)."
   echo "The ICACHE,DCACHE : on, off."
   echo "The POLICY :        write_through, write_back."
   echo "The UART_MODE :     dma, pio."
@@ -1354,10 +1354,10 @@ do
 if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
   echo "Testing LTP..."
 
-  ltp_args=( [0]="1 1 1" [1]="1 1 2" [2]="1 2" [3]="2 1 1" [4]="2 1 2" [5]="2 2" )
-  ltp_suf=(wb_slab_buddy wb_slab_np2 wb_slob wt_slab_buddy wt_slab_np2 wt_slob)
+  ltp_args=( [0]="1 1" [1]="1 2" [2]="2 1" [3]="2 2" )
+  ltp_suf=(wb_slab wb_slob wt_slab wt_slob)
 
-  for i in 0 1 2 3 4 5
+  for i in 0 1 2 3
   do
 
   rm -rf $UCLINUX_DIST_PATH/linux-2.6.x

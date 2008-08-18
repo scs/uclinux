@@ -10,10 +10,6 @@ send_user "Starting $argv0\n"
 
 # slab_slob = 1, enable slab
 # slab_slob = 2, enable slob 
-#
-# buddy_np2 = 1, slab with buddy
-# buddy_np2 = 2, slab with np2
-
 
 if { $argc == 4 } {
     set uclinux_path [lindex $argv 1]
@@ -25,7 +21,6 @@ if { $argc == 4 } {
         set uclinux_path [lindex $argv 1]
         set wt_wb [lindex $argv 2]
         set slab_slob [lindex $argv 3]
-        set buddy_np2 [lindex $argv 4]
         send_log "\n#### uclinux_path is $uclinux_path\n"
     }
 }
@@ -66,19 +61,6 @@ while 1 {
             }
             if { $slab_slob == 2 } {
                 send "3\r"
-            }
-        }
-
-        -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
-            if { $slab_slob == 1 } {
-                if { $buddy_np2 == 1 } {
-                    send "n\r"
-                }
-                if { $buddy_np2 == 2 } {
-                    send "y\r"
-                }
-            } else {
-                send "n\r"
             }
         }
 

@@ -84,28 +84,10 @@ while 1 {
         -re "Choose SLAB allocator.*SLAB.*SLUB.*SLOB.*choice.*\\\[.*]" {
             if { $allocator == "slab\(p2\)" } {
                 send "1\r"		       
-            } elseif { $allocator == "slab\(np2\)" } {
-                send "1\r"
             } elseif { $allocator == "slob\(p2\)" } {
-                send "3\r"
-            } elseif { $allocator == "slob\(np2\)" } {
                 send "3\r"
             } elseif { $allocator == "slub\(p2\)" } {
                 send "2\r"
-            } elseif { $allocator == "slub\(np2\)" } {
-                send "2\r"
-            }
-        }
-
-        -re "Allow non-power of 2 allocations.*NP2.*\\\[.*]" {
-            if { $allocator == "slab\(p2\)" } {
-                send "N\r"
-            } elseif { $allocator == "slab\(np2\)" } {
-                send "Y\r"
-            } elseif { $allocator == "slob\(p2\)" } {
-                send "N\r"
-            } elseif { $allocator == "slob\(np2\)" } {
-                send "Y\r"
             }
         }
 
