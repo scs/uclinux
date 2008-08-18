@@ -25,12 +25,12 @@ expect {
     }
 }
 sleep 1
-send "/BLOCKS\r"
-expect "BLOCKS*="
+send "/EXT2_BLOCKS\r"
+expect "EXT2_BLOCKS*="
 send "d\r"
 expect ":"
 send "i\r"
-send "BLOCKS   = 10240\r"
+send "EXT2_BLOCKS = 10240\r"
 send ".\r"
 expect ":"
 send "wq\r"

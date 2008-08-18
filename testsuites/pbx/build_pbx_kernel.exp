@@ -21,13 +21,13 @@ sleep 3
          }
       }
       sleep 1
-      send "/BLOCKS\r"
-      expect "BLOCKS*="
+      send "/EXT2_BLOCKS\r"
+      expect "EXT2_BLOCKS*="
       send "d\r"
       expect ":"
       send "i\r"
       sleep .5
-      send "BLOCKS = 25600\r"
+      send "EXT2_BLOCKS = 25600\r"
       sleep .5
       send ".\r"
       expect ":"

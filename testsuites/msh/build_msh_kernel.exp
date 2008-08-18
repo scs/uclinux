@@ -46,13 +46,13 @@ cd $uclinux_path
             send "e\r"
          }
       }
-      send "/BLOCKS\r"
-      expect "BLOCKS*="
+      send "/EXT2_BLOCKS\r"
+      expect "EXT2_BLOCKS*="
       send "d\r"
       expect ":"
       send "i\r"
       
-      send "BLOCKS = 8192\r"
+      send "EXT2_BLOCKS = 8192\r"
       
       send ".\r"
       expect ":"

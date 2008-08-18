@@ -21,19 +21,16 @@ sleep 3
          }
       }
       sleep 1
-      send "/BLOCKS\r"
-      expect "BLOCKS*="
+      send "/EXT2_BLOCKS\r"
+      expect "EXT2_BLOCKS*="
       send "d\r"
       expect ":"
       send "i\r"
       sleep .5
       if { $board_type == "BF548-EZKIT" } {
-      
-      send "BLOCKS = 12288\r"
-      
+          send "EXT2_BLOCKS = 12288\r"
       } else {
-      
-      send "BLOCKS   = 8192\r"
+          send "EXT2_BLOCKS = 8192\r"
       }
       sleep .5
       send ".\r"
