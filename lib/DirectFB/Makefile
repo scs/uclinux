@@ -1,4 +1,4 @@
-VER = DirectFB-1.2.2
+VER = DirectFB-1.2.3
 
 USE_ENABLE = $(shell test "$(CONFIG_$(1))" = "y" && echo "--enable-$(2)" || echo "--disable-$(2)")
 

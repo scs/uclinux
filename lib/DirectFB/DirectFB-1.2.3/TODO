@@ -1,0 +1,63 @@
+Incomplete (roughly sorted by priority)
+---------------------------------------
+
+New Surface Core
+- Test DSCAPS_STATIC_ALLOC.
+- Revive depth buffers.
+- Revive CSLF_FORCE for locking buffers in(to) INTERNAL memory.
+- Revive surface setinels.
+- Fix preallocated surface acceleration.
+- Finish FBDev surface pool using the old surface manager code.
+  - Fix pool/gfxcard init order (using workaround at the moment).
+  - Defragment free space.
+  - Readd auxiliary memory pool using its own instance of the manager.
+- Get all system modules working again.
+- Probably more modules and tools need updates...
+  - v4l video provider
+- Make use of Read/Write if locks for CPU are not possible and
+  implement an OpenGL based system module with OpenGL acceleration.
+
+IDirectFBSurface::Flip() with multiple regions.
+
+Support rotated screens (180 is implemented).
+
+Support vga16, i.e. add DSPF_LUT4.
+
+Move config system to libdirect with more features and much smaller/generic code.
+
+Finish VT switching.
+ - Save/restore video only buffers.
+ - Handle(?) buffers being permanently locked in video memory.
+ - Support(?) switching during exclusive access to a layer.
+
+Write well documented driver skeletons.
+
+Finish implementation of cooperative levels.
+
+Finish module unloading (done for most cases).
+
+Convert all D_DEBUG usage to D_DEBUG_AT using some D_DEBUG_DOMAINs.
+Implement debug levels, one setting per domain.
+
+Modularize pixel formats (eventually with dynamic extension support).
+
+Run time single/multi app core selection (both enabled during build).
+
+Add core cursor component with animated shape support and better integrated
+changes caused by entering different windows.
+
+Implement CoreFont sharing between applications
+to save glyph rendering and surface allocations.
+
+Add cooperative levels to input devices, implement sharing/distinction for
+applications (e.g. PS/2 Keyboard + PS/2 Mouse driver XDirectFB on Monitor out,
+USB-Keyboard + USB-Mouse drive XDirectFB and/or other applications on TV Out,
+USB-Wacom Tablet with mouse and pen can be assigned or switched to either,
+preferrably during runtime)
+
+Virtual window resolution with scrolling/panning.
+
+Rework cursor and palette handling in the window stack.
+
+
+[...lots of things missing here...]

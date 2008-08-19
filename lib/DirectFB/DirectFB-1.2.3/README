@@ -1,0 +1,431 @@
+DirectFB README
+---------------
+
+   This is a developers release of DirectFB.
+
+   DirectFB is a graphics library which was designed with embedded
+   systems in mind. It offers maximum hardware accelerated performance
+   at a minimum of resource usage and overhead. 
+
+   Check http://www.directfb.org/ for more and up to date infos.
+
+
+Supported Operating Systems
+---------------------------
+   
+   - GNU/Linux
+
+   Using SDL (without acceleration support), DirectFB also supports
+   the following operating systems:
+
+      - FreeBSD (last tested: DirectFB 0.9.21 on FreeBSD 5.2)
+      - NetBSD  (tested on NetBSD 1.6)
+      - OpenBSD (tested on OpenBSD 3.2)
+           (If you have problems, try ./configure --disable-mmx)
+   
+   Please note that SDL support is experimental and incomplete. It is
+   intended for developers to allow development of DirectFB applications
+   in various environments.
+
+   Native (non SDL) support for the following operating systems is in progress:
+
+   - Mac OS X (tested on Mac OS X 10.3.5)
+
+   We do not have the resources to ensure that every release of
+   DirectFB works on all supported platforms. If you are a user of one
+   of the operating system listed above, and have the time to test the
+   CVS version regularly, your help is greatly appreciated.
+
+
+Build Requirements
+------------------
+
+   Mandatory are
+     - libc
+     - libpthread
+     - libm
+     - libdl
+     - pkg-config (for regenerating configure script)
+
+   Optionally, depending on the configuration you want:
+
+   FBDev
+     - Linux kernel 2.2.x or newer with working frame buffer device
+       (check /proc/fb) for the fbdev system.
+
+   SDL
+     - libSDL (Simple Direct Media Layer) for the sdl system.
+
+   X11
+     - libX11 (X11 client library) for the X11 system (libx11-dev and libxext-dev packages).
+
+   The following libraries are optional, but important (Debian package names):
+
+   Fonts
+     - libfreetype6-dev for TrueType and other fonts
+
+   Images
+     - libjpeg-dev for Joint Picture Expert Group images
+     - libpng-dev for Portable Network Graphics
+
+   Extra
+     - zlib1g-dev for compressed screenshot support (also needed by libpng)
+
+   The multi application core also requires <linux/fusion.h>, see the
+   section "Running multiple DirectFB applications" for more details.
+
+   The build of the image and font providers can be disabled but we
+   strongly suggest that you don't do this since the code examples and
+   a lot of DirectFB applications depend on the functionality provided
+   by them.
+
+   The libmpeg3 video provider requires the libmpeg3 library which is
+   not commonly installed. We provide this package on our web-site at
+   http://www.directfb.org/download/contrib/.
+
+   The avifile and flash video providers that used to be shipped with
+   DirectFB have been moved to the DirectFB-extra package.
+
+   We suggest you also install pkg-config available from
+   http://www.freedesktop.org/software/pkgconfig/. It will help you
+   to compile applications based on DirectFB.
+
+
+Usage Requirements
+------------------
+
+   Depending on the DirectFB application you want to run, you need some
+   or all of these:
+
+   - A working frame buffer device (check the output of 'fbset -i').
+   - A keyboard (if it works on the console, everything should be fine).
+   - A PS/2 or serial mouse for windowing. USB and ADB mice do also work
+     via PS/2 emulation.
+
+   Using the single application core you always need access to /dev/tty0,
+   /dev/fb0 and the mouse device (/dev/psaux, /dev/mouse).
+   You can either run all DirectFB applications as root or allow users
+   to access these devices. A reasonable way to do this is to add users
+   to the group tty (or some other group) and allow this group to read
+   and write the files in /dev:
+
+       crw-rw----    1 root     tty       29,   0  /dev/fb0
+       crw-rw----    1 root     tty       10,   1  /dev/psaux
+       crw-r-----    1 root     tty        4,   0  /dev/tty0
+
+   If you are using the multi application core, only the master process needs
+   access to all of these devices. Additional processes (slaves) just need
+   access to /dev/fb0 and:
+
+       crw-rw----    1 root     fusion    29,   0  /dev/fusion/0
+   
+   Note that the master creates a shared memory file, probably
+   in '/dev/shm/fusion.0'. It's read/writeable for anyone matching
+   the master process' user or group.
+
+
+   Some applications from the DirectFB-examples package have additional
+   requirements:
+
+   - A video card supported by video4linux for df_video.
+   - A joystick for df_joystick.
+
+
+Running multiple DirectFB applications at the same time
+-------------------------------------------------------
+
+   With the default build of the DirectFB library, only one DirectFB
+   application may be running. However you have the option to use the
+   multi application core of DirectFB which allows multiple DirectFB
+   applications to run at the same time within a session.
+
+   DirectFB applications communicate through a layer we called Fusion.
+   This layer was previously implemented completely in user space using
+   semaphores and message queues. But since 0.9.15 the Fusion Kernel
+   Device is required which implements critical parts of Fusion and thus
+   lead to better performance and decent stability. To install this kernel
+   module (only available for Linux yet), check out the linux-fusion
+   module from our CVS repository or use the patch provided by this
+   release (in the patches directory). Note that you don't need to patch
+   your kernel using the CVS version of Fusion.
+
+   Compile DirectFB with multi-application core enabled:
+
+     ./configure --enable-multi
+
+   Make sure your Linux kernel supports tmpfs. This is explained in
+   the kernel sources in Documentation/filesystems/tmpfs.txt.
+   Mount a tmpfs filesystem as /dev/shm:
+
+     mount tmpfs /dev/shm -ttmpfs
+
+   Optionally a mount point can be specified via the "tmpfs" option,
+   see directfbrc(5). The option has to be the same for all processes.
+
+   A good way to test the multi-application core is to install the lite
+   toolkit and DFBTerm, a DirectFB terminal (both available in the
+   DirectFB CVS repository). You can then start DirectFB applications
+   from dfbterm.
+
+
+Recommendations
+---------------
+
+   To take full advantage of hardware acceleration, 
+   a Matrox G200/G400/G450/G550 graphics card is recommend for this 
+   version of DirectFB. The drivers for ATI128, Voodoo 3/4/5/Banshee,
+   NeoMagic and S3 Savage cards included with this release are work in
+   progress and only yet support a subset of the possible accelerations.
+
+
+Installation
+------------
+
+   1) In the DirectFB directory type:
+
+	./configure <options>
+	make
+	make install (as superuser)
+
+      Use './configure --help' to get a list of possible configure options.
+
+      Imported options include:
+        --enable-multi   Enables the Multi Application Core
+        --enable-debug   Enables many debug messages and assertions
+        --enable-trace   Enables run time stack trace information
+
+      Debugging and especially stack trace support are a performance
+      impact. It may be noticably slower in some areas, e.g. text drawing.
+
+      You may use the options "no-debug" and "no-trace" by default, e.g.
+      in '/etc/directfbrc', and use "--dfb:debug,trace" on the command
+      line if needed.
+
+   2) Make sure that "<prefix>/lib" is listed in your /etc/ld.so.conf.
+      The default prefix is "/usr/local". After adding it you have to
+      run 'ldconfig' as superuser.
+
+      Alternatively, you can add the path to the environment
+      variable LD_LIBRARY_PATH. This is useful for temporarily
+      switching to another installed version.
+
+   3) You might want to copy fb.modes to /etc or merge it with your
+      existing /etc/fb.modes file. The first entry will be used by
+      default - copy other entries you may need.
+
+   4) If you want to use a serial mouse, create a link called /dev/mouse
+      that points to serial device (e.g. /dev/ttyS0). Then add a line
+      describing your mouse-protocol to /etc/directfbrc or ~/.directfbrc:
+      "mouse-protocol=[ms|ms3|mouseman|mousesystems]".
+
+   5) If you are cross compiling and have installed the required libraries
+      someplace other than /usr/local/lib be sure to add the bin directory
+      for those libraries to the front of your 'PATH'.
+
+        For instance if you configured using:
+          --prefix=/dfb/usr/local
+        then be sure to
+          export PATH=/dfb/usr/local/bin:$PATH
+        before compiling and installing.
+
+
+Configuring DirectFB
+--------------------
+
+   There are lots of things that can be configured. We try to ship DirectFB
+   with reasonable defaults but you might have to tweak things. There are
+   several ways to do this. You may edit the system-wide configuration
+   file /etc/directfbrc or the user-specific $HOME/.directfbrc. There's a
+   manual page called directfbrc(5) that documents all the settings. The
+   same manual page also explains how DirectFB application can be
+   configured via the command-line.
+
+
+Configuring the Linux frame buffer device
+-----------------------------------------
+
+   DirectFB needs a Linux kernel with frame buffer support. Check the 
+   documentation in the kernel tree (/usr/src/linux/Documentation/fb/) on 
+   how to enable the frame buffer device for your graphics card. 
+
+   The generic VESA frame buffer device does not support mode switching
+   and you will not get hardware acceleration. To make DirectFB work with
+   veasfb, you should add the following lines to /etc/lilo.conf:
+
+	append="video=vesa:ywrap,mtrr"
+
+   'ywrap' enables panning with wraparound.
+   'mtrr' enables setting caching type for the frame buffer to write-combining.
+
+	vga=791
+
+   This sets the mode on startup. 791 means 1024x768@16, 788 means 800x600@16.
+
+   All VESA Video Modes:
+
+   Bits    640x480 800x600 1024x768 1280x1024 1600x1200
+   8       769     771     773      775       796
+   16      785     788     791      794       798
+   32      786     789     792      795       799
+
+   Other frame buffer devices support mode switching. DirectFB will only 
+   support modes listed in your /etc/fb.modes file. By default the first 
+   entry found is used.
+
+   If you have a Matrox card you may want to try the vsync patch found in
+   the patches directory that enables applications to "idle wait" for the
+   vertical retrace.
+
+
+Using the builtin "window manager"
+----------------------------------
+
+   Since DirectFB lacks a real window manager, we added a hack to the
+   window stack to allow for basic window management. While pressing
+   the <Meta> (or Windows) key or alternatively <Caps-Lock> you can do
+   the following:
+
+     - Drag your mouse to move the focused window.
+     - Drag and press <Ctrl> to resize the focused window.
+     - Drag and press <Alt> to change the opacity of the focused window.
+     - Press C to close the focused window.
+     - Press A to lower the focused window to the bottom.
+     - Press X to cycle the focus through the windows.
+     - Press S to raise the lowest window to the top.
+     - Press P to enable and show the mouse cursor.
+     - Press E to focus the window currently under the mouse cursor,
+       useful in conjunction with 'X'.
+     - Press Escape to return from fullscreen mode to the desktop.
+       (currently not advisable if the fullscreen app is still flipping)
+     - Press F12 to redraw the whole window stack.
+
+   You might want to use the "capslock-meta" option (see directfbrc(5))
+   if you don't have a <Meta> key.
+
+
+Documentation
+-------------
+
+   A complete API reference documentation in HTML format is created during 
+   the build in the docs directory. You may also access the API reference
+   as well as a concepts overview, tutorials and the FAQ online at
+   http://www.directfb.org/documentation/. 
+
+
+Thanks to
+---------
+
+   Johannes Zellner <johannes@zellner.org>
+   Till Adam <till@adam-lilienthal.de>
+   Joachim Steiger <roh@hyte.de>
+   Felix von Leitner <leitner@fefe.de>
+   Johannes Stezenbach <js@convergence.de>
+   Michael Natterer <mitch@convergence.de>
+   Holger Waechtler <holger@convergence.de>
+   Kim JeongHoe <king@mizi.com>
+   Jason Gaiser <jasno@san.rr.com>
+   W. Michael Petullo <mike@flyn.org>
+   Jiri Svoboda <Jiri.Svoboda@seznam.cz>
+   Hallvar Helleseth <hallvar@ii.uib.no>
+   Topi Kanerva <topi.kanerva@eke.fi>
+   Daniel Mack <daniel@convergence.de>
+   Ara Hacopian <ahacop@anthrotronix.com>
+   Mike Haertel <mike@albert.ai.mit.edu>
+   Enno Brehm <enno@convergence.de>
+   Martin Mueller <mm@convergence.de>
+   Sebastian Klemke <packet@convergence.de>
+   Fredrik Hallenberg <hallon@lysator.liu.se>
+   Antonino Daplas <adaplas@users.sourceforge.net>
+   Scott A McConnell <samcconn@cotw.com>
+   Alex SONG <zzaleson@uqconnect.net>
+   Ville Syrjälä <syrjala@sci.fi>
+   Brian J. Murrell <a40e8119bbddbe7b3d281db117f19b32@interlinx.bc.ca>
+   Tim Janik <timj@gtk.org>
+   Billy Biggs <vektor@dumbterm.net>
+   Andreas Oberritter <obi@tuxbox.org>
+   Simon Ueng <simon@ftech.com.tw>
+   Scott Brumbaugh <scottb.lists@verizon.net>
+   Sebastian Ley <sebastian.ley@mmweg.rwth-aachen.de>
+   James Su <suzhe@turbolinux.com.cn>
+   Sarma Kolluru <Sarma.Kolluru@nsc.com>
+   Oliver Schwartz <Oliver.Schwartz@gmx.de>
+   Florian <florian.fernandez2@wanadoo.fr>
+   J.P. Delport <jpdelport@csir.co.za>
+   Michel Dänzer <michel@daenzer.net>
+   Maurizio Monge <monge@sns.it>
+   Tim Wright <tim.wright@iosystems.co.uk>
+   Liam Girdwood <liam.girdwood@wolfsonmicro.com>
+   Andreas Robinson <andro134 at student.liu.se>
+   Michael Hunold <hunold@convergence.de>
+   Brandon M. Reynolds <breynolds@comtime.com>
+   Micha Nelissen <micha@neli.hopto.org>
+   Vadim Catana <vcatana@registru.md>
+   Henning Glawe <glaweh@physik.fu-berlin.de>
+   Ed Millard <emillard@direcway.com>
+   Claudio Ciccani <klan82@cheapnet.it>
+   Tom Bridgwater <genuss@gmail.com>
+   Oskar Liljeblad <oskar@osk.mine.nu>
+   Bryce Nichols <bryce@bnichols.org>
+   Stefan Lucke <stefan@lucke.in-berlin.de>
+   Mws <mws@twisted-brains.org>
+   Ivan Daniluk <ivan@shvydko.ua>
+   Mark Salter <msalter@redhat.com>
+   Martin Lütken <nitram@lutken.dk>
+   Sylvain Meyer <sylvain.meyer@worldonline.fr>
+   Mark Adams <mark147m@gmail.com>
+   Damian Kowalewski <damian.kowalewski@mail.mcgill.ca>
+   Jakub Bogusz <qboosh@pld-linux.org>
+   Nathanael D. Noblet <nathanael@gnat.ca>
+   Ryan Burns <rburns@mvista.com>
+   Colin Watson <cjwatson@debian.org>
+   Guillem Jover <guillem@debian.org>
+   Jeff Bailey <jbailey@ubuntu.com>
+   Andreas Jochens <aj@andaco.de>
+   Daniel J Laird <daniel.j.laird@nxp.com>
+   Marko Mäkelä <marko.makela@hut.fi>
+   Nils Magnus Larsgard <nmlarsgaard@atmel.no>
+   Pär Degerman <parde@ikp.liu.se>
+   Michel van Noorloos <michel.van.noorloos@sioux.nl>
+   Gery <gxkahn@gmail.com>
+   Shane <shanevolpe@gmail.com>
+   Paul Mackerras <paulus@samba.org>
+   Attilio Fiandrotti <attilio.fiandrotti@gmail.com>
+   Vaclav Slavik <vslavik@fastmail.fm>
+   Philip Jägenstedt <philipj@opera.com>
+   sridewa <sridewa@gmail.com>
+   Eugene Everson <eugene@tranzas.co.jp>
+   Mike Crowe <mac@mcrowe.com>
+   Kieran Bingham <kbingham@mpc-data.co.uk>
+   Luis Mondesi +lemsx1 +gmail,com
+   Keith Mok <ek9852@gmail.com>
+   GARDET Guillaume <ggardet@adeneo.adetelgroup.com>
+   Phil Endecott <spam_from_directfb_dev@chezphil.org>
+   Brian Austin <brian.austin@cirrus.com>
+
+Special thanks to Ville Syrjala for his great work on the
+Matrox TV-Out support and for his several patches including
+fixes and enhancements for the whole library. He also did
+several ports like UAE or mplayer for DirectFB. Check out his
+site at 'http://www.sci.fi/~syrjala/'.
+
+
+Legal stuff
+-----------
+
+   (c) Copyright 2001-2007  The DirectFB Organization (directfb.org)
+   (c) Copyright 2000-2004  Convergence (integrated media) GmbH
+
+   All rights reserved.
+
+   Written by Denis Oliver Kropp <dok@directfb.org>,
+              Andreas Hundt <andi@fischlustig.de>,
+              Sven Neumann <neo@directfb.org>,
+              Ville SyrjÃ¤lÃ¤ <syrjala@sci.fi> and
+              Claudio Ciccani <klan@users.sf.net>.
+
+   This library is free software; you can redistribute it and/or
+   modify it under the terms of the GNU Lesser General Public
+   License as published by the Free Software Foundation; either
+   version 2 of the License, or (at your option) any later version.
+
+   The complete text of the license is found in the file COPYING. 
