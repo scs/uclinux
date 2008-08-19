@@ -76,9 +76,6 @@ config MMAP_TEST
 config USER_CRYPTOPP_LIB_EXAMPLES
 	bool "Crypto++ Lib Test program"
 	select LIB_CRYPTOPP
-config USER_MDMA_TESTS
-	bool "MDMA Memory DMA TEST progs"
-	select USER_MDMA_KO
 config USER_NCURSES_TESTS
 	bool "NCurses Test apps"
 	select LIB_NCURSES
@@ -180,8 +177,6 @@ config USER_CAN_EXAMPLES
 	bool "can4linux examples"
 config USER_CAN_HORCH
 	bool "horch"
-config USER_MDMA_KO
-	bool "mdma kernel module"
 config USER_SDLEXAMPLES
 	bool "SDL Examples"
 	select LIB_LIBSDL
