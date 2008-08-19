@@ -288,6 +288,14 @@ endif
 
 ############################################################################
 #
+# Allow people to hit any of these vendor targets via "vendor_" prefix
+#
+
+vendor_%:
+	$(MAKE) $(patsubst vendor_%,%,$@)
+
+############################################################################
+#
 # Allow people to create custom rules in vendor/AnalogDevices/<board>/
 # without having to change the Makefile in the dist
 #
