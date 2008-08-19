@@ -2,17 +2,17 @@
 #
 # Allow people to quickly sync their staging directory with the actual
 # toolchain as this will allow them to transparently build external apps
-# against libraries from uClinux-dist
+# against libraries from uClinux-dist.  Maybe hook in tools/autotools.mk to
+# mung pkgconfig/-config/*.la/etc... paths ?
 #
 
-SYSROOT_LIBDIR = $(shell bfin-linux-uclibc-gcc $(CPUFLAGS) -print-file-name=libc.a | sed 's:/usr/lib/libc.a$$::')
-ifeq ($(CONFIG_FMT_USE_FDPIC_ELF),y)
+SYSROOT_LIBDIR = $(shell $(CONFIGURE_HOST)-gcc $(CPUFLAGS) -print-file-name=libc.a | sed 's:/usr/lib/libc.a$$::')
 vendor_staging_install:
-	cp -a $(STAGEDIR)/* $(SYSROOT_LIBDIR)/
-else
-vendor_staging_install:
-	@printf "\nlibs_install: this only works for FDPIC ELF toolchains\n\n"
+ifeq ($(SYSROOT_LIBDIR),)
+	@echo "SYSROOT_LIBDIR is not set -- toolchain problem ?"
 	@false
+else
+	cp -a $(STAGEDIR)/* $(SYSROOT_LIBDIR)/
 endif
 
 ############################################################################
