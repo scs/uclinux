@@ -35,7 +35,7 @@ config LIB_DMALLOC
 	bool "Build dmalloc"
 
 config LIB_E2FSPROGS_LIBS
-	bool "Build e2fsprogs-libs
+	bool "Build e2fsprogs-libs"
 	help
 	  This builds libblkid, libcom_err, libss, and libuuid.
 
