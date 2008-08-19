@@ -1,0 +1,54 @@
+commit bb47c2a4aff6ec6b9be7f30cd04cf7c858a84de4
+Author: Theodore Ts'o <tytso@mit.edu>
+Date:   Sun Jul 13 19:10:10 2008 -0400
+
+    libblkid: Make sure we never reference a null dev->bid_type
+    
+    There were a few places where we don't check to make sure
+    dev->bid_type is non-NULL before dereferencing the pointer, mostly in
+    debug code.
+    
+    Signed-off-by: "Theodore Ts'o" <tytso@mit.edu>
+
+diff --git a/lib/blkid/dev.c b/lib/blkid/dev.c
+index 770632b..5252a8e 100644
+--- a/lib/blkid/dev.c
++++ b/lib/blkid/dev.c
+@@ -34,7 +34,8 @@ void blkid_free_dev(blkid_dev dev)
+ 		return;
+ 
+ 	DBG(DEBUG_DEV,
+-	    printf("  freeing dev %s (%s)\n", dev->bid_name, dev->bid_type));
++	    printf("  freeing dev %s (%s)\n", dev->bid_name, dev->bid_type ?
++		   dev->bid_type : "(null)"));
+ 	DBG(DEBUG_DEV, blkid_debug_dump_dev(dev));
+ 
+ 	list_del(&dev->bid_devs);
+diff --git a/lib/blkid/devname.c b/lib/blkid/devname.c
+index df96859..65c6cca 100644
+--- a/lib/blkid/devname.c
++++ b/lib/blkid/devname.c
+@@ -96,7 +96,8 @@ blkid_dev blkid_get_dev(blkid_cache cache, const char *devname, int flags)
+ 			dev2 = list_entry(p, struct blkid_struct_dev, bid_devs);
+ 			if (dev2->bid_flags & BLKID_BID_FL_VERIFIED)
+ 				continue;
+-			if (strcmp(dev->bid_type, dev2->bid_type))
++			if (!dev->bid_type || !dev2->bid_type ||
++			    strcmp(dev->bid_type, dev2->bid_type))
+ 				continue;
+ 			if (dev->bid_label && dev2->bid_label &&
+ 			    strcmp(dev->bid_label, dev2->bid_label))
+diff --git a/lib/blkid/save.c b/lib/blkid/save.c
+index 76f2f9e..60aa6ce 100644
+--- a/lib/blkid/save.c
++++ b/lib/blkid/save.c
+@@ -34,7 +34,8 @@ static int save_dev(blkid_dev dev, FILE *file)
+ 		return 0;
+ 
+ 	DBG(DEBUG_SAVE,
+-	    printf("device %s, type %s\n", dev->bid_name, dev->bid_type));
++	    printf("device %s, type %s\n", dev->bid_name, dev->bid_type ?
++		   dev->bid_type : "(null)"));
+ 
+ 	fprintf(file,
+ 		"<device DEVNO=\"0x%04lx\" TIME=\"%ld\"",
