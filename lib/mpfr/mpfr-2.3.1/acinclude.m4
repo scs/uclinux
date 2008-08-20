@@ -286,6 +286,9 @@ dnl    be that thread-local variables always evaluate to 0. So, it is
 dnl    important to run the test below.
 if test "$enable_thread_safe" = yes; then
 AC_CACHE_CHECK([for TLS support], mpfr_cv_working_tls, [
+saved_CPPFLAGS="$CPPFLAGS"
+# The -I$srcdir is necessary when objdir is different from srcdir.
+CPPFLAGS="$CPPFLAGS -I$srcdir"
 AC_RUN_IFELSE([
 #define MPFR_USE_THREAD_SAFE 1
 #include "mpfr-thread.h"
@@ -297,6 +300,7 @@ int main() {
      [AC_MSG_RESULT(no)
       AC_MSG_ERROR([please configure with --disable-thread-safe])],
      [mpfr_cv_working_tls="cannot test, assume yes"])
+CPPFLAGS="$saved_CPPFLAGS"
 ])
 fi
 ])
