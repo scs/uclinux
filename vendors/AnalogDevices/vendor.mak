@@ -63,15 +63,17 @@ endif
 IMAGE_ROMFS_BASE = $(IMAGEDIR)/rootfs
 
 .PHONY: image.rootfs.cramfs image.rootfs.cramfs.force
+MKFS_CRAMFS_FLAGS = -z
 image.rootfs.cramfs.force:
-	$(MKFS_CRAMFS) -z -D $(DEVICE_TABLE) $(ROMFSDIR) $(IMAGE_ROMFS_BASE).cramfs
+	$(MKFS_CRAMFS) $(MKFS_CRAMFS_FLAGS) -D $(DEVICE_TABLE) $(ROMFSDIR) $(IMAGE_ROMFS_BASE).cramfs
 ifeq ($(CONFIG_CRAMFS),y)
 image.rootfs.cramfs: image.rootfs.cramfs.force
 endif
 
 .PHONY: image.rootfs.ext2 image.rootfs.ext2.force
+MKFS_EXT2_FLAGS = -m 0 -i $(EXT2_INODES) -b $(EXT2_BLOCKS)
 image.rootfs.ext2.force:
-	$(MKFS_EXT2) -m 0 -i $(EXT2_INODES) -b $(EXT2_BLOCKS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(IMAGE_ROMFS_BASE).ext2
+	$(MKFS_EXT2) $(MKFS_EXT2_FLAGS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) $(IMAGE_ROMFS_BASE).ext2
 ifeq ($(CONFIG_EXT2_FS),y)
 image.rootfs.ext2: image.rootfs.ext2.force
 endif
@@ -90,17 +92,19 @@ endif
 endif
 
 .PHONY: image.rootfs.jffs2 image.rootfs.jffs2.force
+MKFS_JFFS2_FLAGS = -l
 image.rootfs.jffs2.force:
-	$(MKFS_JFFS2) -l -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(IMAGE_ROMFS_BASE).jffs2
+	$(MKFS_JFFS2) $(MKFS_JFFS2_FLAGS) -d $(ROMFSDIR) -D $(DEVICE_TABLE) -o $(IMAGE_ROMFS_BASE).jffs2
 ifeq ($(CONFIG_JFFS2_FS),y)
 image.rootfs.jffs2: image.rootfs.jffs2.force
 endif
 
 .PHONY: image.rootfs.romfs image.rootfs.romfs.force
+MKFS_ROMFS_FLAGS =
 image.rootfs.romfs.force:
 	set -e ; \
 	$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
-	genromfs -f $(IMAGE_ROMFS_BASE).romfs -d $(ROMFSDIR); \
+	genromfs $(MKFS_ROMFS_FLAGS) -f $(IMAGE_ROMFS_BASE).romfs -d $(ROMFSDIR); \
 	rm -rf $(ROMFSDIR)/dev/*
 image.rootfs.romfs:
 ifeq ($(CONFIG_ROMFS_FS),y)
@@ -111,15 +115,17 @@ ifeq ($(CONFIG_ROMFS_FS),y)
 endif
 
 .PHONY: image.rootfs.yaffs image.rootfs.yaffs.force
+MKFS_YAFFS_FLAGS =
 image.rootfs.yaffs.force:
-	$(MKFS_YAFFS) $(ROMFSDIR) $(IMAGE_ROMFS_BASE).yaffs > /dev/null
+	$(MKFS_YAFFS) $(MKFS_YAFFS_FLAGS) $(ROMFSDIR) $(IMAGE_ROMFS_BASE).yaffs > /dev/null
 ifeq ($(CONFIG_YAFFS_FS),y)
 image.rootfs.yaffs: image.rootfs.yaffs.force
 endif
 
 .PHONY: image.rootfs.yaffs2 image.rootfs.yaffs2.force
+MKFS_YAFFS2_FLAGS =
 image.rootfs.yaffs2.force:
-	$(MKFS_YAFFS2) $(ROMFSDIR) $(IMAGE_ROMFS_BASE).yaffs2 > /dev/null
+	$(MKFS_YAFFS2) $(MKFS_YAFFS2_FLAGS) $(ROMFSDIR) $(IMAGE_ROMFS_BASE).yaffs2 > /dev/null
 ifeq ($(CONFIG_YAFFS_FS),y)
 image.rootfs.yaffs2: image.rootfs.yaffs2.force
 endif
