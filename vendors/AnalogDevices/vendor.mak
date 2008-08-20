@@ -104,12 +104,12 @@ MKFS_ROMFS_FLAGS =
 image.rootfs.romfs.force:
 	set -e ; \
 	$(ROOTDIR)/tools/mkdevdir.sh $(ROMFSDIR) $(DEVICE_TABLE); \
-	genromfs $(MKFS_ROMFS_FLAGS) -f $(IMAGE_ROMFS_BASE).romfs -d $(ROMFSDIR); \
+	$(MKFS_ROMFS) $(MKFS_ROMFS_FLAGS) -f $(IMAGE_ROMFS_BASE).romfs -d $(ROMFSDIR); \
 	rm -rf $(ROMFSDIR)/dev/*
 image.rootfs.romfs:
 ifeq ($(CONFIG_ROMFS_FS),y)
 	set -e ; \
-	if which genromfs >/dev/null 2>&1; then \
+	if which $(MKFS_ROMFS) >/dev/null 2>&1; then \
 		$(MAKE) image.rootfs.romfs.force; \
 	fi
 endif
@@ -173,7 +173,7 @@ image.kernel.romfs.force: image.kernel.vmlinux
 image.kernel.romfs:
 ifeq ($(CONFIG_ROMFS_FS),y)
 	set -e ; \
-	if which genromfs >/dev/null 2>&1; then \
+	if which $(MKFS_ROMFS) >/dev/null 2>&1; then \
 		$(MAKE) image.kernel.romfs.force; \
 	fi
 endif
@@ -260,7 +260,7 @@ image.uimage.romfs.force:
 image.uimage.romfs:
 ifeq ($(CONFIG_ROMFS_FS),y)
 	set -e ; \
-	if which genromfs >/dev/null 2>&1; then \
+	if which $(MKFS_ROMFS) >/dev/null 2>&1; then \
 		$(MAKE) image.uimage.romfs.force; \
 	fi
 endif

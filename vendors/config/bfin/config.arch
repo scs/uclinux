@@ -42,9 +42,10 @@ STRIP     = $(STRIPTOOL)
 CC_FOR_BUILD = gcc
 
 MKIMAGE     = $(ROOTDIR)/$(LINUXDIR)/scripts/mkuboot.sh
-MKFS_EXT2   = $(ROOTDIR)/user/genext2fs/build-host/genext2fs
 MKFS_CRAMFS = $(ROOTDIR)/user/cramfs/host_build/mkcramfs
+MKFS_EXT2   = $(ROOTDIR)/user/genext2fs/build-host/genext2fs
 MKFS_JFFS2  = $(ROOTDIR)/user/mtd-utils/mkfs.jffs2
+MKFS_ROMFS  = genromfs
 MKFS_YAFFS  = $(ROOTDIR)/user/yaffs-utils/mkfs.yaffs
 MKFS_YAFFS2 = $(ROOTDIR)/user/yaffs-utils/mkfs.yaffs2
 
