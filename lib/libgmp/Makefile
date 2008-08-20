@@ -1,20 +1,6 @@
-VER = gmp-4.2.2
+VER = gmp-4.2.3
 
-all: build-$(VER)/Makefile
-	$(MAKE) -C build-$(VER) install DESTDIR=$(STAGEDIR)
-
-build-$(VER)/Makefile:
-	find $(VER) -type f -print0 | xargs -0 touch -r $(VER)/configure
-	set -e ; \
-	rm -rf build-$(VER) ; \
-	mkdir build-$(VER) ; \
-	cd build-$(VER) ; \
-	../$(VER)/configure $(CONFIGURE_OPTS)
-
-clean:
-	rm -rf build*
+include $(ROOTDIR)/tools/autotools.mk
 
 romfs:
 	$(ROMFSINST) -d -e CONFIG_FMT_USE_FDPIC_ELF $(STAGEDIR)/usr/lib/libgmp.so.3 /usr/lib/libgmp.so.3
-
-.PHONY: all clean romfs
