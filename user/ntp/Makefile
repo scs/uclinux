@@ -1,4 +1,4 @@
-VER := ntp-4.2.4p4
+VER := ntp-4.2.4p5
 
 ifdef CONFIG_USER_NTPD_NTPDATE
 NTPDATE := with
