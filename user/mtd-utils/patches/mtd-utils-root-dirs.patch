@@ -1,0 +1,16 @@
+http://lists.infradead.org/pipermail/linux-mtd/2008-June/022089.html
+
+--- mtd-utils/mkfs.jffs2.c
++++ mtd-utils/mkfs.jffs2.c
+@@ -565,7 +565,10 @@
+ 		 * try and find our parent now) */
+ 		tmp = strdup(name);
+ 		dir = dirname(tmp);
+-		parent = find_filesystem_entry(root, dir, S_IFDIR);
++		if (!strcmp(dir, "/"))
++			parent = root;
++		else
++			parent = find_filesystem_entry(root, dir, S_IFDIR);
+ 		free(tmp);
+ 		if (parent == NULL) {
+ 			error_msg ("skipping device_table entry '%s': no parent directory!", name);
