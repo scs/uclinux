@@ -57,7 +57,7 @@ while 1 {
             }
         }
         
-        -re "Blackfin 527/536/537 on-chip mac support.*BFIN_MAC.*\\\[.*]" {
+         -re "Blackfin on-chip MAC support.*BFIN_MAC.*\\\[.*]" {
 
          if { $board_type == "BF537-STAMP" || $board_type == "BF527-EZKIT" } {
 
