@@ -216,7 +216,7 @@ int main(int argc, char *argv[])
 
 			sprintf(number, "%li", test_num);
 
-			printf("Running test %li : %s\n... ", test_num, bad_funcs[test_num].name);
+			printf("\nRunning test %li : %s\n... ", test_num, bad_funcs[test_num].name);
 			fflush(stdout);
 
 			pid = vfork();
@@ -249,6 +249,7 @@ int main(int argc, char *argv[])
 				printf("FAIL (unknown exit status 0x%x)\n", status);
 
 			fflush(stdout);
+                        sleep (1);
 		}
 
 		exit(pass_count == ARRAY_SIZE(bad_funcs) ? EXIT_SUCCESS : EXIT_FAILURE);
