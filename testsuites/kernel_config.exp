@@ -10,6 +10,7 @@ set uclinux_path $user/checkouts/uclinux-dist
 # environment settings
 
 set ttydev /dev/ttyS0
+set ttyUSBdev /dev/ttyUSB0
 set baud_rate   "57600"
 set sh_prompt "\[-@]*\[$>]"
 set kernel_prompt "root:\[^>].*>"
@@ -52,7 +53,8 @@ set bootargs_param2      "root=/dev/mtdblock3 rw rootfstype=jffs2 earlyprintk=se
 set bootargs_param3      "root=/dev/mtdblock4 rw rootfstype=jffs2 earlyprintk=serial,uart0,$baud_rate"
 set bootargs_param4      "root=/dev/mtdblock1 rw rootfstype=yaffs2"
 set bootargs_param5      "root=/dev/mtdblock0 rw mem=32M max_mem=64M"
-set bootargs_param6      "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,$baud_rate console=/dev/null ip=$targetip" 
+set bootargs_param6      "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,$baud_rate ip=$targetip" 
+set bootargs_param7      "root=/dev/mtdblock0 rw earlyprintk=serial,uart0,$baud_rate console=/dev/null ip=$targetip" 
 set bootargs 		 $bootargs_param0
 
 set linux_version "not found"
