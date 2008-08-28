@@ -64,7 +64,7 @@ send -s  "./traps_test -1\r"
 for { set j 0 } { $j < [ expr $case_number + 1 ] } { incr j 1 } { 
 while 1 {
    expect {
-      -re "$j :.*\\.\\.\\. PASS \\(.*\\)" {        
+      -re "$j.*:.*PASS \\(.*\\)" {
          incr pass_num  
          send_log "Pass_num is $pass_num ."
          break
