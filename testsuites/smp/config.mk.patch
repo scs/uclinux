@@ -1,0 +1,11 @@
+Index: config.mk
+===================================================================
+--- config.mk	(revision 130)
++++ config.mk	(working copy)
+@@ -3,5 +3,5 @@
+ CC = $(CROSS_COMPILER)gcc
+ AR = $(CROSS_COMPILER)ar
+ 
+-CROSS_CFLAGS=-D__uClinux__ -Dlinux -mstack-check-l1 -DUCLINUX
++CROSS_CFLAGS=-D__uClinux__ -Dlinux -DUCLINUX
+ LDFLAGS=-Wl,-elf2flt="-s 32768" -static

@@ -1,0 +1,80 @@
+Index: kernel_test
+===================================================================
+--- kernel_test	(revision 7036)
++++ kernel_test	(working copy)
+@@ -1364,10 +1364,10 @@
+ if [ ${AUTO_RUN_STATUS[$(( n + 2 ))]} -eq 1 ] ; then
+   echo "Testing LTP..."
+ 
+-  ltp_args=( [0]="1 1" [1]="1 2" [2]="2 1" [3]="2 2" )
+-  ltp_suf=(wb_slab wb_slob wt_slab wt_slob)
++  ltp_args=( [0]="2 1" [1]="2 2" )
++  ltp_suf=(wt_slab wt_slob)
+ 
+-  for i in 0 1 2 3
++  for i in 0 1
+   do
+ 
+   rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
+Index: policy/build_policy_kernel.exp
+===================================================================
+--- policy/build_policy_kernel.exp	(revision 7036)
++++ policy/build_policy_kernel.exp	(working copy)
+@@ -191,6 +191,10 @@
+             send "N\r"
+         }
+ 
++        -re "Symmetric multi-processing support.*SMP.*\\\[.*]" {
++            send "y\r"
++        }
++
+         "\\\(*) \\\[*]" {
+             sleep .01 
+             send "\r"
+Index: ltp/build_ltp.sh
+===================================================================
+--- ltp/build_ltp.sh	(revision 7036)
++++ ltp/build_ltp.sh	(working copy)
+@@ -56,13 +56,13 @@
+ 
+ ## We don't need patch for Makefile now ##
+ # Patch for Makefiles
+-#echo "$0:	Patching Makefiles"
+-#patch -p0 < ../Makefile.patch
+-#if [ $? -ne 0 ]
+-#then
+-#	echo "$0:	Error, patching Makefiles failed"
+-#	exit 1
+-#fi
++echo "$0:      Patching Makefiles"
++patch -p0 < ../config.mk.patch
++if [ $? -ne 0 ]
++then
++    echo "$0:       Error, patching Makefiles failed"
++    exit 1
++fi
+ 
+ # Build ltp testsuites
+ echo "$0:	Make ..."
+Index: timer/timer_tick_test.exp
+===================================================================
+--- timer/timer_tick_test.exp	(revision 7036)
++++ timer/timer_tick_test.exp	(working copy)
+@@ -38,7 +38,7 @@
+        -re "\[0-9]+\\.\[0-9]+ (\[0-9]+\\.\[0-9]+)" {
+         	set START_TIME $expect_out(1,string)
+         	expect {
+-			 -re "6: + (\[0-9]+) .* Blackfin Core Timer" {
++			 -re "42: + (\[0-9]+) .* Blackfin Core Timer" {
+ 			set TIMER_TICK_START $expect_out(1,string)
+ 		#	send_log "$START_TIME  $TIMER_TICK_START\r"
+                 case_pass $case_num
+@@ -82,7 +82,7 @@
+ 	-re "\[0-9]+\\.\[0-9]+ (\[0-9]+\\.\[0-9]+)" {
+         	set END_TIME $expect_out(1,string)
+         	expect {
+-			 -re "6: + (\[0-9]+) .* Blackfin Core Timer" {
++			 -re "42: + (\[0-9]+) .* Blackfin Core Timer" {
+ 			set TIMER_TICK_END $expect_out(1,string)
+ 		#	send_log "$END_TIME  $TIMER_TICK_END\r"
+                 case_pass $case_num
