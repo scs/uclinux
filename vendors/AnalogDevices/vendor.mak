@@ -265,6 +265,15 @@ ifeq ($(CONFIG_ROMFS_FS),y)
 	fi
 endif
 
+# this should be handled by the kernel build already ...
+# but in case something failed, let's help the user out
+$(LINUXBOOTDIR)/vmImage:
+	@printf "\nYour kernel directory '$(LINUXDIR)' lacks a vmImage file:\n"; \
+	 printf "\t$@\n"; \
+	 printf "This usually means your toolchain lacks u-boot tools.  Please check your\n"; \
+	 printf "toolchain installation.  The file is generated when running 'make linux'.\n\n"; \
+	 false
+
 .PHONY: image.uimage.vmimage
 $(IMAGEDIR)/vmImage: $(LINUXBOOTDIR)/vmImage
 	cp $< $@
