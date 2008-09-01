@@ -1,0 +1,126 @@
+#!/usr/bin/expect
+
+source ../kernel_config.exp
+source  ../board_info.exp
+log_file [log_file_name "$argv0"]
+send_user "Starting $argv0\n"
+
+cd $uclinux_path/testsuites
+
+step "Make config."
+
+source  make_default_config.exp
+
+# Following make specific configuration for this case.
+
+cd $uclinux_path
+set timeout 300
+set baud_rate_done_flag 0
+spawn make config
+
+#puts "Begin the interactive process of configuration"
+while 1 {
+    expect {
+        -re "AnalogDevices Products.* (\[0-9]+). $board_type.*choice.*\\\[.*]" {
+            send "$expect_out(1,string)\r"
+        }
+
+        -re "Customize Kernel Settings.*DEFAULTS_KERNEL.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Customize Application/Library Settings.*DEFAULTS_VENDOR.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "Support for frame buffer devices.*FB.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
+            if { $board_type == "BF548-EZKIT" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "Varitronix COG-T350MCQB TFT LCD display.*FB_BFIN_T350MCQB.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "Blackfin ADV7393 Video encoder on uClinux.*FB_BFIN_7393.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "m\r"
+            } else {
+                send "\r"
+            }
+        }
+
+        -re "SHARP LQ035 TFT LCD on uClinux.*BF537 STAMP.*FB_BF537_LQ035.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "VIDEO test program.*USER_BLACKFIN_VIDEOTEST.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "MPlayer and mencode.*USER_MPLAYER.*\\\[.*]" {
+            send "y\r"
+        }
+
+        "\\\(*) \\\[*]" {
+            sleep .01
+            send "\r"
+        }
+
+        -re "\[cC]hoice\\\[.*]:" {
+            send "\r"
+        }
+
+        eof {
+            puts "End of configuration"
+            break
+        }
+
+        timeout {
+            puts "\n\nFATAL ERROR: config prompt timeout in make config"
+            break
+        }
+    }
+}
+
+cd $uclinux_path/testsuites
+
+step "Make"
+
+source  make_kernel.exp
+
+cd $uclinux_path/testsuites
+
+step "Copy linux"
+
+source   copy_image.exp
+
+send_user "Ending $argv0\n"
+log_file
