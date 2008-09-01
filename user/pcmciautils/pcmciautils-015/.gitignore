@@ -1,0 +1,13 @@
+build/ccdv
+pccardctl
+pcmcia-check-broken-cis
+pcmcia-socket-startup
+src/lex_config.o
+src/pccardctl.o
+src/pcmcia-check-broken-cis.o
+src/read-cis.o
+src/startup.o
+src/yacc_config.c
+src/yacc_config.h
+src/yacc_config.o
+udev/60-pcmcia.rules

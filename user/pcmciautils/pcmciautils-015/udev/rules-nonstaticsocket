@@ -1,0 +1,5 @@
+
+# if this is a PCMCIA socket which needs a resource database,
+# pcmcia-socket-startup sets it up
+SUBSYSTEM=="pcmcia_socket", \
+		RUN+="/lib/udev/pcmcia-socket-startup"

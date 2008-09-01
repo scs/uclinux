@@ -13,6 +13,7 @@ dir_$(CONFIG_USER_MPC2X)                    += mpc2x
 dir_$(CONFIG_USER_MPD)                      += mpd
 dir_$(CONFIG_USER_NANO)                     += nano
 dir_$(CONFIG_USER_OPENNTPD)                 += openntpd
+dir_$(CONFIG_USER_PCMCIAUTILS)              += pcmciautils
 
 dir_$(CONFIG_CRAMFS)                        += cramfs
 dir_$(CONFIG_EXT2_FS)                       += genext2fs

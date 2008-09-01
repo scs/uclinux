@@ -1,0 +1,3 @@
+# PCMCIA devices:
+#
+ACTION!="add", GOTO="pcmciautils_end"

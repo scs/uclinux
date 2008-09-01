@@ -1,0 +1,158 @@
+PCMCIA: cardmgr to pcmciautils HowTo
+====================================
+
+written by Daniel Ritz <daniel.ritz@gmx.ch>
+
+This howto describes in short how to change your system to work with the new
+pcmciautils instead of the old cardmgr.
+
+Prerequisites
+-------------
+
+- kernel 2.6.13-rc1 and newer
+- pcmciautils, preferably 010 or newer
+- you read the mini-howto.txt
+
+
+Introduction
+------------
+
+Kernels since 2.6.13-rc1 do not require the cardmgr daemon anymore. In those
+newer kernel the pcmcia bus acts almost as any other bus with full /sbin/hotplug
+support. Old style cardmgr setups should still work if the kernel is configured
+correctly. But be aware that the ioctl for PCMCIA will be removed in the near
+future.
+
+The change to be /sbin/hotplug capable means that the normal /etc/init.d/pcmcia
+script is not required any more and in fact only hurts as it starts cardmgr. To
+use the new pcmciautils it is a requirement that cardmgr is not started.
+
+
+The STARTUP option
+------------------
+
+When reading the pcmciautils howto you see that STARTUP option mentioned. What
+does it do again? It controls the setup of a dynamic resource database needed
+for some sockets. The resource database tells the PCMCIA layer what IO port and
+what IO memory are usable for PCMCIA cards. In case the database is dynamic, it
+needs to be setup before any cards can be used. The /etc/pcmcia/config.opts
+file contains the neccessary configuration.
+In old setups it is cardmgr that parses that file and tells the kernel what
+resources to use. In case of pcmciautils it's the pcmcia-socket-startup tool
+which is built and installed when the STARTUP option is set. The tool itself
+is run from the hotplug script pcmcia_socket.agent whenever a new socket is
+registered with the pcmcia module. This means that pcmcia-socket-startup does
+not need to be run manually.
+
+
+Compiling and installing pcmciautils
+------------------------------------
+
+You should have read the pcmciautils howto already. Again in short:
+- make a backup copy of your /etc/pcmcia/config.opts
+- determine whether you need UDEV set or not. if unsure: don't set it
+- determine whether you need STARTUP set or not
+- make
+- make install (as root)
+- put your original /etc/pcmcia/config.opts back to where it was
+
+
+Stop cardmgr from starting
+--------------------------
+
+We don't want cardmgr. For setups with a PCI PCMCIA/Cardbus controller the
+easiest thing to do is to make sure /etc/init.d/pcmcia does nothing.
+Either make sure it does not start up, or (if you want to use older kernels
+as well) add the following snippet to the beginning of /etc/init.d/pcmcia
+(after the #!/bin/sh line of course):
+
+
+	KVERREL=`uname -r`
+	KVER=${KVERREL%%-*}
+	KVER_MAJOR=${KVER%.*}
+	KVER_MINOR=${KVER##*.}
+
+	if [ "$KVER_MAJOR" == "2.6" ]; then
+		# kernel 2.6.13-rc1 and higher have pcmcia via /sbin/hotplug
+		if [ $KVER_MINOR -ge 13 ]; then
+			# uncomment the following line if the driver for your
+			# controller is not auto-loaded. or if you want to be
+			# able to say /etc/init.d/pcmcia stop
+			#/etc/init.d/pcmcia-new $1
+			exit 0
+		fi
+	fi
+
+this will make sure the init script does nothing for newer kernel and works
+normally on older kernels.
+
+if you have a socket controller where the module cannot be loaded automatically
+by hotplug, uncomment the line in the above code snipped and make sure you have
+the /etc/init.d/pcmcia-new script around which should look like this:
+
+	#!/bin/sh
+
+	# set this to the driver to use, one of:
+	# yenta_socket, i82365, i82092, pd6729, tcic, etc.
+	DRIVER=yenta_socket
+	DRIVER_OPTS=
+
+	case "$1" in
+		start)
+			modprobe $DRIVER $DRIVER_OPTS > /dev/null 2>&1
+			modprobe pcmcia > /dev/null 2>&1 # just in case it's not auto-loaded
+			;;
+
+		stop)
+			pccardctl eject
+			MODULES=`lsmod | grep "pcmcia " | awk '{print $4}' | tr , ' '`
+			for i in $MODULES ; do
+				rmmod $i > /dev/null 2>&1
+			done
+			rmmod pcmcia > /dev/null 2>&1
+			rmmod $DRIVER > /dev/null 2>&1
+			rmmod rsrc_nonstatic > /dev/null 2>&1
+			rmmod pcmcia_core > /dev/null 2>&1
+			;;
+	esac
+
+( you can find this script in doc/pcmcia-new.sh )
+
+make sure you set the DRIVER (and maybe DRIVER_OPTS) variable to the right
+socket driver. If yenta_socket doesn't work look up the config file from your
+distro. look at the PCIC variable and PCIC_OPTS.
+	- Red Hat (and Conectiva, Mandriva, etc.) have it in /etc/sysconfig/pcmcia
+	- Debian (and probably Ubuntu) has it in /etc/pcmcia.conf
+	- Others: sorry, don't know
+If you don't know where to find it, you should look at the init script. Maybe it's
+even in there directly.
+
+The file system right for the script should be right as well:
+	chmod 755 /etc/init.d/pcmcia-new
+
+
+Auto-load pcmcia module
+-----------------------
+
+To have support for 16-bit cards you need the pcmcia module loaded. Since the
+other modules do not depend on this one it is not loaded automatically. To
+make sure the pcmcia module is loaded right after pcmcia_core, add the following
+line to /etc/modprobe.conf
+	install pcmcia_core /sbin/modprobe --ignore-install pcmcia_core; /sbin/modprobe pcmcia
+
+
+Hotplug
+-------
+
+Make sure hotplug works correctly. Most distros have a /etc/init.d/hotplug script
+which should be loaded at boot time. For most laptops the the socket driver is
+yenta_socket. If it is not loaded after boot it means that hotplug is not working
+correctly. Reasons for the driver not loaded include the /etc/hotplub/blacklist
+file or some other list that prevents the driver being loaded.
+eg. Conectiva Linux 10 does not load PCI modules per default, but only modules
+that are listed in /etc/hotplug/pci.whitelist.
+
+If your socket driver can be loaded via hotplug (PCI socket or detected by PnP or
+whatever) and everything is ok, yenta_socket (or another socket driver), pcmcia,
+pcmcia_core and rsrc_nonstatic (not for all socket drivers)  should be loaded after
+booting. Modules for inserted pcmcia cards should be loaded as well.

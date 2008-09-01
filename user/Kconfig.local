@@ -169,6 +169,9 @@ config USER_BTSCO
 	bool "Bluetooth ALSA utility"
 	select USER_BLUEZ
 	select USER_ALSA_UTILS
+config USER_PCMCIAUTILS
+	bool "pcmciautils"
+	select LIB_LIBSYSFS
 config USER_PICOCOM
 	bool "picocom"
 config USER_DAGRAB_DAGRAB

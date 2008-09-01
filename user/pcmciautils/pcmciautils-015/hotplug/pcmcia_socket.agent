@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# PCMCIA-socket-specific hotplug policy agent
+#
+# $Id$
+#
+
+#DEBUG=yes; export DEBUG
+
+cd /etc/hotplug
+. ./hotplug.functions
+
+if [ "$ACTION" = "" ]; then
+    mesg Bad PCMCIA socket agent invocation, no action
+    exit 1
+fi
+
+debug_mesg socket number: $SOCKET_NO
+
+case $ACTION in
+
+add)
+	sleep 1;
+	pcmcia-socket-startup $SOCKET_NO
+	DONE_FILE=/sys/class/pcmcia_socket/pcmcia_socket$SOCKET_NO/available_resources_setup_done
+	if [ -f  $DONE_FILE ]; then
+	    if [ -w $DONE_FILE ]; then
+		echo -n "42" > $DONE_FILE
+	    fi;
+	fi;
+	;;
+remove)
+	;;
+*)
+	debug_mesg "PCMCIA socket '$ACTION' event not supported"
+	;;
+
+esac

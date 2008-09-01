@@ -1,0 +1,49 @@
+#!/bin/sh
+# vim: syntax=sh
+#
+# pcmcia.rc	recover lost boot-time pcmcia_socket hotplug events
+#
+# $Id: $
+#
+
+PATH=/sbin:/bin:/usr/sbin:/usr/bin
+#DEBUG=yes; export DEBUG
+
+cd /etc/hotplug
+. ./hotplug.functions
+
+pcmcia_boot_events ()
+{
+    if [ -d /sys/class/pcmcia_socket/ ]; then
+	# 2.6 kernels
+	cd /sys/class/pcmcia_socket/
+	for PCMCIA_SOCKET in *; do
+	    if [ $PCMCIA_SOCKET == \* ]; then
+		continue;
+	    fi;
+	    SOCKET_NO=$(echo $PCMCIA_SOCKET | cut -b14-)
+	    ACTION=add
+	    export SOCKET_NO ACTION
+	    /sbin/hotplug pcmcia_socket
+	done;
+    fi;
+
+    return 0
+}
+
+# See how we were called.
+case "$1" in
+  start)
+	pcmcia_boot_events
+        ;;
+  stop)
+	# echo $"pcmcia stop -- ignored"
+        ;;
+  restart)
+	# always invoke by absolute path, else PATH=$PATH:
+	$0 stop && $0 start
+	;;
+  *)
+        echo $"Usage: $0 {start|stop|restart}"
+        exit 1
+esac

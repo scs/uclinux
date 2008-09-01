@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+# PCMCIA-specific hotplug policy agent
+#
+# $Id$
+#
+
+#DEBUG=yes; export DEBUG
+SYSFS=/sys
+
+cd /etc/hotplug
+. ./hotplug.functions
+
+if [ "$ACTION" = "" ]; then
+    mesg Bad PCMCIA agent invocation, no action
+    exit 1
+fi
+
+debug_mesg $SOCKET_NO $DEVICE_NO $MODALIAS $DEVPATH
+
+case $ACTION in
+
+add)
+	modprobe $MODALIAS
+
+	# check whether the CIS is completely broken
+	if [ ! -h $SYSFS$DEVPATH/driver ]; then
+		CISFILE=$(pcmcia-check-broken-cis $SOCKET_NO)
+		debug_mesg $CISFILE;
+		if [ ! -z $CISFILE ]; then
+			if [ -f /lib/firmware/$CISFILE ]; then
+				cat /lib/firmware/$CISFILE > $SYSFS/class/pcmcia_socket/pcmcia_socket$(SOCKET_NO)/cis
+			fi;
+		fi;
+	fi;
+
+	# allow a match solely based on the "function ID" field
+	if [ ! -h $SYSFS$DEVPATH/driver ]; then
+		if [ -w $SYSFS$DEVPATH/allow_func_id_match ]; then
+			debug_mesg allowing func_id based match for PCMCIA device $SOCKET_NO.$DEVICE_NO
+			echo -n "42" > $SYSFS$DEVPATH/allow_func_id_match;
+		fi;
+	fi;
+	;;
+remove)
+	;;
+*)
+	debug_mesg "PCMCIA '$ACTION' event not supported"
+	;;
+
+esac

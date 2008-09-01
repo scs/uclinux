@@ -1,0 +1,81 @@
+.\" Copyright (C) 1998 David A. Hinds -- dahinds@users.sourceforge.net
+.\" Copyright (C) 2005 by Daniel Ritz <daniel.ritz@gmx.ch>
+.\"
+.TH PCCARDCTL 8 "2005/10/22" "pcmciautils"
+.SH NAME
+pccardctl \- PCMCIA card control utility
+.br
+lspcmcia \- display extended PCMCIA debugging information
+
+.SH SYNOPSIS
+\fBpccardctl\fR [\fB\-V\fR] [\fB\-v ...\fR] \fIcommand\fR [\fIsocket\fR]
+.br
+\fBlspcmcia\fR [\fB\-V\fR] [\fB\-v ...\fR] [\fIsocket\fR]
+
+.SH DESCRIPTION
+\fBpccardctl\fR is used to monitor and control the state of PCMCIA
+sockets.  If a socket number is specified, the command will be applied
+to just one socket; otherwise, all sockets will be affected.
+.PP
+If \fBpccardctl\fR is executed by root, all commands are available.  If
+it is executed by an unpriviledged user, only the informational
+commands are accessible.
+.PP
+\fBlspcmcia\fR is an alias for \fBpccardctl ls\fR, provided for convenience.
+.PP
+
+.SH COMMANDS
+.TP \w'abcd'u
+.B status
+Display the current socket status flags.
+.TP
+.B config
+Display the socket configuration, including power settings, interrupt
+and I/O window settings, and configuration registers.
+\-\-not yet implemented
+.TP
+.B ident
+Display card identification information, including product
+identification strings, manufacturer ID codes, and function ID codes.
+Not yet implemented for cardbus cards. Use lspci instead.
+.TP
+.B info
+Much like the \fBident\fR command, but its output is formatted as a
+series of Bourne-stype shell variable definitions for use in scripts.
+Not yet implemented for cardbus cards.
+.TP
+.B ls
+Display extended debugging information about the PCMCIA sockets and
+devices present in the system.
+.TP
+.B suspend
+Shut down and then disable power for a socket.
+.TP
+.B resume
+Restore power to a socket, and re-configure for use.
+.TP
+.TP
+.B eject
+Notify all client drivers that this card will be ejected, then cut
+power to the socket.
+.TP
+.B insert
+Notify all client drivers that this card has just been inserted.
+
+.SH OPTIONS
+.TP
+.B \-V
+Show version information and exit.
+.TP
+.B \-v
+Increase the verbosity of the
+.B ls
+command.
+Giving this option twice increases verbosity further.
+
+.SH AUTHOR
+Daniel Ritz \- daniel.ritz@gmx.ch
+.br
+based upon the original cardctl man page by
+.br
+David Hinds \- dahinds@users.sourceforge.net
