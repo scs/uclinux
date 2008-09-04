@@ -20,13 +20,15 @@
  DCACHE=on
  POLICY=write_through
  UART_MODE=dma
+ SMP=off
+ MPU=off
  THIS_LOG="$USER/test_scripts/uclinux-dist/logs"
  
  
  ########################################### Please don't edit anything below this line.###################################
 
 if [ $# -lt 1 ] ; then
-  echo "Please input BOARD_CONFIG [ CPU REVISION UCLINUX_DIST_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
+  echo "Please input BOARD_CONFIG [ CPU REVISION UCLINUX_DIST_PATH BINARY_FORMAT ALLOCATOR ICACHE DCACHE POLICY UART_MODE SMP MPU THIS_LOG VCO_MULT CCLK_DIV SCLK_DIV ] values: "
   echo
   echo "The BOARD_CONFIG :  BF533-STAMP-STD, BF537-STAMP-STD, BF537-STAMP-IDE,etc."
   echo "The CPU :           BF533, BF537, BF561,etc."
@@ -36,7 +38,8 @@ if [ $# -lt 1 ] ; then
   echo "The ICACHE,DCACHE : on, off."
   echo "The POLICY :        write_through, write_back."
   echo "The UART_MODE :     dma, pio."
-  echo "For example:./kernel_test BF537-STAMP-STD BF537 /home/test/work/cruise/checkouts/uclinux-dist flat slab\(p2\) on on write_through dma /home/test/work/cruise/test_scripts/uclinux-dist/logs."
+  echo "The SMP,MPU :       on, off."
+  echo "For example:./kernel_test BF537-STAMP-STD BF537 /home/test/work/cruise/checkouts/uclinux-dist flat slab\(p2\) on on write_through dma off off /home/test/work/cruise/test_scripts/uclinux-dist/logs."
   exit
 fi
 
@@ -87,18 +90,28 @@ if [ $# -gt 9 ] ; then
 fi
   
 if [ $# -gt 10 ] ; then
-  THIS_LOG=${11}
+  SMP=${11}
+  echo "##### SMP: $SMP."
+fi
+
+if [ $# -gt 11 ] ; then
+  MPU=${12}
+  echo "##### MPU: $MPU."
+fi
+
+if [ $# -gt 12 ] ; then
+  THIS_LOG=${13}
   echo "##### Test results are in folder: $THIS_LOG."
 fi
  
-if [ $# -gt 11 ] ; then
-  VCO_MULT=${12}
-  CCLK_DIV=${13}
-  SCLK_DIV=${14}
+if [ $# -gt 13 ] ; then
+  VCO_MULT=${14}
+  CCLK_DIV=${15}
+  SCLK_DIV=${16}
   echo "##### VCO_MULT: $VCO_MULT, CCLK_DIV: $CCLK_DIV, SCLK_DIV: $SCLK_DIV."
 fi
 
-echo "Testing on $BOARD_CONFIG ($CPU) $BINARY_FORMAT $ALLOCATOR ICACHE($ICACHE) DCACHE($DCACHE) $POLICY $UART_MODE "
+echo "Testing on $BOARD_CONFIG ($CPU) $BINARY_FORMAT $ALLOCATOR ICACHE($ICACHE) DCACHE($DCACHE) $POLICY $UART_MODE SMP($SMP) MPU($MPU)"
 
 ###### See if uclinux-dist has been checked out.##################################################
  
@@ -313,7 +326,7 @@ if [ $BUILD_POLICY -eq 1  ] ; then
   echo  "Running build policy in uclinux-dist... "
   
   cd $UCLINUX_DIST_TESTSUITES/policy
-  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $REVISION $UCLINUX_DIST_PATH $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE  >/dev/null  2>&1
+  ./build_policy_kernel.exp  $BOARD_TYPE $CPU $REVISION $UCLINUX_DIST_PATH $BINARY_FORMAT $ALLOCATOR $ICACHE $DCACHE $POLICY $UART_MODE $SMP $MPU >/dev/null  2>&1
     
   cp $UCLINUX_DIST_PATH/images/linux $THIS_LOG/linux.policy
   cp $UCLINUX_DIST_PATH/linux-2.6.x/.config $THIS_LOG/config.policy

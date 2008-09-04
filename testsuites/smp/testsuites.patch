@@ -16,21 +16,6 @@ Index: kernel_test
    do
  
    rm -rf $UCLINUX_DIST_PATH/linux-2.6.x
-Index: policy/build_policy_kernel.exp
-===================================================================
---- policy/build_policy_kernel.exp	(revision 7036)
-+++ policy/build_policy_kernel.exp	(working copy)
-@@ -191,6 +191,10 @@
-             send "N\r"
-         }
- 
-+        -re "Symmetric multi-processing support.*SMP.*\\\[.*]" {
-+            send "y\r"
-+        }
-+
-         "\\\(*) \\\[*]" {
-             sleep .01 
-             send "\r"
 Index: ltp/build_ltp.sh
 ===================================================================
 --- ltp/build_ltp.sh	(revision 7036)
