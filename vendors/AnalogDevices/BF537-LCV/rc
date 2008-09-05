@@ -36,26 +36,45 @@ insmod /lib/modules/`uname -r`/bfdma.ko
 
 # Configure network interface based on /env_board and /env/user info
 
-ifconfig eth0 down
-if test -e /env_board
+
+# Detect first-time-boot if not valid board config available
+boardenv
+if test $? -ne 0
 then
-	ifconfig eth0 hw ether `boardenv | grep "^MAC" | awk '{print $2}'`
+	ifconfig eth0 down
+	ifconfig eth0 hw ether 00:20:e3:23:00:00
+	ifconfig eth0 192.168.11.10
+	route add -net default gw 192.168.11.1
+	ifconfig eth0 up
+	tftp 172.18.1.76 -gr runinit.sh -l /home/runinit.sh
+
+	if test -e /home/runinit.sh
+	then
+	       cd /home
+	       chmod +x runinit.sh
+	       ./runinit.sh &
+	       cd /
+	fi
+
+else
+	ifconfig eth0 down
+	if test -e /env_board
+	then
+		ifconfig eth0 hw ether `boardenv | grep "^MAC" | awk '{print $2}'`
+	fi
+
+	if test -e /env_user
+	then
+		ifconfig eth0 `grep "^IP" /env_user | awk '{print $2}'`
+		route add -net default gw `grep "^GW" /env_user | awk '{print $2}'`  
+		echo export TFTPIP=`grep "^TFTPIP" /env_user | awk '{print $2}'` > /etc/oscarrc 
+	fi
+	ifconfig eth0 up
 fi
-if test -e /env_user
-then
-	ifconfig eth0 `grep "^IP" /env_user | awk '{print $2}'`
-	route add -net default gw `grep "^GW" /env_user | awk '{print $2}'`  
-	echo export TFTPIP=`grep "^TFTPIP" /env_user | awk '{print $2}'` > /etc/oscarrc 
-fi
-ifconfig eth0 up
+
 
 ifconfig lo 127.0.0.1
 inetd &
-
-echo -n "Configured MAC address: " 
-ifconfig eth0 | grep "HWaddr" | awk '{print $5}'
-echo -n "Configured IP address: "
-ifconfig eth0 | grep "inet" | awk '{print $2}' | sed -e s/addr://g
 
 # send out two arp request to itselfe
 arping -c 2 -w 1 `ifconfig eth0 | grep "inet" | awk '{print $2}' | sed -e s/addr://g`
