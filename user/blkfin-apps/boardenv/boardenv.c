@@ -13,11 +13,14 @@
 
 #define ENV_BOARD_PARTITION "/env_board"
 #define MAC_LEN 6
+#define MAGIC_CRC 0x12345678 /* Alternative valid signature; backward compatibility */ 
 
 struct DATA_STORAGE {
-	// optionaly: secure with crc32 or md5sum	
-	unsigned char mac[MAC_LEN];
-	// optionaly: Add more properties like serial number string  
+	unsigned short size; /* Structure size [Bytes] including length field but without crc field. */ 
+	unsigned char mac[MAC_LEN]; /* Ethernet hardware address */
+	/* optionaly: Add more hardware related properties like serial number string */
+	
+	int crc32; /* CRC checksum of remaining structure */
 };
 
 int main(int argc, char** argv)
@@ -26,7 +29,7 @@ int main(int argc, char** argv)
   void * pBuf;
   char * pStrMacAddr;
   char * pStrArg;
-  unsigned int tmpMac[MAC_LEN];
+  unsigned int tmpMac[MAC_LEN];  
   struct DATA_STORAGE cfg;
   unsigned int i;
   unsigned char tmp;
@@ -58,12 +61,24 @@ int main(int argc, char** argv)
 		return -1;
 	}	
 	 	
+  	fread(pBuf, sizeof(unsigned short), 1, pF);
+  	cfg.size = *(unsigned short*)pBuf; 	
+	 	
   	for(i=0; i<MAC_LEN; i++)
   	{
   		fread(pBuf, sizeof(unsigned char), 1, pF);
   		tmp = *(unsigned char*)pBuf;
   		cfg.mac[i] = (unsigned int) tmp;
-  	}	
+  	}
+  	
+  	fread(pBuf, sizeof(int), 1, pF);
+  	cfg.crc32 = *(int*)pBuf;
+  	
+  	if( MAGIC_CRC != cfg.crc32)
+  	{
+  		printf("Invalid or empty board environment!\n");
+  		return -1;
+  	}
 
 	printf("MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", cfg.mac[0], cfg.mac[1], cfg.mac[2], cfg.mac[3], cfg.mac[4], cfg.mac[5]);
 	fclose(pF);
@@ -71,24 +86,52 @@ int main(int argc, char** argv)
   } 
   else 
   {
-  	/* store new configuration data */	  
-  	pStrMacAddr = argv[1];  	
+  	/* store new configuration data */
   	
-  	sscanf(pStrMacAddr, "%2x:%2x:%2x:%2x:%2x:%2x", &tmpMac[0], &tmpMac[1], &tmpMac[2], &tmpMac[3], &tmpMac[4], &tmpMac[5]);
+  	/* ToDo: Do not allow MAC modification in case of a existing configuration */	  
+  	 	
   	
-	pF = fopen(ENV_BOARD_PARTITION, "wb");	
+	if( 0 == strcmp("--reset", argv[1]) )
+	{		
+		memset(&cfg, 0, sizeof( struct DATA_STORAGE));
+		
+		pF = fopen(ENV_BOARD_PARTITION, "wb"); 		
+		fwrite(&cfg, sizeof( struct DATA_STORAGE), 1, pF);				
+		printf("Board environment content cleared.\n");
+  		fclose(pF);		
+		return 0;
+	}  	
+  	
+  		  
+  	pStrMacAddr = argv[1];  	  
+  	/*printf("%s\n", pStrMacAddr); */	
+  	tmp = sscanf(pStrMacAddr, "%2x:%2x:%2x:%2x:%2x:%2x", &tmpMac[0], &tmpMac[1], &tmpMac[2], &tmpMac[3], &tmpMac[4], &tmpMac[5] );
+  	
+  	if( MAC_LEN != tmp)
+	{
+		printf("Invalid format!\n");
+		return -1;
+	}  	  	
+  	
+  	  		  
+	pF = fopen(ENV_BOARD_PARTITION, "wb"); 
+	cfg.size = sizeof(struct DATA_STORAGE) - sizeof(int);
+	fwrite(&cfg.size, sizeof(unsigned short), 1, pF);	
   	
   	for(i=0; i<MAC_LEN; i++)
   	{
   		cfg.mac[i] = (unsigned char)tmpMac[i];
   		fwrite(&cfg.mac[i], sizeof(unsigned char), 1, pF);
-  	}  	
+  	}
+
+	cfg.crc32 = MAGIC_CRC;
+	fwrite(&cfg.crc32, sizeof(int), 1, pF);	  	  	
   	  	
   	fclose(pF);
   	ret = 0;  
   }
   
-  
 
    return ret;
 }
+
