@@ -28,6 +28,77 @@
 
 #define ARRAY_SIZE(x) (sizeof(x)/sizeof(*x))
 
+/*
+ * These tests should test all things possible that can create an
+ * exception. For details, look in arch/blackfin/mach-common/entry.S
+ * in the kernel
+ */
+
+/* User Defined - Linux Syscall                        EXCAUSE 0x00 */
+/* User Defined - Software breakpoint                  EXCAUSE 0x01 */
+/* User Defined - Should fail                          EXCAUSE 0x02 */
+void expt_2(void)
+{
+	asm("excpt 0x2;\n");
+}
+/* User Defined - userspace stack overflow             EXCAUSE 0x03 */
+/* User Defined - dump trace buffer                    EXCAUSE 0x04 */
+/* User Defined - Should fail                          EXCAUSE 0x05 */
+void expt_5(void)
+{
+	asm("excpt 0x5;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x06 */
+void expt_6(void)
+{
+	asm("excpt 0x6;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x07 */
+void expt_7(void)
+{
+	asm("excpt 0x7;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x08 */
+void expt_8(void)
+{
+	asm("excpt 0x8;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x09 */
+void expt_9(void)
+{
+	asm("excpt 0x9;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x0A */
+void expt_A(void)
+{
+	asm("excpt 0xA;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x0B */
+void expt_B(void)
+{
+	asm("excpt 0xB;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x0C */
+void expt_C(void)
+{
+	asm("excpt 0xC;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x0D */
+void expt_D(void)
+{
+	asm("excpt 0xD;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x0E */
+void expt_E(void)
+{
+	asm("excpt 0xE;\n");
+}
+/* User Defined - Should fail                          EXCAUSE 0x0F */
+void expt_F(void)
+{
+	asm("excpt 0xF;\n");
+}
+
 /* Single Step -                                       EXCAUSE 0x10 */
 /* Can't do this in userspace */
 
@@ -118,11 +189,13 @@ void supervisor_resource_mmr(void)
 	printf("chip id = %x", *i);
 
 }
+
 /* Things that cause Hardware errors (IRQ5), not exceptions (IRQ3) */
 /* System MMR Error                                    HWERRCAUSE 0x02 */
 /* Can't do this in userspace */
 
 /* External Memory Addressing Error -                  HWERRCAUSE 0x03 */
+//__attribute__ ((l1_text))
 void l1_instruction_access(void)
 {
 	int *i=(void *)0xffa10000;
@@ -133,30 +206,38 @@ void l1_instruction_access(void)
 /* Can't do this in userspace */
 
 /* RAISE 5 instruction                                 HWERRCAUSE 0x18 */
-/* Can't do this in userspace - since this is a supervisor instruction*/
-void raise_5(void)
-{
-	asm("raise 0x05;");
-}
+/* Can't do this in userspace - since this is a supervisor instruction */
 
 /* Now for the main code */
 
 struct {
+	int excause;
 	void (*func)(void);
 	int kill_sig;
 	char name[80];
 } bad_funcs[] = {
-	{ data_fetch_odd_address, SIGBUS, "Data access misaligned address violation" },
-	{ data_fetch_miss, SIGBUS, "Data access CPLB miss" },
-	{ null_pointer, SIGSEGV, "Data access multiple CPLB hits/Null Pointer" },
-	{ instruction_fetch_odd_address, SIGBUS, "Instruction fetch misaligned address violation"  },
-	{ instruction_fetch_miss, SIGBUS, "Instruction fetch CPLB miss"  },
-	{ l1_instruction_access, SIGBUS, "l1_instruction_access" },
-	{ supervisor_instruction, SIGILL, "Illegal use of supervisor resource - Instruction" },
-	{ supervisor_resource_mmr, SIGBUS, "Illegal use of supervisor resource - MMR" },
-	{ jump_to_zero, SIGSEGV, "Instruction fetch multiple CPLB hits - Jump to zero" },
-	{ raise_5, SIGILL, "RAISE 5 instruction"},
-	{ unknown_instruction, SIGILL, "Invalid Opcode" },
+	{ 0x02, expt_2, SIGILL, "EXCPT 0x02"},
+	{ 0x05, expt_5, SIGILL, "EXCPT 0x05"},
+	{ 0x06, expt_6, SIGILL, "EXCPT 0x06"},
+	{ 0x07, expt_7, SIGILL, "EXCPT 0x07"},
+	{ 0x08, expt_8, SIGILL, "EXCPT 0x08"},
+	{ 0x09, expt_9, SIGILL, "EXCPT 0x09"},
+	{ 0x0A, expt_A, SIGILL, "EXCPT 0x0A"},
+	{ 0x0B, expt_B, SIGILL, "EXCPT 0x0B"},
+	{ 0x0C, expt_C, SIGILL, "EXCPT 0x0C"},
+	{ 0x0D, expt_D, SIGILL, "EXCPT 0x0D"},
+	{ 0x0D, expt_E, SIGILL, "EXCPT 0x0E"},
+	{ 0x0F, expt_F, SIGILL, "EXCPT 0x0F"},
+	{ 0x21, unknown_instruction, SIGILL, "Invalid Opcode" },
+	{ 0x23, supervisor_resource_mmr, SIGBUS, "Illegal use of supervisor resource - MMR" },
+	{ 0x24, data_fetch_odd_address, SIGBUS, "Data access misaligned address violation" },
+	{ 0x26, data_fetch_miss, SIGBUS, "Data access CPLB miss" },
+	{ 0x27, null_pointer, SIGSEGV, "Data access multiple CPLB hits/Null Pointer" },
+	{ 0x2a, instruction_fetch_odd_address, SIGBUS, "Instruction fetch misaligned address violation"  },
+	{ 0x2c, instruction_fetch_miss, SIGBUS, "Instruction fetch CPLB miss"  },
+	{ 0x2d, jump_to_zero, SIGSEGV, "Instruction fetch multiple CPLB hits - Jump to zero" },
+	{ 0x2e, supervisor_instruction, SIGILL, "Illegal use of supervisor resource - Instruction" },
+	{ 0x3f, l1_instruction_access, SIGBUS, "l1_instruction_access" },
 };
 
 void usage(const char *errmsg)
@@ -169,10 +250,10 @@ void usage(const char *errmsg)
 		"If no test number is specified, the number of tests available will be shown.\n"
 		"If a test number is specified (0 <= n < # of tests), that test will be run.\n"
 		"If you specify -1, then all tests will be run in order.\n\n"
-		"#\ttest\n"
+		"#\texcause\ttest\n"
 	);
 	for (test_num = 0; test_num < ARRAY_SIZE(bad_funcs); ++test_num)
-		printf("%i\t%s\n", test_num, bad_funcs[test_num].name);
+		printf("%li\t0x%02x\t%s\n", test_num, bad_funcs[test_num].excause, bad_funcs[test_num].name);
 
 	if (errmsg) {
 		fprintf(stderr, "\nERROR: %s\n", errmsg);
@@ -201,11 +282,13 @@ int main(int argc, char *argv[])
 	if (argv[1] == endptr || endptr[0])
 		usage("Specified test is not a number");
 
-	if (test_num >= 0 && test_num < ARRAY_SIZE(bad_funcs))
+	if (test_num >= 0 && test_num < ARRAY_SIZE(bad_funcs)) {
 		/* should get killed ... */
+		printf("\nRunning test %li for exception 0x%02x: %s\n... ", test_num, bad_funcs[test_num].excause, bad_funcs[test_num].name);
+		fflush(stdout);
+		sleep(1);
 		(*bad_funcs[test_num].func)();
-
-	else if (test_num == -1) {
+	} else if (test_num == -1) {
 		int pass_count = 0;
 		char number[10];
 		argv[1] = number;
@@ -216,7 +299,7 @@ int main(int argc, char *argv[])
 
 			sprintf(number, "%li", test_num);
 
-			printf("\nRunning test %li : %s\n... ", test_num, bad_funcs[test_num].name);
+			printf("\nRunning test %li for exception 0x%02x: %s\n... ", test_num, bad_funcs[test_num].excause, bad_funcs[test_num].name);
 			fflush(stdout);
 
 			pid = vfork();
