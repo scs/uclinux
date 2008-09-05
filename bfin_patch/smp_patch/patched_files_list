@@ -1,7 +1,6 @@
 include/asm-blackfin/cpumask.h
 include/asm-blackfin/l1layout.h
 include/asm-blackfin/smp.h
-include/asm-blackfin/entry.h
 include/asm-blackfin/cplbinit.h
 include/asm-blackfin/spinlock_types.h
 include/asm-blackfin/mach-bf548/mem_map.h
@@ -9,7 +8,6 @@ include/asm-blackfin/percpu.h
 include/asm-blackfin/bitops.h
 include/asm-blackfin/mmu_context.h
 include/asm-blackfin/cacheflush.h
-include/asm-blackfin/blackfin.h
 include/asm-blackfin/bfin-global.h
 include/asm-blackfin/atomic.h
 include/asm-blackfin/bug.h
@@ -64,7 +62,6 @@ arch/blackfin/mach-common/smp.c
 arch/blackfin/mach-common/ints-priority-dc.c
 arch/blackfin/mach-common/entry.S
 arch/blackfin/mach-common/Makefile
-arch/blackfin/mach-common/interrupt.S
 arch/blackfin/mach-common/ints-priority.c
 arch/blackfin/kernel/time.c
 drivers/char/bfin_simple_timer.c
