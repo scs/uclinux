@@ -78,6 +78,8 @@ set icache         on
 set dcache         on
 set policy         write_through
 set uart_mode      dma
+set smp            off
+set mpu            off
 
 if { $argc >= 3} {
    set revision            [lindex $argv 2]
