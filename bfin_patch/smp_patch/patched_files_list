@@ -30,7 +30,6 @@ include/asm-blackfin/mutex-dec.h
 include/asm-blackfin/mach-bf533/mem_map.h
 include/asm-blackfin/cache.h
 include/asm-blackfin/mach-bf537/mem_map.h
-fs/binfmt_flat.c
 arch/blackfin/Kconfig
 arch/blackfin/kernel/cplb-mpu/cplbinit.c
 arch/blackfin/kernel/cplb-mpu/cplbmgr.c
@@ -62,7 +61,6 @@ arch/blackfin/mach-common/smp.c
 arch/blackfin/mach-common/ints-priority-dc.c
 arch/blackfin/mach-common/entry.S
 arch/blackfin/mach-common/Makefile
-arch/blackfin/mach-common/ints-priority.c
 arch/blackfin/kernel/time.c
 drivers/char/bfin_simple_timer.c
 arch/blackfin/mach-common/cache.S
