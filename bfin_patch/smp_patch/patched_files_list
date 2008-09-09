@@ -56,7 +56,7 @@ arch/blackfin/mach-bf561/secondary.S
 arch/blackfin/mach-bf561/Makefile
 arch/blackfin/mach-bf561/atomic.S
 arch/blackfin/mm/init.c
-arch/blackfin/mm/blackfin_sram.c
+arch/blackfin/mm/sram-alloc.c
 arch/blackfin/mach-common/smp.c
 arch/blackfin/mach-common/ints-priority-dc.c
 arch/blackfin/mach-common/entry.S
