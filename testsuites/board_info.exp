@@ -116,11 +116,11 @@ if { $argc >= 10} {
 }
 
 if { $argc >= 11} {
-   set $smp                [lindex $argv 10]
+   set smp                [lindex $argv 10]
    send_log "\n#### SMP is $smp\n"
 }
 
 if { $argc >= 12} {
-   set $mpu                [lindex $argv 11]
+   set mpu                [lindex $argv 11]
    send_log "\n#### MPU is $mpu\n"
 }
