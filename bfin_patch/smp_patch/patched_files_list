@@ -10,7 +10,6 @@ include/asm-blackfin/mmu_context.h
 include/asm-blackfin/cacheflush.h
 include/asm-blackfin/bfin-global.h
 include/asm-blackfin/atomic.h
-include/asm-blackfin/bug.h
 include/asm-blackfin/cplb-mpu.h
 include/asm-blackfin/rwlock.h
 include/asm-blackfin/mutex.h
@@ -58,9 +57,10 @@ arch/blackfin/mach-bf561/atomic.S
 arch/blackfin/mm/init.c
 arch/blackfin/mm/sram-alloc.c
 arch/blackfin/mach-common/smp.c
-arch/blackfin/mach-common/ints-priority-dc.c
 arch/blackfin/mach-common/entry.S
 arch/blackfin/mach-common/Makefile
+arch/blackfin/mach-common/ints-priority.c
+include/asm-blackfin/mach-bf561/blackfin.h
 arch/blackfin/kernel/time.c
 drivers/char/bfin_simple_timer.c
 arch/blackfin/mach-common/cache.S
