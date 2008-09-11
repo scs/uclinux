@@ -13,9 +13,9 @@ DIRS = cardmgr flash debug-tools etc
 #
 # we can't build modules from here yet
 #
-ifndef CONFIG_PCMCIA
-DIRS := modules clients wireless $(DIRS)
-endif
+#ifndef CONFIG_PCMCIA
+#DIRS := modules clients wireless $(DIRS)
+#endif
 
 all:
 	@set -e ; for d in $(DIRS) ; do $(MAKE) -C $$d ; done
