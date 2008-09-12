@@ -1,4 +1,4 @@
---- linux-2.6.x-orig/include/asm-blackfin/cpumask.h	2008-09-11 17:28:40.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/cpumask.h	2008-09-12 11:10:17.000000000 +0800
 +++ linux-2.6.x/include/asm-blackfin/cpumask.h	1970-01-01 08:00:00.000000000 +0800
 @@ -1,6 +0,0 @@
 -#ifndef _ASM_BLACKFIN_CPUMASK_H
@@ -7,7 +7,7 @@
 -#include <asm-generic/cpumask.h>
 -
 -#endif				/* _ASM_BLACKFIN_CPUMASK_H */
---- linux-2.6.x-orig/include/asm-blackfin/l1layout.h	2008-09-11 17:28:40.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/l1layout.h	2008-09-12 11:10:17.000000000 +0800
 +++ linux-2.6.x/include/asm-blackfin/l1layout.h	1970-01-01 08:00:00.000000000 +0800
 @@ -1,31 +0,0 @@
 -/*
@@ -42,7 +42,7 @@
 -
 -#endif
 --- linux-2.6.x-orig/include/asm-blackfin/smp.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/smp.h	2008-09-11 17:28:46.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/smp.h	2008-09-12 16:46:08.000000000 +0800
 @@ -0,0 +1,42 @@
 +/*
 + * File:         include/asm-blackfin/smp.h
@@ -86,8 +86,8 @@
 +				   unsigned long end);
 +
 +#endif /* !__ASM_BLACKFIN_SMP_H */
---- linux-2.6.x-orig/include/asm-blackfin/cplbinit.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/cplbinit.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/cplbinit.h	2008-09-12 11:10:17.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/cplbinit.h	2008-09-12 16:46:08.000000000 +0800
 @@ -36,6 +36,8 @@
  #ifdef CONFIG_MPU
  
@@ -177,7 +177,7 @@
  
  #endif
 --- linux-2.6.x-orig/include/asm-blackfin/spinlock_types.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/spinlock_types.h	2008-09-11 17:28:46.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/spinlock_types.h	2008-09-12 16:46:08.000000000 +0800
 @@ -0,0 +1,22 @@
 +#ifndef __ASM_SPINLOCK_TYPES_H
 +#define __ASM_SPINLOCK_TYPES_H
@@ -201,8 +201,8 @@
 +#define __RAW_RW_LOCK_UNLOCKED		{ RW_LOCK_BIAS }
 +
 +#endif
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf548/mem_map.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf548/mem_map.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mach-bf548/mem_map.h	2008-09-12 11:10:17.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-bf548/mem_map.h	2008-09-12 16:46:08.000000000 +0800
 @@ -108,4 +108,19 @@
  #define L1_SCRATCH_START	0xFFB00000
  #define L1_SCRATCH_LENGTH	0x1000
@@ -223,8 +223,8 @@
 +#define GET_PDA(preg, dreg)	GET_PDA_SAFE(preg)
 +
  #endif/* _MEM_MAP_548_H_ */
---- linux-2.6.x-orig/include/asm-blackfin/percpu.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/percpu.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/percpu.h	2008-09-12 11:10:17.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/percpu.h	2008-09-12 16:46:08.000000000 +0800
 @@ -3,4 +3,14 @@
  
  #include <asm-generic/percpu.h>
@@ -241,8 +241,8 @@
 +	 PERCPU_MODULE_RESERVE)
 +
 +#endif	/* __ARCH_BLACKFIN_PERCPU__ */
---- linux-2.6.x-orig/include/asm-blackfin/bitops.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/bitops.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/bitops.h	2008-09-12 11:10:17.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/bitops.h	2008-09-12 16:46:08.000000000 +0800
 @@ -20,36 +20,67 @@
  #include <asm-generic/bitops/sched.h>
  #include <asm-generic/bitops/ffz.h>
@@ -531,8 +531,8 @@
  #include <asm-generic/bitops/find.h>
  #include <asm-generic/bitops/hweight.h>
  #include <asm-generic/bitops/lock.h>
---- linux-2.6.x-orig/include/asm-blackfin/mmu_context.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mmu_context.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mmu_context.h	2008-09-12 11:10:17.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mmu_context.h	2008-09-12 16:46:09.000000000 +0800
 @@ -37,6 +37,10 @@
  #include <asm/pgalloc.h>
  #include <asm/cplbinit.h>
@@ -598,8 +598,8 @@
  	free_pages((unsigned long)mm->context.page_rwx_mask, page_mask_order);
  #endif
  }
---- linux-2.6.x-orig/include/asm-blackfin/cacheflush.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/cacheflush.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/cacheflush.h	2008-09-12 11:10:17.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/cacheflush.h	2008-09-12 16:46:09.000000000 +0800
 @@ -35,6 +35,7 @@ extern void blackfin_icache_flush_range(
  extern void blackfin_dcache_flush_range(unsigned int, unsigned int);
  extern void blackfin_dcache_invalidate_range(unsigned int, unsigned int);
@@ -659,8 +659,8 @@
  #endif
  
  #endif				/* _BLACKFIN_ICACHEFLUSH_H */
---- linux-2.6.x-orig/include/asm-blackfin/bfin-global.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/bfin-global.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/bfin-global.h	2008-09-12 11:10:17.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/bfin-global.h	2008-09-12 16:46:09.000000000 +0800
 @@ -35,6 +35,7 @@
  #include <asm/ptrace.h>
  #include <asm/user.h>
@@ -688,8 +688,8 @@
  extern void init_exception_vectors(void);
  extern void program_IAR(void);
  
---- linux-2.6.x-orig/include/asm-blackfin/atomic.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/atomic.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/atomic.h	2008-09-12 11:10:17.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/atomic.h	2008-09-12 16:46:10.000000000 +0800
 @@ -13,15 +13,83 @@
   * Tony Kou (tonyko@lineo.ca)   Lineo Inc.   2001
   */
@@ -883,8 +883,8 @@
  /*
   * atomic_inc_and_test - increment and test
   * @v: pointer of type atomic_t
---- linux-2.6.x-orig/include/asm-blackfin/cplb-mpu.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/cplb-mpu.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/cplb-mpu.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/cplb-mpu.h	2008-09-12 16:46:10.000000000 +0800
 @@ -28,6 +28,7 @@
   */
  #ifndef __ASM_BFIN_CPLB_MPU_H
@@ -919,7 +919,7 @@
  extern void __noreturn panic_cplb_error(int seqstat, struct pt_regs *);
  
 --- linux-2.6.x-orig/include/asm-blackfin/rwlock.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/rwlock.h	2008-09-11 17:28:46.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/rwlock.h	2008-09-12 16:46:10.000000000 +0800
 @@ -0,0 +1,6 @@
 +#ifndef _ASM_BLACKFIN_RWLOCK_H
 +#define _ASM_BLACKFIN_RWLOCK_H
@@ -927,8 +927,8 @@
 +#define RW_LOCK_BIAS	0x01000000
 +
 +#endif
---- linux-2.6.x-orig/include/asm-blackfin/mutex.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mutex.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mutex.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mutex.h	2008-09-12 16:46:10.000000000 +0800
 @@ -6,4 +6,67 @@
   * implementation. (see asm-generic/mutex-xchg.h for details)
   */
@@ -997,8 +997,8 @@
 +#endif
 +
 +#endif
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf561/mem_map.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf561/mem_map.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mach-bf561/mem_map.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-bf561/mem_map.h	2008-09-12 16:46:10.000000000 +0800
 @@ -6,6 +6,8 @@
  #ifndef _MEM_MAP_561_H_
  #define _MEM_MAP_561_H_
@@ -1136,7 +1136,7 @@
 +
  #endif				/* _MEM_MAP_533_H_ */
 --- linux-2.6.x-orig/include/asm-blackfin/mach-bf561/smp.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf561/smp.h	2008-09-11 17:28:46.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-bf561/smp.h	2008-09-12 16:46:10.000000000 +0800
 @@ -0,0 +1,20 @@
 +#ifndef _MACH_BF561_SMP
 +#define _MACH_BF561_SMP
@@ -1158,8 +1158,8 @@
 +void platform_clear_ipi(unsigned int cpu);
 +
 +#endif /* !_MACH_BF561_SMP */
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf561/defBF561.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf561/defBF561.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mach-bf561/defBF561.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-bf561/defBF561.h	2008-09-12 16:46:10.000000000 +0800
 @@ -912,6 +912,9 @@
  #define ACTIVE_PLLDISABLED	0x0004	/* Processor In Active Mode With PLL Disabled   */
  #define	PLL_LOCKED			0x0020	/* PLL_LOCKCNT Has Been Reached                                 */
@@ -1171,8 +1171,8 @@
  #define SYSTEM_RESET           0x0007	/* Initiates a system software reset */
  #define DOUBLE_FAULT_A         0x0008	/* Core A Double Fault Causes Reset */
 --- linux-2.6.x-orig/include/asm-blackfin/pda.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/pda.h	2008-09-11 17:28:46.000000000 +0800
-@@ -0,0 +1,103 @@
++++ linux-2.6.x/include/asm-blackfin/pda.h	2008-09-12 16:46:10.000000000 +0800
+@@ -0,0 +1,105 @@
 +/*
 + * File:         include/asm-blackfin/pda.h
 + * Author:       Philippe Gerum <rpm@xenomai.org>
@@ -1243,10 +1243,12 @@
 +#ifdef ANOMALY_05000261
 +	unsigned long last_cplb_fault_retx;
 +#endif
-+	unsigned long ex_dcplb_fault_addr;
-+	unsigned long ex_icplb_fault_addr;
-+	unsigned long ex_retx;
-+	unsigned long ex_syscfg;
++
++	unsigned long syscfg;
++	unsigned long dcplb_fault_addr;
++	unsigned long icplb_fault_addr;
++	unsigned long retx;
++	unsigned long seqstat;
 +};
 +
 +extern struct blackfin_pda __proxy_pda;	/* Not instantiated. */
@@ -1276,8 +1278,8 @@
 +#endif	/* __ASSEMBLY__ */
 +
 +#endif /* _ASM_BLACKFIN_PDA_H */
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf527/mem_map.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf527/mem_map.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mach-bf527/mem_map.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-bf527/mem_map.h	2008-09-12 16:46:10.000000000 +0800
 @@ -99,4 +99,19 @@
  #define L1_SCRATCH_START	0xFFB00000
  #define L1_SCRATCH_LENGTH	0x1000
@@ -1298,8 +1300,8 @@
 +#define GET_PDA(preg, dreg)	GET_PDA_SAFE(preg)
 +
  #endif				/* _MEM_MAP_527_H_ */
---- linux-2.6.x-orig/include/asm-blackfin/mach-common/context.S	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-common/context.S	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mach-common/context.S	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-common/context.S	2008-09-12 16:46:10.000000000 +0800
 @@ -303,9 +303,14 @@
  	RETI = [sp++];
  	RETS = [sp++];
@@ -1328,8 +1330,8 @@
 +	(r7:6,p5:4) = [sp++];
 +	ASTAT = [sp++];
 +.endm
---- linux-2.6.x-orig/include/asm-blackfin/processor.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/processor.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/processor.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/processor.h	2008-09-12 16:46:10.000000000 +0800
 @@ -63,11 +63,10 @@ do {									\
  	(_regs)->pc = (_pc);						\
  	if (current->mm)						\
@@ -1355,8 +1357,8 @@
  
  /* Get the Silicon Revision of the chip */
  static inline uint32_t __pure bfin_revid(void)
---- linux-2.6.x-orig/include/asm-blackfin/cplb.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/cplb.h	2008-09-11 17:28:46.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/cplb.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/cplb.h	2008-09-12 16:46:10.000000000 +0800
 @@ -30,7 +30,6 @@
  #ifndef _CPLB_H
  #define _CPLB_H
@@ -1406,8 +1408,8 @@
 +#define blackfin_core_id()	(bfin_read_DSPID() & 0xff)
 +
  #endif				/* _CPLB_H */
---- linux-2.6.x-orig/include/asm-blackfin/spinlock.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/spinlock.h	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/spinlock.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/spinlock.h	2008-09-12 16:46:10.000000000 +0800
 @@ -1,6 +1,89 @@
  #ifndef __BFIN_SPINLOCK_H
  #define __BFIN_SPINLOCK_H
@@ -1500,8 +1502,8 @@
 +#define _raw_write_relax(lock)	cpu_relax()
 +
 +#endif /*  !__BFIN_SPINLOCK_H */
---- linux-2.6.x-orig/include/asm-blackfin/thread_info.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/thread_info.h	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/thread_info.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/thread_info.h	2008-09-12 16:46:10.000000000 +0800
 @@ -29,7 +29,7 @@
  
  #include <asm/page.h>
@@ -1520,8 +1522,8 @@
  };
  
  /*
---- linux-2.6.x-orig/include/asm-blackfin/system.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/system.h	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/system.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/system.h	2008-09-12 16:46:10.000000000 +0800
 @@ -37,20 +37,14 @@
  #include <linux/linkage.h>
  #include <linux/compiler.h>
@@ -1720,7 +1722,7 @@
 -#endif				/* _BLACKFIN_SYSTEM_H */
 +#endif	/* _BLACKFIN_SYSTEM_H */
 --- linux-2.6.x-orig/include/asm-blackfin/cpu.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/cpu.h	2008-09-11 17:28:47.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/cpu.h	2008-09-12 16:46:10.000000000 +0800
 @@ -0,0 +1,43 @@
 +/*
 + * File:         include/asm-blackfin/cpu.h.
@@ -1766,7 +1768,7 @@
 +
 +#endif
 --- linux-2.6.x-orig/include/asm-blackfin/mutex-dec.h	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mutex-dec.h	2008-09-11 17:28:47.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mutex-dec.h	2008-09-12 16:46:10.000000000 +0800
 @@ -0,0 +1,112 @@
 +/*
 + * include/asm-generic/mutex-dec.h
@@ -1880,8 +1882,8 @@
 +}
 +
 +#endif
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf533/mem_map.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf533/mem_map.h	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mach-bf533/mem_map.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-bf533/mem_map.h	2008-09-12 16:46:10.000000000 +0800
 @@ -168,4 +168,19 @@
  #define L1_SCRATCH_START	0xFFB00000
  #define L1_SCRATCH_LENGTH	0x1000
@@ -1902,8 +1904,8 @@
 +#define GET_PDA(preg, dreg)	GET_PDA_SAFE(preg)
 +
  #endif				/* _MEM_MAP_533_H_ */
---- linux-2.6.x-orig/include/asm-blackfin/cache.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/cache.h	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/cache.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/cache.h	2008-09-12 16:46:10.000000000 +0800
 @@ -12,6 +12,11 @@
  #define L1_CACHE_BYTES	(1 << L1_CACHE_SHIFT)
  #define SMP_CACHE_BYTES	L1_CACHE_BYTES
@@ -1938,8 +1940,8 @@
 +
 +
  #endif
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf537/mem_map.h	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf537/mem_map.h	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mach-bf537/mem_map.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-bf537/mem_map.h	2008-09-12 16:46:10.000000000 +0800
 @@ -176,4 +176,19 @@
  #define L1_SCRATCH_START	0xFFB00000
  #define L1_SCRATCH_LENGTH	0x1000
@@ -1960,8 +1962,8 @@
 +#define GET_PDA(preg, dreg)	GET_PDA_SAFE(preg)
 +
  #endif				/* _MEM_MAP_537_H_ */
---- linux-2.6.x-orig/arch/blackfin/Kconfig	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/Kconfig	2008-09-11 17:47:17.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/Kconfig	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/Kconfig	2008-09-12 16:46:11.000000000 +0800
 @@ -162,10 +162,36 @@ config BF549
  config BF561
  	bool "BF561"
@@ -2034,8 +2036,8 @@
  config BFIN_WB
  	bool "Write back"
  	help
---- linux-2.6.x-orig/arch/blackfin/kernel/cplb-mpu/cplbinit.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/cplb-mpu/cplbinit.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/cplb-mpu/cplbinit.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/cplb-mpu/cplbinit.c	2008-09-12 16:46:11.000000000 +0800
 @@ -30,13 +30,13 @@
  # error the MPU will not function safely while Anomaly 05000263 applies
  #endif
@@ -2118,8 +2120,8 @@
 -		icplb_tbl[i_i++].data = 0;
 +		icplb_tbl[cpu][i_i++].data = 0;
  }
---- linux-2.6.x-orig/arch/blackfin/kernel/cplb-mpu/cplbmgr.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/cplb-mpu/cplbmgr.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/cplb-mpu/cplbmgr.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/cplb-mpu/cplbmgr.c	2008-09-12 16:46:11.000000000 +0800
 @@ -29,7 +29,7 @@
  
  int page_mask_nelts;
@@ -2367,8 +2369,8 @@
  		bfin_write32(DCPLB_DATA0 + i * 4, d_data);
  		bfin_write32(DCPLB_ADDR0 + i * 4, addr);
  		addr += PAGE_SIZE;
---- linux-2.6.x-orig/arch/blackfin/kernel/cplb-mpu/cacheinit.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/cplb-mpu/cacheinit.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/cplb-mpu/cacheinit.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/cplb-mpu/cacheinit.c	2008-09-12 16:46:11.000000000 +0800
 @@ -25,7 +25,7 @@
  #include <asm/cplbinit.h>
  
@@ -2387,8 +2389,8 @@
  {
  	unsigned long ctrl;
  	int i;
---- linux-2.6.x-orig/arch/blackfin/kernel/irqchip.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/irqchip.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/irqchip.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/irqchip.c	2008-09-12 16:46:11.000000000 +0800
 @@ -36,7 +36,7 @@
  #include <linux/irq.h>
  #include <asm/trace.h>
@@ -2455,8 +2457,8 @@
  #ifdef CONFIG_DO_IRQ_L1
  __attribute__((l1_text))
  #endif
---- linux-2.6.x-orig/arch/blackfin/kernel/setup.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/setup.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/setup.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/setup.c	2008-09-12 16:46:11.000000000 +0800
 @@ -26,11 +26,10 @@
  #include <asm/blackfin.h>
  #include <asm/cplbinit.h>
@@ -2470,7 +2472,7 @@
  u16 _bfin_swrst;
  EXPORT_SYMBOL(_bfin_swrst);
  
-@@ -78,27 +77,73 @@ static struct change_member *change_poin
+@@ -78,29 +77,75 @@ static struct change_member *change_poin
  static struct bfin_memmap_entry *overlap_list[BFIN_MEMMAP_MAX] __initdata;
  static struct bfin_memmap_entry new_map[BFIN_MEMMAP_MAX] __initdata;
  
@@ -2529,9 +2531,9 @@
  # endif
 -		"\n");
 +		"\n", cpu);
-+#endif
-+}
-+
+ #endif
+ }
+ 
 +void __cpuinit bfin_setup_cpudata(unsigned int cpu)
 +{
 +	struct blackfin_cpudata *cpudata = &per_cpu(cpu_data, cpu);
@@ -2548,12 +2550,26 @@
 +{
 +#if defined(CONFIG_BFIN_DCACHE) || defined(CONFIG_BFIN_ICACHE)
 +	generate_cplb_tables();
- #endif
++#endif
 +	bfin_setup_caches(0);
- }
- 
++}
++
  void __init bfin_relocate_l1_mem(void)
-@@ -860,17 +905,20 @@ void __init setup_arch(char **cmdline_p)
+ {
+ 	unsigned long l1_code_length;
+@@ -790,7 +835,11 @@ void __init setup_arch(char **cmdline_p)
+ 	bfin_write_SWRST(_bfin_swrst | DOUBLE_FAULT);
+ #endif
+ 
++#ifdef CONFIG_SMP
++	if (_bfin_swrst & SWRST_DBL_FAULT_A) {
++#else
+ 	if (_bfin_swrst & RESET_DOUBLE) {
++#endif
+ 		printk(KERN_EMERG "Recovering from DOUBLE FAULT event\n");
+ #ifdef CONFIG_DEBUG_DOUBLEFAULT
+ 		/* We assume the crashing kernel, and the current symbol table match */
+@@ -860,17 +909,20 @@ void __init setup_arch(char **cmdline_p)
  		!= SAFE_USER_INSTRUCTION - FIXED_CODE_START);
  
  	init_exception_vectors();
@@ -2579,7 +2595,7 @@
  	}
  
  	return 0;
-@@ -1131,19 +1179,25 @@ static int show_cpuinfo(struct seq_file 
+@@ -1131,19 +1183,25 @@ static int show_cpuinfo(struct seq_file 
  		((int)memory_end - (int)_stext) >> 10,
  		_stext,
  		(void *)memory_end);
@@ -2608,8 +2624,8 @@
  }
  
  static void c_stop(struct seq_file *m, void *v)
---- linux-2.6.x-orig/arch/blackfin/kernel/vmlinux.lds.S	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/vmlinux.lds.S	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/vmlinux.lds.S	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/vmlinux.lds.S	2008-09-12 16:46:11.000000000 +0800
 @@ -109,7 +109,7 @@ SECTIONS
  #endif
  
@@ -2642,8 +2658,8 @@
  	/* Force trailing alignment of our init section so that when we
  	 * free our init memory, we don't leave behind a partial page.
  	 */
---- linux-2.6.x-orig/arch/blackfin/kernel/bfin_ksyms.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/bfin_ksyms.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/bfin_ksyms.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/bfin_ksyms.c	2008-09-12 16:46:11.000000000 +0800
 @@ -30,9 +30,9 @@
  #include <linux/module.h>
  #include <linux/irq.h>
@@ -2711,8 +2727,8 @@
 +#else
 +EXPORT_SYMBOL(irq_flags);
 +#endif
---- linux-2.6.x-orig/arch/blackfin/kernel/process.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/process.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/process.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/process.c	2008-09-12 16:46:11.000000000 +0800
 @@ -337,22 +337,22 @@ int _access_ok(unsigned long addr, unsig
  	if (addr >= (unsigned long)__init_begin &&
  	    addr + size <= (unsigned long)__init_end)
@@ -2744,8 +2760,8 @@
  		return 1;
  #endif
  	return 0;
---- linux-2.6.x-orig/arch/blackfin/kernel/ptrace.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/ptrace.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/ptrace.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/ptrace.c	2008-09-12 16:46:11.000000000 +0800
 @@ -214,8 +214,8 @@ long arch_ptrace(struct task_struct *chi
  			pr_debug("ptrace: user address is valid\n");
  
@@ -2768,8 +2784,8 @@
  				safe_dma_memcpy ((void *)(addr + add), &data, sizeof(data));
  				copied = sizeof(data);
  			} else
---- linux-2.6.x-orig/arch/blackfin/kernel/entry.S	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/entry.S	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/entry.S	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/entry.S	2008-09-12 16:46:11.000000000 +0800
 @@ -30,6 +30,7 @@
  #include <linux/linkage.h>
  #include <asm/thread_info.h>
@@ -2778,8 +2794,8 @@
  #include <asm/asm-offsets.h>
  
  #include <asm/mach-common/context.S>
---- linux-2.6.x-orig/arch/blackfin/kernel/module.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/module.c	2008-09-11 17:57:08.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/module.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/module.c	2008-09-12 16:46:11.000000000 +0800
 @@ -343,7 +343,13 @@ apply_relocate_add(Elf_Shdr * sechdrs, c
  		pr_debug("location is %x, value is %x type is %d \n",
  			 (unsigned int) location32, value,
@@ -2815,8 +2831,8 @@
  		}
  	}
  	return 0;
---- linux-2.6.x-orig/arch/blackfin/kernel/asm-offsets.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/asm-offsets.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/asm-offsets.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/asm-offsets.c	2008-09-12 16:46:11.000000000 +0800
 @@ -56,6 +56,9 @@ int main(void)
  	/* offsets into the thread struct */
  	DEFINE(THREAD_KSP, offsetof(struct thread_struct, ksp));
@@ -2827,7 +2843,7 @@
  	DEFINE(THREAD_PC, offsetof(struct thread_struct, pc));
  	DEFINE(KERNEL_STACK_SIZE, THREAD_SIZE);
  
-@@ -127,5 +130,32 @@ int main(void)
+@@ -127,5 +130,34 @@ int main(void)
  	DEFINE(SIGSEGV, SIGSEGV);
  	DEFINE(SIGTRAP, SIGTRAP);
  
@@ -2844,13 +2860,15 @@
 +	DEFINE(PDA_EXBUF, offsetof(struct blackfin_pda, ex_buf));
 +	DEFINE(PDA_EXIMASK, offsetof(struct blackfin_pda, ex_imask));
 +	DEFINE(PDA_EXSTACK, offsetof(struct blackfin_pda, ex_stack));
-+	DEFINE(PDA_EXDCPLB, offsetof(struct blackfin_pda, ex_dcplb_fault_addr));
-+	DEFINE(PDA_EXICPLB, offsetof(struct blackfin_pda, ex_icplb_fault_addr));
-+	DEFINE(PDA_EXRETX, offsetof(struct blackfin_pda, ex_retx));
-+	DEFINE(PDA_EXSYSCFG, offsetof(struct blackfin_pda, ex_syscfg));
 +#ifdef ANOMALY_05000261
 +	DEFINE(PDA_LFRETX, offsetof(struct blackfin_pda, last_cplb_fault_retx));
 +#endif
++
++	DEFINE(PDA_SYSCFG, offsetof(struct blackfin_pda, syscfg));
++	DEFINE(PDA_DCPLB, offsetof(struct blackfin_pda, dcplb_fault_addr));
++	DEFINE(PDA_ICPLB, offsetof(struct blackfin_pda, icplb_fault_addr));
++	DEFINE(PDA_RETX, offsetof(struct blackfin_pda, retx));
++	DEFINE(PDA_SEQSTAT, offsetof(struct blackfin_pda, seqstat));
 +
 +#ifdef CONFIG_SMP
 +	/* Inter-core lock (in L2 SRAM) */
@@ -2860,8 +2878,25 @@
 +
  	return 0;
  }
---- linux-2.6.x-orig/arch/blackfin/kernel/traps.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/traps.c	2008-09-11 18:42:36.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/traps.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/traps.c	2008-09-12 16:46:11.000000000 +0800
+@@ -195,12 +195,12 @@ asmlinkage void double_fault_c(struct pt
+ #ifdef CONFIG_DEBUG_DOUBLEFAULT_PRINT
+ 	if (((long)fp->seqstat &  SEQSTAT_EXCAUSE) == VEC_UNCOV) {
+ 		char buf[150];
+-		decode_address(buf, saved_retx);
++		decode_address(buf, read_pda(retx));
+ 		printk(KERN_EMERG "While handling exception (EXCAUSE = 0x%x) at %s:\n",
+-			(int)saved_seqstat & SEQSTAT_EXCAUSE, buf);
+-		decode_address(buf, saved_dcplb_fault_addr);
++			(int)read_pda(seqstat) & SEQSTAT_EXCAUSE, buf);
++		decode_address(buf, read_pda(dcplb_fault_addr));
+ 		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %s\n", buf);
+-		decode_address(buf, saved_icplb_fault_addr);
++		decode_address(buf, read_pda(icplb_fault_addr));
+ 		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %s\n", buf);
+ 
+ 		decode_address(buf, fp->retx);
 @@ -935,6 +935,10 @@ void dump_bfin_process(struct pt_regs *f
  		else
  			printk(KERN_NOTICE "COMM= invalid\n");
@@ -2905,8 +2940,8 @@
  	return ret;
  }
  
---- linux-2.6.x-orig/arch/blackfin/kernel/reboot.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/reboot.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/reboot.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/reboot.c	2008-09-12 16:46:11.000000000 +0800
 @@ -10,6 +10,7 @@
  #include <asm/bfin-global.h>
  #include <asm/reboot.h>
@@ -2929,8 +2964,8 @@
  }
  
  __attribute__((weak))
---- linux-2.6.x-orig/arch/blackfin/kernel/cplb-nompu/cplbinit.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/cplb-nompu/cplbinit.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/cplb-nompu/cplbinit.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/cplb-nompu/cplbinit.c	2008-09-12 16:46:11.000000000 +0800
 @@ -26,46 +26,20 @@
  #include <asm/cplb.h>
  #include <asm/cplbinit.h>
@@ -3100,8 +3135,8 @@
 -
  #endif
  
---- linux-2.6.x-orig/arch/blackfin/kernel/cplb-nompu/cplbmgr.S	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/cplb-nompu/cplbmgr.S	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/cplb-nompu/cplbmgr.S	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/cplb-nompu/cplbmgr.S	2008-09-12 16:46:12.000000000 +0800
 @@ -52,6 +52,7 @@
  #include <linux/linkage.h>
  #include <asm/blackfin.h>
@@ -3168,8 +3203,8 @@
  	P3 += -8;
  #endif
  
---- linux-2.6.x-orig/arch/blackfin/kernel/cplb-nompu/cacheinit.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/cplb-nompu/cacheinit.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/cplb-nompu/cacheinit.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/cplb-nompu/cacheinit.c	2008-09-12 16:46:12.000000000 +0800
 @@ -25,9 +25,9 @@
  #include <asm/cplbinit.h>
  
@@ -3202,8 +3237,8 @@
  	SSYNC();
  }
  #endif
---- linux-2.6.x-orig/arch/blackfin/kernel/cplb-nompu/cplbinfo.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/cplb-nompu/cplbinfo.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/cplb-nompu/cplbinfo.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/cplb-nompu/cplbinfo.c	2008-09-12 16:46:12.000000000 +0800
 @@ -68,22 +68,22 @@ static int cplb_find_entry(unsigned long
  	return -1;
  }
@@ -3269,9 +3304,52 @@
  	return p - buf;
  }
  
---- linux-2.6.x-orig/arch/blackfin/mach-common/head.S	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-common/head.S	2008-09-11 17:28:47.000000000 +0800
-@@ -206,6 +206,18 @@ ENTRY(_real_start)
+--- linux-2.6.x-orig/arch/blackfin/mach-common/head.S	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-common/head.S	2008-09-12 16:46:12.000000000 +0800
+@@ -111,33 +111,26 @@ ENTRY(__start)
+ 	 * This happens here, since L1 gets clobbered
+ 	 * below
+ 	 */
+-	p0.l = _saved_retx;
+-	p0.h = _saved_retx;
++	GET_PDA(p0, r0);
++	r7 = [p0 + PDA_RETX];
+ 	p1.l = _init_saved_retx;
+ 	p1.h = _init_saved_retx;
+-	r0 = [p0];
+-	[p1] = r0;
++	[p1] = r7;
+ 
+-	p0.l = _saved_dcplb_fault_addr;
+-	p0.h = _saved_dcplb_fault_addr;
++	r7 = [p0 + PDA_DCPLB];
+ 	p1.l = _init_saved_dcplb_fault_addr;
+ 	p1.h = _init_saved_dcplb_fault_addr;
+-	r0 = [p0];
+-	[p1] = r0;
++	[p1] = r7;
+ 
+-	p0.l = _saved_icplb_fault_addr;
+-	p0.h = _saved_icplb_fault_addr;
++	r7 = [p0 + PDA_ICPLB];
+ 	p1.l = _init_saved_icplb_fault_addr;
+ 	p1.h = _init_saved_icplb_fault_addr;
+-	r0 = [p0];
+-	[p1] = r0;
++	[p1] = r7;
+ 
+-	p0.l = _saved_seqstat;
+-	p0.h = _saved_seqstat;
++	r7 = [p0 + PDA_SEQSTAT];
+ 	p1.l = _init_saved_seqstat;
+ 	p1.h = _init_saved_seqstat;
+-	r0 = [p0];
+-	[p1] = r0;
++	[p1] = r7;
+ #endif
+ 
+ 	/* Initialize stack pointer */
+@@ -206,6 +199,18 @@ ENTRY(_real_start)
  	w[p0] = r0;
  	ssync;
  
@@ -3290,7 +3368,7 @@
  	/* Zero out the bss region
  	 * Note: this will fail if bss is 0 bytes ...
  	 */
-@@ -245,6 +257,9 @@ ENTRY(_real_start)
+@@ -245,6 +250,9 @@ ENTRY(_real_start)
  	sp = sp + p1;
  	usp = sp;
  	fp = sp;
@@ -3300,8 +3378,8 @@
  	jump.l _start_kernel;
  ENDPROC(_real_start)
  
---- linux-2.6.x-orig/arch/blackfin/mach-bf561/Kconfig	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf561/Kconfig	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/mach-bf561/Kconfig	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-bf561/Kconfig	2008-09-12 16:46:12.000000000 +0800
 @@ -7,6 +7,7 @@ menu "BF561 Specific Configuration"
  comment "Core B Support"
  
@@ -3311,7 +3389,7 @@
  config BF561_COREB
  	bool "Enable Core B support"
 --- linux-2.6.x-orig/arch/blackfin/mach-bf561/smp.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf561/smp.c	2008-09-11 17:28:47.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-bf561/smp.c	2008-09-12 16:46:12.000000000 +0800
 @@ -0,0 +1,176 @@
 +/*
 + * File:         arch/blackfin/mach-bf561/smp.c
@@ -3490,8 +3568,8 @@
 +	}
 +}
 --- linux-2.6.x-orig/arch/blackfin/mach-bf561/secondary.S	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf561/secondary.S	2008-09-11 17:28:47.000000000 +0800
-@@ -0,0 +1,179 @@
++++ linux-2.6.x/arch/blackfin/mach-bf561/secondary.S	2008-09-12 16:46:12.000000000 +0800
+@@ -0,0 +1,212 @@
 +/*
 + * File:         arch/blackfin/mach-bf561/secondary.S
 + * Based on:     arch/blackfin/mach-bf561/head.S
@@ -3607,6 +3685,39 @@
 +	STI R2;
 +#endif
 +
++	/* in case of double faults, save a few things */
++	p0.l = _init_retx_coreb;
++	p0.h = _init_retx_coreb;
++	R0 = RETX;
++	[P0] = R0;
++
++#ifdef CONFIG_DEBUG_DOUBLEFAULT
++	/* Only save these if we are storing them,
++	 * This happens here, since L1 gets clobbered
++	 * below
++	 */
++	GET_PDA(p0, r0);
++	r7 = [p0 + PDA_RETX];
++	p1.l = _init_saved_retx_coreb;
++	p1.h = _init_saved_retx_coreb;
++	[p1] = r7;
++
++	r7 = [p0 + PDA_DCPLB];
++	p1.l = _init_saved_dcplb_fault_addr_coreb;
++	p1.h = _init_saved_dcplb_fault_addr_coreb;
++	[p1] = r7;
++
++	r7 = [p0 + PDA_ICPLB];
++	p1.l = _init_saved_icplb_fault_addr_coreb;
++	p1.h = _init_saved_icplb_fault_addr_coreb;
++	[p1] = r7;
++
++	r7 = [p0 + PDA_SEQSTAT];
++	p1.l = _init_saved_seqstat_coreb;
++	p1.h = _init_saved_seqstat_coreb;
++	[p1] = r7;
++#endif
++
 +	/* Initialize stack pointer */
 +	sp.l = lo(INITIAL_STACK);
 +	sp.h = hi(INITIAL_STACK);
@@ -3671,15 +3782,15 @@
 +	call _secondary_start_kernel;
 +.L_exit:
 +	jump.s	.L_exit;
---- linux-2.6.x-orig/arch/blackfin/mach-bf561/Makefile	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf561/Makefile	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/mach-bf561/Makefile	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-bf561/Makefile	2008-09-12 16:46:12.000000000 +0800
 @@ -7,3 +7,4 @@ extra-y := head.o
  obj-y := ints-priority.o dma.o
  
  obj-$(CONFIG_BF561_COREB) += coreb.o
 +obj-$(CONFIG_SMP)  += smp.o secondary.o atomic.o
 --- linux-2.6.x-orig/arch/blackfin/mach-bf561/atomic.S	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-bf561/atomic.S	2008-09-11 17:28:47.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-bf561/atomic.S	2008-09-12 16:46:12.000000000 +0800
 @@ -0,0 +1,846 @@
 +/*
 + * File:         arch/blackfin/mach-bf561/atomic.S
@@ -4527,8 +4638,8 @@
 +	do_ssync;
 +	r0 = [p1];
 +	rts;
---- linux-2.6.x-orig/arch/blackfin/mm/init.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mm/init.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/mm/init.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mm/init.c	2008-09-12 16:46:12.000000000 +0800
 @@ -31,7 +31,8 @@
  #include <linux/bootmem.h>
  #include <linux/uaccess.h>
@@ -4610,8 +4721,8 @@
  	return 0;
  }
  pure_initcall(sram_init);
---- linux-2.6.x-orig/arch/blackfin/mm/sram-alloc.c	2008-09-12 11:08:02.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mm/sram-alloc.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/mm/sram-alloc.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mm/sram-alloc.c	2008-09-12 16:46:12.000000000 +0800
 @@ -41,8 +41,10 @@
  #include <asm/blackfin.h>
  #include "blackfin_sram.h"
@@ -5155,8 +5266,8 @@
   not_done:
  	return len;
 --- linux-2.6.x-orig/arch/blackfin/mach-common/smp.c	1970-01-01 08:00:00.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-common/smp.c	2008-09-11 17:28:47.000000000 +0800
-@@ -0,0 +1,407 @@
++++ linux-2.6.x/arch/blackfin/mach-common/smp.c	2008-09-12 16:46:12.000000000 +0800
+@@ -0,0 +1,423 @@
 +/*
 + * File:         arch/blackfin/kernel/smp.c
 + * Author:       Philippe Gerum <rpm@xenomai.org>
@@ -5205,6 +5316,10 @@
 +#include <linux/err.h>
 +
 +struct corelock_slot corelock __attribute__ ((__section__(".l2.bss")));
++
++void __initdata *init_retx_coreb, *init_saved_retx_coreb,
++	*init_saved_seqstat_coreb, *init_saved_icplb_fault_addr_coreb,
++	*init_saved_dcplb_fault_addr_coreb;
 +
 +cpumask_t cpu_possible_map;
 +EXPORT_SYMBOL(cpu_possible_map);
@@ -5491,6 +5606,18 @@
 +	unsigned int cpu = smp_processor_id();
 +	struct mm_struct *mm = &init_mm;
 +
++	if (_bfin_swrst & SWRST_DBL_FAULT_B) {
++		printk(KERN_EMERG "CoreB Recovering from DOUBLE FAULT event\n");
++#ifdef CONFIG_DEBUG_DOUBLEFAULT
++		printk(KERN_EMERG " While handling exception (EXCAUSE = 0x%x) at %pF\n",
++			(int)init_saved_seqstat_coreb & SEQSTAT_EXCAUSE, init_saved_retx_coreb);
++		printk(KERN_NOTICE "   DCPLB_FAULT_ADDR: %pF\n", init_saved_dcplb_fault_addr_coreb);
++		printk(KERN_NOTICE "   ICPLB_FAULT_ADDR: %pF\n", init_saved_icplb_fault_addr_coreb);
++#endif
++		printk(KERN_NOTICE " The instruction at %pF caused a double exception\n",
++			init_retx_coreb);
++	}
++
 +	/*
 +	 * We want the D-cache to be enabled early, in case the atomic
 +	 * support code emulates cache coherence (see
@@ -5564,8 +5691,8 @@
 +	put_cpu();
 +}
 +#endif
---- linux-2.6.x-orig/arch/blackfin/mach-common/entry.S	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-common/entry.S	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/mach-common/entry.S	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-common/entry.S	2008-09-12 16:46:12.000000000 +0800
 @@ -36,6 +36,7 @@
  #include <linux/init.h>
  #include <linux/linkage.h>
@@ -5590,33 +5717,7 @@
  	cc = r6 == r7;
  	if !cc jump _bfin_return_from_exception;
  	/* fall through */
-@@ -152,6 +153,25 @@ ENTRY(_ex_syscall)
- 	jump.s _bfin_return_from_exception;
- ENDPROC(_ex_syscall)
- 
-+ENTRY(_spinlock_bh)
-+	SAVE_ALL_SYS
-+	/* To end up here, vector 15 was changed - so we have to change it
-+	 * back.
-+	 */
-+	p0.l = lo(EVT15);
-+	p0.h = hi(EVT15);
-+	p1.l = _evt_system_call;
-+	p1.h = _evt_system_call;
-+	[p0] = p1;
-+	csync;
-+	r0 = [sp + PT_R0];
-+	sp += -12;
-+	call _sys_bfin_spinlock;
-+	sp += 12;
-+	[SP + PT_R0] = R0;
-+	RESTORE_ALL_SYS
-+	rti;
-+
- ENTRY(_ex_soft_bp)
- 	r7 = retx;
- 	r7 += -2;
-@@ -324,7 +344,9 @@ ENTRY(_ex_trap_c)
+@@ -324,7 +325,9 @@ ENTRY(_ex_trap_c)
  	[p4] = p5;
  	csync;
  
@@ -5626,14 +5727,14 @@
  	/*
  	 * Save these registers, as they are only valid in exception context
  	 *  (where we are now - as soon as we defer to IRQ5, they can change)
-@@ -335,29 +357,25 @@ ENTRY(_ex_trap_c)
+@@ -335,29 +338,25 @@ ENTRY(_ex_trap_c)
  	p4.l = lo(DCPLB_FAULT_ADDR);
  	p4.h = hi(DCPLB_FAULT_ADDR);
  	r7 = [p4];
 -	p5.h = _saved_dcplb_fault_addr;
 -	p5.l = _saved_dcplb_fault_addr;
 -	[p5] = r7;
-+	[p5 + PDA_EXDCPLB] = r7;
++	[p5 + PDA_DCPLB] = r7;
  
 -	r7 = [p4 + (ICPLB_FAULT_ADDR - DCPLB_FAULT_ADDR)];
 -	p5.h = _saved_icplb_fault_addr;
@@ -5642,17 +5743,17 @@
 +	p4.l = lo(ICPLB_FAULT_ADDR);
 +	p4.h = hi(ICPLB_FAULT_ADDR);
 +	r6 = [p4];
-+	[p5 + PDA_EXICPLB] = r6;
++	[p5 + PDA_ICPLB] = r6;
  
  	r6 = retx;
 -	p4.l = _saved_retx;
 -	p4.h = _saved_retx;
 -	[p4] = r6;
-+	[p5 + PDA_EXRETX] = r6;
++	[p5 + PDA_RETX] = r6;
  #endif
  	r6 = SYSCFG;
 -	[p4 + 4] = r6;
-+	[p5 + PDA_EXSYSCFG] = r6;
++	[p5 + PDA_SYSCFG] = r6;
  	BITCLR(r6, 0);
  	SYSCFG = r6;
  
@@ -5664,7 +5765,7 @@
  
  	p4.l = lo(SAFE_USER_INSTRUCTION);
  	p4.h = hi(SAFE_USER_INSTRUCTION);
-@@ -424,17 +442,16 @@ ENDPROC(_double_fault)
+@@ -424,17 +423,16 @@ ENDPROC(_double_fault)
  ENTRY(_exception_to_level5)
  	SAVE_ALL_SYS
  
@@ -5672,11 +5773,11 @@
 -	p4.h = _saved_retx;
 -	r6 = [p4];
 +	GET_PDA(p4, r7);        /* Fetch current PDA */
-+	r6 = [p4 + PDA_EXRETX];
++	r6 = [p4 + PDA_RETX];
  	[sp + PT_PC] = r6;
  
 -	r6 = [p4 + 4];
-+	r6 = [p4 + PDA_EXSYSCFG];
++	r6 = [p4 + PDA_SYSCFG];
  	[sp + PT_SYSCFG] = r6;
  
  	/* Restore interrupt mask.  We haven't pushed RETI, so this
@@ -5686,7 +5787,7 @@
  	sti r6;
  
  	/* Restore the hardware error vector.  */
-@@ -478,8 +495,8 @@ ENTRY(_trap) /* Exception: 4th entry int
+@@ -478,8 +476,8 @@ ENTRY(_trap) /* Exception: 4th entry int
  	 * scratch register (for want of a better option).
  	 */
  	EX_SCRATCH_REG = sp;
@@ -5697,7 +5798,7 @@
  	/* Try to deal with syscalls quickly.  */
  	[--sp] = ASTAT;
  	[--sp] = (R7:6,P5:4);
-@@ -537,11 +554,11 @@ ENTRY(_kernel_execve)
+@@ -537,11 +535,11 @@ ENTRY(_kernel_execve)
  	p0 = sp;
  	r3 = SIZEOF_PTREGS / 4;
  	r4 = 0(x);
@@ -5711,7 +5812,7 @@
  
  	p0 = sp;
  	sp += -16;
-@@ -549,7 +566,7 @@ ENTRY(_kernel_execve)
+@@ -549,7 +547,7 @@ ENTRY(_kernel_execve)
  	call _do_execve;
  	SP += 16;
  	cc = r0 == 0;
@@ -5720,7 +5821,7 @@
  	/* Success.  Copy our temporary pt_regs to the top of the kernel
  	 * stack and do a normal exception return.
  	 */
-@@ -565,12 +582,12 @@ ENTRY(_kernel_execve)
+@@ -565,12 +563,12 @@ ENTRY(_kernel_execve)
  	p0 = fp;
  	r4 = [p0--];
  	r3 = SIZEOF_PTREGS / 4;
@@ -5735,7 +5836,7 @@
  
  	r0 = (KERNEL_STACK_SIZE - SIZEOF_PTREGS) (z);
  	p1 = r0;
-@@ -582,7 +599,7 @@ ENTRY(_kernel_execve)
+@@ -582,7 +580,7 @@ ENTRY(_kernel_execve)
  
  	RESTORE_CONTEXT;
  	rti;
@@ -5744,7 +5845,7 @@
  	unlink;
  	rts;
  ENDPROC(_kernel_execve)
-@@ -913,9 +930,14 @@ _schedule_and_signal_from_int:
+@@ -913,9 +911,14 @@ _schedule_and_signal_from_int:
  	p1 = rets;
  	[sp + PT_RESERVED] = p1;
  
@@ -5759,7 +5860,7 @@
  	sti r0;
  
  	r0 = sp;
-@@ -1507,8 +1529,8 @@ ENTRY(_sys_call_table)
+@@ -1507,14 +1510,8 @@ ENTRY(_sys_call_table)
  	.endr
  END(_sys_call_table)
  
@@ -5770,15 +5871,21 @@
  	.long 0;
  	.endr
  _exception_stack_top:
---- linux-2.6.x-orig/arch/blackfin/mach-common/Makefile	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-common/Makefile	2008-09-11 17:28:47.000000000 +0800
+-
+-#if ANOMALY_05000261
+-/* Used by the assembly entry point to work around an anomaly.  */
+-_last_cplb_fault_retx:
+-	.long 0;
+-#endif
+--- linux-2.6.x-orig/arch/blackfin/mach-common/Makefile	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-common/Makefile	2008-09-12 16:46:12.000000000 +0800
 @@ -10,3 +10,4 @@ obj-$(CONFIG_BFIN_ICACHE_LOCK) += lock.o
  obj-$(CONFIG_PM)          += pm.o dpmc_modes.o
  obj-$(CONFIG_CPU_FREQ)    += cpufreq.o
  obj-$(CONFIG_CPU_VOLTAGE) += dpmc.o
 +obj-$(CONFIG_SMP)         += smp.o
---- linux-2.6.x-orig/arch/blackfin/mach-common/ints-priority.c	2008-09-11 18:36:56.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-common/ints-priority.c	2008-09-11 18:34:49.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/mach-common/ints-priority.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-common/ints-priority.c	2008-09-12 16:46:12.000000000 +0800
 @@ -64,7 +64,9 @@
   * it would live otherwise).  The 0x1f magic represents the IRQs we
   * cannot actually mask out in hardware.
@@ -5886,8 +5993,8 @@
  #ifdef CONFIG_BF54x
  		sic_status[2] = bfin_read_SIC_ISR2() & bfin_read_SIC_IMASK2();
  #endif
---- linux-2.6.x-orig/include/asm-blackfin/mach-bf561/blackfin.h	2008-09-11 18:37:29.000000000 +0800
-+++ linux-2.6.x/include/asm-blackfin/mach-bf561/blackfin.h	2008-09-11 18:40:56.000000000 +0800
+--- linux-2.6.x-orig/include/asm-blackfin/mach-bf561/blackfin.h	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/include/asm-blackfin/mach-bf561/blackfin.h	2008-09-12 16:46:12.000000000 +0800
 @@ -66,8 +66,12 @@
  
  #define bfin_read_SIC_IMASK(x)		bfin_read32(SICA_IMASK0 + (x << 2))
@@ -5901,8 +6008,8 @@
  
  #define BFIN_UART_NR_PORTS      1
  
---- linux-2.6.x-orig/arch/blackfin/kernel/time.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/kernel/time.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/kernel/time.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/kernel/time.c	2008-09-12 16:46:13.000000000 +0800
 @@ -34,9 +34,11 @@
  #include <linux/interrupt.h>
  #include <linux/time.h>
@@ -6066,8 +6173,8 @@
  
  	return IRQ_HANDLED;
  }
---- linux-2.6.x-orig/drivers/char/bfin_simple_timer.c	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/drivers/char/bfin_simple_timer.c	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/drivers/char/bfin_simple_timer.c	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/drivers/char/bfin_simple_timer.c	2008-09-12 16:46:13.000000000 +0800
 @@ -222,7 +222,12 @@ int __init timer_initialize(void){
  		unregister_chrdev(TIMER_MAJOR, DRV_NAME);
  		return err;
@@ -6081,8 +6188,8 @@
  		sprintf(minor_name, "timer%d", minor);
  		device_create(timer_class, NULL,
  			      MKDEV(TIMER_MAJOR, minor), minor_name);
---- linux-2.6.x-orig/arch/blackfin/mach-common/cache.S	2008-09-11 17:28:41.000000000 +0800
-+++ linux-2.6.x/arch/blackfin/mach-common/cache.S	2008-09-11 17:28:47.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/mach-common/cache.S	2008-09-12 11:10:18.000000000 +0800
++++ linux-2.6.x/arch/blackfin/mach-common/cache.S	2008-09-12 16:46:13.000000000 +0800
 @@ -146,3 +146,39 @@ ENTRY(_blackfin_dflush_page)
  	SSYNC(R3);
  	RTS;
