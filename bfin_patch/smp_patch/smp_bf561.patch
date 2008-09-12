@@ -4610,7 +4610,7 @@
  	return 0;
  }
  pure_initcall(sram_init);
---- linux-2.6.x-orig/arch/blackfin/mm/sram-alloc.c	2008-09-11 17:28:41.000000000 +0800
+--- linux-2.6.x-orig/arch/blackfin/mm/sram-alloc.c	2008-09-12 11:08:02.000000000 +0800
 +++ linux-2.6.x/arch/blackfin/mm/sram-alloc.c	2008-09-11 17:28:47.000000000 +0800
 @@ -41,8 +41,10 @@
  #include <asm/blackfin.h>
@@ -4659,7 +4659,7 @@
 -	free_l1_ssram_head.next =
 -		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
 -	if (!free_l1_ssram_head.next) {
--		printk(KERN_INFO"Fail to initialize Scratchpad data SRAM.\n");
+-		printk(KERN_INFO "Failed to initialize Scratchpad data SRAM\n");
 -		return;
 +	unsigned int cpu;
 +	for (cpu = 0; cpu < NR_CPUS; ++cpu) {
@@ -4704,7 +4704,7 @@
 -	free_l1_data_A_sram_head.next =
 -		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
 -	if (!free_l1_data_A_sram_head.next) {
--		printk(KERN_INFO"Fail to initialize L1 Data A SRAM.\n");
+-		printk(KERN_INFO "Failed to initialize L1 Data A SRAM\n");
 -		return;
 +	for (cpu = 0; cpu < NR_CPUS; ++cpu) {
 +		per_cpu(free_l1_data_A_sram_head, cpu).next =
@@ -4745,7 +4745,7 @@
 -	free_l1_data_B_sram_head.next =
 -		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
 -	if (!free_l1_data_B_sram_head.next) {
--		printk(KERN_INFO"Fail to initialize L1 Data B SRAM.\n");
+-		printk(KERN_INFO "Failed to initialize L1 Data B SRAM\n");
 -		return;
 -	}
 -
@@ -4796,7 +4796,7 @@
 -	free_l1_inst_sram_head.next =
 -		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
 -	if (!free_l1_inst_sram_head.next) {
--		printk(KERN_INFO"Fail to initialize L1 Instruction SRAM.\n");
+-		printk(KERN_INFO "Failed to initialize L1 Instruction SRAM\n");
 -		return;
 -	}
 -
@@ -4843,6 +4843,15 @@
  }
  
  static void __init l2_sram_init(void)
+@@ -179,7 +195,7 @@ static void __init l2_sram_init(void)
+ 	free_l2_sram_head.next =
+ 		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
+ 	if (!free_l2_sram_head.next) {
+-		printk(KERN_INFO "Failed to initialize L2 SRAM\n");
++		printk(KERN_INFO"Fail to initialize L2 SRAM.\n");
+ 		return;
+ 	}
+ 
 @@ -200,6 +216,7 @@ static void __init l2_sram_init(void)
  	/* mutex initialize */
  	spin_lock_init(&l2_sram_lock);
