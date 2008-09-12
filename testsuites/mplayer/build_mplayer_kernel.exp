@@ -33,12 +33,29 @@ while 1 {
             send "y\r"
         }
 
+#Video Output on TFT-LCD or other video devices
+        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "m\r"
+            } else {
+                send "\r"
+            }
+        }
+
         -re "Backlight & LCD device support.*BACKLIGHT_LCD_SUPPORT.*\\\[.*]" {
             send "y\r"
         }
 
         -re "Support for frame buffer devices.*FB.*\\\[.*]" {
             send "y\r"
+        }
+
+        -re "SHARP LQ035 TFT LCD on uClinux.*BF537 STAMP.*FB_BF537_LQ035.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
         }
 
         -re "SHARP LQ043 TFT LCD.*BF548 EZKIT.*\\\[.*]" {
@@ -65,19 +82,72 @@ while 1 {
             }
         }
 
-        -re "SPI controller driver for ADI Blackfin5xx.*SPI_BFIN.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
-                send "m\r"
-            } else {
-                send "\r"
-            }
+#Audio Output
+        -re "Sound card support.*SOUND.*\\\[.*]" {
+            send "y\r"
         }
 
-        -re "SHARP LQ035 TFT LCD on uClinux.*BF537 STAMP.*FB_BF537_LQ035.*\\\[.*]" {
-            if { $board_type == "BF537-STAMP" } {
+        -re "Advanced Linux Sound Architecture.*SND.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "OSS Mixer API.*SND_MIXER_OSS.*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "OSS PCM .*digital audio.* API .*SND_PCM_OSS\\\).*\\\[.*]" {
+            send "y\r"
+        }
+
+        -re "AD1836 Audio support for BF53x.*SND_BLACKFIN_AD1836.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
                 send "m\r"
             } else {
                 send "n\r"
+            }
+        }
+
+        -re "AD73311L Audio support for BF53x.*SND_BFIN_AD73311.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "ALSA for SoC audio support.*SND_SOC.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "SoC I2S Audio for the ADI BF5xx chip.*SND_BF5XX_I2S.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "SoC SSM2602 Audio support for BF52x ezkit.*SND_BF5XX_SOC_SSM2602.*\\\[.*]" {
+            if { $board_type == "BF527-EZKIT" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "SoC AC97 Audio for the ADI BF5xx chip.*SND_BF5XX_AC97.*\\\[.*]" {
+            send "m\r"
+        }
+
+        -re "SoC AD1980/1 Audio support for BF5xx.*SND_BF5XX_SOC_AD1980.*\\\[.*]" {
+            if { $board_type == "BF537-STAMP" || $board_type == "BF533-STAMP" || $board_type == "BF548-EZKIT" } {
+                send "m\r"
+            } else {
+                send "n\r"
+            }
+        }
+
+        -re "Uncached SDRAM region.*Enable 2M DMA region.*DMA_UNCACHED_2M.*\[cC]hoice\\\[.*]:" {
+            if { $board_type == "BF537-STAMP" } {
+                send "2\r"
+            } else {
+                send "\r"
             }
         }
 
@@ -91,6 +161,10 @@ while 1 {
 
         -re "MPlayer and mencode.*USER_MPLAYER.*\\\[.*]" {
             send "y\r"
+        }
+
+        -re "Use L1 memory for rx\\\/tx packets.*BFIN_MAC_USE_L1.*\\\[.*]" {
+            send "n\r"
         }
 
         "\\\(*) \\\[*]" {
