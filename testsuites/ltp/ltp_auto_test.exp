@@ -2042,7 +2042,10 @@ exec mkdir -p $LTP_LOG_DIR
 #exec $LTP_SCRIPT_DIR/build_ltp.sh > /dev/null 2>&1
 puts "\nStart to build ltp...\n"
 #exec $LTP_SCRIPT_DIR/build_ltp.sh 10.99.22.20
-catch {exec ./build_ltp.sh $cvs_server_addr > build_ltp_log}
+if [ catch {exec ./build_ltp.sh $cvs_server_addr > build_ltp_log} ] {
+    send_log "\nfail to build ltp source\n"
+    exit
+}
 
 #set LTP_SUB_DIR			[exec cat ltp/current]
 #set LTP_SOURCE_DIR		"$cwd/ltp/$LTP_SUB_DIR"
