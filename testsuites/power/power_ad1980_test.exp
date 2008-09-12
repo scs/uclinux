@@ -215,7 +215,7 @@ set spawn_id $kermit_spawn_id
 
 set timeout 20
 incr case_num
-send "modprobe snd-ad1981\r"
+send "modprobe snd-ad1980\r"
 while 1 {
     expect {
         -re "(\[eE]rror|\[fF]ail).*$kernel_prompt" {
@@ -234,7 +234,7 @@ while 1 {
 send "lsmod\r"
 while 1 {
     expect {
-        -re "snd_soc_ad1980.*$kernel_prompt" {
+        -re "snd_ad1980.*snd_soc_ad1980.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -366,10 +366,10 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "rmmod snd_ad1981 snd_soc_ad1980 snd_soc_bf5xx snd_soc_core ac97_bus snd_soc_bf5xx_ac97\r"
+send "modprobe -r snd-ad1980\r"
 while 1 {
     expect {
-        -re "(rmmod:|No such).*$kernel_prompt" {
+        -re "(modprobe:|No such).*$kernel_prompt" {
             send_user "Uninstall module failed!\r"
             case_fail $case_num
         }
@@ -389,10 +389,10 @@ incr case_num
 send "lsmod\r"
 while 1 {
     expect {
-        -re "snd_ad1981|snd_soc_ad1980|snd_soc_bf5xx|snd_soc_core|ac97_bus|snd_soc_bf5xx_ac97" {
+        -re "snd_ad1980|snd_soc_ad1980|snd_soc_bf5xx|snd_soc_core|ac97_bus" {
             case_fail $case_num
         }
-        -re $kernel_prompt {
+        -re "Module.*Size.*Used by\r\n$kernel_prompt" {
             case_pass $case_num
             break
         }

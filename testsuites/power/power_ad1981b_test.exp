@@ -215,7 +215,7 @@ set spawn_id $kermit_spawn_id
 
 set timeout 20
 incr case_num
-send "modprobe snd-ad1981\r"
+send "modprobe snd-ad1980\r"
 while 1 {
     expect {
         -re "(\[eE]rror|\[fF]ail).*$kernel_prompt" {
@@ -234,7 +234,7 @@ while 1 {
 send "lsmod\r"
 while 1 {
     expect {
-        -re "snd_ad1981.*$kernel_prompt" {
+        -re "snd_ad1980.*$kernel_prompt" {
             case_pass $case_num
             break
         }
@@ -366,7 +366,7 @@ while 1 {
 
 set timeout 20
 incr case_num
-send "modprobe -r snd-ad1981\r"
+send "modprobe -r snd-ad1980\r"
 while 1 {
     expect {
         -re "(modprobe:|No such).*$kernel_prompt" {
@@ -389,7 +389,7 @@ incr case_num
 send "lsmod\r"
 while 1 {
     expect {
-        -re "snd_ad1981" {
+        -re "snd_ad1980" {
             case_fail $case_num
         }
         -re "Module.*Size.*Used by\r\n$kernel_prompt" {
