@@ -1033,6 +1033,8 @@ static int swave(int fd, struct uart_t *u, struct termios *ti)
 	return 0;
 }
 
+#undef BFIN_UNISTONE_HW_RESET
+#ifdef BFIN_UNISTONE_HW_RESET
 void bfin_unistone_reset(int fd)
 {
 	struct timespec tm = { 0, 500000000 };
@@ -1041,8 +1043,8 @@ void bfin_unistone_reset(int fd)
 	int retval;
 
 	tcflush(fd, TCIOFLUSH);
-	system("echo 0 > /sys/devices/platform/i2c-0/0-0021/set_bit");
-	system("echo 0 > /sys/devices/platform/i2c-0/0-0021/clear_bit");
+	/* Place some GPIO reset code here */
+	
 	nanosleep(&tm, NULL);
 	FD_ZERO(&watch);
 	FD_SET(fd,&watch);
@@ -1057,6 +1059,9 @@ void bfin_unistone_reset(int fd)
 		tcflush(fd, TCIOFLUSH);
 	}
 }
+#else
+#define bfin_unistone_reset(x) do { } while(0)
+#endif
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 static int bfin_unistone(int fd, struct uart_t *u, struct termios *ti)
